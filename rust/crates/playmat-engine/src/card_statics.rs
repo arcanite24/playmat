@@ -165,6 +165,16 @@ impl Layer {
 pub(crate) struct Continuous {
     pub affects: AffectsFn,
     pub layer: Layer,
+    /// the class's other layers, for the same objects (`Handler::and_layers`: Sigarda's Summons is a 4, a 6 and a 7b
+    /// effect)
+    pub also: &'static [Layer],
+}
+
+impl Continuous {
+    /// each layer it works in
+    pub fn layers(&self) -> impl Iterator<Item = &Layer> {
+        std::iter::once(&self.layer).chain(self.also.iter())
+    }
 }
 
 /// The events a replacement handler can check (Java's `EventType`), each where the engine has that event
@@ -565,7 +575,7 @@ pub(crate) fn resolve_static(
             let cx = StaticCx { source, controller, timestamp, args, effects, filters, abilities, targets: &targets };
             targets = start(game, d, &cx)?;
         }
-        if args.first().is_some_and(|a| a.trim() == "Duration.UntilYourNextTurn") {
+        if handler.0.until_your_next_turn || args.first().is_some_and(|a| a.trim() == "Duration.UntilYourNextTurn") {
             until_turn_of = Some(controller);
         }
     }
@@ -580,11 +590,14 @@ pub(crate) fn resolve_static(
 pub(crate) fn modify_pt(game: &Game, id: ObjId) -> (i32, i32) {
     let mut out = (0, 0);
     each_static(game, &mut |h, cx, _| {
-        if let Hook::Continuous(Continuous { affects, layer: Layer::ModifyPt(f) }) = h {
-            if affects(game, cx, id) {
-                let (p, t) = f(game, cx, id);
-                out.0 += p;
-                out.1 += t;
+        let Hook::Continuous(c) = h else { return };
+        for layer in c.layers() {
+            if let Layer::ModifyPt(f) = layer {
+                if (c.affects)(game, cx, id) {
+                    let (p, t) = f(game, cx, id);
+                    out.0 += p;
+                    out.1 += t;
+                }
             }
         }
     });
@@ -595,15 +608,20 @@ pub(crate) fn modify_pt(game: &Game, id: ObjId) -> (i32, i32) {
 /// toughness is set)
 pub(crate) fn set_pt(game: &Game, id: ObjId) -> Vec<(u64, Option<i32>, i32)> {
     let mut out = Vec::new();
-    each_static(game, &mut |h, cx, _| match h {
-        Hook::Continuous(Continuous { affects, layer: Layer::SetPt(f) }) if affects(game, cx, id) => {
-            let (p, t) = f(game, cx, id);
-            out.push((cx.timestamp, Some(p), t));
+    each_static(game, &mut |h, cx, _| {
+        let Hook::Continuous(c) = h else { return };
+        for layer in c.layers() {
+            match layer {
+                Layer::SetPt(f) if (c.affects)(game, cx, id) => {
+                    let (p, t) = f(game, cx, id);
+                    out.push((cx.timestamp, Some(p), t));
+                }
+                Layer::SetToughness(f) if (c.affects)(game, cx, id) => {
+                    out.push((cx.timestamp, None, f(game, cx, id)));
+                }
+                _ => {}
+            }
         }
-        Hook::Continuous(Continuous { affects, layer: Layer::SetToughness(f) }) if affects(game, cx, id) => {
-            out.push((cx.timestamp, None, f(game, cx, id)));
-        }
-        _ => {}
     });
     out
 }
@@ -613,9 +631,12 @@ pub(crate) fn set_pt(game: &Game, id: ObjId) -> Vec<(u64, Option<i32>, i32)> {
 pub(crate) fn abilities(game: &Game, id: ObjId, lost_at: Option<u64>) -> Vec<AbilityDef> {
     let mut out = Vec::new();
     each_static(game, &mut |h, cx, _| {
-        if let Hook::Continuous(Continuous { affects, layer: Layer::Ability(f) }) = h {
-            if !lost_at.is_some_and(|at| cx.timestamp < at) && affects(game, cx, id) {
-                out.extend(f(game, cx, id));
+        let Hook::Continuous(c) = h else { return };
+        for layer in c.layers() {
+            if let Layer::Ability(f) = layer {
+                if !lost_at.is_some_and(|at| cx.timestamp < at) && (c.affects)(game, cx, id) {
+                    out.extend(f(game, cx, id));
+                }
             }
         }
     });
@@ -637,9 +658,12 @@ pub(crate) fn has_subtype(game: &Game, id: ObjId, s: &str) -> bool {
 fn has_subtype_now(game: &Game, id: ObjId, s: &str) -> bool {
     let mut out = false;
     each_static(game, &mut |h, cx, _| {
-        if let Hook::Continuous(Continuous { affects, layer: Layer::Type(f) }) = h {
-            if !out && affects(game, cx, id) && f(game, cx, id).iter().any(|x| x == s) {
-                out = true;
+        let Hook::Continuous(c) = h else { return };
+        for layer in c.layers() {
+            if let Layer::Type(f) = layer {
+                if !out && (c.affects)(game, cx, id) && f(game, cx, id).iter().any(|x| x == s) {
+                    out = true;
+                }
             }
         }
     });

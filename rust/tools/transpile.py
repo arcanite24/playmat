@@ -1262,6 +1262,8 @@ COST_ADJUSTERS = {
     'StarportSecurityAdjuster': (2, {'c': 'permanents', 'filter': [{'p': 'type', 't': 'CREATURE'}, _YOU,
                                                                   {'p': 'counter', 'name': '+1/+1', 'n': 1}],
                                      'cmp': 'OR_GREATER', 'n': 1}),
+    'SurveyMechanAdjuster': ('new DifferentlyNamedPermanentCount(StaticFilters.FILTER_CONTROLLED_PERMANENT_LANDS)',
+                             None),
 }
 
 # a `FilterSpellOrPermanent` of any spell or a creature
@@ -2441,6 +2443,9 @@ class Translator:
                 out['number'] = int(args[3])
         if len(args) >= 6 and args[4:6] == ['true', 'false']:
             out['tapped'] = True
+        elif len(args) >= 6 and args[4:6] == ['true', 'true']:
+            out['tapped'] = True
+            out['attacking'] = True
         elif len(args) >= 6 and args[4:6] != ['false', 'false']:
             raise Unsupported('token copy tapped or attacking')
         if len(args) >= 7 and args[6] != 'null':
@@ -3227,6 +3232,15 @@ class Translator:
             return {'class': 'CantGainLifeThisTurnEffect'}
         if cls == 'SetBasePowerSourceEffect' and len(args) == 1:
             return {'class': cls, 'amount': self.amount(args[0])}
+        # `DontCauseTriggerEffect(filterEntering, orDying, filterTriggering)`: permanents of the first filter entering
+        # (or dying) don't cause abilities (of permanents of the second filter, unless it's null) to trigger
+        if cls == 'DontCauseTriggerEffect' and len(args) == 3 and args[1].strip() in ('true', 'false'):
+            out = {'class': cls, 'entering': self.filter(args[0])}
+            if args[1].strip() == 'true':
+                out['or_dying'] = True
+            if args[2].strip() != 'null':
+                out['triggering'] = self.filter(args[2])
+            return out
         # created tapped and attacking
         if cls == 'CreateTokenEffect' and len(args) == 4 and [a.strip() for a in args[2:]] == ['true', 'true']:
             return {'class': cls, 'token': self.value('token', args[0].strip()),
@@ -3683,11 +3697,12 @@ class Translator:
         """Library, graveyard and exile effects (wave 2's zones-library bucket), with their builder setters; None
         when the expression isn't one of them"""
         x = canonical(self.strip_setters(expr))
-        # `ExileReturnBattlefieldNextEndStepTargetEffect()` and its setters (`withTextThatCard` is only text)
+        # `ExileReturnBattlefieldNextEndStepTargetEffect()` and its setters (`withTextThatCard` is only text; the return
+        # already takes only cards still in exile, so `returnExiledOnly` changes nothing)
         m = re.fullmatch(r'new ExileReturnBattlefieldNextEndStepTargetEffect\(\)((?:\.\w+\((?:true|false)\))*)', x)
         if m:
             sets = dict(re.findall(r'\.(\w+)\((true|false)\)', m.group(1)))
-            if set(sets) - {'withTextThatCard', 'withTapped', 'underYourControl'}:
+            if set(sets) - {'withTextThatCard', 'withTapped', 'underYourControl', 'returnExiledOnly'}:
                 raise Unsupported('effect ' + x)
             return {'class': 'ExileReturnBattlefieldNextEndStepTargetEffect',
                     'your_control': sets.get('underYourControl') == 'true', 'tapped': sets.get('withTapped') == 'true'}
@@ -7430,7 +7445,7 @@ def fill_when_you_do(x, rule):
 
 # the static effects the engine reads inside a `ConditionalContinuousEffect` (an anchor word's static ability)
 ANCHOR_STATICS = {'GainAbilitySourceEffect', 'BoostSourceEffect', 'BoostControlledEffect', 'GainAbilityControlledEffect',
-                  'GainAbilityAllEffect', 'BoostAllEffect'}
+                  'GainAbilityAllEffect', 'BoostAllEffect', 'CardStatic'}
 
 
 def mode_choice(arg):
@@ -7571,7 +7586,9 @@ def token(cls):
     out = {'types': [], 'colors': [], 'subtypes': [], 'abilities': []}
     subtypes = subtype_names()
     colors = {'White': 'W', 'Blue': 'U', 'Black': 'B', 'Red': 'R', 'Green': 'G'}
-    t = Translator(declared_filters(source, subtypes), card_conditions(source), subtypes)
+    t = Translator(declared_filters(source, subtypes), card_conditions(source), subtypes, card_values(source))
+    # the token file's own classes: a handler named for them (`BelzenlokDemonToken.BelzenlokDemonTokenEffect`)
+    t.source = source
     added = []
     for st in statements(m.group(1)):
         st = re.sub(r'^this\.(?=(?:cardType|color|subtype|supertype|power|toughness|startingLoyalty)\b)', '', st)

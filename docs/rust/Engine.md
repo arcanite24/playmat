@@ -850,6 +850,22 @@ Being in the engine and being trusted are kept apart.
   (Open the Way), cast-this-turn permissions from a graveyard (Liliana, Untouched by Death; Mavinda), treasure-spent
   tracking (Forsworn Paladin), damage batch watchers and state triggers.
 
+  Wave 8, claim 2 (14 Nov): `DontCauseTriggerEffect` with its filters (permanents of one filter entering, or dying
+  too, don't trigger the abilities of permanents of another: Hushbringer, Elesh Norn, Mother of Machines),
+  continuous handlers in more than one layer (`Handler::and_layers`: Sigarda's Summons), handler classes whose own
+  duration is until your next turn (`Handler::until_your_next_turn`: Elspeth Conquers Death's chapter II, Kiora),
+  token copies that enter tapped and attacking (Firion), the creatures exiled from the battlefield each turn by
+  controller (Vren), a spell cast for its `AlternativeCostSourceAbility` cost remembered (`Obj::alternative_paid`:
+  Baleful Mastery) and a framework handler for `MoveCountersFromSourceToTargetEffect`. Engine fixes: an exert trigger
+  waits before a later attacker's "becomes tapped" triggers, since Java taps each attacker and asks its exert in turn
+  (`Game::attack_taps`); an activated ability's cost changes that look at its targets apply once the targets are
+  chosen, as Java adjusts costs after targets (Kopala, Warden of Waves on Weapon Rack's ability). Four factory rounds
+  (88 games, 86 matching) verified 41, 35 of them from the claim's list: 11,170 of 11,367. Ten games under
+  `shadow/handlers/game-handlers8-c2-*` cover the engine pieces. Left: Dire Fleet Daredevil (two Masks of
+  Immolation grant the same ability twice in Java, once in Rust), Thaumatic Compass (with two Compasses, their
+  transform triggers wait in a different order), Doomsday Excruciator and Ulamog, the Ceaseless Hunger (pending:
+  not exercised), and the list's cards that need engine work of their own (see the PR).
+
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory
   rounds (106 games, 104 matching, replayed again on the engine with the static and claim-2 handlers) verified 58:
