@@ -713,6 +713,32 @@ Being in the engine and being trusted are kept apart.
   games, all matching) verified 15 more, 9 from the list: 10,884 of 11,066. Seven games under
   `shadow/handlers/game-handlers-w6c4b-*` cover them.
 
+  Wave 7, adjusters and statements (14 Nov): transpiler forms for cost adjusters (`setCostAdjuster` with the
+  framework's count adjusters: domain, counters on the source, permanents of a filter, as a `CostAdjusterReduction`
+  cost applied with the ability's own reductions), the framework target adjusters on an ability's or spell's one
+  target (`XManaValueTargetAdjuster`, `ManaValueTargetAdjuster` on the damage, `Power`/`ToughnessTargetAdjuster`,
+  `TargetsCountAdjuster` and `XTargetsCountAdjuster` as a target's `count`), both as statements and inside
+  `addAbility(…)`, `this.addSubType(…)`, the bargain discounts of Hamlet Glutton and Johann's Stopgap,
+  `FractalToken.getEffect`, `AddCardTypeSourceEffect` (exhaust), `AddCardSubTypeTargetEffect`,
+  `AddCreatureTypeAdditionEffect` (other than master's Phyrexian handler), `RemoveCountersSourceCost(n)` (any
+  counters, asked with `getMultiAmount` in Java's `HashMap` order), a kicker that's a sacrifice, and
+  `ConditionalOneShotEffect(…).addEffect(…).addEffect(…)` chains (Treasure Map). A handler for
+  `SpellsCostModificationThatTargetSourceEffect` (`CostKind::BySign`: an increase or a reduction by the sign of its
+  amount), and the static handlers inside static abilities that statics give are visited (Callaphe). Engine fixes:
+  `AddCountersTargetEffect` puts counters on a player its pointer names (Fynn's poison); a Vehicle that exhausts after
+  being crewed that turn stays an artifact creature at cleanup; a target count is read from the ability on top of the
+  stack when targets are chosen with no source (triggered and activated abilities: Heroic Feast, Mogis's Marauder);
+  a transformed permanent whose back face is a land numbers its abilities from 0 (Java drops the back's play-land
+  ability), so Treasure Cove's draw is `a1`. Two factory rounds (106 games, 104 matching) verified 86: 10,970 of
+  11,157. Eleven games under `shadow/handlers/game-handlers7-adjusters-*` cover the engine pieces. Left: Heroic Feast
+  (its one differing game is a "whenever one or more cards leave your graveyard" trigger the engine misses), Dune Drifter (Java's `XManaValueTargetAdjuster` renames the target, so
+  the stack text gains "(Mana Value <= 3)"), Maze's Mantle (an Aura's enters trigger with an attached-to condition:
+  Java checks it after the Aura is attached), Leatherhead (refused: Java's reflexive `ThatPlayerControlsTargetAdjuster`
+  sees no player, so the ability has no target), Sewer Crocodile (`DifferentManaValuesInGraveCondition`), Beorn
+  (`WhileOnBattlefield` subtype ending with its source), card-specific target adjusters (Agadeem's Awakening, Body
+  Launderer, Confront the Past and others need a handler kind of their own), the long tail of
+  `ConditionalColoredManaAbility`/`SimpleManaAbility` forms, and granted statics on Equipment.
+
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory
   rounds (106 games, 104 matching, replayed again on the engine with the static and claim-2 handlers) verified 58:
