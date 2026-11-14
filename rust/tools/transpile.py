@@ -2717,8 +2717,10 @@ class Translator:
                 and args[1].strip() in ('Duration.EndOfTurn', 'Duration.Custom'):
             return {'class': cls, 'subtype': subtype_names()[args[0].strip()[8:]],
                     'duration': 'EndOfTurn' if args[1].strip() == 'Duration.EndOfTurn' else 'WhileOnBattlefield'}
+        # (a Phyrexian, not black, is the per-card handler's: Portal to Phyrexia)
         if cls == 'AddCreatureTypeAdditionEffect' and len(args) == 2 and re.fullmatch(r'SubType\.\w+', args[0].strip()) \
-                and args[1].strip() in ('true', 'false'):
+                and args[1].strip() in ('true', 'false') \
+                and (args[0].strip(), args[1].strip()) != ('SubType.PHYREXIAN', 'false'):
             return {'class': cls, 'subtype': subtype_names()[args[0].strip()[8:]], 'black': args[1].strip() == 'true'}
         # "this Vehicle becomes an artifact creature" (exhaust): for as long as it stays (`Duration.Custom` and
         # `WhileOnBattlefield` both end as it leaves); a resolving effect only (`static_effect` refuses it)
