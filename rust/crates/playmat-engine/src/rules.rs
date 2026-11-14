@@ -11781,7 +11781,8 @@ fn apply_each_effect(
                 // `PlayerImpl.getToDiscard(0, amount)`: chosen from a hand that isn't empty
                 let hand = game.player(controller).hand.clone();
                 if hand.is_empty() || *amount < 1 {
-                    return;
+                    // nothing to discard: the ability's other effects still happen (Greasewrench Goblin's counter)
+                    continue;
                 }
                 let Some(chosen) = choose_cards(game, d, controller, &hand, &hand, 0, *amount as usize, "discard")
                 else {
