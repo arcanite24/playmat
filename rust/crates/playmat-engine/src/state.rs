@@ -2422,11 +2422,26 @@ impl Game {
     /// What triggered abilities can come from: permanents, then emblems.
     /// the card cast with flashback: its own, or the one it gained this turn for its mana cost
     pub fn flashback_def(&self, id: ObjId) -> Option<CardDef> {
+        self.flashbacks(id).into_iter().next().map(|(_, f)| f)
+    }
+
+    /// Every flashback the card has, with Java's ability index, and the card as cast with it: its own
+    /// `FlashbackAbility`, then the one it gained this turn for its mana cost (`GainFlashbackTargetEffect`: an ability
+    /// of the card's state, after its own, so Java offers both — Stingcaster Mage on Duel Tactics)
+    pub fn flashbacks(&self, id: ObjId) -> Vec<(usize, CardDef)> {
         let o = self.obj(id);
-        o.def.flashback().or_else(|| {
-            (o.flashback_turn == Some(self.turn))
-                .then(|| CardDef { printed_cost: Some(o.def.printed().clone()), ..(*o.def).clone() })
-        })
+        let mut out = Vec::new();
+        if let Some(f) = o.def.flashback() {
+            let k = o.def.abilities.iter().position(|a| matches!(a, AbilityDef::FlashbackAbility { .. }));
+            out.push((k.unwrap_or(1), f));
+        }
+        if o.flashback_turn == Some(self.turn) {
+            out.push((
+                o.def.abilities.len(),
+                CardDef { printed_cost: Some(o.def.printed().clone()), ..(*o.def).clone() },
+            ));
+        }
+        out
     }
 
     /// The stack's and the waiting triggers' abilities of `id` moved to their new index in its list (`map[old]`); one

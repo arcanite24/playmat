@@ -1373,7 +1373,7 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             }
             continue;
         }
-        if game.flashback_def(*id).is_some_and(|f| castable(game, seat, *id, &f))
+        if game.flashbacks(*id).iter().any(|(_, f)| castable(game, seat, *id, f))
             || ((game.may_play_now(*id, seat) || !graveyard_once_permits(game, seat, *id, def).is_empty())
                 && castable(game, seat, *id, def))
             || def.escape().is_some_and(|f| castable(game, seat, *id, &f))
@@ -1597,12 +1597,12 @@ pub fn playable_abilities(game: &Game, seat: Seat) -> Vec<(ObjId, usize, PlayKin
                         out.push((id, 1, PlayKind::RoomHalf, None));
                     }
                     if o.zone == Zone::Graveyard {
-                        let flashback =
-                            def.abilities.iter().position(|a| matches!(a, AbilityDef::FlashbackAbility { .. }));
-                        if let Some(k) =
-                            flashback.filter(|_| game.flashback_def(id).is_some_and(|f| castable(game, seat, id, &f)))
-                        {
-                            out.push((id, k, PlayKind::Other, None));
+                        if !def.aftermath {
+                            for (k, f) in game.flashbacks(id) {
+                                if castable(game, seat, id, &f) {
+                                    out.push((id, k, PlayKind::Other, None));
+                                }
+                            }
                         }
                         let mayhem_at =
                             def.abilities.iter().position(|a| matches!(a, AbilityDef::MayhemAbility { .. }));
@@ -4254,19 +4254,27 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             }
             return;
         }
-        if let Some(f) = game.flashback_def(id) {
-            // `HumanPlayer.activateAbility`: the picker is suppressed only for an ability with mana in its cost
-            // (Lava Dart's flashback, a sacrifice, is picked)
-            if f.cost.mana_value() == 0 {
-                if let Some(k) =
-                    game.obj(id).def.abilities.iter().position(|a| matches!(a, AbilityDef::FlashbackAbility { .. }))
-                {
-                    match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: vec![k] }) {
-                        Answer::Ability(o, i) if o == id && i == k => {}
-                        _ => return,
-                    }
-                }
+        let all = game.flashbacks(id);
+        if !all.is_empty() {
+            // the ones that can be cast now; with none, the first (its cast fails)
+            let mut usable: Vec<(usize, CardDef)> =
+                all.iter().filter(|(_, f)| castable(game, seat, id, f)).cloned().collect();
+            if usable.is_empty() {
+                usable.push(all[0].clone());
             }
+            // `HumanPlayer.activateAbility`: two flashbacks (one gained) are picked from; the picker is suppressed
+            // only for one ability with mana in its cost (Lava Dart's flashback, a sacrifice, is picked)
+            let f = if usable.len() > 1 || usable[0].1.cost.mana_value() == 0 {
+                let abilities: Vec<usize> = usable.iter().map(|(k, _)| *k).collect();
+                match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: abilities.clone() }) {
+                    Answer::Ability(o, i) if o == id && abilities.contains(&i) => {
+                        usable.into_iter().find(|(k, _)| *k == i).map(|(_, f)| f).unwrap()
+                    }
+                    _ => return,
+                }
+            } else {
+                usable.remove(0).1
+            };
             let full = game.obj(id).def.clone();
             let o = game.obj_mut(id);
             o.adventurer = Some(full);
