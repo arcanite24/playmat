@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (10,848 on 13 Nov). A card whose JSON the engine can't load yet is left out
+  can express (10,981 on 13 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -796,6 +796,38 @@ Being in the engine and being trusted are kept apart.
     after #351) verified 65 more: 10,755. Left: Hedge Whisperer (its land stays a creature in Java), Axebane Ferox
     (ward paid by collecting evidence), Setessan Tactics (the granted fight ability's stack text); Colossus of Akros,
     Crush of Tentacles, Hythonia the Cruel, Izoni and Tyrant of Valakut are pending.
+
+  Wave 6, claim 3 (13 Nov, `.local/rust-port/wave6/claim-3.tsv`): handler files for 22 cards, and the engine and
+  transpiler support they needed:
+  - Rules and statics: `Rule::CantActivate` (Faith's Fetters), `CostKind::Life` (Terror of the Peaks's 3 life), the
+    `TAPPED_FOR_MANA` replacement event, `AsThough::Haste` (Tyvar, Jubilant Brawler) and `AsThough::Hexproof`
+    (Detection Tower).
+  - Triggers: "becomes tapped" for any permanent of a filter (Magda), the upkeep of the enchanted creature's controller
+    (Super Intelligence), and `DiesThisOrAnotherTriggeredAbility.setApplyFilterOnSource` (Basri's Lieutenant).
+  - Conditions and values: `SourcePreparedCondition`, `TargetManaValue`, `PermanentsTargetOpponentControlsCount` and
+    `HalfValue` rounded up. The watcher's spells keep the mana value they were cast with (Rhino).
+  - Effects: pay-more-for-flash, an extra land this turn (Plant Beans), a spell back to its owner's library
+    (`ReturnToLibrarySpellEffect`), and "can't have or gain" an ability (Archetype of Imagination). Also lore counters
+    added to a target Saga, and an equip ability's discount for other Equipment.
+  - Fixes, each with a regression game in `shadow/factory/`:
+    - An ability whose controller wins as it resolves ends the game the way master's path for one whose controller
+      loses does: still on the stack as the game's end is traced, and `won` set after (`game-win-as-it-resolves`).
+    - An Aura returned from a graveyard "with a counter" gets no counter, as `AuraReplacementEffect` puts it there
+      itself (`game-aura-returned-no-counters`).
+
+  Three factory rounds (74 games, 72 matching, replayed again after each fix) verified 40 cards, 4 of
+  them not on the list. Call for Unity and Druid's Deliverance were verified on
+  master too, so it's 38 more: 10,793 of 10,981.
+
+  Left from claim 3:
+  - Damping Sphere is held back. In one game Java's playable check and payment don't add its {1} for the spell cast
+    before, and the engine does (round-002 game-00100).
+  - Mortal Obstinacy is held back because it's in the same game.
+  - Detection Tower differs in a game's discard choice (round-003 game-00103).
+  - Archetype of Imagination is pending.
+  - Most of the rest need machinery that isn't there yet: changing or copying targets on the stack, triggered mana
+    abilities, mana kept until end of turn, damage-to-a-creature and fight triggers, "don't lose for 0 life",
+    exploit, devour, random discard, and the "or dying" half of `DontCauseTriggerEffect`.
 
       W=.local/rust-port/factory
       python3 rust/tools/verify_factory.py build --work $W --priority .local/rust-port/card-priority.tsv --used-only

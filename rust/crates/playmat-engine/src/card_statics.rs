@@ -20,8 +20,11 @@
 //!   reductions, then sets) after the engine's own of that kind, for spells (`rules::modified_cost_of`, the spell's
 //!   own static abilities too: "this spell costs {2} less") and activated abilities (`adjusted_mana_cost_own`).
 //! - **restrictions**: `Handler::restriction(name, applies, &[Restrict::…])`: `rules::can_block`, `can_attack`.
-//! - **rule-modifying**: `Handler::rule(name, Rule::CantCast(f))`: `rules::castable` (and the cast itself).
-//! - **as-though**: `Handler::as_though(name, AsThough::Flash(f))`: `rules::castable`'s timing.
+//! - **rule-modifying**: `Handler::rule(name, Rule::CantCast(f))`: `rules::castable` (and the cast itself);
+//!   `Rule::CantActivate(f)`: `rules::activatable` (activated abilities that aren't mana abilities).
+//! - **as-though**: `Handler::as_though(name, AsThough::Flash(f))`: `rules::castable`'s timing;
+//!   `AsThough::Haste(f)`: a {T} cost's summoning sickness (`rules::can_pay_cost`, mana abilities);
+//!   `AsThough::Hexproof(f)`: hexproof, as targets are chosen (`rules::possible_targets`, `targetable`).
 //!
 //! A handler's functions get a `StaticCx`: the effect's source and controller (Java's `source`), its timestamp, and
 //! the Java the transpiler translated for it. The same `CardStatic` resolving as a one-shot effect (Emergence Zone's
@@ -173,6 +176,10 @@ pub(crate) enum EventType {
     GainLife,
     /// `SURVEIL`: `player` would surveil `amount` (`SurveilEffect`)
     Surveil,
+    /// `TAPPED_FOR_MANA`: `target`, controlled by `player`, is tapped for `amount` mana by one of its mana
+    /// abilities (`rules::activate_mana_paying`). A `replace` that sets `colorless` makes it produce that much {C}
+    /// instead of any other type and amount (Damping Sphere)
+    TappedForMana,
     /// `NUMBER_OF_TRIGGERS`: `source`'s triggered ability, controlled by `player`, triggers (`Game::trigger_cause`
     /// says what caused it). The engine counts each one that applies as one more time (`amount + 1`, as every
     /// Java one does): their `replace` isn't called (`Game::additional_triggers` can't change the game)
@@ -211,6 +218,8 @@ pub(crate) struct Event {
     /// a zone change's `getFromZone()` and `getToZone()`
     pub from: Option<Zone>,
     pub to: Option<Zone>,
+    /// `TappedForMana`: the {C} it produces instead (`ManaEvent.getMana().setToMana`)
+    pub colorless: Option<u32>,
 }
 
 impl Event {
@@ -226,6 +235,7 @@ impl Event {
             preventable: false,
             from: None,
             to: None,
+            colorless: None,
         }
     }
 }
@@ -286,6 +296,9 @@ pub(crate) enum CostKind {
     Increase,
     Reduce,
     Set,
+    /// `INCREASE_COST` adding `PayLifeCost(n)` to a spell (`abilityToModify.addCost`): paid after its other costs,
+    /// checked once its targets are chosen (`rules::life_cost`); its `apply` isn't called
+    Life(i32),
 }
 
 /// The spell or ability whose cost a cost handler changes (Java's `abilityToModify`)
@@ -332,6 +345,9 @@ pub(crate) struct Restriction {
 pub(crate) enum Rule {
     /// `CAST_SPELL` (and `CAST_SPELL_LATE`): `seat` can't cast the card `id` as `face`
     CantCast(fn(&Game, &StaticCx, Seat, ObjId, &CardDef) -> bool),
+    /// `ACTIVATE_ABILITY` of an activated ability that isn't a mana ability: `seat` can't activate the ability at
+    /// `index` of `id` (Faith's Fetters)
+    CantActivate(fn(&Game, &StaticCx, Seat, ObjId, usize) -> bool),
 }
 
 /// `YouDontLoseManaEffect`'s `addDoNotEmptyManaType`: the kinds of `seat`'s mana (WUBRG, then colorless) the pool
@@ -347,6 +363,11 @@ pub(crate) type StartFn = fn(&mut Game, &mut dyn Decider, &StaticCx) -> Option<V
 pub(crate) enum AsThough {
     /// `CAST_AS_THOUGH_IT_HAD_FLASH`: `seat` may cast the card `id` as `face` as though it had flash
     Flash(fn(&Game, &StaticCx, Seat, ObjId, &CardDef) -> bool),
+    /// `ACTIVATE_HASTE`: the {T} costs of the permanent `id`'s abilities can be paid as though it had haste
+    Haste(fn(&Game, &StaticCx, ObjId) -> bool),
+    /// `HEXPROOF`: `seat`'s spells and abilities can target the player or permanent as though it didn't have
+    /// hexproof
+    Hexproof(fn(&Game, &StaticCx, Seat, Target) -> bool),
 }
 
 /// A cards.json reference to a static handler (`EffectDef::CardStatic`), checked as the card loads
@@ -635,6 +656,39 @@ pub(crate) fn cant_cast(game: &Game, seat: Seat, id: ObjId, face: &CardDef) -> b
     out
 }
 
+/// Whether a rule-modifying handler stops `seat` activating the (non-mana) ability at `index` of `id`
+pub(crate) fn cant_activate(game: &Game, seat: Seat, id: ObjId, index: usize) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::Rule(Rule::CantActivate(f)) = h {
+            out = out || f(game, cx, seat, id, index);
+        }
+    });
+    out
+}
+
+/// Whether an as-though handler lets `seat` target `t` as though it didn't have hexproof
+pub(crate) fn ignore_hexproof(game: &Game, seat: Seat, t: Target) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::AsThough(AsThough::Hexproof(f)) = h {
+            out = out || f(game, cx, seat, t);
+        }
+    });
+    out
+}
+
+/// Whether an as-though handler lets the {T} costs of `id`'s abilities be paid as though it had haste
+pub(crate) fn activate_haste(game: &Game, id: ObjId) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::AsThough(AsThough::Haste(f)) = h {
+            out = out || f(game, cx, id);
+        }
+    });
+    out
+}
+
 /// Whether an as-though handler lets `seat` cast `id` as `face` as though it had flash
 pub(crate) fn flash(game: &Game, seat: Seat, id: ObjId, face: &CardDef) -> bool {
     let mut out = false;
@@ -671,6 +725,19 @@ pub(crate) fn kept_mana_kinds(game: &Game, seat: Seat) -> [bool; 6] {
         if let Hook::KeepsMana(f) = h {
             for (k, keep) in f(game, cx, seat).into_iter().enumerate() {
                 out[k] |= keep;
+            }
+        }
+    });
+    out
+}
+
+/// The life the cost handlers of `CostKind::Life` add to a spell being cast (after its targets are chosen)
+pub(crate) fn life_cost(game: &Game, of: &CostCx) -> i32 {
+    let mut out = 0;
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::Cost(CostMod { kind: CostKind::Life(n), applies, .. }) = h {
+            if applies(game, cx, of) {
+                out += n;
             }
         }
     });
