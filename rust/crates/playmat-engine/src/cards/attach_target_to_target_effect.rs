@@ -17,6 +17,19 @@ fn apply(game: &mut Game, _d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         if game.attached(attachment) == Some(to) {
             return Some(());
         }
+        // `cantBeAttachedBy`: protection, and an Aura's enchant restriction (its spell's target; Halvar can't move
+        // Skygames from a land onto a creature)
+        let a = game.obj(attachment);
+        if game.protected_from(to, attachment) {
+            return Some(());
+        }
+        if a.def.has_subtype("Aura") {
+            if let Some(TargetDef::TargetPermanent { filter, .. }) = a.def.spell.targets.first() {
+                if !game.filter_matches(filter, a.controller, Some(attachment), to) {
+                    return Some(());
+                }
+            }
+        }
         let zcc = game.obj(to).zcc;
         game.attach_to(attachment, to, zcc);
     }

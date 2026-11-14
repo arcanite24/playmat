@@ -13,6 +13,14 @@ pub type Seat = usize;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ObjId(pub u32);
 
+/// Where `Game::zone_batch` looks at a moving object
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ZoneBatchAt {
+    Left,
+    Moved,
+    Entered,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Zone {
     Library,
@@ -88,6 +96,11 @@ impl Step {
     }
 }
 
+thread_local! {
+    /// set while `Game::spell_grants` checks its filters
+    static SPELL_GRANTS_BUSY: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
 /// How long a control change (`GainControlTargetEffect`, layer 2) lasts
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ControlUntil {
@@ -99,6 +112,8 @@ pub enum ControlUntil {
     WhileControlled(ObjId, u32),
     /// until the source leaves the battlefield (`Duration.UntilSourceLeavesBattlefield`)
     SourceLeaves(ObjId, u32),
+    /// while the source (an Aura's `ControlEnchantedEffect`) is on the battlefield attached to the permanent
+    Attached(ObjId, u32),
 }
 
 /// A permanent's control change: who controls it, until when, and who controlled it before
@@ -253,6 +268,9 @@ pub struct Obj {
     pub powered_up: bool,
     /// keyword statuses a permanent has while it stays (renowned, an exhaust ability activated), by name
     pub marks: Vec<String>,
+    /// whether its tribute was paid, the last time it entered (Java's `tributeValue` state value, by card: it stays
+    /// as the card changes zones)
+    pub tribute: Option<bool>,
     /// creature types and base power and toughness it has until it leaves the battlefield (Evolved Sleeper: each
     /// "becomes" replaces its creature types)
     pub creature_types: Option<Vec<String>>,
@@ -282,6 +300,9 @@ pub struct Obj {
     pub any_mana: bool,
     /// while it may be played from exile, it's cast without paying its mana cost (Oracle's Vault)
     pub play_free: bool,
+    /// exiled face down, yet playable (`ExileFaceDownYouMayPlayAsLongAsExiledTargetEffect`: Black Cat): choosing it
+    /// first asks whether to only look at it
+    pub exiled_face_down: bool,
     /// it may be played from exile only by casting it (not played as a land)
     pub cast_only: bool,
     /// cast from exile, it costs this much more (Elite Spellbinder)
@@ -297,6 +318,9 @@ pub struct Obj {
     pub warped: bool,
     /// cast for its evoke cost
     pub evoked: bool,
+    /// cast for its `AlternativeCostSourceAbility`'s costs (`AlternativeCostSourceAbility.getActivatedStatus`:
+    /// Baleful Mastery's "if the {1}{B} cost was paid")
+    pub alternative_paid: bool,
     /// cast for its impending cost (kept from the stack to the battlefield)
     pub impending: bool,
     /// cast for its dash cost
@@ -311,6 +335,8 @@ pub struct Obj {
     pub warp_from: Option<u32>,
     /// the mana spent to cast it, as a spell (`ManaSpentToCastCount`)
     pub mana_spent: u32,
+    /// of it, the mana a Treasure made (`ManaPaidSourceWatcher.getTreasurePaid`)
+    pub treasure_spent: u32,
     /// the turn it last entered the battlefield
     pub entered_turn: u32,
     /// the turn and how many times this permanent became a target in it
@@ -320,6 +346,8 @@ pub struct Obj {
     /// the zone Java keeps for an adventurer card's adventure part (`CardWithSpellOption`): it follows the card,
     /// except when the card goes onto the stack or the battlefield or leaves the battlefield
     pub adventure_zone: Zone,
+    /// a dungeon in the command zone: the room its venture marker is in (`Dungeon.currentRoom`), by its index
+    pub room: Option<usize>,
     /// when it was attached (`Game.attach_clock`)
     pub attached_at: u64,
     /// where what it gives as an attachment ("equipped creature has …") registers in Java's trigger order: after
@@ -348,9 +376,30 @@ pub struct Obj {
     pub trigger_order: u64,
     /// a Class's levels gained (on the battlefield), with where the abilities they add are in trigger order
     pub class_gained: Vec<(u32, u64)>,
+    /// phased out (702.26): still on the battlefield (its zone), but treated as though it doesn't exist, so it's
+    /// off `Game::battlefield` and on `Game::phased`; it phases in as its controller's untap step begins
+    pub phased_out: bool,
+    /// it phased out indirectly (attached to a permanent that phased out): it phases in only with that one
+    pub phased_indirect: bool,
+    /// the melded permanent's two cards (`MeldCard`'s top and bottom halves), while it's on the battlefield: where
+    /// it leaves to, they go
+    pub melded: Vec<ObjId>,
 }
 
 impl Obj {
+    /// suspected (`Permanent.isSuspected`): it has menace and can't block, until it leaves or stops being suspected
+    pub fn suspected(&self) -> bool {
+        self.marks.iter().any(|m| m == "suspected")
+    }
+
+    /// `Permanent.setSuspected`
+    pub fn set_suspected(&mut self, value: bool) {
+        self.marks.retain(|m| m != "suspected");
+        if value {
+            self.marks.push("suspected".into());
+        }
+    }
+
     /// Where Java's numbering of its abilities starts: a permanent showing its back face (entered transformed, a
     /// battle's back face cast, or transformed on the battlefield) has its back face's card's abilities, whose spell
     /// ability comes first (`TransformingDoubleFacedCardHalf`, `PermanentCard.copyFromCard`: Brigid, Doun's Mind's
@@ -386,6 +435,9 @@ impl Obj {
             .or_else(|| self.until_end_of_turn_def.clone().filter(|_| self.becomes_base.is_none()))
             .or_else(|| self.becomes_base.clone())
             .or_else(|| self.until_end_of_turn_def.clone())
+            // what a static's land types or an effect's granted abilities added isn't copiable (a cipher's trigger
+            // stays off a token copy of its creature)
+            .or_else(|| self.land_type_base.as_ref().map(|(b, _, _)| b.clone()))
             .unwrap_or_else(|| self.def.clone())
     }
 
@@ -429,6 +481,8 @@ pub struct Player {
     pub no_stock: bool,
     /// the cards in its sideboard (only counted: `OpenSideboardHint`)
     pub sideboard: usize,
+    /// the names of the dungeons it completed this game (`CompletedDungeonWatcher`)
+    pub completed_dungeons: Vec<String>,
     /// the sideboard's cards, when the game knows them (shadow games' `sideboardCards`), in Java's order: what
     /// Learn can reveal
     pub outside: Vec<ObjId>,
@@ -447,7 +501,8 @@ pub struct Player {
     /// the pool's mana one by one in the order it was made (kind 0-4 WUBRG, 5 colorless), and whether a snow
     /// permanent made it: Java's `ManaPoolItem`s, which a payment takes from the first that has the kind, and whose
     /// source a snow symbol's filter checks. Kept in line with `mana_pool` by `sync_pool_units`
-    pub pool_units: Vec<(u8, bool)>,
+    /// (and, third, whether a Treasure made it: `ManaPaidSourceWatcher`'s treasure count)
+    pub pool_units: Vec<(u8, bool, bool)>,
     /// how much of the pool's {R} lasts until end of combat (firebending)
     pub combat_red: u32,
     /// how much of each kind of the pool's mana lasts until end of turn (`UntilEndOfTurnManaEffect`: mana added with
@@ -533,18 +588,18 @@ impl Player {
                 n -= 1;
             }
             for _ in n..have {
-                self.pool_units.push((k, false));
+                self.pool_units.push((k, false, false));
             }
         }
     }
 
-    /// mana made by a source, snow or not, into the pool
-    pub fn add_pool_mana(&mut self, m: Mana, snow: bool) {
+    /// mana made by a source, snow or not, a Treasure or not, into the pool
+    pub fn add_pool_mana(&mut self, m: Mana, snow: bool, treasure: bool) {
         self.sync_pool_units();
         for k in 0..6u8 {
             let n = if k < 5 { m.colored[k as usize] } else { m.colorless };
             for _ in 0..n {
-                self.pool_units.push((k, snow));
+                self.pool_units.push((k, snow, treasure));
             }
         }
         for c in 0..5 {
@@ -653,6 +708,8 @@ pub struct StackItem {
     /// the total power, toughness and mana value of the permanents its costs sacrificed (`SacrificeCostCreaturesPower`,
     /// `SacrificeCostCreaturesToughness`, `SacrificeCostManaValue`)
     pub sacrificed_stats: [i32; 3],
+    /// the permanents its `SacrificeTargetCost`s sacrificed, in the order chosen (`SacrificeTargetCost.getPermanents`)
+    pub sacrificed: Vec<ObjId>,
     /// the permanents its station cost tapped (`TapTargetCost`'s "tappedPermanents")
     pub tapped_for_cost: Vec<ObjId>,
     /// a divided target's share for each of its first target group's targets, in order
@@ -683,6 +740,12 @@ pub struct StackItem {
     pub left: Option<ObjId>,
     /// the cards its `DiscardCardCost` discarded (`DiscardCardCost.getCards`)
     pub cost_discarded: Vec<ObjId>,
+    /// an explore trigger: the creature that explored and the card it revealed (`ExploredEvent.getCard`; none with
+    /// an empty library)
+    pub explored: Option<(ObjId, Option<ObjId>)>,
+    /// a "one or more" batch trigger (`Trigger::ZoneBatch`): every object of the batch, with its zone-change count
+    /// in the zone it went to and the zone it came from (Java's `getFilteredEvents`)
+    pub batch: Vec<(ObjId, u32, Zone)>,
 }
 
 /// An ability a resolved effect gave one object.
@@ -746,6 +809,7 @@ impl StackItem {
             lki_toughness: None,
             sacrificed_toughness: None,
             sacrificed_stats: [0; 3],
+            sacrificed: Vec::new(),
             tapped_for_cost: Vec::new(),
             target_amounts: Vec::new(),
             delayed: None,
@@ -761,6 +825,8 @@ impl StackItem {
             died: None,
             left: None,
             cost_discarded: Vec::new(),
+            explored: None,
+            batch: Vec::new(),
         }
     }
 }
@@ -880,6 +946,9 @@ pub struct Game {
     pub players: Arc<Vec<Player>>,
     pub objs: Arc<Vec<Arc<Obj>>>,
     pub battlefield: Arc<Vec<ObjId>>,
+    /// the phased-out permanents (702.26): on the battlefield, but off `battlefield`, so what reads it doesn't see
+    /// them (Java's `getActivePermanents`); `all_permanents` puts them back in their places
+    pub phased: Arc<Vec<ObjId>>,
     pub exile: Arc<Vec<ObjId>>,
     /// emblems, in the order they were made
     pub command: Arc<Vec<ObjId>>,
@@ -902,6 +971,13 @@ pub struct Game {
     pub when_dies: Vec<(ObjId, u32, u32, bool, StackItem)>,
     /// "at the beginning of the next turn's upkeep" delayed triggers
     pub at_next_upkeep: Vec<StackItem>,
+    /// `PreventDamageAndRemoveCountersWatcher`: the sources whose `PreventDamageAndRemoveCountersEffect` removed a
+    /// counter in this damage batch (cleared as the simultaneous events are handled,
+    /// `DAMAGED_BATCH_COULD_HAVE_FIRED`)
+    pub counter_removed_batch: Vec<ObjId>,
+    /// "at the beginning of your next main phase" delayed triggers: the phase it waits for (as
+    /// `CreateNextMainPhaseDelayedEffect`'s), the turn it was made, the trigger
+    pub at_next_main: Vec<(String, u32, StackItem)>,
     /// cards exiled by rebound: (card, its exile zcc, owner), offered at the owner's next upkeep
     pub rebound: Vec<(ObjId, u32, Seat)>,
     /// "when you next cast a creature spell this turn" delayed triggers: whose, the turn, and the trigger
@@ -912,7 +988,8 @@ pub struct Game {
     /// "until your next turn, whenever one or more creatures attack one of your opponents" delayed triggers: whose,
     /// and the trigger (its `fixed` set to the attackers)
     pub attacks_opponent: Vec<(Seat, StackItem)>,
-    /// spells that enter with more +1/+1 counters: the card as it was on the stack, and how many
+    /// spells that enter with more +1/+1 counters: the card as it was on the stack (or in the zone it enters from),
+    /// and how many
     pub enter_counters: Vec<(ObjId, u32, i32)>,
     /// the stack position of the spell or ability being cast or activated: not paid for yet (a view shows it unpaid)
     pub unpaid: Option<usize>,
@@ -938,6 +1015,8 @@ pub struct Game {
     pub static_amounts: Vec<(ObjId, u64, i32)>,
     /// layer 7b until end of turn: the permanent, its zone change count, the base power and toughness, the timestamp
     pub base_pt_until_eot: Vec<(ObjId, u32, i32, i32, u64)>,
+    /// layer 7b effects worked out as they're read (`EffectDef::SetBasePtEffect` resolved)
+    pub base_pt_sets: Vec<BasePtSet>,
     /// "prevent the next N damage that would be dealt to target …" this turn: the target, its zone change count,
     /// what's left to prevent (`i32::MAX`: all), combat damage only, the effect's source
     pub prevent_to_target: Vec<(Target, u32, i32, bool, ObjId)>,
@@ -965,12 +1044,23 @@ pub struct Game {
     pub paying_for: std::cell::Cell<Option<ObjId>>,
     /// what's being paid for is an activated ability of `paying_for` (not a spell)
     pub paying_ability: std::cell::Cell<bool>,
+    /// a replayed answer that named a stack object by its place: that place from the bottom of Java's stack (what's
+    /// resolving still on it). Stack objects go by their card here, so this tells a copy from its original
+    pub picked_stack: std::cell::Cell<Option<usize>>,
+    /// the ability of `paying_for` being paid for, by its index, when it's an activated ability or a special action
+    /// (turning face up, unlocking a door, plot, foretell): what a spend handler can ask
+    pub paying_index: std::cell::Cell<Option<usize>>,
     /// a spell cast while an effect resolves ("you may cast"): timing doesn't apply
     pub any_time: std::cell::Cell<bool>,
+    /// the card being played from a graveyard or exile by an as-though handler's way (`AsThough::Play`), and that
+    /// way: its other mana and extra costs, read as the spell's costs are paid
+    pub cast_permit: Option<(ObjId, crate::rules::cards::PlayWay)>,
     /// paying a forage cost: its rule reads "forage" (no feel-bad word for the auto-choice)
     pub foraging: std::cell::Cell<bool>,
     /// the mana spent on payments so far, by kind (WUBRG, colorless): a spell's colors spent are read from it
     pub spent_tally: [u32; 6],
+    /// of `spent_tally`, the mana a Treasure made
+    pub spent_treasure: u32,
     /// of `spent_tally`, what paid a mana ability's own mana cost while paying for something else (Guild Globe's
     /// {2}): not spent on that spell, for its colors spent
     pub nested_spent: [u32; 6],
@@ -1010,6 +1100,9 @@ pub struct Game {
     /// questions Java asked where the engine has no one to ask (`move_to`): which of several replacement effects
     /// applies, when they all do the same; asked before the next question or trace
     pub owed_choices: Vec<Seat>,
+    /// a melded permanent's two cards put into a graveyard or library (`move_to`): Java's owner orders them
+    /// (`ZonesHandler.chooseOrder`), asked like `owed_choices`. The cards as `move_to` put them there, in order
+    pub owed_meld_orders: Vec<(Seat, ObjId, ObjId)>,
     /// the same, owed where the game can't be changed (`Game::triggers`: two or more Panharmonicons applying; two
     /// counter or token doublers)
     pub owed_replacement_choices: std::cell::RefCell<Vec<Seat>>,
@@ -1034,6 +1127,9 @@ pub struct Game {
     /// "at the beginning of your first upkeep" delayed triggers (Devourer of Destiny's), each its controller's
     pub at_first_upkeep: Vec<StackItem>,
     pub grants: Arc<Vec<Grant>>,
+    /// what conditional mana an effect made can be spent on (`AddConditionalManaEffect`'s ability): a
+    /// `conditional_pool` entry names it by `rules::EFFECT_MANA` plus its place here
+    pub effect_mana: Arc<Vec<AbilityDef>>,
     /// abilities lost until end of turn: (permanent, its zcc, the ability, the turn)
     pub lost_until_eot: Vec<(ObjId, u32, AbilityDef, u32)>,
     /// what made a permanent block this turn if able, with the permanent's zone change count (its hint names it)
@@ -1048,6 +1144,10 @@ pub struct Game {
     /// cards exiled instead if they would be put into a graveyard this turn (`ThatSpellGraveyardExileReplacementEffect`:
     /// Torrential Gearhulk's instant, from anywhere)
     pub exile_if_graveyard: Vec<ObjId>,
+    /// this combat's attackers as they were declared, each with how many triggers were waiting once it was tapped
+    /// for its attack: Java taps each attacker and asks its exert replacement in turn (`Combat.resumeSelectAttackers`),
+    /// so an exert trigger waits before a later attacker's "becomes tapped" one
+    pub attack_taps: Vec<(ObjId, usize)>,
     /// control changes with a duration, oldest first
     pub control_changes: Vec<ControlChange>,
     /// creatures dealt damage this turn, by source (`DamagedByWatcher`): the source, the creature, its zone change
@@ -1115,6 +1215,10 @@ pub struct Game {
     pub activated_this_turn: Vec<(ObjId, usize)>,
     /// the battlefield as the current action began, for the dies triggers of what it moves all at once
     pub lookback: Vec<ObjId>,
+    /// while the state-based actions move permanents: where in `pending` the batch's triggers start. Java queues the
+    /// moves' zone-change events as simultaneous events, handled after the batch, so a reflexive trigger a replacement
+    /// fires as one moves (Valentin's "When you do") waits before all of them.
+    pub simultaneous_from: Option<usize>,
     /// what was sacrificed since Java last reset its short-living LKI (`resetShortLivingLKI`)
     pub short_lki: Vec<ObjId>,
     /// Etchings of Kumano that left the battlefield, with their controller and the turn: one leaving in the same
@@ -1132,13 +1236,15 @@ pub struct Game {
     /// cards to return now: their exiling permanent left (`OnLeaveReturnExiledAbility`, which uses no stack), with
     /// the seat whose trigger that is
     pub returning: Vec<(Seat, ObjId)>,
-    /// damage permanents were dealt since triggers were last checked, in order (`DAMAGED_BATCH_FOR_ONE_PERMANENT`)
-    pub damaged_batch: Vec<(ObjId, i32)>,
+    /// damage permanents were dealt since triggers were last checked, in order, and whether it was combat damage
+    /// (`DAMAGED_BATCH_FOR_ONE_PERMANENT`)
+    pub damaged_batch: Vec<(ObjId, i32, bool)>,
     /// damage players were dealt since triggers were last checked: source, player, amount, combat
     /// (`DAMAGED_BATCH_FOR_ONE_PLAYER`)
     pub player_damage_batch: Vec<(ObjId, Seat, i32, bool)>,
-    /// damage dealt since triggers were last checked: source, amount, combat (`DAMAGED_BATCH_BY_SOURCE`)
-    pub source_damage_batch: Vec<(ObjId, i32, bool)>,
+    /// damage dealt since triggers were last checked: source, amount, combat, and the controller of the source when
+    /// it's a spell (`DAMAGED_BATCH_BY_SOURCE`)
+    pub source_damage_batch: Vec<(ObjId, i32, bool, Option<Seat>)>,
     /// mana abilities activated so far: each one's damage is its own batch (`processManaAction`)
     pub mana_batch: u64,
     /// "opponents are dealt noncombat damage" sources that triggered, with the mana batch they triggered in
@@ -1188,9 +1294,30 @@ pub struct SpellSeen {
     pub mv: i32,
 }
 
+/// A resolved layer 7b effect whose numbers are worked out each time they're read (`SetBasePtEffect`): on `id`
+/// while it's that object (`zcc`), from `source` for `controller` with the ability's `x`; `None` leaves that
+/// characteristic to the others; `until_eot` ends it in cleanup
+#[derive(Clone, Debug, PartialEq)]
+pub struct BasePtSet {
+    pub id: ObjId,
+    pub zcc: u32,
+    pub power: Option<crate::card::Amount>,
+    pub toughness: Option<crate::card::Amount>,
+    pub source: ObjId,
+    pub controller: Seat,
+    pub x: i32,
+    pub at: u64,
+    pub until_eot: bool,
+}
+
 /// What Java's watchers that reset each turn saw this turn, for the conditions, values and predicates that read them
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct TurnWatch {
+    /// `ExertedThisTurnWatcher`: the creatures exerted this turn, as they were
+    pub exerted: Vec<(ObjId, u32)>,
+    /// the players each attacker was declared attacking this turn (`ATTACKER_DECLARED` with a player as its
+    /// defender: Angel of Destiny's watcher), the attacker as it was
+    pub attacked_players: Vec<(ObjId, u32, Seat)>,
     /// `SpellsCastWatcher`, in the order they were cast
     pub spells: Vec<SpellSeen>,
     /// `PermanentsSacrificedWatcher`: who sacrificed, and whether it was an artifact
@@ -1199,6 +1326,8 @@ pub struct TurnWatch {
     pub left_graveyard: Vec<Seat>,
     /// `DiscardedCardWatcher`: who discarded, once a card
     pub discarded: Vec<Seat>,
+    /// who discarded one or more cards together, once each `DISCARDED_CARDS` event (Rielle's watcher)
+    pub discard_batches: Vec<Seat>,
     /// `ScryOrSurveilWatcher`: who scried or surveilled
     pub scried: Vec<Seat>,
     /// `CardsPutIntoGraveyardWatcher`: each card put into a graveyard, its zone-change count there, and whether it
@@ -1227,15 +1356,94 @@ pub struct TurnWatch {
     pub p1p1_put: Vec<(Seat, i32)>,
     /// `CardsExiledThisTurnWatcher`: objects put into exile
     pub exiled: u32,
+    /// the controller of each creature exiled from the battlefield (Vren, the Relentless' watcher)
+    pub exiled_creatures: Vec<Seat>,
     /// `TriggeredAbility.setDidThisTurn`: the "do this only once each turn" abilities done this turn (the source, its
     /// zone-change count, the ability's index)
     pub did_this_turn: Vec<(ObjId, u32, usize)>,
     /// `CastFromGraveyardOnceWatcher`: the permanents (and their zone-change counts) whose "once during each of your
     /// turns, cast from your graveyard" was used this turn
     pub graveyard_once: Vec<(ObjId, u32)>,
+    /// `BlockedThisTurnWatcher`: each creature declared as a blocker this turn, as it was
+    pub blocked: Vec<(ObjId, u32)>,
+    /// `DAMAGED_PLAYER` and `DAMAGED_PERMANENT` this turn, in order
+    pub damage: Vec<DamageSeen>,
+    /// each permanent that left the battlefield this turn (`ZONE_CHANGE` from it)
+    pub left_battlefield: Vec<LeftSeen>,
+    /// `COUNTER_ADDED` this turn: who put them (when known), on what, as it was, which counter, how many, and
+    /// whether it was a creature
+    pub counters_put: Vec<(Option<Seat>, ObjId, u32, String, i32, bool)>,
+    /// `SURVEILED`: who surveilled
+    pub surveiled: Vec<Seat>,
+    /// `SACRIFICED_PERMANENT`: who sacrificed, and the permanent as it was (the card or token it became, its count)
+    pub sacrificed_objs: Vec<(Seat, ObjId, u32)>,
+}
+
+/// One damage event a `TurnWatch` keeps: the source as it was and its controller then, what was dealt damage (a
+/// permanent with its zone-change count, or a player), how much, and whether it was combat damage
+#[derive(Clone, Debug, PartialEq)]
+pub struct DamageSeen {
+    pub source: ObjId,
+    pub source_zcc: u32,
+    pub source_controller: Seat,
+    pub to: Target,
+    pub to_zcc: u32,
+    pub amount: i32,
+    pub combat: bool,
+}
+
+/// A permanent that left the battlefield (`ZoneChangeEvent` from it): the object (with its zone-change count as the
+/// permanent it was), its controller and owner then, where it went, and its types and counters then
+#[derive(Clone, Debug, PartialEq)]
+pub struct LeftSeen {
+    pub id: ObjId,
+    pub zcc: u32,
+    pub controller: Seat,
+    pub owner: Seat,
+    pub to: Zone,
+    pub creature: bool,
+    pub token: bool,
+    pub subtypes: Vec<String>,
+    /// it went to a graveyard (a dies event, `ZoneChangeEvent.isDiesEvent`)
+    pub died: bool,
+    /// the counters it had, by name
+    pub counters: Vec<(String, i32)>,
 }
 
 impl Game {
+    /// `DontCauseTriggerEffect` (`NUMBER_OF_TRIGGERS` replaced): `id` entering (or, `dying`, dying) doesn't cause the
+    /// abilities of `sources` to trigger, of every one (Torpor Orb, Hushbringer) or of permanents of a filter (Elesh
+    /// Norn, Mother of Machines). Cards in graveyards aren't permanents: only the filterless ones stop theirs
+    /// (`filterTriggering` null).
+    pub fn dont_cause_triggers(&self, id: ObjId, dying: bool, sources: &mut Vec<ObjId>) {
+        for s in self.battlefield.iter() {
+            let o = self.obj(*s);
+            for a in &o.def.abilities {
+                let AbilityDef::SimpleStaticAbility { effects, .. } = a else { continue };
+                for e in effects {
+                    let EffectDef::DontCauseTriggerEffect { entering, or_dying, triggering } = e else { continue };
+                    if dying && !*or_dying {
+                        continue;
+                    }
+                    let matches = match entering {
+                        None => self.has_type(id, CardType::Creature),
+                        Some(f) => self.filter_matches(f, o.controller, Some(*s), id),
+                    };
+                    if !matches {
+                        continue;
+                    }
+                    match triggering {
+                        None => sources.clear(),
+                        Some(f) => sources.retain(|t| {
+                            !(self.obj(*t).zone == Zone::Battlefield || *t == id)
+                                || !self.filter_matches(f, o.controller, Some(*s), *t)
+                        }),
+                    }
+                }
+            }
+        }
+    }
+
     /// a snow permanent (`SuperType.SNOW`): its mana pays snow symbols
     pub fn is_snow(&self, id: ObjId) -> bool {
         self.obj(id).def.supertypes.iter().any(|s| s == "SNOW")
@@ -1255,6 +1463,7 @@ impl Game {
             players: Arc::new((0..seats).map(|_| Player { life: 20, ..Player::default() }).collect()),
             objs: Arc::new(Vec::new()),
             battlefield: Arc::new(Vec::new()),
+            phased: Arc::new(Vec::new()),
             command: Arc::new(Vec::new()),
             exile: Arc::new(Vec::new()),
             stack: Arc::new(Vec::new()),
@@ -1266,6 +1475,8 @@ impl Game {
             damage_doubled_to: Vec::new(),
             when_dies: Vec::new(),
             at_next_upkeep: Vec::new(),
+            at_next_main: Vec::new(),
+            counter_removed_batch: Vec::new(),
             rebound: Vec::new(),
             attacks_opponent: Vec::new(),
             next_creature_spell: Vec::new(),
@@ -1279,9 +1490,11 @@ impl Game {
             piles: Vec::new(),
             attach_clock: 0,
             eot_effects: Vec::new(),
+            cast_permit: None,
             card_statics: Vec::new(),
             static_amounts: Vec::new(),
             base_pt_until_eot: Vec::new(),
+            base_pt_sets: Vec::new(),
             prevent_to_target: Vec::new(),
             abilities_resolved: Vec::new(),
             step_start: false,
@@ -1294,9 +1507,12 @@ impl Game {
             loop_declined: 0,
             paying_for: std::cell::Cell::new(None),
             paying_ability: std::cell::Cell::new(false),
+            picked_stack: std::cell::Cell::new(None),
+            paying_index: std::cell::Cell::new(None),
             any_time: std::cell::Cell::new(false),
             foraging: std::cell::Cell::new(false),
             spent_tally: [0; 6],
+            spent_treasure: 0,
             nested_spent: [0; 6],
             no_prevention_turn: None,
             prevent_all_to: Vec::new(),
@@ -1313,6 +1529,7 @@ impl Game {
             creatures_died: 0,
             void_this_turn: false,
             owed_choices: Vec::new(),
+            owed_meld_orders: Vec::new(),
             owed_replacement_choices: Default::default(),
             trigger_cause: None,
             damage_applied: None,
@@ -1324,12 +1541,14 @@ impl Game {
             controlled_by: Vec::new(),
             at_first_upkeep: Vec::new(),
             grants: Arc::new(Vec::new()),
+            effect_mana: Arc::new(Vec::new()),
             lost_until_eot: Vec::new(),
             must_block_from: Vec::new(),
             log: None,
             events: None,
             exile_if_dies: Vec::new(),
             exile_if_graveyard: Vec::new(),
+            attack_taps: Vec::new(),
             control_changes: Vec::new(),
             damaged_by_source: Vec::new(),
             combat_damaged_players: Vec::new(),
@@ -1357,6 +1576,7 @@ impl Game {
             combat_keywords: Vec::new(),
             activated_this_turn: Vec::new(),
             lookback: Vec::new(),
+            simultaneous_from: None,
             short_lki: Vec::new(),
             printings: Arc::new(Vec::new()),
             etchings_left: Vec::new(),
@@ -1391,6 +1611,62 @@ impl Game {
         self.players.len()
     }
 
+    /// Every permanent, the phased-out ones too, in Java's battlefield order (`Battlefield.getAllPermanents`, the
+    /// order they entered): what the fingerprint, the decision log's `B` refs and the views list
+    pub fn all_permanents(&self) -> Vec<ObjId> {
+        let mut all = self.battlefield.to_vec();
+        if !self.phased.is_empty() {
+            all.extend(self.phased.iter().copied());
+            all.sort_by_key(|id| (self.obj(*id).entered_at, id.0));
+        }
+        all
+    }
+
+    /// 702.26: a permanent phases out, and what's attached to it phases out indirectly (`PermanentImpl.phaseOut`);
+    /// it leaves combat. False: it was already phased out (or isn't on the battlefield).
+    pub fn phase_out(&mut self, id: ObjId, indirect: bool) -> bool {
+        if self.obj(id).zone != Zone::Battlefield || self.obj(id).phased_out {
+            return false;
+        }
+        let attached: Vec<ObjId> = self.attachments(id).collect();
+        for a in attached {
+            self.phase_out(a, true);
+        }
+        Arc::make_mut(&mut self.battlefield).retain(|x| *x != id);
+        Arc::make_mut(&mut self.phased).push(id);
+        let o = self.obj_mut(id);
+        o.phased_out = true;
+        o.phased_indirect = indirect;
+        true
+    }
+
+    /// A phased-out permanent phases in, and what phased out indirectly with it (`PermanentImpl.phaseIn`)
+    pub fn phase_in(&mut self, id: ObjId) {
+        if !self.obj(id).phased_out {
+            return;
+        }
+        Arc::make_mut(&mut self.phased).retain(|x| *x != id);
+        let key = (self.obj(id).entered_at, id.0);
+        let at = self
+            .battlefield
+            .iter()
+            .position(|b| (self.obj(*b).entered_at, b.0) > key)
+            .unwrap_or(self.battlefield.len());
+        Arc::make_mut(&mut self.battlefield).insert(at, id);
+        let o = self.obj_mut(id);
+        o.phased_out = false;
+        o.phased_indirect = false;
+        let attached: Vec<ObjId> = self
+            .phased
+            .iter()
+            .copied()
+            .filter(|a| self.obj(*a).phased_indirect && self.obj(*a).attached_to.is_some_and(|(t, _)| t == id))
+            .collect();
+        for a in attached {
+            self.phase_in(a);
+        }
+    }
+
     pub fn obj(&self, id: ObjId) -> &Obj {
         &self.objs[id.0 as usize]
     }
@@ -1422,6 +1698,7 @@ impl Game {
             controller: owner,
             zone,
             adventure_zone: zone,
+            room: None,
             harmonize_tap: None,
             tapped: false,
             damage: 0,
@@ -1485,6 +1762,7 @@ impl Game {
             exerted: false,
             powered_up: false,
             marks: Vec::new(),
+            tribute: None,
             creature_types: None,
             base_pt: None,
             base_pt_at: 0,
@@ -1499,6 +1777,7 @@ impl Game {
             may_play_while: None,
             any_mana: false,
             play_free: false,
+            exiled_face_down: false,
             cast_only: false,
             play_tax: 0,
             play_cost: None,
@@ -1506,6 +1785,7 @@ impl Game {
             pay_tax: 0,
             warped: false,
             evoked: false,
+            alternative_paid: false,
             impending: false,
             dashed: false,
             spent_colors: [0; 5],
@@ -1513,6 +1793,7 @@ impl Game {
             offspring: false,
             warp_from: None,
             mana_spent: 0,
+            treasure_spent: 0,
             entered_turn: 0,
             targeted: (0, 0),
             on_adventure: false,
@@ -1528,6 +1809,9 @@ impl Game {
             token: false,
             trigger_order: id.0 as u64,
             class_gained: Vec::new(),
+            phased_out: false,
+            phased_indirect: false,
+            melded: Vec::new(),
         }));
         id
     }
@@ -1545,7 +1829,19 @@ impl Game {
             Pred::Subtype { s } => self.has_subtype(id, s),
             Pred::Supertype { s } => o.def.supertypes.iter().any(|x| x == s),
             Pred::Color { c } => self.colors(id).contains(c),
-            Pred::Controller { who } => (o.controller == you) == (who == "you"),
+            // a spell is controlled by who cast it, not its card's owner (an opponent's card cast with Psychic
+            // Intrusion)
+            Pred::Controller { who } => {
+                let c = match o.zone {
+                    Zone::Stack => self
+                        .stack
+                        .iter()
+                        .find(|i| i.card == id && i.ability.is_none())
+                        .map_or(o.controller, |i| i.controller),
+                    _ => o.controller,
+                };
+                (c == you) == (who == "you")
+            }
             Pred::Owner { who } => (o.owner == you) == (who == "you"),
             Pred::Another => Some(id) != source,
             Pred::ControlledByFirstTarget => match self.chosen_before.first() {
@@ -1566,6 +1862,22 @@ impl Game {
                         }
                         _ => false,
                     })
+            }),
+            Pred::StackObject { .. } | Pred::NumberOfTargets { .. } => {
+                self.stack.iter().rev().find(|i| i.card == id).is_some_and(|i| self.stack_pred_holds(p, you, source, i))
+            }
+            Pred::SingleTargetPermanent { filter } => self.stack.iter().any(|i| {
+                let mut all = i.targets.iter().flatten();
+                i.card == id
+                    && i.ability.is_none()
+                    && match all.next() {
+                        Some(Target::Obj(x)) => {
+                            all.all(|t| *t == Target::Obj(*x))
+                                && self.obj(*x).zone == Zone::Battlefield
+                                && self.filter_matches(filter, you, source, *x)
+                        }
+                        _ => false,
+                    }
             }),
             Pred::ManaCostIn { costs } => costs.iter().any(|c| *c == o.def.cost.text),
             Pred::GreatestPowerControlled => {
@@ -1675,6 +1987,10 @@ impl Game {
             Pred::Monocolored => self.colors(id).len() == 1,
             Pred::CounterAny => o.counters.iter().any(|(_, n)| *n > 0),
             Pred::EnteredThisTurn => o.zone == Zone::Battlefield && o.entered_turn == self.turn,
+            // `CardUtil.haveSameNames`: a nameless card shares no name
+            Pred::DifferentName => self.searching.as_ref().is_none_or(|(_, chosen)| {
+                o.name().is_empty() || chosen.iter().all(|c| *c == id || self.obj(*c).name() != o.name())
+            }),
             Pred::ToGraveyardThisTurn { battlefield } => {
                 o.zone == Zone::Graveyard
                     && self
@@ -1707,11 +2023,53 @@ impl Game {
                     }
             }),
             Pred::Blocking => !o.blocking.is_empty(),
+            Pred::Blocked => o.attacking.is_some() && o.blocked,
             Pred::ManaSpent { cmp, n } => cmp.holds(o.mana_spent as i32, *n),
             Pred::Card { handler } => (handler.f())(self, you, source, id),
             Pred::Not { x } => !self.pred_holds(x, you, source, id),
             Pred::Or { xs } => xs.iter().any(|x| self.pred_holds(x, you, source, id)),
             Pred::And { xs } => xs.iter().all(|x| self.pred_holds(x, you, source, id)),
+        }
+    }
+
+    /// Whether a spell or an ability on the stack matches a `FilterStackObject`: a spell as its card does; an
+    /// ability (a `StackAbility`) has no card types, supertypes or colors, and its controller is the ability's
+    pub fn stack_item_matches(&self, filter: &Filter, you: Seat, source: Option<ObjId>, item: &StackItem) -> bool {
+        filter.0.iter().all(|p| self.stack_pred_holds(p, you, source, item))
+    }
+
+    fn stack_pred_holds(&self, p: &Pred, you: Seat, source: Option<ObjId>, item: &StackItem) -> bool {
+        let spell = item.ability.is_none() && item.delayed.is_none();
+        match p {
+            Pred::StackObject { kind } => match kind.as_str() {
+                "spell" => spell,
+                // `CreatureSourcePredicate`: an ability whose source object is a creature
+                "creature_source" => !spell && self.has_type(item.card, CardType::Creature),
+                // `!Spell.wasCast()`: a copy of a spell (the engine puts no other spell on the stack uncast)
+                "not_cast" => spell && self.obj(item.card).token,
+                "triggered" => {
+                    item.delayed.is_some()
+                        || item.ability.is_some_and(|(k, _)| {
+                            matches!(self.item_def(item).abilities.get(k), Some(AbilityDef::TriggeredAbility { .. }))
+                        })
+                }
+                _ => {
+                    item.delayed.is_none()
+                        && item.ability.is_some_and(|(k, _)| {
+                            !matches!(self.item_def(item).abilities.get(k), Some(AbilityDef::TriggeredAbility { .. }))
+                        })
+                }
+            },
+            Pred::NumberOfTargets { n } => item.targets.iter().map(|t| t.len()).sum::<usize>() == *n,
+            Pred::Not { x } => !self.stack_pred_holds(x, you, source, item),
+            Pred::Or { xs } => xs.iter().any(|x| self.stack_pred_holds(x, you, source, item)),
+            Pred::And { xs } => xs.iter().all(|x| self.stack_pred_holds(x, you, source, item)),
+            _ if spell => self.pred_holds(p, you, source, item.card),
+            Pred::Type { .. } | Pred::Subtype { .. } | Pred::Supertype { .. } | Pred::Color { .. } => false,
+            Pred::Multicolored => false,
+            Pred::Colorless => true,
+            Pred::Controller { who } => (item.controller == you) == (who == "you"),
+            _ => self.pred_holds(p, you, source, item.card),
         }
     }
 
@@ -1895,10 +2253,72 @@ impl Game {
         out
     }
 
+    /// The abilities statics give a card outside the battlefield and a spell (`GainAbilityControlledSpellsEffect`, as
+    /// `GameState.addOtherAbility`: after its own, by source)
+    pub fn spell_grants(&self, id: ObjId) -> Vec<AbilityDef> {
+        let o = self.obj(id);
+        let mut out: Vec<AbilityDef> = Vec::new();
+        // (a filter's `AbilityPredicate` reads the card's own abilities: no grants while a grant's filter is checked)
+        if o.zone == Zone::Battlefield || o.zone == Zone::Command || SPELL_GRANTS_BUSY.with(|b| b.get()) {
+            return out;
+        }
+        SPELL_GRANTS_BUSY.with(|b| b.set(true));
+        for src in self.battlefield.iter() {
+            let s = self.obj(*src);
+            let seat = s.controller;
+            let theirs = match o.zone {
+                Zone::Exile => true,
+                Zone::Stack => o.controller == seat,
+                _ => o.owner == seat,
+            };
+            if !theirs {
+                continue;
+            }
+            for a in &s.def.abilities {
+                let AbilityDef::SimpleStaticAbility { effects, .. } = a else { continue };
+                for e in effects {
+                    if let EffectDef::GainAbilityControlledSpellsEffect { ability, filter } = e {
+                        if !o.has(ability)
+                            && !out.contains(ability)
+                            && self.filter_matches(filter, seat, Some(*src), id)
+                        {
+                            out.push((**ability).clone());
+                        }
+                    }
+                }
+            }
+        }
+        SPELL_GRANTS_BUSY.with(|b| b.set(false));
+        out
+    }
+
+    /// A card's own abilities and what `spell_grants` gives it (`Card.getAbilities(game)`)
+    pub fn card_has(&self, id: ObjId, ability: &AbilityDef) -> bool {
+        self.obj(id).has(ability) || self.spell_grants(id).contains(ability)
+    }
+
     pub fn has_ability(&self, id: ObjId, ability: &AbilityDef) -> bool {
         let o = self.obj(id);
         if !self.lost_until_eot.is_empty()
             && self.lost_until_eot.iter().any(|(x, z, a, t)| *x == id && *z == o.zcc && a == ability && *t == self.turn)
+        {
+            return false;
+        }
+        // an Aura's "enchanted creature loses all abilities" (`LoseAllAbilitiesAttachedEffect`): to Java whatever
+        // other statics give it too (Fresh Start on a creature with Cathar's Shield)
+        if o.zone == Zone::Battlefield
+            && o.lost_abilities.as_ref().is_some_and(|(s, z, _)| {
+                let a = self.obj(*s);
+                a.zcc == *z
+                    && a.zone == Zone::Battlefield
+                    && self.attached(*s) == Some(id)
+                    && a.def.abilities.iter().any(|b| match b {
+                        AbilityDef::SimpleStaticAbility { effects, .. } => {
+                            effects.iter().any(|e| matches!(e, EffectDef::LoseAllAbilitiesAttachedEffect))
+                        }
+                        _ => false,
+                    })
+            })
         {
             return false;
         }
@@ -1950,9 +2370,13 @@ impl Game {
             if !keyword.is_empty() && o.counter(keyword) > 0 {
                 return true;
             }
+            // suspected: it has menace (`ApplyStatusEffect`, layer 6 beside the keyword counters)
+            if *ability == AbilityDef::MenaceAbility && o.zone == Zone::Battlefield && o.suspected() {
+                return true;
+            }
         }
         if o.zone != Zone::Battlefield {
-            return false;
+            return self.spell_grants(id).contains(ability);
         }
         if self.grants.iter().any(|g| g.target == id && g.zcc == o.zcc && g.ability == *ability) {
             return true;
@@ -2132,6 +2556,7 @@ impl Game {
             }
         }
         for seat in seats {
+            self.watch.discard_batches.push(seat);
             let cards: Vec<ObjId> = batch.iter().filter(|(s, _)| *s == seat).map(|(_, c)| *c).collect();
             let sources = self.trigger_sources();
             let fired = self.triggers(sources, |g, src, you, t| match t {
@@ -2257,7 +2682,12 @@ impl Game {
         }
         // a transformed permanent's abilities are its back face's, added again under new ids each time the game
         // resets its permanents, so they wait after every other card's, in battlefield order (`PermanentCard.reset`)
-        if o.front.is_some() && !o.token {
+        // (a modal double-faced card cast as its nonland back keeps that half's registration, from when the cards
+        // loaded: Sword of the Realms' trigger waits before a later token's)
+        let cast_back =
+            o.front.as_ref().and_then(|f| f.back.as_ref()).is_some_and(|b| !b.is(crate::card::CardType::Land))
+                && !o.transformed_in_place;
+        if o.front.is_some() && !o.token && !cast_back {
             if let Some(i) = self.battlefield.iter().position(|b| *b == t.card) {
                 return (3 << 32) + i as u64;
             }
@@ -2422,11 +2852,26 @@ impl Game {
     /// What triggered abilities can come from: permanents, then emblems.
     /// the card cast with flashback: its own, or the one it gained this turn for its mana cost
     pub fn flashback_def(&self, id: ObjId) -> Option<CardDef> {
+        self.flashbacks(id).into_iter().next().map(|(_, f)| f)
+    }
+
+    /// Every flashback the card has, with Java's ability index, and the card as cast with it: its own
+    /// `FlashbackAbility`, then the one it gained this turn for its mana cost (`GainFlashbackTargetEffect`: an ability
+    /// of the card's state, after its own, so Java offers both — Stingcaster Mage on Duel Tactics)
+    pub fn flashbacks(&self, id: ObjId) -> Vec<(usize, CardDef)> {
         let o = self.obj(id);
-        o.def.flashback().or_else(|| {
-            (o.flashback_turn == Some(self.turn))
-                .then(|| CardDef { printed_cost: Some(o.def.printed().clone()), ..(*o.def).clone() })
-        })
+        let mut out = Vec::new();
+        if let Some(f) = o.def.flashback() {
+            let k = o.def.abilities.iter().position(|a| matches!(a, AbilityDef::FlashbackAbility { .. }));
+            out.push((k.unwrap_or(1), f));
+        }
+        if o.flashback_turn == Some(self.turn) {
+            out.push((
+                o.def.abilities.len(),
+                CardDef { printed_cost: Some(o.def.printed().clone()), ..(*o.def).clone() },
+            ));
+        }
+        out
     }
 
     /// The stack's and the waiting triggers' abilities of `id` moved to their new index in its list (`map[old]`); one
@@ -2599,6 +3044,79 @@ impl Game {
     /// every object whose `p1p1_added` is set
     pub fn objs_with_p1p1_added(&self) -> Vec<ObjId> {
         (0..self.objs.len()).map(|i| ObjId(i as u32)).filter(|o| self.obj(*o).p1p1_added).collect()
+    }
+
+    /// `ZONE_CHANGE_BATCH`'s card triggers (`Trigger::ZoneBatch`) for `id` moving from `from` to `to`: `Left`, a
+    /// permanent still on the battlefield, for the triggers that read the permanent; `Moved`, after the move, for
+    /// the triggers that read the card, or a move that isn't from the battlefield; `Entered`, a permanent that has
+    /// just entered. Each trigger waits once for the batch (`batch_pending`), with every object that moved.
+    pub fn zone_batch(&mut self, id: ObjId, from: Zone, to: Zone, at: ZoneBatchAt) {
+        let name = |z: Zone| match z {
+            Zone::Library => "library",
+            Zone::Hand => "hand",
+            Zone::Battlefield => "battlefield",
+            Zone::Graveyard => "graveyard",
+            Zone::Stack => "stack",
+            Zone::Exile => "exile",
+            Zone::Command => "command",
+            Zone::Outside => "outside",
+        };
+        let (fz, tz) = (name(from), name(to));
+        let token = self.obj(id).token;
+        let seat = match at {
+            ZoneBatchAt::Moved => self.obj(id).owner,
+            _ => self.obj(id).controller,
+        };
+        let mut sources: Vec<ObjId> = Vec::new();
+        if at == ZoneBatchAt::Left {
+            sources.extend(self.lookback.iter().copied().filter(|o| !self.battlefield.contains(o)));
+        }
+        sources.extend(self.battlefield.iter().copied());
+        let fired = self.triggers(sources, |g, src, you, t| match t {
+            Trigger::ZoneBatch { from: f, to: tt, filter, who, cards, not_dying } => {
+                let when = match at {
+                    ZoneBatchAt::Left => !*cards,
+                    ZoneBatchAt::Moved => *cards || from != Zone::Battlefield,
+                    ZoneBatchAt::Entered => true,
+                };
+                when && (f.is_empty() || f == fz)
+                    && (tt.is_empty() || tt == tz)
+                    && !(*cards && token)
+                    && !(*not_dying && to == Zone::Graveyard)
+                    && Game::whose(who, you, seat)
+                    && g.filter_matches(filter, you, Some(src), id)
+            }
+            _ => false,
+        });
+        // the object it is (or becomes) in its new zone
+        let zcc = self.obj(id).zcc + u32::from(at == ZoneBatchAt::Left);
+        for mut t in fired {
+            let pointer = !matches!(
+                t.ability.and_then(|(i, _)| self.item_def(&t).abilities.get(i)),
+                Some(AbilityDef::TriggeredAbility { targets, .. }) if !targets.is_empty()
+            );
+            match self.batch_pending.iter_mut().find(|b| b.card == t.card && b.ability == t.ability) {
+                Some(b) => {
+                    b.x += 1;
+                    b.batch.push((id, zcc, from));
+                    if pointer {
+                        if let (Some(ts), Some(zs)) = (b.targets.first_mut(), b.target_zcc.first_mut()) {
+                            ts.push(Target::Obj(id));
+                            zs.push(zcc);
+                        }
+                    }
+                }
+                None => {
+                    t.x = 1;
+                    t.batch = vec![(id, zcc, from)];
+                    if pointer {
+                        t.targets = vec![vec![Target::Obj(id)]];
+                        t.target_zcc = vec![vec![zcc]];
+                    }
+                    self.batch_pending.push(t);
+                }
+            }
+        }
     }
 
     pub fn trigger_sources(&self) -> Vec<ObjId> {
@@ -2806,6 +3324,8 @@ impl Game {
                     colors.len() as i32
                 }
                 Value::ColorsSpent => self.obj(source).spent_colors.iter().filter(|n| **n > 0).count() as i32,
+                Value::ManaSpent => self.obj(source).mana_spent as i32,
+                Value::EachTwoSpent { color } => self.obj(source).spent_colors[color.index()] as i32 / 2,
                 Value::SourceCountersAny => {
                     let o = self.obj(source);
                     if o.zone == Zone::Battlefield {
@@ -2879,6 +3399,7 @@ impl Game {
             }
             // only known on a cast trigger (`condition_with_kicker`)
             Condition::Opus => false,
+            Condition::TreasureSpent => self.obj(source).treasure_spent > 0,
             Condition::Offspring => self.obj(source).offspring,
             Condition::Evoked => self.obj(source).evoked,
             Condition::Impending => self.obj(source).impending,
@@ -2919,6 +3440,7 @@ impl Game {
                 })
             }
             Condition::SourceAttacking => self.obj(source).attacking.is_some(),
+            Condition::SourceInGraveyard => self.obj(source).zone == Zone::Graveyard,
             Condition::SourceSaddled => {
                 let turn = format!("saddled{}", self.turn);
                 self.obj(source).marks.contains(&turn)
@@ -2937,6 +3459,7 @@ impl Game {
             }
             Condition::SourceRenowned => self.obj(source).marks.iter().any(|m| m == "renowned"),
             Condition::Monstrous => self.obj(source).marks.iter().any(|m| m == "monstrous"),
+            Condition::TributeNotPaid => self.obj(source).tribute == Some(false),
             Condition::ModeChosen { mode } => {
                 self.obj(source).marks.iter().any(|m| m.strip_prefix("mode:") == Some(mode))
             }
@@ -2946,6 +3469,22 @@ impl Game {
                 self.obj(source).marks.contains(&turn)
             }
             Condition::SourceHasCounters => self.obj(source).counters.iter().any(|(_, n)| *n > 0),
+            Condition::Meld { with, card_type, attacking } => {
+                let s = self.obj(source);
+                s.zone == Zone::Battlefield
+                    && !s.phased_out
+                    && s.controller == you
+                    && s.owner == you
+                    && (!*attacking || s.attacking.is_some())
+                    && self.battlefield.iter().any(|b| {
+                        let o = self.obj(*b);
+                        o.controller == you
+                            && o.owner == you
+                            && self.has_type(*b, *card_type)
+                            && o.name() == with
+                            && (!*attacking || o.attacking.is_some())
+                    })
+            }
             Condition::SourceAttached { equipment } => self.battlefield.iter().any(|b| {
                 self.attached(*b) == Some(source)
                     && (self.has_type(*b, CardType::Enchantment) || *equipment && self.has_subtype(*b, "Equipment"))
@@ -2987,8 +3526,13 @@ impl Game {
             }
             Condition::OpponentsLostLife => (0..self.seats()).any(|p| p != you && self.player(p).life_lost > 0),
             Condition::MyTurn => self.active == Some(you),
+            Condition::MyMainPhase => {
+                self.active == Some(you) && matches!(self.step, Some(Step::PrecombatMain | Step::PostcombatMain))
+            }
             Condition::FirstCombatPhase => !self.combat_phase_done,
             Condition::Morbid => self.creature_died,
+            Condition::CompletedDungeon => !self.player(you).completed_dungeons.is_empty(),
+            Condition::Landfall => self.player(you).lands_entered > 0,
             Condition::PlayedLand => self.player(you).lands_played > 0,
             Condition::CardsInExile { n } => self.exile.len() >= *n,
             Condition::Delirium => {
@@ -3204,6 +3748,46 @@ impl Game {
                 later(*at, *bp, *bt);
             }
         }
+        // the ones worked out as they're read, resolved and as statics: each characteristic they set, with its
+        // timestamp (one setting only the power or only the toughness keeps what the others set for the other)
+        let mut power_only: Option<(u64, i32)> = None;
+        let mut toughness_only: Option<(u64, i32)> = None;
+        let mut dynamic: Vec<(u64, Option<i32>, Option<i32>)> = Vec::new();
+        for b in self.base_pt_sets.iter() {
+            if b.id == id && b.zcc == o.zcc {
+                let v =
+                    |a: &Option<crate::card::Amount>| a.as_ref().map(|a| self.value(a, b.controller, b.source, b.x));
+                dynamic.push((b.at, v(&b.power), v(&b.toughness)));
+            }
+        }
+        if o.zone == Zone::Battlefield {
+            for a in &o.def.abilities {
+                if let AbilityDef::SimpleStaticAbility { effects, .. } = a {
+                    for e in effects {
+                        if let EffectDef::SetBasePtEffect {
+                            power,
+                            toughness,
+                            target: false,
+                            duration: Duration::WhileOnBattlefield,
+                        } = e
+                        {
+                            let v = |a: &Option<crate::card::Amount>| {
+                                a.as_ref().map(|a| self.value(a, o.controller, id, 0))
+                            };
+                            dynamic.push((o.entered_at, v(power), v(toughness)));
+                        }
+                    }
+                }
+            }
+        }
+        for (at, bp, bt) in dynamic {
+            match (bp, bt) {
+                (Some(bp), Some(bt)) => later(at, bp, bt),
+                (Some(bp), None) if power_only.is_none_or(|(s, _)| at >= s) => power_only = Some((at, bp)),
+                (None, Some(bt)) if toughness_only.is_none_or(|(s, _)| at >= s) => toughness_only = Some((at, bt)),
+                _ => {}
+            }
+        }
         for src in self.battlefield.iter() {
             let s = self.obj(*src);
             for a in &s.def.abilities {
@@ -3218,7 +3802,6 @@ impl Game {
         }
         // static handlers' (`card_statics.rs`), by their timestamps with the others; one setting the toughness alone
         // keeps the power the others set
-        let mut toughness_only: Option<(u64, i32)> = None;
         for (at, bp, bt) in crate::rules::cards::set_pt(self, id) {
             match bp {
                 Some(bp) => later(at, bp, bt),
@@ -3234,7 +3817,24 @@ impl Game {
                 t = bt;
             }
         }
+        if let Some((at, bp)) = power_only {
+            if set.is_none_or(|(s, _, _)| at >= s) {
+                p = bp;
+            }
+        }
         if !boosts {
+            return (p, t);
+        }
+        // phased out: Java's counters and the effects that read the battlefield (`getActivePermanents`) skip it;
+        // what targeted it (`BoostTargetEffect`) still applies
+        if o.phased_out {
+            let creature = self.has_type(id, CardType::Creature);
+            for b in self.boosts.iter() {
+                if b.target == id && b.zcc == o.zcc && (creature || b.noncreature_too) {
+                    p += b.power;
+                    t += b.toughness;
+                }
+            }
             return (p, t);
         }
         // +1/+1 counters change only a creature's power and toughness (a Vehicle's, while it's crewed)
@@ -3352,9 +3952,15 @@ impl Game {
         }
         match item.ability {
             Some((i, _)) => {
-                let rule =
-                    self.item_def(item).abilities.get(i).and_then(|a| a.on_stack()).map(|(r, ..)| r).unwrap_or("");
-                format!("stack ability ({})", self.that_player_rule(item, rule))
+                let ability = self.item_def(item).abilities.get(i);
+                let rule = ability.and_then(|a| a.on_stack()).map(|(r, ..)| r).unwrap_or("");
+                let info = match ability {
+                    Some(AbilityDef::TriggeredAbility { check: Some(h), .. }) => crate::rules::cards::find(h.java())
+                        .and_then(|h| h.stack_info)
+                        .map_or(String::new(), |f| f(self, item)),
+                    _ => String::new(),
+                };
+                format!("stack ability ({}{info})", self.that_player_rule(item, rule))
             }
             // a face-down spell is still named by its card on the stack (`Spell.getName`)
             None => card.face_up.as_ref().map_or(card.name(), |f| f.name.as_str()).to_string(),
@@ -3384,7 +3990,15 @@ impl Game {
             Zone::Library => self.player_mut(owner).library.retain(|x| *x != id),
             Zone::Hand => self.player_mut(owner).hand.retain(|x| *x != id),
             Zone::Graveyard => self.player_mut(owner).graveyard.retain(|x| *x != id),
-            Zone::Battlefield => Arc::make_mut(&mut self.battlefield).retain(|x| *x != id),
+            Zone::Battlefield => {
+                Arc::make_mut(&mut self.battlefield).retain(|x| *x != id);
+                if self.phased.contains(&id) {
+                    Arc::make_mut(&mut self.phased).retain(|x| *x != id);
+                }
+                let o = self.obj_mut(id);
+                o.phased_out = false;
+                o.phased_indirect = false;
+            }
             Zone::Exile => Arc::make_mut(&mut self.exile).retain(|x| *x != id),
             Zone::Command => Arc::make_mut(&mut self.command).retain(|x| *x != id),
             Zone::Outside => {
@@ -3450,19 +4064,33 @@ impl Game {
         if !(from == Zone::Stack && zone == Zone::Battlefield) {
             self.obj_mut(id).escaped = false;
         }
-        // Rest in Peace (two of them: the player chooses which applies)
+        // Rest in Peace (two of them: the player chooses which applies); one of yours only for your cards, one for
+        // cards only not for tokens, and the ones resolved this turn
+        let gone = self.obj(id);
+        let exiles = |e: &EffectDef, you: Seat| match e {
+            EffectDef::GraveyardFromAnywhereExileReplacementEffect { only_you, cards_only, .. } => {
+                (!only_you || gone.owner == you) && (!cards_only || !gone.token)
+            }
+            _ => false,
+        };
         let rest_in_peace = self
             .battlefield
             .iter()
             .filter(|src| {
+                let you = self.obj(**src).controller;
                 self.obj(**src).def.abilities.iter().any(|a| match a {
-                    AbilityDef::SimpleStaticAbility { effects, .. } => {
-                        effects.iter().any(|e| matches!(e, EffectDef::GraveyardFromAnywhereExileReplacementEffect))
-                    }
+                    AbilityDef::SimpleStaticAbility { effects, .. } => effects.iter().any(|e| {
+                        exiles(e, you)
+                            && !matches!(
+                                e,
+                                EffectDef::GraveyardFromAnywhereExileReplacementEffect { duration: Some(_), .. }
+                            )
+                    }),
                     _ => false,
                 })
             })
-            .count();
+            .count()
+            + self.eot_effects.iter().filter(|(e, you, _)| exiles(e, *you)).count();
         // Leyline of the Void: an opponent's card (not a token)
         let leylines = self
             .battlefield
@@ -3617,6 +4245,26 @@ impl Game {
         if zone == Zone::Exile && matches!(from, Zone::Graveyard | Zone::Battlefield) {
             self.exiled_batch = true;
         }
+        if zone == Zone::Exile && from == Zone::Battlefield && self.has_type(id, CardType::Creature) {
+            self.watch.exiled_creatures.push(died_controller);
+        }
+        if from == Zone::Battlefield && zone != Zone::Battlefield {
+            let o = self.obj(id);
+            let left = LeftSeen {
+                id,
+                zcc: o.zcc,
+                controller: died_controller,
+                owner: o.owner,
+                to: zone,
+                creature: self.has_type(id, CardType::Creature),
+                token: o.token,
+                // (its printed subtypes it still had: what a handler asks about)
+                subtypes: o.def.subtypes.iter().filter(|t| self.has_subtype(id, t)).cloned().collect(),
+                died: zone == Zone::Graveyard,
+                counters: o.counters.iter().filter(|(_, n)| *n > 0).map(|(c, n)| (c.clone(), *n)).collect(),
+            };
+            self.watch.left_battlefield.push(left);
+        }
         if from == Zone::Battlefield && zone == Zone::Graveyard {
             let seen = (
                 died_controller,
@@ -3646,6 +4294,9 @@ impl Game {
             }
             _ => false,
         };
+        if from == Zone::Battlefield {
+            self.zone_batch(id, from, zone, ZoneBatchAt::Left);
+        }
         let dies = if from == Zone::Battlefield && zone == Zone::Graveyard {
             let mut sources: Vec<ObjId> =
                 self.lookback.iter().copied().filter(|o| !self.battlefield.contains(o)).collect();
@@ -3673,6 +4324,13 @@ impl Game {
             });
             self.trigger_cause = None;
             let mut fired = self.pelt_collector(fired, id);
+            // Hushbringer: a creature dying triggers nothing
+            let mut from: Vec<ObjId> = fired.iter().map(|t| t.card).collect();
+            let before = from.clone();
+            self.dont_cause_triggers(id, true, &mut from);
+            if from != before {
+                fired.retain(|t| from.contains(&t.card));
+            }
             for t in fired.iter_mut() {
                 if matches!(self.trigger_of(t), Some(Trigger::DiesAll { .. })) {
                     t.died = Some((id, died_controller));
@@ -3908,6 +4566,7 @@ impl Game {
             o.may_play_while = None;
             o.any_mana = false;
             o.play_free = false;
+            o.exiled_face_down = false;
             o.cast_only = false;
             o.chosen_name = None;
             o.info.clear();
@@ -3927,6 +4586,7 @@ impl Game {
             if !(from == Zone::Stack && zone == Zone::Battlefield) {
                 o.warped = false;
                 o.evoked = false;
+                o.alternative_paid = false;
                 o.impending = false;
                 o.dashed = false;
                 // kept as it last was on the battlefield (Vibrance's "if {G}{G} was spent" after its evoke sacrifice)
@@ -4015,6 +4675,9 @@ impl Game {
             o.zone = zone;
             o.zcc += 1;
         }
+        if zone != Zone::Battlefield {
+            self.zone_batch(id, from, zone, ZoneBatchAt::Moved);
+        }
         if self.events.is_some() {
             self.record(GameEvent {
                 target: Some(Target::Obj(id)),
@@ -4095,6 +4758,32 @@ impl Game {
             Arc::make_mut(&mut self.exile).push(id);
         }
         if self.obj(id).token && zone != Zone::Battlefield {
+            return;
+        }
+        // a melded permanent's two cards go where it goes, each a card of its own (`ZonesHandler`'s `MeldCard`
+        // halves); the melded permanent itself is in no zone's list
+        if from == Zone::Battlefield && zone != Zone::Battlefield && !self.obj(id).melded.is_empty() {
+            let halves = std::mem::take(&mut self.obj_mut(id).melded);
+            if matches!(zone, Zone::Graveyard | Zone::Library) && halves.len() == 2 {
+                let owner = self.obj(id).owner;
+                self.owed_meld_orders.push((owner, halves[0], halves[1]));
+            }
+            for h in halves {
+                let o = self.obj_mut(h);
+                o.zone = zone;
+                o.zcc += 1;
+                o.controller = o.owner;
+                let owner = o.owner;
+                match zone {
+                    Zone::Library => self.player_mut(owner).library.push(h),
+                    Zone::Hand => self.player_mut(owner).hand.push(h),
+                    Zone::Graveyard => self.player_mut(owner).graveyard.push(h),
+                    Zone::Exile => Arc::make_mut(&mut self.exile).push(h),
+                    Zone::Command => Arc::make_mut(&mut self.command).push(h),
+                    Zone::Outside => self.player_mut(owner).outside.push(h),
+                    Zone::Stack | Zone::Battlefield => {}
+                }
+            }
             return;
         }
         match zone {

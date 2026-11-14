@@ -39,6 +39,11 @@ FNV-1a 64 over the UTF-8 bytes of the text, written as 16 lowercase hex digits. 
 
 An entry is skipped when its hash equals the previous entry's, so passing priority without anything changing records nothing. Each NDJSON line is `{"i":0,"point":"priority","turn":1,"step":"PRECOMBAT_MAIN","fp":"…"}`.
 
+A stack ability's name can carry an object's log name, id included: cipher's granted trigger reads "you may cast a
+copy of `<font color='…' object_id='<uuid>'>Name</font> [abc]` without paying its mana cost". That id is random in
+every run, so the `stack` line writes each such log name as the name alone (`StateFingerprint.withoutObjectIds`), as
+the Rust engine does.
+
 ## Determinism
 
 The game's own random numbers come from `GameRandom` (seeded by `GameOptions.seed`), and the AI's from the thread's generator (`RandomUtil.withRandom`). `GameTraceTest` plays the same seeded AI game twice and checks the traces match, and that another seed gives another trace. A second engine reproduces a Java trace when it has the same seed, the same shuffle (`GameRandom` is `java.util.Random`'s algorithm) and the same decisions.

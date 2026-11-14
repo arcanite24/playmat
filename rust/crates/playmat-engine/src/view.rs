@@ -1368,6 +1368,24 @@ fn named_hint(game: &Game, name: &str, you: Seat, id: ObjId) -> String {
             game.player(you).sideboard
         ),
         "DayNightHint" => day_night_hint(game),
+        // `CurrentDungeonHint`: the dungeon its controller is in, and the room
+        "CurrentDungeonHint" => {
+            let dungeon = game
+                .command
+                .iter()
+                .copied()
+                .find(|c| game.obj(*c).controller == you && crate::card::dungeon(&game.obj(*c).def.name).is_some());
+            match dungeon {
+                None => "Current dungeon: not yet entered".into(),
+                Some(c) => {
+                    let mut text = format!("Current dungeon: {}", crate::log::object(game, c));
+                    if let Some(name) = dungeon_room_name(game, c) {
+                        text += &format!(", room: {}", name);
+                    }
+                    text
+                }
+            }
+        }
         _ => String::new(),
     }
 }
@@ -1939,6 +1957,40 @@ pub fn stack_ref(game: &Game, id: ObjId) -> String {
     }
 }
 
+/// The room a dungeon's venture marker is in
+fn dungeon_room_name(game: &Game, id: ObjId) -> Option<String> {
+    let d = crate::card::dungeon(&game.obj(id).def.name)?;
+    Some(d.rooms.get(game.obj(id).room?)?.name.clone())
+}
+
+/// `Dungeon.getRules`: the room it's in, then each room's text (`DungeonRoom.toString`, marked when it's the current
+/// room or one it leads to)
+fn dungeon_rules(game: &Game, id: ObjId, d: &crate::card::DungeonDef) -> Vec<String> {
+    let current = game.obj(id).room;
+    let mut rules = vec![match dungeon_room_name(game, id) {
+        Some(name) => format!("<i>(Currently in {})</i>", name),
+        None => "<i>(Not currently in a room)</i>".into(),
+    }];
+    for (k, room) in d.rooms.iter().enumerate() {
+        let mut prefix = String::new();
+        if current == Some(k) {
+            prefix += "ICON_DUNGEON_ROOM_CURRENT";
+        }
+        if current.is_some_and(|c| d.rooms[c].next.contains(&k)) {
+            prefix += "ICON_DUNGEON_ROOM_NEXT";
+        }
+        // `RoomTriggeredAbility.getText`: its rule without the room's name after it, and where it leads
+        let rule = d.def.abilities.get(k).and_then(ability_rule).unwrap_or_default();
+        let rule = rule.strip_suffix(&format!(" <i>({})</i>", room.name)).unwrap_or(&rule).to_string();
+        let mut c = rule.chars();
+        let rule = c.next().map(|f| f.to_uppercase().collect::<String>() + c.as_str()).unwrap_or_default();
+        let leads: Vec<&str> = room.next.iter().filter_map(|n| d.rooms.get(*n)).map(|r| r.name.as_str()).collect();
+        let leads = if leads.is_empty() { String::new() } else { format!(" <i>(Leads to {})</i>", leads.join(" or ")) };
+        rules.push(format!("{}{} &mdash; {}{}", prefix, room.name, rule, leads));
+    }
+    rules
+}
+
 /// `PlayerView.commandList`: the emblems seat `p` controls (`EmblemView`), `M` and their index in the command zone
 fn command_view(game: &Game, p: Seat) -> Vec<Value> {
     game.command
@@ -1947,6 +1999,18 @@ fn command_view(game: &Game, p: Seat) -> Vec<Value> {
         .filter(|(_, c)| game.obj(**c).controller == p)
         .map(|(i, c)| {
             let o = game.obj(*c);
+            // a dungeon (`DungeonView`)
+            if let Some(d) = crate::card::dungeon(&o.def.name) {
+                return json!({
+                    "id": format!("M{}", i),
+                    "name": o.def.name,
+                    "imageFileName": "",
+                    "imageNumber": 1,
+                    "expansionSetCode": o.def.set,
+                    "rules": dungeon_rules(game, *c, d),
+                    "playableStats": {"basicManaAbilities": [], "basicPlayAbilities": [], "basicCastAbilities": [], "other": []},
+                });
+            }
             let rules: Vec<String> = o
                 .def
                 .abilities
@@ -2060,7 +2124,7 @@ fn token_view(game: &Game, id: ObjId) -> Option<Value> {
 /// A player's permanents (`PermanentView`), by reference
 fn battlefield_view(game: &Game, p: Seat, viewer: Seat, names: &[&str]) -> Value {
     let mut m = Map::new();
-    for id in game.battlefield.iter().copied() {
+    for id in game.all_permanents() {
         // an attachment shows with what it's attached to (`PlayerView.showInBattlefield`)
         let shown_by = match game.attached(id).filter(|t| game.obj(*t).zone == Zone::Battlefield) {
             Some(t) => game.obj(t).controller,
@@ -2105,7 +2169,7 @@ fn permanent_view(game: &Game, id: ObjId, r: &str, viewer: Seat, names: &[&str])
     m.insert("mageObjectType".into(), json!("PERMANENT"));
     m.insert("tapped".into(), json!(o.tapped));
     m.insert("flipped".into(), json!(false));
-    m.insert("phasedIn".into(), json!(true));
+    m.insert("phasedIn".into(), json!(!o.phased_out));
     // `Permanent.hasSummoningSickness`: not controlled since the turn began, without haste
     m.insert(
         "summoningSickness".into(),

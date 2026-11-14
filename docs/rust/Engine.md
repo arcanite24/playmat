@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (11,322 on 14 Nov). A card whose JSON the engine can't load yet is left out
+  can express (12,507 on 14 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -739,6 +739,391 @@ Being in the engine and being trusted are kept apart.
   Launderer, Confront the Past and others need a handler kind of their own), the long tail of
   `ConditionalColoredManaAbility`/`SimpleManaAbility` forms, and granted statics on Equipment.
 
+  Wave 7, area D (14 Nov): dungeons, BeamMeUp and cipher.
+  - Dungeons: the transpiler's `dungeon` reads the three dungeon classes (`mage.game.command.dungeons`) into
+    `cards/dungeons.json`: a room trigger for each room, and the rooms each leads to. `CardFactsTest` takes
+    `dungeon:<class>` pool lines for their rule texts, and `--write-facts-pool` adds them.
+  - Venturing (`VentureIntoTheDungeonEffect`, `Game.ventureIntoDungeon`) asks "Choose a dungeon to venture into"
+    when you have none, puts it in the command zone (a command object, like an emblem), and moves to the first room,
+    or to the next one ("Choose which room to go to in …" when there are two). Entering a room triggers it.
+  - A dungeon on its last room with no room trigger left on the stack or waiting is completed by a state-based
+    action. It leaves the command zone, counts for `CompletedDungeonCondition` (`CompletedDungeonWatcher`), and fires
+    `CompletedDungeonTriggeredAbility`, from the battlefield or the graveyard.
+  - The command zone's view shows the dungeon as Java's `Dungeon.getRules` writes it, and `CurrentDungeonHint`.
+  - Handlers cover the rooms with their own classes: Veils of Fear, Oubliette and Sandfall Cell, Runestone Caverns
+    and Mad Wizard's Lair. Veils of Fear and Sandfall Cell apply their results in turn order. Java uses a `HashMap`
+    of player ids there, so with more than two players the order can differ.
+  - BeamMeUp is flashback whose cost adds returning a creature you control to its owner's hand.
+  - Cipher (`CipherEffect`): "Cipher this spell to a creature?", then a creature you control. The card is exiled,
+    and the creature gains, for as long as it stays, "whenever this creature deals combat damage to a player, you may
+    cast a copy of <card> without paying its mana cost" (`CipherStoreEffect`). The copy has no cipher, nor its text,
+    which `tryToAutoChoose` reads ("exile" kept Midnight Recovery's copy from choosing its one target by itself).
+  - Java's stack text for that trigger names the card by its log name, object id included. The id is random in every
+    run, so Java's `StateFingerprint` now writes the name alone there (docs/rust/StateFingerprint.md), and the round
+    with cipher cards was recorded again with it.
+  - Fix: a token copy no longer copies abilities an effect granted, or a static's land types (`copiable()`). Stolen
+    Identity copied a creature together with its cipher trigger (`game-w7d-token-copy-without-granted-trigger`).
+  - Also: `LandfallCondition`, `CantAttackTargetEffect` until your next turn, Ellywick Tumblestrum's emblem value,
+    Hidden Strings, Whispering Madness, and the reminder text of a granted venture trigger (Fly).
+  - 53 cards came in (11,375 in the engine). Two factory rounds (94 games, 90 matching, 2 unfinished in Java, replayed again on master after #355 and #356)
+    verified 51: 11,180 of 11,375. Nine games under `shadow/mechanics/game-w7d-*` cover them.
+  - Left:
+    - Voidwalk: two cipher triggers on one creature go on the stack in a different order than Java's (round-002
+      game-00115).
+    - Last Thoughts: the game that differs parts on Unscrupulous Contractor's reflexive trigger and Crow of Dark
+      Tidings' dies trigger. Both cards were already verified. Java puts the reflexive trigger on the stack first,
+      and the engine puts it second (round-002 game-00051).
+    - Barrowin of Clan Undurr (`OneShotNonTargetEffect`) and Eccentric Apprentice (its own type-changing effect).
+    - Find the Path (a mana ability, another area's).
+    - Arcane Heist and Writ of Return: not in the engine's pool.
+    - Meld (7 pairs and their results): not started. It needs a melded permanent made of two cards.
+
+  Wave 7, stack targets (14 Nov): transpiler forms and engine pieces for targets on the stack brought 54 cards in
+  (11,197 in the engine). New targets: `TargetStackObject` (a spell or an ability, with a `FilterStackObject`;
+  `stack_item_matches` reads an ability as a colorless object of no type, with its own controller, and the
+  predicates `stack_object` (spell, activated, triggered) and `number_of_targets`), `TargetPermanentOrPlayer`, and
+  `TargetSpellOrPermanent` with a spell filter and counts. Java's `TargetStackObject` offers the spell being cast and
+  the object resolving (it resolves while still on the stack), so both can be targeted; a
+  `new FilterActivatedOrTriggeredAbility("text")` matches any stack object, as Java's does once the target copies it
+  (its `copy` is `FilterStackObject`'s). `ChooseNewTargetsTargetEffect` and copies of abilities choose new targets
+  as `StackObjectImpl.chooseNewTarget` does (`rules::choose_new_targets`: "Change this n of m target?", or forced, the
+  one target chosen again until it differs; the changed object's text steers the auto-choice, an ability can pick
+  its own source, and "done" without a choice keeps the old target). Stack objects go by their card, so a copy of
+  the resolving ability that targeted itself gets that target marked gone, and a replayed answer that names a stack
+  place (`Game::picked_stack`) tells a copy picking itself from its original. Also: `CopyTargetSpellEffect` for
+  abilities, `ExileTargetCardCopyAndCastEffect`, the processors' `ExileOpponentsCardFromExileToGraveyardCost`,
+  `CounterUnlessPaysEffect` on an ability, `TargetsPermanentPredicate` and `HasOnlySingleTargetPermanentPredicate`,
+  `SpellCastControllerTriggeredAbility` from the graveyard (`Trigger::SpellCastInGraveyard`) and with a
+  from-zone, a copy of an adventure spell going on its adventure (it stays in exile until state-based actions), and
+  airbend's {2} from exile for either half of an adventurer card. Three factory rounds (90 games, 82 matching)
+  verified 43 (replayed again on master after #349, #350, #353 and #354): 10,999 of 11,197. Nine games under
+  `shadow/handlers/game-stack7-*` cover the engine pieces. Left:
+  Keep Safe, Mirrorshell Crab, Return the Favor (its change-target mode can't pick itself: its targets aren't on the
+  stack yet while it's cast), Rending Volley, Wild Ricochet, Ertai Resurrected and Shiko, Paragon of the Way
+  (one mismatching game each, not yet looked at), and Explosive Welcome, Processor Assault, Nashi, Moon's Legacy and
+  Reenact the Crime (pending, too few games). Still blocked in this area: `GainAbilityControlledSpellsEffect`
+  (about 22 cards; spells and cards in hand gaining convoke, cascade, affinity and the like need granted spell
+  abilities), `TargetCardInGraveyardBattlefieldOrStack`, `CopyStackObjectEffect` and the cards with effect classes
+  of their own.
+
+  Wave 8, claim 3 (14 Nov): new engine support for `DAMAGED_PERMANENT` triggers (`Trigger::DamagedPermanent`): a
+  source deals damage to this (Phyrexian Obliterator, its player pointer the source's controller), this deals damage
+  to a creature of a filter (`DealsDamageToACreatureTriggeredAbility`: Obelisk Spider, Queen of Ice, Vampire Slayer,
+  Spider-Slayer), the equipped creature deals combat damage to a permanent (Giant's Skewer), and an opponent's source
+  deals damage to you or a permanent of yours (`SourceDealsDamageToYouTriggeredAbility`, `DAMAGED_PLAYER` too:
+  Flameblade Angel). "Whenever enchanted or equipped creature is dealt damage" (`DealtDamageAttachedTriggeredAbility`,
+  once for each of its batches: Hot Soup), a "this or enchanted creature deals combat damage to a player" trigger
+  (Thassa's Emissary), a `CONNIVE` replacement event (Leader, Super-Genius), the turn's discard batches (Rielle, the
+  Everwise), and legendary instants and sorceries (`LegendarySpellAbility`, a `Rule::CantCast` handler in every
+  zone). Transpiler forms: a `CounterUnlessPaysEffect` of a value built in place (Countervailing Winds), Wild Slash's
+  locked-in "damage can't be prevented", and `EachTargetPointer` on mills and card-scoped handlers. Engine fixes: a
+  copy's new targets read the copy's rule for the auto-choice, so its own creature to exile is asked for (Essence
+  Flux copied by Meletis Charlatan); a card returned with +1/+1 counters has them as it enters, so "another creature
+  with power 2 or less enters" doesn't see it smaller (Infernal Vessel, `setEnterWithCounters`). Traumatic
+  Revelation plays as Java's does: its `TargetCardInHand` only takes cards from the chooser's own hand, so it never
+  discards the opponent's card and always incubates. Four factory rounds (78 games, all matching once fixed; the
+  legendary sorceries' decks were given legendary creatures) verified all 34 cards that came in, 25 from the list and 9 others through the framework classes and triggers above: 11,163 of 11,356. Two games under
+  `shadow/factory/game-w8c3-*` cover the fixes and seventeen under `shadow/handlers/game-handlers8-claim3-*` the
+  handlers. Left on the list: 109 cards that need engine work first (mana of any type, meld, station copies,
+  storm on a creature, the shuffle-into-library replacement, behold costs, chosen numbers, extra combats, cards cast
+  for free from exile, and more).
+
+  Wave 8, claim 4 (14 Nov): 31 handler files (cards' own classes, and framework ones for
+  `SetBaseToughnessSourceEffect` with devotion and `TargetPlayerShufflesTargetCardsEffect` with
+  `TargetCardInTargetPlayersGraveyard`, which Java lets pick any graveyard card: the class overrides only the
+  `canTarget` neither choosing nor resolving calls) and transpiler forms (`ConditionalReplacementEffect` around a
+  replacement handler, `SimpleActivatedAbility(Zone.BATTLEFIELD, …)`, the effects a trigger handler's class adds in
+  its constructor unless its base effect is a handler of its own, `ForEachPlayerTargetsAdjuster(true, true)` on an
+  opponent's-graveyard card in a duel, `CopyStackObjectEffect`, a Food gift and "if the gift wasn't promised")
+  brought 40 cards in (11,362 in the engine). Engine fixes: passing priority with only mana a static keeps in the
+  pool doesn't ask (`ManaPool.canLostManaOnEmpty`: Leyline Tyrant, Electro); a modal spell's later mode skips a
+  target an earlier mode moved (Quandrix Command returning a creature, then putting counters on it); a gifted Food
+  enters untapped. Four factory rounds (90 games, 89 matching, all replayed on the last build) verified 37: 31 of the
+  claim and 6 that came in through shared classes (Armament of Nyx, Scroll of the Masters, Skarrg Guildmage, Quandrix
+  Command, Nocturnal Hunger, Valley Rally): 11,166 of 11,362. Games under `shadow/factory/game-w8c4-*` cover the
+  engine fixes and ten under `shadow/handlers/game-handlers8-claim4-*` cover the cards. Left: Mica, Reader of Ruins
+  (one game parts on which Defabricate resolves after its sacrifice-to-copy trigger copies a spell), Desolation Twin
+  (no game cast it in three rounds), Fire Lord Azula (the factory builds no deck for it); the rest of the claim needs
+  engine pieces: modal double-faced cards with a nonland back (Tergrid, King T'Challa, Cosima, Esika), lose-all-
+  abilities and type-changing Auras (Witness Protection, Imprisoned in the Moon, Minimus Containment), harness,
+  copy appliers, attack and block taxes, cost reductions that tap or ask (Explosive Singularity, Bruenor), an X cap
+  (Open the Way), cast-this-turn permissions from a graveyard (Liliana, Untouched by Death; Mavinda), treasure-spent
+  tracking (Forsworn Paladin), damage batch watchers and state triggers.
+
+  Wave 8, claim 2 (14 Nov): `DontCauseTriggerEffect` with its filters (permanents of one filter entering, or dying
+  too, don't trigger the abilities of permanents of another: Hushbringer, Elesh Norn, Mother of Machines),
+  continuous handlers in more than one layer (`Handler::and_layers`: Sigarda's Summons), handler classes whose own
+  duration is until your next turn (`Handler::until_your_next_turn`: Elspeth Conquers Death's chapter II, Kiora),
+  token copies that enter tapped and attacking (Firion), the creatures exiled from the battlefield each turn by
+  controller (Vren), a spell cast for its `AlternativeCostSourceAbility` cost remembered (`Obj::alternative_paid`:
+  Baleful Mastery) and a framework handler for `MoveCountersFromSourceToTargetEffect`. Engine fixes: an exert trigger
+  waits before a later attacker's "becomes tapped" triggers, since Java taps each attacker and asks its exert in turn
+  (`Game::attack_taps`); an activated ability's cost changes that look at its targets apply once the targets are
+  chosen, as Java adjusts costs after targets (Kopala, Warden of Waves on Weapon Rack's ability). Four factory rounds
+  (88 games, 86 matching) verified 41, 35 of them from the claim's list: 11,170 of 11,367. Ten games under
+  `shadow/handlers/game-handlers8-c2-*` cover the engine pieces. Left: Dire Fleet Daredevil (two Masks of
+  Immolation grant the same ability twice in Java, once in Rust), Thaumatic Compass (with two Compasses, their
+  transform triggers wait in a different order), Doomsday Excruciator and Ulamog, the Ceaseless Hunger (pending:
+  not exercised), and the list's cards that need engine work of their own (see the PR).
+
+  Wave 9, mana (14 Nov): conditional mana a card's own `ConditionalManaBuilder` restricts goes through a new handler
+  kind, `Handler::spend` (a `SpendFn` gets the seat, the mana's source, what's being paid for and whether it's a spell
+  or which of that object's abilities: 22 cards' builders such as Castle Doom's, Freya Crescent's and Qarsi
+  Deceiver's, and the framework's `ActivatedAbilityManaBuilder`). The engine remembers which ability is being paid for (`paying_index`) for those
+  that ask, as for turning a permanent face up, unlocking a door, foretelling or plotting. The transpiler reads a
+  builder kept in a card field, the `ConditionalColored`/`Colorless`/`AnyColorManaAbility` forms with any cost, and
+  `AddConditional*ManaEffect` as an effect (`AddConditionalManaEffect`: triggered and loyalty mana such as Sarkhan,
+  Fireblood, Abstract Paintmage, Desolation of Smaug and Boommobile, kept in the pool until it empties). Mana spent
+  tracking: the pool remembers which mana a Treasure made (`TreasureSpentToCastCondition`: Hired Hexblade, Jaded
+  Sell-Sword), and `ManaSpentToCastCount` and `EachTwoManaSpentToCastValue` (Clay Champion, Molten Note, Bladecoil
+  Serpent) read what was spent on the spell. "Spend mana as though it were mana of any color"
+  (`SpendManaAsAnyColorEffect`: Chromatic Orrery, and Oath of Nissa for planeswalker spells) pays colored symbols
+  as generic. Voldaren Estate's cost adjuster joins `COST_ADJUSTERS`. Three factory rounds (62 games, 60 matching)
+  verified 38: 11,167 of 11,363. Eight games under `shadow/handlers/game-mana9-*` cover the engine pieces. Left: Base
+  Camp (the engine pays colored symbols in WUBRG order and Java in the printed order, so a stale conditional mana
+  gets spent on a different symbol), Throne of Makindi (a game where Rust stays in the main phase after an Orb of
+  Dragonkind activation is cancelled), Smoky Lounge, Chandra, Chill of Compliance, Jaya Ballard, Meeting of the Five,
+  Niko Defies Destiny and Magmablood Archaic (an effect or value of their own each), and the triggered mana abilities
+  (`EnchantedTappedTriggeredManaAbility`, `TapForManaAllTriggeredManaAbility`), mana-type copying (Kinnan, Zendikar
+  Resurgent), mana that grants the spell an ability (Generator Servant) and custom `SimpleManaAbility` effects.
+
+  Wave 9, meld and phasing (14 Nov): a phased-out permanent leaves `battlefield` for `Game::phased`, so everything
+  that reads the battlefield skips it, while `all_permanents()` (Java's `getAllPermanents`: the fingerprint, the
+  `B<i>` references and the client view) still lists it, in its entered order. `PhaseOutTargetEffect` and
+  `PhaseOutSourceEffect` phase it out with what's attached to it (indirectly, so those come back with it), out of
+  combat; it phases in during its controller's untap step, before the untap. Its trace P/T is the printed one plus
+  boosts aimed at it, as Java's, and destroy and sacrifice pass it by. Cleanup's per-turn resets go over phased-out
+  permanents too (`Battlefield.endOfTurn`: Kaito Shizuki's loyalty use). Meld (`MeldEffect`, `MeldCondition`): the
+  transpiler writes the meld card's whole translation into the effect's `into` (a card marked `meld_card`, never
+  in a deck; both halves must name each other in `meldsWithClazz`), and the engine exiles the source and the
+  partner it asks for (the ability's "exile them" makes even one a question), then creates the melded permanent
+  from the two cards (mana value: both halves'), entering tapped and attacking for Mishra's. When it leaves the
+  battlefield both cards go to that zone, and the owner is asked their order for a graveyard or library (owed like
+  the replacement choices; Java names the cards with no reference, so a replay can't follow that order). A
+  `Rule::CantCastOnStack` static hook reads the spell after its modes and targets, as Java's `CAST_SPELL_LATE`
+  (Brisela's "can't cast spells with mana value 3 or less"). Also fixed: `DiscardAndDrawThatManyEffect` with an
+  empty hand no longer drops the ability's later effects (Greasewrench Goblin's counter); a card with its own
+  flashback that gains another (Stingcaster Mage on Duel Tactics) offers both, the gained one after the card's own
+  abilities as in Java (`Game::flashbacks`), and is cast with the one picked; and the transpiler's
+  `SecondTargetPointer` form retries with a lazy match (Deal Gone Bad, Homesickness, Monoist Circuit-Feeder, Press
+  into Service, Rally Maneuver, Seismic Shift and Ragnarok translate now). Five factory rounds (four of them probes
+  whose decks hold both halves of each meld pair, 162 games, all matching after the flashback fix) verified 26:
+  11,155 of 11,350. Nine games under
+  `shadow/handlers/game-handlers9-meld-*` cover the engine pieces. Left: Mishra, Lost to Phyrexia (Phyrexian Dragon
+  Engine needs an "enters from your graveyard" trigger), Titania, Gaea Incarnate (Titania, Voice of Gaea's land
+  batch trigger), Urza, Planeswalker and Urza, Lord Protector, Teferi, Master of Time and Teferi, Timeless Voyager,
+  The Phasing of Zhalfir, The City on the Edge of Forever, Temporal Firestorm and Spectral Adversary (their own
+  effect classes).
+
+  Wave 9, area BATCH (14 Nov): batch, targeting, transform and next-main-phase triggers.
+  - "One or more" zone-change triggers (`ZoneChangeBatchTriggeredAbility`, `OneOrMoreLeaveWithoutDyingTriggeredAbility`,
+    and card classes that read `ZONE_CHANGE_BATCH`, as `Trigger::ZoneBatch` with from/to zones, a filter, whose, cards
+    only, not dying): each object that moves joins the trigger's one waiting `batch_pending` item (`StackItem::batch`,
+    its X the count, its pointer at each when it has no targets). A permanent leaving is seen as it was; a card is
+    seen in its new zone. They wait with the other batch triggers and go in Java's trigger order among themselves,
+    since Java checks them on one event (Moonshadow's and Seer of Stolen Sight's). A trigger class whose `getRule`
+    shows what it triggered with adds it on the stack (`Handler::stack_info`: The Skullspore Nexus's total power).
+  - "One or more permanents become tapped" (`BecomesTappedOneOrMoreTriggeredAbility`), once for the `TAPPED_BATCH`.
+  - Damage batches: "this is dealt combat damage", "a permanent of the filter is dealt damage"
+    (`DealtDamageAnyTriggeredAbility`, X the damage, a pointer at it or its controller), "a spell you control deals
+    damage" (as cast, by its controller), "equipped/enchanted creature deals (combat) damage"
+    (`DealsDamageAttachedTriggeredAbility`), "one or more creatures you control deal combat damage to a player" from
+    the graveyard (Killian's Confidence, Pyrewild Shaman with `SourceInGraveyardCondition`), "you're dealt combat
+    damage" (Swarmborn Giant, Contested Game Ball, Risona). `PreventDamageAndRemoveCountersEffect` and its watcher
+    (Undergrowth Champion, Oathsworn Knight, Ugin's Conjurant): it removes one counter for each damage batch and keeps
+    preventing in that batch once the counters are gone (`Game::counter_removed_batch`, cleared as the simultaneous
+    events are handled).
+  - "Becomes the target": a player targeted counts for the triggers that say so ("you and/or a permanent you
+    control", Leyline of Combustion; "a player or permanent", Loki), once for the targeting object, abilities only,
+    and the enchanted creature (`BecomesTargetAttachedTriggeredAbility`, Illusionary Armor).
+  - A generic `TRANSFORMED` trigger (`Trigger::TransformsAny`): a permanent of a filter transforms, as it is now
+    (Norn's Inquisitor, Cult of the Waxing Moon), or the one this is attached to (Neglected Heirloom); "transforms
+    into this" in an `OrTriggeredAbility` (Blightreaper Thallid).
+  - "At the beginning of your next main phase" delayed triggers (`AtTheBeginOfMainPhaseDelayedTriggeredAbility`: the
+    next main, this turn's, the next first or postcombat main), checked as the main phase begins before the step's own
+    (Conduit of Storms, Mana Sculpt), and `IsMainPhaseCondition.YOURS`.
+  - Factory rounds: four (82 games, 81 matching) verified 41 cards: 11,170 of 11,363. The one that differs is a Temur Charger enchanted by two Prophetic Ravings (both verified on master): Java numbers the two granted "{T}, Discard a card" abilities differently from the engine. Games under `shadow/handlers/game-handlers9-batch-*` cover the cards, and
+    `shadow/factory/game-w9batch-*` the zone-batch order and stack text. Left: Corruption of Towashi ("enters transformed"), Plasm Capture (triggered mana in any combination), Moraug (an extra combat after this phase), Diffusion Sliver, Glyph Keeper and Amulet of Safekeeping (countering an ability), Mirror-Shield Hoplite and Skophos Maze-Warden (the targeting ability's own kind and source), Aegar, Toralf, Imodane and Magmatic Galleon (excess damage, a spell's single target), Jace, Cunning Castaway (a delayed batch trigger), Briarbridge Patrol, Grievous Wound, Polukranos, the dice-roll batches, and the cards other open PRs hold (Elesh Norn, Hushbringer, Doorkeeper Thrull, Karn, Hot Soup, Sleep Magic and the rest of `DealtDamageAttachedTriggeredAbility`, Titania).
+
+  Load fixes (14 Nov): five cards in `cards.json` didn't load. Dragon's Approach, Sphinx's Approach and Ruthless
+  Disposal kept a `CompositeCost` in their spell, and Ultimecia, Time Sorceress in its front face's trigger, because
+  the transpiler flattened composite costs only in a plain card's abilities; it now flattens them in the whole card.
+  Sandman's Quicksand's mayhem ability has effects of its own (`MayhemAbility` copies the spell ability before the card
+  adds its effects), which the engine now reads as the mayhem spell's. One factory round (20 games, all matching)
+  verified the five: 11,134 of 11,322. `shadow/handlers/game-loadfix-composite-spell-cost.json` covers Ruthless
+  Disposal's two-part additional cost.
+
+  Wave 9, modal double-faced cards with a nonland back (14 Nov): the transpiler builds both faces (with modes and
+  costs on a face's spell, a planeswalker face's loyalty, `CompoundAbility` grants), and the engine casts the back
+  from a hand, from exile when an effect lets you play the card (Birgi exiled by Harnfel), and for free (Plargg's
+  `chooseAbilityForCast` asks which face). An MDFC whose faces are both permanents transforms
+  (`ModalDoubleFacedCard.isTransformable`: Monica Rambeau), and a back cast as a permanent is the whole card again
+  when it leaves. Shadow starts now record an MDFC's place in the trigger order through its halves (`ShadowStart`),
+  and a back cast as a permanent keeps that place. Engine fixes: statics of permanents that left in the same action
+  still replace a leave-the-battlefield move (Java's short-living LKI: Valentin blocking a creature, both dying), and a
+  reflexive trigger fired during a state-based batch waits before the batch's dies triggers; a keyword a static gives
+  beside an activated or mana ability is numbered too (Esika's vigilance before Tony Stark's mana ability, `a4`);
+  `AttachTargetToTargetEffect` checks protection and an Aura's enchant restriction; `Rule::MaxActivations` lets a
+  handler raise an ability's activation limit (Birgi). Three factory rounds (87 games, 86 matching) verified 20:
+  11,149 of 11,342. Ten games under `shadow/mdfc/` cover them. Left: Torrent Sculptor (its one differing game is Arc
+  Spitter's granted ability, whose `DamageTargetEffect(1, "this creature")` text the transpiler drops; Arc Spitter is
+  verified on master, so it wasn't changed here), Ondu Inversion (pending: cast once in 30 games), and the MDFCs whose
+  blockers are elsewhere: Agadeem's Awakening (a card-specific target adjuster), Jadzi (`castSingle` from the library
+  for {1}), Tergrid, Reidane ("becomes the target", the BATCH area), Miles Morales, Norman Osborn, Peter Parker, Gwen
+  Stacy, Jennifer Walters, Cosima, Rowan, Mila, Valki, Alrund, Egon, Extus, Flamescroll Celebrant, Jorn, Kianne,
+  Magik, Toralf and Uvilda (an effect or trigger class each).
+
+  Wave 10, claim 3 (14 Nov): 74 handler files (one-shot effects, conditions, values and predicates, among them the
+  framework's `YouGainedOrLostLifeCondition`, `AttackedThisTurnSourceCondition`, `NightCondition` and
+  `MaxManaValueControlledCreatureOrPlaneswalkerPredicate`, which brought in Starlit Soothsayer and Riveteers Charm).
+  Engine and transpiler pieces: `DamageWithPowerFromOneToAnotherTargetEffect("", 2)` deals twice the power (Animist's
+  Might, Polliwallop, Punishing Punch), a kicker that returns a land you control (Chocobo Kick), and
+  `TargetCardWithDifferentNameInLibrary` as `Pred::DifferentName` over the cards already chosen in the search; the
+  search now works out what's left after each pick, and is complete when nothing's left (Java's `isChoiceCompleted`).
+  Two games under `shadow/factory/game-w10c3-*` cover those. Three factory rounds (124 games, 117 matching) verified
+  72, 68 of them from the claim's list: 11,201 of 11,407. Twelve games under `shadow/handlers/game-handlers10-claim3-*`
+  cover the handlers. Left: Hapatra (Java's `ForEachOpponentTargetsAdjuster` renames each target, "controlled by …"),
+  Goblin Blast-Runner (one game parts after an Equipment-granted "sacrifice this" ability that targets its own
+  source), Omnipresence (two games part at a free cast's priority), and Desolation Twin, Duneblast, Inspired
+  Ultimatum, Judgment Bolt, Tiamat, Volcanic Vision and War Effort (pending: not exercised enough).
+
+  Wave 10, claim 2 (14 Nov): tribute (`TributeAbility(n)`: as it enters, the opponent is asked whether to put the
+  counters on it, remembered for `TributeNotPaidCondition`), exploit (`ExploitAbility` as an optional enters trigger
+  whose sacrifice fires "when this exploits a creature" at once, after the sacrifice's own triggers, also when the
+  exploiter sacrificed itself), hexproof from a color, monocolored, multicolored or each color (`targetable` checks
+  the opponent's source against it), "whenever this deals damage to a player" (`DealsDamageToAPlayerTriggeredAbility`,
+  not only an opponent), Runic Armasaur's "whenever an opponent activates an ability of a creature or land", and
+  `ConditionalOneShotEffect` with a handler's condition. Engine fix: "deals combat damage to a player or planeswalker"
+  triggers carry the damage as X (`setValue("damage")`), so Garruk's Harbinger looks at that many cards. 59 handler
+  files. Three factory rounds (122 games, 111 matching) verified 77, 17 of them through exploit, tribute and hexproof
+  from (Sidisi's Faithful, Ornitharch, Sporeweb Weaver and others): 11,206 of 11,410. Six games under
+  `shadow/handlers/game-handlers10-c2-*` cover the engine pieces. Left: Flame-Wreathed Phoenix (a resolving
+  `GainAbilitySourceEffect` only lasts until end of turn, and its one-argument form defaults to end of turn where
+  Java's is while on the battlefield; changing the default moves 57 verified cards), Old-Growth Dryads (library order
+  after the opponent's search), Skyclave Plunder, Bond of Insight, Engulf the Shore and Purifying Dragon (one or two
+  differing games each), and five handler cards still short of games (Blast of Genius, Coerced Confession,
+  Defossilize, Essence Backlash, Jace's Mindseeker). Skipped: speed (Start your engines!), mutate, and the cards that
+  need the queued PRs' features (Price of Loyalty's Treasure mana, Enchanted River's Grasp's lose-all-abilities Aura).
+
+  Wave 10, claim 1 (14 Nov): 61 handler files, three of them framework classes (`DamageWithExcessEffect`, with the
+  `lethal_from` and `damage_with_excess` helpers Torch the Witness reuses; `DamageTargetAndAllControlledEffect`;
+  `RemoveFromCombatTargetEffect`) and an `int` argument kind for a handler's numeric Java argument. Engine pieces:
+  `ReturnToHandFromBattlefieldSourceCost` (Shigeki, Rootha), `RevealLibraryPickControllerEffect` onto the battlefield
+  tapped, a stack item's `sacrificed` (the permanents its `SacrificeTargetCost`s took, for Thallid Omnivore and Pyre of
+  Heroes), and `AddPoisonCounterTargetEffect` as `AddCountersTargetEffect` with poison. "Discard any number of cards"
+  (Steal the Show) is `choose_cards_rounds`: Java's `TargetDiscard(0, MAX)` asks for "done" once more after a round
+  that added a card. Three factory rounds (122 games, all matching) verified 72: 11,201 of 11,393. Twelve games under
+  `shadow/handlers/game-handlers10-c1-*` cover the engine pieces and 57 of the cards. Left: Doomsday Excruciator (cast
+  in one game of 40), Commit // Memory and Wild Ricochet (need #358), Triskaidekaphobia (`GainLifeAllEffect`, #361 and
+  #370), Gonti (#365's look-at for face-down exiled cards).
+
+  Wave 10, claim 3, second batch (14 Nov): the claim's cheapest cards, 47 handler files with no engine change
+  (one-shot effects and conditions, and the framework's `AddCounterChoiceSourceEffect`, which brought in Boot Nipper
+  and Wingfold Pteron, and `DamageTargetAndAllControlledEffect`, which brought in Radiating Lightning). Java chooses
+  a lone permanent without asking for Wayward Guide-Beast's land, and asks Devout Invocation's controller even with
+  no untapped creature. Two factory rounds (78 games, all matching) verified 51, 48 of them from the claim's list:
+  11,180 of 11,374. Twelve games under `shadow/handlers/game-handlers10-claim3b-*` cover them. Left: Mardu Charm
+  (pending: not exercised enough), Ferocious Tigorilla (its "enters with" text), Feast of the Victorious Dead
+  (distributing counters), and about 750 of the list's cards.
+
+  Wave 10, claim 2b (14 Nov): 52 one-shot handler files (Mister Negative's life exchange, Mishra's Command's discard
+  of up to X, Feldon's exile-and-play, Vivien's Arkbow, Doom Foretold, Final Parting and others). Two engine fixes,
+  each with a game under `shadow/handlers/game-handlers10-c2b-*`: a token made by a cast split card's half looks for
+  its image in the whole card's set (Incongruity's Frog Lizard drew a random number Java doesn't), and lore counters
+  an effect puts on a Saga (proliferate) trigger the chapters they reach. Four factory rounds (98 games, 94 matching)
+  verified 48: 11,177 of 11,374. Left: Soul of Emancipation (its Angels are made in the `HashMap` order of the players' ids, which the
+  engine doesn't model, when both players lose permanents), and Enter the God-Eternals, Sin Prodder and Spry and
+  Mighty, blamed for one game each that differs elsewhere (Soul of Emancipation's Angels, Shadowed Caravel's crew).
+
+  Wave 10, claim 1, second batch (14 Nov): cards whose only blocker was one effect class, plus eight conditions. 38
+  handler files, three of them framework classes (`ExileSourceEffect`; `ReturnToBattlefieldUnderOwnerControlSourceEffect`
+  with no zone change count, from a graveyard or exile, so Lamplight Phoenix comes back after its exile cost;
+  `ControlsCreatureGreatestToughnessCondition`). Engine pieces: a `DoWhenCostPaid` reflexive trigger goes after what
+  paying fired at once (sacrifice and discard triggers) and ahead of what the sacrifice's zone change fired, because
+  Java holds that with the simultaneous events (Skyfisher Spider over a dies trigger; Surtland Flinger's handler does
+  the same). Rebound offers its free cast even with nothing to target, as `castSpellWithAttributesForFree` doesn't
+  check (Ephemerate with no creature). Soul Search's choice reads "search" in its spell ability's name ("Cast Soul
+  Search", which `SpellAbility.getRule(true)` appends), so a lone card isn't picked by itself. Five factory rounds (116
+  games; 96 of the 97 replayed match, the rest have Pitiless Carnage) verified 39: 11,168 of 11,363. Twelve games under
+  `shadow/handlers/game-handlers10-c1b-*` cover the engine pieces and 38 of the cards. Left: Morgue Burst and Ride Down
+  (too few games exercised them), Pitiless Carnage (refused: Java sacrifices from a `HashSet<Permanent>`, so the
+  graveyard order is random), Thirsting Axe (needs a combat-damage-to-a-creature watcher), Orcus and Hollow Marauder
+  (their target adjuster and `TargetOpponent(0, MAX)` don't translate yet).
+
+  Wave 11, copy (14 Nov): copy effects. The transpiler now reads `CreateTokenCopyTargetEffect` setters on a local
+  variable, `Ability[]` arrays passed to `addAdditionalAbilities` (triggered abilities included, with "this token" as
+  `{this}`), and a `setPermanentModifier` that adds legendary (Adagia). It also reads `ActivateAbilityTriggeredAbility` and
+  the loyalty one with `SetTargetPointer.SPELL`, which copy the ability just activated, with the kinds artifact,
+  attached and "targets a creature or player" (Illusionist's Bracers, Kurkesh, Chandra's Regulator, Ertha Jo). Further
+  pieces are `FilterActivatedOrTriggeredAbility` stack filters, the creature-source and not-cast stack predicates
+  (Errant, Street Artist), Sea Gate Stormcaller's delayed copy of the next spell (two copies when kicked) and
+  `YouGainedLifeCondition` in a `ConditionalOneShotEffect`. Engine pieces:
+  - "an ability that targets a creature or player" skips a target on the stack, whose id is its source's (Kirol
+    targeting a trigger).
+  - A permanent that entered as a copy keeps the copied face when it transforms (Mirrorhall Mimic as a copy of
+    Sun-Blessed Guardian).
+  - Becoming a copy until end of turn leaves the permanent's triggers that are already waiting or on the stack with the
+    face they came from (Felhide Spiritbinder untapped by Fleeting Reflection).
+
+  26 handler files cover the rest: become-a-copy (Masterful Replication, Naga Fleshcrafter, Fleeting Reflection),
+  token copies with modifiers (Mardu Siegebreaker, Red Sun's Twilight, Cogwork Assembler, Felhide Spiritbinder, Mirror
+  Mockery, Sun-Blessed Guardian, Mirrorhall Mimic, Sin, Spira's Punishment, Delina, Wild Mage, …) and spell copies
+  (Reflective Golem, Melek, Stormsplitter). Mardu Siegebreaker copies only a card it exiled: a token it exiled has
+  ceased to exist. Three factory rounds (78 games, all matching after the fixes) verified all 46 cards that came in:
+  12,145 of 12,410. 17 games under `shadow/handlers/game-handlers11-copy-*` cover the engine pieces and the 46 cards.
+  Left in the copy area:
+  - Cards that don't translate yet: Shuri (`filter.copy()`), Terra (an `EntersBattlefieldAbility` added by another
+    ability), Kindle the Inner Flame (a behold flashback cost), Chandra, Flameshaper (`TargetCreatureOrPlaneswalkerAmount`)
+    and Vesuvan Duplimancy (a sub-filter).
+  - Cards that need more engine work: Zada and Mirrorwing (`CopySpellForEachItCouldTarget`), Pyromancer's Goggles and
+    Primal Amulet (`MANA_PAID`), Firebender Ascension (the `TRIGGERED_ABILITY` event), Mendicant Core and Slick Imitator
+    (speed), See Double, Esoteric Duplicator (the sacrificed permanent), and a permanent become-a-copy for Mycosynth
+    Gardens and Mirrorform.
+
+  Wave 11, area EXILE-CAST (14 Nov): permissions to play cards from exile and the graveyard. A card's own
+  `AsThoughEffect` class is an `AsThough::Play` handler returning a `PlayWay` (an alternate mana cost and extra costs,
+  `setCastSourceIdWithAlternateMana`); it's checked for cards in a graveyard or exile in `playable`,
+  `playable_abilities` and `play`, and the way chosen sets the cast's mana and costs (`Game::cast_permit`). As
+  `PlayerImpl.canPlay` does, such a card is playable when its own mana cost can be paid (whatever the way's other
+  costs: Wickerfolk Indomitable with nothing to sacrifice, whose cast then fails), or else for the alternate mana cost,
+  which isn't checked against the mana available (Raffine's Guidance with no white source), with the other costs
+  payable. A static of the card's own in `Zone.EXILED` or `Zone.GRAVEYARD` translates when it's such a handler. New
+  effects: `PlayFromGraveyardControllerEffect` (lands, spells or a filter, with a duration), the graveyard exile
+  replacement for you only and cards only, `ExileCardsFromTopOfLibraryControllerEffect` into the source's own zone or
+  face down, `ReturnFromExileForSourceEffect`, `ExileFaceDownTopNYouMayPlayEffect`, `ExileTopCardPlayUntilExileAnotherEffect`,
+  `MayExileCardFromHandPlottedEffect` and the becomes-plotted trigger; costs `BeholdAndExileCost` (the card from hand
+  isn't auto-chosen, since the cost reads "exile") and `DiscardHandCost`. Exile-until-it-leaves handlers use
+  `exiled_until_leaves` (Brain Maggot's card goes back to hand through `return_to_hand`). Fixes: a spell's controller
+  in a filter is who cast it (an opponent's card cast with Psychic Intrusion triggers Eternal Scourge), and only the
+  player who may look at a face-down exiled card is asked whether to (Squee cast by its owner). Three factory rounds
+  (82 games, 74 matching) verified 37: 12,182 of 12,450 (on the train with the copy wave). Ten games under `shadow/handlers/game-handlers11-exile-*`
+  cover them. Left: Mnemonic Betrayal (it returns its cards from a `HashSet<MageObjectReference>`, so the graveyard
+  order is random; Bishop of Binding's one mismatch is that game), Festival of Embers (Java shows the ability picker
+  for a graveyard cast with it), Doom Reigns Supreme (`PlanCounterThresholdTriggeredAbility`), Inside Information
+  (a resolved life-for-mana permission), Tinybones, The Temporal Anchor, Legion's Initiative and the cards needing
+  after-cast callbacks (Serra Paragon, Intrepid Paleontologist, Muldrotha).
+
+  Wave 11, area WATCH (14 Nov): per-turn tracking in `Game::watch` (`TurnWatch`, cleared in the untap step): the
+  creatures that blocked (`BlockedThisTurnWatcher`), every damage event with its source as the object it was, its
+  controller and whether it was combat damage (`DamageSeen`: noncombat damage to players, combat damage to creatures,
+  sources that dealt damage), every permanent that left the battlefield with what it last was (`LeftSeen`: controller,
+  owner, destination, creature or token, subtypes, died, counters), counters put and by whom, surveils and the
+  permanents sacrificed. Suspect is a mark (`Obj::suspected`): menace while it's on the battlefield, and it can't
+  block (`SuspectTargetEffect`, `SuspectSourceEffect`, `SuspectedPredicate`). `SetBasePtEffect` is layer 7b with
+  either characteristic alone or a value worked out as it's read (`SetBasePowerSourceEffect`, a dynamic
+  `SetBasePowerToughnessSourceEffect`, `SetBasePowerToughnessTargetEffect` with one `null`), in timestamp order with
+  the other 7b effects; until end of turn, for the game, or while the source is on the battlefield.
+  `CreateYourNextUpkeepDelayedEffect` (`AtTheBeginOfYourNextUpkeepDelayedTriggeredAbility`) waits in
+  `at_first_upkeep`. Spectacle marks the spell kicked, as surge does, so `SpectacleCondition` reads it;
+  `BlockedPredicate` is an attacker that's blocked. 41 handler files (mostly the cards' own watchers as conditions and
+  values). Three factory rounds (102 games; 93 of the 94 replayed match) verified 61 (five of them, the life-gained conditions, also came in with another wave): 12,238 of 12,507 (on the train with the copy and exile waves). Ten games
+  under `shadow/watch/` cover the engine pieces. Left: Rix Maadi Reveler (blamed for one game that parts on the order
+  of two upkeep triggers of the other player's werewolf and Mistbreath Elder), The Bears of Littjara (dropped: the
+  engine sacrifices a finished Saga before creatures with lethal damage, Java checks each permanent in battlefield
+  order), Agency Coroner and Airtight Alibi (suspected as last known), Casey Jones (random discard), Incendiary Oracle
+  and Draconic Intervention (`DamagedByWatcher` values), Kytheon (its back face's requirement effect), Fraying
+  Sanity, Thirsting Axe and the cards with `CastFromHandSourcePermanentCondition`.
+
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory
   rounds (106 games, 104 matching, replayed again on the engine with the static and claim-2 handlers) verified 58:
@@ -787,8 +1172,7 @@ Being in the engine and being trusted are kept apart.
   round: 113 of 113 finished games match (replayed again on the engine with claims 1, 5 and 6), 47 more verified:
   10,357 of 10,475. The probe found one fix (a discard or mill for each target player, not only the first). 13
   games under `shadow/turn/` cover each part. Left: Breaker of Armies and Singularity Rupture pending (not
-  exercised enough yet). Not done: phasing (a phased-out permanent would have to be
-  skipped everywhere the battlefield is read), `EndTurnEffect` (Time Stop, Glorious End: Java's end-the-turn
+  exercised enough yet). Not done: phasing (wave 9 added it, below), `EndTurnEffect` (Time Stop, Glorious End: Java's end-the-turn
   bookkeeping), extra turns with appliers (Alchemist's Gambit, Kang), the additional end step, changing targets
   (`ChooseNewTargetsTargetEffect` for Redirect Lightning, Bolt Bend: `TargetStackObject` with a target-count filter
   and `StackObjectImpl.chooseNewTarget`'s dialog), "must be blocked by a creature of a filter" on Equipment (Slayer's
@@ -979,10 +1363,140 @@ Being in the engine and being trusted are kept apart.
   - Engine fix: a creature that lost all abilities (`BecomesCreatureTargetEffect`'s `loseAllAbilities`) loses its
     keyword counters' abilities too, since Java adds those first in layer 6 (Dragonshift on a creature with a
     lifelink counter).
-  - Hideaway isn't done: each of its seven Pioneer cards needs more than the keyword.
+  - Hideaway isn't done: each of its seven Pioneer cards needs more than the keyword (wave 8, claim 1 adds it).
   - Games covering these are under `shadow/mechanics/game-w7k-*`.
   - 94 cards came in. Three factory rounds (120 games, all matching once fixed, replayed again on master after
     #353) verified 93: 11,049 of 11,238. Sandman's Quicksand had no factory deck yet.
+
+  Wave 8, claim 5 (14 Nov, `.local/rust-port/wave8/claim-5.tsv`, most-used first):
+  - Handlers: Hostage Taker and Black Cat (exiled cards you may cast with mana of any type, Hostage Taker's until it
+    leaves), Taster of Wares (cast while you control it: `may_play_while`), Narset, Enlightened Master and You
+    Find Some Prisoners (cast from exile, free or with any mana), Glamdring (cost reduction by the equipped
+    creature's power, Gleam of Death's mill), Armor Wars, Banner of Kinship, Branch of Vitu-Ghazi (mana kept until
+    end of turn), Chandra, Heart of Fire's −9, Deathknell Berserker, Escape to the Wilds, Head of the Hunt,
+    Invisible Woman, Simic Ascendancy, Nicanzil, Swallow Whole, Vannifar, and the framework's
+    `GainLifeAllEffect` (Centaur Peacemaker came in with it).
+  - Transpiler: `EntersBattlefieldOpponentTriggeredAbility` with a target pointer, `withIfTheyDo` on
+    `CounterUnlessPaysEffect`, saga chapters written as lambdas (the FIN Summons), `TargetPermanentAmount`,
+    `TargetPlayer(n)`, `ExileThenReturnTargetEffect` returning tapped and attacking (The Neutrinos), and
+    `CombatDamageByToughnessAttachedEffect` (Gauntlets of Light).
+  - Engine: `tapped_for_cost` keeps what a spell's `TapTargetCost` tapped, and that cost's choice reads the spell's
+    text the way Java's auto-choose does (Swallow Whole's "exile" isn't picked by itself); `explored` on an explore
+    trigger; a land with disguise is playable face down without a land drop (Branch of Vitu-Ghazi); proliferating a
+    lore counter triggers the chapter it reaches; a card exiled face down that may be played first asks "Look at"
+    (not for a double-faced card); "that player loses the game" ends the game as it resolves, with the ability still
+    on the stack; once a player has lost and one is left, the state-based check ends the game before a Saga past its
+    last chapter is sacrificed. Games under `shadow/factory/game-w8c5-*` and `shadow/handlers/game-handlers-w8c5-*`.
+  - 46 cards came in. Three factory rounds (74 games, 72 matching) verified 44: 11,173 of 11,368. Aetherworks
+    Marvel's one differing game picks a target by a battlefield index that differs from Java's; Summon: Choco/Mog
+    had no game yet. Nicanzil's explore triggers weren't reached in its games. Left on the list: MDFCs with a nonland
+    back (Birgi, Wandering Archaic, Kolvori, Monica Rambeau), phasing, meld, copying spells, batch "one or more"
+    triggers, play-from-graveyard for every card, conditional mana, and about 60 one-off effects.
+
+  Wave 8, the mech list (shared framework classes):
+  - `ControlEnchantedEffect` (Confiscate, Lay Claim, Coerced to Kill): applied with the other continuous effects
+    (`refresh_control`), a control change that lasts while the Aura is on the battlefield attached to that permanent
+    (`ControlUntil::Attached`). A new controller of the Aura moves the change to them.
+  - `LoseAllAbilitiesAttachedEffect` (Fresh Start, Flood the Engine): the enchanted permanent loses all abilities
+    while it's attached, through `lose_all_abilities` (restored as it leaves). The conditional form (Ray of Frost's
+    "as long as enchanted creature is red") isn't done. To Java it strips what other statics give it too (Fresh
+    Start on a creature with Cathar's Shield).
+  - `GainAbilityControlledSpellsEffect` (Inspiring Statuary, Heartflame Duelist, Chief Engineer): `spell_grants`
+    gives a card outside the battlefield and a spell the abilities a static grants it (convoke, improvise, delve,
+    lifelink, deathtouch only). `has_ability` reads them for cards off the battlefield, the alternate mana
+    (`alternate_mana`, `special_mana_actions`) for convoke, improvise and delve, and `deal_damage` for a spell's
+    lifelink and deathtouch. A guard stops a grant's own filter from asking for grants again.
+  - `ChooseACardNameEffect` (handler `choose_a_card_name_effect.rs`): Java's message for each `TypeOfName`; with
+    "look at an opponent's hand" (Sorcerous Spyglass) the opponent is picked as a target first, then "Press Ok to
+    name a card". The name is kept on the entering permanent or the resolving spell (`chosen_name`); so is a land
+    name (`ChooseLandNameEffect`, Unmoored Ego). Phyrexian Revoker's `PhyrexianRevokerEffect2` forbids activated
+    abilities (mana abilities too) of sources with that name; Sorcerous Spyglass's is the Pithing Needle one.
+  - `SearchTargetGraveyardHandLibraryForCardNameAndExileEffect` (handler `search_for_card_name_and_exile.rs`:
+    Slaughter Games, Unmoored Ego, Lost Legacy, Dispossess, Ancient Vendetta, Stain the Mind): graveyard (asked only
+    with a card of the name there), hand, library, nothing asked of a zone without one, then the shuffle and the
+    draws for cards taken from the hand.
+  - Increment (handler `increment.rs`): a cast trigger whose `check` compares the mana spent on the spell
+    (`mana_spent`) with the lower of the creature's power and toughness. Opus with `doInstead` is one
+    `ConditionalOneShotEffect` (the extra effect, otherwise the main one).
+  - The framework `WishEffect` (handler `wish_effect.rs`): every constructor as (filter, alsoFromExile,
+    topOfLibrary, reveal); the yes/no, then a card of the filter you own outside the game (the sideboard the game
+    knows) or, with `alsoFromExile`, face up in exile.
+  - "This spell has flash as long as …" (`Zone.ALL` `ConditionalContinuousEffect` of `GainAbilitySourceEffect`
+    with flash) is the card's own conditional "as though it had flash". `AsEntersBattlefieldAbility` of
+    `ChooseColorEffect` asks the color and rewrites its chosen-color mana abilities, as the enters-tapped one does.
+  - Transpiler: Java's rule texts for granted firebending, extort, afflict and crew; a `new` expression wrapped in
+    parentheses; Guidelight Optimizer's mana; Domestication's condition.
+  - Not done (noted for later): `CastFromHandSourcePermanentCondition` (Java is false in shadow games), meld,
+    granted statics on Equipment (the Runes), a granted triggered ability from `GainAbilityAllEffect` (Pontiff of
+    Blight's extort for each Pontiff: Java has six triggers, Rust two), affinity, storm, cascade, split second and
+    casualty grants, the card-specific conditional mana builders, `LoseAllAbilitiesTargetEffect` until your next
+    turn or for good, and cards that need classes in other lists.
+  - Games covering these are under `shadow/mechanics/game-w8mech-*`.
+  - 58 cards came in, You Happen On a Glade (a `new` in parentheses) the one bonus card, Berta, Wise Extrapolator
+    with #355's Fractal tokens. Four factory rounds (85 games, replayed again on master after #355) verified 56:
+    11,185 of 11,380. Pontiff of Blight differs (see above); Berta had no factory deck yet.
+
+  Wave 8, claim 1 (`.local/rust-port/wave8/claim-1.tsv`, most-used first). Handler files for 24 cards' own classes,
+  plus framework ones: hideaway (`HideawayAbility` becomes an enters trigger with `HideawayExileEffect`;
+  `HideawayPlayEffect` plays the cards exiled with that object, a land only on your turn with a land play left,
+  at any step), `LegendarySpellAbility` (a rule handler: a legendary sorcery needs a legendary creature or
+  planeswalker), `ForetoldCondition` (a spell cast from the exile it was foretold into; it keeps `foretold_turn`
+  on the stack), `SpellCastFromAnywhereOtherThanHand` and `GainActivatedAbilitiesOfTopCardEffect`. Engine changes:
+  - `DontUntapInControllersUntapStepSourceEffect` on an `EntersBattlefieldTappedAbility` (Traxos);
+    `DontCauseTriggerEffect` takes a filter (Doorkeeper Thrull: creatures entering, read as claim 2's `entering`
+    filter);
+    `CommittedCrime { graveyard }` fires from its card in the graveyard (Forsaken Miner; no factory game has it
+    triggering yet).
+  - `TurnWatch.attacked_players` (each attacker and the player it attacked, Angel of Destiny) and
+    `TurnWatch.exerted` with `ExertOnceAbility` (`ExertAbility(this, true)`: not asked again once exerted this
+    turn, Combat Celebrant).
+  - A station level's (or other conditional) granted activated ability is offered (Kavaron, Memorial World at
+    12+). `GainAbilityTargetEffect` with `UntilYourNextTurn` lasts to your next turn (Vivien's +1).
+  - A card exiled face down that its owner may cast (`exiled_face_down`, Vivien's -2) first asks whether to only
+    look at it. A spell an effect casts is checked against the rule handlers' `CantCast` too (Avatar's Wrath stops
+    a hideaway cast from exile).
+  - The transpiler reads `ExertAbility(this, true)`, a known filter's `.copy().withMessage(…)`, `MobilizeAbility`
+    with a dynamic value, a one-opponent `TargetCardInOpponentsGraveyard`, and a handler arg
+    `until_your_next_turn`.
+  - 60 cards came in (20 of them through shared classes: Collector's Cage, Widespread Thieving, Cut In, Starnheim
+    Unleashed, …). Two factory rounds (78 games, 72 matching, replayed again on master after #355) verified 50:
+    11,179 of 11,382. Regression games are `shadow/factory/game-enters-tapped-doesnt-untap`, `game-dont-cause-trigger-filter`, `game-exert-once-a-turn`,
+    `game-attacked-players-this-turn`, `game-station-level-activated-ability`,
+    `game-gain-ability-until-your-next-turn`, `game-exiled-face-down-look-first` and
+    `game-effect-cast-rule-modified`, plus `shadow/handlers/game-w8c1-*`.
+
+  Left from claim 1:
+  - Kavaron and Spit Flame differ only on the Young Hero Role's trigger text (see claim 5 above).
+  - Winnowing sacrifices from a `HashSet<Permanent>` (identity hashes), so its graveyard order can't be matched.
+  - Discover the Impossible: Java's resolving spell is still on the stack, so a counterspell cast from it can target
+    it; here it can't. Triple Triad: a spell with an `OrCost` cast free from it (Wild Unraveling) is picked (a0)
+    and its {1} isn't paid in Java. Trickster's Stratagem: one game differs on Forsake the Worldly's targets.
+  - Pending (not exercised): Kamahl's Druidic Vow, Primevals' Glorious Rebirth, Urza's Ruinous Blast, Yawgmoth's
+    Vile Offering.
+  - Skipped, needing engine work: modal double-faced cards with a nonland back (Halvar, Mila, Valentin), targets in
+    exile (The Darkness Crystal), curses, batch and "becomes the target" triggers (Hedge Shredder, Satoru,
+    Reidane), conditional mana (claim-mech's), next-main-phase delayed triggers (Mana Sculpt), and about 70 more
+    with their own effect classes.
+
+  Wave 10, claim 4 (the long tail): 82 handler files, mostly the unused cards' one-shot spells (damage with an
+  excess or a subtype rider, counter-and-mill, sacrifice or discard choices, graveyard returns, search-and-reveal),
+  bring 82 cards into the engine (11,404). Engine fix: `ExileGraveyardAllTargetPlayerEffect` exiles every target
+  player's graveyard ("any number of target players", The Death of Gwen Stacy), not only the first; regression game
+  `shadow/factory/game-w10c4-exile-target-players-graveyards.json`. Two factory rounds (114 games, 103 matching)
+  verified 77 of them, plus Heroic Feast and The Magic Mirror, which were already in: 11,208 of 11,404. Not verified: Moment of
+  Truth (Java's `putInGraveyard` leaves the card on top of the library too), Riverwheel Sweep, Rite of the Serpent
+  and Thunderous Orator (one or two games differ each; Thunderous Orator's is a mana payment before it's cast), and
+  Serpentine Spike (no game cast it). Twelve games under `shadow/handlers/game-handlers10-claim4-*` cover them.
+
+  Wave 10, claim 4, second batch: 67 more handler files (one-shot spells, conditions, predicates, values, and six
+  framework classes: `AddPlusOneCountersAttachedEffect`, `DestroyAllAttachedToTargetEffect`,
+  `ReturnToHandFromGraveyardAllEffect`, `ShuffleHandGraveyardAllEffect`, `TargetPlayerGainControlTargetPermanentEffect`,
+  `YouGainedOrLostLifeCondition`, which bring Blastfire Bolt, Jace, the Living Guildpact and Star Charter along)
+  bring 70 cards into the engine (11,392 on this branch alone). Two factory rounds (96 games, 88 matching once the
+  handler texts were fixed) verified 61: 11,190. Not verified: Return Triumphant (its Young Hero Role text, #352),
+  Civic Saber, Bartered Cow and Historian's Wisdom (games that differ on that Role), Chrome Replicator (two enters
+  triggers from one Aurora Awakener in the other order), Emergency Powers, Harmless Offering, Chandra, Flamecaller and
+  Lullmage's Domination. Ten games under `shadow/handlers/game-handlers10-claim4b-*` cover them.
 
       W=.local/rust-port/factory
       python3 rust/tools/verify_factory.py build --work $W --priority .local/rust-port/card-priority.tsv --used-only
