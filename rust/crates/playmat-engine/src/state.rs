@@ -1675,6 +1675,10 @@ impl Game {
             Pred::Monocolored => self.colors(id).len() == 1,
             Pred::CounterAny => o.counters.iter().any(|(_, n)| *n > 0),
             Pred::EnteredThisTurn => o.zone == Zone::Battlefield && o.entered_turn == self.turn,
+            // `CardUtil.haveSameNames`: a nameless card shares no name
+            Pred::DifferentName => self.searching.as_ref().is_none_or(|(_, chosen)| {
+                o.name().is_empty() || chosen.iter().all(|c| *c == id || self.obj(*c).name() != o.name())
+            }),
             Pred::ToGraveyardThisTurn { battlefield } => {
                 o.zone == Zone::Graveyard
                     && self

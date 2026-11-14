@@ -3581,6 +3581,10 @@ class Translator:
         obj = self.new_expr(expr)
         if isinstance(obj, dict) and 'library_target' in obj:
             return obj['library_target']
+        # cards that each have different names (Tiamat): the filter keeps out a name already chosen
+        if not isinstance(obj, dict) and obj[0] == 'TargetCardWithDifferentNameInLibrary' and len(obj[1]) == 3:
+            filt, lo, hi = self.library_target('new TargetCardInLibrary(' + ','.join(obj[1]) + ')')
+            return filt + [{'p': 'different_name'}], lo, hi
         if isinstance(obj, dict) or obj[0] != 'TargetCardInLibrary':
             raise Unsupported('library target ' + expr)
         cls, args = obj

@@ -384,6 +384,9 @@ pub enum Pred {
     },
     /// `ManaValueLessThanOrEqualToSourcePowerPredicate`: mana value at most the source's power (as it last was)
     ManaValueAtMostSourcePower,
+    /// `TargetCardWithDifferentNameInLibrary`: a card not named as one already chosen in the library search going on
+    /// (`Game::searching`)
+    DifferentName,
     /// `GreatestPowerControlledPredicate`: a permanent with the greatest power among the creatures its controller
     /// controls
     GreatestPowerControlled,

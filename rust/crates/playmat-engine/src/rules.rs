@@ -7157,21 +7157,29 @@ fn search_library_cards(
     let min = min.min(possible.len());
     let required = filter.0.is_empty();
     let mut chosen: Vec<ObjId> = Vec::new();
+    // what's left to choose: the filter again, for a predicate on what's chosen so far (`Pred::DifferentName`)
+    let left_of = |game: &mut Game, chosen: &Vec<ObjId>| -> Vec<ObjId> {
+        if let Some((_, so_far)) = &mut game.searching {
+            so_far.clone_from(chosen);
+        }
+        possible
+            .iter()
+            .copied()
+            .filter(|c| !chosen.contains(c) && game.filter_matches(filter, seat, Some(source), *c))
+            .collect()
+    };
     loop {
         let before = chosen.len();
-        // `HumanPlayer.chooseTarget(cards)`: until complete, or done
+        // `HumanPlayer.chooseTarget(cards)`: until complete (`isChoiceCompleted`: the most, or nothing left), or done
         let mut complete = false;
         loop {
-            let left: Vec<ObjId> = possible.iter().copied().filter(|c| !chosen.contains(c)).collect();
+            let left = left_of(game, &chosen);
             let must = required && chosen.len() < min && !left.is_empty();
-            if let Some((_, so_far)) = &mut game.searching {
-                so_far.clone_from(&chosen);
-            }
             match ask(game, d, seat, &Query::Cards { objs: left.clone(), required: must }) {
                 Answer::Obj(o) if chosen.contains(&o) => chosen.retain(|c| *c != o),
                 Answer::Obj(o) if left.contains(&o) => {
                     chosen.push(o);
-                    if chosen.len() >= max || left.len() == 1 {
+                    if chosen.len() >= max || left_of(game, &chosen).is_empty() {
                         complete = true;
                         break;
                     }
