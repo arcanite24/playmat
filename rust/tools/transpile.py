@@ -2692,6 +2692,14 @@ class Translator:
         if cls == 'ConditionalOneShotEffect' and len(args) == 4:
             return {'class': cls, 'effect': self.effect(args[0]), 'otherwise': self.effect(args[1]),
                     'condition': self.condition(args[2])}
+        # a spell's "if …, damage can't be prevented this turn" (Wild Slash's ferocious): worked out as it resolves
+        # (`LockedInCondition`)
+        if cls == 'ConditionalContinuousRuleModifyingEffect' and len(args) == 2 \
+                and (l := re.fullmatch(r'new LockedInCondition\((.*)\)', args[1].strip(), re.S)):
+            inner = self.effect(args[0])
+            if inner.get('class') != 'DamageCantBePreventedEffect' or inner.get('duration') != 'EndOfTurn':
+                raise Unsupported('effect ' + cls)
+            return {'class': 'ConditionalOneShotEffect', 'effect': inner, 'condition': self.condition(l.group(1))}
         # a spell's "+2/+2, or +4/+4 instead if …": worked out as it resolves (`LockedInCondition`)
         if cls == 'ConditionalContinuousEffect' and len(args) == 4 \
                 and (all(re.fullmatch(r'new Boost(Target|Source)Effect\(-?\d+,-?\d+,Duration\.EndOfTurn\)', a.strip()) for a in args[:2])
@@ -2999,6 +3007,10 @@ class Translator:
         if cls == 'RegenerateSourceEffect' and len(args) <= 1:
             return {'class': cls}
         if cls == 'CounterUnlessPaysEffect' and len(args) == 1 and not args[0].strip().startswith('new '):
+            return {'class': cls, 'generic': self.value('amount', args[0].strip())}
+        # a `DynamicValue` constructed in place (`new CardsInControllerGraveyardCount()`): {1} for each
+        if cls == 'CounterUnlessPaysEffect' and len(args) == 1 \
+                and re.fullmatch(r'new \w+(?:Count|Value)\(.*\)', args[0].strip(), re.S):
             return {'class': cls, 'generic': self.value('amount', args[0].strip())}
         # a characteristic-defining power and toughness of any count (Pack Rat, Territorial Kavu)
         if cls == 'SetBasePowerToughnessSourceEffect' and len(args) == 1 and args[0].strip() not in COUNTS:
@@ -3853,6 +3865,11 @@ class Translator:
             if a.get('on', {}).get('this_unfiltered'):
                 a['on']['this_unfiltered'] = False
                 return a
+        # a legendary instant or sorcery: a static working in every zone, its check effect a handler
+        if re.fullmatch(r'new LegendarySpellAbility\((?:true|false)?\)', canonical(self.strip_setters(expr))):
+            a = self.ability('new SimpleStaticAbility(Zone.ALL,new LegendarySpellAbilityCheckEffect())')
+            a['java'] = 'LegendarySpellAbility'
+            return a
         # an evasion static is a static
         m = re.fullmatch(r'new SimpleEvasionAbility\((.*)\)', expr.strip(), re.S)
         if m:
@@ -5187,6 +5204,13 @@ class Translator:
         # (the third argument: the enrage ability word)
         if cls == 'DealtDamageToSourceTriggeredAbility' and (n == 2 or (n == 3 and args[2] in ('true', 'false'))):
             return out({'e': 'dealt_damage'}, args[0], flag(args[1]))
+        # "whenever enchanted (equipped) creature is dealt damage", once for each of its batches
+        if cls == 'DealtDamageAttachedTriggeredAbility' and n == 4 and args[0] == 'Zone.BATTLEFIELD' \
+                and args[3] in ('SetTargetPointer.NONE', 'SetTargetPointer.PERMANENT', 'SetTargetPointer.PLAYER'):
+            a = out({'e': 'dealt_damage_attached'}, args[1], flag(args[2]), args[3] == 'SetTargetPointer.PERMANENT')
+            if args[3] == 'SetTargetPointer.PLAYER':
+                a['set_target_pointer_player'] = True
+            return a
         # whenever you draw your second card each turn
         if cls == 'DrawNthCardTriggeredAbility' and n == 1:
             return out({'e': 'draws_nth', 'n': 2}, args[0])
@@ -5196,6 +5220,33 @@ class Translator:
             return out({'e': 'draws', 'who': 'you'}, args[1], flag(args[2]))
         if cls == 'DrawCardOpponentTriggeredAbility' and n == 3:
             return out({'e': 'draws', 'who': 'opponent'}, args[0], flag(args[1]), flag(args[2]))
+        # "whenever a source deals damage to this": the source's controller the player pointer (`DAMAGED_PERMANENT`)
+        if cls == 'SourceDealsDamageToThisTriggeredAbility' and n in (1, 2):
+            a = out({'e': 'damaged_permanent', 'of': 'to_this'}, args[0], n == 2 and flag(args[1]))
+            a['set_target_pointer_player'] = True
+            return a
+        # "whenever a source an opponent controls deals damage to you (or a permanent of the filter you control)": its
+        # controller the player pointer
+        if cls == 'SourceDealsDamageToYouTriggeredAbility' and n in (2, 3):
+            on = {'e': 'damaged_permanent', 'of': 'to_you'}
+            if n == 3 and args[1] != 'null':
+                on = {'e': 'damaged_permanent', 'of': 'to_you_or_yours', 'filter': self.filter(args[1])}
+            a = out(on, args[0], flag(args[n - 1]))
+            a['set_target_pointer_player'] = True
+            return a
+        # "whenever this deals (combat) damage to a creature (of the filter)", each `DAMAGED_PERMANENT` event
+        if cls == 'DealsDamageToACreatureTriggeredAbility' and n in (4, 5):
+            f = self.filter(args[4]) if n == 5 else self.filter('StaticFilters.FILTER_PERMANENT_A_CREATURE')
+            return out({'e': 'damaged_permanent', 'of': 'this_to', 'filter': f, 'combat': flag(args[1])}, args[0],
+                       flag(args[2]), flag(args[3]))
+        # Thassa's Emissary: "whenever this creature or enchanted creature deals combat damage to a player"
+        if cls == 'ThassasEmissaryTriggeredAbility' and n == 2:
+            return out({'e': 'attached_deals_damage_to_player', 'only_combat': True, 'who': 'any', 'or_this': True},
+                       args[0], flag(args[1]))
+        # Giant's Skewer: "whenever equipped creature deals combat damage to a creature" (in Java, to any permanent)
+        if cls == 'GiantsSkewerTriggeredAbility' and n == 0:
+            return out({'e': 'damaged_permanent', 'of': 'attached_to', 'combat': True},
+                       'new CreateTokenEffect(new FoodToken())')
         # "whenever this deals (combat) damage", once for each batch of its damage (`DAMAGED_BATCH_BY_SOURCE`)
         if cls == 'DealsDamageSourceTriggeredAbility' and n in (1, 2):
             return out({'e': 'deals_damage'}, args[0], n == 2 and flag(args[1]))
@@ -6628,6 +6679,13 @@ def ability_statement(t, st, added):
         return True
     if m and isinstance(t.vars.get(m.group(1)), dict) and t.vars[m.group(1)].get('class') == 'ReturnToHandTargetEffect':
         t.vars[m.group(1)]['class'] = 'ReturnToHandEachTargetEffect'
+        return True
+    # each target player mills (the engine's mill already takes every player of the first target)
+    if m and isinstance(t.vars.get(m.group(1)), dict) and t.vars[m.group(1)].get('class') == 'MillCardsTargetEffect':
+        return True
+    # a card's own effect class written as a handler reads every target itself (`cx.legal`)
+    if m and isinstance(t.vars.get(m.group(1)), dict) and t.vars[m.group(1)].get('class') == 'CardEffect' \
+            and '.' in t.vars[m.group(1)].get('handler', ''):
         return True
     # an effect on the ability's second or third target (Grip of Desolation's land, Manticore's damage)
     m = re.fullmatch(r'(\w+)\.setTargetPointer\(new (First|Second|Third)TargetPointer\(\)\)', st)

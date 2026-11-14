@@ -912,7 +912,8 @@ pub struct Game {
     /// "until your next turn, whenever one or more creatures attack one of your opponents" delayed triggers: whose,
     /// and the trigger (its `fixed` set to the attackers)
     pub attacks_opponent: Vec<(Seat, StackItem)>,
-    /// spells that enter with more +1/+1 counters: the card as it was on the stack, and how many
+    /// spells that enter with more +1/+1 counters: the card as it was on the stack (or in the zone it enters from),
+    /// and how many
     pub enter_counters: Vec<(ObjId, u32, i32)>,
     /// the stack position of the spell or ability being cast or activated: not paid for yet (a view shows it unpaid)
     pub unpaid: Option<usize>,
@@ -1199,6 +1200,8 @@ pub struct TurnWatch {
     pub left_graveyard: Vec<Seat>,
     /// `DiscardedCardWatcher`: who discarded, once a card
     pub discarded: Vec<Seat>,
+    /// who discarded one or more cards together, once each `DISCARDED_CARDS` event (Rielle's watcher)
+    pub discard_batches: Vec<Seat>,
     /// `ScryOrSurveilWatcher`: who scried or surveilled
     pub scried: Vec<Seat>,
     /// `CardsPutIntoGraveyardWatcher`: each card put into a graveyard, its zone-change count there, and whether it
@@ -2132,6 +2135,7 @@ impl Game {
             }
         }
         for seat in seats {
+            self.watch.discard_batches.push(seat);
             let cards: Vec<ObjId> = batch.iter().filter(|(s, _)| *s == seat).map(|(_, c)| *c).collect();
             let sources = self.trigger_sources();
             let fired = self.triggers(sources, |g, src, you, t| match t {
