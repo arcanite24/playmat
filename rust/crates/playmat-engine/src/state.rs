@@ -971,9 +971,6 @@ pub struct Game {
     pub events: Option<Vec<GameEvent>>,
     /// permanents exiled instead if they would die this turn
     pub exile_if_dies: Vec<(ObjId, u32)>,
-    /// the permanents (as they were) whose "once during each of your turns, cast from your graveyard" was used, with
-    /// the turn (`CastFromGraveyardOnceWatcher`)
-    pub graveyard_once_used: Vec<(ObjId, u32, u32)>,
     /// cards exiled instead if they would be put into a graveyard this turn (`ThatSpellGraveyardExileReplacementEffect`:
     /// Torrential Gearhulk's instant, from anywhere)
     pub exile_if_graveyard: Vec<ObjId>,
@@ -1138,6 +1135,9 @@ pub struct TurnWatch {
     /// `TriggeredAbility.setDidThisTurn`: the "do this only once each turn" abilities done this turn (the source, its
     /// zone-change count, the ability's index)
     pub did_this_turn: Vec<(ObjId, u32, usize)>,
+    /// `CastFromGraveyardOnceWatcher`: the permanents (and their zone-change counts) whose "once during each of your
+    /// turns, cast from your graveyard" was used this turn
+    pub graveyard_once: Vec<(ObjId, u32)>,
 }
 
 impl Game {
@@ -1229,7 +1229,6 @@ impl Game {
             events: None,
             exile_if_dies: Vec::new(),
             exile_if_graveyard: Vec::new(),
-            graveyard_once_used: Vec::new(),
             control_changes: Vec::new(),
             damaged_by_source: Vec::new(),
             combat_damaged_players: Vec::new(),

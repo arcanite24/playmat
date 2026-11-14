@@ -2144,7 +2144,7 @@ fn graveyard_once_permits(game: &Game, seat: Seat, id: ObjId, face: &CardDef) ->
         if let EffectDef::CastFromGraveyardOnceEffect { filter } = e {
             let s = g.obj(src);
             if s.controller == seat
-                && !g.graveyard_once_used.contains(&(src, s.zcc, g.turn))
+                && !g.watch.graveyard_once.contains(&(src, s.zcc))
                 && face_matches(g, filter, seat, src, id, face)
                 && !out.contains(&src)
             {
@@ -3893,8 +3893,8 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             }
             // `CastFromGraveyardOnceWatcher`: that permanent's use this turn
             if let Some(src) = chosen {
-                let entry = (src, game.obj(src).zcc, game.turn);
-                game.graveyard_once_used.push(entry);
+                let entry = (src, game.obj(src).zcc);
+                game.watch.graveyard_once.push(entry);
             }
             return;
         }
