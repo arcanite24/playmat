@@ -11997,10 +11997,10 @@ fn apply_each_effect(
                     apply_effects(game, d, item, otherwise, legal, source);
                 }
             }
-            EffectDef::DamageWithPowerFromOneToAnotherTargetEffect => {
+            EffectDef::DamageWithPowerFromOneToAnotherTargetEffect { multiplier } => {
                 if let (Some(Target::Obj(from)), Some(to)) = (target, legal_target(1)) {
                     let (power, _) = game.power_toughness(from);
-                    deal_damage(game, from, to, power, false);
+                    deal_damage(game, from, to, power * multiplier, false);
                 }
             }
             // a resolving one boosts the creatures it applies to now; a static one applies while its source is on the

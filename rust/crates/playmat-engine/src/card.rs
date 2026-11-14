@@ -1974,8 +1974,12 @@ pub enum EffectDef {
         filter: Filter,
         message: String,
     },
-    /// the first target deals damage equal to its power to the second (Bite Down)
-    DamageWithPowerFromOneToAnotherTargetEffect,
+    /// the first target deals damage equal to its power (times `multiplier`) to the second (Bite Down; Animist's
+    /// Might deals twice that)
+    DamageWithPowerFromOneToAnotherTargetEffect {
+        #[serde(default = "one_i32")]
+        multiplier: i32,
+    },
     /// each opponent loses `amount` life
     LoseLifeOpponentsEffect {
         amount: Amount,
