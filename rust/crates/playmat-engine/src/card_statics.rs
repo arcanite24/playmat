@@ -197,6 +197,9 @@ pub(crate) enum EventType {
     /// `ENTERS_THE_BATTLEFIELD`: `target` is entering under `player`'s control (`rules::enter_battlefield`), already
     /// where its "enters with" counters go (`add_counters_by`); the entering permanent's own statics don't apply
     EntersBattlefield,
+    /// `CONNIVE`: `target`, controlled by `player`, would connive `amount` (`ConniveSourceEffect.connive`); "replaced"
+    /// stops it, else it connives as it was going to (Leader, Super-Genius draws first)
+    Connive,
 }
 
 /// The event a replacement handler sees and may change (Java's `GameEvent`)

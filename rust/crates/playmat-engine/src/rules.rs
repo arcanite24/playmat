@@ -6298,6 +6298,16 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
     true
 }
 
+/// `ConniveSourceEffect.connive`'s `CONNIVE` event for `o`, controlled by `seat`: whether a replacement stopped it
+/// (Leader, Super-Genius's draws first and lets it go on)
+fn connive_replaced(game: &mut Game, o: ObjId, seat: Seat) -> bool {
+    if !cards::any_replacement(game, cards::EventType::Connive) {
+        return false;
+    }
+    let mut ev = cards::Event { target: Some(o), amount: 1, ..cards::Event::new(cards::EventType::Connive, seat) };
+    cards::replace_event(game, &mut ev, 0)
+}
+
 /// Waterbend N: up to N untapped artifacts and creatures you control chosen (`TargetControlledPermanent(0, N)`,
 /// `Player.choose`) and tapped. How many were tapped; None: stopped.
 fn waterbend(game: &mut Game, d: &mut dyn Decider, seat: Seat, amount: u32) -> Option<u32> {
@@ -10186,10 +10196,12 @@ fn copy_spell_with(
                 new.push(*t);
                 continue;
             }
-            // one at a time; nothing chosen, or a target already chosen, asks whether to keep the old one
+            // one at a time; nothing chosen, or a target already chosen, asks whether to keep the old one. The
+            // auto-choice reads the copy's rule (`source.getRule(true)`): its own creature to exile is asked for
             let single = tdef.single();
+            let rule = item_rule(game, &item);
             loop {
-                let chosen = choose_target(game, d, controller, &single, Some(copy), "", false);
+                let chosen = choose_target(game, d, controller, &single, Some(copy), &rule, false);
                 if d.stopped() {
                     return None;
                 }
@@ -12898,6 +12910,9 @@ fn apply_each_effect(
                 let (o, zcc) = source;
                 let p = game.obj(o).controller;
                 let there = game.obj(o).zone == Zone::Battlefield && game.obj(o).zcc == zcc;
+                if connive_replaced(game, o, p) {
+                    continue;
+                }
                 draw(game, p, 1);
                 let n = discard(game, d, p, 1).iter().filter(|c| !game.obj(**c).is(CardType::Land)).count();
                 if there && n > 0 {
@@ -16668,6 +16683,9 @@ fn apply_each_effect(
                 for o in who {
                     let p = game.obj(o).controller;
                     let zcc = game.obj(o).zcc;
+                    if connive_replaced(game, o, p) {
+                        continue;
+                    }
                     draw(game, p, 1);
                     let gone = discard(game, d, p, 1);
                     if d.stopped() {
@@ -18621,14 +18639,16 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
     let stack_zcc = game.obj(id).zcc;
     // each its own replacement effect (Kumano's "enters with an additional +1/+1 counter")
     let mut counter_effects = 0;
-    let more_counters: i32 = if cast {
+    // (or a card put onto the battlefield with them from where it was, `setEnterWithCounters`, not a replacement
+    // effect: Infernal Vessel's return)
+    let more_counters: i32 = {
         let (mine, rest): (Vec<_>, Vec<_>) =
             std::mem::take(&mut game.enter_counters).into_iter().partition(|(o, z, _)| *o == id && *z == stack_zcc);
         game.enter_counters = rest;
-        counter_effects = mine.len();
+        if cast {
+            counter_effects = mine.len();
+        }
         mine.iter().map(|(_, _, n)| n).sum()
-    } else {
-        0
     };
     // Giada: each other Angel you control enters with a +1/+1 counter for each Angel you already control (not one
     // entering with it: Collected Company's two). Java moves cards together one at a time and an entering
@@ -19523,6 +19543,55 @@ fn damaged_batch_triggers(game: &mut Game) {
             t.x = n;
             game.pending.push(t);
         }
+        // `DealtDamageAttachedTriggeredAbility`: the Auras and Equipment attached to it
+        let attached: Vec<ObjId> = game.battlefield.iter().copied().filter(|a| game.attached(*a) == Some(o)).collect();
+        for mut t in game.triggers(attached, |_, _, _, t| matches!(t, Trigger::DealtDamageAttached)) {
+            t.x = n;
+            if set_target_pointer(game, &t) {
+                t.targets = vec![vec![Target::Obj(o)]];
+                t.target_zcc = vec![vec![game.obj(o).zcc]];
+            } else if set_target_pointer_player(game, &t) {
+                t.targets = vec![vec![Target::Player(game.obj(t.card).controller)]];
+                t.target_zcc = vec![vec![0]];
+            }
+            game.pending.push(t);
+        }
+    }
+}
+
+/// `DAMAGED_PERMANENT` and `DAMAGED_PLAYER`, each time a source deals damage to a permanent or a player: the
+/// `Trigger::DamagedPermanent`s it fires, X the damage, a target pointer at the damaged permanent or a player pointer
+/// at the source's controller
+fn damaged_permanent_triggers(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: bool) {
+    let from = game.obj(source).controller;
+    let sources = game.trigger_sources();
+    let fired = game.triggers(sources, |g, src, you, t| match (t, to) {
+        (Trigger::DamagedPermanent { of, filter, combat: only }, Target::Obj(o)) if combat || !*only => {
+            match of.as_str() {
+                "to_this" => src == o,
+                "this_to" => src == source && g.filter_matches(filter, you, Some(src), o),
+                "attached_to" => g.attached(src) == Some(source) && g.filter_matches(filter, you, Some(src), o),
+                "to_you_or_yours" => {
+                    from != you && g.obj(o).controller == you && g.filter_matches(filter, you, Some(src), o)
+                }
+                _ => false,
+            }
+        }
+        (Trigger::DamagedPermanent { of, combat: only, .. }, Target::Player(p)) if combat || !*only => {
+            matches!(of.as_str(), "to_you" | "to_you_or_yours") && p == you && from != you
+        }
+        _ => false,
+    });
+    for mut t in fired {
+        t.x = amount;
+        if let (true, Target::Obj(o)) = (set_target_pointer(game, &t), to) {
+            t.targets = vec![vec![Target::Obj(o)]];
+            t.target_zcc = vec![vec![game.obj(o).zcc]];
+        } else if set_target_pointer_player(game, &t) {
+            t.targets = vec![vec![Target::Player(from)]];
+            t.target_zcc = vec![vec![0]];
+        }
+        game.pending.push(t);
     }
 }
 
@@ -20535,6 +20604,9 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             if !combat {
                 damaged_opponent_triggers(game, s);
             }
+            if amount > 0 {
+                damaged_permanent_triggers(game, source, to, amount, combat);
+            }
         }
         Target::Obj(o) => {
             if game.obj(o).zone != Zone::Battlefield {
@@ -20544,7 +20616,15 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             let creature = game.has_type(o, CardType::Creature);
             // wither: a creature gets -1/-1 counters, not damage (`checkWither`)
             let wither = creature && keyword(&AbilityDef::WitherAbility);
-            if game.obj(o).def.abilities.iter().any(|a| a.trigger() == Some(&Trigger::DealtDamage)) {
+            let attached_trigger = |g: &Game| {
+                g.battlefield.iter().any(|a| {
+                    g.attached(*a) == Some(o)
+                        && g.obj(*a).def.abilities.iter().any(|x| x.trigger() == Some(&Trigger::DealtDamageAttached))
+                })
+            };
+            if game.obj(o).def.abilities.iter().any(|a| a.trigger() == Some(&Trigger::DealtDamage))
+                || attached_trigger(game)
+            {
                 game.damaged_batch.push((o, amount));
             }
             let planeswalker = game.has_type(o, CardType::Planeswalker);
@@ -20593,6 +20673,9 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             if wither {
                 add_counters_by(game, o, "-1/-1", amount, Some(you));
             }
+            if amount > 0 {
+                damaged_permanent_triggers(game, source, to, amount, combat);
+            }
         }
     }
     if amount > 0 {
@@ -20613,8 +20696,8 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
         if !combat {
             let sources = game.trigger_sources();
             let fired = game.triggers(sources, |g, src, you, t| {
-                matches!(t, Trigger::AttachedDealsDamageToPlayer { only_combat: false, who }
-                    if Game::whose(who, you, p) && g.attached(src) == Some(source))
+                matches!(t, Trigger::AttachedDealsDamageToPlayer { only_combat: false, who, or_this }
+                    if Game::whose(who, you, p) && (g.attached(src) == Some(source) || *or_this && src == source))
             });
             for mut t in fired {
                 if set_target_pointer(game, &t) {
@@ -20677,8 +20760,8 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                 Trigger::CombatDamageToPlayerAll { filter, who, .. } => {
                     Game::whose(who, you, p) && g.filter_matches(filter, you, Some(src), source)
                 }
-                Trigger::AttachedDealsDamageToPlayer { who, .. } => {
-                    Game::whose(who, you, p) && g.attached(src) == Some(source)
+                Trigger::AttachedDealsDamageToPlayer { who, or_this, .. } => {
+                    Game::whose(who, you, p) && (g.attached(src) == Some(source) || *or_this && src == source)
                 }
                 _ => false,
             });

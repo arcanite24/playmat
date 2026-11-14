@@ -806,6 +806,28 @@ Being in the engine and being trusted are kept apart.
   abilities), `TargetCardInGraveyardBattlefieldOrStack`, `CopyStackObjectEffect` and the cards with effect classes
   of their own.
 
+  Wave 8, claim 3 (14 Nov): new engine support for `DAMAGED_PERMANENT` triggers (`Trigger::DamagedPermanent`): a
+  source deals damage to this (Phyrexian Obliterator, its player pointer the source's controller), this deals damage
+  to a creature of a filter (`DealsDamageToACreatureTriggeredAbility`: Obelisk Spider, Queen of Ice, Vampire Slayer,
+  Spider-Slayer), the equipped creature deals combat damage to a permanent (Giant's Skewer), and an opponent's source
+  deals damage to you or a permanent of yours (`SourceDealsDamageToYouTriggeredAbility`, `DAMAGED_PLAYER` too:
+  Flameblade Angel). "Whenever enchanted or equipped creature is dealt damage" (`DealtDamageAttachedTriggeredAbility`,
+  once for each of its batches: Hot Soup), a "this or enchanted creature deals combat damage to a player" trigger
+  (Thassa's Emissary), a `CONNIVE` replacement event (Leader, Super-Genius), the turn's discard batches (Rielle, the
+  Everwise), and legendary instants and sorceries (`LegendarySpellAbility`, a `Rule::CantCast` handler in every
+  zone). Transpiler forms: a `CounterUnlessPaysEffect` of a value built in place (Countervailing Winds), Wild Slash's
+  locked-in "damage can't be prevented", and `EachTargetPointer` on mills and card-scoped handlers. Engine fixes: a
+  copy's new targets read the copy's rule for the auto-choice, so its own creature to exile is asked for (Essence
+  Flux copied by Meletis Charlatan); a card returned with +1/+1 counters has them as it enters, so "another creature
+  with power 2 or less enters" doesn't see it smaller (Infernal Vessel, `setEnterWithCounters`). Traumatic
+  Revelation plays as Java's does: its `TargetCardInHand` only takes cards from the chooser's own hand, so it never
+  discards the opponent's card and always incubates. Four factory rounds (78 games, all matching once fixed; the
+  legendary sorceries' decks were given legendary creatures) verified all 34 cards that came in, 25 from the list and 9 others through the framework classes and triggers above: 11,163 of 11,356. Two games under
+  `shadow/factory/game-w8c3-*` cover the fixes and seventeen under `shadow/handlers/game-handlers8-claim3-*` the
+  handlers. Left on the list: 109 cards that need engine work first (mana of any type, meld, station copies,
+  storm on a creature, the shuffle-into-library replacement, behold costs, chosen numbers, extra combats, cards cast
+  for free from exile, and more).
+
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory
   rounds (106 games, 104 matching, replayed again on the engine with the static and claim-2 handlers) verified 58:

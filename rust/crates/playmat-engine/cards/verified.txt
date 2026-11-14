@@ -332,6 +332,7 @@ Angel of Finality
 Angel of Invention
 Angel of Renewal
 Angel of Sanctions
+Angel of Suffering
 Angel of Vitality
 Angel of the Dawn
 Angel of the God-Pharaoh
@@ -587,6 +588,7 @@ Atsushi, the Blazing Sky
 Attendant of Vraska
 Attended Healer
 Attended Socialite
+Attentive Skywarden
 Attentive Sunscribe
 Attercop
 Attuma, Atlantean Warlord
@@ -1938,6 +1940,7 @@ Costly Plunder
 Council of Echoes
 Count on Luck
 Countersculpt
+Countervailing Winds
 Countless Gears Renegade
 Country Roads
 Courage in Crisis
@@ -2906,6 +2909,7 @@ Elvish Mystic
 Elvish Reclaimer
 Elvish Regrower
 Elvish Rejuvenator
+Elvish Vatkeeper
 Elvish Visionary
 Elvish Warmaster
 Ember Beast
@@ -3052,6 +3056,7 @@ Essence Capture
 Essence Channeler
 Essence Depleter
 Essence Extraction
+Essence Flux
 Essence Infusion
 Essence Scatter
 Essence of Antiquity
@@ -3431,6 +3436,7 @@ Flame Lash
 Flame-Blessed Bolt
 Flame-Chain Mauler
 Flameblade Adept
+Flameblade Angel
 Flamecache Gecko
 Flamecast Wheel
 Flamehold Grappler
@@ -3838,6 +3844,7 @@ Giant Ox
 Giant Spectacle
 Giant Spider
 Giant's Boulder
+Giant's Skewer
 Giant-Sized Flying Ant
 Giantfall
 Gibbering Barricade
@@ -4640,6 +4647,7 @@ Hostile Desert
 Hostile Minotaur
 Hostile Takeover
 Hot Dog Cart
+Hot Soup
 Hotfoot Gnome
 Hotshot Mechanic
 Hound Tamer
@@ -4839,6 +4847,7 @@ Infernal Pet
 Infernal Phantom
 Infernal Reckoning
 Infernal Scarring
+Infernal Vessel
 Inferno Fist
 Inferno Jet
 Infestation Expert
@@ -5052,6 +5061,7 @@ Jaspera Sentinel
 Jawbone Duelist
 Jaya's Firenado
 Jaya's Greeting
+Jaya's Immolating Inferno
 Jayemdae Tome
 Jazal Goldmane
 Jeering Instigator
@@ -5255,6 +5265,7 @@ Kinjalli's Sunwing
 Kinsbaile Aspirant
 Kinsbaile Skirmisher
 Kinscaer Sentry
+Kiora Bests the Sea God
 Kiora of Fire and Ashes
 Kiora's Dambreaker
 Kiora's Dismissal
@@ -5464,6 +5475,7 @@ Lead Pipe
 Lead by Example
 Lead the Stampede
 Leader's Talent
+Leader, Super-Genius
 Leaf Gilder
 Leaf-Crowned Visionary
 Leafcrown Dryad
@@ -5574,6 +5586,7 @@ Liliana's Steward
 Liliana's Triumph
 Liliana, Death Wielder
 Liliana, Dreadhorde General
+Lilysplash Mentor
 Liminal Hold
 Limits of Solidarity
 Lindblum, Industrial Regency
@@ -6587,6 +6600,7 @@ Oath of the Ancient Wood
 Ob Nixilis's Cruelty
 Ob Nixilis, Captive Kingpin
 Ob Nixilis, the Hate-Twisted
+Obelisk Spider
 Oberth-Class Starship
 Obliterating Bolt
 Oblivion Sower
@@ -6781,6 +6795,7 @@ Overwhelmed Archivist
 Overwhelming Denial
 Overwhelming Remorse
 Overwhelming Surge
+Ovika, Enigma Goliath
 Oviya Pashiri, Sage Lifecrafter
 Owlbear
 Owlin Historian
@@ -6941,6 +6956,7 @@ Phyrexian Censor
 Phyrexian Espionage
 Phyrexian Gargantua
 Phyrexian Missionary
+Phyrexian Obliterator
 Phyrexian Pegasus
 Phyrexian Rager
 Phyrexian Vivisector
@@ -7127,6 +7143,7 @@ Primary Research
 Primary Unimatrix Adjunct
 Prime Speaker Zegana
 Primeval Bounty
+Primevals' Glorious Rebirth
 Primordial Gnawer
 Primordial Pachyderm
 Primordial Wurm
@@ -7271,6 +7288,7 @@ Quarry Beetle
 Quartzwood Crasher
 Quasiduplicate
 Queen Brahne
+Queen of Ice
 Queen's Agent
 Queen's Bay Soldier
 Queen's Commission
@@ -7364,6 +7382,7 @@ Rakish Crew
 Rakish Scoundrel
 Rakshasa Deathdealer
 Rakshasa's Bargain
+Rakshasa's Disdain
 Rakshasa's Secret
 Ral's Dispersal
 Ral's Outburst
@@ -7713,6 +7732,7 @@ Riddlemaster Sphinx
 Ride the Shoopuf
 Ride's End
 Ridgescale Tusker
+Rielle, the Everwise
 Rift Bolt
 Riftburst Hellion
 Rig for War
@@ -7788,6 +7808,7 @@ River Hoopoe
 River Sneak
 River of Tears
 River's Rebuke
+Riverchurn Monument
 Riverglide Pathway
 Riverguard's Reflexes
 Riverpyre Verge
@@ -8266,6 +8287,7 @@ See Red
 See the Unwritten
 Seed of Hope
 Seedglaive Mentor
+Seedpod Caretaker
 Seedpod Squire
 Seedship Agrarian
 Seedship Broodtender
@@ -8379,6 +8401,7 @@ Shadow Alley Denizen
 Shadow Glider
 Shadow Slice
 Shadow of Mortality
+Shadow of the Grave
 Shadow-Rite Priest
 Shadowbeast Sighting
 Shadowborn Apostle
@@ -8955,6 +8978,7 @@ Spider-Islanders
 Spider-Man No More
 Spider-Mobile
 Spider-Rex, Daring Dino
+Spider-Slayer, Hatred Honed
 Spider-Suit
 Spider-Woman, Stunning Savior
 Spidersilk Net
@@ -9411,6 +9435,7 @@ Sure-Footed Infiltrator
 Sureshot Sower
 Surge Mare
 Surge of Righteousness
+Surge of Salvation
 Surgehacker Mech
 Surgical Precision
 Surgical Skullbomb
@@ -9733,6 +9758,7 @@ Thallid Soothsayer
 Thanos, the Mad Titan
 Thassa's Bounty
 Thassa's Devourer
+Thassa's Emissary
 Thassa's Intervention
 Thassa's Ire
 Thassa's Oracle
@@ -10114,6 +10140,7 @@ Trapped in the Screen
 Trapped in the Tower
 Trash the Town
 Traumatic Critique
+Traumatic Revelation
 Traumatize
 Travel the Overworld
 Traveler's Amulet
@@ -10416,6 +10443,7 @@ Ureni's Rebuff
 Urn of Godfire
 Urza's Command
 Urza's Rebuff
+Urza's Ruinous Blast
 Urza's Saga
 Urza, Powerstone Prodigy
 Urza, Prince of Kroog
@@ -10465,6 +10493,7 @@ Vampire Noble
 Vampire Opportunist
 Vampire Revenant
 Vampire Scrivener
+Vampire Slayer
 Vampire Soulcaller
 Vampire Sovereign
 Vampire Spawn
@@ -10596,6 +10625,7 @@ Vile Aggregate
 Vile Entomber
 Vile Mutilator
 Vile Rebirth
+Vile Redeemer
 Vilespawn Spider
 Vilis, Broker of Blood
 Village Messenger
@@ -10851,6 +10881,7 @@ Wave-Wing Elemental
 Wavebreak Hippocamp
 Wavecrash Triton
 Waxen Shapethief
+Waxing Moon
 Way of the Cryomancer
 Way of the Deathbringer
 Way of the Healer
@@ -10966,6 +10997,7 @@ Wild Onslaught
 Wild Pack Squad
 Wild Ride
 Wild Roads
+Wild Slash
 Wild Unraveling
 Wild Wanderer
 Wild-Field Scarecrow
@@ -11115,6 +11147,7 @@ Xander's Lounge
 Xathrid Necromancer
 Xathrid Slyblade
 Xenagos, God of Revels
+Xenagos, the Reveler
 Xenobotanist
 Xindi Surveyors
 Yahenni's Expertise
@@ -11132,6 +11165,7 @@ Yavimaya Sapherd
 Yavimaya Sojourner
 Yavimaya Steelcrusher
 Yavimaya, Cradle of Growth
+Yawgmoth's Vile Offering
 Year of Hell
 Yellowjacket, Heartless Marauder
 Yeva's Forcemage

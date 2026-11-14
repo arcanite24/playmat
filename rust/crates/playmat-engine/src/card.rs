@@ -744,6 +744,9 @@ pub enum Trigger {
         #[serde(default)]
         only_combat: bool,
         who: String,
+        /// this too, when it deals the damage itself (Thassa's Emissary: "this creature or enchanted creature")
+        #[serde(default)]
+        or_this: bool,
     },
     /// one or more permanents of the filter you control deal (combat) damage to a player, once for each player's
     /// batch (`OneOrMoreDamagePlayerTriggeredAbility`); with a target pointer, at that player; the total is its X
@@ -880,6 +883,23 @@ pub enum Trigger {
     },
     /// this is dealt damage (`DealtDamageToSourceTriggeredAbility`: once for each batch, with the damage as X)
     DealtDamage,
+    /// the permanent this is attached to is dealt damage (`DealtDamageAttachedTriggeredAbility`: once for each of its
+    /// batches, X the damage); a target pointer is that permanent, a player pointer this one's controller
+    DealtDamageAttached,
+    /// a source deals damage to a permanent, each `DAMAGED_PERMANENT` event, X the damage (`combat`: combat damage
+    /// only). `of` says whose: "to_this", any source to this (`SourceDealsDamageToThisTriggeredAbility`, its player
+    /// pointer the source's controller); "this_to", this to a permanent of `filter`
+    /// (`DealsDamageToACreatureTriggeredAbility`); "attached_to", the permanent this is attached to, to one of
+    /// `filter` (Giant's Skewer); "to_you", a source an opponent controls to you, and "to_you_or_yours", to you or a
+    /// permanent of `filter` you control (`SourceDealsDamageToYouTriggeredAbility`, `DAMAGED_PLAYER` too, its player
+    /// pointer the source's controller). A target pointer is the damaged permanent.
+    DamagedPermanent {
+        of: String,
+        #[serde(default)]
+        filter: Filter,
+        #[serde(default)]
+        combat: bool,
+    },
     /// you draw your `n`th card this turn (`DrawNthCardTriggeredAbility`); `who` another `TargetController`
     /// ("opponent": an opponent draws their `n`th card, "any": a player does)
     DrawsNth {
