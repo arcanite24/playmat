@@ -493,6 +493,8 @@ pub struct Player {
     pub descended: u32,
     /// life lost last turn (`PlayerLostLifeWatcher.getLifeLostLastTurn`)
     pub life_lost_last_turn: i32,
+    /// "you gain hexproof until end of turn" (Lazotep Plating): the turn
+    pub hexproof_turn: Option<u32>,
 }
 
 impl Player {
@@ -598,6 +600,8 @@ pub enum TriggerCause {
     Entered(ObjId),
     /// a permanent dying
     Died(ObjId),
+    /// creatures attacking (`ATTACKER_DECLARED`, `DECLARED_ATTACKERS`)
+    Attacked,
 }
 
 #[derive(Clone, Debug)]
@@ -942,6 +946,9 @@ pub struct Game {
     pub prevent_combat_from: Vec<(ObjId, u32, u32)>,
     /// "players can't gain life this turn" (Skullcrack): the turn it was said
     pub no_lifegain_turn: Option<u32>,
+    /// the next Aura put onto the battlefield without being cast enters attached to this permanent (Java's
+    /// `"attachTo:" + auraId` state value): the Aura, the permanent and its zone-change count
+    pub attach_entering: Option<(ObjId, ObjId, u32)>,
     /// "until your next turn, you may cast spells of the filter as though they had flash": the player, the filter,
     /// the effect's source (Teferi, Time Raveler's +1)
     pub flash_until_next_turn: Vec<(Seat, crate::card::Filter, ObjId)>,
@@ -1247,6 +1254,7 @@ impl Game {
             prevent_all_to: Vec::new(),
             prevent_combat_from: Vec::new(),
             no_lifegain_turn: None,
+            attach_entering: None,
             flash_until_next_turn: Vec::new(),
             resolving: None,
             resolving_item: None,
@@ -2982,7 +2990,8 @@ impl Game {
                 _ => false,
             }
         }
-        self.any_static(|g, src, e| g.obj(src).controller == seat && gives(g, e, src, seat, ability))
+        (*ability == AbilityDef::HexproofAbility && self.player(seat).hexproof_turn == Some(self.turn))
+            || self.any_static(|g, src, e| g.obj(src).controller == seat && gives(g, e, src, seat, ability))
     }
 
     pub fn static_gives(&self, e: &EffectDef, src: ObjId, you: Seat, id: ObjId, ability: &AbilityDef) -> bool {

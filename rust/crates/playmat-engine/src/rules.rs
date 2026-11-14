@@ -431,6 +431,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 }
             }
             // ATTACKER_DECLARED triggers, in the order the attackers are listed
+            game.trigger_cause = Some(TriggerCause::Attacked);
             let alone = attackers(game).len() == 1;
             for a in attackers(game) {
                 let sources: Vec<ObjId> = game.trigger_sources();
@@ -525,6 +526,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                     }
                 }
             }
+            game.trigger_cause = None;
         }
         Step::DeclareBlockers => {
             declare_blockers(game, d, game.opponent(active));
@@ -767,6 +769,10 @@ fn draw_applied(game: &mut Game, seat: Seat, n: usize, applied: &[ObjId]) {
 /// `PlayerImpl.won`: each opponent still in loses (`lostForced`), then, with none left, `seat` wins
 fn win_game(game: &mut Game, seat: Seat) {
     if game.over || game.player(seat).lost {
+        return;
+    }
+    // "your opponents can't win the game" (`WINS` replaced while an opponent is still in)
+    if (0..game.seats()).any(|s| s != seat && !game.player(s).lost) && cards::cant_lose_or_win(game, seat, true) {
         return;
     }
     for s in 0..game.seats() {
@@ -17967,8 +17973,17 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
             cards::Event { target: Some(id), ..cards::Event::new(cards::EventType::EntersBattlefield, controller) };
         cards::replace_event(game, &mut ev, 0);
     }
-    // an Aura put onto the battlefield without being cast: its controller picks what it enchants (303.4f)
-    if !cast && def.has_subtype("Aura") {
+    // an Aura put onto the battlefield without being cast: its controller picks what it enchants (303.4f), unless
+    // the effect said what it enters attached to (Gryff's Boon)
+    let attach_to = game.attach_entering.filter(|(aura, _, _)| *aura == id);
+    if attach_to.is_some() {
+        game.attach_entering = None;
+    }
+    if let Some((_, to, to_zcc)) = attach_to.filter(|_| !cast) {
+        if game.obj(to).zone == Zone::Battlefield && game.obj(to).zcc == to_zcc {
+            game.attach_to(id, to, to_zcc);
+        }
+    } else if !cast && def.has_subtype("Aura") {
         if let Some(t) = def.spell.targets.first() {
             // `TargetImpl.tryToAutoChoose` reads the source ability's rule for its feel-bad words (Old-Growth Troll's
             // "Sacrifice this land" keeps its one Forest asked)
@@ -17988,6 +18003,14 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
     for a in &def.abilities {
         if let AbilityDef::AsEntersBattlefieldAbility { effects, .. } = a {
             for e in effects {
+                // a card's own "as this enters" class (Heraldic Banner's choice of a color), as the permanent enters
+                if let EffectDef::CardEffect { .. } = e {
+                    let item = StackItem::spell(id, controller);
+                    apply_effects(game, d, &item, std::slice::from_ref(e), &[], (id, zcc));
+                    if d.stopped() {
+                        return;
+                    }
+                }
                 // Pithing Needle: "as this enters, choose a card name"
                 if let EffectDef::ChooseLandNameEffect = e {
                     let q = Query::Choice { message: "Card name".into(), choices: Vec::new() };
@@ -21255,7 +21278,8 @@ pub fn state_based_actions(game: &mut Game) -> bool {
             let poisoned = poison(game, s) >= 10;
             let p = game.player(s);
             // 704.5a-c: 0 or less life, drawing from an empty library, ten or more poison counters
-            if !p.lost && (p.life <= 0 || p.drew_from_empty || poisoned) {
+            // "you can't lose the game" (`PlayerImpl.canLose`: `LOSES` replaced); the empty library stays drawn from
+            if !p.lost && (p.life <= 0 || p.drew_from_empty || poisoned) && !cards::cant_lose_or_win(game, s, false) {
                 if log::kept(game) {
                     // `GameImpl.checkStateBasedActions`, `PlayerImpl.lost`: the last reason that holds is logged
                     let why = if poisoned {
