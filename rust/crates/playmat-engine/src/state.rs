@@ -297,6 +297,9 @@ pub struct Obj {
     pub warped: bool,
     /// cast for its evoke cost
     pub evoked: bool,
+    /// cast for its `AlternativeCostSourceAbility`'s costs (`AlternativeCostSourceAbility.getActivatedStatus`:
+    /// Baleful Mastery's "if the {1}{B} cost was paid")
+    pub alternative_paid: bool,
     /// cast for its impending cost (kept from the stack to the battlefield)
     pub impending: bool,
     /// cast for its dash cost
@@ -1546,6 +1549,7 @@ impl Game {
             pay_tax: 0,
             warped: false,
             evoked: false,
+            alternative_paid: false,
             impending: false,
             dashed: false,
             spent_colors: [0; 5],
@@ -3977,6 +3981,7 @@ impl Game {
             if !(from == Zone::Stack && zone == Zone::Battlefield) {
                 o.warped = false;
                 o.evoked = false;
+                o.alternative_paid = false;
                 o.impending = false;
                 o.dashed = false;
                 // kept as it last was on the battlefield (Vibrance's "if {G}{G} was spent" after its evoke sacrifice)

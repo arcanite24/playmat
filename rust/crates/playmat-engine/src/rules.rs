@@ -4568,6 +4568,7 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
                 }
             };
             if pick {
+                game.obj_mut(id).alternative_paid = true;
                 // its mana is the spell's mana to pay (`activateAlternativeCosts`: `addManaCostsToPay`)
                 cost = ManaCost::default();
                 for c in costs {
