@@ -68,6 +68,7 @@ Act of Heroism
 Act of Treason
 Act on Impulse
 Action News Crew
+Adagia, Windswept Bastion
 Adamant Will
 Adanto Vanguard
 Adaptive Automaton
@@ -422,6 +423,7 @@ Appeal to Eirdu
 Appendage Amalgam
 Appetite for the Unnatural
 Applied Biomancy
+Applied Geometry
 Apprentice Sharpshooter
 April O'Neil, Kunoichi Trainee
 April, Reporter of the Weird
@@ -1653,6 +1655,7 @@ Chandra's Magmutt
 Chandra's Outburst
 Chandra's Outrage
 Chandra's Pyrohelix
+Chandra's Regulator
 Chandra's Revolution
 Chandra's Spitfire
 Chandra's Triumph
@@ -1746,6 +1749,7 @@ Chromatic Lantern
 Chromatic Orrery
 Chrome Cat
 Chrome Companion
+Chrome Dome
 Chrome Host Seedshark
 Chrome Prowler
 Chronicle of Victory
@@ -1873,8 +1877,10 @@ Codex Shredder
 Coerced to Kill
 Coeurl
 Cogwork Archivist
+Cogwork Assembler
 Cogwork Wrestler
 Cogworker's Puzzleknot
+Coiling Rebirth
 Cold Case Cracker
 Cold-Blooded Crew
 Cold-Water Snapper
@@ -2136,6 +2142,7 @@ Crimestopper Sprite
 Crimson Operative
 Crippling Blight
 Crippling Chill
+Croaking Counterpart
 Crocanura
 Crocodile of the Crossing
 Crook of Condemnation
@@ -2469,6 +2476,7 @@ Defiled Crypt // Cadaver Lab
 Deflecting Palm
 Deft Dismissal
 Deliberate
+Delina, Wild Mage
 Delivery Moogle
 Delney, Streetwise Lookout
 Delta Bloodflies
@@ -3001,6 +3009,7 @@ Eater of Hope
 Eccentric Farmer
 Echo Inspector
 Echo of Dusk
+Echo, Perceptive Prodigy
 Echoes of the Kin Tree
 Eclipsed Boggart
 Eclipsed Elf
@@ -3025,6 +3034,7 @@ Eerie Gravestone
 Eerie Interlude
 Eerie Soultender
 Efficient Construction
+Efflorescence
 Effortless Master
 Efreet Flamepainter
 Efreet Weaponmaster
@@ -3062,6 +3072,7 @@ Electrify
 Electro's Bolt
 Electro, Assaulting Battery
 Electrodominance
+Electroduplicate
 Electrostatic Field
 Electrostatic Infantry
 Electrostatic Pummeler
@@ -3251,9 +3262,11 @@ Eriette's Whisper
 Erode
 Eroded Canyon
 Errant and Giada
+Errant, Street Artist
 Erratic Apparition
 Erratic Visionary
 Erstwhile Trooper
+Ertha Jo, Frontier Mentor
 Erudite Wizard
 Eruth, Tormented Prophet
 Escape Protocol
@@ -3397,6 +3410,7 @@ Ezuri, Stalker of Spheres
 Fable of the Mirror-Breaker
 Fabled Hero
 Fabled Passage
+Face Yourself
 Faceless Haven
 Facet Reader
 Fade from History
@@ -3543,6 +3557,7 @@ Feldon's Cane
 Feldon, Ronom Excavator
 Felhide Minotaur
 Felhide Petrifier
+Felhide Spiritbinder
 Felidar Cub
 Felidar Retreat
 Felidar Savior
@@ -3689,6 +3704,7 @@ Flamecache Gecko
 Flamecast Wheel
 Flamehold Grappler
 Flamekin Gildweaver
+Flamerush Rider
 Flames of the Firebrand
 Flames of the Raze-Boar
 Flameshadow Conjuring
@@ -3712,6 +3728,7 @@ Fleeting Distraction
 Fleeting Effigy
 Fleeting Flight
 Fleeting Memories
+Fleeting Reflection
 Fleetwheel Cruiser
 Flensing Raptor
 Flesh Burrower
@@ -3779,6 +3796,7 @@ Font of Return
 Font of Vigor
 Food Coma
 Food Fight
+Foolish Fate
 Foot Elite
 Foot Headquarters
 Foot Mystic
@@ -5113,6 +5131,7 @@ Illicit Shipment
 Illness in the Ranks
 Illuminator Virtuoso
 Illusionary Armor
+Illusionist's Bracers
 Illusionist's Stratagem
 Illusory Wrappings
 Illustrious Historian
@@ -5660,6 +5679,7 @@ Kiora, the Crashing Wave
 Kiora, the Rising Tide
 Kird Chieftain
 Kirk, Commanding Officer
+Kirol, Attentive First-Year
 Kirol, History Buff
 Kishla Trawlers
 Kishla Village
@@ -5759,6 +5779,7 @@ Kraul Warrior
 Kraul Whipcracker
 Kraum, Violent Cacophony
 Kraven the Hunter
+Kraven's Cats
 Kraven, Proud Predator
 Kree Commandos
 Kree Sentinel
@@ -5785,6 +5806,7 @@ Kumena's Speaker
 Kumena, Tyrant of Orazca
 Kunoros, Hound of Athreos
 Kura, the Boundless Sky
+Kurkesh, Onakke Ancient
 Kutzil, Malamet Exemplar
 Kwia Vigorbloom
 Kykar, Wind's Fury
@@ -6014,6 +6036,7 @@ Lithoform Engine
 Lithomancer's Focus
 Lithomantic Barrage
 Littjara Glade-Warden
+Littjara Mirrorlake
 Little Bear
 Liturgy of Blood
 Live Fast
@@ -6127,6 +6150,7 @@ Lucky Clover
 Lucky Offering
 Luke Cage, Power Man
 Lullmage's Familiar
+Lumaret's Favor
 Lumbering Falls
 Lumbering Worldwagon
 Lumen-Class Frigate
@@ -6317,6 +6341,7 @@ Mardu Roughrider
 Mardu Runemark
 Mardu Scout
 Mardu Shadowspear
+Mardu Siegebreaker
 Mardu Skullhunter
 Mardu Strike Leader
 Mardu Warshrieker
@@ -6378,6 +6403,7 @@ Master of the Pearl Trident
 Master the Way
 Master's Rebuke
 Masterful Flourish
+Masterful Replication
 Mastermind's Acquisition
 Mastery of the Unseen
 Mathemagics
@@ -6426,6 +6452,7 @@ Melancholic Poet
 Melded Moxite
 Meldweb Curator
 Meldweb Strider
+Melek, Izzet Paragon
 Meletis Astronomer
 Meletis Charlatan
 Meltstrider Eulogist
@@ -6551,6 +6578,7 @@ Mind Spring
 Mind Transfer Protocol
 Mind into Matter
 Mindeye Drake
+Mindful Biomancer
 Mindmelter
 Mindscour Dragon
 Mindseeker Oculus
@@ -6595,8 +6623,10 @@ Mirrex
 Mirrodin Avenged
 Mirror Image
 Mirror March
+Mirror Mockery
 Mirror Room // Fractured Realm
 Mirror Shield
+Mirrorhall Mimic
 Mirrormade
 Mirrorpool
 Miscast
@@ -6835,6 +6865,7 @@ Naban, Dean of Iteration
 Nadaar, Selfless Paladin
 Nadir Kraken
 Naga Eternal
+Naga Fleshcrafter
 Naga Oracle
 Naga Vitalist
 Nagging Thoughts
@@ -6959,6 +6990,7 @@ Nighthawk Scavenger
 Nighthowl Pursuer
 Nighthowler
 Nightmare
+Nightmare Shepherd
 Nightmare Sower
 Nightmare's Thirst
 Nightmarish End
@@ -7112,6 +7144,7 @@ Odunos River Trawler
 Of One Mind
 Offender at Large
 Offer Immortality
+Offspring's Revenge
 Oggyar Battle-Seer
 Ognis, the Dragon's Lash
 Ogre Battledriver
@@ -7144,6 +7177,7 @@ Old Flitterfang
 Old Gnawbone
 Old Rutstein
 Old Stickfingers
+Old-Growth Educator
 Old-Growth Troll
 Olivia's Attendants
 Olivia's Bloodsworn
@@ -7585,6 +7619,7 @@ Poison Dart Frog
 Poison the Cup
 Poison the Waters
 Poison-Tip Archer
+Poisoner's Apprentice
 Polis Crusher
 Pollen-Shield Hare
 Pollenbright Druid
@@ -8110,6 +8145,7 @@ Red Herring
 Red Hulk
 Red Mage's Rapier
 Red Room Recruit
+Red Sun's Twilight
 Red Tiger Mechan
 Redcap Gutter-Dweller
 Redcap Heelslasher
@@ -8127,6 +8163,7 @@ Reduce to Memory
 Reef Roads
 Referee Squad
 Reflections of Littjara
+Reflective Golem
 Refocus
 Refurbish
 Refuse to Yield
@@ -8544,6 +8581,7 @@ Runewing
 Runic Armasaur
 Runic Shot
 Runner's Bane
+Runo Stromkirk
 Rupture Spire
 Rural Recruit
 Ruric Thar, Biomagus
@@ -8605,6 +8643,8 @@ Sagu Mauler
 Sagu Pummeler
 Sagu Wildling
 Sahagin
+Saheeli Rai
+Saheeli's Artistry
 Saheeli's Silverwing
 Saheeli, Consul of Oversight
 Saheeli, Jewel of Avishkar
@@ -8847,6 +8887,7 @@ Scytheclaw Raptor
 Sea Gate Banneret
 Sea Gate Colossus
 Sea Gate Restoration
+Sea Gate Stormcaller
 Sea Gate Wreckage
 Sea God's Revenge
 Sea God's Scorn
@@ -9274,6 +9315,7 @@ Simic Locket
 Simulacrum Shaper
 Simulacrum Synthesizer
 Sin Collector
+Sin, Spira's Punishment
 Sinew Dancer
 Singing Bell Strike
 Sinister Cryologist
@@ -9958,6 +10000,7 @@ Stormplain Detainment
 Stormrider Rig
 Stormrider Spirit
 Stormshriek Feral
+Stormsplitter
 Stormtide Leviathan
 Stormwing Dragon
 Story Seeker
@@ -10064,6 +10107,7 @@ Summon: Primal Odin
 Summon: Shiva
 Summoner's Grimoire
 Sun Sentinel
+Sun-Blessed Guardian
 Sun-Blessed Healer
 Sun-Blessed Mount
 Sun-Blessed Peak
@@ -10552,6 +10596,7 @@ The Modern Age
 The Monumental Facade
 The Mountain-king's Return
 The Neutrinos
+The Notary Hobbits
 The Ooze
 The Prima Vista
 The Queen of Dale
@@ -10705,6 +10750,7 @@ Thunderbolts Conspiracy
 Thunderbreak Regent
 Thunderclap Wyvern
 Thunderdrum Soloist
+Thunderhead Gunner
 Thunderhead Squadron
 Thunderherd Migration
 Thundering Broodwagon
