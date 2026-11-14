@@ -426,7 +426,12 @@ pub fn reference(game: &Game, id: ObjId) -> String {
     if let Some(i) = game.battlefield.iter().position(|x| *x == id) {
         return format!("B{}", i);
     }
-    if let Some(i) = game.stack.iter().rev().position(|x| x.card == id) {
+    // (Java's stack, with what's resolving still on it, as `resolve` reads it)
+    let mut stack: Vec<ObjId> = game.stack.iter().map(|i| i.card).collect();
+    if let Some((at, card)) = game.resolving {
+        stack.insert(at.min(stack.len()), card);
+    }
+    if let Some(i) = stack.iter().rev().position(|x| *x == id) {
         return format!("S{}", i);
     }
     if let Some(i) = exile_order(game).iter().position(|x| *x == id) {
