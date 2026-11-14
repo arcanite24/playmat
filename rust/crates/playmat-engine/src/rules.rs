@@ -18194,14 +18194,16 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
     let stack_zcc = game.obj(id).zcc;
     // each its own replacement effect (Kumano's "enters with an additional +1/+1 counter")
     let mut counter_effects = 0;
-    let more_counters: i32 = if cast {
+    // (or a card put onto the battlefield with them from where it was, `setEnterWithCounters`, not a replacement
+    // effect: Infernal Vessel's return)
+    let more_counters: i32 = {
         let (mine, rest): (Vec<_>, Vec<_>) =
             std::mem::take(&mut game.enter_counters).into_iter().partition(|(o, z, _)| *o == id && *z == stack_zcc);
         game.enter_counters = rest;
-        counter_effects = mine.len();
+        if cast {
+            counter_effects = mine.len();
+        }
         mine.iter().map(|(_, _, n)| n).sum()
-    } else {
-        0
     };
     // Giada: each other Angel you control enters with a +1/+1 counter for each Angel you already control (not one
     // entering with it: Collected Company's two). Java moves cards together one at a time and an entering

@@ -912,7 +912,8 @@ pub struct Game {
     /// "until your next turn, whenever one or more creatures attack one of your opponents" delayed triggers: whose,
     /// and the trigger (its `fixed` set to the attackers)
     pub attacks_opponent: Vec<(Seat, StackItem)>,
-    /// spells that enter with more +1/+1 counters: the card as it was on the stack, and how many
+    /// spells that enter with more +1/+1 counters: the card as it was on the stack (or in the zone it enters from),
+    /// and how many
     pub enter_counters: Vec<(ObjId, u32, i32)>,
     /// the stack position of the spell or ability being cast or activated: not paid for yet (a view shows it unpaid)
     pub unpaid: Option<usize>,
