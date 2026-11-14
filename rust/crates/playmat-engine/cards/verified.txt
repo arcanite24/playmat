@@ -974,6 +974,7 @@ Bladetusk Boar
 Blanchwood Armor
 Blanchwood Prowler
 Blast Zone
+Blaze Commando
 Blazemire Verge
 Blazing Bomb
 Blazing Crescendo
@@ -1005,6 +1006,7 @@ Blighted Fen
 Blighted Gorge
 Blighted Steppe
 Blighted Woodland
+Blightreaper Thallid
 Blightstep Pathway
 Blind Obedience
 Blindblast
@@ -1894,6 +1896,7 @@ Concordia Pegasus
 Conduct Electricity
 Conduit Pylons
 Conduit of Ruin
+Conduit of Storms
 Confirm Suspicions
 Confiscate
 Confiscation Coup
@@ -1934,6 +1937,7 @@ Containment Membrane
 Containment Priest
 Contaminated Aquifer
 Contentious Plan
+Contested Game Ball
 Contingency Plan
 Contortionist Troupe
 Contraband Kingpin
@@ -2035,6 +2039,7 @@ Crawl from the Cellar
 Crawling Barrens
 Crawling Chorus
 Crawling Infestation
+Crawling Sensation
 Creakwood Safewright
 Creative Outburst
 Creeping Mold
@@ -2118,6 +2123,7 @@ Culling Mark
 Culling Ritual
 Cult Guildmage
 Cult Healer
+Cult of the Waxing Moon
 Cultist's Staff
 Cultivate
 Cultivator Colossus
@@ -2349,6 +2355,7 @@ Deepfathom Echo
 Deepmuck Desperado
 Deeproot Champion
 Deeproot Elite
+Deeproot Pilgrimage
 Deeproot Warrior
 Deeproot Waters
 Deeproot Wayfinder
@@ -2466,6 +2473,7 @@ Devotee of Strength
 Devour Intellect
 Devour in Flames
 Devourer of Destiny
+Devourer of Memory
 Devouring Light
 Devouring Sugarmaw
 Devouring Tendrils
@@ -2615,8 +2623,10 @@ Dori, Bearer of Friends
 Double Down
 Doublecast
 Doubling Season
+Dour Port-Mage
 Douse in Gloom
 Douser of Lights
+Dovin's Acuity
 Dovin's Automaton
 Dovin's Dismissal
 Dovin's Veto
@@ -3198,6 +3208,7 @@ Expand the Sphere
 Expanded Anatomy
 Expansion // Explosion
 Expedite
+Expedited Inheritance
 Expedition Champion
 Expedition Diviner
 Expedition Envoy
@@ -3523,6 +3534,7 @@ First-Time Flyer
 Fisk Tower
 Fissure Wizard
 Five-Alarm Fire
+Flame Channeler
 Flame Lash
 Flame-Blessed Bolt
 Flame-Chain Mauler
@@ -4543,6 +4555,7 @@ Heaven // Earth
 Heavy Infantry
 Hecteyes
 Hedge Maze
+Hedge Shredder
 Hedgewitch's Mask
 Hedron Archive
 Hedron Crawler
@@ -4892,10 +4905,12 @@ Il Mheg Pixie
 Ilharg, the Raze-Boar
 Ill-Gotten Inheritance
 Ill-Tempered Cyclops
+Ill-Tempered Loner
 Illegitimate Business
 Illicit Shipment
 Illness in the Ranks
 Illuminator Virtuoso
+Illusionary Armor
 Illusionist's Stratagem
 Illusory Wrappings
 Illustrious Historian
@@ -5299,6 +5314,7 @@ Kalonian Hydra
 Kalonian Tusker
 Kalonian Twingrove
 Kambal, Consul of Allocation
+Kambal, Profiteering Mayor
 Kami of Restless Shadows
 Kami of Terrible Secrets
 Kami of Whispered Hopes
@@ -5340,6 +5356,7 @@ Kayla's Reconstruction
 Kazandu Mammoth
 Kazandu Nectarpot
 Kazandu Stomper
+Kazarov, Sengir Pureblood
 Keen Buccaneer
 Keen Glidemaster
 Keen-Eyed Curator
@@ -5386,6 +5403,7 @@ Kick in the Door
 Kid Loki
 Kill Shot
 Kill-Zone Acrobat
+Killian's Confidence
 Killing Glare
 Killmonger, Scourge of Wakanda
 Kin-Tree Nurturer
@@ -5673,6 +5691,7 @@ Leyline Phantom
 Leyline Prowler
 Leyline Tyrant
 Leyline of Anticipation
+Leyline of Combustion
 Leyline of Hope
 Leyline of Resonance
 Leyline of Sanctity
@@ -5794,6 +5813,7 @@ Locutus, the One Who Speaks
 Lodestone Needle
 Lofty Denial
 Lofty Dreams
+Loki, God of Mischief
 Lone Rider
 Lonely Arroyo
 Lonesome Unicorn
@@ -5831,6 +5851,7 @@ Lorescale Coatl
 Los Diablos Missile Base
 Lose Calm
 Lost Days
+Lost Jitte
 Lost Legacy
 Lost Legion
 Lost in Space
@@ -5990,6 +6011,7 @@ Mammoth Spider
 Mana Bloom
 Mana Confluence
 Mana Geode
+Mana Sculpt
 Managorger Hydra
 Manalith
 Manaweft Sliver
@@ -6423,6 +6445,7 @@ Moonglove Extractor
 Moonlit Lamenter
 Moonlit Scavengers
 Moonrise Cleric
+Moonshadow
 Moonshaker Cavalry
 Moonsilver Key
 Moonsnare Prototype
@@ -6593,6 +6616,7 @@ Needletooth Raptor
 Needleverge Pathway
 Nef-Crop Entangler
 Negate
+Neglected Heirloom
 Neglected Manor
 Neheb, Dreadhorde Champion
 Neheb, the Eternal
@@ -6705,6 +6729,7 @@ Noose Constrictor
 Noosegraf Mob
 Nori, Teller of Tales
 Norika Yamazaki, the Poet
+Norn's Inquisitor
 Norn's Wellspring
 North Pole Gates
 North Pole Patrol
@@ -6770,6 +6795,7 @@ Oath of Jace
 Oath of Nissa
 Oath of Teferi
 Oath of the Ancient Wood
+Oathsworn Knight
 Ob Nixilis's Cruelty
 Ob Nixilis, Captive Kingpin
 Ob Nixilis, the Hate-Twisted
@@ -7442,6 +7468,7 @@ Pyramid of the Pantheon
 Pyre Hound
 Pyre Spawn
 Pyretic Prankster
+Pyrewild Shaman
 Pyrewood Gearhulk
 Pyroceratops
 Pyroclasm
@@ -7573,6 +7600,7 @@ Raking Claws
 Rakish Crew
 Rakish Scoundrel
 Rakshasa Deathdealer
+Rakshasa Vizier
 Rakshasa's Bargain
 Rakshasa's Disdain
 Rakshasa's Secret
@@ -7987,6 +8015,7 @@ Rising Populace
 Risk Factor
 Risky Research
 Risky Shortcut
+Risona, Asari Commander
 Rite of Belzenlok
 Rite of Oblivion
 Rite of Replication
@@ -8308,6 +8337,7 @@ Sarulf's Packmate
 Saruli Caretaker
 Saruli Gatekeepers
 Saryth, the Viper's Fang
+Satoru, the Infiltrator
 Satyr Enchanter
 Satyr Grovedancer
 Satyr Hoplite
@@ -8501,6 +8531,7 @@ Seeker of Sunlight
 Seeker of the Way
 Seeker's Folly
 Seekers' Squire
+Seer of Stolen Sight
 Seer of the Last Tomorrow
 Seer's Lantern
 Segmented Krotiq
@@ -8763,6 +8794,7 @@ Sidequest: Catch a Fish
 Sidequest: Raise a Chocobo
 Sidewinder Naga
 Sidisi's Pet
+Sidisi, Brood Tyrant
 Siege Mastodon
 Siege Rhino
 Siege Veteran
@@ -9710,6 +9742,7 @@ Swarm Shambler
 Swarm Surge
 Swarm of Bloodflies
 Swarm, Being of Bees
+Swarmborn Giant
 Swarming Goblins
 Swashbuckler's Whip
 Swashbuckling
@@ -10034,6 +10067,7 @@ The Fall of Lord Konda
 The Filigree Sylex
 The Final Days
 The Fire Crystal
+The Gitrog Monster
 The Gold Saucer
 The Goose Mother
 The Great Goblin
@@ -10073,6 +10107,7 @@ The Scorpion God
 The Seedcore
 The Seriema
 The Shattered States Era
+The Skullspore Nexus
 The Spirit Oasis
 The Spot's Portal
 The Surgical Bay
@@ -10501,6 +10536,7 @@ Tusked Colossodon
 Tuskeri Firewalker
 Tuskguard Captain
 Tweeze
+Twilight Diviner
 Twilight Panther
 Twilight Prophet
 Twin Blades
@@ -10547,6 +10583,7 @@ U.S.S. Excelsior, Cutting Edge
 U.S.S. Reliant, From Hell's Heart
 Ubul Sar Gatekeepers
 Uchbenbak, the Great Mistake
+Ugin's Conjurant
 Ugin's Insight
 Ugin's Labyrinth
 Ugin, the Spirit Dragon
@@ -10610,6 +10647,7 @@ Underdark Basilisk
 Underfoot Underdogs
 Underground Mortuary
 Underground River
+Undergrowth Champion
 Undergrowth Leopard
 Undergrowth Recon
 Undergrowth Scavenger
@@ -10933,6 +10971,7 @@ Vision Quest
 Vision of Love
 Visionary Augmenter
 Visionary's Dance
+Visions of Brutality
 Visions of Villainy
 Vito's Inquisitor
 Vito, Fanatic of Aclazotz
@@ -11040,6 +11079,7 @@ Walk with the Ancestors
 Walking Corpse
 Walking Skyscraper
 Wall Crawl
+Wall of Essence
 Wall of Fire
 Wall of Forgotten Pharaohs
 Wall of Frost
@@ -11382,6 +11422,7 @@ Wooded Ridgeline
 Woodland Acolyte
 Woodland Bellower
 Woodland Cemetery
+Woodland Champion
 Woodland Chasm
 Woodland Mystic
 Woodland Patrol

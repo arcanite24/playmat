@@ -37,8 +37,8 @@ STATIC_KINDS = ('continuous', 'replacement', 'cost', 'restriction', 'rule', 'as_
 _DECL = re.compile(r'Handler::(effect|condition|value|trigger|predicate|mana|spend|' + '|'.join(STATIC_KINDS) + r')\(\s*"([\w.]+)"\s*,')
 _FN = re.compile(r'\s*[\w:]+\s*,?\s*\)')
 _PART = re.compile(r'\s*\.(tokens|effects|filters|args|abilities)\(\s*&\[')
-# `.in_any_zone()` and `.on_start(f)`: the engine's business only
-_ANY_ZONE = re.compile(r'\s*\.(?:in_any_zone\(\)|on_start\(\s*[\w:]+\s*\))')
+# `.in_any_zone()`, `.on_start(f)` and `.stack_info(f)`: the engine's business only
+_ANY_ZONE = re.compile(r'\s*\.(?:in_any_zone\(\)|(?:on_start|stack_info)\(\s*[\w:]+\s*\))')
 _STR = re.compile(r'\s*(?:"((?:[^"\\]|\\.)*)"|r(#*)"(.*?)"\2)\s*,?', re.S)
 
 _cache = None

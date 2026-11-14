@@ -680,7 +680,7 @@ SIMPLE_TRIGGERS = {'EntersBattlefieldTriggeredAbility': 'enters', 'EntersBattlef
 # (nothing after it looks at which trigger it was)
 OR_PARTS = {'enters', 'attacks', 'dies', 'spell_cast', 'step_begins', 'becomes_target_of_spell',
             'combat_damage_to_player', 'enters_all', 'blocks', 'becomes_blocked', 'discards', 'cast_this', 'dies_all',
-            'attacks_attached'}
+            'attacks_attached', 'transforms_into'}
 
 TARGET_CONTROLLERS = {'TargetController.YOU': 'you', 'TargetController.NEXT': 'any', 'TargetController.ANY': 'any',
                       'TargetController.OPPONENT': 'opponent'}
@@ -699,7 +699,7 @@ _TALLIES = ('GOLD', 'BLOODLINE', 'MUSTER', 'QUEST', 'ICE', 'WISH', 'REVIVAL', 'N
             'FILM', 'FATE', 'CRYSTAL', 'TASK', 'SUPPLY', 'SKEWER', 'SIN', 'DIVINITY', 'FORESHADOW', 'CHORUS', 'EMBER', 'BLOOD',
             'PROMOTION', 'NET', 'TIME', 'INCUBATION', 'JUDGMENT', 'BLAZE', 'DREAD', 'RITUAL', 'SUSPECT', 'INGENUITY',
             'KNOWLEDGE', 'LANDMARK', 'INVITATION', 'ISOLATION', 'POISON', 'COIN', 'FILIBUSTER', 'BLOODSTAIN',
-            'GEM', 'IMPOSTOR', 'DOOM', 'HARMONY', 'GHOSTFORM')
+            'GEM', 'IMPOSTOR', 'DOOM', 'HARMONY', 'GHOSTFORM', 'FLAME')
 # (a name may come with its article: `HOUR("hour", "an")`)
 for _m in re.finditer(r'^    (\w+)\("([a-z][a-z -]*)"(?:, "\w+")?\)', open(os.path.join(ROOT, 'Mage', 'src', 'main', 'java', 'mage', 'counters',
                                                                  'CounterType.java')).read(), re.M):
@@ -734,6 +734,8 @@ CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'},
               'SpellMasteryCondition.instance': {'c': 'cards_in_graveyard', 'n': 2, 'filter': [
                   {'p': 'or', 'xs': [{'p': 'type', 't': 'INSTANT'}, {'p': 'type', 't': 'SORCERY'}]}]},
               'MyTurnCondition.instance': {'c': 'my_turn'},
+              'IsMainPhaseCondition.YOURS': {'c': 'my_main_phase'},
+              'SourceInGraveyardCondition.instance': {'c': 'source_in_graveyard'},
               'FirstCombatPhaseCondition.instance': {'c': 'first_combat_phase'},
               'MorbidCondition.instance': {'c': 'morbid'},
               'CompletedDungeonCondition.instance': {'c': 'completed_dungeon'},
@@ -1337,7 +1339,7 @@ TEXT_SETTERS = {'setText', 'withTextThatCard', 'withText', 'withShowSacText', 's
 # changes nothing the engine reads
 KEPT_WATCHERS = {'ScryOrSurveilWatcher', 'SpellsCastWatcher', 'PermanentsSacrificedWatcher', 'CardsLeftGraveyardWatcher',
                  'DiscardedCardWatcher', 'PlayerLostLifeWatcher', 'AttackedThisTurnWatcher', 'CrewedVehicleWatcher',
-                 'CardsPutIntoGraveyardWatcher', 'CommittedCrimeWatcher',
+                 'CardsPutIntoGraveyardWatcher', 'CommittedCrimeWatcher', 'DamagedPlayerThisCombatWatcher',
                  'CreaturesDiedWatcher', 'ArtifactEnteredControllerWatcher', 'CreatureEnteredControllerWatcher',
                  'PermanentsEnteredBattlefieldWatcher', 'CardsExiledThisTurnWatcher', 'PlayerGainedLifeWatcher',
                  'CompletedDungeonWatcher', 'LandfallWatcher'}
@@ -3521,6 +3523,9 @@ class Translator:
                         'to_player': d['to_player']}
             if d.get('class') == 'NextUpkeepDelayed':
                 return {'class': 'CreateNextUpkeepDelayedEffect', 'effects': d['effects'], 'rule': d['rule']}
+            if d.get('class') == 'NextMainDelayed':
+                return {'class': 'CreateNextMainPhaseDelayedEffect', 'effects': d['effects'], 'rule': d['rule'],
+                        'phase': d['phase']}
             if d.get('class') != 'NextEndStepDelayed':
                 raise Unsupported('delayed ability ' + args[0])
             return {'class': 'CreateNextEndStepDelayedEffect', 'effects': d['effects'], 'rule': d['rule']}
@@ -4972,6 +4977,27 @@ class Translator:
             return {'class': 'WhenTargetDiesDelayed', 'effects': [self.effect(args[0])],
                     'rule': RULE_FROM + 'When that creature dies this turn, >',
                     'to_player': len(args) == 2 and args[1].strip() == 'SetTargetPointer.PLAYER'}
+        # "at the beginning of your next main phase, …" (the effect's own text after it)
+        if cls == 'AtTheBeginOfMainPhaseDelayedTriggeredAbility' and len(args) == 4 and args[1].strip() == 'false' \
+                and args[2].strip() == 'TargetController.YOU':
+            phase = {'PhaseSelection.NEXT_MAIN': ('main', 'next main phase'),
+                     'PhaseSelection.NEXT_MAIN_THIS_TURN': ('main_this_turn', 'next main phase this turn'),
+                     'PhaseSelection.NEXT_PRECOMBAT_MAIN': ('precombat', 'next first main phase'),
+                     'PhaseSelection.NEXT_POSTCOMBAT_MAIN': ('postcombat', 'next postcombat main phase')}.get(
+                re.sub(r'^AtTheBeginOfMainPhaseDelayedTriggeredAbility\.', '', args[3].strip()))
+            m = re.fullmatch(r'new AddManaToManaPoolSourceControllerEffect\(Mana\.(Red|Green|Blue|White|Black|Colorless|Generic)Mana\((\d+)\)\)',
+                             canonical(args[0].strip()))
+            if phase is None or not m:
+                raise Unsupported(cls + ' ' + args[0][:60])
+            n = int(m.group(2))
+            # (generic mana goes to the pool as colorless; `Mana.toString` writes it "{2}")
+            if m.group(1) == 'Generic':
+                effect, text = {'class': 'BasicManaEffect', 'colored': [0] * 5, 'colorless': n}, '{%d}' % n
+            else:
+                sym = {'Red': 'R', 'Green': 'G', 'Blue': 'U', 'White': 'W', 'Black': 'B', 'Colorless': 'C'}[m.group(1)]
+                effect, text = self.effect(args[0]), '{%s}' % sym * n
+            return {'class': 'NextMainDelayed', 'effects': [effect], 'phase': phase[0],
+                    'rule': 'At the beginning of your %s, add %s.' % (phase[1], text)}
         if cls == 'AtTheBeginOfNextUpkeepDelayedTriggeredAbility' and len(args) == 2 \
                 and args[1].strip() == 'Duration.OneUse' and args[0].strip() == 'new DrawCardSourceControllerEffect(1)':
             return {'class': 'NextUpkeepDelayed', 'effects': [self.effect(args[0])],
@@ -5742,6 +5768,36 @@ class Translator:
                     raise Unsupported(cls + ' at an ability')
                 on['abilities'] = True
             return out(on, args[0], n == 5 and flag(args[4]))
+        # "when enchanted creature becomes the target of a spell or ability (of the filter)": once for the targeting
+        # object, a pointer at its controller, that spell, or none
+        if cls == 'BecomesTargetAttachedTriggeredAbility' and n in (1, 4):
+            stack = args[1] if n == 4 else 'StaticFilters.FILTER_SPELL_OR_ABILITY_A'
+            at = {'SetTargetPointer.PLAYER': 'player', 'SetTargetPointer.SPELL': 'spell',
+                  'SetTargetPointer.NONE': 'none'}.get(args[2] if n == 4 else 'SetTargetPointer.NONE')
+            if at is None:
+                raise Unsupported(cls + ' pointer ' + args[2])
+            on = {'e': 'becomes_target_any', 'target': [], 'filter': self.filter(stack), 'at': at, 'attached': True}
+            if self.stack_filter_abilities(stack):
+                if at == 'spell':
+                    raise Unsupported(cls + ' at an ability')
+                on['abilities'] = True
+            return out(on, args[0], n == 4 and flag(args[3]))
+        # a card's own `TARGETED` trigger class, as its handler's base: (effect, permanent filter, stack filter, the
+        # stack object's controller, pointer, the players that count, once for the targeting object, abilities only)
+        if cls == 'BecomesTargetPlayerOrPermanentTriggeredAbility' and n == 8:
+            at = {'SetTargetPointer.PLAYER': 'player', 'SetTargetPointer.NONE': 'none'}.get(args[4])
+            who = TARGET_CONTROLLERS.get(args[3])
+            players = TARGET_CONTROLLERS.get(args[5])
+            if at is None or who is None or players is None:
+                raise Unsupported(cls + ' arguments')
+            stack = self.filter(args[2]) + ([] if who == 'any' else [{'p': 'controller', 'who': who}])
+            on = {'e': 'becomes_target_any', 'target': self.filter(args[1]), 'filter': stack, 'at': at,
+                  'players': players, 'abilities': True}
+            if flag(args[6]):
+                on['once'] = True
+            if flag(args[7]):
+                on['no_spells'] = True
+            return out(on, args[0])
         # "when this dies, put it on the bottom of its owner's library"
         if cls == 'DiesSourceTriggeredAbility' and n == 3 and args[2] == 'SetTargetPointer.CARD' \
                 and (m := re.fullmatch(r'new PutOnLibraryTargetEffect\((true|false)\)', self.strip_setters(args[0]))):
@@ -6036,7 +6092,8 @@ class Translator:
                 filt = self.filter(args[1])
             elif n == 4:
                 pointer, filt, optional = args[1], self.filter(args[2]), flag(args[3])
-            elif n == 5 and args[0] == 'Zone.BATTLEFIELD':
+            elif n == 5 and args[0] in ('Zone.BATTLEFIELD', 'Zone.GRAVEYARD'):
+                graveyard = args[0] == 'Zone.GRAVEYARD'
                 args = args[1:]
                 filt, pointer, optional = self.filter(args[1]), args[2], flag(args[3])
             elif n != 1:
@@ -6044,6 +6101,8 @@ class Translator:
             if pointer not in ('SetTargetPointer.NONE', 'SetTargetPointer.PLAYER'):
                 raise Unsupported(cls + ' ' + pointer)
             a = out({'e': 'damage_player_batch', 'filter': filt, 'only_combat': True}, args[0], optional)
+            if n == 5 and graveyard:
+                a['on']['graveyard'] = True
             if pointer == 'SetTargetPointer.PLAYER':
                 a['set_target_pointer_player'] = True
             return a
@@ -6177,6 +6236,53 @@ class Translator:
                 if not m or m.group(1) not in subtype_names():
                     raise Unsupported(cls + ' ' + args[1])
                 on['subtype'] = subtype_names()[m.group(1)]
+            return out(on, args[0])
+        # a card's own "one or more" `ZONE_CHANGE_BATCH` trigger, as a trigger handler's base writes it (a name for
+        # the engine's trigger, not a Java class): (effect, from zone or null, to zone or null, filter,
+        # TargetController, cards[, optional]); `cards` reads `game.getCard` (no tokens), else the permanent
+        if cls == 'ZoneChangeBatchTriggeredAbility' and n in (6, 7):
+            zones = {'null': ''}
+            zones.update(('Zone.' + z.upper(), z) for z in ('library', 'hand', 'battlefield', 'graveyard', 'stack'))
+            zones['Zone.EXILED'] = 'exile'
+            if args[1] not in zones or args[2] not in zones or args[4] not in TARGET_CONTROLLERS:
+                raise Unsupported(cls + ' ' + ','.join(args[1:5]))
+            on = {'e': 'zone_batch', 'from': zones[args[1]], 'to': zones[args[2]], 'filter': self.filter(args[3]),
+                  'who': TARGET_CONTROLLERS[args[4]], 'cards': flag(args[5])}
+            return out(on, args[0], n == 7 and flag(args[6]))
+        if cls == 'DealtCombatDamageToSourceTriggeredAbility' and n == 2:
+            return out({'e': 'dealt_combat_damage'}, args[0], flag(args[1]))
+        if cls == 'SpellControlledDealsDamageTriggeredAbility' and n == 4 and args[0] == 'Zone.BATTLEFIELD':
+            return out({'e': 'spell_deals_damage', 'filter': self.filter(args[2])}, args[1], flag(args[3]))
+        if cls == 'DealsCombatDamageEquippedTriggeredAbility' and n in (1, 2):
+            return out({'e': 'attached_deals_damage', 'only_combat': True}, args[0], n == 2 and flag(args[1]))
+        if cls == 'DealsDamageAttachedTriggeredAbility' and n == 3 and args[0] == 'Zone.BATTLEFIELD':
+            return out({'e': 'attached_deals_damage'}, args[1], flag(args[2]))
+        # "whenever a permanent of the filter is dealt damage" (effect, filter, pointer, optional), once for each
+        # permanent's batch
+        if cls == 'DealtDamageAnyTriggeredAbility' and n == 4:
+            at = {'SetTargetPointer.PERMANENT': 'permanent', 'SetTargetPointer.PLAYER': 'player',
+                  'SetTargetPointer.NONE': 'none'}.get(args[2])
+            if at is None:
+                raise Unsupported(cls + ' pointer ' + args[2])
+            return out({'e': 'dealt_damage_any', 'filter': self.filter(args[1]), 'at': at}, args[0], flag(args[3]))
+        # "whenever you're dealt combat damage" (a card's own `DAMAGED_BATCH_FOR_ONE_PLAYER` class, as its base)
+        if cls == 'YouDealtCombatDamageTriggeredAbility' and n == 1:
+            return out({'e': 'you_dealt_combat_damage'}, args[0])
+        # a permanent of the filter transforms (a card's own `TRANSFORMED` trigger class, as its handler's base):
+        # (effect, filter[, setTargetPointer]); the attached permanent's (effect[, optional])
+        if cls == 'TransformsAllTriggeredAbility' and n in (2, 3):
+            a = out({'e': 'transforms_any', 'filter': self.filter(args[1])}, args[0])
+            if n == 3 and flag(args[2]):
+                a['set_target_pointer'] = True
+            return a
+        if cls == 'TransformsAttachedTriggeredAbility' and n in (1, 2):
+            return out({'e': 'transforms_any', 'attached': True}, args[0], n == 2 and flag(args[1]))
+        # "whenever one or more permanents of the filter become tapped", once a batch
+        if cls == 'BecomesTappedOneOrMoreTriggeredAbility' and n == 4 and args[0] == 'Zone.BATTLEFIELD':
+            return out({'e': 'becomes_tapped_batch', 'filter': self.filter(args[3])}, args[1], flag(args[2]))
+        # "whenever one or more permanents of the filter leave the battlefield without dying"
+        if cls == 'OneOrMoreLeaveWithoutDyingTriggeredAbility' and n == 2:
+            on = {'e': 'zone_batch', 'from': 'battlefield', 'filter': self.filter(args[1]), 'not_dying': True}
             return out(on, args[0])
         # "whenever one or more creatures of the filter die": once a batch
         if cls == 'DiesOneOrMoreTriggeredAbility' and (n == 3 or (n == 4 and args[3].strip() == 'false')):
@@ -7454,6 +7560,9 @@ def ability_statement(t, st, added):
         args = split_args(m.group(1))
         # `addAbility(ability, new SomeWatcher())`: the watcher is the engine's own bookkeeping
         if len(args) == 2 and re.fullmatch(r'new \w+Watcher\((ability\.getOriginalId\(\))?\)', args[1].strip()):
+            args = args[:1]
+        # (`PreventDamageAndRemoveCountersWatcher`: its handler keeps that, `Game::counter_removed_batch`)
+        if len(args) == 2 and args[1].strip() == 'PreventDamageAndRemoveCountersEffect.createWatcher()':
             args = args[:1]
         # splice onto Arcane: revealed from the hand as an Arcane spell is cast, its effects added to that spell
         if (e := re.fullmatch(r'new SpliceAbility\(SpliceAbility\.ARCANE,"(\{[^"]*\})"\)', ','.join(args).strip())):

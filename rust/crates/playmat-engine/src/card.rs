@@ -754,6 +754,9 @@ pub enum Trigger {
         filter: Filter,
         #[serde(default)]
         only_combat: bool,
+        /// it triggers from its owner's graveyard instead of the battlefield (`Zone.GRAVEYARD`: Pyrewild Shaman)
+        #[serde(default)]
+        graveyard: bool,
     },
     /// an opponent is dealt noncombat damage, once for each player's batch
     /// (`OpponentDealtNoncombatDamageTriggeredAbility`); X is the batch's damage
@@ -829,6 +832,19 @@ pub enum Trigger {
         #[serde(default)]
         abilities: bool,
         at: String,
+        /// a player targeted counts too: "you" or "any" (Leyline of Combustion's "you and/or a permanent you
+        /// control", Loki's "a player or permanent")
+        #[serde(default)]
+        players: String,
+        /// a spell doesn't count, only an ability (Loki)
+        #[serde(default)]
+        no_spells: bool,
+        /// once for the targeting object, however many of its targets match (Leyline of Combustion)
+        #[serde(default)]
+        once: bool,
+        /// the permanent this is attached to, whatever `target` says (`BecomesTargetAttachedTriggeredAbility`)
+        #[serde(default)]
+        attached: bool,
     },
     /// `who` casts their second spell this turn
     CastSecondSpell {
@@ -843,6 +859,28 @@ pub enum Trigger {
     /// you unlock this door, the left or the right (`UnlockThisDoorTriggeredAbility`)
     DoorUnlocked {
         left: bool,
+    },
+    /// "whenever one or more cards (permanents) of the filter are put from `from` into `to`" (a card's own
+    /// `BatchTriggeredAbility<ZoneChangeEvent>` on `ZONE_CHANGE_BATCH`, `ZoneChangeBatchTriggeredAbility` in a
+    /// handler's base): once for the batch, after its other triggers. Zones are "library", "hand", "battlefield",
+    /// "graveyard", "exile", "stack"; empty is any. `who` ("you", "opponent", "any") is the owner of a card, the
+    /// controller of a permanent. `cards` is Java's `game.getCard`: tokens don't count, and the card is checked
+    /// where it went; otherwise the permanent is (as it last was on the battlefield, for one that left). Its target
+    /// pointer (with no targets of its own) is every object that moved, as it is now; X is how many.
+    ZoneBatch {
+        #[serde(default)]
+        from: String,
+        #[serde(default)]
+        to: String,
+        #[serde(default)]
+        filter: Filter,
+        #[serde(default)]
+        who: String,
+        #[serde(default)]
+        cards: bool,
+        /// not into a graveyard (`OneOrMoreLeaveWithoutDyingTriggeredAbility`)
+        #[serde(default)]
+        not_dying: bool,
     },
     /// you commit a crime: a spell or ability of yours targets an opponent, something of theirs or a card in their
     /// graveyard (`CommittedCrimeTriggeredAbility`)
@@ -1010,6 +1048,43 @@ pub enum Trigger {
     BecomesTappedAll {
         filter: Filter,
     },
+    /// this is dealt combat damage (`DealtCombatDamageToSourceTriggeredAbility`, once for each batch, X the damage)
+    DealtCombatDamage,
+    /// a spell of the filter you control deals damage (`SpellControlledDealsDamageTriggeredAbility`, once for each
+    /// spell's `DAMAGED_BATCH_BY_SOURCE`, X the damage)
+    SpellDealsDamage {
+        filter: Filter,
+    },
+    /// the creature this is attached to deals (combat) damage (`DealsCombatDamageEquippedTriggeredAbility`,
+    /// `DealsDamageAttachedTriggeredAbility`: once for each of its batches, X the damage)
+    AttachedDealsDamage {
+        #[serde(default)]
+        only_combat: bool,
+    },
+    /// a permanent of the filter is dealt damage (`DealtDamageAnyTriggeredAbility`, once for each permanent's
+    /// `DAMAGED_BATCH_FOR_ONE_PERMANENT`, X the damage); `at`: its effects point at "permanent", its "player"
+    /// (controller), or "none"
+    DealtDamageAny {
+        filter: Filter,
+        at: String,
+    },
+    /// you're dealt combat damage (`DAMAGED_BATCH_FOR_ONE_PLAYER` with any of it combat damage: Swarmborn Giant,
+    /// Contested Game Ball), once for each batch
+    YouDealtCombatDamage,
+    /// a permanent of the filter transforms (`TRANSFORMED`, the permanent as it is now: Norn's Inquisitor's "a
+    /// permanent you control transforms into a Phyrexian"); `attached`: the permanent this is attached to instead
+    /// (Neglected Heirloom's "when equipped creature transforms")
+    TransformsAny {
+        #[serde(default)]
+        filter: Filter,
+        #[serde(default)]
+        attached: bool,
+    },
+    /// one or more permanents of the filter become tapped (`BecomesTappedOneOrMoreTriggeredAbility`,
+    /// `TAPPED_BATCH`): once for the batch, after its other triggers
+    BecomesTappedBatch {
+        filter: Filter,
+    },
     /// this deals combat damage to a player
     CombatDamageToPlayer,
     /// this deals combat damage to a player or planeswalker (`DealsCombatDamageToAPlayerOrPlaneswalkerTriggeredAbility`)
@@ -1162,6 +1237,10 @@ pub enum Condition {
     },
     /// `MyTurnCondition`
     MyTurn,
+    /// `IsMainPhaseCondition.YOURS`: your turn, in a main phase
+    MyMainPhase,
+    /// `SourceInGraveyardCondition`: the source is a card in a graveyard
+    SourceInGraveyard,
     /// `FirstCombatPhaseCondition`: this turn's own combat phase isn't over (extra ones before it don't count)
     FirstCombatPhase,
     /// `CastFromEverywhereSourceCondition`: this permanent was cast
@@ -2567,6 +2646,13 @@ pub enum EffectDef {
     CreateNextUpkeepDelayedEffect {
         effects: Vec<EffectDef>,
         rule: String,
+    },
+    /// "… at the beginning of your next main phase" (`AtTheBeginOfMainPhaseDelayedTriggeredAbility` with
+    /// `TargetController.YOU`): `phase` "main", "main_this_turn", "precombat" or "postcombat"
+    CreateNextMainPhaseDelayedEffect {
+        effects: Vec<EffectDef>,
+        rule: String,
+        phase: String,
     },
     /// Expressive Iteration: of the top three cards, one into your hand, one on the bottom, one exiled (you may play
     /// it this turn)
