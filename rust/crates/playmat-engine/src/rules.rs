@@ -7545,7 +7545,13 @@ fn targetable(game: &Game, seat: Seat, id: ObjId, src: Option<ObjId>) -> bool {
 /// `HexproofBaseAbility.checkObject`: one of `id`'s "hexproof from" abilities covers the object `s`
 fn hexproof_from(game: &Game, id: ObjId, s: ObjId) -> bool {
     let o = game.obj(id);
-    if !o.def.abilities.iter().chain(game.granted_abilities(id).iter()).any(|a| matches!(a, AbilityDef::HexproofFromAbility { .. })) {
+    if !o
+        .def
+        .abilities
+        .iter()
+        .chain(game.granted_abilities(id).iter())
+        .any(|a| matches!(a, AbilityDef::HexproofFromAbility { .. }))
+    {
         return false;
     }
     let colors = game.colors(s);
