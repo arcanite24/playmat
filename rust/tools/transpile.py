@@ -2686,6 +2686,7 @@ class Translator:
         # (effect, condition[, text])
         if cls == 'ConditionalOneShotEffect' and len(args) in (2, 3) \
                 and (re.fullmatch(r'\w+Condition\.\w+', args[1].strip()) or args[1].strip() in self.conditions
+                     or card_handlers.condition(self, args[1]) is not None
                      or re.fullmatch(r'new InvertCondition\(\w+Condition\.\w+\)', args[1].strip())
                      or re.fullmatch(r'new \w+Condition\(.*\)', args[1].strip(), re.S)):
             return {'class': cls, 'effect': self.effect(args[0]), 'condition': self.condition(args[1])}
