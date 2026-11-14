@@ -739,6 +739,24 @@ Being in the engine and being trusted are kept apart.
   Launderer, Confront the Past and others need a handler kind of their own), the long tail of
   `ConditionalColoredManaAbility`/`SimpleManaAbility` forms, and granted statics on Equipment.
 
+  Wave 10, claim 2 (14 Nov): tribute (`TributeAbility(n)`: as it enters, the opponent is asked whether to put the
+  counters on it, remembered for `TributeNotPaidCondition`), exploit (`ExploitAbility` as an optional enters trigger
+  whose sacrifice fires "when this exploits a creature" at once, after the sacrifice's own triggers, also when the
+  exploiter sacrificed itself), hexproof from a color, monocolored, multicolored or each color (`targetable` checks
+  the opponent's source against it), "whenever this deals damage to a player" (`DealsDamageToAPlayerTriggeredAbility`,
+  not only an opponent), Runic Armasaur's "whenever an opponent activates an ability of a creature or land", and
+  `ConditionalOneShotEffect` with a handler's condition. Engine fix: "deals combat damage to a player or planeswalker"
+  triggers carry the damage as X (`setValue("damage")`), so Garruk's Harbinger looks at that many cards. 59 handler
+  files. Three factory rounds (122 games, 111 matching) verified 77, 17 of them through exploit, tribute and hexproof
+  from (Sidisi's Faithful, Ornitharch, Sporeweb Weaver and others): 11,206 of 11,410. Six games under
+  `shadow/handlers/game-handlers10-c2-*` cover the engine pieces. Left: Flame-Wreathed Phoenix (a resolving
+  `GainAbilitySourceEffect` only lasts until end of turn, and its one-argument form defaults to end of turn where
+  Java's is while on the battlefield; changing the default moves 57 verified cards), Old-Growth Dryads (library order
+  after the opponent's search), Skyclave Plunder, Bond of Insight, Engulf the Shore and Purifying Dragon (one or two
+  differing games each), and five handler cards still short of games (Blast of Genius, Coerced Confession,
+  Defossilize, Essence Backlash, Jace's Mindseeker). Skipped: speed (Start your engines!), mutate, and the cards that
+  need the queued PRs' features (Price of Loyalty's Treasure mana, Enchanted River's Grasp's lose-all-abilities Aura).
+
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory
   rounds (106 games, 104 matching, replayed again on the engine with the static and claim-2 handlers) verified 58:
