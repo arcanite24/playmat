@@ -17633,6 +17633,17 @@ fn counters_put_triggers(game: &mut Game, o: ObjId, name: &str, n: i32, by: Opti
     for _ in 0..n {
         game.pending.extend(each.iter().cloned());
     }
+    // a Saga's chapters reached by lore counters an effect put (proliferate): `ChapterTriggeredAbility` on
+    // `COUNTERS_ADDED`, as for the lore counter of the precombat main phase
+    if name == "lore" {
+        let after = game.obj(o).counter("lore");
+        let before = after - n;
+        let read_ahead = game.obj(o).entered_turn == game.turn && game.has_ability(o, &AbilityDef::ReadAheadAbility);
+        let chapters = game.triggers([o], |_, _, _, t| {
+            matches!(t, Trigger::Chapter { n } if if read_ahead { *n as i32 == after } else { before < *n as i32 && *n as i32 <= after })
+        });
+        game.pending.extend(chapters);
+    }
     let sources = game.trigger_sources();
     let fired = game.triggers(sources, |g, src, you, t| match t {
         Trigger::CountersPut { filter, counter } => {
@@ -19569,9 +19580,12 @@ fn live_fixed(game: &Game, t: &StackItem) -> Vec<ObjId> {
 fn token_image(game: &mut Game, token: &crate::card::TokenDef, source: ObjId) {
     // a token's set is the one its image came from (`token.setExpansionSetCode(tokenInfo.getSetCode())`): a
     // Treasure from Fable's Goblin Shaman looks in NEO's Treasures, one image, so no random number
-    let set = match &game.obj(source).token_image {
-        Some((_, set, _)) if game.obj(source).token => set.clone(),
-        _ => game.obj(source).def.set.clone(),
+    // a split card's half, cast, is its parent's printing (`SplitCardHalfImpl.getExpansionSetCode`)
+    let o = game.obj(source);
+    let set = match (&o.token_image, &o.adventurer) {
+        (Some((_, set, _)), _) if o.token => set.clone(),
+        (_, Some(full)) if o.def.set.is_empty() => full.set.clone(),
+        _ => o.def.set.clone(),
     };
     let n = token.image_choices(&set);
     let pick = if n >= 2 { game.rng.next_int_bound(n as i32) as u32 } else { 0 };
