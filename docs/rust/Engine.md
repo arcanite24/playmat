@@ -668,6 +668,26 @@ Being in the engine and being trusted are kept apart.
   Embereth Veteran and Merry Bards, already verified); that one game was set aside, and Beifong's Bounty Hunters
   verified in games without it.
 
+  Wave 6, claim 1 (13 Nov): 23 handler files and a few engine pieces brought 31 cards in (11,012 in the engine).
+  Fated Return, Bria, Riptide Rogue and Sokka, Tenacious Tactician came in through shared transpiler forms. The
+  engine pieces: attack triggers know they were caused by an attack (`TriggerCause::Attacked`, for Isshin's
+  additional triggers); a player's hexproof for one turn (Lazotep Plating; master's handlers cover Riot Control's
+  and Atarka's Command's own player effects); an Aura put onto the battlefield attached to a given permanent (`Game::attach_entering`, Gryff's
+  Boon); a card's own effect class among its "as this enters" effects (Heraldic Banner's color);
+  `Rule::CantLoseOrWin` for the state-based loss check and `win_game`; the permanents each player put +1/+1 counters
+  on this turn (Kid Loki); the permanent a leaves-the-battlefield-all trigger saw leave (`StackItem::left`, The
+  Ozolith); "at the beginning of your next end step" delayed triggers; `ModifyDamageEffect` plus the counters on its
+  source (Fated Firepower); damage to a player doubled until your next turn (Lightning, Army of One); entering with a
+  +1/+1 counter for each land that entered this turn (Bioengineered Future); and the `artifacts_you_control` count. A
+  granted prowess keeps its reminder text, as Java's `getRule` writes it. Four factory rounds (79 games, 77
+  matching, replayed again on master after #338, #344, #345, #346, #347 and #351) verified 29 more (Riot Control
+  and Atarka's Command were verified on master meanwhile): 10,822 of 11,012. Eleven games under
+  `shadow/handlers/game-handlers6-claim1-*` cover the engine pieces. Left: The Ozolith (one game where
+  two Prophetic Ravings on one creature give it its granted abilities at different indices than Java's, which adds
+  the second haste once) and Bria, Riptide Rogue (two Faerie Duelists' granted prowess triggers resolve in a
+  different order). Rowdy Crew and Curse-Marred Demon discard at random from a `HashSet<Card>`, so they aren't
+  ported.
+
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory
   rounds (106 games, 104 matching, replayed again on the engine with the static and claim-2 handlers) verified 58:

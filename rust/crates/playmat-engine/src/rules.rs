@@ -299,6 +299,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             game.attacks_opponent.retain(|(s, _)| *s != active);
             game.flash_until_next_turn.retain(|(s, _, _)| *s != active);
             game.card_statics.retain(|r| r.until_turn_of != Some(active));
+            game.damage_doubled_to.retain(|(_, s)| *s != active);
             if game.grants.iter().any(|g| g.until_turn_of == Some(active)) {
                 Arc::make_mut(&mut game.grants).retain(|g| g.until_turn_of != Some(active));
             }
@@ -431,6 +432,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 }
             }
             // ATTACKER_DECLARED triggers, in the order the attackers are listed
+            game.trigger_cause = Some(TriggerCause::Attacked);
             let alone = attackers(game).len() == 1;
             for a in attackers(game) {
                 let sources: Vec<ObjId> = game.trigger_sources();
@@ -525,6 +527,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                     }
                 }
             }
+            game.trigger_cause = None;
         }
         Step::DeclareBlockers => {
             declare_blockers(game, d, game.opponent(active));
@@ -611,6 +614,10 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             if step == Step::EndTurn {
                 let delayed = std::mem::take(&mut game.at_next_end_step);
                 game.pending.extend(delayed);
+                let (mine, rest): (Vec<_>, Vec<_>) =
+                    std::mem::take(&mut game.at_your_next_end_step).into_iter().partition(|i| i.controller == active);
+                game.at_your_next_end_step = rest;
+                game.pending.extend(mine);
             }
             if step == Step::Upkeep {
                 let delayed = std::mem::take(&mut game.at_next_upkeep);
@@ -767,6 +774,10 @@ fn draw_applied(game: &mut Game, seat: Seat, n: usize, applied: &[ObjId]) {
 /// `PlayerImpl.won`: each opponent still in loses (`lostForced`), then, with none left, `seat` wins
 fn win_game(game: &mut Game, seat: Seat) {
     if game.over || game.player(seat).lost {
+        return;
+    }
+    // "your opponents can't win the game" (`WINS` replaced while an opponent is still in)
+    if (0..game.seats()).any(|s| s != seat && !game.player(s).lost) && cards::cant_lose_or_win(game, seat, true) {
         return;
     }
     for s in 0..game.seats() {
@@ -16586,6 +16597,7 @@ fn count(game: &Game, name: &str, you: Seat) -> i32 {
     match name {
         "creatures_you_control" => mine(CardType::Creature),
         "lands_you_control" => mine(CardType::Land),
+        "artifacts_you_control" => mine(CardType::Artifact),
         _ => 0,
     }
 }
@@ -17065,6 +17077,13 @@ fn add_counters_by(game: &mut Game, o: ObjId, name: &str, n: i32, by: Option<Sea
 fn counters_put_triggers(game: &mut Game, o: ObjId, name: &str, n: i32, by: Option<Seat>) {
     if n <= 0 {
         return;
+    }
+    // `COUNTERS_ADDED` with a player (Kid Loki's watcher)
+    if let Some(p) = by.filter(|_| name == "+1/+1") {
+        let at = (p, o, game.obj(o).zcc);
+        if !game.p1p1_put_this_turn.contains(&at) {
+            game.p1p1_put_this_turn.push(at);
+        }
     }
     let by = by.unwrap_or(game.obj(o).controller);
     if name == "+1/+1" {
@@ -17546,9 +17565,21 @@ fn enters_with(game: &Game, id: ObjId) -> Vec<(Option<crate::card::CounterDef>, 
         for a in game.obj(src).def.abilities.iter() {
             let AbilityDef::SimpleStaticAbility { effects, .. } = a else { continue };
             for e in effects {
-                if let EffectDef::EntersWithCountersAllEffect { filter, counter, riot } = e {
+                if let EffectDef::EntersWithCountersAllEffect { filter, counter, riot, per_land_entered } = e {
                     if game.filter_matches(filter, you, Some(src), id) {
-                        out.push((counter.clone(), *riot));
+                        let mut counter = counter.clone();
+                        if *per_land_entered {
+                            // (a land entering was counted as it moved: the watcher sees it after this event)
+                            let mut n = game.player(you).lands_entered as i32;
+                            if game.obj(id).is(CardType::Land) && game.obj(id).controller == you {
+                                n -= 1;
+                            }
+                            counter = counter.filter(|_| n > 0).map(|mut c| {
+                                c.amount = n;
+                                c
+                            });
+                        }
+                        out.push((counter, *riot));
                     }
                 }
             }
@@ -17967,8 +17998,17 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
             cards::Event { target: Some(id), ..cards::Event::new(cards::EventType::EntersBattlefield, controller) };
         cards::replace_event(game, &mut ev, 0);
     }
-    // an Aura put onto the battlefield without being cast: its controller picks what it enchants (303.4f)
-    if !cast && def.has_subtype("Aura") {
+    // an Aura put onto the battlefield without being cast: its controller picks what it enchants (303.4f), unless
+    // the effect said what it enters attached to (Gryff's Boon)
+    let attach_to = game.attach_entering.filter(|(aura, _, _)| *aura == id);
+    if attach_to.is_some() {
+        game.attach_entering = None;
+    }
+    if let Some((_, to, to_zcc)) = attach_to.filter(|_| !cast) {
+        if game.obj(to).zone == Zone::Battlefield && game.obj(to).zcc == to_zcc {
+            game.attach_to(id, to, to_zcc);
+        }
+    } else if !cast && def.has_subtype("Aura") {
         if let Some(t) = def.spell.targets.first() {
             // `TargetImpl.tryToAutoChoose` reads the source ability's rule for its feel-bad words (Old-Growth Troll's
             // "Sacrifice this land" keeps its one Forest asked)
@@ -17988,6 +18028,14 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
     for a in &def.abilities {
         if let AbilityDef::AsEntersBattlefieldAbility { effects, .. } = a {
             for e in effects {
+                // a card's own "as this enters" class (Heraldic Banner's choice of a color), as the permanent enters
+                if let EffectDef::CardEffect { .. } = e {
+                    let item = StackItem::spell(id, controller);
+                    apply_effects(game, d, &item, std::slice::from_ref(e), &[], (id, zcc));
+                    if d.stopped() {
+                        return;
+                    }
+                }
                 // Pithing Needle: "as this enters, choose a card name"
                 if let EffectDef::ChooseLandNameEffect = e {
                     let q = Query::Choice { message: "Card name".into(), choices: Vec::new() };
@@ -19070,6 +19118,7 @@ fn damage_modifiers(game: &Game, source: ObjId, to: Target, combat: bool) -> Vec
                     players_only,
                     times,
                     plus,
+                    plus_counters,
                     condition,
                 } = e
                 else {
@@ -19087,7 +19136,8 @@ fn damage_modifiers(game: &Game, source: ObjId, to: Target, combat: bool) -> Vec
                     && (filter.0.is_empty() || game.filter_matches(filter, you, Some(src), source))
                     && game.condition_holds(condition.as_ref(), you, src)
                 {
-                    out.push((*times, *plus));
+                    let more = plus_counters.as_ref().map_or(0, |c| game.obj(src).counter(c));
+                    out.push((*times, plus.saturating_add(more)));
                 }
             }
         }
@@ -19284,6 +19334,19 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             amount = amount.saturating_mul(2);
         }
         talents += tyrants;
+    }
+    // Lightning, Army of One's "until your next turn", once for each: damage to that player or their permanent is
+    // doubled
+    if !game.damage_doubled_to.is_empty() {
+        let victim = match to {
+            Target::Player(p) => p,
+            Target::Obj(o) => game.obj(o).controller,
+        };
+        let n = game.damage_doubled_to.iter().filter(|(p, _)| *p == victim).count();
+        for _ in 0..n {
+            amount = amount.saturating_mul(2);
+        }
+        talents += n;
     }
     // two or more of these (Flamecallers, Talents, Tyrants): the damaged player (or the permanent's controller)
     // orders them (`chooseReplacementEffect`; two of one card differ by their object's name and id)
@@ -20562,7 +20625,7 @@ fn proliferate(game: &mut Game, d: &mut dyn Decider, seat: Seat) -> bool {
 
 /// The order a Java `HashMap<String, _>` (`Counters`) lists keys inserted in this order: by bucket of the spread
 /// `String.hashCode`, then insertion order within a bucket.
-fn java_hash_order(keys: Vec<String>) -> Vec<String> {
+pub(crate) fn java_hash_order(keys: Vec<String>) -> Vec<String> {
     let mut cap = 16usize;
     while keys.len() * 4 > cap * 3 {
         cap *= 2;
@@ -20859,6 +20922,7 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
     game.damaged_by_source.clear();
     game.combat_damaged_players.clear();
     game.attacked_this_turn.clear();
+    game.p1p1_put_this_turn.clear();
     if !game.all_basics_until_eot.is_empty() {
         game.all_basics_until_eot.clear();
         game.update_guildpact();
@@ -21255,7 +21319,8 @@ pub fn state_based_actions(game: &mut Game) -> bool {
             let poisoned = poison(game, s) >= 10;
             let p = game.player(s);
             // 704.5a-c: 0 or less life, drawing from an empty library, ten or more poison counters
-            if !p.lost && (p.life <= 0 || p.drew_from_empty || poisoned) {
+            // "you can't lose the game" (`PlayerImpl.canLose`: `LOSES` replaced); the empty library stays drawn from
+            if !p.lost && (p.life <= 0 || p.drew_from_empty || poisoned) && !cards::cant_lose_or_win(game, s, false) {
                 if log::kept(game) {
                     // `GameImpl.checkStateBasedActions`, `PlayerImpl.lost`: the last reason that holds is logged
                     let why = if poisoned {

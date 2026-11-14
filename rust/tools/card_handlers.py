@@ -266,6 +266,9 @@ def predicate(expr):
     """`{"p": "card", …}` for `XPredicate.instance` or `new XPredicate()` with a predicate handler, or None"""
     m = re.fullmatch(r'new (\w+)\(\)|(\w+)\.instance', expr.strip())
     name = m and find(SOURCE, m.group(1) or m.group(2), 'predicate')
+    # `new XPredicate(…)` with arguments: only a handler named for the card (written for the card's arguments)
+    if not m and (m := re.fullmatch(r'new (\w+)\(.+\)', expr.strip(), re.S)):
+        name = find(SOURCE, m.group(1), 'predicate', own_only=True)
     return {'p': 'card', 'handler': name} if name else None
 
 

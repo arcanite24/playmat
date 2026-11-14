@@ -21,7 +21,8 @@
 //!   own static abilities too: "this spell costs {2} less") and activated abilities (`adjusted_mana_cost_own`).
 //! - **restrictions**: `Handler::restriction(name, applies, &[Restrict::…])`: `rules::can_block`, `can_attack`.
 //! - **rule-modifying**: `Handler::rule(name, Rule::CantCast(f))`: `rules::castable` (and the cast itself);
-//!   `Rule::CantActivate(f)`: `rules::activatable` (activated abilities that aren't mana abilities).
+//!   `Rule::CantActivate(f)`: `rules::activatable` (activated abilities that aren't mana abilities);
+//!   `Rule::CantLoseOrWin(f)`: the state-based loss check and `rules::win_game`.
 //! - **as-though**: `Handler::as_though(name, AsThough::Flash(f))`: `rules::castable`'s timing;
 //!   `AsThough::Haste(f)`: a {T} cost's summoning sickness (`rules::can_pay_cost`, mana abilities);
 //!   `AsThough::Hexproof(f)`: hexproof, as targets are chosen (`rules::possible_targets`, `targetable`).
@@ -340,14 +341,17 @@ pub(crate) struct Restriction {
     pub restrict: &'static [Restrict],
 }
 
-/// What a rule-modifying effect stops
-#[allow(dead_code)]
+/// What a rule-modifying effect stops (Java's `ContinuousRuleModifyingEffect` event types: each a "can't")
+#[allow(dead_code, clippy::enum_variant_names)]
 pub(crate) enum Rule {
     /// `CAST_SPELL` (and `CAST_SPELL_LATE`): `seat` can't cast the card `id` as `face`
     CantCast(fn(&Game, &StaticCx, Seat, ObjId, &CardDef) -> bool),
     /// `ACTIVATE_ABILITY` of an activated ability that isn't a mana ability: `seat` can't activate the ability at
     /// `index` of `id` (Faith's Fetters)
     CantActivate(fn(&Game, &StaticCx, Seat, ObjId, usize) -> bool),
+    /// `LOSES` (`false`: `seat` can't lose the game, `PlayerImpl.canLose`) and `WINS` (`true`: `seat` can't win it,
+    /// `PlayerImpl.won`)
+    CantLoseOrWin(fn(&Game, &StaticCx, Seat, bool) -> bool),
 }
 
 /// `YouDontLoseManaEffect`'s `addDoNotEmptyManaType`: the kinds of `seat`'s mana (WUBRG, then colorless) the pool
@@ -653,6 +657,17 @@ pub(crate) fn cant_cast(game: &Game, seat: Seat, id: ObjId, face: &CardDef) -> b
     };
     each_static(game, &mut check);
     each_own_static(game, id, &mut check);
+    out
+}
+
+/// Whether a rule-modifying handler says `seat` can't lose the game (`LOSES`), or with `wins`, can't win it (`WINS`)
+pub(crate) fn cant_lose_or_win(game: &Game, seat: Seat, wins: bool) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::Rule(Rule::CantLoseOrWin(f)) = h {
+            out = out || f(game, cx, seat, wins);
+        }
+    });
     out
 }
 

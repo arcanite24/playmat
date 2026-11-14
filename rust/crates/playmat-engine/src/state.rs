@@ -493,6 +493,8 @@ pub struct Player {
     pub descended: u32,
     /// life lost last turn (`PlayerLostLifeWatcher.getLifeLostLastTurn`)
     pub life_lost_last_turn: i32,
+    /// "you gain hexproof until end of turn" (Lazotep Plating): the turn
+    pub hexproof_turn: Option<u32>,
 }
 
 impl Player {
@@ -598,6 +600,8 @@ pub enum TriggerCause {
     Entered(ObjId),
     /// a permanent dying
     Died(ObjId),
+    /// creatures attacking (`ATTACKER_DECLARED`, `DECLARED_ATTACKERS`)
+    Attacked,
 }
 
 #[derive(Clone, Debug)]
@@ -650,6 +654,9 @@ pub struct StackItem {
     /// a "whenever a creature dies" trigger (`DiesCreatureTriggeredAbility`): the permanent that died and its
     /// controller as it died (`getValue("creatureDied")`, its last known information)
     pub died: Option<(ObjId, Seat)>,
+    /// a "whenever a permanent of the filter leaves the battlefield" trigger: the permanent that left (Java's
+    /// `getValue("permanentLeftBattlefield")`), as the object it became
+    pub left: Option<ObjId>,
 }
 
 /// An ability a resolved effect gave one object.
@@ -725,6 +732,7 @@ impl StackItem {
             spliced: Vec::new(),
             cast_spell: None,
             died: None,
+            left: None,
         }
     }
 }
@@ -856,6 +864,11 @@ pub struct Game {
     pub at_end_of_combat: Vec<StackItem>,
     /// "at the beginning of the next end step" delayed triggers
     pub at_next_end_step: Vec<StackItem>,
+    /// "at the beginning of your next end step" delayed triggers: each waits for its controller's end step
+    pub at_your_next_end_step: Vec<StackItem>,
+    /// "until your next turn, if a source would deal damage to that player or a permanent that player controls, it
+    /// deals double that damage instead" (Lightning, Army of One): the player, and whose next turn ends it
+    pub damage_doubled_to: Vec<(Seat, Seat)>,
     /// "when that creature dies this turn" delayed triggers: the creature as it was, the turn, whether its target is
     /// the creature's controller, the trigger
     pub when_dies: Vec<(ObjId, u32, u32, bool, StackItem)>,
@@ -942,6 +955,9 @@ pub struct Game {
     pub prevent_combat_from: Vec<(ObjId, u32, u32)>,
     /// "players can't gain life this turn" (Skullcrack): the turn it was said
     pub no_lifegain_turn: Option<u32>,
+    /// the next Aura put onto the battlefield without being cast enters attached to this permanent (Java's
+    /// `"attachTo:" + auraId` state value): the Aura, the permanent and its zone-change count
+    pub attach_entering: Option<(ObjId, ObjId, u32)>,
     /// "until your next turn, you may cast spells of the filter as though they had flash": the player, the filter,
     /// the effect's source (Teferi, Time Raveler's +1)
     pub flash_until_next_turn: Vec<(Seat, crate::card::Filter, ObjId)>,
@@ -1013,6 +1029,8 @@ pub struct Game {
     pub combat_damaged_players: Vec<(ObjId, Seat)>,
     /// the creatures that attacked this turn, as they were (`AttackedThisTurnWatcher.getAttackedThisTurnCreatures`)
     pub attacked_this_turn: Vec<(ObjId, u32)>,
+    /// the permanents each player put one or more +1/+1 counters on this turn, as they were (Kid Loki's watcher)
+    pub p1p1_put_this_turn: Vec<(Seat, ObjId, u32)>,
     /// the players whose lands have all basic land types until end of turn (Energybending)
     pub all_basics_until_eot: Vec<Seat>,
     /// subtypes permanents have until end of turn (Sarkhan, Dragon Ascendant's "becomes a Dragon"): the permanent,
@@ -1209,6 +1227,8 @@ impl Game {
             pending: Vec::new(),
             at_end_of_combat: Vec::new(),
             at_next_end_step: Vec::new(),
+            at_your_next_end_step: Vec::new(),
+            damage_doubled_to: Vec::new(),
             when_dies: Vec::new(),
             at_next_upkeep: Vec::new(),
             rebound: Vec::new(),
@@ -1247,6 +1267,7 @@ impl Game {
             prevent_all_to: Vec::new(),
             prevent_combat_from: Vec::new(),
             no_lifegain_turn: None,
+            attach_entering: None,
             flash_until_next_turn: Vec::new(),
             resolving: None,
             resolving_item: None,
@@ -1278,6 +1299,7 @@ impl Game {
             damaged_by_source: Vec::new(),
             combat_damaged_players: Vec::new(),
             attacked_this_turn: Vec::new(),
+            p1p1_put_this_turn: Vec::new(),
             all_basics_until_eot: Vec::new(),
             subtypes_until_eot: Vec::new(),
             subtypes_while_there: Vec::new(),
@@ -2982,7 +3004,8 @@ impl Game {
                 _ => false,
             }
         }
-        self.any_static(|g, src, e| g.obj(src).controller == seat && gives(g, e, src, seat, ability))
+        (*ability == AbilityDef::HexproofAbility && self.player(seat).hexproof_turn == Some(self.turn))
+            || self.any_static(|g, src, e| g.obj(src).controller == seat && gives(g, e, src, seat, ability))
     }
 
     pub fn static_gives(&self, e: &EffectDef, src: ObjId, you: Seat, id: ObjId, ability: &AbilityDef) -> bool {
@@ -3062,6 +3085,7 @@ impl Game {
                         let counted = match count.as_str() {
                             "creatures_you_control" => Some(CardType::Creature),
                             "lands_you_control" => Some(CardType::Land),
+                            "artifacts_you_control" => Some(CardType::Artifact),
                             _ => None,
                         };
                         if let Some(ty) = counted {
@@ -3638,6 +3662,7 @@ impl Game {
             }
             if matches!(self.trigger_of(t), Some(Trigger::LeavesAll { .. })) {
                 t.x = p1p1;
+                t.left = Some(id);
             }
             // its own leave triggers remember its power as it last was (`SourcePermanentPowerValue`)
             if t.card == id && t.lki_power.is_none() {
