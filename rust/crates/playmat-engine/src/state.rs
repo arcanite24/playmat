@@ -660,6 +660,8 @@ pub struct StackItem {
     /// a "whenever a permanent of the filter leaves the battlefield" trigger: the permanent that left (Java's
     /// `getValue("permanentLeftBattlefield")`), as the object it became
     pub left: Option<ObjId>,
+    /// the cards its `DiscardCardCost` discarded (`DiscardCardCost.getCards`)
+    pub cost_discarded: Vec<ObjId>,
 }
 
 /// An ability a resolved effect gave one object.
@@ -736,6 +738,7 @@ impl StackItem {
             cast_spell: None,
             died: None,
             left: None,
+            cost_discarded: Vec::new(),
         }
     }
 }

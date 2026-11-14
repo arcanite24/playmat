@@ -6605,6 +6605,9 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             let Some(chosen) = choose_cards(game, d, seat, &hand, &possible, *amount, *amount, "discard") else {
                 return false;
             };
+            if let Some(top) = Arc::make_mut(&mut game.stack).last_mut() {
+                top.cost_discarded.extend(chosen.iter().copied());
+            }
             for o in chosen {
                 game.move_to(o, Zone::Graveyard);
             }
