@@ -12,15 +12,29 @@ pub const HANDLERS: &[Handler] = &[
 /// Two Elementals (`CreateTokenEffect`), exiled at the beginning of the next end step
 /// (`exileTokensCreatedAtNextEndStep`)
 fn elementals(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
-    let you = cx.controller();
-    let before: Vec<ObjId> = game.battlefield.to_vec();
+    let before = game.objs.len();
     cx.create_tokens(game, d, &cx.tokens[0], 2);
     if d.stopped() {
         return None;
     }
-    let made: Vec<ObjId> =
-        game.battlefield.iter().copied().filter(|o| !before.contains(o) && game.obj(*o).token).collect();
-    remove_tokens_at_next_end_step(game, &made, cx.source_id(), you, true);
+    let made: Vec<(ObjId, u32)> = (before..game.objs.len())
+        .map(|i| ObjId(i as u32))
+        .filter(|o| game.obj(*o).token && game.obj(*o).zone == Zone::Battlefield)
+        .map(|o| (o, game.obj(o).zcc))
+        .collect();
+    let delayed = crate::state::Delayed {
+        rule: "At the beginning of the next end step, exile those tokens.".into(),
+        sacrifice: Vec::new(),
+        warp_exile: Vec::new(),
+        effects: vec![EffectDef::ExileTargetEffect],
+        source_zcc: cx.source.1,
+        fixed: made,
+        return_tapped: Vec::new(),
+        targets: Vec::new(),
+        condition: None,
+    };
+    game.at_next_end_step
+        .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(cx.source_id(), cx.controller()) });
     Some(())
 }
 
