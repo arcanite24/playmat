@@ -364,6 +364,8 @@ pub enum Pred {
     ManaValueEqualSourceCounters {
         counter: String,
     },
+    /// `ManaValueLessThanOrEqualToSourcePowerPredicate`: mana value at most the source's power (as it last was)
+    ManaValueAtMostSourcePower,
     /// `CardType.X.getPredicate()`
     Type {
         t: CardType,
@@ -2190,6 +2192,37 @@ pub enum EffectDef {
     },
     /// you may play lands from your graveyard
     PlayLandsFromGraveyardControllerEffect,
+    /// `PlayFromTopOfLibraryEffect`: you may play lands and cast spells of the filter from the top of your library
+    /// (checked against the face being played)
+    PlayFromTopOfLibraryEffect {
+        #[serde(default)]
+        filter: Filter,
+        /// Bolas's Citadel: a spell cast this way costs life equal to its mana value rather than its mana cost
+        #[serde(default)]
+        pay_life: bool,
+    },
+    /// `CastFromHandWithoutPayingManaCostEffect`: you may cast spells of the filter (from your hand with
+    /// `from_hand`) without paying their mana costs (Omniscience): an alternative cost of yours
+    CastFromHandWithoutPayingManaCostEffect {
+        #[serde(default)]
+        filter: Filter,
+        #[serde(default)]
+        from_hand: bool,
+    },
+    /// `CastFromGraveyardOnceDuringEachOfYourTurnAbility`'s effect: once during each of your turns, you may cast a
+    /// spell of the filter from your graveyard
+    CastFromGraveyardOnceEffect {
+        #[serde(default)]
+        filter: Filter,
+    },
+    /// `LookAtTopCardOfLibraryAnyTimeEffect`: you may look at the top card of your library any time (views only)
+    LookAtTopCardOfLibraryAnyTimeEffect,
+    /// `PlayWithTheTopCardRevealedEffect`: you (`all`: every player) play with the top card of the library revealed
+    /// (views only)
+    PlayWithTheTopCardRevealedEffect {
+        #[serde(default)]
+        all: bool,
+    },
     /// exiles the target card from a graveyard; if it was a creature card, `then` (a Clue)
     RavenEagleEffect {
         then: Box<EffectDef>,
@@ -3008,6 +3041,10 @@ pub enum EffectDef {
         who: String,
         effect: Box<EffectDef>,
     },
+    /// `ExileCardsFromTopOfLibraryControllerEffect(amount)`: you exile the top `amount` cards of your library
+    ExileCardsFromTopOfLibraryControllerEffect {
+        amount: Amount,
+    },
     /// `ExileCardsFromTopOfLibraryTargetEffect`: the target player exiles the top `amount` cards of their library
     ExileCardsFromTopOfLibraryTargetEffect {
         amount: Amount,
@@ -3384,6 +3421,12 @@ pub enum EffectDef {
     MayCastTargetCardEffect {
         #[serde(default)]
         any_mana: bool,
+        /// without paying its mana cost (`CastManaAdjustment.WITHOUT_PAYING_MANA_COST`)
+        #[serde(default)]
+        free: bool,
+        /// if that card would be put into your graveyard this turn, exile it instead
+        #[serde(default)]
+        then_exile: bool,
     },
     /// creatures with power less than this one's can't block it
     CantBeBlockedByCreaturesWithLessPowerEffect,

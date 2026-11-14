@@ -557,6 +557,7 @@ Audacious Thief
 Audacity
 Auger Spree
 Augmenting Automaton
+Augur of Autumn
 Augur of Bolas
 Augury Raven
 Aunt May
@@ -1021,6 +1022,7 @@ Boilerbilges Ripper
 Boiling Earth
 Boiling Rock Prison
 Bola Slinger
+Bolas's Citadel
 Bold Biochemist
 Bold Impaler
 Boldwyr Aggressor
@@ -1820,6 +1822,7 @@ Courier Bat
 Courier Griffin
 Courier of Comestibles
 Courier's Briefcase
+Courser of Kruphix
 Coursers' Accord
 Court Cleric
 Court Street Denizen
@@ -1986,6 +1989,7 @@ Dampening Pulse
 Dance of the Skywise
 Dance with Devils
 Danitha Capashen, Paragon
+Danitha, New Benalia's Light
 Dapper Shieldmate
 Daredevil Dragster
 Daretti, Rocketeer Engineer
@@ -1999,6 +2003,7 @@ Daring Saboteur
 Daring Skyjek
 Daring Sleuth
 Daring Thunder-Thief
+Daring Waverider
 Dark Bargain
 Dark Betrayal
 Dark Confidant
@@ -2385,6 +2390,7 @@ Downwind Ambusher
 Dowsing Dagger
 Dowsing Device
 Dr. Joseph M'Benga
+Dracogenesis
 Draconautics Engineer
 Draconic Disciple
 Dracosaur Auxiliary
@@ -2631,6 +2637,7 @@ Eerie Gravestone
 Eerie Interlude
 Eerie Soultender
 Efficient Construction
+Efreet Flamepainter
 Efreet Weaponmaster
 Eidolon of Blossoms
 Eidolon of Inspiration
@@ -2830,6 +2837,7 @@ Eriette's Tempting Apple
 Eriette's Whisper
 Erode
 Eroded Canyon
+Errant and Giada
 Erratic Apparition
 Erratic Visionary
 Erstwhile Trooper
@@ -3626,6 +3634,7 @@ Gingerbrute
 Giott, King of the Dwarves
 Gird for Battle
 Girder Goons
+Gisa and Geralf
 Gisa's Bidding
 Gitaxian Raptor
 Give In to Violence
@@ -3645,6 +3654,7 @@ Gladewalker Ritualist
 Gladiolus Amicitia
 Glaive of the Guildpact
 Glamermite
+Glarb, Calamity's Augur
 Glare of Heresy
 Glaring Aegis
 Glaring Fleshraker
@@ -3727,6 +3737,7 @@ Goblin Bird-Grabber
 Goblin Boarders
 Goblin Boom Keg
 Goblin Chainwhirler
+Goblin Dark-Dwellers
 Goblin Electromancer
 Goblin Firebomb
 Goblin Glasswright
@@ -4018,6 +4029,7 @@ Hagra Mauling
 Hagra Sharpshooter
 Hailstorm Valkyrie
 Hajar, Loyal Bodyguard
+Hakoda, Selfless Commander
 Halana and Alena, Partners
 Half-Elf Monk
 Halimar Tidecaller
@@ -4132,6 +4144,7 @@ Hedron Archive
 Hedron Crawler
 Hei Bai, Spirit of Balance
 Heightened Reflexes
+Heiko Yamazaki, the General
 Heir of Falkenrath
 Heir of the Ancient Fang
 Heir of the Wilds
@@ -4643,6 +4656,7 @@ Iron Giant
 Iron Golem
 Iron Hills
 Iron Hills Blacksmith
+Iron Lad, Diverging Destiny
 Iron League Steed
 Iron Spider, Stark Upgrade
 Iron Verdict
@@ -5188,6 +5202,7 @@ Lightning Strike
 Lightning Talons
 Lightning Volley
 Lightning Wolf
+Lightning, Security Sergeant
 Lightning-Rig Crew
 Lightshell Duo
 Lightshield Parry
@@ -5921,6 +5936,7 @@ Mysidian Elder
 Mysterio's Phantasm
 Mysterious Tome
 Mystic Archaeologist
+Mystic Forge
 Mystic Meditation
 Mystic Monastery
 Mystic Repeal
@@ -6089,6 +6105,7 @@ Nomad Outpost
 Noose Constrictor
 Noosegraf Mob
 Nori, Teller of Tales
+Norika Yamazaki, the Poet
 Norn's Wellspring
 North Pole Gates
 North Pole Patrol
@@ -6611,6 +6628,7 @@ Precinct Captain
 Precise Redaction
 Precise Strike
 Precision Bolt
+Precognition Field
 Predation Steward
 Predatory Wurm
 Predictive Preparations
@@ -6805,6 +6823,7 @@ Quilled Wolf
 Quintorius, Field Historian
 Quirion Beastcaller
 Quirion Dryad
+Quistis Trepe
 Qutrub Forayer
 Rabanastre, Royal City
 Rabaroo Troop
@@ -6900,6 +6919,7 @@ Ramunap Excavator
 Ramunap Ruins
 Rancid Rats
 Rancor
+Ranger Class
 Ranger's Guile
 Ranger's Longbow
 Ranger-Captain of Eos
@@ -6978,6 +6998,7 @@ Reality Hemorrhage
 Reality Shift
 Realm of Koh
 Realm-Cloaked Giant
+Realmwalker
 Reap What Is Sown
 Reaper of Flight Moonsilver
 Reaper of the Wilds
@@ -7732,6 +7753,7 @@ Seekers' Squire
 Seer of the Last Tomorrow
 Seer's Lantern
 Segmented Krotiq
+Seifer Almasy
 Seismic Elemental
 Seismic Monstrosaur
 Seismic Rupture
@@ -7985,6 +8007,7 @@ Sifter of Skulls
 Sigarda's Aid
 Sigarda's Imprisonment
 Sigarda, Champion of Light
+Sigarda, Font of Blessings
 Sigardian Priest
 Sigardian Savior
 Sight Beyond Sight
@@ -9400,6 +9423,7 @@ Tormented Hero
 Tormenting Voice
 Tormod's Crypt
 Torpor Orb
+Torrential Gearhulk
 Toski, Bearer of Secrets
 Totally Lost
 Totem-Guide Hartebeest

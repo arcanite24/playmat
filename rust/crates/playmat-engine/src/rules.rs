@@ -1240,7 +1240,7 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             continue;
         }
         if game.flashback_def(*id).is_some_and(|f| castable(game, seat, *id, &f))
-            || (game.obj(*id).may_play.is_some_and(|(p, t)| p == seat && game.turn <= t)
+            || ((game.may_play_now(*id, seat) || !graveyard_once_permits(game, seat, *id, def).is_empty())
                 && castable(game, seat, *id, def))
             || def.escape().is_some_and(|f| castable(game, seat, *id, &f))
             || blitz(game, seat, *id).is_some()
@@ -1270,9 +1270,7 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             } {
                 out.push(*id);
             }
-        } else if (o
-            .may_play
-            .is_some_and(|(p, t)| p == seat && game.turn <= t && !(o.cast_only && o.is(CardType::Land)))
+        } else if ((game.may_play_now(*id, seat) && !(o.cast_only && o.is(CardType::Land)))
             || o.warp_from.is_some_and(|t| o.owner == seat && game.turn >= t))
             && if o.is(CardType::Land) {
                 can_play_land(game, seat)
@@ -1286,6 +1284,12 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             }
         {
             out.push(*id);
+        }
+    }
+    // the top card of your library, with an effect that lets you play it (`PlayFromTopOfLibraryEffect`)
+    if let Some(&top) = p.library.first() {
+        if !top_of_library_plays(game, seat, top).is_empty() {
+            out.push(top);
         }
     }
     for id in game.battlefield.iter() {
@@ -1330,6 +1334,31 @@ pub fn playable_abilities(game: &Game, seat: Seat) -> Vec<(ObjId, usize, PlayKin
         let o = game.obj(id);
         let def = &o.def;
         match o.zone {
+            // the top card of the library an effect lets you play: as from hand, only the ways it allows
+            Zone::Library => {
+                let face = (def.back.is_some() || def.transform_back.is_some()).then_some(0);
+                for play in top_of_library_plays(game, seat, id) {
+                    match play {
+                        LibraryPlay::Land => {
+                            if let Some(k) = index(def, &AbilityDef::PlayLandAbility) {
+                                out.push((id, k, PlayKind::Land, face));
+                            }
+                        }
+                        LibraryPlay::Cast => {
+                            if let Some(k) = index(def, &AbilityDef::SpellAbility) {
+                                out.push((id, k, if face.is_some() { PlayKind::Other } else { PlayKind::Cast }, face));
+                            }
+                        }
+                        LibraryPlay::Adventure => out.push((id, 0, PlayKind::Adventure, Some(1))),
+                        LibraryPlay::Back => {
+                            let back = def.back.as_ref().expect("a back");
+                            if let Some(k) = index(back, &AbilityDef::PlayLandAbility) {
+                                out.push((id, def.abilities.len() + k, PlayKind::Land, Some(1)));
+                            }
+                        }
+                    }
+                }
+            }
             Zone::Hand | Zone::Graveyard | Zone::Exile => {
                 // a double-faced card's faces: each its half too (`f0`, `f1`), the back's abilities after the front's
                 let mdfc = def.back.as_ref().filter(|_| o.zone == Zone::Hand);
@@ -1358,7 +1387,7 @@ pub fn playable_abilities(game: &Game, seat: Seat) -> Vec<(ObjId, usize, PlayKin
                     let normal = match o.zone {
                         Zone::Hand => castable(game, seat, id, def),
                         Zone::Graveyard => {
-                            o.may_play.is_some_and(|(p, t)| p == seat && game.turn <= t)
+                            (game.may_play_now(id, seat) || !graveyard_once_permits(game, seat, id, def).is_empty())
                                 && castable(game, seat, id, def)
                         }
                         // a foretold card is cast from exile only for its foretell cost
@@ -1861,12 +1890,34 @@ fn castable(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> bool {
                         _ => true,
                     })
                 });
-            let ok = pays(def.cost.clone()) || evoke.is_some_and(pays) || alternative;
+            let ok = pays(def.cost.clone())
+                || evoke.is_some_and(pays)
+                || alternative
+                || !free_cast_sources(game, seat, id, def, game.obj(id).zone).is_empty();
             game.paying_for.set(None);
             ok
         }
         && def.spell.costs.iter().all(|c| can_pay_cost(game, seat, id, c))
         && has_targets(game, seat, id, def)
+}
+
+/// The player's alternative costs that cast `face` of `id` without paying its mana cost (`CastFromHandWithoutPaying
+/// ManaCostEffect`, Omniscience): their sources, in battlefield order. `from` is the zone it's cast from.
+fn free_cast_sources(game: &Game, seat: Seat, id: ObjId, face: &CardDef, from: Zone) -> Vec<ObjId> {
+    let mut out = Vec::new();
+    game.any_static(|g, src, e| {
+        if let EffectDef::CastFromHandWithoutPayingManaCostEffect { filter, from_hand } = e {
+            if g.obj(src).controller == seat
+                && (!from_hand || from == Zone::Hand)
+                && face_matches(g, filter, seat, src, id, face)
+                && !out.contains(&src)
+            {
+                out.push(src);
+            }
+        }
+        false
+    });
+    out
 }
 
 /// `AlternativeCostSourceAbility`: the costs paid instead of the mana cost, if its condition holds and they can be
@@ -2051,6 +2102,239 @@ fn valgavoth_play(game: &Game, seat: Seat, id: ObjId) -> bool {
                     _ => false,
                 })
         })
+}
+
+/// `PlayFromTopOfLibraryEffect`: the permanents whose effect lets `seat` play `face` of `id`, the top card of their
+/// library (Java's approving objects, in battlefield order), each with whether a spell cast with it costs life
+/// rather than mana (Bolas's Citadel); a conditional one only while its condition holds
+fn top_of_library_permits(game: &Game, seat: Seat, id: ObjId, face: &CardDef) -> Vec<(ObjId, bool)> {
+    let o = game.obj(id);
+    if o.zone != Zone::Library || o.owner != seat || game.player(seat).library.first() != Some(&id) {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    game.any_static(|g, src, e| {
+        let (inner, condition) = match e {
+            EffectDef::ConditionalAsThoughEffect { effect, condition } => (&**effect, Some(condition)),
+            e => (e, None),
+        };
+        if let EffectDef::PlayFromTopOfLibraryEffect { filter, pay_life } = inner {
+            if g.obj(src).controller == seat
+                && condition.is_none_or(|c| g.condition_holds(Some(c), seat, src))
+                && face_matches(g, filter, seat, src, id, face)
+                && !out.iter().any(|(s, _)| *s == src)
+            {
+                out.push((src, *pay_life && !face.is(CardType::Land)));
+            }
+        }
+        false
+    });
+    out
+}
+
+/// `CastFromGraveyardOnceEffect`: the permanents letting `seat` cast `face` of `id` from their graveyard now (during
+/// their turn, once each turn per permanent), in battlefield order
+fn graveyard_once_permits(game: &Game, seat: Seat, id: ObjId, face: &CardDef) -> Vec<ObjId> {
+    let o = game.obj(id);
+    if o.zone != Zone::Graveyard || o.owner != seat || game.active != Some(seat) || face.is(CardType::Land) {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    game.any_static(|g, src, e| {
+        if let EffectDef::CastFromGraveyardOnceEffect { filter } = e {
+            let s = g.obj(src);
+            if s.controller == seat
+                && !g.watch.graveyard_once.contains(&(src, s.zcc))
+                && face_matches(g, filter, seat, src, id, face)
+                && !out.contains(&src)
+            {
+                out.push(src);
+            }
+        }
+        false
+    });
+    out
+}
+
+/// One way to play the top card of a library
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum LibraryPlay {
+    Land,
+    Cast,
+    Adventure,
+    Back,
+}
+
+/// Whether `face` of the top card can be cast with one of the effects that let `seat` cast it: for its mana cost,
+/// or for life with Bolas's Citadel
+fn top_of_library_castable(game: &Game, seat: Seat, id: ObjId, face: &CardDef) -> bool {
+    let permits = top_of_library_permits(game, seat, id, face);
+    (permits.iter().any(|(_, life)| !life) && castable(game, seat, id, face))
+        || (permits.iter().any(|(_, life)| *life) && castable(game, seat, id, &valgavoth_def(face)))
+}
+
+/// The top card of `seat`'s library, if an effect lets them play it now: the ways it can be played (its land, its
+/// front cast, its adventure cast, its back played as a land)
+fn top_of_library_plays(game: &Game, seat: Seat, id: ObjId) -> Vec<LibraryPlay> {
+    let o = game.obj(id);
+    let mut out = Vec::new();
+    if o.zone != Zone::Library || game.player(seat).library.first() != Some(&id) {
+        return out;
+    }
+    let def = &o.def;
+    if def.is(CardType::Land) {
+        if can_play_land(game, seat) && !top_of_library_permits(game, seat, id, def).is_empty() {
+            out.push(LibraryPlay::Land);
+        }
+    } else if top_of_library_castable(game, seat, id, def) {
+        out.push(LibraryPlay::Cast);
+    }
+    if let Some(adventure) = &def.adventure {
+        if top_of_library_castable(game, seat, id, adventure) {
+            out.push(LibraryPlay::Adventure);
+        }
+    }
+    if let Some(back) = def.back.as_ref().filter(|b| b.is(CardType::Land) && !def.is(CardType::Land)) {
+        if can_play_land(game, seat) && !top_of_library_permits(game, seat, id, back).is_empty() {
+            out.push(LibraryPlay::Back);
+        }
+    }
+    out
+}
+
+/// `PlayerImpl.chooseApprovingObject`: with more than one effect letting the player do it, "Choose the permitting
+/// object" (each effect's source and rule text), answered by its place in the list. None: the player cancelled.
+fn choose_permitting(game: &mut Game, d: &mut dyn Decider, seat: Seat, permits: &[ObjId]) -> Option<usize> {
+    if permits.len() < 2 {
+        return Some(0);
+    }
+    let choices: Vec<String> = permits
+        .iter()
+        .map(|src| {
+            let rule = game
+                .obj(*src)
+                .def
+                .abilities
+                .iter()
+                .find_map(|a| match a {
+                    AbilityDef::SimpleStaticAbility { effects, rule }
+                        if effects.iter().any(|e| match e {
+                            EffectDef::ConditionalAsThoughEffect { effect, .. } => {
+                                matches!(**effect, EffectDef::PlayFromTopOfLibraryEffect { .. })
+                            }
+                            e => matches!(e, EffectDef::PlayFromTopOfLibraryEffect { .. }),
+                        }) =>
+                    {
+                        Some(rule.clone())
+                    }
+                    _ => None,
+                })
+                .unwrap_or_default();
+            format!("{}: {}", game.obj(*src).name(), rule)
+        })
+        .collect();
+    let q = Query::Choice { message: "Choose the permitting object".into(), choices: choices.clone() };
+    loop {
+        match ask(game, d, seat, &q) {
+            Answer::Text(t) => {
+                return Some(
+                    t.parse::<usize>()
+                        .ok()
+                        .filter(|k| *k < permits.len())
+                        .or_else(|| choices.iter().position(|c| *c == t))
+                        .unwrap_or(0),
+                )
+            }
+            Answer::Stop | Answer::Unknown => return None,
+            _ => {}
+        }
+    }
+}
+
+/// Plays the top card of the library an effect lets `seat` play (`PlayFromTopOfLibraryEffect`): the picker when
+/// there's more than one way (a double-faced card or an adventurer card always shows it, a {0} spell too), the
+/// permitting object when two or more effects allow it, then the land played or the spell cast (for life with
+/// Bolas's Citadel)
+fn play_from_library(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
+    let plays = top_of_library_plays(game, seat, id);
+    if plays.is_empty() {
+        return;
+    }
+    let def = game.obj(id).def.clone();
+    let b = def.abilities.len();
+    // the picker's abilities: a land's or a spell's own (0; an adventurer card's creature a1, its adventure a0),
+    // the back's play ability after the front's abilities
+    let index = |p: LibraryPlay| -> usize {
+        match p {
+            LibraryPlay::Land | LibraryPlay::Cast => usize::from(def.adventure.is_some()),
+            LibraryPlay::Adventure => 0,
+            LibraryPlay::Back => {
+                b + def
+                    .back
+                    .as_ref()
+                    .and_then(|bk| bk.abilities.iter().position(|a| *a == AbilityDef::PlayLandAbility))
+                    .unwrap_or(0)
+            }
+        }
+    };
+    let picker = plays.len() > 1
+        || def.adventure.is_some()
+        || def.back.is_some()
+        || (plays[0] == LibraryPlay::Cast && def.cost.mana_value() == 0);
+    let play = if picker {
+        let abilities: Vec<usize> = plays.iter().map(|p| index(*p)).collect();
+        match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: abilities.clone() }) {
+            Answer::Ability(o, i) if o == id => match plays.iter().find(|p| index(**p) == i) {
+                Some(p) => *p,
+                None => return,
+            },
+            _ => return,
+        }
+    } else {
+        plays[0]
+    };
+    let face: Arc<CardDef> = match play {
+        LibraryPlay::Land | LibraryPlay::Cast => def.clone(),
+        LibraryPlay::Adventure => def.adventure.clone().expect("an adventure"),
+        LibraryPlay::Back => def.back.clone().expect("a back"),
+    };
+    let permits = top_of_library_permits(game, seat, id, &face);
+    let before = game.clone();
+    let sources: Vec<ObjId> = permits.iter().map(|(s, _)| *s).collect();
+    let Some(k) = choose_permitting(game, d, seat, &sources) else {
+        *game = before;
+        return;
+    };
+    // Bolas's Citadel's life cost (`setCastSourceIdWithAlternateMana`) when it's the permitting object. With more than
+    // one, Java lists them from a `HashSet` of objects without their own hash, so which one an index names isn't
+    // reproducible (shadow game 00506 of the cast-permissions factory)
+    let life = permits.get(k).is_some_and(|(_, life)| *life);
+    match play {
+        LibraryPlay::Land | LibraryPlay::Back => {
+            if play == LibraryPlay::Back {
+                let o = game.obj_mut(id);
+                o.front = Some(def.clone());
+                o.def = face;
+            }
+            enter_battlefield(game, d, id, seat, false);
+            game.player_mut(seat).lands_played += 1;
+            note(game, EventKind::Land, Some(seat), Some(id), None, 0);
+            if log::kept(game) {
+                let line = format!("{} plays {}", log::player(seat), log::object(game, id));
+                log::inform(game, line);
+            }
+        }
+        LibraryPlay::Cast | LibraryPlay::Adventure => {
+            if play == LibraryPlay::Adventure || life {
+                let o = game.obj_mut(id);
+                o.adventurer = Some(def.clone());
+                o.def = if life { Arc::new(valgavoth_def(&face)) } else { face };
+            }
+            if !cast(game, d, seat, id) {
+                *game = before;
+            }
+        }
+    }
 }
 
 /// A spell cast with Valgavoth: life equal to its mana value rather than its mana cost
@@ -3007,6 +3291,10 @@ fn any_color(game: &mut Game, d: &mut dyn Decider, seat: Seat, unpaid: &ManaCost
 }
 
 fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
+    if game.obj(id).zone == Zone::Library {
+        play_from_library(game, d, seat, id);
+        return;
+    }
     if game.obj(id).zone == Zone::Battlefield {
         let activatable = activatable(game, seat, id);
         // `getPlayableActivatedAbilities` offers its mana abilities too
@@ -3565,9 +3853,10 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             }
             return;
         }
-        // a card you may cast from your graveyard (Case of the Uneaten Feast): cast as from hand
-        if game.flashback_def(id).is_none()
-            && game.obj(id).may_play.is_some_and(|(p, t)| p == seat && game.turn <= t)
+        // a card you may cast from your graveyard (Case of the Uneaten Feast; once each turn, Gisa and Geralf): cast as
+        // from hand
+        let once = graveyard_once_permits(game, seat, id, &game.obj(id).def.clone());
+        let allowed = game.may_play_now(id, seat)
             && castable(game, seat, id, &{
                 let def = (*game.obj(id).def).clone();
                 if game.obj(id).play_free {
@@ -3575,7 +3864,9 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                 } else {
                     def
                 }
-            })
+            });
+        if game.flashback_def(id).is_none()
+            && (allowed || (!once.is_empty() && castable(game, seat, id, &game.obj(id).def.clone())))
         {
             // `suppressAbilityPicker`: a {0} spell is picked (a0)
             if game.obj(id).def.cost.mana_value() == 0 {
@@ -3584,9 +3875,26 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                     _ => return,
                 }
             }
-            let cast = if game.obj(id).play_free { cast_free } else { cast };
+            // the permitting object, with more than one: the statics first, then the effect that made it playable
+            let mut permits: Vec<Option<ObjId>> = once.iter().copied().map(Some).collect();
+            if game.may_play_now(id, seat) {
+                permits.push(None);
+            }
+            let sources: Vec<ObjId> = permits.iter().map(|p| p.unwrap_or(id)).collect();
+            let Some(k) = choose_permitting(game, d, seat, &sources) else {
+                *game = before;
+                return;
+            };
+            let chosen = permits.get(k).copied().flatten();
+            let cast = if chosen.is_none() && game.obj(id).play_free { cast_free } else { cast };
             if !cast(game, d, seat, id) {
                 *game = before;
+                return;
+            }
+            // `CastFromGraveyardOnceWatcher`: that permanent's use this turn
+            if let Some(src) = chosen {
+                let entry = (src, game.obj(src).zcc);
+                game.watch.graveyard_once.push(entry);
             }
             return;
         }
@@ -3718,6 +4026,11 @@ fn cast_free(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> boo
 
 /// A cast an effect allows (paying its costs): the game is as it was before when it's cancelled
 fn cast_allowed(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
+    cast_allowed_with(game, d, seat, id, false)
+}
+
+/// `cast_allowed`, `free` without paying its mana cost (`CastManaAdjustment.WITHOUT_PAYING_MANA_COST`)
+fn cast_allowed_with(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free: bool) -> bool {
     let before = game.clone();
     // `chooseAbilityForCast`: an adventurer card, the adventure (a0) or the creature (a1). Both callers cast with
     // `playCard`, which allows every spell ability of the card (`PlayFromNotOwnHandZone`), so
@@ -3737,7 +4050,7 @@ fn cast_allowed(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> 
             o.def = adventure;
         }
     }
-    if cast_with(game, d, seat, id, false) {
+    if cast_with(game, d, seat, id, free) {
         return true;
     }
     *game = before;
@@ -3887,6 +4200,36 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
                     }
                 }
             }
+        }
+    }
+    // the player's alternative costs (`Player.getAlternativeSourceCosts`, after the card's own): Omniscience's "cast
+    // without paying its mana cost", one choice for each, then the spell's own cost (`AbilityImpl.activate`). Only
+    // offered here for a card without alternative costs of its own.
+    let own_alternative = def.abilities.iter().any(|a| matches!(a, AbilityDef::EvokeAbility { .. }))
+        || alternative_cost(game, seat, id, &def).is_some();
+    let sources = free_cast_sources(game, seat, id, &def, from);
+    if !free && def.printed_cost.is_none() && !own_alternative && !sources.is_empty() {
+        let mut choices: Vec<String> = sources
+            .iter()
+            .map(|s| format!("Cast without paying its mana cost (source: {})", game.obj(*s).name()))
+            .collect();
+        choices.push(format!("Cast with no alternative cost: {}", def.cost.text));
+        let q = Query::Choice { message: "You may choose an alternative cost".into(), choices: choices.clone() };
+        let pick = loop {
+            match ask(game, d, seat, &q) {
+                Answer::Text(t) => {
+                    break match t.parse::<usize>() {
+                        Ok(k) => (1..=sources.len()).contains(&k),
+                        Err(_) => t.starts_with("Cast without paying"),
+                    }
+                }
+                Answer::Stop => return false,
+                _ => {}
+            }
+        };
+        if pick {
+            // `CardUtil.reduceCost` by its mana cost, X left out: what splice added stays
+            cost = splice_cost.clone();
         }
     }
     // kicker: `KickerAbility.addOptionalAdditionalCosts` asks before targets (its `canPay` holds for any mana cost)
@@ -11192,19 +11535,24 @@ fn apply_each_effect(
                     };
                     cards = chosen;
                 }
-                // through the end of this turn, or of the controller's next turn
-                // ("until your next end step": this turn's, on your turn before it)
-                let before_your_end =
-                    game.active == Some(controller) && game.step.is_some_and(|s| s < crate::state::Step::EndTurn);
-                let until = if duration == "EndOfTurn" || (duration == "UntilYourNextEndStep" && before_your_end) {
-                    game.turn
-                } else if game.active == Some(controller) {
-                    game.turn + game.seats() as u32
-                } else {
-                    game.turn + 1
+                // through the end of this turn, or of the controller's next turn; until the beginning of their next
+                // end step (this turn's, if it's still to come); while they control the source
+                let yours = game.active == Some(controller);
+                let until = match duration.as_str() {
+                    "EndOfTurn" => game.turn,
+                    "WhileControlled" => u32::MAX,
+                    "UntilYourNextEndStep" if yours && !matches!(game.step, Some(Step::EndTurn | Step::Cleanup)) => {
+                        game.turn
+                    }
+                    _ if yours => game.turn + game.seats() as u32,
+                    _ => game.turn + 1,
                 };
+                let control = (duration == "WhileControlled").then_some(source);
                 for c in cards {
-                    game.obj_mut(c).may_play = Some((controller, until));
+                    let o = game.obj_mut(c);
+                    o.may_play = Some((controller, until));
+                    o.may_play_end_step = duration == "UntilYourNextEndStep";
+                    o.may_play_while = control;
                 }
             }
             EffectDef::MagebaneLizardEffect => {
@@ -11691,6 +12039,11 @@ fn apply_each_effect(
             | EffectDef::EntersWithCountersAllEffect { .. }
             | EffectDef::PlayAdditionalLandsControllerEffect { .. }
             | EffectDef::PlayLandsFromGraveyardControllerEffect
+            | EffectDef::PlayFromTopOfLibraryEffect { .. }
+            | EffectDef::LookAtTopCardOfLibraryAnyTimeEffect
+            | EffectDef::CastFromGraveyardOnceEffect { .. }
+            | EffectDef::CastFromHandWithoutPayingManaCostEffect { .. }
+            | EffectDef::PlayWithTheTopCardRevealedEffect { .. }
             | EffectDef::GevScaledScorchEntersEffect
             | EffectDef::LovestruckBeastEffect
             | EffectDef::GainPlusOneLifeReplacementEffect
@@ -12155,6 +12508,13 @@ fn apply_each_effect(
                         let theirs = StackItem { controller: p, ..item.clone() };
                         apply_each_effect(game, d, &theirs, std::slice::from_ref(&**effect), legal, source);
                     }
+                }
+            }
+            EffectDef::ExileCardsFromTopOfLibraryControllerEffect { amount } => {
+                let n = v!(amount).max(0) as usize;
+                let top: Vec<ObjId> = game.player(controller).library.iter().take(n).copied().collect();
+                for c in top {
+                    game.move_to(c, Zone::Exile);
                 }
             }
             EffectDef::ExileCardsFromTopOfLibraryTargetEffect { amount } => {
@@ -13639,7 +13999,7 @@ fn apply_each_effect(
                     game.obj_mut(c).cast_only = true;
                 }
             }
-            EffectDef::MayCastTargetCardEffect { any_mana } => {
+            EffectDef::MayCastTargetCardEffect { any_mana, free, then_exile } => {
                 let Some(&card) = objs.first() else { continue };
                 let q = Query::YesNo { message: format!("Cast {}?", game.obj(card).def.name) };
                 let yes = loop {
@@ -13656,8 +14016,12 @@ fn apply_each_effect(
                 if *any_mana {
                     game.obj_mut(card).any_mana = true;
                 }
-                if !cast_allowed(game, d, controller, card) {
+                if !cast_allowed_with(game, d, controller, card, *free) {
                     game.obj_mut(card).any_mana = was;
+                }
+                // `ThatSpellGraveyardExileReplacementEffect`: added once the player said yes, cast or not
+                if *then_exile {
+                    game.exile_if_graveyard.push(card);
                 }
                 if d.stopped() {
                     return;
@@ -19543,6 +19907,7 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
     game.extra_blocks.clear();
     game.requirements.clear();
     game.exile_if_dies.clear();
+    game.exile_if_graveyard.clear();
     game.damaged_by_source.clear();
     game.combat_damaged_players.clear();
     game.attacked_this_turn.clear();

@@ -313,6 +313,8 @@ CUSTOM = {
     'LeylineOfTheGuildpactEffect': lambda: {'class': 'LeylineOfTheGuildpactEffect'},
     'MaraudingRaptorEffect': lambda: {'class': 'MaraudingRaptorEffect'},
     'ValgavothTerrorEaterPlayEffect': lambda: {'class': 'ValgavothTerrorEaterPlayEffect'},
+    # play lands and cast spells from the top of your library, spells for life equal to their mana value
+    'BolassCitadelPlayTheTopCardEffect': lambda: {'class': 'PlayFromTopOfLibraryEffect', 'filter': [], 'pay_life': True},
     'TishanasTidebinderEffect': lambda: {'class': 'TishanasTidebinderEffect'},
     'CruelclawsHeistEffect': lambda: {'class': 'CruelclawsHeistEffect'},
     'LaughingJasperFlintEffect': lambda: {'class': 'LaughingJasperFlintEffect'},
@@ -824,6 +826,8 @@ def predicate(text, subtypes):
         return {'p': 'multicolored'}
     if (m := re.fullmatch(r'new ManaValueEqualToCountersSourceCountPredicate\((CounterType\.\w+)\)', text)) and m.group(1) in COUNTERS:
         return {'p': 'mana_value_equal_source_counters', 'counter': COUNTERS[m.group(1)]}
+    if text == 'ManaValueLessThanOrEqualToSourcePowerPredicate.instance':
+        return {'p': 'mana_value_at_most_source_power'}
     if text == 'UrzasSagaPredicate.instance':
         return {'p': 'mana_cost_in', 'costs': ['{0}', '{1}']}
     if text == 'ColorlessPredicate.instance':
@@ -2528,7 +2532,7 @@ class Translator:
             return {'class': cls, 'amount': self.value('amount', args[0])}
         if cls == 'ExileTopXMayPlayUntilEffect' and len(args) in (2, 3) \
                 and args[-1].strip() in ('Duration.EndOfTurn', 'Duration.UntilEndOfYourNextTurn',
-                                         'Duration.UntilYourNextEndStep'):
+                                         'Duration.UntilYourNextEndStep', 'Duration.WhileControlled'):
             return {'class': cls, 'amount': self.value('amount', args[0]),
                     'choose_one': len(args) == 3 and args[1].strip() == 'true',
                     'duration': args[-1].strip().split('.')[1]}
@@ -2908,11 +2912,26 @@ class Translator:
             inner = self.effect(args[0])
             if inner.get('class') == 'GainAbilitySourceEffect' and inner['duration'] == 'WhileOnBattlefield':
                 return {'class': 'ConditionalContinuousEffect', 'effect': inner, 'condition': self.condition(args[1])}
-            if inner.get('class') in ('CastAsThoughItHadFlashAllEffect', 'CastAsThoughItHadFlashSourceEffect'):
+            if inner.get('class') in ('CastAsThoughItHadFlashAllEffect', 'CastAsThoughItHadFlashSourceEffect',
+                                      'PlayFromTopOfLibraryEffect'):
                 return {'class': 'ConditionalAsThoughEffect', 'effect': inner, 'condition': self.condition(args[1])}
             raise Unsupported('conditional as-though ' + inner.get('class', ''))
         if cls == 'CastAsThoughItHadFlashSourceEffect' and args == ['Duration.EndOfGame']:
             return {'class': cls}
+        # play from the top of your library (while on the battlefield; `setDuration` isn't a text setter, so an
+        # until-end-of-turn one stays unsupported)
+        if cls == 'PlayFromTopOfLibraryEffect' and len(args) <= 1:
+            return {'class': cls, 'filter': self.filter(args[0]) if args else []}
+        # Omniscience: an alternative cost of yours for spells of the filter
+        if cls == 'CastFromHandWithoutPayingManaCostEffect' and (not args or (
+                len(args) in (2, 3) and args[1] in ('true', 'false') and args[2:] in ([], ['Duration.WhileOnBattlefield']))):
+            return {'class': cls, 'filter': self.filter(args[0] if args else 'StaticFilters.FILTER_CARDS_NON_LAND'),
+                    'from_hand': not args or args[1] == 'true'}
+        # looking at or revealing the top card only changes what players see
+        if cls == 'LookAtTopCardOfLibraryAnyTimeEffect' and args in ([], ['Duration.WhileOnBattlefield']):
+            return {'class': cls}
+        if cls == 'PlayWithTheTopCardRevealedEffect' and args in ([], ['true'], ['false']):
+            return {'class': cls, 'all': args == ['true']}
         if cls == 'CastAsThoughItHadFlashAllEffect' and len(args) == 2 and args[0] == 'Duration.WhileOnBattlefield':
             return {'class': cls, 'filter': self.filter(args[1])}
         # restrictions on the source or what it's attached to
@@ -3122,6 +3141,24 @@ class Translator:
         # `returnFromNextZone`: the source in the zone it went to (a leaves trigger's source is that object already)
         if cls == 'ReturnToHandSourceEffect' and len(args) == 2 and args[0] in ('true', 'false') and args[1] == 'true':
             return {'class': 'ReturnToHandSourceEffect', 'battlefield_only': args[0] == 'true'}
+        # "you may cast target card from your graveyard this turn" (cast only, paying its costs)
+        if cls == 'PlayFromNotOwnHandZoneTargetEffect' \
+                and args == ['Zone.GRAVEYARD', 'TargetController.YOU', 'Duration.EndOfTurn', 'false', 'true']:
+            return {'class': 'MayCastTargetFromGraveyardThisTurnEffect'}
+        # cast the target card now: free (`WITHOUT_PAYING_MANA_COST`), and/or exiled instead of going to your
+        # graveyard this turn (`thenExile`)
+        adjustments = {'CastManaAdjustment.NONE': (False, False), 'CastManaAdjustment.WITHOUT_PAYING_MANA_COST': (False, True),
+                       'CastManaAdjustment.AS_THOUGH_ANY_MANA_TYPE': (True, False),
+                       'CastManaAdjustment.AS_THOUGH_ANY_MANA_COLOR': (True, False)}
+        if cls == 'MayCastTargetCardEffect' and args and (
+                (args[0] in adjustments and args[1:] in ([], ['true'], ['false'])) or args in (['true'], ['false'])):
+            any_mana, free = adjustments.get(args[0], (False, False))
+            e = {'class': cls, 'any_mana': any_mana}
+            if free:
+                e['free'] = True
+            if args[-1] == 'true':
+                e['then_exile'] = True
+            return e
         if cls == 'PutCardFromHandOntoBattlefieldEffect' and len(args) <= 4:
             filt = self.filter(args[0]) if args else [{'p': 'permanent_card'}]
             flags = [self.value('bool', a) for a in args[1:]]
@@ -3196,6 +3233,9 @@ class Translator:
             e = self.effect('new CreateTokenEffect(' + ','.join(args[:-1]) + ')')
             return {'class': cls, 'who': who, 'effect': e}
         if cls == 'ExileCardsFromTopOfLibraryTargetEffect' and len(args) == 1:
+            return {'class': cls, 'amount': self.amount(args[0])}
+        # (to the shared exile, face up)
+        if cls == 'ExileCardsFromTopOfLibraryControllerEffect' and (len(args) == 1 or args[1:] in (['false'], ['false', 'false'])):
             return {'class': cls, 'amount': self.amount(args[0])}
         # a text for the target (rule texts come from the facts)
         if cls == 'ExileTargetIfDiesEffect' and len(args) == 1 and re.fullmatch(r'"[^"]*"', args[0]):
@@ -3380,6 +3420,12 @@ class Translator:
         if m and all(c.split('.')[1] in COLORS for c in m.group(1).split(',')):
             cs = [{'p': 'color', 'c': COLORS[c.split('.')[1]]} for c in m.group(1).split(',')]
             return {'class': 'ProtectionAbility', 'filter': cs if len(cs) == 1 else [{'p': 'or', 'xs': cs}]}
+        # "once during each of your turns, you may cast a <filter> spell from your graveyard": a static (its rule
+        # text from the facts)
+        m = re.fullmatch(r'new CastFromGraveyardOnceDuringEachOfYourTurnAbility\(([^,()]+)\)', canonical(self.strip_setters(expr)))
+        if m:
+            return {'class': 'SimpleStaticAbility', 'java': 'CastFromGraveyardOnceDuringEachOfYourTurnAbility',
+                    'effects': [{'class': 'CastFromGraveyardOnceEffect', 'filter': self.filter(m.group(1))}]}
         # an evasion static is a static
         m = re.fullmatch(r'new SimpleEvasionAbility\((.*)\)', expr.strip(), re.S)
         if m:
@@ -3641,9 +3687,12 @@ class Translator:
             if re.fullmatch(r'new \w+Effect\(.*\)', inner.strip(), re.S):
                 e = self.effect(inner)
                 # a boost the level adds: the boost while the class is at that level
-                if e.get('class') == 'BoostControlledEffect':
+                if e.get('class') in ('BoostControlledEffect', 'LookAtTopCardOfLibraryAnyTimeEffect'):
                     return {'class': 'SimpleStaticAbility', 'java': cls,
                             'effects': [{'class': 'ConditionalContinuousEffect', 'effect': e, 'condition': gate}]}
+                if e.get('class') == 'PlayFromTopOfLibraryEffect':
+                    return {'class': 'SimpleStaticAbility', 'java': cls,
+                            'effects': [{'class': 'ConditionalAsThoughEffect', 'effect': e, 'condition': gate}]}
                 if e.get('class') not in ('SpellsCostReductionControllerEffect', 'ArtistsTalentEffect') or e.get('condition'):
                     raise Unsupported('class level effect ' + inner)
                 e['condition'] = gate
