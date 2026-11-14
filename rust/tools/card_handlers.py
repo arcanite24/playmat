@@ -16,11 +16,13 @@ transpiler to translate (token classes, effect and filter expressions), handed t
 "min max" with its filter after the declared ones; "filter", "effect" and "ability": translated, after the declared
 filters, effects or abilities; "counter": a `Counter` as "name amount"; "counter_type": `CounterType.X` as the
 engine's counter name; "put_cards": a `PutCards` constant's name;
-"while_on_battlefield": only `Duration.WhileOnBattlefield`; "one_of:a|b": only one of these texts). The strings are
+"while_on_battlefield": only `Duration.WhileOnBattlefield`; "one_of:a|b": only one of these texts; "duration": an
+optional leading `Duration`, `Duration.WhileOnBattlefield` when the constructor has none). The strings are
 plain or raw Rust string literals.
 
-The static kinds (src/card_statics.rs) are `Handler::continuous`, `::replacement`, `::cost`, `::restriction`, `::rule`
-and `::as_though`, with any arguments after the name (no string literals among them), and `.abilities(&[…])` too.
+The static kinds (src/card_statics.rs) are `Handler::continuous`, `::replacement`, `::cost`, `::restriction`, `::rule`,
+`::as_though` and `::keeps_mana`, with any arguments after the name (no string literals among them), and
+`.abilities(&[…])` and `.on_start(f)` too.
 A class with one becomes `{"class": "CardStatic", "handler": …}`, wherever an effect can be: in a static ability, it
 lasts while its source is on the battlefield; resolving, until the turn's cleanup.
 """
@@ -31,11 +33,12 @@ import re
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 DIR = os.path.join(ROOT, 'rust', 'crates', 'playmat-engine', 'src', 'cards')
 
-STATIC_KINDS = ('continuous', 'replacement', 'cost', 'restriction', 'rule', 'as_though')
-_DECL = re.compile(r'Handler::(effect|condition|value|trigger|predicate|' + '|'.join(STATIC_KINDS) + r')\(\s*"([\w.]+)"\s*,')
+STATIC_KINDS = ('continuous', 'replacement', 'cost', 'restriction', 'rule', 'as_though', 'keeps_mana')
+_DECL = re.compile(r'Handler::(effect|condition|value|trigger|predicate|mana|' + '|'.join(STATIC_KINDS) + r')\(\s*"([\w.]+)"\s*,')
 _FN = re.compile(r'\s*[\w:]+\s*,?\s*\)')
 _PART = re.compile(r'\s*\.(tokens|effects|filters|args|abilities)\(\s*&\[')
-_ANY_ZONE = re.compile(r'\s*\.in_any_zone\(\)')
+# `.in_any_zone()` and `.on_start(f)`: the engine's business only
+_ANY_ZONE = re.compile(r'\s*\.(?:in_any_zone\(\)|on_start\(\s*[\w:]+\s*\))')
 _STR = re.compile(r'\s*(?:"((?:[^"\\]|\\.)*)"|r(#*)"(.*?)"\2)\s*,?', re.S)
 
 _cache = None
@@ -71,7 +74,7 @@ def _parse(text, path):
                 raise SyntaxError(f'{path}: Handler::trigger takes its base trigger as a string literal')
             h['base'] = _unescape(b.group(1)) if b.group(1) is not None else b.group(3)
             i = b.end()
-        if m.group(1) in STATIC_KINDS:
+        if m.group(1) in STATIC_KINDS or m.group(1) == 'mana':
             # the rest of the arguments, to the closing parenthesis
             depth = 1
             while depth and i < len(text):
@@ -154,6 +157,10 @@ def effect(t, cls, args, own_only=False):
     # a "library_target" (`TargetCardInLibrary`) becomes "min max" in `args` and its filter goes after the
     # declared filters
     effects = [t.effect(x) for x in h['effects']]
+    # "duration": an optional leading `Duration` (a constructor without one is `Duration.WhileOnBattlefield`)
+    for i, kind in enumerate(h['args']):
+        if kind == 'duration' and (i >= len(args) or not args[i].startswith('Duration.')):
+            args.insert(i, 'Duration.WhileOnBattlefield')
     for i, kind in enumerate(h['args']):
         if i >= len(args):
             break
@@ -194,7 +201,7 @@ def effect(t, cls, args, own_only=False):
             if args[i] not in kind[len('one_of:'):].split('|'):
                 raise _unsupported(f'effect {cls}: argument {args[i]}')
         elif kind not in ('text', 'filter', 'effect', 'counter', 'counter_type', 'put_cards', 'ability',
-                          'while_on_battlefield') \
+                          'while_on_battlefield', 'duration') \
                 and not kind.startswith('one_of:'):
             raise _unsupported(f'argument kind {kind}')
     # a static handler for a framework class is written for its constructors with up to as many arguments as it
@@ -213,6 +220,23 @@ def effect(t, cls, args, own_only=False):
         if out['class'] != 'CardStatic':
             raise _unsupported(f'effect {cls}: abilities for a one-shot handler')
         out['abilities'] = abilities
+    return out
+
+
+def mana_ability(t, expr, cost, no_tap):
+    """`{"class": "CardManaAbility", …}` for a mana ability whose `ManaEffect` (`new XManaEffect(…)`) has a mana
+    handler (`Handler::mana`), with the ability's costs; or None"""
+    m = re.fullmatch(r'new (\w+)\((.*)\)', expr.strip(), re.S)
+    name = m and find(getattr(t, 'source', None), m.group(1), 'mana')
+    if not name:
+        return None
+    h = handlers()[name]
+    args = [a.strip() for a in T.split_args(m.group(2)) if a.strip()] if m.group(2).strip() else []
+    out = {'class': 'CardManaAbility', 'handler': name, 'cost': cost, 'no_tap': no_tap}
+    if args:
+        out['args'] = args
+    if h['filters']:
+        out['filters'] = [t.filter(x) for x in h['filters']]
     return out
 
 

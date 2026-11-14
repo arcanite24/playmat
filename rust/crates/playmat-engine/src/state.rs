@@ -432,6 +432,9 @@ pub struct Player {
     pub pool_units: Vec<(u8, bool)>,
     /// how much of the pool's {R} lasts until end of combat (firebending)
     pub combat_red: u32,
+    /// how much of each kind of the pool's mana lasts until end of turn (`UntilEndOfTurnManaEffect`: mana added with
+    /// Java's `emptyOnTurnsEnd`, kept as steps and phases end until the end phase)
+    pub eot_mana: Mana,
     /// conditional mana made for a payment that couldn't spend it: (the mana, its source, the ability's index); a
     /// later spell it can pay for spends it (`ConditionalMana` in Java's pool)
     pub conditional_pool: Vec<(Mana, ObjId, usize)>,
@@ -661,6 +664,11 @@ pub struct ResolvedStatic {
     pub source: ObjId,
     pub controller: Seat,
     pub timestamp: u64,
+    /// what it points at (the resolving ability's targets, or its handler's choice), with their zone-change counts
+    pub targets: Vec<(Target, u32)>,
+    /// `Duration.UntilYourNextTurn` (its first argument): it lasts until this player's next turn begins, not the
+    /// turn's cleanup
+    pub until_turn_of: Option<Seat>,
 }
 
 /// A delayed triggered ability a resolved effect set up: "sacrifice that token at end of combat".
@@ -877,6 +885,8 @@ pub struct Game {
     pub eot_effects: Vec<(EffectDef, Seat, ObjId)>,
     /// static handlers' effects (`EffectDef::CardStatic`) that resolved, until the turn's cleanup
     pub card_statics: Vec<ResolvedStatic>,
+    /// what's left of a static handler's amount (a prevention shield's), by its source and timestamp
+    pub static_amounts: Vec<(ObjId, u64, i32)>,
     /// layer 7b until end of turn: the permanent, its zone change count, the base power and toughness, the timestamp
     pub base_pt_until_eot: Vec<(ObjId, u32, i32, i32, u64)>,
     /// "prevent the next N damage that would be dealt to target …" this turn: the target, its zone change count,
@@ -1192,6 +1202,7 @@ impl Game {
             attach_clock: 0,
             eot_effects: Vec::new(),
             card_statics: Vec::new(),
+            static_amounts: Vec::new(),
             base_pt_until_eot: Vec::new(),
             prevent_to_target: Vec::new(),
             abilities_resolved: Vec::new(),
@@ -3306,6 +3317,25 @@ impl Game {
         let graveyard_exiles =
             if zone == Zone::Graveyard { self.exile_if_graveyard.iter().filter(|x| **x == id).count() } else { 0 };
         let rest_in_peace = rest_in_peace + leylines + valgavoths.len() + graveyard_exiles;
+        // static handlers' `ZONE_CHANGE` replacements ("exile it instead"), counted with the engine's graveyard ones
+        // for the "which first" question
+        let zone = if crate::rules::cards::any_replacement(self, crate::rules::cards::EventType::ZoneChange) {
+            let o = self.obj(id);
+            let player = if from == Zone::Battlefield { o.controller } else { o.owner };
+            let mut ev = crate::rules::cards::Event {
+                target: Some(id),
+                from: Some(from),
+                to: Some(zone),
+                ..crate::rules::cards::Event::new(crate::rules::cards::EventType::ZoneChange, player)
+            };
+            let others = if zone == Zone::Graveyard { rest_in_peace } else { 0 };
+            crate::rules::cards::replace_event(self, &mut ev, others);
+            ev.to.unwrap_or(zone)
+        } else {
+            zone
+        };
+        let rest_in_peace = if zone == Zone::Graveyard { rest_in_peace } else { 0 };
+        let valgavoths = if zone == Zone::Graveyard { valgavoths } else { Vec::new() };
         if let Some(&v) = valgavoths.first() {
             let zcc = self.obj(v).zcc;
             self.exiled_for_source.push((v, zcc, id));

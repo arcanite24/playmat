@@ -298,6 +298,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             // "until your next turn" ends as it begins
             game.attacks_opponent.retain(|(s, _)| *s != active);
             game.flash_until_next_turn.retain(|(s, _, _)| *s != active);
+            game.card_statics.retain(|r| r.until_turn_of != Some(active));
             if game.grants.iter().any(|g| g.until_turn_of == Some(active)) {
                 Arc::make_mut(&mut game.grants).retain(|g| g.until_turn_of != Some(active));
             }
@@ -671,9 +672,14 @@ fn end_step(game: &mut Game, step: Step) {
             | Step::FirstCombatDamage
             | Step::CombatDamage
     );
+    // `ManaPool.emptyPool`: mana added until end of turn stays until the end phase, and the kinds a
+    // `YouDontLoseManaEffect` names stay (`doNotEmptyManaTypes`)
+    let end_phase = matches!(step, Step::EndTurn | Step::Cleanup);
     for s in 0..game.seats() {
+        let kept_kinds = cards::kept_mana_kinds(game, s);
         let p = game.player_mut(s);
         let keep = if in_combat { p.combat_red.min(p.mana_pool.colored[Color::R.index()]) } else { 0 };
+        let (pool, eot, stock) = (p.mana_pool, p.eot_mana, p.mana_stock);
         p.mana_pool = Mana::of(Color::R, keep);
         if keep == 0 {
             p.mana_pool = Mana::default();
@@ -681,6 +687,28 @@ fn end_step(game: &mut Game, step: Step) {
         p.combat_red = keep;
         p.conditional_pool.clear();
         p.mana_stock = Mana::default();
+        p.eot_mana = Mana::default();
+        // (each kind on its own: what stays keeps its stock, as Java's pool items do)
+        for k in 0..6 {
+            let (have, until_eot) =
+                if k < 5 { (pool.colored[k], eot.colored[k]) } else { (pool.colorless, eot.colorless) };
+            let fire = if k == Color::R.index() { keep } else { 0 };
+            let stays = if kept_kinds[k] { have } else { have.min(fire + if end_phase { 0 } else { until_eot }) };
+            if stays <= fire {
+                continue;
+            }
+            let old_stock = if k < 5 { stock.colored[k] } else { stock.colorless };
+            let eot_left = if end_phase { 0 } else { until_eot.min(stays) };
+            if k < 5 {
+                p.mana_pool.colored[k] = stays;
+                p.mana_stock.colored[k] = old_stock.min(stays);
+                p.eot_mana.colored[k] = eot_left;
+            } else {
+                p.mana_pool.colorless = stays;
+                p.mana_stock.colorless = old_stock.min(stays);
+                p.eot_mana.colorless = eot_left;
+            }
+        }
     }
     if step == Step::EndCombat {
         game.first_strike_step = false;
@@ -2629,9 +2657,16 @@ fn mana_sources_with_kinds(game: &Game, seat: Seat) -> Vec<(ObjId, ManaAbilities
                         }
                         (i, m, a.mana_kind())
                     }
+                    // its handler's `getNetMana`
+                    AbilityDef::CardManaAbility { handler, args, filters, .. } => {
+                        let cx = cards::ManaCx { seat, source: *id, args, filters, unpaid: &ManaCost::default() };
+                        (i, (handler.fns().net)(game, &cx), a.mana_kind())
+                    }
                     _ => (i, m, a.mana_kind()),
                 })
             })
+            // (a handler's with no mana now isn't a source)
+            .filter(|(i, m, _)| !matches!(o.def.abilities[*i], AbilityDef::CardManaAbility { .. }) || m.total() > 0)
             .collect();
         if !abilities.is_empty() {
             out.push((*id, abilities));
@@ -3250,6 +3285,18 @@ fn mana_combination(game: &mut Game, d: &mut dyn Decider, seat: Seat, ability: &
 /// `ManaUtil.tryToAutoSelectAManaColor`: the one color still owed; with none owed, white; else the player chooses
 /// (CHOOSE_CHOICE). None: stopped.
 fn any_color(game: &mut Game, d: &mut dyn Decider, seat: Seat, unpaid: &ManaCost, n: u32) -> Option<Color> {
+    any_color_asking(game, d, seat, unpaid, &format!("Select a color of mana to add {n} of it"))
+}
+
+/// `any_color`, asking with the effect's own `ChoiceColor` message (Three Tree City's "Choose the color of mana to
+/// add")
+fn any_color_asking(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    seat: Seat,
+    unpaid: &ManaCost,
+    message: &str,
+) -> Option<Color> {
     let owed: Vec<Color> = Color::ALL.iter().copied().filter(|c| unpaid.symbols_of(*c) > 0).collect();
     // `HumanPlayer.choose`: not for a spell of theirs that cares about the colors spent (`caresAboutManaColor`:
     // Unexplained Vision's adamant)
@@ -3281,7 +3328,7 @@ fn any_color(game: &mut Game, d: &mut dyn Decider, seat: Seat, unpaid: &ManaCost
     }
     let names = ["White", "Blue", "Black", "Red", "Green"];
     let choices: Vec<String> = names.iter().map(|n| n.to_string()).collect();
-    let q = Query::Choice { message: format!("Select a color of mana to add {n} of it"), choices };
+    let q = Query::Choice { message: message.to_string(), choices };
     loop {
         match ask(game, d, seat, &q) {
             Answer::Text(t) => {
@@ -7576,6 +7623,12 @@ fn activate_mana_paying(
             }
         };
     }
+    // a handler's `produceMana`
+    if let AbilityDef::CardManaAbility { handler, args, filters, .. } = &def.abilities[i] {
+        let cx = cards::ManaCx { seat, source: id, args, filters, unpaid: choosing };
+        let Some(made) = (handler.fns().produce)(game, d, &cx) else { return false };
+        m = made;
+    }
     let conditional_any = matches!(
         def.abilities[i],
         AbilityDef::ConditionalManaAbility { color: None, colorless: false, mana: None, .. }
@@ -9689,7 +9742,11 @@ fn apply_each_effect(
                 }
             }
             // a static handler's effect started by a resolving ability: until the turn's cleanup
-            EffectDef::CardStatic { .. } => cards::resolve_static(game, e, source.0, controller),
+            EffectDef::CardStatic { .. } => {
+                if cards::resolve_static(game, d, e, source.0, controller, legal).is_none() {
+                    return;
+                }
+            }
             EffectDef::TargetPointerEffect { target, effect } => {
                 // without a target an earlier effect moved (Badlands Revival)
                 let only = vec![fresh_targets(game, item, *target, legal.get(*target).map_or(&[], |g| &g[..]))];
@@ -15052,12 +15109,18 @@ fn apply_each_effect(
                     None => pool.colorless += n,
                 }
             }
-            EffectDef::BasicManaEffect { colored, colorless } => {
-                let pool = &mut game.player_mut(controller).mana_pool;
+            EffectDef::BasicManaEffect { colored, colorless, until_end_of_turn } => {
+                let p = game.player_mut(controller);
                 for (k, n) in colored.iter().enumerate() {
-                    pool.colored[k] += n;
+                    p.mana_pool.colored[k] += n;
+                    if *until_end_of_turn {
+                        p.eot_mana.colored[k] += n;
+                    }
                 }
-                pool.colorless += colorless;
+                p.mana_pool.colorless += colorless;
+                if *until_end_of_turn {
+                    p.eot_mana.colorless += colorless;
+                }
             }
             EffectDef::CreateTokenControllerTargetEffect { token, amount, tapped } => {
                 let def = Arc::new(token.card());
@@ -16926,6 +16989,16 @@ pub fn put_onto_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, con
     enter_battlefield(game, d, id, controller, false);
 }
 
+/// How many static handlers' `ENTERS_THE_BATTLEFIELD` replacements apply to `id` entering under `controller`'s
+/// control
+fn entering_handlers(game: &Game, id: ObjId, controller: Seat) -> usize {
+    if !cards::any_replacement(game, cards::EventType::EntersBattlefield) {
+        return 0;
+    }
+    let ev = cards::Event { target: Some(id), ..cards::Event::new(cards::EventType::EntersBattlefield, controller) };
+    cards::replacements_applying(game, &ev)
+}
+
 /// The `EntersWithCountersAllEffect`s that apply to `id` entering: (counters, riot) for each, in battlefield order
 fn enters_with(game: &Game, id: ObjId) -> Vec<(Option<crate::card::CounterDef>, bool)> {
     let mut out = Vec::new();
@@ -17100,7 +17173,7 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
             })
             .count();
         game.obj_mut(id).controller = was;
-        let ew = enters_with(game, id).len();
+        let ew = enters_with(game, id).len() + entering_handlers(game, id, controller);
         let others = gevs + counter_effects + tappers + giada_effects + ew;
         // Java asks before each replacement while two or more are left: the "enters with" ones (Rhythm of the
         // Wild's riot) ask theirs as they're applied, below
@@ -17312,9 +17385,10 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
             add_counters_by(game, id, "+1/+1", n, Some(controller));
         }
     }
-    // other permanents' "enters with" replacement effects, in battlefield order
+    // other permanents' "enters with" replacement effects, in battlefield order, then the static handlers'
     let ews = enters_with(game, id);
-    let last = ews.len().saturating_sub(1);
+    let handlers = entering_handlers(game, id, controller);
+    let last = (ews.len() + handlers).saturating_sub(1);
     for (k, (counter, riot)) in ews.into_iter().enumerate() {
         if k < last {
             game.owed_choices.push(controller);
@@ -17348,6 +17422,11 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
                 });
             }
         }
+    }
+    if handlers > 0 {
+        let mut ev =
+            cards::Event { target: Some(id), ..cards::Event::new(cards::EventType::EntersBattlefield, controller) };
+        cards::replace_event(game, &mut ev, 0);
     }
     // an Aura put onto the battlefield without being cast: its controller picks what it enchants (303.4f)
     if !cast && def.has_subtype("Aura") {
@@ -17457,6 +17536,7 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
                                 AbilityDef::ColoredManaAbility {
                                     color: c,
                                     amount: *amount,
+                                    effects: Vec::new(),
                                     cost: Vec::new(),
                                     no_tap: false,
                                     creature_spell_haste: false,
@@ -18321,6 +18401,35 @@ fn token_image(game: &mut Game, token: &crate::card::TokenDef, source: ObjId) {
 /// the damaged player (the permanent's controller) is asked which applies first (`chooseReplacementEffect`); the
 /// ones that prevent all of it make that answer change nothing.
 fn prevented(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: bool) -> i32 {
+    let (all, shields) = preventions(game, source, to, combat);
+    if all + shields.len() >= 2 {
+        let chooser = match to {
+            Target::Player(p) => p,
+            Target::Obj(o) => game.obj(o).controller,
+        };
+        game.owed_choices.push(chooser);
+    }
+    if all > 0 {
+        return 0;
+    }
+    let mut amount = amount;
+    for i in shields {
+        let left = &mut game.prevent_to_target[i].2;
+        let n = amount.min(*left);
+        if *left != i32::MAX {
+            *left -= n;
+        }
+        amount -= n;
+        if amount <= 0 {
+            return 0;
+        }
+    }
+    amount
+}
+
+/// The engine's prevention effects that apply to damage from `source` to `to`: how many prevent all of it, and the
+/// shields on the target (`prevent_to_target`'s indexes)
+fn preventions(game: &Game, source: ObjId, to: Target, combat: bool) -> (usize, Vec<usize>) {
     let on_battlefield = |g: &Game, o: ObjId| g.obj(o).zone == Zone::Battlefield;
     let applies = |g: &Game, e: &EffectDef, you: Seat, src: ObjId| match e {
         EffectDef::PreventAllDamageByAllPermanentsEffect { filter, combat_only } => {
@@ -18363,29 +18472,7 @@ fn prevented(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: bo
             t == to && z == zcc_of(game, to) && left > 0 && (combat || !combat_only)
         })
         .collect();
-    if all + shields.len() >= 2 {
-        let chooser = match to {
-            Target::Player(p) => p,
-            Target::Obj(o) => game.obj(o).controller,
-        };
-        game.owed_choices.push(chooser);
-    }
-    if all > 0 {
-        return 0;
-    }
-    let mut amount = amount;
-    for i in shields {
-        let left = &mut game.prevent_to_target[i].2;
-        let n = amount.min(*left);
-        if *left != i32::MAX {
-            *left -= n;
-        }
-        amount -= n;
-        if amount <= 0 {
-            return 0;
-        }
-    }
-    amount
+    (all, shields)
 }
 
 /// The `ModifyDamageEffect`s that apply to damage from `source` to `to`: (times, plus) for each, in battlefield order
@@ -18493,6 +18580,42 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             && game.any_static(|g, src, e| {
                 matches!(e, EffectDef::DamageCantBePreventedEffect { .. }) && g.obj(src).controller == you
             });
+    // static handlers' (`card_statics.rs`): `DAMAGE_PLAYER` and `DAMAGE_PERMANENT` replacements and preventions,
+    // before the engine's own, with those counted for the "which first" question
+    let kind = match to {
+        Target::Player(_) => cards::EventType::DamagePlayer,
+        Target::Obj(_) => cards::EventType::DamagePermanent,
+    };
+    if cards::any_replacement(game, kind) {
+        let player = match to {
+            Target::Player(p) => p,
+            Target::Obj(o) => game.obj(o).controller,
+        };
+        let mut ev = cards::Event {
+            target: match to {
+                Target::Obj(o) => Some(o),
+                Target::Player(_) => None,
+            },
+            source: Some(source),
+            amount,
+            combat,
+            preventable: !unpreventable,
+            ..cards::Event::new(kind, player)
+        };
+        let others = if unpreventable {
+            0
+        } else {
+            let (all, shields) = preventions(game, source, to, combat);
+            all + shields.len()
+        };
+        if cards::replace_event(game, &mut ev, others) {
+            return 0;
+        }
+        amount = ev.amount;
+        if amount <= 0 {
+            return 0;
+        }
+    }
     if !unpreventable {
         amount = prevented(game, source, to, amount, combat);
         if amount <= 0 {
@@ -20096,7 +20219,10 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
         Arc::make_mut(&mut game.grants).retain(|g| !g.until_end_of_turn);
     }
     game.eot_effects.clear();
-    game.card_statics.clear();
+    // (a static handler's "until your next turn" lasts past it)
+    game.card_statics.retain(|r| r.until_turn_of.is_some());
+    let kept: Vec<(ObjId, u64)> = game.card_statics.iter().map(|r| (r.source, r.timestamp)).collect();
+    game.static_amounts.retain(|(o, t, _)| kept.contains(&(*o, *t)));
     game.base_pt_until_eot.clear();
     game.prevent_to_target.clear();
     end_control(game, true);

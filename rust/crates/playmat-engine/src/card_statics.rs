@@ -10,7 +10,12 @@
 //!   with the others; layer 6 abilities of statics older than a "loses all abilities" are lost with the rest.
 //! - **replacements**: `Handler::replacement(name, &[EventType::…], applies, replace)`, at the engine's event points
 //!   (`replace_event`): each one applies once per event (`Event::applied`), in battlefield order, and two or more that
-//!   apply owe Java's "which first" question to the event's player, as the engine's own replacements do.
+//!   apply owe Java's "which first" question to the event's player, as the engine's own replacements do. The events:
+//!   drawing, gaining life, surveilling, a trigger's count, damage to a player or a permanent (prevention and
+//!   redirection: `StaticCx::prevent`), an object changing zones (`Event::to`: "exile it instead") and a permanent
+//!   entering (its "enters with" counters).
+//! - **mana kept**: `Handler::keeps_mana(name, f)`: the kinds of mana a player doesn't lose as steps and phases end
+//!   (`YouDontLoseManaEffect`), read as the pool empties.
 //! - **costs**: `Handler::cost(name, CostKind::…, applies, apply)`, in `CostModificationType` order (increases, then
 //!   reductions, then sets) after the engine's own of that kind, for spells (`rules::modified_cost_of`, the spell's
 //!   own static abilities too: "this spell costs {2} less") and activated abilities (`adjusted_mana_cost_own`).
@@ -20,13 +25,15 @@
 //!
 //! A handler's functions get a `StaticCx`: the effect's source and controller (Java's `source`), its timestamp, and
 //! the Java the transpiler translated for it. The same `CardStatic` resolving as a one-shot effect (Emergence Zone's
-//! "you may cast spells this turn as though they had flash") lasts until the turn's cleanup (`Game::card_statics`).
+//! "you may cast spells this turn as though they had flash") lasts until the turn's cleanup (`Game::card_statics`),
+//! with the resolving ability's targets as its own (`StaticCx::targets`: Java's target pointer) and, with
+//! `Handler::on_start`, what its `init` chose (Deflecting Palm's source).
 //! Keep a handler's functions from asking about what their own layer changes (a 7c boost reading power), as Java's
 //! layer order does.
 
 use super::*;
 use crate::card::{AbilityDef, CardDef, Filter, ManaCost};
-use crate::state::{ResolvedStatic, Zone};
+use crate::state::{ResolvedStatic, Target, Zone};
 
 /// What a static handler's functions get: Java's `source` (the static ability's object and controller), when the
 /// effect started (its timestamp), the Java constructor's arguments as their text, and what the transpiler made of
@@ -40,6 +47,9 @@ pub(crate) struct StaticCx<'a> {
     pub effects: &'a [EffectDef],
     pub filters: &'a [Filter],
     pub abilities: &'a [AbilityDef],
+    /// a resolved effect's targets (Java's target pointer), each with its zone-change count as it resolved (0 for
+    /// a player); none in a static ability
+    pub targets: &'a [(Target, u32)],
 }
 
 #[allow(dead_code)] // a kit for the handlers: not every handler uses every part
@@ -62,6 +72,58 @@ impl StaticCx<'_> {
     /// `game.getOpponents(source.getControllerId()).contains(seat)`
     pub fn opponent(&self, seat: Seat) -> bool {
         seat != self.controller
+    }
+
+    /// the object target `i` points at, while it's still that object (`getFirstTarget` of a fixed target pointer)
+    pub fn target_obj(&self, game: &Game, i: usize) -> Option<ObjId> {
+        match self.targets.get(i)? {
+            (Target::Obj(o), zcc) if game.obj(*o).zcc == *zcc => Some(*o),
+            _ => None,
+        }
+    }
+
+    /// the player target `i` is
+    pub fn target_player(&self, i: usize) -> Option<Seat> {
+        match self.targets.get(i)? {
+            (Target::Player(p), _) => Some(*p),
+            _ => None,
+        }
+    }
+
+    /// what's left of this effect's amount (a consumable prevention shield's `amountToPrevent`), `initial` before
+    /// it's used
+    pub fn left(&self, game: &Game, initial: i32) -> i32 {
+        game.static_amounts
+            .iter()
+            .find(|(o, t, _)| *o == self.source && *t == self.timestamp)
+            .map_or(initial, |(_, _, n)| *n)
+    }
+
+    /// sets what's left of this effect's amount
+    pub fn set_left(&self, game: &mut Game, n: i32) {
+        let key = (self.source, self.timestamp);
+        match game.static_amounts.iter_mut().find(|(o, t, _)| (*o, *t) == key) {
+            Some(e) => e.2 = n,
+            None => game.static_amounts.push((key.0, key.1, n)),
+        }
+    }
+
+    /// `PreventionEffectImpl.applies`: a damage event whose damage can be prevented, combat damage if `only_combat`
+    pub fn preventable(&self, ev: &Event, only_combat: bool) -> bool {
+        matches!(ev.kind, EventType::DamagePlayer | EventType::DamagePermanent)
+            && ev.preventable
+            && (!only_combat || ev.combat)
+    }
+
+    /// `game.preventDamage`: prevents up to `n` of the event's damage (all of it: `i32::MAX`), and returns how much
+    /// it prevented
+    pub fn prevent(&self, ev: &mut Event, n: i32) -> i32 {
+        if !ev.preventable {
+            return 0;
+        }
+        let p = ev.amount.min(n).max(0);
+        ev.amount -= p;
+        p
     }
 }
 
@@ -113,6 +175,18 @@ pub(crate) enum EventType {
     /// says what caused it). The engine counts each one that applies as one more time (`amount + 1`, as every
     /// Java one does): their `replace` isn't called (`Game::additional_triggers` can't change the game)
     NumberOfTriggers,
+    /// `DAMAGE_PLAYER`: `amount` damage from `source` would be dealt to `player` (`rules::deal_damage`), `combat` or
+    /// not, `preventable` unless damage can't be prevented. Lower `amount` to prevent some (`StaticCx::prevent`), or
+    /// deal it elsewhere and return "replaced" to redirect it.
+    DamagePlayer,
+    /// `DAMAGE_PERMANENT`: the same, to the permanent `target`; `player` is its controller
+    DamagePermanent,
+    /// `ZONE_CHANGE`: `target` would move from `from` to `to` (`Game::move_to`); `player` is its controller on the
+    /// battlefield, else its owner. Change `to` to move it elsewhere instead ("exile it instead").
+    ZoneChange,
+    /// `ENTERS_THE_BATTLEFIELD`: `target` is entering under `player`'s control (`rules::enter_battlefield`), already
+    /// where its "enters with" counters go (`add_counters_by`); the entering permanent's own statics don't apply
+    EntersBattlefield,
 }
 
 /// The event a replacement handler sees and may change (Java's `GameEvent`)
@@ -129,12 +203,66 @@ pub(crate) struct Event {
     pub amount: i32,
     /// `getAppliedEffects()`: the sources of the replacement effects already applied to it
     pub applied: Vec<ObjId>,
+    /// damage: `isCombatDamage()`, and `getFlag()` (it can be prevented)
+    pub combat: bool,
+    pub preventable: bool,
+    /// a zone change's `getFromZone()` and `getToZone()`
+    pub from: Option<Zone>,
+    pub to: Option<Zone>,
 }
 
 impl Event {
     pub fn new(kind: EventType, player: Seat) -> Event {
-        Event { kind, player, target: None, source: None, amount: 0, applied: Vec::new() }
+        Event {
+            kind,
+            player,
+            target: None,
+            source: None,
+            amount: 0,
+            applied: Vec::new(),
+            combat: false,
+            preventable: false,
+            from: None,
+            to: None,
+        }
     }
+}
+
+/// A Java number argument: `Integer.MAX_VALUE` is `i32::MAX`
+pub(crate) fn java_int(text: &str) -> Option<i32> {
+    match text.trim() {
+        "Integer.MAX_VALUE" => Some(i32::MAX),
+        t => t.parse().ok(),
+    }
+}
+
+/// A `ManaType` argument as a pool kind (WUBRG 0-4, colorless 5)
+pub(crate) fn mana_type(text: &str) -> Option<usize> {
+    let kinds = ["WHITE", "BLUE", "BLACK", "RED", "GREEN", "COLORLESS"];
+    kinds.iter().position(|k| text.trim().strip_prefix("ManaType.") == Some(*k))
+}
+
+/// A "counter" argument (`card_handlers.py`: "<counter name> <n>")
+pub(crate) fn counter_arg(text: &str) -> Option<(&str, i32)> {
+    let (name, n) = text.trim().rsplit_once(' ')?;
+    Some((name, n.parse().ok()?))
+}
+
+/// `TargetSource.choose` for a resolving static's `init` (`Handler::on_start`): "a source of your choice", any
+/// spell on the stack, permanent, or card in a graveyard or exile; nothing to choose, nothing chosen
+pub(crate) fn choose_source(game: &mut Game, d: &mut dyn Decider, cx: &StaticCx) -> Option<Vec<(Target, u32)>> {
+    let mut can: Vec<ObjId> = game.stack.iter().filter(|i| i.ability.is_none()).map(|i| i.card).collect();
+    can.extend(game.battlefield.iter().copied());
+    for p in 0..game.seats() {
+        can.extend(game.player(p).graveyard.iter().copied());
+    }
+    can.extend(game.exile.iter().copied());
+    can.dedup();
+    if can.is_empty() {
+        return Some(Vec::new());
+    }
+    let chosen = choose_cards(game, d, cx.controller, &can, &can, 1, 1, "source of your choice")?;
+    Some(chosen.into_iter().map(|o| (Target::Obj(o), game.obj(o).zcc)).collect())
 }
 
 /// `applies(event, source, game)`
@@ -204,6 +332,14 @@ pub(crate) enum Rule {
     CantCast(fn(&Game, &StaticCx, Seat, ObjId, &CardDef) -> bool),
 }
 
+/// `YouDontLoseManaEffect`'s `addDoNotEmptyManaType`: the kinds of `seat`'s mana (WUBRG, then colorless) the pool
+/// keeps as steps and phases end
+pub(crate) type KeepsManaFn = fn(&Game, &StaticCx, Seat) -> [bool; 6];
+
+/// `ContinuousEffect.init` of a resolving static: what it chose then (Java's target pointer: "a source of your
+/// choice"), kept as its targets; None when the decider stopped
+pub(crate) type StartFn = fn(&mut Game, &mut dyn Decider, &StaticCx) -> Option<Vec<(Target, u32)>>;
+
 /// What an as-though effect allows
 #[allow(dead_code)]
 pub(crate) enum AsThough {
@@ -249,7 +385,8 @@ impl<'de> serde::Deserialize<'de> for StaticHandler {
                         | Hook::Cost(_)
                         | Hook::Restriction(_)
                         | Hook::Rule(_)
-                        | Hook::AsThough(_),
+                        | Hook::AsThough(_)
+                        | Hook::KeepsMana(_),
                     ..
                 },
             ) => Ok(StaticHandler(h)),
@@ -270,24 +407,26 @@ fn has_card_static(e: &EffectDef) -> bool {
 }
 
 /// One `CardStatic` and the static ability it's in: `f(hook, cx, effect)`
+#[allow(clippy::too_many_arguments)]
 fn visit(
     game: &Game,
     e: &EffectDef,
     source: ObjId,
     controller: Seat,
     timestamp: u64,
+    targets: &[(Target, u32)],
     f: &mut dyn FnMut(&'static Hook, &StaticCx, &EffectDef),
 ) {
     match e {
         EffectDef::CardStatic { handler, args, effects, filters, abilities } => {
-            let cx = StaticCx { source, controller, timestamp, args, effects, filters, abilities };
+            let cx = StaticCx { source, controller, timestamp, args, effects, filters, abilities, targets };
             f(handler.hook(), &cx, e);
         }
         // the condition only for a handler's effect: a condition can ask the queries the handlers answer
         EffectDef::ConditionalContinuousEffect { effect, condition }
             if has_card_static(effect) && game.condition_holds(Some(condition), controller, source) =>
         {
-            visit(game, effect, source, controller, timestamp, f);
+            visit(game, effect, source, controller, timestamp, targets, f);
         }
         _ => {}
     }
@@ -301,7 +440,7 @@ pub(crate) fn each_static(game: &Game, f: &mut dyn FnMut(&'static Hook, &StaticC
         for a in &o.def.abilities {
             let AbilityDef::SimpleStaticAbility { effects, .. } = a else { continue };
             for e in effects {
-                visit(game, e, *src, o.controller, game.static_at(*src), f);
+                visit(game, e, *src, o.controller, game.static_at(*src), &[], f);
             }
         }
     }
@@ -310,12 +449,12 @@ pub(crate) fn each_static(game: &Game, f: &mut dyn FnMut(&'static Hook, &StaticC
         let o = game.obj(g.target);
         if o.zone == Zone::Battlefield && o.zcc == g.zcc {
             for e in effects {
-                visit(game, e, g.target, o.controller, game.static_at(g.target), f);
+                visit(game, e, g.target, o.controller, game.static_at(g.target), &[], f);
             }
         }
     }
     for r in game.card_statics.iter() {
-        visit(game, &r.effect, r.source, r.controller, r.timestamp, f);
+        visit(game, &r.effect, r.source, r.controller, r.timestamp, &r.targets, f);
     }
 }
 
@@ -331,17 +470,47 @@ fn each_own_static(game: &Game, id: ObjId, f: &mut dyn FnMut(&'static Hook, &Sta
         for e in effects {
             if let EffectDef::CardStatic { handler, .. } = e {
                 if handler.0.any_zone {
-                    visit(game, e, id, o.controller, 0, f);
+                    visit(game, e, id, o.controller, 0, &[], f);
                 }
             }
         }
     }
 }
 
-/// A `CardStatic` resolving as a one-shot effect: it lasts until the turn's cleanup
-pub(crate) fn resolve_static(game: &mut Game, effect: &EffectDef, source: ObjId, controller: Seat) {
+/// A `CardStatic` resolving as a one-shot effect: it lasts until the turn's cleanup, pointed at the resolving
+/// ability's targets (or what its `Handler::on_start` chooses). None when the decider stopped.
+pub(crate) fn resolve_static(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    effect: &EffectDef,
+    source: ObjId,
+    controller: Seat,
+    legal: &[Vec<Target>],
+) -> Option<()> {
     let timestamp = game.timestamp();
-    game.card_statics.push(ResolvedStatic { effect: effect.clone(), source, controller, timestamp });
+    // (the first target's, as Java's target pointer)
+    let mut targets: Vec<(Target, u32)> = legal
+        .first()
+        .into_iter()
+        .flatten()
+        .map(|t| match t {
+            Target::Obj(o) => (*t, game.obj(*o).zcc),
+            Target::Player(_) => (*t, 0),
+        })
+        .collect();
+    let mut until_turn_of = None;
+    if let EffectDef::CardStatic { handler, args, effects, filters, abilities } = effect {
+        if let Some(start) = handler.0.start {
+            let cx = StaticCx { source, controller, timestamp, args, effects, filters, abilities, targets: &targets };
+            targets = start(game, d, &cx)?;
+        }
+        if args.first().is_some_and(|a| a.trim() == "Duration.UntilYourNextTurn") {
+            until_turn_of = Some(controller);
+        }
+    }
+    let r = ResolvedStatic { effect: effect.clone(), source, controller, timestamp, targets, until_turn_of };
+    game.card_statics.push(r);
+    Some(())
 }
 
 // ------------------------------------------------------------------------------------------------- what they change
@@ -489,6 +658,43 @@ pub(crate) fn change_cost(game: &Game, kind: CostKind, of: &CostCx, cost: &mut M
     }
 }
 
+/// `ManaPool.emptyPool`'s `doNotEmptyManaTypes`: the kinds of `seat`'s mana (WUBRG, then colorless) a handler keeps
+/// as steps and phases end
+pub(crate) fn kept_mana_kinds(game: &Game, seat: Seat) -> [bool; 6] {
+    let mut out = [false; 6];
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::KeepsMana(f) = h {
+            for (k, keep) in f(game, cx, seat).into_iter().enumerate() {
+                out[k] |= keep;
+            }
+        }
+    });
+    out
+}
+
+/// How many replacement handlers apply to `ev` as it is (to count Java's "which first" questions with the engine's
+/// own replacements of the event)
+pub(crate) fn replacements_applying(game: &Game, ev: &Event) -> usize {
+    let mut n = 0;
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::Replacement(Replacement { events, applies, .. }) = h {
+            if events.contains(&ev.kind)
+                && !ev.applied.contains(&cx.source)
+                && !own_entering(ev, cx)
+                && applies(game, cx, ev)
+            {
+                n += 1;
+            }
+        }
+    });
+    n
+}
+
+/// A permanent's own statics don't see it entering (Java's aren't active until it's on the battlefield)
+fn own_entering(ev: &Event, cx: &StaticCx) -> bool {
+    ev.kind == EventType::EntersBattlefield && ev.target == Some(cx.source)
+}
+
 /// Whether a replacement handler for events of `kind` is in play
 pub(crate) fn any_replacement(game: &Game, kind: EventType) -> bool {
     let mut out = false;
@@ -516,12 +722,17 @@ pub(crate) fn extra_triggers(game: &Game, t: &StackItem) -> usize {
 /// own applying to it: each applies once, in timestamp order; two or more owe the event's player the question which
 /// applies first. True when one replaced the event (it doesn't happen).
 pub(crate) fn replace_event(game: &mut Game, ev: &mut Event, others: usize) -> bool {
+    type Found = (EffectDef, ObjId, Seat, u64, Vec<(Target, u32)>);
     loop {
-        let mut found: Vec<(EffectDef, ObjId, Seat, u64)> = Vec::new();
+        let mut found: Vec<Found> = Vec::new();
         each_static(game, &mut |h, cx, e| {
             if let Hook::Replacement(Replacement { events, applies, .. }) = h {
-                if events.contains(&ev.kind) && !ev.applied.contains(&cx.source) && applies(game, cx, ev) {
-                    found.push((e.clone(), cx.source, cx.controller, cx.timestamp));
+                if events.contains(&ev.kind)
+                    && !ev.applied.contains(&cx.source)
+                    && !own_entering(ev, cx)
+                    && applies(game, cx, ev)
+                {
+                    found.push((e.clone(), cx.source, cx.controller, cx.timestamp, cx.targets.to_vec()));
                 }
             }
         });
@@ -531,10 +742,10 @@ pub(crate) fn replace_event(game: &mut Game, ev: &mut Event, others: usize) -> b
         if found.len() + others > 1 {
             game.owed_replacement_choices.borrow_mut().push(ev.player);
         }
-        let (e, source, controller, timestamp) = found.swap_remove(0);
+        let (e, source, controller, timestamp, targets) = found.swap_remove(0);
         let EffectDef::CardStatic { handler, args, effects, filters, abilities } = &e else { unreachable!() };
         let Hook::Replacement(r) = handler.hook() else { unreachable!() };
-        let cx = StaticCx { source, controller, timestamp, args, effects, filters, abilities };
+        let cx = StaticCx { source, controller, timestamp, args, effects, filters, abilities, targets: &targets };
         ev.applied.push(source);
         if (r.replace)(game, &cx, ev) {
             return true;

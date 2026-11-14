@@ -1891,6 +1891,10 @@ class Translator:
                 and args and args[0] == 'Zone.BATTLEFIELD':
             args = args[1:]
         any5 = ['W', 'U', 'B', 'R', 'G']
+        # a `ManaEffect` written by hand in Rust (`Handler::mana`)
+        if cls == 'SimpleManaAbility' and len(args) == 2 \
+                and (h := card_handlers.mana_ability(self, args[0], *self.mana_cost_part(args[1]))) is not None:
+            return h
 
         def make(effect):
             e = canonical(self.strip_setters(effect))
@@ -1900,6 +1904,10 @@ class Translator:
                 return {'k': 'fixed', 'mana': mana}
             if (m := re.fullmatch(r'new AddManaInAnyCombinationEffect\((\d+)\)', e)):
                 return {'k': 'combination', 'amount': int(m.group(1)), 'colors': any5}
+            # X in any combination of some colors (`(amount, netAmount, colors…)`: Vivi Ornitier's {U} and {R})
+            if (m := re.fullmatch(r'new AddManaInAnyCombinationEffect\(([\w.]+),\1((?:,ColoredManaSymbol\.[WUBRG])+)\)', e)):
+                return {'k': 'combination', 'amount': self.amount(m.group(1)),
+                        'colors': [c[-1] for c in m.group(2).split(',') if c]}
             if e == 'new AddManaOfTwoDifferentColorsEffect()':
                 return {'k': 'two_different'}
             if (m := re.fullmatch(r'new AddManaOfAnyColorEffect\((\d*)\)', e)):
@@ -2593,11 +2601,22 @@ class Translator:
             if n.group(1) != 'Colorless':
                 out['color'] = COLOR_LETTERS[n.group(1)]
             return out
+        # "add {R}. Until end of turn, you don't lose this mana as steps and phases end" (`UntilEndOfTurnManaEffect`)
+        if cls == 'UntilEndOfTurnManaEffect' and len(args) == 1:
+            out = self.effect('new BasicManaEffect(' + args[0] + ')')
+            out['until_end_of_turn'] = True
+            return out
         # a triggered ability's "add {R}{R}" (Gloin): the same mana, into the controller's pool as it resolves
         if cls == 'AddManaToManaPoolSourceControllerEffect' and len(args) == 1:
             return self.effect('new BasicManaEffect(' + args[0] + ')')
         if cls == 'BasicManaEffect' and len(args) == 1:
             a = args[0].strip()
+            if (n := re.fullmatch(r'newMana\(ManaType\.(WHITE|BLUE|BLACK|RED|GREEN|COLORLESS),(\d+)\)', a.replace(' ', ''))):
+                colored = [0] * 5
+                if n.group(1) == 'COLORLESS':
+                    return {'class': cls, 'colored': colored, 'colorless': int(n.group(2))}
+                colored[['WHITE', 'BLUE', 'BLACK', 'RED', 'GREEN'].index(n.group(1))] = int(n.group(2))
+                return {'class': cls, 'colored': colored, 'colorless': 0}
             n = re.fullmatch(r'newMana\((\d+),(\d+),(\d+),(\d+),(\d+),0,0,(\d+)\)', a.replace(' ', ''))
             if n:
                 v = [int(x) for x in n.groups()]
@@ -4059,12 +4078,57 @@ class Translator:
         # a trigger class written by hand in Rust (src/cards/, card_handlers.py)
         if cls not in ABILITIES and (h := card_handlers.trigger(self, cls, args)) is not None:
             return h
+        if cls not in ABILITIES and not args and (h := self.own_mana_ability(cls)) is not None:
+            return h
         if cls not in ABILITIES:
             raise Unsupported('ability ' + cls)
         a = self.build(cls, args, ABILITIES[cls], 'ability')
         if 'effect' in a:
             a['effects'] = [a.pop('effect')]
         return triggered(a)
+
+    def own_mana_ability(self, cls):
+        """a card's own `ActivatedManaAbilityImpl` (`super(Zone.BATTLEFIELD, new XManaEffect(), cost)`, then
+        `this.addCost(…)`) whose mana effect has a mana handler: a `CardManaAbility`; None if not one"""
+        body = re.search(r'class ' + cls + r' extends ActivatedManaAbilityImpl \{(.*?)\n\}', self.source or '', re.S)
+        ctor = body and re.search(r'\n    ' + cls + r'\(\)\s*\{(.*?)\n    \}', body.group(1), re.S)
+        if not ctor:
+            return None
+        sts = statements(ctor.group(1))
+        sup = sts and re.fullmatch(r'super\((.*)\)', sts[0], re.S)
+        args = sup and [a.strip() for a in split_args(sup.group(1))]
+        if not args or len(args) != 3 or args[0] != 'Zone.BATTLEFIELD':
+            return None
+        cost, no_tap = self.mana_cost_part(args[2])
+        condition, per_turn = None, None
+        for st in sts[1:]:
+            if (c := re.fullmatch(r'this\.addCost\((.*)\)', st, re.S)):
+                if canonical(c.group(1)) == 'new TapSourceCost()':
+                    no_tap = False
+                else:
+                    cost.append(self.cost(c.group(1)))
+            elif (c := re.fullmatch(r'this\.condition=(.*)', st, re.S)):
+                condition = self.condition(c.group(1))
+            elif (c := re.fullmatch(r'this\.maxActivationsPerTurn=(\d+)', st)):
+                per_turn = int(c.group(1))
+            elif not re.fullmatch(r'this\.addHint\(.*\)', st, re.S):
+                raise Unsupported('mana ability ' + cls + ': ' + st[:60])
+        out = card_handlers.mana_ability(self, args[1], cost, no_tap)
+        if out is None and (condition or per_turn):
+            # a framework mana effect, "activate only …" and "only once each turn" (Vivi Ornitier)
+            out = self.more_mana_abilities('SimpleManaAbility', [args[1], args[2]])
+            if not out or out.get('class') != 'ManaAbility':
+                return None
+            out['cost'], out['no_tap'] = cost, no_tap
+            if condition:
+                out['condition'] = condition
+            if per_turn:
+                out['per_turn'] = per_turn
+        elif out is not None and (condition or per_turn):
+            raise Unsupported('mana ability ' + cls + ': a handler with a condition')
+        if out is not None:
+            out['java'] = cls
+        return out
 
     def copy_applier(self, expr):
         """a card's own `CopyApplier` whose `apply` only adds subtypes (`blueprint.addSubType(SubType.SPIRIT)`,

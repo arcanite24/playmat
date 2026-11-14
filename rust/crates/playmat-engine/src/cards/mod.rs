@@ -150,6 +150,82 @@ pub(crate) enum Hook {
     Rule(Rule),
     AsThough(AsThough),
     Predicate(PredicateFn),
+    KeepsMana(KeepsManaFn),
+    /// a mana ability's mana (`ManaEffect.getNetMana` and `produceMana`): `AbilityDef::CardManaAbility`
+    Mana(ManaFns),
+}
+
+/// What a mana handler's functions get: who activates it, its source, the effect's constructor arguments as their
+/// text and what the transpiler made of the filters it asked for, and (producing) what's still unpaid, for the
+/// color choices that pick themselves while paying
+#[allow(dead_code)]
+pub(crate) struct ManaCx<'a> {
+    pub seat: Seat,
+    pub source: ObjId,
+    pub args: &'a [String],
+    pub filters: &'a [Filter],
+    pub unpaid: &'a crate::card::ManaCost,
+}
+
+#[allow(dead_code)]
+impl ManaCx<'_> {
+    /// `filters[i].match(object, controller, source, game)`
+    pub fn matches(&self, game: &Game, i: usize, id: ObjId) -> bool {
+        self.filters.get(i).is_some_and(|f| game.filter_matches(f, self.seat, Some(self.source), id))
+    }
+
+    /// how many permanents of filter `i` are on the battlefield
+    pub fn count(&self, game: &Game, i: usize) -> usize {
+        game.battlefield.iter().filter(|o| self.matches(game, i, **o)).count()
+    }
+}
+
+/// `getNetMana` while checking what's playable: the mana it could make, each color's amount an alternative (one
+/// of `[n; 5]`: n of any one color); nothing, it isn't a source now
+pub(crate) type NetManaFn = fn(&Game, &ManaCx) -> crate::card::Mana;
+/// `produceMana`, asking its choices; None when the decider stopped
+pub(crate) type ProduceManaFn = fn(&mut Game, &mut dyn Decider, &ManaCx) -> Option<crate::card::Mana>;
+
+pub(crate) struct ManaFns {
+    pub net: NetManaFn,
+    pub produce: ProduceManaFn,
+}
+
+/// A cards.json reference to a mana handler (`AbilityDef::CardManaAbility`), checked as the card loads
+#[derive(Clone, Copy)]
+pub struct ManaHandler(&'static str, &'static ManaFns);
+
+impl ManaHandler {
+    pub fn java(&self) -> &'static str {
+        self.0
+    }
+
+    pub(crate) fn fns(&self) -> &'static ManaFns {
+        self.1
+    }
+}
+
+impl std::fmt::Debug for ManaHandler {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl PartialEq for ManaHandler {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for ManaHandler {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let name = String::deserialize(d)?;
+        match find(&name) {
+            Some(Handler { java, hook: Hook::Mana(f), .. }) => Ok(ManaHandler(java, f)),
+            Some(_) => Err(serde::de::Error::custom(format!("card handler {name} isn't a mana one"))),
+            None => Err(serde::de::Error::custom(format!("no card handler {name}"))),
+        }
+    }
 }
 
 /// One Java class written in Rust
@@ -178,6 +254,8 @@ pub(crate) struct Handler {
     /// a static handler whose ability works in every zone (`new SimpleStaticAbility(Zone.ALL, …)`: "this spell costs
     /// {2} less", "you can't cast this spell unless …"), so its card's own spell sees it from the hand too
     pub any_zone: bool,
+    /// a resolving static's `init` (`Handler::on_start`): what it points at from then on
+    pub start: Option<StartFn>,
 }
 
 #[allow(dead_code)]
@@ -193,6 +271,7 @@ impl Handler {
             args: &[],
             abilities: &[],
             any_zone: false,
+            start: None,
         }
     }
 
@@ -248,6 +327,23 @@ impl Handler {
     pub const fn in_any_zone(mut self) -> Handler {
         self.any_zone = true;
         self
+    }
+
+    /// what a resolving static chooses as it starts (`ContinuousEffect.init`: "a source of your choice"), kept as
+    /// its targets
+    pub const fn on_start(mut self, f: StartFn) -> Handler {
+        self.start = Some(f);
+        self
+    }
+
+    /// `YouDontLoseManaEffect`: the kinds of a player's mana the pool keeps as steps and phases end
+    pub const fn keeps_mana(java: &'static str, f: KeepsManaFn) -> Handler {
+        Handler::new(java, Hook::KeepsMana(f))
+    }
+
+    /// a `ManaEffect` (or a card's own mana ability class): its `getNetMana` and its `produceMana`
+    pub const fn mana(java: &'static str, net: NetManaFn, produce: ProduceManaFn) -> Handler {
+        Handler::new(java, Hook::Mana(ManaFns { net, produce }))
     }
 
     /// a `ContinuousEffect` in a layer: the objects it `affects`, and what it does to them there

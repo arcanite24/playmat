@@ -2803,6 +2803,10 @@ pub enum EffectDef {
     BasicManaEffect {
         colored: [u32; 5],
         colorless: u32,
+        /// it stays in the pool until end of turn (`UntilEndOfTurnManaEffect`: "until end of turn, you don't lose
+        /// this mana as steps and phases end")
+        #[serde(default)]
+        until_end_of_turn: bool,
     },
     /// the target permanent's controller (as it last was) creates `amount` tokens
     CreateTokenControllerTargetEffect {
@@ -4554,6 +4558,9 @@ pub enum AbilityDef {
     ColoredManaAbility {
         color: Color,
         amount: u32,
+        /// what else activating it does (The Great Henge's "You gain 2 life.")
+        #[serde(default)]
+        effects: Vec<EffectDef>,
         /// its costs besides tapping (or instead of it, `no_tap`)
         #[serde(default)]
         cost: Vec<CostDef>,
@@ -4711,6 +4718,27 @@ pub enum AbilityDef {
     /// Nykthos: `{2}, {T}`: choose a color, add mana of it equal to your devotion to it
     NykthosShrineToNyxManaAbility {
         cost: Vec<CostDef>,
+        #[serde(default)]
+        rule: String,
+    },
+    /// A mana ability whose mana a handler makes (`src/cards/`): a card's own `ManaEffect` in a `SimpleManaAbility`
+    /// (Astral Cornucopia's), or its own `ActivatedManaAbilityImpl` (Three Tree City's)
+    CardManaAbility {
+        handler: crate::rules::cards::ManaHandler,
+        /// the effect's constructor arguments, as their text
+        #[serde(default)]
+        args: Vec<String>,
+        /// its costs besides tapping (or instead of it, `no_tap`)
+        #[serde(default)]
+        cost: Vec<CostDef>,
+        #[serde(default)]
+        no_tap: bool,
+        /// what else activating it does
+        #[serde(default)]
+        effects: Vec<EffectDef>,
+        /// what the transpiler made of the filters the handler asked for
+        #[serde(default)]
+        filters: Vec<Filter>,
         #[serde(default)]
         rule: String,
     },
@@ -4919,6 +4947,8 @@ impl AbilityDef {
             AbilityDef::ConditionalManaAbility { color: None, amount, .. } => {
                 Some(Mana { colored: [*amount; 5], ..Mana::default() })
             }
+            // (counted by the game: its handler's `getNetMana`, `mana_sources_with_kinds`)
+            AbilityDef::CardManaAbility { .. } => Some(Mana { colored: [1; 5], ..Mana::default() }),
             _ => None,
         }
     }
@@ -4937,6 +4967,7 @@ impl AbilityDef {
             | AbilityDef::ConditionalManaAbility { .. }
             | AbilityDef::ConditionalColorManaAbility { .. }
             | AbilityDef::ManaAbility { .. }
+            | AbilityDef::CardManaAbility { .. }
             | AbilityDef::AddEachControlledColorManaAbility { .. }
             | AbilityDef::DynamicManaAbility { .. } => ManaKind::Other,
             // a `BasicManaAbility` makes one mana; "{T}: Add {G}{G}" is a `SimpleManaAbility`
@@ -4960,6 +4991,7 @@ impl AbilityDef {
                 | AbilityDef::AnyColorManaAbility { no_tap: true, .. }
                 | AbilityDef::DynamicManaAbility { no_tap: true, .. }
                 | AbilityDef::ManaAbility { no_tap: true, .. }
+                | AbilityDef::CardManaAbility { no_tap: true, .. }
                 | AbilityDef::ConditionalManaAbility { no_tap: true, .. }
         )
     }
@@ -4989,6 +5021,7 @@ impl AbilityDef {
             | AbilityDef::ConditionalManaAbility { cost, .. }
             | AbilityDef::DynamicManaAbility { cost, .. }
             | AbilityDef::ManaAbility { cost, .. }
+            | AbilityDef::CardManaAbility { cost, .. }
             | AbilityDef::ActivateIfConditionAnyColorManaAbility { cost, .. }
             | AbilityDef::NykthosShrineToNyxManaAbility { cost, .. } => cost,
             _ => &[],
@@ -5014,6 +5047,8 @@ impl AbilityDef {
             | AbilityDef::RedManaAbility { effects, .. }
             | AbilityDef::GreenManaAbility { effects, .. }
             | AbilityDef::ColorlessManaAbility { effects, .. }
+            | AbilityDef::ColoredManaAbility { effects, .. }
+            | AbilityDef::CardManaAbility { effects, .. }
             | AbilityDef::AnyColorManaAbility { effects, .. } => effects,
             _ => &[],
         }
