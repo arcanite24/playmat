@@ -3241,11 +3241,6 @@ class Translator:
             return {'class': cls, 'subtype': subtype_names()[args[0][8:]]}
         # prevention
         flag = ('true', 'false')
-        # "prevent all (combat) damage that would be dealt to you this turn": to no permanent, and to you
-        if cls == 'PreventDamageToControllerEffect' and len(args) == 4 and args[0] == 'Duration.EndOfTurn' \
-                and args[1] in flag and args[2] == 'false' and args[3] == 'Integer.MAX_VALUE':
-            return {'class': 'PreventAllDamageToAllEffect', 'filter': [{'p': 'not', 'x': {'p': 'and', 'xs': []}}],
-                    'duration': 'EndOfTurn', 'combat_only': args[1] == 'true', 'and_to_you': True}
         if cls == 'PreventAllDamageByAllPermanentsEffect' and len(args) in (1, 2, 3) and 'Duration.EndOfTurn' in args[:2]:
             rest = args[args.index('Duration.EndOfTurn') + 1:]
             if all(a in flag for a in rest) and args.index('Duration.EndOfTurn') <= 1:
