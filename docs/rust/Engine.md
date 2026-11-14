@@ -1326,6 +1326,16 @@ Being in the engine and being trusted are kept apart.
     Reidane), conditional mana (claim-mech's), next-main-phase delayed triggers (Mana Sculpt), and about 70 more
     with their own effect classes.
 
+  Wave 10, claim 4 (the long tail): 82 handler files, mostly the unused cards' one-shot spells (damage with an
+  excess or a subtype rider, counter-and-mill, sacrifice or discard choices, graveyard returns, search-and-reveal),
+  bring 82 cards into the engine (11,404). Engine fix: `ExileGraveyardAllTargetPlayerEffect` exiles every target
+  player's graveyard ("any number of target players", The Death of Gwen Stacy), not only the first; regression game
+  `shadow/factory/game-w10c4-exile-target-players-graveyards.json`. Two factory rounds (114 games, 103 matching)
+  verified 77 of them, plus Heroic Feast and The Magic Mirror, which were already in: 11,208 of 11,404. Not verified: Moment of
+  Truth (Java's `putInGraveyard` leaves the card on top of the library too), Riverwheel Sweep, Rite of the Serpent
+  and Thunderous Orator (one or two games differ each; Thunderous Orator's is a mana payment before it's cast), and
+  Serpentine Spike (no game cast it). Twelve games under `shadow/handlers/game-handlers10-claim4-*` cover them.
+
       W=.local/rust-port/factory
       python3 rust/tools/verify_factory.py build --work $W --priority .local/rust-port/card-priority.tsv --used-only
       python3 rust/tools/verify_factory.py record --work $W --procs 8     # long: run it in the background

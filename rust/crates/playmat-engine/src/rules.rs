@@ -16437,10 +16437,16 @@ fn apply_each_effect(
                 }
             }
             EffectDef::ExileGraveyardAllTargetPlayerEffect => {
-                if let Some(Target::Player(p)) = target {
-                    for c in game.player(p).graveyard.clone() {
-                        game.move_to(c, Zone::Exile);
-                    }
+                // every target player's graveyard, in target order ("any number of target players")
+                let players: Vec<Seat> = legal
+                    .first()
+                    .map(|ts| {
+                        ts.iter().filter_map(|t| if let Target::Player(p) = t { Some(*p) } else { None }).collect()
+                    })
+                    .unwrap_or_default();
+                let cards: Vec<ObjId> = players.iter().flat_map(|p| game.player(*p).graveyard.clone()).collect();
+                for c in cards {
+                    game.move_to(c, Zone::Exile);
                 }
             }
             EffectDef::CantBeBlockedByCreaturesSourceEffect { filter, .. } => {
