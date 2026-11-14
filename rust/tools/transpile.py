@@ -1015,7 +1015,8 @@ def declared_filters(source, subtypes):
     # first, the card's, wins)
     starts = [m.start() for m in re.finditer(r'^(?:public |final |abstract )*(?:class|enum) ', source, re.M)] + [len(source)]
     whole = source
-    for m in re.finditer(r'static (?:final |private |public |protected )*(?:\w+(?:<[\w<>, ]*>)?) (\w+)\s*=\s*new (Filter\w+)(?:<[\w<>, ]*>)?\((.*?)\);', whole, re.S):
+    # (a wildcard type too: `FilterObject<?>`, Argentum Masticore and Spectrum Sentinel)
+    for m in re.finditer(r'static (?:final |private |public |protected )*(?:\w+(?:<[\w<>?, ]*>)?) (\w+)\s*=\s*new (Filter\w+)(?:<[\w<>?, ]*>)?\((.*?)\);', whole, re.S):
         name, cls, args = m.group(1), m.group(2), split_args(canonical(m.group(3)))
         if name in out:
             continue
@@ -2246,6 +2247,10 @@ class Translator:
         return out
 
     def effect(self, expr):
+        # Predatory Sliver's static boost says `Duration.WhileInGraveyard`: a static ability's effect lasts while it's
+        # in its usable zone whatever the duration (`ContinuousEffects.getLayeredEffects`), and no objects are fixed
+        # (`initAffectedObjectsSet` only for non-static abilities), so it's a "while on the battlefield" boost
+        expr = re.sub(r'^(\s*new BoostControlledEffect\(\d+,\d+,)Duration\.WhileInGraveyard,', r'\1Duration.WhileOnBattlefield,', expr)
         # an enum constant's effect (`XEffectType.DISCARD.makeEffect()`, Lord Xander's): the handler
         # `Outer.XEffectType.DISCARD`
         if (m := re.fullmatch(r'(\w+\.[A-Z][A-Z0-9_]*)\.makeEffect\(\)', expr.strip())) \
@@ -2651,6 +2656,8 @@ class Translator:
                     'filter': self.filter(args[1]) if len(args) == 2 else [CREATURE]}
         if cls == 'DistributeCountersEffect' and [a.strip() for a in args] == ['CounterType.M1M1']:
             return {'class': 'DistributeM1M1CountersEffect'}
+        if cls == 'DistributeCountersEffect' and [a.strip() for a in args] == ['CounterType.P1P1']:
+            return {'class': 'DistributeCountersEffect'}
         if cls == 'PreventDamageByChosenSourceEffect' and len(args) == 2 and args[1].strip() == 'true':
             return {'class': 'PreventCombatDamageByChosenEffect', 'filter': self.filter(args[0])}
         if cls == 'PreventAllDamageToSourceEffect' and [a.strip() for a in args] == ['Duration.EndOfTurn']:
@@ -2811,6 +2818,8 @@ class Translator:
         # the target card (a dies trigger's) back onto the battlefield, under your control or its owner's
         if cls == 'ReturnToBattlefieldUnderYourControlTargetEffect' and args in ([], ['false']):
             return {'class': 'ReturnFromGraveyardToBattlefieldTargetEffect', 'tapped': False}
+        if cls == 'ReturnToBattlefieldUnderYourControlTargetEffect' and [a.strip() for a in args] == ['false', 'true']:
+            return {'class': 'ReturnFromGraveyardToBattlefieldTargetEffect', 'tapped': True}
         if cls == 'ReturnToBattlefieldUnderOwnerControlTargetEffect' and len(args) == 2 \
                 and args[0].strip() in ('true', 'false') and args[1].strip() == 'false':
             return {'class': 'ReturnFromGraveyardToBattlefieldTargetEffect', 'tapped': args[0].strip() == 'true',
@@ -2999,6 +3008,8 @@ class Translator:
             n = re.fullmatch(r'StaticValue\.get\((\d+)\)', args[1].strip())
             if n:
                 return {'class': cls, 'amount': int(n.group(1)), 'controller': self.value('target_controller', args[2].strip())}
+            # a `DynamicValue` amount (Meria's Outrider's domain count)
+            return {'class': cls, 'amount': self.amount(args[1]), 'controller': self.value('target_controller', args[2].strip())}
         # "at the beginning of the next end step, …": its effects then
         if cls == 'CreateDelayedTriggeredAbilityEffect' and len(args) == 2 and args[1].strip() == 'false':
             args = args[:1]
@@ -3589,6 +3600,10 @@ class Translator:
             amount = self.amount(args[0])
             return {'class': 'TargetPermanent', 'filter': [dict(CREATURE)] + self.filter(args[1]),
                     'min': fewest(amount), 'max': 99, 'distribute': amount}
+        # (amount, min, max, filter): a fixed amount among `min` to `max` creatures of the filter (The Earth Crystal)
+        if cls == 'TargetCreaturePermanentAmount' and len(args) == 4 and all(re.fullmatch(r'\d+', a.strip()) for a in args[:3]):
+            return {'class': 'TargetPermanent', 'filter': self.filter(args[3]),
+                    'min': int(args[1]), 'max': int(args[2]), 'distribute': int(args[0])}
         # X divided among creatures and/or planeswalkers of the filter (Dragonlord Atarka)
         if cls == 'TargetCreatureOrPlaneswalkerAmount' and len(args) == 2:
             amount = self.amount(args[0])
@@ -5748,6 +5763,13 @@ def transforming_double_faced(card_name, subtypes, facts, cls, source):
         if m:
             front['defense'] = int(m.group(1))
             continue
+        # a face's supertype added (Matzalantli's legendary back)
+        m = re.fullmatch(r'this\.get(Left|Right)HalfCard\(\)\.addSuperType\(SuperType\.(\w+)\)', st)
+        if m:
+            face = back if m.group(1) == 'Right' else front
+            if m.group(2) not in face.setdefault('supertypes', []):
+                face['supertypes'].append(m.group(2))
+            continue
         m = re.fullmatch(r'this\.get(Left|Right)HalfCard\(\)\.setPT\((-?\d+),(-?\d+)\)', st)
         if m:
             face = back if m.group(1) == 'Right' else front
@@ -5892,6 +5914,8 @@ def modal_double_faced(card_name, subtypes, facts, cls, source):
 def card_statement(t, st, card, added, spell, modes, subtypes):
     """One statement of a card's constructor"""
     st = re.sub(r'^(subtype|supertype|power|toughness)\b', r'this.\1', st)
+    # `addSubType(SubType.X)` adds to the same list (Faerie Mastermind)
+    st = re.sub(r'^(?:this\.)?addSubType\((.*)\)$', r'this.subtype.add(\1)', st)
     if True:
         m = re.fullmatch(r'super\(ownerId,setInfo,new CardType\[\]\{([^}]*)\},(".*?"|null)\)', st)
         if m:
@@ -6034,6 +6058,13 @@ def card_statement(t, st, card, added, spell, modes, subtypes):
             if len(a) == 2:
                 spell[key] = ([t.target(a[0])], [t.target(a[1])])
                 return
+        # Shatterskull Smashing: X divided among up to two creatures and/or planeswalkers, twice X if X is 6 or more
+        # (its adjuster's amount is a value handler)
+        if st == 'this.getSpellAbility().setTargetAdjuster(ShatterskullSmashingAdjuster.instance)' and not spell['targets'] \
+                and (amount := card_handlers.value(t, 'ShatterskullSmashingAdjuster.instance')) is not None:
+            spell['targets'].append({'class': 'TargetPermanent', 'filter': [{'p': 'or', 'xs': [CREATURE, type_pred('PLANESWALKER')]}],
+                                     'min': 0, 'max': 2, 'distribute': amount})
+            return
         # "with power (toughness) X or less": the spell's last target
         m = re.fullmatch(r'this\.getSpellAbility\(\)\.setTargetAdjuster\(new (Power|Toughness)TargetAdjuster\(ComparisonType\.(OR_LESS|OR_GREATER|EQUAL_TO|FEWER_THAN)\)\)', st)
         if m and spell['targets'] and spell['targets'][-1].get('class') == 'TargetPermanent':
