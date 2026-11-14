@@ -1123,6 +1123,13 @@ Being in the engine and being trusted are kept apart.
   order), Agency Coroner and Airtight Alibi (suspected as last known), Casey Jones (random discard), Incendiary Oracle
   and Draconic Intervention (`DamagedByWatcher` values), Kytheon (its back face's requirement effect), Fraying
   Sanity, Thirsting Axe and the cards with `CastFromHandSourcePermanentCondition`.
+  Text fixes for verified cards (13 Nov): the Young Hero Role's granted trigger keeps its own text, "put a +1/+1
+  counter on it" (its `AddCountersSourceEffect` has a `setText`), and a delayed upkeep transform is "Transform {this}
+  at the beginning of the next turn's upkeep." (`AtTheBeginOfNextUpkeepDelayedTriggeredAbility.getRule` puts the
+  effect first). Only those texts change in four verified cards: Embereth Veteran, Merry Bards and Protective Parents
+  (the Role) and Archangel Avacyn. A factory round (22 games, all matching) verified Furtive Courier and Ka-Zar of
+  the Savage Land, which the Role's text had held back: 10,649 of 10,804. Aang, at the Crossroads is pending. Two
+  games under `shadow/handlers/game-handlers-textfix-*` show Java's texts.
 
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory
