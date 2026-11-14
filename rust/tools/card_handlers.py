@@ -297,6 +297,11 @@ def trigger(t, cls, args):
                      getattr(t, 'source', '') or '', re.S)
     for m in re.finditer(r'(?:this\.)?addTarget\((.*?)\);', body.group(1) if body else '', re.S):
         a.setdefault('targets', []).append(t.target(m.group(1)))
+    # and the effects it adds (`this.addEffect(new GainLifeEffect(1).concatBy("and"))`), after the base's own; not
+    # when the base's effect is a card's own handler, which already does all of it (Preacher of the Schism)
+    if not any('handler' in e for e in a.get('effects', [])):
+        for m in re.finditer(r'(?:this\.)?addEffect\((new .*?)\);', body.group(1) if body else '', re.S):
+            a.setdefault('effects', []).append(t.effect(m.group(1)))
     a['java'] = cls
     a['check'] = name
     return a
