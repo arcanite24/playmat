@@ -497,6 +497,10 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                         (if who.is_empty() { you == active } else { Game::whose(who, you, active) })
                             && all.iter().filter(|a| g.filter_matches(filter, you, Some(src), **a)).count() >= *min
                     }
+                    // (whoever attacks: the filter says whose creatures)
+                    Trigger::AttacksPlayerWith { filter } => all
+                        .iter()
+                        .any(|a| g.obj(*a).attacking_pw.is_none() && g.filter_matches(filter, you, Some(src), *a)),
                     Trigger::Battalion => all.len() >= 3 && all.contains(&src),
                     _ => false,
                 });
@@ -869,7 +873,9 @@ fn draw_one(game: &mut Game, seat: Seat, applied: &[ObjId]) {
                 let drawn = game.player(seat).drawn;
                 let fired = game.triggers(sources, |_, _, you, t| match t {
                     Trigger::Draws { who } => Game::whose(who, you, seat),
-                    Trigger::DrawsNth { n } => you == seat && drawn == *n,
+                    Trigger::DrawsNth { n, who } => {
+                        Game::whose(who.as_deref().unwrap_or("you"), you, seat) && drawn == *n
+                    }
                     _ => false,
                 });
                 for mut t in fired {
@@ -1987,6 +1993,9 @@ fn castable(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> bool {
             let ok = pays(def.cost.clone())
                 || evoke.is_some_and(pays)
                 || alternative
+                // an alternate mana cost an effect set (`getCastSourceIdWithAlternateMana`): `ManaCosts.canPay`
+                // doesn't count the mana available, so it's playable whatever there is to pay with
+                || game.obj(id).pay_tax > 0
                 || !free_cast_sources(game, seat, id, def, game.obj(id).zone).is_empty();
             game.paying_for.set(None);
             ok
@@ -4013,7 +4022,11 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                 _ => return,
             }
         }
+        let play_tapped = game.obj(id).play_tapped;
         enter_battlefield(game, d, id, seat, false);
+        if play_tapped && game.obj(id).zone == Zone::Battlefield {
+            game.obj_mut(id).tapped = true;
+        }
         game.player_mut(seat).lands_played += 1;
         note(game, EventKind::Land, Some(seat), Some(id), None, 0);
         if log::kept(game) {
@@ -5384,7 +5397,8 @@ fn bargain_cost() -> CostDef {
     CostDef::SacrificeTargetCost { filter, amount: 1 }
 }
 
-fn modified_cost(game: &Game, seat: Seat, id: ObjId, cost: ManaCost) -> ManaCost {
+fn modified_cost(game: &Game, seat: Seat, id: ObjId, mut cost: ManaCost) -> ManaCost {
+    cost.generic += game.obj(id).pay_tax;
     modified_cost_of(game, seat, id, &game.obj(id).def, cost)
 }
 
@@ -6599,6 +6613,9 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             let Some(chosen) = choose_cards(game, d, seat, &hand, &possible, *amount, *amount, "discard") else {
                 return false;
             };
+            if let Some(top) = Arc::make_mut(&mut game.stack).last_mut() {
+                top.cost_discarded.extend(chosen.iter().copied());
+            }
             for o in chosen {
                 game.move_to(o, Zone::Graveyard);
             }
@@ -17551,6 +17568,10 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
     let (from, zcc) = (game.obj(id).zone, game.obj(id).zcc);
     let source = game.resolving.map(|(_, card)| card).filter(|c| *c != id);
     enter_battlefield_now(game, d, id, controller, kicked);
+    if game.obj(id).zone == Zone::Battlefield && game.obj(id).face_down {
+        let (seat, turn) = (game.obj(id).controller, game.turn);
+        game.player_mut(seat).face_down_turn = Some(turn);
+    }
     if log::kept(game) && game.obj(id).token && game.obj(id).zone == Zone::Battlefield {
         // `TokenImpl.putOntoBattlefield`
         let line = format!("{} creates a {} token", log::player(controller), log::object(game, id));
@@ -21135,6 +21156,8 @@ pub fn turn_face_up(game: &mut Game, id: ObjId, megamorph: bool) {
     for c in counters {
         add_counters_by(game, id, &c.name, c.amount, Some(controller));
     }
+    let turn = game.turn;
+    game.player_mut(controller).face_down_turn = Some(turn);
     let o = game.obj_mut(id);
     let Some(card) = o.face_up.take() else { return };
     o.def = card;

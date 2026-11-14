@@ -717,6 +717,11 @@ pub enum Trigger {
         #[serde(default)]
         who: String,
     },
+    /// you attack a player with one or more creatures of the filter (`AttacksPlayerWithCreaturesTriggeredAbility`,
+    /// `DEFENDER_ATTACKED`: a planeswalker attacked doesn't count)
+    AttacksPlayerWith {
+        filter: Filter,
+    },
     /// this leaves the battlefield
     LeavesBattlefield,
     /// heroic: you cast a spell that targets this (`HeroicAbility`)
@@ -795,9 +800,12 @@ pub enum Trigger {
     },
     /// this is dealt damage (`DealtDamageToSourceTriggeredAbility`: once for each batch, with the damage as X)
     DealtDamage,
-    /// you draw your `n`th card this turn (`DrawNthCardTriggeredAbility`)
+    /// you draw your `n`th card this turn (`DrawNthCardTriggeredAbility`); `who` another `TargetController`
+    /// ("opponent": an opponent draws their `n`th card, "any": a player does)
     DrawsNth {
         n: u32,
+        #[serde(default)]
+        who: Option<String>,
     },
     /// this, or with `filter` a permanent of it, deals damage (`DAMAGED_BATCH_BY_SOURCE`: once for each source's
     /// batch, X the batch's damage); `DealsDamageSourceTriggeredAbility`, `DealsCombatDamageTriggeredAbility` and

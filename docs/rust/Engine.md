@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (11,066 on 14 Nov). A card whose JSON the engine can't load yet is left out
+  can express (11,099 on 14 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -873,6 +873,42 @@ Being in the engine and being trusted are kept apart.
   - Most of the rest need machinery that isn't there yet: changing or copying targets on the stack, triggered mana
     abilities, mana kept until end of turn, damage-to-a-creature and fight triggers, "don't lose for 0 life",
     exploit, devour, random discard, and the "or dying" half of `DontCauseTriggerEffect`.
+
+  Wave 6, claim 5 (the most-used cards of that list first). New per-card handlers: Kumena's Speaker, Shatterskull
+  Smashing, Argentum Masticore, Malcolm, Drown in the Loch, Void Winnower, Matzalantli, Tiller of Flesh, Oviya
+  Pashiri, Ajani Unrelenting, Akiri (its trigger is checked only as it triggers), Vincent Valentine and Death's
+  Presence (the died creature's last power, from the dies trigger's `died` of #351), Grab the Prize, Lightstall
+  Inquisitor and Oblivious Bookworm. Paradox Shaper and Stingerquill use master's `source_prepared` condition, and
+  Huatli and Belligerent Brontodon master's toughness pieces from #349. Engine changes: `DrawsNth` takes `who` (an
+  opponent's second card: Faerie Mastermind); `AttacksPlayerWith` is `AttacksPlayerWithCreaturesTriggeredAbility`;
+  a spell keeps the cards its discard cost discarded (`cost_discarded`); a prepared copy is cast by its permanent's
+  current controller; a permanent that leaves transformed keeps its back face as last known information, so only
+  that face's dies triggers fire; a card played from exile with an alternate mana cost (`pay_tax`, Lightstall's
+  mana cost plus {1}) is playable whatever mana there is, as Java's `ManaCosts.canPay` doesn't count it, and a land
+  played that way can enter tapped (`play_tapped`); each player keeps the turn a permanent entered face down under
+  their control or they turned one face up (`face_down_turn`). The transpiler reads a filter declared with a
+  wildcard type (`FilterObject<?>`). Four factory rounds (94 games; 86 match on master after #354) verified 32
+  more: 10,916 of 11,099. The regression games are `shadow/factory/game-draws-nth-opponent.json`,
+  `game-attacks-player-with-equipped`, `game-dies-trigger-died-power`, `game-discard-cost-cards-discarded`,
+  `game-prepared-copy-controller-casts`, `game-transformed-dies-back-face`, `game-exile-alternate-mana-land-tapped`
+  and `game-face-down-this-turn`, plus `shadow/handlers/game-handlers6-claim5-*`.
+
+  Left from claim 5:
+  - Picnic Ruiner translates but its games differ on the Young Hero Role's granted trigger text: Java keeps the
+    effect's `setText("put a +1/+1 counter on it")`, the transpiler writes "on {this}". Fixing it changes Merry Bards,
+    which is verified, so it waits for a change that regenerates that card on purpose.
+  - Aang, at the Crossroads and Archangel Avacyn: their delayed transform trigger reads "At the beginning of the
+    next turn's upkeep, transform {this}." on master, where Java's traces read "Transform {this} at the beginning
+    of the next turn's upkeep." (6 of this claim's games differ on it). #352 fixes the text; Aang stays
+    unverified meanwhile.
+  - Void Winnower: pending (not exercised enough yet).
+  - Needs engine work: copying or changing targets (Bolt Bend, Ertha Jo, Illusionist's Bracers, Fire Lord Azula,
+    Repeated Reverberation), meld (Bruna), extra combats (Moraug), "can't attack you" (Storm, Windrider), a
+    cast trigger from the graveyard (Kozilek's Return), conditional mana from a loyalty ability (Sarkhan, Fireblood),
+    paying {X} inside an effect (Tilonalli's Summoner), "triggers don't trigger" (Elesh Norn, Doorkeeper Thrull),
+    "one or more cards milled" batches (Sidisi), Treasure-spent tracking (Smaug), and about 90 more low-use cards
+    with their own effect classes.
+  - Java's order can't be reproduced: Deadbridge Chant and Getaway Barrel pick from a `HashSet`.
 
       W=.local/rust-port/factory
       python3 rust/tools/verify_factory.py build --work $W --priority .local/rust-port/card-priority.tsv --used-only

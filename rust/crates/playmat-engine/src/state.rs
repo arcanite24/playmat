@@ -285,6 +285,11 @@ pub struct Obj {
     pub play_tax: u32,
     /// cast from exile, its mana cost is this instead (airbend's {2}: `setCastSourceIdWithAlternateMana`)
     pub play_cost: Option<crate::card::ManaCost>,
+    /// played from exile as a land, it enters tapped (Lightstall Inquisitor's `CardMorEnteringTappedEffect`)
+    pub play_tapped: bool,
+    /// cast from exile, it costs this much more as it's paid, but not in the playable check (Lightstall
+    /// Inquisitor's `setCastSourceIdWithAlternateMana`: its mana cost plus {1})
+    pub pay_tax: u32,
     /// cast for its warp cost (on the stack, then on the battlefield)
     pub warped: bool,
     /// cast for its evoke cost
@@ -498,6 +503,9 @@ pub struct Player {
     pub life_lost_last_turn: i32,
     /// "you gain hexproof until end of turn" (Lazotep Plating): the turn
     pub hexproof_turn: Option<u32>,
+    /// the last turn a permanent entered face down under their control or they turned one face up (Oblivious
+    /// Bookworm's watcher)
+    pub face_down_turn: Option<u32>,
 }
 
 impl Player {
@@ -660,6 +668,8 @@ pub struct StackItem {
     /// a "whenever a permanent of the filter leaves the battlefield" trigger: the permanent that left (Java's
     /// `getValue("permanentLeftBattlefield")`), as the object it became
     pub left: Option<ObjId>,
+    /// the cards its `DiscardCardCost` discarded (`DiscardCardCost.getCards`)
+    pub cost_discarded: Vec<ObjId>,
 }
 
 /// An ability a resolved effect gave one object.
@@ -736,6 +746,7 @@ impl StackItem {
             cast_spell: None,
             died: None,
             left: None,
+            cost_discarded: Vec::new(),
         }
     }
 }
@@ -1473,6 +1484,8 @@ impl Game {
             cast_only: false,
             play_tax: 0,
             play_cost: None,
+            play_tapped: false,
+            pay_tax: 0,
             warped: false,
             evoked: false,
             impending: false,
@@ -2264,8 +2277,15 @@ impl Game {
     /// Whether `seat` may play `id` now by an effect that made it playable (`may_play`, with its end)
     pub fn may_play_now(&self, id: ObjId, seat: Seat) -> bool {
         let o = self.obj(id);
+        // a prepared copy: its permanent's controller casts it (`PrepareCastFromExileEffect`), whoever made it
+        let caster = |p: Seat| match o.prepared_for {
+            Some((perm, zcc)) if self.obj(perm).zone == Zone::Battlefield && self.obj(perm).zcc == zcc => {
+                self.obj(perm).controller
+            }
+            _ => p,
+        };
         o.may_play.is_some_and(|(p, t)| {
-            p == seat
+            caster(p) == seat
                 && (self.turn < t
                     || (self.turn == t
                         && !(o.may_play_end_step && matches!(self.step, Some(Step::EndTurn | Step::Cleanup)))))
@@ -3803,7 +3823,7 @@ impl Game {
             self.obj_mut(id).lki_keywords = kept;
             let o = self.obj_mut(id);
             // (a face-down one had none of its card's: its dies triggers don't fire)
-            o.lki_def = (o.land_type_base.is_some() || o.face_up.is_some()).then(|| o.def.clone());
+            o.lki_def = (o.land_type_base.is_some() || o.face_up.is_some() || o.front.is_some()).then(|| o.def.clone());
         } else {
             let o = self.obj_mut(id);
             o.lki_keywords.clear();
@@ -3862,6 +3882,8 @@ impl Game {
             o.transformed_in_place = false;
             o.play_tax = 0;
             o.play_cost = None;
+            o.play_tapped = false;
+            o.pay_tax = 0;
             o.exerted = false;
             o.powered_up = false;
             o.marks.clear();
