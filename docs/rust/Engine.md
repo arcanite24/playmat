@@ -739,6 +739,15 @@ Being in the engine and being trusted are kept apart.
   Launderer, Confront the Past and others need a handler kind of their own), the long tail of
   `ConditionalColoredManaAbility`/`SimpleManaAbility` forms, and granted statics on Equipment.
 
+  Wave 10, claim 2b (14 Nov): 52 one-shot handler files (Mister Negative's life exchange, Mishra's Command's discard
+  of up to X, Feldon's exile-and-play, Vivien's Arkbow, Doom Foretold, Final Parting and others). Two engine fixes,
+  each with a game under `shadow/handlers/game-handlers10-c2b-*`: a token made by a cast split card's half looks for
+  its image in the whole card's set (Incongruity's Frog Lizard drew a random number Java doesn't), and lore counters
+  an effect puts on a Saga (proliferate) trigger the chapters they reach. Four factory rounds (98 games, 94 matching)
+  verified 48. Left: Soul of Emancipation (its Angels are made in the `HashMap` order of the players' ids, which the
+  engine doesn't model, when both players lose permanents), and Enter the God-Eternals, Sin Prodder and Spry and
+  Mighty, blamed for one game each that differs elsewhere (Soul of Emancipation's Angels, Shadowed Caravel's crew).
+
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory
   rounds (106 games, 104 matching, replayed again on the engine with the static and claim-2 handlers) verified 58:
