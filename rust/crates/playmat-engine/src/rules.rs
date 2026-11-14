@@ -4827,6 +4827,7 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         let p = game.player_mut(seat);
         p.flier_cast |= flier;
         p.spells_cast += 1;
+        p.cast_this_game.push(def.name.clone());
         if !def.is(CardType::Creature) {
             p.noncreature_cast += 1;
         }

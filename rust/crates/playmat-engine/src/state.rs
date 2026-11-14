@@ -467,6 +467,8 @@ pub struct Player {
     /// spells they cast this turn, and how many of them were instants or sorceries
     pub spells_cast: u32,
     pub instants_sorceries_cast: u32,
+    /// the names of the spells they cast this game, in order (`ApproachOfTheSecondSunWatcher`)
+    pub cast_this_game: Vec<String>,
     /// spells they cast last turn (`CastSpellLastTurnWatcher.getAmountOfSpellsCastOnPrevTurn`)
     pub spells_cast_last_turn: u32,
     /// permanents sacrificed this turn (`PermanentsSacrificedWatcher`)
