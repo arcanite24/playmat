@@ -15,6 +15,7 @@ Abandoned Campground
 Abbot of Keral Keep
 Abhorrent Oculus
 Abigale, Poet Laureate
+Abnormal Endurance
 Abomination of Gudul
 Abomination, Terrifying Titan
 Abrade
@@ -248,6 +249,7 @@ Alley Evasion
 Alley Strangler
 Allied Assault
 Allied Reinforcements
+Allies at Last
 Alloy Animist
 Ally Encampment
 Almighty Brushwagg
@@ -305,6 +307,7 @@ Ancient Silverback
 Ancient Stirrings
 Andoria
 Angel of Condemnation
+Angel of Deliverance
 Angel of Finality
 Angel of Invention
 Angel of Renewal
@@ -415,6 +418,7 @@ Arcane Subtraction
 Arcanis the Omnipotent
 Arcanist's Owl
 Archaeomancer
+Archangel Avacyn
 Archangel of Thune
 Archdruid's Charm
 Archenemy's Charm
@@ -665,6 +669,7 @@ Baloth Null
 Baloth Pup
 Balustrade Wurm
 Bamboo Grove Archer
+Band Together
 Bandit's Haul
 Bane Alley Blackguard
 Bane of Bala Ged
@@ -678,6 +683,7 @@ Banishing Light
 Banishing Slash
 Bankrupt in Blood
 Baral's Expertise
+Barbed Bloodletter
 Bard the Bowman
 Bard's Bow
 Bard, King of Dale
@@ -1701,6 +1707,7 @@ Commanding Presence
 Commercial District
 Common Bond
 Common Crook
+Common Goal
 Commune with Beavers
 Commune with Dinosaurs
 Commune with Evil
@@ -1778,6 +1785,7 @@ Convolute
 Cooped Up
 Coordinated Assault
 Coordinated Charge
+Coordinated Clobbering
 Coordinated Maneuver
 Copper Longlegs
 Coppercoat Vanguard
@@ -2019,6 +2027,7 @@ Dark Favor
 Dark Fortress
 Dark Inquiry
 Dark Nourishment
+Dark Petition
 Dark Prophecy
 Dark Remedy
 Dark Revenant
@@ -2420,6 +2429,7 @@ Dragon Trainer
 Dragon Turtle
 Dragon Whelp
 Dragon Whisperer
+Dragon's Eye Savants
 Dragon's Eye Sentry
 Dragon's Hoard
 Dragon's Rage Channeler
@@ -2514,6 +2524,7 @@ Dromoka Monument
 Dromoka Warrior
 Dromoka's Gift
 Dromoka, the Eternal
+Dropkick Bomber
 Dross Skullbomb
 Drover Grizzly
 Drover of the Mighty
@@ -3095,6 +3106,7 @@ Feed the Cycle
 Feed the Flames
 Feed the Serpent
 Feed the Swarm
+Feign Death
 Feisty Spikeling
 Feldon's Cane
 Felhide Minotaur
@@ -3701,6 +3713,7 @@ Glistener Seer
 Glistening Deluge
 Glister Bairn
 Glittermonger
+Gloin the Mighty
 Gloom Pangolin
 Gloom Sower
 Gloomfang Mauler
@@ -3839,6 +3852,7 @@ Graaz, Unstoppable Juggernaut
 Grabby Giant
 Graceblade Artisan
 Graceful Cat
+Graceful Takedown
 Graduation Day
 Graf Harvest
 Graf Mole
@@ -4413,6 +4427,7 @@ Hunter's Axe
 Hunter's Blowgun
 Hunter's Edge
 Hunter's Mark
+Hunter's Prowess
 Hunter's Talent
 Hurler Cyclops
 Hurloon Battle Hymn
@@ -4551,6 +4566,7 @@ Infested Fleshcutter
 Infirmary Healer
 Informed Inkwright
 Infuriate
+Infuse with Vitality
 Infuse with the Elements
 Ingenious Prodigy
 Ingenious Skaab
@@ -5178,6 +5194,7 @@ Letter of Acceptance
 Levitating Statue
 Leyline Axe
 Leyline Binding
+Leyline Phantom
 Leyline Prowler
 Leyline of Anticipation
 Leyline of Hope
@@ -5521,6 +5538,7 @@ Mardu Scout
 Mardu Shadowspear
 Mardu Skullhunter
 Mardu Strike Leader
+Mardu Warshrieker
 Mardu Woe-Reaper
 Marionette Master
 Maritime Guard
@@ -5556,6 +5574,7 @@ Masked Vandal
 Mass Calcify
 Mass Manipulation
 Mass Production
+Massacre Girl, Known Killer
 Massacre Wurm
 Massive Might
 Massive Raid
@@ -6238,6 +6257,7 @@ Old Gnawbone
 Old Rutstein
 Old Stickfingers
 Old-Growth Troll
+Olivia's Attendants
 Olivia's Bloodsworn
 Olivia's Dragoon
 Ollenbock Escort
@@ -6275,6 +6295,7 @@ Ooze Spill
 Opal Lake Gatekeepers
 Opaline Unicorn
 Open Fire
+Open into Wonder
 Open the Armory
 Open the Gates
 Open the Graves
@@ -6386,6 +6407,7 @@ Pack's Favor
 Packsong Pup
 Pactdoll Terror
 Padeem, Consul of Innovation
+Pain 101
 Pain Seer
 Painful Lesson
 Painful Truths
@@ -6464,6 +6486,7 @@ Perennial Behemoth
 Perfect Intimidation
 Perfected Theory
 Perforating Artist
+Perigee Beckoner
 Perilous Shadow
 Perilous Vault
 Perils of the Past
@@ -6847,6 +6870,7 @@ Quiet Contemplation
 Quill-Blade Laureate
 Quilled Charger
 Quilled Wolf
+Quintessential Katana
 Quintorius, Field Historian
 Quirion Beastcaller
 Quirion Dryad
@@ -6971,6 +6995,7 @@ Ratcatcher Trainee
 Ratchet Bomb
 Rattleback Apothecary
 Rattlechains
+Rattleclaw Mystic
 Raucous Audience
 Raucous Carnival
 Raucous Entertainer
@@ -7207,6 +7232,7 @@ Retrieve
 Return Upon the Tide
 Return from the Wilds
 Return of the Wildspeaker
+Return to Action
 Return to Nature
 Return to the Earth
 Return to the Ranks
@@ -8854,6 +8880,7 @@ Super Strength
 Super Suit
 Super Villain Lockup
 Super-Skrull
+Supernatural Stamina
 Suplex
 Supplant Form
 Supply Caravan
@@ -9005,6 +9032,7 @@ Tamiyo's Journal
 Tamiyo's Safekeeping
 Tanazir Quandrix
 Tandem Tactics
+Tandem Takedown
 Tangle Tumbler
 Tangleclaw Werewolf
 Tangled Florahedron
@@ -9124,6 +9152,7 @@ Terramorphic Expanse
 Terrarion
 Terrasymbiosis
 Terrian, World Tyrant
+Terrific Team-Up
 Territorial Allosaurus
 Territorial Baloth
 Territorial Boar
@@ -9474,6 +9503,7 @@ Tower Drake
 Tower Geist
 Towering Indrik
 Towering Thunderfist
+Towering-Wave Mystic
 Town Gossipmonger
 Town Greeter
 Toxic Abomination
@@ -9811,6 +9841,7 @@ Utrom Scientists
 Utter End
 Utvara Hellkite
 Uurg, Spawn of Turg
+V'Ger, the Intruder
 Vadmir, New Blood
 Valakut Awakening
 Valakut Exploration
