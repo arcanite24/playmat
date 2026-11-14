@@ -120,6 +120,9 @@ EFFECTS = {
     'AddExtraTurnControllerEffect': [],
     'AddCombatAndMainPhaseEffect': [],
     'ExileSpellEffect': [],
+    # enter the first room of a dungeon, or advance to the next (`Game.ventureIntoDungeon`)
+    'VentureIntoTheDungeonEffect': [],
+    'CipherEffect': [],
     'RemoveUpToAmountCountersEffect': [('amount', 'int')],
     # (first, second): damage to the targets tagged 1 and 2, the ability's first and second targets
     'DamageTargetAndTargetEffect': [('first', 'int'), ('second', 'int')],
@@ -712,6 +715,8 @@ CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'},
               'MyTurnCondition.instance': {'c': 'my_turn'},
               'FirstCombatPhaseCondition.instance': {'c': 'first_combat_phase'},
               'MorbidCondition.instance': {'c': 'morbid'},
+              'CompletedDungeonCondition.instance': {'c': 'completed_dungeon'},
+              'LandfallCondition.instance': {'c': 'landfall'},
               'MomoFriendlyFlierCondition.instance': {'c': 'and', 'xs': [{'c': 'my_turn'}, {'c': 'not', 'x': {'c': 'flier_cast'}}]},
               'YouGainedLifeCondition.getZero()': {'c': 'you_gained_life'},
               'SolvedSourceCondition.SOLVED': {'c': 'solved'},
@@ -1178,7 +1183,8 @@ KEPT_WATCHERS = {'ScryOrSurveilWatcher', 'SpellsCastWatcher', 'PermanentsSacrifi
                  'DiscardedCardWatcher', 'PlayerLostLifeWatcher', 'AttackedThisTurnWatcher', 'CrewedVehicleWatcher',
                  'CardsPutIntoGraveyardWatcher', 'CommittedCrimeWatcher',
                  'CreaturesDiedWatcher', 'ArtifactEnteredControllerWatcher', 'CreatureEnteredControllerWatcher',
-                 'PermanentsEnteredBattlefieldWatcher', 'CardsExiledThisTurnWatcher', 'PlayerGainedLifeWatcher'}
+                 'PermanentsEnteredBattlefieldWatcher', 'CardsExiledThisTurnWatcher', 'PlayerGainedLifeWatcher',
+                 'CompletedDungeonWatcher', 'LandfallWatcher'}
 
 # abilities every card has, which the constructor doesn't add
 IMPLICIT = {'SpellAbility', 'PlayLandAbility', 'AdventureCardSpellAbility', 'OmenCardSpellAbility', 'PrepareCardSpellAbility'}
@@ -2763,8 +2769,10 @@ class Translator:
             return {'class': 'RevealUntilToHandEffect', 'filter': self.filter(args[0])}
         if cls == 'GainControlAllControlledTargetEffect' and len(args) == 1:
             return {'class': cls, 'filter': self.filter(args[0])}
-        if cls == 'CantAttackTargetEffect' and [a.strip() for a in args] == ['Duration.EndOfTurn']:
-            return {'class': 'GainAbilityTargetEffect', 'ability': {'class': 'CantAttackAbility'}, 'duration': 'EndOfTurn'}
+        if cls == 'CantAttackTargetEffect' and len(args) == 1 \
+                and args[0].strip() in ('Duration.EndOfTurn', 'Duration.UntilYourNextTurn'):
+            return {'class': 'GainAbilityTargetEffect', 'ability': {'class': 'CantAttackAbility'},
+                    'duration': DURATIONS[args[0].strip()]}
         if cls in ('TapEnchantedEffect', 'DontUntapInControllersUntapStepEnchantedEffect') and len(args) <= 1:
             return {'class': cls}
         if cls in ('DiscardHandDrawSameNumberSourceEffect', 'MustBeBlockedByAtLeastOneSourceEffect') and not args:
@@ -4090,6 +4098,23 @@ class Translator:
         if cls == 'FlashbackAbility' and len(args) == 2 and args[0].strip() == 'this' \
                 and re.fullmatch(r'new (Sacrifice|Discard|Exile|PayLife|Tap)\w*Cost\(.*\)', args[1].strip(), re.S):
             return {'class': cls, 'java': cls, 'cost': '', 'costs': [self.cost(args[1])]}
+        # Beam me up: flashback for a mana cost that also returns a creature you control to its owner's hand
+        # (`BeamMeUpAbility`, a `CastFromGraveyardAbility` like flashback, exiled the same way)
+        if cls == 'BeamMeUpAbility' and len(args) == 2 and args[0].strip() == 'this' \
+                and re.fullmatch(r'"(\{[^"]*\})+"', args[1].strip()):
+            back = {'class': 'ReturnToHandChosenControlledPermanentCost', 'filter': [type_pred('CREATURE')], 'amount': 1}
+            return {'class': 'FlashbackAbility', 'java': cls, 'cost': args[1].strip()[1:-1], 'costs': [back]}
+        # "whenever you complete a dungeon" (`DUNGEON_COMPLETED`), from the battlefield or (Dungeon Crawler) the graveyard
+        if cls == 'CompletedDungeonTriggeredAbility' and 1 <= len(args) <= 3:
+            graveyard = len(args) == 3 and args[0].strip() == 'Zone.GRAVEYARD'
+            if len(args) == 3 and not graveyard and args[0].strip() != 'Zone.BATTLEFIELD':
+                raise Unsupported('ability CompletedDungeonTriggeredAbility from ' + args[0])
+            rest = args[1:] if len(args) == 3 else args
+            optional = len(rest) == 2 and rest[1].strip() == 'true'
+            if len(rest) == 2 and rest[1].strip() not in ('true', 'false'):
+                raise Unsupported('ability CompletedDungeonTriggeredAbility ' + rest[1])
+            return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'completed_dungeon', 'graveyard': graveyard},
+                    'effects': [self.effect(rest[0])], 'optional': optional}
         if cls == 'LeylineAbility' and not args:
             return {'class': cls, 'java': cls}
         if cls == 'ClassReminderAbility' and not args:
@@ -7154,7 +7179,8 @@ def balanced_args(source, start):
 
 NAMED_HINTS = {'CanPlayAdditionalLandsHint', 'DayNightHint', 'ClassLevelHint', 'OpenSideboardHint',
                'OpponentsLostLifeHint', 'CreaturesYouControlHint', 'RaidHint', 'MyTurnHint', 'MorbidHint',
-               'FerociousHint', 'LandsYouControlHint', 'BargainCostWasPaidHint', 'TeamworkCostWasPaidHint'}
+               'FerociousHint', 'LandsYouControlHint', 'BargainCostWasPaidHint', 'TeamworkCostWasPaidHint',
+               'CurrentDungeonHint'}
 
 
 def _cond_hint(c, text):
@@ -7366,6 +7392,67 @@ def emblem(cls):
     return out
 
 
+DUNGEONS = os.path.join(ROOT, 'Mage', 'src', 'main', 'java', 'mage', 'game', 'command', 'dungeons')
+# the dungeons a player can choose to venture into (`Dungeon.dungeonNames`; the Undercity is the initiative's)
+DUNGEON_CLASSES = ['TombOfAnnihilationDungeon', 'LostMineOfPhandelverDungeon', 'DungeonOfTheMadMageDungeon']
+VENTURE = ('VentureIntoTheDungeonEffect', 'CompletedDungeon')
+
+
+def dungeon(cls):
+    """A dungeon class from Mage/…/command/dungeons, as a card the engine puts in the command zone: its rooms (name and
+    the rooms each leads to, in the order it adds them) and each room's triggered ability ("when you enter this room",
+    `RoomTriggeredAbility`), with the rule texts of its facts (`dungeon:<class>`)"""
+    path = os.path.join(DUNGEONS, cls + '.java')
+    if not os.path.exists(path):
+        raise Unsupported('no dungeon class ' + cls)
+    source = open(path).read()
+    m = re.search(r'public ' + cls + r'\(\)\s*\{(.*?)\n    \}', source, re.S)
+    if not m:
+        raise Unsupported('dungeon constructor ' + cls)
+    subtypes = subtype_names()
+    t = Translator(declared_filters(source, subtypes), card_conditions(source), subtypes)
+    # (the dungeon file's own classes have handlers: `card_handlers.find` reads its outer class)
+    t.source = source
+    card_handlers.SOURCE = source
+    out = {'name': '', 'class': cls, 'types': [], 'abilities': [], 'rooms': []}
+    rooms, order = {}, []
+    for st in statements(m.group(1)):
+        if (n := re.fullmatch(r'super\("([^"]+)"\)', st)):
+            out['name'] = n.group(1)
+        elif (n := re.fullmatch(r'DungeonRoom (\w+)=new DungeonRoom\(("[^"]+")(?:,(.*))?\)', st, re.S)):
+            effects = [t.effect(e) for e in split_args(n.group(3) or '')]
+            rooms[n.group(1)] = {'name': json.loads(n.group(2)), 'effects': effects, 'targets': [], 'next': []}
+        elif (n := re.fullmatch(r'(\w+)\.addTarget\((.*)\)', st, re.S)) and n.group(1) in rooms:
+            rooms[n.group(1)]['targets'].append(t.target(n.group(2)))
+        elif (n := re.fullmatch(r'(\w+)\.addNextRoom\((\w+)\)', st)) and n.group(1) in rooms:
+            rooms[n.group(1)]['next'].append(n.group(2))
+        elif (n := re.fullmatch(r'this\.addRoom\((\w+)\)', st)) and n.group(1) in rooms:
+            order.append(n.group(1))
+        else:
+            raise Unsupported('dungeon statement ' + st)
+    facts = FACTS.get('dungeon:' + cls)
+    if facts is None:
+        raise Unsupported('no dungeon facts ' + cls)
+    if len(facts) != len(order):
+        raise Unsupported('dungeon facts ' + cls)
+    for i, (var, fact) in enumerate(zip(order, facts)):
+        r = rooms[var]
+        out['rooms'].append({'name': r['name'], 'next': [order.index(x) for x in r['next']]})
+        out['abilities'].append({'class': 'TriggeredAbility', 'on': {'e': 'room_entered', 'room': i},
+                                 'effects': r['effects'], 'targets': r['targets'], 'optional': False,
+                                 'rule': fact['rule']})
+    images = EXTRA.get('dungeon:' + cls, {}).get('images') or {}
+    # (one image each: `setSourceObjectAndInitImage` picks it without the game's random)
+    out['set'] = sorted(images)[0] if images else ''
+    strip_java(out)
+    return out
+
+
+def ventures(source):
+    """whether a card's source ventures into the dungeon or cares about completing one"""
+    return any(v in source for v in VENTURE)
+
+
 def emblem_classes(names):
     """The emblem classes the pool's cards give (`new XEmblem()`), for the facts"""
     out = set()
@@ -7418,6 +7505,10 @@ def token_classes(names):
             out.add(role.title().replace('_', '') + 'RoleToken')
     # the tokens per-card handlers declare (`.tokens(&[…])`: Quartzwood Crasher's `new DinosaurBeastToken(x)`)
     out.update(t for h in card_handlers.handlers().values() for t in h['tokens'])
+    # the tokens the dungeons' rooms make
+    for cls in DUNGEON_CLASSES:
+        for m in re.finditer(r'new (\w+Token)\(\)', open(os.path.join(DUNGEONS, cls + '.java')).read()):
+            out.add(m.group(1))
     return sorted(out)
 
 
@@ -7550,6 +7641,10 @@ def granted_rules(card):
             if g['rule'].endswith('investigate.') and 'new InvestigateEffect()' in card_source(card.get('name')):
                 g['rule'] += (' <i>(Create a Clue token. It\'s an artifact with "{2}, Sacrifice this artifact: Draw a'
                               ' card.")</i>')
+            # `VentureIntoTheDungeonEffect()` writes its reminder text after "venture into the dungeon." (Fly's)
+            if g['rule'].endswith('venture into the dungeon.') and \
+                    [e.get('class') for e in g.get('effects', [])][-1:] == ['VentureIntoTheDungeonEffect']:
+                g['rule'] += ' <i>(Enter the first room or advance to the next room.)</i>'
             # `ManifestEffect(1)` writes its reminder text after "manifest the top card of your library."
             # (Whisperwood Elemental's granted dies trigger)
             if g['rule'].endswith('manifest the top card of your library.') and \
@@ -7655,7 +7750,8 @@ def main():
     if args.write_facts_pool:
         with open(args.write_facts_pool, 'w') as f:
             f.write('\n'.join(pool + ['token:' + t for t in token_classes(pool)]
-                              + ['emblem:' + e for e in emblem_classes(pool)]) + '\n')
+                              + ['emblem:' + e for e in emblem_classes(pool)]
+                              + ['dungeon:' + d for d in DUNGEON_CLASSES]) + '\n')
         return
     subtypes = subtype_names()
     facts = {c['name']: c['abilities'] for c in json.load(open(args.facts))}
@@ -7709,7 +7805,21 @@ def main():
             report.append('%s: %s' % (name, e))
         except Exception as e:  # noqa: BLE001: a card source the transpiler's patterns don't expect at all
             report.append('%s: CRASH %s %s' % (name, type(e).__name__, e))
+    # the dungeons a player ventures into, beside the cards (`cards/dungeons.json`); a card that ventures needs them
+    dungeons = []
+    for cls in DUNGEON_CLASSES:
+        try:
+            dungeons.append(dungeon(cls))
+        except Unsupported as e:
+            report.append('%s: %s' % ('dungeon:' + cls, e))
+    if len(dungeons) < len(DUNGEON_CLASSES):
+        for c in list(cards):
+            if ventures(card_source(c['name']) or ''):
+                cards.remove(c)
+                report.append('%s: a dungeon not translated' % c['name'])
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
+    with open(os.path.join(os.path.dirname(args.out), 'dungeons.json'), 'w') as f:
+        f.write('[\n' + ',\n'.join(json.dumps(d, sort_keys=True) for d in dungeons) + '\n]\n')
     with open(args.out, 'w') as f:
         f.write('[\n' + ',\n'.join(json.dumps(c, sort_keys=True) for c in sorted(cards, key=lambda c: c['name'])) + '\n]\n')
     custom_effects.write_log()

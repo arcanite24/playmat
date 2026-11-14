@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (11,322 on 14 Nov). A card whose JSON the engine can't load yet is left out
+  can express (11,375 on 14 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -738,6 +738,45 @@ Being in the engine and being trusted are kept apart.
   (`WhileOnBattlefield` subtype ending with its source), card-specific target adjusters (Agadeem's Awakening, Body
   Launderer, Confront the Past and others need a handler kind of their own), the long tail of
   `ConditionalColoredManaAbility`/`SimpleManaAbility` forms, and granted statics on Equipment.
+
+  Wave 7, area D (14 Nov): dungeons, BeamMeUp and cipher.
+  - Dungeons: the transpiler's `dungeon` reads the three dungeon classes (`mage.game.command.dungeons`) into
+    `cards/dungeons.json`: a room trigger for each room, and the rooms each leads to. `CardFactsTest` takes
+    `dungeon:<class>` pool lines for their rule texts, and `--write-facts-pool` adds them.
+  - Venturing (`VentureIntoTheDungeonEffect`, `Game.ventureIntoDungeon`) asks "Choose a dungeon to venture into"
+    when you have none, puts it in the command zone (a command object, like an emblem), and moves to the first room,
+    or to the next one ("Choose which room to go to in …" when there are two). Entering a room triggers it.
+  - A dungeon on its last room with no room trigger left on the stack or waiting is completed by a state-based
+    action. It leaves the command zone, counts for `CompletedDungeonCondition` (`CompletedDungeonWatcher`), and fires
+    `CompletedDungeonTriggeredAbility`, from the battlefield or the graveyard.
+  - The command zone's view shows the dungeon as Java's `Dungeon.getRules` writes it, and `CurrentDungeonHint`.
+  - Handlers cover the rooms with their own classes: Veils of Fear, Oubliette and Sandfall Cell, Runestone Caverns
+    and Mad Wizard's Lair. Veils of Fear and Sandfall Cell apply their results in turn order. Java uses a `HashMap`
+    of player ids there, so with more than two players the order can differ.
+  - BeamMeUp is flashback whose cost adds returning a creature you control to its owner's hand.
+  - Cipher (`CipherEffect`): "Cipher this spell to a creature?", then a creature you control. The card is exiled,
+    and the creature gains, for as long as it stays, "whenever this creature deals combat damage to a player, you may
+    cast a copy of <card> without paying its mana cost" (`CipherStoreEffect`). The copy has no cipher, nor its text,
+    which `tryToAutoChoose` reads ("exile" kept Midnight Recovery's copy from choosing its one target by itself).
+  - Java's stack text for that trigger names the card by its log name, object id included. The id is random in every
+    run, so Java's `StateFingerprint` now writes the name alone there (docs/rust/StateFingerprint.md), and the round
+    with cipher cards was recorded again with it.
+  - Fix: a token copy no longer copies abilities an effect granted, or a static's land types (`copiable()`). Stolen
+    Identity copied a creature together with its cipher trigger (`game-w7d-token-copy-without-granted-trigger`).
+  - Also: `LandfallCondition`, `CantAttackTargetEffect` until your next turn, Ellywick Tumblestrum's emblem value,
+    Hidden Strings, Whispering Madness, and the reminder text of a granted venture trigger (Fly).
+  - 53 cards came in (11,375 in the engine). Two factory rounds (94 games, 90 matching, 2 unfinished in Java, replayed again on master after #355 and #356)
+    verified 51: 11,180 of 11,375. Nine games under `shadow/mechanics/game-w7d-*` cover them.
+  - Left:
+    - Voidwalk: two cipher triggers on one creature go on the stack in a different order than Java's (round-002
+      game-00115).
+    - Last Thoughts: the game that differs parts on Unscrupulous Contractor's reflexive trigger and Crow of Dark
+      Tidings' dies trigger. Both cards were already verified. Java puts the reflexive trigger on the stack first,
+      and the engine puts it second (round-002 game-00051).
+    - Barrowin of Clan Undurr (`OneShotNonTargetEffect`) and Eccentric Apprentice (its own type-changing effect).
+    - Find the Path (a mana ability, another area's).
+    - Arcane Heist and Writ of Return: not in the engine's pool.
+    - Meld (7 pairs and their results): not started. It needs a melded permanent made of two cards.
 
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory

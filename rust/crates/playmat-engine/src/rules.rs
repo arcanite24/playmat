@@ -12092,6 +12092,13 @@ fn apply_each_effect(
                             g.until_end_of_turn = false;
                         }
                     }
+                    // "until your next turn" (Twisted Caverns' "target creature can't attack until your next turn")
+                    if *duration == Duration::UntilYourNextTurn {
+                        if let Some(g) = Arc::make_mut(&mut game.grants).last_mut() {
+                            g.until_end_of_turn = false;
+                            g.until_turn_of = Some(controller);
+                        }
+                    }
                     if **ability == AbilityDef::BlocksIfAbleAbility {
                         let zcc = game.obj(*o).zcc;
                         game.must_block_from.push((*o, zcc, source.0));
@@ -15423,6 +15430,67 @@ fn apply_each_effect(
             EffectDef::ReturnToLibrarySpellEffect { top } => {
                 if game.obj(source.0).zone == Zone::Stack && game.obj(source.0).zcc == source.1 {
                     to_library(game, source.0, *top);
+                }
+            }
+            EffectDef::VentureIntoTheDungeonEffect => {
+                if !venture(game, d, controller) {
+                    return;
+                }
+            }
+            EffectDef::CipherEffect => {
+                if game.obj(source.0).zone != Zone::Stack || game.obj(source.0).token {
+                    continue;
+                }
+                let creatures = controlled_creatures(game, controller);
+                if creatures.is_empty() {
+                    continue;
+                }
+                let Some(yes) = choose_use(game, d, controller, "Cipher this spell to a creature?") else { return };
+                if !yes {
+                    continue;
+                }
+                let rule = item_rule(game, item);
+                let Some(chosen) = choose_cards(game, d, controller, &creatures, &creatures, 1, 1, &rule) else {
+                    return;
+                };
+                let Some(creature) = chosen.first().copied() else { continue };
+                let card = source.0;
+                let name = game.obj(card).def.name.clone();
+                let ability: AbilityDef = serde_json::from_value(serde_json::json!({
+                    "class": "TriggeredAbility",
+                    "effects": [{"class": "CipherStoreEffect", "card": card.0}],
+                    "on": {"e": "combat_damage_to_player"},
+                    "optional": true,
+                    "rule": format!("Whenever {{this}} deals combat damage to a player, you may cast a copy of {name} without paying its mana cost."),
+                }))
+                .unwrap();
+                grant(game, creature, &ability);
+                if let Some(g) = Arc::make_mut(&mut game.grants).last_mut() {
+                    // `Duration.Custom`: for as long as that creature stays on the battlefield
+                    g.until_end_of_turn = false;
+                }
+                if log::kept(game) {
+                    let line =
+                        format!("{}: Spell ciphered to {}", log::object(game, card), log::object(game, creature));
+                    log::inform(game, line);
+                }
+                game.move_to(card, Zone::Exile);
+            }
+            EffectDef::CipherStoreEffect { card } => {
+                // `game.copyCard`: a copy of the card wherever it is now, cast at once, without its cipher
+                let mut def = (*game.obj(ObjId(*card)).def).clone();
+                def.spell.effects.retain(|e| *e != EffectDef::CipherEffect);
+                // and its text, which `tryToAutoChoose` reads (cipher's "exile" keeps a card of yours from being
+                // chosen by itself)
+                if let Some(k) = def.spell.rule.find("<br><br/>Cipher") {
+                    def.spell.rule = def.spell.rule[..k].trim_end().to_string();
+                }
+                let copy = game.create_obj(Arc::new(def), controller, Zone::Exile);
+                Arc::make_mut(&mut game.exile).push(copy);
+                game.obj_mut(copy).token = true;
+                cast_free(game, d, controller, copy);
+                if d.stopped() {
+                    return;
                 }
             }
             EffectDef::ExileSpellEffect => {
@@ -19564,6 +19632,116 @@ fn live_fixed(game: &Game, t: &StackItem) -> Vec<ObjId> {
         .unwrap_or_default()
 }
 
+/// A dungeon in the command zone (`Dungeon`, not an emblem)
+fn is_dungeon(game: &Game, id: ObjId) -> bool {
+    game.obj(id).zone == Zone::Command && crate::card::dungeon(&game.obj(id).def.name).is_some()
+}
+
+/// The dungeon `seat` is in (`GameImpl.getPlayerDungeon`)
+fn player_dungeon(game: &Game, seat: Seat) -> Option<ObjId> {
+    game.command.iter().copied().find(|c| game.obj(*c).controller == seat && is_dungeon(game, *c))
+}
+
+/// `Dungeon.hasNextRoom`: its venture marker is on a room that leads somewhere
+fn dungeon_has_next_room(game: &Game, id: ObjId) -> bool {
+    let Some(d) = crate::card::dungeon(&game.obj(id).def.name) else { return false };
+    game.obj(id).room.is_some_and(|r| d.rooms.get(r).is_some_and(|r| !r.next.is_empty()))
+}
+
+/// `GameImpl.removeDungeon`: the dungeon leaves the command zone, and its player has completed it
+/// (`DUNGEON_COMPLETED`: `CompletedDungeonWatcher`, then "whenever you complete a dungeon")
+fn complete_dungeon(game: &mut Game, id: ObjId) {
+    let seat = game.obj(id).controller;
+    let name = game.obj(id).def.name.clone();
+    if log::kept(game) {
+        let line = format!("{} has completed {}", log::player(seat), log::object(game, id));
+        log::inform(game, line);
+    }
+    game.remove_from_zone(id);
+    {
+        // gone: in no zone's list, as a token that left the battlefield
+        let o = game.obj_mut(id);
+        o.zone = Zone::Exile;
+        o.zcc += 1;
+    }
+    game.player_mut(seat).completed_dungeons.push(name);
+    let mut sources = game.trigger_sources();
+    for p in game.players.iter() {
+        sources.extend(p.graveyard.iter().copied());
+    }
+    let fired = game.triggers(sources, |g, src, you, t| {
+        matches!(t, Trigger::CompletedDungeon { graveyard }
+            if you == seat && *graveyard == (g.obj(src).zone == Zone::Graveyard))
+    });
+    game.pending.extend(fired);
+}
+
+/// `GameImpl.ventureIntoDungeon` (no `VENTURE` replacement in the pool): the dungeon `seat` is in, or, once it has
+/// no room left (it's completed then), a new one they choose (`Dungeon.selectDungeon`); then its venture marker
+/// moves to the first room or the next one, asking which of two (`DungeonRoom.chooseNextRoom`), and that room's
+/// ability triggers (`ROOM_ENTERED`). False: the decider stopped.
+fn venture(game: &mut Game, d: &mut dyn Decider, seat: Seat) -> bool {
+    let current = player_dungeon(game, seat);
+    let id = match current.filter(|c| dungeon_has_next_room(game, *c)) {
+        Some(c) => c,
+        None => {
+            if let Some(c) = current {
+                complete_dungeon(game, c);
+            }
+            let names: Vec<String> = crate::card::dungeons().iter().map(|x| x.def.name.clone()).collect();
+            if names.is_empty() {
+                return true;
+            }
+            let q = Query::Choice { message: "Choose a dungeon to venture into".into(), choices: names.clone() };
+            let name = loop {
+                match ask(game, d, seat, &q) {
+                    Answer::Text(t) if names.contains(&t) => break t,
+                    Answer::Stop => return false,
+                    _ => {}
+                }
+                if d.stopped() {
+                    return false;
+                }
+            };
+            let Some(def) = crate::card::dungeon(&name).map(|x| x.def.clone()) else { return true };
+            let id = game.create_obj(def, seat, Zone::Library);
+            // its rooms' abilities are registered as it's added to the command zone, after every card's
+            game.obj_mut(id).trigger_order = (1 << 32) + id.0 as u64;
+            game.move_to(id, Zone::Command);
+            id
+        }
+    };
+    let Some(dungeon) = crate::card::dungeon(&game.obj(id).def.name) else { return true };
+    let room = match game.obj(id).room {
+        None => 0,
+        Some(r) => {
+            let next = dungeon.rooms.get(r).map(|x| x.next.clone()).unwrap_or_default();
+            match next.len() {
+                0 => return true,
+                1 => next[0],
+                _ => {
+                    // `chooseUse(…, "Choose which room to go to in", "dungeon: …", room1, room2)`: yes is the first
+                    let Some(first) = choose_use(game, d, seat, "Choose which room to go to in") else { return false };
+                    if first {
+                        next[0]
+                    } else {
+                        next[1]
+                    }
+                }
+            }
+        }
+    };
+    game.obj_mut(id).room = Some(room);
+    if log::kept(game) {
+        let name = dungeon.rooms.get(room).map(|x| x.name.clone()).unwrap_or_default();
+        let line = format!("{} has entered {} (dungeon: {})", log::player(seat), name, log::object(game, id));
+        log::inform(game, line);
+    }
+    let fired = game.triggers([id], |_, _, _, t| matches!(t, Trigger::RoomEntered { room: r } if *r == room));
+    game.pending.extend(fired);
+    true
+}
+
 /// `TokenImpl.generateTokenInfo`: creating tokens (or an emblem) picks an image with the game's random when there are
 /// two or more to pick from.
 fn token_image(game: &mut Game, token: &crate::card::TokenDef, source: ObjId) {
@@ -21954,6 +22132,22 @@ pub fn state_based_actions(game: &mut Game) -> bool {
                 p.drew_from_empty = false;
                 any = true;
             }
+        }
+        // 704.5t: a dungeon whose venture marker is on its last room, with no room ability of it waiting or on the
+        // stack, is removed: its player has completed it (`GameImpl.checkStateBasedActions`, right after the losses)
+        let completed: Vec<ObjId> = game
+            .command
+            .iter()
+            .copied()
+            .filter(|c| {
+                is_dungeon(game, *c)
+                    && !dungeon_has_next_room(game, *c)
+                    && !game.stack.iter().chain(game.pending.iter()).any(|t| t.card == *c && t.ability.is_some())
+            })
+            .collect();
+        for c in completed {
+            complete_dungeon(game, c);
+            any = true;
         }
         // 704.5s: a Saga with its last chapter reached, and none of its chapter abilities waiting or on the stack
         let chapter_of = |g: &Game, t: &StackItem, id: ObjId| {
