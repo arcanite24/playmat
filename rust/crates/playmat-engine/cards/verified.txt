@@ -322,6 +322,7 @@ Ancient Greenwarden
 Ancient Lumberknot
 Ancient Silverback
 Ancient Stirrings
+Ancient Vendetta
 Andoria
 Angel of Condemnation
 Angel of Deliverance
@@ -562,6 +563,7 @@ Assembled Alphas
 Assembly Specialist
 Assert Perfection
 Assure // Assemble
+Astor, Bearer of Blades
 Astral Wingspan
 At Knifepoint
 Atarka Beastbreaker
@@ -1600,6 +1602,7 @@ Chelonian Tackle
 Chemister's Insight
 Chemister's Trick
 Chevill, Bane of Monsters
+Chief Engineer
 Chief Warg's Company
 Chief of the Edge
 Chief of the Foundry
@@ -1742,11 +1745,13 @@ Coastal Discovery
 Coastline Chimera
 Coat with Venom
 Coati Scavenger
+Coax from the Blind Eternities
 Cobblebrute
 Cobbled Lancer
 Cobbled Wings
 Codecracker Hound
 Codex Shredder
+Coerced to Kill
 Coeurl
 Cogwork Archivist
 Cogwork Wrestler
@@ -1772,6 +1777,7 @@ Colossal Dreadmaw
 Colossal Growth
 Colossal Heroics
 Colossal Majesty
+Colossal Rattlewurm
 Colossal Skyturtle
 Colossal Whale
 Colossapede
@@ -1834,6 +1840,7 @@ Conduct Electricity
 Conduit Pylons
 Conduit of Ruin
 Confirm Suspicions
+Confiscate
 Confiscation Coup
 Confounding Riddle
 Confront the Unknown
@@ -1961,6 +1968,7 @@ Crash Through
 Crash and Burn
 Crash the Ramparts
 Crashing Drawbridge
+Crashing Tide
 Crater's Claws
 Craterclaw Colossus
 Craterhoof Behemoth
@@ -2040,6 +2048,7 @@ Crystal Grotto
 Crystal Slipper
 Crystalline Entity
 Crystalline Nautilus
+Cuboid Colony
 Culber and Stamets, Star-Crossed
 Culling Drone
 Culling Mark
@@ -2090,6 +2099,7 @@ Cynical Loner
 D'Avenant Trapper
 D'Vana Tendi, Optimistic Ensign
 Dagger Caster
+Dagger of the Worthy
 Daggerback Basilisk
 Daggerdrome Imp
 Daggerfang Duo
@@ -2190,6 +2200,7 @@ Dazzling Angel
 Dazzling Denial
 Dazzling Lights
 Dazzling Ramparts
+Dazzling Theater // Prop Room
 Dead Reveler
 Dead Revels
 Dead Weight
@@ -2293,6 +2304,7 @@ Deliberate
 Delivery Moogle
 Delney, Streetwise Lookout
 Delta Bloodflies
+Deluge Virtuoso
 Delver of Secrets
 Demand Answers
 Demanding Dragon
@@ -2455,6 +2467,7 @@ Disperse
 Displace
 Displacement Wave
 Disposal Mummy
+Dispossess
 Disruption Protocol
 Disruptive Stormbrood
 Disruptor Wanderglyph
@@ -2495,6 +2508,7 @@ Doctor Octopus, Master Planner
 Dog Walker
 Dogged Pursuit
 Dokuchi Shadow-Walker
+Domestication
 Dominator Drone
 Dominion Supervisor
 Domri's Ambush
@@ -2791,6 +2805,7 @@ Eden, Seat of the Sanctum
 Edgar, Ancient Bloodlord
 Edgar, Charmed Groom
 Edge Rover
+Edgewall Inn
 Edgewall Innkeeper
 Edgewall Pack
 Edifice of Authority
@@ -3078,6 +3093,7 @@ Exdeath, Void Warlock
 Exemplar of Light
 Exemplar of Strength
 Exhibition Magician
+Exhibition Tidecaller
 Exit Specialist
 Exorcise
 Exosuit Savior
@@ -3148,6 +3164,7 @@ Fade from History
 Fade into Antiquity
 Fading Hope
 Fae Flight
+Fae of Wishes
 Faebloom Trick
 Faeburrow Elder
 Faerie Dreamthief
@@ -3362,7 +3379,9 @@ Finishing Blow
 Fire Elemental
 Fire Magic
 Fire Nation Attacks
+Fire Nation Cadets
 Fire Nation Engineer
+Fire Nation Palace
 Fire Nation Raider
 Fire Nation Warship
 Fire Navy Trebuchet
@@ -3448,6 +3467,7 @@ Flitterstep Eidolon
 Flitting Guerrilla
 Flock Impostor
 Flood of Recollection
+Flood the Engine
 Flooded Strand
 Floodfarm Verge
 Floodpits Drowner
@@ -3576,6 +3596,7 @@ Frenzied Goblin
 Frenzied Rage
 Frenzied Raptor
 Frenzied Tilling
+Fresh Start
 Fresh-Faced Recruit
 Fretwork Colony
 Friendly Ghost
@@ -4066,6 +4087,7 @@ Grafdigger's Cage
 Graft Surgeon
 Grafted Butcher
 Grafted Growth
+Grafted Identity
 Gran Pulse Ochu
 Gran-Gran
 Grand Abolisher
@@ -4229,6 +4251,7 @@ Guardians of Oboro
 Gudul Lurker
 Guerrilla Gorilla
 Guidance Failure
+Guidelight Optimizer
 Guidelight Synergist
 Guiding Hydra
 Guiding Voice
@@ -4374,6 +4397,7 @@ Healing Hands
 Heart-Piercer Bow
 Heartfire
 Heartfire Immolator
+Heartflame Duelist
 Hearth Elemental
 Hearthborn Battler
 Heartless Act
@@ -4654,6 +4678,7 @@ Hungering Puppetbeast
 Hungering Yeti
 Hungry Flames
 Hungry Ghoul
+Hungry Graffalon
 Hungry Ridgewolf
 Hunt for Specimens
 Hunt the Hunter
@@ -4685,6 +4710,7 @@ Hylderblade
 Hymn of the Faller
 Hypersonic Dragon
 Hypnotic Grifter
+Hypnotic Siren
 Hypnotic Sprite
 Hypothesizzle
 Hyrax Tower Scout
@@ -4853,6 +4879,7 @@ Inspiring Cleric
 Inspiring Overseer
 Inspiring Paladin
 Inspiring Roar
+Inspiring Statuary
 Inspiring Unicorn
 Inspiring Vantage
 Inspiring Veteran
@@ -4898,6 +4925,7 @@ Invasion of Mercadia
 Invasion of Moag
 Invasion of Muraganda
 Invasion of New Capenna
+Invasion of Segovia
 Invasion of Shandalar
 Invasion of Theros
 Invasion of Tolvada
@@ -4948,6 +4976,7 @@ Iron-Shield Elf
 Ironclad Krovod
 Ironclad Revolutionary
 Ironclad Slayer
+Ironheart, Clever Champion
 Ironhoof Boar
 Ironpaw Aspirant
 Ironroot Warlord
@@ -5415,6 +5444,7 @@ Law-Rune Enforcer
 Lawless Broker
 Lawmage's Binding
 Lay Bare the Heart
+Lay Claim
 Lay of the Land
 Lazotep Behemoth
 Lazotep Plating
@@ -5441,6 +5471,7 @@ Leech Fanatic
 Leech Gauntlet
 Leeching Sliver
 Leering Onlooker
+Legion Angel
 Legion Extruder
 Legion Guildmage
 Legion Lieutenant
@@ -5566,6 +5597,7 @@ Llanowar Stalker
 Llanowar Visionary
 Llanowar Wastes
 Lluwen, Exchange Student
+Lo and Li, Twin Tutors
 Loading Zone
 Loam Dryad
 Loam Larva
@@ -5620,6 +5652,7 @@ Lorescale Coatl
 Los Diablos Missile Base
 Lose Calm
 Lost Days
+Lost Legacy
 Lost Legion
 Lost in Space
 Lost in a Labyrinth
@@ -5885,6 +5918,7 @@ Master of the Pearl Trident
 Master the Way
 Master's Rebuke
 Masterful Flourish
+Mastermind's Acquisition
 Mastery of the Unseen
 Mathemagics
 Matoya, Archon Elder
@@ -6275,6 +6309,7 @@ Murmuring Mystic
 Murmuring Phantasm
 Murmuring Volume
 Muse Drake
+Muse Seeker
 Muse's Encouragement
 Museum Nightwatch
 Mutable Explorer
@@ -6284,6 +6319,7 @@ Mutant Chain Reaction
 Mutant Town
 Mutant Town Musicians
 Mutavault
+Mutual Destruction
 My Precious
 Myr Convert
 Myr Kinsmith
@@ -6472,6 +6508,7 @@ Norika Yamazaki, the Poet
 Norn's Wellspring
 North Pole Gates
 North Pole Patrol
+North Wind Avatar
 Northampton Farm
 Northern Air Temple
 Not Dead After All
@@ -6824,6 +6861,7 @@ Penance Stare
 Pendulum of Patterns
 Penregon Strongbull
 Pensive Minotaur
+Pensive Professor
 Perennial Behemoth
 Perfect Intimidation
 Perfected Theory
@@ -6843,6 +6881,7 @@ Pest Mascot
 Pest Summoning
 Pestbrood Sloth
 Pestered Wellguard
+Pestilent Spirit
 Pestilent Syphoner
 Pestilent Wolf
 Pests of Honor
@@ -6885,6 +6924,7 @@ Phyrexian Gargantua
 Phyrexian Missionary
 Phyrexian Pegasus
 Phyrexian Rager
+Phyrexian Revoker
 Phyrexian Vivisector
 Phyrexian Warhorse
 Phytoburst
@@ -8391,6 +8431,7 @@ Shifting Woodland
 Shimmer Dragon
 Shimmer of Possibility
 Shimmercreep
+Shimmerdrift Vale
 Shimmering Grotto
 Shimmerscale Drake
 Shimmerwing Chimera
@@ -8526,6 +8567,7 @@ Silverquill Campus
 Silverquill Charm
 Silverquill Command
 Silverquill Pledgemage
+Silverquill Silencer
 Silverstrike
 Silverwing Squadron
 Simian Simulacrum
@@ -8647,6 +8689,7 @@ Slash of Talons
 Slash, Reptile Rampager
 Slate Street Ruffian
 Slaughter Drone
+Slaughter Games
 Slaughter Singer
 Slaughter Specialist
 Slaughter-Priest of Mogis
@@ -8761,6 +8804,7 @@ Sonic Assault
 Soothsayer Adept
 Sorcerer of the Fang
 Sorcerer's Broom
+Sorcerous Spyglass
 Sorin the Mirthless
 Sorin's Guide
 Sorin's Thirst
@@ -8804,6 +8848,7 @@ Southern Air Temple
 Sovereign's Bite
 Sower of Chaos
 Sowing Mycospawn
+Sozin's Comet
 Space-Time Anomaly
 Spara's Headquarters
 Spare Supplies
@@ -8831,6 +8876,7 @@ Species Gorger
 Spectacle Mage
 Spectacle Summit
 Spectacular Pileup
+Spectacular Skywhale
 Spectacular Spider-Man
 Spectacular Tactics
 Specter of the Fens
@@ -8995,6 +9041,7 @@ Staff of the Wild Magus
 Stagecoach Security
 Staggering Insight
 Staggering Size
+Stain the Mind
 Stalactite Stalker
 Stalked Researcher
 Stalking Drone
@@ -9320,6 +9367,7 @@ Super Strength
 Super Suit
 Super Villain Lockup
 Super-Skrull
+Supernatural Rescue
 Supernatural Stamina
 Suplex
 Supplant Form
@@ -9440,6 +9488,7 @@ Syr Konrad, the Grim
 Syr Vondam, the Lucent
 TCRI Building
 Tablet of Compleation
+Tackle Artist
 Tactical Officer
 Tah-Crop Elite
 Tah-Crop Skirmisher
@@ -9465,6 +9514,7 @@ Take Out the Trash
 Take Up Arms
 Take Up the Shield
 Take Vengeance
+Take for a Ride
 Take into Custody
 Take the Fall
 Take to the Streets
@@ -9636,6 +9686,7 @@ Tethermage's Advantage
 Tethmos High Priest
 Tetsuko Umezawa, Fugitive
 Tetsuko Umezawa, Pursuer
+Textbook Tabulator
 Teyo's Lightshield
 Teyo, the Shieldmage
 Teysa Karlov
@@ -9851,6 +9902,7 @@ Thunder Strike
 Thunderbolts Conspiracy
 Thunderbreak Regent
 Thunderclap Wyvern
+Thunderdrum Soloist
 Thunderhead Squadron
 Thunderherd Migration
 Thundering Broodwagon
@@ -9959,6 +10011,7 @@ Toolcraft Exemplar
 Topan Freeblade
 Toph, Hardheaded Teacher
 Toph, the Blind Bandit
+Topiary Lecturer
 Topiary Panther
 Topiary Stomper
 Topple the Statue
@@ -9998,6 +10051,7 @@ Toxic Abomination
 Toxic Scorpion
 Toxin Analysis
 Toxrill, the Corrosive
+Tractor Beam
 Trade the Helm
 Trading Post
 Tragedy Feaster
@@ -10292,6 +10346,7 @@ Unlikely Aid
 Unliving Legionnaire
 Unlucky Drop
 Unmake the Graves
+Unmoored Ego
 Unnatural Aggression
 Unnatural Endurance
 Unnatural Growth
@@ -11058,6 +11113,7 @@ You Are Already Dead
 You Come to a River
 You Come to the Gnoll Camp
 You Find the Villains' Lair
+You Happen On a Glade
 You Hear Something on Watch
 You Meet in a Tavern
 You See a Guard Approach

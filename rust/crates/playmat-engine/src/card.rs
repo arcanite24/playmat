@@ -2498,6 +2498,12 @@ pub enum EffectDef {
         #[serde(default)]
         condition: Option<Condition>,
     },
+    /// a static: the cards of the filter you own outside the battlefield (any card in exile) and the spells of it you
+    /// control have the ability (`GainAbilityControlledSpellsEffect`: convoke, improvise, delve, lifelink, deathtouch)
+    GainAbilityControlledSpellsEffect {
+        ability: Box<AbilityDef>,
+        filter: Filter,
+    },
     /// you have the ability (hexproof); resolving with `until_end_of_turn`, until end of turn (Dawn's Truce)
     GainAbilityControllerEffect {
         ability: Box<AbilityDef>,
@@ -2953,6 +2959,10 @@ pub enum EffectDef {
     TreasureKeeperEffect,
     /// the permanent the source is attached to doesn't untap in its controller's untap step (a static's)
     DontUntapInControllersUntapStepEnchantedEffect,
+    /// a static (layer 2): you control the permanent the source is attached to (`ControlEnchantedEffect`)
+    ControlEnchantedEffect,
+    /// a static (layer 6): the creature the source is attached to loses all abilities (`LoseAllAbilitiesAttachedEffect`)
+    LoseAllAbilitiesAttachedEffect,
     /// discard your hand, then draw that many cards
     DiscardHandDrawSameNumberSourceEffect,
     /// this must be blocked if able (a static's)
@@ -3197,6 +3207,9 @@ pub enum EffectDef {
     },
     /// activated abilities (not mana abilities) of sources with the source's chosen name can't be activated
     PithingNeedleEffect,
+    /// "Activated abilities of sources with the chosen name can't be activated" (mana abilities too: Phyrexian
+    /// Revoker)
+    PhyrexianRevokerEffect,
     /// Emry: you may cast the target (a nonland card in your graveyard) this turn
     MayCastTargetFromGraveyardThisTurnEffect,
     /// converge: exile the target nonland permanent if its mana value is at most the colors spent to cast this
@@ -3704,6 +3717,8 @@ pub enum EffectDef {
     MaraudingRaptorEffect,
     /// as this enters: tapped, and its controller chooses a color (its chosen-color mana abilities make that color)
     EntersTappedChooseColorEffect,
+    /// `ChooseColorEffect` as this enters: its controller chooses a color (its chosen-color mana abilities make it)
+    ChooseColorEffect,
     /// a Case's "to solve": the source permanent becomes solved
     SolveEffect,
     /// creature cards in your graveyard may be cast from there until end of turn

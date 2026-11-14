@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (11,322 on 14 Nov). A card whose JSON the engine can't load yet is left out
+  can express (11,380 on 14 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -983,6 +983,49 @@ Being in the engine and being trusted are kept apart.
   - Games covering these are under `shadow/mechanics/game-w7k-*`.
   - 94 cards came in. Three factory rounds (120 games, all matching once fixed, replayed again on master after
     #353) verified 93: 11,049 of 11,238. Sandman's Quicksand had no factory deck yet.
+
+  Wave 8, the mech list (shared framework classes):
+  - `ControlEnchantedEffect` (Confiscate, Lay Claim, Coerced to Kill): applied with the other continuous effects
+    (`refresh_control`), a control change that lasts while the Aura is on the battlefield attached to that permanent
+    (`ControlUntil::Attached`). A new controller of the Aura moves the change to them.
+  - `LoseAllAbilitiesAttachedEffect` (Fresh Start, Flood the Engine): the enchanted permanent loses all abilities
+    while it's attached, through `lose_all_abilities` (restored as it leaves). The conditional form (Ray of Frost's
+    "as long as enchanted creature is red") isn't done. To Java it strips what other statics give it too (Fresh
+    Start on a creature with Cathar's Shield).
+  - `GainAbilityControlledSpellsEffect` (Inspiring Statuary, Heartflame Duelist, Chief Engineer): `spell_grants`
+    gives a card outside the battlefield and a spell the abilities a static grants it (convoke, improvise, delve,
+    lifelink, deathtouch only). `has_ability` reads them for cards off the battlefield, the alternate mana
+    (`alternate_mana`, `special_mana_actions`) for convoke, improvise and delve, and `deal_damage` for a spell's
+    lifelink and deathtouch. A guard stops a grant's own filter from asking for grants again.
+  - `ChooseACardNameEffect` (handler `choose_a_card_name_effect.rs`): Java's message for each `TypeOfName`; with
+    "look at an opponent's hand" (Sorcerous Spyglass) the opponent is picked as a target first, then "Press Ok to
+    name a card". The name is kept on the entering permanent or the resolving spell (`chosen_name`); so is a land
+    name (`ChooseLandNameEffect`, Unmoored Ego). Phyrexian Revoker's `PhyrexianRevokerEffect2` forbids activated
+    abilities (mana abilities too) of sources with that name; Sorcerous Spyglass's is the Pithing Needle one.
+  - `SearchTargetGraveyardHandLibraryForCardNameAndExileEffect` (handler `search_for_card_name_and_exile.rs`:
+    Slaughter Games, Unmoored Ego, Lost Legacy, Dispossess, Ancient Vendetta, Stain the Mind): graveyard (asked only
+    with a card of the name there), hand, library, nothing asked of a zone without one, then the shuffle and the
+    draws for cards taken from the hand.
+  - Increment (handler `increment.rs`): a cast trigger whose `check` compares the mana spent on the spell
+    (`mana_spent`) with the lower of the creature's power and toughness. Opus with `doInstead` is one
+    `ConditionalOneShotEffect` (the extra effect, otherwise the main one).
+  - The framework `WishEffect` (handler `wish_effect.rs`): every constructor as (filter, alsoFromExile,
+    topOfLibrary, reveal); the yes/no, then a card of the filter you own outside the game (the sideboard the game
+    knows) or, with `alsoFromExile`, face up in exile.
+  - "This spell has flash as long as …" (`Zone.ALL` `ConditionalContinuousEffect` of `GainAbilitySourceEffect`
+    with flash) is the card's own conditional "as though it had flash". `AsEntersBattlefieldAbility` of
+    `ChooseColorEffect` asks the color and rewrites its chosen-color mana abilities, as the enters-tapped one does.
+  - Transpiler: Java's rule texts for granted firebending, extort, afflict and crew; a `new` expression wrapped in
+    parentheses; Guidelight Optimizer's mana; Domestication's condition.
+  - Not done (noted for later): `CastFromHandSourcePermanentCondition` (Java is false in shadow games), meld,
+    granted statics on Equipment (the Runes), a granted triggered ability from `GainAbilityAllEffect` (Pontiff of
+    Blight's extort for each Pontiff: Java has six triggers, Rust two), affinity, storm, cascade, split second and
+    casualty grants, the card-specific conditional mana builders, `LoseAllAbilitiesTargetEffect` until your next
+    turn or for good, and cards that need classes in other lists.
+  - Games covering these are under `shadow/mechanics/game-w8mech-*`.
+  - 58 cards came in, You Happen On a Glade (a `new` in parentheses) the one bonus card, Berta, Wise Extrapolator
+    with #355's Fractal tokens. Four factory rounds (85 games, replayed again on master after #355) verified 56:
+    11,185 of 11,380. Pontiff of Blight differs (see above); Berta had no factory deck yet.
 
       W=.local/rust-port/factory
       python3 rust/tools/verify_factory.py build --work $W --priority .local/rust-port/card-priority.tsv --used-only
