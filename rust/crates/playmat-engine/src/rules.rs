@@ -22672,12 +22672,9 @@ fn proliferate(game: &mut Game, d: &mut dyn Decider, seat: Seat) -> bool {
                 let kinds: Vec<String> =
                     game.obj(o).counters.iter().filter(|(_, k)| *k > 0).map(|(n, _)| n.clone()).collect();
                 for name in java_hash_order(kinds) {
-                    // a lore counter on a Saga triggers the chapter it reaches (Volt Charge on Arni Slays the Troll)
-                    if name == "lore" {
-                        add_lore(game, o, 1);
-                    } else {
-                        put_counters(game, o, &name, 1, seat);
-                    }
+                    // (a lore counter on a Saga triggers the chapter it reaches, in `counters_put_triggers`: Volt
+                    // Charge on Arni Slays the Troll)
+                    put_counters(game, o, &name, 1, seat);
                 }
             }
             Target::Player(p) => {
