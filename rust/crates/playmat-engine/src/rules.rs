@@ -450,6 +450,16 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                     if at_attacker && set_target_pointer(game, &t) {
                         t.targets = vec![vec![Target::Obj(a)]];
                         t.target_zcc = vec![vec![game.obj(a).zcc]];
+                        // a trigger with targets of its own: they replace these as they're chosen, so the attacker
+                        // is kept as the event's object too (Tolsimir, Midnight's Light's Wolf)
+                        let own_targets = t
+                            .ability
+                            .and_then(|(i, _)| game.item_def(&t).abilities.get(i))
+                            .and_then(|ab| ab.triggered())
+                            .is_some_and(|(_, _, targets, _)| !targets.is_empty());
+                        if own_targets {
+                            t.entering = Some(a);
+                        }
                     }
                     // at the defending player (in a duel, the attacker's controller's opponent), or the controller
                     if at_attacker && set_target_pointer_player(game, &t) {
