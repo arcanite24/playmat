@@ -423,6 +423,16 @@ CUSTOM = {
         'effects': [{'class': 'LoseLifeTargetEffect', 'amount': 2}], 'set_target_pointer_player': True},
     # whenever another creature you control enters or dies, if its power is greater than this one's, put a +1/+1
     # counter on this
+    # "whenever another creature dies, or a creature card is put into a graveyard from anywhere other than the
+    # battlefield, or a creature card leaves your graveyard, this deals 1 damage to each opponent"
+    'SyrKonradTheGrimTriggeredAbility': lambda: {
+        'class': 'TriggeredAbility', 'java': 'SyrKonradTheGrimTriggeredAbility', 'on': {'e': 'syr_konrad'},
+        'effects': [{'class': 'DamagePlayersEffect', 'amount': 1, 'controller': 'opponent'}]},
+    # Vanquisher's Banner: "whenever you cast a creature spell of the chosen type, draw a card"
+    'DrawCardIfCreatureTypeAbility': lambda: {
+        'class': 'TriggeredAbility', 'java': 'DrawCardIfCreatureTypeAbility',
+        'on': {'e': 'spell_cast', 'filter': [CREATURE, {'p': 'chosen_subtype', 'v': True}], 'who': 'you'},
+        'effects': [{'class': 'DrawCardSourceControllerEffect', 'amount': 1}]},
     'PeltCollectorTriggeredAbility': lambda: {
         'class': 'TriggeredAbility', 'java': 'PeltCollectorTriggeredAbility', 'on': {'e': 'pelt_collector'},
         'effects': [{'class': 'AddCountersSourceEffect', 'counter': {'name': '+1/+1', 'amount': 1}}]},
@@ -833,7 +843,8 @@ def predicate(text, subtypes):
         return {'p': 'mana_cost_in', 'costs': ['{0}', '{1}']}
     if text == 'ColorlessPredicate.instance':
         return {'p': 'colorless'}
-    if text == 'new ManaSpentToCastPredicate(ComparisonType.EQUAL_TO,0)':
+    # (Roiling Vortex's: no mana was spent to cast the spell)
+    if text in ('new ManaSpentToCastPredicate(ComparisonType.EQUAL_TO,0)', 'RoilingVortexPredicate.instance'):
         return {'p': 'no_mana_spent'}
     if (m := re.fullmatch(r'new ManaSpentToCastPredicate\(ComparisonType\.(\w+),(\d+)\)', text)) and m.group(1) in COMPARISONS:
         return {'p': 'mana_spent', 'cmp': m.group(1), 'n': int(m.group(2))}
@@ -3401,7 +3412,8 @@ class Translator:
             out['look'] = int(args[0])
         elif args[0] in COUNTS:
             out['look_count'] = COUNTS[args[0]]
-        elif args[0] in ('SavedDamageValue.MANY', 'SavedDamageValue.MUCH'):
+        elif args[0] in ('SavedDamageValue.MANY', 'SavedDamageValue.MUCH', 'GetXValue.instance'):
+            # (the X a trigger saw, or the X paid: Heroes' Podium's "look at the top X cards")
             out['look_count'] = 'x'
         else:
             raise Unsupported('argument ' + args[0])
@@ -3678,6 +3690,13 @@ class Translator:
         # Mox Amber: "Add one mana of any color among legendary creatures and planeswalkers you control"
         if cls == 'AnyColorPermanentTypesManaAbility' and len(args) == 2 and args[0].strip() == 'TargetController.YOU':
             return {'class': cls, 'java': cls, 'filter': self.filter(args[1])}
+        # Exotic Orchard, Fellwar Stone, Naga Vitalist: "Add one mana of any color (type) that a land you control (an
+        # opponent controls) could produce"
+        if cls == 'AnyColorLandsProduceManaAbility' and len(args) in (1, 2) \
+                and args[0].strip() in ('TargetController.YOU', 'TargetController.OPPONENT') \
+                and (len(args) == 1 or args[1].strip() in ('true', 'false')):
+            return {'class': cls, 'java': cls, 'opponent': args[0].strip() == 'TargetController.OPPONENT',
+                    'any_type': len(args) == 2 and args[1].strip() == 'false'}
         # Command Tower, Arcane Signet: no commander in a duel, so it makes nothing (the engine's)
         if cls == 'AddEachControlledColorManaAbility' and not args:
             return {'class': cls, 'java': cls}
@@ -4769,6 +4788,9 @@ class Translator:
         if cls == 'LeavesBattlefieldTriggeredAbility' and n in (1, 2):
             return out({'e': 'leaves_battlefield'}, args[0], n == 2 and flag(args[1]))
         if cls == 'SpellCastAllTriggeredAbility':
+            # an emblem's (Kaito, Cunning Infiltrator's), in the command zone: the same
+            if n == 5 and args[0] in ('Zone.COMMAND', 'Zone.BATTLEFIELD'):
+                return self.ability('new SpellCastAllTriggeredAbility(' + ','.join(args[1:]) + ')')
             if n == 2:
                 return out({'e': 'spell_cast', 'filter': [], 'who': 'any'}, args[0], flag(args[1]))
             if n == 3 or (n == 4 and args[3] == 'SetTargetPointer.NONE'):
@@ -4784,6 +4806,20 @@ class Translator:
         if cls == 'LoseLifeTriggeredAbility' and n == 4:
             return out({'e': 'loses_life', 'who': self.value('target_controller', args[1])}, args[0], flag(args[2]),
                        flag(args[3]))
+        # "whenever a player attacks with N or more creatures" (`DECLARED_ATTACKERS`)
+        if cls == 'AureliaTheLawAboveTriggeredAbility' and n == 2 and re.fullmatch(r'\d+', args[1]):
+            return out({'e': 'attacks_with', 'min': int(args[1]), 'filter': [CREATURE], 'who': 'any'}, args[0])
+        # "whenever an opponent attacks with creatures, if two or more of those creatures are attacking you and/or
+        # planeswalkers you control, draw a card" (in a duel, every attacker is)
+        if cls == 'MangaraTheDiplomatTriggeredAbility' and n == 0:
+            return out({'e': 'attacks_with', 'min': 2, 'filter': [CREATURE], 'who': 'opponent'},
+                       'new DrawCardSourceControllerEffect(1)')
+        # "whenever a player discards one or more cards" (`DISCARDED_CARDS`, any player)
+        if cls == 'TinybonesPocketNuisanceTriggeredAbility' and n == 1:
+            return out({'e': 'discards_one_or_more', 'filter': [], 'any_player': True}, args[0])
+        # (effect): whenever you lose life (Vilis)
+        if cls == 'LoseLifeTriggeredAbility' and n == 1:
+            return out({'e': 'loses_life', 'who': 'you'}, args[0])
         # whenever a permanent of the filter enters under an opponent's control
         if cls == 'EntersBattlefieldOpponentTriggeredAbility' and n == 3:
             return out({'e': 'enters_all', 'filter': self.filter(args[1]) + [{'p': 'controller', 'who': 'opponent'}]},
@@ -4852,6 +4888,7 @@ class Translator:
         # whenever you draw your `n`th card each turn
         if cls == 'DrawNthCardTriggeredAbility' and n == 3 and re.fullmatch(r'\d+', args[2]):
             return out({'e': 'draws_nth', 'n': int(args[2])}, args[0], flag(args[1]))
+        # whenever an opponent (any player) draws their `n`th card each turn
         if cls == 'CastSecondSpellTriggeredAbility' and n == 1:
             return out({'e': 'cast_second_spell', 'who': 'you'}, args[0])
         # whenever an opponent casts a spell of the filter; with a target pointer at that player or that spell
@@ -6413,6 +6450,10 @@ def token(cls):
         # a double-faced token's back face (the Incubator's Phyrexian)
         elif (n := re.fullmatch(r'(?:this\.)?backFace=new (\w+Token)\(\)', st)):
             out['back'] = token(n.group(1))
+        # Changeling on a token (Personify's Shapeshifter): every creature type, as on a card
+        elif re.fullmatch(r'(?:this\.)?addAbility\(new ChangelingAbility\(\)\)', st):
+            out['all_creature_types'] = True
+            added.append({'class': 'ChangelingAbility'})
         elif not ability_statement(t, st, added):
             raise Unsupported('token statement ' + st)
     if added:

@@ -652,6 +652,9 @@ pub enum Trigger {
     DiscardsOneOrMore {
         #[serde(default)]
         filter: Filter,
+        /// any player, not only you (Tinybones, Pocket Nuisance's "whenever a player discards one or more cards")
+        #[serde(default)]
+        any_player: bool,
     },
     /// the creature this is attached to deals (combat) damage to a player of `who` ("you", "opponent", "any")
     /// (`DealsDamageToAPlayerAttachedTriggeredAbility`); with a target pointer, at that player; the damage is its X
@@ -690,10 +693,13 @@ pub enum Trigger {
         filter: Filter,
         who: String,
     },
-    /// you attack with `min` or more creatures of the filter (`AttacksWithCreaturesTriggeredAbility`)
+    /// you (or `who`: "opponent", "any" player) attack with `min` or more creatures of the filter
+    /// (`AttacksWithCreaturesTriggeredAbility`; Aurelia, the Law Above's and Mangara, the Diplomat's `DECLARED_ATTACKERS`)
     AttacksWith {
         min: usize,
         filter: Filter,
+        #[serde(default)]
+        who: String,
     },
     /// this leaves the battlefield
     LeavesBattlefield,
@@ -883,6 +889,9 @@ pub enum Trigger {
     OpponentsDealtNoncombatDamage,
     /// another permanent you control enters or dies, if its power is greater than this one's (Pelt Collector)
     PeltCollector,
+    /// another creature dies, a creature card is put into a graveyard from anywhere other than the battlefield, or a
+    /// creature card leaves your graveyard (Syr Konrad, the Grim: one `ZONE_CHANGE` each)
+    SyrKonrad,
     /// a creature or creature spell you control becomes the target of a spell or ability an opponent controls
     /// (Surrak, Elusive Hunter)
     SurrakTargeted,
@@ -4720,6 +4729,17 @@ pub enum AbilityDef {
         #[serde(default)]
         rule: String,
     },
+    /// `{T}: Add one mana of any color (`any_type`: or colorless) that a land you control (`opponent`: an opponent
+    /// controls) could produce` (`AnyColorLandsProduceManaAbility`: Exotic Orchard, Fellwar Stone, Naga Vitalist;
+    /// none: no mana)
+    AnyColorLandsProduceManaAbility {
+        #[serde(default)]
+        opponent: bool,
+        #[serde(default)]
+        any_type: bool,
+        #[serde(default)]
+        rule: String,
+    },
     /// Nykthos: `{2}, {T}`: choose a color, add mana of it equal to your devotion to it
     NykthosShrineToNyxManaAbility {
         cost: Vec<CostDef>,
@@ -4930,6 +4950,8 @@ impl AbilityDef {
             AbilityDef::CommanderColorIdentityManaAbility { .. } => Some(Mana::default()),
             // counted by the game (the colors among them)
             AbilityDef::AnyColorPermanentTypesManaAbility { .. } => Some(Mana { colored: [1; 5], ..Mana::default() }),
+            // (counted by the game, what the lands could make)
+            AbilityDef::AnyColorLandsProduceManaAbility { .. } => Some(Mana { colored: [1; 5], ..Mana::default() }),
             AbilityDef::ConditionalManaAbility { mana: Some(m), .. } => Some(*m),
             // (counted by the game, the colors among them)
             AbilityDef::AddEachControlledColorManaAbility { .. } => Some(Mana { colored: [1; 5], ..Mana::default() }),
@@ -4969,6 +4991,7 @@ impl AbilityDef {
             | AbilityDef::NykthosShrineToNyxManaAbility { .. }
             | AbilityDef::CommanderColorIdentityManaAbility { .. }
             | AbilityDef::AnyColorPermanentTypesManaAbility { .. }
+            | AbilityDef::AnyColorLandsProduceManaAbility { .. }
             | AbilityDef::ConditionalManaAbility { .. }
             | AbilityDef::ConditionalColorManaAbility { .. }
             | AbilityDef::ManaAbility { .. }

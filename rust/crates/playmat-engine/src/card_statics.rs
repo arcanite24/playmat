@@ -139,6 +139,8 @@ pub(crate) enum Layer {
     Ability(fn(&Game, &StaticCx, ObjId) -> Vec<AbilityDef>),
     /// layer 7b, `PTChangingEffects_7` / `SetPT_7b`: the base power and toughness it sets
     SetPt(fn(&Game, &StaticCx, ObjId) -> (i32, i32)),
+    /// layer 7b, the base toughness alone (`getToughness().setModifiedBaseValue`: Maha, Its Feathers Night)
+    SetToughness(fn(&Game, &StaticCx, ObjId) -> i32),
     /// layer 7c, `PTChangingEffects_7` / `ModifyPT_7c`: what it adds to power and toughness
     ModifyPt(fn(&Game, &StaticCx, ObjId) -> (i32, i32)),
 }
@@ -150,7 +152,7 @@ impl Layer {
         match self {
             Layer::Type(_) => ("TypeChangingEffects_4", "NA"),
             Layer::Ability(_) => ("AbilityAddingRemovingEffects_6", "NA"),
-            Layer::SetPt(_) => ("PTChangingEffects_7", "SetPT_7b"),
+            Layer::SetPt(_) | Layer::SetToughness(_) => ("PTChangingEffects_7", "SetPT_7b"),
             Layer::ModifyPt(_) => ("PTChangingEffects_7", "ModifyPT_7c"),
         }
     }
@@ -530,16 +532,19 @@ pub(crate) fn modify_pt(game: &Game, id: ObjId) -> (i32, i32) {
     out
 }
 
-/// Layer 7b: the base power and toughness the handlers set on `id`, each with its timestamp
-pub(crate) fn set_pt(game: &Game, id: ObjId) -> Vec<(u64, i32, i32)> {
+/// Layer 7b: the base power and toughness the handlers set on `id`, each with its timestamp (no power: only the
+/// toughness is set)
+pub(crate) fn set_pt(game: &Game, id: ObjId) -> Vec<(u64, Option<i32>, i32)> {
     let mut out = Vec::new();
-    each_static(game, &mut |h, cx, _| {
-        if let Hook::Continuous(Continuous { affects, layer: Layer::SetPt(f) }) = h {
-            if affects(game, cx, id) {
-                let (p, t) = f(game, cx, id);
-                out.push((cx.timestamp, p, t));
-            }
+    each_static(game, &mut |h, cx, _| match h {
+        Hook::Continuous(Continuous { affects, layer: Layer::SetPt(f) }) if affects(game, cx, id) => {
+            let (p, t) = f(game, cx, id);
+            out.push((cx.timestamp, Some(p), t));
         }
+        Hook::Continuous(Continuous { affects, layer: Layer::SetToughness(f) }) if affects(game, cx, id) => {
+            out.push((cx.timestamp, None, f(game, cx, id)));
+        }
+        _ => {}
     });
     out
 }

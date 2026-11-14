@@ -275,9 +275,15 @@ def trigger(t, cls, args):
     name = find(getattr(t, 'source', None), cls, 'trigger')
     if not name:
         return None
-    if [a for a in args if a.strip()]:
-        raise _unsupported(f'ability {cls}: a trigger handler takes no constructor arguments')
-    a = t.ability(handlers()[name]['base'])
+    base = handlers()[name]['base']
+    args = [a.strip() for a in args if a.strip()]
+    # a base with `$0`, `$1`…: the constructor's arguments go there (Ob Nixilis, Captive Kingpin's effect)
+    holes = sorted({int(x) for x in re.findall(r'\$(\d+)', base)})
+    if holes != list(range(len(args))):
+        raise _unsupported(f'ability {cls}: {len(args)} constructor arguments, its handler takes {len(holes)}')
+    for i, arg in enumerate(args):
+        base = base.replace('$%d' % i, arg)
+    a = t.ability(base)
     if a.get('class') != 'TriggeredAbility':
         a = T.triggered(a)
     if a.get('class') != 'TriggeredAbility':

@@ -630,6 +630,29 @@ Being in the engine and being trusted are kept apart.
   Greenhouse // Rickety Gazebo (its returned cards reach the hand in Java's `HashSet<Card>` order) and Aettir and
   Priwen (only seen in that Gazebo game).
 
+  Claim 6's handlers (13 Nov, wave 6): 19 handler files (framework ones for `CantGainLifeAllEffect`,
+  `CantAttackYouAllEffect`, `LoseAllAbilitiesAllEffect` and `ReturnCardChosenFromGraveyardEffect`), a trigger
+  handler's Java base that takes the constructor's arguments (`$0`, `$1`…), and transpiler forms (a token's
+  changeling, Kaito's emblem, Roiling Vortex's "no mana spent", Vilis's and Ob Nixilis's life-loss triggers) brought
+  33 cards in (10,837 in the engine), 7 of them through the shared classes (Atarka's Command, Connive // Concoct,
+  Crib Swap, Deeproot Wayfinder, Port of Karfell, Thassa's Intervention, Vampire Scrivener). Engine changes, each
+  with a game under `shadow/handlers/game-handlers6-claim6-*`: Syr Konrad's trigger (another creature dies, a
+  creature card goes to a graveyard from anywhere else, or leaves your graveyard); "whenever a player discards one or
+  more cards" (Tinybones); "a player / an opponent attacks with N or more creatures" (`AttacksWith`'s `who`: Aurelia,
+  the Law Above and Mangara, the Diplomat); a static handler that sets the base toughness alone
+  (`Layer::SetToughness`, Maha, Its Feathers Night); the names of the spells each player cast this game
+  (`Player::cast_this_game`, Approach of the Second Sun's watcher); and `AnyColorLandsProduceManaAbility` (Naga
+  Vitalist; Exotic Orchard and Fellwar Stone aren't in the pool). Three factory rounds (65 games, 62 matching,
+  replayed again on master after #338 and #344) verified 31: 10,678 of 10,837. Left: Approach of the Second Sun (Java's
+  `won()` ends the game with the spell still on the stack, the engine moves it to the graveyard first), Ill-Timed
+  Explosion (its one differing game is Embereth Veteran's Young Hero Role text, above). The rest of claim 6 needs
+  engine work: zone-change and mana replacements (Nyxbloom Ancient, Liesa), attack taxes (Archangel of Tithes,
+  Archon of Absolution), "can't activate" restrictions and gaining an opponent's abilities (Drana and Linvala),
+  continuous effects on a returned card (Liliana, Death's Majesty), "until your next turn" animation (Wrenn and
+  Realmbreaker), non-mana kicker costs (Vicious Offering), treasure-spent tracking (Forsworn Paladin), as-though
+  hexproof (Glaring Spotlight), and cards whose Java order isn't deterministic (Tersa Lightshatter, Winnowing,
+  Tibalt's Trickery; hand and graveyard shuffles for Day's Undoing and Commit // Memory).
+
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory
   rounds (106 games, 104 matching, replayed again on the engine with the static and claim-2 handlers) verified 58:

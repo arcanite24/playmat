@@ -467,6 +467,8 @@ pub struct Player {
     /// spells they cast this turn, and how many of them were instants or sorceries
     pub spells_cast: u32,
     pub instants_sorceries_cast: u32,
+    /// the names of the spells they cast this game, in order (`ApproachOfTheSecondSunWatcher`)
+    pub cast_this_game: Vec<String>,
     /// spells they cast last turn (`CastSpellLastTurnWatcher.getAmountOfSpellsCastOnPrevTurn`)
     pub spells_cast_last_turn: u32,
     /// permanents sacrificed this turn (`PermanentsSacrificedWatcher`)
@@ -2012,13 +2014,13 @@ impl Game {
             let cards: Vec<ObjId> = batch.iter().filter(|(s, _)| *s == seat).map(|(_, c)| *c).collect();
             let sources = self.trigger_sources();
             let fired = self.triggers(sources, |g, src, you, t| match t {
-                Trigger::DiscardsOneOrMore { filter } => {
-                    you == seat && cards.iter().any(|c| g.filter_matches(filter, you, Some(src), *c))
+                Trigger::DiscardsOneOrMore { filter, any_player } => {
+                    (you == seat || *any_player) && cards.iter().any(|c| g.filter_matches(filter, you, Some(src), *c))
                 }
                 _ => false,
             });
             for mut t in fired {
-                if let Some(Trigger::DiscardsOneOrMore { filter }) = self.trigger_of(&t) {
+                if let Some(Trigger::DiscardsOneOrMore { filter, .. }) = self.trigger_of(&t) {
                     let you = t.controller;
                     t.x = cards.iter().filter(|c| self.filter_matches(filter, you, Some(t.card), **c)).count() as i32;
                 }
@@ -3035,12 +3037,23 @@ impl Game {
                 }
             }
         }
-        // static handlers' (`card_statics.rs`), by their timestamps with the others
+        // static handlers' (`card_statics.rs`), by their timestamps with the others; one setting the toughness alone
+        // keeps the power the others set
+        let mut toughness_only: Option<(u64, i32)> = None;
         for (at, bp, bt) in crate::rules::cards::set_pt(self, id) {
-            later(at, bp, bt);
+            match bp {
+                Some(bp) => later(at, bp, bt),
+                None if toughness_only.is_none_or(|(s, _)| at >= s) => toughness_only = Some((at, bt)),
+                None => {}
+            }
         }
         if let Some((_, bp, bt)) = set {
             (p, t) = (bp, bt);
+        }
+        if let Some((at, bt)) = toughness_only {
+            if set.is_none_or(|(s, _, _)| at >= s) {
+                t = bt;
+            }
         }
         if !boosts {
             return (p, t);
@@ -3473,6 +3486,7 @@ impl Game {
                         || (src != id || *include_self) && g.filter_matches(filter, you, Some(src), id)
                 }
                 Trigger::PeltCollector => src != id && died_controller == you,
+                Trigger::SyrKonrad => src != id && g.has_type(id, CardType::Creature),
                 Trigger::DiesAttached { .. } => g.obj(src).attached_to.is_some_and(|(a, _)| a == id),
                 Trigger::LeavesAll { filter } => g.filter_matches(filter, you, Some(src), id),
                 Trigger::PutIntoGraveyardAll { .. } => into_graveyard(g, src, you, t),
@@ -3514,7 +3528,15 @@ impl Game {
             })
         } else if zone == Zone::Graveyard && from != Zone::Graveyard {
             let sources: Vec<ObjId> = self.battlefield.iter().copied().collect();
-            self.triggers(sources, |g, src, you, t| into_graveyard(g, src, you, t))
+            self.triggers(sources, |g, src, you, t| {
+                into_graveyard(g, src, you, t)
+                    || matches!(t, Trigger::SyrKonrad) && !g.obj(id).token && g.has_type(id, CardType::Creature)
+            })
+        } else if from == Zone::Graveyard && zone != Zone::Graveyard {
+            let sources: Vec<ObjId> = self.battlefield.iter().copied().collect();
+            self.triggers(sources, |g, _, you, t| {
+                matches!(t, Trigger::SyrKonrad) && g.obj(id).owner == you && g.has_type(id, CardType::Creature)
+            })
         } else {
             Vec::new()
         };

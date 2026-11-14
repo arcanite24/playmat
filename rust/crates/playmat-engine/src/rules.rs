@@ -490,8 +490,8 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                             all.iter().any(|a| g.power_toughness(*a).0 > power)
                         }
                     }
-                    Trigger::AttacksWith { min, filter } => {
-                        you == active
+                    Trigger::AttacksWith { min, filter, who } => {
+                        (if who.is_empty() { you == active } else { Game::whose(who, you, active) })
                             && all.iter().filter(|a| g.filter_matches(filter, you, Some(src), **a)).count() >= *min
                     }
                     Trigger::Battalion => all.len() >= 3 && all.contains(&src),
@@ -2668,6 +2668,15 @@ fn mana_sources_with_kinds(game: &Game, seat: Seat) -> Vec<(ObjId, ManaAbilities
                         let cx = cards::ManaCx { seat, source: *id, args, filters, unpaid: &ManaCost::default() };
                         (i, (handler.fns().net)(game, &cx), a.mana_kind())
                     }
+                    AbilityDef::AnyColorLandsProduceManaAbility { opponent, any_type, .. } => {
+                        let (colors, colorless) = lands_could_produce(game, seat, *id, *opponent);
+                        let mut m = Mana::default();
+                        for c in colors {
+                            m.colored[c.index()] = 1;
+                        }
+                        m.colorless = u32::from(*any_type && colorless);
+                        (i, m, a.mana_kind())
+                    }
                     _ => (i, m, a.mana_kind()),
                 })
             })
@@ -3249,6 +3258,84 @@ fn color_among(
     }
     let name = |c: &Color| ["White", "Blue", "Black", "Red", "Green"][c.index()].to_string();
     let q = Query::Choice { message: "Pick a mana color".into(), choices: choices.iter().map(name).collect() };
+    loop {
+        match ask(game, d, seat, &q) {
+            Answer::Text(t) => {
+                if let Some(c) = choices.iter().find(|c| name(c) == t) {
+                    return Some(*c);
+                }
+            }
+            Answer::Stop => return None,
+            _ => {}
+        }
+        if d.stopped() {
+            return None;
+        }
+    }
+}
+
+/// `AnyColorLandsProduceManaEffect.getManaTypes`: the colors (and whether colorless) the mana abilities of the lands
+/// `seat` (`opponent`: an opponent) controls could make, other than `source`'s; another such ability adds nothing
+/// (Java stops the loop there, `inManaTypeCalculation`)
+fn lands_could_produce(game: &Game, seat: Seat, source: ObjId, opponent: bool) -> (Vec<Color>, bool) {
+    let mut colors = Vec::new();
+    let mut colorless = false;
+    for &o in game.battlefield.iter() {
+        let c = game.obj(o).controller;
+        if o == source || !game.has_type(o, CardType::Land) || (opponent == (c == seat)) {
+            continue;
+        }
+        for a in &game.obj(o).def.abilities {
+            if matches!(a, AbilityDef::AnyColorLandsProduceManaAbility { .. }) {
+                continue;
+            }
+            let Some(m) = a.mana() else { continue };
+            for c in Color::ALL {
+                if m.colored[c.index()] > 0 && !colors.contains(&c) {
+                    colors.push(c);
+                }
+            }
+            colorless |= m.colorless > 0;
+        }
+    }
+    (colors, colorless)
+}
+
+/// `ManaType.getChoiceOfManaTypes` (Black, Red, Blue, Green, White, then Colorless), picked as `color_among` picks:
+/// Some(None) is colorless, None: stopped
+fn mana_type_among(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    seat: Seat,
+    unpaid: &ManaCost,
+    allowed: &[Color],
+    colorless: bool,
+    any_type: bool,
+) -> Option<Option<Color>> {
+    let order = [Color::B, Color::R, Color::U, Color::G, Color::W];
+    let mut choices: Vec<Option<Color>> = order.iter().copied().filter(|c| allowed.contains(c)).map(Some).collect();
+    if colorless {
+        choices.push(None);
+    }
+    if choices.len() == 1 {
+        return Some(choices[0]);
+    }
+    let owed: Vec<Color> = [Color::W, Color::R, Color::G, Color::U, Color::B]
+        .into_iter()
+        .filter(|c| unpaid.symbols_of(*c) > 0 && choices.contains(&Some(*c)))
+        .collect();
+    if owed.len() == 1 {
+        return Some(Some(owed[0]));
+    }
+    if owed.is_empty() && Color::ALL.iter().all(|c| unpaid.symbols_of(*c) == 0) {
+        return choices.first().copied();
+    }
+    let name = |c: &Option<Color>| match c {
+        Some(c) => ["White", "Blue", "Black", "Red", "Green"][c.index()].to_string(),
+        None => "Colorless".to_string(),
+    };
+    let message = if any_type { "Pick a mana type" } else { "Pick a mana color" };
+    let q = Query::Choice { message: message.into(), choices: choices.iter().map(name).collect() };
     loop {
         match ask(game, d, seat, &q) {
             Answer::Text(t) => {
@@ -4827,6 +4914,7 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         let p = game.player_mut(seat);
         p.flier_cast |= flier;
         p.spells_cast += 1;
+        p.cast_this_game.push(def.name.clone());
         if !def.is(CardType::Creature) {
             p.noncreature_cast += 1;
         }
@@ -7565,6 +7653,19 @@ fn activate_mana_paying(
         if !allowed.is_empty() {
             let Some(c) = color_among(game, d, seat, choosing, &allowed) else { return false };
             m = Mana::of(c, 1);
+        }
+    }
+    // Exotic Orchard: one mana of a type the lands could make (`AnyColorLandsProduceManaEffect.produceMana`); none,
+    // no mana
+    if let AbilityDef::AnyColorLandsProduceManaAbility { opponent, any_type, .. } = def.abilities[i] {
+        let (colors, colorless) = lands_could_produce(game, seat, id, opponent);
+        m = Mana::default();
+        if !colors.is_empty() || any_type && colorless {
+            match mana_type_among(game, d, seat, choosing, &colors, any_type && colorless, any_type) {
+                None => return false,
+                Some(Some(c)) => m = Mana::of(c, 1),
+                Some(None) => m.colorless = 1,
+            }
         }
     }
     // Bloom Tender: one of each color among the permanents you control, as it's activated
