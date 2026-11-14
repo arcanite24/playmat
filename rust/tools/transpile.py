@@ -103,7 +103,7 @@ EFFECTS = {
     'LoseLifeOpponentsEffect': [('amount', 'int')],
     'LoseLifeSourceControllerEffect': [('amount', 'int'), (None, 'bool')],
     'LoseLifeTargetEffect': [('amount', 'int')],
-    'DestroyAllEffect': [('filter', 'filter')],
+    'DestroyAllEffect': [('filter', 'filter'), (None, 'false')],
     'DamageAllEffect': [('amount', 'int'), ('filter', 'filter')],
     'ReturnFromYourGraveyardToBattlefieldAllEffect': [('filter', 'filter')],
     'BoostAllEffect': [('power', 'int'), ('toughness', 'int'), ('duration', 'duration'), ('filter', 'filter'),
