@@ -528,6 +528,30 @@ Being in the engine and being trusted are kept apart.
   multi-blocks, an enters replacement order); venture into the dungeon needs the dungeon subsystem (rooms chosen,
   not random).
 
+  Triggers and watchers (13 Nov, wave 5): `COUNTERS_ADDED` ("whenever you put one or more counters on a permanent", X
+  the amount, from effects, costs, loyalty and earthbend), `ACTIVATED_ABILITY` (exhaust and power-up abilities,
+  loyalty abilities of a planeswalker or of a subtype), explore, proliferate, "attacks for the first time each turn",
+  "you surveil" and "you scry" apart, "lose life for the first time each turn" (`LifeLostThisTurnWatcher`'s batches),
+  "whenever one or more creatures die" and "one or more permanents you control enter" once a batch, committed crimes,
+  and "do this only once each turn" (`setDoOnlyOnceEachTurn`: a "may" trigger that, once its controller says yes,
+  doesn't trigger again that turn). The per-turn watchers live in `Game::watch` (`TurnWatch`, reset in the untap step
+  like Java's watchers): spells cast (from where, creature, historic), sacrifices, cards leaving a graveyard,
+  discards, scries and surveils, cards put into a graveyard (from the battlefield or anywhere, for
+  `PutIntoGraveFromBattlefieldThisTurnPredicate`), crews, crimes, deaths, permanents entered, exiles, and life lost
+  last turn; "attacks for the first time" reads the creatures that attacked this turn (`attacked_this_turn`). Their
+  conditions and counts are handlers in `cards/spells_cast_watcher.rs` and `cards/turn_watchers.rs`; the transpiler
+  drops the `addWatcher` of a watcher the engine keeps. 85 more cards translate (10,638 in the engine). Two factory
+  rounds (108 games, 102 match) verified 85 (four of them verified meanwhile by other PRs): 10,497. Their fixes, each
+  with a game under `shadow/triggers/wave5-*`: earthbend's counters trigger "whenever you put counters"; a leave
+  trigger's `SourcePermanentToughnessValue` is the toughness it last had (Paladin of Atonement, as `lki_power` was for
+  power); a "one or more die" batch the state-based actions made goes with that pass's triggers, even when the others
+  are removed for want of targets. Left: Furtive Courier (Embereth Veteran's Young Hero Role keeps `{this}` where
+  Java's `setText` says "it"; changing it changes a verified card), Shipwreck Sentry (the order of two combat-damage
+  triggers, the damage area), Duelist of the Mind (two games part in hidden zones), Iron Man and Marauding Sphinx
+  pending. Not done: triggered mana abilities ("tapped for mana"), "a player attacks with N creatures"
+  (`DECLARED_ATTACKERS`, Aurelia, Mangara, Tomik), triggers from the graveyard zone, copy-a-spell triggers and
+  `SacrificeSource` triggers; "deals damage" batches are claim 1's work.
+
   Java's nondeterminism, not copied: tokens created together with `withAdditionalTokens` (Forbidden Friendship's
   Dragon and Human) enter in `CreateTokenEvent`'s `HashMap` order, which changes from run to run, so the games where
   that order matters (Barrier of Bones, Hellkite Whelp, Dimension X) part there. They're left as differing, and those

@@ -495,6 +495,14 @@ pub enum Pred {
     CounterAny,
     /// `EnteredThisTurnPredicate`
     EnteredThisTurn,
+    /// a card put into a graveyard this turn, still there as that object (`PutIntoGraveFromBattlefieldThisTurnPredicate`
+    /// with `battlefield`, else `PutIntoGraveFromAnywhereThisTurnPredicate`: `CardsPutIntoGraveyardWatcher`)
+    ToGraveyardThisTurn {
+        #[serde(default)]
+        battlefield: bool,
+    },
+    /// it crewed the source this turn (`CrewedSourceThisTurnPredicate`, `CrewedVehicleWatcher`)
+    CrewedSourceThisTurn,
     /// `EquippedPredicate`: an Equipment is attached to it
     Equipped,
     /// `EnchantedPredicate`: an Aura is attached to it
@@ -790,6 +798,10 @@ pub enum Trigger {
         /// this triggers it whatever the filter says (`DiesThisOrAnotherTriggeredAbility`)
         #[serde(default)]
         this_unfiltered: bool,
+        /// "one or more": once for permanents dying together, after their other triggers (`DiesOneOrMoreTriggeredAbility`,
+        /// `ZONE_CHANGE_BATCH`)
+        #[serde(default)]
+        batch: bool,
     },
     /// at the beginning of `step` ("upkeep", "combat", "end") of `who`'s turn: "you", "opponent" or "any"
     StepBegins {
@@ -809,6 +821,9 @@ pub enum Trigger {
     /// `who` ("you", "opponent", "any") loses life (`LoseLifeTriggeredAbility`); the life lost is its X
     LosesLife {
         who: String,
+        /// only the first time each turn they lose life (`LoseLifeFirstTimeEachTurnTriggeredAbility`)
+        #[serde(default)]
+        first_time: bool,
     },
     /// one or more `counter` counters are put on this (Exemplar of Light)
     CountersAddedSource {
@@ -872,6 +887,34 @@ pub enum Trigger {
     BecomesUntapped,
     /// eerie: an enchantment you control enters, or you fully unlock a Room (`EerieAbility`)
     Eerie,
+    /// you put one or more counters (of `counter`; any kind when empty) on a permanent of the filter, once each time
+    /// (`PutCounterOnPermanentTriggeredAbility`, `COUNTERS_ADDED`): X is how many; with a target pointer, at it
+    CountersPut {
+        filter: Filter,
+        #[serde(default)]
+        counter: String,
+    },
+    /// you activate an ability that isn't a mana ability, of `kind` ("exhaust", "power_up", "any")
+    /// (`ActivateAbilityTriggeredAbility`, `ACTIVATED_ABILITY`)
+    AbilityActivated {
+        kind: String,
+    },
+    /// you activate a loyalty ability of a planeswalker (of `subtype`, when it's set)
+    /// (`ActivatePlaneswalkerLoyaltyAbilityTriggeredAbility`)
+    LoyaltyActivated {
+        #[serde(default)]
+        subtype: String,
+    },
+    /// a creature you control explores (`CreatureExploresTriggeredAbility`, `EXPLORED`)
+    Explores,
+    /// you proliferate (`ProliferatedControllerTriggeredAbility`, `PROLIFERATED`)
+    YouProliferate,
+    /// this attacks for the first time each turn (`AttacksFirstTimeTriggeredAbility`)
+    AttacksFirstTime,
+    /// you surveil (`SurveilTriggeredAbility`, `SURVEILED`), or scry (`ScryTriggeredAbility`, `SCRIED`): X is the amount
+    YouSurveilOrScry {
+        surveil: bool,
+    },
 }
 
 /// Mana abilities as `ManaUtil.tryToAutoPay` tells them apart: a basic one (`{T}: Add {G}`, pain lands too), one of
@@ -3865,6 +3908,10 @@ pub enum AbilityDef {
         /// it triggers at most this many times each turn (`setTriggersLimitEachTurn`)
         #[serde(default)]
         limit_per_turn: Option<u32>,
+        /// "do this only once each turn" (`setDoOnlyOnceEachTurn`): a "may" ability that doesn't trigger, or do
+        /// anything, again the turn its controller said yes
+        #[serde(default)]
+        once_each_turn: bool,
         /// a modal ability ("choose one"): its other modes, mode 0 being its own effects and targets
         #[serde(default)]
         modes: Vec<ModeDef>,

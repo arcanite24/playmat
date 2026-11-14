@@ -22,7 +22,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         }
         on_top = top.len();
     }
-    scried(game, you, 2);
+    scried(game, you, 2, false);
     for _ in 0..on_top {
         draw(game, you, 1);
         lose_life(game, you, 3);
