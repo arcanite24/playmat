@@ -3813,7 +3813,7 @@ impl Game {
             self.obj_mut(id).lki_keywords = kept;
             let o = self.obj_mut(id);
             // (a face-down one had none of its card's: its dies triggers don't fire)
-            o.lki_def = (o.land_type_base.is_some() || o.face_up.is_some()).then(|| o.def.clone());
+            o.lki_def = (o.land_type_base.is_some() || o.face_up.is_some() || o.front.is_some()).then(|| o.def.clone());
         } else {
             let o = self.obj_mut(id);
             o.lki_keywords.clear();
