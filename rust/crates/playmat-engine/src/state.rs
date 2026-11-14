@@ -154,8 +154,8 @@ pub struct Obj {
     pub attacking_pw: Option<(ObjId, u32)>,
     /// a battle's protector
     pub protector: Option<Seat>,
-    /// a loyalty ability of it was activated this turn
-    pub loyalty_used: bool,
+    /// how many times its loyalty abilities were activated this turn
+    pub loyalty_used: u8,
     /// it entered the battlefield as a kicked spell
     pub kicked: bool,
     /// it entered the battlefield by resolving as a spell
@@ -448,6 +448,9 @@ pub struct Player {
     pub drew_from_empty: bool,
     /// can't gain life for the rest of the game (Screaming Nemesis)
     pub cant_gain_life: bool,
+    /// no maximum hand size for the rest of the game (`MaximumHandSizeControllerEffect` set to `Integer.MAX_VALUE`
+    /// for `Duration.EndOfGame`: Sea Gate Restoration)
+    pub no_max_hand_size: bool,
     /// declared an attacker this turn (`PlayerAttackedWatcher`)
     pub attacked: bool,
     /// the attackers declared this turn, over every combat (`PlayerAttackedWatcher.getNumberOfAttackersCurrentTurn`)
@@ -1399,7 +1402,7 @@ impl Game {
             attacking: None,
             attacking_pw: None,
             protector: None,
-            loyalty_used: false,
+            loyalty_used: 0,
             kicked: false,
             cast: false,
             cast_lki: false,
@@ -2659,6 +2662,13 @@ impl Game {
                     .map(|b| self.power_toughness(*b).0)
                     .max()
                     .unwrap_or(0),
+                Value::GreatestToughness { filter } => self
+                    .battlefield
+                    .iter()
+                    .filter(|b| self.filter_matches(filter, you, Some(source), **b))
+                    .map(|b| self.power_toughness(*b).1)
+                    .max()
+                    .unwrap_or(0),
                 Value::SourceCounters { counter } => {
                     let o = self.obj(source);
                     if o.zone == Zone::Battlefield {
@@ -2997,7 +3007,7 @@ impl Game {
     pub fn player_has(&self, seat: Seat, ability: &AbilityDef) -> bool {
         fn gives(g: &Game, e: &EffectDef, src: ObjId, you: Seat, ability: &AbilityDef) -> bool {
             match e {
-                EffectDef::GainAbilityControllerEffect { ability: given } => **given == *ability,
+                EffectDef::GainAbilityControllerEffect { ability: given, .. } => **given == *ability,
                 EffectDef::ConditionalContinuousEffect { effect, condition } => {
                     g.condition_holds(Some(condition), you, src) && gives(g, effect, src, you, ability)
                 }
@@ -3006,6 +3016,11 @@ impl Game {
         }
         (*ability == AbilityDef::HexproofAbility && self.player(seat).hexproof_turn == Some(self.turn))
             || self.any_static(|g, src, e| g.obj(src).controller == seat && gives(g, e, src, seat, ability))
+            || self.eot_effects.iter().any(|(e, you, _)| {
+                *you == seat
+                    && matches!(e, EffectDef::GainAbilityControllerEffect { ability: given, until_end_of_turn: true }
+                        if **given == *ability)
+            })
     }
 
     pub fn static_gives(&self, e: &EffectDef, src: ObjId, you: Seat, id: ObjId, ability: &AbilityDef) -> bool {
@@ -3868,7 +3883,7 @@ impl Game {
                 o.counters.clear();
                 o.attacking = None;
                 o.attacking_pw = None;
-                o.loyalty_used = false;
+                o.loyalty_used = 0;
                 o.kicked = false;
                 o.cast = false;
                 o.lki_attached_to = if from == Zone::Battlefield { o.attached_to } else { None };
