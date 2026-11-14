@@ -929,8 +929,8 @@ Being in the engine and being trusted are kept apart.
     and another cost is paid after the spell's own. Battle cry is an attack trigger with `BoostControlledEffect`.
   - Handlers: Sorin, Vengeful Bloodlord's Vampire, Ugin, the Spirit Dragon's -X and -10, Twinned Vision's draw,
     Collective Effort's counters. Games covering them are under `shadow/mechanics/game-w6mech2-*`.
-  - 44 cards came in (10,964 in the engine). Three factory rounds (74 games, all matching) verified 40: 10,795 of
-    10,964. Dragon's Approach, Ruthless Disposal, Sphinx's Approach and Ultimecia, Time Sorceress had no factory
+  - 44 cards came in. Three factory rounds (74 games, all matching, replayed again on master after #350) verified
+    40: 10,956 of 11,143 on master with #350. Dragon's Approach, Ruthless Disposal, Sphinx's Approach and Ultimecia, Time Sorceress had no factory
     deck yet.
 
       W=.local/rust-port/factory
