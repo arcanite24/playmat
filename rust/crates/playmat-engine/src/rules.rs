@@ -12555,6 +12555,56 @@ fn apply_each_effect(
                     add_counters_by(game, o, "+1/+1", n as i32, Some(controller));
                 }
             }
+            EffectDef::TributeEffect { amount } => {
+                // the permanent entering, and the one opponent (`TargetOpponent` is asked only with more)
+                let (o, _) = source;
+                if game.obj(o).zone != Zone::Battlefield {
+                    continue;
+                }
+                let opponent = game.opponent(controller);
+                let n = *amount;
+                let message = format!(
+                    "Pay tribute to {} (add {} +1/+1 counter{} to it)?",
+                    game.obj(o).name(),
+                    if n == 1 { "one".to_string() } else { crate::log::number(n as usize) },
+                    if n > 1 { "s" } else { "" }
+                );
+                let Some(paid) = choose_use(game, d, opponent, &message) else { return };
+                game.obj_mut(o).tribute = Some(paid);
+                if paid {
+                    add_counters_by(game, o, "+1/+1", n, Some(opponent));
+                }
+            }
+            EffectDef::ExploitEffect => {
+                // `TargetSacrifice(FILTER_PERMANENT_A_CREATURE)`, chosen if it can be
+                let possible: Vec<ObjId> = game
+                    .battlefield
+                    .iter()
+                    .copied()
+                    .filter(|o| game.obj(*o).controller == controller && game.has_type(*o, CardType::Creature))
+                    .collect();
+                if possible.is_empty() {
+                    continue;
+                }
+                let Some(chosen) = choose_cards(game, d, controller, &possible, &possible, 1, 1, "sacrifice") else {
+                    return;
+                };
+                let Some(o) = chosen.first().copied().filter(|o| game.obj(*o).zone == Zone::Battlefield) else {
+                    continue;
+                };
+                let insert = game.sac_insert.replace(game.pending.len());
+                sacrifice(game, o);
+                let at = game.sac_insert.unwrap_or(game.pending.len()).min(game.pending.len());
+                game.sac_insert = insert;
+                // `EXPLOITED_CREATURE` at once, after the sacrifice's own triggers and before the ones on it dying:
+                // the exploiter's, on the battlefield or just sacrificed (a leaves-the-battlefield trigger)
+                let (src, zcc) = source;
+                let here = game.obj(src).zone == Zone::Battlefield && game.obj(src).zcc == zcc;
+                if here || src == o {
+                    let fired = game.triggers([src], |_, s, _, t| matches!(t, Trigger::Exploits) && s == src);
+                    game.pending.splice(at..at, fired);
+                }
+            }
             EffectDef::BoomerangBasicsEffect => {
                 if let Some(o) = objs.first().copied().filter(|o| game.obj(*o).zone == Zone::Battlefield) {
                     let yours = game.obj(o).controller == controller;

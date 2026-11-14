@@ -736,6 +736,7 @@ CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'},
               'SourceEnteredThisTurnCondition.FALSE': {'c': 'not', 'x': {'c': 'source_entered_this_turn'}},
               'RenownedSourceCondition.ITS': {'c': 'source_renowned'}, 'MonstrousCondition.instance': {'c': 'monstrous'},
               'RenownedSourceCondition.THIS': {'c': 'source_renowned'},
+              'TributeNotPaidCondition.instance': {'c': 'tribute_not_paid'},
               'AdamantCondition.ANY': {'c': 'or', 'xs': [{'c': 'mana_color_spent', 'color': c, 'n': 3} for c in 'WUBRG']},
               'CastFromEverywhereSourceCondition.instance': {'c': 'cast_from_everywhere'},
               'NotMyTurnCondition.instance': {'c': 'not', 'x': {'c': 'my_turn'}},
@@ -4693,6 +4694,15 @@ class Translator:
             return {'class': 'SimpleActivatedAbility', 'java': cls, 'targets': [],
                     'cost': [{'class': 'ManaCost', 'cost': args[0].strip()[1:-1]}],
                     'effects': [{'class': 'BecomeMonstrousSourceEffect', 'amount': amount}]}
+        # tribute N: as this enters, an opponent may put N +1/+1 counters on it
+        if cls == 'TributeAbility' and n == 1 and args[0].isdigit():
+            return {'class': 'EntersBattlefieldAbility', 'java': cls, 'effects': [{'class': 'TributeEffect', 'amount': int(args[0])}]}
+        # exploit: when this enters, you may sacrifice a creature
+        if cls == 'ExploitAbility' and n == 0:
+            return trig({'e': 'enters'}, [{'class': 'ExploitEffect'}], True)
+        # "when this exploits a creature" (`EXPLOITED_CREATURE`)
+        if cls == 'ExploitCreatureTriggeredAbility' and (n in (1, 2) or n == 3 and args[2] == 'SetTargetPointer.NONE'):
+            return trig({'e': 'exploits'}, [self.effect(args[0])], n >= 2 and flag(args[1]))
         if cls == 'BecomesMonstrousSourceTriggeredAbility' and n in (1, 2):
             return trig({'e': 'becomes_monstrous'}, [self.effect(args[0])], n == 2 and flag(args[1]))
         # mentor: whenever this attacks, a +1/+1 counter on target attacking creature with lesser power

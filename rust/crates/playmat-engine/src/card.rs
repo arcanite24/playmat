@@ -582,6 +582,9 @@ pub enum Trigger {
     SiegeDefeated,
     /// this becomes monstrous (`BecomesMonstrousSourceTriggeredAbility`, `BECOMES_MONSTROUS`)
     BecomesMonstrous,
+    /// this exploits a creature (`ExploitCreatureTriggeredAbility`, `EXPLOITED_CREATURE`): it triggers even when it
+    /// sacrificed itself
+    Exploits,
     /// this enters or transforms into this face (`TransformsOrEntersTriggeredAbility`)
     TransformsOrEnters,
     /// this is turned face up (`TurnedFaceUpSourceTriggeredAbility`, `TURNED_FACE_UP`)
@@ -1124,6 +1127,8 @@ pub enum Condition {
     SourceRenowned,
     /// `MonstrousCondition`: the source is monstrous
     Monstrous,
+    /// `TributeNotPaidCondition`: the opponent asked didn't pay the source's tribute
+    TributeNotPaid,
     /// `ModeChoice.checkMode`: the source's mode chosen as it entered (`ChooseModeEffect`) is this one (a Siege's
     /// "Khans" or "Dragons")
     ModeChosen {
@@ -2174,6 +2179,12 @@ pub enum EffectDef {
     /// this connives: its controller draws a card, then discards one; a nonland card discarded puts a +1/+1 counter
     /// on it
     ConniveSourceEffect,
+    /// tribute N: as this enters, an opponent of your choice may put N +1/+1 counters on it (`TributeEffect`)
+    TributeEffect {
+        amount: i32,
+    },
+    /// exploit: you may sacrifice a creature (`ExploitEffect`), then "when this exploits a creature" triggers
+    ExploitEffect,
     /// deals damage to the target player equal to the noncreature spells they cast this turn
     MagebaneLizardEffect,
     /// you may cast spells of the filter as though they had flash
