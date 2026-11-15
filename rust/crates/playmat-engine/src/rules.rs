@@ -671,6 +671,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
         Step::DeclareBlockers => {
             declare_blockers(game, d, game.opponent(active));
             if !d.stopped() {
+                unblocked_triggers(game);
                 block_triggers(game);
             }
             if log::kept(game) && !d.stopped() {
@@ -23308,6 +23309,29 @@ fn declare_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
         }
         if legal {
             return;
+        }
+    }
+}
+
+/// `Combat.selectBlockers`: once blockers are chosen, each attacker in no blocked group fires `UNBLOCKED_ATTACKER`,
+/// before `acceptBlockers`' block events
+fn unblocked_triggers(game: &mut Game) {
+    let unblocked: Vec<ObjId> = game
+        .combat_groups
+        .iter()
+        .filter(|g| g.left.is_none() && game.obj(g.attacker).zone == Zone::Battlefield)
+        .map(|g| g.attacker)
+        .filter(|a| live_blockers(game, *a).is_empty() && !game.obj(*a).blocked)
+        .collect();
+    for a in unblocked {
+        let sources = game.trigger_sources();
+        let fired = game.triggers(sources, |_, src, _, t| matches!(t, Trigger::AttacksUnblocked) && src == a);
+        for mut t in fired {
+            if set_target_pointer_player(game, &t) {
+                t.targets = vec![vec![Target::Player(game.opponent(game.obj(a).controller))]];
+                t.target_zcc = vec![vec![0]];
+            }
+            game.pending.push(t);
         }
     }
 }

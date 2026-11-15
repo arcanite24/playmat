@@ -715,6 +715,9 @@ pub enum Trigger {
     /// this becomes blocked (`BecomesBlockedSourceTriggeredAbility`, `CREATURE_BLOCKED`); with a player target
     /// pointer, at the defending player
     BecomesBlocked,
+    /// this attacks and isn't blocked (`AttacksAndIsNotBlockedTriggeredAbility`, `UNBLOCKED_ATTACKER`); with a player
+    /// target pointer, at the defending player
+    AttacksUnblocked,
     /// a creature of the filter becomes blocked (`BecomesBlockedAllTriggeredAbility`); with a target pointer, at it
     BecomesBlockedAll {
         filter: Filter,
