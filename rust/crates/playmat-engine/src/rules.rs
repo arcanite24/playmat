@@ -21579,6 +21579,16 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
                     .as_ref()
                     .filter(|dl| !dl.targets.is_empty())
                     .map(|dl| (dl.rule.clone(), dl.targets.clone()));
+                // `PlayerImpl.triggerAbility` checks `canChooseTarget` before it pushes the trigger: a one-mode one
+                // can't count itself as a stack object to target (Overcharged Amalgam exploiting itself with nothing
+                // else on the stack)
+                let possible_before = if modes.is_empty() {
+                    ability.as_ref().and_then(|a| a.triggered()).map(|(_, _, targets, _)| {
+                        targets.iter().all(|x| target_possible(game, seat, x, Some(t.card)))
+                    })
+                } else {
+                    None
+                };
                 Arc::make_mut(&mut game.stack).push(t);
                 let at = game.stack.len();
                 // a reflexive trigger's targets, the same way
@@ -21604,7 +21614,9 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
                     // (`PlayerImpl.triggerAbility`'s `canChooseTarget`: every target first, so a later "up to one"
                     // isn't asked when an earlier one has none: Invasion of Muraganda with no creature of yours)
                     let card = game.stack.last().map(|t| t.card);
-                    if !targets.iter().all(|x| target_possible(game, seat, x, card)) {
+                    let possible =
+                        possible_before.unwrap_or_else(|| targets.iter().all(|x| target_possible(game, seat, x, card)));
+                    if !possible {
                         Arc::make_mut(&mut game.stack).pop();
                     } else if !targets.is_empty() {
                         if !choose_targets(game, d, seat, targets, None, rule, false) {
