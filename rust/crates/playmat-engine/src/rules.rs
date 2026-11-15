@@ -22042,6 +22042,16 @@ pub(crate) fn redirect_damage(game: &mut Game, ev: &cards::Event, to: ObjId) {
 
 /// Damage from `source`: to a player it's life lost, to a creature it's marked. Lifelink gains its controller life.
 /// Returns combat lifelink's life, which `combat_damage` gains once per source; outside combat, the damage dealt.
+/// `DAMAGED_PERMANENT` and `DAMAGED_PLAYER` of combat damage: a source on the battlefield has dealt combat damage
+/// this game (`RuricTharMagecrusherWatcher`)
+fn note_combat_damage_source(game: &mut Game, source: ObjId, combat: bool) {
+    let o = game.obj(source);
+    if combat && o.zone == Zone::Battlefield && !game.combat_damage_sources.contains(&(source, o.zcc)) {
+        let zcc = o.zcc;
+        game.combat_damage_sources.push((source, zcc));
+    }
+}
+
 fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: bool) -> i32 {
     let applied = game.damage_applied.take().unwrap_or_default();
     if amount <= 0 {
@@ -22299,6 +22309,7 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                     combat,
                 };
                 game.watch.damage.push(seen);
+                note_combat_damage_source(game, source, combat);
             }
             if combat && amount > 0 && !game.combat_damaged_players.contains(&(source, s)) {
                 game.combat_damaged_players.push((source, s));
@@ -22366,6 +22377,7 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                     combat,
                 };
                 game.watch.damage.push(seen);
+                note_combat_damage_source(game, source, combat);
             }
             let turn = game.turn;
             let t = game.obj_mut(o);
