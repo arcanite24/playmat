@@ -177,6 +177,12 @@ pub struct Obj {
     pub cast: bool,
     /// `cast` as it last left the battlefield (an ability of it that resolves later looks back)
     pub cast_lki: bool,
+    /// the zone it entered the battlefield from, as it last did (the stack for a resolving spell; `cast_from` says
+    /// where that spell was cast from): Fblthp, the Lost
+    pub entered_from: Option<Zone>,
+    /// it was suspected as it last left the battlefield (`Permanent.isSuspected` of its last known information:
+    /// Agency Coroner's sacrificed creature)
+    pub suspected_lki: bool,
     /// its toughness as it last left the battlefield (Righteous Valkyrie's trigger on a creature already gone)
     pub toughness_lki: Option<i32>,
     /// its power as it last left the battlefield (`SourcePermanentPowerValue`'s last known information)
@@ -302,6 +308,9 @@ pub struct Obj {
     pub may_play_end_step: bool,
     /// `may_play` lasts only while its player controls this permanent, as it was (`Duration.WhileControlled`)
     pub may_play_while: Option<(ObjId, u32)>,
+    /// `may_play` holds only while this is true for its player (`CardUtil.makeCardPlayable`'s condition: Possibility
+    /// Technician's "if you control a Kavu")
+    pub may_play_if: Option<fn(&Game, Seat) -> bool>,
     /// mana of any type can be spent to cast it (while it may be played from exile)
     pub any_mana: bool,
     /// while it may be played from exile, it's cast without paying its mana cost (Oracle's Vault)
@@ -699,6 +708,8 @@ pub enum TriggerCause {
     Died(ObjId),
     /// creatures attacking (`ATTACKER_DECLARED`, `DECLARED_ATTACKERS`)
     Attacked,
+    /// a player gaining life (`GAINED_LIFE`)
+    GainedLife(Seat),
 }
 
 #[derive(Clone, Debug)]
@@ -755,7 +766,8 @@ pub struct StackItem {
     pub spliced: Vec<Spliced>,
     /// a cast trigger: the spell that was cast (Java's `getValue("spellCast")`), whatever its target pointer is
     pub cast_spell: Option<ObjId>,
-    /// a "whenever a creature dies" trigger (`DiesCreatureTriggeredAbility`): the permanent that died and its
+    /// a "whenever a creature dies" trigger (`DiesCreatureTriggeredAbility`, or "when that creature dies this turn":
+    /// `WhenTargetDiesDelayedTriggeredAbility`): the permanent that died and its
     /// controller as it died (`getValue("creatureDied")`, its last known information)
     pub died: Option<(ObjId, Seat)>,
     /// a "whenever a permanent of the filter leaves the battlefield" trigger: the permanent that left (Java's
@@ -763,6 +775,13 @@ pub struct StackItem {
     pub left: Option<ObjId>,
     /// the cards its `DiscardCardCost` discarded (`DiscardCardCost.getCards`)
     pub cost_discarded: Vec<ObjId>,
+    /// a "whenever a player discards a card" trigger (`Trigger::Discards`, `DISCARDED_CARD`): the card discarded,
+    /// as the card it became in the graveyard (Java's `event.getTargetId()`)
+    pub discarded: Option<ObjId>,
+    /// the cards its `RevealTargetFromHandCost` revealed, in the order chosen (`getRevealedCards`)
+    pub cost_revealed: Vec<ObjId>,
+    /// the cards its `ExileFromGraveCost` exiled, in the order chosen (`ExileFromGraveCost.getExiledCards`)
+    pub cost_exiled: Vec<ObjId>,
     /// an explore trigger: the creature that explored and the card it revealed (`ExploredEvent.getCard`; none with
     /// an empty library)
     pub explored: Option<(ObjId, Option<ObjId>)>,
@@ -867,6 +886,9 @@ impl StackItem {
             died: None,
             left: None,
             cost_discarded: Vec::new(),
+            discarded: None,
+            cost_revealed: Vec::new(),
+            cost_exiled: Vec::new(),
             explored: None,
             batch: Vec::new(),
             from_delayed: None,
@@ -1215,6 +1237,9 @@ pub struct Game {
     /// players dealt any damage this turn, by source (`PlayerDamagedBySourceWatcher`): the source, its zone change
     /// count then, the player
     pub damaged_players: Vec<(ObjId, u32, Seat)>,
+    /// the permanents that dealt combat damage this game, as the objects they were (Ruric Thar's watcher: a source on
+    /// the battlefield, with its zone-change count then)
+    pub combat_damage_sources: Vec<(ObjId, u32)>,
     /// the creatures that attacked this turn, as they were (`AttackedThisTurnWatcher.getAttackedThisTurnCreatures`)
     pub attacked_this_turn: Vec<(ObjId, u32)>,
     /// the permanents each player put one or more +1/+1 counters on this turn, as they were (Kid Loki's watcher)
@@ -1393,6 +1418,8 @@ pub struct TurnWatch {
     /// `CardsPutIntoGraveyardWatcher`: each card put into a graveyard, its zone-change count there, and whether it
     /// came from the battlefield
     pub to_graveyard: Vec<(ObjId, u32, bool)>,
+    /// `CruelCalculationsWatcher`: the owner of each card put into a graveyard from a library (milled or otherwise)
+    pub library_to_graveyard: Vec<Seat>,
     /// `CrewedVehicleWatcher`: (vehicle, its zone-change count, a creature that crewed it, its count)
     pub crewed: Vec<(ObjId, u32, ObjId, u32)>,
     /// `LifeLostThisTurnWatcher`: a `LOST_LIFE_BATCH_FOR_ONE_PLAYER` for each, once a batch
@@ -1437,6 +1464,8 @@ pub struct TurnWatch {
     pub surveiled: Vec<Seat>,
     /// `SACRIFICED_PERMANENT`: who sacrificed, and the permanent as it was (the card or token it became, its count)
     pub sacrificed_objs: Vec<(Seat, ObjId, u32)>,
+    /// `ACTIVATED_ABILITY` of a loyalty ability: who activated it, once each (Kiora of Salt and Sand's watcher)
+    pub loyalty_activated: Vec<Seat>,
 }
 
 /// One damage event a `TurnWatch` keeps: the source as it was and its controller then, what was dealt damage (a
@@ -1450,6 +1479,10 @@ pub struct DamageSeen {
     pub to_zcc: u32,
     pub amount: i32,
     pub combat: bool,
+    /// damage to a permanent beyond what was lethal to it as it was dealt (`DamagedEvent.getExcess`: past its
+    /// toughness less its damage, 1 from a deathtouch source, its loyalty or defense); 0 or less for none, and for
+    /// a player
+    pub excess: i32,
 }
 
 /// A permanent that left the battlefield (`ZoneChangeEvent` from it): the object (with its zone-change count as the
@@ -1617,6 +1650,7 @@ impl Game {
             damaged_by_source: Vec::new(),
             combat_damaged_players: Vec::new(),
             damaged_players: Vec::new(),
+            combat_damage_sources: Vec::new(),
             attacked_this_turn: Vec::new(),
             p1p1_put_this_turn: Vec::new(),
             discarded_this_turn: Vec::new(),
@@ -1783,6 +1817,8 @@ impl Game {
             kicked: false,
             cast: false,
             cast_lki: false,
+            suspected_lki: false,
+            entered_from: None,
             toughness_lki: None,
             power_lki: None,
             p1p1_added: false,
@@ -1842,6 +1878,7 @@ impl Game {
             may_play: None,
             may_play_end_step: false,
             may_play_while: None,
+            may_play_if: None,
             any_mana: false,
             play_free: false,
             exiled_face_down: false,
@@ -2899,7 +2936,7 @@ impl Game {
         }) && o.may_play_while.is_none_or(|(src, zcc)| {
             let s = self.obj(src);
             s.zone == Zone::Battlefield && s.zcc == zcc && s.controller == seat
-        })
+        }) && o.may_play_if.is_none_or(|f| f(self, seat))
     }
 
     pub fn any_static(&self, mut f: impl FnMut(&Game, ObjId, &EffectDef) -> bool) -> bool {
@@ -4594,8 +4631,14 @@ impl Game {
             })
         } else if from == Zone::Graveyard && zone != Zone::Graveyard {
             let sources: Vec<ObjId> = self.battlefield.iter().copied().collect();
-            self.triggers(sources, |g, _, you, t| {
-                matches!(t, Trigger::SyrKonrad) && g.obj(id).owner == you && g.has_type(id, CardType::Creature)
+            self.triggers(sources, |g, src, you, t| match t {
+                Trigger::SyrKonrad => g.obj(id).owner == you && g.has_type(id, CardType::Creature),
+                Trigger::CardLeavesYourGraveyard { filter, your_turn } => {
+                    g.obj(id).owner == you
+                        && (!*your_turn || g.active == Some(you))
+                        && g.filter_matches(filter, you, Some(src), id)
+                }
+                _ => false,
             })
         } else {
             Vec::new()
@@ -4656,6 +4699,8 @@ impl Game {
                 std::mem::take(&mut self.when_dies).into_iter().partition(|w| w.0 == id && w.1 == zcc);
             self.when_dies = rest;
             for (k, (_, _, _, to_player, mut item)) in now.into_iter().enumerate() {
+                // (`setValue("creatureDied", …)`: what a handler's value reads)
+                item.died = Some((id, died_controller));
                 if to_player {
                     item.targets = vec![vec![Target::Player(died_controller)]];
                     item.target_zcc = vec![vec![0]];
@@ -4773,6 +4818,7 @@ impl Game {
             }
             if from == Zone::Battlefield {
                 o.cast_lki = o.cast;
+                o.suspected_lki = o.marks.iter().any(|m| m == "suspected");
                 if let Some(def) = o.front.take() {
                     o.def = def.clone();
                     left_front = Some(def);
@@ -4787,6 +4833,7 @@ impl Game {
             o.may_play = None;
             o.may_play_end_step = false;
             o.may_play_while = None;
+            o.may_play_if = None;
             o.any_mana = false;
             o.play_free = false;
             o.exiled_face_down = false;
@@ -4907,6 +4954,10 @@ impl Game {
             if from != Zone::Battlefield && !matches!(zone, Zone::Battlefield | Zone::Stack) {
                 o.adventure_zone = zone;
             }
+            // the zone it entered the battlefield from (`EntersTheBattlefieldEvent.getFromZone`)
+            if zone == Zone::Battlefield {
+                o.entered_from = Some(from);
+            }
             o.zone = zone;
             o.zcc += 1;
         }
@@ -4930,6 +4981,9 @@ impl Game {
         if zone == Zone::Graveyard && from != Zone::Graveyard && !self.obj(id).token {
             let zcc = self.obj(id).zcc;
             self.watch.to_graveyard.push((id, zcc, from == Zone::Battlefield));
+        }
+        if zone == Zone::Graveyard && from == Zone::Library {
+            self.watch.library_to_graveyard.push(owner);
         }
         if madness && self.obj(id).zone == Zone::Exile {
             let fired = self.triggers([id], |_, src, _, t| src == id && matches!(t, Trigger::MadnessExiled));
@@ -4992,6 +5046,7 @@ impl Game {
                     t.targets = vec![vec![Target::Player(owner)]];
                     t.target_zcc = vec![vec![0]];
                 }
+                t.discarded = Some(id);
                 self.pending.push(t);
             }
         }

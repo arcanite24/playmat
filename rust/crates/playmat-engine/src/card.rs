@@ -669,6 +669,9 @@ pub enum Trigger {
     AttacksAlone,
     /// training: this attacks with a creature of greater power (`TrainingAbility`)
     Training,
+    /// its controller taps this for mana (`TAPPED_FOR_MANA` of this, by a mana ability with a tap cost): a trigger
+    /// that isn't a mana ability, so it goes on the stack (Zhur-Taa Druid)
+    TappedForMana,
     /// this dies (`DiesSourceTriggeredAbility`)
     Dies,
     /// dies, if it was a creature (the Enduring cycle's `EnduringGlimmerTriggeredAbility`)
@@ -969,13 +972,17 @@ pub enum Trigger {
     /// (`DealsDamageToACreatureTriggeredAbility`); "attached_to", the permanent this is attached to, to one of
     /// `filter` (Giant's Skewer); "to_you", a source an opponent controls to you, and "to_you_or_yours", to you or a
     /// permanent of `filter` you control (`SourceDealsDamageToYouTriggeredAbility`, `DAMAGED_PLAYER` too, its player
-    /// pointer the source's controller). A target pointer is the damaged permanent.
+    /// pointer the source's controller); "to_you_any", any source to you (`DAMAGED_PLAYER`: Azor's Elocutors);
+    /// "source_to", a source of `source_filter` to a permanent of `filter` (Hooded Blightfang's "a creature you
+    /// control with deathtouch deals damage to a planeswalker"). A target pointer is the damaged permanent.
     DamagedPermanent {
         of: String,
         #[serde(default)]
         filter: Filter,
         #[serde(default)]
         combat: bool,
+        #[serde(default)]
+        source_filter: Filter,
     },
     /// you draw your `n`th card this turn (`DrawNthCardTriggeredAbility`); `who` another `TargetController`
     /// ("opponent": an opponent draws their `n`th card, "any": a player does)
@@ -1166,6 +1173,14 @@ pub enum Trigger {
     /// another creature dies, a creature card is put into a graveyard from anywhere other than the battlefield, or a
     /// creature card leaves your graveyard (Syr Konrad, the Grim: one `ZONE_CHANGE` each)
     SyrKonrad,
+    /// a card of the filter you own leaves your graveyard, only during your turn if `your_turn` (one `ZONE_CHANGE`
+    /// each: a card's own trigger class, Along the Crooked Way, Murktide Regent, Kishla Skimmer)
+    CardLeavesYourGraveyard {
+        #[serde(default)]
+        filter: Filter,
+        #[serde(default)]
+        your_turn: bool,
+    },
     /// a creature or creature spell you control becomes the target of a spell or ability an opponent controls
     /// (Surrak, Elusive Hunter)
     SurrakTargeted,
@@ -1220,6 +1235,8 @@ pub enum Trigger {
     BecomesRenownedAll {
         filter: Filter,
     },
+    /// you give a gift (`GAVE_GIFT`, a card's own trigger class: Jolly Gerbils)
+    GaveGift,
     /// a token of the filter is created (`CREATED_TOKEN`, a card's own trigger class: Voldaren Bloodcaster) under
     /// the control of `who` ("you", "opponent", "any"); it points at the token
     TokenCreated {
@@ -2826,13 +2843,24 @@ pub enum EffectDef {
     LookAtTopCardOfLibraryAnyTimeEffect,
     /// "creatures of the filter can't attack you (or planeswalkers you control) unless their controller pays `cost`
     /// for each" (`CantAttackYouUnlessPayAllEffect` in a static ability; a `ConditionalReplacementEffect` around it
-    /// gives the condition): each attacker's cost is asked as it's declared
+    /// gives the condition): each attacker's cost is asked as it's declared. `generic`, when set, replaces `cost`
+    /// with {N} for that number (`getManaCostToPay` overridden), and no cost at all when it's 0
     CantAttackYouUnlessPayAllEffect {
         cost: String,
+        #[serde(default)]
+        generic: Option<Amount>,
         #[serde(default)]
         planeswalkers: bool,
         #[serde(default)]
         filter: Filter,
+        #[serde(default)]
+        condition: Option<Condition>,
+    },
+    /// "creatures can't block unless their controller pays `cost` for each blocking creature they control"
+    /// (`CantBlockUnlessPayManaAllEffect` in a static ability; `condition`: while it holds, Archangel of Tithes' "as
+    /// long as it's attacking"): each blocker's cost is asked as it's declared
+    CantBlockUnlessPayManaAllEffect {
+        cost: String,
         #[serde(default)]
         condition: Option<Condition>,
     },
@@ -5071,12 +5099,15 @@ pub enum AbilityDef {
         cost: Vec<CostDef>,
         rule: String,
     },
-    /// whenever you tap a permanent of the filter for mana, add one more mana of `color` (a mana ability that
-    /// triggers, resolved at once)
+    /// whenever you tap a permanent of the filter for mana, add one more mana of `color` ("C": {C}) (a mana ability
+    /// that triggers, resolved at once); with `colorless_made`, only when the mana it made has {C} ("whenever you tap
+    /// a permanent for {C}": Forsaken Monument)
     TapForManaAllTriggeredManaAbility {
         filter: Filter,
         color: String,
         rule: String,
+        #[serde(default)]
+        colorless_made: bool,
     },
     /// the blitz ability's "as it enters" part (Java lists it on its own)
     BlitzEntersAbility {
