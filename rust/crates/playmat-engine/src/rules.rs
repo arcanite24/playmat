@@ -725,12 +725,13 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 }
             }
         }
-        // "at end of combat" triggers, then the delayed ones
+        // "at end of combat" triggers (a permanent's or an emblem's: Zariel's), then the delayed ones
         Step::EndCombat => {
             let sources = game.trigger_sources();
             let fired = game.triggers(sources, |g, src, you, t| {
                 matches!(t, Trigger::StepBegins { step, who, graveyard: false, suspended: false }
-                    if step == "endcombat" && Game::whose(who, you, active) && g.obj(src).zone == Zone::Battlefield)
+                    if step == "endcombat" && Game::whose(who, you, active)
+                        && matches!(g.obj(src).zone, Zone::Battlefield | Zone::Command))
             });
             game.pending.extend(fired);
             let delayed = std::mem::take(&mut game.at_end_of_combat);
