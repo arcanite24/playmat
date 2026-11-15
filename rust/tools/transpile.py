@@ -6001,7 +6001,8 @@ class Translator:
         if cls == 'DiesCreatureTriggeredAbility':
             # (Zone.BATTLEFIELD, effect, optional, filter, pointer): the pointer a flag or `SetTargetPointer`
             # (PERMANENT: at the card it became; PLAYER: at the dying creature's controller)
-            if n == 5 and args[0] == 'Zone.BATTLEFIELD' and args[3] not in ('true', 'false'):
+            # (an emblem's, `Zone.COMMAND`, the same: its triggers wait from the command zone)
+            if n == 5 and args[0] in ('Zone.BATTLEFIELD', 'Zone.COMMAND') and args[3] not in ('true', 'false'):
                 kind = {'true': 'card', 'false': None, 'SetTargetPointer.PERMANENT': 'card', 'SetTargetPointer.NONE': None,
                         'SetTargetPointer.PLAYER': 'player'}.get(args[4], '?')
                 if kind == '?':
