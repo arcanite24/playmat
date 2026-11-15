@@ -567,8 +567,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                             t.entering = Some(a);
                         }
                     } else if at_attacker
-                        && t
-                            .ability
+                        && t.ability
                             .and_then(|(i, _)| game.item_def(&t).abilities.get(i))
                             .and_then(|ab| ab.triggered())
                             .is_some_and(|(_, _, targets, _)| !targets.is_empty())
@@ -7733,7 +7732,8 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                 let cards = chosen.iter().map(|c| (*c, Zone::Hand)).collect();
                 game.revealed.push(crate::state::Revealed { source: id, zcc, paren: false, cards });
             }
-            let dragon = game.battlefield.iter().any(|p| game.obj(*p).controller == seat && game.has_subtype(*p, "Dragon"));
+            let dragon =
+                game.battlefield.iter().any(|p| game.obj(*p).controller == seat && game.has_subtype(*p, "Dragon"));
             if !chosen.is_empty() || dragon {
                 if let Some(top) = Arc::make_mut(&mut game.stack).last_mut().filter(|t| t.card == id) {
                     top.kicked = true;
@@ -22938,9 +22938,9 @@ fn declare_attackers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
         let Some(&alone) = attacking.iter().find(|a| {
             attacking.len() == 1
                 && (has_static(game, **a, |e| matches!(e, EffectDef::CantAttackAloneSourceEffect))
-                    || game.attachments(**a).any(|s| {
-                        has_static(game, s, |e| matches!(e, EffectDef::CantAttackAloneAttachedEffect))
-                    }))
+                    || game
+                        .attachments(**a)
+                        .any(|s| has_static(game, s, |e| matches!(e, EffectDef::CantAttackAloneAttachedEffect))))
         }) else {
             break;
         };
