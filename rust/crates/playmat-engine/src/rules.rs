@@ -6282,11 +6282,20 @@ fn modified_cost_of(game: &Game, seat: Seat, id: ObjId, face: &CardDef, mut cost
         }
         if let AbilityDef::SimpleStaticAbility { effects, .. } = a {
             for e in effects {
-                if let EffectDef::SpellCostReductionSourceEffect { amount, condition, stack_only } = e {
+                if let EffectDef::SpellCostReductionSourceEffect { amount, condition, stack_only, mana } = e {
                     // a condition that only works on the stack is skipped while checking what's playable
                     // (`canWorksOnStackOnly`): the card can go on the stack anyway
                     if (*stack_only && o.zone != Zone::Stack) || game.condition_holds(condition.as_ref(), seat, id) {
                         cost.generic = cost.generic.saturating_sub(*amount as u32);
+                        if let Some(less) = mana.as_deref().and_then(|m| ManaCost::parse(m).ok()) {
+                            for k in 0..5 {
+                                let n = less.colored[k].min(cost.colored[k]);
+                                cost.colored[k] -= n;
+                                cost.phyrexian[k] = cost.phyrexian[k].min(cost.colored[k]);
+                            }
+                            cost.colorless = cost.colorless.saturating_sub(less.colorless);
+                            cost.generic = cost.generic.saturating_sub(less.generic);
+                        }
                     }
                 }
                 if let EffectDef::SpellCostReductionForEachSourceEffect { per, amount } = e {

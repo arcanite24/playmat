@@ -2567,6 +2567,11 @@ pub enum EffectDef {
         condition: Option<Condition>,
         #[serde(default)]
         stack_only: bool,
+        /// "this spell costs {2}{U} less" (`SpellCostReductionSourceEffect(ManaCosts, condition)`): each colored
+        /// symbol takes one of that color off its cost, a reduction left over is lost, and the generic part takes
+        /// generic off (`CardUtil.adjustCost(…, false)`); `amount` is then 0
+        #[serde(default)]
+        mana: Option<String>,
     },
     /// a static ability's effect: this spell costs {amount} more (if the condition holds; `stack_only`: only while
     /// it's being cast, not for the playable check: Dragon's Prey "if it targets a Dragon")
