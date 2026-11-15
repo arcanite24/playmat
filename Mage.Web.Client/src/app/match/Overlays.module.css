@@ -429,3 +429,108 @@
   letter-spacing: normal;
   white-space: nowrap;
 }
+
+/* dungeons (#385): the cards to venture into, the rooms to go to next, and a dungeon laid out room by room */
+.dungeons {
+  display: flex;
+  justify-content: center;
+  gap: 28px;
+}
+
+.dungeonChoice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 290px;
+  padding: 14px;
+  border: 0;
+  border-radius: 16px;
+  background: rgb(var(--ink-rgb) / 0.04);
+  box-shadow: inset 0 0 0 1.5px var(--ink-ghost);
+  color: var(--ink-strong);
+  cursor: pointer;
+}
+
+.dungeonChoice:hover,
+.dungeonChoice:focus-visible {
+  background: rgb(var(--ink-rgb) / 0.1);
+  box-shadow: inset 0 0 0 2px var(--ink);
+}
+
+.dungeonName {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 22px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.roomChoice {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  align-items: start;
+  gap: 28px;
+  min-height: 0;
+}
+
+.roomCard {
+  width: 320px;
+}
+
+.roomText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.roomText small {
+  font-size: 18px;
+  color: var(--ink-soft);
+}
+
+.rooms {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 620px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.room {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 1.5px var(--ink-ghost);
+  color: var(--ink);
+  font-size: 21px;
+}
+
+.roomHere {
+  background: rgb(var(--ink-rgb) / 0.12);
+  box-shadow: inset 0 0 0 2px var(--ink-strong);
+  color: var(--ink-strong);
+}
+
+.roomNext {
+  box-shadow: inset 0 0 0 1.5px var(--ink-soft);
+}
+
+.roomTag {
+  flex: none;
+  margin-inline-start: auto;
+  padding: 4px 10px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1.5px var(--ink-faint);
+  font-family: var(--font-print);
+  font-size: 16px;
+  font-weight: 700;
+  text-transform: uppercase;
+  white-space: nowrap;
+}

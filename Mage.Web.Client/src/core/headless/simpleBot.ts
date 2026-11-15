@@ -67,6 +67,8 @@ export function chooseBotCommand(
           return prompt.choices[0] ? { type: 'uuid', id: prompt.choices[0].id } : null;
         case 'choosePile':
           return { type: 'boolean', value: true };
+        case 'ask': // which dungeon room next: the first
+          return { type: 'boolean', value: true };
         case 'chooseChoice': {
           const key = Object.keys(prompt.choice.keyChoices ?? {})[0];
           const value = prompt.choice.choices?.[0];

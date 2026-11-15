@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { CardView } from '../../protocol/generated/views';
-import { EMPTY_FILTERS, intersectIdentity, isFiltered, matchesFilters, onlyColorsIdentity, type CardFilters } from './filters';
+import { EMPTY_FILTERS, intersectIdentity, isFiltered, matchesFilters, onlyColorsIdentity, onlyInSidelinedSets, type CardFilters } from './filters';
 
 const bolt = {
   name: 'Lightning Bolt', cardTypes: ['INSTANT'], subTypes: [], rules: ['Lightning Bolt deals 3 damage to any target.'],
@@ -84,5 +84,15 @@ describe('identity limits for the server search', () => {
     expect(intersectIdentity(['W', 'U'], null)).toEqual(['W', 'U']);
     expect(intersectIdentity(null, ['R'])).toEqual(['R']);
     expect(intersectIdentity(['W', 'U', 'B'], ['U', 'R'])).toEqual(['U']);
+  });
+});
+
+describe('onlyInSidelinedSets (#392)', () => {
+  test('keeps the cards only joke and digital sets print, once each', () => {
+    const lotus = { name: 'Black Lotus', expansionSetCode: 'YDMU' } as CardView;
+    const returner = { name: 'Diminished Returner', expansionSetCode: 'YDMU' } as CardView;
+    const main = [{ name: 'Black Lotus', expansionSetCode: 'LEA' } as CardView];
+    expect(onlyInSidelinedSets(main, [lotus, returner, { ...returner, expansionSetCode: 'Y99' }])).toEqual([returner]);
+    expect(onlyInSidelinedSets([], [])).toEqual([]);
   });
 });

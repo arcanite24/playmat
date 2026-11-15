@@ -1,6 +1,7 @@
-import { BookOpen, Crown, Skull, Sparkles, Ban } from 'lucide-react';
+import { BookOpen, Castle, Crown, Skull, Sparkles, Ban } from 'lucide-react';
 import { useRef, type ReactNode } from 'react';
 import type { CommanderStatus } from '../../core/game/commander';
+import { playerDungeon, type Dungeon } from '../../core/game/dungeon';
 import type { CardView, PlayerView } from '../../protocol/generated/views';
 import { useT } from '../i18n';
 import './matchMessages';
@@ -28,7 +29,7 @@ export function Piles({ player, sleeve, isMe, commanders = [], clickable, onCast
   useFlipOrigin(`library:${player.playerId}`, libraryRef);
   const graveyard = Object.values(player.graveyard ?? {});
   const exile = Object.values(player.exile ?? {});
-  const { waiting, others } = splitCommand(player, commanders);
+  const { waiting, dungeon, others } = splitCommand(player, commanders);
   const name = isMe ? 'Your' : `${player.name}'s`;
   const libraryZoom = usePileZoom(player.topCard, sleeve);
 
@@ -56,6 +57,7 @@ export function Piles({ player, sleeve, isMe, commanders = [], clickable, onCast
       {waiting.map((commander) => (
         <CommanderPile key={commander.id} commander={commander} sleeve={sleeve} castable={!!clickable?.has(commander.id)} onCast={onCast} owner={name} />
       ))}
+      {dungeon && <DungeonPile dungeon={dungeon} owner={name} playerId={player.playerId!} />}
       {others.length > 0 && (
         <PileOfCards title={`${name} command zone`} label="Command" cards={others} sleeve={sleeve} onOpen={() => openViewer({ title: `${name} command zone`, cards: others })} />
       )}
@@ -63,12 +65,30 @@ export function Piles({ player, sleeve, isMe, commanders = [], clickable, onCast
   );
 }
 
-/** Commanders waiting in the command zone, and the zone's other objects (emblems, a dungeon, planes). */
+/** Commanders waiting in the command zone, the dungeon, and the zone's other objects (emblems, planes). */
 function splitCommand(player: PlayerView, commanders: readonly CommanderStatus[]) {
   const waiting = commanders.filter((commander) => commander.zone === 'command');
   const ids = new Set(waiting.map((commander) => commander.id));
-  const others = ((player.commandList ?? []) as CardView[]).filter((card) => !ids.has(card.id!) && card.mageObjectType !== 'COMMANDER');
-  return { waiting, others };
+  const dungeon = playerDungeon(player);
+  const others = ((player.commandList ?? []) as CardView[])
+    .filter((card) => !ids.has(card.id!) && card.mageObjectType !== 'COMMANDER' && (!dungeon || card.id !== dungeon.id));
+  return { waiting, dungeon, others };
+}
+
+/** The dungeon a player ventures into, face up with the room its marker is in; it opens room by room (#385). */
+function DungeonPile({ dungeon, owner, playerId }: { dungeon: Dungeon; owner: string; playerId: string }) {
+  const openDungeon = useMatchUi((state) => state.openDungeon);
+  const zoom = usePileZoom(dungeon.card, '');
+  const room = dungeon.currentRoom ?? 'Not entered';
+  return (
+    <button type="button" className={styles.pile} aria-label={`${owner} dungeon, ${dungeon.name}: ${room}. Show its rooms`} onClick={() => openDungeon(playerId)} {...zoom}>
+      <div className={styles.stack}>
+        <CardFace card={dungeon.card} size="small" />
+      </div>
+      <span className={styles.room} title={room}>{room}</span>
+      <span className={styles.label}><Castle size={16} aria-hidden="true" /> Dungeon</span>
+    </button>
+  );
 }
 
 /** A commander in the command zone, face up: it glows when it can be cast, and says what casting it costs extra. */
@@ -148,7 +168,8 @@ export function MiniPiles({ player, commanders = [] }: { player: PlayerView } & 
   const openViewer = useMatchUi((state) => state.openViewer);
   const graveyard = Object.values(player.graveyard ?? {});
   const exile = Object.values(player.exile ?? {});
-  const { waiting, others } = splitCommand(player, commanders);
+  const openDungeon = useMatchUi((state) => state.openDungeon);
+  const { waiting, dungeon, others } = splitCommand(player, commanders);
   const name = `${player.name}'s`;
   const libraryRef = useRef<HTMLSpanElement>(null);
   useFlipOrigin(`library:${player.playerId}`, libraryRef);
@@ -160,6 +181,18 @@ export function MiniPiles({ player, commanders = [] }: { player: PlayerView } & 
       <MiniButton icon={<Skull size={16} aria-hidden="true" />} count={graveyard.length} label={`${name} graveyard`} onOpen={() => openViewer({ title: `${name} graveyard`, cards: [...graveyard].reverse() })} />
       {exile.length > 0 && (
         <MiniButton icon={<Ban size={16} aria-hidden="true" />} count={exile.length} label={`${name} exile`} onOpen={() => openViewer({ title: `${name} exile`, cards: exile })} />
+      )}
+      {dungeon && (
+        <button
+          type="button"
+          className={styles.chip}
+          aria-label={`${name} dungeon, ${dungeon.name}: ${dungeon.currentRoom ?? 'not entered'}. Show its rooms`}
+          title={`${dungeon.name}: ${dungeon.currentRoom ?? 'not entered'}`}
+          onClick={() => openDungeon(player.playerId!)}
+        >
+          <Castle size={16} aria-hidden="true" />
+          <span className={styles.chipName}>{dungeon.currentRoom ?? dungeon.name}</span>
+        </button>
       )}
       {others.length > 0 && (
         <MiniButton icon={<Sparkles size={16} aria-hidden="true" />} count={others.length} label={`${name} command zone`} onOpen={() => openViewer({ title: `${name} command zone`, cards: others })} />

@@ -7,12 +7,14 @@ import { CardFilterBar } from './CardFilterBar';
 import { InspectButton } from './CardInspect';
 import { useCardInfoStore } from './cardInfo';
 import styles from './DeckBuilder.module.css';
-import { EMPTY_FILTERS, intersectIdentity, onlyColorsIdentity, type CardFilters } from './filters';
+import { EMPTY_FILTERS, intersectIdentity, onlyColorsIdentity, onlyInSidelinedSets, type CardFilters } from './filters';
 
 const PAGE = 60;
 
 /** Sets most players don't build with: joke sets, unofficial sets, and Arena-only digital cards. */
 const SIDELINED_SET_TYPES = new Set(['JOKE_SET', 'CUSTOM_SET', 'MAGIC_ARENA']);
+const EMPTY: string[] = [];
+const EMPTY_CARDS: CardView[] = [];
 
 function toCriteria(filters: CardFilters, format: string, start: number, ignoreSets: string[]): CardCriteria {
   const text = filters.text.trim();
@@ -70,10 +72,11 @@ export function Collection({ format, identity, counts, limitOf, onAdd, onRemove,
   const colorIdentity = allowed === null ? null : allowed.join('');
   const remember = useCardInfoStore((state) => state.remember);
   const sets = useQuery({ queryKey: ['expansionSets'], queryFn: () => api.getExpansionSets(), staleTime: Infinity });
-  const ignoreSets = useMemo(
-    () => (allSets ? [] : (sets.data ?? []).filter((set) => SIDELINED_SET_TYPES.has(set.type ?? '')).map((set) => set.setCode!).filter(Boolean)),
-    [allSets, sets.data],
+  const sidelinedSets = useMemo(
+    () => (sets.data ?? []).filter((set) => SIDELINED_SET_TYPES.has(set.type ?? '')).map((set) => set.setCode!).filter(Boolean),
+    [sets.data],
   );
+  const ignoreSets = allSets ? EMPTY : sidelinedSets;
   const results = useInfiniteQuery({
     queryKey: ['collection', query, format, ignoreSets, colorIdentity],
     queryFn: ({ pageParam }) => api.searchCards(toCriteria(query, format, pageParam, ignoreSets), colorIdentity === null ? null : { colorIdentity }),
@@ -84,10 +87,37 @@ export function Collection({ format, identity, counts, limitOf, onAdd, onRemove,
     staleTime: 5 * 60_000,
   });
   const cards = useMemo(() => (results.data?.pages ?? []).flat().filter(Boolean), [results.data]);
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = results;
+
+  // a name typed still finds the cards printed only in the sets left out (Arena-only Alchemy cards, #392), after the rest
+  const searchSidelined = !allSets && query.text.trim() !== '' && !query.set && sidelinedSets.length > 0;
+  const sidelined = useQuery({
+    queryKey: ['collection-sidelined', query, format, sidelinedSets, colorIdentity],
+    queryFn: () => api.searchCards({ ...toCriteria(query, format, 0, []), setCodes: sidelinedSets }, colorIdentity === null ? null : { colorIdentity }),
+    enabled: searchSidelined,
+    staleTime: 5 * 60_000,
+  });
+  const extras = useMemo(
+    () => (searchSidelined && !hasNextPage ? onlyInSidelinedSets(cards, (sidelined.data ?? []).filter(Boolean)) : EMPTY_CARDS),
+    [searchSidelined, hasNextPage, cards, sidelined.data],
+  );
   useEffect(() => remember(cards), [cards, remember]);
+  useEffect(() => remember(extras), [extras, remember]);
+
+  const tile = (card: CardView) => (
+    <CollectionCard
+      key={`${card.expansionSetCode}:${card.cardNumber}`}
+      card={card}
+      count={counts.get((card.name ?? '').toLowerCase()) ?? 0}
+      limit={limitOf(card)}
+      onAdd={onAdd}
+      onRemove={onRemove}
+      onPreview={onPreview}
+      onInspect={onInspect}
+    />
+  );
 
   const sentinel = useRef<HTMLDivElement>(null);
-  const { hasNextPage, isFetchingNextPage, fetchNextPage } = results;
   useEffect(() => {
     const element = sentinel.current;
     if (!element) return;
@@ -136,23 +166,20 @@ export function Collection({ format, identity, counts, limitOf, onAdd, onRemove,
           <p className={styles.note}>Opening the binder…</p>
         ) : results.isError ? (
           <p className={styles.note}>The card search failed. {results.error instanceof Error ? results.error.message : ''}</p>
-        ) : cards.length === 0 ? (
-          <p className={styles.note}>No cards match. Loosen a filter or check the spelling.</p>
+        ) : cards.length === 0 && extras.length === 0 ? (
+          <p className={styles.note}>
+            {searchSidelined && sidelined.isPending ? 'Opening the binder…' : 'No cards match. Loosen a filter or check the spelling.'}
+          </p>
         ) : (
-          <div className={styles.grid}>
-            {cards.map((card) => (
-              <CollectionCard
-                key={`${card.expansionSetCode}:${card.cardNumber}`}
-                card={card}
-                count={counts.get((card.name ?? '').toLowerCase()) ?? 0}
-                limit={limitOf(card)}
-                onAdd={onAdd}
-                onRemove={onRemove}
-                onPreview={onPreview}
-                onInspect={onInspect}
-              />
-            ))}
-          </div>
+          <>
+            {cards.length > 0 && <div className={styles.grid}>{cards.map(tile)}</div>}
+            {extras.length > 0 && (
+              <>
+                <p className={styles.note}>Only printed in joke &amp; digital sets:</p>
+                <div className={styles.grid}>{extras.map(tile)}</div>
+              </>
+            )}
+          </>
         )}
         <div ref={sentinel} className={styles.sentinel} aria-hidden="true" />
         {isFetchingNextPage && <p className={styles.note}>More cards…</p>}
