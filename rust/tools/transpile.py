@@ -2040,6 +2040,10 @@ class Translator:
             arg = re.sub(r'^AbilityWord\.\w+\.formatWord\(\)\s*\+\s*', '', arg)
             if re.fullmatch(r'"(?:[^"\\]|\\.)*"(?:\s*\+\s*"(?:[^"\\]|\\.)*")*', arg) or arg == 'null' or re.fullmatch(r'[a-z]\w*', arg):
                 return None
+            # (with a local ability's rule in it: Inevitable End's `"… has \"" + triggeredAbility.getRule() + "\""`)
+            part = r'(?:"(?:[^"\\]|\\.)*"|[a-z]\w*\.getRule\(\))'
+            if re.fullmatch(part + r'(?:\s*\+\s*' + part + r')*', arg):
+                return None
         elif kind == 'effect':
             return None if arg == 'null' else self.effect(arg)
         elif kind == 'ability':
