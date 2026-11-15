@@ -25,7 +25,8 @@
 //!   `Rule::CantActivate(f)`: `rules::activatable` (activated abilities that aren't mana abilities);
 //!   `Rule::CantLoseOrWin(f)`: the state-based loss check and `rules::win_game`;
 //!   `Rule::MaxActivations(f)`: a limited activated ability's times each turn (`rules::activatable`);
-//!   `Rule::KeepsDamage(f)`: the cleanup step's damage removal; `Rule::CantCrew(f)`: a crew cost's taps.
+//!   `Rule::KeepsDamage(f)`: the cleanup step's damage removal; `Rule::CantCrew(f)`: a crew cost's taps;
+//!   `Rule::CantBeTargeted(f)`: a permanent as a target (`rules::targetable`); `Rule::Several(&[…])`: more than one.
 //! - **as-though**: `Handler::as_though(name, AsThough::Flash(f))`: `rules::castable`'s timing;
 //!   `AsThough::Haste(f)`: a {T} cost's summoning sickness (`rules::can_pay_cost`, mana abilities);
 //!   `AsThough::BlockDragon(f)`: blocking a Dragon with flying (`rules::can_block`);
@@ -396,6 +397,9 @@ pub(crate) enum Rule {
     /// `CREW_VEHICLE`: the creature `id`, chosen to crew a Vehicle, isn't tapped for it and adds no power
     /// (`CrewAbility`'s cost: Intercessor's Arrest)
     CantCrew(fn(&Game, &StaticCx, ObjId) -> bool),
+    /// `TARGET`: `seat`'s spell or ability whose source object is `src` (a spell on the stack, or a permanent's or
+    /// card's ability) can't target the permanent `id` (`PermanentImpl.canBeTargetedBy`, after protection)
+    CantBeTargeted(fn(&Game, &StaticCx, Seat, ObjId, ObjId) -> bool),
     /// one class stopping several events (`checksEventType` with two or more: Intercessor's Arrest's `CREW_VEHICLE`
     /// and `ACTIVATE_ABILITY`): each of these, read as if it were its own handler
     Several(&'static [Rule]),
@@ -801,6 +805,20 @@ pub(crate) fn cant_lose_or_win(game: &Game, seat: Seat, wins: bool) -> bool {
         for r in rule_parts(h) {
             if let Rule::CantLoseOrWin(f) = r {
                 out = out || f(game, cx, seat, wins);
+            }
+        }
+    });
+    out
+}
+
+/// Whether a rule-modifying handler stops `seat`'s spell or ability from `src` targeting the permanent `id`
+/// (`TARGET`)
+pub(crate) fn cant_be_targeted(game: &Game, seat: Seat, id: ObjId, src: ObjId) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        for r in rule_parts(h) {
+            if let Rule::CantBeTargeted(f) = r {
+                out = out || f(game, cx, seat, id, src);
             }
         }
     });

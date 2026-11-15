@@ -8353,6 +8353,7 @@ fn targetable(game: &Game, seat: Seat, id: ObjId, src: Option<ObjId>) -> bool {
                 && !(game.has_type(id, CardType::Creature) && nowhere_to_run(game, game.obj(id).controller))
                 && !cards::ignore_hexproof(game, seat, Target::Obj(id))
         })
+        && !src.is_some_and(|s| cards::cant_be_targeted(game, seat, id, s))
 }
 
 /// `HexproofBaseAbility.checkObject`: one of `id`'s "hexproof from" abilities covers the object `s`
