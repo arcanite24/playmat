@@ -11,10 +11,11 @@ pub const HANDLERS: &[Handler] = &[Handler::continuous(
 )];
 
 /// the color its `ChooseColorEffect` chose (`getValue(sourceId + "_color")`), from the source's info line
+/// (`<font color = 'blue'>Chosen color: Red</font>`)
 pub(super) fn chosen_color(game: &Game, source: ObjId) -> Option<Color> {
     let (_, text) = game.obj(source).info.iter().find(|(k, _)| k == "chosen color")?;
     let names = ["White", "Blue", "Black", "Red", "Green"];
-    let k = names.iter().position(|n| text.ends_with(n))?;
+    let k = names.iter().position(|n| text.contains(&format!("Chosen color: {n}<")))?;
     Some(Color::ALL[k])
 }
 
