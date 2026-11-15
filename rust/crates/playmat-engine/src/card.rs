@@ -1196,6 +1196,8 @@ pub enum Trigger {
     BecomesRenownedAll {
         filter: Filter,
     },
+    /// you give a gift (`GAVE_GIFT`, a card's own trigger class: Jolly Gerbils)
+    GaveGift,
     /// a token of the filter is created (`CREATED_TOKEN`, a card's own trigger class: Voldaren Bloodcaster) under
     /// the control of `who` ("you", "opponent", "any"); it points at the token
     TokenCreated {
@@ -2782,6 +2784,14 @@ pub enum EffectDef {
         planeswalkers: bool,
         #[serde(default)]
         filter: Filter,
+        #[serde(default)]
+        condition: Option<Condition>,
+    },
+    /// "creatures can't block unless their controller pays `cost` for each blocking creature they control"
+    /// (`CantBlockUnlessPayManaAllEffect` in a static ability; `condition`: while it holds, Archangel of Tithes' "as
+    /// long as it's attacking"): each blocker's cost is asked as it's declared
+    CantBlockUnlessPayManaAllEffect {
+        cost: String,
         #[serde(default)]
         condition: Option<Condition>,
     },

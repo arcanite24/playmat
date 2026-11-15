@@ -9999,7 +9999,9 @@ fn resolve_popped(game: &mut Game, d: &mut dyn Decider) {
         if let Some(legal) = legal {
             // `PromiseGiftEffect`, the spell's first effect
             if let Some(to) = item.gift_to {
-                give_gift(game, d, &def, to, id);
+                if give_gift(game, d, &def, to, id) {
+                    gave_gift_triggers(game, item.controller);
+                }
             }
             apply_effects(game, d, &item, effects, &legal, (id, zcc));
             // an omen: then shuffle this card into its owner's library (`ShuffleIntoLibrarySourceEffect`)
@@ -11277,8 +11279,10 @@ fn token_copy_with(
     made
 }
 
-/// `GiftType.applyGift`: the opponent gets the token (a tapped Fish, an untapped Food), or draws a card
-fn give_gift(game: &mut Game, d: &mut dyn Decider, def: &CardDef, to: Seat, source: ObjId) {
+/// `GiftType.applyGift`: the opponent gets the token (a tapped Fish, an untapped Food), or draws a card; whether the
+/// gift was given (`PromiseGiftEffect.apply`: a token made, or a card drawn)
+fn give_gift(game: &mut Game, d: &mut dyn Decider, def: &CardDef, to: Seat, source: ObjId) -> bool {
+    let mut given = false;
     for a in &def.abilities {
         if let AbilityDef::GiftAbility { token, untapped, .. } = a {
             match token {
@@ -11297,10 +11301,23 @@ fn give_gift(game: &mut Game, d: &mut dyn Decider, def: &CardDef, to: Seat, sour
                         }
                     }
                 }
-                None => draw(game, to, 1),
+                None => {
+                    given |= !game.player(to).library.is_empty();
+                    draw(game, to, 1);
+                    continue;
+                }
             }
+            given = true;
         }
     }
+    given
+}
+
+/// `GAVE_GIFT`: "whenever you give a gift" (`Trigger::GaveGift`) for the player `giver` who gave it
+fn gave_gift_triggers(game: &mut Game, giver: Seat) {
+    let sources = game.trigger_sources();
+    let fired = game.triggers(sources, |_, _, you, t| matches!(t, Trigger::GaveGift) && you == giver);
+    game.pending.extend(fired);
 }
 
 /// The chosen targets still legal, per target; None when it had targets and all are illegal, so it doesn't resolve
@@ -14518,6 +14535,7 @@ fn apply_each_effect(
             | EffectDef::LookAtTopCardOfLibraryAnyTimeEffect
             | EffectDef::LookAtOpponentFaceDownCreaturesAnyTimeEffect
             | EffectDef::CantAttackYouUnlessPayAllEffect { .. }
+            | EffectDef::CantBlockUnlessPayManaAllEffect { .. }
             | EffectDef::CastFromGraveyardOnceEffect { .. }
             | EffectDef::CastFromHandWithoutPayingManaCostEffect { .. }
             | EffectDef::PlayWithTheTopCardRevealedEffect { .. }
@@ -22897,6 +22915,45 @@ fn pay_attack_taxes(
     Some(true)
 }
 
+/// The costs to declare a blocker: `CantBlockUnlessPayManaAllEffect`s of every permanent that apply, in battlefield
+/// order
+fn block_taxes(game: &Game) -> Vec<String> {
+    let mut out = Vec::new();
+    game.any_static(|g, src, e| {
+        if let EffectDef::CantBlockUnlessPayManaAllEffect { cost, condition } = e {
+            if g.condition_holds(condition.as_ref(), g.obj(src).controller, src) {
+                out.push(cost.clone());
+            }
+        }
+        false
+    });
+    out
+}
+
+/// `PayCostToAttackBlockEffectImpl.replaceEvent` on `DECLARE_BLOCKER`: each cost to block, "Pay {1} to block?" and
+/// paid then. Some(false): not paid, it doesn't block; None: stopped.
+fn pay_block_taxes(game: &mut Game, d: &mut dyn Decider, seat: Seat) -> Option<bool> {
+    for cost in block_taxes(game) {
+        let mana = ability_mana_cost(&[CostDef::ManaCost { cost }]);
+        let q = Query::YesNo { message: format!("Pay {} to block?", mana.text) };
+        let yes = loop {
+            match ask(game, d, seat, &q) {
+                Answer::Bool(b) => break b,
+                Answer::Stop => return None,
+                _ => {}
+            }
+        };
+        let paid = yes && pay_mana(game, d, seat, &mana);
+        if d.stopped() {
+            return None;
+        }
+        if !paid {
+            return Some(false);
+        }
+    }
+    Some(true)
+}
+
 /// Whether a permanent's own static abilities have an effect
 fn has_static(game: &Game, id: ObjId, f: impl Fn(&EffectDef) -> bool) -> bool {
     game.obj(id).def.abilities.iter().any(|a| match a {
@@ -23556,6 +23613,11 @@ fn select_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
             game.obj_mut(a).blocked_by.retain(|x| *x != blocker);
             refresh_blocked(game);
         } else if let Some(a) = chosen {
+            // `CombatGroup.addBlocker`: the costs to block (`DECLARE_BLOCKER`), asked and paid first
+            let Some(paid) = pay_block_taxes(game, d, seat) else { return };
+            if !paid {
+                continue;
+            }
             game.obj_mut(blocker).blocking.push(a);
             game.obj_mut(blocker).blocks += 1;
             let controller = game.obj(blocker).controller;
