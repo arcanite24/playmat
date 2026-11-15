@@ -2287,8 +2287,12 @@ fn free_cast_playable(game: &Game, seat: Seat, id: ObjId, face: &CardDef, from: 
     let mut found = false;
     game.any_static(|g, src, e| {
         if let EffectDef::CastFromHandWithoutPayingManaCostEffect { filter, from_hand } = e {
-            let loose = crate::card::Filter(filter.0.iter().filter(|p| !matches!(p, Pred::Card { .. })).cloned().collect());
-            if g.obj(src).controller == seat && (!from_hand || from == Zone::Hand) && face_matches(g, &loose, seat, src, id, face) {
+            let loose =
+                crate::card::Filter(filter.0.iter().filter(|p| !matches!(p, Pred::Card { .. })).cloned().collect());
+            if g.obj(src).controller == seat
+                && (!from_hand || from == Zone::Hand)
+                && face_matches(g, &loose, seat, src, id, face)
+            {
                 found = true;
             }
         }
@@ -10714,7 +10718,9 @@ fn refresh_land_types(game: &mut Game) {
                                 if ability.mana().is_some()) =>
                         {
                             let you = game.obj(*id).controller;
-                            if let EffectDef::GainAbilityControlledEffect { ability, filter, exclude_source, .. } = &**effect {
+                            if let EffectDef::GainAbilityControlledEffect { ability, filter, exclude_source, .. } =
+                                &**effect
+                            {
                                 if game.condition_holds(Some(condition), you, *id) {
                                     for to in game.battlefield.iter() {
                                         if !(*exclude_source && to == id)
@@ -21666,10 +21672,8 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
                     // `canChooseTargetAbility`: removed unless at least max(min, 1) modes have their targets, checked
                     // before the trigger is pushed (so it isn't a stack object to target yet: Ertai Resurrected with
                     // no other creature or planeswalker and an empty stack)
-                    let found = modes
-                        .iter()
-                        .filter(|m| m.1.iter().all(|x| target_possible(game, seat, x, Some(card))))
-                        .count();
+                    let found =
+                        modes.iter().filter(|m| m.1.iter().all(|x| target_possible(game, seat, x, Some(card)))).count();
                     if found < count.min.max(1) {
                         continue;
                     }
@@ -21723,9 +21727,10 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
                 // can't count itself as a stack object to target (Overcharged Amalgam exploiting itself with nothing
                 // else on the stack)
                 let possible_before = if modes.is_empty() {
-                    ability.as_ref().and_then(|a| a.triggered()).map(|(_, _, targets, _)| {
-                        targets.iter().all(|x| target_possible(game, seat, x, Some(t.card)))
-                    })
+                    ability
+                        .as_ref()
+                        .and_then(|a| a.triggered())
+                        .map(|(_, _, targets, _)| targets.iter().all(|x| target_possible(game, seat, x, Some(t.card))))
                 } else {
                     None
                 };

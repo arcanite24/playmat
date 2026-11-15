@@ -4145,8 +4145,12 @@ impl Game {
     /// player controls (controlled by B)" (in a duel, the controller's opponent)
     pub fn that_player_rule(&self, item: &StackItem, rule: &str) -> String {
         let ability = item.ability.and_then(|(i, _)| self.item_def(item).abilities.get(i));
-        if let Some(AbilityDef::TriggeredAbility { that_player_controls: true, that_player_name, that_player_owned, .. }) =
-            ability
+        if let Some(AbilityDef::TriggeredAbility {
+            that_player_controls: true,
+            that_player_name,
+            that_player_owned,
+            ..
+        }) = ability
         {
             let them = (item.controller + 1) % self.seats();
             let name = that_player_name.as_deref().unwrap_or("that player controls");
@@ -4930,9 +4934,11 @@ impl Game {
             let fired = self.triggers(sources, |g, src, you, t| match t {
                 Trigger::Discards { who, filter } => {
                     (src != id
-                        || g.obj(id).def.abilities.iter().any(
-                            |a| matches!(a.trigger(), Some(Trigger::Or { ts }) if ts.iter().any(|x| x == t)),
-                        ))
+                        || g.obj(id)
+                            .def
+                            .abilities
+                            .iter()
+                            .any(|a| matches!(a.trigger(), Some(Trigger::Or { ts }) if ts.iter().any(|x| x == t))))
                         && Game::whose(who, you, owner)
                         && g.filter_matches(filter, you, Some(src), id)
                 }
