@@ -6723,6 +6723,9 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
             top.x = x;
         }
     }
+    // `handlePhyrexianCosts`: 2 life instead of each phyrexian symbol, asked after X and before the modes and
+    // targets (the life is paid with the mana)
+    let Some(phyrexian_life) = ask_phyrexian(game, d, seat, &mut mana) else { return false };
     // waterbend: after X and phyrexian mana, before the targets (`AbilityImpl.handleWaterbendingCosts`)
     for c in costs {
         if let CostDef::WaterbendCost { amount } = c {
@@ -6791,6 +6794,9 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
     game.paying_for.set(Some(id));
     game.paying_ability.set(true);
     game.paying_index.set(Some(index));
+    if phyrexian_life > 0 {
+        lose_life(game, seat, phyrexian_life);
+    }
     let paid = pay_mana(game, d, seat, &mana);
     game.paying_for.set(paying.0);
     game.paying_ability.set(paying.1);

@@ -21,7 +21,7 @@ fn apply(game: &mut Game, _: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         Vec::new()
     };
     let delayed = Delayed {
-        rule: "At the beginning of the next end step, return the exiled card to the battlefield under its owner's \
+        rule: "At the beginning of the next end step, Return the exiled card to the battlefield under its owner's \
                control at the beginning of the next end step."
             .into(),
         sacrifice: Vec::new(),
