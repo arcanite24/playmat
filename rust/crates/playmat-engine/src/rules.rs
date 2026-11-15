@@ -22061,6 +22061,16 @@ fn preventions(game: &Game, source: ObjId, to: Target, combat: bool) -> (usize, 
         {
             all += 1;
         }
+        // `ConditionalPreventionEffect(new PreventAllDamageToSourceEffect(WhileOnBattlefield), condition)`: all damage
+        // to it while the condition holds (Gideon Blackblade, during your turn)
+        if let EffectDef::ConditionalContinuousEffect { effect, condition } = e {
+            if matches!(**effect, EffectDef::PreventAllDamageToSourceEffect)
+                && to == Target::Obj(src)
+                && g.condition_holds(Some(condition), g.obj(src).controller, src)
+            {
+                all += 1;
+            }
+        }
         false
     });
     let zcc_of = |g: &Game, t: Target| match t {

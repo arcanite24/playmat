@@ -3373,6 +3373,12 @@ class Translator:
         # (the engine's enchanted-loses-all is unconditional)
         if cls == 'ConditionalContinuousEffect' and args and 'LoseAllAbilitiesAttachedEffect' in args[0]:
             raise Unsupported('conditional LoseAllAbilitiesAttachedEffect')
+        # a static "prevent all damage that would be dealt to {this} during your turn" (Gideon Blackblade)
+        if cls == 'ConditionalPreventionEffect' and len(args) == 3 \
+                and canonical(args[0].strip()) == 'new PreventAllDamageToSourceEffect(Duration.WhileOnBattlefield)' \
+                and not args[1].strip().startswith('new LockedInCondition('):
+            return {'class': 'ConditionalContinuousEffect', 'effect': {'class': 'PreventAllDamageToSourceEffect'},
+                    'condition': self.condition(args[1])}
         # "if it's an artifact, it gains …": worked out as it resolves
         if cls == 'ConditionalContinuousEffect' and len(args) == 3 \
                 and re.fullmatch(r'new GainAbilityTargetEffect\(.*,Duration\.EndOfTurn\)', canonical(args[0].strip()), re.S) \
