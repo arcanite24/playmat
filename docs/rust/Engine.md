@@ -1201,6 +1201,28 @@ Being in the engine and being trusted are kept apart.
   Fire Lord Zuko (entered from exile), Ral, Crackling Wit and Prismari (storm granted to spells), Captain Howler
   (a granted trigger's text), Anointed Peacekeeper, Planewide Celebration (the same mode more than once), the random
   discards (Curse-Marred Demon, Cool but Rude, Rowdy Crew, Tersa) and the rest of the list's engine work.
+  Wave 13, claim 1 (14 Nov): cards blocked only by their own classes, most used first, then the cheapest. 71 handler
+  files: conditions (mana spent, a cast spell's mana value, doors unlocked, attacked this turn, day or night),
+  values (a sacrificed or exiled creature's last known power and toughness, colors spent), predicates, one-shot
+  effects (energy paid as a chosen amount, tokens sacrificed at the next end step, a library search put back on
+  top after the shuffle), restrictions, a cost increase (Tithe Taker), cast and activate rules (Wardscale Dragon,
+  Realmbreaker's Grasp), a chosen-color anthem (Hall of Triumph reads `ChooseColorEffect`'s info line) and two
+  damage replacements (Gratuitous Violence, Pyromancer's Gauntlet). A waiting trigger's intervening "if" sees the
+  trigger itself (`Game::checking_item`, Java's `checkInterveningIfClause` with the ability's own values: Liberator,
+  Urza's Battlethopter's mana spent, Obscura Ascendancy's spell mana value). The transpiler accepts a Case's
+  solved ability whose condition is a trigger condition (Case of the Shattered Pact, Crimson Pulse, Trampled
+  Garden), ignores `setCanWorksOnStackOnly` on `SpellCostReductionForEachSourceEffect` (Java never reads it there:
+  Huskburster Swarm) and writes `ConniveSourceEffect`'s reminder after a granted "it connives." (Security Bypass).
+  Triskaidekaphobia's loss ends the game as it resolves, so the life gained or lost after it never happens, as in
+  Java. 73 cards came in (12,678 in the engine); three factory rounds (106 games, 103 matching, 2 Java unfinished)
+  verified 72: 12,406 of 12,678. Five games under `shadow/handlers/game-w13c1-*` cover the engine and transpiler
+  pieces. Not verified: Narset, Enlightened Exile (its game parts on the order of two prowess triggers with the
+  same text, one granted to Narset itself; Java doesn't ask). Left on the list: random or unordered effects
+  (Deadbridge Chant, Getaway Barrel, Urgoros, Friendly Fire, Descent of the Dragons, Split the Party), an extra end
+  phase (Y'shtola), removed counters (Relic Amulet), monstrosity's X on the trigger (Hydra Broodmaster), exile
+  costs (Corpse Explosion), a discard trigger from the hand (Titanbones), energy triggers (Territorial Gorger),
+  Treasure spent on abilities (Jetmir's Fixer), copied spells' cast triggers (Prismari Apprentice counts only cast
+  spells) and the rest of the list.
   Text fixes for verified cards (13 Nov): the Young Hero Role's granted trigger keeps its own text, "put a +1/+1
   counter on it" (its `AddCountersSourceEffect` has a `setText`), and a delayed upkeep transform is "Transform {this}
   at the beginning of the next turn's upkeep." (`AtTheBeginOfNextUpkeepDelayedTriggeredAbility.getRule` puts the
