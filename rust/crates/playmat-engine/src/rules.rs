@@ -23950,17 +23950,14 @@ pub fn update_speed_and_stories(game: &mut Game) {
             game.obj_mut(id).trigger_order = (1 << 32) + id.0 as u64;
             game.move_to(id, Zone::Command);
         }
-        if !game.player(s).enduring_story && mine.iter().any(|o| game.has_ability(*o, &AbilityDef::StoriedAbility)) {
-            let storied = mine.iter().filter(|o| game.filter_matches(&storied_filter(), s, None, **o)).count();
-            if storied >= 3 {
-                game.player_mut(s).enduring_story = true;
-            }
+        if !game.player(s).enduring_story && game.storied_now(s) {
+            game.player_mut(s).enduring_story = true;
         }
     }
 }
 
 /// storied's "artifacts, legendaries, and/or Sagas"
-fn storied_filter() -> crate::card::Filter {
+pub fn storied_filter() -> crate::card::Filter {
     static F: std::sync::OnceLock<crate::card::Filter> = std::sync::OnceLock::new();
     F.get_or_init(|| {
         serde_json::from_str(
