@@ -5,9 +5,9 @@ use super::*;
 
 pub const HANDLERS: &[Handler] = &[Handler::effect("LichKnightsConquest.LichKnightsConquestEffect", apply)];
 
-/// `chooseTarget(TargetSacrifice(0, MAX, …))`: artifacts, enchantments and tokens you control, picked until you're
-/// done or none is left; "<player> chose N permanents to sacrifice. (source: …)", they're sacrificed, then that many
-/// creature cards (or all there are) chosen from your graveyard (`TargetCardInYourGraveyard(n, n)`) go onto the
+/// `chooseTarget(TargetSacrifice(0, MAX, …))` (nothing asked with none): artifacts, enchantments and tokens you
+/// control, picked until you're done or none is left; "<player> chose N permanents to sacrifice. (source: …)", they're
+/// sacrificed, then that many creature cards (or all there are) chosen from your graveyard (`TargetCardInYourGraveyard(n, n)`) go onto the
 /// battlefield together
 fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     let you = cx.controller();
@@ -15,6 +15,10 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         game.obj(o).controller == you
             && (game.has_type(o, CardType::Artifact) || game.has_type(o, CardType::Enchantment) || game.obj(o).token)
     };
+    // (`chooseTarget` asks nothing when nothing can be chosen)
+    if !game.battlefield.iter().any(|o| fits(game, *o)) {
+        return Some(());
+    }
     let mut chosen: Vec<ObjId> = Vec::new();
     loop {
         let can: Vec<ObjId> =

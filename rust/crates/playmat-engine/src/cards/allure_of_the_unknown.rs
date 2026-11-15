@@ -6,8 +6,8 @@ use super::*;
 pub const HANDLERS: &[Handler] = &[Handler::effect("AllureOfTheUnknown.AllureOfTheUnknownEffect", apply)];
 
 /// The reveal; with no nonland card among them, all of them to your hand. Else an opponent chosen
-/// (`TargetOpponent(true)`, one picks itself), who chooses a nonland card among them (`TargetCardInLibrary`, one
-/// required) to exile; the rest to your hand, then `castSpellWithAttributesForFree` for that opponent: "Cast spell
+/// (`TargetOpponent(true)`, asked even with one), who chooses a nonland card among them (`TargetCardInLibrary`, up
+/// to one) to exile; the rest to your hand, then `castSpellWithAttributesForFree` for that opponent: "Cast spell
 /// without paying its mana cost (…)?"
 fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     let you = cx.controller();
@@ -29,22 +29,23 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         return Some(());
     }
     let opponents: Vec<Seat> = (0..game.seats()).filter(|p| *p != you && !game.player(*p).lost).collect();
-    let opponent = match opponents.len() {
-        0 => return Some(()),
-        1 => opponents[0],
-        _ => loop {
-            match ask(game, d, you, &Query::Target { players: opponents.clone(), objs: Vec::new(), required: true }) {
-                Answer::Player(p) if opponents.contains(&p) => break p,
-                Answer::Stop => return None,
-                _ => {}
-            }
-            if d.stopped() {
-                return None;
-            }
-        },
+    if opponents.is_empty() {
+        return Some(());
+    }
+    // (`HumanPlayer.choose(Target)` asks even with one opponent)
+    let opponent = loop {
+        match ask(game, d, you, &Query::Target { players: opponents.clone(), objs: Vec::new(), required: true }) {
+            Answer::Player(p) if opponents.contains(&p) => break p,
+            Answer::Stop => return None,
+            _ => {}
+        }
+        if d.stopped() {
+            return None;
+        }
     };
     let rule = item_rule(game, cx.item);
-    let exiled = choose_cards(game, d, opponent, &cards, &nonland, 1, 1, &rule)?.first().copied();
+    // (`TargetCardInLibrary` with a filter that has predicates isn't required: "done" with none chosen exiles none)
+    let exiled = choose_cards_with(game, d, opponent, &cards, &nonland, 1, 1, &rule, true)?.first().copied();
     if let Some(card) = exiled {
         game.move_to(card, Zone::Exile);
     }

@@ -26,7 +26,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     let target =
         TargetDef::TargetPermanent { filter: cx.filters[0].clone(), min: 1, max: 1, distribute: None, x_count: false, count: None };
     let delayed = Delayed {
-        rule: "Another target nonattacking creature you control gains indestructible until end of turn.".into(),
+        rule: "another target nonattacking creature you control gains indestructible until end of turn.".into(),
         sacrifice: Vec::new(),
         warp_exile: Vec::new(),
         effects: cx.effects.to_vec(),
