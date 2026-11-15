@@ -1896,7 +1896,7 @@ fn activatable(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
                 }
                 _ => false,
             });
-        if sorcery && !flash && !sorcery_speed(game, seat) {
+        if sorcery && !flash && !sorcery_speed(game, seat) && !cards::activate_as_instant(game, seat, id, i) {
             continue;
         }
         if let AbilityDef::LimitedTimesPerTurnActivatedAbility { limit, condition, .. } = a {

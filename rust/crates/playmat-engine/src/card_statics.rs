@@ -28,6 +28,7 @@
 //!   `Rule::CantSearchLibrary(f)`: a library search (`rules::search_library` finds nothing).
 //! - **as-though**: `Handler::as_though(name, AsThough::Flash(f))`: `rules::castable`'s timing;
 //!   `AsThough::Haste(f)`: a {T} cost's summoning sickness (`rules::can_pay_cost`, mana abilities);
+//!   `AsThough::ActivateAsInstant(f)`: a sorcery-speed activated ability's timing (`rules::activatable`);
 //!   `AsThough::Hexproof(f)`: hexproof, as targets are chosen (`rules::possible_targets`, `targetable`).
 //!
 //! A handler's functions get a `StaticCx`: the effect's source and controller (Java's `source`), its timestamp, and
@@ -412,6 +413,9 @@ pub(crate) enum AsThough {
     /// the graveyard or exile it's in; Some: how (`PlayWay`). A card's own (`Zone.ALL`: "you may cast this card from
     /// your graveyard") is declared `.in_any_zone()`.
     Play(fn(&Game, &StaticCx, Seat, ObjId, &CardDef) -> Option<PlayWay>),
+    /// `ACTIVATE_AS_INSTANT`: `seat` may activate the ability at `index` of `id` any time they could cast an
+    /// instant (Teferi, Master of Time's loyalty abilities)
+    ActivateAsInstant(fn(&Game, &StaticCx, Seat, ObjId, usize) -> bool),
 }
 
 /// How an as-though effect lets a card be played from a graveyard or exile: for its own mana cost, or for `mana`
@@ -855,6 +859,18 @@ pub(crate) fn play_ways(game: &Game, seat: Seat, id: ObjId, face: &CardDef) -> V
     };
     each_static(game, &mut check);
     each_own_static(game, id, &mut check);
+    out
+}
+
+/// Whether an as-though handler lets `seat` activate the ability at `index` of `id` any time they could cast an
+/// instant
+pub(crate) fn activate_as_instant(game: &Game, seat: Seat, id: ObjId, index: usize) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::AsThough(AsThough::ActivateAsInstant(f)) = h {
+            out = out || f(game, cx, seat, id, index);
+        }
+    });
     out
 }
 
