@@ -5287,12 +5287,18 @@ class Translator:
                 {'class': 'CardStatic', 'handler': 'CantFlashUnlessConditionEffect', 'effects': [
                     {'class': 'ConditionalAsThoughEffect', 'effect': {'class': 'CastAsThoughItHadFlashSourceEffect'},
                      'condition': cond}]}]}
+        # "cast this spell only if …" (`Zone.ALL`): a cast rule of the card's own while the condition doesn't hold
+        # (`CastOnlyIfConditionIsTrueEffect`, a handler that gets the condition in its effect)
+        if cls == 'CastOnlyIfConditionIsTrueAbility' and (len(args) == 1 or (len(args) == 2 and re.fullmatch(r'"[^"]*"', args[1].strip()))):
+            return {'class': 'SimpleStaticAbility', 'java': cls, 'effects': [
+                {'class': 'CardStatic', 'handler': 'CastOnlyIfConditionIsTrueEffect', 'effects': [
+                    {'class': 'ConditionalOneShotEffect', 'condition': self.condition(args[0])}]}]}
         if cls == 'AnyColorManaAbility' and not args:
             return {'class': cls, 'java': cls}
         # "{1}, {T}: Add one mana of any color" (its {T} added after), "Tap an untapped legendary creature you control:
         # Add one mana of any color" (Relic of Legends): the cost alone, no tapping
         if cls == 'AnyColorManaAbility' and len(args) == 1 and args[0].strip() != 'new TapSourceCost()' \
-                and re.fullmatch(r'new (GenericManaCost|ManaCostsImpl<>|TapTargetCost)\(.*\)', args[0].strip(), re.S):
+                and re.fullmatch(r'new (GenericManaCost|ManaCostsImpl<>|TapTargetCost|SacrificeSourceCost)\(.*\)', args[0].strip(), re.S):
             return {'class': cls, 'java': cls, 'cost': [self.cost(args[0])], 'no_tap': True}
         if cls == 'AnyColorManaAbility' and [a.strip() for a in args] == ['new TapSourceCost()']:
             return {'class': cls, 'java': cls}
@@ -7651,7 +7657,7 @@ def card_statement(t, st, card, added, spell, modes, subtypes):
             return
         # a color its mana cost already gives (Diregraf Ghoul's `color.setBlack(true)`)
         m = re.fullmatch(r'this\.color\.set(White|Blue|Black|Red|Green)\(true\)', st)
-        if m and COLOR_LETTERS[m.group(1)] in re.sub(r'\{[^}]*/[^}]*\}', '', card.get('cost', '')):
+        if m and COLOR_LETTERS[m.group(1)] in card.get('cost', ''):
             return
         # the frame's colors are only the card's look
         if re.fullmatch(r'this\.frameColor=new ObjectColor\("[WUBRG]*"\)', st):
@@ -8707,7 +8713,11 @@ def token(cls):
     # the token file's own classes: a handler named for them (`BelzenlokDemonToken.BelzenlokDemonTokenEffect`)
     t.source = source
     added = []
-    for st in statements(m.group(1)):
+    body = m.group(1)
+    # a cost made first and given its text (the Gold token's "Sacrifice this artifact"): written in where it's used
+    for c in re.finditer(r'\n\s*Cost (\w+)\s*=\s*(new \w+\(\));\s*\n\s*\1\.setText\("[^"]*"\);', body):
+        body = body.replace(c.group(0), '').replace('(' + c.group(1) + ')', '(' + c.group(2) + ')')
+    for st in statements(body):
         st = re.sub(r'^this\.(?=(?:cardType|color|subtype|supertype|power|toughness|startingLoyalty)\b)', '', st)
         if (n := re.fullmatch(r'super\("([^"]+)",".*"\)', st)):
             out['name'] = n.group(1)
