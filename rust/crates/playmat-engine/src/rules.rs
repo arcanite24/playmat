@@ -24356,18 +24356,21 @@ pub fn state_based_actions(game: &mut Game) -> bool {
         // `GameImpl.checkStateBasedActions` moves each permanent as it comes to it: an Aura after the creature it
         // enchants, which went (for 0 toughness or destroyed by lethal damage), already enchants nothing (its card
         // follows the creature's)
+        // (and an Aura on such an Aura, after it: Rune of Flight on Consuming Fervor)
         let bf: Vec<ObjId> = game.battlefield.to_vec();
-        let gone_before = |aura: ObjId| {
-            let Some(to) = game.attached(aura) else { return false };
-            let (Some(a), Some(t)) = (bf.iter().position(|x| *x == aura), bf.iter().position(|x| *x == to)) else {
-                return false;
-            };
-            t < a
-                && dying.contains(&to)
-                && game.has_type(to, CardType::Creature)
-                && game.obj(aura).def.has_subtype("Aura")
-                && !game.obj(aura).def.has_bestow()
-        };
+        let mut followers: Vec<ObjId> = Vec::new();
+        for (a, aura) in bf.iter().enumerate() {
+            let Some(to) = game.attached(*aura) else { continue };
+            let Some(t) = bf.iter().position(|x| *x == to) else { continue };
+            if t < a
+                && (dying.contains(&to) && game.has_type(to, CardType::Creature) || followers.contains(&to))
+                && game.obj(*aura).def.has_subtype("Aura")
+                && !game.obj(*aura).def.has_bestow()
+            {
+                followers.push(*aura);
+            }
+        }
+        let gone_before = |aura: ObjId| followers.contains(&aura);
         // the Auras that follow their creature, only if it did leave (a regeneration shield keeps it)
         let follows: Vec<(ObjId, ObjId)> = bf
             .iter()
