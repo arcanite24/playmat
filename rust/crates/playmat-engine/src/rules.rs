@@ -23952,6 +23952,13 @@ fn combat_damage(game: &mut Game, d: &mut dyn Decider, first: bool) {
             let by_toughness = game.any_static(|game, src, e| match e {
                 EffectDef::CombatDamageByToughnessSourceEffect { .. } => src == *o,
                 EffectDef::CombatDamageByToughnessAttachedEffect => game.attached(src) == Some(*o),
+                // "as long as enchanted creature has vigilance, it assigns …" (Solid Footing, Bark of Doran)
+                EffectDef::ConditionalContinuousEffect { effect, condition }
+                    if matches!(**effect, EffectDef::CombatDamageByToughnessAttachedEffect) =>
+                {
+                    game.attached(src) == Some(*o)
+                        && game.condition_holds(Some(condition), game.obj(src).controller, src)
+                }
                 EffectDef::CombatDamageByToughnessControlledEffect { filter } => {
                     let you = game.obj(src).controller;
                     game.obj(*o).controller == you
