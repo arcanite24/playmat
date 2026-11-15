@@ -18787,9 +18787,20 @@ fn apply_each_effect(
                 }
             }
             // (Java reads the ability's first target only: Ever After's second creature stays as it was)
+            // (before the effect that returns it, Liliana, Death's Majesty: the card still in its graveyard, for the
+            // permanent it becomes, so it enters as one: `getPermanentEntering`)
             EffectDef::AddCreatureTypeAdditionEffect { subtype, black } => {
-                if let Some(o) = objs.first().copied().filter(|o| game.obj(*o).zone == Zone::Battlefield) {
-                    let zcc = game.obj(o).zcc;
+                let entering = |game: &Game, o: &ObjId| {
+                    game.obj(*o).zone == Zone::Graveyard
+                        && effects
+                            .iter()
+                            .skip_while(|x| !std::ptr::eq(*x, e))
+                            .any(|e| matches!(e, EffectDef::ReturnFromGraveyardToBattlefieldTargetEffect { .. }))
+                };
+                if let Some(o) =
+                    objs.first().copied().filter(|o| game.obj(*o).zone == Zone::Battlefield || entering(game, o))
+                {
+                    let zcc = game.obj(o).zcc + u32::from(game.obj(o).zone != Zone::Battlefield);
                     game.subtypes_while_there.push((o, zcc, subtype.clone()));
                     if *black && !game.obj(o).def.colors.contains(&Color::B) {
                         let old = game.obj(o).def.clone();
