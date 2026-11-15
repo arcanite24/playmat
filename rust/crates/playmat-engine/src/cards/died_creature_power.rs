@@ -1,11 +1,12 @@
 //! "equal to that creature's power" for a "whenever a creature dies" trigger (Java's `getValue("creatureDied")`, its
-//! power as it last was on the battlefield): Vincent Valentine, Death's Presence.
+//! power as it last was on the battlefield): Vincent Valentine, Death's Presence, Jenova, Ancient Calamity.
 
 use super::*;
 
 pub const HANDLERS: &[Handler] = &[
     Handler::value("VincentValentine.VincentValentineValue", died_power),
     Handler::value("DeathsPresence.DeathsPresenceDiedPermanentPowerCount", died_power),
+    Handler::value("JenovaAncientCalamity.JenovaAncientCalamityValue", died_power),
 ];
 
 /// the resolving trigger's creature that died: its power as it last was on the battlefield (0 when there's none)
