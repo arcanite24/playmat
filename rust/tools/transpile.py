@@ -6742,6 +6742,9 @@ class Translator:
             pointer = args[4] if n == 5 else 'SetTargetPointer.NONE'
             if pointer not in ('SetTargetPointer.NONE', 'SetTargetPointer.CARD', 'SetTargetPointer.ATTACHED_TO_CONTROLLER'):
                 raise Unsupported(cls + ' ' + pointer)
+            # "return that card to its owner's hand" (`getValue("attachedTo")`'s card: Demonic Vigor)
+            if args[0].strip() == 'new ReturnToHandAttachedEffect()' and pointer == 'SetTargetPointer.NONE':
+                return out({'e': 'dies_attached'}, 'new ReturnToHandTargetEffect()', n >= 3 and flag(args[2]))
             a = out({'e': 'dies_attached'}, args[0], n >= 3 and flag(args[2]))
             if pointer == 'SetTargetPointer.ATTACHED_TO_CONTROLLER':
                 a['set_target_pointer_player'] = True
