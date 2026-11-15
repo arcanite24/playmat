@@ -3083,25 +3083,6 @@ class Translator:
                                  second, re.S)
             if m and balanced(m.group(1)) and not (index == 1 and m.group(1).startswith('new AddCountersTargetEffect(')):
                 return {'class': 'TargetPointerEffect', 'target': index, 'effect': self.effect(m.group(1))}
-        second = re.sub(r'(?:\.concatBy\("[^"]*"\))+(\.setTargetPointer\(new SecondTargetPointer\(\)\))', r'\1',
-                        re.sub(r'(\.setTargetPointer\(new SecondTargetPointer\(\)\))\.concatBy\("[^"]*"\)$', r'\1',
-                               canonical(expr)))
-        m = re.fullmatch(r'(new \w+\(.*\))((?:\.setText\("[^"]*"\))?)\.setTargetPointer\(new SecondTargetPointer\(\)\)((?:\.setText\(.*\))?)',
-                         second, re.S)
-        # (a text set before the pointer: the call is the shortest part that matches, Ragnarok's return)
-        if m and not balanced(m.group(1)):
-            m = re.fullmatch(r'(new \w+\(.*?\))((?:\.setText\("[^"]*"\))?)\.setTargetPointer\(new SecondTargetPointer\(\)\)((?:\.setText\(.*\))?)',
-                             second, re.S)
-        if m and balanced(m.group(1)) and not m.group(1).startswith('new AddCountersTargetEffect('):
-            return {'class': 'TargetPointerEffect', 'target': 1, 'effect': self.effect(m.group(1))}
-        # the third target the same way (Dissection Practice, Everything Pizza)
-        third = re.sub(r'(?:\.concatBy\("[^"]*"\))+(\.setTargetPointer\(new ThirdTargetPointer\(\)\))', r'\1',
-                       re.sub(r'(\.setTargetPointer\(new ThirdTargetPointer\(\)\))\.concatBy\("[^"]*"\)$', r'\1',
-                              canonical(expr)))
-        m = re.fullmatch(r'(new \w+\(.*\))((?:\.setText\("[^"]*"\))?)\.setTargetPointer\(new ThirdTargetPointer\(\)\)((?:\.setText\(.*\))?)',
-                         third, re.S)
-        if m and balanced(m.group(1)):
-            return {'class': 'TargetPointerEffect', 'target': 2, 'effect': self.effect(m.group(1))}
         m = re.fullmatch(r'new RemoveCounterTargetEffect\((CounterType\.\w+)\.createInstance\(\)\)', canonical(self.strip_setters(expr)))
         if m and m.group(1) in COUNTERS:
             return {'class': 'RemoveCounterTargetEffect', 'counter': COUNTERS[m.group(1)]}
@@ -7499,6 +7480,7 @@ class Translator:
         # it's used, as a declared one is
         if cls.endswith('Condition') and isinstance(getattr(self, 'conditions', None), dict):
             self.conditions[var] = expr.strip()
+            return
         # an `Effects` local made with its effects (Kardur's Vicious Return's chapter III)
         if cls == 'Effects':
             self.vars[var] = {'class': 'Effects', 'effects': [self.effect(a) for a in obj[1] if a.strip()]}

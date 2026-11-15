@@ -351,14 +351,11 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                         | AbilityDef::EntersBattlefieldTappedAbility { effects, .. } => {
                             effects.iter().any(|e| match e {
                                 EffectDef::DontUntapInControllersUntapStepSourceEffect => true,
-                                // "… unless you have an enduring story" (Bombur, Gentle Dreamer)
+                                // "… unless you have an enduring story" (Bombur, Gentle Dreamer); a
+                                // `ConditionalContinuousRuleModifyingEffect` while its condition holds (Alirios)
                                 EffectDef::ConditionalContinuousEffect { effect, condition } => {
                                     matches!(**effect, EffectDef::DontUntapInControllersUntapStepSourceEffect)
                                         && game.condition_holds(Some(condition), active, id)
-                                // `ConditionalContinuousRuleModifyingEffect`: while the condition holds (Alirios)
-                                EffectDef::ConditionalContinuousEffect { effect, condition } => {
-                                    matches!(**effect, EffectDef::DontUntapInControllersUntapStepSourceEffect)
-                                        && game.condition_holds(Some(condition), game.obj(id).controller, id)
                                 }
                                 _ => false,
                             })
@@ -13927,6 +13924,7 @@ fn apply_each_effect(
                             until_end_of_turn: false,
                             until_turn_of: Some(controller),
                             noncreature_too: true,
+                            switch: false,
                         });
                     }
                 }
@@ -23462,6 +23460,8 @@ pub fn gain_life(game: &mut Game, seat: Seat, amount: i32) {
         Vec::new()
     };
     sources.extend(graveyard.iter().copied());
+    // what caused them, for the `NUMBER_OF_TRIGGERS` replacements (Dr. Beverly Crusher's)
+    let cause = game.trigger_cause.replace(TriggerCause::GainedLife(seat));
     let fired = game.triggers(sources, |_, src, you, t| {
         you == seat
             && match t {
@@ -23471,11 +23471,6 @@ pub fn gain_life(game: &mut Game, seat: Seat, amount: i32) {
                 }
                 _ => false,
             }
-    let sources: Vec<ObjId> = game.trigger_sources();
-    // what caused them, for the `NUMBER_OF_TRIGGERS` replacements (Dr. Beverly Crusher's)
-    let cause = game.trigger_cause.replace(TriggerCause::GainedLife(seat));
-    let fired = game.triggers(sources, |_, _, you, t| {
-        you == seat && (matches!(t, Trigger::YouGainLife) || (first && matches!(t, Trigger::YouGainLifeFirstTime)))
     });
     game.trigger_cause = cause;
     // the life gained is the trigger's "that much" (`SavedGainedLifeValue`), read as its X
