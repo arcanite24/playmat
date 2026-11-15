@@ -1427,6 +1427,8 @@ pub struct TurnWatch {
     pub surveiled: Vec<Seat>,
     /// `SACRIFICED_PERMANENT`: who sacrificed, and the permanent as it was (the card or token it became, its count)
     pub sacrificed_objs: Vec<(Seat, ObjId, u32)>,
+    /// `ACTIVATED_ABILITY` of a loyalty ability: who activated it, once each (Kiora of Salt and Sand's watcher)
+    pub loyalty_activated: Vec<Seat>,
 }
 
 /// One damage event a `TurnWatch` keeps: the source as it was and its controller then, what was dealt damage (a
