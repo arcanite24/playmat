@@ -18162,7 +18162,10 @@ fn apply_each_effect(
                     }
                 }
             }
-            EffectDef::AttacksIfAbleAttachedEffect | EffectDef::BlocksIfAbleSourceEffect => {}
+            EffectDef::AttacksIfAbleAttachedEffect
+            | EffectDef::BlocksIfAbleSourceEffect
+            | EffectDef::BlocksIfAbleAttachedEffect
+            | EffectDef::MustBeBlockedByAllAttachedEffect => {}
             // `PlayerImpl.flipCoins`: "Heads or tails?" (yes: heads), then `RandomUtil.nextBoolean()`
             EffectDef::FlipCoinEffect { won, lost } => {
                 let Some(chosen) = choose_use(game, d, controller, "Heads or tails?") else { return };
@@ -23245,7 +23248,10 @@ fn declare_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
                     && !o.tapped
                     && o.blocking.is_empty()
                     && (game.has_ability(*b, &AbilityDef::BlocksIfAbleAbility)
-                        || has_static(game, *b, |e| matches!(e, EffectDef::BlocksIfAbleSourceEffect)))
+                        || has_static(game, *b, |e| matches!(e, EffectDef::BlocksIfAbleSourceEffect))
+                        || game.any_static(|g, src, e| {
+                            matches!(e, EffectDef::BlocksIfAbleAttachedEffect) && g.attached(src) == Some(*b)
+                        }))
                     && attacking.iter().any(|a| {
                         can_block(game, *b, *a)
                             && !game.has_ability(*a, &AbilityDef::MenaceAbility)
@@ -23416,6 +23422,9 @@ fn forcing_attackers(game: &Game, b: ObjId) -> Vec<ObjId> {
                         if game.filter_matches(filter, you, Some(src), b) {
                             add(src, &mut out);
                         }
+                    }
+                    if let (EffectDef::MustBeBlockedByAllAttachedEffect, Some(a)) = (e, game.attached(src)) {
+                        add(a, &mut out);
                     }
                 }
             }

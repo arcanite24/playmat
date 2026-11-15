@@ -3228,6 +3228,11 @@ pub enum EffectDef {
     AttacksIfAbleAttachedEffect,
     /// this blocks each combat if able
     BlocksIfAbleSourceEffect,
+    /// a static: the creature this is attached to blocks each combat if able (`BlocksIfAbleAttachedEffect`: Spirespine)
+    BlocksIfAbleAttachedEffect,
+    /// a static: all creatures able to block the attacking creature this is attached to do so
+    /// (`MustBeBlockedByAllAttachedEffect`: Noble Quarry)
+    MustBeBlockedByAllAttachedEffect,
     /// flip a coin, calling it (`PlayerImpl.flipCoin`, winnable): `won` if you win the flip, else `lost`
     FlipCoinEffect {
         won: Vec<EffectDef>,

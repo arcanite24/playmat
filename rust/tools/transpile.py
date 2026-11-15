@@ -178,6 +178,9 @@ EFFECTS = {
     'GainAbilityControlledSpellsEffect': [('ability', 'ability'), ('filter', 'filter')],
     # "enchanted creature loses all abilities" (while the Aura is on the battlefield)
     'LoseAllAbilitiesAttachedEffect': [(None, 'aura')],
+    # "enchanted creature blocks each combat if able", "all creatures able to block enchanted creature do so"
+    'BlocksIfAbleAttachedEffect': [(None, 'while_on_battlefield'), (None, 'aura')],
+    'MustBeBlockedByAllAttachedEffect': [(None, 'while_on_battlefield'), (None, 'aura')],
     # "you control enchanted creature/permanent" (layer 2, while the Aura is attached)
     'ControlEnchantedEffect': [(None, 'string')],
     'DontUntapInControllersUntapStepAllEffect': [('duration', 'untap_all_duration'),
