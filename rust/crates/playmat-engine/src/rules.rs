@@ -757,9 +757,6 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 game.at_next_main = rest;
                 game.pending.extend(mine.into_iter().map(|(_, _, t)| t));
             }
-            if step == Step::PrecombatMain {
-                add_saga_lore(game, active);
-            }
             // the draw step's draw comes before its triggers
             if step == Step::Draw {
                 draw(game, active, 1);
@@ -864,6 +861,11 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             }
             // the delayed ones (the next upkeep's, rebound) before the others, as at the end step
             game.pending.extend(fired);
+            // `PreCombatMainStep.beginStep`: the Sagas' lore counters after the step's `PRE` event, so their chapter
+            // abilities wait after "at the beginning of your precombat main phase" triggers (Ashling, Rekindled)
+            if step == Step::PrecombatMain {
+                add_saga_lore(game, active);
+            }
         }
         // the replacement choices its damage asked for (Twinflame Tyrants) come before the step's priority
         Step::FirstCombatDamage => {
