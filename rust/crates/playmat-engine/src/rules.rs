@@ -17176,7 +17176,8 @@ fn apply_each_effect(
                     game.when_dies.push((o, zcc, turn, *to_player, t));
                 }
             }
-            EffectDef::CreateDelayedTriggerEffect { ability, end_of_turn, once } => {
+            EffectDef::CreateDelayedTriggerEffect { ability, end_of_turn, once, no_copy_targets } => {
+                let legal = if *no_copy_targets { &[][..] } else { legal };
                 create_delayed_trigger(game, item, ability, legal, source, *end_of_turn, *once);
             }
             EffectDef::CreateNextEndStepDelayedEffect { effects, rule } => {

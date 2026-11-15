@@ -2800,13 +2800,15 @@ pub enum EffectDef {
     /// `DelayedTriggeredAbility` class with an event trigger: `ability` is it as a triggered ability (a trigger
     /// handler's base and check); it waits in `Game::delayed_triggers`, pointing at what this ability points at,
     /// until the cleanup step (`end_of_turn`, `Duration.EndOfTurn`) or for the game, and once it has triggered it's
-    /// gone if `once` (`triggerOnlyOnce`)
+    /// gone if `once` (`triggerOnlyOnce`); `no_copy_targets`: it points at nothing (`copyTargets` false)
     CreateDelayedTriggerEffect {
         ability: Box<AbilityDef>,
         #[serde(default)]
         end_of_turn: bool,
         #[serde(default)]
         once: bool,
+        #[serde(default)]
+        no_copy_targets: bool,
     },
     /// "at the beginning of the next end step, …" (`CreateDelayedTriggeredAbilityEffect` with
     /// `AtTheBeginOfNextEndStepDelayedTriggeredAbility`)
