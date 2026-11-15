@@ -9303,7 +9303,8 @@ fn activate_mana_paying(
     note(game, EventKind::Mana, Some(seat), Some(id), None, made);
     // `TAPPED_FOR_MANA`: "whenever you tap this for mana", a trigger that isn't a mana ability
     if taps {
-        let fired = game.triggers(vec![id], |_, src, you, t| matches!(t, Trigger::TappedForMana) && src == id && you == seat);
+        let fired =
+            game.triggers(vec![id], |_, src, you, t| matches!(t, Trigger::TappedForMana) && src == id && you == seat);
         game.pending.extend(fired);
     }
     // a mana ability's other effects happen at once (a pain land's damage)
@@ -21184,7 +21185,8 @@ fn damaged_permanent_triggers(game: &mut Game, source: ObjId, to: Target, amount
             match of.as_str() {
                 "to_this" => src == o,
                 "source_to" => {
-                    g.filter_matches(source_filter, you, Some(src), source) && g.filter_matches(filter, you, Some(src), o)
+                    g.filter_matches(source_filter, you, Some(src), source)
+                        && g.filter_matches(filter, you, Some(src), o)
                 }
                 "this_to" => src == source && g.filter_matches(filter, you, Some(src), o),
                 "attached_to" => g.attached(src) == Some(source) && g.filter_matches(filter, you, Some(src), o),
