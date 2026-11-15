@@ -9709,8 +9709,11 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
             }
         }
     }
-    // `processAction` applies the effects as it resolves: Leyline of the Guildpact's land types end with it
+    // `processAction` applies the effects as it resolves: Leyline of the Guildpact's land types end with it, and
+    // ascend's `AscendContinuousEffect` gives the city's blessing to one who now controls ten permanents (Dusk
+    // Charger, entering as the tenth, gets its +2/+2 at once)
     game.update_guildpact();
+    game.update_ascend();
     game.revealed.clear();
     game.looked_at.clear();
     game.resolving = None;
