@@ -544,6 +544,11 @@ CUSTOM = {
         'on': {'e': 'source_counters_at_least', 'counter': 'page', 'n': 4}, 'optional': False,
         'effects': [{'class': 'DoIfCostPaid', 'effect': {'class': 'GainLifeEffect', 'amount': 4},
                      'cost': [{'class': 'ExileSourceCost'}], 'optional': False}]},
+    # Nine Lives: "when there are nine or more incarnation counters on {this}, exile it." (a state trigger)
+    'NineLivesStateTriggeredAbility': lambda: {
+        'class': 'TriggeredAbility', 'java': 'NineLivesStateTriggeredAbility',
+        'on': {'e': 'source_counters_at_least', 'counter': 'incarnation', 'n': 9}, 'optional': False,
+        'effects': [{'class': 'CardEffect', 'handler': 'ExileSourceEffect'}]},
     # "if this land isn't a creature, it becomes a 2/4 Wizard creature with 'Whenever you cast an instant or sorcery
     # spell, this creature gets +1/+0 until end of turn.' It's still a land."
     'GreatHallOfTheBiblioplexEffect': lambda: {'class': 'GreatHallOfTheBiblioplexEffect', 'token': {
@@ -4527,6 +4532,9 @@ class Translator:
             return {'class': 'TargetAnyTarget'}
         if cls == 'TargetPermanentOrPlayer' and len(args) == 1 and self.filters.get(args[0].strip()) == ANY_TARGET_NOT_FIRST:
             return {'class': 'TargetAnyTarget', 'not_first': True}
+        # `TargetPermanentOrPlayer()`: any permanent or player (`FilterPermanentOrPlayer()`, Skyship Plunderer)
+        if cls == 'TargetPermanentOrPlayer' and not [a for a in args if a.strip()]:
+            return {'class': cls, 'filter': []}
         # a permanent of a filter or a player: `(filter)` or `(1, 1, filter, false)`
         if cls == 'TargetPermanentOrPlayer' and (len(args) == 1 or len(args) == 4 and [a.strip() for a in args[:2] + args[3:]] == ['1', '1', 'false']) \
                 and isinstance(f := self.filters.get(args[-1 if len(args) == 1 else 2].strip()), PermanentOrPlayerFilter):
@@ -5222,6 +5230,14 @@ class Translator:
                     'effects': [self.effect('new ShuffleHandGraveyardIntoLibraryEffect()'),
                                 self.effect('new DrawCardSourceControllerEffect(7).concatBy(", then")'),
                                 self.effect('new ExileSourceEffect()')]}
+        # a Plan's "when the Nth plan counter is put on {this}, sacrifice it. When you do, …" (`COUNTER_ADDED`, the
+        # counter that makes it N: Midnight Clock's form; its effect `DoWhenCostPaid(reflexive, SacrificeSourceCost,
+        # "Sacrifice {this}?", false)`)
+        if cls == 'PlanCounterThresholdTriggeredAbility' and len(args) == 2 and re.fullmatch(r'\d+', args[0].strip()):
+            return {'class': 'TriggeredAbility', 'java': cls,
+                    'on': {'e': 'counter_added_source', 'counter': 'plan', 'threshold': int(args[0])},
+                    'effects': [self.effect('new DoWhenCostPaid(' + args[1].strip() + ', new SacrificeSourceCost()'
+                                            '.setText("sacrifice it"), "Sacrifice {this}?", false)')]}
         # "whenever one or more +1/+1 counters are put on this"
         if cls == 'OneOrMoreCountersAddedTriggeredAbility' and len(args) in (1, 2):
             return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'counters_added_source', 'counter': '+1/+1'},
