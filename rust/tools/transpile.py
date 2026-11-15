@@ -524,8 +524,8 @@ CUSTOM = {
         'class': 'TriggeredAbility', 'java': 'SyrKonradTheGrimTriggeredAbility', 'on': {'e': 'syr_konrad'},
         'effects': [{'class': 'DamagePlayersEffect', 'amount': 1, 'controller': 'opponent'}]},
     # a card of a kind leaving your graveyard (one `ZONE_CHANGE` each, the card you own): Along the Crooked Way's
-    # creature card amasses Goblins 1, Murktide Regent's instant or sorcery card puts a +1/+1 counter on it,
-    # Kishla Skimmer's any card during your turn draws a card
+    # creature card amasses Goblins 1, Murktide Regent's instant or sorcery card puts a +1/+1 counter on it
+    # (Kishla Skimmer, verified, keeps its trigger handler)
     'AlongTheCrookedWayTriggeredAbility': lambda: {
         'class': 'TriggeredAbility', 'java': 'AlongTheCrookedWayTriggeredAbility',
         'on': {'e': 'card_leaves_your_graveyard', 'filter': [CREATURE]},
@@ -535,10 +535,6 @@ CUSTOM = {
         'on': {'e': 'card_leaves_your_graveyard',
                'filter': [{'p': 'or', 'xs': [{'p': 'type', 't': 'INSTANT'}, {'p': 'type', 't': 'SORCERY'}]}]},
         'effects': [{'class': 'AddCountersSourceEffect', 'counter': {'name': '+1/+1', 'amount': 1}}]},
-    'KishlaSkimmerTriggeredAbility': lambda: {
-        'class': 'TriggeredAbility', 'java': 'KishlaSkimmerTriggeredAbility',
-        'on': {'e': 'card_leaves_your_graveyard', 'your_turn': True},
-        'effects': [{'class': 'DrawCardSourceControllerEffect', 'amount': 1}]},
     # "whenever a source deals damage to you, remove a filibuster counter from this" (each `DAMAGED_PLAYER`)
     'AzorsElocutorsTriggeredAbility': lambda: {
         'class': 'TriggeredAbility', 'java': 'AzorsElocutorsTriggeredAbility',

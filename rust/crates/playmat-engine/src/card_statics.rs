@@ -1026,7 +1026,6 @@ pub(crate) fn cast_this_way(
         f(game, d, source, controller, spell)?;
     }
     Some(())
-
 }
 
 /// Whether an as-though handler lets `seat` activate the ability at `index` of `id` any time they could cast an
