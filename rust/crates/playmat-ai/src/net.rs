@@ -39,6 +39,21 @@ impl Linear {
     }
 }
 
+impl Linear {
+    /// `apply` on many rows at once: each weight row is read once for all of them (the transformer's tokens)
+    fn apply_rows(&self, xs: &[Vec<f32>], relu: bool) -> Vec<Vec<f32>> {
+        let mut ys: Vec<Vec<f32>> = xs.iter().map(|_| Vec::with_capacity(self.out)).collect();
+        for o in 0..self.out {
+            let row = &self.w[o * self.inp..(o + 1) * self.inp];
+            for (x, y) in xs.iter().zip(ys.iter_mut()) {
+                let s = self.b[o] + dot(row, x);
+                y.push(if relu { s.max(0.0) } else { s });
+            }
+        }
+        ys
+    }
+}
+
 /// A dot product in 8 lanes: the compiler vectorizes it (one running sum can't be reordered, so it doesn't)
 #[inline]
 pub fn dot(a: &[f32], b: &[f32]) -> f32 {
@@ -391,45 +406,42 @@ impl Tx {
 
     /// The tokens after the blocks, normed: the global one first
     fn tokens(&self, o: &Obs) -> Vec<Vec<f32>> {
-        let mut x: Vec<Vec<f32>> = Vec::with_capacity(1 + o.n_ents());
         let mut y = Vec::new();
         self.glob_in.apply(&o.glob, &mut y, false);
-        x.push(y.clone());
-        let mut inp = Vec::new();
-        for i in 0..o.n_ents() {
-            inp.clear();
-            inp.extend_from_slice(self.embedding(o.ent_ids[i]));
-            inp.extend_from_slice(&o.ents[i * ENT_F..(i + 1) * ENT_F]);
-            self.ent_in.apply(&inp, &mut y, false);
-            x.push(y.clone());
-        }
-        let d = x[0].len();
-        let (mut n, mut z, mut f) = (Vec::new(), Vec::new(), Vec::new());
-        for b in &self.blocks {
-            let (mut q, mut k, mut v) = (Vec::new(), Vec::new(), Vec::new());
-            for row in &x {
-                b.ln1.apply(row, &mut n);
-                b.qkv.apply(&n, &mut z, false);
-                q.push(z[..d].to_vec());
-                k.push(z[d..2 * d].to_vec());
-                v.push(z[2 * d..].to_vec());
-            }
-            let att = attend(&q, &k, &v, self.heads);
-            for (row, a) in x.iter_mut().zip(&att) {
-                b.out.apply(a, &mut z, false);
-                row.iter_mut().zip(&z).for_each(|(r, u)| *r += u);
-                b.ln2.apply(row, &mut n);
-                b.ff1.apply(&n, &mut f, true);
-                b.ff2.apply(&f, &mut z, false);
-                row.iter_mut().zip(&z).for_each(|(r, u)| *r += u);
-            }
-        }
-        x.iter()
-            .map(|row| {
-                self.ln_f.apply(row, &mut n);
-                n.clone()
+        let inputs: Vec<Vec<f32>> = (0..o.n_ents())
+            .map(|i| {
+                let mut inp = self.embedding(o.ent_ids[i]).to_vec();
+                inp.extend_from_slice(&o.ents[i * ENT_F..(i + 1) * ENT_F]);
+                inp
             })
-            .collect()
+            .collect();
+        let mut x = vec![y];
+        x.extend(self.ent_in.apply_rows(&inputs, false));
+        let d = x[0].len();
+        let norm = |ln: &LayerNorm, rows: &[Vec<f32>]| -> Vec<Vec<f32>> {
+            rows.iter()
+                .map(|r| {
+                    let mut n = Vec::new();
+                    ln.apply(r, &mut n);
+                    n
+                })
+                .collect()
+        };
+        for b in &self.blocks {
+            let qkv = b.qkv.apply_rows(&norm(&b.ln1, &x), false);
+            let q: Vec<Vec<f32>> = qkv.iter().map(|z| z[..d].to_vec()).collect();
+            let k: Vec<Vec<f32>> = qkv.iter().map(|z| z[d..2 * d].to_vec()).collect();
+            let v: Vec<Vec<f32>> = qkv.iter().map(|z| z[2 * d..].to_vec()).collect();
+            let att = b.out.apply_rows(&attend(&q, &k, &v, self.heads), false);
+            for (row, a) in x.iter_mut().zip(&att) {
+                row.iter_mut().zip(a).for_each(|(r, u)| *r += u);
+            }
+            let f = b.ff2.apply_rows(&b.ff1.apply_rows(&norm(&b.ln2, &x), true), false);
+            for (row, a) in x.iter_mut().zip(&f) {
+                row.iter_mut().zip(a).for_each(|(r, u)| *r += u);
+            }
+        }
+        norm(&self.ln_f, &x)
     }
 
     /// The state `h` (the global token and the mean of the entity tokens through one layer) and the value
@@ -457,31 +469,38 @@ impl Tx {
         let t = self.tokens(o);
         let (h, value) = self.head(&t);
         let d = t[0].len();
-        let (mut k, mut v, mut z) = (Vec::new(), Vec::new(), Vec::new());
-        for row in &t {
-            self.act_kv.apply(row, &mut z, false);
-            k.push(z[..d].to_vec());
-            v.push(z[d..].to_vec());
-        }
+        let kv = self.act_kv.apply_rows(&t, false);
+        let k: Vec<Vec<f32>> = kv.iter().map(|z| z[..d].to_vec()).collect();
+        let v: Vec<Vec<f32>> = kv.iter().map(|z| z[d..].to_vec()).collect();
         let mut q = Vec::new();
         self.query.apply(&h, &mut q, false);
-        let (mut inp, mut a, mut n, mut aq, mut b) = (Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new());
-        let mut logits = Vec::with_capacity(o.n_acts());
-        for i in 0..o.n_acts() {
-            inp.clear();
-            inp.extend_from_slice(self.embedding(o.act_ids[i]));
-            inp.extend_from_slice(&o.acts[i * ACT_F..(i + 1) * ACT_F]);
-            self.act_in.apply(&inp, &mut a, false);
-            self.act_ln.apply(&a, &mut n);
-            self.act_q.apply(&n, &mut aq, false);
-            let att = attend(std::slice::from_ref(&aq), &k, &v, self.heads);
-            self.act_o.apply(&att[0], &mut z, false);
-            a.iter_mut().zip(&z).for_each(|(x, u)| *x += u);
-            self.act_ff.apply(&a, &mut z, true);
-            a.iter_mut().zip(&z).for_each(|(x, u)| *x += u);
-            self.abias.apply(&a, &mut b, false);
-            logits.push(q.iter().zip(&a).map(|(x, y)| x * y).sum::<f32>() + b[0]);
+        let inputs: Vec<Vec<f32>> = (0..o.n_acts())
+            .map(|i| {
+                let mut inp = self.embedding(o.act_ids[i]).to_vec();
+                inp.extend_from_slice(&o.acts[i * ACT_F..(i + 1) * ACT_F]);
+                inp
+            })
+            .collect();
+        let mut a = self.act_in.apply_rows(&inputs, false);
+        let normed: Vec<Vec<f32>> = a
+            .iter()
+            .map(|r| {
+                let mut n = Vec::new();
+                self.act_ln.apply(r, &mut n);
+                n
+            })
+            .collect();
+        let aq = self.act_q.apply_rows(&normed, false);
+        let att = self.act_o.apply_rows(&attend(&aq, &k, &v, self.heads), false);
+        for (row, u) in a.iter_mut().zip(&att) {
+            row.iter_mut().zip(u).for_each(|(x, y)| *x += y);
         }
+        let ff = self.act_ff.apply_rows(&a, true);
+        for (row, u) in a.iter_mut().zip(&ff) {
+            row.iter_mut().zip(u).for_each(|(x, y)| *x += y);
+        }
+        let b = self.abias.apply_rows(&a, false);
+        let logits = a.iter().zip(&b).map(|(row, bb)| dot(&q, row) + bb[0]).collect();
         Output { logits, value, h }
     }
 
