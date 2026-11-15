@@ -14,8 +14,30 @@ pub const HANDLERS: &[Handler] = &[Handler::replacement(
 /// `init`: the spell's target kept first, then "a source of your choice" (`TargetSource.choose`)
 fn start(game: &mut Game, d: &mut dyn Decider, cx: &StaticCx) -> Option<Vec<(Target, u32)>> {
     let mut out: Vec<(Target, u32)> = cx.targets.iter().take(1).copied().collect();
-    out.extend(choose_source(game, d, cx)?);
+    out.extend(choose_source_resolving(game, d, cx)?);
     Some(out)
+}
+
+/// `TargetSource.choose` as `choose_source`, with this spell (still on Java's stack as it resolves, `game.resolving`)
+/// among the stack's sources in its place
+fn choose_source_resolving(game: &mut Game, d: &mut dyn Decider, cx: &StaticCx) -> Option<Vec<(Target, u32)>> {
+    let mut can: Vec<ObjId> = game.stack.iter().filter(|i| i.ability.is_none()).map(|i| i.card).collect();
+    if let Some((at, card)) = game.resolving {
+        if !can.contains(&card) {
+            can.insert(at.min(can.len()), card);
+        }
+    }
+    can.extend(game.battlefield.iter().copied());
+    for p in 0..game.seats() {
+        can.extend(game.player(p).graveyard.iter().copied());
+    }
+    can.extend(game.exile.iter().copied());
+    can.dedup();
+    if can.is_empty() {
+        return Some(Vec::new());
+    }
+    let chosen = choose_cards(game, d, cx.controller, &can, &can, 1, 1, "source of your choice")?;
+    Some(chosen.into_iter().map(|o| (Target::Obj(o), game.obj(o).zcc)).collect())
 }
 
 /// Preventable damage to the target from the chosen source, while that source is still the object chosen, with some
