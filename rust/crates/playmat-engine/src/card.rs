@@ -510,6 +510,9 @@ pub enum Pred {
     },
     /// `AnotherTargetPredicate`: not one of the ability's earlier targets (while its targets are chosen)
     AnotherTarget,
+    /// a mana value none of this target's choices so far has (Agadeem's Awakening's "that each have a different
+    /// mana value": its target's `possibleTargets` leaves out the chosen cards' mana values)
+    ManaValueUnlikeChosen,
     /// `BlockingOrBlockedBySourcePredicate`: blocking the source (`BLOCKING`), blocked by it (`BLOCKED_BY`), or
     /// either
     BlockingOrBlockedBySource {
@@ -810,6 +813,9 @@ pub enum Trigger {
         filter: Filter,
         #[serde(default)]
         who: String,
+        /// from its card in its owner's graveyard (`Zone.GRAVEYARD`: Warcry Phoenix)
+        #[serde(default)]
+        graveyard: bool,
     },
     /// you attack a player with one or more creatures of the filter (`AttacksPlayerWithCreaturesTriggeredAbility`,
     /// `DEFENDER_ATTACKED`: a planeswalker attacked doesn't count)
@@ -970,6 +976,9 @@ pub enum Trigger {
     },
     /// this deals damage to an opponent (`only_combat`: combat damage), or to any player with `any`
     /// (`DealsDamageToAPlayerTriggeredAbility`)
+    /// a source you control deals noncombat damage to an opponent, each time (X the damage;
+    /// `SourceDealsNoncombatDamageToOpponentTriggeredAbility`)
+    SourceDealsNoncombatDamageToOpponent,
     DealsDamageToOpponent {
         #[serde(default)]
         only_combat: bool,
@@ -1823,6 +1832,8 @@ pub enum Value {
     },
     /// cards in the controller's hand
     CardsInHand,
+    /// cards in the active player's hand (`CardsInHandCondition` with `TargetController.ACTIVE`)
+    ActivePlayerCardsInHand,
     /// the controller's speed (`ControllerSpeedCount`)
     Speed,
     /// cards of the filter in the controller's graveyard (every graveyard: `CardsInAllGraveyardsCount`)
@@ -1941,6 +1952,16 @@ pub enum Value {
     DifferentPowers {
         filter: Filter,
     },
+    /// differently named permanents of the filter, face-down ones (no name) left out
+    /// (`DifferentlyNamedPermanentCount`)
+    DifferentNames {
+        filter: Filter,
+    },
+    /// instant and sorcery cards the controller owns in exile and in their graveyard
+    /// (`InstantSorceryExileGraveyardCount`)
+    InstantSorceryExileGraveyard,
+    /// different mana values among the cards in the controller's graveyard (`DifferentManaValuesInGraveCondition`)
+    DifferentManaValuesInGraveyard,
     /// nonland permanents that entered under the controller's control this turn (celebration)
     NonlandsEntered,
     /// permanent cards put into the controller's graveyard this turn (descend, `DescendedWatcher`)
@@ -2703,6 +2724,21 @@ pub enum EffectDef {
     },
     /// `LookAtTopCardOfLibraryAnyTimeEffect`: you may look at the top card of your library any time (views only)
     LookAtTopCardOfLibraryAnyTimeEffect,
+    /// "creatures of the filter can't attack you (or planeswalkers you control) unless their controller pays `cost`
+    /// for each" (`CantAttackYouUnlessPayAllEffect` in a static ability; a `ConditionalReplacementEffect` around it
+    /// gives the condition): each attacker's cost is asked as it's declared
+    CantAttackYouUnlessPayAllEffect {
+        cost: String,
+        #[serde(default)]
+        planeswalkers: bool,
+        #[serde(default)]
+        filter: Filter,
+        #[serde(default)]
+        condition: Option<Condition>,
+    },
+    /// `LookAtOpponentFaceDownCreaturesAnyTimeEffect`: you may look at face-down creatures you don't control any
+    /// time (views only)
+    LookAtOpponentFaceDownCreaturesAnyTimeEffect,
     /// `PlayWithTheTopCardRevealedEffect`: you (`all`: every player) play with the top card of the library revealed
     /// (views only)
     PlayWithTheTopCardRevealedEffect {
@@ -2869,9 +2905,11 @@ pub enum EffectDef {
     CavernOfSoulsCantCounterEffect,
     /// "This land is the chosen type." (applied as the type is chosen)
     MultiversalPassagePassageEffect,
-    /// "you may discard up to `amount` cards. If you do, draw that many cards"
+    /// "you may discard up to `amount` cards. If you do, draw that many cards" (plus `plus`: "that many plus one")
     DiscardAndDrawThatManyEffect {
         amount: i32,
+        #[serde(default)]
+        plus: i32,
     },
     /// a static ability's effect: a creature dealt damage this turn by a source you controlled that would die is
     /// exiled instead
@@ -4430,6 +4468,10 @@ pub struct Bind {
     /// "choose" from a zone with `chooseTarget`: nothing to pick isn't asked about, even when none must be
     #[serde(default)]
     pub quiet: bool,
+    /// "choose" with `TargetImpl.choose` (`OneShotNonTargetEffect`'s `Targets.choose`): another round of picks after
+    /// one that added a card
+    #[serde(default)]
+    pub rounds: bool,
 }
 
 /// A Java null check: the slot has something (`is` ""), a permanent still on the battlefield ("permanent"), or a
@@ -5136,6 +5178,12 @@ pub enum AbilityDef {
         #[serde(default)]
         sorcery: bool,
         rule: String,
+        /// not exhaust but "activate only once" (`ActivateOncePerGameActivatedAbility`: once per object too, its
+        /// activations kept by zone change counter), with a condition
+        #[serde(default)]
+        once: bool,
+        #[serde(default)]
+        condition: Option<Condition>,
     },
     /// read ahead: a Saga's chapters skipped as it enters don't trigger (`ReadAheadAbility`)
     ReadAheadAbility,
@@ -5632,7 +5680,7 @@ impl AbilityDef {
             | AbilityDef::PowerUpAbility { effects, cost, targets, rule } => {
                 Some((rule, effects, targets, cost, false))
             }
-            AbilityDef::ExhaustAbility { effects, cost, targets, rule, sorcery } => {
+            AbilityDef::ExhaustAbility { effects, cost, targets, rule, sorcery, .. } => {
                 Some((rule, effects, targets, cost, *sorcery))
             }
             AbilityDef::LoyaltyAbility { effects, cost, targets, rule } => Some((rule, effects, targets, cost, true)),

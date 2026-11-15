@@ -1948,6 +1948,10 @@ impl Game {
                 }
             }
             Pred::AnotherTarget => !self.chosen_before.contains(&Target::Obj(id)),
+            Pred::ManaValueUnlikeChosen => {
+                let mv = o.def.mana_value();
+                !self.chosen_before.iter().any(|t| matches!(t, Target::Obj(c) if self.obj(*c).def.mana_value() == mv))
+            }
             Pred::BlockingOrBlockedBySource { blocking, blocked_by } => source.is_some_and(|src| {
                 (*blocking && o.blocking.contains(&src)) || (*blocked_by && self.obj(src).blocking.contains(&id))
             }),
@@ -3186,6 +3190,7 @@ impl Game {
                         as i32
                 }
                 Value::CardsInHand => self.player(you).hand.len() as i32,
+                Value::ActivePlayerCardsInHand => self.active.map_or(0, |a| self.player(a).hand.len() as i32),
                 Value::Speed => self.player(you).speed as i32,
                 Value::CardsDrawn => self.player(you).drawn as i32,
                 Value::LifeGained => self.player(you).life_gained,
@@ -3333,6 +3338,37 @@ impl Game {
                 }
                 Value::NonlandsEntered => self.player(you).nonlands_entered as i32,
                 Value::Descended => self.player(you).descended as i32,
+                Value::DifferentNames { filter } => {
+                    let mut names: Vec<&str> = Vec::new();
+                    for b in self.battlefield.iter() {
+                        let o = self.obj(*b);
+                        if !o.face_down
+                            && self.filter_matches(filter, you, Some(source), *b)
+                            && !names.contains(&o.name())
+                        {
+                            names.push(o.name());
+                        }
+                    }
+                    names.len() as i32
+                }
+                Value::InstantSorceryExileGraveyard => {
+                    let spell = |id: &ObjId| {
+                        let o = self.obj(*id);
+                        o.is(CardType::Instant) || o.is(CardType::Sorcery)
+                    };
+                    (self.exile.iter().filter(|e| self.obj(**e).owner == you && spell(e)).count()
+                        + self.player(you).graveyard.iter().filter(|g| spell(g)).count()) as i32
+                }
+                Value::DifferentManaValuesInGraveyard => {
+                    let mut mvs: Vec<u32> = Vec::new();
+                    for c in self.player(you).graveyard.iter() {
+                        let mv = self.obj(*c).def.mana_value();
+                        if !mvs.contains(&mv) {
+                            mvs.push(mv);
+                        }
+                    }
+                    mvs.len() as i32
+                }
                 Value::DifferentPowers { filter } => {
                     let mut powers: Vec<i32> = Vec::new();
                     for b in self.battlefield.iter() {
