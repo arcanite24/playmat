@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (13,972 on 15 Nov). A card whose JSON the engine can't load yet is left out
+  can express (13,999 on 15 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -1539,6 +1539,32 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   replacements, replacements that ask, a card's own `CostImpl`, delayed triggers carrying data, extra phases and
   steps, Auras on players, copied abilities and spells, snow and Treasure mana spent, and the random or unordered
   ones (each helper's skip list is in `.local/rust-port/wave15/claim-1-h*/skipped.tsv` of its worktree).
+  Wave 16, shared forms (15 Nov): the claim-shared list (738 cards whose blockers include a shared form), used ones
+  first. Engine: "remove X counters from {this}" as a cost (`CostDef::RemoveXCountersSourceCost`: X announced from
+  the minimum up to the counters it has, not asked with nothing to choose, as `HumanPlayer.announceX`; with too few
+  counters the minimum is announced and paying fails after the targets, as in Java), and the playable check no
+  longer holds "power X or less" targets to an unannounced X (`Game::checking_activatable`; Java's
+  `PowerTargetAdjuster` sets the filter as it's activated: a Simic Manipulator with its evolve trigger on the stack
+  wasn't playable); `SpellCostReductionSourceEffect` of a mana cost (Ertai's Scorn's {U} less); "when that creature
+  dies under your control this turn" (`Game::when_dies_controlled`); end-of-combat delayed triggers that keep the
+  creating ability's targets (`copy_targets`); `DiscardOntoBattlefieldEffect` in hand (an opponent's spell or
+  ability makes you discard it: it enters instead); compleated planeswalkers (`Obj::phyrexian_paid`, two loyalty
+  fewer for each phyrexian symbol paid with life); a land that's a creature until your next turn and still a land
+  (`Game::animated_until_turn_of`); graveyard targets that can also be permanents or exiled cards; and a fix: a
+  static "is a creature as long as" applied while crewed applies again after cleanup (War Balloon crewed, then given
+  its third fire counter, wasn't a creature the next turn). Transpiler: those forms, a Vehicle that's a creature as
+  long as a condition holds, divided amounts among any number of creatures or planeswalkers and among min to max
+  creatures, the Flashback ability predicate; handlers for Rushed Rebirth, Jace, the Perfected Mind, Vraska,
+  Betrayal's Sting, Ertai's Scorn, Even the Score, Stormwing Entity and `GainAllCreatureTypesTargetEffect` (Glamer
+  Gifter). 27 cards came in (13,999 in the engine); two factory rounds (48 games, 47 matching, in
+  `.local/rust-port/wave16/claim-shared/factory/`) verified 26: 13,891 of 13,999. Thirteen games under
+  `shadow/wave16-shared/` cover the engine pieces. No verified card's JSON changed. Not verified: Discontinuity (one
+  game where Makeshift Binding's target, one of Forbidden Friendship's two tokens, is a different token in Java).
+  Left on the list: `CastFromHandSourcePermanentCondition` (see wave 15), triggers on abilities and spells
+  countered, `GainAbilityWithAttachmentEffect`, `EnchantedTappedTriggeredManaAbility` and the dynamic mana abilities,
+  exert and saddle triggers, kicker cost statements, paw prints and modes chosen more than once, `ProtectionFrom
+  EverythingAbility`, shuffled-into-library-from-anywhere, Waterbend costs, and the random or unordered ones (dice,
+  random discards, `BOTTOM_RANDOM`, two or more additional tokens).
   Text fixes for verified cards (13 Nov): the Young Hero Role's granted trigger keeps its own text, "put a +1/+1
   counter on it" (its `AddCountersSourceEffect` has a `setText`), and a delayed upkeep transform is "Transform {this}
   at the beginning of the next turn's upkeep." (`AtTheBeginOfNextUpkeepDelayedTriggeredAbility.getRule` puts the
