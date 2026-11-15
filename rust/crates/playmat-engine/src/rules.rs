@@ -8525,13 +8525,15 @@ fn owns_target(game: &Game, seat: Seat, id: ObjId) -> bool {
 
 /// `src`: the spell or ability's source, for its filters ("another")
 pub fn possible_targets(game: &Game, seat: Seat, def: &TargetDef, src: Option<ObjId>) -> (Vec<Seat>, Vec<ObjId>) {
-    // a player with hexproof can't be the target of their opponents' spells and abilities
+    // a player with hexproof can't be the target of their opponents' spells and abilities, nor one with protection
+    // from the source (`PlayerImpl.canBeTargetedBy`'s `hasProtectionFrom`)
     let players: Vec<Seat> = (0..game.seats())
         .filter(|s| {
             !game.player(*s).lost
                 && (*s == seat
                     || !game.player_has(*s, &AbilityDef::HexproofAbility)
                     || cards::ignore_hexproof(game, seat, Target::Player(*s)))
+                && !src.is_some_and(|o| game.player_protected_from(*s, o))
         })
         .collect();
     let permanents = |f: &dyn Fn(ObjId) -> bool| -> Vec<ObjId> {
@@ -22903,17 +22905,20 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             return 0;
         }
     }
-    // protection from the source's color: prevented (`checkProtectionAbilities`)
-    if let Target::Obj(o) = to {
-        if game.obj(o).zone == Zone::Battlefield && game.protected_from(o, source) {
-            let unpreventable = game.no_prevention_turn == Some(game.turn)
-                || combat
-                    && game.any_static(|g, src, e| {
-                        matches!(e, EffectDef::DamageCantBePreventedEffect { .. }) && g.obj(src).controller == you
-                    });
-            if !unpreventable {
-                return 0;
-            }
+    // protection from the source's color: prevented (`checkProtectionAbilities`); a player's protection too
+    // (Absolute Virtue's from each opponent)
+    let protected = match to {
+        Target::Obj(o) => game.obj(o).zone == Zone::Battlefield && game.protected_from(o, source),
+        Target::Player(p) => game.player_protected_from(p, source),
+    };
+    if protected {
+        let unpreventable = game.no_prevention_turn == Some(game.turn)
+            || combat
+                && game.any_static(|g, src, e| {
+                    matches!(e, EffectDef::DamageCantBePreventedEffect { .. }) && g.obj(src).controller == you
+                });
+        if !unpreventable {
+            return 0;
         }
     }
     // Artist's Talent: noncombat damage from your source to an opponent or their permanent, plus 2

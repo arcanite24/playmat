@@ -3881,6 +3881,39 @@ impl Game {
             })
     }
 
+    /// The cards in `source`'s exile zone for the permanent it is now (`UnlicensedHearseValue`): each card once, and
+    /// only while it's still in exile (one Processor Assault put into a graveyard is out, and exiled again it's in
+    /// once)
+    pub fn exiled_with_source_count(&self, source: ObjId) -> i32 {
+        let zcc = self.obj(source).zcc;
+        let mut cards: Vec<ObjId> = Vec::new();
+        for (s, z, c) in self.exiled_for_source.iter() {
+            if *s == source && *z == zcc && self.obj(*c).zone == Zone::Exile && !cards.contains(c) {
+                cards.push(*c);
+            }
+        }
+        cards.len() as i32
+    }
+
+    /// Whether a player has protection from `source` (`PlayerImpl.hasProtectionFrom`): a static ability of theirs
+    /// gives them protection whose filter `source` matches (Absolute Virtue's "protection from each of your
+    /// opponents": a source an opponent controls)
+    pub fn player_protected_from(&self, seat: Seat, source: ObjId) -> bool {
+        fn gives(g: &Game, e: &EffectDef, src: ObjId, you: Seat, source: ObjId) -> bool {
+            match e {
+                EffectDef::GainAbilityControllerEffect { ability, .. } => match &**ability {
+                    AbilityDef::ProtectionAbility { filter } => g.filter_matches(filter, you, Some(src), source),
+                    _ => false,
+                },
+                EffectDef::ConditionalContinuousEffect { effect, condition } => {
+                    g.condition_holds(Some(condition), you, src) && gives(g, effect, src, you, source)
+                }
+                _ => false,
+            }
+        }
+        self.any_static(|g, src, e| g.obj(src).controller == seat && gives(g, e, src, seat, source))
+    }
+
     pub fn static_gives(&self, e: &EffectDef, src: ObjId, you: Seat, id: ObjId, ability: &AbilityDef) -> bool {
         match e {
             EffectDef::GainAbilityAllEffect { ability: given, filter, exclude_source, .. } => {
