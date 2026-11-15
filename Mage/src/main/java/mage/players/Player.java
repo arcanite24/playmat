@@ -73,6 +73,13 @@ public interface Player extends MageItem, Copyable<Player> {
      */
     boolean isHuman();
 
+    /**
+     * AI only: think briefly instead of at full skill. Events turn it on for bot-vs-bot matches, which nobody watches
+     * but which hold up the round for the humans waiting on it.
+     */
+    default void setQuickDecisions(boolean quick) {
+    }
+
     boolean isTestMode();
 
     void setTestMode(boolean value);

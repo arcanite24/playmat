@@ -131,9 +131,9 @@ public class DraftController {
         Thread.currentThread().setName(ThreadUtils.THREAD_PREFIX_TOURNEY_DRAFT + " " + tableId);
         for (final Entry<UUID, DraftSession> entry : draftSessions.entrySet()) {
             if (!entry.getValue().init()) {
-                logger.fatal("Unable to initialize client for playerId " + entry.getKey());
-                //TODO: generate client error message
-                return;
+                // the user is offline right now: carry on (returning here froze the draft for good), the pick
+                // timer picks for them and a reconnect sends the draft again
+                logger.warn("Unable to initialize client for playerId " + entry.getKey());
             }
         }
         draft.start();

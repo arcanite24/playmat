@@ -40,7 +40,7 @@ public abstract class TournamentSwiss extends TournamentImpl {
             playMultiplayerRound(round);
         } else {
             // split to multiple rounds/games
-            while (this.getActivePlayers().size() > 1 && this.getNumberRounds() > this.getRounds().size()) {
+            while (!isAbort() && this.getActivePlayers().size() > 1 && this.getNumberRounds() > this.getRounds().size()) {
                 // check if some player got killed / disconnected meanwhile and update their state
                 tableEventSource.fireTableEvent(TableEvent.EventType.CHECK_STATE_PLAYERS);
                 Round round = createRoundSwiss();

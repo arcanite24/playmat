@@ -203,9 +203,9 @@ public class TournamentController {
         Thread.currentThread().setName(ThreadUtils.THREAD_PREFIX_TOURNEY + " " + tableId);
         for (final TournamentSession tournamentSession : tournamentSessions.values()) {
             if (!tournamentSession.init()) {
-                logger.fatal("Unable to initialize client userId: " + tournamentSession.userId + "  tournamentId " + tournament.getId());
-                //TODO: generate client error message
-                return;
+                // the user is offline right now: carry on (returning here froze the event for good), the health
+                // check quits players who stay gone and a reconnect reopens the event
+                logger.warn("Unable to initialize client userId: " + tournamentSession.userId + "  tournamentId " + tournament.getId());
             }
         }
         logger.debug("Tournament starts (all players joined): " + tournament.getId() + " - " + tournament.getTournamentType().toString());
@@ -276,6 +276,11 @@ public class TournamentController {
                     user2Uuid = user2Id.get();
                 }
             }
+            // bots facing each other play fast: nobody watches, and the round waits for them. The same bot plays at
+            // full skill again in its next match against a human.
+            boolean botsOnly = !player1.getPlayer().isHuman() && !player2.getPlayer().isHuman();
+            player1.getPlayer().setQuickDecisions(botsOnly);
+            player2.getPlayer().setQuickDecisions(botsOnly);
             tableManager.addPlayer(user1Uuid, table.getId(), player1);
             tableManager.addPlayer(user2Uuid, table.getId(), player2);
             table.setState(TableState.STARTING);
@@ -474,6 +479,36 @@ public class TournamentController {
             tournamentSession.quit();
             managerFactory.chatManager().broadcast(chatId, "", tournamentPlayer.getPlayer().getLogName() + " has quit the tournament", MessageColor.BLACK, true, null, MessageType.STATUS, SoundToPlay.PlayerQuitTournament);
             updateTournamentSessions();
+            if (!hasHumansLeft()) {
+                abortWithoutHumans();
+            }
+        }
+    }
+
+    /** true while at least one human is still in the event (eliminated players still count: they may watch the bracket) */
+    private boolean hasHumansLeft() {
+        for (TournamentPlayer player : tournament.getPlayers()) {
+            if (player.getPlayer().isHuman() && !player.hasQuit()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Nobody is watching: stop the event instead of letting the bots play every remaining round. Abandoned events
+     * hold a tourney thread to the end, and with a small pool they kept new events from starting at all.
+     */
+    private void abortWithoutHumans() {
+        if (tournament.isAbort()) {
+            return;
+        }
+        logger.info("Tourney " + tournament.getId() + ": no humans left, event aborted");
+        tournament.setAbort(true);
+        managerFactory.draftManager().getController(tableId).ifPresent(DraftController::abortDraft);
+        managerFactory.tableManager().removeTournamentSubTables(tournament.getId());
+        synchronized (tournament) {
+            tournament.notifyAll(); // wakes a construct() wait
         }
     }
 
