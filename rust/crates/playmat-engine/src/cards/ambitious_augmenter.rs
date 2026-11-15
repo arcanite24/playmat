@@ -10,8 +10,12 @@ pub const HANDLERS: &[Handler] = &[
 ];
 
 /// the creature had one or more counters on it as it left the battlefield (`permanentLeftBattlefield`)
+/// (read as the trigger is collected, with the creature still on the battlefield, and as it resolves, from its last
+/// known counters, as `Value::SourceCountersAny`)
 fn had_counters(game: &Game, _you: Seat, source: ObjId) -> bool {
-    game.obj(source).lki_counters.iter().map(|(_, n)| *n).sum::<i32>() >= 1
+    let o = game.obj(source);
+    let counters = if o.zone == Zone::Battlefield { &o.counters } else { &o.lki_counters };
+    counters.iter().map(|(_, n)| *n).sum::<i32>() >= 1
 }
 
 /// The Fractal (`getLastAddedTokenIds`: the tokens made now), then on each still on the battlefield the counters this
