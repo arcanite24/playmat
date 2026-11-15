@@ -17,6 +17,7 @@ fn flicker(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         return Some(());
     }
     let c = cx.source_id();
+    let slot = game.battlefield.iter().position(|o| *o == c);
     game.move_to(c, Zone::Exile);
     if game.obj(c).zone != Zone::Exile || game.obj(c).token {
         return Some(());
@@ -30,6 +31,12 @@ fn flicker(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     o.def = Arc::new(def);
     let owner = game.obj(c).owner;
     put_onto_battlefield(game, d, c, owner);
+    // back in its old place among the permanents (Java's battlefield order, as its decision log numbers them)
+    if let (Some(at), Some(now)) = (slot, game.battlefield.iter().position(|o| *o == c)) {
+        let field = Arc::make_mut(&mut game.battlefield);
+        field.remove(now);
+        field.insert(at.min(field.len()), c);
+    }
     if game.obj(c).zone != Zone::Battlefield {
         if let Some(full) = game.obj_mut(c).face_up.take() {
             let o = game.obj_mut(c);
