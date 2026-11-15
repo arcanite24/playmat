@@ -408,7 +408,14 @@ pub(crate) enum AsThough {
     /// the graveyard or exile it's in; Some: how (`PlayWay`). A card's own (`Zone.ALL`: "you may cast this card from
     /// your graveyard") is declared `.in_any_zone()`.
     Play(fn(&Game, &StaticCx, Seat, ObjId, &CardDef) -> Option<PlayWay>),
+    /// `Play`, and what casting a spell that way does once it's cast (`setCastSourceIdWithAlternateMana`'s
+    /// identifier, read by the card's watcher on `SPELL_CAST`: "that creature enters with a finality counter on it")
+    PlayThen(fn(&Game, &StaticCx, Seat, ObjId, &CardDef) -> Option<PlayWay>, CastThisWayFn),
 }
+
+/// What casting a spell by an `AsThough::PlayThen` way does: (the permitting source, its controller, the spell).
+/// None when the decider stopped.
+pub(crate) type CastThisWayFn = fn(&mut Game, &mut dyn Decider, ObjId, Seat, ObjId) -> Option<()>;
 
 /// How an as-though effect lets a card be played from a graveyard or exile: for its own mana cost, or for `mana`
 /// instead (`setCastSourceIdWithAlternateMana`), with `costs` paid besides
@@ -830,7 +837,7 @@ pub(crate) fn play_ways(game: &Game, seat: Seat, id: ObjId, face: &CardDef) -> V
         return out;
     }
     let mut check = |h: &'static Hook, cx: &StaticCx, _: &EffectDef| {
-        if let Hook::AsThough(AsThough::Play(f)) = h {
+        if let Hook::AsThough(AsThough::Play(f) | AsThough::PlayThen(f, _)) = h {
             if let Some(way) = f(game, cx, seat, id, face) {
                 if !out.iter().any(|(s, _)| *s == cx.source) {
                     out.push((cx.source, way));
@@ -841,6 +848,25 @@ pub(crate) fn play_ways(game: &Game, seat: Seat, id: ObjId, face: &CardDef) -> V
     each_static(game, &mut check);
     each_own_static(game, id, &mut check);
     out
+}
+
+/// A spell `seat` cast by `source`'s as-though way (`AsThough::PlayThen`): what casting it that way does, for each
+/// such handler of the source's. None when the decider stopped.
+pub(crate) fn cast_this_way(game: &mut Game, d: &mut dyn Decider, seat: Seat, source: ObjId, spell: ObjId) -> Option<()> {
+    let mut then: Vec<(CastThisWayFn, Seat)> = Vec::new();
+    let mut check = |h: &'static Hook, cx: &StaticCx, _: &EffectDef| {
+        if let Hook::AsThough(AsThough::PlayThen(_, f)) = h {
+            if cx.source == source && cx.controller == seat {
+                then.push((*f, cx.controller));
+            }
+        }
+    };
+    each_static(game, &mut check);
+    each_own_static(game, spell, &mut check);
+    for (f, controller) in then {
+        f(game, d, source, controller, spell)?;
+    }
+    Some(())
 }
 
 /// Whether an as-though handler lets `seat` cast `id` as `face` as though it had flash

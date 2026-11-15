@@ -4598,6 +4598,12 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                 *game = before;
                 return;
             }
+            // an as-though handler's way: what casting it that way does (its watcher's `SPELL_CAST`)
+            if let Some(src) = chosen.filter(|c| !once.contains(c) && !plays.contains(c)) {
+                if cards::cast_this_way(game, d, seat, src, id).is_none() {
+                    return;
+                }
+            }
             // `CastFromGraveyardOnceWatcher`: that permanent's use this turn
             if let Some(src) = chosen.filter(|c| once.contains(c)) {
                 let entry = (src, game.obj(src).zcc);
