@@ -1288,6 +1288,30 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   effects, card-defined delayed triggers, trigger events the engine has no `Trigger` for such as life paid, gift
   given or counters added, mana replacements beyond {C}, a cost class of a card's own), random or unordered ones
   (Tersa, Ral Zarek's coin flips, random bottom orders, HashSet walks) and the long tail no one reached.
+  Wave 14, shared forms A (15 Nov): framework forms that block several cards each, then a few card classes. Handlers
+  for `GainControlAllUntapGainHasteEffect` (Mob Rule), `AddCountersPlayersEffect` (poison for each opponent),
+  `PutSavedPermanentCountersTargetEffect` (Java's `HashMap` order of the counter names), `CantBlockUnlessYouControl
+  SourceEffect`, `CantAttackUnlessDefenderControllsPermanent`, the `CantBeBlockedBy…` restrictions, `DetainAllEffect`,
+  `ExchangeLifeTwoTargetEffect`, `CastOnlyIfYouHaveCastAnotherSpellEffect`, `BlightControllerEffect`,
+  `CreateRoleAttachedSourceEffect`, `HasSubtypesSourceEffect`, `AttachToSourceTargetEffect`,
+  `DamageWithPowerFromSourceToAnotherTargetEffect`, `TargetController.SOURCE_TARGETS`'s controller predicate,
+  `CastAsThoughItHadFlashIfConditionAbility` (an as-though flash and a cast-late rule that undoes the cast unless the
+  condition holds: Bard's Company, Illusion Spinners, Silver Scrutiny) and `AttacksAloneAttachedTriggeredAbility`.
+  The transpiler reads `DealsDamageToYouAllTriggeredAbility`, `GainLoseLifeYourTurnTriggeredAbility`,
+  `ZoneChangeAllTriggeredAbility` from the battlefield (Ninth Bridge Patrol), `InvestigateTargetEffect`, the
+  4-argument `MillThenPutInHandEffect`, `BoostAllEffect`'s exclude-source overload and a `LockedInCondition` boost
+  with no otherwise (Savage Punch, Burrog Barrage, Cantankerous Captain); it ignores `setDependedToType`, and leaves
+  out a static handler granted to permanents with an ability (Jubilant Skybonder: the engine finds who has it through
+  their abilities, which read the statics again, a stack overflow). Engine fixes: a spell's own `Zone.ALL` cast-late
+  rule handlers apply as it is cast, a card's own layer-4 subtype handlers apply in every zone, and a spell that
+  targets a permanent still does once the permanent has left, as Java's last known information
+  (`TargetsPermanentPredicate`: Fugitive Droid sacrificed to counter Savage Punch, which targets it). 55 cards came in
+  (13,023 in the engine); three factory rounds (84 games, 69 replayed, all matching) verified 54: 12,723 of 13,023.
+  Three games under `shadow/wave14-shared-a/` cover the engine fixes. Not verified: Teysa, Envoy of Ghosts (not
+  exercised enough). Left on the list: random discards and dice, curses (`TargetController.ENCHANTED`),
+  `AddCardTypeSourceEffect` statics, `MayPay2LifeForColorAbility`, the adversaries' `DoIfAnyNumberCostPaid`,
+  `AttacksAndIsNotBlockedTriggeredAbility`, equip activation limits, `CompleatedAbility`, mana abilities of their own
+  kinds, `ReplaceTreasureWithAdditionalEffect` (Xorn) and the long tail.
   Text fixes for verified cards (13 Nov): the Young Hero Role's granted trigger keeps its own text, "put a +1/+1
   counter on it" (its `AddCountersSourceEffect` has a `setText`), and a delayed upkeep transform is "Transform {this}
   at the beginning of the next turn's upkeep." (`AtTheBeginOfNextUpkeepDelayedTriggeredAbility.getRule` puts the
