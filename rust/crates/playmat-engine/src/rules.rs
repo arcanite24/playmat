@@ -7728,6 +7728,9 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             if chosen.len() < *amount {
                 return false;
             }
+            if let Some(top) = Arc::make_mut(&mut game.stack).last_mut() {
+                top.cost_exiled.extend(chosen.iter().copied());
+            }
             for c in chosen {
                 game.move_to(c, Zone::Exile);
             }
