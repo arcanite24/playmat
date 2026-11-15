@@ -7,7 +7,8 @@ import messages from '../i18n/en/career';
 import { notify } from '../stores/toasts';
 import { Button } from '../ui/Button';
 import { BoosterPack } from './BoosterPack';
-import { buyPack, useCareerSetProgress, useCareerShop, useCareerState, type OpenedPack } from './careerData';
+import { buyPacks, useCareerSetProgress, useCareerShop, useCareerState, type OpenedPacks } from './careerData';
+import { batchCost, batchHighlights, PACK_BATCHES, packsAffordable } from './careerModel';
 import { useSceneArt } from './careerScene';
 import { ProgressBar } from './CareerScreen';
 import { dealStyle } from './motion';
@@ -19,9 +20,22 @@ import shop from './Shop.module.css';
 
 registerMessages(messages);
 
+/** the batch size picked last, kept on this browser */
+const BATCH_KEY = 'playmat.career.packBatch';
+
+function savedBatch(): number {
+  try {
+    const value = Number(localStorage.getItem(BATCH_KEY));
+    return (PACK_BATCHES as readonly number[]).includes(value) ? value : 1;
+  } catch {
+    return 1;
+  }
+}
+
 /**
  * The shop: one set's pack on the counter, big enough to want, with what it costs and how much of the set you have;
- * every other set's pack on the shelf below. Buying tears the pack open right here.
+ * every other set's pack on the shelf below. Buying tears the pack open right here; several packs bought at once open
+ * together, showing what's worth turning.
  */
 export function CareerShopScreen() {
   const t = useT();
@@ -32,7 +46,14 @@ export function CareerShopScreen() {
   const [query, setQuery] = useState('');
   const [chosen, setChosen] = useState<string | null>(null);
   const [buying, setBuying] = useState<string | null>(null);
-  const [opened, setOpened] = useState<{ result: OpenedPack; set: CareerShopSet; serial: number } | null>(null);
+  const [opened, setOpened] = useState<{ result: OpenedPacks; set: CareerShopSet; serial: number } | null>(null);
+  const [batch, setBatch] = useState(savedBatch);
+  const [opening, setOpening] = useState<{ done: number; count: number } | null>(null);
+  const highlights = useMemo(() => {
+    if (!opened || opened.result.packs < 2) return null;
+    const list = batchHighlights(opened.result.cards ?? [], opened.result.fresh);
+    return { cards: list.map((item) => item.card), copies: new Map(list.map((item) => [item.card, item.copies])) };
+  }, [opened]);
   const sets = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return (catalog.data ?? []).filter((set) => !needle || set.name?.toLowerCase().includes(needle) || set.setCode?.toLowerCase() === needle);
@@ -48,16 +69,32 @@ export function CareerShopScreen() {
   // free packs (level rewards, the weekly goal) are spent before coins
   const tokens = profile.packTokens ?? 0;
   const short = tokens === 0 && coins < price;
+  const affordable = packsAffordable(coins, tokens, price);
+  // a batch bigger than the coins allow opens as many as they do
+  const count = Math.max(1, Math.min(batch, affordable));
+  const cost = batchCost(count, tokens, price);
+  const free = Math.min(count, tokens);
 
-  async function buy(set: CareerShopSet) {
-    setBuying(set.setCode ?? null);
+  function pick(size: number) {
+    setBatch(size);
     try {
-      const result = await buyPack(set.setCode!);
+      localStorage.setItem(BATCH_KEY, String(size));
+    } catch {
+      // remembered only on this page then
+    }
+  }
+
+  async function buy(set: CareerShopSet, packs: number) {
+    setBuying(set.setCode ?? null);
+    setOpening(packs > 1 ? { done: 0, count: packs } : null);
+    try {
+      const result = await buyPacks(set.setCode!, packs, (done) => setOpening(packs > 1 ? { done, count: packs } : null));
       setOpened((current) => ({ result, set, serial: (current?.serial ?? 0) + 1 }));
     } catch (reason) {
       notify(t('career.shop.failed'), reason instanceof Error ? reason.message : String(reason), 'error');
     } finally {
       setBuying(null);
+      setOpening(null);
     }
   }
 
@@ -72,7 +109,7 @@ export function CareerShopScreen() {
               type="button"
               className={shop.featuredPack}
               disabled={featured.locked || short || buying !== null}
-              onClick={() => void buy(featured)}
+              onClick={() => void buy(featured, count)}
               aria-label={featured.locked ? t('career.shop.locked', { chapter: featured.unlockedBy ?? '' }) : t('career.shop.openOne', { set: featured.name ?? '' })}
             >
               <BoosterPack setCode={featured.setCode ?? ''} setName={featured.name ?? ''} cover={featured.cover} size="lg" tilt={!featured.locked} locked={featured.locked} />
@@ -96,8 +133,31 @@ export function CareerShopScreen() {
               <p className={shop.lockedNote}><Lock size={16} aria-hidden="true" /> {t('career.shop.locked', { chapter: featured.unlockedBy ?? '' })}</p>
             ) : (
               <div className={shop.buy}>
+                {affordable > 1 && (
+                  <div className={shop.batch} role="group" aria-label={t('career.shop.howMany')}>
+                    {PACK_BATCHES.map((size) => (
+                      <button
+                        key={size}
+                        type="button"
+                        className={shop.batchOption}
+                        aria-pressed={size === batch}
+                        disabled={(size > affordable && size !== 1) || buying !== null}
+                        onClick={() => pick(size)}
+                        data-nav
+                      >
+                        ×{size}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <span className={shop.price}>
-                  {tokens > 0 ? t('career.shop.tokens', { count: tokens }) : <><Coins size={20} aria-hidden="true" /> {formatNumber(price)}</>}
+                  {count === 1
+                    ? tokens > 0 ? t('career.shop.tokens', { count: tokens }) : <><Coins size={20} aria-hidden="true" /> {formatNumber(price)}</>
+                    : <>
+                      {free > 0 && t('career.shop.batchFree', { count: free })}
+                      {free > 0 && cost > 0 && ' + '}
+                      {cost > 0 && <><Coins size={20} aria-hidden="true" /> {formatNumber(cost)}</>}
+                    </>}
                 </span>
                 <Button
                   variant="decision"
@@ -105,10 +165,14 @@ export function CareerShopScreen() {
                   busy={buying === featured.setCode}
                   disabled={short || buying !== null}
                   aria-describedby={short ? 'career-short' : undefined}
-                  onClick={() => void buy(featured)}
+                  onClick={() => void buy(featured, count)}
                   data-nav
                 >
-                  {tokens > 0 ? t('career.shop.openFree') : t('career.shop.buyOpen')}
+                  {opening
+                    ? t('career.shop.opening', { done: Math.min(opening.done + 1, opening.count), count: opening.count })
+                    : count > 1
+                      ? cost === 0 ? t('career.shop.openFreeMany', { count }) : t('career.shop.buyMany', { count })
+                      : tokens > 0 ? t('career.shop.openFree') : t('career.shop.buyOpen')}
                 </Button>
               </div>
             )}
@@ -160,9 +224,13 @@ export function CareerShopScreen() {
           setCode={opened.result.setCode ?? opened.set.setCode ?? ''}
           cover={opened.set.cover}
           fresh={opened.result.fresh}
-          cards={opened.result.cards ?? []}
-          canBuyAnother={((opened.result.profile?.packTokens ?? 0) > 0 || (opened.result.profile?.coins ?? 0) >= (opened.set.price ?? price)) && buying === null}
-          onAnother={() => void buy(opened.set)}
+          cards={highlights?.cards ?? opened.result.cards ?? []}
+          packs={opened.result.packs}
+          copies={highlights?.copies}
+          all={highlights ? opened.result.cards : undefined}
+          stopped={opened.result.stopped}
+          canBuyAnother={packsAffordable(opened.result.profile?.coins ?? 0, opened.result.profile?.packTokens ?? 0, opened.set.price ?? price) >= opened.result.packs && buying === null}
+          onAnother={() => void buy(opened.set, opened.result.packs)}
           onClose={() => setOpened(null)}
         />
       )}

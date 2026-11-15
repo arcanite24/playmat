@@ -126,6 +126,50 @@ export function packSummary(cards: readonly CareerCard[]): PackSummary {
   return summary;
 }
 
+/** How many packs one press of the shop's buy button can open. */
+export const PACK_BATCHES = [1, 5, 10, 25, 50] as const;
+
+/** Packs the profile can open right now: free ones first, then whatever the coins pay for. */
+export function packsAffordable(coins: number, tokens: number, price: number): number {
+  return Math.max(0, tokens) + (price > 0 ? Math.floor(Math.max(0, coins) / price) : 0);
+}
+
+/** Coins a batch of packs costs once the free packs are spent. */
+export function batchCost(count: number, tokens: number, price: number): number {
+  return Math.max(0, count - Math.max(0, tokens)) * price;
+}
+
+/** A card worth showing after several packs, with how many copies of it came. */
+export interface BatchHighlight<T> {
+  card: T;
+  copies: number;
+}
+
+/**
+ * The cards worth looking at after several packs at once: every rare and mythic, and every card new to the collection;
+ * copies of one printing (that ended the same way) are stacked. Rares and mythics come last, mythics at the very end,
+ * like a single pack's reveal.
+ */
+export function batchHighlights<T extends Pick<CareerCard, 'name' | 'rarity' | 'setCode' | 'cardNumber' | 'convertedTo'>>(
+  cards: readonly T[],
+  fresh: readonly string[],
+): BatchHighlight<T>[] {
+  const isFresh = new Set(fresh.map((name) => name.toLowerCase()));
+  const groups = new Map<string, BatchHighlight<T>>();
+  for (const card of cards) {
+    const rare = card.rarity === 'rare' || card.rarity === 'mythic';
+    const isNew = !card.convertedTo && !!card.name && isFresh.has(card.name.toLowerCase());
+    if (!rare && !isNew) continue;
+    const key = [card.setCode, card.cardNumber, card.name, card.convertedTo ?? ''].join('|');
+    const group = groups.get(key);
+    if (group) group.copies++;
+    else groups.set(key, { card, copies: 1 });
+  }
+  const list = [...groups.values()];
+  const order = revealOrder(list.map((group) => group.card));
+  return order.map((card) => list.find((group) => group.card === card)!);
+}
+
 /** Rares first, then the rest in pack order: the reveal ends on the best card. */
 export function revealOrder<T extends Pick<CareerCard, 'rarity'>>(cards: readonly T[]): T[] {
   const rank = (card: T) => (card.rarity === 'mythic' ? 3 : card.rarity === 'rare' ? 2 : card.rarity === 'uncommon' ? 1 : 0);

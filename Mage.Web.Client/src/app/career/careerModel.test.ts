@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
-  canAfford, careerLimit, careerRarity, craftCost, exportFileName, isBasic, levelProgress, ownedByName, packSummary, revealOrder,
+  batchCost, batchHighlights, canAfford, careerLimit, careerRarity, craftCost, exportFileName, isBasic, levelProgress, ownedByName, packsAffordable, packSummary, revealOrder,
   shortfalls, tiersOf, xpForLevel,
 } from './careerModel';
 
@@ -80,5 +80,35 @@ describe('career model', () => {
 
   test('export files are named for the player and the day', () => {
     expect(exportFileName('bob smith', new Date('2026-10-09T12:00:00Z'))).toBe('career-bob_smith-2026-10-09.txt');
+  });
+
+  test('a batch of packs spends the free packs before coins', () => {
+    expect(packsAffordable(1_050, 0, 100)).toBe(10);
+    expect(packsAffordable(250, 3, 100)).toBe(5);
+    expect(packsAffordable(-5, 0, 100)).toBe(0);
+    expect(batchCost(10, 0, 100)).toBe(1_000);
+    expect(batchCost(10, 3, 100)).toBe(700);
+    expect(batchCost(2, 5, 100)).toBe(0);
+  });
+
+  test('after several packs the rares, mythics and new cards are kept, copies stacked, mythics last', () => {
+    const card = (name: string, rarity: string, convertedTo?: string) => ({ name, rarity, setCode: 'RFX', cardNumber: name, convertedTo });
+    const cards = [
+      card('Bolt', 'common'),
+      card('Dragon', 'mythic'),
+      card('Angel', 'rare'),
+      card('Bolt', 'common'),
+      card('Shock', 'common'),
+      card('Angel', 'rare', 'wildcard'),
+      card('Angel', 'rare'),
+      card('Elf', 'uncommon', 'coins'),
+    ];
+    const highlights = batchHighlights(cards, ['Bolt', 'Dragon', 'Elf']);
+    expect(highlights.map((item) => [item.card.name, item.card.convertedTo ?? null, item.copies])).toEqual([
+      ['Bolt', null, 2],
+      ['Angel', null, 2],
+      ['Angel', 'wildcard', 1],
+      ['Dragon', null, 1],
+    ]);
   });
 });

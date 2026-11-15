@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { create } from 'zustand';
-import type { CareerCosmetic, CareerMatch, CareerPackResult, CareerProfile, CareerQuests, CareerState } from '../../protocol/generated/views';
+import type { CareerCard, CareerCosmetic, CareerMatch, CareerPackResult, CareerProfile, CareerQuests, CareerState } from '../../protocol/generated/views';
 import type { DeckCardLists } from '../../core/decks/types';
 import { api } from '../connection';
 import { toWire } from '../decks/deckModel';
@@ -118,20 +118,47 @@ export interface OpenedPack extends CareerPackResult {
   fresh: string[];
 }
 
-export async function buyPack(setCode: string): Promise<OpenedPack> {
-  // the collection before the pack, to tell which cards are new to it
+/** Several packs bought in one go: their cards together, and how many were opened. */
+export interface OpenedPacks extends OpenedPack {
+  packs: number;
+  /** why the batch stopped before its last pack, when it did */
+  stopped?: string;
+}
+
+/**
+ * Buys packs one after another (each is its own purchase on the server, free packs first), so spares turned into
+ * coins along the way pay too. A batch that runs out of coins, or fails, part way keeps what it opened; one that
+ * opens nothing throws.
+ */
+export async function buyPacks(setCode: string, count: number, onPack?: (opened: number) => void): Promise<OpenedPacks> {
+  // the collection before the packs, to tell which cards are new to it
   const before = await queryClient.fetchQuery({ queryKey: KEY.collection, queryFn: () => api.careerCollection(), staleTime: 30_000 }).catch(() => null);
-  const result = await api.careerBuyPack(setCode);
-  // the pictures start downloading while the pack is still face down
-  warmCards((result.cards ?? []).map((card) => ({ name: card.name ?? '', setCode: card.setCode, cardNumber: card.cardNumber })), ['normal', 'large']);
-  setProfile(result.profile);
+  const cards: CareerCard[] = [];
+  let last: CareerPackResult | null = null;
+  let packs = 0;
+  let stopped: string | undefined;
+  for (let pack = 0; pack < Math.max(1, count); pack++) {
+    try {
+      last = await api.careerBuyPack(setCode);
+    } catch (reason) {
+      if (packs === 0) throw reason;
+      stopped = reason instanceof Error ? reason.message : String(reason);
+      break;
+    }
+    packs++;
+    cards.push(...(last.cards ?? []));
+    setProfile(last.profile);
+    onPack?.(packs);
+    // the pictures start downloading while the pack is still face down
+    warmCards((last.cards ?? []).map((card) => ({ name: card.name ?? '', setCode: card.setCode, cardNumber: card.cardNumber })), ['normal', 'large']);
+  }
   void queryClient.invalidateQueries({ queryKey: KEY.collection });
   void queryClient.invalidateQueries({ queryKey: KEY.sets });
   const owned = new Set((before ?? []).map((card) => card.name?.toLowerCase()));
   const fresh = before
-    ? [...new Set((result.cards ?? []).filter((card) => card.name && card.rarity !== 'land' && !card.convertedTo && !owned.has(card.name.toLowerCase())).map((card) => card.name!))]
+    ? [...new Set(cards.filter((card) => card.name && card.rarity !== 'land' && !card.convertedTo && !owned.has(card.name.toLowerCase())).map((card) => card.name!))]
     : [];
-  return { ...result, fresh };
+  return { setCode: last?.setCode ?? setCode, cards, profile: last?.profile, fresh, packs, stopped };
 }
 
 /** The opponent's pictures start downloading while the table is set, so their cards land with their art. */
