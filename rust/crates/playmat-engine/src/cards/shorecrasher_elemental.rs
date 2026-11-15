@@ -11,7 +11,7 @@ pub const HANDLERS: &[Handler] = &[
 ];
 
 /// The source still the permanent that activated it: exiled, then from exile onto the battlefield face down under
-/// your control (`moveCards` with `faceDown`: a 2/2 its megamorph cost turns face up)
+/// its owner's control (`moveCards` with `faceDown`: a 2/2 its megamorph cost turns face up)
 fn flicker(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     if !cx.source_on_battlefield(game) {
         return Some(());
@@ -28,7 +28,8 @@ fn flicker(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     o.face_down = true;
     o.face_down_as = Some(FaceDown::Morph);
     o.def = Arc::new(def);
-    put_onto_battlefield(game, d, c, cx.controller());
+    let owner = game.obj(c).owner;
+    put_onto_battlefield(game, d, c, owner);
     if game.obj(c).zone != Zone::Battlefield {
         if let Some(full) = game.obj_mut(c).face_up.take() {
             let o = game.obj_mut(c);
