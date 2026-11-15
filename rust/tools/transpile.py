@@ -258,8 +258,9 @@ CUSTOM = {
     'OathOfNissaSpendAnyManaEffect': lambda: {'class': 'SpendManaAsAnyColorEffect', 'spells_only': True,
                                               'filter': [{'p': 'type', 't': 'PLANESWALKER'}]},
     # "you can spend mana of any type to cast creature spells" (read as any color: a {C} symbol still takes colorless)
+    # (and the abilities of a creature card: `applies(objectId)` is what's paid for, its unearth too)
     'VizierOfTheMenagerieManaEffect': lambda: {'class': 'SpendManaAsAnyColorEffect', 'spells_only': True,
-                                               'filter': [{'p': 'type', 't': 'CREATURE'}]},
+                                               'sources': True, 'filter': [{'p': 'type', 't': 'CREATURE'}]},
     'GrafdiggersCageEffect': lambda: {'class': 'CardsCantEnterEffect', 'filter': [{'p': 'type', 't': 'CREATURE'}],
                                       'library': True},
     'GrafdiggersCageEffect2': lambda: {'class': 'CantCastFromZonesEffect', 'who': 'any',
