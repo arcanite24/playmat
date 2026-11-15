@@ -3432,6 +3432,16 @@ pub enum EffectDef {
     DiscardHandDrawSameNumberSourceEffect,
     /// this must be blocked if able (a static's)
     MustBeBlockedByAtLeastOneSourceEffect,
+    /// the "legend rule" doesn't apply to permanents of the filter (a static's `LegendRuleDoesntApplyEffect`: their
+    /// `setLegendRuleApplies(false)`)
+    LegendRuleDoesntApplyEffect {
+        filter: Filter,
+    },
+    /// this can't be blocked except by `amount` or more creatures (a static's `CantBeBlockedByOneEffect`: its
+    /// `setMinBlockedBy`, as menace's is 2)
+    CantBeBlockedByOneEffect {
+        amount: i32,
+    },
     /// untap each permanent of the filter
     UntapAllEffect {
         filter: Filter,

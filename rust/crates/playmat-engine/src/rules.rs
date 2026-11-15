@@ -13752,7 +13752,9 @@ fn apply_each_effect(
             | EffectDef::AsTurnedFaceUpEffect { .. }
             | EffectDef::CombatDamageByToughnessSourceEffect { .. }
             | EffectDef::CombatDamageByToughnessControlledEffect { .. }
-            | EffectDef::CombatDamageByToughnessAttachedEffect => {}
+            | EffectDef::CombatDamageByToughnessAttachedEffect
+            | EffectDef::CantBeBlockedByOneEffect { .. }
+            | EffectDef::LegendRuleDoesntApplyEffect { .. } => {}
             EffectDef::SacrificeTargetEffect => {
                 for o in &objs {
                     if game.obj(*o).zone == Zone::Battlefield {
@@ -23282,14 +23284,17 @@ fn declare_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
                 legal = false;
                 continue;
             }
-            if !game.has_ability(a, &AbilityDef::MenaceAbility) {
+            let min = min_blocked_by(game, a);
+            if min < 2 {
                 continue;
             }
             let blockers = live_blockers(game, a);
-            if blockers.len() != 1 {
+            if blockers.is_empty() || blockers.len() >= min {
                 continue;
             }
-            remove_blocker(game, blockers[0]);
+            for b in blockers {
+                remove_blocker(game, b);
+            }
             let o = game.obj_mut(a);
             o.blocked_by.clear();
             o.blocked = false;
@@ -23301,7 +23306,7 @@ fn declare_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
                     o.controller == seat && o.is(CardType::Creature) && !o.tapped && can_block(game, **b, a)
                 })
                 .count();
-            if possible >= 2 {
+            if possible >= min {
                 legal = false;
             }
         }
@@ -23334,7 +23339,7 @@ fn declare_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
                         || has_static(game, *b, |e| matches!(e, EffectDef::BlocksIfAbleSourceEffect)))
                     && attacking.iter().any(|a| {
                         can_block(game, *b, *a)
-                            && !game.has_ability(*a, &AbilityDef::MenaceAbility)
+                            && min_blocked_by(game, *a) < 2
                             && (!max_blocked_by_one(game, *a) || live_blockers(game, *a).is_empty())
                     })
             });
@@ -23352,8 +23357,8 @@ fn declare_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
                 let valid = if game.obj(*b).blocks == 0 {
                     forcing.iter().any(|a| {
                         game.obj(*a).zone == Zone::Battlefield
-                            && game.has_ability(*a, &AbilityDef::MenaceAbility)
-                            && live_blockers(game, *a).len() + 1 < 2
+                            && min_blocked_by(game, *a) > 1
+                            && live_blockers(game, *a).len() + 1 < min_blocked_by(game, *a)
                     })
                 } else {
                     game.obj(*b).blocking.iter().any(|a| {
@@ -23578,6 +23583,22 @@ fn forced_blockers(game: &mut Game, seat: Seat) -> Vec<(ObjId, Vec<ObjId>)> {
         }
     }
     forced
+}
+
+/// `Permanent.getMinBlockedBy`: 2 with menace, N with its own "can't be blocked except by N or more creatures"
+/// (`CantBeBlockedByOneEffect`), else 1
+fn min_blocked_by(game: &Game, a: ObjId) -> usize {
+    let mut min = if game.has_ability(a, &AbilityDef::MenaceAbility) { 2 } else { 1 };
+    game.obj(a).def.abilities.iter().for_each(|ab| {
+        if let AbilityDef::SimpleStaticAbility { effects, .. } = ab {
+            for e in effects {
+                if let EffectDef::CantBeBlockedByOneEffect { amount } = e {
+                    min = min.max(*amount as usize);
+                }
+            }
+        }
+    });
+    min
 }
 
 /// Whether an Aura on `a` says it can't be blocked by more than one creature.
