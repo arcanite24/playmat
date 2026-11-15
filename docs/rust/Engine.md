@@ -355,8 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (12,565 on 14 Nov). A card whose JSON the engine can't load yet is left out
-  can express (12,533 on 14 Nov). A card whose JSON the engine can't load yet is left out
+  can express (12,665 on 15 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -1201,6 +1200,94 @@ Being in the engine and being trusted are kept apart.
   Fire Lord Zuko (entered from exile), Ral, Crackling Wit and Prismari (storm granted to spells), Captain Howler
   (a granted trigger's text), Anointed Peacekeeper, Planewide Celebration (the same mode more than once), the random
   discards (Curse-Marred Demon, Cool but Rude, Rowdy Crew, Tersa) and the rest of the list's engine work.
+  Wave 13, mutate (14 Nov): merged permanents. `MutateAbility` is a spell ability of its own (`CardDef::mutate`): the
+  card cast for its mutate cost as a creature spell targeting a non-Human creature you own, offered beside the
+  normal cast as bestow is. As it resolves with that target still legal (702.140b-c) the card goes outside the
+  zones (Java's `setZone(OUTSIDE)`), its controller answers "Select whether to mutate … UNDER or OVER …" (yes is
+  under) and the permanent becomes `merged_def`: the top card's characteristics (its own card's when none went
+  over) with its own card's abilities first and each merged card's after, in the order they mutated, so Java's
+  ability numbers hold (`PermanentImpl.applyMutate`). `Obj::merged` (the cards, kept after it leaves as its last
+  known information), `merged_top` and `merge_base` (its own card) carry it. Then `Trigger::Mutates`
+  (`MutatesSourceTriggeredAbility`, `CREATURE_MUTATED`); `Value::SourceMutatedCount` counts the merged cards. The
+  merged cards' triggers wait after every card's, in battlefield order (re-added under new ids each reset). Leaving,
+  the merged cards go where it goes, before it (`PermanentImpl.moveToZone` moves the mutations first), with no
+  events of their own; flicker effects (`ExileThenReturnTargetEffect`) and Kaya's Ghostform bring them back after it
+  (`CardUtil.getAllCardsFromPermanentLeftBattlefield`). A transform turns its own card's face and merges again; an
+  effect that makes it a creature (station, `becomes_base`) applies again over the merged permanent, so what it gives
+  comes after the merged cards' abilities; a token it makes looks for its image in its own card's set
+  (`game.getCard(sourceId)`). A card an effect lets you play from exile (Hex Magic) can be cast for its mutate cost
+too, and Command Tower's ability with no commander isn't counted as a mana source by the playable check (its
+`getNetMana` is empty), which decides whether the picker shows the mana cost beside the mutate cost. Handlers: Auspicious Starrix, Illuna and Nethroi (a target with total power 10 or
+  less). Two factory work folders (`.local/rust-port/wave13/claim-mutate/`, 120 games) verified 31 of the 32; six
+  games under `shadow/mutate/` cover the engine pieces. Left: Brokkos (cast from the graveyard with mutate, and its
+  `addSuperType` statement). The over/under question shows Yes and No in hosted games, not Java's Under and Over.
+  Wave 13, shared forms (15 Nov): framework forms that block several cards each. A granted static with no text of
+  its own (Give No Ground, the Runes; a granted base power and toughness static is still left out, as the engine
+  reads those only from a permanent's own abilities: Beorn's Hospitality); `Value::DifferentNames`,
+  `InstantSorceryExileGraveyard`, `DifferentManaValuesInGraveyard` and `ActivePlayerCardsInHand` (Shrieking
+  Affliction); `ConditionalTargetAdjuster(condition, keep, target)` for kicker and gift (Goblin Barrage, Sazacap's
+  Brew, Consumed by Greed); `DiscardAndDrawThatManyEffect` for any number, plus N (Cavalier of Flame);
+  `LookAtOpponentFaceDownCreaturesAnyTimeEffect` (nothing to show in a shadow game); attack taxes,
+  `CantAttackYouUnlessPayAllEffect` ("Pay {1} to attack?" as each attacker is declared, and the All button leaves out
+  what has a cost, as `HumanPlayer.selectAttackers` does: Archon of Absolution, Dain); `OneShotNonTargetEffect`
+  as a "choose" bind with `rounds` (`TargetImpl.choose`: another round after one that added a card; Yorion, Another
+  Chance); `AttacksWithCreaturesTriggeredAbility` with a minimum, a filter and from the graveyard (Phoenix Chick,
+  Persistent Marshstalker, whose return is the four-flag `ReturnSourceFromGraveyardToBattlefieldEffect` handler);
+  `SourceDealsNoncombatDamageToOpponentTriggeredAbility` (Chandra's Pyreling); `ActivateOncePerGameActivatedAbility`
+  as `ExhaustAbility { once }` (In the Trenches); Mardu Blazebringer's end-of-combat sacrifice; Agadeem's Awakening's
+  targets (`Pred::ManaValueUnlikeChosen`). Engine fixes found on the way: a spell's targets are auto-chosen against
+  its rule with its costs first (`getRule(true)`: Sazacap's Brew's "discard a card" keeps your only creature from
+  being picked for you); a kicked or gifted spell checks the targets it was cast with as it resolves (Sazacap's
+  Brew's promised creature had no target pointer); a "beginning of each upkeep" trigger points `LoseLifeTargetEffect`
+  at the active player; `DiscardAndDrawThatManyEffect` chooses in `TargetDiscard.choose` rounds; and an Aura on an
+  Aura on a dying creature follows it in the same pass (Rune of Flight on Consuming Fervor). Three factory rounds (96
+  games; 79 of the 84 replayed match, 12 more had Beorn's Hospitality) verified 56: 12,390 of 12,665; 20 more
+  Sazacap's Brew games found the auto-choice one. Eleven games under `shadow/wave13-shared/` cover the engine pieces. Left: Yorion (Java lets its returned self be chosen, and
+  `AnotherPredicate` says it shouldn't: not understood yet), Aven Heartstabber and Colossus of the Blood Age (each
+  blamed for a game that parts elsewhere: Expedited Inheritance's two damage triggers in another order, an "If you
+  do" exile text), Agadeem's Awakening (cast in two games, one short of verified), Beorn's Hospitality, and the list's skipped forms:
+  random discards, `CastFromHandSourcePermanentCondition`, `GainAbilityWithAttachmentEffect`, the mana-ability
+  classes, `EndTurnEffect`, `CompleatedAbility`, card-specific target and cost adjusters, and the delayed triggers
+  whose text needs more (Runaway Carriage, Dorothea, Conqueror's Galleon).
+  Wave 13, claim 1 (14 Nov): cards blocked only by their own classes, most used first, then the cheapest. 71 handler
+  files: conditions (mana spent, a cast spell's mana value, doors unlocked, attacked this turn, day or night),
+  values (a sacrificed or exiled creature's last known power and toughness, colors spent), predicates, one-shot
+  effects (energy paid as a chosen amount, tokens sacrificed at the next end step, a library search put back on
+  top after the shuffle), restrictions, a cost increase (Tithe Taker), cast and activate rules (Wardscale Dragon,
+  Realmbreaker's Grasp), a chosen-color anthem (Hall of Triumph reads `ChooseColorEffect`'s info line) and two
+  damage replacements (Gratuitous Violence, Pyromancer's Gauntlet). A waiting trigger's intervening "if" sees the
+  trigger itself (`Game::checking_item`, Java's `checkInterveningIfClause` with the ability's own values: Liberator,
+  Urza's Battlethopter's mana spent, Obscura Ascendancy's spell mana value). The transpiler accepts a Case's
+  solved ability whose condition is a trigger condition (Case of the Shattered Pact, Crimson Pulse, Trampled
+  Garden), ignores `setCanWorksOnStackOnly` on `SpellCostReductionForEachSourceEffect` (Java never reads it there:
+  Huskburster Swarm) and writes `ConniveSourceEffect`'s reminder after a granted "it connives." (Security Bypass).
+  Triskaidekaphobia's loss ends the game as it resolves, so the life gained or lost after it never happens, as in
+  Java. 73 cards came in (12,678 in the engine); three factory rounds (106 games, 103 matching, 2 Java unfinished)
+  verified 72: 12,406 of 12,678. Five games under `shadow/handlers/game-w13c1-*` cover the engine and transpiler
+  pieces. Not verified: Narset, Enlightened Exile (its game parts on the order of two prowess triggers with the
+  same text, one granted to Narset itself; Java doesn't ask). Left on the list: random or unordered effects
+  (Deadbridge Chant, Getaway Barrel, Urgoros, Friendly Fire, Descent of the Dragons, Split the Party), an extra end
+  phase (Y'shtola), removed counters (Relic Amulet), monstrosity's X on the trigger (Hydra Broodmaster), exile
+  costs (Corpse Explosion), a discard trigger from the hand (Titanbones), energy triggers (Territorial Gorger),
+  Treasure spent on abilities (Jetmir's Fixer), copied spells' cast triggers (Prismari Apprentice counts only cast
+  spells) and the rest of the list.
+  Wave 13, claim 2 (15 Nov): cards blocked only by their own classes. 199 handler files, no engine change: one-shot
+  effects, conditions, values, predicates, target classes, base-plus-check triggers, and cost, continuous,
+  restriction and replacement statics, among them the claim's used cards Ugin, Eye of the Storms, Ral, Storm
+  Conduit, Hellcat, Radagast, Talion, the Kindly Lord, Kaza, Ojer Axonil, Avacyn, Guardian Angel, Living Lore,
+  Tilonalli's Summoner, Anointed Peacekeeper, Conduit of Worlds, Zirda, Warbringer, Killian, The Mycosynth Gardens,
+  Deceiver of Form, Squee, Dubious Monarch, Burning-Rune Demon, The Kenriths' Royal Funeral and Narset of the
+  Ancient Way. A reflexive trigger made by a handler shows Java's `ReflexiveTriggeredAbility` text, which keeps the
+  card's case and ends in a period ("Exile up to two target cards from graveyards."). Two factory rounds (240
+  games, 210 matching) verified 176: 12,510 of 12,804. Not verified: Warbringer, Deadly Brew, Distended
+  Mindbender, Outmuscle, Angrath, Minotaur Pirate, The First Eruption, Avacyn, Guardian Angel, Balin, Loremaster,
+  Blood Baron of Vizkopa, Carrion Grub, Diregraf Horde, Huatli, Warrior Poet, Kessig Naturalist, Living Lore,
+  Mindleech Ghoul, Ral, Storm Conduit, The Immortal Sun and Thwart the Grave (each blamed for a game that differs),
+  and Anti-Venom, Blazing Hope, Deceiver of Form, Firemind's Foresight and Psychic Rebuttal (not exercised enough).
+  Left on the list: about 560 cards whose classes need engine work (layer 4 card-type changes, requirement
+  effects, card-defined delayed triggers, trigger events the engine has no `Trigger` for such as life paid, gift
+  given or counters added, mana replacements beyond {C}, a cost class of a card's own), random or unordered ones
+  (Tersa, Ral Zarek's coin flips, random bottom orders, HashSet walks) and the long tail no one reached.
   Text fixes for verified cards (13 Nov): the Young Hero Role's granted trigger keeps its own text, "put a +1/+1
   counter on it" (its `AddCountersSourceEffect` has a `setText`), and a delayed upkeep transform is "Transform {this}
   at the beginning of the next turn's upkeep." (`AtTheBeginOfNextUpkeepDelayedTriggeredAbility.getRule` puts the

@@ -7,7 +7,7 @@ pub const HANDLERS: &[Handler] = &[Handler::value("GreatestSharedCreatureTypeCou
 
 /// The creatures you control with every creature type (changelings) count for any type; among the rest, the
 /// greatest number that share one creature type is added
-fn value(game: &Game, you: Seat, _source: ObjId, _x: i32) -> i32 {
+pub(super) fn value(game: &Game, you: Seat, _source: ObjId, _x: i32) -> i32 {
     let creatures: Vec<ObjId> = game
         .battlefield
         .iter()

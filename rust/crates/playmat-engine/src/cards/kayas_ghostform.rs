@@ -26,7 +26,21 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     if !matches!(game.obj(card).zone, Zone::Graveyard | Zone::Exile) || game.obj(card).token {
         return Some(());
     }
-    put_onto_battlefield(game, d, card, cx.controller());
+    // a mutated permanent's merged cards come back with it, together (`CardUtil.getAllCardsFromPermanentLeftBattlefield`)
+    let merged: Vec<ObjId> = game
+        .obj(card)
+        .merged
+        .iter()
+        .copied()
+        .filter(|c| game.obj(*c).zone == game.obj(card).zone && !game.obj(*c).token)
+        .collect();
+    if merged.is_empty() {
+        put_onto_battlefield(game, d, card, cx.controller());
+    } else {
+        let mut cards = vec![card];
+        cards.extend(merged);
+        put_cards(game, d, cx.controller(), &cards, crate::card::PutCards::Battlefield);
+    }
     if d.stopped() {
         return None;
     }
