@@ -13060,6 +13060,14 @@ fn apply_each_effect(
                 ));
             }
             EffectDef::CopyTargetSpellEffect { keep_targets, not_legendary, abilities: true } => {
+                // a spell that targeted itself and chose a new target for itself first (Wild Ricochet): its target
+                // pointer reads the new one
+                let objs: Vec<ObjId> = match game.resolving_item.as_ref() {
+                    Some(me) if me.card == item.card && objs == [item.card] && me.ability.is_none() => {
+                        me.targets.first().into_iter().flatten().filter_map(|t| if let Target::Obj(o) = t { Some(*o) } else { None }).collect()
+                    }
+                    _ => objs.clone(),
+                };
                 for o in &objs {
                     // the topmost stack object of that card: an ability is copied as one (the resolving one itself
                     // too: Java resolves it still on the stack, so it can target itself)
@@ -13108,7 +13116,22 @@ fn apply_each_effect(
             }
             EffectDef::ChooseNewTargetsTargetEffect { force } => {
                 for o in &objs {
-                    let Some(at) = game.stack.iter().rposition(|i| i.card == *o) else { continue };
+                    let Some(at) = game.stack.iter().rposition(|i| i.card == *o) else {
+                        // the spell resolving targeted itself (Wild Ricochet: Java's `TargetStackObject` offers the
+                        // spell being cast): its own targets change, still on top of the stack in Java, and what
+                        // its later effects point at with them ("then copy that spell")
+                        let Some(me) = game.resolving_item.clone().filter(|i| i.card == *o) else { continue };
+                        let resolving = game.resolving.take();
+                        Arc::make_mut(&mut game.stack).push(me);
+                        let top = game.stack.len() - 1;
+                        let ok = choose_new_targets(game, d, top, controller, *force);
+                        game.resolving_item = Arc::make_mut(&mut game.stack).pop();
+                        game.resolving = resolving;
+                        if !ok {
+                            return;
+                        }
+                        continue;
+                    };
                     if !choose_new_targets(game, d, at, controller, *force) {
                         return;
                     }
