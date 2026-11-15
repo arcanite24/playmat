@@ -8043,6 +8043,10 @@ def ability_statement(t, st, added):
             and t.vars[m.group(1)]['targets'][0]['class'] == 'TargetPermanent':
         target = t.vars[m.group(1)]['targets'][0]
         target['filter'] = [dict(p) for p in target['filter']] + [dict(OPPONENT)]
+        # the adjuster names each target "<filter's message> (controlled by B)", which shows where the effect's text
+        # is made from its target (Hapatra, the Desert Fang); a text that says "that player controls" is fixed
+        # (`that_player_names` decides once the rule is known)
+        t.vars[m.group(1)]['for_each_player_target'] = True
         return True
     # "for each opponent, up to one target … card from that player's graveyard" (owned): in a duel, the one target
     # card in an opponent's graveyard it already is (Sepulchral Primordial)
@@ -8107,6 +8111,12 @@ def ability_statement(t, st, added):
         target = t.vars[m.group(1)]['targets'][0]
         target['filter'] = [dict(p) for p in target['filter']] + [{'p': 'owner', 'who': 'opponent'}]
         t.vars[m.group(1)]['set_target_pointer'] = False
+        # the target is renamed "<filter's message> (owned by B)", shown where the effect's text names it (Shark
+        # Shredder, Killer Clone's "creature card from that player's graveyard")
+        # (an effect with its own text never shows it: Tinybones, the Pickpocket's `setText`)
+        if not re.search(r'\.setText\(|staticText', getattr(t, 'source', '') or ''):
+            t.vars[m.group(1)]['that_player_controls'] = True
+            t.vars[m.group(1)]['that_player_owned'] = True
         return True
     m = re.fullmatch(r'(\w+)\.withInterveningIf\((.*)\)', st)
     if m and m.group(1) in t.vars and t.vars[m.group(1)].get('class') == 'TriggeredAbility':
@@ -9053,9 +9063,19 @@ def that_player_names(card):
     when the rule doesn't say "that player controls", that message is the card's filter whose text the rule has"""
     def walk(x):
         if isinstance(x, dict):
+            # `ForEachPlayerTargetsAdjuster` renames its targets the same way: shown unless the rule is a fixed
+            # "… that player controls"
+            each = x.pop('for_each_player_target', False)
+            if each and x.get('rule') and not re.search(r'that (?:player|opponent) controls', x['rule']) \
+                    and not re.search(r'\.setText\(|staticText', card_source(card.get('name'))):
+                x['that_player_controls'] = True
             if x.get('that_player_controls') and 'that player controls' not in x.get('rule', ''):
-                msgs = [m for m in re.findall(r'new Filter\w*\("([^"]+)"', card_source(card.get('name')))
+                src = card_source(card.get('name'))
+                msgs = [m for m in re.findall(r'new Filter\w*\("([^"]+)"', src)
                         if 'target ' + m in x.get('rule', '')]
+                # `TargetCreaturePermanent`'s own filter: "creature"
+                if each and not msgs and 'new TargetCreaturePermanent(' in src and 'target creature' in x.get('rule', ''):
+                    msgs = ['creature']
                 if not msgs:
                     raise Unsupported('a that-player target without its name')
                 x['that_player_name'] = max(msgs, key=len)

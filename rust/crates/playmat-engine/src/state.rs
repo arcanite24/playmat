@@ -4145,10 +4145,13 @@ impl Game {
     /// player controls (controlled by B)" (in a duel, the controller's opponent)
     pub fn that_player_rule(&self, item: &StackItem, rule: &str) -> String {
         let ability = item.ability.and_then(|(i, _)| self.item_def(item).abilities.get(i));
-        if let Some(AbilityDef::TriggeredAbility { that_player_controls: true, that_player_name, .. }) = ability {
+        if let Some(AbilityDef::TriggeredAbility { that_player_controls: true, that_player_name, that_player_owned, .. }) =
+            ability
+        {
             let them = (item.controller + 1) % self.seats();
             let name = that_player_name.as_deref().unwrap_or("that player controls");
-            let named = format!("{name} (controlled by {})", crate::log::player(them));
+            let how = if *that_player_owned { "owned" } else { "controlled" };
+            let named = format!("{name} ({how} by {})", crate::log::player(them));
             return rule.replacen(name, &named, 1);
         }
         rule.to_string()

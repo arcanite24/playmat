@@ -4863,6 +4863,10 @@ pub enum AbilityDef {
         /// the target's name there when the rule doesn't say "that player controls" (its filter's message)
         #[serde(default)]
         that_player_name: Option<String>,
+        /// the target is a card "from that player's graveyard" (`ThatPlayerControlsTargetAdjuster(true)`): "(owned
+        /// by B)"
+        #[serde(default)]
+        that_player_owned: bool,
         /// a card's own trigger class (`src/cards/`): its `checkTrigger` beyond the event `on` names, or its
         /// intervening "if" about the event, checked as it triggers and as it resolves
         #[serde(default)]
