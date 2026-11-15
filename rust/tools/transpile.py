@@ -293,6 +293,9 @@ CUSTOM = {
     'TheGreatHengeCostReductionEffect': lambda: {
         'class': 'SpellCostReductionForEachSourceEffect', 'per': 1,
         'amount': {'v': 'greatest_power', 'filter': [{'p': 'type', 't': 'CREATURE'}, {'p': 'controller', 'who': 'you'}]}},
+    # "the next spell you cast this turn can't be countered" (started by `AddContinuousEffectToGame`)
+    'MistriseCantBeCounteredEffect': lambda: {'class': 'NextSpellCantBeCounteredEffect'},
+    'TheoristsProxyEffect': lambda: {'class': 'NextSpellCantBeCounteredEffect'},
     'DrannithMagistrateEffect': lambda: {'class': 'CantCastFromZonesEffect', 'who': 'opponent', 'not_hand': True},
     'AshesOfTheAbhorrentEffect': lambda: {'class': 'CantCastFromZonesEffect', 'who': 'any', 'zones': ['graveyard'],
                                           'activations': True},
@@ -4125,6 +4128,10 @@ class Translator:
             return {'class': cls, 'ability': self.ability(args[0])}
         if cls == 'LoseAbilityAttachedEffect' and len(args) == 2 and args[1] in attachment:
             return {'class': cls, 'ability': self.ability(args[0])}
+        # "it can't be regenerated this turn" (Rage of Purphoros)
+        if cls == 'CantRegenerateTargetEffect' and len(args) == 2 and args[0] == 'Duration.EndOfTurn' \
+                and re.fullmatch(r'"[^"]*"', args[1]):
+            return {'class': cls}
         if cls == 'GainProtectionFromColorTargetEffect' and args == ['Duration.EndOfTurn']:
             return {'class': cls}
         if cls == 'AddCardTypeTargetEffect' and len(args) >= 2 and args[0] in ('Duration.EndOfTurn', 'Duration.EndOfGame') \
@@ -6960,7 +6967,7 @@ class Translator:
         if cls == 'Mode':
             args = self.new_expr(expr)[1]
             self.vars[var] = {'class': 'Mode', 'effects': [self.effect(a) for a in args], 'targets': []}
-        elif cls in EFFECTS or cls.endswith('Effect') or cls == 'DealtDamageToCreatureBySourceDies':
+        elif cls in EFFECTS or cls.endswith('Effect') or cls in ('DealtDamageToCreatureBySourceDies', 'AddContinuousEffectToGame'):
             self.vars[var] = self.effect(expr)
         elif cls.endswith('Cost'):
             self.vars[var] = self.cost(expr)

@@ -5653,6 +5653,14 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         if instant_or_sorcery {
             p.instants_sorceries_cast += 1;
         }
+        // "the next spell you cast this turn can't be countered": `addOtherAbility(spell's card,
+        // new CantBeCounteredSourceAbility())` for the spell cast after the ones counted as it resolved
+        let nth = game.player(seat).spells_cast - 1;
+        if game.eot_effects.iter().any(|(e, you, _)| {
+            *you == seat && matches!(e, EffectDef::NextSpellCantBeCounteredEffect { nth: Some(k) } if *k == nth)
+        }) {
+            game.obj_mut(spell).uncounterable = true;
+        }
     }
     note(game, EventKind::Cast, Some(seat), None, Some(Target::Obj(spell)), 0);
     // TARGETED's valiant, ward and Surrak triggers: `processAction` handles them before SPELL_CAST
@@ -18501,6 +18509,18 @@ fn apply_each_effect(
                     game.eot_effects.push((e.clone(), controller, source.0));
                 }
             }
+            EffectDef::CantRegenerateTargetEffect { .. } => {
+                for o in &objs {
+                    if game.obj(*o).zone == Zone::Battlefield {
+                        let target = Some((*o, game.obj(*o).zcc));
+                        game.eot_effects.push((EffectDef::CantRegenerateTargetEffect { target }, controller, source.0));
+                    }
+                }
+            }
+            EffectDef::NextSpellCantBeCounteredEffect { .. } => {
+                let nth = Some(game.player(controller).spells_cast);
+                game.eot_effects.push((EffectDef::NextSpellCantBeCounteredEffect { nth }, controller, source.0));
+            }
             EffectDef::AttacksIfAbleAllEffect { this_turn: true, .. }
             | EffectDef::PlayFromGraveyardControllerEffect { duration: Some(_), .. }
             | EffectDef::GraveyardFromAnywhereExileReplacementEffect { duration: Some(_), .. }
@@ -19747,6 +19767,15 @@ fn remove_from_combat(game: &mut Game, id: ObjId) {
 /// `PermanentImpl.regenerate`, if it has a shield: tapped, removed from combat, its damage removed. True: it did.
 fn regenerate(game: &mut Game, id: ObjId) -> bool {
     if game.obj(id).regen_shields == 0 {
+        return false;
+    }
+    // "it can't be regenerated this turn": the shield isn't used
+    let zcc = game.obj(id).zcc;
+    if game
+        .eot_effects
+        .iter()
+        .any(|(e, _, _)| matches!(e, EffectDef::CantRegenerateTargetEffect { target: Some(t) } if *t == (id, zcc)))
+    {
         return false;
     }
     tap(game, id);

@@ -3069,7 +3069,21 @@ pub enum EffectDef {
     NoMaximumHandSizeEffect,
     /// players have no maximum hand size (the same effect, `TargetController.ANY`: Folio of Fancies)
     NoMaximumHandSizeAllEffect,
-    /// your maximum hand size is `size` (`MaximumHandSizeControllerEffect(size, WhileOnBattlefield, SET)`)
+    /// "it can't be regenerated this turn" (`CantRegenerateTargetEffect(Duration.EndOfTurn)`, a rule-modifying effect
+    /// on `REGENERATE`): resolving, each target as it is then (`target`), whose regeneration shields don't work
+    CantRegenerateTargetEffect {
+        #[serde(skip)]
+        target: Option<(crate::state::ObjId, u32)>,
+    },
+    /// "the next spell you cast this turn can't be countered" (Mistrise Village's and Theorist's Proxy's own
+    /// `ContinuousEffectImpl`, started by `AddContinuousEffectToGame`): resolving, it keeps how many spells its
+    /// controller had cast this turn (`nth`), and the spell cast after them gets "can't be countered"
+    NextSpellCantBeCounteredEffect {
+        #[serde(default)]
+        nth: Option<u32>,
+    },
+    /// your maximum hand size is `size` (`MaximumHandSizeControllerEffect(size, WhileOnBattlefield, SET)`), a
+    /// number or a `DynamicValue` worked out as hands are checked (Midnight Oil's hour counters)
     MaximumHandSizeSetEffect {
         size: u32,
     },
