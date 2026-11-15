@@ -1520,6 +1520,8 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
                     || o.def.adventure.as_ref().is_some_and(|a| castable(game, seat, *id, a))
                     || spectacle(game, seat, *id).is_some()
                     || morph(game, seat, *id).is_some()
+                    // (cast for its mutate cost: Hex Magic's exiled cards)
+                    || mutate(game, seat, *id).is_some()
                     // a modal double-faced card's back (Birgi exiled by Harnfel: Harnfel cast from exile)
                     || game.may_play_now(*id, seat)
                         && o.def.back.as_ref().is_some_and(|b| {
@@ -2316,9 +2318,10 @@ fn bestow(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
 }
 
 /// Mutate: the card's ability index and the card as it's cast that way, a creature spell targeting a non-Human
-/// creature you own, if it can be, from hand
+/// creature you own, if it can be, from hand (or from exile, where an effect lets the card be played: Hex Magic)
 fn mutate(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
-    if game.obj(id).zone != Zone::Hand {
+    let zone = game.obj(id).zone;
+    if zone != Zone::Hand && !(zone == Zone::Exile && game.may_play_now(id, seat)) {
         return None;
     }
     let (k, def) = game.obj(id).def.mutate()?;
@@ -3334,7 +3337,12 @@ fn mana_options(
             .filter(|(i, _)| {
                 let a = &game.obj(id).def.abilities[*i];
                 // (one with a mana cost is counted by `can_pay_extra`, with what pays for it)
-                !matches!(a, AbilityDef::NykthosShrineToNyxManaAbility { .. }) && a.mana_ability_mana_cost().is_none()
+                // (Command Tower's, with no commander, makes nothing: `getNetMana` is empty)
+                !matches!(
+                    a,
+                    AbilityDef::NykthosShrineToNyxManaAbility { .. }
+                        | AbilityDef::CommanderColorIdentityManaAbility { .. }
+                ) && a.mana_ability_mana_cost().is_none()
             })
             .collect();
         // `getManaAvailable`: an ability that doesn't tap the source is a source of its own (Relic of Legends'
@@ -4109,7 +4117,7 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         if let Some((k, _)) = &bestow {
             options.push(*k);
         }
-        let mutate = if zone == Zone::Hand { mutate(game, seat, id) } else { None };
+        let mutate = mutate(game, seat, id);
         if let Some((k, _)) = &mutate {
             options.push(*k);
         }
