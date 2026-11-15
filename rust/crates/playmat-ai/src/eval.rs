@@ -43,6 +43,33 @@ pub fn evaluate(game: &Game, seat: Seat) -> i64 {
     score + (me.hand.len() as i64 - them.hand.len() as i64) * HAND_CARD_SCORE
 }
 
+/// The score a search compares games by: version 1 is `evaluate`, 2 the fitted one (`fitted::evaluate`). Either way
+/// `WIN` and `LOSE` for a game that's over.
+pub fn score(game: &Game, seat: Seat, version: u8) -> i64 {
+    if version >= 2 {
+        crate::fitted::evaluate(game, seat)
+    } else {
+        evaluate(game, seat)
+    }
+}
+
+/// A score as a value in 0..1 for averaging over samples: a win 1, a loss 0, and otherwise a squashed difference from
+/// `base` (the score now) for Java's score, the predicted chance of winning for the fitted one
+pub fn value(game: &Game, seat: Seat, base: i64, version: u8) -> f64 {
+    let s = score(game, seat, version);
+    if s >= WIN {
+        return 1.0;
+    }
+    if s <= LOSE {
+        return 0.0;
+    }
+    if version >= 2 {
+        crate::fitted::probability(s)
+    } else {
+        0.5 + 0.5 * ((s - base) as f64 / 2500.0).tanh()
+    }
+}
+
 /// `ArtificialScoringSystem.getLifeScore`
 pub fn life_score(life: i32) -> i64 {
     let max = LIFE_SCORES.len() as i32 - 1;

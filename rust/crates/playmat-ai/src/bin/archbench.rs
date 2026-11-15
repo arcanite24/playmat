@@ -354,8 +354,8 @@ fn sprt(
     let t = wdl.into_inner().unwrap();
     let ratio = llr(&v, elo0, elo1);
     let verdict = match verdict.into_inner().unwrap() {
-        Some(true) => format!("H1, {} is better (by {elo1} Elo or more)", entrants[0].name),
-        Some(false) => format!("H0, {} is not {elo0} Elo better", entrants[0].name),
+        Some(true) => format!("H1 accepted: {} is {elo1} Elo better rather than {elo0}", entrants[0].name),
+        Some(false) => format!("H0 accepted: {} is {elo0} Elo better rather than {elo1}", entrants[0].name),
         None => "no verdict (the deals ran out)".into(),
     };
     let (lo, hi) = elo_interval(&v);

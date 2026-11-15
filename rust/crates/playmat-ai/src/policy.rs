@@ -40,6 +40,8 @@ pub struct Policy {
     /// to the same priority (a cancelled cast) isn't tried again until something changes
     last: Option<(Progress, Option<ObjId>)>,
     banned: Vec<ObjId>,
+    /// the stronger answers (`Config::playout` 2): instant-speed play, abilities, removal and burn by the effect
+    v2: bool,
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -62,6 +64,11 @@ fn progress(game: &Game, seat: Seat) -> Progress {
 }
 
 impl Policy {
+    /// The quick answers of a `Config::playout` version (1, or 2 for the stronger ones)
+    pub fn version(v: u8) -> Policy {
+        Policy { v2: v >= 2, ..Policy::default() }
+    }
+
     pub fn answer(&mut self, game: &Game, seat: Seat, q: &Query) -> Answer {
         match q {
             Query::Priority { playable } => {

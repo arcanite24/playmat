@@ -12,8 +12,9 @@ use crate::search::{candidates, Config};
 use playmat_engine::decide::{Answer, Decider, Query};
 use playmat_engine::rng::JavaRandom;
 use playmat_engine::rules;
-use playmat_engine::state::{Game, Seat};
+use playmat_engine::state::{Game, ObjId, Seat, Zone};
 use std::str::FromStr;
+use std::sync::Arc;
 
 /// Which `DecisionPolicy` a seat's `Config` builds (`PLAYMAT_AI_POLICY`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -99,6 +100,65 @@ pub trait DecisionPolicy: Send {
 pub struct Root {
     pub snapshot: Game,
     pub since: Vec<Answer>,
+    /// what the deciding seat can't see, for samples of the game it might be (`Root::sample`); `None` plays the
+    /// real game
+    pub hidden: Option<Hidden>,
+    /// the playouts' quick answers (`Config::playout`)
+    pub playout: u8,
+}
+
+/// What a seat has seen of the game: objects it saw in a public zone or that were shown to it. Its own hand it
+/// always knows; the order of any library and the cards of the opponent's hand it hasn't seen, it doesn't.
+#[derive(Clone, Debug)]
+pub struct Hidden {
+    pub seat: Seat,
+    /// by object id
+    pub seen: Arc<Vec<bool>>,
+}
+
+impl Hidden {
+    pub fn new(seat: Seat) -> Hidden {
+        Hidden { seat, seen: Arc::new(Vec::new()) }
+    }
+
+    /// Notes what the seat sees in `game` now: every object in a public zone or on the stack, cards revealed, and
+    /// cards the seat looked at
+    pub fn observe(&mut self, game: &Game) {
+        let seen = Arc::make_mut(&mut self.seen);
+        if seen.len() < game.objs.len() {
+            seen.resize(game.objs.len(), false);
+        }
+        let mut mark = |id: ObjId| {
+            if let Some(s) = seen.get_mut(id.0 as usize) {
+                *s = true;
+            }
+        };
+        for id in game.battlefield.iter().chain(game.exile.iter()).chain(game.command.iter()) {
+            mark(*id);
+        }
+        for p in game.players.iter() {
+            for id in &p.graveyard {
+                mark(*id);
+            }
+        }
+        for item in game.stack.iter() {
+            mark(item.card);
+        }
+        for r in &game.revealed {
+            for (id, _) in &r.cards {
+                mark(*id);
+            }
+        }
+        for l in game.looked_at.iter().filter(|l| l.viewer == self.seat) {
+            for id in &l.cards {
+                mark(*id);
+            }
+        }
+    }
+
+    fn seen(&self, id: ObjId) -> bool {
+        self.seen.get(id.0 as usize).copied().unwrap_or(false)
+    }
 }
 
 /// A played-out copy
@@ -109,23 +169,103 @@ pub struct Outcome {
 }
 
 impl Root {
-    /// Plays `candidate` on a copy until turn `stop_turn` starts or `cap` answers are given, both seats on the quick
-    /// answers. With `shuffle`, the libraries are shuffled first (the AI can't know their order) and one answer in
-    /// sixteen of the quick ones is a random candidate instead. `None` when the copy didn't reach the question again.
-    pub fn play_out(&self, candidate: &Answer, cap: u64, stop_turn: u32, shuffle: Option<u64>) -> Result<Outcome, u64> {
+    /// The root's game as the deciding seat might find it: the opponent's hand cards it hasn't seen and every
+    /// library's order drawn at random from what it can't see, and a new random number generator. Cards the answers
+    /// since the snapshot name stay where they are, so the copy can replay them. Without `hidden`, the real game.
+    pub fn sample(&self, seed: u64) -> Game {
         let mut g = self.snapshot.clone();
-        if let Some(seed) = shuffle {
-            let mut rng = JavaRandom::new(seed as i64);
-            for seat in 0..g.players.len() {
-                let mut library = g.player(seat).library.clone();
-                rng.shuffle(&mut library);
-                g.player_mut(seat).library = library;
+        let Some(h) = &self.hidden else { return g };
+        let mut keep: Vec<ObjId> = Vec::new();
+        for a in &self.since {
+            if let Answer::Obj(id) | Answer::Ability(id, _) = a {
+                keep.push(*id);
             }
-            g.rng = JavaRandom::new(seed.rotate_left(17) as i64);
         }
+        let mut rng = JavaRandom::new((seed ^ 0x5851_f42d_4c95_7f2d) as i64);
+        let looked: Vec<ObjId> =
+            g.looked_at.iter().filter(|l| l.viewer == h.seat).flat_map(|l| l.cards.iter().copied()).collect();
+        for seat in 0..g.players.len() {
+            let mine = seat == h.seat;
+            let fixed_in_hand = |id: &ObjId| mine || h.seen(*id) || keep.contains(id);
+            let fixed_in_library = |id: &ObjId| keep.contains(id) || looked.contains(id);
+            let hand = g.player(seat).hand.clone();
+            let library = g.player(seat).library.clone();
+            let mut pool: Vec<ObjId> = hand
+                .iter()
+                .filter(|id| !fixed_in_hand(id))
+                .chain(library.iter().filter(|id| !fixed_in_library(id)))
+                .copied()
+                .collect();
+            if pool.len() < 2 {
+                continue;
+            }
+            rng.shuffle(&mut pool);
+            let mut next = pool.into_iter();
+            let new_hand: Vec<ObjId> =
+                hand.iter().map(|id| if fixed_in_hand(id) { *id } else { next.next().unwrap() }).collect();
+            let new_library: Vec<ObjId> =
+                library.iter().map(|id| if fixed_in_library(id) { *id } else { next.next().unwrap() }).collect();
+            for id in &new_hand {
+                if g.obj(*id).zone != Zone::Hand {
+                    g.obj_mut(*id).zone = Zone::Hand;
+                }
+            }
+            for id in &new_library {
+                if g.obj(*id).zone != Zone::Library {
+                    g.obj_mut(*id).zone = Zone::Library;
+                }
+            }
+            let p = g.player_mut(seat);
+            p.hand = new_hand;
+            p.library = new_library;
+        }
+        g.rng = JavaRandom::new(seed.rotate_left(17) as i64);
+        g
+    }
+
+    /// A sample of the game (`sample`) with `hidden`; without, the real game with every library shuffled and a new
+    /// random number generator
+    pub fn sample_or_shuffle(&self, seed: u64) -> Game {
+        if self.hidden.is_some() {
+            return self.sample(seed);
+        }
+        let mut g = self.snapshot.clone();
+        let mut rng = JavaRandom::new(seed as i64);
+        for seat in 0..g.players.len() {
+            let mut library = g.player(seat).library.clone();
+            rng.shuffle(&mut library);
+            g.player_mut(seat).library = library;
+        }
+        g.rng = JavaRandom::new(seed.rotate_left(17) as i64);
+        g
+    }
+
+    /// Plays `candidate` on a copy until turn `stop_turn` starts or `cap` answers are given, both seats on the quick
+    /// answers. With `shuffle`, the copy is a sample (`sample`; without `hidden`, the libraries are shuffled) and one
+    /// answer in sixteen of the quick ones is a random candidate instead (MCTS). `Err` when the copy didn't reach
+    /// the question again.
+    pub fn play_out(&self, candidate: &Answer, cap: u64, stop_turn: u32, shuffle: Option<u64>) -> Result<Outcome, u64> {
+        let mut g = match shuffle {
+            Some(seed) => self.sample_or_shuffle(seed),
+            None => self.snapshot.clone(),
+        };
         let mut script = self.since.clone();
         script.push(candidate.clone());
-        let mut p = Playout::new(script, cap, stop_turn, shuffle);
+        let mut p = Playout::new(script, cap, stop_turn, shuffle, self.playout);
+        rules::play_from_priority_question(&mut g, &mut p, stop_turn);
+        if p.diverged {
+            Err(p.answers)
+        } else {
+            Ok(Outcome { game: g, nodes: p.answers })
+        }
+    }
+
+    /// Plays `candidate` on `game` (a `sample`, or the snapshot) with the quick answers and no noise: the same as
+    /// `play_out` without a shuffle, from a given copy
+    pub fn play_on(&self, mut g: Game, candidate: &[Answer], cap: u64, stop_turn: u32) -> Result<Outcome, u64> {
+        let mut script = self.since.clone();
+        script.extend(candidate.iter().cloned());
+        let mut p = Playout::new(script, cap, stop_turn, None, self.playout);
         rules::play_from_priority_question(&mut g, &mut p, stop_turn);
         if p.diverged {
             Err(p.answers)
@@ -134,7 +274,6 @@ impl Root {
         }
     }
 }
-
 /// A playout: the recorded answers back to the question, the candidate, then quick answers for everyone until the
 /// turn ends or the answers run out.
 struct Playout {
@@ -152,11 +291,11 @@ struct Playout {
 }
 
 impl Playout {
-    fn new(script: Vec<Answer>, cap: u64, stop_turn: u32, noise: Option<u64>) -> Playout {
+    fn new(script: Vec<Answer>, cap: u64, stop_turn: u32, noise: Option<u64>, version: u8) -> Playout {
         Playout {
             script,
             next: 0,
-            policy: [Policy::default(), Policy::default()],
+            policy: [Policy::version(version), Policy::version(version)],
             repeats: Repeats::default(),
             answers: 0,
             cap,

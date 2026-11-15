@@ -7,7 +7,7 @@
 //! table keeps the game as it was at the last priority question and every answer given since: a copy replays those
 //! answers to get back to the question being searched.
 
-use crate::decision::{Choice, Decision, DecisionPolicy, PolicyKind, Root};
+use crate::decision::{Choice, Decision, DecisionPolicy, Hidden, PolicyKind, Root};
 use crate::eval;
 use crate::policy::{Policy, Repeats};
 use playmat_engine::decide::{Answer, Decider, Query};
@@ -95,6 +95,8 @@ pub struct Table {
     /// the game at the last priority question, and the answers since
     snapshot: Option<Game>,
     since: Vec<Answer>,
+    /// what each seat has seen, for searches that sample what they can't (`Config::hide`)
+    hidden: Vec<Hidden>,
     pub stats: Vec<DecisionStat>,
     pub answers: u64,
     /// the game stops after this many answers (a guard against a game that never ends)
@@ -105,9 +107,11 @@ pub struct Table {
 impl Table {
     pub fn new(ai: Vec<Option<Config>>) -> Table {
         let n = ai.len();
+        let policy = ai.iter().map(|c| Policy::version(c.as_ref().map_or(1, |c| c.playout))).collect();
         Table {
+            hidden: (0..n).map(Hidden::new).collect(),
             ai,
-            policy: (0..n).map(|_| Policy::default()).collect(),
+            policy,
             repeats: Repeats::default(),
             deciders: (0..n).map(|_| None).collect(),
             snapshot: None,
@@ -141,11 +145,21 @@ impl Table {
 
     /// Notes an answer given by someone else (a mirrored game's other seat), so later searches can replay it.
     pub fn record(&mut self, game: &Game, q: &Query, a: &Answer) {
+        self.observe(game);
         if matches!(q, Query::Priority { .. }) {
             self.snapshot = Some(playout_copy(game));
             self.since.clear();
         }
         self.since.push(a.clone());
+    }
+
+    /// Notes what the seats that search on samples see now
+    fn observe(&mut self, game: &Game) {
+        for (seat, cfg) in self.ai.iter().enumerate() {
+            if cfg.as_ref().is_some_and(|c| c.hide) {
+                self.hidden[seat].observe(game);
+            }
+        }
     }
 
     /// The AI's answer for `seat` (searched when the seat has a config), without recording it.
@@ -180,7 +194,13 @@ impl Table {
         if candidates.len() < 2 {
             return quick;
         }
-        let root = self.snapshot.clone().map(|snapshot| Root { snapshot, since: self.since.clone() });
+        let hidden = cfg.hide.then(|| self.hidden[seat].clone());
+        let root = self.snapshot.clone().map(|snapshot| Root {
+            snapshot,
+            since: self.since.clone(),
+            hidden,
+            playout: cfg.playout,
+        });
         let slot = &mut self.deciders[seat];
         if !matches!(slot, Some((None, _))) && slot.as_ref().map(|(k, _)| *k) != Some(Some(cfg.policy)) {
             *slot = Some((Some(cfg.policy), cfg.policy.build(seat)));
@@ -215,8 +235,12 @@ impl Table {
     }
 }
 
-/// The default search: each candidate played once to the end of the turn (`extra_turns` more), the one whose game
-/// scores best kept; `budget` split evenly over the candidates.
+/// The default search: each candidate played to the end of the turn (`extra_turns` more) and the one whose game
+/// scores best kept. With one sample of the real game (`samples` 1, no `hide`), each candidate is played once and
+/// `budget` is split evenly over them. Otherwise each candidate is played on `samples` copies on average, spent by
+/// sequential halving (every candidate on the same first copies, then the better half on more, and so on), and
+/// scores are averaged as values in 0..1 (`eval::value`); the copies are samples of what the seat can't see when
+/// `hide` is on.
 pub struct Playouts;
 
 impl DecisionPolicy for Playouts {
@@ -228,31 +252,141 @@ impl DecisionPolicy for Playouts {
         let root = d.root?;
         let cfg = d.config;
         let stop = d.game.turn + 1 + cfg.extra_turns;
-        let per = (cfg.budget / d.candidates.len() as u64).clamp(50, cfg.playout_cap);
-        let mut nodes = 0;
-        let mut best = (i64::MIN, d.quick.clone());
-        for c in d.candidates.iter() {
-            if nodes >= cfg.budget {
-                break;
-            }
-            match root.play_out(c, per, stop, None) {
-                Ok(o) => {
-                    nodes += o.nodes;
-                    let score = eval::evaluate(&o.game, d.seat);
-                    if score > best.0 {
-                        best = (score, c.clone());
-                    }
+        let k = d.candidates.len();
+        let per = (cfg.budget / k as u64).clamp(50, cfg.playout_cap);
+        if cfg.samples <= 1 && root.hidden.is_none() {
+            let mut nodes = 0;
+            let mut best = (i64::MIN, d.quick.clone());
+            for c in d.candidates.iter() {
+                if nodes >= cfg.budget {
+                    break;
                 }
-                Err(n) => nodes += n,
+                match root.play_out(c, per, stop, None) {
+                    Ok(o) => {
+                        nodes += o.nodes;
+                        let score = eval::score(&o.game, d.seat, cfg.eval);
+                        if score > best.0 {
+                            best = (score, c.clone());
+                        }
+                    }
+                    Err(n) => nodes += n,
+                }
+            }
+            return Some(Choice { answer: best.1, nodes });
+        }
+        let plans: Vec<Vec<Answer>> = d.candidates.iter().map(|c| vec![c.clone()]).collect();
+        let (best, nodes) = sampled(root, d.game, d.seat, cfg, &plans, per, stop);
+        Some(Choice { answer: d.candidates[best].clone(), nodes })
+    }
+}
+
+/// Plays each plan (a candidate's answers in order) on `config.samples` copies on average by sequential halving, and
+/// gives the best plan's index and the nodes spent. The copies are samples of what `seat` can't see when the root
+/// has `hidden`, else the real game first and library shuffles after.
+pub fn sampled(
+    root: &Root,
+    game: &Game,
+    seat: Seat,
+    cfg: &Config,
+    plans: &[Vec<Answer>],
+    per: u64,
+    stop: u32,
+) -> (usize, u64) {
+    let base = eval::score(game, seat, cfg.eval);
+    let seed = ((game.turn as u64) << 40) ^ ((root.since.len() as u64) << 16) ^ seat as u64 ^ 0x2545_f491;
+    let samples = cfg.samples.max(1);
+    let mut worlds: Vec<Option<Game>> = Vec::new();
+    let mut world = |j: usize| -> Game {
+        if worlds.len() <= j {
+            worlds.resize(j + 1, None);
+        }
+        worlds[j]
+            .get_or_insert_with(|| {
+                if root.hidden.is_none() && j == 0 {
+                    root.snapshot.clone()
+                } else {
+                    root.sample_or_shuffle(seed ^ (j as u64 + 1).wrapping_mul(0x9e37_79b9_7f4a_7c15))
+                }
+            })
+            .clone()
+    };
+    halving(plans.len(), samples, cfg.budget * samples as u64, |i, j| {
+        let g = world(j);
+        match root.play_on(g, &plans[i], per, stop) {
+            Ok(o) => Some((eval::value(&o.game, seat, base, cfg.eval), o.nodes)),
+            // a sample the copy can't replay to the question: the real game instead
+            Err(_) => root
+                .play_on(root.snapshot.clone(), &plans[i], per, stop)
+                .ok()
+                .map(|o| (eval::value(&o.game, seat, base, cfg.eval), o.nodes)),
+        }
+    })
+}
+
+/// Sequential halving over `k` candidates with about `samples` playouts each on average: every round gives the
+/// candidates still in the same number of new samples (sample j is the same copy for all, so they're compared on the
+/// same games), then keeps the better half by mean value. `play(i, j)` plays candidate i on sample j: its value and
+/// nodes, or `None` when it can't be played (the candidate is out). Stops early once `budget` nodes are spent.
+/// Returns the best candidate (the most sampled, then the best mean, then the first: the quick answer) and the nodes
+/// spent.
+pub fn halving(
+    k: usize,
+    samples: usize,
+    budget: u64,
+    mut play: impl FnMut(usize, usize) -> Option<(f64, u64)>,
+) -> (usize, u64) {
+    let mut sum = vec![0f64; k];
+    let mut count = vec![0usize; k];
+    let mut out = vec![false; k];
+    let mut alive: Vec<usize> = (0..k).collect();
+    let rounds = (usize::BITS - (k.max(2) - 1).leading_zeros()) as usize;
+    let total = samples * k;
+    let mut nodes = 0u64;
+    let mut next = 0usize;
+    'rounds: for _ in 0..rounds {
+        let n = (total / (rounds * alive.len())).max(1);
+        for j in next..next + n {
+            for &i in &alive {
+                if out[i] {
+                    continue;
+                }
+                match play(i, j) {
+                    Some((v, used)) => {
+                        sum[i] += v;
+                        count[i] += 1;
+                        nodes += used.max(1);
+                    }
+                    None => out[i] = true,
+                }
+                if nodes >= budget {
+                    break 'rounds;
+                }
             }
         }
-        Some(Choice { answer: best.1, nodes })
+        next += n;
+        alive.retain(|i| !out[*i] && count[*i] > 0);
+        if alive.len() <= 1 {
+            break;
+        }
+        let mean = |i: usize| sum[i] / count[i] as f64;
+        alive.sort_by(|a, b| mean(*b).total_cmp(&mean(*a)).then(a.cmp(b)));
+        alive.truncate(alive.len().div_ceil(2));
+        alive.sort();
     }
+    let best = (0..k)
+        .filter(|i| !out[*i] && count[*i] > 0)
+        .max_by(|a, b| {
+            let (ma, mb) = (sum[*a] / count[*a] as f64, sum[*b] / count[*b] as f64);
+            count[*a].cmp(&count[*b]).then(ma.total_cmp(&mb)).then(b.cmp(a))
+        })
+        .unwrap_or(0);
+    (best, nodes)
 }
 
 impl Decider for Table {
     fn answer(&mut self, game: &Game, seat: Seat, q: &Query) -> Answer {
         self.answers += 1;
+        self.observe(game);
         if self.answers > self.max_answers {
             self.stop = true;
             return Answer::Stop;
