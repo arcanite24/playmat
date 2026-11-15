@@ -7,6 +7,7 @@ use crate::card::AbilityDef;
 
 pub const HANDLERS: &[Handler] = &[
     Handler::effect("HarnessSourceEffect", harness),
+    Handler::condition("HarnessedSourceCondition", harnessed),
     Handler::continuous("GainHarnessedAbilitySourceEffect", harnessed_source, Layer::Ability(gives)).args(&["ability"]),
 ];
 
@@ -21,6 +22,12 @@ fn harness(game: &mut Game, _d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         }
     }
     Some(())
+}
+
+/// a harnessed triggered ability's condition (the transpiler makes it the card's own trigger): its source is
+/// harnessed
+fn harnessed(game: &Game, _: Seat, source: ObjId) -> bool {
+    game.obj(source).zone == Zone::Battlefield && game.obj(source).marks.iter().any(|m| m == MARK)
 }
 
 /// the source itself, while it's harnessed
