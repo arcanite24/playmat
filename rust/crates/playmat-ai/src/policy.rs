@@ -6,8 +6,9 @@ use crate::eval;
 use playmat_engine::card::{CardType, ManaCost};
 use playmat_engine::decide::{Answer, Query};
 use playmat_engine::rules;
-use playmat_engine::state::{Game, ObjId, Seat, Zone};
+use playmat_engine::state::{Game, Obj, ObjId, Seat, Zone};
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// Effects whose text says they hurt what they target
 const HARMFUL: [&str; 16] = [
@@ -400,10 +401,53 @@ fn choice(game: &Game, seat: Seat, message: &str, choices: &[String]) -> Answer 
         let best = counts.into_iter().max_by_key(|(n, c)| (*c, std::cmp::Reverse(*n))).map(|(n, _)| n.to_string());
         return Answer::Text(best.unwrap_or_else(|| "Human".into()));
     }
-    if message.contains("Land card name") {
-        return Answer::Text("Island".into());
+    if let Some(name) = card_name(game, seat, message) {
+        return Answer::Text(name);
     }
     Answer::Text(String::new())
+}
+
+/// "Choose a card name" (Pithing Needle, Phyrexian Revoker: the chosen name's activated abilities other than mana
+/// abilities can't be activated): an opponent's card that fits the question, seen in a public zone, best one whose
+/// abilities it could activate from where it is, then their lands, and never one of the seat's own. Nothing seen:
+/// Island when a land fits, else any fitting card that isn't the seat's. None when the message isn't a card name
+/// question.
+fn card_name(game: &Game, seat: Seat, message: &str) -> Option<String> {
+    game.objs.first()?.def.fits_name_question(message)?;
+    let fits = |o: &Obj| o.def.fits_name_question(message) == Some(true);
+    let mine: Vec<&str> =
+        game.objs.iter().filter(|o| o.owner == seat && o.zone != Zone::Library).map(|o| o.def.name.as_str()).collect();
+    let theirs = |o: &&Arc<Obj>| o.owner != seat && fits(o) && !mine.contains(&o.def.name.as_str());
+    let mut scores: HashMap<&str, usize> = HashMap::new();
+    for o in game.objs.iter().filter(theirs) {
+        if !matches!(o.zone, Zone::Battlefield | Zone::Graveyard | Zone::Exile) {
+            continue;
+        }
+        let usable = o.def.abilities.iter().filter(|a| a.activated().is_some()).any(|a| match o.zone {
+            Zone::Battlefield => !a.from_hand() && !a.from_graveyard(),
+            Zone::Graveyard => a.from_graveyard(),
+            _ => false,
+        });
+        let any = o.def.abilities.iter().any(|a| a.activated().is_some());
+        let land = o.def.is(CardType::Land) && o.zone == Zone::Battlefield;
+        let score = if usable {
+            100
+        } else if any {
+            10
+        } else if land {
+            1
+        } else {
+            0
+        };
+        if score > 0 {
+            *scores.entry(o.def.name.as_str()).or_default() += score;
+        }
+    }
+    let best = scores.into_iter().max_by_key(|(n, c)| (*c, std::cmp::Reverse(*n))).map(|(n, _)| n.to_string());
+    let island = ["Card name", "Choose a card name", "Land card name", "Choose a land card name"].contains(&message);
+    best.or_else(|| island.then(|| "Island".to_string()))
+        .or_else(|| game.objs.iter().filter(theirs).map(|o| o.def.name.clone()).min())
+        .or_else(|| Some(String::new()))
 }
 
 /// Catches a question asked again since the last priority question (an answer the engine ignored, one that toggles,
@@ -454,5 +498,40 @@ fn finish(q: &Query, tries: usize, options: &[Answer]) -> Answer {
             options.get(tries % options.len().max(1)).cloned().unwrap_or(Answer::Stop)
         }
         _ => Answer::Bool(false),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::duel::{new_duel, Deck};
+
+    /// A card name goes to the opponent's card with an activated ability, never one of the seat's own
+    #[test]
+    fn names_the_opponents_activated_card() {
+        let db = playmat_engine::cards();
+        let mine = Deck::parse("a", "20 Plains\n1 Aether Vial");
+        let theirs = Deck::parse("b", "20 Plains\n1 Aether Vial\n1 Arid Mesa");
+        let mut game = new_duel(&db, [&mine, &theirs], 1, 0).unwrap();
+        let on = |game: &Game, seat: Seat, name: &str| {
+            game.objs.iter().find(|o| o.owner == seat && o.def.name == name && o.zone != Zone::Battlefield).unwrap().id
+        };
+        let id = on(&game, 0, "Aether Vial");
+        game.move_to(id, Zone::Library);
+        for name in ["Aether Vial", "Arid Mesa", "Plains"] {
+            let id = on(&game, 1, name);
+            game.move_to(id, Zone::Battlefield);
+        }
+        assert_eq!(card_name(&game, 0, "Card name").unwrap(), "Aether Vial");
+        assert_eq!(card_name(&game, 0, "Land card name").unwrap(), "Arid Mesa");
+        assert_eq!(card_name(&game, 0, "Choose a nonland card name").unwrap(), "Aether Vial");
+        // the seat's own Aether Vial, in its hand, isn't named
+        let id = on(&game, 0, "Aether Vial");
+        game.move_to(id, Zone::Hand);
+        assert_eq!(card_name(&game, 0, "Card name").unwrap(), "Arid Mesa");
+        // nothing of theirs seen: Island
+        assert_eq!(card_name(&game, 1, "Card name").unwrap(), "Island");
+        // not a name question: none
+        assert_eq!(card_name(&game, 0, "Choose a color"), None);
     }
 }

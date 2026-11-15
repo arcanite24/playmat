@@ -6271,6 +6271,25 @@ impl CardDef {
         self.types.contains(&t)
     }
 
+    /// Whether the card's name answers a "choose a card name" question (`ChooseACardNameEffect.TypeOfName`), by the
+    /// question's message; none when the message isn't one
+    pub fn fits_name_question(&self, message: &str) -> Option<bool> {
+        let land = self.is(CardType::Land);
+        let basic_land = land && self.supertypes.iter().any(|s| s.eq_ignore_ascii_case("BASIC"));
+        Some(match message {
+            "Card name" | "Choose a card name" => true,
+            "Land card name" | "Choose a land card name" => land,
+            "Choose a card name other than a basic land card name" => !basic_land,
+            "Choose a nonbasic land card name" => land && !basic_land,
+            "Choose a nonartifact, nonland card name" => !land && !self.is(CardType::Artifact),
+            "Choose a nonland and non creature name" => !land && !self.is(CardType::Creature),
+            "Choose a nonland card name" => !land,
+            "Choose a creature card name" => self.is(CardType::Creature),
+            "Choose an artifact card name" => self.is(CardType::Artifact),
+            _ => return None,
+        })
+    }
+
     pub fn has(&self, ability: &AbilityDef) -> bool {
         self.abilities.contains(ability)
     }

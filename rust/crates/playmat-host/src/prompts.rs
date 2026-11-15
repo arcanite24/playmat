@@ -1,12 +1,14 @@
 //! Every question as a client callback: the engine's prompt (`playmat_engine::prompt`, compared with Java's) where it
 //! renders one, and otherwise one the client can answer, with Java's shape and a plainer message.
 
+use playmat_engine::card::CardDef;
 use playmat_engine::decide::Query;
 use playmat_engine::prompt::{object_html, prompt_view};
 use playmat_engine::replay::reference;
 use playmat_engine::state::{Game, ObjId, Seat, Zone};
 use playmat_engine::view::cards_view;
 use serde_json::{json, Map, Value};
+use std::sync::Arc;
 
 fn message(method: &str, text: String, options: Value) -> Value {
     json!({"method": method, "data": {"message": text, "flag": false, "min": 0, "max": 0, "options": options}})
@@ -64,6 +66,21 @@ fn target_kind(game: &Game, players: &[Seat], objs: &[ObjId]) -> &'static str {
     } else {
         "a target"
     }
+}
+
+/// "Choose a card name" (`ChooseACardNameEffect`): the engine asks with no choices, so the host lists the names
+/// that fit (`cards`: every card the engine has, sorted by name), searchable as Java's `ChoiceImpl` with
+/// `setSearchEnabled`. Java offers the whole repository, but a card the engine lacks can't be in the game.
+pub fn offer_names(prompt: &mut Value, q: &Query, cards: &[Arc<CardDef>]) {
+    let Query::Choice { message, choices } = q else { return };
+    if !choices.is_empty() || cards.first().and_then(|c| c.fits_name_question(message)).is_none() {
+        return;
+    }
+    let names: Vec<&str> =
+        cards.iter().filter(|c| c.fits_name_question(message) == Some(true)).map(|c| c.name.as_str()).collect();
+    let choice = &mut prompt["data"]["choice"];
+    choice["choices"] = json!(names);
+    choice["searchEnabled"] = json!(true);
 }
 
 /// `{method, data}` for a question, ids as references
@@ -303,6 +320,31 @@ mod tests {
         assert_eq!(prompt(&game, 0, &q)["data"]["choice"]["manaColorChoice"], true);
         let q = Query::Choice { message: "Choose a color".into(), choices: colors };
         assert_eq!(prompt(&game, 0, &q)["data"]["choice"]["manaColorChoice"], false);
+    }
+
+    /// "Choose a card name" (Pithing Needle) comes from the engine with no choices: the host lists the names
+    #[test]
+    fn a_card_name_question_lists_the_names() {
+        let db = playmat_engine::cards();
+        let deck = Deck::parse("d", "20 Plains");
+        let game = new_duel(&db, [&deck, &deck], 1, 0).unwrap();
+        let cards: Vec<_> = ["Island", "Shock"].iter().map(|n| db.get(n).unwrap()).collect();
+        for (message, want) in [
+            ("Card name", json!(["Island", "Shock"])),
+            ("Land card name", json!(["Island"])),
+            ("Choose a nonland card name", json!(["Shock"])),
+        ] {
+            let q = Query::Choice { message: message.into(), choices: Vec::new() };
+            let mut p = prompt(&game, 0, &q);
+            offer_names(&mut p, &q, &cards);
+            assert_eq!(p["data"]["choice"]["choices"], want);
+            assert_eq!(p["data"]["choice"]["searchEnabled"], true);
+        }
+        // any other choice is left as the engine asked it
+        let q = Query::Choice { message: "Choose a color".into(), choices: Vec::new() };
+        let mut p = prompt(&game, 0, &q);
+        offer_names(&mut p, &q, &cards);
+        assert_eq!(p["data"]["choice"]["choices"], json!([]));
     }
 
     /// A target question says what it targets, from what it can pick
