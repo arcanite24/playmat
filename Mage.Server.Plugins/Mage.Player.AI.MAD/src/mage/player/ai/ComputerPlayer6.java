@@ -77,11 +77,6 @@ public class ComputerPlayer6 extends ComputerPlayer {
     protected int maxDepth;
     protected int maxNodes;
     protected int maxThinkTimeSecs;
-    // the skill's own limits, kept while quick decisions are on (see setQuickDecisions)
-    private int skillMaxDepth;
-    private int skillMaxNodes;
-    private int skillMaxThinkTimeSecs;
-    private boolean quickDecisions;
     protected int rootScoreNoise; // see rootScoreNoiseForSkill
     // the running search's limits: the whole budget, and the share of it the current first action may use (see
     // simulatePriority); deadlines are System.nanoTime values, 0 for none
@@ -137,9 +132,6 @@ public class ComputerPlayer6 extends ComputerPlayer {
         maxThinkTimeSecs = maxThinkTimeSecsForSkill(skill);
         maxNodes = maxNodesForSkill(skill);
         rootScoreNoise = rootScoreNoiseForSkill(skill);
-        skillMaxDepth = maxDepth;
-        skillMaxNodes = maxNodes;
-        skillMaxThinkTimeSecs = maxThinkTimeSecs;
         this.actionCache = new HashSet<>();
     }
 
@@ -193,10 +185,6 @@ public class ComputerPlayer6 extends ComputerPlayer {
         this.maxNodes = player.maxNodes;
         this.maxThinkTimeSecs = player.maxThinkTimeSecs;
         this.rootScoreNoise = player.rootScoreNoise;
-        this.skillMaxDepth = player.skillMaxDepth;
-        this.skillMaxNodes = player.skillMaxNodes;
-        this.skillMaxThinkTimeSecs = player.skillMaxThinkTimeSecs;
-        this.quickDecisions = player.quickDecisions;
         this.currentScore = player.currentScore;
         if (player.combat != null) {
             this.combat = player.combat.copy();
@@ -243,36 +231,11 @@ public class ComputerPlayer6 extends ComputerPlayer {
         actionsThisTurnTotal++;
     }
 
-    // quick decisions: a second a decision and a small search, so a bot-vs-bot event match takes minutes, not most of
-    // an hour, while the humans in the event wait for the round to end
-    static final int QUICK_MAX_DEPTH = 4;
-    static final int QUICK_MAX_NODES = 1500;
-    static final int QUICK_MAX_THINK_TIME_SECS = 1;
-
-    @Override
-    public void setQuickDecisions(boolean quick) {
-        quickDecisions = quick;
-        if (quick) {
-            maxDepth = Math.min(skillMaxDepth, QUICK_MAX_DEPTH);
-            maxNodes = Math.min(skillMaxNodes, QUICK_MAX_NODES);
-            maxThinkTimeSecs = Math.min(skillMaxThinkTimeSecs, QUICK_MAX_THINK_TIME_SECS);
-        } else {
-            maxDepth = skillMaxDepth;
-            maxNodes = skillMaxNodes;
-            maxThinkTimeSecs = skillMaxThinkTimeSecs;
-        }
-    }
-
-    public boolean isQuickDecisions() {
-        return quickDecisions;
-    }
-
     /**
      * Change simulation timeout - used for AI stability tests only
      */
     public void setMaxThinkTimeSecs(int maxThinkTimeSecs) {
         this.maxThinkTimeSecs = maxThinkTimeSecs;
-        this.skillMaxThinkTimeSecs = maxThinkTimeSecs;
     }
 
     @Override

@@ -276,11 +276,6 @@ public class TournamentController {
                     user2Uuid = user2Id.get();
                 }
             }
-            // bots facing each other play fast: nobody watches, and the round waits for them. The same bot plays at
-            // full skill again in its next match against a human.
-            boolean botsOnly = !player1.getPlayer().isHuman() && !player2.getPlayer().isHuman();
-            player1.getPlayer().setQuickDecisions(botsOnly);
-            player2.getPlayer().setQuickDecisions(botsOnly);
             tableManager.addPlayer(user1Uuid, table.getId(), player1);
             tableManager.addPlayer(user2Uuid, table.getId(), player2);
             table.setState(TableState.STARTING);
