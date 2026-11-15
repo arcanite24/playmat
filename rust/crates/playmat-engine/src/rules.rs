@@ -20002,6 +20002,7 @@ fn sacrifice(game: &mut Game, id: ObjId) {
             t.targets = vec![vec![Target::Player(who)]];
             t.target_zcc = vec![vec![0]];
         }
+        t.sacrificed_permanent = Some(id);
         sac.push(t);
     }
     let at = at.min(game.pending.len());
