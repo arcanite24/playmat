@@ -22695,9 +22695,12 @@ pub fn gain_life(game: &mut Game, seat: Seat, amount: i32) {
     game.player_mut(seat).life_gained += amount;
     let first = game.player(seat).life_gains == 1;
     let sources: Vec<ObjId> = game.trigger_sources();
+    // what caused them, for the `NUMBER_OF_TRIGGERS` replacements (Dr. Beverly Crusher's)
+    let cause = game.trigger_cause.replace(TriggerCause::GainedLife(seat));
     let fired = game.triggers(sources, |_, _, you, t| {
         you == seat && (matches!(t, Trigger::YouGainLife) || (first && matches!(t, Trigger::YouGainLifeFirstTime)))
     });
+    game.trigger_cause = cause;
     // the life gained is the trigger's "that much" (`SavedGainedLifeValue`), read as its X
     game.pending.extend(fired.into_iter().map(|t| StackItem { x: amount, ..t }));
 }

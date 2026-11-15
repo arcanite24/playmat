@@ -694,6 +694,8 @@ pub enum TriggerCause {
     Died(ObjId),
     /// creatures attacking (`ATTACKER_DECLARED`, `DECLARED_ATTACKERS`)
     Attacked,
+    /// a player gaining life (`GAINED_LIFE`)
+    GainedLife(Seat),
 }
 
 #[derive(Clone, Debug)]
