@@ -1228,6 +1228,12 @@ def declared_filters_into(out, source, subtypes):
                 and re.search(r'\b' + name + r'\.setPermanentFilter\(new FilterCreaturePermanent\(\)\);', source):
             out[name] = SPELL_OR_CREATURE
             continue
+        # "spell or nonland permanent" (Commit): any spell, or a nonland permanent
+        if cls == 'FilterSpellOrPermanent' and not adds \
+                and re.search(r'\b' + name + r'\.setPermanentFilter\(new FilterNonlandPermanent\(\)\);', source) \
+                and not re.search(r'\b' + name + r'\.(?!setPermanentFilter\(new FilterNonlandPermanent\(\)\);)\w', source):
+            out[name] = SpellOrPermanentFilter([], [{'p': 'not', 'x': LAND}])
+            continue
         # a spell of one filter or a permanent of another (`match` reads only those two, not its own `add`s)
         if cls == 'FilterSpellOrPermanent' and not adds and len(args) <= 1 \
                 and not re.search(r'\b' + name + r'\.(?!getPermanentFilter\(\)\.add|getSpellFilter\(\)\.add)\w', source):
