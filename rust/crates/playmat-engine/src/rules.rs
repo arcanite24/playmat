@@ -4723,15 +4723,16 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         }
     }
     // `suppressAbilityPicker`: one spell ability is cast directly only with mana to pay (X counts 0), so a {0} or
-    // {X} spell is picked (a0)
-    if game.obj(id).def.cost.mana_value() == 0 {
+    // {X} spell is picked (a0), as is one cast without paying its mana cost (`allowCardToPlayWithoutMana` puts it in
+    // `castSourceIdWithAlternateMana`, so the picker isn't hidden)
+    // played from exile without paying its mana cost (Oracle's Vault)
+    let free = game.obj(id).zone == Zone::Exile && game.obj(id).play_free;
+    if game.obj(id).def.cost.mana_value() == 0 || free {
         match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: vec![0] }) {
             Answer::Ability(o, 0) if o == id => {}
             _ => return,
         }
     }
-    // played from exile without paying its mana cost (Oracle's Vault)
-    let free = game.obj(id).zone == Zone::Exile && game.obj(id).play_free;
     if !(if free { cast_free(game, d, seat, id) } else { cast(game, d, seat, id) }) {
         // `PlayerImpl.cast` restores the game as it was before the cast
         *game = before;
@@ -20072,15 +20073,19 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
     let cast = game.obj(id).zone == Zone::Stack;
     let stack_zcc = game.obj(id).zcc;
     // each its own replacement effect (Kumano's "enters with an additional +1/+1 counter")
-    let mut counter_effects = 0;
+    let counter_effects;
     // (or a card put onto the battlefield with them from where it was, `setEnterWithCounters`, not a replacement
     // effect: Infernal Vessel's return)
     let more_counters: i32 = {
         let (mine, rest): (Vec<_>, Vec<_>) =
             std::mem::take(&mut game.enter_counters).into_iter().partition(|(o, z, _)| *o == id && *z == stack_zcc);
         game.enter_counters = rest;
+        let replacing = game.enter_counters_replacing.iter().filter(|(o, z)| *o == id && *z == stack_zcc).count();
+        game.enter_counters_replacing.retain(|(o, z)| !(*o == id && *z == stack_zcc));
         if cast {
             counter_effects = mine.len();
+        } else {
+            counter_effects = replacing;
         }
         mine.iter().map(|(_, _, n)| n).sum()
     };

@@ -28,6 +28,10 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     }
     let shown = game.player(you).graveyard.clone();
     let possible: Vec<ObjId> = shown.iter().copied().filter(|c| game.obj(*c).def.is_permanent_card()).collect();
+    // (`HumanPlayer.choose` asks nothing when no card can be chosen)
+    if possible.is_empty() {
+        return Some(());
+    }
     let rule = item_rule(game, cx.item);
     let chosen = choose_cards(game, d, you, &shown, &possible, 0, 2, &rule)?;
     for c in chosen {

@@ -26,11 +26,14 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         return Some(());
     };
     let zcc = game.obj(card).zcc;
+    // (`DranaTheLastBloodchiefCounterEffect` is a replacement effect: one more for the order question)
     game.enter_counters.push((card, zcc, 1));
+    game.enter_counters_replacing.push((card, zcc));
     let back =
         EffectDef::ReturnFromGraveyardToBattlefieldTargetEffect { tapped: false, owner: false, counters: None, attacking: false };
     cx.run_on(game, d, &[back], vec![Target::Obj(card)]);
     game.enter_counters.retain(|(o, z, _)| !(*o == card && *z == zcc));
+    game.enter_counters_replacing.retain(|(o, z)| !(*o == card && *z == zcc));
     if d.stopped() {
         return None;
     }
