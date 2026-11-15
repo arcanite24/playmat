@@ -23925,6 +23925,31 @@ fn combat_damage(game: &mut Game, d: &mut dyn Decider, first: bool) {
             continue;
         }
         let blockers = live_blockers(game, a);
+        // `CombatGroup.assignDamageToBlockers`: with blockers, an as-though `DAMAGE_NOT_BLOCKED` effect (each one's
+        // `applies` in turn, some asking) has it deal its damage as though it weren't blocked
+        if !blockers.is_empty() {
+            let mut unblocked = false;
+            for (seat, asks) in cards::damage_not_blocked(game, a) {
+                let yes = if asks {
+                    let message = format!("Have {} assign damage as though it weren't blocked?", log::object(game, a));
+                    match choose_use(game, d, seat, &message) {
+                        Some(b) => b,
+                        None => return,
+                    }
+                } else {
+                    true
+                };
+                unblocked = unblocked || yes;
+            }
+            if unblocked {
+                if let Some(to) = attacked {
+                    hits.push((a, to, damage));
+                }
+                deal_hits(game, hits, &mut gains);
+                settle_owed(game, d);
+                continue;
+            }
+        }
         let trample = game.has_ability(a, &AbilityDef::TrampleAbility);
         let mut remaining = damage;
         let mut defaults = Vec::new();
