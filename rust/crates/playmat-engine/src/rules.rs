@@ -8876,6 +8876,18 @@ fn target_legal(game: &Game, seat: Seat, def: &TargetDef, src: Option<ObjId>, t:
         }
     }
     let (players, objs) = possible_targets(game, seat, def, src);
+    // an activated ability that targeted itself (Mirrorshell Crab's channel: Java pushes it before its targets are
+    // chosen): the ability is still that object as it resolves, though its card moved as the cost was paid (not a copy
+    // of it: that one points at the original, gone)
+    if let Target::Obj(o) = t {
+        if matches!(def, TargetDef::TargetStackObject { .. } | TargetDef::TargetStackAbility { .. })
+            && game.resolving_item.as_ref().is_some_and(|i| i.card == o && i.ability.is_some())
+            && src == Some(o)
+            && zcc != u32::MAX
+        {
+            return objs.contains(&o);
+        }
+    }
     match t {
         Target::Player(s) => players.contains(&s),
         Target::Obj(o) => objs.contains(&o) && game.obj(o).zcc == zcc,
@@ -18976,6 +18988,14 @@ fn apply_each_effect(
                         .iter()
                         .rposition(|i| i.card == spell && (i.ability.is_some() || i.delayed.is_some()))
                     else {
+                        // the ability targeted itself (Java pushes an activated ability before its targets are
+                        // chosen, and `TargetStackObject` doesn't skip it): its controller is still asked to pay,
+                        // and countering what's resolving changes nothing
+                        if spell == item.card && game.resolving.is_some_and(|(_, c)| c == spell) {
+                            if pay_unless(game, d, item.controller, spell, cost).is_none() {
+                                return;
+                            }
+                        }
                         continue;
                     };
                     let payer = game.stack[at].controller;
