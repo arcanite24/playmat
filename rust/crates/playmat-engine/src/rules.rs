@@ -8691,8 +8691,18 @@ fn pay_mana_from(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCo
                 // a payment offers a source's conditional mana too, even what it can't spend
                 let paying = game.paying_for.get();
                 game.paying_for.set(Some(ANY_SPELL));
-                let offered = mana_sources_with_kinds(game, seat).into_iter().find(|(s, _)| *s == id);
+                let mut offered = mana_sources_with_kinds(game, seat).into_iter().find(|(s, _)| *s == id);
                 game.paying_for.set(paying);
+                // (`getUseableManaAbilities` lists a handler's mana ability with no mana now beside the others:
+                // Three Tree City's "{2}, {T}: Choose a color. Add …" with its {T}: Add {C})
+                if let Some((_, abilities)) = offered.as_mut() {
+                    for i in empty_handler_mana_abilities(game, id) {
+                        if !abilities.iter().any(|(j, _, _)| *j == i) {
+                            abilities.push((i, Mana::default(), ManaKind::Other));
+                        }
+                    }
+                    abilities.sort_by_key(|(i, _, _)| *i);
+                }
                 if let Some((_, abilities)) = offered {
                     let choices = auto_pay_abilities(&abilities, &unpaid);
                     let chosen = if choices.len() == 1 {
@@ -8862,6 +8872,26 @@ fn empty_card_mana_ability(game: &Game, id: ObjId) -> Option<usize> {
         found = Some(i);
     }
     found
+}
+
+/// A permanent's handler mana abilities whose `getNetMana` is empty now, untapped where they tap it
+fn empty_handler_mana_abilities(game: &Game, id: ObjId) -> Vec<usize> {
+    let o = game.obj(id);
+    if o.zone != Zone::Battlefield {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    for (i, a) in o.def.abilities.iter().enumerate() {
+        let AbilityDef::CardManaAbility { handler, args, filters, .. } = a else { continue };
+        if a.taps_source() && o.tapped {
+            continue;
+        }
+        let cx = cards::ManaCx { seat: o.controller, source: id, args, filters, unpaid: &ManaCost::default() };
+        if (handler.fns().net)(game, &cx).total() == 0 {
+            out.push(i);
+        }
+    }
+    out
 }
 
 /// A spell's abilities: its own, then those statics give it (`GainAbilityControlledSpellsEffect`)
