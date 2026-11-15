@@ -5352,8 +5352,11 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
             return false;
         }
     }
+    // (the auto-choice reads `getRule(true)`, which starts with the spell's costs: Sazacap's Brew's "discard a card"
+    // keeps its one creature of yours from being chosen for it)
+    let rule = spell_rule_with_costs(&def.spell.rule, &def.spell.costs);
     // (a fused card's halves are activated for no mana, so their targets are required: `Targets.makeChoice`)
-    if !choose_targets_of_modes(game, d, seat, &defs, &mode_ends, Some(id), &def.spell.rule, !fused) {
+    if !choose_targets_of_modes(game, d, seat, &defs, &mode_ends, Some(id), &rule, !fused) {
         return false;
     }
     // 601.2e, `AbilityImpl.activate`'s `CAST_SPELL_LATE`: a rule that reads the spell on the stack undoes the cast
@@ -6183,6 +6186,31 @@ fn choose_ability_modes(
     }
     let valid = selected.len() >= count.min || (selected.is_empty() && count.none);
     Some(valid.then_some(selected))
+}
+
+/// a spell's rule for the targets' auto-choice: `AbilityImpl.getRule(true)` puts its costs' texts first, and the
+/// auto-choice only looks for "discard", "sacrifice", "destroy" and "exile" in it
+fn spell_rule_with_costs(rule: &str, costs: &[CostDef]) -> String {
+    let words: Vec<&str> = costs
+        .iter()
+        .filter_map(|c| match c {
+            CostDef::DiscardCardCost { .. } | CostDef::DiscardSourceCost | CostDef::DiscardHandCost => Some("discard"),
+            CostDef::SacrificeSourceCost
+            | CostDef::SacrificeTargetCost { .. }
+            | CostDef::SacrificeXTargetCost { .. } => Some("sacrifice"),
+            CostDef::ExileSourceCost
+            | CostDef::ExileSourceFromGraveCost
+            | CostDef::ExileFromGraveCost { .. }
+            | CostDef::ExileFromHandCost { .. }
+            | CostDef::BeholdAndExileCost { .. } => Some("exile"),
+            _ => None,
+        })
+        .collect();
+    if words.is_empty() {
+        rule.to_string()
+    } else {
+        format!("{}: {}", words.join(", "), rule)
+    }
 }
 
 /// `choose_targets`, for a spell's chosen modes: `mode_ends` are where each mode's targets end in `defs`
