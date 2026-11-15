@@ -2125,7 +2125,9 @@ fn sorcery_speed(game: &Game, seat: Seat) -> bool {
 }
 
 fn can_play_land(game: &Game, seat: Seat) -> bool {
-    sorcery_speed(game, seat) && game.player(seat).lands_played < lands_per_turn(game, seat)
+    sorcery_speed(game, seat)
+        && game.player(seat).lands_played < lands_per_turn(game, seat)
+        && !cards::cant_play_lands(game, seat)
 }
 
 /// The lands a player may play this turn (`Player.getLandsPerTurn`)

@@ -24,7 +24,8 @@
 //!   `Rule::CantCastOnStack(f)`: only the cast itself, after its targets (`CAST_SPELL_LATE` reading the spell);
 //!   `Rule::CantActivate(f)`: `rules::activatable` (activated abilities that aren't mana abilities);
 //!   `Rule::CantLoseOrWin(f)`: the state-based loss check and `rules::win_game`;
-//!   `Rule::MaxActivations(f)`: a limited activated ability's times each turn (`rules::activatable`).
+//!   `Rule::MaxActivations(f)`: a limited activated ability's times each turn (`rules::activatable`);
+//!   `Rule::CantPlayLands(f)`: `rules::can_play_land` (`PLAY_LAND` by a player).
 //! - **as-though**: `Handler::as_though(name, AsThough::Flash(f))`: `rules::castable`'s timing;
 //!   `AsThough::Haste(f)`: a {T} cost's summoning sickness (`rules::can_pay_cost`, mana abilities);
 //!   `AsThough::Hexproof(f)`: hexproof, as targets are chosen (`rules::possible_targets`, `targetable`).
@@ -384,6 +385,9 @@ pub(crate) enum Rule {
     /// `MAX_ACTIVATIONS`: how many times `seat` may activate the ability at `index` of `id` each turn, where it
     /// limits them (Birgi's boast twice); None leaves the limit as it is
     MaxActivations(fn(&Game, &StaticCx, Seat, ObjId, usize) -> Option<u32>),
+    /// `PLAY_LAND` whose `applies` reads only the player: `seat` can't play lands (Aggressive Mining), read by
+    /// `rules::can_play_land`
+    CantPlayLands(fn(&Game, &StaticCx, Seat) -> bool),
 }
 
 /// `YouDontLoseManaEffect`'s `addDoNotEmptyManaType`: the kinds of `seat`'s mana (WUBRG, then colorless) the pool
@@ -770,6 +774,17 @@ pub(crate) fn cant_lose_or_win(game: &Game, seat: Seat, wins: bool) -> bool {
     each_static(game, &mut |h, cx, _| {
         if let Hook::Rule(Rule::CantLoseOrWin(f)) = h {
             out = out || f(game, cx, seat, wins);
+        }
+    });
+    out
+}
+
+/// Whether a rule-modifying handler says `seat` can't play lands (`PLAY_LAND`)
+pub(crate) fn cant_play_lands(game: &Game, seat: Seat) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::Rule(Rule::CantPlayLands(f)) = h {
+            out = out || f(game, cx, seat);
         }
     });
     out
