@@ -1379,6 +1379,8 @@ pub struct TurnWatch {
     /// `CardsPutIntoGraveyardWatcher`: each card put into a graveyard, its zone-change count there, and whether it
     /// came from the battlefield
     pub to_graveyard: Vec<(ObjId, u32, bool)>,
+    /// `CruelCalculationsWatcher`: the owner of each card put into a graveyard from a library (milled or otherwise)
+    pub library_to_graveyard: Vec<Seat>,
     /// `CrewedVehicleWatcher`: (vehicle, its zone-change count, a creature that crewed it, its count)
     pub crewed: Vec<(ObjId, u32, ObjId, u32)>,
     /// `LifeLostThisTurnWatcher`: a `LOST_LIFE_BATCH_FOR_ONE_PLAYER` for each, once a batch
@@ -4881,6 +4883,9 @@ impl Game {
         if zone == Zone::Graveyard && from != Zone::Graveyard && !self.obj(id).token {
             let zcc = self.obj(id).zcc;
             self.watch.to_graveyard.push((id, zcc, from == Zone::Battlefield));
+        }
+        if zone == Zone::Graveyard && from == Zone::Library {
+            self.watch.library_to_graveyard.push(owner);
         }
         if madness && self.obj(id).zone == Zone::Exile {
             let fired = self.triggers([id], |_, src, _, t| src == id && matches!(t, Trigger::MadnessExiled));
