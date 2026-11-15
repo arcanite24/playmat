@@ -1541,7 +1541,8 @@ def canonical(text):
         else:
             part = ' '.join(part.split())
             out.append(re.sub(r'\s*([(),{}\[\]=])\s*', r'\1', part))
-    return ''.join(out).strip()
+    # (a call on a local written with a space before its dot: Satyr Hedonist's `ability .addCost(…)`)
+    return re.sub(r'^(\w+) \.(?=[a-z])', r'\1.', ''.join(out).strip())
 
 
 def split_args(text):
@@ -3217,6 +3218,9 @@ class Translator:
                 and args[1].strip() == 'Duration.WhileOnBattlefield' \
                 and args[2].strip() in ('MaximumHandSizeControllerEffect.HandSizeModification.SET', 'HandSizeModification.SET'):
             return {'class': 'MaximumHandSizeSetEffect', 'size': int(args[0])}
+        # (an `Outcome` only tells the AI what it's for: Constable Odo, Ruthless Sniper)
+        if cls == 'AddCountersTargetEffect' and len(args) == 2 and re.fullmatch(r'Outcome\.\w+', args[1].strip()):
+            return self.effect(f'new AddCountersTargetEffect({args[0].strip()})')
         if cls == 'AddCountersTargetEffect' and len(args) == 2:
             return {'class': cls, 'counter': self.value('counter', args[0].strip()), 'value': self.amount(args[1])}
         # (effect, condition[, text])
@@ -5135,6 +5139,10 @@ class Translator:
         if cls == 'EntersBattlefieldAbility' and args == ['new MockingbirdEffect()', 'true']:
             return {'class': cls, 'effects': [{'class': 'MockingbirdEffect'}]}
         if cls == 'EntersBattlefieldAbility' and len(args) == 2 and re.fullmatch(r'"[^"]*"', args[1].strip()):
+            return {'class': cls, 'effects': [self.effect(args[0])]}
+        # (its text a string constant of the card's: Shambling Ghoul)
+        if cls == 'EntersBattlefieldAbility' and len(args) == 2 and re.fullmatch(r'\w+', args[1].strip()) \
+                and re.search(r'static final String ' + args[1].strip() + r'\s*=\s*"[^"]*";', self.source or ''):
             return {'class': cls, 'effects': [self.effect(args[0])]}
         if cls == 'EntersBattlefieldTappedUnlessAbility' and len(args) in (1, 2):
             return {'class': 'EntersBattlefieldAbility', 'java': cls, 'effects': [
