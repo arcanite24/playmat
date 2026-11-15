@@ -700,6 +700,9 @@ pub enum TriggerCause {
 pub struct StackItem {
     /// the spell's card, or the source of an ability
     pub card: ObjId,
+    /// a trigger of a card-defined delayed triggered ability (`Game::delayed_triggers`): its holder object, whose
+    /// face (`def`) has the ability; `card` is the ability's source
+    pub from_delayed: Option<ObjId>,
     /// an ability's face, when its source has transformed since it triggered or was activated
     pub def: Option<Arc<CardDef>>,
     pub controller: Seat,
@@ -789,6 +792,25 @@ pub struct ResolvedStatic {
     pub until_turn_of: Option<Seat>,
 }
 
+/// A card's own delayed triggered ability a resolved effect created (`game.addDelayedTriggeredAbility`, a
+/// `DelayedTriggeredAbility` subclass with an event trigger): it waits, held by an object in no zone's list whose face
+/// has just that triggered ability, and triggers as that ability would; its triggers are its source's
+#[derive(Clone, Debug, PartialEq)]
+pub struct DelayedTrigger {
+    /// the holder: an object in the command zone but in no list, a copy of the source's face with the ability
+    pub holder: ObjId,
+    /// its source (603.7e: the source of the ability that created it), with that ability's zone-change count
+    pub source: (ObjId, u32),
+    /// what the creating ability pointed at (`CreateDelayedTriggeredAbilityEffect`'s copied targets), with their
+    /// zone-change counts: its triggers point there unless the trigger points elsewhere
+    pub targets: Vec<Vec<Target>>,
+    pub target_zcc: Vec<Vec<u32>>,
+    /// `Duration.EndOfTurn`: it ends in the cleanup step (otherwise it lasts the game)
+    pub end_of_turn: bool,
+    /// `triggerOnlyOnce`: it's gone once it has triggered
+    pub once: bool,
+}
+
 /// A delayed triggered ability a resolved effect set up: "sacrifice that token at end of combat".
 #[derive(Clone, Debug, PartialEq)]
 pub struct Delayed {
@@ -842,6 +864,7 @@ impl StackItem {
             cost_discarded: Vec::new(),
             explored: None,
             batch: Vec::new(),
+            from_delayed: None,
         }
     }
 }
@@ -978,6 +1001,8 @@ pub struct Game {
     pub at_next_end_step: Vec<StackItem>,
     /// "at the beginning of your next end step" delayed triggers: each waits for its controller's end step
     pub at_your_next_end_step: Vec<StackItem>,
+    /// cards' own delayed triggered abilities waiting for their events, in the order they were created
+    pub delayed_triggers: Vec<DelayedTrigger>,
     /// "until your next turn, if a source would deal damage to that player or a permanent that player controls, it
     /// deals double that damage instead" (Lightning, Army of One): the player, and whose next turn ends it
     pub damage_doubled_to: Vec<(Seat, Seat)>,
@@ -1006,6 +1031,9 @@ pub struct Game {
     /// spells that enter with more +1/+1 counters: the card as it was on the stack (or in the zone it enters from),
     /// and how many
     pub enter_counters: Vec<(ObjId, u32, i32)>,
+    /// of `enter_counters`, the ones a replacement effect gives (Drana, the Last Bloodchief's counter effect), not
+    /// `setEnterWithCounters`: one more replacement whose order its controller picks as the card enters
+    pub enter_counters_replacing: Vec<(ObjId, u32)>,
     /// the stack position of the spell or ability being cast or activated: not paid for yet (a view shows it unpaid)
     pub unpaid: Option<usize>,
     /// `unpaid` once its mana is paid, while its other costs are (the view shows it paid)
@@ -1490,6 +1518,7 @@ impl Game {
             at_end_of_combat: Vec::new(),
             at_next_end_step: Vec::new(),
             at_your_next_end_step: Vec::new(),
+            delayed_triggers: Vec::new(),
             damage_doubled_to: Vec::new(),
             when_dies: Vec::new(),
             at_next_upkeep: Vec::new(),
@@ -1500,6 +1529,7 @@ impl Game {
             next_creature_spell: Vec::new(),
             next_instant_sorcery: Vec::new(),
             enter_counters: Vec::new(),
+            enter_counters_replacing: Vec::new(),
             unpaid: None,
             mana_paid: None,
             combat_groups: Vec::new(),
@@ -1880,8 +1910,14 @@ impl Game {
                 i.card == id
                     && i.ability.is_none()
                     && i.targets.iter().flatten().any(|t| match t {
+                        // `getPermanentOrLKIBattlefield`: a target that left the battlefield since (Fugitive Droid
+                        // sacrificed to counter the spell that targets it) as it was; the stack hasn't emptied since
+                        // it was targeted, so Java still has its last known information
                         Target::Obj(x) => {
-                            self.obj(*x).zone == Zone::Battlefield && self.filter_matches(filter, you, source, *x)
+                            let o = self.obj(*x);
+                            (o.zone == Zone::Battlefield
+                                || self.watch.left_battlefield.iter().any(|l| l.id == *x && l.zcc + 1 == o.zcc))
+                                && self.filter_matches(filter, you, source, *x)
                         }
                         _ => false,
                     })
@@ -2510,6 +2546,18 @@ impl Game {
                             || (o.front.is_some() && o.zone == Zone::Battlefield))
                             .then(|| o.def.clone())
                             .or_else(|| lki.cloned());
+                        // a card's delayed trigger: its source's, pointing where the ability that made it did
+                        if let Some(dt) = self.delayed_triggers.iter().find(|t| t.holder == src) {
+                            fired.push(StackItem {
+                                ability: Some((i, dt.source.1)),
+                                def: Some(o.def.clone()),
+                                from_delayed: Some(src),
+                                targets: dt.targets.clone(),
+                                target_zcc: dt.target_zcc.clone(),
+                                ..StackItem::spell(dt.source.0, o.controller)
+                            });
+                            continue;
+                        }
                         fired.push(StackItem { ability: Some((i, o.zcc)), def, ..StackItem::spell(src, o.controller) });
                     }
                 }
@@ -2687,6 +2735,12 @@ impl Game {
     /// Where a waiting trigger is in Java's trigger order: its source's, or for an ability a Class level added, after
     /// every object's own (in the order the levels were gained)
     pub fn trigger_key(&self, t: &StackItem) -> u64 {
+        // a card's delayed trigger: `GameState.handleEvent` checks the delayed ones after every object's, in the order
+        // they were created
+        if let Some(h) = t.from_delayed {
+            let k = self.delayed_triggers.iter().position(|d| d.holder == h).unwrap_or(0);
+            return (1 << 41) + k as u64;
+        }
         let o = self.obj(t.card);
         if let Some((i, _)) = t.ability {
             if let Some(crate::card::Condition::ClassLevel { n }) =
@@ -3167,7 +3221,11 @@ impl Game {
                 t.ability.and_then(|(i, _)| self.item_def(&t).abilities.get(i)),
                 Some(AbilityDef::TriggeredAbility { targets, .. }) if !targets.is_empty()
             );
-            match self.batch_pending.iter_mut().find(|b| b.card == t.card && b.ability == t.ability) {
+            match self
+                .batch_pending
+                .iter_mut()
+                .find(|b| b.card == t.card && b.ability == t.ability && b.from_delayed == t.from_delayed)
+            {
                 Some(b) => {
                     b.x += 1;
                     b.batch.push((id, zcc, from));
@@ -3192,7 +3250,12 @@ impl Game {
     }
 
     pub fn trigger_sources(&self) -> Vec<ObjId> {
-        self.battlefield.iter().chain(self.command.iter()).copied().collect()
+        self.battlefield.iter().chain(self.command.iter()).copied().chain(self.delayed_holders()).collect()
+    }
+
+    /// the objects holding the cards' delayed triggers waiting for their events (`Game::delayed_triggers`)
+    pub fn delayed_holders(&self) -> impl Iterator<Item = ObjId> + '_ {
+        self.delayed_triggers.iter().map(|t| t.holder)
     }
 
     pub fn whose(who: &str, you: Seat, seat: Seat) -> bool {
@@ -4412,6 +4475,7 @@ impl Game {
             let mut sources: Vec<ObjId> =
                 self.lookback.iter().copied().filter(|o| !self.battlefield.contains(o)).collect();
             sources.extend(self.battlefield.iter().copied());
+            sources.extend(self.delayed_holders());
             self.trigger_cause = Some(TriggerCause::Died(id));
             let fired = self.triggers(sources, |g, src, you, t| match t {
                 Trigger::Dies
@@ -4450,7 +4514,7 @@ impl Game {
             // a source that left in the same action triggers as the permanent it was (Morbid Opportunist dying with
             // the others: its "once each turn" counts that object, not the card in the graveyard)
             for t in fired.iter_mut() {
-                if t.card != id && !self.battlefield.contains(&t.card) {
+                if t.card != id && !self.battlefield.contains(&t.card) && t.from_delayed.is_none() {
                     if let Some((_, zcc)) = t.ability.as_mut() {
                         *zcc = zcc.saturating_sub(1);
                     }
@@ -4473,7 +4537,7 @@ impl Game {
             }
             fired
         } else if from == Zone::Battlefield && zone != Zone::Battlefield {
-            let sources: Vec<ObjId> = self.battlefield.iter().copied().collect();
+            let sources: Vec<ObjId> = self.battlefield.iter().copied().chain(self.delayed_holders()).collect();
             self.triggers(sources, |g, src, you, t| match t {
                 Trigger::LeavesBattlefield | Trigger::EntersOrLeaves => src == id,
                 Trigger::LeavesAll { filter } => g.filter_matches(filter, you, Some(src), id),
@@ -4822,6 +4886,34 @@ impl Game {
             let fired = self.triggers([id], |_, src, _, t| src == id && matches!(t, Trigger::MadnessExiled));
             self.pending.extend(fired);
         }
+        // "when this card is put into a graveyard from …" (`ZoneChangeTriggeredAbility` to the graveyard): the card
+        // there triggers, with the batch's other triggers of this move
+        if from != Zone::Graveyard
+            && self.obj(id).zone == Zone::Graveyard
+            && !self.obj(id).token
+            && self
+                .obj(id)
+                .def
+                .abilities
+                .iter()
+                .any(|a| matches!(a.trigger(), Some(Trigger::PutIntoGraveyardSource { .. })))
+        {
+            let fz = match from {
+                Zone::Library => "library",
+                Zone::Hand => "hand",
+                Zone::Battlefield => "battlefield",
+                Zone::Stack => "stack",
+                Zone::Exile => "exile",
+                _ => "",
+            };
+            let own = self.triggers([id], |_, src, _, t| {
+                src == id && matches!(t, Trigger::PutIntoGraveyardSource { from: f } if f.is_empty() || f == fz)
+            });
+            if !own.is_empty() {
+                dies.extend(own);
+                dies.sort_by_key(|t| self.trigger_key(t));
+            }
+        }
         // DISCARDED_CARD, after the move (a card from a hand to a graveyard is a discarded one)
         if from == Zone::Hand && requested == Zone::Graveyard {
             self.discarded.push((owner, id));
@@ -4845,7 +4937,11 @@ impl Game {
         for mut t in dies {
             // "whenever one or more … die": once a batch, after the batch's other triggers
             if matches!(self.trigger_of(&t), Some(Trigger::DiesAll { batch: true, .. })) {
-                if !self.batch_pending.iter().any(|b| b.card == t.card && b.ability == t.ability) {
+                if !self
+                    .batch_pending
+                    .iter()
+                    .any(|b| b.card == t.card && b.ability == t.ability && b.from_delayed == t.from_delayed)
+                {
                     self.batch_pending.push(t);
                 }
                 continue;

@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (12,665 on 15 Nov). A card whose JSON the engine can't load yet is left out
+  can express (13,578 on 15 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -1288,6 +1288,117 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   effects, card-defined delayed triggers, trigger events the engine has no `Trigger` for such as life paid, gift
   given or counters added, mana replacements beyond {C}, a cost class of a card's own), random or unordered ones
   (Tersa, Ral Zarek's coin flips, random bottom orders, HashSet walks) and the long tail no one reached.
+  Wave 14, shared forms A (15 Nov): framework forms that block several cards each, then a few card classes. Handlers
+  for `GainControlAllUntapGainHasteEffect` (Mob Rule), `AddCountersPlayersEffect` (poison for each opponent),
+  `PutSavedPermanentCountersTargetEffect` (Java's `HashMap` order of the counter names), `CantBlockUnlessYouControl
+  SourceEffect`, `CantAttackUnlessDefenderControllsPermanent`, the `CantBeBlockedBy…` restrictions, `DetainAllEffect`,
+  `ExchangeLifeTwoTargetEffect`, `CastOnlyIfYouHaveCastAnotherSpellEffect`, `BlightControllerEffect`,
+  `CreateRoleAttachedSourceEffect`, `HasSubtypesSourceEffect`, `AttachToSourceTargetEffect`,
+  `DamageWithPowerFromSourceToAnotherTargetEffect`, `TargetController.SOURCE_TARGETS`'s controller predicate,
+  `CastAsThoughItHadFlashIfConditionAbility` (an as-though flash and a cast-late rule that undoes the cast unless the
+  condition holds: Bard's Company, Illusion Spinners, Silver Scrutiny) and `AttacksAloneAttachedTriggeredAbility`.
+  The transpiler reads `DealsDamageToYouAllTriggeredAbility`, `GainLoseLifeYourTurnTriggeredAbility`,
+  `ZoneChangeAllTriggeredAbility` from the battlefield (Ninth Bridge Patrol), `InvestigateTargetEffect`, the
+  4-argument `MillThenPutInHandEffect`, `BoostAllEffect`'s exclude-source overload and a `LockedInCondition` boost
+  with no otherwise (Savage Punch, Burrog Barrage, Cantankerous Captain); it ignores `setDependedToType`, and leaves
+  out a static handler granted to permanents with an ability (Jubilant Skybonder: the engine finds who has it through
+  their abilities, which read the statics again, a stack overflow). Engine fixes: a spell's own `Zone.ALL` cast-late
+  rule handlers apply as it is cast, a card's own layer-4 subtype handlers apply in every zone, and a spell that
+  targets a permanent still does once the permanent has left, as Java's last known information
+  (`TargetsPermanentPredicate`: Fugitive Droid sacrificed to counter Savage Punch, which targets it). 55 cards came in
+  (13,023 in the engine); three factory rounds (84 games, 69 replayed, all matching) verified 54: 12,723 of 13,023.
+  Three games under `shadow/wave14-shared-a/` cover the engine fixes. Not verified: Teysa, Envoy of Ghosts (not
+  exercised enough). Left on the list: random discards and dice, curses (`TargetController.ENCHANTED`),
+  `AddCardTypeSourceEffect` statics, `MayPay2LifeForColorAbility`, the adversaries' `DoIfAnyNumberCostPaid`,
+  `AttacksAndIsNotBlockedTriggeredAbility`, equip activation limits, `CompleatedAbility`, mana abilities of their own
+  kinds, `ReplaceTreasureWithAdditionalEffect` (Xorn) and the long tail.
+  Wave 14, shared forms B (15 Nov): framework forms and classes shared by several of the claim's cards. A card's
+  own put-into-graveyard trigger (`Trigger::PutIntoGraveyardSource`, from the library or from anywhere: Narcomoeba,
+  Gaea's Blessing), fired after the move as Java's zone-change event is; a spell's or ability's target adjuster that
+  has a target handler stands in for its targets (Fiendish Panda, Body Launderer); the `domain` count for looks
+  (Slimefoot's Survey); `TargetController.ACTIVE`/`INACTIVE` controller predicates; `LifeCompareCondition` for each
+  player; `SacrificeSourceUnlessConditionEffect`; `DamageTargetAndYouEffect`; `ConditionalOneShotEffect(…)
+  .addOtherwiseEffect(…)` (Behold the Unspeakable's "scry 2, then draw two"; a chained `addOtherwiseEffect` the
+  translator doesn't read is no longer dropped); Rise from the Wreck's each-target return; and handlers for
+  `AscendEffect`, `GainControlAllEffect`, `SearchLibraryGraveyardPutOntoBattlefieldEffect`,
+  `EnterUntappedAllEffect`, `ExileGraveyardAllPlayersEffect`, `LoseHalfLifeTargetEffect` (pointed at the active
+  player on an "each upkeep" trigger, like `LoseLifeTargetEffect`), `DamageAttachedControllerEffect`,
+  `NoAbilityPredicate` (only a spell ability counts as none, as Java's `SpellAbility` class check does),
+  `VariableManaCostPredicate`, cards-in-library and colors-among counts, Vona's Hunger, Expel from Orazca and
+  Sanctum of All. Chorale of the Void's defending player comes from its last known attachment and a former attacker
+  (`getSourcePermanentOrLKI`, `getDefendingPlayerId` with former groups). Three factory rounds (74 games, 73
+  matching) verified 47: 12,716 of 13,018. Eleven games under `shadow/wave14-shared-b/` cover the pieces. Not
+  verified: Tribute to Horobi (Java lets Echo of Death's Wail sacrifice itself as "another creature": the transformed
+  face's abilities have a source other than the permanent, not reproduced), Havoc Festival and The Cauldron of
+  Eternity (not exercised enough). Left on the list: `DoUnlessTargetPlayerOrTargetsControllerPaysEffect` with an
+  `OrCost` (Starseer Mentor, Thornplate Intimidator, Mogis, Elesh Norn), `CastFromHandSourcePermanentCondition`,
+  `EndTurnEffect`, the mana-ability forms, delayed triggers whose text needs more, switched power and toughness,
+  `FederationCount`, `TransformedPredicate`, card-specific adjusters (Harness the Storm, Rampaging Raptor) and the
+  layer-ordering ones (Retro-Mutation).
+  Wave 14, claim 1 (15 Nov): cards blocked only by their own classes, used ones first, then the cheapest. 225
+  cards came in (13,193 in the engine), most through per-card handlers, some through new engine pieces:
+  card-defined delayed triggers (`EffectDef::CreateDelayedTriggerEffect { ability, end_of_turn, once,
+  no_copy_targets }`, Java's `CreateDelayedTriggeredAbilityEffect(new X())` of a card's own
+  `DelayedTriggeredAbility` with a trigger handler: a hidden holder in `Game::delayed_triggers` that
+  `trigger_sources()`, the dies and leaves paths see, firing as the source with the creating ability's targets
+  unless `copyTargets` is false, ordered after the normal triggers, removed after its one trigger or at cleanup;
+  a handler effect can run one from its `.effects`: Death Frenzy, Gnawing Crescendo, Mage Hunters' Onslaught,
+  Massacre Girl, Dovin, Grand Arbiter, Ondu Rising); `Trigger::CounterAddedAll` (`COUNTER_ADDED`, once per
+  counter, after the permanent's own), `Trigger::CountersAddedAll` (`COUNTERS_ADDED`, X counters, optionally the
+  first time this turn: Stalwart Successor, Axgard Artisan), `Trigger::BecomesRenownedAll` (Valeron Wardens) and
+  `Trigger::TokenCreated` (`CREATED_TOKEN`, after the token's own enters triggers, not for a resolving permanent
+  spell copy), plus an `AddCounters` replacement event for handlers (`counters_to_add`, before
+  `ModifyCountersAddedEffect`); `cast_one_for_free_from` over given cards (Rashmi, Bre of Clan Stoutarm). Engine
+  fixes found by the factory, each with a game under `shadow/wave14-c1/`: a beginning-of-step trigger points
+  "that player" at the active player inside a `ConditionalOneShotEffect` too (Bandit's Talent); a spell's "when you
+  cast this spell" trigger is controlled by its caster, not its owner (Show of Confidence cast through Nita); a
+  card cast free from exile shows the "Choose spell or ability" picker (`suppressAbilityPicker` doesn't hide it for
+  `castSourceIdWithAlternateMana`: Release to the Wind); a handler's "enters with" counters count among the
+  replacements Java asks the order of (Drana, the Last Bloodchief); `LoseLifeTriggeredAbility(…, setTargetPointer)`
+  points at the player who lost the life (The Master of Lake-town); an activated ability's Phyrexian mana is asked
+  right after X, before its targets (Skrelv, Defector Mite). Four factory rounds (306 games, 282 matching, 6 Java
+  unfinished) verified 205: 12,874 of 13,193. Not verified: Gisa, Glorious Resurrector, Sol'Kanar the Tainted,
+  Mage Hunters' Onslaught, Massacre Girl, Rescue from the Underworld, Mythos of Brokkos, Cryptic Coat, Saheeli,
+  Filigree Master, Thranduil's Decree, Brilliance Unleashed, Vivien's Invocation and Zero Point Ballad (each blamed for a game that parts,
+  often on another card: Bereaved Survivor's transform trigger, a priority holder after Talisman of Resilience);
+  Gnawing Crescendo (its delayed trigger's text: the base rule is empty, so the token's "This token can't block."
+  is shown); Daredevil, Man Without Fear (its "whenever you attack" trigger and Scorch Spitter's go on the stack in
+  the other order); Refuse // Cooperate (Java's Refuse can target the resolving Hazoret's Undying Fury, still on
+  the stack; the engine takes a resolving spell off first); Ulamog's Despoiler and Blight Herder (Java auto-chooses
+  two cards in `HashSet` order); Apex of Power, Karn's Temporal Sundering and Nicol Bolas, the Deceiver (not cast
+  enough). Left on the list: about 400 cards, mostly layer 4 type and color changes, requirement effects, delayed
+  triggers that carry their own data (Fire Giant's Fury, Medomai's Prophecy, Niko Aris, Tamiyo), life paid and
+  investigated events, replacement handlers that ask (Jinnie Fay, Moonlit Meditation, Kalitas), cards that play
+  from exile or the graveyard with conditions, and the random or unordered ones (coin flips, dice, random bottom
+  orders, `HashSet`/`HashMap` walks).
+  Wave 14, claim 2 (15 Nov): cards blocked only by their own classes, used ones first, then by Java file length.
+  281 handler files (one-shot effects, conditions, values, predicates, base-plus-check triggers, cost, continuous,
+  restriction and replacement statics) bring 283 cards in (13,251 in the engine), among them the used Kaervek, the
+  Punisher, Athreos, Shroud-Veiled, Shang-Chi, Master of Kung Fu, Sothera, the Supervoid, Ajani Steadfast, Depala,
+  Urabrask and Polymorphist's Jest. Engine and transpiler fixes, each with a game under `shadow/wave14-c2/`: a granted
+  trigger whose class's `getRule` returns a fixed string keeps that text ("Whenever this creature deals combat
+  damage…": Sixth Sense); a that-player target whose effect has fixed text gets no "(controlled by …)" (Etrata, the
+  Silencer); "enters or transforms into" triggers fire for the face it turned into, back faces too (Wildsong Howler);
+  an Aura's mana or activated ability wrapped in a `ConditionalContinuousEffect` is granted to the land while the
+  condition holds (Nature's Embrace). Three factory rounds (394 games, 357 matching, one Java unfinished) verified
+  251: 12,920 of 13,251. Not verified (each blamed for a game that differs): Java texts with an object's UUID link
+  (`object_id='…' [abc]`) where the engine writes `B16`, in delayed "sacrifice it" and cipher triggers (Macabre
+  Mockery, which also takes Pharika, Kain, Generous Plunderer, Zimone and Captain Jean-Luc Picard with it); trigger
+  order for two triggers of one event (Alluring Suitor, God-Eternal Rhonas with the legend rule); "which replacement
+  first" answers in combat damage (Arni Brokenbrow, Rescuer Sphinx); Java exceptions rolled back (Vesuvan Drifter
+  copying a double-faced card, Emergent Sequence finding nothing); HashSet order (The Three Seasons' auto-chosen
+  cards); a copy put into a hand (Unexpected Results); a dies trigger's last known power after the card left the
+  graveyard (Dead Man's Chest); the end of stacked control changes (Illusory Gains); Slagstone Refinery triggering on
+  an exile (blamed on Nahiri's Resolve); Daxos of Meletis, Mindreaver (Java's playable and target checks, not
+  understood), Oviya (Shang-Chi's mana paying), Hoarding Broodlord, Iroh, Shorecrasher Elemental, Oran-Rief Hydra,
+  Kinzu, Magnetic Snuffler, Danitha and Avatar of Burgeoning Echoes (one game each, not looked into); Boonweaver
+  Giant, Geometer's Arthropod, The Fall of Kroog and The Tarrasque are pending. Left on the list: about 340 cards
+  whose classes need engine work: CREATE_TOKEN, ADD_COUNTERS, UNTAP and DESTROY replacements; counters-put triggers
+  for any player or on players; energy, discover, explore, collect evidence, enlist, play-land and discard-this-card
+  triggers; the zone a permanent entered from; layer 4 card types and removing types; losing all abilities and
+  multi-layer statics; card-defined and "this turn" delayed triggers; a card's own `CostImpl` and cost handlers that
+  ask; activating abilities a static grants; Auras on players; snow and Treasure mana spent on abilities; plus the
+  random or unordered ones.
   Text fixes for verified cards (13 Nov): the Young Hero Role's granted trigger keeps its own text, "put a +1/+1
   counter on it" (its `AddCountersSourceEffect` has a `setText`), and a delayed upkeep transform is "Transform {this}
   at the beginning of the next turn's upkeep." (`AtTheBeginOfNextUpkeepDelayedTriggeredAbility.getRule` puts the

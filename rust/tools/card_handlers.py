@@ -143,6 +143,13 @@ def find(source, cls, kind, own_only=False):
     return None
 
 
+def own_kind(t, cls):
+    """the kind of the handler named for this card's class (`OuterCardClass.Class`), or None"""
+    outer = outer_class(getattr(t, 'source', None))
+    h = outer and handlers().get(f'{outer}.{cls}')
+    return h['kind'] if h else None
+
+
 def effect(t, cls, args, own_only=False):
     """`{"class": "CardEffect", …}` for a class with an effect handler (`{"class": "CardStatic", …}` for a static
     one), or None. `t` is transpile's Translator. `own_only`: only a handler named for this card's class."""
@@ -277,8 +284,8 @@ def condition(t, expr):
 def value(t, expr):
     """`{"v": "card", …}` for `new XValue()` or `XValue.instance` with a value handler, or None; `new XValue(…)` with
     arguments only with a handler named for the card (`OuterCardClass.XValue`, written for the card's arguments)"""
-    m = re.fullmatch(r'new (\w+)\(\)|(\w+)\.instance', expr.strip())
-    name = m and find(getattr(t, 'source', None), m.group(1) or m.group(2), 'value')
+    m = re.fullmatch(r'new (\w+)\(\)|(\w+)\.instance|(\w+\.[A-Z][A-Z0-9_]*)', expr.strip())
+    name = m and find(getattr(t, 'source', None), m.group(1) or m.group(2) or m.group(3), 'value')
     if not m and (m := re.fullmatch(r'new (\w+)\(.+\)', expr.strip(), re.S)):
         name = find(getattr(t, 'source', None), m.group(1), 'value', own_only=True)
     return {'v': 'card', 'handler': name} if name else None

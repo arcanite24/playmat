@@ -911,6 +911,13 @@ pub enum Trigger {
     Forage,
     /// this card was discarded into exile by its madness (`MadnessTriggeredAbility`, from exile)
     MadnessExiled,
+    /// this card is put into a graveyard from `from` ("library": `PutIntoGraveFromLibrarySourceTriggeredAbility`;
+    /// empty, from anywhere: `PutIntoGraveFromAnywhereSourceTriggeredAbility`). It triggers from the graveyard, as
+    /// the card it is there.
+    PutIntoGraveyardSource {
+        #[serde(default)]
+        from: String,
+    },
     /// this card becomes plotted (`BecomesPlottedSourceTriggeredAbility`, from exile: `BECOME_PLOTTED`)
     BecomesPlotted,
     /// this enters or leaves the battlefield (`EntersBattlefieldOrLeavesSourceTriggeredAbility`)
@@ -1160,6 +1167,41 @@ pub enum Trigger {
         filter: Filter,
         #[serde(default)]
         counter: String,
+    },
+    /// a `counter` counter (any kind when empty) is put on a permanent of the filter, once for each counter
+    /// (`COUNTER_ADDED`, a card's own trigger class: Knight of Wundagore, Hollowmurk Siege); `who` put it ("you",
+    /// "opponent", "any"); it points at the permanent
+    CounterAddedAll {
+        filter: Filter,
+        #[serde(default)]
+        counter: String,
+        #[serde(default)]
+        who: String,
+    },
+    /// one or more `counter` counters (any kind when empty) are put on a permanent of the filter, once each time
+    /// (`COUNTERS_ADDED`, a card's own trigger class): `who` put them; X is how many, and it points at the permanent.
+    /// With `first_time`, only the first time this turn such counters were put on that permanent
+    /// (`CountersAddedFirstTimeWatcher`, `BoostCountersAddedFirstTimeWatcher`: Stalwart Successor, Axgard Artisan)
+    CountersAddedAll {
+        filter: Filter,
+        #[serde(default)]
+        counter: String,
+        #[serde(default)]
+        who: String,
+        #[serde(default)]
+        first_time: bool,
+    },
+    /// a permanent of the filter becomes renowned (`BECOMES_RENOWNED`, a card's own trigger class: Valeron
+    /// Wardens); it points at the permanent
+    BecomesRenownedAll {
+        filter: Filter,
+    },
+    /// a token of the filter is created (`CREATED_TOKEN`, a card's own trigger class: Voldaren Bloodcaster) under
+    /// the control of `who` ("you", "opponent", "any"); it points at the token
+    TokenCreated {
+        filter: Filter,
+        #[serde(default)]
+        who: String,
     },
     /// you activate an ability that isn't a mana ability, of `kind` ("exhaust", "power_up", "any";
     /// "creature_or_land": of a creature or land permanent) (`ActivateAbilityTriggeredAbility`, `ACTIVATED_ABILITY`);
@@ -2760,6 +2802,20 @@ pub enum EffectDef {
         rule: String,
         #[serde(default)]
         to_player: bool,
+    },
+    /// `CreateDelayedTriggeredAbilityEffect` (or a handler's `game.addDelayedTriggeredAbility`) of a card's own
+    /// `DelayedTriggeredAbility` class with an event trigger: `ability` is it as a triggered ability (a trigger
+    /// handler's base and check); it waits in `Game::delayed_triggers`, pointing at what this ability points at,
+    /// until the cleanup step (`end_of_turn`, `Duration.EndOfTurn`) or for the game, and once it has triggered it's
+    /// gone if `once` (`triggerOnlyOnce`); `no_copy_targets`: it points at nothing (`copyTargets` false)
+    CreateDelayedTriggerEffect {
+        ability: Box<AbilityDef>,
+        #[serde(default)]
+        end_of_turn: bool,
+        #[serde(default)]
+        once: bool,
+        #[serde(default)]
+        no_copy_targets: bool,
     },
     /// "at the beginning of the next end step, …" (`CreateDelayedTriggeredAbilityEffect` with
     /// `AtTheBeginOfNextEndStepDelayedTriggeredAbility`)
