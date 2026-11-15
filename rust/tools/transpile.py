@@ -1340,6 +1340,7 @@ _YOU = {'p': 'controller', 'who': 'you'}
 COST_ADJUSTERS = {
     'DomainAdjuster': ('DomainValue.REGULAR', None),
     'BattlefieldButcherAdjuster': ('new CardsInControllerGraveyardCount(StaticFilters.FILTER_CARD_CREATURE)', None),
+    'PteramanderAdjuster': ('new CardsInControllerGraveyardCount(StaticFilters.FILTER_CARD_INSTANT_OR_SORCERY)', None),
     'DiaryOfDreamsAdjuster': ('new CountersSourceCount(CounterType.PAGE)', None),
     'VindictiveFlamestokerAdjuster': ('new CountersSourceCount(CounterType.OIL)', None),
     'HyldasCrownOfWinterAdjuster': (1, 'MyTurnCondition.instance'),
@@ -3267,6 +3268,16 @@ class Translator:
                 and args[1].strip() == 'Duration.WhileOnBattlefield' \
                 and args[2].strip() in ('MaximumHandSizeControllerEffect.HandSizeModification.SET', 'HandSizeModification.SET'):
             return {'class': 'MaximumHandSizeSetEffect', 'size': int(args[0])}
+        # adapt N as an ability's effect: "if this has no +1/+1 counters, put N on it"
+        if cls == 'AdaptEffect' and len(args) == 1 and re.fullmatch(r'\d+', args[0].strip()):
+            return {'class': cls, 'amount': int(args[0])}
+        # ("again" text after it, reminder shown): the words are the rule's only
+        if cls == 'ProliferateEffect' and len(args) == 2 and re.fullmatch(r'"[^"]*"', args[0].strip()) \
+                and args[1].strip() in ('true', 'false'):
+            return {'class': cls}
+        # (counter, amount, outcome): the outcome is only for the AI
+        if cls == 'AddCountersTargetEffect' and len(args) == 3 and re.fullmatch(r'Outcome\.\w+', args[2].strip()):
+            args = args[:2]
         if cls == 'AddCountersTargetEffect' and len(args) == 2:
             return {'class': cls, 'counter': self.value('counter', args[0].strip()), 'value': self.amount(args[1])}
         # (effect, condition[, text])
@@ -3281,6 +3292,15 @@ class Translator:
         if cls == 'ConditionalOneShotEffect' and len(args) == 4:
             return {'class': cls, 'effect': self.effect(args[0]), 'otherwise': self.effect(args[1]),
                     'condition': self.condition(args[2])}
+        # "{this} doesn't untap during your untap step unless …" (Bombur): checked at the untap step
+        if cls == 'ConditionalContinuousRuleModifyingEffect' and len(args) == 2 \
+                and not args[1].strip().startswith('new LockedInCondition('):
+            try:
+                inner = self.effect(args[0])
+            except Unsupported:
+                inner = None
+            if inner == {'class': 'DontUntapInControllersUntapStepSourceEffect'}:
+                return {'class': 'ConditionalContinuousEffect', 'effect': inner, 'condition': self.condition(args[1])}
         # a spell's "if …, damage can't be prevented this turn" (Wild Slash's ferocious): worked out as it resolves
         # (`LockedInCondition`)
         if cls == 'ConditionalContinuousRuleModifyingEffect' and len(args) == 2 \
@@ -3688,6 +3708,10 @@ class Translator:
         if cls == 'LoseAllAbilitiesTargetEffect' and args == ['Duration.EndOfTurn']:
             return {'class': cls}
         if cls in ('DontUntapInControllersUntapStepSourceEffect', 'UntapSourceEffect', 'RegenerateTargetEffect') and not args:
+            return {'class': cls}
+        # (messageToUser, messageToLog): only what's told
+        if cls == 'DontUntapInControllersUntapStepSourceEffect' and len(args) == 2 \
+                and all(a.strip() in ('true', 'false') for a in args):
             return {'class': cls}
         if cls == 'CantGainLifeAllEffect' and args == ['Duration.EndOfTurn']:
             return {'class': 'CantGainLifeThisTurnEffect'}
@@ -4210,8 +4234,8 @@ class Translator:
             return {'class': 'BoostEquippedUntilEndOfTurnEffect', 'power': self.amount(args[0]),
                     'toughness': self.amount(args[1])}
         # "enchanted (equipped) creature gains … until end of turn", the same way
-        if cls == 'GainAbilityAttachedEffect' and len(args) == 3 and args[1] in attachment \
-                and args[2] == 'Duration.EndOfTurn':
+        if cls == 'GainAbilityAttachedEffect' and len(args) in (3, 4) and args[1] in attachment \
+                and args[2] == 'Duration.EndOfTurn' and (len(args) == 3 or text(args[3])):
             return {'class': 'GainAbilityAttachedUntilEndOfTurnEffect', 'ability': self.ability(args[0])}
         if cls in ('LoseAbilityTargetEffect', 'LoseAbilitySourceEffect') and len(args) == 2 and args[1] == 'Duration.EndOfTurn':
             return {'class': cls, 'ability': self.ability(args[0])}
@@ -5265,6 +5289,16 @@ class Translator:
         # (Zone.BATTLEFIELD, effect, optional) is the two-argument form
         if cls == 'LandfallAbility' and len(args) == 3 and args[0].strip() == 'Zone.BATTLEFIELD':
             return self.ability('new LandfallAbility(' + ','.join(args[1:]) + ')')
+        # "when you gain life for the first time each turn, return this from your graveyard" (`when` only words it,
+        # and the rule is read from the card's text)
+        if cls == 'GainLifeFirstTimeTriggeredAbility' and len(args) == 4 \
+                and args[0].strip() in ('Zone.BATTLEFIELD', 'Zone.GRAVEYARD') \
+                and all(a.strip() in ('true', 'false') for a in args[2:]):
+            a = self.ability('new ' + cls + '(' + args[1] + ')')
+            a['optional'] = args[2].strip() == 'true'
+            if args[0].strip() == 'Zone.GRAVEYARD':
+                a['on']['graveyard'] = True
+            return a
         if cls in STEP_TRIGGERS and len(args) == 4 and args[0].strip() == 'Zone.GRAVEYARD':
             a = self.ability('new ' + cls + '(' + ','.join(args[1:]) + ')')
             a['on']['graveyard'] = True
@@ -6661,6 +6695,12 @@ class Translator:
         # whenever you draw your `n`th card each turn
         if cls == 'DrawNthCardTriggeredAbility' and n == 3 and re.fullmatch(r'\d+', args[2]):
             return out({'e': 'draws_nth', 'n': int(args[2])}, args[0], flag(args[1]))
+        # (zone, effect, optional, controller, n): from its owner's graveyard (Wolfbat)
+        if cls == 'DrawNthCardTriggeredAbility' and n == 5 and args[0] in ('Zone.BATTLEFIELD', 'Zone.GRAVEYARD'):
+            a = self.ability('new DrawNthCardTriggeredAbility(' + ','.join(args[1:]) + ')')
+            if args[0] == 'Zone.GRAVEYARD':
+                a['on']['graveyard'] = True
+            return a
         # an opponent (any player) draws their `n`th card each turn
         if cls == 'DrawNthCardTriggeredAbility' and n == 4 and re.fullmatch(r'\d+', args[3]) \
                 and args[2] in ('TargetController.YOU', 'TargetController.OPPONENT', 'TargetController.ANY'):
