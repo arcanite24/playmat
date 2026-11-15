@@ -18372,11 +18372,20 @@ fn apply_each_effect(
             }
             // resolving, "{this} gains … until end of turn"; as a static ability it's `Game::has_ability`'s
             EffectDef::GainAbilitySourceEffect { ability, duration } => {
-                if *duration == Duration::EndOfTurn
-                    && game.obj(source.0).zone == Zone::Battlefield
-                    && game.obj(source.0).zcc == source.1
-                {
-                    grant(game, source.0, ability);
+                if game.obj(source.0).zone == Zone::Battlefield && game.obj(source.0).zcc == source.1 {
+                    if *duration == Duration::EndOfTurn {
+                        grant(game, source.0, ability);
+                    } else if *duration == Duration::WhileOnBattlefield {
+                        // for as long as it stays on the battlefield (Flame-Wreathed Phoenix's haste)
+                        let zcc = source.1;
+                        Arc::make_mut(&mut game.grants).push(Grant {
+                            target: source.0,
+                            zcc,
+                            ability: (**ability).clone(),
+                            until_end_of_turn: false,
+                            until_turn_of: None,
+                        });
+                    }
                 }
             }
             // a spell's (Energybending): the controller's lands gain all basic land types until end of turn (a
