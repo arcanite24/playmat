@@ -2007,6 +2007,9 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
         CostDef::RemoveCountersFromAmongCost { filter, .. } => {
             matching(game, filter, seat, id).iter().any(|p| game.obj(*p).controller == seat)
         }
+        CostDef::ExileTargetCost { filter } => {
+            matching(game, filter, seat, id).iter().any(|p| game.obj(*p).controller == seat)
+        }
         // you can only sacrifice your own permanents
         CostDef::SacrificeTargetCost { filter, amount } => {
             matching(game, filter, seat, id).iter().filter(|p| game.obj(**p).controller == seat).count() >= *amount
@@ -7610,6 +7613,20 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             }
             game.sac_insert = insert;
             game.lookback = outer;
+        }
+        // `ExileTargetCost.pay`: the permanent chosen (`Targets.choose`), then exiled
+        CostDef::ExileTargetCost { filter } => {
+            let possible: Vec<ObjId> =
+                matching(game, filter, seat, id).into_iter().filter(|p| game.obj(*p).controller == seat).collect();
+            if possible.is_empty() {
+                return false;
+            }
+            let rule = cost_source_rule(game, id);
+            let Some(chosen) = choose_cards_with(game, d, seat, &possible, &possible, 1, 1, &rule, true) else {
+                return false;
+            };
+            let Some(&o) = chosen.first() else { return false };
+            game.move_to(o, Zone::Exile);
         }
         // announced and paid as a `SacrificeTargetCost` in `cast_with`
         CostDef::SacrificeXTargetCost { .. } => {}

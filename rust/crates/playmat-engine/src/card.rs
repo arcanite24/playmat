@@ -1656,6 +1656,11 @@ pub enum CostDef {
         #[serde(default = "one")]
         amount: usize,
     },
+    /// exile a permanent of the filter you control (`ExileTargetCost` of a `TargetControlledPermanent`, chosen as
+    /// the cost is paid; not into the source's exile zone: `withSourceExileZone(false)`)
+    ExileTargetCost {
+        filter: Filter,
+    },
     /// an additional cost: sacrifice any number (X, announced as the spell is cast) of the filter's permanents
     SacrificeXTargetCost {
         filter: Filter,
