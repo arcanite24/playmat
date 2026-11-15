@@ -678,7 +678,7 @@ pub(crate) fn has_subtype(game: &Game, id: ObjId, s: &str) -> bool {
 
 fn has_subtype_now(game: &Game, id: ObjId, s: &str) -> bool {
     let mut out = false;
-    each_static(game, &mut |h, cx, _| {
+    let mut check = |h: &'static Hook, cx: &StaticCx, _: &EffectDef| {
         let Hook::Continuous(c) = h else { return };
         for layer in c.layers() {
             if let Layer::Type(f) = layer {
@@ -687,7 +687,10 @@ fn has_subtype_now(game: &Game, id: ObjId, s: &str) -> bool {
                 }
             }
         }
-    });
+    };
+    each_static(game, &mut check);
+    // a card's own, in every zone (`Zone.ALL`: `HasSubtypesSourceEffect`)
+    each_own_static(game, id, &mut check);
     out
 }
 
