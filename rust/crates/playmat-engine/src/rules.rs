@@ -11278,6 +11278,17 @@ fn refresh_land_types(game: &mut Game) {
             granted.push((g.target, g.ability.clone()));
         }
     }
+    // a handler's layer 6 grant of a mana ability (Territory Forge's "has all activated abilities of the exiled
+    // card": the exiled land's "{T}: Add {G}"), tapped for mana like its own
+    let ids: Vec<ObjId> = game.battlefield.iter().copied().collect();
+    for id in ids {
+        let lost_at = game.abilities_lost_at(id);
+        for a in cards::abilities(game, id, lost_at) {
+            if a.mana().is_some() && !granted.iter().any(|(t, x)| *t == id && *x == a) {
+                granted.push((id, a));
+            }
+        }
+    }
     // Tide Shaper's: kept while its source and the land are still those objects
     let here = |g: &Game, o: ObjId, z: u32| g.obj(o).zone == Zone::Battlefield && g.obj(o).zcc == z;
     if game.land_becomes.iter().any(|(l, lz, s, sz, _)| !here(game, *l, *lz) || !here(game, *s, *sz)) {
