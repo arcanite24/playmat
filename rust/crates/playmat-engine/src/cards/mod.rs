@@ -338,6 +338,17 @@ impl Handler {
         Handler::new(java, Hook::Predicate(f))
     }
 
+    /// a card's own `Target` class (a `TargetPermanent` or `TargetCardInYourGraveyard` with its own `canTarget`):
+    /// `base` is the framework target it extends, in Java (`"new TargetPermanent(2, 2, …, false)"`), and `f` its
+    /// `canTarget` beyond the base's filter, a predicate the transpiler adds to that filter. While its targets are
+    /// chosen, `game.chosen_before` has the ability's earlier targets and then this target's own chosen so far
+    /// (Java's `this.getTargets()`); checked on its own (as it resolves), it has none.
+    pub const fn target(java: &'static str, base: &'static str, f: PredicateFn) -> Handler {
+        let mut h = Handler::new(java, Hook::Predicate(f));
+        h.base = base;
+        h
+    }
+
     /// a triggered ability class: `base` is the framework trigger it extends, in Java (`Handler::base`)
     pub const fn trigger(java: &'static str, base: &'static str, f: TriggerFn) -> Handler {
         let mut h = Handler::new(java, Hook::Trigger(f));

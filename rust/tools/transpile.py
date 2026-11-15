@@ -680,7 +680,7 @@ SIMPLE_TRIGGERS = {'EntersBattlefieldTriggeredAbility': 'enters', 'EntersBattlef
 # (nothing after it looks at which trigger it was)
 OR_PARTS = {'enters', 'attacks', 'dies', 'spell_cast', 'step_begins', 'becomes_target_of_spell',
             'combat_damage_to_player', 'enters_all', 'blocks', 'becomes_blocked', 'discards', 'cast_this', 'dies_all',
-            'attacks_attached', 'transforms_into'}
+            'attacks_attached', 'transforms_into', 'sacrificed'}
 
 TARGET_CONTROLLERS = {'TargetController.YOU': 'you', 'TargetController.NEXT': 'any', 'TargetController.ANY': 'any',
                       'TargetController.OPPONENT': 'opponent'}
@@ -3710,6 +3710,10 @@ class Translator:
         if cls == 'CanAttackAsThoughItDidntHaveDefenderSourceEffect' and len(args) in (1, 2) \
                 and args[0] in ('Duration.EndOfTurn', 'Duration.WhileOnBattlefield') and (len(args) == 1 or text(args[1])):
             return gains('GainAbilitySourceEffect', {'class': 'CanAttackAsThoughNoDefenderAbility'}, DURATIONS[args[0]])
+        # "target creature with defender can attack this turn as though it didn't have defender" (Assault Formation)
+        if cls == 'CanAttackAsThoughItDidntHaveDefenderTargetEffect' and len(args) in (1, 2) \
+                and args[0] == 'Duration.EndOfTurn' and (len(args) == 1 or text(args[1])):
+            return gains('GainAbilityTargetEffect', {'class': 'CanAttackAsThoughNoDefenderAbility'}, 'EndOfTurn')
         # "creatures you control can attack as though they didn't have defender"
         if cls == 'CanAttackAsThoughItDidntHaveDefenderAllEffect' and len(args) in (2, 3) \
                 and args[0] == 'Duration.WhileOnBattlefield' and (len(args) == 2 or text(args[2])):
@@ -4216,6 +4220,9 @@ class Translator:
         if isinstance(obj, dict):
             return obj
         cls, args = obj
+        # a target class the card declares, written in Rust (`Handler::target`, card_handlers.py)
+        if (h := card_handlers.target(self, cls, args)) is not None:
+            return h
         if cls in PLAYER_TARGETS and not args:
             return {'class': cls}
         # "any number of target players" / "up to one target player": `TargetPlayer(min, max, false)`
@@ -8683,6 +8690,12 @@ def granted_rules(card):
                 g['rule'] += (' <i>(Exile cards from the top of your library until you exile a nonland card with mana'
                               ' value %s or less. Cast it without paying its mana cost or put it into your hand. Put'
                               ' the rest on the bottom in a random order.)</i>' % m.group(1))
+            # `new ProliferateEffect()` writes its reminder text after "proliferate." (Ichormoon Gauntlet's "0:
+            # Proliferate.")
+            if [e.get('class') for e in effects] == ['ProliferateEffect'] and g['rule'].endswith(': Proliferate.') \
+                    and re.search(r'new ProliferateEffect\((?:true)?\)', card_source(card.get('name'))):
+                g['rule'] += (' <i>(Choose any number of permanents and/or players, then give each another counter of'
+                              ' each kind already there.)</i>')
         elif g.get('class') == 'TriggeredAbility' and quoted:
             # Java writes the granted trigger's own text, where the creature is {this}, unless the card set the
             # trigger phrase itself (`setTriggerPhrase("Whenever this creature attacks, ")`): that's kept as written
