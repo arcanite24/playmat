@@ -305,11 +305,23 @@ def target(t, cls, args):
     """A target class the card declares for itself with a target handler (`Handler::target`): its base target,
     translated, with the handler as a predicate on its filter (its `canTarget`); or None"""
     name = find(getattr(t, 'source', None), cls, 'target', own_only=True)
+    base = name and handlers()[name]['base']
+    args = [a.strip() for a in args if a.strip()]
+    # a framework target class (`TargetPermanentSameController`): its base with `$0`, `$1`… for its constructor's
+    # arguments, as a trigger's
+    if not name and (bare := handlers().get(cls)) and bare['kind'] == 'target' and '$' in bare['base']:
+        name, base = cls, bare['base']
+        holes = sorted({int(x) for x in re.findall(r'\$(\d+)', base)})
+        if holes != list(range(len(args))):
+            raise _unsupported(f'target {cls}: {len(args)} constructor arguments, its handler takes {len(holes)}')
+        for i, arg in enumerate(args):
+            base = base.replace('$%d' % i, arg)
+        args = []
     if not name:
         return None
-    if [a for a in args if a.strip()]:
+    if args:
         raise _unsupported(f'target {cls}: constructor arguments')
-    out = t.target(handlers()[name]['base'])
+    out = t.target(base)
     if 'filter' not in out:
         raise _unsupported(f'target {cls}: its base {out.get("class")} has no filter')
     out['filter'] = list(out['filter']) + [{'p': 'card', 'handler': name}]
