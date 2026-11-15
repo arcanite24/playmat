@@ -1598,6 +1598,7 @@ class Translator:
         greatest = {'POWER_CONTROLLED_CREATURES': ('Power', 'FILTER_CONTROLLED_CREATURES'),
                     'POWER_OTHER_CONTROLLED_CREATURES': ('Power', 'FILTER_OTHER_CONTROLLED_CREATURES'),
                     'TOUGHNESS_CONTROLLED_CREATURES': ('Toughness', 'FILTER_CONTROLLED_CREATURES'),
+                    'TOUGHNESS_OTHER_CONTROLLED_CREATURES': ('Toughness', 'FILTER_OTHER_CONTROLLED_CREATURES'),
                     'MANAVALUE_CONTROLLED_CREATURES': ('ManaValue', 'FILTER_CONTROLLED_CREATURES'),
                     'MANAVALUE_CONTROLLED_PERMANENTS': ('ManaValue', 'FILTER_CONTROLLED_PERMANENTS'),
                     'MANAVALUE_CONTROLLED_ARTIFACTS': ('ManaValue', 'FILTER_CONTROLLED_PERMANENT_ARTIFACTS')}
@@ -1676,6 +1677,11 @@ class Translator:
             return 1
         if arg == 'CreaturesDiedThisTurnCount.instance':
             return {'v': 'creatures_died'}
+        # Caves you control plus Cave cards in your graveyard
+        if arg in ('CavesControlledAndInGraveCount.FOR_EACH', 'CavesControlledAndInGraveCount.WHERE_X'):
+            cave = {'p': 'subtype', 's': 'Cave'}
+            return {'v': 'sum', 'xs': [{'v': 'permanents', 'filter': [cave, {'p': 'controller', 'who': 'you'}]},
+                                       {'v': 'cards_in_graveyard', 'filter': [cave]}]}
         if arg == 'PartyCount.instance':
             return {'v': 'party'}
         if arg == 'ColorsAmongControlledPermanentsCount.ALL_PERMANENTS':
@@ -2916,7 +2922,7 @@ class Translator:
         if self.strip_setters(expr) == 'new ExileTargetEffect().setToSourceExileZone(true)':
             return {'class': 'ExileTargetForSourceEffect'}
         # a cost reduction that only counts while the spell is cast
-        if (m := re.fullmatch(r'(.*)\.setCanWorksOnStackOnly\(true\)', expr.strip(), re.S)):
+        if (m := re.fullmatch(r'(.*)\.setCanWorksOnStackOnly\(true\)', self.strip_setters(expr).strip(), re.S)):
             e = self.effect(m.group(1))
             # a cost handler reads where the spell is itself (card_statics.rs)
             # (`SpellCostReductionForEachSourceEffect` never reads the flag: Huskburster Swarm)
