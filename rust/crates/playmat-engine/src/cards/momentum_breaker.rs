@@ -24,8 +24,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
             .collect();
         let mut sacrificed = false;
         if !possible.is_empty() {
-            let chosen = choose_cards(game, d, opp, &possible, &possible, 1, 1, "sacrifice");
-            let Some(chosen) = chosen else { return None };
+            let chosen = choose_cards(game, d, opp, &possible, &possible, 1, 1, "sacrifice")?;
             for o in chosen {
                 if game.obj(o).zone == Zone::Battlefield {
                     sacrifice(game, o);
