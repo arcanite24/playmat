@@ -2,6 +2,8 @@
  * An 8-seat booster draft against seven COMPUTER_MAD bots, the way the Events screen hosts one (Swiss, 3 rounds, best
  * of one). The player picks the first card of every pack, lets construction run out, and quits the event as soon as
  * round 1 starts: the server should abort it, ending the bots' matches, instead of letting the bots play it out.
+ * A second run ignores the first START_TOURNAMENT and START_DRAFT, as a client whose connection dropped would: the
+ * server sends them again, so the event still starts.
  * Needs a running local server:
  *   MAGE_LIVE_SERVER=1 npx vitest run src/core/headless/botDraftEvent
  */
@@ -20,8 +22,12 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const log = (...parts: unknown[]) => console.log(`[event +${Math.round((Date.now() - t0) / 1000)}s]`, ...parts);
 let t0 = Date.now();
 
-describe.skipIf(!live)('bot draft event', () => {
-  test('rounds finish and quitting the event aborts it', async () => {
+interface RunOptions {
+  /** ignore the first START_TOURNAMENT and START_DRAFT, as if they were lost */
+  dropFirstStarts?: boolean;
+}
+
+async function runEvent({ dropFirstStarts = false }: RunOptions) {
     t0 = Date.now();
     const userName = `ev_${Date.now() % 100000}`;
     const rpc = new RpcClient({ stateDiffs: true });
@@ -35,8 +41,13 @@ describe.skipIf(!live)('bot draft event', () => {
     let draftDoneAt = 0;
     let picks = 0;
 
+    const starts = { draft: 0, tournament: 0 };
     bus.on('START_DRAFT', (_message, event) => {
-      if (event.objectId) void api.draftJoin(event.objectId);
+      if (!event.objectId) return;
+      starts.draft++;
+      if (dropFirstStarts && starts.draft === 1) return log('START_DRAFT ignored');
+      if (starts.draft > 1) log(`START_DRAFT sent again (${starts.draft})`);
+      void api.draftJoin(event.objectId);
     });
     for (const method of ['DRAFT_INIT', 'DRAFT_PICK'] as const) {
       bus.on(method, (message, event) => {
@@ -58,6 +69,9 @@ describe.skipIf(!live)('bot draft event', () => {
     bus.on('START_TOURNAMENT', (_message, event) => {
       if (!event.objectId) return;
       tournamentId = event.objectId;
+      starts.tournament++;
+      if (dropFirstStarts && starts.tournament === 1) return log('START_TOURNAMENT ignored');
+      if (starts.tournament > 1) log(`START_TOURNAMENT sent again (${starts.tournament})`);
       // as the app does: the server starts the event once every human has opened it
       void api.tournamentJoin(event.objectId).catch(() => undefined);
     });
@@ -119,5 +133,17 @@ describe.skipIf(!live)('bot draft event', () => {
     log('dueling tables left in the room', dueling.length);
     expect(dueling.length).toBe(0);
     rpc.disconnect();
+    return starts;
+}
+
+describe.skipIf(!live)('bot draft event', () => {
+  test('quitting the event in round 1 aborts it', async () => {
+    await runEvent({});
+  }, TIMEOUT + 120_000);
+
+  test('a start message that never arrived is sent again', async () => {
+    const starts = await runEvent({ dropFirstStarts: true });
+    expect(starts.tournament).toBeGreaterThan(1);
+    expect(starts.draft).toBeGreaterThan(1);
   }, TIMEOUT + 120_000);
 });

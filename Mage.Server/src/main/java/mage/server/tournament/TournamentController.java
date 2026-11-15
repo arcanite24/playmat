@@ -25,6 +25,7 @@ import mage.server.User;
 import mage.server.draft.DraftController;
 import mage.server.managers.ManagerFactory;
 import mage.server.managers.TableManager;
+import mage.server.util.JoinReminder;
 import mage.util.ThreadUtils;
 import mage.utils.LimitedDeckBuilder;
 import mage.view.ChatMessage.MessageColor;
@@ -132,6 +133,22 @@ public class TournamentController {
             }
         }
         checkStart();
+        JoinReminder.start(managerFactory.threadExecutor().getTimeoutExecutor(), "tourney " + tournament.getId(),
+                () -> started || tournament.isAbort(), this::remindPlayersToJoin);
+    }
+
+    /** sends the start again to the humans whose client hasn't opened the event (see JoinReminder) */
+    private void remindPlayersToJoin() {
+        for (Entry<UUID, UUID> entry : userPlayerMap.entrySet()) {
+            TournamentPlayer player = tournament.getPlayer(entry.getValue());
+            if (player == null || !player.getPlayer().isHuman() || player.hasQuit() || tournamentSessions.containsKey(entry.getValue())) {
+                continue;
+            }
+            managerFactory.userManager().getUser(entry.getKey()).ifPresent(user -> {
+                logger.info("Tourney " + tournament.getId() + ": " + user.getName() + " hasn't opened the event yet, sending its start again");
+                user.ccTournamentStarted(tableId, tournament.getId(), entry.getValue());
+            });
+        }
     }
 
     public void join(UUID userId) {

@@ -9,6 +9,7 @@ import mage.game.events.PlayerQueryEvent;
 import mage.game.events.TableEvent;
 import mage.players.Player;
 import mage.server.managers.ManagerFactory;
+import mage.server.util.JoinReminder;
 import mage.util.ThreadUtils;
 import mage.view.DraftPickView;
 import org.apache.log4j.Logger;
@@ -83,6 +84,22 @@ public class DraftController {
             }
         }
         checkStart();
+        JoinReminder.start(managerFactory.threadExecutor().getTimeoutExecutor(), "draft " + draft.getId(),
+                () -> draft.isStarted() || draft.isAbort(), this::remindPlayersToJoin);
+    }
+
+    /** sends the start again to the humans whose client hasn't opened the draft (see JoinReminder) */
+    private void remindPlayersToJoin() {
+        for (Entry<UUID, UUID> entry : userPlayerMap.entrySet()) {
+            DraftPlayer player = draft.getPlayer(entry.getValue());
+            if (player == null || !player.getPlayer().isHuman() || draftSessions.containsKey(entry.getValue())) {
+                continue;
+            }
+            managerFactory.userManager().getUser(entry.getKey()).ifPresent(user -> {
+                logger.info("Draft " + draft.getId() + ": " + user.getName() + " hasn't opened the draft yet, sending its start again");
+                user.ccDraftStarted(tableId, draft.getId(), entry.getValue());
+            });
+        }
     }
 
     private UUID getPlayerId(UUID userId) {
