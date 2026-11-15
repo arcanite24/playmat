@@ -6837,6 +6837,8 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
     let def = game.obj(id).def.clone();
     let Some((rule, _, targets, costs, _)) = def.abilities[index].activated() else { return false };
     let zcc = game.obj(id).zcc;
+    // (a permanent's ability whose cost exiles it: `getPermanentOrLKIBattlefield` still finds it, as it was)
+    let on_battlefield = game.obj(id).zone == Zone::Battlefield;
     if let AbilityDef::LimitedTimesPerTurnActivatedAbility { .. } = def.abilities[index] {
         game.activated_this_turn.push((id, index));
     }
@@ -7032,9 +7034,12 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
                             && g.has_type(id, CardType::Artifact)
                     }
                     // of an artifact or creature (Crackdown Construct), or an artifact, creature or land (Immolation
-                    // Shaman): `getPermanentOrLKIBattlefield`
+                    // Shaman): `getPermanentOrLKIBattlefield`, which finds one its cost exiled too (Harsh Mentor on
+                    // an "{2}, Exile this: …" artifact)
                     "artifact_or_creature" | "artifact_creature_or_land" => {
-                        (g.obj(id).zone == Zone::Battlefield || g.short_lki.contains(&id))
+                        (g.obj(id).zone == Zone::Battlefield
+                            || g.short_lki.contains(&id)
+                            || on_battlefield && g.obj(id).zone == Zone::Exile)
                             && (g.has_type(id, CardType::Artifact)
                                 || g.has_type(id, CardType::Creature)
                                 || kind == "artifact_creature_or_land" && g.has_type(id, CardType::Land))
