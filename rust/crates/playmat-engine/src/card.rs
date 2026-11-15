@@ -1025,9 +1025,13 @@ pub enum Trigger {
     CountersAddedSource {
         counter: String,
     },
-    /// a `counter` counter is put on this, once for each counter (Fathom Mage's `COUNTER_ADDED`)
+    /// a `counter` counter is put on this, once for each counter (Fathom Mage's `COUNTER_ADDED`); with a
+    /// `threshold`, only for the counter that makes it that many ("when the twelfth hour counter is put on this":
+    /// Midnight Clock)
     CounterAddedSource {
         counter: String,
+        #[serde(default)]
+        threshold: i32,
     },
     /// a state trigger: this has `n` or more `counter` counters (Mazemind Tome)
     SourceCountersAtLeast {
@@ -4093,6 +4097,9 @@ pub enum EffectDef {
         /// what it loses (`BecomesCreatureAttachedEffect.LoseType`: ALL, ABILITIES, COLOR, SUBTYPE…); none: nothing
         #[serde(default)]
         lose: Option<String>,
+        /// "… named Legitimate Businessperson" (layer 3: Witness Protection)
+        #[serde(default)]
+        named: Option<String>,
     },
     /// a Siege defeated: exile it, then cast it transformed without paying its mana cost
     SiegeDefeatedEffect,
@@ -5053,6 +5060,9 @@ pub enum AbilityDef {
         /// the least X it can be activated with (`VariableManaCost.setMinX`)
         #[serde(default)]
         min_x: i32,
+        /// "this ability can't be copied" (`withCanBeCopied(false)`: Gogo)
+        #[serde(default)]
+        cant_be_copied: bool,
         /// a modal ability (`addMode`): its other modes, mode 0 being its own effects and targets
         #[serde(default)]
         modes: Vec<ModeDef>,

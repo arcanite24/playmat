@@ -2045,6 +2045,8 @@ impl Game {
                 "spell" => spell,
                 // `CreatureSourcePredicate`: an ability whose source object is a creature
                 "creature_source" => !spell && self.has_type(item.card, CardType::Creature),
+                // `EnchantmentSourcePredicate`: an ability whose source object is an enchantment
+                "enchantment_source" => !spell && self.has_type(item.card, CardType::Enchantment),
                 // `!Spell.wasCast()`: a copy of a spell (the engine puts no other spell on the stack uncast)
                 "not_cast" => spell && self.obj(item.card).token,
                 "triggered" => {
