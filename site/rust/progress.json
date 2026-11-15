@@ -258,11 +258,11 @@
  },
  "counted": {
   "engine_cards": 12507,
-  "verified_cards": 12238,
+  "verified_cards": 12241,
   "pioneer": {
    "cards": 15259,
    "in_engine": 12420,
-   "verified": 12151
+   "verified": 12154
   },
   "java_card_files": 32749,
   "school": {
@@ -1019,7 +1019,7 @@
    "played": 1360,
    "matched": 1357,
    "java_timeouts": 28,
-   "checked_in": 1238
+   "checked_in": 1241
   },
   "rust": {
    "lines": 99588,
@@ -1055,6 +1055,6 @@
    ]
   }
  },
- "commit": "d66de536508242dc237cb24b4a50160e4263f731",
+ "commit": "e22f429eaac95550b347d4bc76692ca353c9440b",
  "generated": "2026-11-14"
 }
