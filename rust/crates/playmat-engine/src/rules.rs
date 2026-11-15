@@ -12494,8 +12494,10 @@ fn apply_each_effect(
                     if let Some(back) = game.obj(id).def.transform_back.clone() {
                         let o = game.obj_mut(id);
                         o.front = Some(std::mem::replace(&mut o.def, back));
-                        // (no finality counter: Java sets it for the front's id, and the back face enters)
                         enter_battlefield(game, d, id, game.obj(id).owner, false);
+                        if game.obj(id).zone == Zone::Battlefield {
+                            game.obj_mut(id).add_counters("finality", 1);
+                        }
                     }
                 }
             }
@@ -24373,6 +24375,22 @@ mod tests {
         assert_eq!(game.power_toughness(colony), (4, 4));
         assert!(game.has_ability(colony, &AbilityDef::TrampleAbility));
         assert!(!game.has_ability(bear, &AbilityDef::TrampleAbility));
+    }
+
+    #[test]
+    fn flashed_back_esper_origins_has_a_finality_counter_and_is_exiled_when_it_dies() {
+        let db = crate::cards();
+        let mut game = game_with(&db, &[("Forest", 10)]);
+        let origins = game.create_obj(db.get("Esper Origins").unwrap(), 0, Zone::Stack);
+        game.obj_mut(origins).cast_from = Some(Zone::Graveyard);
+        Arc::make_mut(&mut game.stack).push(StackItem::spell(origins, 0));
+        resolve_top(&mut game, &mut Passer);
+        assert_eq!(game.obj(origins).zone, Zone::Battlefield);
+        assert_eq!(game.obj(origins).name(), "Summon: Esper Maduin");
+        assert_eq!(game.obj(origins).counter("finality"), 1);
+        game.move_to(origins, Zone::Graveyard);
+        assert_eq!(game.obj(origins).zone, Zone::Exile);
+        assert!(game.player(0).graveyard.is_empty());
     }
 
     fn on_battlefield(game: &mut Game, db: &crate::card::CardDb, name: &str, seat: Seat) -> ObjId {
