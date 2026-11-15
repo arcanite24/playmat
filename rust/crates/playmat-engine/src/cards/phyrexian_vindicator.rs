@@ -26,7 +26,7 @@ fn replace(game: &mut Game, cx: &StaticCx, ev: &mut Event) -> bool {
         return false;
     };
     let delayed = Delayed {
-        rule: format!("{} deals that much damage to any other target", game.obj(cx.source).name()),
+        rule: "{this} deals that much damage to any other target.".into(),
         sacrifice: Vec::new(),
         warp_exile: Vec::new(),
         effects: vec![EffectDef::DamageTargetEffect { amount: Amount::Fixed(prevented) }],
