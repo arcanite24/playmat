@@ -8889,6 +8889,12 @@ def granted_rules(card):
             if g['rule'].endswith('investigate.') and 'new InvestigateEffect()' in card_source(card.get('name')):
                 g['rule'] += (' <i>(Create a Clue token. It\'s an artifact with "{2}, Sacrifice this artifact: Draw a'
                               ' card.")</i>')
+            # `ConniveSourceEffect()` writes its reminder text after "connives." (Security Bypass's granted trigger)
+            if g['rule'].endswith(' connives.') and \
+                    [e.get('class') for e in g.get('effects', [])] == ['ConniveSourceEffect'] and \
+                    'new ConniveSourceEffect()' in card_source(card.get('name')):
+                g['rule'] += (' <i>(Draw a card, then discard a card. If you discarded a nonland card, put a +1/+1'
+                              ' counter on this creature.)</i>')
             # `VentureIntoTheDungeonEffect()` writes its reminder text after "venture into the dungeon." (Fly's)
             if g['rule'].endswith('venture into the dungeon.') and \
                     [e.get('class') for e in g.get('effects', [])][-1:] == ['VentureIntoTheDungeonEffect']:
