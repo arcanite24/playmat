@@ -2937,11 +2937,11 @@ class Translator:
             e = self.effect(m.group(1))
             e['also'] = self.value('token', m.group(2))
             return e
-        # two or more more tokens: each made after the one before (as `also` is)
-        m = re.fullmatch(r'(new CreateTokenEffect\((new \w+Token\(\))\))\.withAdditionalTokens\(((?:new \w+Token\(\),?\s*)+)\)', canonical(self.strip_setters(expr)), re.S)
-        if m:
-            return {'class': 'Effects', 'effects': [self.effect('new CreateTokenEffect(%s)' % t.strip())
-                                                    for t in [m.group(2)] + split_args(m.group(3))]}
+        # (two or more more tokens enter in `CreateTokenEvent`'s `HashMap` order, which isn't the order written:
+        # Trostani's Summoner's three tokens; left out)
+        if re.fullmatch(r'new CreateTokenEffect\(.*\)\.withAdditionalTokens\(.*,.*\)', canonical(self.strip_setters(expr)),
+                        re.S):
+            raise Unsupported('CreateTokenEffect with two or more additional tokens (unordered)')
         # `new DoIfCostPaid(…).addEffect(…)`: more effects if it's paid
         m = re.fullmatch(r'(new DoIfCostPaid\(.*\))\.addEffect\((new .*)\)', self.strip_setters(expr), re.S)
         if m and balanced(m.group(1)):
@@ -9303,6 +9303,13 @@ def granted_rules(card):
                         r'new AddCountersSourceEffect\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)\s*'
                         r'\.setText\("[^"]*counters? on it"\)', with_tokens):
                     g['rule'] = re.sub(r'\b(counters? on) it\.$', r'\1 {this}.', g['rule'])
+                # `ReturnSourceFromGraveyardToBattlefieldEffect` writes its own text: "return this card from your
+                # graveyard to the battlefield" (Demonic Gifts' "return it to the battlefield")
+                if [e.get('handler') for e in g.get('effects', [])] == ['ReturnSourceFromGraveyardToBattlefieldEffect'] \
+                        and not re.search(r'new ReturnSourceFromGraveyardToBattlefieldEffect\([^()]*\)\s*\.setText',
+                                          with_tokens):
+                    g['rule'] = re.sub(r'\breturn it to the battlefield\b',
+                                       'return this card from your graveyard to the battlefield', g['rule'])
             # `InvestigateEffect()` writes its reminder text after "investigate."
             if g['rule'].endswith('investigate.') and 'new InvestigateEffect()' in card_source(card.get('name')):
                 g['rule'] += (' <i>(Create a Clue token. It\'s an artifact with "{2}, Sacrifice this artifact: Draw a'
