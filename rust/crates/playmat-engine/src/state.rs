@@ -4921,10 +4921,20 @@ impl Game {
         if from == Zone::Hand && requested == Zone::Graveyard {
             self.discarded.push((owner, id));
             self.watch.discarded.push(owner);
-            let sources = self.trigger_sources();
+            // (and the card itself, for a trigger of an `OrTriggeredAbility(Zone.ALL, …)`: Bartered Cow's "when you
+            // discard it")
+            let mut sources = self.trigger_sources();
+            if !sources.contains(&id) {
+                sources.push(id);
+            }
             let fired = self.triggers(sources, |g, src, you, t| match t {
                 Trigger::Discards { who, filter } => {
-                    Game::whose(who, you, owner) && g.filter_matches(filter, you, Some(src), id)
+                    (src != id
+                        || g.obj(id).def.abilities.iter().any(
+                            |a| matches!(a.trigger(), Some(Trigger::Or { ts }) if ts.iter().any(|x| x == t)),
+                        ))
+                        && Game::whose(who, you, owner)
+                        && g.filter_matches(filter, you, Some(src), id)
                 }
                 _ => false,
             });
