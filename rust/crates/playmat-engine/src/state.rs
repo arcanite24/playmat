@@ -4551,8 +4551,14 @@ impl Game {
             })
         } else if from == Zone::Graveyard && zone != Zone::Graveyard {
             let sources: Vec<ObjId> = self.battlefield.iter().copied().collect();
-            self.triggers(sources, |g, _, you, t| {
-                matches!(t, Trigger::SyrKonrad) && g.obj(id).owner == you && g.has_type(id, CardType::Creature)
+            self.triggers(sources, |g, src, you, t| match t {
+                Trigger::SyrKonrad => g.obj(id).owner == you && g.has_type(id, CardType::Creature),
+                Trigger::CardLeavesYourGraveyard { filter, your_turn } => {
+                    g.obj(id).owner == you
+                        && (!*your_turn || g.active == Some(you))
+                        && g.filter_matches(filter, you, Some(src), id)
+                }
+                _ => false,
             })
         } else {
             Vec::new()

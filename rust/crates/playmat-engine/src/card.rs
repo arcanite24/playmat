@@ -1146,6 +1146,14 @@ pub enum Trigger {
     /// another creature dies, a creature card is put into a graveyard from anywhere other than the battlefield, or a
     /// creature card leaves your graveyard (Syr Konrad, the Grim: one `ZONE_CHANGE` each)
     SyrKonrad,
+    /// a card of the filter you own leaves your graveyard, only during your turn if `your_turn` (one `ZONE_CHANGE`
+    /// each: a card's own trigger class, Along the Crooked Way, Murktide Regent, Kishla Skimmer)
+    CardLeavesYourGraveyard {
+        #[serde(default)]
+        filter: Filter,
+        #[serde(default)]
+        your_turn: bool,
+    },
     /// a creature or creature spell you control becomes the target of a spell or ability an opponent controls
     /// (Surrak, Elusive Hunter)
     SurrakTargeted,
