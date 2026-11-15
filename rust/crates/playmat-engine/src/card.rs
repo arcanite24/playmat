@@ -959,7 +959,8 @@ pub enum Trigger {
     /// (`DealsDamageToACreatureTriggeredAbility`); "attached_to", the permanent this is attached to, to one of
     /// `filter` (Giant's Skewer); "to_you", a source an opponent controls to you, and "to_you_or_yours", to you or a
     /// permanent of `filter` you control (`SourceDealsDamageToYouTriggeredAbility`, `DAMAGED_PLAYER` too, its player
-    /// pointer the source's controller). A target pointer is the damaged permanent.
+    /// pointer the source's controller); "to_you_any", any source to you (`DAMAGED_PLAYER`: Azor's Elocutors). A
+    /// target pointer is the damaged permanent.
     DamagedPermanent {
         of: String,
         #[serde(default)]
@@ -1146,6 +1147,14 @@ pub enum Trigger {
     /// another creature dies, a creature card is put into a graveyard from anywhere other than the battlefield, or a
     /// creature card leaves your graveyard (Syr Konrad, the Grim: one `ZONE_CHANGE` each)
     SyrKonrad,
+    /// a card of the filter you own leaves your graveyard, only during your turn if `your_turn` (one `ZONE_CHANGE`
+    /// each: a card's own trigger class, Along the Crooked Way, Murktide Regent, Kishla Skimmer)
+    CardLeavesYourGraveyard {
+        #[serde(default)]
+        filter: Filter,
+        #[serde(default)]
+        your_turn: bool,
+    },
     /// a creature or creature spell you control becomes the target of a spell or ability an opponent controls
     /// (Surrak, Elusive Hunter)
     SurrakTargeted,

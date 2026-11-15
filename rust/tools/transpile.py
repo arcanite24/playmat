@@ -257,6 +257,16 @@ CUSTOM = {
                                         'token': {'abilities': [], 'colors': ['W', 'G'], 'name': '', 'power': 1,
                                                   'subtypes': ['Citizen'], 'toughness': 1, 'types': ['CREATURE']}},
     'PithingNeedleEffect': lambda: {'class': 'PithingNeedleEffect'},
+    # Hold for Ransom's: the enchanted creature has "{7}: Hold for Ransom's controller sacrifices it and draws a card.
+    # Activate only as a sorcery." (its effect a handler finding the Aura, the `afterGain` target pointer)
+    'HoldForRansomGainEffect': lambda: {
+        'class': 'GainAbilityAttachedEffect',
+        'ability': {'class': 'ActivateAsSorceryActivatedAbility', 'cost': [{'class': 'ManaCost', 'cost': '{7}'}],
+                    'effects': [{'class': 'CardEffect', 'handler': 'HoldForRansom.HoldForRansomSacrificeEffect'}],
+                    'targets': [],
+                    'rule': "{7}: {this}'s controller sacrifices it and draws a card. Activate only as a sorcery."}},
+    # "untap this land during each other player's untap step": the framework's (Urban Burgeoning's copy of it)
+    'UrbanBurgeoningUntapEffect': lambda: {'class': 'UntapSourceDuringEachOtherPlayersUntapStepEffect'},
     # (players in range: both, in a duel)
     'SorcerousSpyglassActivationEffect': lambda: {'class': 'PithingNeedleEffect'},
     'PhyrexianRevokerEffect2': lambda: {'class': 'PhyrexianRevokerEffect'},
@@ -502,6 +512,27 @@ CUSTOM = {
     'SyrKonradTheGrimTriggeredAbility': lambda: {
         'class': 'TriggeredAbility', 'java': 'SyrKonradTheGrimTriggeredAbility', 'on': {'e': 'syr_konrad'},
         'effects': [{'class': 'DamagePlayersEffect', 'amount': 1, 'controller': 'opponent'}]},
+    # a card of a kind leaving your graveyard (one `ZONE_CHANGE` each, the card you own): Along the Crooked Way's
+    # creature card amasses Goblins 1, Murktide Regent's instant or sorcery card puts a +1/+1 counter on it,
+    # Kishla Skimmer's any card during your turn draws a card
+    'AlongTheCrookedWayTriggeredAbility': lambda: {
+        'class': 'TriggeredAbility', 'java': 'AlongTheCrookedWayTriggeredAbility',
+        'on': {'e': 'card_leaves_your_graveyard', 'filter': [CREATURE]},
+        'effects': [{'class': 'AmassEffect', 'amount': 1, 'subtype': 'Goblin', 'token': token('GoblinArmyToken')}]},
+    'MurktideRegentTriggeredAbility': lambda: {
+        'class': 'TriggeredAbility', 'java': 'MurktideRegentTriggeredAbility',
+        'on': {'e': 'card_leaves_your_graveyard',
+               'filter': [{'p': 'or', 'xs': [{'p': 'type', 't': 'INSTANT'}, {'p': 'type', 't': 'SORCERY'}]}]},
+        'effects': [{'class': 'AddCountersSourceEffect', 'counter': {'name': '+1/+1', 'amount': 1}}]},
+    'KishlaSkimmerTriggeredAbility': lambda: {
+        'class': 'TriggeredAbility', 'java': 'KishlaSkimmerTriggeredAbility',
+        'on': {'e': 'card_leaves_your_graveyard', 'your_turn': True},
+        'effects': [{'class': 'DrawCardSourceControllerEffect', 'amount': 1}]},
+    # "whenever a source deals damage to you, remove a filibuster counter from this" (each `DAMAGED_PLAYER`)
+    'AzorsElocutorsTriggeredAbility': lambda: {
+        'class': 'TriggeredAbility', 'java': 'AzorsElocutorsTriggeredAbility',
+        'on': {'e': 'damaged_permanent', 'of': 'to_you_any'},
+        'effects': [{'class': 'RemoveCounterSourceEffect', 'counter': {'name': 'filibuster', 'amount': 1}}]},
     # Vanquisher's Banner: "whenever you cast a creature spell of the chosen type, draw a card"
     'DrawCardIfCreatureTypeAbility': lambda: {
         'class': 'TriggeredAbility', 'java': 'DrawCardIfCreatureTypeAbility',
@@ -1243,6 +1274,12 @@ def declared_filters_into(out, source, subtypes):
         if cls == 'FilterSpellOrPermanent' and not adds \
                 and re.search(r'\b' + name + r'\.setPermanentFilter\(new FilterCreaturePermanent\(\)\);', source):
             out[name] = SPELL_OR_CREATURE
+            continue
+        # "spell or nonland permanent" (Commit): any spell, or a nonland permanent
+        if cls == 'FilterSpellOrPermanent' and not adds \
+                and re.search(r'\b' + name + r'\.setPermanentFilter\(new FilterNonlandPermanent\(\)\);', source) \
+                and not re.search(r'\b' + name + r'\.(?!setPermanentFilter\(new FilterNonlandPermanent\(\)\);)\w', source):
+            out[name] = SpellOrPermanentFilter([], [{'p': 'not', 'x': LAND}])
             continue
         # a spell of one filter or a permanent of another (`match` reads only those two, not its own `add`s)
         if cls == 'FilterSpellOrPermanent' and not adds and len(args) <= 1 \
@@ -6785,6 +6822,9 @@ class Translator:
         that ability kind), else Unsupported"""
         src = getattr(self, 'source', None) or ''
         name = arg.strip()
+        # any ability (a trigger handler's base, whose check says which: Herald of Anafenza's outlast)
+        if name == 'StaticFilters.FILTER_SPELL_OR_ABILITY':
+            return 'any'
         if not re.search(r'FilterStackObject\s+' + re.escape(name) + r'\s*=\s*new (?:FilterStackObject|FilterActivatedOrTriggeredAbility)\("[^"]*"\)', src):
             raise Unsupported('ActivateAbilityTriggeredAbility filter ' + name)
         preds = re.findall(r'\b' + re.escape(name) + r'\.add\(([^;]*)\);', src)
@@ -9244,6 +9284,10 @@ def granted_rules(card):
             phrases = re.findall(r'setTriggerPhrase\("([^"]*)"\)', with_tokens)
             if any(ph and quoted.group(1).startswith(ph) for ph in phrases):
                 g['rule'] = spaced_and(card, quoted.group(1))
+                # a quote ending its part of a longer sentence with a comma ends the trigger's own text with a
+                # period (Terminal Velocity's "…to each creature,")
+                if g['rule'].endswith(','):
+                    g['rule'] = g['rule'][:-1] + '.'
             else:
                 # an effect given its own text keeps "this creature" (Nurturing Presence's `BoostSourceEffect`
                 # `.setText("this creature gets +1/+1 until end of turn")`)
@@ -9303,6 +9347,12 @@ def granted_rules(card):
             if any(e.get('class') == 'SetBasePtEffect' for e in g.get('effects', [])):
                 raise Unsupported('granted SetBasePtEffect static')
             g['rule'] = quoted.group(1) if quoted else ''
+        elif g.get('class') == 'TriggeredAbility' and (ph := g.pop('delayed_phrase', None)) \
+                and (m := re.search(re.escape(ph) + r'[^.<]*\.', rule or '')):
+            # a card's own delayed trigger with a trigger phrase and no text of its base's: its sentence in the
+            # creating rule, which `CreateDelayedTriggeredAbilityEffect` writes as the ability's `getRule` (Full
+            # Throttle's "At the beginning of each combat this turn, untap all creatures that attacked this turn.")
+            g['rule'] = m.group(0)
         elif g.get('class') in ('SimpleActivatedAbility', 'ActivateAsSorceryActivatedAbility', 'LoyaltyAbility',
                                 'TriggeredAbility', 'SimpleStaticAbility'):
             raise Unsupported('granted ' + g['class'] + ' without its rule text')

@@ -1205,6 +1205,9 @@ pub struct Game {
     /// players dealt any damage this turn, by source (`PlayerDamagedBySourceWatcher`): the source, its zone change
     /// count then, the player
     pub damaged_players: Vec<(ObjId, u32, Seat)>,
+    /// the permanents that dealt combat damage this game, as the objects they were (Ruric Thar's watcher: a source on
+    /// the battlefield, with its zone-change count then)
+    pub combat_damage_sources: Vec<(ObjId, u32)>,
     /// the creatures that attacked this turn, as they were (`AttackedThisTurnWatcher.getAttackedThisTurnCreatures`)
     pub attacked_this_turn: Vec<(ObjId, u32)>,
     /// the permanents each player put one or more +1/+1 counters on this turn, as they were (Kid Loki's watcher)
@@ -1609,6 +1612,7 @@ impl Game {
             damaged_by_source: Vec::new(),
             combat_damaged_players: Vec::new(),
             damaged_players: Vec::new(),
+            combat_damage_sources: Vec::new(),
             attacked_this_turn: Vec::new(),
             p1p1_put_this_turn: Vec::new(),
             discarded_this_turn: Vec::new(),
@@ -4558,8 +4562,14 @@ impl Game {
             })
         } else if from == Zone::Graveyard && zone != Zone::Graveyard {
             let sources: Vec<ObjId> = self.battlefield.iter().copied().collect();
-            self.triggers(sources, |g, _, you, t| {
-                matches!(t, Trigger::SyrKonrad) && g.obj(id).owner == you && g.has_type(id, CardType::Creature)
+            self.triggers(sources, |g, src, you, t| match t {
+                Trigger::SyrKonrad => g.obj(id).owner == you && g.has_type(id, CardType::Creature),
+                Trigger::CardLeavesYourGraveyard { filter, your_turn } => {
+                    g.obj(id).owner == you
+                        && (!*your_turn || g.active == Some(you))
+                        && g.filter_matches(filter, you, Some(src), id)
+                }
+                _ => false,
             })
         } else {
             Vec::new()
