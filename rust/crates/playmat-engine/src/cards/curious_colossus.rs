@@ -26,6 +26,6 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         lose_all_abilities(game, *c, *c, zcc);
     }
     let targets: Vec<Target> = creatures.iter().map(|c| Target::Obj(*c)).collect();
-    cx.run_on(game, d, &cx.effects, targets);
+    cx.run_on(game, d, cx.effects, targets);
     Some(())
 }

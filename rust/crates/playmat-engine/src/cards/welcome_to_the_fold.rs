@@ -15,6 +15,6 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     if game.obj(o).zone == Zone::Battlefield && game.power_toughness(o).1 > most {
         return Some(());
     }
-    cx.run(game, d, &cx.effects);
+    cx.run(game, d, cx.effects);
     Some(())
 }

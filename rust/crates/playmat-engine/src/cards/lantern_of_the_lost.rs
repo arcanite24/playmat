@@ -8,6 +8,6 @@ pub const HANDLERS: &[Handler] = &[Handler::effect("LanternOfTheLost.LanternOfTh
 
 /// every graveyard's cards exiled together (`moveCards`), then you draw a card
 fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
-    cx.run_on(game, d, &cx.effects, Vec::new());
+    cx.run_on(game, d, cx.effects, Vec::new());
     (!d.stopped()).then_some(())
 }
