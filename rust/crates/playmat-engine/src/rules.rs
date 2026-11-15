@@ -5023,6 +5023,13 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         }
     }
     game.remove_from_zone(id);
+    // cast from a graveyard, it left it (`ZONE_CHANGE` GRAVEYARD to STACK: Ark of Hunger's "whenever one or more
+    // cards leave your graveyard", `CardsLeftGraveyardWatcher`)
+    if from == Zone::Graveyard {
+        let owner = game.obj(id).owner;
+        game.left_graveyard.push(id);
+        game.watch.left_graveyard.push(owner);
+    }
     {
         let o = game.obj_mut(id);
         o.zone = Zone::Stack;
