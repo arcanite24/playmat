@@ -1620,8 +1620,9 @@ pub enum PlayKind {
 /// the battlefield)
 pub fn playable_abilities(game: &Game, seat: Seat) -> Vec<(ObjId, usize, PlayKind, Option<u8>)> {
     let mut out = Vec::new();
-    // `shouldSkipGettingPlayable`: nothing while attackers are declared
-    if game.step_start && game.step == Some(Step::DeclareAttackers) {
+    // `shouldSkipGettingPlayable`: nothing while attackers are declared, unless the player is paying mana (an attack
+    // tax: Propaganda, Sphere of Safety, Dain), when their mana sources must be listed
+    if game.step_start && game.step == Some(Step::DeclareAttackers) && !game.paying_mana {
         return out;
     }
     let index = |def: &CardDef, a: &AbilityDef| def.abilities.iter().position(|x| x == a);
@@ -8643,7 +8644,9 @@ fn pay_mana_from(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCo
         let specials = special_mana_actions(game, seat, &unpaid);
         let q = Query::PlayMana { cost: unpaid_text(&unpaid), sources };
         game.special_mana = !specials.is_empty();
+        game.paying_mana = true;
         let answer = ask(game, d, seat, &q);
+        game.paying_mana = false;
         game.special_mana = false;
         match answer {
             Answer::Text(t) if t == "special" && !specials.is_empty() => {
@@ -24902,6 +24905,49 @@ mod tests {
             assert_eq!((ok, d.asked), (paid, asked), "manual {manual}, unrestricted {unrestricted}, before {before}");
             assert_eq!(game.pool_mode(1), (false, false), "only the seat's own mode");
         }
+    }
+
+    /// Pays an attack tax: yes to paying, then taps the first source offered; keeps whether the paying player's
+    /// playable list (what the client lets them click) had that source
+    struct TaxPayer(Vec<bool>);
+
+    impl Decider for TaxPayer {
+        fn answer(&mut self, game: &Game, seat: Seat, query: &Query) -> Answer {
+            match query {
+                Query::YesNo { .. } => Answer::Bool(true),
+                Query::PlayMana { sources, .. } => match sources.first() {
+                    Some(&source) => {
+                        self.0.push(playable_abilities(game, seat).iter().any(|(id, ..)| *id == source));
+                        Answer::Obj(source)
+                    }
+                    None => Answer::Bool(false),
+                },
+                _ => Passer.answer(game, seat, query),
+            }
+        }
+    }
+
+    /// #398: an attack tax is paid while attackers are declared, when nothing is playable; the paying player's mana
+    /// sources must be (`PlayerImpl.getPlayableObjects` in pay mana mode), or the client has nothing to tap
+    #[test]
+    fn an_attack_tax_payment_lists_the_mana_sources() {
+        let db = crate::cards();
+        let mut game = game_with(&db, &[("Forest", 10)]);
+        let archon = game.create_obj(db.get("Archon of Absolution").unwrap(), 1, Zone::Hand);
+        game.move_to(archon, Zone::Battlefield);
+        let bear = game.create_obj(db.get("Runeclaw Bear").unwrap(), 0, Zone::Hand);
+        game.move_to(bear, Zone::Battlefield);
+        game.obj_mut(bear).sick = false;
+        let forest = game.create_obj(db.get("Forest").unwrap(), 0, Zone::Hand);
+        game.move_to(forest, Zone::Battlefield);
+        game.step = Some(Step::DeclareAttackers);
+        game.step_start = true;
+        assert!(playable_abilities(&game, 0).is_empty(), "nothing playable while attackers are declared");
+        let mut d = TaxPayer(Vec::new());
+        assert_eq!(pay_attack_taxes(&mut game, &mut d, 0, bear, 1, None), Some(true));
+        assert_eq!(d.0, vec![true], "the forest is listed during the payment");
+        assert!(game.obj(forest).tapped);
+        assert!(playable_abilities(&game, 0).is_empty(), "and only during it");
     }
 
     /// Says yes to every yes/no question and keeps what it was asked.

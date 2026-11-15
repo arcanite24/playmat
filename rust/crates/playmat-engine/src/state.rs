@@ -1075,6 +1075,9 @@ pub struct Game {
     /// while a mana payment is asked: the spell can be paid with a special action (delve, convoke, improvise), the
     /// "Special" button (`GameView.special`)
     pub special_mana: bool,
+    /// while a mana payment is asked (`PlayerImpl.isInPayManaMode`): what's playable is worked out even while
+    /// attackers are declared, for an attack tax's payment
+    pub paying_mana: bool,
     /// while a library is searched (`TargetCardInLibrary.choose`): the whole library as the client is shown it,
     /// sorted by name, and the cards chosen so far. The question's cards are the ones that can still be picked
     /// (Java's `possibleTargets`).
@@ -1548,6 +1551,7 @@ impl Game {
             step_start: false,
             loop_sources: Vec::new(),
             special_mana: false,
+            paying_mana: false,
             searching: None,
             loop_stack: 0,
             loop_lives: None,
