@@ -3363,7 +3363,11 @@ fn mana_options(
         // the mana its tapping triggers: one more source each
         let made: Vec<Mana> = a.iter().map(|(_, m)| *m).collect();
         for k in tap_for_mana_extra(game, seat, id, &made) {
-            options.push(vec![if k == 5 { Mana { colorless: 1, ..Mana::default() } } else { Mana::of(Color::ALL[k], 1) }]);
+            options.push(vec![if k == 5 {
+                Mana { colorless: 1, ..Mana::default() }
+            } else {
+                Mana::of(Color::ALL[k], 1)
+            }]);
         }
         // Nykthos: its {2} and itself spent, the rest of its devotion more sources of that color
         if let Some((_, m)) = a

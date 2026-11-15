@@ -852,7 +852,13 @@ pub(crate) fn play_ways(game: &Game, seat: Seat, id: ObjId, face: &CardDef) -> V
 
 /// A spell `seat` cast by `source`'s as-though way (`AsThough::PlayThen`): what casting it that way does, for each
 /// such handler of the source's. None when the decider stopped.
-pub(crate) fn cast_this_way(game: &mut Game, d: &mut dyn Decider, seat: Seat, source: ObjId, spell: ObjId) -> Option<()> {
+pub(crate) fn cast_this_way(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    seat: Seat,
+    source: ObjId,
+    spell: ObjId,
+) -> Option<()> {
     let mut then: Vec<(CastThisWayFn, Seat)> = Vec::new();
     let mut check = |h: &'static Hook, cx: &StaticCx, _: &EffectDef| {
         if let Hook::AsThough(AsThough::PlayThen(_, f)) = h {
