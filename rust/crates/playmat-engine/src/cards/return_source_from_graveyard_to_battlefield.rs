@@ -1,15 +1,16 @@
-//! `ReturnSourceFromGraveyardToBattlefieldEffect(tapped, ownerControl, haste, attacking)`, the four-argument form
-//! (Persistent Marshstalker): "return this card from your graveyard to the battlefield tapped and attacking".
+//! `ReturnSourceFromGraveyardToBattlefieldEffect(tapped, ownerControl[, haste, attacking])`, the two- and
+//! four-argument forms (Persistent Marshstalker: "return this card from your graveyard to the battlefield tapped and
+//! attacking"; Demonic Gifts's granted "return it to the battlefield under its owner's control")
 
 use super::*;
 
 pub const HANDLERS: &[Handler] = &[Handler::effect("ReturnSourceFromGraveyardToBattlefieldEffect", apply)
-    .args(&["bool", "bool", "bool", "bool"])];
+    .args(&["bool", "bool", "one_of:true|false", "one_of:true|false"])];
 
 /// while the source card is in a graveyard, it enters under you (its owner with `ownerControl`), tapped if so; with
 /// `haste` it has haste for as long as it stays, with `attacking` it attacks (`Combat.addAttackingCreature`)
 fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
-    if cx.args.len() != 4 {
+    if cx.args.len() < 2 {
         return Some(());
     }
     let card = cx.source_id();

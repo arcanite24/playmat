@@ -74,7 +74,7 @@ LANDCYCLING['LandcyclingAbility'] = [{'p': 'type', 't': 'LAND'}]
 EFFECTS = {
     'DamageTargetEffect': [('amount', 'int'), (None, 'string')],
     'DrawCardSourceControllerEffect': [('amount', 'int'), (None, 'bool')],
-    'GainLifeEffect': [('amount', 'int')],
+    'GainLifeEffect': [('amount', 'int'), (None, 'string')],
     'DestroyTargetEffect': [],
     'CounterTargetEffect': [],
     'BoostTargetEffect': [('power', 'int'), ('toughness', 'int'), ('duration', 'duration')],
@@ -924,6 +924,14 @@ def predicate(text, subtypes):
     text = text.strip()
     while text.startswith('(') and text.endswith(')') and split_args(text[1:-1]) == [text[1:-1].strip()]:
         text = text[1:-1].strip()
+    if text.startswith('mage.filter.predicate.Predicates.'):
+        text = text[len('mage.filter.predicate.'):]
+    # cycling or landcycling: Java's `isInstance`, and each landcycling is a `CyclingAbility` (Vile Manifestation)
+    if (m := re.fullmatch(r'Predicates\.or\((.*)\)', text)):
+        xs = [x.strip() for x in split_args(m.group(1))]
+        names = [re.fullmatch(r'new AbilityPredicate\((\w+)\.class\)', x) for x in xs]
+        if all(names) and names[0].group(1) == 'CyclingAbility' and all(n.group(1) in LANDCYCLING for n in names[1:]):
+            return {'p': 'ability_class', 'class': 'CyclingAbility'}
     if (m := re.fullmatch(r'CardType\.(\w+)\.getPredicate\(\)', text)):
         return type_pred(m.group(1))
     if (m := re.fullmatch(r'SubType\.(\w+)\.getPredicate\(\)', text)) and m.group(1) in subtypes:
@@ -947,6 +955,9 @@ def predicate(text, subtypes):
         return {'p': 'or', 'xs': [type_pred('ARTIFACT'), {'p': 'supertype', 's': 'LEGENDARY'}, {'p': 'subtype', 's': 'Saga'}]}
     if text == 'AnotherPredicate.instance':
         return {'p': 'another'}
+    # an artifact, or a creature other than the source
+    if text == 'AnotherCreatureOrAnArtifactPredicate.instance':
+        return {'p': 'or', 'xs': [type_pred('ARTIFACT'), {'p': 'and', 'xs': [type_pred('CREATURE'), {'p': 'another'}]}]}
     if text == 'MulticoloredPredicate.instance':
         return {'p': 'multicolored'}
     if (m := re.fullmatch(r'new ManaValueEqualToCountersSourceCountPredicate\((CounterType\.\w+)\)', text)) and m.group(1) in COUNTERS:
@@ -1744,6 +1755,9 @@ class Translator:
             return {'c': 'or', 'xs': [{'c': 'source_entered_this_turn'}, self.condition('YouControlABasicLandCondition.instance')]}
         if arg == 'YouControlABasicLandCondition.instance':
             return {'c': 'permanents', 'filter': [LAND, {'p': 'supertype', 's': 'BASIC'}], 'cmp': 'OR_GREATER', 'n': 1}
+        # any player controls a permanent of the filter (`game.getBattlefield().count(filter, …) > 0`)
+        if (m := re.fullmatch(r'new AnyPlayerControlsCondition\((\w+|StaticFilters\.\w+)\)', arg)):
+            return {'c': 'permanents', 'filter': self.filter(m.group(1)), 'cmp': 'OR_GREATER', 'n': 1, 'all': True}
         if (m := re.fullmatch(r'new (YouControlPermanentCondition|PermanentsOnTheBattlefieldCondition)\((.*)\)', arg)):
             args = split_args(m.group(2))
             out = {'c': 'permanents', 'filter': self.filter(args[0]), 'cmp': 'OR_GREATER', 'n': 1}
@@ -2030,6 +2044,8 @@ class Translator:
         elif kind == 'string':
             # a literal, or a constant of the card's (`rule`); an ability word before the text is text too
             arg = re.sub(r'^AbilityWord\.\w+\.formatWord\(\)\s*\+\s*', '', arg)
+            # a reminder text after it (`PartyCount.getReminder()`)
+            arg = re.sub(r'\s*\+\s*\w+\.getReminder\(\)$', '', arg)
             if re.fullmatch(r'"(?:[^"\\]|\\.)*"(?:\s*\+\s*"(?:[^"\\]|\\.)*")*', arg) or arg == 'null' or re.fullmatch(r'[a-z]\w*', arg):
                 return None
         elif kind == 'effect':
@@ -2881,6 +2897,14 @@ class Translator:
                              second, re.S)
         if m and balanced(m.group(1)) and not m.group(1).startswith('new AddCountersTargetEffect('):
             return {'class': 'TargetPointerEffect', 'target': 1, 'effect': self.effect(m.group(1))}
+        # the third target the same way (Dissection Practice, Everything Pizza)
+        third = re.sub(r'(?:\.concatBy\("[^"]*"\))+(\.setTargetPointer\(new ThirdTargetPointer\(\)\))', r'\1',
+                       re.sub(r'(\.setTargetPointer\(new ThirdTargetPointer\(\)\))\.concatBy\("[^"]*"\)$', r'\1',
+                              canonical(expr)))
+        m = re.fullmatch(r'(new \w+\(.*\))((?:\.setText\("[^"]*"\))?)\.setTargetPointer\(new ThirdTargetPointer\(\)\)((?:\.setText\(.*\))?)',
+                         third, re.S)
+        if m and balanced(m.group(1)):
+            return {'class': 'TargetPointerEffect', 'target': 2, 'effect': self.effect(m.group(1))}
         m = re.fullmatch(r'new RemoveCounterTargetEffect\((CounterType\.\w+)\.createInstance\(\)\)', canonical(self.strip_setters(expr)))
         if m and m.group(1) in COUNTERS:
             return {'class': 'RemoveCounterTargetEffect', 'counter': COUNTERS[m.group(1)]}
@@ -2907,6 +2931,11 @@ class Translator:
             e = self.effect(m.group(1))
             e['also'] = self.value('token', m.group(2))
             return e
+        # two or more more tokens: each made after the one before (as `also` is)
+        m = re.fullmatch(r'(new CreateTokenEffect\((new \w+Token\(\))\))\.withAdditionalTokens\(((?:new \w+Token\(\),?\s*)+)\)', canonical(self.strip_setters(expr)), re.S)
+        if m:
+            return {'class': 'Effects', 'effects': [self.effect('new CreateTokenEffect(%s)' % t.strip())
+                                                    for t in [m.group(2)] + split_args(m.group(3))]}
         # `new DoIfCostPaid(…).addEffect(…)`: more effects if it's paid
         m = re.fullmatch(r'(new DoIfCostPaid\(.*\))\.addEffect\((new .*)\)', self.strip_setters(expr), re.S)
         if m and balanced(m.group(1)):
@@ -3210,6 +3239,9 @@ class Translator:
                 and args[1].strip() == 'Duration.WhileOnBattlefield' \
                 and args[2].strip() in ('MaximumHandSizeControllerEffect.HandSizeModification.SET', 'HandSizeModification.SET'):
             return {'class': 'MaximumHandSizeSetEffect', 'size': int(args[0])}
+        # (counter, outcome): the outcome is only the AI's
+        if cls == 'AddCountersTargetEffect' and len(args) == 2 and re.fullmatch(r'Outcome\.\w+', args[1].strip()):
+            return {'class': cls, 'counter': self.value('counter', args[0].strip())}
         if cls == 'AddCountersTargetEffect' and len(args) == 2:
             return {'class': cls, 'counter': self.value('counter', args[0].strip()), 'value': self.amount(args[1])}
         # (effect, condition[, text])
@@ -3220,6 +3252,10 @@ class Translator:
                      or re.fullmatch(r'new InvertCondition\(\w+Condition\.\w+\)', args[1].strip())
                      or re.fullmatch(r'new \w+Condition\(.*\)', args[1].strip(), re.S)):
             return {'class': cls, 'effect': self.effect(args[0]), 'condition': self.condition(args[1])}
+        # (null, otherwise, condition, text): the otherwise unless the condition holds (Mindwrack Demon)
+        if cls == 'ConditionalOneShotEffect' and len(args) == 4 and args[0].strip() == 'null':
+            return {'class': cls, 'effect': self.effect(args[1]),
+                    'condition': self.condition('new InvertCondition(' + args[2].strip() + ')')}
         # (effect, otherwise, condition, text)
         if cls == 'ConditionalOneShotEffect' and len(args) == 4:
             return {'class': cls, 'effect': self.effect(args[0]), 'otherwise': self.effect(args[1]),
@@ -5127,7 +5163,7 @@ class Translator:
                 return out
         if cls == 'EntersBattlefieldAbility' and args == ['new MockingbirdEffect()', 'true']:
             return {'class': cls, 'effects': [{'class': 'MockingbirdEffect'}]}
-        if cls == 'EntersBattlefieldAbility' and len(args) == 2 and re.fullmatch(r'"[^"]*"', args[1].strip()):
+        if cls == 'EntersBattlefieldAbility' and len(args) == 2 and re.fullmatch(r'"[^"]*"(?:\s*\+\s*"[^"]*")*', args[1].strip()):
             return {'class': cls, 'effects': [self.effect(args[0])]}
         if cls == 'EntersBattlefieldTappedUnlessAbility' and len(args) in (1, 2):
             return {'class': 'EntersBattlefieldAbility', 'java': cls, 'effects': [
@@ -6036,8 +6072,8 @@ class Translator:
         if cls == 'EndOfCombatTriggeredAbility' and n == 2 and args[1] in ('true', 'false'):
             return out({'e': 'step_begins', 'step': 'endcombat', 'who': 'any'}, args[0], flag(args[1]))
         # "when enchanted artifact is put into a graveyard, return that card to its owner's hand"
-        if cls == 'DiesAttachedTriggeredAbility' and n == 4 and args[0] == 'new ReturnToHandAttachedEffect()' \
-                and args[2:] == ['false', 'false']:
+        if cls == 'DiesAttachedTriggeredAbility' and n in (3, 4) and args[0] == 'new ReturnToHandAttachedEffect()' \
+                and args[2:] in (['false'], ['false', 'false']):
             return out({'e': 'dies_attached'}, 'new ReturnToHandTargetEffect()', False)
         # whenever a permanent of the filter leaves the battlefield
         if cls == 'LeavesBattlefieldAllTriggeredAbility' and n == 3 and args[2] in ('true', 'false'):
@@ -7046,6 +7082,20 @@ def copies_spells_only(card):
     walk(card)
 
 
+def inline_constants(source):
+    """A card's `static final String X = "…";` constants written in where they are used (Exava's `rule`), and a
+    `NamePredicate` of a filter's own message as that text (Vraska's Scorn)"""
+    for m in list(re.finditer(r'\n\s*(?:private |public |protected )?static final String (\w+)\s*=\s*((?:"(?:[^"\\]|\\.)*"\s*\+?\s*)+);', source)):
+        name, text = m.group(1), m.group(2)
+        decl = m.group(0)
+        rest = source.replace(decl, '\n', 1)
+        rest = re.sub(r'(?<![\w."])' + name + r'(?![\w"])', lambda _: text.strip(), rest)
+        source = rest
+    for m in re.finditer(r'\bFilter\w* (\w+)\s*=\s*new Filter\w*(?:<>)?\("((?:[^"\\]|\\.)*)"\)', source):
+        source = source.replace('new NamePredicate(' + m.group(1) + '.getMessage())', 'new NamePredicate("' + m.group(2) + '")')
+    return source
+
+
 def translate(card_name, subtypes, facts):
     if card_name not in facts:
         raise Unsupported('no card facts')
@@ -7061,7 +7111,7 @@ def translate(card_name, subtypes, facts):
         path = os.path.join(SETS, cls[0].lower(), cls + '.java')
     if not os.path.exists(path):
         raise Unsupported('no card class ' + cls)
-    source = open(path).read()
+    source = inline_constants(open(path).read())
     if 'extends ModalDoubleFacedCard' in re.search(r'public (?:final )?class \w+\s+extends \w+', source).group(0):
         return modal_double_faced(card_name, subtypes, facts, cls, source)
     if 'extends TransformingDoubleFacedCard' in re.search(r'public (?:final )?class \w+\s+extends \w+', source).group(0):
