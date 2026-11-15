@@ -244,6 +244,12 @@ CUSTOM_STATIC_EFFECTS = {
 }
 
 CUSTOM = {
+    # Archangel of Tithes: the attack tax while it's untapped, the block tax while it's attacking
+    'ArchangelOfTithesPayManaToAttackAllEffect': lambda: {'class': 'CantAttackYouUnlessPayAllEffect', 'cost': '{1}',
+                                                          'planeswalkers': True,
+                                                          'condition': {'c': 'source_tapped_is', 'v': False}},
+    'ArchangelOfTithesPayManaToBlockAllEffect': lambda: {'class': 'CantBlockUnlessPayManaAllEffect', 'cost': '{1}',
+                                                         'condition': {'c': 'source_attacking'}},
     # "enchanted creature loses all abilities and is a green and white Citizen creature with base power and toughness
     # 1/1 named Legitimate Businessperson"
     'WitnessProtectionEffect': lambda: {'class': 'BecomesCreatureAttachedEffect', 'lose': 'ALL',
