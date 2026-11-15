@@ -27,7 +27,9 @@
 //!   `Rule::MaxActivations(f)`: a limited activated ability's times each turn (`rules::activatable`).
 //! - **as-though**: `Handler::as_though(name, AsThough::Flash(f))`: `rules::castable`'s timing;
 //!   `AsThough::Haste(f)`: a {T} cost's summoning sickness (`rules::can_pay_cost`, mana abilities);
-//!   `AsThough::Hexproof(f)`: hexproof, as targets are chosen (`rules::possible_targets`, `targetable`).
+//!   `AsThough::Hexproof(f)`: hexproof, as targets are chosen (`rules::possible_targets`, `targetable`);
+//!   `AsThough::DamageNotBlocked(f)`: a blocked attacker assigns its combat damage as though it weren't blocked
+//!   (`rules::combat_damage`).
 //!
 //! A handler's functions get a `StaticCx`: the effect's source and controller (Java's `source`), its timestamp, and
 //! the Java the transpiler translated for it. The same `CardStatic` resolving as a one-shot effect (Emergence Zone's
@@ -408,6 +410,10 @@ pub(crate) enum AsThough {
     /// the graveyard or exile it's in; Some: how (`PlayWay`). A card's own (`Zone.ALL`: "you may cast this card from
     /// your graveyard") is declared `.in_any_zone()`.
     Play(fn(&Game, &StaticCx, Seat, ObjId, &CardDef) -> Option<PlayWay>),
+    /// `DAMAGE_NOT_BLOCKED`: the blocked attacker `id` may assign its combat damage as though it weren't blocked.
+    /// None: it doesn't apply; Some(false): it applies; Some(true): it applies if the effect's controller says yes
+    /// to "Have (the attacker) assign damage as though it weren't blocked?" (an `applies` that asks: Zilortha's)
+    DamageNotBlocked(fn(&Game, &StaticCx, ObjId) -> Option<bool>),
 }
 
 /// How an as-though effect lets a card be played from a graveyard or exile: for its own mana cost, or for `mana`
@@ -840,6 +846,21 @@ pub(crate) fn play_ways(game: &Game, seat: Seat, id: ObjId, face: &CardDef) -> V
     };
     each_static(game, &mut check);
     each_own_static(game, id, &mut check);
+    out
+}
+
+/// The as-though handlers that apply to the blocked attacker `id` assigning its combat damage as though it weren't
+/// blocked (`AsThough::DamageNotBlocked`), in the order they're found: each one's controller, and whether it asks
+pub(crate) fn damage_not_blocked(game: &Game, id: ObjId) -> Vec<(Seat, bool)> {
+    let mut out = Vec::new();
+    let mut check = |h: &'static Hook, cx: &StaticCx, _: &EffectDef| {
+        if let Hook::AsThough(AsThough::DamageNotBlocked(f)) = h {
+            if let Some(asks) = f(game, cx, id) {
+                out.push((cx.controller, asks));
+            }
+        }
+    };
+    each_static(game, &mut check);
     out
 }
 
