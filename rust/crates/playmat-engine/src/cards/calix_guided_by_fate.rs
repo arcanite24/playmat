@@ -19,8 +19,8 @@ fn calix_or_enchanted(game: &Game, you: Seat, source: Option<ObjId>, id: ObjId) 
         && game.filter_matches(&Filter(vec![Pred::Enchanted]), you, source, id)
 }
 
-/// Up to one nonlegendary enchantment you control (`TargetPermanent(0, 1, filter, true)` through `choose`), then a
-/// token copy of it
+/// Up to one nonlegendary enchantment you control (`TargetPermanent(0, 1, filter, true)` through `choose`, asked even
+/// with none), then a token copy of it
 fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     let you = cx.controller();
     let options: Vec<ObjId> = game
@@ -33,9 +33,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
                 && !game.obj(*o).def.supertypes.iter().any(|s| s == "LEGENDARY")
         })
         .collect();
-    if options.is_empty() {
-        return Some(());
-    }
+    // `HumanPlayer.choose` asks even with nothing to choose: the target isn't required (0 to 1)
     let chosen = choose_cards(game, d, you, &options, &options, 0, 1, "nonlegendary enchantment you control")?;
     let Some(&of) = chosen.first() else { return Some(()) };
     token_copy(game, d, of, you, None);

@@ -22,7 +22,8 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         return Some(());
     }
     for to in cx.objs(0) {
-        if game.obj(to).zone != Zone::Battlefield {
+        // a face-down target stays a face-down 2/2: `BecomesFaceDownCreatureEffect` applies over the copy (layer 1b)
+        if game.obj(to).zone != Zone::Battlefield || game.obj(to).face_down {
             continue;
         }
         let copy = game.obj(from).copiable();

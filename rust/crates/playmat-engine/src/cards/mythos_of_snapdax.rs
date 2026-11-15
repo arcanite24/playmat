@@ -6,12 +6,7 @@ use super::*;
 
 pub const HANDLERS: &[Handler] = &[Handler::effect("MythosOfSnapdax.MythosOfSnapdaxEffect", apply)];
 
-const TYPES: [(CardType, &str); 4] = [
-    (CardType::Artifact, "an Artifact"),
-    (CardType::Creature, "a Creature"),
-    (CardType::Enchantment, "an Enchantment"),
-    (CardType::Planeswalker, "a Planeswalker"),
-];
+const TYPES: [CardType; 4] = [CardType::Artifact, CardType::Creature, CardType::Enchantment, CardType::Planeswalker];
 
 /// Each player in turn order from you, for each type they control a nonland permanent of: that player (or you, with
 /// {B}{R} spent) chooses one (`TargetPermanent`, not targeted); then every other nonland permanent is sacrificed, in
@@ -26,7 +21,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         if game.player(p).lost {
             continue;
         }
-        for (t, article) in TYPES {
+        for t in TYPES {
             let options: Vec<ObjId> = game
                 .battlefield
                 .iter()
@@ -36,13 +31,11 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
             if options.is_empty() {
                 continue;
             }
-            let message = if you_choose && p != you {
-                format!("{article} controlled by {}", log::seat_name(p))
-            } else {
-                format!("{article} you control")
-            };
+            // `tryToAutoChoose` reads the spell's rule ("… then sacrifices the rest"): a lone permanent of the
+            // chooser's own is still asked for, an opponent's is picked by itself
+            let rule = item_rule(game, cx.item);
             let chooser = if you_choose { you } else { p };
-            let chosen = choose_cards(game, d, chooser, &options, &options, 1, 1, &message)?;
+            let chosen = choose_cards(game, d, chooser, &options, &options, 1, 1, &rule)?;
             keep.extend(chosen.first().copied());
         }
     }

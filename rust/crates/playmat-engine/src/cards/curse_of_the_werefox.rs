@@ -41,7 +41,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         count: None,
     };
     let delayed = Delayed {
-        rule: "that creature fights up to one target creature you don't control.".into(),
+        rule: "That creature fights up to one target creature you don't control.".into(),
         sacrifice: Vec::new(),
         warp_exile: Vec::new(),
         effects: vec![fight],
