@@ -3741,6 +3741,9 @@ class Translator:
                 a['rule'] = dc['rule']
             elif dc['phrase'] is not None and ', ' in a.get('rule', ''):
                 a['rule'] = dc['phrase'] + a['rule'].split(', ', 1)[1]
+            elif dc['phrase'] is not None and 'rule' not in a:
+                # no text of its base's: the creating spell's or ability's sentence with its phrase (`granted_rules`)
+                a['delayed_phrase'] = dc['phrase']
             out = {'class': 'CreateDelayedTriggerEffect', 'ability': a}
             if dc['duration'] == 'Duration.EndOfTurn':
                 out['end_of_turn'] = True
@@ -9267,6 +9270,12 @@ def granted_rules(card):
             if any(e.get('class') == 'SetBasePtEffect' for e in g.get('effects', [])):
                 raise Unsupported('granted SetBasePtEffect static')
             g['rule'] = quoted.group(1) if quoted else ''
+        elif g.get('class') == 'TriggeredAbility' and (ph := g.pop('delayed_phrase', None)) \
+                and (m := re.search(re.escape(ph) + r'[^.<]*\.', rule or '')):
+            # a card's own delayed trigger with a trigger phrase and no text of its base's: its sentence in the
+            # creating rule, which `CreateDelayedTriggeredAbilityEffect` writes as the ability's `getRule` (Full
+            # Throttle's "At the beginning of each combat this turn, untap all creatures that attacked this turn.")
+            g['rule'] = m.group(0)
         elif g.get('class') in ('SimpleActivatedAbility', 'ActivateAsSorceryActivatedAbility', 'LoyaltyAbility',
                                 'TriggeredAbility', 'SimpleStaticAbility'):
             raise Unsupported('granted ' + g['class'] + ' without its rule text')
