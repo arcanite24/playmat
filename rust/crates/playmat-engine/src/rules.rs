@@ -10640,16 +10640,20 @@ fn lose_all_abilities(game: &mut Game, id: ObjId, src: ObjId, zcc: u32) {
     }
 }
 
-/// 704.5n: an Equipment attached to what isn't a creature (or is gone) becomes unattached
+/// 704.5n: an Equipment attached to what isn't a creature (or is gone) becomes unattached; 704.5q: so does one
+/// that isn't an Equipment any more (a copy of a Vehicle until end of turn: Shuri, Wakandan Inventor)
 fn unattach_equipment(game: &mut Game) -> bool {
     let mut happened = false;
     let ids: Vec<ObjId> = game.battlefield.iter().copied().collect();
     for id in ids {
         if game.obj(id).attached_to.is_some()
-            && game.obj(id).def.has_subtype("Equipment")
+            // (an Equipment until it became a copy of something else until end of turn: unattached below)
+            && (game.obj(id).def.has_subtype("Equipment")
+                || game.obj(id).until_end_of_turn_def.as_ref().is_some_and(|d| d.has_subtype("Equipment")))
             && (!game.attached(id).is_some_and(|to| game.has_type(to, CardType::Creature))
                 // an Equipment that's a creature too (Ensoul Artifact) can't equip (704.5n)
-                || game.has_type(id, CardType::Creature))
+                || game.has_type(id, CardType::Creature)
+                || !game.has_subtype(id, "Equipment"))
         {
             game.obj_mut(id).attached_to = None;
             happened = true;
