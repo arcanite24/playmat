@@ -32,6 +32,14 @@ def device():
     return torch.device("cpu")
 
 
+def tx_sizes(s):
+    """`--tx` as JSON or as k=v pairs"""
+    s = s.strip()
+    if s.startswith("{"):
+        return json.loads(s)
+    return {k: int(v) for k, v in (kv.split("=") for kv in s.split(",") if kv)}
+
+
 def losses(net, critic, b):
     logits, v, h = net(b)
     logp = F.log_softmax(logits, -1)
@@ -75,7 +83,7 @@ def main():
     ap.add_argument("--lr", type=float, default=2e-3)
     ap.add_argument("--init", default=None, help="a run folder to start from (its net.pt, arch.json, critic.pt)")
     ap.add_argument("--arch", default="mlp", help="mlp, or tx (the transformer)")
-    ap.add_argument("--tx", default="{}", help='the transformer sizes as JSON, e.g. {"d": 192, "layers": 4}')
+    ap.add_argument("--tx", default="{}", help="the transformer sizes: JSON, or d=192,layers=4,text=1")
     ap.add_argument("--value-weight", type=float, default=0.5)
     ap.add_argument("--belief-weight", type=float, default=0.2)
     args = ap.parse_args()
@@ -93,7 +101,7 @@ def main():
         if os.path.exists(cpath):
             critic.load_state_dict(torch.load(cpath, map_location=dev))
     else:
-        net = build({"arch": args.arch, **(json.loads(args.tx) if args.arch == "tx" else {})}).to(dev)
+        net = build({"arch": args.arch, **(tx_sizes(args.tx) if args.arch == "tx" else {})}).to(dev)
     print(f"TRAIN net {params(net)} params, critic {params(critic)}, on {dev}", flush=True)
     opt = torch.optim.AdamW(list(net.parameters()) + list(critic.parameters()), lr=args.lr, weight_decay=1e-4)
     steps = args.epochs * math.ceil(len(train_idx) / args.bs)
