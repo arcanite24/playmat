@@ -7,7 +7,7 @@ use super::*;
 pub const HANDLERS: &[Handler] = &[Handler::effect("DeliverUntoEvil.DeliverUntoEvilEffect", apply)
     .filters(&["new FilterControlledPlaneswalkerPermanent(SubType.BOLAS)"])];
 
-/// the targets to your hand with a Bolas planeswalker; else the opponent (`TargetOpponent`, not targeted) chooses
+/// the targets to your hand with a Bolas planeswalker; else an opponent you choose (`TargetOpponent`, not targeted) chooses
 /// `min(2, cards)` of them (`TargetCardInGraveyard`), and the rest go to your hand
 fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     let you = cx.controller();
@@ -21,7 +21,21 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         }
         return Some(());
     }
-    let opponent = game.opponent(you);
+    // `player.choose` of a not-targeted `TargetOpponent`: asked even with one opponent
+    let opponents: Vec<Seat> = (0..game.seats()).filter(|p| *p != you && !game.player(*p).lost).collect();
+    if opponents.is_empty() {
+        return Some(());
+    }
+    let opponent = loop {
+        match ask(game, d, you, &Query::Target { players: opponents.clone(), objs: Vec::new(), required: true }) {
+            Answer::Player(p) if opponents.contains(&p) => break p,
+            Answer::Stop => return None,
+            _ => {}
+        }
+        if d.stopped() {
+            return None;
+        }
+    };
     let n = cards.len().min(2);
     let chosen = choose_cards_rounds(game, d, opponent, &cards, n, n)?;
     cards.retain(|c| !chosen.contains(c));
