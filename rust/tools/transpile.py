@@ -1101,6 +1101,10 @@ STACK_PREDICATES = {
 _declaring = {}
 
 
+# the subtypes the card file being translated imports statically (`import static mage.constants.SubType.ZOMBIE;`)
+_STATIC_SUBTYPES = set()
+
+
 def named_filter(name, subtypes):
     """a filter a predicate names: a `StaticFilters` one or a field the card declared before"""
     if name.startswith('StaticFilters.'):
@@ -1138,6 +1142,10 @@ def filter_object(cls, args, adds, subtypes):
             continue
         if (m := re.fullmatch(r'SubType\.(\w+)', a)) and m.group(1) in subtypes:
             preds.append({'p': 'subtype', 's': subtypes[m.group(1)]})
+            continue
+        # a subtype the card file imports statically (`import static mage.constants.SubType.ZOMBIE;`)
+        if a in _STATIC_SUBTYPES and a in subtypes:
+            preds.append({'p': 'subtype', 's': subtypes[a]})
             continue
         raise Unsupported('filter argument ' + a)
     for x in adds:
@@ -1810,6 +1818,11 @@ class Translator:
             return {'c': 'source_counter', 'name': COUNTERS[m.group(1)], 'n': int(m.group(2)) + 1}
         if (m := re.fullmatch(r'new TargetHasSubtypeCondition\(SubType\.(\w+)\)', arg)) and m.group(1) in self.subtypes:
             return {'c': 'source_targets', 'filter': [{'p': 'subtype', 's': self.subtypes[m.group(1)]}], 'first': True}
+        # "if this creature is a Wizard" (`getPermanentOrLKIBattlefield(source).hasSubtype`, any of them)
+        if (m := re.fullmatch(r'new SourceHasSubtypeCondition\((SubType\.\w+(?:,SubType\.\w+)*)\)', arg)) \
+                and all(x[8:] in self.subtypes for x in m.group(1).split(',')):
+            ps = [{'p': 'subtype', 's': self.subtypes[x[8:]]} for x in m.group(1).split(',')]
+            return {'c': 'source_matches', 'filter': ps if len(ps) == 1 else [{'p': 'or', 'xs': ps}]}
         if (m := re.fullmatch(r'new SourceMatchesFilterCondition\((?:"[^"]*",)?(.*)\)', arg)):
             return {'c': 'source_matches', 'filter': self.filter(m.group(1))}
         if (m := re.fullmatch(r'new AttachedToMatchesFilterCondition\((.*)\)', arg)):
@@ -3377,6 +3390,12 @@ class Translator:
             return {'class': cls}
         if cls == 'MustBeBlockedByAtLeastOneSourceEffect' and [a.strip() for a in args] == ['Duration.WhileOnBattlefield']:
             return {'class': cls}
+        # "the \"legend rule\" doesn't apply to <filter>" (a static's; every permanent without a filter)
+        if cls == 'LegendRuleDoesntApplyEffect' and len(args) <= 1:
+            return {'class': cls, 'filter': self.filter(args[0]) if args else []}
+        # "{this} can't be blocked except by N or more creatures" (a static's, `setMinBlockedBy`)
+        if cls == 'CantBeBlockedByOneEffect' and len(args) == 1 and re.fullmatch(r'\d+', args[0].strip()):
+            return {'class': cls, 'amount': int(args[0].strip())}
         # "… for as long as you control this" (taken as for good)
         if cls == 'GainAbilityTargetEffect' and len(args) in (2, 3) and args[1].strip() == 'Duration.Custom' \
                 and (len(args) == 2 or args[2].strip().startswith('"')):
@@ -3651,6 +3670,10 @@ class Translator:
         # "enchanted creature assigns combat damage equal to its toughness rather than its power" (Gauntlets of Light)
         if cls == 'CombatDamageByToughnessAttachedEffect' and len(args) == 2 and args[0].strip() == 'null':
             return {'class': cls}
+        # "as long as enchanted creature has vigilance, it assigns …" (a static's, under its condition)
+        if cls == 'CombatDamageByToughnessAttachedEffect' and len(args) == 2 and args[0].strip() != 'null':
+            return {'class': 'ConditionalContinuousEffect', 'effect': {'class': cls},
+                    'condition': self.condition(args[0].strip())}
         if cls == 'CounterUnlessPaysEffect' and len(args) == 1 and not args[0].strip().startswith('new '):
             return {'class': cls, 'generic': self.value('amount', args[0].strip())}
         # a `DynamicValue` constructed in place (`new CardsInControllerGraveyardCount()`): {1} for each
@@ -5100,6 +5123,12 @@ class Translator:
         # plot: as a sorcery, pay the cost and exile it from your hand; cast it free as a sorcery on a later turn
         if cls == 'PlotAbility' and len(args) == 1 and re.fullmatch(r'"(\{[^"]*\})+"', args[0].strip()):
             return {'class': cls, 'java': cls, 'cost': args[0].strip()[1:-1]}
+        # the Defilers: "as an additional cost to cast <color> permanent spells, you may pay 2 life …", a static
+        # whose `MayPay2LifeEffect` has a cost handler (`CostKind::MayPayLife`)
+        if cls == 'MayPay2LifeForColorAbility' and len(args) == 1 \
+                and re.fullmatch(r'ObjectColor\.(WHITE|BLUE|BLACK|RED|GREEN)', args[0].strip()):
+            return {'class': 'SimpleStaticAbility', 'java': cls,
+                    'effects': [self.effect('new MayPay2LifeEffect(' + args[0].strip() + ')')]}
         if cls == 'AttacksEachCombatStaticAbility' and not args:
             return {'class': 'SimpleStaticAbility', 'java': cls, 'effects': [{'class': 'AttacksIfAbleSourceEffect'}]}
         # flashback for mana and another cost (Twinned Vision: "{1}{U/R}{U/R}, discard a card"): to Java a
@@ -6557,6 +6586,16 @@ class Translator:
         if cls == 'EntersBattlefieldThisOrAnotherTriggeredAbility' and n == 4:
             filt = self.filter(args[1]) + ([YOU] if flag(args[3]) else [])
             return out({'e': 'enters_all', 'filter': filt, 'include_self': True}, args[0], flag(args[2]))
+        # (effect, filter, optional, SetTargetPointer, onlyControlled): the pointer at the permanent that entered
+        # ("that creature explores": Ambuscade Shaman) or at its controller
+        if cls == 'EntersBattlefieldThisOrAnotherTriggeredAbility' and n == 5 \
+                and args[3] in ('SetTargetPointer.NONE', 'SetTargetPointer.PERMANENT', 'SetTargetPointer.PLAYER'):
+            filt = self.filter(args[1]) + ([YOU] if flag(args[4]) else [])
+            a = out({'e': 'enters_all', 'filter': filt, 'include_self': True}, args[0], flag(args[2]),
+                    args[3] == 'SetTargetPointer.PERMANENT')
+            if args[3] == 'SetTargetPointer.PLAYER':
+                a['set_target_pointer_player'] = True
+            return a
         return self.wave2_triggers(cls, args, flag, out)
 
     def wave2_triggers(self, cls, args, flag, out):
@@ -7177,6 +7216,8 @@ def translate(card_name, subtypes, facts):
     if not os.path.exists(path):
         raise Unsupported('no card class ' + cls)
     source = open(path).read()
+    global _STATIC_SUBTYPES
+    _STATIC_SUBTYPES = set(re.findall(r'import static mage\.constants\.SubType\.([A-Z_]+);', source))
     if 'extends ModalDoubleFacedCard' in re.search(r'public (?:final )?class \w+\s+extends \w+', source).group(0):
         return modal_double_faced(card_name, subtypes, facts, cls, source)
     if 'extends TransformingDoubleFacedCard' in re.search(r'public (?:final )?class \w+\s+extends \w+', source).group(0):
@@ -7843,6 +7884,14 @@ def card_statement(t, st, card, added, spell, modes, subtypes):
                 {'p': 'owner', 'who': 'you'}, CREATURE, {'p': 'mana_value_x', 'cmp': 'OR_LESS'},
                 {'p': 'mana_value_unlike_chosen'}], 'min': 0, 'max': 2 ** 31 - 1})
             return
+        # Heliod's Intervention: its destroy mode takes X target artifacts and/or enchantments (the adjuster's
+        # `TargetPermanent(X, …)`, for the mode with `DestroyTargetEffect` only)
+        if st == 'this.getSpellAbility().setTargetAdjuster(HeliodsInterventionAdjuster.instance)' and not spell['targets'] \
+                and len(spell.get('effects', [])) == 1 and spell['effects'][0].get('class') == 'DestroyTargetEffect':
+            tg = t.target('new TargetPermanent(StaticFilters.FILTER_PERMANENT_ARTIFACT_OR_ENCHANTMENT)')
+            tg['x_count'] = True
+            spell['targets'].append(tg)
+            return
         # "with power (toughness) X or less": the spell's last target
         m = re.fullmatch(r'this\.getSpellAbility\(\)\.setTargetAdjuster\(new (Power|Toughness)TargetAdjuster\(ComparisonType\.(OR_LESS|OR_GREATER|EQUAL_TO|FEWER_THAN)\)\)', st)
         if m and spell['targets'] and spell['targets'][-1].get('class') == 'TargetPermanent':
@@ -7940,21 +7989,6 @@ def static_type_changes(card):
             for v in x:
                 walk(v, static)
     walk(card, False)
-
-    # `AddCreatureTypeAdditionEffect` before the effect that returns its creature applies as the creature enters
-    # (Liliana, Death's Majesty): the engine's applies only to a creature already on the battlefield
-    def order(x):
-        if isinstance(x, dict):
-            for v in x.values():
-                order(v)
-        elif isinstance(x, list):
-            classes = [e.get('class') for e in x if isinstance(e, dict)]
-            if 'AddCreatureTypeAdditionEffect' in classes and any(
-                    c and c.startswith('ReturnFromGraveyardToBattlefield') for c in classes[classes.index('AddCreatureTypeAdditionEffect'):]):
-                raise Unsupported('effect AddCreatureTypeAdditionEffect before its return')
-            for v in x:
-                order(v)
-    order(card)
 
 
 def overloaded(effect, filter, st):
@@ -8130,6 +8164,12 @@ def ability_statement(t, st, added):
     m = re.fullmatch(r'(?:final )?\w+ (\w+)=(.*)', st) or re.fullmatch(r'(\w+)=(new .*)', st)
     if m:
         t.assign(m.group(1), m.group(2))
+        return True
+    # `ability.setTiming(TimingRule.SORCERY)` on an ability variable, as the expression form reads it
+    m = re.fullmatch(r'(\w+)\.setTiming\(TimingRule\.SORCERY\)', st)
+    if m and isinstance(t.vars.get(m.group(1)), dict) \
+            and t.vars[m.group(1)].get('class') in ('GraveyardActivatedAbility', 'LimitedTimesPerTurnActivatedAbility'):
+        t.vars[m.group(1)]['sorcery'] = True
         return True
     # a card's own target adjuster with a target handler (`Handler::target` named `Outer.XAdjuster`): its base
     # target, with the handler as a predicate, in place of the ability's targets
