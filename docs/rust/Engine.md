@@ -1399,6 +1399,32 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   multi-layer statics; card-defined and "this turn" delayed triggers; a card's own `CostImpl` and cost handlers that
   ask; activating abilities a static grants; Auras on players; snow and Treasure mana spent on abilities; plus the
   random or unordered ones.
+  Wave 15, unverified claim (15 Nov): the 356 cards in the engine but not verified, used ones first. Six factory
+  rounds (566 games, 518 matching, two Java unfinished; three hand-made rounds for cards the AI rarely casts)
+  verified 288: 13,510 of 13,578. Engine and transpiler fixes, each with a game under `shadow/wave15-unverified/`:
+  a trigger's targets are checked before it goes on the stack, modal ones too (Amalgam, Ertai Resurrected); a
+  countered ability's controller draws nothing from Ertai; `GainAbilitySourceEffect` while on the battlefield
+  (Phoenix); a dies-attached return reads the card in its next zone (Draconic Destiny, Angelic Destiny); "until your
+  next turn" boosts (Sorin); The World Tree's conditional land mana; Approach of the Second Sun's win while it's
+  still on the stack; ascend checked at resolution (Dusk Charger); an empty mana ability (Cornucopia) and a
+  handler's zero-net mana ability (Three Tree City) are offered beside the source's others; "target opponent or
+  planeswalker" takes your own planeswalker too; Omnipresence's free casts count as playable; that-player and
+  for-each-player target names (Hapatra, Shark Shredder); an `AddCountersAttached` value (Krasis); a granted
+  triggered ability through `GainAbilityAllEffect` (Pontiff of Blight); a `{0}` mana cost on a mana ability (Vivi
+  Ornitier); emerge's sacrifice triggers go before the cast triggers (Java sacrifices inside `activate`); a
+  beginning-of-step `SacrificeEffect` points at the active player (Sorin, Solemn Visitor's emblem); a delayed
+  transform keeps the face it was made for (Aang, at the Crossroads); and a `MageSingleton` keyword an Aura gives a
+  creature that has it takes no ability index (Prophetic Ravings on a hasty creature). The fingerprint now leaves out
+  tooltip ids too (`<font color='…'>Name [abc]</font>`, Gruul Ragebeast's "Your fighting creature"), in Java's
+  `StateFingerprint` and in `fingerprint.rs`, as the id is random. Recording needs the Mage jar from this tree in
+  the factory's own Maven repository (`mvn -o -pl Mage install -DskipTests` with `-Dmaven.repo.local`): the
+  recorder only builds Mage.Tests, so an older jar there records with the old fingerprint. Not verified: random or
+  unordered ones (Reckoner Bankbuster, Moment of Truth, Emergent Sequence, The Three Seasons, Smuggler's Surprise,
+  Pearl Lake Ancient, Turn the Earth, Festival of Embers, Hedge Whisperer, Skyclave Plunder, Mnemonic Betrayal);
+  Elemental Expressionist (Java never triggers it, then asks which replacement goes first); one game each for
+  Questing Druid, Mythos of Brokkos, Mirrorshell Crab, Fleeting Spirit, Gnawing Crescendo, Mindreaver, Mica, Axebane
+  Ferox and Tarrian's Soulcleaver (not looked into); and 42 pending cards the AI didn't cast in enough games
+  (Omniscience, Clone Legion, Krang, Rise of the Dark Realms, The Tarrasque and others).
   Text fixes for verified cards (13 Nov): the Young Hero Role's granted trigger keeps its own text, "put a +1/+1
   counter on it" (its `AddCountersSourceEffect` has a `setText`), and a delayed upkeep transform is "Transform {this}
   at the beginning of the next turn's upkeep." (`AtTheBeginOfNextUpkeepDelayedTriggeredAbility.getRule` puts the
