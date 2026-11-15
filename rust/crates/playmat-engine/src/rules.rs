@@ -10636,6 +10636,24 @@ fn refresh_land_types(game: &mut Game) {
                                 }
                             }
                         }
+                        // Nature's Embrace: as long as enchanted permanent is a land, it has "{T}: Add two mana of
+                        // any one color." (`ConditionalContinuousEffect` applies its `GainAbilityAttachedEffect`
+                        // while the condition holds)
+                        EffectDef::ConditionalContinuousEffect { effect, condition }
+                            if matches!(&**effect, EffectDef::GainAbilityAttachedEffect { ability }
+                                if ability.mana().is_some()
+                                    || matches!(**ability, AbilityDef::SimpleActivatedAbility { .. }
+                                        | AbilityDef::ActivateAsSorceryActivatedAbility { .. })) =>
+                        {
+                            let you = game.obj(*id).controller;
+                            if let (EffectDef::GainAbilityAttachedEffect { ability }, Some(to)) =
+                                (&**effect, game.attached(*id))
+                            {
+                                if game.condition_holds(Some(condition), you, *id) {
+                                    granted.push((to, (**ability).clone()));
+                                }
+                            }
+                        }
                         // Petrified Hamlet: lands with the chosen name have "{T}: Add {C}"; Food Fight: artifacts you
                         // control have "{2}, Sacrifice this artifact: …"
                         EffectDef::GainAbilityAllEffect { ability, filter, .. }
@@ -23875,8 +23893,8 @@ pub(crate) fn next_main_delayed(
     game.at_next_main.push((phase.to_string(), game.turn, t));
 }
 
-/// Transforms a permanent into its other face (not one that entered as a copy); transforming into its front fires
-/// "enters or transforms into" triggers (`PermanentImpl.transform`)
+/// Transforms a permanent into its other face (not one that entered as a copy); the face it transforms into fires its
+/// "enters or transforms into" triggers (`PermanentImpl.transform`'s `TRANSFORMED`)
 fn transform(game: &mut Game, id: ObjId) {
     // a permanent that entered as a copy keeps the copied face: the copy effect is applied over whichever face of its
     // own card is up (Mirrorhall Mimic as a copy of Sun-Blessed Guardian stays Sun-Blessed Guardian)
@@ -23897,10 +23915,9 @@ fn transform(game: &mut Game, id: ObjId) {
     if let Some(base) = &merged {
         o.def = base.clone();
     }
-    let into_front = match o.front.take() {
+    match o.front.take() {
         Some(front) => {
             o.def = front;
-            true
         }
         None => {
             // a modal double-faced card transforms when both its faces are permanents
@@ -23918,19 +23935,17 @@ fn transform(game: &mut Game, id: ObjId) {
                     return;
                 }
             }
-            false
         }
-    };
+    }
     if merged.is_some() {
         let face = game.obj(id).def.clone();
         game.obj_mut(id).merge_base = Some(face);
         let def = merged_def(game, id);
         game.obj_mut(id).def = Arc::new(def);
     }
-    if into_front {
-        let fired = game.triggers([id], |_, _, _, t| matches!(t, Trigger::TransformsOrEnters));
-        game.pending.extend(fired);
-    }
+    // "enters or transforms into {this}": the face it transformed into, front or back (Wildsong Howler's)
+    let fired = game.triggers([id], |_, _, _, t| matches!(t, Trigger::TransformsOrEnters));
+    game.pending.extend(fired);
     // `TRANSFORMED`: the face it is now
     let sources = game.trigger_sources();
     let zcc = game.obj(id).zcc;
