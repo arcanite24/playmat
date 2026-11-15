@@ -12814,8 +12814,9 @@ fn apply_each_effect(
                         _ => {}
                     }
                 };
-                // the permanent entering, or the spell resolving (Unmoored Ego's next effect reads it)
-                if matches!(game.obj(source.0).zone, Zone::Battlefield | Zone::Stack) {
+                // the permanent entering, or the spell resolving (Unmoored Ego's next effect reads it), or an
+                // ability's source exiled to pay for it (The Stone Brain's next effect reads the source's value)
+                if matches!(game.obj(source.0).zone, Zone::Battlefield | Zone::Stack | Zone::Exile) {
                     game.obj_mut(source.0).chosen_name = Some(chosen);
                 }
             }
