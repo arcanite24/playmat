@@ -6090,6 +6090,20 @@ fn modified_cost_of(game: &Game, seat: Seat, id: ObjId, face: &CardDef, mut cost
     // static handlers' (`card_statics.rs`), each kind after the engine's own
     let of = cards::CostCx { seat, card: id, face, ability: None };
     cards::change_cost(game, cards::CostKind::Increase, &of, &mut cost);
+    // its own increases (a condition that only works on the stack doesn't count while checking what's playable)
+    for a in &game.obj(id).def.abilities {
+        if let AbilityDef::SimpleStaticAbility { effects, .. } = a {
+            for e in effects {
+                if let EffectDef::SpellCostIncreaseSourceEffect { amount, condition, stack_only } = e {
+                    if (!*stack_only || game.obj(id).zone == Zone::Stack)
+                        && game.condition_holds(condition.as_ref(), seat, id)
+                    {
+                        cost.generic += (*amount).max(0) as u32;
+                    }
+                }
+            }
+        }
+    }
     cost.generic = cost.generic.saturating_sub(reduce);
     cards::change_cost(game, cards::CostKind::Reduce, &of, &mut cost);
     let o = game.obj(id);
@@ -14590,7 +14604,8 @@ fn apply_each_effect(
             | EffectDef::WeatheredRunestoneEffect
             | EffectDef::WeatheredRunestoneEffect2
             | EffectDef::ChooseCreatureEffect { .. }
-            | EffectDef::SpellCostReductionSourceEffect { .. } => {}
+            | EffectDef::SpellCostReductionSourceEffect { .. }
+            | EffectDef::SpellCostIncreaseSourceEffect { .. } => {}
             EffectDef::LoseLifeOpponentsYouGainLifeLostEffect { amount } => {
                 let n = v!(amount);
                 let mut lost = 0;

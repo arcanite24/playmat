@@ -2524,6 +2524,15 @@ pub enum EffectDef {
         #[serde(default)]
         stack_only: bool,
     },
+    /// a static ability's effect: this spell costs {amount} more (if the condition holds; `stack_only`: only while
+    /// it's being cast, not for the playable check: Dragon's Prey "if it targets a Dragon")
+    SpellCostIncreaseSourceEffect {
+        amount: i32,
+        #[serde(default)]
+        condition: Option<Condition>,
+        #[serde(default)]
+        stack_only: bool,
+    },
     /// you lose life equal to the target's mana value, then destroy it (Feed the Swarm)
     FeedTheSwarmEffect,
     /// 4 damage to the target; if a nonred permanent was dealt damage, you sacrifice a land (Redcap Melee)
