@@ -3411,6 +3411,10 @@ pub enum EffectDef {
     CreateEndOfCombatDelayedEffect {
         effects: Vec<EffectDef>,
         rule: String,
+        /// the creating ability's first targets are its effects' (`CreateDelayedTriggeredAbilityEffect`'s copied
+        /// targets, as fixed targets: Scrappy Bruiser's "return that creature")
+        #[serde(default)]
+        copy_targets: bool,
     },
     /// unleash: it may enter with a +1/+1 counter (`UnleashReplacementEffect`); with one, it can't block
     UnleashEffect,

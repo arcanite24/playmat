@@ -18486,14 +18486,24 @@ fn apply_each_effect(
                 game.at_end_of_combat
                     .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(o, controller) });
             }
-            EffectDef::CreateEndOfCombatDelayedEffect { effects, rule } => {
+            EffectDef::CreateEndOfCombatDelayedEffect { effects, rule, copy_targets } => {
+                let fixed: Vec<(ObjId, u32)> = if *copy_targets {
+                    legal
+                        .first()
+                        .into_iter()
+                        .flatten()
+                        .filter_map(|t| if let Target::Obj(o) = t { Some((*o, game.obj(*o).zcc)) } else { None })
+                        .collect()
+                } else {
+                    Vec::new()
+                };
                 let delayed = Delayed {
                     rule: rule.clone(),
                     sacrifice: Vec::new(),
                     warp_exile: Vec::new(),
                     effects: effects.clone(),
                     source_zcc: source.1,
-                    fixed: Vec::new(),
+                    fixed,
                     return_tapped: Vec::new(),
                     targets: Vec::new(),
                     condition: None,
