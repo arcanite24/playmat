@@ -2819,7 +2819,8 @@ class Translator:
         if (m := re.fullmatch(r'(.*)\.setCanWorksOnStackOnly\(true\)', expr.strip(), re.S)):
             e = self.effect(m.group(1))
             # a cost handler reads where the spell is itself (card_statics.rs)
-            if e.get('class') == 'CardStatic':
+            # (`SpellCostReductionForEachSourceEffect` never reads the flag: Huskburster Swarm)
+            if e.get('class') in ('CardStatic', 'SpellCostReductionForEachSourceEffect'):
                 return e
             if e.get('class') != 'SpellCostReductionSourceEffect':
                 raise Unsupported('setCanWorksOnStackOnly on ' + e.get('class'))
