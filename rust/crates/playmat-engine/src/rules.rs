@@ -10523,7 +10523,15 @@ pub(crate) fn refresh_becomes(game: &mut Game) {
                 let more = o.becomes_base.is_some() && !o.becomes_auras.is_empty() && ids.starts_with(&o.becomes_auras);
                 let (mut def, start) =
                     if more { ((*o.def).clone(), o.becomes_auras.len()) } else { ((*base).clone(), 0) };
-                for (_, _, token, lose, named) in &auras[start..] {
+                // a resolved "loses all abilities" newer than an Aura takes what it gives too (Abigale over Deep
+                // Freeze's defender); an Aura attached since gives its own (a newer one only adds to what's done)
+                let lost_at = o.lost_all_at;
+                let mut cleared = more;
+                for (at, _, token, lose, named) in &auras[start..] {
+                    if lost_at > 0 && *at > lost_at && !cleared {
+                        def.abilities.clear();
+                        cleared = true;
+                    }
                     def = match lose {
                         Some(lose) => becomes_creature_attached(&def, token, lose),
                         None => becomes_creature(&def, token, true),
@@ -10531,6 +10539,9 @@ pub(crate) fn refresh_becomes(game: &mut Game) {
                     if let Some(n) = named {
                         def.name = n.clone();
                     }
+                }
+                if lost_at > 0 && !cleared {
+                    def.abilities.clear();
                 }
                 if lost.is_some() {
                     def.abilities.clear();

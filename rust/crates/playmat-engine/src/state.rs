@@ -192,6 +192,9 @@ pub struct Obj {
     /// it lost all abilities (`BecomesCreatureTargetEffect`'s `loseAllAbilities`): 1 until end of turn, 2 until it
     /// leaves. Its keyword counters' abilities go too: Java adds them first in layer 6 (`ApplyStatusEffect`)
     pub lost_all: u8,
+    /// when a resolved "loses all abilities" (`LoseAllAbilitiesTargetEffect`) applied (0: none): the statics with
+    /// earlier timestamps (an Aura's "enchanted creature has flying") give it nothing (613.7)
+    pub lost_all_at: u64,
     /// a static "as long as …, it's a creature" applied: the card as it is without it
     pub becomes_base: Option<Arc<CardDef>>,
     /// the Auras whose "enchanted … is a …" (`BecomesCreatureAttachedEffect`) `def` has, in timestamp order
@@ -1774,6 +1777,7 @@ impl Game {
             solved: false,
             until_end_of_turn_def: None,
             lost_all: 0,
+            lost_all_at: 0,
             becomes_base: None,
             becomes_auras: Vec::new(),
             becomes_over_eot: false,
@@ -2480,10 +2484,12 @@ impl Game {
     /// (`BecomesCreatureAttachedEffect`): layer 6 abilities older static abilities give it are lost with the rest
     pub fn abilities_lost_at(&self, id: ObjId) -> Option<u64> {
         let o = self.obj(id);
+        let own = (o.lost_all_at > 0 && o.zone == Zone::Battlefield).then_some(o.lost_all_at);
         if o.becomes_auras.is_empty() {
-            return None;
+            return own;
         }
-        o.becomes_auras
+        let auras = o
+            .becomes_auras
             .iter()
             .filter(|a| self.attached(**a) == Some(id))
             .filter(|a| {
@@ -2496,7 +2502,8 @@ impl Game {
                 })
             })
             .map(|a| self.obj(*a).attached_at)
-            .max()
+            .max();
+        auras.max(own)
     }
 
     /// A permanent's static abilities' timestamp: when it was attached, for an attachment, else when it entered
@@ -4825,6 +4832,7 @@ impl Game {
                     o.def = def;
                 }
                 o.lost_all = 0;
+                o.lost_all_at = 0;
                 o.copied_def = None;
                 o.eot_copy = None;
                 if let Some(def) = o.pre_guildpact.take() {
