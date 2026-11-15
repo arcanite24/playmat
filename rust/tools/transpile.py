@@ -491,6 +491,22 @@ CUSTOM = {
     'SyrKonradTheGrimTriggeredAbility': lambda: {
         'class': 'TriggeredAbility', 'java': 'SyrKonradTheGrimTriggeredAbility', 'on': {'e': 'syr_konrad'},
         'effects': [{'class': 'DamagePlayersEffect', 'amount': 1, 'controller': 'opponent'}]},
+    # a card of a kind leaving your graveyard (one `ZONE_CHANGE` each, the card you own): Along the Crooked Way's
+    # creature card amasses Goblins 1, Murktide Regent's instant or sorcery card puts a +1/+1 counter on it,
+    # Kishla Skimmer's any card during your turn draws a card
+    'AlongTheCrookedWayTriggeredAbility': lambda: {
+        'class': 'TriggeredAbility', 'java': 'AlongTheCrookedWayTriggeredAbility',
+        'on': {'e': 'card_leaves_your_graveyard', 'filter': [CREATURE]},
+        'effects': [{'class': 'AmassEffect', 'amount': 1, 'subtype': 'Goblin', 'token': token('GoblinArmyToken')}]},
+    'MurktideRegentTriggeredAbility': lambda: {
+        'class': 'TriggeredAbility', 'java': 'MurktideRegentTriggeredAbility',
+        'on': {'e': 'card_leaves_your_graveyard',
+               'filter': [{'p': 'or', 'xs': [{'p': 'type', 't': 'INSTANT'}, {'p': 'type', 't': 'SORCERY'}]}]},
+        'effects': [{'class': 'AddCountersSourceEffect', 'counter': {'name': '+1/+1', 'amount': 1}}]},
+    'KishlaSkimmerTriggeredAbility': lambda: {
+        'class': 'TriggeredAbility', 'java': 'KishlaSkimmerTriggeredAbility',
+        'on': {'e': 'card_leaves_your_graveyard', 'your_turn': True},
+        'effects': [{'class': 'DrawCardSourceControllerEffect', 'amount': 1}]},
     # Vanquisher's Banner: "whenever you cast a creature spell of the chosen type, draw a card"
     'DrawCardIfCreatureTypeAbility': lambda: {
         'class': 'TriggeredAbility', 'java': 'DrawCardIfCreatureTypeAbility',
@@ -6761,6 +6777,9 @@ class Translator:
         that ability kind), else Unsupported"""
         src = getattr(self, 'source', None) or ''
         name = arg.strip()
+        # any ability (a trigger handler's base, whose check says which: Herald of Anafenza's outlast)
+        if name == 'StaticFilters.FILTER_SPELL_OR_ABILITY':
+            return 'any'
         if not re.search(r'FilterStackObject\s+' + re.escape(name) + r'\s*=\s*new (?:FilterStackObject|FilterActivatedOrTriggeredAbility)\("[^"]*"\)', src):
             raise Unsupported('ActivateAbilityTriggeredAbility filter ' + name)
         preds = re.findall(r'\b' + re.escape(name) + r'\.add\(([^;]*)\);', src)
