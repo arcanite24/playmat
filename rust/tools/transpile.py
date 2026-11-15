@@ -908,6 +908,9 @@ FILTER_CLASSES = {
     'FilterCreatureCards': [CREATURE],
     'FilterEnchantmentCard': [type_pred('ENCHANTMENT')], 'FilterBasicCard': [{'p': 'supertype', 's': 'BASIC'}],
     'FilterBlockingCreature': [CREATURE, {'p': 'blocking'}],
+    # attacking the filter's player itself (not a planeswalker: `getDefenderId`), a predicate handler; the
+    # `orWalker` overloads (a boolean argument) stay unsupported
+    'FilterCreatureAttackingYou': [CREATURE, {'p': 'attacking'}, {'p': 'card', 'handler': 'FilterCreatureAttackingYou'}],
     'FilterAttackingOrBlockingCreature': [CREATURE, {'p': 'in_combat'}],
     'FilterArtifactOrEnchantmentCard': [{'p': 'or', 'xs': [type_pred('ARTIFACT'), type_pred('ENCHANTMENT')]}],
     'FilterPlaneswalkerCard': [type_pred('PLANESWALKER')],
@@ -1675,6 +1678,9 @@ class Translator:
             return {'v': 'colors_spent'}
         if arg == 'ManaSpentToCastCount.instance':
             return {'v': 'mana_spent'}
+        # Strange new worlds: the number of differently named lands you control (a `DifferentlyNamedPermanentCount`)
+        if arg == 'StrangeNewWorldsValue.instance':
+            return self.amount('new DifferentlyNamedPermanentCount(StaticFilters.FILTER_CONTROLLED_PERMANENT_LANDS)')
         if (m := re.fullmatch(r'EachTwoManaSpentToCastValue\.(WHITE|BLUE|BLACK|RED|GREEN)', arg)):
             return {'v': 'each_two_spent', 'color': COLOR_LETTERS[m.group(1).capitalize()]}
         # a value class written by hand in Rust (src/cards/, card_handlers.py), before `new_expr` gives up on
@@ -2870,17 +2876,18 @@ class Translator:
         # any other effect on the ability's second target: the same effect, pointed at it
         # (a `concatBy` before the pointer only joins the texts)
         # (and one after it: Unstable Experiment's ", then")
-        second = re.sub(r'(?:\.concatBy\("[^"]*"\))+(\.setTargetPointer\(new SecondTargetPointer\(\)\))', r'\1',
-                        re.sub(r'(\.setTargetPointer\(new SecondTargetPointer\(\)\))\.concatBy\("[^"]*"\)$', r'\1',
-                               canonical(expr)))
-        m = re.fullmatch(r'(new \w+\(.*\))((?:\.setText\("[^"]*"\))?)\.setTargetPointer\(new SecondTargetPointer\(\)\)((?:\.setText\(.*\))?)',
-                         second, re.S)
-        # (a text set before the pointer: the call is the shortest part that matches, Ragnarok's return)
-        if m and not balanced(m.group(1)):
-            m = re.fullmatch(r'(new \w+\(.*?\))((?:\.setText\("[^"]*"\))?)\.setTargetPointer\(new SecondTargetPointer\(\)\)((?:\.setText\(.*\))?)',
-                             second, re.S)
-        if m and balanced(m.group(1)) and not m.group(1).startswith('new AddCountersTargetEffect('):
-            return {'class': 'TargetPointerEffect', 'target': 1, 'effect': self.effect(m.group(1))}
+        # (the third target the same way, `ThirdTargetPointer`: Bounty of Might's third +3/+3)
+        for nth, index in (('Second', 1), ('Third', 2)):
+            ptr = r'\.setTargetPointer\(new %sTargetPointer\(\)\)' % nth
+            second = re.sub(r'(?:\.concatBy\("[^"]*"\))+(' + ptr + ')', r'\1',
+                            re.sub(r'(' + ptr + r')\.concatBy\("[^"]*"\)$', r'\1', canonical(expr)))
+            m = re.fullmatch(r'(new \w+\(.*\))((?:\.setText\("[^"]*"\))?)' + ptr + r'((?:\.setText\(.*\))?)', second, re.S)
+            # (a text set before the pointer: the call is the shortest part that matches, Ragnarok's return)
+            if m and not balanced(m.group(1)):
+                m = re.fullmatch(r'(new \w+\(.*?\))((?:\.setText\("[^"]*"\))?)' + ptr + r'((?:\.setText\(.*\))?)',
+                                 second, re.S)
+            if m and balanced(m.group(1)) and not (index == 1 and m.group(1).startswith('new AddCountersTargetEffect(')):
+                return {'class': 'TargetPointerEffect', 'target': index, 'effect': self.effect(m.group(1))}
         m = re.fullmatch(r'new RemoveCounterTargetEffect\((CounterType\.\w+)\.createInstance\(\)\)', canonical(self.strip_setters(expr)))
         if m and m.group(1) in COUNTERS:
             return {'class': 'RemoveCounterTargetEffect', 'counter': COUNTERS[m.group(1)]}
@@ -6931,6 +6938,9 @@ class Translator:
         if re.search(r'\.(?:withInterveningIf|withTriggerCondition)\((?:\w+(?:\.[A-Z_a-z]\w*)?|new \w+Condition\([^()]*\))\)\s*$', self.strip_setters(expr)):
             self.vars[var] = self.ability(expr)
             return
+        # a text (`String ruleText = "…"`), only ever given to a text setter (Coral Colony's `.setText(ruleText)`)
+        if re.fullmatch(r'"[^"\\]*"(?:\s*\+\s*"[^"\\]*")*', expr.strip()):
+            return
         # a `DynamicValue` constant (`DynamicValue xValue = GetXValue.instance`): read where it's used
         if re.fullmatch(r'[A-Z]\w*(?:Count|Value)\.[A-Z_a-z]\w*', expr.strip()):
             self.values[var] = expr.strip()
@@ -9290,6 +9300,11 @@ def granted_rules(card):
                             raise Unsupported('token copy ability without its rule text')
                         g['rule'] = re.sub(r'\b[Tt]his (?:token|creature)\b', '{this}', quotes[seen[0]])
                         seen[0] += 1
+            # harness's "∞ — …" (`GainHarnessedAbilitySourceEffect`): the ability's own text is the static's after "∞ — "
+            if x.get('class') == 'CardStatic' and x.get('handler') == 'GainHarnessedAbilitySourceEffect':
+                for g in x.get('abilities', []):
+                    if isinstance(g, dict) and 'rule' not in g and (rule or '').startswith('\u221e &mdash; '):
+                        g['rule'] = rule[len('\u221e &mdash; '):]
             g = x.get('ability')
             # a static handler given to the permanents "with flying" (Jubilant Skybonder): the engine reads which
             # permanents it's given to through their abilities, which read the statics again (Java orders them by
