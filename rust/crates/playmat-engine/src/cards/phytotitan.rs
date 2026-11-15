@@ -14,7 +14,7 @@ fn apply(game: &mut Game, _: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     })?;
     let owner = game.obj(card).owner;
     let delayed = Delayed {
-        rule: "Return it to the battlefield tapped under its owner's control at the beginning of their next upkeep."
+        rule: "return it to the battlefield tapped under its owner's control at the beginning of their next upkeep."
             .into(),
         sacrifice: Vec::new(),
         warp_exile: Vec::new(),

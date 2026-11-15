@@ -8,6 +8,14 @@ pub const HANDLERS: &[Handler] = &[Handler::effect("UncageTheMenagerie.UncageThe
 /// `SearchLibraryPutInHandEffect(TargetCardWithDifferentNameInLibrary(0, X, creature card with mana value X), true)`
 fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     let x = cx.item.x.max(0);
+    if x == 0 {
+        // up to zero cards: Java's `TargetCardWithDifferentNameInLibrary(0, 0, …)` asks nothing, then it shuffles
+        let you = cx.controller();
+        let mut library = game.player(you).library.clone();
+        game.rng.shuffle(&mut library);
+        game.player_mut(you).library = library;
+        return Some(());
+    }
     let filter = Filter(vec![
         Pred::Type { t: CardType::Creature },
         Pred::Mv { cmp: Cmp::EqualTo, n: x },
