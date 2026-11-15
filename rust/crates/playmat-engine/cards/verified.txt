@@ -2331,6 +2331,7 @@ Cornered by Black Mages
 Corpse Appraiser
 Corpse Blockade
 Corpse Churn
+Corpse Explosion
 Corpse Hauler
 Corpse Knight
 Corpseberry Cultivator
@@ -5340,6 +5341,7 @@ Harried Spearguard
 Harrier Naga
 Harrier Strix
 Harsh Annotation
+Harsh Mentor
 Harsh Scrutiny
 Harsh Sustenance
 Haru, Hidden Talent
@@ -5759,6 +5761,7 @@ Hushwood Verge
 Huskburster Swarm
 Hussar Patrol
 Hustle // Bustle
+Hydra Broodmaster
 Hydra's Growth
 Hydraulic Helper
 Hydro-Channeler
@@ -6080,6 +6083,7 @@ Invisible Woman, Sue Storm
 Invocation of Saint Traft
 Invoke Calamity
 Invoke Despair
+Invoke Justice
 Invoke the Ancients
 Invoke the Divine
 Invoke the Winds
@@ -8959,6 +8963,7 @@ Purge the Profane
 Purging Stormbrood
 Purifying Dragon
 Purphoros's Emissary
+Purphoros's Intervention
 Purphoros, God of the Forge
 Purple Dragon Punks
 Purple Worm
@@ -9409,6 +9414,7 @@ Rending Flame
 Rending Volley
 Renegade Firebrand
 Renegade Freighter
+Renegade Krasis
 Renegade Map
 Renegade Rallier
 Renegade Reaper
@@ -10548,6 +10554,7 @@ Shrivel
 Shrouded Shepherd
 Shroudstomper
 Shu Yun, the Silent Tempest
+Shuri, Wakandan Inventor
 Shuttle Ace
 Sibling Rivalry
 Sibsig Appraiser
@@ -10954,6 +10961,7 @@ Soul Partition
 Soul Salvage
 Soul Sear
 Soul Search
+Soul Separator
 Soul Shatter
 Soul Summons
 Soul Swallower
@@ -12979,6 +12987,7 @@ Vassal Soul
 Vastlands Scavenger
 Vastwood Fortification
 Vastwood Gorger
+Vastwood Hydra
 Vastwood Surge
 Vat Emergence
 Vat of Rebirth
