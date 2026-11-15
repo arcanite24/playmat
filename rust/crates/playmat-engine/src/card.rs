@@ -325,6 +325,13 @@ pub enum TargetDef {
         /// spell or ability is put on the stack; none for 0
         #[serde(default)]
         count: Option<Amount>,
+        /// and permanents of this filter on the battlefield (`TargetCardInGraveyardBattlefieldOrStack`: Angel of
+        /// Serenity's "creatures from the battlefield and/or creature cards from graveyards")
+        #[serde(default)]
+        permanents: Option<Filter>,
+        /// and cards in exile of this filter (`TargetCardInYourGraveyardOrExile`: Sorceress's Schemes)
+        #[serde(default)]
+        exiled: Option<Filter>,
     },
 }
 

@@ -8670,14 +8670,21 @@ pub fn possible_targets(game: &Game, seat: Seat, def: &TargetDef, src: Option<Ob
             objs.extend(permanents(&|id| game.filter_matches(filter, seat, src, id)));
             (Vec::new(), objs)
         }
-        TargetDef::TargetCardInGraveyard { filter, .. } => (
-            Vec::new(),
-            game.players
+        TargetDef::TargetCardInGraveyard { filter, permanents: also, exiled, .. } => {
+            let mut objs: Vec<ObjId> = game
+                .players
                 .iter()
                 .flat_map(|p| p.graveyard.iter().copied())
                 .filter(|c| game.filter_matches(filter, seat, src, *c))
-                .collect(),
-        ),
+                .collect();
+            if let Some(f) = also {
+                objs.extend(permanents(&|id| game.filter_matches(f, seat, src, id)));
+            }
+            if let Some(f) = exiled {
+                objs.extend(game.exile.iter().copied().filter(|c| game.filter_matches(f, seat, src, *c)));
+            }
+            (Vec::new(), objs)
+        }
     }
 }
 
