@@ -2896,6 +2896,10 @@ pub enum EffectDef {
         rule: String,
         #[serde(default)]
         to_player: bool,
+        /// "when that creature dies under your control this turn" (`onlyControlled`: it doesn't trigger when it dies
+        /// under another player's control)
+        #[serde(default)]
+        only_controlled: bool,
     },
     /// `CreateDelayedTriggeredAbilityEffect` (or a handler's `game.addDelayedTriggeredAbility`) of a card's own
     /// `DelayedTriggeredAbility` class with an event trigger: `ability` is it as a triggered ability (a trigger

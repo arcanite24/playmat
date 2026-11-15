@@ -1039,6 +1039,9 @@ pub struct Game {
     /// "when that creature dies this turn" delayed triggers: the creature as it was, the turn, whether its target is
     /// the creature's controller, the trigger
     pub when_dies: Vec<(ObjId, u32, u32, bool, StackItem)>,
+    /// the `when_dies` triggers that only trigger when it dies under their controller's control ("when that
+    /// creature dies under your control this turn"), by the trigger's source and the creature
+    pub when_dies_controlled: Vec<(ObjId, ObjId, u32)>,
     /// "at the beginning of the next turn's upkeep" delayed triggers
     pub at_next_upkeep: Vec<StackItem>,
     /// `PreventDamageAndRemoveCountersWatcher`: the sources whose `PreventDamageAndRemoveCountersEffect` removed a
@@ -1571,6 +1574,7 @@ impl Game {
             delayed_triggers: Vec::new(),
             damage_doubled_to: Vec::new(),
             when_dies: Vec::new(),
+            when_dies_controlled: Vec::new(),
             at_next_upkeep: Vec::new(),
             at_next_main: Vec::new(),
             counter_removed_batch: Vec::new(),
@@ -4705,6 +4709,13 @@ impl Game {
             let (now, rest): (Vec<_>, Vec<_>) =
                 std::mem::take(&mut self.when_dies).into_iter().partition(|w| w.0 == id && w.1 == zcc);
             self.when_dies = rest;
+            // ("under your control": `onlyControlled` leaves out one that died under another player's control)
+            let now: Vec<_> = now
+                .into_iter()
+                .filter(|w| {
+                    died_controller == w.4.controller || !self.when_dies_controlled.contains(&(w.4.card, w.0, w.1))
+                })
+                .collect();
             for (k, (_, _, _, to_player, mut item)) in now.into_iter().enumerate() {
                 // (`setValue("creatureDied", …)`: what a handler's value reads)
                 item.died = Some((id, died_controller));

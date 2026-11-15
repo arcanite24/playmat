@@ -17774,7 +17774,7 @@ fn apply_each_effect(
                     o.play_tax = 2;
                 }
             }
-            EffectDef::CreateWhenTargetDiesDelayedEffect { effects, rule, to_player } => {
+            EffectDef::CreateWhenTargetDiesDelayedEffect { effects, rule, to_player, only_controlled } => {
                 // `init`: the first target, as the object it is now
                 let first = item.targets.first().and_then(|ts| ts.first()).copied();
                 if let Some(Target::Obj(o)) = first {
@@ -17792,6 +17792,9 @@ fn apply_each_effect(
                     let zcc = game.obj(o).zcc;
                     let turn = game.turn;
                     let t = StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) };
+                    if *only_controlled {
+                        game.when_dies_controlled.push((source.0, o, zcc));
+                    }
                     game.when_dies.push((o, zcc, turn, *to_player, t));
                 }
             }
