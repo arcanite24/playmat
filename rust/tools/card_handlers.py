@@ -34,7 +34,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 DIR = os.path.join(ROOT, 'rust', 'crates', 'playmat-engine', 'src', 'cards')
 
 STATIC_KINDS = ('continuous', 'replacement', 'cost', 'restriction', 'rule', 'as_though', 'keeps_mana')
-_DECL = re.compile(r'Handler::(effect|condition|value|trigger|predicate|mana|spend|' + '|'.join(STATIC_KINDS) + r')\(\s*"([\w.]+)"\s*,')
+_DECL = re.compile(r'Handler::(effect|condition|value|trigger|target|predicate|mana|spend|' + '|'.join(STATIC_KINDS) + r')\(\s*"([\w.]+)"\s*,')
 _FN = re.compile(r'\s*[\w:]+\s*,?\s*\)')
 _PART = re.compile(r'\s*\.(tokens|effects|filters|args|abilities)\(\s*&\[')
 # `.in_any_zone()`, `.on_start(f)` and `.stack_info(f)`: the engine's business only
@@ -67,11 +67,11 @@ def _parse(text, path):
         h = {'kind': m.group(1), 'file': os.path.relpath(path, ROOT), 'tokens': [], 'effects': [], 'filters': [],
              'args': [], 'abilities': [], 'base': None}
         i = m.end()
-        if m.group(1) == 'trigger':
-            # `Handler::trigger("X", "<framework trigger in Java>", f)`
+        if m.group(1) in ('trigger', 'target'):
+            # `Handler::trigger("X", "<framework trigger in Java>", f)`, `Handler::target("X", "<its base target>", f)`
             b = _STR.match(text, i)
             if not b or not b.group(0).strip():
-                raise SyntaxError(f'{path}: Handler::trigger takes its base trigger as a string literal')
+                raise SyntaxError(f'{path}: Handler::{m.group(1)} takes its base as a string literal')
             h['base'] = _unescape(b.group(1)) if b.group(1) is not None else b.group(3)
             i = b.end()
         if m.group(1) in STATIC_KINDS or m.group(1) == 'mana':
@@ -285,6 +285,21 @@ def predicate(expr):
     if not m and (m := re.fullmatch(r'new (\w+)\(.+\)', expr.strip(), re.S)):
         name = find(SOURCE, m.group(1), 'predicate', own_only=True)
     return {'p': 'card', 'handler': name} if name else None
+
+
+def target(t, cls, args):
+    """A target class the card declares for itself with a target handler (`Handler::target`): its base target,
+    translated, with the handler as a predicate on its filter (its `canTarget`); or None"""
+    name = find(getattr(t, 'source', None), cls, 'target', own_only=True)
+    if not name:
+        return None
+    if [a for a in args if a.strip()]:
+        raise _unsupported(f'target {cls}: constructor arguments')
+    out = t.target(handlers()[name]['base'])
+    if 'filter' not in out:
+        raise _unsupported(f'target {cls}: its base {out.get("class")} has no filter')
+    out['filter'] = list(out['filter']) + [{'p': 'card', 'handler': name}]
+    return out
 
 
 def trigger(t, cls, args):

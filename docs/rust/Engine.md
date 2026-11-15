@@ -1154,6 +1154,27 @@ Being in the engine and being trusted are kept apart.
   Grub), Lightwheel Enhancements (`MayCastFromGraveyardSourceAbility`), Howlsquad Heavy, Sunstreak Phoenix (from the
   graveyard), The Celestus and Vadrik (their own day/night classes), Spider-UK, Arachne, Scarlet Spider and the
   companions with their own classes (Zirda, Gyruda, Umori, Obosh, Yorion).
+  Wave 12, claim 1 (14 Nov): target handlers. `Handler::target(name, base, f)` is a card's own `Target` class: the
+  transpiler translates its base (`new TargetPermanent(2, 2, …, false)`, `new TargetCardInYourGraveyard(0, …)`) and
+  adds `f`, its `canTarget`, to the filter as a card predicate. While the targets are chosen, `game.chosen_before`
+  has the ability's earlier targets and then this target's own picks so far (Java's `this.getTargets()`), so "two
+  creatures controlled by different players" (Run Away Together), "that share a creature type" (Secret Tunnel),
+  "with total mana value N or less" (Joshua, Call of the Death-Dweller), "with different names" (Behold the
+  Sinister Six!) and "one for each color" (Rogues' Gallery) are checked as each is picked. Checked on its own, as it
+  resolves, the predicate sees no other targets, and `canChoose` overrides aren't modeled (a target class that has
+  one is still blocked). A reflexive trigger with more than one target is removed unless each of them can be chosen
+  (`canChooseTarget`, as for other triggers): Earth Rumble's "up to one target creature you control fights target
+  creature an opponent controls" with no creature an opponent controls. The transpiler also reads
+  `CanAttackAsThoughItDidntHaveDefenderTargetEffect` until end of turn (Assault Formation), a sacrificed trigger as
+  part of an `OrTriggeredAbility` (Carrot Cake) and a granted "0: Proliferate." with its reminder (Ichormoon
+  Gauntlet). 11 handler files. Three factory rounds (69 games; the 45 replayed on the final engine match but 2) verified
+  13: 12,254 of 12,521. Six games under `shadow/handlers/game-handlers12-claim1-*` cover them. Left: Heaped Harvest
+  (two of its games part on casting Appeal // Authority with Inspiring Statuary, not the Harvest), Tyvar
+  Kell (dropped: Java numbers a static's granted mana ability after the other abilities granted to the permanent, so
+  a replayed activation of Rustvine Cultivator's "{T}: Add {B}" names an index the engine doesn't have) and the
+  rest of the list: cards needing `canChoose` overrides (Raise the Draugr), P/T switching, Auras on players, any-zone
+  self-replacement with a shuffle (Progenitus, Darksteel Colossus), Or-trigger parts with a trigger condition and
+  many one-off effects.
   Text fixes for verified cards (13 Nov): the Young Hero Role's granted trigger keeps its own text, "put a +1/+1
   counter on it" (its `AddCountersSourceEffect` has a `setText`), and a delayed upkeep transform is "Transform {this}
   at the beginning of the next turn's upkeep." (`AtTheBeginOfNextUpkeepDelayedTriggeredAbility.getRule` puts the

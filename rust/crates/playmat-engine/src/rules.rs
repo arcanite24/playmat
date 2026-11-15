@@ -7876,6 +7876,34 @@ fn choose_target_by(
     cancellable: bool,
     of_ability: bool,
 ) -> Option<Vec<Target>> {
+    // a card's own target class (`Handler::target`): its `canTarget` reads this target's choices so far
+    // (`this.getTargets()`), after the ability's earlier targets, in `chosen_before`
+    let before = game.chosen_before.len();
+    let out = choose_target_in(game, d, seat, asker, def, source, rule, cancellable, of_ability);
+    game.chosen_before.truncate(before);
+    out
+}
+
+/// whether a target's filter has a card's own predicate (`Handler::target`, a `Handler::predicate`)
+fn own_target_class(def: &TargetDef) -> bool {
+    matches!(def, TargetDef::TargetPermanent { filter, .. } | TargetDef::TargetCardInGraveyard { filter, .. }
+        if filter.0.iter().any(|p| matches!(p, Pred::Card { .. })))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn choose_target_in(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    seat: Seat,
+    asker: Seat,
+    def: &TargetDef,
+    source: Option<ObjId>,
+    rule: &str,
+    cancellable: bool,
+    of_ability: bool,
+) -> Option<Vec<Target>> {
+    let own_target = own_target_class(def);
+    let before = game.chosen_before.len();
     let (mut min, mut max) = target_counts(def);
     if let TargetDef::TargetPermanent { x_count: true, .. }
     | TargetDef::TargetAnyTarget { x_count: true, .. }
@@ -7938,6 +7966,10 @@ fn choose_target_by(
     let mut selected = false;
     let mut added_in_prompt = false;
     loop {
+        if own_target {
+            game.chosen_before.truncate(before);
+            game.chosen_before.extend(chosen.iter().copied());
+        }
         let src = source.or_else(|| game.stack.last().map(|t| t.card));
         let (mut players, mut objs) = possible_targets(game, seat, def, src);
         // `TargetSpellOrPermanent.possibleTargets` compares the spell's id with its card's, so it counts itself for
@@ -21232,7 +21264,12 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
                 let at = game.stack.len();
                 // a reflexive trigger's targets, the same way
                 if let Some((rule, targets)) = reflexive {
-                    if !choose_targets(game, d, seat, &targets, None, &rule, false) {
+                    // (`canChooseTarget`: every target first, as below; Earth Rumble's "up to one target creature
+                    // you control" isn't asked with no creature an opponent controls)
+                    let card = game.stack.last().map(|t| t.card);
+                    if targets.len() > 1 && !targets.iter().all(|x| target_possible(game, seat, x, card)) {
+                        Arc::make_mut(&mut game.stack).pop();
+                    } else if !choose_targets(game, d, seat, &targets, None, &rule, false) {
                         if d.stopped() {
                             return happened;
                         }
