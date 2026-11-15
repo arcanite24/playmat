@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (13,972 on 15 Nov). A card whose JSON the engine can't load yet is left out
+  can express (13,985 on 15 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -1539,6 +1539,32 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   replacements, replacements that ask, a card's own `CostImpl`, delayed triggers carrying data, extra phases and
   steps, Auras on players, copied abilities and spells, snow and Treasure mana spent, and the random or unordered
   ones (each helper's skip list is in `.local/rust-port/wave15/claim-1-h*/skipped.tsv` of its worktree).
+  Wave 16, claim 2 (15 Nov): cards blocked only by their own classes, used ones first, then by Java file length.
+  13 cards came in through 10 handler files and 3 transpiler trigger entries: Corpse Explosion, Harsh Mentor, Hydra
+  Broodmaster, Invoke Justice, Noyan Dar, Roil Shaper, Nyxbloom Ancient, Purphoros's Intervention, Renegade Krasis,
+  Shuri, Wakandan Inventor, Soul Separator, Titanbones, Towering Heart, Vastwood Hydra and Vorinclex, Monstrous
+  Raider: 13,985 in the engine. Transpiler: a token's description built with `String.valueOf` (ZombieStarToken), a
+  `this(N)` token constructor whose parameter shares a field's name (PurphorossInterventionToken), a static filter
+  declared as a copy of another (`filter2 = filter.copy()`), and `BecomesCreatureTargetEffect` with
+  `Duration.EndOfGame` (on a fixed target, until it leaves). Engine pieces, each with a game under
+  `shadow/wave16-c2/`: `Trigger::Evolved` ("whenever this evolves"); a monstrosity's X on its "when this becomes
+  monstrous" triggers; an Equipment that became a copy of something else until end of turn (Shuri on a Vehicle)
+  becomes unattached (704.5q); and "whenever an opponent activates an ability of an artifact, creature or land" sees
+  a permanent its cost exiled (`getPermanentOrLKIBattlefield`), as it already saw a sacrificed one. That last one
+  can change verified Immolation Shaman and Crackdown Construct games where an opponent activates an "Exile this"
+  ability; they now trigger as Java does. Two factory rounds on the final engine (34 games, 32 matching) verified 9
+  of the 13: 13,874 of 13,985. Not verified: Vorinclex (player counters such as energy aren't doubled: the engine has
+  no player `ADD_COUNTERS` event), Titanbones (blamed on a game where Java asks which of two Hyena Umbras' totem armor
+  applies and the engine doesn't ask), Nyxbloom Ancient (one earlier game where Java's AI paid for a spell
+  differently with tripled mana; not looked into) and Noyan Dar (one earlier game parting inside Buster Sword's free
+  cast; not looked into). Essence Symbiote (a "whenever a creature you control mutates" trigger) was taken back out:
+  Java puts the mutated permanent's own mutate triggers before it, which the trigger order doesn't model. Nael,
+  Avizoa Aeronaut was dropped as random (`PutCards.BOTTOM_RANDOM`). Skipped from the list: random or unordered
+  cards (Skull Rend, Crystalline Giant, Kiora, Tajuru Paragon, Emergent Ultimatum, Breeches and others), and ones
+  needing a missing engine piece: life paid, player counters, Treasure or snow mana spent, mana spent on an
+  ability, removing creature types, losing all abilities, extra end steps (Y'shtola Rhul), tagged extra combats,
+  replacements that ask, a cost that asks, `SEARCH_LIBRARY`, `ForEachPlayerTargetsAdjuster(false, false)`, saddling,
+  and watchers for cast permanents, combat graveyards and oil counters.
   Text fixes for verified cards (13 Nov): the Young Hero Role's granted trigger keeps its own text, "put a +1/+1
   counter on it" (its `AddCountersSourceEffect` has a `setText`), and a delayed upkeep transform is "Transform {this}
   at the beginning of the next turn's upkeep." (`AtTheBeginOfNextUpkeepDelayedTriggeredAbility.getRule` puts the
