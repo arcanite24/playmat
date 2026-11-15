@@ -97,9 +97,55 @@ pub fn text(game: &Game) -> String {
         out.push_str(&format!("bf {}\n", line));
     }
     for item in game.stack.iter().rev() {
-        out.push_str(&format!("stack {} {}\n", item.controller, game.stack_name(item)));
+        out.push_str(&format!("stack {} {}\n", item.controller, without_object_ids(&game.stack_name(item))));
     }
     out
+}
+
+/// `StateFingerprint.withoutObjectIds`: each log name in a stack object's name (`<font color='…' object_id='…'>Name
+/// </font> [abc]`) as the name alone: a delayed "sacrifice it" or cipher's trigger names its object so, and Java's
+/// object id is random
+pub(crate) fn without_object_ids(name: &str) -> String {
+    if !name.contains("object_id='") {
+        return name.to_string();
+    }
+    const OPEN: &str = "<font color='";
+    let mut out = String::new();
+    let mut rest = name;
+    while let Some(at) = rest.find(OPEN) {
+        out.push_str(&rest[..at]);
+        let tail = &rest[at..];
+        match log_name(tail) {
+            Some((plain, used)) => {
+                out.push_str(plain);
+                rest = &tail[used..];
+            }
+            None => {
+                out.push_str(OPEN);
+                rest = &tail[OPEN.len()..];
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+/// Java's `<font color='[^']*' object_id='[^']*'>([^<]*)</font> \[[^\]]*\]` at the start of `s`: the name, and the
+/// length it takes
+fn log_name(s: &str) -> Option<(&str, usize)> {
+    let mut i = "<font color='".len();
+    i += s[i..].find('\'')? + 1;
+    s[i..].strip_prefix(" object_id='")?;
+    i += " object_id='".len();
+    i += s[i..].find('\'')? + 1;
+    s[i..].strip_prefix('>')?;
+    i += 1;
+    let name_end = i + s[i..].find('<')?;
+    let name = &s[i..name_end];
+    s[name_end..].strip_prefix("</font> [")?;
+    i = name_end + "</font> [".len();
+    i += s[i..].find(']')? + 1;
+    Some((name, i))
 }
 
 #[cfg(test)]
@@ -111,5 +157,17 @@ mod tests {
         assert_eq!(hash_text(""), "cbf29ce484222325");
         assert_eq!(hash_text("a"), "af63dc4c8601ec8c");
         assert_eq!(hash_text("foobar"), "85944171f73967e8");
+    }
+
+    #[test]
+    fn log_names_lose_their_ids() {
+        let s = "stack ability (At the beginning of the next end step, sacrifice <font color='#87CEFA' \
+                 object_id='B17'>Mirrorshell Crab</font> [B17].)";
+        assert_eq!(
+            without_object_ids(s),
+            "stack ability (At the beginning of the next end step, sacrifice Mirrorshell Crab.)"
+        );
+        let plain = "<font color='x'>no id</font> and object_id='";
+        assert_eq!(without_object_ids(plain), plain);
     }
 }
