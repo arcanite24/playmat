@@ -179,6 +179,30 @@ def make(arch, **kw):
     return Tx(**kw) if arch == "tx" else Net(**kw)
 
 
+def arch_of(net):
+    return {"arch": "tx", **net.cfg} if isinstance(net, Tx) else {"arch": "mlp"}
+
+
+def build(spec):
+    spec = dict(spec)
+    return make(spec.pop("arch", "mlp"), **spec)
+
+
+def save_dir(net, d):
+    """Writes net.pt and arch.json into run folder `d`"""
+    torch.save(net.state_dict(), f"{d}/net.pt")
+    json.dump(arch_of(net), open(f"{d}/arch.json", "w"))
+
+
+def load_dir(d, dev):
+    """The network in run folder `d` (arch.json says which; the first network without one)"""
+    import os
+    spec = json.load(open(f"{d}/arch.json")) if os.path.exists(f"{d}/arch.json") else {"arch": "mlp"}
+    net = build(spec).to(dev)
+    net.load_state_dict(torch.load(f"{d}/net.pt", map_location=dev))
+    return net
+
+
 TENSORS = ["emb", "ent1", "ent2", "glob1", "trunk1", "trunk2", "value", "act1", "act2", "query", "abias", "belief"]
 
 

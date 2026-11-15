@@ -18,7 +18,7 @@ import torch
 import torch.nn.functional as F
 
 from data import Data
-from model import Critic, Net, export, params
+from model import Critic, build, export, load_dir, params, save_dir
 
 
 def device():
@@ -70,7 +70,9 @@ def main():
     ap.add_argument("--epochs", type=int, default=6)
     ap.add_argument("--bs", type=int, default=512)
     ap.add_argument("--lr", type=float, default=2e-3)
-    ap.add_argument("--init", default=None)
+    ap.add_argument("--init", default=None, help="a run folder to start from (its net.pt, arch.json, critic.pt)")
+    ap.add_argument("--arch", default="mlp", help="mlp, or tx (the transformer)")
+    ap.add_argument("--tx", default="{}", help='the transformer sizes as JSON, e.g. {"d": 192, "layers": 4}')
     ap.add_argument("--value-weight", type=float, default=0.5)
     ap.add_argument("--belief-weight", type=float, default=0.2)
     args = ap.parse_args()
@@ -81,12 +83,14 @@ def main():
     print(f"TRAIN {len(data)} decisions from {len(data.infos)} games, {time.time() - t0:.0f} s to read", flush=True)
     held = (data.game % 10) == 0
     train_idx, test_idx = np.nonzero(~held)[0], np.nonzero(held)[0]
-    net, critic = Net().to(dev), Critic().to(dev)
+    critic = Critic().to(dev)
     if args.init:
-        net.load_state_dict(torch.load(args.init, map_location=dev))
-        cpath = os.path.join(os.path.dirname(args.init), "critic.pt")
+        net = load_dir(args.init, dev)
+        cpath = os.path.join(args.init, "critic.pt")
         if os.path.exists(cpath):
             critic.load_state_dict(torch.load(cpath, map_location=dev))
+    else:
+        net = build({"arch": args.arch, **(json.loads(args.tx) if args.arch == "tx" else {})}).to(dev)
     print(f"TRAIN net {params(net)} params, critic {params(critic)}, on {dev}", flush=True)
     opt = torch.optim.AdamW(list(net.parameters()) + list(critic.parameters()), lr=args.lr, weight_decay=1e-4)
     steps = args.epochs * math.ceil(len(train_idx) / args.bs)
@@ -123,7 +127,7 @@ def main():
     ph = np.concatenate([data.pool_hand[data.pool_off[i] : data.pool_off[i + 1]] for i in test_idx[:20000]])
     r = ph.mean()
     report["belief_base_logloss"] = float(-(r * math.log(r) + (1 - r) * math.log(1 - r)))
-    torch.save(net.state_dict(), os.path.join(args.out, "net.pt"))
+    save_dir(net, args.out)
     critic.load_state_dict(best_critic[1])
     report["critic_best_logloss"] = best_critic[0]
     torch.save(critic.state_dict(), os.path.join(args.out, "critic.pt"))
