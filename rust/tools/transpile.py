@@ -7882,7 +7882,13 @@ def ability_statement(t, st, added):
         target['filter'] = [dict(p) for p in target['filter']] + [dict(OPPONENT)]
         t.vars[m.group(1)]['set_target_pointer'] = False
         t.vars[m.group(1)].pop('set_target_pointer_player', None)
-        t.vars[m.group(1)]['that_player_controls'] = True
+        # the adjuster renames the target, which shows only where the effect's text names it; a card's own effect
+        # with a fixed `staticText` never does (Etrata, the Silencer's)
+        effects = t.vars[m.group(1)].get('effects', [])
+        if not (effects and all(e.get('handler') and re.search(
+                r'\nclass ' + re.escape(e['handler'].split('.')[-1]) + r'\b(?:(?!\nclass ).)*?this\.staticText = "',
+                getattr(t, 'source', '') or '', re.S) for e in effects)):
+            t.vars[m.group(1)]['that_player_controls'] = True
         return True
     # "target card from that player's graveyard": in a duel, the opponent's graveyard
     m = re.fullmatch(r'(\w+)\.setTargetAdjuster\(new ThatPlayerControlsTargetAdjuster\(true\)\)', st)
