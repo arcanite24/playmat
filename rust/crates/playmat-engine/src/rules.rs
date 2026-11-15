@@ -7225,6 +7225,26 @@ fn pay_unless(game: &mut Game, d: &mut dyn Decider, payer: Seat, id: ObjId, cost
         }
         return Some(paid);
     }
+    // ward—collect evidence 4 (Axebane Ferox): `canPay` first (too little mana value in the graveyard: countered,
+    // nothing asked), then "collect evidence 4?", then the cards chosen
+    if let [c @ CostDef::CollectEvidenceCost { amount }] = cost {
+        if !can_pay_cost(game, payer, id, c) {
+            return Some(false);
+        }
+        let q = Query::YesNo { message: format!("collect evidence {}?", amount) };
+        let yes = loop {
+            match ask(game, d, payer, &q) {
+                Answer::Bool(b) => break b,
+                Answer::Stop => return None,
+                _ => {}
+            }
+        };
+        let paid = yes && pay_cost(game, d, payer, id, c);
+        if d.stopped() {
+            return None;
+        }
+        return Some(paid);
+    }
     let life: i32 = cost.iter().map(|c| if let CostDef::PayLifeCost { amount } = c { *amount } else { 0 }).sum();
     let mana = ability_mana_cost(cost);
     if game.player(payer).life < life {
