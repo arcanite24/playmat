@@ -39,6 +39,7 @@ import { SettingsDialog } from '../screens/SettingsDialog';
 import { KeyboardShortcuts } from './KeyboardShortcuts';
 import { Stitch } from '../ui/Stitch';
 import { ActionCluster } from './ActionCluster';
+import { AttackGroups } from './AttackGroups';
 import { AlwaysAnswerMenu, TriggerOrderOptions } from './AutoAnswer';
 import { BetweenGames } from './BetweenGames';
 import { Arrows } from './Arrows';
@@ -68,6 +69,7 @@ import { useAutoCrew } from './useAutoCrew';
 import { useAutoDamage } from './useAutoDamage';
 import { usePickIdentical, useSkipSingleChoice, useSmartPreselect } from './useAutoChoices';
 import { useAttackTarget } from './useAttackTarget';
+import { useAttackGroups } from './useAttackGroups';
 import { defaultDefender } from '../../core/game/attackTarget';
 import { useAutoPay } from './useAutoPay';
 import { useAutoPass } from './useAutoPass';
@@ -325,6 +327,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   usePickIdentical(session, state, automation.pickIdentical && mode === 'play');
   useSmartPreselect(session, state, myId, automation.smartPreselect && mode === 'play');
   const attackDrop = useAttackTarget(session, state, myId, automation.attackPlayerByDefault && mode === 'play');
+  const attackMany = useAttackGroups(session, state, mode === 'play' && !state.gameOver);
   const commanders = useMemo(() => commandersByPlayer(view), [view]);
   const damageTaken = useCallback(
     (player: PlayerView) => commanderDamageTo(player, commanders).map((hit) => ({ name: hit.commander.name, amount: hit.amount })),
@@ -713,6 +716,9 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
 
             {damageSplit && canAct && !awaitingServer && <DamageAssigner split={damageSplit} />}
             {canAct && <CombatPreview view={view} mode={interaction.mode} />}
+            {canAct && interaction.mode === 'declareAttackers' && !overlayOpen && (
+              <AttackGroups groups={attackMany.groups} wanted={attackMany.wanted} busy={attackMany.busy} remaining={attackMany.remaining} onWant={attackMany.want} onStop={attackMany.stop} />
+            )}
             {defenders && (attackDrop.manualDefender || !(automation.attackPlayerByDefault && defaultDefender(defenders))) && <DefenderPicker attacker={attackerName} options={defenders} onPick={onClick} />}
             <Vfx view={view} myPlayerId={myId} sparks={sparks} />
             <Arrows sourceId={arrowSource} targetIds={arrowTargets} live={choosingTargets} links={links} attacks={attacks} leads={leads} tints={arrowTint} />
