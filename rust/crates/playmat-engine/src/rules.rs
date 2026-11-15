@@ -7832,11 +7832,15 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                 }
                 top.sacrificed.extend(chosen.iter().copied());
             }
-            let insert = game.sac_insert.replace(game.pending.len());
+            let start = game.pending.len();
+            let insert = game.sac_insert.replace(start);
             for o in chosen {
                 sacrifice(game, o);
             }
-            game.sac_insert = insert;
+            // a reflexive trigger waiting on this cost (`DoWhenCostPaid`, Gastal Blockbuster) goes after what the
+            // sacrifice fired at once (Blood Aspirant's "whenever you sacrifice"), as Java fires it after paying
+            let after = game.sac_insert;
+            game.sac_insert = insert.map(|i| if i == start { after.unwrap_or(i) } else { i });
             game.lookback = outer;
         }
         // `ExileTargetCost.pay`: the permanent chosen (`Targets.choose`), then exiled
