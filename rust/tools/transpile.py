@@ -8676,7 +8676,8 @@ RULE_FROM = '<rule from:'
 # effects of a delayed "at the beginning of the next end step" trigger, by their Java text (`getText`)
 NEXT_END_STEP_TEXTS = {
     'new SacrificeSourceEffect()': 'sacrifice {this}',
-    'new DestroyAllEffect(StaticFilters.FILTER_PERMANENT)': 'destroy all permanents',
+    # (`DestroyAllEffect`'s text is "destroy all " and the filter's message, "permanent")
+    'new DestroyAllEffect(StaticFilters.FILTER_PERMANENT)': 'destroy all permanent',
 }
 
 

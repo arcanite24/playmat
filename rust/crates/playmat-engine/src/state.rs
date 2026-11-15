@@ -4795,7 +4795,11 @@ impl Game {
                 }
                 o.blitzed = false;
                 o.offspring = false;
-                o.gift_promised = false;
+                // kept as it last was on the battlefield (its enters trigger's "if the gift was promised" after it
+                // died, as Java's condition reads the source's last known information: Scrapshooter)
+                if from != Zone::Battlefield {
+                    o.gift_promised = false;
+                }
             }
         }
         let owner = self.obj(id).owner;
