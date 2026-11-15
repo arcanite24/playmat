@@ -26,9 +26,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         .copied()
         .filter(|c| game.obj(*c).is(CardType::Instant) || game.obj(*c).is(CardType::Sorcery))
         .collect();
-    if possible.is_empty() {
-        return Some(());
-    }
+    // (asked even with none to choose: `HumanPlayer.choose` of an up-to-two target)
     let chosen = choose_cards_rounds(game, d, you, &possible, 0, 2)?;
     for c in chosen {
         game.move_to(c, Zone::Hand);
