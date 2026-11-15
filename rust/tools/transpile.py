@@ -257,6 +257,9 @@ CUSTOM = {
     'ChromaticOrreryEffect': lambda: {'class': 'SpendManaAsAnyColorEffect'},
     'OathOfNissaSpendAnyManaEffect': lambda: {'class': 'SpendManaAsAnyColorEffect', 'spells_only': True,
                                               'filter': [{'p': 'type', 't': 'PLANESWALKER'}]},
+    # "you can spend mana of any type to cast creature spells" (read as any color: a {C} symbol still takes colorless)
+    'VizierOfTheMenagerieManaEffect': lambda: {'class': 'SpendManaAsAnyColorEffect', 'spells_only': True,
+                                               'filter': [{'p': 'type', 't': 'CREATURE'}]},
     'GrafdiggersCageEffect': lambda: {'class': 'CardsCantEnterEffect', 'filter': [{'p': 'type', 't': 'CREATURE'}],
                                       'library': True},
     'GrafdiggersCageEffect2': lambda: {'class': 'CantCastFromZonesEffect', 'who': 'any',
@@ -345,6 +348,7 @@ CUSTOM = {
     'PinnacleStarcageTokenEffect': lambda: {'class': 'PinnacleStarcageTokenEffect', 'token': token('RobotToken')},
     # combat damage can't be prevented: the engine prevents no damage
     'QuestingBeastPreventionEffect': lambda: {'class': 'DamageCantBePreventedEffect', 'duration': 'WhileOnBattlefield'},
+    'FrenziedBalothEffect': lambda: {'class': 'DamageCantBePreventedEffect', 'duration': 'WhileOnBattlefield'},
     'BoomerangBasicsEffect': lambda: {'class': 'BoomerangBasicsEffect'},
     'MagebaneLizardEffect': lambda: {'class': 'MagebaneLizardEffect'},
     'NarsetParterOfVeilsEffect': lambda: {'class': 'NarsetParterOfVeilsEffect'},
@@ -1360,7 +1364,7 @@ PLAYER_TARGETS = {'TargetAnyTarget', 'TargetPlayer', 'TargetOpponent', 'TargetPl
 TEXT_SETTERS = {'setText', 'withTextThatCard', 'withText', 'withShowSacText', 'setAbilityWord', 'withFlavorWord', 'addHint', 'concatBy', 'setTriggerPhrase', 'withChooseHint',
                 'setOutcome', 'setRuleAtTheTop', 'withRuleTextReplacement', 'withDurationRuleAtStart', 'withTargetDescription',
                 'withTextOptions', 'setTargetTag', 'setRuleVisible', 'setIdentifier', 'withForceQuotes',
-                'withConditionText', 'setModeTag'}
+                'withConditionText', 'setModeTag', 'setOtherwiseText'}
 
 # watchers whose bookkeeping the engine keeps (`Game::watch`, the players' turn counters): adding one to an ability
 # changes nothing the engine reads
@@ -2102,6 +2106,11 @@ class Translator:
             if n:
                 return {'class': cls, 'filter': self.filter(n.group(2)), 'amount': int(n.group(1) or 1)}
             return {'class': cls, 'filter': self.filter(args[0]), 'amount': 1}
+        # "untap N tapped creatures you control" (Halo Fountain)
+        if cls == 'UntapTargetCost' and len(args) == 1:
+            n = re.fullmatch(r'new TargetControlledPermanent\((?:(\d+),)?(\w+)\)', args[0].strip())
+            if n:
+                return {'class': cls, 'filter': self.filter(n.group(2)), 'amount': int(n.group(1) or 1)}
         if cls == 'TapTargetCost' and len(args) == 2 and re.fullmatch(r'\d+', args[0].strip()):
             return {'class': cls, 'filter': self.filter(args[1]), 'amount': int(args[0])}
         # "As an additional cost to cast this spell, you may sacrifice any number of …"
@@ -5286,6 +5295,15 @@ class Translator:
         """a card's own `CopyApplier` whose `apply` only adds subtypes (`blueprint.addSubType(SubType.SPIRIT)`,
         Mirrorhall Mimic): the subtypes the copy gets; `AbilityCopyApplier(ability)` and the appliers in
         `COPY_APPLIERS`: what they change (`CopyApplierDef`)"""
+        # a field `CopyApplier applier = new CopyApplier() {…}` whose `apply` only renames the copy
+        # (`blueprint.setName("Chameleon, Master of Disguise")`)
+        if re.fullmatch(r'\w+', expr.strip()):
+            f = re.search(r'CopyApplier\s+' + re.escape(expr.strip()) + r'\s*=\s*new CopyApplier\(\)\s*\{(.*?)\n    \};',
+                          self.source or '', re.S)
+            apply = f and re.search(r'public boolean apply\([^)]*\)\s*\{\s*blueprint\.setName\(("[^"]*")\);\s*return true;\s*\}',
+                                    f.group(1), re.S)
+            if apply and not re.search(r'public \w+ (?!apply\b|getText\b)\w+\(', f.group(1)):
+                return {'applier': {'name': json.loads(apply.group(1))}}
         m = re.fullmatch(r'new AbilityCopyApplier\((.*)\)', expr.strip(), re.S)
         if m and len(split_args(m.group(1))) == 1:
             ab = self.ability(m.group(1))
@@ -7538,10 +7556,10 @@ def ability_statement(t, st, added):
         t.vars[m.group(1)] = {'class': 'ManaCost', 'cost': m.group(2)[1:-1]}
         return True
     # `CardUtil.castStream(ability.getCosts(), VariableManaCost.class).forEach(cost -> cost.setMinX(n))` on an
-    # activated ability already built: its X's least value (Gogo)
+    # activated ability already built (Gogo): its {X} is in `getManaCosts`, not `getCosts`, so nothing changes and X
+    # can be announced as 0 (the effect then does nothing)
     m = re.fullmatch(r'CardUtil\.castStream\((\w+)\.getCosts\(\),VariableManaCost\.class\)\.forEach\(cost ->\s*cost\.setMinX\((\d+)\)\)', st)
     if m and t.vars.get(m.group(1), {}).get('class') == 'SimpleActivatedAbility':
-        t.vars[m.group(1)]['min_x'] = int(m.group(2))
         return True
     m = re.fullmatch(r'for\(Object cost : (\w+)\)\{if\(cost instanceof VariableManaCost\)\{\(\(VariableManaCost\)cost\)\.setMinX\((\d+)\);\s*break;\}\}(.*)', st, re.S)
     if m and m.group(1) in t.vars:
@@ -8896,6 +8914,9 @@ def strip_java(x):
             strip_java(v)
 
 
+OTHERWISE_TEXTS = {'Rent Is Due': [('. Otherwise, sacrifice', ". If you don't, sacrifice")]}
+
+
 def translate_card(name, subtypes, facts):
     """`translate` and what follows it for every card: the card's JSON as cards.json has it"""
     # a `CompositeCost` anywhere (a spell's "you may pay", a face's ability) becomes its parts
@@ -8909,6 +8930,10 @@ def translate_card(name, subtypes, facts):
         raise Unsupported('effect ChooseCreatureTypeEffect on a spell')
     that_player_names(card)
     copies_spells_only(card)
+    # `DoIfCostPaid.setOtherwiseText`: its copy constructor drops the text, so the game shows the default "If you
+    # don't" (Rent Is Due's "Otherwise, sacrifice")
+    for old, new in OTHERWISE_TEXTS.get(card['name'], []):
+        card = json.loads(json.dumps(card).replace(json.dumps(old)[1:-1], json.dumps(new)[1:-1]))
     # a promised gift is known to the spell's own conditional effects only
     if 'gift_promised' in json.dumps({k: v for k, v in card.items() if k != 'spell'}):
         raise Unsupported('condition GiftWasPromisedCondition.TRUE outside the spell')
