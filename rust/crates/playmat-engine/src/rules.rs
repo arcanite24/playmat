@@ -16434,6 +16434,9 @@ fn apply_each_effect(
                     && item.entering.is_some_and(|e| evolves(game, me, e))
                 {
                     add_counters_by(game, me, "+1/+1", 1, Some(controller));
+                    // `EVOLVED_CREATURE`: "whenever this evolves"
+                    let fired = game.triggers([me], |_, src, _, t| matches!(t, Trigger::Evolved) && src == me);
+                    game.pending.extend(fired);
                 }
             }
             EffectDef::RegenerateSourceEffect => {

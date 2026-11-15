@@ -1099,6 +1099,8 @@ pub enum Trigger {
     Cycled,
     /// evolve: a creature you control enters with greater power or toughness than this one
     Evolve,
+    /// this evolves: its evolve ability put a +1/+1 counter on it (`EVOLVED_CREATURE` of its source: Renegade Krasis)
+    Evolved,
     /// this becomes exerted (`BecomesExertSourceTriggeredAbility`)
     Exerted,
     /// this crews a Vehicle (`CrewsVehicleSourceTriggeredAbility`); its target is the Vehicle
