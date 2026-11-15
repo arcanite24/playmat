@@ -8660,7 +8660,8 @@ def token(cls):
     added = []
     for st in statements(m.group(1)):
         st = re.sub(r'^this\.(?=(?:cardType|color|subtype|supertype|power|toughness|startingLoyalty)\b)', '', st)
-        if (n := re.fullmatch(r'super\("([^"]+)",".*"\)', st)):
+        # (the description isn't read: SpiritXXToken's is char arithmetic, `amount + '/' + amount + "…"`)
+        if (n := re.fullmatch(r"""super\("([^"]+)",(?:".*"|\d+\s*\+\s*'/'\s*\+\s*\d+\s*\+\s*".*")\)""", st)):
             out['name'] = n.group(1)
         elif (n := re.fullmatch(r'(?:this\.)?cardType\.add\(CardType\.(\w+)\)', st)):
             out['types'].append(n.group(1))
