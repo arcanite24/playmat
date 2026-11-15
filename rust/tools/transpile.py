@@ -250,6 +250,11 @@ CUSTOM = {
                                         'named': 'Legitimate Businessperson',
                                         'token': {'abilities': [], 'colors': ['W', 'G'], 'name': '', 'power': 1,
                                                   'subtypes': ['Citizen'], 'toughness': 1, 'types': ['CREATURE']}},
+    # "enchanted creature loses all abilities and is a black Skeleton creature with base power and toughness 1/1"
+    # (Witness Protection's effect without the name)
+    'EatenByPiranhasEffect': lambda: {'class': 'BecomesCreatureAttachedEffect', 'lose': 'ALL',
+                                      'token': {'abilities': [], 'colors': ['B'], 'name': '', 'power': 1,
+                                                'subtypes': ['Skeleton'], 'toughness': 1, 'types': ['CREATURE']}},
     'PithingNeedleEffect': lambda: {'class': 'PithingNeedleEffect'},
     # (players in range: both, in a duel)
     'SorcerousSpyglassActivationEffect': lambda: {'class': 'PithingNeedleEffect'},
