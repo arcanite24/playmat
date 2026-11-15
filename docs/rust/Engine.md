@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (13,972 on 15 Nov). A card whose JSON the engine can't load yet is left out
+  can express (13,984 on 15 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -1539,6 +1539,28 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   replacements, replacements that ask, a card's own `CostImpl`, delayed triggers carrying data, extra phases and
   steps, Auras on players, copied abilities and spells, snow and Treasure mana spent, and the random or unordered
   ones (each helper's skip list is in `.local/rust-port/wave15/claim-1-h*/skipped.tsv` of its worktree).
+  Wave 16, claim 1 (15 Nov): cards blocked only by their own classes, used ones first, then by Java file length. 12
+  cards came in through 9 new handler files (Tablet of Discovery and Ark of Hunger share one, Orah and Riveteers
+  another; Dramatist's Puppet joins Quarry Hauler's): Burn from Within, Dread Defiler, Titan's Presence, Moonstone,
+  Harsh Mistress, Orah, Skyclave Hierophant, Riveteers Ascendancy, Bag of Holding, Teysa, Opulent Oligarch and Revoke
+  Privileges: 13,984 in the engine. New data for handlers: `StackItem::sacrificed_permanent`, the permanent a
+  "whenever you sacrifice" trigger was about (Java's `getValue("sacrificedPermanent")`; additive, nothing else reads
+  it, and no factory game fired Riveteers' trigger). Engine fixes found by the factory, each with a game under
+  `shadow/wave16-c1/`: a land an effect lets you play from your graveyard this turn can be played (Tablet of
+  Discovery's milled land; before, only Crucible-style statics and graveyard permits allowed it), and a spell cast
+  from a graveyard leaves it (`ZONE_CHANGE` GRAVEYARD to STACK), so "whenever one or more cards leave your graveyard"
+  triggers and `CardsLeftGraveyardWatcher` see it (Ark of Hunger; this also counts for Bonecache Overseer, Wilt in the
+  Heat and the turn watchers' "a card left your graveyard this turn"). Two factory rounds (36 games, 34 matching)
+  verified 10 of the 12: 13,875 of 13,984. Not verified: Bag of Holding (one game where Java pays its {2} activation
+  after Tablet of Discovery's instant-or-sorcery {R}{R} was made for something it couldn't pay, and the engine doesn't
+  activate; not looked into further) and Dread Defiler (pending, rarely exercised). The other differing game is Dread
+  Fugue targeting its own caster (the engine asks for a required one-card choice where Java goes on; not one of this
+  claim's cards, not looked into). Left on the list: about 295 cards, mostly layer 4 type changes and losing all
+  abilities (Stop Cold, Frozen in Ice, Heliod's Punishment), CREATE_TOKEN and DAMAGE_CAUSES_LIFE_LOSS replacements, a
+  card's own `CostImpl`, "play one of those cards" groups (Unlucky Witness), snow mana spent, "your next turn" delayed
+  triggers, reflexive triggers with dynamic target filters (Wishing Well), damage redirection (Ascent of the Worthy),
+  extra block counts from a static handler (Iona's Blessing), and the random or unordered ones (Keldon Flamesage,
+  Deadbridge Chant, Getaway Barrel, Polukranos and others).
   Text fixes for verified cards (13 Nov): the Young Hero Role's granted trigger keeps its own text, "put a +1/+1
   counter on it" (its `AddCountersSourceEffect` has a `setText`), and a delayed upkeep transform is "Transform {this}
   at the beginning of the next turn's upkeep." (`AtTheBeginOfNextUpkeepDelayedTriggeredAbility.getRule` puts the

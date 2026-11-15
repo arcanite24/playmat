@@ -580,6 +580,7 @@ Arguel's Blood Fast
 Arid Archway
 Arid Mesa
 Arisen Gorgon
+Ark of Hunger
 Arlinn's Wolf
 Arlinn, Voice of the Pack
 Armada Wurm
@@ -1578,6 +1579,7 @@ Burly Breaker
 Burn Away
 Burn Bright
 Burn Down the House
+Burn from Within
 Burn the Accursed
 Burn, Burn, Tree and Fern
 Burner Rocket
@@ -3231,6 +3233,7 @@ Dramatic Accusation
 Dramatic Finale
 Dramatic Rescue
 Dramatic Reversal
+Dramatist's Puppet
 Drana's Chosen
 Drana's Emissary
 Drana's Silencer
@@ -7699,6 +7702,7 @@ Moonsilver Key
 Moonsnare Prototype
 Moonsnare Specialist
 Moonstone Harbinger
+Moonstone, Harsh Mistress
 Moonveil Regent
 Moopsy
 Moorland Drifter
@@ -8281,6 +8285,7 @@ Oracle of Tragedy
 Oracle's Insight
 Oracle's Restoration
 Oracle's Vault
+Orah, Skyclave Hierophant
 Oran-Rief Hydra
 Oran-Rief Invoker
 Oran-Rief Ooze
@@ -9539,6 +9544,7 @@ Revival // Revenge
 Revival of the Ancestors
 Reviving Melody
 Revoke Existence
+Revoke Privileges
 Revolutionary Rebuff
 Rewind
 Rewrite Regrets
@@ -9663,6 +9669,7 @@ Riverwalk Technique
 Riverwheel Aerialists
 Riverwheel Sweep
 Riverwise Augur
+Riveteers Ascendancy
 Riveteers Charm
 Riveteers Decoy
 Riveteers Initiate
@@ -11764,6 +11771,7 @@ Syr Vondam, the Lucent
 Systems Override
 TCRI Building
 Tablet of Compleation
+Tablet of Discovery
 Tablet of the Guilds
 Taborax, Hope's Demise
 Tackle Artist
@@ -12002,6 +12010,7 @@ Teyo, Lightshield Expert
 Teyo, the Shieldmage
 Teysa Karlov
 Teysa, Envoy of Ghosts
+Teysa, Opulent Oligarch
 Tezzeret's Ambition
 Tezzeret's Betrayal
 Tezzeret's Gatebreaker
@@ -12370,6 +12379,7 @@ Tishana, Voice of Thunder
 Titan of Eternal Fire
 Titan of Industry
 Titan's Grave
+Titan's Presence
 Titan's Strength
 Titania's Command
 Titania, Rugged Rumbler
