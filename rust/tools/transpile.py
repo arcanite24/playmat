@@ -511,6 +511,11 @@ CUSTOM = {
         'class': 'TriggeredAbility', 'java': 'WanShiTongLibrarianTriggeredAbility', 'on': {'e': 'opponent_searches_library'},
         'effects': [{'class': 'AddCountersSourceEffect', 'counter': {'name': '+1/+1', 'amount': 1}},
                     {'class': 'DrawCardSourceControllerEffect', 'amount': 1}]},
+    # "that player" (the opponent who searched, a duel's one opponent) loses 10 life, then sacrifices a creature
+    'ObNixilisUnshackledTriggeredAbility': lambda: {
+        'class': 'TriggeredAbility', 'java': 'ObNixilisUnshackledTriggeredAbility', 'on': {'e': 'opponent_searches_library'},
+        'effects': [{'class': 'LoseLifeOpponentsEffect', 'amount': 10},
+                    {'class': 'SacrificeOpponentsEffect', 'filter': [{'p': 'type', 't': 'CREATURE'}], 'amount': 1}]},
     'SurrakElusiveHunterTriggeredAbility': lambda: {
         'class': 'TriggeredAbility', 'java': 'SurrakElusiveHunterTriggeredAbility', 'on': {'e': 'surrak_targeted'},
         'effects': [{'class': 'DrawCardSourceControllerEffect', 'amount': 1}]},
