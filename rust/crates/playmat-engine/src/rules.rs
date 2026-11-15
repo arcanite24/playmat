@@ -10761,10 +10761,14 @@ fn refresh_land_types(game: &mut Game) {
                             }
                         }
                         // Petrified Hamlet: lands with the chosen name have "{T}: Add {C}"; Food Fight: artifacts you
-                        // control have "{2}, Sacrifice this artifact: …"
+                        // control have "{2}, Sacrifice this artifact: …"; Pontiff of Blight: other creatures you
+                        // control have extort
                         EffectDef::GainAbilityAllEffect { ability, filter, .. }
                             if ability.mana().is_some()
-                                || matches!(**ability, AbilityDef::SimpleActivatedAbility { .. }) =>
+                                || matches!(
+                                    **ability,
+                                    AbilityDef::SimpleActivatedAbility { .. } | AbilityDef::TriggeredAbility { .. }
+                                ) =>
                         {
                             let you = game.obj(*id).controller;
                             for to in game.battlefield.iter() {
