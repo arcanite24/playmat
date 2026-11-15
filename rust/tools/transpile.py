@@ -8731,6 +8731,8 @@ def token(cls):
             out['types'].append(n.group(1))
         elif (n := re.fullmatch(r'color\.set(\w+)\(true\)', st)):
             out['colors'].append(colors[n.group(1)])
+        elif (n := re.fullmatch(r'color\.setColor\(ObjectColor\.(WHITE|BLUE|BLACK|RED|GREEN)\)', st)):
+            out['colors'].append(colors[n.group(1).capitalize()])
         elif (n := re.fullmatch(r'subtype\.add\((SubType\.\w+(?:,SubType\.\w+)*)\)', st)):
             out['subtypes'].extend(subtypes[x.split('.')[1]] for x in n.group(1).split(','))
         elif (n := re.fullmatch(r'supertype\.add\(SuperType\.(\w+)\)', st)):
