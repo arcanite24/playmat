@@ -109,7 +109,7 @@ EFFECTS = {
     'DamageAllEffect': [('amount', 'int'), ('filter', 'filter')],
     'ReturnFromYourGraveyardToBattlefieldAllEffect': [('filter', 'filter')],
     'BoostAllEffect': [('power', 'int'), ('toughness', 'int'), ('duration', 'duration'), ('filter', 'filter'),
-                       ('exclude_source', 'bool')],
+                       ('exclude_source', 'bool'), (None, 'string')],
     'AddCountersAllEffect': [('counter', 'counter'), ('filter', 'filter')],
     'ExileTargetEffect': [],
     'ExileAndGainLifeEqualPowerTargetEffect': [],
@@ -3237,7 +3237,9 @@ class Translator:
         if cls == 'ConditionalContinuousRuleModifyingEffect' and len(args) == 2 \
                 and (l := re.fullmatch(r'new LockedInCondition\((.*)\)', args[1].strip(), re.S)):
             inner = self.effect(args[0])
-            if inner.get('class') != 'DamageCantBePreventedEffect' or inner.get('duration') != 'EndOfTurn':
+            # (Icy Blast's ferocious: "those creatures don't untap during their controllers' next untap steps")
+            if (inner.get('class') != 'DamageCantBePreventedEffect' or inner.get('duration') != 'EndOfTurn') \
+                    and inner.get('class') != 'DontUntapInControllersNextUntapStepTargetEffect':
                 raise Unsupported('effect ' + cls)
             return {'class': 'ConditionalOneShotEffect', 'effect': inner, 'condition': self.condition(l.group(1))}
         # a static "can't be countered" or "doesn't untap during your untap step" while a condition holds
@@ -3284,6 +3286,14 @@ class Translator:
                 and args[1].strip() in ('Duration.EndOfTurn', 'Duration.Custom'):
             return {'class': cls, 'subtype': subtype_names()[args[0].strip()[8:]],
                     'duration': 'EndOfTurn' if args[1].strip() == 'Duration.EndOfTurn' else 'WhileOnBattlefield'}
+        # `BecomesCreatureTypeTargetEffect(duration, subtype, false)`: "it becomes a Vampire in addition to its other
+        # types" (Olivia, Mobilized for War). `WhileOnBattlefield` from a resolving ability ends only when the source
+        # is gone from the game (`ContinuousEffectsList.removeInactiveEffects`), so it lasts as long as the target stays
+        if cls == 'BecomesCreatureTypeTargetEffect' and len(args) == 3 and re.fullmatch(r'SubType\.\w+', args[1].strip()) \
+                and args[2].strip() == 'false' \
+                and args[0].strip() in ('Duration.EndOfTurn', 'Duration.Custom', 'Duration.WhileOnBattlefield'):
+            return {'class': 'AddCardSubTypeTargetEffect', 'subtype': subtype_names()[args[1].strip()[8:]],
+                    'duration': 'EndOfTurn' if args[0].strip() == 'Duration.EndOfTurn' else 'WhileOnBattlefield'}
         # (a Phyrexian, not black, is the per-card handler's: Portal to Phyrexia)
         if cls == 'AddCreatureTypeAdditionEffect' and len(args) == 2 and re.fullmatch(r'SubType\.\w+', args[0].strip()) \
                 and args[1].strip() in ('true', 'false') \
