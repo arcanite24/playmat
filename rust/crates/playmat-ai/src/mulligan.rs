@@ -89,14 +89,197 @@ pub fn put_on_bottom(game: &mut Game, seat: Seat, card: ObjId) {
     game.obj_mut(card).zone = Zone::Library;
 }
 
-/// Whether the AI with `config` (`None`: the quick answers alone) mulligans `seat`'s hand
+/// Whether the AI with `config` (`None`: the quick answers alone) mulligans `seat`'s hand: by the rule, or with
+/// `Config::mulligan_sim` by goldfishing the hand against hands a mulligan would give
 pub fn wants(game: &Game, seat: Seat, taken: usize, config: Option<&crate::search::Config>) -> bool {
-    let _ = config;
-    rule_wants(game, seat, taken)
+    match config {
+        Some(c) if c.mulligan_sim && taken < 2 => sim_wants(game, seat, taken),
+        _ => rule_wants(game, seat, taken),
+    }
 }
 
-/// The card the AI with `config` puts on the bottom
+/// The card the AI with `config` puts on the bottom: by the rule, or with `Config::mulligan_sim` the one whose hand
+/// goldfishes best without it
 pub fn bottom(game: &Game, seat: Seat, config: Option<&crate::search::Config>) -> ObjId {
-    let _ = config;
-    rule_bottom(game, seat)
+    match config {
+        Some(c) if c.mulligan_sim => sim_bottom(game, seat),
+        _ => rule_bottom(game, seat),
+    }
+}
+
+/// How many shuffles each goldfish estimate averages
+const SHUFFLES: usize = 32;
+
+/// A card as the goldfish sees it
+#[derive(Clone, Copy)]
+struct Card {
+    land: bool,
+    /// the colors a land makes, or a spell needs, as bits
+    colors: u8,
+    mv: u32,
+}
+
+fn card(game: &Game, id: ObjId) -> Card {
+    let d = &game.obj(id).def;
+    if d.types.contains(&CardType::Land) {
+        let mut colors = 0u8;
+        for a in &d.abilities {
+            if let Some(m) = a.mana() {
+                for (i, n) in m.colored.iter().enumerate() {
+                    if *n > 0 {
+                        colors |= 1 << i;
+                    }
+                }
+            }
+        }
+        Card { land: true, colors, mv: 0 }
+    } else {
+        let cost = d.printed();
+        let colors = cost.colored.iter().enumerate().filter(|(_, n)| **n > 0).fold(0u8, |c, (i, _)| c | 1 << i);
+        Card { land: false, colors, mv: d.mana_value() }
+    }
+}
+
+/// splitmix64: shuffles of the goldfish's own, so estimates don't touch the game's random numbers
+struct Mix(u64);
+impl Mix {
+    fn next(&mut self) -> u64 {
+        self.0 = self.0.wrapping_add(0x9E3779B97F4A7C15);
+        let mut z = self.0;
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58476D1CE4E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D049BB133111EB);
+        z ^ (z >> 31)
+    }
+    fn shuffle<T>(&mut self, v: &mut [T]) {
+        for i in (1..v.len()).rev() {
+            let j = (self.next() % (i as u64 + 1)) as usize;
+            v.swap(i, j);
+        }
+    }
+}
+
+/// The mana a hand spends on turns 1–4 with nothing in the way, drawing from `library` (in order): a land a turn,
+/// one that makes a missing color first, then the most expensive spells that fit. Later turns count more.
+fn goldfish(hand: &[Card], library: &[Card], on_play: bool) -> f64 {
+    let mut hand = hand.to_vec();
+    let mut draws = library.iter();
+    let (mut lands, mut colors, mut score) = (0u32, 0u8, 0.0);
+    for turn in 1..=4u32 {
+        if turn > 1 || !on_play {
+            if let Some(c) = draws.next() {
+                hand.push(*c);
+            }
+        }
+        let needed = hand.iter().filter(|c| !c.land).fold(0u8, |n, c| n | c.colors) & !colors;
+        let land = hand
+            .iter()
+            .position(|c| c.land && c.colors & needed != 0)
+            .or_else(|| hand.iter().position(|c| c.land));
+        if let Some(i) = land {
+            colors |= hand[i].colors;
+            lands += 1;
+            hand.swap_remove(i);
+        }
+        let mut mana = lands;
+        loop {
+            let best = hand
+                .iter()
+                .enumerate()
+                .filter(|(_, c)| !c.land && c.mv <= mana && c.mv > 0 && c.colors & !colors == 0)
+                .max_by_key(|(_, c)| c.mv)
+                .map(|(i, _)| i);
+            let Some(i) = best else { break };
+            mana -= hand[i].mv;
+            score += (hand[i].mv * turn) as f64;
+            hand.swap_remove(i);
+        }
+    }
+    score
+}
+
+fn cards(game: &Game, ids: &[ObjId]) -> Vec<Card> {
+    ids.iter().map(|id| card(game, *id)).collect()
+}
+
+fn seed(game: &Game, seat: Seat) -> u64 {
+    game.player(seat).hand.iter().fold(0xC0FFEE ^ seat as u64, |h, id| h.wrapping_mul(31).wrapping_add(id.0 as u64))
+}
+
+/// The hand's mean goldfish over shuffles of `library`
+fn keep_value(hand: &[Card], library: &[Card], on_play: bool, mix: &mut Mix) -> f64 {
+    let mut lib = library.to_vec();
+    (0..SHUFFLES)
+        .map(|_| {
+            mix.shuffle(&mut lib);
+            goldfish(hand, &lib, on_play)
+        })
+        .sum::<f64>()
+        / SHUFFLES as f64
+}
+
+/// The best hand of `size` from `seven`: the goldfish's best bottom, card by card
+fn best_of(seven: &[Card], size: usize, library: &[Card], on_play: bool, mix: &mut Mix) -> Vec<Card> {
+    let mut hand = seven.to_vec();
+    while hand.len() > size {
+        let i = (0..hand.len())
+            .map(|i| {
+                let mut h = hand.clone();
+                h.remove(i);
+                (i, keep_value(&h, library, on_play, &mut Mix(mix.next())) )
+            })
+            .max_by(|a, b| a.1.total_cmp(&b.1))
+            .unwrap()
+            .0;
+        hand.remove(i);
+    }
+    hand
+}
+
+fn sim_wants(game: &Game, seat: Seat, taken: usize) -> bool {
+    let p = game.player(seat);
+    let on_play = game.active.map_or(false, |a| a == seat);
+    let hand = cards(game, &p.hand);
+    let library = cards(game, &p.library);
+    let mut mix = Mix(seed(game, seat));
+    let keep = keep_value(&hand, &library, on_play, &mut mix);
+    // a mulligan: seven new cards from the hand and library, down to one fewer than now
+    let mut all: Vec<Card> = hand.iter().chain(library.iter()).copied().collect();
+    let size = 7usize.saturating_sub(taken + 1);
+    let deals = 8;
+    let mut mull = 0.0;
+    for _ in 0..deals {
+        mix.shuffle(&mut all);
+        let (seven, rest) = all.split_at(7.min(all.len()));
+        let h = if size + 1 < seven.len() {
+            // cheaper than goldfishing every bottom: the rule's bottoms past the first
+            let mut h = seven.to_vec();
+            while h.len() > size + 1 {
+                h.sort_by_key(|c| if c.land { 0 } else { c.mv });
+                h.pop();
+            }
+            best_of(&h, size, rest, on_play, &mut mix)
+        } else {
+            best_of(seven, size, rest, on_play, &mut mix)
+        };
+        mull += keep_value(&h, rest, on_play, &mut mix);
+    }
+    keep < mull / deals as f64
+}
+
+fn sim_bottom(game: &Game, seat: Seat) -> ObjId {
+    let p = game.player(seat);
+    let on_play = game.active.map_or(false, |a| a == seat);
+    let library = cards(game, &p.library);
+    let hand = cards(game, &p.hand);
+    let mut mix = Mix(seed(game, seat) ^ 0xB0770);
+    let mut best: Option<(ObjId, f64)> = None;
+    for (i, id) in p.hand.iter().enumerate() {
+        let mut h = hand.clone();
+        h.remove(i);
+        let v = keep_value(&h, &library, on_play, &mut Mix(mix.next()));
+        if best.map_or(true, |(_, b)| v > b) {
+            best = Some((*id, v));
+        }
+    }
+    best.map_or_else(|| rule_bottom(game, seat), |(id, _)| id)
 }

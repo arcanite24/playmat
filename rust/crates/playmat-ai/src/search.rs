@@ -40,7 +40,7 @@ pub struct Config {
     pub plans: bool,
     /// keep or mulligan by playing sample hands out (`mulligan`), not by counting lands
     pub mulligan_sim: bool,
-    /// one searched answer in this many is the quick one instead (lower skill levels; 0 never)
+    /// chance per thousand that a searched question gets a random candidate instead (lower skill levels; 0 never)
     pub blunder: u32,
 }
 
@@ -97,6 +97,8 @@ pub struct Table {
     since: Vec<Answer>,
     /// what each seat has seen, for searches that sample what they can't (`Config::hide`)
     hidden: Vec<Hidden>,
+    /// each seat's combat plan still to give (`Config::plans`)
+    plan: Vec<std::collections::VecDeque<Answer>>,
     pub stats: Vec<DecisionStat>,
     pub answers: u64,
     /// the game stops after this many answers (a guard against a game that never ends)
@@ -110,6 +112,7 @@ impl Table {
         let policy = ai.iter().map(|c| Policy::version(c.as_ref().map_or(1, |c| c.playout))).collect();
         Table {
             hidden: (0..n).map(Hidden::new).collect(),
+            plan: vec![Default::default(); n],
             ai,
             policy,
             repeats: Repeats::default(),
@@ -190,9 +193,27 @@ impl Table {
 
     fn search(&mut self, game: &Game, seat: Seat, q: &Query, quick: Answer) -> Answer {
         let Some(cfg) = self.ai.get(seat).cloned().flatten() else { return quick };
+        let combat = matches!(q, Query::Attackers { .. } | Query::Blockers { .. } | Query::BlockTarget { .. });
+        if !combat {
+            self.plan[seat].clear();
+        } else if let Some(a) = self.plan[seat].pop_front() {
+            return a;
+        }
+        if cfg.plans && cfg.policy == PolicyKind::Playouts && !matches!(q, Query::BlockTarget { .. }) {
+            if let Some(a) = self.plan_combat(game, seat, q, &quick, &cfg) {
+                return a;
+            }
+        }
         let candidates = candidates(game, seat, q, &quick, cfg.width);
         if candidates.len() < 2 {
             return quick;
+        }
+        // a lower skill's mistakes: now and then a candidate at random instead of the search (never a payment)
+        if cfg.blunder > 0 && !matches!(q, Query::PlayMana { .. }) {
+            let r = self.roll();
+            if r % 1000 < cfg.blunder as u64 {
+                return candidates[(r >> 10) as usize % candidates.len()].clone();
+            }
         }
         let hidden = cfg.hide.then(|| self.hidden[seat].clone());
         let root = self.snapshot.clone().map(|snapshot| Root {
@@ -381,6 +402,48 @@ pub fn halving(
         })
         .unwrap_or(0);
     (best, nodes)
+}
+
+impl Table {
+    /// A random number for `blunder`, the same sequence for the same game
+    fn roll(&mut self) -> u64 {
+        let mut z = self.answers.wrapping_mul(0x9E37_79B9_7F4A_7C15) ^ 0xB1_0DE5;
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        z ^ (z >> 31)
+    }
+
+    /// Searches whole attacks or blocks (`combat::plans`) and keeps the best plan's later answers to give next
+    fn plan_combat(&mut self, game: &Game, seat: Seat, q: &Query, quick: &Answer, cfg: &Config) -> Option<Answer> {
+        let plans = crate::combat::plans(game, q, quick)?;
+        if plans.len() < 2 {
+            return None;
+        }
+        let root = Root {
+            snapshot: self.snapshot.clone()?,
+            since: self.since.clone(),
+            hidden: cfg.hide.then(|| self.hidden[seat].clone()),
+            playout: cfg.playout,
+        };
+        let start = Instant::now();
+        let stop = game.turn + 1 + cfg.extra_turns;
+        let per = (cfg.budget / plans.len() as u64).clamp(50, cfg.playout_cap);
+        let (best, nodes) = sampled(&root, game, seat, cfg, &plans, per, stop);
+        self.stats.push(DecisionStat {
+            game: 0,
+            seat,
+            turn: game.turn,
+            kind: kind(q),
+            nanos: start.elapsed().as_nanos(),
+            nodes,
+            options: plans.len(),
+            permanents: game.battlefield.len(),
+        });
+        let mut plan: std::collections::VecDeque<Answer> = plans[best].iter().cloned().collect();
+        let first = plan.pop_front()?;
+        self.plan[seat] = plan;
+        Some(first)
+    }
 }
 
 impl Decider for Table {
