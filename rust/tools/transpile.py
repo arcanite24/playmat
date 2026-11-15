@@ -8081,7 +8081,8 @@ def ability_statement(t, st, added):
             static_solved = solved.get('class') == 'SimpleStaticAbility' and solved.get('effects') and all(
                 e.get('class') == 'ConditionalContinuousEffect' and e.get('condition') == {'c': 'solved'}
                 for e in solved['effects'])
-            if solved.get('condition') != {'c': 'solved'} and not static_solved:
+            # (`withTriggerCondition(SolvedSourceCondition.SOLVED)`, checked only as it triggers: Case of the Shattered Pact)
+            if {'c': 'solved'} not in (solved.get('condition'), solved.get('trigger_condition')) and not static_solved:
                 raise Unsupported('a solved ability without the solved condition')
             added.append(solved)
             return True
