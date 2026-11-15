@@ -3842,7 +3842,20 @@ fn any_color_asking(
     unpaid: &ManaCost,
     message: &str,
 ) -> Option<Color> {
-    let owed: Vec<Color> = Color::ALL.iter().copied().filter(|c| unpaid.symbols_of(*c) > 0).collect();
+    any_color_owed(game, d, seat, Some(unpaid), message)
+}
+
+/// `any_color_asking`; with no unpaid cost known (`HumanPlayer.currentlyUnpaidMana` is null: a mana ability whose
+/// own mana cost was paid by tapping a source, Hydro-Channeler's "{1}, {T}"), always asked
+fn any_color_owed(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    seat: Seat,
+    unpaid: Option<&ManaCost>,
+    message: &str,
+) -> Option<Color> {
+    let owed: Vec<Color> =
+        Color::ALL.iter().copied().filter(|c| unpaid.is_some_and(|u| u.symbols_of(*c) > 0)).collect();
     // `HumanPlayer.choose`: not for a spell of theirs that cares about the colors spent (`caresAboutManaColor`:
     // Unexplained Vision's adamant)
     let cares = spell_paid_for(game).is_some_and(|s| {
@@ -3860,7 +3873,7 @@ fn any_color_asking(
             && (o.def.abilities.contains(&AbilityDef::SunburstAbility)
                 || effects.into_iter().any(|e| format!("{e:?}").contains("ManaColorSpent")))
     });
-    match if cares { usize::MAX } else { owed.len() } {
+    match if cares || unpaid.is_none() { usize::MAX } else { owed.len() } {
         0 => {
             game.any_color_made = Some(Color::W);
             return Some(Color::W);
@@ -8763,7 +8776,17 @@ fn pay_mana_from(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCo
                                     Some(Some(m)) => m,
                                     Some(None) => return false,
                                     None => {
-                                        let Some(c) = any_color(game, d, seat, &unpaid, n) else { return false };
+                                        // (its own mana cost asked for above: `currentlyUnpaidMana` is reset by
+                                        // then, nothing is chosen for the player)
+                                        let asked = ability.mana_costs().iter().any(|c| {
+                                            matches!(c, CostDef::ManaCost { cost }
+                                                if ManaCost::parse(cost).is_ok_and(|m| m.mana_value() > 0))
+                                        });
+                                        let message = format!("Select a color of mana to add {n} of it");
+                                        let owed = if asked { None } else { Some(&unpaid) };
+                                        let Some(c) = any_color_owed(game, d, seat, owed, &message) else {
+                                            return false;
+                                        };
                                         Mana::of(c, n)
                                     }
                                 };
