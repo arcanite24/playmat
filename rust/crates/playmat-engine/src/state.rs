@@ -838,6 +838,18 @@ pub struct DelayedTrigger {
     pub once: bool,
 }
 
+/// A permanent made a creature until a player's next turn, and what it was before (`Game::animated_until_turn_of`)
+#[derive(Clone, Debug)]
+pub struct AnimatedUntil {
+    pub obj: ObjId,
+    pub zcc: u32,
+    pub until_turn_of: Seat,
+    pub def: Arc<CardDef>,
+    pub printed_def: Option<Arc<CardDef>>,
+    pub base_pt: Option<(i32, i32)>,
+    pub base_pt_at: u64,
+}
+
 /// A delayed triggered ability a resolved effect set up: "sacrifice that token at end of combat".
 #[derive(Clone, Debug, PartialEq)]
 pub struct Delayed {
@@ -1220,6 +1232,10 @@ pub struct Game {
     /// abilities lost until a player's next turn (`LoseAbilityTargetEffect(…, Duration.UntilYourNextTurn)`: Mu
     /// Yanling's "loses flying"): (permanent, its zcc, the ability, the player whose turn ends it)
     pub lost_until_turn_of: Vec<(ObjId, u32, AbilityDef, Seat)>,
+    /// permanents a "becomes a creature until your next turn" made one (Nissa, Vital Force's land): (permanent, its
+    /// zcc, the player whose turn ends it, and what it was before: its card, the card it goes back to as it leaves,
+    /// its base power and toughness and their timestamp)
+    pub animated_until_turn_of: Vec<AnimatedUntil>,
     /// what made a permanent block this turn if able, with the permanent's zone change count (its hint names it)
     pub must_block_from: Vec<(ObjId, u32, ObjId)>,
     /// the game log's lines as Java writes them (`informPlayers`), while it's kept (replays and the AI's copy compare
@@ -1651,6 +1667,7 @@ impl Game {
             effect_mana: Arc::new(Vec::new()),
             lost_until_eot: Vec::new(),
             lost_until_turn_of: Vec::new(),
+            animated_until_turn_of: Vec::new(),
             must_block_from: Vec::new(),
             log: None,
             events: None,

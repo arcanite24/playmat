@@ -310,6 +310,20 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             game.attacks_if_able_next.retain(|(s, _, _)| *s != active);
             game.card_statics.retain(|r| r.until_turn_of != Some(active));
             game.lost_until_turn_of.retain(|(_, _, _, s)| *s != active);
+            // (the latest first, so the oldest state is the one left)
+            for was in std::mem::take(&mut game.animated_until_turn_of).into_iter().rev() {
+                if was.until_turn_of != active {
+                    game.animated_until_turn_of.insert(0, was);
+                    continue;
+                }
+                let ob = game.obj_mut(was.obj);
+                if ob.zone == Zone::Battlefield && ob.zcc == was.zcc {
+                    ob.def = was.def;
+                    ob.printed_def = was.printed_def;
+                    ob.base_pt = was.base_pt;
+                    ob.base_pt_at = was.base_pt_at;
+                }
+            }
             game.damage_doubled_to.retain(|(_, s)| *s != active);
             if game.grants.iter().any(|g| g.until_turn_of == Some(active)) {
                 Arc::make_mut(&mut game.grants).retain(|g| g.until_turn_of != Some(active));
@@ -16842,6 +16856,20 @@ fn apply_each_effect(
                         }
                         ob.def = becomes(&old);
                     } else {
+                        // "until your next turn": what it was comes back as that turn begins
+                        if *duration == Duration::UntilYourNextTurn {
+                            let ob = game.obj(*o);
+                            let was = crate::state::AnimatedUntil {
+                                obj: *o,
+                                zcc,
+                                until_turn_of: controller,
+                                def: old.clone(),
+                                printed_def: ob.printed_def.clone(),
+                                base_pt: ob.base_pt,
+                                base_pt_at: ob.base_pt_at,
+                            };
+                            game.animated_until_turn_of.push(was);
+                        }
                         // until it leaves (`Duration.Custom`): the card it was comes back then; one animated until
                         // end of turn too (Mutavault's) stays this once that ends
                         let ob = game.obj_mut(*o);
