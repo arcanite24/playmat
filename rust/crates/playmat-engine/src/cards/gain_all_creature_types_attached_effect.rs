@@ -16,7 +16,7 @@ fn all_creature_types(_: &Game, _: &StaticCx, _: ObjId) -> Vec<String> {
 }
 
 /// Every `SubType` of `SubTypeSet.CreatureType`, by its description
-const CREATURE_TYPES: &[&str] = &[
+pub(super) const CREATURE_TYPES: &[&str] = &[
     "Advisor",
     "Aenar",
     "Aetherborn",
