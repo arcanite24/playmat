@@ -106,16 +106,25 @@ pub fn text(game: &Game) -> String {
 /// </font> [abc]`) as the name alone: a delayed "sacrifice it" or cipher's trigger names its object so, and Java's
 /// object id is random
 pub(crate) fn without_object_ids(name: &str) -> String {
-    if !name.contains("object_id='") {
-        return name.to_string();
+    let out = if name.contains("object_id='") { replace_names(name, log_name) } else { name.to_string() };
+    // and each tooltip id name (`GameLog.getColoredObjectIdNameForTooltip`, `<font color='…'>Name [abc]</font>`:
+    // Gruul Ragebeast's "Your fighting creature: …"), whose id is random too
+    if out.contains("<font color='") {
+        replace_names(&out, tooltip_name)
+    } else {
+        out
     }
+}
+
+/// `name` with each match `at` finds (its plain name, the length it takes) replaced by the plain name
+fn replace_names(name: &str, at: fn(&str) -> Option<(&str, usize)>) -> String {
     const OPEN: &str = "<font color='";
     let mut out = String::new();
     let mut rest = name;
-    while let Some(at) = rest.find(OPEN) {
-        out.push_str(&rest[..at]);
-        let tail = &rest[at..];
-        match log_name(tail) {
+    while let Some(k) = rest.find(OPEN) {
+        out.push_str(&rest[..k]);
+        let tail = &rest[k..];
+        match at(tail) {
             Some((plain, used)) => {
                 out.push_str(plain);
                 rest = &tail[used..];
@@ -128,6 +137,22 @@ pub(crate) fn without_object_ids(name: &str) -> String {
     }
     out.push_str(rest);
     out
+}
+
+/// Java's `<font color='[^']*'>([^<]*) \[[0-9a-f]{3}\]</font>` at the start of `s`: the name, and the length it
+/// takes
+fn tooltip_name(s: &str) -> Option<(&str, usize)> {
+    let mut i = "<font color='".len();
+    i += s[i..].find('\'')? + 1;
+    s[i..].strip_prefix('>')?;
+    i += 1;
+    let end = i + s[i..].find('<')?;
+    let inner = &s[i..end];
+    s[end..].strip_prefix("</font>")?;
+    let (name, id) = inner.rsplit_once(" [")?;
+    let id = id.strip_suffix(']')?;
+    (id.len() == 3 && id.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))).then_some(())?;
+    Some((name, end + "</font>".len()))
 }
 
 /// Java's `<font color='[^']*' object_id='[^']*'>([^<]*)</font> \[[^\]]*\]` at the start of `s`: the name, and the
@@ -169,5 +194,12 @@ mod tests {
         );
         let plain = "<font color='x'>no id</font> and object_id='";
         assert_eq!(without_object_ids(plain), plain);
+        let tooltip =
+            "fights target creature an opponent controls. Your fighting creature: <font color='#A97A00'>Gruul \
+                       Ragebeast [2b1]</font>.";
+        assert_eq!(
+            without_object_ids(tooltip),
+            "fights target creature an opponent controls. Your fighting creature: Gruul Ragebeast."
+        );
     }
 }
