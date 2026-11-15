@@ -814,7 +814,9 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                             EffectDef::MillCardsTargetEffect { .. }
                             | EffectDef::DamageTargetEffect { .. }
                             | EffectDef::DrawCardTargetEffect { .. }
-                            | EffectDef::LoseLifeTargetEffect { .. } => true,
+                            | EffectDef::LoseLifeTargetEffect { .. }
+                            // (Sorin, Solemn Visitor's emblem: "that player sacrifices a creature of their choice")
+                            | EffectDef::SacrificeEffect { .. } => true,
                             EffectDef::CardEffect { handler, .. } => handler.java() == "LoseHalfLifeTargetEffect",
                             EffectDef::ConditionalOneShotEffect { effect, otherwise, also, .. } => {
                                 effect.as_deref().is_some_and(at_that_player)
