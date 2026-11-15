@@ -29,7 +29,7 @@ fn apply(game: &mut Game, _: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     }))
     .ok()?;
     let delayed = Delayed {
-        rule: "Destroy up to one target noncreature artifact with mana value 3 or less.".into(),
+        rule: "destroy up to one target noncreature artifact with mana value 3 or less.".into(),
         sacrifice: Vec::new(),
         warp_exile: Vec::new(),
         effects: vec![EffectDef::DestroyTargetEffect],
