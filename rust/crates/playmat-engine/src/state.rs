@@ -3414,10 +3414,8 @@ impl Game {
                 Value::Times { of, n } => self.value(of, you, source, x) * n,
                 Value::Half { of, up } => (self.value(of, you, source, x) + i32::from(*up)) / 2,
                 Value::Plus { of, n } => self.value(of, you, source, x) + n,
-                Value::ExiledWithSource => {
-                    let zcc = self.obj(source).zcc;
-                    self.exiled_for_source.iter().filter(|(s, z, _)| *s == source && *z == zcc).count() as i32
-                }
+                // the cards in its exile zone (`UnlicensedHearseValue`): one that left exile is out of it
+                Value::ExiledWithSource => self.exiled_with_source_count(source),
                 Value::CardTypesInYourGraveyard => {
                     let mut types: Vec<CardType> = Vec::new();
                     for c in self.player(you).graveyard.iter() {
@@ -3996,8 +3994,8 @@ impl Game {
                     }
                     if let EffectDef::SetBasePowerToughnessSourceEffect { count } = e {
                         if count == "exiled_with_source" {
-                            let n = self.exiled_for_source.iter().filter(|(s, z, _)| *s == id && *z == o.zcc).count()
-                                as i32;
+                            // (still in its exile zone: Processor Assault puts one into a graveyard)
+                            let n = self.exiled_with_source_count(id);
                             p = n;
                             t = n;
                         }
