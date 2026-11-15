@@ -14499,6 +14499,7 @@ fn apply_each_effect(
             | EffectDef::LookAtTopCardOfLibraryAnyTimeEffect
             | EffectDef::LookAtOpponentFaceDownCreaturesAnyTimeEffect
             | EffectDef::CantAttackYouUnlessPayAllEffect { .. }
+            | EffectDef::CantBlockUnlessPayManaAllEffect { .. }
             | EffectDef::CastFromGraveyardOnceEffect { .. }
             | EffectDef::CastFromHandWithoutPayingManaCostEffect { .. }
             | EffectDef::PlayWithTheTopCardRevealedEffect { .. }
@@ -22854,6 +22855,45 @@ fn pay_attack_taxes(
     Some(true)
 }
 
+/// The costs to declare a blocker: `CantBlockUnlessPayManaAllEffect`s of every permanent that apply, in battlefield
+/// order
+fn block_taxes(game: &Game) -> Vec<String> {
+    let mut out = Vec::new();
+    game.any_static(|g, src, e| {
+        if let EffectDef::CantBlockUnlessPayManaAllEffect { cost, condition } = e {
+            if g.condition_holds(condition.as_ref(), g.obj(src).controller, src) {
+                out.push(cost.clone());
+            }
+        }
+        false
+    });
+    out
+}
+
+/// `PayCostToAttackBlockEffectImpl.replaceEvent` on `DECLARE_BLOCKER`: each cost to block, "Pay {1} to block?" and
+/// paid then. Some(false): not paid, it doesn't block; None: stopped.
+fn pay_block_taxes(game: &mut Game, d: &mut dyn Decider, seat: Seat) -> Option<bool> {
+    for cost in block_taxes(game) {
+        let mana = ability_mana_cost(&[CostDef::ManaCost { cost }]);
+        let q = Query::YesNo { message: format!("Pay {} to block?", mana.text) };
+        let yes = loop {
+            match ask(game, d, seat, &q) {
+                Answer::Bool(b) => break b,
+                Answer::Stop => return None,
+                _ => {}
+            }
+        };
+        let paid = yes && pay_mana(game, d, seat, &mana);
+        if d.stopped() {
+            return None;
+        }
+        if !paid {
+            return Some(false);
+        }
+    }
+    Some(true)
+}
+
 /// Whether a permanent's own static abilities have an effect
 fn has_static(game: &Game, id: ObjId, f: impl Fn(&EffectDef) -> bool) -> bool {
     game.obj(id).def.abilities.iter().any(|a| match a {
@@ -23513,6 +23553,11 @@ fn select_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
             game.obj_mut(a).blocked_by.retain(|x| *x != blocker);
             refresh_blocked(game);
         } else if let Some(a) = chosen {
+            // `CombatGroup.addBlocker`: the costs to block (`DECLARE_BLOCKER`), asked and paid first
+            let Some(paid) = pay_block_taxes(game, d, seat) else { return };
+            if !paid {
+                continue;
+            }
             game.obj_mut(blocker).blocking.push(a);
             game.obj_mut(blocker).blocks += 1;
             let controller = game.obj(blocker).controller;

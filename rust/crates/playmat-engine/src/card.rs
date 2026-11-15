@@ -2782,6 +2782,14 @@ pub enum EffectDef {
         #[serde(default)]
         condition: Option<Condition>,
     },
+    /// "creatures can't block unless their controller pays `cost` for each blocking creature they control"
+    /// (`CantBlockUnlessPayManaAllEffect` in a static ability; `condition`: while it holds, Archangel of Tithes' "as
+    /// long as it's attacking"): each blocker's cost is asked as it's declared
+    CantBlockUnlessPayManaAllEffect {
+        cost: String,
+        #[serde(default)]
+        condition: Option<Condition>,
+    },
     /// `LookAtOpponentFaceDownCreaturesAnyTimeEffect`: you may look at face-down creatures you don't control any
     /// time (views only)
     LookAtOpponentFaceDownCreaturesAnyTimeEffect,
