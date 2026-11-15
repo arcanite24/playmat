@@ -2112,9 +2112,9 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
         CostDef::TapTargetCost { filter, amount } | CostDef::UntapTargetCost { filter, amount } => {
             matching(game, filter, seat, id).iter().filter(|p| game.obj(**p).controller == seat).count() >= *amount
         }
-        CostDef::SacrificeXTargetCost { .. } | CostDef::TapXTargetCost { .. } | CostDef::RemoveXCountersSourceCost { .. } => {
-            true
-        }
+        CostDef::SacrificeXTargetCost { .. }
+        | CostDef::TapXTargetCost { .. }
+        | CostDef::RemoveXCountersSourceCost { .. } => true,
         // `CrewCost.canPay` looks without a source, so "another" doesn't leave out the vehicle itself (crewed, it
         // counts its own power)
         CostDef::CrewCost { value } | CostDef::SaddleCost { value } => {
