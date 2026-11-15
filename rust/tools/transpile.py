@@ -5236,6 +5236,12 @@ class Translator:
                     'effects': [self.effect('new ShuffleHandGraveyardIntoLibraryEffect()'),
                                 self.effect('new DrawCardSourceControllerEffect(7).concatBy(", then")'),
                                 self.effect('new ExileSourceEffect()')]}
+        # Zhur-Taa Druid: "whenever you tap {this} for mana, it deals 1 damage to each opponent." (`TAPPED_FOR_MANA`,
+        # not a mana ability; `withRuleTextReplacement` makes the effect's "{this}" "it")
+        if cls == 'ZhurTaaDruidAbility' and not args:
+            return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'tapped_for_mana'}, 'optional': False,
+                    'effects': [self.effect('new DamagePlayersEffect(1,TargetController.OPPONENT)')],
+                    'rule': 'Whenever you tap {this} for mana, it deals 1 damage to each opponent.'}
         # Hooded Blightfang: "whenever a creature you control with deathtouch deals damage to a planeswalker, destroy
         # that planeswalker." (`DAMAGED_PERMANENT`, the source of the card's `filter`, a target pointer at the
         # planeswalker)
