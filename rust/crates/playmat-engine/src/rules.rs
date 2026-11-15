@@ -5462,6 +5462,10 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
             }
         }
     }
+    // `MayPay2LifeEffect`: asked as the cost is worked out, its life paid then
+    if !cards::may_pay_life(game, d, &cards::CostCx { seat, card: id, face: &def, ability: None }) {
+        return false;
+    }
     let mut cost = modified_cost(game, seat, id, cost);
     if let Some((_, n)) = &sacrifice_x {
         if sacrifice_x_reduction(game, seat, id, &def).is_some() {
@@ -6115,6 +6119,7 @@ fn modified_cost_of(game: &Game, seat: Seat, id: ObjId, face: &CardDef, mut cost
     }
     cost.generic = cost.generic.saturating_sub(reduce);
     cards::change_cost(game, cards::CostKind::Reduce, &of, &mut cost);
+    cards::paid_life_reductions(game, &of, &mut cost);
     let o = game.obj(id);
     for a in &o.def.abilities {
         // Ice Out: less if bargained (while checking what's playable: if it could be)
