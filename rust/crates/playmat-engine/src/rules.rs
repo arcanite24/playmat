@@ -18516,9 +18516,10 @@ fn apply_each_effect(
                         put_counters(game, o, "+1/+1", n, controller);
                     }
                     game.obj_mut(o).marks.push("monstrous".into());
-                    // `BECOMES_MONSTROUS`: its own "when this becomes monstrous"
+                    // `BECOMES_MONSTROUS`: its own "when this becomes monstrous", with the monstrosity's X
+                    // (`BecomesMonstrousSourceTriggeredAbility.getMonstrosityValue`: Hydra Broodmaster)
                     let fired = game.triggers([o], |_, src, _, t| matches!(t, Trigger::BecomesMonstrous) && src == o);
-                    game.pending.extend(fired);
+                    game.pending.extend(fired.into_iter().map(|t| StackItem { x: n, ..t }));
                 }
             }
             EffectDef::BecomesRenownedSourceEffect { amount } => {
