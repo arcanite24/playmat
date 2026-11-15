@@ -40,6 +40,31 @@ def tx_sizes(s):
     return {k: int(v) for k, v in (kv.split("=") for kv in s.split(",") if kv)}
 
 
+def refit_value(net, critic, data, train_idx, test_idx, dev, bs, report):
+    """One pass over the training games that fits only the value head (a linear read of the trunk) from scratch"""
+    head = net.value
+    head.reset_parameters()
+    for p in net.parameters():
+        p.requires_grad_(False)
+    for p in head.parameters():
+        p.requires_grad_(True)
+    opt = torch.optim.AdamW(head.parameters(), lr=1e-3, weight_decay=1e-2)
+    rng = np.random.default_rng(1)
+    perm = rng.permutation(train_idx)
+    net.train()
+    for i in range(0, len(perm), bs):
+        b = data.batch(perm[i : i + bs], dev)
+        val = losses(net, None, b)[1]
+        opt.zero_grad()
+        val.backward()
+        opt.step()
+    for p in net.parameters():
+        p.requires_grad_(True)
+    ev = evaluate(net, critic, data, test_idx, dev)
+    report["value_refit_logloss"] = ev["value_logloss"]
+    print(f"TRAIN value head refit: held-out log loss {ev['value_logloss']:.4f}", flush=True)
+
+
 def losses(net, critic, b):
     logits, v, h = net(b)
     logp = F.log_softmax(logits, -1)
@@ -110,6 +135,9 @@ def main():
     report = {"decisions": int(len(data)), "held_out": int(len(test_idx)), "epochs": []}
     # the full-information critic overfits fast: keep its best epoch on the held-out games
     best_critic = (float("inf"), None)
+    # the value overfits too (a game's decisions share one result): once its held-out loss rises, the trunk stops
+    # learning from it, and at the end only the value head is refit on the final trunk
+    value_on, best_value = True, float("inf")
     for ep in range(args.epochs):
         perm = rng.permutation(train_idx)
         tl = np.zeros(4)
@@ -122,7 +150,7 @@ def main():
             if n_i + 1 < len(starts):
                 ahead = pool.submit(data.batch, perm[starts[n_i + 1] : starts[n_i + 1] + args.bs], dev)
             pol, val, bel, crit = losses(net, critic, b)[:4]
-            loss = pol + args.value_weight * val + args.belief_weight * bel + 0.5 * crit
+            loss = pol + (args.value_weight if value_on else 0.0) * val + args.belief_weight * bel + 0.5 * crit
             opt.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(net.parameters(), 1.0)
@@ -137,6 +165,13 @@ def main():
         if ev["critic_logloss"] < best_critic[0]:
             best_critic = (ev["critic_logloss"], {k: v.detach().clone() for k, v in critic.state_dict().items()})
         print(f"TRAIN epoch {ep + 1}: held out {json.dumps({k: round(v, 4) if isinstance(v, float) else v for k, v in ev.items()})} ({time.time() - t0:.0f} s)", flush=True)
+        if value_on and ev["value_logloss"] > best_value + 0.002:
+            value_on = False
+            report["value_stopped_after_epoch"] = ep
+            print(f"TRAIN value stops training the trunk (held-out log loss {ev['value_logloss']:.4f} > {best_value:.4f})", flush=True)
+        best_value = min(best_value, ev["value_logloss"])
+    if not value_on:
+        refit_value(net, critic, data, train_idx, test_idx, dev, args.bs, report)
     # base rates for the held-out set: the value's coin, the belief's prior (each unseen card in hand at the mean rate)
     z = data.z[test_idx]
     report["value_coin_logloss"] = math.log(2)
