@@ -7510,6 +7510,11 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                 return false;
             }
             if saddle {
+                // `SADDLED_MOUNT` (`SaddledMountWatcher.saddleMap`): which creatures saddled this Mount this turn
+                let mark = format!("saddled mount {} {} {}", id.0, game.obj(id).zcc, game.turn);
+                for o in crew {
+                    game.obj_mut(o).marks.push(mark.clone());
+                }
                 return true;
             }
             // "whenever this crews a Vehicle": that Vehicle is its target
