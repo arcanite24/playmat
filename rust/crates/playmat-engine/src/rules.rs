@@ -21352,7 +21352,10 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
         if let Some(t) = def.spell.targets.first() {
             // `TargetImpl.tryToAutoChoose` reads the source ability's rule for its feel-bad words (Old-Growth Troll's
             // "Sacrifice this land" keeps its one Forest asked)
+            // (a spell's is its text: Chaotic Transformation's "Exile up to one target …" keeps its one Mountain
+            // for Chained to the Rocks asked)
             let rule = match game.resolving_item.clone() {
+                Some(item) if item.ability.is_none() && item.delayed.is_none() => item_rule(game, &item),
                 Some(item) => crate::view::item_rule(game, &item),
                 None => format!("attach {} to", def.name),
             };
