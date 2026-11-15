@@ -654,6 +654,8 @@ pub enum Trigger {
     },
     /// this transforms into this face (`TransformIntoSourceTriggeredAbility`)
     TransformsInto,
+    /// this creature mutates: a mutating spell merged with it (`MutatesSourceTriggeredAbility`, `CREATURE_MUTATED`)
+    Mutates,
     /// this attacks (`AttacksTriggeredAbility`)
     Attacks,
     /// this attacks alone (`AttacksAloneSourceTriggeredAbility`)
@@ -1835,6 +1837,8 @@ pub enum Value {
     SourcePower,
     /// the source's toughness (`SourcePermanentToughnessValue`)
     SourceToughness,
+    /// the number of times the source has mutated: the cards merged with it (`SourceMutatedCount`)
+    SourceMutatedCount,
     /// the controller's life total (`ControllerLifeCount`)
     ControllerLife,
     /// the total power of the permanents of the filter
@@ -4664,6 +4668,13 @@ pub enum AbilityDef {
         #[serde(default)]
         rule: String,
     },
+    /// mutate: a spell ability of its own, cast for `cost` targeting a non-Human creature its owner owns; as it
+    /// resolves with that target still legal, it merges with it, over or under (`MutateAbility`, 702.140)
+    MutateAbility {
+        cost: String,
+        #[serde(default)]
+        rule: String,
+    },
     /// prototype: a spell ability of its own, cast with another mana cost (its colors too) and size; the permanent
     /// keeps them (`PrototypeAbility`, its `PrototypeEffect` static listed after it)
     PrototypeAbility {
@@ -6725,6 +6736,33 @@ impl CardDef {
             }
             _ => None,
         })
+    }
+
+    /// Mutate: its ability index, and the card as it's cast that way: for its mutate cost, a creature spell with a
+    /// target, a non-Human creature you own (`MutateAbility`)
+    pub fn mutate(&self) -> Option<(usize, CardDef)> {
+        self.abilities.iter().enumerate().find_map(|(k, a)| match a {
+            AbilityDef::MutateAbility { cost, .. } => {
+                let target: TargetDef = serde_json::from_str(
+                    r#"{"class":"TargetPermanent","filter":[{"p":"type","t":"CREATURE"},{"p":"owner","who":"you"},
+                        {"p":"not","x":{"p":"subtype","s":"Human"}}]}"#,
+                )
+                .ok()?;
+                let def = CardDef {
+                    cost: ManaCost::parse(cost).ok()?,
+                    printed_cost: Some(self.printed().clone()),
+                    spell: SpellDef { targets: vec![target], ..self.spell.clone() },
+                    ..self.clone()
+                };
+                Some((k, def))
+            }
+            _ => None,
+        })
+    }
+
+    /// Whether it has mutate (`MutateAbility`)
+    pub fn has_mutate(&self) -> bool {
+        self.abilities.iter().any(|a| matches!(a, AbilityDef::MutateAbility { .. }))
     }
 
     /// Bestow's Aura: not a creature, with no creature types, an Aura (`BestowAbility.becomeAura`)

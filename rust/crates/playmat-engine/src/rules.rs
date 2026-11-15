@@ -1434,6 +1434,7 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             || morph(game, seat, *id).is_some()
             || prototype(game, seat, *id).is_some()
             || bestow(game, seat, *id).is_some()
+            || mutate(game, seat, *id).is_some()
             || foretell(game, seat, *id).is_some()
             || plot(game, seat, *id).is_some()
             || suspend(game, seat, *id).is_some()
@@ -1710,6 +1711,7 @@ pub fn playable_abilities(game: &Game, seat: Seat) -> Vec<(ObjId, usize, PlayKin
                         morph(game, seat, id).map(|x| x.0),
                         prototype(game, seat, id).map(|x| x.0),
                         bestow(game, seat, id).map(|x| x.0),
+                        mutate(game, seat, id).map(|x| x.0),
                         foretell(game, seat, id),
                         plot(game, seat, id).map(|x| x.0),
                         suspend(game, seat, id).map(|x| x.0),
@@ -2310,6 +2312,16 @@ fn bestow(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
         return None;
     }
     let (k, def) = game.obj(id).def.bestow()?;
+    castable(game, seat, id, &def).then_some((k, def))
+}
+
+/// Mutate: the card's ability index and the card as it's cast that way, a creature spell targeting a non-Human
+/// creature you own, if it can be, from hand
+fn mutate(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
+    if game.obj(id).zone != Zone::Hand {
+        return None;
+    }
+    let (k, def) = game.obj(id).def.mutate()?;
     castable(game, seat, id, &def).then_some((k, def))
 }
 
@@ -4097,6 +4109,10 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         if let Some((k, _)) = &bestow {
             options.push(*k);
         }
+        let mutate = if zone == Zone::Hand { mutate(game, seat, id) } else { None };
+        if let Some((k, _)) = &mutate {
+            options.push(*k);
+        }
         // a modal double-faced card with a spell front and a land back (Malakir Rebirth): its back's play ability,
         // after the front's abilities
         // (from a hand, or from where an effect lets you play the card: Harnfel's exiled cards)
@@ -4161,6 +4177,7 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                 .or(cleave.filter(|(k, _)| *k == index))
                 .or(overload.filter(|(k, _)| *k == index))
                 .or(bestow.filter(|(k, _)| *k == index))
+                .or(mutate.filter(|(k, _)| *k == index))
                 .map(|(_, def)| (def, false));
             if let Some((def, warped)) = alternative.or(warp.filter(|(k, _)| *k == index).map(|(_, def)| (def, true))) {
                 let before = game.clone();
@@ -9777,6 +9794,20 @@ fn resolve_popped(game: &mut Game, d: &mut dyn Decider) {
             }
             return;
         }
+        // a mutating creature spell: with its target still legal it merges with it (702.140c), else it resolves as a
+        // creature spell (702.140b)
+        let mutating =
+            game.obj(id).adventurer.as_ref().is_some_and(|f| f.has_mutate()) && !def.spell.targets.is_empty();
+        if mutating {
+            if let Some(Target::Obj(to)) =
+                legal_targets(game, &item, &def.spell.targets).and_then(|l| l.first().and_then(|t| t.first()).copied())
+            {
+                if game.obj(to).zone == Zone::Battlefield {
+                    mutate_onto(game, d, id, to, item.controller);
+                    return;
+                }
+            }
+        }
         // the X it was cast with, for its enters triggers (`GetXValue`)
         game.obj_mut(id).cast_x = item.x;
         enter_battlefield(game, d, id, item.controller, item.kicked);
@@ -14479,7 +14510,7 @@ fn apply_each_effect(
                 for o in &gone {
                     game.move_to(*o, Zone::Exile);
                 }
-                for o in gone {
+                for o in with_merged(game, &gone) {
                     // (a token ceases to exist in exile)
                     if game.obj(o).zone == Zone::Exile && !game.obj(o).token {
                         let owner = game.obj(o).owner;
@@ -14494,7 +14525,7 @@ fn apply_each_effect(
                 for o in &gone {
                     game.move_to(*o, Zone::Exile);
                 }
-                for o in gone {
+                for o in with_merged(game, &gone) {
                     if game.obj(o).zone == Zone::Exile && !game.obj(o).token {
                         let to = if *your_control { controller } else { game.obj(o).owner };
                         let how = if *tapped {
@@ -21552,8 +21583,10 @@ fn token_image(game: &mut Game, token: &crate::card::TokenDef, source: ObjId) {
     // Treasure from Fable's Goblin Shaman looks in NEO's Treasures, one image, so no random number
     // a split card's half, cast, is its parent's printing (`SplitCardHalfImpl.getExpansionSetCode`)
     let o = game.obj(source);
+    // (a mutated permanent's card is its own card, `game.getCard(sourceId)`, whatever went over it)
     let set = match (&o.token_image, &o.adventurer) {
         (Some((_, set, _)), _) if o.token => set.clone(),
+        _ if !o.token && o.merge_base.is_some() => o.merge_base.as_ref().map(|b| b.set.clone()).unwrap_or_default(),
         (_, Some(full)) if o.def.set.is_empty() => full.set.clone(),
         _ => o.def.set.clone(),
     };
@@ -23695,6 +23728,12 @@ fn transform(game: &mut Game, id: ObjId) {
         }
     }
     let o = game.obj_mut(id);
+    // a mutated permanent transforms its own card's face; the merged cards' abilities follow it (`PermanentCard.reset`:
+    // the other face's card, then `applyMutate`)
+    let merged = o.merge_base.clone();
+    if let Some(base) = &merged {
+        o.def = base.clone();
+    }
     let into_front = match o.front.take() {
         Some(front) => {
             o.def = front;
@@ -23704,12 +23743,27 @@ fn transform(game: &mut Game, id: ObjId) {
             // a modal double-faced card transforms when both its faces are permanents
             // (`ModalDoubleFacedCard.isTransformable`: Monica Rambeau)
             let mdfc = o.def.back.clone().filter(|b| b.is_permanent_card() && o.def.is_permanent_card());
-            let Some(back) = o.def.transform_back.clone().or(mdfc) else { return };
-            o.front = Some(std::mem::replace(&mut o.def, back));
-            o.transformed_in_place = true;
+            match o.def.transform_back.clone().or(mdfc) {
+                Some(back) => {
+                    o.front = Some(std::mem::replace(&mut o.def, back));
+                    o.transformed_in_place = true;
+                }
+                None => {
+                    if merged.is_some() {
+                        o.def = old;
+                    }
+                    return;
+                }
+            }
             false
         }
     };
+    if merged.is_some() {
+        let face = game.obj(id).def.clone();
+        game.obj_mut(id).merge_base = Some(face);
+        let def = merged_def(game, id);
+        game.obj_mut(id).def = Arc::new(def);
+    }
     if into_front {
         let fired = game.triggers([id], |_, _, _, t| matches!(t, Trigger::TransformsOrEnters));
         game.pending.extend(fired);
@@ -23731,6 +23785,92 @@ fn transform(game: &mut Game, id: ObjId) {
         }
         game.pending.push(t);
     }
+}
+
+/// A mutating creature spell merges with the creature it targets (`PermanentImpl.mutate`, 702.140c): the card leaves
+/// the game's zones (outside, as Java's `setZone(OUTSIDE)`), its controller chooses under or over, the permanent gets
+/// the top card's characteristics and every card's abilities, then `CREATURE_MUTATED` triggers ("whenever this
+/// creature mutates")
+fn mutate_onto(game: &mut Game, d: &mut dyn Decider, spell: ObjId, to: ObjId, controller: Seat) {
+    {
+        // its card again (the mutate cost was only how it was cast)
+        let o = game.obj_mut(spell);
+        if let Some(full) = o.adventurer.take() {
+            o.def = full;
+        }
+        o.zone = Zone::Outside;
+        o.zcc += 1;
+        o.controller = o.owner;
+    }
+    let message =
+        format!("Select whether to mutate {} UNDER or OVER {}", log::object(game, spell), log::object(game, to));
+    let Some(under) = choose_use(game, d, controller, &message) else {
+        return;
+    };
+    // its card as it is without what effects that make it a creature changed (Java's `reset` copies the card, merges,
+    // then the effects apply again: an ability they give comes after the merged cards')
+    let becomes = game.obj(to).becomes_base.clone();
+    let card = becomes.clone().unwrap_or_else(|| game.obj(to).def.clone());
+    let base = game.obj(to).merge_base.clone().unwrap_or(card);
+    {
+        let o = game.obj_mut(to);
+        o.merge_base = Some(base);
+        o.merged.push(spell);
+        if !under {
+            o.merged_top = Some(spell);
+        }
+    }
+    let def = merged_def(game, to);
+    {
+        let o = game.obj_mut(to);
+        o.def = Arc::new(def);
+        if becomes.is_some() {
+            o.becomes_base = None;
+            o.becomes_auras.clear();
+        }
+    }
+    if becomes.is_some() {
+        refresh_becomes(game);
+    }
+    let fired = game.triggers([to], |g, src, _, t| {
+        matches!(t, Trigger::Mutates) && src == to && g.obj(src).zone == Zone::Battlefield
+    });
+    game.pending.extend(fired);
+}
+
+/// The cards of permanents that left the battlefield, each followed by the cards merged with it
+/// (`CardUtil.getAllCardsFromPermanentsLeftBattlefield`)
+fn with_merged(game: &Game, gone: &[ObjId]) -> Vec<ObjId> {
+    let mut out = Vec::new();
+    for o in gone {
+        out.push(*o);
+        for c in &game.obj(*o).merged {
+            if !out.contains(c) {
+                out.push(*c);
+            }
+        }
+    }
+    out
+}
+
+/// A mutated permanent as `PermanentImpl.applyMutate` makes it: the top card's characteristics (its own card's when
+/// none went over), with its own card's abilities, then each merged card's in the order they mutated
+fn merged_def(game: &Game, id: ObjId) -> CardDef {
+    let o = game.obj(id);
+    let Some(base) = o.merge_base.clone() else {
+        return (*o.def).clone();
+    };
+    let mut def = match o.merged_top {
+        Some(top) => (*game.obj(top).def).clone(),
+        None => (*base).clone(),
+    };
+    def.abilities = base.abilities.clone();
+    def.hints = base.hints.clone();
+    def.hint_abilities = base.hint_abilities.clone();
+    for c in &o.merged {
+        def.abilities.extend(game.obj(*c).def.abilities.iter().cloned());
+    }
+    def
 }
 
 /// Turns a face-down permanent face up (`PermanentCard.turnFaceUp`): its card again, a +1/+1 counter for megamorph,

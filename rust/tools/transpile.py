@@ -631,6 +631,7 @@ ABILITIES = {
     'TurnedFaceUpSourceTriggeredAbility': [('effect', 'effect'), ('set_target_pointer', 'bool'), ('optional', 'bool')],
     'EntersBattlefieldOrTurnedFaceUpTriggeredAbility': [('effect', 'effect'), ('optional', 'bool')],
     'TurnedFaceUpAllTriggeredAbility': [('effect', 'effect'), ('filter', 'filter'), ('set_target_pointer', 'bool')],
+    'MutatesSourceTriggeredAbility': [('effect', 'effect'), ('optional', 'bool')],
 }
 
 COLOR_LETTERS = {'White': 'W', 'Blue': 'U', 'Black': 'B', 'Red': 'R', 'Green': 'G'}
@@ -695,6 +696,7 @@ SIMPLE_TRIGGERS = {'EntersBattlefieldTriggeredAbility': 'enters', 'EntersBattlef
                    'DealsCombatDamageToAPlayerTriggeredAbility': 'combat_damage_to_player',
                    'DamagedOpponentsNoncombatTriggeredAbility': 'opponents_dealt_noncombat_damage',
                    'TurnedFaceUpSourceTriggeredAbility': 'turned_face_up',
+                   'MutatesSourceTriggeredAbility': 'mutates',
                    'EntersBattlefieldOrTurnedFaceUpTriggeredAbility': 'enters_or_turned_face_up'}
 
 # the triggers an `OrTriggeredAbility` may combine: those whose events the engine checks with `Game::triggers` alone
@@ -1563,6 +1565,9 @@ class Translator:
             return {'v': 'source_power'}
         if arg == 'SourcePermanentToughnessValue.instance':
             return {'v': 'source_toughness'}
+        # the number of times the source has mutated (the cards merged with it)
+        if arg == 'SourceMutatedCount.instance':
+            return {'v': 'source_mutated_count'}
         if arg == 'ControllerLifeCount.instance':
             return {'v': 'controller_life'}
         if arg in COUNT_FILTERS:
@@ -5940,6 +5945,9 @@ class Translator:
         # strive: the spell costs this more for each target beyond the first (of its "any number of" target)
         if cls == 'StriveAbility' and n == 1 and re.fullmatch(r'"(\{[^"]*\})+"', args[0]):
             return {'class': cls, 'java': cls, 'cost': args[0][1:-1]}
+        # mutate: a spell ability of its own, for its mutate cost, targeting a non-Human creature you own
+        if cls == 'MutateAbility' and n == 2 and args[0] == 'this' and re.fullmatch(r'"(\{[^"]*\})+"', args[1]):
+            return {'class': cls, 'java': cls, 'cost': args[1][1:-1]}
         # bestow: cast as an Aura spell with enchant creature for this
         if cls == 'BestowAbility' and n == 2 and args[0] == 'this' and re.fullmatch(r'"(\{[^"]*\})+"', args[1]):
             return {'class': cls, 'java': cls, 'cost': args[1][1:-1]}

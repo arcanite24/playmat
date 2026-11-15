@@ -353,6 +353,7 @@ fn can_play_objects(game: &Game, seat: Seat) -> Value {
                         crate::card::AbilityDef::MorphAbility { .. }
                             | crate::card::AbilityDef::PrototypeAbility { .. }
                             | crate::card::AbilityDef::BestowAbility { .. }
+                            | crate::card::AbilityDef::MutateAbility { .. }
                             | crate::card::AbilityDef::DisturbAbility { .. }
                             | crate::card::AbilityDef::AwakenAbility { .. }
                             | crate::card::AbilityDef::WebSlingingAbility { .. }
@@ -367,6 +368,7 @@ fn can_play_objects(game: &Game, seat: Seat) -> Value {
                     Some(crate::card::AbilityDef::MorphAbility { .. }) => format!("Cast {} using Morph", name),
                     Some(crate::card::AbilityDef::PrototypeAbility { .. }) => format!("Cast {} using Prototype", name),
                     Some(crate::card::AbilityDef::BestowAbility { .. }) => format!("Cast {} using Bestow", name),
+                    Some(crate::card::AbilityDef::MutateAbility { .. }) => format!("Cast {} using Mutate", name),
                     // (the back's spell ability, with the back's name)
                     Some(crate::card::AbilityDef::DisturbAbility { .. }) => format!(
                         "Cast {} using Disturb",
@@ -2273,7 +2275,7 @@ fn permanent_view(game: &Game, id: ObjId, r: &str, viewer: Seat, names: &[&str])
     m.insert("attachedToPermanent".into(), json!(to.is_some()));
     m.insert("attachedControllerDiffers".into(), json!(to.is_some_and(|t| game.obj(t).controller != o.controller)));
     m.insert("mutateView".into(), json!({}));
-    m.insert("mutated".into(), json!(false));
+    m.insert("mutated".into(), json!(!o.merged.is_empty()));
     if let Some(full) = o.printed_def.as_ref().filter(|f| f.room.len() == 2) {
         m.insert("roomLeftDoor".into(), json!(full.room[0].name));
         m.insert("roomRightDoor".into(), json!(full.room[1].name));
