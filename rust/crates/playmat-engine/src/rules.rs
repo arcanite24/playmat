@@ -8259,9 +8259,11 @@ pub fn possible_targets(game: &Game, seat: Seat, def: &TargetDef, src: Option<Ob
             players.into_iter().filter(|s| !*opponents || *s != seat).collect(),
             permanents(&|id| game.filter_matches(filter, seat, src, id)),
         ),
+        // (any planeswalker, yours too: `FilterOpponentOrPlaneswalker` is a `FilterPlaneswalkerPermanent` or an
+        // opponent; Angrath, Minotaur Pirate's +2 can target Angrath)
         TargetDef::TargetOpponentOrPlaneswalker => (
             players.into_iter().filter(|s| *s != seat).collect(),
-            permanents(&|id| game.has_type(id, CardType::Planeswalker) && game.obj(id).controller != seat),
+            permanents(&|id| game.has_type(id, CardType::Planeswalker)),
         ),
         TargetDef::TargetPermanent { filter, .. } => {
             (Vec::new(), permanents(&|id| game.filter_matches(filter, seat, src, id)))
