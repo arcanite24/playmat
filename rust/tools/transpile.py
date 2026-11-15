@@ -6809,6 +6809,9 @@ class Translator:
         if cls == 'BecomesRenownedAllTriggeredAbility' and n in (2, 3):
             return out({'e': 'becomes_renowned_all', 'filter': self.filter(args[1])}, args[0], n == 3 and flag(args[2]),
                        True)
+        # a card's own `GAVE_GIFT` trigger (effect[, optional]): "whenever you give a gift" (Jolly Gerbils)
+        if cls == 'GaveGiftTriggeredAbility' and n in (1, 2):
+            return out({'e': 'gave_gift'}, args[0], n == 2 and flag(args[1]))
         # a card's own `CREATED_TOKEN` trigger (effect, filter, whose token[, optional]), pointing at the token
         if cls == 'TokenCreatedTriggeredAbility' and n in (3, 4):
             if args[2].strip() not in TARGET_CONTROLLERS:
