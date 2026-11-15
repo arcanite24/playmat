@@ -4,6 +4,7 @@ import { api, events } from '../connection';
 import { attention } from './attention';
 import { notify } from './toasts';
 import { warmDeck } from '../ui/imageCache';
+import { joinWithRetry } from '../../core/events/joinRetry';
 
 /**
  * Drafts, deck construction and tournaments the server has put the player in. The server drives every step
@@ -134,7 +135,7 @@ events.on('START_DRAFT', (message, event) => {
   if (!draftId) return;
   updateDraft(draftId, { tableId: message?.currentTableId ?? null, over: false });
   useEvents.setState({ redirect: `/draft/${draftId}` });
-  api.draftJoin(draftId).catch((error) => notify("Couldn't open the draft", String(error?.message ?? error), 'error'));
+  joinWithRetry(() => api.draftJoin(draftId)).catch((error) => notify("Couldn't open the draft", String(error?.message ?? error), 'error'));
 });
 
 for (const method of ['DRAFT_INIT', 'DRAFT_PICK'] as const) {
@@ -189,7 +190,7 @@ function openTournament(tournamentId: string, tableId: string | null) {
     currentTournamentId: tournamentId,
     redirect: `/event/${tournamentId}`,
   }));
-  api.tournamentJoin(tournamentId).catch(() => undefined);
+  joinWithRetry(() => api.tournamentJoin(tournamentId)).catch(() => undefined);
 }
 
 events.on('START_TOURNAMENT', (message, event) => {
