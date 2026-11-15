@@ -13016,8 +13016,8 @@ fn apply_each_effect(
                     }
                     continue;
                 }
-                let Some(chosen) = choose_cards(game, d, controller, &hand, &hand, 0, *amount as usize, "discard")
-                else {
+                // (`TargetDiscard.choose`: another round after one that added a card, Cavalier of Flame's "any number")
+                let Some(chosen) = choose_cards_rounds(game, d, controller, &hand, 0, *amount as usize) else {
                     return;
                 };
                 for c in &chosen {
