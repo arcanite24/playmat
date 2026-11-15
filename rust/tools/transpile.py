@@ -559,6 +559,11 @@ CUSTOM = {
         'class': 'TapForManaAllTriggeredManaAbility', 'java': 'CryptGhastTriggeredAbility',
         'filter': [{'p': 'subtype', 's': 'Swamp'}, YOU], 'color': 'B',
         'rule': 'Whenever you tap a Swamp for mana, add an additional {B}.'},
+    # Nissa, Who Shakes the World: the same for a Forest and {G}
+    'NissaWhoShakesTheWorldTriggeredAbility': lambda: {
+        'class': 'TapForManaAllTriggeredManaAbility', 'java': 'NissaWhoShakesTheWorldTriggeredAbility',
+        'filter': [{'p': 'subtype', 's': 'Forest'}, YOU], 'color': 'G',
+        'rule': 'Whenever you tap a Forest for mana, add an additional {G}.'},
     'MasterOfBarbsTriggeredAbility': lambda: {
         'class': 'DamagedOpponentsNoncombatTriggeredAbility', 'java': 'MasterOfBarbsTriggeredAbility',
         'effects': [{'class': 'BoostControlledEffect', 'power': 1, 'toughness': 0, 'duration': 'EndOfTurn',
