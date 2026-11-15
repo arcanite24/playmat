@@ -15,7 +15,8 @@ transpiler to translate (token classes, effect and filter expressions), handed t
 `.args(&[…])`, one kind per constructor argument ("text" as is, "library_target": a `TargetCardInLibrary`, as
 "min max" with its filter after the declared ones; "filter", "effect" and "ability": translated, after the declared
 filters, effects or abilities; "counter": a `Counter` as "name amount"; "counter_type": `CounterType.X` as the
-engine's counter name; "put_cards": a `PutCards` constant's name;
+engine's counter name; "put_cards": a `PutCards` constant's name; "amount": an int or a `DynamicValue`, as the
+engine's `Amount` in JSON (`EffectCx::arg_amount`);
 "while_on_battlefield": only `Duration.WhileOnBattlefield`; "bool": only true or false (a handler whose
 arguments are all "bool" takes exactly that many); "one_of:a|b": only one of these texts; "duration": an
 optional leading `Duration`, `Duration.WhileOnBattlefield` when the constructor has none). The strings are
@@ -28,6 +29,7 @@ A class with one becomes `{"class": "CardStatic", "handler": …}`, wherever an 
 lasts while its source is on the battlefield; resolving, until the turn's cleanup.
 """
 import glob
+import json
 import os
 import re
 
@@ -204,6 +206,9 @@ def effect(t, cls, args, own_only=False):
             args[i] = m.group(1)
         elif kind == 'ability':
             abilities.append(t.ability(args[i]))
+        elif kind == 'amount':
+            # an int or a `DynamicValue`: the engine's `Amount` as JSON (`EffectCx::arg_amount`)
+            args[i] = json.dumps(t.amount(args[i]), sort_keys=True)
         elif kind == 'int':
             # a number as written (a `DynamicValue` overload stays unsupported)
             if not re.fullmatch(r'-?\d+', args[i]):
@@ -219,7 +224,7 @@ def effect(t, cls, args, own_only=False):
             # an argument the handler reads only some values of ("one_of:NinjutsuAbility.class|EquipAbility.class")
             if args[i] not in kind[len('one_of:'):].split('|'):
                 raise _unsupported(f'effect {cls}: argument {args[i]}')
-        elif kind not in ('text', 'int', 'bool', 'filter', 'effect', 'counter', 'counter_type', 'put_cards', 'ability',
+        elif kind not in ('text', 'int', 'bool', 'filter', 'effect', 'counter', 'counter_type', 'put_cards', 'ability', 'amount',
                           'while_on_battlefield', 'duration', 'until_your_next_turn') \
                 and not kind.startswith('one_of:'):
             raise _unsupported(f'argument kind {kind}')
@@ -305,11 +310,23 @@ def target(t, cls, args):
     """A target class the card declares for itself with a target handler (`Handler::target`): its base target,
     translated, with the handler as a predicate on its filter (its `canTarget`); or None"""
     name = find(getattr(t, 'source', None), cls, 'target', own_only=True)
+    base = name and handlers()[name]['base']
+    args = [a.strip() for a in args if a.strip()]
+    # a framework target class (`TargetPermanentSameController`): its base with `$0`, `$1`… for its constructor's
+    # arguments, as a trigger's
+    if not name and (bare := handlers().get(cls)) and bare['kind'] == 'target' and '$' in bare['base']:
+        name, base = cls, bare['base']
+        holes = sorted({int(x) for x in re.findall(r'\$(\d+)', base)})
+        if holes != list(range(len(args))):
+            raise _unsupported(f'target {cls}: {len(args)} constructor arguments, its handler takes {len(holes)}')
+        for i, arg in enumerate(args):
+            base = base.replace('$%d' % i, arg)
+        args = []
     if not name:
         return None
-    if [a for a in args if a.strip()]:
+    if args:
         raise _unsupported(f'target {cls}: constructor arguments')
-    out = t.target(handlers()[name]['base'])
+    out = t.target(base)
     if 'filter' not in out:
         raise _unsupported(f'target {cls}: its base {out.get("class")} has no filter')
     out['filter'] = list(out['filter']) + [{'p': 'card', 'handler': name}]

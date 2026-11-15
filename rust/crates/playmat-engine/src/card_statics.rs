@@ -24,7 +24,8 @@
 //!   `Rule::CantCastOnStack(f)`: only the cast itself, after its targets (`CAST_SPELL_LATE` reading the spell);
 //!   `Rule::CantActivate(f)`: `rules::activatable` (activated abilities that aren't mana abilities);
 //!   `Rule::CantLoseOrWin(f)`: the state-based loss check and `rules::win_game`;
-//!   `Rule::MaxActivations(f)`: a limited activated ability's times each turn (`rules::activatable`).
+//!   `Rule::MaxActivations(f)`: a limited activated ability's times each turn (`rules::activatable`);
+//!   `Rule::CantHaveCounters(f)`: counters put on a permanent (`rules::counters_to_add`, before replacements).
 //! - **as-though**: `Handler::as_though(name, AsThough::Flash(f))`: `rules::castable`'s timing;
 //!   `AsThough::Haste(f)`: a {T} cost's summoning sickness (`rules::can_pay_cost`, mana abilities);
 //!   `AsThough::Hexproof(f)`: hexproof, as targets are chosen (`rules::possible_targets`, `targetable`).
@@ -389,6 +390,9 @@ pub(crate) enum Rule {
     /// `MAX_ACTIVATIONS`: how many times `seat` may activate the ability at `index` of `id` each turn, where it
     /// limits them (Birgi's boast twice); None leaves the limit as it is
     MaxActivations(fn(&Game, &StaticCx, Seat, ObjId, usize) -> Option<u32>),
+    /// `CAN_ADD_COUNTERS`: the permanent `id` can't have counters named so put on it (`PermanentImpl.addCounters`
+    /// asks before any `ADD_COUNTERS` replacement: none of them is applied or asked about)
+    CantHaveCounters(fn(&Game, &StaticCx, ObjId, &str) -> bool),
 }
 
 /// `YouDontLoseManaEffect`'s `addDoNotEmptyManaType`: the kinds of `seat`'s mana (WUBRG, then colorless) the pool
@@ -766,6 +770,17 @@ pub(crate) fn cant_cast_on_stack(game: &Game, seat: Seat, id: ObjId, face: &Card
     each_static(game, &mut check);
     // the spell's own (`Zone.ALL`: `CastAsThoughItHadFlashIfConditionAbility`'s "can't flash unless")
     each_own_static(game, id, &mut check);
+    out
+}
+
+/// Whether a rule-modifying handler says the permanent `id` can't have `counter` counters put on it
+pub(crate) fn cant_have_counters(game: &Game, id: ObjId, counter: &str) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::Rule(Rule::CantHaveCounters(f)) = h {
+            out = out || f(game, cx, id, counter);
+        }
+    });
     out
 }
 

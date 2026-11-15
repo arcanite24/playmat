@@ -192,6 +192,9 @@ pub struct Obj {
     /// it lost all abilities (`BecomesCreatureTargetEffect`'s `loseAllAbilities`): 1 until end of turn, 2 until it
     /// leaves. Its keyword counters' abilities go too: Java adds them first in layer 6 (`ApplyStatusEffect`)
     pub lost_all: u8,
+    /// when a resolved "loses all abilities" (`LoseAllAbilitiesTargetEffect`) applied (0: none): the statics with
+    /// earlier timestamps (an Aura's "enchanted creature has flying") give it nothing (613.7)
+    pub lost_all_at: u64,
     /// a static "as long as …, it's a creature" applied: the card as it is without it
     pub becomes_base: Option<Arc<CardDef>>,
     /// the Auras whose "enchanted … is a …" (`BecomesCreatureAttachedEffect`) `def` has, in timestamp order
@@ -334,6 +337,8 @@ pub struct Obj {
     pub blitzed: bool,
     /// cast with its offspring cost paid
     pub offspring: bool,
+    /// cast with its gift promised (a permanent's: `GiftWasPromisedCondition` as it enters)
+    pub gift_promised: bool,
     /// in exile after warp: its owner may cast it from this turn number on
     pub warp_from: Option<u32>,
     /// the mana spent to cast it, as a spell (`ManaSpentToCastCount`)
@@ -1181,6 +1186,9 @@ pub struct Game {
     pub effect_mana: Arc<Vec<AbilityDef>>,
     /// abilities lost until end of turn: (permanent, its zcc, the ability, the turn)
     pub lost_until_eot: Vec<(ObjId, u32, AbilityDef, u32)>,
+    /// abilities lost until a player's next turn (`LoseAbilityTargetEffect(…, Duration.UntilYourNextTurn)`: Mu
+    /// Yanling's "loses flying"): (permanent, its zcc, the ability, the player whose turn ends it)
+    pub lost_until_turn_of: Vec<(ObjId, u32, AbilityDef, Seat)>,
     /// what made a permanent block this turn if able, with the permanent's zone change count (its hint names it)
     pub must_block_from: Vec<(ObjId, u32, ObjId)>,
     /// the game log's lines as Java writes them (`informPlayers`), while it's kept (replays and the AI's copy compare
@@ -1598,6 +1606,7 @@ impl Game {
             grants: Arc::new(Vec::new()),
             effect_mana: Arc::new(Vec::new()),
             lost_until_eot: Vec::new(),
+            lost_until_turn_of: Vec::new(),
             must_block_from: Vec::new(),
             log: None,
             events: None,
@@ -1781,6 +1790,7 @@ impl Game {
             solved: false,
             until_end_of_turn_def: None,
             lost_all: 0,
+            lost_all_at: 0,
             becomes_base: None,
             becomes_auras: Vec::new(),
             becomes_over_eot: false,
@@ -1848,6 +1858,7 @@ impl Game {
             spent_colors: [0; 5],
             blitzed: false,
             offspring: false,
+            gift_promised: false,
             warp_from: None,
             mana_spent: 0,
             treasure_spent: 0,
@@ -2391,6 +2402,11 @@ impl Game {
         {
             return false;
         }
+        if !self.lost_until_turn_of.is_empty()
+            && self.lost_until_turn_of.iter().any(|(x, z, a, _)| *x == id && *z == o.zcc && a == ability)
+        {
+            return false;
+        }
         // an Aura's "enchanted creature loses all abilities" (`LoseAllAbilitiesAttachedEffect`): to Java whatever
         // other statics give it too (Fresh Start on a creature with Cathar's Shield)
         if o.zone == Zone::Battlefield
@@ -2490,10 +2506,12 @@ impl Game {
     /// (`BecomesCreatureAttachedEffect`): layer 6 abilities older static abilities give it are lost with the rest
     pub fn abilities_lost_at(&self, id: ObjId) -> Option<u64> {
         let o = self.obj(id);
+        let own = (o.lost_all_at > 0 && o.zone == Zone::Battlefield).then_some(o.lost_all_at);
         if o.becomes_auras.is_empty() {
-            return None;
+            return own;
         }
-        o.becomes_auras
+        let auras = o
+            .becomes_auras
             .iter()
             .filter(|a| self.attached(**a) == Some(id))
             .filter(|a| {
@@ -2506,7 +2524,8 @@ impl Game {
                 })
             })
             .map(|a| self.obj(*a).attached_at)
-            .max()
+            .max();
+        auras.max(own)
     }
 
     /// A permanent's static abilities' timestamp: when it was attached, for an attachment, else when it entered
@@ -3599,8 +3618,9 @@ impl Game {
             Condition::MaxSpeed => self.player(you).speed >= 4,
             // (Java's `StoriedContinuousEffect` gives it as effects apply, before the engine's next state check)
             Condition::EnduringStory => self.player(you).enduring_story || self.storied_now(you),
+            // a permanent cast with its gift promised ("when this enters, if the gift was promised"); otherwise
             // only a resolving spell's conditional effect knows (`ConditionalOneShotEffect`)
-            Condition::GiftPromised => false,
+            Condition::GiftPromised => self.obj(source).gift_promised,
             // the werewolves' "if no spells were cast last turn" (not on the first turn) and "if a player cast two
             // or more spells last turn"
             Condition::NoSpellsLastTurn => self.turn >= 2 && self.players.iter().all(|p| p.spells_cast_last_turn == 0),
@@ -4798,6 +4818,11 @@ impl Game {
                 }
                 o.blitzed = false;
                 o.offspring = false;
+                // kept as it last was on the battlefield (its enters trigger's "if the gift was promised" after it
+                // died, as Java's condition reads the source's last known information: Scrapshooter)
+                if from != Zone::Battlefield {
+                    o.gift_promised = false;
+                }
             }
         }
         let owner = self.obj(id).owner;
@@ -4848,6 +4873,7 @@ impl Game {
                     o.def = def;
                 }
                 o.lost_all = 0;
+                o.lost_all_at = 0;
                 o.copied_def = None;
                 o.eot_copy = None;
                 if let Some(def) = o.pre_guildpact.take() {

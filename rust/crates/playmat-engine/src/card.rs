@@ -722,6 +722,9 @@ pub enum Trigger {
     /// this attacks and isn't blocked (`AttacksAndIsNotBlockedTriggeredAbility`, `UNBLOCKED_ATTACKER`); with a player
     /// target pointer, at the defending player
     AttacksUnblocked,
+    /// this blocks or becomes blocked (`BlocksOrBlockedSourceTriggeredAbility`: `CREATURE_BLOCKS` or
+    /// `CREATURE_BLOCKED`, once each)
+    BlocksOrBecomesBlocked,
     /// a creature of the filter becomes blocked (`BecomesBlockedAllTriggeredAbility`); with a target pointer, at it
     BecomesBlockedAll {
         filter: Filter,
@@ -1099,6 +1102,9 @@ pub enum Trigger {
     BecomesTappedAll {
         filter: Filter,
     },
+    /// the permanent this is attached to becomes tapped (`BecomesTappedAttachedTriggeredAbility`); a target pointer is
+    /// that permanent
+    BecomesTappedAttached,
     /// this is dealt combat damage (`DealtCombatDamageToSourceTriggeredAbility`, once for each batch, X the damage)
     DealtCombatDamage,
     /// a spell of the filter you control deals damage (`SpellControlledDealsDamageTriggeredAbility`, once for each
@@ -2252,6 +2258,9 @@ pub enum EffectDef {
     },
     /// sacrifices the source
     SacrificeSourceEffect,
+    /// a permanent's gift, from the trigger `GiftAbility` adds: "when this permanent enters, if the gift was
+    /// promised, they draw a card" (the opponent gets the gift, `GiftType.applyGift`)
+    GiveGiftEffect,
     /// the controller may pay `cost`; if they do, `effect`
     DoIfCostPaid {
         #[serde(default)]
@@ -2640,9 +2649,11 @@ pub enum EffectDef {
     GainAbilityAttachedUntilEndOfTurnEffect {
         ability: Box<AbilityDef>,
     },
-    /// the target permanents lose the ability until end of turn
+    /// the target permanents lose the ability until end of turn, or until your next turn
     LoseAbilityTargetEffect {
         ability: Box<AbilityDef>,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        until_your_next_turn: bool,
     },
     /// the source loses the ability until end of turn
     LoseAbilitySourceEffect {
@@ -3114,9 +3125,23 @@ pub enum EffectDef {
     NoMaximumHandSizeEffect,
     /// players have no maximum hand size (the same effect, `TargetController.ANY`: Folio of Fancies)
     NoMaximumHandSizeAllEffect,
-    /// your maximum hand size is `size` (`MaximumHandSizeControllerEffect(size, WhileOnBattlefield, SET)`)
+    /// "it can't be regenerated this turn" (`CantRegenerateTargetEffect(Duration.EndOfTurn)`, a rule-modifying effect
+    /// on `REGENERATE`): resolving, each target as it is then (`target`), whose regeneration shields don't work
+    CantRegenerateTargetEffect {
+        #[serde(skip)]
+        target: Option<(crate::state::ObjId, u32)>,
+    },
+    /// "the next spell you cast this turn can't be countered" (Mistrise Village's and Theorist's Proxy's own
+    /// `ContinuousEffectImpl`, started by `AddContinuousEffectToGame`): resolving, it keeps how many spells its
+    /// controller had cast this turn (`nth`), and the spell cast after them gets "can't be countered"
+    NextSpellCantBeCounteredEffect {
+        #[serde(default)]
+        nth: Option<u32>,
+    },
+    /// your maximum hand size is `size` (`MaximumHandSizeControllerEffect(size, WhileOnBattlefield, SET)`), a
+    /// number or a `DynamicValue` worked out as hands are checked (Midnight Oil's hour counters)
     MaximumHandSizeSetEffect {
-        size: u32,
+        size: Amount,
     },
     /// you may activate the loyalty abilities of planeswalkers you control twice each turn (Oath of Teferi)
     LoyaltyAbilitiesTwiceEffect,
@@ -3259,6 +3284,11 @@ pub enum EffectDef {
     AttacksIfAbleAttachedEffect,
     /// this blocks each combat if able
     BlocksIfAbleSourceEffect,
+    /// a static: the creature this is attached to blocks each combat if able (`BlocksIfAbleAttachedEffect`: Spirespine)
+    BlocksIfAbleAttachedEffect,
+    /// a static: all creatures able to block the attacking creature this is attached to do so
+    /// (`MustBeBlockedByAllAttachedEffect`: Noble Quarry)
+    MustBeBlockedByAllAttachedEffect,
     /// flip a coin, calling it (`PlayerImpl.flipCoin`, winnable): `won` if you win the flip, else `lost`
     FlipCoinEffect {
         won: Vec<EffectDef>,
@@ -5087,6 +5117,10 @@ pub enum AbilityDef {
         /// {1} less for each other Equipment you control (Plate Armor)
         #[serde(default)]
         equipment_discount: bool,
+        /// "activate only once each turn" (`setMaxActivationsPerTurn(n)`): at most this many times each turn, 0 for no
+        /// limit
+        #[serde(default)]
+        limit: u32,
         #[serde(default)]
         rule: String,
     },
