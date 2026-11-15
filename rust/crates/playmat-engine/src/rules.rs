@@ -2034,8 +2034,10 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
                 >= *amount
         }
         CostDef::PayLifeCost { amount } => game.player(seat).life >= *amount,
+        CostDef::PayLifeSourcePowerCost => game.player(seat).life >= source_power(game, id),
         CostDef::MillCardsCost { amount } => game.player(seat).library.len() >= *amount,
         CostDef::PayEnergyCost { amount } => energy(game, seat) >= *amount,
+        CostDef::RevealDragonFromHandCost => true,
         CostDef::RevealTargetFromHandCost { filter, min, .. } => {
             game.player(seat)
                 .hand
@@ -7654,6 +7656,10 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             }
         }
         CostDef::PayLifeCost { amount } => lose_life(game, seat, *amount),
+        CostDef::PayLifeSourcePowerCost => {
+            let life = source_power(game, id);
+            lose_life(game, seat, life)
+        }
         CostDef::MillCardsCost { amount } => {
             let top: Vec<ObjId> = game.player(seat).library.iter().take(*amount).copied().collect();
             note(game, EventKind::Milled, Some(seat), None, None, top.len() as i32);
@@ -7680,6 +7686,27 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             // the number revealed: the ability's X
             if let Some(top) = Arc::make_mut(&mut game.stack).last_mut().filter(|t| t.card == id) {
                 top.x = chosen.len() as i32;
+            }
+        }
+        // `RevealDragonFromHandCost.pay`: a `TargetCardInHand(0, 1)` of Dragons, then whether one was revealed or a
+        // Dragon is controlled (the spell's kicked flag, read by `RevealedOrControlledDragonCondition`)
+        CostDef::RevealDragonFromHandCost => {
+            let hand = game.player(seat).hand.clone();
+            let possible: Vec<ObjId> =
+                hand.iter().copied().filter(|c| *c != id && game.has_subtype(*c, "Dragon")).collect();
+            let Some(chosen) = choose_cards_rounds(game, d, seat, &possible, 0, 1) else {
+                return false;
+            };
+            if !chosen.is_empty() {
+                let zcc = game.obj(id).zcc;
+                let cards = chosen.iter().map(|c| (*c, Zone::Hand)).collect();
+                game.revealed.push(crate::state::Revealed { source: id, zcc, paren: false, cards });
+            }
+            let dragon = game.battlefield.iter().any(|p| game.obj(*p).controller == seat && game.has_subtype(*p, "Dragon"));
+            if !chosen.is_empty() || dragon {
+                if let Some(top) = Arc::make_mut(&mut game.stack).last_mut().filter(|t| t.card == id) {
+                    top.kicked = true;
+                }
             }
         }
         CostDef::ExileFromHandCost { filter } => {
@@ -8453,6 +8480,13 @@ fn station_candidates(game: &Game, seat: Seat, id: ObjId) -> Vec<ObjId> {
             *o != id && game.obj(*o).controller == seat && !game.obj(*o).tapped && game.has_type(*o, CardType::Creature)
         })
         .collect()
+}
+
+/// `SourcePermanentPowerValue.NOT_NEGATIVE`: the source's power on the battlefield, else as it last was, at least 0
+fn source_power(game: &Game, id: ObjId) -> i32 {
+    let o = game.obj(id);
+    let p = if o.zone == Zone::Battlefield { game.power_toughness(id).0 } else { o.power_lki.unwrap_or(0) };
+    p.max(0)
 }
 
 /// `CollectEvidenceCost.getAvailableEvidence`: the total mana value of the cards in the player's graveyard
@@ -18355,6 +18389,31 @@ fn apply_each_effect(
                 };
                 let payer = game.stack[at].controller;
                 let paying = game.stack[at].card;
+                // ward—pay life equal to {this}'s power: the ward permanent's power (or last known), asked only if
+                // it can be paid, with the cost's own text (`PayLifeCost(DynamicValue, text)`)
+                let cost = if let [CostDef::PayLifeSourcePowerCost] = cost.as_slice() {
+                    let life = source_power(game, item.card);
+                    if game.player(payer).life < life {
+                        Arc::make_mut(&mut game.stack).remove(at);
+                        continue;
+                    }
+                    let q = Query::YesNo { message: "pay life equal to {this}'s power?".into() };
+                    let yes = loop {
+                        match ask(game, d, payer, &q) {
+                            Answer::Bool(b) => break b,
+                            Answer::Stop => return,
+                            _ => {}
+                        }
+                    };
+                    if yes {
+                        lose_life(game, payer, life);
+                    } else {
+                        Arc::make_mut(&mut game.stack).remove(at);
+                    }
+                    continue;
+                } else {
+                    cost
+                };
                 let Some(paid) = pay_unless(game, d, payer, paying, cost) else { return };
                 if !paid {
                     Arc::make_mut(&mut game.stack).remove(at);

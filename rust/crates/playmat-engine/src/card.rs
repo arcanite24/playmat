@@ -1764,6 +1764,9 @@ pub enum CostDef {
         #[serde(default = "one")]
         max: usize,
     },
+    /// `RevealDragonFromHandCost`: you may reveal a Dragon card from your hand; paid either way, and if you revealed
+    /// one or control a Dragon as it's paid, the spell counts as kicked (`RevealedOrControlledDragonCondition`)
+    RevealDragonFromHandCost,
     /// exile a card of the filter from your hand (not this one)
     ExileFromHandCost {
         #[serde(default)]
@@ -1772,6 +1775,9 @@ pub enum CostDef {
     PayLifeCost {
         amount: i32,
     },
+    /// pay life equal to the source's power, at least 0 (`PayLifeCost(SourcePermanentPowerValue.NOT_NEGATIVE, …)`:
+    /// Raubahn's and Phyrexian Fleshgorger's ward)
+    PayLifeSourcePowerCost,
     /// pay {E} `amount` times: energy counters off the player
     PayEnergyCost {
         amount: i32,
