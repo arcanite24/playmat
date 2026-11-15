@@ -8645,6 +8645,16 @@ def token(cls):
         if not m:
             raise Unsupported('token constructor ' + cls)
         m = re.match(r'(.*)', re.sub(r'\b' + m.group(1) + r'\b', n.group(1), m.group(2)), re.S)
+    # `this(1, 1)`: the power and toughness constructor with those values (RitualOfTheReturnedZombieToken); a handler
+    # sets others as it creates one
+    elif (n := re.fullmatch(r'\s*this\((\d+),\s*(\d+)\);\s*', m.group(1))):
+        m = re.search(r'public ' + cls + r'\(int (\w+),\s*int (\w+)\)\s*\{(.*?)\n    \}', source, re.S)
+        if not m:
+            raise Unsupported('token constructor ' + cls)
+        # (only where they're used as values: the parameters may be named `power` and `toughness`)
+        body = re.sub(r'MageInt\(\s*' + m.group(1) + r'\s*\)', 'MageInt(' + n.group(1) + ')', m.group(3))
+        m = re.match(r'(.*)', re.sub(r'MageInt\(\s*' + m.group(2) + r'\s*\)', 'MageInt(' + n.group(2) + ')', body),
+                     re.S)
     # `this((String) null)`: the set-code constructor, whose code is only the image
     if re.fullmatch(r'\s*this\(\(String\)\s*null\);\s*', m.group(1)):
         m = re.search(r'public ' + cls + r'\(String \w+\)\s*\{(.*?)\n    \}', source, re.S)
