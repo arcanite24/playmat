@@ -130,6 +130,12 @@ pub(crate) type ValueFn = fn(&Game, Seat, ObjId, i32) -> i32;
 /// waiting trigger: its source, controller, and what the event set (`targets` for a target pointer, `entering`).
 /// Checked as it goes on the stack and again as it resolves.
 pub(crate) type TriggerFn = fn(&Game, &StackItem) -> bool;
+/// The check of a trigger class whose base trigger says all of it (a "one or more" batch whose `checkEvent` the
+/// base's filter and zones are: `getFilteredEvents(…)` isn't empty)
+pub(crate) fn any_batch(_: &Game, _: &StackItem) -> bool {
+    true
+}
+
 /// A filter's `Predicate.apply` (an `ObjectSourcePlayerPredicate`'s too): whether `id` passes, for "you" (the
 /// filter's source's controller, or the player choosing targets) and the filter's source. While targets are chosen,
 /// `game.chosen_before` has the ability's earlier targets (Java's `input.getSource().getTargets()`).
@@ -153,7 +159,39 @@ pub(crate) enum Hook {
     KeepsMana(KeepsManaFn),
     /// a mana ability's mana (`ManaEffect.getNetMana` and `produceMana`): `AbilityDef::CardManaAbility`
     Mana(ManaFns),
+    /// what conditional mana can be spent on (a card's `ConditionalManaBuilder`: its `ConditionalMana`'s
+    /// conditions): `ConditionalManaAbility::spend`
+    Spend(SpendFn),
 }
+
+/// What a spend handler gets (`ConditionalMana.apply(game, source)`): who pays, the source that made the mana,
+/// and what's paid for: a spell (`on` on the stack, or a card being checked as castable) or an ability of `on`
+/// (`ability`; `index` its place among `on`'s abilities when it's an activated ability or a special action the
+/// engine numbers: equip, turning face up, unlocking a door, plot, foretell)
+#[allow(dead_code)]
+pub(crate) struct SpendCx {
+    pub seat: Seat,
+    pub source: ObjId,
+    pub on: ObjId,
+    pub ability: bool,
+    pub index: Option<usize>,
+}
+
+#[allow(dead_code)]
+impl SpendCx {
+    /// Java's `source instanceof SpellAbility`: a spell is being paid for
+    pub fn spell(&self) -> bool {
+        !self.ability
+    }
+
+    /// the ability paid for, when the engine numbers it
+    pub fn ability_def<'g>(&self, game: &'g Game) -> Option<&'g crate::card::AbilityDef> {
+        self.index.and_then(|i| game.obj(self.on).def.abilities.get(i))
+    }
+}
+
+/// `ConditionalMana.apply`: whether the mana can be spent on what's paid for
+pub(crate) type SpendFn = fn(&Game, &SpendCx) -> bool;
 
 /// What a mana handler's functions get: who activates it, its source, the effect's constructor arguments as their
 /// text and what the transpiler made of the filters it asked for, and (producing) what's still unpaid, for the
@@ -256,7 +294,14 @@ pub(crate) struct Handler {
     pub any_zone: bool,
     /// a resolving static's `init` (`Handler::on_start`): what it points at from then on
     pub start: Option<StartFn>,
+    /// a resolving static whose class lasts `Duration.UntilYourNextTurn` (its constructor's, not an argument)
+    pub until_your_next_turn: bool,
+    /// a trigger class's `getRule` adding what it triggered with, on the stack (`Handler::stack_info`)
+    pub stack_info: Option<StackInfoFn>,
 }
+
+/// What a trigger's rule text gains on the stack (The Skullspore Nexus's "<br><br><i>Total power: 6</i>")
+pub(crate) type StackInfoFn = fn(&Game, &StackItem) -> String;
 
 #[allow(dead_code)]
 impl Handler {
@@ -272,6 +317,8 @@ impl Handler {
             abilities: &[],
             any_zone: false,
             start: None,
+            until_your_next_turn: false,
+            stack_info: None,
         }
     }
 
@@ -336,6 +383,19 @@ impl Handler {
         self
     }
 
+    /// a resolving static whose class's own duration is `Duration.UntilYourNextTurn` (Elspeth Conquers Death's
+    /// chapter II): it lasts until its controller's next turn, as one with that `Duration` argument does
+    pub const fn until_your_next_turn(mut self) -> Handler {
+        self.until_your_next_turn = true;
+        self
+    }
+
+    /// a trigger class whose `getRule` shows what it triggered with, after its rule text on the stack
+    pub const fn stack_info(mut self, f: StackInfoFn) -> Handler {
+        self.stack_info = Some(f);
+        self
+    }
+
     /// `YouDontLoseManaEffect`: the kinds of a player's mana the pool keeps as steps and phases end
     pub const fn keeps_mana(java: &'static str, f: KeepsManaFn) -> Handler {
         Handler::new(java, Hook::KeepsMana(f))
@@ -346,9 +406,22 @@ impl Handler {
         Handler::new(java, Hook::Mana(ManaFns { net, produce }))
     }
 
+    /// a `ConditionalManaBuilder` (its conditional mana's conditions): what the mana can be spent on
+    pub const fn spend(java: &'static str, f: SpendFn) -> Handler {
+        Handler::new(java, Hook::Spend(f))
+    }
+
     /// a `ContinuousEffect` in a layer: the objects it `affects`, and what it does to them there
     pub const fn continuous(java: &'static str, affects: AffectsFn, layer: Layer) -> Handler {
-        Handler::new(java, Hook::Continuous(Continuous { affects, layer }))
+        Handler::new(java, Hook::Continuous(Continuous { affects, layer, also: &[] }))
+    }
+
+    /// a continuous handler's other layers, for the objects it `affects` (a class whose `hasLayer` is more than one)
+    pub const fn and_layers(mut self, layers: &'static [Layer]) -> Handler {
+        if let Hook::Continuous(c) = &mut self.hook {
+            c.also = layers;
+        }
+        self
     }
 
     /// a `ReplacementEffect`: the events it checks (`checksEventType`), its `applies` and its `replaceEvent`
@@ -452,6 +525,7 @@ handler_ref!(ConditionHandler, Condition, ConditionFn, "a condition");
 handler_ref!(ValueHandler, Value, ValueFn, "a value");
 handler_ref!(TriggerHandler, Trigger, TriggerFn, "a trigger");
 handler_ref!(PredicateHandler, Predicate, PredicateFn, "a predicate");
+handler_ref!(SpendHandler, Spend, SpendFn, "a mana condition");
 
 #[cfg(test)]
 mod tests {

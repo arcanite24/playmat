@@ -43,7 +43,8 @@ import java.util.TreeMap;
  * rule text as Java prints it ({@code getRule()}, the text a stack ability's name carries).
  * <p>
  * A pool line {@code token:<class>} names a token class from {@code mage.game.permanent.token} instead, and
- * {@code emblem:<class>} an emblem class from {@code mage.game.command.emblems}.
+ * {@code emblem:<class>} an emblem class from {@code mage.game.command.emblems}, {@code dungeon:<class>} a dungeon
+ * class from {@code mage.game.command.dungeons} (its rooms' triggered abilities, in the order it adds the rooms).
  * <p>
  * Opt-in: {@code -Dxmage.cardFacts=<out.json> -Dxmage.cardFacts.pool=<file, one card name per line>}. With
  * {@code -Dxmage.cardFacts.views=<views.json>} it also writes each card's view as the web client gets it out of a
@@ -127,6 +128,11 @@ public class CardFactsTest {
                 // an emblem class from mage.game.command.emblems
                 Class<?> cls = Class.forName("mage.game.command.emblems." + name.substring("emblem:".length()));
                 cardAbilities = ((Emblem) cls.getConstructor().newInstance()).getAbilities();
+                images = images(cls);
+            } else if (name.startsWith("dungeon:")) {
+                // a dungeon class from mage.game.command.dungeons: its rooms' triggered abilities
+                Class<?> cls = Class.forName("mage.game.command.dungeons." + name.substring("dungeon:".length()));
+                cardAbilities = ((mage.game.command.Dungeon) cls.getConstructor().newInstance()).getAbilities();
                 images = images(cls);
             } else {
                 CardInfo info = CardRepository.instance.findPreferredCoreExpansionCard(name);

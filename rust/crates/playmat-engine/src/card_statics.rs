@@ -21,8 +21,10 @@
 //!   own static abilities too: "this spell costs {2} less") and activated abilities (`adjusted_mana_cost_own`).
 //! - **restrictions**: `Handler::restriction(name, applies, &[Restrict::…])`: `rules::can_block`, `can_attack`.
 //! - **rule-modifying**: `Handler::rule(name, Rule::CantCast(f))`: `rules::castable` (and the cast itself);
+//!   `Rule::CantCastOnStack(f)`: only the cast itself, after its targets (`CAST_SPELL_LATE` reading the spell);
 //!   `Rule::CantActivate(f)`: `rules::activatable` (activated abilities that aren't mana abilities);
-//!   `Rule::CantLoseOrWin(f)`: the state-based loss check and `rules::win_game`.
+//!   `Rule::CantLoseOrWin(f)`: the state-based loss check and `rules::win_game`;
+//!   `Rule::MaxActivations(f)`: a limited activated ability's times each turn (`rules::activatable`).
 //! - **as-though**: `Handler::as_though(name, AsThough::Flash(f))`: `rules::castable`'s timing;
 //!   `AsThough::Haste(f)`: a {T} cost's summoning sickness (`rules::can_pay_cost`, mana abilities);
 //!   `AsThough::Hexproof(f)`: hexproof, as targets are chosen (`rules::possible_targets`, `targetable`).
@@ -165,6 +167,16 @@ impl Layer {
 pub(crate) struct Continuous {
     pub affects: AffectsFn,
     pub layer: Layer,
+    /// the class's other layers, for the same objects (`Handler::and_layers`: Sigarda's Summons is a 4, a 6 and a 7b
+    /// effect)
+    pub also: &'static [Layer],
+}
+
+impl Continuous {
+    /// each layer it works in
+    pub fn layers(&self) -> impl Iterator<Item = &Layer> {
+        std::iter::once(&self.layer).chain(self.also.iter())
+    }
 }
 
 /// The events a replacement handler can check (Java's `EventType`), each where the engine has that event
@@ -197,6 +209,9 @@ pub(crate) enum EventType {
     /// `ENTERS_THE_BATTLEFIELD`: `target` is entering under `player`'s control (`rules::enter_battlefield`), already
     /// where its "enters with" counters go (`add_counters_by`); the entering permanent's own statics don't apply
     EntersBattlefield,
+    /// `CONNIVE`: `target`, controlled by `player`, would connive `amount` (`ConniveSourceEffect.connive`); "replaced"
+    /// stops it, else it connives as it was going to (Leader, Super-Genius draws first)
+    Connive,
 }
 
 /// The event a replacement handler sees and may change (Java's `GameEvent`)
@@ -349,12 +364,19 @@ pub(crate) struct Restriction {
 pub(crate) enum Rule {
     /// `CAST_SPELL` (and `CAST_SPELL_LATE`): `seat` can't cast the card `id` as `face`
     CantCast(fn(&Game, &StaticCx, Seat, ObjId, &CardDef) -> bool),
+    /// `CAST_SPELL_LATE` whose `applies` reads the spell on the stack (Brisela's `getStack().getSpell`): `seat` can't
+    /// cast the spell `id` as `face`. The playable check finds no spell, so it holds only as the spell is cast, after
+    /// its modes and targets (`AbilityImpl.activate`, 601.2e), which undoes the cast
+    CantCastOnStack(fn(&Game, &StaticCx, Seat, ObjId, &CardDef) -> bool),
     /// `ACTIVATE_ABILITY` of an activated ability that isn't a mana ability: `seat` can't activate the ability at
     /// `index` of `id` (Faith's Fetters)
     CantActivate(fn(&Game, &StaticCx, Seat, ObjId, usize) -> bool),
     /// `LOSES` (`false`: `seat` can't lose the game, `PlayerImpl.canLose`) and `WINS` (`true`: `seat` can't win it,
     /// `PlayerImpl.won`)
     CantLoseOrWin(fn(&Game, &StaticCx, Seat, bool) -> bool),
+    /// `MAX_ACTIVATIONS`: how many times `seat` may activate the ability at `index` of `id` each turn, where it
+    /// limits them (Birgi's boast twice); None leaves the limit as it is
+    MaxActivations(fn(&Game, &StaticCx, Seat, ObjId, usize) -> Option<u32>),
 }
 
 /// `YouDontLoseManaEffect`'s `addDoNotEmptyManaType`: the kinds of `seat`'s mana (WUBRG, then colorless) the pool
@@ -375,6 +397,18 @@ pub(crate) enum AsThough {
     /// `HEXPROOF`: `seat`'s spells and abilities can target the player or permanent as though it didn't have
     /// hexproof
     Hexproof(fn(&Game, &StaticCx, Seat, Target) -> bool),
+    /// `PLAY_FROM_NOT_OWN_HAND_ZONE` / `CAST_FROM_NOT_OWN_HAND_ZONE`: `seat` may play the card `id` as `face` from
+    /// the graveyard or exile it's in; Some: how (`PlayWay`). A card's own (`Zone.ALL`: "you may cast this card from
+    /// your graveyard") is declared `.in_any_zone()`.
+    Play(fn(&Game, &StaticCx, Seat, ObjId, &CardDef) -> Option<PlayWay>),
+}
+
+/// How an as-though effect lets a card be played from a graveyard or exile: for its own mana cost, or for `mana`
+/// instead (`setCastSourceIdWithAlternateMana`), with `costs` paid besides
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct PlayWay {
+    pub mana: Option<ManaCost>,
+    pub costs: Vec<crate::card::CostDef>,
 }
 
 /// A cards.json reference to a static handler (`EffectDef::CardStatic`), checked as the card loads
@@ -562,7 +596,7 @@ pub(crate) fn resolve_static(
             let cx = StaticCx { source, controller, timestamp, args, effects, filters, abilities, targets: &targets };
             targets = start(game, d, &cx)?;
         }
-        if args.first().is_some_and(|a| a.trim() == "Duration.UntilYourNextTurn") {
+        if handler.0.until_your_next_turn || args.first().is_some_and(|a| a.trim() == "Duration.UntilYourNextTurn") {
             until_turn_of = Some(controller);
         }
     }
@@ -577,11 +611,14 @@ pub(crate) fn resolve_static(
 pub(crate) fn modify_pt(game: &Game, id: ObjId) -> (i32, i32) {
     let mut out = (0, 0);
     each_static(game, &mut |h, cx, _| {
-        if let Hook::Continuous(Continuous { affects, layer: Layer::ModifyPt(f) }) = h {
-            if affects(game, cx, id) {
-                let (p, t) = f(game, cx, id);
-                out.0 += p;
-                out.1 += t;
+        let Hook::Continuous(c) = h else { return };
+        for layer in c.layers() {
+            if let Layer::ModifyPt(f) = layer {
+                if (c.affects)(game, cx, id) {
+                    let (p, t) = f(game, cx, id);
+                    out.0 += p;
+                    out.1 += t;
+                }
             }
         }
     });
@@ -592,15 +629,20 @@ pub(crate) fn modify_pt(game: &Game, id: ObjId) -> (i32, i32) {
 /// toughness is set)
 pub(crate) fn set_pt(game: &Game, id: ObjId) -> Vec<(u64, Option<i32>, i32)> {
     let mut out = Vec::new();
-    each_static(game, &mut |h, cx, _| match h {
-        Hook::Continuous(Continuous { affects, layer: Layer::SetPt(f) }) if affects(game, cx, id) => {
-            let (p, t) = f(game, cx, id);
-            out.push((cx.timestamp, Some(p), t));
+    each_static(game, &mut |h, cx, _| {
+        let Hook::Continuous(c) = h else { return };
+        for layer in c.layers() {
+            match layer {
+                Layer::SetPt(f) if (c.affects)(game, cx, id) => {
+                    let (p, t) = f(game, cx, id);
+                    out.push((cx.timestamp, Some(p), t));
+                }
+                Layer::SetToughness(f) if (c.affects)(game, cx, id) => {
+                    out.push((cx.timestamp, None, f(game, cx, id)));
+                }
+                _ => {}
+            }
         }
-        Hook::Continuous(Continuous { affects, layer: Layer::SetToughness(f) }) if affects(game, cx, id) => {
-            out.push((cx.timestamp, None, f(game, cx, id)));
-        }
-        _ => {}
     });
     out
 }
@@ -610,9 +652,12 @@ pub(crate) fn set_pt(game: &Game, id: ObjId) -> Vec<(u64, Option<i32>, i32)> {
 pub(crate) fn abilities(game: &Game, id: ObjId, lost_at: Option<u64>) -> Vec<AbilityDef> {
     let mut out = Vec::new();
     each_static(game, &mut |h, cx, _| {
-        if let Hook::Continuous(Continuous { affects, layer: Layer::Ability(f) }) = h {
-            if !lost_at.is_some_and(|at| cx.timestamp < at) && affects(game, cx, id) {
-                out.extend(f(game, cx, id));
+        let Hook::Continuous(c) = h else { return };
+        for layer in c.layers() {
+            if let Layer::Ability(f) = layer {
+                if !lost_at.is_some_and(|at| cx.timestamp < at) && (c.affects)(game, cx, id) {
+                    out.extend(f(game, cx, id));
+                }
             }
         }
     });
@@ -634,9 +679,12 @@ pub(crate) fn has_subtype(game: &Game, id: ObjId, s: &str) -> bool {
 fn has_subtype_now(game: &Game, id: ObjId, s: &str) -> bool {
     let mut out = false;
     each_static(game, &mut |h, cx, _| {
-        if let Hook::Continuous(Continuous { affects, layer: Layer::Type(f) }) = h {
-            if !out && affects(game, cx, id) && f(game, cx, id).iter().any(|x| x == s) {
-                out = true;
+        let Hook::Continuous(c) = h else { return };
+        for layer in c.layers() {
+            if let Layer::Type(f) = layer {
+                if !out && (c.affects)(game, cx, id) && f(game, cx, id).iter().any(|x| x == s) {
+                    out = true;
+                }
             }
         }
     });
@@ -691,6 +739,18 @@ pub(crate) fn cant_cast(game: &Game, seat: Seat, id: ObjId, face: &CardDef) -> b
     out
 }
 
+/// Whether a rule-modifying handler stops `seat` casting `id`, on the stack now as `face`, once its modes and
+/// targets are chosen
+pub(crate) fn cant_cast_on_stack(game: &Game, seat: Seat, id: ObjId, face: &CardDef) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::Rule(Rule::CantCastOnStack(f)) = h {
+            out = out || f(game, cx, seat, id, face);
+        }
+    });
+    out
+}
+
 /// Whether a rule-modifying handler says `seat` can't lose the game (`LOSES`), or with `wins`, can't win it (`WINS`)
 pub(crate) fn cant_lose_or_win(game: &Game, seat: Seat, wins: bool) -> bool {
     let mut out = false;
@@ -708,6 +768,20 @@ pub(crate) fn cant_activate(game: &Game, seat: Seat, id: ObjId, index: usize) ->
     each_static(game, &mut |h, cx, _| {
         if let Hook::Rule(Rule::CantActivate(f)) = h {
             out = out || f(game, cx, seat, id, index);
+        }
+    });
+    out
+}
+
+/// The most times `seat` may activate the ability at `index` of `id` this turn: `limit`, unless a handler changes it
+/// (`MAX_ACTIVATIONS`: the last one that applies sets it)
+pub(crate) fn max_activations(game: &Game, seat: Seat, id: ObjId, index: usize, limit: u32) -> u32 {
+    let mut out = limit;
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::Rule(Rule::MaxActivations(f)) = h {
+            if let Some(n) = f(game, cx, seat, id, index) {
+                out = n;
+            }
         }
     });
     out
@@ -732,6 +806,27 @@ pub(crate) fn activate_haste(game: &Game, id: ObjId) -> bool {
             out = out || f(game, cx, id);
         }
     });
+    out
+}
+
+/// The as-though handlers that let `seat` play `id` as `face` from where it is (a graveyard or exile): each source
+/// with the way it allows, the statics in play first, then the card's own
+pub(crate) fn play_ways(game: &Game, seat: Seat, id: ObjId, face: &CardDef) -> Vec<(ObjId, PlayWay)> {
+    let mut out: Vec<(ObjId, PlayWay)> = Vec::new();
+    if !matches!(game.obj(id).zone, Zone::Graveyard | Zone::Exile) {
+        return out;
+    }
+    let mut check = |h: &'static Hook, cx: &StaticCx, _: &EffectDef| {
+        if let Hook::AsThough(AsThough::Play(f)) = h {
+            if let Some(way) = f(game, cx, seat, id, face) {
+                if !out.iter().any(|(s, _)| *s == cx.source) {
+                    out.push((cx.source, way));
+                }
+            }
+        }
+    };
+    each_static(game, &mut check);
+    each_own_static(game, id, &mut check);
     out
 }
 
@@ -795,11 +890,37 @@ pub(crate) fn life_cost(game: &Game, of: &CostCx) -> i32 {
     out
 }
 
+/// The static handlers of permanents that left the battlefield in the current action (`game.lookback`), for an event
+/// of something leaving the battlefield: Java's static abilities look back in time through its short-living LKI
+/// (`AbilityImpl.isInUseableZone`: Valentin blocking a creature, both dying, still exiles it)
+fn each_static_left(
+    game: &Game,
+    ev_kind: EventType,
+    from: Option<Zone>,
+    f: &mut dyn FnMut(&'static Hook, &StaticCx, &EffectDef),
+) {
+    if ev_kind != EventType::ZoneChange || from != Some(Zone::Battlefield) {
+        return;
+    }
+    for src in game.lookback.iter() {
+        if game.battlefield.contains(src) {
+            continue;
+        }
+        let o = game.obj(*src);
+        for a in &o.def.abilities {
+            let AbilityDef::SimpleStaticAbility { effects, .. } = a else { continue };
+            for e in effects {
+                visit(game, e, *src, o.controller, game.static_at(*src), &[], f);
+            }
+        }
+    }
+}
+
 /// How many replacement handlers apply to `ev` as it is (to count Java's "which first" questions with the engine's
 /// own replacements of the event)
 pub(crate) fn replacements_applying(game: &Game, ev: &Event) -> usize {
     let mut n = 0;
-    each_static(game, &mut |h, cx, _| {
+    let mut count = |h: &'static Hook, cx: &StaticCx, _: &EffectDef| {
         if let Hook::Replacement(Replacement { events, applies, .. }) = h {
             if events.contains(&ev.kind)
                 && !ev.applied.contains(&cx.source)
@@ -809,7 +930,9 @@ pub(crate) fn replacements_applying(game: &Game, ev: &Event) -> usize {
                 n += 1;
             }
         }
-    });
+    };
+    each_static(game, &mut count);
+    each_static_left(game, ev.kind, ev.from, &mut count);
     n
 }
 
@@ -821,9 +944,11 @@ fn own_entering(ev: &Event, cx: &StaticCx) -> bool {
 /// Whether a replacement handler for events of `kind` is in play
 pub(crate) fn any_replacement(game: &Game, kind: EventType) -> bool {
     let mut out = false;
-    each_static(game, &mut |h, _, _| {
+    let mut any = |h: &'static Hook, _: &StaticCx, _: &EffectDef| {
         out = out || matches!(h, Hook::Replacement(Replacement { events, .. }) if events.contains(&kind));
-    });
+    };
+    each_static(game, &mut any);
+    each_static_left(game, kind, Some(Zone::Battlefield), &mut any);
     out
 }
 
@@ -848,7 +973,7 @@ pub(crate) fn replace_event(game: &mut Game, ev: &mut Event, others: usize) -> b
     type Found = (EffectDef, ObjId, Seat, u64, Vec<(Target, u32)>);
     loop {
         let mut found: Vec<Found> = Vec::new();
-        each_static(game, &mut |h, cx, e| {
+        let mut find = |h: &'static Hook, cx: &StaticCx, e: &EffectDef| {
             if let Hook::Replacement(Replacement { events, applies, .. }) = h {
                 if events.contains(&ev.kind)
                     && !ev.applied.contains(&cx.source)
@@ -858,7 +983,9 @@ pub(crate) fn replace_event(game: &mut Game, ev: &mut Event, others: usize) -> b
                     found.push((e.clone(), cx.source, cx.controller, cx.timestamp, cx.targets.to_vec()));
                 }
             }
-        });
+        };
+        each_static(game, &mut find);
+        each_static_left(game, ev.kind, ev.from, &mut find);
         if found.is_empty() {
             return false;
         }

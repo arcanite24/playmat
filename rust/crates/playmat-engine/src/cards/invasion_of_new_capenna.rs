@@ -29,7 +29,7 @@ fn apply(game: &mut Game, _d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
 
 /// `MageObject.shareCreatureTypes`: both creatures (or kindred) with a creature type, and one of `a`'s in `b`'s
 /// (every creature type counts for any)
-fn share_creature_types(game: &Game, a: ObjId, b: ObjId) -> bool {
+pub(super) fn share_creature_types(game: &Game, a: ObjId, b: ObjId) -> bool {
     let kinds = |o: ObjId| game.has_type(o, CardType::Creature) || game.has_type(o, CardType::Kindred);
     if !kinds(a) || !kinds(b) {
         return false;

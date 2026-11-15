@@ -15,6 +15,9 @@ pub mod view;
 /// The cards `rust/tools/transpile.py` wrote, built in.
 pub const CARDS_JSON: &str = include_str!("../cards/cards.json");
 
+/// The dungeons players venture into (`card::dungeons`), written by the transpiler beside the cards.
+pub const DUNGEONS_JSON: &str = include_str!("../cards/dungeons.json");
+
 /// The cards checked against Java (`cards/verified.txt`, docs/rust/Engine.md "Pool, gate and factory"), one name
 /// per line: a game goes to Rust only when every card of both decks is on it.
 pub const VERIFIED_TXT: &str = include_str!("../cards/verified.txt");

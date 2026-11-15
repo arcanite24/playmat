@@ -3,6 +3,7 @@ package mage.game.trace;
 import mage.abilities.DelayedTriggeredAbility;
 import mage.abilities.TriggeredAbility;
 import mage.cards.Card;
+import mage.cards.ModalDoubleFacedCard;
 import mage.game.Game;
 import mage.game.stack.StackAbility;
 import mage.game.stack.StackObject;
@@ -59,7 +60,7 @@ public final class ShadowStart {
             List<String> libraryPrintings = new ArrayList<>();
             for (Card card : player.getLibrary().getCards(game)) {
                 library.add(card.getName());
-                libraryOrder.add(triggerSources.indexOf(card.getId()));
+                libraryOrder.add(triggerOrder(triggerSources, card));
                 libraryPrintings.add(printing(card));
             }
             List<String> hand = new ArrayList<>();
@@ -67,7 +68,7 @@ public final class ShadowStart {
             List<String> handPrintings = new ArrayList<>();
             for (UUID id : player.getHand()) {
                 hand.add(game.getCard(id).getName());
-                handOrder.add(triggerSources.indexOf(id));
+                handOrder.add(triggerOrder(triggerSources, game.getCard(id)));
                 handPrintings.add(printing(game.getCard(id)));
             }
             seat.put("library", library);
@@ -113,6 +114,22 @@ public final class ShadowStart {
         start.put("revealed", revealed);
         start.put("fingerprint", fingerprintText);
         return start;
+    }
+
+    /**
+     * A card's place in the triggered-ability registration order. A modal double-faced card's abilities are its
+     * halves', registered right after it as the cards load ({@code GameImpl.loadCards}), so it takes its first half's
+     * place.
+     */
+    static int triggerOrder(List<UUID> triggerSources, Card card) {
+        int k = triggerSources.indexOf(card.getId());
+        if (k < 0 && card instanceof ModalDoubleFacedCard) {
+            ModalDoubleFacedCard mdfc = (ModalDoubleFacedCard) card;
+            int left = triggerSources.indexOf(mdfc.getLeftHalfCard().getId());
+            int right = triggerSources.indexOf(mdfc.getRightHalfCard().getId());
+            k = left < 0 ? right : right < 0 ? left : Math.min(left, right);
+        }
+        return k;
     }
 
     /** {@code SET:number}, the printing a card's view shows */

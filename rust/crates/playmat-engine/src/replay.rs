@@ -371,7 +371,7 @@ pub fn resolve(game: &Game, r: &str) -> Option<Answer> {
             let player = game.players.get(seat.parse::<Seat>().ok()?)?;
             player.outside.get(index.parse::<usize>().ok()?).copied().map(Answer::Obj)
         }
-        "B" => game.battlefield.get(rest.parse::<usize>().ok()?).copied().map(Answer::Obj),
+        "B" => game.all_permanents().get(rest.parse::<usize>().ok()?).copied().map(Answer::Obj),
         "S" => {
             // Java's stack, with what's resolving still on it
             let index: usize = rest.parse().ok()?;
@@ -383,6 +383,7 @@ pub fn resolve(game: &Game, r: &str) -> Option<Answer> {
             if index >= n {
                 return None;
             }
+            game.picked_stack.set(Some(n - 1 - index));
             Some(Answer::Obj(stack[n - 1 - index]))
         }
         "E" => exile_order(game).get(rest.parse::<usize>().ok()?).copied().map(Answer::Obj),
@@ -422,10 +423,15 @@ pub fn reference(game: &Game, id: ObjId) -> String {
             }
         }
     }
-    if let Some(i) = game.battlefield.iter().position(|x| *x == id) {
+    if let Some(i) = game.all_permanents().iter().position(|x| *x == id) {
         return format!("B{}", i);
     }
-    if let Some(i) = game.stack.iter().rev().position(|x| x.card == id) {
+    // (Java's stack, with what's resolving still on it, as `resolve` reads it)
+    let mut stack: Vec<ObjId> = game.stack.iter().map(|i| i.card).collect();
+    if let Some((at, card)) = game.resolving {
+        stack.insert(at.min(stack.len()), card);
+    }
+    if let Some(i) = stack.iter().rev().position(|x| *x == id) {
         return format!("S{}", i);
     }
     if let Some(i) = exile_order(game).iter().position(|x| *x == id) {
@@ -557,7 +563,7 @@ impl<'a> Decider for ReplayDecider<'a> {
             eprintln!("answer {} seat {} {:?} -> {:?} ({})", self.next, seat, query, answer, asked);
             if std::env::var_os("PLAYMAT_SHADOW_BF").is_some() {
                 let bf: Vec<String> = game
-                    .battlefield
+                    .all_permanents()
                     .iter()
                     .enumerate()
                     .map(|(i, o)| {

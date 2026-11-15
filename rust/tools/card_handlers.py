@@ -8,7 +8,7 @@ A handler file declares its classes as
         Handler::effect("RapidHybridization.RapidHybridizationEffect", apply).tokens(&["FrogLizardToken"]),
     ];
 
-`Handler::effect`, `::condition`, `::value`, `::predicate` or `::trigger` (with the framework trigger it extends, in Java, as its
+`Handler::effect`, `::condition`, `::value`, `::predicate`, `::spend` (a `ConditionalManaBuilder`) or `::trigger` (with the framework trigger it extends, in Java, as its
 second argument), with the Java class as `OuterCardClass.InnerClass` (or the bare class
 name for one in the framework), and optionally `.tokens(&[…])`, `.effects(&[…])`, `.filters(&[…])`: Java for the
 transpiler to translate (token classes, effect and filter expressions), handed to the handler in that order; and
@@ -34,11 +34,11 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 DIR = os.path.join(ROOT, 'rust', 'crates', 'playmat-engine', 'src', 'cards')
 
 STATIC_KINDS = ('continuous', 'replacement', 'cost', 'restriction', 'rule', 'as_though', 'keeps_mana')
-_DECL = re.compile(r'Handler::(effect|condition|value|trigger|predicate|mana|' + '|'.join(STATIC_KINDS) + r')\(\s*"([\w.]+)"\s*,')
+_DECL = re.compile(r'Handler::(effect|condition|value|trigger|predicate|mana|spend|' + '|'.join(STATIC_KINDS) + r')\(\s*"([\w.]+)"\s*,')
 _FN = re.compile(r'\s*[\w:]+\s*,?\s*\)')
 _PART = re.compile(r'\s*\.(tokens|effects|filters|args|abilities)\(\s*&\[')
-# `.in_any_zone()` and `.on_start(f)`: the engine's business only
-_ANY_ZONE = re.compile(r'\s*\.(?:in_any_zone\(\)|on_start\(\s*[\w:]+\s*\))')
+# `.in_any_zone()`, `.on_start(f)` and `.stack_info(f)`: the engine's business only
+_ANY_ZONE = re.compile(r'\s*\.(?:in_any_zone\(\)|(?:on_start|stack_info)\(\s*[\w:]+\s*\))')
 _STR = re.compile(r'\s*(?:"((?:[^"\\]|\\.)*)"|r(#*)"(.*?)"\2)\s*,?', re.S)
 
 _cache = None
@@ -161,6 +161,10 @@ def effect(t, cls, args, own_only=False):
     for i, kind in enumerate(h['args']):
         if kind == 'duration' and (i >= len(args) or not args[i].startswith('Duration.')):
             args.insert(i, 'Duration.WhileOnBattlefield')
+        # "until_your_next_turn": a class whose constructor sets `Duration.UntilYourNextTurn` itself (resolved, it
+        # lasts until your next turn as a `Duration.UntilYourNextTurn` argument does)
+        if kind == 'until_your_next_turn' and i >= len(args):
+            args.insert(i, 'Duration.UntilYourNextTurn')
     for i, kind in enumerate(h['args']):
         if i >= len(args):
             break
@@ -192,6 +196,10 @@ def effect(t, cls, args, own_only=False):
             args[i] = m.group(1)
         elif kind == 'ability':
             abilities.append(t.ability(args[i]))
+        elif kind == 'int':
+            # a number as written (a `DynamicValue` overload stays unsupported)
+            if not re.fullmatch(r'-?\d+', args[i]):
+                raise _unsupported(f'effect {cls}: argument {args[i]}')
         elif kind == 'while_on_battlefield':
             # a static class the handler writes only as a static ability's (`Duration.WhileOnBattlefield`)
             if args[i] != 'Duration.WhileOnBattlefield':
@@ -200,8 +208,8 @@ def effect(t, cls, args, own_only=False):
             # an argument the handler reads only some values of ("one_of:NinjutsuAbility.class|EquipAbility.class")
             if args[i] not in kind[len('one_of:'):].split('|'):
                 raise _unsupported(f'effect {cls}: argument {args[i]}')
-        elif kind not in ('text', 'filter', 'effect', 'counter', 'counter_type', 'put_cards', 'ability',
-                          'while_on_battlefield', 'duration') \
+        elif kind not in ('text', 'int', 'filter', 'effect', 'counter', 'counter_type', 'put_cards', 'ability',
+                          'while_on_battlefield', 'duration', 'until_your_next_turn') \
                 and not kind.startswith('one_of:'):
             raise _unsupported(f'argument kind {kind}')
     # a static handler for a framework class is written for its constructors with up to as many arguments as it
@@ -238,6 +246,13 @@ def mana_ability(t, expr, cost, no_tap):
     if h['filters']:
         out['filters'] = [t.filter(x) for x in h['filters']]
     return out
+
+
+def spend(t, expr):
+    """the spend handler's name (`Handler::spend`) for a `ConditionalManaBuilder` expression `new XManaBuilder()`
+    (one the card declares, or a framework one by its bare name), or None"""
+    m = re.fullmatch(r'new (\w+)\(\)', expr.strip())
+    return m and find(getattr(t, 'source', None), m.group(1), 'spend')
 
 
 def condition(t, expr):
@@ -286,6 +301,8 @@ def trigger(t, cls, args):
         raise _unsupported(f'ability {cls}: {len(args)} constructor arguments, its handler takes {len(holes)}')
     for i, arg in enumerate(args):
         base = base.replace('$%d' % i, arg)
+    # an argument the check reads another way goes in a comment (`/* $1 */`: Nicanzil's isLand)
+    base = re.sub(r'/\*.*?\*/', '', base, flags=re.S)
     a = t.ability(base)
     if a.get('class') != 'TriggeredAbility':
         a = T.triggered(a)
@@ -297,6 +314,11 @@ def trigger(t, cls, args):
                      getattr(t, 'source', '') or '', re.S)
     for m in re.finditer(r'(?:this\.)?addTarget\((.*?)\);', body.group(1) if body else '', re.S):
         a.setdefault('targets', []).append(t.target(m.group(1)))
+    # and the effects it adds (`this.addEffect(new GainLifeEffect(1).concatBy("and"))`), after the base's own; not
+    # when the base's effect is a card's own handler, which already does all of it (Preacher of the Schism)
+    if not any('handler' in e for e in a.get('effects', [])):
+        for m in re.finditer(r'(?:this\.)?addEffect\((new .*?)\);', body.group(1) if body else '', re.S):
+            a.setdefault('effects', []).append(t.effect(m.group(1)))
     a['java'] = cls
     a['check'] = name
     return a

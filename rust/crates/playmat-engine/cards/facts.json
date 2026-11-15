@@ -43761,7 +43761,7 @@
             "name": "Caves count",
             "value": {
               "class": "mage.abilities.dynamicvalue.AdditiveDynamicValue",
-              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@67d8613"
+              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@61648dd2"
             }
           }
         ]
@@ -48323,7 +48323,7 @@
             "name": "Artificers you control and Artificer cards in your graveyard",
             "value": {
               "class": "mage.abilities.dynamicvalue.AdditiveDynamicValue",
-              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@48a61e38"
+              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@2b9370cc"
             }
           }
         ]
@@ -102978,7 +102978,7 @@
             "name": "Value of X",
             "value": {
               "class": "mage.abilities.dynamicvalue.AdditiveDynamicValue",
-              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@3296b4ba"
+              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@6fc277e4"
             }
           }
         ]
@@ -113030,7 +113030,7 @@
             "name": "Elves you control plus the number of Elf cards in your graveyard",
             "value": {
               "class": "mage.abilities.dynamicvalue.AdditiveDynamicValue",
-              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@94af25"
+              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@2f59f157"
             }
           }
         ]
@@ -172825,7 +172825,7 @@
             "name": "Graveyards with seven or more cards in it",
             "value": {
               "class": "mage.cards.m.GraveyardsWithXOrMoreCardsInIt",
-              "text": "mage.cards.m.GraveyardsWithXOrMoreCardsInIt@180a59f2"
+              "text": "mage.cards.m.GraveyardsWithXOrMoreCardsInIt@4191edd"
             }
           }
         ]
@@ -182094,7 +182094,7 @@
             "name": "Creatures you control and creature cards in your graveyard",
             "value": {
               "class": "mage.abilities.dynamicvalue.AdditiveDynamicValue",
-              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@10224d43"
+              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@79b82278"
             }
           }
         ]
@@ -299672,7 +299672,7 @@
             "name": "Current damage",
             "value": {
               "class": "mage.abilities.dynamicvalue.MaximumDynamicValue",
-              "text": "mage.abilities.dynamicvalue.MaximumDynamicValue@24e021d8"
+              "text": "mage.abilities.dynamicvalue.MaximumDynamicValue@40bfc929"
             }
           }
         ]
@@ -335643,6 +335643,19 @@
     ]
   },
   {
+    "name": "token:TheAtropalToken",
+    "images": {
+      "AFR": 1
+    },
+    "abilities": [
+      {
+        "class": "DeathtouchAbility",
+        "type": "STATIC",
+        "rule": "deathtouch"
+      }
+    ]
+  },
+  {
     "name": "token:TheHollowSentinelToken",
     "images": {
       "ONE": 1
@@ -337541,6 +337554,156 @@
         "class": "ZarielArchdukeOfAvernusEmblemAbility",
         "type": "TRIGGERED_NONMANA",
         "rule": "At the end of the first combat phase on your turn, untap target creature you control. After this phase, there is an additional combat phase."
+      }
+    ]
+  },
+  {
+    "name": "dungeon:TombOfAnnihilationDungeon",
+    "images": {
+      "AFR": 1
+    },
+    "abilities": [
+      {
+        "class": "RoomTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When you enter this room, each player loses 1 life. <i>(Trapped Entry)</i>",
+        "rule_hidden": true
+      },
+      {
+        "class": "RoomTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When you enter this room, each player loses 2 life unless they discard a card. <i>(Veils of Fear)</i>",
+        "rule_hidden": true
+      },
+      {
+        "class": "RoomTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When you enter this room, discard a card and sacrifice an artifact, a creature, and a land. <i>(Oubliette)</i>",
+        "rule_hidden": true
+      },
+      {
+        "class": "RoomTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When you enter this room, each player loses 2 life unless they sacrifice an artifact, a creature, or a land. <i>(Sandfall Cell)</i>",
+        "rule_hidden": true
+      },
+      {
+        "class": "RoomTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When you enter this room, create The Atropal, a legendary 4/4 black God Horror creature token with deathtouch. <i>(Cradle of the Death God)</i>",
+        "rule_hidden": true
+      }
+    ]
+  },
+  {
+    "name": "dungeon:LostMineOfPhandelverDungeon",
+    "images": {
+      "AFR": 1
+    },
+    "abilities": [
+      {
+        "class": "RoomTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When you enter this room, scry 1. <i>(Cave Entrance)</i>",
+        "rule_hidden": true
+      },
+      {
+        "class": "RoomTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When you enter this room, create a 1/1 red Goblin creature token. <i>(Goblin Lair)</i>",
+        "rule_hidden": true
+      },
+      {
+        "class": "RoomTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When you enter this room, create a Treasure token. <i>(Mine Tunnels)</i>",
+        "rule_hidden": true
+      },
+      {
+        "class": "RoomTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When you enter this room, put a +1/+1 counter on target creature. <i>(Storeroom)</i>",
+        "rule_hidden": true
+      },
+      {
+        "class": "RoomTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When you enter this room, each opponent loses 1 life and you gain 1 life. <i>(Dark Pool)</i>",
+        "rule_hidden": true
+      },
+      {
+        "class": "RoomTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When you enter this room, target creature gets -4/-0 until your next turn. <i>(Fungi Cavern)</i>",
+        "rule_hidden": true
+      },
+      {
+        "class": "RoomTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When you enter this room, draw a card. <i>(Temple of Dumathoin)</i>",
+        "rule_hidden": true
+      }
+    ]
+  },
+  {
+    "name": "dungeon:DungeonOfTheMadMageDungeon",
+    "images": {
+      "AFR": 1
+    },
+    "abilities": [
+      {
+        "class": "RoomTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When you enter this room, you gain 1 life. <i>(Yawning Portal)</i>",
+        "rule_hidden": true
+      },
+      {
+        "class": "RoomTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When you enter this room, scry 1. <i>(Dungeon Level)</i>",
+        "rule_hidden": true
+      },
+      {
+        "class": "RoomTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When you enter this room, create a Treasure token. <i>(Goblin Bazaar)</i>",
+        "rule_hidden": true
+      },
+      {
+        "class": "RoomTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When you enter this room, target creature can't attack until your next turn. <i>(Twisted Caverns)</i>",
+        "rule_hidden": true
+      },
+      {
+        "class": "RoomTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When you enter this room, scry 2. <i>(Lost Level)</i>",
+        "rule_hidden": true
+      },
+      {
+        "class": "RoomTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When you enter this room, exile the top two cards of your library. You may play them. <i>(Runestone Caverns)</i>",
+        "rule_hidden": true
+      },
+      {
+        "class": "RoomTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When you enter this room, create two 1/1 black Skeleton creature tokens. <i>(Muiral's Graveyard)</i>",
+        "rule_hidden": true
+      },
+      {
+        "class": "RoomTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When you enter this room, scry 3. <i>(Deep Mines)</i>",
+        "rule_hidden": true
+      },
+      {
+        "class": "RoomTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When you enter this room, draw three cards and reveal them. You may cast one of them without paying its mana cost. <i>(Mad Wizard's Lair)</i>",
+        "rule_hidden": true
       }
     ]
   }
