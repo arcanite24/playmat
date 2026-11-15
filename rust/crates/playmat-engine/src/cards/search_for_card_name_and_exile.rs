@@ -52,6 +52,20 @@ fn search_and_exile(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx, most: u
     let you = cx.controller();
     let Some(name) = game.obj(cx.source_id()).chosen_name.clone() else { return Some(()) };
     let Some(p) = cx.player(0) else { return Some(()) };
+    apply_search_and_exile(game, d, you, p, &name, most, draw_for_hand)
+}
+
+/// `applySearchAndExile(game, source, cardName, targetPlayerId)` for `you`, its graveyard choice optional: the
+/// cards named `name` in `p`'s graveyard, hand and library (Deicide's too)
+pub(super) fn apply_search_and_exile(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    you: Seat,
+    p: Seat,
+    name: &str,
+    most: usize,
+    draw_for_hand: bool,
+) -> Option<()> {
     let named = |game: &Game, zone: &[ObjId]| -> Vec<ObjId> {
         zone.iter().copied().filter(|c| game.obj(*c).def.name == name).collect()
     };
