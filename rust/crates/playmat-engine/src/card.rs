@@ -586,6 +586,10 @@ pub enum Pred {
     },
     /// it crewed the source this turn (`CrewedSourceThisTurnPredicate`, `CrewedVehicleWatcher`)
     CrewedSourceThisTurn,
+    /// `AttachedToPredicate(filter)`: it's attached to a permanent of the filter (for the same player and source)
+    AttachedTo {
+        filter: Filter,
+    },
     /// `EquippedPredicate`: an Equipment is attached to it
     Equipped,
     /// `EnchantedPredicate`: an Aura is attached to it
@@ -715,6 +719,9 @@ pub enum Trigger {
     /// this becomes blocked (`BecomesBlockedSourceTriggeredAbility`, `CREATURE_BLOCKED`); with a player target
     /// pointer, at the defending player
     BecomesBlocked,
+    /// this attacks and isn't blocked (`AttacksAndIsNotBlockedTriggeredAbility`, `UNBLOCKED_ATTACKER`); with a player
+    /// target pointer, at the defending player
+    AttacksUnblocked,
     /// a creature of the filter becomes blocked (`BecomesBlockedAllTriggeredAbility`); with a target pointer, at it
     BecomesBlockedAll {
         filter: Filter,
@@ -973,6 +980,9 @@ pub enum Trigger {
         n: u32,
         #[serde(default)]
         who: Option<String>,
+        /// it triggers from its owner's graveyard instead of the battlefield (`Zone.GRAVEYARD`: Wolfbat)
+        #[serde(default)]
+        graveyard: bool,
     },
     /// this, or with `filter` a permanent of it, deals damage (`DAMAGED_BATCH_BY_SOURCE`: once for each source's
     /// batch, X the batch's damage); `DealsDamageSourceTriggeredAbility`, `DealsCombatDamageTriggeredAbility` and
@@ -1059,7 +1069,11 @@ pub enum Trigger {
         n: i32,
     },
     /// you gain life for the first time each turn (`GainLifeFirstTimeTriggeredAbility`)
-    YouGainLifeFirstTime,
+    YouGainLifeFirstTime {
+        /// it triggers from its owner's graveyard instead of the battlefield (`Zone.GRAVEYARD`: Deathless Knight)
+        #[serde(default)]
+        graveyard: bool,
+    },
     /// `who` ("you", "opponent", "any") casts a spell of the filter (`SpellCastControllerTriggeredAbility`, prowess)
     SpellCast {
         filter: Filter,
@@ -1160,7 +1174,11 @@ pub enum Trigger {
     /// inspired: this becomes untapped (`InspiredAbility`, the `UNTAPPED` event)
     BecomesUntapped,
     /// eerie: an enchantment you control enters, or you fully unlock a Room (`EerieAbility`)
-    Eerie,
+    Eerie {
+        /// it triggers from its owner's graveyard instead of the battlefield (`Zone.GRAVEYARD`: Fear of Infinity)
+        #[serde(default)]
+        graveyard: bool,
+    },
     /// you put one or more counters (of `counter`; any kind when empty) on a permanent of the filter, once each time
     /// (`PutCounterOnPermanentTriggeredAbility`, `COUNTERS_ADDED`): X is how many; with a target pointer, at it
     CountersPut {
@@ -1656,6 +1674,11 @@ pub enum CostDef {
         #[serde(default = "one")]
         amount: usize,
     },
+    /// exile a permanent of the filter you control (`ExileTargetCost` of a `TargetControlledPermanent`, chosen as
+    /// the cost is paid; not into the source's exile zone: `withSourceExileZone(false)`)
+    ExileTargetCost {
+        filter: Filter,
+    },
     /// an additional cost: sacrifice any number (X, announced as the spell is cast) of the filter's permanents
     SacrificeXTargetCost {
         filter: Filter,
@@ -1759,6 +1782,9 @@ pub enum CostDef {
         #[serde(default = "one")]
         max: usize,
     },
+    /// `RevealDragonFromHandCost`: you may reveal a Dragon card from your hand; paid either way, and if you revealed
+    /// one or control a Dragon as it's paid, the spell counts as kicked (`RevealedOrControlledDragonCondition`)
+    RevealDragonFromHandCost,
     /// exile a card of the filter from your hand (not this one)
     ExileFromHandCost {
         #[serde(default)]
@@ -1767,6 +1793,9 @@ pub enum CostDef {
     PayLifeCost {
         amount: i32,
     },
+    /// pay life equal to the source's power, at least 0 (`PayLifeCost(SourcePermanentPowerValue.NOT_NEGATIVE, …)`:
+    /// Raubahn's and Phyrexian Fleshgorger's ward)
+    PayLifeSourcePowerCost,
     /// pay {E} `amount` times: energy counters off the player
     PayEnergyCost {
         amount: i32,
@@ -2118,6 +2147,11 @@ pub enum EffectDef {
     BoostTargetEffect {
         power: Amount,
         toughness: Amount,
+        duration: Duration,
+    },
+    /// the source switches its power and toughness (`SwitchPowerToughnessSourceEffect`, layer 7d), while it's still
+    /// the permanent it was
+    SwitchPowerToughnessSourceEffect {
         duration: Duration,
     },
     /// the source gets +power/+toughness
@@ -2501,6 +2535,15 @@ pub enum EffectDef {
         #[serde(default)]
         stack_only: bool,
     },
+    /// a static ability's effect: this spell costs {amount} more (if the condition holds; `stack_only`: only while
+    /// it's being cast, not for the playable check: Dragon's Prey "if it targets a Dragon")
+    SpellCostIncreaseSourceEffect {
+        amount: i32,
+        #[serde(default)]
+        condition: Option<Condition>,
+        #[serde(default)]
+        stack_only: bool,
+    },
     /// you lose life equal to the target's mana value, then destroy it (Feed the Swarm)
     FeedTheSwarmEffect,
     /// 4 damage to the target; if a nonred permanent was dealt damage, you sacrifice a land (Redcap Melee)
@@ -2856,9 +2899,11 @@ pub enum EffectDef {
     AddCounterNextSpellEffect {
         amount: i32,
     },
-    /// untap up to `amount` tapped lands
+    /// untap up to `amount` tapped lands (`only_controlled`: lands you control, `UntapLandsEffect(n, true, true)`)
     UntapLandsEffect {
         amount: usize,
+        #[serde(default)]
+        only_controlled: bool,
     },
     /// puts the target permanent into its owner's library `n`th from the top
     PutIntoLibraryNFromTopTargetEffect {
@@ -3124,6 +3169,9 @@ pub enum EffectDef {
         /// how many each target player creates (one when absent)
         #[serde(default)]
         amount: Option<Amount>,
+        /// they enter tapped (Thran Spider's Powerstones)
+        #[serde(default)]
+        tapped: bool,
     },
     /// the target player scries `amount`
     ScryTargetEffect {
@@ -3284,6 +3332,12 @@ pub enum EffectDef {
     },
     /// decayed's "sacrifice it at end of combat" (`AtTheEndOfCombatDelayedTriggeredAbility`)
     SacrificeSourceAtEndOfCombatEffect,
+    /// "at end of combat, …" (`CreateDelayedTriggeredAbilityEffect` with `AtTheEndOfCombatDelayedTriggeredAbility`
+    /// of any effects): they resolve from the source as it was, at the next end of combat
+    CreateEndOfCombatDelayedEffect {
+        effects: Vec<EffectDef>,
+        rule: String,
+    },
     /// unleash: it may enter with a +1/+1 counter (`UnleashReplacementEffect`); with one, it can't block
     UnleashEffect,
     /// recruit: draw a card, then discard a card; a nonland card discarded makes a `token` (a Human Soldier)
@@ -3389,12 +3443,24 @@ pub enum EffectDef {
     DiscardHandDrawSameNumberSourceEffect,
     /// this must be blocked if able (a static's)
     MustBeBlockedByAtLeastOneSourceEffect,
+    /// the "legend rule" doesn't apply to permanents of the filter (a static's `LegendRuleDoesntApplyEffect`: their
+    /// `setLegendRuleApplies(false)`)
+    LegendRuleDoesntApplyEffect {
+        filter: Filter,
+    },
+    /// this can't be blocked except by `amount` or more creatures (a static's `CantBeBlockedByOneEffect`: its
+    /// `setMinBlockedBy`, as menace's is 2)
+    CantBeBlockedByOneEffect {
+        amount: i32,
+    },
     /// untap each permanent of the filter
     UntapAllEffect {
         filter: Filter,
     },
     /// this can't attack alone (a static's)
     CantAttackAloneSourceEffect,
+    /// the creature this is attached to can't attack alone (`CantAttackAloneAttachedEffect`: Sightless Brawler)
+    CantAttackAloneAttachedEffect,
     /// this can't block alone (a static's)
     CantBlockAloneSourceEffect,
     /// you may tap the target permanent, or untap it if it's tapped
@@ -3664,6 +3730,10 @@ pub enum EffectDef {
         /// `PutCards.BATTLEFIELD_TAPPED_ATTACKING`: and attacking (`Combat.addAttackingCreature`, The Neutrinos)
         #[serde(default)]
         attacking: bool,
+        /// `withEnterWithCounters(+1/+1 × n)`: each card returns with that many +1/+1 counters
+        /// (`game.setEnterWithCounters`, Daydream)
+        #[serde(default)]
+        p1p1: i32,
     },
     /// `PutCardFromHandOntoBattlefieldEffect`: you may (always asked) put a card of `filter` from your hand onto the
     /// battlefield, tapped or attacking
@@ -5319,6 +5389,14 @@ pub enum AbilityDef {
     CrewSaddleWithToughnessAbility,
     /// this can't be blocked as long as the defending player controls an Island
     IslandwalkAbility,
+    /// this can't be blocked as long as the defending player controls a Plains (`PlainswalkAbility`)
+    PlainswalkAbility,
+    /// … a Swamp (`SwampwalkAbility`)
+    SwampwalkAbility,
+    /// … a Mountain (`MountainwalkAbility`)
+    MountainwalkAbility,
+    /// … a Forest (`ForestwalkAbility`)
+    ForestwalkAbility,
     /// umbra armor: if the enchanted creature would be destroyed, its damage is removed and this Aura is destroyed
     UmbraArmorAbility,
     /// an adventurer card's adventure spell (its first ability; the card's own spell is the second)

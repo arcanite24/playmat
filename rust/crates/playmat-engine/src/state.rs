@@ -883,6 +883,9 @@ pub struct Boost {
     /// it changes the permanent even while it isn't a creature (`BoostAllEffect` boosts the objects it locked in:
     /// a Vehicle crewed as Mouth of the Storm's trigger resolved keeps its -3/-0)
     pub noncreature_too: bool,
+    /// it switches the object's power and toughness instead (layer 7d, after every boost:
+    /// `SwitchPowerToughnessSourceEffect`); two switches undo each other
+    pub switch: bool,
 }
 
 /// What a game event is (`GameEventKind`, what the web client's effects play from)
@@ -1297,6 +1300,9 @@ pub struct Game {
     pub noncombat_fired: Vec<(ObjId, u64)>,
     /// "one or more … enter" triggers since triggers were last checked, after the others (`ZONE_CHANGE_BATCH`)
     pub batch_pending: Vec<StackItem>,
+    /// an end-the-turn effect resolved (`Turn.endTurn`, Time Stop): the turn skips to its cleanup step, and no
+    /// triggered ability goes on the stack until then (`isEndTurnRequested`)
+    pub end_turn: bool,
     /// a card was put into exile from a graveyard or the battlefield since triggers were last checked (Ketramose)
     pub exiled_batch: bool,
     /// the cards that left a graveyard since triggers were last checked (`ZONE_CHANGE_BATCH`)
@@ -1641,6 +1647,7 @@ impl Game {
             mana_batch: 0,
             noncombat_fired: Vec::new(),
             batch_pending: Vec::new(),
+            end_turn: false,
             exiled_batch: false,
             left_graveyard: Vec::new(),
             discarded: Vec::new(),
@@ -2066,6 +2073,9 @@ impl Game {
                 let s = self.obj(src);
                 self.watch.crewed.iter().any(|(v, vz, c, cz)| *v == src && *vz == s.zcc && *c == id && *cz == o.zcc)
             }),
+            Pred::AttachedTo { filter } => {
+                self.attached(id).is_some_and(|to| self.filter_matches(filter, you, source, to))
+            }
             Pred::Equipped => self.attachments(id).any(|a| self.has_subtype(a, "Equipment")),
             Pred::Enchanted => self.attachments(id).any(|a| self.has_subtype(a, "Aura")),
             Pred::Modified => {
@@ -4042,11 +4052,17 @@ impl Game {
         t += dt;
         // (`BoostTargetEffect` changes only a creature: a Vehicle's boost counts once it's crewed)
         let creature = self.has_type(id, CardType::Creature);
+        let mut switched = false;
         for b in self.boosts.iter() {
             if b.target == id && b.zcc == o.zcc && (creature || b.noncreature_too) {
                 p += b.power;
                 t += b.toughness;
+                switched ^= b.switch;
             }
+        }
+        // layer 7d: switched power and toughness
+        if switched {
+            (p, t) = (t, p);
         }
         (p, t)
     }

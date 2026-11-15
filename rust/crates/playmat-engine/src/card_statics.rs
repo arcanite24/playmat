@@ -325,6 +325,11 @@ pub(crate) enum CostKind {
     /// `INCREASE_COST` adding `PayLifeCost(n)` to a spell (`abilityToModify.addCost`): paid after its other costs,
     /// checked once its targets are chosen (`rules::life_cost`); its `apply` isn't called
     Life(i32),
+    /// `REDUCE_COST` that asks first (`MayPay2LifeForColorAbility`): as a spell is cast, after the other reductions,
+    /// its caster may pay `n` life ("Pay 2 life to reduce the cost by {G}?", asked in `may_pay_life`), and `apply`
+    /// is made only if they did; while checking what's playable it applies whenever the life could be paid
+    /// (`inCheckPlayableState`)
+    MayPayLife(i32),
 }
 
 /// The spell or ability whose cost a cost handler changes (Java's `abilityToModify`)
@@ -874,6 +879,71 @@ pub(crate) fn change_cost(game: &Game, kind: CostKind, of: &CostCx, cost: &mut M
     if of.ability.is_none() {
         each_own_static(game, of.card, &mut change);
     }
+}
+
+/// What a spell being cast carries once its caster paid the life of a `CostKind::MayPayLife` handler
+fn paid_life_mark(cx: &StaticCx) -> String {
+    format!("paid life {} {}", cx.source.0, cx.timestamp)
+}
+
+/// The `CostKind::MayPayLife` reductions of a spell, after the other reductions: as it's cast (on the stack) those
+/// whose life its caster paid, elsewhere (the playable check) those whose life could be paid
+pub(crate) fn paid_life_reductions(game: &Game, of: &CostCx, cost: &mut ManaCost) {
+    if of.ability.is_some() {
+        return;
+    }
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::Cost(CostMod { kind: CostKind::MayPayLife(n), applies, apply }) = h {
+            let o = game.obj(of.card);
+            if applies(game, cx, of)
+                && if o.zone == Zone::Stack {
+                    o.marks.contains(&paid_life_mark(cx))
+                } else {
+                    game.player(of.seat).life >= *n
+                }
+            {
+                apply(game, cx, of, cost);
+            }
+        }
+    });
+}
+
+/// `MayPay2LifeEffect.apply` as the spell is cast: for each `CostKind::MayPayLife` handler that applies, in order,
+/// when the life can be paid, "Pay 2 life to reduce the cost by {G}?" (the symbol its `apply` takes off), and the
+/// life paid then. False when the decider stopped.
+pub(crate) fn may_pay_life(game: &mut Game, d: &mut dyn Decider, of: &CostCx) -> bool {
+    let mut asks: Vec<(String, i32, String)> = Vec::new();
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::Cost(CostMod { kind: CostKind::MayPayLife(n), applies, apply }) = h {
+            if applies(game, cx, of) {
+                let mut probe = ManaCost { colored: [1; 5], ..ManaCost::default() };
+                apply(game, cx, of, &mut probe);
+                let symbol: String =
+                    (0..5).filter(|k| probe.colored[*k] == 0).map(|k| ["{W}", "{U}", "{B}", "{R}", "{G}"][k]).collect();
+                asks.push((paid_life_mark(cx), *n, symbol));
+            }
+        }
+    });
+    for (mark, n, symbol) in asks {
+        if game.player(of.seat).life < n {
+            continue;
+        }
+        let q = Query::YesNo { message: format!("Pay {n} life to reduce the cost by {symbol}?") };
+        let yes = loop {
+            match ask(game, d, of.seat, &q) {
+                Answer::Bool(b) => break b,
+                Answer::Stop => return false,
+                _ => {}
+            }
+        };
+        if yes && pay_cost(game, d, of.seat, of.card, &crate::card::CostDef::PayLifeCost { amount: n }) {
+            game.obj_mut(of.card).marks.push(mark);
+        }
+        if d.stopped() {
+            return false;
+        }
+    }
+    true
 }
 
 /// `ManaPool.emptyPool`'s `doNotEmptyManaTypes`: the kinds of `seat`'s mana (WUBRG, then colorless) a handler keeps

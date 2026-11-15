@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (13,578 on 15 Nov). A card whose JSON the engine can't load yet is left out
+  can express (13,693 on 15 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -1425,6 +1425,40 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   Questing Druid, Mythos of Brokkos, Mirrorshell Crab, Fleeting Spirit, Gnawing Crescendo, Mindreaver, Mica, Axebane
   Ferox and Tarrian's Soulcleaver (not looked into); and 42 pending cards the AI didn't cast in enough games
   (Omniscience, Clone Legion, Krang, Rise of the Dark Realms, The Tarrasque and others).
+  Wave 15, shared forms A (15 Nov): framework forms that block several of the claim's cards, then card classes,
+  built in four slices. Ending the turn (`EndTurnEffect`, `Turn.endTurn`: `Game::end_turn`; every spell on the stack
+  exiled, the resolving one too, abilities removed, combat left, the waiting triggers dropped; priority stops after
+  that resolution and the turn goes straight to its cleanup step, with no trigger put on the stack until the cleanup
+  step clears the flag: Time Stop, Day's Undoing, Ultima). Costs: reveal a Dragon from your hand (with the "if you
+  revealed a Dragon card or controlled a Dragon" condition: the Dragonlords' commands cycle), ward "pay life equal to
+  its power", `ExileTargetCost`, the Defilers' "you may pay 2 life" (`CostKind::MayPayLife`). Triggers: attacks and
+  isn't blocked, the draw-Nth, gain-life-first-time and eerie triggers from the graveyard, end-of-combat delayed
+  effects (`CreateEndOfCombatDelayedEffect`: Conqueror's Galleon, Runaway Carriage), harnessed abilities as the
+  card's own trigger behind `HarnessedSourceCondition` (The Mind Stone, The Soul Stone). Statics: landwalks,
+  switched power and toughness (layer 7d: Fluxcharger, Wandering Fumarole), "can't be blocked except by N or more"
+  as a minimum like menace, `LegendRuleDoesntApplyEffect`, a conditional `CombatDamageByToughnessAttachedEffect`,
+  "can't attack alone" on the enchanted creature, a conditional "doesn't untap" (Bombur), "this spell costs N more
+  if" (not while the playable check reads it). Also `AttachedToPredicate`, a "dealt damage this game" mark, the
+  saddle marks on the creatures that saddled a Mount (Fortune, Loyal Steed reads them after it left), an added
+  creature type and color carried to the permanent a graveyard card becomes (Liliana, Death's Majesty), an X-count
+  target that doesn't block choosing its mode, a dashed or blitzed creature's haste numbered before what
+  attachments give, the loop count reset whenever the stack is empty (`resetLKI`: Wandering Fumarole's {0} switch),
+  attacker triggers with targets of their own keep the attacker (Fighter Class), and handlers for
+  `SetPlayerLifeSourceEffect`, `MoveCounterTargetsEffect`, `TransformedPredicate`, `GainAllCreatureTypesAttachedEffect`,
+  `BlightTargetEffect`, strange new worlds and the slices' card classes. 115 cards came in (13,693 in the engine);
+  the four work folders (`.local/rust-port/wave15/claim-shared-a/factory-*`, 11 rounds, 242 games: 217 matching, 15
+  differing, 10 Java unfinished) verified 109: 13,331 of 13,693. Games under `shadow/wave15-shared-a*/` cover the engine pieces. Not
+  verified: Eternal of Harsh Truths and Wildfire Eternal (two "attacks and isn't blocked" triggers in the order of
+  Java's `getAttackers()` `HashSet`), Raubahn and Wandering Fumarole (Java's game ends with a player lost and empty
+  zones after the AI keeps switching: a harness end, not understood), Fluxcharger (Java's AI taps Chandra's Embercat
+  for a non-Elemental spell, Rust refuses), Bombur (blamed for a game where Java doesn't let a stolen Hallway
+  Heckler's prepared Vicious Verse be cast from exile; both verified). Left:
+  `CastFromHandSourcePermanentCondition` (Java's is false in shadow games where the rules say true: its watcher
+  clears on a step change compared by object identity, and its spell check reads stack LKI by zone change count;
+  not reproduced), choosing a mode more than once and paw prints (the Seasons, Planewide Celebration),
+  `EnchantedTappedTriggeredManaAbility` (mana of any color asked while paying), kicker with any number of modes,
+  `GiveManaAbilityAndCastSourceAbility`, layer 4 land and card types, Discontinuity's colored cost reduction, Glorious
+  End's delayed loss, the curses' `TargetController.ENCHANTED`, the mana-ability forms and the random ones.
   Text fixes for verified cards (13 Nov): the Young Hero Role's granted trigger keeps its own text, "put a +1/+1
   counter on it" (its `AddCountersSourceEffect` has a `setText`), and a delayed upkeep transform is "Transform {this}
   at the beginning of the next turn's upkeep." (`AtTheBeginOfNextUpkeepDelayedTriggeredAbility.getRule` puts the
