@@ -11794,6 +11794,18 @@ fn apply_each_effect(
         .map(|ts| ts.iter().filter_map(|t| if let Target::Player(p) = t { Some(*p) } else { None }).collect())
         .unwrap_or_default();
     let controller = item.controller;
+    // a countered ability's controller isn't found (`getControllerOfFirstTargetOrLKI` looks for a permanent or a
+    // spell): Ertai Resurrected's "Its controller draws a card" draws nothing for one
+    let ability_target = effects.iter().any(|e| matches!(e, EffectDef::CounterTargetEffect))
+        && target.is_some_and(|t| {
+            let Target::Obj(o) = t else { return false };
+            game.obj(o).zone != Zone::Stack
+                && game
+                    .stack
+                    .iter()
+                    .chain(game.resolving_item.iter())
+                    .any(|i| i.card == o && (i.ability.is_some() || i.delayed.is_some()))
+        });
     for e in effects {
         game.lookback = game.battlefield.to_vec();
         match e {
@@ -15500,7 +15512,7 @@ fn apply_each_effect(
             }
             EffectDef::DrawCardTargetControllerEffect { amount } => {
                 let n = v!(amount).max(0) as usize;
-                if let Some(Target::Obj(o)) = target {
+                if let Some(Target::Obj(o)) = target.filter(|_| !ability_target) {
                     let p = game.obj(o).controller;
                     draw(game, p, n);
                 }
