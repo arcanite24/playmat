@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (13,578 on 15 Nov). A card whose JSON the engine can't load yet is left out
+  can express (13,738 on 15 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -1399,6 +1399,45 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   multi-layer statics; card-defined and "this turn" delayed triggers; a card's own `CostImpl` and cost handlers that
   ask; activating abilities a static grants; Auras on players; snow and Treasure mana spent on abilities; plus the
   random or unordered ones.
+  Wave 15, claim 1 (15 Nov): cards blocked only by their own classes, the leftovers of earlier waves, used ones
+  first, then by Java file length. 151 cards came in through handler files and transpiler entries (plus 9 others
+  through the shared pieces: Absolute Virtue, Case of the Filched Falcon, Claim the Kingdom, Glittering Stockpile,
+  Into the Fae Court, Relive the Past, Rewrite History, Rootwise Survivor, Vengeant Earth), among them the used
+  Archangel of Tithes, Sephiroth, Fabled SOLDIER, Invasion of Ikoria, Ashiok, Dream Render, Teferi, Master of Time,
+  Kruphix, God of Horizons and Possibility Technician: 13,738 in the engine. New engine pieces for handlers, each
+  additive: block taxes (`CantBlockUnlessPayManaAllEffect`) and an attack tax of a dynamic {N}; `Rule::CantSearchLibrary`,
+  `Rule::ManaBecomes` (unspent mana changes kind as the pool empties), `Rule::KeepsDamage`, `Rule::CantCrew`,
+  `Rule::CantBeTargeted`, `Rule::CantPlayLands` and `Rule::Several` (one class, several events);
+  `AsThough::ActivateAsInstant`, `AsThough::BlockDragon`, `AsThough::DamageNotBlocked` and `AsThough::PlayThen`
+  (a play permission with what casting that way does: "that creature enters with a finality counter"); a
+  `TRANSFORMING` replacement event and `Event::mana` (a `TAPPED_FOR_MANA` replacement changing the mana made);
+  triggers `Trigger::GaveGift`, `Trigger::CardLeavesYourGraveyard`, `Trigger::TappedForMana` (one that uses the
+  stack), `DamagedPermanent` of "to_you_any" and "source_to", activated-ability kinds `artifact_or_creature` and
+  `artifact_creature_or_land`; the data handlers read: `StackItem::discarded`, `cost_revealed`, `cost_exiled`,
+  `Obj::entered_from`, `suspected_lki`, `may_play_if`, `TurnWatch::library_to_graveyard`, `loyalty_activated`,
+  `Game::combat_damage_sources`, excess damage in the damage watch, the creature a "when that creature dies this
+  turn" trigger saw die, `TriggerCause::GainedLife`; and a tap-for-mana triggered mana ability of {C}. Engine fixes
+  found by the factory, each with a game under `shadow/wave15-c1/`: a card's delayed "whenever a creature you control
+  enters this turn" trigger fires (Thunder of Unity: the enters event didn't look at the delayed triggers' holders);
+  a granted "untap this during each other player's untap step" untaps (Urban Burgeoning); a card name chosen by an
+  ability whose source was exiled to pay for it stays on the source for the next effect (The Stone Brain). Handler
+  fixes: Java's reflexive text keeps the card's case (Novel Nunchaku), and `Player.choose(Target)` asks even with
+  nothing to choose (Harald Unites the Elves, Ecological Appreciation's opponent). Kishla Skimmer (verified) keeps its
+  trigger handler rather than the new trigger. Two factory rounds (192 games, 166 matching, 2 Java unfinished)
+  verified 137 of the 161: 13,359 of 13,738. Gnawing Crescendo's delayed trigger text now matches Java and it is
+  verified. Not verified: Java's AI taps a mana source that makes nothing for payment (Nyx Lotus behind Verdant
+  Mastery, Territory Forge, Zariel), a stack ability's text once its source lost all abilities (Eaten by Piranhas
+  under Isareth the Awakener's trigger), the "when you do" text of a Plan's sacrifice (Claim the Kingdom, Rewrite
+  History), the finality counter of a creature cast from the graveyard through Leonardo or Osteomancer Adept in one
+  game each (Dragon Hunter, Anzrag's Rampage), Java's Zhur-Taa Druid not triggering when tapped while paying for a
+  spell (an object identity check; blamed on Chaotic Transformation), Kappa Tech-Wrecker's counter cost, and one
+  game each, not looked into, for Chainflail Centipede, Cloak and Dagger, Dark Intimations, Fblthp, Impossibly Lost,
+  Figure of Fable, Relive the Past, Rush of Dread, Smaug, Wicked Worm, Terminal Velocity, U.S.S. Enterprise-D and
+  Forsaken Monument; Absolute Virtue, Boros Battleshaper and Mutinous Massacre are pending. Left on the list: about
+  600 cards, mostly layer 4 type changes and losing all abilities, CREATE_TOKEN, ADD_COUNTERS, UNTAP and DESTROY
+  replacements, replacements that ask, a card's own `CostImpl`, delayed triggers carrying data, extra phases and
+  steps, Auras on players, copied abilities and spells, snow and Treasure mana spent, and the random or unordered
+  ones (each helper's skip list is in `.local/rust-port/wave15/claim-1-h*/skipped.tsv` of its worktree).
   Text fixes for verified cards (13 Nov): the Young Hero Role's granted trigger keeps its own text, "put a +1/+1
   counter on it" (its `AddCountersSourceEffect` has a `setText`), and a delayed upkeep transform is "Transform {this}
   at the beginning of the next turn's upkeep." (`AtTheBeginOfNextUpkeepDelayedTriggeredAbility.getRule` puts the
