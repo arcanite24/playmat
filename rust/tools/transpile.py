@@ -2123,8 +2123,9 @@ class Translator:
         if (m := re.fullmatch(r'new ExileFromGraveCost\(new TargetCardInYourGraveyard\((\d+)\)\)(?:\.withSourceExileZone\(false\))?',
                               canonical(expr))):
             return {'class': 'ExileFromGraveCost', 'amount': int(m.group(1))}
-        # "exile N cards of the filter from your graveyard" ((n, n, filter): exactly n)
-        if (m := re.fullmatch(r'new ExileFromGraveCost\(new TargetCardInYourGraveyard\((?:(\d+),(?:(\d+),)?)?(.*?)\)\)'
+        # "exile N cards of the filter from your graveyard" ((n, n, filter): exactly n; a text argument only names
+        # the cost in the rule)
+        if (m := re.fullmatch(r'new ExileFromGraveCost\(new TargetCardInYourGraveyard\((?:(\d+),(?:(\d+),)?)?(.*?)\)(?:,"[^"]*")?\)'
                               r'(?:\.withSourceExileZone\((?:true|false)\))?', canonical(expr))) \
                 and (m.group(2) is None or m.group(2) == m.group(1)) and not re.fullmatch(r'\d+', m.group(3)):
             out = {'class': 'ExileFromGraveCost', 'amount': int(m.group(1) or 1)}
