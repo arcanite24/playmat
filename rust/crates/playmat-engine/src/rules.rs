@@ -22591,7 +22591,13 @@ fn lose_life_by(game: &mut Game, seat: Seat, amount: i32, source: Option<ObjId>,
             _ => false,
         });
         // a batch for each player: one trigger, with all the life they lost
-        for t in fired {
+        for mut t in fired {
+            // `LoseLifeTriggeredAbility(…, setTargetPointer)`: its effects point at the player who lost the life
+            // (The Master of Lake-town's "that player mills that many cards")
+            if set_target_pointer(game, &t) {
+                t.targets = vec![vec![Target::Player(seat)]];
+                t.target_zcc = vec![vec![0]];
+            }
             match game.life_batch.iter_mut().find(|(s, b)| {
                 *s == seat && b.card == t.card && b.ability == t.ability && b.from_delayed == t.from_delayed
             }) {
