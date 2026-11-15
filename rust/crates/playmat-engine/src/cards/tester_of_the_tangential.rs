@@ -49,7 +49,12 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     }))
     .ok()?;
     let delayed = Delayed {
-        rule: format!("Move {x} +1/+1 counters from {{this}} onto another target creature."),
+        // `MoveCountersFromSourceToTargetEffect.getText`: "move zero +1/+1 counter", "move a …", "move two … counters"
+        rule: format!(
+            "move {} +1/+1 {} from {{this}} onto another target creature.",
+            log::number(x as usize),
+            if x > 1 { "counters" } else { "counter" }
+        ),
         sacrifice: Vec::new(),
         warp_exile: Vec::new(),
         effects: vec![e],
