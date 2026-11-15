@@ -4145,10 +4145,17 @@ impl Game {
     /// player controls (controlled by B)" (in a duel, the controller's opponent)
     pub fn that_player_rule(&self, item: &StackItem, rule: &str) -> String {
         let ability = item.ability.and_then(|(i, _)| self.item_def(item).abilities.get(i));
-        if let Some(AbilityDef::TriggeredAbility { that_player_controls: true, that_player_name, .. }) = ability {
+        if let Some(AbilityDef::TriggeredAbility {
+            that_player_controls: true,
+            that_player_name,
+            that_player_owned,
+            ..
+        }) = ability
+        {
             let them = (item.controller + 1) % self.seats();
             let name = that_player_name.as_deref().unwrap_or("that player controls");
-            let named = format!("{name} (controlled by {})", crate::log::player(them));
+            let how = if *that_player_owned { "owned" } else { "controlled" };
+            let named = format!("{name} ({how} by {})", crate::log::player(them));
             return rule.replacen(name, &named, 1);
         }
         rule.to_string()
@@ -4918,10 +4925,22 @@ impl Game {
         if from == Zone::Hand && requested == Zone::Graveyard {
             self.discarded.push((owner, id));
             self.watch.discarded.push(owner);
-            let sources = self.trigger_sources();
+            // (and the card itself, for a trigger of an `OrTriggeredAbility(Zone.ALL, …)`: Bartered Cow's "when you
+            // discard it")
+            let mut sources = self.trigger_sources();
+            if !sources.contains(&id) {
+                sources.push(id);
+            }
             let fired = self.triggers(sources, |g, src, you, t| match t {
                 Trigger::Discards { who, filter } => {
-                    Game::whose(who, you, owner) && g.filter_matches(filter, you, Some(src), id)
+                    (src != id
+                        || g.obj(id)
+                            .def
+                            .abilities
+                            .iter()
+                            .any(|a| matches!(a.trigger(), Some(Trigger::Or { ts }) if ts.iter().any(|x| x == t))))
+                        && Game::whose(who, you, owner)
+                        && g.filter_matches(filter, you, Some(src), id)
                 }
                 _ => false,
             });

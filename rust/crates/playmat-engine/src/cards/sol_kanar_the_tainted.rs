@@ -7,7 +7,8 @@ use super::*;
 pub const HANDLERS: &[Handler] = &[Handler::effect("SolKanarTheTainted.SolKanarTheTaintedEffect", apply)];
 
 /// Sol'Kanar (if it's still that permanent) is exiled; a token stays gone. Otherwise its controller chooses an
-/// opponent (`TargetOpponent(true)`, not targeted) and the card enters under that player's control
+/// opponent (`TargetOpponent(true)`, not targeted, asked even with one) and the card enters under that player's
+/// control
 fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     if !cx.source_on_battlefield(game) {
         return None;
@@ -22,11 +23,19 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         .map(|k| (you + k) % game.seats())
         .filter(|p| Game::whose("opponent", you, *p) && !game.player(*p).lost)
         .collect();
-    let opponent = match opponents[..] {
-        [p] => p,
-        _ => {
-            // `TargetOpponent(true)` through `choose`: several opponents aren't played yet
-            return Some(());
+    if opponents.is_empty() {
+        return Some(());
+    }
+    // (`HumanPlayer.choose(Target)` asks even with one opponent: `tryToAutoChoose` doesn't pick a player who isn't
+    // you)
+    let opponent = loop {
+        match ask(game, d, you, &Query::Target { players: opponents.clone(), objs: Vec::new(), required: true }) {
+            Answer::Player(p) if opponents.contains(&p) => break p,
+            Answer::Stop => return None,
+            _ => {}
+        }
+        if d.stopped() {
+            return None;
         }
     };
     enter_battlefield(game, d, id, opponent, false);

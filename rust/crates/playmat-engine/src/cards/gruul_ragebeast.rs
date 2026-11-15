@@ -8,13 +8,23 @@ pub const HANDLERS: &[Handler] = &[
         "GruulRagebeast.GruulRagebeastTriggeredAbility",
         "new EntersBattlefieldAllTriggeredAbility(new GruulRagebeastEffect(), StaticFilters.FILTER_CONTROLLED_CREATURE)",
         check,
-    ),
+    )
+    .stack_info(fighting),
     Handler::effect("GruulRagebeast.GruulRagebeastEffect", apply),
 ];
 
 /// `checkTrigger` beyond the event: the source is still on the battlefield as the creature enters
 fn check(_game: &Game, t: &StackItem) -> bool {
     t.entering.is_some()
+}
+
+/// `getRule`'s " Your fighting creature: …": the trigger's `triggeredName`, which is Gruul Ragebeast's own tooltip id
+/// name (`GameLog.getColoredObjectIdNameForTooltip(sourceObject)`), whichever creature entered. Its id is the
+/// object's own (the fingerprint leaves it out, as Java's is random)
+fn fighting(game: &Game, item: &StackItem) -> String {
+    let o = game.obj(item.card);
+    let color = crate::view::tooltip_color(&game.colors(item.card));
+    format!(" Your fighting creature: <font color='{color}'>{} [{:03x}]</font>.", o.name(), item.card.0 & 0xfff)
 }
 
 /// The creature that entered (the effect's fixed target) fights the ability's target, both still creatures on the

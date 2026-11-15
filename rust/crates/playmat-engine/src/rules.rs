@@ -814,7 +814,9 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                             EffectDef::MillCardsTargetEffect { .. }
                             | EffectDef::DamageTargetEffect { .. }
                             | EffectDef::DrawCardTargetEffect { .. }
-                            | EffectDef::LoseLifeTargetEffect { .. } => true,
+                            | EffectDef::LoseLifeTargetEffect { .. }
+                            // (Sorin, Solemn Visitor's emblem: "that player sacrifices a creature of their choice")
+                            | EffectDef::SacrificeEffect { .. } => true,
                             EffectDef::CardEffect { handler, .. } => handler.java() == "LoseHalfLifeTargetEffect",
                             EffectDef::ConditionalOneShotEffect { effect, otherwise, also, .. } => {
                                 effect.as_deref().is_some_and(at_that_player)
@@ -2251,7 +2253,7 @@ fn castable(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> bool {
                 // an alternate mana cost an effect set (`getCastSourceIdWithAlternateMana`): `ManaCosts.canPay`
                 // doesn't count the mana available, so it's playable whatever there is to pay with
                 || game.obj(id).pay_tax > 0
-                || !free_cast_sources(game, seat, id, def, game.obj(id).zone).is_empty();
+                || free_cast_playable(game, seat, id, def, game.obj(id).zone);
             game.paying_for.set(None);
             ok
         }
@@ -2277,6 +2279,28 @@ fn free_cast_sources(game: &Game, seat: Seat, id: ObjId, face: &CardDef, from: Z
         false
     });
     out
+}
+
+/// Whether one of the player's `CastFromHandWithoutPayingManaCostEffect`s makes `id` playable. Java's playable check
+/// asks `AlternativeCostSourceAbility.isAvailable`, whose `filter.match(card, game)` skips a filter's
+/// `ObjectSourcePlayerPredicate`s (the card predicates here: Omnipresence's mana value one, so with it out every spell
+/// in hand is offered, and its cost asked for in full if the predicate doesn't hold as it's cast)
+fn free_cast_playable(game: &Game, seat: Seat, id: ObjId, face: &CardDef, from: Zone) -> bool {
+    let mut found = false;
+    game.any_static(|g, src, e| {
+        if let EffectDef::CastFromHandWithoutPayingManaCostEffect { filter, from_hand } = e {
+            let loose =
+                crate::card::Filter(filter.0.iter().filter(|p| !matches!(p, Pred::Card { .. })).cloned().collect());
+            if g.obj(src).controller == seat
+                && (!from_hand || from == Zone::Hand)
+                && face_matches(g, &loose, seat, src, id, face)
+            {
+                found = true;
+            }
+        }
+        found
+    });
+    found
 }
 
 /// `AlternativeCostSourceAbility`: the costs paid instead of the mana cost, if its condition holds and they can be
@@ -4280,11 +4304,18 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                 let o = game.obj_mut(id);
                 o.adventurer = Some(full);
                 o.def = Arc::new(def);
+                let waiting = game.pending.len();
                 if !cast(game, d, seat, id) {
                     *game = before;
                     return;
                 }
+                let cast_triggers = game.pending.len().max(waiting);
                 sacrifice(game, sac);
+                // (Java sacrifices inside `activate`, before `SPELL_CAST` is fired: the sacrifice's triggers wait
+                // ahead of the cast's, Distended Mindbender's cast trigger after an outlaw's dies trigger)
+                if game.pending.len() > cast_triggers {
+                    game.pending[waiting..].rotate_left(cast_triggers - waiting);
+                }
                 return;
             }
             // `SneakAbility.activate`: cast (costs paid) and then undone outside the declare blockers step
@@ -8259,9 +8290,11 @@ pub fn possible_targets(game: &Game, seat: Seat, def: &TargetDef, src: Option<Ob
             players.into_iter().filter(|s| !*opponents || *s != seat).collect(),
             permanents(&|id| game.filter_matches(filter, seat, src, id)),
         ),
+        // (any planeswalker, yours too: `FilterOpponentOrPlaneswalker` is a `FilterPlaneswalkerPermanent` or an
+        // opponent; Angrath, Minotaur Pirate's +2 can target Angrath)
         TargetDef::TargetOpponentOrPlaneswalker => (
             players.into_iter().filter(|s| *s != seat).collect(),
-            permanents(&|id| game.has_type(id, CardType::Planeswalker) && game.obj(id).controller != seat),
+            permanents(&|id| game.has_type(id, CardType::Planeswalker)),
         ),
         TargetDef::TargetPermanent { filter, .. } => {
             (Vec::new(), permanents(&|id| game.filter_matches(filter, seat, src, id)))
@@ -8658,8 +8691,18 @@ fn pay_mana_from(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCo
                 // a payment offers a source's conditional mana too, even what it can't spend
                 let paying = game.paying_for.get();
                 game.paying_for.set(Some(ANY_SPELL));
-                let offered = mana_sources_with_kinds(game, seat).into_iter().find(|(s, _)| *s == id);
+                let mut offered = mana_sources_with_kinds(game, seat).into_iter().find(|(s, _)| *s == id);
                 game.paying_for.set(paying);
+                // (`getUseableManaAbilities` lists a handler's mana ability with no mana now beside the others:
+                // Three Tree City's "{2}, {T}: Choose a color. Add …" with its {T}: Add {C})
+                if let Some((_, abilities)) = offered.as_mut() {
+                    for i in empty_handler_mana_abilities(game, id) {
+                        if !abilities.iter().any(|(j, _, _)| *j == i) {
+                            abilities.push((i, Mana::default(), ManaKind::Other));
+                        }
+                    }
+                    abilities.sort_by_key(|(i, _, _)| *i);
+                }
                 if let Some((_, abilities)) = offered {
                     let choices = auto_pay_abilities(&abilities, &unpaid);
                     let chosen = if choices.len() == 1 {
@@ -8783,6 +8826,13 @@ fn pay_mana_from(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCo
                             }
                         }
                     }
+                } else if let Some(i) = empty_card_mana_ability(game, id) {
+                    // a handler's mana ability with no mana now (Astral Cornucopia without charge counters) isn't a
+                    // source, but a click on it still activates it: Java taps it and adds nothing
+                    let ability = game.obj(id).def.abilities[i].clone();
+                    if ability.taps_source() {
+                        tap(game, id);
+                    }
                 }
             }
             Answer::ManaType(t) => {
@@ -8800,6 +8850,48 @@ fn pay_mana_from(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCo
             _ => {}
         }
     }
+}
+
+/// The one handler mana ability of a permanent the player controls whose `getNetMana` is empty now, with nothing to
+/// pay but tapping its untapped source
+fn empty_card_mana_ability(game: &Game, id: ObjId) -> Option<usize> {
+    let o = game.obj(id);
+    if o.zone != Zone::Battlefield || o.tapped {
+        return None;
+    }
+    let mut found = None;
+    for (i, a) in o.def.abilities.iter().enumerate() {
+        if a.mana().is_none() {
+            continue;
+        }
+        let AbilityDef::CardManaAbility { handler, args, filters, cost, .. } = a else { return None };
+        let cx = cards::ManaCx { seat: o.controller, source: id, args, filters, unpaid: &ManaCost::default() };
+        if !cost.is_empty() || !a.taps_source() || (handler.fns().net)(game, &cx).total() > 0 || found.is_some() {
+            return None;
+        }
+        found = Some(i);
+    }
+    found
+}
+
+/// A permanent's handler mana abilities whose `getNetMana` is empty now, untapped where they tap it
+fn empty_handler_mana_abilities(game: &Game, id: ObjId) -> Vec<usize> {
+    let o = game.obj(id);
+    if o.zone != Zone::Battlefield {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    for (i, a) in o.def.abilities.iter().enumerate() {
+        let AbilityDef::CardManaAbility { handler, args, filters, .. } = a else { continue };
+        if a.taps_source() && o.tapped {
+            continue;
+        }
+        let cx = cards::ManaCx { seat: o.controller, source: id, args, filters, unpaid: &ManaCost::default() };
+        if (handler.fns().net)(game, &cx).total() == 0 {
+            out.push(i);
+        }
+    }
+    out
 }
 
 /// A spell's abilities: its own, then those statics give it (`GainAbilityControlledSpellsEffect`)
@@ -9686,23 +9778,34 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
     // with it still on the stack, then `GameImpl.resolve` removes it and the one left has won. Its controller winning ("you win the game": Mechanized Production) is the same: the last opponent's
     // `lostForced` ends the game, and traces its end, before `this.wins` is set.
     if game.over && !was_over {
-        let ended =
-            |i: &StackItem| i.ability.is_some() && (game.player(i.controller).lost || game.player(i.controller).won);
+        // (a spell too, Approach of the Second Sun's "you win the game": it's still on the stack, not yet put into
+        // its owner's graveyard)
+        let ended = |i: &StackItem| {
+            (i.ability.is_some() || i.delayed.is_none() && game.obj(i.card).zone == Zone::Stack)
+                && (game.player(i.controller).lost || game.player(i.controller).won)
+        };
         if let Some(item) = game.resolving_item.clone().filter(ended) {
             for s in 0..game.seats() {
                 game.player_mut(s).won = false;
             }
-            Arc::make_mut(&mut game.stack).push(item);
+            Arc::make_mut(&mut game.stack).push(item.clone());
             traced(game, d);
             Arc::make_mut(&mut game.stack).pop();
+            // (then the spell's resolution ends: it's put into its owner's graveyard)
+            if item.ability.is_none() && item.delayed.is_none() && game.obj(item.card).zone == Zone::Stack {
+                game.move_to(item.card, Zone::Graveyard);
+            }
             let alive: Vec<Seat> = (0..game.seats()).filter(|s| !game.player(*s).lost).collect();
             if let [w] = alive[..] {
                 game.player_mut(w).won = true;
             }
         }
     }
-    // `processAction` applies the effects as it resolves: Leyline of the Guildpact's land types end with it
+    // `processAction` applies the effects as it resolves: Leyline of the Guildpact's land types end with it, and
+    // ascend's `AscendContinuousEffect` gives the city's blessing to one who now controls ten permanents (Dusk
+    // Charger, entering as the tenth, gets its +2/+2 at once)
     game.update_guildpact();
+    game.update_ascend();
     game.revealed.clear();
     game.looked_at.clear();
     game.resolving = None;
@@ -9993,7 +10096,8 @@ fn resolve_popped(game: &mut Game, d: &mut dyn Decider) {
             }
         }
     }
-    if game.obj(id).zone == Zone::Stack {
+    // (not once its effects ended the game: Java's game ends with the spell still on the stack)
+    if game.obj(id).zone == Zone::Stack && !game.over {
         // an adventure goes on an adventure: exiled, its creature castable from there
         if game.obj(id).adventurer.as_ref().is_some_and(|f| f.adventure.is_some())
             && !game.obj(id).flashback
@@ -10547,6 +10651,27 @@ pub(crate) fn refresh_becomes(game: &mut Game) {
     refresh_land_types(game);
 }
 
+/// A keyword Java keeps one instance of (`MageSingleton`: `PermanentImpl.addAbility` skips one it has)
+fn singleton_keyword(a: &AbilityDef) -> bool {
+    matches!(
+        a,
+        AbilityDef::DeathtouchAbility
+            | AbilityDef::ReachAbility
+            | AbilityDef::DoubleStrikeAbility
+            | AbilityDef::FirstStrikeAbility
+            | AbilityDef::HasteAbility
+            | AbilityDef::IndestructibleAbility
+            | AbilityDef::LifelinkAbility
+            | AbilityDef::TrampleAbility
+            | AbilityDef::FlyingAbility
+            | AbilityDef::WitherAbility
+            | AbilityDef::IntimidateAbility
+            | AbilityDef::VigilanceAbility
+            | AbilityDef::DefenderAbility
+            | AbilityDef::FlashAbility
+    )
+}
+
 /// `AddBasicLandTypeAllLandsEffect` (Urborg): each land is also the basic land types the statics give, with their
 /// mana abilities (not a second one it already has). And an Aura's `GainAbilityAttachedEffect` of a mana, activated or
 /// triggered ability (Old-Growth Troll, Curious Obsession) adds that ability to what it enchants.
@@ -10646,6 +10771,28 @@ fn refresh_land_types(game: &mut Game) {
                                 }
                             }
                         }
+                        // The World Tree: as long as you control six or more lands, lands you control have "{T}: Add
+                        // one mana of any color."
+                        EffectDef::ConditionalContinuousEffect { effect, condition }
+                            if matches!(&**effect, EffectDef::GainAbilityControlledEffect { ability, .. }
+                                if ability.mana().is_some()) =>
+                        {
+                            let you = game.obj(*id).controller;
+                            if let EffectDef::GainAbilityControlledEffect { ability, filter, exclude_source, .. } =
+                                &**effect
+                            {
+                                if game.condition_holds(Some(condition), you, *id) {
+                                    for to in game.battlefield.iter() {
+                                        if !(*exclude_source && to == id)
+                                            && game.obj(*to).controller == you
+                                            && game.filter_matches(filter, you, Some(*id), *to)
+                                        {
+                                            granted.push((*to, (**ability).clone()));
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         // Honored Hierarch: as long as it's renowned, it has "{T}: Add one mana of any color."; a
                         // station level's activated ability (Kavaron, Memorial World at 12+)
                         EffectDef::ConditionalContinuousEffect { effect, condition }
@@ -10680,10 +10827,14 @@ fn refresh_land_types(game: &mut Game) {
                             }
                         }
                         // Petrified Hamlet: lands with the chosen name have "{T}: Add {C}"; Food Fight: artifacts you
-                        // control have "{2}, Sacrifice this artifact: …"
+                        // control have "{2}, Sacrifice this artifact: …"; Pontiff of Blight: other creatures you
+                        // control have extort
                         EffectDef::GainAbilityAllEffect { ability, filter, .. }
                             if ability.mana().is_some()
-                                || matches!(**ability, AbilityDef::SimpleActivatedAbility { .. }) =>
+                                || matches!(
+                                    **ability,
+                                    AbilityDef::SimpleActivatedAbility { .. } | AbilityDef::TriggeredAbility { .. }
+                                ) =>
                         {
                             let you = game.obj(*id).controller;
                             for to in game.battlefield.iter() {
@@ -10815,7 +10966,15 @@ fn refresh_land_types(game: &mut Game) {
                 given.insert(1, t.clone());
             }
         }
-        let gained: Vec<AbilityDef> = granted.iter().filter(|(to, _)| *to == id).map(|(_, a)| a.clone()).collect();
+        // (a keyword that's a `MageSingleton` is one ability however many times it's given, or printed: a second
+        // Prophetic Ravings' haste takes no index, its "{T}, Discard a card: Draw a card." is `a4`)
+        let printed = o.land_type_base.as_ref().map(|(b, _, _)| b.clone()).unwrap_or_else(|| o.def.clone());
+        let mut gained: Vec<AbilityDef> = Vec::new();
+        for (_, a) in granted.iter().filter(|(to, _)| *to == id) {
+            if !(singleton_keyword(a) && (printed.abilities.contains(a) || gained.contains(a))) {
+                gained.push(a.clone());
+            }
+        }
         let (applied, applied_gained) =
             o.land_type_base.as_ref().map(|(_, t, g)| (t.clone(), g.clone())).unwrap_or_default();
         if given == applied && gained == applied_gained {
@@ -11794,6 +11953,18 @@ fn apply_each_effect(
         .map(|ts| ts.iter().filter_map(|t| if let Target::Player(p) = t { Some(*p) } else { None }).collect())
         .unwrap_or_default();
     let controller = item.controller;
+    // a countered ability's controller isn't found (`getControllerOfFirstTargetOrLKI` looks for a permanent or a
+    // spell): Ertai Resurrected's "Its controller draws a card" draws nothing for one
+    let ability_target = effects.iter().any(|e| matches!(e, EffectDef::CounterTargetEffect))
+        && target.is_some_and(|t| {
+            let Target::Obj(o) = t else { return false };
+            game.obj(o).zone != Zone::Stack
+                && game
+                    .stack
+                    .iter()
+                    .chain(game.resolving_item.iter())
+                    .any(|i| i.card == o && (i.ability.is_some() || i.delayed.is_some()))
+        });
     for e in effects {
         game.lookback = game.battlefield.to_vec();
         match e {
@@ -13385,6 +13556,34 @@ fn apply_each_effect(
                         && !(*exclude_source && id == source.0)
                     {
                         boost(game, id, *power, *toughness, Duration::EndOfTurn);
+                    }
+                }
+            }
+            // "until your next turn" (Sorin, Solemn Visitor): the permanents there as it resolves, locked in (Java's
+            // affected objects), whatever they become
+            EffectDef::BoostControlledEffect {
+                power,
+                toughness,
+                duration: Duration::UntilYourNextTurn,
+                filter,
+                exclude_source,
+            } => {
+                let (power, toughness) = (&v!(power), &v!(toughness));
+                for id in Arc::clone(&game.battlefield).iter().copied() {
+                    if game.obj(id).controller == controller
+                        && game.filter_matches(filter, controller, Some(source.0), id)
+                        && !(*exclude_source && id == source.0)
+                    {
+                        let zcc = game.obj(id).zcc;
+                        Arc::make_mut(&mut game.boosts).push(Boost {
+                            target: id,
+                            zcc,
+                            power: *power,
+                            toughness: *toughness,
+                            until_end_of_turn: false,
+                            until_turn_of: Some(controller),
+                            noncreature_too: true,
+                        });
                     }
                 }
             }
@@ -15500,7 +15699,7 @@ fn apply_each_effect(
             }
             EffectDef::DrawCardTargetControllerEffect { amount } => {
                 let n = v!(amount).max(0) as usize;
-                if let Some(Target::Obj(o)) = target {
+                if let Some(Target::Obj(o)) = target.filter(|_| !ability_target) {
                     let p = game.obj(o).controller;
                     draw(game, p, n);
                 }
@@ -15612,7 +15811,12 @@ fn apply_each_effect(
             EffectDef::ReturnToHandSourceEffect { battlefield_only } => {
                 let (o, zcc) = source;
                 let z = game.obj(o).zone;
-                if game.obj(o).zcc == zcc
+                // (Java's dies-attached ones return it from the zone it went to next, `returnFromNextZone`: Draconic
+                // Destiny's Aura put into the graveyard after its creature died)
+                let next = matches!(game.trigger_of(item), Some(crate::card::Trigger::DiesAttached { .. }))
+                    && !*battlefield_only
+                    && matches!(z, Zone::Graveyard | Zone::Exile);
+                if (game.obj(o).zcc == zcc || next && game.obj(o).zcc == zcc + 1)
                     && (z == Zone::Battlefield || !*battlefield_only && matches!(z, Zone::Graveyard | Zone::Exile))
                 {
                     game.move_to(o, Zone::Hand);
@@ -17226,8 +17430,14 @@ fn apply_each_effect(
                     targets: Vec::new(),
                     condition: None,
                 };
-                game.at_next_upkeep
-                    .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) });
+                // (a delayed transform keeps the face it was made for: `setSourcePermanentTransformCount` as it's
+                // created, so a second one waiting with it doesn't turn Aang, at the Crossroads back)
+                let def = delayed_transform_face(game, effects, source);
+                game.at_next_upkeep.push(StackItem {
+                    delayed: Some(Arc::new(delayed)),
+                    def,
+                    ..StackItem::spell(source.0, controller)
+                });
             }
             // (`at_first_upkeep` waits for its controller's upkeep, after the next upkeep's delayed triggers)
             EffectDef::CreateYourNextUpkeepDelayedEffect { effects, rule } => {
@@ -17242,8 +17452,14 @@ fn apply_each_effect(
                     targets: Vec::new(),
                     condition: None,
                 };
-                game.at_first_upkeep
-                    .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) });
+                // (a delayed transform keeps the face it was made for: `setSourcePermanentTransformCount` as it's
+                // created, so a second one waiting with it doesn't turn Aang, at the Crossroads back)
+                let def = delayed_transform_face(game, effects, source);
+                game.at_first_upkeep.push(StackItem {
+                    delayed: Some(Arc::new(delayed)),
+                    def,
+                    ..StackItem::spell(source.0, controller)
+                });
             }
             EffectDef::CreateNextMainPhaseDelayedEffect { effects, rule, phase } => {
                 next_main_delayed(game, source, controller, effects.clone(), rule.clone(), phase);
@@ -18372,11 +18588,20 @@ fn apply_each_effect(
             }
             // resolving, "{this} gains … until end of turn"; as a static ability it's `Game::has_ability`'s
             EffectDef::GainAbilitySourceEffect { ability, duration } => {
-                if *duration == Duration::EndOfTurn
-                    && game.obj(source.0).zone == Zone::Battlefield
-                    && game.obj(source.0).zcc == source.1
-                {
-                    grant(game, source.0, ability);
+                if game.obj(source.0).zone == Zone::Battlefield && game.obj(source.0).zcc == source.1 {
+                    if *duration == Duration::EndOfTurn {
+                        grant(game, source.0, ability);
+                    } else if *duration == Duration::WhileOnBattlefield {
+                        // for as long as it stays on the battlefield (Flame-Wreathed Phoenix's haste)
+                        let zcc = source.1;
+                        Arc::make_mut(&mut game.grants).push(Grant {
+                            target: source.0,
+                            zcc,
+                            ability: (**ability).clone(),
+                            until_end_of_turn: false,
+                            until_turn_of: None,
+                        });
+                    }
                 }
             }
             // a spell's (Energybending): the controller's lands gain all basic land types until end of turn (a
@@ -21524,16 +21749,11 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
                 let count = ability.as_ref().map(|a| a.mode_count()).unwrap_or_default();
                 if !modes.is_empty() && count != ModeCount::default() {
                     let (index, card) = (t.ability.map_or(0, |(i, _)| i), t.card);
-                    // `canChooseTargetAbility`: removed unless at least max(min, 1) modes have their targets
-                    let found = modes
-                        .iter()
-                        .filter(|m| {
-                            m.1.iter().all(|x| {
-                                matches!(x, TargetDef::TargetStackAbility { .. } | TargetDef::TargetStackObject { .. })
-                                    || target_possible(game, seat, x, Some(card))
-                            })
-                        })
-                        .count();
+                    // `canChooseTargetAbility`: removed unless at least max(min, 1) modes have their targets, checked
+                    // before the trigger is pushed (so it isn't a stack object to target yet: Ertai Resurrected with
+                    // no other creature or planeswalker and an empty stack)
+                    let found =
+                        modes.iter().filter(|m| m.1.iter().all(|x| target_possible(game, seat, x, Some(card)))).count();
                     if found < count.min.max(1) {
                         continue;
                     }
@@ -21545,6 +21765,10 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
                     mode_targets = Some(chosen.iter().flat_map(|k| modes[*k].1.iter().cloned()).collect::<Vec<_>>());
                     t.modes = if chosen.is_empty() { vec![NO_MODE] } else { chosen };
                 } else if !modes.is_empty() {
+                    // (`canChooseTarget` before the push, as above)
+                    if !modes.iter().any(|m| m.1.iter().all(|x| target_possible(game, seat, x, Some(t.card)))) {
+                        continue;
+                    }
                     let available: Vec<usize> = (0..modes.len())
                         .filter(|k| {
                             modes[*k].1.iter().all(|x| {
@@ -21579,6 +21803,17 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
                     .as_ref()
                     .filter(|dl| !dl.targets.is_empty())
                     .map(|dl| (dl.rule.clone(), dl.targets.clone()));
+                // `PlayerImpl.triggerAbility` checks `canChooseTarget` before it pushes the trigger: a one-mode one
+                // can't count itself as a stack object to target (Overcharged Amalgam exploiting itself with nothing
+                // else on the stack)
+                let possible_before = if modes.is_empty() {
+                    ability
+                        .as_ref()
+                        .and_then(|a| a.triggered())
+                        .map(|(_, _, targets, _)| targets.iter().all(|x| target_possible(game, seat, x, Some(t.card))))
+                } else {
+                    None
+                };
                 Arc::make_mut(&mut game.stack).push(t);
                 let at = game.stack.len();
                 // a reflexive trigger's targets, the same way
@@ -21604,7 +21839,9 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
                     // (`PlayerImpl.triggerAbility`'s `canChooseTarget`: every target first, so a later "up to one"
                     // isn't asked when an earlier one has none: Invasion of Muraganda with no creature of yours)
                     let card = game.stack.last().map(|t| t.card);
-                    if !targets.iter().all(|x| target_possible(game, seat, x, card)) {
+                    let possible =
+                        possible_before.unwrap_or_else(|| targets.iter().all(|x| target_possible(game, seat, x, card)));
+                    if !possible {
                         Arc::make_mut(&mut game.stack).pop();
                     } else if !targets.is_empty() {
                         if !choose_targets(game, d, seat, targets, None, rule, false) {
@@ -21670,6 +21907,15 @@ fn create_delayed_trigger(
         end_of_turn,
         once,
     });
+}
+
+/// The face a delayed "transform {this}" is made for: its source's now, while it's still that permanent
+fn delayed_transform_face(game: &Game, effects: &[EffectDef], source: (ObjId, u32)) -> Option<Arc<CardDef>> {
+    let o = game.obj(source.0);
+    (effects.iter().any(|e| matches!(e, EffectDef::TransformSourceEffect))
+        && o.zone == Zone::Battlefield
+        && o.zcc == source.1)
+        .then(|| o.def.clone())
 }
 
 /// Takes `seat`'s waiting triggers out of `game.pending`.
