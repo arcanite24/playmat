@@ -665,6 +665,9 @@ pub enum Trigger {
     AttacksAlone,
     /// training: this attacks with a creature of greater power (`TrainingAbility`)
     Training,
+    /// its controller taps this for mana (`TAPPED_FOR_MANA` of this, by a mana ability with a tap cost): a trigger
+    /// that isn't a mana ability, so it goes on the stack (Zhur-Taa Druid)
+    TappedForMana,
     /// this dies (`DiesSourceTriggeredAbility`)
     Dies,
     /// dies, if it was a creature (the Enduring cycle's `EnduringGlimmerTriggeredAbility`)

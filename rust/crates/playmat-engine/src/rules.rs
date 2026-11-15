@@ -9301,6 +9301,11 @@ fn activate_mana_paying(
         game.player_mut(seat).mana_pool.colored[k] += 1;
     }
     note(game, EventKind::Mana, Some(seat), Some(id), None, made);
+    // `TAPPED_FOR_MANA`: "whenever you tap this for mana", a trigger that isn't a mana ability
+    if taps {
+        let fired = game.triggers(vec![id], |_, src, you, t| matches!(t, Trigger::TappedForMana) && src == id && you == seat);
+        game.pending.extend(fired);
+    }
     // a mana ability's other effects happen at once (a pain land's damage)
     let effects = def.abilities[i].mana_effects().to_vec();
     if !effects.is_empty() {
