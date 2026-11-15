@@ -28,8 +28,9 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     }
     let shown = game.player(you).graveyard.clone();
     let possible: Vec<ObjId> = shown.iter().copied().filter(|c| game.obj(*c).def.is_permanent_card()).collect();
-    // (`HumanPlayer.choose` asks nothing when no card can be chosen)
-    if possible.is_empty() {
+    // (`HumanPlayer.choose` asks nothing for an empty graveyard; with only nonpermanent cards there it asks, and
+    // the player can only pick nothing)
+    if shown.is_empty() {
         return Some(());
     }
     let rule = item_rule(game, cx.item);
