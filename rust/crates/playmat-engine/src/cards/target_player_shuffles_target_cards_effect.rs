@@ -5,7 +5,7 @@
 use super::*;
 
 pub const HANDLERS: &[Handler] = &[
-    Handler::effect("TargetPlayerShufflesTargetCardsEffect", apply),
+    Handler::effect("TargetPlayerShufflesTargetCardsEffect", apply).args(&["int"]),
     Handler::predicate("TargetCardInTargetPlayersGraveyard", any_graveyard_card),
 ];
 
@@ -17,10 +17,12 @@ fn any_graveyard_card(_game: &Game, _you: Seat, _source: Option<ObjId>, _id: Obj
 }
 
 /// `shuffleCardsToLibrary`: the target cards still there (none: nothing) put into their owners' libraries
-/// (`moveCards` to the library: on top, in target order), then the target player's library is shuffled
+/// (`moveCards` to the library: on top, in target order), then the target player's library is shuffled. The player
+/// is target `targetPlayerIndex` (0 unless given: Rite of Renewal's 1), the cards the next target.
 fn apply(game: &mut Game, _d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
-    let Some(p) = cx.player(0) else { return Some(()) };
-    let cards = cx.objs(1);
+    let at = cx.arg_int(0).unwrap_or(0).max(0) as usize;
+    let Some(p) = cx.player(at) else { return Some(()) };
+    let cards = cx.objs(at + 1);
     if cards.is_empty() {
         return Some(());
     }
