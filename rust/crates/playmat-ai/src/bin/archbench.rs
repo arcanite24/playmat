@@ -303,38 +303,40 @@ fn sprt(
                 let g = next.fetch_add(1, Ordering::Relaxed);
                 let Some(&i) = deals.get(g) else { break };
                 let (a, b) = pairing(i, n);
-                let mut pair = 0.0;
-                let mut ok = true;
+                let mut scores = Vec::new();
                 for (p0, p1) in [(0usize, 1usize), (1, 0)] {
-                    match play(db, [&decks[a], &decks[b]], i, [&entrants[p0], &entrants[p1]], suite_rules) {
-                        Some((winner, _)) => {
-                            // entrant 0's score in this game
-                            let score = match winner {
-                                Some(w) if (w == 0) == (p0 == 0) => 1.0,
-                                Some(_) => 0.0,
-                                None => 0.5,
-                            };
-                            let mut t = wdl.lock().unwrap();
-                            t[if score == 1.0 {
-                                0
-                            } else if score == 0.5 {
-                                1
-                            } else {
-                                2
-                            }] += 1;
-                            pair += score / 2.0;
-                        }
-                        None => ok = false,
+                    if let Some((winner, _)) =
+                        play(db, [&decks[a], &decks[b]], i, [&entrants[p0], &entrants[p1]], suite_rules)
+                    {
+                        // entrant 0's score in this game
+                        scores.push(match winner {
+                            Some(w) if (w == 0) == (p0 == 0) => 1.0,
+                            Some(_) => 0.0,
+                            None => 0.5,
+                        });
                     }
                 }
-                if !ok {
+                if scores.len() < 2 {
                     continue;
                 }
+                // a pair that finishes after the test stopped isn't counted: the result is the one at the bound
                 let mut v = samples.lock().unwrap();
-                v.push(pair);
+                if stop.load(Ordering::Relaxed) {
+                    break;
+                }
+                v.push((scores[0] + scores[1]) / 2.0);
+                let mut t = wdl.lock().unwrap();
+                for s in &scores {
+                    t[if *s == 1.0 {
+                        0
+                    } else if *s == 0.5 {
+                        1
+                    } else {
+                        2
+                    }] += 1;
+                }
                 let ratio = llr(&v, elo0, elo1);
                 if v.len() % 250 == 0 {
-                    let t = wdl.lock().unwrap();
                     println!(
                         "SPRT {} pairs, {}-{}-{}, elo {:+.1}, LLR {ratio:.2}",
                         v.len(),
@@ -344,7 +346,9 @@ fn sprt(
                         elo_of(&v)
                     );
                 }
-                if v.len() >= 100 && (ratio <= lower || ratio >= upper) && !stop.swap(true, Ordering::Relaxed) {
+                // at least 500 pairs: the variance estimate is too rough before
+                if v.len() >= 500 && (ratio <= lower || ratio >= upper) {
+                    stop.store(true, Ordering::Relaxed);
                     *verdict.lock().unwrap() = Some(ratio >= upper);
                 }
             });
