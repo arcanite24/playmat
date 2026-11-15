@@ -5212,6 +5212,11 @@ class Translator:
         if cls == 'FathomMageTriggeredAbility' and not args:
             return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'counter_added_source', 'counter': '+1/+1'},
                     'effects': [{'class': 'DrawCardSourceControllerEffect', 'amount': 1}], 'optional': True}
+        # Bloodcrazed Hoplite: "whenever a +1/+1 counter is put on this, remove a +1/+1 counter from target creature
+        # an opponent controls" (once for each counter; the target is the card's `addTarget`)
+        if cls == 'BloodcrazedHopliteTriggeredAbility' and not args:
+            return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'counter_added_source', 'counter': '+1/+1'},
+                    'effects': [self.effect('new RemoveCounterTargetEffect(CounterType.P1P1.createInstance())')]}
         # Midnight Clock: "When the twelfth hour counter is put on this, shuffle your hand and graveyard into your
         # library, then draw seven cards. Exile this." (`COUNTER_ADDED`, from any zone: `Zone.ALL`)
         if cls == 'MidnightClockTriggeredAbility' and not args:
