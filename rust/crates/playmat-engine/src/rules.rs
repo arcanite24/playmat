@@ -22206,6 +22206,15 @@ pub(crate) fn redirect_damage(game: &mut Game, ev: &cards::Event, to: ObjId) {
     }
 }
 
+/// `DealtDamageThisGameWatcher`: a permanent that dealt damage keeps it marked while it stays ("if it hasn't dealt
+/// damage yet": Karakyk Guardian)
+fn mark_dealt_damage(game: &mut Game, source: ObjId) {
+    let o = game.obj(source);
+    if o.zone == Zone::Battlefield && !o.marks.iter().any(|m| m == "dealt damage") {
+        game.obj_mut(source).marks.push("dealt damage".into());
+    }
+}
+
 /// Damage from `source`: to a player it's life lost, to a creature it's marked. Lifelink gains its controller life.
 /// Returns combat lifelink's life, which `combat_damage` gains once per source; outside combat, the damage dealt.
 fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: bool) -> i32 {
@@ -22465,6 +22474,7 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                     combat,
                 };
                 game.watch.damage.push(seen);
+                mark_dealt_damage(game, source);
             }
             if combat && amount > 0 && !game.combat_damaged_players.contains(&(source, s)) {
                 game.combat_damaged_players.push((source, s));
@@ -22532,6 +22542,7 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                     combat,
                 };
                 game.watch.damage.push(seen);
+                mark_dealt_damage(game, source);
             }
             let turn = game.turn;
             let t = game.obj_mut(o);
