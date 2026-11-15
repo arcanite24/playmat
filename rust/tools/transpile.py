@@ -254,6 +254,11 @@ CUSTOM = {
     # (players in range: both, in a duel)
     'SorcerousSpyglassActivationEffect': lambda: {'class': 'PithingNeedleEffect'},
     'PhyrexianRevokerEffect2': lambda: {'class': 'PhyrexianRevokerEffect'},
+    # "creatures can't attack you or planeswalkers you control unless their controller pays {X} for each of those
+    # creatures, where X is the number of enchantments you control" (no cost while there are none)
+    'SphereOfSafetyPayManaToAttackAllEffect': lambda: {
+        'class': 'CantAttackYouUnlessPayAllEffect', 'cost': '{X}', 'planeswalkers': True,
+        'generic': {'v': 'permanents', 'filter': [{'p': 'type', 't': 'ENCHANTMENT'}, {'p': 'controller', 'who': 'you'}]}},
     # cards' own rule-modifying effects: where spells can't be cast from, what can't enter from graveyards
     # "you may spend mana as though it were mana of any color" (for planeswalker spells)
     'ChromaticOrreryEffect': lambda: {'class': 'SpendManaAsAnyColorEffect'},
@@ -559,6 +564,11 @@ CUSTOM = {
         'class': 'TapForManaAllTriggeredManaAbility', 'java': 'CryptGhastTriggeredAbility',
         'filter': [{'p': 'subtype', 's': 'Swamp'}, YOU], 'color': 'B',
         'rule': 'Whenever you tap a Swamp for mana, add an additional {B}.'},
+    # "whenever you tap a permanent for {C}, add an additional {C}" (what the tapping made has {C})
+    'ForsakenMonumentTriggeredManaAbility': lambda: {
+        'class': 'TapForManaAllTriggeredManaAbility', 'java': 'ForsakenMonumentTriggeredManaAbility',
+        'filter': [], 'color': 'C', 'colorless_made': True,
+        'rule': 'Whenever you tap a permanent for {C}, add an additional {C}.'},
     'MasterOfBarbsTriggeredAbility': lambda: {
         'class': 'DamagedOpponentsNoncombatTriggeredAbility', 'java': 'MasterOfBarbsTriggeredAbility',
         'effects': [{'class': 'BoostControlledEffect', 'power': 1, 'toughness': 0, 'duration': 'EndOfTurn',
@@ -5218,6 +5228,11 @@ class Translator:
         if cls == 'FathomMageTriggeredAbility' and not args:
             return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'counter_added_source', 'counter': '+1/+1'},
                     'effects': [{'class': 'DrawCardSourceControllerEffect', 'amount': 1}], 'optional': True}
+        # Bloodcrazed Hoplite: "whenever a +1/+1 counter is put on this, remove a +1/+1 counter from target creature
+        # an opponent controls" (once for each counter; the target is the card's `addTarget`)
+        if cls == 'BloodcrazedHopliteTriggeredAbility' and not args:
+            return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'counter_added_source', 'counter': '+1/+1'},
+                    'effects': [self.effect('new RemoveCounterTargetEffect(CounterType.P1P1.createInstance())')]}
         # Midnight Clock: "When the twelfth hour counter is put on this, shuffle your hand and graveyard into your
         # library, then draw seven cards. Exile this." (`COUNTER_ADDED`, from any zone: `Zone.ALL`)
         if cls == 'MidnightClockTriggeredAbility' and not args:
@@ -5428,8 +5443,14 @@ class Translator:
         # "when that creature dies this turn, …": its text is the spell's sentence that starts so
         if cls == 'WhenTargetDiesDelayedTriggeredAbility' and len(args) in (1, 2) \
                 and (len(args) == 1 or args[1].strip() in ('SetTargetPointer.NONE', 'SetTargetPointer.PLAYER')):
+            # (an effect whose own text is more than one sentence is the whole text after the phrase: End-Blaze
+            # Epiphany's "…, then choose a card exiled this way. Until the end of your next turn, …")
+            t = re.search(r'\.setText\(((?:"(?:[^"\\]|\\.)*"\+?)+)\)$', canonical(args[0]))
+            text = ''.join(re.findall(r'"((?:[^"\\]|\\.)*)"', t.group(1))) if t else ''
+            rule = 'When that creature dies this turn, ' + text + '.' if '. ' in text \
+                else RULE_FROM + 'When that creature dies this turn, >'
             return {'class': 'WhenTargetDiesDelayed', 'effects': [self.effect(args[0])],
-                    'rule': RULE_FROM + 'When that creature dies this turn, >',
+                    'rule': rule,
                     'to_player': len(args) == 2 and args[1].strip() == 'SetTargetPointer.PLAYER'}
         # "at the beginning of your next main phase, …" (the effect's own text after it)
         if cls == 'AtTheBeginOfMainPhaseDelayedTriggeredAbility' and len(args) == 4 and args[1].strip() == 'false' \
@@ -5526,7 +5547,7 @@ class Translator:
         """a card's own `ActivatedManaAbilityImpl` (`super(Zone.BATTLEFIELD, new XManaEffect(), cost)`, then
         `this.addCost(…)`) whose mana effect has a mana handler: a `CardManaAbility`; None if not one"""
         body = re.search(r'class ' + cls + r' extends ActivatedManaAbilityImpl \{(.*?)\n\}', self.source or '', re.S)
-        ctor = body and re.search(r'\n    ' + cls + r'\(\)\s*\{(.*?)\n    \}', body.group(1), re.S)
+        ctor = body and re.search(r'\n    (?:public )?' + cls + r'\(\)\s*\{(.*?)\n    \}', body.group(1), re.S)
         if not ctor:
             return None
         sts = statements(ctor.group(1))
@@ -9402,6 +9423,13 @@ def translate_card(name, subtypes, facts):
         raise Unsupported('cost WaterbendCost of a spell or ward')
     if WHEN_YOU_DO in json.dumps(card) or RULE_FROM in json.dumps(card):
         raise Unsupported('a reflexive trigger without a text')
+    # "you may cast this as though it had flash if you pay {2} more": the alternative spell ability's effects
+    # (`ability.addEffect`) are the spell's own, which the engine casts it with (Rout, Asinine Antics)
+    for a in card.get('abilities', []):
+        if a.get('class') == 'PayMoreToCastAsThoughtItHadFlashAbility' and 'effects' in a:
+            if a['effects'] != card.get('spell', {}).get('effects'):
+                raise Unsupported('PayMoreToCastAsThoughtItHadFlashAbility with effects of its own')
+            del a['effects']
     static_type_changes(card)
     hints = card_hints(card['name'], subtypes)
     if hints:

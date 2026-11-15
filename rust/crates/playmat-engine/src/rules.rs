@@ -3169,7 +3169,8 @@ fn can_pay(game: &Game, seat: Seat, cost: &ManaCost) -> bool {
 
 /// "whenever you tap a creature for mana, add an additional {G}" (Badgermole Cub): the colors tapping `id` for mana
 /// adds besides its own
-fn tap_for_mana_extra(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
+/// (each a pool kind: WUBRG 0-4, {C} 5; `made` is what the tapping makes, any of them for the playable check)
+fn tap_for_mana_extra(game: &Game, seat: Seat, id: ObjId, made: &[Mana]) -> Vec<usize> {
     let mut extra = Vec::new();
     for b in game.battlefield.iter() {
         let s = game.obj(*b);
@@ -3177,9 +3178,12 @@ fn tap_for_mana_extra(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
             continue;
         }
         for a in &s.def.abilities {
-            if let AbilityDef::TapForManaAllTriggeredManaAbility { filter, color, .. } = a {
+            if let AbilityDef::TapForManaAllTriggeredManaAbility { filter, color, colorless_made, .. } = a {
+                if *colorless_made && !made.iter().any(|m| m.colorless > 0) {
+                    continue;
+                }
                 if game.filter_matches(filter, seat, Some(*b), id) {
-                    extra.push("WUBRG".find(color.as_str()).unwrap_or(4));
+                    extra.push(if color == "C" { 5 } else { "WUBRG".find(color.as_str()).unwrap_or(4) });
                 }
             }
         }
@@ -3357,8 +3361,13 @@ fn mana_options(
         || !game.player(seat).conditional_pool.is_empty();
     for (id, a) in sources {
         // the mana its tapping triggers: one more source each
-        for k in tap_for_mana_extra(game, seat, id) {
-            options.push(vec![Mana::of(Color::ALL[k], 1)]);
+        let made: Vec<Mana> = a.iter().map(|(_, m)| *m).collect();
+        for k in tap_for_mana_extra(game, seat, id, &made) {
+            options.push(vec![if k == 5 {
+                Mana { colorless: 1, ..Mana::default() }
+            } else {
+                Mana::of(Color::ALL[k], 1)
+            }]);
         }
         // Nykthos: its {2} and itself spent, the rest of its devotion more sources of that color
         if let Some((_, m)) = a
@@ -4592,6 +4601,12 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             if !cast(game, d, seat, id) {
                 *game = before;
                 return;
+            }
+            // an as-though handler's way: what casting it that way does (its watcher's `SPELL_CAST`)
+            if let Some(src) = chosen.filter(|c| !once.contains(c) && !plays.contains(c)) {
+                if cards::cast_this_way(game, d, seat, src, id).is_none() {
+                    return;
+                }
             }
             // `CastFromGraveyardOnceWatcher`: that permanent's use this turn
             if let Some(src) = chosen.filter(|c| once.contains(c)) {
@@ -9292,10 +9307,14 @@ fn activate_mana_paying(
     // (a Treasure sacrificed for its mana: what it was as it was sacrificed)
     let treasure = game.has_subtype(id, "Treasure");
     game.player_mut(seat).add_pool_mana(m, snow, treasure);
-    let extra = tap_for_mana_extra(game, seat, id);
+    let extra = tap_for_mana_extra(game, seat, id, &[m]);
     let made = m.total() as i32 + extra.len() as i32;
     for k in extra {
-        game.player_mut(seat).mana_pool.colored[k] += 1;
+        if k == 5 {
+            game.player_mut(seat).mana_pool.colorless += 1;
+        } else {
+            game.player_mut(seat).mana_pool.colored[k] += 1;
+        }
     }
     note(game, EventKind::Mana, Some(seat), Some(id), None, made);
     // a mana ability's other effects happen at once (a pain land's damage)
@@ -22823,14 +22842,22 @@ fn declare_attackers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
 fn attack_taxes(game: &Game, id: ObjId, defender: Seat, pw: Option<(ObjId, u32)>) -> Vec<String> {
     let mut out = Vec::new();
     game.any_static(|g, src, e| {
-        if let EffectDef::CantAttackYouUnlessPayAllEffect { cost, planeswalkers, filter, condition } = e {
+        if let EffectDef::CantAttackYouUnlessPayAllEffect { cost, generic, planeswalkers, filter, condition } = e {
             let you = g.obj(src).controller;
             if you == defender
                 && (pw.is_none() || *planeswalkers)
                 && (filter.0.is_empty() || g.filter_matches(filter, you, Some(src), id))
                 && g.condition_holds(condition.as_ref(), you, src)
             {
-                out.push(cost.clone());
+                match generic {
+                    None => out.push(cost.clone()),
+                    Some(a) => {
+                        let n = g.value(a, you, src, 0);
+                        if n > 0 {
+                            out.push(format!("{{{n}}}"));
+                        }
+                    }
+                }
             }
         }
         false

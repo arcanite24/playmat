@@ -2772,9 +2772,12 @@ pub enum EffectDef {
     LookAtTopCardOfLibraryAnyTimeEffect,
     /// "creatures of the filter can't attack you (or planeswalkers you control) unless their controller pays `cost`
     /// for each" (`CantAttackYouUnlessPayAllEffect` in a static ability; a `ConditionalReplacementEffect` around it
-    /// gives the condition): each attacker's cost is asked as it's declared
+    /// gives the condition): each attacker's cost is asked as it's declared. `generic`, when set, replaces `cost`
+    /// with {N} for that number (`getManaCostToPay` overridden), and no cost at all when it's 0
     CantAttackYouUnlessPayAllEffect {
         cost: String,
+        #[serde(default)]
+        generic: Option<Amount>,
         #[serde(default)]
         planeswalkers: bool,
         #[serde(default)]
@@ -4967,12 +4970,15 @@ pub enum AbilityDef {
         cost: Vec<CostDef>,
         rule: String,
     },
-    /// whenever you tap a permanent of the filter for mana, add one more mana of `color` (a mana ability that
-    /// triggers, resolved at once)
+    /// whenever you tap a permanent of the filter for mana, add one more mana of `color` ("C": {C}) (a mana ability
+    /// that triggers, resolved at once); with `colorless_made`, only when the mana it made has {C} ("whenever you tap
+    /// a permanent for {C}": Forsaken Monument)
     TapForManaAllTriggeredManaAbility {
         filter: Filter,
         color: String,
         rule: String,
+        #[serde(default)]
+        colorless_made: bool,
     },
     /// the blitz ability's "as it enters" part (Java lists it on its own)
     BlitzEntersAbility {

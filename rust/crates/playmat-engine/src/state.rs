@@ -750,7 +750,8 @@ pub struct StackItem {
     pub spliced: Vec<Spliced>,
     /// a cast trigger: the spell that was cast (Java's `getValue("spellCast")`), whatever its target pointer is
     pub cast_spell: Option<ObjId>,
-    /// a "whenever a creature dies" trigger (`DiesCreatureTriggeredAbility`): the permanent that died and its
+    /// a "whenever a creature dies" trigger (`DiesCreatureTriggeredAbility`, or "when that creature dies this turn":
+    /// `WhenTargetDiesDelayedTriggeredAbility`): the permanent that died and its
     /// controller as it died (`getValue("creatureDied")`, its last known information)
     pub died: Option<(ObjId, Seat)>,
     /// a "whenever a permanent of the filter leaves the battlefield" trigger: the permanent that left (Java's
@@ -4617,6 +4618,8 @@ impl Game {
                 std::mem::take(&mut self.when_dies).into_iter().partition(|w| w.0 == id && w.1 == zcc);
             self.when_dies = rest;
             for (k, (_, _, _, to_player, mut item)) in now.into_iter().enumerate() {
+                // (`setValue("creatureDied", …)`: what a handler's value reads)
+                item.died = Some((id, died_controller));
                 if to_player {
                     item.targets = vec![vec![Target::Player(died_controller)]];
                     item.target_zcc = vec![vec![0]];
