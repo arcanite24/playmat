@@ -7497,7 +7497,8 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             let mut power = 0;
             let mut crew = Vec::new();
             for o in chosen {
-                if !game.obj(o).tapped {
+                // (`CREW_VEHICLE` replaced: not tapped, no power)
+                if !game.obj(o).tapped && (saddle || !cards::cant_crew(game, o)) {
                     tap(game, o);
                     power += crew_power(game, o, saddle);
                     crew.push(o);

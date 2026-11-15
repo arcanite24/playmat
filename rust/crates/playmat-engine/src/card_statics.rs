@@ -25,7 +25,7 @@
 //!   `Rule::CantActivate(f)`: `rules::activatable` (activated abilities that aren't mana abilities);
 //!   `Rule::CantLoseOrWin(f)`: the state-based loss check and `rules::win_game`;
 //!   `Rule::MaxActivations(f)`: a limited activated ability's times each turn (`rules::activatable`);
-//!   `Rule::KeepsDamage(f)`: the cleanup step's damage removal.
+//!   `Rule::KeepsDamage(f)`: the cleanup step's damage removal; `Rule::CantCrew(f)`: a crew cost's taps.
 //! - **as-though**: `Handler::as_though(name, AsThough::Flash(f))`: `rules::castable`'s timing;
 //!   `AsThough::Haste(f)`: a {T} cost's summoning sickness (`rules::can_pay_cost`, mana abilities);
 //!   `AsThough::BlockDragon(f)`: blocking a Dragon with flying (`rules::can_block`);
@@ -393,6 +393,21 @@ pub(crate) enum Rule {
     /// `REMOVE_DAMAGE_EOT`: the damage marked on the permanent `id` isn't removed in the cleanup step
     /// (`PermanentImpl.endOfTurn`: Ancient Adamantoise)
     KeepsDamage(fn(&Game, &StaticCx, ObjId) -> bool),
+    /// `CREW_VEHICLE`: the creature `id`, chosen to crew a Vehicle, isn't tapped for it and adds no power
+    /// (`CrewAbility`'s cost: Intercessor's Arrest)
+    CantCrew(fn(&Game, &StaticCx, ObjId) -> bool),
+    /// one class stopping several events (`checksEventType` with two or more: Intercessor's Arrest's `CREW_VEHICLE`
+    /// and `ACTIVATE_ABILITY`): each of these, read as if it were its own handler
+    Several(&'static [Rule]),
+}
+
+/// The rules a rule-modifying handler's hook has (`Rule::Several`'s, or its one); none for another kind
+fn rule_parts(h: &'static Hook) -> &'static [Rule] {
+    match h {
+        Hook::Rule(Rule::Several(rs)) => rs,
+        Hook::Rule(r) => std::slice::from_ref(r),
+        _ => &[],
+    }
 }
 
 /// `YouDontLoseManaEffect`'s `addDoNotEmptyManaType`: the kinds of `seat`'s mana (WUBRG, then colorless) the pool
@@ -751,8 +766,10 @@ pub(crate) fn cant_attack(game: &Game, attacker: ObjId) -> bool {
 pub(crate) fn cant_cast(game: &Game, seat: Seat, id: ObjId, face: &CardDef) -> bool {
     let mut out = false;
     let mut check = |h: &'static Hook, cx: &StaticCx, _: &EffectDef| {
-        if let Hook::Rule(Rule::CantCast(f)) = h {
-            out = out || f(game, cx, seat, id, face);
+        for r in rule_parts(h) {
+            if let Rule::CantCast(f) = r {
+                out = out || f(game, cx, seat, id, face);
+            }
         }
     };
     each_static(game, &mut check);
@@ -765,8 +782,10 @@ pub(crate) fn cant_cast(game: &Game, seat: Seat, id: ObjId, face: &CardDef) -> b
 pub(crate) fn cant_cast_on_stack(game: &Game, seat: Seat, id: ObjId, face: &CardDef) -> bool {
     let mut out = false;
     let mut check = |h: &'static Hook, cx: &StaticCx, _: &EffectDef| {
-        if let Hook::Rule(Rule::CantCastOnStack(f)) = h {
-            out = out || f(game, cx, seat, id, face);
+        for r in rule_parts(h) {
+            if let Rule::CantCastOnStack(f) = r {
+                out = out || f(game, cx, seat, id, face);
+            }
         }
     };
     each_static(game, &mut check);
@@ -779,8 +798,23 @@ pub(crate) fn cant_cast_on_stack(game: &Game, seat: Seat, id: ObjId, face: &Card
 pub(crate) fn cant_lose_or_win(game: &Game, seat: Seat, wins: bool) -> bool {
     let mut out = false;
     each_static(game, &mut |h, cx, _| {
-        if let Hook::Rule(Rule::CantLoseOrWin(f)) = h {
-            out = out || f(game, cx, seat, wins);
+        for r in rule_parts(h) {
+            if let Rule::CantLoseOrWin(f) = r {
+                out = out || f(game, cx, seat, wins);
+            }
+        }
+    });
+    out
+}
+
+/// Whether a rule-modifying handler stops `id` crewing a Vehicle (`CREW_VEHICLE`)
+pub(crate) fn cant_crew(game: &Game, id: ObjId) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        for r in rule_parts(h) {
+            if let Rule::CantCrew(f) = r {
+                out = out || f(game, cx, id);
+            }
         }
     });
     out
@@ -790,8 +824,10 @@ pub(crate) fn cant_lose_or_win(game: &Game, seat: Seat, wins: bool) -> bool {
 pub(crate) fn keeps_damage(game: &Game, id: ObjId) -> bool {
     let mut out = false;
     each_static(game, &mut |h, cx, _| {
-        if let Hook::Rule(Rule::KeepsDamage(f)) = h {
-            out = out || f(game, cx, id);
+        for r in rule_parts(h) {
+            if let Rule::KeepsDamage(f) = r {
+                out = out || f(game, cx, id);
+            }
         }
     });
     out
@@ -801,8 +837,10 @@ pub(crate) fn keeps_damage(game: &Game, id: ObjId) -> bool {
 pub(crate) fn cant_activate(game: &Game, seat: Seat, id: ObjId, index: usize) -> bool {
     let mut out = false;
     each_static(game, &mut |h, cx, _| {
-        if let Hook::Rule(Rule::CantActivate(f)) = h {
-            out = out || f(game, cx, seat, id, index);
+        for r in rule_parts(h) {
+            if let Rule::CantActivate(f) = r {
+                out = out || f(game, cx, seat, id, index);
+            }
         }
     });
     out
@@ -813,9 +851,11 @@ pub(crate) fn cant_activate(game: &Game, seat: Seat, id: ObjId, index: usize) ->
 pub(crate) fn max_activations(game: &Game, seat: Seat, id: ObjId, index: usize, limit: u32) -> u32 {
     let mut out = limit;
     each_static(game, &mut |h, cx, _| {
-        if let Hook::Rule(Rule::MaxActivations(f)) = h {
-            if let Some(n) = f(game, cx, seat, id, index) {
-                out = n;
+        for r in rule_parts(h) {
+            if let Rule::MaxActivations(f) = r {
+                if let Some(n) = f(game, cx, seat, id, index) {
+                    out = n;
+                }
             }
         }
     });
