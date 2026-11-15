@@ -1019,10 +1019,10 @@
    "played": 1360,
    "matched": 1357,
    "java_timeouts": 28,
-   "checked_in": 1236
+   "checked_in": 1238
   },
   "rust": {
-   "lines": 99565,
+   "lines": 99588,
    "crates": [
     {
      "crate": "playmat-ai",
@@ -1030,7 +1030,7 @@
     },
     {
      "crate": "playmat-engine",
-     "lines": 77702
+     "lines": 77725
     },
     {
      "crate": "playmat-gateway",
@@ -1055,6 +1055,6 @@
    ]
   }
  },
- "commit": "dfa4973571085d6959822db6cbf306c49ab58fd6",
+ "commit": "d66de536508242dc237cb24b4a50160e4263f731",
  "generated": "2026-11-14"
 }
