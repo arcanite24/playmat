@@ -980,6 +980,9 @@ pub enum Trigger {
         n: u32,
         #[serde(default)]
         who: Option<String>,
+        /// it triggers from its owner's graveyard instead of the battlefield (`Zone.GRAVEYARD`: Wolfbat)
+        #[serde(default)]
+        graveyard: bool,
     },
     /// this, or with `filter` a permanent of it, deals damage (`DAMAGED_BATCH_BY_SOURCE`: once for each source's
     /// batch, X the batch's damage); `DealsDamageSourceTriggeredAbility`, `DealsCombatDamageTriggeredAbility` and

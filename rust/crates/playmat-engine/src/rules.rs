@@ -1042,11 +1042,29 @@ fn draw_one(game: &mut Game, seat: Seat, applied: &[ObjId]) {
                     to: Some(Zone::Hand),
                     ..GameEvent::new(EventKind::Draw)
                 });
-                let sources: Vec<ObjId> = game.trigger_sources();
+                let mut sources: Vec<ObjId> = game.trigger_sources();
+                // (with the graveyard cards whose "whenever you draw your second card" works there)
+                let graveyard: Vec<ObjId> = (0..game.seats())
+                    .flat_map(|s| game.player(s).graveyard.iter().copied())
+                    .filter(|c| {
+                        game.obj(*c)
+                            .def
+                            .abilities
+                            .iter()
+                            .any(|a| matches!(a.trigger(), Some(Trigger::DrawsNth { graveyard: true, .. })))
+                    })
+                    .collect();
+                sources.extend(graveyard.iter().copied());
                 let drawn = game.player(seat).drawn;
-                let fired = game.triggers(sources, |_, _, you, t| match t {
+                let fired = game.triggers(sources, |_, src, you, t| match t {
+                    _ if graveyard.contains(&src) => match t {
+                        Trigger::DrawsNth { n, who, graveyard: true } => {
+                            Game::whose(who.as_deref().unwrap_or("you"), you, seat) && drawn == *n
+                        }
+                        _ => false,
+                    },
                     Trigger::Draws { who } => Game::whose(who, you, seat),
-                    Trigger::DrawsNth { n, who } => {
+                    Trigger::DrawsNth { n, who, graveyard: false } => {
                         Game::whose(who.as_deref().unwrap_or("you"), you, seat) && drawn == *n
                     }
                     _ => false,
