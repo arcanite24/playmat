@@ -8251,6 +8251,9 @@ fn choose_target_in(
             Answer::Bool(_) if chosen.len() >= min && added_in_prompt => added_in_prompt = false,
             Answer::Bool(_) if chosen.len() >= min => return Some(chosen),
             Answer::Bool(_) if cancellable => return None,
+            // "done" with nothing left to choose and too few chosen: the targets aren't chosen (Kitsune, Dragon's
+            // Daughter's two creatures of different players, one player's creatures only: the trigger is removed)
+            Answer::Bool(_) if nothing => return None,
             Answer::Stop => return None,
             _ => {}
         }
