@@ -6858,6 +6858,14 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
                         (g.obj(id).zone == Zone::Battlefield || g.short_lki.contains(&id))
                             && g.has_type(id, CardType::Artifact)
                     }
+                    // of an artifact or creature (Crackdown Construct), or an artifact, creature or land (Immolation
+                    // Shaman): `getPermanentOrLKIBattlefield`
+                    "artifact_or_creature" | "artifact_creature_or_land" => {
+                        (g.obj(id).zone == Zone::Battlefield || g.short_lki.contains(&id))
+                            && (g.has_type(id, CardType::Artifact)
+                                || g.has_type(id, CardType::Creature)
+                                || kind == "artifact_creature_or_land" && g.has_type(id, CardType::Land))
+                    }
                     "attached" => g.obj(src).attached_to.map(|(to, _)| to) == Some(id),
                     // (a target on the stack is a spell or ability, whose id may be its source's)
                     "targets_creature_or_player" => activated.is_some_and(|at| {
@@ -6902,6 +6910,12 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
         ) {
             t.targets = vec![vec![Target::Obj(id)]];
             t.target_zcc = vec![vec![zcc]];
+        } else if matches!(game.trigger_of(t), Some(Trigger::AbilityActivated { .. }))
+            && set_target_pointer_player(game, t)
+        {
+            // a player pointer: the player who activated it (Immolation Shaman's "that player")
+            t.targets = vec![vec![Target::Player(seat)]];
+            t.target_zcc = vec![vec![0]];
         }
     }
     game.pending.extend(fired);
