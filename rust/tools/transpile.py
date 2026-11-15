@@ -713,7 +713,7 @@ SIMPLE_TRIGGERS = {'EntersBattlefieldTriggeredAbility': 'enters', 'EntersBattlef
 # (nothing after it looks at which trigger it was)
 OR_PARTS = {'enters', 'attacks', 'dies', 'spell_cast', 'step_begins', 'becomes_target_of_spell',
             'combat_damage_to_player', 'enters_all', 'blocks', 'becomes_blocked', 'discards', 'cast_this', 'dies_all',
-            'attacks_attached', 'transforms_into', 'sacrificed'}
+            'attacks_attached', 'transforms_into', 'sacrificed', 'expend'}
 
 TARGET_CONTROLLERS = {'TargetController.YOU': 'you', 'TargetController.NEXT': 'any', 'TargetController.ANY': 'any',
                       'TargetController.OPPONENT': 'opponent'}
@@ -1364,6 +1364,9 @@ COST_ADJUSTERS = {
                                      'cmp': 'OR_GREATER', 'n': 1}),
     'SurveyMechanAdjuster': ('new DifferentlyNamedPermanentCount(StaticFilters.FILTER_CONTROLLED_PERMANENT_LANDS)',
                              None),
+    # strange new worlds: `StrangeNewWorldsValue`, the differently named lands you control
+    'SuusMahnaPractitionerAdjuster': ('new DifferentlyNamedPermanentCount(StaticFilters.FILTER_CONTROLLED_PERMANENT_LANDS)',
+                                      None),
 }
 
 # a `FilterSpellOrPermanent` of any spell or a creature
@@ -1607,7 +1610,8 @@ class Translator:
                     'TOUGHNESS_CONTROLLED_CREATURES': ('Toughness', 'FILTER_CONTROLLED_CREATURES'),
                     'MANAVALUE_CONTROLLED_CREATURES': ('ManaValue', 'FILTER_CONTROLLED_CREATURES'),
                     'MANAVALUE_CONTROLLED_PERMANENTS': ('ManaValue', 'FILTER_CONTROLLED_PERMANENTS'),
-                    'MANAVALUE_CONTROLLED_ARTIFACTS': ('ManaValue', 'FILTER_CONTROLLED_PERMANENT_ARTIFACTS')}
+                    'MANAVALUE_CONTROLLED_ARTIFACTS': ('ManaValue', 'FILTER_CONTROLLED_PERMANENT_ARTIFACTS'),
+                    'MANAVALUE_OTHER_CONTROLLED_ARTIFACTS': ('ManaValue', 'FILTER_OTHER_CONTROLLED_ARTIFACTS')}
         if (m := re.fullmatch(r'GreatestAmongPermanentsValue\.(\w+)', arg)) and m.group(1) in greatest:
             q, f = greatest[m.group(1)]
             return self.amount('new GreatestAmongPermanentsValue(Quality.%s,StaticFilters.%s)' % (q, f))
@@ -2263,6 +2267,9 @@ class Translator:
         if cls == 'PayLifeCost' and len(args) == 2 and args[0].strip() == 'SourcePermanentPowerValue.NOT_NEGATIVE' \
                 and args[1].strip() == '"life equal to {this}\'s power"':
             return {'class': 'PayLifeSourcePowerCost'}
+        # "put the top card of your library into your graveyard" (one)
+        if cls == 'MillCardsCost' and not args:
+            return {'class': cls, 'amount': 1}
         if cls == 'PayLifeCost' and len(args) == 1 and re.fullmatch(r'\d+', args[0]):
             return {'class': cls, 'amount': int(args[0])}
         if cls == 'WaterbendCost' and len(args) == 1 and re.fullmatch(r'\d+', args[0]):
@@ -4100,6 +4107,9 @@ class Translator:
             return gains('GainAbilitySourceEffect', {'class': 'CantBeBlockedSourceAbility'})
         if cls == 'CantAttackSourceEffect' and args == ['Duration.WhileOnBattlefield']:
             return gains('GainAbilitySourceEffect', {'class': 'CantAttackAbility'})
+        # "this creature can block only creatures with flying" (a static, Faerie tokens)
+        if cls == 'CanBlockOnlyFlyingEffect' and args == ['Duration.WhileOnBattlefield']:
+            return gains('GainAbilitySourceEffect', {'class': 'CanBlockOnlyFlyingAbility'})
         if cls == 'CantBeBlockedAttachedEffect' and args and args[0] in attachment and all(plain(a) for a in args[1:]):
             return gains('GainAbilityAttachedEffect', {'class': 'CantBeBlockedSourceAbility'})
         if cls == 'CantBlockAttachedEffect' and args and args[0] in attachment and all(plain(a) for a in args[1:]):
@@ -6001,6 +6011,10 @@ class Translator:
         # eerie: whenever an enchantment you control enters and whenever you fully unlock a Room
         if cls == 'EerieAbility' and n in (1, 2):
             return trig({'e': 'eerie'}, [self.effect(args[0])], n == 2 and flag(args[1]))
+        # (zone, effect, optional): from its owner's graveyard (Fear of Infinity)
+        if cls == 'EerieAbility' and n == 3 and args[0] in ('Zone.BATTLEFIELD', 'Zone.GRAVEYARD'):
+            on = {'e': 'eerie', 'graveyard': True} if args[0] == 'Zone.GRAVEYARD' else {'e': 'eerie'}
+            return trig(on, [self.effect(args[1])], flag(args[2]))
         return None
 
     def wave4_ability(self, cls, args):
@@ -8347,7 +8361,7 @@ def ability_statement(t, st, added):
     if m and isinstance(t.vars.get(m.group(1)), dict) and t.vars[m.group(1)].get('class', '').startswith('Target'):
         return True
     # (a dependency only orders Java's layer system; the engine reads each effect where it's asked)
-    m = re.fullmatch(r'(\w+)\.(?:set(?:Outcome|Text|TargetPointer|RuleAtTheTop|AbilityWord)|addHint|withFlavorWord|withTargetDescription|withFirstModeFlavorWord'
+    m = re.fullmatch(r'(\w+)\.(?:set(?:Outcome|Text|TargetPointer|RuleAtTheTop|AbilityWord)|addHint|concatBy|withFlavorWord|withTargetDescription|withFirstModeFlavorWord'
                      r'|getModes\(\)\.getMode\(\)\.withFlavorWord|getDependedToTypes\(\)\.add|addDependedToType|setDependedToType)\(.*\)', st)
     if m and m.group(1) in t.vars:
         return True
