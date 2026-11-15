@@ -26,10 +26,13 @@
 //!   `Rule::CantLoseOrWin(f)`: the state-based loss check and `rules::win_game`;
 //!   `Rule::MaxActivations(f)`: a limited activated ability's times each turn (`rules::activatable`);
 //!   `Rule::KeepsDamage(f)`: the cleanup step's damage removal; `Rule::CantCrew(f)`: a crew cost's taps;
-//!   `Rule::CantBeTargeted(f)`: a permanent as a target (`rules::targetable`); `Rule::Several(&[…])`: more than one.
+//!   `Rule::CantBeTargeted(f)`: a permanent as a target (`rules::targetable`); `Rule::Several(&[…])`: more than one;
+//!   `Rule::CantSearchLibrary(f)`: a library search (`rules::search_library` finds nothing);
+//!   `Rule::ManaBecomes(f)`: unspent mana changes kind instead of emptying (`rules::end_step`).
 //! - **as-though**: `Handler::as_though(name, AsThough::Flash(f))`: `rules::castable`'s timing;
 //!   `AsThough::Haste(f)`: a {T} cost's summoning sickness (`rules::can_pay_cost`, mana abilities);
 //!   `AsThough::BlockDragon(f)`: blocking a Dragon with flying (`rules::can_block`);
+//!   `AsThough::ActivateAsInstant(f)`: a sorcery-speed activated ability's timing (`rules::activatable`);
 //!   `AsThough::Hexproof(f)`: hexproof, as targets are chosen (`rules::possible_targets`, `targetable`).
 //!
 //! A handler's functions get a `StaticCx`: the effect's source and controller (Java's `source`), its timestamp, and
@@ -407,6 +410,12 @@ pub(crate) enum Rule {
     /// one class stopping several events (`checksEventType` with two or more: Intercessor's Arrest's `CREW_VEHICLE`
     /// and `ACTIVATE_ABILITY`): each of these, read as if it were its own handler
     Several(&'static [Rule]),
+    /// `SEARCH_LIBRARY`: `seat` can't search the library of `owner` for the spell or ability of `source`
+    /// (`PlayerImpl.searchLibrary` returns false: nothing is found, the effect goes on)
+    CantSearchLibrary(fn(&Game, &StaticCx, Seat, Seat, ObjId) -> bool),
+    /// `ManaPool.setManaBecomesBlack` / `Red` / `Colorless` (a `RulesEffects` continuous effect): the mana `seat`
+    /// would lose as steps and phases end becomes this kind instead (WUBRG 0-4, colorless 5); None leaves it
+    ManaBecomes(fn(&Game, &StaticCx, Seat) -> Option<usize>),
 }
 
 /// The rules a rule-modifying handler's hook has (`Rule::Several`'s, or its one); none for another kind
@@ -445,6 +454,9 @@ pub(crate) enum AsThough {
     PlayThen(fn(&Game, &StaticCx, Seat, ObjId, &CardDef) -> Option<PlayWay>, CastThisWayFn),
     /// `BLOCK_DRAGON`: the creature `id` can block Dragons with flying as though it had reach (`FlyingAbility`)
     BlockDragon(fn(&Game, &StaticCx, ObjId) -> bool),
+    /// `ACTIVATE_AS_INSTANT`: `seat` may activate the ability at `index` of `id` any time they could cast an
+    /// instant (Teferi, Master of Time's loyalty abilities)
+    ActivateAsInstant(fn(&Game, &StaticCx, Seat, ObjId, usize) -> bool),
 }
 
 /// What casting a spell by an `AsThough::PlayThen` way does: (the permitting source, its controller, the spell).
@@ -875,6 +887,31 @@ pub(crate) fn cant_activate(game: &Game, seat: Seat, id: ObjId, index: usize) ->
     out
 }
 
+/// Whether a rule-modifying handler stops `seat` searching `owner`'s library for `source`'s spell or ability
+pub(crate) fn cant_search_library(game: &Game, seat: Seat, owner: Seat, source: ObjId) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::Rule(Rule::CantSearchLibrary(f)) = h {
+            out = out || f(game, cx, seat, owner, source);
+        }
+    });
+    out
+}
+
+/// The kind `seat`'s unspent mana becomes instead of emptying, if a handler says so (`ManaPool.emptyItem` checks
+/// black, then red, then colorless)
+pub(crate) fn mana_becomes(game: &Game, seat: Seat) -> Option<usize> {
+    let mut kinds = [false; 6];
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::Rule(Rule::ManaBecomes(f)) = h {
+            if let Some(k) = f(game, cx, seat) {
+                kinds[k] = true;
+            }
+        }
+    });
+    [2, 3, 5].into_iter().find(|k| kinds[*k])
+}
+
 /// The most times `seat` may activate the ability at `index` of `id` this turn: `limit`, unless a handler changes it
 /// (`MAX_ACTIVATIONS`: the last one that applies sets it)
 pub(crate) fn max_activations(game: &Game, seat: Seat, id: ObjId, index: usize, limit: u32) -> u32 {
@@ -968,6 +1005,19 @@ pub(crate) fn cast_this_way(
         f(game, d, source, controller, spell)?;
     }
     Some(())
+
+}
+
+/// Whether an as-though handler lets `seat` activate the ability at `index` of `id` any time they could cast an
+/// instant
+pub(crate) fn activate_as_instant(game: &Game, seat: Seat, id: ObjId, index: usize) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::AsThough(AsThough::ActivateAsInstant(f)) = h {
+            out = out || f(game, cx, seat, id, index);
+        }
+    });
+    out
 }
 
 /// Whether an as-though handler lets `seat` cast `id` as `face` as though it had flash

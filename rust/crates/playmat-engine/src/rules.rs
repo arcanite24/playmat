@@ -866,6 +866,7 @@ fn end_step(game: &mut Game, step: Step) {
     }
     for s in 0..game.seats() {
         let kept_kinds = cards::kept_mana_kinds(game, s);
+        let becomes = cards::mana_becomes(game, s);
         let p = game.player_mut(s);
         let keep = if in_combat { p.combat_red.min(p.mana_pool.colored[Color::R.index()]) } else { 0 };
         let (pool, eot, stock) = (p.mana_pool, p.eot_mana, p.mana_stock);
@@ -896,6 +897,15 @@ fn end_step(game: &mut Game, step: Step) {
                 p.mana_pool.colorless = stays;
                 p.mana_stock.colorless = old_stock.min(stays);
                 p.eot_mana.colorless = eot_left;
+            }
+        }
+        // `manaBecomesBlack` / `Red` / `Colorless`: what would empty becomes that kind instead (Kruphix, Ozai)
+        if let Some(b) = becomes {
+            let lost = pool.total().saturating_sub(p.mana_pool.total());
+            if b < 5 {
+                p.mana_pool.colored[b] += lost;
+            } else {
+                p.mana_pool.colorless += lost;
             }
         }
     }
@@ -1365,7 +1375,7 @@ fn pass(game: &mut Game, seat: Seat) {
 /// `YouDontLoseManaEffect` keeps (`ManaPool.canLostManaOnEmpty`). False: the player didn't pass.
 fn pass_with_mana_pool_check(game: &mut Game, d: &mut dyn Decider, seat: Seat) -> bool {
     let pool = game.player(seat).mana_pool;
-    let lost = pool.total() > 0 && {
+    let lost = pool.total() > 0 && cards::mana_becomes(game, seat).is_none() && {
         let kept = cards::kept_mana_kinds(game, seat);
         let kept_n: u32 =
             (0..6).filter(|k| kept[*k]).map(|k| if k < 5 { pool.colored[k] } else { pool.colorless }).sum();
@@ -1896,7 +1906,7 @@ fn activatable(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
                 }
                 _ => false,
             });
-        if sorcery && !flash && !sorcery_speed(game, seat) {
+        if sorcery && !flash && !sorcery_speed(game, seat) && !cards::activate_as_instant(game, seat, id, i) {
             continue;
         }
         if let AbilityDef::LimitedTimesPerTurnActivatedAbility { limit, condition, .. } = a {
@@ -6863,6 +6873,14 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
                         (g.obj(id).zone == Zone::Battlefield || g.short_lki.contains(&id))
                             && g.has_type(id, CardType::Artifact)
                     }
+                    // of an artifact or creature (Crackdown Construct), or an artifact, creature or land (Immolation
+                    // Shaman): `getPermanentOrLKIBattlefield`
+                    "artifact_or_creature" | "artifact_creature_or_land" => {
+                        (g.obj(id).zone == Zone::Battlefield || g.short_lki.contains(&id))
+                            && (g.has_type(id, CardType::Artifact)
+                                || g.has_type(id, CardType::Creature)
+                                || kind == "artifact_creature_or_land" && g.has_type(id, CardType::Land))
+                    }
                     "attached" => g.obj(src).attached_to.map(|(to, _)| to) == Some(id),
                     // (a target on the stack is a spell or ability, whose id may be its source's)
                     "targets_creature_or_player" => activated.is_some_and(|at| {
@@ -6907,6 +6925,12 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
         ) {
             t.targets = vec![vec![Target::Obj(id)]];
             t.target_zcc = vec![vec![zcc]];
+        } else if matches!(game.trigger_of(t), Some(Trigger::AbilityActivated { .. }))
+            && set_target_pointer_player(game, t)
+        {
+            // a player pointer: the player who activated it (Immolation Shaman's "that player")
+            t.targets = vec![vec![Target::Player(seat)]];
+            t.target_zcc = vec![vec![0]];
         }
     }
     game.pending.extend(fired);
@@ -7887,6 +7911,10 @@ fn search_library(
     max: usize,
     source: ObjId,
 ) -> Option<Vec<ObjId>> {
+    // `SEARCH_LIBRARY` replaced: the search doesn't happen (Ashiok, Dream Render)
+    if cards::cant_search_library(game, seat, seat, source) {
+        return Some(Vec::new());
+    }
     let mut shown = game.player(seat).library.clone();
     shown.sort_by(|a, b| game.obj(*a).name().cmp(game.obj(*b).name()));
     game.searching = Some((shown, Vec::new()));

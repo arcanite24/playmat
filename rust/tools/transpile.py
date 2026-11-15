@@ -256,6 +256,10 @@ CUSTOM = {
                                         'named': 'Legitimate Businessperson',
                                         'token': {'abilities': [], 'colors': ['W', 'G'], 'name': '', 'power': 1,
                                                   'subtypes': ['Citizen'], 'toughness': 1, 'types': ['CREATURE']}},
+    # "enchanted creature (permanent) ... loses all abilities": the Aura's source's attached permanent
+    # (`removeAllAbilities`), as `LoseAllAbilitiesAttachedEffect` (Duskmourn's Domination, Tamiyo's Compleation)
+    'DuskmournsDominationEffect': lambda: {'class': 'LoseAllAbilitiesAttachedEffect'},
+    'TamiyosCompleationLoseAbilitiesEffect': lambda: {'class': 'LoseAllAbilitiesAttachedEffect'},
     'PithingNeedleEffect': lambda: {'class': 'PithingNeedleEffect'},
     # Hold for Ransom's: the enchanted creature has "{7}: Hold for Ransom's controller sacrifices it and draws a card.
     # Activate only as a sorcery." (its effect a handler finding the Aura, the `afterGain` target pointer)
@@ -6907,6 +6911,17 @@ class Translator:
         if cls == 'RunicArmasaurTriggeredAbility' and n == 0:
             return out({'e': 'ability_activated', 'kind': 'creature_or_land', 'opponent': True},
                        'new DrawCardSourceControllerEffect(1)', True)
+        # Crackdown Construct: "whenever you activate an ability of an artifact or creature that isn't a mana ability"
+        if cls == 'CrackdownConstructTriggeredAbility' and n == 0:
+            return out({'e': 'ability_activated', 'kind': 'artifact_or_creature'},
+                       'new BoostSourceEffect(1, 1, Duration.EndOfTurn)')
+        # Immolation Shaman: "whenever an opponent activates an ability of an artifact, creature, or land that isn't
+        # a mana ability, … deals 1 damage to that player" (pointing at the player)
+        if cls == 'ImmolationShamanTriggeredAbility' and n == 0:
+            a = out({'e': 'ability_activated', 'kind': 'artifact_creature_or_land', 'opponent': True},
+                    'new DamageTargetEffect(1)')
+            a['set_target_pointer_player'] = True
+            return a
         # "whenever you activate a loyalty ability [of a <subtype> planeswalker]"
         if cls == 'ActivatePlaneswalkerLoyaltyAbilityTriggeredAbility' and n in (2, 3) \
                 and args[-1].strip() in ('SetTargetPointer.NONE', 'SetTargetPointer.SPELL'):
@@ -8738,6 +8753,16 @@ def token(cls):
         if not m:
             raise Unsupported('token constructor ' + cls)
         m = re.match(r'(.*)', re.sub(r'\b' + m.group(1) + r'\b', n.group(1), m.group(2)), re.S)
+    # `this(1, 1)`: the power and toughness constructor with those values (RitualOfTheReturnedZombieToken); a handler
+    # sets others as it creates one
+    elif (n := re.fullmatch(r'\s*this\((\d+),\s*(\d+)\);\s*', m.group(1))):
+        m = re.search(r'public ' + cls + r'\(int (\w+),\s*int (\w+)\)\s*\{(.*?)\n    \}', source, re.S)
+        if not m:
+            raise Unsupported('token constructor ' + cls)
+        # (only where they're used as values: the parameters may be named `power` and `toughness`)
+        body = re.sub(r'MageInt\(\s*' + m.group(1) + r'\s*\)', 'MageInt(' + n.group(1) + ')', m.group(3))
+        m = re.match(r'(.*)', re.sub(r'MageInt\(\s*' + m.group(2) + r'\s*\)', 'MageInt(' + n.group(2) + ')', body),
+                     re.S)
     # `this((String) null)`: the set-code constructor, whose code is only the image
     if re.fullmatch(r'\s*this\(\(String\)\s*null\);\s*', m.group(1)):
         m = re.search(r'public ' + cls + r'\(String \w+\)\s*\{(.*?)\n    \}', source, re.S)
