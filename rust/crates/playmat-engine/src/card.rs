@@ -3085,7 +3085,7 @@ pub enum EffectDef {
     /// your maximum hand size is `size` (`MaximumHandSizeControllerEffect(size, WhileOnBattlefield, SET)`), a
     /// number or a `DynamicValue` worked out as hands are checked (Midnight Oil's hour counters)
     MaximumHandSizeSetEffect {
-        size: u32,
+        size: Amount,
     },
     /// you may activate the loyalty abilities of planeswalkers you control twice each turn (Oath of Teferi)
     LoyaltyAbilitiesTwiceEffect,

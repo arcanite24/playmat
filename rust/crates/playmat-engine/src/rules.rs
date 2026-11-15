@@ -23974,7 +23974,7 @@ fn max_hand_size(game: &Game, seat: Seat) -> usize {
             let AbilityDef::SimpleStaticAbility { effects, .. } = a else { continue };
             for e in effects {
                 if let EffectDef::MaximumHandSizeSetEffect { size: n } = e {
-                    size = *n as usize;
+                    size = game.value(n, o.controller, *src, 0).max(0) as usize;
                 }
             }
         }

@@ -3213,6 +3213,11 @@ class Translator:
                 and args[1].strip() == 'Duration.WhileOnBattlefield' \
                 and args[2].strip() in ('MaximumHandSizeControllerEffect.HandSizeModification.SET', 'HandSizeModification.SET'):
             return {'class': 'MaximumHandSizeSetEffect', 'size': int(args[0])}
+        # "your maximum hand size is equal to the number of hour counters on {this}" (Midnight Oil)
+        if cls == 'MaximumHandSizeControllerEffect' and len(args) == 4 and args[0].strip().startswith('new ') \
+                and args[1].strip() == 'Duration.WhileOnBattlefield' and args[3].strip() == 'TargetController.YOU' \
+                and args[2].strip() in ('MaximumHandSizeControllerEffect.HandSizeModification.SET', 'HandSizeModification.SET'):
+            return {'class': 'MaximumHandSizeSetEffect', 'size': self.amount(args[0])}
         if cls == 'AddCountersTargetEffect' and len(args) == 2:
             return {'class': cls, 'counter': self.value('counter', args[0].strip()), 'value': self.amount(args[1])}
         # (effect, condition[, text])
