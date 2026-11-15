@@ -6824,6 +6824,17 @@ class Translator:
         if cls == 'RunicArmasaurTriggeredAbility' and n == 0:
             return out({'e': 'ability_activated', 'kind': 'creature_or_land', 'opponent': True},
                        'new DrawCardSourceControllerEffect(1)', True)
+        # Crackdown Construct: "whenever you activate an ability of an artifact or creature that isn't a mana ability"
+        if cls == 'CrackdownConstructTriggeredAbility' and n == 0:
+            return out({'e': 'ability_activated', 'kind': 'artifact_or_creature'},
+                       'new BoostSourceEffect(1, 1, Duration.EndOfTurn)')
+        # Immolation Shaman: "whenever an opponent activates an ability of an artifact, creature, or land that isn't
+        # a mana ability, … deals 1 damage to that player" (pointing at the player)
+        if cls == 'ImmolationShamanTriggeredAbility' and n == 0:
+            a = out({'e': 'ability_activated', 'kind': 'artifact_creature_or_land', 'opponent': True},
+                    'new DamageTargetEffect(1)')
+            a['set_target_pointer_player'] = True
+            return a
         # "whenever you activate a loyalty ability [of a <subtype> planeswalker]"
         if cls == 'ActivatePlaneswalkerLoyaltyAbilityTriggeredAbility' and n in (2, 3) \
                 and args[-1].strip() in ('SetTargetPointer.NONE', 'SetTargetPointer.SPELL'):
