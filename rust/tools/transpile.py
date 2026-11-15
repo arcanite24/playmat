@@ -9237,6 +9237,10 @@ def granted_rules(card):
             phrases = re.findall(r'setTriggerPhrase\("([^"]*)"\)', with_tokens)
             if any(ph and quoted.group(1).startswith(ph) for ph in phrases):
                 g['rule'] = spaced_and(card, quoted.group(1))
+                # a quote ending its part of a longer sentence with a comma ends the trigger's own text with a
+                # period (Terminal Velocity's "…to each creature,")
+                if g['rule'].endswith(','):
+                    g['rule'] = g['rule'][:-1] + '.'
             else:
                 # an effect given its own text keeps "this creature" (Nurturing Presence's `BoostSourceEffect`
                 # `.setText("this creature gets +1/+1 until end of turn")`)
