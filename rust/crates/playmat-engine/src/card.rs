@@ -1196,6 +1196,8 @@ pub enum Trigger {
     BecomesRenownedAll {
         filter: Filter,
     },
+    /// you give a gift (`GAVE_GIFT`, a card's own trigger class: Jolly Gerbils)
+    GaveGift,
     /// a token of the filter is created (`CREATED_TOKEN`, a card's own trigger class: Voldaren Bloodcaster) under
     /// the control of `who` ("you", "opponent", "any"); it points at the token
     TokenCreated {

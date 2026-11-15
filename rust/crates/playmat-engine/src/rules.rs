@@ -9980,7 +9980,9 @@ fn resolve_popped(game: &mut Game, d: &mut dyn Decider) {
         if let Some(legal) = legal {
             // `PromiseGiftEffect`, the spell's first effect
             if let Some(to) = item.gift_to {
-                give_gift(game, d, &def, to, id);
+                if give_gift(game, d, &def, to, id) {
+                    gave_gift_triggers(game, item.controller);
+                }
             }
             apply_effects(game, d, &item, effects, &legal, (id, zcc));
             // an omen: then shuffle this card into its owner's library (`ShuffleIntoLibrarySourceEffect`)
@@ -11258,8 +11260,10 @@ fn token_copy_with(
     made
 }
 
-/// `GiftType.applyGift`: the opponent gets the token (a tapped Fish, an untapped Food), or draws a card
-fn give_gift(game: &mut Game, d: &mut dyn Decider, def: &CardDef, to: Seat, source: ObjId) {
+/// `GiftType.applyGift`: the opponent gets the token (a tapped Fish, an untapped Food), or draws a card; whether the
+/// gift was given (`PromiseGiftEffect.apply`: a token made, or a card drawn)
+fn give_gift(game: &mut Game, d: &mut dyn Decider, def: &CardDef, to: Seat, source: ObjId) -> bool {
+    let mut given = false;
     for a in &def.abilities {
         if let AbilityDef::GiftAbility { token, untapped, .. } = a {
             match token {
@@ -11278,10 +11282,23 @@ fn give_gift(game: &mut Game, d: &mut dyn Decider, def: &CardDef, to: Seat, sour
                         }
                     }
                 }
-                None => draw(game, to, 1),
+                None => {
+                    given |= !game.player(to).library.is_empty();
+                    draw(game, to, 1);
+                    continue;
+                }
             }
+            given = true;
         }
     }
+    given
+}
+
+/// `GAVE_GIFT`: "whenever you give a gift" (`Trigger::GaveGift`) for the player `giver` who gave it
+fn gave_gift_triggers(game: &mut Game, giver: Seat) {
+    let sources = game.trigger_sources();
+    let fired = game.triggers(sources, |_, _, you, t| matches!(t, Trigger::GaveGift) && you == giver);
+    game.pending.extend(fired);
 }
 
 /// The chosen targets still legal, per target; None when it had targets and all are illegal, so it doesn't resolve
