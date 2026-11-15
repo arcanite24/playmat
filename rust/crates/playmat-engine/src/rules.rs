@@ -13400,6 +13400,34 @@ fn apply_each_effect(
                     }
                 }
             }
+            // "until your next turn" (Sorin, Solemn Visitor): the permanents there as it resolves, locked in (Java's
+            // affected objects), whatever they become
+            EffectDef::BoostControlledEffect {
+                power,
+                toughness,
+                duration: Duration::UntilYourNextTurn,
+                filter,
+                exclude_source,
+            } => {
+                let (power, toughness) = (&v!(power), &v!(toughness));
+                for id in Arc::clone(&game.battlefield).iter().copied() {
+                    if game.obj(id).controller == controller
+                        && game.filter_matches(filter, controller, Some(source.0), id)
+                        && !(*exclude_source && id == source.0)
+                    {
+                        let zcc = game.obj(id).zcc;
+                        Arc::make_mut(&mut game.boosts).push(Boost {
+                            target: id,
+                            zcc,
+                            power: *power,
+                            toughness: *toughness,
+                            until_end_of_turn: false,
+                            until_turn_of: Some(controller),
+                            noncreature_too: true,
+                        });
+                    }
+                }
+            }
             EffectDef::GainAbilityControlledEffect {
                 ability,
                 duration: Duration::EndOfTurn,
