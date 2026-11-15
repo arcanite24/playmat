@@ -11018,6 +11018,7 @@ pub(crate) fn refresh_becomes(game: &mut Game) {
             }
             let def = Arc::new(def);
             let o = game.obj_mut(id);
+            o.becomes_over_eot = o.until_end_of_turn_def.is_some();
             o.becomes_base = Some(base);
             o.def = def;
         } else if !holds && applied {
@@ -25058,7 +25059,9 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
             o.eot_copy = None;
             // the Auras' "is a creature" again over what it was before (`refresh_becomes`)
             if std::mem::take(&mut o.becomes_over_eot) && o.becomes_base.is_some() {
-                o.becomes_base = Some(o.def.clone());
+                // (a static's "is a creature as long as": applied again over what it was, War Balloon crewed
+                // before its third fire counter)
+                o.becomes_base = if o.becomes_auras.is_empty() { None } else { Some(o.def.clone()) };
                 o.becomes_auras.clear();
             }
         }
