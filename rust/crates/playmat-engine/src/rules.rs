@@ -5313,8 +5313,11 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
                 max = (*more).min(n);
             }
         }
-        let possible =
-            |game: &Game, k: usize| def.spell.modes[k].targets.iter().all(|t| target_possible(game, seat, t, Some(id)));
+        // (an X-count target is an adjuster's, added after the mode is chosen: Heliod's Intervention's mode has none
+        // to check yet)
+        let possible = |game: &Game, k: usize| {
+            def.spell.modes[k].targets.iter().all(|t| x_count_target(t) || target_possible(game, seat, t, Some(id)))
+        };
         if n == min {
             modes = (0..n).filter(|k| possible(game, *k)).collect();
         } else {
@@ -8615,6 +8618,16 @@ fn target_counts(def: &TargetDef) -> (usize, usize) {
 }
 
 /// Whether a target can be chosen at all (an "up to" target always can).
+/// "X target …": the target a `TargetAdjuster` sets from X as the spell is cast
+fn x_count_target(def: &TargetDef) -> bool {
+    matches!(
+        def,
+        TargetDef::TargetPermanent { x_count: true, .. }
+            | TargetDef::TargetAnyTarget { x_count: true, .. }
+            | TargetDef::TargetCardInGraveyard { x_count: true, .. }
+    )
+}
+
 fn target_possible(game: &Game, seat: Seat, def: &TargetDef, src: Option<ObjId>) -> bool {
     // `TargetCreaturePermanentAmount(DynamicValue, …)`: no fewest number, so it never stops a spell being cast
     if matches!(def, TargetDef::TargetPermanent { distribute: Some(crate::card::Amount::Of(_)), .. }) {
