@@ -759,6 +759,9 @@ pub struct StackItem {
     pub left: Option<ObjId>,
     /// the cards its `DiscardCardCost` discarded (`DiscardCardCost.getCards`)
     pub cost_discarded: Vec<ObjId>,
+    /// a "whenever a player discards a card" trigger (`Trigger::Discards`, `DISCARDED_CARD`): the card discarded,
+    /// as the card it became in the graveyard (Java's `event.getTargetId()`)
+    pub discarded: Option<ObjId>,
     /// an explore trigger: the creature that explored and the card it revealed (`ExploredEvent.getCard`; none with
     /// an empty library)
     pub explored: Option<(ObjId, Option<ObjId>)>,
@@ -863,6 +866,7 @@ impl StackItem {
             died: None,
             left: None,
             cost_discarded: Vec::new(),
+            discarded: None,
             explored: None,
             batch: Vec::new(),
             from_delayed: None,
@@ -1429,6 +1433,8 @@ pub struct TurnWatch {
     pub surveiled: Vec<Seat>,
     /// `SACRIFICED_PERMANENT`: who sacrificed, and the permanent as it was (the card or token it became, its count)
     pub sacrificed_objs: Vec<(Seat, ObjId, u32)>,
+    /// `ACTIVATED_ABILITY` of a loyalty ability: who activated it, once each (Kiora of Salt and Sand's watcher)
+    pub loyalty_activated: Vec<Seat>,
 }
 
 /// One damage event a `TurnWatch` keeps: the source as it was and its controller then, what was dealt damage (a
@@ -4953,6 +4959,7 @@ impl Game {
                     t.targets = vec![vec![Target::Player(owner)]];
                     t.target_zcc = vec![vec![0]];
                 }
+                t.discarded = Some(id);
                 self.pending.push(t);
             }
         }

@@ -278,6 +278,9 @@ def condition(t, expr):
     # for the card's arguments)
     if not m and (m := re.fullmatch(r'new (\w+)\(.+\)', expr.strip(), re.S)):
         name = find(getattr(t, 'source', None), m.group(1), 'condition', own_only=True)
+    # a method reference (`XWatcher::checkPermanent`): only a handler named for the card (`OuterCardClass.X.method`)
+    elif not m and (m := re.fullmatch(r'(\w+)::(\w+)', expr.strip())):
+        name = find(getattr(t, 'source', None), f'{m.group(1)}.{m.group(2)}', 'condition', own_only=True)
     return {'c': 'card', 'handler': name} if name else None
 
 

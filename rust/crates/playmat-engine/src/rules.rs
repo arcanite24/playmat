@@ -7416,6 +7416,7 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             o.add_counters("loyalty", -x);
             o.loyalty_used = o.loyalty_used.saturating_add(1);
             note(game, EventKind::Loyalty, Some(seat), Some(id), None, 0);
+            game.watch.loyalty_activated.push(seat);
             counters_put_triggers(game, id, "loyalty", -x, Some(seat));
         }
         // (it changes the mana cost: `adjusted_mana_cost_own`)
@@ -7448,6 +7449,7 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             o.add_counters("loyalty", *amount);
             o.loyalty_used = o.loyalty_used.saturating_add(1);
             note(game, EventKind::Loyalty, Some(seat), Some(id), None, 0);
+            game.watch.loyalty_activated.push(seat);
             counters_put_triggers(game, id, "loyalty", *amount, Some(seat));
         }
         CostDef::TapTargetCost { filter, amount } => {
