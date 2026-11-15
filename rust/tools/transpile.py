@@ -8880,6 +8880,17 @@ def granted_keyword_rule(g):
     return None
 
 
+def fixed_get_rule(source, cls):
+    """the string a card's own ability class `cls` returns from `getRule()` when that's a single string literal
+    (`return "Whenever this creature deals …";`), else None"""
+    if not cls or not source:
+        return None
+    inner = re.escape(cls.split('.')[-1])
+    body = re.search(r'\nclass ' + inner + r'\b.*?(?=\nclass |\Z)', source, re.S)
+    m = body and re.search(r'public String getRule\(\)\s*\{\s*return\s+"((?:[^"\\]|\\.)*)"\s*;\s*\}', body.group(0))
+    return m.group(1).replace('\\"', '"') if m else None
+
+
 def granted_rules(card):
     """a granted ability without its own rule text: the quoted part of the granting ability's or spell's (a ward,
     "ward {N}"), wherever it is (a spell, a face, a token's ability); one it can't be read from blocks the card"""
@@ -8956,6 +8967,11 @@ def granted_rules(card):
                     and re.search(r'new ProliferateEffect\((?:true)?\)', card_source(card.get('name'))):
                 g['rule'] += (' <i>(Choose any number of permanents and/or players, then give each another counter of'
                               ' each kind already there.)</i>')
+        elif g.get('class') == 'TriggeredAbility' and quoted and \
+                (fixed := fixed_get_rule(card_source(card.get('name')), g.get('java'))) is not None:
+            # a trigger class whose `getRule` returns a fixed string: that's its text, as written (Sixth Sense's
+            # "Whenever this creature deals combat damage to a player, you may draw a card.")
+            g['rule'] = fixed
         elif g.get('class') == 'TriggeredAbility' and quoted:
             # Java writes the granted trigger's own text, where the creature is {this}, unless the card set the
             # trigger phrase itself (`setTriggerPhrase("Whenever this creature attacks, ")`): that's kept as written
