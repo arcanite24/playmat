@@ -372,6 +372,10 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                     }
                 } else if has_static(game, id, |e| {
                     matches!(e, EffectDef::UntapSourceDuringEachOtherPlayersUntapStepEffect)
+                }) || game.granted_abilities(id).iter().any(|a| {
+                    // (a granted one: Urban Burgeoning's enchanted land)
+                    matches!(a, AbilityDef::SimpleStaticAbility { effects, .. }
+                        if effects.iter().any(|e| matches!(e, EffectDef::UntapSourceDuringEachOtherPlayersUntapStepEffect)))
                 }) || game.any_static(|g, src, e| {
                     matches!(e, EffectDef::UntapAllDuringEachOtherPlayersUntapStepEffect { filter }
                             if g.obj(src).controller != active
