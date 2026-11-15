@@ -3532,6 +3532,11 @@ class Translator:
                 and (len(args) == 1 or args[0].strip() in ('true', 'false')):
             return {'class': 'ReturnFromGraveyardToBattlefieldTargetEffect', 'tapped': False,
                     'counters': self.value('counter', args[-1].strip())}
+        # (additional, tapped, attacking, counter): "tapped and attacking with a finality counter" (Grim Reaper)
+        if cls == 'ReturnFromGraveyardToBattlefieldWithCounterTargetEffect' and len(args) == 4 \
+                and all(a.strip() in ('true', 'false') for a in args[:3]):
+            return {'class': 'ReturnFromGraveyardToBattlefieldTargetEffect', 'tapped': args[1].strip() == 'true',
+                    'attacking': args[2].strip() == 'true', 'counters': self.value('counter', args[3].strip())}
         # (counter, additional, tapped, returnFromExileZoneOnly): "additional" only changes the text
         if cls == 'ReturnToBattlefieldUnderOwnerControlWithCounterTargetEffect' and len(args) == 4 \
                 and all(a.strip() in ('true', 'false') for a in args[1:]) and args[3].strip() == 'false':
