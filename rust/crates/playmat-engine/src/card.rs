@@ -1069,7 +1069,11 @@ pub enum Trigger {
         n: i32,
     },
     /// you gain life for the first time each turn (`GainLifeFirstTimeTriggeredAbility`)
-    YouGainLifeFirstTime,
+    YouGainLifeFirstTime {
+        /// it triggers from its owner's graveyard instead of the battlefield (`Zone.GRAVEYARD`: Deathless Knight)
+        #[serde(default)]
+        graveyard: bool,
+    },
     /// `who` ("you", "opponent", "any") casts a spell of the filter (`SpellCastControllerTriggeredAbility`, prowess)
     SpellCast {
         filter: Filter,

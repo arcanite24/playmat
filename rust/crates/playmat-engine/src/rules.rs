@@ -22910,9 +22910,34 @@ pub fn gain_life(game: &mut Game, seat: Seat, amount: i32) {
     game.player_mut(seat).life_gains += 1;
     game.player_mut(seat).life_gained += amount;
     let first = game.player(seat).life_gains == 1;
-    let sources: Vec<ObjId> = game.trigger_sources();
-    let fired = game.triggers(sources, |_, _, you, t| {
-        you == seat && (matches!(t, Trigger::YouGainLife) || (first && matches!(t, Trigger::YouGainLifeFirstTime)))
+    let mut sources: Vec<ObjId> = game.trigger_sources();
+    // (with the cards in the player's graveyard whose first-time trigger works there)
+    let graveyard: Vec<ObjId> = if first {
+        game.player(seat)
+            .graveyard
+            .iter()
+            .copied()
+            .filter(|c| {
+                game.obj(*c)
+                    .def
+                    .abilities
+                    .iter()
+                    .any(|a| matches!(a.trigger(), Some(Trigger::YouGainLifeFirstTime { graveyard: true })))
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
+    sources.extend(graveyard.iter().copied());
+    let fired = game.triggers(sources, |_, src, you, t| {
+        you == seat
+            && match t {
+                Trigger::YouGainLife => !graveyard.contains(&src),
+                Trigger::YouGainLifeFirstTime { graveyard: from_graveyard } => {
+                    first && *from_graveyard == graveyard.contains(&src)
+                }
+                _ => false,
+            }
     });
     // the life gained is the trigger's "that much" (`SavedGainedLifeValue`), read as its X
     game.pending.extend(fired.into_iter().map(|t| StackItem { x: amount, ..t }));
