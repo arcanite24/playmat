@@ -1006,6 +1006,9 @@ pub struct Game {
     /// spells that enter with more +1/+1 counters: the card as it was on the stack (or in the zone it enters from),
     /// and how many
     pub enter_counters: Vec<(ObjId, u32, i32)>,
+    /// of `enter_counters`, the ones a replacement effect gives (Drana, the Last Bloodchief's counter effect), not
+    /// `setEnterWithCounters`: one more replacement whose order its controller picks as the card enters
+    pub enter_counters_replacing: Vec<(ObjId, u32)>,
     /// the stack position of the spell or ability being cast or activated: not paid for yet (a view shows it unpaid)
     pub unpaid: Option<usize>,
     /// `unpaid` once its mana is paid, while its other costs are (the view shows it paid)
@@ -1500,6 +1503,7 @@ impl Game {
             next_creature_spell: Vec::new(),
             next_instant_sorcery: Vec::new(),
             enter_counters: Vec::new(),
+            enter_counters_replacing: Vec::new(),
             unpaid: None,
             mana_paid: None,
             combat_groups: Vec::new(),
