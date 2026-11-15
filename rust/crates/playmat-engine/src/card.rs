@@ -2224,6 +2224,9 @@ pub enum EffectDef {
     },
     /// sacrifices the source
     SacrificeSourceEffect,
+    /// a permanent's gift, from the trigger `GiftAbility` adds: "when this permanent enters, if the gift was
+    /// promised, they draw a card" (the opponent gets the gift, `GiftType.applyGift`)
+    GiveGiftEffect,
     /// the controller may pay `cost`; if they do, `effect`
     DoIfCostPaid {
         #[serde(default)]

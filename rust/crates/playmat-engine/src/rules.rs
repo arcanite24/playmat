@@ -5267,6 +5267,7 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
                 if let Some(top) = Arc::make_mut(&mut game.stack).last_mut() {
                     top.gift_promised = true;
                 }
+                game.obj_mut(id).gift_promised = true;
             }
         }
     }
@@ -13376,11 +13377,13 @@ fn apply_each_effect(
             }
             EffectDef::ConditionalOneShotEffect { effect, otherwise, condition, also } => {
                 // a spell's "if the gift was promised": the spell's own item knows
+                // (a permanent's own trigger: whether it was cast with its gift promised, Kitnap)
+                let gift = item.gift_promised || item.ability.is_some() && game.obj(source.0).gift_promised;
                 let holds = if *condition == Condition::GiftPromised {
-                    item.gift_promised
+                    gift
                 } else if matches!(condition, Condition::Not { x } if **x == Condition::GiftPromised) {
                     // "if the gift wasn't promised" (Nocturnal Hunger)
-                    !item.gift_promised
+                    !gift
                 } else {
                     // (a permanent's own trigger: whether it was cast kicked, Crimestopper Sprite's "if evidence was
                     // collected")
@@ -13401,6 +13404,11 @@ fn apply_each_effect(
                         deal_damage(game, source.0, Target::Player(s), *amount, false);
                     }
                 }
+            }
+            EffectDef::GiveGiftEffect => {
+                let def = game.obj(source.0).def.clone();
+                let to = game.opponent(controller);
+                give_gift(game, d, &def, to, source.0);
             }
             EffectDef::SacrificeSourceEffect => {
                 let (o, zcc) = source;

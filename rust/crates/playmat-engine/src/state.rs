@@ -337,6 +337,8 @@ pub struct Obj {
     pub blitzed: bool,
     /// cast with its offspring cost paid
     pub offspring: bool,
+    /// cast with its gift promised (a permanent's: `GiftWasPromisedCondition` as it enters)
+    pub gift_promised: bool,
     /// in exile after warp: its owner may cast it from this turn number on
     pub warp_from: Option<u32>,
     /// the mana spent to cast it, as a spell (`ManaSpentToCastCount`)
@@ -1849,6 +1851,7 @@ impl Game {
             spent_colors: [0; 5],
             blitzed: false,
             offspring: false,
+            gift_promised: false,
             warp_from: None,
             mana_spent: 0,
             treasure_spent: 0,
@@ -3605,8 +3608,9 @@ impl Game {
             Condition::MaxSpeed => self.player(you).speed >= 4,
             // (Java's `StoriedContinuousEffect` gives it as effects apply, before the engine's next state check)
             Condition::EnduringStory => self.player(you).enduring_story || self.storied_now(you),
+            // a permanent cast with its gift promised ("when this enters, if the gift was promised"); otherwise
             // only a resolving spell's conditional effect knows (`ConditionalOneShotEffect`)
-            Condition::GiftPromised => false,
+            Condition::GiftPromised => self.obj(source).gift_promised,
             // the werewolves' "if no spells were cast last turn" (not on the first turn) and "if a player cast two
             // or more spells last turn"
             Condition::NoSpellsLastTurn => self.turn >= 2 && self.players.iter().all(|p| p.spells_cast_last_turn == 0),
@@ -4791,6 +4795,7 @@ impl Game {
                 }
                 o.blitzed = false;
                 o.offspring = false;
+                o.gift_promised = false;
             }
         }
         let owner = self.obj(id).owner;

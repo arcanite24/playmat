@@ -8745,6 +8745,14 @@ def in_java_order(java_abilities, added):
         if fact['class'] in IMPLICIT:
             abilities.append({'class': fact['class']})
             continue
+        # a permanent's gift: `GiftAbility` adds the hidden "when this permanent enters, if the gift was promised, they
+        # get it" trigger right after itself (Scrapshooter)
+        if fact['class'] == 'EntersBattlefieldTriggeredAbility' and fact.get('rule_hidden') \
+                and fact['rule'].startswith('When this permanent enters, if the gift was promised, ') \
+                and abilities and abilities[-1].get('class') == 'GiftAbility':
+            abilities.append({'class': 'TriggeredAbility', 'on': {'e': 'enters'}, 'effects': [{'class': 'GiveGiftEffect'}],
+                              'optional': False, 'condition': {'c': 'gift_promised'}, 'rule': fact['rule']})
+            continue
         match = next((a for a in added if a.get('java', a['class']) == fact['class']), None)
         if match is None:
             raise Unsupported('ability ' + fact['class'] + ' (added by another ability)')
@@ -9598,8 +9606,10 @@ def translate_card(name, subtypes, facts):
     # don't" (Rent Is Due's "Otherwise, sacrifice")
     for old, new in OTHERWISE_TEXTS.get(card['name'], []):
         card = json.loads(json.dumps(card).replace(json.dumps(old)[1:-1], json.dumps(new)[1:-1]))
-    # a promised gift is known to the spell's own conditional effects only
-    if 'gift_promised' in json.dumps({k: v for k, v in card.items() if k != 'spell'}):
+    # a promised gift is known to the spell's own conditional effects only, and to a permanent's own abilities
+    if 'gift_promised' in json.dumps({k: v for k, v in card.items() if k != 'spell'}) \
+            and ('INSTANT' in card.get('types', []) or 'SORCERY' in card.get('types', [])
+                 or any(k in card for k in ('back', 'transform_back', 'adventure'))):
         raise Unsupported('condition GiftWasPromisedCondition.TRUE outside the spell')
     # waterbend is paid as an activated ability's cost (or on its own); a spell's or a ward's isn't yet
     if 'WaterbendCost' in json.dumps(card.get('spell')) or any(
