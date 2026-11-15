@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (13,578 on 15 Nov). A card whose JSON the engine can't load yet is left out
+  can express (13,705 on 15 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -1399,6 +1399,47 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   multi-layer statics; card-defined and "this turn" delayed triggers; a card's own `CostImpl` and cost handlers that
   ask; activating abilities a static grants; Auras on players; snow and Treasure mana spent on abilities; plus the
   random or unordered ones.
+  Wave 15, shared forms B (15 Nov): cards whose blockers include a shared framework form, worked by three helper
+  branches (statics, one-shots, one-shots and mana) and the lead. Engine: conditional rule-modifying statics
+  (`ConditionalContinuousRuleModifyingEffect` around can't-be-countered, doesn't-untap or a rule handler); "the next
+  spell you cast this turn can't be countered" and "can't be regenerated this turn" in `eot_effects`;
+  `MaximumHandSizeSetEffect.size` as an `Amount` (Midnight Oil's hour counters); `Trigger::BecomesTappedAttached`;
+  a resolved "loses all abilities" takes what older statics and becomes-creature Auras give (`Obj::lost_all_at`); a
+  conditional any-color mana ability whose own cost was paid by tapping a source asks the color, as Java does;
+  `BlocksIfAbleAttachedEffect`, `MustBeBlockedByAllAttachedEffect`, `HexproofFromPlaneswalkersAbility`;
+  `Rule::CantHaveCounters` (checked first in `counters_to_add`); granted affinity read by `modified_cost_of`; "loses
+  an ability until your next turn" (`Game::lost_until_turn_of`); `ConditionalPreventionEffect` statics; emblems'
+  statics grant activated, triggered and mana abilities; a target answered "done" with nothing left to choose and
+  too few chosen isn't chosen, so the trigger is removed (it looped before: Kitsune, Dragon's Daughter); a spell's
+  `SacrificeXTargetCost` announces its X; equip activation limits (`EquipAbility.limit`,
+  `setMaxActivationsPerTurn`); `Trigger::BlocksOrBecomesBlocked`; a permanent's gift (`GiftAbility`'s hidden
+  "when this permanent enters, if the gift was promised" trigger, `EffectDef::GiveGiftEffect`, and
+  `GiftWasPromisedCondition` read from `Obj::gift_promised`, kept as it leaves the battlefield like Java's last
+  known information: Scrapshooter, Kitnap, Starforged Sword). Transpiler: `BoostAllEffect`'s description,
+  `BecomesCreatureTypeTargetEffect` adding a subtype, `AddCountersTargetEffect(counter, Outcome)`,
+  `ConditionalOneShotEffect(null, otherwise, condition)`, `ThirdTargetPointer`, `AnyPlayerControlsCondition`, Cave
+  counts, the greatest toughness among other creatures, string constants written in (only for cards that fail
+  otherwise), `NamePredicate` of a filter's own message, token `setColor`, hybrid color statements,
+  `CastOnlyIfConditionIsTrueAbility`, `DiesAttachedTriggeredAbility` returning to hand, an `Effects` local,
+  `SacrificeXTargetCost` on spells, `setTriggerPhrase` and `setTriggersLimitEachTurn` statements, fixed-text "at
+  the beginning of the next end step" effects, `InspiredAbility`'s third argument; `CreateTokenEffect` with two or
+  more `withAdditionalTokens` is left out (Java makes them in `HashMap` order). Handlers include the framework
+  classes `ManifestDreadThenAttachEffect`, `CantHaveCountersAllEffect`, `GainProtectionFromColorSourceEffect`,
+  `RevealAndSeparatePilesEffect`, `DamageEverythingEffect`, `TapSourceUnlessPaysEffect`,
+  `LookLibraryTopCardTargetPlayerEffect`, `LookTargetHandChooseDiscardEffect`, `TargetPermanentSameController`,
+  `ReturnFromGraveyardToBattlefieldWithCounterTargetEffect`, the search-graveyard-hand-library exile and counter
+  effects and `PreventDamageByChosenSourceEffect`. 127 cards came in (13,705 in the engine); seven factory work
+  folders (`.local/rust-port/wave15/claim-shared-b*/`, about 260 games) verified 121: 13,343 of 13,705. Twenty games
+  under `shadow/wave15-shared-b/` cover the engine pieces. Not verified: Blightbeetle (a creature entering under
+  another player's control gets its +1/+1 counter in Java), Ruthless Sniper and Kardur's Vicious Return (Java's AI
+  drops Ruthless Sniper's trigger when its only target is its own creature, a `Outcome.Removal` choice the engine
+  doesn't model), Crumble to Dust and Metalwork Colossus (not exercised enough) and Nanoform Sentinel (not
+  recorded yet). Left on the list: `GainAbilityWithAttachmentEffect`, triggers pointing at abilities on the stack,
+  split second, `WUBRGInsteadEffect`, attack and block taxes, discard-onto-battlefield statics in hand,
+  `AddCardTypeSourceEffect`, graveyard statics, "can't be sacrificed", damage assigned as though not blocked,
+  `TapForManaAllTriggered` and dynamic mana abilities (Java's AI taps them for payment), `ReplaceTreasureWith
+  AdditionalEffect` (Xorn), land-played triggers, compleated planeswalkers, the random or unordered ones (dice,
+  random discards, two or more additional tokens) and the rest of the long tail.
   Text fixes for verified cards (13 Nov): the Young Hero Role's granted trigger keeps its own text, "put a +1/+1
   counter on it" (its `AddCountersSourceEffect` has a `setText`), and a delayed upkeep transform is "Transform {this}
   at the beginning of the next turn's upkeep." (`AtTheBeginOfNextUpkeepDelayedTriggeredAbility.getRule` puts the
