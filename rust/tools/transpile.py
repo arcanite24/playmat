@@ -3020,6 +3020,10 @@ class Translator:
             return {'class': cls}
         if cls == 'EmpowerJaceEffect' and len(args) == 1 and re.fullmatch(r'\d+', args[0].strip()):
             return {'class': cls, 'amount': self.amount(args[0].strip()), 'token': token('JacePlaneswalkerToken')}
+        # a Role token attached to the source (a handler: only while it's on the battlefield)
+        if cls == 'CreateRoleAttachedSourceEffect' and len(args) == 1 and (m := re.fullmatch(r'RoleType\.(\w+)', args[0].strip())):
+            return {'class': 'CardEffect', 'handler': cls, 'effects': [
+                {'class': 'CreateRoleAttachedTargetEffect', 'token': token(m.group(1).title().replace('_', '') + 'RoleToken')}]}
         # a Role token attached to each target
         if cls == 'CreateRoleAttachedTargetEffect' and len(args) == 1 and (m := re.fullmatch(r'RoleType\.(\w+)', args[0].strip())):
             return {'class': cls, 'token': token(m.group(1).title().replace('_', '') + 'RoleToken')}
