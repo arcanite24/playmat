@@ -19441,6 +19441,10 @@ fn sacrifice(game: &mut Game, id: ObjId) {
 /// replacement effects that apply (`ModifyCountersAddedEffect`), in battlefield order; with two or more, the player
 /// putting them is asked their order (the answers change nothing yet)
 fn counters_to_add(game: &mut Game, o: ObjId, name: &str, n: i32, by: Option<Seat>, effect: bool) -> i32 {
+    // `CAN_ADD_COUNTERS` (Blightbeetle): none at all, before any replacement
+    if n > 0 && cards::cant_have_counters(game, o, name) {
+        return 0;
+    }
     // static handlers' `ADD_COUNTERS` replacements (`card_statics.rs`), first
     let mut handlers = 0;
     let mut n = n;
