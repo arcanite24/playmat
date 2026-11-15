@@ -1908,6 +1908,11 @@ fn activatable(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
         if sorcery && !flash && !sorcery_speed(game, seat) {
             continue;
         }
+        if let AbilityDef::EquipAbility { limit, .. } = a {
+            if *limit > 0 && game.activated_this_turn.iter().filter(|x| **x == (id, i)).count() as u32 >= *limit {
+                continue;
+            }
+        }
         if let AbilityDef::LimitedTimesPerTurnActivatedAbility { limit, condition, .. } = a {
             let used = game.activated_this_turn.iter().filter(|x| **x == (id, i)).count() as u32;
             if used >= cards::max_activations(game, seat, id, i, *limit)
@@ -23393,7 +23398,7 @@ fn block_triggers(game: &mut Game) {
         }
         let sources = game.trigger_sources();
         let fired = game.triggers(sources, |g, src, you, t| match t {
-            Trigger::BecomesBlocked => src == a,
+            Trigger::BecomesBlocked | Trigger::BlocksOrBecomesBlocked => src == a,
             Trigger::BecomesBlockedAll { filter } => g.filter_matches(filter, you, Some(src), a),
             _ => false,
         });
@@ -23411,7 +23416,7 @@ fn block_triggers(game: &mut Game) {
     for b in all_blockers {
         let sources = game.trigger_sources();
         let fired = game.triggers(sources, |g, src, you, t| match t {
-            Trigger::Blocks | Trigger::AttacksOrBlocks => src == b,
+            Trigger::Blocks | Trigger::AttacksOrBlocks | Trigger::BlocksOrBecomesBlocked => src == b,
             Trigger::BlocksAll { filter } => g.filter_matches(filter, you, Some(src), b),
             _ => false,
         });

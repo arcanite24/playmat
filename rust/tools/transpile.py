@@ -5598,6 +5598,11 @@ class Translator:
                 and args[0].strip() == 'new TransformSourceEffect()':
             return {'class': 'NextUpkeepDelayed', 'effects': [self.effect(args[0])],
                     'rule': "Transform {this} at the beginning of the next turn's upkeep."}
+        # an effect whose Java text is fixed: the trigger phrase, then that text (Attack-in-the-Box, Bearer of the Heavens)
+        if cls == 'AtTheBeginOfNextEndStepDelayedTriggeredAbility' and len(args) == 1 \
+                and canonical(args[0].strip()) in NEXT_END_STEP_TEXTS:
+            return {'class': 'NextEndStepDelayed', 'effects': [self.effect(args[0])],
+                    'rule': 'At the beginning of the next end step, %s.' % NEXT_END_STEP_TEXTS[canonical(args[0].strip())]}
         if cls == 'AtTheBeginOfNextEndStepDelayedTriggeredAbility' and len(args) == 1 \
                 and args[0].strip() == 'new UntapLandsEffect(2)':
             return {'class': 'NextEndStepDelayed', 'effects': [self.effect(args[0])],
@@ -5896,8 +5901,9 @@ class Translator:
         if cls == 'BattalionAbility' and n == 1:
             return trig({'e': 'battalion'}, [self.effect(args[0])])
         # inspired: whenever this becomes untapped
-        if cls == 'InspiredAbility' and n in (1, 2):
-            return trig({'e': 'becomes_untapped'}, [self.effect(args[0])], n == 2 and flag(args[1]))
+        if cls == 'InspiredAbility' and n in (1, 2, 3):
+            # (the third argument only drops the ability word from the text: Key to the City)
+            return trig({'e': 'becomes_untapped'}, [self.effect(args[0])], n >= 2 and flag(args[1]))
         # renown N: combat damage to a player, if it isn't renowned: N +1/+1 counters, and it's renowned
         if cls == 'RenownAbility' and n == 1 and args[0].isdigit():
             return trig({'e': 'combat_damage_to_player'}, [{'class': 'BecomesRenownedSourceEffect', 'amount': int(args[0])}],
@@ -6838,6 +6844,9 @@ class Translator:
             return out({'e': 'attacks_or_blocks'}, args[0], flag(args[1]))
         if cls == 'BlocksSourceTriggeredAbility' and n in (1, 2):
             return out({'e': 'blocks'}, args[0], n == 2 and flag(args[1]))
+        # "whenever this blocks or becomes blocked" (Jukai Trainee)
+        if cls == 'BlocksOrBlockedSourceTriggeredAbility' and n in (1, 2):
+            return out({'e': 'blocks_or_becomes_blocked'}, args[0], n == 2 and flag(args[1]))
         if cls == 'BlocksAllTriggeredAbility' and 1 <= n <= 4:
             pointer = args[3] if n == 4 else 'SetTargetPointer.NONE'
             if pointer not in ('SetTargetPointer.NONE', 'SetTargetPointer.PERMANENT', 'SetTargetPointer.PLAYER'):
@@ -8320,6 +8329,10 @@ def ability_statement(t, st, added):
     m = re.fullmatch(r'(\w+)\.setTargetTag\(\d+\)', st)
     if m and isinstance(t.vars.get(m.group(1)), dict) and t.vars[m.group(1)].get('class', '').startswith('Target'):
         return True
+    # a trigger's phrase is only its text, which comes from Java's own rule (Bloodstone Goblin)
+    m = re.fullmatch(r'(\w+)\.setTriggerPhrase\("[^"]*"\)', st)
+    if m and isinstance(t.vars.get(m.group(1)), dict) and t.vars[m.group(1)].get('class') == 'TriggeredAbility':
+        return True
     # (a dependency only orders Java's layer system; the engine reads each effect where it's asked)
     m = re.fullmatch(r'(\w+)\.(?:set(?:Outcome|Text|TargetPointer|RuleAtTheTop|AbilityWord)|addHint|withFlavorWord|withTargetDescription|withFirstModeFlavorWord'
                      r'|getModes\(\)\.getMode\(\)\.withFlavorWord|getDependedToTypes\(\)\.add|addDependedToType|setDependedToType)\(.*\)', st)
@@ -8373,6 +8386,11 @@ def ability_statement(t, st, added):
     # Elven Passage's second half, which ElvenPassageEffect does too
     m = re.fullmatch(r'(\w+)\.addEffect\(new ElvenPassageUntapLandEffect\(\)\)', st)
     if m and m.group(1) in t.vars:
+        return True
+    # an equip ability's "activate only once each turn" (Leather Armor)
+    m = re.fullmatch(r'(\w+)\.setMaxActivationsPerTurn\((\d+)\)', st)
+    if m and t.vars.get(m.group(1), {}).get('class') == 'EquipAbility':
+        t.vars[m.group(1)]['limit'] = int(m.group(2))
         return True
     # `ability.setMaxActivationsPerTurn(n)` on an activated ability: activated only n times each turn (Beledros)
     m = re.fullmatch(r'(\w+)\.setMaxActivationsPerTurn\((\d+)\)', st)
@@ -8648,6 +8666,11 @@ def ability_statement(t, st, added):
 WHEN_YOU_DO = '<when you do>'
 # a delayed trigger's text, from its ability's: the sentence that starts with the phrase (`RULE_FROM + phrase + '>'`)
 RULE_FROM = '<rule from:'
+# effects of a delayed "at the beginning of the next end step" trigger, by their Java text (`getText`)
+NEXT_END_STEP_TEXTS = {
+    'new SacrificeSourceEffect()': 'sacrifice {this}',
+    'new DestroyAllEffect(StaticFilters.FILTER_PERMANENT)': 'destroy all permanents',
+}
 
 
 def fill_when_you_do(x, rule):

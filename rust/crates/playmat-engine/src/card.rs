@@ -715,6 +715,9 @@ pub enum Trigger {
     /// this becomes blocked (`BecomesBlockedSourceTriggeredAbility`, `CREATURE_BLOCKED`); with a player target
     /// pointer, at the defending player
     BecomesBlocked,
+    /// this blocks or becomes blocked (`BlocksOrBlockedSourceTriggeredAbility`: `CREATURE_BLOCKS` or
+    /// `CREATURE_BLOCKED`, once each)
+    BlocksOrBecomesBlocked,
     /// a creature of the filter becomes blocked (`BecomesBlockedAllTriggeredAbility`); with a target pointer, at it
     BecomesBlockedAll {
         filter: Filter,
@@ -5037,6 +5040,10 @@ pub enum AbilityDef {
         /// {1} less for each other Equipment you control (Plate Armor)
         #[serde(default)]
         equipment_discount: bool,
+        /// "activate only once each turn" (`setMaxActivationsPerTurn(n)`): at most this many times each turn, 0 for no
+        /// limit
+        #[serde(default)]
+        limit: u32,
         #[serde(default)]
         rule: String,
     },
