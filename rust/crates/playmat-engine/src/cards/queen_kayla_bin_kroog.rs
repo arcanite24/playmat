@@ -25,19 +25,26 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         o.zone != Zone::Battlefield && !o.token && (o.is(CardType::Artifact) || o.is(CardType::Creature))
     };
     let mut chosen: Vec<ObjId> = Vec::new();
-    while chosen.len() < 3 {
+    // `HumanPlayer.choose(…, cards, …)`: asked even with nothing there to pick (unless nothing was discarded), again
+    // after a card that can't be chosen, until "done" or a card added completes the choice
+    let mut added = false;
+    while chosen.len() < 3 && !discarded.is_empty() {
         let used: Vec<u32> = chosen.iter().map(|c| game.obj(*c).def.mana_value()).collect();
         let left: Vec<ObjId> = discarded
             .iter()
             .copied()
             .filter(|c| !chosen.contains(c) && fits(game, *c) && !used.contains(&game.obj(*c).def.mana_value()))
             .collect();
-        if left.is_empty() {
+        if left.is_empty() && added {
             break;
         }
+        added = false;
         match ask(game, d, you, &Query::Cards { objs: left.clone(), required: false }) {
             Answer::Obj(o) if chosen.contains(&o) => chosen.retain(|c| *c != o),
-            Answer::Obj(o) if left.contains(&o) => chosen.push(o),
+            Answer::Obj(o) if left.contains(&o) => {
+                chosen.push(o);
+                added = true;
+            }
             Answer::Stop => return None,
             Answer::Obj(_) | Answer::Player(_) | Answer::Unknown => {}
             _ => break,
