@@ -24140,6 +24140,12 @@ fn transform(game: &mut Game, id: ObjId) {
         let def = merged_def(game, id);
         game.obj_mut(id).def = Arc::new(def);
     }
+    // `TRANSFORMING`, with the new face's statics applying ("as this transforms into …")
+    if cards::any_replacement(game, cards::EventType::Transforming) {
+        let seat = game.obj(id).controller;
+        let mut ev = cards::Event { target: Some(id), ..cards::Event::new(cards::EventType::Transforming, seat) };
+        cards::replace_event(game, &mut ev, 0);
+    }
     // "enters or transforms into {this}": the face it transformed into, front or back (Wildsong Howler's)
     let fired = game.triggers([id], |_, _, _, t| matches!(t, Trigger::TransformsOrEnters));
     game.pending.extend(fired);

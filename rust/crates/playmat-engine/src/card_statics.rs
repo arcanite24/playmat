@@ -216,6 +216,10 @@ pub(crate) enum EventType {
     /// else its controller) (`rules::add_counters_by`, `put_counters`, a cost's counters). Change `amount` to put
     /// that many instead (Prairie Dog); "replaced" puts none
     AddCounters,
+    /// `TRANSFORMING`: the permanent `target`, controlled by `player`, has just turned to its other face, whose
+    /// statics already apply (`PermanentImpl.transform`, before `TRANSFORMED`). Nothing to change: a replacement
+    /// does something as it transforms ("as this creature transforms into …": Sephiroth's emblem)
+    Transforming,
 }
 
 /// The event a replacement handler sees and may change (Java's `GameEvent`)
