@@ -27,4 +27,28 @@ public class EsperOriginsTest extends CardTestPlayerBase {
         assertExileCount(playerA, 0);
     }
 
+    @Test
+    public void testFinalityCounterExilesWhenItDies() {
+        skipInitShuffling();
+        addCard(Zone.LIBRARY, playerA, "Balduvian Bears");
+        addCard(Zone.GRAVEYARD, playerA, "Esper Origins");
+        addCard(Zone.BATTLEFIELD, playerA, "Forest", 4);
+        addCard(Zone.BATTLEFIELD, playerB, "Swamp", 2);
+        addCard(Zone.HAND, playerB, "Doom Blade");
+
+        activateAbility(1, PhaseStep.PRECOMBAT_MAIN, playerA, "Flashback");
+        addTarget(playerA, TestPlayer.TARGET_SKIP);
+        setChoice(playerA, "Balduvian Bears");
+
+        castSpell(1, PhaseStep.POSTCOMBAT_MAIN, playerB, "Doom Blade", "Summon: Esper Maduin");
+
+        setStrictChooseMode(true);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+
+        assertPermanentCount(playerA, "Summon: Esper Maduin", 0);
+        assertGraveyardCount(playerA, "Esper Origins", 0);
+        assertExileCount(playerA, "Esper Origins", 1);
+    }
+
 }

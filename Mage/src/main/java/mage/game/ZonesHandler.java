@@ -4,6 +4,7 @@ import mage.abilities.Ability;
 import mage.cards.*;
 import mage.constants.Outcome;
 import mage.constants.Zone;
+import mage.counters.Counters;
 import mage.filter.FilterCard;
 import mage.game.command.Commander;
 import mage.game.events.ZoneChangeBatchEvent;
@@ -98,6 +99,17 @@ public final class ZonesHandler {
                     // if left half is being moved, but entering transformed, change to transformed side
                     if (enterTransformed && card instanceof DoubleFacedCardHalf && !((DoubleFacedCardHalf) card).isBackSide()) {
                         info.event.setTargetId(((DoubleFacedCardHalf) card).getOtherSide().getId());
+                    }
+
+                    // counters to enter with are keyed by the id the effect moved; carry them to the face
+                    // that actually enters (e.g. Esper Origins' finality counter on its transformed side)
+                    UUID enteringId = info.event.getTargetId();
+                    if (!enteringId.equals(card.getId())) {
+                        Counters enterWithCounters = game.getEnterWithCounters(card.getId());
+                        if (enterWithCounters != null && game.getEnterWithCounters(enteringId) == null) {
+                            game.setEnterWithCounters(enteringId, enterWithCounters);
+                            game.setEnterWithCounters(card.getId(), null);
+                        }
                     }
                 }
             }
