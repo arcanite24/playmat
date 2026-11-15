@@ -21185,6 +21185,7 @@ fn damaged_permanent_triggers(game: &mut Game, source: ObjId, to: Target, amount
         }
         (Trigger::DamagedPermanent { of, combat: only, .. }, Target::Player(p)) if combat || !*only => {
             matches!(of.as_str(), "to_you" | "to_you_or_yours") && p == you && from != you
+                || of == "to_you_any" && p == you
         }
         _ => false,
     });

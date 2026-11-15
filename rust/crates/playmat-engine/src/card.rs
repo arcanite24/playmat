@@ -959,7 +959,8 @@ pub enum Trigger {
     /// (`DealsDamageToACreatureTriggeredAbility`); "attached_to", the permanent this is attached to, to one of
     /// `filter` (Giant's Skewer); "to_you", a source an opponent controls to you, and "to_you_or_yours", to you or a
     /// permanent of `filter` you control (`SourceDealsDamageToYouTriggeredAbility`, `DAMAGED_PLAYER` too, its player
-    /// pointer the source's controller). A target pointer is the damaged permanent.
+    /// pointer the source's controller); "to_you_any", any source to you (`DAMAGED_PLAYER`: Azor's Elocutors). A
+    /// target pointer is the damaged permanent.
     DamagedPermanent {
         of: String,
         #[serde(default)]
