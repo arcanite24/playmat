@@ -24127,8 +24127,22 @@ fn cast_one_for_free(
     source: ObjId,
     filter: &crate::card::Filter,
 ) -> bool {
+    let hand = game.player(seat).hand.clone();
+    cast_one_for_free_from(game, d, seat, source, filter, &hand)
+}
+
+/// `cast_one_for_free` over `cards` instead of the hand (`castSpellWithAttributesForFree(player, source, game, cards,
+/// filter)`: the top cards of a library a handler looks at). False: the decider stopped.
+fn cast_one_for_free_from(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    seat: Seat,
+    source: ObjId,
+    filter: &crate::card::Filter,
+    cards: &[ObjId],
+) -> bool {
     let mut castable: Vec<(ObjId, CastableParts)> = Vec::new();
-    for c in game.player(seat).hand.clone() {
+    for &c in cards {
         let full = game.obj(c).def.clone();
         let parts: Vec<(usize, Arc<CardDef>)> = castable_parts(&full)
             .into_iter()
