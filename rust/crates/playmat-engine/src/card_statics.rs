@@ -212,6 +212,10 @@ pub(crate) enum EventType {
     /// `CONNIVE`: `target`, controlled by `player`, would connive `amount` (`ConniveSourceEffect.connive`); "replaced"
     /// stops it, else it connives as it was going to (Leader, Super-Genius draws first)
     Connive,
+    /// `ADD_COUNTERS`: `amount` `counter` counters would be put on the permanent `target` by `player` (who puts them,
+    /// else its controller) (`rules::add_counters_by`, `put_counters`, a cost's counters). Change `amount` to put
+    /// that many instead (Prairie Dog); "replaced" puts none
+    AddCounters,
 }
 
 /// The event a replacement handler sees and may change (Java's `GameEvent`)
@@ -236,6 +240,8 @@ pub(crate) struct Event {
     pub to: Option<Zone>,
     /// `TappedForMana`: the {C} it produces instead (`ManaEvent.getMana().setToMana`)
     pub colorless: Option<u32>,
+    /// `AddCounters`: the counter's name (`getData()`)
+    pub counter: Option<String>,
 }
 
 impl Event {
@@ -252,6 +258,7 @@ impl Event {
             from: None,
             to: None,
             colorless: None,
+            counter: None,
         }
     }
 }

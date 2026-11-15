@@ -1477,6 +1477,33 @@ def class_static_text(source, cls):
     return ''.join(re.sub(r'\\(.)', r'\1', x) for x in re.findall(r'"((?:[^"\\]|\\.)*)"', t.group(1)))
 
 
+def delayed_class(source, cls):
+    """A `DelayedTriggeredAbility` subclass the card file declares: its constructor's `super(effect, duration,
+    triggerOnlyOnce, optional)` as {'duration', 'once', 'optional'} (Java's defaults: `Duration.EndOfGame`, once), its
+    `setTriggerPhrase` ('phrase') and a `getRule` returning a string literal ('rule'); or None"""
+    if not source:
+        return None
+    m = re.search(r'^(?:final |abstract )*class ' + cls + r' extends DelayedTriggeredAbility\b', source, re.M)
+    if not m:
+        return None
+    nxt = re.search(r'^(?:final |abstract )*(?:class|enum) ', source[m.end():], re.M)
+    body = source[m.end():m.end() + nxt.start()] if nxt else source[m.end():]
+    sup = re.search(r'\bsuper\((.*?)\);', body, re.S)
+    if not sup:
+        return None
+    args = [a.strip() for a in split_args(sup.group(1))]
+    if len(args) < 1 or len(args) > 4:
+        return None
+    out = {'duration': args[1] if len(args) > 1 else 'Duration.EndOfGame',
+           'once': args[2] != 'false' if len(args) > 2 else True,
+           'optional': len(args) > 3 and args[3] == 'true'}
+    ph = re.search(r'setTriggerPhrase\("((?:[^"\\]|\\.)*)"\)', body)
+    out['phrase'] = ph.group(1) if ph else None
+    r = re.search(r'String getRule\(\)\s*\{\s*return\s*((?:"(?:[^"\\]|\\.)*"\s*\+?\s*)+);\s*\}', body)
+    out['rule'] = ''.join(re.findall(r'"((?:[^"\\]|\\.)*)"', r.group(1))) if r else None
+    return out
+
+
 def statements(body):
     body = re.sub(r'//[^\n]*', '', body)
     body = re.sub(r'/\*.*?\*/', '', body, flags=re.S)
@@ -3693,6 +3720,30 @@ class Translator:
                 return {'class': cls, 'amount': int(n.group(1)), 'controller': self.value('target_controller', args[2].strip())}
             # a `DynamicValue` amount (Meria's Outrider's domain count)
             return {'class': cls, 'amount': self.amount(args[1]), 'controller': self.value('target_controller', args[2].strip())}
+        # a card's own delayed triggered ability with an event trigger (a trigger handler for its class): it waits for
+        # its event, pointing where this ability points
+        if cls == 'CreateDelayedTriggeredAbilityEffect' \
+                and (len(args) == 1 or len(args) == 2 and args[1].strip() == 'false') \
+                and (m := re.fullmatch(r'new (\w+)\((.*)\)', canonical(args[0].strip()), re.S)) \
+                and (dc := delayed_class(getattr(self, 'source', None), m.group(1))) is not None \
+                and card_handlers.find(getattr(self, 'source', None), m.group(1), 'trigger', True):
+            a = card_handlers.trigger(self, m.group(1), split_args(m.group(2)) if m.group(2).strip() else [])
+            if dc['duration'] not in ('Duration.EndOfTurn', 'Duration.EndOfGame') \
+                    or dc['optional'] != a.get('optional', False):
+                raise Unsupported('delayed ability %s: %s' % (m.group(1), dc['duration']))
+            if dc['rule'] is not None:
+                a['rule'] = dc['rule']
+            elif dc['phrase'] is not None and ', ' in a.get('rule', ''):
+                a['rule'] = dc['phrase'] + a['rule'].split(', ', 1)[1]
+            out = {'class': 'CreateDelayedTriggerEffect', 'ability': a}
+            if dc['duration'] == 'Duration.EndOfTurn':
+                out['end_of_turn'] = True
+            if dc['once']:
+                out['once'] = True
+            # `copyTargets` false: it points at nothing until its trigger sets a pointer
+            if len(args) == 2:
+                out['no_copy_targets'] = True
+            return out
         # "at the beginning of the next end step, …": its effects then
         if cls == 'CreateDelayedTriggeredAbilityEffect' and len(args) == 2 and args[1].strip() == 'false':
             args = args[:1]
@@ -6730,6 +6781,34 @@ class Translator:
             if counter != 'null':
                 on['counter'] = COUNTERS[counter]
             return out(on, args[0], n == 5 and flag(args[4]), n == 5 and flag(args[3]))
+        # a card's own `COUNTER_ADDED` / `COUNTERS_ADDED` trigger, as a trigger handler's base writes it (names for the
+        # engine's triggers, not Java classes): "whenever a [kind] counter is put on a permanent of the filter" once
+        # for each counter (effect, counter or null, filter, who put it[, optional]); "whenever one or more [kind]
+        # counters are put on …" once each time, X how many (effect, counter or null, filter, who, first time this
+        # turn[, optional]). Both point at the permanent
+        if cls in ('CounterAddedAllTriggeredAbility', 'CountersAddedAllTriggeredAbility') \
+                and n in ((4, 5) if cls == 'CounterAddedAllTriggeredAbility' else (5, 6)):
+            counter = args[1].strip()
+            if counter != 'null' and counter not in COUNTERS or args[3].strip() not in TARGET_CONTROLLERS:
+                raise Unsupported(cls + ' ' + ','.join(args[1:4]))
+            batch = cls == 'CountersAddedAllTriggeredAbility'
+            on = {'e': 'counters_added_all' if batch else 'counter_added_all', 'filter': self.filter(args[2]),
+                  'who': TARGET_CONTROLLERS[args[3].strip()]}
+            if counter != 'null':
+                on['counter'] = COUNTERS[counter]
+            if batch and flag(args[4]):
+                on['first_time'] = True
+            return out(on, args[0], n == (6 if batch else 5) and flag(args[-1]), True)
+        # a card's own `BECOMES_RENOWNED` trigger (effect, filter[, optional]), pointing at the permanent
+        if cls == 'BecomesRenownedAllTriggeredAbility' and n in (2, 3):
+            return out({'e': 'becomes_renowned_all', 'filter': self.filter(args[1])}, args[0], n == 3 and flag(args[2]),
+                       True)
+        # a card's own `CREATED_TOKEN` trigger (effect, filter, whose token[, optional]), pointing at the token
+        if cls == 'TokenCreatedTriggeredAbility' and n in (3, 4):
+            if args[2].strip() not in TARGET_CONTROLLERS:
+                raise Unsupported(cls + ' ' + args[2])
+            return out({'e': 'token_created', 'filter': self.filter(args[1]), 'who': TARGET_CONTROLLERS[args[2].strip()]},
+                       args[0], n == 4 and flag(args[3]), True)
         # "whenever you activate an exhaust ability" (from the battlefield; from the graveyard isn't in)
         if cls == 'ActivateAbilityTriggeredAbility' and n == 3 and args[2].strip() == 'SetTargetPointer.NONE':
             return out({'e': 'ability_activated', 'kind': self.stack_filter_kind(args[1])}, args[0])

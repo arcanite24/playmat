@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (12,665 on 15 Nov). A card whose JSON the engine can't load yet is left out
+  can express (13,193 on 15 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -1335,6 +1335,42 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   `EndTurnEffect`, the mana-ability forms, delayed triggers whose text needs more, switched power and toughness,
   `FederationCount`, `TransformedPredicate`, card-specific adjusters (Harness the Storm, Rampaging Raptor) and the
   layer-ordering ones (Retro-Mutation).
+  Wave 14, claim 1 (15 Nov): cards blocked only by their own classes, used ones first, then the cheapest. 225
+  cards came in (13,193 in the engine), most through per-card handlers, some through new engine pieces:
+  card-defined delayed triggers (`EffectDef::CreateDelayedTriggerEffect { ability, end_of_turn, once,
+  no_copy_targets }`, Java's `CreateDelayedTriggeredAbilityEffect(new X())` of a card's own
+  `DelayedTriggeredAbility` with a trigger handler: a hidden holder in `Game::delayed_triggers` that
+  `trigger_sources()`, the dies and leaves paths see, firing as the source with the creating ability's targets
+  unless `copyTargets` is false, ordered after the normal triggers, removed after its one trigger or at cleanup;
+  a handler effect can run one from its `.effects`: Death Frenzy, Gnawing Crescendo, Mage Hunters' Onslaught,
+  Massacre Girl, Dovin, Grand Arbiter, Ondu Rising); `Trigger::CounterAddedAll` (`COUNTER_ADDED`, once per
+  counter, after the permanent's own), `Trigger::CountersAddedAll` (`COUNTERS_ADDED`, X counters, optionally the
+  first time this turn: Stalwart Successor, Axgard Artisan), `Trigger::BecomesRenownedAll` (Valeron Wardens) and
+  `Trigger::TokenCreated` (`CREATED_TOKEN`, after the token's own enters triggers, not for a resolving permanent
+  spell copy), plus an `AddCounters` replacement event for handlers (`counters_to_add`, before
+  `ModifyCountersAddedEffect`); `cast_one_for_free_from` over given cards (Rashmi, Bre of Clan Stoutarm). Engine
+  fixes found by the factory, each with a game under `shadow/wave14-c1/`: a beginning-of-step trigger points
+  "that player" at the active player inside a `ConditionalOneShotEffect` too (Bandit's Talent); a spell's "when you
+  cast this spell" trigger is controlled by its caster, not its owner (Show of Confidence cast through Nita); a
+  card cast free from exile shows the "Choose spell or ability" picker (`suppressAbilityPicker` doesn't hide it for
+  `castSourceIdWithAlternateMana`: Release to the Wind); a handler's "enters with" counters count among the
+  replacements Java asks the order of (Drana, the Last Bloodchief); `LoseLifeTriggeredAbility(…, setTargetPointer)`
+  points at the player who lost the life (The Master of Lake-town); an activated ability's Phyrexian mana is asked
+  right after X, before its targets (Skrelv, Defector Mite). Four factory rounds (306 games, 282 matching, 6 Java
+  unfinished) verified 205: 12,874 of 13,193. Not verified: Gisa, Glorious Resurrector, Sol'Kanar the Tainted,
+  Mage Hunters' Onslaught, Massacre Girl, Rescue from the Underworld, Mythos of Brokkos, Cryptic Coat, Saheeli,
+  Filigree Master, Thranduil's Decree, Brilliance Unleashed, Vivien's Invocation and Zero Point Ballad (each blamed for a game that parts,
+  often on another card: Bereaved Survivor's transform trigger, a priority holder after Talisman of Resilience);
+  Gnawing Crescendo (its delayed trigger's text: the base rule is empty, so the token's "This token can't block."
+  is shown); Daredevil, Man Without Fear (its "whenever you attack" trigger and Scorch Spitter's go on the stack in
+  the other order); Refuse // Cooperate (Java's Refuse can target the resolving Hazoret's Undying Fury, still on
+  the stack; the engine takes a resolving spell off first); Ulamog's Despoiler and Blight Herder (Java auto-chooses
+  two cards in `HashSet` order); Apex of Power, Karn's Temporal Sundering and Nicol Bolas, the Deceiver (not cast
+  enough). Left on the list: about 400 cards, mostly layer 4 type and color changes, requirement effects, delayed
+  triggers that carry their own data (Fire Giant's Fury, Medomai's Prophecy, Niko Aris, Tamiyo), life paid and
+  investigated events, replacement handlers that ask (Jinnie Fay, Moonlit Meditation, Kalitas), cards that play
+  from exile or the graveyard with conditions, and the random or unordered ones (coin flips, dice, random bottom
+  orders, `HashSet`/`HashMap` walks).
   Text fixes for verified cards (13 Nov): the Young Hero Role's granted trigger keeps its own text, "put a +1/+1
   counter on it" (its `AddCountersSourceEffect` has a `setText`), and a delayed upkeep transform is "Transform {this}
   at the beginning of the next turn's upkeep." (`AtTheBeginOfNextUpkeepDelayedTriggeredAbility.getRule` puts the

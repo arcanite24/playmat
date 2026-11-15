@@ -819,6 +819,22 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                             ) || matches!(e, EffectDef::CardEffect { handler, .. } if handler.java() == "LoseHalfLifeTargetEffect")
                         })
                     {
+                    // also inside "if that player …" (`ConditionalOneShotEffect`: Bandit's Talent's "they lose 2 life")
+                    fn at_that_player(e: &EffectDef) -> bool {
+                        match e {
+                            EffectDef::MillCardsTargetEffect { .. }
+                            | EffectDef::DamageTargetEffect { .. }
+                            | EffectDef::DrawCardTargetEffect { .. }
+                            | EffectDef::LoseLifeTargetEffect { .. } => true,
+                            EffectDef::ConditionalOneShotEffect { effect, otherwise, also, .. } => {
+                                effect.as_deref().is_some_and(at_that_player)
+                                    || otherwise.as_deref().is_some_and(at_that_player)
+                                    || also.iter().any(at_that_player)
+                            }
+                            _ => false,
+                        }
+                    }
+                    if targets.is_empty() && effects.iter().any(at_that_player) {
                         t.targets = vec![vec![Target::Player(active)]];
                         t.target_zcc = vec![vec![0]];
                     }
@@ -4718,15 +4734,16 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         }
     }
     // `suppressAbilityPicker`: one spell ability is cast directly only with mana to pay (X counts 0), so a {0} or
-    // {X} spell is picked (a0)
-    if game.obj(id).def.cost.mana_value() == 0 {
+    // {X} spell is picked (a0), as is one cast without paying its mana cost (`allowCardToPlayWithoutMana` puts it in
+    // `castSourceIdWithAlternateMana`, so the picker isn't hidden)
+    // played from exile without paying its mana cost (Oracle's Vault)
+    let free = game.obj(id).zone == Zone::Exile && game.obj(id).play_free;
+    if game.obj(id).def.cost.mana_value() == 0 || free {
         match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: vec![0] }) {
             Answer::Ability(o, 0) if o == id => {}
             _ => return,
         }
     }
-    // played from exile without paying its mana cost (Oracle's Vault)
-    let free = game.obj(id).zone == Zone::Exile && game.obj(id).play_free;
     if !(if free { cast_free(game, d, seat, id) } else { cast(game, d, seat, id) }) {
         // `PlayerImpl.cast` restores the game as it was before the cast
         *game = before;
@@ -5788,10 +5805,22 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         .rev()
         .find(|i| i.card == spell && i.ability.is_none() && i.delayed.is_none())
         .map_or(0, |i| i.replicated);
-    fired.extend(game.triggers(
-        [spell],
-        |_, src, _, t| matches!(t, Trigger::CastThis { replicated: r } if src == spell && (!r || replicated > 0)),
-    ));
+    // (controlled by the spell's caster, who may not own it: Nita's cast from an opponent's graveyard)
+    let caster = game.stack.iter().rev().find(|i| i.card == spell && i.ability.is_none() && i.delayed.is_none());
+    let caster = caster.map(|i| i.controller);
+    fired.extend(
+        game.triggers(
+            [spell],
+            |_, src, _, t| matches!(t, Trigger::CastThis { replicated: r } if src == spell && (!r || replicated > 0)),
+        )
+        .into_iter()
+        .map(|mut t| {
+            if let Some(c) = caster {
+                t.controller = c;
+            }
+            t
+        }),
+    );
     fired.sort_by_key(|t| game.trigger_key(t));
     // the spell's mana value, X included (Shark Typhoon's "that spell's mana value")
     let spell_mv = {
@@ -6705,6 +6734,9 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
             top.x = x;
         }
     }
+    // `handlePhyrexianCosts`: 2 life instead of each phyrexian symbol, asked after X and before the modes and
+    // targets (the life is paid with the mana)
+    let Some(phyrexian_life) = ask_phyrexian(game, d, seat, &mut mana) else { return false };
     // waterbend: after X and phyrexian mana, before the targets (`AbilityImpl.handleWaterbendingCosts`)
     for c in costs {
         if let CostDef::WaterbendCost { amount } = c {
@@ -6773,6 +6805,9 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
     game.paying_for.set(Some(id));
     game.paying_ability.set(true);
     game.paying_index.set(Some(index));
+    if phyrexian_life > 0 {
+        lose_life(game, seat, phyrexian_life);
+    }
     let paid = pay_mana(game, d, seat, &mana);
     game.paying_for.set(paying.0);
     game.paying_ability.set(paying.1);
@@ -17152,6 +17187,10 @@ fn apply_each_effect(
                     game.when_dies.push((o, zcc, turn, *to_player, t));
                 }
             }
+            EffectDef::CreateDelayedTriggerEffect { ability, end_of_turn, once, no_copy_targets } => {
+                let legal = if *no_copy_targets { &[][..] } else { legal };
+                create_delayed_trigger(game, item, ability, legal, source, *end_of_turn, *once);
+            }
             EffectDef::CreateNextEndStepDelayedEffect { effects, rule } => {
                 let delayed = Delayed {
                     rule: rule.clone(),
@@ -17895,6 +17934,19 @@ fn apply_each_effect(
                         put_counters(game, o, "+1/+1", *amount, controller);
                     }
                     game.obj_mut(o).marks.push("renowned".into());
+                    // `BECOMES_RENOWNED` (fired after its counters'): "whenever a permanent of the filter becomes
+                    // renowned"
+                    let sources = game.trigger_sources();
+                    let fired = game.triggers(sources, |g, src, you, t| {
+                        matches!(t, Trigger::BecomesRenownedAll { filter } if g.filter_matches(filter, you, Some(src), o))
+                    });
+                    for mut t in fired {
+                        if set_target_pointer(game, &t) {
+                            t.targets = vec![vec![Target::Obj(o)]];
+                            t.target_zcc = vec![vec![zcc]];
+                        }
+                        game.pending.push(t);
+                    }
                 }
             }
             EffectDef::SagaReadAheadEffect { max } => {
@@ -19302,7 +19354,23 @@ fn sacrifice(game: &mut Game, id: ObjId) {
 /// How many counters are put on `o` for `n` that `by` (if known) would put, by an effect or not: the `ADD_COUNTERS`
 /// replacement effects that apply (`ModifyCountersAddedEffect`), in battlefield order; with two or more, the player
 /// putting them is asked their order (the answers change nothing yet)
-fn counters_to_add(game: &Game, o: ObjId, name: &str, n: i32, by: Option<Seat>, effect: bool) -> i32 {
+fn counters_to_add(game: &mut Game, o: ObjId, name: &str, n: i32, by: Option<Seat>, effect: bool) -> i32 {
+    // static handlers' `ADD_COUNTERS` replacements (`card_statics.rs`), first
+    let mut handlers = 0;
+    let mut n = n;
+    if n > 0 && cards::any_replacement(game, cards::EventType::AddCounters) {
+        let mut ev = cards::Event {
+            target: Some(o),
+            amount: n,
+            counter: Some(name.to_string()),
+            ..cards::Event::new(cards::EventType::AddCounters, by.unwrap_or(game.obj(o).controller))
+        };
+        if cards::replace_event(game, &mut ev, 0) {
+            return 0;
+        }
+        handlers = ev.applied.len();
+        n = ev.amount.max(0);
+    }
     if n <= 0 || !game.any_static(|_, _, e| matches!(e, EffectDef::ModifyCountersAddedEffect { .. })) {
         return n;
     }
@@ -19329,6 +19397,10 @@ fn counters_to_add(game: &Game, o: ObjId, name: &str, n: i32, by: Option<Seat>, 
     }
     let asked = by.unwrap_or(game.obj(o).controller);
     for _ in 1..applied {
+        game.owed_replacement_choices.borrow_mut().push(asked);
+    }
+    // (a handler's and a static's: the player picked which applies first)
+    if handlers > 0 && applied > 0 {
         game.owed_replacement_choices.borrow_mut().push(asked);
     }
     out
@@ -19367,8 +19439,25 @@ fn counters_put_triggers(game: &mut Game, o: ObjId, name: &str, n: i32, by: Opti
         [o],
         |_, _, _, t| matches!(t, Trigger::CounterAddedSource { counter, threshold: 0 } if counter == name),
     );
+    // and a card's own "whenever a counter is put on a permanent of the filter" (`CounterAddedAll`), after this's
+    let sources = game.trigger_sources();
+    let mut each_all = game.triggers(sources, |g, src, you, t| match t {
+        Trigger::CounterAddedAll { filter, counter, who } => {
+            (counter.is_empty() || counter == name)
+                && Game::whose(who, you, by)
+                && g.filter_matches(filter, you, Some(src), o)
+        }
+        _ => false,
+    });
+    for t in each_all.iter_mut() {
+        if set_target_pointer(game, t) {
+            t.targets = vec![vec![Target::Obj(o)]];
+            t.target_zcc = vec![vec![game.obj(o).zcc]];
+        }
+    }
     for _ in 0..n {
         game.pending.extend(each.iter().cloned());
+        game.pending.extend(each_all.iter().cloned());
     }
     // (the counter that makes it `threshold`: `hourCounters - amountAdded < 12 && 12 <= hourCounters` of each one)
     let after = game.obj(o).counter(name);
@@ -19392,6 +19481,21 @@ fn counters_put_triggers(game: &mut Game, o: ObjId, name: &str, n: i32, by: Opti
     let fired = game.triggers(sources, |g, src, you, t| match t {
         Trigger::CountersPut { filter, counter } => {
             you == by && (counter.is_empty() || counter == name) && g.filter_matches(filter, you, Some(src), o)
+        }
+        Trigger::CountersAddedAll { filter, counter, who, first_time } => {
+            (counter.is_empty() || counter == name)
+                && Game::whose(who, you, by)
+                && g.filter_matches(filter, you, Some(src), o)
+                && (!*first_time || {
+                    // (this one is already in the watcher: the first is the only one)
+                    let zcc = g.obj(o).zcc;
+                    g.watch
+                        .counters_put
+                        .iter()
+                        .filter(|(_, c, z, kind, _, _)| *c == o && *z == zcc && (counter.is_empty() || kind == counter))
+                        .count()
+                        == 1
+                })
         }
         _ => false,
     });
@@ -19935,6 +20039,11 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
     let (from, zcc) = (game.obj(id).zone, game.obj(id).zcc);
     let source = game.resolving.map(|(_, card)| card).filter(|c| *c != id);
     enter_battlefield_now(game, d, id, controller, kicked);
+    // `CREATED_TOKEN`, after its own zone change event (`TokenImpl.putOntoBattlefieldHelper`); a copy of a permanent
+    // spell resolving isn't created (`created` false)
+    if game.obj(id).token && game.obj(id).zone == Zone::Battlefield && from != Zone::Stack {
+        token_created_triggers(game, id);
+    }
     if game.obj(id).zone == Zone::Battlefield && game.obj(id).face_down {
         let (seat, turn) = (game.obj(id).controller, game.turn);
         game.player_mut(seat).face_down_turn = Some(turn);
@@ -19955,6 +20064,25 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
             line += &format!(" (source: {})", log::object(game, src));
         }
         log::inform(game, line);
+    }
+}
+
+/// "Whenever a token of the filter is created under `who`'s control" (`TokenCreated`), for the token `id`
+fn token_created_triggers(game: &mut Game, id: ObjId) {
+    let seat = game.obj(id).controller;
+    let sources = game.trigger_sources();
+    let fired = game.triggers(sources, |g, src, you, t| match t {
+        Trigger::TokenCreated { filter, who } => {
+            Game::whose(who, you, seat) && g.filter_matches(filter, you, Some(src), id)
+        }
+        _ => false,
+    });
+    for mut t in fired {
+        if set_target_pointer(game, &t) {
+            t.targets = vec![vec![Target::Obj(id)]];
+            t.target_zcc = vec![vec![game.obj(id).zcc]];
+        }
+        game.pending.push(t);
     }
 }
 
@@ -20060,15 +20188,19 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
     let cast = game.obj(id).zone == Zone::Stack;
     let stack_zcc = game.obj(id).zcc;
     // each its own replacement effect (Kumano's "enters with an additional +1/+1 counter")
-    let mut counter_effects = 0;
+    let counter_effects;
     // (or a card put onto the battlefield with them from where it was, `setEnterWithCounters`, not a replacement
     // effect: Infernal Vessel's return)
     let more_counters: i32 = {
         let (mine, rest): (Vec<_>, Vec<_>) =
             std::mem::take(&mut game.enter_counters).into_iter().partition(|(o, z, _)| *o == id && *z == stack_zcc);
         game.enter_counters = rest;
+        let replacing = game.enter_counters_replacing.iter().filter(|(o, z)| *o == id && *z == stack_zcc).count();
+        game.enter_counters_replacing.retain(|(o, z)| !(*o == id && *z == stack_zcc));
         if cast {
             counter_effects = mine.len();
+        } else {
+            counter_effects = replacing;
         }
         mine.iter().map(|(_, _, n)| n).sum()
     };
@@ -20780,7 +20912,11 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
         fired.into_iter().partition(|t| matches!(game.trigger_of(t), Some(Trigger::EntersAll { batch: true, .. })));
     fired = rest;
     for t in batch {
-        if !game.batch_pending.iter().any(|b| b.card == t.card && b.ability == t.ability) {
+        if !game
+            .batch_pending
+            .iter()
+            .any(|b| b.card == t.card && b.ability == t.ability && b.from_delayed == t.from_delayed)
+        {
             game.batch_pending.push(t);
         }
     }
@@ -20829,7 +20965,11 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
         }
         for t in more {
             if matches!(game.trigger_of(&t), Some(Trigger::EntersAll { batch: true, .. })) {
-                if !game.batch_pending.iter().any(|b| b.card == t.card && b.ability == t.ability) {
+                if !game
+                    .batch_pending
+                    .iter()
+                    .any(|b| b.card == t.card && b.ability == t.ability && b.from_delayed == t.from_delayed)
+                {
                     game.batch_pending.push(t);
                 }
             } else {
@@ -21486,6 +21626,44 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
     }
 }
 
+/// `GameImpl.addDelayedTriggeredAbility` of a card's own delayed triggered ability (`CreateDelayedTriggerEffect`):
+/// its holder, a copy of the source's face with just `ability`, waits in `game.delayed_triggers`; its controller is
+/// the creating ability's, its source that ability's (603.7e), and it points at what that ability points at
+/// (`copyTargets`)
+fn create_delayed_trigger(
+    game: &mut Game,
+    item: &StackItem,
+    ability: &AbilityDef,
+    legal: &[Vec<Target>],
+    source: (ObjId, u32),
+    end_of_turn: bool,
+    once: bool,
+) {
+    let mut def = (*game.obj(source.0).def).clone();
+    def.abilities = vec![ability.clone()];
+    let holder = game.create_obj(Arc::new(def), item.controller, Zone::Command);
+    game.obj_mut(holder).trigger_order = (1 << 32) + holder.0 as u64;
+    let target_zcc = legal
+        .iter()
+        .map(|ts| {
+            ts.iter()
+                .map(|t| match t {
+                    Target::Obj(o) => game.obj(*o).zcc,
+                    Target::Player(_) => 0,
+                })
+                .collect()
+        })
+        .collect();
+    game.delayed_triggers.push(crate::state::DelayedTrigger {
+        holder,
+        source,
+        targets: legal.to_vec(),
+        target_zcc,
+        end_of_turn,
+        once,
+    });
+}
+
 /// Takes `seat`'s waiting triggers out of `game.pending`.
 fn take_seat(game: &mut Game, seat: Seat) -> Vec<StackItem> {
     let (mine, rest): (Vec<StackItem>, Vec<StackItem>) =
@@ -21511,6 +21689,16 @@ fn waiting(game: &mut Game, pending: Vec<StackItem>) -> Vec<StackItem> {
         }
     }
     let mut pending = kept;
+    // a card's delayed trigger that triggers only once is gone once it has (`DelayedTriggeredAbilities.checkTriggers`):
+    // what it triggered for after its first is dropped
+    pending.retain(|t| {
+        let Some(h) = t.from_delayed else { return true };
+        let Some(k) = game.delayed_triggers.iter().position(|d| d.holder == h) else { return false };
+        if game.delayed_triggers[k].once {
+            game.delayed_triggers.remove(k);
+        }
+        true
+    });
     // `checkUsedAlready`: a "do this only once each turn" ability done this turn doesn't trigger
     pending.retain(|t| {
         let Some((i, _)) = t.ability else { return true };
@@ -22426,8 +22614,16 @@ fn lose_life_by(game: &mut Game, seat: Seat, amount: i32, source: Option<ObjId>,
             _ => false,
         });
         // a batch for each player: one trigger, with all the life they lost
-        for t in fired {
-            match game.life_batch.iter_mut().find(|(s, b)| *s == seat && b.card == t.card && b.ability == t.ability) {
+        for mut t in fired {
+            // `LoseLifeTriggeredAbility(…, setTargetPointer)`: its effects point at the player who lost the life
+            // (The Master of Lake-town's "that player mills that many cards")
+            if set_target_pointer(game, &t) {
+                t.targets = vec![vec![Target::Player(seat)]];
+                t.target_zcc = vec![vec![0]];
+            }
+            match game.life_batch.iter_mut().find(|(s, b)| {
+                *s == seat && b.card == t.card && b.ability == t.ability && b.from_delayed == t.from_delayed
+            }) {
                 Some((_, b)) => b.x += amount,
                 None => game.life_batch.push((seat, StackItem { x: amount, ..t })),
             }
@@ -22743,7 +22939,11 @@ fn tap(game: &mut Game, id: ObjId) {
         matches!(t, Trigger::BecomesTappedBatch { filter } if g.filter_matches(filter, you, Some(src), id))
     });
     for t in fired {
-        if !game.batch_pending.iter().any(|b| b.card == t.card && b.ability == t.ability) {
+        if !game
+            .batch_pending
+            .iter()
+            .any(|b| b.card == t.card && b.ability == t.ability && b.from_delayed == t.from_delayed)
+        {
             game.batch_pending.push(t);
         }
     }
@@ -23786,6 +23986,8 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
         game.update_guildpact();
     }
     game.subtypes_until_eot.clear();
+    // `Duration.EndOfTurn` delayed triggered abilities end (`DelayedTriggeredAbilities.removeEndOfTurnAbilities`)
+    game.delayed_triggers.retain(|t| !t.end_of_turn);
     // phased-out permanents too: Java's `Battlefield.endOfTurn` goes over every permanent (Kaito Shizuki)
     for id in game.all_permanents() {
         if game.obj(id).loyalty_used > 0 {
@@ -24132,8 +24334,22 @@ fn cast_one_for_free(
     source: ObjId,
     filter: &crate::card::Filter,
 ) -> bool {
+    let hand = game.player(seat).hand.clone();
+    cast_one_for_free_from(game, d, seat, source, filter, &hand)
+}
+
+/// `cast_one_for_free` over `cards` instead of the hand (`castSpellWithAttributesForFree(player, source, game, cards,
+/// filter)`: the top cards of a library a handler looks at). False: the decider stopped.
+fn cast_one_for_free_from(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    seat: Seat,
+    source: ObjId,
+    filter: &crate::card::Filter,
+    cards: &[ObjId],
+) -> bool {
     let mut castable: Vec<(ObjId, CastableParts)> = Vec::new();
-    for c in game.player(seat).hand.clone() {
+    for &c in cards {
         let full = game.obj(c).def.clone();
         let parts: Vec<(usize, Arc<CardDef>)> = castable_parts(&full)
             .into_iter()
@@ -24709,6 +24925,49 @@ mod tests {
                 _ => Passer.answer(game, seat, query),
             }
         }
+    }
+
+    /// `CreateDelayedTriggerEffect`: the delayed ability triggers as its source's, until the cleanup step, and one
+    /// that triggers only once is gone after its first
+    #[test]
+    fn a_cards_delayed_trigger_waits_for_its_event() {
+        let db = crate::cards();
+        let mut game = game_with(&db, &[("Forest", 10)]);
+        let src = game.create_obj(db.get("Forest").unwrap(), 0, Zone::Hand);
+        game.move_to(src, Zone::Battlefield);
+        let zcc = game.obj(src).zcc;
+        let create = |once: bool| -> EffectDef {
+            serde_json::from_value(serde_json::json!({
+                "class": "CreateDelayedTriggerEffect", "end_of_turn": true, "once": once,
+                "ability": {"class": "TriggeredAbility", "effects": [{"amount": 1, "class": "GainLifeEffect"}],
+                    "on": {"e": "dies_all", "filter": [{"p": "type", "t": "CREATURE"}], "include_self": true},
+                    "optional": false, "rule": "Whenever a creature dies this turn, you gain 1 life."}
+            }))
+            .unwrap()
+        };
+        let item = StackItem::spell(src, 0);
+        apply_effects(&mut game, &mut Passer, &item, &[create(false), create(true)], &[], (src, zcc));
+        assert_eq!(game.delayed_triggers.len(), 2);
+        let bears: Vec<ObjId> = (0..2)
+            .map(|_| {
+                let b = game.create_obj(db.get("Runeclaw Bear").unwrap(), 1, Zone::Hand);
+                game.move_to(b, Zone::Battlefield);
+                b
+            })
+            .collect();
+        game.pending.clear();
+        for b in &bears {
+            destroy(&mut game, *b);
+        }
+        let fired: Vec<StackItem> = std::mem::take(&mut game.pending);
+        assert_eq!(fired.len(), 4);
+        assert!(fired.iter().all(|t| t.card == src && t.from_delayed.is_some() && t.controller == 0));
+        let kept = waiting(&mut game, fired);
+        // the once-only one: its first trigger only, and it's gone
+        assert_eq!(kept.len(), 3);
+        assert_eq!(game.delayed_triggers.len(), 1);
+        cleanup(&mut game, &mut Passer, 0);
+        assert!(game.delayed_triggers.is_empty());
     }
 
     #[test]
