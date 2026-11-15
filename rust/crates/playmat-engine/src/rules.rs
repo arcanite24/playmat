@@ -2251,7 +2251,7 @@ fn castable(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> bool {
                 // an alternate mana cost an effect set (`getCastSourceIdWithAlternateMana`): `ManaCosts.canPay`
                 // doesn't count the mana available, so it's playable whatever there is to pay with
                 || game.obj(id).pay_tax > 0
-                || !free_cast_sources(game, seat, id, def, game.obj(id).zone).is_empty();
+                || free_cast_playable(game, seat, id, def, game.obj(id).zone);
             game.paying_for.set(None);
             ok
         }
@@ -2277,6 +2277,24 @@ fn free_cast_sources(game: &Game, seat: Seat, id: ObjId, face: &CardDef, from: Z
         false
     });
     out
+}
+
+/// Whether one of the player's `CastFromHandWithoutPayingManaCostEffect`s makes `id` playable. Java's playable check
+/// asks `AlternativeCostSourceAbility.isAvailable`, whose `filter.match(card, game)` skips a filter's
+/// `ObjectSourcePlayerPredicate`s (the card predicates here: Omnipresence's mana value one, so with it out every spell
+/// in hand is offered, and its cost asked for in full if the predicate doesn't hold as it's cast)
+fn free_cast_playable(game: &Game, seat: Seat, id: ObjId, face: &CardDef, from: Zone) -> bool {
+    let mut found = false;
+    game.any_static(|g, src, e| {
+        if let EffectDef::CastFromHandWithoutPayingManaCostEffect { filter, from_hand } = e {
+            let loose = crate::card::Filter(filter.0.iter().filter(|p| !matches!(p, Pred::Card { .. })).cloned().collect());
+            if g.obj(src).controller == seat && (!from_hand || from == Zone::Hand) && face_matches(g, &loose, seat, src, id, face) {
+                found = true;
+            }
+        }
+        found
+    });
+    found
 }
 
 /// `AlternativeCostSourceAbility`: the costs paid instead of the mana cost, if its condition holds and they can be
