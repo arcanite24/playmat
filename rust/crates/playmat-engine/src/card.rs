@@ -3438,6 +3438,8 @@ pub enum EffectDef {
     },
     /// this can't attack alone (a static's)
     CantAttackAloneSourceEffect,
+    /// the creature this is attached to can't attack alone (`CantAttackAloneAttachedEffect`: Sightless Brawler)
+    CantAttackAloneAttachedEffect,
     /// this can't block alone (a static's)
     CantBlockAloneSourceEffect,
     /// you may tap the target permanent, or untap it if it's tapped

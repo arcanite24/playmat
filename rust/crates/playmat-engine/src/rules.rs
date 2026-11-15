@@ -18563,6 +18563,7 @@ fn apply_each_effect(
             | EffectDef::GainAbilityControllerEffect { until_end_of_turn: false, .. }
             | EffectDef::LeylineOfTheVoidEffect
             | EffectDef::CantAttackAloneSourceEffect
+            | EffectDef::CantAttackAloneAttachedEffect
             | EffectDef::CantBlockAloneSourceEffect
             | EffectDef::DontUntapInControllersUntapStepEnchantedEffect
             | EffectDef::ControlEnchantedEffect
@@ -22925,7 +22926,11 @@ fn declare_attackers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
         let attacking: Vec<ObjId> =
             game.battlefield.iter().copied().filter(|a| game.obj(*a).attacking.is_some()).collect();
         let Some(&alone) = attacking.iter().find(|a| {
-            attacking.len() == 1 && has_static(game, **a, |e| matches!(e, EffectDef::CantAttackAloneSourceEffect))
+            attacking.len() == 1
+                && (has_static(game, **a, |e| matches!(e, EffectDef::CantAttackAloneSourceEffect))
+                    || game.attachments(**a).any(|s| {
+                        has_static(game, s, |e| matches!(e, EffectDef::CantAttackAloneAttachedEffect))
+                    }))
         }) else {
             break;
         };
