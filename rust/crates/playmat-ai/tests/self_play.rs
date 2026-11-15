@@ -55,7 +55,13 @@ impl Decider for Audit {
             let real = obs::observe(game, seat, q, &cands);
             // the cards the question shows the seat are seen: the sample keeps the objects answers name (`since`)
             let shown: Vec<Answer> = cands.iter().filter(|a| matches!(a, Answer::Obj(_))).cloned().collect();
-            let root = Root { snapshot: game.clone(), since: shown, hidden: Some(self.hidden.clone()), playout: 2 };
+            let root = Root {
+                snapshot: game.clone(),
+                since: shown,
+                hidden: Some(self.hidden.clone()),
+                playout: 2,
+                rollout: None,
+            };
             for s in 0..3 {
                 let g = root.sample(self.checked as u64 * 7 + s);
                 // the candidates name the same objects: only those in what the seat can see may differ
@@ -125,7 +131,7 @@ fn the_opponents_hand_changes_the_critics_view_only() {
     let q = Query::Priority { playable: Vec::new() };
     let mut h = Hidden::new(0);
     h.observe(&game);
-    let root = Root { snapshot: game.clone(), since: Vec::new(), hidden: Some(h), playout: 2 };
+    let root = Root { snapshot: game.clone(), since: Vec::new(), hidden: Some(h), playout: 2, rollout: None };
     let g = (0..20).map(|s| root.sample(s)).find(|g| g.player(1).hand != game.player(1).hand).unwrap();
     assert!(same(&obs::observe(&game, 0, &q, &[]), &obs::observe(&g, 0, &q, &[])));
     assert_ne!(obs::hidden_entities(&game, 0).1, obs::hidden_entities(&g, 0).1);
@@ -196,9 +202,23 @@ fn sha(b: &[u8]) -> String {
 fn network_policies_play_whole_games() {
     let db = playmat_engine::cards();
     let (a, b) = decks();
-    for (kind, hide) in [(PolicyKind::Net, false), (PolicyKind::NetSearch, true)] {
-        let cfg =
-            Config { policy: kind, hide, samples: 2, budget: 1500, eval: 3, temp: 0, threads: 1, ..Config::default() };
+    // the last: Gumbel with the network answering inside the playouts too
+    for (kind, hide, rollout) in [
+        (PolicyKind::Net, false, None),
+        (PolicyKind::NetSearch, true, None),
+        (PolicyKind::Gumbel, true, Some("builtin".to_string())),
+    ] {
+        let cfg = Config {
+            policy: kind,
+            hide,
+            samples: 2,
+            budget: 1500,
+            eval: 3,
+            temp: 0,
+            threads: 1,
+            rollout,
+            ..Config::default()
+        };
         let mut game = new_duel(&db, [&a, &b], 11, 0).unwrap();
         let mut table = Table::new(vec![Some(cfg), None]);
         rules::play_from_priority(&mut game, &mut table, 30);

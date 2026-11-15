@@ -17,7 +17,7 @@ fn a_sample_redeals_the_opponents_hand_and_keeps_the_seats_own() {
     let game = new_duel(&db, [&a, &b], 7, 0).unwrap();
     let mut hidden = Hidden::new(0);
     hidden.observe(&game);
-    let root = Root { snapshot: game.clone(), since: Vec::new(), hidden: Some(hidden), playout: 1 };
+    let root = Root { snapshot: game.clone(), since: Vec::new(), hidden: Some(hidden), playout: 1, rollout: None };
     let mut changed = 0;
     for seed in 0..20 {
         let s = root.sample(seed);
@@ -62,7 +62,7 @@ fn a_card_the_seat_saw_stays_in_the_opponents_hand() {
     if !game.player(1).hand.contains(&card) {
         game.player_mut(1).hand.push(card);
     }
-    let root = Root { snapshot: game.clone(), since: Vec::new(), hidden: Some(hidden), playout: 1 };
+    let root = Root { snapshot: game.clone(), since: Vec::new(), hidden: Some(hidden), playout: 1, rollout: None };
     for seed in 0..10 {
         assert!(root.sample(seed).player(1).hand.contains(&card));
     }
