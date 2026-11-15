@@ -53,7 +53,7 @@ public class DiminishedReturnerTest extends CardTestPlayerBase {
     public void testEntersTappedAndKeepsTheChangeInHand() {
         addCard(Zone.BATTLEFIELD, playerA, returner);
         addCard(Zone.BATTLEFIELD, playerA, "Swamp", 8);
-        addCard(Zone.BATTLEFIELD, playerA, "Island", 1);
+        addCard(Zone.BATTLEFIELD, playerA, "Island", 2); // two: auto-pay may spend one on Murder's generic
         addCard(Zone.HAND, playerA, murder);
         addCard(Zone.HAND, playerA, unsummon);
 
