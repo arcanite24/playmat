@@ -5793,10 +5793,22 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         .rev()
         .find(|i| i.card == spell && i.ability.is_none() && i.delayed.is_none())
         .map_or(0, |i| i.replicated);
-    fired.extend(game.triggers(
-        [spell],
-        |_, src, _, t| matches!(t, Trigger::CastThis { replicated: r } if src == spell && (!r || replicated > 0)),
-    ));
+    // (controlled by the spell's caster, who may not own it: Nita's cast from an opponent's graveyard)
+    let caster = game.stack.iter().rev().find(|i| i.card == spell && i.ability.is_none() && i.delayed.is_none());
+    let caster = caster.map(|i| i.controller);
+    fired.extend(
+        game.triggers(
+            [spell],
+            |_, src, _, t| matches!(t, Trigger::CastThis { replicated: r } if src == spell && (!r || replicated > 0)),
+        )
+        .into_iter()
+        .map(|mut t| {
+            if let Some(c) = caster {
+                t.controller = c;
+            }
+            t
+        }),
+    );
     fired.sort_by_key(|t| game.trigger_key(t));
     // the spell's mana value, X included (Shark Typhoon's "that spell's mana value")
     let spell_mv = {
