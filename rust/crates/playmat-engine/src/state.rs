@@ -196,6 +196,9 @@ pub struct Obj {
     pub becomes_base: Option<Arc<CardDef>>,
     /// the Auras whose "enchanted … is a …" (`BecomesCreatureAttachedEffect`) `def` has, in timestamp order
     pub becomes_auras: Vec<ObjId>,
+    /// the Auras' "is a creature" applied over a def it had until end of turn (`until_end_of_turn_def`): as that
+    /// ends, they apply again over what it was before (Witness Protection on an animated Restless Spire)
+    pub becomes_over_eot: bool,
     /// lands given basic land types by a static (Urborg): the land without them, and the types given
     pub land_type_base: Option<(Arc<CardDef>, Vec<String>, Vec<AbilityDef>)>,
     /// the creature type chosen as it entered (Cavern of Souls)
@@ -561,6 +564,10 @@ pub struct Player {
     pub permanent_left: bool,
     /// the city's blessing (ascend: `DesignationType.CITYS_BLESSING`), for the rest of the game
     pub citys_blessing: bool,
+    /// speed (start your engines!): 0 until a permanent with it is theirs, then 1 to 4
+    pub speed: u8,
+    /// an enduring story (storied: `DesignationType.ENDURING_STORY`), for the rest of the game
+    pub enduring_story: bool,
     /// nonland permanents that entered under their control this turn (celebration)
     pub nonlands_entered: u32,
     /// permanent cards put into their graveyard this turn (`DescendedWatcher`)
@@ -1727,6 +1734,7 @@ impl Game {
             lost_all: 0,
             becomes_base: None,
             becomes_auras: Vec::new(),
+            becomes_over_eot: false,
             land_type_base: None,
             chosen_type: None,
             info: Vec::new(),
@@ -2045,6 +2053,8 @@ impl Game {
                 "spell" => spell,
                 // `CreatureSourcePredicate`: an ability whose source object is a creature
                 "creature_source" => !spell && self.has_type(item.card, CardType::Creature),
+                // `EnchantmentSourcePredicate`: an ability whose source object is an enchantment
+                "enchantment_source" => !spell && self.has_type(item.card, CardType::Enchantment),
                 // `!Spell.wasCast()`: a copy of a spell (the engine puts no other spell on the stack uncast)
                 "not_cast" => spell && self.obj(item.card).token,
                 "triggered" => {
@@ -2169,6 +2179,18 @@ impl Game {
             for a in &s.def.abilities {
                 let AbilityDef::SimpleStaticAbility { effects, .. } = a else { continue };
                 for e in effects {
+                    // (or while a condition holds: Thorin Oakenshield's "as long as you have an enduring story")
+                    let e = match e {
+                        EffectDef::ConditionalContinuousEffect { effect, condition }
+                            if matches!(**effect, EffectDef::GainAbilityControlledEffect { .. }) =>
+                        {
+                            if !self.condition_holds(Some(condition), s.controller, *src) {
+                                continue;
+                            }
+                            &**effect
+                        }
+                        _ => e,
+                    };
                     if let EffectDef::GainAbilityControlledEffect { ability, .. }
                     | EffectDef::GainAbilityAttachedEffect { ability } = e
                     {
@@ -2313,9 +2335,14 @@ impl Game {
                     && a.zone == Zone::Battlefield
                     && self.attached(*s) == Some(id)
                     && a.def.abilities.iter().any(|b| match b {
-                        AbilityDef::SimpleStaticAbility { effects, .. } => {
-                            effects.iter().any(|e| matches!(e, EffectDef::LoseAllAbilitiesAttachedEffect))
-                        }
+                        // (not what the same static gives it after: Stasis Field's "has defender, and loses all
+                        // other abilities", `removeAllAbilities` then `addAbility`)
+                        AbilityDef::SimpleStaticAbility { effects, .. } => effects
+                            .iter()
+                            .any(|e| matches!(e, EffectDef::LoseAllAbilitiesAttachedEffect))
+                            && !effects.iter().any(
+                                |e| matches!(e, EffectDef::GainAbilityAttachedEffect { ability: g } if **g == *ability),
+                            ),
                         _ => false,
                     })
             })
@@ -2650,6 +2677,11 @@ impl Game {
                     return *k;
                 }
             }
+            // max speed's triggered ability: `MaxSpeedAbilityEffect` adds it to the permanent as the continuous
+            // effects apply, so it waits after every object's own (Zahur's dies trigger after Nesting Bot's)
+            if let Some(crate::card::Condition::MaxSpeed) = o.def.abilities.get(i).and_then(|a| a.trigger_condition()) {
+                return (1 << 39) + o.trigger_order.min(1 << 38);
+            }
             // a triggered ability an Aura or Equipment gives it (`GainAbilityAttachedEffect`): registered as the effect
             // applies, after the objects there were as it was attached (Hunter's Axe's "whenever this creature
             // attacks" after Hunter's Talent's level 2 "whenever you attack" from before)
@@ -2950,6 +2982,17 @@ impl Game {
         }
     }
 
+    /// Storied's test: `seat` controls a permanent with storied (as printed: what other statics give isn't read, so
+    /// conditions on the enduring story don't recurse) and three or more artifacts, legendaries and/or Sagas
+    pub fn storied_now(&self, seat: Seat) -> bool {
+        let mine = || self.battlefield.iter().copied().filter(|o| self.obj(*o).controller == seat);
+        if !mine().any(|o| self.obj(o).def.has(&AbilityDef::StoriedAbility)) {
+            return false;
+        }
+        let filter = crate::rules::storied_filter();
+        mine().filter(|o| self.filter_matches(&filter, seat, None, *o)).count() >= 3
+    }
+
     /// `AscendContinuousEffect` (layer PlayerEffects): the controller of a permanent with ascend who controls ten or
     /// more permanents gets the city's blessing
     pub fn update_ascend(&mut self) {
@@ -3143,6 +3186,7 @@ impl Game {
                         as i32
                 }
                 Value::CardsInHand => self.player(you).hand.len() as i32,
+                Value::Speed => self.player(you).speed as i32,
                 Value::CardsDrawn => self.player(you).drawn as i32,
                 Value::LifeGained => self.player(you).life_gained,
                 Value::ManaExpended => self.player(you).expended as i32,
@@ -3416,6 +3460,9 @@ impl Game {
             }
             Condition::Raid => self.player(you).attacked,
             Condition::CitysBlessing => self.player(you).citys_blessing,
+            Condition::MaxSpeed => self.player(you).speed >= 4,
+            // (Java's `StoriedContinuousEffect` gives it as effects apply, before the engine's next state check)
+            Condition::EnduringStory => self.player(you).enduring_story || self.storied_now(you),
             // only a resolving spell's conditional effect knows (`ConditionalOneShotEffect`)
             Condition::GiftPromised => false,
             // the werewolves' "if no spells were cast last turn" (not on the first turn) and "if a player cast two
@@ -4636,6 +4683,7 @@ impl Game {
                     o.def = def;
                 }
                 o.becomes_auras.clear();
+                o.becomes_over_eot = false;
                 if let Some(def) = o.until_end_of_turn_def.take() {
                     o.def = def;
                 }

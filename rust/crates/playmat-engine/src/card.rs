@@ -1014,6 +1014,8 @@ pub enum Trigger {
     SuspendLastCounter,
     /// you gain life (`GainLifeControllerTriggeredAbility`)
     YouGainLife,
+    /// day becomes night or night becomes day (`BecomesDayOrNightTriggeredAbility`)
+    DayNightChanges,
     /// `who` ("you", "opponent", "any") loses life (`LoseLifeTriggeredAbility`); the life lost is its X
     LosesLife {
         who: String,
@@ -1025,9 +1027,13 @@ pub enum Trigger {
     CountersAddedSource {
         counter: String,
     },
-    /// a `counter` counter is put on this, once for each counter (Fathom Mage's `COUNTER_ADDED`)
+    /// a `counter` counter is put on this, once for each counter (Fathom Mage's `COUNTER_ADDED`); with a
+    /// `threshold`, only for the counter that makes it that many ("when the twelfth hour counter is put on this":
+    /// Midnight Clock)
     CounterAddedSource {
         counter: String,
+        #[serde(default)]
+        threshold: i32,
     },
     /// a state trigger: this has `n` or more `counter` counters (Mazemind Tome)
     SourceCountersAtLeast {
@@ -1249,6 +1255,10 @@ pub enum Condition {
     Revolt,
     /// `CitysBlessingCondition`: you have the city's blessing
     CitysBlessing,
+    /// max speed: your speed is 4 (`MaxSpeedAbility`, `ControllerSpeedCount` 4 or more)
+    MaxSpeed,
+    /// `EnduringStoryCondition`: you have an enduring story (storied)
+    EnduringStory,
     /// `GiftWasPromisedCondition.TRUE` in a spell's `ConditionalOneShotEffect`: its gift was promised
     GiftPromised,
     /// you cast `n` or more instant and sorcery spells this turn
@@ -1436,6 +1446,9 @@ pub struct CopyApplierDef {
     /// abilities the copy has (`AbilityCopyApplier`)
     #[serde(default)]
     pub abilities: Vec<AbilityDef>,
+    /// the copy's name instead (`blueprint.setName`: Chameleon, Master of Disguise)
+    #[serde(default)]
+    pub name: Option<String>,
     /// unless it copies a copy: these if it's a creature (Moritte's changeling)
     #[serde(default)]
     pub creature_abilities: Vec<AbilityDef>,
@@ -1600,6 +1613,11 @@ pub enum CostDef {
     },
     /// tap `amount` permanents of the filter you control (chosen, not targeted)
     TapTargetCost {
+        filter: Filter,
+        amount: usize,
+    },
+    /// untap `amount` tapped permanents of the filter you control (`UntapTargetCost`: Halo Fountain)
+    UntapTargetCost {
         filter: Filter,
         amount: usize,
     },
@@ -1805,6 +1823,8 @@ pub enum Value {
     },
     /// cards in the controller's hand
     CardsInHand,
+    /// the controller's speed (`ControllerSpeedCount`)
+    Speed,
     /// cards of the filter in the controller's graveyard (every graveyard: `CardsInAllGraveyardsCount`)
     CardsInGraveyard {
         filter: Filter,
@@ -1944,6 +1964,10 @@ pub enum EffectDef {
         filter: Filter,
         #[serde(default)]
         spells_only: bool,
+        /// the abilities of a source of `filter` too (Vizier of the Menagerie's `applies(objectId)` is the object
+        /// paid for, so a creature card's unearth)
+        #[serde(default)]
+        sources: bool,
     },
     /// a class a card declares for itself, written in Rust (`src/cards/`, docs/rust/Engine.md "Per-card handlers"),
     /// with the Java constructor's arguments as their source text and the Java the handler asked the transpiler for
@@ -2397,6 +2421,9 @@ pub enum EffectDef {
         amount: i32,
         #[serde(default)]
         condition: Option<Condition>,
+        /// a `DynamicValue` amount instead (Samut's "{X} less, where X is your speed")
+        #[serde(default)]
+        dynamic: Option<Value>,
     },
     /// a static ability's effect: this spell costs {amount} less (if the condition holds; `stack_only`: only while
     /// it's being cast, not for the playable check)
@@ -4048,6 +4075,8 @@ pub enum EffectDef {
     DiscardTargetEffect {
         amount: Amount,
     },
+    /// the speed designation's trigger: increase your speed by 1, up to 4 (`SpeedEffect`)
+    IncreaseSpeedEffect,
     /// you get an emblem (abilities in the command zone), read like a token class
     GetEmblemEffect {
         emblem: TokenDef,
@@ -4093,6 +4122,9 @@ pub enum EffectDef {
         /// what it loses (`BecomesCreatureAttachedEffect.LoseType`: ALL, ABILITIES, COLOR, SUBTYPE…); none: nothing
         #[serde(default)]
         lose: Option<String>,
+        /// "… named Legitimate Businessperson" (layer 3: Witness Protection)
+        #[serde(default)]
+        named: Option<String>,
     },
     /// a Siege defeated: exile it, then cast it transformed without paying its mana cost
     SiegeDefeatedEffect,
@@ -4586,6 +4618,18 @@ pub enum AbilityDef {
         #[serde(default)]
         rule: String,
     },
+    /// web-slinging: the spell cast for `cost` instead, also returning a tapped creature you control to its owner's
+    /// hand (`WebSlingingAbility`, a spell ability of its own)
+    WebSlingingAbility {
+        cost: String,
+        /// as sneak's
+        #[serde(default)]
+        spell_effects: Option<usize>,
+        #[serde(default)]
+        spell_targets: Option<usize>,
+        #[serde(default)]
+        rule: String,
+    },
     /// awaken: the spell cast for `cost` instead, also targeting a land you control, which gets `amount` +1/+1
     /// counters and becomes a 0/0 Elemental creature with haste (`AwakenAbility`, a spell ability of its own)
     AwakenAbility {
@@ -5053,6 +5097,9 @@ pub enum AbilityDef {
         /// the least X it can be activated with (`VariableManaCost.setMinX`)
         #[serde(default)]
         min_x: i32,
+        /// "this ability can't be copied" (`withCanBeCopied(false)`: Gogo)
+        #[serde(default)]
+        cant_be_copied: bool,
         /// a modal ability (`addMode`): its other modes, mode 0 being its own effects and targets
         #[serde(default)]
         modes: Vec<ModeDef>,
@@ -5178,6 +5225,16 @@ pub enum AbilityDef {
     DayboundAbility,
     /// ascend: if you control ten or more permanents, you get the city's blessing for the rest of the game
     AscendAbility,
+    /// start your engines!: its controller's speed starts at 1 (a state-based check, `PlayerImpl.initSpeed`)
+    StartYourEnginesAbility,
+    /// if it's neither day nor night, it becomes day as this enters
+    BecomeDayAsEntersAbility,
+    /// companion: put the companion from outside the game into your hand for {3}; with no companion (shadow games
+    /// have no sideboard) Java never offers it
+    CompanionAbility,
+    /// storied: if you control three or more artifacts, legendaries and/or Sagas, you have an enduring story for the
+    /// rest of the game (`StoriedContinuousEffect`)
+    StoriedAbility,
     /// if a player casts at least two spells during their own turn, it becomes day next turn (its back)
     NightboundAbility,
     /// "you may exert this as it attacks"; its `BecomesExertSourceTriggeredAbility` is the next ability
@@ -6439,6 +6496,39 @@ impl CardDef {
                     spell.targets.truncate(*n);
                 }
                 spell.costs.push(CostDef::ReturnAttackerToHandTargetCost);
+                Some((
+                    k,
+                    CardDef {
+                        cost: ManaCost::parse(cost).ok()?,
+                        printed_cost: Some(self.printed().clone()),
+                        spell,
+                        ..self.clone()
+                    },
+                ))
+            }
+            _ => None,
+        })
+    }
+
+    /// Web-slinging: its ability index, and the card cast for its web-slinging cost, returning a tapped creature
+    pub fn web_slinging(&self) -> Option<(usize, CardDef)> {
+        self.abilities.iter().enumerate().find_map(|(k, a)| match a {
+            AbilityDef::WebSlingingAbility { cost, spell_effects, spell_targets, .. } => {
+                let mut spell = self.spell.clone();
+                if let Some(n) = spell_effects {
+                    spell.effects.truncate(*n);
+                }
+                if let Some(n) = spell_targets {
+                    spell.targets.truncate(*n);
+                }
+                spell.costs.push(CostDef::ReturnToHandChosenControlledPermanentCost {
+                    filter: Filter(vec![
+                        Pred::Type { t: CardType::Creature },
+                        Pred::Controller { who: "you".into() },
+                        Pred::Tapped { v: true },
+                    ]),
+                    amount: 1,
+                });
                 Some((
                     k,
                     CardDef {

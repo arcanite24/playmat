@@ -355,7 +355,8 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (12,507 on 14 Nov). A card whose JSON the engine can't load yet is left out
+  can express (12,565 on 14 Nov). A card whose JSON the engine can't load yet is left out
+  can express (12,533 on 14 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -1123,6 +1124,83 @@ Being in the engine and being trusted are kept apart.
   order), Agency Coroner and Airtight Alibi (suspected as last known), Casey Jones (random discard), Incendiary Oracle
   and Draconic Intervention (`DamagedByWatcher` values), Kytheon (its back face's requirement effect), Fraying
   Sanity, Thirsting Axe and the cards with `CastFromHandSourcePermanentCondition`.
+
+  Wave 12, keyword mechanics (14 Nov): speed, storied, companion, day/night triggers and web-slinging.
+  - **Speed.** `Player::speed` is 0 until a permanent with start your engines! is theirs; the state check
+    (`update_speed_and_stories`, as `PlayerImpl.initSpeed`) sets it to 1 and puts the speed designation in the command
+    zone: an object (`rules::speed_def`, left out of the command view) whose one trigger is Java's
+    `SpeedTriggeredAbility` ("whenever one or more opponents lose life during your turn, if your speed is less than
+    4", once each turn), resolving `IncreaseSpeedEffect`. `ControllerSpeedCount` is `Value::Speed`.
+    `MaxSpeedAbility` is read like a station level, gated by `Condition::MaxSpeed`: a triggered ability gets it as its
+    trigger condition (and waits after every object's own triggers, as Java adds it while the effects apply), a
+    static one's effects become conditional (cost reductions take it as their condition), an activated or mana
+    ability is gained while it holds, and a graveyard ability is activatable only while it holds.
+    `SpellsCostReductionControllerEffect` takes a dynamic amount (Samut's speed).
+  - **Storied.** An enduring story is `Player::enduring_story`, set by the state check, and
+    `EnduringStoryCondition` also holds as soon as the test does (Java's `StoriedContinuousEffect` gives it as effects
+    apply, before the next state check): a permanent with storied as printed and three or more artifacts,
+    legendaries and/or Sagas. Granted ward under a condition (Thorin Oakenshield's) now triggers.
+  - **Companion** is inert: with no sideboard Java never offers its special action.
+  - **Day and night.** `BecomeDayAsEntersAbility` makes it day as the permanent enters if it's neither (no event);
+    `BecomesDayOrNightTriggeredAbility` is `Trigger::DayNightChanges`, fired in the untap step before the daybound and
+    nightbound permanents transform.
+  - **Web-slinging** is a spell ability of its own, as awaken is: its cost, plus a tapped creature you control
+    returned to its owner's hand; it marks the spell kicked, as surge does, so `WebSlingingCondition` reads it.
+
+  Six handler files: Hazoret, Momentum Breaker, Point the Way, Outpace Oblivion, Far Fortune and Vnwxt. Two factory
+  rounds (72 games, 71 matching once the fixes were in) verified 56 of the 58 cards
+  that came in: 12,297 of 12,565. Not verified: Spiders-Man, Heroic Horde (blamed for one game that parts on a finality counter on another card) and Far Fortune, End Boss (two games). Four games under `shadow/mechanics/game-w12mech-*` cover the engine pieces. Left: mutate
+  (32 cards: merged permanents aren't in the engine), compleated (7 planeswalkers, each with its own classes, and
+  life paid for Phyrexian mana isn't tracked), the storied cards with their own classes (Kili, Dain, Balin, Bombur,
+  Grub), Lightwheel Enhancements (`MayCastFromGraveyardSourceAbility`), Howlsquad Heavy, Sunstreak Phoenix (from the
+  graveyard), The Celestus and Vadrik (their own day/night classes), Spider-UK, Arachne, Scarlet Spider and the
+  companions with their own classes (Zirda, Gyruda, Umori, Obosh, Yorion).
+  Wave 12, claim 1 (14 Nov): target handlers. `Handler::target(name, base, f)` is a card's own `Target` class: the
+  transpiler translates its base (`new TargetPermanent(2, 2, …, false)`, `new TargetCardInYourGraveyard(0, …)`) and
+  adds `f`, its `canTarget`, to the filter as a card predicate. While the targets are chosen, `game.chosen_before`
+  has the ability's earlier targets and then this target's own picks so far (Java's `this.getTargets()`), so "two
+  creatures controlled by different players" (Run Away Together), "that share a creature type" (Secret Tunnel),
+  "with total mana value N or less" (Joshua, Call of the Death-Dweller), "with different names" (Behold the
+  Sinister Six!) and "one for each color" (Rogues' Gallery) are checked as each is picked. Checked on its own, as it
+  resolves, the predicate sees no other targets, and `canChoose` overrides aren't modeled (a target class that has
+  one is still blocked). A reflexive trigger with more than one target is removed unless each of them can be chosen
+  (`canChooseTarget`, as for other triggers): Earth Rumble's "up to one target creature you control fights target
+  creature an opponent controls" with no creature an opponent controls. The transpiler also reads
+  `CanAttackAsThoughItDidntHaveDefenderTargetEffect` until end of turn (Assault Formation), a sacrificed trigger as
+  part of an `OrTriggeredAbility` (Carrot Cake) and a granted "0: Proliferate." with its reminder (Ichormoon
+  Gauntlet). 11 handler files. Three factory rounds (69 games; the 45 replayed on the final engine match but 2) verified
+  13: 12,254 of 12,521. Six games under `shadow/handlers/game-handlers12-claim1-*` cover them. Left: Heaped Harvest
+  (two of its games part on casting Appeal // Authority with Inspiring Statuary, not the Harvest), Tyvar
+  Kell (dropped: Java numbers a static's granted mana ability after the other abilities granted to the permanent, so
+  a replayed activation of Rustvine Cultivator's "{T}: Add {B}" names an index the engine doesn't have) and the
+  rest of the list: cards needing `canChoose` overrides (Raise the Draugr), P/T switching, Auras on players, any-zone
+  self-replacement with a shuffle (Progenitus, Darksteel Colossus), Or-trigger parts with a trigger condition and
+  many one-off effects.
+  Wave 12, claim 2 (14 Nov): blocked cards from players' decks. A creature token's static without its own text
+  takes it from the ability (Restless Spire); a `CreatureToken` local feeds `BecomesCreatureTargetEffect` (Lizard,
+  Connors's Curse); an Aura's "is a creature named …" (`BecomesCreatureAttachedEffect.named`: Witness Protection);
+  Treasure and Octopus gifts. An Aura whose static removes all abilities keeps what the same static gives (Stasis
+  Field's defender, `removeAllAbilities` then `addAbility`), and Auras' "is a creature" applied over an animation
+  until end of turn apply again over what it was when that ends (`Obj::becomes_over_eot`: Witness Protection on an
+  animated Restless Spire). `SimpleActivatedAbility.cant_be_copied` ("this ability can't be copied": Gogo, Master of
+  Mimicry, whose `setMinX` goes to `getCosts`, not the `{X}` in `getManaCosts`, so X can still be 0 as in Java);
+  `Trigger::CounterAddedSource.threshold` (Midnight Clock's twelfth hour counter); `EnchantmentSourcePredicate`
+  (Weaver of Harmony); `SpendManaAsAnyColorEffect.sources`, the abilities of a creature card too (Vizier of the
+  Menagerie's `applies(objectId)`: unearth and outlast paid with any type); `UntapTargetCost` (Halo Fountain); a copy
+  applier that only renames the copy (Chameleon, Master of Disguise). Rent Is Due shows "If you don't" as Java does: `DoIfCostPaid`'s copy constructor drops
+  `setOtherwiseText`. Handlers include the framework classes `SearchLibraryForFourDifferentCardsEffect` (Elemental
+  Teachings; Gifts Ungiven and Realms Uncharted aren't in the pool), `PutCardFromHandOrGraveyardOntoBattlefieldEffect`
+  (Bonny Pall), `ShuffleHandGraveyardIntoLibraryEffect` and `StormAbility` (Stormscale Scion). Blooming Blast came in
+  with the Treasure gift. Four factory rounds (72 games; 59 of the 61 replayed
+  match, the other 11 had Nyx Lotus) verified 24: 12,265 of 12,533. Seven games under `shadow/wave12-c2/` cover the
+  engine pieces. Left: Maze's End and Wiretapping (each blamed for one game
+  that parts on an unearth's "Exile {this} at the beginning of the next end step" trigger, the unearth paid through
+  Vizier; not looked into yet), Nyx Lotus (dropped: Java lets a mana ability with no mana now be tapped while paying, the
+  engine offers only sources that make mana), Spelunking (lands entering untapped among the "enters tapped"
+  replacements), Radiant Lotus (`SacrificeXTargetCost` on an activated ability), Day's Undoing (`EndTurnEffect`),
+  Fire Lord Zuko (entered from exile), Ral, Crackling Wit and Prismari (storm granted to spells), Captain Howler
+  (a granted trigger's text), Anointed Peacekeeper, Planewide Celebration (the same mode more than once), the random
+  discards (Curse-Marred Demon, Cool but Rude, Rowdy Crew, Tersa) and the rest of the list's engine work.
   Text fixes for verified cards (13 Nov): the Young Hero Role's granted trigger keeps its own text, "put a +1/+1
   counter on it" (its `AddCountersSourceEffect` has a `setText`), and a delayed upkeep transform is "Transform {this}
   at the beginning of the next turn's upkeep." (`AtTheBeginOfNextUpkeepDelayedTriggeredAbility.getRule` puts the

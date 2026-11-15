@@ -268,6 +268,10 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 };
                 if change {
                     game.day = game.day.map(|d| !d);
+                    // `BECOMES_DAY_NIGHT`, before the daybound and nightbound permanents transform
+                    let sources = game.trigger_sources();
+                    let fired = game.triggers(sources, |_, _, _, t| matches!(t, Trigger::DayNightChanges));
+                    game.pending.extend(fired);
                     day_night(game);
                 }
             }
@@ -1420,6 +1424,7 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             || surge(game, seat, *id).is_some()
             || pay_more_flash(game, seat, *id).is_some()
             || awaken(game, seat, *id).is_some()
+            || web_slinging(game, seat, *id).is_some()
             || sneak(game, seat, *id).is_some()
             || emerge(game, seat, *id).is_some()
             || warp(game, seat, *id).is_some()
@@ -1694,6 +1699,7 @@ pub fn playable_abilities(game: &Game, seat: Seat) -> Vec<(ObjId, usize, PlayKin
                         surge(game, seat, id).map(|x| x.0),
                         pay_more_flash(game, seat, id).map(|x| x.0),
                         awaken(game, seat, id).map(|x| x.0),
+                        web_slinging(game, seat, id).map(|x| x.0),
                         sneak(game, seat, id).map(|x| x.0),
                         emerge(game, seat, id).map(|x| x.0),
                         disturb(game, seat, id).map(|x| x.0),
@@ -1957,7 +1963,7 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
         CostDef::SacrificeTargetCost { filter, amount } => {
             matching(game, filter, seat, id).iter().filter(|p| game.obj(**p).controller == seat).count() >= *amount
         }
-        CostDef::TapTargetCost { filter, amount } => {
+        CostDef::TapTargetCost { filter, amount } | CostDef::UntapTargetCost { filter, amount } => {
             matching(game, filter, seat, id).iter().filter(|p| game.obj(**p).controller == seat).count() >= *amount
         }
         CostDef::SacrificeXTargetCost { .. } | CostDef::TapXTargetCost { .. } => true,
@@ -2772,6 +2778,16 @@ fn sneak(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
     let can = castable(game, seat, id, &def);
     game.any_time.set(any_time);
     can.then_some((k, def))
+}
+
+/// Web-slinging: from hand, for its web-slinging cost and a tapped creature you control returned
+/// (`WebSlingingAbility`, zone HAND)
+fn web_slinging(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
+    if game.obj(id).zone != Zone::Hand {
+        return None;
+    }
+    let (k, def) = game.obj(id).def.web_slinging()?;
+    castable(game, seat, id, &def).then_some((k, def))
 }
 
 /// Awaken: from hand, for its awaken cost (`AwakenAbility`, zone HAND)
@@ -4040,6 +4056,10 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         if let Some((k, _)) = &awaken {
             options.push(*k);
         }
+        let web = if zone == Zone::Hand { web_slinging(game, seat, id) } else { None };
+        if let Some((k, _)) = &web {
+            options.push(*k);
+        }
         let sneak = if zone == Zone::Hand { sneak(game, seat, id) } else { None };
         if let Some((k, _)) = &sneak {
             options.push(*k);
@@ -4128,12 +4148,15 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             };
             // cast for its spectacle or warp cost (the whole card comes back as it leaves the stack)
             // (spectacle too: `SpectacleCondition`, "if its spectacle cost was paid", reads the same tag)
+            // (web-slinging too: `WebSlingingCondition`, "if it was cast using web-slinging")
             let surged = surge.as_ref().is_some_and(|(k, _)| *k == index)
-                || spectacle.as_ref().is_some_and(|(k, _)| *k == index);
+                || spectacle.as_ref().is_some_and(|(k, _)| *k == index)
+                || web.as_ref().is_some_and(|(k, _)| *k == index);
             let alternative = spectacle
                 .filter(|(k, _)| *k == index)
                 .or(surge.filter(|(k, _)| *k == index))
                 .or(awaken.filter(|(k, _)| *k == index))
+                .or(web.filter(|(k, _)| *k == index))
                 .or(pay_more.filter(|(k, _)| *k == index))
                 .or(cleave.filter(|(k, _)| *k == index))
                 .or(overload.filter(|(k, _)| *k == index))
@@ -5951,12 +5974,16 @@ fn modified_cost_of(game: &Game, seat: Seat, id: ObjId, face: &CardDef, mut cost
                             cost.generic += *amount as u32;
                         }
                     }
-                    if let EffectDef::SpellsCostReductionControllerEffect { amount, filter, condition } = e {
+                    if let EffectDef::SpellsCostReductionControllerEffect { amount, filter, condition, dynamic } = e {
                         if s.controller == seat
                             && face_matches(game, filter, seat, *src, id, face)
                             && game.condition_holds(condition.as_ref(), seat, *src)
                         {
-                            reduce += *amount as u32;
+                            let n = match dynamic {
+                                Some(v) => game.value(&Amount::Of(v.clone()), seat, *src, 0).max(0),
+                                None => *amount,
+                            };
+                            reduce += n as u32;
                         }
                     }
                 }
@@ -6003,7 +6030,7 @@ fn modified_cost_of(game: &Game, seat: Seat, id: ObjId, face: &CardDef, mut cost
         cost.generic += cost.colored.iter().sum::<u32>() + cost.colorless;
         cost.colored = [0; 5];
         cost.colorless = 0;
-    } else if spend_as_any_color(game, seat, Some(id)) {
+    } else if spend_as_any_color(game, seat, Some(id), id) {
         // "as though it were mana of any color" (Chromatic Orrery, Oath of Nissa's planeswalker spells): its colored
         // and hybrid symbols take any mana
         cost.generic += cost.colored.iter().sum::<u32>() + cost.hybrid.len() as u32;
@@ -6013,13 +6040,15 @@ fn modified_cost_of(game: &Game, seat: Seat, id: ObjId, face: &CardDef, mut cost
     cost
 }
 
-/// A `SpendManaAsAnyColorEffect` of `seat`'s applies to what they pay for: spell `spell`, or an ability (None)
-fn spend_as_any_color(game: &Game, seat: Seat, spell: Option<ObjId>) -> bool {
+/// A `SpendManaAsAnyColorEffect` of `seat`'s applies to what they pay for: spell `spell`, or an ability (None) of
+/// `source`
+fn spend_as_any_color(game: &Game, seat: Seat, spell: Option<ObjId>, source: ObjId) -> bool {
     game.any_static(|g, src, e| match e {
-        EffectDef::SpendManaAsAnyColorEffect { filter, spells_only } => {
+        EffectDef::SpendManaAsAnyColorEffect { filter, spells_only, sources } => {
             g.obj(src).controller == seat
                 && match spell {
                     Some(s) => g.filter_matches(filter, seat, Some(src), s),
+                    None if *sources => g.filter_matches(filter, seat, Some(src), source),
                     None => !*spells_only,
                 }
         }
@@ -6958,7 +6987,7 @@ fn adjusted_mana_cost(game: &Game, seat: Seat, id: ObjId, a: &AbilityDef, costs:
 fn adjusted_mana_cost_own(game: &Game, seat: Seat, id: ObjId, a: &AbilityDef, costs: &[CostDef]) -> ManaCost {
     let mut cost = ability_mana_cost(costs);
     // "you may spend mana as though it were mana of any color" (Chromatic Orrery): abilities too
-    if spend_as_any_color(game, seat, None) {
+    if spend_as_any_color(game, seat, None, id) {
         cost.generic += cost.colored.iter().sum::<u32>() + cost.hybrid.len() as u32;
         cost.colored = [0; 5];
         cost.hybrid.clear();
@@ -7314,6 +7343,22 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             // kept for the effect (`TapTargetCost.getTarget()`: Swallow Whole's counter on the creature tapped)
             if let Some(top) = Arc::make_mut(&mut game.stack).last_mut().filter(|t| t.card == id) {
                 top.tapped_for_cost.extend(chosen);
+            }
+        }
+        // `UntapTargetCost`: `target.choose`, not done: unpaid; each chosen untapped (a stun counter removed instead
+        // counts too)
+        CostDef::UntapTargetCost { filter, amount } => {
+            let possible: Vec<ObjId> =
+                matching(game, filter, seat, id).into_iter().filter(|p| game.obj(*p).controller == seat).collect();
+            let Some(chosen) = choose_cards_with(game, d, seat, &possible, &possible, *amount, *amount, "untap", true)
+            else {
+                return false;
+            };
+            if chosen.len() < *amount {
+                return false;
+            }
+            for o in chosen {
+                untap_permanent(game, o);
             }
         }
         CostDef::CrewCost { value } | CostDef::SaddleCost { value } => {
@@ -7849,6 +7894,34 @@ fn choose_target_by(
     cancellable: bool,
     of_ability: bool,
 ) -> Option<Vec<Target>> {
+    // a card's own target class (`Handler::target`): its `canTarget` reads this target's choices so far
+    // (`this.getTargets()`), after the ability's earlier targets, in `chosen_before`
+    let before = game.chosen_before.len();
+    let out = choose_target_in(game, d, seat, asker, def, source, rule, cancellable, of_ability);
+    game.chosen_before.truncate(before);
+    out
+}
+
+/// whether a target's filter has a card's own predicate (`Handler::target`, a `Handler::predicate`)
+fn own_target_class(def: &TargetDef) -> bool {
+    matches!(def, TargetDef::TargetPermanent { filter, .. } | TargetDef::TargetCardInGraveyard { filter, .. }
+        if filter.0.iter().any(|p| matches!(p, Pred::Card { .. })))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn choose_target_in(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    seat: Seat,
+    asker: Seat,
+    def: &TargetDef,
+    source: Option<ObjId>,
+    rule: &str,
+    cancellable: bool,
+    of_ability: bool,
+) -> Option<Vec<Target>> {
+    let own_target = own_target_class(def);
+    let before = game.chosen_before.len();
     let (mut min, mut max) = target_counts(def);
     if let TargetDef::TargetPermanent { x_count: true, .. }
     | TargetDef::TargetAnyTarget { x_count: true, .. }
@@ -7911,6 +7984,10 @@ fn choose_target_by(
     let mut selected = false;
     let mut added_in_prompt = false;
     loop {
+        if own_target {
+            game.chosen_before.truncate(before);
+            game.chosen_before.extend(chosen.iter().copied());
+        }
         let src = source.or_else(|| game.stack.last().map(|t| t.card));
         let (mut players, mut objs) = possible_targets(game, seat, def, src);
         // `TargetSpellOrPermanent.possibleTargets` compares the spell's id with its card's, so it counts itself for
@@ -10260,7 +10337,9 @@ pub(crate) fn refresh_becomes(game: &mut Game) {
         }
         // Ensoul Artifact: an Aura's "enchanted artifact is a 5/5 creature in addition to its other types"; Frogify's
         // "enchanted creature loses all abilities and is a blue Frog": each attached Aura's, in timestamp order
-        let mut auras: Vec<(u64, ObjId, crate::card::TokenDef, Option<String>)> = Vec::new();
+        // (timestamp, Aura, what it makes it, what it loses, its name)
+        type Aura = (u64, ObjId, crate::card::TokenDef, Option<String>, Option<String>);
+        let mut auras: Vec<Aura> = Vec::new();
         for a in game.battlefield.iter() {
             if game.attached(*a) != Some(id) {
                 continue;
@@ -10268,33 +10347,39 @@ pub(crate) fn refresh_becomes(game: &mut Game) {
             for b in game.obj(*a).def.abilities.iter() {
                 if let AbilityDef::SimpleStaticAbility { effects, .. } = b {
                     for e in effects {
-                        if let EffectDef::BecomesCreatureAttachedEffect { token, lose } = e {
-                            auras.push((game.obj(*a).attached_at, *a, token.clone(), lose.clone()));
+                        if let EffectDef::BecomesCreatureAttachedEffect { token, lose, named } = e {
+                            auras.push((game.obj(*a).attached_at, *a, token.clone(), lose.clone(), named.clone()));
                         }
                     }
                 }
             }
         }
-        auras.sort_by_key(|(at, a, _, _)| (*at, *a));
+        auras.sort_by_key(|(at, a, _, _, _)| (*at, *a));
         let conditional = matches!(&found, Some((_, _, c)) if game.condition_holds(Some(c), o.controller, id));
         if !conditional && !auras.is_empty() {
-            let ids: Vec<ObjId> = auras.iter().map(|(_, a, _, _)| *a).collect();
+            let ids: Vec<ObjId> = auras.iter().map(|(_, a, _, _, _)| *a).collect();
             if o.becomes_base.is_none() || o.becomes_auras != ids {
                 // a newer Aura applies over what it is now; one gone, all again from what it was without them
                 let more = o.becomes_base.is_some() && !o.becomes_auras.is_empty() && ids.starts_with(&o.becomes_auras);
                 let (mut def, start) =
                     if more { ((*o.def).clone(), o.becomes_auras.len()) } else { ((*base).clone(), 0) };
-                for (_, _, token, lose) in &auras[start..] {
+                for (_, _, token, lose, named) in &auras[start..] {
                     def = match lose {
                         Some(lose) => becomes_creature_attached(&def, token, lose),
                         None => becomes_creature(&def, token, true),
                     };
+                    if let Some(n) = named {
+                        def.name = n.clone();
+                    }
                 }
                 if lost.is_some() {
                     def.abilities.clear();
                     (def.power, def.toughness) = (base.power, base.toughness);
                 }
                 let o = game.obj_mut(id);
+                if !more {
+                    o.becomes_over_eot = o.until_end_of_turn_def.is_some();
+                }
                 o.becomes_base = Some(base);
                 o.becomes_auras = ids;
                 o.def = Arc::new(def);
@@ -12274,6 +12359,15 @@ fn apply_each_effect(
                             None => continue,
                         },
                     };
+                    // "this ability can't be copied" (`StackAbility.createCopyOnStack` does nothing)
+                    if let Some((i, _)) = original.ability {
+                        if matches!(
+                            game.item_def(&original).abilities.get(i),
+                            Some(AbilityDef::SimpleActivatedAbility { cant_be_copied: true, .. })
+                        ) {
+                            continue;
+                        }
+                    }
                     if original.ability.is_none() && original.delayed.is_none() {
                         if copy_spell_with(game, d, &original, controller, !*keep_targets, *not_legendary).is_none() {
                             return;
@@ -15881,6 +15975,12 @@ fn apply_each_effect(
                 }
             }
             // exiled until the source leaves; nothing if it already has
+            EffectDef::IncreaseSpeedEffect => {
+                let p = game.player_mut(controller);
+                if p.speed < 4 {
+                    p.speed += 1;
+                }
+            }
             EffectDef::GetEmblemEffect { emblem } => {
                 token_image(game, emblem, source.0);
                 let id = game.create_obj(Arc::new(emblem.card()), controller, Zone::Library);
@@ -19140,10 +19240,20 @@ fn counters_put_triggers(game: &mut Game, o: ObjId, name: &str, n: i32, by: Opti
         game.watch.p1p1_put.push((by, n));
     }
     // `COUNTER_ADDED`, one event for each counter, before the batch's `COUNTERS_ADDED`
-    let each = game.triggers([o], |_, _, _, t| matches!(t, Trigger::CounterAddedSource { counter } if counter == name));
+    let each = game.triggers(
+        [o],
+        |_, _, _, t| matches!(t, Trigger::CounterAddedSource { counter, threshold: 0 } if counter == name),
+    );
     for _ in 0..n {
         game.pending.extend(each.iter().cloned());
     }
+    // (the counter that makes it `threshold`: `hourCounters - amountAdded < 12 && 12 <= hourCounters` of each one)
+    let after = game.obj(o).counter(name);
+    let crossed = game.triggers([o], |_, _, _, t| {
+        matches!(t, Trigger::CounterAddedSource { counter, threshold } if counter == name && *threshold > 0
+            && after - n < *threshold && *threshold <= after)
+    });
+    game.pending.extend(crossed);
     // a Saga's chapters reached by lore counters an effect put (proliferate): `ChapterTriggeredAbility` on
     // `COUNTERS_ADDED`, as for the lore counter of the precombat main phase
     if name == "lore" {
@@ -19667,6 +19777,9 @@ fn apply_copy_applier(
         }
     }
     copy.abilities.extend(ap.abilities.iter().cloned());
+    if let Some(n) = &ap.name {
+        copy.name = n.clone();
+    }
     if game.obj(of).copied_def.is_some() {
         return;
     }
@@ -19988,6 +20101,11 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
         game.player_mut(controller).lands_entered += 1;
     }
     enter_as_copy(game, d, id, controller, cast);
+    // `BecomeDayAsEntersAbility`: if it's neither day nor night, it becomes day as this enters (no event: Java's
+    // `setDaytime` fires `BECOMES_DAY_NIGHT` only when one becomes the other)
+    if game.day.is_none() && game.obj(id).def.has(&AbilityDef::BecomeDayAsEntersAbility) {
+        game.day = Some(true);
+    }
     // `EntersPreparedAbility`
     if game.obj(id).def.abilities.iter().any(|a| matches!(a, AbilityDef::EntersPreparedAbility { .. })) {
         become_prepared(game, id);
@@ -21194,7 +21312,12 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
                 let at = game.stack.len();
                 // a reflexive trigger's targets, the same way
                 if let Some((rule, targets)) = reflexive {
-                    if !choose_targets(game, d, seat, &targets, None, &rule, false) {
+                    // (`canChooseTarget`: every target first, as below; Earth Rumble's "up to one target creature
+                    // you control" isn't asked with no creature an opponent controls)
+                    let card = game.stack.last().map(|t| t.card);
+                    if targets.len() > 1 && !targets.iter().all(|x| target_possible(game, seat, x, card)) {
+                        Arc::make_mut(&mut game.stack).pop();
+                    } else if !choose_targets(game, d, seat, &targets, None, &rule, false) {
                         if d.stopped() {
                             return happened;
                         }
@@ -23471,6 +23594,11 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
             let o = game.obj_mut(id);
             o.def = o.until_end_of_turn_def.take().unwrap();
             o.eot_copy = None;
+            // the Auras' "is a creature" again over what it was before (`refresh_becomes`)
+            if std::mem::take(&mut o.becomes_over_eot) && o.becomes_base.is_some() {
+                o.becomes_base = Some(o.def.clone());
+                o.becomes_auras.clear();
+            }
         }
         if game.obj(id).lost_all == 1 {
             game.obj_mut(id).lost_all = 0;
@@ -23882,10 +24010,60 @@ fn day_night(game: &mut Game) {
     }
 }
 
+/// The speed designation (`mage.designations.Speed`): its one triggered ability, in the command zone
+const SPEED_JSON: &str = r#"{"name": "Speed", "types": [], "abilities": [{"class": "TriggeredAbility",
+    "on": {"e": "loses_life", "who": "opponent"}, "trigger_condition": {"c": "my_turn"},
+    "condition": {"c": "not", "x": {"c": "max_speed"}}, "limit_per_turn": 1, "optional": false,
+    "effects": [{"class": "IncreaseSpeedEffect"}],
+    "rule": "Whenever one or more opponents lose life during your turn, if your speed is less than 4, increase your speed by 1. This ability triggers only once each turn."}]}"#;
+
+pub fn speed_def() -> Arc<CardDef> {
+    static DEF: std::sync::OnceLock<Arc<CardDef>> = std::sync::OnceLock::new();
+    DEF.get_or_init(|| {
+        let json: crate::card::CardJson = serde_json::from_str(SPEED_JSON).expect("the speed designation");
+        Arc::new(CardDef::from_json(json).expect("the speed designation"))
+    })
+    .clone()
+}
+
+/// Start your engines! (`GameImpl.checkStateBasedActions`, `PlayerImpl.initSpeed`): the controller of a permanent
+/// with it who has no speed gets speed 1, and the speed designation's trigger. Storied (`StoriedContinuousEffect`):
+/// the controller of a permanent with it who controls three or more artifacts, legendaries and/or Sagas has an
+/// enduring story for the rest of the game.
+pub fn update_speed_and_stories(game: &mut Game) {
+    for s in 0..game.seats() {
+        let mine: Vec<ObjId> = game.battlefield.iter().copied().filter(|o| game.obj(*o).controller == s).collect();
+        if game.player(s).speed == 0 && mine.iter().any(|o| game.has_ability(*o, &AbilityDef::StartYourEnginesAbility))
+        {
+            game.player_mut(s).speed = 1;
+            let id = game.create_obj(speed_def(), s, Zone::Library);
+            game.obj_mut(id).trigger_order = (1 << 32) + id.0 as u64;
+            game.move_to(id, Zone::Command);
+        }
+        if !game.player(s).enduring_story && game.storied_now(s) {
+            game.player_mut(s).enduring_story = true;
+        }
+    }
+}
+
+/// storied's "artifacts, legendaries, and/or Sagas"
+pub fn storied_filter() -> crate::card::Filter {
+    static F: std::sync::OnceLock<crate::card::Filter> = std::sync::OnceLock::new();
+    F.get_or_init(|| {
+        serde_json::from_str(
+            r#"[{"p": "or", "xs": [{"p": "type", "t": "ARTIFACT"}, {"p": "supertype", "s": "LEGENDARY"},
+                {"p": "subtype", "s": "Saga"}]}]"#,
+        )
+        .expect("storied's filter")
+    })
+    .clone()
+}
+
 /// True: one was performed.
 pub fn state_based_actions(game: &mut Game) -> bool {
     refresh_becomes(game);
     day_night(game);
+    update_speed_and_stories(game);
     let mut happened = false;
     loop {
         let mut any = false;
