@@ -249,6 +249,9 @@ pub(crate) struct Event {
     pub colorless: Option<u32>,
     /// `AddCounters`: the counter's name (`getData()`)
     pub counter: Option<String>,
+    /// `TappedForMana`: the mana it produces (`ManaEvent.getMana()`), which a `replace` may change (Virtue of
+    /// Strength's three times as much); `colorless` wins over it
+    pub mana: Option<crate::card::Mana>,
 }
 
 impl Event {
@@ -266,6 +269,7 @@ impl Event {
             to: None,
             colorless: None,
             counter: None,
+            mana: None,
         }
     }
 }

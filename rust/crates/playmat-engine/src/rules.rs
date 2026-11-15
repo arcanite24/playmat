@@ -9283,10 +9283,13 @@ fn activate_mana_paying(
         let mut ev = cards::Event::new(cards::EventType::TappedForMana, seat);
         ev.target = Some(id);
         ev.amount = m.total() as i32;
+        ev.mana = Some(m);
         cards::replace_event(game, &mut ev, 0);
         if let Some(n) = ev.colorless {
             m = Mana::default();
             m.colorless = n;
+        } else if let Some(changed) = ev.mana {
+            m = changed;
         }
     }
     mana_spent_riders(game, id, i, Some(unpaid));
