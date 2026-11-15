@@ -10619,7 +10619,8 @@ pub(crate) fn refresh_becomes(game: &mut Game) {
 fn refresh_land_types(game: &mut Game) {
     let mut types: Vec<String> = Vec::new();
     let mut granted: Vec<(ObjId, AbilityDef)> = Vec::new();
-    for id in game.battlefield.iter() {
+    // (and an emblem's: Mu Yanling, Sky Dancer's "Islands you control have '{T}: Draw a card.'")
+    for id in game.battlefield.iter().chain(game.command.iter()) {
         for a in &game.obj(*id).def.abilities {
             if let AbilityDef::SimpleStaticAbility { effects, .. } = a {
                 // an Aura that gives a keyword and an activated ability (Prophetic Ravings' haste and "{T}, Discard
