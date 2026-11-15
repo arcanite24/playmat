@@ -34,7 +34,9 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     )
     .ok()?;
     let delayed = Delayed {
-        rule: "At the beginning of the next end step, return this card to the battlefield attached to that creature."
+        // `ReturnToBattlefieldAttachedEffect`'s text after the delayed trigger's, as Java writes it
+        rule: "At the beginning of the next end step, Return {this} to the battlefield attached to that creature at the \
+               beginning of the next end step."
             .into(),
         sacrifice: Vec::new(),
         warp_exile: Vec::new(),
