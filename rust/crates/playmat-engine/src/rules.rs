@@ -20980,6 +20980,10 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
     for p in game.players.iter() {
         sources.extend(p.graveyard.iter().copied());
     }
+    // the cards' delayed triggers ("whenever a creature you control enters this turn": Thunder of Unity), after
+    // the others as Java checks its delayed triggered abilities
+    let holders: Vec<ObjId> = game.delayed_holders().collect();
+    sources.extend(holders);
     game.trigger_cause = Some(TriggerCause::Entered(id));
     let fired = game.triggers(sources, |g, src, you, t| match t {
         Trigger::Enters
