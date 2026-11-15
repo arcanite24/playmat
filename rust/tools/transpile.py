@@ -8387,6 +8387,13 @@ def ability_statement(t, st, added):
     m = re.fullmatch(r'(\w+)\.addEffect\(new ElvenPassageUntapLandEffect\(\)\)', st)
     if m and m.group(1) in t.vars:
         return True
+    # `ability.setTriggersLimitEachTurn(n)` on a local trigger: it triggers at most n times each turn (Nanoform
+    # Sentinel)
+    m = re.fullmatch(r'(\w+)\.setTriggersLimitEachTurn\((\d+)\)', st)
+    if m and t.vars.get(m.group(1), {}).get('class') == 'TriggeredAbility' and 'limit_per_turn' not in t.vars[m.group(1)] \
+            and not t.vars[m.group(1)].get('on', {}).get('batch'):
+        t.vars[m.group(1)]['limit_per_turn'] = int(m.group(2))
+        return True
     # an equip ability's "activate only once each turn" (Leather Armor)
     m = re.fullmatch(r'(\w+)\.setMaxActivationsPerTurn\((\d+)\)', st)
     if m and t.vars.get(m.group(1), {}).get('class') == 'EquipAbility':
