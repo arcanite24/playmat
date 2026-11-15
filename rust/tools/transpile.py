@@ -2503,7 +2503,9 @@ class Translator:
             return {'class': 'ManaAbility', 'make': k, 'cost': cost, 'no_tap': no_tap,
                     'condition': self.condition(args[2])}
         # "{T}: Add X mana of any one color" / "in any combination of colors"
-        if cls == 'DynamicManaAbility' and 3 <= len(args) <= 5 and canonical(args[0]) == 'Mana.AnyMana(1)':
+        # (`new Mana(0, 0, 0, 0, 0, 0, 1, 0)` is one mana of any color too: Azor's Gateway's Sanctum of the Sun)
+        if cls == 'DynamicManaAbility' and 3 <= len(args) <= 5 \
+                and canonical(args[0]) in ('Mana.AnyMana(1)', 'new Mana(0,0,0,0,0,0,1,0)'):
             # (mana, amount, cost, text[, oneChoice]) or (mana, amount, text)
             if len(args) == 3 and re.fullmatch(r'".*"', args[2], re.S):
                 cost, one = 'new TapSourceCost()', False
