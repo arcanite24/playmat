@@ -1440,6 +1440,9 @@ pub struct CopyApplierDef {
     /// abilities the copy has (`AbilityCopyApplier`)
     #[serde(default)]
     pub abilities: Vec<AbilityDef>,
+    /// the copy's name instead (`blueprint.setName`: Chameleon, Master of Disguise)
+    #[serde(default)]
+    pub name: Option<String>,
     /// unless it copies a copy: these if it's a creature (Moritte's changeling)
     #[serde(default)]
     pub creature_abilities: Vec<AbilityDef>,
@@ -1604,6 +1607,11 @@ pub enum CostDef {
     },
     /// tap `amount` permanents of the filter you control (chosen, not targeted)
     TapTargetCost {
+        filter: Filter,
+        amount: usize,
+    },
+    /// untap `amount` tapped permanents of the filter you control (`UntapTargetCost`: Halo Fountain)
+    UntapTargetCost {
         filter: Filter,
         amount: usize,
     },

@@ -196,6 +196,9 @@ pub struct Obj {
     pub becomes_base: Option<Arc<CardDef>>,
     /// the Auras whose "enchanted … is a …" (`BecomesCreatureAttachedEffect`) `def` has, in timestamp order
     pub becomes_auras: Vec<ObjId>,
+    /// the Auras' "is a creature" applied over a def it had until end of turn (`until_end_of_turn_def`): as that
+    /// ends, they apply again over what it was before (Witness Protection on an animated Restless Spire)
+    pub becomes_over_eot: bool,
     /// lands given basic land types by a static (Urborg): the land without them, and the types given
     pub land_type_base: Option<(Arc<CardDef>, Vec<String>, Vec<AbilityDef>)>,
     /// the creature type chosen as it entered (Cavern of Souls)
@@ -1727,6 +1730,7 @@ impl Game {
             lost_all: 0,
             becomes_base: None,
             becomes_auras: Vec::new(),
+            becomes_over_eot: false,
             land_type_base: None,
             chosen_type: None,
             info: Vec::new(),
@@ -2315,9 +2319,14 @@ impl Game {
                     && a.zone == Zone::Battlefield
                     && self.attached(*s) == Some(id)
                     && a.def.abilities.iter().any(|b| match b {
-                        AbilityDef::SimpleStaticAbility { effects, .. } => {
-                            effects.iter().any(|e| matches!(e, EffectDef::LoseAllAbilitiesAttachedEffect))
-                        }
+                        // (not what the same static gives it after: Stasis Field's "has defender, and loses all
+                        // other abilities", `removeAllAbilities` then `addAbility`)
+                        AbilityDef::SimpleStaticAbility { effects, .. } => effects
+                            .iter()
+                            .any(|e| matches!(e, EffectDef::LoseAllAbilitiesAttachedEffect))
+                            && !effects.iter().any(
+                                |e| matches!(e, EffectDef::GainAbilityAttachedEffect { ability: g } if **g == *ability),
+                            ),
                         _ => false,
                     })
             })
@@ -4638,6 +4647,7 @@ impl Game {
                     o.def = def;
                 }
                 o.becomes_auras.clear();
+                o.becomes_over_eot = false;
                 if let Some(def) = o.until_end_of_turn_def.take() {
                     o.def = def;
                 }
