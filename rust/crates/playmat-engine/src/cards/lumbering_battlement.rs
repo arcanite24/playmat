@@ -9,8 +9,8 @@ pub const HANDLERS: &[Handler] = &[
 ];
 
 /// With Lumbering Battlement still on the battlefield, you choose any number of your other nontoken creatures
-/// (`TargetPermanent(0, MAX, filter, true)`, `Player.choose`); they're exiled together into its zone, back when it
-/// leaves (`OnLeaveReturnExiledAbility`)
+/// (`TargetPermanent(0, MAX, filter, true)`, one `HumanPlayer.choose`, asked even with none); they're exiled
+/// together into its zone, back when it leaves (`OnLeaveReturnExiledAbility`)
 fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     if !cx.source_on_battlefield(game) {
         return Some(());
@@ -25,10 +25,8 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
             *o != src && game.obj(*o).controller == you && !game.obj(*o).token && game.has_type(*o, CardType::Creature)
         })
         .collect();
-    if possible.is_empty() {
-        return Some(());
-    }
-    let chosen = choose_cards_rounds(game, d, you, &possible, 0, usize::MAX)?;
+    let rule = "exile any number of other nontoken creatures you control until it leaves the battlefield";
+    let chosen = choose_cards(game, d, you, &possible, &possible, 0, usize::MAX, rule)?;
     for o in chosen {
         if game.obj(o).zone != Zone::Battlefield {
             continue;
