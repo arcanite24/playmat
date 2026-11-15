@@ -116,6 +116,11 @@ fn phase_of(step: Step) -> Step {
 /// The step after `step`: within its phase the next one; after a phase (`Turn.playExtraPhases`, 500.8) the extra
 /// phase that comes after it, the last one added first, then the turn's own next phase
 fn advance(game: &mut Game, step: Step) -> Option<Step> {
+    // an ended turn goes straight to its cleanup step (`Turn.play` and `Phase.play` skip the rest)
+    if game.end_turn && step != Step::Cleanup {
+        game.resume_step = None;
+        return Some(Step::Cleanup);
+    }
     let next = next_step(game, step);
     let phase = phase_of(step);
     if next.is_some_and(|n| phase_of(n) == phase) || step == Step::Cleanup {
@@ -861,7 +866,11 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             combat_damage(game, d, false);
             settle_owed(game, d);
         }
-        Step::Cleanup => cleanup(game, d, active),
+        Step::Cleanup => {
+            // `EndPhase.playStep`: "so triggers trigger again"
+            game.end_turn = false;
+            cleanup(game, d, active)
+        }
     }
 }
 
@@ -1168,6 +1177,11 @@ fn priority_round(game: &mut Game, d: &mut dyn Decider, mut resume: bool) {
         }
         let source = game.stack.last().map(|i| i.card);
         resolve_top(game, d);
+        if game.end_turn {
+            // `playPriority`'s loop ends with the turn (`isEndTurnRequested`)
+            traced(game, d);
+            return;
+        }
         if let Some(source) = source {
             check_infinite_loop(game, d, source);
             if game.over || d.stopped() {
@@ -21648,7 +21662,7 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
             happened = true;
             continue;
         }
-        if d.stopped() || (game.pending.is_empty() && game.returning.is_empty()) {
+        if d.stopped() || (game.pending.is_empty() && game.returning.is_empty()) || game.end_turn {
             return happened;
         }
         // something triggered: `checkStateAndTriggered` processes the action, unless none of it was played (each

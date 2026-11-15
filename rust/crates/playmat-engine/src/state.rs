@@ -1300,6 +1300,9 @@ pub struct Game {
     pub noncombat_fired: Vec<(ObjId, u64)>,
     /// "one or more … enter" triggers since triggers were last checked, after the others (`ZONE_CHANGE_BATCH`)
     pub batch_pending: Vec<StackItem>,
+    /// an end-the-turn effect resolved (`Turn.endTurn`, Time Stop): the turn skips to its cleanup step, and no
+    /// triggered ability goes on the stack until then (`isEndTurnRequested`)
+    pub end_turn: bool,
     /// a card was put into exile from a graveyard or the battlefield since triggers were last checked (Ketramose)
     pub exiled_batch: bool,
     /// the cards that left a graveyard since triggers were last checked (`ZONE_CHANGE_BATCH`)
@@ -1644,6 +1647,7 @@ impl Game {
             mana_batch: 0,
             noncombat_fired: Vec::new(),
             batch_pending: Vec::new(),
+            end_turn: false,
             exiled_batch: false,
             left_graveyard: Vec::new(),
             discarded: Vec::new(),
