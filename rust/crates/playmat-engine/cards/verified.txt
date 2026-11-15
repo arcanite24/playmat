@@ -481,6 +481,7 @@ Archfiend of Depravity
 Archfiend of Ifnir
 Archfiend of the Dross
 Archghoul of Thraben
+Archipelagore
 Architect of the Untamed
 Archive Arbiter
 Archive Dragon
@@ -651,6 +652,7 @@ Auron's Inspiration
 Aurora Awakener
 Auroral Procession
 Auspicious Arrival
+Auspicious Starrix
 Authority of the Consuls
 Automated Artificer
 Automated Warfare System
@@ -1205,6 +1207,7 @@ Bonecrusher Giant
 Bonehoard Dracosaur
 Bonepicker Skirge
 Bonescythe Sliver
+Boneyard Lurker
 Bonny Pall, Clearcutter
 Bontu's Last Reckoning
 Bontu's Monument
@@ -1624,6 +1627,7 @@ Cavalry Pegasus
 Cave of the Frost Dragon
 Cavern Lampad
 Cavern Stomper
+Cavern Whisperer
 Cavern of Souls
 Caves of Koilos
 Cease // Desist
@@ -1761,6 +1765,7 @@ Chimney Rabble
 Chitin Gravestalker
 Chitinous Cloak
 Chitinous Graspling
+Chittering Harvester
 Chittering Host
 Chittering Skitterling
 Chittering Witch
@@ -1889,6 +1894,7 @@ Cloudblazer
 Cloudbound Moogle
 Cloudfin Raptor
 Cloudkin Seer
+Cloudpiercer
 Cloudreader Sphinx
 Cloudsculpt Technician
 Cloudspire Captain
@@ -2243,6 +2249,7 @@ Crystal Slipper
 Crystalline Entity
 Crystalline Nautilus
 Cuboid Colony
+Cubwarden
 Culber and Stamets, Star-Crossed
 Culling Drone
 Culling Mark
@@ -2683,6 +2690,7 @@ Diregraf Ghoul
 Diregraf Rebirth
 Diregraf Scavenger
 Diresight
+Dirge Bat
 Dirgur Island Dragon
 Dirgur Nemesis
 Disallow
@@ -2912,6 +2920,7 @@ Dreamshackle Geist
 Dreamshaper Shaman
 Dreamstalker Manticore
 Dreamstealer
+Dreamtail Heron
 Dredger's Insight
 Dreg Mangler
 Dreg Recycler
@@ -3374,6 +3383,7 @@ Evendo, Waking Haven
 Ever After
 Everdawn Champion
 Everflame Eidolon
+Everquill Phoenix
 Evershrike's Gift
 Evil Reawakened
 Eviscerate
@@ -4131,6 +4141,7 @@ Geist of the Moors
 Geist-Fueled Scarecrow
 Geistblast
 Geistwave
+Gemrazer
 Gemstone Caverns
 Gene Pollinator
 Genemorph Imago
@@ -4335,6 +4346,7 @@ Glory Seeker
 Glory-Bound Initiate
 Glorybringer
 Gloryheath Lynx
+Glowstone Recluse
 Gluttonous Cyclops
 Gluttonous Guest
 Gluttonous Troll
@@ -5141,6 +5153,7 @@ Hunter's Edge
 Hunter's Mark
 Hunter's Prowess
 Hunter's Talent
+Huntmaster Liger
 Hurl into History
 Hurler Cyclops
 Hurloon Battle Hymn
@@ -5210,6 +5223,7 @@ Illegitimate Business
 Illicit Shipment
 Illness in the Ranks
 Illuminator Virtuoso
+Illuna, Apex of Wishes
 Illusionary Armor
 Illusionist's Bracers
 Illusionist's Stratagem
@@ -5330,6 +5344,7 @@ Insatiable Appetite
 Insatiable Avarice
 Insatiable Gorgers
 Insatiable Harpy
+Insatiable Hemophage
 Insatiable Skittermaw
 Inscribed Tablet
 Insectoid Exterminator
@@ -6215,6 +6230,7 @@ Lord of Atlantis
 Lord of the Accursed
 Lord of the Forsaken
 Lord of the Void
+Lore Drakkis
 Lore, Positronic Provocateur
 Lorehold Apprentice
 Lorehold Campus
@@ -6351,6 +6367,7 @@ Mahamoti Djinn
 Mai, Jaded Edge
 Mai, Scornful Striker
 Maja, Bretagard Protector
+Majestic Auricorn
 Majestic Heliopterus
 Make Disappear
 Make It So
@@ -6667,6 +6684,7 @@ Mighty Mutanimals
 Migloz, Maze Crusher
 Migrating Ketradon
 Migration Path
+Migratory Greathorn
 Militant Inquisitor
 Military Discipline
 Military Intelligence
@@ -6961,6 +6979,7 @@ Myrel, Shield of Argive
 Myriad Construct
 Mysidian Elder
 Mysterio's Phantasm
+Mysterious Egg
 Mysterious Tome
 Mystic Archaeologist
 Mystic Forge
@@ -7029,6 +7048,7 @@ Necrogen Rotpriest
 Necrogen Scudder
 Necromancer's Assistant
 Necromaster Dragon
+Necropanther
 Necropolis Regent
 Necrosquito
 Necrotic Wound
@@ -7062,6 +7082,7 @@ Nest Robber
 Nest of Scarabs
 Nesting Bot
 Netcaster Spider
+Nethroi, Apex of Death
 Nettle Drone
 Nettle Guard
 Nettle Sentinel
@@ -7516,6 +7537,7 @@ Paramecia Coloniex
 Paranoid Delusions
 Paranoid Parish-Blade
 Parasitic Grasp
+Parcelbeast
 Pardic Wanderer
 Parhelion II
 Parhelion Patrol
@@ -7763,6 +7785,7 @@ Ponyback Brigade
 Pop Quiz
 Popular Egotist
 Porcelain Zealot
+Porcuparrot
 Pore Over the Pages
 Port Town
 Port of Karfell
@@ -7778,6 +7801,7 @@ Potioner's Trove
 Pounce
 Pouncing Cheetah
 Pouncing Lynx
+Pouncing Shoreshark
 Power Word Kill
 Powerstone Engineer
 Powerstone Fracture
@@ -8313,6 +8337,7 @@ Regal Bloodlord
 Regal Bunnicorn
 Regal Caracal
 Regal Imperiosaur
+Regal Leosaur
 Regathan Firecat
 Regenesis
 Regent's Authority
@@ -9044,6 +9069,7 @@ Sea Gate Wreckage
 Sea God's Revenge
 Sea God's Scorn
 Sea Legs
+Sea-Dasher Octopus
 Seachrome Coast
 Seacoast Drake
 Seafloor Oracle
@@ -9659,6 +9685,7 @@ Smothering Tithe
 Smuggler's Copter
 Snake of the Golden Grove
 Snakeskin Veil
+Snapdax, Apex of the Hunt
 Snapping Drake
 Snapping Gnarlid
 Snapping Sailback
@@ -11206,6 +11233,7 @@ Trueheart Duelist
 Trufflesnout
 Trumpet Blast
 Trumpeting Carnosaur
+Trumpeting Gnarr
 Trusted Pegasus
 Trusty Companion
 Trusty Packbeast
@@ -11468,6 +11496,7 @@ Utvara Hellkite
 Uurg, Spawn of Turg
 V'Ger, the Intruder
 Vadmir, New Blood
+Vadrok, Apex of Thunder
 Valakut Awakening
 Valakut Exploration
 Valakut Invoker
@@ -11784,6 +11813,7 @@ Vraska, Soul of Stone
 Vren, the Relentless
 Vryn Wingmare
 Vulcan
+Vulpikeet
 Vulpine Goliath
 Vulshok Splitter
 Vulture, Scheming Scavenger
@@ -12275,6 +12305,7 @@ Yuyan Archers
 Zack Fair
 Zada's Commando
 Zagoth Crystal
+Zagoth Mamba
 Zagoth Triome
 Zahur, Glory's Past
 Zalto, Fire Giant Duke

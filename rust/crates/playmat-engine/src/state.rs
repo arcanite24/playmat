@@ -387,6 +387,14 @@ pub struct Obj {
     /// the melded permanent's two cards (`MeldCard`'s top and bottom halves), while it's on the battlefield: where
     /// it leaves to, they go
     pub melded: Vec<ObjId>,
+    /// a mutated permanent's cards merged with it, in the order they mutated (`PermanentImpl.mutations`): outside
+    /// the game while it stays, they go where it goes as it leaves
+    pub merged: Vec<ObjId>,
+    /// of them, the one on top, if one went over (`topMutation`): the permanent has its characteristics
+    pub merged_top: Option<ObjId>,
+    /// a mutated permanent: its own card as it was before the first mutation, while `def` is the merged permanent
+    /// (the top card's characteristics, every card's abilities)
+    pub merge_base: Option<Arc<CardDef>>,
 }
 
 impl Obj {
@@ -1820,6 +1828,9 @@ impl Game {
             phased_out: false,
             phased_indirect: false,
             melded: Vec::new(),
+            merged: Vec::new(),
+            merged_top: None,
+            merge_base: None,
         }));
         id
     }
@@ -2712,6 +2723,16 @@ impl Game {
                 }
             }
         }
+        // a mutated permanent's abilities from its merged cards: added again under new ids each time the game resets
+        // its permanents (`PermanentImpl.applyMutate`), after every other card's, in battlefield order; its own
+        // card's keep their place
+        if let (Some(base), Some((i, _))) = (&o.merge_base, t.ability) {
+            if i >= base.abilities.len() {
+                if let Some(k) = self.battlefield.iter().position(|b| *b == t.card) {
+                    return (3 << 32) + k as u64;
+                }
+            }
+        }
         // a transformed permanent's abilities are its back face's, added again under new ids each time the game
         // resets its permanents, so they wait after every other card's, in battlefield order (`PermanentCard.reset`)
         // (a modal double-faced card cast as its nonland back keeps that half's registration, from when the cards
@@ -3228,6 +3249,8 @@ impl Game {
                     _ => self.power_toughness(source).0,
                 },
                 Value::SourceToughness => self.power_toughness(source).1,
+                // (`getSourcePermanentOrLKI`: as it last was on the battlefield, once it's gone)
+                Value::SourceMutatedCount => self.obj(source).merged.len() as i32,
                 Value::ControllerLife => self.player(you).life,
                 Value::TotalPower { filter } => self
                     .battlefield
@@ -4471,7 +4494,9 @@ impl Game {
             if t.card == id
                 && t.ability.is_some()
                 && t.def.is_none()
-                && (self.obj(id).copied_def.is_some() || self.obj(id).land_type_base.is_some())
+                && (self.obj(id).copied_def.is_some()
+                    || self.obj(id).land_type_base.is_some()
+                    || self.obj(id).merge_base.is_some())
             {
                 t.def = Some(self.obj(id).def.clone());
             }
@@ -4545,7 +4570,8 @@ impl Game {
         }
         // its abilities waiting or on the stack keep the face they came from (a transformed card's leaving shows its
         // front again)
-        if from == Zone::Battlefield && self.obj(id).front.is_some() {
+        // (a mutated permanent's too: its abilities from the cards under it)
+        if from == Zone::Battlefield && (self.obj(id).front.is_some() || self.obj(id).merge_base.is_some()) {
             let face = self.obj(id).def.clone();
             for t in Arc::make_mut(&mut self.stack).iter_mut().chain(self.pending.iter_mut()) {
                 if t.card == id && t.ability.is_some() && t.def.is_none() {
@@ -4562,7 +4588,9 @@ impl Game {
             self.obj_mut(id).lki_keywords = kept;
             let o = self.obj_mut(id);
             // (a face-down one had none of its card's: its dies triggers don't fire)
-            o.lki_def = (o.land_type_base.is_some() || o.face_up.is_some() || o.front.is_some()).then(|| o.def.clone());
+            o.lki_def =
+                (o.land_type_base.is_some() || o.face_up.is_some() || o.front.is_some() || o.merge_base.is_some())
+                    .then(|| o.def.clone());
         } else {
             let o = self.obj_mut(id);
             o.lki_keywords.clear();
@@ -4680,6 +4708,11 @@ impl Game {
                     o.def = def;
                 }
                 if let Some(def) = o.becomes_base.take() {
+                    o.def = def;
+                }
+                // a mutated permanent's own card (its merged cards follow it below); what made it a creature applied
+                // over the merged permanent
+                if let Some(def) = o.merge_base.take() {
                     o.def = def;
                 }
                 o.becomes_auras.clear();
@@ -4806,6 +4839,34 @@ impl Game {
         if copy_exiled {
             Arc::make_mut(&mut self.exile).push(id);
         }
+        // a mutated permanent's merged cards go where it goes, before it (`PermanentImpl.moveToZone` moves each
+        // mutation first); the list stays as its last known information (`SourceMutatedCount`)
+        if from == Zone::Battlefield && zone != Zone::Battlefield && !self.obj(id).merged.is_empty() {
+            self.obj_mut(id).merged_top = None;
+            for c in self.obj(id).merged.clone() {
+                let o = self.obj_mut(c);
+                o.zone = zone;
+                o.zcc += 1;
+                o.controller = o.owner;
+                let (owner, token) = (o.owner, o.token);
+                if token {
+                    continue;
+                }
+                match zone {
+                    Zone::Library => self.player_mut(owner).library.push(c),
+                    Zone::Hand => self.player_mut(owner).hand.push(c),
+                    Zone::Graveyard => {
+                        self.player_mut(owner).graveyard.push(c);
+                        let zcc = self.obj(c).zcc;
+                        self.watch.to_graveyard.push((c, zcc, true));
+                    }
+                    Zone::Exile => Arc::make_mut(&mut self.exile).push(c),
+                    Zone::Command => Arc::make_mut(&mut self.command).push(c),
+                    Zone::Outside => self.player_mut(owner).outside.push(c),
+                    Zone::Stack | Zone::Battlefield => {}
+                }
+            }
+        }
         if self.obj(id).token && zone != Zone::Battlefield {
             return;
         }
@@ -4862,6 +4923,7 @@ impl Game {
                 let o = self.obj_mut(id);
                 o.sick = true;
                 o.entered_at = at;
+                o.merged.clear();
                 Arc::make_mut(&mut self.battlefield).push(id)
             }
             Zone::Exile => Arc::make_mut(&mut self.exile).push(id),

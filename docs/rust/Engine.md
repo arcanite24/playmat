@@ -1201,6 +1201,27 @@ Being in the engine and being trusted are kept apart.
   Fire Lord Zuko (entered from exile), Ral, Crackling Wit and Prismari (storm granted to spells), Captain Howler
   (a granted trigger's text), Anointed Peacekeeper, Planewide Celebration (the same mode more than once), the random
   discards (Curse-Marred Demon, Cool but Rude, Rowdy Crew, Tersa) and the rest of the list's engine work.
+  Wave 13, mutate (14 Nov): merged permanents. `MutateAbility` is a spell ability of its own (`CardDef::mutate`): the
+  card cast for its mutate cost as a creature spell targeting a non-Human creature you own, offered beside the
+  normal cast as bestow is. As it resolves with that target still legal (702.140b-c) the card goes outside the
+  zones (Java's `setZone(OUTSIDE)`), its controller answers "Select whether to mutate … UNDER or OVER …" (yes is
+  under) and the permanent becomes `merged_def`: the top card's characteristics (its own card's when none went
+  over) with its own card's abilities first and each merged card's after, in the order they mutated, so Java's
+  ability numbers hold (`PermanentImpl.applyMutate`). `Obj::merged` (the cards, kept after it leaves as its last
+  known information), `merged_top` and `merge_base` (its own card) carry it. Then `Trigger::Mutates`
+  (`MutatesSourceTriggeredAbility`, `CREATURE_MUTATED`); `Value::SourceMutatedCount` counts the merged cards. The
+  merged cards' triggers wait after every card's, in battlefield order (re-added under new ids each reset). Leaving,
+  the merged cards go where it goes, before it (`PermanentImpl.moveToZone` moves the mutations first), with no
+  events of their own; flicker effects (`ExileThenReturnTargetEffect`) and Kaya's Ghostform bring them back after it
+  (`CardUtil.getAllCardsFromPermanentLeftBattlefield`). A transform turns its own card's face and merges again; an
+  effect that makes it a creature (station, `becomes_base`) applies again over the merged permanent, so what it gives
+  comes after the merged cards' abilities; a token it makes looks for its image in its own card's set
+  (`game.getCard(sourceId)`). A card an effect lets you play from exile (Hex Magic) can be cast for its mutate cost
+too, and Command Tower's ability with no commander isn't counted as a mana source by the playable check (its
+`getNetMana` is empty), which decides whether the picker shows the mana cost beside the mutate cost. Handlers: Auspicious Starrix, Illuna and Nethroi (a target with total power 10 or
+  less). Two factory work folders (`.local/rust-port/wave13/claim-mutate/`, 120 games) verified 31 of the 32; six
+  games under `shadow/mutate/` cover the engine pieces. Left: Brokkos (cast from the graveyard with mutate, and its
+  `addSuperType` statement). The over/under question shows Yes and No in hosted games, not Java's Under and Over.
   Text fixes for verified cards (13 Nov): the Young Hero Role's granted trigger keeps its own text, "put a +1/+1
   counter on it" (its `AddCountersSourceEffect` has a `setText`), and a delayed upkeep transform is "Transform {this}
   at the beginning of the next turn's upkeep." (`AtTheBeginOfNextUpkeepDelayedTriggeredAbility.getRule` puts the
