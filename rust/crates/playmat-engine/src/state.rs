@@ -177,6 +177,9 @@ pub struct Obj {
     pub cast: bool,
     /// `cast` as it last left the battlefield (an ability of it that resolves later looks back)
     pub cast_lki: bool,
+    /// the zone it entered the battlefield from, as it last did (the stack for a resolving spell; `cast_from` says
+    /// where that spell was cast from): Fblthp, the Lost
+    pub entered_from: Option<Zone>,
     /// it was suspected as it last left the battlefield (`Permanent.isSuspected` of its last known information:
     /// Agency Coroner's sacrificed creature)
     pub suspected_lki: bool,
@@ -1776,6 +1779,7 @@ impl Game {
             cast: false,
             cast_lki: false,
             suspected_lki: false,
+            entered_from: None,
             toughness_lki: None,
             power_lki: None,
             p1p1_added: false,
@@ -4867,6 +4871,10 @@ impl Game {
             }
             if from != Zone::Battlefield && !matches!(zone, Zone::Battlefield | Zone::Stack) {
                 o.adventure_zone = zone;
+            }
+            // the zone it entered the battlefield from (`EntersTheBattlefieldEvent.getFromZone`)
+            if zone == Zone::Battlefield {
+                o.entered_from = Some(from);
             }
             o.zone = zone;
             o.zcc += 1;
