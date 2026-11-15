@@ -5372,6 +5372,13 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
                 }
             };
             sacrifice_x = Some((filter.clone(), n));
+            // the announced value is the spell's X (`setCostsTag("X", xValue)`: Eliminate the Competition's "X target
+            // creatures"); a cost reduction's (Rottenmouth Viper) reads only what was sacrificed
+            if sacrifice_x_reduction(game, seat, id, &def).is_none() {
+                if let Some(top) = Arc::make_mut(&mut game.stack).last_mut() {
+                    top.x = n as i32;
+                }
+            }
         }
     }
     // a fused split card: both halves' mana is paid as the card's spell ability is activated, before the halves'
