@@ -6,8 +6,7 @@ use super::*;
 
 pub const HANDLERS: &[Handler] = &[
     Handler::effect("ObzedatGhostCouncil.ObzedatGhostCouncilExileSourceEffect", apply),
-    Handler::effect("ObzedatGhostCouncil.ObzedatGhostCouncilReturnEffect", back)
-        .effects(&["new GainAbilityTargetEffect(HasteAbility.getInstance(), Duration.WhileOnBattlefield)"]),
+    Handler::effect("ObzedatGhostCouncil.ObzedatGhostCouncilReturnEffect", back),
 ];
 
 /// Obzedat (`game.getPermanent(sourceId)`, whichever permanent it is now) into exile; there, a delayed trigger at the
@@ -58,6 +57,11 @@ fn back(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     if game.obj(card).zone != Zone::Battlefield {
         return Some(());
     }
-    cx.run_on(game, d, &cx.effects[..1], vec![Target::Obj(card)]);
+    // (the return is made here, not translated: `new GainAbilityTargetEffect(HasteAbility, WhileOnBattlefield)`)
+    let haste: EffectDef = serde_json::from_value(serde_json::json!(
+        {"ability": {"class": "HasteAbility"}, "class": "GainAbilityTargetEffect", "duration": "WhileOnBattlefield"}
+    ))
+    .ok()?;
+    cx.run_on(game, d, &[haste], vec![Target::Obj(card)]);
     (!d.stopped()).then_some(())
 }
