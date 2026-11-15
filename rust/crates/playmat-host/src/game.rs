@@ -77,14 +77,7 @@ impl TableRules {
     /// The AI's search for its skill: Java's AI looks less far at a lower skill (`ComputerPlayer6.maxDepth`); the
     /// lowest skills play the quick answers only
     pub fn ai_config(&self) -> Option<Config> {
-        let full = Config::default();
-        match self.ai_skill {
-            None => Some(full),
-            Some(0..=1) => None,
-            Some(2..=3) => Some(Config { budget: full.budget / 5, width: 5, ..full }),
-            Some(4..=5) => Some(Config { budget: full.budget / 2, width: 8, ..full }),
-            Some(_) => Some(full),
-        }
+        playmat_ai::entrants::skill(self.ai_skill)
     }
 }
 
@@ -1605,7 +1598,12 @@ impl Host {
                         _ => return false,
                     }
                 } else {
-                    ai_mulligans(&self.game, seat, taken[seat].saturating_sub(free))
+                    playmat_ai::mulligan::wants(
+                        &self.game,
+                        seat,
+                        taken[seat].saturating_sub(free),
+                        self.table.ai.get(seat).and_then(|c| c.as_ref()),
+                    )
                 };
                 let name = self.names[seat].clone();
                 if wants {
@@ -1652,7 +1650,7 @@ impl Host {
                             _ => return false,
                         }
                     } else {
-                        ai_bottom(&self.game, seat)
+                        playmat_ai::mulligan::bottom(&self.game, seat, self.table.ai.get(seat).and_then(|c| c.as_ref()))
                     };
                     let p = self.game.player_mut(seat);
                     p.hand.retain(|x| *x != card);
@@ -1930,31 +1928,6 @@ fn is_mana_ability(a: &playmat_engine::card::AbilityDef) -> bool {
 /// was made for the payment (the engine's stock), or always
 fn pool_payment(game: &Game, seat: Seat, settings: &Settings) {
     game.set_pool_mode(seat, !settings.pool_automatic, settings.pool_automatic && !settings.pool_restricted);
-}
-
-/// The AI's keep (the Java AI's rule of thumb): two to five lands in seven, fewer cards keep looser
-fn ai_mulligans(game: &Game, seat: Seat, taken: usize) -> bool {
-    let hand = &game.player(seat).hand;
-    let lands = hand.iter().filter(|id| game.obj(**id).is(CardType::Land)).count();
-    match taken {
-        0 => !(2..=5).contains(&lands),
-        1 => !(1..=5).contains(&lands),
-        _ => false,
-    }
-}
-
-/// The AI's card to the bottom: a land when it has more than three, else its most expensive spell
-fn ai_bottom(game: &Game, seat: Seat) -> ObjId {
-    let hand = &game.player(seat).hand;
-    let lands: Vec<ObjId> = hand.iter().copied().filter(|id| game.obj(*id).is(CardType::Land)).collect();
-    if lands.len() > 3 {
-        return lands[0];
-    }
-    hand.iter()
-        .copied()
-        .filter(|id| !game.obj(*id).is(CardType::Land))
-        .max_by_key(|id| game.obj(*id).def.mana_value())
-        .unwrap_or(hand[0])
 }
 
 fn debug() -> bool {

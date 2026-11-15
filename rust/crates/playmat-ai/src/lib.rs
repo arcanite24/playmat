@@ -2,7 +2,9 @@
 
 pub mod decision;
 pub mod duel;
+pub mod entrants;
 pub mod eval;
 pub mod mirror;
+pub mod mulligan;
 pub mod policy;
 pub mod search;

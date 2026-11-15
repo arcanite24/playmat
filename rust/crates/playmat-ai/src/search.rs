@@ -28,6 +28,20 @@ pub struct Config {
     pub policy: PolicyKind,
     /// threads a search may use (`Mcts`; `PLAYMAT_AI_THREADS`)
     pub threads: usize,
+    /// playouts start from hands and libraries sampled from what the seat can't see (`hidden`), not the real game
+    pub hide: bool,
+    /// playouts per candidate (each on its own sample when `hide`), spent by sequential halving
+    pub samples: usize,
+    /// the playouts' quick answers: 1 the first ones, 2 with instant-speed play and abilities (`policy`)
+    pub playout: u8,
+    /// the score: 1 Java's `GameStateEvaluator2`, 2 the one fitted to game results (`eval::fitted`)
+    pub eval: u8,
+    /// attacks and blocks chosen as whole plans (`combat`), not one creature at a time
+    pub plans: bool,
+    /// keep or mulligan by playing sample hands out (`mulligan`), not by counting lands
+    pub mulligan_sim: bool,
+    /// one searched answer in this many is the quick one instead (lower skill levels; 0 never)
+    pub blunder: u32,
 }
 
 impl Default for Config {
@@ -44,6 +58,13 @@ impl Default for Config {
             playout_cap: 1500,
             policy: PolicyKind::from_env(),
             threads: threads.max(1),
+            hide: false,
+            samples: 1,
+            playout: 1,
+            eval: 1,
+            plans: false,
+            mulligan_sim: false,
+            blunder: 0,
         }
     }
 }
