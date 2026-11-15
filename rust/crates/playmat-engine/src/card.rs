@@ -4967,12 +4967,15 @@ pub enum AbilityDef {
         cost: Vec<CostDef>,
         rule: String,
     },
-    /// whenever you tap a permanent of the filter for mana, add one more mana of `color` (a mana ability that
-    /// triggers, resolved at once)
+    /// whenever you tap a permanent of the filter for mana, add one more mana of `color` ("C": {C}) (a mana ability
+    /// that triggers, resolved at once); with `colorless_made`, only when the mana it made has {C} ("whenever you tap
+    /// a permanent for {C}": Forsaken Monument)
     TapForManaAllTriggeredManaAbility {
         filter: Filter,
         color: String,
         rule: String,
+        #[serde(default)]
+        colorless_made: bool,
     },
     /// the blitz ability's "as it enters" part (Java lists it on its own)
     BlitzEntersAbility {
