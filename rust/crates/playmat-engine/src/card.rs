@@ -1956,6 +1956,10 @@ pub enum EffectDef {
         filter: Filter,
         #[serde(default)]
         spells_only: bool,
+        /// the abilities of a source of `filter` too (Vizier of the Menagerie's `applies(objectId)` is the object
+        /// paid for, so a creature card's unearth)
+        #[serde(default)]
+        sources: bool,
     },
     /// a class a card declares for itself, written in Rust (`src/cards/`, docs/rust/Engine.md "Per-card handlers"),
     /// with the Java constructor's arguments as their source text and the Java the handler asked the transpiler for

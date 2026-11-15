@@ -6003,7 +6003,7 @@ fn modified_cost_of(game: &Game, seat: Seat, id: ObjId, face: &CardDef, mut cost
         cost.generic += cost.colored.iter().sum::<u32>() + cost.colorless;
         cost.colored = [0; 5];
         cost.colorless = 0;
-    } else if spend_as_any_color(game, seat, Some(id)) {
+    } else if spend_as_any_color(game, seat, Some(id), id) {
         // "as though it were mana of any color" (Chromatic Orrery, Oath of Nissa's planeswalker spells): its colored
         // and hybrid symbols take any mana
         cost.generic += cost.colored.iter().sum::<u32>() + cost.hybrid.len() as u32;
@@ -6013,13 +6013,15 @@ fn modified_cost_of(game: &Game, seat: Seat, id: ObjId, face: &CardDef, mut cost
     cost
 }
 
-/// A `SpendManaAsAnyColorEffect` of `seat`'s applies to what they pay for: spell `spell`, or an ability (None)
-fn spend_as_any_color(game: &Game, seat: Seat, spell: Option<ObjId>) -> bool {
+/// A `SpendManaAsAnyColorEffect` of `seat`'s applies to what they pay for: spell `spell`, or an ability (None) of
+/// `source`
+fn spend_as_any_color(game: &Game, seat: Seat, spell: Option<ObjId>, source: ObjId) -> bool {
     game.any_static(|g, src, e| match e {
-        EffectDef::SpendManaAsAnyColorEffect { filter, spells_only } => {
+        EffectDef::SpendManaAsAnyColorEffect { filter, spells_only, sources } => {
             g.obj(src).controller == seat
                 && match spell {
                     Some(s) => g.filter_matches(filter, seat, Some(src), s),
+                    None if *sources => g.filter_matches(filter, seat, Some(src), source),
                     None => !*spells_only,
                 }
         }
@@ -6958,7 +6960,7 @@ fn adjusted_mana_cost(game: &Game, seat: Seat, id: ObjId, a: &AbilityDef, costs:
 fn adjusted_mana_cost_own(game: &Game, seat: Seat, id: ObjId, a: &AbilityDef, costs: &[CostDef]) -> ManaCost {
     let mut cost = ability_mana_cost(costs);
     // "you may spend mana as though it were mana of any color" (Chromatic Orrery): abilities too
-    if spend_as_any_color(game, seat, None) {
+    if spend_as_any_color(game, seat, None, id) {
         cost.generic += cost.colored.iter().sum::<u32>() + cost.hybrid.len() as u32;
         cost.colored = [0; 5];
         cost.hybrid.clear();
