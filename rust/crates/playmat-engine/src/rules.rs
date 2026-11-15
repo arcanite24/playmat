@@ -17401,8 +17401,14 @@ fn apply_each_effect(
                     targets: Vec::new(),
                     condition: None,
                 };
-                game.at_next_upkeep
-                    .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) });
+                // (a delayed transform keeps the face it was made for: `setSourcePermanentTransformCount` as it's
+                // created, so a second one waiting with it doesn't turn Aang, at the Crossroads back)
+                let def = delayed_transform_face(game, effects, source);
+                game.at_next_upkeep.push(StackItem {
+                    delayed: Some(Arc::new(delayed)),
+                    def,
+                    ..StackItem::spell(source.0, controller)
+                });
             }
             // (`at_first_upkeep` waits for its controller's upkeep, after the next upkeep's delayed triggers)
             EffectDef::CreateYourNextUpkeepDelayedEffect { effects, rule } => {
@@ -17417,8 +17423,14 @@ fn apply_each_effect(
                     targets: Vec::new(),
                     condition: None,
                 };
-                game.at_first_upkeep
-                    .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) });
+                // (a delayed transform keeps the face it was made for: `setSourcePermanentTransformCount` as it's
+                // created, so a second one waiting with it doesn't turn Aang, at the Crossroads back)
+                let def = delayed_transform_face(game, effects, source);
+                game.at_first_upkeep.push(StackItem {
+                    delayed: Some(Arc::new(delayed)),
+                    def,
+                    ..StackItem::spell(source.0, controller)
+                });
             }
             EffectDef::CreateNextMainPhaseDelayedEffect { effects, rule, phase } => {
                 next_main_delayed(game, source, controller, effects.clone(), rule.clone(), phase);
@@ -21866,6 +21878,15 @@ fn create_delayed_trigger(
         end_of_turn,
         once,
     });
+}
+
+/// The face a delayed "transform {this}" is made for: its source's now, while it's still that permanent
+fn delayed_transform_face(game: &Game, effects: &[EffectDef], source: (ObjId, u32)) -> Option<Arc<CardDef>> {
+    let o = game.obj(source.0);
+    (effects.iter().any(|e| matches!(e, EffectDef::TransformSourceEffect))
+        && o.zone == Zone::Battlefield
+        && o.zcc == source.1)
+        .then(|| o.def.clone())
 }
 
 /// Takes `seat`'s waiting triggers out of `game.pending`.
