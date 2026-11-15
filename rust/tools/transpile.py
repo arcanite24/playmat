@@ -6944,6 +6944,12 @@ class Translator:
         if re.fullmatch(r'[A-Z]\w*(?:Count|Value)\.[A-Z_a-z]\w*', expr.strip()):
             self.values[var] = expr.strip()
             return
+        # a card's own `DynamicValue` class with a value handler, whatever its name (`DynamicValue paradoxicalOutcomeValue
+        # = new ParadoxicalOutcomeNumber(false)`): read where it's used
+        m = re.fullmatch(r'new (\w+)\(.*\)', expr.strip(), re.S)
+        if m and card_handlers.own_kind(self, m.group(1)) == 'value':
+            self.values[var] = expr
+            return
         obj = self.new_expr(expr)
         if isinstance(obj, dict):
             self.vars[var] = obj
