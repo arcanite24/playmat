@@ -3176,6 +3176,12 @@ class Translator:
             if inner.get('class') != 'DamageCantBePreventedEffect' or inner.get('duration') != 'EndOfTurn':
                 raise Unsupported('effect ' + cls)
             return {'class': 'ConditionalOneShotEffect', 'effect': inner, 'condition': self.condition(l.group(1))}
+        # "gets +2/+2 until end of turn if …" with no otherwise: worked out as it resolves (`LockedInCondition`)
+        if cls == 'ConditionalContinuousEffect' and len(args) == 3 \
+                and (re.fullmatch(r'new Boost(Target|Source)Effect\(-?\d+,-?\d+(,Duration\.EndOfTurn)?\)', canonical(args[0].strip()))
+                     or re.fullmatch(r'new GainAbilityTargetEffect\((new \w+Ability\(\)|\w+Ability\.getInstance\(\))(,Duration\.EndOfTurn)?\)', canonical(args[0].strip()))) \
+                and (l := re.fullmatch(r'new LockedInCondition\((.*)\)', args[1].strip(), re.S)):
+            return {'class': 'ConditionalOneShotEffect', 'effect': self.effect(args[0]), 'condition': self.condition(l.group(1))}
         # a spell's "+2/+2, or +4/+4 instead if …": worked out as it resolves (`LockedInCondition`)
         if cls == 'ConditionalContinuousEffect' and len(args) == 4 \
                 and (all(re.fullmatch(r'new Boost(Target|Source)Effect\(-?\d+,-?\d+,Duration\.EndOfTurn\)', a.strip()) for a in args[:2])
@@ -5937,6 +5943,11 @@ class Translator:
             return out({'e': 'leaves_all', 'filter': self.filter(args[1])}, args[0], flag(args[2]))
         if cls == 'LeavesBattlefieldAllTriggeredAbility' and n == 2:
             return out({'e': 'leaves_all', 'filter': self.filter(args[1])}, args[0])
+        # `ZoneChangeAllTriggeredAbility(Zone.BATTLEFIELD, Zone.BATTLEFIELD, null, …)`: a permanent of the filter
+        # leaves the battlefield (to anywhere)
+        if cls == 'ZoneChangeAllTriggeredAbility' and n == 7 and args[:3] == ['Zone.BATTLEFIELD', 'Zone.BATTLEFIELD', 'null'] \
+                and re.fullmatch(r'"[^"]*"', args[5]):
+            return out({'e': 'leaves_all', 'filter': self.filter(args[4])}, args[3], flag(args[6]))
         if cls == 'AttacksWithCreaturesTriggeredAbility' and n in (2, 3):
             if not re.fullmatch(r'\d+', args[1]):
                 raise Unsupported(cls + '(' + ','.join(args) + ')')
