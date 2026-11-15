@@ -1963,7 +1963,7 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
         CostDef::SacrificeTargetCost { filter, amount } => {
             matching(game, filter, seat, id).iter().filter(|p| game.obj(**p).controller == seat).count() >= *amount
         }
-        CostDef::TapTargetCost { filter, amount } => {
+        CostDef::TapTargetCost { filter, amount } | CostDef::UntapTargetCost { filter, amount } => {
             matching(game, filter, seat, id).iter().filter(|p| game.obj(**p).controller == seat).count() >= *amount
         }
         CostDef::SacrificeXTargetCost { .. } | CostDef::TapXTargetCost { .. } => true,
@@ -6030,7 +6030,7 @@ fn modified_cost_of(game: &Game, seat: Seat, id: ObjId, face: &CardDef, mut cost
         cost.generic += cost.colored.iter().sum::<u32>() + cost.colorless;
         cost.colored = [0; 5];
         cost.colorless = 0;
-    } else if spend_as_any_color(game, seat, Some(id)) {
+    } else if spend_as_any_color(game, seat, Some(id), id) {
         // "as though it were mana of any color" (Chromatic Orrery, Oath of Nissa's planeswalker spells): its colored
         // and hybrid symbols take any mana
         cost.generic += cost.colored.iter().sum::<u32>() + cost.hybrid.len() as u32;
@@ -6040,13 +6040,15 @@ fn modified_cost_of(game: &Game, seat: Seat, id: ObjId, face: &CardDef, mut cost
     cost
 }
 
-/// A `SpendManaAsAnyColorEffect` of `seat`'s applies to what they pay for: spell `spell`, or an ability (None)
-fn spend_as_any_color(game: &Game, seat: Seat, spell: Option<ObjId>) -> bool {
+/// A `SpendManaAsAnyColorEffect` of `seat`'s applies to what they pay for: spell `spell`, or an ability (None) of
+/// `source`
+fn spend_as_any_color(game: &Game, seat: Seat, spell: Option<ObjId>, source: ObjId) -> bool {
     game.any_static(|g, src, e| match e {
-        EffectDef::SpendManaAsAnyColorEffect { filter, spells_only } => {
+        EffectDef::SpendManaAsAnyColorEffect { filter, spells_only, sources } => {
             g.obj(src).controller == seat
                 && match spell {
                     Some(s) => g.filter_matches(filter, seat, Some(src), s),
+                    None if *sources => g.filter_matches(filter, seat, Some(src), source),
                     None => !*spells_only,
                 }
         }
@@ -6985,7 +6987,7 @@ fn adjusted_mana_cost(game: &Game, seat: Seat, id: ObjId, a: &AbilityDef, costs:
 fn adjusted_mana_cost_own(game: &Game, seat: Seat, id: ObjId, a: &AbilityDef, costs: &[CostDef]) -> ManaCost {
     let mut cost = ability_mana_cost(costs);
     // "you may spend mana as though it were mana of any color" (Chromatic Orrery): abilities too
-    if spend_as_any_color(game, seat, None) {
+    if spend_as_any_color(game, seat, None, id) {
         cost.generic += cost.colored.iter().sum::<u32>() + cost.hybrid.len() as u32;
         cost.colored = [0; 5];
         cost.hybrid.clear();
@@ -7341,6 +7343,22 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             // kept for the effect (`TapTargetCost.getTarget()`: Swallow Whole's counter on the creature tapped)
             if let Some(top) = Arc::make_mut(&mut game.stack).last_mut().filter(|t| t.card == id) {
                 top.tapped_for_cost.extend(chosen);
+            }
+        }
+        // `UntapTargetCost`: `target.choose`, not done: unpaid; each chosen untapped (a stun counter removed instead
+        // counts too)
+        CostDef::UntapTargetCost { filter, amount } => {
+            let possible: Vec<ObjId> =
+                matching(game, filter, seat, id).into_iter().filter(|p| game.obj(*p).controller == seat).collect();
+            let Some(chosen) = choose_cards_with(game, d, seat, &possible, &possible, *amount, *amount, "untap", true)
+            else {
+                return false;
+            };
+            if chosen.len() < *amount {
+                return false;
+            }
+            for o in chosen {
+                untap_permanent(game, o);
             }
         }
         CostDef::CrewCost { value } | CostDef::SaddleCost { value } => {
@@ -10319,7 +10337,9 @@ pub(crate) fn refresh_becomes(game: &mut Game) {
         }
         // Ensoul Artifact: an Aura's "enchanted artifact is a 5/5 creature in addition to its other types"; Frogify's
         // "enchanted creature loses all abilities and is a blue Frog": each attached Aura's, in timestamp order
-        let mut auras: Vec<(u64, ObjId, crate::card::TokenDef, Option<String>)> = Vec::new();
+        // (timestamp, Aura, what it makes it, what it loses, its name)
+        type Aura = (u64, ObjId, crate::card::TokenDef, Option<String>, Option<String>);
+        let mut auras: Vec<Aura> = Vec::new();
         for a in game.battlefield.iter() {
             if game.attached(*a) != Some(id) {
                 continue;
@@ -10327,33 +10347,39 @@ pub(crate) fn refresh_becomes(game: &mut Game) {
             for b in game.obj(*a).def.abilities.iter() {
                 if let AbilityDef::SimpleStaticAbility { effects, .. } = b {
                     for e in effects {
-                        if let EffectDef::BecomesCreatureAttachedEffect { token, lose } = e {
-                            auras.push((game.obj(*a).attached_at, *a, token.clone(), lose.clone()));
+                        if let EffectDef::BecomesCreatureAttachedEffect { token, lose, named } = e {
+                            auras.push((game.obj(*a).attached_at, *a, token.clone(), lose.clone(), named.clone()));
                         }
                     }
                 }
             }
         }
-        auras.sort_by_key(|(at, a, _, _)| (*at, *a));
+        auras.sort_by_key(|(at, a, _, _, _)| (*at, *a));
         let conditional = matches!(&found, Some((_, _, c)) if game.condition_holds(Some(c), o.controller, id));
         if !conditional && !auras.is_empty() {
-            let ids: Vec<ObjId> = auras.iter().map(|(_, a, _, _)| *a).collect();
+            let ids: Vec<ObjId> = auras.iter().map(|(_, a, _, _, _)| *a).collect();
             if o.becomes_base.is_none() || o.becomes_auras != ids {
                 // a newer Aura applies over what it is now; one gone, all again from what it was without them
                 let more = o.becomes_base.is_some() && !o.becomes_auras.is_empty() && ids.starts_with(&o.becomes_auras);
                 let (mut def, start) =
                     if more { ((*o.def).clone(), o.becomes_auras.len()) } else { ((*base).clone(), 0) };
-                for (_, _, token, lose) in &auras[start..] {
+                for (_, _, token, lose, named) in &auras[start..] {
                     def = match lose {
                         Some(lose) => becomes_creature_attached(&def, token, lose),
                         None => becomes_creature(&def, token, true),
                     };
+                    if let Some(n) = named {
+                        def.name = n.clone();
+                    }
                 }
                 if lost.is_some() {
                     def.abilities.clear();
                     (def.power, def.toughness) = (base.power, base.toughness);
                 }
                 let o = game.obj_mut(id);
+                if !more {
+                    o.becomes_over_eot = o.until_end_of_turn_def.is_some();
+                }
                 o.becomes_base = Some(base);
                 o.becomes_auras = ids;
                 o.def = Arc::new(def);
@@ -12333,6 +12359,15 @@ fn apply_each_effect(
                             None => continue,
                         },
                     };
+                    // "this ability can't be copied" (`StackAbility.createCopyOnStack` does nothing)
+                    if let Some((i, _)) = original.ability {
+                        if matches!(
+                            game.item_def(&original).abilities.get(i),
+                            Some(AbilityDef::SimpleActivatedAbility { cant_be_copied: true, .. })
+                        ) {
+                            continue;
+                        }
+                    }
                     if original.ability.is_none() && original.delayed.is_none() {
                         if copy_spell_with(game, d, &original, controller, !*keep_targets, *not_legendary).is_none() {
                             return;
@@ -19205,10 +19240,20 @@ fn counters_put_triggers(game: &mut Game, o: ObjId, name: &str, n: i32, by: Opti
         game.watch.p1p1_put.push((by, n));
     }
     // `COUNTER_ADDED`, one event for each counter, before the batch's `COUNTERS_ADDED`
-    let each = game.triggers([o], |_, _, _, t| matches!(t, Trigger::CounterAddedSource { counter } if counter == name));
+    let each = game.triggers(
+        [o],
+        |_, _, _, t| matches!(t, Trigger::CounterAddedSource { counter, threshold: 0 } if counter == name),
+    );
     for _ in 0..n {
         game.pending.extend(each.iter().cloned());
     }
+    // (the counter that makes it `threshold`: `hourCounters - amountAdded < 12 && 12 <= hourCounters` of each one)
+    let after = game.obj(o).counter(name);
+    let crossed = game.triggers([o], |_, _, _, t| {
+        matches!(t, Trigger::CounterAddedSource { counter, threshold } if counter == name && *threshold > 0
+            && after - n < *threshold && *threshold <= after)
+    });
+    game.pending.extend(crossed);
     // a Saga's chapters reached by lore counters an effect put (proliferate): `ChapterTriggeredAbility` on
     // `COUNTERS_ADDED`, as for the lore counter of the precombat main phase
     if name == "lore" {
@@ -19732,6 +19777,9 @@ fn apply_copy_applier(
         }
     }
     copy.abilities.extend(ap.abilities.iter().cloned());
+    if let Some(n) = &ap.name {
+        copy.name = n.clone();
+    }
     if game.obj(of).copied_def.is_some() {
         return;
     }
@@ -23546,6 +23594,11 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
             let o = game.obj_mut(id);
             o.def = o.until_end_of_turn_def.take().unwrap();
             o.eot_copy = None;
+            // the Auras' "is a creature" again over what it was before (`refresh_becomes`)
+            if std::mem::take(&mut o.becomes_over_eot) && o.becomes_base.is_some() {
+                o.becomes_base = Some(o.def.clone());
+                o.becomes_auras.clear();
+            }
         }
         if game.obj(id).lost_all == 1 {
             game.obj_mut(id).lost_all = 0;

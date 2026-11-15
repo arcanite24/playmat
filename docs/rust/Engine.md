@@ -356,6 +356,7 @@ Being in the engine and being trusted are kept apart.
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
   can express (12,565 on 14 Nov). A card whose JSON the engine can't load yet is left out
+  can express (12,533 on 14 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -1175,6 +1176,31 @@ Being in the engine and being trusted are kept apart.
   rest of the list: cards needing `canChoose` overrides (Raise the Draugr), P/T switching, Auras on players, any-zone
   self-replacement with a shuffle (Progenitus, Darksteel Colossus), Or-trigger parts with a trigger condition and
   many one-off effects.
+  Wave 12, claim 2 (14 Nov): blocked cards from players' decks. A creature token's static without its own text
+  takes it from the ability (Restless Spire); a `CreatureToken` local feeds `BecomesCreatureTargetEffect` (Lizard,
+  Connors's Curse); an Aura's "is a creature named …" (`BecomesCreatureAttachedEffect.named`: Witness Protection);
+  Treasure and Octopus gifts. An Aura whose static removes all abilities keeps what the same static gives (Stasis
+  Field's defender, `removeAllAbilities` then `addAbility`), and Auras' "is a creature" applied over an animation
+  until end of turn apply again over what it was when that ends (`Obj::becomes_over_eot`: Witness Protection on an
+  animated Restless Spire). `SimpleActivatedAbility.cant_be_copied` ("this ability can't be copied": Gogo, Master of
+  Mimicry, whose `setMinX` goes to `getCosts`, not the `{X}` in `getManaCosts`, so X can still be 0 as in Java);
+  `Trigger::CounterAddedSource.threshold` (Midnight Clock's twelfth hour counter); `EnchantmentSourcePredicate`
+  (Weaver of Harmony); `SpendManaAsAnyColorEffect.sources`, the abilities of a creature card too (Vizier of the
+  Menagerie's `applies(objectId)`: unearth and outlast paid with any type); `UntapTargetCost` (Halo Fountain); a copy
+  applier that only renames the copy (Chameleon, Master of Disguise). Rent Is Due shows "If you don't" as Java does: `DoIfCostPaid`'s copy constructor drops
+  `setOtherwiseText`. Handlers include the framework classes `SearchLibraryForFourDifferentCardsEffect` (Elemental
+  Teachings; Gifts Ungiven and Realms Uncharted aren't in the pool), `PutCardFromHandOrGraveyardOntoBattlefieldEffect`
+  (Bonny Pall), `ShuffleHandGraveyardIntoLibraryEffect` and `StormAbility` (Stormscale Scion). Blooming Blast came in
+  with the Treasure gift. Four factory rounds (72 games; 59 of the 61 replayed
+  match, the other 11 had Nyx Lotus) verified 24: 12,265 of 12,533. Seven games under `shadow/wave12-c2/` cover the
+  engine pieces. Left: Maze's End and Wiretapping (each blamed for one game
+  that parts on an unearth's "Exile {this} at the beginning of the next end step" trigger, the unearth paid through
+  Vizier; not looked into yet), Nyx Lotus (dropped: Java lets a mana ability with no mana now be tapped while paying, the
+  engine offers only sources that make mana), Spelunking (lands entering untapped among the "enters tapped"
+  replacements), Radiant Lotus (`SacrificeXTargetCost` on an activated ability), Day's Undoing (`EndTurnEffect`),
+  Fire Lord Zuko (entered from exile), Ral, Crackling Wit and Prismari (storm granted to spells), Captain Howler
+  (a granted trigger's text), Anointed Peacekeeper, Planewide Celebration (the same mode more than once), the random
+  discards (Curse-Marred Demon, Cool but Rude, Rowdy Crew, Tersa) and the rest of the list's engine work.
   Text fixes for verified cards (13 Nov): the Young Hero Role's granted trigger keeps its own text, "put a +1/+1
   counter on it" (its `AddCountersSourceEffect` has a `setText`), and a delayed upkeep transform is "Transform {this}
   at the beginning of the next turn's upkeep." (`AtTheBeginOfNextUpkeepDelayedTriggeredAbility.getRule` puts the

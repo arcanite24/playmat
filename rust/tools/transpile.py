@@ -235,7 +235,20 @@ PUT_CARDS = {'HAND', 'GRAVEYARD', 'BATTLEFIELD', 'BATTLEFIELD_TAPPED', 'EXILED',
              'SHUFFLE'}
 
 # classes a card file declares for itself, written by hand as the engine classes that do the same
+# a card's own continuous effect class that is several of the engine's statics, in order, in its static ability
+CUSTOM_STATIC_EFFECTS = {
+    # "has defender, and loses all other abilities": it loses its abilities, then the Aura gives it defender
+    'StasisFieldEffect': lambda: [{'class': 'LoseAllAbilitiesAttachedEffect'},
+                                  {'class': 'GainAbilityAttachedEffect', 'ability': {'class': 'DefenderAbility'}}],
+}
+
 CUSTOM = {
+    # "enchanted creature loses all abilities and is a green and white Citizen creature with base power and toughness
+    # 1/1 named Legitimate Businessperson"
+    'WitnessProtectionEffect': lambda: {'class': 'BecomesCreatureAttachedEffect', 'lose': 'ALL',
+                                        'named': 'Legitimate Businessperson',
+                                        'token': {'abilities': [], 'colors': ['W', 'G'], 'name': '', 'power': 1,
+                                                  'subtypes': ['Citizen'], 'toughness': 1, 'types': ['CREATURE']}},
     'PithingNeedleEffect': lambda: {'class': 'PithingNeedleEffect'},
     # (players in range: both, in a duel)
     'SorcerousSpyglassActivationEffect': lambda: {'class': 'PithingNeedleEffect'},
@@ -245,6 +258,10 @@ CUSTOM = {
     'ChromaticOrreryEffect': lambda: {'class': 'SpendManaAsAnyColorEffect'},
     'OathOfNissaSpendAnyManaEffect': lambda: {'class': 'SpendManaAsAnyColorEffect', 'spells_only': True,
                                               'filter': [{'p': 'type', 't': 'PLANESWALKER'}]},
+    # "you can spend mana of any type to cast creature spells" (read as any color: a {C} symbol still takes colorless)
+    # (and the abilities of a creature card: `applies(objectId)` is what's paid for, its unearth too)
+    'VizierOfTheMenagerieManaEffect': lambda: {'class': 'SpendManaAsAnyColorEffect', 'spells_only': True,
+                                               'sources': True, 'filter': [{'p': 'type', 't': 'CREATURE'}]},
     'GrafdiggersCageEffect': lambda: {'class': 'CardsCantEnterEffect', 'filter': [{'p': 'type', 't': 'CREATURE'}],
                                       'library': True},
     'GrafdiggersCageEffect2': lambda: {'class': 'CantCastFromZonesEffect', 'who': 'any',
@@ -333,6 +350,7 @@ CUSTOM = {
     'PinnacleStarcageTokenEffect': lambda: {'class': 'PinnacleStarcageTokenEffect', 'token': token('RobotToken')},
     # combat damage can't be prevented: the engine prevents no damage
     'QuestingBeastPreventionEffect': lambda: {'class': 'DamageCantBePreventedEffect', 'duration': 'WhileOnBattlefield'},
+    'FrenziedBalothEffect': lambda: {'class': 'DamageCantBePreventedEffect', 'duration': 'WhileOnBattlefield'},
     'BoomerangBasicsEffect': lambda: {'class': 'BoomerangBasicsEffect'},
     'MagebaneLizardEffect': lambda: {'class': 'MagebaneLizardEffect'},
     'NarsetParterOfVeilsEffect': lambda: {'class': 'NarsetParterOfVeilsEffect'},
@@ -1032,6 +1050,8 @@ STACK_PREDICATES = {
     'TriggeredAbilityPredicate.instance': {'p': 'stack_object', 'kind': 'triggered'},
     # an ability whose source is a creature (`CreatureSourcePredicate`)
     'CreatureSourcePredicate.instance': {'p': 'stack_object', 'kind': 'creature_source'},
+    # an ability whose source is an enchantment (`EnchantmentSourcePredicate`: Weaver of Harmony)
+    'EnchantmentSourcePredicate.instance': {'p': 'stack_object', 'kind': 'enchantment_source'},
     # "a spell that wasn't cast" (Errant's `!spell.wasCast()`): a copy
     'ErrantStreetArtistPredicate.instance': {'p': 'stack_object', 'kind': 'not_cast'},
     'ActivatedOrTriggeredAbilityPredicate.instance': {'p': 'or', 'xs': [{'p': 'stack_object', 'kind': 'activated'},
@@ -1217,9 +1237,10 @@ _static_filters = None
 
 # gifts: what's promised, and the token the opponent gets
 GIFTS = {'GiftType.TAPPED_FISH': ('a tapped Fish', 'FishNoAbilityToken'), 'GiftType.CARD': ('a card', None),
-         'GiftType.FOOD': ('a Food', 'FoodToken')}
+         'GiftType.FOOD': ('a Food', 'FoodToken'), 'GiftType.TREASURE': ('a Treasure', 'TreasureToken'),
+         'GiftType.OCTOPUS': ('an Octopus', 'OctopusToken')}
 # gifts whose token enters untapped
-UNTAPPED_GIFTS = {'GiftType.FOOD'}
+UNTAPPED_GIFTS = {'GiftType.FOOD', 'GiftType.TREASURE', 'GiftType.OCTOPUS'}
 
 # card-declared `ConditionalManaBuilder`s: what their mana can be spent on, as `ConditionalManaAbility` fields
 _ARTIFACT = {'p': 'type', 't': 'ARTIFACT'}
@@ -1350,7 +1371,7 @@ PLAYER_TARGETS = {'TargetAnyTarget', 'TargetPlayer', 'TargetOpponent', 'TargetPl
 TEXT_SETTERS = {'setText', 'withTextThatCard', 'withText', 'withShowSacText', 'setAbilityWord', 'withFlavorWord', 'addHint', 'concatBy', 'setTriggerPhrase', 'withChooseHint',
                 'setOutcome', 'setRuleAtTheTop', 'withRuleTextReplacement', 'withDurationRuleAtStart', 'withTargetDescription',
                 'withTextOptions', 'setTargetTag', 'setRuleVisible', 'setIdentifier', 'withForceQuotes',
-                'withConditionText', 'setModeTag'}
+                'withConditionText', 'setModeTag', 'setOtherwiseText'}
 
 # watchers whose bookkeeping the engine keeps (`Game::watch`, the players' turn counters): adding one to an ability
 # changes nothing the engine reads
@@ -2094,6 +2115,11 @@ class Translator:
             if n:
                 return {'class': cls, 'filter': self.filter(n.group(2)), 'amount': int(n.group(1) or 1)}
             return {'class': cls, 'filter': self.filter(args[0]), 'amount': 1}
+        # "untap N tapped creatures you control" (Halo Fountain)
+        if cls == 'UntapTargetCost' and len(args) == 1:
+            n = re.fullmatch(r'new TargetControlledPermanent\((?:(\d+),)?(\w+)\)', args[0].strip())
+            if n:
+                return {'class': cls, 'filter': self.filter(n.group(2)), 'amount': int(n.group(1) or 1)}
         if cls == 'TapTargetCost' and len(args) == 2 and re.fullmatch(r'\d+', args[0].strip()):
             return {'class': cls, 'filter': self.filter(args[1]), 'amount': int(args[0])}
         # "As an additional cost to cast this spell, you may sacrifice any number of …"
@@ -2667,6 +2693,12 @@ class Translator:
         # in its usable zone whatever the duration (`ContinuousEffects.getLayeredEffects`), and no objects are fixed
         # (`initAffectedObjectsSet` only for non-static abilities), so it's a "while on the battlefield" boost
         expr = re.sub(r'^(\s*new BoostControlledEffect\(\d+,\d+,)Duration\.WhileInGraveyard,', r'\1Duration.WhileOnBattlefield,', expr)
+        # `BecomesCreatureTargetEffect(…).withLoseOtherCardTypes(true)` of a `CreatureToken` that isn't "still a
+        # land": the token sets the card types, so its types replace the old ones either way (`applyTypes`)
+        m = re.fullmatch(r'\s*(new BecomesCreatureTargetEffect\((.*)\))\.withLoseOtherCardTypes\(true\)\s*', expr, re.S)
+        if m and balanced(m.group(1)) and len(a := split_args(m.group(2))) == 4 and a[2].strip() == 'false' \
+                and ('CreatureToken(' in a[0] or 'CreatureToken(' in getattr(self, 'sources', {}).get(a[0].strip(), '')):
+            expr = m.group(1)
         # an enum constant's effect (`XEffectType.DISCARD.makeEffect()`, Lord Xander's): the handler
         # `Outer.XEffectType.DISCARD`
         if (m := re.fullmatch(r'(\w+\.[A-Z][A-Z0-9_]*)\.makeEffect\(\)', expr.strip())) \
@@ -3499,6 +3531,8 @@ class Translator:
                     or (len(args) == 5 and args[4].strip() not in ('true', 'false')):
                 raise Unsupported('becomes creature target ' + ','.join(a.strip() for a in args[1:]))
             tok = args[0].strip()
+            if tok in getattr(self, 'sources', {}) and tok not in self.vars and 'CreatureToken(' in self.sources[tok]:
+                tok = self.sources[tok]
             made = self.creature_token(tok) if 'CreatureToken(' in tok else self.value('token', tok)
             if any(t not in ('CREATURE', 'ARTIFACT') for t in made['types']):
                 raise Unsupported('becomes creature target of types ' + ','.join(made['types']))
@@ -4990,6 +5024,14 @@ class Translator:
         if cls == 'FathomMageTriggeredAbility' and not args:
             return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'counter_added_source', 'counter': '+1/+1'},
                     'effects': [{'class': 'DrawCardSourceControllerEffect', 'amount': 1}], 'optional': True}
+        # Midnight Clock: "When the twelfth hour counter is put on this, shuffle your hand and graveyard into your
+        # library, then draw seven cards. Exile this." (`COUNTER_ADDED`, from any zone: `Zone.ALL`)
+        if cls == 'MidnightClockTriggeredAbility' and not args:
+            return {'class': 'TriggeredAbility', 'java': cls,
+                    'on': {'e': 'counter_added_source', 'counter': 'hour', 'threshold': 12},
+                    'effects': [self.effect('new ShuffleHandGraveyardIntoLibraryEffect()'),
+                                self.effect('new DrawCardSourceControllerEffect(7).concatBy(", then")'),
+                                self.effect('new ExileSourceEffect()')]}
         # "whenever one or more +1/+1 counters are put on this"
         if cls == 'OneOrMoreCountersAddedTriggeredAbility' and len(args) in (1, 2):
             return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'counters_added_source', 'counter': '+1/+1'},
@@ -5318,6 +5360,15 @@ class Translator:
         """a card's own `CopyApplier` whose `apply` only adds subtypes (`blueprint.addSubType(SubType.SPIRIT)`,
         Mirrorhall Mimic): the subtypes the copy gets; `AbilityCopyApplier(ability)` and the appliers in
         `COPY_APPLIERS`: what they change (`CopyApplierDef`)"""
+        # a field `CopyApplier applier = new CopyApplier() {…}` whose `apply` only renames the copy
+        # (`blueprint.setName("Chameleon, Master of Disguise")`)
+        if re.fullmatch(r'\w+', expr.strip()):
+            f = re.search(r'CopyApplier\s+' + re.escape(expr.strip()) + r'\s*=\s*new CopyApplier\(\)\s*\{(.*?)\n    \};',
+                          self.source or '', re.S)
+            apply = f and re.search(r'public boolean apply\([^)]*\)\s*\{\s*blueprint\.setName\(("[^"]*")\);\s*return true;\s*\}',
+                                    f.group(1), re.S)
+            if apply and not re.search(r'public \w+ (?!apply\b|getText\b)\w+\(', f.group(1)):
+                return {'applier': {'name': json.loads(apply.group(1))}}
         m = re.fullmatch(r'new AbilityCopyApplier\((.*)\)', expr.strip(), re.S)
         if m and len(split_args(m.group(1))) == 1:
             ab = self.ability(m.group(1))
@@ -5387,6 +5438,9 @@ class Translator:
                     # the text a triggered ability was given, else a keyword's own
                     text = getattr(self, 'sources', {}).get(arg, arg)
                     r = re.search(r',\s*("(?:[^"\\]|\\.)*")\s*\)\s*$', self.strip_setters(text))
+                    # a static ability's rule is its effect's text (`new SimpleStaticAbility(new XEffect(…, "text"))`)
+                    if not r and self.strip_setters(text).startswith('new SimpleStaticAbility(new '):
+                        r = re.search(r',\s*("(?:[^"\\]|\\.)*")\s*\)\s*\)\s*$', self.strip_setters(text))
                     if r:
                         a['rule'] = json.loads(r.group(1))
                     elif a.get('class') == 'WardAbility' and a['effects'][0]['cost'][0]['class'] == 'ManaCost' \
@@ -6601,6 +6655,9 @@ class Translator:
             self.vars[var] = obj
             return
         cls = obj[0]
+        # a `CreatureToken` local (`CreatureToken token = new CreatureToken(…).withColor("G")`): read where it's used
+        if cls == 'CreatureToken':
+            return
         # a `DynamicValue` (`AuraAttachedCount count = new AuraAttachedCount(2)`): read where it's used
         if re.search(r'(Count|Value)$', cls):
             self.values[var] = expr
@@ -6663,15 +6720,31 @@ def copies_spells_only(card):
                 return True
         return False
 
-    def walk(x):
+    def mark_abilities(effects):
+        for e in effects or []:
+            if not isinstance(e, dict):
+                continue
+            if e.get('class') == 'CopyTargetSpellEffect':
+                e['abilities'] = True
+            mark_abilities([e.get('effect')])
+            mark_abilities(e.get('also'))
+            mark_abilities(e.get('effects'))
+
+    def walk(x, checked=False):
         if isinstance(x, list):
             for y in x:
-                walk(y)
+                walk(y, checked)
             return
         if not isinstance(x, dict):
             return
+        # (a handler's own effects under an ability already checked against that ability's targets: Gogo's)
+        if checked and 'targets' not in x:
+            for v in x.values():
+                walk(v, checked)
+            return
         # an ability, a spell or a mode: its effects with its targets
         if isinstance(x.get('effects'), list) and has_copy(x['effects']):
+            checked = True
             targets = x.get('targets') or []
             spell_trigger = x.get('set_target_pointer') and (x.get('on') or {}).get('e') == 'spell_cast'
             # (an "activate an ability" trigger pointing at that ability: `copies_abilities` marked its copy)
@@ -6680,13 +6753,11 @@ def copies_spells_only(card):
                 spell_trigger = True
             # a spell or an ability (`TargetStackObject`): the engine copies whichever it is
             if len(targets) == 1 and targets[0].get('class') == 'TargetStackObject':
-                for e in x['effects']:
-                    if isinstance(e, dict) and e.get('class') == 'CopyTargetSpellEffect':
-                        e['abilities'] = True
+                mark_abilities(x['effects'])
             elif not (targets and all(t.get('class') == 'TargetSpell' for t in targets)) and not spell_trigger:
                 raise Unsupported('copy of a stack object that may not be a spell')
         for v in x.values():
-            walk(v)
+            walk(v, checked)
     walk(card)
 
 
@@ -7552,6 +7623,12 @@ def ability_statement(t, st, added):
     if m:
         t.vars[m.group(1)] = {'class': 'ManaCost', 'cost': m.group(2)[1:-1]}
         return True
+    # `CardUtil.castStream(ability.getCosts(), VariableManaCost.class).forEach(cost -> cost.setMinX(n))` on an
+    # activated ability already built (Gogo): its {X} is in `getManaCosts`, not `getCosts`, so nothing changes and X
+    # can be announced as 0 (the effect then does nothing)
+    m = re.fullmatch(r'CardUtil\.castStream\((\w+)\.getCosts\(\),VariableManaCost\.class\)\.forEach\(cost ->\s*cost\.setMinX\((\d+)\)\)', st)
+    if m and t.vars.get(m.group(1), {}).get('class') == 'SimpleActivatedAbility':
+        return True
     m = re.fullmatch(r'for\(Object cost : (\w+)\)\{if\(cost instanceof VariableManaCost\)\{\(\(VariableManaCost\)cost\)\.setMinX\((\d+)\);\s*break;\}\}(.*)', st, re.S)
     if m and m.group(1) in t.vars:
         t.min_x = int(m.group(2))
@@ -7869,6 +7946,10 @@ def ability_statement(t, st, added):
             if e.get('class') != 'DontUntapInControllersUntapStepSourceEffect':
                 raise Unsupported('EntersBattlefieldTappedAbility with ' + e.get('class', '?'))
             holder.setdefault('effects', []).append(e)
+        elif m.group(2) == 'Effect' and (cm := re.fullmatch(r'new (\w+)\(\)', m.group(3).strip())) \
+                and cm.group(1) in CUSTOM_STATIC_EFFECTS and holder.get('class') == 'SimpleStaticAbility':
+            # a card's own continuous effect that is the engine's statics together (Stasis Field)
+            holder.setdefault('effects', []).extend(CUSTOM_STATIC_EFFECTS[cm.group(1)]())
         elif m.group(2) == 'Effect':
             # `doIfCostPaid.addEffect(e)`: e too, if it's paid
             holder.setdefault('also' if holder.get('class') == 'DoIfCostPaid' else 'effects', []).append(t.effect(m.group(3)))
@@ -7882,6 +7963,11 @@ def ability_statement(t, st, added):
                 raise Unsupported(holder['class'] + ' with another cost')
             holder['cost'].append(t.cost(m.group(3)))
         return True
+    # `addAbility(ability.withCanBeCopied(false))`: "this ability can't be copied"
+    m = re.fullmatch(r'(?:this\.)?addAbility\((\w+)\.withCanBeCopied\(false\)\)', st)
+    if m and t.vars.get(m.group(1), {}).get('class') == 'SimpleActivatedAbility':
+        t.vars[m.group(1)]['cant_be_copied'] = True
+        st = 'this.addAbility(' + m.group(1) + ')'
     m = re.fullmatch(r'(?:this\.)?addAbility\((.*)\)', st)
     if m:
         args = split_args(m.group(1))
@@ -8907,6 +8993,9 @@ def strip_java(x):
             strip_java(v)
 
 
+OTHERWISE_TEXTS = {'Rent Is Due': [('. Otherwise, sacrifice', ". If you don't, sacrifice")]}
+
+
 def translate_card(name, subtypes, facts):
     """`translate` and what follows it for every card: the card's JSON as cards.json has it"""
     # a `CompositeCost` anywhere (a spell's "you may pay", a face's ability) becomes its parts
@@ -8920,6 +9009,10 @@ def translate_card(name, subtypes, facts):
         raise Unsupported('effect ChooseCreatureTypeEffect on a spell')
     that_player_names(card)
     copies_spells_only(card)
+    # `DoIfCostPaid.setOtherwiseText`: its copy constructor drops the text, so the game shows the default "If you
+    # don't" (Rent Is Due's "Otherwise, sacrifice")
+    for old, new in OTHERWISE_TEXTS.get(card['name'], []):
+        card = json.loads(json.dumps(card).replace(json.dumps(old)[1:-1], json.dumps(new)[1:-1]))
     # a promised gift is known to the spell's own conditional effects only
     if 'gift_promised' in json.dumps({k: v for k, v in card.items() if k != 'spell'}):
         raise Unsupported('condition GiftWasPromisedCondition.TRUE outside the spell')

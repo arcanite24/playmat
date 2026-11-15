@@ -1027,9 +1027,13 @@ pub enum Trigger {
     CountersAddedSource {
         counter: String,
     },
-    /// a `counter` counter is put on this, once for each counter (Fathom Mage's `COUNTER_ADDED`)
+    /// a `counter` counter is put on this, once for each counter (Fathom Mage's `COUNTER_ADDED`); with a
+    /// `threshold`, only for the counter that makes it that many ("when the twelfth hour counter is put on this":
+    /// Midnight Clock)
     CounterAddedSource {
         counter: String,
+        #[serde(default)]
+        threshold: i32,
     },
     /// a state trigger: this has `n` or more `counter` counters (Mazemind Tome)
     SourceCountersAtLeast {
@@ -1442,6 +1446,9 @@ pub struct CopyApplierDef {
     /// abilities the copy has (`AbilityCopyApplier`)
     #[serde(default)]
     pub abilities: Vec<AbilityDef>,
+    /// the copy's name instead (`blueprint.setName`: Chameleon, Master of Disguise)
+    #[serde(default)]
+    pub name: Option<String>,
     /// unless it copies a copy: these if it's a creature (Moritte's changeling)
     #[serde(default)]
     pub creature_abilities: Vec<AbilityDef>,
@@ -1606,6 +1613,11 @@ pub enum CostDef {
     },
     /// tap `amount` permanents of the filter you control (chosen, not targeted)
     TapTargetCost {
+        filter: Filter,
+        amount: usize,
+    },
+    /// untap `amount` tapped permanents of the filter you control (`UntapTargetCost`: Halo Fountain)
+    UntapTargetCost {
         filter: Filter,
         amount: usize,
     },
@@ -1952,6 +1964,10 @@ pub enum EffectDef {
         filter: Filter,
         #[serde(default)]
         spells_only: bool,
+        /// the abilities of a source of `filter` too (Vizier of the Menagerie's `applies(objectId)` is the object
+        /// paid for, so a creature card's unearth)
+        #[serde(default)]
+        sources: bool,
     },
     /// a class a card declares for itself, written in Rust (`src/cards/`, docs/rust/Engine.md "Per-card handlers"),
     /// with the Java constructor's arguments as their source text and the Java the handler asked the transpiler for
@@ -4106,6 +4122,9 @@ pub enum EffectDef {
         /// what it loses (`BecomesCreatureAttachedEffect.LoseType`: ALL, ABILITIES, COLOR, SUBTYPE…); none: nothing
         #[serde(default)]
         lose: Option<String>,
+        /// "… named Legitimate Businessperson" (layer 3: Witness Protection)
+        #[serde(default)]
+        named: Option<String>,
     },
     /// a Siege defeated: exile it, then cast it transformed without paying its mana cost
     SiegeDefeatedEffect,
@@ -5078,6 +5097,9 @@ pub enum AbilityDef {
         /// the least X it can be activated with (`VariableManaCost.setMinX`)
         #[serde(default)]
         min_x: i32,
+        /// "this ability can't be copied" (`withCanBeCopied(false)`: Gogo)
+        #[serde(default)]
+        cant_be_copied: bool,
         /// a modal ability (`addMode`): its other modes, mode 0 being its own effects and targets
         #[serde(default)]
         modes: Vec<ModeDef>,
