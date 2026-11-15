@@ -27,7 +27,7 @@ fn apply(game: &mut Game, _: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     let target = TargetDef::TargetPermanent { filter, min: 1, max: 1, distribute: None, x_count: false, count: None };
     let delayed = Delayed {
         rule: format!(
-            "destroy target artifact or enchantment an opponent controls with mana value less than or equal to {excess}"
+            "destroy target artifact or enchantment an opponent controls with mana value less than or equal to {excess}."
         ),
         sacrifice: Vec::new(),
         warp_exile: Vec::new(),

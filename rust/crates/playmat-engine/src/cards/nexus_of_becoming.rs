@@ -16,7 +16,8 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         .copied()
         .filter(|c| game.obj(*c).is(CardType::Artifact) || game.obj(*c).is(CardType::Creature))
         .collect();
-    if options.is_empty() {
+    // `HumanPlayer.choose` from the hand: asked unless the hand is empty, even with nothing there to pick
+    if hand.is_empty() {
         return Some(());
     }
     let rule = item_rule(game, cx.item);

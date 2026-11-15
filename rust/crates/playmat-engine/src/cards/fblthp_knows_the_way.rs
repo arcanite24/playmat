@@ -8,8 +8,21 @@ pub const HANDLERS: &[Handler] = &[Handler::effect("FblthpKnowsTheWay.FblthpKnow
     "new SearchLibraryPutInHandEffect(new TargetCardWithDifferentNameInLibrary(0, 1, StaticFilters.FILTER_CARD_BASIC_LANDS), true)",
 ])];
 
-/// `SearchLibraryPutInHandEffect` for up to X, the X paid for the permanent
+/// `SearchLibraryPutInHandEffect` for up to X, the X paid for the permanent. With X = 0 nothing is asked
+/// (`isChoiceSelected` holds for a target of none at most): the library is only searched and shuffled
 fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
+    if cx.item.x <= 0 {
+        let you = cx.controller();
+        // `LibrarySearchedEvent`
+        let sources = game.trigger_sources();
+        let fired =
+            game.triggers(sources, |_, _, them, t| matches!(t, Trigger::OpponentSearchesLibrary) && them != you);
+        game.pending.extend(fired);
+        let mut library = game.player(you).library.clone();
+        game.rng.shuffle(&mut library);
+        game.player_mut(you).library = library;
+        return Some(());
+    }
     let mut e = cx.effects.first()?.clone();
     if let EffectDef::SearchLibraryEffect { max, .. } = &mut e {
         *max = cx.item.x.max(0) as usize;

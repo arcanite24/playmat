@@ -19,8 +19,8 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     let top: Vec<ObjId> = game.player(you).library.iter().take(10).copied().collect();
     let creatures: Vec<ObjId> =
         top.iter().copied().filter(|c| game.filter_matches(&cx.filters[0], you, Some(src), *c)).collect();
-    let chosen =
-        if top.is_empty() { Vec::new() } else { super::gilgamesh_master_at_arms::choose_any(game, d, you, &creatures, 2)? };
+    // `HumanPlayer.choose`: one round, "done" ends it with fewer than two
+    let chosen = if top.is_empty() { Vec::new() } else { choose_cards(game, d, you, &top, &creatures, 0, 2, "")? };
     if !chosen.is_empty() && !put_cards(game, d, you, &chosen, crate::card::PutCards::Exiled) {
         return None;
     }
@@ -37,7 +37,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         .copied()
         .filter(|c| game.obj(*c).zone == Zone::Exile && game.filter_matches(&cx.filters[0], opponent, Some(src), *c))
         .collect();
-    let theirs = super::gilgamesh_master_at_arms::choose_any(game, d, opponent, &possible, 1)?;
+    let theirs = choose_cards(game, d, opponent, &exiled, &possible, 0, 1, "")?;
     exiled.retain(|c| !theirs.contains(c));
     if !theirs.is_empty() && !put_cards(game, d, opponent, &theirs, crate::card::PutCards::Battlefield) {
         return None;

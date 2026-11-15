@@ -7,7 +7,7 @@ pub const HANDLERS: &[Handler] = &[Handler::effect("MemoryTheft.MemoryTheftEffec
     .effects(&["new DiscardCardYouChooseTargetEffect(StaticFilters.FILTER_CARD_NON_LAND)"])];
 
 /// the discard (`DiscardCardYouChooseTargetEffect`), then up to one exiled card with an Adventure the opponent owns,
-/// chosen when there's one, into their graveyard
+/// asked even with none there (a target of zero to one can always be chosen), into their graveyard
 fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     cx.run(game, d, &cx.effects[..1]);
     if d.stopped() {
@@ -24,9 +24,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
             o.owner == p && o.def.adventure.is_some()
         })
         .collect();
-    if options.is_empty() {
-        return Some(());
-    }
+    // `TargetCardInExile(0, 1, …)` can always be chosen: asked even with nothing to pick
     let rule = item_rule(game, cx.item);
     if let Some(card) = choose_cards(game, d, you, &options, &options, 0, 1, &rule)?.first().copied() {
         game.move_to(card, Zone::Graveyard);
