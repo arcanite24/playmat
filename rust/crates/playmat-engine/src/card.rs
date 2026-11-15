@@ -2796,6 +2796,18 @@ pub enum EffectDef {
         #[serde(default)]
         to_player: bool,
     },
+    /// `CreateDelayedTriggeredAbilityEffect` (or a handler's `game.addDelayedTriggeredAbility`) of a card's own
+    /// `DelayedTriggeredAbility` class with an event trigger: `ability` is it as a triggered ability (a trigger
+    /// handler's base and check); it waits in `Game::delayed_triggers`, pointing at what this ability points at,
+    /// until the cleanup step (`end_of_turn`, `Duration.EndOfTurn`) or for the game, and once it has triggered it's
+    /// gone if `once` (`triggerOnlyOnce`)
+    CreateDelayedTriggerEffect {
+        ability: Box<AbilityDef>,
+        #[serde(default)]
+        end_of_turn: bool,
+        #[serde(default)]
+        once: bool,
+    },
     /// "at the beginning of the next end step, …" (`CreateDelayedTriggeredAbilityEffect` with
     /// `AtTheBeginOfNextEndStepDelayedTriggeredAbility`)
     CreateNextEndStepDelayedEffect {

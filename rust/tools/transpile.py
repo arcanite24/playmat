@@ -1461,6 +1461,33 @@ def class_static_text(source, cls):
     return ''.join(re.sub(r'\\(.)', r'\1', x) for x in re.findall(r'"((?:[^"\\]|\\.)*)"', t.group(1)))
 
 
+def delayed_class(source, cls):
+    """A `DelayedTriggeredAbility` subclass the card file declares: its constructor's `super(effect, duration,
+    triggerOnlyOnce, optional)` as {'duration', 'once', 'optional'} (Java's defaults: `Duration.EndOfGame`, once), its
+    `setTriggerPhrase` ('phrase') and a `getRule` returning a string literal ('rule'); or None"""
+    if not source:
+        return None
+    m = re.search(r'^(?:final |abstract )*class ' + cls + r' extends DelayedTriggeredAbility\b', source, re.M)
+    if not m:
+        return None
+    nxt = re.search(r'^(?:final |abstract )*(?:class|enum) ', source[m.end():], re.M)
+    body = source[m.end():m.end() + nxt.start()] if nxt else source[m.end():]
+    sup = re.search(r'\bsuper\((.*?)\);', body, re.S)
+    if not sup:
+        return None
+    args = [a.strip() for a in split_args(sup.group(1))]
+    if len(args) < 1 or len(args) > 4:
+        return None
+    out = {'duration': args[1] if len(args) > 1 else 'Duration.EndOfGame',
+           'once': args[2] != 'false' if len(args) > 2 else True,
+           'optional': len(args) > 3 and args[3] == 'true'}
+    ph = re.search(r'setTriggerPhrase\("((?:[^"\\]|\\.)*)"\)', body)
+    out['phrase'] = ph.group(1) if ph else None
+    r = re.search(r'String getRule\(\)\s*\{\s*return\s*((?:"(?:[^"\\]|\\.)*"\s*\+?\s*)+);\s*\}', body)
+    out['rule'] = ''.join(re.findall(r'"((?:[^"\\]|\\.)*)"', r.group(1))) if r else None
+    return out
+
+
 def statements(body):
     body = re.sub(r'//[^\n]*', '', body)
     body = re.sub(r'/\*.*?\*/', '', body, flags=re.S)
@@ -3625,6 +3652,26 @@ class Translator:
                 return {'class': cls, 'amount': int(n.group(1)), 'controller': self.value('target_controller', args[2].strip())}
             # a `DynamicValue` amount (Meria's Outrider's domain count)
             return {'class': cls, 'amount': self.amount(args[1]), 'controller': self.value('target_controller', args[2].strip())}
+        # a card's own delayed triggered ability with an event trigger (a trigger handler for its class): it waits for
+        # its event, pointing where this ability points
+        if cls == 'CreateDelayedTriggeredAbilityEffect' and len(args) == 1 \
+                and (m := re.fullmatch(r'new (\w+)\((.*)\)', canonical(args[0].strip()), re.S)) \
+                and (dc := delayed_class(getattr(self, 'source', None), m.group(1))) is not None \
+                and card_handlers.find(getattr(self, 'source', None), m.group(1), 'trigger', True):
+            a = card_handlers.trigger(self, m.group(1), split_args(m.group(2)) if m.group(2).strip() else [])
+            if dc['duration'] not in ('Duration.EndOfTurn', 'Duration.EndOfGame') \
+                    or dc['optional'] != a.get('optional', False):
+                raise Unsupported('delayed ability %s: %s' % (m.group(1), dc['duration']))
+            if dc['rule'] is not None:
+                a['rule'] = dc['rule']
+            elif dc['phrase'] is not None and ', ' in a.get('rule', ''):
+                a['rule'] = dc['phrase'] + a['rule'].split(', ', 1)[1]
+            out = {'class': 'CreateDelayedTriggerEffect', 'ability': a}
+            if dc['duration'] == 'Duration.EndOfTurn':
+                out['end_of_turn'] = True
+            if dc['once']:
+                out['once'] = True
+            return out
         # "at the beginning of the next end step, …": its effects then
         if cls == 'CreateDelayedTriggeredAbilityEffect' and len(args) == 2 and args[1].strip() == 'false':
             args = args[:1]

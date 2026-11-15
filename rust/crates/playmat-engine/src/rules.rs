@@ -17170,6 +17170,9 @@ fn apply_each_effect(
                     game.when_dies.push((o, zcc, turn, *to_player, t));
                 }
             }
+            EffectDef::CreateDelayedTriggerEffect { ability, end_of_turn, once } => {
+                create_delayed_trigger(game, item, ability, legal, source, *end_of_turn, *once);
+            }
             EffectDef::CreateNextEndStepDelayedEffect { effects, rule } => {
                 let delayed = Delayed {
                     rule: rule.clone(),
@@ -20886,7 +20889,11 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
         fired.into_iter().partition(|t| matches!(game.trigger_of(t), Some(Trigger::EntersAll { batch: true, .. })));
     fired = rest;
     for t in batch {
-        if !game.batch_pending.iter().any(|b| b.card == t.card && b.ability == t.ability) {
+        if !game
+            .batch_pending
+            .iter()
+            .any(|b| b.card == t.card && b.ability == t.ability && b.from_delayed == t.from_delayed)
+        {
             game.batch_pending.push(t);
         }
     }
@@ -20935,7 +20942,11 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
         }
         for t in more {
             if matches!(game.trigger_of(&t), Some(Trigger::EntersAll { batch: true, .. })) {
-                if !game.batch_pending.iter().any(|b| b.card == t.card && b.ability == t.ability) {
+                if !game
+                    .batch_pending
+                    .iter()
+                    .any(|b| b.card == t.card && b.ability == t.ability && b.from_delayed == t.from_delayed)
+                {
                     game.batch_pending.push(t);
                 }
             } else {
@@ -21592,6 +21603,44 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
     }
 }
 
+/// `GameImpl.addDelayedTriggeredAbility` of a card's own delayed triggered ability (`CreateDelayedTriggerEffect`):
+/// its holder, a copy of the source's face with just `ability`, waits in `game.delayed_triggers`; its controller is
+/// the creating ability's, its source that ability's (603.7e), and it points at what that ability points at
+/// (`copyTargets`)
+fn create_delayed_trigger(
+    game: &mut Game,
+    item: &StackItem,
+    ability: &AbilityDef,
+    legal: &[Vec<Target>],
+    source: (ObjId, u32),
+    end_of_turn: bool,
+    once: bool,
+) {
+    let mut def = (*game.obj(source.0).def).clone();
+    def.abilities = vec![ability.clone()];
+    let holder = game.create_obj(Arc::new(def), item.controller, Zone::Command);
+    game.obj_mut(holder).trigger_order = (1 << 32) + holder.0 as u64;
+    let target_zcc = legal
+        .iter()
+        .map(|ts| {
+            ts.iter()
+                .map(|t| match t {
+                    Target::Obj(o) => game.obj(*o).zcc,
+                    Target::Player(_) => 0,
+                })
+                .collect()
+        })
+        .collect();
+    game.delayed_triggers.push(crate::state::DelayedTrigger {
+        holder,
+        source,
+        targets: legal.to_vec(),
+        target_zcc,
+        end_of_turn,
+        once,
+    });
+}
+
 /// Takes `seat`'s waiting triggers out of `game.pending`.
 fn take_seat(game: &mut Game, seat: Seat) -> Vec<StackItem> {
     let (mine, rest): (Vec<StackItem>, Vec<StackItem>) =
@@ -21617,6 +21666,16 @@ fn waiting(game: &mut Game, pending: Vec<StackItem>) -> Vec<StackItem> {
         }
     }
     let mut pending = kept;
+    // a card's delayed trigger that triggers only once is gone once it has (`DelayedTriggeredAbilities.checkTriggers`):
+    // what it triggered for after its first is dropped
+    pending.retain(|t| {
+        let Some(h) = t.from_delayed else { return true };
+        let Some(k) = game.delayed_triggers.iter().position(|d| d.holder == h) else { return false };
+        if game.delayed_triggers[k].once {
+            game.delayed_triggers.remove(k);
+        }
+        true
+    });
     // `checkUsedAlready`: a "do this only once each turn" ability done this turn doesn't trigger
     pending.retain(|t| {
         let Some((i, _)) = t.ability else { return true };
@@ -22533,7 +22592,9 @@ fn lose_life_by(game: &mut Game, seat: Seat, amount: i32, source: Option<ObjId>,
         });
         // a batch for each player: one trigger, with all the life they lost
         for t in fired {
-            match game.life_batch.iter_mut().find(|(s, b)| *s == seat && b.card == t.card && b.ability == t.ability) {
+            match game.life_batch.iter_mut().find(|(s, b)| {
+                *s == seat && b.card == t.card && b.ability == t.ability && b.from_delayed == t.from_delayed
+            }) {
                 Some((_, b)) => b.x += amount,
                 None => game.life_batch.push((seat, StackItem { x: amount, ..t })),
             }
@@ -22849,7 +22910,11 @@ fn tap(game: &mut Game, id: ObjId) {
         matches!(t, Trigger::BecomesTappedBatch { filter } if g.filter_matches(filter, you, Some(src), id))
     });
     for t in fired {
-        if !game.batch_pending.iter().any(|b| b.card == t.card && b.ability == t.ability) {
+        if !game
+            .batch_pending
+            .iter()
+            .any(|b| b.card == t.card && b.ability == t.ability && b.from_delayed == t.from_delayed)
+        {
             game.batch_pending.push(t);
         }
     }
@@ -23892,6 +23957,8 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
         game.update_guildpact();
     }
     game.subtypes_until_eot.clear();
+    // `Duration.EndOfTurn` delayed triggered abilities end (`DelayedTriggeredAbilities.removeEndOfTurnAbilities`)
+    game.delayed_triggers.retain(|t| !t.end_of_turn);
     // phased-out permanents too: Java's `Battlefield.endOfTurn` goes over every permanent (Kaito Shizuki)
     for id in game.all_permanents() {
         if game.obj(id).loyalty_used > 0 {
@@ -24829,6 +24896,49 @@ mod tests {
                 _ => Passer.answer(game, seat, query),
             }
         }
+    }
+
+    /// `CreateDelayedTriggerEffect`: the delayed ability triggers as its source's, until the cleanup step, and one
+    /// that triggers only once is gone after its first
+    #[test]
+    fn a_cards_delayed_trigger_waits_for_its_event() {
+        let db = crate::cards();
+        let mut game = game_with(&db, &[("Forest", 10)]);
+        let src = game.create_obj(db.get("Forest").unwrap(), 0, Zone::Hand);
+        game.move_to(src, Zone::Battlefield);
+        let zcc = game.obj(src).zcc;
+        let create = |once: bool| -> EffectDef {
+            serde_json::from_value(serde_json::json!({
+                "class": "CreateDelayedTriggerEffect", "end_of_turn": true, "once": once,
+                "ability": {"class": "TriggeredAbility", "effects": [{"amount": 1, "class": "GainLifeEffect"}],
+                    "on": {"e": "dies_all", "filter": [{"p": "type", "t": "CREATURE"}], "include_self": true},
+                    "optional": false, "rule": "Whenever a creature dies this turn, you gain 1 life."}
+            }))
+            .unwrap()
+        };
+        let item = StackItem::spell(src, 0);
+        apply_effects(&mut game, &mut Passer, &item, &[create(false), create(true)], &[], (src, zcc));
+        assert_eq!(game.delayed_triggers.len(), 2);
+        let bears: Vec<ObjId> = (0..2)
+            .map(|_| {
+                let b = game.create_obj(db.get("Runeclaw Bear").unwrap(), 1, Zone::Hand);
+                game.move_to(b, Zone::Battlefield);
+                b
+            })
+            .collect();
+        game.pending.clear();
+        for b in &bears {
+            destroy(&mut game, *b);
+        }
+        let fired: Vec<StackItem> = std::mem::take(&mut game.pending);
+        assert_eq!(fired.len(), 4);
+        assert!(fired.iter().all(|t| t.card == src && t.from_delayed.is_some() && t.controller == 0));
+        let kept = waiting(&mut game, fired);
+        // the once-only one: its first trigger only, and it's gone
+        assert_eq!(kept.len(), 3);
+        assert_eq!(game.delayed_triggers.len(), 1);
+        cleanup(&mut game, &mut Passer, 0);
+        assert!(game.delayed_triggers.is_empty());
     }
 
     #[test]
