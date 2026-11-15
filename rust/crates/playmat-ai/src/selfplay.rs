@@ -256,7 +256,7 @@ impl DecisionPolicy for NetSearch {
     }
 }
 
-/// The network's policy searched by Gumbel sequential halving (Gumbel AlphaZero, Danihelka et al. 2022): up to 8
+/// The network's policy searched by Gumbel sequential halving (Gumbel AlphaZero, Danihelka et al. 2022): `consider`
 /// candidates drawn without replacement by Gumbel-top-k on the logits (no noise at temperature 0), then rounds that
 /// play each survivor out on more samples and keep the better half by `g + logit + σ(Q)`. The policy it records is
 /// `softmax(logit + σ(Q))`, the candidates it didn't play valued at the network's value.
@@ -301,7 +301,7 @@ impl DecisionPolicy for Gumbel {
             .collect();
         let mut alive: Vec<usize> = (0..n).collect();
         alive.sort_by(|a, b| (g[*b] + out.logits[*b]).total_cmp(&(g[*a] + out.logits[*a])));
-        alive.truncate(8);
+        alive.truncate(cfg.consider.max(2));
         // `samples` plays per candidate on average, spread over log2(m) rounds that halve the survivors
         let m = alive.len();
         let rounds = (usize::BITS - (m - 1).leading_zeros()).max(1) as usize;

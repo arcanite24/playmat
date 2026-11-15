@@ -19,7 +19,7 @@ pub struct Entrant {
 /// - `host@sN`: what the Rust host plays at skill N (`skill`), whatever this build makes of it.
 /// - `try:<policy>:<budget>:<width>:<extra turns>:<threads>`: tuning, on skill 4's base.
 /// - `cfg:<key>=<value>+…`: any `Config` field on skill 4's first base (`budget`, `width`, `extra_turns`,
-///   `playout_cap`, `policy`, `threads`, `hide`, `samples`, `playout`, `eval`, `plans`, `mulligan_sim`, `blunder`, `net`, `temp`, `eta`, `rollout`).
+///   `playout_cap`, `policy`, `threads`, `hide`, `samples`, `playout`, `eval`, `plans`, `mulligan_sim`, `blunder`, `net`, `temp`, `eta`, `rollout`, `consider`).
 ///   For A/B runs: `cfg:hide=1+samples=4` against `cfg:hide=1`.
 pub fn entrant(name: &str) -> Result<Entrant, String> {
     // the named entrants are the first search's settings, pinned so their recorded results keep meaning the same
@@ -81,6 +81,7 @@ pub fn with(mut c: Config, settings: &str) -> Result<Config, String> {
             "temp" => c.temp = n()? as u32,
             "eta" => c.eta = n()? as u32,
             "rollout" => c.rollout = (v != "-").then(|| v.to_string()),
+            "consider" => c.consider = n()? as usize,
             _ => return Err(format!("unknown config key {k}")),
         }
     }
@@ -90,7 +91,7 @@ pub fn with(mut c: Config, settings: &str) -> Result<Config, String> {
 /// A config as `cfg:` settings (every field, so two builds' configs compare as text)
 pub fn label(c: &Config) -> String {
     format!(
-        "budget={}+width={}+extra_turns={}+playout_cap={}+policy={}+hide={}+samples={}+playout={}+eval={}+plans={}+mulligan_sim={}+blunder={}+net={}+temp={}+eta={}+rollout={}",
+        "budget={}+width={}+extra_turns={}+playout_cap={}+policy={}+hide={}+samples={}+playout={}+eval={}+plans={}+mulligan_sim={}+blunder={}+net={}+temp={}+eta={}+rollout={}+consider={}",
         c.budget,
         c.width,
         c.extra_turns,
@@ -106,7 +107,8 @@ pub fn label(c: &Config) -> String {
         c.net.as_deref().unwrap_or("builtin"),
         c.temp,
         c.eta,
-        c.rollout.as_deref().unwrap_or("-")
+        c.rollout.as_deref().unwrap_or("-"),
+        c.consider
     )
 }
 

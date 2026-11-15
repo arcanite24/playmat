@@ -51,6 +51,8 @@ pub struct Config {
     /// a network (`.pmnet` path, or `builtin`) that answers the playouts' questions instead of the quick answers;
     /// `None` the quick answers
     pub rollout: Option<String>,
+    /// `gumbel`: how many candidates the search plays out (the likelier ones under Gumbel-top-k)
+    pub consider: usize,
 }
 
 impl Default for Config {
@@ -84,6 +86,7 @@ impl Default for Config {
             temp: 0,
             eta: 10_000,
             rollout: None,
+            consider: 4,
         }
     }
 }
