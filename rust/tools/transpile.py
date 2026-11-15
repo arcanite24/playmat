@@ -4537,6 +4537,9 @@ class Translator:
             if f.opponents:
                 out['opponents'] = True
             return out
+        # `TargetPermanentOrPlayer()`: any permanent or any player (Maulfist Revolutionary)
+        if cls == 'TargetPermanentOrPlayer' and not [a for a in args if a.strip()]:
+            return {'class': cls, 'filter': []}
         if cls == 'TargetPermanentOrPlayer' and len(args) == 1 and self.filters.get(args[0].strip()) == ANY_OTHER_TARGET:
             return {'class': 'TargetAnyTarget', 'another': True}
         if cls == 'TargetSpellOrPermanent' and [a.strip() for a in args[:2] + args[3:]] == ['1', '1', 'false'] \
