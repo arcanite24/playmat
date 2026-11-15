@@ -5236,6 +5236,17 @@ class Translator:
                     'effects': [self.effect('new ShuffleHandGraveyardIntoLibraryEffect()'),
                                 self.effect('new DrawCardSourceControllerEffect(7).concatBy(", then")'),
                                 self.effect('new ExileSourceEffect()')]}
+        # Hooded Blightfang: "whenever a creature you control with deathtouch deals damage to a planeswalker, destroy
+        # that planeswalker." (`DAMAGED_PERMANENT`, the source of the card's `filter`, a target pointer at the
+        # planeswalker)
+        if cls == 'HoodedBlightfangTriggeredAbility' and not args:
+            return {'class': 'TriggeredAbility', 'java': cls,
+                    'on': {'e': 'damaged_permanent', 'of': 'source_to', 'source_filter': self.filter('filter'),
+                           'filter': self.filter('StaticFilters.FILTER_PERMANENT_PLANESWALKER')},
+                    'optional': False, 'set_target_pointer': True,
+                    'effects': [self.effect('new DestroyTargetEffect()')],
+                    'rule': 'Whenever a creature you control with deathtouch deals damage to a planeswalker, '
+                            'destroy that planeswalker.'}
         # a Plan's "when the Nth plan counter is put on {this}, sacrifice it. When you do, …" (`COUNTER_ADDED`, the
         # counter that makes it N: Midnight Clock's form; its effect `DoWhenCostPaid(reflexive, SacrificeSourceCost,
         # "Sacrifice {this}?", false)`)
