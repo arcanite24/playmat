@@ -918,7 +918,8 @@ pub(crate) fn may_pay_life(game: &mut Game, d: &mut dyn Decider, of: &CostCx) ->
             if applies(game, cx, of) {
                 let mut probe = ManaCost { colored: [1; 5], ..ManaCost::default() };
                 apply(game, cx, of, &mut probe);
-                let symbol: String = (0..5).filter(|k| probe.colored[*k] == 0).map(|k| ["{W}", "{U}", "{B}", "{R}", "{G}"][k]).collect();
+                let symbol: String =
+                    (0..5).filter(|k| probe.colored[*k] == 0).map(|k| ["{W}", "{U}", "{B}", "{R}", "{G}"][k]).collect();
                 asks.push((paid_life_mark(cx), *n, symbol));
             }
         }
