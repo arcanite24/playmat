@@ -6110,7 +6110,9 @@ fn modified_cost_of(game: &Game, seat: Seat, id: ObjId, face: &CardDef, mut cost
     cost.generic = cost.generic.saturating_sub(reduce);
     cards::change_cost(game, cards::CostKind::Reduce, &of, &mut cost);
     let o = game.obj(id);
-    for a in &o.def.abilities {
+    // (and the affinity a static gives it: `GainAbilityControlledSpellsEffect(new AffinityForArtifactsAbility(), …)`)
+    let grants = game.spell_grants(id);
+    for a in o.def.abilities.iter().chain(grants.iter()) {
         // Ice Out: less if bargained (while checking what's playable: if it could be)
         if let AbilityDef::BargainAbility { discount, .. } = a {
             let bargained = if o.zone == Zone::Stack {

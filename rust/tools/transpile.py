@@ -3899,7 +3899,9 @@ class Translator:
         # the abilities the engine reads on a card outside the battlefield or a spell
         if cls == 'GainAbilityControlledSpellsEffect':
             out = self.build(cls, args, EFFECTS[cls], 'effect')
-            if out['ability'].get('class') not in SPELL_GRANTED:
+            # (affinity: the spell's cost reduction, Tezzeret, Master of the Bridge)
+            if out['ability'].get('class') not in SPELL_GRANTED \
+                    and out['ability'].get('java') not in ('AffinityForArtifactsAbility', 'AffinityAbility'):
                 raise Unsupported('effect GainAbilityControlledSpellsEffect of ' + str(out['ability'].get('class')))
             return out
         try:
