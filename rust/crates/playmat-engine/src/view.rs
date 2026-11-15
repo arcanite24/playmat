@@ -355,6 +355,7 @@ fn can_play_objects(game: &Game, seat: Seat) -> Value {
                             | crate::card::AbilityDef::BestowAbility { .. }
                             | crate::card::AbilityDef::DisturbAbility { .. }
                             | crate::card::AbilityDef::AwakenAbility { .. }
+                            | crate::card::AbilityDef::WebSlingingAbility { .. }
                             | crate::card::AbilityDef::SneakAbility { .. }
                     )
                 ) =>
@@ -372,6 +373,9 @@ fn can_play_objects(game: &Game, seat: Seat) -> Value {
                         o.def.transform_back.as_ref().map_or(name.as_str(), |b| b.name.as_str())
                     ),
                     Some(crate::card::AbilityDef::AwakenAbility { .. }) => format!("Cast {} with awaken", name),
+                    Some(crate::card::AbilityDef::WebSlingingAbility { .. }) => {
+                        format!("Cast {} with Web-slinging", name)
+                    }
                     _ => format!("Cast {} with Sneak", name),
                 }
             }
@@ -1996,7 +2000,8 @@ fn command_view(game: &Game, p: Seat) -> Vec<Value> {
     game.command
         .iter()
         .enumerate()
-        .filter(|(_, c)| game.obj(**c).controller == p)
+        // (the speed designation isn't an emblem)
+        .filter(|(_, c)| game.obj(**c).controller == p && !Arc::ptr_eq(&game.obj(**c).def, &crate::rules::speed_def()))
         .map(|(i, c)| {
             let o = game.obj(*c);
             // a dungeon (`DungeonView`)

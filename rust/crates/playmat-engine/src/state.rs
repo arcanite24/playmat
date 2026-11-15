@@ -561,6 +561,10 @@ pub struct Player {
     pub permanent_left: bool,
     /// the city's blessing (ascend: `DesignationType.CITYS_BLESSING`), for the rest of the game
     pub citys_blessing: bool,
+    /// speed (start your engines!): 0 until a permanent with it is theirs, then 1 to 4
+    pub speed: u8,
+    /// an enduring story (storied: `DesignationType.ENDURING_STORY`), for the rest of the game
+    pub enduring_story: bool,
     /// nonland permanents that entered under their control this turn (celebration)
     pub nonlands_entered: u32,
     /// permanent cards put into their graveyard this turn (`DescendedWatcher`)
@@ -3143,6 +3147,7 @@ impl Game {
                         as i32
                 }
                 Value::CardsInHand => self.player(you).hand.len() as i32,
+                Value::Speed => self.player(you).speed as i32,
                 Value::CardsDrawn => self.player(you).drawn as i32,
                 Value::LifeGained => self.player(you).life_gained,
                 Value::ManaExpended => self.player(you).expended as i32,
@@ -3416,6 +3421,8 @@ impl Game {
             }
             Condition::Raid => self.player(you).attacked,
             Condition::CitysBlessing => self.player(you).citys_blessing,
+            Condition::MaxSpeed => self.player(you).speed >= 4,
+            Condition::EnduringStory => self.player(you).enduring_story,
             // only a resolving spell's conditional effect knows (`ConditionalOneShotEffect`)
             Condition::GiftPromised => false,
             // the werewolves' "if no spells were cast last turn" (not on the first turn) and "if a player cast two

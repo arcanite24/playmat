@@ -268,6 +268,10 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 };
                 if change {
                     game.day = game.day.map(|d| !d);
+                    // `BECOMES_DAY_NIGHT`, before the daybound and nightbound permanents transform
+                    let sources = game.trigger_sources();
+                    let fired = game.triggers(sources, |_, _, _, t| matches!(t, Trigger::DayNightChanges));
+                    game.pending.extend(fired);
                     day_night(game);
                 }
             }
@@ -1420,6 +1424,7 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             || surge(game, seat, *id).is_some()
             || pay_more_flash(game, seat, *id).is_some()
             || awaken(game, seat, *id).is_some()
+            || web_slinging(game, seat, *id).is_some()
             || sneak(game, seat, *id).is_some()
             || emerge(game, seat, *id).is_some()
             || warp(game, seat, *id).is_some()
@@ -1694,6 +1699,7 @@ pub fn playable_abilities(game: &Game, seat: Seat) -> Vec<(ObjId, usize, PlayKin
                         surge(game, seat, id).map(|x| x.0),
                         pay_more_flash(game, seat, id).map(|x| x.0),
                         awaken(game, seat, id).map(|x| x.0),
+                        web_slinging(game, seat, id).map(|x| x.0),
                         sneak(game, seat, id).map(|x| x.0),
                         emerge(game, seat, id).map(|x| x.0),
                         disturb(game, seat, id).map(|x| x.0),
@@ -2772,6 +2778,16 @@ fn sneak(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
     let can = castable(game, seat, id, &def);
     game.any_time.set(any_time);
     can.then_some((k, def))
+}
+
+/// Web-slinging: from hand, for its web-slinging cost and a tapped creature you control returned
+/// (`WebSlingingAbility`, zone HAND)
+fn web_slinging(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
+    if game.obj(id).zone != Zone::Hand {
+        return None;
+    }
+    let (k, def) = game.obj(id).def.web_slinging()?;
+    castable(game, seat, id, &def).then_some((k, def))
 }
 
 /// Awaken: from hand, for its awaken cost (`AwakenAbility`, zone HAND)
@@ -4040,6 +4056,10 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         if let Some((k, _)) = &awaken {
             options.push(*k);
         }
+        let web = if zone == Zone::Hand { web_slinging(game, seat, id) } else { None };
+        if let Some((k, _)) = &web {
+            options.push(*k);
+        }
         let sneak = if zone == Zone::Hand { sneak(game, seat, id) } else { None };
         if let Some((k, _)) = &sneak {
             options.push(*k);
@@ -4128,12 +4148,15 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             };
             // cast for its spectacle or warp cost (the whole card comes back as it leaves the stack)
             // (spectacle too: `SpectacleCondition`, "if its spectacle cost was paid", reads the same tag)
+            // (web-slinging too: `WebSlingingCondition`, "if it was cast using web-slinging")
             let surged = surge.as_ref().is_some_and(|(k, _)| *k == index)
-                || spectacle.as_ref().is_some_and(|(k, _)| *k == index);
+                || spectacle.as_ref().is_some_and(|(k, _)| *k == index)
+                || web.as_ref().is_some_and(|(k, _)| *k == index);
             let alternative = spectacle
                 .filter(|(k, _)| *k == index)
                 .or(surge.filter(|(k, _)| *k == index))
                 .or(awaken.filter(|(k, _)| *k == index))
+                .or(web.filter(|(k, _)| *k == index))
                 .or(pay_more.filter(|(k, _)| *k == index))
                 .or(cleave.filter(|(k, _)| *k == index))
                 .or(overload.filter(|(k, _)| *k == index))
@@ -5951,12 +5974,16 @@ fn modified_cost_of(game: &Game, seat: Seat, id: ObjId, face: &CardDef, mut cost
                             cost.generic += *amount as u32;
                         }
                     }
-                    if let EffectDef::SpellsCostReductionControllerEffect { amount, filter, condition } = e {
+                    if let EffectDef::SpellsCostReductionControllerEffect { amount, filter, condition, dynamic } = e {
                         if s.controller == seat
                             && face_matches(game, filter, seat, *src, id, face)
                             && game.condition_holds(condition.as_ref(), seat, *src)
                         {
-                            reduce += *amount as u32;
+                            let n = match dynamic {
+                                Some(v) => game.value(&Amount::Of(v.clone()), seat, *src, 0).max(0),
+                                None => *amount,
+                            };
+                            reduce += n as u32;
                         }
                     }
                 }
@@ -15881,6 +15908,12 @@ fn apply_each_effect(
                 }
             }
             // exiled until the source leaves; nothing if it already has
+            EffectDef::IncreaseSpeedEffect => {
+                let p = game.player_mut(controller);
+                if p.speed < 4 {
+                    p.speed += 1;
+                }
+            }
             EffectDef::GetEmblemEffect { emblem } => {
                 token_image(game, emblem, source.0);
                 let id = game.create_obj(Arc::new(emblem.card()), controller, Zone::Library);
@@ -19988,6 +20021,11 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
         game.player_mut(controller).lands_entered += 1;
     }
     enter_as_copy(game, d, id, controller, cast);
+    // `BecomeDayAsEntersAbility`: if it's neither day nor night, it becomes day as this enters (no event: Java's
+    // `setDaytime` fires `BECOMES_DAY_NIGHT` only when one becomes the other)
+    if game.day.is_none() && game.obj(id).def.has(&AbilityDef::BecomeDayAsEntersAbility) {
+        game.day = Some(true);
+    }
     // `EntersPreparedAbility`
     if game.obj(id).def.abilities.iter().any(|a| matches!(a, AbilityDef::EntersPreparedAbility { .. })) {
         become_prepared(game, id);
@@ -23882,10 +23920,63 @@ fn day_night(game: &mut Game) {
     }
 }
 
+/// The speed designation (`mage.designations.Speed`): its one triggered ability, in the command zone
+const SPEED_JSON: &str = r#"{"name": "Speed", "types": [], "abilities": [{"class": "TriggeredAbility",
+    "on": {"e": "loses_life", "who": "opponent"}, "trigger_condition": {"c": "my_turn"},
+    "condition": {"c": "not", "x": {"c": "max_speed"}}, "limit_per_turn": 1, "optional": false,
+    "effects": [{"class": "IncreaseSpeedEffect"}],
+    "rule": "Whenever one or more opponents lose life during your turn, if your speed is less than 4, increase your speed by 1. This ability triggers only once each turn."}]}"#;
+
+pub fn speed_def() -> Arc<CardDef> {
+    static DEF: std::sync::OnceLock<Arc<CardDef>> = std::sync::OnceLock::new();
+    DEF.get_or_init(|| {
+        let json: crate::card::CardJson = serde_json::from_str(SPEED_JSON).expect("the speed designation");
+        Arc::new(CardDef::from_json(json).expect("the speed designation"))
+    })
+    .clone()
+}
+
+/// Start your engines! (`GameImpl.checkStateBasedActions`, `PlayerImpl.initSpeed`): the controller of a permanent
+/// with it who has no speed gets speed 1, and the speed designation's trigger. Storied (`StoriedContinuousEffect`):
+/// the controller of a permanent with it who controls three or more artifacts, legendaries and/or Sagas has an
+/// enduring story for the rest of the game.
+pub fn update_speed_and_stories(game: &mut Game) {
+    for s in 0..game.seats() {
+        let mine: Vec<ObjId> = game.battlefield.iter().copied().filter(|o| game.obj(*o).controller == s).collect();
+        if game.player(s).speed == 0 && mine.iter().any(|o| game.has_ability(*o, &AbilityDef::StartYourEnginesAbility))
+        {
+            game.player_mut(s).speed = 1;
+            let id = game.create_obj(speed_def(), s, Zone::Library);
+            game.obj_mut(id).trigger_order = (1 << 32) + id.0 as u64;
+            game.move_to(id, Zone::Command);
+        }
+        if !game.player(s).enduring_story && mine.iter().any(|o| game.has_ability(*o, &AbilityDef::StoriedAbility)) {
+            let storied = mine.iter().filter(|o| game.filter_matches(&storied_filter(), s, None, **o)).count();
+            if storied >= 3 {
+                game.player_mut(s).enduring_story = true;
+            }
+        }
+    }
+}
+
+/// storied's "artifacts, legendaries, and/or Sagas"
+fn storied_filter() -> crate::card::Filter {
+    static F: std::sync::OnceLock<crate::card::Filter> = std::sync::OnceLock::new();
+    F.get_or_init(|| {
+        serde_json::from_str(
+            r#"[{"p": "or", "xs": [{"p": "type", "t": "ARTIFACT"}, {"p": "supertype", "s": "LEGENDARY"},
+                {"p": "subtype", "s": "Saga"}]}]"#,
+        )
+        .expect("storied's filter")
+    })
+    .clone()
+}
+
 /// True: one was performed.
 pub fn state_based_actions(game: &mut Game) -> bool {
     refresh_becomes(game);
     day_night(game);
+    update_speed_and_stories(game);
     let mut happened = false;
     loop {
         let mut any = false;

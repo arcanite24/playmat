@@ -41,6 +41,7 @@ KEYWORDS = {
     'IslandwalkAbility', 'SkulkAbility', 'IntimidateAbility', 'DecayedAbility', 'WitherAbility',
     'UmbraArmorAbility',
     'ConvokeAbility', 'DayboundAbility', 'NightboundAbility', 'AscendAbility',
+    'StartYourEnginesAbility', 'StoriedAbility', 'BecomeDayAsEntersAbility',
     # what a creature crews or saddles with (`CrewAbility.getCrewPower`, `SaddleCost.getSaddlePower`)
     'CrewIncreasedPowerAbility', 'CrewSaddleIncreasedPowerAbility', 'CrewWithToughnessAbility',
     'CrewSaddleWithToughnessAbility',
@@ -595,6 +596,7 @@ ABILITIES = {
     'BeginningOfPostcombatMainTriggeredAbility': [('controller', 'step_controller'), ('effect', 'effect'), ('optional', 'bool')],
     'BeginningOfSecondMainTriggeredAbility': [('controller', 'step_controller'), ('effect', 'effect'), ('optional', 'bool')],
     'BeginningOfFirstMainTriggeredAbility': [('controller', 'step_controller'), ('effect', 'effect'), ('optional', 'bool')],
+    'BecomesDayOrNightTriggeredAbility': [('effect', 'effect')],
     'GainLifeControllerTriggeredAbility': [('effect', 'effect'), ('optional', 'bool'), (None, 'bool'),
                                            (None, 'false')],
     'GainLifeFirstTimeTriggeredAbility': [('effect', 'effect')],
@@ -670,6 +672,7 @@ SIMPLE_TRIGGERS = {'EntersBattlefieldTriggeredAbility': 'enters', 'EntersBattlef
                    'TransformsOrEntersTriggeredAbility': 'transforms_or_enters',
                    'TransformIntoSourceTriggeredAbility': 'transforms_into',
                    'GainLifeControllerTriggeredAbility': 'you_gain_life',
+                   'BecomesDayOrNightTriggeredAbility': 'day_night_changes',
                    'GainLifeFirstTimeTriggeredAbility': 'you_gain_life_first_time',
                    'DealsCombatDamageToAPlayerTriggeredAbility': 'combat_damage_to_player',
                    'DamagedOpponentsNoncombatTriggeredAbility': 'opponents_dealt_noncombat_damage',
@@ -719,6 +722,9 @@ CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'},
               'BlightedCondition.instance': {'c': 'kicked'}, 'TeamworkCondition.instance': {'c': 'kicked'}, 'RaidCondition.instance': {'c': 'raid'},
               'RevoltCondition.instance': {'c': 'revolt'},
               'CitysBlessingCondition.instance': {'c': 'citys_blessing'},
+              'EnduringStoryCondition.instance': {'c': 'enduring_story'},
+              # cast using web-slinging: the engine keeps it as the spell's kicked flag, as surge's
+              'WebSlingingCondition.THEY': {'c': 'kicked'}, 'WebSlingingCondition.THIS': {'c': 'kicked'},
               # (a spell's: `main` refuses it anywhere else)
               'GiftWasPromisedCondition.TRUE': {'c': 'gift_promised'},
               'GiftWasPromisedCondition.FALSE': {'c': 'not', 'x': {'c': 'gift_promised'}},
@@ -1575,6 +1581,8 @@ class Translator:
             return {'v': 'target_mana_value'}
         if arg == 'CardsInControllerHandCount.ANY':
             return {'v': 'cards_in_hand'}
+        if arg == 'ControllerSpeedCount.instance':
+            return {'v': 'speed'}
         if arg == 'ControllerGainedLifeCount.instance':
             return {'v': 'life_gained'}
         if arg in ('GateYouControlCount.instance', 'ShrinesYouControlCount.WHERE_X', 'ShrinesYouControlCount.FOR_EACH'):
@@ -3427,6 +3435,8 @@ class Translator:
             return e
         if cls == 'SpellsCostReductionControllerEffect' and len(args) == 2 and re.fullmatch(r'\d+', args[1].strip()):
             return {'class': cls, 'filter': self.filter(args[0].strip()), 'amount': int(args[1])}
+        if cls == 'SpellsCostReductionControllerEffect' and len(args) == 2 and args[1].strip() == 'ControllerSpeedCount.instance':
+            return {'class': cls, 'filter': self.filter(args[0].strip()), 'amount': 0, 'dynamic': {'v': 'speed'}}
         # "it gains your choice of …": the choice is each ability's rule text
         if cls == 'GainsChoiceOfAbilitiesEffect' and len(args) >= 3 and args[0].strip() == 'GainsChoiceOfAbilitiesEffect.TargetType.Source':
             abilities = [self.ability(a.strip()) for a in args[1:]]
@@ -4368,6 +4378,49 @@ class Translator:
             a = self.ability('new EntersBattlefieldTriggeredAbility(new HideawayExileEffect(%s))' % m.group(1))
             a['java'] = 'HideawayAbility'
             return a
+        # Max speed — …: the ability while its controller's speed is 4 (`MaxSpeedAbility`): a triggered one with that as
+        # its trigger condition, a static one's effects conditional on it, an activated or mana one gained while it is
+        m = re.fullmatch(r'new MaxSpeedAbility\((.*)\)', canonical(self.strip_setters(expr)), re.S)
+        if m and balanced(canonical(self.strip_setters(expr))):
+            gate = {'c': 'max_speed'}
+            inner = self.strip_setters(m.group(1).strip())
+            v = self.vars.get(inner)
+            if isinstance(v, dict) and v.get('class', '').endswith('Effect') \
+                    or (n := re.match(r'new (\w+)', inner)) and not n.group(1).endswith('Ability'):
+                a = self.ability('new SimpleStaticAbility(' + inner + ')')
+            else:
+                a = dict(self.ability(inner))
+            if a.get('class') == 'TriggeredAbility':
+                if a.get('trigger_condition'):
+                    a['trigger_condition'] = {'c': 'and', 'xs': [a['trigger_condition'], gate]}
+                else:
+                    a['trigger_condition'] = gate
+                a['java'] = 'MaxSpeedAbility'
+                a['max_speed'] = True
+                return a
+            if a.get('class') == 'SimpleStaticAbility' and a.get('effects') and not a.get('cost') \
+                    and a.get('zone', 'BATTLEFIELD') == 'BATTLEFIELD':
+                effects = []
+                for e in a['effects']:
+                    if e.get('class') in ('SpellsCostReductionControllerEffect',) and not e.get('condition'):
+                        effects.append(dict(e, condition=gate))
+                    else:
+                        effects.append({'class': 'ConditionalContinuousEffect', 'effect': e, 'condition': gate})
+                return {'class': 'SimpleStaticAbility', 'java': 'MaxSpeedAbility', 'effects': effects}
+            # from the graveyard (`Duration.WhileInGraveyard`): only while the speed is 4
+            if a.get('class') == 'GraveyardActivatedAbility':
+                a['condition'] = {'c': 'and', 'xs': [a['condition'], gate]} if a.get('condition') else gate
+                a['java'] = 'MaxSpeedAbility'
+                a['max_speed'] = True
+                return a
+            if a.get('class') in ('SimpleActivatedAbility', 'ActivateAsSorceryActivatedAbility', 'DynamicManaAbility',
+                                  'SimpleManaAbility', 'ColoredManaAbility', 'ColorlessManaAbility'):
+                a.pop('java', None)
+                return {'class': 'SimpleStaticAbility', 'java': 'MaxSpeedAbility', 'max_speed_grant': True,
+                        'effects': [{'class': 'ConditionalContinuousEffect', 'condition': gate,
+                                     'effect': {'class': 'GainAbilitySourceEffect', 'ability': a,
+                                                'duration': 'WhileOnBattlefield'}}]}
+            raise Unsupported('max speed ability ' + a.get('class', ''))
         # STATION N+: while it has N or more charge counters, the level's abilities (and, `withPT`, it's an
         # artifact creature with that power and toughness; `StationLevelAbility`); one static of conditional effects
         m = re.fullmatch(r'new StationLevelAbility\((\d+)\)((?:\..*)?)', canonical(expr.strip()), re.S)
@@ -4565,6 +4618,10 @@ class Translator:
             return obj
         cls, args = obj
         if cls in KEYWORDS and not args:
+            return {'class': cls}
+        # companion: a special action from outside the game (the sideboard's companion), which games without one
+        # never offer (`CompanionAbility.canActivate`); its condition is only checked as the deck is built
+        if cls == 'CompanionAbility' and len(args) == 1:
             return {'class': cls}
         # hexproof from a color, monocolored or multicolored, each color
         if (m := re.fullmatch(r'HexproofFrom(White|Blue|Black|Red|Green|Monocolored|Multicolored|EachColor)Ability', cls)) \
@@ -5809,6 +5866,9 @@ class Translator:
         # sneak: a spell ability of its own, for its sneak cost and an unblocked attacker returned to hand
         if cls == 'SneakAbility' and n == 2 and args[0] == 'this' and re.fullmatch(r'"(\{[^"]*\})+"', args[1].strip()):
             return {'class': cls, 'java': cls, 'cost': args[1].strip()[1:-1]}
+        # web-slinging: a spell ability of its own, for its cost and a tapped creature you control returned to hand
+        if cls == 'WebSlingingAbility' and n == 2 and args[0] == 'this' and re.fullmatch(r'"(\{[^"]*\})+"', args[1].strip()):
+            return {'class': cls, 'java': cls, 'cost': args[1].strip()[1:-1]}
         # awaken: a spell ability of its own, for its awaken cost, with a target land you control too
         if cls == 'AwakenAbility' and n == 3 and args[0] == 'this' and args[1].strip().isdigit() \
                 and re.fullmatch(r'"(\{[^"]*\})+"', args[2].strip()):
@@ -6748,7 +6808,7 @@ def translate(card_name, subtypes, facts):
     elif 'first_mode_cost' in spell or any('cost' in m for m in modes):
         raise Unsupported('mode costs without spree')
     for a in card['abilities']:
-        if a.get('class') in ('SneakAbility', 'AwakenAbility') and 'spell_effects' in a:
+        if a.get('class') in ('SneakAbility', 'AwakenAbility', 'WebSlingingAbility') and 'spell_effects' in a:
             made = a.pop('modes')
             if made and made != len(modes):
                 raise Unsupported(a['class'] + ' between the modes')
@@ -7192,7 +7252,7 @@ def card_statement(t, st, card, added, spell, modes, subtypes):
             # sneak and awaken copy the spell ability as it is when they're made: what the card adds to it after
             # isn't theirs (Leonardo's Technique's sneak has no effects or targets)
             for a in added[before:]:
-                if a.get('class') in ('SneakAbility', 'AwakenAbility'):
+                if a.get('class') in ('SneakAbility', 'AwakenAbility', 'WebSlingingAbility'):
                     a['spell_effects'], a['spell_targets'] = len(spell['effects']), len(spell['targets'])
                     a['modes'] = len(modes)
             return
@@ -8090,6 +8150,11 @@ def in_java_order(java_abilities, added):
         # a station level's trigger: the gained ability's own rule (after "STATION N+<br>")
         if match.pop('station', None):
             match['rule'] = re.sub(r'^STATION \d+\+<br>', '', match['rule'])
+        # max speed: the gained ability's own rule (after "Max speed &mdash; ")
+        if match.pop('max_speed', None):
+            match['rule'] = re.sub(r'^Max speed &mdash; ', '', match['rule'])
+        if match.pop('max_speed_grant', None):
+            match['effects'][0]['effect']['ability']['rule'] = re.sub(r'^Max speed &mdash; ', '', match['rule'])
         # a station level's activated ability: the level's rule is "STATION N+<br>" and the ability's own
         if match.pop('station_grant', None):
             match['effects'][0]['effect']['ability']['rule'] = re.sub(r'^STATION \d+\+<br>', '', match['rule'])
