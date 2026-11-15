@@ -1223,6 +1223,10 @@ def declared_filters_into(out, source, subtypes):
             continue
         adds = [canonical(p) for p in re.findall(r'\b' + name + r'\.add\((.*?)\);', source, re.S)]
         adds = [preds.get(a, a) for a in adds]
+        # a card named as the filter's own message (`new NamePredicate(filter.getMessage())`: Angrath's Fury)
+        if args and re.fullmatch(r'"(?:[^"\\]|\\.)*"', args[0].strip()):
+            adds = [f'new NamePredicate({args[0].strip()})' if a == f'new NamePredicate({name}.getMessage())' else a
+                    for a in adds]
         # "spell or creature" (Fatehold Charm): any spell, or a creature
         if cls == 'FilterSpellOrPermanent' and not adds \
                 and re.search(r'\b' + name + r'\.setPermanentFilter\(new FilterCreaturePermanent\(\)\);', source):
