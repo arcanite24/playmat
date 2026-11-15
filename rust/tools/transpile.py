@@ -5531,7 +5531,7 @@ class Translator:
         """a card's own `ActivatedManaAbilityImpl` (`super(Zone.BATTLEFIELD, new XManaEffect(), cost)`, then
         `this.addCost(…)`) whose mana effect has a mana handler: a `CardManaAbility`; None if not one"""
         body = re.search(r'class ' + cls + r' extends ActivatedManaAbilityImpl \{(.*?)\n\}', self.source or '', re.S)
-        ctor = body and re.search(r'\n    ' + cls + r'\(\)\s*\{(.*?)\n    \}', body.group(1), re.S)
+        ctor = body and re.search(r'\n    (?:public )?' + cls + r'\(\)\s*\{(.*?)\n    \}', body.group(1), re.S)
         if not ctor:
             return None
         sts = statements(ctor.group(1))
