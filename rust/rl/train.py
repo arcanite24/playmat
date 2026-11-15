@@ -10,6 +10,7 @@ Every tenth game is held out. Writes net.pt (PyTorch), net.pmnet (for playmat-ai
 import argparse
 import json
 import math
+from concurrent.futures import ThreadPoolExecutor
 import os
 import time
 
@@ -25,6 +26,8 @@ def device():
     if torch.backends.mps.is_available():
         return torch.device("mps")
     if torch.cuda.is_available():
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
         return torch.device("cuda")
     return torch.device("cpu")
 
@@ -102,8 +105,14 @@ def main():
     for ep in range(args.epochs):
         perm = rng.permutation(train_idx)
         tl = np.zeros(4)
-        for i in range(0, len(perm), args.bs):
-            b = data.batch(perm[i : i + args.bs], dev)
+        # the next batch is gathered on a thread while the GPU works on this one
+        pool = ThreadPoolExecutor(1)
+        starts = list(range(0, len(perm), args.bs))
+        ahead = pool.submit(data.batch, perm[0 : args.bs], dev)
+        for n_i, i in enumerate(starts):
+            b = ahead.result()
+            if n_i + 1 < len(starts):
+                ahead = pool.submit(data.batch, perm[starts[n_i + 1] : starts[n_i + 1] + args.bs], dev)
             pol, val, bel, crit = losses(net, critic, b)[:4]
             loss = pol + args.value_weight * val + args.belief_weight * bel + 0.5 * crit
             opt.zero_grad()
