@@ -251,6 +251,8 @@ CUSTOM = {
                                         'token': {'abilities': [], 'colors': ['W', 'G'], 'name': '', 'power': 1,
                                                   'subtypes': ['Citizen'], 'toughness': 1, 'types': ['CREATURE']}},
     'PithingNeedleEffect': lambda: {'class': 'PithingNeedleEffect'},
+    # "untap this land during each other player's untap step": the framework's (Urban Burgeoning's copy of it)
+    'UrbanBurgeoningUntapEffect': lambda: {'class': 'UntapSourceDuringEachOtherPlayersUntapStepEffect'},
     # (players in range: both, in a duel)
     'SorcerousSpyglassActivationEffect': lambda: {'class': 'PithingNeedleEffect'},
     'PhyrexianRevokerEffect2': lambda: {'class': 'PhyrexianRevokerEffect'},
