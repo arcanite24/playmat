@@ -10636,6 +10636,24 @@ fn refresh_land_types(game: &mut Game) {
                                 }
                             }
                         }
+                        // Nature's Embrace: as long as enchanted permanent is a land, it has "{T}: Add two mana of
+                        // any one color." (`ConditionalContinuousEffect` applies its `GainAbilityAttachedEffect`
+                        // while the condition holds)
+                        EffectDef::ConditionalContinuousEffect { effect, condition }
+                            if matches!(&**effect, EffectDef::GainAbilityAttachedEffect { ability }
+                                if ability.mana().is_some()
+                                    || matches!(**ability, AbilityDef::SimpleActivatedAbility { .. }
+                                        | AbilityDef::ActivateAsSorceryActivatedAbility { .. })) =>
+                        {
+                            let you = game.obj(*id).controller;
+                            if let (EffectDef::GainAbilityAttachedEffect { ability }, Some(to)) =
+                                (&**effect, game.attached(*id))
+                            {
+                                if game.condition_holds(Some(condition), you, *id) {
+                                    granted.push((to, (**ability).clone()));
+                                }
+                            }
+                        }
                         // Petrified Hamlet: lands with the chosen name have "{T}: Add {C}"; Food Fight: artifacts you
                         // control have "{2}, Sacrifice this artifact: …"
                         EffectDef::GainAbilityAllEffect { ability, filter, .. }
