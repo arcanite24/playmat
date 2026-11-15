@@ -2066,6 +2066,7 @@ impl Game {
                 let s = self.obj(src);
                 self.watch.crewed.iter().any(|(v, vz, c, cz)| *v == src && *vz == s.zcc && *c == id && *cz == o.zcc)
             }),
+            Pred::AttachedTo { filter } => self.attached(id).is_some_and(|to| self.filter_matches(filter, you, source, to)),
             Pred::Equipped => self.attachments(id).any(|a| self.has_subtype(a, "Equipment")),
             Pred::Enchanted => self.attachments(id).any(|a| self.has_subtype(a, "Aura")),
             Pred::Modified => {

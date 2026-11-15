@@ -586,6 +586,10 @@ pub enum Pred {
     },
     /// it crewed the source this turn (`CrewedSourceThisTurnPredicate`, `CrewedVehicleWatcher`)
     CrewedSourceThisTurn,
+    /// `AttachedToPredicate(filter)`: it's attached to a permanent of the filter (for the same player and source)
+    AttachedTo {
+        filter: Filter,
+    },
     /// `EquippedPredicate`: an Equipment is attached to it
     Equipped,
     /// `EnchantedPredicate`: an Aura is attached to it
