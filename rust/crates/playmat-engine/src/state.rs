@@ -2302,6 +2302,20 @@ impl Game {
                             }
                             &**effect
                         }
+                        // its own while a condition holds (The Tarrasque's "ward {10} as long as it was cast",
+                        // Iymrith's while untapped)
+                        EffectDef::ConditionalContinuousEffect { effect, condition }
+                            if *src == id
+                                && matches!(&**effect, EffectDef::GainAbilitySourceEffect { ability, .. }
+                                    if matches!(**ability, AbilityDef::WardAbility { .. })) =>
+                        {
+                            if self.condition_holds(Some(condition), s.controller, *src) {
+                                if let EffectDef::GainAbilitySourceEffect { ability, .. } = &**effect {
+                                    out.push((**ability).clone());
+                                }
+                            }
+                            continue;
+                        }
                         _ => e,
                     };
                     if let EffectDef::GainAbilityControlledEffect { ability, .. }
