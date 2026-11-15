@@ -10646,6 +10646,26 @@ fn refresh_land_types(game: &mut Game) {
                                 }
                             }
                         }
+                        // The World Tree: as long as you control six or more lands, lands you control have "{T}: Add
+                        // one mana of any color."
+                        EffectDef::ConditionalContinuousEffect { effect, condition }
+                            if matches!(&**effect, EffectDef::GainAbilityControlledEffect { ability, .. }
+                                if ability.mana().is_some()) =>
+                        {
+                            let you = game.obj(*id).controller;
+                            if let EffectDef::GainAbilityControlledEffect { ability, filter, exclude_source, .. } = &**effect {
+                                if game.condition_holds(Some(condition), you, *id) {
+                                    for to in game.battlefield.iter() {
+                                        if !(*exclude_source && to == id)
+                                            && game.obj(*to).controller == you
+                                            && game.filter_matches(filter, you, Some(*id), *to)
+                                        {
+                                            granted.push((*to, (**ability).clone()));
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         // Honored Hierarch: as long as it's renowned, it has "{T}: Add one mana of any color."; a
                         // station level's activated ability (Kavaron, Memorial World at 12+)
                         EffectDef::ConditionalContinuousEffect { effect, condition }
