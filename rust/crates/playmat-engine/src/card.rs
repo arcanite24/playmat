@@ -3675,6 +3675,10 @@ pub enum EffectDef {
         /// `PutCards.BATTLEFIELD_TAPPED_ATTACKING`: and attacking (`Combat.addAttackingCreature`, The Neutrinos)
         #[serde(default)]
         attacking: bool,
+        /// `withEnterWithCounters(+1/+1 × n)`: each card returns with that many +1/+1 counters
+        /// (`game.setEnterWithCounters`, Daydream)
+        #[serde(default)]
+        p1p1: i32,
     },
     /// `PutCardFromHandOntoBattlefieldEffect`: you may (always asked) put a card of `filter` from your hand onto the
     /// battlefield, tapped or attacking

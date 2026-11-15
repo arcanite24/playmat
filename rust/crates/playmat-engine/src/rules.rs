@@ -14665,7 +14665,7 @@ fn apply_each_effect(
                     }
                 }
             }
-            EffectDef::ExileThenReturnUnderTargetEffect { your_control, tapped, attacking } => {
+            EffectDef::ExileThenReturnUnderTargetEffect { your_control, tapped, attacking, p1p1 } => {
                 // `ExileThenReturnTargetEffect`: exiled together, then each card returned in turn (`PutCards.moveCard`)
                 let gone: Vec<ObjId> =
                     objs.iter().copied().filter(|o| game.obj(*o).zone == Zone::Battlefield).collect();
@@ -14680,6 +14680,10 @@ fn apply_each_effect(
                         } else {
                             crate::card::PutCards::Battlefield
                         };
+                        if *p1p1 > 0 {
+                            let zcc = game.obj(o).zcc;
+                            game.enter_counters.push((o, zcc, *p1p1));
+                        }
                         if !put_cards(game, d, to, &[o], how) {
                             return;
                         }
