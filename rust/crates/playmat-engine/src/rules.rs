@@ -24254,7 +24254,14 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
 /// order, whose controller has another with its name; they choose one to keep (`choose`, not targeting) and the rest
 /// go to the graveyard. True: one applied, and state-based actions start over.
 fn legend_rule(game: &mut Game, d: &mut dyn Decider) -> bool {
-    let legendary = |g: &Game, id: ObjId| g.obj(id).def.supertypes.iter().any(|t| t == "LEGENDARY");
+    // (not those a `LegendRuleDoesntApplyEffect` covers: `legendRuleApplies`)
+    let legendary = |g: &Game, id: ObjId| {
+        g.obj(id).def.supertypes.iter().any(|t| t == "LEGENDARY")
+            && !g.any_static(|g, src, e| {
+                matches!(e, EffectDef::LegendRuleDoesntApplyEffect { filter }
+                    if g.filter_matches(filter, g.obj(src).controller, Some(src), id))
+            })
+    };
     let bf: Vec<ObjId> = game.battlefield.iter().copied().collect();
     for &legend in &bf {
         if !legendary(game, legend) {
