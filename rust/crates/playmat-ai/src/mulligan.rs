@@ -171,10 +171,8 @@ fn goldfish(hand: &[Card], library: &[Card], on_play: bool) -> f64 {
             }
         }
         let needed = hand.iter().filter(|c| !c.land).fold(0u8, |n, c| n | c.colors) & !colors;
-        let land = hand
-            .iter()
-            .position(|c| c.land && c.colors & needed != 0)
-            .or_else(|| hand.iter().position(|c| c.land));
+        let land =
+            hand.iter().position(|c| c.land && c.colors & needed != 0).or_else(|| hand.iter().position(|c| c.land));
         if let Some(i) = land {
             colors |= hand[i].colors;
             lands += 1;
@@ -225,7 +223,7 @@ fn best_of(seven: &[Card], size: usize, library: &[Card], on_play: bool, mix: &m
             .map(|i| {
                 let mut h = hand.clone();
                 h.remove(i);
-                (i, keep_value(&h, library, on_play, &mut Mix(mix.next())) )
+                (i, keep_value(&h, library, on_play, &mut Mix(mix.next())))
             })
             .max_by(|a, b| a.1.total_cmp(&b.1))
             .unwrap()
@@ -237,7 +235,7 @@ fn best_of(seven: &[Card], size: usize, library: &[Card], on_play: bool, mix: &m
 
 fn sim_wants(game: &Game, seat: Seat, taken: usize) -> bool {
     let p = game.player(seat);
-    let on_play = game.active.map_or(false, |a| a == seat);
+    let on_play = game.active == Some(seat);
     let hand = cards(game, &p.hand);
     let library = cards(game, &p.library);
     let mut mix = Mix(seed(game, seat));
@@ -268,7 +266,7 @@ fn sim_wants(game: &Game, seat: Seat, taken: usize) -> bool {
 
 fn sim_bottom(game: &Game, seat: Seat) -> ObjId {
     let p = game.player(seat);
-    let on_play = game.active.map_or(false, |a| a == seat);
+    let on_play = game.active == Some(seat);
     let library = cards(game, &p.library);
     let hand = cards(game, &p.hand);
     let mut mix = Mix(seed(game, seat) ^ 0xB0770);
@@ -277,7 +275,7 @@ fn sim_bottom(game: &Game, seat: Seat) -> ObjId {
         let mut h = hand.clone();
         h.remove(i);
         let v = keep_value(&h, &library, on_play, &mut Mix(mix.next()));
-        if best.map_or(true, |(_, b)| v > b) {
+        if best.is_none_or(|(_, b)| v > b) {
             best = Some((*id, v));
         }
     }

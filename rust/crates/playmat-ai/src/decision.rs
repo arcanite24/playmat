@@ -28,6 +28,10 @@ pub enum PolicyKind {
     Quick,
     /// a random answer among the candidates (Archbench's anchor)
     Random,
+    /// the trained network's policy alone (`selfplay::NetPolicy`, #390 Track B)
+    Net,
+    /// the network's policy improved by playouts on samples scored by its value (`selfplay::NetSearch`)
+    NetSearch,
 }
 
 impl PolicyKind {
@@ -37,6 +41,8 @@ impl PolicyKind {
             PolicyKind::Mcts => "mcts",
             PolicyKind::Quick => "quick",
             PolicyKind::Random => "random",
+            PolicyKind::Net => "net",
+            PolicyKind::NetSearch => "netsearch",
         }
     }
 
@@ -51,6 +57,8 @@ impl PolicyKind {
             PolicyKind::Mcts => Box::new(Mcts),
             PolicyKind::Quick => Box::new(Quick),
             PolicyKind::Random => Box::new(Random::new(0x5eed_0000 + seat as u64)),
+            PolicyKind::Net => Box::new(crate::selfplay::NetPolicy::new(0x6e65_7400 + seat as u64)),
+            PolicyKind::NetSearch => Box::new(crate::selfplay::NetSearch::new(0x6e73_0000 + seat as u64)),
         }
     }
 }
@@ -63,7 +71,9 @@ impl FromStr for PolicyKind {
             "mcts" => Ok(PolicyKind::Mcts),
             "quick" => Ok(PolicyKind::Quick),
             "random" => Ok(PolicyKind::Random),
-            other => Err(format!("unknown AI policy {other:?} (playouts, mcts, quick, random)")),
+            "net" => Ok(PolicyKind::Net),
+            "netsearch" => Ok(PolicyKind::NetSearch),
+            other => Err(format!("unknown AI policy {other:?} (playouts, mcts, quick, random, net, netsearch)")),
         }
     }
 }
@@ -93,6 +103,11 @@ pub trait DecisionPolicy: Send {
     fn name(&self) -> &str;
     /// The answer, or `None` for the quick one
     fn decide(&mut self, d: &Decision) -> Option<Choice>;
+    /// The chances the policy gave each candidate at its last decision (a network's policy, or a search's improved
+    /// one), when it has them: what self-play records (`selfplay::Recording`)
+    fn last_policy(&self) -> Option<&[f32]> {
+        None
+    }
 }
 
 /// The game at the last priority question and the answers since: what a copy replays to reach the question.
@@ -154,6 +169,11 @@ impl Hidden {
                 mark(*id);
             }
         }
+    }
+
+    /// Whether the seat has seen object `id`
+    pub fn seat_saw(&self, id: ObjId) -> bool {
+        self.seen(id)
     }
 
     fn seen(&self, id: ObjId) -> bool {

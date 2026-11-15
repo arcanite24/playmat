@@ -19,19 +19,13 @@ pub struct Entrant {
 /// - `host@sN`: what the Rust host plays at skill N (`skill`), whatever this build makes of it.
 /// - `try:<policy>:<budget>:<width>:<extra turns>:<threads>`: tuning, on skill 4's base.
 /// - `cfg:<key>=<value>+…`: any `Config` field on skill 4's first base (`budget`, `width`, `extra_turns`,
-///   `playout_cap`, `policy`, `threads`, `hide`, `samples`, `playout`, `eval`, `plans`, `mulligan_sim`, `blunder`).
+///   `playout_cap`, `policy`, `threads`, `hide`, `samples`, `playout`, `eval`, `plans`, `mulligan_sim`, `blunder`, `net`, `temp`, `eta`).
 ///   For A/B runs: `cfg:hide=1+samples=4` against `cfg:hide=1`.
 pub fn entrant(name: &str) -> Result<Entrant, String> {
     // the named entrants are the first search's settings, pinned so their recorded results keep meaning the same
     // games; `host@sN` follows what the host plays now
-    let full = Config {
-        threads: 4,
-        policy: PolicyKind::Playouts,
-        extra_turns: 0,
-        playout: 1,
-        eval: 1,
-        ..Config::default()
-    };
+    let full =
+        Config { threads: 4, policy: PolicyKind::Playouts, extra_turns: 0, playout: 1, eval: 1, ..Config::default() };
     // the Rust host's first skill 4: half the budget, 8 candidates
     let s4 = Config { budget: full.budget / 2, width: 8, ..full.clone() };
     let config = match name {
@@ -83,6 +77,9 @@ pub fn with(mut c: Config, settings: &str) -> Result<Config, String> {
             "plans" => c.plans = b()?,
             "mulligan_sim" => c.mulligan_sim = b()?,
             "blunder" => c.blunder = n()? as u32,
+            "net" => c.net = Some(v.to_string()),
+            "temp" => c.temp = n()? as u32,
+            "eta" => c.eta = n()? as u32,
             _ => return Err(format!("unknown config key {k}")),
         }
     }
@@ -92,7 +89,7 @@ pub fn with(mut c: Config, settings: &str) -> Result<Config, String> {
 /// A config as `cfg:` settings (every field, so two builds' configs compare as text)
 pub fn label(c: &Config) -> String {
     format!(
-        "budget={}+width={}+extra_turns={}+playout_cap={}+policy={}+hide={}+samples={}+playout={}+eval={}+plans={}+mulligan_sim={}+blunder={}",
+        "budget={}+width={}+extra_turns={}+playout_cap={}+policy={}+hide={}+samples={}+playout={}+eval={}+plans={}+mulligan_sim={}+blunder={}+net={}+temp={}+eta={}",
         c.budget,
         c.width,
         c.extra_turns,
@@ -104,7 +101,10 @@ pub fn label(c: &Config) -> String {
         c.eval,
         c.plans as u8,
         c.mulligan_sim as u8,
-        c.blunder
+        c.blunder,
+        c.net.as_deref().unwrap_or("builtin"),
+        c.temp,
+        c.eta
     )
 }
 

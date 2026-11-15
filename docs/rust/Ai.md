@@ -61,6 +61,55 @@ games each): `host@s6` 1464, `host@s4` 1429, `rust-playouts@s4` (the search befo
 `rust-quick` 1192, `random` 1000. The worst decision was 565 ms at skill 6, on a machine running ten games of four
 threads at once.
 
+## Self-play (#390 Track B, Nov 2026)
+
+A small network trained on the AI's own games, run in plain Rust on the CPU (`net.rs`, about 139k weights, no ONNX
+runtime). How to train one is in [rust/rl/README.md](../../rust/rl/README.md).
+
+- **L0, the environment.** `obs.rs` turns one seat's view into numbers: global features, one entity per object it
+  can see (the stack, both battlefields, its own hand; a hashed card name plus types, P/T, keywords, counters,
+  combat), and one vector per candidate answer. A test resamples everything hidden at hundreds of questions and
+  checks the observation doesn't change (it found the fitted score's hand feature reading the opponent's hand). The
+  network scores each candidate against the state and gives a value and a belief over the opponent's unseen cards.
+  `bin/selfplay` records games as columnar files for PyTorch (`rust/rl`). Paying mana and dividing damage stay with
+  the quick answers.
+- **L1, imitation.** 12,000 games of `host@s6` against itself (767k decisions), 6 epochs (5 min on an M4 Pro's GPU).
+  Held out: the network picks the search's answer 86% of the time (the search takes the quick answer 83% of the
+  time; where it doesn't, the network finds its answer 29% of the time); the value's log loss is 0.449 (a coin is
+  0.693); the belief's 0.210 against 0.235 for the base rate. A critic that also sees the opponent's hand (training
+  only) reaches 0.429.
+- **L2, self-play RL.** PPO from the imitation network: 30 iterations of 4,000 games (70% against itself, 20% past
+  snapshots, 10% the quick answers), lambda-returns on the critic, a reverse KL to the imitation policy annealed from
+  0.5 to 0.05, a life-and-cards shaping term annealed to 0. 1 h 20 min. It beats the imitation network 54.6%
+  (180-9-149).
+- **L3, search at play time.** `netsearch`: the network's four likeliest candidates, each played out on 4 samples of
+  the hidden cards (resampled by the belief), scored by the value, and the policy moved by `exp(eta * (Q - mean Q))`.
+- **L4.** Distilling `netsearch` back into the policy (4,000 games): -0.3 Elo [-8.3, +7.8] against the RL network,
+  no gain. An exploiter trained 10 iterations against the frozen RL network wins 45.5% (439-32-529): nothing found
+  at that budget. Card-text embeddings and weight surgery for new cards aren't built; the entity features (types,
+  P/T, keywords, mana value) are what carries over to a card the network hasn't seen.
+
+Ratings on the first 200 deals of `constructed-2` (all pairs, duplicate, 400 games a pair). Two runs; the second
+has no `random`, so it's placed on the first's scale by `host@s6` (the `host@s2` to `host@s6` gap is 68 and 69 Elo
+in the two):
+
+| Entrant | Rating | Worst decision |
+|---|---|---|
+| `host@s6` | 1437 | 338 ms |
+| `netsearch` on the RL network (never sees hidden cards) | about 1373 | 553 ms |
+| `host@s2` | 1369 | 149 ms |
+| `net`, the RL network alone | about 1287 | 13 ms |
+| `net`, the imitation network alone | 1237 | 24 ms |
+| `rust-quick` | 1173 | |
+| `random` | 1000 | |
+
+`netsearch` plays level with skill 2 (198-13-189) while seeing only what a player sees, where the search with
+`hide` lost 7.6 Elo. The issue's gate for the trained AI (over 60% against the search AI) isn't met: the RL network
+alone wins 28% against `host@s6`, `netsearch` 39%. The value head as the search's score (`eval` 3) is -17.0 Elo
+[-31.1, -3.0] against the fitted score, so the default stays `eval` 2. Nothing in the host's defaults changed:
+`PLAYMAT_AI_POLICY=net` or `netsearch` opts in, with the network built into this build (`src/net.pmnet`;
+`cfg:...+net=PATH` tries another).
+
 ## One decision at a time: policies
 
 Every question with two or more candidates goes to the seat's `DecisionPolicy` (`decision.rs`). It gets a `Decision`:
@@ -75,6 +124,8 @@ spent), or `None` for the quick answer; an answer the question doesn't accept fa
 | `mcts` | `decision::Mcts` | Monte Carlo tree search at the root, below |
 | `quick` | `decision::Quick` | the quick answers alone, no search |
 | `random` | `decision::Random` | a seeded random candidate, Archbench's anchor |
+| `net` | `selfplay::NetPolicy` | the trained network's policy, no search (self-play, above) |
+| `netsearch` | `selfplay::NetSearch` | the network's policy moved by playouts on belief-weighted samples of what the seat can't see, scored by its value; never sees hidden cards (the default config turns on `hide`, 4 samples, `eval` 3) |
 
 The setting is read by `Config::default()`, so it applies wherever a config is made from the defaults: the bridge
 (`playmat-ai-bridge`) and Rust-hosted games. `PLAYMAT_AI_THREADS` (default: the processors, at most 4) caps the

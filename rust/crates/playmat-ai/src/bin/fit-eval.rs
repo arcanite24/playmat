@@ -11,8 +11,8 @@
 use playmat_ai::duel::{new_duel, Deck};
 use playmat_ai::entrants::entrant;
 use playmat_ai::fitted::{self, Weights, NAMES};
-use playmat_ai::{eval, mulligan};
 use playmat_ai::search::Table;
+use playmat_ai::{eval, mulligan};
 use playmat_engine::decide::{Answer, Decider, Query};
 use playmat_engine::rules;
 use playmat_engine::state::{Game, Seat, Step};
@@ -119,8 +119,11 @@ fn main() {
                             &mut |g, seat| mulligan::bottom(g, seat, config.as_ref()),
                         );
                     }
-                    let mut rec =
-                        Recorder { table: Table::new(vec![config.clone(), config.clone()]), turn: 0, positions: vec![] };
+                    let mut rec = Recorder {
+                        table: Table::new(vec![config.clone(), config.clone()]),
+                        turn: 0,
+                        positions: vec![],
+                    };
                     rules::play_from_priority(&mut game, &mut rec, turns);
                     rec
                 }));
@@ -141,15 +144,24 @@ fn main() {
                     p.decks = [a, b];
                     d.push((p, result));
                 }
-                if deal % 500 == 0 {
-                    eprintln!("FIT played {deal}/{games}, {} positions, {:.0} s", d.len(), started.elapsed().as_secs_f64());
+                if deal.is_multiple_of(500) {
+                    eprintln!(
+                        "FIT played {deal}/{games}, {} positions, {:.0} s",
+                        d.len(),
+                        started.elapsed().as_secs_f64()
+                    );
                 }
             });
         }
     });
     let data = data.into_inner().unwrap();
     let (train, test): (Vec<_>, Vec<_>) = data.iter().partition(|(p, _)| p.deal % 10 != 0);
-    println!("FIT {} positions ({} held out) from {games} games, {:.0} s", data.len(), test.len(), started.elapsed().as_secs_f64());
+    println!(
+        "FIT {} positions ({} held out) from {games} games, {:.0} s",
+        data.len(),
+        test.len(),
+        started.elapsed().as_secs_f64()
+    );
 
     // card names seen often enough to get a weight of their own
     let mut seen: HashMap<&str, usize> = HashMap::new();
@@ -230,9 +242,9 @@ fn main() {
         .min_by(|a, b| java_loss(&train, *a).total_cmp(&java_loss(&train, *b)))
         .unwrap();
     let generic: Vec<f64> = w[..NAMES.len()].to_vec();
-    let generic_only: Vec<f64> = generic.iter().copied().chain(std::iter::repeat(0.0).take(dim - NAMES.len())).collect();
+    let generic_only: Vec<f64> = generic.iter().copied().chain(std::iter::repeat_n(0.0, dim - NAMES.len())).collect();
     // what ships: no deck terms
-    let shipped: Vec<f64> = w[..deck_base].iter().copied().chain(std::iter::repeat(0.0).take(n)).collect();
+    let shipped: Vec<f64> = w[..deck_base].iter().copied().chain(std::iter::repeat_n(0.0, n)).collect();
     println!(
         "FIT log loss held out: fitted {:.4} (with deck terms {:.4}, generic features alone {:.4}), Java's score {:.4} (scale {k}), coin 0.6931",
         loss(&te, &shipped),

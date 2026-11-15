@@ -42,6 +42,12 @@ pub struct Config {
     pub mulligan_sim: bool,
     /// chance per thousand that a searched question gets a random candidate instead (lower skill levels; 0 never)
     pub blunder: u32,
+    /// the network a `net` or `netsearch` policy, or `eval` 3, uses: a `.pmnet` path, `None` the built-in one
+    pub net: Option<String>,
+    /// the network policy's temperature, per thousand: 0 always its best answer, 1000 a sample of its policy
+    pub temp: u32,
+    /// `netsearch`: how far the searched values move the network's policy, per thousand (`selfplay::NetSearch`)
+    pub eta: u32,
 }
 
 impl Default for Config {
@@ -51,6 +57,10 @@ impl Default for Config {
             .ok()
             .and_then(|v| v.trim().parse().ok())
             .unwrap_or_else(|| std::thread::available_parallelism().map_or(1, |n| n.get().min(4)));
+        let policy = PolicyKind::from_env();
+        // the network's search as measured (#390 Track B): on samples of what the seat can't see, scored by the
+        // network's value
+        let netsearch = policy == PolicyKind::NetSearch;
         Config {
             budget: 6000,
             width: 12,
@@ -58,15 +68,18 @@ impl Default for Config {
             // (#390; docs/rust/Ai.md)
             extra_turns: 1,
             playout_cap: 1500,
-            policy: PolicyKind::from_env(),
+            policy,
             threads: threads.max(1),
-            hide: false,
-            samples: 1,
+            hide: netsearch,
+            samples: if netsearch { 4 } else { 1 },
             playout: 2,
-            eval: 2,
+            eval: if netsearch { 3 } else { 2 },
             plans: false,
             mulligan_sim: false,
             blunder: 0,
+            net: None,
+            temp: 0,
+            eta: 10_000,
         }
     }
 }
@@ -287,7 +300,7 @@ impl DecisionPolicy for Playouts {
                 match root.play_out(c, per, stop, None) {
                     Ok(o) => {
                         nodes += o.nodes;
-                        let score = eval::score(&o.game, d.seat, cfg.eval);
+                        let score = eval::score_with(&o.game, d.seat, cfg);
                         if score > best.0 {
                             best = (score, c.clone());
                         }
@@ -315,7 +328,7 @@ pub fn sampled(
     per: u64,
     stop: u32,
 ) -> (usize, u64) {
-    let base = eval::score(game, seat, cfg.eval);
+    let base = eval::score_with(game, seat, cfg);
     let seed = ((game.turn as u64) << 40) ^ ((root.since.len() as u64) << 16) ^ seat as u64 ^ 0x2545_f491;
     let samples = cfg.samples.max(1);
     let mut worlds: Vec<Option<Game>> = Vec::new();
@@ -336,12 +349,12 @@ pub fn sampled(
     halving(plans.len(), samples, cfg.budget * samples as u64, |i, j| {
         let g = world(j);
         match root.play_on(g, &plans[i], per, stop) {
-            Ok(o) => Some((eval::value(&o.game, seat, base, cfg.eval), o.nodes)),
+            Ok(o) => Some((eval::value_with(&o.game, seat, base, cfg), o.nodes)),
             // a sample the copy can't replay to the question: the real game instead
             Err(_) => root
                 .play_on(root.snapshot.clone(), &plans[i], per, stop)
                 .ok()
-                .map(|o| (eval::value(&o.game, seat, base, cfg.eval), o.nodes)),
+                .map(|o| (eval::value_with(&o.game, seat, base, cfg), o.nodes)),
         }
     })
 }
@@ -494,7 +507,7 @@ fn kind(q: &Query) -> &'static str {
 }
 
 /// The answers worth trying, the quick one first.
-pub(crate) fn candidates(game: &Game, seat: Seat, q: &Query, quick: &Answer, width: usize) -> Vec<Answer> {
+pub fn candidates(game: &Game, seat: Seat, q: &Query, quick: &Answer, width: usize) -> Vec<Answer> {
     let mut out = vec![quick.clone()];
     let mut add = |a: Answer| {
         if !out.contains(&a) {

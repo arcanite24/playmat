@@ -79,7 +79,13 @@ fn main() {
         for line in game.log.as_ref().unwrap() {
             println!("{}", strip(line));
         }
-        println!("winner: {:?} at turn {}, life A {} B {}", winner, game.turn, game.player(0).life, game.player(1).life);
+        println!(
+            "winner: {:?} at turn {}, life A {} B {}",
+            winner,
+            game.turn,
+            game.player(0).life,
+            game.player(1).life
+        );
         return;
     }
     println!("no such deal");

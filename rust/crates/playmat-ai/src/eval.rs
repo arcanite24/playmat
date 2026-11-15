@@ -53,6 +53,30 @@ pub fn score(game: &Game, seat: Seat, version: u8) -> i64 {
     }
 }
 
+/// The score a config uses (`Config::eval`): 1 Java's, 2 the fitted one, 3 the network's value (`net`)
+pub fn score_with(game: &Game, seat: Seat, cfg: &crate::search::Config) -> i64 {
+    if cfg.eval >= 3 {
+        crate::net::score(&crate::net::of(&cfg.net), game, seat)
+    } else {
+        score(game, seat, cfg.eval)
+    }
+}
+
+/// `value` for a config's score
+pub fn value_with(game: &Game, seat: Seat, base: i64, cfg: &crate::search::Config) -> f64 {
+    if cfg.eval >= 3 {
+        let s = score_with(game, seat, cfg);
+        return if s >= WIN {
+            1.0
+        } else if s <= LOSE {
+            0.0
+        } else {
+            crate::fitted::probability(s)
+        };
+    }
+    value(game, seat, base, cfg.eval)
+}
+
 /// A score as a value in 0..1 for averaging over samples: a win 1, a loss 0, and otherwise a squashed difference from
 /// `base` (the score now) for Java's score, the predicted chance of winning for the fitted one
 pub fn value(game: &Game, seat: Seat, base: i64, version: u8) -> f64 {
