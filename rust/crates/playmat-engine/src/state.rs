@@ -4828,6 +4828,34 @@ impl Game {
             let fired = self.triggers([id], |_, src, _, t| src == id && matches!(t, Trigger::MadnessExiled));
             self.pending.extend(fired);
         }
+        // "when this card is put into a graveyard from …" (`ZoneChangeTriggeredAbility` to the graveyard): the card
+        // there triggers, with the batch's other triggers of this move
+        if from != Zone::Graveyard
+            && self.obj(id).zone == Zone::Graveyard
+            && !self.obj(id).token
+            && self
+                .obj(id)
+                .def
+                .abilities
+                .iter()
+                .any(|a| matches!(a.trigger(), Some(Trigger::PutIntoGraveyardSource { .. })))
+        {
+            let fz = match from {
+                Zone::Library => "library",
+                Zone::Hand => "hand",
+                Zone::Battlefield => "battlefield",
+                Zone::Stack => "stack",
+                Zone::Exile => "exile",
+                _ => "",
+            };
+            let own = self.triggers([id], |_, src, _, t| {
+                src == id && matches!(t, Trigger::PutIntoGraveyardSource { from: f } if f.is_empty() || f == fz)
+            });
+            if !own.is_empty() {
+                dies.extend(own);
+                dies.sort_by_key(|t| self.trigger_key(t));
+            }
+        }
         // DISCARDED_CARD, after the move (a card from a hand to a graveyard is a discarded one)
         if from == Zone::Hand && requested == Zone::Graveyard {
             self.discarded.push((owner, id));

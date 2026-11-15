@@ -816,7 +816,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                                     | EffectDef::DamageTargetEffect { .. }
                                     | EffectDef::DrawCardTargetEffect { .. }
                                     | EffectDef::LoseLifeTargetEffect { .. }
-                            )
+                            ) || matches!(e, EffectDef::CardEffect { handler, .. } if handler.java() == "LoseHalfLifeTargetEffect")
                         })
                     {
                         t.targets = vec![vec![Target::Player(active)]];
@@ -18772,6 +18772,7 @@ fn item_rule(game: &Game, item: &StackItem) -> String {
 
 /// A count (Java's `DynamicValue`s) for `you`.
 fn count(game: &Game, name: &str, you: Seat) -> i32 {
+    let mine_of = |b: ObjId| game.obj(b).controller == you && game.has_type(b, CardType::Land);
     let mine = |t: CardType| {
         game.battlefield.iter().filter(|b| game.obj(**b).controller == you && game.has_type(**b, t)).count() as i32
     };
@@ -18780,6 +18781,10 @@ fn count(game: &Game, name: &str, you: Seat) -> i32 {
         "lands_you_control" => mine(CardType::Land),
         "artifacts_you_control" => mine(CardType::Artifact),
         "controller_life" => game.player(you).life,
+        "domain" => ["Plains", "Island", "Swamp", "Mountain", "Forest"]
+            .iter()
+            .filter(|t| game.battlefield.iter().any(|b| mine_of(*b) && game.has_subtype(*b, t)))
+            .count() as i32,
         _ => 0,
     }
 }

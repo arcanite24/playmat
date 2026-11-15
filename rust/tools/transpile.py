@@ -598,6 +598,8 @@ ABILITIES = {
     'LandfallAbility': [('effect', 'effect'), ('optional', 'bool')],
     'DiesSourceTriggeredAbility': [('effect', 'effect'), ('optional', 'bool')],
     'PutIntoGraveFromBattlefieldSourceTriggeredAbility': [('effect', 'effect'), ('optional', 'bool')],
+    'PutIntoGraveFromLibrarySourceTriggeredAbility': [('effect', 'effect'), ('optional', 'bool')],
+    'PutIntoGraveFromAnywhereSourceTriggeredAbility': [('effect', 'effect'), ('optional', 'bool')],
     'ActivateAsSorceryActivatedAbility': [('effect', 'effect'), ('cost', 'cost')],
     'SimpleActivatedAbility': [('effect', 'effect'), ('cost', 'cost')],
     # once each game, for its mana cost less the turn this entered
@@ -676,6 +678,11 @@ def triggered(a):
         on = {'e': 'spell_cast', 'filter': a.pop('filter'), 'who': 'you'}
     elif cls in SIMPLE_TRIGGERS:
         on = {'e': SIMPLE_TRIGGERS[cls]}
+    elif cls == 'PutIntoGraveFromLibrarySourceTriggeredAbility':
+        # "when this card is put into your graveyard from your library": it triggers from the graveyard
+        on = {'e': 'put_into_graveyard_source', 'from': 'library'}
+    elif cls == 'PutIntoGraveFromAnywhereSourceTriggeredAbility':
+        on = {'e': 'put_into_graveyard_source'}
     else:
         return a
     out = {'class': 'TriggeredAbility', 'java': a.pop('java', cls), 'on': on}
@@ -925,6 +932,11 @@ def predicate(text, subtypes):
         return {'p': 'supertype', 's': m.group(1)}
     if (m := re.fullmatch(r'TargetController\.(YOU|OPPONENT|NOT_YOU)\.get(Controller|Owner)Predicate\(\)', text)):
         return {'p': m.group(2).lower(), 'who': 'you' if m.group(1) == 'YOU' else 'opponent'}
+    # controlled by the active player, or not (`ControllerIsActivePlayerPredicate`'s handler)
+    if text == 'TargetController.ACTIVE.getControllerPredicate()':
+        return {'p': 'card', 'handler': 'ControllerIsActivePlayerPredicate'}
+    if text == 'TargetController.INACTIVE.getControllerPredicate()':
+        return {'p': 'not', 'x': {'p': 'card', 'handler': 'ControllerIsActivePlayerPredicate'}}
     if text == 'ChosenNamePredicate.instance':
         return {'p': 'chosen_name'}
     # controlled by the resolving ability's target player (`input.getSource().getFirstTarget()`): a handler
@@ -1613,7 +1625,7 @@ class Translator:
             return {'v': 'target_mana_value'}
         if arg == 'InstantSorceryExileGraveyardCount.instance':
             return {'v': 'instant_sorcery_exile_graveyard'}
-        if arg == 'CardsInControllerHandCount.ANY':
+        if arg in ('CardsInControllerHandCount.ANY', 'CardsInControllerHandCount.ANY_SINGULAR'):
             return {'v': 'cards_in_hand'}
         if arg == 'ControllerSpeedCount.instance':
             return {'v': 'speed'}
@@ -1725,6 +1737,11 @@ class Translator:
         if (m := re.fullmatch(r'new LifeCompareCondition\(TargetController\.(YOU|OPPONENT),ComparisonType\.(\w+),(\d+)\)', arg)) \
                 and m.group(2) in COMPARISONS:
             return {'c': 'life_compare', 'who': m.group(1).lower(), 'cmp': m.group(2), 'n': int(m.group(3))}
+        # each player (both, in a duel) has N or more (less) life
+        if (m := re.fullmatch(r'new LifeCompareCondition\(TargetController\.EACH_PLAYER,ComparisonType\.(\w+),(\d+)\)', arg)) \
+                and m.group(1) in COMPARISONS:
+            return {'c': 'and', 'xs': [{'c': 'life_compare', 'who': w, 'cmp': m.group(1), 'n': int(m.group(2))}
+                                       for w in ('you', 'opponent')]}
         if (m := re.fullmatch(r'new CardsInControllerGraveyardCondition\((\d+)(?:,(.*))?\)', arg)):
             return {'c': 'cards_in_graveyard', 'n': int(m.group(1)), 'filter': self.filter(m.group(2)) if m.group(2) else []}
         if (m := re.fullmatch(r'new SourceHasCounterCondition\((CounterType\.\w+),ComparisonType\.OR_GREATER,(\d+)\)', arg)) \
@@ -1957,6 +1974,9 @@ class Translator:
             return m.group(1), []
         m = re.fullmatch(r'new (\w+)(?:<>)?\((.*)\)', expr)
         if not m:
+            raise Unsupported('expression ' + expr)
+        # (a chained call this doesn't read, `….addOtherwiseEffect(…)`, isn't one of the constructor's arguments)
+        if '.addOtherwiseEffect(' in expr and not balanced(expr):
             raise Unsupported('expression ' + expr)
         return m.group(1), split_args(m.group(2))
 
@@ -2724,6 +2744,14 @@ class Translator:
         if (m := re.fullmatch(r'(\w+\.[A-Z][A-Z0-9_]*)\.makeEffect\(\)', expr.strip())) \
                 and (h := card_handlers.effect(self, m.group(1), [])) is not None:
             return h
+        # `ConditionalOneShotEffect(effect, otherwise, condition, text).addOtherwiseEffect(more)`: the otherwise
+        # effects in order (Behold the Unspeakable's "Otherwise, scry 2, then draw two cards")
+        m = re.fullmatch(r'\s*(new ConditionalOneShotEffect\(.*\))\.addOtherwiseEffect\((.*)\)\s*', expr, re.S)
+        if m and balanced(m.group(1)) and balanced('x(' + m.group(2) + ')'):
+            e = self.effect(m.group(1))
+            if e.get('class') == 'ConditionalOneShotEffect' and e.get('otherwise'):
+                e['otherwise'] = {'class': 'Effects', 'effects': [e['otherwise'], self.effect(m.group(2))]}
+                return e
         # a handler named for this card's use of a class (`OuterCardClass.Class`, card_handlers.py): before any form
         # of the class the translator knows
         # (a resolving static handler lasts until the turn's cleanup: `.setDuration(Duration.EndOfTurn)` is how it
@@ -2788,9 +2816,10 @@ class Translator:
         # untap every target's permanents (Nissa, Genesis Mage's creatures and lands)
         if re.fullmatch(r'new UntapTargetEffect\((?:"[^"]*")?\)\.setTargetPointer\(new EachTargetPointer\(\)\)', canonical(expr.strip())):
             return {'class': 'UntapEachTargetEffect'}
-        # Aether Tradewinds: every target returns, one from each of its targets
-        if re.fullmatch(r'new Return(?:FromGraveyard)?ToHandTargetEffect\(\)\.setTargetPointer\(new EachTargetPointer\(\)\)',
-                        canonical(expr.strip())):
+        # Aether Tradewinds: every target returns, one from each of its targets (Rise from the Wreck's four "up to one
+        # target …" slots)
+        if re.fullmatch(r'new Return(?:FromGraveyard)?ToHandTargetEffect\(\)\.setTargetPointer\(new EachTargetPointer\(\)\)'
+                        r'(?:\.setText\(".*, and up to one target .*"\))?', canonical(expr.strip()), re.S):
             return {'class': 'ReturnToHandEachTargetEffect'}
         # damage to each of the ability's targets (Dragonspark Reactor's player and creature), or each destroyed
         # (Spiteful Blow's creature and land)
@@ -3296,6 +3325,15 @@ class Translator:
         if cls == 'CantBlockSourceEffect' and [a.strip() for a in args] == ['Duration.WhileOnBattlefield']:
             return {'class': 'GainAbilitySourceEffect', 'ability': {'class': 'CantBlockAbility'},
                     'duration': DURATIONS['Duration.WhileOnBattlefield']}
+        # "{this} deals N damage to target creature and M damage to you"
+        if cls == 'DamageTargetAndYouEffect' and len(args) in (1, 2) and all(re.fullmatch(r'\d+', a.strip()) for a in args):
+            n = [int(a) for a in args]
+            return {'class': 'Effects', 'effects': [{'class': 'DamageTargetEffect', 'amount': n[0]},
+                                                    {'class': 'DamageControllerEffect', 'amount': n[-1]}]}
+        # "sacrifice {this} unless <condition>"
+        if cls == 'SacrificeSourceUnlessConditionEffect' and len(args) == 1:
+            return {'class': 'ConditionalOneShotEffect', 'condition': self.condition(args[0]),
+                    'otherwise': {'class': 'SacrificeSourceEffect'}}
         if cls == 'CantBlockTargetEffect' and [a.strip() for a in args] == ['Duration.EndOfTurn']:
             return {'class': 'GainAbilityTargetEffect', 'ability': {'class': 'CantBlockAbility'}, 'duration': 'EndOfTurn'}
         # "target creature can't be blocked by <filter> this turn"
@@ -3927,6 +3965,15 @@ class Translator:
                 c = l.group(1)
             return {'class': 'ConditionalOneShotEffect', 'effect': self.effect(args[1]), 'condition': self.condition(c)}
         # plain forms of other effects, with a text override or a default
+        if cls == 'PutOnLibraryTargetEffect' and len(args) == 2 and args[0] in ('true', 'false') and text(args[1]):
+            return {'class': cls, 'top': args[0] == 'true'}
+        # "creatures you control get +1/+1 until end of turn; with the city's blessing, +2/+2 instead" (a spell's,
+        # checked as it resolves: the blessing stays once had)
+        if cls == 'ConditionalContinuousEffect' and len(args) == 4 and text(args[3]) \
+                and args[2] == 'CitysBlessingCondition.instance' \
+                and all(re.fullmatch(r'new BoostControlledEffect\(\d+,\d+,Duration\.EndOfTurn\)', a) for a in args[:2]):
+            return {'class': 'ConditionalOneShotEffect', 'effect': self.effect(args[0]), 'otherwise': self.effect(args[1]),
+                    'condition': self.condition(args[2])}
         if cls == 'TapTargetEffect' and len(args) == 1 and text(args[0]):
             return {'class': cls}
         if cls == 'GainLifeEffect' and len(args) == 2 and text(args[1]):
@@ -4318,6 +4365,9 @@ class Translator:
             out['look'] = int(args[0])
         elif args[0] in COUNTS:
             out['look_count'] = COUNTS[args[0]]
+        elif args[0] == 'DomainValue.REGULAR':
+            # "look at the top X cards, where X is the number of basic land types among lands you control"
+            out['look_count'] = 'domain'
         elif args[0] in ('SavedDamageValue.MANY', 'SavedDamageValue.MUCH', 'GetXValue.instance'):
             # (the X a trigger saw, or the X paid: Heroes' Podium's "look at the top X cards")
             out['look_count'] = 'x'
@@ -7549,6 +7599,13 @@ def card_statement(t, st, card, added, spell, modes, subtypes):
         if m:
             spell['targets'].append(t.target(m.group(1)))
             return
+        # a card's own target adjuster with a target handler (`Handler::target` named `Outer.XAdjuster`): its base
+        # target, with the handler as a predicate, in place of the spell's targets
+        m = re.fullmatch(r'this\.getSpellAbility\(\)\.setTargetAdjuster\((?:(\w+)\.instance|new (\w+)\(\))\)', st)
+        if m and card_handlers.own_kind(t, m.group(1) or m.group(2)) == 'target' \
+                and (adj := card_handlers.target(t, m.group(1) or m.group(2), [])) is not None:
+            spell['targets'] = [adj]
+            return
         # kicked, the spell's target is another (`ConditionalTargetAdjuster(KickedCondition.ONCE, blueprint, kicked)`)
         m = re.fullmatch(r'this\.getSpellAbility\(\)\.setTargetAdjuster\(new ConditionalTargetAdjuster\(KickedCondition\.ONCE,(.*)\)\)', st)
         if m and len(a := split_args(m.group(1))) == 2 and a[0].strip() not in ('true', 'false'):
@@ -7877,6 +7934,20 @@ def ability_statement(t, st, added):
     m = re.fullmatch(r'(?:final )?\w+ (\w+)=(.*)', st) or re.fullmatch(r'(\w+)=(new .*)', st)
     if m:
         t.assign(m.group(1), m.group(2))
+        return True
+    # a card's own target adjuster with a target handler (`Handler::target` named `Outer.XAdjuster`): its base
+    # target, with the handler as a predicate, in place of the ability's targets
+    m = re.fullmatch(r'(\w+)\.setTargetAdjuster\((?:(\w+)\.instance|new (\w+)\(\))\)', st)
+    if m and isinstance(t.vars.get(m.group(1)), dict) \
+            and card_handlers.own_kind(t, m.group(2) or m.group(3)) == 'target' \
+            and (adj := card_handlers.target(t, m.group(2) or m.group(3), [])) is not None:
+        t.vars[m.group(1)]['targets'] = [adj]
+        # an adjuster that points the effects at the new target (`setTargetPointer(new FirstTargetPointer())`):
+        # not at what the trigger saw
+        if re.search(r'enum ' + (m.group(2) or m.group(3)) + r'\b[^}]*?setTargetPointer\(new FirstTargetPointer\(\)\)',
+                     getattr(t, 'source', '') or '', re.S):
+            t.vars[m.group(1)].pop('set_target_pointer', None)
+            t.vars[m.group(1)].pop('set_target_pointer_player', None)
         return True
     # a -X loyalty ability's "target … with mana value X" (`XManaValueTargetAdjuster`): X the ability's own
     m = re.fullmatch(r'(\w+)\.setTargetAdjuster\(new XManaValueTargetAdjuster\(\)\)', st)

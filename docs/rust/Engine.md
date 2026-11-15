@@ -1312,6 +1312,29 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   `AddCardTypeSourceEffect` statics, `MayPay2LifeForColorAbility`, the adversaries' `DoIfAnyNumberCostPaid`,
   `AttacksAndIsNotBlockedTriggeredAbility`, equip activation limits, `CompleatedAbility`, mana abilities of their own
   kinds, `ReplaceTreasureWithAdditionalEffect` (Xorn) and the long tail.
+  Wave 14, shared forms B (15 Nov): framework forms and classes shared by several of the claim's cards. A card's
+  own put-into-graveyard trigger (`Trigger::PutIntoGraveyardSource`, from the library or from anywhere: Narcomoeba,
+  Gaea's Blessing), fired after the move as Java's zone-change event is; a spell's or ability's target adjuster that
+  has a target handler stands in for its targets (Fiendish Panda, Body Launderer); the `domain` count for looks
+  (Slimefoot's Survey); `TargetController.ACTIVE`/`INACTIVE` controller predicates; `LifeCompareCondition` for each
+  player; `SacrificeSourceUnlessConditionEffect`; `DamageTargetAndYouEffect`; `ConditionalOneShotEffect(…)
+  .addOtherwiseEffect(…)` (Behold the Unspeakable's "scry 2, then draw two"; a chained `addOtherwiseEffect` the
+  translator doesn't read is no longer dropped); Rise from the Wreck's each-target return; and handlers for
+  `AscendEffect`, `GainControlAllEffect`, `SearchLibraryGraveyardPutOntoBattlefieldEffect`,
+  `EnterUntappedAllEffect`, `ExileGraveyardAllPlayersEffect`, `LoseHalfLifeTargetEffect` (pointed at the active
+  player on an "each upkeep" trigger, like `LoseLifeTargetEffect`), `DamageAttachedControllerEffect`,
+  `NoAbilityPredicate` (only a spell ability counts as none, as Java's `SpellAbility` class check does),
+  `VariableManaCostPredicate`, cards-in-library and colors-among counts, Vona's Hunger, Expel from Orazca and
+  Sanctum of All. Chorale of the Void's defending player comes from its last known attachment and a former attacker
+  (`getSourcePermanentOrLKI`, `getDefendingPlayerId` with former groups). Three factory rounds (74 games, 73
+  matching) verified 47: 12,716 of 13,018. Eleven games under `shadow/wave14-shared-b/` cover the pieces. Not
+  verified: Tribute to Horobi (Java lets Echo of Death's Wail sacrifice itself as "another creature": the transformed
+  face's abilities have a source other than the permanent, not reproduced), Havoc Festival and The Cauldron of
+  Eternity (not exercised enough). Left on the list: `DoUnlessTargetPlayerOrTargetsControllerPaysEffect` with an
+  `OrCost` (Starseer Mentor, Thornplate Intimidator, Mogis, Elesh Norn), `CastFromHandSourcePermanentCondition`,
+  `EndTurnEffect`, the mana-ability forms, delayed triggers whose text needs more, switched power and toughness,
+  `FederationCount`, `TransformedPredicate`, card-specific adjusters (Harness the Storm, Rampaging Raptor) and the
+  layer-ordering ones (Retro-Mutation).
   Text fixes for verified cards (13 Nov): the Young Hero Role's granted trigger keeps its own text, "put a +1/+1
   counter on it" (its `AddCountersSourceEffect` has a `setText`), and a delayed upkeep transform is "Transform {this}
   at the beginning of the next turn's upkeep." (`AtTheBeginOfNextUpkeepDelayedTriggeredAbility.getRule` puts the
