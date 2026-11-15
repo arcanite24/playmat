@@ -1085,6 +1085,9 @@ pub enum Trigger {
     BecomesTappedAll {
         filter: Filter,
     },
+    /// the permanent this is attached to becomes tapped (`BecomesTappedAttachedTriggeredAbility`); a target pointer is
+    /// that permanent
+    BecomesTappedAttached,
     /// this is dealt combat damage (`DealtCombatDamageToSourceTriggeredAbility`, once for each batch, X the damage)
     DealtCombatDamage,
     /// a spell of the filter you control deals damage (`SpellControlledDealsDamageTriggeredAbility`, once for each

@@ -22987,8 +22987,19 @@ fn tap(game: &mut Game, id: ObjId) {
     let fired = game.triggers(sources, |g, src, you, t| {
         matches!(t, Trigger::BecomesTappedAll { filter }
             if g.obj(src).zone == Zone::Battlefield && g.filter_matches(filter, you, Some(src), id))
+            || matches!(t, Trigger::BecomesTappedAttached) && g.attached(src) == Some(id)
     });
-    game.pending.extend(fired);
+    for mut t in fired {
+        if matches!(
+            game.item_def(&t).abilities.get(t.ability.map_or(usize::MAX, |(i, _)| i)).and_then(|a| a.trigger()),
+            Some(Trigger::BecomesTappedAttached)
+        ) && set_target_pointer(game, &t)
+        {
+            t.targets = vec![vec![Target::Obj(id)]];
+            t.target_zcc = vec![vec![game.obj(id).zcc]];
+        }
+        game.pending.push(t);
+    }
     // `TAPPED_BATCH`: once for what became tapped together
     let sources = game.trigger_sources();
     let fired = game.triggers(sources, |g, src, you, t| {

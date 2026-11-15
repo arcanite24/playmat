@@ -6355,6 +6355,11 @@ class Translator:
         # (the third argument: the enrage ability word)
         if cls == 'DealtDamageToSourceTriggeredAbility' and (n == 2 or (n == 3 and args[2] in ('true', 'false'))):
             return out({'e': 'dealt_damage'}, args[0], flag(args[1]))
+        # "whenever enchanted land (equipped creature) becomes tapped" (effect, description[, optional[, pointer]])
+        if cls == 'BecomesTappedAttachedTriggeredAbility' and 2 <= n <= 4 and re.fullmatch(r'"[^"]*"', args[1]) \
+                and (n < 4 or args[3] in ('SetTargetPointer.NONE', 'SetTargetPointer.PERMANENT')):
+            return out({'e': 'becomes_tapped_attached'}, args[0], n >= 3 and flag(args[2]),
+                       n == 4 and args[3] == 'SetTargetPointer.PERMANENT')
         # "whenever enchanted (equipped) creature is dealt damage", once for each of its batches
         if cls == 'DealtDamageAttachedTriggeredAbility' and n == 4 and args[0] == 'Zone.BATTLEFIELD' \
                 and args[3] in ('SetTargetPointer.NONE', 'SetTargetPointer.PERMANENT', 'SetTargetPointer.PLAYER'):
