@@ -355,8 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (12,565 on 14 Nov). A card whose JSON the engine can't load yet is left out
-  can express (12,533 on 14 Nov). A card whose JSON the engine can't load yet is left out
+  can express (12,665 on 15 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -1222,6 +1221,34 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   less). Two factory work folders (`.local/rust-port/wave13/claim-mutate/`, 120 games) verified 31 of the 32; six
   games under `shadow/mutate/` cover the engine pieces. Left: Brokkos (cast from the graveyard with mutate, and its
   `addSuperType` statement). The over/under question shows Yes and No in hosted games, not Java's Under and Over.
+  Wave 13, shared forms (15 Nov): framework forms that block several cards each. A granted static with no text of
+  its own (Give No Ground, the Runes; a granted base power and toughness static is still left out, as the engine
+  reads those only from a permanent's own abilities: Beorn's Hospitality); `Value::DifferentNames`,
+  `InstantSorceryExileGraveyard`, `DifferentManaValuesInGraveyard` and `ActivePlayerCardsInHand` (Shrieking
+  Affliction); `ConditionalTargetAdjuster(condition, keep, target)` for kicker and gift (Goblin Barrage, Sazacap's
+  Brew, Consumed by Greed); `DiscardAndDrawThatManyEffect` for any number, plus N (Cavalier of Flame);
+  `LookAtOpponentFaceDownCreaturesAnyTimeEffect` (nothing to show in a shadow game); attack taxes,
+  `CantAttackYouUnlessPayAllEffect` ("Pay {1} to attack?" as each attacker is declared, and the All button leaves out
+  what has a cost, as `HumanPlayer.selectAttackers` does: Archon of Absolution, Dain); `OneShotNonTargetEffect`
+  as a "choose" bind with `rounds` (`TargetImpl.choose`: another round after one that added a card; Yorion, Another
+  Chance); `AttacksWithCreaturesTriggeredAbility` with a minimum, a filter and from the graveyard (Phoenix Chick,
+  Persistent Marshstalker, whose return is the four-flag `ReturnSourceFromGraveyardToBattlefieldEffect` handler);
+  `SourceDealsNoncombatDamageToOpponentTriggeredAbility` (Chandra's Pyreling); `ActivateOncePerGameActivatedAbility`
+  as `ExhaustAbility { once }` (In the Trenches); Mardu Blazebringer's end-of-combat sacrifice; Agadeem's Awakening's
+  targets (`Pred::ManaValueUnlikeChosen`). Engine fixes found on the way: a spell's targets are auto-chosen against
+  its rule with its costs first (`getRule(true)`: Sazacap's Brew's "discard a card" keeps your only creature from
+  being picked for you); a kicked or gifted spell checks the targets it was cast with as it resolves (Sazacap's
+  Brew's promised creature had no target pointer); a "beginning of each upkeep" trigger points `LoseLifeTargetEffect`
+  at the active player; `DiscardAndDrawThatManyEffect` chooses in `TargetDiscard.choose` rounds; and an Aura on an
+  Aura on a dying creature follows it in the same pass (Rune of Flight on Consuming Fervor). Three factory rounds (96
+  games; 79 of the 84 replayed match, 12 more had Beorn's Hospitality) verified 56: 12,390 of 12,665; 20 more
+  Sazacap's Brew games found the auto-choice one. Eleven games under `shadow/wave13-shared/` cover the engine pieces. Left: Yorion (Java lets its returned self be chosen, and
+  `AnotherPredicate` says it shouldn't: not understood yet), Aven Heartstabber and Colossus of the Blood Age (each
+  blamed for a game that parts elsewhere: Expedited Inheritance's two damage triggers in another order, an "If you
+  do" exile text), Agadeem's Awakening (cast in two games, one short of verified), Beorn's Hospitality, and the list's skipped forms:
+  random discards, `CastFromHandSourcePermanentCondition`, `GainAbilityWithAttachmentEffect`, the mana-ability
+  classes, `EndTurnEffect`, `CompleatedAbility`, card-specific target and cost adjusters, and the delayed triggers
+  whose text needs more (Runaway Carriage, Dorothea, Conqueror's Galleon).
   Text fixes for verified cards (13 Nov): the Young Hero Role's granted trigger keeps its own text, "put a +1/+1
   counter on it" (its `AddCountersSourceEffect` has a `setText`), and a delayed upkeep transform is "Transform {this}
   at the beginning of the next turn's upkeep." (`AtTheBeginOfNextUpkeepDelayedTriggeredAbility.getRule` puts the

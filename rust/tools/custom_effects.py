@@ -355,6 +355,9 @@ class Body:
         cls, args = m.group(1), _args(m.group(2))
         zone = {'TargetCardInHand': 'hand', 'TargetCardInYourGraveyard': 'graveyard', 'TargetCardInLibrary': 'library',
                 'TargetCardInExile': 'exile'}.get(cls)
+        # (min, max, filter, notTarget)
+        if len(args) == 4 and args[3] in ('true', 'false') and cls != 'TargetCard':
+            args = args[:3]
         if cls == 'TargetCard':
             # (zone[, filter]) or (min, max, zone, filter)
             zi = next((i for i, a in enumerate(args) if a.startswith('Zone.')), None)

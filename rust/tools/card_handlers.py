@@ -16,7 +16,8 @@ transpiler to translate (token classes, effect and filter expressions), handed t
 "min max" with its filter after the declared ones; "filter", "effect" and "ability": translated, after the declared
 filters, effects or abilities; "counter": a `Counter` as "name amount"; "counter_type": `CounterType.X` as the
 engine's counter name; "put_cards": a `PutCards` constant's name;
-"while_on_battlefield": only `Duration.WhileOnBattlefield`; "one_of:a|b": only one of these texts; "duration": an
+"while_on_battlefield": only `Duration.WhileOnBattlefield`; "bool": only true or false (a handler whose
+arguments are all "bool" takes exactly that many); "one_of:a|b": only one of these texts; "duration": an
 optional leading `Duration`, `Duration.WhileOnBattlefield` when the constructor has none). The strings are
 plain or raw Rust string literals.
 
@@ -200,6 +201,9 @@ def effect(t, cls, args, own_only=False):
             # a number as written (a `DynamicValue` overload stays unsupported)
             if not re.fullmatch(r'-?\d+', args[i]):
                 raise _unsupported(f'effect {cls}: argument {args[i]}')
+        elif kind == 'bool':
+            if args[i] not in ('true', 'false'):
+                raise _unsupported(f'effect {cls}: argument {args[i]}')
         elif kind == 'while_on_battlefield':
             # a static class the handler writes only as a static ability's (`Duration.WhileOnBattlefield`)
             if args[i] != 'Duration.WhileOnBattlefield':
@@ -208,10 +212,13 @@ def effect(t, cls, args, own_only=False):
             # an argument the handler reads only some values of ("one_of:NinjutsuAbility.class|EquipAbility.class")
             if args[i] not in kind[len('one_of:'):].split('|'):
                 raise _unsupported(f'effect {cls}: argument {args[i]}')
-        elif kind not in ('text', 'int', 'filter', 'effect', 'counter', 'counter_type', 'put_cards', 'ability',
+        elif kind not in ('text', 'int', 'bool', 'filter', 'effect', 'counter', 'counter_type', 'put_cards', 'ability',
                           'while_on_battlefield', 'duration', 'until_your_next_turn') \
                 and not kind.startswith('one_of:'):
             raise _unsupported(f'argument kind {kind}')
+    # a handler whose arguments are all "bool" is written for that one constructor (a framework class's overload)
+    if h['args'] and all(k == 'bool' for k in h['args']) and len(args) != len(h['args']):
+        raise _unsupported(f'effect {cls}: {len(args)} arguments, its handler takes {len(h["args"])}')
     # a static handler for a framework class is written for its constructors with up to as many arguments as it
     # declares kinds for
     if h['kind'] in STATIC_KINDS and len(args) > len(h['args']):
