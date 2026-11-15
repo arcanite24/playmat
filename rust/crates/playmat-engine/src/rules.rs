@@ -7660,6 +7660,7 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             // the number revealed: the ability's X
             if let Some(top) = Arc::make_mut(&mut game.stack).last_mut().filter(|t| t.card == id) {
                 top.x = chosen.len() as i32;
+                top.cost_revealed.extend(chosen.iter().copied());
             }
         }
         CostDef::ExileFromHandCost { filter } => {
