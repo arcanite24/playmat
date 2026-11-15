@@ -19012,6 +19012,11 @@ fn apply_each_effect(
                 let Some(Target::Obj(spell)) = target else { continue };
                 let cost = match generic {
                     Some(a) => vec![CostDef::ManaCost { cost: format!("{{{}}}", v!(a).max(0)) }],
+                    // ward—pay life equal to {this}'s power against a spell (Raubahn, Phyrexian Fleshgorger): that
+                    // much life, the ward permanent's power now (or as it last was)
+                    None if matches!(cost.as_slice(), [CostDef::PayLifeSourcePowerCost]) => {
+                        vec![CostDef::PayLifeCost { amount: source_power(game, item.card) }]
+                    }
                     None => cost.clone(),
                 };
                 let cost = &cost;
