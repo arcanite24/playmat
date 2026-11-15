@@ -299,6 +299,9 @@ pub struct Obj {
     pub may_play_end_step: bool,
     /// `may_play` lasts only while its player controls this permanent, as it was (`Duration.WhileControlled`)
     pub may_play_while: Option<(ObjId, u32)>,
+    /// `may_play` holds only while this is true for its player (`CardUtil.makeCardPlayable`'s condition: Possibility
+    /// Technician's "if you control a Kavu")
+    pub may_play_if: Option<fn(&Game, Seat) -> bool>,
     /// mana of any type can be spent to cast it (while it may be played from exile)
     pub any_mana: bool,
     /// while it may be played from exile, it's cast without paying its mana cost (Oracle's Vault)
@@ -1825,6 +1828,7 @@ impl Game {
             may_play: None,
             may_play_end_step: false,
             may_play_while: None,
+            may_play_if: None,
             any_mana: false,
             play_free: false,
             exiled_face_down: false,
@@ -2870,7 +2874,7 @@ impl Game {
         }) && o.may_play_while.is_none_or(|(src, zcc)| {
             let s = self.obj(src);
             s.zone == Zone::Battlefield && s.zcc == zcc && s.controller == seat
-        })
+        }) && o.may_play_if.is_none_or(|f| f(self, seat))
     }
 
     pub fn any_static(&self, mut f: impl FnMut(&Game, ObjId, &EffectDef) -> bool) -> bool {
@@ -4744,6 +4748,7 @@ impl Game {
             o.may_play = None;
             o.may_play_end_step = false;
             o.may_play_while = None;
+            o.may_play_if = None;
             o.any_mana = false;
             o.play_free = false;
             o.exiled_face_down = false;
