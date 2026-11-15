@@ -5422,8 +5422,14 @@ class Translator:
         # "when that creature dies this turn, …": its text is the spell's sentence that starts so
         if cls == 'WhenTargetDiesDelayedTriggeredAbility' and len(args) in (1, 2) \
                 and (len(args) == 1 or args[1].strip() in ('SetTargetPointer.NONE', 'SetTargetPointer.PLAYER')):
+            # (an effect whose own text is more than one sentence is the whole text after the phrase: End-Blaze
+            # Epiphany's "…, then choose a card exiled this way. Until the end of your next turn, …")
+            t = re.search(r'\.setText\(((?:"(?:[^"\\]|\\.)*"\+?)+)\)$', canonical(args[0]))
+            text = ''.join(re.findall(r'"((?:[^"\\]|\\.)*)"', t.group(1))) if t else ''
+            rule = 'When that creature dies this turn, ' + text + '.' if '. ' in text \
+                else RULE_FROM + 'When that creature dies this turn, >'
             return {'class': 'WhenTargetDiesDelayed', 'effects': [self.effect(args[0])],
-                    'rule': RULE_FROM + 'When that creature dies this turn, >',
+                    'rule': rule,
                     'to_player': len(args) == 2 and args[1].strip() == 'SetTargetPointer.PLAYER'}
         # "at the beginning of your next main phase, …" (the effect's own text after it)
         if cls == 'AtTheBeginOfMainPhaseDelayedTriggeredAbility' and len(args) == 4 and args[1].strip() == 'false' \
