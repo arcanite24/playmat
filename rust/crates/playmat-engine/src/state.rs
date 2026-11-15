@@ -177,6 +177,9 @@ pub struct Obj {
     pub cast: bool,
     /// `cast` as it last left the battlefield (an ability of it that resolves later looks back)
     pub cast_lki: bool,
+    /// it was suspected as it last left the battlefield (`Permanent.isSuspected` of its last known information:
+    /// Agency Coroner's sacrificed creature)
+    pub suspected_lki: bool,
     /// its toughness as it last left the battlefield (Righteous Valkyrie's trigger on a creature already gone)
     pub toughness_lki: Option<i32>,
     /// its power as it last left the battlefield (`SourcePermanentPowerValue`'s last known information)
@@ -1772,6 +1775,7 @@ impl Game {
             kicked: false,
             cast: false,
             cast_lki: false,
+            suspected_lki: false,
             toughness_lki: None,
             power_lki: None,
             p1p1_added: false,
@@ -4735,6 +4739,7 @@ impl Game {
             }
             if from == Zone::Battlefield {
                 o.cast_lki = o.cast;
+                o.suspected_lki = o.marks.iter().any(|m| m == "suspected");
                 if let Some(def) = o.front.take() {
                     o.def = def.clone();
                     left_front = Some(def);
