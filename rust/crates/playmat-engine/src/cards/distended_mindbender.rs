@@ -30,8 +30,9 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         .collect();
     let high: Vec<ObjId> = hand.iter().copied().filter(|c| game.obj(*c).def.mana_value() > 3).collect();
     let mut to_discard = Vec::new();
+    // (`HumanPlayer.choose` asks with any card in the hand, even with none it can pick)
     for possible in [low, high] {
-        if possible.is_empty() {
+        if hand.is_empty() {
             continue;
         }
         to_discard.extend(choose_cards(game, d, you, &hand, &possible, 1, 1, &rule)?);
