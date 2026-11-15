@@ -10861,7 +10861,17 @@ fn refresh_land_types(game: &mut Game) {
     }
     firsts.sort_by_key(|(_, k, _)| std::cmp::Reverse(*k));
     for (to, k, at) in firsts {
-        let before: Vec<(ObjId, AbilityDef)> = attached_keywords(game, to, at)
+        let mut keywords = attached_keywords(game, to, at);
+        // a dashed or blitzed creature's haste, gained as it entered (`GainAbilitySourceEffect`), before anything
+        // was attached to it (Ambuscade Shaman dashed, then equipped with Sorcerer's Wand)
+        let o = game.obj(to);
+        if (o.dashed || o.blitzed)
+            && !o.land_type_base.as_ref().map_or(&o.def, |(b, _, _)| b).abilities.contains(&AbilityDef::HasteAbility)
+            && !keywords.contains(&AbilityDef::HasteAbility)
+        {
+            keywords.insert(0, AbilityDef::HasteAbility);
+        }
+        let before: Vec<(ObjId, AbilityDef)> = keywords
             .into_iter()
             .filter(|a| !granted.iter().any(|(t, x)| *t == to && x == a))
             .map(|a| (to, a))
