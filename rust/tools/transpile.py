@@ -4970,6 +4970,10 @@ class Translator:
                 return {'class': 'ChosenColorManaAbility', 'java': cls, 'amount': int(n.group(1)), 'land_abilities': True}
         if cls == 'ProtectionAbility' and len(args) == 1:
             return {'class': cls, 'filter': self.filter(args[0])}
+        # "protection from each of your opponents": its `canTarget` (which `hasProtectionFrom` asks) refuses objects
+        # an opponent of its controller controls
+        if cls == 'ProtectionFromEachOpponentAbility' and not args:
+            return {'class': 'ProtectionAbility', 'filter': [OPPONENT]}
         if cls == 'DelveAbility' and args in ([], ['false']):
             return {'class': cls}
         # `new EnchantAbility(auraTarget)`: what it can enchant is the spell's target
