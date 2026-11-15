@@ -4302,11 +4302,18 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                 let o = game.obj_mut(id);
                 o.adventurer = Some(full);
                 o.def = Arc::new(def);
+                let waiting = game.pending.len();
                 if !cast(game, d, seat, id) {
                     *game = before;
                     return;
                 }
+                let cast_triggers = game.pending.len().max(waiting);
                 sacrifice(game, sac);
+                // (Java sacrifices inside `activate`, before `SPELL_CAST` is fired: the sacrifice's triggers wait
+                // ahead of the cast's, Distended Mindbender's cast trigger after an outlaw's dies trigger)
+                if game.pending.len() > cast_triggers {
+                    game.pending[waiting..].rotate_left(cast_triggers - waiting);
+                }
                 return;
             }
             // `SneakAbility.activate`: cast (costs paid) and then undone outside the declare blockers step
