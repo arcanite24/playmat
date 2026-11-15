@@ -5339,6 +5339,14 @@ pub enum AbilityDef {
     CrewSaddleWithToughnessAbility,
     /// this can't be blocked as long as the defending player controls an Island
     IslandwalkAbility,
+    /// this can't be blocked as long as the defending player controls a Plains (`PlainswalkAbility`)
+    PlainswalkAbility,
+    /// … a Swamp (`SwampwalkAbility`)
+    SwampwalkAbility,
+    /// … a Mountain (`MountainwalkAbility`)
+    MountainwalkAbility,
+    /// … a Forest (`ForestwalkAbility`)
+    ForestwalkAbility,
     /// umbra armor: if the enchanted creature would be destroyed, its damage is removed and this Aura is destroyed
     UmbraArmorAbility,
     /// an adventurer card's adventure spell (its first ability; the card's own spell is the second)

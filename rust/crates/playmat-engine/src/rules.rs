@@ -23063,9 +23063,19 @@ pub fn can_block(game: &Game, blocker: ObjId, attacker: ObjId) -> bool {
         || game.cant_attack_or_block(blocker)
         || game.has_ability(blocker, &AbilityDef::CantBlockAbility)
         || (game.has_ability(attacker, &AbilityDef::DauntAbility) && game.power_toughness(blocker).0 <= 2)
-        || (game.has_ability(attacker, &AbilityDef::IslandwalkAbility) && {
-            let defender = game.obj(blocker).controller;
-            game.battlefield.iter().any(|l| game.obj(*l).controller == defender && game.has_subtype(*l, "Island"))
+        || [
+            (AbilityDef::IslandwalkAbility, "Island"),
+            (AbilityDef::PlainswalkAbility, "Plains"),
+            (AbilityDef::SwampwalkAbility, "Swamp"),
+            (AbilityDef::MountainwalkAbility, "Mountain"),
+            (AbilityDef::ForestwalkAbility, "Forest"),
+        ]
+        .iter()
+        .any(|(walk, land)| {
+            game.has_ability(attacker, walk) && {
+                let defender = game.obj(blocker).controller;
+                game.battlefield.iter().any(|l| game.obj(*l).controller == defender && game.has_subtype(*l, land))
+            }
         })
         || game.protected_from(attacker, blocker)
     {
