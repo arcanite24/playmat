@@ -10202,9 +10202,14 @@ fn unlock_door(game: &mut Game, id: ObjId, k: usize) {
     // `ROOM_FULLY_UNLOCKED`: eerie
     if game.obj(id).doors.iter().all(|d| *d) {
         let you = game.obj(id).controller;
-        let sources = game.trigger_sources();
-        let fired = game.triggers(sources, |g, src, c, t| {
-            matches!(t, Trigger::Eerie) && c == you && g.obj(src).zone == Zone::Battlefield
+        let mut sources = game.trigger_sources();
+        // (with the cards in its controller's graveyard whose eerie works there)
+        sources.extend(game.player(you).graveyard.iter().copied());
+        let fired = game.triggers(sources, |g, src, c, t| match t {
+            Trigger::Eerie { graveyard } => {
+                c == you && g.obj(src).zone == if *graveyard { Zone::Graveyard } else { Zone::Battlefield }
+            }
+            _ => false,
         });
         game.pending.extend(fired);
     }
@@ -21123,8 +21128,10 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
                 && ((src == id && *include_self) || g.filter_matches(filter, you, Some(src), id))
         }
         Trigger::PeltCollector => src != id && g.obj(src).zone == Zone::Battlefield && controller == you,
-        Trigger::Eerie => {
-            g.obj(src).zone == Zone::Battlefield && controller == you && g.has_type(id, CardType::Enchantment)
+        Trigger::Eerie { graveyard } => {
+            g.obj(src).zone == if *graveyard { Zone::Graveyard } else { Zone::Battlefield }
+                && controller == you
+                && g.has_type(id, CardType::Enchantment)
         }
         Trigger::Evolve => g.obj(src).zone == Zone::Battlefield && controller == you && evolves(g, src, id),
         _ => false,

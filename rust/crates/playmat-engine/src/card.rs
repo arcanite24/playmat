@@ -1174,7 +1174,11 @@ pub enum Trigger {
     /// inspired: this becomes untapped (`InspiredAbility`, the `UNTAPPED` event)
     BecomesUntapped,
     /// eerie: an enchantment you control enters, or you fully unlock a Room (`EerieAbility`)
-    Eerie,
+    Eerie {
+        /// it triggers from its owner's graveyard instead of the battlefield (`Zone.GRAVEYARD`: Fear of Infinity)
+        #[serde(default)]
+        graveyard: bool,
+    },
     /// you put one or more counters (of `counter`; any kind when empty) on a permanent of the filter, once each time
     /// (`PutCounterOnPermanentTriggeredAbility`, `COUNTERS_ADDED`): X is how many; with a target pointer, at it
     CountersPut {
