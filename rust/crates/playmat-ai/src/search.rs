@@ -54,14 +54,16 @@ impl Default for Config {
         Config {
             budget: 6000,
             width: 12,
-            extra_turns: 0,
+            // one turn past this one, the v2 playouts and the fitted score: each SPRT-accepted on constructed-2
+            // (#390; docs/rust/Ai.md)
+            extra_turns: 1,
             playout_cap: 1500,
             policy: PolicyKind::from_env(),
             threads: threads.max(1),
             hide: false,
             samples: 1,
-            playout: 1,
-            eval: 1,
+            playout: 2,
+            eval: 2,
             plans: false,
             mulligan_sim: false,
             blunder: 0,

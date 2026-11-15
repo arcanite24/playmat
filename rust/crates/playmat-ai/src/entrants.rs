@@ -22,7 +22,16 @@ pub struct Entrant {
 ///   `playout_cap`, `policy`, `threads`, `hide`, `samples`, `playout`, `eval`, `plans`, `mulligan_sim`, `blunder`).
 ///   For A/B runs: `cfg:hide=1+samples=4` against `cfg:hide=1`.
 pub fn entrant(name: &str) -> Result<Entrant, String> {
-    let full = Config { threads: 4, policy: PolicyKind::Playouts, ..Config::default() };
+    // the named entrants are the first search's settings, pinned so their recorded results keep meaning the same
+    // games; `host@sN` follows what the host plays now
+    let full = Config {
+        threads: 4,
+        policy: PolicyKind::Playouts,
+        extra_turns: 0,
+        playout: 1,
+        eval: 1,
+        ..Config::default()
+    };
     // the Rust host's first skill 4: half the budget, 8 candidates
     let s4 = Config { budget: full.budget / 2, width: 8, ..full.clone() };
     let config = match name {
@@ -105,8 +114,10 @@ pub fn skill(skill: Option<u32>) -> Option<Config> {
     let full = Config::default();
     match skill.unwrap_or(6) {
         0..=1 => None,
-        2..=3 => Some(Config { budget: full.budget / 5, width: 5, ..full }),
-        4..=5 => Some(Config { budget: full.budget / 2, width: 8, ..full }),
+        // a fifth of the budget, this turn only, Java's score, and a random answer one search in ten
+        2..=3 => Some(Config { budget: full.budget / 5, width: 5, extra_turns: 0, eval: 1, blunder: 100, ..full }),
+        // half the budget, this turn only, one random answer in fifty
+        4..=5 => Some(Config { budget: full.budget / 2, width: 8, extra_turns: 0, blunder: 20, ..full }),
         _ => Some(full),
     }
 }

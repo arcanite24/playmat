@@ -187,7 +187,9 @@ IMGCACHE_FALLBACK=on                                     <span class="c"># Scryf
           engine hosts. Leave it at <code>playouts</code>, the default. <code>mcts</code> searches with several threads
           (up to 4, <code>PLAYMAT_AI_THREADS</code>): in our benchmarks it's no stronger and uses far more CPU, so it's
           only worth trying on a machine with cores to spare. <code>quick</code> doesn't search at all and is the
-          weakest; <code>random</code> plays random moves. Set it, then run <code>up -d</code>. Details are in
+          weakest; <code>random</code> plays random moves. Set it, then run <code>up -d</code>. In games the Rust
+          engine hosts, the table's AI skill also matters: 1 plays without searching, 2–5 search less and now and
+          then make a random play, 6 and up play the strongest settings. Details are in
           <a href="https://github.com/arcanite24/playmat/blob/master/docs/rust/Ai.md#one-decision-at-a-time-policies">docs/rust/Ai.md</a>.</p>
         <h3 id="rust-host">What is <code>XMAGE_RUST_HOST_USERS</code>?</h3>
         <p>It lets the Rust engine play whole games, with no Java game behind them. It's new and still

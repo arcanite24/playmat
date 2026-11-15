@@ -26,7 +26,40 @@ copy to the end of the turn with a quick policy for both seats, and keeps the an
 - **Answers.** With options, a target is always a concrete pick: Java's dialogs read "done" differently from the
   engine (a required target is asked again, a cast is cancelled), so the AI never sends one.
 
-`Config` (`budget` search nodes per decision, `width`, `extra_turns`, `playout_cap`, `policy`, `threads`) is per seat.
+`Config` (`budget` search nodes per decision, `width`, `extra_turns`, `playout_cap`, `policy`, `threads`, and the
+knobs below) is per seat. Since the search plan (next section) the defaults look one turn further (`extra_turns` 1),
+play out with the v2 quick answers (`playout` 2) and score with the fitted model (`eval` 2); the bullets above
+describe version 1, which `playout` 1 and `eval` 1 still play.
+
+## The search plan (#390, Nov 2026)
+
+Measured on Archbench `constructed-2` with SPRT (each a sequential test of "10 Elo better" against "no better",
+α = β = 0.05, at least 500 duplicate pairs; [archbench/README.md](../../archbench/README.md)) and on the `tactics-1`
+puzzles. Each knob is a `Config` field and a `cfg:` entrant key.
+
+| Knob | What | Result |
+|---|---|---|
+| `playout` 2 | v2 quick answers (`policy.rs`): counter an opponent's worthwhile spell, instant-speed removal on attackers, pump in combat, flash and draw at the opponent's end of turn, lethal burn to the face, targets chosen by what dies; planeswalker and creature-land abilities | **+18.4 Elo** [+9.9, +27.0] against `rust-playouts@s4`; tactics 75% → 88% |
+| `eval` 2 | the fitted score (`fitted.rs`): a logistic model of the chance to win, from life, board, hand, a clock and 244 card weights | **+16.9** [+4.6, +29.3] on top of `playout` 2 |
+| `extra_turns` 1 | play to the end of the next turn, so a counterattack counts (worse with Java's score, better with the fitted one) | **+38.0** [+22.9, +53.3] against `playout` 2; tactics 100% |
+| `plans` | compare whole attacks and blocks (`combat.rs`) instead of one creature at a time | −2.8 [−9.7, +4.2]: off |
+| `mulligan_sim` | keep or mulligan by goldfishing the hand against simulated mulligans (`mulligan.rs`) | −6.0 [−17.9, +6.0]: off |
+| `hide`, `samples` | search on samples of the opponent's hand and both libraries instead of the real game (`Root::sample`), sequential halving over them | −7.6 [−20.5, +5.2] with 4 samples: off, so the default AI still sees hidden cards |
+| `blunder` | chance per thousand that a searched question gets a random candidate: weaker skill levels | |
+
+**Fitting the score.** `cargo run --release -p playmat-ai --bin fit-eval -- --entrant cfg:playout=2+threads=1`
+plays every ordered deck pair four times, records each turn's first priority (where playouts stop and score), and
+fits an L2 logistic regression with Adam. Each deck gets a strength term while fitting, dropped from what ships, so
+card weights don't learn which deck is playing; lands have none. It writes `src/fitted.json` (compiled in) and
+prints the held-out log loss: on 14 Nov 0.552, against 0.592 for Java's score at its best scale (a coin is 0.693).
+Refit after a change to the playouts or the decks.
+
+**Skill levels** (`entrants::skill`, which the host plays): 0–1 the quick answers; 2–3 a fifth of the budget, this
+turn only, Java's score, one search in ten answered at random; 4–5 half the budget, this turn only, one in fifty at
+random; 6 and up the defaults. Rated 14 Nov on the first 200 deals of `constructed-2` (all pairs, duplicate, 2000
+games each): `host@s6` 1464, `host@s4` 1429, `rust-playouts@s4` (the search before the plan) 1409, `host@s2` 1397,
+`rust-quick` 1192, `random` 1000. The worst decision was 565 ms at skill 6, on a machine running ten games of four
+threads at once.
 
 ## One decision at a time: policies
 
