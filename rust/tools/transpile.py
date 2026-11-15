@@ -2893,6 +2893,11 @@ class Translator:
                              second, re.S)
         if m and balanced(m.group(1)) and not m.group(1).startswith('new AddCountersTargetEffect('):
             return {'class': 'TargetPointerEffect', 'target': 1, 'effect': self.effect(m.group(1))}
+        # the ability's third target (`ThirdTargetPointer`: Incremental Growth's three counters)
+        m = re.fullmatch(r'(new \w+\(.*\))((?:\.setText\("[^"]*"\))?)\.setTargetPointer\(new ThirdTargetPointer\(\)\)((?:\.setText\(.*\))?)',
+                         canonical(expr), re.S)
+        if m and balanced(m.group(1)):
+            return {'class': 'TargetPointerEffect', 'target': 2, 'effect': self.effect(m.group(1))}
         m = re.fullmatch(r'new RemoveCounterTargetEffect\((CounterType\.\w+)\.createInstance\(\)\)', canonical(self.strip_setters(expr)))
         if m and m.group(1) in COUNTERS:
             return {'class': 'RemoveCounterTargetEffect', 'counter': COUNTERS[m.group(1)]}
@@ -7940,7 +7945,8 @@ def ability_statement(t, st, added):
     if m and m.group(1) in KEPT_WATCHERS:
         return True
     # `Condition condition = new …Condition(…)`: a local the abilities name
-    m = re.fullmatch(r'(?:final )?Condition (\w+)=(new \w+Condition\(.*\)|\w+Condition\.\w+)', st, re.S)
+    # (typed as its own class too: Woodborn Behemoth's `PermanentsOnTheBattlefieldCondition c = …`)
+    m = re.fullmatch(r'(?:final )?\w*Condition (\w+)=(new \w+Condition\(.*\)|\w+Condition\.\w+)', st, re.S)
     if m:
         t.conditions[m.group(1)] = m.group(2)
         return True
