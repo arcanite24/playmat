@@ -28,6 +28,7 @@
 //!   `Rule::KeepsDamage(f)`: the cleanup step's damage removal.
 //! - **as-though**: `Handler::as_though(name, AsThough::Flash(f))`: `rules::castable`'s timing;
 //!   `AsThough::Haste(f)`: a {T} cost's summoning sickness (`rules::can_pay_cost`, mana abilities);
+//!   `AsThough::BlockDragon(f)`: blocking a Dragon with flying (`rules::can_block`);
 //!   `AsThough::Hexproof(f)`: hexproof, as targets are chosen (`rules::possible_targets`, `targetable`).
 //!
 //! A handler's functions get a `StaticCx`: the effect's source and controller (Java's `source`), its timestamp, and
@@ -416,6 +417,8 @@ pub(crate) enum AsThough {
     /// the graveyard or exile it's in; Some: how (`PlayWay`). A card's own (`Zone.ALL`: "you may cast this card from
     /// your graveyard") is declared `.in_any_zone()`.
     Play(fn(&Game, &StaticCx, Seat, ObjId, &CardDef) -> Option<PlayWay>),
+    /// `BLOCK_DRAGON`: the creature `id` can block Dragons with flying as though it had reach (`FlyingAbility`)
+    BlockDragon(fn(&Game, &StaticCx, ObjId) -> bool),
 }
 
 /// How an as-though effect lets a card be played from a graveyard or exile: for its own mana cost, or for `mana`
@@ -825,6 +828,17 @@ pub(crate) fn ignore_hexproof(game: &Game, seat: Seat, t: Target) -> bool {
     each_static(game, &mut |h, cx, _| {
         if let Hook::AsThough(AsThough::Hexproof(f)) = h {
             out = out || f(game, cx, seat, t);
+        }
+    });
+    out
+}
+
+/// Whether an as-though handler lets `id` block Dragons as though it had reach (`BLOCK_DRAGON`)
+pub(crate) fn block_dragon(game: &Game, id: ObjId) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::AsThough(AsThough::BlockDragon(f)) = h {
+            out = out || f(game, cx, id);
         }
     });
     out

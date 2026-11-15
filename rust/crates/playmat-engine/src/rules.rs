@@ -23072,6 +23072,7 @@ pub fn can_block(game: &Game, blocker: ObjId, attacker: ObjId) -> bool {
     if game.has_ability(attacker, &AbilityDef::FlyingAbility)
         && !game.has_ability(blocker, &AbilityDef::FlyingAbility)
         && !game.has_ability(blocker, &AbilityDef::ReachAbility)
+        && !(game.has_subtype(attacker, "Dragon") && cards::block_dragon(game, blocker))
     {
         return false;
     }
