@@ -2600,9 +2600,11 @@ pub enum EffectDef {
     GainAbilityAttachedUntilEndOfTurnEffect {
         ability: Box<AbilityDef>,
     },
-    /// the target permanents lose the ability until end of turn
+    /// the target permanents lose the ability until end of turn, or until your next turn
     LoseAbilityTargetEffect {
         ability: Box<AbilityDef>,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        until_your_next_turn: bool,
     },
     /// the source loses the ability until end of turn
     LoseAbilitySourceEffect {

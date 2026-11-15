@@ -1181,6 +1181,9 @@ pub struct Game {
     pub effect_mana: Arc<Vec<AbilityDef>>,
     /// abilities lost until end of turn: (permanent, its zcc, the ability, the turn)
     pub lost_until_eot: Vec<(ObjId, u32, AbilityDef, u32)>,
+    /// abilities lost until a player's next turn (`LoseAbilityTargetEffect(…, Duration.UntilYourNextTurn)`: Mu
+    /// Yanling's "loses flying"): (permanent, its zcc, the ability, the player whose turn ends it)
+    pub lost_until_turn_of: Vec<(ObjId, u32, AbilityDef, Seat)>,
     /// what made a permanent block this turn if able, with the permanent's zone change count (its hint names it)
     pub must_block_from: Vec<(ObjId, u32, ObjId)>,
     /// the game log's lines as Java writes them (`informPlayers`), while it's kept (replays and the AI's copy compare
@@ -1595,6 +1598,7 @@ impl Game {
             grants: Arc::new(Vec::new()),
             effect_mana: Arc::new(Vec::new()),
             lost_until_eot: Vec::new(),
+            lost_until_turn_of: Vec::new(),
             must_block_from: Vec::new(),
             log: None,
             events: None,
@@ -2382,6 +2386,11 @@ impl Game {
         let o = self.obj(id);
         if !self.lost_until_eot.is_empty()
             && self.lost_until_eot.iter().any(|(x, z, a, t)| *x == id && *z == o.zcc && a == ability && *t == self.turn)
+        {
+            return false;
+        }
+        if !self.lost_until_turn_of.is_empty()
+            && self.lost_until_turn_of.iter().any(|(x, z, a, _)| *x == id && *z == o.zcc && a == ability)
         {
             return false;
         }

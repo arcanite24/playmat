@@ -4146,6 +4146,9 @@ class Translator:
             return {'class': 'GainAbilityAttachedUntilEndOfTurnEffect', 'ability': self.ability(args[0])}
         if cls in ('LoseAbilityTargetEffect', 'LoseAbilitySourceEffect') and len(args) == 2 and args[1] == 'Duration.EndOfTurn':
             return {'class': cls, 'ability': self.ability(args[0])}
+        # "… loses flying until your next turn" (Mu Yanling, Sky Dancer; Fear of Falling)
+        if cls == 'LoseAbilityTargetEffect' and len(args) == 2 and args[1] == 'Duration.UntilYourNextTurn':
+            return {'class': cls, 'ability': self.ability(args[0]), 'until_your_next_turn': True}
         if cls == 'LoseAbilityAttachedEffect' and len(args) == 2 and args[1] in attachment:
             return {'class': cls, 'ability': self.ability(args[0])}
         # "it can't be regenerated this turn" (Rage of Purphoros)

@@ -304,6 +304,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             game.flash_until_next_turn.retain(|(s, _, _)| *s != active);
             game.attacks_if_able_next.retain(|(s, _, _)| *s != active);
             game.card_statics.retain(|r| r.until_turn_of != Some(active));
+            game.lost_until_turn_of.retain(|(_, _, _, s)| *s != active);
             game.damage_doubled_to.retain(|(_, s)| *s != active);
             if game.grants.iter().any(|g| g.until_turn_of == Some(active)) {
                 Arc::make_mut(&mut game.grants).retain(|g| g.until_turn_of != Some(active));
@@ -18632,7 +18633,15 @@ fn apply_each_effect(
                     }
                 }
             }
-            EffectDef::LoseAbilityTargetEffect { ability } | EffectDef::LoseAbilitySourceEffect { ability } => {
+            EffectDef::LoseAbilityTargetEffect { ability, until_your_next_turn: true } => {
+                for o in &objs {
+                    if game.obj(*o).zone == Zone::Battlefield {
+                        let zcc = game.obj(*o).zcc;
+                        game.lost_until_turn_of.push((*o, zcc, (**ability).clone(), controller));
+                    }
+                }
+            }
+            EffectDef::LoseAbilityTargetEffect { ability, .. } | EffectDef::LoseAbilitySourceEffect { ability } => {
                 let turn = game.turn;
                 let hit: Vec<ObjId> = if matches!(e, EffectDef::LoseAbilitySourceEffect { .. }) {
                     let (src, zcc) = source;
