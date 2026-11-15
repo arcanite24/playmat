@@ -10,7 +10,7 @@ import sys
 
 import torch
 
-from model import ACT_F, BUCKETS, ENT_F, GLOB_F, Net
+from model import ACT_F, BUCKETS, ENT_F, GLOB_F, Net, Tx, export
 
 
 def load_pmnet(path):
@@ -25,7 +25,7 @@ def load_pmnet(path):
             n *= d
         sd[name] = torch.tensor(struct.unpack_from(f"<{n}f", raw, off)).view(*shape)
         off += 4 * n
-    net = Net(belief="belief.weight" in sd)
+    net = Tx(**header["config"]) if header.get("arch") == "tx" else Net(belief="belief.weight" in sd)
     net.load_state_dict(sd)
     return net.eval(), raw
 

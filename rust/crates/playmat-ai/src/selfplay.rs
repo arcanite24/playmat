@@ -175,7 +175,7 @@ impl DecisionPolicy for NetSearch {
         let seed = ((d.game.turn as u64) << 40) ^ ((root.since.len() as u64) << 16) ^ d.seat as u64 ^ self.rng;
         mix(&mut self.rng);
         let games: Vec<Game> = match &root.hidden {
-            Some(h) if net.belief.is_some() => {
+            Some(h) if net.has_belief() => {
                 let seen = |id: ObjId| h.seat_saw(id);
                 let pool: Vec<u32> = unseen(&root.snapshot, d.seat, seen)
                     .iter()
