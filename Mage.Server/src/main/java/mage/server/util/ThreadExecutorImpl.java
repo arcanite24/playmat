@@ -16,8 +16,11 @@ public class ThreadExecutorImpl implements ThreadExecutor {
     private static final Logger logger = Logger.getLogger(ThreadExecutorImpl.class);
 
     // used for max tourney limit, but without new config setting
-    // example: server can have 50 games and 10 tourney at a time
-    private static final int GAMES_PER_TOURNEY_RATIO = 50 / 10;
+    // example: server can have 20 games and 10 tourney at a time
+    // Playmat: an event holds its tourney thread from the draft to the last round, and extra events wait silently in
+    // the queue, so 2 threads (the old floor with small configs) froze new drafts while two other events ran
+    private static final int GAMES_PER_TOURNEY_RATIO = 2;
+    private static final int MIN_TOURNEY_THREADS = 4;
 
     private final ExecutorService callExecutor; // shareable threads to run single task (example: save new game settings from a user, send chat message, etc)
     private final ExecutorService gameExecutor; // game threads to run long tasks, one per game (example: run game and wait user's feedback)
@@ -48,7 +51,7 @@ public class ThreadExecutorImpl implements ThreadExecutor {
         ((ThreadPoolExecutor) gameExecutor).allowCoreThreadTimeOut(true);
         ((ThreadPoolExecutor) gameExecutor).setThreadFactory(new XmageThreadFactory(ThreadUtils.THREAD_PREFIX_GAME));
 
-        tourneyExecutor = new FixedThreadPoolWithException(Math.max(2, config.getMaxGameThreads() / GAMES_PER_TOURNEY_RATIO));
+        tourneyExecutor = new FixedThreadPoolWithException(Math.max(MIN_TOURNEY_THREADS, config.getMaxGameThreads() / GAMES_PER_TOURNEY_RATIO));
         ((ThreadPoolExecutor) tourneyExecutor).setKeepAliveTime(60, TimeUnit.SECONDS);
         ((ThreadPoolExecutor) tourneyExecutor).allowCoreThreadTimeOut(true);
         ((ThreadPoolExecutor) tourneyExecutor).setThreadFactory(new XmageThreadFactory(ThreadUtils.THREAD_PREFIX_TOURNEY));

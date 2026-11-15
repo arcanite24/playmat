@@ -1145,7 +1145,15 @@ public class TableController {
     private void autoSideboard() {
         for (MatchPlayer player : match.getPlayers()) {
             if (!player.isDoneSideboarding()) {
-                match.submitDeck(player.getPlayer().getId(), player.autoCompleteDeck(table.getValidator()));
+                Deck deck;
+                try {
+                    deck = player.autoCompleteDeck(table.getValidator());
+                } catch (Exception e) {
+                    // the match waits for every deck with no timeout of its own: hand in the current one
+                    logger.error("Table " + table.getId() + ": auto sideboard failed for " + player.getName(), e);
+                    deck = player.getDeck();
+                }
+                match.submitDeck(player.getPlayer().getId(), deck);
             }
         }
     }
