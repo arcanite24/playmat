@@ -926,6 +926,9 @@ def predicate(text, subtypes):
         return {'p': m.group(2).lower(), 'who': 'you' if m.group(1) == 'YOU' else 'opponent'}
     if text == 'ChosenNamePredicate.instance':
         return {'p': 'chosen_name'}
+    # controlled by the resolving ability's target player (`input.getSource().getFirstTarget()`): a handler
+    if text == 'TargetController.SOURCE_TARGETS.getControllerPredicate()':
+        return {'p': 'card', 'handler': 'SourceTargetsControllerPredicate'}
     # historic: an artifact, a legendary or a Saga (`MageObject.isHistoric`)
     if text == 'HistoricPredicate.instance':
         return {'p': 'or', 'xs': [type_pred('ARTIFACT'), {'p': 'supertype', 's': 'LEGENDARY'}, {'p': 'subtype', 's': 'Saga'}]}
@@ -3358,6 +3361,14 @@ class Translator:
             return {'class': 'BoostAllEffect', 'power': int(args[0]), 'toughness': int(args[1]),
                     'duration': self.value('duration', args[2].strip()),
                     'filter': [CREATURE, {'p': 'controller', 'who': 'opponent'}], 'exclude_source': False}
+        # `BoostAllEffect(power, toughness, duration, excludeSource)`: all creatures (`FILTER_PERMANENT_CREATURES`),
+        # "all other creatures" with `true`
+        if cls == 'BoostAllEffect' and len(args) == 4 and args[3].strip() in ('true', 'false') \
+                and re.fullmatch(r'-?\d+', args[0].strip()) and re.fullmatch(r'-?\d+', args[1].strip()):
+            return {'class': cls, 'power': int(args[0]), 'toughness': int(args[1]),
+                    'duration': self.value('duration', args[2].strip()),
+                    'filter': self.filter('StaticFilters.FILTER_PERMANENT_CREATURES'),
+                    'exclude_source': args[3].strip() == 'true'}
         if cls == 'SpellCostReductionForEachSourceEffect' and len(args) == 2 and re.fullmatch(r'\d+', args[0].strip()):
             return {'class': cls, 'per': int(args[0]), 'amount': self.amount(args[1])}
         if cls == 'ReturnCardChosenFromGraveyardEffect' and len(args) == 3 and args[2].strip() == 'PutCards.HAND' \
@@ -5110,6 +5121,16 @@ class Translator:
                     'effects': [{'class': 'AddCardTypeSourceEffect', 'types': ['ARTIFACT', 'CREATURE'],
                                  'duration': 'EndOfTurn'}],
                     'cost': [{'class': 'CrewCost', 'value': int(args[0])}]}
+        # "you may cast this spell as though it had flash if …" (`Zone.ALL`): flash always, and the cast undone off
+        # its main phase while the condition doesn't hold (`CantFlashUnlessConditionEffect`, a handler that gets the
+        # condition in its effect)
+        if cls == 'CastAsThoughItHadFlashIfConditionAbility' and len(args) == 2:
+            cond = self.condition(args[0])
+            return {'class': 'SimpleStaticAbility', 'java': cls, 'effects': [
+                {'class': 'CardStatic', 'handler': 'CastAsThoughItHadFlashIfConditionAbility'},
+                {'class': 'CardStatic', 'handler': 'CantFlashUnlessConditionEffect', 'effects': [
+                    {'class': 'ConditionalAsThoughEffect', 'effect': {'class': 'CastAsThoughItHadFlashSourceEffect'},
+                     'condition': cond}]}]}
         if cls == 'AnyColorManaAbility' and not args:
             return {'class': cls, 'java': cls}
         # "{1}, {T}: Add one mana of any color" (its {T} added after), "Tap an untapped legendary creature you control:
@@ -7935,7 +7956,7 @@ def ability_statement(t, st, added):
         return True
     # (a dependency only orders Java's layer system; the engine reads each effect where it's asked)
     m = re.fullmatch(r'(\w+)\.(?:set(?:Outcome|Text|TargetPointer|RuleAtTheTop|AbilityWord)|addHint|withFlavorWord|withTargetDescription|withFirstModeFlavorWord'
-                     r'|getModes\(\)\.getMode\(\)\.withFlavorWord|getDependedToTypes\(\)\.add|addDependedToType)\(.*\)', st)
+                     r'|getModes\(\)\.getMode\(\)\.withFlavorWord|getDependedToTypes\(\)\.add|addDependedToType|setDependedToType)\(.*\)', st)
     if m and m.group(1) in t.vars:
         return True
     # backup: an ability the card has and the backup target gains (`BackupAbility.addAbility`; with `true`, only
