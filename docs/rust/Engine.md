@@ -1310,9 +1310,9 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   replacements Java asks the order of (Drana, the Last Bloodchief); `LoseLifeTriggeredAbility(…, setTargetPointer)`
   points at the player who lost the life (The Master of Lake-town); an activated ability's Phyrexian mana is asked
   right after X, before its targets (Skrelv, Defector Mite). Four factory rounds (306 games, 282 matching, 6 Java
-  unfinished) verified 206: 12,875 of 13,193. Not verified: Gisa, Glorious Resurrector, Sol'Kanar the Tainted,
+  unfinished) verified 205: 12,874 of 13,193. Not verified: Gisa, Glorious Resurrector, Sol'Kanar the Tainted,
   Mage Hunters' Onslaught, Massacre Girl, Rescue from the Underworld, Mythos of Brokkos, Cryptic Coat, Saheeli,
-  Filigree Master, Thranduil's Decree, Vivien's Invocation and Zero Point Ballad (each blamed for a game that parts,
+  Filigree Master, Thranduil's Decree, Brilliance Unleashed, Vivien's Invocation and Zero Point Ballad (each blamed for a game that parts,
   often on another card: Bereaved Survivor's transform trigger, a priority holder after Talisman of Resilience);
   Gnawing Crescendo (its delayed trigger's text: the base rule is empty, so the token's "This token can't block."
   is shown); Daredevil, Man Without Fear (its "whenever you attack" trigger and Scorch Spitter's go on the stack in
