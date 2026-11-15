@@ -21524,15 +21524,12 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
                 let count = ability.as_ref().map(|a| a.mode_count()).unwrap_or_default();
                 if !modes.is_empty() && count != ModeCount::default() {
                     let (index, card) = (t.ability.map_or(0, |(i, _)| i), t.card);
-                    // `canChooseTargetAbility`: removed unless at least max(min, 1) modes have their targets
+                    // `canChooseTargetAbility`: removed unless at least max(min, 1) modes have their targets, checked
+                    // before the trigger is pushed (so it isn't a stack object to target yet: Ertai Resurrected with
+                    // no other creature or planeswalker and an empty stack)
                     let found = modes
                         .iter()
-                        .filter(|m| {
-                            m.1.iter().all(|x| {
-                                matches!(x, TargetDef::TargetStackAbility { .. } | TargetDef::TargetStackObject { .. })
-                                    || target_possible(game, seat, x, Some(card))
-                            })
-                        })
+                        .filter(|m| m.1.iter().all(|x| target_possible(game, seat, x, Some(card))))
                         .count();
                     if found < count.min.max(1) {
                         continue;
@@ -21545,6 +21542,10 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
                     mode_targets = Some(chosen.iter().flat_map(|k| modes[*k].1.iter().cloned()).collect::<Vec<_>>());
                     t.modes = if chosen.is_empty() { vec![NO_MODE] } else { chosen };
                 } else if !modes.is_empty() {
+                    // (`canChooseTarget` before the push, as above)
+                    if !modes.iter().any(|m| m.1.iter().all(|x| target_possible(game, seat, x, Some(t.card)))) {
+                        continue;
+                    }
                     let available: Vec<usize> = (0..modes.len())
                         .filter(|k| {
                             modes[*k].1.iter().all(|x| {
