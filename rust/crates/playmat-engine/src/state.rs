@@ -333,6 +333,9 @@ pub struct Obj {
     pub warped: bool,
     /// cast for its evoke cost
     pub evoked: bool,
+    /// the phyrexian symbols of its cost paid with 2 life each as it was cast (on the stack, then on the
+    /// battlefield: compleated)
+    pub phyrexian_paid: i32,
     /// cast for its `AlternativeCostSourceAbility`'s costs (`AlternativeCostSourceAbility.getActivatedStatus`:
     /// Baleful Mastery's "if the {1}{B} cost was paid")
     pub alternative_paid: bool,
@@ -1897,6 +1900,7 @@ impl Game {
             pay_tax: 0,
             warped: false,
             evoked: false,
+            phyrexian_paid: 0,
             alternative_paid: false,
             impending: false,
             dashed: false,
@@ -4874,6 +4878,7 @@ impl Game {
             if !(from == Zone::Stack && zone == Zone::Battlefield) {
                 o.warped = false;
                 o.evoked = false;
+                o.phyrexian_paid = 0;
                 o.alternative_paid = false;
                 o.impending = false;
                 o.dashed = false;

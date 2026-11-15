@@ -5412,6 +5412,7 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
     // `handlePhyrexianManaCosts`: 2 life instead of each phyrexian symbol, asked before X and targets (the life is
     // paid with the mana)
     let Some(phyrexian_life) = ask_phyrexian(game, d, seat, &mut cost) else { return false };
+    game.obj_mut(id).phyrexian_paid = phyrexian_life / 2;
     // X: `announceX` (AMOUNT) asks until an answer is in range; X's mana is then generic
     if cost.x > 0 {
         let q = Query::Amount { min: 0, max: i32::MAX };
@@ -21153,7 +21154,13 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
         if tapped_by_static || def.abilities.iter().any(|a| a.is_enters_tapped()) {
             o.tapped = true;
         }
-        if let Some(n) = def.loyalty.filter(|n| *n > 0) {
+        // compleated: two fewer for each phyrexian symbol paid with life (none at all when that leaves none)
+        let compleated = if def.abilities.iter().any(|a| matches!(a, AbilityDef::CompleatedAbility)) {
+            2 * o.phyrexian_paid
+        } else {
+            0
+        };
+        if let Some(n) = def.loyalty.map(|n| n - compleated).filter(|n| *n > 0) {
             entering.push(("loyalty", n));
         }
         if def.is(CardType::Battle) {

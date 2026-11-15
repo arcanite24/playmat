@@ -5503,6 +5503,9 @@ pub enum AbilityDef {
     /// `rules::special_mana_payment`) the shadow games' players never take
     DelveAbility,
     ConvokeAbility,
+    /// compleated: a planeswalker enters with two fewer loyalty counters for each phyrexian symbol of its cost paid
+    /// with life (`PermanentImpl.entersBattlefield`: `getPhyrexianPaid`)
+    CompleatedAbility,
     /// improvise: each untapped artifact you control can pay {1}
     ImproviseAbility,
     /// sunburst: enters with a charge counter (a +1/+1 counter, if a creature) for each color of mana spent to cast it
