@@ -883,6 +883,9 @@ pub struct Boost {
     /// it changes the permanent even while it isn't a creature (`BoostAllEffect` boosts the objects it locked in:
     /// a Vehicle crewed as Mouth of the Storm's trigger resolved keeps its -3/-0)
     pub noncreature_too: bool,
+    /// it switches the object's power and toughness instead (layer 7d, after every boost:
+    /// `SwitchPowerToughnessSourceEffect`); two switches undo each other
+    pub switch: bool,
 }
 
 /// What a game event is (`GameEventKind`, what the web client's effects play from)
@@ -4043,11 +4046,17 @@ impl Game {
         t += dt;
         // (`BoostTargetEffect` changes only a creature: a Vehicle's boost counts once it's crewed)
         let creature = self.has_type(id, CardType::Creature);
+        let mut switched = false;
         for b in self.boosts.iter() {
             if b.target == id && b.zcc == o.zcc && (creature || b.noncreature_too) {
                 p += b.power;
                 t += b.toughness;
+                switched ^= b.switch;
             }
+        }
+        // layer 7d: switched power and toughness
+        if switched {
+            (p, t) = (t, p);
         }
         (p, t)
     }

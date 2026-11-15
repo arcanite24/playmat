@@ -2138,6 +2138,11 @@ pub enum EffectDef {
         toughness: Amount,
         duration: Duration,
     },
+    /// the source switches its power and toughness (`SwitchPowerToughnessSourceEffect`, layer 7d), while it's still
+    /// the permanent it was
+    SwitchPowerToughnessSourceEffect {
+        duration: Duration,
+    },
     /// the source gets +power/+toughness
     BoostSourceEffect {
         power: Amount,

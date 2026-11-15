@@ -1108,6 +1108,12 @@ fn priority_round(game: &mut Game, d: &mut dyn Decider, mut resume: bool) {
                 if game.over || d.stopped() {
                     return;
                 }
+                // `resetLKI` with the stack empty: the loop count and its sources start again (Wandering
+                // Fumarole's {0} switch, activated and resolved again and again, is no loop)
+                if game.stack.is_empty() {
+                    game.loop_count = 0;
+                    game.loop_sources.clear();
+                }
                 traced(game, d);
                 if d.stopped() {
                     return;
@@ -11975,6 +11981,16 @@ fn apply_each_effect(
                     until_next_turn(game, *duration, controller);
                 }
             }
+            EffectDef::SwitchPowerToughnessSourceEffect { duration } => {
+                let (o, zcc) = source;
+                if game.obj(o).zone == Zone::Battlefield && game.obj(o).zcc == zcc {
+                    boost(game, o, 0, 0, *duration);
+                    if let Some(b) = Arc::make_mut(&mut game.boosts).last_mut() {
+                        b.switch = true;
+                    }
+                    until_next_turn(game, *duration, controller);
+                }
+            }
             EffectDef::BoostSourceEffect { power, toughness, duration } => {
                 let power = &v!(power);
                 let toughness = &v!(toughness);
@@ -13622,6 +13638,7 @@ fn apply_each_effect(
                             until_end_of_turn: false,
                             until_turn_of: Some(controller),
                             noncreature_too: true,
+                            switch: false,
                         });
                     }
                 }
@@ -19944,6 +19961,7 @@ fn boost(game: &mut Game, target: ObjId, power: i32, toughness: i32, duration: D
         until_end_of_turn: duration == Duration::EndOfTurn,
         until_turn_of: None,
         noncreature_too: false,
+        switch: false,
     });
 }
 
@@ -25357,6 +25375,7 @@ mod tests {
             until_end_of_turn: true,
             until_turn_of: None,
             noncreature_too: false,
+            switch: false,
         });
         game.step = Some(Step::EndTurn);
         let mut d = PriorityLog(Vec::new());
