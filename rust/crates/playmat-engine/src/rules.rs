@@ -7512,7 +7512,8 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             let mut power = 0;
             let mut crew = Vec::new();
             for o in chosen {
-                if !game.obj(o).tapped {
+                // (`CREW_VEHICLE` replaced: not tapped, no power)
+                if !game.obj(o).tapped && (saddle || !cards::cant_crew(game, o)) {
                     tap(game, o);
                     power += crew_power(game, o, saddle);
                     crew.push(o);
@@ -8367,6 +8368,7 @@ fn targetable(game: &Game, seat: Seat, id: ObjId, src: Option<ObjId>) -> bool {
                 && !(game.has_type(id, CardType::Creature) && nowhere_to_run(game, game.obj(id).controller))
                 && !cards::ignore_hexproof(game, seat, Target::Obj(id))
         })
+        && !src.is_some_and(|s| cards::cant_be_targeted(game, seat, id, s))
 }
 
 /// `HexproofBaseAbility.checkObject`: one of `id`'s "hexproof from" abilities covers the object `s`
@@ -9296,10 +9298,13 @@ fn activate_mana_paying(
         let mut ev = cards::Event::new(cards::EventType::TappedForMana, seat);
         ev.target = Some(id);
         ev.amount = m.total() as i32;
+        ev.mana = Some(m);
         cards::replace_event(game, &mut ev, 0);
         if let Some(n) = ev.colorless {
             m = Mana::default();
             m.colorless = n;
+        } else if let Some(changed) = ev.mana {
+            m = changed;
         }
     }
     mana_spent_riders(game, id, i, Some(unpaid));
@@ -23185,6 +23190,7 @@ pub fn can_block(game: &Game, blocker: ObjId, attacker: ObjId) -> bool {
     if game.has_ability(attacker, &AbilityDef::FlyingAbility)
         && !game.has_ability(blocker, &AbilityDef::FlyingAbility)
         && !game.has_ability(blocker, &AbilityDef::ReachAbility)
+        && !(game.has_subtype(attacker, "Dragon") && cards::block_dragon(game, blocker))
     {
         return false;
     }
@@ -24133,8 +24139,12 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
             game.obj_mut(id).lost_all = 0;
         }
         if game.obj(id).damage != 0 || game.obj(id).deathtouched {
+            // (`REMOVE_DAMAGE_EOT`: a rule-modifying handler keeps the damage, not the deathtouch)
+            let keep = game.obj(id).damage != 0 && cards::keeps_damage(game, id);
             let o = game.obj_mut(id);
-            o.damage = 0;
+            if !keep {
+                o.damage = 0;
+            }
             o.deathtouched = false;
         }
         if game.obj(id).regen_shields != 0 {
@@ -24257,6 +24267,12 @@ fn transform(game: &mut Game, id: ObjId) {
         game.obj_mut(id).merge_base = Some(face);
         let def = merged_def(game, id);
         game.obj_mut(id).def = Arc::new(def);
+    }
+    // `TRANSFORMING`, with the new face's statics applying ("as this transforms into …")
+    if cards::any_replacement(game, cards::EventType::Transforming) {
+        let seat = game.obj(id).controller;
+        let mut ev = cards::Event { target: Some(id), ..cards::Event::new(cards::EventType::Transforming, seat) };
+        cards::replace_event(game, &mut ev, 0);
     }
     // "enters or transforms into {this}": the face it transformed into, front or back (Wildsong Howler's)
     let fired = game.triggers([id], |_, _, _, t| matches!(t, Trigger::TransformsOrEnters));

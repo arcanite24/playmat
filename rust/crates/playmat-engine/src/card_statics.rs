@@ -24,9 +24,12 @@
 //!   `Rule::CantCastOnStack(f)`: only the cast itself, after its targets (`CAST_SPELL_LATE` reading the spell);
 //!   `Rule::CantActivate(f)`: `rules::activatable` (activated abilities that aren't mana abilities);
 //!   `Rule::CantLoseOrWin(f)`: the state-based loss check and `rules::win_game`;
-//!   `Rule::MaxActivations(f)`: a limited activated ability's times each turn (`rules::activatable`).
+//!   `Rule::MaxActivations(f)`: a limited activated ability's times each turn (`rules::activatable`);
+//!   `Rule::KeepsDamage(f)`: the cleanup step's damage removal; `Rule::CantCrew(f)`: a crew cost's taps;
+//!   `Rule::CantBeTargeted(f)`: a permanent as a target (`rules::targetable`); `Rule::Several(&[…])`: more than one.
 //! - **as-though**: `Handler::as_though(name, AsThough::Flash(f))`: `rules::castable`'s timing;
 //!   `AsThough::Haste(f)`: a {T} cost's summoning sickness (`rules::can_pay_cost`, mana abilities);
+//!   `AsThough::BlockDragon(f)`: blocking a Dragon with flying (`rules::can_block`);
 //!   `AsThough::Hexproof(f)`: hexproof, as targets are chosen (`rules::possible_targets`, `targetable`).
 //!
 //! A handler's functions get a `StaticCx`: the effect's source and controller (Java's `source`), its timestamp, and
@@ -216,6 +219,10 @@ pub(crate) enum EventType {
     /// else its controller) (`rules::add_counters_by`, `put_counters`, a cost's counters). Change `amount` to put
     /// that many instead (Prairie Dog); "replaced" puts none
     AddCounters,
+    /// `TRANSFORMING`: the permanent `target`, controlled by `player`, has just turned to its other face, whose
+    /// statics already apply (`PermanentImpl.transform`, before `TRANSFORMED`). Nothing to change: a replacement
+    /// does something as it transforms ("as this creature transforms into …": Sephiroth's emblem)
+    Transforming,
 }
 
 /// The event a replacement handler sees and may change (Java's `GameEvent`)
@@ -242,6 +249,9 @@ pub(crate) struct Event {
     pub colorless: Option<u32>,
     /// `AddCounters`: the counter's name (`getData()`)
     pub counter: Option<String>,
+    /// `TappedForMana`: the mana it produces (`ManaEvent.getMana()`), which a `replace` may change (Virtue of
+    /// Strength's three times as much); `colorless` wins over it
+    pub mana: Option<crate::card::Mana>,
 }
 
 impl Event {
@@ -259,6 +269,7 @@ impl Event {
             to: None,
             colorless: None,
             counter: None,
+            mana: None,
         }
     }
 }
@@ -384,6 +395,27 @@ pub(crate) enum Rule {
     /// `MAX_ACTIVATIONS`: how many times `seat` may activate the ability at `index` of `id` each turn, where it
     /// limits them (Birgi's boast twice); None leaves the limit as it is
     MaxActivations(fn(&Game, &StaticCx, Seat, ObjId, usize) -> Option<u32>),
+    /// `REMOVE_DAMAGE_EOT`: the damage marked on the permanent `id` isn't removed in the cleanup step
+    /// (`PermanentImpl.endOfTurn`: Ancient Adamantoise)
+    KeepsDamage(fn(&Game, &StaticCx, ObjId) -> bool),
+    /// `CREW_VEHICLE`: the creature `id`, chosen to crew a Vehicle, isn't tapped for it and adds no power
+    /// (`CrewAbility`'s cost: Intercessor's Arrest)
+    CantCrew(fn(&Game, &StaticCx, ObjId) -> bool),
+    /// `TARGET`: `seat`'s spell or ability whose source object is `src` (a spell on the stack, or a permanent's or
+    /// card's ability) can't target the permanent `id` (`PermanentImpl.canBeTargetedBy`, after protection)
+    CantBeTargeted(fn(&Game, &StaticCx, Seat, ObjId, ObjId) -> bool),
+    /// one class stopping several events (`checksEventType` with two or more: Intercessor's Arrest's `CREW_VEHICLE`
+    /// and `ACTIVATE_ABILITY`): each of these, read as if it were its own handler
+    Several(&'static [Rule]),
+}
+
+/// The rules a rule-modifying handler's hook has (`Rule::Several`'s, or its one); none for another kind
+fn rule_parts(h: &'static Hook) -> &'static [Rule] {
+    match h {
+        Hook::Rule(Rule::Several(rs)) => rs,
+        Hook::Rule(r) => std::slice::from_ref(r),
+        _ => &[],
+    }
 }
 
 /// `YouDontLoseManaEffect`'s `addDoNotEmptyManaType`: the kinds of `seat`'s mana (WUBRG, then colorless) the pool
@@ -411,6 +443,8 @@ pub(crate) enum AsThough {
     /// `Play`, and what casting a spell that way does once it's cast (`setCastSourceIdWithAlternateMana`'s
     /// identifier, read by the card's watcher on `SPELL_CAST`: "that creature enters with a finality counter on it")
     PlayThen(fn(&Game, &StaticCx, Seat, ObjId, &CardDef) -> Option<PlayWay>, CastThisWayFn),
+    /// `BLOCK_DRAGON`: the creature `id` can block Dragons with flying as though it had reach (`FlyingAbility`)
+    BlockDragon(fn(&Game, &StaticCx, ObjId) -> bool),
 }
 
 /// What casting a spell by an `AsThough::PlayThen` way does: (the permitting source, its controller, the spell).
@@ -747,8 +781,10 @@ pub(crate) fn cant_attack(game: &Game, attacker: ObjId) -> bool {
 pub(crate) fn cant_cast(game: &Game, seat: Seat, id: ObjId, face: &CardDef) -> bool {
     let mut out = false;
     let mut check = |h: &'static Hook, cx: &StaticCx, _: &EffectDef| {
-        if let Hook::Rule(Rule::CantCast(f)) = h {
-            out = out || f(game, cx, seat, id, face);
+        for r in rule_parts(h) {
+            if let Rule::CantCast(f) = r {
+                out = out || f(game, cx, seat, id, face);
+            }
         }
     };
     each_static(game, &mut check);
@@ -761,8 +797,10 @@ pub(crate) fn cant_cast(game: &Game, seat: Seat, id: ObjId, face: &CardDef) -> b
 pub(crate) fn cant_cast_on_stack(game: &Game, seat: Seat, id: ObjId, face: &CardDef) -> bool {
     let mut out = false;
     let mut check = |h: &'static Hook, cx: &StaticCx, _: &EffectDef| {
-        if let Hook::Rule(Rule::CantCastOnStack(f)) = h {
-            out = out || f(game, cx, seat, id, face);
+        for r in rule_parts(h) {
+            if let Rule::CantCastOnStack(f) = r {
+                out = out || f(game, cx, seat, id, face);
+            }
         }
     };
     each_static(game, &mut check);
@@ -775,8 +813,50 @@ pub(crate) fn cant_cast_on_stack(game: &Game, seat: Seat, id: ObjId, face: &Card
 pub(crate) fn cant_lose_or_win(game: &Game, seat: Seat, wins: bool) -> bool {
     let mut out = false;
     each_static(game, &mut |h, cx, _| {
-        if let Hook::Rule(Rule::CantLoseOrWin(f)) = h {
-            out = out || f(game, cx, seat, wins);
+        for r in rule_parts(h) {
+            if let Rule::CantLoseOrWin(f) = r {
+                out = out || f(game, cx, seat, wins);
+            }
+        }
+    });
+    out
+}
+
+/// Whether a rule-modifying handler stops `seat`'s spell or ability from `src` targeting the permanent `id`
+/// (`TARGET`)
+pub(crate) fn cant_be_targeted(game: &Game, seat: Seat, id: ObjId, src: ObjId) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        for r in rule_parts(h) {
+            if let Rule::CantBeTargeted(f) = r {
+                out = out || f(game, cx, seat, id, src);
+            }
+        }
+    });
+    out
+}
+
+/// Whether a rule-modifying handler stops `id` crewing a Vehicle (`CREW_VEHICLE`)
+pub(crate) fn cant_crew(game: &Game, id: ObjId) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        for r in rule_parts(h) {
+            if let Rule::CantCrew(f) = r {
+                out = out || f(game, cx, id);
+            }
+        }
+    });
+    out
+}
+
+/// Whether a rule-modifying handler keeps the damage on `id` through the cleanup step (`REMOVE_DAMAGE_EOT`)
+pub(crate) fn keeps_damage(game: &Game, id: ObjId) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        for r in rule_parts(h) {
+            if let Rule::KeepsDamage(f) = r {
+                out = out || f(game, cx, id);
+            }
         }
     });
     out
@@ -786,8 +866,10 @@ pub(crate) fn cant_lose_or_win(game: &Game, seat: Seat, wins: bool) -> bool {
 pub(crate) fn cant_activate(game: &Game, seat: Seat, id: ObjId, index: usize) -> bool {
     let mut out = false;
     each_static(game, &mut |h, cx, _| {
-        if let Hook::Rule(Rule::CantActivate(f)) = h {
-            out = out || f(game, cx, seat, id, index);
+        for r in rule_parts(h) {
+            if let Rule::CantActivate(f) = r {
+                out = out || f(game, cx, seat, id, index);
+            }
         }
     });
     out
@@ -798,9 +880,11 @@ pub(crate) fn cant_activate(game: &Game, seat: Seat, id: ObjId, index: usize) ->
 pub(crate) fn max_activations(game: &Game, seat: Seat, id: ObjId, index: usize, limit: u32) -> u32 {
     let mut out = limit;
     each_static(game, &mut |h, cx, _| {
-        if let Hook::Rule(Rule::MaxActivations(f)) = h {
-            if let Some(n) = f(game, cx, seat, id, index) {
-                out = n;
+        for r in rule_parts(h) {
+            if let Rule::MaxActivations(f) = r {
+                if let Some(n) = f(game, cx, seat, id, index) {
+                    out = n;
+                }
             }
         }
     });
@@ -813,6 +897,17 @@ pub(crate) fn ignore_hexproof(game: &Game, seat: Seat, t: Target) -> bool {
     each_static(game, &mut |h, cx, _| {
         if let Hook::AsThough(AsThough::Hexproof(f)) = h {
             out = out || f(game, cx, seat, t);
+        }
+    });
+    out
+}
+
+/// Whether an as-though handler lets `id` block Dragons as though it had reach (`BLOCK_DRAGON`)
+pub(crate) fn block_dragon(game: &Game, id: ObjId) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::AsThough(AsThough::BlockDragon(f)) = h {
+            out = out || f(game, cx, id);
         }
     });
     out
