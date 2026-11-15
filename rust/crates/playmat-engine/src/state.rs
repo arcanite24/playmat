@@ -1436,6 +1436,10 @@ pub struct DamageSeen {
     pub to_zcc: u32,
     pub amount: i32,
     pub combat: bool,
+    /// damage to a permanent beyond what was lethal to it as it was dealt (`DamagedEvent.getExcess`: past its
+    /// toughness less its damage, 1 from a deathtouch source, its loyalty or defense); 0 or less for none, and for
+    /// a player
+    pub excess: i32,
 }
 
 /// A permanent that left the battlefield (`ZoneChangeEvent` from it): the object (with its zone-change count as the

@@ -22296,6 +22296,7 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                     to_zcc: 0,
                     amount,
                     combat,
+                    excess: 0,
                 };
                 game.watch.damage.push(seen);
             }
@@ -22355,6 +22356,20 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                 game.damaged_by_source.push((source, o, zcc));
             }
             if amount > 0 {
+                // `PermanentImpl.getLethalDamage` before the damage is marked
+                let mut lethal = i32::MAX;
+                if creature {
+                    lethal = (game.power_toughness(o).1 - game.obj(o).damage).max(0);
+                    if deathtouch {
+                        lethal = lethal.min(1);
+                    }
+                }
+                if planeswalker {
+                    lethal = lethal.min(game.obj(o).counter("loyalty"));
+                }
+                if battle {
+                    lethal = lethal.min(game.obj(o).counter("defense"));
+                }
                 let seen = crate::state::DamageSeen {
                     source,
                     source_zcc: game.obj(source).zcc,
@@ -22363,6 +22378,7 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                     to_zcc: game.obj(o).zcc,
                     amount,
                     combat,
+                    excess: amount.saturating_sub(lethal),
                 };
                 game.watch.damage.push(seen);
             }
