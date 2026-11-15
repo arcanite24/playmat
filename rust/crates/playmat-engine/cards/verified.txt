@@ -940,6 +940,7 @@ Big Score
 Bigfin Bouncer
 Bilbo Baggins, Burglar
 Bilbo's Deadly Slice
+Bilbo's Gambit
 Bilbo, Thief in the Night
 Bile-Vial Boggart
 Bilious Skulldweller
@@ -1126,6 +1127,7 @@ Bloody Betrayal
 Bloom Hulk
 Bloom Tender
 Bloombrute
+Blooming Blast
 Blooming Marsh
 Blooming Stinger
 Bloomvine Regent
@@ -1197,6 +1199,7 @@ Bonecrusher Giant
 Bonehoard Dracosaur
 Bonepicker Skirge
 Bonescythe Sliver
+Bonny Pall, Clearcutter
 Bontu's Last Reckoning
 Bontu's Monument
 Book Devourer
@@ -1651,6 +1654,7 @@ Chainsaw
 Chainwhip Cyclops
 Chalk Outline
 Challenger Troll
+Chameleon, Master of Disguise
 Champion of Arashin
 Champion of Dusan
 Champion of Dusk
@@ -3116,6 +3120,7 @@ Elemental Bond
 Elemental Mascot
 Elemental Masterpiece
 Elemental Summoning
+Elemental Teachings
 Elemental Uprising
 Elementalist Adept
 Elenda, the Dusk Rose
@@ -3923,6 +3928,7 @@ Freejam Regent
 Freestrider Lookout
 Freeze in Place
 Frenzied Arynx
+Frenzied Baloth
 Frenzied Devils
 Frenzied Goblin
 Frenzied Rage
@@ -4389,6 +4395,7 @@ God-Pharaoh's Statue
 Godless Shrine
 Gods Willing
 Gods' Hall Guardian
+Gogo, Master of Mimicry
 Gohn, Town of Ruin
 Gold Pan
 Gold Rush
@@ -4424,6 +4431,7 @@ Gone Missing
 Gongaga, Reactor Town
 Gonti's Aether Heart
 Gonti's Machinations
+Gonti, Lord of Luxury
 Goobbue Gardener
 Good-Fortune Unicorn
 Gore Swine
@@ -4685,6 +4693,7 @@ Hall of Tagsin
 Hallowed Fountain
 Hallowed Respite
 Hallway Heckler
+Halo Fountain
 Halo Hopper
 Halo Scarab
 Halo-Charged Skaab
@@ -5233,6 +5242,7 @@ Incinerating Blast
 Incisor Glider
 Incorrigible Youths
 Incubation // Incongruity
+Incubation Druid
 Incubation Sac
 Incubator Drone
 Incursion Specialist
@@ -5262,6 +5272,7 @@ Inferno Jet
 Infestation Expert
 Infestation Sage
 Infested Fleshcutter
+Infinite Coursework
 Infirmary Healer
 Informed Inkwright
 Infuriate
@@ -5505,6 +5516,7 @@ Jelenn Sphinx
 Jem Lightfoote, Sky Explorer
 Jennika's Technique
 Jennika, Bad Apple Big Sister
+Jenova, Ancient Calamity
 Jeong Jeong's Deserters
 Jeong Jeong, the Deserter
 Jeskai Ascendancy
@@ -5525,6 +5537,7 @@ Jessica Jones, Private Eye
 Jet's Brainwashing
 Jet, Freedom Fighter
 Jetmir's Garden
+Jetmir, Nexus of Revels
 Jewel Thief
 Jhessian Thief
 Jhoira's Familiar
@@ -6105,6 +6118,7 @@ Living Tempest
 Living Totem
 Living Twister
 Lizard Blades
+Lizard, Connors's Curse
 Llanowar Elves
 Llanowar Empath
 Llanowar Envoy
@@ -6594,6 +6608,7 @@ Michiko's Reign of Truth
 Micromancer
 Midgar, City of Mako
 Midnight Assassin
+Midnight Clock
 Midnight Entourage
 Midnight Guard
 Midnight Mayhem
@@ -8296,6 +8311,7 @@ Renegade's Getaway
 Renet, Temporal Apprentice
 Renewed Faith
 Renowned Weaponsmith
+Rent Is Due
 Repair and Recharge
 Repeat Offender
 Repeating Barrage
@@ -8350,6 +8366,7 @@ Restless Fortress
 Restless Prairie
 Restless Reef
 Restless Ridgeline
+Restless Spire
 Restless Vents
 Restless Vinestalk
 Restock
@@ -9946,6 +9963,7 @@ Startled Relic Sloth
 Startling Development
 Starving Revenant
 Starwinder
+Stasis Field
 Stasis Snare
 Static Net
 Static Snare
@@ -10085,6 +10103,7 @@ Stormkeld Vanguard
 Stormplain Detainment
 Stormrider Rig
 Stormrider Spirit
+Stormscale Scion
 Stormshriek Feral
 Stormsplitter
 Stormtide Leviathan
@@ -10666,6 +10685,7 @@ The Haunt of Hightower
 The Hunter Maze
 The Huntsman's Redemption
 The Jolly Balloon Man
+The Last Agni Kai
 The Legend of Kuruk
 The Legend of Kyoshi
 The Legend of Roku
@@ -10944,6 +10964,7 @@ Tome Blast
 Tome Raider
 Tome Scour
 Tome Shredder
+Tome of Legends
 Tome of the Guildpact
 Tomik, Izzet Sparkmage
 Tonberry
@@ -11618,6 +11639,7 @@ Vivisection Evangelist
 Vivisurgeon's Insight
 Vizier of Remedies
 Vizier of Tumbling Sands
+Vizier of the Menagerie
 Vizier of the Scorpion
 Vizkopa Vampire
 Vodalian Arcanist
@@ -11873,6 +11895,7 @@ Weatherlight
 Weave Fate
 Weaver of Blossoms
 Weaver of Currents
+Weaver of Harmony
 Weaver of Lightning
 Web Up
 Web of Life and Destiny
@@ -12050,6 +12073,7 @@ Witherbloom Pledgemage
 Withering Curse
 Withering Torment
 Without Weakness
+Witness Protection
 Witness of Tomorrows
 Witness of the Ages
 Witness the End
