@@ -6,8 +6,8 @@ use super::*;
 
 pub const HANDLERS: &[Handler] = &[Handler::effect("PolygraphOrb.PolygraphOrbEffect", apply)];
 
-/// Each opponent in turn order chooses up to one card in hand to discard (`TargetDiscard(0, 1)`, `Player.choose`),
-/// else up to one creature they control to sacrifice; then each discards, sacrifices or loses 3 life
+/// Each opponent in turn order chooses up to one card in hand to discard (`TargetDiscard(0, 1)`, one
+/// `HumanPlayer.choose`, asked even with none), else up to one creature they control to sacrifice (the same); then each discards, sacrifices or loses 3 life
 fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     let you = cx.controller();
     let n = game.seats();
@@ -15,11 +15,10 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     let mut chosen: Vec<(Seat, Option<ObjId>)> = Vec::new();
     for &p in &opponents {
         let hand = game.player(p).hand.clone();
-        if !hand.is_empty() {
-            if let Some(&c) = choose_cards_rounds(game, d, p, &hand, 0, 1)?.first() {
-                chosen.push((p, Some(c)));
-                continue;
-            }
+        let rule = "discard a card";
+        if let Some(&c) = choose_cards(game, d, p, &hand, &hand, 0, 1, rule)?.first() {
+            chosen.push((p, Some(c)));
+            continue;
         }
         let creatures: Vec<ObjId> = game
             .battlefield
@@ -27,11 +26,9 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
             .copied()
             .filter(|o| game.obj(*o).controller == p && game.has_type(*o, CardType::Creature))
             .collect();
-        if !creatures.is_empty() {
-            if let Some(&c) = choose_cards_rounds(game, d, p, &creatures, 0, 1)?.first() {
-                chosen.push((p, Some(c)));
-                continue;
-            }
+        if let Some(&c) = choose_cards(game, d, p, &creatures, &creatures, 0, 1, "sacrifice a creature")?.first() {
+            chosen.push((p, Some(c)));
+            continue;
         }
         chosen.push((p, None));
     }
