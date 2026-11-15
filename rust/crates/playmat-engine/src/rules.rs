@@ -866,6 +866,7 @@ fn end_step(game: &mut Game, step: Step) {
     }
     for s in 0..game.seats() {
         let kept_kinds = cards::kept_mana_kinds(game, s);
+        let becomes = cards::mana_becomes(game, s);
         let p = game.player_mut(s);
         let keep = if in_combat { p.combat_red.min(p.mana_pool.colored[Color::R.index()]) } else { 0 };
         let (pool, eot, stock) = (p.mana_pool, p.eot_mana, p.mana_stock);
@@ -896,6 +897,15 @@ fn end_step(game: &mut Game, step: Step) {
                 p.mana_pool.colorless = stays;
                 p.mana_stock.colorless = old_stock.min(stays);
                 p.eot_mana.colorless = eot_left;
+            }
+        }
+        // `manaBecomesBlack` / `Red` / `Colorless`: what would empty becomes that kind instead (Kruphix, Ozai)
+        if let Some(b) = becomes {
+            let lost = pool.total().saturating_sub(p.mana_pool.total());
+            if b < 5 {
+                p.mana_pool.colored[b] += lost;
+            } else {
+                p.mana_pool.colorless += lost;
             }
         }
     }
@@ -1365,7 +1375,7 @@ fn pass(game: &mut Game, seat: Seat) {
 /// `YouDontLoseManaEffect` keeps (`ManaPool.canLostManaOnEmpty`). False: the player didn't pass.
 fn pass_with_mana_pool_check(game: &mut Game, d: &mut dyn Decider, seat: Seat) -> bool {
     let pool = game.player(seat).mana_pool;
-    let lost = pool.total() > 0 && {
+    let lost = pool.total() > 0 && cards::mana_becomes(game, seat).is_none() && {
         let kept = cards::kept_mana_kinds(game, seat);
         let kept_n: u32 =
             (0..6).filter(|k| kept[*k]).map(|k| if k < 5 { pool.colored[k] } else { pool.colorless }).sum();

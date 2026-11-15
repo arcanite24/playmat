@@ -25,7 +25,8 @@
 //!   `Rule::CantActivate(f)`: `rules::activatable` (activated abilities that aren't mana abilities);
 //!   `Rule::CantLoseOrWin(f)`: the state-based loss check and `rules::win_game`;
 //!   `Rule::MaxActivations(f)`: a limited activated ability's times each turn (`rules::activatable`);
-//!   `Rule::CantSearchLibrary(f)`: a library search (`rules::search_library` finds nothing).
+//!   `Rule::CantSearchLibrary(f)`: a library search (`rules::search_library` finds nothing);
+//!   `Rule::ManaBecomes(f)`: unspent mana changes kind instead of emptying (`rules::end_step`).
 //! - **as-though**: `Handler::as_though(name, AsThough::Flash(f))`: `rules::castable`'s timing;
 //!   `AsThough::Haste(f)`: a {T} cost's summoning sickness (`rules::can_pay_cost`, mana abilities);
 //!   `AsThough::ActivateAsInstant(f)`: a sorcery-speed activated ability's timing (`rules::activatable`);
@@ -389,6 +390,9 @@ pub(crate) enum Rule {
     /// `SEARCH_LIBRARY`: `seat` can't search the library of `owner` for the spell or ability of `source`
     /// (`PlayerImpl.searchLibrary` returns false: nothing is found, the effect goes on)
     CantSearchLibrary(fn(&Game, &StaticCx, Seat, Seat, ObjId) -> bool),
+    /// `ManaPool.setManaBecomesBlack` / `Red` / `Colorless` (a `RulesEffects` continuous effect): the mana `seat`
+    /// would lose as steps and phases end becomes this kind instead (WUBRG 0-4, colorless 5); None leaves it
+    ManaBecomes(fn(&Game, &StaticCx, Seat) -> Option<usize>),
 }
 
 /// `YouDontLoseManaEffect`'s `addDoNotEmptyManaType`: the kinds of `seat`'s mana (WUBRG, then colorless) the pool
@@ -803,6 +807,20 @@ pub(crate) fn cant_search_library(game: &Game, seat: Seat, owner: Seat, source: 
         }
     });
     out
+}
+
+/// The kind `seat`'s unspent mana becomes instead of emptying, if a handler says so (`ManaPool.emptyItem` checks
+/// black, then red, then colorless)
+pub(crate) fn mana_becomes(game: &Game, seat: Seat) -> Option<usize> {
+    let mut kinds = [false; 6];
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::Rule(Rule::ManaBecomes(f)) = h {
+            if let Some(k) = f(game, cx, seat) {
+                kinds[k] = true;
+            }
+        }
+    });
+    [2, 3, 5].into_iter().find(|k| kinds[*k])
 }
 
 /// The most times `seat` may activate the ability at `index` of `id` this turn: `limit`, unless a handler changes it
