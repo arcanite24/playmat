@@ -7094,6 +7094,10 @@ def copies_spells_only(card):
     walk(card)
 
 
+# set while a card that didn't translate is tried again with its constants written in (`inline_constants`)
+INLINE_CONSTANTS = False
+
+
 def inline_constants(source):
     """A card's `static final String X = "…";` constants written in where they are used (Exava's `rule`), and a
     `NamePredicate` of a filter's own message as that text (Vraska's Scorn)"""
@@ -7123,7 +7127,9 @@ def translate(card_name, subtypes, facts):
         path = os.path.join(SETS, cls[0].lower(), cls + '.java')
     if not os.path.exists(path):
         raise Unsupported('no card class ' + cls)
-    source = inline_constants(open(path).read())
+    source = open(path).read()
+    if INLINE_CONSTANTS:
+        source = inline_constants(source)
     if 'extends ModalDoubleFacedCard' in re.search(r'public (?:final )?class \w+\s+extends \w+', source).group(0):
         return modal_double_faced(card_name, subtypes, facts, cls, source)
     if 'extends TransformingDoubleFacedCard' in re.search(r'public (?:final )?class \w+\s+extends \w+', source).group(0):
@@ -9434,7 +9440,18 @@ OTHERWISE_TEXTS = {'Rent Is Due': [('. Otherwise, sacrifice', ". If you don't, s
 def translate_card(name, subtypes, facts):
     """`translate` and what follows it for every card: the card's JSON as cards.json has it"""
     # a `CompositeCost` anywhere (a spell's "you may pay", a face's ability) becomes its parts
-    card = flatten_composite_costs(translate(name, subtypes, facts))
+    global INLINE_CONSTANTS
+    try:
+        card = translate(name, subtypes, facts)
+    except Unsupported:
+        # again with the card's string constants written in where it uses them (only for a card that doesn't
+        # translate as it is, so no other card's arguments change)
+        INLINE_CONSTANTS = True
+        try:
+            card = translate(name, subtypes, facts)
+        finally:
+            INLINE_CONSTANTS = False
+    card = flatten_composite_costs(card)
     if EXTRA.get(card['name'], {}).get('set'):
         card['set'] = EXTRA[card['name']]['set']
     granted_rules(card)
