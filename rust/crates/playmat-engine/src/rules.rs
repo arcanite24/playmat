@@ -803,7 +803,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             }
             // `BeginningOfStepTriggeredAbility` points at the active player: "that player mills three cards" (Manic
             // Scribe), "deals 1 damage to that player" (Gibbering Fiend), "that player draws an additional card"
-            // (Dictate of Kruphix), with no target of its own
+            // (Dictate of Kruphix), "they lose 3 life" (Shrieking Affliction), with no target of its own
             let mut fired = fired;
             for t in fired.iter_mut() {
                 let a = t.ability.and_then(|(i, _)| game.item_def(t).abilities.get(i));
@@ -815,6 +815,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                                 EffectDef::MillCardsTargetEffect { .. }
                                     | EffectDef::DamageTargetEffect { .. }
                                     | EffectDef::DrawCardTargetEffect { .. }
+                                    | EffectDef::LoseLifeTargetEffect { .. }
                             )
                         })
                     {
