@@ -9686,15 +9686,23 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
     // with it still on the stack, then `GameImpl.resolve` removes it and the one left has won. Its controller winning ("you win the game": Mechanized Production) is the same: the last opponent's
     // `lostForced` ends the game, and traces its end, before `this.wins` is set.
     if game.over && !was_over {
-        let ended =
-            |i: &StackItem| i.ability.is_some() && (game.player(i.controller).lost || game.player(i.controller).won);
+        // (a spell too, Approach of the Second Sun's "you win the game": it's still on the stack, not yet put into
+        // its owner's graveyard)
+        let ended = |i: &StackItem| {
+            (i.ability.is_some() || i.delayed.is_none() && game.obj(i.card).zone == Zone::Stack)
+                && (game.player(i.controller).lost || game.player(i.controller).won)
+        };
         if let Some(item) = game.resolving_item.clone().filter(ended) {
             for s in 0..game.seats() {
                 game.player_mut(s).won = false;
             }
-            Arc::make_mut(&mut game.stack).push(item);
+            Arc::make_mut(&mut game.stack).push(item.clone());
             traced(game, d);
             Arc::make_mut(&mut game.stack).pop();
+            // (then the spell's resolution ends: it's put into its owner's graveyard)
+            if item.ability.is_none() && item.delayed.is_none() && game.obj(item.card).zone == Zone::Stack {
+                game.move_to(item.card, Zone::Graveyard);
+            }
             let alive: Vec<Seat> = (0..game.seats()).filter(|s| !game.player(*s).lost).collect();
             if let [w] = alive[..] {
                 game.player_mut(w).won = true;
@@ -9993,7 +10001,8 @@ fn resolve_popped(game: &mut Game, d: &mut dyn Decider) {
             }
         }
     }
-    if game.obj(id).zone == Zone::Stack {
+    // (not once its effects ended the game: Java's game ends with the spell still on the stack)
+    if game.obj(id).zone == Zone::Stack && !game.over {
         // an adventure goes on an adventure: exiled, its creature castable from there
         if game.obj(id).adventurer.as_ref().is_some_and(|f| f.adventure.is_some())
             && !game.obj(id).flashback
