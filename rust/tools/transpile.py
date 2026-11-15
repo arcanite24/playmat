@@ -507,6 +507,11 @@ CUSTOM = {
         'class': 'TriggeredAbility', 'java': 'KishlaSkimmerTriggeredAbility',
         'on': {'e': 'card_leaves_your_graveyard', 'your_turn': True},
         'effects': [{'class': 'DrawCardSourceControllerEffect', 'amount': 1}]},
+    # "whenever a source deals damage to you, remove a filibuster counter from this" (each `DAMAGED_PLAYER`)
+    'AzorsElocutorsTriggeredAbility': lambda: {
+        'class': 'TriggeredAbility', 'java': 'AzorsElocutorsTriggeredAbility',
+        'on': {'e': 'damaged_permanent', 'of': 'to_you_any'},
+        'effects': [{'class': 'RemoveCounterSourceEffect', 'counter': {'name': 'filibuster', 'amount': 1}}]},
     # Vanquisher's Banner: "whenever you cast a creature spell of the chosen type, draw a card"
     'DrawCardIfCreatureTypeAbility': lambda: {
         'class': 'TriggeredAbility', 'java': 'DrawCardIfCreatureTypeAbility',
