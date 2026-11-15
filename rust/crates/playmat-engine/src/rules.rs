@@ -15612,7 +15612,12 @@ fn apply_each_effect(
             EffectDef::ReturnToHandSourceEffect { battlefield_only } => {
                 let (o, zcc) = source;
                 let z = game.obj(o).zone;
-                if game.obj(o).zcc == zcc
+                // (Java's dies-attached ones return it from the zone it went to next, `returnFromNextZone`: Draconic
+                // Destiny's Aura put into the graveyard after its creature died)
+                let next = matches!(game.trigger_of(item), Some(crate::card::Trigger::DiesAttached { .. }))
+                    && !*battlefield_only
+                    && matches!(z, Zone::Graveyard | Zone::Exile);
+                if (game.obj(o).zcc == zcc || next && game.obj(o).zcc == zcc + 1)
                     && (z == Zone::Battlefield || !*battlefield_only && matches!(z, Zone::Graveyard | Zone::Exile))
                 {
                     game.move_to(o, Zone::Hand);
