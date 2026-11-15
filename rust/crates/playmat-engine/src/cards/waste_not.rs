@@ -21,17 +21,17 @@ pub const HANDLERS: &[Handler] = &[
     ),
 ];
 
-/// `DISCARDED_CARD` by an opponent (the base), of a creature card
+/// `DISCARDED_CARD` by an opponent (the base), of a creature card (checked as it triggers, as Java's `checkTrigger`)
 fn creature(game: &Game, t: &StackItem) -> bool {
-    t.discarded.is_some_and(|c| game.has_type(c, CardType::Creature))
+    game.checking_item.is_none() || t.discarded.is_some_and(|c| game.has_type(c, CardType::Creature))
 }
 
 /// of a land card
 fn land(game: &Game, t: &StackItem) -> bool {
-    t.discarded.is_some_and(|c| game.has_type(c, CardType::Land))
+    game.checking_item.is_none() || t.discarded.is_some_and(|c| game.has_type(c, CardType::Land))
 }
 
 /// of a card neither a land nor a creature
 fn other(game: &Game, t: &StackItem) -> bool {
-    t.discarded.is_some_and(|c| !game.has_type(c, CardType::Land) && !game.has_type(c, CardType::Creature))
+    game.checking_item.is_none() || t.discarded.is_some_and(|c| !game.has_type(c, CardType::Land) && !game.has_type(c, CardType::Creature))
 }
