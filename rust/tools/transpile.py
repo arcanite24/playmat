@@ -3654,7 +3654,8 @@ class Translator:
             return {'class': cls, 'amount': self.amount(args[1]), 'controller': self.value('target_controller', args[2].strip())}
         # a card's own delayed triggered ability with an event trigger (a trigger handler for its class): it waits for
         # its event, pointing where this ability points
-        if cls == 'CreateDelayedTriggeredAbilityEffect' and len(args) == 1 \
+        if cls == 'CreateDelayedTriggeredAbilityEffect' \
+                and (len(args) == 1 or len(args) == 2 and args[1].strip() == 'false') \
                 and (m := re.fullmatch(r'new (\w+)\((.*)\)', canonical(args[0].strip()), re.S)) \
                 and (dc := delayed_class(getattr(self, 'source', None), m.group(1))) is not None \
                 and card_handlers.find(getattr(self, 'source', None), m.group(1), 'trigger', True):
@@ -3671,6 +3672,9 @@ class Translator:
                 out['end_of_turn'] = True
             if dc['once']:
                 out['once'] = True
+            # `copyTargets` false: it points at nothing until its trigger sets a pointer
+            if len(args) == 2:
+                out['no_copy_targets'] = True
             return out
         # "at the beginning of the next end step, …": its effects then
         if cls == 'CreateDelayedTriggeredAbilityEffect' and len(args) == 2 and args[1].strip() == 'false':
