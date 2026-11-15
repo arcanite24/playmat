@@ -2851,8 +2851,9 @@ class Translator:
         m = re.fullmatch(r'new MeldEffect\("([^"]+)","([^"]+)"(?:,(true|false))?\)', canonical(self.strip_setters(expr.strip())))
         if m:
             return {'class': 'MeldEffect', 'with': m.group(1), 'into': {'meld': m.group(2)}, 'attacking': m.group(3) == 'true'}
-        # an enchantment that becomes a creature keeps its creature types by default (`keepCreatureSubtypes`)
-        m = re.fullmatch(r'(new BecomesCreatureSourceEffect\(.*,\s*CardType\.ENCHANTMENT\s*,[^,]*\))'
+        # an enchantment that becomes a creature keeps its creature types by default (`keepCreatureSubtypes`); so does
+        # an artifact, which has none to lose (Haunted Screen)
+        m = re.fullmatch(r'(new BecomesCreatureSourceEffect\(.*,\s*CardType\.(?:ENCHANTMENT|ARTIFACT)\s*,[^,]*\))'
                          r'\.withKeepCreatureSubtypes\(true\)', self.strip_setters(expr.strip()), re.S)
         if m and balanced(m.group(1)):
             return self.effect(m.group(1))
