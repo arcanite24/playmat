@@ -59,6 +59,7 @@ Accorder's Shield
 Accumulate Wisdom
 Accursed Horde
 Accursed Spirit
+Acererak the Archlich
 Acid-Spewer Dragon
 Acolyte of Aclazotz
 Acolyte of Affliction
@@ -592,6 +593,7 @@ Assassin's Ink
 Assassin's Strike
 Assassin's Trophy
 Assault Drone
+Assault Formation
 Assault Griffin
 Assemble the Legion
 Assembled Alphas
@@ -889,6 +891,7 @@ Befuddle
 Behind the Scenes
 Behold the Beyond
 Behold the Multiverse
+Behold the Sinister Six!
 Beifong's Bounty Hunters
 Bejeweled Warg
 Belladonna Took
@@ -1464,6 +1467,7 @@ Call In a Professional
 Call a Surprise Witness
 Call for Unity
 Call of the Conclave
+Call of the Death-Dweller
 Call of the Full Moon
 Call of the Nightwing
 Call the Bloodline
@@ -1549,6 +1553,7 @@ Carrion Cruiser
 Carrion Imp
 Carrion Locust
 Carrion Screecher
+Carrot Cake
 Cartographer's Companion
 Cartographer's Survey
 Cartouche of Ambition
@@ -2320,6 +2325,7 @@ Daring Mechanic
 Daring Saboteur
 Daring Skyjek
 Daring Sleuth
+Daring Thief
 Daring Thunder-Thief
 Daring Waverider
 Dark Bargain
@@ -3022,6 +3028,7 @@ Earth Kingdom General
 Earth Kingdom Jailer
 Earth Kingdom Protectors
 Earth Kingdom Soldier
+Earth Rumble
 Earth Rumble Wrestlers
 Earth Village Ruffians
 Earth's Mightiest Heroes
@@ -5148,6 +5155,7 @@ Icewind Elemental
 Ichor Drinker
 Ichor Shade
 Ichor Synthesizer
+Ichormoon Gauntlet
 Ichorspit Basilisk
 Ichthyomorphosis
 Icingdeath, Frost Tyrant
@@ -5554,6 +5562,7 @@ Joraga Invocation
 Joraga Visionary
 Jori En, Ruin Diver
 Jorubai Murk Lurker
+Joshua, Phoenix's Dominant
 Josu Vess, Lich Knight
 Journey to Oblivion
 Joust
@@ -6009,6 +6018,7 @@ Leyline of the Void
 Liberating Combustion
 Library Larcenist
 Lich's Caress
+Lich's Mastery
 Lich's Relic
 Lie in Wait
 Liesa, Forgotten Archangel
@@ -8544,6 +8554,7 @@ Rogue Artificial Intelligence
 Rogue Refiner
 Rogue's Gloves
 Rogue's Passage
+Rogues' Gallery
 Roil Eruption
 Roil Spout
 Roil's Retribution
@@ -8644,6 +8655,7 @@ Run Afoul
 Run Aground
 Run Amok
 Run Ashore
+Run Away Together
 Run Behind
 Run Out of Town
 Run Over
@@ -9005,6 +9017,7 @@ Secret Identity
 Secret Plans
 Secret Rendezvous
 Secret Salvage
+Secret Tunnel
 Secrets of the Key
 Secure the Scene
 Secure the Wastes
