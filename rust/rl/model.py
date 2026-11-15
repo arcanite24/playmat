@@ -97,16 +97,44 @@ class Critic(nn.Module):
         return self.value(h).squeeze(-1)
 
 
+class CardEmb(nn.Module):
+    """The name embedding, plus (with `text`) a learned projection of the fixed card-text rows (`cardtext.py`):
+    `weight[id] + text[id] @ proj`. `export` writes the sum as one table, so `net.rs` sees a plain embedding."""
+
+    def __init__(self, dim, text=False):
+        super().__init__()
+        self.weight = nn.Parameter(torch.randn(BUCKETS, dim))
+        if text:
+            import numpy as np
+            import os
+
+            rows = np.load(os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "cardtext.npy"))
+            self.register_buffer("text", torch.from_numpy(rows.astype("float32")))
+            self.proj = nn.Parameter(torch.zeros(rows.shape[1], dim))
+        else:
+            self.text = None
+
+    def table(self):
+        return self.weight if self.text is None else self.weight + self.text @ self.proj
+
+    def forward(self, ids):
+        if self.text is None:
+            return F.embedding(ids, self.weight)
+        return F.embedding(ids, self.weight) + F.embedding(ids, self.text) @ self.proj
+
+
 class Tx(nn.Module):
     """The transformer network (#400 R2): a global token and one token per entity through `layers` pre-norm
     self-attention blocks; each candidate attends to the tokens once. Same outputs as `Net`. `net.rs` (`Tx`) runs it
     in plain Rust; everything here is written out by hand so the two match exactly."""
 
-    def __init__(self, d=128, heads=4, layers=3, ff=256, dim=32, trunk=128):
+    def __init__(self, d=128, heads=4, layers=3, ff=256, dim=32, trunk=128, text=0):
         super().__init__()
         self.cfg = {"d": d, "heads": heads, "layers": layers, "ff": ff, "dim": dim, "trunk": trunk}
+        if text:
+            self.cfg["text"] = 1
         self.heads = heads
-        self.emb = nn.Embedding(BUCKETS, dim)
+        self.emb = CardEmb(dim, bool(text))
         self.ent_in = nn.Linear(dim + ENT_F, d)
         self.glob_in = nn.Linear(GLOB_F, d)
         self.blocks = nn.ModuleList()
@@ -210,8 +238,11 @@ def export(net, path, meta=None):
     """Writes the `.pmnet` file `net.rs` reads: a JSON header line, then little-endian f32 tensors"""
     sd = {k: v.detach().float().cpu() for k, v in net.state_dict().items()}
     if isinstance(net, Tx):
-        names = list(sd.keys())
-        header = {"arch": "tx", "config": net.cfg, "tensors": [[k, list(sd[k].shape)] for k in names], "meta": meta or {}}
+        # the card-text projection folded into the name embedding
+        sd["emb.weight"] = net.emb.table().detach().float().cpu()
+        names = [k for k in sd if k not in ("emb.text", "emb.proj")]
+        cfg = {k: v for k, v in net.cfg.items() if k != "text"}
+        header = {"arch": "tx", "config": cfg, "tensors": [[k, list(sd[k].shape)] for k in names], "meta": meta or {}}
     else:
         names = []
         for t in TENSORS:
