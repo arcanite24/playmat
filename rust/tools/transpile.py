@@ -2137,6 +2137,10 @@ class Translator:
             if m.group(3):
                 out['filter'] = [p for p in self.filter(m.group(3)) if p != {'p': 'owner', 'who': 'you'}]
             return out
+        # "exile a creature you control" (The Soul Stone; not into the source's exile zone)
+        if (m := re.fullmatch(r'new ExileTargetCost\(new TargetControlledPermanent\((StaticFilters\.\w+)\)\)'
+                              r'\.withSourceExileZone\(false\)', canonical(expr))):
+            return {'class': 'ExileTargetCost', 'filter': self.filter(m.group(1))}
         # "discard a card (of the filter)"
         if (m := re.fullmatch(r'new DiscardTargetCost\(new TargetCardInHand\((?!\d)(.*)\)\)', canonical(expr))):
             return {'class': 'DiscardCardCost', 'filter': self.filter(m.group(1)) if m.group(1) else []}
@@ -2866,6 +2870,25 @@ class Translator:
         expr = re.sub(r'\.setTargetPointer\(new EachTargetPointer\(\)\)((?:\.setText\(.*\))?)$', r'\1', expr.strip(), flags=re.S)
         # the first target is the default target pointer
         expr = re.sub(r'\.setTargetPointer\(new FirstTargetPointer\(\)\)((?:\.setText\(.*\))?)$', r'\1', expr.strip(), flags=re.S)
+        # exile, then return, then an effect that doesn't read the target pointer (`withAfterEffect`: Splash
+        # Portal's conditional draw), only once something was exiled
+        m = re.fullmatch(r'(new ExileThenReturnTargetEffect\((?:true|false),(?:true|false)\))\.withAfterEffect\((new ConditionalOneShotEffect\(new DrawCardSourceControllerEffect\(\d+\),.*\))\)',
+                         canonical(self.strip_setters(expr)), re.S)
+        if m and balanced(m.group(2)):
+            return {'class': 'Effects', 'effects': [self.effect(m.group(1)), self.effect(m.group(2))]}
+        # exile, then return with +1/+1 counters (`withEnterWithCounters`: Daydream, Planar Incision)
+        m = re.fullmatch(r'(new ExileThenReturnTargetEffect\((?:true|false),(?:true|false)\))'
+                         r'\.withEnterWithCounters\(CounterType\.P1P1\.createInstance\((\d*)\)\)',
+                         canonical(self.strip_setters(expr)))
+        # (a card with its own handler for it, Lilysplash Mentor, keeps that)
+        if m and (e := self.effect(m.group(1))).get('class') in ('ExileThenReturnTargetEffect',
+                                                                 'ExileThenReturnUnderTargetEffect'):
+            if e.get('class') == 'ExileThenReturnTargetEffect':
+                e = {'class': 'ExileThenReturnUnderTargetEffect', 'your_control': False, 'tapped': False}
+            if e.get('attacking'):
+                raise Unsupported('effect ' + expr)
+            e['p1p1'] = int(m.group(2) or 1)
+            return e
         # the ability's second target (`SecondTargetPointer`): counters put on it
         m = re.fullmatch(r'(new AddCountersTargetEffect\(.*\))\.setTargetPointer\(new SecondTargetPointer\(\)\)', canonical(self.strip_setters(expr)), re.S)
         if m:
@@ -3780,6 +3803,29 @@ class Translator:
             # sacrifice {this}."
             if canonical(args[0].strip()) == 'new AtTheEndOfCombatDelayedTriggeredAbility(new SacrificeSourceEffect())':
                 return {'class': 'SacrificeSourceAtEndOfCombatEffect'}
+            # any other "at end of combat, …" (Runaway Carriage, Conqueror's Galleon, Fortune): its text is the
+            # trigger phrase ("At end of combat, " unless set) and the effect's text, as `TriggeredAbilityImpl.getRule`
+            m = re.fullmatch(r'new AtTheEndOfCombatDelayedTriggeredAbility\((.*)\)\.setTriggerPhrase\("([^"]*)"\)',
+                             canonical(args[0].strip()), re.S) \
+                or re.fullmatch(r'new AtTheEndOfCombatDelayedTriggeredAbility\((.*)\)()', canonical(args[0].strip()), re.S)
+            if m and balanced('x(' + m.group(1) + ')') and len(args) == 1:
+                inner = m.group(1)
+                text = None
+                t = re.fullmatch(r'(new \w+\(.*\))\.setText\("([^"]*)"\)', inner, re.S)
+                if t and balanced(t.group(1)):
+                    text = t.group(2)
+                elif (c := re.fullmatch(r'new (\w+)\(\)', inner)):
+                    text = class_static_text(getattr(self, 'source', None), c.group(1))
+                elif (c := re.fullmatch(r'new ExileAndReturnSourceEffect\(PutCards\.(BATTLEFIELD|BATTLEFIELD_TRANSFORMED),'
+                                        r'Pronoun\.IT,(true|false)\)', inner)):
+                    text = 'exile {this}, then return it to the battlefield%s under %s control' % (
+                        ' transformed' if c.group(1) == 'BATTLEFIELD_TRANSFORMED' else '',
+                        'your' if c.group(2) == 'true' else "its owner's")
+                if text is None:
+                    raise Unsupported('delayed ability ' + args[0])
+                phrase = m.group(2) if m.group(0).endswith('.setTriggerPhrase("%s")' % m.group(2)) else 'At end of combat, '
+                return {'class': 'CreateEndOfCombatDelayedEffect', 'effects': [self.effect(inner)],
+                        'rule': phrase + text + '.'}
             if args[0].strip() == 'new AddCounterNextSpellDelayedTriggeredAbility()':
                 return {'class': 'CreateNextCreatureSpellDelayedEffect', 'amount': 1,
                         'rule': 'When you next cast a creature spell this turn, that creature enters with an '
@@ -6810,6 +6856,11 @@ class Translator:
         if cls == 'BecomesRenownedAllTriggeredAbility' and n in (2, 3):
             return out({'e': 'becomes_renowned_all', 'filter': self.filter(args[1])}, args[0], n == 3 and flag(args[2]),
                        True)
+        # "when {this} becomes renowned" (`BecomesRenownedSourceTriggeredAbility(effect, optional)`): the source's
+        # own `BECOMES_RENOWNED`
+        if cls == 'BecomesRenownedSourceTriggeredAbility' and n == 2 and args[1] in ('true', 'false'):
+            return out({'e': 'becomes_renowned_all', 'filter': [{'p': 'not', 'x': {'p': 'another'}}]}, args[0],
+                       flag(args[1]))
         # a card's own `CREATED_TOKEN` trigger (effect, filter, whose token[, optional]), pointing at the token
         if cls == 'TokenCreatedTriggeredAbility' and n in (3, 4):
             if args[2].strip() not in TARGET_CONTROLLERS:
@@ -6956,6 +7007,11 @@ class Translator:
         # a `DynamicValue` (`AuraAttachedCount count = new AuraAttachedCount(2)`): read where it's used
         if re.search(r'(Count|Value)$', cls):
             self.values[var] = expr
+            return
+        # a local condition (`IsPhaseCondition condition = new IsPhaseCondition(…)`, Closing Statement): read where
+        # it's used, as a declared one is
+        if cls.endswith('Condition') and isinstance(getattr(self, 'conditions', None), dict):
+            self.conditions[var] = expr.strip()
             return
         if cls == 'Mode':
             args = self.new_expr(expr)[1]
@@ -9325,6 +9381,23 @@ def granted_rules(card):
             for v in x:
                 walk(v, rule, seen)
     walk(card, '', [0])
+    # a harnessed triggered ability (`GainHarnessedAbilitySourceEffect` of a trigger, The Mind Stone): the engine
+    # triggers only a card's own abilities, so the trigger is the card's, under "while {this} is harnessed"
+    abilities = card.get('abilities')
+    if isinstance(abilities, list):
+        for k, a in enumerate(abilities):
+            effects = a.get('effects') if isinstance(a, dict) and a.get('class') == 'SimpleStaticAbility' else None
+            if not effects or len(effects) != 1 or effects[0].get('class') != 'CardStatic' \
+                    or effects[0].get('handler') != 'GainHarnessedAbilitySourceEffect':
+                continue
+            given = effects[0].get('abilities', [])
+            if len(given) != 1 or given[0].get('class') != 'TriggeredAbility':
+                continue
+            t = dict(given[0])
+            gate = {'c': 'card', 'handler': 'HarnessedSourceCondition'}
+            t['trigger_condition'] = {'c': 'and', 'xs': [t['trigger_condition'], gate]} \
+                if t.get('trigger_condition') else gate
+            abilities[k] = t
 
 
 def reflexive_rules(card):
