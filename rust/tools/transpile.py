@@ -131,6 +131,7 @@ EFFECTS = {
     'PhaseOutTargetEffect': [],
     'PhaseOutSourceEffect': [],
     'CantAttackAloneSourceEffect': [],
+    'CantBlockAloneSourceEffect': [],
     'MayTapOrUntapTargetEffect': [],
     'UntapTargetEffect': [(None, 'string')],
     'TapSourceEffect': [(None, 'bool')],
@@ -3390,6 +3391,11 @@ class Translator:
                 and args[2].strip().startswith('new '):
             return {'class': cls, 'amount': int(args[0]), 'filter': self.filter(args[1]), 'optional': True,
                     'otherwise': self.effect(args[2])}
+        # (Patient Naturalist: "If you don't, create a Treasure token", not optional)
+        if cls == 'MillThenPutInHandEffect' and len(args) == 4 and re.fullmatch(r'\d+', args[0].strip()) \
+                and args[2].strip().startswith('new ') and args[3].strip() in ('true', 'false'):
+            return {'class': cls, 'amount': int(args[0]), 'filter': self.filter(args[1]),
+                    'optional': args[3].strip() == 'true', 'otherwise': self.effect(args[2])}
         # "up to M of them" (Smuggler's Surprise): `(n, filter, null, optional, M)`
         if cls == 'MillThenPutInHandEffect' and len(args) == 5 and re.fullmatch(r'\d+', args[0].strip()) \
                 and args[2].strip() == 'null' and re.fullmatch(r'\d+', args[4].strip()):
@@ -3464,6 +3470,9 @@ class Translator:
         if cls == 'AddCountersSourceEffect' and len(args) == 2:
             return {'class': cls, 'counter': self.value('counter', args[0].strip()), 'amount': self.amount(args[1])}
         # investigate: create a Clue
+        # "target player investigates": each target player creates a Clue
+        if cls == 'InvestigateTargetEffect' and not args:
+            return {'class': 'CreateTokenTargetEffect', 'token': token('ClueArtifactToken')}
         if cls == 'InvestigateEffect' and len(args) <= 1 and args != ['true'] and args != ['false']:
             return {'class': 'CreateTokenEffect', 'token': token('ClueArtifactToken'),
                     'amount': self.value('amount', args[0]) if args else 1}
