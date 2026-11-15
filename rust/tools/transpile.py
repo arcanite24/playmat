@@ -627,6 +627,11 @@ CUSTOM = {
         'class': 'TapForManaAllTriggeredManaAbility', 'java': 'ForsakenMonumentTriggeredManaAbility',
         'filter': [], 'color': 'C', 'colorless_made': True,
         'rule': 'Whenever you tap a permanent for {C}, add an additional {C}.'},
+    # Nissa, Who Shakes the World: the same for a Forest and {G}
+    'NissaWhoShakesTheWorldTriggeredAbility': lambda: {
+        'class': 'TapForManaAllTriggeredManaAbility', 'java': 'NissaWhoShakesTheWorldTriggeredAbility',
+        'filter': [{'p': 'subtype', 's': 'Forest'}, YOU], 'color': 'G',
+        'rule': 'Whenever you tap a Forest for mana, add an additional {G}.'},
     'MasterOfBarbsTriggeredAbility': lambda: {
         'class': 'DamagedOpponentsNoncombatTriggeredAbility', 'java': 'MasterOfBarbsTriggeredAbility',
         'effects': [{'class': 'BoostControlledEffect', 'power': 1, 'toughness': 0, 'duration': 'EndOfTurn',
@@ -2843,6 +2848,11 @@ class Translator:
         if m and balanced(m.group(1)) and len(a := split_args(m.group(2))) == 4 and a[2].strip() == 'false' \
                 and ('CreatureToken(' in a[0] or 'CreatureToken(' in getattr(self, 'sources', {}).get(a[0].strip(), '')):
             expr = m.group(1)
+        # `BecomesCreatureTargetEffect(token, lose, false, duration).withKeepPriorTypes(true)`: "in addition to its
+        # other types", the prior types kept as "it's still a land" keeps them (`keepPriorTypes`; the text is set)
+        m = re.fullmatch(r'\s*new BecomesCreatureTargetEffect\((.*)\)\.withKeepPriorTypes\(true\)(.*)', expr, re.S)
+        if m and balanced('x(' + m.group(1) + ')') and len(a := split_args(m.group(1))) == 4 and a[2].strip() == 'false':
+            expr = 'new BecomesCreatureTargetEffect(' + ','.join([a[0], a[1], 'true', a[3]]) + ')' + m.group(2)
         # an enum constant's effect (`XEffectType.DISCARD.makeEffect()`, Lord Xander's): the handler
         # `Outer.XEffectType.DISCARD`
         if (m := re.fullmatch(r'(\w+\.[A-Z][A-Z0-9_]*)\.makeEffect\(\)', expr.strip())) \

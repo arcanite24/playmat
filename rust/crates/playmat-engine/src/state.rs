@@ -775,6 +775,8 @@ pub struct StackItem {
     pub discarded: Option<ObjId>,
     /// the cards its `RevealTargetFromHandCost` revealed, in the order chosen (`getRevealedCards`)
     pub cost_revealed: Vec<ObjId>,
+    /// the cards its `ExileFromGraveCost` exiled, in the order chosen (`ExileFromGraveCost.getExiledCards`)
+    pub cost_exiled: Vec<ObjId>,
     /// an explore trigger: the creature that explored and the card it revealed (`ExploredEvent.getCard`; none with
     /// an empty library)
     pub explored: Option<(ObjId, Option<ObjId>)>,
@@ -881,6 +883,7 @@ impl StackItem {
             cost_discarded: Vec::new(),
             discarded: None,
             cost_revealed: Vec::new(),
+            cost_exiled: Vec::new(),
             explored: None,
             batch: Vec::new(),
             from_delayed: None,
