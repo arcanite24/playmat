@@ -2878,6 +2878,15 @@ class Translator:
             e = self.effect(m.group(1) + m.group(2))
             if e.get('class') in ('DamageTargetEffect', 'DestroyTargetEffect'):
                 return {'class': 'EachTargetEffect', 'effect': e}
+        # an ability given to each target of the ability's several targets (Arm the Cathars' "Those creatures gain
+        # vigilance": its three target slots)
+        m = re.fullmatch(r'(new GainAbilityTargetEffect\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\))'
+                         r'\.setTargetPointer\(new EachTargetPointer\(\)\)((?:\.setText\(.*\))?)',
+                         canonical(expr.strip()), re.S)
+        if m and len(re.findall(r'\.addTarget\(', getattr(self, 'source', None) or '')) > 1:
+            e = self.effect(m.group(1) + m.group(2))
+            if e.get('class') == 'GainAbilityTargetEffect':
+                return {'class': 'EachTargetEffect', 'effect': e}
         # every target (the one target a duel's "for each opponent" adjuster leaves)
         expr = re.sub(r'\.setTargetPointer\(new EachTargetPointer\(\)\)((?:\.setText\(.*\))?)$', r'\1', expr.strip(), flags=re.S)
         # the first target is the default target pointer
