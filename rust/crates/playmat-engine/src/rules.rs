@@ -17895,6 +17895,19 @@ fn apply_each_effect(
                         put_counters(game, o, "+1/+1", *amount, controller);
                     }
                     game.obj_mut(o).marks.push("renowned".into());
+                    // `BECOMES_RENOWNED` (fired after its counters'): "whenever a permanent of the filter becomes
+                    // renowned"
+                    let sources = game.trigger_sources();
+                    let fired = game.triggers(sources, |g, src, you, t| {
+                        matches!(t, Trigger::BecomesRenownedAll { filter } if g.filter_matches(filter, you, Some(src), o))
+                    });
+                    for mut t in fired {
+                        if set_target_pointer(game, &t) {
+                            t.targets = vec![vec![Target::Obj(o)]];
+                            t.target_zcc = vec![vec![zcc]];
+                        }
+                        game.pending.push(t);
+                    }
                 }
             }
             EffectDef::SagaReadAheadEffect { max } => {
@@ -19297,7 +19310,23 @@ fn sacrifice(game: &mut Game, id: ObjId) {
 /// How many counters are put on `o` for `n` that `by` (if known) would put, by an effect or not: the `ADD_COUNTERS`
 /// replacement effects that apply (`ModifyCountersAddedEffect`), in battlefield order; with two or more, the player
 /// putting them is asked their order (the answers change nothing yet)
-fn counters_to_add(game: &Game, o: ObjId, name: &str, n: i32, by: Option<Seat>, effect: bool) -> i32 {
+fn counters_to_add(game: &mut Game, o: ObjId, name: &str, n: i32, by: Option<Seat>, effect: bool) -> i32 {
+    // static handlers' `ADD_COUNTERS` replacements (`card_statics.rs`), first
+    let mut handlers = 0;
+    let mut n = n;
+    if n > 0 && cards::any_replacement(game, cards::EventType::AddCounters) {
+        let mut ev = cards::Event {
+            target: Some(o),
+            amount: n,
+            counter: Some(name.to_string()),
+            ..cards::Event::new(cards::EventType::AddCounters, by.unwrap_or(game.obj(o).controller))
+        };
+        if cards::replace_event(game, &mut ev, 0) {
+            return 0;
+        }
+        handlers = ev.applied.len();
+        n = ev.amount.max(0);
+    }
     if n <= 0 || !game.any_static(|_, _, e| matches!(e, EffectDef::ModifyCountersAddedEffect { .. })) {
         return n;
     }
@@ -19324,6 +19353,10 @@ fn counters_to_add(game: &Game, o: ObjId, name: &str, n: i32, by: Option<Seat>, 
     }
     let asked = by.unwrap_or(game.obj(o).controller);
     for _ in 1..applied {
+        game.owed_replacement_choices.borrow_mut().push(asked);
+    }
+    // (a handler's and a static's: the player picked which applies first)
+    if handlers > 0 && applied > 0 {
         game.owed_replacement_choices.borrow_mut().push(asked);
     }
     out
@@ -19362,8 +19395,25 @@ fn counters_put_triggers(game: &mut Game, o: ObjId, name: &str, n: i32, by: Opti
         [o],
         |_, _, _, t| matches!(t, Trigger::CounterAddedSource { counter, threshold: 0 } if counter == name),
     );
+    // and a card's own "whenever a counter is put on a permanent of the filter" (`CounterAddedAll`), after this's
+    let sources = game.trigger_sources();
+    let mut each_all = game.triggers(sources, |g, src, you, t| match t {
+        Trigger::CounterAddedAll { filter, counter, who } => {
+            (counter.is_empty() || counter == name)
+                && Game::whose(who, you, by)
+                && g.filter_matches(filter, you, Some(src), o)
+        }
+        _ => false,
+    });
+    for t in each_all.iter_mut() {
+        if set_target_pointer(game, t) {
+            t.targets = vec![vec![Target::Obj(o)]];
+            t.target_zcc = vec![vec![game.obj(o).zcc]];
+        }
+    }
     for _ in 0..n {
         game.pending.extend(each.iter().cloned());
+        game.pending.extend(each_all.iter().cloned());
     }
     // (the counter that makes it `threshold`: `hourCounters - amountAdded < 12 && 12 <= hourCounters` of each one)
     let after = game.obj(o).counter(name);
@@ -19387,6 +19437,21 @@ fn counters_put_triggers(game: &mut Game, o: ObjId, name: &str, n: i32, by: Opti
     let fired = game.triggers(sources, |g, src, you, t| match t {
         Trigger::CountersPut { filter, counter } => {
             you == by && (counter.is_empty() || counter == name) && g.filter_matches(filter, you, Some(src), o)
+        }
+        Trigger::CountersAddedAll { filter, counter, who, first_time } => {
+            (counter.is_empty() || counter == name)
+                && Game::whose(who, you, by)
+                && g.filter_matches(filter, you, Some(src), o)
+                && (!*first_time || {
+                    // (this one is already in the watcher: the first is the only one)
+                    let zcc = g.obj(o).zcc;
+                    g.watch
+                        .counters_put
+                        .iter()
+                        .filter(|(_, c, z, kind, _, _)| *c == o && *z == zcc && (counter.is_empty() || kind == counter))
+                        .count()
+                        == 1
+                })
         }
         _ => false,
     });
@@ -19930,6 +19995,11 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
     let (from, zcc) = (game.obj(id).zone, game.obj(id).zcc);
     let source = game.resolving.map(|(_, card)| card).filter(|c| *c != id);
     enter_battlefield_now(game, d, id, controller, kicked);
+    // `CREATED_TOKEN`, after its own zone change event (`TokenImpl.putOntoBattlefieldHelper`); a copy of a permanent
+    // spell resolving isn't created (`created` false)
+    if game.obj(id).token && game.obj(id).zone == Zone::Battlefield && from != Zone::Stack {
+        token_created_triggers(game, id);
+    }
     if game.obj(id).zone == Zone::Battlefield && game.obj(id).face_down {
         let (seat, turn) = (game.obj(id).controller, game.turn);
         game.player_mut(seat).face_down_turn = Some(turn);
@@ -19950,6 +20020,25 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
             line += &format!(" (source: {})", log::object(game, src));
         }
         log::inform(game, line);
+    }
+}
+
+/// "Whenever a token of the filter is created under `who`'s control" (`TokenCreated`), for the token `id`
+fn token_created_triggers(game: &mut Game, id: ObjId) {
+    let seat = game.obj(id).controller;
+    let sources = game.trigger_sources();
+    let fired = game.triggers(sources, |g, src, you, t| match t {
+        Trigger::TokenCreated { filter, who } => {
+            Game::whose(who, you, seat) && g.filter_matches(filter, you, Some(src), id)
+        }
+        _ => false,
+    });
+    for mut t in fired {
+        if set_target_pointer(game, &t) {
+            t.targets = vec![vec![Target::Obj(id)]];
+            t.target_zcc = vec![vec![game.obj(id).zcc]];
+        }
+        game.pending.push(t);
     }
 }
 

@@ -1161,6 +1161,41 @@ pub enum Trigger {
         #[serde(default)]
         counter: String,
     },
+    /// a `counter` counter (any kind when empty) is put on a permanent of the filter, once for each counter
+    /// (`COUNTER_ADDED`, a card's own trigger class: Knight of Wundagore, Hollowmurk Siege); `who` put it ("you",
+    /// "opponent", "any"); it points at the permanent
+    CounterAddedAll {
+        filter: Filter,
+        #[serde(default)]
+        counter: String,
+        #[serde(default)]
+        who: String,
+    },
+    /// one or more `counter` counters (any kind when empty) are put on a permanent of the filter, once each time
+    /// (`COUNTERS_ADDED`, a card's own trigger class): `who` put them; X is how many, and it points at the permanent.
+    /// With `first_time`, only the first time this turn such counters were put on that permanent
+    /// (`CountersAddedFirstTimeWatcher`, `BoostCountersAddedFirstTimeWatcher`: Stalwart Successor, Axgard Artisan)
+    CountersAddedAll {
+        filter: Filter,
+        #[serde(default)]
+        counter: String,
+        #[serde(default)]
+        who: String,
+        #[serde(default)]
+        first_time: bool,
+    },
+    /// a permanent of the filter becomes renowned (`BECOMES_RENOWNED`, a card's own trigger class: Valeron
+    /// Wardens); it points at the permanent
+    BecomesRenownedAll {
+        filter: Filter,
+    },
+    /// a token of the filter is created (`CREATED_TOKEN`, a card's own trigger class: Voldaren Bloodcaster) under
+    /// the control of `who` ("you", "opponent", "any"); it points at the token
+    TokenCreated {
+        filter: Filter,
+        #[serde(default)]
+        who: String,
+    },
     /// you activate an ability that isn't a mana ability, of `kind` ("exhaust", "power_up", "any";
     /// "creature_or_land": of a creature or land permanent) (`ActivateAbilityTriggeredAbility`, `ACTIVATED_ABILITY`);
     /// with `opponent`, an opponent activates it (Runic Armasaur)

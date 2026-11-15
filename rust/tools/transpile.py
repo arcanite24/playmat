@@ -6620,6 +6620,34 @@ class Translator:
             if counter != 'null':
                 on['counter'] = COUNTERS[counter]
             return out(on, args[0], n == 5 and flag(args[4]), n == 5 and flag(args[3]))
+        # a card's own `COUNTER_ADDED` / `COUNTERS_ADDED` trigger, as a trigger handler's base writes it (names for the
+        # engine's triggers, not Java classes): "whenever a [kind] counter is put on a permanent of the filter" once
+        # for each counter (effect, counter or null, filter, who put it[, optional]); "whenever one or more [kind]
+        # counters are put on …" once each time, X how many (effect, counter or null, filter, who, first time this
+        # turn[, optional]). Both point at the permanent
+        if cls in ('CounterAddedAllTriggeredAbility', 'CountersAddedAllTriggeredAbility') \
+                and n in ((4, 5) if cls == 'CounterAddedAllTriggeredAbility' else (5, 6)):
+            counter = args[1].strip()
+            if counter != 'null' and counter not in COUNTERS or args[3].strip() not in TARGET_CONTROLLERS:
+                raise Unsupported(cls + ' ' + ','.join(args[1:4]))
+            batch = cls == 'CountersAddedAllTriggeredAbility'
+            on = {'e': 'counters_added_all' if batch else 'counter_added_all', 'filter': self.filter(args[2]),
+                  'who': TARGET_CONTROLLERS[args[3].strip()]}
+            if counter != 'null':
+                on['counter'] = COUNTERS[counter]
+            if batch and flag(args[4]):
+                on['first_time'] = True
+            return out(on, args[0], n == (6 if batch else 5) and flag(args[-1]), True)
+        # a card's own `BECOMES_RENOWNED` trigger (effect, filter[, optional]), pointing at the permanent
+        if cls == 'BecomesRenownedAllTriggeredAbility' and n in (2, 3):
+            return out({'e': 'becomes_renowned_all', 'filter': self.filter(args[1])}, args[0], n == 3 and flag(args[2]),
+                       True)
+        # a card's own `CREATED_TOKEN` trigger (effect, filter, whose token[, optional]), pointing at the token
+        if cls == 'TokenCreatedTriggeredAbility' and n in (3, 4):
+            if args[2].strip() not in TARGET_CONTROLLERS:
+                raise Unsupported(cls + ' ' + args[2])
+            return out({'e': 'token_created', 'filter': self.filter(args[1]), 'who': TARGET_CONTROLLERS[args[2].strip()]},
+                       args[0], n == 4 and flag(args[3]), True)
         # "whenever you activate an exhaust ability" (from the battlefield; from the graveyard isn't in)
         if cls == 'ActivateAbilityTriggeredAbility' and n == 3 and args[2].strip() == 'SetTargetPointer.NONE':
             return out({'e': 'ability_activated', 'kind': self.stack_filter_kind(args[1])}, args[0])
