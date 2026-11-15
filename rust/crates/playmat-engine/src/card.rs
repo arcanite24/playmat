@@ -911,6 +911,13 @@ pub enum Trigger {
     Forage,
     /// this card was discarded into exile by its madness (`MadnessTriggeredAbility`, from exile)
     MadnessExiled,
+    /// this card is put into a graveyard from `from` ("library": `PutIntoGraveFromLibrarySourceTriggeredAbility`;
+    /// empty, from anywhere: `PutIntoGraveFromAnywhereSourceTriggeredAbility`). It triggers from the graveyard, as
+    /// the card it is there.
+    PutIntoGraveyardSource {
+        #[serde(default)]
+        from: String,
+    },
     /// this card becomes plotted (`BecomesPlottedSourceTriggeredAbility`, from exile: `BECOME_PLOTTED`)
     BecomesPlotted,
     /// this enters or leaves the battlefield (`EntersBattlefieldOrLeavesSourceTriggeredAbility`)
