@@ -5385,6 +5385,11 @@ class Translator:
         if (m := self.mana_ability(cls, args)) is not None:
             m['java'] = cls
             return m
+        # "whenever equipped creature attacks alone": the attached trigger, with its `attacksAlone` check a handler
+        if cls == 'AttacksAloneAttachedTriggeredAbility' and 1 <= len(args) <= 4:
+            a = self.ability('new AttacksAttachedTriggeredAbility(' + ','.join(args) + ')')
+            a['java'], a['check'] = cls, 'AttacksAloneAttachedTriggeredAbility'
+            return a
         # a trigger class written by hand in Rust (src/cards/, card_handlers.py)
         if cls not in ABILITIES and (h := card_handlers.trigger(self, cls, args)) is not None:
             # a keyword's trigger reads as its `getRule`
@@ -6372,6 +6377,10 @@ class Translator:
             if damaged or pointer == 'SetTargetPointer.PLAYER':
                 a['set_target_pointer_player'] = True
             return a
+        # "whenever a creature deals combat damage to you": at that creature (`SetTargetPointer.PERMANENT`)
+        if cls == 'DealsDamageToYouAllTriggeredAbility' and n == 3 and args[2] == 'true':
+            on = {'e': 'combat_damage_to_player_all', 'filter': self.filter(args[0]), 'who': 'you'}
+            return out(on, args[1], False, True)
         # "whenever a land card is put into your graveyard from anywhere"
         if cls == 'PutCardIntoGraveFromAnywhereAllTriggeredAbility' and n in (3, 4, 5) \
                 and (n < 5 or args[4] == 'SetTargetPointer.NONE') and args[n - 1 if n < 5 else 3] in TARGET_CONTROLLERS:
@@ -6544,6 +6553,12 @@ class Translator:
                     raise Unsupported(cls + ' part ' + m.group(1))
                 ons.append(on)
             return out({'e': 'or', 'ts': ons}, effect, optional)
+        # "whenever you gain or lose life during your turn" (`GAINED_LIFE` or `LOST_LIFE_BATCH_FOR_ONE_PLAYER`, while
+        # you're the active player as it triggers)
+        if cls == 'GainLoseLifeYourTurnTriggeredAbility' and n == 1:
+            a = out({'e': 'or', 'ts': [{'e': 'you_gain_life'}, {'e': 'loses_life', 'who': 'you'}]}, args[0])
+            a['trigger_condition'] = {'c': 'my_turn'}
+            return a
         # discarding, cycling, cards leaving your graveyard
         if cls == 'CycleOrDiscardControllerTriggeredAbility' and n in (1, 2):
             return out({'e': 'discards', 'who': 'you'}, args[0], n == 2 and flag(args[1]))
