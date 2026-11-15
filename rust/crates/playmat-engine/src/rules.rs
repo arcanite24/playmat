@@ -17381,13 +17381,14 @@ fn apply_each_effect(
                     }
                 }
             }
-            EffectDef::UntapLandsEffect { amount } => {
+            EffectDef::UntapLandsEffect { amount, only_controlled } => {
                 // `UntapLandsEffect`: any tapped land; with as few of yours tapped as it untaps, it first offers them
                 let tapped: Vec<ObjId> = game
                     .battlefield
                     .iter()
                     .copied()
                     .filter(|b| game.obj(*b).is(CardType::Land) && game.obj(*b).tapped)
+                    .filter(|b| !*only_controlled || game.obj(*b).controller == controller)
                     .collect();
                 let yours: Vec<ObjId> =
                     tapped.iter().copied().filter(|b| game.obj(*b).controller == controller).collect();

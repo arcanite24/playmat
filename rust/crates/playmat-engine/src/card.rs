@@ -2879,9 +2879,11 @@ pub enum EffectDef {
     AddCounterNextSpellEffect {
         amount: i32,
     },
-    /// untap up to `amount` tapped lands
+    /// untap up to `amount` tapped lands (`only_controlled`: lands you control, `UntapLandsEffect(n, true, true)`)
     UntapLandsEffect {
         amount: usize,
+        #[serde(default)]
+        only_controlled: bool,
     },
     /// puts the target permanent into its owner's library `n`th from the top
     PutIntoLibraryNFromTopTargetEffect {
