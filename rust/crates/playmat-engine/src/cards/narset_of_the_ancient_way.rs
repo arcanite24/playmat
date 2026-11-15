@@ -66,7 +66,7 @@ fn draw_discard(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<(
     }))
     .ok()?;
     let delayed = Delayed {
-        rule: "{this} deals damage to target creature or planeswalker equal to the discarded card's mana value"
+        rule: "{this} deals damage to target creature or planeswalker equal to the discarded card's mana value."
             .into(),
         sacrifice: Vec::new(),
         warp_exile: Vec::new(),

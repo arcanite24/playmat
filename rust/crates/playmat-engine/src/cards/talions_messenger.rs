@@ -27,7 +27,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         count: None,
     };
     let delayed = Delayed {
-        rule: "put a +1/+1 counter on target Faerie you control".into(),
+        rule: "put a +1/+1 counter on target Faerie you control.".into(),
         sacrifice: Vec::new(),
         warp_exile: Vec::new(),
         effects: cx.effects.to_vec(),

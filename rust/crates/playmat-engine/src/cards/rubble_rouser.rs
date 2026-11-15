@@ -9,7 +9,7 @@ pub const HANDLERS: &[Handler] = &[Handler::effect("RubbleRouser.RubbleRouserDam
 /// `fireReflexiveTriggeredAbility`: "this creature deals 1 damage to each opponent", waiting to go on the stack
 fn apply(game: &mut Game, _d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     let delayed = Delayed {
-        rule: "this creature deals 1 damage to each opponent".into(),
+        rule: "This creature deals 1 damage to each opponent.".into(),
         sacrifice: Vec::new(),
         warp_exile: Vec::new(),
         effects: cx.effects.to_vec(),

@@ -16,7 +16,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     let target: TargetDef =
         serde_json::from_value(serde_json::json!({"class": "TargetCardInGraveyard", "min": 0, "max": 2})).ok()?;
     let delayed = Delayed {
-        rule: "exile up to two target cards from graveyards".into(),
+        rule: "Exile up to two target cards from graveyards.".into(),
         sacrifice: Vec::new(),
         warp_exile: Vec::new(),
         effects: cx.effects.to_vec(),
