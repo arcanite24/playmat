@@ -1115,6 +1115,9 @@ pub struct Game {
     pub loop_declined: u32,
     /// the spell whose mana cost is being paid (or checked): conditional mana can be spent only on some spells
     pub paying_for: std::cell::Cell<Option<ObjId>>,
+    /// an activated ability's playable check: X isn't announced yet, so "power X or less" holds for any power
+    /// (Java's `PowerTargetAdjuster` sets the filter only as it's activated)
+    pub checking_activatable: std::cell::Cell<bool>,
     /// what's being paid for is an activated ability of `paying_for` (not a spell)
     pub paying_ability: std::cell::Cell<bool>,
     /// a replayed answer that named a stack object by its place: that place from the bottom of Java's stack (what's
@@ -1601,6 +1604,7 @@ impl Game {
             loop_count: 0,
             loop_declined: 0,
             paying_for: std::cell::Cell::new(None),
+            checking_activatable: std::cell::Cell::new(false),
             paying_ability: std::cell::Cell::new(false),
             picked_stack: std::cell::Cell::new(None),
             paying_index: std::cell::Cell::new(None),
@@ -2063,7 +2067,10 @@ impl Game {
             }),
             // the same, with the X of the spell or ability whose target it is
             Pred::PowerX { cmp } | Pred::ToughnessX { cmp } => {
-                match source.and_then(|s| self.stack.iter().rev().find(|i| i.card == s)) {
+                match source
+                    .filter(|_| !self.checking_activatable.get())
+                    .and_then(|s| self.stack.iter().rev().find(|i| i.card == s))
+                {
                     Some(i) => {
                         let (power, toughness) = self.power_toughness(id);
                         cmp.holds(if matches!(p, Pred::PowerX { .. }) { power } else { toughness }, i.x)

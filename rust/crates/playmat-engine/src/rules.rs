@@ -2012,6 +2012,7 @@ fn activatable(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
             _ => can_pay_cost(game, seat, id, c),
         });
         let modes = a.trigger_modes();
+        let checking = game.checking_activatable.replace(true);
         let targeted = if modes.is_empty() {
             targets.iter().all(|t| target_possible(game, seat, t, Some(id)))
         } else {
@@ -2019,6 +2020,7 @@ fn activatable(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
             let n = modes.iter().filter(|m| m.1.iter().all(|t| target_possible(game, seat, t, Some(id)))).count();
             n >= a.mode_count().min.max(1)
         };
+        game.checking_activatable.set(checking);
         if payable && targeted {
             out.push(i);
         }
@@ -2096,7 +2098,9 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
         CostDef::TapTargetCost { filter, amount } | CostDef::UntapTargetCost { filter, amount } => {
             matching(game, filter, seat, id).iter().filter(|p| game.obj(**p).controller == seat).count() >= *amount
         }
-        CostDef::SacrificeXTargetCost { .. } | CostDef::TapXTargetCost { .. } => true,
+        CostDef::SacrificeXTargetCost { .. } | CostDef::TapXTargetCost { .. } | CostDef::RemoveXCountersSourceCost { .. } => {
+            true
+        }
         // `CrewCost.canPay` looks without a source, so "another" doesn't leave out the vehicle itself (crewed, it
         // counts its own power)
         CostDef::CrewCost { value } | CostDef::SaddleCost { value } => {
@@ -6893,6 +6897,29 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
             top.x = x;
         }
     }
+    // "remove X counters from {this}": announced with the other X costs, `min` up to the counters it has
+    // (`RemoveVariableCountersSourceCost.getMaxValue`)
+    if let Some(CostDef::RemoveXCountersSourceCost { counter, min }) =
+        costs.iter().find(|c| matches!(c, CostDef::RemoveXCountersSourceCost { .. }))
+    {
+        let max = game.obj(id).counter(counter).max(0);
+        // nothing to choose: not asked (`HumanPlayer.announceX`); fewer counters than `min` still announce `min`,
+        // and paying it fails after the targets
+        let x = if max <= *min {
+            *min
+        } else {
+            loop {
+                match ask(game, d, seat, &Query::Amount { min: *min, max }) {
+                    Answer::Int(n) if (*min..=max).contains(&n) => break n,
+                    Answer::Stop => return false,
+                    _ => {}
+                }
+            }
+        };
+        if let Some(top) = Arc::make_mut(&mut game.stack).last_mut() {
+            top.x = x;
+        }
+    }
     // -X: announced with the other X costs, up to the loyalty it has (`PayVariableLoyaltyCost.getMaxValue`)
     if costs.iter().any(|c| matches!(c, CostDef::PayVariableLoyaltyCost)) {
         let max = game.obj(id).counter("loyalty").max(0);
@@ -7591,6 +7618,15 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                 return false;
             }
             o.add_counters(&counter.name, -counter.amount);
+        }
+        // the fixed cost of the announced X (`getFixedCostsFromAnnouncedValue`)
+        CostDef::RemoveXCountersSourceCost { counter, .. } => {
+            let x = game.stack.last().map_or(0, |t| t.x).max(0);
+            let o = game.obj_mut(id);
+            if o.counter(counter) < x {
+                return false;
+            }
+            o.add_counters(counter, -x);
         }
         CostDef::PayVariableLoyaltyCost => {
             let x = game.stack.last().map_or(0, |t| t.x);

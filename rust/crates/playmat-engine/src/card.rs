@@ -1710,6 +1710,13 @@ pub enum CostDef {
     TapXTargetCost {
         filter: Filter,
     },
+    /// remove X counters of the kind from the source, X announced with the other X costs, from `min` up to the
+    /// counters it has (`RemoveVariableCountersSourceCost`); the ability's X
+    RemoveXCountersSourceCost {
+        counter: String,
+        #[serde(default)]
+        min: i32,
+    },
     /// tap `amount` permanents of the filter you control (chosen, not targeted)
     TapTargetCost {
         filter: Filter,
