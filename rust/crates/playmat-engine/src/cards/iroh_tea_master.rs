@@ -6,7 +6,7 @@ use super::*;
 use crate::state::Delayed;
 
 pub const HANDLERS: &[Handler] = &[
-    Handler::effect("IrohTeaMaster.IrohTeaMasterControlEffect", control),
+    Handler::effect("IrohTeaMaster.IrohTeaMasterControlEffect", control).tokens(&["AllyToken"]),
     Handler::effect("IrohTeaMaster.IrohTeaMasterTokenEffect", token).tokens(&["AllyToken"]),
 ];
 
@@ -31,11 +31,16 @@ fn control(game: &mut Game, _d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         set_controller(game, o, p);
     }
     refresh_control(game);
-    let e: EffectDef =
-        serde_json::from_value(serde_json::json!({"class": "CardEffect", "handler": "IrohTeaMaster.IrohTeaMasterTokenEffect"}))
-            .ok()?;
+    let handler = serde_json::from_value(serde_json::json!("IrohTeaMaster.IrohTeaMasterTokenEffect")).ok()?;
+    let e = EffectDef::CardEffect {
+        handler,
+        args: Vec::new(),
+        tokens: cx.tokens.to_vec(),
+        effects: Vec::new(),
+        filters: Vec::new(),
+    };
     let delayed = Delayed {
-        rule: "Create a 1/1 white Ally creature token. Put a +1/+1 counter on that token for each permanent you own that your opponents control."
+        rule: "create a 1/1 white Ally creature token. Put a +1/+1 counter on that token for each permanent you own that your opponents control."
             .into(),
         sacrifice: Vec::new(),
         warp_exile: Vec::new(),
