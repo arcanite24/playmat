@@ -343,7 +343,15 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                         || game.obj(id).def.abilities.iter().any(|a| match a {
                         AbilityDef::SimpleStaticAbility { effects, .. }
                         | AbilityDef::EntersBattlefieldTappedAbility { effects, .. } => {
-                            effects.iter().any(|e| matches!(e, EffectDef::DontUntapInControllersUntapStepSourceEffect))
+                            effects.iter().any(|e| match e {
+                                EffectDef::DontUntapInControllersUntapStepSourceEffect => true,
+                                // `ConditionalContinuousRuleModifyingEffect`: while the condition holds (Alirios)
+                                EffectDef::ConditionalContinuousEffect { effect, condition } => {
+                                    matches!(**effect, EffectDef::DontUntapInControllersUntapStepSourceEffect)
+                                        && game.condition_holds(Some(condition), game.obj(id).controller, id)
+                                }
+                                _ => false,
+                            })
                         }
                         _ => false,
                     }) || game.any_static(|g, src, e| {
@@ -7971,9 +7979,20 @@ fn cant_be_countered(game: &Game, spell: ObjId) -> bool {
         || game.obj(spell).uncounterable
         || game.obj(spell).def.abilities.iter().any(|a| match a {
             AbilityDef::CantBeCounteredSourceAbility => true,
-            AbilityDef::SimpleStaticAbility { effects, .. } => {
-                effects.iter().any(|e| matches!(e, EffectDef::CantBeCounteredSourceEffect))
-            }
+            AbilityDef::SimpleStaticAbility { effects, .. } => effects.iter().any(|e| match e {
+                EffectDef::CantBeCounteredSourceEffect => true,
+                // `ConditionalContinuousRuleModifyingEffect(new CantBeCounteredSourceEffect(), condition)`: while the
+                // condition holds for the spell's controller (Exquisite Firecraft's spell mastery)
+                EffectDef::ConditionalContinuousEffect { effect, condition } => {
+                    matches!(**effect, EffectDef::CantBeCounteredSourceEffect)
+                        && game.condition_holds(
+                            Some(condition),
+                            controller.unwrap_or(game.obj(spell).controller),
+                            spell,
+                        )
+                }
+                _ => false,
+            }),
             _ => false,
         })
 }
