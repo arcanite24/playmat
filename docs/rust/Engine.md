@@ -1201,6 +1201,23 @@ Being in the engine and being trusted are kept apart.
   Fire Lord Zuko (entered from exile), Ral, Crackling Wit and Prismari (storm granted to spells), Captain Howler
   (a granted trigger's text), Anointed Peacekeeper, Planewide Celebration (the same mode more than once), the random
   discards (Curse-Marred Demon, Cool but Rude, Rowdy Crew, Tersa) and the rest of the list's engine work.
+  Wave 13, claim 2 (15 Nov): cards blocked only by their own classes. 199 handler files, no engine change: one-shot
+  effects, conditions, values, predicates, target classes, base-plus-check triggers, and cost, continuous,
+  restriction and replacement statics, among them the claim's used cards Ugin, Eye of the Storms, Ral, Storm
+  Conduit, Hellcat, Radagast, Talion, the Kindly Lord, Kaza, Ojer Axonil, Avacyn, Guardian Angel, Living Lore,
+  Tilonalli's Summoner, Anointed Peacekeeper, Conduit of Worlds, Zirda, Warbringer, Killian, The Mycosynth Gardens,
+  Deceiver of Form, Squee, Dubious Monarch, Burning-Rune Demon, The Kenriths' Royal Funeral and Narset of the
+  Ancient Way. A reflexive trigger made by a handler shows Java's `ReflexiveTriggeredAbility` text, which keeps the
+  card's case and ends in a period ("Exile up to two target cards from graveyards."). Two factory rounds (240
+  games, 210 matching) verified 176: 12,510 of 12,804. Not verified: Warbringer, Deadly Brew, Distended
+  Mindbender, Outmuscle, Angrath, Minotaur Pirate, The First Eruption, Avacyn, Guardian Angel, Balin, Loremaster,
+  Blood Baron of Vizkopa, Carrion Grub, Diregraf Horde, Huatli, Warrior Poet, Kessig Naturalist, Living Lore,
+  Mindleech Ghoul, Ral, Storm Conduit, The Immortal Sun and Thwart the Grave (each blamed for a game that differs),
+  and Anti-Venom, Blazing Hope, Deceiver of Form, Firemind's Foresight and Psychic Rebuttal (not exercised enough).
+  Left on the list: about 560 cards whose classes need engine work (layer 4 card-type changes, requirement
+  effects, card-defined delayed triggers, trigger events the engine has no `Trigger` for such as life paid, gift
+  given or counters added, mana replacements beyond {C}, a cost class of a card's own), random or unordered ones
+  (Tersa, Ral Zarek's coin flips, random bottom orders, HashSet walks) and the long tail no one reached.
   Text fixes for verified cards (13 Nov): the Young Hero Role's granted trigger keeps its own text, "put a +1/+1
   counter on it" (its `AddCountersSourceEffect` has a `setText`), and a delayed upkeep transform is "Transform {this}
   at the beginning of the next turn's upkeep." (`AtTheBeginOfNextUpkeepDelayedTriggeredAbility.getRule` puts the
