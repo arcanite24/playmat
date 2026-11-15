@@ -3289,6 +3289,12 @@ pub enum EffectDef {
     },
     /// decayed's "sacrifice it at end of combat" (`AtTheEndOfCombatDelayedTriggeredAbility`)
     SacrificeSourceAtEndOfCombatEffect,
+    /// "at end of combat, …" (`CreateDelayedTriggeredAbilityEffect` with `AtTheEndOfCombatDelayedTriggeredAbility`
+    /// of any effects): they resolve from the source as it was, at the next end of combat
+    CreateEndOfCombatDelayedEffect {
+        effects: Vec<EffectDef>,
+        rule: String,
+    },
     /// unleash: it may enter with a +1/+1 counter (`UnleashReplacementEffect`); with one, it can't block
     UnleashEffect,
     /// recruit: draw a card, then discard a card; a nonland card discarded makes a `token` (a Human Soldier)

@@ -17884,6 +17884,21 @@ fn apply_each_effect(
                 game.at_end_of_combat
                     .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(o, controller) });
             }
+            EffectDef::CreateEndOfCombatDelayedEffect { effects, rule } => {
+                let delayed = Delayed {
+                    rule: rule.clone(),
+                    sacrifice: Vec::new(),
+                    warp_exile: Vec::new(),
+                    effects: effects.clone(),
+                    source_zcc: source.1,
+                    fixed: Vec::new(),
+                    return_tapped: Vec::new(),
+                    targets: Vec::new(),
+                    condition: None,
+                };
+                game.at_end_of_combat
+                    .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) });
+            }
             EffectDef::UnleashEffect => {
                 let (o, _) = source;
                 let q = Query::YesNo { message: format!("Unleash {}?", game.obj(o).name()) };
