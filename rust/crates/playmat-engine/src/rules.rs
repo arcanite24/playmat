@@ -22822,14 +22822,22 @@ fn declare_attackers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
 fn attack_taxes(game: &Game, id: ObjId, defender: Seat, pw: Option<(ObjId, u32)>) -> Vec<String> {
     let mut out = Vec::new();
     game.any_static(|g, src, e| {
-        if let EffectDef::CantAttackYouUnlessPayAllEffect { cost, planeswalkers, filter, condition } = e {
+        if let EffectDef::CantAttackYouUnlessPayAllEffect { cost, generic, planeswalkers, filter, condition } = e {
             let you = g.obj(src).controller;
             if you == defender
                 && (pw.is_none() || *planeswalkers)
                 && (filter.0.is_empty() || g.filter_matches(filter, you, Some(src), id))
                 && g.condition_holds(condition.as_ref(), you, src)
             {
-                out.push(cost.clone());
+                match generic {
+                    None => out.push(cost.clone()),
+                    Some(a) => {
+                        let n = g.value(a, you, src, 0);
+                        if n > 0 {
+                            out.push(format!("{{{n}}}"));
+                        }
+                    }
+                }
             }
         }
         false

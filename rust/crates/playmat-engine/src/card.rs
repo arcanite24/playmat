@@ -2772,9 +2772,12 @@ pub enum EffectDef {
     LookAtTopCardOfLibraryAnyTimeEffect,
     /// "creatures of the filter can't attack you (or planeswalkers you control) unless their controller pays `cost`
     /// for each" (`CantAttackYouUnlessPayAllEffect` in a static ability; a `ConditionalReplacementEffect` around it
-    /// gives the condition): each attacker's cost is asked as it's declared
+    /// gives the condition): each attacker's cost is asked as it's declared. `generic`, when set, replaces `cost`
+    /// with {N} for that number (`getManaCostToPay` overridden), and no cost at all when it's 0
     CantAttackYouUnlessPayAllEffect {
         cost: String,
+        #[serde(default)]
+        generic: Option<Amount>,
         #[serde(default)]
         planeswalkers: bool,
         #[serde(default)]
