@@ -177,6 +177,12 @@ pub struct Obj {
     pub cast: bool,
     /// `cast` as it last left the battlefield (an ability of it that resolves later looks back)
     pub cast_lki: bool,
+    /// the zone it entered the battlefield from, as it last did (the stack for a resolving spell; `cast_from` says
+    /// where that spell was cast from): Fblthp, the Lost
+    pub entered_from: Option<Zone>,
+    /// it was suspected as it last left the battlefield (`Permanent.isSuspected` of its last known information:
+    /// Agency Coroner's sacrificed creature)
+    pub suspected_lki: bool,
     /// its toughness as it last left the battlefield (Righteous Valkyrie's trigger on a creature already gone)
     pub toughness_lki: Option<i32>,
     /// its power as it last left the battlefield (`SourcePermanentPowerValue`'s last known information)
@@ -697,6 +703,8 @@ pub enum TriggerCause {
     Died(ObjId),
     /// creatures attacking (`ATTACKER_DECLARED`, `DECLARED_ATTACKERS`)
     Attacked,
+    /// a player gaining life (`GAINED_LIFE`)
+    GainedLife(Seat),
 }
 
 #[derive(Clone, Debug)]
@@ -765,6 +773,8 @@ pub struct StackItem {
     /// a "whenever a player discards a card" trigger (`Trigger::Discards`, `DISCARDED_CARD`): the card discarded,
     /// as the card it became in the graveyard (Java's `event.getTargetId()`)
     pub discarded: Option<ObjId>,
+    /// the cards its `RevealTargetFromHandCost` revealed, in the order chosen (`getRevealedCards`)
+    pub cost_revealed: Vec<ObjId>,
     /// an explore trigger: the creature that explored and the card it revealed (`ExploredEvent.getCard`; none with
     /// an empty library)
     pub explored: Option<(ObjId, Option<ObjId>)>,
@@ -870,6 +880,7 @@ impl StackItem {
             left: None,
             cost_discarded: Vec::new(),
             discarded: None,
+            cost_revealed: Vec::new(),
             explored: None,
             batch: Vec::new(),
             from_delayed: None,
@@ -1787,6 +1798,8 @@ impl Game {
             kicked: false,
             cast: false,
             cast_lki: false,
+            suspected_lki: false,
+            entered_from: None,
             toughness_lki: None,
             power_lki: None,
             p1p1_added: false,
@@ -4759,6 +4772,7 @@ impl Game {
             }
             if from == Zone::Battlefield {
                 o.cast_lki = o.cast;
+                o.suspected_lki = o.marks.iter().any(|m| m == "suspected");
                 if let Some(def) = o.front.take() {
                     o.def = def.clone();
                     left_front = Some(def);
@@ -4887,6 +4901,10 @@ impl Game {
             }
             if from != Zone::Battlefield && !matches!(zone, Zone::Battlefield | Zone::Stack) {
                 o.adventure_zone = zone;
+            }
+            // the zone it entered the battlefield from (`EntersTheBattlefieldEvent.getFromZone`)
+            if zone == Zone::Battlefield {
+                o.entered_from = Some(from);
             }
             o.zone = zone;
             o.zcc += 1;

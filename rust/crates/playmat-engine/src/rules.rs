@@ -2135,7 +2135,9 @@ fn sorcery_speed(game: &Game, seat: Seat) -> bool {
 }
 
 fn can_play_land(game: &Game, seat: Seat) -> bool {
-    sorcery_speed(game, seat) && game.player(seat).lands_played < lands_per_turn(game, seat)
+    sorcery_speed(game, seat)
+        && game.player(seat).lands_played < lands_per_turn(game, seat)
+        && !cards::cant_play_lands(game, seat)
 }
 
 /// The lands a player may play this turn (`Player.getLandsPerTurn`)
@@ -7700,6 +7702,7 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             // the number revealed: the ability's X
             if let Some(top) = Arc::make_mut(&mut game.stack).last_mut().filter(|t| t.card == id) {
                 top.x = chosen.len() as i32;
+                top.cost_revealed.extend(chosen.iter().copied());
             }
         }
         CostDef::ExileFromHandCost { filter } => {
@@ -9352,6 +9355,12 @@ fn activate_mana_paying(
         }
     }
     note(game, EventKind::Mana, Some(seat), Some(id), None, made);
+    // `TAPPED_FOR_MANA`: "whenever you tap this for mana", a trigger that isn't a mana ability
+    if taps {
+        let fired =
+            game.triggers(vec![id], |_, src, you, t| matches!(t, Trigger::TappedForMana) && src == id && you == seat);
+        game.pending.extend(fired);
+    }
     // a mana ability's other effects happen at once (a pain land's damage)
     let effects = def.abilities[i].mana_effects().to_vec();
     if !effects.is_empty() {
@@ -21244,9 +21253,13 @@ fn damaged_permanent_triggers(game: &mut Game, source: ObjId, to: Target, amount
     let from = game.obj(source).controller;
     let sources = game.trigger_sources();
     let fired = game.triggers(sources, |g, src, you, t| match (t, to) {
-        (Trigger::DamagedPermanent { of, filter, combat: only }, Target::Obj(o)) if combat || !*only => {
+        (Trigger::DamagedPermanent { of, filter, combat: only, source_filter }, Target::Obj(o)) if combat || !*only => {
             match of.as_str() {
                 "to_this" => src == o,
+                "source_to" => {
+                    g.filter_matches(source_filter, you, Some(src), source)
+                        && g.filter_matches(filter, you, Some(src), o)
+                }
                 "this_to" => src == source && g.filter_matches(filter, you, Some(src), o),
                 "attached_to" => g.attached(src) == Some(source) && g.filter_matches(filter, you, Some(src), o),
                 "to_you_or_yours" => {
@@ -22793,9 +22806,12 @@ pub fn gain_life(game: &mut Game, seat: Seat, amount: i32) {
     game.player_mut(seat).life_gained += amount;
     let first = game.player(seat).life_gains == 1;
     let sources: Vec<ObjId> = game.trigger_sources();
+    // what caused them, for the `NUMBER_OF_TRIGGERS` replacements (Dr. Beverly Crusher's)
+    let cause = game.trigger_cause.replace(TriggerCause::GainedLife(seat));
     let fired = game.triggers(sources, |_, _, you, t| {
         you == seat && (matches!(t, Trigger::YouGainLife) || (first && matches!(t, Trigger::YouGainLifeFirstTime)))
     });
+    game.trigger_cause = cause;
     // the life gained is the trigger's "that much" (`SavedGainedLifeValue`), read as its X
     game.pending.extend(fired.into_iter().map(|t| StackItem { x: amount, ..t }));
 }

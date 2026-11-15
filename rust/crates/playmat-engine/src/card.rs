@@ -665,6 +665,9 @@ pub enum Trigger {
     AttacksAlone,
     /// training: this attacks with a creature of greater power (`TrainingAbility`)
     Training,
+    /// its controller taps this for mana (`TAPPED_FOR_MANA` of this, by a mana ability with a tap cost): a trigger
+    /// that isn't a mana ability, so it goes on the stack (Zhur-Taa Druid)
+    TappedForMana,
     /// this dies (`DiesSourceTriggeredAbility`)
     Dies,
     /// dies, if it was a creature (the Enduring cycle's `EnduringGlimmerTriggeredAbility`)
@@ -959,14 +962,17 @@ pub enum Trigger {
     /// (`DealsDamageToACreatureTriggeredAbility`); "attached_to", the permanent this is attached to, to one of
     /// `filter` (Giant's Skewer); "to_you", a source an opponent controls to you, and "to_you_or_yours", to you or a
     /// permanent of `filter` you control (`SourceDealsDamageToYouTriggeredAbility`, `DAMAGED_PLAYER` too, its player
-    /// pointer the source's controller); "to_you_any", any source to you (`DAMAGED_PLAYER`: Azor's Elocutors). A
-    /// target pointer is the damaged permanent.
+    /// pointer the source's controller); "to_you_any", any source to you (`DAMAGED_PLAYER`: Azor's Elocutors);
+    /// "source_to", a source of `source_filter` to a permanent of `filter` (Hooded Blightfang's "a creature you
+    /// control with deathtouch deals damage to a planeswalker"). A target pointer is the damaged permanent.
     DamagedPermanent {
         of: String,
         #[serde(default)]
         filter: Filter,
         #[serde(default)]
         combat: bool,
+        #[serde(default)]
+        source_filter: Filter,
     },
     /// you draw your `n`th card this turn (`DrawNthCardTriggeredAbility`); `who` another `TargetController`
     /// ("opponent": an opponent draws their `n`th card, "any": a player does)

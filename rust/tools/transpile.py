@@ -276,6 +276,8 @@ CUSTOM = {
                     'rule': "{7}: {this}'s controller sacrifices it and draws a card. Activate only as a sorcery."}},
     # "untap this land during each other player's untap step": the framework's (Urban Burgeoning's copy of it)
     'UrbanBurgeoningUntapEffect': lambda: {'class': 'UntapSourceDuringEachOtherPlayersUntapStepEffect'},
+    # "and loses all abilities": the creature the Aura is attached to (`getPermanentSourceAttachedToIfItStillExists`)
+    'MysticSubdualEffect': lambda: {'class': 'LoseAllAbilitiesAttachedEffect'},
     # (players in range: both, in a duel)
     'SorcerousSpyglassActivationEffect': lambda: {'class': 'PithingNeedleEffect'},
     'PhyrexianRevokerEffect2': lambda: {'class': 'PhyrexianRevokerEffect'},
@@ -598,6 +600,11 @@ CUSTOM = {
         'on': {'e': 'source_counters_at_least', 'counter': 'page', 'n': 4}, 'optional': False,
         'effects': [{'class': 'DoIfCostPaid', 'effect': {'class': 'GainLifeEffect', 'amount': 4},
                      'cost': [{'class': 'ExileSourceCost'}], 'optional': False}]},
+    # Nine Lives: "when there are nine or more incarnation counters on {this}, exile it." (a state trigger)
+    'NineLivesStateTriggeredAbility': lambda: {
+        'class': 'TriggeredAbility', 'java': 'NineLivesStateTriggeredAbility',
+        'on': {'e': 'source_counters_at_least', 'counter': 'incarnation', 'n': 9}, 'optional': False,
+        'effects': [{'class': 'CardEffect', 'handler': 'ExileSourceEffect'}]},
     # "if this land isn't a creature, it becomes a 2/4 Wizard creature with 'Whenever you cast an instant or sorcery
     # spell, this creature gets +1/+0 until end of turn.' It's still a land."
     'GreatHallOfTheBiblioplexEffect': lambda: {'class': 'GreatHallOfTheBiblioplexEffect', 'token': {
@@ -4599,6 +4606,9 @@ class Translator:
             return {'class': 'TargetAnyTarget'}
         if cls == 'TargetPermanentOrPlayer' and len(args) == 1 and self.filters.get(args[0].strip()) == ANY_TARGET_NOT_FIRST:
             return {'class': 'TargetAnyTarget', 'not_first': True}
+        # `TargetPermanentOrPlayer()`: any permanent or player (`FilterPermanentOrPlayer()`, Skyship Plunderer)
+        if cls == 'TargetPermanentOrPlayer' and not [a for a in args if a.strip()]:
+            return {'class': cls, 'filter': []}
         # a permanent of a filter or a player: `(filter)` or `(1, 1, filter, false)`
         if cls == 'TargetPermanentOrPlayer' and (len(args) == 1 or len(args) == 4 and [a.strip() for a in args[:2] + args[3:]] == ['1', '1', 'false']) \
                 and isinstance(f := self.filters.get(args[-1 if len(args) == 1 else 2].strip()), PermanentOrPlayerFilter):
@@ -5235,6 +5245,12 @@ class Translator:
         if cls == 'EntersBattlefieldAllTriggeredAbility' and len(args) == 4 and args[0].strip() == 'Zone.BATTLEFIELD' \
                 and args[3].strip() in ('true', 'false'):
             args = args[1:]
+        # (Zone.GRAVEYARD, effect, filter, optional): it triggers from its owner's graveyard (Prized Amalgam)
+        if cls == 'EntersBattlefieldAllTriggeredAbility' and len(args) == 4 and args[0].strip() == 'Zone.GRAVEYARD' \
+                and args[3].strip() in ('true', 'false'):
+            a = self.ability('new ' + cls + '(' + ','.join(args[1:]) + ')')
+            a['on']['graveyard'] = True
+            return a
         if cls == 'EntersBattlefieldAllTriggeredAbility' and len(args) == 5 and args[0].strip() == 'Zone.BATTLEFIELD' \
                 and args[4].strip() in ('SetTargetPointer.PERMANENT', 'SetTargetPointer.PLAYER', 'SetTargetPointer.NONE') \
                 and args[3].strip() in ('true', 'false'):
@@ -5306,6 +5322,40 @@ class Translator:
                     'effects': [self.effect('new ShuffleHandGraveyardIntoLibraryEffect()'),
                                 self.effect('new DrawCardSourceControllerEffect(7).concatBy(", then")'),
                                 self.effect('new ExileSourceEffect()')]}
+        # Zhur-Taa Druid: "whenever you tap {this} for mana, it deals 1 damage to each opponent." (`TAPPED_FOR_MANA`,
+        # not a mana ability; `withRuleTextReplacement` makes the effect's "{this}" "it")
+        if cls == 'ZhurTaaDruidAbility' and not args:
+            return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'tapped_for_mana'}, 'optional': False,
+                    'effects': [self.effect('new DamagePlayersEffect(1,TargetController.OPPONENT)')],
+                    'rule': 'Whenever you tap {this} for mana, it deals 1 damage to each opponent.'}
+        # U.S.S. Enterprise-D: "whenever one or more charge counters are put on {this} for the first time each turn"
+        # (`COUNTERS_ADDED` on this, `ChargeCountersAddedFirstTimeWatcher`: the first such event this turn)
+        if cls == 'USSEnterpriseDGalaxyClassTriggeredAbility' and not args:
+            return {'class': 'TriggeredAbility', 'java': cls, 'optional': False,
+                    'on': {'e': 'counters_added_all', 'filter': [{'p': 'not', 'x': {'p': 'another'}}],
+                           'counter': 'charge', 'who': 'any', 'first_time': True},
+                    'effects': [self.effect('new ExileTopXMayPlayUntilEffect(1,Duration.EndOfTurn)')],
+                    'rule': 'Whenever one or more charge counters are put on {this} for the first time each turn, '
+                            'exile the top card of your library. You may play that card this turn.'}
+        # Hooded Blightfang: "whenever a creature you control with deathtouch deals damage to a planeswalker, destroy
+        # that planeswalker." (`DAMAGED_PERMANENT`, the source of the card's `filter`, a target pointer at the
+        # planeswalker)
+        if cls == 'HoodedBlightfangTriggeredAbility' and not args:
+            return {'class': 'TriggeredAbility', 'java': cls,
+                    'on': {'e': 'damaged_permanent', 'of': 'source_to', 'source_filter': self.filter('filter'),
+                           'filter': self.filter('StaticFilters.FILTER_PERMANENT_PLANESWALKER')},
+                    'optional': False, 'set_target_pointer': True,
+                    'effects': [self.effect('new DestroyTargetEffect()')],
+                    'rule': 'Whenever a creature you control with deathtouch deals damage to a planeswalker, '
+                            'destroy that planeswalker.'}
+        # a Plan's "when the Nth plan counter is put on {this}, sacrifice it. When you do, …" (`COUNTER_ADDED`, the
+        # counter that makes it N: Midnight Clock's form; its effect `DoWhenCostPaid(reflexive, SacrificeSourceCost,
+        # "Sacrifice {this}?", false)`)
+        if cls == 'PlanCounterThresholdTriggeredAbility' and len(args) == 2 and re.fullmatch(r'\d+', args[0].strip()):
+            return {'class': 'TriggeredAbility', 'java': cls,
+                    'on': {'e': 'counter_added_source', 'counter': 'plan', 'threshold': int(args[0])},
+                    'effects': [self.effect('new DoWhenCostPaid(' + args[1].strip() + ', new SacrificeSourceCost()'
+                                            '.setText("sacrifice it"), "Sacrifice {this}?", false)')]}
         # "whenever one or more +1/+1 counters are put on this"
         if cls == 'OneOrMoreCountersAddedTriggeredAbility' and len(args) in (1, 2):
             return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'counters_added_source', 'counter': '+1/+1'},
@@ -5568,6 +5618,13 @@ class Translator:
                         'rule': 'At the beginning of the next end step, ' + text + '.'}
             return {'class': 'NextUpkeepDelayed', 'effects': [e],
                     'rule': "At the beginning of the next turn's upkeep, " + text + '.'}
+        # a local effect with a card's handler, given its text (`effect.setText("…")`): the trigger phrase, then
+        # that text (Prized Amalgam)
+        if cls == 'AtTheBeginOfNextEndStepDelayedTriggeredAbility' and len(args) == 1 \
+                and (v := args[0].strip()) in self.vars and self.vars[v].get('class') == 'CardEffect' \
+                and (m := re.search(r'\b' + v + r'\.setText\("([^"\\]*)"\);', getattr(self, 'source', None) or '')):
+            return {'class': 'NextEndStepDelayed', 'effects': [self.vars[v]],
+                    'rule': 'At the beginning of the next end step, ' + m.group(1) + '.'}
         t = self.keyword_ability(cls, [x.strip() for x in args])
         if t is not None:
             return t
