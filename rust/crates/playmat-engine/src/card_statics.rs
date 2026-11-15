@@ -24,7 +24,8 @@
 //!   `Rule::CantCastOnStack(f)`: only the cast itself, after its targets (`CAST_SPELL_LATE` reading the spell);
 //!   `Rule::CantActivate(f)`: `rules::activatable` (activated abilities that aren't mana abilities);
 //!   `Rule::CantLoseOrWin(f)`: the state-based loss check and `rules::win_game`;
-//!   `Rule::MaxActivations(f)`: a limited activated ability's times each turn (`rules::activatable`).
+//!   `Rule::MaxActivations(f)`: a limited activated ability's times each turn (`rules::activatable`);
+//!   `Rule::CantSearchLibrary(f)`: a library search (`rules::search_library` finds nothing).
 //! - **as-though**: `Handler::as_though(name, AsThough::Flash(f))`: `rules::castable`'s timing;
 //!   `AsThough::Haste(f)`: a {T} cost's summoning sickness (`rules::can_pay_cost`, mana abilities);
 //!   `AsThough::Hexproof(f)`: hexproof, as targets are chosen (`rules::possible_targets`, `targetable`).
@@ -384,6 +385,9 @@ pub(crate) enum Rule {
     /// `MAX_ACTIVATIONS`: how many times `seat` may activate the ability at `index` of `id` each turn, where it
     /// limits them (Birgi's boast twice); None leaves the limit as it is
     MaxActivations(fn(&Game, &StaticCx, Seat, ObjId, usize) -> Option<u32>),
+    /// `SEARCH_LIBRARY`: `seat` can't search the library of `owner` for the spell or ability of `source`
+    /// (`PlayerImpl.searchLibrary` returns false: nothing is found, the effect goes on)
+    CantSearchLibrary(fn(&Game, &StaticCx, Seat, Seat, ObjId) -> bool),
 }
 
 /// `YouDontLoseManaEffect`'s `addDoNotEmptyManaType`: the kinds of `seat`'s mana (WUBRG, then colorless) the pool
@@ -781,6 +785,17 @@ pub(crate) fn cant_activate(game: &Game, seat: Seat, id: ObjId, index: usize) ->
     each_static(game, &mut |h, cx, _| {
         if let Hook::Rule(Rule::CantActivate(f)) = h {
             out = out || f(game, cx, seat, id, index);
+        }
+    });
+    out
+}
+
+/// Whether a rule-modifying handler stops `seat` searching `owner`'s library for `source`'s spell or ability
+pub(crate) fn cant_search_library(game: &Game, seat: Seat, owner: Seat, source: ObjId) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::Rule(Rule::CantSearchLibrary(f)) = h {
+            out = out || f(game, cx, seat, owner, source);
         }
     });
     out

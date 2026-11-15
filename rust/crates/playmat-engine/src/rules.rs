@@ -7869,6 +7869,10 @@ fn search_library(
     max: usize,
     source: ObjId,
 ) -> Option<Vec<ObjId>> {
+    // `SEARCH_LIBRARY` replaced: the search doesn't happen (Ashiok, Dream Render)
+    if cards::cant_search_library(game, seat, seat, source) {
+        return Some(Vec::new());
+    }
     let mut shown = game.player(seat).library.clone();
     shown.sort_by(|a, b| game.obj(*a).name().cmp(game.obj(*b).name()));
     game.searching = Some((shown, Vec::new()));
