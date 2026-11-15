@@ -4632,6 +4632,15 @@ class Translator:
         return out
 
     def ability(self, expr):
+        # a card's own activated ability class that is only a sorcery-speed one (Undercity Necrolisk's, there for its
+        # rule text's order)
+        if (m := re.fullmatch(r'new (\w+)\((.*)\)', expr.strip(), re.S)) and balanced(expr.strip()) \
+                and re.search(r'class ' + m.group(1) + r' extends ActivatedAbilityImpl \{\s*' + m.group(1)
+                              + r'\(Zone zone, Effect effect, Cost cost\) \{\s*super\(zone, effect, cost\);\s*'
+                              r'timing = TimingRule\.SORCERY;\s*\}', getattr(self, 'source', None) or ''):
+            a = self.ability('new ActivateAsSorceryActivatedAbility(' + m.group(2) + ')')
+            a['java'] = m.group(1)
+            return a
         # hideaway N: an enters trigger exiling one of the top N in the source's exile zone (`HideawayAbility`)
         if (m := re.fullmatch(r'new HideawayAbility\(this,\s*(\d+)\)', expr.strip())):
             a = self.ability('new EntersBattlefieldTriggeredAbility(new HideawayExileEffect(%s))' % m.group(1))
@@ -6983,6 +6992,10 @@ class Translator:
         # a `DynamicValue` (`AuraAttachedCount count = new AuraAttachedCount(2)`): read where it's used
         if re.search(r'(Count|Value)$', cls):
             self.values[var] = expr
+            return
+        # an `Effects` local made with its effects (Kardur's Vicious Return's chapter III)
+        if cls == 'Effects':
+            self.vars[var] = {'class': 'Effects', 'effects': [self.effect(a) for a in obj[1] if a.strip()]}
             return
         if cls == 'Mode':
             args = self.new_expr(expr)[1]
