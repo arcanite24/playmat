@@ -808,17 +808,22 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             for t in fired.iter_mut() {
                 let a = t.ability.and_then(|(i, _)| game.item_def(t).abilities.get(i));
                 if let Some(AbilityDef::TriggeredAbility { on: Trigger::StepBegins { .. }, effects, targets, .. }) = a {
-                    if targets.is_empty()
-                        && effects.iter().any(|e| {
-                            matches!(
-                                e,
-                                EffectDef::MillCardsTargetEffect { .. }
-                                    | EffectDef::DamageTargetEffect { .. }
-                                    | EffectDef::DrawCardTargetEffect { .. }
-                                    | EffectDef::LoseLifeTargetEffect { .. }
-                            )
-                        })
-                    {
+                    // also inside "if that player …" (`ConditionalOneShotEffect`: Bandit's Talent's "they lose 2 life")
+                    fn at_that_player(e: &EffectDef) -> bool {
+                        match e {
+                            EffectDef::MillCardsTargetEffect { .. }
+                            | EffectDef::DamageTargetEffect { .. }
+                            | EffectDef::DrawCardTargetEffect { .. }
+                            | EffectDef::LoseLifeTargetEffect { .. } => true,
+                            EffectDef::ConditionalOneShotEffect { effect, otherwise, also, .. } => {
+                                effect.as_deref().is_some_and(at_that_player)
+                                    || otherwise.as_deref().is_some_and(at_that_player)
+                                    || also.iter().any(at_that_player)
+                            }
+                            _ => false,
+                        }
+                    }
+                    if targets.is_empty() && effects.iter().any(at_that_player) {
                         t.targets = vec![vec![Target::Player(active)]];
                         t.target_zcc = vec![vec![0]];
                     }
