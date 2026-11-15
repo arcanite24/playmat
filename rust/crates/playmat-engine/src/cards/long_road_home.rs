@@ -26,8 +26,8 @@ fn apply(game: &mut Game, _d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     )
     .ok()?;
     let delayed = Delayed {
-        rule: "At the beginning of the next end step, return that card to the battlefield under its owner's control \
-               with a +1/+1 counter on it."
+        // Java's `ReturnMORToBattlefieldUnderOwnerControlWithCounterEffect` text
+        rule: "At the beginning of the next end step, return that card to the battlefield with a +1/+1 counter on it."
             .into(),
         sacrifice: Vec::new(),
         warp_exile: Vec::new(),
