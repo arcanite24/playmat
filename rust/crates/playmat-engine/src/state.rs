@@ -1098,6 +1098,9 @@ pub struct Game {
     pub resolving: Option<(usize, ObjId)>,
     /// the stack object resolving, off the stack while it resolves (a view shows it where it was)
     pub resolving_item: Option<StackItem>,
+    /// a waiting trigger whose intervening "if" is being checked before it goes on the stack, with its event's
+    /// details (`cast_spell`, `died`…): a card's condition reads them here, or in `resolving_item` as it resolves
+    pub checking_item: Option<StackItem>,
     /// a triggered ability choosing its mode as it's put on the stack (not on it yet): the prompt's modes are its
     pub moding: Option<StackItem>,
     /// a card entering the battlefield from a hand while its as-enters choices are asked: Java moves it after
@@ -1537,6 +1540,7 @@ impl Game {
             flash_until_next_turn: Vec::new(),
             resolving: None,
             resolving_item: None,
+            checking_item: None,
             moding: None,
             entering_from_hand: None,
             exile_by_creation: false,

@@ -21491,14 +21491,21 @@ fn take_seat(game: &mut Game, seat: Seat) -> Vec<StackItem> {
 
 /// The triggers that go on the stack: an intervening "if" is checked as it triggers (and again as it resolves), and
 /// a trigger limit each turn
-fn waiting(game: &mut Game, mut pending: Vec<StackItem>) -> Vec<StackItem> {
-    pending.retain(|t| {
-        let ability = t.ability.and_then(|(i, _)| game.item_def(t).abilities.get(i));
-        game.condition_holds(ability.and_then(|a| a.intervening_if()), t.controller, t.card)
-            && game.pelt_holds(t)
-            && game.trigger_check_holds(t)
-            && game.condition_holds(t.delayed.as_ref().and_then(|dl| dl.condition.as_ref()), t.controller, t.card)
-    });
+fn waiting(game: &mut Game, pending: Vec<StackItem>) -> Vec<StackItem> {
+    let mut kept = Vec::with_capacity(pending.len());
+    for t in pending {
+        game.checking_item = Some(t.clone());
+        let ability = t.ability.and_then(|(i, _)| game.item_def(&t).abilities.get(i));
+        let holds = game.condition_holds(ability.and_then(|a| a.intervening_if()), t.controller, t.card)
+            && game.pelt_holds(&t)
+            && game.trigger_check_holds(&t)
+            && game.condition_holds(t.delayed.as_ref().and_then(|dl| dl.condition.as_ref()), t.controller, t.card);
+        game.checking_item = None;
+        if holds {
+            kept.push(t);
+        }
+    }
+    let mut pending = kept;
     // `checkUsedAlready`: a "do this only once each turn" ability done this turn doesn't trigger
     pending.retain(|t| {
         let Some((i, _)) = t.ability else { return true };

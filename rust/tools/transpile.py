@@ -2835,7 +2835,8 @@ class Translator:
         if (m := re.fullmatch(r'(.*)\.setCanWorksOnStackOnly\(true\)', expr.strip(), re.S)):
             e = self.effect(m.group(1))
             # a cost handler reads where the spell is itself (card_statics.rs)
-            if e.get('class') == 'CardStatic':
+            # (`SpellCostReductionForEachSourceEffect` never reads the flag: Huskburster Swarm)
+            if e.get('class') in ('CardStatic', 'SpellCostReductionForEachSourceEffect'):
                 return e
             if e.get('class') != 'SpellCostReductionSourceEffect':
                 raise Unsupported('setCanWorksOnStackOnly on ' + e.get('class'))
@@ -8183,7 +8184,8 @@ def ability_statement(t, st, added):
             static_solved = solved.get('class') == 'SimpleStaticAbility' and solved.get('effects') and all(
                 e.get('class') == 'ConditionalContinuousEffect' and e.get('condition') == {'c': 'solved'}
                 for e in solved['effects'])
-            if solved.get('condition') != {'c': 'solved'} and not static_solved:
+            # (`withTriggerCondition(SolvedSourceCondition.SOLVED)`, checked only as it triggers: Case of the Shattered Pact)
+            if {'c': 'solved'} not in (solved.get('condition'), solved.get('trigger_condition')) and not static_solved:
                 raise Unsupported('a solved ability without the solved condition')
             added.append(solved)
             return True
@@ -8994,6 +8996,12 @@ def granted_rules(card):
             if g['rule'].endswith('investigate.') and 'new InvestigateEffect()' in card_source(card.get('name')):
                 g['rule'] += (' <i>(Create a Clue token. It\'s an artifact with "{2}, Sacrifice this artifact: Draw a'
                               ' card.")</i>')
+            # `ConniveSourceEffect()` writes its reminder text after "connives." (Security Bypass's granted trigger)
+            if g['rule'].endswith(' connives.') and \
+                    [e.get('class') for e in g.get('effects', [])] == ['ConniveSourceEffect'] and \
+                    'new ConniveSourceEffect()' in card_source(card.get('name')):
+                g['rule'] += (' <i>(Draw a card, then discard a card. If you discarded a nonland card, put a +1/+1'
+                              ' counter on this creature.)</i>')
             # `VentureIntoTheDungeonEffect()` writes its reminder text after "venture into the dungeon." (Fly's)
             if g['rule'].endswith('venture into the dungeon.') and \
                     [e.get('class') for e in g.get('effects', [])][-1:] == ['VentureIntoTheDungeonEffect']:
