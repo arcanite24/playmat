@@ -5941,8 +5941,9 @@ impl AbilityDef {
         if matches!(self, AbilityDef::NykthosShrineToNyxManaAbility { .. }) {
             return None;
         }
+        // (a {0} is nothing to pay: Vivi Ornitier's mana is counted as a free ability's)
         self.mana_costs().iter().find_map(|c| match c {
-            CostDef::ManaCost { cost } => Some(cost.as_str()),
+            CostDef::ManaCost { cost } if cost != "{0}" => Some(cost.as_str()),
             _ => None,
         })
     }
