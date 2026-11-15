@@ -10651,6 +10651,27 @@ pub(crate) fn refresh_becomes(game: &mut Game) {
     refresh_land_types(game);
 }
 
+/// A keyword Java keeps one instance of (`MageSingleton`: `PermanentImpl.addAbility` skips one it has)
+fn singleton_keyword(a: &AbilityDef) -> bool {
+    matches!(
+        a,
+        AbilityDef::DeathtouchAbility
+            | AbilityDef::ReachAbility
+            | AbilityDef::DoubleStrikeAbility
+            | AbilityDef::FirstStrikeAbility
+            | AbilityDef::HasteAbility
+            | AbilityDef::IndestructibleAbility
+            | AbilityDef::LifelinkAbility
+            | AbilityDef::TrampleAbility
+            | AbilityDef::FlyingAbility
+            | AbilityDef::WitherAbility
+            | AbilityDef::IntimidateAbility
+            | AbilityDef::VigilanceAbility
+            | AbilityDef::DefenderAbility
+            | AbilityDef::FlashAbility
+    )
+}
+
 /// `AddBasicLandTypeAllLandsEffect` (Urborg): each land is also the basic land types the statics give, with their
 /// mana abilities (not a second one it already has). And an Aura's `GainAbilityAttachedEffect` of a mana, activated or
 /// triggered ability (Old-Growth Troll, Curious Obsession) adds that ability to what it enchants.
@@ -10945,7 +10966,15 @@ fn refresh_land_types(game: &mut Game) {
                 given.insert(1, t.clone());
             }
         }
-        let gained: Vec<AbilityDef> = granted.iter().filter(|(to, _)| *to == id).map(|(_, a)| a.clone()).collect();
+        // (a keyword that's a `MageSingleton` is one ability however many times it's given, or printed: a second
+        // Prophetic Ravings' haste takes no index, its "{T}, Discard a card: Draw a card." is `a4`)
+        let printed = o.land_type_base.as_ref().map(|(b, _, _)| b.clone()).unwrap_or_else(|| o.def.clone());
+        let mut gained: Vec<AbilityDef> = Vec::new();
+        for (_, a) in granted.iter().filter(|(to, _)| *to == id) {
+            if !(singleton_keyword(a) && (printed.abilities.contains(a) || gained.contains(a))) {
+                gained.push(a.clone());
+            }
+        }
         let (applied, applied_gained) =
             o.land_type_base.as_ref().map(|(_, t, g)| (t.clone(), g.clone())).unwrap_or_default();
         if given == applied && gained == applied_gained {
