@@ -8987,6 +8987,11 @@ def granted_rules(card):
                                       % java.get(effects[0], effects[0]), card_source(card.get('name'))):
                 g['rule'] = re.sub(r': (?:This (?:artifact|creature|permanent|planeswalker)|It) (gains|deals|gets) ',
                                    r': {this} \1 ', g['rule'], count=1)
+            # `CantBeBlockedByTargetSourceEffect` writes "target creature can't block {this} this turn" (Fearsome
+            # Temper's "can't block this creature")
+            if [e.get('handler') for e in g.get('effects', [])] == ['CantBeBlockedByTargetSourceEffect']:
+                g['rule'] = re.sub(r"can't block this (?:artifact|creature|permanent) ", "can't block {this} ",
+                                   g['rule'], count=1)
             # `new SurveilEffect(1)` writes its reminder (Way of the Healer's "Surveil 1.")
             if 'SurveilEffect' in effects and g['rule'].endswith('Surveil 1.') \
                     and re.search(r'new SurveilEffect\(1\)\)', card_source(card.get('name'))):
@@ -9114,6 +9119,13 @@ def granted_rules(card):
                         g['rule'] = re.sub(r'\b[Tt]his (?:token|creature)\b', '{this}', quotes[seen[0]])
                         seen[0] += 1
             g = x.get('ability')
+            # a static handler given to the permanents "with flying" (Jubilant Skybonder): the engine reads which
+            # permanents it's given to through their abilities, which read the statics again (Java orders them by
+            # `setDependedToType`); left out
+            if isinstance(g, dict) and g.get('class') == 'SimpleStaticAbility' \
+                    and any(e.get('class') == 'CardStatic' for e in g.get('effects', [])) \
+                    and '"p": "ability"' in json.dumps(x.get('filter')):
+                raise Unsupported('granted static handler to permanents with an ability')
             if isinstance(g, dict) and 'rule' not in g:
                 one(g, rule, seen[0])
                 # (a keyword's text isn't quoted)
