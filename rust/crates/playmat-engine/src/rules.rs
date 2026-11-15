@@ -19102,6 +19102,19 @@ fn apply_each_effect(
                 if let Some(Target::Obj(o)) = target {
                     let zcc = game.obj(o).zcc;
                     game.exile_if_dies.push((o, zcc));
+                    // `DealtDamageToCreatureBySourceDies` is about every creature the source dealt damage to: a spell
+                    // with more targets damaged them all (Serpentine Spike's three)
+                    let hit: Vec<(ObjId, u32)> = game
+                        .damaged_by_source
+                        .iter()
+                        .filter(|(s, x, z)| *s == source.0 && (*x, *z) != (o, zcc))
+                        .map(|(_, o, z)| (*o, *z))
+                        .collect();
+                    for h in hit {
+                        if !game.exile_if_dies.contains(&h) {
+                            game.exile_if_dies.push(h);
+                        }
+                    }
                 } else if target.is_none() {
                     // no target (Anger of the Gods): each creature this source dealt damage to this turn
                     let hit: Vec<(ObjId, u32)> = game
