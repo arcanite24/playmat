@@ -3149,6 +3149,9 @@ pub enum EffectDef {
         /// how many each target player creates (one when absent)
         #[serde(default)]
         amount: Option<Amount>,
+        /// they enter tapped (Thran Spider's Powerstones)
+        #[serde(default)]
+        tapped: bool,
     },
     /// the target player scries `amount`
     ScryTargetEffect {

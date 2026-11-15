@@ -17774,7 +17774,7 @@ fn apply_each_effect(
                     discard(game, d, p, *k);
                 }
             }
-            EffectDef::CreateTokenTargetEffect { token, amount } => {
+            EffectDef::CreateTokenTargetEffect { token, amount, tapped } => {
                 let def = Arc::new(token.card());
                 let n = match amount {
                     Some(a) => v!(a).max(0) as usize,
@@ -17795,6 +17795,9 @@ fn apply_each_effect(
                     o.token = true;
                     o.trigger_order = (1 << 32) + id.0 as u64;
                     enter_battlefield(game, d, id, p, false);
+                    if *tapped {
+                        game.obj_mut(id).tapped = true;
+                    }
                 }
             }
             EffectDef::DynamicManaEffect { color, amount } => {
