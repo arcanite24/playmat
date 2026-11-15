@@ -29,7 +29,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         .copied()
         .filter(|c| {
             let o = game.obj(*c);
-            o.is(CardType::Creature) && o.def.mana_value() % 2 == 0 && o.zone != Zone::Library
+            o.is(CardType::Creature) && o.def.mana_value().is_multiple_of(2) && o.zone != Zone::Library
         })
         .collect();
     let rule = item_rule(game, cx.item);
