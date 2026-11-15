@@ -8783,6 +8783,13 @@ fn pay_mana_from(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCo
                             }
                         }
                     }
+                } else if let Some(i) = empty_card_mana_ability(game, id) {
+                    // a handler's mana ability with no mana now (Astral Cornucopia without charge counters) isn't a
+                    // source, but a click on it still activates it: Java taps it and adds nothing
+                    let ability = game.obj(id).def.abilities[i].clone();
+                    if ability.taps_source() {
+                        tap(game, id);
+                    }
                 }
             }
             Answer::ManaType(t) => {
@@ -8800,6 +8807,28 @@ fn pay_mana_from(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCo
             _ => {}
         }
     }
+}
+
+/// The one handler mana ability of a permanent the player controls whose `getNetMana` is empty now, with nothing to
+/// pay but tapping its untapped source
+fn empty_card_mana_ability(game: &Game, id: ObjId) -> Option<usize> {
+    let o = game.obj(id);
+    if o.zone != Zone::Battlefield || o.tapped {
+        return None;
+    }
+    let mut found = None;
+    for (i, a) in o.def.abilities.iter().enumerate() {
+        if a.mana().is_none() {
+            continue;
+        }
+        let AbilityDef::CardManaAbility { handler, args, filters, cost, .. } = a else { return None };
+        let cx = cards::ManaCx { seat: o.controller, source: id, args, filters, unpaid: &ManaCost::default() };
+        if !cost.is_empty() || !a.taps_source() || (handler.fns().net)(game, &cx).total() > 0 || found.is_some() {
+            return None;
+        }
+        found = Some(i);
+    }
+    found
 }
 
 /// A spell's abilities: its own, then those statics give it (`GainAbilityControlledSpellsEffect`)
