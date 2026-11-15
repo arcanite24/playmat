@@ -16,16 +16,14 @@ pub const HANDLERS: &[Handler] = &[
 ];
 
 /// Mill three, then up to one Elf or Tyvar card from your graveyard (`TargetCardInYourGraveyard(0, 1, …, true)`,
-/// `Player.choose`; nothing to choose, no question) onto the battlefield
+/// `Player.choose`, asked even with nothing to choose) onto the battlefield
 fn mill_and_return(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     let you = cx.controller();
     cx.run(game, d, &[EffectDef::MillCardsControllerEffect { amount: Amount::Fixed(3) }]);
     let graveyard = game.player(you).graveyard.clone();
     let possible: Vec<ObjId> =
         graveyard.iter().copied().filter(|c| game.has_subtype(*c, "Elf") || game.has_subtype(*c, "Tyvar")).collect();
-    if possible.is_empty() {
-        return Some(());
-    }
+    // (`Player.choose(Target)`: asked even with no Elf or Tyvar card there, "done" the answer)
     let rule = item_rule(game, cx.item);
     let Some(card) = choose_cards(game, d, you, &graveyard, &possible, 0, 1, &rule)?.first().copied() else {
         return Some(());

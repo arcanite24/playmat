@@ -24,7 +24,7 @@ fn apply(game: &mut Game, _: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         count: None,
     };
     let delayed = Delayed {
-        rule: "equipped creature fights up to one target creature an opponent controls.".into(),
+        rule: "Equipped creature fights up to one target creature an opponent controls.".into(),
         sacrifice: Vec::new(),
         warp_exile: Vec::new(),
         effects: cx.effects.to_vec(),

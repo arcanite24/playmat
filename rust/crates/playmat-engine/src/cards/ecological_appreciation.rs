@@ -54,7 +54,21 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         cards.extend(chosen);
         cards.retain(|c| matches!(game.obj(*c).zone, Zone::Graveyard | Zone::Library));
     }
-    let opponent = game.opponent(you);
+    // (`player.choose(TargetOpponent)`: `HumanPlayer.choose(Target)` asks even with one opponent)
+    let opponents: Vec<Seat> = (0..game.seats()).filter(|p| *p != you && !game.player(*p).lost).collect();
+    if opponents.is_empty() {
+        return Some(());
+    }
+    let opponent = loop {
+        match ask(game, d, you, &Query::Target { players: opponents.clone(), objs: Vec::new(), required: true }) {
+            Answer::Player(p) if opponents.contains(&p) => break p,
+            Answer::Stop => return None,
+            _ => {}
+        }
+        if d.stopped() {
+            return None;
+        }
+    };
     let n = cards.len().min(2);
     let to_shuffle = choose_cards(game, d, opponent, &cards, &cards, n, n, &item_rule(game, cx.item))?;
     for c in &to_shuffle {
