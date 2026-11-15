@@ -23,11 +23,9 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         return Some(());
     }
     let creatures: Vec<ObjId> = cards.iter().copied().filter(|c| game.obj(*c).is(CardType::Creature)).collect();
-    let card = if creatures.is_empty() {
-        None
-    } else {
-        choose_cards(game, d, you, &cards, &creatures, 1, 1, "creature card to put on the battlefield")?.first().copied()
-    };
+    // (asked even with no creature card among them: `HumanPlayer.choose` shows the cards)
+    let card =
+        choose_cards(game, d, you, &cards, &creatures, 1, 1, "creature card to put on the battlefield")?.first().copied();
     let Some(card) = card else {
         put_on_library(game, d, you, &cards, false, false);
         return (!d.stopped()).then_some(());

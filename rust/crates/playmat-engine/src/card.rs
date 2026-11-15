@@ -586,6 +586,10 @@ pub enum Pred {
     },
     /// it crewed the source this turn (`CrewedSourceThisTurnPredicate`, `CrewedVehicleWatcher`)
     CrewedSourceThisTurn,
+    /// `AttachedToPredicate(filter)`: it's attached to a permanent of the filter (for the same player and source)
+    AttachedTo {
+        filter: Filter,
+    },
     /// `EquippedPredicate`: an Equipment is attached to it
     Equipped,
     /// `EnchantedPredicate`: an Aura is attached to it
@@ -665,6 +669,9 @@ pub enum Trigger {
     AttacksAlone,
     /// training: this attacks with a creature of greater power (`TrainingAbility`)
     Training,
+    /// its controller taps this for mana (`TAPPED_FOR_MANA` of this, by a mana ability with a tap cost): a trigger
+    /// that isn't a mana ability, so it goes on the stack (Zhur-Taa Druid)
+    TappedForMana,
     /// this dies (`DiesSourceTriggeredAbility`)
     Dies,
     /// dies, if it was a creature (the Enduring cycle's `EnduringGlimmerTriggeredAbility`)
@@ -715,6 +722,12 @@ pub enum Trigger {
     /// this becomes blocked (`BecomesBlockedSourceTriggeredAbility`, `CREATURE_BLOCKED`); with a player target
     /// pointer, at the defending player
     BecomesBlocked,
+    /// this attacks and isn't blocked (`AttacksAndIsNotBlockedTriggeredAbility`, `UNBLOCKED_ATTACKER`); with a player
+    /// target pointer, at the defending player
+    AttacksUnblocked,
+    /// this blocks or becomes blocked (`BlocksOrBlockedSourceTriggeredAbility`: `CREATURE_BLOCKS` or
+    /// `CREATURE_BLOCKED`, once each)
+    BlocksOrBecomesBlocked,
     /// a creature of the filter becomes blocked (`BecomesBlockedAllTriggeredAbility`); with a target pointer, at it
     BecomesBlockedAll {
         filter: Filter,
@@ -959,13 +972,17 @@ pub enum Trigger {
     /// (`DealsDamageToACreatureTriggeredAbility`); "attached_to", the permanent this is attached to, to one of
     /// `filter` (Giant's Skewer); "to_you", a source an opponent controls to you, and "to_you_or_yours", to you or a
     /// permanent of `filter` you control (`SourceDealsDamageToYouTriggeredAbility`, `DAMAGED_PLAYER` too, its player
-    /// pointer the source's controller). A target pointer is the damaged permanent.
+    /// pointer the source's controller); "to_you_any", any source to you (`DAMAGED_PLAYER`: Azor's Elocutors);
+    /// "source_to", a source of `source_filter` to a permanent of `filter` (Hooded Blightfang's "a creature you
+    /// control with deathtouch deals damage to a planeswalker"). A target pointer is the damaged permanent.
     DamagedPermanent {
         of: String,
         #[serde(default)]
         filter: Filter,
         #[serde(default)]
         combat: bool,
+        #[serde(default)]
+        source_filter: Filter,
     },
     /// you draw your `n`th card this turn (`DrawNthCardTriggeredAbility`); `who` another `TargetController`
     /// ("opponent": an opponent draws their `n`th card, "any": a player does)
@@ -973,6 +990,9 @@ pub enum Trigger {
         n: u32,
         #[serde(default)]
         who: Option<String>,
+        /// it triggers from its owner's graveyard instead of the battlefield (`Zone.GRAVEYARD`: Wolfbat)
+        #[serde(default)]
+        graveyard: bool,
     },
     /// this, or with `filter` a permanent of it, deals damage (`DAMAGED_BATCH_BY_SOURCE`: once for each source's
     /// batch, X the batch's damage); `DealsDamageSourceTriggeredAbility`, `DealsCombatDamageTriggeredAbility` and
@@ -1059,7 +1079,11 @@ pub enum Trigger {
         n: i32,
     },
     /// you gain life for the first time each turn (`GainLifeFirstTimeTriggeredAbility`)
-    YouGainLifeFirstTime,
+    YouGainLifeFirstTime {
+        /// it triggers from its owner's graveyard instead of the battlefield (`Zone.GRAVEYARD`: Deathless Knight)
+        #[serde(default)]
+        graveyard: bool,
+    },
     /// `who` ("you", "opponent", "any") casts a spell of the filter (`SpellCastControllerTriggeredAbility`, prowess)
     SpellCast {
         filter: Filter,
@@ -1085,6 +1109,9 @@ pub enum Trigger {
     BecomesTappedAll {
         filter: Filter,
     },
+    /// the permanent this is attached to becomes tapped (`BecomesTappedAttachedTriggeredAbility`); a target pointer is
+    /// that permanent
+    BecomesTappedAttached,
     /// this is dealt combat damage (`DealtCombatDamageToSourceTriggeredAbility`, once for each batch, X the damage)
     DealtCombatDamage,
     /// a spell of the filter you control deals damage (`SpellControlledDealsDamageTriggeredAbility`, once for each
@@ -1146,6 +1173,14 @@ pub enum Trigger {
     /// another creature dies, a creature card is put into a graveyard from anywhere other than the battlefield, or a
     /// creature card leaves your graveyard (Syr Konrad, the Grim: one `ZONE_CHANGE` each)
     SyrKonrad,
+    /// a card of the filter you own leaves your graveyard, only during your turn if `your_turn` (one `ZONE_CHANGE`
+    /// each: a card's own trigger class, Along the Crooked Way, Murktide Regent, Kishla Skimmer)
+    CardLeavesYourGraveyard {
+        #[serde(default)]
+        filter: Filter,
+        #[serde(default)]
+        your_turn: bool,
+    },
     /// a creature or creature spell you control becomes the target of a spell or ability an opponent controls
     /// (Surrak, Elusive Hunter)
     SurrakTargeted,
@@ -1160,7 +1195,11 @@ pub enum Trigger {
     /// inspired: this becomes untapped (`InspiredAbility`, the `UNTAPPED` event)
     BecomesUntapped,
     /// eerie: an enchantment you control enters, or you fully unlock a Room (`EerieAbility`)
-    Eerie,
+    Eerie {
+        /// it triggers from its owner's graveyard instead of the battlefield (`Zone.GRAVEYARD`: Fear of Infinity)
+        #[serde(default)]
+        graveyard: bool,
+    },
     /// you put one or more counters (of `counter`; any kind when empty) on a permanent of the filter, once each time
     /// (`PutCounterOnPermanentTriggeredAbility`, `COUNTERS_ADDED`): X is how many; with a target pointer, at it
     CountersPut {
@@ -1196,6 +1235,8 @@ pub enum Trigger {
     BecomesRenownedAll {
         filter: Filter,
     },
+    /// you give a gift (`GAVE_GIFT`, a card's own trigger class: Jolly Gerbils)
+    GaveGift,
     /// a token of the filter is created (`CREATED_TOKEN`, a card's own trigger class: Voldaren Bloodcaster) under
     /// the control of `who` ("you", "opponent", "any"); it points at the token
     TokenCreated {
@@ -1656,6 +1697,11 @@ pub enum CostDef {
         #[serde(default = "one")]
         amount: usize,
     },
+    /// exile a permanent of the filter you control (`ExileTargetCost` of a `TargetControlledPermanent`, chosen as
+    /// the cost is paid; not into the source's exile zone: `withSourceExileZone(false)`)
+    ExileTargetCost {
+        filter: Filter,
+    },
     /// an additional cost: sacrifice any number (X, announced as the spell is cast) of the filter's permanents
     SacrificeXTargetCost {
         filter: Filter,
@@ -1759,6 +1805,9 @@ pub enum CostDef {
         #[serde(default = "one")]
         max: usize,
     },
+    /// `RevealDragonFromHandCost`: you may reveal a Dragon card from your hand; paid either way, and if you revealed
+    /// one or control a Dragon as it's paid, the spell counts as kicked (`RevealedOrControlledDragonCondition`)
+    RevealDragonFromHandCost,
     /// exile a card of the filter from your hand (not this one)
     ExileFromHandCost {
         #[serde(default)]
@@ -1767,6 +1816,9 @@ pub enum CostDef {
     PayLifeCost {
         amount: i32,
     },
+    /// pay life equal to the source's power, at least 0 (`PayLifeCost(SourcePermanentPowerValue.NOT_NEGATIVE, …)`:
+    /// Raubahn's and Phyrexian Fleshgorger's ward)
+    PayLifeSourcePowerCost,
     /// pay {E} `amount` times: energy counters off the player
     PayEnergyCost {
         amount: i32,
@@ -2120,6 +2172,11 @@ pub enum EffectDef {
         toughness: Amount,
         duration: Duration,
     },
+    /// the source switches its power and toughness (`SwitchPowerToughnessSourceEffect`, layer 7d), while it's still
+    /// the permanent it was
+    SwitchPowerToughnessSourceEffect {
+        duration: Duration,
+    },
     /// the source gets +power/+toughness
     BoostSourceEffect {
         power: Amount,
@@ -2218,6 +2275,9 @@ pub enum EffectDef {
     },
     /// sacrifices the source
     SacrificeSourceEffect,
+    /// a permanent's gift, from the trigger `GiftAbility` adds: "when this permanent enters, if the gift was
+    /// promised, they draw a card" (the opponent gets the gift, `GiftType.applyGift`)
+    GiveGiftEffect,
     /// the controller may pay `cost`; if they do, `effect`
     DoIfCostPaid {
         #[serde(default)]
@@ -2501,6 +2561,15 @@ pub enum EffectDef {
         #[serde(default)]
         stack_only: bool,
     },
+    /// a static ability's effect: this spell costs {amount} more (if the condition holds; `stack_only`: only while
+    /// it's being cast, not for the playable check: Dragon's Prey "if it targets a Dragon")
+    SpellCostIncreaseSourceEffect {
+        amount: i32,
+        #[serde(default)]
+        condition: Option<Condition>,
+        #[serde(default)]
+        stack_only: bool,
+    },
     /// you lose life equal to the target's mana value, then destroy it (Feed the Swarm)
     FeedTheSwarmEffect,
     /// 4 damage to the target; if a nonred permanent was dealt damage, you sacrifice a land (Redcap Melee)
@@ -2597,9 +2666,11 @@ pub enum EffectDef {
     GainAbilityAttachedUntilEndOfTurnEffect {
         ability: Box<AbilityDef>,
     },
-    /// the target permanents lose the ability until end of turn
+    /// the target permanents lose the ability until end of turn, or until your next turn
     LoseAbilityTargetEffect {
         ability: Box<AbilityDef>,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        until_your_next_turn: bool,
     },
     /// the source loses the ability until end of turn
     LoseAbilitySourceEffect {
@@ -2772,13 +2843,24 @@ pub enum EffectDef {
     LookAtTopCardOfLibraryAnyTimeEffect,
     /// "creatures of the filter can't attack you (or planeswalkers you control) unless their controller pays `cost`
     /// for each" (`CantAttackYouUnlessPayAllEffect` in a static ability; a `ConditionalReplacementEffect` around it
-    /// gives the condition): each attacker's cost is asked as it's declared
+    /// gives the condition): each attacker's cost is asked as it's declared. `generic`, when set, replaces `cost`
+    /// with {N} for that number (`getManaCostToPay` overridden), and no cost at all when it's 0
     CantAttackYouUnlessPayAllEffect {
         cost: String,
+        #[serde(default)]
+        generic: Option<Amount>,
         #[serde(default)]
         planeswalkers: bool,
         #[serde(default)]
         filter: Filter,
+        #[serde(default)]
+        condition: Option<Condition>,
+    },
+    /// "creatures can't block unless their controller pays `cost` for each blocking creature they control"
+    /// (`CantBlockUnlessPayManaAllEffect` in a static ability; `condition`: while it holds, Archangel of Tithes' "as
+    /// long as it's attacking"): each blocker's cost is asked as it's declared
+    CantBlockUnlessPayManaAllEffect {
+        cost: String,
         #[serde(default)]
         condition: Option<Condition>,
     },
@@ -2856,9 +2938,11 @@ pub enum EffectDef {
     AddCounterNextSpellEffect {
         amount: i32,
     },
-    /// untap up to `amount` tapped lands
+    /// untap up to `amount` tapped lands (`only_controlled`: lands you control, `UntapLandsEffect(n, true, true)`)
     UntapLandsEffect {
         amount: usize,
+        #[serde(default)]
+        only_controlled: bool,
     },
     /// puts the target permanent into its owner's library `n`th from the top
     PutIntoLibraryNFromTopTargetEffect {
@@ -3069,9 +3153,23 @@ pub enum EffectDef {
     NoMaximumHandSizeEffect,
     /// players have no maximum hand size (the same effect, `TargetController.ANY`: Folio of Fancies)
     NoMaximumHandSizeAllEffect,
-    /// your maximum hand size is `size` (`MaximumHandSizeControllerEffect(size, WhileOnBattlefield, SET)`)
+    /// "it can't be regenerated this turn" (`CantRegenerateTargetEffect(Duration.EndOfTurn)`, a rule-modifying effect
+    /// on `REGENERATE`): resolving, each target as it is then (`target`), whose regeneration shields don't work
+    CantRegenerateTargetEffect {
+        #[serde(skip)]
+        target: Option<(crate::state::ObjId, u32)>,
+    },
+    /// "the next spell you cast this turn can't be countered" (Mistrise Village's and Theorist's Proxy's own
+    /// `ContinuousEffectImpl`, started by `AddContinuousEffectToGame`): resolving, it keeps how many spells its
+    /// controller had cast this turn (`nth`), and the spell cast after them gets "can't be countered"
+    NextSpellCantBeCounteredEffect {
+        #[serde(default)]
+        nth: Option<u32>,
+    },
+    /// your maximum hand size is `size` (`MaximumHandSizeControllerEffect(size, WhileOnBattlefield, SET)`), a
+    /// number or a `DynamicValue` worked out as hands are checked (Midnight Oil's hour counters)
     MaximumHandSizeSetEffect {
-        size: u32,
+        size: Amount,
     },
     /// you may activate the loyalty abilities of planeswalkers you control twice each turn (Oath of Teferi)
     LoyaltyAbilitiesTwiceEffect,
@@ -3124,6 +3222,9 @@ pub enum EffectDef {
         /// how many each target player creates (one when absent)
         #[serde(default)]
         amount: Option<Amount>,
+        /// they enter tapped (Thran Spider's Powerstones)
+        #[serde(default)]
+        tapped: bool,
     },
     /// the target player scries `amount`
     ScryTargetEffect {
@@ -3211,6 +3312,11 @@ pub enum EffectDef {
     AttacksIfAbleAttachedEffect,
     /// this blocks each combat if able
     BlocksIfAbleSourceEffect,
+    /// a static: the creature this is attached to blocks each combat if able (`BlocksIfAbleAttachedEffect`: Spirespine)
+    BlocksIfAbleAttachedEffect,
+    /// a static: all creatures able to block the attacking creature this is attached to do so
+    /// (`MustBeBlockedByAllAttachedEffect`: Noble Quarry)
+    MustBeBlockedByAllAttachedEffect,
     /// flip a coin, calling it (`PlayerImpl.flipCoin`, winnable): `won` if you win the flip, else `lost`
     FlipCoinEffect {
         won: Vec<EffectDef>,
@@ -3284,6 +3390,12 @@ pub enum EffectDef {
     },
     /// decayed's "sacrifice it at end of combat" (`AtTheEndOfCombatDelayedTriggeredAbility`)
     SacrificeSourceAtEndOfCombatEffect,
+    /// "at end of combat, …" (`CreateDelayedTriggeredAbilityEffect` with `AtTheEndOfCombatDelayedTriggeredAbility`
+    /// of any effects): they resolve from the source as it was, at the next end of combat
+    CreateEndOfCombatDelayedEffect {
+        effects: Vec<EffectDef>,
+        rule: String,
+    },
     /// unleash: it may enter with a +1/+1 counter (`UnleashReplacementEffect`); with one, it can't block
     UnleashEffect,
     /// recruit: draw a card, then discard a card; a nonland card discarded makes a `token` (a Human Soldier)
@@ -3389,12 +3501,24 @@ pub enum EffectDef {
     DiscardHandDrawSameNumberSourceEffect,
     /// this must be blocked if able (a static's)
     MustBeBlockedByAtLeastOneSourceEffect,
+    /// the "legend rule" doesn't apply to permanents of the filter (a static's `LegendRuleDoesntApplyEffect`: their
+    /// `setLegendRuleApplies(false)`)
+    LegendRuleDoesntApplyEffect {
+        filter: Filter,
+    },
+    /// this can't be blocked except by `amount` or more creatures (a static's `CantBeBlockedByOneEffect`: its
+    /// `setMinBlockedBy`, as menace's is 2)
+    CantBeBlockedByOneEffect {
+        amount: i32,
+    },
     /// untap each permanent of the filter
     UntapAllEffect {
         filter: Filter,
     },
     /// this can't attack alone (a static's)
     CantAttackAloneSourceEffect,
+    /// the creature this is attached to can't attack alone (`CantAttackAloneAttachedEffect`: Sightless Brawler)
+    CantAttackAloneAttachedEffect,
     /// this can't block alone (a static's)
     CantBlockAloneSourceEffect,
     /// you may tap the target permanent, or untap it if it's tapped
@@ -3664,6 +3788,10 @@ pub enum EffectDef {
         /// `PutCards.BATTLEFIELD_TAPPED_ATTACKING`: and attacking (`Combat.addAttackingCreature`, The Neutrinos)
         #[serde(default)]
         attacking: bool,
+        /// `withEnterWithCounters(+1/+1 × n)`: each card returns with that many +1/+1 counters
+        /// (`game.setEnterWithCounters`, Daydream)
+        #[serde(default)]
+        p1p1: i32,
     },
     /// `PutCardFromHandOntoBattlefieldEffect`: you may (always asked) put a card of `filter` from your hand onto the
     /// battlefield, tapped or attacking
@@ -4863,6 +4991,10 @@ pub enum AbilityDef {
         /// the target's name there when the rule doesn't say "that player controls" (its filter's message)
         #[serde(default)]
         that_player_name: Option<String>,
+        /// the target is a card "from that player's graveyard" (`ThatPlayerControlsTargetAdjuster(true)`): "(owned
+        /// by B)"
+        #[serde(default)]
+        that_player_owned: bool,
         /// a card's own trigger class (`src/cards/`): its `checkTrigger` beyond the event `on` names, or its
         /// intervening "if" about the event, checked as it triggers and as it resolves
         #[serde(default)]
@@ -4967,12 +5099,15 @@ pub enum AbilityDef {
         cost: Vec<CostDef>,
         rule: String,
     },
-    /// whenever you tap a permanent of the filter for mana, add one more mana of `color` (a mana ability that
-    /// triggers, resolved at once)
+    /// whenever you tap a permanent of the filter for mana, add one more mana of `color` ("C": {C}) (a mana ability
+    /// that triggers, resolved at once); with `colorless_made`, only when the mana it made has {C} ("whenever you tap
+    /// a permanent for {C}": Forsaken Monument)
     TapForManaAllTriggeredManaAbility {
         filter: Filter,
         color: String,
         rule: String,
+        #[serde(default)]
+        colorless_made: bool,
     },
     /// the blitz ability's "as it enters" part (Java lists it on its own)
     BlitzEntersAbility {
@@ -5013,6 +5148,10 @@ pub enum AbilityDef {
         /// {1} less for each other Equipment you control (Plate Armor)
         #[serde(default)]
         equipment_discount: bool,
+        /// "activate only once each turn" (`setMaxActivationsPerTurn(n)`): at most this many times each turn, 0 for no
+        /// limit
+        #[serde(default)]
+        limit: u32,
         #[serde(default)]
         rule: String,
     },
@@ -5315,6 +5454,14 @@ pub enum AbilityDef {
     CrewSaddleWithToughnessAbility,
     /// this can't be blocked as long as the defending player controls an Island
     IslandwalkAbility,
+    /// this can't be blocked as long as the defending player controls a Plains (`PlainswalkAbility`)
+    PlainswalkAbility,
+    /// … a Swamp (`SwampwalkAbility`)
+    SwampwalkAbility,
+    /// … a Mountain (`MountainwalkAbility`)
+    MountainwalkAbility,
+    /// … a Forest (`ForestwalkAbility`)
+    ForestwalkAbility,
     /// umbra armor: if the enchanted creature would be destroyed, its damage is removed and this Aura is destroyed
     UmbraArmorAbility,
     /// an adventurer card's adventure spell (its first ability; the card's own spell is the second)
@@ -5937,8 +6084,9 @@ impl AbilityDef {
         if matches!(self, AbilityDef::NykthosShrineToNyxManaAbility { .. }) {
             return None;
         }
+        // (a {0} is nothing to pay: Vivi Ornitier's mana is counted as a free ability's)
         self.mana_costs().iter().find_map(|c| match c {
-            CostDef::ManaCost { cost } => Some(cost.as_str()),
+            CostDef::ManaCost { cost } if cost != "{0}" => Some(cost.as_str()),
             _ => None,
         })
     }

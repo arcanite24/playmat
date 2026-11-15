@@ -84,6 +84,13 @@ impl EffectCx<'_> {
         self.args.get(i)?.trim().parse().ok()
     }
 
+    /// Java argument `i`, an int or a `DynamicValue` the transpiler made an `Amount` of (the "amount" argument
+    /// kind), worked out now for the controller with the ability's X
+    pub fn arg_amount(&self, game: &Game, i: usize) -> Option<i32> {
+        let a: crate::card::Amount = serde_json::from_str(self.args.get(i)?).ok()?;
+        Some(game.value(&a, self.controller(), self.source_id(), self.item.x))
+    }
+
     /// Engine effects, as if they were the ability's own from here on: the same targets, source and controller.
     /// The way to reuse what cards.json can already say (`CreateTokenEffect`, `DestroyTargetEffect`…) inside a
     /// handler. Effects that need JSON-only data are built with `serde_json::from_value`.

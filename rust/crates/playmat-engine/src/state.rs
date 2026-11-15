@@ -177,6 +177,12 @@ pub struct Obj {
     pub cast: bool,
     /// `cast` as it last left the battlefield (an ability of it that resolves later looks back)
     pub cast_lki: bool,
+    /// the zone it entered the battlefield from, as it last did (the stack for a resolving spell; `cast_from` says
+    /// where that spell was cast from): Fblthp, the Lost
+    pub entered_from: Option<Zone>,
+    /// it was suspected as it last left the battlefield (`Permanent.isSuspected` of its last known information:
+    /// Agency Coroner's sacrificed creature)
+    pub suspected_lki: bool,
     /// its toughness as it last left the battlefield (Righteous Valkyrie's trigger on a creature already gone)
     pub toughness_lki: Option<i32>,
     /// its power as it last left the battlefield (`SourcePermanentPowerValue`'s last known information)
@@ -192,6 +198,9 @@ pub struct Obj {
     /// it lost all abilities (`BecomesCreatureTargetEffect`'s `loseAllAbilities`): 1 until end of turn, 2 until it
     /// leaves. Its keyword counters' abilities go too: Java adds them first in layer 6 (`ApplyStatusEffect`)
     pub lost_all: u8,
+    /// when a resolved "loses all abilities" (`LoseAllAbilitiesTargetEffect`) applied (0: none): the statics with
+    /// earlier timestamps (an Aura's "enchanted creature has flying") give it nothing (613.7)
+    pub lost_all_at: u64,
     /// a static "as long as …, it's a creature" applied: the card as it is without it
     pub becomes_base: Option<Arc<CardDef>>,
     /// the Auras whose "enchanted … is a …" (`BecomesCreatureAttachedEffect`) `def` has, in timestamp order
@@ -299,6 +308,9 @@ pub struct Obj {
     pub may_play_end_step: bool,
     /// `may_play` lasts only while its player controls this permanent, as it was (`Duration.WhileControlled`)
     pub may_play_while: Option<(ObjId, u32)>,
+    /// `may_play` holds only while this is true for its player (`CardUtil.makeCardPlayable`'s condition: Possibility
+    /// Technician's "if you control a Kavu")
+    pub may_play_if: Option<fn(&Game, Seat) -> bool>,
     /// mana of any type can be spent to cast it (while it may be played from exile)
     pub any_mana: bool,
     /// while it may be played from exile, it's cast without paying its mana cost (Oracle's Vault)
@@ -334,6 +346,8 @@ pub struct Obj {
     pub blitzed: bool,
     /// cast with its offspring cost paid
     pub offspring: bool,
+    /// cast with its gift promised (a permanent's: `GiftWasPromisedCondition` as it enters)
+    pub gift_promised: bool,
     /// in exile after warp: its owner may cast it from this turn number on
     pub warp_from: Option<u32>,
     /// the mana spent to cast it, as a spell (`ManaSpentToCastCount`)
@@ -694,6 +708,8 @@ pub enum TriggerCause {
     Died(ObjId),
     /// creatures attacking (`ATTACKER_DECLARED`, `DECLARED_ATTACKERS`)
     Attacked,
+    /// a player gaining life (`GAINED_LIFE`)
+    GainedLife(Seat),
 }
 
 #[derive(Clone, Debug)]
@@ -750,7 +766,8 @@ pub struct StackItem {
     pub spliced: Vec<Spliced>,
     /// a cast trigger: the spell that was cast (Java's `getValue("spellCast")`), whatever its target pointer is
     pub cast_spell: Option<ObjId>,
-    /// a "whenever a creature dies" trigger (`DiesCreatureTriggeredAbility`): the permanent that died and its
+    /// a "whenever a creature dies" trigger (`DiesCreatureTriggeredAbility`, or "when that creature dies this turn":
+    /// `WhenTargetDiesDelayedTriggeredAbility`): the permanent that died and its
     /// controller as it died (`getValue("creatureDied")`, its last known information)
     pub died: Option<(ObjId, Seat)>,
     /// a "whenever a permanent of the filter leaves the battlefield" trigger: the permanent that left (Java's
@@ -758,6 +775,13 @@ pub struct StackItem {
     pub left: Option<ObjId>,
     /// the cards its `DiscardCardCost` discarded (`DiscardCardCost.getCards`)
     pub cost_discarded: Vec<ObjId>,
+    /// a "whenever a player discards a card" trigger (`Trigger::Discards`, `DISCARDED_CARD`): the card discarded,
+    /// as the card it became in the graveyard (Java's `event.getTargetId()`)
+    pub discarded: Option<ObjId>,
+    /// the cards its `RevealTargetFromHandCost` revealed, in the order chosen (`getRevealedCards`)
+    pub cost_revealed: Vec<ObjId>,
+    /// the cards its `ExileFromGraveCost` exiled, in the order chosen (`ExileFromGraveCost.getExiledCards`)
+    pub cost_exiled: Vec<ObjId>,
     /// an explore trigger: the creature that explored and the card it revealed (`ExploredEvent.getCard`; none with
     /// an empty library)
     pub explored: Option<(ObjId, Option<ObjId>)>,
@@ -862,6 +886,9 @@ impl StackItem {
             died: None,
             left: None,
             cost_discarded: Vec::new(),
+            discarded: None,
+            cost_revealed: Vec::new(),
+            cost_exiled: Vec::new(),
             explored: None,
             batch: Vec::new(),
             from_delayed: None,
@@ -883,6 +910,9 @@ pub struct Boost {
     /// it changes the permanent even while it isn't a creature (`BoostAllEffect` boosts the objects it locked in:
     /// a Vehicle crewed as Mouth of the Storm's trigger resolved keeps its -3/-0)
     pub noncreature_too: bool,
+    /// it switches the object's power and toughness instead (layer 7d, after every boost:
+    /// `SwitchPowerToughnessSourceEffect`); two switches undo each other
+    pub switch: bool,
 }
 
 /// What a game event is (`GameEventKind`, what the web client's effects play from)
@@ -1178,6 +1208,9 @@ pub struct Game {
     pub effect_mana: Arc<Vec<AbilityDef>>,
     /// abilities lost until end of turn: (permanent, its zcc, the ability, the turn)
     pub lost_until_eot: Vec<(ObjId, u32, AbilityDef, u32)>,
+    /// abilities lost until a player's next turn (`LoseAbilityTargetEffect(…, Duration.UntilYourNextTurn)`: Mu
+    /// Yanling's "loses flying"): (permanent, its zcc, the ability, the player whose turn ends it)
+    pub lost_until_turn_of: Vec<(ObjId, u32, AbilityDef, Seat)>,
     /// what made a permanent block this turn if able, with the permanent's zone change count (its hint names it)
     pub must_block_from: Vec<(ObjId, u32, ObjId)>,
     /// the game log's lines as Java writes them (`informPlayers`), while it's kept (replays and the AI's copy compare
@@ -1204,6 +1237,9 @@ pub struct Game {
     /// players dealt any damage this turn, by source (`PlayerDamagedBySourceWatcher`): the source, its zone change
     /// count then, the player
     pub damaged_players: Vec<(ObjId, u32, Seat)>,
+    /// the permanents that dealt combat damage this game, as the objects they were (Ruric Thar's watcher: a source on
+    /// the battlefield, with its zone-change count then)
+    pub combat_damage_sources: Vec<(ObjId, u32)>,
     /// the creatures that attacked this turn, as they were (`AttackedThisTurnWatcher.getAttackedThisTurnCreatures`)
     pub attacked_this_turn: Vec<(ObjId, u32)>,
     /// the permanents each player put one or more +1/+1 counters on this turn, as they were (Kid Loki's watcher)
@@ -1297,6 +1333,9 @@ pub struct Game {
     pub noncombat_fired: Vec<(ObjId, u64)>,
     /// "one or more … enter" triggers since triggers were last checked, after the others (`ZONE_CHANGE_BATCH`)
     pub batch_pending: Vec<StackItem>,
+    /// an end-the-turn effect resolved (`Turn.endTurn`, Time Stop): the turn skips to its cleanup step, and no
+    /// triggered ability goes on the stack until then (`isEndTurnRequested`)
+    pub end_turn: bool,
     /// a card was put into exile from a graveyard or the battlefield since triggers were last checked (Ketramose)
     pub exiled_batch: bool,
     /// the cards that left a graveyard since triggers were last checked (`ZONE_CHANGE_BATCH`)
@@ -1379,6 +1418,8 @@ pub struct TurnWatch {
     /// `CardsPutIntoGraveyardWatcher`: each card put into a graveyard, its zone-change count there, and whether it
     /// came from the battlefield
     pub to_graveyard: Vec<(ObjId, u32, bool)>,
+    /// `CruelCalculationsWatcher`: the owner of each card put into a graveyard from a library (milled or otherwise)
+    pub library_to_graveyard: Vec<Seat>,
     /// `CrewedVehicleWatcher`: (vehicle, its zone-change count, a creature that crewed it, its count)
     pub crewed: Vec<(ObjId, u32, ObjId, u32)>,
     /// `LifeLostThisTurnWatcher`: a `LOST_LIFE_BATCH_FOR_ONE_PLAYER` for each, once a batch
@@ -1423,6 +1464,8 @@ pub struct TurnWatch {
     pub surveiled: Vec<Seat>,
     /// `SACRIFICED_PERMANENT`: who sacrificed, and the permanent as it was (the card or token it became, its count)
     pub sacrificed_objs: Vec<(Seat, ObjId, u32)>,
+    /// `ACTIVATED_ABILITY` of a loyalty ability: who activated it, once each (Kiora of Salt and Sand's watcher)
+    pub loyalty_activated: Vec<Seat>,
 }
 
 /// One damage event a `TurnWatch` keeps: the source as it was and its controller then, what was dealt damage (a
@@ -1436,6 +1479,10 @@ pub struct DamageSeen {
     pub to_zcc: u32,
     pub amount: i32,
     pub combat: bool,
+    /// damage to a permanent beyond what was lethal to it as it was dealt (`DamagedEvent.getExcess`: past its
+    /// toughness less its damage, 1 from a deathtouch source, its loyalty or defense); 0 or less for none, and for
+    /// a player
+    pub excess: i32,
 }
 
 /// A permanent that left the battlefield (`ZoneChangeEvent` from it): the object (with its zone-change count as the
@@ -1592,6 +1639,7 @@ impl Game {
             grants: Arc::new(Vec::new()),
             effect_mana: Arc::new(Vec::new()),
             lost_until_eot: Vec::new(),
+            lost_until_turn_of: Vec::new(),
             must_block_from: Vec::new(),
             log: None,
             events: None,
@@ -1602,6 +1650,7 @@ impl Game {
             damaged_by_source: Vec::new(),
             combat_damaged_players: Vec::new(),
             damaged_players: Vec::new(),
+            combat_damage_sources: Vec::new(),
             attacked_this_turn: Vec::new(),
             p1p1_put_this_turn: Vec::new(),
             discarded_this_turn: Vec::new(),
@@ -1641,6 +1690,7 @@ impl Game {
             mana_batch: 0,
             noncombat_fired: Vec::new(),
             batch_pending: Vec::new(),
+            end_turn: false,
             exiled_batch: false,
             left_graveyard: Vec::new(),
             discarded: Vec::new(),
@@ -1767,6 +1817,8 @@ impl Game {
             kicked: false,
             cast: false,
             cast_lki: false,
+            suspected_lki: false,
+            entered_from: None,
             toughness_lki: None,
             power_lki: None,
             p1p1_added: false,
@@ -1774,6 +1826,7 @@ impl Game {
             solved: false,
             until_end_of_turn_def: None,
             lost_all: 0,
+            lost_all_at: 0,
             becomes_base: None,
             becomes_auras: Vec::new(),
             becomes_over_eot: false,
@@ -1825,6 +1878,7 @@ impl Game {
             may_play: None,
             may_play_end_step: false,
             may_play_while: None,
+            may_play_if: None,
             any_mana: false,
             play_free: false,
             exiled_face_down: false,
@@ -1841,6 +1895,7 @@ impl Game {
             spent_colors: [0; 5],
             blitzed: false,
             offspring: false,
+            gift_promised: false,
             warp_from: None,
             mana_spent: 0,
             treasure_spent: 0,
@@ -2066,6 +2121,9 @@ impl Game {
                 let s = self.obj(src);
                 self.watch.crewed.iter().any(|(v, vz, c, cz)| *v == src && *vz == s.zcc && *c == id && *cz == o.zcc)
             }),
+            Pred::AttachedTo { filter } => {
+                self.attached(id).is_some_and(|to| self.filter_matches(filter, you, source, to))
+            }
             Pred::Equipped => self.attachments(id).any(|a| self.has_subtype(a, "Equipment")),
             Pred::Enchanted => self.attachments(id).any(|a| self.has_subtype(a, "Aura")),
             Pred::Modified => {
@@ -2381,6 +2439,11 @@ impl Game {
         {
             return false;
         }
+        if !self.lost_until_turn_of.is_empty()
+            && self.lost_until_turn_of.iter().any(|(x, z, a, _)| *x == id && *z == o.zcc && a == ability)
+        {
+            return false;
+        }
         // an Aura's "enchanted creature loses all abilities" (`LoseAllAbilitiesAttachedEffect`): to Java whatever
         // other statics give it too (Fresh Start on a creature with Cathar's Shield)
         if o.zone == Zone::Battlefield
@@ -2480,10 +2543,12 @@ impl Game {
     /// (`BecomesCreatureAttachedEffect`): layer 6 abilities older static abilities give it are lost with the rest
     pub fn abilities_lost_at(&self, id: ObjId) -> Option<u64> {
         let o = self.obj(id);
+        let own = (o.lost_all_at > 0 && o.zone == Zone::Battlefield).then_some(o.lost_all_at);
         if o.becomes_auras.is_empty() {
-            return None;
+            return own;
         }
-        o.becomes_auras
+        let auras = o
+            .becomes_auras
             .iter()
             .filter(|a| self.attached(**a) == Some(id))
             .filter(|a| {
@@ -2496,7 +2561,8 @@ impl Game {
                 })
             })
             .map(|a| self.obj(*a).attached_at)
-            .max()
+            .max();
+        auras.max(own)
     }
 
     /// A permanent's static abilities' timestamp: when it was attached, for an attachment, else when it entered
@@ -2870,7 +2936,7 @@ impl Game {
         }) && o.may_play_while.is_none_or(|(src, zcc)| {
             let s = self.obj(src);
             s.zone == Zone::Battlefield && s.zcc == zcc && s.controller == seat
-        })
+        }) && o.may_play_if.is_none_or(|f| f(self, seat))
     }
 
     pub fn any_static(&self, mut f: impl FnMut(&Game, ObjId, &EffectDef) -> bool) -> bool {
@@ -3589,8 +3655,9 @@ impl Game {
             Condition::MaxSpeed => self.player(you).speed >= 4,
             // (Java's `StoriedContinuousEffect` gives it as effects apply, before the engine's next state check)
             Condition::EnduringStory => self.player(you).enduring_story || self.storied_now(you),
+            // a permanent cast with its gift promised ("when this enters, if the gift was promised"); otherwise
             // only a resolving spell's conditional effect knows (`ConditionalOneShotEffect`)
-            Condition::GiftPromised => false,
+            Condition::GiftPromised => self.obj(source).gift_promised,
             // the werewolves' "if no spells were cast last turn" (not on the first turn) and "if a player cast two
             // or more spells last turn"
             Condition::NoSpellsLastTurn => self.turn >= 2 && self.players.iter().all(|p| p.spells_cast_last_turn == 0),
@@ -4042,11 +4109,17 @@ impl Game {
         t += dt;
         // (`BoostTargetEffect` changes only a creature: a Vehicle's boost counts once it's crewed)
         let creature = self.has_type(id, CardType::Creature);
+        let mut switched = false;
         for b in self.boosts.iter() {
             if b.target == id && b.zcc == o.zcc && (creature || b.noncreature_too) {
                 p += b.power;
                 t += b.toughness;
+                switched ^= b.switch;
             }
+        }
+        // layer 7d: switched power and toughness
+        if switched {
+            (p, t) = (t, p);
         }
         (p, t)
     }
@@ -4145,10 +4218,17 @@ impl Game {
     /// player controls (controlled by B)" (in a duel, the controller's opponent)
     pub fn that_player_rule(&self, item: &StackItem, rule: &str) -> String {
         let ability = item.ability.and_then(|(i, _)| self.item_def(item).abilities.get(i));
-        if let Some(AbilityDef::TriggeredAbility { that_player_controls: true, that_player_name, .. }) = ability {
+        if let Some(AbilityDef::TriggeredAbility {
+            that_player_controls: true,
+            that_player_name,
+            that_player_owned,
+            ..
+        }) = ability
+        {
             let them = (item.controller + 1) % self.seats();
             let name = that_player_name.as_deref().unwrap_or("that player controls");
-            let named = format!("{name} (controlled by {})", crate::log::player(them));
+            let how = if *that_player_owned { "owned" } else { "controlled" };
+            let named = format!("{name} ({how} by {})", crate::log::player(them));
             return rule.replacen(name, &named, 1);
         }
         rule.to_string()
@@ -4551,8 +4631,14 @@ impl Game {
             })
         } else if from == Zone::Graveyard && zone != Zone::Graveyard {
             let sources: Vec<ObjId> = self.battlefield.iter().copied().collect();
-            self.triggers(sources, |g, _, you, t| {
-                matches!(t, Trigger::SyrKonrad) && g.obj(id).owner == you && g.has_type(id, CardType::Creature)
+            self.triggers(sources, |g, src, you, t| match t {
+                Trigger::SyrKonrad => g.obj(id).owner == you && g.has_type(id, CardType::Creature),
+                Trigger::CardLeavesYourGraveyard { filter, your_turn } => {
+                    g.obj(id).owner == you
+                        && (!*your_turn || g.active == Some(you))
+                        && g.filter_matches(filter, you, Some(src), id)
+                }
+                _ => false,
             })
         } else {
             Vec::new()
@@ -4613,6 +4699,8 @@ impl Game {
                 std::mem::take(&mut self.when_dies).into_iter().partition(|w| w.0 == id && w.1 == zcc);
             self.when_dies = rest;
             for (k, (_, _, _, to_player, mut item)) in now.into_iter().enumerate() {
+                // (`setValue("creatureDied", …)`: what a handler's value reads)
+                item.died = Some((id, died_controller));
                 if to_player {
                     item.targets = vec![vec![Target::Player(died_controller)]];
                     item.target_zcc = vec![vec![0]];
@@ -4730,6 +4818,7 @@ impl Game {
             }
             if from == Zone::Battlefield {
                 o.cast_lki = o.cast;
+                o.suspected_lki = o.marks.iter().any(|m| m == "suspected");
                 if let Some(def) = o.front.take() {
                     o.def = def.clone();
                     left_front = Some(def);
@@ -4744,6 +4833,7 @@ impl Game {
             o.may_play = None;
             o.may_play_end_step = false;
             o.may_play_while = None;
+            o.may_play_if = None;
             o.any_mana = false;
             o.play_free = false;
             o.exiled_face_down = false;
@@ -4775,6 +4865,11 @@ impl Game {
                 }
                 o.blitzed = false;
                 o.offspring = false;
+                // kept as it last was on the battlefield (its enters trigger's "if the gift was promised" after it
+                // died, as Java's condition reads the source's last known information: Scrapshooter)
+                if from != Zone::Battlefield {
+                    o.gift_promised = false;
+                }
             }
         }
         let owner = self.obj(id).owner;
@@ -4825,6 +4920,7 @@ impl Game {
                     o.def = def;
                 }
                 o.lost_all = 0;
+                o.lost_all_at = 0;
                 o.copied_def = None;
                 o.eot_copy = None;
                 if let Some(def) = o.pre_guildpact.take() {
@@ -4858,6 +4954,10 @@ impl Game {
             if from != Zone::Battlefield && !matches!(zone, Zone::Battlefield | Zone::Stack) {
                 o.adventure_zone = zone;
             }
+            // the zone it entered the battlefield from (`EntersTheBattlefieldEvent.getFromZone`)
+            if zone == Zone::Battlefield {
+                o.entered_from = Some(from);
+            }
             o.zone = zone;
             o.zcc += 1;
         }
@@ -4881,6 +4981,9 @@ impl Game {
         if zone == Zone::Graveyard && from != Zone::Graveyard && !self.obj(id).token {
             let zcc = self.obj(id).zcc;
             self.watch.to_graveyard.push((id, zcc, from == Zone::Battlefield));
+        }
+        if zone == Zone::Graveyard && from == Zone::Library {
+            self.watch.library_to_graveyard.push(owner);
         }
         if madness && self.obj(id).zone == Zone::Exile {
             let fired = self.triggers([id], |_, src, _, t| src == id && matches!(t, Trigger::MadnessExiled));
@@ -4918,10 +5021,22 @@ impl Game {
         if from == Zone::Hand && requested == Zone::Graveyard {
             self.discarded.push((owner, id));
             self.watch.discarded.push(owner);
-            let sources = self.trigger_sources();
+            // (and the card itself, for a trigger of an `OrTriggeredAbility(Zone.ALL, …)`: Bartered Cow's "when you
+            // discard it")
+            let mut sources = self.trigger_sources();
+            if !sources.contains(&id) {
+                sources.push(id);
+            }
             let fired = self.triggers(sources, |g, src, you, t| match t {
                 Trigger::Discards { who, filter } => {
-                    Game::whose(who, you, owner) && g.filter_matches(filter, you, Some(src), id)
+                    (src != id
+                        || g.obj(id)
+                            .def
+                            .abilities
+                            .iter()
+                            .any(|a| matches!(a.trigger(), Some(Trigger::Or { ts }) if ts.iter().any(|x| x == t))))
+                        && Game::whose(who, you, owner)
+                        && g.filter_matches(filter, you, Some(src), id)
                 }
                 _ => false,
             });
@@ -4931,6 +5046,7 @@ impl Game {
                     t.targets = vec![vec![Target::Player(owner)]];
                     t.target_zcc = vec![vec![0]];
                 }
+                t.discarded = Some(id);
                 self.pending.push(t);
             }
         }
