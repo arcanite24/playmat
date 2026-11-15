@@ -29,6 +29,10 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
                     && !game.obj(*o).def.supertypes.iter().any(|s| s == "BASIC")
             })
             .collect();
+        // no nonbasic land there: `chooseTarget` asks nothing
+        if lands.is_empty() {
+            continue;
+        }
         if let Some(&l) = choose_cards(game, d, you, &lands, &lands, 0, 1, &rule)?.first() {
             chosen.push(l);
         }
