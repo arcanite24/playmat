@@ -10,13 +10,15 @@ pub const HANDLERS: &[Handler] = &[
     Handler::effect("ShorecrasherElemental.ShorecrasherElementalBoostEffect", boost),
 ];
 
-/// The source still the permanent that activated it: exiled, then from exile onto the battlefield face down under
-/// its owner's control (`moveCards` with `faceDown`: a 2/2 its megamorph cost turns face up)
+/// The source on the battlefield: exiled, then from exile onto the battlefield face down under its owner's control
+/// (`moveCards` with `faceDown`: a 2/2 its megamorph cost turns face up). Java's check is
+/// `new MageObjectReference(source.getSourceObject(game), game).refersTo(permanent)`, the permanent there now against
+/// itself: one activated before an earlier flicker flickers the new one too
 fn flicker(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
-    if !cx.source_on_battlefield(game) {
+    let c = cx.source_id();
+    if game.obj(c).zone != Zone::Battlefield {
         return Some(());
     }
-    let c = cx.source_id();
     game.move_to(c, Zone::Exile);
     if game.obj(c).zone != Zone::Exile || game.obj(c).token {
         return Some(());
