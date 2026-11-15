@@ -9879,8 +9879,10 @@ fn resolve_popped(game: &mut Game, d: &mut dyn Decider) {
             }
         }
     } else {
-        let (effects, targets) = def.spell.mode(item.modes.first().copied().unwrap_or(0));
-        let legal = legal_targets(game, &item, targets);
+        let (effects, _) = def.spell.mode(item.modes.first().copied().unwrap_or(0));
+        // (the targets it was cast with: a kicked or gifted spell's own, Sazacap's Brew's promised creature)
+        let targets = spell_target_defs(&def, &item);
+        let legal = legal_targets(game, &item, &targets);
         fizzled = legal.is_none();
         if let Some(legal) = legal {
             // `PromiseGiftEffect`, the spell's first effect
