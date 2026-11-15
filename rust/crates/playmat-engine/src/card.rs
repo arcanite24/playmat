@@ -959,13 +959,17 @@ pub enum Trigger {
     /// (`DealsDamageToACreatureTriggeredAbility`); "attached_to", the permanent this is attached to, to one of
     /// `filter` (Giant's Skewer); "to_you", a source an opponent controls to you, and "to_you_or_yours", to you or a
     /// permanent of `filter` you control (`SourceDealsDamageToYouTriggeredAbility`, `DAMAGED_PLAYER` too, its player
-    /// pointer the source's controller). A target pointer is the damaged permanent.
+    /// pointer the source's controller); "source_to", a source of `source_filter` to a permanent of `filter` (Hooded
+    /// Blightfang's "a creature you control with deathtouch deals damage to a planeswalker"). A target pointer is
+    /// the damaged permanent.
     DamagedPermanent {
         of: String,
         #[serde(default)]
         filter: Filter,
         #[serde(default)]
         combat: bool,
+        #[serde(default)]
+        source_filter: Filter,
     },
     /// you draw your `n`th card this turn (`DrawNthCardTriggeredAbility`); `who` another `TargetController`
     /// ("opponent": an opponent draws their `n`th card, "any": a player does)

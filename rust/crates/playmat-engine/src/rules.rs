@@ -21175,9 +21175,12 @@ fn damaged_permanent_triggers(game: &mut Game, source: ObjId, to: Target, amount
     let from = game.obj(source).controller;
     let sources = game.trigger_sources();
     let fired = game.triggers(sources, |g, src, you, t| match (t, to) {
-        (Trigger::DamagedPermanent { of, filter, combat: only }, Target::Obj(o)) if combat || !*only => {
+        (Trigger::DamagedPermanent { of, filter, combat: only, source_filter }, Target::Obj(o)) if combat || !*only => {
             match of.as_str() {
                 "to_this" => src == o,
+                "source_to" => {
+                    g.filter_matches(source_filter, you, Some(src), source) && g.filter_matches(filter, you, Some(src), o)
+                }
                 "this_to" => src == source && g.filter_matches(filter, you, Some(src), o),
                 "attached_to" => g.attached(src) == Some(source) && g.filter_matches(filter, you, Some(src), o),
                 "to_you_or_yours" => {
