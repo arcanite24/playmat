@@ -24,7 +24,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         grant(game, *t, &AbilityDef::HasteAbility);
     }
     let delayed = crate::state::Delayed {
-        rule: "Destroy it at the beginning of the next end step.".into(),
+        rule: "destroy it at the beginning of the next end step.".into(),
         sacrifice: Vec::new(),
         warp_exile: Vec::new(),
         effects: vec![EffectDef::DestroyTargetEffect],
