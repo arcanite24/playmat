@@ -1371,6 +1371,34 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   investigated events, replacement handlers that ask (Jinnie Fay, Moonlit Meditation, Kalitas), cards that play
   from exile or the graveyard with conditions, and the random or unordered ones (coin flips, dice, random bottom
   orders, `HashSet`/`HashMap` walks).
+  Wave 14, claim 2 (15 Nov): cards blocked only by their own classes, used ones first, then by Java file length.
+  281 handler files (one-shot effects, conditions, values, predicates, base-plus-check triggers, cost, continuous,
+  restriction and replacement statics) bring 283 cards in (13,251 in the engine), among them the used Kaervek, the
+  Punisher, Athreos, Shroud-Veiled, Shang-Chi, Master of Kung Fu, Sothera, the Supervoid, Ajani Steadfast, Depala,
+  Urabrask and Polymorphist's Jest. Engine and transpiler fixes, each with a game under `shadow/wave14-c2/`: a granted
+  trigger whose class's `getRule` returns a fixed string keeps that text ("Whenever this creature deals combat
+  damage…": Sixth Sense); a that-player target whose effect has fixed text gets no "(controlled by …)" (Etrata, the
+  Silencer); "enters or transforms into" triggers fire for the face it turned into, back faces too (Wildsong Howler);
+  an Aura's mana or activated ability wrapped in a `ConditionalContinuousEffect` is granted to the land while the
+  condition holds (Nature's Embrace). Three factory rounds (394 games, 357 matching, one Java unfinished) verified
+  251: 12,920 of 13,251. Not verified (each blamed for a game that differs): Java texts with an object's UUID link
+  (`object_id='…' [abc]`) where the engine writes `B16`, in delayed "sacrifice it" and cipher triggers (Macabre
+  Mockery, which also takes Pharika, Kain, Generous Plunderer, Zimone and Captain Jean-Luc Picard with it); trigger
+  order for two triggers of one event (Alluring Suitor, God-Eternal Rhonas with the legend rule); "which replacement
+  first" answers in combat damage (Arni Brokenbrow, Rescuer Sphinx); Java exceptions rolled back (Vesuvan Drifter
+  copying a double-faced card, Emergent Sequence finding nothing); HashSet order (The Three Seasons' auto-chosen
+  cards); a copy put into a hand (Unexpected Results); a dies trigger's last known power after the card left the
+  graveyard (Dead Man's Chest); the end of stacked control changes (Illusory Gains); Slagstone Refinery triggering on
+  an exile (blamed on Nahiri's Resolve); Daxos of Meletis, Mindreaver (Java's playable and target checks, not
+  understood), Oviya (Shang-Chi's mana paying), Hoarding Broodlord, Iroh, Shorecrasher Elemental, Oran-Rief Hydra,
+  Kinzu, Magnetic Snuffler, Danitha and Avatar of Burgeoning Echoes (one game each, not looked into); Boonweaver
+  Giant, Geometer's Arthropod, The Fall of Kroog and The Tarrasque are pending. Left on the list: about 340 cards
+  whose classes need engine work: CREATE_TOKEN, ADD_COUNTERS, UNTAP and DESTROY replacements; counters-put triggers
+  for any player or on players; energy, discover, explore, collect evidence, enlist, play-land and discard-this-card
+  triggers; the zone a permanent entered from; layer 4 card types and removing types; losing all abilities and
+  multi-layer statics; card-defined and "this turn" delayed triggers; a card's own `CostImpl` and cost handlers that
+  ask; activating abilities a static grants; Auras on players; snow and Treasure mana spent on abilities; plus the
+  random or unordered ones.
   Text fixes for verified cards (13 Nov): the Young Hero Role's granted trigger keeps its own text, "put a +1/+1
   counter on it" (its `AddCountersSourceEffect` has a `setText`), and a delayed upkeep transform is "Transform {this}
   at the beginning of the next turn's upkeep." (`AtTheBeginOfNextUpkeepDelayedTriggeredAbility.getRule` puts the
