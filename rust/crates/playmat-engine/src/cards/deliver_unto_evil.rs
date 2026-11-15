@@ -7,8 +7,8 @@ use super::*;
 pub const HANDLERS: &[Handler] = &[Handler::effect("DeliverUntoEvil.DeliverUntoEvilEffect", apply)
     .filters(&["new FilterControlledPlaneswalkerPermanent(SubType.BOLAS)"])];
 
-/// the targets to your hand with a Bolas planeswalker; else an opponent you choose (`TargetOpponent`, not targeted) chooses
-/// `min(2, cards)` of them (`TargetCardInGraveyard`), and the rest go to your hand
+/// the targets to your hand with a Bolas planeswalker; else an opponent you choose (`TargetOpponent`, not targeted)
+/// chooses `min(2, cards)` of them (`TargetCardInGraveyard`), and the rest go to your hand
 fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     let you = cx.controller();
     let mut cards = cx.objs(0);
