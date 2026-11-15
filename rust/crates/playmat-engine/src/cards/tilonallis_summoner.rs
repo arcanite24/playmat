@@ -30,9 +30,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
             return None;
         }
     };
-    let mut cost = ManaCost::default();
-    cost.generic = x as u32;
-    cost.colored[3] = 1;
+    let cost = ManaCost { generic: x as u32, colored: [0, 0, 0, 1, 0], ..ManaCost::default() };
     let before = game.clone();
     if !pay_mana(game, d, you, &cost) {
         if d.stopped() {
