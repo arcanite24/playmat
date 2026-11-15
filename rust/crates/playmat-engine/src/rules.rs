@@ -24015,8 +24015,12 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
             game.obj_mut(id).lost_all = 0;
         }
         if game.obj(id).damage != 0 || game.obj(id).deathtouched {
+            // (`REMOVE_DAMAGE_EOT`: a rule-modifying handler keeps the damage, not the deathtouch)
+            let keep = game.obj(id).damage != 0 && cards::keeps_damage(game, id);
             let o = game.obj_mut(id);
-            o.damage = 0;
+            if !keep {
+                o.damage = 0;
+            }
             o.deathtouched = false;
         }
         if game.obj(id).regen_shields != 0 {

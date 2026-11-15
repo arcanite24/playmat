@@ -24,7 +24,8 @@
 //!   `Rule::CantCastOnStack(f)`: only the cast itself, after its targets (`CAST_SPELL_LATE` reading the spell);
 //!   `Rule::CantActivate(f)`: `rules::activatable` (activated abilities that aren't mana abilities);
 //!   `Rule::CantLoseOrWin(f)`: the state-based loss check and `rules::win_game`;
-//!   `Rule::MaxActivations(f)`: a limited activated ability's times each turn (`rules::activatable`).
+//!   `Rule::MaxActivations(f)`: a limited activated ability's times each turn (`rules::activatable`);
+//!   `Rule::KeepsDamage(f)`: the cleanup step's damage removal.
 //! - **as-though**: `Handler::as_though(name, AsThough::Flash(f))`: `rules::castable`'s timing;
 //!   `AsThough::Haste(f)`: a {T} cost's summoning sickness (`rules::can_pay_cost`, mana abilities);
 //!   `AsThough::Hexproof(f)`: hexproof, as targets are chosen (`rules::possible_targets`, `targetable`).
@@ -388,6 +389,9 @@ pub(crate) enum Rule {
     /// `MAX_ACTIVATIONS`: how many times `seat` may activate the ability at `index` of `id` each turn, where it
     /// limits them (Birgi's boast twice); None leaves the limit as it is
     MaxActivations(fn(&Game, &StaticCx, Seat, ObjId, usize) -> Option<u32>),
+    /// `REMOVE_DAMAGE_EOT`: the damage marked on the permanent `id` isn't removed in the cleanup step
+    /// (`PermanentImpl.endOfTurn`: Ancient Adamantoise)
+    KeepsDamage(fn(&Game, &StaticCx, ObjId) -> bool),
 }
 
 /// `YouDontLoseManaEffect`'s `addDoNotEmptyManaType`: the kinds of `seat`'s mana (WUBRG, then colorless) the pool
@@ -774,6 +778,17 @@ pub(crate) fn cant_lose_or_win(game: &Game, seat: Seat, wins: bool) -> bool {
     each_static(game, &mut |h, cx, _| {
         if let Hook::Rule(Rule::CantLoseOrWin(f)) = h {
             out = out || f(game, cx, seat, wins);
+        }
+    });
+    out
+}
+
+/// Whether a rule-modifying handler keeps the damage on `id` through the cleanup step (`REMOVE_DAMAGE_EOT`)
+pub(crate) fn keeps_damage(game: &Game, id: ObjId) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::Rule(Rule::KeepsDamage(f)) = h {
+            out = out || f(game, cx, id);
         }
     });
     out
