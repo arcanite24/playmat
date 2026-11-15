@@ -3735,6 +3735,10 @@ class Translator:
                 a['rule'] = dc['rule']
             elif dc['phrase'] is not None and ', ' in a.get('rule', ''):
                 a['rule'] = dc['phrase'] + a['rule'].split(', ', 1)[1]
+            elif dc['phrase'] is not None and 'rule' not in a:
+                # a base with no text of its own: the creating ability's text from the phrase on (Thunder of
+                # Unity's chapter "Whenever a creature you control enters this turn, …"), set with the granted texts
+                a['delayed_phrase'] = dc['phrase']
             out = {'class': 'CreateDelayedTriggerEffect', 'ability': a}
             if dc['duration'] == 'Duration.EndOfTurn':
                 out['end_of_turn'] = True
@@ -9298,6 +9302,13 @@ def granted_rules(card):
                     and any(e.get('class') == 'CardStatic' for e in g.get('effects', [])) \
                     and '"p": "ability"' in json.dumps(x.get('filter')):
                 raise Unsupported('granted static handler to permanents with an ability')
+            if isinstance(g, dict) and 'rule' not in g and 'delayed_phrase' in g \
+                    and g['delayed_phrase'] and g['delayed_phrase'] in (rule or ''):
+                # a card's own delayed trigger given only its phrase: Java's `getRule` is the phrase and its
+                # effects' text, which the creating ability's text ends with
+                g['rule'] = rule[rule.index(g['delayed_phrase']):]
+            if isinstance(g, dict):
+                g.pop('delayed_phrase', None)
             if isinstance(g, dict) and 'rule' not in g:
                 one(g, rule, seen[0])
                 # (a keyword's text isn't quoted)
