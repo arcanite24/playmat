@@ -4434,6 +4434,10 @@ pub enum EffectDef {
     },
     /// a static effect on a spell: it can't be countered
     CantBeCounteredSourceEffect,
+    /// a static effect of a card in its owner's hand: "if a spell or ability an opponent controls causes you to discard
+    /// this card, put it onto the battlefield instead of putting it into your graveyard" (`DiscardOntoBattlefieldEffect`,
+    /// read by `rules::discard_card`)
+    DiscardOntoBattlefieldEffect,
     /// `SearchLibraryPutIn…Effect`: the controller (or the target's controller) searches their library for cards of
     /// the filter, puts them `to`, then shuffles; asked first when optional (always, for the target's controller)
     SearchLibraryEffect {

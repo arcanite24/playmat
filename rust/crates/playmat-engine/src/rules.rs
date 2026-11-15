@@ -8148,6 +8148,20 @@ fn discard_card(game: &mut Game, seat: Seat, c: ObjId) {
         log::inform(game, line);
     }
     note(game, EventKind::Discarded, Some(seat), None, Some(Target::Obj(c)), 0);
+    // `DiscardOntoBattlefieldEffect` (a static ability in the hand): discarded by a spell or ability an opponent
+    // controls (the stack object resolving, `getStackObject(event.getSourceId())`), it goes onto the battlefield
+    // under its owner's control instead (`owner.moveCards(card, BATTLEFIELD)`: nothing to ask as these enter)
+    let onto_battlefield = game.obj(c).zone == Zone::Hand
+        && game.obj(c).def.abilities.iter().any(|a| {
+            matches!(a, AbilityDef::SimpleStaticAbility { effects, .. }
+                if effects.iter().any(|e| matches!(e, EffectDef::DiscardOntoBattlefieldEffect)))
+        })
+        && game.resolving_item.as_ref().is_some_and(|i| i.controller != seat);
+    if onto_battlefield {
+        let owner = game.obj(c).owner;
+        enter_battlefield(game, &mut crate::decide::Passer, c, owner, false);
+        return;
+    }
     game.move_to(c, Zone::Graveyard);
 }
 
@@ -19092,6 +19106,7 @@ fn apply_each_effect(
             | EffectDef::SetBasePowerToughnessSourceEffect { .. }
             | EffectDef::SetBasePowerToughnessAmountSourceEffect { .. }
             | EffectDef::CantBeCounteredSourceEffect
+            | EffectDef::DiscardOntoBattlefieldEffect
             | EffectDef::NowhereToRunHexproofEffect
             | EffectDef::NowhereToRunWardEffect
             | EffectDef::TenaciousUnderdogEffect
