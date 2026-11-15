@@ -8413,6 +8413,8 @@ fn hexproof_from(game: &Game, id: ObjId, s: ObjId) -> bool {
             "monocolored" => colors.len() == 1,
             "multicolored" => colors.len() > 1,
             "each_color" => !colors.is_empty(),
+            // `HexproofFromPlaneswalkersAbility`: the spell or ability's source is a planeswalker
+            "planeswalkers" => game.has_type(s, CardType::Planeswalker),
             c => kinds.iter().position(|k| *k == c).is_some_and(|i| colors.iter().any(|x| *x as usize == i)),
         },
         _ => false,
