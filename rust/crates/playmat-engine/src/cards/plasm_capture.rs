@@ -31,7 +31,9 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         effects: Vec::new(),
         filters: Vec::new(),
     };
-    let rule = format!("At the beginning of your next first main phase, add {mv} mana in any combination of colors.");
+    // `CardUtil.numberToText`: "one", "two"… up to twenty
+    let amount = if mv == 1 { "one".to_string() } else { crate::log::number(mv.max(0) as usize) };
+    let rule = format!("At the beginning of your next first main phase, add {amount} mana in any combination of colors.");
     crate::rules::next_main_delayed(game, cx.source, cx.controller(), vec![add], rule, "precombat");
     Some(())
 }
