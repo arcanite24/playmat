@@ -1880,8 +1880,14 @@ impl Game {
                 i.card == id
                     && i.ability.is_none()
                     && i.targets.iter().flatten().any(|t| match t {
+                        // `getPermanentOrLKIBattlefield`: a target that left the battlefield since (Fugitive Droid
+                        // sacrificed to counter the spell that targets it) as it was; the stack hasn't emptied since
+                        // it was targeted, so Java still has its last known information
                         Target::Obj(x) => {
-                            self.obj(*x).zone == Zone::Battlefield && self.filter_matches(filter, you, source, *x)
+                            let o = self.obj(*x);
+                            (o.zone == Zone::Battlefield
+                                || self.watch.left_battlefield.iter().any(|l| l.id == *x && l.zcc + 1 == o.zcc))
+                                && self.filter_matches(filter, you, source, *x)
                         }
                         _ => false,
                     })
