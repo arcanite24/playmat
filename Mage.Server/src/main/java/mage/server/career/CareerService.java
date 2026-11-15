@@ -150,9 +150,6 @@ public final class CareerService {
         public CareerContent.CareerCover cover;
     }
 
-    /** the newest sets are always in the shop; campaign chapters open older ones */
-    public static final int SHOP_NEWEST_SETS = 6;
-
     /** What a pack gave, and the Career afterwards. */
     public static class CareerPackResult {
         public String setCode;
@@ -1297,11 +1294,16 @@ public final class CareerService {
                 }
             }
         }
-        Set<String> unlocked = CareerStore.get().setUnlocks(user);
-        List<CareerShopSet> all = shop();
+        return shelf(shop(), openedBy, CareerStore.get().setUnlocks(user));
+    }
+
+    /**
+     * Every released expansion and core set with packs is for sale, newest first; a set a campaign chapter opens
+     * stays locked (at the end of the list) until that chapter is beaten.
+     */
+    static List<CareerShopSet> shelf(List<CareerShopSet> all, Map<String, String> openedBy, Set<String> unlocked) {
         List<CareerShopSet> open = new ArrayList<>();
         List<CareerShopSet> locked = new ArrayList<>();
-        int newest = 0;
         for (CareerShopSet set : all) {
             if (openedBy.containsKey(set.setCode)) {
                 // which chapter opens it: still to beat when locked, the one beaten when open (the hub announces it)
@@ -1312,8 +1314,7 @@ public final class CareerService {
                     set.locked = true;
                     locked.add(set);
                 }
-            } else if (newest < SHOP_NEWEST_SETS) {
-                newest++;
+            } else {
                 open.add(set);
             }
         }

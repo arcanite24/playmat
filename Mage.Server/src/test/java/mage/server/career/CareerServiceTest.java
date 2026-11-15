@@ -273,4 +273,28 @@ public class CareerServiceTest {
             assertEquals(opponent.name, CareerContent.aiSeatName(opponent.name));
         }
     }
+
+    @Test
+    public void everySetWithPacksIsForSaleAndChapterSetsStayLockedUntilBeaten() {
+        List<CareerService.CareerShopSet> all = new ArrayList<>();
+        for (String code : Arrays.asList("NEW", "B", "C", "D", "E", "F", "G", "H", "OLD", "CHAPTER")) {
+            CareerService.CareerShopSet set = new CareerService.CareerShopSet();
+            set.setCode = code;
+            all.add(set);
+        }
+        java.util.Map<String, String> openedBy = new java.util.HashMap<>();
+        openedBy.put("CHAPTER", "Chapter 3");
+        openedBy.put("H", "Chapter 1");
+
+        List<CareerService.CareerShopSet> shelf = CareerService.shelf(all, openedBy, new java.util.HashSet<>(Arrays.asList("H")));
+
+        List<String> codes = new ArrayList<>();
+        shelf.forEach(set -> codes.add(set.setCode));
+        assertEquals(Arrays.asList("NEW", "B", "C", "D", "E", "F", "G", "H", "OLD", "CHAPTER"), codes, "every set, newest first, locked ones last");
+        assertFalse(shelf.get(8).locked, "an old set no chapter opens is for sale");
+        assertFalse(shelf.get(7).locked, "a beaten chapter's set is open");
+        assertEquals("Chapter 1", shelf.get(7).unlockedBy);
+        assertTrue(shelf.get(9).locked, "an unbeaten chapter's set stays locked");
+        assertEquals("Chapter 3", shelf.get(9).unlockedBy);
+    }
 }
