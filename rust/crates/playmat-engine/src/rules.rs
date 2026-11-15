@@ -343,7 +343,15 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                         || game.obj(id).def.abilities.iter().any(|a| match a {
                         AbilityDef::SimpleStaticAbility { effects, .. }
                         | AbilityDef::EntersBattlefieldTappedAbility { effects, .. } => {
-                            effects.iter().any(|e| matches!(e, EffectDef::DontUntapInControllersUntapStepSourceEffect))
+                            effects.iter().any(|e| match e {
+                                EffectDef::DontUntapInControllersUntapStepSourceEffect => true,
+                                // "… unless you have an enduring story" (Bombur, Gentle Dreamer)
+                                EffectDef::ConditionalContinuousEffect { effect, condition } => {
+                                    matches!(**effect, EffectDef::DontUntapInControllersUntapStepSourceEffect)
+                                        && game.condition_holds(Some(condition), active, id)
+                                }
+                                _ => false,
+                            })
                         }
                         _ => false,
                     }) || game.any_static(|g, src, e| {
