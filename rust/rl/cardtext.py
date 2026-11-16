@@ -2,6 +2,8 @@
 card the network never saw in training starts from what its text says rather than from a random embedding.
 
     python cardtext.py            # writes data/cardtext.npy (BUCKETS x WIDTH, float16)
+    python cardtext.py --holdout 0.1   # also writes data/holdout.json: a tenth of the benchmark's cards, for
+                                       # `train.py --holdout` (the cold-start test: their own embeddings stay 0)
 
 Each card's words and word pairs (the card's own name replaced by `{this}`, numbers kept) are hashed into WIDTH
 slots, weighted by idf over the card pool, and the row is scaled to unit length. Buckets shared by several of the
@@ -13,7 +15,9 @@ same file format.
 import json
 import math
 import os
+import random
 import re
+import sys
 
 import numpy as np
 
@@ -84,6 +88,14 @@ def main():
                 played.add(m.group(1))
     for n in played:
         table[card_id(n)] = row_of(bags[n], df, len(bags))
+    if "--holdout" in sys.argv:
+        frac = float(sys.argv[sys.argv.index("--holdout") + 1])
+        basics = {"Plains", "Island", "Swamp", "Mountain", "Forest", "Wastes"}
+        pool = sorted(n for n in played if n not in basics)
+        pick = sorted(random.Random(400).sample(pool, max(1, round(frac * len(pool)))))
+        json.dump({"cards": pick, "ids": sorted({card_id(n) for n in pick})},
+                  open(os.path.join(HERE, "data", "holdout.json"), "w"), indent=1)
+        print(f"HOLDOUT {len(pick)} of {len(pool)} benchmark cards")
     os.makedirs(os.path.join(HERE, "data"), exist_ok=True)
     np.save(os.path.join(HERE, "data", "cardtext.npy"), table.astype(np.float16))
     print(f"CARDTEXT {len(bags)} cards into {int((count > 0).sum())} buckets ({int((count > 1).sum())} shared); "

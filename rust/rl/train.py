@@ -108,6 +108,7 @@ def main():
     ap.add_argument("--lr", type=float, default=2e-3)
     ap.add_argument("--init", default=None, help="a run folder to start from (its net.pt, arch.json, critic.pt)")
     ap.add_argument("--arch", default="mlp", help="mlp, or tx (the transformer)")
+    ap.add_argument("--holdout", default=None, help="cardtext.py's holdout.json: those cards' embeddings stay 0")
     ap.add_argument("--tx", default="{}", help="the transformer sizes: JSON, or d=192,layers=4,text=1")
     ap.add_argument("--value-weight", type=float, default=0.5)
     ap.add_argument("--belief-weight", type=float, default=0.2)
@@ -128,6 +129,15 @@ def main():
     else:
         net = build({"arch": args.arch, **(tx_sizes(args.tx) if args.arch == "tx" else {})}).to(dev)
     print(f"TRAIN net {params(net)} params, critic {params(critic)}, on {dev}", flush=True)
+    if args.holdout:
+        # the cold-start test: these cards' own embeddings stay 0, so only their features (and with text=1 their
+        # rules text) say what they are
+        ids = torch.tensor(json.load(open(args.holdout))["ids"], device=dev)
+        weight = net.emb.weight
+        with torch.no_grad():
+            weight[ids] = 0
+        weight.register_hook(lambda g: g.index_fill(0, ids, 0))
+        print(f"TRAIN holding out {len(ids)} card buckets", flush=True)
     opt = torch.optim.AdamW(list(net.parameters()) + list(critic.parameters()), lr=args.lr, weight_decay=1e-4)
     steps = args.epochs * math.ceil(len(train_idx) / args.bs)
     sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=args.lr, total_steps=steps, pct_start=0.1)
