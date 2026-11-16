@@ -153,6 +153,13 @@ duplicate pairs).
   `host@s6` 97%, the loop's third network with `netsearch` 78%, `netsearch` with rollouts 72%, `net` 66%,
   `rust-quick` 56%. The network misses the instants on the
   opponent's turn (Fog, Negate, burn in combat).
+- **Other yardsticks (not built).** Forge's AI can only be played through Forge: its `sim` mode
+  (`forge-gui-desktop … sim -d deck1 deck2 -n 10`) runs Forge's AI against itself headless, with decks and
+  tournaments from the command line but no hook for an outside player. Playing ours against it needs a Forge
+  `PlayerController` that mirrors Forge's game into a Rust `Game` at each question and maps the answer back, the
+  same job `playmat-ai-bridge` does for Java's games here: about the size of that bridge, and limited to cards both
+  engines implement alike. Games against people need this AI live on the server (`PLAYMAT_AI_POLICY`), which is a
+  deploy decision; the ratings would come from the host's results.
 
 The search AI with full skill is still stronger than the network with its search; the shipped network
 (`src/net.pmnet`) and the host's defaults are unchanged.
