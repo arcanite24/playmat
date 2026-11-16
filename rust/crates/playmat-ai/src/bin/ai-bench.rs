@@ -29,6 +29,7 @@ fn main() {
         playout_cap: num("--playout-cap", Config::default().playout_cap),
         policy: opt("--policy").map(|p| p.parse().expect("--policy")).unwrap_or_else(PolicyKind::from_env),
         threads: num("--threads", Config::default().threads as u64) as usize,
+        ..Config::default()
     };
     // `--b-…`: seat B plays with these instead (to compare two configs; run again with `--swap` for the other seats)
     let cfg_b = Config {
@@ -38,6 +39,7 @@ fn main() {
         playout_cap: num("--b-playout-cap", cfg.playout_cap),
         policy: opt("--b-policy").map(|p| p.parse().expect("--b-policy")).unwrap_or(cfg.policy),
         threads: num("--b-threads", cfg.threads as u64) as usize,
+        ..cfg.clone()
     };
     let (cfg, cfg_b) = if args.iter().any(|a| a == "--swap") { (cfg_b, cfg) } else { (cfg, cfg_b) };
     let root = env!("CARGO_MANIFEST_DIR").to_string() + "/../../../Mage.Server/career-src";

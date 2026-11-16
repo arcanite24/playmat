@@ -294,6 +294,14 @@ It prints the replayed log and says whether it matches the record's, line for li
 `PLAYMAT_HOST_DEBUG=1` also prints every question and answer. `a_record_replays_the_game` in the host's `games` test
 checks the round trip.
 
+The start line also names the AI's config (`"ai"`: `entrants::label` of what the skill played, or `quick`), so
+results can be grouped by AI version. `host-results` summarizes a folder of records: the AI's wins against people by
+skill, AI config, the AI's deck, the person's deck and how games ended (`--since 2026-11-14` for newer ones only):
+
+```bash
+cargo run --release -p playmat-host --bin host-results -- host-games/
+```
+
 Not there yet: the Career's tally (step F) and spectators. Best-of-three games are hosted (step F's first part); on
 a timed table each game keeps the time left from the earlier ones, as Java's `MatchImpl.initGame` does: the host
 reports each player's time left with the end (`hostGameEnded`'s `timeLeft`) and Java sends it with the next

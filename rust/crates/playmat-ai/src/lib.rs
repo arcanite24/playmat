@@ -1,8 +1,16 @@
 //! Playmat's Rust AI (docs/rust/Ai.md): searches with whole-turn playouts on copies of the Rust engine's games.
 
+pub mod combat;
 pub mod decision;
 pub mod duel;
+pub mod entrants;
 pub mod eval;
+pub mod fitted;
 pub mod mirror;
+pub mod mulligan;
+pub mod net;
+pub mod obs;
 pub mod policy;
 pub mod search;
+pub mod selfplay;
+pub mod tree;

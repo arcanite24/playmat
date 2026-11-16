@@ -1,0 +1,910 @@
+{
+ "suite": "tactics@2",
+ "created": "2026-11-15",
+ "about": "Positions with one right line, seat 0 to find it. The entrant plays both seats from the given step. Goals: win (seat 0 wins before the turn `turns` after this one ends), survive (seat 0 is alive when the turn after `turns` more begins), remove (seat 1 no longer controls `card`), keep (seat 0 still controls `card`), life (seat 0 has at least `life`). Libraries are 20 of the seat's first basic land unless given. Changing a puzzle makes a new version. tactics@2 is tactics@1's 16 puzzles and 15 more (trample, flying and reach, pumps after blocks, exert, deathtouch blocks, counters and protection on the opponent's turn, and traps: a wrath when ahead, a removal spell that costs the last life).",
+ "puzzles": [
+  {
+   "name": "burn-to-the-face",
+   "about": "The opponent is at 3: Lightning Strike goes to the face, not at the Lions.",
+   "seats": [
+    {
+     "battlefield": [
+      "Mountain",
+      "Mountain"
+     ],
+     "hand": [
+      "Lightning Strike"
+     ]
+    },
+    {
+     "life": 3,
+     "battlefield": [
+      "Plains",
+      "Savannah Lions"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "win",
+    "turns": 0
+   }
+  },
+  {
+   "name": "two-burns-lethal",
+   "about": "At 5, Lightning Strike and Play with Fire both go to the face.",
+   "seats": [
+    {
+     "battlefield": [
+      "Mountain",
+      "Mountain",
+      "Mountain"
+     ],
+     "hand": [
+      "Lightning Strike",
+      "Play with Fire"
+     ]
+    },
+    {
+     "life": 5,
+     "battlefield": [
+      "Forest",
+      "Gnarlback Rhino"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "win",
+    "turns": 0
+   }
+  },
+  {
+   "name": "alpha-strike",
+   "about": "Three Lions into one blocker at 4 life: attack with everything.",
+   "seats": [
+    {
+     "battlefield": [
+      "Plains",
+      {
+       "name": "Savannah Lions",
+       "count": 3
+      }
+     ]
+    },
+    {
+     "life": 4,
+     "battlefield": [
+      "Forest",
+      "Llanowar Elves"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "win",
+    "turns": 0
+   }
+  },
+  {
+   "name": "remove-the-blocker",
+   "about": "Cut Down the only blocker, then two Lions are lethal.",
+   "seats": [
+    {
+     "battlefield": [
+      "Swamp",
+      {
+       "name": "Savannah Lions",
+       "count": 2
+      }
+     ],
+     "hand": [
+      "Cut Down"
+     ]
+    },
+    {
+     "life": 4,
+     "battlefield": [
+      "Plains",
+      "Savannah Lions"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "win",
+    "turns": 0
+   }
+  },
+  {
+   "name": "mutavault-for-lethal",
+   "about": "No creatures, the opponent at 2: animate Mutavault and attack.",
+   "seats": [
+    {
+     "battlefield": [
+      "Mutavault",
+      "Mountain",
+      "Mountain"
+     ]
+    },
+    {
+     "life": 2,
+     "battlefield": [
+      "Plains"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "win",
+    "turns": 0
+   }
+  },
+  {
+   "name": "pump-for-lethal",
+   "about": "Swiftspear with prowess and Monstrous Rage deals 4 to an opponent at 3.",
+   "seats": [
+    {
+     "battlefield": [
+      "Mountain",
+      "Monastery Swiftspear"
+     ],
+     "hand": [
+      "Monstrous Rage"
+     ]
+    },
+    {
+     "life": 3,
+     "battlefield": [
+      "Plains"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "win",
+    "turns": 0
+   }
+  },
+  {
+   "name": "keep-a-blocker-home",
+   "about": "At 4 against a Bonecrusher Giant, attacking with both Lions loses: keep one back.",
+   "seats": [
+    {
+     "life": 4,
+     "battlefield": [
+      "Plains",
+      {
+       "name": "Savannah Lions",
+       "count": 2
+      }
+     ]
+    },
+    {
+     "life": 20,
+     "battlefield": [
+      "Mountain",
+      "Bonecrusher Giant"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "survive",
+    "turns": 1
+   }
+  },
+  {
+   "name": "kill-the-threat-not-the-face",
+   "about": "At 2 against Savannah Lions, with no creatures: Lightning Strike the Lions, not the opponent at 10.",
+   "seats": [
+    {
+     "life": 2,
+     "battlefield": [
+      "Mountain",
+      "Mountain"
+     ],
+     "hand": [
+      "Lightning Strike"
+     ]
+    },
+    {
+     "life": 10,
+     "battlefield": [
+      "Plains",
+      "Savannah Lions"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "survive",
+    "turns": 1
+   }
+  },
+  {
+   "name": "wrath-to-survive",
+   "about": "At 5 against 10 power: Day of Judgment.",
+   "seats": [
+    {
+     "life": 5,
+     "battlefield": [
+      {
+       "name": "Plains",
+       "count": 4
+      }
+     ],
+     "hand": [
+      "Day of Judgment"
+     ]
+    },
+    {
+     "life": 20,
+     "battlefield": [
+      "Mountain",
+      {
+       "name": "Bonecrusher Giant",
+       "count": 2
+      },
+      "Savannah Lions"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "survive",
+    "turns": 1
+   }
+  },
+  {
+   "name": "remove-sheoldred",
+   "about": "Go for the Throat goes on Sheoldred, not on a 1/1 or a 2/1.",
+   "seats": [
+    {
+     "battlefield": [
+      "Swamp",
+      "Swamp"
+     ],
+     "hand": [
+      "Go for the Throat"
+     ]
+    },
+    {
+     "battlefield": [
+      "Swamp",
+      "Sheoldred, the Apocalypse",
+      "Llanowar Elves",
+      "Savannah Lions"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "remove",
+    "card": "Sheoldred, the Apocalypse",
+    "turns": 0
+   }
+  },
+  {
+   "name": "chump-to-survive",
+   "about": "The opponent's turn, a 4/3 attacking into 3 life: block with the Lions.",
+   "active": 1,
+   "seats": [
+    {
+     "life": 3,
+     "battlefield": [
+      "Plains",
+      "Savannah Lions"
+     ]
+    },
+    {
+     "life": 20,
+     "battlefield": [
+      "Mountain",
+      "Bonecrusher Giant"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "survive",
+    "turns": 0
+   }
+  },
+  {
+   "name": "instant-removal-in-combat",
+   "about": "The opponent's turn, a 4/3 attacking into 4 life and no blockers: Lightning Strike it before damage.",
+   "active": 1,
+   "seats": [
+    {
+     "life": 4,
+     "battlefield": [
+      "Mountain",
+      "Mountain"
+     ],
+     "hand": [
+      "Lightning Strike"
+     ]
+    },
+    {
+     "life": 20,
+     "battlefield": [
+      "Mountain",
+      "Bonecrusher Giant"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "survive",
+    "turns": 0
+   }
+  },
+  {
+   "name": "counter-the-wrath",
+   "about": "The opponent's turn, Day of Judgment in hand and four lands: Spell Pierce it (they can't pay 2 more).",
+   "active": 1,
+   "seats": [
+    {
+     "battlefield": [
+      "Island",
+      {
+       "name": "Savannah Lions",
+       "count": 3
+      }
+     ],
+     "library": [
+      {
+       "name": "Island",
+       "count": 20
+      }
+     ],
+     "hand": [
+      "Spell Pierce"
+     ]
+    },
+    {
+     "life": 20,
+     "battlefield": [
+      {
+       "name": "Plains",
+       "count": 4
+      }
+     ],
+     "hand": [
+      "Day of Judgment"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "keep",
+    "card": "Savannah Lions",
+    "turns": 0
+   }
+  },
+  {
+   "name": "block-and-burn",
+   "about": "At 2 against two 2/1 Lions with one 1/1 Elf: block one and Play with Fire the other.",
+   "active": 1,
+   "seats": [
+    {
+     "life": 2,
+     "battlefield": [
+      "Mountain",
+      "Forest",
+      "Llanowar Elves"
+     ],
+     "hand": [
+      "Play with Fire"
+     ]
+    },
+    {
+     "life": 20,
+     "battlefield": [
+      "Plains",
+      {
+       "name": "Savannah Lions",
+       "count": 2
+      }
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "survive",
+    "turns": 0
+   }
+  },
+  {
+   "name": "lifelink-race",
+   "about": "At 2 against a Bonecrusher Giant, the opponent at 4: attacking with Vampire Nighthawk gains 2 and loses to the 4 back; it stays home and blocks.",
+   "seats": [
+    {
+     "life": 2,
+     "battlefield": [
+      {
+       "name": "Swamp",
+       "count": 3
+      },
+      "Vampire Nighthawk"
+     ]
+    },
+    {
+     "life": 4,
+     "battlefield": [
+      "Mountain",
+      "Bonecrusher Giant"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "survive",
+    "turns": 1
+   }
+  },
+  {
+   "name": "fatal-push-the-attacker",
+   "about": "The opponent's turn, a Savannah Lions attacking into 2 life: Fatal Push it.",
+   "active": 1,
+   "seats": [
+    {
+     "life": 2,
+     "battlefield": [
+      "Swamp"
+     ],
+     "hand": [
+      "Fatal Push"
+     ]
+    },
+    {
+     "life": 20,
+     "battlefield": [
+      "Plains",
+      "Savannah Lions"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "survive",
+    "turns": 0
+   }
+  },
+  {
+   "name": "flier-for-lethal",
+   "about": "At 2 behind a Gnarlback Rhino: the Wind Drake flies over it.",
+   "seats": [
+    {
+     "battlefield": [
+      "Island",
+      "Wind Drake"
+     ]
+    },
+    {
+     "life": 2,
+     "battlefield": [
+      "Forest",
+      "Gnarlback Rhino"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "win",
+    "turns": 0
+   }
+  },
+  {
+   "name": "trample-over-the-elf",
+   "about": "At 3 with one Llanowar Elves: Gnarlback Rhino tramples 3 over it.",
+   "seats": [
+    {
+     "battlefield": [
+      "Forest",
+      "Gnarlback Rhino"
+     ]
+    },
+    {
+     "life": 3,
+     "battlefield": [
+      "Forest",
+      "Llanowar Elves"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "win",
+    "turns": 0
+   }
+  },
+  {
+   "name": "pump-after-blocks",
+   "about": "At 6 with one Elf: attack with the Rhino, Giant Growth it once blocked, 6 tramples over.",
+   "seats": [
+    {
+     "battlefield": [
+      {
+       "name": "Forest",
+       "count": 2
+      },
+      "Gnarlback Rhino"
+     ],
+     "hand": [
+      "Giant Growth"
+     ]
+    },
+    {
+     "life": 6,
+     "battlefield": [
+      "Forest",
+      "Llanowar Elves"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "win",
+    "turns": 0
+   }
+  },
+  {
+   "name": "ram-through-the-angel",
+   "about": "At 3 behind Serra Angel: Ram Through kills it, then the Rhino attacks unblocked.",
+   "seats": [
+    {
+     "battlefield": [
+      {
+       "name": "Forest",
+       "count": 2
+      },
+      "Gnarlback Rhino"
+     ],
+     "hand": [
+      "Ram Through"
+     ]
+    },
+    {
+     "life": 3,
+     "battlefield": [
+      "Plains",
+      "Serra Angel"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "win",
+    "turns": 0
+   }
+  },
+  {
+   "name": "coil-the-blocker",
+   "about": "At 4 behind Serra Angel: Lava Coil it, the Rhino is lethal.",
+   "seats": [
+    {
+     "battlefield": [
+      {
+       "name": "Mountain",
+       "count": 2
+      },
+      "Gnarlback Rhino"
+     ],
+     "hand": [
+      "Lava Coil"
+     ]
+    },
+    {
+     "life": 4,
+     "battlefield": [
+      "Plains",
+      "Serra Angel"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "win",
+    "turns": 0
+   }
+  },
+  {
+   "name": "exert-glorybringer",
+   "about": "At 4 behind Serra Angel: attack with Glorybringer exerted, 4 to the Angel, 4 in the air.",
+   "seats": [
+    {
+     "battlefield": [
+      {
+       "name": "Mountain",
+       "count": 5
+      },
+      "Glorybringer"
+     ]
+    },
+    {
+     "life": 4,
+     "battlefield": [
+      "Plains",
+      "Serra Angel"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "win",
+    "turns": 0
+   }
+  },
+  {
+   "name": "dont-wrath-when-ahead",
+   "about": "Three Lions against one Elf, the opponent at 4: attack, don't cast Sunfall.",
+   "seats": [
+    {
+     "battlefield": [
+      {
+       "name": "Plains",
+       "count": 5
+      },
+      {
+       "name": "Savannah Lions",
+       "count": 3
+      }
+     ],
+     "hand": [
+      "Sunfall"
+     ]
+    },
+    {
+     "life": 4,
+     "battlefield": [
+      "Forest",
+      "Llanowar Elves"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "win",
+    "turns": 0
+   }
+  },
+  {
+   "name": "coil-the-dragon",
+   "about": "At 4 against Glorybringer and an Elf: Lava Coil the dragon, the Elf alone can't kill.",
+   "seats": [
+    {
+     "life": 4,
+     "battlefield": [
+      {
+       "name": "Mountain",
+       "count": 2
+      }
+     ],
+     "hand": [
+      "Lava Coil"
+     ]
+    },
+    {
+     "life": 20,
+     "battlefield": [
+      {
+       "name": "Mountain",
+       "count": 5
+      },
+      "Glorybringer",
+      "Llanowar Elves"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "survive",
+    "turns": 1
+   }
+  },
+  {
+   "name": "murder-not-grasp",
+   "about": "At 2 against Sheoldred: Murder it; Infernal Grasp costs the last 2 life.",
+   "seats": [
+    {
+     "life": 2,
+     "battlefield": [
+      {
+       "name": "Swamp",
+       "count": 3
+      }
+     ],
+     "hand": [
+      "Infernal Grasp",
+      "Murder"
+     ]
+    },
+    {
+     "life": 20,
+     "battlefield": [
+      {
+       "name": "Swamp",
+       "count": 4
+      },
+      "Sheoldred, the Apocalypse"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "survive",
+    "turns": 1
+   }
+  },
+  {
+   "name": "helix-the-lion",
+   "about": "At 1 against two Lions: Lightning Helix one of them (back to 4, take 2), not the face.",
+   "seats": [
+    {
+     "life": 1,
+     "battlefield": [
+      "Mountain",
+      "Plains"
+     ],
+     "hand": [
+      "Lightning Helix"
+     ]
+    },
+    {
+     "life": 20,
+     "battlefield": [
+      "Plains",
+      {
+       "name": "Savannah Lions",
+       "count": 2
+      }
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "survive",
+    "turns": 1
+   }
+  },
+  {
+   "name": "fog-the-attack",
+   "about": "The opponent's turn, two Giants attacking into 3 life: Fog.",
+   "active": 1,
+   "seats": [
+    {
+     "life": 3,
+     "battlefield": [
+      "Forest"
+     ],
+     "hand": [
+      "Fog"
+     ]
+    },
+    {
+     "life": 20,
+     "battlefield": [
+      "Mountain",
+      {
+       "name": "Bonecrusher Giant",
+       "count": 2
+      }
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "survive",
+    "turns": 0
+   }
+  },
+  {
+   "name": "deathtouch-chump",
+   "about": "The opponent's turn, a trampling Rhino into 4 life: block with Typhoid Rats, only 3 tramples over.",
+   "active": 1,
+   "seats": [
+    {
+     "life": 4,
+     "battlefield": [
+      "Swamp",
+      "Typhoid Rats"
+     ]
+    },
+    {
+     "life": 20,
+     "battlefield": [
+      "Forest",
+      "Gnarlback Rhino"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "survive",
+    "turns": 0
+   }
+  },
+  {
+   "name": "reach-blocks-the-drake",
+   "about": "The opponent's turn, a Wind Drake into 2 life: Deadly Recluse blocks it.",
+   "active": 1,
+   "seats": [
+    {
+     "life": 2,
+     "battlefield": [
+      "Forest",
+      "Deadly Recluse"
+     ]
+    },
+    {
+     "life": 20,
+     "battlefield": [
+      "Island",
+      "Wind Drake"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "survive",
+    "turns": 0
+   }
+  },
+  {
+   "name": "negate-the-burn",
+   "about": "The opponent's turn, Lightning Strike in hand and 3 life: Negate it.",
+   "active": 1,
+   "seats": [
+    {
+     "life": 3,
+     "battlefield": [
+      {
+       "name": "Island",
+       "count": 2
+      }
+     ],
+     "library": [
+      {
+       "name": "Island",
+       "count": 20
+      }
+     ],
+     "hand": [
+      "Negate"
+     ]
+    },
+    {
+     "life": 20,
+     "battlefield": [
+      {
+       "name": "Mountain",
+       "count": 2
+      }
+     ],
+     "hand": [
+      "Lightning Strike"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "survive",
+    "turns": 0
+   }
+  },
+  {
+   "name": "save-the-angel",
+   "about": "The opponent's turn, Day of Judgment in hand: Heroic Intervention keeps Serra Angel.",
+   "active": 1,
+   "seats": [
+    {
+     "battlefield": [
+      {
+       "name": "Forest",
+       "count": 2
+      },
+      "Serra Angel"
+     ],
+     "library": [
+      {
+       "name": "Forest",
+       "count": 20
+      }
+     ],
+     "hand": [
+      "Heroic Intervention"
+     ]
+    },
+    {
+     "life": 20,
+     "battlefield": [
+      {
+       "name": "Plains",
+       "count": 4
+      }
+     ],
+     "hand": [
+      "Day of Judgment"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "keep",
+    "card": "Serra Angel",
+    "turns": 0
+   }
+  }
+ ]
+}

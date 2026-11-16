@@ -65,6 +65,8 @@ pub fn start_json(s: &Start) -> Value {
         "timer": {"prioritySecs": s.timer.priority_secs, "bufferSecs": s.timer.buffer_secs, "left": s.timer.left},
         "chooser": s.chooser,
         "rules": s.rules.json(),
+        // what the AI seats played, for `host-results` (the replay doesn't read it)
+        "ai": s.rules.ai_config().map(|c| playmat_ai::entrants::label(&c)).unwrap_or_else(|| "quick".into()),
     });
     if let Some(p) = &s.prelude {
         v["prelude"] = prelude_json(p);
