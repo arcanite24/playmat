@@ -110,6 +110,74 @@ alone wins 28% against `host@s6`, `netsearch` 39%. The value head as the search'
 `PLAYMAT_AI_POLICY=net` or `netsearch` opts in, with the network built into this build (`src/net.pmnet`;
 `cfg:...+net=PATH` tries another).
 
+## Round 2 (#400, Nov 2026)
+
+Everything here was trained on one RTX 4080 (multivac) and measured on `constructed-2` with SPRT (Elo 0 against 10,
+duplicate pairs).
+
+- **More data.** 50,000 games of `host@s6` against itself (2.66M decisions, 73 min on 12 threads), against 12,000
+  in round 1.
+- **A bigger network.** `--arch tx`: a transformer over the entities (730k weights, card text in the embedding, below),
+  against round 1's 139k-weight MLP. On the same data: the policy's held-out accuracy where the search doesn't take
+  the quick answer is 43.8% against 34.9%; as `net` it beats the MLP **+15.3 Elo [+3.8, +26.8]**. Its value
+  overfit (held-out loss 0.433 after one epoch, 0.631 after six); `train.py` now stops the value training the trunk
+  once its held-out loss rises, then refits the value head alone (0.444).
+- **Search with network playouts.** `rollout=PATH` (or `builtin`) answers every question inside a playout with that
+  network's top choice instead of the quick answer. `netsearch` on the transformer with `rollout=builtin` beats round
+  1's `netsearch` **+8.7 Elo [+1.8, +15.7]**. `gumbel` (Gumbel-top-k candidates and sequential halving, `consider`,
+  default 4) is +12.2 with rollouts against itself without them, but loses to `netsearch` with rollouts (-9.4
+  [-19.0, +0.2]).
+- **A tree search.** `ismcts` (`tree.rs`): an open-loop information-set tree over the network's policy. Each
+  iteration plays one belief-weighted sample of what the seat can't see; where a question of either seat was reached
+  before along the same answers, PUCT picks the answer (`cpuct`, per thousand, default 300), the first new question
+  is expanded with the network's policy, and the rest is the ordinary playout scored by `eval`. On round 4's network
+  with the same rollouts and budget, against `netsearch`: cpuct 1250 **+3.3 [-3.3, +9.8]** over 1,381 pairs (not
+  worse, not clearly better), cpuct 2500 -26.8 [-38.6, -15.1], cpuct 600 **+22.6 [+11.0, +34.3]** (500 pairs), cpuct 300 **+31.7 [+19.4, +44.1]** (500 pairs, now the default): less exploration is better. The 1,381 pairs took 2.4 hours on 8 threads; its worst decision time isn't measured yet.
+- **Search-then-learn rounds.** `rl/rounds.py`: 20,000 games of `netsearch` with rollouts against itself, retrain
+  from the current network on the last two rounds, keep the new one only if it wins an SPRT. Round 1 was kept
+  (+11.0 [+2.2, +19.8]); rounds 2 to 4 were not (-3.3, -6.9, -1.4). The loop had stalled because the search
+  hardly depended on the network: the playouts used the network shipped with #390, the 139k-weight MLP (`rollout=builtin`), the
+  candidates were mostly the same four, and the score was the value head, which overfit again. Measured on round
+  4's network against round 1's: the network alone is **+12.3 [+2.6, +22.1]**, so the policy did improve; `netsearch`
+  scored by the fitted score (`eval` 2) is **+7.0 [+2.0, +12.1]**; and round 1's network playing its own playouts
+  beats `rollout=builtin` **+6.2 [+2.2, +10.2]**, at about three times the time per game pair (only one seat used the slower playouts). `rounds.py` now defaults to `eval`
+  2, and `--rollout self` has each round's network play its own playouts.
+- **The loop again.** With those settings (12,000 games a round, about 2 h 15 min on 10 threads, a round kept unless
+  an SPRT shows it worse, `--gate -5,5`), from round 4's network: +11.1 [+1.6, +20.7], +6.0 [-2.7, +14.6] and
+  +2.4 [-3.1, +7.9], then +1.9 [-3.1, +6.8], each against the round before. The third round's network against
+  where the loop started: **+10.8 [-0.2, +21.8]**. Against `host@s6`: -41.2 [-55.9, -26.6] after three rounds,
+  -37.7 [-53.5, -22.0] after four (round 1's `netsearch` won 39% of its games against it, this one about 45%). The
+  gains shrink round by round at 12,000 games a round. Its `netsearch` is still +40.1 [+27.3, +53.1] over the
+  same network alone, so the network hasn't caught up with its search. Retraining round 4's network on everything
+  (the 50,000 teacher games and the 48,000 of the loop) made the policy worse (-14.9 [-26.5, -3.4] as `net`): the
+  teacher's answers pull it back.
+- **Value and belief.** The value as the search's score (`eval` 3) lost to the fitted score by 34.5 Elo trained on
+  the teacher's games alone; trained on everything above, by 6.2 [-15.3, +2.8], close but not yet past it. The
+  belief's loss is 0.208 against 0.210.
+- **Card text.** `rl/cardtext.py` hashes each card's rules text into 1,024 buckets; `train.py --tx text=1` learns a
+  projection of it added to the card's embedding, folded into the embedding at export, so the Rust side doesn't change.
+  On the cards it was trained on it adds nothing measurable: the same transformer without it is -1.2 Elo [-8.1, +5.6]
+  as `net`. With a tenth of the benchmark's cards (46) held out of the name embedding (`cardtext.py --holdout 0.1`,
+  `train.py --holdout`), the text is what's left to tell them apart: the belief's loss is 0.208 with it, 0.250
+  without (0.208 with every card known), and as `net` it is +4.7 [-0.2, +9.6] over all 3,444 deals (no verdict;
+  most games hardly use the held-out cards). The held-out cards are still in the training games, so this is close
+  to, not quite, a card the network has never seen.
+- **Tactics.** `archbench/tactics-2`: tactics@1 and 15 more puzzles (trample, flying and reach, pumps after blocks,
+  exert, deathtouch blocks, counters and protection on the opponent's turn, a wrath when ahead). Solved over 4 seeds:
+  `host@s6` 97%, the loop's third network with `netsearch` 78%, `netsearch` with rollouts 72%, `net` 66%,
+  `rust-quick` 56%. The network misses the instants on the
+  opponent's turn (Fog, Negate, burn in combat).
+- **Other yardsticks (not built).** Forge's AI can only be played through Forge: its `sim` mode
+  (`forge-gui-desktop … sim -d deck1 deck2 -n 10`) runs Forge's AI against itself headless, with decks and
+  tournaments from the command line but no hook for an outside player. Playing ours against it needs a Forge
+  `PlayerController` that mirrors Forge's game into a Rust `Game` at each question and maps the answer back, the
+  same job `playmat-ai-bridge` does for Java's games here: about the size of that bridge, and limited to cards both
+  engines implement alike. Games against people need this AI live on the server (`PLAYMAT_AI_POLICY`), which is a
+  deploy decision; the ratings would come from the host's results.
+
+The search AI with full skill is still stronger than the network with its search; the shipped network
+(`src/net.pmnet`) and the host's defaults are unchanged.
+
 ## One decision at a time: policies
 
 Every question with two or more candidates goes to the seat's `DecisionPolicy` (`decision.rs`). It gets a `Decision`:
@@ -126,6 +194,11 @@ spent), or `None` for the quick answer; an answer the question doesn't accept fa
 | `random` | `decision::Random` | a seeded random candidate, Archbench's anchor |
 | `net` | `selfplay::NetPolicy` | the trained network's policy, no search (self-play, above) |
 | `netsearch` | `selfplay::NetSearch` | the network's policy moved by playouts on belief-weighted samples of what the seat can't see, scored by its value; never sees hidden cards (the default config turns on `hide`, 4 samples, `eval` 3) |
+| `gumbel` | `selfplay::Gumbel` | like `netsearch`, but the candidates are picked by Gumbel-top-k (`consider`, default 4) and narrowed by sequential halving |
+| `ismcts` | `tree::Ismcts` | like `netsearch`, but the samples share one tree over both seats' answers, searched by PUCT on the network's policy (`cpuct`, default 300) |
+
+With `net`, `netsearch`, `gumbel` and `ismcts`, `cfg:...+rollout=PATH` (or `builtin`) has a network answer the questions
+inside the playouts instead of the quick answers.
 
 The setting is read by `Config::default()`, so it applies wherever a config is made from the defaults: the bridge
 (`playmat-ai-bridge`) and Rust-hosted games. `PLAYMAT_AI_THREADS` (default: the processors, at most 4) caps the

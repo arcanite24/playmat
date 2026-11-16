@@ -48,6 +48,13 @@ pub struct Config {
     pub temp: u32,
     /// `netsearch`: how far the searched values move the network's policy, per thousand (`selfplay::NetSearch`)
     pub eta: u32,
+    /// a network (`.pmnet` path, or `builtin`) that answers the playouts' questions instead of the quick answers;
+    /// `None` the quick answers
+    pub rollout: Option<String>,
+    /// `gumbel`: how many candidates the search plays out (the likelier ones under Gumbel-top-k)
+    pub consider: usize,
+    /// `ismcts`: PUCT's exploration constant, per thousand
+    pub cpuct: u32,
 }
 
 impl Default for Config {
@@ -60,7 +67,7 @@ impl Default for Config {
         let policy = PolicyKind::from_env();
         // the network's search as measured (#390 Track B): on samples of what the seat can't see, scored by the
         // network's value
-        let netsearch = policy == PolicyKind::NetSearch;
+        let netsearch = matches!(policy, PolicyKind::NetSearch | PolicyKind::Gumbel | PolicyKind::Ismcts);
         Config {
             budget: 6000,
             width: 12,
@@ -80,6 +87,9 @@ impl Default for Config {
             net: None,
             temp: 0,
             eta: 10_000,
+            rollout: None,
+            consider: 4,
+            cpuct: 300,
         }
     }
 }
@@ -236,6 +246,7 @@ impl Table {
             since: self.since.clone(),
             hidden,
             playout: cfg.playout,
+            rollout: cfg.rollout.as_ref().map(|p| crate::net::of(&Some(p.clone()))),
         });
         let slot = &mut self.deciders[seat];
         if !matches!(slot, Some((None, _))) && slot.as_ref().map(|(k, _)| *k) != Some(Some(cfg.policy)) {
@@ -439,6 +450,7 @@ impl Table {
             since: self.since.clone(),
             hidden: cfg.hide.then(|| self.hidden[seat].clone()),
             playout: cfg.playout,
+            rollout: cfg.rollout.as_ref().map(|p| crate::net::of(&Some(p.clone()))),
         };
         let start = Instant::now();
         let stop = game.turn + 1 + cfg.extra_turns;

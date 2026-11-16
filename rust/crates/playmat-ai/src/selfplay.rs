@@ -60,7 +60,7 @@ impl NetPolicy {
 }
 
 /// Picks from `p`: the most likely at temperature 0, else a sample
-fn pick(p: &[f32], temp: u32, rng: &mut u64) -> usize {
+pub(crate) fn pick(p: &[f32], temp: u32, rng: &mut u64) -> usize {
     if temp == 0 {
         p.iter().enumerate().max_by(|a, b| a.1.total_cmp(b.1)).map_or(0, |(i, _)| i)
     } else {
@@ -134,6 +134,51 @@ fn hand_likelihood(
         .sum()
 }
 
+/// `k` samples of the game the seat might be in; with a belief head, the likelier ones under it (importance
+/// resampling, 3 drawn per kept)
+pub(crate) fn sample_games(
+    rng: &mut u64,
+    d: &Decision,
+    root: &crate::decision::Root,
+    net: &net::Net,
+    state: &[f32],
+    k: usize,
+) -> Vec<Game> {
+    // samples of the game, the likelier ones under the belief kept (importance resampling, 3 drawn per kept)
+    let seed = ((d.game.turn as u64) << 40) ^ ((root.since.len() as u64) << 16) ^ d.seat as u64 ^ *rng;
+    mix(rng);
+    match &root.hidden {
+        Some(h) if net.has_belief() => {
+            let seen = |id: ObjId| h.seat_saw(id);
+            let pool: Vec<u32> = unseen(&root.snapshot, d.seat, seen)
+                .iter()
+                .map(|(id, _)| obs::card_id(&root.snapshot.obj(*id).def.name))
+                .collect();
+            let z = net.belief(state, &pool);
+            let logit: std::collections::HashMap<u32, f32> = pool.iter().copied().zip(z).collect();
+            let mut drawn: Vec<(f32, Game)> = (0..k * 3)
+                .map(|j| {
+                    let g = root.sample(seed.wrapping_add(j as u64 * 0x9E37));
+                    (hand_likelihood(&g, d.seat, &logit, &seen), g)
+                })
+                .collect();
+            let m = drawn.iter().map(|(l, _)| *l).fold(f32::MIN, f32::max);
+            let w: Vec<f32> = drawn.iter().map(|(l, _)| (l - m).exp()).collect();
+            let s: f32 = w.iter().sum();
+            let w: Vec<f32> = w.iter().map(|v| v / s).collect();
+            let mut keep = Vec::new();
+            let mut picks: Vec<usize> = (0..k).map(|_| draw(&w, rng)).collect();
+            picks.sort();
+            picks.dedup();
+            for i in picks.into_iter().rev() {
+                keep.push(drawn.swap_remove(i).1);
+            }
+            keep
+        }
+        _ => (0..k).map(|j| root.sample(seed.wrapping_add(j as u64 * 0x9E37))).collect(),
+    }
+}
+
 impl DecisionPolicy for NetSearch {
     fn name(&self) -> &str {
         "netsearch"
@@ -170,40 +215,7 @@ impl DecisionPolicy for NetSearch {
             self.last = prior;
             return Some(Choice { answer: d.candidates[tried[0]].clone(), nodes: 0 });
         }
-        // samples of the game, the likelier ones under the belief kept (importance resampling, 3 drawn per kept)
-        let k = cfg.samples.max(1);
-        let seed = ((d.game.turn as u64) << 40) ^ ((root.since.len() as u64) << 16) ^ d.seat as u64 ^ self.rng;
-        mix(&mut self.rng);
-        let games: Vec<Game> = match &root.hidden {
-            Some(h) if net.belief.is_some() => {
-                let seen = |id: ObjId| h.seat_saw(id);
-                let pool: Vec<u32> = unseen(&root.snapshot, d.seat, seen)
-                    .iter()
-                    .map(|(id, _)| obs::card_id(&root.snapshot.obj(*id).def.name))
-                    .collect();
-                let z = net.belief(&out.h, &pool);
-                let logit: std::collections::HashMap<u32, f32> = pool.iter().copied().zip(z).collect();
-                let mut drawn: Vec<(f32, Game)> = (0..k * 3)
-                    .map(|j| {
-                        let g = root.sample(seed.wrapping_add(j as u64 * 0x9E37));
-                        (hand_likelihood(&g, d.seat, &logit, &seen), g)
-                    })
-                    .collect();
-                let m = drawn.iter().map(|(l, _)| *l).fold(f32::MIN, f32::max);
-                let w: Vec<f32> = drawn.iter().map(|(l, _)| (l - m).exp()).collect();
-                let s: f32 = w.iter().sum();
-                let w: Vec<f32> = w.iter().map(|v| v / s).collect();
-                let mut keep = Vec::new();
-                let mut picks: Vec<usize> = (0..k).map(|_| draw(&w, &mut self.rng)).collect();
-                picks.sort();
-                picks.dedup();
-                for i in picks.into_iter().rev() {
-                    keep.push(drawn.swap_remove(i).1);
-                }
-                keep
-            }
-            _ => (0..k).map(|j| root.sample(seed.wrapping_add(j as u64 * 0x9E37))).collect(),
-        };
+        let games = sample_games(&mut self.rng, d, root, &net, &out.h, cfg.samples.max(1));
         let stop = d.game.turn + 1 + cfg.extra_turns;
         let per = (cfg.budget / (tried.len() * games.len()) as u64).clamp(50, cfg.playout_cap);
         let base = crate::eval::score_with(d.game, d.seat, cfg);
@@ -237,6 +249,105 @@ impl DecisionPolicy for NetSearch {
         self.last = post;
         let i = pick(&self.last, cfg.temp, &mut self.rng);
         Some(Choice { answer: d.candidates[i].clone(), nodes })
+    }
+
+    fn last_policy(&self) -> Option<&[f32]> {
+        (!self.last.is_empty()).then_some(&self.last[..])
+    }
+}
+
+/// The network's policy searched by Gumbel sequential halving (Gumbel AlphaZero, Danihelka et al. 2022): `consider`
+/// candidates drawn without replacement by Gumbel-top-k on the logits (no noise at temperature 0), then rounds that
+/// play each survivor out on more samples and keep the better half by `g + logit + σ(Q)`. The policy it records is
+/// `softmax(logit + σ(Q))`, the candidates it didn't play valued at the network's value.
+pub struct Gumbel {
+    rng: u64,
+    last: Vec<f32>,
+}
+
+impl Gumbel {
+    pub fn new(seed: u64) -> Gumbel {
+        Gumbel { rng: seed, last: Vec::new() }
+    }
+}
+
+/// `σ(q) = (50 + most plays) · 0.1 · q`, the Gumbel AlphaZero scale for values in 0..1
+fn sigma(q: f32, most: usize) -> f32 {
+    (50.0 + most as f32) * 0.1 * q
+}
+
+impl DecisionPolicy for Gumbel {
+    fn name(&self) -> &str {
+        "gumbel"
+    }
+
+    fn decide(&mut self, d: &Decision) -> Option<Choice> {
+        self.last.clear();
+        if skipped(d.query) {
+            return None;
+        }
+        let cfg = d.config;
+        let net = net::of(&cfg.net);
+        let o = obs::observe(d.game, d.seat, d.query, d.candidates);
+        let out = net.forward(&o);
+        let n = out.logits.len();
+        let Some(root) = d.root.filter(|_| n > 1) else {
+            self.last = softmax(&out.logits, 1.0);
+            let i = pick(&self.last, cfg.temp, &mut self.rng);
+            return Some(Choice { answer: d.candidates[i].clone(), nodes: 0 });
+        };
+        let g: Vec<f32> = (0..n)
+            .map(|_| if cfg.temp == 0 { 0.0 } else { -(-(uniform(&mut self.rng).max(1e-9)).ln()).ln() })
+            .collect();
+        let mut alive: Vec<usize> = (0..n).collect();
+        alive.sort_by(|a, b| (g[*b] + out.logits[*b]).total_cmp(&(g[*a] + out.logits[*a])));
+        alive.truncate(cfg.consider.max(2));
+        // `samples` plays per candidate on average, spread over log2(m) rounds that halve the survivors
+        let m = alive.len();
+        let rounds = (usize::BITS - (m - 1).leading_zeros()).max(1) as usize;
+        let total = cfg.samples.max(1) * m;
+        let games = sample_games(&mut self.rng, d, root, &net, &out.h, total.div_ceil(rounds).max(cfg.samples.max(1)));
+        let stop = d.game.turn + 1 + cfg.extra_turns;
+        let per = (cfg.budget / total as u64).clamp(50, cfg.playout_cap);
+        let base = crate::eval::score_with(d.game, d.seat, cfg);
+        let mut sum = vec![0.0f64; n];
+        let mut plays = vec![0usize; n];
+        let mut nodes = 0;
+        for r in 0..rounds {
+            let each = (total / (rounds * alive.len())).max(1);
+            for &i in &alive {
+                for k in 0..each {
+                    let gk = &games[(plays[i] + k) % games.len()];
+                    match root.play_on(gk.clone(), &[d.candidates[i].clone()], per, stop) {
+                        Ok(res) => {
+                            nodes += res.nodes;
+                            sum[i] += crate::eval::value_with(&res.game, d.seat, base, cfg);
+                        }
+                        Err(x) => {
+                            nodes += x;
+                            sum[i] += 0.5;
+                        }
+                    }
+                }
+                plays[i] += each;
+            }
+            let most = *plays.iter().max().unwrap_or(&0);
+            let key = |i: usize| g[i] + out.logits[i] + sigma((sum[i] / plays[i] as f64) as f32, most);
+            alive.sort_by(|a, b| key(*b).total_cmp(&key(*a)));
+            if r + 1 < rounds {
+                alive.truncate(alive.len().div_ceil(2));
+            }
+        }
+        let v = 1.0 / (1.0 + (-out.value).exp());
+        let most = *plays.iter().max().unwrap_or(&0);
+        let improved: Vec<f32> = (0..n)
+            .map(|i| {
+                let q = if plays[i] > 0 { (sum[i] / plays[i] as f64) as f32 } else { v };
+                out.logits[i] + sigma(q, most)
+            })
+            .collect();
+        self.last = softmax(&improved, 1.0);
+        Some(Choice { answer: d.candidates[alive[0]].clone(), nodes })
     }
 
     fn last_policy(&self) -> Option<&[f32]> {
@@ -455,7 +566,10 @@ impl Shard {
 
 /// Whether `config` plays with a network
 pub fn uses_net(config: &Option<Config>) -> bool {
-    config.as_ref().is_some_and(|c| matches!(c.policy, PolicyKind::Net | PolicyKind::NetSearch) || c.eval >= 3)
+    config.as_ref().is_some_and(|c| {
+        matches!(c.policy, PolicyKind::Net | PolicyKind::NetSearch | PolicyKind::Gumbel | PolicyKind::Ismcts)
+            || c.eval >= 3
+    })
 }
 
 /// The objects in a zone the seat can't see (for the leak audit)

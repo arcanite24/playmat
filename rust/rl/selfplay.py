@@ -30,7 +30,7 @@ import torch
 import torch.nn.functional as F
 
 from data import Data
-from model import Critic, Net, export
+from model import Critic, export, load_dir, save_dir
 from train import device
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -151,8 +151,7 @@ def main():
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
     dev = device()
-    net, critic = Net().to(dev), Critic().to(dev)
-    net.load_state_dict(torch.load(os.path.join(args.init, "net.pt"), map_location=dev))
+    net, critic = load_dir(args.init, dev), Critic().to(dev)
     critic.load_state_dict(torch.load(os.path.join(args.init, "critic.pt"), map_location=dev))
     anchor = copy.deepcopy(net).eval()
     for p in anchor.parameters():
@@ -201,7 +200,7 @@ def main():
         print(json.dumps(entry), flush=True)
         log.write(json.dumps(entry) + "\n")
         log.flush()
-    torch.save(net.state_dict(), os.path.join(args.out, "net.pt"))
+    save_dir(net, args.out)
     torch.save(critic.state_dict(), os.path.join(args.out, "critic.pt"))
     export(net.cpu(), os.path.join(args.out, "net.pmnet"), {"trained": "selfplay.py", "iters": args.iters})
 
