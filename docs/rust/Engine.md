@@ -1425,6 +1425,39 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   Questing Druid, Mythos of Brokkos, Mirrorshell Crab, Fleeting Spirit, Gnawing Crescendo, Mindreaver, Mica, Axebane
   Ferox and Tarrian's Soulcleaver (not looked into); and 42 pending cards the AI didn't cast in enough games
   (Omniscience, Clone Legion, Krang, Rise of the Dark Realms, The Tarrasque and others).
+  Wave 16, unverified claim (15 Nov): the 107 cards in the engine but not verified, used ones first. Five factory
+  rounds (445 games, 442 matching, three Java unfinished; rounds 2 to 5 hand-made: ramp decks for the expensive cards,
+  then decks that give the last ones what they need, such as Giants, legendaries, nonbasic lands, defenders and spells
+  that target a player) verified 90: 13,955 of 13,972. Engine and handler fixes, each with a game under
+  `shadow/wave16-unverified/`: Mindreaver's copied target is a plain `TargetSpell` (its class has no `copy()`);
+  `SourceTargetsControllerPredicate` reads the player chosen first while the targets are chosen (Cloak and Dagger,
+  Entwined); Terminal Velocity asks nothing with an empty hand, and Mythos of Brokkos asks while the graveyard has any
+  card; Smaug's Treasure condition holds while triggers are gathered; end of combat triggers from the command zone
+  (Zariel's emblem); a Saga's lore counter goes on after the "beginning of precombat main" triggers (Java fires the
+  step's `PRE` event first: Ashling); ward costs of collect evidence (Axebane Ferox) and of life equal to the source's
+  power against a spell (Raubahn, Phyrexian Fleshgorger); a sacrifice cost's reflexive trigger goes after the
+  "whenever you sacrifice" triggers (Gastal Blockbuster with Blood Aspirant); a player's protection from a source, for
+  targets and damage (Absolute Virtue); an activated ability that targeted itself stays a legal target though its card
+  moved as the cost was paid (Mirrorshell Crab's channel; a copy of it still fizzles); mana abilities a handler grants
+  in layer 6 pay costs (Territory Forge); a spell that targeted itself chooses its new target (asked whether to reset
+  to the old one when it picks itself again) and copies with the new one (Wild Ricochet); `ExileTargetIfDies` covers
+  every creature the source damaged (Serpentine Spike); an Aura a spell puts onto the battlefield auto-chooses with
+  the spell's text (Chaotic Transformation); a conditional ward on the source itself (The Tarrasque, Iymrith); the
+  cards exiled with a source count once each, and only while still in exile (Unlicensed Hearse with Processor
+  Assault); and an opponent's extra turn after yours is followed by their own turn (Karn's Temporal Sundering: after
+  the extra turns Java goes on in the normal order from the player whose turn they came after). Verified cards these
+  change, all toward Java: Iymrith, Desert Doom's ward now triggers; Saga chapters go after precombat main triggers; a
+  reflexive sacrifice trigger goes after the sacrifice triggers; handler-granted mana abilities (Conspicuous Snoop,
+  Urborg Scavengers, Eater of Virtue) pay costs; an Aura put onto the battlefield by a spell, `ExileTargetIfDies` and
+  `SourceTargetsControllerPredicate` as above; and extra turns taken after an opponent's turn (Teferi, Master of
+  Time's −10 then) are followed by your own turn. Not verified: Dissension in the Ranks and Spell Blast (the AI cast
+  them in no game and in one, of over 100 each, with decks made for them), The Fall of Kroog
+  (`TheFallOfKroogTarget.possibleTargets` reads the first target off the stack object, so Java never lets it be cast
+  from the hand), Summon: Choco/Mog (`TxtDeckImporter` takes the "/" in its name for a split card's, so no factory
+  deck can hold it), the meld results Mishra, Lost to Phyrexia and Titania, Gaea Incarnate, and the random or
+  unordered ones (Reckoner Bankbuster, Moment of Truth, Emergent Sequence, The Three Seasons, Smuggler's Surprise,
+  Turn the Earth, Festival of Embers, Hedge Whisperer, Eternal of Harsh Truths, Wildfire Eternal, Elemental
+  Expressionist).
   Wave 15, shared forms A (15 Nov): framework forms that block several of the claim's cards, then card classes,
   built in four slices. Ending the turn (`EndTurnEffect`, `Turn.endTurn`: `Game::end_turn`; every spell on the stack
   exiled, the resolving one too, abilities removed, combat left, the waiting triggers dropped; priority stops after
