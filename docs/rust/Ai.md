@@ -136,13 +136,21 @@ duplicate pairs).
   scored by the fitted score (`eval` 2) is **+7.0 [+2.0, +12.1]**; and round 1's network playing its own playouts
   beats `rollout=builtin` **+6.2 [+2.2, +10.2]**, at about three times the time per game pair (only one seat used the slower playouts). `rounds.py` now defaults to `eval`
   2, and `--rollout self` has each round's network play its own playouts.
+- **The loop again.** With those settings (12,000 games a round, about 2 h 15 min on 10 threads, a round kept unless
+  an SPRT shows it worse, `--gate -5,5`), from round 4's network: +11.1 [+1.6, +20.7], +6.0 [-2.7, +14.6] and
+  +2.4 [-3.1, +7.9], each against the round before. The third round's network against where the loop started:
+  **+10.8 [-0.2, +21.8]**; against `host@s6`, -41.2 [-55.9, -26.6] (round 1's `netsearch` won 39% of its games
+  against it, this one 44%).
 - **Value and belief.** The value as the search's score (`eval` 3) still loses to the fitted score (-34.5 Elo).
   The belief's loss is 0.208 against 0.210.
 - **Card text.** `rl/cardtext.py` hashes each card's rules text into 1,024 buckets; `train.py --tx text=1` learns a
   projection of it added to the card's embedding, folded into the embedding at export, so the Rust side doesn't change.
+  On the cards it was trained on it adds nothing measurable: the same transformer without it is -1.2 Elo [-8.1, +5.6]
+  as `net`. Whether it helps with cards the network hasn't seen isn't measured yet.
 - **Tactics.** `archbench/tactics-2`: tactics@1 and 15 more puzzles (trample, flying and reach, pumps after blocks,
   exert, deathtouch blocks, counters and protection on the opponent's turn, a wrath when ahead). Solved over 4 seeds:
-  `host@s6` 97%, `netsearch` with rollouts 72%, `net` 66%, `rust-quick` 56%. The network misses the instants on the
+  `host@s6` 97%, the loop's third network with `netsearch` 78%, `netsearch` with rollouts 72%, `net` 66%,
+  `rust-quick` 56%. The network misses the instants on the
   opponent's turn (Fog, Negate, burn in combat).
 
 The search AI with full skill is still stronger than the network with its search; the shipped network
