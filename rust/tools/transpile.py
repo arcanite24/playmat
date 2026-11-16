@@ -3963,12 +3963,11 @@ class Translator:
                 and ([a.strip() for a in args[1:3]] != ['false', 'false'] or (len(args) == 5 and args[4].strip() != 'false')):
             lose, still = args[1].strip(), args[2].strip()
             durations = {'Duration.EndOfTurn': 'EndOfTurn', 'Duration.Custom': 'WhileOnBattlefield',
-                         'Duration.WhileOnBattlefield': 'WhileOnBattlefield'}
+                         'Duration.WhileOnBattlefield': 'WhileOnBattlefield', 'Duration.EndOfGame': 'WhileOnBattlefield'}
             # "until your next turn, it becomes a 5/5 Elemental creature with haste. It's still a land." (Nissa, Vital
             # Force; Wrenn and Realmbreaker)
             if lose == 'false' and still == 'true' and len(args) == 4:
                 durations['Duration.UntilYourNextTurn'] = 'UntilYourNextTurn'
-                         'Duration.WhileOnBattlefield': 'WhileOnBattlefield', 'Duration.EndOfGame': 'WhileOnBattlefield'}
             if lose not in ('true', 'false') or still not in ('true', 'false') or args[3].strip() not in durations \
                     or (len(args) == 5 and args[4].strip() not in ('true', 'false')):
                 raise Unsupported('becomes creature target ' + ','.join(a.strip() for a in args[1:]))
