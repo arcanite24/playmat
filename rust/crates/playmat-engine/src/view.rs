@@ -1729,7 +1729,7 @@ fn restriction_hints(game: &Game, id: ObjId) -> Vec<String> {
 }
 
 /// `GameLog.getTooltipColorName`
-fn tooltip_color(colors: &[crate::card::Color]) -> &'static str {
+pub(crate) fn tooltip_color(colors: &[crate::card::Color]) -> &'static str {
     use crate::card::Color as C;
     match colors {
         [] => "#94A4BA",

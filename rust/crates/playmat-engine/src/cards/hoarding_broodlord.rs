@@ -20,7 +20,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         o.may_play = Some((you, u32::MAX));
         o.may_play_end_step = false;
         o.may_play_while = None;
-        o.exiled_face_down = true;
+        // (no "Look at" question: `makeCardPlayable` gives no `LOOK_AT_FACE_DOWN` effect)
     }
     Some(())
 }

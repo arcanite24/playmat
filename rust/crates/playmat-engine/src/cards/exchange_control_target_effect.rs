@@ -1,5 +1,5 @@
-//! `ExchangeControlTargetEffect(Duration.EndOfGame, text[, withSource[, withSecondTarget]])`: "exchange control of two
-//! target creatures" (Switcheroo, Shifting Grift), with the source "of this and target nonland permanent" (Eyes
+//! `ExchangeControlTargetEffect(Duration.EndOfGame or Custom, text[, withSource[, withSecondTarget]])`: "exchange
+//! control of two target creatures" (Switcheroo, Shifting Grift, Kitsune's `Custom`), with the source "of this and target nonland permanent" (Eyes
 //! Everywhere), or with the second target "of target artifact you control and target artifact or creature you don't
 //! control" (Shrewd Negotiation: the two are separate targets). Both
 //! still on the battlefield and under different controllers, each comes under the other's controller for the rest of
@@ -9,7 +9,7 @@ use super::*;
 use crate::state::{ControlChange, ControlUntil, Zone};
 
 pub const HANDLERS: &[Handler] = &[Handler::effect("ExchangeControlTargetEffect", apply).args(&[
-    "one_of:Duration.EndOfGame",
+    "one_of:Duration.EndOfGame|Duration.Custom",
     "text",
     "one_of:true|false",
     "one_of:true|false",

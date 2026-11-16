@@ -6,6 +6,10 @@ use super::*;
 
 pub const HANDLERS: &[Handler] = &[Handler::effect("Winnowing.WinnowingEffect", apply)];
 
+/// the spell's text, as `tryToAutoChoose` reads it: "sacrifices", so your own one creature isn't chosen by itself
+const RULE: &str = "Then each player sacrifices all other creatures they control that don't share a creature type \
+                    with the chosen creature they control.";
+
 /// Each player in range in turn from you (`getPlayersInRange`), with a creature: you choose one of theirs (not targeted), and
 /// the rest of theirs that don't share a creature type with it are gathered; then all of them are sacrificed.
 fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
@@ -25,7 +29,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         if theirs.is_empty() {
             continue;
         }
-        let Some(&kept) = choose_cards(game, d, you, &theirs, &theirs, 1, 1, "a creature to keep")?.first() else {
+        let Some(&kept) = choose_cards(game, d, you, &theirs, &theirs, 1, 1, RULE)?.first() else {
             continue;
         };
         for o in theirs {
