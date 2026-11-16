@@ -207,6 +207,7 @@ fn network_policies_play_whole_games() {
         (PolicyKind::Net, false, None),
         (PolicyKind::NetSearch, true, None),
         (PolicyKind::Gumbel, true, Some("builtin".to_string())),
+        (PolicyKind::Ismcts, true, Some("builtin".to_string())),
     ] {
         let cfg = Config {
             policy: kind,

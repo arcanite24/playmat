@@ -127,6 +127,12 @@ duplicate pairs).
   1's `netsearch` **+8.7 Elo [+1.8, +15.7]**. `gumbel` (Gumbel-top-k candidates and sequential halving, `consider`,
   default 4) is +12.2 with rollouts against itself without them, but loses to `netsearch` with rollouts (-9.4
   [-19.0, +0.2]).
+- **A tree search.** `ismcts` (`tree.rs`): an open-loop information-set tree over the network's policy. Each
+  iteration plays one belief-weighted sample of what the seat can't see; where a question of either seat was reached
+  before along the same answers, PUCT picks the answer (`cpuct`, per thousand, default 300), the first new question
+  is expanded with the network's policy, and the rest is the ordinary playout scored by `eval`. On round 4's network
+  with the same rollouts and budget, against `netsearch`: cpuct 1250 **+3.3 [-3.3, +9.8]** over 1,381 pairs (not
+  worse, not clearly better), cpuct 2500 -26.8 [-38.6, -15.1], cpuct 600 **+22.6 [+11.0, +34.3]** (500 pairs), cpuct 300 **+31.7 [+19.4, +44.1]** (500 pairs, now the default): less exploration is better. The 1,381 pairs took 2.4 hours on 8 threads; its worst decision time isn't measured yet.
 - **Search-then-learn rounds.** `rl/rounds.py`: 20,000 games of `netsearch` with rollouts against itself, retrain
   from the current network on the last two rounds, keep the new one only if it wins an SPRT. Round 1 was kept
   (+11.0 [+2.2, +19.8]); rounds 2 to 4 were not (-3.3, -6.9, -1.4). The loop had stalled because the search
@@ -189,8 +195,9 @@ spent), or `None` for the quick answer; an answer the question doesn't accept fa
 | `net` | `selfplay::NetPolicy` | the trained network's policy, no search (self-play, above) |
 | `netsearch` | `selfplay::NetSearch` | the network's policy moved by playouts on belief-weighted samples of what the seat can't see, scored by its value; never sees hidden cards (the default config turns on `hide`, 4 samples, `eval` 3) |
 | `gumbel` | `selfplay::Gumbel` | like `netsearch`, but the candidates are picked by Gumbel-top-k (`consider`, default 4) and narrowed by sequential halving |
+| `ismcts` | `tree::Ismcts` | like `netsearch`, but the samples share one tree over both seats' answers, searched by PUCT on the network's policy (`cpuct`, default 300) |
 
-With `net`, `netsearch` and `gumbel`, `cfg:...+rollout=PATH` (or `builtin`) has a network answer the questions
+With `net`, `netsearch`, `gumbel` and `ismcts`, `cfg:...+rollout=PATH` (or `builtin`) has a network answer the questions
 inside the playouts instead of the quick answers.
 
 The setting is read by `Config::default()`, so it applies wherever a config is made from the defaults: the bridge

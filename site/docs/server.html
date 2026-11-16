@@ -187,10 +187,11 @@ IMGCACHE_FALLBACK=on                                     <span class="c"># Scryf
           engine hosts. Leave it at <code>playouts</code>, the default. <code>mcts</code> searches with several threads
           (up to 4, <code>PLAYMAT_AI_THREADS</code>): in our benchmarks it's no stronger and uses far more CPU, so it's
           only worth trying on a machine with cores to spare. <code>quick</code> doesn't search at all and is the
-          weakest; <code>random</code> plays random moves. <code>net</code>, <code>netsearch</code> and <code>gumbel</code> use a small
+          weakest; <code>random</code> plays random moves. <code>net</code>, <code>netsearch</code>, <code>gumbel</code> and <code>ismcts</code> use a small
           network trained on the AI's own games: <code>net</code> is fast but weaker than the default, and
           <code>netsearch</code> plays about as well as skill 2 without ever looking at hidden cards.
-          <code>gumbel</code> is a variant of <code>netsearch</code>, a little weaker in our tests. Set it, then run <code>up -d</code>. In games the Rust
+          <code>gumbel</code> is a variant of <code>netsearch</code>, a little weaker in our tests;
+          <code>ismcts</code> adds a tree search to <code>netsearch</code> and is about as strong in our tests. Set it, then run <code>up -d</code>. In games the Rust
           engine hosts, the table's AI skill also matters: 1 plays without searching, 2–5 search less and now and
           then make a random play, 6 and up play the strongest settings. Details are in
           <a href="https://github.com/arcanite24/playmat/blob/master/docs/rust/Ai.md#one-decision-at-a-time-policies">docs/rust/Ai.md</a>.</p>

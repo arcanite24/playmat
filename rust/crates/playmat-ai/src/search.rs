@@ -53,6 +53,8 @@ pub struct Config {
     pub rollout: Option<String>,
     /// `gumbel`: how many candidates the search plays out (the likelier ones under Gumbel-top-k)
     pub consider: usize,
+    /// `ismcts`: PUCT's exploration constant, per thousand
+    pub cpuct: u32,
 }
 
 impl Default for Config {
@@ -65,7 +67,7 @@ impl Default for Config {
         let policy = PolicyKind::from_env();
         // the network's search as measured (#390 Track B): on samples of what the seat can't see, scored by the
         // network's value
-        let netsearch = matches!(policy, PolicyKind::NetSearch | PolicyKind::Gumbel);
+        let netsearch = matches!(policy, PolicyKind::NetSearch | PolicyKind::Gumbel | PolicyKind::Ismcts);
         Config {
             budget: 6000,
             width: 12,
@@ -87,6 +89,7 @@ impl Default for Config {
             eta: 10_000,
             rollout: None,
             consider: 4,
+            cpuct: 300,
         }
     }
 }

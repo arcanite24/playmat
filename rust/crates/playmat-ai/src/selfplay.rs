@@ -60,7 +60,7 @@ impl NetPolicy {
 }
 
 /// Picks from `p`: the most likely at temperature 0, else a sample
-fn pick(p: &[f32], temp: u32, rng: &mut u64) -> usize {
+pub(crate) fn pick(p: &[f32], temp: u32, rng: &mut u64) -> usize {
     if temp == 0 {
         p.iter().enumerate().max_by(|a, b| a.1.total_cmp(b.1)).map_or(0, |(i, _)| i)
     } else {
@@ -136,7 +136,7 @@ fn hand_likelihood(
 
 /// `k` samples of the game the seat might be in; with a belief head, the likelier ones under it (importance
 /// resampling, 3 drawn per kept)
-fn sample_games(
+pub(crate) fn sample_games(
     rng: &mut u64,
     d: &Decision,
     root: &crate::decision::Root,
@@ -567,7 +567,8 @@ impl Shard {
 /// Whether `config` plays with a network
 pub fn uses_net(config: &Option<Config>) -> bool {
     config.as_ref().is_some_and(|c| {
-        matches!(c.policy, PolicyKind::Net | PolicyKind::NetSearch | PolicyKind::Gumbel) || c.eval >= 3
+        matches!(c.policy, PolicyKind::Net | PolicyKind::NetSearch | PolicyKind::Gumbel | PolicyKind::Ismcts)
+            || c.eval >= 3
     })
 }
 
