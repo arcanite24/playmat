@@ -59,7 +59,7 @@ python cardtext.py
 python train.py --data data/bc50k --out runs/bc-tx2 --arch tx --tx text=1
 
 # search-then-learn rounds: self-play with netsearch and rollouts, retrain, keep only on an SPRT win
-python rounds.py --init runs/bc-tx2 --out runs/loop --rounds 5 --policy netsearch --rollout builtin
+python rounds.py --init runs/bc-tx2 --out runs/loop --rounds 4 --games 10000 --policy netsearch --rollout self
 ```
 
 `--tx` takes JSON or `k=v` pairs (`d`, `heads`, `layers`, `ff`, `dim`, `trunk`, `text`). `rounds.py` logs one line a round to

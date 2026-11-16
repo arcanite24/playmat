@@ -129,7 +129,13 @@ duplicate pairs).
   [-19.0, +0.2]).
 - **Search-then-learn rounds.** `rl/rounds.py`: 20,000 games of `netsearch` with rollouts against itself, retrain
   from the current network on the last two rounds, keep the new one only if it wins an SPRT. Round 1 was kept
-  (+11.0 [+2.2, +19.8]); rounds 2 and 3 were not (-3.3, -6.9). About 70 min a round.
+  (+11.0 [+2.2, +19.8]); rounds 2 to 4 were not (-3.3, -6.9, -1.4). The loop had stalled because the search
+  hardly depended on the network: the playouts used the shipped round 1 network (`rollout=builtin`), the
+  candidates were mostly the same four, and the score was the value head, which overfit again. Measured on round
+  4's network against round 1's: the network alone is **+12.3 [+2.6, +22.1]**, so the policy did improve; `netsearch`
+  scored by the fitted score (`eval` 2) is **+7.0 [+2.0, +12.1]**; and round 1's network playing its own playouts
+  beats `rollout=builtin` **+6.2 [+2.2, +10.2]**, at about four times the time. `rounds.py` now defaults to `eval`
+  2, and `--rollout self` has each round's network play its own playouts.
 - **Value and belief.** The value as the search's score (`eval` 3) still loses to the fitted score (-34.5 Elo).
   The belief's loss is 0.208 against 0.210.
 - **Card text.** `rl/cardtext.py` hashes each card's rules text into 1,024 buckets; `train.py --tx text=1` learns a
