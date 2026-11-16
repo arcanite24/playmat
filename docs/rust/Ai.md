@@ -132,7 +132,7 @@ duplicate pairs).
   before along the same answers, PUCT picks the answer (`cpuct`, per thousand, default 1250), the first new question
   is expanded with the network's policy, and the rest is the ordinary playout scored by `eval`. On round 4's network
   with the same rollouts and budget, against `netsearch`: cpuct 1250 **+3.3 [-3.3, +9.8]** over 1,381 pairs (not
-  worse, not clearly better), cpuct 2500 -26.8 [-38.6, -15.1]. The 1,381 pairs took 2.4 hours on 8 threads; its worst decision time isn't measured yet.
+  worse, not clearly better), cpuct 2500 -26.8 [-38.6, -15.1], cpuct 600 **+22.6 [+11.0, +34.3]** (500 pairs): less exploration is better. The 1,381 pairs took 2.4 hours on 8 threads; its worst decision time isn't measured yet.
 - **Search-then-learn rounds.** `rl/rounds.py`: 20,000 games of `netsearch` with rollouts against itself, retrain
   from the current network on the last two rounds, keep the new one only if it wins an SPRT. Round 1 was kept
   (+11.0 [+2.2, +19.8]); rounds 2 to 4 were not (-3.3, -6.9, -1.4). The loop had stalled because the search
