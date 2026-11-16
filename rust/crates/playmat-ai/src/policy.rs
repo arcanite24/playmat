@@ -93,7 +93,12 @@ impl Policy {
                     let paying = game.unpaid.is_some() || game.mana_paid.is_some();
                     let def = &game.obj(*source).def;
                     (!paying)
-                        .then(|| abilities.iter().copied().find(|i| def.abilities.get(*i).is_some_and(|a| a.mana().is_none())))
+                        .then(|| {
+                            abilities
+                                .iter()
+                                .copied()
+                                .find(|i| def.abilities.get(*i).is_some_and(|a| a.mana().is_none()))
+                        })
                         .flatten()
                         .map(|i| Answer::Ability(*source, i))
                 })
@@ -345,7 +350,13 @@ fn pay(game: &Game, seat: Seat, cost: &str, sources: &[ObjId]) -> Answer {
         if let Some(s) = mine.iter().min_by_key(|s| {
             let m = makes(s);
             // lands that can become creatures pay last, after creatures
-            let animates = game.obj(**s).def.abilities.iter().enumerate().any(|(i, _)| ability_kind(&game.obj(**s).def, i).animate);
+            let animates = game
+                .obj(**s)
+                .def
+                .abilities
+                .iter()
+                .enumerate()
+                .any(|(i, _)| ability_kind(&game.obj(**s).def, i).animate);
             (
                 animates as usize,
                 m[..5].iter().filter(|n| **n > 0).count(),
@@ -592,12 +603,22 @@ impl Policy {
                 o.controller == seat || o.owner == seat
             })
             .collect();
-        let castable: Vec<ObjId> =
-            own.iter().copied().filter(|id| matches!(game.obj(*id).zone, Zone::Hand | Zone::Graveyard | Zone::Exile)).collect();
+        let castable: Vec<ObjId> = own
+            .iter()
+            .copied()
+            .filter(|id| matches!(game.obj(*id).zone, Zone::Hand | Zone::Graveyard | Zone::Exile))
+            .collect();
         let kind = |id: ObjId| spell_kind(&game.obj(id).def);
         let is = |id: ObjId, t: CardType| game.obj(id).def.types.contains(&t);
-        let instant_speed =
-            |id: ObjId| is(id, CardType::Instant) || game.obj(id).def.abilities.iter().any(|a| matches!(a, playmat_engine::card::AbilityDef::FlashAbility));
+        let instant_speed = |id: ObjId| {
+            is(id, CardType::Instant)
+                || game
+                    .obj(id)
+                    .def
+                    .abilities
+                    .iter()
+                    .any(|a| matches!(a, playmat_engine::card::AbilityDef::FlashAbility))
+        };
         let creatures = |s: Seat| -> Vec<ObjId> {
             game.battlefield
                 .iter()
@@ -667,12 +688,15 @@ impl Policy {
         if !step.is_some_and(|s| s.is_main()) {
             return Answer::Bool(false);
         }
-        if let Some(land) = castable.iter().copied().find(|id| is(*id, CardType::Land) && game.obj(*id).zone == Zone::Hand) {
+        if let Some(land) =
+            castable.iter().copied().find(|id| is(*id, CardType::Land) && game.obj(*id).zone == Zone::Hand)
+        {
             return Answer::Obj(land);
         }
         // burn to the face when it's lethal
         let opp_life = game.player(opp).life;
-        let burn: Vec<ObjId> = castable.iter().copied().filter(|c| kind(*c).face && kind(*c).damage.is_some()).collect();
+        let burn: Vec<ObjId> =
+            castable.iter().copied().filter(|c| kind(*c).face && kind(*c).damage.is_some()).collect();
         let total: i32 = burn.iter().map(|c| kind(*c).damage.unwrap_or(0)).sum();
         if total >= opp_life {
             if let Some(c) = burn.iter().copied().max_by_key(|c| kind(*c).damage) {
@@ -731,7 +755,14 @@ impl Policy {
 
     /// Targets the stronger answers pick differently: lethal burn to the face, damage to a creature it kills (the
     /// best such, attacking first), and in combat help for its own creature that is fighting. `None`: as before.
-    fn target_v2(&mut self, game: &Game, seat: Seat, players: &[Seat], objs: &[ObjId], harmful: bool) -> Option<Answer> {
+    fn target_v2(
+        &mut self,
+        game: &Game,
+        seat: Seat,
+        players: &[Seat],
+        objs: &[ObjId],
+        harmful: bool,
+    ) -> Option<Answer> {
         let opp = game.opponent(seat);
         let top = game.stack.last()?;
         let def = game.item_def(top);

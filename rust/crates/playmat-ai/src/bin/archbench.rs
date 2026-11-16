@@ -336,7 +336,7 @@ fn sprt(
                     }] += 1;
                 }
                 let ratio = llr(&v, elo0, elo1);
-                if v.len() % 250 == 0 {
+                if v.len().is_multiple_of(250) {
                     println!(
                         "SPRT {} pairs, {}-{}-{}, elo {:+.1}, LLR {ratio:.2}",
                         v.len(),
