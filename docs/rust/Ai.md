@@ -138,9 +138,10 @@ duplicate pairs).
   2, and `--rollout self` has each round's network play its own playouts.
 - **The loop again.** With those settings (12,000 games a round, about 2 h 15 min on 10 threads, a round kept unless
   an SPRT shows it worse, `--gate -5,5`), from round 4's network: +11.1 [+1.6, +20.7], +6.0 [-2.7, +14.6] and
-  +2.4 [-3.1, +7.9], each against the round before. The third round's network against where the loop started:
-  **+10.8 [-0.2, +21.8]**; against `host@s6`, -41.2 [-55.9, -26.6] (round 1's `netsearch` won 39% of its games
-  against it, this one 44%).
+  +2.4 [-3.1, +7.9], then +1.9 [-3.1, +6.8], each against the round before. The third round's network against
+  where the loop started: **+10.8 [-0.2, +21.8]**. Against `host@s6`: -41.2 [-55.9, -26.6] after three rounds,
+  -37.7 [-53.5, -22.0] after four (round 1's `netsearch` won 39% of its games against it, this one about 45%). The
+  gains shrink round by round at 12,000 games a round.
 - **Value and belief.** The value as the search's score (`eval` 3) still loses to the fitted score (-34.5 Elo).
   The belief's loss is 0.208 against 0.210.
 - **Card text.** `rl/cardtext.py` hashes each card's rules text into 1,024 buckets; `train.py --tx text=1` learns a
