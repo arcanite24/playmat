@@ -13072,9 +13072,13 @@ fn apply_each_effect(
                 // a spell that targeted itself and chose a new target for itself first (Wild Ricochet): its target
                 // pointer reads the new one
                 let objs: Vec<ObjId> = match game.resolving_item.as_ref() {
-                    Some(me) if me.card == item.card && objs == [item.card] && me.ability.is_none() => {
-                        me.targets.first().into_iter().flatten().filter_map(|t| if let Target::Obj(o) = t { Some(*o) } else { None }).collect()
-                    }
+                    Some(me) if me.card == item.card && objs == [item.card] && me.ability.is_none() => me
+                        .targets
+                        .first()
+                        .into_iter()
+                        .flatten()
+                        .filter_map(|t| if let Target::Obj(o) = t { Some(*o) } else { None })
+                        .collect(),
                     _ => objs.clone(),
                 };
                 for o in &objs {
@@ -19044,10 +19048,11 @@ fn apply_each_effect(
                         // the ability targeted itself (Java pushes an activated ability before its targets are
                         // chosen, and `TargetStackObject` doesn't skip it): its controller is still asked to pay,
                         // and countering what's resolving changes nothing
-                        if spell == item.card && game.resolving.is_some_and(|(_, c)| c == spell) {
-                            if pay_unless(game, d, item.controller, spell, cost).is_none() {
-                                return;
-                            }
+                        if spell == item.card
+                            && game.resolving.is_some_and(|(_, c)| c == spell)
+                            && pay_unless(game, d, item.controller, spell, cost).is_none()
+                        {
+                            return;
                         }
                         continue;
                     };
