@@ -333,6 +333,9 @@ pub struct Obj {
     pub warped: bool,
     /// cast for its evoke cost
     pub evoked: bool,
+    /// the phyrexian symbols of its cost paid with 2 life each as it was cast (on the stack, then on the
+    /// battlefield: compleated)
+    pub phyrexian_paid: i32,
     /// cast for its `AlternativeCostSourceAbility`'s costs (`AlternativeCostSourceAbility.getActivatedStatus`:
     /// Baleful Mastery's "if the {1}{B} cost was paid")
     pub alternative_paid: bool,
@@ -773,6 +776,9 @@ pub struct StackItem {
     /// a "whenever a permanent of the filter leaves the battlefield" trigger: the permanent that left (Java's
     /// `getValue("permanentLeftBattlefield")`), as the object it became
     pub left: Option<ObjId>,
+    /// a "whenever you sacrifice a permanent of the filter" trigger (`Trigger::Sacrificed`): the permanent sacrificed
+    /// (Java's `getValue("sacrificedPermanent")`), as the object it became
+    pub sacrificed_permanent: Option<ObjId>,
     /// the cards its `DiscardCardCost` discarded (`DiscardCardCost.getCards`)
     pub cost_discarded: Vec<ObjId>,
     /// a "whenever a player discards a card" trigger (`Trigger::Discards`, `DISCARDED_CARD`): the card discarded,
@@ -835,6 +841,18 @@ pub struct DelayedTrigger {
     pub once: bool,
 }
 
+/// A permanent made a creature until a player's next turn, and what it was before (`Game::animated_until_turn_of`)
+#[derive(Clone, Debug)]
+pub struct AnimatedUntil {
+    pub obj: ObjId,
+    pub zcc: u32,
+    pub until_turn_of: Seat,
+    pub def: Arc<CardDef>,
+    pub printed_def: Option<Arc<CardDef>>,
+    pub base_pt: Option<(i32, i32)>,
+    pub base_pt_at: u64,
+}
+
 /// A delayed triggered ability a resolved effect set up: "sacrifice that token at end of combat".
 #[derive(Clone, Debug, PartialEq)]
 pub struct Delayed {
@@ -885,6 +903,7 @@ impl StackItem {
             cast_spell: None,
             died: None,
             left: None,
+            sacrificed_permanent: None,
             cost_discarded: Vec::new(),
             discarded: None,
             cost_revealed: Vec::new(),
@@ -1039,6 +1058,9 @@ pub struct Game {
     /// "when that creature dies this turn" delayed triggers: the creature as it was, the turn, whether its target is
     /// the creature's controller, the trigger
     pub when_dies: Vec<(ObjId, u32, u32, bool, StackItem)>,
+    /// the `when_dies` triggers that only trigger when it dies under their controller's control ("when that
+    /// creature dies under your control this turn"), by the trigger's source and the creature
+    pub when_dies_controlled: Vec<(ObjId, ObjId, u32)>,
     /// "at the beginning of the next turn's upkeep" delayed triggers
     pub at_next_upkeep: Vec<StackItem>,
     /// `PreventDamageAndRemoveCountersWatcher`: the sources whose `PreventDamageAndRemoveCountersEffect` removed a
@@ -1115,6 +1137,9 @@ pub struct Game {
     pub loop_declined: u32,
     /// the spell whose mana cost is being paid (or checked): conditional mana can be spent only on some spells
     pub paying_for: std::cell::Cell<Option<ObjId>>,
+    /// an activated ability's playable check: X isn't announced yet, so "power X or less" holds for any power
+    /// (Java's `PowerTargetAdjuster` sets the filter only as it's activated)
+    pub checking_activatable: std::cell::Cell<bool>,
     /// what's being paid for is an activated ability of `paying_for` (not a spell)
     pub paying_ability: std::cell::Cell<bool>,
     /// a replayed answer that named a stack object by its place: that place from the bottom of Java's stack (what's
@@ -1196,6 +1221,9 @@ pub struct Game {
     pub enters_as: Option<(ObjId, Arc<CardDef>)>,
     /// extra turns to take, the last added first (`TurnMod`)
     pub extra_turns: Vec<Seat>,
+    /// while extra turns are taken, the player whose turn in the normal order they came after: the normal order goes
+    /// on from them (`GameImpl.playExtraTurns`, then `playerList.getNext`)
+    pub extra_turns_after: Option<Seat>,
     /// Emrakul, the Promised End: (player, controller) for a player's next turn, controlled by another
     pub control_next_turn: Vec<(Seat, Seat)>,
     /// (player, controller) while a player's turn is controlled by another; an extra turn follows it
@@ -1211,6 +1239,10 @@ pub struct Game {
     /// abilities lost until a player's next turn (`LoseAbilityTargetEffect(…, Duration.UntilYourNextTurn)`: Mu
     /// Yanling's "loses flying"): (permanent, its zcc, the ability, the player whose turn ends it)
     pub lost_until_turn_of: Vec<(ObjId, u32, AbilityDef, Seat)>,
+    /// permanents a "becomes a creature until your next turn" made one (Nissa, Vital Force's land): (permanent, its
+    /// zcc, the player whose turn ends it, and what it was before: its card, the card it goes back to as it leaves,
+    /// its base power and toughness and their timestamp)
+    pub animated_until_turn_of: Vec<AnimatedUntil>,
     /// what made a permanent block this turn if able, with the permanent's zone change count (its hint names it)
     pub must_block_from: Vec<(ObjId, u32, ObjId)>,
     /// the game log's lines as Java writes them (`informPlayers`), while it's kept (replays and the AI's copy compare
@@ -1568,6 +1600,7 @@ impl Game {
             delayed_triggers: Vec::new(),
             damage_doubled_to: Vec::new(),
             when_dies: Vec::new(),
+            when_dies_controlled: Vec::new(),
             at_next_upkeep: Vec::new(),
             at_next_main: Vec::new(),
             counter_removed_batch: Vec::new(),
@@ -1601,6 +1634,7 @@ impl Game {
             loop_count: 0,
             loop_declined: 0,
             paying_for: std::cell::Cell::new(None),
+            checking_activatable: std::cell::Cell::new(false),
             paying_ability: std::cell::Cell::new(false),
             picked_stack: std::cell::Cell::new(None),
             paying_index: std::cell::Cell::new(None),
@@ -1633,6 +1667,7 @@ impl Game {
             exile_uncast_turn: None,
             enters_as: None,
             extra_turns: Vec::new(),
+            extra_turns_after: None,
             control_next_turn: Vec::new(),
             controlled_by: Vec::new(),
             at_first_upkeep: Vec::new(),
@@ -1640,6 +1675,7 @@ impl Game {
             effect_mana: Arc::new(Vec::new()),
             lost_until_eot: Vec::new(),
             lost_until_turn_of: Vec::new(),
+            animated_until_turn_of: Vec::new(),
             must_block_from: Vec::new(),
             log: None,
             events: None,
@@ -1889,6 +1925,7 @@ impl Game {
             pay_tax: 0,
             warped: false,
             evoked: false,
+            phyrexian_paid: 0,
             alternative_paid: false,
             impending: false,
             dashed: false,
@@ -2063,7 +2100,10 @@ impl Game {
             }),
             // the same, with the X of the spell or ability whose target it is
             Pred::PowerX { cmp } | Pred::ToughnessX { cmp } => {
-                match source.and_then(|s| self.stack.iter().rev().find(|i| i.card == s)) {
+                match source
+                    .filter(|_| !self.checking_activatable.get())
+                    .and_then(|s| self.stack.iter().rev().find(|i| i.card == s))
+                {
                     Some(i) => {
                         let (power, toughness) = self.power_toughness(id);
                         cmp.holds(if matches!(p, Pred::PowerX { .. }) { power } else { toughness }, i.x)
@@ -2301,6 +2341,20 @@ impl Game {
                                 continue;
                             }
                             &**effect
+                        }
+                        // its own while a condition holds (The Tarrasque's "ward {10} as long as it was cast",
+                        // Iymrith's while untapped)
+                        EffectDef::ConditionalContinuousEffect { effect, condition }
+                            if *src == id
+                                && matches!(&**effect, EffectDef::GainAbilitySourceEffect { ability, .. }
+                                    if matches!(**ability, AbilityDef::WardAbility { .. })) =>
+                        {
+                            if self.condition_holds(Some(condition), s.controller, *src) {
+                                if let EffectDef::GainAbilitySourceEffect { ability, .. } = &**effect {
+                                    out.push((**ability).clone());
+                                }
+                            }
+                            continue;
                         }
                         _ => e,
                     };
@@ -3400,10 +3454,8 @@ impl Game {
                 Value::Times { of, n } => self.value(of, you, source, x) * n,
                 Value::Half { of, up } => (self.value(of, you, source, x) + i32::from(*up)) / 2,
                 Value::Plus { of, n } => self.value(of, you, source, x) + n,
-                Value::ExiledWithSource => {
-                    let zcc = self.obj(source).zcc;
-                    self.exiled_for_source.iter().filter(|(s, z, _)| *s == source && *z == zcc).count() as i32
-                }
+                // the cards in its exile zone (`UnlicensedHearseValue`): one that left exile is out of it
+                Value::ExiledWithSource => self.exiled_with_source_count(source),
                 Value::CardTypesInYourGraveyard => {
                     let mut types: Vec<CardType> = Vec::new();
                     for c in self.player(you).graveyard.iter() {
@@ -3881,6 +3933,39 @@ impl Game {
             })
     }
 
+    /// The cards in `source`'s exile zone for the permanent it is now (`UnlicensedHearseValue`): each card once, and
+    /// only while it's still in exile (one Processor Assault put into a graveyard is out, and exiled again it's in
+    /// once)
+    pub fn exiled_with_source_count(&self, source: ObjId) -> i32 {
+        let zcc = self.obj(source).zcc;
+        let mut cards: Vec<ObjId> = Vec::new();
+        for (s, z, c) in self.exiled_for_source.iter() {
+            if *s == source && *z == zcc && self.obj(*c).zone == Zone::Exile && !cards.contains(c) {
+                cards.push(*c);
+            }
+        }
+        cards.len() as i32
+    }
+
+    /// Whether a player has protection from `source` (`PlayerImpl.hasProtectionFrom`): a static ability of theirs
+    /// gives them protection whose filter `source` matches (Absolute Virtue's "protection from each of your
+    /// opponents": a source an opponent controls)
+    pub fn player_protected_from(&self, seat: Seat, source: ObjId) -> bool {
+        fn gives(g: &Game, e: &EffectDef, src: ObjId, you: Seat, source: ObjId) -> bool {
+            match e {
+                EffectDef::GainAbilityControllerEffect { ability, .. } => match &**ability {
+                    AbilityDef::ProtectionAbility { filter } => g.filter_matches(filter, you, Some(src), source),
+                    _ => false,
+                },
+                EffectDef::ConditionalContinuousEffect { effect, condition } => {
+                    g.condition_holds(Some(condition), you, src) && gives(g, effect, src, you, source)
+                }
+                _ => false,
+            }
+        }
+        self.any_static(|g, src, e| g.obj(src).controller == seat && gives(g, e, src, seat, source))
+    }
+
     pub fn static_gives(&self, e: &EffectDef, src: ObjId, you: Seat, id: ObjId, ability: &AbilityDef) -> bool {
         match e {
             EffectDef::GainAbilityAllEffect { ability: given, filter, exclude_source, .. } => {
@@ -3949,8 +4034,8 @@ impl Game {
                     }
                     if let EffectDef::SetBasePowerToughnessSourceEffect { count } = e {
                         if count == "exiled_with_source" {
-                            let n = self.exiled_for_source.iter().filter(|(s, z, _)| *s == id && *z == o.zcc).count()
-                                as i32;
+                            // (still in its exile zone: Processor Assault puts one into a graveyard)
+                            let n = self.exiled_with_source_count(id);
                             p = n;
                             t = n;
                         }
@@ -4698,6 +4783,13 @@ impl Game {
             let (now, rest): (Vec<_>, Vec<_>) =
                 std::mem::take(&mut self.when_dies).into_iter().partition(|w| w.0 == id && w.1 == zcc);
             self.when_dies = rest;
+            // ("under your control": `onlyControlled` leaves out one that died under another player's control)
+            let now: Vec<_> = now
+                .into_iter()
+                .filter(|w| {
+                    died_controller == w.4.controller || !self.when_dies_controlled.contains(&(w.4.card, w.0, w.1))
+                })
+                .collect();
             for (k, (_, _, _, to_player, mut item)) in now.into_iter().enumerate() {
                 // (`setValue("creatureDied", …)`: what a handler's value reads)
                 item.died = Some((id, died_controller));
@@ -4856,6 +4948,7 @@ impl Game {
             if !(from == Zone::Stack && zone == Zone::Battlefield) {
                 o.warped = false;
                 o.evoked = false;
+                o.phyrexian_paid = 0;
                 o.alternative_paid = false;
                 o.impending = false;
                 o.dashed = false;
