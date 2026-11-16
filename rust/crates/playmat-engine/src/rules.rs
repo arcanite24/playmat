@@ -6887,6 +6887,8 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
     let def = game.obj(id).def.clone();
     let Some((rule, _, targets, costs, _)) = def.abilities[index].activated() else { return false };
     let zcc = game.obj(id).zcc;
+    // (a permanent's ability whose cost exiles it: `getPermanentOrLKIBattlefield` still finds it, as it was)
+    let on_battlefield = game.obj(id).zone == Zone::Battlefield;
     if let AbilityDef::LimitedTimesPerTurnActivatedAbility { .. } = def.abilities[index] {
         game.activated_this_turn.push((id, index));
     }
@@ -7105,9 +7107,12 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
                             && g.has_type(id, CardType::Artifact)
                     }
                     // of an artifact or creature (Crackdown Construct), or an artifact, creature or land (Immolation
-                    // Shaman): `getPermanentOrLKIBattlefield`
+                    // Shaman): `getPermanentOrLKIBattlefield`, which finds one its cost exiled too (Harsh Mentor on
+                    // an "{2}, Exile this: …" artifact)
                     "artifact_or_creature" | "artifact_creature_or_land" => {
-                        (g.obj(id).zone == Zone::Battlefield || g.short_lki.contains(&id))
+                        (g.obj(id).zone == Zone::Battlefield
+                            || g.short_lki.contains(&id)
+                            || on_battlefield && g.obj(id).zone == Zone::Exile)
                             && (g.has_type(id, CardType::Artifact)
                                 || g.has_type(id, CardType::Creature)
                                 || kind == "artifact_creature_or_land" && g.has_type(id, CardType::Land))
@@ -10781,16 +10786,20 @@ fn lose_all_abilities(game: &mut Game, id: ObjId, src: ObjId, zcc: u32) {
     }
 }
 
-/// 704.5n: an Equipment attached to what isn't a creature (or is gone) becomes unattached
+/// 704.5n: an Equipment attached to what isn't a creature (or is gone) becomes unattached; 704.5q: so does one
+/// that isn't an Equipment any more (a copy of a Vehicle until end of turn: Shuri, Wakandan Inventor)
 fn unattach_equipment(game: &mut Game) -> bool {
     let mut happened = false;
     let ids: Vec<ObjId> = game.battlefield.iter().copied().collect();
     for id in ids {
         if game.obj(id).attached_to.is_some()
-            && game.obj(id).def.has_subtype("Equipment")
+            // (an Equipment until it became a copy of something else until end of turn: unattached below)
+            && (game.obj(id).def.has_subtype("Equipment")
+                || game.obj(id).until_end_of_turn_def.as_ref().is_some_and(|d| d.has_subtype("Equipment")))
             && (!game.attached(id).is_some_and(|to| game.has_type(to, CardType::Creature))
                 // an Equipment that's a creature too (Ensoul Artifact) can't equip (704.5n)
-                || game.has_type(id, CardType::Creature))
+                || game.has_type(id, CardType::Creature)
+                || !game.has_subtype(id, "Equipment"))
         {
             game.obj_mut(id).attached_to = None;
             happened = true;
@@ -16615,6 +16624,9 @@ fn apply_each_effect(
                     && item.entering.is_some_and(|e| evolves(game, me, e))
                 {
                     add_counters_by(game, me, "+1/+1", 1, Some(controller));
+                    // `EVOLVED_CREATURE`: "whenever this evolves"
+                    let fired = game.triggers([me], |_, src, _, t| matches!(t, Trigger::Evolved) && src == me);
+                    game.pending.extend(fired);
                 }
             }
             EffectDef::RegenerateSourceEffect => {
@@ -18724,9 +18736,10 @@ fn apply_each_effect(
                         put_counters(game, o, "+1/+1", n, controller);
                     }
                     game.obj_mut(o).marks.push("monstrous".into());
-                    // `BECOMES_MONSTROUS`: its own "when this becomes monstrous"
+                    // `BECOMES_MONSTROUS`: its own "when this becomes monstrous", with the monstrosity's X
+                    // (`BecomesMonstrousSourceTriggeredAbility.getMonstrosityValue`: Hydra Broodmaster)
                     let fired = game.triggers([o], |_, src, _, t| matches!(t, Trigger::BecomesMonstrous) && src == o);
-                    game.pending.extend(fired);
+                    game.pending.extend(fired.into_iter().map(|t| StackItem { x: n, ..t }));
                 }
             }
             EffectDef::BecomesRenownedSourceEffect { amount } => {

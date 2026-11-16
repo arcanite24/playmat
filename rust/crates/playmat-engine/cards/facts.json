@@ -43761,7 +43761,7 @@
             "name": "Caves count",
             "value": {
               "class": "mage.abilities.dynamicvalue.AdditiveDynamicValue",
-              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@61648dd2"
+              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@54364e89"
             }
           }
         ]
@@ -48323,7 +48323,7 @@
             "name": "Artificers you control and Artificer cards in your graveyard",
             "value": {
               "class": "mage.abilities.dynamicvalue.AdditiveDynamicValue",
-              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@2b9370cc"
+              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@3c647690"
             }
           }
         ]
@@ -102978,7 +102978,7 @@
             "name": "Value of X",
             "value": {
               "class": "mage.abilities.dynamicvalue.AdditiveDynamicValue",
-              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@6fc277e4"
+              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@33027549"
             }
           }
         ]
@@ -113030,7 +113030,7 @@
             "name": "Elves you control plus the number of Elf cards in your graveyard",
             "value": {
               "class": "mage.abilities.dynamicvalue.AdditiveDynamicValue",
-              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@2f59f157"
+              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@3b07aa78"
             }
           }
         ]
@@ -172825,7 +172825,7 @@
             "name": "Graveyards with seven or more cards in it",
             "value": {
               "class": "mage.cards.m.GraveyardsWithXOrMoreCardsInIt",
-              "text": "mage.cards.m.GraveyardsWithXOrMoreCardsInIt@4191edd"
+              "text": "mage.cards.m.GraveyardsWithXOrMoreCardsInIt@25b37672"
             }
           }
         ]
@@ -182094,7 +182094,7 @@
             "name": "Creatures you control and creature cards in your graveyard",
             "value": {
               "class": "mage.abilities.dynamicvalue.AdditiveDynamicValue",
-              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@79b82278"
+              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@23b86ec9"
             }
           }
         ]
@@ -299672,7 +299672,7 @@
             "name": "Current damage",
             "value": {
               "class": "mage.abilities.dynamicvalue.MaximumDynamicValue",
-              "text": "mage.abilities.dynamicvalue.MaximumDynamicValue@40bfc929"
+              "text": "mage.abilities.dynamicvalue.MaximumDynamicValue@1190d449"
             }
           }
         ]
@@ -332911,6 +332911,15 @@
     ]
   },
   {
+    "name": "token:HydraBroodmasterToken",
+    "images": {
+      "C21": 1,
+      "JOU": 1,
+      "M3C": 1
+    },
+    "abilities": []
+  },
+  {
     "name": "token:IcingdeathFrostTongueToken",
     "images": {
       "AFR": 1,
@@ -334386,6 +334395,24 @@
       "SOC": 1
     },
     "abilities": []
+  },
+  {
+    "name": "token:PurphorossInterventionToken",
+    "images": {
+      "THB": 1
+    },
+    "abilities": [
+      {
+        "class": "TrampleAbility",
+        "type": "STATIC",
+        "rule": "trample"
+      },
+      {
+        "class": "HasteAbility",
+        "type": "STATIC",
+        "rule": "haste"
+      }
+    ]
   },
   {
     "name": "token:PursuedWhaleToken",
@@ -336485,6 +336512,14 @@
     "name": "token:ZombieRogueToken",
     "images": {
       "OTJ": 1
+    },
+    "abilities": []
+  },
+  {
+    "name": "token:ZombieStarToken",
+    "images": {
+      "EMN": 1,
+      "INR": 1
     },
     "abilities": []
   },

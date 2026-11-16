@@ -1264,7 +1264,24 @@ def declared_filters(source, subtypes):
         _declaring = outer
 
 
+def filter_copies(source):
+    """`static final FilterX b; static { b = a.copy(); … }` with the copy made before anything is added to `a`
+    (Shuri, Wakandan Inventor): `b` declared as `a`'s constructor, so each keeps its own `add`s"""
+    for m in re.finditer(r'\n(\s*)(\w+) = (\w+)\.copy\(\);', source):
+        b, a = m.group(2), m.group(3)
+        decl = re.search(r'static (?:final |private |public |protected )*(\w+(?:<[\w<>?, ]*>)?) ' + b + r';', source)
+        made = re.search(r'static (?:final |private |public |protected )*\w+(?:<[\w<>?, ]*>)? ' + a
+                         + r'\s*=\s*(new Filter\w+(?:<[\w<>?, ]*>)?\(.*?\));', source, re.S)
+        first_add = re.search(r'\b' + a + r'\.add\(', source)
+        if not decl or not made or (first_add and first_add.start() < m.start()):
+            continue
+        source = source.replace(m.group(0), '', 1)
+        source = source.replace(decl.group(0), 'static final ' + decl.group(1) + ' ' + b + ' = ' + made.group(1) + ';', 1)
+    return source
+
+
 def declared_filters_into(out, source, subtypes):
+    source = filter_copies(source)
     # the card being read, for a predicate class it declares with a handler (`card_handlers.predicate`)
     card_handlers.SOURCE = source
     # predicate fields (`static final Predicate<…> predicate = Predicates.or(…);`), by name
@@ -3940,7 +3957,8 @@ class Translator:
                     'amount': self.value('amount', args[1].strip()), 'tapped_and_attacking': True}
         # `BecomesCreatureTargetEffect(token, loseAllAbilities, stillALand, duration[, loseName])` as Java's
         # `applyTypes` reads it: "it's still a land" keeps every prior type, "loses all abilities" (Turn to Frog);
-        # `Duration.Custom` lasts until it leaves the battlefield (Roaring Earth's lands)
+        # `Duration.Custom` lasts until it leaves the battlefield (Roaring Earth's lands), as `Duration.EndOfGame` does
+        # on a fixed target (Noyan Dar's land)
         if cls == 'BecomesCreatureTargetEffect' and len(args) in (4, 5) \
                 and ([a.strip() for a in args[1:3]] != ['false', 'false'] or (len(args) == 5 and args[4].strip() != 'false')):
             lose, still = args[1].strip(), args[2].strip()
@@ -3950,6 +3968,7 @@ class Translator:
             # Force; Wrenn and Realmbreaker)
             if lose == 'false' and still == 'true' and len(args) == 4:
                 durations['Duration.UntilYourNextTurn'] = 'UntilYourNextTurn'
+                         'Duration.WhileOnBattlefield': 'WhileOnBattlefield', 'Duration.EndOfGame': 'WhileOnBattlefield'}
             if lose not in ('true', 'false') or still not in ('true', 'false') or args[3].strip() not in durations \
                     or (len(args) == 5 and args[4].strip() not in ('true', 'false')):
                 raise Unsupported('becomes creature target ' + ','.join(a.strip() for a in args[1:]))
@@ -7419,6 +7438,22 @@ class Translator:
                     'new DamageTargetEffect(1)')
             a['set_target_pointer_player'] = True
             return a
+        # Titanbones, Towering Heart: "when you discard this card" (`DISCARDED_CARD` of the card itself, `Zone.ALL`),
+        # the one part of an "or" trigger, which the discarded card itself triggers (Bartered Cow's)
+        if cls == 'TitanbonesToweringHeartTriggeredAbility' and n == 0:
+            return out({'e': 'or', 'ts': [{'e': 'discards', 'who': 'you', 'filter': [{'p': 'not', 'x': {'p': 'another'}}]}]},
+                       'new GainLifeEffect(3)')
+        # Renegade Krasis: "whenever this evolves" (`EVOLVED_CREATURE` of its source)
+        if cls == 'RenegadeKrasisTriggeredAbility' and n == 0:
+            return out({'e': 'evolved'}, 'new AddCountersAllEffect(CounterType.P1P1.createInstance(1), '
+                                         'StaticFilters.FILTER_OTHER_CONTROLLED_CREATURE_P1P1)')
+        # Harsh Mentor: Immolation Shaman's trigger "…on the battlefield, if it isn't a mana ability, … deals 2 damage
+        # to that player"
+        if cls == 'HarshMentorTriggeredAbility' and n == 0:
+            a = out({'e': 'ability_activated', 'kind': 'artifact_creature_or_land', 'opponent': True},
+                    'new DamageTargetEffect(2)')
+            a['set_target_pointer_player'] = True
+            return a
         # "whenever you activate a loyalty ability [of a <subtype> planeswalker]"
         if cls == 'ActivatePlaneswalkerLoyaltyAbilityTriggeredAbility' and n in (2, 3) \
                 and args[-1].strip() in ('SetTargetPointer.NONE', 'SetTargetPointer.SPELL'):
@@ -9351,7 +9386,8 @@ def token(cls):
         m = re.search(r'public ' + cls + r'\(int (\w+)\)\s*\{(.*?)\n    \}', source, re.S)
         if not m:
             raise Unsupported('token constructor ' + cls)
-        m = re.match(r'(.*)', re.sub(r'\b' + m.group(1) + r'\b', n.group(1), m.group(2)), re.S)
+        # (not a field of the same name: PurphorossInterventionToken's `this.power = new MageInt(power)`)
+        m = re.match(r'(.*)', re.sub(r'(?<!\.)\b' + m.group(1) + r'\b', n.group(1), m.group(2)), re.S)
     # `this(1, 1)`: the power and toughness constructor with those values (RitualOfTheReturnedZombieToken); a handler
     # sets others as it creates one
     elif (n := re.fullmatch(r'\s*this\((\d+),\s*(\d+)\);\s*', m.group(1))):
@@ -9380,8 +9416,10 @@ def token(cls):
         body = body.replace(c.group(0), '').replace('(' + c.group(1) + ')', '(' + c.group(2) + ')')
     for st in statements(body):
         st = re.sub(r'^this\.(?=(?:cardType|color|subtype|supertype|power|toughness|startingLoyalty)\b)', '', st)
-        # (the description isn't read: SpiritXXToken's is char arithmetic, `amount + '/' + amount + "…"`)
-        if (n := re.fullmatch(r"""super\("([^"]+)",(?:".*"|\d+\s*\+\s*'/'\s*\+\s*\d+\s*\+\s*".*")\)""", st)):
+        # (the description isn't read: SpiritXXToken's is char arithmetic, `amount + '/' + amount + "…"`,
+        # ZombieStarToken's `String.valueOf(zPower) + '/' + …`)
+        if (n := re.fullmatch(r"""super\("([^"]+)",(?:".*"|\d+\s*\+\s*'/'\s*\+\s*\d+\s*\+\s*".*"|"""
+                              r"""String\.valueOf\(\w+\)\s*\+\s*'/'\s*\+\s*String\.valueOf\(\w+\)\s*\+\s*".*")\)""", st)):
             out['name'] = n.group(1)
         elif (n := re.fullmatch(r'(?:this\.)?cardType\.add\(CardType\.(\w+)\)', st)):
             out['types'].append(n.group(1))
