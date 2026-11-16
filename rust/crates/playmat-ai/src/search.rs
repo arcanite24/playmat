@@ -89,7 +89,7 @@ impl Default for Config {
             eta: 10_000,
             rollout: None,
             consider: 4,
-            cpuct: 1250,
+            cpuct: 300,
         }
     }
 }
