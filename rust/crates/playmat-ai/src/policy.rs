@@ -46,6 +46,13 @@ pub struct Policy {
 #[derive(Clone, PartialEq, Eq)]
 struct Progress([u64; 9]);
 
+/// A yes/no question the AI always declines, as Java's `Outcome.AIDontUseIt` makes `ComputerPlayer.chooseUse` say no:
+/// replicate's "Pay N times Replicate {1} ?" (`ReplicateAbility`), which is asked again after each yes and never
+/// checks the mana for the copies (game 5b6e1d86 on 2026-11-16: an AI that said yes was asked forever)
+pub fn declines(message: &str) -> bool {
+    message.starts_with("Pay ") && message.contains(" Replicate ")
+}
+
 fn progress(game: &Game, seat: Seat) -> Progress {
     let p = game.player(seat);
     let tapped = game.battlefield.iter().filter(|id| game.obj(**id).tapped).count() as u64;
@@ -83,7 +90,7 @@ impl Policy {
             }
             Query::ChooseAbility { source, abilities } => choose_ability(game, seat, *source, abilities),
             Query::PickTrigger { .. } => Answer::Trigger(0),
-            Query::YesNo { .. } => Answer::Bool(true),
+            Query::YesNo { message } => Answer::Bool(!declines(message)),
             Query::ChooseMode { modes } => modes.first().map(|m| Answer::Mode(*m)).unwrap_or(Answer::ModeDone),
             Query::Amount { min, max } => Answer::Int(x_amount(game, seat).clamp(*min, (*max).max(*min))),
             Query::Choice { message, choices } => choice(game, seat, message, choices),
@@ -533,5 +540,22 @@ mod tests {
         assert_eq!(card_name(&game, 1, "Card name").unwrap(), "Island");
         // not a name question: none
         assert_eq!(card_name(&game, 0, "Choose a color"), None);
+    }
+
+    /// Replicate's question is declined, by the quick answer and by the search (`Outcome.AIDontUseIt`): the engine
+    /// asks again after every yes, so an AI that says yes is asked forever (game 5b6e1d86 on 2026-11-16)
+    #[test]
+    fn the_ai_declines_to_replicate() {
+        use playmat_engine::decide::Decider;
+        let db = playmat_engine::cards();
+        let deck = Deck::parse("d", "20 Island\n4 Consign to Memory");
+        let game = new_duel(&db, [&deck, &deck], 1, 0).unwrap();
+        let q = Query::YesNo { message: "Pay 1 time Replicate {1} ?".into() };
+        assert_eq!(Policy::default().answer(&game, 0, &q), Answer::Bool(false));
+        let mut table = crate::search::Table::new(vec![Some(crate::search::Config::default()), None]);
+        assert_eq!(table.answer(&game, 0, &q), Answer::Bool(false));
+        // other questions still get a yes
+        let other = Query::YesNo { message: "Pay Kicker {2} ?".into() };
+        assert_eq!(Policy::default().answer(&game, 0, &other), Answer::Bool(true));
     }
 }

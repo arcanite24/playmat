@@ -353,7 +353,7 @@ pub(crate) fn candidates(game: &Game, seat: Seat, q: &Query, quick: &Answer, wid
                 add(Answer::Ability(*source, *i));
             }
         }
-        Query::YesNo { message } if !message.contains("mana pool") => {
+        Query::YesNo { message } if !message.contains("mana pool") && !crate::policy::declines(message) => {
             add(Answer::Bool(true));
             add(Answer::Bool(false));
         }
