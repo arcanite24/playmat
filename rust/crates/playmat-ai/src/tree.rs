@@ -75,8 +75,12 @@ impl Walk {
             let p = net::softmax(&out.logits, 1.0);
             let node = &mut self.tree.nodes[at];
             node.seat = seat;
-            node.kids =
-                options.iter().cloned().zip(p).map(|(answer, prior)| Kid { answer, prior, n: 0, w: 0.0, node: None }).collect();
+            node.kids = options
+                .iter()
+                .cloned()
+                .zip(p)
+                .map(|(answer, prior)| Kid { answer, prior, n: 0, w: 0.0, node: None })
+                .collect();
             self.expanded = true;
         } else if self.tree.nodes[at].seat != seat {
             self.at = None;

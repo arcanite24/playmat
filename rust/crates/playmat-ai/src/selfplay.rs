@@ -567,7 +567,8 @@ impl Shard {
 /// Whether `config` plays with a network
 pub fn uses_net(config: &Option<Config>) -> bool {
     config.as_ref().is_some_and(|c| {
-        matches!(c.policy, PolicyKind::Net | PolicyKind::NetSearch | PolicyKind::Gumbel | PolicyKind::Ismcts) || c.eval >= 3
+        matches!(c.policy, PolicyKind::Net | PolicyKind::NetSearch | PolicyKind::Gumbel | PolicyKind::Ismcts)
+            || c.eval >= 3
     })
 }
 
