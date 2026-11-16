@@ -13120,7 +13120,12 @@ fn apply_each_effect(
                         // the spell resolving targeted itself (Wild Ricochet: Java's `TargetStackObject` offers the
                         // spell being cast): its own targets change, still on top of the stack in Java, and what
                         // its later effects point at with them ("then copy that spell")
-                        let Some(me) = game.resolving_item.clone().filter(|i| i.card == *o) else { continue };
+                        // (out of `resolving_item` meanwhile: picking itself again is its old target, not a copy
+                        // picking the resolving one, so Java asks whether to reset to it)
+                        if !game.resolving_item.as_ref().is_some_and(|i| i.card == *o) {
+                            continue;
+                        }
+                        let Some(me) = game.resolving_item.take() else { continue };
                         let resolving = game.resolving.take();
                         Arc::make_mut(&mut game.stack).push(me);
                         let top = game.stack.len() - 1;
