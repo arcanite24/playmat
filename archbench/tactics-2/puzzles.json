@@ -1,7 +1,7 @@
 {
  "suite": "tactics@2",
  "created": "2026-11-15",
- "about": "Positions with one right line, seat 0 to find it. The entrant plays both seats from the given step. Goals: win (seat 0 wins before the turn `turns` after this one ends), survive (seat 0 is alive when the turn after `turns` more begins), remove (seat 1 no longer controls `card`), keep (seat 0 still controls `card`), life (seat 0 has at least `life`). Libraries are 20 of the seat's first basic land unless given. Changing a puzzle makes a new version. tactics@2 is tactics@1's 16 puzzles and 16 more (trample, flying and reach, pumps after blocks, exert, deathtouch blocks, double blocks, counters and protection on the opponent's turn, and traps: a wrath when ahead, a removal spell that costs the last life).",
+ "about": "Positions with one right line, seat 0 to find it. The entrant plays both seats from the given step. Goals: win (seat 0 wins before the turn `turns` after this one ends), survive (seat 0 is alive when the turn after `turns` more begins), remove (seat 1 no longer controls `card`), keep (seat 0 still controls `card`), life (seat 0 has at least `life`). Libraries are 20 of the seat's first basic land unless given. Changing a puzzle makes a new version. tactics@2 is tactics@1's 16 puzzles and 15 more (trample, flying and reach, pumps after blocks, exert, deathtouch blocks, counters and protection on the opponent's turn, and traps: a wrath when ahead, a removal spell that costs the last life).",
  "puzzles": [
   {
    "name": "burn-to-the-face",
@@ -820,35 +820,6 @@
    ],
    "goal": {
     "kind": "survive",
-    "turns": 0
-   }
-  },
-  {
-   "name": "double-block-the-giant",
-   "about": "The opponent's turn, Bonecrusher Giant attacking: block with both Lions to kill it.",
-   "active": 1,
-   "seats": [
-    {
-     "life": 20,
-     "battlefield": [
-      "Plains",
-      {
-       "name": "Savannah Lions",
-       "count": 2
-      }
-     ]
-    },
-    {
-     "life": 20,
-     "battlefield": [
-      "Mountain",
-      "Bonecrusher Giant"
-     ]
-    }
-   ],
-   "goal": {
-    "kind": "remove",
-    "card": "Bonecrusher Giant",
     "turns": 0
    }
   },
