@@ -13,3 +13,4 @@ pub mod obs;
 pub mod policy;
 pub mod search;
 pub mod selfplay;
+pub mod tree;

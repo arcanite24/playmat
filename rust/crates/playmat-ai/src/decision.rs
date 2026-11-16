@@ -34,6 +34,8 @@ pub enum PolicyKind {
     NetSearch,
     /// the network's policy searched by Gumbel sequential halving (`selfplay::Gumbel`)
     Gumbel,
+    /// an open-loop information-set tree search over the network's policy (`tree::Ismcts`)
+    Ismcts,
 }
 
 impl PolicyKind {
@@ -46,6 +48,7 @@ impl PolicyKind {
             PolicyKind::Net => "net",
             PolicyKind::NetSearch => "netsearch",
             PolicyKind::Gumbel => "gumbel",
+            PolicyKind::Ismcts => "ismcts",
         }
     }
 
@@ -63,6 +66,7 @@ impl PolicyKind {
             PolicyKind::Net => Box::new(crate::selfplay::NetPolicy::new(0x6e65_7400 + seat as u64)),
             PolicyKind::NetSearch => Box::new(crate::selfplay::NetSearch::new(0x6e73_0000 + seat as u64)),
             PolicyKind::Gumbel => Box::new(crate::selfplay::Gumbel::new(0x6762_0000 + seat as u64)),
+            PolicyKind::Ismcts => Box::new(crate::tree::Ismcts::new(0x6973_0000 + seat as u64)),
         }
     }
 }
@@ -78,6 +82,7 @@ impl FromStr for PolicyKind {
             "net" => Ok(PolicyKind::Net),
             "netsearch" => Ok(PolicyKind::NetSearch),
             "gumbel" => Ok(PolicyKind::Gumbel),
+            "ismcts" => Ok(PolicyKind::Ismcts),
             other => Err(format!("unknown AI policy {other:?} (playouts, mcts, quick, random, net, netsearch)")),
         }
     }
@@ -287,6 +292,23 @@ impl Root {
         }
     }
 
+    /// Plays `game` (a `sample`, or the snapshot) from the question with `walk` answering where its tree reaches
+    /// (`tree::Ismcts`), then the playout's answers; gives the walk back for the backup
+    pub fn play_tree(
+        &self,
+        mut g: Game,
+        walk: crate::tree::Walk,
+        cap: u64,
+        stop_turn: u32,
+    ) -> (Result<Outcome, u64>, crate::tree::Walk) {
+        let mut p = Playout::new(self.since.clone(), cap, stop_turn, None, self.playout, self.rollout.clone());
+        p.walk = Some(Box::new(walk));
+        rules::play_from_priority_question(&mut g, &mut p, stop_turn);
+        let walk = *p.walk.take().expect("the walk");
+        let res = if p.diverged { Err(p.answers) } else { Ok(Outcome { game: g, nodes: p.answers }) };
+        (res, walk)
+    }
+
     /// Plays `candidate` on `game` (a `sample`, or the snapshot) with the quick answers and no noise: the same as
     /// `play_out` without a shuffle, from a given copy
     pub fn play_on(&self, mut g: Game, candidate: &[Answer], cap: u64, stop_turn: u32) -> Result<Outcome, u64> {
@@ -316,6 +338,8 @@ struct Playout {
     diverged: bool,
     noise: Option<u64>,
     rollout: Option<Arc<crate::net::Net>>,
+    /// `ismcts`: the tree answers the questions it has reached before
+    walk: Option<Box<crate::tree::Walk>>,
 }
 
 impl Playout {
@@ -339,6 +363,7 @@ impl Playout {
             diverged: false,
             noise: noise.map(|s| s | 1),
             rollout,
+            walk: None,
         }
     }
 }
@@ -361,7 +386,17 @@ impl Decider for Playout {
             return Answer::Stop;
         }
         let mut a = self.policy[seat.min(1)].answer(game, seat, q);
-        if let Some(net) = &self.rollout {
+        let mut by_tree = false;
+        if let Some(w) = self.walk.as_mut() {
+            if let Some(t) = w.step(game, seat, q, &a) {
+                if matches!(q, Query::Priority { .. }) {
+                    self.policy[seat.min(1)].played(&t);
+                }
+                a = t;
+                by_tree = true;
+            }
+        }
+        if let (false, Some(net)) = (by_tree, &self.rollout) {
             if !crate::selfplay::skipped(q) {
                 let options = candidates(game, seat, q, &a, 12);
                 if options.len() > 1 {
