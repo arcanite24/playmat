@@ -1196,6 +1196,9 @@ pub struct Game {
     pub enters_as: Option<(ObjId, Arc<CardDef>)>,
     /// extra turns to take, the last added first (`TurnMod`)
     pub extra_turns: Vec<Seat>,
+    /// while extra turns are taken, the player whose turn in the normal order they came after: the normal order goes
+    /// on from them (`GameImpl.playExtraTurns`, then `playerList.getNext`)
+    pub extra_turns_after: Option<Seat>,
     /// Emrakul, the Promised End: (player, controller) for a player's next turn, controlled by another
     pub control_next_turn: Vec<(Seat, Seat)>,
     /// (player, controller) while a player's turn is controlled by another; an extra turn follows it
@@ -1633,6 +1636,7 @@ impl Game {
             exile_uncast_turn: None,
             enters_as: None,
             extra_turns: Vec::new(),
+            extra_turns_after: None,
             control_next_turn: Vec::new(),
             controlled_by: Vec::new(),
             at_first_upkeep: Vec::new(),
@@ -2301,6 +2305,20 @@ impl Game {
                                 continue;
                             }
                             &**effect
+                        }
+                        // its own while a condition holds (The Tarrasque's "ward {10} as long as it was cast",
+                        // Iymrith's while untapped)
+                        EffectDef::ConditionalContinuousEffect { effect, condition }
+                            if *src == id
+                                && matches!(&**effect, EffectDef::GainAbilitySourceEffect { ability, .. }
+                                    if matches!(**ability, AbilityDef::WardAbility { .. })) =>
+                        {
+                            if self.condition_holds(Some(condition), s.controller, *src) {
+                                if let EffectDef::GainAbilitySourceEffect { ability, .. } = &**effect {
+                                    out.push((**ability).clone());
+                                }
+                            }
+                            continue;
                         }
                         _ => e,
                     };
@@ -3400,10 +3418,8 @@ impl Game {
                 Value::Times { of, n } => self.value(of, you, source, x) * n,
                 Value::Half { of, up } => (self.value(of, you, source, x) + i32::from(*up)) / 2,
                 Value::Plus { of, n } => self.value(of, you, source, x) + n,
-                Value::ExiledWithSource => {
-                    let zcc = self.obj(source).zcc;
-                    self.exiled_for_source.iter().filter(|(s, z, _)| *s == source && *z == zcc).count() as i32
-                }
+                // the cards in its exile zone (`UnlicensedHearseValue`): one that left exile is out of it
+                Value::ExiledWithSource => self.exiled_with_source_count(source),
                 Value::CardTypesInYourGraveyard => {
                     let mut types: Vec<CardType> = Vec::new();
                     for c in self.player(you).graveyard.iter() {
@@ -3881,6 +3897,39 @@ impl Game {
             })
     }
 
+    /// The cards in `source`'s exile zone for the permanent it is now (`UnlicensedHearseValue`): each card once, and
+    /// only while it's still in exile (one Processor Assault put into a graveyard is out, and exiled again it's in
+    /// once)
+    pub fn exiled_with_source_count(&self, source: ObjId) -> i32 {
+        let zcc = self.obj(source).zcc;
+        let mut cards: Vec<ObjId> = Vec::new();
+        for (s, z, c) in self.exiled_for_source.iter() {
+            if *s == source && *z == zcc && self.obj(*c).zone == Zone::Exile && !cards.contains(c) {
+                cards.push(*c);
+            }
+        }
+        cards.len() as i32
+    }
+
+    /// Whether a player has protection from `source` (`PlayerImpl.hasProtectionFrom`): a static ability of theirs
+    /// gives them protection whose filter `source` matches (Absolute Virtue's "protection from each of your
+    /// opponents": a source an opponent controls)
+    pub fn player_protected_from(&self, seat: Seat, source: ObjId) -> bool {
+        fn gives(g: &Game, e: &EffectDef, src: ObjId, you: Seat, source: ObjId) -> bool {
+            match e {
+                EffectDef::GainAbilityControllerEffect { ability, .. } => match &**ability {
+                    AbilityDef::ProtectionAbility { filter } => g.filter_matches(filter, you, Some(src), source),
+                    _ => false,
+                },
+                EffectDef::ConditionalContinuousEffect { effect, condition } => {
+                    g.condition_holds(Some(condition), you, src) && gives(g, effect, src, you, source)
+                }
+                _ => false,
+            }
+        }
+        self.any_static(|g, src, e| g.obj(src).controller == seat && gives(g, e, src, seat, source))
+    }
+
     pub fn static_gives(&self, e: &EffectDef, src: ObjId, you: Seat, id: ObjId, ability: &AbilityDef) -> bool {
         match e {
             EffectDef::GainAbilityAllEffect { ability: given, filter, exclude_source, .. } => {
@@ -3949,8 +3998,8 @@ impl Game {
                     }
                     if let EffectDef::SetBasePowerToughnessSourceEffect { count } = e {
                         if count == "exiled_with_source" {
-                            let n = self.exiled_for_source.iter().filter(|(s, z, _)| *s == id && *z == o.zcc).count()
-                                as i32;
+                            // (still in its exile zone: Processor Assault puts one into a graveyard)
+                            let n = self.exiled_with_source_count(id);
                             p = n;
                             t = n;
                         }

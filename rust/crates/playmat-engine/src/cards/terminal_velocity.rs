@@ -16,10 +16,14 @@ pub const HANDLERS: &[Handler] = &[
 ];
 
 /// Up to one artifact or creature card from your hand chosen (`TargetCardInHand(0, 1, …)`), put onto the
-/// battlefield; the permanent it became gains the three abilities for as long as it stays
+/// battlefield; the permanent it became gains the three abilities for as long as it stays. With an empty hand
+/// nothing is asked (`HumanPlayer.choose` returns at once for no cards)
 fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     let you = cx.controller();
     let hand: Vec<ObjId> = game.player(you).hand.clone();
+    if hand.is_empty() {
+        return Some(());
+    }
     let possible: Vec<ObjId> =
         hand.iter().copied().filter(|c| game.filter_matches(&cx.filters[0], you, Some(cx.source_id()), *c)).collect();
     let rule = item_rule(game, cx.item);

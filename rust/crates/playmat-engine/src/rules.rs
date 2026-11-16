@@ -79,9 +79,18 @@ fn play_on(game: &mut Game, d: &mut dyn Decider, stop_on_turn: u32, mut resume: 
                     game.controlled_by.remove(i);
                     game.extra_turns.push(ended);
                 }
+                // the extra turns first, then the normal order from the player whose turn they came after (an
+                // opponent's extra turn after yours: theirs, then their own turn too, Karn's Temporal Sundering)
+                let after = game.extra_turns_after.unwrap_or(ended);
                 game.active = Some(match game.extra_turns.pop() {
-                    Some(s) => s,
-                    None => game.opponent(game.active.unwrap_or(0)),
+                    Some(s) => {
+                        game.extra_turns_after = Some(after);
+                        s
+                    }
+                    None => {
+                        game.extra_turns_after = None;
+                        game.opponent(after)
+                    }
                 });
                 let now = game.active.unwrap_or(0);
                 if let Some(i) = game.control_next_turn.iter().position(|(p, _)| *p == now) {
@@ -725,12 +734,13 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 }
             }
         }
-        // "at end of combat" triggers, then the delayed ones
+        // "at end of combat" triggers (a permanent's or an emblem's: Zariel's), then the delayed ones
         Step::EndCombat => {
             let sources = game.trigger_sources();
             let fired = game.triggers(sources, |g, src, you, t| {
                 matches!(t, Trigger::StepBegins { step, who, graveyard: false, suspended: false }
-                    if step == "endcombat" && Game::whose(who, you, active) && g.obj(src).zone == Zone::Battlefield)
+                    if step == "endcombat" && Game::whose(who, you, active)
+                        && matches!(g.obj(src).zone, Zone::Battlefield | Zone::Command))
             });
             game.pending.extend(fired);
             let delayed = std::mem::take(&mut game.at_end_of_combat);
@@ -755,9 +765,6 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                     });
                 game.at_next_main = rest;
                 game.pending.extend(mine.into_iter().map(|(_, _, t)| t));
-            }
-            if step == Step::PrecombatMain {
-                add_saga_lore(game, active);
             }
             // the draw step's draw comes before its triggers
             if step == Step::Draw {
@@ -863,6 +870,11 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             }
             // the delayed ones (the next upkeep's, rebound) before the others, as at the end step
             game.pending.extend(fired);
+            // `PreCombatMainStep.beginStep`: the Sagas' lore counters after the step's `PRE` event, so their chapter
+            // abilities wait after "at the beginning of your precombat main phase" triggers (Ashling, Rekindled)
+            if step == Step::PrecombatMain {
+                add_saga_lore(game, active);
+            }
         }
         // the replacement choices its damage asked for (Twinflame Tyrants) come before the step's priority
         Step::FirstCombatDamage => {
@@ -7222,6 +7234,26 @@ fn pay_unless(game: &mut Game, d: &mut dyn Decider, payer: Seat, id: ObjId, cost
         }
         return Some(paid);
     }
+    // ward—collect evidence 4 (Axebane Ferox): `canPay` first (too little mana value in the graveyard: countered,
+    // nothing asked), then "collect evidence 4?", then the cards chosen
+    if let [c @ CostDef::CollectEvidenceCost { amount }] = cost {
+        if !can_pay_cost(game, payer, id, c) {
+            return Some(false);
+        }
+        let q = Query::YesNo { message: format!("collect evidence {}?", amount) };
+        let yes = loop {
+            match ask(game, d, payer, &q) {
+                Answer::Bool(b) => break b,
+                Answer::Stop => return None,
+                _ => {}
+            }
+        };
+        let paid = yes && pay_cost(game, d, payer, id, c);
+        if d.stopped() {
+            return None;
+        }
+        return Some(paid);
+    }
     let life: i32 = cost.iter().map(|c| if let CostDef::PayLifeCost { amount } = c { *amount } else { 0 }).sum();
     let mana = ability_mana_cost(cost);
     if game.player(payer).life < life {
@@ -7809,11 +7841,15 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                 }
                 top.sacrificed.extend(chosen.iter().copied());
             }
-            let insert = game.sac_insert.replace(game.pending.len());
+            let start = game.pending.len();
+            let insert = game.sac_insert.replace(start);
             for o in chosen {
                 sacrifice(game, o);
             }
-            game.sac_insert = insert;
+            // a reflexive trigger waiting on this cost (`DoWhenCostPaid`, Gastal Blockbuster) goes after what the
+            // sacrifice fired at once (Blood Aspirant's "whenever you sacrifice"), as Java fires it after paying
+            let after = game.sac_insert;
+            game.sac_insert = insert.map(|i| if i == start { after.unwrap_or(i) } else { i });
             game.lookback = outer;
         }
         // `ExileTargetCost.pay`: the permanent chosen (`Targets.choose`), then exiled
@@ -8498,13 +8534,15 @@ fn owns_target(game: &Game, seat: Seat, id: ObjId) -> bool {
 
 /// `src`: the spell or ability's source, for its filters ("another")
 pub fn possible_targets(game: &Game, seat: Seat, def: &TargetDef, src: Option<ObjId>) -> (Vec<Seat>, Vec<ObjId>) {
-    // a player with hexproof can't be the target of their opponents' spells and abilities
+    // a player with hexproof can't be the target of their opponents' spells and abilities, nor one with protection
+    // from the source (`PlayerImpl.canBeTargetedBy`'s `hasProtectionFrom`)
     let players: Vec<Seat> = (0..game.seats())
         .filter(|s| {
             !game.player(*s).lost
                 && (*s == seat
                     || !game.player_has(*s, &AbilityDef::HexproofAbility)
                     || cards::ignore_hexproof(game, seat, Target::Player(*s)))
+                && !src.is_some_and(|o| game.player_protected_from(*s, o))
         })
         .collect();
     let permanents = |f: &dyn Fn(ObjId) -> bool| -> Vec<ObjId> {
@@ -8847,6 +8885,18 @@ fn target_legal(game: &Game, seat: Seat, def: &TargetDef, src: Option<ObjId>, t:
         }
     }
     let (players, objs) = possible_targets(game, seat, def, src);
+    // an activated ability that targeted itself (Mirrorshell Crab's channel: Java pushes it before its targets are
+    // chosen): the ability is still that object as it resolves, though its card moved as the cost was paid (not a copy
+    // of it: that one points at the original, gone)
+    if let Target::Obj(o) = t {
+        if matches!(def, TargetDef::TargetStackObject { .. } | TargetDef::TargetStackAbility { .. })
+            && game.resolving_item.as_ref().is_some_and(|i| i.card == o && i.ability.is_some())
+            && src == Some(o)
+            && zcc != u32::MAX
+        {
+            return objs.contains(&o);
+        }
+    }
     match t {
         Target::Player(s) => players.contains(&s),
         Target::Obj(o) => objs.contains(&o) && game.obj(o).zcc == zcc,
@@ -11237,6 +11287,17 @@ fn refresh_land_types(game: &mut Game) {
             granted.push((g.target, g.ability.clone()));
         }
     }
+    // a handler's layer 6 grant of a mana ability (Territory Forge's "has all activated abilities of the exiled
+    // card": the exiled land's "{T}: Add {G}"), tapped for mana like its own
+    let ids: Vec<ObjId> = game.battlefield.iter().copied().collect();
+    for id in ids {
+        let lost_at = game.abilities_lost_at(id);
+        for a in cards::abilities(game, id, lost_at) {
+            if a.mana().is_some() && !granted.iter().any(|(t, x)| *t == id && *x == a) {
+                granted.push((id, a));
+            }
+        }
+    }
     // Tide Shaper's: kept while its source and the land are still those objects
     let here = |g: &Game, o: ObjId, z: u32| g.obj(o).zone == Zone::Battlefield && g.obj(o).zcc == z;
     if game.land_becomes.iter().any(|(l, lz, s, sz, _)| !here(game, *l, *lz) || !here(game, *s, *sz)) {
@@ -13008,6 +13069,18 @@ fn apply_each_effect(
                 ));
             }
             EffectDef::CopyTargetSpellEffect { keep_targets, not_legendary, abilities: true } => {
+                // a spell that targeted itself and chose a new target for itself first (Wild Ricochet): its target
+                // pointer reads the new one
+                let objs: Vec<ObjId> = match game.resolving_item.as_ref() {
+                    Some(me) if me.card == item.card && objs == [item.card] && me.ability.is_none() => me
+                        .targets
+                        .first()
+                        .into_iter()
+                        .flatten()
+                        .filter_map(|t| if let Target::Obj(o) = t { Some(*o) } else { None })
+                        .collect(),
+                    _ => objs.clone(),
+                };
                 for o in &objs {
                     // the topmost stack object of that card: an ability is copied as one (the resolving one itself
                     // too: Java resolves it still on the stack, so it can target itself)
@@ -13056,7 +13129,27 @@ fn apply_each_effect(
             }
             EffectDef::ChooseNewTargetsTargetEffect { force } => {
                 for o in &objs {
-                    let Some(at) = game.stack.iter().rposition(|i| i.card == *o) else { continue };
+                    let Some(at) = game.stack.iter().rposition(|i| i.card == *o) else {
+                        // the spell resolving targeted itself (Wild Ricochet: Java's `TargetStackObject` offers the
+                        // spell being cast): its own targets change, still on top of the stack in Java, and what
+                        // its later effects point at with them ("then copy that spell")
+                        // (out of `resolving_item` meanwhile: picking itself again is its old target, not a copy
+                        // picking the resolving one, so Java asks whether to reset to it)
+                        if !game.resolving_item.as_ref().is_some_and(|i| i.card == *o) {
+                            continue;
+                        }
+                        let Some(me) = game.resolving_item.take() else { continue };
+                        let resolving = game.resolving.take();
+                        Arc::make_mut(&mut game.stack).push(me);
+                        let top = game.stack.len() - 1;
+                        let ok = choose_new_targets(game, d, top, controller, *force);
+                        game.resolving_item = Arc::make_mut(&mut game.stack).pop();
+                        game.resolving = resolving;
+                        if !ok {
+                            return;
+                        }
+                        continue;
+                    };
                     if !choose_new_targets(game, d, at, controller, *force) {
                         return;
                     }
@@ -18937,6 +19030,11 @@ fn apply_each_effect(
                 let Some(Target::Obj(spell)) = target else { continue };
                 let cost = match generic {
                     Some(a) => vec![CostDef::ManaCost { cost: format!("{{{}}}", v!(a).max(0)) }],
+                    // ward—pay life equal to {this}'s power against a spell (Raubahn, Phyrexian Fleshgorger): that
+                    // much life, the ward permanent's power now (or as it last was)
+                    None if matches!(cost.as_slice(), [CostDef::PayLifeSourcePowerCost]) => {
+                        vec![CostDef::PayLifeCost { amount: source_power(game, item.card) }]
+                    }
                     None => cost.clone(),
                 };
                 let cost = &cost;
@@ -18947,6 +19045,15 @@ fn apply_each_effect(
                         .iter()
                         .rposition(|i| i.card == spell && (i.ability.is_some() || i.delayed.is_some()))
                     else {
+                        // the ability targeted itself (Java pushes an activated ability before its targets are
+                        // chosen, and `TargetStackObject` doesn't skip it): its controller is still asked to pay,
+                        // and countering what's resolving changes nothing
+                        if spell == item.card
+                            && game.resolving.is_some_and(|(_, c)| c == spell)
+                            && pay_unless(game, d, item.controller, spell, cost).is_none()
+                        {
+                            return;
+                        }
                         continue;
                     };
                     let payer = game.stack[at].controller;
@@ -19014,6 +19121,19 @@ fn apply_each_effect(
                 if let Some(Target::Obj(o)) = target {
                     let zcc = game.obj(o).zcc;
                     game.exile_if_dies.push((o, zcc));
+                    // `DealtDamageToCreatureBySourceDies` is about every creature the source dealt damage to: a spell
+                    // with more targets damaged them all (Serpentine Spike's three)
+                    let hit: Vec<(ObjId, u32)> = game
+                        .damaged_by_source
+                        .iter()
+                        .filter(|(s, x, z)| *s == source.0 && (*x, *z) != (o, zcc))
+                        .map(|(_, o, z)| (*o, *z))
+                        .collect();
+                    for h in hit {
+                        if !game.exile_if_dies.contains(&h) {
+                            game.exile_if_dies.push(h);
+                        }
+                    }
                 } else if target.is_none() {
                     // no target (Anger of the Gods): each creature this source dealt damage to this turn
                     let hit: Vec<(ObjId, u32)> = game
@@ -21251,7 +21371,10 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
         if let Some(t) = def.spell.targets.first() {
             // `TargetImpl.tryToAutoChoose` reads the source ability's rule for its feel-bad words (Old-Growth Troll's
             // "Sacrifice this land" keeps its one Forest asked)
+            // (a spell's is its text: Chaotic Transformation's "Exile up to one target …" keeps its one Mountain
+            // for Chained to the Rocks asked)
             let rule = match game.resolving_item.clone() {
+                Some(item) if item.ability.is_none() && item.delayed.is_none() => item_rule(game, &item),
                 Some(item) => crate::view::item_rule(game, &item),
                 None => format!("attach {} to", def.name),
             };
@@ -22876,17 +22999,20 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             return 0;
         }
     }
-    // protection from the source's color: prevented (`checkProtectionAbilities`)
-    if let Target::Obj(o) = to {
-        if game.obj(o).zone == Zone::Battlefield && game.protected_from(o, source) {
-            let unpreventable = game.no_prevention_turn == Some(game.turn)
-                || combat
-                    && game.any_static(|g, src, e| {
-                        matches!(e, EffectDef::DamageCantBePreventedEffect { .. }) && g.obj(src).controller == you
-                    });
-            if !unpreventable {
-                return 0;
-            }
+    // protection from the source's color: prevented (`checkProtectionAbilities`); a player's protection too
+    // (Absolute Virtue's from each opponent)
+    let protected = match to {
+        Target::Obj(o) => game.obj(o).zone == Zone::Battlefield && game.protected_from(o, source),
+        Target::Player(p) => game.player_protected_from(p, source),
+    };
+    if protected {
+        let unpreventable = game.no_prevention_turn == Some(game.turn)
+            || combat
+                && game.any_static(|g, src, e| {
+                    matches!(e, EffectDef::DamageCantBePreventedEffect { .. }) && g.obj(src).controller == you
+                });
+        if !unpreventable {
+            return 0;
         }
     }
     // Artist's Talent: noncombat damage from your source to an opponent or their permanent, plus 2
