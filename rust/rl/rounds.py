@@ -61,6 +61,8 @@ def main():
     ap.add_argument("--lr", type=float, default=5e-4)
     ap.add_argument("--max-deals", type=int, default=3444)
     ap.add_argument("--sprt-jobs", type=int, default=12)
+    ap.add_argument("--gate", default="-5,5",
+                    help="the SPRT's elo0,elo1 for keeping a round's network (-5,5: keep it unless it got worse)")
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
     cur = os.path.abspath(args.init)
@@ -91,7 +93,7 @@ def main():
         t2 = time.time()
         a = entrant(args.policy, os.path.join(rd, "net.pmnet"), args)
         b = entrant(args.policy, net, args)
-        out = run([exe("archbench"), "--entrants", f"{a},{b}", "--sprt", "0,10", "--max-deals", str(args.max_deals),
+        out = run([exe("archbench"), "--entrants", f"{a},{b}", "--sprt", args.gate, "--max-deals", str(args.max_deals),
                    "--jobs", str(args.sprt_jobs)], os.path.join(rd, "sprt.log"))
         accepted = "H1 accepted" in out
         elo = re.findall(r"Elo[^\n]*", out)

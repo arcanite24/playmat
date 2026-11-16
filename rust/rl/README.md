@@ -55,8 +55,8 @@ On a CUDA machine (multivac's RTX 4080), from `rust/rl`, with the binaries in `.
 python cardtext.py
 
 # 50k teacher games, then the transformer with card text
-../target/release/selfplay --out data/bc50k --games 50000 --keep 1000 --learner host@s6 --jobs 12
-python train.py --data data/bc50k --out runs/bc-tx2 --arch tx --tx text=1
+../target/release/selfplay --out data/bc --games 50000 --keep 1000 --learner host@s6 --jobs 12
+python train.py --data data/bc --out runs/bc-tx2 --arch tx --tx text=1
 
 # search-then-learn rounds: self-play with netsearch and rollouts, retrain, keep only on an SPRT win
 python rounds.py --init runs/bc-tx2 --out runs/loop --rounds 4 --games 10000 --policy netsearch --rollout self
