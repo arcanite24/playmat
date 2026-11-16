@@ -46,6 +46,26 @@ python parity.py ../crates/playmat-ai/src/net.pmnet ../crates/playmat-ai/tests/n
 Measure with Archbench like any entrant, for example
 `cfg:policy=net+net=/abs/path/net.pmnet` (`net=builtin`, or no `net`, is the shipped one).
 
+## Round 2 (#400): the transformer, rollouts and rounds
+
+On a CUDA machine (multivac's RTX 4080), from `rust/rl`, with the binaries in `../target/release`:
+
+```bash
+# card text for the transformer's embedding (reads views.json and verified.txt)
+python cardtext.py
+
+# 50k teacher games, then the transformer with card text
+../target/release/selfplay --out data/bc50k --games 50000 --keep 1000 --learner host@s6 --jobs 12
+python train.py --data data/bc50k --out runs/bc-tx2 --arch tx --tx text=1
+
+# search-then-learn rounds: self-play with netsearch and rollouts, retrain, keep only on an SPRT win
+python rounds.py --init runs/bc-tx2 --out runs/loop --rounds 5 --policy netsearch --rollout builtin
+```
+
+`--tx` takes JSON or `k=v` pairs (`d`, `heads`, `layers`, `ff`, `dim`, `trunk`, `text`). `rounds.py` logs one line a round to
+`runs/<out>/rounds.jsonl`. Keep `--jobs` and `--sprt-jobs` a few threads under the machine's count so its other
+services keep running.
+
 ## What the network sees
 
 `obs.rs`: global features (life, zone sizes, lands, step, the question, the fitted score's features with only the

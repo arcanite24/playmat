@@ -110,6 +110,38 @@ alone wins 28% against `host@s6`, `netsearch` 39%. The value head as the search'
 `PLAYMAT_AI_POLICY=net` or `netsearch` opts in, with the network built into this build (`src/net.pmnet`;
 `cfg:...+net=PATH` tries another).
 
+## Round 2 (#400, Nov 2026)
+
+Everything here was trained on one RTX 4080 (multivac) and measured on `constructed-2` with SPRT (Elo 0 against 10,
+duplicate pairs).
+
+- **More data.** 50,000 games of `host@s6` against itself (2.66M decisions, 73 min on 12 threads), against 12,000
+  in round 1.
+- **A bigger network.** `--arch tx`: a transformer over the entities (730k weights, card text in the embedding, below),
+  against round 1's 139k-weight MLP. On the same data: the policy's held-out accuracy where the search doesn't take
+  the quick answer is 43.8% against 34.9%; as `net` it beats the MLP **+15.3 Elo [+3.8, +26.8]**. Its value
+  overfit (held-out loss 0.433 after one epoch, 0.631 after six); `train.py` now stops the value training the trunk
+  once its held-out loss rises, then refits the value head alone (0.444).
+- **Search with network playouts.** `rollout=PATH` (or `builtin`) answers every question inside a playout with that
+  network's top choice instead of the quick answer. `netsearch` on the transformer with `rollout=builtin` beats round
+  1's `netsearch` **+8.7 Elo [+1.8, +15.7]**. `gumbel` (Gumbel-top-k candidates and sequential halving, `consider`,
+  default 4) is +12.2 with rollouts against itself without them, but loses to `netsearch` with rollouts (-9.4
+  [-19.0, +0.2]).
+- **Search-then-learn rounds.** `rl/rounds.py`: 20,000 games of `netsearch` with rollouts against itself, retrain
+  from the current network on the last two rounds, keep the new one only if it wins an SPRT. Round 1 was kept
+  (+11.0 [+2.2, +19.8]); rounds 2 and 3 were not (-3.3, -6.9). About 70 min a round.
+- **Value and belief.** The value as the search's score (`eval` 3) still loses to the fitted score (-34.5 Elo).
+  The belief's loss is 0.208 against 0.210.
+- **Card text.** `rl/cardtext.py` hashes each card's rules text into 1,024 buckets; `train.py --tx text=1` learns a
+  projection of it added to the card's embedding, folded into the embedding at export, so the Rust side doesn't change.
+- **Tactics.** `archbench/tactics-2`: tactics@1 and 15 more puzzles (trample, flying and reach, pumps after blocks,
+  exert, deathtouch blocks, counters and protection on the opponent's turn, a wrath when ahead). Solved over 4 seeds:
+  `host@s6` 97%, `netsearch` with rollouts 72%, `net` 66%, `rust-quick` 56%. The network misses the instants on the
+  opponent's turn (Fog, Negate, burn in combat).
+
+The search AI with full skill is still stronger than the network with its search; the shipped network
+(`src/net.pmnet`) and the host's defaults are unchanged.
+
 ## One decision at a time: policies
 
 Every question with two or more candidates goes to the seat's `DecisionPolicy` (`decision.rs`). It gets a `Decision`:
@@ -126,6 +158,10 @@ spent), or `None` for the quick answer; an answer the question doesn't accept fa
 | `random` | `decision::Random` | a seeded random candidate, Archbench's anchor |
 | `net` | `selfplay::NetPolicy` | the trained network's policy, no search (self-play, above) |
 | `netsearch` | `selfplay::NetSearch` | the network's policy moved by playouts on belief-weighted samples of what the seat can't see, scored by its value; never sees hidden cards (the default config turns on `hide`, 4 samples, `eval` 3) |
+| `gumbel` | `selfplay::Gumbel` | like `netsearch`, but the candidates are picked by Gumbel-top-k (`consider`, default 4) and narrowed by sequential halving |
+
+With `net`, `netsearch` and `gumbel`, `cfg:...+rollout=PATH` (or `builtin`) has a network answer the questions
+inside the playouts instead of the quick answers.
 
 The setting is read by `Config::default()`, so it applies wherever a config is made from the defaults: the bridge
 (`playmat-ai-bridge`) and Rust-hosted games. `PLAYMAT_AI_THREADS` (default: the processors, at most 4) caps the
