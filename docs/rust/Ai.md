@@ -141,13 +141,21 @@ duplicate pairs).
   +2.4 [-3.1, +7.9], then +1.9 [-3.1, +6.8], each against the round before. The third round's network against
   where the loop started: **+10.8 [-0.2, +21.8]**. Against `host@s6`: -41.2 [-55.9, -26.6] after three rounds,
   -37.7 [-53.5, -22.0] after four (round 1's `netsearch` won 39% of its games against it, this one about 45%). The
-  gains shrink round by round at 12,000 games a round.
-- **Value and belief.** The value as the search's score (`eval` 3) still loses to the fitted score (-34.5 Elo).
-  The belief's loss is 0.208 against 0.210.
+  gains shrink round by round at 12,000 games a round. Its `netsearch` is still +40.1 [+27.3, +53.1] over the
+  same network alone, so the network hasn't caught up with its search. Retraining round 4's network on everything
+  (the 50,000 teacher games and the 48,000 of the loop) made the policy worse (-14.9 [-26.5, -3.4] as `net`): the
+  teacher's answers pull it back.
+- **Value and belief.** The value as the search's score (`eval` 3) lost to the fitted score by 34.5 Elo trained on
+  the teacher's games alone; trained on everything above, by 6.2 [-15.3, +2.8], close but not yet past it. The
+  belief's loss is 0.208 against 0.210.
 - **Card text.** `rl/cardtext.py` hashes each card's rules text into 1,024 buckets; `train.py --tx text=1` learns a
   projection of it added to the card's embedding, folded into the embedding at export, so the Rust side doesn't change.
   On the cards it was trained on it adds nothing measurable: the same transformer without it is -1.2 Elo [-8.1, +5.6]
-  as `net`. Whether it helps with cards the network hasn't seen isn't measured yet.
+  as `net`. With a tenth of the benchmark's cards (46) held out of the name embedding (`cardtext.py --holdout 0.1`,
+  `train.py --holdout`), the text is what's left to tell them apart: the belief's loss is 0.208 with it, 0.250
+  without (0.208 with every card known), and as `net` it is +4.7 [-0.2, +9.6] over all 3,444 deals (no verdict;
+  most games hardly use the held-out cards). The held-out cards are still in the training games, so this is close
+  to, not quite, a card the network has never seen.
 - **Tactics.** `archbench/tactics-2`: tactics@1 and 15 more puzzles (trample, flying and reach, pumps after blocks,
   exert, deathtouch blocks, counters and protection on the opponent's turn, a wrath when ahead). Solved over 4 seeds:
   `host@s6` 97%, the loop's third network with `netsearch` 78%, `netsearch` with rollouts 72%, `net` 66%,
