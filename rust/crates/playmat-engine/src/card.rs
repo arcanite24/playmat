@@ -325,6 +325,13 @@ pub enum TargetDef {
         /// spell or ability is put on the stack; none for 0
         #[serde(default)]
         count: Option<Amount>,
+        /// and permanents of this filter on the battlefield (`TargetCardInGraveyardBattlefieldOrStack`: Angel of
+        /// Serenity's "creatures from the battlefield and/or creature cards from graveyards")
+        #[serde(default)]
+        permanents: Option<Filter>,
+        /// and cards in exile of this filter (`TargetCardInYourGraveyardOrExile`: Sorceress's Schemes)
+        #[serde(default)]
+        exiled: Option<Filter>,
     },
 }
 
@@ -1710,6 +1717,13 @@ pub enum CostDef {
     TapXTargetCost {
         filter: Filter,
     },
+    /// remove X counters of the kind from the source, X announced with the other X costs, from `min` up to the
+    /// counters it has (`RemoveVariableCountersSourceCost`); the ability's X
+    RemoveXCountersSourceCost {
+        counter: String,
+        #[serde(default)]
+        min: i32,
+    },
     /// tap `amount` permanents of the filter you control (chosen, not targeted)
     TapTargetCost {
         filter: Filter,
@@ -2560,6 +2574,11 @@ pub enum EffectDef {
         condition: Option<Condition>,
         #[serde(default)]
         stack_only: bool,
+        /// "this spell costs {2}{U} less" (`SpellCostReductionSourceEffect(ManaCosts, condition)`): each colored
+        /// symbol takes one of that color off its cost, a reduction left over is lost, and the generic part takes
+        /// generic off (`CardUtil.adjustCost(…, false)`); `amount` is then 0
+        #[serde(default)]
+        mana: Option<String>,
     },
     /// a static ability's effect: this spell costs {amount} more (if the condition holds; `stack_only`: only while
     /// it's being cast, not for the playable check: Dragon's Prey "if it targets a Dragon")
@@ -2884,6 +2903,10 @@ pub enum EffectDef {
         rule: String,
         #[serde(default)]
         to_player: bool,
+        /// "when that creature dies under your control this turn" (`onlyControlled`: it doesn't trigger when it dies
+        /// under another player's control)
+        #[serde(default)]
+        only_controlled: bool,
     },
     /// `CreateDelayedTriggeredAbilityEffect` (or a handler's `game.addDelayedTriggeredAbility`) of a card's own
     /// `DelayedTriggeredAbility` class with an event trigger: `ability` is it as a triggered ability (a trigger
@@ -3395,6 +3418,10 @@ pub enum EffectDef {
     CreateEndOfCombatDelayedEffect {
         effects: Vec<EffectDef>,
         rule: String,
+        /// the creating ability's first targets are its effects' (`CreateDelayedTriggeredAbilityEffect`'s copied
+        /// targets, as fixed targets: Scrappy Bruiser's "return that creature")
+        #[serde(default)]
+        copy_targets: bool,
     },
     /// unleash: it may enter with a +1/+1 counter (`UnleashReplacementEffect`); with one, it can't block
     UnleashEffect,
@@ -4414,6 +4441,10 @@ pub enum EffectDef {
     },
     /// a static effect on a spell: it can't be countered
     CantBeCounteredSourceEffect,
+    /// a static effect of a card in its owner's hand: "if a spell or ability an opponent controls causes you to discard
+    /// this card, put it onto the battlefield instead of putting it into your graveyard" (`DiscardOntoBattlefieldEffect`,
+    /// read by `rules::discard_card`)
+    DiscardOntoBattlefieldEffect,
     /// `SearchLibraryPutIn…Effect`: the controller (or the target's controller) searches their library for cards of
     /// the filter, puts them `to`, then shuffles; asked first when optional (always, for the target's controller)
     SearchLibraryEffect {
@@ -5479,6 +5510,9 @@ pub enum AbilityDef {
     /// `rules::special_mana_payment`) the shadow games' players never take
     DelveAbility,
     ConvokeAbility,
+    /// compleated: a planeswalker enters with two fewer loyalty counters for each phyrexian symbol of its cost paid
+    /// with life (`PermanentImpl.entersBattlefield`: `getPhyrexianPaid`)
+    CompleatedAbility,
     /// improvise: each untapped artifact you control can pay {1}
     ImproviseAbility,
     /// sunburst: enters with a charge counter (a +1/+1 counter, if a creature) for each color of mana spent to cast it

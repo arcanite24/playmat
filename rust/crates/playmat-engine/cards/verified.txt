@@ -391,6 +391,7 @@ Angel of Finality
 Angel of Invention
 Angel of Renewal
 Angel of Sanctions
+Angel of Serenity
 Angel of Suffering
 Angel of Vitality
 Angel of the Dawn
@@ -1914,6 +1915,7 @@ Chandra, Bold Pyromancer
 Chandra, Chill of Compliance
 Chandra, Flame's Fury
 Chandra, Flamecaller
+Chandra, Flameshaper
 Chandra, Heart of Fire
 Chandra, Novice Pyromancer
 Chandra, Pyrogenius
@@ -2480,6 +2482,7 @@ Cruel Feeding
 Cruel Finality
 Cruel Grimnarch
 Cruel Revival
+Cruel Sadist
 Cruel Somnophage
 Cruel Truths
 Cruel Witness
@@ -2928,6 +2931,7 @@ Desperate Castaways
 Desperate Farmer
 Desperate Futurescribe
 Desperate Lunge
+Desperate Measures
 Desperate Sentry
 Desperate Stand
 Despise
@@ -3764,6 +3768,7 @@ Erratic Cyclops
 Erratic Visionary
 Erstwhile Trooper
 Ertai Resurrected
+Ertai's Scorn
 Ertha Jo, Frontier Mentor
 Erudite Wizard
 Eruth, Tormented Prophet
@@ -3818,6 +3823,7 @@ Eutropia the Twice-Favored
 Evanescent Intellect
 Evangel of Heliod
 Evangel of Synthesis
+Even the Score
 Evendo, Waking Haven
 Ever After
 Everdawn Champion
@@ -4658,6 +4664,7 @@ Geist of the Lonely Vigil
 Geist of the Moors
 Geist-Fueled Scarecrow
 Geistblast
+Geistflame Reservoir
 Geistlight Snare
 Geistwave
 Gemrazer
@@ -4826,6 +4833,7 @@ Gladewalker Ritualist
 Gladiolus Amicitia
 Glaive of the Guildpact
 Glamdring, Foe-hammer
+Glamer Gifter
 Glamermite
 Glarb, Calamity's Augur
 Glare of Heresy
@@ -6219,6 +6227,7 @@ Jace, Mirror Mage
 Jace, Unraveler of Secrets
 Jace, Wielder of Mysteries
 Jace, the Living Guildpact
+Jace, the Perfected Mind
 Jackal, Genius Geneticist
 Jackhammer
 Jadar, Ghoulcaller of Nephalia
@@ -7060,6 +7069,7 @@ Loxodon Lifechanter
 Loxodon Line Breaker
 Loxodon Restorer
 Loxodon Sergeant
+Loxodon Smiter
 Loxodon Surveyor
 Loyal Gryff
 Loyal Pegasus
@@ -7512,6 +7522,7 @@ Midnight Assassin
 Midnight Clock
 Midnight Entourage
 Midnight Guard
+Midnight Mangler
 Midnight Mayhem
 Midnight Oil
 Midnight Reaper
@@ -8076,9 +8087,11 @@ Nissa's Renewal
 Nissa's Revelation
 Nissa's Triumph
 Nissa's Zendikon
+Nissa, Ascended Animist
 Nissa, Genesis Mage
 Nissa, Nature's Artisan
 Nissa, Resurgent Animist
+Nissa, Vital Force
 Nissa, Voice of Zendikar
 Nissa, Who Shakes the World
 Nissa, Worldwaker
@@ -8208,6 +8221,7 @@ Obsessive Astronomer
 Obsessive Pursuit
 Obsessive Skinner
 Obsessive Stitcher
+Obstinate Baloth
 Obyra's Attendants
 Obyra, Dreaming Duelist
 Obzedat's Aid
@@ -9924,6 +9938,7 @@ Rush of Battle
 Rush of Dread
 Rush of Ice
 Rush of Vitality
+Rushed Rebirth
 Rust Goliath
 Rust Harvester
 Rust Monster
@@ -10217,6 +10232,7 @@ Scrabbling Skullcrab
 Scrap Compactor
 Scrapheap Scrounger
 Scrapper Champion
+Scrappy Bruiser
 Scrapshooter
 Scrapskin Drake
 Scrapwork Cohort
@@ -10730,6 +10746,7 @@ Simic Fluxmage
 Simic Guildgate
 Simic Keyrune
 Simic Locket
+Simic Manipulator
 Simulacrum Shaper
 Simulacrum Synthesizer
 Sin Collector
@@ -11016,6 +11033,7 @@ Soothsayer Adept
 Sorcerer of the Fang
 Sorcerer's Broom
 Sorcerer's Wand
+Sorceress's Schemes
 Sorcerous Spyglass
 Sorin the Mirthless
 Sorin's Guide
@@ -11518,6 +11536,7 @@ Stormsplitter
 Stormtide Leviathan
 Stormwild Capridor
 Stormwing Dragon
+Stormwing Entity
 Story Seeker
 Storyteller Pixie
 Strange Augmentation
@@ -12114,6 +12133,7 @@ Thawbringer
 The Ancient One
 The Antiquities War
 The Arkenstone
+The Astonishing Ant-Man
 The Autonomous Furnace
 The Biblioplex
 The Binding of the Titans
@@ -12434,6 +12454,7 @@ Timberpack Wolf
 Time Ebb
 Time Stop
 Time Wipe
+Time to Feed
 Timeless Lotus
 Timely Hordemate
 Timid Shieldbearer
@@ -13236,6 +13257,7 @@ Vivien's Crocodile
 Vivien's Grizzly
 Vivien's Invocation
 Vivien's Jaguar
+Vivien, Arkbow Ranger
 Vivien, Champion of the Wilds
 Vivien, Monsters' Advocate
 Vivien, Nature's Avenger
@@ -13330,6 +13352,7 @@ Vraska's Final Mercy
 Vraska's Finisher
 Vraska's Scorn
 Vraska's Stoneglare
+Vraska, Betrayal's Sting
 Vraska, Golgari Queen
 Vraska, Regal Gorgon
 Vraska, Relic Seeker
@@ -13399,6 +13422,7 @@ Wandertale Mentor
 Wanderwine Distracter
 Wanted Griffin
 Wanted Scoundrels
+War Balloon
 War Behemoth
 War Effort
 War Flare
@@ -13669,6 +13693,7 @@ Willow Geist
 Willowrush Verge
 Wilt
 Wilt in the Heat
+Wilt-Leaf Liege
 Wily Bandar
 Wily Goblin
 Wind Drake
@@ -13804,6 +13829,7 @@ Wrecking Crew
 Wrecking Gecko
 Wrecking Ogre
 Wrench
+Wrenn and Realmbreaker
 Wrenn and Seven
 Wrenn's Resolve
 Wretched Camel

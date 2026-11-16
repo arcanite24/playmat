@@ -333,6 +333,9 @@ pub struct Obj {
     pub warped: bool,
     /// cast for its evoke cost
     pub evoked: bool,
+    /// the phyrexian symbols of its cost paid with 2 life each as it was cast (on the stack, then on the
+    /// battlefield: compleated)
+    pub phyrexian_paid: i32,
     /// cast for its `AlternativeCostSourceAbility`'s costs (`AlternativeCostSourceAbility.getActivatedStatus`:
     /// Baleful Mastery's "if the {1}{B} cost was paid")
     pub alternative_paid: bool,
@@ -835,6 +838,18 @@ pub struct DelayedTrigger {
     pub once: bool,
 }
 
+/// A permanent made a creature until a player's next turn, and what it was before (`Game::animated_until_turn_of`)
+#[derive(Clone, Debug)]
+pub struct AnimatedUntil {
+    pub obj: ObjId,
+    pub zcc: u32,
+    pub until_turn_of: Seat,
+    pub def: Arc<CardDef>,
+    pub printed_def: Option<Arc<CardDef>>,
+    pub base_pt: Option<(i32, i32)>,
+    pub base_pt_at: u64,
+}
+
 /// A delayed triggered ability a resolved effect set up: "sacrifice that token at end of combat".
 #[derive(Clone, Debug, PartialEq)]
 pub struct Delayed {
@@ -1039,6 +1054,9 @@ pub struct Game {
     /// "when that creature dies this turn" delayed triggers: the creature as it was, the turn, whether its target is
     /// the creature's controller, the trigger
     pub when_dies: Vec<(ObjId, u32, u32, bool, StackItem)>,
+    /// the `when_dies` triggers that only trigger when it dies under their controller's control ("when that
+    /// creature dies under your control this turn"), by the trigger's source and the creature
+    pub when_dies_controlled: Vec<(ObjId, ObjId, u32)>,
     /// "at the beginning of the next turn's upkeep" delayed triggers
     pub at_next_upkeep: Vec<StackItem>,
     /// `PreventDamageAndRemoveCountersWatcher`: the sources whose `PreventDamageAndRemoveCountersEffect` removed a
@@ -1115,6 +1133,9 @@ pub struct Game {
     pub loop_declined: u32,
     /// the spell whose mana cost is being paid (or checked): conditional mana can be spent only on some spells
     pub paying_for: std::cell::Cell<Option<ObjId>>,
+    /// an activated ability's playable check: X isn't announced yet, so "power X or less" holds for any power
+    /// (Java's `PowerTargetAdjuster` sets the filter only as it's activated)
+    pub checking_activatable: std::cell::Cell<bool>,
     /// what's being paid for is an activated ability of `paying_for` (not a spell)
     pub paying_ability: std::cell::Cell<bool>,
     /// a replayed answer that named a stack object by its place: that place from the bottom of Java's stack (what's
@@ -1214,6 +1235,10 @@ pub struct Game {
     /// abilities lost until a player's next turn (`LoseAbilityTargetEffect(…, Duration.UntilYourNextTurn)`: Mu
     /// Yanling's "loses flying"): (permanent, its zcc, the ability, the player whose turn ends it)
     pub lost_until_turn_of: Vec<(ObjId, u32, AbilityDef, Seat)>,
+    /// permanents a "becomes a creature until your next turn" made one (Nissa, Vital Force's land): (permanent, its
+    /// zcc, the player whose turn ends it, and what it was before: its card, the card it goes back to as it leaves,
+    /// its base power and toughness and their timestamp)
+    pub animated_until_turn_of: Vec<AnimatedUntil>,
     /// what made a permanent block this turn if able, with the permanent's zone change count (its hint names it)
     pub must_block_from: Vec<(ObjId, u32, ObjId)>,
     /// the game log's lines as Java writes them (`informPlayers`), while it's kept (replays and the AI's copy compare
@@ -1571,6 +1596,7 @@ impl Game {
             delayed_triggers: Vec::new(),
             damage_doubled_to: Vec::new(),
             when_dies: Vec::new(),
+            when_dies_controlled: Vec::new(),
             at_next_upkeep: Vec::new(),
             at_next_main: Vec::new(),
             counter_removed_batch: Vec::new(),
@@ -1604,6 +1630,7 @@ impl Game {
             loop_count: 0,
             loop_declined: 0,
             paying_for: std::cell::Cell::new(None),
+            checking_activatable: std::cell::Cell::new(false),
             paying_ability: std::cell::Cell::new(false),
             picked_stack: std::cell::Cell::new(None),
             paying_index: std::cell::Cell::new(None),
@@ -1644,6 +1671,7 @@ impl Game {
             effect_mana: Arc::new(Vec::new()),
             lost_until_eot: Vec::new(),
             lost_until_turn_of: Vec::new(),
+            animated_until_turn_of: Vec::new(),
             must_block_from: Vec::new(),
             log: None,
             events: None,
@@ -1893,6 +1921,7 @@ impl Game {
             pay_tax: 0,
             warped: false,
             evoked: false,
+            phyrexian_paid: 0,
             alternative_paid: false,
             impending: false,
             dashed: false,
@@ -2067,7 +2096,10 @@ impl Game {
             }),
             // the same, with the X of the spell or ability whose target it is
             Pred::PowerX { cmp } | Pred::ToughnessX { cmp } => {
-                match source.and_then(|s| self.stack.iter().rev().find(|i| i.card == s)) {
+                match source
+                    .filter(|_| !self.checking_activatable.get())
+                    .and_then(|s| self.stack.iter().rev().find(|i| i.card == s))
+                {
                     Some(i) => {
                         let (power, toughness) = self.power_toughness(id);
                         cmp.holds(if matches!(p, Pred::PowerX { .. }) { power } else { toughness }, i.x)
@@ -4747,6 +4779,13 @@ impl Game {
             let (now, rest): (Vec<_>, Vec<_>) =
                 std::mem::take(&mut self.when_dies).into_iter().partition(|w| w.0 == id && w.1 == zcc);
             self.when_dies = rest;
+            // ("under your control": `onlyControlled` leaves out one that died under another player's control)
+            let now: Vec<_> = now
+                .into_iter()
+                .filter(|w| {
+                    died_controller == w.4.controller || !self.when_dies_controlled.contains(&(w.4.card, w.0, w.1))
+                })
+                .collect();
             for (k, (_, _, _, to_player, mut item)) in now.into_iter().enumerate() {
                 // (`setValue("creatureDied", …)`: what a handler's value reads)
                 item.died = Some((id, died_controller));
@@ -4905,6 +4944,7 @@ impl Game {
             if !(from == Zone::Stack && zone == Zone::Battlefield) {
                 o.warped = false;
                 o.evoked = false;
+                o.phyrexian_paid = 0;
                 o.alternative_paid = false;
                 o.impending = false;
                 o.dashed = false;
