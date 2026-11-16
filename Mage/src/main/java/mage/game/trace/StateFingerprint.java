@@ -146,8 +146,16 @@ public final class StateFingerprint {
      * stack ability's rule can carry one (cipher's "you may cast a copy of ..."), and its object id is random.
      */
     static String withoutObjectIds(String name) {
-        return name.indexOf("object_id='") < 0 ? name : LOG_NAME.matcher(name).replaceAll("$1");
+        String out = name.indexOf("object_id='") < 0 ? name : LOG_NAME.matcher(name).replaceAll("$1");
+        return out.indexOf("<font color='") < 0 ? out : TOOLTIP_NAME.matcher(out).replaceAll("$1");
     }
+
+    /**
+     * {@code GameLog.getColoredObjectIdNameForTooltip}: an object's id name, {@code Name [abc]}, whose id is random
+     * (Gruul Ragebeast's "Your fighting creature: ...")
+     */
+    private static final java.util.regex.Pattern TOOLTIP_NAME =
+            java.util.regex.Pattern.compile("<font color='[^']*'>([^<]*) \\[[0-9a-f]{3}\\]</font>");
 
     private static String name(Game game, UUID id) {
         Card card = game.getCard(id);

@@ -25,6 +25,7 @@ import mage.server.User;
 import mage.server.draft.DraftController;
 import mage.server.managers.ManagerFactory;
 import mage.server.managers.TableManager;
+import mage.server.util.JoinReminder;
 import mage.util.ThreadUtils;
 import mage.utils.LimitedDeckBuilder;
 import mage.view.ChatMessage.MessageColor;
@@ -132,6 +133,22 @@ public class TournamentController {
             }
         }
         checkStart();
+        JoinReminder.start(managerFactory.threadExecutor().getTimeoutExecutor(), "tourney " + tournament.getId(),
+                () -> started || tournament.isAbort(), this::remindPlayersToJoin);
+    }
+
+    /** sends the start again to the humans whose client hasn't opened the event (see JoinReminder) */
+    private void remindPlayersToJoin() {
+        for (Entry<UUID, UUID> entry : userPlayerMap.entrySet()) {
+            TournamentPlayer player = tournament.getPlayer(entry.getValue());
+            if (player == null || !player.getPlayer().isHuman() || player.hasQuit() || tournamentSessions.containsKey(entry.getValue())) {
+                continue;
+            }
+            managerFactory.userManager().getUser(entry.getKey()).ifPresent(user -> {
+                logger.info("Tourney " + tournament.getId() + ": " + user.getName() + " hasn't opened the event yet, sending its start again");
+                user.ccTournamentStarted(tableId, tournament.getId(), entry.getValue());
+            });
+        }
     }
 
     public void join(UUID userId) {
@@ -203,9 +220,9 @@ public class TournamentController {
         Thread.currentThread().setName(ThreadUtils.THREAD_PREFIX_TOURNEY + " " + tableId);
         for (final TournamentSession tournamentSession : tournamentSessions.values()) {
             if (!tournamentSession.init()) {
-                logger.fatal("Unable to initialize client userId: " + tournamentSession.userId + "  tournamentId " + tournament.getId());
-                //TODO: generate client error message
-                return;
+                // the user is offline right now: carry on (returning here froze the event for good), the health
+                // check quits players who stay gone and a reconnect reopens the event
+                logger.warn("Unable to initialize client userId: " + tournamentSession.userId + "  tournamentId " + tournament.getId());
             }
         }
         logger.debug("Tournament starts (all players joined): " + tournament.getId() + " - " + tournament.getTournamentType().toString());
@@ -474,6 +491,36 @@ public class TournamentController {
             tournamentSession.quit();
             managerFactory.chatManager().broadcast(chatId, "", tournamentPlayer.getPlayer().getLogName() + " has quit the tournament", MessageColor.BLACK, true, null, MessageType.STATUS, SoundToPlay.PlayerQuitTournament);
             updateTournamentSessions();
+            if (!hasHumansLeft()) {
+                abortWithoutHumans();
+            }
+        }
+    }
+
+    /** true while at least one human is still in the event (eliminated players still count: they may watch the bracket) */
+    private boolean hasHumansLeft() {
+        for (TournamentPlayer player : tournament.getPlayers()) {
+            if (player.getPlayer().isHuman() && !player.hasQuit()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Nobody is watching: stop the event instead of letting the bots play every remaining round. Abandoned events
+     * hold a tourney thread to the end, and with a small pool they kept new events from starting at all.
+     */
+    private void abortWithoutHumans() {
+        if (tournament.isAbort()) {
+            return;
+        }
+        logger.info("Tourney " + tournament.getId() + ": no humans left, event aborted");
+        tournament.setAbort(true);
+        managerFactory.draftManager().getController(tableId).ifPresent(DraftController::abortDraft);
+        managerFactory.tableManager().removeTournamentSubTables(tournament.getId());
+        synchronized (tournament) {
+            tournament.notifyAll(); // wakes a construct() wait
         }
     }
 

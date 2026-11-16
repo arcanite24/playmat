@@ -6,6 +6,7 @@ import type { GameSession, GameSessionState } from '../../core/game/gameSession'
 import type { Command } from '../../core/game/interaction';
 import { commanderDamageTo, commandersByPlayer, type CommanderStatus } from '../../core/game/commander';
 import { askedAttacker, defenderChoice, inRange } from '../../core/game/multiplayer';
+import { playerDungeon } from '../../core/game/dungeon';
 import { parsePayment } from '../../core/game/payment';
 import { xLimit } from '../../core/game/announceX';
 import { sortHand } from '../../core/game/handOrder';
@@ -76,7 +77,7 @@ import { useAutoPass } from './useAutoPass';
 import { useBlockDrag } from './useBlockDrag';
 import { useAutoOrder } from './useAutoOrder';
 import { Vfx } from './Vfx';
-import { CardPicker, ChoicePanel, GameOverOverlay, MulliganOverlay, StartingPlayerOverlay, ZoneViewer } from './Overlays';
+import { CardPicker, ChoicePanel, DungeonViewer, GameOverOverlay, MulliganOverlay, StartingPlayerOverlay, ZoneViewer } from './Overlays';
 import { PermanentStack } from './PermanentStack';
 import { clothOf, clothStyle } from './playmats';
 import { arrowTints, landStyleKey, lookCloth, pairsOf, sparkColorOf, stampOf, theirClothBox } from './touches';
@@ -225,6 +226,12 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
 
   // a click's likely outcome (a land tapped for mana) shows at once; the server's next view replaces it
   const board = useMemo(() => buildBoard(withPrediction(view, prediction), playerId), [view, prediction, playerId]);
+  // the dungeons players venture into: the "which room next" panel reads mine, the dungeon pile opens anyone's
+  const myDungeon = useMemo(() => playerDungeon(board.me?.player), [board.me?.player]);
+  const dungeonOf = useMatchUi((ui) => ui.dungeonOf);
+  const openDungeon = useMatchUi((ui) => ui.openDungeon);
+  const shownDungeonPlayer = dungeonOf ? board.players.get(dungeonOf) ?? null : null;
+  const shownDungeon = useMemo(() => playerDungeon(shownDungeonPlayer), [shownDungeonPlayer]);
   // combat damage is split on the creatures themselves: clicking one adds a point of damage to it
   const damageSplit = useDamageSplit(interaction, view);
   const clickable = useMemo(
@@ -769,8 +776,15 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 onCommand={onCommand}
               />
             )}
-            {interaction.mode === 'panel' && prompt && !awaitingServer && <ChoicePanel prompt={prompt} sourceId={choiceSource} onCommand={onCommand} xLimit={announceLimit} startAtLimit={automation.xDefaultsToMax} />}
+            {interaction.mode === 'panel' && prompt && !awaitingServer && <ChoicePanel prompt={prompt} sourceId={choiceSource} dungeon={myDungeon} onCommand={onCommand} xLimit={announceLimit} startAtLimit={automation.xDefaultsToMax} />}
             {viewer && <ZoneViewer title={viewer.title} cards={viewer.cards} onClose={() => openViewer(null)} />}
+            {shownDungeon && shownDungeonPlayer && (
+              <DungeonViewer
+                title={shownDungeonPlayer.playerId === board.me?.player.playerId ? `Your dungeon: ${shownDungeon.name}` : `${shownDungeonPlayer.name}'s dungeon: ${shownDungeon.name}`}
+                dungeon={shownDungeon}
+                onClose={() => openDungeon(null)}
+              />
+            )}
             {state.gameOver && betweenGames && (
               <BetweenGames
                 progress={betweenGames}

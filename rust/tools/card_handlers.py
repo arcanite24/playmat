@@ -15,8 +15,10 @@ transpiler to translate (token classes, effect and filter expressions), handed t
 `.args(&[…])`, one kind per constructor argument ("text" as is, "library_target": a `TargetCardInLibrary`, as
 "min max" with its filter after the declared ones; "filter", "effect" and "ability": translated, after the declared
 filters, effects or abilities; "counter": a `Counter` as "name amount"; "counter_type": `CounterType.X` as the
-engine's counter name; "put_cards": a `PutCards` constant's name;
-"while_on_battlefield": only `Duration.WhileOnBattlefield`; "one_of:a|b": only one of these texts; "duration": an
+engine's counter name; "put_cards": a `PutCards` constant's name; "amount": an int or a `DynamicValue`, as the
+engine's `Amount` in JSON (`EffectCx::arg_amount`);
+"while_on_battlefield": only `Duration.WhileOnBattlefield`; "bool": only true or false (a handler whose
+arguments are all "bool" takes exactly that many); "one_of:a|b": only one of these texts; "duration": an
 optional leading `Duration`, `Duration.WhileOnBattlefield` when the constructor has none). The strings are
 plain or raw Rust string literals.
 
@@ -27,6 +29,7 @@ A class with one becomes `{"class": "CardStatic", "handler": …}`, wherever an 
 lasts while its source is on the battlefield; resolving, until the turn's cleanup.
 """
 import glob
+import json
 import os
 import re
 
@@ -34,7 +37,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 DIR = os.path.join(ROOT, 'rust', 'crates', 'playmat-engine', 'src', 'cards')
 
 STATIC_KINDS = ('continuous', 'replacement', 'cost', 'restriction', 'rule', 'as_though', 'keeps_mana')
-_DECL = re.compile(r'Handler::(effect|condition|value|trigger|predicate|mana|spend|' + '|'.join(STATIC_KINDS) + r')\(\s*"([\w.]+)"\s*,')
+_DECL = re.compile(r'Handler::(effect|condition|value|trigger|target|predicate|mana|spend|' + '|'.join(STATIC_KINDS) + r')\(\s*"([\w.]+)"\s*,')
 _FN = re.compile(r'\s*[\w:]+\s*,?\s*\)')
 _PART = re.compile(r'\s*\.(tokens|effects|filters|args|abilities)\(\s*&\[')
 # `.in_any_zone()`, `.on_start(f)` and `.stack_info(f)`: the engine's business only
@@ -67,11 +70,11 @@ def _parse(text, path):
         h = {'kind': m.group(1), 'file': os.path.relpath(path, ROOT), 'tokens': [], 'effects': [], 'filters': [],
              'args': [], 'abilities': [], 'base': None}
         i = m.end()
-        if m.group(1) == 'trigger':
-            # `Handler::trigger("X", "<framework trigger in Java>", f)`
+        if m.group(1) in ('trigger', 'target'):
+            # `Handler::trigger("X", "<framework trigger in Java>", f)`, `Handler::target("X", "<its base target>", f)`
             b = _STR.match(text, i)
             if not b or not b.group(0).strip():
-                raise SyntaxError(f'{path}: Handler::trigger takes its base trigger as a string literal')
+                raise SyntaxError(f'{path}: Handler::{m.group(1)} takes its base as a string literal')
             h['base'] = _unescape(b.group(1)) if b.group(1) is not None else b.group(3)
             i = b.end()
         if m.group(1) in STATIC_KINDS or m.group(1) == 'mana':
@@ -142,6 +145,13 @@ def find(source, cls, kind, own_only=False):
     return None
 
 
+def own_kind(t, cls):
+    """the kind of the handler named for this card's class (`OuterCardClass.Class`), or None"""
+    outer = outer_class(getattr(t, 'source', None))
+    h = outer and handlers().get(f'{outer}.{cls}')
+    return h['kind'] if h else None
+
+
 def effect(t, cls, args, own_only=False):
     """`{"class": "CardEffect", …}` for a class with an effect handler (`{"class": "CardStatic", …}` for a static
     one), or None. `t` is transpile's Translator. `own_only`: only a handler named for this card's class."""
@@ -196,9 +206,15 @@ def effect(t, cls, args, own_only=False):
             args[i] = m.group(1)
         elif kind == 'ability':
             abilities.append(t.ability(args[i]))
+        elif kind == 'amount':
+            # an int or a `DynamicValue`: the engine's `Amount` as JSON (`EffectCx::arg_amount`)
+            args[i] = json.dumps(t.amount(args[i]), sort_keys=True)
         elif kind == 'int':
             # a number as written (a `DynamicValue` overload stays unsupported)
             if not re.fullmatch(r'-?\d+', args[i]):
+                raise _unsupported(f'effect {cls}: argument {args[i]}')
+        elif kind == 'bool':
+            if args[i] not in ('true', 'false'):
                 raise _unsupported(f'effect {cls}: argument {args[i]}')
         elif kind == 'while_on_battlefield':
             # a static class the handler writes only as a static ability's (`Duration.WhileOnBattlefield`)
@@ -208,10 +224,13 @@ def effect(t, cls, args, own_only=False):
             # an argument the handler reads only some values of ("one_of:NinjutsuAbility.class|EquipAbility.class")
             if args[i] not in kind[len('one_of:'):].split('|'):
                 raise _unsupported(f'effect {cls}: argument {args[i]}')
-        elif kind not in ('text', 'int', 'filter', 'effect', 'counter', 'counter_type', 'put_cards', 'ability',
+        elif kind not in ('text', 'int', 'bool', 'filter', 'effect', 'counter', 'counter_type', 'put_cards', 'ability', 'amount',
                           'while_on_battlefield', 'duration', 'until_your_next_turn') \
                 and not kind.startswith('one_of:'):
             raise _unsupported(f'argument kind {kind}')
+    # a handler whose arguments are all "bool" is written for that one constructor (a framework class's overload)
+    if h['args'] and all(k == 'bool' for k in h['args']) and len(args) != len(h['args']):
+        raise _unsupported(f'effect {cls}: {len(args)} arguments, its handler takes {len(h["args"])}')
     # a static handler for a framework class is written for its constructors with up to as many arguments as it
     # declares kinds for
     if h['kind'] in STATIC_KINDS and len(args) > len(h['args']):
@@ -264,14 +283,17 @@ def condition(t, expr):
     # for the card's arguments)
     if not m and (m := re.fullmatch(r'new (\w+)\(.+\)', expr.strip(), re.S)):
         name = find(getattr(t, 'source', None), m.group(1), 'condition', own_only=True)
+    # a method reference (`XWatcher::checkPermanent`): only a handler named for the card (`OuterCardClass.X.method`)
+    elif not m and (m := re.fullmatch(r'(\w+)::(\w+)', expr.strip())):
+        name = find(getattr(t, 'source', None), f'{m.group(1)}.{m.group(2)}', 'condition', own_only=True)
     return {'c': 'card', 'handler': name} if name else None
 
 
 def value(t, expr):
     """`{"v": "card", …}` for `new XValue()` or `XValue.instance` with a value handler, or None; `new XValue(…)` with
     arguments only with a handler named for the card (`OuterCardClass.XValue`, written for the card's arguments)"""
-    m = re.fullmatch(r'new (\w+)\(\)|(\w+)\.instance', expr.strip())
-    name = m and find(getattr(t, 'source', None), m.group(1) or m.group(2), 'value')
+    m = re.fullmatch(r'new (\w+)\(\)|(\w+)\.instance|(\w+\.[A-Z][A-Z0-9_]*)', expr.strip())
+    name = m and find(getattr(t, 'source', None), m.group(1) or m.group(2) or m.group(3), 'value')
     if not m and (m := re.fullmatch(r'new (\w+)\(.+\)', expr.strip(), re.S)):
         name = find(getattr(t, 'source', None), m.group(1), 'value', own_only=True)
     return {'v': 'card', 'handler': name} if name else None
@@ -285,6 +307,33 @@ def predicate(expr):
     if not m and (m := re.fullmatch(r'new (\w+)\(.+\)', expr.strip(), re.S)):
         name = find(SOURCE, m.group(1), 'predicate', own_only=True)
     return {'p': 'card', 'handler': name} if name else None
+
+
+def target(t, cls, args):
+    """A target class the card declares for itself with a target handler (`Handler::target`): its base target,
+    translated, with the handler as a predicate on its filter (its `canTarget`); or None"""
+    name = find(getattr(t, 'source', None), cls, 'target', own_only=True)
+    base = name and handlers()[name]['base']
+    args = [a.strip() for a in args if a.strip()]
+    # a framework target class (`TargetPermanentSameController`): its base with `$0`, `$1`… for its constructor's
+    # arguments, as a trigger's
+    if not name and (bare := handlers().get(cls)) and bare['kind'] == 'target' and '$' in bare['base']:
+        name, base = cls, bare['base']
+        holes = sorted({int(x) for x in re.findall(r'\$(\d+)', base)})
+        if holes != list(range(len(args))):
+            raise _unsupported(f'target {cls}: {len(args)} constructor arguments, its handler takes {len(holes)}')
+        for i, arg in enumerate(args):
+            base = base.replace('$%d' % i, arg)
+        args = []
+    if not name:
+        return None
+    if args:
+        raise _unsupported(f'target {cls}: constructor arguments')
+    out = t.target(base)
+    if 'filter' not in out:
+        raise _unsupported(f'target {cls}: its base {out.get("class")} has no filter')
+    out['filter'] = list(out['filter']) + [{'p': 'card', 'handler': name}]
+    return out
 
 
 def trigger(t, cls, args):

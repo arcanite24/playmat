@@ -353,8 +353,10 @@ fn can_play_objects(game: &Game, seat: Seat) -> Value {
                         crate::card::AbilityDef::MorphAbility { .. }
                             | crate::card::AbilityDef::PrototypeAbility { .. }
                             | crate::card::AbilityDef::BestowAbility { .. }
+                            | crate::card::AbilityDef::MutateAbility { .. }
                             | crate::card::AbilityDef::DisturbAbility { .. }
                             | crate::card::AbilityDef::AwakenAbility { .. }
+                            | crate::card::AbilityDef::WebSlingingAbility { .. }
                             | crate::card::AbilityDef::SneakAbility { .. }
                     )
                 ) =>
@@ -366,12 +368,16 @@ fn can_play_objects(game: &Game, seat: Seat) -> Value {
                     Some(crate::card::AbilityDef::MorphAbility { .. }) => format!("Cast {} using Morph", name),
                     Some(crate::card::AbilityDef::PrototypeAbility { .. }) => format!("Cast {} using Prototype", name),
                     Some(crate::card::AbilityDef::BestowAbility { .. }) => format!("Cast {} using Bestow", name),
+                    Some(crate::card::AbilityDef::MutateAbility { .. }) => format!("Cast {} using Mutate", name),
                     // (the back's spell ability, with the back's name)
                     Some(crate::card::AbilityDef::DisturbAbility { .. }) => format!(
                         "Cast {} using Disturb",
                         o.def.transform_back.as_ref().map_or(name.as_str(), |b| b.name.as_str())
                     ),
                     Some(crate::card::AbilityDef::AwakenAbility { .. }) => format!("Cast {} with awaken", name),
+                    Some(crate::card::AbilityDef::WebSlingingAbility { .. }) => {
+                        format!("Cast {} with Web-slinging", name)
+                    }
                     _ => format!("Cast {} with Sneak", name),
                 }
             }
@@ -1723,7 +1729,7 @@ fn restriction_hints(game: &Game, id: ObjId) -> Vec<String> {
 }
 
 /// `GameLog.getTooltipColorName`
-fn tooltip_color(colors: &[crate::card::Color]) -> &'static str {
+pub(crate) fn tooltip_color(colors: &[crate::card::Color]) -> &'static str {
     use crate::card::Color as C;
     match colors {
         [] => "#94A4BA",
@@ -1996,7 +2002,8 @@ fn command_view(game: &Game, p: Seat) -> Vec<Value> {
     game.command
         .iter()
         .enumerate()
-        .filter(|(_, c)| game.obj(**c).controller == p)
+        // (the speed designation isn't an emblem)
+        .filter(|(_, c)| game.obj(**c).controller == p && !Arc::ptr_eq(&game.obj(**c).def, &crate::rules::speed_def()))
         .map(|(i, c)| {
             let o = game.obj(*c);
             // a dungeon (`DungeonView`)
@@ -2268,7 +2275,7 @@ fn permanent_view(game: &Game, id: ObjId, r: &str, viewer: Seat, names: &[&str])
     m.insert("attachedToPermanent".into(), json!(to.is_some()));
     m.insert("attachedControllerDiffers".into(), json!(to.is_some_and(|t| game.obj(t).controller != o.controller)));
     m.insert("mutateView".into(), json!({}));
-    m.insert("mutated".into(), json!(false));
+    m.insert("mutated".into(), json!(!o.merged.is_empty()));
     if let Some(full) = o.printed_def.as_ref().filter(|f| f.room.len() == 2) {
         m.insert("roomLeftDoor".into(), json!(full.room[0].name));
         m.insert("roomRightDoor".into(), json!(full.room[1].name));

@@ -49,9 +49,22 @@ fn choose_named(
 
 /// `applySearchAndExile`, its graveyard choice optional
 fn search_and_exile(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx, most: usize, draw_for_hand: bool) -> Option<()> {
-    let you = cx.controller();
     let Some(name) = game.obj(cx.source_id()).chosen_name.clone() else { return Some(()) };
     let Some(p) = cx.player(0) else { return Some(()) };
+    search_and_exile_named(game, d, cx.controller(), p, &name, most, draw_for_hand)
+}
+
+/// `applySearchAndExile(game, source, name, p)` for `you`: up to `most` cards named `name` from `p`'s graveyard,
+/// hand and library (Pick the Brain's too)
+pub(super) fn search_and_exile_named(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    you: Seat,
+    p: Seat,
+    name: &str,
+    most: usize,
+    draw_for_hand: bool,
+) -> Option<()> {
     let named = |game: &Game, zone: &[ObjId]| -> Vec<ObjId> {
         zone.iter().copied().filter(|c| game.obj(*c).def.name == name).collect()
     };

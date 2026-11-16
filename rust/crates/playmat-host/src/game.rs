@@ -359,6 +359,8 @@ struct Host {
     chat_id: String,
     names: Vec<String>,
     seats: Vec<Player>,
+    /// every card the engine has, sorted by name: what "choose a card name" offers (`prompts::offer_names`)
+    cards: Vec<Arc<playmat_engine::card::CardDef>>,
     /// the AI's seat; none in a game between people
     ai: Option<Seat>,
     /// the ids the game log's lines are written with
@@ -514,6 +516,11 @@ impl Host {
             chat_id,
             names: start.seats.iter().map(|s| s.name.clone()).collect(),
             seats,
+            cards: {
+                let mut cards: Vec<_> = db.iter().cloned().collect();
+                cards.sort_by(|a, b| a.name.cmp(&b.name));
+                cards
+            },
             ai,
             log_ids: Ids::new(&key, players.clone()),
             table: Table::new(ai_seats),
@@ -1877,7 +1884,8 @@ impl Decider for HostDecider<'_> {
                 }
             }
         }
-        let prompt = prompts::prompt(game, seat, q);
+        let mut prompt = prompts::prompt(game, seat, q);
+        prompts::offer_names(&mut prompt, q, &h.cards);
         let q2 = q.clone();
         h.at_priority = matches!(q, Query::Priority { .. });
         h.open_query = Some(q.clone());

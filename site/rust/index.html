@@ -146,6 +146,113 @@
       </div>
     </section>
 
+    <section class="rp-section" aria-labelledby="h-java">
+      <div class="wrap">
+        <div class="rp-head">
+          <h2 id="h-java">What the port found in Java</h2>
+          <p>Comparing every step of a Java game with a Rust replay turns up XMage's own problems as well as Rust's.
+            This is everything found so far (15 Nov). Where Java breaks the rules, Rust follows the rules and the game
+            counts as a Java bug. Where Java's order is random, the card stays unverified, since no replay can match
+            it. None of these have been fixed in Java yet. The details are in
+            <a href="https://github.com/arcanite24/playmat/blob/master/docs/rust/Engine.md">the engine notes</a>.</p>
+        </div>
+        <div class="rp-java">
+          <div class="rp-java-group zone">
+            <h3>Rules bugs Rust doesn't copy</h3>
+            <ul>
+              <li><strong>Fatehold Charm can target itself</strong> (rule 115.5). Its "return target spell" mode picks
+                the charm while it's on the stack. Two of the 10,000 gate games.</li>
+              <li><strong>Back faces with mana value 0</strong> (rule 712.8e). A permanent put onto the battlefield
+                transformed keeps <code>transformed=false</code> in <code>PermanentCard</code> when its front is a
+                sorcery (Esper Origins), and <code>PermanentToken.getManaValue</code> does the same for a copy
+                token's back face. Three gate games.</li>
+              <li><strong>The Fall of Kroog can't be cast from the hand.</strong> Its target class reads the first
+                target off the stack object, which doesn't exist yet.</li>
+              <li><strong>Elemental Expressionist never triggers</strong>, and Java then asks which replacement goes
+                first.</li>
+              <li><strong>Blightbeetle</strong>: a creature entering under an opponent's control still gets its +1/+1
+                counter.</li>
+              <li><strong>Tribute to Horobi</strong>: Echo of Death's Wail can sacrifice itself as "another creature",
+                because the transformed face's abilities have a different source than the permanent.</li>
+              <li><strong>"Target player shuffles target cards from their graveyard"</strong> lets you pick any
+                graveyard card. The target class overrides only a <code>canTarget</code> that neither choosing nor
+                resolving calls.</li>
+              <li><strong>"If you cast it from your hand"</strong>
+                (<code>CastFromHandSourcePermanentCondition</code>) is false in games where it should be true. Its
+                watcher compares steps by object identity.</li>
+              <li><strong>Zhur-Taa Druid</strong> doesn't trigger when it's tapped while paying for a spell, because
+                of another identity check.</li>
+              <li><strong>Last known information lasts too long</strong>: a creature sacrificed earlier in the same
+                priority can still trigger (Agent Venom).</li>
+              <li><strong>Two abilities of one object on the stack share an id</strong>, so a target on the stack is
+                ambiguous (Agonasaur Rex, Defabricate).</li>
+            </ul>
+          </div>
+          <div class="rp-java-group zone">
+            <h3>Java quirks Rust copies, to match</h3>
+            <ul>
+              <li><strong>A modal trigger can counter itself.</strong> Its "counter target activated or triggered
+                ability" mode can be chosen when the trigger is the only target (Subcommander T'Pol).</li>
+              <li><strong>Lost "otherwise" texts.</strong> <code>DoIfCostPaid</code>'s copy constructor drops
+                <code>setOtherwiseText</code>, so Rent Is Due shows "If you don't".</li>
+              <li><strong>Ignored settings.</strong> Java never reads <code>setCanWorksOnStackOnly</code> on
+                <code>SpellCostReductionForEachSourceEffect</code> (Huskburster Swarm).</li>
+            </ul>
+            <h3>Java's AI</h3>
+            <ul>
+              <li><strong>It spends restricted mana where it shouldn't.</strong> Chandra's Embercat's mana pays for a
+                spell that isn't an Elemental (Fluxcharger).</li>
+              <li><strong>It taps sources that make nothing</strong> while paying (Nyx Lotus, Zariel, Three Tree City,
+                Astral Cornucopia, Vivi Ornitier).</li>
+              <li><strong>It drops a trigger</strong> when the only target is its own creature (Ruthless Sniper).</li>
+            </ul>
+          </div>
+          <div class="rp-java-group zone">
+            <h3>Random order from hash sets and maps</h3>
+            <p>Java walks a <code>HashSet</code> or <code>HashMap</code> keyed by random ids or identity hashes, so
+              the same seeded game can play out differently from run to run.</p>
+            <ul>
+              <li><strong>Cards reaching the hand</strong>: Accumulate Wisdom (<code>Target.java</code>'s
+                <code>Collectors.toSet()</code>, one gate game), Pearl Lake Ancient, Volt Charge, Smuggler's Surprise,
+                Greenhouse // Rickety Gazebo, The Three Seasons, Ulamog's Despoiler and Blight Herder.
+                <code>LinkedHashSet</code> would fix most of these.</li>
+              <li><strong>The order in the graveyard</strong>: sacrifices (Pitiless Carnage, Winnowing) and returns
+                (Mnemonic Betrayal).</li>
+              <li><strong>Tokens created together</strong> (<code>withAdditionalTokens</code>: Forbidden Friendship,
+                Reckoner Bankbuster) and tokens for each player (Soul of Emancipation).</li>
+              <li><strong>Shuffling each owner's library</strong> (Turn the Earth), <strong>attack triggers</strong>
+                in <code>getAttackers()</code> order (Eternal of Harsh Truths, Wildfire Eternal), and which permission
+                a cast uses (Garruk's Horde beside Bolas's Citadel).</li>
+              <li><strong>Random discards</strong> picked from a <code>HashSet</code> (Rowdy Crew, Curse-Marred Demon),
+                so they can't be ported as written.</li>
+            </ul>
+          </div>
+          <div class="rp-java-group zone">
+            <h3>Crashes, hangs and tooling</h3>
+            <ul>
+              <li><strong>Unfinished games.</strong> Of the 10,000 gate games, Java timed out in 44 and threw a
+                <code>RejectedExecutionException</code> in 1.</li>
+              <li><strong>Exceptions mid-game</strong>, rolled back: Vesuvan Drifter copying a double-faced card, and
+                Emergent Sequence finding nothing.</li>
+              <li><strong>The text deck importer</strong> reads the "/" in Summon: Choco/Mog as a split card, so no
+                deck file can hold it.</li>
+              <li><strong>Games that end strangely</strong>: one player lost with every zone empty after the AI
+                switches back and forth (Raubahn, Wandering Fumarole).</li>
+            </ul>
+            <h3>Not understood yet</h3>
+            <ul>
+              <li><strong>Yorion</strong> can choose itself when it returns, though its filter
+                (<code>AnotherPredicate</code>) says it can't.</li>
+              <li><strong>Vicious Verse</strong>: when a stolen Hallway Heckler prepared it, Java won't let it be cast
+                from exile (Bombur's game).</li>
+              <li><strong>Discover the Impossible</strong>: the spell still resolving can be targeted by a
+                counterspell cast from it.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="rp-section" aria-labelledby="h-more">
       <div class="wrap">
         <div class="rp-head">

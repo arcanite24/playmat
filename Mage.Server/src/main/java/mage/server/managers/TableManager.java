@@ -48,6 +48,9 @@ public interface TableManager {
     // removeUserFromAllTablesAndChat user from all sub tables of a tournament
     void userQuitTournamentSubTables(UUID tournamentId, UUID userId);
 
+    /** ends and removes every running match table of a tournament (used when the event is aborted) */
+    void removeTournamentSubTables(UUID tournamentId);
+
     boolean isTableOwner(UUID tableId, UUID userId);
 
     boolean removeTable(UUID userId, UUID tableId);

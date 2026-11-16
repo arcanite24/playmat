@@ -204,6 +204,25 @@ public class TableManagerImpl implements TableManager {
     }
 
     @Override
+    public void removeTournamentSubTables(UUID tournamentId) {
+        List<UUID> subTables = new ArrayList<>();
+        for (TableController controller : getControllers()) {
+            Table table = controller.getTable();
+            if (table != null && table.isTournamentSubTable() && table.getTournament() != null
+                    && table.getTournament().getId().equals(tournamentId)) {
+                subTables.add(table.getId());
+            }
+        }
+        for (UUID subTableId : subTables) {
+            try {
+                removeTable(subTableId);
+            } catch (Exception e) {
+                logger.error("Unable to remove tournament sub table " + subTableId, e);
+            }
+        }
+    }
+
+    @Override
     public boolean isTableOwner(UUID tableId, UUID userId) {
         if (controllers.containsKey(tableId)) {
             return controllers.get(tableId).isOwner(userId);

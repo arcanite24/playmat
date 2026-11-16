@@ -127,10 +127,12 @@ import { gzipSync } from 'node:zlib';
 // Settings, the table-join watch in the shell, the status picker and the player directory in the lazy lobby drawer,
 // with their English and Spanish messages. Measured initial 212.0 kB, app 827.4 kB
 // both on master together 2026-11-12: deck management and notifications and presence, measured initial 213.3 kB, app 834.2 kB
+// app raised 2026-11-15 from 837 kB for the event join retry (#401): master already measured at the 837 kB edge, and
+// joinWithRetry in the events store tipped it to 837.5 kB
 const BUDGET_KB = {
   entry: 86,
   initial: 221,
-  app: 837,
+  app: 840,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;

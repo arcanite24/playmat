@@ -84,6 +84,13 @@ impl EffectCx<'_> {
         self.args.get(i)?.trim().parse().ok()
     }
 
+    /// Java argument `i`, an int or a `DynamicValue` the transpiler made an `Amount` of (the "amount" argument
+    /// kind), worked out now for the controller with the ability's X
+    pub fn arg_amount(&self, game: &Game, i: usize) -> Option<i32> {
+        let a: crate::card::Amount = serde_json::from_str(self.args.get(i)?).ok()?;
+        Some(game.value(&a, self.controller(), self.source_id(), self.item.x))
+    }
+
     /// Engine effects, as if they were the ability's own from here on: the same targets, source and controller.
     /// The way to reuse what cards.json can already say (`CreateTokenEffect`, `DestroyTargetEffect`…) inside a
     /// handler. Effects that need JSON-only data are built with `serde_json::from_value`.
@@ -336,6 +343,17 @@ impl Handler {
 
     pub const fn predicate(java: &'static str, f: PredicateFn) -> Handler {
         Handler::new(java, Hook::Predicate(f))
+    }
+
+    /// a card's own `Target` class (a `TargetPermanent` or `TargetCardInYourGraveyard` with its own `canTarget`):
+    /// `base` is the framework target it extends, in Java (`"new TargetPermanent(2, 2, …, false)"`), and `f` its
+    /// `canTarget` beyond the base's filter, a predicate the transpiler adds to that filter. While its targets are
+    /// chosen, `game.chosen_before` has the ability's earlier targets and then this target's own chosen so far
+    /// (Java's `this.getTargets()`); checked on its own (as it resolves), it has none.
+    pub const fn target(java: &'static str, base: &'static str, f: PredicateFn) -> Handler {
+        let mut h = Handler::new(java, Hook::Predicate(f));
+        h.base = base;
+        h
     }
 
     /// a triggered ability class: `base` is the framework trigger it extends, in Java (`Handler::base`)

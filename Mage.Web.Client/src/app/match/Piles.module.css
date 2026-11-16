@@ -92,6 +92,27 @@
   color: var(--ink-strong);
 }
 
+/* the room a dungeon's venture marker is in, over the dungeon's card */
+.room {
+  position: absolute;
+  top: 46%;
+  left: 50%;
+  translate: -50% 0;
+  max-width: 128px;
+  padding: 2px 8px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: rgb(var(--mat-rgb) / 0.9);
+  box-shadow: 0 0 0 1px var(--ink-faint);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ink-strong);
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .label svg {
   vertical-align: -2px;
 }

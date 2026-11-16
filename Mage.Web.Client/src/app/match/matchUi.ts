@@ -16,6 +16,8 @@ interface MatchUiState {
   blockDrag: { blockerId: string; attackerId: string | null } | null;
   /** zone viewer (graveyard, exile...) */
   viewer: { title: string; cards: CardView[] } | null;
+  /** the player whose dungeon is laid out room by room (DungeonViewer) */
+  dungeonOf: string | null;
   logOpen: boolean;
   /** card opened in the detail view (right click); the id keeps it live as the game changes */
   detail: { id: string; card: CardView } | null;
@@ -29,6 +31,7 @@ interface MatchUiState {
   setDragging(id: string | null): void;
   setBlockDrag(blockDrag: MatchUiState['blockDrag']): void;
   openViewer(viewer: MatchUiState['viewer']): void;
+  openDungeon(playerId: string | null): void;
   toggleLog(open?: boolean): void;
   openDetail(detail: MatchUiState['detail']): void;
   setSourceHover(id: string | null): void;
@@ -41,6 +44,7 @@ export const useMatchUi = create<MatchUiState>((set) => ({
   dragging: null,
   blockDrag: null,
   viewer: null,
+  dungeonOf: null,
   logOpen: false,
   detail: null,
   sourceHover: null,
@@ -51,6 +55,7 @@ export const useMatchUi = create<MatchUiState>((set) => ({
   setDragging: (dragging) => set({ dragging }),
   setBlockDrag: (blockDrag) => set({ blockDrag }),
   openViewer: (viewer) => set({ viewer }),
+  openDungeon: (dungeonOf) => set({ dungeonOf }),
   toggleLog: (open) => set((state) => ({ logOpen: open ?? !state.logOpen })),
   // the zoomed copy would sit on top of the detail view
   openDetail: (detail) => set({ detail, zoom: null }),

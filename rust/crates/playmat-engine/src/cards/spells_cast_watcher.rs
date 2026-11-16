@@ -20,8 +20,18 @@ fn none_from_hand(game: &Game, you: Seat, _: ObjId) -> bool {
     !mine(game, you).any(|s| s.from == Some(crate::state::Zone::Hand))
 }
 
-/// "you've cast another spell this turn": one that isn't the source (as the object it is now)
+/// "you've cast another spell this turn": one that isn't the source (as the object it is now). As a trigger's
+/// intervening "if" is checked when it triggers, the ability's stack-moment zone-change count is still 0, so Java
+/// counts the source's own spell too (Sage of the Skies' cast trigger always goes on the stack; it's checked again
+/// as it resolves)
 fn another(game: &Game, you: Seat, source: ObjId) -> bool {
+    let resolving = game.resolving_item.as_ref().is_some_and(|t| t.card == source);
+    // (a spell that's been cast is on Java's watcher's list as its cast triggers are checked; one whose cost is
+    // still being worked out isn't yet)
+    let cast = game.obj(source).zone == crate::state::Zone::Stack && mine(game, you).any(|s| s.card == source);
+    if !resolving && (cast || game.checking_item.as_ref().is_some_and(|t| t.card == source)) {
+        return mine(game, you).next().is_some();
+    }
     mine(game, you).any(|s| s.card != source)
 }
 
