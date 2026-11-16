@@ -79,9 +79,18 @@ fn play_on(game: &mut Game, d: &mut dyn Decider, stop_on_turn: u32, mut resume: 
                     game.controlled_by.remove(i);
                     game.extra_turns.push(ended);
                 }
+                // the extra turns first, then the normal order from the player whose turn they came after (an
+                // opponent's extra turn after yours: theirs, then their own turn too, Karn's Temporal Sundering)
+                let after = game.extra_turns_after.unwrap_or(ended);
                 game.active = Some(match game.extra_turns.pop() {
-                    Some(s) => s,
-                    None => game.opponent(game.active.unwrap_or(0)),
+                    Some(s) => {
+                        game.extra_turns_after = Some(after);
+                        s
+                    }
+                    None => {
+                        game.extra_turns_after = None;
+                        game.opponent(after)
+                    }
                 });
                 let now = game.active.unwrap_or(0);
                 if let Some(i) = game.control_next_turn.iter().position(|(p, _)| *p == now) {

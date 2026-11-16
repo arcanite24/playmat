@@ -1196,6 +1196,9 @@ pub struct Game {
     pub enters_as: Option<(ObjId, Arc<CardDef>)>,
     /// extra turns to take, the last added first (`TurnMod`)
     pub extra_turns: Vec<Seat>,
+    /// while extra turns are taken, the player whose turn in the normal order they came after: the normal order goes
+    /// on from them (`GameImpl.playExtraTurns`, then `playerList.getNext`)
+    pub extra_turns_after: Option<Seat>,
     /// Emrakul, the Promised End: (player, controller) for a player's next turn, controlled by another
     pub control_next_turn: Vec<(Seat, Seat)>,
     /// (player, controller) while a player's turn is controlled by another; an extra turn follows it
@@ -1633,6 +1636,7 @@ impl Game {
             exile_uncast_turn: None,
             enters_as: None,
             extra_turns: Vec::new(),
+            extra_turns_after: None,
             control_next_turn: Vec::new(),
             controlled_by: Vec::new(),
             at_first_upkeep: Vec::new(),
