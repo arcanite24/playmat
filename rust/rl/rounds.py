@@ -34,9 +34,10 @@ def run(cmd, log):
 
 
 def entrant(policy, net, args):
-    keys = [f"policy={policy}", "hide=1", f"samples={args.samples}", "eval=3", f"net={net}"]
+    keys = [f"policy={policy}", "hide=1", f"samples={args.samples}", f"eval={args.eval}", f"net={net}"]
     if args.rollout:
-        keys.append(f"rollout={args.rollout}")
+        # `self`: the entrant's own network plays the playouts too, so a better network also makes better playouts
+        keys.append(f"rollout={net if args.rollout == 'self' else args.rollout}")
     return "cfg:" + "+".join(keys)
 
 
@@ -51,7 +52,9 @@ def main():
     ap.add_argument("--jobs", type=int, default=12)
     ap.add_argument("--policy", default="gumbel", help="the search that plays: gumbel or netsearch")
     ap.add_argument("--samples", type=int, default=4)
-    ap.add_argument("--rollout", default=None, help="a network for inside the playouts (builtin, or a .pmnet)")
+    ap.add_argument("--rollout", default=None, help="a network for inside the playouts (self, builtin, or a .pmnet)")
+    ap.add_argument("--eval", type=int, default=2,
+                    help="the search's score: 2 the fitted score, 3 the network's value (lost to 2 in every test so far)")
     ap.add_argument("--temp", type=int, default=1000, help="the search's temperature while recording, per thousand")
     ap.add_argument("--window", type=int, default=2)
     ap.add_argument("--epochs", type=int, default=3)
