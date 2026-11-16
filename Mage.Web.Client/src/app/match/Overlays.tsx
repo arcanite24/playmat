@@ -3,6 +3,7 @@ import type { Command, Interaction } from '../../core/game/interaction';
 import type { Prompt } from '../../core/game/prompt';
 import { abilityChooserSource, stripMarkup } from '../../core/game/prompt';
 import { parseManaAbility, parseManaColor } from '../../core/game/manaChoices';
+import { dungeonCardByName, isDungeonChoice, roomChoice, type Dungeon, type RoomChoice } from '../../core/game/dungeon';
 import { ManaPicker } from './ManaPicker';
 import { isStackAbility } from '../../core/game/cards';
 import { matchProgress } from '../../core/game/matchProgress';
@@ -153,9 +154,11 @@ export function CardPicker({ title, cards, interaction, sleeve, footer, onComman
 }
 
 /** Choices that don't live on the board: modes, named choices, piles, numbers. */
-export function ChoicePanel({ prompt, onCommand, xLimit = null, startAtLimit = false, sourceId }: {
+export function ChoicePanel({ prompt, onCommand, xLimit = null, startAtLimit = false, sourceId, dungeon = null }: {
   prompt: Prompt;
   sourceId?: string | null;
+  /** the player's dungeon, for the "which room next" question */
+  dungeon?: Dungeon | null;
   onCommand(command: Command): void;
   /** announcing X: the most the player could pay (see xLimit), when the server sets no real limit */
   xLimit?: number | null;
@@ -214,9 +217,99 @@ export function ChoicePanel({ prompt, onCommand, xLimit = null, startAtLimit = f
       return <AmountChooser prompt={prompt} onCommand={onCommand} limit={xLimit} startAtLimit={startAtLimit} />;
     case 'multiAmount':
       return <MultiAmountChooser prompt={prompt} onCommand={onCommand} />;
+    case 'ask': {
+      const choice = roomChoice(prompt, dungeon);
+      return choice ? <RoomChooser choice={choice} dungeon={dungeon} onCommand={onCommand} /> : null;
+    }
     default:
       return null;
   }
+}
+
+/** Venturing: the dungeons to choose from, as their cards, so the rooms can be read before choosing (#385). */
+function DungeonChooser({ title, names, onCommand }: { title: string; names: string[]; onCommand(command: Command): void }) {
+  const zoom = useHoverZoom();
+  return (
+    <PanelShell title={title} wide>
+      <div className={styles.dungeons}>
+        {names.map((name, index) => {
+          const card = dungeonCardByName(name);
+          return (
+            <button key={name} data-choice type="button" className={styles.dungeonChoice} data-card-id={card.id}
+              aria-label={`Venture into ${name}`} onClick={() => onCommand({ type: 'string', value: name })} {...zoom(card)}>
+              <CardFace card={card} size="normal" />
+              <span className={styles.dungeonName}>
+                {index < 10 && <span className={styles.optionKey} aria-hidden="true">{(index + 1) % 10}</span>}
+                {name}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </PanelShell>
+  );
+}
+
+/** "Which room next": both rooms with what entering them does, beside the dungeon's card (#385). */
+function RoomChooser({ choice, dungeon, onCommand }: { choice: RoomChoice; dungeon: Dungeon | null; onCommand(command: Command): void }) {
+  const zoom = useHoverZoom();
+  const card = dungeon?.card ?? (choice.dungeonName ? dungeonCardByName(choice.dungeonName) : null);
+  const from = dungeon?.currentRoom;
+  return (
+    <PanelShell title={choice.dungeonName ? `Next room in ${choice.dungeonName}` : 'Choose the next room'} wide>
+      <div className={styles.roomChoice}>
+        {card && <div className={styles.roomCard} data-card-id={card.id} {...zoom(card)}><CardFace card={card} size="normal" /></div>}
+        <div className={styles.options}>
+          {from && <p className={styles.panelText}>You leave {from}. Choose where the venture marker goes:</p>}
+          {choice.options.map((option, index) => (
+            <button key={option.name} data-choice type="button" className={styles.option} onClick={() => onCommand({ type: 'boolean', value: option.value })}>
+              <span className={styles.optionKey} aria-hidden="true">{index + 1}</span>
+              <span className={styles.roomText}>
+                <b>{option.name}</b>
+                {option.room && <span><PromptText text={option.room.effect} /></span>}
+                {option.room && option.room.leadsTo.length > 0 && <small>Leads to {option.room.leadsTo.join(' or ')}</small>}
+                {option.room && option.room.leadsTo.length === 0 && <small>The last room</small>}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </PanelShell>
+  );
+}
+
+/** A player's dungeon laid out room by room: where the venture marker is, and where it can go next. */
+export function DungeonViewer({ title, dungeon, onClose }: { title: string; dungeon: Dungeon; onClose(): void }) {
+  const keyboard = useChoiceKeyboard();
+  const zoom = useHoverZoom();
+  return (
+    <div ref={keyboard} tabIndex={-1} className={styles.scrim} role="dialog" aria-modal="true" aria-label={title} onClick={onClose}>
+      <div className={[styles.panel, styles.panelWide].join(' ')} onClick={(event) => event.stopPropagation()}>
+        <header className={styles.panelHead}>
+          <h2 className={styles.panelTitle}>{title}</h2>
+          <Button data-cancel variant="quiet" size="sm" onClick={onClose}>Close</Button>
+        </header>
+        <div className={styles.roomChoice}>
+          <div className={styles.roomCard} data-card-id={dungeon.card.id} {...zoom(dungeon.card)}><CardFace card={dungeon.card} size="normal" /></div>
+          <ol className={[styles.rooms, styles.optionsScroll].join(' ')}>
+            {dungeon.rooms.map((room) => (
+              <li key={room.name} className={[styles.room, room.current ? styles.roomHere : '', room.next ? styles.roomNext : ''].join(' ')}
+                aria-current={room.current ? 'location' : undefined}>
+                <span className={styles.roomText}>
+                  <b>{room.name}</b>
+                  <span><PromptText text={room.effect} /></span>
+                  {room.leadsTo.length > 0 && <small>Leads to {room.leadsTo.join(' or ')}</small>}
+                </span>
+                {room.current && <span className={styles.roomTag}>Venture marker</span>}
+                {room.next && <span className={styles.roomTag}>Next</span>}
+              </li>
+            ))}
+          </ol>
+        </div>
+        {!dungeon.currentRoom && <p className={styles.panelText}>Not in a room yet.</p>}
+      </div>
+    </div>
+  );
 }
 
 function PanelShell({ title, children, wide }: { title: string; children: React.ReactNode; wide?: boolean }) {
@@ -248,6 +341,9 @@ function ChoiceList({ prompt, onCommand, sourceId }: { prompt: Extract<Prompt, {
     [sorted, query],
   );
   const title = stripMarkup(choice.message) || prompt.text || 'Choose one';
+  if (isDungeonChoice(choice)) {
+    return <DungeonChooser title={title} names={sorted.map((entry) => entry.value)} onCommand={onCommand} />;
+  }
   const mana = sorted.map((entry) => parseManaColor(entry.label));
   if (mana.length > 0 && mana.every((entry) => entry !== null)) {
     return <ManaPicker title={title} choices={mana} sourceId={sourceId} subMessage={choice.subMessage}

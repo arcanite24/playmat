@@ -1,6 +1,7 @@
 import type { GameView, ManaType, PlayerAction } from '../../protocol/generated/views';
 import { assignmentAnswer, lethalFirst, parseDamageAssignment } from './damageAssignment';
 import { poolId, poolTypes } from './payment';
+import { roomChoice } from './dungeon';
 import type { Prompt } from './prompt';
 
 /** An answer to the server, independent of how the UI produced it. */
@@ -222,6 +223,8 @@ export function deriveInteraction(view: GameView | null | undefined, prompt: Pro
     }
 
     case 'ask':
+      // which dungeon room next: a panel that shows what each room does
+      if (!prompt.isMulligan && roomChoice(prompt, null)) return panel(prompt);
       return {
         mode: prompt.isMulligan ? 'mulligan' : 'question',
         prompt,

@@ -71,6 +71,22 @@ export function onlyColorsIdentity(colors: readonly string[], onlyColors = true)
   return COLOR_LETTERS.filter(([key]) => colors.includes(key)).map(([, letter]) => letter);
 }
 
+/**
+ * A search that leaves joke and digital sets out still finds the cards only printed there, when the player types
+ * their name (Alchemy's Arena-only cards, #392): the cards from those sets whose names the main results don't have.
+ */
+export function onlyInSidelinedSets(main: readonly CardView[], sidelined: readonly CardView[]): CardView[] {
+  const seen = new Set(main.map((card) => (card.name ?? '').toLowerCase()));
+  const result: CardView[] = [];
+  for (const card of sidelined) {
+    const name = (card.name ?? '').toLowerCase();
+    if (!name || seen.has(name)) continue;
+    seen.add(name);
+    result.push(card);
+  }
+  return result;
+}
+
 /** Two identity limits at once (a commander's and "only these colors"): the colors both allow; null is no limit. */
 export function intersectIdentity(a: readonly string[] | null, b: readonly string[] | null): string[] | null {
   if (a === null) return b ? [...b] : null;

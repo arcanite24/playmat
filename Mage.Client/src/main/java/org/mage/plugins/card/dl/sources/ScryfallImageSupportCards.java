@@ -525,6 +525,7 @@ public class ScryfallImageSupportCards {
             add("BRO"); // The Brothers' War
             add("BRC"); // The Brothers' War Commander
             add("BRR"); // The Brothers' War Retro Artifacts
+            add("YBRO"); // Alchemy: The Brothers' War
             add("BOT"); // Transformers
             add("J22"); // Jumpstart 2022
             add("SCD"); // Starter Commander Decks
