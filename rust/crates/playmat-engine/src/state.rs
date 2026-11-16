@@ -776,6 +776,9 @@ pub struct StackItem {
     /// a "whenever a permanent of the filter leaves the battlefield" trigger: the permanent that left (Java's
     /// `getValue("permanentLeftBattlefield")`), as the object it became
     pub left: Option<ObjId>,
+    /// a "whenever you sacrifice a permanent of the filter" trigger (`Trigger::Sacrificed`): the permanent sacrificed
+    /// (Java's `getValue("sacrificedPermanent")`), as the object it became
+    pub sacrificed_permanent: Option<ObjId>,
     /// the cards its `DiscardCardCost` discarded (`DiscardCardCost.getCards`)
     pub cost_discarded: Vec<ObjId>,
     /// a "whenever a player discards a card" trigger (`Trigger::Discards`, `DISCARDED_CARD`): the card discarded,
@@ -900,6 +903,7 @@ impl StackItem {
             cast_spell: None,
             died: None,
             left: None,
+            sacrificed_permanent: None,
             cost_discarded: Vec::new(),
             discarded: None,
             cost_revealed: Vec::new(),

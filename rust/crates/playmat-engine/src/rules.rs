@@ -1594,7 +1594,8 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
         if def.is(CardType::Land) {
             // played from it (Crucible of Worlds), or a graveyard ability of its own (Drownyard Temple)
             if lands
-                || (can_play_land(game, seat) && !graveyard_play_permits(game, seat, *id, def).is_empty())
+                || (can_play_land(game, seat)
+                    && (game.may_play_now(*id, seat) || !graveyard_play_permits(game, seat, *id, def).is_empty()))
                 || !play_ways_now(game, seat, *id, def).is_empty()
                 || !activatable(game, seat, *id).is_empty()
             {
@@ -1779,6 +1780,8 @@ pub fn playable_abilities(game: &Game, seat: Seat) -> Vec<(ObjId, usize, PlayKin
                                 && g.obj(src).controller == seat
                         })
                         || !graveyard_play_permits(game, seat, id, def).is_empty()
+                        // a land an effect lets you play from your graveyard this turn (Tablet of Discovery)
+                        || game.may_play_now(id, seat)
                         || !play_ways_now(game, seat, id, def).is_empty();
                     if let Some(k) =
                         index(def, &AbilityDef::PlayLandAbility).filter(|_| from_graveyard && can_play_land(game, seat))
@@ -5050,6 +5053,13 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         }
     }
     game.remove_from_zone(id);
+    // cast from a graveyard, it left it (`ZONE_CHANGE` GRAVEYARD to STACK: Ark of Hunger's "whenever one or more
+    // cards leave your graveyard", `CardsLeftGraveyardWatcher`)
+    if from == Zone::Graveyard {
+        let owner = game.obj(id).owner;
+        game.left_graveyard.push(id);
+        game.watch.left_graveyard.push(owner);
+    }
     {
         let o = game.obj_mut(id);
         o.zone = Zone::Stack;
@@ -20232,6 +20242,7 @@ fn sacrifice(game: &mut Game, id: ObjId) {
             t.targets = vec![vec![Target::Player(who)]];
             t.target_zcc = vec![vec![0]];
         }
+        t.sacrificed_permanent = Some(id);
         sac.push(t);
     }
     let at = at.min(game.pending.len());

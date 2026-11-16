@@ -1,9 +1,12 @@
 //! Quarry Hauler: "When Quarry Hauler enters, for each kind of counter on target permanent, put another counter of
-//! that kind on it or remove one from it."
+//! that kind on it or remove one from it." Dramatist's Puppet's enters trigger is the same.
 
 use super::*;
 
-pub const HANDLERS: &[Handler] = &[Handler::effect("QuarryHauler.QuarryHaulerEffect", apply)];
+pub const HANDLERS: &[Handler] = &[
+    Handler::effect("QuarryHauler.QuarryHaulerEffect", apply),
+    Handler::effect("DramatistsPuppet.DramatistsPuppetEffect", apply),
+];
 
 /// The kinds on it as it starts (`Counters`' hash order), each asked in turn: yes ("Add") puts one more, no
 /// ("Remove") takes one off
