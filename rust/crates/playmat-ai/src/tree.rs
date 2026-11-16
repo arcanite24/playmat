@@ -76,7 +76,7 @@ impl Walk {
             let node = &mut self.tree.nodes[at];
             node.seat = seat;
             node.kids =
-                options.into_iter().zip(p).map(|(answer, prior)| Kid { answer, prior, n: 0, w: 0.0, node: None }).collect();
+                options.iter().cloned().zip(p).map(|(answer, prior)| Kid { answer, prior, n: 0, w: 0.0, node: None }).collect();
             self.expanded = true;
         } else if self.tree.nodes[at].seat != seat {
             self.at = None;
@@ -96,7 +96,8 @@ impl Walk {
             .kids
             .iter()
             .enumerate()
-            .filter(|(_, k)| q.accepts(&k.answer))
+            // a node reached on another sample can hold answers naming objects this one doesn't have
+            .filter(|(_, k)| options.contains(&k.answer) && q.accepts(&k.answer))
             .max_by(|(i, a), (j, b)| score(a).total_cmp(&score(b)).then(j.cmp(i)))
             .map(|(i, _)| i);
         let Some(i) = best else {
