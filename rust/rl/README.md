@@ -62,6 +62,16 @@ python train.py --data data/bc --out runs/bc-tx2 --arch tx --tx text=1
 python rounds.py --init runs/bc-tx2 --out runs/loop --rounds 4 --games 10000 --policy netsearch --rollout self
 ```
 
+Faster rounds (6.6 times the games a second): a small MLP plays the playouts, trained each round on the same games
+(`runs/<out>/r<r>/rollout`), and the decisions that won't be recorded are answered by the network alone:
+
+```bash
+python rounds.py --init runs/loop3/r4 --out runs/loop4 --policy netsearch --rollout small --rollout-init runs/bc-mlp \
+    --fast net
+```
+
+`--cfg` adds config keys to the learner (`--policy ismcts --cfg cpuct=300+iters=32`).
+
 `--tx` takes JSON or `k=v` pairs (`d`, `heads`, `layers`, `ff`, `dim`, `trunk`, `text`). `rounds.py` logs one line a round to
 `runs/<out>/rounds.jsonl`. Keep `--jobs` and `--sprt-jobs` a few threads under the machine's count so its other
 services keep running.
