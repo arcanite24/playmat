@@ -162,9 +162,10 @@ class Tx(nn.Module):
         q = q.view(B, Q, h, hd).transpose(1, 2)
         k = k.view(B, T, h, hd).transpose(1, 2)
         v = v.view(B, T, h, hd).transpose(1, 2)
-        att = (q @ k.transpose(-1, -2)) / math.sqrt(hd)
-        att = att.masked_fill(~mask[:, None, None, :], -1e9)
-        return (att.softmax(-1) @ v).transpose(1, 2).reshape(B, Q, D)
+        # the same softmax(q·k/√hd)·v as `net.rs`, in one fused kernel; the global token is always attended, so no row
+        # is fully masked
+        out = F.scaled_dot_product_attention(q, k, v, attn_mask=mask[:, None, None, :])
+        return out.transpose(1, 2).reshape(B, Q, D)
 
     def tokens(self, b):
         """-> tokens [B, 1+N, d] after the blocks (normed), mask [B, 1+N]"""

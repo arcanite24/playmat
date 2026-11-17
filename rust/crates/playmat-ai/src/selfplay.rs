@@ -386,6 +386,9 @@ pub struct Recording {
     pub seen: crate::decision::Hidden,
     /// chance per thousand that a decision is recorded
     pub keep: u32,
+    /// answers the decisions that won't be recorded, so the search is spent only on those that are (KataGo's
+    /// playout cap randomization); `None` searches every decision
+    pub fast: Option<Box<dyn DecisionPolicy>>,
     pub rng: u64,
     name: String,
 }
@@ -394,7 +397,13 @@ impl Recording {
     pub fn new(kind: PolicyKind, seat: Seat, sink: Sink, keep: u32, seed: u64) -> Recording {
         let inner = kind.build(seat);
         let name = inner.name().to_string();
-        Recording { inner, sink, seen: crate::decision::Hidden::new(seat), keep, rng: seed, name }
+        Recording { inner, sink, seen: crate::decision::Hidden::new(seat), keep, fast: None, rng: seed, name }
+    }
+
+    /// Decisions that won't be recorded are answered by `kind` instead
+    pub fn with_fast(mut self, kind: Option<PolicyKind>, seat: Seat) -> Recording {
+        self.fast = kind.map(|k| k.build(seat));
+        self
     }
 }
 
@@ -404,14 +413,17 @@ impl DecisionPolicy for Recording {
     }
 
     fn decide(&mut self, d: &Decision) -> Option<Choice> {
-        let choice = self.inner.decide(d);
         if skipped(d.query) {
-            return choice;
+            return self.inner.decide(d);
         }
         self.seen.observe(d.game);
         if (mix(&mut self.rng) % 1000) as u32 >= self.keep {
-            return choice;
+            return match self.fast.as_mut() {
+                Some(fast) => fast.decide(d),
+                None => self.inner.decide(d),
+            };
         }
+        let choice = self.inner.decide(d);
         let answer = choice.as_ref().map_or(d.quick, |c| &c.answer);
         let Some(chosen) = d.candidates.iter().position(|c| c == answer) else { return choice };
         let k = d.candidates.len();

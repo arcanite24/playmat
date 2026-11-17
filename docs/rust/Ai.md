@@ -132,7 +132,25 @@ duplicate pairs).
   before along the same answers, PUCT picks the answer (`cpuct`, per thousand, default 300), the first new question
   is expanded with the network's policy, and the rest is the ordinary playout scored by `eval`. On round 4's network
   with the same rollouts and budget, against `netsearch`: cpuct 1250 **+3.3 [-3.3, +9.8]** over 1,381 pairs (not
-  worse, not clearly better), cpuct 2500 -26.8 [-38.6, -15.1], cpuct 600 **+22.6 [+11.0, +34.3]** (500 pairs), cpuct 300 **+31.7 [+19.4, +44.1]** (500 pairs, now the default): less exploration is better. The 1,381 pairs took 2.4 hours on 8 threads; its worst decision time isn't measured yet.
+  worse, not clearly better), cpuct 2500 -26.8 [-38.6, -15.1], cpuct 600 **+22.6 [+11.0, +34.3]** (500 pairs), cpuct 300 **+31.7 [+19.4, +44.1]** (500 pairs, now the default): less exploration is better. Those runs weren't at equal cost: `ismcts` ran
+  up to 256 playouts a decision (`iters`, the cap) where `netsearch` runs about 16, and was about 11 times slower. At
+  `iters=32` it is +8.5 [-2.0, +18.9] over `netsearch` (same rollouts, 555 pairs) and still 5 times slower.
+- **Faster self-play.** 300 games of round 4's network on multivac (10 jobs), games a second: `net` alone 52.8;
+  `netsearch` with the quick answers in its playouts 13.1, with #390's MLP (`rollout=builtin`) 5.5, with the
+  transformer itself 1.2. The transformer's forward pass inside the playouts was about 90% of the time. Two changes
+  make it 6.6 times faster (7.9 games a second, about 680,000 a day):
+  - the playouts use a small MLP trained on the same games (`rounds.py --rollout small`): 4.1 games a second, and
+    -6.9 [-15.3, +1.4] against the transformer's own playouts. The main network now runs only at the search's
+    decisions, so it can grow without slowing the playouts much;
+  - `selfplay --fast net`: the decisions that won't be recorded (half, at `--keep 500`) are answered by the network
+    alone, so the search is spent only on the ones that become training data (KataGo's playout cap randomization).
+- **Faster training.** `train.py` spent most of a step building the batch in NumPy on one thread (50 ms for 512
+  decisions against 29 ms on the GPU). The decisions now go into torch tensors once, on the GPU when they fit
+  (`--gpu-data-gb`, default 8), and a batch is gathered there (3.4 ms) and padded only to its longest row; attention
+  is PyTorch's fused kernel, AdamW is fused, and the losses are summed without a sync each step. Round 4's training
+  again (3 epochs on 1.24M decisions): 363 s before, 180 s now at batch 512 (+6.6 [-1.1, +14.3] as `net` against the
+  original), 69 s at batch 2048 with bf16 (`--bs 2048 --lr 1e-3`; -2.1 [-7.2, +2.9]). `prof_train.py` checks that
+  the new batches equal the old ones and times each part.
 - **Search-then-learn rounds.** `rl/rounds.py`: 20,000 games of `netsearch` with rollouts against itself, retrain
   from the current network on the last two rounds, keep the new one only if it wins an SPRT. Round 1 was kept
   (+11.0 [+2.2, +19.8]); rounds 2 to 4 were not (-3.3, -6.9, -1.4). The loop had stalled because the search
@@ -195,7 +213,7 @@ spent), or `None` for the quick answer; an answer the question doesn't accept fa
 | `net` | `selfplay::NetPolicy` | the trained network's policy, no search (self-play, above) |
 | `netsearch` | `selfplay::NetSearch` | the network's policy moved by playouts on belief-weighted samples of what the seat can't see, scored by its value; never sees hidden cards (the default config turns on `hide`, 4 samples, `eval` 3) |
 | `gumbel` | `selfplay::Gumbel` | like `netsearch`, but the candidates are picked by Gumbel-top-k (`consider`, default 4) and narrowed by sequential halving |
-| `ismcts` | `tree::Ismcts` | like `netsearch`, but the samples share one tree over both seats' answers, searched by PUCT on the network's policy (`cpuct`, default 300) |
+| `ismcts` | `tree::Ismcts` | like `netsearch`, but the samples share one tree over both seats' answers, searched by PUCT on the network's policy (`cpuct`, default 300; at most `iters` playouts, default 256) |
 
 With `net`, `netsearch`, `gumbel` and `ismcts`, `cfg:...+rollout=PATH` (or `builtin`) has a network answer the questions
 inside the playouts instead of the quick answers.

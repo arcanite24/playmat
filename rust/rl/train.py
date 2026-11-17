@@ -112,12 +112,19 @@ def main():
     ap.add_argument("--tx", default="{}", help="the transformer sizes: JSON, or d=192,layers=4,text=1")
     ap.add_argument("--value-weight", type=float, default=0.5)
     ap.add_argument("--belief-weight", type=float, default=0.2)
+    ap.add_argument("--amp", type=int, default=-1,
+                    help="1: bf16 autocast on the GPU; -1 (default): only at batch 1024 and up, where it is faster")
+    ap.add_argument("--gpu-data-gb", type=float, default=8.0,
+                    help="keep the decisions on the GPU when they fit in this many GB (else in CPU memory)")
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
     dev = device()
     t0 = time.time()
     data = Data(args.data)
     print(f"TRAIN {len(data)} decisions from {len(data.infos)} games, {time.time() - t0:.0f} s to read", flush=True)
+    where, size = data.place(dev, args.gpu_data_gb)
+    print(f"TRAIN data {size:.1f} GB on {where}", flush=True)
+    amp = (args.amp == 1 or (args.amp == -1 and args.bs >= 1024)) and dev.type == "cuda"
     held = (data.game % 10) == 0
     train_idx, test_idx = np.nonzero(~held)[0], np.nonzero(held)[0]
     critic = Critic().to(dev)
@@ -138,7 +145,8 @@ def main():
             weight[ids] = 0
         weight.register_hook(lambda g: g.index_fill(0, ids, 0))
         print(f"TRAIN holding out {len(ids)} card buckets", flush=True)
-    opt = torch.optim.AdamW(list(net.parameters()) + list(critic.parameters()), lr=args.lr, weight_decay=1e-4)
+    opt = torch.optim.AdamW(list(net.parameters()) + list(critic.parameters()), lr=args.lr, weight_decay=1e-4,
+                            fused=dev.type == "cuda")
     steps = args.epochs * math.ceil(len(train_idx) / args.bs)
     sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=args.lr, total_steps=steps, pct_start=0.1)
     rng = np.random.default_rng(0)
@@ -150,7 +158,7 @@ def main():
     value_on, best_value = True, float("inf")
     for ep in range(args.epochs):
         perm = rng.permutation(train_idx)
-        tl = np.zeros(4)
+        tl = torch.zeros(4, device=dev)
         # the next batch is gathered on a thread while the GPU works on this one
         pool = ThreadPoolExecutor(1)
         starts = list(range(0, len(perm), args.bs))
@@ -159,14 +167,16 @@ def main():
             b = ahead.result()
             if n_i + 1 < len(starts):
                 ahead = pool.submit(data.batch, perm[starts[n_i + 1] : starts[n_i + 1] + args.bs], dev)
-            pol, val, bel, crit = losses(net, critic, b)[:4]
-            loss = pol + (args.value_weight if value_on else 0.0) * val + args.belief_weight * bel + 0.5 * crit
+            with torch.autocast("cuda", dtype=torch.bfloat16, enabled=amp):
+                pol, val, bel, crit = losses(net, critic, b)[:4]
+                loss = pol + (args.value_weight if value_on else 0.0) * val + args.belief_weight * bel + 0.5 * crit
             opt.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(net.parameters(), 1.0)
             opt.step()
             sched.step()
-            tl += [pol.item(), val.item(), bel.item(), crit.item()]
+            # summed on the GPU: no sync each step
+            tl += torch.stack([pol.detach(), val.detach(), bel.detach(), crit.detach()]).float()
         nb = math.ceil(len(perm) / args.bs)
         ev = evaluate(net, critic, data, test_idx, dev)
         ev["epoch"] = ep + 1

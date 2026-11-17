@@ -1,12 +1,14 @@
 //! Plays and records games for training the network (#390 Track B; `rust/rl` reads what it writes).
 //!
 //! cargo run --release -p playmat-ai --bin selfplay -- --out DIR [--learner ENTRANT] [--opponents "self*7;host@s2*1"]
-//!     [--games 2000] [--jobs 10] [--keep 1000] [--seed 0] [--tag 0] [--suite archbench/constructed-2]
+//!     [--games 2000] [--jobs 10] [--keep 1000] [--fast net] [--seed 0] [--tag 0] [--suite archbench/constructed-2]
 //!
 //! Each game, one seat is the learner and the other an opponent drawn from `--opponents` (`name*weight` joined by
 //! `;`; `self` is the learner again, and then both seats are recorded). Deck pairs go round the suite's ordered
 //! pairs, the seats and who plays first alternate, and mulligans follow the suite. `--keep` is the chance per
-//! thousand that a decision is recorded. One shard of files per job goes in `--out` (`selfplay::Shard`).
+//! thousand that a decision is recorded; with `--fast KIND` (`net`, `quick`, any policy), the others are answered by
+//! that policy instead of the learner's, so the search is spent only on recorded decisions. One shard of files per
+//! job goes in `--out` (`selfplay::Shard`).
 //!
 //! Learners: any Archbench entrant (`host@s6` records the search AI, for imitation), or the network:
 //! `cfg:policy=net+net=PATH+temp=1000` samples its policy, `cfg:policy=netsearch+hide=1+samples=4+net=PATH` searches.
@@ -51,6 +53,8 @@ fn main() {
     let games: usize = opt("--games").and_then(|v| v.parse().ok()).unwrap_or(2000);
     let jobs: usize = opt("--jobs").and_then(|v| v.parse().ok()).unwrap_or(10);
     let keep: u32 = opt("--keep").and_then(|v| v.parse().ok()).unwrap_or(1000);
+    let fast: Option<playmat_ai::decision::PolicyKind> =
+        opt("--fast").map(|v| v.parse().unwrap_or_else(|e| panic!("--fast {v}: {e}")));
     let seed: usize = opt("--seed").and_then(|v| v.parse().ok()).unwrap_or(0);
     let tag: i32 = opt("--tag").and_then(|v| v.parse().ok()).unwrap_or(0);
     let out = opt("--out").expect("--out DIR");
@@ -117,7 +121,8 @@ fn main() {
                                     Arc::clone(&sink),
                                     keep,
                                     (deal as u64) << 1 | seat as u64,
-                                );
+                                )
+                                .with_fast(fast, seat);
                                 table.set_policy(seat, Box::new(rec));
                             }
                         }
