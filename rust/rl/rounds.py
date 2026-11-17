@@ -5,6 +5,10 @@ policy and the games' results, and the new network replaces the old one only whe
 
 Each round `r` writes `data/<out name>-r<r>` (the games) and `<out>/r<r>` (the network, the trainer's report and
 the SPRT's log). `<out>/rounds.jsonl` gets one line per round. The data window is the last `--window` rounds.
+
+Faster rounds: `--fast net` answers the decisions that won't be recorded with the network alone, so the search is
+spent only on the recorded ones; `--rollout small --rollout-init runs/bc` plays the playouts with a small MLP trained
+each round on the same games (`<out>/r<r>/rollout`), so the main network can grow without slowing the playouts.
 """
 
 import argparse
@@ -33,11 +37,15 @@ def run(cmd, log):
     return open(log).read()
 
 
-def entrant(policy, net, args):
+def entrant(policy, net, args, roll=None):
     keys = [f"policy={policy}", "hide=1", f"samples={args.samples}", f"eval={args.eval}", f"net={net}"]
-    if args.rollout:
+    if args.rollout == "small":
+        # the round's small network plays the playouts
+        keys.append(f"rollout={os.path.join(roll, 'net.pmnet')}")
+    elif args.rollout:
         # `self`: the entrant's own network plays the playouts too, so a better network also makes better playouts
         keys.append(f"rollout={net if args.rollout == 'self' else args.rollout}")
+    keys += [kv for kv in args.cfg.split("+") if kv]
     return "cfg:" + "+".join(keys)
 
 
@@ -52,7 +60,11 @@ def main():
     ap.add_argument("--jobs", type=int, default=12)
     ap.add_argument("--policy", default="gumbel", help="the search that plays: gumbel or netsearch")
     ap.add_argument("--samples", type=int, default=4)
-    ap.add_argument("--rollout", default=None, help="a network for inside the playouts (self, builtin, or a .pmnet)")
+    ap.add_argument("--rollout", default=None,
+                    help="a network for inside the playouts: self, small (an MLP trained each round), builtin, or a .pmnet")
+    ap.add_argument("--rollout-init", default=None, help="with --rollout small: the first small network's run folder")
+    ap.add_argument("--fast", default=None, help="the policy for decisions that won't be recorded (net), or none")
+    ap.add_argument("--cfg", default="", help="more config keys for the learner, k=v joined by + (cpuct=300+iters=32)")
     ap.add_argument("--eval", type=int, default=2,
                     help="the search's score: 2 the fitted score, 3 the network's value (lost to 2 in every test so far)")
     ap.add_argument("--temp", type=int, default=1000, help="the search's temperature while recording, per thousand")
@@ -65,13 +77,17 @@ def main():
                     help="the SPRT's elo0,elo1 for keeping a round's network (-5,5: keep it unless it got worse)")
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
+    if args.rollout == "small" and not args.rollout_init:
+        sys.exit("--rollout small needs --rollout-init")
     cur = os.path.abspath(args.init)
+    roll = os.path.abspath(args.rollout_init) if args.rollout_init else None
     book = os.path.join(args.out, "rounds.jsonl")
     if args.start > 1 and os.path.exists(book):
         for line in open(book):
             r = json.loads(line)
             if r["round"] < args.start and r["accepted"]:
                 cur = r["net_dir"]
+                roll = r.get("rollout_dir") or roll
     tag = os.path.basename(os.path.normpath(args.out))
     for r in range(args.start, args.start + args.rounds):
         t0 = time.time()
@@ -79,10 +95,11 @@ def main():
         os.makedirs(rd, exist_ok=True)
         data = os.path.join(HERE, "data", f"{tag}-r{r}")
         net = os.path.join(cur, "net.pmnet")
-        learner = entrant(args.policy, net, args) + f"+temp={args.temp}"
+        learner = entrant(args.policy, net, args, roll) + f"+temp={args.temp}"
+        fast = ["--fast", args.fast] if args.fast and args.fast != "none" else []
         run([exe("selfplay"), "--out", data, "--games", str(args.games), "--jobs", str(args.jobs), "--keep",
-             str(args.keep), "--learner", learner, "--opponents", "self", "--seed", str(1000 * r), "--tag", str(r)],
-            os.path.join(rd, "selfplay.log"))
+             str(args.keep), "--learner", learner, "--opponents", "self", "--seed", str(1000 * r), "--tag", str(r)]
+            + fast, os.path.join(rd, "selfplay.log"))
         t1 = time.time()
         window = [os.path.join(HERE, "data", f"{tag}-r{k}") for k in range(max(1, r - args.window + 1), r + 1)]
         cmd = [sys.executable, "train.py", "--init", cur, "--out", rd, "--epochs", str(args.epochs), "--lr", str(args.lr)]
@@ -90,20 +107,31 @@ def main():
             if os.path.isdir(w):
                 cmd += ["--data", w]
         run(cmd, os.path.join(rd, "train.log"))
+        new_roll = None
+        if args.rollout == "small":
+            new_roll = os.path.join(rd, "rollout")
+            cmd = [sys.executable, "train.py", "--init", roll, "--out", new_roll, "--epochs", str(args.epochs), "--lr",
+                   str(args.lr)]
+            for w in window:
+                if os.path.isdir(w):
+                    cmd += ["--data", w]
+            run(cmd, os.path.join(rd, "train-rollout.log"))
         t2 = time.time()
-        a = entrant(args.policy, os.path.join(rd, "net.pmnet"), args)
-        b = entrant(args.policy, net, args)
+        a = entrant(args.policy, os.path.join(rd, "net.pmnet"), args, new_roll)
+        b = entrant(args.policy, net, args, roll)
         out = run([exe("archbench"), "--entrants", f"{a},{b}", "--sprt", args.gate, "--max-deals", str(args.max_deals),
                    "--jobs", str(args.sprt_jobs)], os.path.join(rd, "sprt.log"))
         accepted = "H1 accepted" in out
         elo = re.findall(r"Elo[^\n]*", out)
-        line = {"round": r, "net_dir": rd, "from": cur, "accepted": accepted, "verdict": elo[-1] if elo else None,
+        line = {"round": r, "net_dir": rd, "from": cur, "rollout_dir": new_roll, "accepted": accepted,
+                "verdict": elo[-1] if elo else None,
                 "selfplay_s": round(t1 - t0), "train_s": round(t2 - t1), "sprt_s": round(time.time() - t2)}
         with open(book, "a") as f:
             f.write(json.dumps(line) + "\n")
         print("ROUNDS", json.dumps(line), flush=True)
         if accepted:
             cur = rd
+            roll = new_roll or roll
 
 
 if __name__ == "__main__":

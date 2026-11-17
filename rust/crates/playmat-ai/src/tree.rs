@@ -17,8 +17,6 @@ use std::sync::Arc;
 
 /// candidates a tree node keeps, as the playouts' network does
 const WIDTH: usize = 12;
-/// at most this many iterations, whatever the budget
-const MAX_ITERS: usize = 256;
 
 pub struct Kid {
     pub answer: Answer,
@@ -179,7 +177,7 @@ impl DecisionPolicy for Ismcts {
         let mut tree = Tree { nodes: vec![Node { seat: d.seat, kids, n: 0 }] };
         let cpuct = cfg.cpuct as f32 / 1000.0;
         let mut nodes = 0u64;
-        for it in 0..MAX_ITERS {
+        for it in 0..cfg.iters.max(1) as usize {
             if nodes >= cfg.budget {
                 break;
             }

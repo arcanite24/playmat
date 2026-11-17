@@ -55,6 +55,8 @@ pub struct Config {
     pub consider: usize,
     /// `ismcts`: PUCT's exploration constant, per thousand
     pub cpuct: u32,
+    /// `ismcts`: at most this many iterations (playouts) a decision, whatever the budget
+    pub iters: u32,
 }
 
 impl Default for Config {
@@ -90,6 +92,7 @@ impl Default for Config {
             rollout: None,
             consider: 4,
             cpuct: 300,
+            iters: 256,
         }
     }
 }
