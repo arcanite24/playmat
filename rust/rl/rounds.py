@@ -131,7 +131,7 @@ def main():
         out = run([exe("archbench"), "--entrants", f"{a},{b}", "--sprt", args.gate, "--max-deals", str(args.max_deals),
                    "--jobs", str(args.sprt_jobs)], os.path.join(rd, "sprt.log"))
         accepted = "H1 accepted" in out
-        elo = re.findall(r"Elo[^\n]*", out)
+        elo = re.findall(r"SPRT result[^\n]*", out)
         line = {"round": r, "net_dir": rd, "from": cur, "rollout_dir": new_roll, "accepted": accepted,
                 "verdict": elo[-1] if elo else None,
                 "selfplay_s": round(t1 - t0), "train_s": round(t2 - t1), "sprt_s": round(time.time() - t2)}
