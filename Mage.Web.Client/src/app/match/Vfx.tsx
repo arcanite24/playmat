@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { CardView, CombatGroupView, GameView, PermanentView } from '../../protocol/generated/views';
 import { useSettings } from '../stores/settings';
 import { resolvedCasts } from './cardVfx';
-import { holdFlight, lastPlacement, motionAllowed } from './flip';
+import { holdFlight, landingIn, lastPlacement, motionAllowed } from './flip';
+import { BOLT_MS, noteBeats, signatureImpact } from './beats';
 import { cardKey } from './boardModel';
 import { SignatureVfx } from './SignatureVfx';
 import { lifetimeOf, type Point, type SignatureEffect } from './signatureShapes';
@@ -253,6 +254,16 @@ export function Vfx({ view, myPlayerId, sparks }: {
       if (cast.signature.big) quake = Math.max(quake, 6);
     }
     const plainSpells = cardEffects !== 'off';
+    // when a resolving spell's effect reaches each card or player it hit: its number and shake wait for it
+    const spellHitAt = new Map<string, number>();
+    for (const cast of casts) {
+      const impact = signatureImpact(cast.signature.fx);
+      const reached = new Set(cast.targets);
+      for (const event of view.events ?? []) {
+        if (event.kind === 'DAMAGE' && event.targetId && (event.sourceId === cast.id || event.sourceId === before.stackCards.get(cast.id)?.cardId)) reached.add(event.targetId);
+      }
+      for (const id of reached) spellHitAt.set(id, Math.max(spellHitAt.get(id) ?? 0, impact));
+    }
 
     // --- combat: strike by strike ------------------------------------------------------------------------------
     const combatNow = combatSide(now.combat);
@@ -367,11 +378,23 @@ export function Vfx({ view, myPlayerId, sparks }: {
 
     if (view.events) {
       const visuals = eventVisuals(view.events);
+      // a bolt flies first: what it hits takes the number and the shake when it arrives
+      for (const bolt of visuals.bolts) {
+        if (!plainSpells || signed.has(bolt.from) || [...signed].some((id) => before.stackCards.get(id)?.cardId === bolt.from)) continue;
+        const from = pointOf(bolt.from);
+        const to = pointOf(bolt.to);
+        if (!from || !to) continue;
+        add({ kind: 'bolt', ...from, to });
+        spellHitAt.set(bolt.to, Math.max(spellHitAt.get(bolt.to) ?? 0, BOLT_MS));
+      }
       for (const [id, amount] of visuals.noncombat) {
         const at = pointOf(id);
-        if (at) add({ kind: 'damage', ...at, value: amount });
-        shake(elementOf(id), now.life.has(id) ? 10 : 8);
-        if (id === myPlayerId) flush = true;
+        const moment = spellHitAt.get(id) ?? 0;
+        if (at) addAt(moment, { kind: 'damage', ...at, value: amount });
+        shake(elementOf(id), now.life.has(id) ? 10 : 8, moment);
+        if (id === myPlayerId) flushAt(moment);
+        // a creature killed by it dissolves as it lands
+        if (moment > 0) hitAt.set(id, Math.max(hitAt.get(id) ?? 0, moment));
       }
       for (const [id, amount] of visuals.drained) {
         const at = pointOf(id);
@@ -382,12 +405,6 @@ export function Vfx({ view, myPlayerId, sparks }: {
         const at = pointOf(id);
         // lifelink: the number lands with the motes
         if (at) addAt(healDelay.get(id) ?? 0, { kind: 'heal', ...at, value: amount });
-      }
-      for (const bolt of visuals.bolts) {
-        if (!plainSpells || signed.has(bolt.from) || [...signed].some((id) => before.stackCards.get(id)?.cardId === bolt.from)) continue;
-        const from = pointOf(bolt.from);
-        const to = pointOf(bolt.to);
-        if (from && to) add({ kind: 'bolt', ...from, to });
       }
       if (fancy) {
         // counters popping onto cards: +1/+1 in sage, −1/−1 in oxblood, loyalty punched in brass
@@ -445,13 +462,21 @@ export function Vfx({ view, myPlayerId, sparks }: {
       }
     }
 
-    // cards landing on the battlefield: measured once their flight from the hand or stack has settled
+    // cards landing on the battlefield: the ring goes out as each one's flight from the hand or stack puts it down
+    // (flip.ts has started the flights by now), measured there
     const landed = [...now.permanents.keys()].filter((id) => !before.permanents.has(id));
-    if (landed.length > 0) {
-      after(650, () => {
+    const landingOf = new Map<number, string[]>();
+    let landAt = 0;
+    for (const id of landed) {
+      const ms = Math.round(landingIn(cardKey(now.permanents.get(id)!)));
+      landAt = Math.max(landAt, ms);
+      landingOf.set(ms, [...(landingOf.get(ms) ?? []), id]);
+    }
+    for (const [ms, group] of landingOf) {
+      after(ms, () => {
         const rings: Effect[] = [];
         let heavy = false;
-        for (const id of landed) {
+        for (const id of group) {
           const at = center(id);
           const element = elementOf(id);
           const box = element?.getBoundingClientRect();
@@ -493,6 +518,10 @@ export function Vfx({ view, myPlayerId, sparks }: {
       else if (fancy && damagedNow.has(id)) addAt(moment, { kind: 'shatter', ...spot });
       else if ((permanent.cardTypes ?? []).includes('CREATURE')) addAt(moment, { kind: 'death', ...spot });
     }
+
+    // the sounds of this view wait for its first hit and its landings (beats.ts)
+    const hits = [...hitAt.values()].filter((ms) => ms > 0);
+    noteBeats(view, { impact: hits.length > 0 ? Math.min(...hits) : 0, land: landAt });
 
     // spells and abilities resolving
     const departed = [...before.stack].filter((id) => !now.stack.has(id) && !signed.has(id));

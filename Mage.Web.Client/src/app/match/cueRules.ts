@@ -23,6 +23,8 @@ export interface CueSnapshot {
   triggers?: readonly string[];
   hand: number;
   life: Map<string, number>;
+  /** the view's events deal damage (a creature hit, not only a player losing life) */
+  damaged?: boolean;
   /** lands on your battlefield */
   myLands: number;
   attackers: number;
@@ -44,6 +46,7 @@ export function cueSnapshot(state: GameSessionState, myId: string | null): CueSn
     triggers: [...stackTriggers(view).keys()],
     hand: Object.keys(view?.myHand ?? {}).length,
     life: new Map((view?.players ?? []).map((player) => [player.playerId ?? '', player.life ?? 0])),
+    damaged: (view?.events ?? []).some((event) => event.kind === 'DAMAGE' && (event.amount ?? 0) > 0),
     myLands: Object.values(me?.battlefield ?? {}).filter((card) => (card.cardTypes ?? []).includes('LAND')).length,
     attackers: (view?.combat ?? []).reduce((sum, group) => sum + Object.keys(group.attackers ?? {}).length, 0),
     blockers: (view?.combat ?? []).reduce((sum, group) => sum + Object.keys(group.blockers ?? {}).length, 0),
@@ -72,7 +75,7 @@ export function pickCue(before: CueSnapshot | null, now: CueSnapshot, myId: stri
     return triggered ? 'trigger' : 'cast';
   }
   const lost = [...now.life].some(([id, life]) => life < (before.life.get(id) ?? life));
-  if (lost) return 'damage';
+  if (lost || now.damaged) return 'damage';
   const gained = [...now.life].some(([id, life]) => life > (before.life.get(id) ?? life));
   if (gained) return 'lifeGain';
   if (now.stack < before.stack) return 'resolve';

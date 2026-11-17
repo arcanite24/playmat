@@ -207,22 +207,24 @@ function render(b: Bus, out: AudioNode, cue: Cue, t: number) {
   }
 }
 
-/** Plays a cue if the player's sound settings allow it. */
-export function playCue(cue: Cue) {
+/** Plays a cue if the player's sound settings allow it, `delayMs` from now (on the beat of what it belongs to). */
+export function playCue(cue: Cue, delayMs = 0) {
   const settings = useSettings.getState().settings;
   const played = cueToPlay(cue, settings);
   if (!played) return;
-  previewCue(played, settings.volume);
+  previewCue(played, settings.volume, delayMs);
 }
 
 /** Plays a cue regardless of the on/off settings (the volume preview in Settings). */
-export function previewCue(cue: Cue, volume = useSettings.getState().settings.volume) {
+export function previewCue(cue: Cue, volume = useSettings.getState().settings.volume, delayMs = 0) {
   const b = audio();
   if (!b || volume <= 0) return;
   const out = b.ctx.createGain();
   // a curve that feels even across the slider
   out.gain.value = volume * volume * 0.9;
   out.connect(b.input);
-  render(b, out, cue, b.ctx.currentTime + 0.01);
-  setTimeout(() => out.disconnect(), 2500);
+  // scheduled on the audio clock, which keeps time better than a timer
+  const delay = Math.max(0, delayMs) / 1000;
+  render(b, out, cue, b.ctx.currentTime + 0.01 + delay);
+  setTimeout(() => out.disconnect(), 2500 + delay * 1000);
 }
