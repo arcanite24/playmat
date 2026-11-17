@@ -9,7 +9,7 @@ import { lifetimeOf, type Point, type SignatureEffect } from './signatureShapes'
 import { eventVisuals } from './vfxEvents';
 import { fighterOf } from '../../core/game/combatPreview';
 import { combatSide, hitWeight, stableDefender, strikesFromCombat, strikesFromEvents, WEIGHT_RANK, type HitWeight, type Strike } from '../../core/game/combatStrikes';
-import { lean, recoil, shake, swing, TABLE_SHAKE, thump } from './combatMotion';
+import { recoil, shake, swing, TABLE_SHAKE, thump } from './combatMotion';
 import { matchLayout } from './matchLayout';
 import { TriggerSignals } from './TriggerSignals';
 import { useObjectCenter, useStage } from './stageContext';
@@ -512,24 +512,12 @@ export function Vfx({ view, myPlayerId, sparks }: {
       }
     }
 
-    // new attackers charge (with fancy combat, they lean toward whom they attack); new blockers step toward theirs
+    // new attackers charge. No lean toward the target here: declaring isn't striking, and a lunge on declaring read
+    // as an attack on its own; the swing comes with the damage.
     for (const id of now.attackers) {
       if (before.attackers.has(id)) continue;
       const at = center(id);
-      if (!at) continue;
-      add({ kind: 'charge', ...at });
-      const defender = combatNow.defenders.get(id);
-      const to = fancy && defender ? center(defender) : null;
-      if (to) lean(elementOf(id), at, to, 0.08);
-    }
-    if (fancy) {
-      for (const id of now.blockers) {
-        if (before.blockers.has(id)) continue;
-        const attacker = combatNow.blocking.get(id)?.[0];
-        const at = center(id);
-        const to = attacker ? center(attacker) : null;
-        if (at && to) lean(elementOf(id), at, to, 0.22);
-      }
+      if (at) add({ kind: 'charge', ...at });
     }
 
     if (fancy) {
