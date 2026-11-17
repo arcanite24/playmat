@@ -106,7 +106,7 @@ def main():
         learner = entrant(args.policy, net, args, roll) + f"+temp={args.temp}"
         fast = ["--fast", args.fast] if args.fast and args.fast != "none" else []
         run([exe("selfplay"), "--out", data, "--games", str(args.games), "--jobs", str(args.jobs), "--keep",
-             str(args.keep), "--learner", learner, "--opponents", "self", "--seed", str(1000 * r), "--tag", str(r)]
+             str(args.keep), "--learner", learner, "--opponents", "self", "--seed", str(1_000_000 * r), "--tag", str(r)]
             + fast, os.path.join(rd, "selfplay.log"))
         t1 = time.time()
         window = [os.path.join(HERE, "data", f"{tag}-r{k}") for k in range(max(1, r - args.window + 1), r + 1)]
