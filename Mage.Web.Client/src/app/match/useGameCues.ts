@@ -5,6 +5,8 @@ import { notify } from '../stores/toasts';
 import { ignoreMatchKey, matchKeysBlocked } from './keyboard';
 import { cueSnapshot, pickCue, type CueSnapshot } from './cueRules';
 import { playCue } from './sound';
+import { beatsOf } from './beats';
+import type { Cue } from './cueRules';
 
 /**
  * Plays a cue when something worth hearing happens: your turn, a decision, spells, combat, damage and healing,
@@ -16,7 +18,7 @@ export function useGameCues(state: GameSessionState, myId: string | null, autoPa
     const now = cueSnapshot(state, myId);
     const cue = pickCue(previous.current, now, myId, autoPassing);
     previous.current = now;
-    if (cue) playCue(cue);
+    if (cue) playCue(cue, cueDelay(cue, state));
   }, [state, myId, autoPassing]);
 
   useEffect(() => {
@@ -30,4 +32,24 @@ export function useGameCues(state: GameSessionState, myId: string | null, autoPa
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, []);
+}
+
+/**
+ * When a cue plays: on the beat of what it belongs to in the effects drawn for the same view (beats.ts). Vfx sits
+ * below the match stage, so its effect has noted the view's beats before this hook's effect runs. A hit sounds when
+ * it lands, a card put down when its flight ends.
+ */
+function cueDelay(cue: Cue, state: GameSessionState): number {
+  const beats = beatsOf(state.view);
+  switch (cue) {
+    case 'damage':
+      return beats.impact;
+    case 'land':
+      return beats.land;
+    case 'resolve':
+      // a permanent spell resolves as it lands on the battlefield
+      return beats.land || beats.impact;
+    default:
+      return 0;
+  }
 }

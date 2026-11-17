@@ -22,6 +22,17 @@ const origins = new Map<string, Placement>();
 const flights = new Map<string, Animation>();
 let motionEnabled = true;
 
+/**
+ * How long until a card's flight puts it down, in ms (0 when it isn't flying): the flight's ease-out sets the card
+ * down at about half its length, the rest is settling. A landing ring and its thud keep to this.
+ */
+export function landingIn(cardId: string): number {
+  const flight = flights.get(cardId);
+  const duration = Number(flight?.effect?.getTiming().duration ?? 0);
+  if (!flight || !duration) return 0;
+  return Math.max(0, duration * 0.5 - Number(flight.currentTime ?? 0));
+}
+
 export function setCardMotion(enabled: boolean) {
   motionEnabled = enabled;
 }
