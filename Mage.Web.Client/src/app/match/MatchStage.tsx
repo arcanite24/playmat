@@ -7,6 +7,7 @@ import type { Command } from '../../core/game/interaction';
 import { commanderDamageTo, commandersByPlayer, type CommanderStatus } from '../../core/game/commander';
 import { askedAttacker, defenderChoice, inRange } from '../../core/game/multiplayer';
 import { playerDungeon } from '../../core/game/dungeon';
+import { keepDefenders } from '../../core/game/combatStrikes';
 import { parsePayment } from '../../core/game/payment';
 import { xLimit } from '../../core/game/announceX';
 import { sortHand } from '../../core/game/handOrder';
@@ -120,6 +121,22 @@ const NO_COMMANDERS: readonly CommanderStatus[] = [];
 const HAND_SEAT_GAP = 24;
 /** wide: the quick-emote button beside your seat (48 and its gap); the hand keeps clear of it too */
 const EMOTE_BUTTON_ROOM = 58;
+
+/**
+ * The view's combat groups, with attackers still aimed at the planeswalker or battle they attacked once it has left
+ * the battlefield (the Rust host names its player then; see keepDefenders).
+ */
+function useKeptDefenders(view: GameView | null | undefined): GameView['combat'] {
+  const [kept, setKept] = useState<{ view: GameView | null | undefined; combat: GameView['combat'] }>({ view, combat: view?.combat });
+  if (kept.view !== view) {
+    const players = new Set((view?.players ?? []).map((player) => player.playerId!));
+    const present = new Set((view?.players ?? []).flatMap((player) => Object.keys(player.battlefield ?? {})));
+    const combat = keepDefenders(view?.combat, kept.combat, players, present);
+    setKept({ view, combat });
+    return combat;
+  }
+  return kept.combat;
+}
 
 /** Attacking and blocking permanents, from the combat groups. */
 function combatSets(combat: GameView['combat']) {
@@ -238,7 +255,8 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
     () => new Set(damageSplit ? damageSplit.assignment.recipients.map((recipient) => recipient.id) : interaction.clickable.keys()),
     [interaction.clickable, damageSplit],
   );
-  const combat = view?.combat;
+  // an attacker keeps pointing at the planeswalker or battle it attacked after that left the battlefield (#413)
+  const combat = useKeptDefenders(view);
   const combatNow = useMemo(() => combatSets(combat), [combat]);
   const { blocking, links, attacks } = combatNow;
   const leads = useMemo(() => stackLeads([board.me, ...board.opponents]), [board.me, board.opponents]);

@@ -205,6 +205,18 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
               <option value="off">{t('settings.cardEffects.off')}</option>
             </select>
           </Row>
+          <Row label={t('settings.combatFx')} detail={t('settings.combatFx.detail')}>
+            <select
+              className={styles.select}
+              value={settings.combatFx}
+              disabled={!settings.animations}
+              aria-label={t('settings.combatFx')}
+              onChange={(event) => update({ combatFx: event.target.value as PlaySettings['combatFx'] })}
+            >
+              <option value="fancy">{t('settings.combatFx.fancy')}</option>
+              <option value="simple">{t('settings.combatFx.simple')}</option>
+            </select>
+          </Row>
           <Row label={t('settings.sortHand')} detail={t('settings.sortHand.detail')}>{toggle('sortHand')}</Row>
           <Row label={t('settings.bigZoom')} detail={t('settings.bigZoom.detail')}>{toggle('bigZoom')}</Row>
           <Row label={t('settings.matchSize')} detail={t('settings.matchSize.detail')}>

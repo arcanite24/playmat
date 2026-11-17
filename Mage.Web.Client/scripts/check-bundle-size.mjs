@@ -129,10 +129,12 @@ import { gzipSync } from 'node:zlib';
 // both on master together 2026-11-12: deck management and notifications and presence, measured initial 213.3 kB, app 834.2 kB
 // app raised 2026-11-15 from 837 kB for the event join retry (#401): master already measured at the 837 kB edge, and
 // joinWithRetry in the events store tipped it to 837.5 kB
+// app raised 2026-11-17 from 840 kB for combat animations (#413): the strike planner, the swing and recoil motion and
+// the new Vfx effects with their styles, all in the lazy match chunk. Measured app 845.5 kB
 const BUDGET_KB = {
   entry: 86,
   initial: 221,
-  app: 840,
+  app: 848,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;

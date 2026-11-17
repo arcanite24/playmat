@@ -21,6 +21,8 @@ describe('eventVisuals', () => {
       event({ kind: 'LIFE_LOSS', targetId: 'p1', playerId: 'p1', amount: 2 }),
     ]);
     expect(visuals.damage.get('p1')).toBe(2);
+    // combat damage gets its number per strike, from the strikes
+    expect(visuals.noncombat.size).toBe(0);
     expect(visuals.drained.size).toBe(0);
     expect(visuals.bolts).toEqual([]);
   });

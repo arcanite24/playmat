@@ -149,6 +149,8 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, attacking, 
   const keywords = useMemo(() => keywordMarks(permanent), [permanent]);
   const effects = useMemo(() => keywordEffects(keywords), [keywords]);
   const motion = useSettings((state) => state.settings.animations);
+  // fancy combat effects (#413): taps snap with a small overshoot, attackers lift off the mat
+  const fancy = useSettings((state) => state.settings.combatFx) !== 'simple' && motion;
   useFlip(cardKey(permanent), ref, { rotation: tapped ? 90 : 0 });
   const stage = useStage();
   const setBlockDrag = useMatchUi((state) => state.setBlockDrag);
@@ -219,6 +221,8 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, attacking, 
         isClickable && targeting && !isSelected ? styles.target : '',
         isSelected ? styles.selected : '',
         isAttacking ? styles.attacking : '',
+        fancy ? styles.snappy : '',
+        fancy && isAttacking ? styles.lifted : '',
         pending === id ? styles.pending : '',
         isSource ? styles.source : '',
       ].join(' ')}

@@ -18,6 +18,8 @@ interface Placement {
 
 const placements = new Map<string, Placement>();
 const origins = new Map<string, Placement>();
+/** flights under way, by card: a combat hit can hold one at its start (holdFlight) */
+const flights = new Map<string, Animation>();
 let motionEnabled = true;
 
 export function setCardMotion(enabled: boolean) {
@@ -64,6 +66,30 @@ export function useFlipOrigin(key: string, ref: RefObject<HTMLElement | null>) {
     const placement = measure(element, stage.element, stage.scale, 0);
     if (placement) origins.set(key, { ...placement, at: Number.POSITIVE_INFINITY });
   });
+}
+
+/**
+ * Keep a card that just left where it was until `release` is called: a creature killed in combat stays in its place
+ * until its swing and the hit that killed it have landed (#413), then flies on. Returns the flying element (it can
+ * swing and recoil, with additive animations, on top of the held flight), or null when the card isn't flying.
+ */
+export function holdFlight(cardId: string): { element: Element; release: (ms: number) => void } | null {
+  const flight = flights.get(cardId);
+  const element = (flight?.effect as KeyframeEffect | null)?.target ?? null;
+  if (!flight || !element || flight.playState === 'finished') return null;
+  flight.pause();
+  flight.currentTime = 0;
+  let released = false;
+  const release = (ms: number) => {
+    if (released) return;
+    released = true;
+    setTimeout(() => {
+      if (flight.playState === 'paused') flight.play();
+    }, Math.max(0, ms));
+  };
+  // never held for good, whatever happens to the effect that held it
+  setTimeout(() => release(0), 4000);
+  return { element, release };
 }
 
 /**
@@ -126,7 +152,13 @@ export function useFlip(cardId: string | undefined, ref: RefObject<HTMLElement |
       ],
       { duration: Math.min(560, 260 + Math.hypot(dx, dy) * 0.25), easing: 'cubic-bezier(0.16, 1, 0.3, 1)' },
     );
+    flights.set(cardId, flight);
+    const done = () => {
+      if (flights.get(cardId) === flight) flights.delete(cardId);
+    };
+    flight.oncancel = done;
     flight.onfinish = () => {
+      done();
       const landed = measure(element, stage.element, stage.scale, rotation);
       if (landed) placements.set(cardId, landed);
     };
