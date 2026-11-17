@@ -96,6 +96,8 @@ const router = createBrowserRouter([
   { path: '/admin', lazy: () => import('./admin/AdminScreen').then((m) => ({ Component: m.AdminScreen })) },
   // dev builds only: every signature effect on a mock table (#226)
   ...(import.meta.env.DEV ? [{ path: '/dev/vfx', lazy: () => import('./dev/VfxGallery').then((m) => ({ Component: m.VfxGallery })) }] : []),
+  // dev builds only: combat and board effects on a scripted match (#413)
+  ...(import.meta.env.DEV ? [{ path: '/dev/combat', lazy: () => import('./dev/CombatScene').then((m) => ({ Component: m.CombatScene })) }] : []),
   {
     element: <SignedIn />,
     errorElement: <RouteError />,

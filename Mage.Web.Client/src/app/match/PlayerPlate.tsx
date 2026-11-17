@@ -17,6 +17,9 @@ import { sigilOf } from '../../core/social/identity';
 import { LevelBadge } from '../social/LevelBadge';
 import { usePresence } from './presence';
 import { isMatchObjectKey, preventMatchObjectMouseFocus } from './keyboard';
+import { motionAllowed } from './flip';
+import { useCountedNumber } from './useCountedNumber';
+import { useSettings } from '../stores/settings';
 import styles from './PlayerPlate.module.css';
 
 export interface PlayerPlateProps {
@@ -92,6 +95,10 @@ export function PlayerPlate({ player, isMe, targetable, selected, deciding, slee
   const previous = useRef(life);
   const [delta, setDelta] = useState<{ value: number; key: number } | null>(null);
   const disconnected = useDisconnected(out ? undefined : player.name);
+  // fancy combat effects (#413): the total counts down (or up) instead of jumping
+  const fancy = useSettings((state) => state.settings.combatFx !== 'simple' && state.settings.animations);
+  const counting = fancy && motionAllowed();
+  const shownLife = useCountedNumber(life, counting, 300);
 
   useEffect(() => {
     const change = life - previous.current;
@@ -190,7 +197,7 @@ export function PlayerPlate({ player, isMe, targetable, selected, deciding, slee
             <span className={[styles.life, styles.outLife].join(' ')}>{t('match.plate.out')}</span>
           ) : (
             <>
-              <span key={delta?.key} className={[styles.life, delta ? (delta.value < 0 ? styles.hurt : styles.healed) : ''].join(' ')}>{life}</span>
+              <span key={delta?.key} className={[styles.life, delta ? (delta.value < 0 ? styles.hurt : styles.healed) : ''].join(' ')}>{shownLife}</span>
               <span className={styles.unit} aria-hidden="true">life</span>
             </>
           )}

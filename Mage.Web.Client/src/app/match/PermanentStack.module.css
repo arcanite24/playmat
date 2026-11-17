@@ -11,6 +11,21 @@
   outline: none;
 }
 
+/* fancy combat effects (#413): tapping, untapping and stepping forward snap into place with a small overshoot */
+.snappy {
+  transition-timing-function: cubic-bezier(0.34, 1.4, 0.64, 1), linear;
+}
+
+/* an attacker lifts off the mat, its shadow dropping away under it */
+.snappy > .body {
+  transition: scale var(--dur-place) cubic-bezier(0.34, 1.4, 0.64, 1), filter var(--dur-place) ease;
+}
+
+.lifted > .body {
+  scale: 1.05;
+  filter: drop-shadow(0 12px 14px rgb(var(--shade-rgb) / 0.45));
+}
+
 /* a legal choice: ivory ink printed around the card, breathing */
 .clickable {
   cursor: pointer;

@@ -68,6 +68,8 @@ export interface PlaySettings {
   /** spells resolving: signature effects for the cards people play most (cardVfx.ts), only the plain effects, or none
    * (damage numbers stay; local only) */
   cardEffects: 'signature' | 'simple' | 'off';
+  /** combat: weighted hits with recoil, keyword effects and heavier landings, or the plain lunges (#413; local only) */
+  combatFx: 'fancy' | 'simple';
   /** opponents may ask to see your hand */
   allowHandRequests: boolean;
   /** pass priority for the player when they have nothing to cast, play or activate (local only) */
@@ -175,6 +177,7 @@ export const DEFAULT_SETTINGS: PlaySettings = {
   autoTargetLevel: 1,
   animations: true,
   cardEffects: 'signature',
+  combatFx: 'fancy',
   allowHandRequests: true,
   autoPass: true,
   autoSkipCombat: true,

@@ -4,6 +4,8 @@ import type { GameEventView } from '../../protocol/generated/views';
 export interface EventVisuals {
   /** total damage per card or player */
   damage: Map<string, number>;
+  /** noncombat damage per card or player: combat damage is shown per strike, where each hit lands (#413) */
+  noncombat: Map<string, number>;
   /** life gained per player */
   healed: Map<string, number>;
   /** life lost without damage (paid life, drain), per player */
@@ -20,7 +22,7 @@ function add(map: Map<string, number>, id: string | undefined, amount: number | 
 }
 
 export function eventVisuals(events: readonly GameEventView[]): EventVisuals {
-  const visuals: EventVisuals = { damage: new Map(), healed: new Map(), drained: new Map(), bolts: [], hits: [] };
+  const visuals: EventVisuals = { damage: new Map(), noncombat: new Map(), healed: new Map(), drained: new Map(), bolts: [], hits: [] };
   const lost = new Map<string, number>();
   const bolted = new Set<string>();
   const struck = new Set<string>();
@@ -28,6 +30,7 @@ export function eventVisuals(events: readonly GameEventView[]): EventVisuals {
     switch (event.kind) {
       case 'DAMAGE':
         add(visuals.damage, event.targetId, event.amount);
+        if (!event.combat) add(visuals.noncombat, event.targetId, event.amount);
         if (!event.combat && event.sourceId && event.targetId && event.sourceId !== event.targetId) {
           const key = `${event.sourceId}>${event.targetId}`;
           if (!bolted.has(key)) {
