@@ -7,10 +7,11 @@ import { useT } from '../i18n';
 import { isEditableEventTarget } from '../ui/keys';
 import { Button } from '../ui/Button';
 import { CardFace } from '../ui/CardFace';
+import { KeyTip } from '../ui/KeyTip';
 import { PromptText } from '../ui/PromptText';
 import './matchMessages';
 import { useMatchUi } from './matchUi';
-import { ignoreMatchKey, matchKeysBlocked, promptKey } from './keyboard';
+import { ignoreMatchKey, keyboardFocusedControl, matchKeysBlocked, promptKey } from './keyboard';
 import { useKeyboardHints } from './useKeyboardHints';
 import styles from './ActionCluster.module.css';
 
@@ -54,6 +55,12 @@ const PASS_AHEAD: { label: string; action: PlayerAction; key: string }[] = [
   { label: 'Resolve the stack', action: 'PASS_PRIORITY_UNTIL_STACK_RESOLVED', key: 'F10' },
 ];
 
+/** A secondary button's keys for its tooltip: its own shortcut (Ctrl+Z, Esc for Cancel) and its Alt number. */
+function secondaryKeys(button: PromptButton, index: number, isCancel: boolean): string | null {
+  const keys = [button.shortcut && button.shortcut !== 'Space' ? button.shortcut : null, isCancel ? 'Esc' : null, index < 10 ? `Alt+${(index + 1) % 10}` : null];
+  return keys.filter(Boolean).join(' / ') || null;
+}
+
 const UNDO: PromptButton = { label: 'Undo tap', command: { type: 'action', action: 'UNDO' }, tone: 'secondary', shortcut: 'Ctrl+Z' };
 
 /** The decision corner: what the game is asking, and the one big button that answers it. */
@@ -83,7 +90,8 @@ export function ActionCluster({
     function onKey(event: KeyboardEvent) {
       if (ignoreMatchKey(event) || matchKeysBlocked() || !canAct) return;
       const key = promptKey(event);
-      const focusedControl = event.target instanceof HTMLElement && event.target.closest('button, [role="button"], [role="listitem"], a');
+      // a button the keyboard reached keeps Space and Enter; one that was only clicked doesn't
+      const focusedControl = keyboardFocusedControl(event.target);
       let command: Command | undefined;
       if (key === 'primary' && primaryShortcut && !focusedControl && !awaiting && !autoPassing) {
         command = main?.command;
@@ -149,9 +157,11 @@ export function ActionCluster({
     <section className={styles.cluster} aria-label="Your decision" aria-live="polite">
       {headline && <p className={[styles.headline, deciding ? styles.deciding : ''].join(' ')}><PromptText text={headline} /></p>}
       {fullControl && canAct && (
-        <button type="button" className={styles.fullControl} onClick={() => onFullControl?.(false)} title="Turn full control off (Ctrl+Shift)">
-          Full control
-        </button>
+        <KeyTip keys="Ctrl+Shift" label="Turn full control off">
+          <button type="button" className={styles.fullControl} onClick={() => onFullControl?.(false)}>
+            Full control
+          </button>
+        </KeyTip>
       )}
       {conceding && (
         <p className={styles.conceding} role="status">
@@ -184,30 +194,32 @@ export function ActionCluster({
         <div className={styles.secondary}>
           {extra}
           {secondary.map((button, index) => (
-            <Button
-              key={button.label}
-              variant={button.tone === 'danger' ? 'danger' : button.tone === 'attack' ? 'print' : 'print'}
-              size="md"
-              aria-keyshortcuts={index < 10 ? `Alt+${(index + 1) % 10}${index === 0 ? ' Alt+Enter' : ''}` : undefined}
-              title={button.shortcut && button.shortcut !== 'Space' ? `${button.label} (${button.shortcut})` : undefined}
-              onKeyDown={(event) => {
-                if (event.repeat && (event.key === 'Enter' || event.key === ' ')) event.preventDefault();
-              }}
-              onClick={() => onCommand(button.command)}
-              className={button.tone === 'attack' ? styles.attack : undefined}
-            >
-              {button.label}
-              {hints && index < 10 && <kbd aria-hidden="true">Alt+{(index + 1) % 10}</kbd>}
-            </Button>
+            <KeyTip key={button.label} keys={secondaryKeys(button, index, button === cancel)}>
+              <Button
+                variant={button.tone === 'danger' ? 'danger' : button.tone === 'attack' ? 'print' : 'print'}
+                size="md"
+                aria-keyshortcuts={index < 10 ? `Alt+${(index + 1) % 10}${index === 0 ? ' Alt+Enter' : ''}` : undefined}
+                onKeyDown={(event) => {
+                  if (event.repeat && (event.key === 'Enter' || event.key === ' ')) event.preventDefault();
+                }}
+                onClick={() => onCommand(button.command)}
+                className={button.tone === 'attack' ? styles.attack : undefined}
+              >
+                {button.label}
+                {hints && index < 10 && <kbd aria-hidden="true">Alt+{(index + 1) % 10}</kbd>}
+              </Button>
+            </KeyTip>
           ))}
         </div>
       )}
       <div className={styles.mainRow}>
         {passAhead && (
           <DropdownMenu.Root>
-            <DropdownMenu.Trigger className={styles.ahead} aria-label="Pass ahead">
-              <ChevronUp size={20} />
-            </DropdownMenu.Trigger>
+            <KeyTip keys={PASS_AHEAD.map((item) => item.key).join(' / ')} label="Pass ahead">
+              <DropdownMenu.Trigger className={styles.ahead} aria-label="Pass ahead">
+                <ChevronUp size={20} />
+              </DropdownMenu.Trigger>
+            </KeyTip>
             <DropdownMenu.Portal>
               <DropdownMenu.Content className={styles.menu} side="top" align="end" sideOffset={8}>
                 {PASS_AHEAD.map((item) => (
@@ -241,36 +253,39 @@ export function ActionCluster({
         {autoPassing ? (
           <div className={[styles.waiting, styles.passing].join(' ')} role="status">Passing</div>
         ) : main && deciding ? (
-          <Button
-            variant="decision"
-            size="xl"
-            className={[styles.main, awaiting ? styles.sending : ''].join(' ')}
-            // while the last answer is on its way a click can't be taken (one answer per question): show it
-            aria-keyshortcuts={primaryShortcut ? 'Space Enter' : undefined}
-            aria-disabled={awaiting || undefined}
-            onKeyDown={(event) => {
-              if (event.repeat && (event.key === 'Enter' || event.key === ' ')) event.preventDefault();
-            }}
-            onClick={() => onCommand(main.command)}
-          >
-            {main.label}
-            {hints && primaryShortcut && <kbd aria-hidden="true">{t('match.shortcuts.primaryKeys')}</kbd>}
-          </Button>
+          <KeyTip keys={primaryShortcut ? t('match.shortcuts.primaryKeys') : null}>
+            <Button
+              variant="decision"
+              size="xl"
+              className={[styles.main, awaiting ? styles.sending : ''].join(' ')}
+              // while the last answer is on its way a click can't be taken (one answer per question): show it
+              aria-keyshortcuts={primaryShortcut ? 'Space Enter' : undefined}
+              aria-disabled={awaiting || undefined}
+              onKeyDown={(event) => {
+                if (event.repeat && (event.key === 'Enter' || event.key === ' ')) event.preventDefault();
+              }}
+              onClick={() => onCommand(main.command)}
+            >
+              {main.label}
+              {hints && primaryShortcut && <kbd aria-hidden="true">{t('match.shortcuts.primaryKeys')}</kbd>}
+            </Button>
+          </KeyTip>
         ) : deciding ? null : (
           <div className={styles.waiting}>{awaiting ? 'Sending…' : 'Waiting'}</div>
         )}
         {onPassTurn && canAct && (
-          <button
-            type="button"
-            className={[styles.passTurn, passTurn ? styles.passTurnOn : ''].join(' ')}
-            aria-pressed={passTurn}
-            aria-keyshortcuts="Shift+Enter"
-            aria-label="Pass turn"
-            title={passTurn ? 'Passing this turn: click to stop (Shift+Enter)' : 'Pass turn: skip to the end of this turn (Shift+Enter)'}
-            onClick={() => onPassTurn(!passTurn)}
-          >
-            <ChevronsRight size={30} strokeWidth={2.75} aria-hidden="true" />
-          </button>
+          <KeyTip keys="Shift+Enter" label={passTurn ? 'Passing this turn: click to stop' : 'Pass turn: skip to the end of this turn'}>
+            <button
+              type="button"
+              className={[styles.passTurn, passTurn ? styles.passTurnOn : ''].join(' ')}
+              aria-pressed={passTurn}
+              aria-keyshortcuts="Shift+Enter"
+              aria-label="Pass turn"
+              onClick={() => onPassTurn(!passTurn)}
+            >
+              <ChevronsRight size={30} strokeWidth={2.75} aria-hidden="true" />
+            </button>
+          </KeyTip>
         )}
       </div>
     </section>

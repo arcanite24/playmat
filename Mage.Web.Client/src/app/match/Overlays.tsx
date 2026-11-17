@@ -11,6 +11,7 @@ import { gameResult, matchResult } from '../../core/game/matchResult';
 import type { CardView, GameEndView } from '../../protocol/generated/views';
 import { useT, type MessageKey } from '../i18n';
 import { Button } from '../ui/Button';
+import { KeyTip } from '../ui/KeyTip';
 import { AbilityCard } from '../ui/AbilityCard';
 import { CardFace } from '../ui/CardFace';
 import { PromptText } from '../ui/PromptText';
@@ -62,7 +63,9 @@ export function MulliganOverlay({ hand, interaction, sleeve, onCommand }: {
           ))}
         </div>
         <div className={styles.buttons}>
-          <Button data-secondary aria-keyshortcuts="Alt+Enter Alt+1" variant="print" size="lg" onClick={() => onCommand({ type: 'boolean', value: true })}>{prompt.yesLabel}{hints && <kbd aria-hidden="true">Alt+1</kbd>}</Button>
+          <KeyTip keys="Alt+1 / Alt+Enter">
+            <Button data-secondary aria-keyshortcuts="Alt+Enter Alt+1" variant="print" size="lg" onClick={() => onCommand({ type: 'boolean', value: true })}>{prompt.yesLabel}{hints && <kbd aria-hidden="true">Alt+1</kbd>}</Button>
+          </KeyTip>
           <Button data-primary variant="decision" size="xl" onClick={() => onCommand({ type: 'boolean', value: false })}>{prompt.noLabel}</Button>
         </div>
       </div>
@@ -143,7 +146,9 @@ export function CardPicker({ title, cards, interaction, sleeve, footer, onComman
           <footer className={styles.panelFoot}>
             {footer}
             {interaction.secondaryButtons.map((button, index) => (
-              <Button key={button.label} data-secondary data-cancel={button.label === 'Cancel' || undefined} variant="quiet" size="lg" onClick={() => onCommand(button.command)}>{button.label}{hints && index < 10 && <kbd aria-hidden="true">Alt+{(index + 1) % 10}</kbd>}</Button>
+              <KeyTip key={button.label} keys={[button.label === 'Cancel' ? 'Esc' : null, index < 10 ? `Alt+${(index + 1) % 10}` : null].filter(Boolean).join(' / ')}>
+                <Button data-secondary data-cancel={button.label === 'Cancel' || undefined} variant="quiet" size="lg" onClick={() => onCommand(button.command)}>{button.label}{hints && index < 10 && <kbd aria-hidden="true">Alt+{(index + 1) % 10}</kbd>}</Button>
+              </KeyTip>
             ))}
             {main && <Button data-primary variant="decision" size="lg" onClick={() => onCommand(main.command)}>{main.label}</Button>}
           </footer>
@@ -191,7 +196,9 @@ export function ChoicePanel({ prompt, onCommand, xLimit = null, startAtLimit = f
           </div>
           {/* backing out: nothing is cast or activated */}
           <footer className={styles.panelFoot}>
-            <Button data-secondary data-cancel variant="quiet" onClick={() => onCommand({ type: 'uuid', id: null })}>{t('match.ability.cancel')}{hints && <kbd aria-hidden="true">Alt+1</kbd>}</Button>
+            <KeyTip keys="Esc / Alt+1">
+              <Button data-secondary data-cancel variant="quiet" onClick={() => onCommand({ type: 'uuid', id: null })}>{t('match.ability.cancel')}{hints && <kbd aria-hidden="true">Alt+1</kbd>}</Button>
+            </KeyTip>
           </footer>
         </PanelShell>
       );
@@ -367,7 +374,9 @@ function ChoiceList({ prompt, onCommand, sourceId }: { prompt: Extract<Prompt, {
       </div>
       {!choice.required && (
         <footer className={styles.panelFoot}>
-          <Button data-secondary data-cancel variant="quiet" onClick={() => onCommand({ type: 'string', value: '' })}>Skip{hints && <kbd aria-hidden="true">Alt+1</kbd>}</Button>
+          <KeyTip keys="Esc / Alt+1">
+            <Button data-secondary data-cancel variant="quiet" onClick={() => onCommand({ type: 'string', value: '' })}>Skip{hints && <kbd aria-hidden="true">Alt+1</kbd>}</Button>
+          </KeyTip>
         </footer>
       )}
     </PanelShell>
@@ -446,7 +455,11 @@ function MultiAmountChooser({ prompt, onCommand }: { prompt: Extract<Prompt, { k
       </div>
       <footer className={styles.panelFoot}>
         <span className={styles.range}>Total {total} · needs {prompt.min === prompt.max ? prompt.min : `${prompt.min} to ${prompt.max}`}</span>
-        {prompt.canCancel && <Button data-secondary data-cancel variant="quiet" onClick={() => onCommand({ type: 'string', value: '' })}>Cancel{hints && <kbd aria-hidden="true">Alt+1</kbd>}</Button>}
+        {prompt.canCancel && (
+          <KeyTip keys="Esc / Alt+1">
+            <Button data-secondary data-cancel variant="quiet" onClick={() => onCommand({ type: 'string', value: '' })}>Cancel{hints && <kbd aria-hidden="true">Alt+1</kbd>}</Button>
+          </KeyTip>
+        )}
         <Button data-primary variant="decision" size="lg" disabled={!valid} onClick={() => onCommand({ type: 'string', value: values.join(' ') })}>Done</Button>
       </footer>
     </PanelShell>
@@ -468,10 +481,12 @@ export function StartingPlayerOverlay({ me, opponents, onChoose }: {
         <p className={styles.subtitle}>The player who goes first skips their first draw.</p>
         <div className={styles.buttons}>
           {opponents.map((opponent, index) => (
-            <Button key={opponent.id} data-choice data-secondary variant="print" size="lg" onClick={() => onChoose(opponent.id)}>
-              {opponents.length === 1 ? 'Draw first' : `${opponent.name} starts`}
-              {hints && index < 10 && <kbd aria-hidden="true">Alt+{(index + 1) % 10}</kbd>}
-            </Button>
+            <KeyTip key={opponent.id} keys={index < 10 ? `Alt+${(index + 1) % 10}` : null}>
+              <Button data-choice data-secondary variant="print" size="lg" onClick={() => onChoose(opponent.id)}>
+                {opponents.length === 1 ? 'Draw first' : `${opponent.name} starts`}
+                {hints && index < 10 && <kbd aria-hidden="true">Alt+{(index + 1) % 10}</kbd>}
+              </Button>
+            </KeyTip>
           ))}
           <Button data-choice data-primary variant="decision" size="xl" onClick={() => onChoose(me.id)}>Play first</Button>
         </div>

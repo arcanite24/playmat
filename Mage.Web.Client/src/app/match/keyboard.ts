@@ -29,6 +29,32 @@ export function promptKey(event: KeyboardEvent): 'primary' | 'cancel' | { second
   return null;
 }
 
+/**
+ * Which way focus arrived: a click leaves the clicked button focused, but Space and Enter still belong to the main
+ * action then. Only a control reached with the keyboard (Tab, arrows) takes them for itself.
+ */
+let lastInput: 'pointer' | 'keyboard' = 'keyboard';
+const clickedFocus = new WeakSet<EventTarget>();
+// only keys that move focus count: Escape closing a menu hands focus back to the button that was clicked to open it
+const NAVIGATION = new Set(['Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown']);
+if (typeof document !== 'undefined') {
+  document.addEventListener('pointerdown', () => { lastInput = 'pointer'; }, true);
+  document.addEventListener('keydown', (event) => { if (NAVIGATION.has(event.key)) lastInput = 'keyboard'; }, true);
+  document.addEventListener('focusin', (event) => {
+    if (!event.target) return;
+    if (lastInput === 'pointer') clickedFocus.add(event.target);
+    else clickedFocus.delete(event.target);
+  }, true);
+}
+
+/** The button or card the key's target sits in, when the keyboard brought focus there (not a click). */
+export function keyboardFocusedControl(target: EventTarget | null): HTMLElement | null {
+  if (!(target instanceof HTMLElement)) return null;
+  const control = target.closest<HTMLElement>('button, [role="button"], [role="listitem"], a');
+  if (!control || clickedFocus.has(target)) return null;
+  return control;
+}
+
 /** Focused battlefield objects use the same guarded activation as hand cards. */
 export function isMatchObjectKey(event: KeyboardEvent): boolean {
   return !matchKeysBlocked() && promptKey(event) === 'primary';
