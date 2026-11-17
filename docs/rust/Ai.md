@@ -144,6 +144,13 @@ duplicate pairs).
     decisions, so it can grow without slowing the playouts much;
   - `selfplay --fast net`: the decisions that won't be recorded (half, at `--keep 500`) are answered by the network
     alone, so the search is spent only on the ones that become training data (KataGo's playout cap randomization).
+- **Faster training.** `train.py` spent most of a step building the batch in NumPy on one thread (50 ms for 512
+  decisions against 29 ms on the GPU). The decisions now go into torch tensors once, on the GPU when they fit
+  (`--gpu-data-gb`, default 8), and a batch is gathered there (3.4 ms) and padded only to its longest row; attention
+  is PyTorch's fused kernel, AdamW is fused, and the losses are summed without a sync each step. Round 4's training
+  again (3 epochs on 1.24M decisions): 363 s before, 180 s now at batch 512 (+6.6 [-1.1, +14.3] as `net` against the
+  original), 69 s at batch 2048 with bf16 (`--bs 2048 --lr 1e-3`; -2.1 [-7.2, +2.9]). `prof_train.py` checks that
+  the new batches equal the old ones and times each part.
 - **Search-then-learn rounds.** `rl/rounds.py`: 20,000 games of `netsearch` with rollouts against itself, retrain
   from the current network on the last two rounds, keep the new one only if it wins an SPRT. Round 1 was kept
   (+11.0 [+2.2, +19.8]); rounds 2 to 4 were not (-3.3, -6.9, -1.4). The loop had stalled because the search

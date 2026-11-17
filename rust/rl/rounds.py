@@ -23,9 +23,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 RUST = os.path.dirname(HERE)
 
 
+BIN = os.path.join(RUST, "target", "release")
+
+
 def exe(name):
     ext = ".exe" if os.name == "nt" else ""
-    return os.path.join(RUST, "target", "release", name + ext)
+    return os.path.join(BIN, name + ext)
 
 
 def run(cmd, log):
@@ -75,7 +78,12 @@ def main():
     ap.add_argument("--sprt-jobs", type=int, default=12)
     ap.add_argument("--gate", default="-5,5",
                     help="the SPRT's elo0,elo1 for keeping a round's network (-5,5: keep it unless it got worse)")
+    ap.add_argument("--bin", default=None, help="the folder with selfplay and archbench (default ../target/release)")
+    ap.add_argument("--train-args", default="", help="more train.py flags, e.g. \"--bs 2048 --lr 1e-3\"")
     args = ap.parse_args()
+    if args.bin:
+        global BIN
+        BIN = os.path.abspath(args.bin)
     os.makedirs(args.out, exist_ok=True)
     if args.rollout == "small" and not args.rollout_init:
         sys.exit("--rollout small needs --rollout-init")
@@ -103,6 +111,7 @@ def main():
         t1 = time.time()
         window = [os.path.join(HERE, "data", f"{tag}-r{k}") for k in range(max(1, r - args.window + 1), r + 1)]
         cmd = [sys.executable, "train.py", "--init", cur, "--out", rd, "--epochs", str(args.epochs), "--lr", str(args.lr)]
+        cmd += args.train_args.split()
         for w in window:
             if os.path.isdir(w):
                 cmd += ["--data", w]
@@ -111,7 +120,7 @@ def main():
         if args.rollout == "small":
             new_roll = os.path.join(rd, "rollout")
             cmd = [sys.executable, "train.py", "--init", roll, "--out", new_roll, "--epochs", str(args.epochs), "--lr",
-                   str(args.lr)]
+                   str(args.lr)] + args.train_args.split()
             for w in window:
                 if os.path.isdir(w):
                     cmd += ["--data", w]

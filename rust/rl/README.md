@@ -70,7 +70,10 @@ python rounds.py --init runs/loop3/r4 --out runs/loop4 --policy netsearch --roll
     --fast net
 ```
 
-`--cfg` adds config keys to the learner (`--policy ismcts --cfg cpuct=300+iters=32`).
+`--cfg` adds config keys to the learner (`--policy ismcts --cfg cpuct=300+iters=32`), `--train-args` flags to
+`train.py` (`--train-args="--bs 2048 --lr 1e-3"`: 5 times faster than batch 512, with bf16), and `--bin` names the
+folder with `selfplay` and `archbench`. `train.py` keeps the decisions on the GPU when they fit in `--gpu-data-gb`
+(default 8); `prof_train.py` times a step's parts.
 
 `--tx` takes JSON or `k=v` pairs (`d`, `heads`, `layers`, `ff`, `dim`, `trunk`, `text`). `rounds.py` logs one line a round to
 `runs/<out>/rounds.jsonl`. Keep `--jobs` and `--sprt-jobs` a few threads under the machine's count so its other

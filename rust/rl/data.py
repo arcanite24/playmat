@@ -1,4 +1,8 @@
-"""Reads what `selfplay` writes (playmat-ai `selfplay::Shard`) and makes padded batches of tensors."""
+"""Reads what `selfplay` writes (playmat-ai `selfplay::Shard`) and makes padded batches of tensors.
+
+The columns go into torch tensors once (`place`): on the GPU when they fit in `budget_gb`, so a batch is gathered
+there, else in CPU memory, gathered by torch's threads and copied over pinned. Each batch is padded only to its own
+longest row (`trim`), not to the fixed widths. `batch_np` is the old NumPy path, kept as the reference."""
 
 import glob
 import json
@@ -65,6 +69,99 @@ class Data:
         self.infos = infos
         self.z = np.array([results[(r, g)][s] for r, g, s in zip(self.run, self.game, self.seat)], np.float32)
         self.n = len(m)
+        self.store = None
+
+    def place(self, dev, budget_gb=8.0):
+        """Puts the columns in torch tensors: on `dev` when it is a GPU and they fit in `budget_gb`, else on the CPU"""
+        cols = {
+            "glob": self.glob, "ents": self.ents, "ent_ids": self.ent_ids.astype(np.int32),
+            "acts": self.acts, "act_ids": self.act_ids.astype(np.int32), "target": self.target,
+            "hid": self.hid, "hid_ids": self.hid_ids.astype(np.int32), "pool": self.pool.astype(np.int32),
+            "pool_hand": self.pool_hand, "chosen": self.chosen.astype(np.int64), "logp": self.logp, "z": self.z,
+        }
+        for k in ["ent", "act", "hid", "pool"]:
+            cols[k + "_off"] = getattr(self, k + "_off")
+            cols["n_" + k] = getattr(self, "n_" + k).astype(np.int64)
+        size = sum(a.nbytes for a in cols.values()) / 2**30
+        dev = torch.device(dev)
+        where = dev if dev.type == "cuda" and size <= budget_gb else torch.device("cpu")
+        self.store = {k: torch.from_numpy(np.ascontiguousarray(a)).to(where) for k, a in cols.items()}
+        self.store_dev = where
+        return where, size
+
+    def _tgather(self, col, k, idx, width):
+        st = self.store
+        c = st["n_" + k][idx].clamp(max=width)
+        w = max(int(c.max()), 1)
+        j = torch.arange(w, device=idx.device)
+        mask = j[None, :] < c[:, None]
+        pos = torch.where(mask, st[k + "_off"][idx][:, None] + j[None, :], 0)
+        flat = st[col]
+        if flat.numel() == 0:
+            return torch.zeros((len(idx), w) + tuple(flat.shape[1:]), dtype=flat.dtype, device=idx.device), mask
+        return flat[pos], mask
+
+    def batch(self, idx, device, trim=True):
+        """The decisions `idx` as tensors on `device`, padded to the batch's longest row (or the fixed widths)"""
+        if self.store is None:
+            self.place("cpu")
+        st, s = self.store, self.store_dev
+        i = torch.as_tensor(np.asarray(idx), dtype=torch.long, device=s)
+        ents, em = self._tgather("ents", "ent", i, N_ENT)
+        eids, _ = self._tgather("ent_ids", "ent", i, N_ENT)
+        acts, am = self._tgather("acts", "act", i, N_ACT)
+        aids, _ = self._tgather("act_ids", "act", i, N_ACT)
+        tgt, _ = self._tgather("target", "act", i, N_ACT)
+        hid, hm = self._tgather("hid", "hid", i, N_HID)
+        hids, _ = self._tgather("hid_ids", "hid", i, N_HID)
+        pool, pm = self._tgather("pool", "pool", i, N_POOL)
+        ph, _ = self._tgather("pool_hand", "pool", i, N_POOL)
+        raw = {"glob": st["glob"][i], "ents": ents, "em": em, "eids": eids, "acts": acts, "am": am, "aids": aids,
+               "tgt": tgt, "hid": hid, "hm": hm, "hids": hids, "pool": pool, "pm": pm, "ph": ph,
+               "chosen": st["chosen"][i], "logp": st["logp"][i], "z": st["z"][i]}
+        if not trim:
+            raw = self._pad(raw)
+        device = torch.device(device)
+        if device != s:
+            nb = device.type == "cuda"
+            raw = {k: (v.pin_memory() if nb else v).to(device, non_blocking=nb) for k, v in raw.items()}
+        f, r = torch.float32, raw
+        em, am, hm, pm = r["em"], r["am"], r["hm"], r["pm"]
+        tgt = torch.where(am, r["tgt"].to(f), 0)
+        tgt = tgt / tgt.sum(1, keepdim=True).clamp(min=1e-6)
+        return {
+            "glob": r["glob"].to(f),
+            "ents": r["ents"].to(f) * em[..., None],
+            "ent_ids": r["eids"].long() * em,
+            "ent_mask": em,
+            "acts": r["acts"].to(f) * am[..., None],
+            "act_ids": r["aids"].long() * am,
+            "act_mask": am,
+            "target": tgt,
+            "chosen": r["chosen"].clamp(max=am.shape[1] - 1),
+            "logp": r["logp"].to(f),
+            "hid": r["hid"].to(f) * hm[..., None],
+            "hid_ids": r["hids"].long() * hm,
+            "hid_mask": hm,
+            "pool": r["pool"].long() * pm,
+            "pool_hand": r["ph"].to(f) * pm,
+            "pool_mask": pm,
+            "z": r["z"].to(f),
+        }
+
+    @staticmethod
+    def _pad(raw):
+        """Pads the trimmed rows back to the fixed widths (`batch_np`'s shapes)"""
+        widths = {"ents": N_ENT, "em": N_ENT, "eids": N_ENT, "acts": N_ACT, "am": N_ACT, "aids": N_ACT,
+                  "tgt": N_ACT, "hid": N_HID, "hm": N_HID, "hids": N_HID, "pool": N_POOL, "pm": N_POOL, "ph": N_POOL}
+        out = dict(raw)
+        for k, w in widths.items():
+            v = raw[k]
+            pad = w - v.shape[1]
+            if pad > 0:
+                z = torch.zeros((v.shape[0], pad) + tuple(v.shape[2:]), dtype=v.dtype, device=v.device)
+                out[k] = torch.cat([v, z], 1)
+        return out
 
     def __len__(self):
         return self.n
@@ -81,7 +178,7 @@ class Data:
             return np.zeros(shape, flat.dtype), mask
         return flat[pos], mask
 
-    def batch(self, idx, device):
+    def batch_np(self, idx, device):
         t = lambda a, dt=torch.float32: torch.from_numpy(np.ascontiguousarray(a)).to(device=device, dtype=dt)
         ents, em = self._gather(self.ents, self.ent_off, self.n_ent, idx, N_ENT)
         eids, _ = self._gather(self.ent_ids, self.ent_off, self.n_ent, idx, N_ENT)
