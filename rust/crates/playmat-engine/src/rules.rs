@@ -9957,7 +9957,10 @@ fn pay_from_pool(
         while paid < want {
             // (`ManaPool.pay`: with automatic payment off, only an unlocked type pays)
             let fresh = !manual && ((0..6).any(|k| *kind(pool, k) > *kind(stock, k)) || *fresh_conditional > 0);
-            let usable = fresh
+            // a type the player unlocked (clicked in the pool) pays with conditional mana the spell can spend first,
+            // made before the payment or not (`ManaPool.pay`: `unlockedManaType` passes, then `getConditional`)
+            let unlocked_kind = *kind(unlocked, k) > 0;
+            let usable = (fresh || unlocked_kind)
                 .then(|| {
                     conditional.iter().position(|(m, src, j)| {
                         (if k < 5 { m.colored[k] } else { m.colorless }) > 0
@@ -9984,6 +9987,9 @@ fn pay_from_pool(
                     conditional_def(game, conditional[c].1, conditional[c].2),
                     Some(AbilityDef::ConditionalManaAbility { mana: Some(_), .. })
                 );
+                if !fresh {
+                    *kind(unlocked, k) -= 1;
+                }
                 let m = &mut conditional[c].0;
                 let colors = if several { 1 } else { m.colored.iter().filter(|n| **n > 0).count() };
                 if k < 5 {
@@ -26196,6 +26202,61 @@ mod tests {
                 Query::Cards { objs, .. } => objs.first().map(|o| Answer::Obj(*o)).unwrap_or(Answer::Stop),
                 _ => Passer.answer(game, seat, query),
             }
+        }
+    }
+
+    /// Giada's conditional {W}, made before casting, pays for an Angel once the player clicks white in the pool,
+    /// with automatic payment on or off (`ManaPool.pay`: the unlocked type pays with conditional mana the spell can
+    /// spend)
+    #[test]
+    fn conditional_mana_in_the_pool_pays_once_its_type_is_unlocked() {
+        struct Clicks {
+            plains: Vec<ObjId>,
+            asked: usize,
+        }
+        impl Decider for Clicks {
+            fn answer(&mut self, game: &Game, seat: Seat, query: &Query) -> Answer {
+                match query {
+                    Query::PlayMana { .. } => {
+                        self.asked += 1;
+                        match self.asked {
+                            1 => Answer::ManaType("WHITE".into()),
+                            n if n <= 3 => Answer::Obj(self.plains[n - 2]),
+                            // (paying by hand: the lands' white is clicked too)
+                            n if n <= 8 => Answer::ManaType("WHITE".into()),
+                            _ => Answer::Bool(false),
+                        }
+                    }
+                    _ => Passer.answer(game, seat, query),
+                }
+            }
+        }
+        for manual in [false, true] {
+            let db = crate::cards();
+            let mut game = game_with(&db, &[("Plains", 20)]);
+            game.set_pool_mode(0, manual, false);
+            game.turn = 3;
+            game.step = Some(Step::PrecombatMain);
+            let mut put = |n: &str| {
+                let o = game.create_obj(db.get(n).unwrap(), 0, Zone::Hand);
+                game.move_to(o, Zone::Battlefield);
+                game.obj_mut(o).sick = false;
+                o
+            };
+            let giada = put("Giada, Font of Hope");
+            let plains = vec![put("Plains"), put("Plains")];
+            let lyra = game.create_obj(db.get("Lyra, Archangel of Dawn").unwrap(), 0, Zone::Hand);
+            game.player_mut(0).hand.push(lyra);
+            let mut d = Clicks { plains, asked: 0 };
+            play(&mut game, &mut d, 0, giada);
+            assert_eq!(game.player(0).conditional_pool.len(), 1, "Giada's {{W}} floats as conditional mana");
+            play(&mut game, &mut d, 0, lyra);
+            assert!(
+                game.stack.iter().any(|i| i.card == lyra),
+                "manual {manual}: Lyra is cast, asked {} times",
+                d.asked
+            );
+            assert!(game.player(0).conditional_pool.is_empty(), "manual {manual}: Giada's mana is spent");
         }
     }
 
