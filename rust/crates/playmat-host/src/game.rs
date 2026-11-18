@@ -1792,6 +1792,13 @@ impl Decider for HostDecider<'_> {
             }
             return a;
         }
+        // a question with nothing to choose (`settle_owed`: which of several replacement effects applies first, when
+        // they all do the same): the answer changes nothing, so the player isn't shown an empty dialog
+        if is_owed_choice(q) {
+            let a = Answer::Bool(false);
+            h.table.record(game, q, &a);
+            return a;
+        }
         // the host's game is the engine's game while it asks
         h.game = game.clone();
         if let Query::Priority { .. } = q {
@@ -1960,9 +1967,16 @@ fn auto_order(first: &[String], last: &[String], rules: &[String]) -> Result<usi
     }
 }
 
+/// The engine's owed replacement-effect question (`rules::settle_owed`): no choices, and the answer changes nothing.
+/// Other questions with no choices (a card name, a creature type) are answered from lists the client has.
+fn is_owed_choice(q: &Query) -> bool {
+    matches!(q, Query::Choice { message, choices } if choices.is_empty() && message.starts_with("Choose a replacement"))
+}
+
 #[cfg(test)]
 mod tests {
-    use super::auto_order;
+    use super::{auto_order, is_owed_choice};
+    use playmat_engine::decide::Query;
 
     fn s(v: &[&str]) -> Vec<String> {
         v.iter().map(|x| x.to_string()).collect()
@@ -1983,5 +1997,15 @@ mod tests {
         assert_eq!(auto_order(&[], &s(&["a"]), &rules), Err(vec![1, 2]));
         // all set last: the first
         assert_eq!(auto_order(&[], &rules, &rules), Ok(0));
+    }
+
+    #[test]
+    fn owed_replacement_choice_is_not_shown() {
+        let owed = Query::Choice { message: "Choose a replacement effect to apply first".into(), choices: Vec::new() };
+        assert!(is_owed_choice(&owed));
+        let color = Query::Choice { message: "Choose a color".into(), choices: s(&["Red", "Green"]) };
+        assert!(!is_owed_choice(&color));
+        let named = Query::Choice { message: "Card name".into(), choices: Vec::new() };
+        assert!(!is_owed_choice(&named));
     }
 }
