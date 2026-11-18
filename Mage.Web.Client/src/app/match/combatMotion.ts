@@ -16,27 +16,30 @@ interface Swing {
   windup: number;
   /** how much bigger the attacker grows as it winds up */
   lift: number;
-  /** share of the distance it reaches toward its target */
-  reach: number;
+  /** how far into its target it presses at contact, px (attackers; blockers meet it partway) */
+  press: number;
   /** offset of the contact frame */
   contact: number;
   /** hit-stop: ms the swing holds on contact */
   hold: number;
 }
 
-const PLAIN: Swing = { duration: 520, windup: 0.08, lift: 1, reach: 0.45, contact: 0.55, hold: 0 };
+const PLAIN: Swing = { duration: 520, windup: 0.08, lift: 1, press: 4, contact: 0.55, hold: 0 };
 
-// calmer than it was at first: a short reach, a small wind-up and a gentle lift, the weight shown more in the hit-stop
-// and the target's knockback than in a big lunge
+// calm: a small wind-up and a gentle lift, the weight shown more in the hit-stop and the target's knockback than in a
+// big lunge. Every swing still travels until it touches its target.
 const FANCY: Record<HitWeight, Swing> = {
-  light: { duration: 560, windup: 0.06, lift: 1.01, reach: 0.36, contact: 0.54, hold: 0 },
-  medium: { duration: 640, windup: 0.09, lift: 1.025, reach: 0.38, contact: 0.56, hold: 40 },
-  heavy: { duration: 740, windup: 0.13, lift: 1.04, reach: 0.41, contact: 0.58, hold: 60 },
-  huge: { duration: 840, windup: 0.17, lift: 1.06, reach: 0.44, contact: 0.6, hold: 80 },
+  light: { duration: 560, windup: 0.06, lift: 1.01, press: 4, contact: 0.54, hold: 0 },
+  medium: { duration: 640, windup: 0.09, lift: 1.025, press: 6, contact: 0.56, hold: 40 },
+  heavy: { duration: 740, windup: 0.13, lift: 1.04, press: 8, contact: 0.58, hold: 60 },
+  huge: { duration: 840, windup: 0.17, lift: 1.06, press: 10, contact: 0.6, hold: 80 },
 };
 
-/** px: the longest lunge, however far the target */
-const MAX_REACH = 130;
+/** share of the gap a blocker covers striking back: the attacker covers it all, so they meet with a clash */
+const BLOCK_SHARE = 0.3;
+
+/** px: the wind-up's pull-back is a share of the travel, but never more than this, however far the target */
+const MAX_WINDUP = 18;
 
 /** px a target is knocked back, by weight */
 const KNOCKBACK: Record<HitWeight, number> = { light: 4, medium: 8, heavy: 14, huge: 20 };
@@ -51,19 +54,52 @@ function unit(from: Point, to: Point): Point {
   return { x: dx / length, y: dy / length };
 }
 
+type Box = { left: number; top: number; right: number; bottom: number };
+
+/**
+ * px a box moves along `direction` (a unit vector) before its edge meets `target`'s: a sweep of one box toward the
+ * other, axis by axis. Null when the sweep passes the target by.
+ */
+export function gapBetween(box: Box, target: Box, direction: Point): number | null {
+  const entry = (from: [number, number], to: [number, number], d: number): [number, number] | null => {
+    // [when it starts overlapping on this axis, when it stops]
+    if (Math.abs(d) < 1e-6) return from[1] <= to[0] || from[0] >= to[1] ? null : [-Infinity, Infinity];
+    const a = (to[0] - from[1]) / d;
+    const b = (to[1] - from[0]) / d;
+    return [Math.min(a, b), Math.max(a, b)];
+  };
+  const x = entry([box.left, box.right], [target.left, target.right], direction.x);
+  const y = entry([box.top, box.bottom], [target.top, target.bottom], direction.y);
+  if (!x || !y) return null;
+  const start = Math.max(x[0], y[0]);
+  if (start > Math.min(x[1], y[1])) return null;
+  return Math.max(0, start);
+}
+
+/**
+ * px (on the stage) a swing travels toward its target: up to the gap between the two edges plus a press into the target (an
+ * attacker), or a share of the gap (a blocker striking back). Callers pass half the distance when no gap is known.
+ */
+export function travel(gap: number, press: number, role: 'attack' | 'block'): number {
+  return role === 'block' ? gap * BLOCK_SHARE : gap + press;
+}
+
 /**
  * Swing a card at a point, `delay` ms from now. Returns when the hit lands (ms from now, contact plus hit-stop), so
- * the splash, the number and the target's recoil can start there. A blocker striking back reaches less far: the two
- * meet in the middle.
+ * the splash, the number and the target's recoil can start there. An attacker travels until it touches its target; a
+ * blocker striking back covers part of the gap, and the two meet with a clash.
  */
-export function swing(element: Element | null, from: Point, to: Point, options: { weight: HitWeight; fancy: boolean; delay: number; scale: number; role: 'attack' | 'block' }): { contact: number; end: number } {
+export function swing(element: Element | null, from: Point, to: Point, options: { weight: HitWeight; fancy: boolean; delay: number; scale: number; target: Element | null; role: 'attack' | 'block' }): { contact: number; end: number } {
   const plan = options.fancy ? FANCY[options.weight] : PLAIN;
-  const share = (options.role === 'block' ? plan.reach * 0.6 : plan.reach) * options.scale;
-  // a far target (the opposing player, across the table) doesn't pull the card all the way over: the lunge is capped
   const distance = Math.hypot(to.x - from.x, to.y - from.y) || 1;
-  const reach = Math.min(share * distance, MAX_REACH * options.scale) / distance;
-  const dx = (to.x - from.x) * reach;
-  const dy = (to.y - from.y) * reach;
+  const direction = unit(from, to);
+  // the card travels until its edge meets the target's: a creature, or the opposing player's seat across the table.
+  // The boxes are on screen; the swing moves the card on the stage, which is drawn at `scale`
+  const gap = element && options.target ? gapBetween(element.getBoundingClientRect(), options.target.getBoundingClientRect(), direction) : null;
+  const length = travel(gap === null ? distance * 0.5 : gap / (options.scale || 1), plan.press, options.role);
+  const dx = direction.x * length;
+  const dy = direction.y * length;
+  const pull = Math.min(plan.windup * 0.4, MAX_WINDUP / Math.max(1, Math.hypot(dx, dy)));
   const total = plan.duration + plan.hold;
   const at = (ms: number) => Math.min(1, ms / total);
   const contactMs = plan.duration * plan.contact;
@@ -72,13 +108,14 @@ export function swing(element: Element | null, from: Point, to: Point, options: 
   const holdEnd = at(contactMs + plan.hold);
   const frames: Keyframe[] = [
     { translate: '0 0', scale: '1', offset: 0 },
-    { translate: `${-dx * plan.windup * 0.4}px ${-dy * plan.windup * 0.4}px`, scale: `${plan.lift}`, offset: windupAt, easing: 'cubic-bezier(0.4, 0, 0.6, 1)' },
+    { translate: `${-dx * pull}px ${-dy * pull}px`, scale: `${plan.lift}`, offset: windupAt, easing: 'cubic-bezier(0.4, 0, 0.6, 1)' },
     { translate: `${dx}px ${dy}px`, scale: `${options.fancy ? 1 + (plan.lift - 1) * 0.4 : 1}`, offset: contactAt },
   ];
   if (plan.hold > 0) frames.push({ translate: `${dx}px ${dy}px`, scale: `${1 + (plan.lift - 1) * 0.4}`, offset: holdEnd });
   if (options.fancy) {
     // bounce back off the target, past where it started, and settle
-    frames.push({ translate: `${-dx * 0.03}px ${-dy * 0.03}px`, scale: '1', offset: Math.min(0.94, holdEnd + (1 - holdEnd) * 0.6), easing: 'ease-in-out' });
+    const back = Math.min(0.03, 6 / Math.max(1, Math.hypot(dx, dy)));
+    frames.push({ translate: `${-dx * back}px ${-dy * back}px`, scale: '1', offset: Math.min(0.94, holdEnd + (1 - holdEnd) * 0.6), easing: 'ease-in-out' });
   }
   frames.push({ translate: '0 0', scale: '1', offset: 1 });
   // added to whatever else moves the card: a creature that died swings on top of its held flight to the graveyard

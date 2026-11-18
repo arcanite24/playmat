@@ -323,14 +323,14 @@ export function Vfx({ view, myPlayerId, sparks }: {
           swingsOf.set(item.from, sweep + 1);
           const delay = slot + sweep * SWEEP;
           if (!firstSwing.has(item.from)) firstSwing.set(item.from, delay);
-          const timing = from && to ? swing(bodyOf(item.from), from, to, { weight: swingWeight(item), fancy, delay, scale: 1, role: 'attack' }) : { contact: delay + 300, end: delay + 520 };
+          const timing = from && to ? swing(bodyOf(item.from), from, to, { weight: swingWeight(item), fancy, delay, scale: stage.scale, target: bodyOf(item.to), role: 'attack' }) : { contact: delay + 300, end: delay + 520 };
           contact = timing.contact;
           contactOn.set(`${item.from}>${item.to}`, contact);
           phaseEnd = Math.max(phaseEnd, timing.end);
           done(item.from, timing.end);
         } else {
           const delay = firstSwing.get(item.to) ?? slot;
-          const timing = from && to ? swing(bodyOf(item.from), from, to, { weight: swingWeight(item), fancy, delay, scale: 1, role: 'block' }) : { contact: delay + 300, end: delay + 520 };
+          const timing = from && to ? swing(bodyOf(item.from), from, to, { weight: swingWeight(item), fancy, delay, scale: stage.scale, target: bodyOf(item.to), role: 'block' }) : { contact: delay + 300, end: delay + 520 };
           contact = timing.contact;
           phaseEnd = Math.max(phaseEnd, timing.end);
           done(item.from, timing.end);
