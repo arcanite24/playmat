@@ -98,8 +98,14 @@ pub fn prompt(game: &Game, seat: Seat, q: &Query) -> Value {
                 .copied()
                 .filter(|o| !matches!(game.obj(*o).zone, Zone::Battlefield | Zone::Stack))
                 .collect();
+            // whom an attacker attacks: Java's `TargetDefender`, which the client answers with the one opponent
+            let kind = if game.asking_defender {
+                "player, planeswalker, or battle to attack"
+            } else {
+                target_kind(game, players, objs)
+            };
             json!({"method": "GAME_TARGET", "data": {
-                "message": format!("Select {}{}", target_kind(game, players, objs), about(game)), "flag": required,
+                "message": format!("Select {kind}{}", about(game)), "flag": required,
                 "cardsView1": cards_view(game, &off), "targets": targets, "min": 0, "max": 0,
                 "options": {"queryType": "PICK_TARGET", "possibleTargets": targets.clone()}}})
         }
@@ -396,5 +402,17 @@ mod tests {
         assert!(p["data"].get("cardsView1").is_none(), "{p}");
         assert_eq!(p["data"]["options"]["targetZone"], "HAND");
         assert_eq!(p["data"]["targets"], json!(refs(&game, &hand)));
+    }
+
+    /// Whom an attacker attacks is worded as Java's `TargetDefender`: the client answers it with the one opponent
+    #[test]
+    fn the_defender_question_says_to_attack() {
+        let db = playmat_engine::cards();
+        let deck = Deck::parse("d", "20 Plains\n20 Llanowar Elves");
+        let mut game = new_duel(&db, [&deck, &deck], 1, 0).unwrap();
+        let q = Query::Target { players: vec![1], objs: Vec::new(), required: true };
+        assert_eq!(prompt(&game, 0, &q)["data"]["message"], "Select target player");
+        game.asking_defender = true;
+        assert_eq!(prompt(&game, 0, &q)["data"]["message"], "Select player, planeswalker, or battle to attack");
     }
 }

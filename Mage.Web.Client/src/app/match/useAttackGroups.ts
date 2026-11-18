@@ -21,7 +21,12 @@ export function useAttackGroups(session: GameSession, state: GameSessionState, e
   const driving = useRef(false);
   const on = useRef(enabled);
   const { view, interaction } = state;
-  const groups = useMemo(() => (enabled ? attackGroups(view, interaction.prompt) : []), [enabled, view, interaction.prompt]);
+  const live = useMemo(() => (enabled ? attackGroups(view, interaction.prompt) : []), [enabled, view, interaction.prompt]);
+  // while the clicks are being made, a question in between ("attack whom?") isn't the declare-attackers prompt: the
+  // panel keeps the groups it had, so it doesn't vanish under the player mid-declaration
+  const kept = useRef<AttackGroup[]>([]);
+  if (live.length > 0 || wanted.size === 0) kept.current = live;
+  const groups = live.length > 0 ? live : kept.current;
 
   const stop = useCallback(() => {
     plan.current = NONE;

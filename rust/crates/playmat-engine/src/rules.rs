@@ -23985,7 +23985,10 @@ fn choose_defender(game: &mut Game, d: &mut dyn Decider, seat: Seat, defender: S
         return Some(None);
     }
     loop {
-        match ask(game, d, seat, &Query::Target { players: vec![defender], objs: pws.clone(), required: true }) {
+        game.asking_defender = true;
+        let answer = ask(game, d, seat, &Query::Target { players: vec![defender], objs: pws.clone(), required: true });
+        game.asking_defender = false;
+        match answer {
             Answer::Player(p) if p == defender => return Some(None),
             Answer::Obj(o) if pws.contains(&o) => return Some(Some((o, game.obj(o).zcc))),
             Answer::Stop => return None,

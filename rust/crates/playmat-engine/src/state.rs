@@ -1204,6 +1204,9 @@ pub struct Game {
     /// questions Java asked where the engine has no one to ask (`move_to`): which of several replacement effects
     /// applies, when they all do the same; asked before the next question or trace
     pub owed_choices: Vec<Seat>,
+    /// asking whom an attacker attacks (`HumanPlayer.selectDefender`'s `TargetDefender`): the host words the target
+    /// question as Java does, "player, planeswalker, or battle to attack"
+    pub asking_defender: bool,
     /// a melded permanent's two cards put into a graveyard or library (`move_to`): Java's owner orders them
     /// (`ZonesHandler.chooseOrder`), asked like `owed_choices`. The cards as `move_to` put them there, in order
     pub owed_meld_orders: Vec<(Seat, ObjId, ObjId)>,
@@ -1663,6 +1666,7 @@ impl Game {
             creatures_died: 0,
             void_this_turn: false,
             owed_choices: Vec::new(),
+            asking_defender: false,
             owed_meld_orders: Vec::new(),
             owed_replacement_choices: Default::default(),
             trigger_cause: None,
