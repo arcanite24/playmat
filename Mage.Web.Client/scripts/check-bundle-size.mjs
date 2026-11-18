@@ -131,10 +131,12 @@ import { gzipSync } from 'node:zlib';
 // joinWithRetry in the events store tipped it to 837.5 kB
 // app raised 2026-11-17 from 840 kB for combat animations (#413): the strike planner, the swing and recoil motion and
 // the new Vfx effects with their styles, all in the lazy match chunk. Measured app 845.5 kB
+// app raised 2026-11-18 from 848 kB for swings that reach their target: master had grown to the edge since, and the box
+// sweep in combatMotion (lazy match chunk) tipped it to 848.1 kB
 const BUDGET_KB = {
   entry: 86,
   initial: 221,
-  app: 848,
+  app: 850,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;
