@@ -62,6 +62,8 @@ const now = () => (typeof performance !== 'undefined' ? performance.now() : Date
 export function noteBeats(view: GameView, value: ViewBeats) {
   const at = now();
   beats.set(view, { ...value, at });
+  // the changes already shown are forgotten
+  for (const [id, when] of changes) if (when <= at) changes.delete(id);
   for (const [id, ms] of value.changes ?? []) changes.set(id, at + ms);
   const waiters = waiting.get(view);
   waiting.delete(view);

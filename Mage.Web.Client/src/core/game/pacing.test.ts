@@ -119,15 +119,16 @@ describe('PacedQueue', () => {
   });
 
   it('catches up instead of playing each view when it falls far behind', () => {
-    const { stage, finish } = handStage();
+    const { stage, playing, finish } = handStage();
     const queue = new PacedQueue(stage);
     const applied: number[] = [];
     queue.push(() => ({ view: view(0) }));
-    for (let turn = 1; turn <= BACKLOG + 2; turn++) queue.push(() => (applied.push(turn), { view: view(turn) }));
+    const behind = BACKLOG + 2;
+    for (let turn = 1; turn <= behind; turn++) queue.push(() => (applied.push(turn), { view: view(turn) }));
     finish();
-    // the views with BACKLOG or more behind them are applied straight away; the rest are played
-    expect(applied.length).toBeGreaterThanOrEqual(3);
-    expect(applied.length).toBeLessThan(BACKLOG + 2);
+    // the views with BACKLOG or more steps behind them go straight on; the first one with fewer is played
+    expect(applied).toEqual([1, 2, 3]);
+    expect(playing.map((item) => item.view.turn)).toEqual([3]);
   });
 
   it('flush applies everything waiting, and a stage taken away releases the hold', () => {
@@ -194,5 +195,40 @@ describe('GameSession pacing', () => {
     session.markResyncing();
     expect(session.getState().view?.turn).toBe(6);
     expect(session.behind).toBe(0);
+  });
+});
+
+describe('GameSession pacing and input', () => {
+  it('a question on screen is not answered while a newer one waits behind the board', async () => {
+    const { stage, finish } = handStage();
+    const { bus, emit } = fakeBus();
+    const api = { sendPlayerBoolean: vi.fn(async () => undefined), sendPlayerAction: vi.fn(async () => undefined) };
+    const session = new GameSession(api as never, bus, { gameId: 'g1', playerId: 'me', mode: 'play' }, { stage });
+    emit('GAME_SELECT', { message: 'Play spells and abilities', gameView: view(5, { step: 'PRECOMBAT_MAIN' }) });
+    finish();
+    emit('GAME_UPDATE', view(5, { step: 'BEGIN_COMBAT' }));
+    emit('GAME_ASK', { message: 'Use the trigger?', gameView: view(5, { step: 'BEGIN_COMBAT' }) });
+    // the old question is still drawn, but the answer would reach the new one
+    await session.respond({ type: 'boolean', value: false });
+    expect(api.sendPlayerBoolean).not.toHaveBeenCalled();
+    // player actions don't answer a question
+    await session.respond({ type: 'action', action: 'CONCEDE' });
+    expect(api.sendPlayerAction).toHaveBeenCalled();
+    finish();
+    expect(session.getState().prompt?.text).toMatch(/trigger/);
+    await session.respond({ type: 'boolean', value: true });
+    expect(api.sendPlayerBoolean).toHaveBeenCalledWith('g1', true);
+  });
+
+  it('runs the log lines it is given in the game order', () => {
+    const { stage, finish } = handStage();
+    const { bus, emit } = fakeBus();
+    const session = new GameSession({} as never, bus, { gameId: 'g1', playerId: 'me', mode: 'play' }, { stage });
+    const lines: string[] = [];
+    emit('GAME_UPDATE', view(5, { players: [{ playerId: 'bob', life: 0 }] }));
+    session.inOrder(() => lines.push('bob loses'));
+    expect(lines).toEqual([]);
+    finish();
+    expect(lines).toEqual(['bob loses']);
   });
 });

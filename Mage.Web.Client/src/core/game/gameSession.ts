@@ -99,6 +99,8 @@ export class GameSession {
   private readonly paced: PacedQueue;
   /** the server said the game is over: the result waits for the final board, but no question is taken meanwhile */
   private ending = false;
+  /** questions received and not shown yet: the one on screen is out of date, and isn't answered */
+  private questionsWaiting = 0;
 
   constructor(
     private readonly api: Api,
@@ -169,7 +171,10 @@ export class GameSession {
     );
 
     for (const method of PROMPT_EVENTS) {
-      this.unsubscribers.push(bus.on(method, forThisGame((data) => this.applyPrompt(method, data))));
+      this.unsubscribers.push(bus.on(method, forThisGame((data) => {
+        this.questionsWaiting--;
+        this.applyPrompt(method, data);
+      }, () => this.questionsWaiting++)));
     }
   }
 
@@ -182,6 +187,16 @@ export class GameSession {
     this.paced.setStage(stage);
   }
 
+  /**
+   * Runs something the server sent outside the game's own events (its log lines) in the game's order: behind the
+   * views received before it, and the broadcast delay.
+   */
+  readonly inOrder = (run: () => void): void => {
+    this.relay.push(() => this.paced.push(this.step(() => {
+      run();
+    })));
+  };
+
   /** server events received and still waiting for the board to catch up */
   get behind(): number {
     return this.paced.pending;
@@ -193,7 +208,7 @@ export class GameSession {
       const before = this.store.getState().view;
       const then = apply();
       const after = this.store.getState().view;
-      return { view: after !== before ? after : null, then: then ? this.step(then) : undefined };
+      return { view: after !== before ? after : null, then: typeof then === 'function' ? this.step(then) : undefined };
     };
   }
 
@@ -233,8 +248,9 @@ export class GameSession {
   /** The board may be out of date (connection lost, page reloaded) until the server sends the game again. */
   markResyncing(): void {
     if (this.store.getState().gameOver) return;
-    // what is still waiting is shown now: the board is about to be sent again anyway
+    // what is still waiting is shown now: the board is about to be sent again anyway (it may be the game's end)
     this.paced.flush();
+    if (this.store.getState().gameOver) return;
     this.clearReplyTimer();
     this.clearHold();
     this.store.setState({ resyncing: true, awaitingServer: false, stalled: false, prediction: null });
@@ -317,6 +333,8 @@ export class GameSession {
   /** Send an answer for the current prompt (or a player action, which needs no prompt). */
   async respond(command: Command): Promise<void> {
     const { gameId, playerId } = this.store.getState();
+    // a newer question is waiting behind the board: the answer would go to that one
+    if (command.type !== 'action' && (this.questionsWaiting > 0 || this.ending)) return;
     if (command.type !== 'action') {
       // the server will ask again (or move on); until then clicks are ignored, and the answered prompt fades out
       // only if nothing new arrives soon
@@ -383,7 +401,7 @@ export class GameSession {
   click(objectId: string, prediction: Prediction | null = null): boolean {
     const { interaction, awaitingServer } = this.store.getState();
     const command = interaction.clickable.get(objectId);
-    if (!command || awaitingServer) return false;
+    if (!command || awaitingServer || this.questionsWaiting > 0 || this.ending) return false;
     this.store.setState({ prediction });
     void this.respond(command).catch(() => undefined);
     return true;

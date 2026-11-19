@@ -758,7 +758,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
             <EmoteBubbles view={view} gameId={state.gameId} />
             {mode === 'play' && <Coach view={view ?? null} mode={choosingStarter ? 'panel' : interaction.mode} awaiting={awaitingServer} gameOver={!!state.gameOver} />}
             {mode === 'play' && <LessonCoach gameId={state.gameId} view={view ?? null} mode={choosingStarter ? 'panel' : interaction.mode} awaiting={awaitingServer} gameOver={!!state.gameOver} />}
-            <GameLog gameId={state.gameId} notices={state.notices} canChat={mode !== 'replay'} view={view} replayLog={replayLog} delayMs={state.broadcastDelayMs} />
+            <GameLog gameId={state.gameId} notices={state.notices} canChat={mode !== 'replay'} view={view} replayLog={replayLog} delayMs={state.broadcastDelayMs} inOrder={session.inOrder} />
             {mode === 'watch' && !view && state.broadcastDelayMs > 0 && (
               <p className={styles.delayNote} role="status">
                 The table appears in {delayLabel(Math.round(state.broadcastDelayMs / 1000))}: the broadcast delay holds the game back.

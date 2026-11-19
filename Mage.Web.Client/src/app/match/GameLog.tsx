@@ -52,7 +52,7 @@ const ICONS: Record<LogIcon, LucideIcon> = {
 };
 
 /** Game chat and the game's running log, joined once per game (not for replays, which bring their own log). */
-function useGameChat(gameId: string, view: GameView | null, live: boolean, delayMs: number) {
+function useGameChat(gameId: string, view: GameView | null, live: boolean, delayMs: number, inOrder?: (run: () => void) => void) {
   // the latest view, read when a line arrives: it says whose turn the line belongs to
   const latest = useRef(view);
   useEffect(() => {
@@ -109,11 +109,13 @@ function useGameChat(gameId: string, view: GameView | null, live: boolean, delay
         if (entry.who && isEmote(entry.text)) useEmotes.getState().show(entry.who, entry.text);
         if (fromOther) setUnread((count) => count + 1);
       };
+      // the game's own lines show with the board they belong to (pacing.ts): "X wins" after the swing that won it;
       // one's own words show at once
-      if (fromOther) relay.push(show);
+      if (parsed.tone !== 'chat' && inOrder) inOrder(show);
+      else if (fromOther) relay.push(show);
       else show();
     });
-  }, [chatId, gameId, relay]);
+  }, [chatId, gameId, relay, inOrder]);
 
   const send = (text: string) => {
     if (chatId && text.trim()) api.chatSendMessage(chatId, useSession.getState().userName, text.trim()).catch(() => undefined);
@@ -138,7 +140,7 @@ function replayEntries(log: readonly ChatMessage[]): LogEntry[] {
   return entries.slice(-MAX_LINES);
 }
 
-export function GameLog({ gameId, notices, canChat, view, replayLog, delayMs = 0 }: {
+export function GameLog({ gameId, notices, canChat, view, replayLog, delayMs = 0, inOrder }: {
   gameId: string;
   notices: GameNotice[];
   canChat: boolean;
@@ -147,6 +149,8 @@ export function GameLog({ gameId, notices, canChat, view, replayLog, delayMs = 0
   replayLog?: readonly ChatMessage[];
   /** watching: the broadcast delay, which the log keeps too */
   delayMs?: number;
+  /** runs a log line in the game's order, behind the board it belongs to (GameSession.inOrder; also delayed) */
+  inOrder?: (run: () => void) => void;
 }) {
   const open = useMatchUi((state) => state.logOpen);
   const toggle = useMatchUi((state) => state.toggleLog);
@@ -154,7 +158,7 @@ export function GameLog({ gameId, notices, canChat, view, replayLog, delayMs = 0
   const toggleMute = useEmotes((state) => state.toggleMute);
   const myName = useSession((state) => state.userName);
   const ignored = useSocial((state) => state.ignored);
-  const live = useGameChat(gameId, view, !replayLog, delayMs);
+  const live = useGameChat(gameId, view, !replayLog, delayMs, inOrder);
   const recorded = useMemo(() => (replayLog ? replayEntries(replayLog) : null), [replayLog]);
   const chat = recorded ? { ...live, entries: recorded } : live;
   const [draft, setDraft] = useState('');
