@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import { gapBetween, travel } from './combatMotion';
+// @vitest-environment happy-dom
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { flightOffset, gapBetween, travel } from './combatMotion';
 
 const box = (left: number, top: number, width: number, height: number) => ({ left, top, right: left + width, bottom: top + height });
 
@@ -36,5 +37,27 @@ describe('travel', () => {
 
   it('has a blocker cover part of the gap', () => {
     expect(travel(180, 6, 'block')).toBeCloseTo(54);
+  });
+});
+
+describe('flightOffset', () => {
+  afterEach(() => vi.unstubAllGlobals());
+  // the translate a running animation gives the card (the test DOM doesn't animate)
+  const card = (animations: { id: string; playState: string }[], translate: string) => {
+    vi.stubGlobal('getComputedStyle', () => ({ translate }));
+    const element = document.createElement('div');
+    Object.assign(element, { getAnimations: () => animations });
+    return element;
+  };
+
+  it('is how far a running flight still has the card from its place', () => {
+    expect(flightOffset(card([{ id: 'flight', playState: 'running' }], '806px -481px'))).toEqual({ x: 806, y: -481 });
+  });
+
+  it('is nothing for a card at rest, or moved by something other than its flight', () => {
+    expect(flightOffset(card([], '806px -481px'))).toEqual({ x: 0, y: 0 });
+    expect(flightOffset(card([{ id: 'flight', playState: 'finished' }], '806px -481px'))).toEqual({ x: 0, y: 0 });
+    expect(flightOffset(card([{ id: 'swing', playState: 'running' }], '40px 0px'))).toEqual({ x: 0, y: 0 });
+    expect(flightOffset(null)).toEqual({ x: 0, y: 0 });
   });
 });

@@ -64,6 +64,29 @@ function unit(from: Point, to: Point): Point {
 type Box = { left: number; top: number; right: number; bottom: number };
 
 /**
+ * How far a card is from its place on the table because its flight in (flip.ts: from the stack, a hand) is still
+ * running, in stage px. Measured live, a card that attacks while it is still landing would swing from where its
+ * flight began, the stack or the top of the table, instead of from where it stands.
+ */
+export function flightOffset(element: Element | null): Point {
+  const flying = element?.getAnimations().some((animation) => animation.id === 'flight' && animation.playState === 'running');
+  if (!element || !flying) return { x: 0, y: 0 };
+  const translate = getComputedStyle(element).translate;
+  if (!translate || translate === 'none') return { x: 0, y: 0 };
+  const [x = 0, y = 0] = translate.split(/\s+/).map((part) => parseFloat(part) || 0);
+  return { x, y };
+}
+
+/** An element's box on screen where it rests, whatever flight is still bringing it there. */
+function restingBox(element: Element, scale: number): Box {
+  const box = element.getBoundingClientRect();
+  const offset = flightOffset(element);
+  const dx = offset.x * scale;
+  const dy = offset.y * scale;
+  return { left: box.left - dx, right: box.right - dx, top: box.top - dy, bottom: box.bottom - dy };
+}
+
+/**
  * px a box moves along `direction` (a unit vector) before its edge meets `target`'s: a sweep of one box toward the
  * other, axis by axis. Null when the sweep passes the target by.
  */
@@ -131,7 +154,7 @@ export function swing(element: Element | null, from: Point, to: Point, options: 
   const direction = unit(from, to);
   // the card travels until its edge meets the target's: a creature, or the opposing player's seat across the table.
   // The boxes are on screen; the swing moves the card on the stage, which is drawn at `scale`
-  const gap = element && options.target ? gapBetween(element.getBoundingClientRect(), options.target.getBoundingClientRect(), direction) : null;
+  const gap = element && options.target ? gapBetween(restingBox(element, options.scale || 1), restingBox(options.target, options.scale || 1), direction) : null;
   const length = travel(gap === null ? distance * 0.5 : gap / (options.scale || 1), plan.press, options.role);
   const dx = direction.x * length;
   const dy = direction.y * length;
