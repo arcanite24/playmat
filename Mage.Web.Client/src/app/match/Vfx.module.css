@@ -212,7 +212,8 @@
   background:
     radial-gradient(closest-side, rgb(var(--mat-rgb) / 0.85), rgb(var(--mat-rgb) / 0.4) 60%, transparent),
     radial-gradient(closest-side at 40% 60%, color-mix(in srgb, var(--oxblood) 45%, transparent), transparent 70%);
-  filter: blur(2px);
+  /* a blur that grows is redrawn on every frame on the main thread; a fixed one rides along with the transform */
+  filter: blur(6px);
   animation: dissolve 850ms ease-out forwards;
 }
 
@@ -224,7 +225,6 @@
   to {
     transform: scale(1.35) translateY(-20px);
     opacity: 0;
-    filter: blur(14px);
   }
 }
 
@@ -548,6 +548,7 @@
   animation: exile 900ms ease-out forwards;
 }
 
+/* the blur is fixed (see .dissolve); spread over the rise, the fade does what the growing blur did */
 @keyframes exile {
   from {
     transform: scale(0.9);
@@ -556,7 +557,6 @@
   to {
     transform: scale(1.15, 1.4) translateY(-60px);
     opacity: 0;
-    filter: blur(10px);
   }
 }
 

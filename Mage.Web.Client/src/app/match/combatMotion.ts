@@ -4,6 +4,13 @@ import type { HitWeight } from '../../core/game/combatStrikes';
  * How combat moves (#413), on the cards themselves with the Web Animations API: translate, scale and rotate only, so
  * a card's own transform (tapped, attacking) and its layout stay untouched and nothing waits for the animation.
  *
+ * Performance: an animation the compositor runs keeps its 120 fps whatever the page's own thread is doing (a view
+ * arriving mid-swing, the hit's effects being drawn). The compositor only takes animations that replace a property,
+ * not ones added on top of another. So a card's three kinds of motion move three nested layers: its flights (flip.ts)
+ * the card, its swings the layer inside it, its hits (knockback, shakes, a trigger's wiggle) the picture inside that.
+ * Each replaces on its own layer, and adds only when something else moves that same layer (a dying creature swings
+ * and is hit on its held flight, which has no layers inside; an attacker's second swing at another blocker).
+ *
  * Plain combat is a lunge of one strength. Fancy combat weighs each hit: a bigger hit winds up further, holds on
  * contact for a few frames (hit-stop), bounces back off its target and knocks the target back.
  */
@@ -84,6 +91,35 @@ export function travel(gap: number, press: number, role: 'attack' | 'block'): nu
   return role === 'block' ? gap * BLOCK_SHARE : gap + press;
 }
 
+const MOVES = ['translate', 'scale', 'rotate'];
+
+/**
+ * How a motion should combine on this element: replace (run by the compositor) unless another scripted animation
+ * already moves it, in which case it adds to that one. CSS animations and transitions use other properties.
+ */
+export function compositeFor(element: Element, alongside: readonly string[] = []): CompositeOperation {
+  const moving = element.getAnimations().some((animation) => {
+    if (animation.playState === 'finished' || animation.playState === 'idle') return false;
+    // motions that may simply take over from one another (a second hit's shake over the first)
+    if (alongside.includes(animation.id)) return false;
+    if (typeof CSSAnimation !== 'undefined' && animation instanceof CSSAnimation) return false;
+    if (typeof CSSTransition !== 'undefined' && animation instanceof CSSTransition) return false;
+    const effect = animation.effect as KeyframeEffect | null;
+    return !!effect?.getKeyframes?.().some((frame) => MOVES.some((property) => property in frame));
+  });
+  return moving ? 'add' : 'replace';
+}
+
+/** What a hit moves: a card's picture (its body, so the card's own swing is left alone), or the element itself. */
+export function hitBody(element: Element): Element {
+  return element.querySelector('[data-hit-body]') ?? element;
+}
+
+/** What a swing moves: the card inside the box its flights move, or the element itself (a held flight, a seat). */
+function swingBody(element: Element): Element {
+  return element.querySelector(':scope > [data-swing-body]') ?? element;
+}
+
 /**
  * Swing a card at a point, `delay` ms from now. Returns when the hit lands (ms from now, contact plus hit-stop), so
  * the splash, the number and the target's recoil can start there. An attacker travels until it touches its target; a
@@ -118,45 +154,54 @@ export function swing(element: Element | null, from: Point, to: Point, options: 
     frames.push({ translate: `${-dx * back}px ${-dy * back}px`, scale: '1', offset: Math.min(0.94, holdEnd + (1 - holdEnd) * 0.6), easing: 'ease-in-out' });
   }
   frames.push({ translate: '0 0', scale: '1', offset: 1 });
-  // added to whatever else moves the card: a creature that died swings on top of its held flight to the graveyard
-  element?.animate(frames, { duration: total, delay: options.delay, easing: 'ease-in-out', composite: 'add' });
+  // added to whatever else moves the card (a creature that died swings on top of its held flight to the graveyard),
+  // otherwise on the compositor
+  if (element) {
+    const body = swingBody(element);
+    body.animate(frames, { id: 'swing', duration: total, delay: options.delay, easing: 'ease-in-out', composite: compositeFor(body) });
+  }
   return { contact: options.delay + contactMs + plan.hold, end: options.delay + total };
 }
 
 /** Knock a hit card or seat back along the direction of the hit, and let it spring back (fancy combat). */
 export function recoil(element: Element | null, from: Point, to: Point, weight: HitWeight, delay: number) {
   if (!element) return;
+  const body = hitBody(element);
   const direction = unit(from, to);
   const distance = KNOCKBACK[weight];
   const tilt = weight === 'heavy' || weight === 'huge' ? (direction.x >= 0 ? 1 : -1) * (weight === 'huge' ? 2.5 : 1.5) : 0;
-  element.animate(
+  body.animate(
     [
       { translate: '0 0', rotate: '0deg' },
       { translate: `${direction.x * distance}px ${direction.y * distance}px`, rotate: `${tilt}deg`, offset: 0.18, easing: 'cubic-bezier(0.2, 0.8, 0.3, 1)' },
       { translate: `${-direction.x * distance * 0.18}px ${-direction.y * distance * 0.18}px`, rotate: `${-tilt * 0.3}deg`, offset: 0.62 },
       { translate: '0 0', rotate: '0deg' },
     ],
-    // added to whatever else moves the card: a creature killed by the hit recoils on top of its held flight
-    { duration: 360 + distance * 6, delay, easing: 'ease-out', composite: 'add' },
+    // a creature killed by the hit recoils on top of its held flight (which has no body): added to it
+    // a second hit's knockback takes over from the first's
+    { id: 'hit', duration: 360 + distance * 6, delay, easing: 'ease-out', composite: compositeFor(body, ['hit']) },
   );
 }
 
 /** Shake an element without disturbing its own transform (tapped, attacking), `delay` ms from now. */
 export function shake(element: Element | null, strength = 8, delay = 0) {
-  element?.animate(
+  if (!element) return;
+  const body = hitBody(element);
+  body.animate(
     [0, -1, 1, -0.8, 0.6, -0.3, 0].map((factor) => ({ translate: `${factor * strength}px ${factor * strength * -0.3}px` })),
-    { duration: 420, easing: 'ease-out', delay, composite: 'add' },
+    { id: 'hit', duration: 420, easing: 'ease-out', delay, composite: compositeFor(body, ['hit']) },
   );
 }
 
 /** A heavy landing: the card drops in from above its place and the table thumps (big creatures entering). */
 export function thump(element: Element | null, delay: number) {
-  element?.animate(
+  if (!element) return;
+  element.animate(
     [
       { scale: '1.18', translate: '0 -18px' },
       { scale: '0.97', translate: '0 2px', offset: 0.55, easing: 'cubic-bezier(0.6, 0, 0.9, 0.5)' },
       { scale: '1', translate: '0 0' },
     ],
-    { duration: 420, delay, easing: 'ease-out' },
+    { id: 'thump', duration: 420, delay, easing: 'ease-out', composite: compositeFor(element) },
   );
 }

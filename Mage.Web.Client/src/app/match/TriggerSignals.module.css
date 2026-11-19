@@ -46,3 +46,15 @@
     animation: none;
   }
 }
+
+/* a trigger's bloom over its card (see glow in TriggerSignals.tsx): drawn once, then only faded */
+.bloom {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow: 0 0 10px rgb(var(--ink) / 0.95), 0 0 22px rgb(var(--ink) / 0.5), inset 0 0 0 999px rgb(255 255 255 / 0.08);
+  will-change: opacity;
+}

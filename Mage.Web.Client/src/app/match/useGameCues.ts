@@ -4,7 +4,7 @@ import { useSettings } from '../stores/settings';
 import { notify } from '../stores/toasts';
 import { ignoreMatchKey, matchKeysBlocked } from './keyboard';
 import { cueSnapshot, pickCue, type CueSnapshot } from './cueRules';
-import { playCue } from './sound';
+import { playCue, warmAudio } from './sound';
 import { beatsOf } from './beats';
 import type { Cue } from './cueRules';
 
@@ -14,6 +14,8 @@ import type { Cue } from './cueRules';
  */
 export function useGameCues(state: GameSessionState, myId: string | null, autoPassing = false) {
   const previous = useRef<CueSnapshot | null>(null);
+  // the audio is opened ahead of the first cue, so opening it never stalls an animation
+  useEffect(() => warmAudio(), []);
   useEffect(() => {
     const now = cueSnapshot(state, myId);
     const cue = pickCue(previous.current, now, myId, autoPassing);
