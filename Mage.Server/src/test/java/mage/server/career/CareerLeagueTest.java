@@ -208,7 +208,8 @@ public class CareerLeagueTest {
     }
 
     @Test
-    void aLeagueTableIsRankedNotACareerTableSoTheRustHostTakesIt() throws Exception {
+    // RustHost refuses Career tables; a League table is a ranked one, started like Ranked's (not checked end to end here)
+    void aLeagueTableIsRankedNotACareerTable() throws Exception {
         league.start("ana", "standard", starterIds("standard").subList(0, 2));
         BotRoster.Bot bot = ranked.pick("ana", "standard", RankedService.LEAGUE, NOW);
         UUID table = UUID.randomUUID();
@@ -216,6 +217,15 @@ public class CareerLeagueTest {
         assertTrue(RankedService.isRanked(table));
         assertFalse(CareerService.get().isCareerTable(table), "Career tables don't qualify for the Rust host; League ones must");
         ranked.forget(table, NOW);
+    }
+
+    @Test
+    void deletingTheCareerDropsTheLeagues() throws Exception {
+        league.start("ana", "standard", starterIds("standard").subList(0, 2));
+        assertTrue(CareerService.get().delete("ana"));
+        assertTrue(store.leagues("ana").isEmpty());
+        assertTrue(store.leagueDecks("ana", null).isEmpty());
+        assertEquals(0, store.leagueTokens("ana", "standard"));
     }
 
     @Test

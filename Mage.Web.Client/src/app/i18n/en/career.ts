@@ -1066,7 +1066,7 @@ export default {
   'career.ranked.cosmetics': { one: '{count} new item in your locker', other: '{count} new items in your locker' },
   'career.ranked.tokens': { one: '{count} capsule token', other: '{count} capsule tokens' },
   'career.ranked.packs': { one: '{count} League pack', other: '{count} League packs' },
-  'career.ranked.wildcard': { one: '{count} {rarity} wildcard', other: '{count} {rarity} wildcards' },
+  'career.ranked.wildcard': { one: '{count} wildcard ({rarity})', other: '{count} wildcards ({rarity})' },
   'career.hub.ranked': 'Standard and Pioneer ladders',
   'career.hub.leagueTitle': 'League',
   'career.hub.league': 'Ranked with the cards you own',

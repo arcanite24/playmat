@@ -1487,6 +1487,7 @@ public final class CareerService {
         }
         store.transaction(() -> {
             store.deleteProfile(user);
+            store.deleteLeague(user);
             return null;
         });
         return true;

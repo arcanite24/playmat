@@ -669,7 +669,7 @@ on wherever Career is.
   server's copy and refuses a deck that isn't owned and legal.
 - **Ladder.** League games are ranked games in the `league` queue: `ladderState` and `ladderOpponent` take
   `queue: "league"`. The rules are Ranked's. Players start at a rating of 1000 instead of 1200, so the first opponents
-  are the starter bots. League tables aren't Career tables, so they qualify for the Rust host like Ranked ones.
+  are the starter bots. League tables start like Ranked ones and aren't Career tables, so the Rust host takes them as it takes Ranked games.
 - **Rewards.** Each tier entered for the first time pays a League pack of the format (keyed `tier-N` in
   `ladder_rewards`). Each rank pays its cosmetics and a rare wildcard (mythic at Gold, none at Bronze). Every fifth
   League win pays an uncommon wildcard. The League pays no capsule tokens.

@@ -138,7 +138,12 @@ public final class CareerStore implements AutoCloseable {
     /** every table that holds an account's rows, for deleting a Career */
     private static final String[] USER_TABLES = {"profile", "cards", "payouts", "stats", "quests", "achievements",
             "unlocks", "weekly", "progress_games", "campaign_nodes", "set_unlocks", "runs", "puzzle_results", "challenge_results",
-            "daily", "decks", "token_log", "pulls", "card_styles", "league", "league_tokens", "league_decks"};
+            "daily", "decks", "token_log", "pulls", "card_styles"};
+    /**
+     * The League's tables: not part of the Career file, so a Career import leaves them (and their ladder) as they are;
+     * otherwise an import would start each format's League again, packs and wildcards included. Gone with the account.
+     */
+    private static final String[] LEAGUE_TABLES = {"league", "league_tokens", "league_decks"};
 
     private static volatile CareerStore instance;
 
@@ -490,7 +495,16 @@ public final class CareerStore implements AutoCloseable {
     }
 
     synchronized void deleteProfile(String user) throws SQLException {
-        for (String table : USER_TABLES) {
+        deleteRows(user, USER_TABLES);
+    }
+
+    /** the account's Leagues, with the account */
+    synchronized void deleteLeague(String user) throws SQLException {
+        deleteRows(user, LEAGUE_TABLES);
+    }
+
+    private void deleteRows(String user, String[] tables) throws SQLException {
+        for (String table : tables) {
             try (PreparedStatement delete = connection.prepareStatement("DELETE FROM " + table + " WHERE user = ?")) {
                 delete.setString(1, key(user));
                 delete.executeUpdate();

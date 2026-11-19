@@ -1281,7 +1281,7 @@ const es: Catalog = {
   'career.ranked.cosmetics': { one: '{count} objeto nuevo en tu vestidor', other: '{count} objetos nuevos en tu vestidor' },
   'career.ranked.tokens': { one: '{count} ficha de cápsula', other: '{count} fichas de cápsula' },
   'career.ranked.packs': { one: '{count} sobre de Liga', other: '{count} sobres de Liga' },
-  'career.ranked.wildcard': { one: '{count} comodín {rarity}', other: '{count} comodines {rarity}' },
+  'career.ranked.wildcard': { one: '{count} comodín ({rarity})', other: '{count} comodines ({rarity})' },
   'career.hub.ranked': 'Escaleras de Estándar y Pioneer',
   'career.hub.leagueTitle': 'Liga',
   'career.hub.league': 'Clasificatorias con las cartas que tienes',

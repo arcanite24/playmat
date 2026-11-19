@@ -110,7 +110,7 @@ function StartLeague({ league, state }: { league: LeagueFormat; state: LeagueSta
     <section className={styles.start} aria-labelledby="league-start">
       <h2 id="league-start" className={modes.subhead}>{t('league.start.title', { format: formatName(t, format) })}</h2>
       <p className={modes.small}>{t('league.start.lead')}</p>
-      <ul className={styles.starters} role="group" aria-label={t('league.start.pick')}>
+      <ul className={styles.starters} aria-label={t('league.start.pick')}>
         {(league.starters ?? []).map((starter) => {
           const on = picked.includes(starter.id ?? '');
           return (
