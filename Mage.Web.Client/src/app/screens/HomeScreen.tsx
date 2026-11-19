@@ -177,7 +177,7 @@ export function HomeScreen() {
       </aside>
 
       <section className={styles.mat} style={{ '--sleeve': sleeve } as CSSProperties}>
-        <MatPrint card={metaTop?.cover ?? selected?.cover ?? null} />
+        <MatPrint card={metaTop?.cover ?? selected?.cover ?? null} className={styles.matPrint} />
         {notice && <p className={styles.serverNotice} role="note" aria-label={t('home.notice')}>{notice}</p>}
         <div className={styles.deckTitle}>
           {mode === 'meta' ? (

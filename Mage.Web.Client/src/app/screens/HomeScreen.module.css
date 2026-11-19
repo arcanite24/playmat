@@ -445,3 +445,12 @@
   grid-row: 3;
   min-width: 0;
 }
+
+/* the print covers the mat's visible box and scrolls with it; fading its bottom edge out keeps a seam from showing
+   when the mat scrolls down to the widget board */
+.matPrint {
+  mask-image:
+    radial-gradient(120% 95% at 62% 42%, #000 35%, transparent 82%),
+    linear-gradient(#000 72%, transparent);
+  mask-composite: intersect;
+}

@@ -185,6 +185,19 @@
   background: color-mix(in srgb, var(--decision) var(--p), rgb(var(--ink-rgb) / 0.1));
 }
 
+.split {
+  display: flex;
+  flex: none;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.split .action {
+  flex: none;
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;
