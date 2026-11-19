@@ -393,14 +393,30 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('careerExport'),
     careerImport: (data: string) =>
       rpc.call('careerImport', data),
-    ladderState: (format: string) =>
-      rpc.call('ladderState', format),
-    ladderOpponent: (format: string) =>
-      rpc.call('ladderOpponent', format),
+    ladderState: (format: string, queue?: string | null) =>
+      rpc.call('ladderState', format, queue),
+    ladderOpponent: (format: string, queue?: string | null) =>
+      rpc.call('ladderOpponent', format, queue),
     ladderPlay: (format: string, deck: DeckCardLists) =>
       rpc.call('ladderPlay', format, deck),
+    leaguePlay: (format: string, deckId: string) =>
+      rpc.call('leaguePlay', format, deckId),
     ladderResult: (tableId: string) =>
       rpc.call('ladderResult', tableId),
+    leagueState: () =>
+      rpc.call('leagueState'),
+    leagueStart: (format: string, starters: string[]) =>
+      rpc.call('leagueStart', format, starters),
+    leagueSets: (format: string) =>
+      rpc.call('leagueSets', format),
+    leagueOpen: (format: string, setCode: string) =>
+      rpc.call('leagueOpen', format, setCode),
+    leagueDecks: (format?: string | null) =>
+      rpc.call('leagueDecks', format),
+    leagueSaveDeck: (id: string | null, name: string, format: string, deck: DeckCardLists) =>
+      rpc.call('leagueSaveDeck', id, name, format, deck),
+    leagueDeleteDeck: (id: string) =>
+      rpc.call('leagueDeleteDeck', id),
     homeLayoutGet: () =>
       rpc.call('homeLayoutGet'),
     homeLayoutSet: (layout: string) =>

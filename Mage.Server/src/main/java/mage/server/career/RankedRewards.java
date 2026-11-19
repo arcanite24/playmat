@@ -21,6 +21,10 @@ public final class RankedRewards {
     public static class Paid {
         public List<CareerProgress.CareerCosmetic> cosmetics = new ArrayList<>();
         public int tokens;
+        /** League pack tokens of the format */
+        public int packs;
+        /** League wildcards by rarity */
+        public java.util.Map<String, Integer> wildcards = new java.util.LinkedHashMap<>();
     }
 
     /** pays reaching `rank` (bronze to mythic) in a format for the first time */

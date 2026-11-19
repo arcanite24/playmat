@@ -1,0 +1,16 @@
+{
+  "_doc": "The Career League (#433): per format, the school decks a new League can start from (pick two; their cards join the collection and each becomes an editable League deck), the packs a start gives, and whether the format has a mixed pack drawing from all its sets. Wildcards come with the account's first League only. Rewards are in CareerLeague.",
+  "startWildcards": {"common": 4, "uncommon": 3, "rare": 1, "mythic": 0},
+  "formats": {
+    "standard": {
+      "starters": ["standard/starter.dck", "standard/act1-skies.dck", "standard/act1-stompy.dck"],
+      "packs": 6,
+      "mixed": false
+    },
+    "pioneer": {
+      "starters": ["pioneer/starter.dck", "pioneer/act1-boros-aggro.dck", "pioneer/act1-green-stompy.dck", "pioneer/act1-mono-black-devotion.dck"],
+      "packs": 6,
+      "mixed": true
+    }
+  }
+}
