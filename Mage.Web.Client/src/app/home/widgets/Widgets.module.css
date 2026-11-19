@@ -59,6 +59,7 @@
 }
 
 .big {
+  flex: none;
   margin: 0;
   overflow: hidden;
   color: var(--ink-strong);
@@ -73,7 +74,11 @@
 }
 
 .note {
+  flex: none;
   margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--ink-dim);
   font-size: var(--text-sm);
 }

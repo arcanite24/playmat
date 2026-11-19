@@ -42,17 +42,18 @@ export default function Customize({ has, onDone }: { has: Readonly<Record<Widget
     return def ? t(def.title) : item.id;
   };
 
-  // Escape leaves without saving (a dialog open on top handles its own Escape)
+  // Escape leaves without saving. It's checked in the capture phase, before a dialog open on top (the gallery) closes
+  // itself, so that Escape only closes the dialog
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !gallery && !document.querySelector('[role="dialog"]')) {
+      if (event.key === 'Escape' && !event.defaultPrevented && !document.querySelector('[role="dialog"]')) {
         event.preventDefault();
         onDone();
       }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [gallery, onDone]);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [onDone]);
 
   // a widget moved with the keyboard keeps focus on its handle
   useLayoutEffect(() => {
@@ -73,7 +74,9 @@ export default function Customize({ has, onDone }: { has: Readonly<Record<Widget
 
   function startDrag(event: ReactPointerEvent<HTMLElement>, item: LayoutItem) {
     if (event.button !== 0) return;
+    // no text selection while dragging, but the handle still takes focus so the arrow keys work after a click
     event.preventDefault();
+    event.currentTarget.focus();
     setDragging(item.key);
     const onMove = (move: PointerEvent) => {
       const over = document.elementFromPoint(move.clientX, move.clientY)?.closest<HTMLElement>('[data-key]');

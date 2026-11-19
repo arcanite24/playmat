@@ -15,7 +15,8 @@ export default function PacksWidget({ item, editing }: WidgetProps) {
   const wild = profile?.wildcards;
   return (
     <Tile title={t('home.widget.packs')} to="/career/shop" editing={editing}>
-      <Big>{t('home.widget.packs.count', { count: packs })}</Big>
+      <Big>{packs}</Big>
+      <Note>{t('home.widget.packs.count', { count: packs })}</Note>
       {item.size !== 's' && (
         <Note>{t('home.widget.packs.wildcards', { common: wild?.common ?? 0, uncommon: wild?.uncommon ?? 0, rare: wild?.rare ?? 0, mythic: wild?.mythic ?? 0 })}</Note>
       )}

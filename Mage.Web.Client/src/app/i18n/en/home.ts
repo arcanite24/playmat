@@ -70,7 +70,7 @@ export default {
   'home.widget.level.blurb': 'Your Career level and the next reward.',
   'home.widget.packs': 'Packs',
   'home.widget.packs.blurb': 'Unopened packs and wildcards.',
-  'home.widget.packs.count': { one: '{count} pack to open', other: '{count} packs to open' },
+  'home.widget.packs.count': { one: 'pack to open', other: 'packs to open' },
   'home.widget.packs.wildcards': 'Wildcards: {common} C · {uncommon} U · {rare} R · {mythic} M',
   'home.widget.packs.open': 'Open packs',
   'home.widget.collection': 'Collection',

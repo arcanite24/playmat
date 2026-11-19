@@ -402,6 +402,12 @@
   grid-template-columns: repeat(3, 1fr);
 }
 
+.queues .mode {
+  padding: 0 8px;
+  font-size: var(--text-md);
+  white-space: nowrap;
+}
+
 .freeModes {
   display: flex;
   flex-wrap: wrap;

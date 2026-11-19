@@ -2157,7 +2157,7 @@ const es: Catalog = {
   'home.widget.level.blurb': 'Tu nivel de Carrera y la próxima recompensa.',
   'home.widget.packs': 'Sobres',
   'home.widget.packs.blurb': 'Sobres sin abrir y comodines.',
-  'home.widget.packs.count': { one: '{count} sobre por abrir', other: '{count} sobres por abrir' },
+  'home.widget.packs.count': { one: 'sobre por abrir', other: 'sobres por abrir' },
   'home.widget.packs.wildcards': 'Comodines: {common} C · {uncommon} I · {rare} R · {mythic} M',
   'home.widget.packs.open': 'Abrir sobres',
   'home.widget.collection': 'Colección',
