@@ -10,7 +10,7 @@ import { lifetimeOf, type Point, type SignatureEffect } from './signatureShapes'
 import { eventVisuals } from './vfxEvents';
 import { fighterOf } from '../../core/game/combatPreview';
 import { combatSide, hitWeight, stableDefender, strikesFromCombat, strikesFromEvents, WEIGHT_RANK, type HitWeight, type Strike } from '../../core/game/combatStrikes';
-import { recoil, shake, swing, TABLE_SHAKE, thump } from './combatMotion';
+import { flightOffset, recoil, shake, swing, TABLE_SHAKE, thump } from './combatMotion';
 import { matchLayout } from './matchLayout';
 import { TriggerSignals } from './TriggerSignals';
 import { useObjectCenter, useStage } from './stageContext';
@@ -230,7 +230,10 @@ export function Vfx({ view, myPlayerId, sparks }: {
 
     // where a card or player is now, or where a card stood before it left (a creature killed by this damage)
     const pointOf = (id: string) => {
-      const at = center(id) ?? boardSpots.current.get(id);
+      const live = center(id);
+      // a card still flying in counts where it lands: a swing aimed from mid-flight goes toward where it came from
+      const offset = live ? flightOffset(elementOf(id)) : null;
+      const at = live && offset ? { x: live.x - offset.x, y: live.y - offset.y } : boardSpots.current.get(id);
       if (at) return at;
       const placement = lastPlacement(now.permanents.get(id)?.cardId ?? before.permanents.get(id)?.cardId ?? id) ?? lastPlacement(id);
       return placement ? { x: placement.x + placement.width / 2, y: placement.y + placement.height / 2 } : null;
