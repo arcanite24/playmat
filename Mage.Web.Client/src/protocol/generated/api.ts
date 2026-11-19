@@ -401,6 +401,12 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('ladderPlay', format, deck),
     ladderResult: (tableId: string) =>
       rpc.call('ladderResult', tableId),
+    homeLayoutGet: () =>
+      rpc.call('homeLayoutGet'),
+    homeLayoutSet: (layout: string) =>
+      rpc.call('homeLayoutSet', layout),
+    homeActivity: (offsetMinutes?: number | null) =>
+      rpc.call('homeActivity', offsetMinutes),
     careerQuests: () =>
       rpc.call('careerQuests'),
     careerRerollQuest: (slot: number) =>

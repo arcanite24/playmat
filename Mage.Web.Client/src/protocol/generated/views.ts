@@ -1535,6 +1535,19 @@ export interface GithubSignInResult {
     userName?: string;
 }
 
+export interface HomeActivity {
+    days?: number[];
+    games?: HomeGame[];
+    streak?: number;
+}
+
+export interface HomeGame {
+    at?: number;
+    career?: boolean;
+    opponent?: string;
+    won?: boolean;
+}
+
 export interface ImportedDeck {
     author?: string;
     commanders?: DeckCardInfo[];

@@ -1,0 +1,22 @@
+{
+  "$comment": "Home widgets (#432): each widget's id and the sizes it comes in (s 1x1, m 2x1, l 2x2, w a full row). The server checks a saved layout against this list; the web client's registry (src/app/home/widgets.ts) must match it, which homeWidgets.test.ts checks.",
+  "max": 24,
+  "widgets": {
+    "rank": ["s", "m"],
+    "allRanks": ["m", "l"],
+    "rival": ["s", "m"],
+    "recent": ["m", "l"],
+    "quests": ["m", "l"],
+    "daily": ["s", "m"],
+    "weekly": ["s"],
+    "level": ["s", "m"],
+    "packs": ["s", "m"],
+    "collection": ["m", "l"],
+    "masteries": ["s", "m"],
+    "streak": ["m", "w"],
+    "savedGames": ["m", "w"],
+    "leaderboard": ["m", "l"],
+    "capsules": ["s"],
+    "notice": ["m", "w"]
+  }
+}
