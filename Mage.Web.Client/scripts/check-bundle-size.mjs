@@ -135,10 +135,12 @@ import { gzipSync } from 'node:zlib';
 // sweep in combatMotion (lazy match chunk) tipped it to 848.1 kB
 // app raised 2026-11-19 from 850 kB for match pacing and animation performance (the paced queue, the view timeline,
 // composited combat motion and the warmed audio, nearly all in the lazy match chunk). Measured app 850.0 kB
+// app raised 2026-11-19 from 853 kB for Ranked (#431): the Ranked screen, its model and data, and the en/es strings, all
+// in lazy Career chunks. Measured app 856.1 kB
 const BUDGET_KB = {
   entry: 86,
   initial: 221,
-  app: 853,
+  app: 859,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;
