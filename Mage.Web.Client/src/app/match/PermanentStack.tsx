@@ -253,8 +253,10 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, attacking, 
       onPointerLeave={() => setZoom(null)}
       data-object-id={id}
     >
+      {/* the card's swing moves this layer (combatMotion.ts); its flights move the card, its hits the body */}
+      <div className={styles.lunge} data-swing-body="">
       {flying && <span className={styles.flightShadow} data-still={motion ? undefined : ''} aria-hidden="true" />}
-      <div className={[styles.body, flying ? styles.floating : '', asleep ? styles.asleep : '', tapped ? styles.tapped : ''].join(' ')} data-still={motion ? undefined : ''}>
+      <div className={[styles.body, flying ? styles.floating : '', asleep ? styles.asleep : '', tapped ? styles.tapped : ''].join(' ')} data-still={motion ? undefined : ''} data-hit-body="">
         {effects.map((effect) => <span key={effect} className={[styles.fx, styles[FX_CLASS[effect]]].join(' ')} aria-hidden="true" />)}
         <CardFace card={permanent} sleeve={sleeve} size={width > 140 ? 'normal' : 'small'} />
       </div>
@@ -308,6 +310,7 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, attacking, 
       )}
       {!isCreature && loyalty && <span className={[styles.pt, styles.loyalty].join(' ')}>{loyalty}</span>}
       {count && <span className={styles.count} data-turned={tapped ? '' : undefined}>{count}</span>}
+      </div>
     </div>
   );
 }

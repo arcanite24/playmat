@@ -161,7 +161,7 @@ export function useFlip(cardId: string | undefined, ref: RefObject<HTMLElement |
         { translate: `${dx}px ${dy}px`, scale: String(scale), rotate: `${turn}deg`, zIndex: 50 },
         { translate: '0px 0px', scale: '1', rotate: '0deg', zIndex: 50 },
       ],
-      { duration: Math.min(560, 260 + Math.hypot(dx, dy) * 0.25), easing: 'cubic-bezier(0.16, 1, 0.3, 1)' },
+      { id: 'flight', duration: Math.min(560, 260 + Math.hypot(dx, dy) * 0.25), easing: 'cubic-bezier(0.16, 1, 0.3, 1)' },
     );
     flights.set(cardId, flight);
     const done = () => {

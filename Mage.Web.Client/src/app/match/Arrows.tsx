@@ -142,12 +142,11 @@ export function Arrows({ sourceId, targetIds, live, links, attacks, leads, tints
   const attackCount = layers.reduce((sum, layer) => sum + layer.paths.length, 0);
   if (dragging || (!blockLine && combat.length === 0 && attackCount === 0 && (!from || (targets.length === 0 && !(live && pointer))))) return null;
 
+  const marching = layers.some((layer) => layer.paths.length > 0) || (!!from && targets.length > 0);
   return (
+    <>
     <svg className={styles.arrows} width={stage.width} height={stage.height} aria-hidden="true">
       <defs>
-        <marker id="arrow-ink" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-          <path d="M0 0 L10 5 L0 10 z" fill="var(--ink)" />
-        </marker>
         <marker id="arrow-decision" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
           <path d="M0 0 L10 5 L0 10 z" fill="var(--decision)" />
         </marker>
@@ -169,9 +168,6 @@ export function Arrows({ sourceId, targetIds, live, links, attacks, leads, tints
             {layer.feeders.map((d, index) => <path key={`f${index}`} className={[styles.attack, styles.feeder].join(' ')} d={d} />)}
             {layer.paths.map((d, index) => <path key={index} className={styles.attack} d={d} markerEnd={`url(#arrow-attack-${layerIndex})`} />)}
           </g>
-          <g className={styles.attackFlow}>
-            {layer.paths.map((d, index) => <path key={index} className={styles.attack} d={d} />)}
-          </g>
         </g>
       ))}
       {trunks.map((trunk, index) => (
@@ -187,11 +183,6 @@ export function Arrows({ sourceId, targetIds, live, links, attacks, leads, tints
           ))}
         </g>
       )}
-      {from && targets.length > 0 && (
-        <g className={styles.ink}>
-          {targets.map((to, index) => <path key={index} d={curve(from, to)} markerEnd="url(#arrow-ink)" />)}
-        </g>
-      )}
       {blockLine && (
         <line
           className={blockDrag?.attackerId ? styles.blockLive : styles.live}
@@ -203,5 +194,36 @@ export function Arrows({ sourceId, targetIds, live, links, attacks, leads, tints
       )}
       {from && live && pointer && <path className={styles.live} d={curve(from, pointer)} markerEnd="url(#arrow-decision)" />}
     </svg>
+    {/*
+      what marches, on a layer of its own with no filters: a dash moving repaints only this layer, never the glows and
+      shadows under it (repainting those every frame cost a few ms of each 8 ms frame while arrows were up)
+    */}
+    {marching && (
+      <svg className={[styles.arrows, styles.marching].join(' ')} width={stage.width} height={stage.height} aria-hidden="true">
+        <defs>
+          <marker id="arrow-ink" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" fill="var(--ink)" />
+          </marker>
+          <marker id="arrow-ink-shade" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" fill="rgb(var(--shade-rgb) / 0.5)" />
+          </marker>
+        </defs>
+        {layers.map((layer, layerIndex) => (
+          <g key={layerIndex} className={styles.attackFlow} style={tintStyle(layer.color)}>
+            {layer.paths.map((d, index) => <path key={index} className={styles.attack} d={d} />)}
+          </g>
+        ))}
+        {from && targets.length > 0 && (
+          <g className={styles.ink}>
+            {/* the shadow, drawn as a dashed path of its own rather than a filter over the marching one */}
+            <g className={styles.inkShade}>
+              {targets.map((to, index) => <path key={index} d={curve(from, to)} markerEnd="url(#arrow-ink-shade)" />)}
+            </g>
+            {targets.map((to, index) => <path key={index} d={curve(from, to)} markerEnd="url(#arrow-ink)" />)}
+          </g>
+        )}
+      </svg>
+    )}
+    </>
   );
 }

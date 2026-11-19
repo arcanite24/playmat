@@ -279,3 +279,6 @@ useSession.subscribe((state, previous) => {
   if (!state.expired || previous.expired) return;
   for (const gameId of Object.keys(useGames.getState().sessions)) useGames.getState().forget(gameId);
 });
+
+// profiling builds only (e2e/perf-live.mjs): a production build's autopilot reaches the games through this
+if (import.meta.env.VITE_PERF_HOOKS) (window as unknown as { __playmatGames?: typeof useGames }).__playmatGames = useGames;

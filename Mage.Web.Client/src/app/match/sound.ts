@@ -55,6 +55,30 @@ export function audio(): Bus | null {
   return bus;
 }
 
+let warming = false;
+
+/**
+ * Opens the audio bus before the first cue needs it. Making an AudioContext costs 50-200 ms on the main thread (a
+ * round trip to the browser's audio service), and made on the first cue it lands on the first hit of the game,
+ * stalling the swing. It is made on the player's first click or key instead (which also lets it start), or when the
+ * page is idle.
+ */
+export function warmAudio(): void {
+  if (warming || bus || typeof window === 'undefined' || !('AudioContext' in window)) return;
+  if (!useSettings.getState().settings.sound) return;
+  warming = true;
+  let idle: number | null = null;
+  const open = () => {
+    window.removeEventListener('pointerdown', open, true);
+    window.removeEventListener('keydown', open, true);
+    if (idle !== null && 'cancelIdleCallback' in window) window.cancelIdleCallback(idle);
+    audio();
+  };
+  window.addEventListener('pointerdown', open, true);
+  window.addEventListener('keydown', open, true);
+  if ('requestIdleCallback' in window) idle = window.requestIdleCallback(open, { timeout: 4000 });
+}
+
 interface ToneOptions {
   freq: number;
   start: number;

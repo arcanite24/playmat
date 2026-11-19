@@ -11,13 +11,20 @@
   outline: none;
 }
 
+/* what a swing moves: the whole card, inside the box its flights move (combatMotion.ts) */
+.lunge {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
 /* fancy combat effects (#413): an attacker lifts off the mat, its shadow dropping away under it, with a slight
    settle. Tapping and stepping forward keep the plain easing: an overshoot there reads as a lunge on any tap. */
-.snappy > .body {
+.snappy > .lunge > .body {
   transition: scale var(--dur-place) cubic-bezier(0.34, 1.15, 0.64, 1), filter var(--dur-place) ease;
 }
 
-.lifted > .body {
+.lifted > .lunge > .body {
   scale: 1.03;
   filter: drop-shadow(0 12px 14px rgb(var(--shade-rgb) / 0.45));
 }
@@ -590,14 +597,16 @@
   animation-delay: 0.28s;
 }
 
+/* moved with translate, which the compositor runs: animating left laid the page out again on every frame, for every
+   first striker on the table, all game long. 475% of its own width is the 190% of the card it crosses. */
 @keyframes kw-glint {
   0%,
   78% {
-    left: -60%;
+    translate: 0 0;
   }
   92%,
   100% {
-    left: 130%;
+    translate: 475% 0;
   }
 }
 

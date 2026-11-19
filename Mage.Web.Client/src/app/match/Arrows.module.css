@@ -6,10 +6,23 @@
   overflow: visible;
 }
 
-/* the layers below are groups: the filter sits on the group, the strokes are inherited by its paths */
+/* the marching dashes: a layer of their own, so a dash moving repaints nothing else */
+.marching {
+  will-change: transform;
+}
+
 .ink {
   opacity: 0.85;
-  filter: drop-shadow(0 2px 3px rgb(var(--shade-rgb) / 0.6));
+}
+
+/* the ink's shadow: the same dashes, offset and dark, without a filter to redo every frame */
+.inkShade {
+  transform: translate(0, 2px);
+}
+
+.inkShade path {
+  stroke: rgb(var(--shade-rgb) / 0.5) !important;
+  stroke-width: 7 !important;
 }
 
 .ink path {
@@ -18,7 +31,9 @@
   stroke-width: 5;
   stroke-linecap: round;
   stroke-dasharray: 2 12;
-  animation: march 900ms linear infinite;
+  /* a few runs as the arrow appears, then still: a dash moving is redrawn on the page's own thread every frame
+     (about a quarter of it on a Retina screen), for as long as the arrow stays up */
+  animation: march 900ms linear 3;
 }
 
 .block {
@@ -86,7 +101,8 @@
 }
 
 .attackFlow .attack {
-  animation: attack-in 260ms var(--ease-out, ease-out) both, march-attack 700ms linear infinite;
+  /* runs a few times, then rests (see .ink path) */
+  animation: attack-in 260ms var(--ease-out, ease-out) both, march-attack 700ms linear 3;
 }
 
 @keyframes march-attack {

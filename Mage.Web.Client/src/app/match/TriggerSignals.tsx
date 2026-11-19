@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { GameView } from '../../protocol/generated/views';
 import { useT } from '../i18n';
+import { compositeFor, hitBody } from './combatMotion';
 import { motionAllowed } from './flip';
 import { matchLayout } from './matchLayout';
 import { toStagePoint, useStage } from './stageContext';
@@ -32,17 +33,24 @@ interface Label {
   still: boolean;
 }
 
-/** A soft ivory bloom around the card, filter only, so the card's own transform (tapped, attacking) is untouched. */
+/**
+ * A soft ivory bloom around the card: a layer of its own laid over the card that only fades in and out, which the
+ * compositor runs. (Animating a filter on the card itself redrew its shadow on every frame, on the page's thread, and
+ * took the card's other motion off the compositor with it.)
+ */
 function glow(element: Element, ink: string) {
-  element.animate(
-    [
-      { filter: `drop-shadow(0 0 0 rgb(${ink} / 0)) brightness(1)` },
-      { filter: `drop-shadow(0 0 10px rgb(${ink} / 0.95)) drop-shadow(0 0 22px rgb(${ink} / 0.5)) brightness(1.12)`, offset: 0.25 },
-      { filter: `drop-shadow(0 0 6px rgb(${ink} / 0.6)) brightness(1.05)`, offset: 0.6 },
-      { filter: `drop-shadow(0 0 0 rgb(${ink} / 0)) brightness(1)` },
-    ],
+  const bloom = document.createElement('span');
+  bloom.className = styles.bloom;
+  bloom.setAttribute('aria-hidden', 'true');
+  bloom.style.setProperty('--ink', ink);
+  element.appendChild(bloom);
+  const fade = bloom.animate(
+    [{ opacity: 0 }, { opacity: 1, offset: 0.25 }, { opacity: 0.55, offset: 0.6 }, { opacity: 0 }],
     { duration: 1000, easing: 'ease-out' },
   );
+  const remove = () => bloom.remove();
+  fade.onfinish = remove;
+  fade.oncancel = remove;
 }
 
 /**
@@ -64,9 +72,10 @@ function settled(element: Element): Promise<unknown> {
  * translate and rotate properties so the card's own transform is untouched. Only when motion is allowed.
  */
 function wiggle(element: Element) {
-  element.animate(
+  const body = hitBody(element);
+  body.animate(
     [0, -1, 1, -0.8, 0.6, -0.3, 0].map((factor) => ({ translate: `${factor * 3}px 0`, rotate: `${factor * 1.2}deg` })),
-    { duration: 450, easing: 'ease-out' },
+    { id: 'hit', duration: 450, easing: 'ease-out', composite: compositeFor(body, ['hit']) },
   );
 }
 
