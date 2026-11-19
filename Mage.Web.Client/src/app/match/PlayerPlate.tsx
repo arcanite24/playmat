@@ -18,6 +18,7 @@ import { LevelBadge } from '../social/LevelBadge';
 import { usePresence } from './presence';
 import { isMatchObjectKey, preventMatchObjectMouseFocus } from './keyboard';
 import { motionAllowed } from './flip';
+import { changeIn } from './beats';
 import { useCountedNumber } from './useCountedNumber';
 import { useSettings } from '../stores/settings';
 import styles from './PlayerPlate.module.css';
@@ -86,10 +87,26 @@ function useRopeSeconds(player: PlayerView): number {
   return ropeSecondsLeft(reported, clock.at, clock.now);
 }
 
+/**
+ * The value as of its change's beat in the view's timeline (beats.ts): a life total drops as the hit lands. Vfx notes
+ * the beat in the same commit's effects, read just after them.
+ */
+function useOnBeat(value: number, id: string | undefined): number {
+  const [shown, setShown] = useState(value);
+  useEffect(() => {
+    let timer = setTimeout(() => {
+      timer = setTimeout(() => setShown(value), changeIn(id));
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [value, id]);
+  return shown;
+}
+
 /** A player's seat: who they are, their life, counters, floating mana and clock. */
 export function PlayerPlate({ player, isMe, targetable, selected, deciding, sleeve, onClick, toPay, payable, onPay, commanderDamage = [], outOfRange = false, look }: PlayerPlateProps) {
   const t = useT();
-  const life = player.life ?? 0;
+  // the total changes when what changes it lands on the table (the swing connecting, the motes arriving), not before
+  const life = useOnBeat(player.life ?? 0, player.playerId);
   // a player out of the game (lost, conceded or left: leaving loses) has no life worth showing, however low it went
   const out = !!player.hasLeft;
   const previous = useRef(life);
@@ -98,7 +115,7 @@ export function PlayerPlate({ player, isMe, targetable, selected, deciding, slee
   // fancy combat effects (#413): the total counts down (or up) instead of jumping
   const fancy = useSettings((state) => state.settings.combatFx !== 'simple' && state.settings.animations);
   const counting = fancy && motionAllowed();
-  const shownLife = useCountedNumber(life, counting, 300);
+  const shownLife = useCountedNumber(life, counting);
 
   useEffect(() => {
     const change = life - previous.current;

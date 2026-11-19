@@ -3,7 +3,7 @@ import type { CardView, CombatGroupView, GameView, PermanentView } from '../../p
 import { useSettings } from '../stores/settings';
 import { resolvedCasts } from './cardVfx';
 import { holdFlight, landingIn, lastPlacement, motionAllowed } from './flip';
-import { BOLT_MS, noteBeats, signatureImpact } from './beats';
+import { BLOCKING, BOLT_MS, noteBeats, signatureImpact } from './beats';
 import { cardKey } from './boardModel';
 import { SignatureVfx } from './SignatureVfx';
 import { lifetimeOf, type Point, type SignatureEffect } from './signatureShapes';
@@ -186,6 +186,8 @@ export function Vfx({ view, myPlayerId, sparks }: {
       }
     };
     if (!before || !motionAllowed()) {
+      // nothing plays: the next view needn't wait for this one
+      noteBeats(view, { impact: 0, land: 0, settle: 0 });
       requestAnimationFrame(measureStack);
       return;
     }
@@ -240,6 +242,11 @@ export function Vfx({ view, myPlayerId, sparks }: {
     const signed = new Set(casts.map((cast) => cast.id));
     const spawnedSignatures: SignatureEffect[] = [];
     let quake = 0;
+    // when this view's blocking playback is over (beats.ts BLOCKING): the next view, and the result screen, wait for it
+    let settle = 0;
+    const block = (ms: number) => {
+      settle = Math.max(settle, ms);
+    };
     for (const cast of casts) {
       const from = stackSpots.current.get(cast.id) ?? matchLayout(stage).stackPoint;
       const caster = cast.controllerId ? pointOf(cast.controllerId) : null;
@@ -263,6 +270,7 @@ export function Vfx({ view, myPlayerId, sparks }: {
         if (event.kind === 'DAMAGE' && event.targetId && (event.sourceId === cast.id || event.sourceId === before.stackCards.get(cast.id)?.cardId)) reached.add(event.targetId);
       }
       for (const id of reached) spellHitAt.set(id, Math.max(spellHitAt.get(id) ?? 0, impact));
+      if (reached.size > 0) block(impact + BLOCKING.afterHit);
     }
 
     // --- combat: strike by strike ------------------------------------------------------------------------------
@@ -327,15 +335,18 @@ export function Vfx({ view, myPlayerId, sparks }: {
           contact = timing.contact;
           contactOn.set(`${item.from}>${item.to}`, contact);
           phaseEnd = Math.max(phaseEnd, timing.end);
+          block(timing.end + BLOCKING.afterSwing);
           done(item.from, timing.end);
         } else {
           const delay = firstSwing.get(item.to) ?? slot;
           const timing = from && to ? swing(bodyOf(item.from), from, to, { weight: swingWeight(item), fancy, delay, scale: stage.scale, target: bodyOf(item.to), role: 'block' }) : { contact: delay + 300, end: delay + 520 };
           contact = timing.contact;
           phaseEnd = Math.max(phaseEnd, timing.end);
+          block(timing.end + BLOCKING.afterSwing);
           done(item.from, timing.end);
         }
         hitAt.set(item.to, Math.max(hitAt.get(item.to) ?? 0, contact));
+        block(contact + BLOCKING.afterHit);
         done(item.to, contact + 260);
         const heft = swingWeight(item);
         if (!biggest || WEIGHT_RANK[heft] > WEIGHT_RANK[biggest.weight]) biggest = { weight: heft, at: contact };
@@ -386,6 +397,7 @@ export function Vfx({ view, myPlayerId, sparks }: {
         if (!from || !to) continue;
         add({ kind: 'bolt', ...from, to });
         spellHitAt.set(bolt.to, Math.max(spellHitAt.get(bolt.to) ?? 0, BOLT_MS));
+        block(BOLT_MS + BLOCKING.afterHit);
       }
       for (const [id, amount] of visuals.noncombat) {
         const at = pointOf(id);
@@ -459,6 +471,7 @@ export function Vfx({ view, myPlayerId, sparks }: {
         const moment = hitAt.get(id) ?? 0;
         if (at) addAt(moment, { kind: 'lethal', ...at });
         after(moment, () => shake(stage.element, 12));
+        block(moment + BLOCKING.afterLethal);
       }
     }
 
@@ -521,7 +534,10 @@ export function Vfx({ view, myPlayerId, sparks }: {
 
     // the sounds of this view wait for its first hit and its landings (beats.ts)
     const hits = [...hitAt.values()].filter((ms) => ms > 0);
-    noteBeats(view, { impact: hits.length > 0 ? Math.min(...hits) : 0, land: landAt });
+    // and each player's life total waits for what changes it: the hit, or the lifelink motes reaching them
+    const changes = new Map<string, number>();
+    for (const [id, ms] of [...hitAt, ...spellHitAt, ...healDelay]) changes.set(id, Math.max(changes.get(id) ?? 0, ms));
+    noteBeats(view, { impact: hits.length > 0 ? Math.min(...hits) : 0, land: landAt, settle, changes });
 
     // spells and abilities resolving
     const departed = [...before.stack].filter((id) => !now.stack.has(id) && !signed.has(id));
