@@ -15,11 +15,11 @@ pub struct Deck {
 
 impl Deck {
     /// A Career deck file: `# name: …` and `<count> <card name>` lines; a sideboard (`SB:` lines, or after a
-    /// `Sideboard` line) is left out.
+    /// `Sideboard` line) is left out. XMage's `.dck` (`NAME:…`, `<count> [SET:NUMBER] <card name>`) reads the same.
     pub fn parse(name: &str, text: &str) -> Deck {
         let mut deck = Deck { name: name.to_string(), cards: Vec::new() };
         for line in text.lines().map(str::trim) {
-            if let Some(n) = line.strip_prefix("# name:") {
+            if let Some(n) = line.strip_prefix("# name:").or_else(|| line.strip_prefix("NAME:")) {
                 deck.name = n.trim().to_string();
                 continue;
             }
@@ -28,8 +28,14 @@ impl Deck {
             }
             let Some((count, card)) = line.split_once(' ') else { continue };
             let Ok(count) = count.trim_end_matches('x').parse::<usize>() else { continue };
+            let card = card.trim();
+            // `[SET:NUMBER] ` names the printing; the engine plays by name
+            let card = match card.strip_prefix('[').and_then(|c| c.split_once("] ")) {
+                Some((_, rest)) => rest.trim(),
+                None => card,
+            };
             for _ in 0..count {
-                deck.cards.push(card.trim().to_string());
+                deck.cards.push(card.to_string());
             }
         }
         deck
@@ -63,4 +69,21 @@ pub fn new_duel(db: &CardDb, decks: [&Deck; 2], seed: i64, first: usize) -> Resu
     game.priority = Some(first);
     game.step = Some(Step::Upkeep);
     Ok(game)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Deck;
+
+    #[test]
+    fn reads_xmage_dck_files() {
+        let deck = Deck::parse(
+            "file",
+            "NAME:Sunforge Boros\n4 [SOI:44] Thraben Inspector\n2 Mountain\nSB: 2 [M21:34] Seasoned Hallowblade\n",
+        );
+        assert_eq!(deck.name, "Sunforge Boros");
+        assert_eq!(deck.cards.len(), 6);
+        assert_eq!(deck.cards[0], "Thraben Inspector");
+        assert_eq!(deck.cards[5], "Mountain");
+    }
 }

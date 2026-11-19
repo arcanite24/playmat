@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ladder bots · Playmat docs</title>
+  <meta name="description" content="The ranked ladder's AI opponents: what a bot is, where ratings live, and how to recalibrate them.">
+  <meta name="theme-color" content="#0b120f">
+  <link rel="icon" href="../assets/brand/playmat-mark.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="docs.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="top">
+    <div class="wrap top-row">
+      <a class="brand" href="../" aria-label="Playmat home">
+        <img src="../assets/brand/playmat-logo.svg" alt="Playmat" width="172" height="40">
+      </a>
+      <nav aria-label="Site">
+        <ul class="nav">
+          <li><a href="https://playmat.deimos.studio">Play online</a></li>
+          <li><a href="../#download">Download</a></li>
+          <li><a href="../#host">Run a server</a></li>
+          <li><a href="./" aria-current="true">Docs</a></li>
+          <li><a href="../rust/">Rust port</a></li>
+          <li><a href="https://github.com/arcanite24/playmat">GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="docs">
+    <div class="wrap docs-row">
+      <nav class="docs-nav" aria-label="Docs">
+        <h2>Docs</h2>
+        <ul>
+          <li><a href="index.html">Overview</a></li>
+          <li><a href="server.html">Run a server</a></li>
+          <li><a href="updates.html">Updating</a></li>
+          <li><a href="admin.html">Staff and the admin console</a></li>
+          <li><a href="sso.html">Single sign-on</a></li>
+          <li><a href="capsules.html">Capsule machines</a></li>
+          <li><a href="ladder.html" aria-current="page">Ladder bots</a></li>
+        </ul>
+      </nav>
+      <article class="doc">
+        <h1>Ladder bots</h1>
+        <p class="lede">The ranked ladder matches players against bots: AI opponents with a deck, a search strength and a
+          name. Each bot has a rating measured by having the bots play each other, so the ladder knows who is stronger
+          before anyone plays them.</p>
+
+        <h2>What a bot is</h2>
+        <ul>
+          <li>A school deck from <code>career/campaigns/decks/&lt;format&gt;/</code>.</li>
+          <li>One of the AI strengths the Rust engine plays: quick answers (skill 1), a fifth of the search (3), half (5)
+            or the full search (7). Weak decks are never paired with the full search; the strongest never play
+            without one.</li>
+          <li>A persona: a name, avatar, sleeves, playmat, frame and title from the cosmetics catalog. Stronger bots wear
+            rarer cosmetics.</li>
+        </ul>
+        <p>Standard and Pioneer have about 50 bots each. Each format is its own rating scale, with its starter deck at
+          skill 1 fixed at 1000.</p>
+
+        <h2>Where they live</h2>
+        <ul>
+          <li><code>Mage.Server/src/main/resources/ladder/bots.json</code> lists the bots and their measured ratings. It
+            ships with the server.</li>
+          <li><code>db/ladder.db</code> keeps ratings as they change with play: every player's and bot's rating per format
+            and queue. It is in the nightly backup. Deleting it puts players back at 1200 and bots back at their
+            measured ratings.</li>
+        </ul>
+
+        <h2>Recalibrate</h2>
+        <p>The ratings in <code>bots.json</code> are only right for the AI that measured them. After changing the AI's
+          search, the skills or a school deck, measure them again. The shipped run played about 18,000 games in 40 minutes on three threads.</p>
+        <ol>
+          <li>If you added or renamed school decks, remake the list:
+            <pre><code>python3 Mage.Server/ladder-src/roster.py</code></pre>
+            Bots that keep their id keep their persona and rating.</li>
+          <li>Play the bots against each other and write the ratings back:
+            <pre><code>cd rust
+cargo run --release -p playmat-ai --bin ladder-calibrate -- --rounds 3 --near 8 --far 3 --deals 6</code></pre>
+            Run it with the same <code>PLAYMAT_AI_POLICY</code> as your server (the default is <code>playouts</code>).
+            A run can stop and pick up where it left off.</li>
+          <li>Rebuild the server image so it ships the new <code>bots.json</code>.</li>
+        </ol>
+
+        <p class="small">The full reference, with every option, is the
+          <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#ladder-bots">Ladder bots section</a>
+          of the deployment guide.</p>
+      </article>
+    </div>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-row">
+      <p>Something wrong or missing here? <a href="https://github.com/arcanite24/playmat/tree/master/site/docs">The docs are in the repository</a>; open an issue or a pull request.</p>
+      <p class="legal">Playmat is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC.</p>
+    </div>
+  </footer>
+</body>
+</html>
