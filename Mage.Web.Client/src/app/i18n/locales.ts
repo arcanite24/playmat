@@ -8,6 +8,7 @@ import type legal from './en/legal';
 import type whatsNew from './en/whatsNew';
 import type support from './en/support';
 import type social from './en/social';
+import type home from './en/home';
 import type { Message } from './translate';
 
 /** Languages the app is translated into; English is the source and the fallback. */
@@ -25,7 +26,8 @@ export type MessageKey = keyof typeof core | keyof typeof settings | keyof typeo
   | keyof typeof legal
   | keyof typeof whatsNew
   | keyof typeof support
-  | keyof typeof social;
+  | keyof typeof social
+  | keyof typeof home;
 
 /** A translation: every key, so a missing one is a type error (and a failing test). */
 export type Catalog = Record<MessageKey, Message>;
