@@ -104,6 +104,17 @@ public final class LeagueApi {
                             return CareerApi.store(() -> CareerLeague.get().saveDeck(user, id, name, format, deck));
                         }),
 
+                RpcMethod.named("leagueCraftMissing")
+                        .params(of("id", STRING))
+                        .returns("LeagueDeck")
+                        .doc("Craft every card one of your League decks lacks, all at once or nothing: wildcards by rarity, and "
+                                + "coins for commons and uncommons once their wildcards run out. The deck's craft field says what it takes.")
+                        .handler(call -> {
+                            String user = CareerApi.career(ctx, call);
+                            String id = call.string(0);
+                            return CareerApi.store(() -> CareerLeague.get().craftMissing(user, id));
+                        }),
+
                 RpcMethod.named("leagueDeleteDeck")
                         .params(of("id", STRING))
                         .returns("boolean")

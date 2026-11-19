@@ -667,6 +667,10 @@ on wherever Career is.
 - **Decks.** League decks are stored per account by id (`leagueDecks`, `leagueSaveDeck`, `leagueDeleteDeck`, at most
   40), each returned with its missing cards and the format's objections. `leaguePlay(format, deckId)` plays the
   server's copy and refuses a deck that isn't owned and legal.
+- **Builder.** `/career/league/deck/:id` is the deck builder with a League mode: owned cards or every card the format
+  allows, up to a playset each, owned or not. Each saved `LeagueDeck` has `craft`: the missing copies and what crafting
+  them takes (wildcards by rarity, then coins for commons and uncommons once their wildcards run out, as Career crafting
+  spends them). `leagueCraftMissing(id)` crafts all of it in one transaction or refuses with what's short.
 - **Ladder.** League games are ranked games in the `league` queue: `ladderState` and `ladderOpponent` take
   `queue: "league"`. The rules are Ranked's. Players start at a rating of 1000 instead of 1200, so the first opponents
   are the starter bots. League tables start like Ranked ones and aren't Career tables, so the Rust host takes them as it takes Ranked games.

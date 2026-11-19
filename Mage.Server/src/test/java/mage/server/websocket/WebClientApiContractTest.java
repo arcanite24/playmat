@@ -62,7 +62,7 @@ public class WebClientApiContractTest {
             "adminUpdateStatus", "adminUpdateApply", "adminUpdateRollback", // the registry and GitHub, the updater's files
             "gamePractice", // game controller practice tools, with readable errors
             "ladderState", "ladderOpponent", "ladderPlay", "ladderResult", "leaguePlay", "leagueState", "leagueStart", "leagueSets",
-            "leagueOpen", "leagueDecks", "leagueSaveDeck", "leagueDeleteDeck", "homeLayoutGet", "homeLayoutSet", "homeActivity",
+            "leagueOpen", "leagueDecks", "leagueSaveDeck", "leagueDeleteDeck", "leagueCraftMissing", "homeLayoutGet", "homeLayoutSet", "homeActivity",
             "careerState", "careerStarters", "careerStart", "careerCollection", "careerOpponents", "careerPlay", "careerShop",
             "careerBuyPack", "careerCraft", "careerExport", "careerImport", // career store and service (career/CareerServiceTest)
             "careerQuests", "careerRerollQuest", "careerAchievements", "careerLevels", "careerWeekly", "careerGameResult",

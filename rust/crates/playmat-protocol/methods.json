@@ -199,6 +199,7 @@
   "leagueOpen": {"group": "League", "access": "session"},
   "leagueDecks": {"group": "League", "access": "session"},
   "leagueSaveDeck": {"group": "League", "access": "session"},
+  "leagueCraftMissing": {"group": "League", "access": "session"},
   "leagueDeleteDeck": {"group": "League", "access": "session"},
   "homeLayoutGet": {"group": "Home", "access": "session"},
   "homeLayoutSet": {"group": "Home", "access": "session"},

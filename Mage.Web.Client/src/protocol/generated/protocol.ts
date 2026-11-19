@@ -210,6 +210,7 @@ export interface RpcMethods {
   leagueOpen: { params: [format: string, setCode: string]; result: LeaguePack };
   leagueDecks: { params: [format?: string | null]; result: LeagueDeck[] };
   leagueSaveDeck: { params: [id: string | null, name: string, format: string, deck: DeckCardLists]; result: LeagueDeck };
+  leagueCraftMissing: { params: [id: string]; result: LeagueDeck };
   leagueDeleteDeck: { params: [id: string]; result: boolean };
   homeLayoutGet: { params: []; result: string | null };
   homeLayoutSet: { params: [layout: string]; result: string };
@@ -498,6 +499,7 @@ export const RPC_METHODS: { readonly [M in RpcMethodName]: { readonly access: Rp
   leagueOpen: { access: 'session', sessionParam: -1 },
   leagueDecks: { access: 'session', sessionParam: -1 },
   leagueSaveDeck: { access: 'session', sessionParam: -1 },
+  leagueCraftMissing: { access: 'session', sessionParam: -1 },
   leagueDeleteDeck: { access: 'session', sessionParam: -1 },
   homeLayoutGet: { access: 'session', sessionParam: -1 },
   homeLayoutSet: { access: 'session', sessionParam: -1 },

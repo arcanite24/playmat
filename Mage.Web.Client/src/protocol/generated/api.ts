@@ -415,6 +415,8 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('leagueDecks', format),
     leagueSaveDeck: (id: string | null, name: string, format: string, deck: DeckCardLists) =>
       rpc.call('leagueSaveDeck', id, name, format, deck),
+    leagueCraftMissing: (id: string) =>
+      rpc.call('leagueCraftMissing', id),
     leagueDeleteDeck: (id: string) =>
       rpc.call('leagueDeleteDeck', id),
     homeLayoutGet: () =>

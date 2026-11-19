@@ -1,6 +1,9 @@
 /** English for Home's widget board and Customize (#432), which load with the board. */
 export default {
   'home.board.title': 'Your widgets',
+  'home.widget.allRanks.league': '{format} League',
+  'home.widget.packs.league': 'League: {packs}',
+  'home.widget.packs.leagueFormat': '{count} {format}',
   'home.board.customize': 'Customize Home',
   'home.board.failed': "This widget couldn't load.",
   'home.board.unknown': 'This widget is no longer available.',

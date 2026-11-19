@@ -1728,8 +1728,20 @@ export interface LeaderboardEntry {
     you?: boolean;
 }
 
+export interface LeagueCraft {
+    affordable?: boolean;
+    coins?: number;
+    common?: number;
+    copies?: number;
+    mythic?: number;
+    rare?: number;
+    uncommon?: number;
+    unknown?: string[];
+}
+
 export interface LeagueDeck {
     cards?: number;
+    craft?: LeagueCraft;
     deck?: DeckCardLists;
     format?: string;
     id?: string;

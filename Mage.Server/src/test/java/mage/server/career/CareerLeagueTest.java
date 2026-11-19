@@ -220,6 +220,63 @@ public class CareerLeagueTest {
     }
 
     @Test
+    void craftMissingCraftsEverythingOrNothing() throws Exception {
+        CareerLeague.LeagueStart start = league.start("ana", "standard", starterIds("standard").subList(0, 2));
+        // a starter's list plus four copies of a Standard rare nobody owns
+        String rareName = null;
+        DeckCardLists deck = new DeckCardLists();
+        deck.getCards().addAll(start.decks.get(0).deck.getCards());
+        for (CareerLeague.LeagueSet set : league.sets("standard")) {
+            mage.cards.repository.CardInfo rare = null;
+            for (mage.cards.repository.CardInfo c : mage.cards.repository.CardRepository.instance.findCards(
+                    new mage.cards.repository.CardCriteria().setCodes(set.setCode).rarities(mage.constants.Rarity.RARE))) {
+                if (store.owned("ana", c.getName()) == 0) {
+                    rare = c;
+                    break;
+                }
+            }
+            if (rare != null) {
+                rareName = rare.getName();
+                deck.getCards().add(new DeckCardInfo(rare.getName(), rare.getCardNumber(), rare.getSetCode(), 4));
+                break;
+            }
+        }
+        assertNotNull(rareName, "a Standard rare to craft");
+        CareerLeague.LeagueDeck saved = league.saveDeck("ana", null, "Plus rares", "standard", deck);
+        assertEquals(4, saved.craft.copies);
+        assertEquals(4, saved.craft.rare);
+        assertFalse(saved.craft.affordable, "one rare wildcard from the start");
+        int rareBefore = store.profile("ana").wildcards.rare;
+        assertThrows(CareerService.CareerException.class, () -> league.craftMissing("ana", saved.id));
+        assertEquals(rareBefore, store.profile("ana").wildcards.rare, "nothing is spent when it can't all be crafted");
+        assertEquals(0, store.owned("ana", rareName));
+
+        store.addWildcard("ana", CareerRules.RARE, 3);
+        CareerLeague.LeagueDeck crafted = league.craftMissing("ana", saved.id);
+        assertTrue(crafted.missing.isEmpty());
+        assertEquals(0, crafted.craft.copies);
+        assertEquals(4, store.owned("ana", rareName));
+        assertEquals(0, store.profile("ana").wildcards.rare);
+        assertThrows(CareerService.CareerException.class, () -> league.craftMissing("ana", saved.id), "nothing left to craft");
+    }
+
+    @Test
+    void commonsUseTheirWildcardsThenCoins() {
+        CareerProfile profile = new CareerProfile();
+        profile.coins = 1000;
+        profile.wildcards = new CareerProfile.Wildcards(1, 0, 0, 0);
+        java.util.Map<CareerCard, Integer> lacking = new java.util.LinkedHashMap<>();
+        lacking.put(new CareerCard("A", "TST", "1", CareerRules.COMMON), 3);
+        lacking.put(new CareerCard("B", "TST", "2", CareerRules.UNCOMMON), 1);
+        CareerLeague.LeagueCraft plan = CareerLeague.planForTests(lacking, profile);
+        assertEquals(4, plan.copies);
+        assertEquals(1, plan.common);
+        assertEquals(0, plan.uncommon);
+        assertEquals(2 * CareerRules.craftCoins(CareerRules.COMMON) + CareerRules.craftCoins(CareerRules.UNCOMMON), plan.coins);
+        assertTrue(plan.affordable);
+    }
+
+    @Test
     void deletingTheCareerDropsTheLeagues() throws Exception {
         league.start("ana", "standard", starterIds("standard").subList(0, 2));
         assertTrue(CareerService.get().delete("ana"));
