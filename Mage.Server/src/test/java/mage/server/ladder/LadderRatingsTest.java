@@ -128,11 +128,11 @@ public class LadderRatingsTest {
     }
 
     @Test
-    void matchmakingDrawsFromJustAboveThePlayer() throws Exception {
+    void matchmakingDrawsFromAroundThePlayer() throws Exception {
         LadderRatings ratings = new LadderRatings(store, roster());
         List<LadderRatings.Candidate> near = ratings.candidates("standard", "open", 1450);
-        // 1400 (−50), 1500 and 1550 (+100); not 1300 or 1700
-        assertEquals(Arrays.asList("mid-low", "mid", "mid-high"), ids(near));
+        // 1350 to 1500 holds two; widened to 1300 to 1550 it holds four; never 1700
+        assertEquals(Arrays.asList("low", "mid-low", "mid", "mid-high"), ids(near));
         // far above every bot: the window widens until it holds three
         List<LadderRatings.Candidate> top = ratings.candidates("standard", "open", 2100);
         assertEquals(3, top.size());

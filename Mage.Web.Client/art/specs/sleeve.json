@@ -133,6 +133,30 @@
     {
       "id": "clay",
       "subject": "accent ink #6e4a36 for the whole card, emblem: an amphora with a meander band"
+    },
+    {
+      "id": "ladder-bronze",
+      "subject": "accent ink #8a5a35 for the whole card, emblem: a single upward chevron"
+    },
+    {
+      "id": "ladder-silver",
+      "subject": "accent ink #7d8796 for the whole card, emblem: two stacked upward chevrons"
+    },
+    {
+      "id": "ladder-gold",
+      "subject": "accent ink #9c7a16 for the whole card, emblem: three stacked upward chevrons under a small star"
+    },
+    {
+      "id": "ladder-platinum",
+      "subject": "accent ink #256f69 for the whole card, emblem: an upward chevron with spread wings"
+    },
+    {
+      "id": "ladder-diamond",
+      "subject": "accent ink #3653a8 for the whole card, emblem: a faceted cut diamond"
+    },
+    {
+      "id": "ladder-mythic",
+      "subject": "accent ink #7e2d63 for the whole card, emblem: a crown rising out of a flame"
     }
   ]
 }

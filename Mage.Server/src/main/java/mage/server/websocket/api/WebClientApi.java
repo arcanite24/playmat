@@ -45,6 +45,7 @@ public final class WebClientApi {
         groups.put("MyAccount", MyAccountApi.methods(ctx));
         groups.put("Support", SupportApi.methods(ctx));
         groups.put("Career", CareerApi.methods(ctx));
+        groups.put("Ladder", LadderApi.methods(ctx));
         groups.put("CareerProgress", CareerProgressApi.methods(ctx));
         groups.put("CareerModes", CareerModesApi.methods(ctx));
         groups.put("Solo", SoloApi.methods(ctx));

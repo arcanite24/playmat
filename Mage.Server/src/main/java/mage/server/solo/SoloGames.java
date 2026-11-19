@@ -247,6 +247,9 @@ public final class SoloGames {
         if (entry.info.career != null) {
             return "Career games save themselves, but can't be kept: a save is a free take-back.";
         }
+        if (mage.server.ladder.RankedService.isRanked(tableId)) {
+            return "Ranked games can't be saved: a save is a free take-back.";
+        }
         GameSnapshot snapshot = entry.latest;
         String line = entry.latestLine;
         if (snapshot == null && line == null) {
@@ -280,6 +283,9 @@ public final class SoloGames {
         Live entry = tableId == null ? null : live.get(tableId);
         if (entry == null || !entry.info.user.equals(user)) {
             throw new IllegalArgumentException("This isn't one of your games against the computer.");
+        }
+        if (mage.server.ladder.RankedService.isRanked(tableId)) {
+            throw new IllegalArgumentException("Ranked games are played without take-backs.");
         }
         CareerService.CareerTable career = entry.info.career;
         if (career != null) {

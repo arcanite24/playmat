@@ -1,0 +1,239 @@
+/* Ranked (#431): a rank card per format, the next opponent and the deck, the last game's pips */
+
+.rank_bronze { --rank: #b07a4a; --rank-2: #6e4325; }
+.rank_silver { --rank: #c3ccd6; --rank-2: #6c7884; }
+.rank_gold { --rank: #e2b53e; --rank-2: #8a6511; }
+.rank_platinum { --rank: #6fd1c4; --rank-2: #2b6f69; }
+.rank_diamond { --rank: #8cb4ff; --rank-2: #3a4fa8; }
+.rank_mythic { --rank: #ff8a4c; --rank-2: #a3263a; }
+
+.formats {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--radius-control);
+  background: rgb(var(--ink-rgb) / 0.05);
+  box-shadow: inset 0 0 0 1px var(--ink-ghost);
+}
+
+.format {
+  padding: 6px 14px;
+  border: 0;
+  border-radius: calc(var(--radius-control) - 2px);
+  background: transparent;
+  color: var(--ink-dim);
+  font: inherit;
+  font-family: var(--font-print);
+  letter-spacing: var(--tracking-print);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.format:hover { color: var(--ink-strong); }
+
+.formatOn {
+  background: rgb(var(--ink-rgb) / 0.12);
+  color: var(--ink-strong);
+}
+
+.main {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.card,
+.result {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border-radius: var(--radius-zone);
+  background:
+    radial-gradient(circle at 12% 50%, color-mix(in srgb, var(--rank, #888) 22%, transparent), transparent 60%),
+    rgb(var(--ink-rgb) / 0.04);
+  box-shadow: inset 0 0 0 1px var(--ink-ghost);
+}
+
+.cardBody {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  flex: 1;
+}
+
+.emblem {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--rank, #999), var(--rank-2, #444));
+  box-shadow: 0 0 0 3px rgb(var(--ink-rgb) / 0.15), 0 6px 18px rgb(0 0 0 / 0.35);
+  color: rgb(255 255 255 / 0.92);
+}
+
+.emblem svg {
+  width: 44%;
+  height: 44%;
+}
+
+.emblemSm {
+  width: 56px;
+  height: 56px;
+}
+
+.rankName {
+  margin: 0;
+  font-size: var(--text-2xl);
+  text-transform: uppercase;
+}
+
+.pips {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.pip {
+  width: 18px;
+  height: 18px;
+  transform: rotate(45deg);
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 2px var(--rank, var(--ink-faint));
+}
+
+.pip_on { background: var(--rank, var(--ink)); }
+
+.pip_won {
+  background: var(--rank, var(--ink));
+  animation: pip-won 520ms cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+
+.pip_lost {
+  animation: pip-lost 700ms ease-in both;
+}
+
+@keyframes pip-won {
+  from { opacity: 0; transform: rotate(45deg) scale(2.2); }
+  to { opacity: 1; transform: rotate(45deg) scale(1); }
+}
+
+@keyframes pip-lost {
+  from { background: var(--rank, var(--ink)); transform: rotate(45deg) scale(1); }
+  to { background: transparent; transform: rotate(45deg) scale(0.8); }
+}
+
+.climb {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: rgb(var(--ink-rgb) / 0.1);
+}
+
+.climb span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #b07a4a, #c3ccd6, #e2b53e, #6fd1c4, #8cb4ff, #ff8a4c);
+}
+
+.mythic,
+.streak,
+.reached {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--ink-strong);
+  font-family: var(--font-print);
+  letter-spacing: var(--tracking-print);
+}
+
+.streak { color: var(--decision); }
+
+.reached { color: var(--rank, var(--ink-strong)); }
+
+.queue {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-zone);
+  background: rgb(var(--ink-rgb) / 0.04);
+  box-shadow: inset 0 0 0 1px var(--ink-ghost);
+}
+
+.opponent {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.opponent > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.opponentName {
+  font-size: var(--text-lg);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--ink-dim);
+  font-size: var(--text-sm);
+}
+
+.field select {
+  max-width: 100%;
+  padding: 7px 10px;
+  border: 1px solid rgb(var(--ink-rgb) / 0.2);
+  border-radius: 6px;
+  background: rgb(var(--ink-rgb) / 0.05);
+  color: var(--ink-strong);
+  font: inherit;
+}
+
+.recent {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recent li {
+  display: grid;
+  grid-template-columns: 6em minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgb(var(--ink-rgb) / 0.03);
+}
+
+.game_won b { color: var(--decision); }
+.game_lost b { color: var(--ink-dim); }
+
+.resultTitle {
+  margin: 0;
+  font-size: var(--text-xl);
+  text-transform: uppercase;
+}
+
+.result_won { box-shadow: inset 0 0 0 1.5px var(--decision); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pip_won,
+  .pip_lost {
+    animation: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .emblem { width: 72px; height: 72px; }
+  .recent li { grid-template-columns: 5em minmax(0, 1fr); }
+  .recent li small { display: none; }
+}

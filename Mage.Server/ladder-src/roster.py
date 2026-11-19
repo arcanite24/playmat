@@ -82,7 +82,7 @@ def main():
     cosmetics = json.load(open(os.path.join(RESOURCES, "career", "cosmetics.json"), encoding="utf-8"))
     pool = {}
     for item in cosmetics:
-        if item["kind"] in ("avatar", "sleeve", "playmat", "frame", "title") and not item.get("rank") and not item.get("mastery"):
+        if item["kind"] in ("avatar", "sleeve", "playmat", "frame", "title") and not item.get("rank") and not item.get("mastery") and not item.get("ladder"):
             pool.setdefault(item["kind"], []).append(item)
     old = {}
     if os.path.exists(OUT):

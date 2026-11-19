@@ -440,6 +440,7 @@ export interface CareerCatalogItem {
     free?: boolean;
     id?: string;
     kind?: string;
+    ladder?: string;
     light?: string;
     mastery?: string;
     name?: string;
@@ -1334,8 +1335,16 @@ export interface DraftClientMessage extends Serializable {
     draftView?: DraftView;
 }
 
+export interface DraftPickSuggest extends Serializable {
+    cardId?: string;
+    info?: string;
+    rank?: number;
+    source?: string;
+}
+
 export interface DraftPickView extends Serializable {
     booster?: { [index: string]: SimpleCardView };
+    pickSuggests?: DraftPickSuggest[];
     picking?: boolean;
     picks?: { [index: string]: SimpleCardView };
     timeout?: number;
@@ -1599,6 +1608,76 @@ export interface JobSpec {
     seed?: number;
     skillA?: number;
     skillB?: number;
+}
+
+export interface LadderGame {
+    deck?: string;
+    ended?: number;
+    id?: string;
+    opponent?: LadderOpponent;
+    started?: number;
+    status?: string;
+    stepAfter?: number;
+    stepBefore?: number;
+}
+
+export interface LadderMatch {
+    opponent?: LadderOpponent;
+    tableId?: string;
+    warm?: CareerCover[];
+}
+
+export interface LadderOpponent {
+    avatar?: string;
+    botId?: string;
+    colors?: string;
+    deckName?: string;
+    frame?: string;
+    name?: string;
+    playmat?: string;
+    search?: string;
+    sleeve?: string;
+    title?: string;
+}
+
+export interface LadderResult {
+    bonus?: boolean;
+    cosmetics?: CareerCosmetic[];
+    delta?: number;
+    format?: string;
+    labelAfter?: string;
+    labelBefore?: string;
+    mythicRating?: number;
+    opponent?: LadderOpponent;
+    reached?: string[];
+    status?: string;
+    stepAfter?: number;
+    stepBefore?: number;
+    streak?: number;
+    tableId?: string;
+    tokens?: number;
+}
+
+export interface LadderState {
+    drew?: number;
+    format?: string;
+    formats?: string[];
+    label?: string;
+    lost?: number;
+    mythicRating?: number;
+    mythicStep?: number;
+    peakLabel?: string;
+    peakStep?: number;
+    pips?: number;
+    pipsPerTier?: number;
+    playing?: boolean;
+    queue?: string;
+    rank?: string;
+    recent?: LadderGame[];
+    step?: number;
+    streak?: number;
+    tier?: number;
+    won?: number;
 }
 
 export interface LargeMessage {
@@ -2048,7 +2127,6 @@ export interface ServerInfo {
     oidcName?: string;
     oidcOnly?: boolean;
     ownerPending?: boolean;
-
     registration?: string;
     rustEngine?: boolean;
     serverName?: string;
@@ -2536,7 +2614,7 @@ export type SkillLevel = "BEGINNER" | "CASUAL" | "SERIOUS";
 
 export type SoundToPlay = "PlayerLeft" | "PlayerQuitTournament" | "PlayerSubmittedDeck" | "PlayerWhispered";
 
-export type SubType = "ADVENTURE" | "ARCANE" | "LESSON" | "OMEN" | "TRAP" | "SIEGE" | "FOREST" | "ISLAND" | "MOUNTAIN" | "PLAINS" | "SWAMP" | "CAVE" | "DESERT" | "GATE" | "LAIR" | "LOCUS" | "MINE" | "PLANET" | "POWER_PLANT" | "SPHERE" | "TOWER" | "TOWN" | "URZAS" | "AURA" | "BACKGROUND" | "CARTOUCHE" | "CASE" | "CLASS" | "CURSE" | "PLAN" | "ROLE" | "ROOM" | "RUNE" | "SAGA" | "SHARD" | "SHRINE" | "ATTRACTION" | "BLOOD" | "BOBBLEHEAD" | "BOOK" | "CLUE" | "COMMUNICATOR" | "CONTRAPTION" | "EQUIPMENT" | "FOOD" | "FORTIFICATION" | "GOLD" | "HEARTWOOD" | "INCUBATOR" | "INFINITY" | "JUNK" | "LANDER" | "MAP" | "MUTAGEN" | "POWERSTONE" | "SPACECRAFT" | "STONE" | "TREASURE" | "VEHICLE" | "VIBRANIUM" | "ADVISOR" | "AETHERBORN" | "ALIEN" | "ALLY" | "ANDORIAN" | "ANGEL" | "ANTELOPE" | "ANZELLAN" | "APE" | "AQUALISH" | "ARCHER" | "ARCHON" | "ARCONA" | "ARMADILLO" | "ARMY" | "ARTIFICER" | "ASSASSIN" | "ASSEMBLY_WORKER" | "ASTARTES" | "ATAT" | "ATHLETE" | "ATOG" | "AUROCHS" | "AUTOBOT" | "AVATAR" | "AZRA" | "BADGER" | "BALLOON" | "BARABEL" | "BARBARIAN" | "BARD" | "BASILISK" | "BAT" | "BEAR" | "BEAST" | "BEAVER" | "BEEBLE" | "BEHOLDER" | "BERSERKER" | "BIRD" | "BISON" | "BITH" | "BLINKMOTH" | "BOAR" | "BORG" | "BRAINIAC" | "BRINGER" | "BRUSHWAGG" | "CTAN" | "CAITIAN" | "CALAMARI" | "CAMARID" | "CAMEL" | "CAPYBARA" | "CARIBOU" | "CARRIER" | "CAT" | "CENTAUR" | "CEREAN" | "CHILD" | "CHIMERA" | "CHISS" | "CITIZEN" | "CLAMFOLK" | "CLERIC" | "CLOWN" | "COCKATRICE" | "CONSTRUCT" | "COW" | "COWARD" | "COYOTE" | "CRAB" | "CROCODILE" | "CROLUTE" | "CUSTODES" | "CYBERMAN" | "CYBORG" | "CYCLOPS" | "DALEK" | "DATHOMIRIAN" | "DAUTHI" | "DEMIGOD" | "DEMON" | "DESERTER" | "DETECTIVE" | "DEVIL" | "DINOSAUR" | "DJINN" | "DOCTOR" | "DOG" | "DRAGON" | "DRAKE" | "DREADNOUGHT" | "DRIX" | "DROID" | "DRONE" | "DRUID" | "DRYAD" | "DWARF" | "ECHIDNA" | "EFREET" | "EGG" | "ELDER" | "ELDRAZI" | "ELEMENTAL" | "ELEPHANT" | "ELF" | "ELK" | "EMPLOYEE" | "ETERNAL" | "EWOK" | "EXPANSION_SYMBOL" | "EYE" | "FAERIE" | "FERRET" | "FISH" | "FLAGBEARER" | "FOX" | "FRACTAL" | "FROG" | "FUNGUS" | "GAMER" | "GAMMA" | "GAMORREAN" | "GAND" | "GARGOYLE" | "GERM" | "GIANT" | "GIRAFFE" | "GITH" | "GLIMMER" | "GNOLL" | "GNOME" | "GOAT" | "GOBLIN" | "GOD" | "GOLEM" | "GORGON" | "GORN" | "GRAVEBORN" | "GREMLIN" | "GRIFFIN" | "GUEST" | "GUNGAN" | "HAG" | "HALFLING" | "HAMSTER" | "HARPY" | "HEDGEHOG" | "HELLION" | "HERO" | "HIPPO" | "HIPPOGRIFF" | "HOMARID" | "HOMUNCULUS" | "HORROR" | "HORSE" | "HUMAN" | "HUNTER" | "HUTT" | "HYDRA" | "HYENA" | "ILLUSION" | "IMP" | "INCARNATION" | "INHUMAN" | "INKLING" | "INQUISITOR" | "INSECT" | "ITHORIAN" | "JACKAL" | "JAWA" | "JEDI" | "JELLYFISH" | "JUGGERNAUT" | "KALEESH" | "KANGAROO" | "KAVU" | "KELDOR" | "KELPIEN" | "KILLBOT" | "KIRIN" | "KITHKIN" | "KLINGON" | "KNIGHT" | "KOBOLD" | "KOORIVAR" | "KOR" | "KRAKEN" | "KREE" | "LADYOFPROPERETIQUETTE" | "LAMIA" | "LAMMASU" | "LANTHANITE" | "LEECH" | "LEMUR" | "LEVIATHAN" | "LHURGOYF" | "LICID" | "LIZARD" | "LLAMA" | "LOBSTER" | "MANTELLIAN" | "MANTICORE" | "MASTICORE" | "MERCENARY" | "MERFOLK" | "METATHRAN" | "MINION" | "MINOTAUR" | "MIRIALAN" | "MITE" | "MOLE" | "MONGER" | "MONGOOSE" | "MONK" | "MONKEY" | "MOOGLE" | "MOONFOLK" | "MOUNT" | "MOUSE" | "MUTANT" | "MYR" | "MYSTIC" | "NAUTILUS" | "NAUTOLAN" | "NECRON" | "NEIMOIDIAN" | "NEPHILIM" | "NIGHTMARE" | "NIGHTSTALKER" | "NINJA" | "NOBLE" | "NOGGLE" | "NOMAD" | "NYMPH" | "OCTOPUS" | "OFFICER" | "OGRE" | "OOZE" | "ORB" | "ORC" | "ORGG" | "ORION" | "ORTOLAN" | "OTTER" | "OUPHE" | "OX" | "OYSTER" | "PANGOLIN" | "PEASANT" | "PEGASUS" | "PENTAVITE" | "PERFORMER" | "PEST" | "PHELDDAGRIF" | "PHOENIX" | "PHYREXIAN" | "PILOT" | "PINCHER" | "PIRATE" | "PLANT" | "PLATYPUS" | "PORCUPINE" | "POSSUM" | "PRAETOR" | "PRIMARCH" | "PRISM" | "PROCESSOR" | "PUREBLOOD" | "Q" | "QU" | "QUARREN" | "RABBIT" | "RACCOON" | "RAIDER" | "RANGER" | "RAT" | "REBEL" | "REFLECTION" | "RHINO" | "RIGGER" | "ROBOT" | "RODIAN" | "ROGUE" | "ROMULAN" | "SABLE" | "SALAMANDER" | "SAMURAI" | "SAND" | "SAPROLING" | "SATYR" | "SCARECROW" | "SCIENTIST" | "SCION" | "SCORPION" | "SCOUT" | "SCULPTURE" | "SEAL" | "SERF" | "SERPENT" | "SERVO" | "SHADE" | "SHAMAN" | "SHAPESHIFTER" | "SHARK" | "SHEEP" | "SHIAR" | "SIREN" | "SITH" | "SKELETON" | "SKRULL" | "SKUNK" | "SLITH" | "SLIVER" | "SLOTH" | "SLUG" | "SNAIL" | "SNAKE" | "SOLDIER" | "SOLTARI" | "SORCERER" | "SPAWN" | "SPECTER" | "SPELLSHAPER" | "SPHINX" | "SPIDER" | "SPIKE" | "SPIRIT" | "SPLINTER" | "SPLITTER" | "SPONGE" | "SPY" | "SQUID" | "SQUIRREL" | "STARFISH" | "STARSHIP" | "SULLUSTAN" | "SURRAKAR" | "SURVIVOR" | "SYMBIOTE" | "SYNTH" | "TALOSIAN" | "TELLARITE" | "TENTACLE" | "TETRAVITE" | "THALAKOS" | "THOLIAN" | "THOPTER" | "THRULL" | "TIEFLING" | "TIME_LORD" | "TOSK" | "TOY" | "TRANDOSHAN" | "TREEFOLK" | "TRILOBITE" | "TRISKELAVITE" | "TROLL" | "TROOPER" | "TURTLE" | "TUSKEN" | "TWILEK" | "TYRANID" | "UGNAUGHT" | "UNICORN" | "UTROM" | "VAMPIRE" | "VARMINT" | "VEDALKEN" | "VILLAIN" | "VOLVER" | "VORTA" | "VULCAN" | "WALL" | "WALRUS" | "WARLOCK" | "WARRIOR" | "WEASEL" | "WEEQUAY" | "WEIRD" | "WEREWOLF" | "WHALE" | "WIZARD" | "WOLF" | "WOLVERINE" | "WOMBAT" | "WOOKIEE" | "WORM" | "WRAITH" | "WURM" | "XINDI" | "YETI" | "ZABRAK" | "ZOMBIE" | "ZUBERA" | "AJANI" | "AMINATOU" | "ANGRATH" | "ARLINN" | "ARZAKON" | "ASHIOK" | "AURRA" | "BAHAMUT" | "BASRI" | "BOLAS" | "CALIX" | "CHANDRA" | "COMET" | "DACK" | "DAKKON" | "DARETTI" | "DAVRIEL" | "DELLIAN" | "DIHADA" | "DOMRI" | "DOOKU" | "DOVIN" | "DYFED" | "ELLYWICK" | "ELMINSTER" | "ELSPETH" | "ESTRID" | "FEROZ" | "FREYALISE" | "GARRUK" | "GIDEON" | "GREENSLEEVES" | "GRIST" | "GUFF" | "HUATLI" | "INZERVA" | "JACE" | "JARED" | "JAYA" | "JESKA" | "KAITO" | "KARN" | "KASMINA" | "KAYA" | "KIORA" | "KOTH" | "LILIANA" | "LOLTH" | "LUKE" | "LUKKA" | "MINSC" | "MORDENKAINEN" | "NAHIRI" | "NARSET" | "NIKO" | "NISSA" | "NIXILIS" | "OBI_WAN" | "OKO" | "QUINTORIUS" | "RAL" | "REY" | "ROWAN" | "SAHEELI" | "SAMUT" | "SARKHAN" | "SERRA" | "SIDIOUS" | "SIVITRI" | "SNOKE" | "SORIN" | "SZAT" | "TAMIYO" | "TASHA" | "TEFERI" | "TEYO" | "TEZZERET" | "TIBALT" | "TYVAR" | "UGIN" | "URZA" | "VENSER" | "VIVIEN" | "VRASKA" | "VRONOS" | "WILL" | "WINDGRACE" | "WORZEL" | "WRENN" | "XENAGOS" | "YANGGU" | "YANLING" | "YODA" | "ZARIEL";
+export type SubType = "ADVENTURE" | "ARCANE" | "LESSON" | "OMEN" | "TRAP" | "VENGEANCE" | "SIEGE" | "FOREST" | "ISLAND" | "MOUNTAIN" | "PLAINS" | "SWAMP" | "CAVE" | "DESERT" | "GATE" | "LAIR" | "LOCUS" | "MINE" | "PLANET" | "POWER_PLANT" | "SPHERE" | "TOWER" | "TOWN" | "URZAS" | "AURA" | "BACKGROUND" | "CARTOUCHE" | "CASE" | "CLASS" | "CURSE" | "PLAN" | "ROLE" | "ROOM" | "RUNE" | "SAGA" | "SHARD" | "SHRINE" | "ATTRACTION" | "BLOOD" | "BOBBLEHEAD" | "BOOK" | "CLUE" | "COMMUNICATOR" | "CONTRAPTION" | "EQUIPMENT" | "FOOD" | "FORTIFICATION" | "GOLD" | "HEARTWOOD" | "INCUBATOR" | "INFINITY" | "JUNK" | "LANDER" | "MAP" | "MUTAGEN" | "POWERSTONE" | "SPACECRAFT" | "STONE" | "TREASURE" | "VEHICLE" | "VIBRANIUM" | "ADVISOR" | "AENAR" | "AETHERBORN" | "ALIEN" | "ALLY" | "ANDORIAN" | "ANDROID" | "ANGEL" | "ANTELOPE" | "ANZELLAN" | "APE" | "AQUALISH" | "ARCHER" | "ARCHON" | "ARCONA" | "ARMADILLO" | "ARMY" | "ARTIFICER" | "ASSASSIN" | "ASSEMBLY_WORKER" | "ASTARTES" | "ATAT" | "ATHLETE" | "ATOG" | "AUROCHS" | "AUTOBOT" | "AVATAR" | "AZRA" | "BADGER" | "BAJORAN" | "BALLOON" | "BARABEL" | "BARBARIAN" | "BARD" | "BASILISK" | "BAT" | "BEAR" | "BEAST" | "BEAVER" | "BEEBLE" | "BEHOLDER" | "BERSERKER" | "BETAZOID" | "BIRD" | "BISON" | "BITH" | "BLINKMOTH" | "BOAR" | "BOLIAN" | "BORG" | "BRAINIAC" | "BRIKAR" | "BRINGER" | "BRUSHWAGG" | "CTAN" | "CAITIAN" | "CALAMARI" | "CAMARID" | "CAMEL" | "CAPYBARA" | "CARIBOU" | "CARRIER" | "CAT" | "CENTAUR" | "CEREAN" | "CHILD" | "CHIMERA" | "CHISS" | "CITIZEN" | "CLAMFOLK" | "CLERIC" | "CLOWN" | "COCKATRICE" | "CONSTRUCT" | "COW" | "COWARD" | "COYOTE" | "CRAB" | "CROCODILE" | "CROLUTE" | "CUSTODES" | "CYBERMAN" | "CYBORG" | "CYCLOPS" | "DALEK" | "DATHOMIRIAN" | "DAUTHI" | "DEMIGOD" | "DEMON" | "DENOBULAN" | "DESERTER" | "DETECTIVE" | "DEVIL" | "DINOSAUR" | "DJINN" | "DOCTOR" | "DOG" | "DRAGON" | "DRAKE" | "DREADNOUGHT" | "DRIX" | "DROID" | "DRONE" | "DRUID" | "DRYAD" | "DWARF" | "ECHIDNA" | "EFREET" | "EGG" | "EL_AURIAN" | "ELDER" | "ELDRAZI" | "ELEMENTAL" | "ELEPHANT" | "ELF" | "ELK" | "EMPLOYEE" | "ETERNAL" | "EWOK" | "EXPANSION_SYMBOL" | "EXCALBIAN" | "EYE" | "FAERIE" | "FERENGI" | "FERRET" | "FISH" | "FLAGBEARER" | "FOX" | "FRACTAL" | "FROG" | "FUNGUS" | "GAMER" | "GAMMA" | "GAMORREAN" | "GAND" | "GARGOYLE" | "GERM" | "GIANT" | "GIRAFFE" | "GITH" | "GLIMMER" | "GNOLL" | "GNOME" | "GOAT" | "GOBLIN" | "GOD" | "GOLEM" | "GORGON" | "GORN" | "GRAVEBORN" | "GREMLIN" | "GRIFFIN" | "GUEST" | "GUNGAN" | "HAG" | "HALFLING" | "HAMSTER" | "HARPY" | "HEDGEHOG" | "HELLION" | "HERO" | "HIPPO" | "HIPPOGRIFF" | "HIROGEN" | "HOMARID" | "HOMUNCULUS" | "HORROR" | "HORSE" | "HUMAN" | "HUNTER" | "HUTT" | "HYDRA" | "HYENA" | "ILLUSION" | "ILLYRIAN" | "IMP" | "INCARNATION" | "INHUMAN" | "INKLING" | "INQUISITOR" | "INSECT" | "ITHORIAN" | "JACKAL" | "JAWA" | "JEDI" | "JELLYFISH" | "JUGGERNAUT" | "KALEESH" | "KANGAROO" | "KAVU" | "KELDOR" | "KELPIEN" | "KILLBOT" | "KIRIN" | "KITHKIN" | "KLINGON" | "KNIGHT" | "KOBOLD" | "KOORIVAR" | "KOR" | "KRAKEN" | "KREE" | "KWEJIAN" | "LADYOFPROPERETIQUETTE" | "LAMIA" | "LAMMASU" | "LANTHANITE" | "LEECH" | "LEMUR" | "LEVIATHAN" | "LHURGOYF" | "LICID" | "LIZARD" | "LLAMA" | "LOBSTER" | "MANTELLIAN" | "MANTICORE" | "MASTICORE" | "MEDUSAN" | "MERCENARY" | "MERFOLK" | "METATHRAN" | "MINION" | "MINDLESS_ONE" | "MINOTAUR" | "MIRIALAN" | "MITE" | "MOLE" | "MONGER" | "MONGOOSE" | "MONK" | "MONKEY" | "MOOGLE" | "MOONFOLK" | "MOUNT" | "MOUSE" | "MUTANT" | "MYR" | "MYSTIC" | "NAUTILUS" | "NAUTOLAN" | "NECRON" | "NEIMOIDIAN" | "NEPHILIM" | "NIGHTMARE" | "NIGHTSTALKER" | "NINJA" | "NOBLE" | "NOGGLE" | "NOMAD" | "NYMPH" | "OCTOPUS" | "OFFICER" | "OGRE" | "OOZE" | "ORB" | "ORC" | "ORGG" | "ORION" | "ORTOLAN" | "OTTER" | "OUPHE" | "OX" | "OYSTER" | "PANGOLIN" | "PEASANT" | "PEGASUS" | "PENTAVITE" | "PERFORMER" | "PEST" | "PHELDDAGRIF" | "PHOENIX" | "PHYREXIAN" | "PILOT" | "PINCHER" | "PIRATE" | "PLANT" | "PLATYPUS" | "PORCUPINE" | "POSSUM" | "PRAETOR" | "PRIMARCH" | "PRISM" | "PROCESSOR" | "PUREBLOOD" | "Q" | "QU" | "QUARREN" | "RABBIT" | "RACCOON" | "RAIDER" | "RANGER" | "RAT" | "REBEL" | "REFLECTION" | "RHINO" | "RIGGER" | "ROBOT" | "RODIAN" | "ROGUE" | "ROMULAN" | "SABLE" | "SALAMANDER" | "SAMURAI" | "SAND" | "SAPROLING" | "SATYR" | "SCARECROW" | "SCIENTIST" | "SCION" | "SCORPION" | "SCOUT" | "SCULPTURE" | "SEAL" | "SERF" | "SERPENT" | "SERVO" | "SHADE" | "SHAMAN" | "SHAPESHIFTER" | "SHARK" | "SHEEP" | "SHIAR" | "SIREN" | "SITH" | "SKELETON" | "SKRULL" | "SKUNK" | "SLITH" | "SLIVER" | "SLOTH" | "SLUG" | "SNAIL" | "SNAKE" | "SOLDIER" | "SOLTARI" | "SORCERER" | "SPAWN" | "SPECTER" | "SPELLSHAPER" | "SPHINX" | "SPIDER" | "SPIKE" | "SPIRIT" | "SPLINTER" | "SPLITTER" | "SPONGE" | "SPY" | "SQUID" | "SQUIRREL" | "STARFISH" | "STARSHIP" | "SULLUSTAN" | "SURRAKAR" | "SURVIVOR" | "SYMBIOTE" | "SYNTH" | "TALOSIAN" | "TELLARITE" | "TENTACLE" | "TETRAVITE" | "THALAKOS" | "THOLIAN" | "THOPTER" | "THRULL" | "TIEFLING" | "TIME_LORD" | "TOSK" | "TOY" | "TRANDOSHAN" | "TREEFOLK" | "TRIBBLE" | "TRILL" | "TRILOBITE" | "TRISKELAVITE" | "TROLL" | "TROOPER" | "TURTLE" | "TUSKEN" | "TWILEK" | "TYRANID" | "UGNAUGHT" | "UNICORN" | "UTROM" | "VAMPIRE" | "VARMINT" | "VEDALKEN" | "VILLAIN" | "VOLVER" | "VORTA" | "VULCAN" | "WALL" | "WALRUS" | "WARLOCK" | "WARRIOR" | "WEASEL" | "WEEQUAY" | "WEIRD" | "WEREWOLF" | "WHALE" | "WIZARD" | "WOLF" | "WOLVERINE" | "WOMBAT" | "WOOKIEE" | "WORM" | "WRAITH" | "WURM" | "XINDI" | "YETI" | "ZABRAK" | "ZOMBIE" | "ZUBERA" | "AJANI" | "AMINATOU" | "ANGRATH" | "ARLINN" | "ARZAKON" | "ASHIOK" | "AURRA" | "BAHAMUT" | "BASRI" | "BOLAS" | "CALIX" | "CHANDRA" | "COMET" | "DACK" | "DAKKON" | "DARETTI" | "DAVRIEL" | "DELLIAN" | "DIHADA" | "DOMRI" | "DOOKU" | "DOVIN" | "DYFED" | "ELLYWICK" | "ELMINSTER" | "ELSPETH" | "ESTRID" | "FEROZ" | "FREYALISE" | "GARRUK" | "GIDEON" | "GREENSLEEVES" | "GRIST" | "GUFF" | "HUATLI" | "INZERVA" | "JACE" | "JARED" | "JAYA" | "JESKA" | "KAITO" | "KARN" | "KASMINA" | "KAYA" | "KIORA" | "KOTH" | "LILIANA" | "LOLTH" | "LUKE" | "LUKKA" | "MINSC" | "MORDENKAINEN" | "NAHIRI" | "NARSET" | "NIKO" | "NISSA" | "NIXILIS" | "OBI_WAN" | "OKO" | "QUINTORIUS" | "RAL" | "REY" | "ROWAN" | "SAHEELI" | "SAMUT" | "SARKHAN" | "SERRA" | "SIDIOUS" | "SIFA" | "SIVITRI" | "SNOKE" | "SORIN" | "SZAT" | "TAMIYO" | "TASHA" | "TEFERI" | "TEYO" | "TEZZERET" | "TIBALT" | "TYVAR" | "UGIN" | "URZA" | "VENSER" | "VIVIEN" | "VRASKA" | "VRONOS" | "WILL" | "WINDGRACE" | "WORZEL" | "WRENN" | "XENAGOS" | "YANGGU" | "YANLING" | "YODA" | "ZARIEL";
 
 export type SuperType = "BASIC" | "ELITE" | "LEGENDARY" | "ONGOING" | "SNOW" | "WORLD";
 

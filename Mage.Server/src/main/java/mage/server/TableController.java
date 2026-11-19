@@ -945,6 +945,26 @@ public class TableController {
      * against a goldfish (an AI with only basic lands) never counts. Each paid player hears about it right away (B269).
      */
     private void payCareer(Game game) {
+        if (mage.server.ladder.RankedService.isRanked(table.getId()) && match.hasEnded()) {
+            // a ranked match (#431) moves the player's rating and rank: won, lost, or drawn when neither won
+            boolean humanWon = false;
+            boolean otherWon = false;
+            for (MatchPlayer matchPlayer : match.getPlayers()) {
+                if (matchPlayer.isMatchWinner()) {
+                    if (matchPlayer.getPlayer().isHuman()) {
+                        humanWon = true;
+                    } else {
+                        otherWon = true;
+                    }
+                }
+            }
+            double score = humanWon ? 1 : otherWon ? 0 : 0.5;
+            try {
+                mage.server.ladder.RankedService.get().matchEnded(table.getId(), score, System.currentTimeMillis());
+            } catch (java.sql.SQLException | RuntimeException e) {
+                logger.error("Ranked: the result of table " + table.getId() + " couldn't be recorded", e);
+            }
+        }
         if (mage.server.career.AdaptiveSkill.marked(table.getId()) && match.hasEnded()) {
             // adaptive difficulty (S049) moves the player's hidden rating by the match's result
             for (MatchPlayer matchPlayer : match.getPlayers()) {

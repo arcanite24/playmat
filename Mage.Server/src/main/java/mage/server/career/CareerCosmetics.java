@@ -40,7 +40,7 @@ public final class CareerCosmetics {
 
     /** Where a cosmetic comes from. */
     public static class CareerCosmeticSource {
-        /** "level", "achievement", "campaign", "mastery", "free", "capsule" (pulled from a machine, or finishing it) or "capsuleSet" (finishing a capsule set) */
+        /** "level", "achievement", "campaign", "mastery", "free", "capsule" (pulled from a machine, or finishing it), "capsuleSet" (finishing a capsule set) or "ladder" (first reaching a ranked rank, the ref) */
         public String kind;
         /** the achievement, campaign or mastery track; null for a level */
         public String ref;
@@ -89,6 +89,8 @@ public final class CareerCosmetics {
         /** a mastery track and rank that give it (else the content says) */
         public String mastery;
         public int rank;
+        /** the ranked rank (bronze to mythic) whose first reach gives it (#431) */
+        public String ladder;
         /** everyone has it */
         public boolean free;
         /** every place that gives it */
@@ -109,6 +111,9 @@ public final class CareerCosmetics {
             }
             if (item.free) {
                 item.sources.add(new CareerCosmeticSource("free", null, 0));
+            }
+            if (item.ladder != null) {
+                item.sources.add(new CareerCosmeticSource("ladder", item.ladder, 0));
             }
         }
     }

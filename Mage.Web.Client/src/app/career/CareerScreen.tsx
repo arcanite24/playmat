@@ -249,6 +249,10 @@ function CareerHub({ profile }: { profile: CareerProfile }) {
       status: t('career.hub.opponents', { beaten: beatenCount(roster), total: roster.length }),
     },
     {
+      to: '/career/ranked', title: t('career.ranked.title'), art: HUB_ART.ranked, artName: '',
+      status: t('career.hub.ranked'),
+    },
+    {
       to: '/career/campaign', title: t('career.modes.campaign'), art: chapter.node?.cover ?? null, artName: chapter.node?.name ?? '',
       status: chapter.current ? t('career.hub.campaign', { chapter: chapter.current.name ?? '', done: chapter.campaign?.done ?? 0, total: chapter.campaign?.total ?? 0 }) : t('career.hub.campaignDone'),
     },
@@ -377,6 +381,7 @@ const HUB_ART = {
   shop: { name: 'Sylvan Caryatid', setCode: 'THS', cardNumber: '180' },
   collection: { name: 'Horizon Scholar', setCode: 'THS', cardNumber: '51' },
   progress: { name: "Elspeth, Sun's Champion", setCode: 'THS', cardNumber: '9' },
+  ranked: { name: 'Anax and Cymede', setCode: 'THS', cardNumber: '186' },
 } as const;
 
 interface Tile {
