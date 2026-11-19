@@ -61,6 +61,7 @@ public class WebClientApiContractTest {
             "adminServerStats", // bridge metrics
             "adminUpdateStatus", "adminUpdateApply", "adminUpdateRollback", // the registry and GitHub, the updater's files
             "gamePractice", // game controller practice tools, with readable errors
+            "ladderState", "ladderOpponent", "ladderPlay", "ladderResult",
             "careerState", "careerStarters", "careerStart", "careerCollection", "careerOpponents", "careerPlay", "careerShop",
             "careerBuyPack", "careerCraft", "careerExport", "careerImport", // career store and service (career/CareerServiceTest)
             "careerQuests", "careerRerollQuest", "careerAchievements", "careerLevels", "careerWeekly", "careerGameResult",

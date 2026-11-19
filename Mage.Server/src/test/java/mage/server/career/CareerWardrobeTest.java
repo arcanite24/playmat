@@ -105,7 +105,7 @@ public class CareerWardrobeTest {
         }
         assertTrue(catalog.items().size() >= 240, "about 250 cosmetics");
         assertTrue(catalog.items().stream().filter(item -> "title".equals(item.kind)).count() >= 80, "at least 80 titles");
-        assertEquals(15, catalog.items().stream().filter(item -> "frame".equals(item.kind)).count());
+        assertEquals(21, catalog.items().stream().filter(item -> "frame".equals(item.kind)).count());
         assertEquals(11, catalog.items().stream().filter(item -> "pet".equals(item.kind)).count());
         for (String track : CareerProgress.masteryTracks()) {
             assertNotNull(catalog.masteryReward(track, 5), track + " pays a cosmetic at rank 5");

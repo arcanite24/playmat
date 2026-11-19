@@ -393,6 +393,14 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('careerExport'),
     careerImport: (data: string) =>
       rpc.call('careerImport', data),
+    ladderState: (format: string) =>
+      rpc.call('ladderState', format),
+    ladderOpponent: (format: string) =>
+      rpc.call('ladderOpponent', format),
+    ladderPlay: (format: string, deck: DeckCardLists) =>
+      rpc.call('ladderPlay', format, deck),
+    ladderResult: (tableId: string) =>
+      rpc.call('ladderResult', tableId),
     careerQuests: () =>
       rpc.call('careerQuests'),
     careerRerollQuest: (slot: number) =>

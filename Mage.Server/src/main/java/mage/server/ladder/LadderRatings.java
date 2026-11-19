@@ -23,9 +23,12 @@ public final class LadderRatings {
     static final long PERIOD_MS = 24L * 60 * 60 * 1000;
     /** at most this many idle periods are applied */
     static final int MAX_IDLE_PERIODS = 365;
-    /** the first window of bot ratings matchmaking draws from, around the player's: a little below to a bit above */
-    public static final double BELOW = 50;
-    public static final double ABOVE = 100;
+    /**
+     * the first window of bot ratings matchmaking draws from, around the player's: centred a little below, so a player
+     * at their level expects to win about 54% and keeps climbing the visible rank
+     */
+    public static final double BELOW = 100;
+    public static final double ABOVE = 50;
     /** how far the window widens when it holds too few bots */
     static final double WIDEN = 50;
     /** the fewest bots matchmaking wants to choose from */

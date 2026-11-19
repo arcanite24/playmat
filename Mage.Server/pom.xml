@@ -473,6 +473,11 @@
                                 <class>mage.server.websocket.api.SessionApi$OidcLogout</class>
                                 <class>mage.server.websocket.api.CareerApi$CareerState</class>
                                 <class>mage.server.websocket.api.CareerApi$CareerMatch</class>
+                                <class>mage.server.websocket.api.LadderApi$LadderState</class>
+                                <class>mage.server.websocket.api.LadderApi$LadderGame</class>
+                                <class>mage.server.websocket.api.LadderApi$LadderOpponent</class>
+                                <class>mage.server.websocket.api.LadderApi$LadderMatch</class>
+                                <class>mage.server.websocket.api.LadderApi$LadderResult</class>
                                 <class>mage.server.career.CareerContent$CareerStarter</class>
                                 <class>mage.server.career.CareerService$CareerOpponent</class>
                                 <class>mage.server.career.CareerService$CareerShopSet</class>

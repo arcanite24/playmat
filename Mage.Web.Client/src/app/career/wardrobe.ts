@@ -78,6 +78,8 @@ export function sourceWords(t: Translate, source: CareerCosmeticSource, achievem
       return t('career.locker.free');
     case 'capsule':
       return t('career.locker.fromCapsule', { name: titleLabel(source.ref ?? '') });
+    case 'ladder':
+      return t('career.locker.fromLadder', { rank: t(`career.ranked.rank.${source.ref ?? 'bronze'}` as MessageKey) });
     case 'capsuleSet':
       return t('career.locker.fromCapsuleSet', { name: titleLabel(source.ref ?? '') });
     default:

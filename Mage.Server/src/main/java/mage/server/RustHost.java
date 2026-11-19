@@ -298,6 +298,8 @@ public final class RustHost {
                 }
             });
             HOSTED.put(game.getId(), hosted);
+            // a ranked game records which engine played it (#431)
+            mage.server.ladder.RankedService.hostedOnRust(tableId);
             // on each player's connection: the gateway starts the game once, and each knows it before its START_GAME
             for (User user : users) {
                 user.fireCallback(new ClientCallback(ClientCallbackMethod.HOST_GAME, game.getId(), data));

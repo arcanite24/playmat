@@ -159,6 +159,9 @@ final class SoloApi {
                             if (liveTable != null && SoloGames.get().isCareerGame(gameId)) {
                                 throw RpcException.invalidParams("Finish the Career game first: then play any turn of it again from its replay.");
                             }
+                            if (liveTable != null && mage.server.ladder.RankedService.isRanked(liveTable)) {
+                                throw RpcException.invalidParams("Finish the ranked game first: then play any turn of it again from its replay.");
+                            }
                             SoloGames.Resume line;
                             try {
                                 line = store(() -> SoloGames.get().whatIf(gameId, call.integer(1), user));

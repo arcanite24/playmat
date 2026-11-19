@@ -36,7 +36,7 @@ describe('the locker', () => {
     expect((screen.getByRole('radio', { name: /Fox/ }) as HTMLButtonElement).disabled).toBe(true);
 
     fireEvent.click(within(tabs).getByRole('tab', { name: /Frames/ }));
-    fireEvent.click(screen.getByRole('radio', { name: /Bronze/ }));
+    fireEvent.click(screen.getByRole('radio', { name: /Bronze(?! Rank)/ }));
     expect(useCareerLook.getState().looks.tester?.frame).toBe('frame-bronze');
 
     fireEvent.click(within(tabs).getByRole('tab', { name: /Emotes/ }));

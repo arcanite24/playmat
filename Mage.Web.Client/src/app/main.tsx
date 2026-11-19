@@ -139,6 +139,7 @@ const router = createBrowserRouter([
               { path: 'rewards', lazy: () => import('./career/CareerResultsScreen').then((m) => ({ Component: m.CareerRewardsScreen })) },
               // Career modes (M9): campaign, puzzles, gauntlet, sealed and draft, the weekly challenge; each screen lazy on its own
               // the format schools (M11): the academy's hall, and each school's campaign
+              { path: 'ranked', lazy: () => import('./career/CareerRankedScreen').then((m) => ({ Component: m.CareerRankedScreen })) },
               { path: 'academy', lazy: () => import('./career/CareerAcademyScreen').then((m) => ({ Component: m.CareerAcademyScreen })) },
               { path: 'academy/:school', lazy: () => import('./career/CareerAcademyScreen').then((m) => ({ Component: m.CareerAcademyScreen })) },
               { path: ':mode', lazy: () => import('./career/CareerModesRoute').then((m) => ({ Component: m.CareerModesRoute })) },

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ladder bots · Playmat docs</title>
+  <title>Ranked and bots · Playmat docs</title>
   <meta name="description" content="The ranked ladder's AI opponents: what a bot is, where ratings live, and how to recalibrate them.">
   <meta name="theme-color" content="#0b120f">
   <link rel="icon" href="../assets/brand/playmat-mark.svg" type="image/svg+xml">
@@ -49,8 +49,8 @@
         </ul>
       </nav>
       <article class="doc">
-        <h1>Ladder bots</h1>
-        <p class="lede">The ranked ladder matches players against bots: AI opponents with a deck, a search strength and a
+        <h1>Ranked and bots</h1>
+        <p class="lede">Ranked matches players against bots: AI opponents with a deck, a search strength and a
           name. Each bot has a rating measured by having the bots play each other, so the ladder knows who is stronger
           before anyone plays them.</p>
 
@@ -74,6 +74,23 @@
             and queue. It is in the nightly backup. Deleting it puts players back at 1200 and bots back at their
             measured ratings.</li>
         </ul>
+
+        <h2>Ranked</h2>
+        <p>Ranked is in Career (<b>Career &rsaquo; Ranked</b>). It is on wherever Career is: signed-in accounts on a
+          server with sign-in turned on. There is nothing else to set up.</p>
+        <ul>
+          <li>Each format has its own ladder: Bronze, Silver, Gold, Platinum and Diamond, with four tiers of four pips
+            each, then Mythic. A win is a pip. Up to Gold, a third win in a row is two. Losses cost nothing in Bronze.
+            From Silver up they cost a pip, but never drop you below the tier (Silver) or the rank (Gold and up).</li>
+          <li>Opponents are picked from the bots near the player's hidden rating. A pick holds until it is played, so it
+            can't be skipped.</li>
+          <li>Ranked games are best of one, with no hints, take-backs, practice tools, saves or what-ifs. Conceding or
+            leaving is a loss. A game the server loses in a restart doesn't count.</li>
+          <li>Reaching a rank for the first time unlocks its title, sleeve and frame. Gold, Diamond and Mythic also pay a
+            capsule token. The usual Career XP, quests and daily rewards apply as in any other game.</li>
+        </ul>
+        <p>Standings, games and the ranks paid are kept in <code>db/ladder.db</code>. An account's export includes
+          them, and deleting an account deletes them.</p>
 
         <h2>Recalibrate</h2>
         <p>The ratings in <code>bots.json</code> are only right for the AI that measured them. After changing the AI's

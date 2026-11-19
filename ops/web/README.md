@@ -631,6 +631,26 @@ Ratings change with play: `db/ladder.db` keeps each player's and bot's Glicko-2 
 start at 1200; a bot starts at its calibrated rating and moves slowly). Deleting the file resets everyone to those
 starting points.
 
+### Ranked
+
+Ranked (#431, **Career › Ranked**, `/career/ranked`) is the Open queue: best of one against the ladder bots, one
+ladder per format. It is on wherever Career is, for signed-in accounts, with no setting of its own.
+
+- **Rank.** Bronze to Diamond have four tiers of four pips each; Mythic is the top. A win is a pip, and a third win in a
+  row is two up to Gold. Losses cost nothing in Bronze. From Silver up a loss costs a pip, but never drops below the
+  tier floor (Silver) or the rank floor (Gold and up). Draws change nothing and end the streak.
+- **Matchmaking.** It picks from the bots rated between 100 below and 50 above the player's hidden Glicko-2 rating
+  (about a 54% expected win), widening by 50 until there are three. It avoids the last three bots met. The pick holds
+  until it is played.
+- **Rules.** Ranked games refuse hints, take-backs, practice tools, saves, puzzle exports and what-ifs. Conceding or
+  leaving is a loss. On startup, a game still marked `playing` from before a restart is voided.
+- **Rewards.** The first time a rank is reached, the player gets the catalog items with that `ladder` (a title, a sleeve
+  and a frame, once per account). Gold, Diamond and Mythic also pay a capsule token, once per format. Career XP,
+  quests and the daily ladder pay as for any game, and qualifying games play on the Rust host as usual.
+- **Data.** `db/ladder.db` adds `ladder_standing`, `ladder_games` (with which engine played each game) and
+  `ladder_rewards`. They are part of the account export (`ranked`) and are deleted with the account. The server log
+  has a `Ranked <format>:` line for every result.
+
 ### Single player
 
 The Single player tab shows the batch runner (games playing now, each player's daily quota, the queue; staff can cancel a batch) and the content packs.

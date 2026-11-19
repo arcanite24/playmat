@@ -372,6 +372,12 @@ final class AccountsApi {
         out.put("oidcName", oidcLink == null ? null : (oidcLink.displayName != null && !oidcLink.displayName.isEmpty() ? oidcLink.displayName : oidcLink.sub));
         // support for the server: the code, payments (without the providers' payloads), perks and the look
         out.put("support", SupportApi.export(name));
+        // ranked: standings, games, ranks paid and hidden ratings
+        try {
+            out.put("ranked", mage.server.ladder.LadderStore.get().export(name));
+        } catch (RuntimeException e) {
+            out.put("ranked", null);
+        }
         // the status the player chose: online, hidden or looking (to play)
         out.put("presence", mage.server.social.Presence.statusOf(name));
         Gson gson = new GsonBuilder().setPrettyPrinting().serializeNulls().create();
@@ -393,6 +399,11 @@ final class AccountsApi {
             mage.server.solo.SoloStore.get().deleteUser(name);
         } catch (java.sql.SQLException | RuntimeException e) {
             logger.warn("Saved games and scores of " + name + " couldn't be deleted", e);
+        }
+        try {
+            mage.server.ladder.LadderStore.get().deleteUser(name);
+        } catch (java.sql.SQLException | RuntimeException e) {
+            logger.warn("Ranked standings of " + name + " couldn't be deleted", e);
         }
         ReportStore.get().forget(name);
         mage.server.social.PresenceStore presence = mage.server.social.PresenceStore.get();

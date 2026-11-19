@@ -884,6 +884,9 @@ public class GameController implements GameCallback {
         if (mage.server.career.CareerService.get().isCareerTable(tableId)) {
             return "Practice tools are off in Career games.";
         }
+        if (mage.server.ladder.RankedService.isRanked(tableId)) {
+            return "Practice tools are off in ranked games.";
+        }
         long humans = game.getPlayers().values().stream().filter(Player::isHuman).count();
         if (humans != 1 || !player.isHuman()) {
             return "Practice tools only work in a game against the computer.";
@@ -919,6 +922,10 @@ public class GameController implements GameCallback {
             problem.append("Career games can't be saved as puzzles.");
             return null;
         }
+        if (mage.server.ladder.RankedService.isRanked(tableId)) {
+            problem.append("Ranked games can't be saved as puzzles.");
+            return null;
+        }
         long humans = game.getPlayers().values().stream().filter(Player::isHuman).count();
         if (humans != 1 || !player.isHuman() || game.getPlayers().size() != 2) {
             problem.append("A puzzle is a duel against the computer.");
@@ -952,6 +959,10 @@ public class GameController implements GameCallback {
         Player player = playerId == null ? null : game.getPlayer(playerId);
         if (player == null) {
             problem.append("You aren't playing in this game.");
+            return null;
+        }
+        if (mage.server.ladder.RankedService.isRanked(tableId)) {
+            problem.append("Ranked games are played without hints.");
             return null;
         }
         mage.server.career.CareerService.CareerTable career = mage.server.career.CareerService.get().tableInfo(tableId);

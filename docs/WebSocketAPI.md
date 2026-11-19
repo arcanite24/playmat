@@ -324,6 +324,10 @@ Generated from the server's method registry (`mage.server.websocket.api`). Do no
 | `careerCraft` | `setCode: string`, `cardNumber: string` | `CareerProfile` | session | Craft one copy of a card: commons and uncommons cost coins, rares and mythics a wildcard of their rarity. |
 | `careerExport` | - | `string` | session | The account's whole Career as a signed text file, to keep a copy. |
 | `careerImport` | `data: string` | `CareerProfile` | session | Bring back an exported Career, for an account that has none. Only files this server made for this account are taken. |
+| `ladderState` | `format: string` | `LadderState` | session | Your ranked standing in a format's Open queue (Bo1): rank, tier, pips, peak, record, the last games, and in Mythic your rating. Formats: standard, pioneer. |
+| `ladderOpponent` | `format: string` | `LadderOpponent` | session | Who your next ranked game in the format is against: a bot near your hidden rating. The pick holds until it's played, so it can't be skipped. |
+| `ladderPlay` | `format: string`, `deck: DeckCardLists` | `LadderMatch` | session | Start a ranked game in the format with a deck legal there, against the picked bot. No hints, take-backs, practice tools or saves; conceding or leaving is a loss. |
+| `ladderResult` | `tableId: string` | `LadderResult` | session | What a finished ranked table did to your rank: pips, rank-ups, and what reaching a rank paid. Null while it is still being played, or long after. |
 | `careerQuests` | - | `CareerQuests \| null` | session | The quests waiting (up to three; a new one arrives each day) and whether one can be swapped today. Null before the account opens a Career. |
 | `careerRerollQuest` | `slot: number` | `CareerQuests` | session | Swap the quest in a slot for a different one, once a day. The new quest starts from zero. |
 | `careerAchievements` | - | `CareerAchievement[]` | session | Every achievement, earned or not, with progress on the Career-long ones. A secret one has no name or text until it's earned. |

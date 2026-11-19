@@ -26,6 +26,24 @@ public final class LadderStore implements AutoCloseable {
                             + " rating REAL NOT NULL, rd REAL NOT NULL, volatility REAL NOT NULL, games INTEGER NOT NULL,"
                             + " updated INTEGER NOT NULL, PRIMARY KEY (subject, format, queue))",
             },
+            {
+                    // the visible rank (#431): a step per pip, LadderRank; season 0 until seasons (#434)
+                    "CREATE TABLE ladder_standing (user TEXT NOT NULL, format TEXT NOT NULL, queue TEXT NOT NULL,"
+                            + " season INTEGER NOT NULL, step INTEGER NOT NULL, peak INTEGER NOT NULL, streak INTEGER NOT NULL,"
+                            + " won INTEGER NOT NULL, lost INTEGER NOT NULL, drew INTEGER NOT NULL, updated INTEGER NOT NULL,"
+                            + " PRIMARY KEY (user, format, queue, season))",
+                    // every ranked game: 'playing' from the start, then won, lost, drew or void
+                    "CREATE TABLE ladder_games (id TEXT PRIMARY KEY, user TEXT NOT NULL, format TEXT NOT NULL,"
+                            + " queue TEXT NOT NULL, season INTEGER NOT NULL, bot TEXT NOT NULL, deck TEXT,"
+                            + " status TEXT NOT NULL, started INTEGER NOT NULL, ended INTEGER,"
+                            + " step_before INTEGER, step_after INTEGER, rating_before REAL, rating_after REAL, engine TEXT)",
+                    "CREATE INDEX ladder_games_by_user ON ladder_games (user, started)",
+                    "CREATE INDEX ladder_games_by_status ON ladder_games (status)",
+                    // a rank's first-reach reward, paid once per user, format, queue and season
+                    "CREATE TABLE ladder_rewards (user TEXT NOT NULL, format TEXT NOT NULL, queue TEXT NOT NULL,"
+                            + " season INTEGER NOT NULL, rank TEXT NOT NULL, paid INTEGER NOT NULL,"
+                            + " PRIMARY KEY (user, format, queue, season, rank))",
+            },
     };
 
     private static volatile LadderStore instance;
@@ -155,6 +173,279 @@ public final class LadderStore implements AutoCloseable {
             statement.setInt(7, games);
             statement.setLong(8, now);
             statement.executeUpdate();
+        }
+    }
+
+    // ---- standings
+
+    /** A player's standing in one format and queue, for a season */
+    public static final class Standing {
+        public String user;
+        public String format;
+        public String queue;
+        public int season;
+        public int step;
+        public int peak;
+        public int streak;
+        public int won;
+        public int lost;
+        public int drew;
+        public long updated;
+    }
+
+    /** the standing, or null before the player's first ranked game there */
+    public synchronized Standing standing(String user, String format, String queue, int season) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT step, peak, streak, won, lost, drew, updated FROM ladder_standing"
+                        + " WHERE user = ? AND format = ? AND queue = ? AND season = ?")) {
+            statement.setString(1, user);
+            statement.setString(2, format);
+            statement.setString(3, queue);
+            statement.setInt(4, season);
+            try (ResultSet rows = statement.executeQuery()) {
+                if (!rows.next()) {
+                    return null;
+                }
+                Standing s = new Standing();
+                s.user = user;
+                s.format = format;
+                s.queue = queue;
+                s.season = season;
+                s.step = rows.getInt(1);
+                s.peak = rows.getInt(2);
+                s.streak = rows.getInt(3);
+                s.won = rows.getInt(4);
+                s.lost = rows.getInt(5);
+                s.drew = rows.getInt(6);
+                s.updated = rows.getLong(7);
+                return s;
+            }
+        }
+    }
+
+    public synchronized void putStanding(Standing s) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "INSERT INTO ladder_standing (user, format, queue, season, step, peak, streak, won, lost, drew, updated)"
+                        + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (user, format, queue, season) DO UPDATE SET"
+                        + " step = excluded.step, peak = excluded.peak, streak = excluded.streak, won = excluded.won,"
+                        + " lost = excluded.lost, drew = excluded.drew, updated = excluded.updated")) {
+            statement.setString(1, s.user);
+            statement.setString(2, s.format);
+            statement.setString(3, s.queue);
+            statement.setInt(4, s.season);
+            statement.setInt(5, s.step);
+            statement.setInt(6, s.peak);
+            statement.setInt(7, s.streak);
+            statement.setInt(8, s.won);
+            statement.setInt(9, s.lost);
+            statement.setInt(10, s.drew);
+            statement.setLong(11, s.updated);
+            statement.executeUpdate();
+        }
+    }
+
+    // ---- ranked games
+
+    /** A ranked game: who, against which bot, and how it went */
+    public static final class GameRow {
+        public String id;
+        public String user;
+        public String format;
+        public String queue;
+        public int season;
+        public String bot;
+        public String deck;
+        /** playing, won, lost, drew or void */
+        public String status;
+        public long started;
+        public Long ended;
+        public Integer stepBefore;
+        public Integer stepAfter;
+        public Double ratingBefore;
+        public Double ratingAfter;
+        public String engine;
+    }
+
+    public synchronized void startGame(GameRow g) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "INSERT INTO ladder_games (id, user, format, queue, season, bot, deck, status, started, engine)"
+                        + " VALUES (?, ?, ?, ?, ?, ?, ?, 'playing', ?, ?)")) {
+            statement.setString(1, g.id);
+            statement.setString(2, g.user);
+            statement.setString(3, g.format);
+            statement.setString(4, g.queue);
+            statement.setInt(5, g.season);
+            statement.setString(6, g.bot);
+            statement.setString(7, g.deck);
+            statement.setLong(8, g.started);
+            statement.setString(9, g.engine);
+            statement.executeUpdate();
+        }
+    }
+
+    /**
+     * Ends a game that is still playing; false when it already ended (a game pays once). A void game keeps no
+     * rank or rating change.
+     */
+    public synchronized boolean endGame(String id, String status, long ended, Integer stepBefore, Integer stepAfter,
+                                        Double ratingBefore, Double ratingAfter, String engine) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "UPDATE ladder_games SET status = ?, ended = ?, step_before = ?, step_after = ?, rating_before = ?,"
+                        + " rating_after = ?, engine = COALESCE(?, engine) WHERE id = ? AND status = 'playing'")) {
+            statement.setString(1, status);
+            statement.setLong(2, ended);
+            setInt(statement, 3, stepBefore);
+            setInt(statement, 4, stepAfter);
+            setDouble(statement, 5, ratingBefore);
+            setDouble(statement, 6, ratingAfter);
+            statement.setString(7, engine);
+            statement.setString(8, id);
+            return statement.executeUpdate() == 1;
+        }
+    }
+
+    public synchronized GameRow game(String id) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("SELECT * FROM ladder_games WHERE id = ?")) {
+            statement.setString(1, id);
+            try (ResultSet rows = statement.executeQuery()) {
+                return rows.next() ? gameRow(rows) : null;
+            }
+        }
+    }
+
+    /** the player's ranked games, newest first */
+    public synchronized java.util.List<GameRow> games(String user, String format, String queue, int limit) throws SQLException {
+        java.util.List<GameRow> out = new java.util.ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT * FROM ladder_games WHERE user = ? AND format = ? AND queue = ? ORDER BY started DESC LIMIT ?")) {
+            statement.setString(1, user);
+            statement.setString(2, format);
+            statement.setString(3, queue);
+            statement.setInt(4, limit);
+            try (ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) {
+                    out.add(gameRow(rows));
+                }
+            }
+        }
+        return out;
+    }
+
+    /** games still marked playing: after a restart, these were interrupted */
+    public synchronized java.util.List<GameRow> playing() throws SQLException {
+        java.util.List<GameRow> out = new java.util.ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement("SELECT * FROM ladder_games WHERE status = 'playing'")) {
+            try (ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) {
+                    out.add(gameRow(rows));
+                }
+            }
+        }
+        return out;
+    }
+
+    /** a player's account is deleted: their standings, games, rewards and ratings go */
+    /** everything kept about the account, table by table, for the account's data export */
+    public synchronized java.util.Map<String, Object> export(String user) throws SQLException {
+        String lower = user.toLowerCase(java.util.Locale.ENGLISH);
+        java.util.Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("standings", rows("SELECT * FROM ladder_standing WHERE lower(user) = ? ORDER BY format, queue, season", lower));
+        out.put("games", rows("SELECT * FROM ladder_games WHERE lower(user) = ? ORDER BY started", lower));
+        out.put("rewards", rows("SELECT * FROM ladder_rewards WHERE lower(user) = ? ORDER BY paid", lower));
+        out.put("ratings", rows("SELECT * FROM ladder_rating WHERE subject = ? ORDER BY format, queue", LadderRatings.userSubject(user)));
+        return out;
+    }
+
+    private java.util.List<java.util.Map<String, Object>> rows(String sql, String arg) throws SQLException {
+        java.util.List<java.util.Map<String, Object>> out = new java.util.ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, arg);
+            try (java.sql.ResultSet rs = statement.executeQuery()) {
+                java.sql.ResultSetMetaData meta = rs.getMetaData();
+                while (rs.next()) {
+                    java.util.Map<String, Object> row = new java.util.LinkedHashMap<>();
+                    for (int i = 1; i <= meta.getColumnCount(); i++) {
+                        row.put(meta.getColumnLabel(i), rs.getObject(i));
+                    }
+                    out.add(row);
+                }
+            }
+        }
+        return out;
+    }
+
+    public synchronized void deleteUser(String user) throws SQLException {
+        String lower = user.toLowerCase(java.util.Locale.ENGLISH);
+        for (String sql : new String[]{
+                "DELETE FROM ladder_standing WHERE lower(user) = ?",
+                "DELETE FROM ladder_games WHERE lower(user) = ?",
+                "DELETE FROM ladder_rewards WHERE lower(user) = ?",
+        }) {
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setString(1, lower);
+                statement.executeUpdate();
+            }
+        }
+        try (PreparedStatement statement = connection.prepareStatement("DELETE FROM ladder_rating WHERE subject = ?")) {
+            statement.setString(1, LadderRatings.userSubject(user));
+            statement.executeUpdate();
+        }
+    }
+
+    private static GameRow gameRow(ResultSet rows) throws SQLException {
+        GameRow g = new GameRow();
+        g.id = rows.getString("id");
+        g.user = rows.getString("user");
+        g.format = rows.getString("format");
+        g.queue = rows.getString("queue");
+        g.season = rows.getInt("season");
+        g.bot = rows.getString("bot");
+        g.deck = rows.getString("deck");
+        g.status = rows.getString("status");
+        g.started = rows.getLong("started");
+        long ended = rows.getLong("ended");
+        g.ended = rows.wasNull() ? null : ended;
+        int before = rows.getInt("step_before");
+        g.stepBefore = rows.wasNull() ? null : before;
+        int after = rows.getInt("step_after");
+        g.stepAfter = rows.wasNull() ? null : after;
+        double rb = rows.getDouble("rating_before");
+        g.ratingBefore = rows.wasNull() ? null : rb;
+        double ra = rows.getDouble("rating_after");
+        g.ratingAfter = rows.wasNull() ? null : ra;
+        g.engine = rows.getString("engine");
+        return g;
+    }
+
+    private static void setInt(PreparedStatement statement, int index, Integer value) throws SQLException {
+        if (value == null) {
+            statement.setNull(index, java.sql.Types.INTEGER);
+        } else {
+            statement.setInt(index, value);
+        }
+    }
+
+    private static void setDouble(PreparedStatement statement, int index, Double value) throws SQLException {
+        if (value == null) {
+            statement.setNull(index, java.sql.Types.REAL);
+        } else {
+            statement.setDouble(index, value);
+        }
+    }
+
+    // ---- rank rewards
+
+    /** marks a rank's first-reach reward paid; false when it was already */
+    public synchronized boolean payReward(String user, String format, String queue, int season, String rank, long now) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "INSERT OR IGNORE INTO ladder_rewards (user, format, queue, season, rank, paid) VALUES (?, ?, ?, ?, ?, ?)")) {
+            statement.setString(1, user);
+            statement.setString(2, format);
+            statement.setString(3, queue);
+            statement.setInt(4, season);
+            statement.setString(5, rank);
+            statement.setLong(6, now);
+            return statement.executeUpdate() == 1;
         }
     }
 

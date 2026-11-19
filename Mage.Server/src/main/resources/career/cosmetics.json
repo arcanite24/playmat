@@ -2518,5 +2518,173 @@
     "name": "Knotwork",
     "es": "Entrelazado",
     "rarity": "mythic"
+  },
+  {
+    "kind": "title",
+    "id": "ladder-bronze",
+    "name": "Bronze Duelist",
+    "es": "Duelista de bronce",
+    "rarity": "common",
+    "ladder": "bronze"
+  },
+  {
+    "kind": "sleeve",
+    "id": "ladder-bronze",
+    "name": "Bronze Ladder",
+    "es": "Escalera de bronce",
+    "rarity": "common",
+    "color": "#8a5a35",
+    "ladder": "bronze"
+  },
+  {
+    "kind": "frame",
+    "id": "ladder-bronze",
+    "name": "Bronze Rank",
+    "es": "Rango Bronce",
+    "rarity": "common",
+    "ring": "#a0643a",
+    "accent": "#e0b08a",
+    "style": "solid",
+    "ladder": "bronze"
+  },
+  {
+    "kind": "title",
+    "id": "ladder-silver",
+    "name": "Silver Duelist",
+    "es": "Duelista de plata",
+    "rarity": "common",
+    "ladder": "silver"
+  },
+  {
+    "kind": "sleeve",
+    "id": "ladder-silver",
+    "name": "Silver Ladder",
+    "es": "Escalera de plata",
+    "rarity": "common",
+    "color": "#7d8796",
+    "ladder": "silver"
+  },
+  {
+    "kind": "frame",
+    "id": "ladder-silver",
+    "name": "Silver Rank",
+    "es": "Rango Plata",
+    "rarity": "common",
+    "ring": "#8d96a3",
+    "accent": "#e3e8ee",
+    "style": "double",
+    "ladder": "silver"
+  },
+  {
+    "kind": "title",
+    "id": "ladder-gold",
+    "name": "Gold Duelist",
+    "es": "Duelista de oro",
+    "rarity": "uncommon",
+    "ladder": "gold"
+  },
+  {
+    "kind": "sleeve",
+    "id": "ladder-gold",
+    "name": "Gold Ladder",
+    "es": "Escalera de oro",
+    "rarity": "uncommon",
+    "color": "#9c7a16",
+    "ladder": "gold"
+  },
+  {
+    "kind": "frame",
+    "id": "ladder-gold",
+    "name": "Gold Rank",
+    "es": "Rango Oro",
+    "rarity": "uncommon",
+    "ring": "#b8901c",
+    "accent": "#f3d77a",
+    "style": "beaded",
+    "ladder": "gold"
+  },
+  {
+    "kind": "title",
+    "id": "ladder-platinum",
+    "name": "Platinum Duelist",
+    "es": "Duelista de platino",
+    "rarity": "rare",
+    "ladder": "platinum"
+  },
+  {
+    "kind": "sleeve",
+    "id": "ladder-platinum",
+    "name": "Platinum Ladder",
+    "es": "Escalera de platino",
+    "rarity": "rare",
+    "color": "#256f69",
+    "ladder": "platinum"
+  },
+  {
+    "kind": "frame",
+    "id": "ladder-platinum",
+    "name": "Platinum Rank",
+    "es": "Rango Platino",
+    "rarity": "rare",
+    "ring": "#2f8f86",
+    "accent": "#9fe3da",
+    "style": "notched",
+    "ladder": "platinum"
+  },
+  {
+    "kind": "title",
+    "id": "ladder-diamond",
+    "name": "Diamond Duelist",
+    "es": "Duelista de diamante",
+    "rarity": "rare",
+    "ladder": "diamond"
+  },
+  {
+    "kind": "sleeve",
+    "id": "ladder-diamond",
+    "name": "Diamond Ladder",
+    "es": "Escalera de diamante",
+    "rarity": "rare",
+    "color": "#3653a8",
+    "ladder": "diamond"
+  },
+  {
+    "kind": "frame",
+    "id": "ladder-diamond",
+    "name": "Diamond Rank",
+    "es": "Rango Diamante",
+    "rarity": "rare",
+    "ring": "#4a6fd8",
+    "accent": "#c2d0ff",
+    "style": "double",
+    "ladder": "diamond"
+  },
+  {
+    "kind": "title",
+    "id": "ladder-mythic",
+    "name": "Mythic Duelist",
+    "es": "Duelista mítico",
+    "rarity": "mythic",
+    "ladder": "mythic"
+  },
+  {
+    "kind": "sleeve",
+    "id": "ladder-mythic",
+    "name": "Mythic Ladder",
+    "es": "Escalera de mítico",
+    "rarity": "mythic",
+    "color": "#7e2d63",
+    "ladder": "mythic"
+  },
+  {
+    "kind": "frame",
+    "id": "ladder-mythic",
+    "name": "Mythic Rank",
+    "es": "Rango Mítico",
+    "rarity": "mythic",
+    "ring": "#b0408a",
+    "accent": "#f4a8d8",
+    "style": "rays",
+    "ladder": "mythic"
   }
 ]
