@@ -398,8 +398,9 @@
 }
 
 /* Ranked · Free play · A friend, and under Free play who the AI is */
+/* Ranked, League, free play and a friend: two by two */
 .queues {
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
 }
 
 .queues .mode {

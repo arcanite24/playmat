@@ -136,6 +136,8 @@ export default {
   'home.queue.ranked': 'Ranked',
   'home.queue.free': 'Free play',
   'home.queue.freeLabel': 'Free play against',
+  'home.queue.league': 'League',
+  'home.leagueNote': 'Play with your collection: climb a format\'s League and earn its packs.',
   'home.rankedNote': 'Climb the ranks against stronger bots. You pick the format and deck next.',
   'home.friendNote': 'You host a table with this deck; your friend joins it from Tables.',
   'home.cancel': 'Cancel',

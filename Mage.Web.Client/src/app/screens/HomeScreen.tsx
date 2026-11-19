@@ -34,11 +34,12 @@ const MetaFormatPicker = lazy(() => import('./MetaFormatPicker'));
 
 const SupportBar = lazy(() => import('../support/SupportBar').then((module) => ({ default: module.SupportBar })));
 
-type Mode = 'ai' | 'meta' | 'practice' | 'friend' | 'ranked';
-type Queue = 'ranked' | 'free' | 'friend';
+type Mode = 'ai' | 'meta' | 'practice' | 'friend' | 'ranked' | 'league';
+type Queue = 'ranked' | 'league' | 'free' | 'friend';
 type FreeMode = 'ai' | 'meta' | 'practice';
 
 const RANKED_PATH = '/career/ranked';
+const LEAGUE_PATH = '/career/league';
 
 export const META_FORMAT_KEY = 'playmat.metaFormat';
 
@@ -46,6 +47,7 @@ export const META_FORMAT_KEY = 'playmat.metaFormat';
 // servers with Career), free play against the AI, or a friend
 const QUEUES: { id: Queue; label: MessageKey }[] = [
   { id: 'ranked', label: 'home.queue.ranked' },
+  { id: 'league', label: 'home.queue.league' },
   { id: 'free', label: 'home.queue.free' },
   { id: 'friend', label: 'home.mode.friend' },
 ];
@@ -56,7 +58,9 @@ const FREE_MODES: { id: FreeMode; label: MessageKey }[] = [
   { id: 'practice', label: 'home.mode.practice' },
 ];
 
-const queueOf = (mode: Mode): Queue => mode === 'ranked' || mode === 'friend' ? mode : 'free';
+const queueOf = (mode: Mode): Queue => mode === 'ranked' || mode === 'league' || mode === 'friend' ? mode : 'free';
+/** the queues that only Career servers offer */
+const CAREER_QUEUES: readonly Queue[] = ['ranked', 'league'];
 
 /** Home: your deck on your mat, one decision away from a game. */
 export function HomeScreen() {
@@ -83,7 +87,7 @@ export function HomeScreen() {
   const metaFormats = useMemo(() => [...new Set(decks.metaDecks.map((deck) => deck.format))], [decks.metaDecks]);
   const [metaFormat, setMetaFormat] = useState(() => readJson<string | null>(META_FORMAT_KEY, null));
   const pickedFormat = metaFormat && metaFormats.includes(metaFormat) ? metaFormat : metaFormats[0] ?? null;
-  const ready = mode === 'ranked' || (mode === 'meta' ? !!pickedFormat : !!selected);
+  const ready = mode === 'ranked' || mode === 'league' || (mode === 'meta' ? !!pickedFormat : !!selected);
   // the mat previews the first list by recorded share while Format deck is chosen
   const metaTop = mode === 'meta' ? metaDecksFor(decks.metaDecks, pickedFormat)[0] : undefined;
   const firstGameDone = useCoach((state) => state.firstGameDone);
@@ -122,8 +126,8 @@ export function HomeScreen() {
   }
 
   function start() {
-    if (mode === 'ranked') {
-      navigate(RANKED_PATH);
+    if (mode === 'ranked' || mode === 'league') {
+      navigate(mode === 'ranked' ? RANKED_PATH : LEAGUE_PATH);
       return;
     }
     if (mode === 'meta') {
@@ -208,7 +212,7 @@ export function HomeScreen() {
             </div>
           )}
           <div className={[styles.modes, career ? styles.queues : ''].join(' ')} role="radiogroup" aria-label={t('home.opponent')}>
-            {QUEUES.filter((item) => career || item.id !== 'ranked').map((item) => (
+            {QUEUES.filter((item) => career || !CAREER_QUEUES.includes(item.id)).map((item) => (
               <button
                 key={item.id}
                 type="button"
@@ -262,6 +266,7 @@ export function HomeScreen() {
           {mode === 'practice' && <p className={styles.modeNote}>{t('home.practiceNote')}</p>}
           {mode === 'friend' && <p className={styles.modeNote}>{t('home.friendNote')}</p>}
           {mode === 'ranked' && <p className={styles.modeNote}>{t('home.rankedNote')}</p>}
+          {mode === 'league' && <p className={styles.modeNote}>{t('home.leagueNote')}</p>}
           {full && <p className={styles.modeNote} role="status">{t('home.serverFull')}</p>}
           {play.error && <p className={styles.error} role="alert">{play.error}</p>}
           <div className={styles.playRow}>
@@ -276,7 +281,7 @@ export function HomeScreen() {
               onClick={start}
               className={styles.playButton}
             >
-              {t(busy ? (play.phase === 'waitingForGame' ? 'home.shuffling' : 'home.settingUp') : mode === 'friend' || mode === 'ranked' ? 'home.continue' : 'home.play')}
+              {t(busy ? (play.phase === 'waitingForGame' ? 'home.shuffling' : 'home.settingUp') : mode === 'friend' || mode === 'ranked' || mode === 'league' ? 'home.continue' : 'home.play')}
             </Button>
           </div>
           {serverInfo?.support && <Suspense fallback={null}><SupportBar place="home" /></Suspense>}

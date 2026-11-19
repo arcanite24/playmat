@@ -11,8 +11,8 @@ import { rewardsPath } from './progressModel';
 /** Ranked (#431) from the server: a format's standing, the picked opponent, starting a game and what it did. */
 
 const KEY = {
-  state: (format: string) => ['career', 'ranked', 'state', format],
-  opponent: (format: string) => ['career', 'ranked', 'opponent', format],
+  state: (format: string, queue: string) => ['career', 'ranked', 'state', format, queue],
+  opponent: (format: string, queue: string) => ['career', 'ranked', 'opponent', format, queue],
   result: (tableId: string) => ['career', 'ranked', 'result', tableId],
 } as const;
 
@@ -28,12 +28,15 @@ function useSignedIn(): boolean {
   return useSession((state) => state.phase === 'signedIn');
 }
 
-export function useRankedState(format: string, enabled = true) {
-  return useQuery({ queryKey: KEY.state(format), queryFn: () => api.ladderState(format), enabled: useSignedIn() && enabled, staleTime: 0 });
+/** the ranked queues: Open, and the Career League (#433) */
+export type RankedQueue = 'open' | 'league';
+
+export function useRankedState(format: string, enabled = true, queue: RankedQueue = 'open') {
+  return useQuery({ queryKey: KEY.state(format, queue), queryFn: () => api.ladderState(format, queue), enabled: useSignedIn() && enabled, staleTime: 0 });
 }
 
-export function useRankedOpponent(format: string, enabled = true) {
-  return useQuery({ queryKey: KEY.opponent(format), queryFn: () => api.ladderOpponent(format), enabled: useSignedIn() && enabled, staleTime: 0 });
+export function useRankedOpponent(format: string, enabled = true, queue: RankedQueue = 'open') {
+  return useQuery({ queryKey: KEY.opponent(format, queue), queryFn: () => api.ladderOpponent(format, queue), enabled: useSignedIn() && enabled, staleTime: 0 });
 }
 
 /** a finished ranked table's result; asked again a few times, since the game can be left a moment before it's counted */
