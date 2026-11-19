@@ -78,6 +78,7 @@ import { useAutoPass } from './useAutoPass';
 import { useBlockDrag } from './useBlockDrag';
 import { useAutoOrder } from './useAutoOrder';
 import { Vfx } from './Vfx';
+import { tablePlayback } from './beats';
 import { CardPicker, ChoicePanel, DungeonViewer, GameOverOverlay, MulliganOverlay, StartingPlayerOverlay, ZoneViewer } from './Overlays';
 import { PermanentStack } from './PermanentStack';
 import { clothOf, clothStyle } from './playmats';
@@ -211,6 +212,13 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
     // the session only delays a game being watched; turning the delay off catches up at once
     session.setBroadcastDelay(mode === 'watch' && isBroadcastDelay(broadcastDelay) ? broadcastDelay * 1000 : 0);
   }, [session, mode, broadcastDelay]);
+  useEffect(() => {
+    // while the table is drawn, the server's views are shown at its pace: each waits for the last one's swings and
+    // hits, and the result for the final board (beats.ts). Replays step through frames of their own.
+    if (mode === 'replay') return;
+    session.setStage(tablePlayback);
+    return () => session.setStage(null);
+  }, [session, mode]);
   const viewer = useMatchUi((ui) => ui.viewer);
   const openViewer = useMatchUi((ui) => ui.openViewer);
   const deckSleeves = useSleeves();

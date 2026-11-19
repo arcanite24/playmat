@@ -4,6 +4,7 @@ import type { GameClientMessage, GameEndView, GameView } from '../../protocol/ge
 import type { EventBus } from '../rpc/EventBus';
 import type { ServerEvent } from '../rpc/RpcClient';
 import { DelayedRelay } from './broadcastDelay';
+import { PacedQueue, type PacedStep, type Stage } from './pacing';
 import { deriveInteraction, type Command, type Interaction } from './interaction';
 import type { Prediction } from './prediction';
 import { PROMPT_EVENTS, parsePrompt, promptGameView, stripMarkup, type Prompt, type PromptEventName } from './prompt';
@@ -59,7 +60,12 @@ export const REPLY_TIMEOUT_MS = 10_000;
 
 export interface GameSessionOptions {
   replyTimeoutMs?: number;
+  /** the table that paces what the server sends (pacing.ts); also set later with setStage */
+  stage?: Stage | null;
 }
+
+/** What a server event's handler leaves to do once the board it showed has played (see pacing.ts), if anything. */
+type Handled = (() => void) | void;
 
 /** Another player holds priority or is making a choice, so the game waits on them, not on us. */
 export function decidingElsewhere(view: GameView, playerId: string | null): boolean {
@@ -85,8 +91,14 @@ export class GameSession {
   private paymentCancelSent = false;
   /** the newest game event a view has carried; a view repeated from the server's cache carries old ones again */
   private lastEventSeq = 0;
-  /** every server event for this game passes through here: at once, or after the broadcast delay when watching */
+  /**
+   * every server event for this game passes through here: at once, or after the broadcast delay when watching. Then
+   * it waits its turn behind the playback of the views before it (pacing.ts).
+   */
   private readonly relay = new DelayedRelay<() => void>((apply) => apply());
+  private readonly paced: PacedQueue;
+  /** the server said the game is over: the result waits for the final board, but no question is taken meanwhile */
+  private ending = false;
 
   constructor(
     private readonly api: Api,
@@ -95,6 +107,7 @@ export class GameSession {
     options: GameSessionOptions = {},
   ) {
     this.replyTimeoutMs = options.replyTimeoutMs ?? REPLY_TIMEOUT_MS;
+    this.paced = new PacedQueue(options.stage ?? null);
     this.store = createStore<GameSessionState>(() => ({
       gameId: init.gameId,
       playerId: init.playerId,
@@ -114,14 +127,15 @@ export class GameSession {
       broadcastDelayMs: 0,
     }));
 
-    const forThisGame = <T>(handler: (data: T, event: ServerEvent) => void) =>
+    const forThisGame = <T>(handler: (data: T, event: ServerEvent) => Handled, arrived?: (data: T) => void) =>
       (data: T, event: ServerEvent) => {
         if (event.objectId !== null && event.objectId !== init.gameId) return;
         // any word from the server about this game shows it is alive and working on our answer
         this.heard();
         // a delayed board is behind on purpose: hearing from the server again is enough to end the resync
         if (this.relay.delay > 0 && this.store.getState().resyncing) this.store.setState({ resyncing: false });
-        this.relay.push(() => handler(data, event));
+        arrived?.(data);
+        this.relay.push(() => this.paced.push(this.step(() => handler(data, event))));
       };
 
     this.unsubscribers.push(
@@ -139,12 +153,15 @@ export class GameSession {
         this.addNotice('personal', stripMarkup(message?.message));
       })),
       bus.on('GAME_ERROR', forThisGame<string>((message) => this.addNotice('error', stripMarkup(message)))),
+      // the final board first (often the hit that ended the game), the result once it has played; input closes as the
+      // end arrives, so nothing is answered in a game that is over
       bus.on('GAME_OVER', forThisGame<GameClientMessage>((message) => {
         this.applyView(message?.gameView);
-        this.clearReplyTimer();
-        this.store.setState({ gameOver: stripMarkup(message?.message) || 'Game over', prompt: null, awaitingServer: false, stalled: false, conceding: false });
-        this.refreshInteraction();
-      })),
+        return () => {
+          this.store.setState({ gameOver: stripMarkup(message?.message) || 'Game over', prompt: null, awaitingServer: false, stalled: false, conceding: false });
+          this.refreshInteraction();
+        };
+      }, () => this.closeInput())),
       bus.on('END_GAME_INFO', forThisGame<GameEndView>((info) => this.store.setState({ endInfo: info }))),
       bus.on('REPLAY_DONE', forThisGame<string>((message) => {
         this.store.setState({ gameOver: stripMarkup(message) || 'Replay finished' });
@@ -158,6 +175,35 @@ export class GameSession {
 
   getState(): GameSessionState {
     return this.store.getState();
+  }
+
+  /** The table that paces the server's views (pacing.ts), while one is drawn; null shows everything as it arrives. */
+  setStage(stage: Stage | null): void {
+    this.paced.setStage(stage);
+  }
+
+  /** server events received and still waiting for the board to catch up */
+  get behind(): number {
+    return this.paced.pending;
+  }
+
+  /** A paced step: applies the event and says which new view it put on the board, for the table to play. */
+  private step(apply: () => Handled): PacedStep {
+    return () => {
+      const before = this.store.getState().view;
+      const then = apply();
+      const after = this.store.getState().view;
+      return { view: after !== before ? after : null, then: then ? this.step(then) : undefined };
+    };
+  }
+
+  private closeInput(): void {
+    this.ending = true;
+    if (this.store.getState().mode !== 'play') return;
+    this.clearReplyTimer();
+    this.clearHold();
+    this.store.setState({ prompt: null, awaitingServer: false, stalled: false, prediction: null });
+    this.refreshInteraction();
   }
 
   private clearHold(): void {
@@ -187,6 +233,8 @@ export class GameSession {
   /** The board may be out of date (connection lost, page reloaded) until the server sends the game again. */
   markResyncing(): void {
     if (this.store.getState().gameOver) return;
+    // what is still waiting is shown now: the board is about to be sent again anyway
+    this.paced.flush();
     this.clearReplyTimer();
     this.clearHold();
     this.store.setState({ resyncing: true, awaitingServer: false, stalled: false, prediction: null });
@@ -260,6 +308,7 @@ export class GameSession {
 
   dispose(): void {
     this.relay.dispose();
+    this.paced.dispose();
     this.clearReplyTimer();
     this.clearHold();
     this.unsubscribers.forEach((unsubscribe) => unsubscribe());
@@ -383,7 +432,7 @@ export class GameSession {
 
   private applyPrompt(method: PromptEventName, data: unknown): void {
     this.applyView(promptGameView(method, data), true);
-    if (this.store.getState().mode !== 'play') return;
+    if (this.store.getState().mode !== 'play' || this.ending) return;
     const prompt = parsePrompt(method, data as never);
     this.clearHold();
     this.clearReplyTimer();
