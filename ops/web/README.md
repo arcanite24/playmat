@@ -607,6 +607,30 @@ To add a machine:
 The `cardstyle` kind is the only one the shop deals in today. A machine of another kind (sleeves, playmats) needs the
 client to know how to show its items.
 
+### Ladder bots
+
+The ranked ladder (#429) plays against **bots**: a school deck (`career/campaigns/decks/<format>/`) at one of the AI
+skills the Rust host plays (1 quick answers, 3 a fifth of the search, 5 half, 7 the full search), with a persona (a
+name and cosmetics from `cosmetics.json`). They are listed in `Mage.Server/src/main/resources/ladder/bots.json`, one
+rating scale per format (Standard and Pioneer so far), each anchored so the format's starter at skill 1 is 1000.
+
+- `python3 Mage.Server/ladder-src/roster.py` makes the list from the school decks. Bots that keep their id keep their
+  persona and rating; new ones start at a guessed `prior`, uncalibrated.
+- `cargo run --release -p playmat-ai --bin ladder-calibrate` (in `rust/`) plays the bots against each other on the
+  Rust engine and writes each one's `rating`, `rd` (the fit's standard error) and record back into `bots.json`, with a
+  `calibration` block saying which build and search settings measured them. Options: `--format standard|pioneer|all`,
+  `--rounds` (default 2), `--near` and `--far` (opponents per bot: closest by rating, and spread over the scale),
+  `--deals` (deals per pair, each played twice with the seats swapped), `--jobs` (threads, default 3), `--fit-only`.
+  Games go to `Mage.Server/ladder-src/calibration/games.jsonl` as they finish, so a run can stop and continue; a game
+  counts only while both bots' search settings are the ones the build plays, so a change to the AI makes it stale.
+  The run in `bots.json` (3 rounds, `--near 8 --far 3 --deals 6`: 18,276 games) took 40 minutes on 3 threads.
+- Recalibrate after changing the AI's search, the skills, or a school deck. `PLAYMAT_AI_POLICY` must be what the
+  server runs (default `playouts`); the calibration block records it.
+
+Ratings change with play: `db/ladder.db` keeps each player's and bot's Glicko-2 rating per format and queue (players
+start at 1200; a bot starts at its calibrated rating and moves slowly). Deleting the file resets everyone to those
+starting points.
+
 ### Single player
 
 The Single player tab shows the batch runner (games playing now, each player's daily quota, the queue; staff can cancel a batch) and the content packs.
@@ -703,7 +727,7 @@ Caddy allows one address 30 new `/ws` connections a minute (`WS_RATE_LIMIT`). A 
 
 | Volume | Mounted at | Holds | Back up? |
 |---|---|---|---|
-| `xmage-db` | `/opt/xmage/db` | `authorized_user.db` (accounts; `authorized_user.h2` before Nov 2026), `feedback.h2`, `user_stats.db` (player stats), `table_record.db` (finished tables), `web_decks.db` (decks synced to accounts), `web_reports.db` (player reports), `career.db` (Career collections and progress), `web_admin.db` (/admin), `support.db` (support ledger, perks, looks), `solo.db` (single player: saved games, ghosts, AI batches, scores), `web_presence.db` (players' chosen status), `content-packs/` (packs staff added) | yes, nightly |
+| `xmage-db` | `/opt/xmage/db` | `authorized_user.db` (accounts; `authorized_user.h2` before Nov 2026), `feedback.h2`, `user_stats.db` (player stats), `table_record.db` (finished tables), `web_decks.db` (decks synced to accounts), `web_reports.db` (player reports), `career.db` (Career collections and progress), `web_admin.db` (/admin), `support.db` (support ledger, perks, looks), `solo.db` (single player: saved games, ghosts, AI batches, scores), `web_presence.db` (players' chosen status), `ladder.db` (ladder ratings), `content-packs/` (packs staff added) | yes, nightly |
 | `xmage-cards` | `/opt/xmage/cards-db` | `cards.h2`, the card database | no: a cache built from the image |
 | `xmage-saved` | `/opt/xmage/saved` | saved games (`XMAGE_SAVE_GAMES`) and web client replays (`saved/replays`) | optional |
 | `xmage-logs` | `/opt/xmage/logs` | `mageserver.log*` | no |
@@ -718,7 +742,7 @@ XMage opens every database under `./db`. Only user data stays on `xmage-db`. The
 The `backup` service runs daily at `BACKUP_AT` and writes `/backups/<UTC timestamp>/` into the `xmage-backups` volume:
 
 - `authorized_user.h2.sql.gz` and `feedback.h2.sql.gz`: H2 SQL dumps. They're taken online by joining the running server's database through H2's auto-server mode, so each dump is consistent.
-- `authorized_user.db` (the accounts, see [Accounts and moderation](#accounts-and-moderation)), `user_stats.db`, `table_record.db`, `web_decks.db`, `web_reports.db`, `career.db`, `web_admin.db`, `support.db`, `solo.db` and `web_presence.db`: SQLite copies made with SQLite's online backup API.
+- `authorized_user.db` (the accounts, see [Accounts and moderation](#accounts-and-moderation)), `user_stats.db`, `table_record.db`, `web_decks.db`, `web_reports.db`, `career.db`, `web_admin.db`, `support.db`, `solo.db`, `web_presence.db` and `ladder.db`: SQLite copies made with SQLite's online backup API.
 - `content-packs.tar.gz`: the `db/content-packs` folder, when there is one.
 
 Every run writes `db/backup-status.json` (when, whether it worked, its size and the last good one). The admin Overview shows it, and once an hour the server checks it: a failed run, or no good backup for 36 hours, is posted to the staff channel (once a day at most).
