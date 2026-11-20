@@ -16,6 +16,9 @@ import { runLimits, shapeRewards } from './ladderModel';
 import { LimitedBuilder } from './CareerLimitedBuild';
 import { DraftCoach } from './CareerLimitedCoach';
 import { ModeResult } from './ModeParts';
+import { Standing } from './CareerRankedScreen';
+import { useRankedState } from './rankedData';
+import { SeasonBoards } from './SeasonBoards';
 import styles from './CareerModes.module.css';
 
 registerMessages(messages);
@@ -71,6 +74,7 @@ export function CareerLimitedScreen() {
         {data && !run && <Start data={data} coins={profile.coins ?? 0} />}
         {run && <Run run={run} data={data!} />}
         {data && <Recent runs={data.recent ?? []} />}
+        {data && <LimitedRank />}
       </div>
     </div>
   );
@@ -331,6 +335,21 @@ const RUN_END: Record<string, 'career.run.won' | 'career.run.lost' | 'career.run
   lost: 'career.run.lost',
   abandoned: 'career.run.abandoned',
 };
+
+/** the Limited rank (#435): finished runs move it, wins less losses; seasons and boards as the ladder's */
+function LimitedRank() {
+  const t = useT();
+  const state = useRankedState('limited').data;
+  if (!state) return null;
+  return (
+    <section className={styles.panel} aria-labelledby="limited-rank">
+      <h2 id="limited-rank" className={styles.panelTitle}>{t('career.limited.rank')}</h2>
+      <p className={styles.small}>{t('career.limited.rankHow')}</p>
+      <Standing state={state} />
+      <SeasonBoards state={state} rated={false} />
+    </section>
+  );
+}
 
 function Recent({ runs }: { runs: CareerLimitedRun[] }) {
   const t = useT();

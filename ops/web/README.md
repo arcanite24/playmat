@@ -678,6 +678,14 @@ ladder per format. It is on wherever Career is, for signed-in accounts, with no 
   Glicko-2 rating per format (bots get a `bo3` rating of their own too, starting from their calibrated one), counts
   once when the match ends, and its first reaches pay through the Open queue's reward keys, so a rank pays once for
   Bo1 and Bo3 together.
+- **Limited.** The `limited` format (#435) is a rank without bots or a queue: Career's sealed, draft and cube runs move
+  it once each when they end (`RankedService.limitedRun`, from `CareerLimited.finished`). A run is worth its wins less
+  its losses in pips (at most one pip lost), applied as that many wins with no streak bonus, under the same floors.
+  Each run is a `ladder_games` row (`limited-<run id>`, bot `limited:<kind>-<shape>`), so it counts once. It has its own
+  seasons, peak and climb boards and rank rewards (tokens per format, cosmetics once per account), but no rating or
+  Mythic board. `ladderState("limited")` reads it; `ladderPlay` and `ladderOpponent` refuse it. A failure in
+  `ladder.db` is logged and costs the run nothing. The client shows it on **Sealed & draft**, in All ranks once played,
+  and as a Rank widget choice.
 - **Data.** `db/ladder.db` adds `ladder_standing`, `ladder_games` (with which engine played each game) and
   `ladder_rewards`. They are part of the account export (`ranked`) and are deleted with the account. The server log
   has a `Ranked <format>:` line for every result.

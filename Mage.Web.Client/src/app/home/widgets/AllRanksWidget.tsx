@@ -9,9 +9,9 @@ import styles from './Widgets.module.css';
 
 const FORMATS = ['standard', 'pioneer', 'modern'] as const;
 /** formats most players never touch: their rows show once played */
-const QUIET: readonly string[] = ['modern'];
+const QUIET: readonly string[] = ['modern', 'limited'];
 
-function Row({ format, queue = 'open' }: { format: (typeof FORMATS)[number]; queue?: RankedQueue }) {
+function Row({ format, queue = 'open' }: { format: (typeof FORMATS)[number] | 'limited'; queue?: RankedQueue }) {
   const t = useT();
   const state = useRankedState(format, true, queue).data;
   const step = state?.step ?? 0;
@@ -37,6 +37,7 @@ export default function AllRanksWidget({ editing }: WidgetProps) {
       <ul className={styles.list}>
         {FORMATS.map((format) => <Row key={format} format={format} />)}
         {FORMATS.map((format) => <Row key={`bo3-${format}`} format={format} queue="bo3" />)}
+        <Row format="limited" />
         {FORMATS.filter((format) => leagues.some((item) => item.format === format)).map((format) => <Row key={`league-${format}`} format={format} queue="league" />)}
       </ul>
     </Tile>

@@ -15,7 +15,7 @@ export default function RankWidget({ item, editing }: WidgetProps) {
   const step = state?.step ?? 0;
   const games = record(state);
   return (
-    <Tile title={t('home.widget.rank.of', { format: t(formatKey(format)) })} to={rankedPath(format)} editing={editing}>
+    <Tile title={t('home.widget.rank.of', { format: t(formatKey(format)) })} to={format === 'limited' ? '/career/limited' : rankedPath(format)} editing={editing}>
       <div className={rankClass(step)}>
         <Big><span className={styles.rankLabel}>{state?.label ?? '…'}</span></Big>
         <RankPips step={step} label={t('career.ranked.pips', { pips: state?.pips ?? 0, of: state?.pipsPerTier ?? 4 })} />

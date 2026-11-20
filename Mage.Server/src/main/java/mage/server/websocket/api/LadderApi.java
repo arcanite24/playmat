@@ -164,7 +164,7 @@ public final class LadderApi {
                         .params(of("format", STRING), optional("queue", STRING))
                         .returns("LadderState")
                         .doc("Your ranked standing in a format's queue: rank, tier, pips, peak, record, the last games, "
-                                + "and in Mythic your rating. Formats: standard, pioneer. Queue: open (Bo1, the default), bo3 (best of "
+                                + "and in Mythic your rating. Formats: standard, pioneer, modern, and limited (the rank Career's sealed and draft runs move, Open queue only, no rating). Queue: open (Bo1, the default), bo3 (best of "
                                 + "three with sideboarding, its own rank) or league, the Career League.")
                         .handler(call -> {
                             String user = CareerApi.career(ctx, call);
@@ -180,7 +180,7 @@ public final class LadderApi {
                                 + "until it's played, so it can't be skipped. Queue: open (the default), bo3 or league.")
                         .handler(call -> {
                             String user = CareerApi.career(ctx, call);
-                            String format = format(call.string(0));
+                            String format = queued(call.string(0));
                             String queue = queue(call.optString(1, RankedService.OPEN));
                             return ladder(() -> opponent(RankedService.get().pick(user, format, queue, System.currentTimeMillis())));
                         }),
@@ -226,6 +226,14 @@ public final class LadderApi {
             throw RpcException.invalidParams("There is no ranked ladder for " + format + ".");
         }
         return format;
+    }
+
+    /** a format with games to queue for: not Limited, whose rank moves with Career's sealed and draft runs */
+    private static String queued(String format) throws RpcException {
+        if (RankedService.LIMITED.equals(format)) {
+            throw RpcException.invalidParams("The Limited rank moves with Career's sealed and draft runs: it has no queue.");
+        }
+        return format(format);
     }
 
     private static String queue(String queue) throws RpcException {
@@ -308,7 +316,7 @@ public final class LadderApi {
             view.lost = standing.lost;
             view.drew = standing.drew;
         }
-        if (step >= LadderRank.MYTHIC_STEP) {
+        if (step >= LadderRank.MYTHIC_STEP && !RankedService.LIMITED.equals(format)) {
             view.mythicRating = (int) Math.round(ranked.ratings().player(user, format, queue, now).rating);
         }
         view.playing = ranked.playing(user);
@@ -378,7 +386,7 @@ public final class LadderApi {
 
     private static Object play(ApiContext ctx, RpcCall call) throws RpcException {
         String user = CareerApi.career(ctx, call);
-        String format = format(call.string(0));
+        String format = queued(call.string(0));
         DeckCardLists deck = call.object(1, DeckCardLists.class);
         String queue = queue(call.optString(2, RankedService.OPEN));
         if (RankedService.LEAGUE.equals(queue)) {

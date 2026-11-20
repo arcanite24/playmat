@@ -22,10 +22,12 @@ export interface WidgetDef extends WidgetSpec {
 }
 
 const FORMATS = ['standard', 'pioneer', 'modern'] as const;
+/** the Rank widget also shows the Limited rank (#435), which sealed and draft runs move */
+const RANK_FORMATS = [...FORMATS, 'limited'] as const;
 export const LEADERBOARDS = ['gauntlet', 'ascension', 'boss-rush', 'endless'] as const;
 
 export const WIDGETS: readonly WidgetDef[] = [
-  { id: 'rank', sizes: ['s', 'm'], needs: 'ranked', settings: { format: FORMATS }, title: 'home.widget.rank', blurb: 'home.widget.rank.blurb', load: () => import('./widgets/RankWidget') },
+  { id: 'rank', sizes: ['s', 'm'], needs: 'ranked', settings: { format: RANK_FORMATS }, title: 'home.widget.rank', blurb: 'home.widget.rank.blurb', load: () => import('./widgets/RankWidget') },
   { id: 'season', sizes: ['s', 'm'], needs: 'ranked', settings: { format: FORMATS }, title: 'home.widget.season', blurb: 'home.widget.season.blurb', load: () => import('./widgets/SeasonWidget') },
   { id: 'allRanks', sizes: ['m', 'l'], needs: 'ranked', title: 'home.widget.allRanks', blurb: 'home.widget.allRanks.blurb', load: () => import('./widgets/AllRanksWidget') },
   { id: 'rival', sizes: ['s', 'm'], needs: 'ranked', settings: { format: FORMATS }, title: 'home.widget.rival', blurb: 'home.widget.rival.blurb', load: () => import('./widgets/RivalWidget') },

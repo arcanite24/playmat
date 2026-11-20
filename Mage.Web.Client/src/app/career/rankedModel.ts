@@ -88,12 +88,12 @@ export function pickFormat(formats: readonly string[] | undefined, wanted: strin
   return wanted && list.includes(wanted) ? wanted : list[0];
 }
 
-/** the ladder's formats the client knows the names of (#435 adds Modern) */
-export type LadderFormat = 'standard' | 'pioneer' | 'modern';
+/** the ladder's formats the client knows the names of (#435 adds Modern, and Limited, the rank sealed and draft runs move) */
+export type LadderFormat = 'standard' | 'pioneer' | 'modern' | 'limited';
 
 /** a format's name key: an unknown format reads as Standard */
 export function formatKey(format: string | undefined): `career.ranked.format.${LadderFormat}` {
-  const known: LadderFormat = format === 'pioneer' || format === 'modern' ? format : 'standard';
+  const known: LadderFormat = format === 'pioneer' || format === 'modern' || format === 'limited' ? format : 'standard';
   return `career.ranked.format.${known}`;
 }
 

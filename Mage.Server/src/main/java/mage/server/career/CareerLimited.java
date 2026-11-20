@@ -1125,6 +1125,7 @@ public final class CareerLimited {
             } catch (SQLException | RuntimeException e) {
                 org.apache.log4j.Logger.getLogger(CareerLimited.class).warn("Limited board: a run wasn't recorded", e);
             }
+            ranked(user, runId, data, shape, row.wins, row.losses, result, now);
         } else if (LEAGUE.equals(shape)) {
             // the league's pool grows between matches
             List<CareerPoolCard> pack = booster(data.setCode);
@@ -1135,6 +1136,33 @@ public final class CareerLimited {
             row.data = gson.toJson(data);
         }
         store.putRun(user, row);
+    }
+
+    /** the finished run moves the Limited rank (#435); the ladder is its own database, so a failure there costs the run nothing */
+    private static void ranked(String user, String runId, RunData data, String shape, int wins, int losses,
+                               CareerProgress.CareerGameResult result, long now) {
+        try {
+            mage.server.ladder.RankedService.Result move = mage.server.ladder.RankedService.get()
+                    .limitedRun(user, runId, data.kind, shape, data.setName + " " + data.kind, wins, losses, now);
+            if (move == null) {
+                return;
+            }
+            String before = mage.server.ladder.LadderRank.label(move.stepBefore);
+            String after = mage.server.ladder.LadderRank.label(move.stepAfter);
+            String pips = move.stepAfter >= mage.server.ladder.LadderRank.MYTHIC_STEP ? ""
+                    : " (" + mage.server.ladder.LadderRank.pips(move.stepAfter) + "/" + mage.server.ladder.LadderRank.PIPS + " pips)";
+            String delta = (move.delta > 0 ? "+" : "") + move.delta + (Math.abs(move.delta) == 1 ? " pip" : " pips");
+            result.mode.lines.add(move.delta == 0 ? "Limited rank: " + after + pips + ", unchanged."
+                    : before.equals(after) ? "Limited rank: " + delta + ", " + after + pips + "."
+                    : "Limited rank: " + delta + ", " + before + " to " + after + pips + ".");
+            for (String rank : move.reached) {
+                if (!"bronze".equals(rank)) {
+                    result.mode.lines.add("You reached " + Character.toUpperCase(rank.charAt(0)) + rank.substring(1) + " in Limited.");
+                }
+            }
+        } catch (java.sql.SQLException | RuntimeException e) {
+            org.apache.log4j.Logger.getLogger(CareerLimited.class).warn("Limited rank: a run wasn't counted", e);
+        }
     }
 
     // ---- refusals out of a transaction
