@@ -1,3 +1,5 @@
+import type { CombatGroupView } from '../../protocol/generated/views';
+import { fighterOf } from '../../core/game/combatPreview';
 import type { PlayerBoard } from './boardModel';
 
 /**
@@ -77,4 +79,26 @@ export function trunkJoin(sources: readonly Point[], defender: Point): Point {
   const edge = up ? Math.min(...sources.map((point) => point.y)) : Math.max(...sources.map((point) => point.y));
   const y = up ? Math.max(defender.y, edge - TRUNK_JOIN) : Math.min(defender.y, edge + TRUNK_JOIN);
   return { x, y };
+}
+
+/**
+ * Attacking and blocking permanents, and the attack arrows, from the combat groups. Every arrow leaves an attacker for
+ * what it will swing at when damage is dealt, so the lunge always follows its arrow: an unblocked attacker points at
+ * the player, planeswalker or battle it attacks, a blocked one at each of its blockers. A blocked attacker whose
+ * blockers have all left deals no damage and has no arrow, unless it tramples: then it points at whom it attacks.
+ */
+export function combatArrows(combat: readonly CombatGroupView[] | undefined) {
+  const attacking = new Set<string>();
+  const blocking = new Set<string>();
+  const attacks: [string, string][] = [];
+  for (const group of combat ?? []) {
+    const blockers = Object.keys(group.blockers ?? {});
+    blockers.forEach((id) => blocking.add(id));
+    for (const [attacker, card] of Object.entries(group.attackers ?? {})) {
+      attacking.add(attacker);
+      if (blockers.length > 0) blockers.forEach((blocker) => attacks.push([attacker, blocker]));
+      else if (group.defenderId && (!group.isBlocked || fighterOf(card, attacker).trample)) attacks.push([attacker, group.defenderId]);
+    }
+  }
+  return { attacking, blocking, attacks };
 }

@@ -58,16 +58,15 @@ function tintStyle(color: string | null): CSSProperties | undefined {
 }
 
 /**
- * Arrows on the table: attackers to what they attack (oxblood, or the attacking player's earned color), blockers to attackers: what the top of the stack targets (ink), and while choosing targets,
+ * Arrows on the table: attackers to what they will swing at (oxblood, or the attacking player's earned color): what
+ * they attack, or their blockers once blocked; what the top of the stack targets (ink); and while choosing targets,
  * a live arrow from the spell to the pointer (amber).
  */
-export function Arrows({ sourceId, targetIds, live, links, attacks, leads, tints }: {
+export function Arrows({ sourceId, targetIds, live, attacks, leads, tints }: {
   sourceId: string | null;
   targetIds: string[];
   live: boolean;
-  /** blocker -> attacker pairs in the current combat */
-  links: [string, string][];
-  /** attacker -> player or planeswalker it attacks */
+  /** attacker -> what it swings at: the player, planeswalker or battle it attacks, or each blocker blocking it */
   attacks: [string, string][];
   /** each permanent's stack lead: a stack of attacking tokens draws one arrow */
   leads: ReadonlyMap<string, string>;
@@ -82,7 +81,7 @@ export function Arrows({ sourceId, targetIds, live, links, attacks, leads, tints
   // a creature dragged toward an attacker to block it: a live line that snaps to the attacker under the pointer
   const blockDrag = useMatchUi((state) => state.blockDrag);
 
-  const targetKey = targetIds.join(',') + '|' + [...links, ...attacks].map((link) => link.join('>')).join(',');
+  const targetKey = targetIds.join(',') + '|' + attacks.map((link) => link.join('>')).join(',');
   // positions change as cards fly in; re-measure for a moment after changes
   useEffect(() => {
     let frames = 0;
@@ -109,9 +108,6 @@ export function Arrows({ sourceId, targetIds, live, links, attacks, leads, tints
 
   const from = sourceId ? center(sourceId) : null;
   const targets = from ? targetIds.map(center).filter((point): point is Point => !!point) : [];
-  const combat = links
-    .map(([blocker, attacker]) => [center(blocker), center(attacker)] as const)
-    .filter((pair): pair is readonly [Point, Point] => !!pair[0] && !!pair[1]);
   // one arrow per attacking stack; many stacks at one defender join into a trunk with a count
   const single: { from: Point; to: Point; color: string | null }[] = [];
   const layers: AttackLayer[] = [];
@@ -140,7 +136,7 @@ export function Arrows({ sourceId, targetIds, live, links, attacks, leads, tints
   const blockTo = blockDrag?.attackerId ? center(blockDrag.attackerId) : pointer;
   const blockLine = blockFrom && blockTo ? [blockFrom, blockTo] as const : null;
   const attackCount = layers.reduce((sum, layer) => sum + layer.paths.length, 0);
-  if (dragging || (!blockLine && combat.length === 0 && attackCount === 0 && (!from || (targets.length === 0 && !(live && pointer))))) return null;
+  if (dragging || (!blockLine && attackCount === 0 && (!from || (targets.length === 0 && !(live && pointer))))) return null;
 
   const marching = layers.some((layer) => layer.paths.length > 0) || (!!from && targets.length > 0);
   return (
@@ -176,13 +172,6 @@ export function Arrows({ sourceId, targetIds, live, links, attacks, leads, tints
           <text dy="0.35em">×{trunk.count}</text>
         </g>
       ))}
-      {combat.length > 0 && (
-        <g className={styles.block}>
-          {combat.map(([blocker, attacker], index) => (
-            <line key={index} x1={blocker.x} y1={blocker.y} x2={attacker.x} y2={attacker.y} />
-          ))}
-        </g>
-      )}
       {blockLine && (
         <line
           className={blockDrag?.attackerId ? styles.blockLive : styles.live}

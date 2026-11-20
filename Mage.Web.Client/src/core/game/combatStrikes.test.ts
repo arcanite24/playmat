@@ -122,3 +122,15 @@ test('trample still goes through blockers that died, when this view no longer li
   const strikes = strikesFromEvents([hit('wurm', 'a', 1), hit('wurm', 'them', 8)], combat, (id) => (id === 'wurm' ? wurm : a));
   expect(strikes.map((s) => [s.to, s.through])).toEqual([['a', null], ['them', 'a']]);
 });
+
+test('without events, a blocked attacker whose blockers left only swings at the player when it tramples', () => {
+  const ogre = creature('ogre', 5);
+  const wurm = creature('wurm', 9, ['Trample']);
+  const byId = new Map([['ogre', ogre], ['wurm', wurm]]);
+  const combat = combatSide([
+    { attackers: { ogre }, blockers: {}, defenderId: 'them', isBlocked: true },
+    { attackers: { wurm }, blockers: {}, defenderId: 'them', isBlocked: true },
+  ]);
+  const strikes = strikesFromCombat(combat, 'COMBAT_DAMAGE', 'DECLARE_BLOCKERS', (id) => byId.get(id), () => 'them');
+  expect(strikes.map((s) => [s.from, s.to])).toEqual([['wurm', 'them']]);
+});

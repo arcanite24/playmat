@@ -36,17 +36,6 @@
   animation: march 900ms linear 3;
 }
 
-.block {
-  filter: drop-shadow(0 2px 3px rgb(var(--shade-rgb) / 0.6));
-}
-
-.block line {
-  stroke: var(--ink-strong);
-  stroke-width: 6;
-  stroke-linecap: round;
-  stroke-dasharray: 12 10;
-}
-
 /* a block being dragged, over an attacker it can be dropped on: the block line, lit as the decision */
 .blockLive {
   stroke: var(--decision);

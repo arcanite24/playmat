@@ -45,7 +45,7 @@ import { AttackGroups } from './AttackGroups';
 import { AlwaysAnswerMenu, TriggerOrderOptions } from './AutoAnswer';
 import { BetweenGames } from './BetweenGames';
 import { Arrows } from './Arrows';
-import { stackLeads } from './attackArrows';
+import { combatArrows, stackLeads } from './attackArrows';
 import { buildBoard, cardKey, fitRow, type PermanentGroup, type PlayerBoard } from './boardModel';
 import { CardDetail } from './CardDetail';
 import { Coach } from './Coach';
@@ -137,26 +137,6 @@ function useKeptDefenders(view: GameView | null | undefined): GameView['combat']
     return combat;
   }
   return kept.combat;
-}
-
-/** Attacking and blocking permanents, from the combat groups. */
-function combatSets(combat: GameView['combat']) {
-  const attacking = new Set<string>();
-  const blocking = new Set<string>();
-  const links: [string, string][] = [];
-  const attacks: [string, string][] = [];
-  for (const group of combat ?? []) {
-    const attackers = Object.keys(group.attackers ?? {});
-    attackers.forEach((id) => attacking.add(id));
-    const blockers = Object.keys(group.blockers ?? {});
-    // unblocked attackers point at what they attack; blocked ones are tied to their blockers instead
-    if (group.defenderId && blockers.length === 0 && !group.isBlocked) attackers.forEach((id) => attacks.push([id, group.defenderId!]));
-    for (const blocker of blockers) {
-      blocking.add(blocker);
-      attackers.forEach((attacker) => links.push([blocker, attacker]));
-    }
-  }
-  return { attacking, blocking, links, attacks };
 }
 
 /** The deck being played's token art (ui/tokenArt.ts), over the account's. */
@@ -265,8 +245,8 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   );
   // an attacker keeps pointing at the planeswalker or battle it attacked after that left the battlefield (#413)
   const combat = useKeptDefenders(view);
-  const combatNow = useMemo(() => combatSets(combat), [combat]);
-  const { blocking, links, attacks } = combatNow;
+  const combatNow = useMemo(() => combatArrows(combat), [combat]);
+  const { blocking, attacks } = combatNow;
   const leads = useMemo(() => stackLeads([board.me, ...board.opponents]), [board.me, board.opponents]);
   // a creature declared as an attacker steps forward before the server confirms it
   const attacking = useMemo(() => withPredictedAttack(combatNow.attacking, prediction), [combatNow.attacking, prediction]);
@@ -754,7 +734,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
             )}
             {defenders && (attackDrop.manualDefender || !(automation.attackPlayerByDefault && defaultDefender(defenders))) && <DefenderPicker attacker={attackerName} options={defenders} onPick={onClick} />}
             <Vfx view={view} myPlayerId={myId} sparks={sparks} />
-            <Arrows sourceId={arrowSource} targetIds={arrowTargets} live={choosingTargets} links={links} attacks={attacks} leads={leads} tints={arrowTint} />
+            <Arrows sourceId={arrowSource} targetIds={arrowTargets} live={choosingTargets} attacks={attacks} leads={leads} tints={arrowTint} />
             <EmoteBubbles view={view} gameId={state.gameId} />
             {mode === 'play' && <Coach view={view ?? null} mode={choosingStarter ? 'panel' : interaction.mode} awaiting={awaitingServer} gameOver={!!state.gameOver} />}
             {mode === 'play' && <LessonCoach gameId={state.gameId} view={view ?? null} mode={choosingStarter ? 'panel' : interaction.mode} awaiting={awaitingServer} gameOver={!!state.gameOver} />}
