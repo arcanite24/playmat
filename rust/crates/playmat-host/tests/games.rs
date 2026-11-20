@@ -437,7 +437,13 @@ fn the_end_carries_the_humans_career_tally() {
 #[test]
 fn a_tables_starting_life_and_free_mulligans_are_played() {
     let mut s = start(&deck("gw-company.txt"), &deck("b-zombies.txt"), 3, None);
-    s.rules = playmat_host::TableRules { starting_life: 30, free_mulligans: 1, ai_skill: Some(3), rollback: false, ai_pin: None };
+    s.rules = playmat_host::TableRules {
+        starting_life: 30,
+        free_mulligans: 1,
+        ai_skill: Some(3),
+        rollback: false,
+        ai_pin: None,
+    };
     let game = HostedGame::start(s, Arc::new(playmat_engine::cards())).unwrap();
     game.call(Call::Join);
     let mut asked = 0;

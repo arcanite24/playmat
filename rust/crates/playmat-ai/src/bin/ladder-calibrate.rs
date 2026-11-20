@@ -206,12 +206,17 @@ fn main() {
         // theirs; a --fixed run adds to them, since the bots it kept keep their measurement
         if !fixed {
             runs.retain(|r| {
-                let theirs: Vec<String> =
-                    r["formats"].as_array().into_iter().flatten().filter_map(|f| f.as_str().map(String::from)).collect();
+                let theirs: Vec<String> = r["formats"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|f| f.as_str().map(String::from))
+                    .collect();
                 !theirs.iter().any(|f| formats.contains(f))
             });
         }
-        let new_games: u32 = bots.iter().filter(|b| b.fixed.is_none()).filter_map(|b| fitted.get(&b.id)).map(|f| f.games()).sum();
+        let new_games: u32 =
+            bots.iter().filter(|b| b.fixed.is_none()).filter_map(|b| fitted.get(&b.id)).map(|f| f.games()).sum();
         runs.push(json!({
             "formats": formats,
             "commit": commit,
@@ -221,7 +226,8 @@ fn main() {
     }
     let games: u64 = runs.iter().filter_map(|r| r["games"].as_u64()).sum();
     // a fit alone measured nothing new: the record keeps the build that played the games
-    let commit = if fit_only { roster["calibration"]["commit"].as_str().unwrap_or(&commit).to_string() } else { commit };
+    let commit =
+        if fit_only { roster["calibration"]["commit"].as_str().unwrap_or(&commit).to_string() } else { commit };
     roster["calibration"] = json!({
         "commit": commit,
         "harness": "rust-engine",
@@ -358,10 +364,10 @@ fn fit_format(bots: &[Bot], members: &[usize], log: &[Game], anchor: Option<&Str
         0.0
     } else {
         anchor
-        .and_then(|a| index.get(a.as_str()))
-        .and_then(|a| elo.get(a))
-        .copied()
-        .unwrap_or_else(|| elo.values().sum::<f64>() / elo.len() as f64)
+            .and_then(|a| index.get(a.as_str()))
+            .and_then(|a| elo.get(a))
+            .copied()
+            .unwrap_or_else(|| elo.values().sum::<f64>() / elo.len() as f64)
     };
     let k = std::f64::consts::LN_10 / 400.0;
     for &x in &played {
@@ -504,7 +510,8 @@ mod tests {
     /// --fixed (#435): the calibrated bots keep their ratings and the new one lands on their scale
     #[test]
     fn a_new_generation_is_rated_against_the_old_as_they_stand() {
-        let bots = vec![bot("old-a", 1000.0, Some(1000.0)), bot("old-b", 1400.0, Some(1400.0)), bot("new", 1100.0, None)];
+        let bots =
+            vec![bot("old-a", 1000.0, Some(1000.0)), bot("old-b", 1400.0, Some(1400.0)), bot("new", 1100.0, None)];
         let mut log = games("new", "old-a", 30, 10);
         log.extend(games("new", "old-b", 10, 30));
         // the old bots' games against each other disagree with their ratings, and must not move them
@@ -531,7 +538,11 @@ mod tests {
         for b in bots.iter().filter(|b| b["generation"].as_u64() == Some(newest)) {
             let n = b["skill"].as_u64().unwrap() as u32;
             let now = skill(Some(n)).map(|c| label(&c)).unwrap_or_else(|| "quick".into());
-            assert_eq!(b["ai"].as_str().unwrap(), now, "skill {n} plays differently in this build than generation {newest}: {now}");
+            assert_eq!(
+                b["ai"].as_str().unwrap(),
+                now,
+                "skill {n} plays differently in this build than generation {newest}: {now}"
+            );
             checked += 1;
         }
         assert!(checked > 0);
