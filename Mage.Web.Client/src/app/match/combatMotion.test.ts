@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { flightOffset, gapBetween, travel, undo } from './combatMotion';
+import { flightOffset, gapBetween, shake, travel, undo } from './combatMotion';
 
 const box = (left: number, top: number, width: number, height: number) => ({ left, top, right: left + width, bottom: top + height });
 
@@ -77,5 +77,32 @@ describe('undo', () => {
   it('leaves a move alone on an untouched card, and when the map cannot be undone', () => {
     expect(undo({ a: 1, b: 0, c: 0, d: 1 }, 30, -40)).toEqual({ x: 30, y: -40 });
     expect(undo({ a: 0, b: 0, c: 0, d: 0 }, 30, -40)).toEqual({ x: 30, y: -40 });
+  });
+});
+
+describe('shake', () => {
+  function table() {
+    const stage = document.createElement('div');
+    const land = document.createElement('div');
+    land.setAttribute('data-hit-body', '');
+    stage.append(land);
+    for (const element of [stage, land]) {
+      Object.assign(element, { animate: vi.fn(), getAnimations: () => [] });
+    }
+    return { stage, land };
+  }
+
+  it('shakes the whole table, not the first card on it', () => {
+    const { stage, land } = table();
+    shake(stage, 12, 0, true);
+    expect(stage.animate).toHaveBeenCalledOnce();
+    expect(land.animate).not.toHaveBeenCalled();
+  });
+
+  it("shakes a card's picture when the card is hit", () => {
+    const { stage, land } = table();
+    shake(stage, 8);
+    expect(land.animate).toHaveBeenCalledOnce();
+    expect(stage.animate).not.toHaveBeenCalled();
   });
 });

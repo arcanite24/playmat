@@ -387,7 +387,7 @@ export function Vfx({ view, myPlayerId, sparks }: {
     for (const [id, hold] of held) hold.release((doneAt.get(id) ?? 0) + 120);
     if (fancy && biggest && TABLE_SHAKE[biggest.weight] > 0) {
       const { weight, at } = biggest;
-      after(at, () => shake(stage.element, TABLE_SHAKE[weight]));
+      after(at, () => shake(stage.element, TABLE_SHAKE[weight], 0, true));
     }
 
     if (view.events) {
@@ -473,7 +473,7 @@ export function Vfx({ view, myPlayerId, sparks }: {
         const at = pointOf(id);
         const moment = hitAt.get(id) ?? 0;
         if (at) addAt(moment, { kind: 'lethal', ...at });
-        after(moment, () => shake(stage.element, 12));
+        after(moment, () => shake(stage.element, 12, 0, true));
         block(moment + BLOCKING.afterLethal);
       }
     }
@@ -512,7 +512,7 @@ export function Vfx({ view, myPlayerId, sparks }: {
           }
         }
         if (rings.length > 0) show(rings);
-        if (heavy) after(170, () => shake(stage.element, 5));
+        if (heavy) after(170, () => shake(stage.element, 5, 0, true));
       });
     }
 
@@ -601,7 +601,7 @@ export function Vfx({ view, myPlayerId, sparks }: {
           after(lifetimeOf(effect), () => setSignatures((current) => current.filter((item) => item.key !== effect.key)));
         }
       }
-      if (quake > 0) shake(stage.element, quake);
+      if (quake > 0) shake(stage.element, quake, 0, true);
       measureStack();
     });
   }, [view, center, stage, myPlayerId, cardEffects, fancy]);

@@ -269,10 +269,14 @@ export function recoil(element: Element | null, from: Point, to: Point, weight: 
   );
 }
 
-/** Shake an element without disturbing its own transform (tapped, attacking), `delay` ms from now. */
-export function shake(element: Element | null, strength = 8, delay = 0) {
+/**
+ * Shake an element without disturbing its own transform (tapped, attacking), `delay` ms from now: a card's or seat's
+ * picture (hitBody), or with `whole` the element itself. The table shakes whole: its first card's picture is not the
+ * table, and a land or artifact shaking at every big hit read as hit for no reason.
+ */
+export function shake(element: Element | null, strength = 8, delay = 0, whole = false) {
   if (!element) return;
-  const body = hitBody(element);
+  const body = whole ? element : hitBody(element);
   body.animate(
     [0, -1, 1, -0.8, 0.6, -0.3, 0].map((factor) => ({ translate: `${factor * strength}px ${factor * strength * -0.3}px` })),
     { id: 'hit', duration: 420, easing: 'ease-out', delay, composite: compositeFor(body, ['hit']) },
