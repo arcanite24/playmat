@@ -112,6 +112,8 @@ final class GameServer {
         command.add(Layout.javaExecutable().toString());
         command.add("-Xmx" + memory());
         command.add("-Dfile.encoding=UTF-8");
+        // Java4Shell (CVE-2026-114938): the x86-64 AVX-512 Base64 intrinsic can write out of bounds; plain Java decodes it
+        command.add("-XX:-UseBASE64Intrinsics");
         // a server: no Dock icon or taskbar entry of its own
         command.add("-Djava.awt.headless=true");
         command.add("-Dxmage.testMode=false");

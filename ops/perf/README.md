@@ -181,7 +181,7 @@ The class archive recorded in the image shrinks with it (319 to 34 MB). The imag
 | Heap in use, mean / max | 102 / 139 MB | 105–107 / 124–139 MB | 132–138 / 242–270 MB | 126 / 191 MB |
 | Games finished | 3/3 | 9/9 | 9/9 | 6/6 |
 
-JDK 25 starts faster, but its serial collector let the heap grow much further under the same games, so the image stays on JDK 17 by default (`--build-arg JAVA_RUNTIME=25` builds the other). On the 1 GB box, M19 keeps the server at about 300 MB with three games running.
+JDK 25 starts faster, but its serial collector let the heap grow much further under the same games, so the image stays on JDK 17 by default (`--build-arg JAVA_RUNTIME=25 --build-arg JAVA_IMAGE=eclipse-temurin:25-jre` builds the other). On the 1 GB box, M19 keeps the server at about 300 MB with three games running.
 
 ### B225: copying abilities (13 Oct 2026)
 

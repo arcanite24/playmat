@@ -23,6 +23,7 @@ services:
       XMAGE_METASPACE: ${XMAGE_METASPACE:-}
       XMAGE_CDS: ${XMAGE_CDS:-}
       XMAGE_COMPACT_HEADERS: ${XMAGE_COMPACT_HEADERS:-}
+      XMAGE_BASE64_INTRINSICS: ${XMAGE_BASE64_INTRINSICS:-}
       XMAGE_JAVA_OPTS: ${XMAGE_JAVA_OPTS:-}
       XMAGE_ADMIN_PASSWORD: ${XMAGE_ADMIN_PASSWORD:-}
       # the proxy's network: the server trusts X-Forwarded-For only from these addresses

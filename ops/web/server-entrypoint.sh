@@ -296,6 +296,10 @@ args=$(mktemp /tmp/xmage-jvm.XXXXXX)
   echo "-Xmx$HEAP"
   for flag in $GC_FLAGS; do echo "$flag"; done
   echo "-XX:MaxMetaspaceSize=${XMAGE_METASPACE:-512m}"
+  # Java4Shell (CVE-2026-114938): the x86-64 AVX-512 Base64 intrinsic can write past the end of its output on malformed
+  # input. Off, Base64 runs as plain Java (the server decodes little of it). Every platform knows the flag; ARM doesn't
+  # have the bug. XMAGE_BASE64_INTRINSICS=on puts the intrinsic back, on a JRE with the fix (17.0.21.1, 21.0.13.1, ...).
+  [ "${XMAGE_BASE64_INTRINSICS:-off}" = on ] || echo "-XX:-UseBASE64Intrinsics"
   # out of heap, the JVM limps on with every game broken and new players turned away; exiting lets Docker's restart
   # policy bring the server back in seconds
   [ "${XMAGE_EXIT_ON_OOM:-true}" = true ] && echo "-XX:+ExitOnOutOfMemoryError"

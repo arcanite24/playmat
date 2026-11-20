@@ -165,7 +165,8 @@ Set these in `ops/web/.env` (Compose reads it automatically) or in the environme
 | `XMAGE_GC` | `auto` | Garbage collector: `serial` on one or two CPUs (less CPU per game there), else `g1`, which hands unused memory back while the server idles. Or `serial`, `g1`, `parallel`. |
 | `XMAGE_METASPACE` | `512m` | Cap on the JVM's class memory (`-XX:MaxMetaspaceSize`). The card classes take about 260 MB. |
 | `XMAGE_CDS` | `true` | `false` stops using the class archive recorded when the image was built (it makes starts faster and shares class memory). |
-| `XMAGE_COMPACT_HEADERS` | `true` | Only for an image built on JDK 25 (`--build-arg JAVA_RUNTIME=25`): 8-byte object headers instead of 12 (JEP 519). `false` turns them off (the class archive then goes unused). The default image runs on JDK 17, which used less memory on a 1 GB box. |
+| `XMAGE_BASE64_INTRINSICS` | `off` | The JVM's hand-written Base64 decoder (`-XX:-UseBASE64Intrinsics` while off). Off because of Java4Shell (CVE-2026-114938), a bug in it on x86-64 CPUs with AVX-512; the server barely uses Base64, so it costs nothing measurable. `on` puts it back, for a JRE with the fix. |
+| `XMAGE_COMPACT_HEADERS` | `true` | Only for an image built on JDK 25 (`--build-arg JAVA_RUNTIME=25 --build-arg JAVA_IMAGE=eclipse-temurin:25-jre`): 8-byte object headers instead of 12 (JEP 519). `false` turns them off (the class archive then goes unused). The default image runs on JDK 17, which used less memory on a 1 GB box. |
 | `XMAGE_MAX_GAME_THREADS` | `4` | `maxGameThreads`: games that run at the same time. |
 | `XMAGE_MAX_AI_OPPONENTS` | `4` | `maxAiOpponents`: AI players in use at once (draft bots don't count). |
 | `XMAGE_MAX_SECONDS_IDLE` | `600` (shipped) | `maxSecondsIdle`: an idle player concedes after this many seconds. |
