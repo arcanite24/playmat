@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { flightOffset, gapBetween, travel } from './combatMotion';
+import { flightOffset, gapBetween, shake, travel, undo } from './combatMotion';
 
 const box = (left: number, top: number, width: number, height: number) => ({ left, top, right: left + width, bottom: top + height });
 
@@ -59,5 +59,50 @@ describe('flightOffset', () => {
     expect(flightOffset(card([{ id: 'flight', playState: 'finished' }], '806px -481px'))).toEqual({ x: 0, y: 0 });
     expect(flightOffset(card([{ id: 'swing', playState: 'running' }], '40px 0px'))).toEqual({ x: 0, y: 0 });
     expect(flightOffset(null)).toEqual({ x: 0, y: 0 });
+  });
+});
+
+describe('undo', () => {
+  it('turns a lunge on the stage back into a tapped card\'s own space', () => {
+    // a card turned a quarter clockwise: matrix(0, 1, -1, 0, ...)
+    const tapped = { a: 0, b: 1, c: -1, d: 0 };
+    const local = undo(tapped, -470, -457);
+    // drawn through the turn, the local move lands where it was aimed: up and to the left
+    expect(tapped.a * local.x + tapped.c * local.y).toBeCloseTo(-470);
+    expect(tapped.b * local.x + tapped.d * local.y).toBeCloseTo(-457);
+    expect(local.x).toBeCloseTo(-457);
+    expect(local.y).toBeCloseTo(470);
+  });
+
+  it('leaves a move alone on an untouched card, and when the map cannot be undone', () => {
+    expect(undo({ a: 1, b: 0, c: 0, d: 1 }, 30, -40)).toEqual({ x: 30, y: -40 });
+    expect(undo({ a: 0, b: 0, c: 0, d: 0 }, 30, -40)).toEqual({ x: 30, y: -40 });
+  });
+});
+
+describe('shake', () => {
+  function table() {
+    const stage = document.createElement('div');
+    const land = document.createElement('div');
+    land.setAttribute('data-hit-body', '');
+    stage.append(land);
+    for (const element of [stage, land]) {
+      Object.assign(element, { animate: vi.fn(), getAnimations: () => [] });
+    }
+    return { stage, land };
+  }
+
+  it('shakes the whole table, not the first card on it', () => {
+    const { stage, land } = table();
+    shake(stage, 12, 0, true);
+    expect(stage.animate).toHaveBeenCalledOnce();
+    expect(land.animate).not.toHaveBeenCalled();
+  });
+
+  it("shakes a card's picture when the card is hit", () => {
+    const { stage, land } = table();
+    shake(stage, 8);
+    expect(land.animate).toHaveBeenCalledOnce();
+    expect(stage.animate).not.toHaveBeenCalled();
   });
 });

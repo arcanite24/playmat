@@ -133,6 +133,65 @@ export function compositeFor(element: Element, alongside: readonly string[] = []
   return moving ? 'add' : 'replace';
 }
 
+/** A 2D linear map (no translation): screen = [a c; b d] · local, as in a CSS matrix(a, b, c, d, e, f). */
+export interface Linear {
+  a: number;
+  b: number;
+  c: number;
+  d: number;
+}
+
+/** A screen-space vector in the local space a linear map draws: the map undone. Unchanged when it can't be undone. */
+export function undo(map: Linear, x: number, y: number): Point {
+  const det = map.a * map.d - map.b * map.c;
+  if (Math.abs(det) < 1e-9) return { x, y };
+  return { x: (map.d * x - map.c * y) / det, y: (-map.b * x + map.a * y) / det };
+}
+
+/** How an element's own CSS (rotate, scale, transform) turns and sizes what it holds; translation left out. */
+function ownLinear(element: Element): DOMMatrix | null {
+  const style = getComputedStyle(element);
+  let matrix = new DOMMatrix();
+  const rotate = style.rotate;
+  if (rotate && rotate !== 'none') {
+    // "90deg", or "z 90deg" (a turn about another axis isn't one a card makes)
+    const parts = rotate.trim().split(/\s+/);
+    const angle = parseFloat(parts[parts.length - 1]);
+    if (!Number.isNaN(angle) && (parts.length === 1 || parts[0] === 'z')) matrix = matrix.rotate(angle);
+  }
+  const scale = style.scale;
+  if (scale && scale !== 'none') {
+    const [sx, sy = sx] = scale.trim().split(/\s+/).map((part) => parseFloat(part));
+    if (!Number.isNaN(sx) && !Number.isNaN(sy)) matrix = matrix.scale(sx, sy);
+  }
+  if (style.transform && style.transform !== 'none') {
+    try {
+      matrix = matrix.multiply(new DOMMatrix(style.transform));
+    } catch {
+      return null;
+    }
+  }
+  matrix.e = 0;
+  matrix.f = 0;
+  return matrix;
+}
+
+/**
+ * A move on the stage (stage px), in the space an element's `translate` moves it in. A tapped attacker is its card turned
+ * a quarter (PermanentStack), and the swing moves the picture inside it: a lunge left up toward the opponent's seat,
+ * given as is, came out right up toward the top of the table.
+ */
+export function toLocal(element: Element, x: number, y: number, scale: number): Point {
+  if (typeof DOMMatrix === 'undefined') return { x, y };
+  let map = new DOMMatrix();
+  for (let node = element.parentElement; node; node = node.parentElement) {
+    const own = ownLinear(node);
+    if (!own) return { x, y };
+    map = own.multiply(map);
+  }
+  return undo(map, x * scale, y * scale);
+}
+
 /** What a hit moves: a card's picture (its body, so the card's own swing is left alone), or the element itself. */
 export function hitBody(element: Element): Element {
   return element.querySelector('[data-hit-body]') ?? element;
@@ -156,8 +215,9 @@ export function swing(element: Element | null, from: Point, to: Point, options: 
   // The boxes are on screen; the swing moves the card on the stage, which is drawn at `scale`
   const gap = element && options.target ? gapBetween(restingBox(element, options.scale || 1), restingBox(options.target, options.scale || 1), direction) : null;
   const length = travel(gap === null ? distance * 0.5 : gap / (options.scale || 1), plan.press, options.role);
-  const dx = direction.x * length;
-  const dy = direction.y * length;
+  const body = element ? swingBody(element) : null;
+  // the lunge on the stage, in the turned (tapped) card's own space
+  const { x: dx, y: dy } = body ? toLocal(body, direction.x * length, direction.y * length, options.scale || 1) : { x: direction.x * length, y: direction.y * length };
   const pull = Math.min(plan.windup * 0.4, MAX_WINDUP / Math.max(1, Math.hypot(dx, dy)));
   const total = plan.duration + plan.hold;
   const at = (ms: number) => Math.min(1, ms / total);
@@ -179,8 +239,7 @@ export function swing(element: Element | null, from: Point, to: Point, options: 
   frames.push({ translate: '0 0', scale: '1', offset: 1 });
   // added to whatever else moves the card (a creature that died swings on top of its held flight to the graveyard),
   // otherwise on the compositor
-  if (element) {
-    const body = swingBody(element);
+  if (body) {
     body.animate(frames, { id: 'swing', duration: total, delay: options.delay, easing: 'ease-in-out', composite: compositeFor(body) });
   }
   return { contact: options.delay + contactMs + plan.hold, end: options.delay + total };
@@ -190,7 +249,11 @@ export function swing(element: Element | null, from: Point, to: Point, options: 
 export function recoil(element: Element | null, from: Point, to: Point, weight: HitWeight, delay: number) {
   if (!element) return;
   const body = hitBody(element);
-  const direction = unit(from, to);
+  const along = unit(from, to);
+  // the knockback on the stage, in the hit card's own space (a tapped card is turned)
+  const turned = toLocal(body, along.x, along.y, 1);
+  const length = Math.hypot(turned.x, turned.y) || 1;
+  const direction = { x: turned.x / length, y: turned.y / length };
   const distance = KNOCKBACK[weight];
   const tilt = weight === 'heavy' || weight === 'huge' ? (direction.x >= 0 ? 1 : -1) * (weight === 'huge' ? 2.5 : 1.5) : 0;
   body.animate(
@@ -206,10 +269,14 @@ export function recoil(element: Element | null, from: Point, to: Point, weight: 
   );
 }
 
-/** Shake an element without disturbing its own transform (tapped, attacking), `delay` ms from now. */
-export function shake(element: Element | null, strength = 8, delay = 0) {
+/**
+ * Shake an element without disturbing its own transform (tapped, attacking), `delay` ms from now: a card's or seat's
+ * picture (hitBody), or with `whole` the element itself. The table shakes whole: its first card's picture is not the
+ * table, and a land or artifact shaking at every big hit read as hit for no reason.
+ */
+export function shake(element: Element | null, strength = 8, delay = 0, whole = false) {
   if (!element) return;
-  const body = hitBody(element);
+  const body = whole ? element : hitBody(element);
   body.animate(
     [0, -1, 1, -0.8, 0.6, -0.3, 0].map((factor) => ({ translate: `${factor * strength}px ${factor * strength * -0.3}px` })),
     { id: 'hit', duration: 420, easing: 'ease-out', delay, composite: compositeFor(body, ['hit']) },

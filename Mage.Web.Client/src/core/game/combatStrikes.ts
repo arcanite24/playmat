@@ -60,15 +60,18 @@ export interface CombatSide {
   blocking: Map<string, string[]>;
   /** combat cards by id, for their keywords when they've left the battlefield */
   cards: Map<string, CardView>;
+  /** attackers that were blocked, whether or not their blockers are still there */
+  blocked: Set<string>;
 }
 
 export function combatSide(groups: readonly CombatGroupView[] | undefined): CombatSide {
-  const side: CombatSide = { defenders: new Map(), blockers: new Map(), blocking: new Map(), cards: new Map() };
+  const side: CombatSide = { defenders: new Map(), blockers: new Map(), blocking: new Map(), cards: new Map(), blocked: new Set() };
   for (const group of groups ?? []) {
     const blockers = Object.keys(group.blockers ?? {});
     for (const [id, card] of Object.entries(group.blockers ?? {})) side.cards.set(id, card);
     for (const [attacker, card] of Object.entries(group.attackers ?? {})) {
       side.cards.set(attacker, card);
+      if (group.isBlocked || blockers.length > 0) side.blocked.add(attacker);
       if (group.defenderId) side.defenders.set(attacker, group.defenderId);
       // several views' groups add up: a view drops the blockers that died, the one before still has them
       const known = side.blockers.get(attacker) ?? [];
@@ -220,7 +223,9 @@ export function strikesFromCombat(
   for (const [attacker, blockers] of combat.blockers) {
     const who = fighter(lookup, attacker);
     const slot = order++;
-    if (swings(who)) {
+    // blocked, its blockers gone: it deals no damage, unless it tramples over to whom it attacks
+    const stopped = blockers.length === 0 && combat.blocked.has(attacker) && !who?.trample;
+    if (swings(who) && !stopped) {
       const targets = blockers.length > 0 ? blockers : [defenderOf(attacker)].filter((id): id is string => !!id);
       for (const target of targets) strikes.push({ ...strike(attacker, target, Math.max(1, who?.power ?? 1), 'attack', 0, slot, null, who), estimated: true });
     }
