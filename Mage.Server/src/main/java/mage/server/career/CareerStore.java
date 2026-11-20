@@ -148,14 +148,23 @@ public final class CareerStore implements AutoCloseable {
     private static volatile CareerStore instance;
 
     private final Connection connection;
+    private final java.io.File file;
 
     public CareerStore(String jdbcUrl) throws SQLException {
         connection = DriverManager.getConnection(jdbcUrl);
+        file = mage.server.solo.SoloStore.fileOf(jdbcUrl);
         try (Statement statement = connection.createStatement()) {
             statement.execute("PRAGMA foreign_keys = ON");
             statement.execute("PRAGMA busy_timeout = 5000");
         }
+        // a new file is made incremental before its first table; an older one is converted by reclaimSpace
+        mage.server.util.SqliteSpace.preferIncremental(connection);
         migrate();
+    }
+
+    /** gives pruned rows' pages back to the disk (mage.server.util.SqliteSpace) */
+    public synchronized mage.server.util.SqliteSpace.Result reclaimSpace() throws SQLException {
+        return mage.server.util.SqliteSpace.reclaim(connection, file, "career.db");
     }
 
     public static CareerStore get() {
@@ -300,6 +309,19 @@ public final class CareerStore implements AutoCloseable {
                 return rows.next() ? new String[]{rows.getString(1), rows.getString(2), rows.getString(3), rows.getString(4),
                         rows.getString(5), rows.getString(6)} : null;
             }
+        }
+    }
+
+    /**
+     * Shadow keeps, with each event, the payout's rows before and after: every row of its accounts in
+     * {@link #PAYOUT_TABLES}, whole histories included, so a few hundred KB an event. Once Rust's replay matched them
+     * ("same") or left them ("skipped") they're of no more use; differences and declines keep theirs, to look into.
+     */
+    synchronized int trimCheckedPayoutEvents() throws SQLException {
+        try (PreparedStatement update = connection.prepareStatement(
+                "UPDATE payout_events SET before = NULL, after = NULL"
+                        + " WHERE checked IN ('same', 'skipped') AND (before IS NOT NULL OR after IS NOT NULL)")) {
+            return update.executeUpdate();
         }
     }
 

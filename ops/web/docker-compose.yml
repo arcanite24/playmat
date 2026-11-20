@@ -236,6 +236,7 @@ services:
     environment:
       BACKUP_AT: ${BACKUP_AT:-03:30}
       BACKUP_KEEP: ${BACKUP_KEEP:-14}
+      BACKUP_MIN_FREE_MB: ${BACKUP_MIN_FREE_MB:-1024}
       TZ: ${TZ:-UTC}
     volumes:
       - xmage-db:/opt/xmage/db

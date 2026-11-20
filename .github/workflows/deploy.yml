@@ -27,6 +27,11 @@ on:
 permissions:
   contents: read
 
+# bash with pipefail (GitHub's default shell has no pipefail): `ssh ... | tee` must fail when ssh does
+defaults:
+  run:
+    shell: bash
+
 env:
   REGISTRY: ghcr.io/arcanite24
 
@@ -114,8 +119,14 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key -p "$DEPLOY_SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
             -o UserKnownHostsFile=~/.ssh/known_hosts -o BatchMode=yes -o ServerAliveInterval=30 \
-            "deploy@$DEPLOY_HOST" "deploy $TAG" 2>&1 | tee deploy.log
+            "deploy@$DEPLOY_HOST" "deploy $TAG" 2>&1 | tee deploy.log || code=$?
           echo "previous=$(sed -n 's/^previous: //p' deploy.log | tail -n 1)" >> "$GITHUB_OUTPUT"
+          # the host ends with "result: ok" only when the new version runs; anything else (a failed snapshot, a full
+          # disk, a rollback, a dropped connection) fails this run
+          if [[ ${code:-0} != 0 ]] || ! tail -n 5 deploy.log | grep -q '^result: ok'; then
+            echo "::error::the deploy failed on the host: $(grep -m1 'error: ' deploy.log | sed 's/^[^ ]* //' || echo "exit ${code:-0}, no result line")"
+            exit 1
+          fi
       # the smoke test needs Node 22's global WebSocket
       - uses: actions/setup-node@v5
         with:
