@@ -1,14 +1,12 @@
 package mage.server.websocket.api;
 
-import mage.cards.decks.Deck;
 import mage.cards.decks.DeckCardLists;
-import mage.cards.decks.DeckValidator;
-import mage.cards.decks.DeckValidatorError;
-import mage.cards.decks.DeckValidatorFactory;
 import mage.players.PlayerType;
 import mage.server.career.CareerContent;
+import mage.server.career.CareerLeague;
 import mage.server.career.CareerProgress;
 import mage.server.ladder.BotRoster;
+import mage.server.ladder.DeckLegality;
 import mage.server.ladder.LadderRank;
 import mage.server.ladder.LadderStore;
 import mage.server.ladder.RankedService;
@@ -26,6 +24,7 @@ import java.util.UUID;
 import static mage.server.websocket.rpc.RpcParam.Type.STRING;
 import static mage.server.websocket.rpc.RpcParam.object;
 import static mage.server.websocket.rpc.RpcParam.of;
+import static mage.server.websocket.rpc.RpcParam.optional;
 
 /**
  * Ranked (#431): the Open queue against the ladder's bots, one rank per format. Signed-in accounts on servers that
@@ -123,31 +122,39 @@ public final class LadderApi {
         public List<String> reached;
         public List<CareerProgress.CareerCosmetic> cosmetics;
         public int tokens;
+        /** the queue: open or league */
+        public String queue;
+        /** League pack tokens of the format the game paid */
+        public int packs;
+        /** League wildcards the game paid, by rarity */
+        public java.util.Map<String, Integer> wildcards;
         public Integer mythicRating;
     }
 
     public static List<RpcMethod> methods(ApiContext ctx) {
         return Arrays.asList(
                 RpcMethod.named("ladderState")
-                        .params(of("format", STRING))
+                        .params(of("format", STRING), optional("queue", STRING))
                         .returns("LadderState")
                         .doc("Your ranked standing in a format's Open queue (Bo1): rank, tier, pips, peak, record, the last games, "
-                                + "and in Mythic your rating. Formats: standard, pioneer.")
+                                + "and in Mythic your rating. Formats: standard, pioneer. Queue: open (the default) or league, the Career League.")
                         .handler(call -> {
                             String user = CareerApi.career(ctx, call);
                             String format = format(call.string(0));
-                            return ladder(() -> state(user, format, System.currentTimeMillis()));
+                            String queue = queue(call.optString(1, RankedService.OPEN));
+                            return ladder(() -> state(user, format, queue, System.currentTimeMillis()));
                         }),
 
                 RpcMethod.named("ladderOpponent")
-                        .params(of("format", STRING))
+                        .params(of("format", STRING), optional("queue", STRING))
                         .returns("LadderOpponent")
                         .doc("Who your next ranked game in the format is against: a bot near your hidden rating. The pick holds "
-                                + "until it's played, so it can't be skipped.")
+                                + "until it's played, so it can't be skipped. Queue: open (the default) or league.")
                         .handler(call -> {
                             String user = CareerApi.career(ctx, call);
                             String format = format(call.string(0));
-                            return ladder(() -> opponent(RankedService.get().pick(user, format, RankedService.OPEN, System.currentTimeMillis())));
+                            String queue = queue(call.optString(1, RankedService.OPEN));
+                            return ladder(() -> opponent(RankedService.get().pick(user, format, queue, System.currentTimeMillis())));
                         }),
 
                 RpcMethod.named("ladderPlay")
@@ -156,6 +163,13 @@ public final class LadderApi {
                         .doc("Start a ranked game in the format with a deck legal there, against the picked bot. No hints, "
                                 + "take-backs, practice tools or saves; conceding or leaving is a loss.")
                         .handler(call -> play(ctx, call)),
+
+                RpcMethod.named("leaguePlay")
+                        .params(of("format", STRING), of("deckId", STRING))
+                        .returns("LadderMatch")
+                        .doc("Start a League game in the format with one of your League decks (by id), against the League's picked "
+                                + "bot. The deck must be legal there and every card in it owned. Otherwise like ladderPlay.")
+                        .handler(call -> leaguePlay(ctx, call)),
 
                 RpcMethod.named("ladderResult")
                         .params(of("tableId", STRING))
@@ -185,6 +199,13 @@ public final class LadderApi {
         return format;
     }
 
+    private static String queue(String queue) throws RpcException {
+        if (!RankedService.isQueue(queue)) {
+            throw RpcException.invalidParams("There is no " + queue + " queue.");
+        }
+        return queue;
+    }
+
     interface LadderCall<T> {
         T run() throws SQLException;
     }
@@ -199,12 +220,16 @@ public final class LadderApi {
     }
 
     static LadderState state(String user, String format, long now) throws SQLException {
+        return state(user, format, RankedService.OPEN, now);
+    }
+
+    static LadderState state(String user, String format, String queue, long now) throws SQLException {
         RankedService ranked = RankedService.get();
-        LadderStore.Standing standing = ranked.store().standing(user.toLowerCase(java.util.Locale.ENGLISH), format, RankedService.OPEN, RankedService.SEASON);
+        LadderStore.Standing standing = ranked.store().standing(user.toLowerCase(java.util.Locale.ENGLISH), format, queue, RankedService.SEASON);
         LadderState view = new LadderState();
         view.formats = ranked.formats();
         view.format = format;
-        view.queue = RankedService.OPEN;
+        view.queue = queue;
         int step = standing == null ? 0 : standing.step;
         view.step = step;
         view.rank = LadderRank.rankName(step);
@@ -222,11 +247,11 @@ public final class LadderApi {
             view.drew = standing.drew;
         }
         if (step >= LadderRank.MYTHIC_STEP) {
-            view.mythicRating = (int) Math.round(ranked.ratings().player(user, format, RankedService.OPEN, now).rating);
+            view.mythicRating = (int) Math.round(ranked.ratings().player(user, format, queue, now).rating);
         }
         view.playing = ranked.playing(user);
         view.recent = new ArrayList<>();
-        for (LadderStore.GameRow row : ranked.store().games(user.toLowerCase(java.util.Locale.ENGLISH), format, RankedService.OPEN, RECENT)) {
+        for (LadderStore.GameRow row : ranked.store().games(user.toLowerCase(java.util.Locale.ENGLISH), format, queue, RECENT)) {
             if ("void".equals(row.status)) {
                 continue;
             }
@@ -280,6 +305,9 @@ public final class LadderApi {
         view.reached = result.reached;
         view.cosmetics = result.paid == null ? new ArrayList<>() : result.paid.cosmetics;
         view.tokens = result.paid == null ? 0 : result.paid.tokens;
+        view.queue = result.queue;
+        view.packs = result.paid == null ? 0 : result.paid.packs;
+        view.wildcards = result.paid == null ? new java.util.LinkedHashMap<>() : result.paid.wildcards;
         if (result.stepAfter >= LadderRank.MYTHIC_STEP) {
             view.mythicRating = (int) Math.round(result.ratingAfter);
         }
@@ -290,6 +318,22 @@ public final class LadderApi {
         String user = CareerApi.career(ctx, call);
         String format = format(call.string(0));
         DeckCardLists deck = call.object(1, DeckCardLists.class);
+        return start(ctx, call, user, format, RankedService.OPEN, deck);
+    }
+
+    /** a League game: the server's copy of the League deck, owned and legal */
+    private static Object leaguePlay(ApiContext ctx, RpcCall call) throws RpcException {
+        String user = CareerApi.career(ctx, call);
+        String format = format(call.string(0));
+        String deckId = call.string(1);
+        if (RankedService.get().playing(user)) {
+            throw RpcException.invalidParams("Finish your ranked game first: one at a time.");
+        }
+        CareerLeague.LeagueDeck deck = CareerApi.store(() -> CareerLeague.get().playable(user, format, deckId));
+        return start(ctx, call, user, format, RankedService.LEAGUE, deck.deck);
+    }
+
+    private static Object start(ApiContext ctx, RpcCall call, String user, String format, String queue, DeckCardLists deck) throws RpcException {
         RankedService ranked = RankedService.get();
         if (ranked.playing(user)) {
             throw RpcException.invalidParams("Finish your ranked game first: one at a time.");
@@ -301,7 +345,7 @@ public final class LadderApi {
             throw RpcException.invalidParams("This deck isn't legal in " + name + ": " + String.join("; ", problems) + ".");
         }
         long now = System.currentTimeMillis();
-        BotRoster.Bot bot = ladder(() -> ranked.pick(user, format, RankedService.OPEN, now));
+        BotRoster.Bot bot = ladder(() -> ranked.pick(user, format, queue, now));
         DeckCardLists botDeck;
         try {
             botDeck = ranked.roster().deck(bot);
@@ -316,7 +360,7 @@ public final class LadderApi {
             tableId = CareerApi.startMatch(ctx, call, user, name, deckType, deck, PlayerType.COMPUTER_MAD, bot.skill, botDeck,
                     id -> {
                         try {
-                            ranked.register(id, user, format, RankedService.OPEN, bot, deckName, now);
+                            ranked.register(id, user, format, queue, bot, deckName, now);
                             registered[0] = id;
                         } catch (SQLException e) {
                             throw new IllegalStateException("The ranked game couldn't be recorded", e);
@@ -337,24 +381,12 @@ public final class LadderApi {
 
     /** why the deck isn't legal in the deck type (the first few reasons), or nothing */
     static List<String> legality(String deckType, DeckCardLists lists) throws RpcException {
-        List<String> out = new ArrayList<>();
-        DeckValidator validator = DeckValidatorFactory.instance.createDeckValidator(deckType);
-        if (validator == null) {
-            throw new RpcException(RpcException.SERVER_ERROR, "This server can't check " + deckType + " decks.");
-        }
         try {
-            Deck deck = Deck.load(lists, false, false);
-            if (!validator.validate(deck)) {
-                for (DeckValidatorError error : validator.getErrorsListSorted(3)) {
-                    out.add(error.getMessage() == null || error.getMessage().isEmpty() ? error.getGroup() : error.getGroup() + ": " + error.getMessage());
-                }
-                if (out.isEmpty()) {
-                    out.add("it doesn't pass the format's rules");
-                }
-            }
-        } catch (Exception e) {
-            throw RpcException.invalidParams("The deck can't be read: " + e.getMessage());
+            return DeckLegality.problems(deckType, lists);
+        } catch (IllegalStateException e) {
+            throw new RpcException(RpcException.SERVER_ERROR, e.getMessage());
+        } catch (IllegalArgumentException e) {
+            throw RpcException.invalidParams(e.getMessage());
         }
-        return out;
     }
 }

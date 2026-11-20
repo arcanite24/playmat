@@ -1,5 +1,6 @@
 package mage.server.ladder;
 
+import mage.server.career.CareerLeague;
 import mage.server.career.RankedRewards;
 import org.apache.log4j.Logger;
 
@@ -28,6 +29,8 @@ public final class RankedService {
 
     /** the Open queue, best of one (Bo3 comes later, #435) */
     public static final String OPEN = "open";
+    /** the Career League (#433): the same ladder, played with League decks built from the Career collection */
+    public static final String LEAGUE = "league";
     /** until seasons (#434) */
     public static final int SEASON = 0;
     /** a pick avoids the bots met in this many last games, when there are others */
@@ -118,6 +121,10 @@ public final class RankedService {
 
     public static boolean isFormat(String format) {
         return DECK_TYPES.containsKey(format);
+    }
+
+    public static boolean isQueue(String queue) {
+        return OPEN.equals(queue) || LEAGUE.equals(queue);
     }
 
     public static String deckType(String format) {
@@ -297,6 +304,7 @@ public final class RankedService {
             standing.queue = table.queue;
             standing.season = SEASON;
         }
+        int peakBefore = standing.peak;
         LadderRatings.Outcome outcome = ratings.record(table.user, table.botId, table.queue, score, now);
         LadderRank.Move move = LadderRank.after(standing.step, standing.streak, score);
         Result result = new Result();
@@ -331,6 +339,20 @@ public final class RankedService {
         standing.updated = now;
         store.putStanding(standing);
         store.endGame(result.tableId, result.status, now, result.stepBefore, result.stepAfter, result.ratingBefore, result.ratingAfter, engine);
+        if (LEAGUE.equals(table.queue)) {
+            payLeague(table, result, first, peakBefore, standing, score >= 1, now);
+        } else {
+            payOpen(table, result, now);
+        }
+        {
+            logger.info("Ranked " + table.format + ": " + table.user + " " + result.status + " against " + table.botId
+                    + " on " + engine + ", " + LadderRank.label(result.stepBefore) + " -> " + LadderRank.label(result.stepAfter));
+        }
+        results.put(tableId, result);
+        return result;
+    }
+
+    private void payOpen(RankedTable table, Result result, long now) throws SQLException {
         for (String rank : result.reached) {
             if (store.payReward(table.user, table.format, table.queue, SEASON, rank, now)) {
                 try {
@@ -346,12 +368,27 @@ public final class RankedService {
                 }
             }
         }
-        {
-            logger.info("Ranked " + table.format + ": " + table.user + " " + result.status + " against " + table.botId
-                    + " on " + engine + ", " + LadderRank.label(result.stepBefore) + " -> " + LadderRank.label(result.stepAfter));
+    }
+
+    /** a League game: tiers gained pay the format's packs, ranks pay cosmetics and wildcards, wins pay wildcards */
+    private void payLeague(RankedTable table, Result result, boolean first, int peakBefore, LadderStore.Standing standing, boolean won, long now) throws SQLException {
+        List<Integer> tiers = new ArrayList<>();
+        for (int tier : CareerLeague.tiersGained(peakBefore, standing.peak, first)) {
+            if (store.payReward(table.user, table.format, table.queue, SEASON, "tier-" + tier, now)) {
+                tiers.add(tier);
+            }
         }
-        results.put(tableId, result);
-        return result;
+        List<String> ranks = new ArrayList<>();
+        for (String rank : result.reached) {
+            if (store.payReward(table.user, table.format, table.queue, SEASON, rank, now)) {
+                ranks.add(rank);
+            }
+        }
+        try {
+            result.paid = CareerLeague.pay(table.user, table.format, tiers, ranks, standing.won, won, now);
+        } catch (SQLException | RuntimeException e) {
+            logger.error("League: a game's rewards couldn't be paid to " + table.user, e);
+        }
     }
 
     /** the result of a finished ranked table, if it is still kept */

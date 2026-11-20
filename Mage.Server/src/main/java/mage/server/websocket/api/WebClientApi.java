@@ -46,6 +46,7 @@ public final class WebClientApi {
         groups.put("Support", SupportApi.methods(ctx));
         groups.put("Career", CareerApi.methods(ctx));
         groups.put("Ladder", LadderApi.methods(ctx));
+        groups.put("League", LeagueApi.methods(ctx));
         groups.put("Home", HomeApi.methods(ctx));
         groups.put("CareerProgress", CareerProgressApi.methods(ctx));
         groups.put("CareerModes", CareerModesApi.methods(ctx));

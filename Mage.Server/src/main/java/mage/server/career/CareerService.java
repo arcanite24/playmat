@@ -1327,6 +1327,11 @@ public final class CareerService {
         if (set == null || shop(user).stream().noneMatch(offer -> offer.setCode.equals(set.getCode()) && !offer.locked)) {
             throw new CareerException("The shop has no packs of " + setCode + ".");
         }
+        return open(user, set.getCode(), booster(set));
+    }
+
+    /** a fresh booster of the set as Career cards */
+    List<CareerCard> booster(ExpansionSet set) throws CareerException {
         List<Card> booster = set.createBooster();
         if (booster.isEmpty()) {
             throw new CareerException("Packs of " + set.getName() + " can't be opened right now.");
@@ -1338,7 +1343,7 @@ public final class CareerService {
                     : new CareerCard(card.getName(), card.getExpansionSetCode(), card.getCardNumber(), CareerRules.rarityOf(card.getRarity()));
             cards.add(careerCard);
         }
-        return open(user, set.getCode(), cards);
+        return cards;
     }
 
     /** pays for a pack and adds its cards; copies past the playset become coins or wildcards */
@@ -1482,6 +1487,7 @@ public final class CareerService {
         }
         store.transaction(() -> {
             store.deleteProfile(user);
+            store.deleteLeague(user);
             return null;
         });
         return true;

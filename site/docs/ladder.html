@@ -92,6 +92,25 @@
         <p>Standings, games and the ranks paid are kept in <code>db/ladder.db</code>. An account's export includes
           them, and deleting an account deletes them.</p>
 
+        <h2>League</h2>
+        <p>The League (<b>Career &rsaquo; League</b>) is Ranked played with the cards an account owns. It is on wherever
+          Career is.</p>
+        <ul>
+          <li>A player starts a format's League by picking two of its starter decks. Their cards join the Career
+            collection (never past four of a card), each becomes a League deck, and the format's packs are added. The
+            account's first League also gives 4 common, 3 uncommon and 1 rare wildcard.</li>
+          <li>League packs come from the format's own sets. Standard picks a set; Pioneer also has a mixed pack. A pack
+            uses the format's League packs first, then a Career pack token, then 100 coins.</li>
+          <li>League decks must be legal in the format and use only cards the account owns. The server plays its own
+            copy of the deck.</li>
+          <li>The League has its own ladder, with the same ranks and rules as Ranked, starting at a lower hidden rating.
+            Each tier reached for the first time pays a pack of the format. Each rank pays its cosmetics and a rare
+            wildcard (mythic at Gold). Every fifth League win pays an uncommon wildcard. No capsule tokens.</li>
+        </ul>
+        <p>The starters and the number of packs are set in <code>league/league.json</code> in the server's resources.
+          Leagues, League packs and League decks are kept in <code>db/career.db</code> and the League's ladder in
+          <code>db/ladder.db</code>. Both are in an account's export and are deleted with it.</p>
+
         <h2>Recalibrate</h2>
         <p>The ratings in <code>bots.json</code> are only right for the AI that measured them. After changing the AI's
           search, the skills or a school deck, measure them again. The shipped run played about 18,000 games in 40 minutes on three threads.</p>

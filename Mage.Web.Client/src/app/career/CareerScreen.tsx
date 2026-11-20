@@ -253,6 +253,10 @@ function CareerHub({ profile }: { profile: CareerProfile }) {
       status: t('career.hub.ranked'),
     },
     {
+      to: '/career/league', title: t('career.hub.leagueTitle'), art: HUB_ART.league, artName: '',
+      status: t('career.hub.league'),
+    },
+    {
       to: '/career/campaign', title: t('career.modes.campaign'), art: chapter.node?.cover ?? null, artName: chapter.node?.name ?? '',
       status: chapter.current ? t('career.hub.campaign', { chapter: chapter.current.name ?? '', done: chapter.campaign?.done ?? 0, total: chapter.campaign?.total ?? 0 }) : t('career.hub.campaignDone'),
     },
@@ -382,6 +386,7 @@ const HUB_ART = {
   collection: { name: 'Horizon Scholar', setCode: 'THS', cardNumber: '51' },
   progress: { name: "Elspeth, Sun's Champion", setCode: 'THS', cardNumber: '9' },
   ranked: { name: 'Anax and Cymede', setCode: 'THS', cardNumber: '186' },
+  league: { name: 'Heliod, God of the Sun', setCode: 'THS', cardNumber: '17' },
 } as const;
 
 interface Tile {

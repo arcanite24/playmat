@@ -15,6 +15,13 @@ public final class LadderRatings {
 
     /** a new player's rating: among the bots that play starters with a light search */
     public static final double START = 1200;
+    /** the League starts lower: its first opponents are the starter decks it's played with */
+    public static final double LEAGUE_START = 1000;
+
+    /** where a player's rating starts in a queue */
+    public static double start(String queue) {
+        return RankedService.LEAGUE.equals(queue) ? LEAGUE_START : START;
+    }
     /** players never get surer than this, so a rating keeps moving with form */
     public static final double PLAYER_MIN_RD = 50;
     /** bots never get surer than this, so a bot players beat more than expected still sinks */
@@ -61,7 +68,7 @@ public final class LadderRatings {
     public Glicko2.Rating player(String user, String format, String queue, long now) throws SQLException {
         LadderStore.Row row = store.rating(userSubject(user), format, queue);
         if (row == null) {
-            return new Glicko2.Rating(START, Glicko2.MAX_RD, Glicko2.START_VOLATILITY);
+            return new Glicko2.Rating(start(queue), Glicko2.MAX_RD, Glicko2.START_VOLATILITY);
         }
         long periods = Math.min(MAX_IDLE_PERIODS, Math.max(0, (now - row.updated) / PERIOD_MS));
         Glicko2.Rating rating = row.rating;

@@ -651,6 +651,32 @@ ladder per format. It is on wherever Career is, for signed-in accounts, with no 
   `ladder_rewards`. They are part of the account export (`ranked`) and are deleted with the account. The server log
   has a `Ranked <format>:` line for every result.
 
+### League
+
+The Career League (#433, **Career › League**, `/career/league`) is the ladder played with the Career collection. It is
+on wherever Career is.
+
+- **Start.** `leagueStart(format, starters)` takes two of the format's starters from
+  `Mage.Server/src/main/resources/league/league.json` (school decks under `campaigns/decks/`, each tested legal). Their
+  cards join the collection up to a playset of each name, with no coins or wildcards for the overlap, and each becomes
+  a League deck. The format's packs (6) are added. The account's first League also adds the `startWildcards`
+  (4 common, 3 uncommon, 1 rare). A format starts once per account.
+- **Packs.** `leagueSets(format)` is the shop's sets that the format's validator allows, newest first. Formats with
+  `mixed` (Pioneer) also offer `mixed`, a pack of a random set of the format. `leagueOpen` pays with the format's League
+  packs, then a Career pack token, then `PACK_PRICE` coins. Campaign set locks don't apply.
+- **Decks.** League decks are stored per account by id (`leagueDecks`, `leagueSaveDeck`, `leagueDeleteDeck`, at most
+  40), each returned with its missing cards and the format's objections. `leaguePlay(format, deckId)` plays the
+  server's copy and refuses a deck that isn't owned and legal.
+- **Ladder.** League games are ranked games in the `league` queue: `ladderState` and `ladderOpponent` take
+  `queue: "league"`. The rules are Ranked's. Players start at a rating of 1000 instead of 1200, so the first opponents
+  are the starter bots. League tables start like Ranked ones and aren't Career tables, so the Rust host takes them as it takes Ranked games.
+- **Rewards.** Each tier entered for the first time pays a League pack of the format (keyed `tier-N` in
+  `ladder_rewards`). Each rank pays its cosmetics and a rare wildcard (mythic at Gold, none at Bronze). Every fifth
+  League win pays an uncommon wildcard. The League pays no capsule tokens.
+- **Data.** `career.db` adds `league`, `league_tokens` and `league_decks` (schema 8). They are in the account export
+  (`league`) and deleted with the account, and the queue's standings and games are in `ladder.db` as for Ranked. The
+  server log has a `League <format>:` line for each start.
+
 ### Home widgets
 
 Home widgets (#432) sit under the deck and Play on Home. **Customize Home** moves them (drag or arrow keys), sizes them

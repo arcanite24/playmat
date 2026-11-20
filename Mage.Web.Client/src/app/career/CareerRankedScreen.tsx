@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import type { LadderOpponent, LadderResult, LadderState } from '../../protocol/generated/views';
 import { toWire } from '../decks/deckModel';
-import { registerMessages, useT } from '../i18n';
+import { registerMessages, useT, type MessageKey } from '../i18n';
 import messages from '../i18n/en/career';
 import { useDecks } from '../stores/decks';
 import { usePlay } from '../stores/play';
@@ -79,7 +79,7 @@ export function CareerRankedScreen() {
   );
 }
 
-function Emblem({ rank, size = 'lg' }: { rank: string | undefined; size?: 'sm' | 'lg' }) {
+export function Emblem({ rank, size = 'lg' }: { rank: string | undefined; size?: 'sm' | 'lg' }) {
   const t = useT();
   const known = rank ?? 'bronze';
   return (
@@ -89,7 +89,7 @@ function Emblem({ rank, size = 'lg' }: { rank: string | undefined; size?: 'sm' |
   );
 }
 
-function PipRow({ pips, label }: { pips: PipState[]; label: string }) {
+export function PipRow({ pips, label }: { pips: PipState[]; label: string }) {
   if (pips.length === 0) return null;
   return (
     <span className={styles.pips} role="img" aria-label={label}>
@@ -100,7 +100,7 @@ function PipRow({ pips, label }: { pips: PipState[]; label: string }) {
   );
 }
 
-function Standing({ state }: { state: LadderState }) {
+export function Standing({ state }: { state: LadderState }) {
   const t = useT();
   const step = state.step ?? 0;
   const at = rankAt(step);
@@ -127,7 +127,7 @@ function Standing({ state }: { state: LadderState }) {
   );
 }
 
-function OpponentCard({ opponent }: { opponent: LadderOpponent }) {
+export function OpponentCard({ opponent }: { opponent: LadderOpponent }) {
   const t = useT();
   return (
     <div className={styles.opponent}>
@@ -217,7 +217,7 @@ function Queue({ format, state }: { format: string; state: LadderState }) {
   );
 }
 
-function Recent({ state }: { state: LadderState }) {
+export function Recent({ state }: { state: LadderState }) {
   const t = useT();
   const games = state.recent ?? [];
   if (games.length === 0) return null;
@@ -237,7 +237,7 @@ function Recent({ state }: { state: LadderState }) {
   );
 }
 
-function GameResult({ tableId }: { tableId: string }) {
+export function GameResult({ tableId }: { tableId: string }) {
   const t = useT();
   const result = useRankedResult(tableId);
   if (result.isPending) return <p className={modes.note} role="status">{t('career.ranked.counting')}</p>;
@@ -245,7 +245,7 @@ function GameResult({ tableId }: { tableId: string }) {
   return <ResultCard result={result.data} />;
 }
 
-function ResultCard({ result }: { result: LadderResult }) {
+export function ResultCard({ result }: { result: LadderResult }) {
   const t = useT();
   const moved = movement(result);
   const after = rankAt(result.stepAfter ?? 0);
@@ -266,17 +266,24 @@ function ResultCard({ result }: { result: LadderResult }) {
         {reached.map((rank) => (
           <p key={rank} className={styles.reached}><Trophy size={14} aria-hidden="true" /> {t('career.ranked.reached', { rank: t(rankKey(rank)) })}</p>
         ))}
-        {((result.cosmetics ?? []).length > 0 || (result.tokens ?? 0) > 0) && (
+        {((result.cosmetics ?? []).length > 0 || (result.tokens ?? 0) > 0 || (result.packs ?? 0) > 0 || Object.keys(result.wildcards ?? {}).length > 0) && (
           <p className={modes.small}>
             {[
               (result.cosmetics ?? []).length > 0 ? t('career.ranked.cosmetics', { count: (result.cosmetics ?? []).length }) : null,
               (result.tokens ?? 0) > 0 ? t('career.ranked.tokens', { count: result.tokens ?? 0 }) : null,
+              (result.packs ?? 0) > 0 ? t('career.ranked.packs', { count: result.packs ?? 0 }) : null,
+              ...Object.entries(result.wildcards ?? {}).filter(([, count]) => count > 0)
+                .map(([rarity, count]) => t('career.ranked.wildcard', { count, rarity: t(wildcardKey(rarity)) })),
             ].filter(Boolean).join(' · ')}
           </p>
         )}
       </div>
     </section>
   );
+}
+
+function wildcardKey(rarity: string): MessageKey {
+  return rarity === 'mythic' ? 'career.rarity.mythic' : rarity === 'rare' ? 'career.rarity.rare' : rarity === 'uncommon' ? 'career.rarity.uncommon' : 'career.rarity.common';
 }
 
 function read(key: string): string | null {

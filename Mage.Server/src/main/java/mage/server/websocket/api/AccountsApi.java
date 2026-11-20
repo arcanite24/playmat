@@ -384,6 +384,12 @@ final class AccountsApi {
         } catch (RuntimeException e) {
             out.put("ranked", null);
         }
+        // the Career League: started formats, pack tokens, League decks
+        try {
+            out.put("league", mage.server.career.CareerLeague.get().export(name));
+        } catch (java.sql.SQLException | RuntimeException e) {
+            out.put("league", null);
+        }
         // the status the player chose: online, hidden or looking (to play)
         out.put("presence", mage.server.social.Presence.statusOf(name));
         Gson gson = new GsonBuilder().setPrettyPrinting().serializeNulls().create();

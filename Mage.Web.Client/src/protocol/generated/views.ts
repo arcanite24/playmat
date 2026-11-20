@@ -1662,6 +1662,8 @@ export interface LadderResult {
     labelBefore?: string;
     mythicRating?: number;
     opponent?: LadderOpponent;
+    packs?: number;
+    queue?: string;
     reached?: string[];
     status?: string;
     stepAfter?: number;
@@ -1669,6 +1671,7 @@ export interface LadderResult {
     streak?: number;
     tableId?: string;
     tokens?: number;
+    wildcards?: { [index: string]: number };
 }
 
 export interface LadderState {
@@ -1723,6 +1726,68 @@ export interface LeaderboardEntry {
     v1?: number;
     v2?: number;
     you?: boolean;
+}
+
+export interface LeagueDeck {
+    cards?: number;
+    deck?: DeckCardLists;
+    format?: string;
+    id?: string;
+    illegal?: string[];
+    missing?: string[];
+    name?: string;
+    updated?: number;
+}
+
+export interface LeagueFormat {
+    decks?: number;
+    format?: string;
+    mixed?: boolean;
+    startPacks?: number;
+    started?: boolean;
+    starters?: LeagueStarter[];
+    tokens?: number;
+}
+
+export interface LeaguePack {
+    cards?: CareerCard[];
+    format?: string;
+    paidWith?: string;
+    profile?: CareerProfile;
+    setCode?: string;
+    tokens?: number;
+}
+
+export interface LeagueSet {
+    cover?: CareerCover;
+    name?: string;
+    releaseDate?: string;
+    setCode?: string;
+}
+
+export interface LeagueStart {
+    decks?: LeagueDeck[];
+    format?: string;
+    packs?: number;
+    state?: LeagueState;
+    wildcards?: Wildcards;
+}
+
+export interface LeagueStarter {
+    cards?: number;
+    colors?: string;
+    id?: string;
+    name?: string;
+}
+
+export interface LeagueState {
+    coins?: number;
+    first?: boolean;
+    formats?: LeagueFormat[];
+    packPrice?: number;
+    packTokens?: number;
+    startWildcards?: Wildcards;
+    wildcards?: Wildcards;
 }
 
 export interface LimitedShape {
