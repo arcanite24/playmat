@@ -40,7 +40,7 @@ export function CareerRankedScreen() {
   const formats = state.data?.formats ?? first.data?.formats ?? ['standard', 'pioneer'];
   return (
     <div className={modes.page}>
-      <div className={modes.scroll}>
+      <div className={`${modes.scroll} ${modes.capped}`}>
         <header className={modes.modeHead}>
           <div>
             <p className={modes.kicker}><Trophy size={16} aria-hidden="true" /> {t('career.ranked.kicker')}</p>
