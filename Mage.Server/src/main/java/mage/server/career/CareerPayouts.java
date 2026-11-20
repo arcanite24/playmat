@@ -124,6 +124,17 @@ public final class CareerPayouts {
     }
 
     /**
+     * The periodic upkeep (mage.server.StoreUpkeep): paid events past their keep go, and checked shadow events lose
+     * their rows before and after, which otherwise grow career.db by a few hundred KB a game.
+     *
+     * @return the events dropped or trimmed
+     */
+    public static int upkeep() throws SQLException {
+        CareerStore store = CareerStore.get();
+        return store.prunePayoutEvents(System.currentTimeMillis() - KEEP_MILLIS) + store.trimCheckedPayoutEvents();
+    }
+
+    /**
      * At start, off the rust route: pays the events Rust left pending (the route was switched back to java), and
      * drops paid events past their keep.
      */

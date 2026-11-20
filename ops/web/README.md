@@ -215,6 +215,7 @@ Set these in `ops/web/.env` (Compose reads it automatically) or in the environme
 | `XMAGE_JAVA_OPTS` | empty | Extra JVM flags. |
 | `BACKUP_AT` | `03:30` | Time of the daily backup, as `HH:MM` in `TZ`. |
 | `BACKUP_KEEP` | `14` | Number of backups to keep. |
+| `BACKUP_MIN_FREE_MB` | `1024` | A backup that would leave less than this free on the backups disk fails before it starts (and staff are told, as for any failed backup). |
 | `TZ` | `UTC` | Time zone for `BACKUP_AT`. |
 | `WS_RATE_LIMIT` / `WS_RATE_WINDOW` | `30` / `1m` | New game connections (`/ws` requests) Caddy lets one client address open per window. Over it: `429` with `Retry-After`. |
 | `IMG_API_RATE_LIMIT` / `IMG_API_RATE_WINDOW` | `300` / `1m` | Scryfall lookups (`/img/api/*`) per client address per window. Pictures (`/img/cards/*`, `/img/backs/*`) are not limited. |
@@ -860,12 +861,24 @@ XMage opens every database under `./db`. Only user data stays on `xmage-db`. The
 The `backup` service runs daily at `BACKUP_AT` and writes `/backups/<UTC timestamp>/` into the `xmage-backups` volume:
 
 - `authorized_user.h2.sql.gz` and `feedback.h2.sql.gz`: H2 SQL dumps. They're taken online by joining the running server's database through H2's auto-server mode, so each dump is consistent.
-- `authorized_user.db` (the accounts, see [Accounts and moderation](#accounts-and-moderation)), `user_stats.db`, `table_record.db`, `web_decks.db`, `web_reports.db`, `career.db`, `web_admin.db`, `support.db`, `solo.db`, `web_presence.db` and `ladder.db`: SQLite copies made with SQLite's online backup API.
+- `authorized_user.db` (the accounts, see [Accounts and moderation](#accounts-and-moderation)), `user_stats.db`, `table_record.db`, `web_decks.db`, `web_reports.db`, `career.db`, `web_admin.db`, `support.db`, `solo.db`, `web_presence.db` and `ladder.db`: SQLite copies made with SQLite's online backup API, then compacted with `VACUUM INTO` (the live files keep the pages of deleted rows; the copies leave them out).
 - `content-packs.tar.gz`: the `db/content-packs` folder, when there is one.
 
 Every run writes `db/backup-status.json` (when, whether it worked, its size and the last good one). The admin Overview shows it, and once an hour the server checks it: a failed run, or no good backup for 36 hours, is posted to the staff channel (once a day at most).
 
 The newest `BACKUP_KEEP` backups are kept. The card database is not backed up because the image rebuilds it.
+
+Before it copies anything, a run checks the backups disk has room for every database plus the biggest again and `BACKUP_MIN_FREE_MB` to spare; otherwise it fails, writes a failed status (so staff hear of it) and leaves the disk alone. A run that died half way leaves a `.partial-*` folder, which the next run removes. A backup's size is roughly the databases' size: watch the admin Overview's last backup size against the free disk when you choose `BACKUP_KEEP`.
+
+### Database upkeep
+
+`solo.db` keeps every turn of players' recent solo games (for what-if lines), about 3 MB a game, and `career.db` keeps every finished game as a payout event. Without upkeep they grew by about 200 MB a day between them in November 2026, and their nightly copies filled a 75 GB disk. Once an hour, starting 10 minutes after the server starts, the server:
+
+- drops what-if lines past a player's newest 5 or older than 7 days, and saved games past a player's newest 20 or older than 30 days,
+- drops paid payout events older than 30 days, and empties the rows-before-and-after copies of shadow events Rust's replay has checked (`same` or `skipped`; differences keep theirs),
+- gives the freed pages back to the disk. The first pass converts each file with one full `VACUUM` (a few seconds per GB; it waits, and logs why, when the disk lacks twice the file's size), and from then on `PRAGMA incremental_vacuum` keeps them trimmed. The log says `solo.db: compacted in N ms, X MB -> Y MB`.
+
+While the first `VACUUM` runs, the server's own writes to that file wait, and the Rust gateway's reads may time out once (it retries on its next pass).
 
 ```bash
 C="docker compose -f ops/web/docker-compose.yml"
@@ -996,12 +1009,14 @@ docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env up -d --no-
 Production doesn't do this by hand. A published GitHub release builds its images and deploys them after approval (`.github/workflows/deploy.yml`, see [RELEASING.md](../../RELEASING.md)). The workflow reaches the host as a `deploy` user whose key can only run `ops/web/deploy/playmat-deploy`. That script:
 
 1. pulls both images and pins their digests,
-2. snapshots the user databases into `/var/backups/playmat` (an online dump; the newest 5 are kept),
+2. snapshots the user databases into `/var/backups/playmat` (an online dump; the newest `SNAPSHOT_KEEP`, 5, are kept). The dump is packed there and removed from the backups volume, so deploys don't push nightly backups out. With less free disk than about twice the databases plus `SNAPSHOT_MIN_FREE_MB` (2048), the snapshot is refused, the deploy stops before changing anything, the staff channel is told, and the GitHub run fails,
 3. drains the server: with games running it announces maintenance and waits up to 15 minutes for them to end,
 4. writes the digests into `.env`,
 5. runs `up -d --no-build` with the compose file the server image carries (`/opt/xmage/deploy-kit`), so a rollback also rolls back the compose file,
 6. waits up to 5 minutes for `xmage` and `web` to be healthy and `https://DOMAIN/` to answer 200, and otherwise rolls back to the previous digests,
 7. posts the result to the staff Discord channel, then removes images older than the previous version.
+
+The workflow fails unless the host's output ends with `result: ok`, so a deploy stopped on the host (a failed snapshot, a rollback) never shows green. `playmat-deploy` is a host file: after changing `ops/web/deploy/playmat-deploy`, install it again (`sudo install -m 755 ops/web/deploy/playmat-deploy /usr/local/bin/`); a deploy doesn't update it.
 
 On that host the stack lives in `/srv/playmat`: its `.env`, one compose kit per deployed version under `releases/`, and `current`. `ops/web/deploy/setup-deploy-user.sh` sets this up once, and the deploy user can't read a checkout under `/root`. From then on, use `playmat-compose` on the host in place of `docker compose -f ...`: for example `playmat-compose ps`, `playmat-compose logs -f xmage`, or `playmat-compose up -d --no-build` after editing `/srv/playmat/.env`. `playmat-deploy status` shows the current and previous versions.
 

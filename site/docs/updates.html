@@ -151,6 +151,7 @@ docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env up -d --no-
         <ul>
           <li><strong>“The updater isn't running.”</strong> <code>COMPOSE_PROFILES=updater</code> is missing from <code>.env</code>, or the <code>up -d</code> after adding it hasn't run. <code>docker compose … logs updater</code> shows what it saw at start.</li>
           <li><strong>An update failed and went back.</strong> The server runs what it ran before. The updater log says which step failed; the backup from step 2 is in the backups volume.</li>
+          <li><strong>A deploy stopped at the snapshot</strong> (image deploys, <code>playmat-deploy</code>). The disk lacks room for the snapshot: about twice the databases plus 2 GB (<code>SNAPSHOT_MIN_FREE_MB</code> in <code>/etc/playmat-deploy.conf</code>). Nothing changed and the run failed on purpose. Remove old backups or <code>pre-*.tar.gz</code> snapshots in <code>/var/backups/playmat</code>, or lower <code>BACKUP_KEEP</code>, then deploy again.</li>
           <li><strong>A job looks stuck</strong> after the host rebooted mid-update. Start the stack with <code>up -d</code>, check that it's healthy, and ask again.</li>
         </ul>
       </article>

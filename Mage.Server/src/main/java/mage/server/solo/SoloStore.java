@@ -75,13 +75,30 @@ public final class SoloStore implements AutoCloseable {
     private static volatile SoloStore instance;
 
     private final Connection connection;
+    private final java.io.File file;
 
     public SoloStore(String jdbcUrl) throws SQLException {
         connection = DriverManager.getConnection(jdbcUrl);
+        file = fileOf(jdbcUrl);
         try (Statement statement = connection.createStatement()) {
             statement.execute("PRAGMA busy_timeout = 5000");
         }
+        // a new file is made incremental before its first table; an older one is converted by reclaimSpace
+        mage.server.util.SqliteSpace.preferIncremental(connection);
         migrate();
+    }
+
+    /** the database file a jdbc:sqlite: URL names, or null (in memory) */
+    public static java.io.File fileOf(String jdbcUrl) {
+        String path = jdbcUrl.startsWith("jdbc:sqlite:") ? jdbcUrl.substring("jdbc:sqlite:".length()) : "";
+        int query = path.indexOf('?');
+        path = query >= 0 ? path.substring(0, query) : path;
+        return path.isEmpty() || path.startsWith(":memory:") || path.startsWith("file::memory:") ? null : new java.io.File(path);
+    }
+
+    /** gives pruned rows' pages back to the disk (mage.server.util.SqliteSpace) */
+    public synchronized mage.server.util.SqliteSpace.Result reclaimSpace() throws SQLException {
+        return mage.server.util.SqliteSpace.reclaim(connection, file, "solo.db");
     }
 
     public static SoloStore get() {

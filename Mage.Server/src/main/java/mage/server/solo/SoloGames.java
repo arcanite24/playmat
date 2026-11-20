@@ -54,8 +54,14 @@ public final class SoloGames {
     public static final long RETENTION_MS = TimeUnit.DAYS.toMillis(30);
     /** a player's newest saves kept; older ones go */
     public static final int SAVES_PER_USER = 20;
-    /** a player's newest games whose every turn is kept for what-if lines (S013, S014) */
-    public static final int LINES_PER_USER = 10;
+    /**
+     * a player's newest games whose every turn is kept for what-if lines (S013, S014), for this long. Each turn is a
+     * whole game state, about 190 KB, so a game's line is about 3 MB: 10 lines for 30 days grew solo.db by 200 MB a day.
+     */
+    public static final int LINES_PER_USER = 5;
+    public static final long LINE_RETENTION_MS = TimeUnit.DAYS.toMillis(7);
+    /** how often listing saves also prunes; the upkeep (mage.server.StoreUpkeep) prunes too */
+    private static final long PRUNE_EVERY_MS = TimeUnit.HOURS.toMillis(1);
 
     /** How a solo table was set up, to set it up again. */
     public static class SavedTable implements Serializable {
@@ -159,7 +165,7 @@ public final class SoloGames {
         thread.setDaemon(true);
         return thread;
     });
-    private volatile boolean pruned;
+    private volatile long prunedAt;
 
     private SoloGames() {
         GameSnapshot.setLoader(PluginUtil.classLoader);
@@ -631,18 +637,30 @@ public final class SoloGames {
     }
 
     private void prune() {
-        if (pruned) {
-            return;
+        if (System.currentTimeMillis() - prunedAt >= PRUNE_EVERY_MS) {
+            prune(true);
         }
-        pruned = true;
+    }
+
+    /**
+     * Drops saves and what-if lines past their keep.
+     *
+     * @return the saves and lines removed, or -1 when it failed (it is tried again next time)
+     */
+    public int prune(boolean log) {
+        long now = System.currentTimeMillis();
+        prunedAt = now;
         try {
-            int removed = SoloStore.get().pruneGames(System.currentTimeMillis() - RETENTION_MS, SAVES_PER_USER);
-            removed += SoloStore.get().pruneLines(System.currentTimeMillis() - RETENTION_MS, LINES_PER_USER);
-            if (removed > 0) {
-                logger.info("Solo: removed " + removed + " old saved games");
+            int games = SoloStore.get().pruneGames(now - RETENTION_MS, SAVES_PER_USER);
+            int lines = SoloStore.get().pruneLines(now - LINE_RETENTION_MS, LINES_PER_USER);
+            if (log && games + lines > 0) {
+                logger.info("Solo: removed " + games + " old saved games and " + lines + " what-if lines");
             }
+            return games + lines;
         } catch (SQLException | RuntimeException e) {
+            prunedAt = 0;
             logger.warn("Solo: old saves couldn't be removed", e);
+            return -1;
         }
     }
 
