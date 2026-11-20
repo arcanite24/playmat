@@ -299,4 +299,22 @@ public class CareerLeagueTest {
         ranked.register(table, "ana", "standard", RankedService.LEAGUE, bot, "deck", NOW);
         return ranked.matchEnded(table, score, NOW);
     }
+
+    @Test
+    void everyFourthLeaguePackAddsARareWildcardAndEveryTwelfthAMythic() throws Exception {
+        store.createProfile("Ana", "test", CareerRules.START_COINS, 1L);
+        league.start("Ana", "standard", starterIds("standard").subList(0, 2));
+        store.addLeagueTokens("ana", "standard", 6);
+        String set = league.sets("standard").get(0).setCode;
+        CareerProfile.Wildcards before = store.profile("ana").wildcards;
+        List<String> track = new java.util.ArrayList<>();
+        for (int i = 1; i <= 12; i++) {
+            track.add(String.valueOf(league.openPack("ana", "standard", set).wildcard));
+        }
+        assertEquals(Arrays.asList("null", "null", "null", "rare", "null", "null", "null", "rare", "null", "null", "null", "mythic"), track);
+        CareerProfile.Wildcards after = store.profile("ana").wildcards;
+        // duplicates past a playset can turn into wildcards too, so at least the track's
+        assertTrue(after.rare - before.rare >= 2, "two rare wildcards");
+        assertTrue(after.mythic - before.mythic >= 1, "a mythic wildcard");
+    }
 }

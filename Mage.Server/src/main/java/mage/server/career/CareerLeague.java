@@ -54,11 +54,20 @@ public final class CareerLeague {
     public static final int WINS_PER_WILDCARD = 5;
     /** the pack that draws from every set of the format */
     public static final String MIXED = "mixed";
+    /** the stats counter of League packs opened, which the wildcard track counts */
+    static final String LEAGUE_PACKS = "league_packs";
 
     /** league.json */
     static final class Config {
         Map<String, Integer> startWildcards = new LinkedHashMap<>();
+        PackWildcards packWildcards = new PackWildcards();
         Map<String, FormatConfig> formats = new LinkedHashMap<>();
+    }
+
+    /** the wildcard track: every League pack an account opens counts, every rareEvery-th adds a rare wildcard, every mythicEvery-th a mythic one instead (0: never) */
+    static final class PackWildcards {
+        int rareEvery;
+        int mythicEvery;
     }
 
     static final class FormatConfig {
@@ -158,6 +167,8 @@ public final class CareerLeague {
         public int tokens;
         /** what paid for it: league, career or coins */
         public String paidWith;
+        /** the wildcard the track added with this pack (rare or mythic), or null */
+        public String wildcard;
     }
 
     /** What starting a League gave */
@@ -418,8 +429,23 @@ public final class CareerLeague {
         return out;
     }
 
+    /** the wildcard the n-th League pack an account opens comes with, if any */
+    String trackWildcard(int n) {
+        PackWildcards track = config.packWildcards;
+        if (track == null || n <= 0) {
+            return null;
+        }
+        if (track.mythicEvery > 0 && n % track.mythicEvery == 0) {
+            return CareerRules.MYTHIC;
+        }
+        if (track.rareEvery > 0 && n % track.rareEvery == 0) {
+            return CareerRules.RARE;
+        }
+        return null;
+    }
+
     /** the set codes the format's validator allows */
-    static List<String> legalSets(String format) {
+    public static List<String> legalSets(String format) {
         DeckValidator validator = DeckLegality.validator(RankedService.deckType(format));
         if (validator instanceof Constructed) {
             return ((Constructed) validator).getSetCodes();
@@ -470,6 +496,11 @@ public final class CareerLeague {
             }
             service.addCards(store, user, cards);
             store.addStat(user, "packs_opened", 1);
+            store.addStat(user, LEAGUE_PACKS, 1);
+            result.wildcard = trackWildcard(store.stats(user).getOrDefault(LEAGUE_PACKS, 0));
+            if (result.wildcard != null) {
+                store.addWildcard(user, result.wildcard, 1);
+            }
             CareerProgress.get().achievementsIn(store, user, null, null, System.currentTimeMillis());
             return null;
         }));

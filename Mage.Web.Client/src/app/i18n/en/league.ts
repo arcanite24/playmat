@@ -52,6 +52,8 @@ const league = {
   'league.packs.set': 'Set',
   'league.packs.mixed': '{format} pack (any set)',
   'league.packs.open': 'Open a pack',
+  'league.packs.rare': '+1 rare wildcard',
+  'league.packs.mythic': '+1 mythic wildcard',
 } satisfies Record<string, Message>;
 
 export default league;
