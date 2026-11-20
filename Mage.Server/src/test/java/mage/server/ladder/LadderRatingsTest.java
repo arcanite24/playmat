@@ -82,6 +82,10 @@ public class LadderRatingsTest {
                 assertTrue(bot.calibrated(), bot.id + " is calibrated");
                 assertTrue(bot.rd != null && bot.rd >= 30 && bot.rd <= 350, bot.id + " has a deviation");
                 assertTrue(Arrays.asList(1, 3, 5, 7).contains(bot.skill), bot.id + " plays a Rust host skill");
+                // #435: pinned to the search it was rated with, so a stronger AI can't move it
+                assertNotNull(bot.ai, bot.id + " is pinned to its generation's search");
+                assertTrue(bot.generation >= 1, bot.id + " has a generation");
+                assertTrue(bot.generation == 1 || bot.id.endsWith("-g" + bot.generation), bot.id + "'s id says its generation");
                 assertNotNull(LadderRatingsTest.class.getResource("/career/campaigns/decks/" + bot.deck), bot.id + "'s deck ships");
                 BotRoster.Persona p = bot.persona;
                 assertTrue(names.add(p.name), "persona names are unique: " + p.name);

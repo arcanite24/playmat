@@ -129,3 +129,65 @@ pub fn skill(skill: Option<u32>) -> Option<Config> {
         _ => Some(full),
     }
 }
+
+/// A config pinned by its `label` (#435): a ladder bot plays the search settings it was rated with, whatever later
+/// builds make of its skill. `"quick"` is the quick answers alone. A label pins settings, not code: a change to the
+/// evaluation, the built-in net or the engine still moves a pinned bot.
+pub fn pinned(label: &str) -> Result<Option<Config>, String> {
+    if label == "quick" {
+        return Ok(None);
+    }
+    let mut c = with(Config::default(), label)?;
+    if c.net.as_deref() == Some("builtin") {
+        c.net = None;
+    }
+    Ok(Some(c))
+}
+
+/// What a seat plays: its pinned config when it has one, else its skill as this build plays it
+pub fn seat(skill_now: Option<u32>, pin: Option<&str>) -> Option<Config> {
+    match pin.map(pinned) {
+        Some(Ok(config)) => config,
+        // a pin this build can't read plays the skill, rather than refusing the game
+        _ => skill(skill_now),
+    }
+}
+
+#[cfg(test)]
+mod pin_tests {
+    use super::*;
+
+    /// every skill survives its label exactly, so pinning today's ladder bots changes none of their games
+    #[test]
+    fn a_skill_round_trips_through_its_label() {
+        for n in 0..=10 {
+            let now = skill(Some(n));
+            let text = now.as_ref().map(label).unwrap_or_else(|| "quick".to_string());
+            let back = pinned(&text).unwrap();
+            assert_eq!(format!("{now:?}"), format!("{back:?}"), "skill {n}");
+        }
+    }
+
+    /// the label names every setting but the threads, so a new `Config` field can't be left out of a pin
+    #[test]
+    fn the_label_names_every_setting() {
+        let debug = format!("{:?}", Config::default());
+        let text = label(&Config::default());
+        let inner = &debug[debug.find('{').unwrap() + 1..debug.rfind('}').unwrap()];
+        for field in inner.split(", ").filter_map(|kv| kv.split_once(": ").map(|(k, _)| k.trim())) {
+            if field == "threads" || !field.chars().all(|c| c.is_ascii_lowercase() || c == '_') {
+                continue;
+            }
+            assert!(text.contains(&format!("{field}=")), "{field} is missing from the label");
+        }
+    }
+
+    #[test]
+    fn a_seat_plays_its_pin_or_its_skill() {
+        let light = label(&skill(Some(3)).unwrap());
+        assert_eq!(format!("{:?}", seat(Some(7), Some(&light))), format!("{:?}", skill(Some(3))));
+        assert!(seat(Some(7), Some("quick")).is_none());
+        assert_eq!(format!("{:?}", seat(Some(5), Some("nonsense"))), format!("{:?}", skill(Some(5))));
+        assert_eq!(format!("{:?}", seat(Some(5), None)), format!("{:?}", skill(Some(5))));
+    }
+}

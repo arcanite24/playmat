@@ -53,6 +53,16 @@ public final class BotRoster {
         /** the AI skill the Rust host plays it at (1 quick, 3 light, 5 half, 7 full search) */
         public int skill;
         public String search;
+        /**
+         * The search settings it was rated with, pinned (#435): the Rust host plays this label instead of what a later
+         * build makes of the skill, so the bot plays as measured. "quick" is the quick answers alone; null follows the
+         * skill. The Java AI, for games the Rust host can't play, still plays the skill.
+         */
+        public String ai;
+        /** the AI generation it was made in (#435): a stronger Rust AI adds bots of a new generation beside the old */
+        public int generation;
+        /** no longer picked (#435); kept so the games against it still show who it was */
+        public boolean retired;
         /** the rating guessed before calibration */
         public int prior;
         public Persona persona;
@@ -66,6 +76,9 @@ public final class BotRoster {
 
         /** whether the bot plays in the queue */
         public boolean plays(String queue) {
+            if (retired) {
+                return false;
+            }
             String plays = RankedService.botQueue(queue);
             return queues == null || queues.isEmpty() || queues.contains(plays);
         }

@@ -104,6 +104,14 @@ public final class RankedService {
      * Whether the table is ranked, without opening the ladder: a server that never started a ranked game has none.
      * For the checks every game makes (assists, the end of a match).
      */
+    /** the search settings the ranked table's bot is pinned to (#435), for the Rust host; null at other tables */
+    public static String pinOf(UUID tableId) {
+        RankedService current = instance;
+        RankedTable table = current == null ? null : current.tables.get(tableId);
+        BotRoster.Bot bot = table == null ? null : current.roster.bot(table.botId);
+        return bot == null ? null : bot.ai;
+    }
+
     public static boolean isRanked(UUID tableId) {
         RankedService current = instance;
         return current != null && current.isRankedTable(tableId);

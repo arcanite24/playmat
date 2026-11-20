@@ -281,6 +281,11 @@ public final class RustHost {
             if (aiSkill != null) {
                 data.addProperty("aiSkill", aiSkill);
             }
+            // a ladder bot plays the search it was rated with (#435)
+            String aiPin = mage.server.ladder.RankedService.pinOf(tableId);
+            if (aiPin != null) {
+                data.addProperty("aiPin", aiPin);
+            }
             // the match's priority timer, which the host runs as GameController does (0: none)
             data.addProperty("priorityTime", match.getOptions().getMatchTimeLimit().getPrioritySecs());
             data.addProperty("bufferTime", match.getOptions().getMatchBufferTime().getBufferSecs());

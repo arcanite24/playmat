@@ -4,7 +4,11 @@
 //! (made by `Mage.Server/ladder-src/roster.py`).
 //!
 //! cargo run --release -p playmat-ai --bin ladder-calibrate -- [--format standard|pioneer|modern|all] [--rounds 2]
-//!     [--near 6] [--far 2] [--deals 2] [--jobs 3] [--fit-only] [--log FILE]
+//!     [--near 6] [--far 2] [--deals 2] [--jobs 3] [--fit-only] [--fixed] [--log FILE]
+//!
+//! A bot plays its pinned search settings (`ai` in bots.json, `entrants::pinned`) when it has them, else its skill as
+//! this build plays it. `--fixed` (#435, for a new AI generation) keeps every calibrated bot's rating as it is and
+//! fits only the uncalibrated ones against them, playing only pairs with a new bot in them.
 //!
 //! Each round pairs every bot with its `--near` closest bots by the current estimate and `--far` others spread over
 //! the scale (so the scale stays connected end to end), and plays each pair until it has `--deals` deals, each twice
@@ -14,7 +18,7 @@
 //! is written back into bots.json: `rating`, `rd` (the fit's standard error), games and results.
 
 use playmat_ai::duel::{new_duel, Deck};
-use playmat_ai::entrants::{label, skill};
+use playmat_ai::entrants::{label, pinned, skill};
 use playmat_ai::eval;
 use playmat_ai::mulligan;
 use playmat_ai::search::{Config, Table};
@@ -42,6 +46,8 @@ struct Bot {
     config: Option<Config>,
     /// what the bot's AI plays like in this build
     ai: String,
+    /// `--fixed`: its calibrated rating, kept as it is
+    fixed: Option<f64>,
 }
 
 /// A game in the log: the bots by seat (seat 0 starts), the deal's seed, and the winning seat (`None`: a draw)
@@ -68,6 +74,7 @@ fn main() {
     let deals = num("--deals", 2);
     let jobs = num("--jobs", 3).max(1);
     let fit_only = args.iter().any(|a| a == "--fit-only");
+    let fixed = args.iter().any(|a| a == "--fixed");
 
     let mut roster: Value =
         serde_json::from_str(&std::fs::read_to_string(&roster_path).expect("bots.json")).expect("bots.json");
@@ -88,10 +95,17 @@ fn main() {
             continue;
         }
         let s = b["skill"].as_u64().unwrap() as u32;
+        // its pin, or what this build plays at its skill
+        let config = match b["ai"].as_str() {
+            Some(pin) => pinned(pin).unwrap_or_else(|e| panic!("{id}'s ai: {e}")),
+            None => skill(Some(s)),
+        };
         // one thread a seat: the jobs are the parallelism, and a seat's games don't depend on its threads
-        let config = skill(Some(s)).map(|c| Config { threads: 1, ..c });
+        let config = config.map(|c| Config { threads: 1, ..c });
         let ai = config.as_ref().map(label).unwrap_or_else(|| "quick".into());
-        bots.push(Bot { id, format, skill: s, prior: b["prior"].as_f64().unwrap_or(1000.0), deck, config, ai });
+        let calibrated = b["games"].as_u64().unwrap_or(0) > 0;
+        let fixed = if fixed && calibrated { b["rating"].as_f64() } else { None };
+        bots.push(Bot { id, format, skill: s, prior: b["prior"].as_f64().unwrap_or(1000.0), deck, config, ai, fixed });
     }
     let anchors: HashMap<String, String> = roster["anchors"]
         .as_object()
@@ -109,7 +123,10 @@ fn main() {
         for format in &formats {
             let members: Vec<usize> = (0..bots.len()).filter(|i| bots[*i].format == *format).collect();
             let fit = fit_format(&bots, &members, &log, anchors.get(format));
-            let pairs = schedule(&bots, &members, &fit, near, far);
+            let pairs: Vec<(usize, usize)> = schedule(&bots, &members, &fit, near, far)
+                .into_iter()
+                .filter(|(x, y)| bots[*x].fixed.is_none() || bots[*y].fixed.is_none())
+                .collect();
             // every game still to play: (pair, deal, seats swapped)
             let mut todo = Vec::new();
             for &(x, y) in &pairs {
@@ -157,9 +174,10 @@ fn main() {
         }
     }
     let mut total = 0;
+    let kept: HashSet<&str> = bots.iter().filter(|b| b.fixed.is_some()).map(|b| b.id.as_str()).collect();
     for b in roster["bots"].as_array_mut().unwrap() {
         let Some(f) = fitted.get(b["id"].as_str().unwrap()) else { continue };
-        if f.games() == 0 {
+        if f.games() == 0 || kept.contains(b["id"].as_str().unwrap()) {
             continue;
         }
         total += f.games();
@@ -176,24 +194,34 @@ fn main() {
         .ok()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
         .unwrap_or_default();
+    // what this build plays at each skill; a pinned bot's own settings are its `ai`
     let mut skills = BTreeMap::new();
     for b in &bots {
-        skills.insert(b.skill.to_string(), b.ai.clone());
+        let now = skill(Some(b.skill)).map(|c| label(&c)).unwrap_or_else(|| "quick".into());
+        skills.insert(b.skill.to_string(), now);
     }
-    // one run per set of formats: a run of one format replaces only that format's record, the others keep theirs
     let mut runs: Vec<Value> = roster["calibration"]["runs"].as_array().cloned().unwrap_or_default();
-    runs.retain(|r| {
-        let theirs: Vec<String> =
-            r["formats"].as_array().into_iter().flatten().filter_map(|f| f.as_str().map(String::from)).collect();
-        !theirs.iter().any(|f| formats.contains(f))
-    });
-    runs.push(json!({
-        "formats": formats,
-        "commit": commit,
-        "games": total / 2,
-        "settings": format!("{rounds} rounds, --near {near} --far {far} --deals {deals}"),
-    }));
+    if !fit_only {
+        // one run per set of formats: a run of one format replaces only that format's record, the others keep
+        // theirs; a --fixed run adds to them, since the bots it kept keep their measurement
+        if !fixed {
+            runs.retain(|r| {
+                let theirs: Vec<String> =
+                    r["formats"].as_array().into_iter().flatten().filter_map(|f| f.as_str().map(String::from)).collect();
+                !theirs.iter().any(|f| formats.contains(f))
+            });
+        }
+        let new_games: u32 = bots.iter().filter(|b| b.fixed.is_none()).filter_map(|b| fitted.get(&b.id)).map(|f| f.games()).sum();
+        runs.push(json!({
+            "formats": formats,
+            "commit": commit,
+            "games": if fixed { new_games } else { total / 2 },
+            "settings": format!("{rounds} rounds, --near {near} --far {far} --deals {deals}{}", if fixed { " --fixed" } else { "" }),
+        }));
+    }
     let games: u64 = runs.iter().filter_map(|r| r["games"].as_u64()).sum();
+    // a fit alone measured nothing new: the record keeps the build that played the games
+    let commit = if fit_only { roster["calibration"]["commit"].as_str().unwrap_or(&commit).to_string() } else { commit };
     roster["calibration"] = json!({
         "commit": commit,
         "harness": "rust-engine",
@@ -301,11 +329,17 @@ fn fit_format(bots: &[Bot], members: &[usize], log: &[Game], anchor: Option<&Str
     }
     // strengths on the natural scale, started at the priors
     let to_p = |elo: f64| 10f64.powf(elo / 400.0);
-    let mut p: HashMap<usize, f64> = played.iter().map(|i| (*i, to_p(bots[*i].prior - 1000.0))).collect();
+    let start = |i: usize| bots[i].fixed.unwrap_or(bots[i].prior) - 1000.0;
+    let mut p: HashMap<usize, f64> = played.iter().map(|i| (*i, to_p(start(*i)))).collect();
     let prior_p: HashMap<usize, f64> = p.clone();
+    // --fixed: the calibrated bots are the scale, so they don't move and the anchor isn't moved to 1000 again
+    let any_fixed = played.iter().any(|i| bots[*i].fixed.is_some());
     for _ in 0..3000 {
         let mut q = p.clone();
         for &x in &played {
+            if bots[x].fixed.is_some() {
+                continue;
+            }
             // half a game against a phantom at the bot's own prior
             let mut wins = 0.25;
             let mut denom = 0.5 / (p[&x] + prior_p[&x]);
@@ -320,11 +354,15 @@ fn fit_format(bots: &[Bot], members: &[usize], log: &[Game], anchor: Option<&Str
         p = q;
     }
     let elo: HashMap<usize, f64> = p.iter().map(|(i, v)| (*i, 400.0 * v.log10())).collect();
-    let zero = anchor
+    let zero = if any_fixed {
+        0.0
+    } else {
+        anchor
         .and_then(|a| index.get(a.as_str()))
         .and_then(|a| elo.get(a))
         .copied()
-        .unwrap_or_else(|| elo.values().sum::<f64>() / elo.len() as f64);
+        .unwrap_or_else(|| elo.values().sum::<f64>() / elo.len() as f64)
+    };
     let k = std::f64::consts::LN_10 / 400.0;
     for &x in &played {
         // the standard error from the fit's information: Σ n·p(1-p), on the Elo scale
@@ -439,4 +477,63 @@ fn read_log(path: &str) -> Vec<Game> {
 /// FNV-1a, 64 bits
 fn fnv(text: &str) -> u64 {
     text.bytes().fold(0xcbf2_9ce4_8422_2325u64, |h, b| (h ^ b as u64).wrapping_mul(0x0100_0000_01b3))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn bot(id: &str, prior: f64, fixed: Option<f64>) -> Bot {
+        Bot {
+            id: id.into(),
+            format: "standard".into(),
+            skill: 7,
+            prior,
+            deck: Deck::parse(id, ""),
+            config: None,
+            ai: "quick".into(),
+            fixed,
+        }
+    }
+
+    fn games(a: &str, b: &str, a_wins: usize, b_wins: usize) -> Vec<Game> {
+        let one = |winner| Game { seats: [a.into(), b.into()], ai: ["quick".into(), "quick".into()], seed: 0, winner };
+        (0..a_wins).map(|_| one(Some(0))).chain((0..b_wins).map(|_| one(Some(1)))).collect()
+    }
+
+    /// --fixed (#435): the calibrated bots keep their ratings and the new one lands on their scale
+    #[test]
+    fn a_new_generation_is_rated_against_the_old_as_they_stand() {
+        let bots = vec![bot("old-a", 1000.0, Some(1000.0)), bot("old-b", 1400.0, Some(1400.0)), bot("new", 1100.0, None)];
+        let mut log = games("new", "old-a", 30, 10);
+        log.extend(games("new", "old-b", 10, 30));
+        // the old bots' games against each other disagree with their ratings, and must not move them
+        log.extend(games("old-a", "old-b", 40, 0));
+        let fit = fit_format(&bots, &[0, 1, 2], &log, Some(&"old-a".to_string()));
+        assert_eq!(fit[&0].rating, 1000.0);
+        assert_eq!(fit[&1].rating, 1400.0);
+        // 3-1 against 1000 and 1-3 against 1400: halfway
+        assert!((fit[&2].rating - 1200.0).abs() < 15.0, "{}", fit[&2].rating);
+    }
+
+    /**
+     * The newest generation plays what this build plays (#435). When this fails, the Rust AI changed: the ladder's
+     * bots keep playing their pins, so add a generation in roster.py with the build's labels (printed here), run it,
+     * and `ladder-calibrate --fixed`. A change that is not stronger can instead stay off the ladder for now.
+     */
+    #[test]
+    fn the_newest_generation_plays_this_build() {
+        let path = env!("CARGO_MANIFEST_DIR").to_string() + "/../../../Mage.Server/src/main/resources/ladder/bots.json";
+        let roster: Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+        let bots = roster["bots"].as_array().unwrap();
+        let newest = bots.iter().filter_map(|b| b["generation"].as_u64()).max().expect("bots have generations");
+        let mut checked = 0;
+        for b in bots.iter().filter(|b| b["generation"].as_u64() == Some(newest)) {
+            let n = b["skill"].as_u64().unwrap() as u32;
+            let now = skill(Some(n)).map(|c| label(&c)).unwrap_or_else(|| "quick".into());
+            assert_eq!(b["ai"].as_str().unwrap(), now, "skill {n} plays differently in this build than generation {newest}: {now}");
+            checked += 1;
+        }
+        assert!(checked > 0);
+    }
 }

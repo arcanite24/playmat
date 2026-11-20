@@ -49,11 +49,14 @@ pub struct TableRules {
     pub ai_skill: Option<u32>,
     /// players may roll back to the start of a turn (`GameOptions.rollbackTurnsAllowed`)
     pub rollback: bool,
+    /// the AI seat's search settings pinned by label (`entrants::pinned`, a ladder bot's generation, #435): played
+    /// instead of what this build makes of `ai_skill`
+    pub ai_pin: Option<String>,
 }
 
 impl Default for TableRules {
     fn default() -> Self {
-        TableRules { starting_life: 20, free_mulligans: 0, ai_skill: None, rollback: false }
+        TableRules { starting_life: 20, free_mulligans: 0, ai_skill: None, rollback: false, ai_pin: None }
     }
 }
 
@@ -66,18 +69,24 @@ impl TableRules {
             free_mulligans: v["freeMulligans"].as_u64().map(|n| n as u32).unwrap_or(d.free_mulligans),
             ai_skill: v["aiSkill"].as_u64().map(|n| n as u32),
             rollback: v["rollbackTurns"].as_bool().unwrap_or(d.rollback),
+            ai_pin: v["aiPin"].as_str().map(String::from),
         }
     }
 
     pub fn json(&self) -> Value {
-        json!({"startingLife": self.starting_life, "freeMulligans": self.free_mulligans, "aiSkill": self.ai_skill,
-               "rollbackTurns": self.rollback})
+        let mut v = json!({"startingLife": self.starting_life, "freeMulligans": self.free_mulligans, "aiSkill": self.ai_skill,
+               "rollbackTurns": self.rollback});
+        // only a pinned seat says so: records from before pins read the same
+        if let Some(pin) = &self.ai_pin {
+            v["aiPin"] = json!(pin);
+        }
+        v
     }
 
     /// The AI's search for its skill: Java's AI looks less far at a lower skill (`ComputerPlayer6.maxDepth`); the
-    /// lowest skills play the quick answers only
+    /// lowest skills play the quick answers only. A pinned seat plays its pin.
     pub fn ai_config(&self) -> Option<Config> {
-        playmat_ai::entrants::skill(self.ai_skill)
+        playmat_ai::entrants::seat(self.ai_skill, self.ai_pin.as_deref())
     }
 }
 
@@ -1975,8 +1984,22 @@ fn is_owed_choice(q: &Query) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{auto_order, is_owed_choice};
+    use super::{auto_order, is_owed_choice, TableRules};
     use playmat_engine::decide::Query;
+    use serde_json::json;
+
+    /// a ladder bot's pin rides the table's rules and a record's, and old rules without one read as before (#435)
+    #[test]
+    fn a_pinned_seat_plays_its_pin() {
+        let light = playmat_ai::entrants::label(&playmat_ai::entrants::skill(Some(3)).unwrap());
+        let rules = TableRules::of(&json!({"aiSkill": 7, "aiPin": light}));
+        assert_eq!(format!("{:?}", rules.ai_config()), format!("{:?}", playmat_ai::entrants::skill(Some(3))));
+        assert_eq!(TableRules::of(&rules.json()).ai_pin, rules.ai_pin);
+        let old = TableRules::of(&json!({"aiSkill": 7}));
+        assert!(old.ai_pin.is_none());
+        assert!(old.json().get("aiPin").is_none());
+        assert_eq!(format!("{:?}", old.ai_config()), format!("{:?}", playmat_ai::entrants::skill(Some(7))));
+    }
 
     fn s(v: &[&str]) -> Vec<String> {
         v.iter().map(|x| x.to_string()).collect()

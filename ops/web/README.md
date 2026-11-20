@@ -627,13 +627,31 @@ rating scale per format (Standard, Pioneer and Modern), each anchored so the for
   3 of its 23 school decks miss three cards or fewer (129 different cards missing in all);
   `pauperIsNotCoveredYet` fails when the host catches up.
 
+- **Generations** (#435). Every bot is pinned to the search settings it was rated with: `ai`, an `entrants::label`
+  (`"quick"` for the quick answers alone), and `generation`. Ranked tables send the pin to the Rust host as the table's
+  `aiPin`, so a later build plays the bot as it was measured. A Java-engine game still plays the bot's `skill`. A pin
+  freezes settings, not code: a change to the evaluation, the built-in net or the engine moves pinned bots too, and
+  needs a full calibration. When the Rust AI gets stronger, `ladder-calibrate`'s test
+  `the_newest_generation_plays_this_build` fails. Then:
+  1. Add `GENERATIONS[n]` in `roster.py`, with the build's labels (`calibration.skills` after any run, or the test's
+     message) and the bands it fields.
+  2. Run `roster.py`. The new bots get ids ending in `-g<n>`. A bot's id is its live rating row in `ladder.db`, which
+     ignores later changes to `bots.json`, so a bot never changes generation or gets re-rated in place.
+  3. Run `ladder-calibrate --fixed`. It plays only pairs with a new bot in them and fits only the new bots, with every
+     calibrated bot held at its rating, so the old scale and the players' ratings stay meaningful. The run is added to
+     `calibration.runs`.
+  4. To stop fielding old bots, list their ids in `RETIRED`. They stay in the file with `retired: true`, so past games
+     still name them, but they are never picked.
+
+  `--fit-only` refits from the log without playing and leaves an unchanged roster byte for byte.
 - `python3 Mage.Server/ladder-src/roster.py` makes the list from the school decks. Bots that keep their id keep their
   persona and rating; new ones start at a guessed `prior`, uncalibrated.
 - `cargo run --release -p playmat-ai --bin ladder-calibrate` (in `rust/`) plays the bots against each other on the
   Rust engine and writes each one's `rating`, `rd` (the fit's standard error) and record back into `bots.json`, with a
   `calibration` block saying which build and search settings measured them. Options: `--format standard|pioneer|modern|all`,
   `--rounds` (default 2), `--near` and `--far` (opponents per bot: closest by rating, and spread over the scale),
-  `--deals` (deals per pair, each played twice with the seats swapped), `--jobs` (threads, default 3), `--fit-only`.
+  `--deals` (deals per pair, each played twice with the seats swapped), `--jobs` (threads, default 3), `--fit-only`,
+  `--fixed` (new generation only, see Generations).
   Games go to `Mage.Server/ladder-src/calibration/games.jsonl` as they finish, so a run can stop and continue; a game
   counts only while both bots' search settings are the ones the build plays, so a change to the AI makes it stale.
   The run in `bots.json` (3 rounds, `--near 8 --far 3 --deals 6`: 30,756 games with the League's budget bots) took
