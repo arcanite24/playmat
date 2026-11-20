@@ -11,7 +11,7 @@ import styles from './Widgets.module.css';
 export default function SeasonBoardWidget({ item, editing }: WidgetProps) {
   const t = useT();
   const format = item.settings?.format ?? 'standard';
-  const queue = item.settings?.queue === 'league' ? 'league' : 'open';
+  const queue = item.settings?.queue === 'league' ? 'league' : item.settings?.queue === 'bo3' ? 'bo3' : 'open';
   const season = useRankedState(format, true, queue).data?.season;
   const board = `${queue}.${format}.${season ?? 0}`;
   // the same key as the screen's board, so the two share one request
@@ -25,8 +25,8 @@ export default function SeasonBoardWidget({ item, editing }: WidgetProps) {
   const yours = data?.yours;
   return (
     <Tile
-      title={t(queue === 'league' ? 'home.widget.seasonBoard.league' : 'home.widget.seasonBoard.ranked', { n: (season ?? 0) + 1 })}
-      to={queue === 'league' ? leaguePath(format) : rankedPath(format)}
+      title={t(queue === 'league' ? 'home.widget.seasonBoard.league' : queue === 'bo3' ? 'home.widget.seasonBoard.bo3' : 'home.widget.seasonBoard.ranked', { n: (season ?? 0) + 1 })}
+      to={queue === 'league' ? leaguePath(format) : rankedPath(format, null, queue)}
       editing={editing}
     >
       {entries.length === 0 ? <Note>{t('home.widget.leaderboard.empty')}</Note> : (

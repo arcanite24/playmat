@@ -23,8 +23,9 @@ const KEY = {
 
 export const RANKED_PATH = '/career/ranked';
 
-export function rankedPath(format: string, tableId?: string | null): string {
+export function rankedPath(format: string, tableId?: string | null, queue: RankedQueue = 'open'): string {
   const params = new URLSearchParams({ format });
+  if (queue === 'bo3') params.set('queue', queue);
   if (tableId) params.set('table', tableId);
   return `${RANKED_PATH}?${params.toString()}`;
 }
@@ -33,8 +34,8 @@ function useSignedIn(): boolean {
   return useSession((state) => state.phase === 'signedIn');
 }
 
-/** the ranked queues: Open, and the Career League (#433) */
-export type RankedQueue = 'open' | 'league';
+/** the ranked queues: Open (Bo1), Bo3 (#435) and the Career League (#433) */
+export type RankedQueue = 'open' | 'bo3' | 'league';
 
 export function useRankedState(format: string, enabled = true, queue: RankedQueue = 'open') {
   return useQuery({ queryKey: KEY.state(format, queue), queryFn: () => api.ladderState(format, queue), enabled: useSignedIn() && enabled, staleTime: 0 });
@@ -61,14 +62,14 @@ export function useRankedResult(tableId: string | null) {
 }
 
 /** Starts a ranked game; leaving it shows Career's rewards, then the ranked screen with the result. */
-export async function playRanked(format: string, deck: WireDeck): Promise<void> {
+export async function playRanked(format: string, deck: WireDeck, queue: 'open' | 'bo3' = 'open'): Promise<void> {
   useEvents.setState({ currentTournamentId: null });
-  usePlay.setState({ phase: 'waitingForGame', error: null, deckId: null, returnPath: rankedPath(format) });
+  usePlay.setState({ phase: 'waitingForGame', error: null, deckId: null, returnPath: rankedPath(format, null, queue) });
   try {
-    const match = await api.ladderPlay(format, deck);
+    const match = await api.ladderPlay(format, deck, queue);
     warmMatch(match);
     const tableId = match?.tableId ?? null;
-    usePlay.setState({ tableId, returnPath: rewardsPath(tableId, true, rankedPath(format, tableId)) });
+    usePlay.setState({ tableId, returnPath: rewardsPath(tableId, true, rankedPath(format, tableId, queue)) });
   } catch (error) {
     usePlay.setState({ phase: 'idle', tableId: null });
     throw error;

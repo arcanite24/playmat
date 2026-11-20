@@ -166,10 +166,47 @@ public class RankedServiceTest {
         assertTrue(((List<?>) store.export("neri").get("rewards")).isEmpty());
     }
 
+    @Test
+    void bo3IsItsOwnRankAndRatingButPaysRanksOnceWithOpen() throws Exception {
+        assertTrue(RankedService.isQueue(RankedService.BO3));
+        assertEquals(2, RankedService.winsNeeded(RankedService.BO3));
+        assertEquals(1, RankedService.winsNeeded(RankedService.OPEN));
+        // Bo3 meets the Open queue's bots, the League-only ones stay out
+        BotRoster.Bot bot = ranked.pick("neri", "standard", RankedService.BO3, NOW);
+        assertTrue(bot.plays(RankedService.OPEN));
+
+        RankedService.Result open = ranked.result(play("standard", 1));
+        assertEquals(Arrays.asList("bronze"), open.reached);
+        assertNotNull(open.paid);
+        RankedService.Result bo3 = ranked.result(play("standard", 1, RankedService.BO3));
+        assertEquals(RankedService.BO3, bo3.queue);
+        assertEquals(0, bo3.stepBefore, "Bo3 starts its own climb");
+        assertEquals(Arrays.asList("bronze"), bo3.reached, "Bronze is reached in Bo3 too");
+        assertNull(bo3.paid, "but its rewards were paid by the Open queue");
+        int season = ranked.season(NOW);
+        assertEquals(1, store.standing("neri", "standard", RankedService.BO3, season).step);
+        assertEquals(1, store.standing("neri", "standard", RankedService.OPEN, season).step);
+        assertNotNull(store.rating(LadderRatings.userSubject("neri"), "standard", RankedService.BO3), "a Bo3 rating of its own");
+    }
+
+    @Test
+    void aBotOnlyInTheLeagueNeverMeetsBo3() {
+        BotRoster.Bot league = new BotRoster.Bot();
+        league.queues = Arrays.asList(RankedService.LEAGUE);
+        assertFalse(league.plays(RankedService.BO3));
+        BotRoster.Bot open = new BotRoster.Bot();
+        open.queues = Arrays.asList(RankedService.OPEN);
+        assertTrue(open.plays(RankedService.BO3));
+    }
+
     private UUID play(String format, double score) throws Exception {
-        BotRoster.Bot bot = ranked.pick("neri", format, RankedService.OPEN, NOW);
+        return play(format, score, RankedService.OPEN);
+    }
+
+    private UUID play(String format, double score, String queue) throws Exception {
+        BotRoster.Bot bot = ranked.pick("neri", format, queue, NOW);
         UUID table = UUID.randomUUID();
-        ranked.register(table, "neri", format, RankedService.OPEN, bot, "deck", NOW);
+        ranked.register(table, "neri", format, queue, bot, "deck", NOW);
         assertNotNull(ranked.matchEnded(table, score, NOW));
         return table;
     }

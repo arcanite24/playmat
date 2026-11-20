@@ -201,7 +201,7 @@ export interface RpcMethods {
   careerImport: { params: [data: string]; result: CareerProfile };
   ladderState: { params: [format: string, queue?: string | null]; result: LadderState };
   ladderOpponent: { params: [format: string, queue?: string | null]; result: LadderOpponent };
-  ladderPlay: { params: [format: string, deck: DeckCardLists]; result: LadderMatch };
+  ladderPlay: { params: [format: string, deck: DeckCardLists, queue?: string | null]; result: LadderMatch };
   leaguePlay: { params: [format: string, deckId: string]; result: LadderMatch };
   ladderResult: { params: [tableId: string]; result: LadderResult };
   leagueState: { params: []; result: LeagueState };

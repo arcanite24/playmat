@@ -31,9 +31,15 @@ export function CareerRankedScreen() {
   const [params, setParams] = useSearchParams();
   const wanted = params.get('format');
   const tableId = params.get('table');
-  const first = useRankedState(pickFormat(undefined, wanted), !!career.data?.enabled);
+  const queue: 'open' | 'bo3' = params.get('queue') === 'bo3' ? 'bo3' : 'open';
+  const first = useRankedState(pickFormat(undefined, wanted), !!career.data?.enabled, queue);
   const format = pickFormat(first.data?.formats, wanted);
-  const state = useRankedState(format, !!career.data?.enabled);
+  const state = useRankedState(format, !!career.data?.enabled, queue);
+  const go = (next: { format?: string; queue?: 'open' | 'bo3' }) => {
+    const query: Record<string, string> = { format: next.format ?? format };
+    if ((next.queue ?? queue) === 'bo3') query.queue = 'bo3';
+    setParams(query);
+  };
 
   if (career.isPending) return <p className={modes.note}>{t('career.loading')}</p>;
   if (!career.data?.enabled) return <Navigate to="/career" replace />;
@@ -43,9 +49,25 @@ export function CareerRankedScreen() {
       <div className={`${modes.scroll} ${modes.capped}`}>
         <header className={modes.modeHead}>
           <div>
-            <p className={modes.kicker}><Trophy size={16} aria-hidden="true" /> {t('career.ranked.kicker')}</p>
+            <p className={modes.kicker}><Trophy size={16} aria-hidden="true" /> {t(queue === 'bo3' ? 'career.ranked.kickerBo3' : 'career.ranked.kicker')}</p>
             <h1 className={modes.modeTitle}>{t('career.ranked.title')}</h1>
             <p className={modes.lead}>{t('career.ranked.lead')}</p>
+          </div>
+          <div className={styles.switches}>
+          <div className={styles.formats} role="tablist" aria-label={t('career.ranked.queues')}>
+            {(['open', 'bo3'] as const).map((item) => (
+              <button
+                key={item}
+                type="button"
+                role="tab"
+                aria-selected={item === queue}
+                className={[styles.format, item === queue ? styles.formatOn : ''].join(' ')}
+                onClick={() => go({ queue: item })}
+                data-nav
+              >
+                {t(item === 'bo3' ? 'career.ranked.queue.bo3' : 'career.ranked.queue.bo1')}
+              </button>
+            ))}
           </div>
           <div className={styles.formats} role="tablist" aria-label={t('career.ranked.formats')}>
             {formats.map((item) => (
@@ -55,12 +77,13 @@ export function CareerRankedScreen() {
                 role="tab"
                 aria-selected={item === format}
                 className={[styles.format, item === format ? styles.formatOn : ''].join(' ')}
-                onClick={() => setParams({ format: item })}
+                onClick={() => go({ format: item })}
                 data-nav
               >
                 {t(`career.ranked.format.${item === 'pioneer' ? 'pioneer' : 'standard'}`)}
               </button>
             ))}
+          </div>
           </div>
         </header>
         {tableId && <GameResult tableId={tableId} />}
@@ -73,7 +96,7 @@ export function CareerRankedScreen() {
               <Recent state={state.data} />
               <SeasonBoards state={state.data} />
             </div>
-            <Queue key={format} format={format} state={state.data} />
+            <Queue key={`${format}-${queue}`} format={format} queue={queue} state={state.data} />
           </div>
         )}
       </div>
@@ -161,9 +184,9 @@ function titleWords(id: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-function Queue({ format, state }: { format: string; state: LadderState }) {
+function Queue({ format, queue, state }: { format: string; queue: 'open' | 'bo3'; state: LadderState }) {
   const t = useT();
-  const opponent = useRankedOpponent(format);
+  const opponent = useRankedOpponent(format, true, queue);
   const choices = useDeckRoster();
   const loaded = useDecks((decks) => decks.loaded);
   const refresh = useDecks((decks) => decks.refresh);
@@ -211,17 +234,17 @@ function Queue({ format, state }: { format: string; state: LadderState }) {
       </div>
       {state.playing && <p className={modes.small}>{t('career.ranked.playingNow')}</p>}
       <ul className={modes.lines} aria-label={t('career.ranked.rules')}>
-        <li>{t('career.ranked.ruleBo1')}</li>
+        <li>{t(queue === 'bo3' ? 'career.ranked.ruleBo3' : 'career.ranked.ruleBo1')}</li>
         <li>{t('career.ranked.ruleNoAssists')}</li>
         <li>{t('career.ranked.ruleLeave')}</li>
       </ul>
       {versus && them && deck && (
         <Versus
-          kicker={`${t('career.ranked.title')} · ${state.label ?? ''}`}
+          kicker={`${t('career.ranked.title')}${queue === 'bo3' ? ` · ${t('career.ranked.queue.bo3')}` : ''} · ${state.label ?? ''}`}
           opponent={{ name: them.name ?? '', colors: them.colors, tagline: them.deckName }}
           deck={{ name: deck.name, art: deck.cover, colors: deck.colors.join('') }}
           stakes={[t('career.ranked.stakeWin'), t(state.step && state.step >= 16 ? 'career.ranked.stakeLoss' : 'career.ranked.stakeBronze')]}
-          onFight={async () => playRanked(format, toWire(await loadList(deck.id)))}
+          onFight={async () => playRanked(format, toWire(await loadList(deck.id)), queue)}
           onClose={() => setVersus(false)}
         />
       )}

@@ -664,6 +664,11 @@ ladder per format. It is on wherever Career is, for signed-in accounts, with no 
   and a frame, once per account). Gold, Diamond and Mythic also pay a capsule token, once per format and account,
   whatever the season. Career XP,
   quests and the daily ladder pay as for any game, and qualifying games play on the Rust host as usual.
+- **Bo3.** The `bo3` queue (#435, the Bo3 switch on the Ranked screen, `ladderPlay(format, deck, "bo3")`) is best of
+  three against the Open queue's bots, sideboarding between games as any match does. It keeps its own standing and
+  Glicko-2 rating per format (bots get a `bo3` rating of their own too, starting from their calibrated one), counts
+  once when the match ends, and its first reaches pay through the Open queue's reward keys, so a rank pays once for
+  Bo1 and Bo3 together.
 - **Data.** `db/ladder.db` adds `ladder_standing`, `ladder_games` (with which engine played each game) and
   `ladder_rewards`. They are part of the account export (`ranked`) and are deleted with the account. The server log
   has a `Ranked <format>:` line for every result.

@@ -48,7 +48,7 @@ public final class BotRoster {
         public String colors;
         /** the school deck's kind: starter, signature, act1, act2, act3, meta, budget (a meta list made cheap, for the League) */
         public String kind;
-        /** the queues it plays in (open, league); none listed: both */
+        /** the queues it plays in (open, league; Bo3 plays the Open queue's); none listed: both */
         public List<String> queues;
         /** the AI skill the Rust host plays it at (1 quick, 3 light, 5 half, 7 full search) */
         public int skill;
@@ -66,7 +66,8 @@ public final class BotRoster {
 
         /** whether the bot plays in the queue */
         public boolean plays(String queue) {
-            return queues == null || queues.isEmpty() || queues.contains(queue);
+            String plays = RankedService.botQueue(queue);
+            return queues == null || queues.isEmpty() || queues.contains(plays);
         }
 
         public boolean calibrated() {
