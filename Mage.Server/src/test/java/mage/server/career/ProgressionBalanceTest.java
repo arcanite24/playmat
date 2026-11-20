@@ -164,6 +164,8 @@ public class ProgressionBalanceTest {
             "standard/meta-mono-green-landfall.dck", "standard/meta-rakdos-lizards.dck"};
     /** a League run gives up here */
     private static final int LEAGUE_DAYS = 90;
+    /** runs per deck, each with its own draws */
+    private static final int SEEDS = 3;
 
     /** how one League run went */
     private static final class Run {
@@ -322,10 +324,10 @@ public class ProgressionBalanceTest {
 
     /**
      * The League's target (#433): a daily player (6 League games a day, at the ladder's middle) finishes a competitive
-     * Standard deck in about four weeks. Measured 2026-11-19 with the wildcard track at every 4th pack a rare, every
-     * 12th a mythic, on the calibrated roster with budget bots: 22 to 52 days by deck, median 31 (Dimir Midrange 22,
-     * Azorius Control 30, Boros Dragons 30, Izzet Spellementals 31, Rakdos Lizards 32, Jund Sacrifice 43, Mono-Green
-     * Landfall 52). Without the track it was 75 days
+     * Standard deck in about four weeks. Measured 2026-11-19 with the wildcard track at every 4th pack a rare, every 12th a
+     * mythic, on the calibrated roster with budget bots, three runs per deck: median 27 days (20 to 50; Jund Sacrifice
+     * and Mono-Green Landfall, 35 to 50, are the slow ones). At strength 1200 the median is 37, at 1500 30; at 2 games
+     * a day about 88, with many runs unfinished after 90 days. Without the track it was 75 days
      * to more than 120. Run with -Dxmage.progressionReport=true to print the sheet, and add
      * -Dxmage.leagueSheet=true for it at three strengths and two paces.
      */
@@ -341,13 +343,16 @@ public class ProgressionBalanceTest {
         for (int pace : paces) {
             for (double strength : strengths) {
                 for (String target : META) {
-                    Run run = league("p" + (n++), target, pace, strength, 31L * n);
+                  for (int seed = 0; seed < SEEDS; seed++) {
+                    // the seed is the deck's and the try's, so a row draws the same whatever else the sheet runs
+                    Run run = league("p" + (n++), target, pace, strength, target.hashCode() * 31L + seed);
                     if (pace == 6 && strength == 1350) {
                         days.add(run.finished < 0 ? Integer.MAX_VALUE : run.finished);
                     }
                     sheet.append(String.format("%9d %8.0f %-34s %4s %6d %5.0f %6d %9d %5d  %s%n", pace, strength, target,
                             run.finished < 0 ? ">" + LEAGUE_DAYS : String.valueOf(run.finished), run.games,
                             100.0 * run.won / Math.max(1, run.games), run.packs, run.coinPacks, run.rares, LadderRank.label(run.peak)));
+                  }
                 }
             }
         }

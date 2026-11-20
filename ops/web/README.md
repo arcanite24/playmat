@@ -627,12 +627,15 @@ rating scale per format (Standard and Pioneer so far), each anchored so the form
   about 20 minutes on 3 threads for the new bots' games, on top of the 40 for the first 18,276.
 - Recalibrate after changing the AI's search, the skills, or a school deck. `PLAYMAT_AI_POLICY` must be what the
   server runs (default `playouts`); the calibration block records it.
-- A bot's `queues` lists where it plays (`open`, `league`; none listed: both). The League (#433) climbs from the
-  starters through the school's later decks to **budget** lists, then the full meta lists at the full search only:
-  `budget-*.dck` bots play only in the League, and meta lists at skill 5 only in the Open queue. The budget decks are
+- A bot's `queues` lists where it plays (`open`, `league`; none listed: both). `budget-*.dck` bots play only in the
+  League, and meta lists at skill 5 only in the Open queue, so the League meets full meta lists only at the full
+  search. The League's matchmaking is by rating like Ranked's, and the budget lists measured well below their full
+  lists (Standard 725 to 1238, Pioneer 536 to 1098), so they mix in with the starters and the school's decks rather
+  than forming a tier above them. The budget decks are
   each meta list with its rares and mythics swapped for the closest commons and uncommons of the format that the Rust
   host plays (`rust/crates/playmat-engine/cards/verified.txt`), and rare lands for basics. `LeagueBudgetDecksTest`
-  makes them and fails when they're out of date; after changing a meta list, write them again with
+  writes them (only when asked, so the shipped decks stay the ones their ratings measured) and checks that each meta
+  list has one without rares or mythics; after changing a meta list, write them again with
   `mvn -o -pl Mage.Server test -Dtest=LeagueBudgetDecksTest -Dxmage.writeBudgetDecks=true`, then run `roster.py` and
   the calibration. The same test checks that every bot's deck is legal and all on the Rust host.
 
@@ -691,8 +694,10 @@ on wherever Career is.
   League win pays an uncommon wildcard. The League pays no capsule tokens.
 - **Pace.** `ProgressionBalanceTest` plays a League player through the real ladder and reward code (6 games a day,
   winning as a player rated 1350 would, opening every pack and keeping the coins crafting needs) until Craft missing
-  completes a Standard meta list, and checks that the median over the seven lists is 21 to 42 days. Measured
-  2026-11-19: 22 to 52 days, median 31. Without the wildcard track it was 75 days to more than 120. Retune
+  completes a Standard meta list, three runs per list, and checks that the median is 21 to 42 days. Measured
+  2026-11-19: median 27 days (20 to 50); 37 at strength 1200, 30 at 1500; at 2 games a day about 88, many runs
+  unfinished after 90 days. About 60% of the packs in those runs are bought with Career coins, which the League
+  shares with Career crafting. Without the wildcard track it was 75 days to more than 120. Retune
   `packWildcards` or the rewards against it; `-Dxmage.progressionReport=true -Dxmage.leagueSheet=true` prints the
   sheet at three strengths and two paces.
 - **Data.** `career.db` adds `league`, `league_tokens` and `league_decks` (schema 8). They are in the account export

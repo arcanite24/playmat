@@ -61,30 +61,56 @@ public class LeagueBudgetDecksTest {
         mage.cards.decks.DeckValidatorFactory.instance.addDeckType("Constructed - Pioneer", mage.deck.Pioneer.class);
     }
 
+    /**
+     * Writes the budget decks, with -Dxmage.writeBudgetDecks=true only: the checked-in files are what the bots play and
+     * what their ratings measured, so a new verified card or set never changes them behind the calibration's back.
+     */
     @Test
-    void budgetDecksAreWhatTheGeneratorMakes() throws Exception {
-        boolean write = Boolean.getBoolean("xmage.writeBudgetDecks");
+    void writeBudgetDecks() throws Exception {
+        org.junit.jupiter.api.Assumptions.assumeTrue(Boolean.getBoolean("xmage.writeBudgetDecks"), "writes only when asked");
         Set<String> verified = verified();
-        List<String> stale = new ArrayList<>();
         for (String format : FORMATS) {
             Pool pool = new Pool(format, verified);
+            try (java.util.stream.Stream<Path> files = Files.list(DECKS.resolve(format))) {
+                for (Path meta : (Iterable<Path>) files.sorted()::iterator) {
+                    String file = meta.getFileName().toString();
+                    if (file.startsWith("meta-") && file.endsWith(".dck")) {
+                        Path out = meta.resolveSibling("budget-" + file.substring("meta-".length()));
+                        Files.write(out, budget(format + "/" + file, pool).getBytes(StandardCharsets.UTF_8));
+                    }
+                }
+            }
+        }
+    }
+
+    /** each meta list has its budget deck, which holds no rare or mythic */
+    @Test
+    void everyMetaListHasABudgetDeckWithoutRares() throws Exception {
+        List<String> problems = new ArrayList<>();
+        for (String format : FORMATS) {
             try (java.util.stream.Stream<Path> files = Files.list(DECKS.resolve(format))) {
                 for (Path meta : (Iterable<Path>) files.sorted()::iterator) {
                     String file = meta.getFileName().toString();
                     if (!file.startsWith("meta-") || !file.endsWith(".dck")) {
                         continue;
                     }
-                    Path out = meta.resolveSibling("budget-" + file.substring("meta-".length()));
-                    String made = budget(format + "/" + file, pool);
-                    if (write) {
-                        Files.write(out, made.getBytes(StandardCharsets.UTF_8));
-                    } else if (!Files.exists(out) || !new String(Files.readAllBytes(out), StandardCharsets.UTF_8).equals(made)) {
-                        stale.add(out.toString());
+                    String budget = format + "/budget-" + file.substring("meta-".length());
+                    if (!Files.exists(DECKS.resolve(budget))) {
+                        problems.add(budget + " is missing");
+                        continue;
+                    }
+                    DeckCardLists deck = CareerCampaigns.get().deck(budget);
+                    List<DeckCardInfo> all = new ArrayList<>(deck.getCards());
+                    all.addAll(deck.getSideboard());
+                    for (Line line : lines(all)) {
+                        if (pricey(line.info.getRarity())) {
+                            problems.add(budget + ": " + line.info.getName() + " is " + line.info.getRarity());
+                        }
                     }
                 }
             }
         }
-        assertEquals(Collections.emptyList(), stale, "budget decks out of date; write them with -Dxmage.writeBudgetDecks=true");
+        assertEquals(Collections.emptyList(), problems, "write them with -Dxmage.writeBudgetDecks=true");
     }
 
     /** every bot's deck is whole, legal in its format, and all on the Rust host */
@@ -116,19 +142,32 @@ public class LeagueBudgetDecksTest {
         assertEquals(Collections.emptyList(), problems);
     }
 
-    /** budget bots play in the League only, and the Open queue keeps every other bot */
+    /** budget bots play in the League only, full meta lists at skill 5 in the Open queue only, every other bot in both */
     @Test
-    void budgetBotsAreLeagueOnly() {
-        boolean any = false;
-        for (BotRoster.Bot bot : BotRoster.get().bots()) {
-            if ("budget".equals(bot.kind)) {
-                any = true;
-                assertTrue(bot.plays(RankedService.LEAGUE) && !bot.plays(RankedService.OPEN), bot.id);
-            } else {
-                assertTrue(bot.plays(RankedService.OPEN), bot.id + " stays in the Open queue");
+    void theQueuesDrawFromTheirOwnBots() throws Exception {
+        LadderStore store = new LadderStore("jdbc:sqlite::memory:");
+        try {
+            LadderRatings ratings = new LadderRatings(store, BotRoster.get());
+            boolean budget = false;
+            for (String format : FORMATS) {
+                for (double rating = 400; rating <= 2000; rating += 50) {
+                    for (LadderRatings.Candidate c : ratings.candidates(format, RankedService.OPEN, rating)) {
+                        assertTrue(!"budget".equals(c.bot.kind), c.bot.id + " in the Open queue");
+                    }
+                    for (LadderRatings.Candidate c : ratings.candidates(format, RankedService.LEAGUE, rating)) {
+                        assertTrue(!("meta".equals(c.bot.kind) && c.bot.skill < 7), c.bot.id + " in the League");
+                        budget |= "budget".equals(c.bot.kind);
+                    }
+                }
             }
+            assertTrue(budget, "the League meets budget bots");
+            for (BotRoster.Bot bot : BotRoster.get().bots()) {
+                boolean special = "budget".equals(bot.kind) || ("meta".equals(bot.kind) && bot.skill < 7);
+                assertEquals(!special, bot.plays(RankedService.OPEN) && bot.plays(RankedService.LEAGUE), bot.id);
+            }
+        } finally {
+            store.close();
         }
-        assertTrue(any, "the roster has budget bots");
     }
 
     // ---- the generator

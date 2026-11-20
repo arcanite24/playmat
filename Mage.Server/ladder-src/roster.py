@@ -27,9 +27,8 @@ SKILLS = {1: "quick", 3: "light", 5: "half", 7: "full"}
 # never play without one.
 BANDS = {"starter": [1, 3, 5], "signature": [1, 3, 5], "act1": [1, 3, 5], "act2": [3, 5, 7], "act3": [5, 7], "meta": [5, 7],
          "budget": [5, 7]}
-# The queues a bot plays in (#433), by kind and skill; unlisted: both. The League's climb goes starters, then the
-# school's later decks, then budget meta lists (budget-*.dck, made by LeagueBudgetDecksTest from the meta lists), then
-# the full meta lists at the full search only.
+# The queues a bot plays in (#433), by kind and skill; unlisted: both. Budget meta lists (budget-*.dck, made by
+# LeagueBudgetDecksTest) play in the League only, and the full meta lists meet League players at the full search only.
 QUEUES = {("budget", 5): ["league"], ("budget", 7): ["league"], ("meta", 5): ["open"]}
 # A first guess at the rating before calibration: what the deck and the search add.
 PRIOR_DECK = {"starter": 0, "signature": 0, "act1": 50, "act2": 150, "act3": 250, "meta": 300, "budget": 200}
