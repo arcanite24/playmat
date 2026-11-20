@@ -37,6 +37,11 @@ public final class RankedService {
     public static final String LEAGUE = "league";
     /** the season key of a standing's season-end reward (League packs by peak) */
     public static final String SEASON_END = "season-end";
+    /**
+     * The Limited rank (#435): a format without bots, climbed by Career's sealed and draft runs, one move a run
+     * ({@link #limitedRun}). It has the Open queue's ranks, seasons and boards but no queue to play and no rating.
+     */
+    public static final String LIMITED = "limited";
     /** a pick avoids the bots met in this many last games, when there are others */
     static final int AVOID_RECENT = 3;
     /** the results kept for the client to read after a game */
@@ -125,8 +130,9 @@ public final class RankedService {
         return user.toLowerCase(Locale.ENGLISH);
     }
 
+    /** a format with a rank: the constructed ladders and Limited */
     public static boolean isFormat(String format) {
-        return DECK_TYPES.containsKey(format);
+        return DECK_TYPES.containsKey(format) || LIMITED.equals(format);
     }
 
     public static boolean isQueue(String queue) {
@@ -412,6 +418,90 @@ public final class RankedService {
         } catch (SQLException | RuntimeException e) {
             logger.error("League: a game's rewards couldn't be paid to " + table.user, e);
         }
+    }
+
+    // ---- the Limited rank (#435)
+
+    /** the pips a finished Limited run is worth: its wins less its losses, and a bad run costs one pip at most */
+    static int limitedPips(int wins, int losses) {
+        return Math.max(-1, wins - losses);
+    }
+
+    /**
+     * A Career sealed or draft run ended at `wins`-`losses`: moves the player's Limited rank once, as that many games
+     * would ({@link #limitedPips}; no streak bonus, a loss never drops below the floors of {@link LadderRank#after}),
+     * records the run as a ladder game and pays first reaches as the Open queue does. Once per run.
+     *
+     * @return the move, or null when this run was counted before
+     */
+    public synchronized Result limitedRun(String user, String runId, String kind, String shape, String deckName,
+                                          int wins, int losses, long now) throws SQLException {
+        String k = key(user);
+        String id = "limited-" + runId;
+        if (store.game(id) != null) {
+            return null;
+        }
+        int season = season(now);
+        rollover(k, LIMITED, OPEN, season, now);
+        LadderStore.Standing standing = store.standing(k, LIMITED, OPEN, season);
+        boolean first = standing == null;
+        if (first) {
+            standing = new LadderStore.Standing();
+            standing.user = k;
+            standing.format = LIMITED;
+            standing.queue = OPEN;
+            standing.season = season;
+        }
+        int pips = limitedPips(wins, losses);
+        int step = standing.step;
+        if (pips > 0) {
+            for (int i = 0; i < pips; i++) {
+                step = LadderRank.after(step, 0, 1).step;
+            }
+        } else if (pips < 0) {
+            step = LadderRank.after(step, 0, 0).step;
+        }
+        Result result = new Result();
+        result.tableId = id;
+        result.format = LIMITED;
+        result.queue = OPEN;
+        result.status = wins > losses ? "won" : wins < losses ? "lost" : "drew";
+        result.botId = "limited:" + kind + "-" + shape;
+        result.stepBefore = standing.step;
+        result.stepAfter = step;
+        result.delta = step - standing.step;
+        int fromRank = first ? -1 : LadderRank.rank(standing.peak);
+        int toRank = LadderRank.rank(Math.max(standing.peak, step));
+        for (int r = fromRank + 1; r <= toRank; r++) {
+            result.reached.add(LadderRank.RANKS[r]);
+        }
+        standing.step = step;
+        standing.peak = Math.max(standing.peak, step);
+        standing.streak = 0;
+        if ("won".equals(result.status)) {
+            standing.won++;
+        } else if ("lost".equals(result.status)) {
+            standing.lost++;
+        } else {
+            standing.drew++;
+        }
+        standing.updated = now;
+        LadderStore.GameRow row = new LadderStore.GameRow();
+        row.id = id;
+        row.user = k;
+        row.format = LIMITED;
+        row.queue = OPEN;
+        row.season = season;
+        row.bot = result.botId;
+        row.deck = deckName;
+        row.started = now;
+        store.startGame(row);
+        store.putStanding(standing);
+        store.endGame(id, result.status, now, result.stepBefore, result.stepAfter, null, null, null);
+        payOpen(new RankedTable(null, k, LIMITED, OPEN, result.botId, season), result, now);
+        logger.info("Ranked limited: " + k + " " + wins + "-" + losses + " in a " + kind + " " + shape + " run, "
+                + LadderRank.label(result.stepBefore) + " -> " + LadderRank.label(result.stepAfter));
+        return result;
     }
 
     // ---- seasons (#434)

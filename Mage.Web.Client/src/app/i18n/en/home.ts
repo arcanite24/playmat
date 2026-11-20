@@ -41,6 +41,7 @@ export default {
   'home.choice.standard': 'Standard',
   'home.choice.pioneer': 'Pioneer',
   'home.choice.modern': 'Modern',
+  'home.choice.limited': 'Limited',
   'home.choice.gauntlet': 'Gauntlet',
   'home.choice.ascension': 'Ascension',
   'home.choice.boss-rush': 'Boss Rush',

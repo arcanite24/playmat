@@ -190,6 +190,45 @@ public class RankedServiceTest {
     }
 
     @Test
+    void aLimitedRunMovesTheLimitedRankOnceByWinsLessLosses() throws Exception {
+        assertTrue(RankedService.isFormat(RankedService.LIMITED));
+        assertFalse(ranked.formats().contains(RankedService.LIMITED), "no bots, so no queue");
+        RankedService.Result run = ranked.limitedRun("Neri", "run-1", "sealed", "classic", "Foundations sealed", 3, 1, NOW);
+        assertEquals("won", run.status);
+        assertEquals(0, run.stepBefore);
+        assertEquals(2, run.stepAfter, "3-1 is two pips, and no streak bonus");
+        assertEquals(Arrays.asList("bronze"), run.reached);
+        assertEquals(3, run.paid.cosmetics.size(), "the first Limited rank pays Bronze like any ladder");
+        assertNull(ranked.limitedRun("neri", "run-1", "sealed", "classic", "Foundations sealed", 3, 1, NOW), "a run counts once");
+        int season = ranked.season(NOW);
+        LadderStore.Standing standing = store.standing("neri", RankedService.LIMITED, RankedService.OPEN, season);
+        assertEquals(2, standing.step);
+        assertEquals(1, standing.won);
+        LadderStore.GameRow row = store.game("limited-run-1");
+        assertEquals("won", row.status);
+        assertEquals("limited:sealed-classic", row.bot);
+        assertEquals(Integer.valueOf(2), row.stepAfter);
+        assertNull(row.ratingAfter, "Limited has no rating");
+        // the Constructed ladders don't move
+        assertNull(store.standing("neri", "standard", RankedService.OPEN, season));
+
+        // a bad run costs one pip at most, and nothing in Bronze
+        RankedService.Result bad = ranked.limitedRun("neri", "run-2", "draft", "arena", "Foundations draft", 0, 3, NOW);
+        assertEquals("lost", bad.status);
+        assertEquals(2, bad.stepAfter);
+        standing.step = LadderRank.RANK_STEPS + 2;
+        standing.peak = standing.step;
+        store.putStanding(standing);
+        RankedService.Result silver = ranked.limitedRun("neri", "run-3", "draft", "arena", "Foundations draft", 1, 3, NOW);
+        assertEquals(-1, silver.delta);
+        RankedService.Result even = ranked.limitedRun("neri", "run-4", "sealed", "classic", "Foundations sealed", 2, 2, NOW);
+        assertEquals("drew", even.status);
+        assertEquals(0, even.delta);
+        RankedService.Result arena = ranked.limitedRun("neri", "run-5", "draft", "arena", "Foundations draft", 7, 0, NOW);
+        assertEquals(7, arena.delta, "a 7-0 Arena run is seven pips");
+    }
+
+    @Test
     void aBotOnlyInTheLeagueNeverMeetsBo3() {
         BotRoster.Bot league = new BotRoster.Bot();
         league.queues = Arrays.asList(RankedService.LEAGUE);

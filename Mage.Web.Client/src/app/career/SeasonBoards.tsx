@@ -14,10 +14,12 @@ const KINDS: { mode: string; title: MessageKey }[] = [
  * The ladder's season boards (#434) for one format and queue: peak rank, Mythic rating, fastest to Mythic, for this
  * season or a past one, on the server or among friends.
  */
-export function SeasonBoards({ state }: { state: LadderState }) {
+export function SeasonBoards({ state, rated = true }: { state: LadderState; rated?: boolean }) {
   const t = useT();
   const current = state.season ?? 0;
-  const [kind, setKind] = useState(KINDS[0]);
+  // Limited has no rating, so no Mythic rating board
+  const kinds = rated ? KINDS : KINDS.filter((item) => item.mode !== 'ladder-mythic');
+  const [kind, setKind] = useState(kinds[0]);
   const [picked, setPicked] = useState<number | null>(null);
   const season = picked ?? current;
   const board = `${state.queue ?? 'open'}.${state.format ?? 'standard'}.${season}`;
@@ -32,7 +34,7 @@ export function SeasonBoards({ state }: { state: LadderState }) {
     <div className={modes.seasonBoards}>
       <div className={modes.boardHead}>
         <div className={modes.boardScope} role="radiogroup" aria-label={t('career.boards.kind')}>
-          {KINDS.map((item) => (
+          {kinds.map((item) => (
             <button key={item.mode} type="button" role="radio" aria-checked={item === kind} onClick={() => setKind(item)}>
               {t(item.title)}
             </button>
