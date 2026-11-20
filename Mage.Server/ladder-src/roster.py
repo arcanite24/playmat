@@ -9,6 +9,15 @@ queue only, since it has no League.
 Writes Mage.Server/src/main/resources/ladder/bots.json. Run it again after adding a school deck or changing the bands:
 bots that keep their id keep their persona and their measured rating; new bots start at their prior, uncalibrated,
 until `ladder-calibrate` (rust/crates/playmat-ai/src/bin/ladder-calibrate.rs) measures them.
+
+Generations (#435): every bot is pinned to the search settings its generation was rated with (`ai`, an
+`entrants::label`), so a stronger Rust AI never moves the old bots' play or ratings. To add one when the AI improves:
+add GENERATIONS[n] with the build's labels (`ladder-calibrate` writes them to calibration.skills) and the bands it
+fields, run this, then `ladder-calibrate --fixed`: it rates only the new bots, against the old ones as they stand. Its
+bots get ids ending in -g<n> (a bot's id is its live rating row, so a bot never changes generation). To stop fielding
+a generation's bots, list their ids in RETIRED: they stay in the file, so old games still show who they were.
+A label pins settings, not code: a change to the evaluation, the built-in net or the engine still moves pinned bots,
+and needs a full calibration (without --fixed).
 """
 import hashlib
 import json
@@ -35,6 +44,21 @@ BANDS = {"starter": [1, 3, 5], "signature": [1, 3, 5], "act1": [1, 3, 5], "act2"
 # The queues a bot plays in (#433), by kind and skill; unlisted: both. Budget meta lists (budget-*.dck, made by
 # LeagueBudgetDecksTest) play in the League only, and the full meta lists meet League players at the full search only.
 QUEUES = {("budget", 5): ["league"], ("budget", 7): ["league"], ("meta", 5): ["open"]}
+# The AI generations: the search each skill played when a generation was rated ("quick": the quick answers alone), and
+# the bands it fields (None: BANDS). Generation 1 is the first calibration's (commit 48a38d64ed1).
+GENERATIONS = {
+    1: {
+        "skills": {
+            1: "quick",
+            3: "budget=1200+width=5+extra_turns=0+playout_cap=1500+policy=playouts+hide=0+samples=1+playout=2+eval=1+plans=0+mulligan_sim=0+blunder=100+net=builtin+temp=0+eta=10000+rollout=-+consider=4+cpuct=300+iters=256",
+            5: "budget=3000+width=8+extra_turns=0+playout_cap=1500+policy=playouts+hide=0+samples=1+playout=2+eval=2+plans=0+mulligan_sim=0+blunder=20+net=builtin+temp=0+eta=10000+rollout=-+consider=4+cpuct=300+iters=256",
+            7: "budget=6000+width=12+extra_turns=1+playout_cap=1500+policy=playouts+hide=0+samples=1+playout=2+eval=2+plans=0+mulligan_sim=0+blunder=0+net=builtin+temp=0+eta=10000+rollout=-+consider=4+cpuct=300+iters=256",
+        },
+        "bands": None,
+    },
+}
+# Bot ids no longer picked (they stay listed, retired)
+RETIRED = set()
 # A first guess at the rating before calibration: what the deck and the search add.
 PRIOR_DECK = {"starter": 0, "signature": 0, "act1": 50, "act2": 150, "act3": 250, "meta": 300, "budget": 200}
 PRIOR_SKILL = {1: 0, 3: 150, 5: 250, 7: 350}
@@ -128,38 +152,46 @@ def main():
             if ext != ".dck" or kind is None:
                 continue
             path = os.path.join(folder, file)
-            for skill in BANDS[kind]:
-                bot_id = f"{fmt}-{stem}-s{skill}"
-                prior = 1000 + PRIOR_DECK[kind] + PRIOR_SKILL[skill]
-                before = old.get(bot_id)
-                persona = before["persona"] if before else {
-                    "name": name_for(bot_id),
-                    "avatar": pick("avatar", skill, bot_id),
-                    "sleeve": pick("sleeve", skill, bot_id),
-                    "playmat": pick("playmat", skill, bot_id),
-                    "frame": pick("frame", skill, bot_id),
-                    "title": pick("title", skill, bot_id),
-                }
-                bot = {
-                    "id": bot_id,
-                    "format": fmt,
-                    "deck": f"{fmt}/{file}",
-                    "deckName": deck_name(path),
-                    "colors": colors(path),
-                    "kind": kind,
-                    "skill": skill,
-                    "search": SKILLS[skill],
-                    "prior": prior,
-                    "persona": persona,
-                }
-                if fmt in LADDER_COPIES:
-                    bot["queues"] = LADDER_COPIES[fmt]
-                elif (kind, skill) in QUEUES:
-                    bot["queues"] = QUEUES[(kind, skill)]
-                for key in ("rating", "rd", "games", "won", "drew", "lost"):
-                    if before and key in before:
-                        bot[key] = before[key]
-                bots.append(bot)
+            for gen, generation in sorted(GENERATIONS.items()):
+                bands = generation["bands"] or BANDS
+                for skill in bands.get(kind, []):
+                    if skill not in generation["skills"]:
+                        continue
+                    bot_id = f"{fmt}-{stem}-s{skill}" + ("" if gen == 1 else f"-g{gen}")
+                    prior = 1000 + PRIOR_DECK[kind] + PRIOR_SKILL[skill]
+                    before = old.get(bot_id)
+                    persona = before["persona"] if before else {
+                        "name": name_for(bot_id),
+                        "avatar": pick("avatar", skill, bot_id),
+                        "sleeve": pick("sleeve", skill, bot_id),
+                        "playmat": pick("playmat", skill, bot_id),
+                        "frame": pick("frame", skill, bot_id),
+                        "title": pick("title", skill, bot_id),
+                    }
+                    bot = {
+                        "id": bot_id,
+                        "format": fmt,
+                        "deck": f"{fmt}/{file}",
+                        "deckName": deck_name(path),
+                        "colors": colors(path),
+                        "kind": kind,
+                        "skill": skill,
+                        "search": SKILLS[skill],
+                        "ai": generation["skills"][skill],
+                        "generation": gen,
+                        "prior": prior,
+                        "persona": persona,
+                    }
+                    if fmt in LADDER_COPIES:
+                        bot["queues"] = LADDER_COPIES[fmt]
+                    elif (kind, skill) in QUEUES:
+                        bot["queues"] = QUEUES[(kind, skill)]
+                    if bot_id in RETIRED:
+                        bot["retired"] = True
+                    for key in ("rating", "rd", "games", "won", "drew", "lost"):
+                        if before and key in before:
+                            bot[key] = before[key]
+                    bots.append(bot)
     anchors = {fmt: f"{fmt}-starter-s1" for fmt in FORMATS}
     out = {
         "about": "The ladder's bots (#430): a school deck at a Rust host AI skill, with a persona. Generated by "

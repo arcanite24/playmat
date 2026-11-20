@@ -250,6 +250,30 @@ public class RankedServiceTest {
         return table;
     }
 
+    /** a bot's generation (#435): its pin goes to the Rust host, and a retired bot is never met again */
+    @Test
+    void aBotPlaysItsPinAndARetiredOneIsNeverPicked() throws Exception {
+        StringBuilder bots = new StringBuilder();
+        for (String id : new String[]{"old", "new"}) {
+            bots.append(bots.length() > 0 ? "," : "").append("{\"id\":\"").append(id)
+                    .append("\",\"format\":\"standard\",\"deck\":\"standard/starter.dck\",\"skill\":5,\"prior\":1200,\"rating\":1200,")
+                    .append("\"rd\":60,\"games\":40,\"ai\":\"pin-").append(id).append("\",\"persona\":{\"name\":\"").append(id).append("\"}")
+                    .append("old".equals(id) ? ",\"retired\":true,\"generation\":1}" : ",\"generation\":2}");
+        }
+        BotRoster roster = new BotRoster(new StringReader("{\"anchors\":{\"standard\":\"old\"},\"bots\":[" + bots + "]}"));
+        RankedService service = RankedService.forTests(store, roster);
+        RankedService.use(service);
+        for (int i = 0; i < 20; i++) {
+            BotRoster.Bot pick = service.pick("neri" + i, "standard", RankedService.OPEN, NOW);
+            assertEquals("new", pick.id, "the retired bot isn't met");
+        }
+        assertNotNull(roster.bot("old"), "a retired bot stays listed, for the games against it");
+        UUID table = UUID.randomUUID();
+        service.register(table, "neri", "standard", RankedService.OPEN, roster.bot("new"), "deck", NOW);
+        assertEquals("pin-new", RankedService.pinOf(table));
+        assertNull(RankedService.pinOf(UUID.randomUUID()), "an unranked table has no pin");
+    }
+
     static BotRoster roster() {
         StringBuilder bots = new StringBuilder();
         String[][] all = {{"standard", "weak", "1000"}, {"standard", "low", "1150"}, {"standard", "mid", "1200"},
