@@ -41,7 +41,7 @@ export function CareerLeagueScreen() {
   if (!career.data?.enabled) return <Navigate to="/career" replace />;
   return (
     <div className={modes.page}>
-      <div className={modes.scroll}>
+      <div className={`${modes.scroll} ${modes.capped}`}>
         <header className={modes.modeHead}>
           <div>
             <p className={modes.kicker}><Trophy size={16} aria-hidden="true" /> {t('league.kicker')}</p>
