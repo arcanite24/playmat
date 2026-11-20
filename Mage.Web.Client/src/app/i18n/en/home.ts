@@ -2,6 +2,7 @@
 export default {
   'home.board.title': 'Your widgets',
   'home.widget.allRanks.league': '{format} League',
+  'home.widget.allRanks.bo3': '{format} Bo3',
   'home.widget.packs.league': 'League: {packs}',
   'home.widget.packs.leagueFormat': '{count} {format}',
   'home.board.customize': 'Customize Home',
@@ -44,6 +45,7 @@ export default {
   'home.choice.boss-rush': 'Boss Rush',
   'home.choice.endless': 'Endless',
   'home.choice.open': 'Ranked',
+  'home.choice.bo3': 'Ranked Bo3',
   'home.choice.league': 'League',
 
   'home.widget.rank': 'Rank',
@@ -56,6 +58,7 @@ export default {
   'home.widget.seasonBoard': 'Season board',
   'home.widget.seasonBoard.blurb': "The top of the season's peak-rank board, and your place on it.",
   'home.widget.seasonBoard.ranked': 'Ranked · Season {n}',
+  'home.widget.seasonBoard.bo3': 'Ranked Bo3 · Season {n}',
   'home.widget.seasonBoard.league': 'League · Season {n}',
   'home.widget.seasonBoard.yours': 'You: #{rank} · {peak}',
   'home.widget.allRanks': 'All ranks',

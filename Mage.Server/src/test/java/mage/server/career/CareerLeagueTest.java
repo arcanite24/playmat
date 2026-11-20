@@ -39,6 +39,8 @@ public class CareerLeagueTest {
 
     @BeforeAll
     static void deckTypes() {
+        // the checks look the cards up, and a fresh checkout has no card database until something scans it
+        mage.cards.repository.CardScanner.scan();
         // the server registers these from config.xml at start
         mage.cards.decks.DeckValidatorFactory.instance.addDeckType("Constructed - Standard", mage.deck.Standard.class);
         mage.cards.decks.DeckValidatorFactory.instance.addDeckType("Constructed - Pioneer", mage.deck.Pioneer.class);

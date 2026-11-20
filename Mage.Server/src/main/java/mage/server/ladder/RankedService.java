@@ -17,7 +17,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Ranked (#431): the Open queue, Bo1, against the ladder's bots. A player picks a format and a deck; the server picks a
+ * Ranked (#431): the Open queue, Bo1, and the Bo3 queue (#435), against the ladder's bots. A player picks a format and a deck; the server picks a
  * bot near the player's hidden rating (and keeps that pick until it is played, so it can't be dodged), starts the
  * table, and when the match ends moves the rating, the visible rank and pays a rank's first reach. Ranked tables refuse
  * hints, take-backs, practice tools, saves and what-ifs; a game the server loses (a restart) is void.
@@ -26,8 +26,13 @@ public final class RankedService {
 
     private static final Logger logger = Logger.getLogger(RankedService.class);
 
-    /** the Open queue, best of one (Bo3 comes later, #435) */
+    /** the Open queue, best of one */
     public static final String OPEN = "open";
+    /**
+     * the Bo3 queue (#435): the Open queue's decks and bots, best of three with sideboarding, its own rank and rating.
+     * Its ranks pay the same rewards as the Open queue's, once for both.
+     */
+    public static final String BO3 = "bo3";
     /** the Career League (#433): the same ladder, played with League decks built from the Career collection */
     public static final String LEAGUE = "league";
     /** the season key of a standing's season-end reward (League packs by peak) */
@@ -123,7 +128,17 @@ public final class RankedService {
     }
 
     public static boolean isQueue(String queue) {
-        return OPEN.equals(queue) || LEAGUE.equals(queue);
+        return OPEN.equals(queue) || BO3.equals(queue) || LEAGUE.equals(queue);
+    }
+
+    /** games a match needs won: two in the Bo3 queue, one elsewhere */
+    public static int winsNeeded(String queue) {
+        return BO3.equals(queue) ? 2 : 1;
+    }
+
+    /** the queue whose bots a queue plays: Bo3 meets the Open queue's */
+    public static String botQueue(String queue) {
+        return BO3.equals(queue) ? OPEN : queue;
     }
 
     public static String deckType(String format) {
@@ -359,8 +374,8 @@ public final class RankedService {
 
     private void payOpen(RankedTable table, Result result, long now) throws SQLException {
         for (String rank : result.reached) {
-            // the Open queue's rank rewards pay once per account, whatever the season
-            if (store.payReward(table.user, table.format, table.queue, LadderStore.LIFETIME, rank, now)) {
+            // the Open queue's rank rewards pay once per account, whatever the season, and once for Open and Bo3
+            if (store.payReward(table.user, table.format, OPEN, LadderStore.LIFETIME, rank, now)) {
                 try {
                     RankedRewards.Paid paid = RankedRewards.pay(table.user, rank, table.format, now);
                     if (result.paid == null) {

@@ -397,8 +397,8 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('ladderState', format, queue),
     ladderOpponent: (format: string, queue?: string | null) =>
       rpc.call('ladderOpponent', format, queue),
-    ladderPlay: (format: string, deck: DeckCardLists) =>
-      rpc.call('ladderPlay', format, deck),
+    ladderPlay: (format: string, deck: DeckCardLists, queue?: string | null) =>
+      rpc.call('ladderPlay', format, deck, queue),
     leaguePlay: (format: string, deckId: string) =>
       rpc.call('leaguePlay', format, deckId),
     ladderResult: (tableId: string) =>

@@ -149,7 +149,7 @@ public final class LadderApi {
         public List<String> reached;
         public List<CareerProgress.CareerCosmetic> cosmetics;
         public int tokens;
-        /** the queue: open or league */
+        /** the queue: open, bo3 or league */
         public String queue;
         /** League pack tokens of the format the game paid */
         public int packs;
@@ -163,8 +163,9 @@ public final class LadderApi {
                 RpcMethod.named("ladderState")
                         .params(of("format", STRING), optional("queue", STRING))
                         .returns("LadderState")
-                        .doc("Your ranked standing in a format's Open queue (Bo1): rank, tier, pips, peak, record, the last games, "
-                                + "and in Mythic your rating. Formats: standard, pioneer. Queue: open (the default) or league, the Career League.")
+                        .doc("Your ranked standing in a format's queue: rank, tier, pips, peak, record, the last games, "
+                                + "and in Mythic your rating. Formats: standard, pioneer. Queue: open (Bo1, the default), bo3 (best of "
+                                + "three with sideboarding, its own rank) or league, the Career League.")
                         .handler(call -> {
                             String user = CareerApi.career(ctx, call);
                             String format = format(call.string(0));
@@ -176,7 +177,7 @@ public final class LadderApi {
                         .params(of("format", STRING), optional("queue", STRING))
                         .returns("LadderOpponent")
                         .doc("Who your next ranked game in the format is against: a bot near your hidden rating. The pick holds "
-                                + "until it's played, so it can't be skipped. Queue: open (the default) or league.")
+                                + "until it's played, so it can't be skipped. Queue: open (the default), bo3 or league.")
                         .handler(call -> {
                             String user = CareerApi.career(ctx, call);
                             String format = format(call.string(0));
@@ -185,9 +186,10 @@ public final class LadderApi {
                         }),
 
                 RpcMethod.named("ladderPlay")
-                        .params(of("format", STRING), object("deck", "DeckCardLists"))
+                        .params(of("format", STRING), object("deck", "DeckCardLists"), optional("queue", STRING))
                         .returns("LadderMatch")
-                        .doc("Start a ranked game in the format with a deck legal there, against the picked bot. No hints, "
+                        .doc("Start a ranked game in the format with a deck legal there, against the picked bot. Queue: open "
+                                + "(Bo1, the default) or bo3 (best of three; the sideboard comes into play between games). No hints, "
                                 + "take-backs, practice tools or saves; conceding or leaving is a loss.")
                         .handler(call -> play(ctx, call)),
 
@@ -378,7 +380,11 @@ public final class LadderApi {
         String user = CareerApi.career(ctx, call);
         String format = format(call.string(0));
         DeckCardLists deck = call.object(1, DeckCardLists.class);
-        return start(ctx, call, user, format, RankedService.OPEN, deck);
+        String queue = queue(call.optString(2, RankedService.OPEN));
+        if (RankedService.LEAGUE.equals(queue)) {
+            throw RpcException.invalidParams("League games start with leaguePlay and a League deck.");
+        }
+        return start(ctx, call, user, format, queue, deck);
     }
 
     /** a League game: the server's copy of the League deck, owned and legal */
@@ -417,8 +423,13 @@ public final class LadderApi {
         UUID[] registered = new UUID[1];
         String tableId;
         try {
-            tableId = CareerApi.startMatch(ctx, call, user, name, deckType, deck, PlayerType.COMPUTER_MAD, bot.skill, botDeck,
-                    id -> {
+            mage.server.career.CareerCampaigns.DuelSeat seat = new mage.server.career.CareerCampaigns.DuelSeat();
+            seat.name = name;
+            seat.skill = bot.skill;
+            seat.aiType = null; // the Mad AI, which the Rust host plays
+            seat.deck = botDeck;
+            tableId = CareerApi.startMatch(ctx, call, user, "Two Player Duel", deckType, RankedService.winsNeeded(queue), deck,
+                    java.util.Collections.singletonList(seat), id -> {
                         try {
                             ranked.register(id, user, format, queue, bot, deckName, now);
                             registered[0] = id;
