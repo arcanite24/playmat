@@ -157,6 +157,8 @@ Set these in `ops/web/.env` (Compose reads it automatically) or in the environme
 | `XMAGE_SAVE_GAMES` | `false` | `saveGameActivated`. Upstream marks game saving as unreliable. |
 | `XMAGE_REPLAYS` | `true` | Record finished games with at least one human player for the web client's replays (`-Dxmage.replays`). |
 | `XMAGE_REPLAY_DAYS` | `30` | Replays older than this many days are deleted. |
+| `XMAGE_SOLO_LINES_MAX_MB` | `1024` | Solo games keep every turn for what-ifs (a few MB a game); all players' together stay under this many MB, the least recently played going first. |
+| `XMAGE_DISK_MIN_FREE_MB` | `3072` | Under this much free disk (or 5% of it, if more) the server warns staff and stops keeping what-if turns. |
 | `XMAGE_REPLAY_MAX` | `300` | At most this many replays are kept; the oldest go first. A replay is gzipped, about 10 kB per turn (a six-turn duel was 59 kB), so 300 replays usually take tens of megabytes. |
 | `XMAGE_MEMORY` | sized to the machine | Java heap, e.g. `2g`. Empty: `XMAGE_HEAP_PERCENT` of the memory the container sees (its limit, else the host's), between 256 MB and 1 GB. The server logs the size it chose at start. |
 | `XMAGE_HEAP_PERCENT` | `40` | Share of the machine's memory the heap gets when `XMAGE_MEMORY` is empty. The rest is the JVM's own memory (classes, threads, code; about 400 MB) and the system's. |
@@ -214,7 +216,8 @@ Set these in `ops/web/.env` (Compose reads it automatically) or in the environme
 | `XMAGE_CONTACT_EMAIL` | empty | The address the privacy policy and terms (`/privacy`, `/terms`) give for questions about players' data. Empty: they point players to Feedback. |
 | `XMAGE_JAVA_OPTS` | empty | Extra JVM flags. |
 | `BACKUP_AT` | `03:30` | Time of the daily backup, as `HH:MM` in `TZ`. |
-| `BACKUP_KEEP` | `14` | Number of backups to keep. |
+| `BACKUP_KEEP` | `7` | Number of backups to keep. |
+| `BACKUP_MAX_GB` | `15` | All backups together stay under this many GB (the newest always stays); `0` turns it off. See [Backups and restore](#backups-and-restore). |
 | `TZ` | `UTC` | Time zone for `BACKUP_AT`. |
 | `WS_RATE_LIMIT` / `WS_RATE_WINDOW` | `30` / `1m` | New game connections (`/ws` requests) Caddy lets one client address open per window. Over it: `429` with `Retry-After`. |
 | `IMG_API_RATE_LIMIT` / `IMG_API_RATE_WINDOW` | `300` / `1m` | Scryfall lookups (`/img/api/*`) per client address per window. Pictures (`/img/cards/*`, `/img/backs/*`) are not limited. |
@@ -363,6 +366,7 @@ cat ops/web/small-vps.env >> ops/web/.env
 - Add 1 GB of swap as a cushion (`fallocate -l 1G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile`, plus a line in `/etc/fstab`). The server shouldn't need it, but a Docker build on the same box does.
 - Build the images on another machine and push them, or build with nothing else running. A build needs more than 1 GB.
 - When every game slot is busy, a new game waits for one, and its players are told so in the game chat. The web client's home screen says when the server is full.
+- A small disk: the preset keeps 5 backups within 8 GB and solo what-if turns under 512 MB. With replays, pictures and Docker images on the same disk, keep an eye on the admin Overview's "Disk free".
 
 ### Building on another machine (ARM boxes)
 
@@ -860,7 +864,7 @@ XMage opens every database under `./db`. Only user data stays on `xmage-db`. The
 The `backup` service runs daily at `BACKUP_AT` and writes `/backups/<UTC timestamp>/` into the `xmage-backups` volume:
 
 - `authorized_user.h2.sql.gz` and `feedback.h2.sql.gz`: H2 SQL dumps. They're taken online by joining the running server's database through H2's auto-server mode, so each dump is consistent.
-- `authorized_user.db.gz` (the accounts, see [Accounts and moderation](#accounts-and-moderation)), `user_stats.db.gz`, `table_record.db.gz`, `web_decks.db.gz`, `web_reports.db.gz`, `career.db.gz`, `web_admin.db.gz`, `support.db.gz`, `web_presence.db.gz`, `ladder.db.gz` and `solo.db`: SQLite copies taken online with `VACUUM INTO`, which leaves the free pages a busy database keeps behind, then gzipped one at a time. `solo.db` stays plain (`BACKUP_RAW`): its turn snapshots are compressed already. Backups from before November 2026 hold plain `.db` files; restore takes either.
+- `authorized_user.db.gz` (the accounts, see [Accounts and moderation](#accounts-and-moderation)), `user_stats.db.gz`, `table_record.db.gz`, `web_decks.db.gz`, `web_reports.db.gz`, `career.db.gz`, `web_admin.db.gz`, `support.db.gz`, `web_presence.db.gz`, `ladder.db.gz` and `solo.db`: SQLite copies made with SQLite's online backup API, then gzipped one at a time. `solo.db` stays plain (`BACKUP_RAW`): its turn snapshots are compressed already. Backups from before November 2026 hold plain `.db` files; restore takes either.
 - `content-packs.tar.gz`: the `db/content-packs` folder, when there is one.
 
 Every run writes `db/backup-status.json` (when, whether it worked, its size and the last good one). The admin Overview shows it, and once an hour the server checks it: a failed run, or no good backup for 36 hours, is posted to the staff channel (once a day at most).

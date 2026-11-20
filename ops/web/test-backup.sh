@@ -1,5 +1,5 @@
 #!/bin/bash
-# backup.sh against throwaway databases: compact gzipped copies, the free-space guard, retention by count and by size,
+# backup.sh against throwaway databases: gzipped copies, the free-space guard, retention by count and by size,
 # streaming (the deploy's snapshot) and restore. Needs Linux (GNU find/date/head), sqlite3 and gzip; no Docker or server.
 #   ops/web/test-backup.sh
 set -uo pipefail
@@ -24,14 +24,14 @@ sqlite3 "$XMAGE_DB_DIR/career.db" "CREATE TABLE t (v TEXT); WITH RECURSIVE n(i) 
 sqlite3 "$XMAGE_DB_DIR/solo.db" "CREATE TABLE s (id INTEGER, b BLOB); WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 40)
   INSERT INTO s SELECT i, randomblob(50000) FROM n; DELETE FROM s WHERE id > 20;"
 
-# --- a backup: gzipped and compact copies
+# --- a backup: gzipped copies
 out=$(run once 2>&1) || fail "once: $out"
 name=$(run list | tail -n 1)
 b=$BACKUP_DIR/$name
 [[ -f $b/career.db.gz && ! -f $b/career.db ]] && ok "career.db is gzipped" || fail "career.db.gz missing: $(ls "$b")"
 [[ -f $b/solo.db && ! -f $b/solo.db.gz ]] && ok "solo.db is kept plain (BACKUP_RAW)" || fail "solo.db: $(ls "$b")"
-src=$(stat -c %s "$XMAGE_DB_DIR/solo.db"); copy=$(stat -c %s "$b/solo.db")
-(( copy < src * 7 / 10 )) && ok "the copy leaves the free pages behind ($copy < $src bytes)" || fail "copy $copy vs source $src"
+[[ $(sqlite3 "$b/solo.db" "PRAGMA integrity_check") == ok && $(sqlite3 "$b/solo.db" "SELECT count(*) FROM s") == 20 ]] \
+  && ok "the solo.db copy is whole" || fail "solo.db copy"
 grep -q '"ok":true' "$XMAGE_DB_DIR/backup-status.json" && ok "status ok" || fail "status: $(cat "$XMAGE_DB_DIR/backup-status.json")"
 
 # --- the free-space guard: skipped loudly, status says why, nothing written, old partials cleaned

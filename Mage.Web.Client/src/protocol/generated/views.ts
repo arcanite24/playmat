@@ -151,6 +151,7 @@ export interface BackupRun {
     ok?: boolean;
     problem?: string;
     size?: string;
+    skipped?: string;
 }
 
 export interface BasicLandSetInfo extends ExpansionSetInfo {

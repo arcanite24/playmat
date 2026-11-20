@@ -20,8 +20,8 @@
 #   ladder.db                                       SQLite copy (ladder ratings: players and bots, per format and queue)
 #   content-packs.tar.gz                            the content packs folder (campaigns, puzzles, opponents staff added)
 # H2 dumps are taken online: AUTO_SERVER lets this process join the running server's database.
-# SQLite copies are taken online with VACUUM INTO (a compact copy, without the free pages), then gzipped as NAME.gz
-# unless NAME is in $BACKUP_RAW (default solo.db). Restore takes both NAME and NAME.gz.
+# SQLite copies use the online backup API, then are gzipped as NAME.gz unless NAME is in $BACKUP_RAW (default solo.db,
+# whose turn snapshots are compressed already). Restore takes both NAME and NAME.gz.
 #
 # Disk: the newest $BACKUP_KEEP (default 7) backups are kept, and fewer when together they pass $BACKUP_MAX_GB (default
 # 15; 0 turns the budget off); the newest one always stays. Old ones go before a run, and a run is skipped (status
@@ -116,8 +116,9 @@ take() {
   done
   for db in "${SQLITE_DBS[@]}"; do
     [[ -e $DB_DIR/$db ]] || continue
-    # a compact copy: the free pages a busy database keeps (a third of solo.db on 2026-11-20) stay behind
-    sqlite3 -cmd ".timeout 30000" "$DB_DIR/$db" "VACUUM INTO '$tmp/$db'"
+    # the online backup API copies a few pages at a time, so the server's writes go on meanwhile (VACUUM INTO would
+    # hold them back for the whole copy: the databases are in rollback-journal mode)
+    sqlite3 -cmd ".timeout 30000" "$DB_DIR/$db" ".backup '$tmp/$db'"
     # one database at a time, so the disk never holds more than one uncompressed copy
     [[ " $BACKUP_RAW " == *" $db "* ]] || gzip -1 --rsyncable "$tmp/$db"
   done
