@@ -25,6 +25,16 @@ public class CardRepositoryProblemTest {
     }
 
     @Test
+    public void reopensNeverStopForGood() {
+        long now = 1_000_000_000L;
+        assertTrue(CardRepository.mayReopen(0, now, now), "the first tries go at once");
+        assertTrue(CardRepository.mayReopen(9, now, now));
+        assertFalse(CardRepository.mayReopen(10, now - 1000, now), "past the limit: not every request");
+        assertTrue(CardRepository.mayReopen(10, now - CardRepository.RETRY_AFTER_MS, now), "but once a minute, for ever");
+        assertTrue(CardRepository.mayReopen(500, now - CardRepository.RETRY_AFTER_MS, now));
+    }
+
+    @Test
     public void anUnknownDiskIsTheDatabase() {
         assertTrue(CardRepository.describeProblem(0, 0).contains("isn't answering"));
     }

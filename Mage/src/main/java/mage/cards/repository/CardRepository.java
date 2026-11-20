@@ -897,7 +897,7 @@ public enum CardRepository {
 
         synchronized (CardRepository.class) {
             long now = System.currentTimeMillis();
-            if (databaseFixes.get() >= MAX_DATABASE_FIXES && now - lastFixAt < RETRY_AFTER_MS) {
+            if (!mayReopen(databaseFixes.get(), lastFixAt, now)) {
                 logger.error("Critical error: the card database keeps failing (" + describeProblem() + "); next try in "
                         + ((RETRY_AFTER_MS - (now - lastFixAt)) / 1000) + "s");
                 return false;
@@ -919,6 +919,11 @@ public enum CardRepository {
             logger.warn(String.format("Database: trying to restart (%d try)... FAIL (%s)", databaseFixes.get(), describeProblem()));
             return false;
         }
+    }
+
+    /** the first MAX_DATABASE_FIXES reopens in a row go at once, later ones once every RETRY_AFTER_MS */
+    static boolean mayReopen(int fixesInARow, long lastFixAt, long now) {
+        return fixesInARow < MAX_DATABASE_FIXES || now - lastFixAt >= RETRY_AFTER_MS;
     }
 
     /** What players are told when the card database doesn't answer: a full disk or a database problem. */
