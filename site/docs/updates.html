@@ -76,7 +76,8 @@ docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env up -d</code
         <h3 id="steps">What an update does</h3>
         <ol>
           <li>Downloads the version's images and pins them by digest in <code>.env</code>, so a later <code>up -d</code> runs the same thing.</li>
-          <li>Backs up the databases, next to the nightly backups.</li>
+          <li>Backs up the databases, next to the nightly backups. On a disk too full for one more backup it stops here
+            and changes nothing: free some disk first (see <a href="server.html#backups">backups</a>).</li>
           <li>Warns players. With games running it announces maintenance and gives them up to 15 minutes to end (<code>UPDATER_DRAIN_MINUTES</code>).</li>
           <li>Restarts the server and web client on the new version, with the compose file that version came with.</li>
           <li>Waits for both to be healthy. If they aren't within 10 minutes (<code>UPDATER_HEALTH_TIMEOUT</code>), it goes back to the version that ran before, by itself.</li>
@@ -151,6 +152,10 @@ docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env up -d --no-
         <ul>
           <li><strong>“The updater isn't running.”</strong> <code>COMPOSE_PROFILES=updater</code> is missing from <code>.env</code>, or the <code>up -d</code> after adding it hasn't run. <code>docker compose … logs updater</code> shows what it saw at start.</li>
           <li><strong>An update failed and went back.</strong> The server runs what it ran before. The updater log says which step failed; the backup from step 2 is in the backups volume.</li>
+          <li><strong>“The last backup was skipped”</strong> on the Overview, or an update stopped at the backup step. The
+            disk has less than twice a backup's size free. Old backups go by themselves (<code>BACKUP_KEEP</code>,
+            <code>BACKUP_MAX_GB</code>); look for anything else filling it, then take one with
+            <code>docker compose … exec backup xmage-backup once</code>.</li>
           <li><strong>A job looks stuck</strong> after the host rebooted mid-update. Start the stack with <code>up -d</code>, check that it's healthy, and ask again.</li>
         </ul>
       </article>

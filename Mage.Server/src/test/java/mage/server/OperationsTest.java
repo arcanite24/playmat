@@ -42,6 +42,12 @@ public class OperationsTest {
         write(file, "{\"at\":" + hourAgo + ",\"ok\":false,\"name\":\"20261011T033000Z\",\"size\":\"\",\"lastOkAt\":" + (hourAgo - 86400) + "}");
         assertThat(BackupStatus.read(file, now).problem).startsWith("The last backup failed");
 
+        // backup.sh skips a run on a nearly full disk, and says why
+        write(file, "{\"at\":" + hourAgo + ",\"ok\":false,\"name\":\"20261011T033000Z\",\"size\":\"\",\"lastOkAt\":" + (hourAgo - 86400)
+                + ",\"skipped\":\"only 900 MB free on the backup disk, a backup needs 6400 MB (twice the last one)\"}");
+        assertThat(BackupStatus.read(file, now).problem).isEqualTo("The last backup was skipped: only 900 MB free on the backup"
+                + " disk, a backup needs 6400 MB (twice the last one)");
+
         long old = hourAgo - TimeUnit.HOURS.toSeconds(40);
         write(file, "{\"at\":" + old + ",\"ok\":true,\"name\":\"x\",\"size\":\"1K\",\"lastOkAt\":" + old + "}");
         assertThat(BackupStatus.read(file, now).problem).contains("41 hours old");

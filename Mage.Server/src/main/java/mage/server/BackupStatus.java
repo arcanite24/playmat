@@ -33,6 +33,8 @@ public final class BackupStatus {
         public String name;
         public String size;
         public long lastOkAt;
+        /** why the last run didn't take a backup (too little disk), or empty */
+        public String skipped;
         /** what is wrong, or null when nothing is: filled in by the server */
         public String problem;
     }
@@ -68,6 +70,9 @@ public final class BackupStatus {
     }
 
     static String problem(BackupRun status, long now) {
+        if (!status.ok && status.skipped != null && !status.skipped.isEmpty()) {
+            return "The last backup was skipped: " + status.skipped;
+        }
         if (!status.ok) {
             return "The last backup failed" + (status.name == null || status.name.isEmpty() ? "" : " (" + status.name + ")");
         }

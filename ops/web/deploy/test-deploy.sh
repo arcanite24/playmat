@@ -87,6 +87,20 @@ by_hand refused deploy v1.2.3 extra
 out=$(SSH_ORIGINAL_COMMAND=status PLAYMAT_DEPLOY_CHECK_ONLY=1 bash "$script" deploy v1.2.3 2>&1) || true
 check status 0 "$out" "ssh wins over arguments"
 
+# the snapshot's free-space guard: FREE_KB NEED_KB NIGHTLY_AGE_HOURS -> take, skip (a recent nightly covers it) or fail
+room() {
+  local got
+  got=$(env -u SSH_ORIGINAL_COMMAND PLAYMAT_DEPLOY_ROOM_CHECK="$2" bash "$script" status 2>&1) || true
+  [[ $got == "$1" ]] || { echo "FAIL room $2: expected $1, got $got"; failed=$((failed + 1)); }
+}
+room take "5000000 4000000 -1"
+room take "5000000 5000000 100"
+room skip "1000000 4000000 0"
+room skip "1000000 4000000 36"
+room fail "1000000 4000000 37"
+room fail "1000000 4000000 -1"
+room take "10 0 -1"
+
 if command -v shellcheck > /dev/null; then
   shellcheck "$here/playmat-deploy" "$here/playmat-compose" "$here/setup-deploy-user.sh" "$here/test-deploy.sh" \
     || { echo "FAIL shellcheck"; failed=$((failed + 1)); }

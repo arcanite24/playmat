@@ -33,10 +33,18 @@ public enum CardRepository {
 
     private static final Logger logger = Logger.getLogger(CardRepository.class);
 
-    // fixes limit for out of memory problems
+    // fixes in a row for out of memory (or full disk) problems; a good check starts the count again
     private static final AtomicInteger databaseFixes = new AtomicInteger();
 
     private static final int MAX_DATABASE_FIXES = 10;
+
+    // past MAX_DATABASE_FIXES, one more try this often: once the disk has room again the database comes back
+    // without a restart (2026-11-20: a full disk left the server refusing every deck until it was restarted)
+    static final long RETRY_AFTER_MS = 60_000;
+    private static volatile long lastFixAt;
+
+    // a db/ disk with less than this free is called full in the error players see
+    private static final long DISK_NEARLY_FULL_BYTES = 512L << 20;
 
     // TODO: delete db version from cards and expansions due un-used (cause dbs re-created on each update now)
     private static final String VERSION_ENTITY_NAME = "card";
@@ -881,31 +889,57 @@ public enum CardRepository {
         CardInfo cardInfo = safeFindKnownCard();
         if (cardInfo != null) {
             logger.info("Database: checking broken status... GOOD");
+            databaseFixes.set(0);
             return true;
         }
 
         Logger.getLogger(CardRepository.class).error("Database: checking broken status... BAD");
 
-        if (databaseFixes.incrementAndGet() > MAX_DATABASE_FIXES) {
-            logger.error("Critical error: no more db memory fixes allows, server must be restarted");
-            return false;
-        }
+        synchronized (CardRepository.class) {
+            long now = System.currentTimeMillis();
+            if (!mayReopen(databaseFixes.get(), lastFixAt, now)) {
+                logger.error("Critical error: the card database keeps failing (" + describeProblem() + "); next try in "
+                        + ((RETRY_AFTER_MS - (now - lastFixAt)) / 1000) + "s");
+                return false;
+            }
+            databaseFixes.incrementAndGet();
+            lastFixAt = now;
 
-        // DB seems to have a problem - try to restart the DB (useless in 99% due out of memory problems)
-        instance.closeDB(false);
-        instance.openDB();
+            // DB seems to have a problem - try to restart the DB (a full disk heals once it has room again)
+            instance.closeDB(false);
+            instance.openDB();
+        }
         cardInfo = safeFindKnownCard();
         if (cardInfo != null) {
             logger.warn(String.format("Database: trying to restart (%d try)... GOOD - db fixed", databaseFixes.get()));
+            databaseFixes.set(0);
             return true;
         } else {
-            // TODO: add here:
-            //  - admin notification by email
-            //  - players notification by message,
-            //  - timer with auto-restart feature (restart java app, restart docker container - e.g. docker health check)
             //  see related issue: https://github.com/magefree/mage/issues/8130
-            logger.warn(String.format("Database: trying to restart  (%d try)... FAIL - server must be restarted", databaseFixes.get()));
+            logger.warn(String.format("Database: trying to restart (%d try)... FAIL (%s)", databaseFixes.get(), describeProblem()));
             return false;
         }
+    }
+
+    /** the first MAX_DATABASE_FIXES reopens in a row go at once, later ones once every RETRY_AFTER_MS */
+    static boolean mayReopen(int fixesInARow, long lastFixAt, long now) {
+        return fixesInARow < MAX_DATABASE_FIXES || now - lastFixAt >= RETRY_AFTER_MS;
+    }
+
+    /** What players are told when the card database doesn't answer: a full disk or a database problem. */
+    public static String describeProblem() {
+        return describeProblem(new java.io.File("db"));
+    }
+
+    static String describeProblem(java.io.File dbDir) {
+        java.io.File dir = dbDir.isDirectory() ? dbDir : new java.io.File(".");
+        return describeProblem(dir.getUsableSpace(), dir.getTotalSpace());
+    }
+
+    static String describeProblem(long free, long total) {
+        if (total > 0 && free < DISK_NEARLY_FULL_BYTES) {
+            return "the server's disk is full (" + (free >> 20) + " MB free), so its card database can't work";
+        }
+        return "the server's card database isn't answering (a disk or database problem)";
     }
 }

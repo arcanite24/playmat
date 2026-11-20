@@ -34,6 +34,8 @@ public class ServerStats {
     public BridgeMetrics.BridgeSnapshot bridge;
     /** the nightly backup's last run; null when this server has no backup service */
     public BackupStatus.BackupRun backup;
+    /** free space under db/; null when it can't be read */
+    public mage.server.DiskStatus.Disk disk;
     /** planned maintenance, or null */
     public Maintenance.MaintenancePlan maintenance;
     /** the Rust AI's games since the server started (docs/rust/Ai.md, docs/rust/Views.md) */
@@ -76,6 +78,7 @@ public class ServerStats {
         stats.threads = ManagementFactory.getThreadMXBean().getThreadCount();
         stats.bridge = BridgeMetrics.get().snapshot();
         stats.backup = BackupStatus.read();
+        stats.disk = mage.server.DiskStatus.read();
         stats.maintenance = Maintenance.get().plan();
         RustAiStats rust = new RustAiStats();
         rust.started = mage.game.trace.RustAiBridge.STARTED.get();

@@ -1,0 +1,32 @@
+name: Ops scripts
+
+# The host and container scripts in ops/web, against throwaway folders: the backup's free-space guard and retention,
+# the offsite pack, and what the deploy's forced command accepts.
+on:
+  push:
+    branches: [ "master" ]
+    paths:
+      - "ops/web/**"
+      - ".github/workflows/ops.yml"
+  pull_request:
+    paths:
+      - "ops/web/**"
+      - ".github/workflows/ops.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Tools
+        run: sudo apt-get update -q && sudo apt-get install -y -q sqlite3 shellcheck
+      - name: Backups (ops/web/backup.sh)
+        run: ops/web/test-backup.sh
+      - name: Offsite packs (ops/web/host/offsite.sh)
+        run: ops/web/host/test-offsite.sh
+      - name: Deploy command (ops/web/deploy/playmat-deploy)
+        run: ops/web/deploy/test-deploy.sh

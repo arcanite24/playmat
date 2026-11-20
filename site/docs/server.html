@@ -140,6 +140,17 @@ docker compose -f ops/web/docker-compose.yml -f ops/web/docker-compose.proxy.yml
           (<code>IMGCACHE_API_MAX_SIZE</code>). A playgroup's server usually stays far below that. Pictures are only
           downloaded as cards are shown, unless you fill the cache ahead of time with
           <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md">warm-images.mjs</a>.</p>
+        <h3 id="backups">How much disk do the backups take, and what if it fills up?</h3>
+        <p>The <code>backup</code> service copies the user databases every night at <code>BACKUP_AT</code> and keeps the
+          newest 7 (<code>BACKUP_KEEP</code>), fewer if together they pass 15 GB (<code>BACKUP_MAX_GB</code>). Old ones
+          go before each run. When the disk has less than twice the last backup's size free, the run is skipped instead
+          of filling it, and the admin Overview says so in red. A full disk stops the whole server, so plan for the
+          backups, the picture cache and the databases together; the small VPS preset uses smaller numbers.</p>
+        <p>The server checks its disk too: under 3 GB free (<code>XMAGE_DISK_MIN_FREE_MB</code>) or 5% of the disk,
+          the Overview and the staff channel warn you, and solo games stop keeping every turn for what-ifs. Those turns
+          are most of <code>solo.db</code>; they stay under 1 GB (<code>XMAGE_SOLO_LINES_MAX_MB</code>). Restoring a
+          backup and the off-site copies are in the
+          <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#backups-and-restore">README</a>.</p>
         <h3 id="scryfall-mirror">Can the server take card pictures from my own Scryfall mirror?</h3>
         <p>Yes. Point the image cache at it in <code>.env</code> and run <code>up -d</code>:</p>
         <div class="terminal" role="region" aria-label="Settings for a Scryfall mirror">

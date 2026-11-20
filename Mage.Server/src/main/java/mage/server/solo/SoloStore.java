@@ -80,6 +80,9 @@ public final class SoloStore implements AutoCloseable {
         connection = DriverManager.getConnection(jdbcUrl);
         try (Statement statement = connection.createStatement()) {
             statement.execute("PRAGMA busy_timeout = 5000");
+            // freed pages can go back to the disk (incrementalVacuum); a new file takes it at once, an older one
+            // at its next full VACUUM (compact)
+            statement.execute("PRAGMA auto_vacuum = INCREMENTAL");
         }
         migrate();
     }
@@ -356,6 +359,94 @@ public final class SoloStore implements AutoCloseable {
             statement.executeUpdate("DELETE FROM turn_snapshots WHERE game_id NOT IN (SELECT game_id FROM game_lines)");
         }
         return removed;
+    }
+
+    /** drops the least recently played lines (with their turns) until the file's live pages fit {@code maxBytes} */
+    public synchronized int pruneLinesToSize(long maxBytes) throws SQLException {
+        int removed = 0;
+        // a line is a few MB at most: a few at a time, and a bound so a stuck count can't loop forever
+        for (int round = 0; round < 10_000 && usedBytes() > maxBytes; round++) {
+            int deleted;
+            try (Statement statement = connection.createStatement()) {
+                deleted = statement.executeUpdate("DELETE FROM game_lines WHERE game_id IN"
+                        + " (SELECT game_id FROM game_lines ORDER BY updated LIMIT 3)");
+                statement.executeUpdate("DELETE FROM turn_snapshots WHERE game_id NOT IN (SELECT game_id FROM game_lines)");
+            }
+            if (deleted == 0) {
+                break;
+            }
+            removed += deleted;
+        }
+        return removed;
+    }
+
+    /** bytes in pages that hold data (the file's size less its free pages) */
+    public synchronized long usedBytes() throws SQLException {
+        return (pragma("page_count") - pragma("freelist_count")) * pragma("page_size");
+    }
+
+    /** bytes in free pages: the file keeps them until a vacuum gives them back */
+    public synchronized long freeBytes() throws SQLException {
+        return pragma("freelist_count") * pragma("page_size");
+    }
+
+    public synchronized long fileBytes() throws SQLException {
+        return pragma("page_count") * pragma("page_size");
+    }
+
+    /** 0 none, 1 full, 2 incremental */
+    public synchronized int autoVacuum() throws SQLException {
+        return (int) pragma("auto_vacuum");
+    }
+
+    private long pragma(String name) throws SQLException {
+        try (Statement statement = connection.createStatement();
+             ResultSet rows = statement.executeQuery("PRAGMA " + name)) {
+            return rows.next() ? rows.getLong(1) : 0;
+        }
+    }
+
+    /**
+     * Gives free pages back to the disk. A file that can do it bit by bit (auto_vacuum incremental) does so; an older
+     * one needs a full VACUUM once, which writes a copy of the live data first, so it only runs when the disk has
+     * {@code diskFreeBytes} of at least twice the file. Returns the bytes given back.
+     */
+    public synchronized long compact(long diskFreeBytes) throws SQLException {
+        long before = fileBytes();
+        if (pragma("freelist_count") == 0) {
+            return 0;
+        }
+        if (autoVacuum() == 2) {
+            // the driver steps the pragma once, which frees one page: step it again until none is left, in one
+            // transaction so it's one write to the disk
+            boolean auto = connection.getAutoCommit();
+            connection.setAutoCommit(false);
+            try {
+                for (long left = pragma("freelist_count"); left > 0; left--) {
+                    // closed each time: an open one holds the commit back
+                    try (Statement statement = connection.createStatement()) {
+                        statement.execute("PRAGMA incremental_vacuum");
+                    }
+                }
+                connection.commit();
+            } catch (SQLException e) {
+                connection.rollback();
+                throw e;
+            } finally {
+                connection.setAutoCommit(auto);
+            }
+        } else {
+            if (diskFreeBytes < 2 * before) {
+                logger.warn("Solo: db/solo.db has " + (freeBytes() >> 20) + " MB of free pages, but a VACUUM needs "
+                        + (2 * before >> 20) + " MB of disk and " + (diskFreeBytes >> 20) + " MB is free; not now");
+                return 0;
+            }
+            try (Statement statement = connection.createStatement()) {
+                statement.execute("PRAGMA auto_vacuum = INCREMENTAL");
+                statement.execute("VACUUM");
+            }
+        }
+        return before - fileBytes();
     }
 
     // ---- jobs
