@@ -5,7 +5,9 @@
 #
 #   deploy <tag>   run the images tagged <tag> (vX.Y.Z, sha-<7 to 40 hex>, master), safely:
 #                    1. pull both images and pin their digests
-#                    2. snapshot the user databases into $SNAPSHOT_DIR (the newest $SNAPSHOT_KEEP are kept)
+#                    2. snapshot the user databases into $SNAPSHOT_DIR (the newest $SNAPSHOT_KEEP are kept). On a disk
+#                       too full for one (under twice the last), the deploy goes ahead without it when the nightly
+#                       backup is under $SNAPSHOT_NIGHTLY_HOURS old, and fails otherwise
 #                    3. drain: with games running, announce maintenance and wait for them (at most $DRAIN_MINUTES)
 #                    4. pin the digests in .env (XMAGE_SERVER_IMAGE, XMAGE_WEB_IMAGE); the state file keeps the old ones
 #                    5. docker compose up -d --no-build, with the compose kit shipped inside the server image
@@ -59,6 +61,27 @@ else
   parse_command ${@+"$@"}
 fi
 
+# room_decision FREE_KB NEED_KB NIGHTLY_AGE_HOURS: "take" a snapshot, "skip" it (the disk is too full, but a recent
+# nightly backup covers the deploy), or "fail" (too full and nothing recent). An age of -1: no nightly backup.
+room_decision() {
+  local free=$1 need=$2 age=$3
+  if (( free >= need )); then
+    echo take
+  elif (( age >= 0 && age <= SNAPSHOT_NIGHTLY_HOURS )); then
+    echo skip
+  else
+    echo fail
+  fi
+}
+SNAPSHOT_NIGHTLY_HOURS=36
+
+# test-deploy.sh: the room decision alone
+if [[ -n ${PLAYMAT_DEPLOY_ROOM_CHECK:-} ]]; then
+  # shellcheck disable=SC2086
+  room_decision $PLAYMAT_DEPLOY_ROOM_CHECK
+  exit 0
+fi
+
 # test-deploy.sh stops here: the command was accepted
 if [[ ${PLAYMAT_DEPLOY_CHECK_ONLY:-} == 1 ]]; then
   echo "accepted: $ACTION${TAG:+ $TAG}"
@@ -74,7 +97,7 @@ GHCR_USER=
 GHCR_TOKEN=
 STATE_DIR=/var/lib/playmat-deploy
 SNAPSHOT_DIR=/var/backups/playmat
-SNAPSHOT_KEEP=5
+SNAPSHOT_KEEP=2
 DRAIN_MINUTES=15
 HEALTH_TIMEOUT=300
 CONF=/etc/playmat-deploy.conf
@@ -204,30 +227,77 @@ extract_kit() {
 }
 
 # --- steps --------------------------------------------------------------------------------------------------------
-# snapshot LABEL IMAGE: the user databases, as a consistent online dump from the backup service, or (no backup
-# service running) a copy of the db volume
+# prune_snapshots KEEP: the newest KEEP snapshots stay
+prune_snapshots() {
+  find "$SNAPSHOT_DIR" -maxdepth 1 \( -name 'pre-*.tar.gz' -o -name 'pre-*.tar' \) -printf '%T@ %p\n' | sort -rn \
+    | tail -n "+$(($1 + 1))" | cut -d' ' -f2- | while read -r old; do rm -f "$old" && log "snapshot: removed $old"; done
+  # leftovers of a snapshot that failed half way
+  find "$SNAPSHOT_DIR" -maxdepth 1 -name 'pre-*.tmp' -delete
+}
+
+# nightly_age_hours ID: how old the backup service's newest backup is, in hours; -1 when there is none
+nightly_age_hours() {
+  local name at
+  name=$(docker exec "$1" xmage-backup list 2>/dev/null | tail -n 1)
+  [[ $name =~ ^([0-9]{8})T([0-9]{2})([0-9]{2})([0-9]{2})Z$ ]] || { echo -1; return; }
+  at=$(date -u -d "${BASH_REMATCH[1]} ${BASH_REMATCH[2]}:${BASH_REMATCH[3]}:${BASH_REMATCH[4]}" +%s) || { echo -1; return; }
+  echo $(( ($(date -u +%s) - at) / 3600 ))
+}
+
+# snapshot LABEL IMAGE: the user databases, as a consistent online dump streamed from the backup service (nothing is
+# left in its volume, so a deploy doesn't push a nightly backup out), or (no backup service running) a copy of the db
+# volume. The disk is checked first: a snapshot that fills it takes the new version down with it (2026-11-20).
 snapshot() {
-  local label=$1 image=$2 file id name volume=${COMPOSE_PROJECT}_xmage-db
-  file=$SNAPSHOT_DIR/pre-$label-$(date -u +%Y%m%dT%H%M%SZ).tar.gz
+  local label=$1 image=$2 file id volume=${COMPOSE_PROJECT}_xmage-db last need free age code=0
   mkdir -p "$SNAPSHOT_DIR"
+  # old ones go first, leaving room for this one
+  prune_snapshots $((SNAPSHOT_KEEP > 1 ? SNAPSHOT_KEEP - 1 : 1))
   id=$(container backup)
+  last=$(find "$SNAPSHOT_DIR" -maxdepth 1 \( -name 'pre-*.tar.gz' -o -name 'pre-*.tar' \) -printf '%T@ %s\n' | sort -rn | head -n 1 | cut -d' ' -f2)
+  need=$(( ${last:-0} * 2 / 1024 ))
+  free=$(df -Pk "$SNAPSHOT_DIR" | awk 'NR == 2 { print $4 }')
+  age=-1
+  [[ -n $id ]] && age=$(nightly_age_hours "$id")
+  case $(room_decision "$free" "$need" "$age") in
+    skip)
+      log "snapshot: SKIPPED: only $((free / 1024)) MB free in $SNAPSHOT_DIR, a snapshot needs $((need / 1024)) MB;"
+      log "snapshot: going ahead on the nightly backup from $age hours ago. Free some disk."
+      return 0 ;;
+    fail)
+      log "snapshot: only $((free / 1024)) MB free in $SNAPSHOT_DIR, a snapshot needs $((need / 1024)) MB, and there is no"
+      log "snapshot: nightly backup from the last $SNAPSHOT_NIGHTLY_HOURS hours to fall back on. Free some disk."
+      return 1 ;;
+  esac
   if [[ -n $id ]]; then
-    docker exec "$id" xmage-backup once > /dev/null || return 1
-    name=$(docker exec "$id" xmage-backup list | tail -n 1)
-    [[ -n $name ]] || return 1
-    docker exec "$id" tar czf - -C /backups "$name" > "$file" || { rm -f "$file"; return 1; }
-    log "snapshot: online dump $name -> $file"
+    file=$SNAPSHOT_DIR/pre-$label-$(date -u +%Y%m%dT%H%M%SZ).tar
+    docker exec "$id" xmage-backup stream > "$file.tmp" || code=$?
+    if (( code == 2 )); then
+      # a backup service from before stream (Nov 2026): a backup in its volume, copied out
+      local name
+      code=0
+      docker exec "$id" xmage-backup once > /dev/null || code=$?
+      name=$(docker exec "$id" xmage-backup list | tail -n 1)
+      (( code == 0 )) && [[ -n $name ]] && docker exec "$id" tar cf - -C /backups "$name" > "$file.tmp" || code=1
+    fi
+    if (( code == 3 )) && (( age >= 0 && age <= SNAPSHOT_NIGHTLY_HOURS )); then
+      rm -f "$file.tmp"
+      log "snapshot: SKIPPED: the backup volume is too full (see: docker logs of the backup service); going ahead on the nightly backup from $age hours ago"
+      return 0
+    fi
+    (( code == 0 )) || { rm -f "$file.tmp"; return 1; }
+    mv "$file.tmp" "$file"
+    log "snapshot: online dump -> $file ($(du -h "$file" | cut -f1))"
   elif docker volume inspect "$volume" > /dev/null 2>&1; then
-    docker run --rm --network none -v "$volume:/opt/xmage/db:ro" --entrypoint tar "$image" czf - -C /opt/xmage db > "$file" \
-      || { rm -f "$file"; return 1; }
+    file=$SNAPSHOT_DIR/pre-$label-$(date -u +%Y%m%dT%H%M%SZ).tar.gz
+    docker run --rm --network none -v "$volume:/opt/xmage/db:ro" --entrypoint tar "$image" czf - -C /opt/xmage db > "$file.tmp" \
+      || { rm -f "$file.tmp"; return 1; }
+    mv "$file.tmp" "$file"
     log "snapshot: copy of the $volume volume -> $file"
   else
     log "snapshot: no database yet (no $volume volume); nothing to keep"
     return 0
   fi
-  # the newest SNAPSHOT_KEEP
-  find "$SNAPSHOT_DIR" -maxdepth 1 -name 'pre-*.tar.gz' -printf '%T@ %p\n' | sort -rn | tail -n "+$((SNAPSHOT_KEEP + 1))" \
-    | cut -d' ' -f2- | while read -r old; do rm -f "$old" && log "snapshot: removed $old"; done
+  prune_snapshots "$SNAPSHOT_KEEP"
 }
 
 DRAINED=0
