@@ -16,6 +16,7 @@
     "masteries": ["s", "m"],
     "streak": ["m", "w"],
     "savedGames": ["m", "w"],
+    "seasonBoard": ["m", "l"],
     "leaderboard": ["m", "l"],
     "capsules": ["s"],
     "notice": ["m", "w"]

@@ -14,6 +14,7 @@ import { CareerAvatar } from './CareerScreen';
 import { Pips } from './Portraits';
 import { climb, movement, pickFormat, pipRow, rankAt, rankKey, record, type PipState } from './rankedModel';
 import { playRanked, useRankedOpponent, useRankedResult, useRankedState, useSeasonEnd } from './rankedData';
+import { SeasonBoards } from './SeasonBoards';
 import { Versus } from './Versus';
 import modes from './CareerModes.module.css';
 import styles from './Ranked.module.css';
@@ -70,6 +71,7 @@ export function CareerRankedScreen() {
             <div className={styles.main}>
               <Standing state={state.data} />
               <Recent state={state.data} />
+              <SeasonBoards state={state.data} />
             </div>
             <Queue key={format} format={format} state={state.data} />
           </div>
