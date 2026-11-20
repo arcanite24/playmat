@@ -2243,6 +2243,8 @@ const es: Catalog = {
   'league.packs.set': 'Edición',
   'league.packs.mixed': 'Sobre de {format} (cualquier edición)',
   'league.packs.open': 'Abrir un sobre',
+  'league.packs.rare': '+1 comodín raro',
+  'league.packs.mythic': '+1 comodín mítico',
   'home.queue.league': 'Liga',
   'home.leagueNote': 'Juega con tu colección: sube la Liga de un formato y gana sus sobres.',
 };

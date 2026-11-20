@@ -63,7 +63,7 @@
           <li>A persona: a name, avatar, sleeves, playmat, frame and title from the cosmetics catalog. Stronger bots wear
             rarer cosmetics.</li>
         </ul>
-        <p>Standard and Pioneer have about 50 bots each. Each format is its own rating scale, with its starter deck at
+        <p>Standard and Pioneer have about 65 bots each. Each format is its own rating scale, with its starter deck at
           skill 1 fixed at 1000.</p>
 
         <h2>Where they live</h2>
@@ -100,7 +100,8 @@
             collection (never past four of a card), each becomes a League deck, and the format's packs are added. The
             account's first League also gives 4 common, 3 uncommon and 1 rare wildcard.</li>
           <li>League packs come from the format's own sets. Standard picks a set; Pioneer also has a mixed pack. A pack
-            uses the format's League packs first, then a Career pack token, then 100 coins.</li>
+            uses the format's League packs first, then a Career pack token, then 100 coins. Every fourth League pack
+            also gives a rare wildcard, and every twelfth a mythic one instead.</li>
           <li>League decks must be legal in the format and use only cards the account owns. The server plays its own
             copy of the deck. In the League's deck builder a deck can hold any card legal in the format, owned or not;
             <b>Craft missing</b> crafts everything it lacks at once, or nothing if the wildcards or coins don't cover
@@ -108,18 +109,28 @@
           <li>The League has its own ladder, with the same ranks and rules as Ranked, starting at a lower hidden rating.
             Each tier reached for the first time pays a pack of the format. Each rank pays its cosmetics and a rare
             wildcard (mythic at Gold). Every fifth League win pays an uncommon wildcard. No capsule tokens.</li>
+          <li>League opponents are picked by rating, like Ranked's. The League adds budget versions of the meta decks
+            (rares and mythics swapped for commons and uncommons) and plays the full meta decks only at the full
+            search. The budget decks rate well below their full lists, so they turn up among the starters and the
+            school's decks.</li>
+          <li>The pace is tested: a player with 6 League games a day who puts spare coins into League packs finishes a
+            Standard meta deck in about four weeks (a median of 27 days). At 2 games a day it takes about three
+            months.</li>
         </ul>
-        <p>The starters and the number of packs are set in <code>league/league.json</code> in the server's resources.
+        <p>The starters, the number of packs and the wildcard track are set in <code>league/league.json</code> in the
+          server's resources.
           Leagues, League packs and League decks are kept in <code>db/career.db</code> and the League's ladder in
           <code>db/ladder.db</code>. Both are in an account's export and are deleted with it.</p>
 
         <h2>Recalibrate</h2>
         <p>The ratings in <code>bots.json</code> are only right for the AI that measured them. After changing the AI's
-          search, the skills or a school deck, measure them again. The shipped run played about 18,000 games in 40 minutes on three threads.</p>
+          search, the skills or a school deck, measure them again. The shipped ratings come from about 31,000 games on three threads: 40 minutes for the first 18,000, about 20 more for the League's budget bots.</p>
         <ol>
           <li>If you added or renamed school decks, remake the list:
             <pre><code>python3 Mage.Server/ladder-src/roster.py</code></pre>
-            Bots that keep their id keep their persona and rating.</li>
+            Bots that keep their id keep their persona and rating. If you changed a meta deck, remake its budget
+            version first:
+            <pre><code>mvn -o -pl Mage.Server test -Dtest=LeagueBudgetDecksTest -Dxmage.writeBudgetDecks=true</code></pre></li>
           <li>Play the bots against each other and write the ratings back:
             <pre><code>cd rust
 cargo run --release -p playmat-ai --bin ladder-calibrate -- --rounds 3 --near 8 --far 3 --deals 6</code></pre>

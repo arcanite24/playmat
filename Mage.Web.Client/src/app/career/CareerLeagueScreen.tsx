@@ -333,6 +333,7 @@ function Packs({ format, league }: { format: string; league: LeagueFormat }) {
           setCode={opened.pack.setCode ?? ''}
           cover={opened.set.cover}
           cards={opened.pack.cards ?? []}
+          bonus={opened.pack.wildcard === 'mythic' ? t('league.packs.mythic') : opened.pack.wildcard === 'rare' ? t('league.packs.rare') : undefined}
           canBuyAnother={(opened.pack.tokens ?? 0) > 0 && !opening}
           onAnother={() => void open(opened.set)}
           onClose={() => setOpened(null)}

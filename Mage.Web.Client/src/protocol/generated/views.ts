@@ -1768,6 +1768,7 @@ export interface LeaguePack {
     profile?: CareerProfile;
     setCode?: string;
     tokens?: number;
+    wildcard?: string;
 }
 
 export interface LeagueSet {

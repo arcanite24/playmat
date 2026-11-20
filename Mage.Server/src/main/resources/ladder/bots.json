@@ -6,11 +6,11 @@
     "pioneer": "pioneer-starter-s1"
   },
   "calibration": {
-    "commit": "7ed143f3ea1",
+    "commit": "48a38d64ed1",
     "harness": "rust-engine",
     "turnCap": 30,
     "mulligans": true,
-    "games": 18276,
+    "games": 30756,
     "skills": {
       "1": "quick",
       "3": "budget=1200+width=5+extra_turns=0+playout_cap=1500+policy=playouts+hide=0+samples=1+playout=2+eval=1+plans=0+mulligan_sim=0+blunder=100+net=builtin+temp=0+eta=10000+rollout=-+consider=4+cpuct=300+iters=256",
@@ -37,12 +37,12 @@
         "frame": "frame-storm",
         "title": "bulwark"
       },
-      "rating": 1085,
+      "rating": 1088,
       "rd": 30,
-      "games": 312,
-      "won": 83,
-      "drew": 15,
-      "lost": 214
+      "games": 492,
+      "won": 163,
+      "drew": 26,
+      "lost": 303
     },
     {
       "id": "standard-act1-boss-vampires-s3",
@@ -62,12 +62,12 @@
         "frame": "frame-tide",
         "title": "brawl-graduate"
       },
-      "rating": 1243,
+      "rating": 1234,
       "rd": 30,
-      "games": 408,
-      "won": 178,
-      "drew": 19,
-      "lost": 211
+      "games": 516,
+      "won": 233,
+      "drew": 22,
+      "lost": 261
     },
     {
       "id": "standard-act1-boss-vampires-s5",
@@ -87,12 +87,12 @@
         "frame": "frame-gold",
         "title": "banisher"
       },
-      "rating": 1278,
+      "rating": 1257,
       "rd": 30,
-      "games": 396,
-      "won": 186,
-      "drew": 19,
-      "lost": 191
+      "games": 528,
+      "won": 244,
+      "drew": 31,
+      "lost": 253
     },
     {
       "id": "standard-act1-skies-s1",
@@ -112,12 +112,12 @@
         "frame": "frame-star",
         "title": "devastator"
       },
-      "rating": 1074,
+      "rating": 1078,
       "rd": 30,
-      "games": 312,
-      "won": 78,
-      "drew": 15,
-      "lost": 219
+      "games": 528,
+      "won": 163,
+      "drew": 25,
+      "lost": 340
     },
     {
       "id": "standard-act1-skies-s3",
@@ -139,10 +139,10 @@
       },
       "rating": 1206,
       "rd": 30,
-      "games": 372,
-      "won": 149,
-      "drew": 11,
-      "lost": 212
+      "games": 516,
+      "won": 221,
+      "drew": 14,
+      "lost": 281
     },
     {
       "id": "standard-act1-skies-s5",
@@ -162,12 +162,12 @@
         "frame": "frame-thorn",
         "title": "tidecaller"
       },
-      "rating": 1227,
+      "rating": 1229,
       "rd": 30,
-      "games": 408,
-      "won": 178,
-      "drew": 14,
-      "lost": 216
+      "games": 528,
+      "won": 241,
+      "drew": 16,
+      "lost": 271
     },
     {
       "id": "standard-act1-stompy-s1",
@@ -187,12 +187,12 @@
         "frame": "frame-silver",
         "title": "planeswalker"
       },
-      "rating": 1058,
+      "rating": 1054,
       "rd": 30,
-      "games": 300,
-      "won": 72,
-      "drew": 12,
-      "lost": 216
+      "games": 480,
+      "won": 146,
+      "drew": 17,
+      "lost": 317
     },
     {
       "id": "standard-act1-stompy-s3",
@@ -212,12 +212,12 @@
         "frame": "frame-chain",
         "title": "gravecaller"
       },
-      "rating": 1202,
+      "rating": 1184,
       "rd": 30,
-      "games": 372,
-      "won": 148,
-      "drew": 14,
-      "lost": 210
+      "games": 564,
+      "won": 232,
+      "drew": 16,
+      "lost": 316
     },
     {
       "id": "standard-act1-stompy-s5",
@@ -237,12 +237,12 @@
         "frame": "frame-gold",
         "title": "summit"
       },
-      "rating": 1246,
+      "rating": 1231,
       "rd": 30,
-      "games": 372,
-      "won": 166,
+      "games": 492,
+      "won": 227,
       "drew": 14,
-      "lost": 192
+      "lost": 251
     },
     {
       "id": "standard-act2-aggro-s3",
@@ -262,12 +262,12 @@
         "frame": "frame-grove",
         "title": "vintage-graduate"
       },
-      "rating": 1251,
+      "rating": 1234,
       "rd": 30,
-      "games": 336,
-      "won": 154,
-      "drew": 1,
-      "lost": 181
+      "games": 456,
+      "won": 220,
+      "drew": 3,
+      "lost": 233
     },
     {
       "id": "standard-act2-aggro-s5",
@@ -287,12 +287,12 @@
         "frame": "frame-grove",
         "title": "brawl-graduate"
       },
-      "rating": 1301,
+      "rating": 1287,
       "rd": 30,
-      "games": 348,
-      "won": 168,
-      "drew": 0,
-      "lost": 180
+      "games": 480,
+      "won": 244,
+      "drew": 2,
+      "lost": 234
     },
     {
       "id": "standard-act2-aggro-s7",
@@ -312,12 +312,12 @@
         "frame": "frame-sun",
         "title": "w-champion"
       },
-      "rating": 1382,
+      "rating": 1339,
       "rd": 30,
-      "games": 348,
-      "won": 190,
-      "drew": 6,
-      "lost": 152
+      "games": 468,
+      "won": 268,
+      "drew": 7,
+      "lost": 193
     },
     {
       "id": "standard-act2-combo-s3",
@@ -337,12 +337,12 @@
         "frame": "frame-bronze",
         "title": "firebrand"
       },
-      "rating": 1276,
+      "rating": 1272,
       "rd": 30,
-      "games": 372,
-      "won": 165,
-      "drew": 10,
-      "lost": 197
+      "games": 576,
+      "won": 294,
+      "drew": 23,
+      "lost": 259
     },
     {
       "id": "standard-act2-combo-s5",
@@ -362,12 +362,12 @@
         "frame": "frame-silver",
         "title": "r-champion"
       },
-      "rating": 1321,
+      "rating": 1286,
       "rd": 30,
-      "games": 372,
-      "won": 200,
+      "games": 504,
+      "won": 269,
       "drew": 8,
-      "lost": 164
+      "lost": 227
     },
     {
       "id": "standard-act2-combo-s7",
@@ -387,12 +387,12 @@
         "frame": "frame-ember",
         "title": "legacy-devotee"
       },
-      "rating": 1333,
+      "rating": 1323,
       "rd": 30,
-      "games": 384,
-      "won": 192,
-      "drew": 8,
-      "lost": 184
+      "games": 504,
+      "won": 261,
+      "drew": 18,
+      "lost": 225
     },
     {
       "id": "standard-act2-control-s3",
@@ -412,12 +412,12 @@
         "frame": "frame-bronze",
         "title": "scholar"
       },
-      "rating": 1178,
+      "rating": 1159,
       "rd": 30,
-      "games": 408,
-      "won": 104,
-      "drew": 101,
-      "lost": 203
+      "games": 588,
+      "won": 150,
+      "drew": 139,
+      "lost": 299
     },
     {
       "id": "standard-act2-control-s5",
@@ -437,12 +437,12 @@
         "frame": "frame-gold",
         "title": "archmage"
       },
-      "rating": 1240,
+      "rating": 1229,
       "rd": 30,
-      "games": 360,
-      "won": 111,
-      "drew": 88,
-      "lost": 161
+      "games": 528,
+      "won": 176,
+      "drew": 127,
+      "lost": 225
     },
     {
       "id": "standard-act2-control-s7",
@@ -462,12 +462,12 @@
         "frame": "frame-crown",
         "title": "vintage-devotee"
       },
-      "rating": 1308,
+      "rating": 1274,
       "rd": 30,
-      "games": 348,
-      "won": 133,
-      "drew": 95,
-      "lost": 120
+      "games": 504,
+      "won": 195,
+      "drew": 124,
+      "lost": 185
     },
     {
       "id": "standard-act2-midrange-s3",
@@ -487,12 +487,12 @@
         "frame": "frame-silver",
         "title": "sparring-partner"
       },
-      "rating": 1308,
+      "rating": 1297,
       "rd": 30,
-      "games": 372,
-      "won": 178,
-      "drew": 30,
-      "lost": 164
+      "games": 504,
+      "won": 246,
+      "drew": 44,
+      "lost": 214
     },
     {
       "id": "standard-act2-midrange-s5",
@@ -512,12 +512,12 @@
         "frame": "frame-storm",
         "title": "oathkeeper"
       },
-      "rating": 1347,
+      "rating": 1316,
       "rd": 30,
-      "games": 348,
-      "won": 166,
-      "drew": 37,
-      "lost": 145
+      "games": 516,
+      "won": 259,
+      "drew": 45,
+      "lost": 212
     },
     {
       "id": "standard-act2-midrange-s7",
@@ -537,12 +537,12 @@
         "frame": "frame-storm",
         "title": "standard-devotee"
       },
-      "rating": 1368,
+      "rating": 1373,
       "rd": 30,
-      "games": 360,
-      "won": 175,
-      "drew": 37,
-      "lost": 148
+      "games": 528,
+      "won": 313,
+      "drew": 44,
+      "lost": 171
     },
     {
       "id": "standard-act2-opp-gruul-s3",
@@ -562,12 +562,12 @@
         "frame": "frame-silver",
         "title": "scholar"
       },
-      "rating": 1256,
+      "rating": 1241,
       "rd": 30,
-      "games": 336,
-      "won": 149,
-      "drew": 10,
-      "lost": 177
+      "games": 480,
+      "won": 216,
+      "drew": 11,
+      "lost": 253
     },
     {
       "id": "standard-act2-opp-gruul-s5",
@@ -587,12 +587,12 @@
         "frame": "frame-tide",
         "title": "victor"
       },
-      "rating": 1280,
+      "rating": 1276,
       "rd": 30,
-      "games": 324,
-      "won": 156,
-      "drew": 8,
-      "lost": 160
+      "games": 492,
+      "won": 254,
+      "drew": 13,
+      "lost": 225
     },
     {
       "id": "standard-act2-opp-gruul-s7",
@@ -612,12 +612,12 @@
         "frame": "frame-gold",
         "title": "w-champion"
       },
-      "rating": 1321,
+      "rating": 1306,
       "rd": 30,
-      "games": 324,
-      "won": 153,
-      "drew": 17,
-      "lost": 154
+      "games": 492,
+      "won": 246,
+      "drew": 21,
+      "lost": 225
     },
     {
       "id": "standard-act2-opp-weenie-s3",
@@ -637,12 +637,12 @@
         "frame": "frame-chain",
         "title": "scholar"
       },
-      "rating": 1318,
+      "rating": 1309,
       "rd": 30,
-      "games": 372,
-      "won": 193,
-      "drew": 4,
-      "lost": 175
+      "games": 468,
+      "won": 258,
+      "drew": 5,
+      "lost": 205
     },
     {
       "id": "standard-act2-opp-weenie-s5",
@@ -662,12 +662,12 @@
         "frame": "frame-rune",
         "title": "commander-graduate"
       },
-      "rating": 1321,
+      "rating": 1309,
       "rd": 30,
-      "games": 348,
-      "won": 184,
-      "drew": 9,
-      "lost": 155
+      "games": 444,
+      "won": 255,
+      "drew": 11,
+      "lost": 178
     },
     {
       "id": "standard-act2-opp-weenie-s7",
@@ -687,12 +687,12 @@
         "frame": "frame-star",
         "title": "archmage"
       },
-      "rating": 1329,
+      "rating": 1319,
       "rd": 30,
-      "games": 384,
-      "won": 200,
-      "drew": 15,
-      "lost": 169
+      "games": 528,
+      "won": 295,
+      "drew": 16,
+      "lost": 217
     },
     {
       "id": "standard-act3-angels-s5",
@@ -712,12 +712,12 @@
         "frame": "frame-storm",
         "title": "contender"
       },
-      "rating": 1481,
+      "rating": 1472,
       "rd": 30,
-      "games": 336,
-      "won": 216,
-      "drew": 19,
-      "lost": 101
+      "games": 456,
+      "won": 317,
+      "drew": 21,
+      "lost": 118
     },
     {
       "id": "standard-act3-angels-s7",
@@ -737,12 +737,12 @@
         "frame": "frame-star",
         "title": "brawl-devotee"
       },
-      "rating": 1510,
+      "rating": 1489,
       "rd": 30,
-      "games": 324,
-      "won": 217,
-      "drew": 22,
-      "lost": 85
+      "games": 504,
+      "won": 364,
+      "drew": 23,
+      "lost": 117
     },
     {
       "id": "standard-act3-boss-vigorbloom-s5",
@@ -762,12 +762,12 @@
         "frame": "frame-laurel",
         "title": "centurion"
       },
-      "rating": 1371,
+      "rating": 1349,
       "rd": 30,
-      "games": 336,
-      "won": 171,
-      "drew": 23,
-      "lost": 142
+      "games": 480,
+      "won": 269,
+      "drew": 26,
+      "lost": 185
     },
     {
       "id": "standard-act3-boss-vigorbloom-s7",
@@ -787,12 +787,404 @@
         "frame": "frame-laurel",
         "title": "mythmaker"
       },
-      "rating": 1381,
+      "rating": 1367,
       "rd": 30,
-      "games": 348,
-      "won": 170,
+      "games": 468,
+      "won": 266,
       "drew": 27,
-      "lost": 151
+      "lost": 175
+    },
+    {
+      "id": "standard-budget-azorius-control-s5",
+      "format": "standard",
+      "deck": "standard/budget-azorius-control.dck",
+      "deckName": "Budget Azorius Control",
+      "colors": "WU",
+      "kind": "budget",
+      "skill": 5,
+      "search": "half",
+      "prior": 1450,
+      "persona": {
+        "name": "Garrick Frostmere",
+        "avatar": "griffin",
+        "sleeve": "school-standard",
+        "playmat": "indigo",
+        "frame": "frame-storm",
+        "title": "millwright"
+      },
+      "queues": [
+        "league"
+      ],
+      "rating": 725,
+      "rd": 33,
+      "games": 420,
+      "won": 25,
+      "drew": 13,
+      "lost": 382
+    },
+    {
+      "id": "standard-budget-azorius-control-s7",
+      "format": "standard",
+      "deck": "standard/budget-azorius-control.dck",
+      "deckName": "Budget Azorius Control",
+      "colors": "WU",
+      "kind": "budget",
+      "skill": 7,
+      "search": "full",
+      "prior": 1550,
+      "persona": {
+        "name": "Lysandra Fairhollow",
+        "avatar": "basilisk",
+        "sleeve": "scene-clockwork",
+        "playmat": "jade",
+        "frame": "frame-gold",
+        "title": "renowned"
+      },
+      "queues": [
+        "league"
+      ],
+      "rating": 897,
+      "rd": 30,
+      "games": 372,
+      "won": 53,
+      "drew": 34,
+      "lost": 285
+    },
+    {
+      "id": "standard-budget-boros-dragons-s5",
+      "format": "standard",
+      "deck": "standard/budget-boros-dragons.dck",
+      "deckName": "Budget Boros Dragons",
+      "colors": "WR",
+      "kind": "budget",
+      "skill": 5,
+      "search": "half",
+      "prior": 1450,
+      "persona": {
+        "name": "Kesta Greaves",
+        "avatar": "manticore",
+        "sleeve": "indigo",
+        "playmat": "midnight",
+        "frame": "frame-laurel",
+        "title": "victor"
+      },
+      "queues": [
+        "league"
+      ],
+      "rating": 1192,
+      "rd": 30,
+      "games": 480,
+      "won": 205,
+      "drew": 16,
+      "lost": 259
+    },
+    {
+      "id": "standard-budget-boros-dragons-s7",
+      "format": "standard",
+      "deck": "standard/budget-boros-dragons.dck",
+      "deckName": "Budget Boros Dragons",
+      "colors": "WR",
+      "kind": "budget",
+      "skill": 7,
+      "search": "full",
+      "prior": 1550,
+      "persona": {
+        "name": "Sabine Marrowind",
+        "avatar": "djinn",
+        "sleeve": "scene-banner",
+        "playmat": "aurora",
+        "frame": "frame-gold",
+        "title": "vintage-devotee"
+      },
+      "queues": [
+        "league"
+      ],
+      "rating": 1184,
+      "rd": 30,
+      "games": 372,
+      "won": 158,
+      "drew": 10,
+      "lost": 204
+    },
+    {
+      "id": "standard-budget-dimir-midrange-s5",
+      "format": "standard",
+      "deck": "standard/budget-dimir-midrange.dck",
+      "deckName": "Budget Dimir Midrange",
+      "colors": "UB",
+      "kind": "budget",
+      "skill": 5,
+      "search": "half",
+      "prior": 1450,
+      "persona": {
+        "name": "Talia Ashgrove",
+        "avatar": "djinn",
+        "sleeve": "scene-war-table",
+        "playmat": "jade",
+        "frame": "frame-storm",
+        "title": "seasoned"
+      },
+      "queues": [
+        "league"
+      ],
+      "rating": 1120,
+      "rd": 30,
+      "games": 384,
+      "won": 145,
+      "drew": 16,
+      "lost": 223
+    },
+    {
+      "id": "standard-budget-dimir-midrange-s7",
+      "format": "standard",
+      "deck": "standard/budget-dimir-midrange.dck",
+      "deckName": "Budget Dimir Midrange",
+      "colors": "UB",
+      "kind": "budget",
+      "skill": 7,
+      "search": "full",
+      "prior": 1550,
+      "persona": {
+        "name": "Talia Grimsby",
+        "avatar": "drake",
+        "sleeve": "scene-summit",
+        "playmat": "frost",
+        "frame": "frame-crown",
+        "title": "legend"
+      },
+      "queues": [
+        "league"
+      ],
+      "rating": 1152,
+      "rd": 30,
+      "games": 372,
+      "won": 127,
+      "drew": 34,
+      "lost": 211
+    },
+    {
+      "id": "standard-budget-izzet-spellementals-s5",
+      "format": "standard",
+      "deck": "standard/budget-izzet-spellementals.dck",
+      "deckName": "Budget Izzet Spellementals",
+      "colors": "UR",
+      "kind": "budget",
+      "skill": 5,
+      "search": "half",
+      "prior": 1450,
+      "persona": {
+        "name": "Torvald Copperfield",
+        "avatar": "griffin",
+        "sleeve": "school-legacy",
+        "playmat": "rose",
+        "frame": "frame-tide",
+        "title": "firebrand"
+      },
+      "queues": [
+        "league"
+      ],
+      "rating": 1013,
+      "rd": 30,
+      "games": 384,
+      "won": 102,
+      "drew": 11,
+      "lost": 271
+    },
+    {
+      "id": "standard-budget-izzet-spellementals-s7",
+      "format": "standard",
+      "deck": "standard/budget-izzet-spellementals.dck",
+      "deckName": "Budget Izzet Spellementals",
+      "colors": "UR",
+      "kind": "budget",
+      "skill": 7,
+      "search": "full",
+      "prior": 1550,
+      "persona": {
+        "name": "Lysandra Quillmoor",
+        "avatar": "sphinx",
+        "sleeve": "scene-draft",
+        "playmat": "aurora",
+        "frame": "frame-mythic",
+        "title": "closer"
+      },
+      "queues": [
+        "league"
+      ],
+      "rating": 1087,
+      "rd": 30,
+      "games": 336,
+      "won": 120,
+      "drew": 15,
+      "lost": 201
+    },
+    {
+      "id": "standard-budget-jund-sacrifice-s5",
+      "format": "standard",
+      "deck": "standard/budget-jund-sacrifice.dck",
+      "deckName": "Budget Jund Sacrifice",
+      "colors": "BRG",
+      "kind": "budget",
+      "skill": 5,
+      "search": "half",
+      "prior": 1450,
+      "persona": {
+        "name": "Ilse Oakhart",
+        "avatar": "eagle",
+        "sleeve": "school-pauper",
+        "playmat": "amber",
+        "frame": "frame-gold",
+        "title": "closer"
+      },
+      "queues": [
+        "league"
+      ],
+      "rating": 973,
+      "rd": 30,
+      "games": 360,
+      "won": 92,
+      "drew": 4,
+      "lost": 264
+    },
+    {
+      "id": "standard-budget-jund-sacrifice-s7",
+      "format": "standard",
+      "deck": "standard/budget-jund-sacrifice.dck",
+      "deckName": "Budget Jund Sacrifice",
+      "colors": "BRG",
+      "kind": "budget",
+      "skill": 7,
+      "search": "full",
+      "prior": 1550,
+      "persona": {
+        "name": "Brielle Ember",
+        "avatar": "pegasus",
+        "sleeve": "scene-draft",
+        "playmat": "aurora",
+        "frame": "frame-star",
+        "title": "pauper-devotee"
+      },
+      "queues": [
+        "league"
+      ],
+      "rating": 1034,
+      "rd": 30,
+      "games": 372,
+      "won": 118,
+      "drew": 3,
+      "lost": 251
+    },
+    {
+      "id": "standard-budget-mono-green-landfall-s5",
+      "format": "standard",
+      "deck": "standard/budget-mono-green-landfall.dck",
+      "deckName": "Budget Mono-Green Landfall",
+      "colors": "G",
+      "kind": "budget",
+      "skill": 5,
+      "search": "half",
+      "prior": 1450,
+      "persona": {
+        "name": "Emrys Vantreth",
+        "avatar": "sphinx",
+        "sleeve": "scene-archive",
+        "playmat": "jade",
+        "frame": "frame-sun",
+        "title": "armorer"
+      },
+      "queues": [
+        "league"
+      ],
+      "rating": 1205,
+      "rd": 30,
+      "games": 384,
+      "won": 187,
+      "drew": 2,
+      "lost": 195
+    },
+    {
+      "id": "standard-budget-mono-green-landfall-s7",
+      "format": "standard",
+      "deck": "standard/budget-mono-green-landfall.dck",
+      "deckName": "Budget Mono-Green Landfall",
+      "colors": "G",
+      "kind": "budget",
+      "skill": 7,
+      "search": "full",
+      "prior": 1550,
+      "persona": {
+        "name": "Odile Fairhollow",
+        "avatar": "basilisk",
+        "sleeve": "school-modern",
+        "playmat": "jade",
+        "frame": "frame-ember",
+        "title": "limited-devotee"
+      },
+      "queues": [
+        "league"
+      ],
+      "rating": 1238,
+      "rd": 30,
+      "games": 420,
+      "won": 224,
+      "drew": 8,
+      "lost": 188
+    },
+    {
+      "id": "standard-budget-rakdos-lizards-s5",
+      "format": "standard",
+      "deck": "standard/budget-rakdos-lizards.dck",
+      "deckName": "Budget Rakdos Lizards",
+      "colors": "BR",
+      "kind": "budget",
+      "skill": 5,
+      "search": "half",
+      "prior": 1450,
+      "persona": {
+        "name": "Edric Ironvale",
+        "avatar": "octopus",
+        "sleeve": "school-pioneer",
+        "playmat": "amber",
+        "frame": "frame-tide",
+        "title": "pioneer-graduate"
+      },
+      "queues": [
+        "league"
+      ],
+      "rating": 1125,
+      "rd": 30,
+      "games": 336,
+      "won": 129,
+      "drew": 5,
+      "lost": 202
+    },
+    {
+      "id": "standard-budget-rakdos-lizards-s7",
+      "format": "standard",
+      "deck": "standard/budget-rakdos-lizards.dck",
+      "deckName": "Budget Rakdos Lizards",
+      "colors": "BR",
+      "kind": "budget",
+      "skill": 7,
+      "search": "full",
+      "prior": 1550,
+      "persona": {
+        "name": "Caspian Duskmere",
+        "avatar": "griffin",
+        "sleeve": "scene-hourglass",
+        "playmat": "indigo",
+        "frame": "frame-gold",
+        "title": "reaper"
+      },
+      "queues": [
+        "league"
+      ],
+      "rating": 1163,
+      "rd": 30,
+      "games": 336,
+      "won": 137,
+      "drew": 13,
+      "lost": 186
     },
     {
       "id": "standard-meta-azorius-control-s5",
@@ -812,12 +1204,15 @@
         "frame": "frame-thorn",
         "title": "beastmaster"
       },
-      "rating": 1286,
+      "queues": [
+        "open"
+      ],
+      "rating": 1244,
       "rd": 30,
-      "games": 408,
-      "won": 110,
-      "drew": 123,
-      "lost": 175
+      "games": 540,
+      "won": 149,
+      "drew": 171,
+      "lost": 220
     },
     {
       "id": "standard-meta-azorius-control-s7",
@@ -837,12 +1232,12 @@
         "frame": "frame-laurel",
         "title": "closer"
       },
-      "rating": 1385,
+      "rating": 1359,
       "rd": 30,
-      "games": 360,
-      "won": 148,
-      "drew": 87,
-      "lost": 125
+      "games": 456,
+      "won": 197,
+      "drew": 124,
+      "lost": 135
     },
     {
       "id": "standard-meta-boros-dragons-s5",
@@ -862,12 +1257,15 @@
         "frame": "frame-ember",
         "title": "standard-graduate"
       },
-      "rating": 1416,
+      "queues": [
+        "open"
+      ],
+      "rating": 1397,
       "rd": 30,
-      "games": 360,
-      "won": 209,
+      "games": 456,
+      "won": 282,
       "drew": 6,
-      "lost": 145
+      "lost": 168
     },
     {
       "id": "standard-meta-boros-dragons-s7",
@@ -887,12 +1285,12 @@
         "frame": "frame-mythic",
         "title": "oathkeeper"
       },
-      "rating": 1436,
+      "rating": 1435,
       "rd": 30,
-      "games": 372,
-      "won": 229,
+      "games": 516,
+      "won": 358,
       "drew": 6,
-      "lost": 137
+      "lost": 152
     },
     {
       "id": "standard-meta-dimir-midrange-s5",
@@ -912,12 +1310,15 @@
         "frame": "frame-storm",
         "title": "closer"
       },
-      "rating": 1392,
+      "queues": [
+        "open"
+      ],
+      "rating": 1366,
       "rd": 30,
-      "games": 384,
-      "won": 217,
-      "drew": 6,
-      "lost": 161
+      "games": 492,
+      "won": 293,
+      "drew": 7,
+      "lost": 192
     },
     {
       "id": "standard-meta-dimir-midrange-s7",
@@ -937,12 +1338,12 @@
         "frame": "frame-storm",
         "title": "high-priest"
       },
-      "rating": 1418,
+      "rating": 1383,
       "rd": 30,
-      "games": 348,
-      "won": 203,
-      "drew": 3,
-      "lost": 142
+      "games": 480,
+      "won": 291,
+      "drew": 4,
+      "lost": 185
     },
     {
       "id": "standard-meta-izzet-spellementals-s5",
@@ -962,12 +1363,15 @@
         "frame": "frame-grove",
         "title": "armorer"
       },
-      "rating": 1365,
+      "queues": [
+        "open"
+      ],
+      "rating": 1325,
       "rd": 30,
-      "games": 372,
-      "won": 189,
-      "drew": 16,
-      "lost": 167
+      "games": 516,
+      "won": 268,
+      "drew": 21,
+      "lost": 227
     },
     {
       "id": "standard-meta-izzet-spellementals-s7",
@@ -987,12 +1391,12 @@
         "frame": "frame-ember",
         "title": "legacy-devotee"
       },
-      "rating": 1405,
+      "rating": 1376,
       "rd": 30,
-      "games": 360,
-      "won": 209,
-      "drew": 9,
-      "lost": 142
+      "games": 480,
+      "won": 279,
+      "drew": 16,
+      "lost": 185
     },
     {
       "id": "standard-meta-jund-sacrifice-s5",
@@ -1012,12 +1416,15 @@
         "frame": "frame-ember",
         "title": "victor"
       },
-      "rating": 1281,
+      "queues": [
+        "open"
+      ],
+      "rating": 1271,
       "rd": 30,
-      "games": 432,
-      "won": 212,
-      "drew": 2,
-      "lost": 218
+      "games": 576,
+      "won": 293,
+      "drew": 3,
+      "lost": 280
     },
     {
       "id": "standard-meta-jund-sacrifice-s7",
@@ -1037,12 +1444,12 @@
         "frame": "frame-rune",
         "title": "colorless-champion"
       },
-      "rating": 1395,
+      "rating": 1374,
       "rd": 30,
-      "games": 336,
-      "won": 195,
+      "games": 420,
+      "won": 253,
       "drew": 1,
-      "lost": 140
+      "lost": 166
     },
     {
       "id": "standard-meta-mono-green-landfall-s5",
@@ -1062,12 +1469,15 @@
         "frame": "frame-laurel",
         "title": "banisher"
       },
-      "rating": 1448,
+      "queues": [
+        "open"
+      ],
+      "rating": 1438,
       "rd": 30,
-      "games": 384,
-      "won": 249,
+      "games": 588,
+      "won": 420,
       "drew": 4,
-      "lost": 131
+      "lost": 164
     },
     {
       "id": "standard-meta-mono-green-landfall-s7",
@@ -1087,12 +1497,12 @@
         "frame": "frame-rune",
         "title": "mythmaker"
       },
-      "rating": 1483,
+      "rating": 1480,
       "rd": 30,
-      "games": 276,
-      "won": 178,
-      "drew": 1,
-      "lost": 97
+      "games": 456,
+      "won": 332,
+      "drew": 2,
+      "lost": 122
     },
     {
       "id": "standard-meta-rakdos-lizards-s5",
@@ -1112,12 +1522,15 @@
         "frame": "frame-gold",
         "title": "warlord"
       },
-      "rating": 1475,
+      "queues": [
+        "open"
+      ],
+      "rating": 1459,
       "rd": 30,
-      "games": 348,
-      "won": 232,
-      "drew": 5,
-      "lost": 111
+      "games": 480,
+      "won": 342,
+      "drew": 6,
+      "lost": 132
     },
     {
       "id": "standard-meta-rakdos-lizards-s7",
@@ -1137,12 +1550,12 @@
         "frame": "frame-ember",
         "title": "w-champion"
       },
-      "rating": 1487,
+      "rating": 1454,
       "rd": 30,
-      "games": 324,
-      "won": 216,
-      "drew": 3,
-      "lost": 105
+      "games": 516,
+      "won": 370,
+      "drew": 5,
+      "lost": 141
     },
     {
       "id": "standard-signature-s1",
@@ -1162,12 +1575,12 @@
         "frame": "frame-grove",
         "title": "polymath"
       },
-      "rating": 936,
+      "rating": 915,
       "rd": 30,
-      "games": 276,
-      "won": 42,
-      "drew": 5,
-      "lost": 229
+      "games": 432,
+      "won": 81,
+      "drew": 8,
+      "lost": 343
     },
     {
       "id": "standard-signature-s3",
@@ -1187,12 +1600,12 @@
         "frame": "frame-thorn",
         "title": "contender"
       },
-      "rating": 1282,
+      "rating": 1266,
       "rd": 30,
-      "games": 384,
-      "won": 193,
-      "drew": 17,
-      "lost": 174
+      "games": 504,
+      "won": 264,
+      "drew": 18,
+      "lost": 222
     },
     {
       "id": "standard-signature-s5",
@@ -1212,12 +1625,12 @@
         "frame": "frame-sun",
         "title": "blitz"
       },
-      "rating": 1314,
+      "rating": 1318,
       "rd": 30,
-      "games": 372,
-      "won": 180,
-      "drew": 16,
-      "lost": 176
+      "games": 492,
+      "won": 260,
+      "drew": 18,
+      "lost": 214
     },
     {
       "id": "standard-starter-s1",
@@ -1239,10 +1652,10 @@
       },
       "rating": 1000,
       "rd": 30,
-      "games": 276,
-      "won": 57,
-      "drew": 5,
-      "lost": 214
+      "games": 432,
+      "won": 112,
+      "drew": 7,
+      "lost": 313
     },
     {
       "id": "standard-starter-s3",
@@ -1262,12 +1675,12 @@
         "frame": "frame-thorn",
         "title": "limited-graduate"
       },
-      "rating": 1187,
+      "rating": 1190,
       "rd": 30,
-      "games": 336,
-      "won": 138,
-      "drew": 4,
-      "lost": 194
+      "games": 540,
+      "won": 234,
+      "drew": 8,
+      "lost": 298
     },
     {
       "id": "standard-starter-s5",
@@ -1287,12 +1700,12 @@
         "frame": "frame-grove",
         "title": "beastmaster"
       },
-      "rating": 1246,
+      "rating": 1225,
       "rd": 30,
-      "games": 300,
-      "won": 116,
-      "drew": 11,
-      "lost": 173
+      "games": 480,
+      "won": 204,
+      "drew": 16,
+      "lost": 260
     },
     {
       "id": "pioneer-act1-boros-aggro-s1",
@@ -1312,12 +1725,12 @@
         "frame": "frame-crown",
         "title": "legacy-graduate"
       },
-      "rating": 943,
+      "rating": 946,
       "rd": 30,
-      "games": 276,
-      "won": 83,
+      "games": 408,
+      "won": 127,
       "drew": 2,
-      "lost": 191
+      "lost": 279
     },
     {
       "id": "pioneer-act1-boros-aggro-s3",
@@ -1337,12 +1750,12 @@
         "frame": "frame-grove",
         "title": "pioneer-graduate"
       },
-      "rating": 1081,
+      "rating": 1082,
       "rd": 30,
-      "games": 348,
-      "won": 157,
-      "drew": 0,
-      "lost": 191
+      "games": 492,
+      "won": 236,
+      "drew": 1,
+      "lost": 255
     },
     {
       "id": "pioneer-act1-boros-aggro-s5",
@@ -1362,12 +1775,12 @@
         "frame": "frame-gold",
         "title": "kingslayer"
       },
-      "rating": 1120,
+      "rating": 1110,
       "rd": 30,
-      "games": 408,
-      "won": 187,
-      "drew": 2,
-      "lost": 219
+      "games": 516,
+      "won": 241,
+      "drew": 3,
+      "lost": 272
     },
     {
       "id": "pioneer-act1-green-stompy-s1",
@@ -1387,12 +1800,12 @@
         "frame": "frame-thorn",
         "title": "artisan"
       },
-      "rating": 1067,
+      "rating": 1072,
       "rd": 30,
-      "games": 312,
-      "won": 124,
-      "drew": 4,
-      "lost": 184
+      "games": 444,
+      "won": 200,
+      "drew": 6,
+      "lost": 238
     },
     {
       "id": "pioneer-act1-green-stompy-s3",
@@ -1412,12 +1825,12 @@
         "frame": "frame-bronze",
         "title": "pioneer-graduate"
       },
-      "rating": 1209,
+      "rating": 1192,
       "rd": 30,
-      "games": 336,
-      "won": 190,
-      "drew": 1,
-      "lost": 145
+      "games": 516,
+      "won": 290,
+      "drew": 2,
+      "lost": 224
     },
     {
       "id": "pioneer-act1-green-stompy-s5",
@@ -1437,12 +1850,12 @@
         "frame": "frame-tide",
         "title": "archivist"
       },
-      "rating": 1205,
+      "rating": 1195,
       "rd": 30,
-      "games": 432,
-      "won": 231,
+      "games": 492,
+      "won": 262,
       "drew": 4,
-      "lost": 197
+      "lost": 226
     },
     {
       "id": "pioneer-act1-mono-black-devotion-s1",
@@ -1462,12 +1875,12 @@
         "frame": "frame-gold",
         "title": "vintage-graduate"
       },
-      "rating": 928,
+      "rating": 900,
       "rd": 30,
-      "games": 264,
-      "won": 75,
-      "drew": 2,
-      "lost": 187
+      "games": 504,
+      "won": 157,
+      "drew": 6,
+      "lost": 341
     },
     {
       "id": "pioneer-act1-mono-black-devotion-s3",
@@ -1487,12 +1900,12 @@
         "frame": "frame-bronze",
         "title": "round-table"
       },
-      "rating": 1040,
+      "rating": 1071,
       "rd": 30,
-      "games": 300,
-      "won": 117,
-      "drew": 2,
-      "lost": 181
+      "games": 480,
+      "won": 228,
+      "drew": 3,
+      "lost": 249
     },
     {
       "id": "pioneer-act1-mono-black-devotion-s5",
@@ -1512,12 +1925,12 @@
         "frame": "frame-rune",
         "title": "kingslayer"
       },
-      "rating": 1074,
+      "rating": 1077,
       "rd": 30,
-      "games": 300,
-      "won": 119,
+      "games": 444,
+      "won": 193,
       "drew": 7,
-      "lost": 174
+      "lost": 244
     },
     {
       "id": "pioneer-act2-abzan-greasefang-s3",
@@ -1537,12 +1950,12 @@
         "frame": "frame-silver",
         "title": "lightbringer"
       },
-      "rating": 964,
+      "rating": 950,
       "rd": 30,
-      "games": 384,
-      "won": 116,
-      "drew": 0,
-      "lost": 268
+      "games": 504,
+      "won": 172,
+      "drew": 1,
+      "lost": 331
     },
     {
       "id": "pioneer-act2-abzan-greasefang-s5",
@@ -1562,12 +1975,12 @@
         "frame": "frame-chain",
         "title": "artisan"
       },
-      "rating": 1058,
+      "rating": 1025,
       "rd": 30,
-      "games": 384,
-      "won": 158,
-      "drew": 3,
-      "lost": 223
+      "games": 540,
+      "won": 219,
+      "drew": 4,
+      "lost": 317
     },
     {
       "id": "pioneer-act2-abzan-greasefang-s7",
@@ -1587,12 +2000,12 @@
         "frame": "frame-sun",
         "title": "necromancer"
       },
-      "rating": 1096,
+      "rating": 1069,
       "rd": 30,
-      "games": 396,
-      "won": 167,
-      "drew": 9,
-      "lost": 220
+      "games": 540,
+      "won": 232,
+      "drew": 10,
+      "lost": 298
     },
     {
       "id": "pioneer-act2-dimir-control-s3",
@@ -1612,12 +2025,12 @@
         "frame": "frame-thorn",
         "title": "questing-knight"
       },
-      "rating": 1043,
+      "rating": 1029,
       "rd": 30,
-      "games": 324,
-      "won": 110,
-      "drew": 13,
-      "lost": 201
+      "games": 444,
+      "won": 157,
+      "drew": 39,
+      "lost": 248
     },
     {
       "id": "pioneer-act2-dimir-control-s5",
@@ -1637,12 +2050,12 @@
         "frame": "frame-chain",
         "title": "champion"
       },
-      "rating": 1132,
+      "rating": 1120,
       "rd": 30,
-      "games": 300,
-      "won": 137,
-      "drew": 20,
-      "lost": 143
+      "games": 492,
+      "won": 227,
+      "drew": 33,
+      "lost": 232
     },
     {
       "id": "pioneer-act2-dimir-control-s7",
@@ -1662,12 +2075,12 @@
         "frame": "frame-laurel",
         "title": "tactician"
       },
-      "rating": 1183,
+      "rating": 1152,
       "rd": 30,
-      "games": 360,
-      "won": 177,
-      "drew": 17,
-      "lost": 166
+      "games": 552,
+      "won": 279,
+      "drew": 35,
+      "lost": 238
     },
     {
       "id": "pioneer-act2-golgari-midrange-s3",
@@ -1689,10 +2102,10 @@
       },
       "rating": 1091,
       "rd": 30,
-      "games": 336,
-      "won": 145,
-      "drew": 13,
-      "lost": 178
+      "games": 492,
+      "won": 227,
+      "drew": 17,
+      "lost": 248
     },
     {
       "id": "pioneer-act2-golgari-midrange-s5",
@@ -1712,12 +2125,12 @@
         "frame": "frame-grove",
         "title": "victor"
       },
-      "rating": 1204,
+      "rating": 1185,
       "rd": 30,
-      "games": 300,
-      "won": 150,
-      "drew": 18,
-      "lost": 132
+      "games": 432,
+      "won": 229,
+      "drew": 19,
+      "lost": 184
     },
     {
       "id": "pioneer-act2-golgari-midrange-s7",
@@ -1737,12 +2150,12 @@
         "frame": "frame-star",
         "title": "pathfinder"
       },
-      "rating": 1199,
+      "rating": 1196,
       "rd": 30,
-      "games": 288,
-      "won": 150,
-      "drew": 10,
-      "lost": 128
+      "games": 468,
+      "won": 253,
+      "drew": 15,
+      "lost": 200
     },
     {
       "id": "pioneer-act2-gruul-midrange-s3",
@@ -1762,12 +2175,12 @@
         "frame": "frame-chain",
         "title": "legacy-graduate"
       },
-      "rating": 1213,
+      "rating": 1194,
       "rd": 30,
-      "games": 324,
-      "won": 179,
-      "drew": 0,
-      "lost": 145
+      "games": 444,
+      "won": 244,
+      "drew": 1,
+      "lost": 199
     },
     {
       "id": "pioneer-act2-gruul-midrange-s5",
@@ -1787,12 +2200,12 @@
         "frame": "frame-silver",
         "title": "questing-knight"
       },
-      "rating": 1306,
+      "rating": 1287,
       "rd": 30,
-      "games": 360,
-      "won": 224,
+      "games": 456,
+      "won": 301,
       "drew": 0,
-      "lost": 136
+      "lost": 155
     },
     {
       "id": "pioneer-act2-gruul-midrange-s7",
@@ -1812,12 +2225,12 @@
         "frame": "frame-ember",
         "title": "rival"
       },
-      "rating": 1275,
+      "rating": 1258,
       "rd": 30,
-      "games": 324,
-      "won": 186,
-      "drew": 4,
-      "lost": 134
+      "games": 420,
+      "won": 259,
+      "drew": 5,
+      "lost": 156
     },
     {
       "id": "pioneer-act2-mono-red-s3",
@@ -1837,12 +2250,12 @@
         "frame": "frame-thorn",
         "title": "pauper-graduate"
       },
-      "rating": 1190,
+      "rating": 1175,
       "rd": 30,
-      "games": 348,
-      "won": 190,
+      "games": 468,
+      "won": 263,
       "drew": 1,
-      "lost": 157
+      "lost": 204
     },
     {
       "id": "pioneer-act2-mono-red-s5",
@@ -1862,12 +2275,12 @@
         "frame": "frame-chain",
         "title": "devastator"
       },
-      "rating": 1184,
+      "rating": 1164,
       "rd": 30,
-      "games": 360,
-      "won": 186,
+      "games": 516,
+      "won": 272,
       "drew": 0,
-      "lost": 174
+      "lost": 244
     },
     {
       "id": "pioneer-act2-mono-red-s7",
@@ -1887,12 +2300,12 @@
         "frame": "frame-crown",
         "title": "centurion"
       },
-      "rating": 1238,
+      "rating": 1214,
       "rd": 30,
-      "games": 348,
-      "won": 190,
-      "drew": 1,
-      "lost": 157
+      "games": 456,
+      "won": 265,
+      "drew": 2,
+      "lost": 189
     },
     {
       "id": "pioneer-act2-mono-white-humans-s3",
@@ -1912,12 +2325,12 @@
         "frame": "frame-thorn",
         "title": "commander-graduate"
       },
-      "rating": 1256,
+      "rating": 1240,
       "rd": 30,
-      "games": 336,
-      "won": 191,
-      "drew": 0,
-      "lost": 145
+      "games": 504,
+      "won": 314,
+      "drew": 2,
+      "lost": 188
     },
     {
       "id": "pioneer-act2-mono-white-humans-s5",
@@ -1937,12 +2350,12 @@
         "frame": "frame-sun",
         "title": "multicolor-champion"
       },
-      "rating": 1326,
+      "rating": 1310,
       "rd": 30,
-      "games": 324,
-      "won": 209,
+      "games": 408,
+      "won": 280,
       "drew": 2,
-      "lost": 113
+      "lost": 126
     },
     {
       "id": "pioneer-act2-mono-white-humans-s7",
@@ -1962,12 +2375,12 @@
         "frame": "frame-crown",
         "title": "necromancer"
       },
-      "rating": 1380,
+      "rating": 1369,
       "rd": 30,
-      "games": 324,
-      "won": 233,
-      "drew": 0,
-      "lost": 91
+      "games": 492,
+      "won": 382,
+      "drew": 3,
+      "lost": 107
     },
     {
       "id": "pioneer-act2-rakdos-midrange-s3",
@@ -1987,12 +2400,12 @@
         "frame": "frame-tide",
         "title": "legacy-graduate"
       },
-      "rating": 1123,
+      "rating": 1132,
       "rd": 30,
-      "games": 324,
-      "won": 148,
-      "drew": 12,
-      "lost": 164
+      "games": 480,
+      "won": 232,
+      "drew": 18,
+      "lost": 230
     },
     {
       "id": "pioneer-act2-rakdos-midrange-s5",
@@ -2012,12 +2425,12 @@
         "frame": "frame-grove",
         "title": "standard-graduate"
       },
-      "rating": 1225,
+      "rating": 1205,
       "rd": 30,
-      "games": 336,
-      "won": 184,
-      "drew": 9,
-      "lost": 143
+      "games": 480,
+      "won": 275,
+      "drew": 23,
+      "lost": 182
     },
     {
       "id": "pioneer-act2-rakdos-midrange-s7",
@@ -2037,12 +2450,12 @@
         "frame": "frame-gold",
         "title": "archivist"
       },
-      "rating": 1291,
+      "rating": 1281,
       "rd": 30,
-      "games": 312,
-      "won": 185,
-      "drew": 4,
-      "lost": 123
+      "games": 444,
+      "won": 292,
+      "drew": 5,
+      "lost": 147
     },
     {
       "id": "pioneer-act2-red-burn-s3",
@@ -2062,12 +2475,12 @@
         "frame": "frame-bronze",
         "title": "tidecaller"
       },
-      "rating": 1157,
+      "rating": 1149,
       "rd": 30,
-      "games": 312,
-      "won": 159,
-      "drew": 1,
-      "lost": 152
+      "games": 456,
+      "won": 246,
+      "drew": 2,
+      "lost": 208
     },
     {
       "id": "pioneer-act2-red-burn-s5",
@@ -2087,12 +2500,12 @@
         "frame": "frame-grove",
         "title": "centurion"
       },
-      "rating": 1201,
+      "rating": 1171,
       "rd": 30,
-      "games": 336,
-      "won": 172,
+      "games": 432,
+      "won": 225,
       "drew": 1,
-      "lost": 163
+      "lost": 206
     },
     {
       "id": "pioneer-act2-red-burn-s7",
@@ -2112,12 +2525,12 @@
         "frame": "frame-crown",
         "title": "planeswalker"
       },
-      "rating": 1163,
+      "rating": 1151,
       "rd": 30,
-      "games": 300,
-      "won": 140,
+      "games": 396,
+      "won": 203,
       "drew": 2,
-      "lost": 158
+      "lost": 191
     },
     {
       "id": "pioneer-act3-azorius-spirits-s5",
@@ -2137,12 +2550,12 @@
         "frame": "frame-tide",
         "title": "questing-knight"
       },
-      "rating": 1181,
+      "rating": 1153,
       "rd": 30,
-      "games": 312,
-      "won": 156,
-      "drew": 1,
-      "lost": 155
+      "games": 468,
+      "won": 243,
+      "drew": 2,
+      "lost": 223
     },
     {
       "id": "pioneer-act3-azorius-spirits-s7",
@@ -2162,12 +2575,12 @@
         "frame": "frame-star",
         "title": "mythmaker"
       },
-      "rating": 1183,
+      "rating": 1188,
       "rd": 30,
-      "games": 384,
-      "won": 199,
+      "games": 528,
+      "won": 298,
       "drew": 2,
-      "lost": 183
+      "lost": 228
     },
     {
       "id": "pioneer-act3-izzet-phoenix-s5",
@@ -2187,12 +2600,12 @@
         "frame": "frame-ember",
         "title": "devastator"
       },
-      "rating": 985,
+      "rating": 987,
       "rd": 30,
-      "games": 288,
-      "won": 91,
-      "drew": 8,
-      "lost": 189
+      "games": 372,
+      "won": 138,
+      "drew": 14,
+      "lost": 220
     },
     {
       "id": "pioneer-act3-izzet-phoenix-s7",
@@ -2212,12 +2625,12 @@
         "frame": "frame-star",
         "title": "victor"
       },
-      "rating": 970,
+      "rating": 937,
       "rd": 30,
-      "games": 336,
-      "won": 93,
-      "drew": 10,
-      "lost": 233
+      "games": 456,
+      "won": 131,
+      "drew": 16,
+      "lost": 309
     },
     {
       "id": "pioneer-act3-rakdos-graveyard-s5",
@@ -2237,12 +2650,12 @@
         "frame": "frame-sun",
         "title": "summit"
       },
-      "rating": 1203,
+      "rating": 1184,
       "rd": 30,
-      "games": 324,
-      "won": 158,
-      "drew": 7,
-      "lost": 159
+      "games": 420,
+      "won": 213,
+      "drew": 8,
+      "lost": 199
     },
     {
       "id": "pioneer-act3-rakdos-graveyard-s7",
@@ -2262,12 +2675,404 @@
         "frame": "frame-laurel",
         "title": "standard-devotee"
       },
-      "rating": 1245,
+      "rating": 1217,
+      "rd": 30,
+      "games": 468,
+      "won": 278,
+      "drew": 14,
+      "lost": 176
+    },
+    {
+      "id": "pioneer-budget-azorius-control-s5",
+      "format": "pioneer",
+      "deck": "pioneer/budget-azorius-control.dck",
+      "deckName": "Budget Azorius Control",
+      "colors": "WU",
+      "kind": "budget",
+      "skill": 5,
+      "search": "half",
+      "prior": 1450,
+      "persona": {
+        "name": "Mirela Ravensmark",
+        "avatar": "tiger",
+        "sleeve": "scene-banner",
+        "playmat": "indigo",
+        "frame": "frame-bronze",
+        "title": "u-champion"
+      },
+      "queues": [
+        "league"
+      ],
+      "rating": 786,
       "rd": 30,
       "games": 324,
-      "won": 190,
-      "drew": 7,
-      "lost": 127
+      "won": 56,
+      "drew": 67,
+      "lost": 201
+    },
+    {
+      "id": "pioneer-budget-azorius-control-s7",
+      "format": "pioneer",
+      "deck": "pioneer/budget-azorius-control.dck",
+      "deckName": "Budget Azorius Control",
+      "colors": "WU",
+      "kind": "budget",
+      "skill": 7,
+      "search": "full",
+      "prior": 1550,
+      "persona": {
+        "name": "Varo Ashgrove",
+        "avatar": "basilisk",
+        "sleeve": "school-modern",
+        "playmat": "frost",
+        "frame": "frame-mythic",
+        "title": "limited-devotee"
+      },
+      "queues": [
+        "league"
+      ],
+      "rating": 797,
+      "rd": 30,
+      "games": 264,
+      "won": 58,
+      "drew": 49,
+      "lost": 157
+    },
+    {
+      "id": "pioneer-budget-dimir-aggro-s5",
+      "format": "pioneer",
+      "deck": "pioneer/budget-dimir-aggro.dck",
+      "deckName": "Budget Dimir Aggro",
+      "colors": "UB",
+      "kind": "budget",
+      "skill": 5,
+      "search": "half",
+      "prior": 1450,
+      "persona": {
+        "name": "Inka Quillmoor",
+        "avatar": "tiger",
+        "sleeve": "school-pioneer",
+        "playmat": "midnight",
+        "frame": "frame-silver",
+        "title": "blitz"
+      },
+      "queues": [
+        "league"
+      ],
+      "rating": 797,
+      "rd": 30,
+      "games": 336,
+      "won": 88,
+      "drew": 11,
+      "lost": 237
+    },
+    {
+      "id": "pioneer-budget-dimir-aggro-s7",
+      "format": "pioneer",
+      "deck": "pioneer/budget-dimir-aggro.dck",
+      "deckName": "Budget Dimir Aggro",
+      "colors": "UB",
+      "kind": "budget",
+      "skill": 7,
+      "search": "full",
+      "prior": 1550,
+      "persona": {
+        "name": "Zara Greaves",
+        "avatar": "angel",
+        "sleeve": "clay",
+        "playmat": "frost",
+        "frame": "frame-storm",
+        "title": "pathfinder"
+      },
+      "queues": [
+        "league"
+      ],
+      "rating": 875,
+      "rd": 30,
+      "games": 288,
+      "won": 107,
+      "drew": 12,
+      "lost": 169
+    },
+    {
+      "id": "pioneer-budget-golgari-midrange-s5",
+      "format": "pioneer",
+      "deck": "pioneer/budget-golgari-midrange.dck",
+      "deckName": "Budget Golgari Midrange",
+      "colors": "BG",
+      "kind": "budget",
+      "skill": 5,
+      "search": "half",
+      "prior": 1450,
+      "persona": {
+        "name": "Wynn Saltmarsh",
+        "avatar": "eagle",
+        "sleeve": "scene-mana-well",
+        "playmat": "rose",
+        "frame": "frame-thorn",
+        "title": "machine-breaker"
+      },
+      "queues": [
+        "league"
+      ],
+      "rating": 868,
+      "rd": 30,
+      "games": 408,
+      "won": 121,
+      "drew": 33,
+      "lost": 254
+    },
+    {
+      "id": "pioneer-budget-golgari-midrange-s7",
+      "format": "pioneer",
+      "deck": "pioneer/budget-golgari-midrange.dck",
+      "deckName": "Budget Golgari Midrange",
+      "colors": "BG",
+      "kind": "budget",
+      "skill": 7,
+      "search": "full",
+      "prior": 1550,
+      "persona": {
+        "name": "Tamsin Larkspur",
+        "avatar": "sphinx",
+        "sleeve": "scene-hourglass",
+        "playmat": "jade",
+        "frame": "frame-laurel",
+        "title": "pathfinder"
+      },
+      "queues": [
+        "league"
+      ],
+      "rating": 912,
+      "rd": 30,
+      "games": 336,
+      "won": 119,
+      "drew": 20,
+      "lost": 197
+    },
+    {
+      "id": "pioneer-budget-izzet-phoenix-s5",
+      "format": "pioneer",
+      "deck": "pioneer/budget-izzet-phoenix.dck",
+      "deckName": "Budget Izzet Phoenix",
+      "colors": "UR",
+      "kind": "budget",
+      "skill": 5,
+      "search": "half",
+      "prior": 1450,
+      "persona": {
+        "name": "Brielle Quillmoor",
+        "avatar": "manticore",
+        "sleeve": "scene-book-tower",
+        "playmat": "midnight",
+        "frame": "frame-thorn",
+        "title": "brawl-devotee"
+      },
+      "queues": [
+        "league"
+      ],
+      "rating": 536,
+      "rd": 38,
+      "games": 276,
+      "won": 15,
+      "drew": 21,
+      "lost": 240
+    },
+    {
+      "id": "pioneer-budget-izzet-phoenix-s7",
+      "format": "pioneer",
+      "deck": "pioneer/budget-izzet-phoenix.dck",
+      "deckName": "Budget Izzet Phoenix",
+      "colors": "UR",
+      "kind": "budget",
+      "skill": 7,
+      "search": "full",
+      "prior": 1550,
+      "persona": {
+        "name": "Mirela Thornfield",
+        "avatar": "basilisk",
+        "sleeve": "school-modern",
+        "playmat": "frost",
+        "frame": "frame-gold",
+        "title": "reaper"
+      },
+      "queues": [
+        "league"
+      ],
+      "rating": 624,
+      "rd": 33,
+      "games": 252,
+      "won": 23,
+      "drew": 31,
+      "lost": 198
+    },
+    {
+      "id": "pioneer-budget-izzet-prowess-s5",
+      "format": "pioneer",
+      "deck": "pioneer/budget-izzet-prowess.dck",
+      "deckName": "Budget Izzet Prowess",
+      "colors": "UR",
+      "kind": "budget",
+      "skill": 5,
+      "search": "half",
+      "prior": 1450,
+      "persona": {
+        "name": "Brielle Greaves",
+        "avatar": "serpent",
+        "sleeve": "wine",
+        "playmat": "rose",
+        "frame": "frame-laurel",
+        "title": "closer"
+      },
+      "queues": [
+        "league"
+      ],
+      "rating": 806,
+      "rd": 30,
+      "games": 288,
+      "won": 81,
+      "drew": 8,
+      "lost": 199
+    },
+    {
+      "id": "pioneer-budget-izzet-prowess-s7",
+      "format": "pioneer",
+      "deck": "pioneer/budget-izzet-prowess.dck",
+      "deckName": "Budget Izzet Prowess",
+      "colors": "UR",
+      "kind": "budget",
+      "skill": 7,
+      "search": "full",
+      "prior": 1550,
+      "persona": {
+        "name": "Nadira Blackwood",
+        "avatar": "sphinx",
+        "sleeve": "scene-archive",
+        "playmat": "indigo",
+        "frame": "frame-star",
+        "title": "vanguard"
+      },
+      "queues": [
+        "league"
+      ],
+      "rating": 873,
+      "rd": 30,
+      "games": 324,
+      "won": 111,
+      "drew": 13,
+      "lost": 200
+    },
+    {
+      "id": "pioneer-budget-mono-red-prowess-s5",
+      "format": "pioneer",
+      "deck": "pioneer/budget-mono-red-prowess.dck",
+      "deckName": "Budget Mono-Red Prowess",
+      "colors": "R",
+      "kind": "budget",
+      "skill": 5,
+      "search": "half",
+      "prior": 1450,
+      "persona": {
+        "name": "Elodie Wyndham",
+        "avatar": "eagle",
+        "sleeve": "school-modern",
+        "playmat": "rose",
+        "frame": "frame-bronze",
+        "title": "collector"
+      },
+      "queues": [
+        "league"
+      ],
+      "rating": 1098,
+      "rd": 30,
+      "games": 348,
+      "won": 185,
+      "drew": 6,
+      "lost": 157
+    },
+    {
+      "id": "pioneer-budget-mono-red-prowess-s7",
+      "format": "pioneer",
+      "deck": "pioneer/budget-mono-red-prowess.dck",
+      "deckName": "Budget Mono-Red Prowess",
+      "colors": "R",
+      "kind": "budget",
+      "skill": 7,
+      "search": "full",
+      "prior": 1550,
+      "persona": {
+        "name": "Hask Kestrel",
+        "avatar": "drake",
+        "sleeve": "gold",
+        "playmat": "frost",
+        "frame": "frame-storm",
+        "title": "modern-devotee"
+      },
+      "queues": [
+        "league"
+      ],
+      "rating": 1098,
+      "rd": 30,
+      "games": 372,
+      "won": 205,
+      "drew": 6,
+      "lost": 161
+    },
+    {
+      "id": "pioneer-budget-selesnya-company-s5",
+      "format": "pioneer",
+      "deck": "pioneer/budget-selesnya-company.dck",
+      "deckName": "Budget Selesnya Company",
+      "colors": "WG",
+      "kind": "budget",
+      "skill": 5,
+      "search": "half",
+      "prior": 1450,
+      "persona": {
+        "name": "Garrick Coldwater",
+        "avatar": "octopus",
+        "sleeve": "school-pioneer",
+        "playmat": "jade",
+        "frame": "frame-tide",
+        "title": "brawl-devotee"
+      },
+      "queues": [
+        "league"
+      ],
+      "rating": 904,
+      "rd": 30,
+      "games": 384,
+      "won": 140,
+      "drew": 0,
+      "lost": 244
+    },
+    {
+      "id": "pioneer-budget-selesnya-company-s7",
+      "format": "pioneer",
+      "deck": "pioneer/budget-selesnya-company.dck",
+      "deckName": "Budget Selesnya Company",
+      "colors": "WG",
+      "kind": "budget",
+      "skill": 7,
+      "search": "full",
+      "prior": 1550,
+      "persona": {
+        "name": "Roan Saltmarsh",
+        "avatar": "manticore",
+        "sleeve": "school-modern",
+        "playmat": "jade",
+        "frame": "frame-star",
+        "title": "enchanter"
+      },
+      "queues": [
+        "league"
+      ],
+      "rating": 895,
+      "rd": 30,
+      "games": 348,
+      "won": 129,
+      "drew": 5,
+      "lost": 214
     },
     {
       "id": "pioneer-meta-azorius-control-s5",
@@ -2287,12 +3092,15 @@
         "frame": "frame-ember",
         "title": "mindbreaker"
       },
-      "rating": 1144,
+      "queues": [
+        "open"
+      ],
+      "rating": 1142,
       "rd": 30,
-      "games": 324,
-      "won": 124,
-      "drew": 63,
-      "lost": 137
+      "games": 432,
+      "won": 183,
+      "drew": 83,
+      "lost": 166
     },
     {
       "id": "pioneer-meta-azorius-control-s7",
@@ -2312,12 +3120,12 @@
         "frame": "frame-ember",
         "title": "high-priest"
       },
-      "rating": 1169,
+      "rating": 1172,
       "rd": 30,
-      "games": 336,
-      "won": 152,
-      "drew": 60,
-      "lost": 124
+      "games": 492,
+      "won": 241,
+      "drew": 76,
+      "lost": 175
     },
     {
       "id": "pioneer-meta-dimir-aggro-s5",
@@ -2337,12 +3145,15 @@
         "frame": "frame-ember",
         "title": "legacy-devotee"
       },
-      "rating": 1157,
+      "queues": [
+        "open"
+      ],
+      "rating": 1118,
       "rd": 30,
-      "games": 312,
-      "won": 151,
-      "drew": 3,
-      "lost": 158
+      "games": 516,
+      "won": 248,
+      "drew": 4,
+      "lost": 264
     },
     {
       "id": "pioneer-meta-dimir-aggro-s7",
@@ -2362,12 +3173,12 @@
         "frame": "frame-laurel",
         "title": "r-champion"
       },
-      "rating": 1169,
+      "rating": 1161,
       "rd": 30,
-      "games": 336,
-      "won": 169,
-      "drew": 1,
-      "lost": 166
+      "games": 468,
+      "won": 248,
+      "drew": 2,
+      "lost": 218
     },
     {
       "id": "pioneer-meta-golgari-midrange-s5",
@@ -2387,12 +3198,15 @@
         "frame": "frame-thorn",
         "title": "banisher"
       },
-      "rating": 1252,
+      "queues": [
+        "open"
+      ],
+      "rating": 1237,
       "rd": 30,
-      "games": 384,
-      "won": 215,
-      "drew": 9,
-      "lost": 160
+      "games": 516,
+      "won": 314,
+      "drew": 12,
+      "lost": 190
     },
     {
       "id": "pioneer-meta-golgari-midrange-s7",
@@ -2412,12 +3226,12 @@
         "frame": "frame-mythic",
         "title": "artisan"
       },
-      "rating": 1321,
+      "rating": 1298,
       "rd": 30,
-      "games": 324,
-      "won": 205,
+      "games": 420,
+      "won": 280,
       "drew": 6,
-      "lost": 113
+      "lost": 134
     },
     {
       "id": "pioneer-meta-izzet-phoenix-s5",
@@ -2437,12 +3251,15 @@
         "frame": "frame-chain",
         "title": "round-table"
       },
-      "rating": 956,
+      "queues": [
+        "open"
+      ],
+      "rating": 934,
       "rd": 30,
-      "games": 288,
-      "won": 82,
-      "drew": 8,
-      "lost": 198
+      "games": 456,
+      "won": 142,
+      "drew": 12,
+      "lost": 302
     },
     {
       "id": "pioneer-meta-izzet-phoenix-s7",
@@ -2462,12 +3279,12 @@
         "frame": "frame-rune",
         "title": "summit"
       },
-      "rating": 929,
+      "rating": 926,
       "rd": 30,
-      "games": 288,
-      "won": 76,
-      "drew": 1,
-      "lost": 211
+      "games": 468,
+      "won": 139,
+      "drew": 4,
+      "lost": 325
     },
     {
       "id": "pioneer-meta-izzet-prowess-s5",
@@ -2487,12 +3304,15 @@
         "frame": "frame-rune",
         "title": "modern-graduate"
       },
-      "rating": 1126,
+      "queues": [
+        "open"
+      ],
+      "rating": 1120,
       "rd": 30,
-      "games": 348,
-      "won": 154,
+      "games": 480,
+      "won": 227,
       "drew": 3,
-      "lost": 191
+      "lost": 250
     },
     {
       "id": "pioneer-meta-izzet-prowess-s7",
@@ -2512,12 +3332,12 @@
         "frame": "frame-sun",
         "title": "legend"
       },
-      "rating": 1140,
+      "rating": 1135,
       "rd": 30,
-      "games": 312,
-      "won": 157,
+      "games": 468,
+      "won": 247,
       "drew": 3,
-      "lost": 152
+      "lost": 218
     },
     {
       "id": "pioneer-meta-mono-red-prowess-s5",
@@ -2537,12 +3357,15 @@
         "frame": "frame-gold",
         "title": "archmage"
       },
-      "rating": 1273,
+      "queues": [
+        "open"
+      ],
+      "rating": 1257,
       "rd": 30,
-      "games": 372,
-      "won": 222,
+      "games": 480,
+      "won": 306,
       "drew": 0,
-      "lost": 150
+      "lost": 174
     },
     {
       "id": "pioneer-meta-mono-red-prowess-s7",
@@ -2562,12 +3385,12 @@
         "frame": "frame-rune",
         "title": "pauper-devotee"
       },
-      "rating": 1311,
+      "rating": 1285,
       "rd": 30,
-      "games": 336,
-      "won": 214,
+      "games": 432,
+      "won": 284,
       "drew": 0,
-      "lost": 122
+      "lost": 148
     },
     {
       "id": "pioneer-meta-selesnya-company-s5",
@@ -2587,12 +3410,15 @@
         "frame": "frame-sun",
         "title": "bulwark"
       },
-      "rating": 1298,
+      "queues": [
+        "open"
+      ],
+      "rating": 1269,
       "rd": 30,
-      "games": 288,
-      "won": 177,
+      "games": 408,
+      "won": 266,
       "drew": 0,
-      "lost": 111
+      "lost": 142
     },
     {
       "id": "pioneer-meta-selesnya-company-s7",
@@ -2612,12 +3438,12 @@
         "frame": "frame-gold",
         "title": "limited-devotee"
       },
-      "rating": 1398,
+      "rating": 1372,
       "rd": 30,
-      "games": 276,
-      "won": 200,
-      "drew": 3,
-      "lost": 73
+      "games": 444,
+      "won": 345,
+      "drew": 4,
+      "lost": 95
     },
     {
       "id": "pioneer-starter-s1",
@@ -2639,10 +3465,10 @@
       },
       "rating": 1000,
       "rd": 30,
-      "games": 264,
-      "won": 101,
-      "drew": 4,
-      "lost": 159
+      "games": 396,
+      "won": 168,
+      "drew": 8,
+      "lost": 220
     },
     {
       "id": "pioneer-starter-s3",
@@ -2662,12 +3488,12 @@
         "frame": "frame-chain",
         "title": "veteran"
       },
-      "rating": 1221,
+      "rating": 1201,
       "rd": 30,
-      "games": 324,
-      "won": 182,
-      "drew": 3,
-      "lost": 139
+      "games": 444,
+      "won": 268,
+      "drew": 5,
+      "lost": 171
     },
     {
       "id": "pioneer-starter-s5",
@@ -2687,12 +3513,12 @@
         "frame": "frame-chain",
         "title": "necromancer"
       },
-      "rating": 1229,
+      "rating": 1213,
       "rd": 30,
-      "games": 408,
-      "won": 232,
-      "drew": 0,
-      "lost": 176
+      "games": 528,
+      "won": 315,
+      "drew": 2,
+      "lost": 211
     }
   ]
 }

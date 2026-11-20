@@ -1,6 +1,8 @@
 {
   "_doc": "The Career League (#433): per format, the school decks a new League can start from (pick two; their cards join the collection and each becomes an editable League deck), the packs a start gives, and whether the format has a mixed pack drawing from all its sets. Wildcards come with the account's first League only. Rewards are in CareerLeague.",
   "startWildcards": {"common": 4, "uncommon": 3, "rare": 1, "mythic": 0},
+  "_packWildcards": "The wildcard track: every League pack an account opens counts; every rareEvery-th adds a rare wildcard, every mythicEvery-th a mythic one instead. ProgressionBalanceTest checks the pace this gives.",
+  "packWildcards": {"rareEvery": 4, "mythicEvery": 12},
   "formats": {
     "standard": {
       "starters": ["standard/starter.dck", "standard/act1-skies.dck", "standard/act1-stompy.dck"],

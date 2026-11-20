@@ -15,7 +15,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Ranked (#431): the Open queue, Bo1, against the ladder's bots. A player picks a format and a deck; the server picks a
@@ -213,7 +212,8 @@ public final class RankedService {
             }
         }
         List<LadderRatings.Candidate> from = fresh.isEmpty() ? candidates : fresh;
-        BotRoster.Bot bot = from.get(ThreadLocalRandom.current().nextInt(from.size())).bot;
+        // RandomUtil, so a test can seed the draw
+        BotRoster.Bot bot = from.get(mage.util.RandomUtil.nextInt(from.size())).bot;
         picks.put(pickKey, bot.id);
         return bot;
     }

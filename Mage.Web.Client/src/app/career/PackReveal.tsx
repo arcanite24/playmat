@@ -46,7 +46,7 @@ interface Showcase {
  * Several packs bought at once open as one: the fan holds only what's worth turning (rares, mythics, new cards, copies
  * stacked), and the summary counts every card that came.
  */
-export function PackReveal({ setName, setCode, cover, cards, fresh = [], packs = 1, copies, all, stopped, canBuyAnother, onAnother, onClose }: {
+export function PackReveal({ setName, setCode, cover, cards, fresh = [], packs = 1, copies, all, stopped, bonus, canBuyAnother, onAnother, onClose }: {
   setName: string;
   setCode: string;
   cover?: ArtCard | null;
@@ -61,6 +61,8 @@ export function PackReveal({ setName, setCode, cover, cards, fresh = [], packs =
   all?: readonly CareerCard[];
   /** why a batch stopped before its last pack */
   stopped?: string;
+  /** what else came with the pack, shown in the summary (the League's wildcard track) */
+  bonus?: string;
   canBuyAnother: boolean;
   onAnother(): void;
   onClose(): void;
@@ -301,6 +303,7 @@ export function PackReveal({ setName, setCode, cover, cards, fresh = [], packs =
             summary.coins > 0 ? t('career.pack.coins', { coins: summary.coins }) : null,
             summary.wildcards > 0 ? t('career.pack.wildcards', { count: summary.wildcards }) : null,
             summary.basics > 0 ? t('career.pack.basics', { count: summary.basics }) : null,
+            bonus ?? null,
             stopped ? t('career.pack.stopped', { count: packs, reason: stopped }) : null,
           ].filter(Boolean).join(' · ') : stage === 'open' ? t('career.pack.tap') : ''}
         </p>
