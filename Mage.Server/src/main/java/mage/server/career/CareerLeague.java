@@ -54,11 +54,20 @@ public final class CareerLeague {
     public static final int WINS_PER_WILDCARD = 5;
     /** the pack that draws from every set of the format */
     public static final String MIXED = "mixed";
+    /** the stats counter of League packs opened, which the wildcard track counts */
+    static final String LEAGUE_PACKS = "league_packs";
 
     /** league.json */
     static final class Config {
         Map<String, Integer> startWildcards = new LinkedHashMap<>();
+        PackWildcards packWildcards = new PackWildcards();
         Map<String, FormatConfig> formats = new LinkedHashMap<>();
+    }
+
+    /** the wildcard track: every League pack an account opens counts, every rareEvery-th adds a rare wildcard, every mythicEvery-th a mythic one instead (0: never) */
+    static final class PackWildcards {
+        int rareEvery;
+        int mythicEvery;
     }
 
     static final class FormatConfig {
@@ -126,6 +135,26 @@ public final class CareerLeague {
         public List<String> missing;
         /** why the format's rules refuse it (the first few) */
         public List<String> illegal;
+        /** what crafting the missing cards takes */
+        public LeagueCraft craft;
+    }
+
+    /**
+     * What crafting a deck's missing cards takes: wildcards by rarity and, for commons and uncommons once their
+     * wildcards run out, coins (as Career crafting spends them)
+     */
+    public static class LeagueCraft {
+        /** missing copies, all rarities */
+        public int copies;
+        public int common;
+        public int uncommon;
+        public int rare;
+        public int mythic;
+        public int coins;
+        /** whether the account has all of it now */
+        public boolean affordable;
+        /** cards the server can't find, which can't be crafted */
+        public List<String> unknown = new ArrayList<>();
     }
 
     /** What a League pack gave */
@@ -138,6 +167,8 @@ public final class CareerLeague {
         public int tokens;
         /** what paid for it: league, career or coins */
         public String paidWith;
+        /** the wildcard the track added with this pack (rare or mythic), or null */
+        public String wildcard;
     }
 
     /** What starting a League gave */
@@ -398,8 +429,23 @@ public final class CareerLeague {
         return out;
     }
 
+    /** the wildcard the n-th League pack an account opens comes with, if any */
+    String trackWildcard(int n) {
+        PackWildcards track = config.packWildcards;
+        if (track == null || n <= 0) {
+            return null;
+        }
+        if (track.mythicEvery > 0 && n % track.mythicEvery == 0) {
+            return CareerRules.MYTHIC;
+        }
+        if (track.rareEvery > 0 && n % track.rareEvery == 0) {
+            return CareerRules.RARE;
+        }
+        return null;
+    }
+
     /** the set codes the format's validator allows */
-    static List<String> legalSets(String format) {
+    public static List<String> legalSets(String format) {
         DeckValidator validator = DeckLegality.validator(RankedService.deckType(format));
         if (validator instanceof Constructed) {
             return ((Constructed) validator).getSetCodes();
@@ -450,6 +496,11 @@ public final class CareerLeague {
             }
             service.addCards(store, user, cards);
             store.addStat(user, "packs_opened", 1);
+            store.addStat(user, LEAGUE_PACKS, 1);
+            result.wildcard = trackWildcard(store.stats(user).getOrDefault(LEAGUE_PACKS, 0));
+            if (result.wildcard != null) {
+                store.addWildcard(user, result.wildcard, 1);
+            }
             CareerProgress.get().achievementsIn(store, user, null, null, System.currentTimeMillis());
             return null;
         }));
@@ -553,12 +604,153 @@ public final class CareerLeague {
         }
         view.cards = mainCount(view.deck);
         view.missing = CareerService.get().ownershipProblems(user, view.deck);
+        view.craft = craftPlan(user, view.deck, CareerStore.get().profile(user));
         try {
             view.illegal = DeckLegality.problems(RankedService.deckType(row.format), view.deck);
         } catch (RuntimeException e) {
             view.illegal = Collections.singletonList(e.getMessage());
         }
         return view;
+    }
+
+    // ---- crafting what a deck lacks
+
+    /** the copies of each card the deck has more of than the account owns, as the deck's printings */
+    private static Map<CareerCard, Integer> shortfall(String user, DeckCardLists deck) throws SQLException {
+        CareerStore store = CareerStore.get();
+        CareerService service = CareerService.get();
+        Map<String, Integer> needed = new LinkedHashMap<>();
+        Map<String, DeckCardInfo> printing = new LinkedHashMap<>();
+        for (DeckCardInfo info : CareerContent.allCards(deck)) {
+            if (CareerService.isBasic(info.getCardName())) {
+                continue;
+            }
+            needed.merge(info.getCardName(), info.getAmount(), Integer::sum);
+            printing.putIfAbsent(info.getCardName(), info);
+        }
+        Map<CareerCard, Integer> out = new LinkedHashMap<>();
+        for (Map.Entry<String, Integer> entry : needed.entrySet()) {
+            int lacking = Math.min(CareerRules.PLAYSET, entry.getValue()) - store.owned(user, entry.getKey());
+            if (lacking <= 0) {
+                continue;
+            }
+            CareerCard card = service.resolveCard(printing.get(entry.getKey()));
+            if (card == null) {
+                card = new CareerCard(entry.getKey(), null, null, null);
+            }
+            out.put(card, lacking);
+        }
+        return out;
+    }
+
+    static LeagueCraft craftPlan(String user, DeckCardLists deck, CareerProfile profile) throws SQLException {
+        return plan(shortfall(user, deck), profile);
+    }
+
+    static LeagueCraft planForTests(Map<CareerCard, Integer> lacking, CareerProfile profile) {
+        return plan(lacking, profile);
+    }
+
+    private static LeagueCraft plan(Map<CareerCard, Integer> lacking, CareerProfile profile) {
+        LeagueCraft plan = new LeagueCraft();
+        int common = 0;
+        int uncommon = 0;
+        for (Map.Entry<CareerCard, Integer> entry : lacking.entrySet()) {
+            CareerCard card = entry.getKey();
+            int n = entry.getValue();
+            if (card.rarity == null || CareerRules.LAND.equals(card.rarity)) {
+                plan.unknown.add(card.name);
+                continue;
+            }
+            plan.copies += n;
+            switch (card.rarity) {
+                case CareerRules.COMMON:
+                    common += n;
+                    break;
+                case CareerRules.UNCOMMON:
+                    uncommon += n;
+                    break;
+                case CareerRules.MYTHIC:
+                    plan.mythic += n;
+                    break;
+                default:
+                    plan.rare += n;
+                    break;
+            }
+        }
+        // commons and uncommons spend their wildcards first, then coins
+        int haveCommon = profile == null ? 0 : CareerService.wildcardsOf(profile, CareerRules.COMMON);
+        int haveUncommon = profile == null ? 0 : CareerService.wildcardsOf(profile, CareerRules.UNCOMMON);
+        plan.common = Math.min(common, haveCommon);
+        plan.uncommon = Math.min(uncommon, haveUncommon);
+        plan.coins = (common - plan.common) * CareerRules.craftCoins(CareerRules.COMMON)
+                + (uncommon - plan.uncommon) * CareerRules.craftCoins(CareerRules.UNCOMMON);
+        plan.affordable = profile != null && plan.unknown.isEmpty()
+                && plan.rare <= CareerService.wildcardsOf(profile, CareerRules.RARE)
+                && plan.mythic <= CareerService.wildcardsOf(profile, CareerRules.MYTHIC)
+                && plan.coins <= profile.coins;
+        return plan;
+    }
+
+    /**
+     * Crafts every card a League deck lacks, all at once or not at all: wildcards by rarity, and coins for commons
+     * and uncommons once their wildcards run out.
+     */
+    public LeagueDeck craftMissing(String user, String id) throws SQLException, CareerService.CareerException {
+        CareerStore store = CareerStore.get();
+        CareerStore.LeagueDeckRow row = store.leagueDeck(user, id);
+        if (row == null) {
+            throw new CareerService.CareerException("There is no such League deck.");
+        }
+        DeckCardLists deck = gson.fromJson(row.deck, DeckCardLists.class);
+        int[] crafted = new int[1];
+        CareerService.refusing(() -> store.transaction(() -> {
+            CareerProfile profile = store.profile(user);
+            Map<CareerCard, Integer> lacking = shortfall(user, deck);
+            LeagueCraft plan = plan(lacking, profile);
+            if (plan.copies == 0 && plan.unknown.isEmpty()) {
+                throw new SQLException(new CareerService.CareerException("You already own every card in " + row.name + "."));
+            }
+            if (!plan.unknown.isEmpty()) {
+                throw new SQLException(new CareerService.CareerException("These can't be crafted: " + String.join(", ", plan.unknown) + "."));
+            }
+            if (!plan.affordable) {
+                throw new SQLException(new CareerService.CareerException(shortOf(plan, profile)));
+            }
+            store.addWildcard(user, CareerRules.COMMON, -plan.common);
+            store.addWildcard(user, CareerRules.UNCOMMON, -plan.uncommon);
+            store.addWildcard(user, CareerRules.RARE, -plan.rare);
+            store.addWildcard(user, CareerRules.MYTHIC, -plan.mythic);
+            if (plan.coins > 0) {
+                store.addCoins(user, -plan.coins);
+            }
+            for (Map.Entry<CareerCard, Integer> entry : lacking.entrySet()) {
+                store.addCard(user, entry.getKey(), entry.getValue());
+            }
+            store.addStat(user, "cards_crafted", plan.copies);
+            CareerProgress.get().achievementsIn(store, user, null, null, System.currentTimeMillis());
+            crafted[0] = plan.copies;
+            return null;
+        }));
+        logger.info("League: " + user + " crafted " + crafted[0] + " missing cards for " + row.name);
+        return view(user, store.leagueDeck(user, id));
+    }
+
+    private static String shortOf(LeagueCraft plan, CareerProfile profile) {
+        List<String> short_ = new ArrayList<>();
+        int rare = profile == null ? 0 : CareerService.wildcardsOf(profile, CareerRules.RARE);
+        int mythic = profile == null ? 0 : CareerService.wildcardsOf(profile, CareerRules.MYTHIC);
+        int coins = profile == null ? 0 : profile.coins;
+        if (plan.mythic > mythic) {
+            short_.add(plan.mythic + " mythic wildcards (you have " + mythic + ")");
+        }
+        if (plan.rare > rare) {
+            short_.add(plan.rare + " rare wildcards (you have " + rare + ")");
+        }
+        if (plan.coins > coins) {
+            short_.add(plan.coins + " coins (you have " + coins + ")");
+        }
+        return "Crafting the missing cards takes " + String.join(", ", short_) + ".";
     }
 
     private static String clipName(String name, String fallback) {

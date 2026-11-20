@@ -335,6 +335,7 @@ Generated from the server's method registry (`mage.server.websocket.api`). Do no
 | `leagueOpen` | `format: string`, `setCode: string` | `LeaguePack` | session | Open a pack of the format's League: the format's pack token first, then a Career pack token, then coins. The cards join the collection. |
 | `leagueDecks` | `format?: string` | `LeagueDeck[]` | session | Your League decks (of one format, or all), newest first, each with the cards you're missing and why the format refuses it, if it does. |
 | `leagueSaveDeck` | `id?: string`, `name: string`, `format: string`, `deck: DeckCardLists` | `LeagueDeck` | session | Save a League deck: a new one without an id. It may be unfinished; what keeps it from being played comes back with it. |
+| `leagueCraftMissing` | `id: string` | `LeagueDeck` | session | Craft every card one of your League decks lacks, all at once or nothing: wildcards by rarity, and coins for commons and uncommons once their wildcards run out. The deck's craft field says what it takes. |
 | `leagueDeleteDeck` | `id: string` | `boolean` | session | Delete one of your League decks. The cards stay in the collection. |
 | `homeLayoutGet` | - | `string \| null` | session | The signed-in account's Home widget layout as JSON ({ v: 1, preset, items: [{ key, id, size, settings }] }), or null before it saves one. |
 | `homeLayoutSet` | `layout: string` | `string` | session | Saves the account's Home widget layout. Unknown widgets and sizes are refused; at most 24 widgets. Returns the layout as saved. |

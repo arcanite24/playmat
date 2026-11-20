@@ -141,6 +141,7 @@ const router = createBrowserRouter([
               // the format schools (M11): the academy's hall, and each school's campaign
               { path: 'ranked', lazy: () => import('./career/CareerRankedScreen').then((m) => ({ Component: m.CareerRankedScreen })) },
               { path: 'league', lazy: () => import('./career/CareerLeagueScreen').then((m) => ({ Component: m.CareerLeagueScreen })) },
+              { path: 'league/deck/:deckId', lazy: () => import('./career/LeagueDeckScreen').then((m) => ({ Component: m.LeagueDeckScreen })) },
               { path: 'academy', lazy: () => import('./career/CareerAcademyScreen').then((m) => ({ Component: m.CareerAcademyScreen })) },
               { path: 'academy/:school', lazy: () => import('./career/CareerAcademyScreen').then((m) => ({ Component: m.CareerAcademyScreen })) },
               { path: ':mode', lazy: () => import('./career/CareerModesRoute').then((m) => ({ Component: m.CareerModesRoute })) },

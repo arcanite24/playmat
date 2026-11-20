@@ -25,9 +25,13 @@ FORMATS = ["standard", "pioneer"]
 SKILLS = {1: "quick", 3: "light", 5: "half", 7: "full"}
 # The skills each kind of school deck is fielded at: the weakest decks never meet the full search, the strongest
 # never play without one.
-BANDS = {"starter": [1, 3, 5], "signature": [1, 3, 5], "act1": [1, 3, 5], "act2": [3, 5, 7], "act3": [5, 7], "meta": [5, 7]}
+BANDS = {"starter": [1, 3, 5], "signature": [1, 3, 5], "act1": [1, 3, 5], "act2": [3, 5, 7], "act3": [5, 7], "meta": [5, 7],
+         "budget": [5, 7]}
+# The queues a bot plays in (#433), by kind and skill; unlisted: both. Budget meta lists (budget-*.dck, made by
+# LeagueBudgetDecksTest) play in the League only, and the full meta lists meet League players at the full search only.
+QUEUES = {("budget", 5): ["league"], ("budget", 7): ["league"], ("meta", 5): ["open"]}
 # A first guess at the rating before calibration: what the deck and the search add.
-PRIOR_DECK = {"starter": 0, "signature": 0, "act1": 50, "act2": 150, "act3": 250, "meta": 300}
+PRIOR_DECK = {"starter": 0, "signature": 0, "act1": 50, "act2": 150, "act3": 250, "meta": 300, "budget": 200}
 PRIOR_SKILL = {1: 0, 3: 150, 5: 250, 7: 350}
 # Better bots dress better: the rarities a bot's cosmetics are drawn from, by skill.
 RARITIES = {1: ["common"], 3: ["common", "uncommon"], 5: ["uncommon", "rare"], 7: ["rare", "mythic"]}
@@ -48,7 +52,7 @@ FAMILY = [
 
 
 def kind_of(stem):
-    for k in ("starter", "signature", "meta", "act1", "act2", "act3"):
+    for k in ("starter", "signature", "meta", "budget", "act1", "act2", "act3"):
         if stem.startswith(k):
             return k
     return None
@@ -137,6 +141,8 @@ def main():
                     "prior": prior,
                     "persona": persona,
                 }
+                if (kind, skill) in QUEUES:
+                    bot["queues"] = QUEUES[(kind, skill)]
                 for key in ("rating", "rd", "games", "won", "drew", "lost"):
                     if before and key in before:
                         bot[key] = before[key]

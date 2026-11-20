@@ -1442,7 +1442,7 @@ public final class CareerService {
         return store.profile(user);
     }
 
-    private static int wildcardsOf(CareerProfile profile, String rarity) {
+    static int wildcardsOf(CareerProfile profile, String rarity) {
         if (profile.wildcards == null) {
             return 0;
         }

@@ -150,7 +150,7 @@ public final class LadderRatings {
      */
     public List<Candidate> candidates(String format, String queue, double rating) throws SQLException {
         List<Candidate> all = new ArrayList<>();
-        for (BotRoster.Bot bot : roster.bots(format)) {
+        for (BotRoster.Bot bot : roster.bots(format, queue)) {
             all.add(new Candidate(bot, bot(bot, queue)));
         }
         all.sort((a, b) -> Double.compare(a.rating.rating, b.rating.rating));

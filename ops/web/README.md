@@ -623,9 +623,21 @@ rating scale per format (Standard and Pioneer so far), each anchored so the form
   `--deals` (deals per pair, each played twice with the seats swapped), `--jobs` (threads, default 3), `--fit-only`.
   Games go to `Mage.Server/ladder-src/calibration/games.jsonl` as they finish, so a run can stop and continue; a game
   counts only while both bots' search settings are the ones the build plays, so a change to the AI makes it stale.
-  The run in `bots.json` (3 rounds, `--near 8 --far 3 --deals 6`: 18,276 games) took 40 minutes on 3 threads.
+  The run in `bots.json` (3 rounds, `--near 8 --far 3 --deals 6`: 30,756 games with the League's budget bots) took
+  about 20 minutes on 3 threads for the new bots' games, on top of the 40 for the first 18,276.
 - Recalibrate after changing the AI's search, the skills, or a school deck. `PLAYMAT_AI_POLICY` must be what the
   server runs (default `playouts`); the calibration block records it.
+- A bot's `queues` lists where it plays (`open`, `league`; none listed: both). `budget-*.dck` bots play only in the
+  League, and meta lists at skill 5 only in the Open queue, so the League meets full meta lists only at the full
+  search. The League's matchmaking is by rating like Ranked's, and the budget lists measured well below their full
+  lists (Standard 725 to 1238, Pioneer 536 to 1098), so they mix in with the starters and the school's decks rather
+  than forming a tier above them. The budget decks are
+  each meta list with its rares and mythics swapped for the closest commons and uncommons of the format that the Rust
+  host plays (`rust/crates/playmat-engine/cards/verified.txt`), and rare lands for basics. `LeagueBudgetDecksTest`
+  writes them (only when asked, so the shipped decks stay the ones their ratings measured) and checks that each meta
+  list has one without rares or mythics; after changing a meta list, write them again with
+  `mvn -o -pl Mage.Server test -Dtest=LeagueBudgetDecksTest -Dxmage.writeBudgetDecks=true`, then run `roster.py` and
+  the calibration. The same test checks that every bot's deck is legal and all on the Rust host.
 
 Ratings change with play: `db/ladder.db` keeps each player's and bot's Glicko-2 rating per format and queue (players
 start at 1200; a bot starts at its calibrated rating and moves slowly). Deleting the file resets everyone to those
@@ -663,16 +675,31 @@ on wherever Career is.
   (4 common, 3 uncommon, 1 rare). A format starts once per account.
 - **Packs.** `leagueSets(format)` is the shop's sets that the format's validator allows, newest first. Formats with
   `mixed` (Pioneer) also offer `mixed`, a pack of a random set of the format. `leagueOpen` pays with the format's League
-  packs, then a Career pack token, then `PACK_PRICE` coins. Campaign set locks don't apply.
+  packs, then a Career pack token, then `PACK_PRICE` coins. Campaign set locks don't apply. The wildcard track
+  (`packWildcards` in `league.json`) counts every League pack an account opens: every `rareEvery`-th (4) adds a rare
+  wildcard and every `mythicEvery`-th (12) a mythic one instead; the pack's `wildcard` says which, and the reveal shows
+  it.
 - **Decks.** League decks are stored per account by id (`leagueDecks`, `leagueSaveDeck`, `leagueDeleteDeck`, at most
   40), each returned with its missing cards and the format's objections. `leaguePlay(format, deckId)` plays the
   server's copy and refuses a deck that isn't owned and legal.
+- **Builder.** `/career/league/deck/:id` is the deck builder with a League mode: owned cards or every card the format
+  allows, up to a playset each, owned or not. Each saved `LeagueDeck` has `craft`: the missing copies and what crafting
+  them takes (wildcards by rarity, then coins for commons and uncommons once their wildcards run out, as Career crafting
+  spends them). `leagueCraftMissing(id)` crafts all of it in one transaction or refuses with what's short.
 - **Ladder.** League games are ranked games in the `league` queue: `ladderState` and `ladderOpponent` take
   `queue: "league"`. The rules are Ranked's. Players start at a rating of 1000 instead of 1200, so the first opponents
   are the starter bots. League tables start like Ranked ones and aren't Career tables, so the Rust host takes them as it takes Ranked games.
 - **Rewards.** Each tier entered for the first time pays a League pack of the format (keyed `tier-N` in
   `ladder_rewards`). Each rank pays its cosmetics and a rare wildcard (mythic at Gold, none at Bronze). Every fifth
   League win pays an uncommon wildcard. The League pays no capsule tokens.
+- **Pace.** `ProgressionBalanceTest` plays a League player through the real ladder and reward code (6 games a day,
+  winning as a player rated 1350 would, opening every pack and keeping the coins crafting needs) until Craft missing
+  completes a Standard meta list, three runs per list, and checks that the median is 21 to 42 days. Measured
+  2026-11-19: median 27 days (20 to 50); 37 at strength 1200, 30 at 1500; at 2 games a day about 88, many runs
+  unfinished after 90 days. About 60% of the packs in those runs are bought with Career coins, which the League
+  shares with Career crafting. Without the wildcard track it was 75 days to more than 120. Retune
+  `packWildcards` or the rewards against it; `-Dxmage.progressionReport=true -Dxmage.leagueSheet=true` prints the
+  sheet at three strengths and two paces.
 - **Data.** `career.db` adds `league`, `league_tokens` and `league_decks` (schema 8). They are in the account export
   (`league`) and deleted with the account, and the queue's standings and games are in `ladder.db` as for Ranked. The
   server log has a `League <format>:` line for each start.

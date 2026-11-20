@@ -60,7 +60,7 @@ export function CareerDeckScreen() {
 }
 
 /** The binder: every card the Career owns, one tile per card name. */
-function OwnedBinder({ counts, limitOf, onAdd, onRemove, onPreview, onInspect }: BinderProps) {
+export function OwnedBinder({ counts, limitOf, onAdd, onRemove, onPreview, onInspect }: BinderProps) {
   const t = useT();
   const collection = useCareerCollection(true);
   // names and types by default, as this binder always searched

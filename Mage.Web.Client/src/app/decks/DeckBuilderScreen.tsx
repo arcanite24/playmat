@@ -1,7 +1,7 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { ArrowLeftRight, BarChart3, Check, ChevronLeft, ClipboardPaste, Columns3, Coins, Crown, Image as ImageIcon, Images, ListPlus, Minus, Mountain, Plus, Replace, Sparkles, TriangleAlert } from 'lucide-react';
 import { useMyCardStyles } from '../ui/cardStyles';
-import { useCallback, useEffect, useMemo, useState, type ComponentType } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { CardView } from '../../protocol/generated/views';
@@ -69,6 +69,8 @@ export interface BuilderMode {
   doneLabel: string;
   onDone(): void;
   onPlay(): void;
+  /** shown above the deck list, given the deck as it is on screen (the League's missing cards and Craft missing) */
+  Banner?: ComponentType<{ deck: DeckCardLists }>;
 }
 
 /** Opens the deck named in the URL: starter decks are copied into the library first, "new" makes an empty deck. */
@@ -265,6 +267,7 @@ export function DeckBuilder({ initial, mode }: { initial: DeckCardLists; mode?: 
           onZone={setZone}
           onChange={setDeck}
           onPreview={onRowPreview}
+          banner={mode?.Banner ? <mode.Banner deck={deck} /> : null}
           onDone={mode ? mode.onDone : () => navigate('/decks')}
           onPlay={mode ? mode.onPlay : () => {
             useDecks.getState().select(deck.id!);
@@ -287,7 +290,7 @@ function useCommanderIdentity(deck: DeckCardLists, info: ReadonlyMap<string, Car
   }, [deck.sideboard, info, rules.commandZone]);
 }
 
-function DeckPanel({ deck, zone, view, onView, info, formats, rules, identity, saving, limitFor, fixedFormat, doneLabel, onZone, onChange, onPreview, onDone, onPlay }: {
+function DeckPanel({ deck, zone, view, onView, info, formats, rules, identity, saving, limitFor, fixedFormat, doneLabel, banner, onZone, onChange, onPreview, onDone, onPlay }: {
   deck: DeckCardLists;
   zone: DeckZone;
   view: DeckView;
@@ -301,6 +304,8 @@ function DeckPanel({ deck, zone, view, onView, info, formats, rules, identity, s
   /** the format is the mode's (Career decks are Freeform), not the player's to pick */
   fixedFormat: boolean;
   doneLabel: string;
+  /** the mode's banner, under the deck's name */
+  banner?: ReactNode;
   onZone(zone: DeckZone): void;
   onChange(update: (deck: DeckCardLists) => DeckCardLists): void;
   onPreview(card: CardView | null, anchor?: DOMRect): void;
@@ -368,6 +373,7 @@ function DeckPanel({ deck, zone, view, onView, info, formats, rules, identity, s
           ))}
         </select>
       </header>
+      {banner}
 
       <div className={styles.status}>
         <span className={styles.total}>{total}{rules.deckSize ? <small> / {rules.deckSize}</small> : <small> cards</small>}</span>

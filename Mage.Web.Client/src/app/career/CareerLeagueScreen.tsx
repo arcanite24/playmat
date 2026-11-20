@@ -1,6 +1,6 @@
-import { Package, Swords, Trophy } from 'lucide-react';
+import { Package, Plus, Swords, Trophy } from 'lucide-react';
 import { useState } from 'react';
-import { Navigate, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import type { LeagueDeck, LeagueFormat, LeaguePack, LeagueSet, LeagueState, LadderState } from '../../protocol/generated/views';
 import { registerMessages, useT } from '../i18n';
 import messages from '../i18n/en/career';
@@ -250,23 +250,29 @@ function DeckProblems({ deck }: { deck: LeagueDeck }) {
 
 function Decks({ format }: { format: string }) {
   const t = useT();
+  const navigate = useNavigate();
   const decks = useLeagueDecks(format);
   const list = decks.data ?? [];
-  if (list.length === 0) return null;
   return (
     <section aria-labelledby="league-decks">
       <h2 id="league-decks" className={modes.subhead}>{t('league.decks')}</h2>
       <ul className={styles.decks}>
         {list.map((deck) => (
           <li key={deck.id}>
-            <b>{deck.name}</b>
+            <Link to={`/career/league/deck/${encodeURIComponent(deck.id ?? '')}`} aria-label={t('league.decks.edit', { name: deck.name ?? '' })} data-nav>
+              <b>{deck.name}</b>
+            </Link>
             <small className={modes.small}>
               {playable(deck) ? t('league.deck.ready', { count: deck.cards ?? 0 }) : t('league.deck.missing', { count: (deck.missing ?? []).length || (deck.illegal ?? []).length })}
             </small>
           </li>
         ))}
       </ul>
-      <p className={modes.small}>{t('league.decks.soon')}</p>
+      <div className={styles.deckActions}>
+        <Button variant="quiet" size="sm" icon={<Plus size={14} />} onClick={() => navigate(`/career/league/deck/new?format=${format}`)} data-nav>
+          {t('league.decks.new')}
+        </Button>
+      </div>
     </section>
   );
 }
@@ -327,6 +333,7 @@ function Packs({ format, league }: { format: string; league: LeagueFormat }) {
           setCode={opened.pack.setCode ?? ''}
           cover={opened.set.cover}
           cards={opened.pack.cards ?? []}
+          bonus={opened.pack.wildcard === 'mythic' ? t('league.packs.mythic') : opened.pack.wildcard === 'rare' ? t('league.packs.rare') : undefined}
           canBuyAnother={(opened.pack.tokens ?? 0) > 0 && !opening}
           onAnother={() => void open(opened.set)}
           onClose={() => setOpened(null)}

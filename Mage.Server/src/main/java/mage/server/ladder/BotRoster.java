@@ -46,8 +46,10 @@ public final class BotRoster {
         public String deck;
         public String deckName;
         public String colors;
-        /** the school deck's kind: starter, signature, act1, act2, act3, meta */
+        /** the school deck's kind: starter, signature, act1, act2, act3, meta, budget (a meta list made cheap, for the League) */
         public String kind;
+        /** the queues it plays in (open, league); none listed: both */
+        public List<String> queues;
         /** the AI skill the Rust host plays it at (1 quick, 3 light, 5 half, 7 full search) */
         public int skill;
         public String search;
@@ -61,6 +63,11 @@ public final class BotRoster {
         public Integer won;
         public Integer drew;
         public Integer lost;
+
+        /** whether the bot plays in the queue */
+        public boolean plays(String queue) {
+            return queues == null || queues.isEmpty() || queues.contains(queue);
+        }
 
         public boolean calibrated() {
             return rating != null && games != null && games > 0;
@@ -140,6 +147,17 @@ public final class BotRoster {
         Set<String> out = new LinkedHashSet<>();
         for (Bot bot : bots.values()) {
             out.add(bot.format);
+        }
+        return out;
+    }
+
+    /** a format's bots that play in the queue, weakest first by their starting rating */
+    public List<Bot> bots(String format, String queue) {
+        List<Bot> out = new ArrayList<>();
+        for (Bot bot : bots(format)) {
+            if (bot.plays(queue)) {
+                out.add(bot);
+            }
         }
         return out;
     }
