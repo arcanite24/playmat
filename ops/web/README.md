@@ -860,17 +860,29 @@ XMage opens every database under `./db`. Only user data stays on `xmage-db`. The
 The `backup` service runs daily at `BACKUP_AT` and writes `/backups/<UTC timestamp>/` into the `xmage-backups` volume:
 
 - `authorized_user.h2.sql.gz` and `feedback.h2.sql.gz`: H2 SQL dumps. They're taken online by joining the running server's database through H2's auto-server mode, so each dump is consistent.
-- `authorized_user.db` (the accounts, see [Accounts and moderation](#accounts-and-moderation)), `user_stats.db`, `table_record.db`, `web_decks.db`, `web_reports.db`, `career.db`, `web_admin.db`, `support.db`, `solo.db`, `web_presence.db` and `ladder.db`: SQLite copies made with SQLite's online backup API.
+- `authorized_user.db.gz` (the accounts, see [Accounts and moderation](#accounts-and-moderation)), `user_stats.db.gz`, `table_record.db.gz`, `web_decks.db.gz`, `web_reports.db.gz`, `career.db.gz`, `web_admin.db.gz`, `support.db.gz`, `web_presence.db.gz`, `ladder.db.gz` and `solo.db`: SQLite copies taken online with `VACUUM INTO`, which leaves the free pages a busy database keeps behind, then gzipped one at a time. `solo.db` stays plain (`BACKUP_RAW`): its turn snapshots are compressed already. Backups from before November 2026 hold plain `.db` files; restore takes either.
 - `content-packs.tar.gz`: the `db/content-packs` folder, when there is one.
 
 Every run writes `db/backup-status.json` (when, whether it worked, its size and the last good one). The admin Overview shows it, and once an hour the server checks it: a failed run, or no good backup for 36 hours, is posted to the staff channel (once a day at most).
 
-The newest `BACKUP_KEEP` backups are kept. The card database is not backed up because the image rebuilds it.
+The card database is not backed up because the image rebuilds it.
+
+**Disk.** A full disk took the public server down on 2026-11-20, so the backups watch their size:
+
+- The newest `BACKUP_KEEP` (default 7) backups are kept, and fewer when together they pass `BACKUP_MAX_GB` (default 15, `0` turns the budget off). The newest always stays. Old ones go before each run, not only after.
+- A run is skipped when the backups volume's disk has less than twice the last backup's size free. The log says `SKIPPED backup ...` with the numbers, `backup-status.json` records the reason, and the admin Overview and the staff channel show "The last backup was skipped: ...". Free some disk and run `xmage-backup once`.
+- Leftovers of a run that failed half way (`.partial-*`) are removed at the start of the next one.
+- An admin console update takes its backup the same way, so on a nearly full disk it stops at the backup step and changes nothing.
+
+The server watches the disk under `db/` too. Below `XMAGE_DISK_MIN_FREE_MB` (default 3072) or 5% of the disk, whichever is more, `/healthz` reports `diskProblem` (it still answers 200: a restart frees nothing), the admin Overview shows the free space in red, the staff channel hears about it every 6 hours, and solo games stop keeping every turn for what-ifs (their saves still work).
+
+What grows `solo.db` is those what-if turns: a snapshot per turn of every solo game, a few MB a game. Once an hour the server drops saves older than 30 days (20 per player), what-if lines not played for 14 days (5 per player), and then the least recently played lines until all of them fit `XMAGE_SOLO_LINES_MAX_MB` (default 1024). The freed space goes back to the disk: a file from before November 2026 is vacuumed once, when the disk has twice its size free, and gives space back bit by bit from then on.
 
 ```bash
 C="docker compose -f ops/web/docker-compose.yml"
-$C exec backup xmage-backup once          # take a backup now
+$C exec backup xmage-backup once          # take a backup now (exit 3: skipped, the disk is too full)
 $C exec backup xmage-backup list          # list backups
+$C exec backup xmage-backup stream > b.tar  # a fresh backup as a tar on stdout, nothing kept in the volume
 # copy one off the box
 $C cp backup:/backups/20261007T033000Z ./xmage-backup-20261007
 ```
@@ -887,7 +899,7 @@ The restore replaces the accounts and feedback databases (rebuilt from the dumps
 
 ### Off-site copies
 
-Backups on the server's own disk don't survive the loss of the server. `ops/web/host/install.sh` (see Host tools below) installs `playmat-offsite`, which packs the newest backup into `/var/backups/playmat/offsite/playmat-<name>.tar.gz` every day at 10:15 UTC and keeps three packs. Two ways take them off the machine; use either or both:
+Backups on the server's own disk don't survive the loss of the server. `ops/web/host/install.sh` (see Host tools below) installs `playmat-offsite`, which packs the newest backup into `/var/backups/playmat/offsite/playmat-<name>.tar.gz` every day at 10:15 UTC and keeps one pack (`KEEP_PACKS` in `/etc/playmat/host.env`): the pack is only the hand-over, and the puller or restic keeps the history. Like the backups, a pack is skipped (`SKIPPED pack ...` in `journalctl -t playmat-offsite`, exit 3) when the disk has less than twice the backup's size free, and a half-written `.tmp` is removed the next time. Two ways take them off the machine; use either or both:
 
 - **Pulled by another machine** (what the public server does: Multivac pulls). The other machine gets an SSH key that the server only lets run the export, so that machine can fetch the newest pack and nothing else, and someone who takes over the server can't reach or delete the copies. On the server, add to `/root/.ssh/authorized_keys`:
 
@@ -996,7 +1008,7 @@ docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env up -d --no-
 Production doesn't do this by hand. A published GitHub release builds its images and deploys them after approval (`.github/workflows/deploy.yml`, see [RELEASING.md](../../RELEASING.md)). The workflow reaches the host as a `deploy` user whose key can only run `ops/web/deploy/playmat-deploy`. That script:
 
 1. pulls both images and pins their digests,
-2. snapshots the user databases into `/var/backups/playmat` (an online dump; the newest 5 are kept),
+2. snapshots the user databases into `/var/backups/playmat/pre-<tag>-<time>.tar` (an online dump streamed from the backup service with `xmage-backup stream`, so it leaves no extra copy in the backups volume and doesn't push a nightly backup out; the newest `SNAPSHOT_KEEP`, default 2, are kept). Old snapshots go first. When the disk still has less than twice the last snapshot's size free, the deploy goes ahead without one if the nightly backup is at most `SNAPSHOT_NIGHTLY_HOURS` (36) old and says `snapshot: SKIPPED` in its log, and fails before changing anything otherwise. To restore from a snapshot, unpack it into the backups volume (`tar -xf`, or `-xzf` for an older `.tar.gz`) and restore it like a nightly backup,
 3. drains the server: with games running it announces maintenance and waits up to 15 minutes for them to end,
 4. writes the digests into `.env`,
 5. runs `up -d --no-build` with the compose file the server image carries (`/opt/xmage/deploy-kit`), so a rollback also rolls back the compose file,
