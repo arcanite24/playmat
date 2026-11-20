@@ -66,13 +66,15 @@ public class LadderRatingsTest {
     @Test
     void theShippedRosterIsCalibratedAndComplete() throws Exception {
         BotRoster roster = BotRoster.get();
-        assertEquals(new HashSet<>(Arrays.asList("standard", "pioneer")), roster.formats());
+        assertEquals(new HashSet<>(Arrays.asList("standard", "pioneer", "modern")), roster.formats());
         assertNotNull(roster.calibration(), "bots.json says how it was measured");
         Set<String> cosmetics = cosmeticIds();
         Set<String> names = new HashSet<>();
         for (String format : roster.formats()) {
             List<BotRoster.Bot> bots = roster.bots(format);
-            assertTrue(bots.size() >= 40, format + " has at least 40 bots, has " + bots.size());
+            // Modern fields only the school decks the Rust host nearly plays (#435): at least eight, at two or three skills
+            int least = "modern".equals(format) ? 20 : 40;
+            assertTrue(bots.size() >= least, format + " has at least " + least + " bots, has " + bots.size());
             BotRoster.Bot anchor = roster.bot(roster.anchor(format));
             assertNotNull(anchor, format + "'s anchor is a bot");
             assertEquals(1000, (int) anchor.rating, format + "'s anchor is 1000 by definition");
