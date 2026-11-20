@@ -1032,6 +1032,7 @@ export default {
   'career.ranked.queue.bo3': 'Bo3',
   'career.ranked.format.standard': 'Standard',
   'career.ranked.format.pioneer': 'Pioneer',
+  'career.ranked.format.modern': 'Modern',
   'career.ranked.rank.bronze': 'Bronze',
   'career.ranked.rank.silver': 'Silver',
   'career.ranked.rank.gold': 'Gold',

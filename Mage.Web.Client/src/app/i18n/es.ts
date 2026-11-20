@@ -1241,6 +1241,7 @@ const es: Catalog = {
   'career.ranked.queue.bo3': 'Bo3',
   'career.ranked.format.standard': 'Estándar',
   'career.ranked.format.pioneer': 'Pioneer',
+  'career.ranked.format.modern': 'Modern',
   'career.ranked.rank.bronze': 'Bronce',
   'career.ranked.rank.silver': 'Plata',
   'career.ranked.rank.gold': 'Oro',
@@ -2147,6 +2148,7 @@ const es: Catalog = {
 
   'home.choice.standard': 'Estándar',
   'home.choice.pioneer': 'Pioneer',
+  'home.choice.modern': 'Modern',
   'home.choice.gauntlet': 'Desafío',
   'home.choice.ascension': 'Ascensión',
   'home.choice.boss-rush': 'Carrera de jefes',

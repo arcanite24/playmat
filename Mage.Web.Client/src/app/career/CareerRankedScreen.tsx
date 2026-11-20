@@ -12,7 +12,7 @@ import { Button } from '../ui/Button';
 import { useCareerState } from './careerData';
 import { CareerAvatar } from './CareerScreen';
 import { Pips } from './Portraits';
-import { climb, movement, pickFormat, pipRow, rankAt, rankKey, record, type PipState } from './rankedModel';
+import { climb, formatKey, movement, pickFormat, pipRow, rankAt, rankKey, record, type PipState } from './rankedModel';
 import { playRanked, useRankedOpponent, useRankedResult, useRankedState, useSeasonEnd } from './rankedData';
 import { SeasonBoards } from './SeasonBoards';
 import { Versus } from './Versus';
@@ -80,7 +80,7 @@ export function CareerRankedScreen() {
                 onClick={() => go({ format: item })}
                 data-nav
               >
-                {t(`career.ranked.format.${item === 'pioneer' ? 'pioneer' : 'standard'}`)}
+                {t(formatKey(item))}
               </button>
             ))}
           </div>
@@ -226,7 +226,7 @@ function Queue({ format, queue, state }: { format: string; queue: 'open' | 'bo3'
           {decks.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
         </select>
       </label>
-      <p className={modes.small}>{t('career.ranked.legal', { format: t(`career.ranked.format.${format === 'pioneer' ? 'pioneer' : 'standard'}`) })}</p>
+      <p className={modes.small}>{t('career.ranked.legal', { format: t(formatKey(format)) })}</p>
       <div className={modes.actions}>
         <Button variant="decision" size="lg" icon={<Swords size={18} />} disabled={!deck || !them || busy || !!state.playing} onClick={() => setVersus(true)} data-nav>
           {t('career.ranked.play')}

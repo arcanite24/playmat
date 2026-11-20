@@ -49,6 +49,8 @@ public final class RankedService {
         Map<String, String> types = new LinkedHashMap<>();
         types.put("standard", "Constructed - Standard");
         types.put("pioneer", "Constructed - Pioneer");
+        // Modern (#435): the Open and Bo3 queues, with the ladder copies of its school decks (no League)
+        types.put("modern", "Constructed - Modern");
         DECK_TYPES = Collections.unmodifiableMap(types);
     }
 

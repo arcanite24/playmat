@@ -7,15 +7,18 @@ import { rankClass } from './widgetModel';
 import { Tile } from './Tile';
 import styles from './Widgets.module.css';
 
-const FORMATS = ['standard', 'pioneer'] as const;
+const FORMATS = ['standard', 'pioneer', 'modern'] as const;
+/** formats most players never touch: their rows show once played */
+const QUIET: readonly string[] = ['modern'];
 
 function Row({ format, queue = 'open' }: { format: (typeof FORMATS)[number]; queue?: RankedQueue }) {
   const t = useT();
   const state = useRankedState(format, true, queue).data;
   const step = state?.step ?? 0;
   const name = t(`career.ranked.format.${format}`);
-  // Bo3 shows once it's been played: most players stay in Bo1
-  if (queue === 'bo3' && (state?.won ?? 0) + (state?.lost ?? 0) + (state?.drew ?? 0) === 0 && (state?.peakStep ?? 0) === 0) return null;
+  // Bo3 and the quieter formats show once played: most players stay in Bo1 Standard and Pioneer
+  const played = (state?.won ?? 0) + (state?.lost ?? 0) + (state?.drew ?? 0) > 0 || (state?.peakStep ?? 0) > 0;
+  if ((queue === 'bo3' || QUIET.includes(format)) && !played) return null;
   const label = queue === 'league' ? t('home.widget.allRanks.league', { format: name }) : queue === 'bo3' ? t('home.widget.allRanks.bo3', { format: name }) : name;
   return (
     <li className={[styles.row, rankClass(step)].join(' ')}>

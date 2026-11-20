@@ -3,20 +3,40 @@
   "version": 1,
   "anchors": {
     "standard": "standard-starter-s1",
-    "pioneer": "pioneer-starter-s1"
+    "pioneer": "pioneer-starter-s1",
+    "modern": "modern-starter-s1"
   },
   "calibration": {
     "commit": "48a38d64ed1",
     "harness": "rust-engine",
     "turnCap": 30,
     "mulligans": true,
-    "games": 30756,
+    "games": 33928,
     "skills": {
       "1": "quick",
       "3": "budget=1200+width=5+extra_turns=0+playout_cap=1500+policy=playouts+hide=0+samples=1+playout=2+eval=1+plans=0+mulligan_sim=0+blunder=100+net=builtin+temp=0+eta=10000+rollout=-+consider=4+cpuct=300+iters=256",
       "5": "budget=3000+width=8+extra_turns=0+playout_cap=1500+policy=playouts+hide=0+samples=1+playout=2+eval=2+plans=0+mulligan_sim=0+blunder=20+net=builtin+temp=0+eta=10000+rollout=-+consider=4+cpuct=300+iters=256",
       "7": "budget=6000+width=12+extra_turns=1+playout_cap=1500+policy=playouts+hide=0+samples=1+playout=2+eval=2+plans=0+mulligan_sim=0+blunder=0+net=builtin+temp=0+eta=10000+rollout=-+consider=4+cpuct=300+iters=256"
-    }
+    },
+    "runs": [
+      {
+        "formats": [
+          "standard",
+          "pioneer"
+        ],
+        "commit": "48a38d64ed1",
+        "games": 30756,
+        "settings": "3 rounds, --near 8 --far 3 --deals 6"
+      },
+      {
+        "formats": [
+          "modern"
+        ],
+        "commit": "075d92d8a71",
+        "games": 3172,
+        "settings": "3 rounds, --near 8 --far 3 --deals 6 (#435)"
+      }
+    ]
   },
   "bots": [
     {
@@ -3519,6 +3539,790 @@
       "won": 315,
       "drew": 2,
       "lost": 211
+    },
+    {
+      "id": "modern-act1-burn-s1",
+      "format": "modern",
+      "deck": "modern/ladder-act1-burn.dck",
+      "deckName": "Mono-Red Burn",
+      "colors": "R",
+      "kind": "act1",
+      "skill": 1,
+      "search": "quick",
+      "prior": 1050,
+      "persona": {
+        "name": "Wynn Ironvale",
+        "avatar": "otter",
+        "sleeve": "pine",
+        "playmat": "slate",
+        "frame": "frame-laurel",
+        "title": "legacy-graduate"
+      },
+      "queues": [
+        "open"
+      ],
+      "rating": 1236,
+      "rd": 30,
+      "games": 232,
+      "won": 86,
+      "drew": 1,
+      "lost": 145
+    },
+    {
+      "id": "modern-act1-burn-s3",
+      "format": "modern",
+      "deck": "modern/ladder-act1-burn.dck",
+      "deckName": "Mono-Red Burn",
+      "colors": "R",
+      "kind": "act1",
+      "skill": 3,
+      "search": "light",
+      "prior": 1200,
+      "persona": {
+        "name": "Perrin Thornfield",
+        "avatar": "cat",
+        "sleeve": "school-brawl",
+        "playmat": "amber",
+        "frame": "frame-thorn",
+        "title": "brawl-graduate"
+      },
+      "queues": [
+        "open"
+      ],
+      "rating": 1435,
+      "rd": 30,
+      "games": 256,
+      "won": 145,
+      "drew": 0,
+      "lost": 111
+    },
+    {
+      "id": "modern-act1-burn-s5",
+      "format": "modern",
+      "deck": "modern/ladder-act1-burn.dck",
+      "deckName": "Mono-Red Burn",
+      "colors": "R",
+      "kind": "act1",
+      "skill": 5,
+      "search": "half",
+      "prior": 1300,
+      "persona": {
+        "name": "Junia Vantreth",
+        "avatar": "ram",
+        "sleeve": "ember",
+        "playmat": "amber",
+        "frame": "frame-laurel",
+        "title": "by-a-thread"
+      },
+      "queues": [
+        "open"
+      ],
+      "rating": 1372,
+      "rd": 30,
+      "games": 208,
+      "won": 103,
+      "drew": 0,
+      "lost": 105
+    },
+    {
+      "id": "modern-act1-merfolk-s1",
+      "format": "modern",
+      "deck": "modern/ladder-act1-merfolk.dck",
+      "deckName": "Merfolk",
+      "colors": "U",
+      "kind": "act1",
+      "skill": 1,
+      "search": "quick",
+      "prior": 1050,
+      "persona": {
+        "name": "Roan Duskmere",
+        "avatar": "otter",
+        "sleeve": "rust",
+        "playmat": "sand",
+        "frame": "frame-mythic",
+        "title": "old-friend"
+      },
+      "queues": [
+        "open"
+      ],
+      "rating": 1146,
+      "rd": 30,
+      "games": 216,
+      "won": 59,
+      "drew": 2,
+      "lost": 155
+    },
+    {
+      "id": "modern-act1-merfolk-s3",
+      "format": "modern",
+      "deck": "modern/ladder-act1-merfolk.dck",
+      "deckName": "Merfolk",
+      "colors": "U",
+      "kind": "act1",
+      "skill": 3,
+      "search": "light",
+      "prior": 1200,
+      "persona": {
+        "name": "Fenwick Marrowind",
+        "avatar": "owl",
+        "sleeve": "silver",
+        "playmat": "amber",
+        "frame": "frame-bronze",
+        "title": "firebrand"
+      },
+      "queues": [
+        "open"
+      ],
+      "rating": 1323,
+      "rd": 30,
+      "games": 268,
+      "won": 124,
+      "drew": 1,
+      "lost": 143
+    },
+    {
+      "id": "modern-act1-merfolk-s5",
+      "format": "modern",
+      "deck": "modern/ladder-act1-merfolk.dck",
+      "deckName": "Merfolk",
+      "colors": "U",
+      "kind": "act1",
+      "skill": 5,
+      "search": "half",
+      "prior": 1300,
+      "persona": {
+        "name": "Fenwick Grimsby",
+        "avatar": "sphinx",
+        "sleeve": "school-pauper",
+        "playmat": "midnight",
+        "frame": "frame-rune",
+        "title": "modern-devotee"
+      },
+      "queues": [
+        "open"
+      ],
+      "rating": 1361,
+      "rd": 30,
+      "games": 220,
+      "won": 112,
+      "drew": 0,
+      "lost": 108
+    },
+    {
+      "id": "modern-act2-humans-s3",
+      "format": "modern",
+      "deck": "modern/ladder-act2-humans.dck",
+      "deckName": "White Humans",
+      "colors": "W",
+      "kind": "act2",
+      "skill": 3,
+      "search": "light",
+      "prior": 1300,
+      "persona": {
+        "name": "Cato Oakhart",
+        "avatar": "lion",
+        "sleeve": "pine",
+        "playmat": "sand",
+        "frame": "frame-chain",
+        "title": "seasoned"
+      },
+      "queues": [
+        "open"
+      ],
+      "rating": 1550,
+      "rd": 30,
+      "games": 216,
+      "won": 141,
+      "drew": 1,
+      "lost": 74
+    },
+    {
+      "id": "modern-act2-humans-s5",
+      "format": "modern",
+      "deck": "modern/ladder-act2-humans.dck",
+      "deckName": "White Humans",
+      "colors": "W",
+      "kind": "act2",
+      "skill": 5,
+      "search": "half",
+      "prior": 1400,
+      "persona": {
+        "name": "Corwin Duskmere",
+        "avatar": "golem",
+        "sleeve": "obsidian",
+        "playmat": "midnight",
+        "frame": "frame-silver",
+        "title": "good-company"
+      },
+      "queues": [
+        "open"
+      ],
+      "rating": 1591,
+      "rd": 30,
+      "games": 184,
+      "won": 127,
+      "drew": 0,
+      "lost": 57
+    },
+    {
+      "id": "modern-act2-humans-s7",
+      "format": "modern",
+      "deck": "modern/ladder-act2-humans.dck",
+      "deckName": "White Humans",
+      "colors": "W",
+      "kind": "act2",
+      "skill": 7,
+      "search": "full",
+      "prior": 1500,
+      "persona": {
+        "name": "Ezra Fairhollow",
+        "avatar": "phoenix",
+        "sleeve": "scene-anvil",
+        "playmat": "aurora",
+        "frame": "frame-ember",
+        "title": "rival"
+      },
+      "queues": [
+        "open"
+      ],
+      "rating": 1661,
+      "rd": 32,
+      "games": 172,
+      "won": 131,
+      "drew": 0,
+      "lost": 41
+    },
+    {
+      "id": "modern-act2-rakdos-s3",
+      "format": "modern",
+      "deck": "modern/ladder-act2-rakdos.dck",
+      "deckName": "Rakdos Midrange",
+      "colors": "BR",
+      "kind": "act2",
+      "skill": 3,
+      "search": "light",
+      "prior": 1300,
+      "persona": {
+        "name": "Odile Silverthorn",
+        "avatar": "frog",
+        "sleeve": "school-pioneer",
+        "playmat": "sand",
+        "frame": "frame-thorn",
+        "title": "contender"
+      },
+      "queues": [
+        "open"
+      ],
+      "rating": 1234,
+      "rd": 30,
+      "games": 236,
+      "won": 87,
+      "drew": 0,
+      "lost": 149
+    },
+    {
+      "id": "modern-act2-rakdos-s5",
+      "format": "modern",
+      "deck": "modern/ladder-act2-rakdos.dck",
+      "deckName": "Rakdos Midrange",
+      "colors": "BR",
+      "kind": "act2",
+      "skill": 5,
+      "search": "half",
+      "prior": 1400,
+      "persona": {
+        "name": "Junia Ironvale",
+        "avatar": "bat",
+        "sleeve": "scene-archive",
+        "playmat": "jade",
+        "frame": "frame-sun",
+        "title": "archmage"
+      },
+      "queues": [
+        "open"
+      ],
+      "rating": 1285,
+      "rd": 30,
+      "games": 228,
+      "won": 98,
+      "drew": 0,
+      "lost": 130
+    },
+    {
+      "id": "modern-act2-rakdos-s7",
+      "format": "modern",
+      "deck": "modern/ladder-act2-rakdos.dck",
+      "deckName": "Rakdos Midrange",
+      "colors": "BR",
+      "kind": "act2",
+      "skill": 7,
+      "search": "full",
+      "prior": 1500,
+      "persona": {
+        "name": "Zara Wyndham",
+        "avatar": "manticore",
+        "sleeve": "scene-sun-moon",
+        "playmat": "midnight",
+        "frame": "frame-sun",
+        "title": "headmaster"
+      },
+      "queues": [
+        "open"
+      ],
+      "rating": 1401,
+      "rd": 30,
+      "games": 228,
+      "won": 116,
+      "drew": 1,
+      "lost": 111
+    },
+    {
+      "id": "modern-act2-stompy-s3",
+      "format": "modern",
+      "deck": "modern/ladder-act2-stompy.dck",
+      "deckName": "Mono-Green Stompy",
+      "colors": "G",
+      "kind": "act2",
+      "skill": 3,
+      "search": "light",
+      "prior": 1300,
+      "persona": {
+        "name": "Garrick Ember",
+        "avatar": "ram",
+        "sleeve": "bone",
+        "playmat": "amber",
+        "frame": "frame-grove",
+        "title": "contender"
+      },
+      "queues": [
+        "open"
+      ],
+      "rating": 1472,
+      "rd": 30,
+      "games": 232,
+      "won": 128,
+      "drew": 0,
+      "lost": 104
+    },
+    {
+      "id": "modern-act2-stompy-s5",
+      "format": "modern",
+      "deck": "modern/ladder-act2-stompy.dck",
+      "deckName": "Mono-Green Stompy",
+      "colors": "G",
+      "kind": "act2",
+      "skill": 5,
+      "search": "half",
+      "prior": 1400,
+      "persona": {
+        "name": "Corwin Quillmoor",
+        "avatar": "serpent",
+        "sleeve": "scene-book-tower",
+        "playmat": "rose",
+        "frame": "frame-thorn",
+        "title": "mindbreaker"
+      },
+      "queues": [
+        "open"
+      ],
+      "rating": 1517,
+      "rd": 30,
+      "games": 236,
+      "won": 147,
+      "drew": 0,
+      "lost": 89
+    },
+    {
+      "id": "modern-act2-stompy-s7",
+      "format": "modern",
+      "deck": "modern/ladder-act2-stompy.dck",
+      "deckName": "Mono-Green Stompy",
+      "colors": "G",
+      "kind": "act2",
+      "skill": 7,
+      "search": "full",
+      "prior": 1500,
+      "persona": {
+        "name": "Ivo Quillmoor",
+        "avatar": "unicorn",
+        "sleeve": "scene-hourglass",
+        "playmat": "midnight",
+        "frame": "frame-crown",
+        "title": "planeswalker"
+      },
+      "queues": [
+        "open"
+      ],
+      "rating": 1548,
+      "rd": 30,
+      "games": 212,
+      "won": 137,
+      "drew": 0,
+      "lost": 75
+    },
+    {
+      "id": "modern-act3-gravedancers-s5",
+      "format": "modern",
+      "deck": "modern/ladder-act3-gravedancers.dck",
+      "deckName": "Rakdos Gravedancers",
+      "colors": "BR",
+      "kind": "act3",
+      "skill": 5,
+      "search": "half",
+      "prior": 1500,
+      "persona": {
+        "name": "Tamsin Ironvale",
+        "avatar": "octopus",
+        "sleeve": "foil",
+        "playmat": "rose",
+        "frame": "frame-gold",
+        "title": "polymath"
+      },
+      "queues": [
+        "open"
+      ],
+      "rating": 1241,
+      "rd": 30,
+      "games": 244,
+      "won": 89,
+      "drew": 1,
+      "lost": 154
+    },
+    {
+      "id": "modern-act3-gravedancers-s7",
+      "format": "modern",
+      "deck": "modern/ladder-act3-gravedancers.dck",
+      "deckName": "Rakdos Gravedancers",
+      "colors": "BR",
+      "kind": "act3",
+      "skill": 7,
+      "search": "full",
+      "prior": 1600,
+      "persona": {
+        "name": "Delphine Brightwell",
+        "avatar": "sphinx",
+        "sleeve": "scene-market",
+        "playmat": "midnight",
+        "frame": "frame-gold",
+        "title": "millwright"
+      },
+      "queues": [
+        "open"
+      ],
+      "rating": 1316,
+      "rd": 30,
+      "games": 240,
+      "won": 113,
+      "drew": 0,
+      "lost": 127
+    },
+    {
+      "id": "modern-meta-boros-burn-s5",
+      "format": "modern",
+      "deck": "modern/ladder-meta-boros-burn.dck",
+      "deckName": "Boros Burn",
+      "colors": "R",
+      "kind": "meta",
+      "skill": 5,
+      "search": "half",
+      "prior": 1550,
+      "persona": {
+        "name": "Kael Kestrel",
+        "avatar": "basilisk",
+        "sleeve": "school-modern",
+        "playmat": "rose",
+        "frame": "frame-laurel",
+        "title": "bulwark"
+      },
+      "queues": [
+        "open"
+      ],
+      "rating": 1513,
+      "rd": 30,
+      "games": 244,
+      "won": 153,
+      "drew": 0,
+      "lost": 91
+    },
+    {
+      "id": "modern-meta-boros-burn-s7",
+      "format": "modern",
+      "deck": "modern/ladder-meta-boros-burn.dck",
+      "deckName": "Boros Burn",
+      "colors": "R",
+      "kind": "meta",
+      "skill": 7,
+      "search": "full",
+      "prior": 1650,
+      "persona": {
+        "name": "Hollis Frostmere",
+        "avatar": "treant",
+        "sleeve": "gold",
+        "playmat": "jade",
+        "frame": "frame-star",
+        "title": "archivist"
+      },
+      "queues": [
+        "open"
+      ],
+      "rating": 1524,
+      "rd": 30,
+      "games": 224,
+      "won": 140,
+      "drew": 0,
+      "lost": 84
+    },
+    {
+      "id": "modern-meta-domain-zoo-s5",
+      "format": "modern",
+      "deck": "modern/ladder-meta-domain-zoo.dck",
+      "deckName": "Domain Zoo",
+      "colors": "WR",
+      "kind": "meta",
+      "skill": 5,
+      "search": "half",
+      "prior": 1550,
+      "persona": {
+        "name": "Mirela Brightwell",
+        "avatar": "lion",
+        "sleeve": "school-limited",
+        "playmat": "midnight",
+        "frame": "frame-gold",
+        "title": "armorer"
+      },
+      "queues": [
+        "open"
+      ],
+      "rating": 1413,
+      "rd": 30,
+      "games": 232,
+      "won": 129,
+      "drew": 0,
+      "lost": 103
+    },
+    {
+      "id": "modern-meta-domain-zoo-s7",
+      "format": "modern",
+      "deck": "modern/ladder-meta-domain-zoo.dck",
+      "deckName": "Domain Zoo",
+      "colors": "WR",
+      "kind": "meta",
+      "skill": 7,
+      "search": "full",
+      "prior": 1650,
+      "persona": {
+        "name": "Ansel Copperfield",
+        "avatar": "treant",
+        "sleeve": "scene-book-tower",
+        "playmat": "midnight",
+        "frame": "frame-laurel",
+        "title": "old-friend"
+      },
+      "queues": [
+        "open"
+      ],
+      "rating": 1507,
+      "rd": 30,
+      "games": 220,
+      "won": 129,
+      "drew": 1,
+      "lost": 90
+    },
+    {
+      "id": "modern-meta-goryos-s5",
+      "format": "modern",
+      "deck": "modern/ladder-meta-goryos.dck",
+      "deckName": "Goryo's Vengeance",
+      "colors": "WUB",
+      "kind": "meta",
+      "skill": 5,
+      "search": "half",
+      "prior": 1550,
+      "persona": {
+        "name": "Cato Fairhollow",
+        "avatar": "ram",
+        "sleeve": "scene-vault",
+        "playmat": "amber",
+        "frame": "frame-sun",
+        "title": "veteran"
+      },
+      "queues": [
+        "open"
+      ],
+      "rating": 1134,
+      "rd": 30,
+      "games": 200,
+      "won": 53,
+      "drew": 1,
+      "lost": 146
+    },
+    {
+      "id": "modern-meta-goryos-s7",
+      "format": "modern",
+      "deck": "modern/ladder-meta-goryos.dck",
+      "deckName": "Goryo's Vengeance",
+      "colors": "WUB",
+      "kind": "meta",
+      "skill": 7,
+      "search": "full",
+      "prior": 1650,
+      "persona": {
+        "name": "Oriel Stormcall",
+        "avatar": "treant",
+        "sleeve": "scene-sun-moon",
+        "playmat": "jade",
+        "frame": "frame-storm",
+        "title": "w-champion"
+      },
+      "queues": [
+        "open"
+      ],
+      "rating": 1223,
+      "rd": 30,
+      "games": 224,
+      "won": 81,
+      "drew": 0,
+      "lost": 143
+    },
+    {
+      "id": "modern-meta-izzet-prowess-s5",
+      "format": "modern",
+      "deck": "modern/ladder-meta-izzet-prowess.dck",
+      "deckName": "Izzet Prowess",
+      "colors": "R",
+      "kind": "meta",
+      "skill": 5,
+      "search": "half",
+      "prior": 1550,
+      "persona": {
+        "name": "Marisol Duskmere",
+        "avatar": "manticore",
+        "sleeve": "ember",
+        "playmat": "jade",
+        "frame": "frame-storm",
+        "title": "pauper-graduate"
+      },
+      "queues": [
+        "open"
+      ],
+      "rating": 1385,
+      "rd": 30,
+      "games": 248,
+      "won": 131,
+      "drew": 0,
+      "lost": 117
+    },
+    {
+      "id": "modern-meta-izzet-prowess-s7",
+      "format": "modern",
+      "deck": "modern/ladder-meta-izzet-prowess.dck",
+      "deckName": "Izzet Prowess",
+      "colors": "R",
+      "kind": "meta",
+      "skill": 7,
+      "search": "full",
+      "prior": 1650,
+      "persona": {
+        "name": "Lucan Oakhart",
+        "avatar": "drake",
+        "sleeve": "scene-book-tower",
+        "playmat": "aurora",
+        "frame": "frame-laurel",
+        "title": "reaper"
+      },
+      "queues": [
+        "open"
+      ],
+      "rating": 1453,
+      "rd": 30,
+      "games": 232,
+      "won": 132,
+      "drew": 0,
+      "lost": 100
+    },
+    {
+      "id": "modern-starter-s1",
+      "format": "modern",
+      "deck": "modern/ladder-starter.dck",
+      "deckName": "Naya Zoo",
+      "colors": "WRG",
+      "kind": "starter",
+      "skill": 1,
+      "search": "quick",
+      "prior": 1000,
+      "persona": {
+        "name": "Edric Brightwell",
+        "avatar": "raven",
+        "sleeve": "rust",
+        "playmat": "sand",
+        "frame": "frame-grove",
+        "title": "millwright"
+      },
+      "queues": [
+        "open"
+      ],
+      "rating": 1000,
+      "rd": 36,
+      "games": 200,
+      "won": 29,
+      "drew": 0,
+      "lost": 171
+    },
+    {
+      "id": "modern-starter-s3",
+      "format": "modern",
+      "deck": "modern/ladder-starter.dck",
+      "deckName": "Naya Zoo",
+      "colors": "WRG",
+      "kind": "starter",
+      "skill": 3,
+      "search": "light",
+      "prior": 1150,
+      "persona": {
+        "name": "Nadira Wyndham",
+        "avatar": "tortoise",
+        "sleeve": "school-standard",
+        "playmat": "sand",
+        "frame": "frame-chain",
+        "title": "wildspeaker"
+      },
+      "queues": [
+        "open"
+      ],
+      "rating": 1347,
+      "rd": 30,
+      "games": 236,
+      "won": 112,
+      "drew": 0,
+      "lost": 124
+    },
+    {
+      "id": "modern-starter-s5",
+      "format": "modern",
+      "deck": "modern/ladder-starter.dck",
+      "deckName": "Naya Zoo",
+      "colors": "WRG",
+      "kind": "starter",
+      "skill": 5,
+      "search": "half",
+      "prior": 1250,
+      "persona": {
+        "name": "Brann Frostmere",
+        "avatar": "griffin",
+        "sleeve": "scene-arena",
+        "playmat": "rose",
+        "frame": "frame-tide",
+        "title": "pauper-graduate"
+      },
+      "queues": [
+        "open"
+      ],
+      "rating": 1442,
+      "rd": 30,
+      "games": 256,
+      "won": 135,
+      "drew": 1,
+      "lost": 120
     }
   ]
 }
