@@ -183,7 +183,8 @@ fn main() {
     // one run per set of formats: a run of one format replaces only that format's record, the others keep theirs
     let mut runs: Vec<Value> = roster["calibration"]["runs"].as_array().cloned().unwrap_or_default();
     runs.retain(|r| {
-        let theirs: Vec<String> = r["formats"].as_array().into_iter().flatten().filter_map(|f| f.as_str().map(String::from)).collect();
+        let theirs: Vec<String> =
+            r["formats"].as_array().into_iter().flatten().filter_map(|f| f.as_str().map(String::from)).collect();
         !theirs.iter().any(|f| formats.contains(f))
     });
     runs.push(json!({
