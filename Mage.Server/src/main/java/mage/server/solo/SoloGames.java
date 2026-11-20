@@ -10,6 +10,7 @@ import mage.game.match.Match;
 import mage.game.match.MatchOptions;
 import mage.game.match.MatchPlayer;
 import mage.players.PlayerType;
+import mage.server.DiskStatus;
 import mage.server.TableController;
 import mage.server.career.CareerService;
 import mage.server.util.PluginUtil;
@@ -31,6 +32,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -55,7 +57,14 @@ public final class SoloGames {
     /** a player's newest saves kept; older ones go */
     public static final int SAVES_PER_USER = 20;
     /** a player's newest games whose every turn is kept for what-if lines (S013, S014) */
-    public static final int LINES_PER_USER = 10;
+    public static final int LINES_PER_USER = 5;
+    /** what-if lines not played for this long go (each is a few MB: a snapshot per turn) */
+    public static final long LINE_RETENTION_MS = TimeUnit.DAYS.toMillis(14);
+    /** what-if lines, all players together, are kept under -Dxmage.solo.linesMaxMB (MB); the least recent go first */
+    public static final String LINES_MAX_MB_PROP = "xmage.solo.linesMaxMB";
+    static final long DEFAULT_LINES_MAX_MB = 1024;
+    /** how often old saves and lines go and solo.db gives its free pages back to the disk */
+    static final long MAINTENANCE_EVERY_MS = TimeUnit.HOURS.toMillis(1);
 
     /** How a solo table was set up, to set it up again. */
     public static class SavedTable implements Serializable {
@@ -159,10 +168,17 @@ public final class SoloGames {
         thread.setDaemon(true);
         return thread;
     });
-    private volatile boolean pruned;
+    private volatile long prunedAt;
 
     private SoloGames() {
         GameSnapshot.setLoader(PluginUtil.classLoader);
+        ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread thread = new Thread(r, "solo-maintenance");
+            thread.setDaemon(true);
+            return thread;
+        });
+        // on the writer, so it never races a save
+        timer.scheduleAtFixedRate(() -> writer.submit(this::maintain), 10, 60, TimeUnit.MINUTES);
     }
 
     public static SoloGames get() {
@@ -572,6 +588,10 @@ public final class SoloGames {
             // every turn is kept for what-if lines; the save below keeps only the latest
             writer.submit(() -> {
                 try {
+                    // a nearly full disk keeps the saves themselves (below) and stops keeping every turn
+                    if (DiskStatus.low()) {
+                        return;
+                    }
                     if (!entry.lined) {
                         SoloStore.get().putLine(gameId.toString(), entry.info.user, writeObject(entry.info));
                         entry.lined = true;
@@ -631,19 +651,41 @@ public final class SoloGames {
     }
 
     private void prune() {
-        if (pruned) {
+        long now = System.currentTimeMillis();
+        if (now - prunedAt < MAINTENANCE_EVERY_MS) {
             return;
         }
-        pruned = true;
+        prunedAt = now;
         try {
-            int removed = SoloStore.get().pruneGames(System.currentTimeMillis() - RETENTION_MS, SAVES_PER_USER);
-            removed += SoloStore.get().pruneLines(System.currentTimeMillis() - RETENTION_MS, LINES_PER_USER);
-            if (removed > 0) {
-                logger.info("Solo: removed " + removed + " old saved games");
+            SoloStore store = SoloStore.get();
+            int saves = store.pruneGames(now - RETENTION_MS, SAVES_PER_USER);
+            int lines = store.pruneLines(now - LINE_RETENTION_MS, LINES_PER_USER);
+            lines += store.pruneLinesToSize(linesMaxBytes());
+            if (saves + lines > 0) {
+                logger.info("Solo: removed " + saves + " old saved games and " + lines + " what-if lines");
             }
         } catch (SQLException | RuntimeException e) {
             logger.warn("Solo: old saves couldn't be removed", e);
         }
+    }
+
+    /** the hourly run: old saves and lines go, then solo.db gives the space back to the disk */
+    void maintain() {
+        prunedAt = 0;
+        prune();
+        try {
+            DiskStatus.Disk disk = DiskStatus.read();
+            long freed = SoloStore.get().compact(disk == null ? Long.MAX_VALUE : disk.free);
+            if (freed > 0) {
+                logger.info("Solo: solo.db gave " + (freed >> 20) + " MB back to the disk");
+            }
+        } catch (SQLException | RuntimeException e) {
+            logger.warn("Solo: solo.db couldn't be compacted", e);
+        }
+    }
+
+    static long linesMaxBytes() {
+        return Math.max(1, Long.getLong(LINES_MAX_MB_PROP, DEFAULT_LINES_MAX_MB)) << 20;
     }
 
     /** waits for queued writes (tests, shutdown) */
