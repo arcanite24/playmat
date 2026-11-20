@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """The ladder's bot roster (#430): every Standard and Pioneer school deck at the AI skills its act suits, each bot with
-its own persona drawn from the cosmetics catalog.
+its own persona drawn from the cosmetics catalog. Modern (#435) fields its ladder copies (modern/ladder-*.dck, made by
+LadderFormatDecksTest: the school decks the Rust host plays all but a few cards of, with those swapped) in the Open
+queue only, since it has no League.
 
     python3 Mage.Server/ladder-src/roster.py
 
@@ -18,7 +20,10 @@ SERVER = os.path.dirname(HERE)
 RESOURCES = os.path.join(SERVER, "src", "main", "resources")
 DECKS = os.path.join(RESOURCES, "career", "campaigns", "decks")
 OUT = os.path.join(RESOURCES, "ladder", "bots.json")
-FORMATS = ["standard", "pioneer"]
+FORMATS = ["standard", "pioneer", "modern"]
+# Formats whose bots play the ladder copies of their school decks (ladder-*.dck) instead of the decks themselves, and
+# only in the queues listed.
+LADDER_COPIES = {"modern": ["open"]}
 
 # What a skill plays on the Rust host (playmat-ai entrants::skill): 1 quick answers, 3 a fifth of the budget,
 # 5 half, 7 the full search.
@@ -113,6 +118,12 @@ def main():
         folder = os.path.join(DECKS, fmt)
         for file in sorted(os.listdir(folder)):
             stem, ext = os.path.splitext(file)
+            if fmt in LADDER_COPIES:
+                if not stem.startswith("ladder-"):
+                    continue
+                stem = stem[len("ladder-"):]
+            elif stem.startswith("ladder-"):
+                continue
             kind = kind_of(stem)
             if ext != ".dck" or kind is None:
                 continue
@@ -141,7 +152,9 @@ def main():
                     "prior": prior,
                     "persona": persona,
                 }
-                if (kind, skill) in QUEUES:
+                if fmt in LADDER_COPIES:
+                    bot["queues"] = LADDER_COPIES[fmt]
+                elif (kind, skill) in QUEUES:
                     bot["queues"] = QUEUES[(kind, skill)]
                 for key in ("rating", "rd", "games", "won", "drew", "lost"):
                     if before and key in before:

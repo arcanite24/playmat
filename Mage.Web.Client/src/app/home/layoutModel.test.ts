@@ -37,7 +37,7 @@ describe('a saved layout', () => {
       v: 1,
       preset: 'nonsense',
       items: [
-        { key: 'a', id: 'rank', size: 'w', settings: { format: 'modern', extra: 'x' } },
+        { key: 'a', id: 'rank', size: 'w', settings: { format: 'pauper', extra: 'x' } },
         { key: 'a', id: 'level', size: 'm' },
         { id: 'gone', size: 's' },
         'junk',

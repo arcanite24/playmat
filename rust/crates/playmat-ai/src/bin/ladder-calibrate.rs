@@ -3,7 +3,7 @@
 //! AI skill the Rust host plays (`entrants::skill`), listed in `Mage.Server/src/main/resources/ladder/bots.json`
 //! (made by `Mage.Server/ladder-src/roster.py`).
 //!
-//! cargo run --release -p playmat-ai --bin ladder-calibrate -- [--format standard|pioneer|all] [--rounds 2]
+//! cargo run --release -p playmat-ai --bin ladder-calibrate -- [--format standard|pioneer|modern|all] [--rounds 2]
 //!     [--near 6] [--far 2] [--deals 2] [--jobs 3] [--fit-only] [--log FILE]
 //!
 //! Each round pairs every bot with its `--near` closest bots by the current estimate and `--far` others spread over
@@ -180,13 +180,27 @@ fn main() {
     for b in &bots {
         skills.insert(b.skill.to_string(), b.ai.clone());
     }
+    // one run per set of formats: a run of one format replaces only that format's record, the others keep theirs
+    let mut runs: Vec<Value> = roster["calibration"]["runs"].as_array().cloned().unwrap_or_default();
+    runs.retain(|r| {
+        let theirs: Vec<String> = r["formats"].as_array().into_iter().flatten().filter_map(|f| f.as_str().map(String::from)).collect();
+        !theirs.iter().any(|f| formats.contains(f))
+    });
+    runs.push(json!({
+        "formats": formats,
+        "commit": commit,
+        "games": total / 2,
+        "settings": format!("{rounds} rounds, --near {near} --far {far} --deals {deals}"),
+    }));
+    let games: u64 = runs.iter().filter_map(|r| r["games"].as_u64()).sum();
     roster["calibration"] = json!({
         "commit": commit,
         "harness": "rust-engine",
         "turnCap": TURN_CAP,
         "mulligans": true,
-        "games": total / 2,
+        "games": games,
         "skills": skills,
+        "runs": runs,
     });
     let mut text = serde_json::to_string_pretty(&roster).unwrap();
     text.push('\n');

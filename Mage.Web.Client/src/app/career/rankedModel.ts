@@ -88,6 +88,15 @@ export function pickFormat(formats: readonly string[] | undefined, wanted: strin
   return wanted && list.includes(wanted) ? wanted : list[0];
 }
 
+/** the ladder's formats the client knows the names of (#435 adds Modern) */
+export type LadderFormat = 'standard' | 'pioneer' | 'modern';
+
+/** a format's name key: an unknown format reads as Standard */
+export function formatKey(format: string | undefined): `career.ranked.format.${LadderFormat}` {
+  const known: LadderFormat = format === 'pioneer' || format === 'modern' ? format : 'standard';
+  return `career.ranked.format.${known}`;
+}
+
 /** the localStorage key that says a season's end was shown for a format and queue */
 export function seasonSeenKey(format: string, queue: string, season: number): string {
   return `playmat.seasonEnd.${queue}.${format}.${season}`;

@@ -21,7 +21,7 @@ export interface WidgetDef extends WidgetSpec {
   load: () => Promise<{ default: ComponentType<WidgetProps> }>;
 }
 
-const FORMATS = ['standard', 'pioneer'] as const;
+const FORMATS = ['standard', 'pioneer', 'modern'] as const;
 export const LEADERBOARDS = ['gauntlet', 'ascension', 'boss-rush', 'endless'] as const;
 
 export const WIDGETS: readonly WidgetDef[] = [

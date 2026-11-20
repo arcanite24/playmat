@@ -616,13 +616,22 @@ client to know how to show its items.
 The ranked ladder (#429) plays against **bots**: a school deck (`career/campaigns/decks/<format>/`) at one of the AI
 skills the Rust host plays (1 quick answers, 3 a fifth of the search, 5 half, 7 the full search), with a persona (a
 name and cosmetics from `cosmetics.json`). They are listed in `Mage.Server/src/main/resources/ladder/bots.json`, one
-rating scale per format (Standard and Pioneer so far), each anchored so the format's starter at skill 1 is 1000.
+rating scale per format (Standard, Pioneer and Modern), each anchored so the format's starter at skill 1 is 1000.
+
+- **Modern** (#435) has no League, so its bots play in the Open and Bo3 queues only. The Rust host doesn't play every
+  card of the Modern school decks yet (#187), so the bots play `modern/ladder-*.dck`: copies of the school decks that
+  miss at most three different cards, with those swapped for the closest Modern-legal cards it plays (any rarity) and
+  missing lands for basics, written by
+  `mvn -o -pl Mage.Server test -Dtest=LadderFormatDecksTest -Dxmage.writeLadderDecks=true`. `LadderFormatDecksTest`
+  checks every close deck has its copy and that there are at least eight. **Pauper** stays off the ladder: only
+  3 of its 23 school decks miss three cards or fewer (129 different cards missing in all);
+  `pauperIsNotCoveredYet` fails when the host catches up.
 
 - `python3 Mage.Server/ladder-src/roster.py` makes the list from the school decks. Bots that keep their id keep their
   persona and rating; new ones start at a guessed `prior`, uncalibrated.
 - `cargo run --release -p playmat-ai --bin ladder-calibrate` (in `rust/`) plays the bots against each other on the
   Rust engine and writes each one's `rating`, `rd` (the fit's standard error) and record back into `bots.json`, with a
-  `calibration` block saying which build and search settings measured them. Options: `--format standard|pioneer|all`,
+  `calibration` block saying which build and search settings measured them. Options: `--format standard|pioneer|modern|all`,
   `--rounds` (default 2), `--near` and `--far` (opponents per bot: closest by rating, and spread over the scale),
   `--deals` (deals per pair, each played twice with the seats swapped), `--jobs` (threads, default 3), `--fit-only`.
   Games go to `Mage.Server/ladder-src/calibration/games.jsonl` as they finish, so a run can stop and continue; a game
