@@ -44,7 +44,15 @@ public final class LadderStore implements AutoCloseable {
                             + " season INTEGER NOT NULL, rank TEXT NOT NULL, paid INTEGER NOT NULL,"
                             + " PRIMARY KEY (user, format, queue, season, rank))",
             },
+            {
+                    // seasons (#434): the Open queue's rank rewards pay once per account, kept under season -1
+                    "INSERT OR IGNORE INTO ladder_rewards (user, format, queue, season, rank, paid)"
+                            + " SELECT user, format, queue, -1, rank, paid FROM ladder_rewards WHERE queue = 'open'",
+            },
     };
+
+    /** the season key of rewards paid once per account, not per season */
+    public static final int LIFETIME = -1;
 
     private static volatile LadderStore instance;
 
@@ -221,6 +229,50 @@ public final class LadderStore implements AutoCloseable {
                 return s;
             }
         }
+    }
+
+    /** the highest season anyone has a standing or a game in; -1 when none */
+    public synchronized int maxSeason() throws SQLException {
+        try (Statement statement = connection.createStatement();
+             ResultSet rows = statement.executeQuery("SELECT MAX(m) FROM (SELECT MAX(season) AS m FROM ladder_standing"
+                     + " UNION ALL SELECT MAX(season) FROM ladder_games)")) {
+            if (rows.next()) {
+                int max = rows.getInt(1);
+                return rows.wasNull() ? -1 : max;
+            }
+            return -1;
+        }
+    }
+
+    /** the player's standings in a format and queue, every season, newest first */
+    public synchronized java.util.List<Standing> standings(String user, String format, String queue) throws SQLException {
+        java.util.List<Standing> out = new java.util.ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT season FROM ladder_standing WHERE user = ? AND format = ? AND queue = ? ORDER BY season DESC")) {
+            statement.setString(1, user);
+            statement.setString(2, format);
+            statement.setString(3, queue);
+            java.util.List<Integer> seasons = new java.util.ArrayList<>();
+            try (ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) {
+                    seasons.add(rows.getInt(1));
+                }
+            }
+            for (int season : seasons) {
+                out.add(standing(user, format, queue, season));
+            }
+        }
+        return out;
+    }
+
+    /** the player's latest standing before `season`, or null */
+    public synchronized Standing before(String user, String format, String queue, int season) throws SQLException {
+        for (Standing s : standings(user, format, queue)) {
+            if (s.season < season) {
+                return s;
+            }
+        }
+        return null;
     }
 
     public synchronized void putStanding(Standing s) throws SQLException {

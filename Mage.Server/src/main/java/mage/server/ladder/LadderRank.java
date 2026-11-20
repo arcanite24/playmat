@@ -23,6 +23,21 @@ public final class LadderRank {
     private LadderRank() {
     }
 
+    /**
+     * Where a new season places a player from where they ended the last one (#434): Mythic and Diamond to Platinum 4,
+     * Platinum to Gold 4, Gold to Silver 4, Silver to Bronze 1. Bronze stays where it was: a reset never promotes.
+     */
+    public static int placement(int step) {
+        int rank = rank(step);
+        if (rank >= 4) {
+            return 3 * RANK_STEPS;
+        }
+        if (rank >= 1) {
+            return Math.min(step, (rank - 1) * RANK_STEPS + (rank == 1 ? (TIERS - 1) * PIPS : 0));
+        }
+        return Math.max(0, step);
+    }
+
     /** the rank's index in {@link #RANKS} */
     public static int rank(int step) {
         return Math.min(5, Math.max(0, step) / RANK_STEPS);

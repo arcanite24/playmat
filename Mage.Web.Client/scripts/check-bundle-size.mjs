@@ -144,10 +144,12 @@ import { gzipSync } from 'node:zlib';
 // Career chunk, and the en/es strings. Measured app 881.4 kB
 // app raised 2026-11-19 from 884 kB for the League deck builder (#433): its screen, the craft banner and build store in
 // a lazy chunk, League lines in two Home widgets, and the en/es strings. Measured app 885.7 kB
+// app raised 2026-11-20 from 888 kB for ladder seasons (#434): the season line and stamps, the season-end ceremony and
+// the Season widget (its own lazy chunk), and the en/es strings. Measured app 888.1 kB
 const BUDGET_KB = {
   entry: 86,
   initial: 221,
-  app: 888,
+  app: 891,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;

@@ -189,6 +189,8 @@ Set these in `ops/web/.env` (Compose reads it automatically) or in the environme
 | `XMAGE_DISCORD_WEBHOOK` | empty | Discord webhook address (`-Dxmage.discordWebhook`). Set: public tables, events starting and matches starting are posted to that channel (see [Discord notifications](#discord-notifications)). A secret: anyone with it can post to the channel. |
 | `XMAGE_DISCORD_STAFF_WEBHOOK` | empty | A second webhook for staff news: access requests, player reports and staff role changes (`-Dxmage.discordStaffWebhook`). Empty: those go to `XMAGE_DISCORD_WEBHOOK`. A secret. |
 | `XMAGE_CAREER` | `on` | `off` turns the optional single-player Career off. It needs accounts either way: without them nobody's collection would be safe. Progress is kept in `career.db`. |
+| `XMAGE_SEASON_START` | `2026-11-01` | The first Ranked and League season's start, a date (UTC). Seasons follow one another from it. |
+| `XMAGE_SEASON_MONTHS` | `2` | Each season's length in months, 1 to 24. Changing either later never takes the ladder back a season. |
 | `XMAGE_ACCESS` | `open` | Who may play (`-Dxmage.access`): `open`, or `allowlist` for a contributors server. Read on the first boot only, then switched in `/admin`. `allowlist` needs `XMAGE_AUTH=true`. See [Contributors server](#contributors-server). |
 | `XMAGE_OWNER` | empty | The owner's account name (`-Dxmage.owner`), always let in. |
 | `XMAGE_ALLOWLIST` | empty | The first boot's allowlist (`-Dxmage.allowlist`): account names and emails, comma separated, or `@/path` to a file in the container with one per line (`#` starts a comment). |
@@ -657,11 +659,33 @@ ladder per format. It is on wherever Career is, for signed-in accounts, with no 
 - **Rules.** Ranked games refuse hints, take-backs, practice tools, saves, puzzle exports and what-ifs. Conceding or
   leaving is a loss. On startup, a game still marked `playing` from before a restart is voided.
 - **Rewards.** The first time a rank is reached, the player gets the catalog items with that `ladder` (a title, a sleeve
-  and a frame, once per account). Gold, Diamond and Mythic also pay a capsule token, once per format. Career XP,
+  and a frame, once per account). Gold, Diamond and Mythic also pay a capsule token, once per format and account,
+  whatever the season. Career XP,
   quests and the daily ladder pay as for any game, and qualifying games play on the Rust host as usual.
 - **Data.** `db/ladder.db` adds `ladder_standing`, `ladder_games` (with which engine played each game) and
   `ladder_rewards`. They are part of the account export (`ranked`) and are deleted with the account. The server log
   has a `Ranked <format>:` line for every result.
+
+### Seasons
+
+Ranked and the League run in seasons (#434): the same calendar for every format, `XMAGE_SEASON_MONTHS` (2) long from
+`XMAGE_SEASON_START` (2026-11-01, UTC). Seasons are counted from 0 in `ladder.db` and shown as Season 1, 2, …; the
+ladder never goes back to a season below one already played, so changing the calendar later only moves the next
+season's start.
+
+- **A game counts for the season it started in**, even when it ends after midnight on the last day.
+- **Soft reset.** A player's first ranked game, or first look at a ladder, in a new season places them from where they
+  ended their last season there: Mythic and Diamond to Platinum 4, Platinum to Gold 4, Gold to Silver 4, Silver to
+  Bronze 1. Bronze stays where it was. A player who skipped seasons is placed from the last one played. The placement
+  is the new season's peak, so the ranks and tiers below it don't pay again. Hidden ratings carry over.
+- **Rewards.** Rank cosmetics and capsule tokens pay once per account. The League's tier packs and rank wildcards pay
+  once per season. A League season's end pays by its peak rank (`seasonEnd` in `league.json`: Bronze 1 pack, Silver 2,
+  Gold 3, Platinum 4, Diamond 5, Mythic 6 and 2 mythic wildcards), when the player next plays or opens that League.
+- **Client.** The standing card shows the season, the days left and past seasons' peaks (S1 Gold 2). A new season shows
+  a moment once per format and queue in each browser: the last season's best, where the new one starts and what its
+  end paid. Home has a Season widget.
+- `ladderState` returns `season`, `seasonEnds`, `seasonDaysLeft`, `seasons` (earlier seasons, newest first) and
+  `lastSeason`. The server log has a `Ladder <format> <queue>:` line for each placement.
 
 ### League
 

@@ -91,7 +91,7 @@ public class RankedServiceTest {
         assertEquals(3, result.paid.cosmetics.size(), "Bronze's title, sleeve and frame");
         assertEquals(0, result.paid.tokens);
         assertTrue(result.ratingAfter > result.ratingBefore);
-        LadderStore.Standing standing = store.standing("neri", "standard", RankedService.OPEN, RankedService.SEASON);
+        LadderStore.Standing standing = store.standing("neri", "standard", RankedService.OPEN, ranked.season(NOW));
         assertEquals(1, standing.step);
         assertEquals(1, standing.won);
         assertEquals("won", store.game(table.toString()).status);
@@ -115,7 +115,7 @@ public class RankedServiceTest {
         standing.user = "neri";
         standing.format = "standard";
         standing.queue = RankedService.OPEN;
-        standing.season = RankedService.SEASON;
+        standing.season = ranked.season(NOW);
         standing.step = 2 * LadderRank.RANK_STEPS - 1;
         standing.peak = standing.step;
         store.putStanding(standing);
@@ -135,7 +135,7 @@ public class RankedServiceTest {
         assertNull(ranked.matchEnded(table, 1, NOW), "a second end changes nothing");
         assertEquals("drew", store.game(table.toString()).status);
         assertEquals("rust", store.game(table.toString()).engine);
-        assertEquals(1, store.standing("neri", "standard", RankedService.OPEN, RankedService.SEASON).drew);
+        assertEquals(1, store.standing("neri", "standard", RankedService.OPEN, ranked.season(NOW)).drew);
     }
 
     @Test
@@ -160,7 +160,7 @@ public class RankedServiceTest {
         play("standard", 1);
         assertFalse(((List<?>) store.export("Neri").get("games")).isEmpty());
         store.deleteUser("Neri");
-        assertNull(store.standing("neri", "standard", RankedService.OPEN, RankedService.SEASON));
+        assertNull(store.standing("neri", "standard", RankedService.OPEN, ranked.season(NOW)));
         assertTrue(store.games("neri", "standard", RankedService.OPEN, 10).isEmpty());
         assertNull(store.rating(LadderRatings.userSubject("neri"), "standard", RankedService.OPEN));
         assertTrue(((List<?>) store.export("neri").get("rewards")).isEmpty());
@@ -174,7 +174,7 @@ public class RankedServiceTest {
         return table;
     }
 
-    private static BotRoster roster() {
+    static BotRoster roster() {
         StringBuilder bots = new StringBuilder();
         String[][] all = {{"standard", "weak", "1000"}, {"standard", "low", "1150"}, {"standard", "mid", "1200"},
                 {"standard", "mid-high", "1250"}, {"standard", "high", "1300"}, {"standard", "strong", "1500"},

@@ -30,8 +30,8 @@ public final class RankedService {
     public static final String OPEN = "open";
     /** the Career League (#433): the same ladder, played with League decks built from the Career collection */
     public static final String LEAGUE = "league";
-    /** until seasons (#434) */
-    public static final int SEASON = 0;
+    /** the season key of a standing's season-end reward (League packs by peak) */
+    public static final String SEASON_END = "season-end";
     /** a pick avoids the bots met in this many last games, when there are others */
     static final int AVOID_RECENT = 3;
     /** the results kept for the client to read after a game */
@@ -161,13 +161,16 @@ public final class RankedService {
         public final String format;
         public final String queue;
         public final String botId;
+        /** the season the game started in, which it counts for */
+        public final int season;
 
-        RankedTable(UUID tableId, String user, String format, String queue, String botId) {
+        RankedTable(UUID tableId, String user, String format, String queue, String botId, int season) {
             this.tableId = tableId;
             this.user = user;
             this.format = format;
             this.queue = queue;
             this.botId = botId;
+            this.season = season;
         }
     }
 
@@ -220,13 +223,14 @@ public final class RankedService {
 
     /** the table is about to be played: called before anyone sits, so the game starts as ranked */
     public void register(UUID tableId, String user, String format, String queue, BotRoster.Bot bot, String deckName, long now) throws SQLException {
-        RankedTable table = new RankedTable(tableId, key(user), format, queue, bot.id);
+        int season = season(now);
+        RankedTable table = new RankedTable(tableId, key(user), format, queue, bot.id, season);
         LadderStore.GameRow row = new LadderStore.GameRow();
         row.id = tableId.toString();
         row.user = table.user;
         row.format = format;
         row.queue = queue;
-        row.season = SEASON;
+        row.season = season;
         row.bot = bot.id;
         row.deck = deckName;
         row.started = now;
@@ -295,14 +299,15 @@ public final class RankedService {
             return null;
         }
         String engine = onRust.remove(tableId) ? "rust" : "java";
-        LadderStore.Standing standing = store.standing(table.user, table.format, table.queue, SEASON);
+        rollover(table.user, table.format, table.queue, table.season, now);
+        LadderStore.Standing standing = store.standing(table.user, table.format, table.queue, table.season);
         boolean first = standing == null;
         if (first) {
             standing = new LadderStore.Standing();
             standing.user = table.user;
             standing.format = table.format;
             standing.queue = table.queue;
-            standing.season = SEASON;
+            standing.season = table.season;
         }
         int peakBefore = standing.peak;
         LadderRatings.Outcome outcome = ratings.record(table.user, table.botId, table.queue, score, now);
@@ -354,7 +359,8 @@ public final class RankedService {
 
     private void payOpen(RankedTable table, Result result, long now) throws SQLException {
         for (String rank : result.reached) {
-            if (store.payReward(table.user, table.format, table.queue, SEASON, rank, now)) {
+            // the Open queue's rank rewards pay once per account, whatever the season
+            if (store.payReward(table.user, table.format, table.queue, LadderStore.LIFETIME, rank, now)) {
                 try {
                     RankedRewards.Paid paid = RankedRewards.pay(table.user, rank, table.format, now);
                     if (result.paid == null) {
@@ -374,13 +380,13 @@ public final class RankedService {
     private void payLeague(RankedTable table, Result result, boolean first, int peakBefore, LadderStore.Standing standing, boolean won, long now) throws SQLException {
         List<Integer> tiers = new ArrayList<>();
         for (int tier : CareerLeague.tiersGained(peakBefore, standing.peak, first)) {
-            if (store.payReward(table.user, table.format, table.queue, SEASON, "tier-" + tier, now)) {
+            if (store.payReward(table.user, table.format, table.queue, table.season, "tier-" + tier, now)) {
                 tiers.add(tier);
             }
         }
         List<String> ranks = new ArrayList<>();
         for (String rank : result.reached) {
-            if (store.payReward(table.user, table.format, table.queue, SEASON, rank, now)) {
+            if (store.payReward(table.user, table.format, table.queue, table.season, rank, now)) {
                 ranks.add(rank);
             }
         }
@@ -388,6 +394,48 @@ public final class RankedService {
             result.paid = CareerLeague.pay(table.user, table.format, tiers, ranks, standing.won, won, now);
         } catch (SQLException | RuntimeException e) {
             logger.error("League: a game's rewards couldn't be paid to " + table.user, e);
+        }
+    }
+
+    // ---- seasons (#434)
+
+    /** the season now: the calendar's, never below a season already played (a changed calendar can't take one back) */
+    public int season(long now) throws SQLException {
+        return Math.max(Seasons.get().index(now), store.maxSeason());
+    }
+
+    /**
+     * The player's first touch of a format and queue in `season`: when they had a standing in an earlier one, the new
+     * season places them from where that one ended ({@link LadderRank#placement}), with its peak at the placement so
+     * the ranks and tiers below it don't pay again, and a League pays the ended season's packs by its peak. Safe to
+     * call any number of times: it does this once.
+     */
+    public synchronized void rollover(String user, String format, String queue, int season, long now) throws SQLException {
+        String k = key(user);
+        if (store.standing(k, format, queue, season) != null) {
+            return;
+        }
+        LadderStore.Standing last = store.before(k, format, queue, season);
+        if (last == null) {
+            return;
+        }
+        LadderStore.Standing placed = new LadderStore.Standing();
+        placed.user = k;
+        placed.format = format;
+        placed.queue = queue;
+        placed.season = season;
+        placed.step = LadderRank.placement(last.step);
+        placed.peak = placed.step;
+        placed.updated = now;
+        store.putStanding(placed);
+        logger.info("Ladder " + format + " " + queue + ": " + k + " starts " + Seasons.name(season) + " at "
+                + LadderRank.label(placed.step) + " (ended " + Seasons.name(last.season) + " at " + LadderRank.label(last.step) + ")");
+        if (LEAGUE.equals(queue) && store.payReward(k, format, queue, last.season, SEASON_END, now)) {
+            try {
+                CareerLeague.paySeasonEnd(k, format, last.peak, now);
+            } catch (SQLException | RuntimeException e) {
+                logger.error("League: " + Seasons.name(last.season) + "'s end couldn't be paid to " + k, e);
+            }
         }
     }
 

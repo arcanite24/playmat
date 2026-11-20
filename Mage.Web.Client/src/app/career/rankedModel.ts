@@ -87,3 +87,8 @@ export function pickFormat(formats: readonly string[] | undefined, wanted: strin
   const list = formats && formats.length ? formats : ['standard', 'pioneer'];
   return wanted && list.includes(wanted) ? wanted : list[0];
 }
+
+/** the localStorage key that says a season's end was shown for a format and queue */
+export function seasonSeenKey(format: string, queue: string, season: number): string {
+  return `playmat.seasonEnd.${queue}.${format}.${season}`;
+}

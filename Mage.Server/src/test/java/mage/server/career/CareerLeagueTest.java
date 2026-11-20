@@ -180,7 +180,7 @@ public class CareerLeagueTest {
             packs += result.paid == null ? 0 : result.paid.packs;
             uncommon += result.paid == null ? 0 : result.paid.wildcards.getOrDefault(CareerRules.UNCOMMON, 0);
         }
-        LadderStore.Standing standing = ladder.standing("ana", "standard", RankedService.LEAGUE, RankedService.SEASON);
+        LadderStore.Standing standing = ladder.standing("ana", "standard", RankedService.LEAGUE, ranked.season(NOW));
         int tiersReached = standing.peak / mage.server.ladder.LadderRank.PIPS;
         assertEquals(tiersReached, packs, "one pack per tier reached, never twice");
         assertEquals(tokens + packs, store.leagueTokens("ana", "standard"));

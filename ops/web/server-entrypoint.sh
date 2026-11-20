@@ -154,6 +154,16 @@ case "$CAREER_PAYOUTS" in
   *) die "XMAGE_ROUTE_CAREERPAYOUTS must be java, shadow or rust (got '$CAREER_PAYOUTS')" ;;
 esac
 
+# --- ladder seasons (#434) ---------------------------------------------------------------------
+case "${XMAGE_SEASON_START:-}" in
+  ''|[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]) ;;
+  *) die "XMAGE_SEASON_START must be a date like 2026-11-01 (got '$XMAGE_SEASON_START')" ;;
+esac
+case "${XMAGE_SEASON_MONTHS:-}" in
+  ''|[1-9]|1[0-9]|2[0-4]) ;;
+  *) die "XMAGE_SEASON_MONTHS must be 1 to 24 (got '$XMAGE_SEASON_MONTHS')" ;;
+esac
+
 # --- access (contributors server) -------------------------------------------------------------
 # XMAGE_ACCESS=allowlist starts the server closed: only the owner, staff and the people on the
 # allowlist get in. It is read on the very first boot only; after that /admin switches it.

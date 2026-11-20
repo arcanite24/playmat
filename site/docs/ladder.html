@@ -92,6 +92,22 @@
         <p>Standings, games and the ranks paid are kept in <code>db/ladder.db</code>. An account's export includes
           them, and deleting an account deletes them.</p>
 
+        <h2>Seasons</h2>
+        <p>Ranked and the League run in two-month seasons, the same for every format. The first starts on 1 November
+          2026 (UTC). Set <code>XMAGE_SEASON_START</code> (a date) and <code>XMAGE_SEASON_MONTHS</code> (1 to 24) in
+          <code>ops/web/.env</code> to change the calendar. Changing it later never takes the ladder back a season.</p>
+        <ul>
+          <li>A new season places each player lower: Mythic and Diamond to Platinum 4, Platinum to Gold 4, Gold to Silver
+            4, Silver to Bronze 1. Bronze stays where it is. Hidden ratings carry over, so strong players climb back
+            fast.</li>
+          <li>Rank cosmetics and capsule tokens are earned once per account, in any season. Nothing is exclusive to a
+            season; past seasons' best ranks show as stamps on the standing.</li>
+          <li>The League's packs and wildcards for ranks and tiers pay again each season, and the end of a season pays
+            League packs by the best rank: 1 for Bronze up to 6 and 2 mythic wildcards for Mythic. They are set in
+            <code>league/league.json</code>.</li>
+          <li>A game counts for the season it started in.</li>
+        </ul>
+
         <h2>League</h2>
         <p>The League (<b>Career &rsaquo; League</b>) is Ranked played with the cards an account owns. It is on wherever
           Career is.</p>
