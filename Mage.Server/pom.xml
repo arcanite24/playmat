@@ -478,6 +478,8 @@
                                 <class>mage.server.websocket.api.LadderApi$LadderOpponent</class>
                                 <class>mage.server.websocket.api.LadderApi$LadderMatch</class>
                                 <class>mage.server.websocket.api.LadderApi$LadderResult</class>
+                                <class>mage.server.websocket.api.HomeApi$HomeActivity</class>
+                                <class>mage.server.websocket.api.HomeApi$HomeGame</class>
                                 <class>mage.server.career.CareerContent$CareerStarter</class>
                                 <class>mage.server.career.CareerService$CareerOpponent</class>
                                 <class>mage.server.career.CareerService$CareerShopSet</class>

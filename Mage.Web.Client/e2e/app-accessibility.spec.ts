@@ -54,6 +54,17 @@ test.describe('app accessibility', () => {
     await page.waitForLoadState('networkidle');
     expect(await serious(page), 'Play').toEqual([]);
 
+    // Home's widget board in Customize mode, and its Add widget gallery (#432)
+    await page.getByRole('button', { name: 'Customize Home' }).click();
+    await page.getByRole('region', { name: 'Customize Home' }).waitFor();
+    await page.waitForLoadState('networkidle');
+    expect(await serious(page), 'Customize Home').toEqual([]);
+    await page.getByRole('button', { name: 'Add widget' }).click();
+    await page.getByRole('dialog', { name: 'Add a widget' }).waitFor();
+    expect(await serious(page, '[role="dialog"]'), 'Add a widget').toEqual([]);
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Cancel' }).click();
+
     await page.goto('/decks');
     await page.waitForLoadState('networkidle');
     expect(await serious(page), 'Decks').toEqual([]);

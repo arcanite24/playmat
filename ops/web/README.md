@@ -651,6 +651,21 @@ ladder per format. It is on wherever Career is, for signed-in accounts, with no 
   `ladder_rewards`. They are part of the account export (`ranked`) and are deleted with the account. The server log
   has a `Ranked <format>:` line for every result.
 
+### Home widgets
+
+Home widgets (#432) sit under the deck and Play on Home. **Customize Home** moves them (drag or arrow keys), sizes them
+(S, M, L, wide), removes and adds them, or starts from a preset (Competitor, Collector, Casual, Minimal). There is no
+setting: Career and Ranked widgets show only where Career is on, and are kept, not dropped, in a layout opened on a
+server without it.
+
+- **Data.** The layout (`{v:1, preset, items}`, at most 24 widgets) is saved on Done with `homeLayoutSet` into the
+  account's `user_state` in `solo.db` (key `home.layout`), with a copy in the browser. The server checks it against
+  `Mage.Server/src/main/resources/home/widgets.json`, which the client's registry test matches. An account that never
+  saved a layout gets the Casual preset and nothing is stored for it. The layout is in the account export
+  (`homeLayout`) and is deleted with the account.
+- **Activity.** `homeActivity` gives the last 14 days of games, the streak and the recent games from Career's
+  `progress_games`, for the Streak and Recent games widgets.
+
 ### Single player
 
 The Single player tab shows the batch runner (games playing now, each player's daily quota, the queue; staff can cancel a batch) and the content packs.

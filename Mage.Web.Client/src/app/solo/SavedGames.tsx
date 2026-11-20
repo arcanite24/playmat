@@ -10,7 +10,8 @@ import styles from './SavedGames.module.css';
  * Saved games against the computer, on Home: every solo game saves itself at the start of each turn, so one cut off
  * (a closed tab, a server restart) or left on purpose carries on from that turn.
  */
-export function SavedGames({ disabled }: { disabled: boolean }) {
+/** `bare`: inside a Home widget, whose frame already names it */
+export function SavedGames({ disabled, bare = false }: { disabled: boolean; bare?: boolean }) {
   const t = useT();
   const saves = useSoloSaves();
   const [busy, setBusy] = useState<string | null>(null);
@@ -32,11 +33,11 @@ export function SavedGames({ disabled }: { disabled: boolean }) {
   }
 
   return (
-    <section className={styles.saves} aria-labelledby="saved-games-label">
-      <h3 id="saved-games-label" className={styles.label}>
+    <section className={styles.saves} aria-labelledby={bare ? undefined : 'saved-games-label'} aria-label={bare ? t('home.saved.title') : undefined}>
+      {!bare && <h3 id="saved-games-label" className={styles.label}>
         <History size={14} aria-hidden="true" />
         {t('home.saved.title')}
-      </h3>
+      </h3>}
       <ul className={styles.list}>
         {list.slice(0, 4).map((save) => {
           const name = save.opponents || save.title || '';

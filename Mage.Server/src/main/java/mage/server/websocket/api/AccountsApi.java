@@ -372,6 +372,12 @@ final class AccountsApi {
         out.put("oidcName", oidcLink == null ? null : (oidcLink.displayName != null && !oidcLink.displayName.isEmpty() ? oidcLink.displayName : oidcLink.sub));
         // support for the server: the code, payments (without the providers' payloads), perks and the look
         out.put("support", SupportApi.export(name));
+        // the Home widget layout
+        try {
+            out.put("homeLayout", mage.server.solo.SoloStore.get().state(name, HomeApi.LAYOUT_KEY));
+        } catch (java.sql.SQLException | RuntimeException e) {
+            out.put("homeLayout", null);
+        }
         // ranked: standings, games, ranks paid and hidden ratings
         try {
             out.put("ranked", mage.server.ladder.LadderStore.get().export(name));

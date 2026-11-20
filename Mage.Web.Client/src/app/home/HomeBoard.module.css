@@ -1,0 +1,261 @@
+/* Home's widget board (#432): a grid under the Play zone, 4 columns, 2 on a narrow mat, 1 on a phone */
+
+.board {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.grid {
+  --cols: 4;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  grid-auto-rows: 132px;
+  grid-auto-flow: row dense;
+  gap: var(--space-3);
+}
+
+.grid:empty {
+  display: none;
+}
+
+.cell {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+
+.sizeS {
+  grid-column: span 1;
+}
+
+.sizeM {
+  grid-column: span 2;
+}
+
+.sizeL {
+  grid-column: span 2;
+  grid-row: span 2;
+}
+
+.sizeW {
+  grid-column: 1 / -1;
+}
+
+@container (max-width: 620px) {
+  .grid {
+    --cols: 2;
+  }
+}
+
+@container (max-width: 380px) {
+  .grid {
+    --cols: 1;
+  }
+
+  .sizeM,
+  .sizeL {
+    grid-column: span 1;
+  }
+}
+
+.foot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.quiet,
+.loading {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  padding: var(--space-3);
+  border-radius: var(--radius-zone);
+  box-shadow: inset 0 0 0 1.5px var(--ink-ghost);
+  color: var(--ink-dim);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.quiet p {
+  margin: 0;
+}
+
+.loading {
+  min-height: 132px;
+  background: rgb(var(--mat-rgb) / 0.35);
+}
+
+/* Customize */
+
+.editing .cell {
+  border-radius: var(--radius-zone);
+  outline: 1.5px dashed var(--ink-faint, var(--ink-ghost));
+  outline-offset: 2px;
+}
+
+.lifted {
+  opacity: 0.6;
+}
+
+.preview {
+  height: 100%;
+}
+
+.tools {
+  position: absolute;
+  inset: 6px 6px auto auto;
+  z-index: 1;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 2px;
+  border-radius: 8px;
+  background: rgb(var(--mat-rgb) / 0.92);
+  box-shadow: 0 0 0 1px var(--ink-ghost);
+}
+
+.handle,
+.remove {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.handle {
+  cursor: grab;
+  touch-action: none;
+}
+
+.handle:active {
+  cursor: grabbing;
+}
+
+.handle:hover,
+.remove:hover {
+  background: var(--ink-ghost);
+}
+
+.select {
+  height: 32px;
+  max-width: 110px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+
+.editBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.preset {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--ink-ghost);
+  color: var(--ink-dim);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.presetOn {
+  background: var(--ink);
+  color: rgb(var(--mat-rgb));
+}
+
+.editActions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.hint,
+.empty,
+.undo {
+  margin: 0;
+  color: var(--ink-dim);
+  font-size: var(--text-sm);
+}
+
+.undo {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.undo button {
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--ink-ghost);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.gallery {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gallery li {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--ink-ghost);
+}
+
+.gallery p {
+  margin: 2px 0;
+  color: var(--ink-dim);
+  font-size: var(--text-sm);
+}
+
+.gallery small {
+  color: var(--ink-dim);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .editing .cell {
+    transition: opacity 120ms ease;
+  }
+}

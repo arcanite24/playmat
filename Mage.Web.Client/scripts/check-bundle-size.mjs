@@ -137,10 +137,13 @@ import { gzipSync } from 'node:zlib';
 // composited combat motion and the warmed audio, nearly all in the lazy match chunk). Measured app 850.0 kB
 // app raised 2026-11-19 from 853 kB for Ranked (#431): the Ranked screen, its model and data, and the en/es strings, all
 // in lazy Career chunks. Measured app 856.1 kB
+// app raised 2026-11-19 from 859 kB for Home widgets (#432): the board, Customize and 16 widgets, each its own lazy
+// chunk (a widget loads only when it's on the board), with their English and Spanish messages. Measured entry
+// 81.0 kB, initial 216.9 kB (both under budget), app 875.3 kB
 const BUDGET_KB = {
   entry: 86,
   initial: 221,
-  app: 859,
+  app: 878,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;

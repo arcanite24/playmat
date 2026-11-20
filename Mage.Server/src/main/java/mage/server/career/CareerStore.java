@@ -969,6 +969,34 @@ public final class CareerStore implements AutoCloseable {
         }
     }
 
+    /** One counted game for Home (#432): when, and the result summary saved with it (JSON, or null) */
+    public static final class PlayedGame {
+        public final long at;
+        public final String details;
+
+        PlayedGame(long at, String details) {
+            this.at = at;
+            this.details = details;
+        }
+    }
+
+    /** the account's counted games since `since`, newest first, at most `limit` */
+    public synchronized java.util.List<PlayedGame> playedSince(String user, long since, int limit) throws SQLException {
+        java.util.List<PlayedGame> out = new java.util.ArrayList<>();
+        try (PreparedStatement select = connection.prepareStatement(
+                "SELECT at, details FROM progress_games WHERE user = ? AND at >= ? AND revoked = 0 ORDER BY at DESC LIMIT ?")) {
+            select.setString(1, key(user));
+            select.setLong(2, since);
+            select.setInt(3, limit);
+            try (ResultSet rows = select.executeQuery()) {
+                while (rows.next()) {
+                    out.add(new PlayedGame(rows.getLong(1), rows.getString(2)));
+                }
+            }
+        }
+        return out;
+    }
+
     /**
      * Claims a game for progress, once.
      *
