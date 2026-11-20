@@ -681,7 +681,9 @@ ladder per format. It is on wherever Career is, for signed-in accounts, with no 
 - **Limited.** The `limited` format (#435) is a rank without bots or a queue: Career's sealed, draft and cube runs move
   it once each when they end (`RankedService.limitedRun`, from `CareerLimited.finished`). A run is worth its wins less
   its losses in pips (at most one pip lost), applied as that many wins with no streak bonus, under the same floors.
-  Each run is a `ladder_games` row (`limited-<run id>`, bot `limited:<kind>-<shape>`), so it counts once. It has its own
+  Abandoning a run after its first game counts it with the rest lost (classic to two losses, Arena to three, a
+  league's games left), so leaving can't dodge a loss. A cube drafted from a deck the player sent (`cubeCards`) doesn't
+  count. Each run is a `ladder_games` row (`limited-<run id>`, bot `limited:<kind>-<shape>`), so it counts once. It has its own
   seasons, peak and climb boards and rank rewards (tokens per format, cosmetics once per account), but no rating or
   Mythic board. `ladderState("limited")` reads it; `ladderPlay` and `ladderOpponent` refuse it. A failure in
   `ladder.db` is logged and costs the run nothing. The client shows it on **Sealed & draft**, in All ranks once played,

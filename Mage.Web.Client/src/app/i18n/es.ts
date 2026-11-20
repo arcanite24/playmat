@@ -1502,7 +1502,7 @@ const es: Catalog = {
 
   'career.limited.title': 'Sellado y draft',
   'career.limited.rank': 'Rango de Limitado',
-  'career.limited.rankHow': 'Cada partida de sellado o draft terminada lo mueve: sus victorias menos sus derrotas, en puntos. Una mala partida cuesta un punto como mucho. Tiene temporadas y tablas como la escalera, pero no rating de Mítico.',
+  'career.limited.rankHow': 'Cada partida de sellado o draft terminada lo mueve: sus victorias menos sus derrotas, en puntos. Una mala partida cuesta un punto como mucho, y abandonar una partida pierde lo que falta de ella. Un cubo de tu propio mazo no cuenta. Tiene temporadas y tablas como la escalera, pero no rating de Mítico.',
   'career.limited.runTitle': '{kind} de {set}',
   'career.limited.lead': 'Juega una colección de la tienda contra rivales de IA: {wins} victorias o {losses} derrotas terminan la racha, que paga según las victorias.',
   'career.limited.newRun': 'Una racha nueva',

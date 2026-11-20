@@ -1037,6 +1037,12 @@ public final class CareerLimited {
             row.state = "abandoned";
             row.ended = System.currentTimeMillis();
             store.putRun(user, row);
+            if (row.wins + row.losses > 0) {
+                // leaving a run is losing the rest of it, as leaving a ranked game is a loss (#435)
+                String shape = data.shape == null ? CLASSIC : data.shape;
+                int losses = LEAGUE.equals(shape) ? LEAGUE_GAMES - row.wins : maxLosses(shape);
+                ranked(user, row.id, data, shape, row.wins, Math.max(row.losses, losses), null, row.ended);
+            }
             return view(row);
         }));
     }
@@ -1138,13 +1144,21 @@ public final class CareerLimited {
         store.putRun(user, row);
     }
 
-    /** the finished run moves the Limited rank (#435); the ladder is its own database, so a failure there costs the run nothing */
-    private static void ranked(String user, String runId, RunData data, String shape, int wins, int losses,
-                               CareerProgress.CareerGameResult result, long now) {
+    /**
+     * The finished run moves the Limited rank (#435); the ladder is its own database, so a failure there costs the run
+     * nothing. A cube drafted from a deck the player sent doesn't count: they chose the pool.
+     *
+     * @param result the game's result to say how the rank moved, or null (an abandoned run)
+     */
+    static void ranked(String user, String runId, RunData data, String shape, int wins, int losses,
+                       CareerProgress.CareerGameResult result, long now) {
+        if (data.cubeCards != null) {
+            return;
+        }
         try {
             mage.server.ladder.RankedService.Result move = mage.server.ladder.RankedService.get()
                     .limitedRun(user, runId, data.kind, shape, data.setName + " " + data.kind, wins, losses, now);
-            if (move == null) {
+            if (move == null || result == null) {
                 return;
             }
             String before = mage.server.ladder.LadderRank.label(move.stepBefore);

@@ -480,7 +480,7 @@ export default {
 
   'career.limited.title': 'Sealed & draft',
   'career.limited.rank': 'Limited rank',
-  'career.limited.rankHow': 'Every finished sealed or draft run moves it: its wins less its losses, in pips. A bad run costs one pip at most. It has seasons and boards like the ladder, but no Mythic rating.',
+  'career.limited.rankHow': 'Every finished sealed or draft run moves it: its wins less its losses, in pips. A bad run costs one pip at most, and leaving a run loses the rest of it. A cube from your own deck does not count. It has seasons and boards like the ladder, but no Mythic rating.',
   'career.limited.runTitle': '{set} {kind}',
   'career.limited.lead': 'Play a set the shop sells against AI rivals: {wins} wins or {losses} losses end the run, and it pays by wins.',
   'career.limited.newRun': 'A new run',
