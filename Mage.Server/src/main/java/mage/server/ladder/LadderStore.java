@@ -9,6 +9,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * db/ladder.db (SQLite), the ladder's ratings (#430): one row per player or bot, format and queue. Kept apart from
@@ -48,6 +50,11 @@ public final class LadderStore implements AutoCloseable {
                     // seasons (#434): the Open queue's rank rewards pay once per account, kept under season -1
                     "INSERT OR IGNORE INTO ladder_rewards (user, format, queue, season, rank, paid)"
                             + " SELECT user, format, queue, -1, rank, paid FROM ladder_rewards WHERE queue = 'open'",
+            },
+            {
+                    // season boards (#434) read a format, queue and season at a time
+                    "CREATE INDEX ladder_games_by_season ON ladder_games (format, queue, season)",
+                    "CREATE INDEX ladder_standing_by_season ON ladder_standing (format, queue, season)",
             },
     };
 
@@ -499,6 +506,68 @@ public final class LadderStore implements AutoCloseable {
             statement.setLong(6, now);
             return statement.executeUpdate() == 1;
         }
+    }
+
+    /** One player's line on a season board (#434) */
+    public static final class BoardRow {
+        public String user;
+        public long value;
+        /** games played in the season (peak and Mythic boards) */
+        public int games;
+        public long at;
+    }
+
+    private static final String PLAYED = "status IN ('won', 'lost', 'drew')";
+
+    /** each player's peak rank in a season, players with at least one game in it */
+    public synchronized List<BoardRow> peakBoard(String format, String queue, int season) throws SQLException {
+        return board("SELECT user, peak, won + lost + drew, updated FROM ladder_standing"
+                + " WHERE format = ? AND queue = ? AND season = ? AND won + lost + drew > 0", format, queue, season);
+    }
+
+    /** each Mythic player's rating after their last game of a season, rounded */
+    public synchronized List<BoardRow> mythicBoard(String format, String queue, int season) throws SQLException {
+        List<BoardRow> rows = board("SELECT s.user, (SELECT ROUND(g.rating_after) FROM ladder_games g WHERE g.user = s.user"
+                + " AND g.format = s.format AND g.queue = s.queue AND g.season = s.season AND g.rating_after IS NOT NULL AND g." + PLAYED
+                + " ORDER BY g.ended DESC LIMIT 1), s.won + s.lost + s.drew, s.updated FROM ladder_standing s"
+                + " WHERE s.format = ? AND s.queue = ? AND s.season = ? AND s.peak >= " + LadderRank.MYTHIC_STEP
+                + " AND s.won + s.lost + s.drew > 0", format, queue, season);
+        rows.removeIf(row -> row.value <= 0);
+        return rows;
+    }
+
+    /** how many games each player took to reach Mythic in a season, and when */
+    public synchronized List<BoardRow> climbBoard(String format, String queue, int season) throws SQLException {
+        String sql = "SELECT r.user, (SELECT COUNT(*) FROM ladder_games x WHERE x.user = r.user AND x.format = r.format"
+                + " AND x.queue = r.queue AND x.season = r.season AND x." + PLAYED + " AND x.ended <= r.reached), 0, r.reached"
+                + " FROM (SELECT user, format, queue, season, MIN(ended) AS reached FROM ladder_games"
+                + " WHERE format = ? AND queue = ? AND season = ? AND " + PLAYED + " AND step_after >= " + LadderRank.MYTHIC_STEP
+                + " GROUP BY user, format, queue, season) r";
+        List<BoardRow> rows = board(sql, format, queue, season);
+        for (BoardRow row : rows) {
+            row.games = (int) row.value;
+        }
+        return rows;
+    }
+
+    private List<BoardRow> board(String sql, String format, String queue, int season) throws SQLException {
+        List<BoardRow> out = new ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, format);
+            statement.setString(2, queue);
+            statement.setInt(3, season);
+            try (ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) {
+                    BoardRow row = new BoardRow();
+                    row.user = rows.getString(1);
+                    row.value = rows.getLong(2);
+                    row.games = rows.getInt(3);
+                    row.at = rows.getLong(4);
+                    out.add(row);
+                }
+            }
+        }
+        return out;
     }
 
     @Override

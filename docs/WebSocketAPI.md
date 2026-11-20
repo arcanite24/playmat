@@ -402,7 +402,7 @@ Generated from the server's method registry (`mage.server.websocket.api`). Do no
 | `soloBatchJobs` | - | `BatchJob[]` | session | Your batches, newest first, with their scores so far. |
 | `soloBatchJob` | `jobId: string` | `BatchJob` | session | One of your batches with every game's seed, winner and length. |
 | `soloBatchCancel` | `jobId: string` | `boolean` | session | Stop one of your batches; games already played keep their score. |
-| `leaderboard` | `mode: string`, `board: string`, `scope?: string`, `names?: unknown[]` | `Leaderboard` | session | A mode's leaderboard (weekly-challenge: board is the week, like 2026-W42; puzzle: board is the puzzle id), best first, with your line. Scope server (everyone) or friends (the names given, and you). |
+| `leaderboard` | `mode: string`, `board: string`, `scope?: string`, `names?: unknown[]` | `Leaderboard` | session | A mode's leaderboard (weekly-challenge: board is the week, like 2026-W42; puzzle: board is the puzzle id; the ladder's season boards ladder-peak, ladder-mythic and ladder-climb: board is queue.format.season, like league.standard.0, or queue.format for the season now), best first, with your line. Scope server (everyone) or friends (the names given, and you). |
 | `adminBatchJobs` | - | `BatchStatus` | session | Staff (admin): the batch runner's settings, games running now and the latest jobs of every player. |
 | `adminBatchCancel` | `jobId: string` | `boolean` | session | Staff (admin): stop anyone's batch. |
 | `adminContentPacks` | - | `ContentPackView[]` | session | Staff (admin): the content packs on the server, each loaded or with the problems that kept it out. |

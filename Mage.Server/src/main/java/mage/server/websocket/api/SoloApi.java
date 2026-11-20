@@ -311,7 +311,9 @@ final class SoloApi {
                         .params(of("mode", STRING), of("board", STRING), optional("scope", STRING), optional("names", ARRAY))
                         .returns("Leaderboard")
                         .doc("A mode's leaderboard (weekly-challenge: board is the week, like 2026-W42; puzzle: board is the puzzle "
-                                + "id), best first, with your line. Scope server (everyone) or friends (the names given, and you).")
+                                + "id; the ladder's season boards ladder-peak, ladder-mythic and ladder-climb: board is queue.format.season, "
+                                + "like league.standard.0, or queue.format for the season now), best first, with your line. "
+                                + "Scope server (everyone) or friends (the names given, and you).")
                         .handler(call -> {
                             String user = CareerApi.user(ctx, call);
                             List<String> names = new ArrayList<>();

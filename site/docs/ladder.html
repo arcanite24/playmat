@@ -106,6 +106,10 @@
             League packs by the best rank: 1 for Bronze up to 6 and 2 mythic wildcards for Mythic. They are set in
             <code>league/league.json</code>.</li>
           <li>A game counts for the season it started in.</li>
+          <li>Each format, queue and season has three boards on the Ranked and League screens: peak rank, Mythic
+            rating, and fastest to Mythic (fewest games). Past seasons keep theirs. They are read straight from
+            <code>db/ladder.db</code>, so there is nothing to set up; a deleted account leaves them. Home has a
+            Season board widget.</li>
         </ul>
 
         <h2>League</h2>

@@ -14,6 +14,7 @@ import { Pips } from './Portraits';
 import { leagueFormat, startReady, toggleStarter } from './leagueModel';
 import { openLeaguePack, playLeague, startLeague, useLeagueDecks, useLeagueSets, useLeagueState } from './leagueData';
 import { useRankedOpponent, useRankedState } from './rankedData';
+import { SeasonBoards } from './SeasonBoards';
 import { Versus } from './Versus';
 import modes from './CareerModes.module.css';
 import ranked from './Ranked.module.css';
@@ -161,6 +162,7 @@ function Started({ format, league }: { format: string; league: LeagueFormat }) {
             <Packs format={format} league={league} />
             <Decks format={format} />
             <Recent state={state.data} />
+            <SeasonBoards state={state.data} />
           </div>
           <Queue format={format} state={state.data} />
         </div>

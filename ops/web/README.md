@@ -686,6 +686,12 @@ season's start.
   end paid. Home has a Season widget.
 - `ladderState` returns `season`, `seasonEnds`, `seasonDaysLeft`, `seasons` (earlier seasons, newest first) and
   `lastSeason`. The server log has a `Ladder <format> <queue>:` line for each placement.
+- **Boards.** Each format, queue and season has three boards, served by `leaderboard` like the solo boards with
+  board `queue.format.season` (`league.standard.0`; `queue.format` is the season now): `ladder-peak` (peak rank, fewer
+  games first on a tie), `ladder-mythic` (the rating after the season's last game, Mythic players only) and
+  `ladder-climb` (played games to first reach Mythic). They are read from `ladder.db`, not copied, so past seasons,
+  exports and account deletion follow the ladder's tables. Players placed by a reset who haven't played the season
+  aren't on them. The climb counts from wherever the reset placed the player.
 
 ### League
 
