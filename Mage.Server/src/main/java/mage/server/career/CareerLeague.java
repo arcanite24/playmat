@@ -61,6 +61,8 @@ public final class CareerLeague {
     static final class Config {
         Map<String, Integer> startWildcards = new LinkedHashMap<>();
         PackWildcards packWildcards = new PackWildcards();
+        /** what a season's end pays by the peak rank reached (#434) */
+        Map<String, SeasonEnd> seasonEnd = new LinkedHashMap<>();
         Map<String, FormatConfig> formats = new LinkedHashMap<>();
     }
 
@@ -68,6 +70,12 @@ public final class CareerLeague {
     static final class PackWildcards {
         int rareEvery;
         int mythicEvery;
+    }
+
+    /** a season-end reward: packs of the format and mythic wildcards */
+    public static final class SeasonEnd {
+        public int packs;
+        public int mythic;
     }
 
     static final class FormatConfig {
@@ -801,6 +809,34 @@ public final class CareerLeague {
             }
             return null;
         });
+        return paid;
+    }
+
+    /** what the end of a League season pays for a peak (a step); nothing configured pays nothing */
+    public static SeasonEnd seasonEnd(int peak) {
+        SeasonEnd end = get().config.seasonEnd.get(LadderRank.rankName(peak));
+        return end == null ? new SeasonEnd() : end;
+    }
+
+    /** pays the end of a League season: the format's packs and mythic wildcards for the season's peak rank */
+    public static RankedRewards.Paid paySeasonEnd(String user, String format, int peak, long now) throws SQLException {
+        SeasonEnd end = seasonEnd(peak);
+        CareerStore store = CareerStore.get();
+        RankedRewards.Paid paid = new RankedRewards.Paid();
+        store.transaction(() -> {
+            CareerService.ensureProfile(store, user, now);
+            if (end.packs > 0) {
+                store.addLeagueTokens(user, format, end.packs);
+                paid.packs += end.packs;
+            }
+            if (end.mythic > 0) {
+                store.addWildcard(user, CareerRules.MYTHIC, end.mythic);
+                paid.wildcards.merge(CareerRules.MYTHIC, end.mythic, Integer::sum);
+            }
+            return null;
+        });
+        logger.info("League " + format + ": " + user + "'s season ended at peak " + LadderRank.label(peak) + ", paid "
+                + paid.packs + " packs and " + end.mythic + " mythic wildcards");
         return paid;
     }
 

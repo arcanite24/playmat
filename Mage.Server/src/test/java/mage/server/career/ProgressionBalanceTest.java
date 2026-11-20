@@ -193,6 +193,8 @@ public class ProgressionBalanceTest {
         LadderStore ladder = new LadderStore("jdbc:sqlite::memory:");
         RankedService ranked = RankedService.forTests(ladder, BotRoster.get());
         RankedService.use(ranked);
+        // one long season: the four weeks are measured inside a season, without a season's end in the middle
+        mage.server.ladder.Seasons.use(new mage.server.ladder.Seasons(day.get().withDayOfMonth(1), 12));
         Random before = RandomUtil.install(new Random(seed));
         Random random = new Random(seed);
         try {
@@ -241,12 +243,13 @@ public class ProgressionBalanceTest {
                     // not affordable yet
                 }
             }
-            LadderStore.Standing standing = ladder.standing(user, "standard", RankedService.LEAGUE, RankedService.SEASON);
+            LadderStore.Standing standing = ladder.standing(user, "standard", RankedService.LEAGUE, ladder.maxSeason());
             run.peak = standing == null ? 0 : standing.peak;
             return run;
         } finally {
             RandomUtil.install(before);
             RankedService.use(null);
+            mage.server.ladder.Seasons.use(null);
             ladder.close();
         }
     }

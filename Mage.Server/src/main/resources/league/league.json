@@ -3,6 +3,11 @@
   "startWildcards": {"common": 4, "uncommon": 3, "rare": 1, "mythic": 0},
   "_packWildcards": "The wildcard track: every League pack an account opens counts; every rareEvery-th adds a rare wildcard, every mythicEvery-th a mythic one instead. ProgressionBalanceTest checks the pace this gives.",
   "packWildcards": {"rareEvery": 4, "mythicEvery": 12},
+  "_seasonEnd": "What the end of a ladder season (#434) pays a format's League, by the peak rank reached that season: packs of the format and mythic wildcards. Paid when the player first plays or looks at the League in a later season.",
+  "seasonEnd": {
+    "bronze": {"packs": 1}, "silver": {"packs": 2}, "gold": {"packs": 3},
+    "platinum": {"packs": 4}, "diamond": {"packs": 5}, "mythic": {"packs": 6, "mythic": 2}
+  },
   "formats": {
     "standard": {
       "starters": ["standard/starter.dck", "standard/act1-skies.dck", "standard/act1-stompy.dck"],

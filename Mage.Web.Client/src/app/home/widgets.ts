@@ -26,6 +26,7 @@ export const LEADERBOARDS = ['gauntlet', 'ascension', 'boss-rush', 'endless'] as
 
 export const WIDGETS: readonly WidgetDef[] = [
   { id: 'rank', sizes: ['s', 'm'], needs: 'ranked', settings: { format: FORMATS }, title: 'home.widget.rank', blurb: 'home.widget.rank.blurb', load: () => import('./widgets/RankWidget') },
+  { id: 'season', sizes: ['s', 'm'], needs: 'ranked', settings: { format: FORMATS }, title: 'home.widget.season', blurb: 'home.widget.season.blurb', load: () => import('./widgets/SeasonWidget') },
   { id: 'allRanks', sizes: ['m', 'l'], needs: 'ranked', title: 'home.widget.allRanks', blurb: 'home.widget.allRanks.blurb', load: () => import('./widgets/AllRanksWidget') },
   { id: 'rival', sizes: ['s', 'm'], needs: 'ranked', settings: { format: FORMATS }, title: 'home.widget.rival', blurb: 'home.widget.rival.blurb', load: () => import('./widgets/RivalWidget') },
   { id: 'recent', sizes: ['m', 'l'], needs: 'career', title: 'home.widget.recent', blurb: 'home.widget.recent.blurb', load: () => import('./widgets/RecentWidget') },

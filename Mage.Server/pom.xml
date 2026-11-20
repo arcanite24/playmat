@@ -474,6 +474,7 @@
                                 <class>mage.server.websocket.api.CareerApi$CareerState</class>
                                 <class>mage.server.websocket.api.CareerApi$CareerMatch</class>
                                 <class>mage.server.websocket.api.LadderApi$LadderState</class>
+                                <class>mage.server.websocket.api.LadderApi$LadderPastSeason</class>
                                 <class>mage.server.websocket.api.LadderApi$LadderGame</class>
                                 <class>mage.server.websocket.api.LadderApi$LadderOpponent</class>
                                 <class>mage.server.websocket.api.LadderApi$LadderMatch</class>

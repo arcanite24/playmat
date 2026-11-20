@@ -1,4 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import type { LadderState } from '../../protocol/generated/views';
+import { useT } from '../i18n';
+import { useCeremonies } from './ceremonies';
+import { seasonSeenKey } from './rankedModel';
 import type { DeckCardLists as WireDeck } from '../../protocol/generated/views';
 import { api } from '../connection';
 import { queryClient } from '../queries';
@@ -70,4 +75,37 @@ export async function playRanked(format: string, deck: WireDeck): Promise<void> 
   } finally {
     void queryClient.invalidateQueries({ queryKey: ['career', 'ranked'] });
   }
+}
+
+/**
+ * The end of a season (#434), shown once per format and queue: the season's best rank, where the new one starts, and
+ * for the League what its end paid. Remembered in this browser only; another device shows it once too.
+ */
+export function useSeasonEnd(state: LadderState | undefined) {
+  const t = useT();
+  const last = state?.lastSeason;
+  const format = state?.format ?? '';
+  const queue = state?.queue ?? 'open';
+  useEffect(() => {
+    if (!last || last.season == null || !format) return;
+    const key = seasonSeenKey(format, queue, last.season);
+    try {
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, '1');
+    } catch {
+      return;
+    }
+    const pay = [
+      last.packs ? t('career.season.packs', { count: last.packs }) : null,
+      last.mythicWildcards ? t('career.season.mythic', { count: last.mythicWildcards }) : null,
+    ].filter(Boolean).join(' · ');
+    useCeremonies.getState().show([{
+      id: key,
+      kicker: t('career.season.over', { n: last.season + 1 }),
+      title: t('career.season.best', { rank: last.peakLabel ?? '' }),
+      text: [t('career.season.placed', { n: last.season + 2, rank: last.placedLabel ?? '' }), pay].filter(Boolean).join(' '),
+      crest: { name: last.peakRank ?? 'bronze', colors: 'C' },
+      cue: 'unlock',
+    }]);
+  }, [last, format, queue, t]);
 }

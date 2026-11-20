@@ -94,6 +94,33 @@ public final class LadderApi {
         /** a ranked game is being played now */
         public boolean playing;
         public List<LadderGame> recent;
+        /** the season now, counted from 0 (#434) */
+        public int season;
+        /** "Season 1" */
+        public String seasonName;
+        /** when the season ends, ms UTC */
+        public long seasonEnds;
+        /** whole days until it ends, at least 1 */
+        public int seasonDaysLeft;
+        /** the last season the player played here before this one, with where this one placed them; null if none */
+        public LadderPastSeason lastSeason;
+        /** every earlier season played here, newest first: the badge's season stamps */
+        public List<LadderPastSeason> seasons;
+    }
+
+    /** A season the player played in a format and queue: how it ended, and (the last one) what its end paid */
+    public static class LadderPastSeason {
+        public int season;
+        public String seasonName;
+        public int peakStep;
+        public String peakRank;
+        public String peakLabel;
+        public String endLabel;
+        /** where the next season placed the player (the last season only) */
+        public String placedLabel;
+        /** League packs and mythic wildcards its end paid (the League only) */
+        public int packs;
+        public int mythicWildcards;
     }
 
     /** A ranked match was set up; the game starts like any other */
@@ -225,8 +252,41 @@ public final class LadderApi {
 
     static LadderState state(String user, String format, String queue, long now) throws SQLException {
         RankedService ranked = RankedService.get();
-        LadderStore.Standing standing = ranked.store().standing(user.toLowerCase(java.util.Locale.ENGLISH), format, queue, RankedService.SEASON);
+        String key = user.toLowerCase(java.util.Locale.ENGLISH);
+        int season = ranked.season(now);
+        ranked.rollover(key, format, queue, season, now);
+        LadderStore.Standing standing = ranked.store().standing(key, format, queue, season);
         LadderState view = new LadderState();
+        view.season = season;
+        view.seasonName = mage.server.ladder.Seasons.name(season);
+        view.seasonEnds = mage.server.ladder.Seasons.get().endsAt(Math.max(season, mage.server.ladder.Seasons.get().index(now)));
+        view.seasonDaysLeft = (int) Math.max(1, (view.seasonEnds - now + 86_399_999L) / 86_400_000L);
+        view.seasons = new ArrayList<>();
+        for (LadderStore.Standing past : ranked.store().standings(key, format, queue)) {
+            if (past.season >= season) {
+                continue;
+            }
+            LadderPastSeason p = new LadderPastSeason();
+            p.season = past.season;
+            p.seasonName = mage.server.ladder.Seasons.name(past.season);
+            p.peakStep = past.peak;
+            p.peakRank = LadderRank.rankName(past.peak);
+            p.peakLabel = LadderRank.label(past.peak);
+            p.endLabel = LadderRank.label(past.step);
+            if (view.seasons.isEmpty()) {
+                p.placedLabel = LadderRank.label(LadderRank.placement(past.step));
+            }
+            view.seasons.add(p);
+        }
+        if (!view.seasons.isEmpty()) {
+            LadderPastSeason last = view.seasons.get(0);
+            view.lastSeason = last;
+            if (RankedService.LEAGUE.equals(queue)) {
+                CareerLeague.SeasonEnd end = CareerLeague.seasonEnd(last.peakStep);
+                last.packs = end.packs;
+                last.mythicWildcards = end.mythic;
+            }
+        }
         view.formats = ranked.formats();
         view.format = format;
         view.queue = queue;

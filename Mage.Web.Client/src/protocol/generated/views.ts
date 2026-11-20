@@ -1653,6 +1653,18 @@ export interface LadderOpponent {
     title?: string;
 }
 
+export interface LadderPastSeason {
+    endLabel?: string;
+    mythicWildcards?: number;
+    packs?: number;
+    peakLabel?: string;
+    peakRank?: string;
+    peakStep?: number;
+    placedLabel?: string;
+    season?: number;
+    seasonName?: string;
+}
+
 export interface LadderResult {
     bonus?: boolean;
     cosmetics?: CareerCosmetic[];
@@ -1679,6 +1691,7 @@ export interface LadderState {
     format?: string;
     formats?: string[];
     label?: string;
+    lastSeason?: LadderPastSeason;
     lost?: number;
     mythicRating?: number;
     mythicStep?: number;
@@ -1690,6 +1703,11 @@ export interface LadderState {
     queue?: string;
     rank?: string;
     recent?: LadderGame[];
+    season?: number;
+    seasonDaysLeft?: number;
+    seasonEnds?: number;
+    seasonName?: string;
+    seasons?: LadderPastSeason[];
     step?: number;
     streak?: number;
     tier?: number;

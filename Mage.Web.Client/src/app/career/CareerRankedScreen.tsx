@@ -13,7 +13,7 @@ import { useCareerState } from './careerData';
 import { CareerAvatar } from './CareerScreen';
 import { Pips } from './Portraits';
 import { climb, movement, pickFormat, pipRow, rankAt, rankKey, record, type PipState } from './rankedModel';
-import { playRanked, useRankedOpponent, useRankedResult, useRankedState } from './rankedData';
+import { playRanked, useRankedOpponent, useRankedResult, useRankedState, useSeasonEnd } from './rankedData';
 import { Versus } from './Versus';
 import modes from './CareerModes.module.css';
 import styles from './Ranked.module.css';
@@ -105,6 +105,8 @@ export function Standing({ state }: { state: LadderState }) {
   const step = state.step ?? 0;
   const at = rankAt(step);
   const games = record(state);
+  useSeasonEnd(state);
+  const stamps = (state.seasons ?? []).slice(0, 4);
   return (
     <section className={[styles.card, styles[`rank_${at.rank}`]].join(' ')} aria-labelledby="ranked-standing">
       <Emblem rank={state.rank} />
@@ -121,6 +123,14 @@ export function Standing({ state }: { state: LadderState }) {
         </p>
         {(state.streak ?? 0) >= 2 && (
           <p className={styles.streak}><Flame size={14} aria-hidden="true" /> {t('career.ranked.streak', { count: state.streak ?? 0 })}</p>
+        )}
+        {state.seasonEnds ? (
+          <p className={modes.small}>{t('career.season.left', { n: (state.season ?? 0) + 1, count: state.seasonDaysLeft ?? 0 })}</p>
+        ) : null}
+        {stamps.length > 0 && (
+          <p className={modes.small}>
+            {t('career.season.stamps', { list: stamps.map((past) => t('career.season.stamp', { n: (past.season ?? 0) + 1, rank: past.peakLabel ?? '' })).join(' · ') })}
+          </p>
         )}
       </div>
     </section>

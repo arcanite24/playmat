@@ -4,6 +4,7 @@
   "widgets": {
     "rank": ["s", "m"],
     "allRanks": ["m", "l"],
+    "season": ["s", "m"],
     "rival": ["s", "m"],
     "recent": ["m", "l"],
     "quests": ["m", "l"],
