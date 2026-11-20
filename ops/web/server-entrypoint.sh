@@ -134,6 +134,13 @@ is_uint "$REPLAY_DAYS" || die "XMAGE_REPLAY_DAYS must be a whole number (got '$R
 REPLAY_MAX=${XMAGE_REPLAY_MAX:-300}
 is_uint "$REPLAY_MAX" || die "XMAGE_REPLAY_MAX must be a whole number (got '$REPLAY_MAX')"
 
+# --- disk ------------------------------------------------------------------------------------
+# what-if lines of solo games, all players together (MB), and the free disk under which the server calls it nearly full
+SOLO_LINES_MAX_MB=${XMAGE_SOLO_LINES_MAX_MB:-1024}
+is_uint "$SOLO_LINES_MAX_MB" || die "XMAGE_SOLO_LINES_MAX_MB must be a whole number (got '$SOLO_LINES_MAX_MB')"
+DISK_MIN_FREE_MB=${XMAGE_DISK_MIN_FREE_MB:-3072}
+is_uint "$DISK_MIN_FREE_MB" || die "XMAGE_DISK_MIN_FREE_MB must be a whole number (got '$DISK_MIN_FREE_MB')"
+
 # --- desktop clients ---------------------------------------------------------------------------
 # The desktop protocol (JBoss Remoting) is gone (docs/RustMigration.md phase 1): web clients only.
 if [ "${XMAGE_DESKTOP:-}" = true ]; then
@@ -333,6 +340,8 @@ args=$(mktemp /tmp/xmage-jvm.XXXXXX)
   echo "-Dxmage.replays.dir=$APP/saved/replays"
   echo "-Dxmage.replays.retentionDays=$REPLAY_DAYS"
   echo "-Dxmage.replays.maxCount=$REPLAY_MAX"
+  echo "-Dxmage.solo.linesMaxMB=$SOLO_LINES_MAX_MB"
+  echo "-Dxmage.disk.minFreeMB=$DISK_MIN_FREE_MB"
   if [ -n "${XMAGE_ADMIN_PASSWORD:-}" ]; then
     # quoted for the argfile format: backslashes and double quotes escaped
     printf '"-Dxmage.adminPassword=%s"\n' "$(printf '%s' "$XMAGE_ADMIN_PASSWORD" | sed 's/[\\"]/\\&/g')"
