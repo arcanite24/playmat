@@ -1,0 +1,19 @@
+# The Rust AI's self-play worker (rust/rl, docs/rust/Ai.md "Self-play on the Hetzner box"): `selfplay` and the deck
+# suite it plays, nothing else. Built for arm64 by .github/workflows/selfplay-image.yml and run on the public server
+# only when it is idle (ops/web/host/rl-worker.sh). The card data is compiled into the binary.
+FROM rust:1.94-slim-bookworm AS build
+WORKDIR /src
+COPY rust/ .
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    cargo build --release --locked -p playmat-ai --bin selfplay \
+ && cp target/release/selfplay /usr/local/bin/selfplay
+
+FROM debian:bookworm-slim
+ARG REVISION=unknown
+COPY --from=build /usr/local/bin/selfplay /usr/local/bin/selfplay
+COPY archbench/constructed-2/suite.json /opt/suite/suite.json
+# the commit the worker stamps on every chunk, so the trainer can turn away games from another build
+RUN echo "$REVISION" > /opt/commit
+USER 65534:65534
+WORKDIR /work
+ENTRYPOINT ["/usr/local/bin/selfplay", "--suite", "/opt/suite"]
