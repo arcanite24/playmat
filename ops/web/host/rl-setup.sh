@@ -48,7 +48,7 @@ if [[ ! -e /etc/playmat/rl.env ]]; then
   cat > /etc/playmat/rl.env << 'EOF'
 # the self-play worker's settings (ops/web/host/rl-worker.sh has every one and its default)
 JOBS=3
-CHUNK_GAMES=300
+CHUNK_GAMES=150
 GAMES_MAX=4
 CPU_MAX=25
 QUIET_UTC=

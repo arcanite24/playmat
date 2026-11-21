@@ -15,7 +15,7 @@ set -uo pipefail
 
 SPOOL=/srv/playmat-rl
 JOBS=3
-CHUNK_GAMES=300
+CHUNK_GAMES=150
 SPOOL_MAX_MB=4096
 # busy when more games than this are open (most wait on people and cost nothing), or the server uses more than
 # CPU_MAX percent of one core; the CPU check is the one that matters
@@ -28,6 +28,7 @@ BACKUP_UTC=10:00-10:45
 QUIET_UTC=
 MAX_RUN_S=900
 MEMORY=768m
+# shellcheck source=/dev/null
 [[ -r /etc/playmat/rl.env ]] && . /etc/playmat/rl.env
 
 NAME=playmat-rl-worker
@@ -161,11 +162,19 @@ docker run -d --name "$NAME" --cpus "$JOBS" --cpu-shares 2 --blkio-weight 10 --m
   || { status error "docker run failed"; log "docker run failed"; exit 0; }
 status playing "job $J_ID $chunk, seeds $seed+"
 
+# one CPU spike (a single AI turn) isn't players coming back: that takes two readings in a row; anything else stops
+# the chunk at once
 why=
+strikes=0
 while :; do
   sleep 15
   [[ $(docker inspect -f '{{.State.Running}}' "$NAME" 2>/dev/null) == true ]] || break
-  if reason=$(busy); then why=$reason; break; fi
+  if reason=$(busy); then
+    strikes=$((strikes + 1))
+    [[ $reason != "the server uses "* || $strikes -ge 2 ]] && { why=$reason; break; }
+  else
+    strikes=0
+  fi
   (($(date +%s) - start > MAX_RUN_S)) && { why="over ${MAX_RUN_S} s"; break; }
 done
 if [[ -n $why ]]; then

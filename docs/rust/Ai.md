@@ -202,10 +202,11 @@ The public server (a 4-core ARM box) sits mostly idle: under 15% CPU most hours 
 games for the trainer in that idle time. Training stays on the trainer's GPU; the server only plays.
 
 - **Worker.** `ops/web/host/rl-setup.sh` installs it (see ops/web/README.md, Host tools). A timer runs
-  `playmat-rl-worker` every 2 minutes. If the gate says idle, it plays one chunk of the current job: 300 games of
+  `playmat-rl-worker` every 2 minutes. If the gate says idle, it plays one chunk of the current job: 150 games of
   `selfplay` in a container (`ghcr.io/arcanite24/playmat-selfplay`, by digest, built for arm64 by
   `.github/workflows/selfplay-image.yml`; at most 3 cores, the lowest CPU and I/O weight, 768 MB, no network,
-  read-only). While it plays, the gate is checked every 15 s, and a busy answer kills the chunk. Chunks are kept
+  read-only). While it plays, the gate is checked every 15 s. A busy answer kills the chunk
+  (high CPU only when it's read twice in a row). Chunks are kept
   as `.tar.gz` with a `.json` beside them: the image, the networks' sha256, the seed and the games.
 - **Gate.** Outside the backup window (10:00–10:45 UTC) and the quiet hours if set; no maintenance planned; at
   most `GAMES_MAX` games open (default 4: most open games wait on people); the server's container under

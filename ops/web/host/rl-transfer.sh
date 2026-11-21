@@ -56,6 +56,7 @@ EOF
     echo "no current job"
     ;;
   list)
+    # shellcheck disable=SC2016 # $0 is sh -c's argument
     find "$SPOOL/out" -mindepth 2 -maxdepth 2 -name 'c*.json' -print0 2>/dev/null | sort -z | xargs -0 -r -n 1 sh -c 'cat "$0"; echo'
     ;;
   get)
