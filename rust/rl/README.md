@@ -75,6 +75,14 @@ python rounds.py --init runs/loop3/r4 --out runs/loop4 --policy netsearch --roll
 folder with `selfplay` and `archbench`. `train.py` keeps the decisions on the GPU when they fit in `--gpu-data-gb`
 (default 8); `prof_train.py` times a step's parts.
 
+More games from the public server's idle hours (docs/rust/Ai.md, "Self-play on the public server"): with
+`--remote ALIAS --remote-image ghcr.io/arcanite24/playmat-selfplay:sha-...@sha256:...`, each round's job goes to the
+server before the local games and the chunks it finished are pulled into the round's data after them (seeds from
+`1_000_000 * r + 500_000`, so they never repeat the local ones). `ALIAS` is an ssh alias for the server's `playmat-rl`
+account; the image must be one CI built from the same commit as the local `selfplay`. On Windows, `remote.py` uses Git for Windows' ssh (the system ssh.exe sends no stdin under an SSH session); `PLAYMAT_RL_SSH` picks another. `python remote.py ALIAS status`
+shows the worker's state, `list` the chunks waiting, `stop` drops the job. A chunk played with another image or
+other networks is thrown away, not trained on.
+
 `--tx` takes JSON or `k=v` pairs (`d`, `heads`, `layers`, `ff`, `dim`, `trunk`, `text`). `rounds.py` logs one line a round to
 `runs/<out>/rounds.jsonl`. Keep `--jobs` and `--sprt-jobs` a few threads under the machine's count so its other
 services keep running.

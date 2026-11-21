@@ -231,6 +231,13 @@ IMGCACHE_FALLBACK=on                                     <span class="c"># Scryf
           qualify, the same ones as above, are played by the Rust engine; the rest stay on Java. A game on the Rust
           engine shows a "Rust engine" chip on the board and a short note as it starts. The players listed in
           <code>XMAGE_RUST_HOST_USERS</code> keep it on whatever their switch says.</p>
+        <h3 id="selfplay">Can the server train the AI while it's idle?</h3>
+        <p>Yes, if you also train the Rust AI somewhere. <code>ops/web/host/rl-setup.sh</code> installs a worker that plays
+          training games only while the server is idle: no backup running, few games open, low CPU. It stops the moment
+          players need the server. The games run in a locked-down container with no network and the lowest CPU priority.
+          Your trainer connects to fetch them; the server never connects out. It does nothing until a trainer sends it a job, and
+          <code>rl-setup.sh --remove</code> takes it out. Details are in
+          <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#host-tools">the README</a>.</p>
         <h3 id="desktop">Can the XMage desktop client connect?</h3>
         <p>No. Playmat servers speak only to the web client (and the Android and desktop apps, which are the web client).
           The desktop client's protocol was removed to make the move to Rust possible.</p>

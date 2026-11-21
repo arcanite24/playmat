@@ -196,6 +196,35 @@ duplicate pairs).
 The search AI with full skill is still stronger than the network with its search; the shipped network
 (`src/net.pmnet`) and the host's defaults are unchanged.
 
+## Self-play on the public server (Nov 2026)
+
+The public server (a 4-core ARM box) sits mostly idle: under 15% CPU most hours of the week. It plays self-play
+games for the trainer in that idle time. Training stays on the trainer's GPU; the server only plays.
+
+- **Worker.** `ops/web/host/rl-setup.sh` installs it (see ops/web/README.md, Host tools). A timer runs
+  `playmat-rl-worker` every 2 minutes. If the gate says idle, it plays one chunk of the current job: 150 games of
+  `selfplay` in a container (`ghcr.io/arcanite24/playmat-selfplay`, by digest, built for arm64 by
+  `.github/workflows/selfplay-image.yml`; at most 3 cores, the lowest CPU and I/O weight, 768 MB, no network,
+  read-only). While it plays, the gate is checked every 15 s. A busy answer kills the chunk
+  (high CPU only when it's read twice in a row). Chunks are kept
+  as `.tar.gz` with a `.json` beside them: the image, the networks' sha256, the seed and the games.
+- **Gate.** Outside the backup window (10:00–10:45 UTC) and the quiet hours if set; no maintenance planned; at
+  most `GAMES_MAX` games open (default 4: most open games wait on people); the server's container under
+  `CPU_MAX`% of a core (25); 2.5 GB of memory free, a quarter of the disk free and the spool under 4 GB. Anything
+  it can't read counts as busy.
+- **Trainer.** `rounds.py --remote playmat-rl --remote-image ...` sends each round's job (`remote.py put_job`: the
+  learner, the networks, the seeds from `1_000_000 * r + 500_000`) before the local games, and pulls the finished
+  chunks into the round's data after them. A chunk played with another image or other networks is thrown away.
+  The trainer always connects to the server; the server never connects out. Its key can only run
+  `playmat-rl-transfer` (put-job, list, get, ack, stop, status). The account has its own uid: a container's user
+  shows up on the host under the same number, so the account must not share one.
+- **Speed.** 2.0 games a second at 3 jobs with round 3's network (`netsearch` with the small rollout net,
+  `--fast net`, `--keep 500`), about a quarter of the trainer's 10 jobs. The server's container stayed at 6–10%
+  CPU throughout. A game is 145 KB of files, 5.5 KB gzipped. A 20-minute round adds up to 2,400 games.
+- **Windows trainers.** Windows' own ssh.exe sends no stdin when it runs under an SSH session (a run started
+  over ssh, Start-Process included), so `put-job` would hang. `remote.py` uses Git for Windows' ssh when it's
+  installed (`PLAYMAT_RL_SSH` names another).
+
 ## One decision at a time: policies
 
 Every question with two or more candidates goes to the seat's `DecisionPolicy` (`decision.rs`). It gets a `Decision`:
