@@ -20,12 +20,13 @@ import { useGames } from './stores/games';
 import { usePlay } from './stores/play';
 import { useSession } from './stores/session';
 import './stores/lobby';
-import './stores/settings';
+import { useSettings } from './stores/settings';
 import './stores/social';
 import './stores/toasts';
 import './career/progressionEvents';
 import { NATIVE_APP } from './brand';
 import { imageResolver } from '../core/images/useCardImage';
+import { isCardLanguage } from '../core/images/imageLinks';
 
 /** Screens that need a signed-in player; also opens games when the server starts them. */
 function SignedIn() {
@@ -159,6 +160,10 @@ const router = createBrowserRouter([
 
 /** How long the first paint waits for the stored picture links; past it, cards learn their pictures as they arrive. */
 const PICTURE_LINKS_WAIT_MS = 400;
+// card pictures in the player's chosen language, from the first frame and whenever it changes
+const cardLanguage = (language: unknown) => (isCardLanguage(language) ? language : 'en');
+imageResolver().setLanguage(cardLanguage(useSettings.getState().settings.cardLanguage));
+useSettings.subscribe((state) => imageResolver().setLanguage(cardLanguage(state.settings.cardLanguage)));
 const pictureLinks = Promise.race([imageResolver().ready, new Promise<void>((resolve) => setTimeout(resolve, PICTURE_LINKS_WAIT_MS))]);
 
 // a Spanish (or other non-English) player's catalog loads first, so the first paint is already in their language; and

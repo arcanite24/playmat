@@ -6,7 +6,7 @@ import type { BroadcastDelay } from '../../core/game/broadcastDelay';
 import { serverStops } from '../../core/game/stops';
 import type { UserData, UserSkipPrioritySteps } from '../../protocol/generated/views';
 import type { LocalePreference } from '../i18n/locales';
-import type { CardImageRef } from '../../core/images/imageLinks';
+import type { CardImageRef, CardLanguage } from '../../core/images/imageLinks';
 import { readJson, writeJson } from './persist';
 import { useSession } from './session';
 import { DEFAULT_CARD_BACK, type CardBackId } from '../ui/cardBack';
@@ -100,6 +100,8 @@ export interface PlaySettings {
   flag: string;
   /** the interface language, or "auto" for the browser's (local only) */
   locale: LocalePreference;
+  /** the language of card pictures, where Scryfall has them in it; English otherwise (local only) */
+  cardLanguage: CardLanguage;
   /** playmat: the cloth the match is dyed in (local only) */
   matCloth: string;
   /** playmat: the art printed into your half: your deck's cover, a card you chose, or none (local only) */
@@ -193,6 +195,7 @@ export const DEFAULT_SETTINGS: PlaySettings = {
   avatarId: 10,
   flag: 'world',
   locale: 'auto',
+  cardLanguage: 'en',
   matCloth: 'green',
   matArt: 'deck',
   matCard: null,

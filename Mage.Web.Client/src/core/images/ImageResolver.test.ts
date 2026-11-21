@@ -34,10 +34,118 @@ const LINKS = {
 };
 
 function createResolver(fetchImpl: typeof fetch, store = memoryStore(), imageProxy?: string) {
-  return new ImageResolver({ fetch: fetchImpl, store, batchDelayMs: 1, minRequestIntervalMs: 0, retryDelayMs: 1, imageProxy });
+  return new ImageResolver({ fetch: fetchImpl, store, batchDelayMs: 1, minRequestIntervalMs: 0, minSearchIntervalMs: 0, retryDelayMs: 1, imageProxy });
 }
 
 describe('ImageResolver', () => {
+  test('shows the printings of the chosen language, and the English ones Scryfall has no scan of', async () => {
+    const store = memoryStore();
+    const fetchImpl = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+      const link = String(url);
+      if (link.endsWith('scryfall-links.json')) return jsonResponse(LINKS);
+      if (link.includes('/cards/search')) {
+        const query = new URL(link).searchParams.get('q');
+        expect(query).toBe('lang:fr ((e:"m10" cn:"146") or (e:"isd" cn:"51") or (e:"lea" cn:"1"))');
+        return jsonResponse({
+          data: [
+            { set: 'm10', collector_number: '146', lang: 'fr', image_status: 'highres_scan', image_uris: { normal: 'foudre' } },
+            { set: 'isd', collector_number: '51', lang: 'fr', image_status: 'missing', image_uris: { normal: 'blank' } },
+          ],
+        });
+      }
+      expect(JSON.parse(String(init?.body)).identifiers).toEqual([
+        { set: 'isd', collector_number: '51' },
+        { set: 'lea', collector_number: '1' },
+      ]);
+      return jsonResponse({
+        data: [
+          { set: 'isd', collector_number: '51', image_uris: { normal: 'delver' } },
+          { set: 'lea', collector_number: '1', image_uris: { normal: 'aegis' } },
+        ],
+      });
+    }) as unknown as typeof fetch;
+    const resolver = new ImageResolver({ fetch: fetchImpl, store, batchDelayMs: 1, minRequestIntervalMs: 0, minSearchIntervalMs: 0, retryDelayMs: 1, language: 'fr' });
+
+    const cards = [
+      { expansionSetCode: 'M10', cardNumber: '146' },
+      { expansionSetCode: 'ISD', cardNumber: '51' },
+      { expansionSetCode: 'LEA', cardNumber: '1' },
+    ];
+    cards.forEach((card) => resolver.resolve(card));
+    await vi.waitFor(() => expect(resolver.resolve(cards[2])).not.toBeNull());
+
+    expect(cards.map((card) => resolver.resolve(card))).toEqual(['foudre', 'delver', 'aegis']);
+    // stored apart from the English links
+    expect(store.data.get('fr|m10/146')?.front?.normal).toBe('foudre');
+    expect(store.data.has('m10/146')).toBe(false);
+  });
+
+  test('looks every picture up again when the language changes', async () => {
+    const fetchImpl = vi.fn(async (url: RequestInfo | URL) => {
+      const link = String(url);
+      if (link.endsWith('scryfall-links.json')) return jsonResponse(LINKS);
+      if (link.includes('/cards/search')) {
+        return jsonResponse({ data: [{ set: 'm10', collector_number: '146', lang: 'de', image_uris: { normal: 'blitzschlag' } }] });
+      }
+      return jsonResponse({ data: [{ set: 'm10', collector_number: '146', image_uris: { normal: 'bolt' } }] });
+    }) as unknown as typeof fetch;
+    const resolver = createResolver(fetchImpl);
+    const bolt = { expansionSetCode: 'M10', cardNumber: '146' };
+    const listener = vi.fn();
+    resolver.subscribeKey('m10/146', listener);
+
+    resolver.resolve(bolt);
+    await vi.waitFor(() => expect(resolver.resolve(bolt)).toBe('bolt'));
+    resolver.setLanguage('de');
+    expect(listener).toHaveBeenCalled();
+    expect(resolver.resolve(bolt)).toBeNull();
+    await vi.waitFor(() => expect(resolver.resolve(bolt)).toBe('blitzschlag'));
+  });
+
+  test('searches a few printings at a time, and a refused search keeps the English pictures without storing them', async () => {
+    const store = memoryStore();
+    const searches: number[] = [];
+    const fetchImpl = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+      const link = String(url);
+      if (link.endsWith('scryfall-links.json')) return jsonResponse(LINKS);
+      if (link.includes('/cards/search')) {
+        const query = new URL(link).searchParams.get('q') ?? '';
+        searches.push(query.split(' or ').length);
+        if (query.includes('cn:"1")')) return jsonResponse({ object: 'error', code: 'bad_request' }, 400);
+        return jsonResponse({ object: 'error', code: 'not_found' }, 404);
+      }
+      const identifiers = JSON.parse(String(init?.body)).identifiers as { set: string; collector_number: string }[];
+      return jsonResponse({ data: identifiers.map((item) => ({ ...item, image_uris: { normal: `en-${item.collector_number}` } })) });
+    }) as unknown as typeof fetch;
+    const resolver = new ImageResolver({ fetch: fetchImpl, store, batchDelayMs: 1, minRequestIntervalMs: 0, minSearchIntervalMs: 0, retryDelayMs: 1, language: 'fr' });
+
+    const cards = Array.from({ length: 25 }, (_, index) => ({ expansionSetCode: 'DOM', cardNumber: String(index + 1) }));
+    cards.forEach((card) => resolver.resolve(card));
+    await vi.waitFor(() => expect(resolver.resolve(cards[24])).not.toBeNull());
+
+    expect(searches).toEqual([10, 10, 5]);
+    expect(resolver.resolve(cards[0])).toBe('en-1');
+    expect(resolver.resolve(cards[24])).toBe('en-25');
+    // the refused group (1 to 10) is tried again next time; the others really have no French picture
+    expect(store.data.has('fr|dom/1')).toBe(false);
+    expect(store.data.has('fr|dom/11')).toBe(true);
+    // no lookup by name, card by card
+    expect(vi.mocked(fetchImpl).mock.calls.some(([url]) => String(url).includes('/cards/named'))).toBe(false);
+  });
+
+  test('a search with no results keeps the English pictures', async () => {
+    const fetchImpl = vi.fn(async (url: RequestInfo | URL) => {
+      const link = String(url);
+      if (link.endsWith('scryfall-links.json')) return jsonResponse(LINKS);
+      if (link.includes('/cards/search')) return jsonResponse({ object: 'error', code: 'not_found' }, 404);
+      return jsonResponse({ data: [{ set: 'm10', collector_number: '146', image_uris: { normal: 'bolt' } }] });
+    }) as unknown as typeof fetch;
+    const resolver = new ImageResolver({ fetch: fetchImpl, store: memoryStore(), batchDelayMs: 1, minRequestIntervalMs: 0, minSearchIntervalMs: 0, retryDelayMs: 1, language: 'ja' });
+    const bolt = { expansionSetCode: 'M10', cardNumber: '146' };
+    resolver.resolve(bolt);
+    await vi.waitFor(() => expect(resolver.resolve(bolt)).toBe('bolt'));
+  });
+
   test('goes through the image proxy when one is set, and keeps the stored links raw', async () => {
     const store = memoryStore({
       'm10/146': { front: { normal: 'https://cards.scryfall.io/normal/front/a/b/bolt.jpg?1' }, fetchedAt: Date.now() },
@@ -126,7 +234,7 @@ describe('ImageResolver', () => {
       if (lookups === 2) throw new TypeError('Failed to fetch');
       return jsonResponse({ data: [{ set: 'm10', collector_number: '146', image_uris: { normal: 'bolt' } }] });
     }) as unknown as typeof fetch;
-    const resolver = new ImageResolver({ fetch: fetchImpl, store: memoryStore(), batchDelayMs: 1, minRequestIntervalMs: 0, retryDelayMs: 1 });
+    const resolver = new ImageResolver({ fetch: fetchImpl, store: memoryStore(), batchDelayMs: 1, minRequestIntervalMs: 0, minSearchIntervalMs: 0, retryDelayMs: 1 });
     const bolt = { name: 'Lightning Bolt', expansionSetCode: 'M10', cardNumber: '146' };
     resolver.resolve(bolt);
     await vi.waitFor(() => expect(resolver.resolve(bolt)).toBe('bolt'));

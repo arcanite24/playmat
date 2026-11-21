@@ -23,6 +23,7 @@ import { browserLocale } from '../i18n/locales';
 import { RichText } from '../i18n/RichText';
 import { Button } from '../ui/Button';
 import { CARD_BACKS, cardBackImage, type CardBackId } from '../ui/cardBack';
+import { CARD_LANGUAGES, type CardLanguage } from '../../core/images/imageLinks';
 import { Dialog } from '../ui/Dialog';
 import { TokenArtPicker } from '../ui/TokenArtPicker';
 import { useTokenArt } from '../stores/tokenArt';
@@ -87,7 +88,7 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
       footer={(
         <>
           <span className={styles.version}>{t('settings.version', { app: APP_NAME, version: APP_VERSION })} <WhatsNewLink /></span>
-          <Button variant="quiet" onClick={() => update({ ...DEFAULT_SETTINGS, avatarId: settings.avatarId, flag: settings.flag, locale: settings.locale, matCloth: settings.matCloth, matArt: settings.matArt, matCard: settings.matCard, cardBack: settings.cardBack })}>
+          <Button variant="quiet" onClick={() => update({ ...DEFAULT_SETTINGS, avatarId: settings.avatarId, flag: settings.flag, locale: settings.locale, cardLanguage: settings.cardLanguage, matCloth: settings.matCloth, matArt: settings.matArt, matCard: settings.matCard, cardBack: settings.cardBack })}>
             {t('settings.restore')}
           </Button>
         </>
@@ -357,6 +358,16 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
             >
               <option value="auto">{t('settings.language.auto', { language: languageName(browserLocale(navigator.languages ?? [navigator.language])) })}</option>
               {LOCALES.map((locale) => <option key={locale.code} value={locale.code} lang={locale.code}>{locale.name}</option>)}
+            </select>
+          </Row>
+          <Row label={t('settings.cardLanguage')} detail={t('settings.cardLanguage.detail')}>
+            <select
+              className={styles.select}
+              value={settings.cardLanguage}
+              aria-label={t('settings.cardLanguage')}
+              onChange={(event) => update({ cardLanguage: event.target.value as CardLanguage })}
+            >
+              {CARD_LANGUAGES.map((language) => <option key={language.code} value={language.code} lang={language.code}>{language.name}</option>)}
             </select>
           </Row>
         </Tabs.Content>

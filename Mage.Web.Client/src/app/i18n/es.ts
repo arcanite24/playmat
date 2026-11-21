@@ -616,6 +616,8 @@ const es: Catalog = {
   'settings.language': 'Idioma',
   'settings.language.detail': 'Los nombres de las cartas, el texto de reglas y los mensajes del servidor quedan en inglés.',
   'settings.language.auto': 'El del navegador ({language})',
+  'settings.cardLanguage': 'Imágenes de las cartas',
+  'settings.cardLanguage.detail': 'Muestra las cartas impresas en este idioma cuando Scryfall las tiene, y si no la impresión en inglés. Los nombres y el texto de reglas de las cartas quedan en inglés.',
 
   // events
   'events.title': 'Eventos',

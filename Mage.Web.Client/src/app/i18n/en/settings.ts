@@ -267,4 +267,6 @@ export default {
   'settings.language': 'Language',
   'settings.language.detail': 'Card names, rules text and messages from the server stay in English.',
   'settings.language.auto': 'Same as the browser ({language})',
+  'settings.cardLanguage': 'Card pictures',
+  'settings.cardLanguage.detail': 'Shows cards printed in this language where Scryfall has them, and the English printing otherwise. Card names and rules text stay in English.',
 } as const;

@@ -8,6 +8,30 @@
  */
 
 export type ImageSize = 'small' | 'normal' | 'large' | 'art_crop' | 'png';
+
+/**
+ * Languages Scryfall has card pictures in (https://scryfall.com/docs/api/languages), named in their own language.
+ * Only the pictures change: names and rules text come from the server, in English.
+ */
+export const CARD_LANGUAGES = [
+  { code: 'en', name: 'English' },
+  { code: 'fr', name: 'Français' },
+  { code: 'de', name: 'Deutsch' },
+  { code: 'es', name: 'Español' },
+  { code: 'it', name: 'Italiano' },
+  { code: 'pt', name: 'Português' },
+  { code: 'ja', name: '日本語' },
+  { code: 'ko', name: '한국어' },
+  { code: 'ru', name: 'Русский' },
+  { code: 'zhs', name: '简体中文' },
+  { code: 'zht', name: '繁體中文' },
+] as const;
+
+export type CardLanguage = (typeof CARD_LANGUAGES)[number]['code'];
+
+export function isCardLanguage(code: unknown): code is CardLanguage {
+  return CARD_LANGUAGES.some((language) => language.code === code);
+}
 export type CardFace = 'front' | 'back';
 
 /** What the image service needs to know about a card (CardView, PermanentView and deck cards all fit). */

@@ -9,6 +9,7 @@ import {
   toImageLink,
   type CardFace,
   type CardImageRef,
+  type CardLanguage,
   type ImageSize,
   type ScryfallLinks,
 } from './imageLinks';
@@ -38,6 +39,8 @@ export interface ImageResolverOptions {
   linksUrl?: string;
   /** Scryfall asks clients to stay under 10 requests per second */
   minRequestIntervalMs?: number;
+  /** searches (pictures in another language) cost Scryfall more and have a lower limit */
+  minSearchIntervalMs?: number;
   batchDelayMs?: number;
   /** first wait before retrying a lookup that was refused or failed; doubled each time */
   retryDelayMs?: number;
@@ -49,17 +52,31 @@ export interface ImageResolverOptions {
    * undefined talks to Scryfall directly. Applied when a link is used, never to the stored links.
    */
   imageProxy?: string;
+  /**
+   * Language of the pictures (default English). Printings Scryfall has no scan for in that language keep the
+   * English picture.
+   */
+  language?: CardLanguage;
 }
 
 interface ScryfallCard {
   set?: string;
   collector_number?: string;
+  lang?: string;
+  /** "missing" or "placeholder" when Scryfall has no real scan of the printing */
+  image_status?: string;
   image_uris?: ImageUris;
   card_faces?: { image_uris?: ImageUris }[];
 }
 
 const MAX_BATCH = 75; // Scryfall /cards/collection limit
 const COLLECTION_URL = 'https://api.scryfall.com/cards/collection';
+const SEARCH_URL = 'https://api.scryfall.com/cards/search';
+/**
+ * Printings per search in another language: Scryfall refuses (400) a search with "more than twenty (20) nested
+ * conditions", which 12 printings stay under and 24 don't.
+ */
+const SEARCH_BATCH = 10;
 const DAY = 24 * 60 * 60 * 1000;
 
 /**
@@ -70,7 +87,7 @@ const DAY = 24 * 60 * 60 * 1000;
  * downloaded twice and a full board costs one or two API requests instead of one per card.
  */
 export class ImageResolver {
-  private readonly options: Required<Omit<ImageResolverOptions, 'store' | 'imageProxy'>> & {
+  private readonly options: Required<Omit<ImageResolverOptions, 'store' | 'imageProxy' | 'language'>> & {
     store: ImageLinkStore | null;
     imageProxy: string | undefined;
   };
@@ -85,9 +102,13 @@ export class ImageResolver {
   private batchTimer: ReturnType<typeof setTimeout> | null = null;
   private draining = false;
   private lastRequestAt = 0;
+  private lastSearchAt = 0;
   private version = 0;
+  private language: CardLanguage;
+  /** bumped when the language changes: lookups started before it are dropped */
+  private generation = 0;
   /** Settles once the stored links are in memory (at once without a store): see {@link hydrate}. */
-  readonly ready: Promise<void>;
+  ready: Promise<void>;
 
   constructor(options: ImageResolverOptions = {}) {
     this.options = {
@@ -95,13 +116,46 @@ export class ImageResolver {
       store: options.store ?? null,
       linksUrl: options.linksUrl ?? '/data/scryfall-links.json',
       minRequestIntervalMs: options.minRequestIntervalMs ?? 120,
+      minSearchIntervalMs: options.minSearchIntervalMs ?? 500,
       batchDelayMs: options.batchDelayMs ?? 40,
       retryDelayMs: options.retryDelayMs ?? 1000,
       maxAgeMs: options.maxAgeMs ?? 30 * DAY,
       now: options.now ?? (() => Date.now()),
       imageProxy: 'imageProxy' in options ? options.imageProxy : configuredImageProxy(),
     };
+    this.language = options.language ?? 'en';
     this.ready = this.hydrate();
+  }
+
+  getLanguage(): CardLanguage {
+    return this.language;
+  }
+
+  /**
+   * Shows the pictures in another language: what is known is forgotten (the stored links of each language are kept
+   * apart), and every card looks its picture up again.
+   */
+  setLanguage(language: CardLanguage): void {
+    if (language === this.language) return;
+    this.language = language;
+    this.generation++;
+    this.memory.clear();
+    this.inFlight.clear();
+    this.queue.length = 0;
+    this.ready = this.hydrate();
+    this.notify(null);
+  }
+
+  /** Stored links are keyed per language; English keeps the plain printing key it always had. */
+  private storeKey(key: string): string {
+    return this.language === 'en' ? key : `${this.language}|${key}`;
+  }
+
+  /** The printing key of a stored key of the current language, or null for another language's. */
+  private printingKeyOf(storeKey: string): string | null {
+    const bar = storeKey.indexOf('|');
+    if (this.language === 'en') return bar < 0 ? storeKey : null;
+    return bar >= 0 && storeKey.slice(0, bar) === this.language ? storeKey.slice(bar + 1) : null;
   }
 
   /**
@@ -111,10 +165,13 @@ export class ImageResolver {
   private hydrate(): Promise<void> {
     const all = this.options.store?.getAll?.();
     if (!all) return Promise.resolve();
+    const generation = this.generation;
     return all.then((entries) => {
+      if (generation !== this.generation) return;
       const keys: string[] = [];
-      for (const [key, entry] of entries) {
-        if (this.memory.has(key) || this.isStale(entry)) continue;
+      for (const [storeKey, entry] of entries) {
+        const key = this.printingKeyOf(storeKey);
+        if (key === null || this.memory.has(key) || this.isStale(entry)) continue;
         this.memory.set(key, entry);
         keys.push(key);
       }
@@ -258,7 +315,9 @@ export class ImageResolver {
       enqueue();
       return;
     }
-    store.get(key).then((stored) => {
+    const generation = this.generation;
+    store.get(this.storeKey(key)).then((stored) => {
+      if (generation !== this.generation) return;
       if (stored && !this.isStale(stored)) {
         this.memory.set(key, stored);
         this.inFlight.delete(key);
@@ -266,7 +325,9 @@ export class ImageResolver {
       } else {
         enqueue();
       }
-    }, enqueue);
+    }, () => {
+      if (generation === this.generation) enqueue();
+    });
   }
 
   private scheduleBatch(): void {
@@ -283,9 +344,6 @@ export class ImageResolver {
     try {
       while (this.queue.length > 0) {
         const batch = this.queue.splice(0, MAX_BATCH);
-        const wait = this.lastRequestAt + this.options.minRequestIntervalMs - this.options.now();
-        if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
-        this.lastRequestAt = this.options.now();
         await this.fetchBatch(batch);
       }
     } finally {
@@ -294,37 +352,126 @@ export class ImageResolver {
     }
   }
 
-  private async fetchBatch(batch: { key: string; set: string; number: string }[], attempt = 0): Promise<void> {
-    let response: Response;
-    try {
-      response = await this.options.fetch(proxiedScryfallUrl(COLLECTION_URL, this.options.imageProxy), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({
-          identifiers: batch.map((item) => ({ set: item.set.toLowerCase(), collector_number: item.number })),
-        }),
-      });
-    } catch {
-      response = Response.error();
-    }
+  /** Keeps to Scryfall's request rates: every request, and searches on their own slower one. */
+  private async throttle(search: boolean): Promise<void> {
+    const wait = Math.max(
+      this.lastRequestAt + this.options.minRequestIntervalMs,
+      search ? this.lastSearchAt + this.options.minSearchIntervalMs : 0,
+    ) - this.options.now();
+    if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+    this.lastRequestAt = this.options.now();
+    if (search) this.lastSearchAt = this.lastRequestAt;
+  }
 
-    // rate limited, a dropped connection or a passing proxy error: try again before giving up, because giving up
-    // sends every card in the batch to Scryfall on its own, which hits Scryfall's limit and loses pictures
-    const transient = response.status === 0 || response.status === 429 || response.status >= 500;
-    if (transient && attempt < 3) {
+  /**
+   * Fetches with the retries both lookups share: rate limited, a dropped connection or a passing proxy error is tried
+   * again before giving up, because giving up sends every card in the batch to Scryfall on its own, which hits
+   * Scryfall's limit and loses pictures.
+   */
+  private async fetchWithRetries(url: string, init?: RequestInit, search = false): Promise<Response> {
+    for (let attempt = 0; ; attempt++) {
+      await this.throttle(search);
+      let response: Response;
+      try {
+        response = await this.options.fetch(proxiedScryfallUrl(url, this.options.imageProxy), init);
+      } catch {
+        response = Response.error();
+      }
+      const transient = response.status === 0 || response.status === 429 || response.status >= 500;
+      if (!transient || attempt >= 3) return response;
       await new Promise((resolve) => setTimeout(resolve, this.options.retryDelayMs * 2 ** attempt));
-      await this.fetchBatch(batch, attempt + 1);
-      return;
     }
-    if (!response.ok) {
-      this.giveUp(batch);
-      return;
+  }
+
+  private async fetchBatch(batch: { key: string; set: string; number: string }[]): Promise<void> {
+    const generation = this.generation;
+    const language = this.language;
+    const found = new Map<string, PrintingImages>();
+    /** printings whose lookup in the chosen language failed: shown in English, not stored, so a later visit retries */
+    const unsure = new Set<string>();
+
+    if (language !== 'en') {
+      for (let start = 0; start < batch.length; start += SEARCH_BATCH) {
+        const group = batch.slice(start, start + SEARCH_BATCH);
+        const localized = await this.fetchLocalized(group, language);
+        if (generation !== this.generation) return;
+        if (localized === null) group.forEach((item) => unsure.add(item.key));
+        else for (const [key, entry] of localized) found.set(key, entry);
+      }
     }
 
+    // English, also for the printings with no picture in the chosen language (or whose lookup failed)
+    const rest = batch.filter((item) => !found.has(item.key));
+    let complete = true;
+    if (rest.length > 0) {
+      const english = await this.fetchCollection(rest);
+      if (generation !== this.generation) return;
+      if (english === null) complete = false;
+      else for (const [key, entry] of english) found.set(key, entry);
+    }
+
+    const now = this.options.now();
+    const settled = complete ? batch : batch.filter((item) => found.has(item.key));
+    const entries: [string, PrintingImages][] = settled.map((item) => [
+      item.key,
+      found.get(item.key) ?? { notFound: true, fetchedAt: now },
+    ]);
+    for (const [key, entry] of entries) {
+      this.memory.set(key, entry);
+      this.inFlight.delete(key);
+    }
+    const stored = entries.filter(([key]) => !unsure.has(key));
+    this.options.store?.setMany(stored.map(([key, entry]) => [this.storeKey(key), entry])).catch(() => undefined);
+    if (complete) this.notify(batch.map((item) => item.key));
+    else {
+      this.giveUp(batch.filter((item) => !found.has(item.key)));
+      this.notify(entries.map(([key]) => key));
+    }
+  }
+
+  /** English printings, with POST /cards/collection; null when the lookup failed. */
+  private async fetchCollection(batch: { set: string; number: string }[]): Promise<Map<string, PrintingImages> | null> {
+    const response = await this.fetchWithRetries(COLLECTION_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        identifiers: batch.map((item) => ({ set: item.set.toLowerCase(), collector_number: item.number })),
+      }),
+    });
+    if (!response.ok) return null;
     const body = await response.json() as { data?: ScryfallCard[] };
+    return this.printingsOf(body.data ?? []);
+  }
+
+  /**
+   * The printings in another language, with one search (the collection lookup only knows English): found ones only,
+   * so the rest fall back to English. Null when the lookup failed.
+   */
+  private async fetchLocalized(
+    batch: { set: string; number: string }[],
+    language: CardLanguage,
+  ): Promise<Map<string, PrintingImages> | null> {
+    const quote = (value: string) => `"${value.replace(/["\\]/g, '')}"`;
+    const printings = batch.map((item) => `(e:${quote(item.set.toLowerCase())} cn:${quote(item.number)})`).join(' or ');
+    const url = new URL(SEARCH_URL);
+    url.searchParams.set('q', `lang:${language} (${printings})`);
+    url.searchParams.set('unique', 'prints');
+    url.searchParams.set('include_extras', 'true');
+    url.searchParams.set('include_variations', 'true');
+    url.searchParams.set('include_multilingual', 'true');
+    const response = await this.fetchWithRetries(url.toString(), { headers: { Accept: 'application/json' } }, true);
+    if (response.status === 404) return new Map(); // Scryfall's answer to a search with no results
+    if (!response.ok) return null;
+    const body = await response.json() as { data?: ScryfallCard[] };
+    const scanned = (body.data ?? []).filter((card) =>
+      card.lang === language && card.image_status !== 'missing' && card.image_status !== 'placeholder');
+    return this.printingsOf(scanned);
+  }
+
+  private printingsOf(cards: ScryfallCard[]): Map<string, PrintingImages> {
     const now = this.options.now();
     const found = new Map<string, PrintingImages>();
-    for (const card of body.data ?? []) {
+    for (const card of cards) {
       const key = `${(card.set ?? '').toLowerCase()}/${(card.collector_number ?? '').toLowerCase()}`;
       const faces = card.card_faces ?? [];
       found.set(key, {
@@ -333,17 +480,7 @@ export class ImageResolver {
         fetchedAt: now,
       });
     }
-
-    const entries: [string, PrintingImages][] = batch.map((item) => [
-      item.key,
-      found.get(item.key) ?? { notFound: true, fetchedAt: now },
-    ]);
-    for (const [key, entry] of entries) {
-      this.memory.set(key, entry);
-      this.inFlight.delete(key);
-    }
-    this.options.store?.setMany(entries).catch(() => undefined);
-    this.notify(batch.map((item) => item.key));
+    return found;
   }
 
   /** Network trouble: fall back to direct links for this session, retry on the next visit. */
