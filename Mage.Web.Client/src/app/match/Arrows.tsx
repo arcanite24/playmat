@@ -95,6 +95,24 @@ export function Arrows({ sourceId, targetIds, live, attacks, leads, tints }: {
     // a resized window moves everything: measure again
   }, [sourceId, targetKey, stage.scale, stage.width, stage.height]);
 
+  // the backstop for a drag whose card never heard the release: any release, or leaving the window, ends the line
+  const lineHeld = !!blockDrag;
+  useEffect(() => {
+    if (!lineHeld) return;
+    const end = () => {
+      // after the card's own pointerup, which reads the drop from the event, not from here
+      window.setTimeout(() => useMatchUi.getState().setBlockDrag(null), 0);
+    };
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+    window.addEventListener('blur', end);
+    return () => {
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+      window.removeEventListener('blur', end);
+    };
+  }, [lineHeld]);
+
   const tracking = live || !!blockDrag;
   useEffect(() => {
     if (!tracking) {

@@ -104,6 +104,35 @@ public final class RankedService {
      * Whether the table is ranked, without opening the ladder: a server that never started a ranked game has none.
      * For the checks every game makes (assists, the end of a match).
      */
+    /** each ranked table's latest game, by table id: the rewards screen asks by table, Career pays by game */
+    private final Map<UUID, UUID> lastGames = Collections.synchronizedMap(new LinkedHashMap<UUID, UUID>() {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<UUID, UUID> eldest) {
+            return size() > RESULTS_KEPT;
+        }
+    });
+
+    /** a game at a ranked table ended; its payout is keyed by the game */
+    public static void gameEnded(UUID tableId, UUID gameId) {
+        RankedService current = instance;
+        if (current != null && current.isRankedTable(tableId)) {
+            current.lastGames.put(tableId, gameId);
+        }
+    }
+
+    /** a ranked table's latest game (the client asks for rewards by table), or null for any other key */
+    public static UUID lastGame(String tableId) {
+        RankedService current = instance;
+        if (current == null || tableId == null) {
+            return null;
+        }
+        try {
+            return current.lastGames.get(UUID.fromString(tableId));
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
     /** the search settings the ranked table's bot is pinned to (#435), for the Rust host; null at other tables */
     public static String pinOf(UUID tableId) {
         RankedService current = instance;

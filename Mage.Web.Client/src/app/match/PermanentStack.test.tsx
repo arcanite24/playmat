@@ -39,3 +39,35 @@ it('marks the permanent a hovered stack ability or an open question comes from (
   act(() => useMatchUi.setState({ sourceHover: null, promptSource: null }));
   expect(marked()).toEqual([]);
 });
+
+it('drops the block line when its card leaves mid-drag or loses the pointer', () => {
+  const proto = HTMLElement.prototype as unknown as Record<string, unknown>;
+  proto.setPointerCapture ??= () => undefined;
+  proto.hasPointerCapture ??= () => false;
+  proto.releasePointerCapture ??= () => undefined;
+  const doc = document as unknown as Record<string, unknown>;
+  doc.elementsFromPoint ??= () => [];
+  const bear: PermanentView = { id: 'bear', name: 'Grizzly Bears', cardTypes: ['CREATURE'] };
+  const group: PermanentGroup = { key: 'bear', lead: bear, members: [bear], attachments: [] };
+  const stack = () => <PermanentStack group={group} width={120} sleeve="default" clickable={new Set(['bear'])} selected={new Set()} attacking={new Set()} blocking={new Set()} forward={1} onClick={() => undefined} onBlockDrop={() => true} />;
+  const drag = (card: HTMLElement) => {
+    fireEvent.pointerDown(card, { button: 0, pointerId: 1, clientX: 10, clientY: 10 });
+    fireEvent.pointerMove(card, { pointerId: 1, clientX: 200, clientY: 200 });
+  };
+
+  const first = render(stack());
+  drag(first.container.querySelector<HTMLElement>('[data-object-id="bear"]')!);
+  expect(useMatchUi.getState().blockDrag?.blockerId).toBe('bear');
+  first.unmount();
+  expect(useMatchUi.getState().blockDrag).toBeNull();
+
+  const second = render(stack());
+  const card = second.container.querySelector<HTMLElement>('[data-object-id="bear"]')!;
+  drag(card);
+  expect(useMatchUi.getState().blockDrag).not.toBeNull();
+  act(() => {
+    card.dispatchEvent(new Event('lostpointercapture', { bubbles: true }));
+  });
+  expect(useMatchUi.getState().blockDrag).toBeNull();
+  second.unmount();
+});

@@ -274,6 +274,24 @@ public class RankedServiceTest {
         assertNull(RankedService.pinOf(UUID.randomUUID()), "an unranked table has no pin");
     }
 
+    /** the rewards screen asks by the ranked table; the payout is the table's latest game's */
+    @Test
+    void aRankedTableKnowsItsLatestGame() throws Exception {
+        BotRoster.Bot bot = ranked.pick("neri", "standard", RankedService.OPEN, NOW);
+        UUID table = UUID.randomUUID();
+        ranked.register(table, "neri", "standard", RankedService.OPEN, bot, "deck", NOW);
+        UUID first = UUID.randomUUID();
+        UUID second = UUID.randomUUID();
+        RankedService.gameEnded(table, first);
+        RankedService.gameEnded(table, second);
+        ranked.matchEnded(table, 1, NOW);
+        assertEquals(second, RankedService.lastGame(table.toString()), "the match's last game, after the match ended too");
+        UUID other = UUID.randomUUID();
+        RankedService.gameEnded(other, UUID.randomUUID());
+        assertNull(RankedService.lastGame(other.toString()), "only ranked tables");
+        assertNull(RankedService.lastGame("not-a-table"));
+    }
+
     static BotRoster roster() {
         StringBuilder bots = new StringBuilder();
         String[][] all = {{"standard", "weak", "1000"}, {"standard", "low", "1150"}, {"standard", "mid", "1200"},

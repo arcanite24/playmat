@@ -14,6 +14,7 @@ import { CareerAvatar } from './CareerScreen';
 import { Pips } from './Portraits';
 import { climb, formatKey, movement, pickFormat, pipRow, rankAt, rankKey, record, type PipState } from './rankedModel';
 import { playRanked, useRankedOpponent, useRankedResult, useRankedState, useSeasonEnd } from './rankedData';
+import { RankedIntro } from './RankedIntro';
 import { SeasonBoards } from './SeasonBoards';
 import { Versus } from './Versus';
 import modes from './CareerModes.module.css';
@@ -29,12 +30,19 @@ export function CareerRankedScreen() {
   const t = useT();
   const career = useCareerState();
   const [params, setParams] = useSearchParams();
-  const wanted = params.get('format');
+  // the format and queue last played here, unless the link names them
+  const wanted = params.get('format') ?? read(LAST_FORMAT);
   const tableId = params.get('table');
-  const queue: 'open' | 'bo3' = params.get('queue') === 'bo3' ? 'bo3' : 'open';
+  const queue: 'open' | 'bo3' = (params.has('format') ? params.get('queue') : read(LAST_QUEUE)) === 'bo3' ? 'bo3' : 'open';
   const first = useRankedState(pickFormat(undefined, wanted), !!career.data?.enabled, queue);
   const format = pickFormat(first.data?.formats, wanted);
   const state = useRankedState(format, !!career.data?.enabled, queue);
+  const [intro, setIntro] = useState(false);
+  useEffect(() => {
+    if (!first.data?.formats) return;
+    write(LAST_FORMAT, format);
+    write(LAST_QUEUE, queue);
+  }, [first.data?.formats, format, queue]);
   const go = (next: { format?: string; queue?: 'open' | 'bo3' }) => {
     const query: Record<string, string> = { format: next.format ?? format };
     if ((next.queue ?? queue) === 'bo3') query.queue = 'bo3';
@@ -51,7 +59,10 @@ export function CareerRankedScreen() {
           <div>
             <p className={modes.kicker}><Trophy size={16} aria-hidden="true" /> {t(queue === 'bo3' ? 'career.ranked.kickerBo3' : 'career.ranked.kicker')}</p>
             <h1 className={modes.modeTitle}>{t('career.ranked.title')}</h1>
-            <p className={modes.lead}>{t('career.ranked.lead')}</p>
+            <p className={modes.lead}>
+              {t('career.ranked.lead')}{' '}
+              <button type="button" className={styles.howLink} onClick={() => setIntro(true)} data-nav>{t('career.ranked.howItWorks')}</button>
+            </p>
           </div>
           <div className={styles.switches}>
           <div className={styles.formats} role="tablist" aria-label={t('career.ranked.queues')}>
@@ -86,6 +97,7 @@ export function CareerRankedScreen() {
           </div>
           </div>
         </header>
+        <RankedIntro open={intro} onClose={() => setIntro(false)} />
         {tableId && <GameResult tableId={tableId} />}
         {state.isPending && <p className={modes.note}>{t('career.loading')}</p>}
         {state.isError && <p className={modes.error} role="alert">{t('career.failed')}</p>}
@@ -205,7 +217,9 @@ function Queue({ format, queue, state }: { format: string; queue: 'open' | 'bo3'
     const fits = (deck: (typeof choices)[number]) => (deck.starter?.format ?? '').toLowerCase().includes(format);
     return [...choices].sort((a, b) => Number(fits(b)) - Number(fits(a)));
   }, [choices, format]);
-  const deck = decks.find((item) => item.id === deckId) ?? null;
+  // the deck last played or picked in the format; with none (or it's gone), the first deck built for the format
+  const fallback = decks.find((item) => (item.starter?.format ?? '').toLowerCase().includes(format)) ?? null;
+  const deck = decks.find((item) => item.id === deckId) ?? (loaded ? fallback : null);
 
   function choose(id: string) {
     setDeckId(id);
@@ -221,7 +235,7 @@ function Queue({ format, queue, state }: { format: string; queue: 'open' | 'bo3'
       {them && <OpponentCard opponent={them} />}
       <label className={styles.field}>
         <span>{t('career.ranked.deck')}</span>
-        <select value={deckId ?? ''} onChange={(event) => choose(event.target.value)} disabled={!loaded} data-nav>
+        <select value={deck?.id ?? ''} onChange={(event) => choose(event.target.value)} disabled={!loaded} data-nav>
           <option value="" disabled>{loaded ? t('career.ranked.chooseDeck') : t('career.loading')}</option>
           {decks.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
         </select>
@@ -244,7 +258,10 @@ function Queue({ format, queue, state }: { format: string; queue: 'open' | 'bo3'
           opponent={{ name: them.name ?? '', colors: them.colors, tagline: them.deckName }}
           deck={{ name: deck.name, art: deck.cover, colors: deck.colors.join('') }}
           stakes={[t('career.ranked.stakeWin'), t(state.step && state.step >= 16 ? 'career.ranked.stakeLoss' : 'career.ranked.stakeBronze')]}
-          onFight={async () => playRanked(format, toWire(await loadList(deck.id)), queue)}
+          onFight={async () => {
+            choose(deck.id);
+            await playRanked(format, toWire(await loadList(deck.id)), queue);
+          }}
           onClose={() => setVersus(false)}
         />
       )}
@@ -320,6 +337,10 @@ export function ResultCard({ result }: { result: LadderResult }) {
 function wildcardKey(rarity: string): MessageKey {
   return rarity === 'mythic' ? 'career.rarity.mythic' : rarity === 'rare' ? 'career.rarity.rare' : rarity === 'uncommon' ? 'career.rarity.uncommon' : 'career.rarity.common';
 }
+
+/** the format and queue last opened on Ranked (localStorage) */
+const LAST_FORMAT = 'playmat.ranked.format';
+const LAST_QUEUE = 'playmat.ranked.queue';
 
 function read(key: string): string | null {
   try {

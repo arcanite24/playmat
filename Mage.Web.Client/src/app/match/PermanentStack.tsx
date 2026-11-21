@@ -2,7 +2,7 @@ import {
   Anvil, ArrowUpToLine, Castle, Crosshair, Eye, EyeOff, Feather, FlaskConical, Footprints, HeartPulse, Lock, LockOpen, Shield, ShieldCheck,
   ShieldHalf, Skull, Sword, Swords, Users, Zap, type LucideIcon,
 } from 'lucide-react';
-import { memo, useMemo, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
+import { memo, useEffect, useMemo, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { roomDoors } from '../../core/game/rooms';
 import { keywordEffects, keywordMarks, type KeywordEffect, type MarkedKeyword } from '../../core/game/keywords';
 import type { PermanentView } from '../../protocol/generated/views';
@@ -159,6 +159,11 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, attacking, 
   const canDrag = !!onBlockDrop && isClickable && (!isAttacking || !!dropTargets);
   const gesture = useRef<{ startX: number; startY: number; moved: boolean } | null>(null);
   const suppressClick = useRef(false);
+  // a card that leaves mid-drag (the board redrawn, the game over) never hears its pointer go up: drop the line
+  useEffect(() => () => {
+    if (gesture.current?.moved) setBlockDrag(null);
+    gesture.current = null;
+  }, [setBlockDrag]);
 
   function onPointerDown(event: ReactPointerEvent) {
     suppressClick.current = false;
@@ -243,6 +248,8 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, attacking, 
       onPointerMove={onPointerMove}
       onPointerUp={(event) => endDrag(event, true)}
       onPointerCancel={(event) => endDrag(event, false)}
+      // the capture can go without a pointerup (another element took it, the window lost focus): end without dropping
+      onLostPointerCapture={(event) => gesture.current && endDrag(event, false)}
       onKeyDown={(event) => {
         if (isClickable && isMatchObjectKey(event.nativeEvent)) {
           event.preventDefault();
