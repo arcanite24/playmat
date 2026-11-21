@@ -9,7 +9,7 @@ Authentik's proxy outpost, oauth2-proxy and `tailscale serve` with one mechanism
 | Setting | Read by | Default | Meaning |
 |---|---|---|---|
 | `AUTH_TRUSTED_HEADER` | Caddy, server | empty (off) | The header the sign-on proxy sets, e.g. `Remote-User`. Setting it turns the mode on. |
-| `AUTH_TRUSTED_PROXIES` | Caddy | `UPSTREAM_PROXIES` | Addresses (IPs, CIDR ranges) of the sign-on proxy as Caddy sees it. The header is kept only on requests from these. |
+| `AUTH_TRUSTED_PROXIES` | Caddy | `255.255.255.255/32` (nobody) | Addresses (IPs, CIDR ranges) of the sign-on proxy as Caddy sees it. The header is kept only on requests from these. Must be set for the mode to work; it doesn't follow `UPSTREAM_PROXIES` (see the threat model). |
 | `XMAGE_PASSWORD_SIGNIN` | server | `true` | `false`: no password sign-in, registration, password reset, remembered devices or GitHub sign-in. Only the header signs in. |
 | `XMAGE_TRUSTED_HEADER_STRIP_DOMAIN` | server | `false` | `true`: `alice@example.com` signs in as `alice` (for Tailscale logins and proxies that send an email). |
 
@@ -45,6 +45,11 @@ without a header refuses to start too, since nobody could sign in.
   bridge gateway. If `AUTH_TRUSTED_PROXIES` is the gateway in such a setup, everyone is "the proxy". The docs tell
   owners to check from another machine that the sign-in screen doesn't offer "Continue as" when they bypass the proxy,
   and to prefer putting the proxy on the compose network or the HTTPS port on 127.0.0.1.
+- **Confusing the two proxy settings.** `UPSTREAM_PROXIES` says whose `X-Forwarded-For` Caddy believes about the
+  client's address; it can be a CDN's public ranges (Cloudflare, `ops/web/CLOUDFLARE.md`). `AUTH_TRUSTED_PROXIES` says
+  who may name the signed-in user. An earlier compose file defaulted the second to the first, so trusting Cloudflare
+  for addresses also let every Cloudflare visitor send the header. It now defaults to nobody and has to be set on
+  purpose. The server's own check doesn't help here: every request reaches it from Caddy.
 - **The IdP decides who is who.** Accounts link by name. If the IdP lets users pick any username, someone can claim
   `alice` and take over Alice's Playmat account, owner included (`XMAGE_OWNER`). Use an IdP whose usernames the admin
   controls. Documented as the main caveat.
