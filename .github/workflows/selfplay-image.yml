@@ -10,6 +10,8 @@ on:
     paths:
       - "rust/**"
       - "archbench/constructed-2/**"
+      - "Mage.Server/career-src/pioneer/**"
+      - "Mage.Server/career-src/standard/**"
       - "ops/web/Dockerfile.selfplay"
       - ".github/workflows/selfplay-image.yml"
   workflow_dispatch:

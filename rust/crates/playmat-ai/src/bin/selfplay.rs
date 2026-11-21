@@ -2,6 +2,7 @@
 //!
 //! cargo run --release -p playmat-ai --bin selfplay -- --out DIR [--learner ENTRANT] [--opponents "self*7;host@s2*1"]
 //!     [--games 2000] [--jobs 10] [--keep 1000] [--fast net] [--seed 0] [--tag 0] [--suite archbench/constructed-2]
+//!     [--repo DIR]
 //!
 //! Each game, one seat is the learner and the other an opponent drawn from `--opponents` (`name*weight` joined by
 //! `;`; `self` is the learner again, and then both seats are recorded). Deck pairs go round the suite's ordered
@@ -27,7 +28,8 @@ use std::sync::{Arc, Mutex};
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let opt = |name: &str| args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).cloned();
-    let repo = env!("CARGO_MANIFEST_DIR").to_string() + "/../../..";
+    // deck files are named from the repository's root; `--repo` moves it (the image has only the suite's decks)
+    let repo = opt("--repo").unwrap_or_else(|| env!("CARGO_MANIFEST_DIR").to_string() + "/../../..");
     let suite_dir = opt("--suite").unwrap_or_else(|| format!("{repo}/archbench/constructed-2"));
     let suite: Value =
         serde_json::from_str(&std::fs::read_to_string(format!("{suite_dir}/suite.json")).unwrap()).unwrap();

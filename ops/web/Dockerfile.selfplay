@@ -11,9 +11,12 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 FROM debian:bookworm-slim
 ARG REVISION=unknown
 COPY --from=build /usr/local/bin/selfplay /usr/local/bin/selfplay
-COPY archbench/constructed-2/suite.json /opt/suite/suite.json
+# the suite and its decks at their paths in the repository (suite.json names them from its root)
+COPY archbench/constructed-2/suite.json /opt/repo/archbench/constructed-2/suite.json
+COPY Mage.Server/career-src/pioneer/ /opt/repo/Mage.Server/career-src/pioneer/
+COPY Mage.Server/career-src/standard/ /opt/repo/Mage.Server/career-src/standard/
 # the commit the worker stamps on every chunk, so the trainer can turn away games from another build
 RUN echo "$REVISION" > /opt/commit
 USER 65534:65534
 WORKDIR /work
-ENTRYPOINT ["/usr/local/bin/selfplay", "--suite", "/opt/suite"]
+ENTRYPOINT ["/usr/local/bin/selfplay", "--suite", "/opt/repo/archbench/constructed-2", "--repo", "/opt/repo"]
