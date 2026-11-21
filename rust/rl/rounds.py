@@ -58,6 +58,34 @@ def entrant(policy, net, args, roll=None):
     return "cfg:" + "+".join(keys)
 
 
+def elo_text(verdict):
+    """`elo +5.2 [-2.6, +13.1]` out of an SPRT verdict line, or None"""
+    m = re.search(r"elo [-+]?[0-9.]+ \[[^\]]*\]", verdict or "")
+    return m.group(0) if m else None
+
+
+def report(args, book, tag, r, phase, remote_games=None):
+    """The trainer's progress for the admin console's Self-play section (remote.progress); never fails the round."""
+    if not args.remote:
+        return
+    history = []
+    if os.path.exists(book):
+        for raw in open(book).readlines()[-20:]:
+            try:
+                h = json.loads(raw)
+            except ValueError:
+                continue
+            history.append({k: h.get(k) for k in ("round", "accepted", "remote_games", "selfplay_s", "train_s", "sprt_s")}
+                           | {"elo": elo_text(h.get("verdict"))})
+    state = {"run": tag, "round": r, "rounds": args.start + args.rounds - 1, "phase": phase,
+             "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "local_games": args.games,
+             "remote_games": remote_games, "history": history}
+    try:
+        remote.progress(args.remote, state)
+    except Exception as e:
+        print(f"ROUNDS progress not sent: {e}", flush=True)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--init", required=True, help="a train.py run folder: the first network")
@@ -131,11 +159,13 @@ def main():
                 print("ROUNDS remote:", said, flush=True)
             except Exception as e:  # the round goes on with the local games alone
                 print(f"ROUNDS remote job not sent: {e}", flush=True)
+        report(args, book, tag, r, "selfplay")
         run([exe("selfplay"), "--out", data, "--games", str(args.games), "--jobs", str(args.jobs), "--keep",
              str(args.keep), "--learner", learner, "--opponents", "self", "--seed", str(1_000_000 * r), "--tag", str(r)]
             + fast, os.path.join(rd, "selfplay.log"))
         remote_games = None
         if job is not None:
+            report(args, book, tag, r, "pull")
             try:
                 n, g, size, rejected = remote.pull(args.remote, job, data)
                 remote_games = g
@@ -143,6 +173,7 @@ def main():
             except Exception as e:
                 print(f"ROUNDS remote pull failed: {e}", flush=True)
         t1 = time.time()
+        report(args, book, tag, r, "train", remote_games)
         window = [os.path.join(HERE, "data", f"{tag}-r{k}") for k in range(max(1, r - args.window + 1), r + 1)]
         cmd = [sys.executable, "train.py", "--init", cur, "--out", rd, "--epochs", str(args.epochs), "--lr", str(args.lr)]
         cmd += args.train_args.split()
@@ -160,6 +191,7 @@ def main():
                     cmd += ["--data", w]
             run(cmd, os.path.join(rd, "train-rollout.log"))
         t2 = time.time()
+        report(args, book, tag, r, "sprt", remote_games)
         a = entrant(args.policy, os.path.join(rd, "net.pmnet"), args, new_roll)
         b = entrant(args.policy, net, args, roll)
         out = run([exe("archbench"), "--entrants", f"{a},{b}", "--sprt", args.gate, "--max-deals", str(args.max_deals),
@@ -172,6 +204,7 @@ def main():
         with open(book, "a") as f:
             f.write(json.dumps(line) + "\n")
         print("ROUNDS", json.dumps(line), flush=True)
+        report(args, book, tag, r, "done", remote_games)
         if accepted:
             cur = rd
             roll = new_roll or roll

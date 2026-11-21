@@ -5,6 +5,8 @@ does. `HOST` is an ssh alias for the server's playmat-rl account.
     python remote.py HOST status
     python remote.py HOST list
     python remote.py HOST stop
+
+`progress` sends the trainer's state to the admin console's Self-play section (rounds.py calls it at each phase).
 """
 
 import hashlib
@@ -54,6 +56,14 @@ def put_job(host, job_id, image, learner, net, rollout, keep, fast, seed_base, t
         t.add(net, arcname="net.pmnet")
         t.add(rollout, arcname="rollout.pmnet")
     return ssh(host, f"put-job {job_id}", buf.getvalue()).decode().strip(), job
+
+
+def progress(host, state):
+    """The trainer's progress (a dict, under 64 KB as JSON) for the admin console; the worker copies it there."""
+    raw = json.dumps(state).encode()
+    if len(raw) > 65536:
+        raise ValueError(f"progress is {len(raw)} bytes, over 64 KB")
+    return ssh(host, "progress", raw, timeout=60).decode().strip()
 
 
 def chunks(host):

@@ -9,6 +9,7 @@
 #   get JOB CHUNK  the chunk's .tar.gz on stdout
 #   ack JOB CHUNK  deletes the chunk (after the trainer checked its copy)
 #   status         the worker's last state, the current job and the spool's size
+#   progress       the trainer's progress as a JSON object on stdin (64 KB at most): the admin console shows it
 set -euo pipefail
 SPOOL=/srv/playmat-rl
 IMAGE_RE='^ghcr\.io/arcanite24/playmat-selfplay(:[A-Za-z0-9._-]+)?@sha256:[0-9a-f]{64}$'
@@ -70,12 +71,24 @@ EOF
     rm -f "$SPOOL/out/${cmd[1]}/${cmd[2]}.json" "$SPOOL/out/${cmd[1]}/${cmd[2]}.tar.gz"
     echo "acked ${cmd[1]}/${cmd[2]}"
     ;;
+  progress)
+    # the worker copies it into the console's volume; here it only has to be one JSON object of a sane size
+    head -c 65536 | python3 -c '
+import json, sys
+j = json.loads(sys.stdin.buffer.read().decode("utf-8"))
+assert isinstance(j, dict)
+json.dump(j, open(sys.argv[1], "w"))
+' "$SPOOL/.trainer.json.tmp" 2> /dev/null || { rm -f "$SPOOL/.trainer.json.tmp"; die "progress must be one JSON object"; }
+    chmod 640 "$SPOOL/.trainer.json.tmp"
+    mv -f "$SPOOL/.trainer.json.tmp" "$SPOOL/trainer.json"
+    echo "progress noted"
+    ;;
   status)
     cat "$SPOOL/status.json" 2>/dev/null || echo '{"state": "never ran"}'
     echo "job: $(basename "$(readlink "$SPOOL/job/current" 2>/dev/null || echo none)")"
     echo "spool: $(du -sm "$SPOOL/out" 2>/dev/null | cut -f1) MB in $(find "$SPOOL/out" -name 'c*.json' 2>/dev/null | wc -l) chunks"
     ;;
   *)
-    die "commands: put-job ID, stop, list, get JOB CHUNK, ack JOB CHUNK, status"
+    die "commands: put-job ID, stop, list, get JOB CHUNK, ack JOB CHUNK, status, progress"
     ;;
 esac
