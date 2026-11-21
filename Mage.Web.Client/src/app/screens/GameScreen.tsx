@@ -8,6 +8,8 @@ import { MatchStage } from '../match/MatchStage';
 import { ReconnectScrim } from '../match/ReconnectScrim';
 import { useSession } from '../stores/session';
 import { Button } from '../ui/Button';
+import { useT } from '../i18n';
+import '../match/matchMessages';
 import styles from './GameScreen.module.css';
 
 /** A running game: the match stage, full screen. */
@@ -19,13 +21,14 @@ export function GameScreen() {
   const eventId = useEvents((events) => events.currentTournamentId);
   // Career matches lead back to Career (a mode's game to that mode's screen)
   const returnPath = usePlay((play) => play.returnPath) ?? '/';
-  const backLabel = eventId ? 'Back to the event' : returnPath.startsWith('/career') ? 'Back to Career' : 'Back to Play';
+  const t = useT();
+  const backLabel = t(eventId ? 'match.ui.backToEvent' : returnPath.startsWith('/career') ? 'match.ui.backToCareer' : 'match.ui.backToPlay');
 
   if (!session) {
     return (
       <div className={styles.missing}>
-        <h1>This game isn't open here</h1>
-        <p>It may have ended, or it was started in another tab.</p>
+        <h1>{t('match.ui.notOpen')}</h1>
+        <p>{t('match.ui.notOpen.detail')}</p>
         <Button variant="print" onClick={() => navigate(returnPath)}>{backLabel}</Button>
       </div>
     );

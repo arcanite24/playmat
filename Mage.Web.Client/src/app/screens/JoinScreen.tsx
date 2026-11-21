@@ -11,9 +11,14 @@ import { Field } from '../ui/Field';
 import { Zone } from '../ui/Zone';
 import { joinTable } from './joinTable';
 import styles from './JoinScreen.module.css';
+import { registerMessages, useT } from '../i18n';
+import messages from '../i18n/en/tables';
+
+registerMessages(messages);
 
 /** Where an invite link leads: the table, and a seat at it with one of your decks. */
 export function JoinScreen() {
+  const t = useT();
   const { tableId = '' } = useParams();
   const navigate = useNavigate();
   const { data: tables = [], dataUpdatedAt, refetch } = useTables();
@@ -58,11 +63,11 @@ export function JoinScreen() {
   if (!table) {
     return (
       <div className={styles.page}>
-        <Zone label="Invite" className={styles.card}>
-          {!fresh ? <p className={styles.note} role="status">Looking for the table…</p> : (
+        <Zone label={t('join.invite')} className={styles.card}>
+          {!fresh ? <p className={styles.note} role="status">{t('join.looking')}</p> : (
             <>
-              <p className={styles.note}>This table is gone: the game may have started, or the host closed it.</p>
-              <Button variant="print" onClick={() => navigate('/tables')}>See open tables</Button>
+              <p className={styles.note}>{t('join.gone')}</p>
+              <Button variant="print" onClick={() => navigate('/tables')}>{t('join.seeOpen')}</Button>
             </>
           )}
         </Zone>
@@ -72,32 +77,32 @@ export function JoinScreen() {
 
   return (
     <div className={styles.page}>
-      <Zone label="You're invited" className={styles.card}>
+      <Zone label={t('join.invited')} className={styles.card}>
         <h2 className={styles.name}>
-          {table.passworded && <Lock size={18} aria-label="Password required" />}
+          {table.passworded && <Lock size={18} aria-label={t('tables.passwordRequired')} />}
           {table.tableName}
         </h2>
         <p className={styles.meta}>
-          {formatRules(table.deckType ?? '').label} · {table.gameType} · hosted by {(table.controllerName ?? '').split(', ')[0]}
+          {formatRules(table.deckType ?? '').label} · {table.gameType} · {t('join.hostedBy', { name: (table.controllerName ?? '').split(', ')[0] })}
         </p>
-        <ul className={styles.seats} aria-label="Seats">
+        <ul className={styles.seats} aria-label={t('tables.seats')}>
           {(table.seats ?? []).map((seat, index) => (
             <li key={index} className={seat.playerName ? styles.taken : styles.free}>
               {seat.playerType && seat.playerType !== 'HUMAN' ? <Bot size={14} aria-hidden="true" /> : <UserRound size={14} aria-hidden="true" />}
-              {seat.playerName || 'Open seat'}
+              {seat.playerName || t('tables.openSeat')}
             </li>
           ))}
         </ul>
 
         {seated ? (
           <>
-            <p className={styles.note}>You have a seat at this table.</p>
-            <Button variant="decision" onClick={() => navigate('/tables')}>Go to your tables</Button>
+            <p className={styles.note}>{t('join.seated')}</p>
+            <Button variant="decision" onClick={() => navigate('/tables')}>{t('join.goToTables')}</Button>
           </>
         ) : !open ? (
           <>
-            <p className={styles.note}>This table has no open seat any more.</p>
-            <Button variant="print" onClick={() => navigate('/tables')}>See open tables</Button>
+            <p className={styles.note}>{t('join.full')}</p>
+            <Button variant="print" onClick={() => navigate('/tables')}>{t('join.seeOpen')}</Button>
           </>
         ) : (
           <form
@@ -108,18 +113,18 @@ export function JoinScreen() {
             }}
           >
             <label className={styles.select}>
-              <span>Deck</span>
+              <span>{t('join.deck')}</span>
               <select value={chosen?.id ?? ''} onChange={(event) => setDeckId(event.target.value)} disabled={roster.length === 0}>
                 {roster.map((deck) => <option key={deck.id} value={deck.id}>{deck.name}</option>)}
               </select>
             </label>
             {table.passworded && (
-              <Field label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} hint="Ask the host for it." />
+              <Field label={t('tables.password')} type="password" value={password} onChange={(event) => setPassword(event.target.value)} hint={t('join.passwordHint')} />
             )}
             {error && <p className={styles.error} role="alert">{error}</p>}
             <div className={styles.actions}>
-              <Button variant="quiet" onClick={() => navigate('/tables')}>Not now</Button>
-              <Button type="submit" variant="decision" busy={busy} disabled={!chosen || (table.passworded && !password)}>Take a seat</Button>
+              <Button variant="quiet" onClick={() => navigate('/tables')}>{t('join.notNow')}</Button>
+              <Button type="submit" variant="decision" busy={busy} disabled={!chosen || (table.passworded && !password)}>{t('join.takeSeat')}</Button>
             </div>
           </form>
         )}

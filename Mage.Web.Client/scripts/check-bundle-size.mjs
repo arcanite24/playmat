@@ -148,10 +148,18 @@ import { gzipSync } from 'node:zlib';
 // the Season widget (its own lazy chunk), and the en/es strings. Measured app 888.1 kB
 // app raised 2026-11-20 from 891 kB for phase 6 (#435) and the Ranked polish: Bo3, Modern and Limited rank strings, and
 // Ranked's first-visit intro (en/es) in the lazy Career chunk. Measured app 891.8 kB
+// app raised 2026-11-21 from 894 kB for the French catalog: a lazy chunk of its own (41.2 kB), downloaded only by
+// players who use French, and the card pictures language setting. The entry and first load are unchanged. Measured
+// app 933.3 kB
+// app raised 2026-11-21 from 937 kB for translating Tables, the invite page, Train and History: their messages move into
+// en/es/fr catalogs that load with those lazy screens (about 11 kB across the three languages). Measured app 944.6 kB
+// app raised 2026-11-21 from 947 kB for translating the match (decision corner, phase ladder, choice panels, game
+// menu, log, coach, card detail, plates, piles): about 390 messages in the en/es/fr catalogs that load with the match
+// (en/game.ts), about 15.6 kB. The entry gained the labels' keys in core/game/interaction (+0.3 kB). Measured app 960.2 kB
 const BUDGET_KB = {
   entry: 86,
   initial: 221,
-  app: 894,
+  app: 964,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;

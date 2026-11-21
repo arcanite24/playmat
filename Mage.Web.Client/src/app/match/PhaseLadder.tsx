@@ -1,7 +1,7 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import type { CombatStops } from '../../core/game/autoPass';
 import type { PhaseStep, SkipPrioritySteps } from '../../protocol/generated/views';
-import { useT } from '../i18n';
+import { useT, type MessageKey } from '../i18n';
 import './matchMessages';
 import { useSettings } from '../stores/settings';
 import { useStage } from './stageContext';
@@ -9,26 +9,26 @@ import { useCoarsePointer } from './useLongPress';
 import styles from './PhaseLadder.module.css';
 
 interface Rung {
-  label: string;
+  label: MessageKey;
   steps: PhaseStep[];
   /** the stop setting this rung toggles */
   stop?: keyof SkipPrioritySteps;
   /** a combat stop (kept by the client: the server always offers priority there) */
   combat?: keyof CombatStops;
   /** the name in the touch menu of stops, where the two mains need telling apart */
-  menuLabel?: string;
+  menuLabel?: MessageKey;
 }
 
 const RUNGS: Rung[] = [
-  { label: 'Upkeep', steps: ['UNTAP', 'UPKEEP'], stop: 'upkeep' },
-  { label: 'Draw', steps: ['DRAW'], stop: 'draw' },
-  { label: 'Main', steps: ['PRECOMBAT_MAIN'], stop: 'main1', menuLabel: 'Main, before combat' },
-  { label: 'Combat', steps: ['BEGIN_COMBAT'], stop: 'beforeCombat' },
-  { label: 'Attack', steps: ['DECLARE_ATTACKERS'], combat: 'attackers' },
-  { label: 'Block', steps: ['DECLARE_BLOCKERS'], combat: 'blockers' },
-  { label: 'Damage', steps: ['FIRST_COMBAT_DAMAGE', 'COMBAT_DAMAGE', 'END_COMBAT'], stop: 'endOfCombat' },
-  { label: 'Main', steps: ['POSTCOMBAT_MAIN'], stop: 'main2', menuLabel: 'Main, after combat' },
-  { label: 'End', steps: ['END_TURN', 'CLEANUP'], stop: 'endOfTurn' },
+  { label: 'match.phase.upkeep', steps: ['UNTAP', 'UPKEEP'], stop: 'upkeep' },
+  { label: 'match.phase.draw', steps: ['DRAW'], stop: 'draw' },
+  { label: 'match.phase.main', steps: ['PRECOMBAT_MAIN'], stop: 'main1', menuLabel: 'match.phase.main1' },
+  { label: 'match.phase.combat', steps: ['BEGIN_COMBAT'], stop: 'beforeCombat' },
+  { label: 'match.phase.attack', steps: ['DECLARE_ATTACKERS'], combat: 'attackers' },
+  { label: 'match.phase.block', steps: ['DECLARE_BLOCKERS'], combat: 'blockers' },
+  { label: 'match.phase.damage', steps: ['FIRST_COMBAT_DAMAGE', 'COMBAT_DAMAGE', 'END_COMBAT'], stop: 'endOfCombat' },
+  { label: 'match.phase.main', steps: ['POSTCOMBAT_MAIN'], stop: 'main2', menuLabel: 'match.phase.main2' },
+  { label: 'match.phase.end', steps: ['END_TURN', 'CLEANUP'], stop: 'endOfTurn' },
 ];
 
 /**
@@ -59,7 +59,7 @@ export function PhaseLadder({ step, myTurn, turn, started = true, activeName = n
     if (rung.stop) update({ stops: { ...settings.stops, [side]: { ...stops, [rung.stop]: on } } });
     else if (rung.combat) update({ combatStops: { ...settings.combatStops, [side]: { ...combatStops, [rung.combat]: on } } });
   };
-  const whoseTurn = myTurn ? 'your' : "opponents'";
+  const whose = myTurn ? 'yours' : 'theirs';
 
   return (
     <nav
@@ -71,7 +71,7 @@ export function PhaseLadder({ step, myTurn, turn, started = true, activeName = n
       <div className={styles.turn}>
         <span className={styles.turnNumber}>{started ? t('match.turn', { turn }) : t('match.turn.starting')}</span>
         {started && <span className={[styles.whose, activeName ? styles.whoseName : ''].join(' ')}>{activeName ?? t(myTurn ? 'match.turn.yours' : 'match.turn.theirs')}</span>}
-        {fullControl && <span className={styles.full}>Full control</span>}
+        {fullControl && <span className={styles.full}>{t('match.ui.fullControl')}</span>}
       </div>
       <ol className={styles.rungs}>
         {RUNGS.map((rung, index) => {
@@ -85,7 +85,7 @@ export function PhaseLadder({ step, myTurn, turn, started = true, activeName = n
               <li key={index}>
                 <span className={[styles.rung, current ? styles.current : ''].join(' ')} aria-current={current ? 'step' : undefined}>
                   <span className={[styles.dot, stopOn ? styles.dotOn : ''].join(' ')} aria-hidden="true" />
-                  {rung.label}
+                  {t(rung.label)}
                 </span>
               </li>
             );
@@ -99,14 +99,14 @@ export function PhaseLadder({ step, myTurn, turn, started = true, activeName = n
                 aria-pressed={settable ? stopOn : undefined}
                 disabled={!settable || fullControl}
                 title={fullControl
-                  ? 'Full control: the game stops at every step'
+                  ? t('match.phase.fullControl')
                   : rung.combat
-                    ? `${ownStop ? 'Stop' : "Don't stop"} at ${rung.label} on ${whoseTurn} turn when creatures attack`
-                    : rung.stop ? `${ownStop ? 'Stop' : "Don't stop"} at ${rung.label} on ${whoseTurn} turn` : undefined}
+                    ? t(`match.phase.${ownStop ? 'stop' : 'noStop'}.${whose}.attack`, { step: t(rung.label) })
+                    : rung.stop ? t(`match.phase.${ownStop ? 'stop' : 'noStop'}.${whose}`, { step: t(rung.label) }) : undefined}
                 onClick={() => toggle(rung, !ownStop)}
               >
                 <span className={[styles.dot, stopOn ? styles.dotOn : ''].join(' ')} aria-hidden="true" />
-                {rung.label}
+                {t(rung.label)}
               </button>
             </li>
           );
@@ -117,11 +117,11 @@ export function PhaseLadder({ step, myTurn, turn, started = true, activeName = n
           <DropdownMenu.Trigger
             className={styles.touchTrigger}
             disabled={fullControl}
-            aria-label={fullControl ? 'Full control: the game stops at every step' : `Stops on ${whoseTurn} turn`}
+            aria-label={fullControl ? t('match.phase.fullControl') : t(`match.phase.stops.${whose}`)}
           />
           <DropdownMenu.Portal>
             <DropdownMenu.Content className={styles.menu} side={tall ? 'top' : 'left'} align="center" sideOffset={8} collisionPadding={8}>
-              <DropdownMenu.Label className={styles.menuLabel}>Stop on {whoseTurn} turn at</DropdownMenu.Label>
+              <DropdownMenu.Label className={styles.menuLabel}>{t(`match.phase.menu.${whose}`)}</DropdownMenu.Label>
               {RUNGS.filter((rung) => rung.stop || rung.combat).map((rung) => {
                 const on = rung.stop ? !!stops[rung.stop] : !!combatStops?.[rung.combat!];
                 return (
@@ -133,7 +133,7 @@ export function PhaseLadder({ step, myTurn, turn, started = true, activeName = n
                     // several stops are often changed at once: the menu stays open
                     onSelect={(event) => event.preventDefault()}
                   >
-                    {rung.menuLabel ?? rung.label}{rung.combat ? ', when creatures attack' : ''}
+                    {rung.combat ? t('match.phase.whenAttack', { step: t(rung.label) }) : t(rung.menuLabel ?? rung.label)}
                     <span className={[styles.dot, on ? styles.dotOn : ''].join(' ')} aria-hidden="true" />
                   </DropdownMenu.CheckboxItem>
                 );

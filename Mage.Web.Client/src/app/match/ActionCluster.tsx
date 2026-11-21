@@ -11,6 +11,7 @@ import { KeyTip } from '../ui/KeyTip';
 import { PromptText } from '../ui/PromptText';
 import './matchMessages';
 import { useMatchUi } from './matchUi';
+import { buttonText, headlineText } from './uiText';
 import { ignoreMatchKey, keyboardFocusedControl, matchKeysBlocked, promptKey } from './keyboard';
 import { useKeyboardHints } from './useKeyboardHints';
 import styles from './ActionCluster.module.css';
@@ -48,12 +49,12 @@ export interface ActionClusterProps {
   onCommand(command: Command): void;
 }
 
-const PASS_AHEAD: { label: string; action: PlayerAction; key: string }[] = [
-  { label: 'Pass to end of turn', action: 'PASS_PRIORITY_UNTIL_TURN_END_STEP', key: 'F4' },
-  { label: 'Pass to next turn', action: 'PASS_PRIORITY_UNTIL_NEXT_TURN', key: 'F5' },
-  { label: 'Pass to my next turn', action: 'PASS_PRIORITY_UNTIL_MY_NEXT_TURN', key: 'F9' },
-  { label: 'Resolve the stack', action: 'PASS_PRIORITY_UNTIL_STACK_RESOLVED', key: 'F10' },
-];
+const PASS_AHEAD = [
+  { label: 'match.ui.ahead.endOfTurn', action: 'PASS_PRIORITY_UNTIL_TURN_END_STEP', key: 'F4' },
+  { label: 'match.ui.ahead.nextTurn', action: 'PASS_PRIORITY_UNTIL_NEXT_TURN', key: 'F5' },
+  { label: 'match.ui.ahead.myNextTurn', action: 'PASS_PRIORITY_UNTIL_MY_NEXT_TURN', key: 'F9' },
+  { label: 'match.ui.ahead.stack', action: 'PASS_PRIORITY_UNTIL_STACK_RESOLVED', key: 'F10' },
+] as const satisfies readonly { label: string; action: PlayerAction; key: string }[];
 
 /** A secondary button's keys for its tooltip: its own shortcut (Ctrl+Z, Esc for Cancel) and its Alt number. */
 function secondaryKeys(button: PromptButton, index: number, isCancel: boolean): string | null {
@@ -61,7 +62,7 @@ function secondaryKeys(button: PromptButton, index: number, isCancel: boolean): 
   return keys.filter(Boolean).join(' / ') || null;
 }
 
-const UNDO: PromptButton = { label: 'Undo tap', command: { type: 'action', action: 'UNDO' }, tone: 'secondary', shortcut: 'Ctrl+Z' };
+const UNDO: PromptButton = { label: 'Undo tap', text: { key: 'match.ui.undoTap' }, command: { type: 'action', action: 'UNDO' }, tone: 'secondary', shortcut: 'Ctrl+Z' };
 
 /** The decision corner: what the game is asking, and the one big button that answers it. */
 export function ActionCluster({
@@ -79,7 +80,7 @@ export function ActionCluster({
   const secondary = useMemo(() => {
     const buttons = [...interaction.secondaryButtons];
     if (special && interaction.mode === 'priority') {
-      buttons.unshift({ label: 'Special action', command: { type: 'string', value: 'special' }, tone: 'secondary' });
+      buttons.unshift({ label: 'Special action', text: { key: 'match.ui.special' }, command: { type: 'string', value: 'special' }, tone: 'secondary' });
     }
     if (undo) buttons.unshift(undo);
     return buttons;
@@ -150,16 +151,16 @@ export function ActionCluster({
   // the answered prompt stays up while the server works (see the session's hold), so nothing blinks between decisions
   const deciding = interaction.mode !== 'waiting';
   // every decision is asked here, next to its buttons, so the question never covers the cards it is about
-  const headline = deciding ? interaction.headline : status ?? interaction.headline;
+  const headline = deciding ? headlineText(t, interaction) : status ?? headlineText(t, interaction);
   const passAhead = canAct && (interaction.mode === 'priority' || interaction.mode === 'waiting');
 
   return (
-    <section className={styles.cluster} aria-label="Your decision" aria-live="polite">
+    <section className={styles.cluster} aria-label={t('match.ui.decision')} aria-live="polite">
       {headline && <p className={[styles.headline, deciding ? styles.deciding : ''].join(' ')}><PromptText text={headline} /></p>}
       {fullControl && canAct && (
-        <KeyTip keys="Ctrl+Shift" label="Turn full control off">
+        <KeyTip keys="Ctrl+Shift" label={t('match.ui.fullControl.off')}>
           <button type="button" className={styles.fullControl} onClick={() => onFullControl?.(false)}>
-            Full control
+            {t('match.ui.fullControl')}
           </button>
         </KeyTip>
       )}
@@ -183,10 +184,10 @@ export function ActionCluster({
       )}
       {stalled && canAct && !conceding && (
         <div className={styles.stalled} role="alert">
-          <p>The server hasn't answered.</p>
+          <p>{t('match.ui.stalled')}</p>
           <div className={styles.stalledButtons}>
-            {onResend && <Button variant="quiet" size="md" onClick={onResend}>Send again</Button>}
-            {onResync && <Button variant="print" size="md" onClick={onResync}>Refresh board</Button>}
+            {onResend && <Button variant="quiet" size="md" onClick={onResend}>{t('match.ui.resend')}</Button>}
+            {onResync && <Button variant="print" size="md" onClick={onResync}>{t('match.ui.resync')}</Button>}
           </div>
         </div>
       )}
@@ -205,7 +206,7 @@ export function ActionCluster({
                 onClick={() => onCommand(button.command)}
                 className={button.tone === 'attack' ? styles.attack : undefined}
               >
-                {button.label}
+                {buttonText(t, button)}
                 {hints && index < 10 && <kbd aria-hidden="true">Alt+{(index + 1) % 10}</kbd>}
               </Button>
             </KeyTip>
@@ -215,8 +216,8 @@ export function ActionCluster({
       <div className={styles.mainRow}>
         {passAhead && (
           <DropdownMenu.Root>
-            <KeyTip keys={PASS_AHEAD.map((item) => item.key).join(' / ')} label="Pass ahead">
-              <DropdownMenu.Trigger className={styles.ahead} aria-label="Pass ahead">
+            <KeyTip keys={PASS_AHEAD.map((item) => item.key).join(' / ')} label={t('match.ui.ahead')}>
+              <DropdownMenu.Trigger className={styles.ahead} aria-label={t('match.ui.ahead')}>
                 <ChevronUp size={20} />
               </DropdownMenu.Trigger>
             </KeyTip>
@@ -224,7 +225,7 @@ export function ActionCluster({
               <DropdownMenu.Content className={styles.menu} side="top" align="end" sideOffset={8}>
                 {PASS_AHEAD.map((item) => (
                   <DropdownMenu.Item key={item.action} className={styles.menuItem} onSelect={() => onCommand({ type: 'action', action: item.action })}>
-                    {item.label}<kbd>{item.key}</kbd>
+                    {t(item.label)}<kbd>{item.key}</kbd>
                   </DropdownMenu.Item>
                 ))}
                 <DropdownMenu.Separator className={styles.menuRule} />
@@ -233,8 +234,8 @@ export function ActionCluster({
                   checked={holdingPriority}
                   onCheckedChange={(on) => onCommand({ type: 'action', action: on ? 'HOLD_PRIORITY' : 'UNHOLD_PRIORITY' })}
                 >
-                  Hold priority after casting
-                  <kbd>{holdingPriority ? 'On' : 'Off'}</kbd>
+                  {t('match.ui.hold')}
+                  <kbd>{t(holdingPriority ? 'match.ui.on' : 'match.ui.off')}</kbd>
                 </DropdownMenu.CheckboxItem>
                 {onFullControl && (
                   <DropdownMenu.CheckboxItem
@@ -242,7 +243,7 @@ export function ActionCluster({
                     checked={fullControl}
                     onCheckedChange={(on) => onFullControl(on)}
                   >
-                    Full control: stop at every step
+                    {t('match.ui.fullControl.menu')}
                     <kbd>Ctrl+Shift</kbd>
                   </DropdownMenu.CheckboxItem>
                 )}
@@ -251,7 +252,7 @@ export function ActionCluster({
           </DropdownMenu.Root>
         )}
         {autoPassing ? (
-          <div className={[styles.waiting, styles.passing].join(' ')} role="status">Passing</div>
+          <div className={[styles.waiting, styles.passing].join(' ')} role="status">{t('match.ui.passing')}</div>
         ) : main && deciding ? (
           <KeyTip keys={primaryShortcut ? t('match.shortcuts.primaryKeys') : null}>
             <Button
@@ -266,21 +267,21 @@ export function ActionCluster({
               }}
               onClick={() => onCommand(main.command)}
             >
-              {main.label}
+              {buttonText(t, main)}
               {hints && primaryShortcut && <kbd aria-hidden="true">{t('match.shortcuts.primaryKeys')}</kbd>}
             </Button>
           </KeyTip>
         ) : deciding ? null : (
-          <div className={styles.waiting}>{awaiting ? 'Sending…' : 'Waiting'}</div>
+          <div className={styles.waiting}>{t(awaiting ? 'match.ui.sending' : 'match.ui.waiting')}</div>
         )}
         {onPassTurn && canAct && (
-          <KeyTip keys="Shift+Enter" label={passTurn ? 'Passing this turn: click to stop' : 'Pass turn: skip to the end of this turn'}>
+          <KeyTip keys="Shift+Enter" label={t(passTurn ? 'match.ui.passTurn.on' : 'match.ui.passTurn.off')}>
             <button
               type="button"
               className={[styles.passTurn, passTurn ? styles.passTurnOn : ''].join(' ')}
               aria-pressed={passTurn}
               aria-keyshortcuts="Shift+Enter"
-              aria-label="Pass turn"
+              aria-label={t('match.ui.passTurn')}
               onClick={() => onPassTurn(!passTurn)}
             >
               <ChevronsRight size={30} strokeWidth={2.75} aria-hidden="true" />

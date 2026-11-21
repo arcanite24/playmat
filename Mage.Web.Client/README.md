@@ -163,7 +163,7 @@ PLAYWRIGHT_CHANNEL=chrome MAGE_WEB_E2E_BASE_URL=http://localhost:5173 npm run te
 
 ## Languages
 
-The interface speaks English (the source) and Spanish. The code is in `src/app/i18n`, with no library: a small
+The interface speaks English (the source), Spanish and French. The code is in `src/app/i18n`, with no library: a small
 translator (`translate.ts`) over plain message catalogs, Intl.PluralRules for plurals and Intl.NumberFormat /
 DateTimeFormat for numbers and dates. The language is a setting (Settings → Language, saved with the other
 settings); "auto" follows the browser. `<html lang>` follows the language. Card names, rules text and anything the
@@ -172,7 +172,7 @@ server sends stay in English.
 - **English** lives in `i18n/en/*.ts`, one file per area: `core.ts` ships in the entry (shell, sign-in, Play, Decks,
   the `ui` kit); `settings.ts`, `events.ts` and `about.ts` load with their lazy screen, which calls
   `registerMessages(messages)` at module load.
-- **Other languages** are one lazy chunk each (`i18n/es.ts`), typed `Catalog`: a missing key is a type error, and
+- **Other languages** are one lazy chunk each (`i18n/es.ts`, `i18n/fr.ts`), typed `Catalog`: a missing key is a type error, and
   `catalogs.test.ts` checks every English key and placeholder is there.
 
 Using a string:

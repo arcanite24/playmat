@@ -19,8 +19,10 @@ import { IconButton } from '../ui/Button';
 import { PromptText } from '../ui/PromptText';
 import { useEmotes } from './emotes';
 import { matchKeysBlocked } from './keyboard';
+import { useT } from '../i18n';
 import { useMatchUi } from './matchUi';
 import { usePresence } from './presence';
+import './matchMessages';
 import styles from './GameLog.module.css';
 
 const MAX_LINES = 300;
@@ -152,6 +154,7 @@ export function GameLog({ gameId, notices, canChat, view, replayLog, delayMs = 0
   /** runs a log line in the game's order, behind the board it belongs to (GameSession.inOrder; also delayed) */
   inOrder?: (run: () => void) => void;
 }) {
+  const t = useT();
   const open = useMatchUi((state) => state.logOpen);
   const toggle = useMatchUi((state) => state.toggleLog);
   const muted = useEmotes((state) => !!state.muted[gameId]);
@@ -222,34 +225,34 @@ export function GameLog({ gameId, notices, canChat, view, replayLog, delayMs = 0
   return (
     <>
       <div ref={toggleRef} className={styles.toggle}>
-        <IconButton label={open ? 'Close log and chat' : 'Open log and chat'} icon={<MessageSquare size={22} />} pressed={open} onClick={() => toggle()} />
+        <IconButton label={t(open ? 'match.log.close' : 'match.log.open')} icon={<MessageSquare size={22} />} pressed={open} onClick={() => toggle()} />
         {chat.unread > 0 && !open && <span className={styles.badge}>{chat.unread}</span>}
       </div>
       {open && (
-        <aside ref={drawer} className={styles.drawer} aria-label="Game log and chat">
+        <aside ref={drawer} className={styles.drawer} aria-label={t('match.log.label')}>
           <header className={styles.head}>
-            <h2>Log</h2>
+            <h2>{t('match.log.title')}</h2>
             <div className={styles.headActions}>
               {canChat && (
                 <button type="button" className={styles.mute} aria-pressed={muted} onClick={() => toggleMute(gameId)}>
-                  {muted ? 'Unmute opponent' : 'Mute opponent'}
+                  {t(muted ? 'match.log.unmute' : 'match.log.mute')}
                 </button>
               )}
               <IconButton
-                label={pinned ? 'Unpin the log: a click elsewhere or Escape closes it' : 'Pin the log open while you play'}
+                label={t(pinned ? 'match.log.unpin' : 'match.log.pin')}
                 icon={pinned ? <PinOff size={20} /> : <Pin size={20} />}
                 pressed={pinned}
                 onClick={pin}
               />
-              <IconButton label="Close log" icon={<X size={20} />} onClick={() => toggle(false)} />
+              <IconButton label={t('match.log.closeLog')} icon={<X size={20} />} onClick={() => toggle(false)} />
             </div>
           </header>
           <ol ref={list} className={styles.lines}>
-            {rows.length === 0 && <li className={styles.empty}>The game's events will show here.</li>}
+            {rows.length === 0 && <li className={styles.empty}>{t('match.log.empty')}</li>}
             {rows.map((row) => (row.kind === 'separator'
               ? (
                 <li key={row.key} className={[styles.separator, row.mine ? styles.separatorMine : ''].join(' ')}>
-                  <span>Turn {row.turn}{row.player ? ` · ${row.mine ? 'You' : row.player}` : ''}</span>
+                  <span>{t('match.turn', { turn: row.turn })}{row.player ? ` · ${row.mine ? t('match.log.you') : row.player}` : ''}</span>
                 </li>
               )
               : <LogLine key={row.key} entry={row.entry} cards={cards} />))}
@@ -273,9 +276,9 @@ export function GameLog({ gameId, notices, canChat, view, replayLog, delayMs = 0
                   className={styles.input}
                   value={draft}
                   onChange={(event) => setDraft(event.target.value)}
-                  placeholder={chat.ready ? 'Say something' : 'Joining chat…'}
+                  placeholder={t(chat.ready ? 'match.log.say' : 'match.log.joining')}
                   disabled={!chat.ready}
-                  aria-label="Chat message"
+                  aria-label={t('match.log.chatMessage')}
                   maxLength={400}
                 />
               </form>
@@ -288,6 +291,7 @@ export function GameLog({ gameId, notices, canChat, view, replayLog, delayMs = 0
 }
 
 const LogLine = memo(function LogLine({ entry, cards }: { entry: LogEntry; cards: { current: Map<string, CardView> } }) {
+  const t = useT();
   const Icon = ICONS[entry.icon];
   // the rule behind a game line, on request (S009)
   const notes = useMemo(() => (entry.tone === 'game' ? explainLog(entry.text) : []), [entry.tone, entry.text]);
@@ -303,8 +307,8 @@ const LogLine = memo(function LogLine({ entry, cards }: { entry: LogEntry; cards
             type="button"
             className={styles.why}
             aria-expanded={open}
-            aria-label={open ? 'Hide the rule behind this' : 'Why did that happen?'}
-            title="Why did that happen?"
+            aria-label={t(open ? 'match.log.hideRule' : 'match.log.why')}
+            title={t('match.log.why')}
             onClick={() => setOpen((value) => !value)}
           >
             <HelpCircle size={13} aria-hidden="true" />
@@ -324,6 +328,7 @@ const LogLine = memo(function LogLine({ entry, cards }: { entry: LogEntry; cards
 
 function Segment({ segment, cards }: { segment: LogSegment; cards: { current: Map<string, CardView> } }) {
   const setZoom = useMatchUi((state) => state.setZoom);
+  const t = useT();
   const openDetail = useMatchUi((state) => state.openDetail);
   if (segment.kind === 'text') return <PromptText text={segment.text} />;
   if (segment.kind === 'player') return <span className={styles.player}>{segment.name}</span>;
@@ -342,7 +347,7 @@ function Segment({ segment, cards }: { segment: LogSegment; cards: { current: Ma
         const card = find();
         if (card?.id) openDetail({ id: card.id, card });
       }}
-      aria-label={`${segment.name}, show card`}
+      aria-label={t('match.log.showCard', { name: segment.name })}
     >
       {segment.name}
     </button>

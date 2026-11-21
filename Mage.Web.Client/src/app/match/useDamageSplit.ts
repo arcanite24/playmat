@@ -47,13 +47,18 @@ export function useDamageSplit(interaction: Interaction, view: GameView | null |
 export function damageCorner(interaction: Interaction, split: DamageSplit): Interaction {
   const { assignment, values, check } = split;
   const source = assignment.sourceName || 'the attacker';
-  const headline = check.missing > 0
-    ? `Assign ${check.missing} more damage from ${source}`
+  const name = assignment.sourceName;
+  const [headline, headlineText] = check.missing > 0
+    ? [`Assign ${check.missing} more damage from ${source}`, name
+      ? { key: 'match.ui.split.missingFrom', vars: { count: check.missing, name } }
+      : { key: 'match.ui.split.missing', vars: { count: check.missing } }]
     : assignment.trample && check.unassigned > 0
-      ? `${source}: ${check.unassigned} damage tramples over`
-      : `Assign ${source}'s damage`;
+      ? [`${source}: ${check.unassigned} damage tramples over`, name
+        ? { key: 'match.ui.split.trampleFrom', vars: { count: check.unassigned, name } }
+        : { key: 'match.ui.split.trample', vars: { count: check.unassigned } }]
+      : [`Assign ${source}'s damage`, name ? { key: 'match.ui.split.assignFrom', vars: { name } } : { key: 'match.ui.split.assign' }];
   const confirm: PromptButton | null = check.valid
-    ? { label: 'Assign damage', command: { type: 'string', value: assignmentAnswer(values) }, tone: 'primary', shortcut: 'Space' }
+    ? { label: 'Assign damage', text: { key: 'match.ui.assignDamage' }, command: { type: 'string', value: assignmentAnswer(values) }, tone: 'primary', shortcut: 'Space' }
     : null;
-  return { ...interaction, headline, mainButton: confirm };
+  return { ...interaction, headline, headlineText, mainButton: confirm };
 }

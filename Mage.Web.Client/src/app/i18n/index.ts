@@ -14,6 +14,7 @@ const english: Messages = { ...core };
 /** Translations load on demand, one chunk per language. */
 const LOADERS: Record<Exclude<Locale, 'en'>, () => Promise<{ default: Catalog }>> = {
   es: () => import('./es'),
+  fr: () => import('./fr'),
 };
 
 const warned = new Set<string>();

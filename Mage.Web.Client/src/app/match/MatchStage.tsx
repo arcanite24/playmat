@@ -3,7 +3,7 @@ import { Menu } from 'lucide-react';
 import { Fragment, lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { GameSession, GameSessionState } from '../../core/game/gameSession';
-import type { Command } from '../../core/game/interaction';
+import type { Command, UiText } from '../../core/game/interaction';
 import { commanderDamageTo, commandersByPlayer, type CommanderStatus } from '../../core/game/commander';
 import { askedAttacker, defenderChoice, inRange } from '../../core/game/multiplayer';
 import { playerDungeon } from '../../core/game/dungeon';
@@ -24,7 +24,8 @@ import type { CardView, ChatMessage, GameView, PlayerLook, PlayerView } from '..
 import { rosterOf, sleeveFor, SLEEVE_COLORS, useDecks } from '../stores/decks';
 import { EngineBadge } from './EngineBadge';
 import { engineOf } from './engine';
-import { useT } from '../i18n';
+import { useT, type MessageKey } from '../i18n';
+import { headlineText } from './uiText';
 import { useEvents } from '../stores/events';
 import { useGames } from '../stores/games';
 import { usePlay } from '../stores/play';
@@ -303,9 +304,9 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   const onResend = useCallback(() => void session.resend().catch(() => undefined), [session]);
   const onResync = useCallback(() => {
     void session.resync().then((resent) => {
-      if (!resent) notify('Nothing to answer', "The game isn't waiting for you. It goes on as soon as the server is ready.");
+      if (!resent) notify(t('match.ui.nothingToAnswer'), t('match.ui.nothingToAnswer.detail'));
     });
-  }, [session]);
+  }, [session, t]);
   // The ability/color prompt has no source id; keep the card through consecutive choices.
   const [choiceSource, setChoiceSource] = useState<string | null>(null);
   useEffect(() => session.store.subscribe((next) => {
@@ -441,16 +442,26 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   const cornerInteraction = useMemo(() => {
     if (damageSplit) return damageCorner(interaction, damageSplit);
     if (payment?.cost && !(prompt?.kind === 'playMana' && prompt.isX)) {
-      return { ...interaction, headline: payment.sourceName ? `Pay ${payment.cost} for ${payment.sourceName}` : `Pay ${payment.cost}` };
+      const headline = payment.sourceName ? `Pay ${payment.cost} for ${payment.sourceName}` : `Pay ${payment.cost}`;
+      const headlineText: UiText = payment.sourceName
+        ? { key: 'match.ui.payFor', vars: { cost: payment.cost, name: payment.sourceName } }
+        : { key: 'match.ui.pay', vars: { cost: payment.cost } };
+      return { ...interaction, headline, headlineText };
     }
     // attackers go at the player on a click, so say how to send one at a planeswalker or battle instead
     if (interaction.mode === 'declareAttackers' && automation.attackPlayerByDefault && attackDrop.targets.size > 0) {
-      return { ...interaction, headline: `${interaction.headline}. Drag one onto a planeswalker or battle to attack it` };
+      return {
+        ...interaction,
+        headline: `${interaction.headline}. Drag one onto a planeswalker or battle to attack it`,
+        headlineText: { key: 'match.ui.dragHint', vars: { headline: headlineText(t, interaction) } },
+      };
     }
     if (interaction.mode !== 'target' || !/attacker to block/i.test(prompt?.text ?? '') || !lastBlocker) return interaction;
     const blocker = board.me?.front.flatMap((group) => group.members).find((card) => card.id === lastBlocker);
-    return blocker ? { ...interaction, headline: `Which attacker does ${blocker.name} block?` } : interaction;
-  }, [interaction, prompt, board.me, lastBlocker, damageSplit, payment, automation.attackPlayerByDefault, attackDrop.targets]);
+    return blocker
+      ? { ...interaction, headline: `Which attacker does ${blocker.name} block?`, headlineText: { key: 'match.ui.whichAttacker', vars: { name: blocker.name ?? '' } } }
+      : interaction;
+  }, [interaction, prompt, board.me, lastBlocker, damageSplit, payment, automation.attackPlayerByDefault, attackDrop.targets, t]);
   const pregame = !view?.step;
   const handIds = useMemo(() => new Set(hand.map((card) => card.id!)), [hand]);
   // the server names the pre-game choices (who starts, the London mulligan's bottom cards); older servers are recognized
@@ -671,7 +682,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
               <Hand
                 cards={seatHand.cards}
                 faceDown={seatHand.faceDown}
-                label={`${board.me.player.name ?? 'Player'}'s hand`}
+                label={t('match.ui.handOf', { name: board.me.player.name ?? '' })}
                 clickable={EMPTY}
                 selected={EMPTY}
                 sleeve={sleeves.mine}
@@ -767,14 +778,14 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
             )}
             {choosingStarter && board.me && !awaitingServer && (
               <StartingPlayerOverlay
-                me={{ id: board.me.player.playerId!, name: board.me.player.name ?? 'You' }}
-                opponents={board.opponents.map((opponent) => ({ id: opponent.player.playerId!, name: opponent.player.name ?? 'Opponent' }))}
+                me={{ id: board.me.player.playerId!, name: board.me.player.name ?? t('match.combat.you') }}
+                opponents={board.opponents.map((opponent) => ({ id: opponent.player.playerId!, name: opponent.player.name ?? t('home.opponent') }))}
                 onChoose={onClick}
               />
             )}
             {pickerCards && !awaitingServer && (
               <CardPicker
-                title={choosingFromHand ? 'Put cards on the bottom' : 'Choose cards'}
+                title={t(choosingFromHand ? 'match.ui.putOnBottom' : 'match.ui.chooseCards')}
                 cards={pickerCards}
                 interaction={interaction}
                 sleeve={sleeves.mine}
@@ -786,7 +797,9 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
             {viewer && <ZoneViewer title={viewer.title} cards={viewer.cards} onClose={() => openViewer(null)} />}
             {shownDungeon && shownDungeonPlayer && (
               <DungeonViewer
-                title={shownDungeonPlayer.playerId === board.me?.player.playerId ? `Your dungeon: ${shownDungeon.name}` : `${shownDungeonPlayer.name}'s dungeon: ${shownDungeon.name}`}
+                title={shownDungeonPlayer.playerId === board.me?.player.playerId
+                  ? t('match.ui.dungeon.yours', { name: shownDungeon.name })
+                  : t('match.ui.dungeon.theirs', { player: shownDungeonPlayer.name ?? '', name: shownDungeon.name })}
                 dungeon={shownDungeon}
                 onClose={() => openDungeon(null)}
               />
@@ -796,7 +809,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 progress={betweenGames}
                 won={state.endInfo?.won ? true : /\bdraw\b/i.test(state.endInfo?.gameInfo ?? '') ? null : false}
                 onLeave={leave}
-                leaveLabel={eventId ? 'Back to the event' : 'Leave match'}
+                leaveLabel={t(eventId ? 'match.ui.backToEvent' : 'match.ui.leaveMatch')}
                 concedes={!eventId}
               />
             )}
@@ -806,7 +819,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 endInfo={state.endInfo}
                 myName={board.me?.player.name ?? null}
                 onLeave={leave}
-                leaveLabel={eventId ? 'Back to the event' : career ? 'Back to Career' : vsPeople ? t('match.end.backToTables') : 'Back to Play'}
+                leaveLabel={eventId ? t('match.ui.backToEvent') : career ? t('match.ui.backToCareer') : vsPeople ? t('match.end.backToTables') : t('match.ui.backToPlay')}
                 // a rematch is only dealt against the computer; people go back to Tables
                 onPlayAgain={mode === 'play' && deckId && !eventId && vsAi ? playAgain : undefined}
                 onReview={mode === 'play' && vsAi && board.me ? () => setReviewing(true) : undefined}
@@ -815,7 +828,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
               />
             )}
             {reviewing && (
-              <Dialog open onOpenChange={(open) => !open && setReviewing(false)} title="Game review" width="lg">
+              <Dialog open onOpenChange={(open) => !open && setReviewing(false)} title={t('match.ui.gameReview')} width="lg">
                 <GameReview gameId={state.gameId} me={board.me?.player.name ?? null} onNavigate={() => setReviewing(false)} />
               </Dialog>
             )}
@@ -849,12 +862,13 @@ const Battlefield = memo(function Battlefield({ board, place, ...row }: RowProps
   board: PlayerBoard;
   place: RowsPlacement;
 }) {
+  const t = useT();
   const forward = board.isMe ? -1 : 1;
   const { left, width } = place;
   return (
     <>
-      <Row groups={board.front} left={left} width={width} top={place.frontTop} ideal={place.frontIdeal} min={58} forward={forward} label="Creatures" flip={!board.isMe} {...row} />
-      <Row groups={board.back} left={left} width={width} top={place.backTop} ideal={place.backIdeal} min={50} forward={forward} label="Lands & permanents" flip={!board.isMe} {...row} />
+      <Row groups={board.front} left={left} width={width} top={place.frontTop} ideal={place.frontIdeal} min={58} forward={forward} label={t('match.ui.row.creatures')} flip={!board.isMe} {...row} />
+      <Row groups={board.back} left={left} width={width} top={place.backTop} ideal={place.backIdeal} min={50} forward={forward} label={t('match.ui.row.lands')} flip={!board.isMe} {...row} />
     </>
   );
 });
@@ -960,7 +974,9 @@ function HiddenHand({ playerId, count, revealed, sleeve, left }: { playerId: str
   const shown = Math.min(count, 10);
   // cards revealed from this hand show face up, marked, in place of as many backs
   const faceUp = revealed.slice(0, shown);
-  const label = `${count} cards in hand` + (faceUp.length > 0 ? `, revealed: ${faceUp.map((card) => card.displayName ?? card.name).join(', ')}` : '');
+  const label = faceUp.length > 0
+    ? t('match.ui.hiddenHand.revealed', { count, cards: faceUp.map((card) => card.displayName ?? card.name).join(', ') })
+    : t('match.ui.hiddenHand', { count });
   return (
     <div ref={ref} className={styles.hiddenHand} style={{ left }} aria-label={label} role="img">
       {Array.from({ length: shown }, (_, i) => {
@@ -994,42 +1010,14 @@ interface RollbackOption {
 }
 
 const CONFIRM = {
-  concede: {
-    title: 'Concede this game?',
-    description: 'Your opponent wins this game. You can\'t undo it.',
-    action: 'Concede',
-  },
-  leave: {
-    title: 'Leave this match?',
-    description: 'You concede this game and the rest of the match. You can\'t undo it.',
-    action: 'Leave match',
-  },
-  fork: {
-    title: 'Try this turn again?',
-    description: 'A new game starts from the start of this turn, with the same cards in the same places and the same draws to come. You leave this one.',
-    action: 'Start the turn again',
-  },
-  save: {
-    title: 'Save and leave?',
-    description: 'The game is kept as it was at the start of this turn. Resume it from Home whenever you like.',
-    action: 'Save and leave',
-  },
-  rollback: {
-    title: 'Go back to the start of this turn?',
-    description: 'Every other player must agree; a game against the computer goes back at once.',
-    action: 'Ask to go back',
-  },
-  rollbackAi: {
-    title: 'Take back this turn?',
-    description: 'The game goes back to the start of this turn at once. Against the computer you can take back as often as you like.',
-    action: 'Take it back',
-  },
-  takeBack: {
-    title: 'Take back this turn?',
-    description: 'A new game starts from the start of this turn, with the same cards and the same draws to come. You get one take-back a Career game, and the game then pays half and counts for no quests.',
-    action: 'Take it back',
-  },
-} as const;
+  concede: { title: 'match.menu.concede.title', description: 'match.menu.concede.text', action: 'match.menu.concede.action' },
+  leave: { title: 'match.menu.leave.title', description: 'match.menu.leave.text', action: 'match.menu.leave.action' },
+  fork: { title: 'match.menu.fork.title', description: 'match.menu.fork.text', action: 'match.menu.fork.action' },
+  save: { title: 'match.menu.save.title', description: 'match.menu.save.text', action: 'match.menu.save.action' },
+  rollback: { title: 'match.menu.rollback.title', description: 'match.menu.rollback.text', action: 'match.menu.rollback.action' },
+  rollbackAi: { title: 'match.menu.rollbackAi.title', description: 'match.menu.rollbackAi.text', action: 'match.menu.takeBack.action' },
+  takeBack: { title: 'match.menu.rollbackAi.title', description: 'match.menu.takeBack.text', action: 'match.menu.takeBack.action' },
+} as const satisfies Record<string, { title: MessageKey; description: MessageKey; action: MessageKey }>;
 
 function GameMenu({ gameId, quests, practice, solo, careerAssists, vsAi, onSaved, canConcede, onConcede, onLeave, rollback }: {
   gameId: string;
@@ -1064,68 +1052,68 @@ function GameMenu({ gameId, quests, practice, solo, careerAssists, vsAi, onSaved
     try {
       if (choice === 'takeBack') {
         await tryTurnAgain(gameId, true);
-        notify('Take back', 'A new game starts from the start of this turn.');
+        notify(t('match.menu.takeBack'), t('match.menu.newGame'));
       } else if (choice === 'fork') {
         await tryTurnAgain(gameId);
-        notify('Try again', 'A new game starts from the start of this turn.');
+        notify(t('match.menu.tryAgain'), t('match.menu.newGame'));
       } else {
         await saveAndLeave(gameId);
-        notify('Saved', 'Resume the game from Home.');
+        notify(t('match.menu.saved'), t('match.menu.saved.detail'));
         onSaved();
       }
     } catch (failure) {
-      notify(choice === 'fork' ? 'Try again' : choice === 'takeBack' ? 'Take back' : 'Save', failure instanceof Error ? failure.message : String(failure));
+      notify(t(choice === 'fork' ? 'match.menu.tryAgain' : choice === 'takeBack' ? 'match.menu.takeBack' : 'match.menu.save'), failure instanceof Error ? failure.message : String(failure));
     }
   }
   return (
     <div className={styles.menu}>
       <DropdownMenu.Root open={menuOpen} onOpenChange={setMenuOpen}>
-        <DropdownMenu.Trigger className={styles.menuButton} aria-label="Game menu">
+        <DropdownMenu.Trigger className={styles.menuButton} aria-label={t('match.menu')}>
           <Menu size={24} />
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
           <DropdownMenu.Content className={styles.menuContent} align="end" sideOffset={8}>
             {quests && <QuestTracker gameId={gameId} open={menuOpen} />}
-            <DropdownMenu.Item className={styles.menuItem} onSelect={() => setSettingsOpen(true)}>Settings</DropdownMenu.Item>
+            <DropdownMenu.Item className={styles.menuItem} onSelect={() => setSettingsOpen(true)}>{t('shell.settings')}</DropdownMenu.Item>
             <DropdownMenu.Item className={styles.menuItem} onSelect={() => setShortcutsOpen(true)}>{t('match.shortcuts.title')}</DropdownMenu.Item>
             {practice && (
-              <DropdownMenu.Item className={styles.menuItem} onSelect={() => setPracticeOpen(true)}>Practice tools</DropdownMenu.Item>
+              <DropdownMenu.Item className={styles.menuItem} onSelect={() => setPracticeOpen(true)}>{t('match.menu.practice')}</DropdownMenu.Item>
             )}
             {practice && (
-              <DropdownMenu.Item className={styles.menuItem} onSelect={() => setAdviceOpen(true)}>Ask the AI</DropdownMenu.Item>
+              <DropdownMenu.Item className={styles.menuItem} onSelect={() => setAdviceOpen(true)}>{t('match.menu.askAi')}</DropdownMenu.Item>
             )}
             {careerAssists && assists?.hints && (
               <DropdownMenu.Item className={styles.menuItem} onSelect={() => setAdviceOpen(true)}>
-                Ask for a hint ({assists.hintsLeft ?? 0} left)
+                {t('match.menu.hint', { count: assists.hintsLeft ?? 0 })}
               </DropdownMenu.Item>
             )}
             {careerAssists && assists?.takeBack && (
-              <DropdownMenu.Item className={styles.menuItem} onSelect={() => setConfirming('takeBack')}>Take back this turn</DropdownMenu.Item>
+              <DropdownMenu.Item className={styles.menuItem} onSelect={() => setConfirming('takeBack')}>{t('match.menu.takeBackTurn')}</DropdownMenu.Item>
             )}
             {solo && (
-              <DropdownMenu.Item className={styles.menuItem} onSelect={() => setConfirming('fork')}>Try this turn again</DropdownMenu.Item>
+              <DropdownMenu.Item className={styles.menuItem} onSelect={() => setConfirming('fork')}>{t('match.menu.tryTurn')}</DropdownMenu.Item>
             )}
             {solo && (
-              <DropdownMenu.Item className={styles.menuItem} onSelect={() => setWhatIfOpen(true)}>Play an earlier turn…</DropdownMenu.Item>
+              <DropdownMenu.Item className={styles.menuItem} onSelect={() => setWhatIfOpen(true)}>{t('match.menu.earlier')}</DropdownMenu.Item>
             )}
             {solo && (
-              <DropdownMenu.Item className={styles.menuItem} onSelect={() => setConfirming('save')}>Save and leave</DropdownMenu.Item>
+              <DropdownMenu.Item className={styles.menuItem} onSelect={() => setConfirming('save')}>{t('match.menu.save.action')}</DropdownMenu.Item>
             )}
             {rollback && (
               <DropdownMenu.Item
                 className={styles.menuItem}
                 disabled={!rollback.ready}
-                title={rollback.ready ? undefined : 'Available while you have priority'}
+                title={rollback.ready ? undefined : t('match.menu.needsPriority')}
                 onSelect={() => setConfirming(vsAi ? 'rollbackAi' : 'rollback')}
               >
-                {vsAi ? 'Take back this turn' : 'Request rollback to start of turn'}
+                {t(vsAi ? 'match.menu.takeBackTurn' : 'match.menu.requestRollback')}
               </DropdownMenu.Item>
             )}
             {canConcede && (
-              <DropdownMenu.Item className={styles.menuItem} onSelect={() => setConfirming('concede')}>Concede</DropdownMenu.Item>
+              <DropdownMenu.Item className={styles.menuItem} onSelect={() => setConfirming('concede')}>{t('match.menu.concede.action')}</DropdownMenu.Item>
             )}
             <DropdownMenu.Item className={styles.menuItem} onSelect={() => (canConcede ? setConfirming('leave') : onLeave())}>
-              Leave the game
+              {t('match.menu.leaveGame')}
             </DropdownMenu.Item>
           </DropdownMenu.Content>
         </DropdownMenu.Portal>
@@ -1147,12 +1135,12 @@ function GameMenu({ gameId, quests, practice, solo, careerAssists, vsAi, onSaved
       <Dialog
         open={confirming !== null}
         onOpenChange={(open) => !open && setConfirming(null)}
-        title={copy?.title ?? ''}
-        description={copy?.description}
+        title={copy ? t(copy.title) : ''}
+        description={copy ? t(copy.description) : undefined}
         width="sm"
         footer={(
           <>
-            <Button variant="quiet" onClick={() => setConfirming(null)}>Keep playing</Button>
+            <Button variant="quiet" onClick={() => setConfirming(null)}>{t('match.menu.keepPlaying')}</Button>
             <Button
               variant={confirming === 'concede' || confirming === 'leave' ? 'danger' : 'decision'}
               onClick={() => {
@@ -1164,7 +1152,7 @@ function GameMenu({ gameId, quests, practice, solo, careerAssists, vsAi, onSaved
                 else if (choice === 'fork' || choice === 'save' || choice === 'takeBack') void soloAction(choice);
               }}
             >
-              {copy?.action}
+              {copy ? t(copy.action) : null}
             </Button>
           </>
         )}

@@ -9,6 +9,7 @@ vi.mock('../queries', () => ({ refreshTables: vi.fn() }));
 vi.mock('../stores/decks', () => ({ useDecks: { getState: () => ({ loadForPlay: async () => ({ deck, id: 'd1' }) }) } }));
 vi.mock('../stores/session', () => ({ useSession: { getState: () => ({ roomId: 'room', userName: 'me' }) } }));
 vi.mock('../ui/imageCache', () => ({ warmDeck: (value: unknown) => warmDeck(value) }));
+vi.mock('../i18n', () => ({ t: (key: string) => key }));
 
 describe('joinTable', () => {
   it('warms the deck before taking the seat', async () => {

@@ -69,7 +69,7 @@ keep the server running, you can [support the project on Ko-fi](https://ko-fi.co
   to craft into and achievements, illustrated with AI-generated art.
 - **Social.** Lobby chat, players online, profiles, a table browser, spectating, match history and replays.
 - **Devices.** Desktop browsers, tablets, an installable web app and an Android app that keeps card
-  pictures on the device. English and Spanish.
+  pictures on the device. English, Spanish and French.
 - **On your computer.** Installers for Windows, macOS and Linux with everything inside, Java included: install,
   open, play. Friends on the same network join from their browser.
 - **Hosting.** One Docker Compose stack: the server, Caddy with automatic HTTPS, a Scryfall picture cache,

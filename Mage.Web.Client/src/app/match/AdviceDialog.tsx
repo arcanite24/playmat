@@ -1,18 +1,20 @@
 import { useEffect, useState } from 'react';
 import type { Advice } from '../../protocol/generated/views';
 import { api } from '../connection';
+import { formatNumber, useT, type MessageKey, type Translate } from '../i18n';
 import { Button } from '../ui/Button';
 import { Dialog } from '../ui/Dialog';
+import './matchMessages';
 import styles from './AdviceDialog.module.css';
 
-const HEADINGS: Record<string, string> = {
-  PLAY: 'The AI would play',
-  PASS: 'The AI would pass',
-  ATTACK: 'The AI would attack',
-  NO_ATTACK: 'The AI wouldn\'t attack',
-  BLOCK: 'The AI would block',
-  NO_BLOCK: 'The AI wouldn\'t block',
-  NONE: 'No advice',
+const HEADINGS: Record<string, MessageKey> = {
+  PLAY: 'match.advice.play',
+  PASS: 'match.advice.pass',
+  ATTACK: 'match.advice.attack',
+  NO_ATTACK: 'match.advice.noAttack',
+  BLOCK: 'match.advice.block',
+  NO_BLOCK: 'match.advice.noBlock',
+  NONE: 'match.advice.none',
 };
 
 /**
@@ -28,6 +30,7 @@ export function AdviceDialog({ gameId, open, onOpenChange, counted, onUsed }: {
   /** a hint was given */
   onUsed?(): void;
 }) {
+  const t = useT();
   const [advice, setAdvice] = useState<Advice | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [thinking, setThinking] = useState(false);
@@ -63,17 +66,15 @@ export function AdviceDialog({ gameId, open, onOpenChange, counted, onUsed }: {
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title={counted ? 'Ask for a hint' : 'Ask the AI'}
-      description={counted
-        ? 'The computer says what it would do in your seat. A Career game with a hint pays half and counts for no quests.'
-        : 'What the computer would do in your seat right now. Nothing happens until you do it.'}
+      title={t(counted ? 'match.advice.hintTitle' : 'match.menu.askAi')}
+      description={t(counted ? 'match.advice.hintText' : 'match.advice.text')}
       width="sm"
       footer={(
         <>
-          <Button variant="quiet" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button variant="quiet" onClick={() => onOpenChange(false)}>{t('ui.close')}</Button>
           {canAsk && (
             <Button variant="print" busy={thinking} onClick={() => void ask()}>
-              {counted ? (advice ? 'Another hint' : 'Use a hint') : 'Ask again'}
+              {t(counted ? (advice ? 'match.advice.another' : 'match.advice.use') : 'match.advice.again')}
             </Button>
           )}
         </>
@@ -81,13 +82,13 @@ export function AdviceDialog({ gameId, open, onOpenChange, counted, onUsed }: {
     >
       <div className={styles.body} aria-live="polite">
         {counted && left !== undefined && (
-          <p className={styles.quiet}>{hintsLeftLabel(left)}</p>
+          <p className={styles.quiet}>{hintsLeftLabel(t, left)}</p>
         )}
-        {thinking && <p className={styles.quiet}>Thinking it over…</p>}
+        {thinking && <p className={styles.quiet}>{t('match.advice.thinking')}</p>}
         {error && <p className={styles.error} role="alert">{error}</p>}
         {advice && (
           <>
-            <p className={styles.heading}>{HEADINGS[advice.kind ?? 'NONE'] ?? 'Advice'}{advice.when ? <small> · {advice.when}</small> : null}</p>
+            <p className={styles.heading}>{t(HEADINGS[advice.kind ?? 'NONE'] ?? 'match.advice.title')}{advice.when ? <small> · {advice.when}</small> : null}</p>
             {steps.length > 1 ? (
               <ol className={styles.steps}>
                 {steps.map((step, index) => <li key={`${step.objectId ?? ''}-${index}`}>{step.text}</li>)}
@@ -95,8 +96,8 @@ export function AdviceDialog({ gameId, open, onOpenChange, counted, onUsed }: {
             ) : (
               <p className={styles.text}>{advice.text}</p>
             )}
-            {advice.reason && <p className={styles.reason}>Why: {advice.reason}</p>}
-            {advice.millis !== undefined && <p className={styles.quiet}>Thought for {(advice.millis / 1000).toFixed(1)} s.</p>}
+            {advice.reason && <p className={styles.reason}>{t('match.advice.why', { reason: advice.reason })}</p>}
+            {advice.millis !== undefined && <p className={styles.quiet}>{t('match.advice.thought', { seconds: formatNumber(advice.millis / 1000, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) })}</p>}
           </>
         )}
       </div>
@@ -104,7 +105,6 @@ export function AdviceDialog({ gameId, open, onOpenChange, counted, onUsed }: {
   );
 }
 
-function hintsLeftLabel(left: number): string {
-  if (left <= 0) return 'No hints left in this game.';
-  return left === 1 ? '1 hint left in this game.' : `${left} hints left in this game.`;
+function hintsLeftLabel(t: Translate, left: number): string {
+  return left <= 0 ? t('match.advice.noHints') : t('match.advice.hintsLeft', { count: left });
 }

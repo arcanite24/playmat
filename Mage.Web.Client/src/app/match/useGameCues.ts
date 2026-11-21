@@ -6,6 +6,8 @@ import { ignoreMatchKey, matchKeysBlocked } from './keyboard';
 import { cueSnapshot, pickCue, type CueSnapshot } from './cueRules';
 import { playCue, warmAudio } from './sound';
 import { beatsOf } from './beats';
+import { t } from '../i18n';
+import './matchMessages';
 import type { Cue } from './cueRules';
 
 /**
@@ -29,7 +31,7 @@ export function useGameCues(state: GameSessionState, myId: string | null, autoPa
       if (event.metaKey || event.ctrlKey || event.altKey || ignoreMatchKey(event) || matchKeysBlocked()) return;
       const { settings, update } = useSettings.getState();
       update({ sound: !settings.sound });
-      notify(settings.sound ? 'Sound off' : 'Sound on', 'Press M to switch it back.');
+      notify(t(settings.sound ? 'match.cue.soundOff' : 'match.cue.soundOn'), t('match.cue.pressM'));
     }
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);

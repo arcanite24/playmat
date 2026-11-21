@@ -6,6 +6,8 @@ import type { DeckCardInfo } from '../../core/decks/types';
 import { EMPTY_STATS, goldfish, record, verdict, type Goldfish, type Opposition, type TrainerStats, type Verdict } from '../../core/train/mulligan';
 import type { CardView } from '../../protocol/generated/views';
 import { useCardInfo } from '../decks/cardInfo';
+import { formatNumber, useT, type Translate } from '../i18n';
+import { RichText } from '../i18n/RichText';
 import { entryKey } from '../decks/deckModel';
 import { readJson, writeJson } from '../stores/persist';
 import { Button } from '../ui/Button';
@@ -15,11 +17,31 @@ import { useDeckList } from './trainData';
 import styles from './Train.module.css';
 
 const STATS_KEY = 'playmat.train.mulligan';
-const OPPOSITION: { id: Opposition; label: string }[] = [
-  { id: 'aggro', label: 'Aggro (fast creatures and burn)' },
-  { id: 'midrange', label: 'Midrange (a fair fight)' },
-  { id: 'control', label: 'Control (answers and card draw)' },
-];
+const OPPOSITION = [
+  { id: 'aggro', label: 'train.mull.vs.aggro' },
+  { id: 'midrange', label: 'train.mull.vs.midrange' },
+  { id: 'control', label: 'train.mull.vs.control' },
+] as const satisfies readonly { id: Opposition; label: string }[];
+
+const percentOf = (part: number, whole: number) => formatNumber(whole ? part / whole : 0, { style: 'percent', maximumFractionDigits: 0 });
+
+/** The table's reason, in the player's language (the English one when the verdict has no code). */
+function reasonText(t: Translate, table: Verdict): string {
+  const why = table.why;
+  if (!why) return table.reason;
+  switch (why.code) {
+    case 'noLands':
+    case 'oneLand':
+      return t(`train.why.${why.code}`, { size: why.size });
+    case 'flood':
+      return t('train.why.flood', { lands: why.lands, spells: why.spells });
+    case 'fine':
+    case 'fineColors':
+      return t(`train.why.${why.code}`, { lands: why.lands, count: why.early });
+    default:
+      return t(`train.why.${why.code}`);
+  }
+}
 
 interface Card {
   entry: DeckCardInfo;
@@ -36,6 +58,7 @@ interface Deal {
 
 /** Keep or ship (S015): deal from your deck, decide, see the table's verdict, and goldfish what you kept. */
 export function MulliganTrainer() {
+  const t = useT();
   const [deckId, setDeckId] = useState<string | null>(null);
   const [against, setAgainst] = useState<Opposition>('midrange');
   const [onThePlay, setOnThePlay] = useState(true);
@@ -84,30 +107,32 @@ export function MulliganTrainer() {
   return (
     <section className={styles.tool} aria-labelledby="mulligan-title">
       <header className={styles.toolHead}>
-        <h2 id="mulligan-title">Mulligan trainer</h2>
-        <p>Keep or ship an opening hand, see what the table would do, then watch the hand play out alone for five turns.</p>
+        <h2 id="mulligan-title">{t('train.mull.title')}</h2>
+        <p>{t('train.mull.lead')}</p>
       </header>
       <div className={styles.controls}>
         <DeckSelect value={deckId} onChange={(id) => { setDeckId(id); setDeal(null); }} />
         <label className={styles.field}>
-          <span>Across the table</span>
+          <span>{t('train.mull.against')}</span>
           <select value={against} onChange={(event) => setAgainst(event.target.value as Opposition)}>
-            {OPPOSITION.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+            {OPPOSITION.map((option) => <option key={option.id} value={option.id}>{t(option.label)}</option>)}
           </select>
         </label>
         <label className={styles.check}>
           <input type="checkbox" checked={onThePlay} onChange={(event) => setOnThePlay(event.target.checked)} />
-          On the play
+          {t('train.mull.onThePlay')}
         </label>
-        <Button variant="decision" icon={<Shuffle size={16} />} disabled={library.length < 7} onClick={() => newHand()}>Deal a hand</Button>
+        <Button variant="decision" icon={<Shuffle size={16} />} disabled={library.length < 7} onClick={() => newHand()}>{t('train.mull.deal')}</Button>
       </div>
       {error && <p className={styles.error} role="alert">{error}</p>}
-      {deckId && deck && library.length < 7 && <p className={styles.quiet}>This deck has fewer than seven cards.</p>}
+      {deckId && deck && library.length < 7 && <p className={styles.quiet}>{t('train.mull.tooSmall')}</p>}
 
       {deal && (
         <>
           <p className={styles.quiet}>
-            {deal.mulligans === 0 ? 'Your opening seven.' : `Mulligan to ${7 - deal.mulligans}: pick ${deal.mulligans} card${deal.mulligans === 1 ? '' : 's'} to put on the bottom (${deal.bottom.size} chosen).`}
+            {deal.mulligans === 0
+              ? t('train.mull.seven')
+              : t('train.mull.bottom', { size: 7 - deal.mulligans, count: deal.mulligans, chosen: deal.bottom.size })}
           </p>
           <div className={styles.hand}>
             {hand.map((card, index) => {
@@ -120,7 +145,7 @@ export function MulliganTrainer() {
                   className={[styles.handCard, chosen ? styles.bottomed : ''].join(' ')}
                   disabled={needBottom === 0 || !!deal.decided}
                   aria-pressed={needBottom > 0 ? chosen : undefined}
-                  aria-label={`${card.entry.cardName}${chosen ? ', on the bottom' : ''}`}
+                  aria-label={chosen ? t('train.mull.onBottom', { name: card.entry.cardName }) : card.entry.cardName}
                   onClick={() => toggleBottom(index)}
                 >
                   <CardFace card={view} size="normal" />
@@ -130,8 +155,8 @@ export function MulliganTrainer() {
           </div>
           {!deal.decided ? (
             <div className={styles.controls}>
-              <Button variant="decision" disabled={!ready} onClick={() => decide(true)}>Keep</Button>
-              <Button variant="print" disabled={!ready || deal.mulligans >= 3} onClick={() => decide(false)}>Mulligan</Button>
+              <Button variant="decision" disabled={!ready} onClick={() => decide(true)}>{t('train.mull.keep')}</Button>
+              <Button variant="print" disabled={!ready || deal.mulligans >= 3} onClick={() => decide(false)}>{t('train.mull.mulligan')}</Button>
             </div>
           ) : (
             <Decision deal={deal} onNext={() => newHand()} onMulligan={() => newHand(deal.mulligans + 1)} />
@@ -139,13 +164,13 @@ export function MulliganTrainer() {
         </>
       )}
 
-      <footer className={styles.stats} aria-label="Your record">
-        <span><b>{stats.hands}</b> hands</span>
-        <span><b>{stats.hands ? Math.round((stats.keeps / stats.hands) * 100) : 0}%</b> kept</span>
-        <span><b>{stats.hands ? Math.round((stats.agreed / stats.hands) * 100) : 0}%</b> agreed with the table</span>
-        <span><b>{stats.keeps ? Math.round((stats.stalls / stats.keeps) * 100) : 0}%</b> of keeps stalled on lands</span>
+      <footer className={styles.stats} aria-label={t('train.mull.record')}>
+        <span><RichText text={t('train.mull.hands', { count: stats.hands })} parts={{ n: <b>{formatNumber(stats.hands)}</b> }} /></span>
+        <span><RichText text={t('train.mull.kept')} parts={{ percent: <b>{percentOf(stats.keeps, stats.hands)}</b> }} /></span>
+        <span><RichText text={t('train.mull.agreed')} parts={{ percent: <b>{percentOf(stats.agreed, stats.hands)}</b> }} /></span>
+        <span><RichText text={t('train.mull.stalled')} parts={{ percent: <b>{percentOf(stats.stalls, stats.keeps)}</b> }} /></span>
         {stats.hands > 0 && (
-          <Button size="sm" variant="quiet" icon={<RotateCcw size={14} />} onClick={() => { setStats(EMPTY_STATS); writeJson(STATS_KEY, EMPTY_STATS); }}>Reset</Button>
+          <Button size="sm" variant="quiet" icon={<RotateCcw size={14} />} onClick={() => { setStats(EMPTY_STATS); writeJson(STATS_KEY, EMPTY_STATS); }}>{t('train.mull.reset')}</Button>
         )}
       </footer>
     </section>
@@ -153,39 +178,40 @@ export function MulliganTrainer() {
 }
 
 function Decision({ deal, onNext, onMulligan }: { deal: Deal; onNext(): void; onMulligan(): void }) {
+  const t = useT();
   const decided = deal.decided!;
   const agreed = decided.kept === decided.table.keep;
   return (
     <div className={styles.result} aria-live="polite">
       <p className={agreed ? styles.agree : styles.disagree}>
-        <b>{decided.kept ? 'You kept' : 'You shipped it'}. The table would {decided.table.keep ? 'keep' : 'mulligan'}.</b> {decided.table.reason}
+        <b>{t(decided.kept ? 'train.mull.youKept' : 'train.mull.youShipped')} {t(decided.table.keep ? 'train.mull.tableKeeps' : 'train.mull.tableShips')}</b> {reasonText(t, decided.table)}
       </p>
       {decided.fish && (
         <>
           <table className={styles.table}>
             <thead>
-              <tr><th scope="col">Turn</th><th scope="col">Drew</th><th scope="col">Land</th><th scope="col">Cast</th></tr>
+              <tr><th scope="col">{t('train.mull.turn')}</th><th scope="col">{t('train.mull.drew')}</th><th scope="col">{t('train.mull.land')}</th><th scope="col">{t('train.mull.cast')}</th></tr>
             </thead>
             <tbody>
               {decided.fish.turns.map((turn) => (
                 <tr key={turn.turn}>
-                  <th scope="row">T{turn.turn}</th>
+                  <th scope="row">{t('train.mull.turnShort', { turn: turn.turn })}</th>
                   <td>{turn.drew ?? '—'}</td>
-                  <td>{turn.land ?? <em>missed</em>}</td>
+                  <td>{turn.land ?? <em>{t('train.mull.missed')}</em>}</td>
                   <td>{turn.cast.length ? turn.cast.join(', ') : '—'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
           <p className={styles.quiet}>
-            {decided.fish.stalled ? 'This keep missed a land drop in the first four turns.' : 'Every land drop made through turn four.'}
-            {' '}{decided.fish.manaSpent} mana spent over five turns.
+            {t(decided.fish.stalled ? 'train.mull.fishStalled' : 'train.mull.fishFine')}
+            {' '}{t('train.mull.manaSpent', { count: decided.fish.manaSpent })}
           </p>
         </>
       )}
       <div className={styles.controls}>
-        {!decided.kept && deal.mulligans < 3 && <Button variant="decision" onClick={onMulligan}>Deal {6 - deal.mulligans}</Button>}
-        <Button variant={decided.kept ? 'decision' : 'print'} onClick={onNext}>New hand</Button>
+        {!decided.kept && deal.mulligans < 3 && <Button variant="decision" onClick={onMulligan}>{t('train.mull.dealSize', { count: 6 - deal.mulligans })}</Button>}
+        <Button variant={decided.kept ? 'decision' : 'print'} onClick={onNext}>{t('train.mull.newHand')}</Button>
       </div>
     </div>
   );

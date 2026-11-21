@@ -8,9 +8,17 @@ import { canPay, pickLand, type SimCard } from '../decks/simulate';
 
 export type Opposition = 'aggro' | 'midrange' | 'control';
 
+/** Why the table decided, for a translated sentence: the {@link Verdict.reason} in English is built from the same. */
+export type VerdictWhy =
+  | { code: 'fiveCards' | 'aggro' | 'nothingEarly' | 'colors' | 'expensive' | 'slowControl' }
+  | { code: 'noLands' | 'oneLand'; size: number }
+  | { code: 'flood'; lands: number; spells: number }
+  | { code: 'fine' | 'fineColors'; lands: number; early: number };
+
 export interface Verdict {
   keep: boolean;
   reason: string;
+  why?: VerdictWhy;
 }
 
 /** whether lands in a hand can make a spell's colors at all (not how many) */
@@ -32,30 +40,43 @@ export function verdict(hand: readonly SimCard[], against: Opposition = 'midrang
   const minLands = size <= 5 ? 1 : 2;
   const maxLands = size >= 7 ? 5 : size - 1;
   if (mulligans >= 2) {
-    return { keep: true, reason: 'At five cards, keep almost anything: another mulligan costs more than a weak hand.' };
+    return { keep: true, reason: 'At five cards, keep almost anything: another mulligan costs more than a weak hand.', why: { code: 'fiveCards' } };
   }
   if (lands.length < minLands) {
-    return { keep: false, reason: `${lands.length === 0 ? 'No lands' : 'One land'} in ${size} cards: most games, this hand doesn't cast its spells in time.` };
+    return {
+      keep: false,
+      reason: `${lands.length === 0 ? 'No lands' : 'One land'} in ${size} cards: most games, this hand doesn't cast its spells in time.`,
+      why: { code: lands.length === 0 ? 'noLands' : 'oneLand', size },
+    };
   }
   if (lands.length > maxLands) {
-    return { keep: false, reason: `${lands.length} lands and ${spells.length} spells: too little to do with the mana.` };
+    return {
+      keep: false,
+      reason: `${lands.length} lands and ${spells.length} spells: too little to do with the mana.`,
+      why: { code: 'flood', lands: lands.length, spells: spells.length },
+    };
   }
   const neededEarly = against === 'aggro' ? 2 : 1;
   if (early.length < neededEarly && against !== 'control') {
-    return { keep: false, reason: against === 'aggro'
-      ? 'Against aggro you need two plays by turn three, and this hand has fewer.'
-      : 'Nothing to cast before turn four: this hand falls behind.' };
+    return against === 'aggro'
+      ? { keep: false, reason: 'Against aggro you need two plays by turn three, and this hand has fewer.', why: { code: 'aggro' } }
+      : { keep: false, reason: 'Nothing to cast before turn four: this hand falls behind.', why: { code: 'nothingEarly' } };
   }
   if (spells.length > 0 && castable.length === 0) {
-    return { keep: false, reason: 'The lands make none of the colors your spells need.' };
+    return { keep: false, reason: 'The lands make none of the colors your spells need.', why: { code: 'colors' } };
   }
   if (lands.length === 2 && size === 7 && early.length === 0) {
-    return { keep: false, reason: 'Two lands and only expensive spells: it needs to draw lands fast.' };
+    return { keep: false, reason: 'Two lands and only expensive spells: it needs to draw lands fast.', why: { code: 'expensive' } };
   }
   if (against === 'control' && early.length === 0 && lands.length >= 3) {
-    return { keep: true, reason: 'Slow, but against control there\'s time, and the lands are there.' };
+    return { keep: true, reason: 'Slow, but against control there\'s time, and the lands are there.', why: { code: 'slowControl' } };
   }
-  return { keep: true, reason: `${lands.length} lands, ${early.length} play${early.length === 1 ? '' : 's'} by turn three${castable.length < spells.length ? ', some colors still to find' : ''}: a fine keep.` };
+  const missingColors = castable.length < spells.length;
+  return {
+    keep: true,
+    reason: `${lands.length} lands, ${early.length} play${early.length === 1 ? '' : 's'} by turn three${missingColors ? ', some colors still to find' : ''}: a fine keep.`,
+    why: { code: missingColors ? 'fineColors' : 'fine', lands: lands.length, early: early.length },
+  };
 }
 
 export interface GoldfishTurn {

@@ -10,12 +10,17 @@ import type support from './en/support';
 import type social from './en/social';
 import type home from './en/home';
 import type league from './en/league';
+import type tables from './en/tables';
+import type train from './en/train';
+import type history from './en/history';
+import type game from './en/game';
 import type { Message } from './translate';
 
 /** Languages the app is translated into; English is the source and the fallback. */
 export const LOCALES = [
   { code: 'en', name: 'English' },
   { code: 'es', name: 'Español' },
+  { code: 'fr', name: 'Français' },
 ] as const;
 
 export type Locale = (typeof LOCALES)[number]['code'];
@@ -29,7 +34,11 @@ export type MessageKey = keyof typeof core | keyof typeof settings | keyof typeo
   | keyof typeof support
   | keyof typeof social
   | keyof typeof home
-  | keyof typeof league;
+  | keyof typeof league
+  | keyof typeof tables
+  | keyof typeof train
+  | keyof typeof history
+  | keyof typeof game;
 
 /** A translation: every key, so a missing one is a type error (and a failing test). */
 export type Catalog = Record<MessageKey, Message>;

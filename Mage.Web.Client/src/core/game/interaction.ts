@@ -34,8 +34,19 @@ export type InteractionMode =
 
 export type ButtonTone = 'primary' | 'secondary' | 'danger' | 'attack';
 
+/**
+ * A message the client writes (not the server), for the UI to translate: `key` is a message key, `vars` its
+ * placeholders. The English stays in `label` / `headline`, which logic and tests read.
+ */
+export interface UiText {
+  key: string;
+  vars?: Record<string, string | number>;
+}
+
 export interface PromptButton {
   label: string;
+  /** set when the client wrote the label; server labels (a card's "Done" text) have none */
+  text?: UiText;
   command: Command;
   tone: ButtonTone;
   /** keyboard shortcut hint, e.g. "Space" */
@@ -47,6 +58,8 @@ export interface Interaction {
   prompt: Prompt | null;
   /** short instruction for the prompt bar */
   headline: string;
+  /** set when the client wrote the headline; the server's prompt text has none */
+  headlineText?: UiText;
   /** ids (cards, permanents, players, stack objects) the player may click, and what a click sends */
   clickable: ReadonlyMap<string, Command>;
   /** ids currently chosen in this prompt (targets, attackers, blockers) */
@@ -83,31 +96,44 @@ function isMyTurn(view: GameView | null | undefined): boolean {
   return !!view?.myPlayerId && view.activePlayerId === view.myPlayerId;
 }
 
-/** Label for passing priority, following Arena's wording. */
-export function passLabel(view: GameView | null | undefined): string {
-  if (!view) return 'Pass';
-  if (view.stack && Object.keys(view.stack).length > 0) return 'Resolve';
-  if (!isMyTurn(view)) return 'Pass';
+const PASS_LABELS = { pass: 'Pass', resolve: 'Resolve', next: 'Next', toCombat: 'To Combat', endTurn: 'End Turn' } as const;
+export type PassKind = keyof typeof PASS_LABELS;
+
+/** What passing priority does now, following Arena's wording. */
+export function passKind(view: GameView | null | undefined): PassKind {
+  if (!view) return 'pass';
+  if (view.stack && Object.keys(view.stack).length > 0) return 'resolve';
+  if (!isMyTurn(view)) return 'pass';
   switch (view.step) {
     case 'UPKEEP':
     case 'DRAW':
-      return 'Next';
+      return 'next';
     case 'PRECOMBAT_MAIN':
-      return 'To Combat';
+      return 'toCombat';
     case 'BEGIN_COMBAT':
     case 'DECLARE_ATTACKERS':
     case 'DECLARE_BLOCKERS':
     case 'FIRST_COMBAT_DAMAGE':
     case 'COMBAT_DAMAGE':
     case 'END_COMBAT':
-      return 'Next';
+      return 'next';
     case 'POSTCOMBAT_MAIN':
     case 'END_TURN':
     case 'CLEANUP':
-      return 'End Turn';
+      return 'endTurn';
     default:
-      return 'Next';
+      return 'next';
   }
+}
+
+/** Label for passing priority, following Arena's wording. */
+export function passLabel(view: GameView | null | undefined): string {
+  return PASS_LABELS[passKind(view)];
+}
+
+/** A button whose label the client wrote, with its message key. */
+function own(label: string, key: string, vars?: UiText['vars']): Pick<PromptButton, 'label' | 'text'> {
+  return { label, text: { key, vars } };
 }
 
 export function myAttackers(view: GameView | null | undefined): string[] {
@@ -134,9 +160,9 @@ export function deriveInteraction(view: GameView | null | undefined, prompt: Pro
     return {
       mode: 'waiting',
       prompt: null,
-      headline: view?.priorityPlayerName && view.priorityPlayerName !== myPlayer(view)?.name
-        ? `Waiting for ${view.priorityPlayerName}`
-        : 'Waiting',
+      ...(view?.priorityPlayerName && view.priorityPlayerName !== myPlayer(view)?.name
+        ? { headline: `Waiting for ${view.priorityPlayerName}`, headlineText: { key: 'match.ui.waitingFor', vars: { name: view.priorityPlayerName } } }
+        : { headline: 'Waiting', headlineText: { key: 'match.ui.waiting' } }),
       clickable: EMPTY_MAP,
       selected: EMPTY_SET,
       mainButton: null,
@@ -152,25 +178,25 @@ export function deriveInteraction(view: GameView | null | undefined, prompt: Pro
         headline: prompt.text,
         clickable: clickMap(playableIds(view)),
         selected: EMPTY_SET,
-        mainButton: { label: passLabel(view), command: PASS, tone: 'primary', shortcut: 'Space' },
+        mainButton: { ...own(passLabel(view), `match.ui.pass.${passKind(view)}`), command: PASS, tone: 'primary', shortcut: 'Space' },
         secondaryButtons: [],
       };
 
     case 'declareAttackers': {
       const selected = new Set(myAttackers(view));
-      const noAttacks: PromptButton = { label: 'No Attacks', command: { type: 'boolean', value: true }, tone: 'secondary' };
+      const noAttacks: PromptButton = { ...own('No Attacks', 'match.ui.noAttacks'), command: { type: 'boolean', value: true }, tone: 'secondary' };
       // with nothing chosen yet, the big button (and Space) attacks with everything, as on Arena: skipping the attack
       // takes a deliberate click on the smaller "No Attacks"
       const allAttack = !!prompt.allAttackLabel && prompt.possibleAttackers.length > 0;
       const mainButton: PromptButton = selected.size > 0
-        ? { label: `Attack (${selected.size})`, command: { type: 'boolean', value: true }, tone: 'attack', shortcut: 'Space' }
+        ? { ...own(`Attack (${selected.size})`, 'match.ui.attackCount', { count: selected.size }), command: { type: 'boolean', value: true }, tone: 'attack', shortcut: 'Space' }
         : allAttack
           ? { label: prompt.allAttackLabel!, command: { type: 'string', value: 'special' }, tone: 'attack', shortcut: 'Space' }
           : { ...noAttacks, tone: 'primary', shortcut: 'Space' };
       return {
         mode: 'declareAttackers',
         prompt,
-        headline: selected.size > 0 ? 'Choose attackers' : prompt.text,
+        ...(selected.size > 0 ? { headline: 'Choose attackers', headlineText: { key: 'match.ui.chooseAttackers' } } : { headline: prompt.text }),
         clickable: clickMap(new Set([...prompt.possibleAttackers, ...selected])),
         selected,
         mainButton,
@@ -186,11 +212,11 @@ export function deriveInteraction(view: GameView | null | undefined, prompt: Pro
       return {
         mode: 'declareBlockers',
         prompt,
-        headline: selected.size > 0 ? 'Choose blockers' : prompt.text,
+        ...(selected.size > 0 ? { headline: 'Choose blockers', headlineText: { key: 'match.ui.chooseBlockers' } } : { headline: prompt.text }),
         clickable: clickMap(new Set([...prompt.possibleBlockers, ...selected])),
         selected,
         mainButton: {
-          label: selected.size === 0 ? 'No Blocks' : `Block (${selected.size})`,
+          ...(selected.size === 0 ? own('No Blocks', 'match.ui.noBlocks') : own(`Block (${selected.size})`, 'match.ui.blockCount', { count: selected.size })),
           command: { type: 'boolean', value: true },
           tone: 'primary',
           shortcut: 'Space',
@@ -208,9 +234,9 @@ export function deriveInteraction(view: GameView | null | undefined, prompt: Pro
       // choosing no card is a normal answer off the board (a library search may find nothing that matches)
       const pickNone = canAbandon && prompt.cards !== null;
       const mainButton: PromptButton | null = canFinish || pickNone
-        ? { label: prompt.doneLabel ?? 'Done', command: uuid(null), tone: 'primary', shortcut: 'Space' }
+        ? { ...(prompt.doneLabel ? { label: prompt.doneLabel } : own('Done', 'match.ui.done')), command: uuid(null), tone: 'primary', shortcut: 'Space' }
         : null;
-      const secondaryButtons: PromptButton[] = canAbandon && !pickNone ? [{ label: 'Cancel', command: uuid(null), tone: 'danger' }] : [];
+      const secondaryButtons: PromptButton[] = canAbandon && !pickNone ? [{ ...own('Cancel', 'match.ui.cancel'), command: uuid(null), tone: 'danger' }] : [];
       return {
         mode: prompt.cards ? 'pickCards' : 'target',
         prompt,
@@ -252,11 +278,11 @@ export function deriveInteraction(view: GameView | null | undefined, prompt: Pro
         selected: EMPTY_SET,
         // X costs finish with any boolean; for normal costs any boolean cancels the spell
         mainButton: prompt.isX
-          ? { label: 'Done', command: { type: 'boolean', value: true }, tone: 'primary', shortcut: 'Space' }
+          ? { ...own('Done', 'match.ui.done'), command: { type: 'boolean', value: true }, tone: 'primary', shortcut: 'Space' }
           : null,
         secondaryButtons: [
           ...secondary,
-          { label: 'Cancel', command: { type: 'boolean', value: false }, tone: 'danger' },
+          { ...own('Cancel', 'match.ui.cancel'), command: { type: 'boolean', value: false }, tone: 'danger' },
         ],
       };
     }
@@ -267,11 +293,13 @@ export function deriveInteraction(view: GameView | null | undefined, prompt: Pro
       return {
         mode: 'assignDamage',
         prompt,
-        headline: assignment.sourceName ? `Assign ${assignment.sourceName}'s combat damage` : 'Assign combat damage',
+        ...(assignment.sourceName
+          ? { headline: `Assign ${assignment.sourceName}'s combat damage`, headlineText: { key: 'match.ui.assignFrom', vars: { name: assignment.sourceName } } }
+          : { headline: 'Assign combat damage', headlineText: { key: 'match.ui.assign' } }),
         clickable: EMPTY_MAP,
         selected: EMPTY_SET,
         // the board edits the split; this answer is the lethal-first default it starts from
-        mainButton: { label: 'Assign damage', command: { type: 'string', value: assignmentAnswer(lethalFirst(assignment)) }, tone: 'primary', shortcut: 'Space' },
+        mainButton: { ...own('Assign damage', 'match.ui.assignDamage'), command: { type: 'string', value: assignmentAnswer(lethalFirst(assignment)) }, tone: 'primary', shortcut: 'Space' },
         secondaryButtons: [],
       };
     }
@@ -288,7 +316,7 @@ function panel(prompt: Prompt): Interaction {
   return {
     mode: 'panel',
     prompt,
-    headline: prompt.text || 'Make a choice',
+    ...(prompt.text ? { headline: prompt.text } : { headline: 'Make a choice', headlineText: { key: 'match.ui.makeChoice' } }),
     clickable: EMPTY_MAP,
     selected: EMPTY_SET,
     mainButton: null,

@@ -7,6 +7,8 @@ import { CardFace } from '../ui/CardFace';
 import { zoneKeys } from './boardModel';
 import { useFlip } from './flip';
 import { useMatchUi } from './matchUi';
+import { useT } from '../i18n';
+import './matchMessages';
 import styles from './StackZone.module.css';
 
 export interface StackZoneProps {
@@ -22,12 +24,13 @@ export interface StackZoneProps {
 
 /** Spells and abilities waiting to resolve, stacked at the right of the table; the top one resolves first. */
 export function StackZone({ items, clickable, selected, sleeveOf, onClick, originOf }: StackZoneProps) {
+  const t = useT();
   // a spell keeps its card's identity (abilities have no card of their own): it is the card that left the hand
   const keys = useMemo(() => zoneKeys(items.map((item) => (isStackAbility(item) ? { id: item.id } : item))), [items]);
   if (items.length === 0) return null;
   return (
-    <section className={styles.zone} aria-label={`Stack, ${items.length} ${items.length === 1 ? 'object' : 'objects'}`}>
-      <h2 className={styles.label}>Stack</h2>
+    <section className={styles.zone} aria-label={t('match.stack.aria', { count: items.length })}>
+      <h2 className={styles.label}>{t('match.stack.title')}</h2>
       <ol className={styles.list}>
         {items.map((item, index) => (
           <StackItem
@@ -57,6 +60,7 @@ function StackItem({ item, index, total, clickable, selected, sleeve, onClick, o
   onClick(id: string): void;
   origin: string | undefined;
 }) {
+  const t = useT();
   const ref = useRef<HTMLLIElement>(null);
   const setZoom = useMatchUi((state) => state.setZoom);
   const setSourceHover = useMatchUi((state) => state.setSourceHover);
@@ -80,10 +84,10 @@ function StackItem({ item, index, total, clickable, selected, sleeve, onClick, o
       }}
       onClick={() => clickable && onClick(item.id!)}
       data-object-id={item.id}
-      aria-label={`${ability ? 'Ability of ' : ''}${face.name}${index === 0 ? ', resolves next' : ''}`}
+      aria-label={(ability ? t('match.stack.abilityOf', { name: face.name ?? '' }) : face.name ?? '') + (index === 0 ? `, ${t('match.stack.resolvesNext')}` : '')}
     >
       {ability ? <AbilityCard ability={item} sleeve={sleeve} /> : <CardFace card={face} sleeve={sleeve} size="normal" />}
-      {index === 0 && <span className={styles.next}>Resolving next</span>}
+      {index === 0 && <span className={styles.next}>{t('match.stack.next')}</span>}
     </li>
   );
 }

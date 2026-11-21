@@ -19,6 +19,7 @@ import { cleanText } from '../ui/text';
 import './matchMessages';
 import { useChoiceKeyboard } from './useChoiceKeyboard';
 import { useMatchUi } from './matchUi';
+import { buttonText, headlineText, labelText } from './uiText';
 import { useKeyboardHints } from './useKeyboardHints';
 import { stampArt } from './touches';
 import { usePaintedArt } from '../career/careerArt';
@@ -45,6 +46,7 @@ export function MulliganOverlay({ hand, interaction, sleeve, onCommand }: {
   sleeve: string;
   onCommand(command: Command): void;
 }) {
+  const t = useT();
   const prompt = interaction.prompt;
   const keyboard = useChoiceKeyboard(prompt?.kind === 'ask');
   const hints = useKeyboardHints();
@@ -53,7 +55,7 @@ export function MulliganOverlay({ hand, interaction, sleeve, onCommand }: {
   return (
     <div ref={keyboard} tabIndex={-1} className={styles.scrim} role="dialog" aria-modal="true" aria-labelledby="mulligan-title">
       <div className={styles.center}>
-        <h2 id="mulligan-title" className={styles.bigTitle}>Opening hand</h2>
+        <h2 id="mulligan-title" className={styles.bigTitle}>{t('match.ui.openingHand')}</h2>
         <p className={styles.subtitle}>{prompt.text}</p>
         <div className={styles.handRow}>
           {hand.map((card) => (
@@ -64,9 +66,9 @@ export function MulliganOverlay({ hand, interaction, sleeve, onCommand }: {
         </div>
         <div className={styles.buttons}>
           <KeyTip keys="Alt+1 / Alt+Enter">
-            <Button data-secondary aria-keyshortcuts="Alt+Enter Alt+1" variant="print" size="lg" onClick={() => onCommand({ type: 'boolean', value: true })}>{prompt.yesLabel}{hints && <kbd aria-hidden="true">Alt+1</kbd>}</Button>
+            <Button data-secondary aria-keyshortcuts="Alt+Enter Alt+1" variant="print" size="lg" onClick={() => onCommand({ type: 'boolean', value: true })}>{labelText(t, prompt.yesLabel)}{hints && <kbd aria-hidden="true">Alt+1</kbd>}</Button>
           </KeyTip>
-          <Button data-primary variant="decision" size="xl" onClick={() => onCommand({ type: 'boolean', value: false })}>{prompt.noLabel}</Button>
+          <Button data-primary variant="decision" size="xl" onClick={() => onCommand({ type: 'boolean', value: false })}>{labelText(t, prompt.noLabel)}</Button>
         </div>
       </div>
     </div>
@@ -87,6 +89,7 @@ export function CardPicker({ title, cards, interaction, sleeve, footer, onComman
   footer?: ReactNode;
   onCommand(command: Command): void;
 }) {
+  const t = useT();
   const [hidden, setHidden] = useState(false);
   const keyboard = useChoiceKeyboard(!hidden);
   const hints = useKeyboardHints();
@@ -99,7 +102,7 @@ export function CardPicker({ title, cards, interaction, sleeve, footer, onComman
   if (hidden) {
     return (
       <div className={styles.peek}>
-        <Button variant="decision" onClick={() => setHidden(false)}>Back to choice</Button>
+        <Button variant="decision" onClick={() => setHidden(false)}>{t('match.ui.backToChoice')}</Button>
       </div>
     );
   }
@@ -107,23 +110,23 @@ export function CardPicker({ title, cards, interaction, sleeve, footer, onComman
     <div ref={keyboard} tabIndex={-1} className={styles.scrim} role="dialog" aria-modal="true" aria-label={title}>
       <div className={styles.panel}>
         <header className={styles.panelHead}>
-          <h2 className={styles.panelTitle}>{cards.length > 0 && cards.every(isStackAbility) ? 'Choose an ability' : cleanText(title)}</h2>
+          <h2 className={styles.panelTitle}>{cards.length > 0 && cards.every(isStackAbility) ? t('match.ui.chooseAbility') : cleanText(title)}</h2>
           {others > 0 && (
             <Button variant="quiet" size="sm" aria-pressed={showAll} onClick={() => setShowAll(!showAll)}>
-              {showAll ? 'Only what can be chosen' : `Show all (${cards.length})`}
+              {showAll ? t('match.ui.onlyChoosable') : t('match.ui.showAll', { count: cards.length })}
             </Button>
           )}
-          <Button variant="quiet" size="sm" onClick={() => setHidden(true)}>See the board</Button>
+          <Button variant="quiet" size="sm" onClick={() => setHidden(true)}>{t('match.ui.seeBoard')}</Button>
         </header>
-        <p className={styles.panelText}><PromptText text={interaction.headline} /></p>
-        {shown.length === 0 && <p className={styles.panelText}>None of these can be chosen.</p>}
+        <p className={styles.panelText}><PromptText text={headlineText(t, interaction)} /></p>
+        {shown.length === 0 && <p className={styles.panelText}>{t('match.ui.noneChoosable')}</p>}
         <div className={styles.grid}>
           {shown.map((card) => {
             const id = card.id!;
             const clickable = interaction.clickable.has(id);
             const selected = interaction.selected.has(id);
             const ability = isStackAbility(card) ? card : null;
-            const name = ability ? `${ability.sourceCard?.name ?? 'Ability'}: ${(ability.rules ?? []).map(stripMarkup).join(' ')}` : card.name;
+            const name = ability ? `${ability.sourceCard?.name ?? t('ui.ability')}: ${(ability.rules ?? []).map(stripMarkup).join(' ')}` : card.name;
             return (
               <button
                 key={id}
@@ -133,7 +136,7 @@ export function CardPicker({ title, cards, interaction, sleeve, footer, onComman
                 disabled={!clickable}
                 aria-pressed={selected}
                 data-card-id={id}
-                aria-label={`${name}${selected ? ', chosen' : ''}`}
+                aria-label={selected ? t('match.ui.chosen', { name: name ?? '' }) : name}
                 onClick={() => onCommand({ type: 'uuid', id })}
                 {...zoom(card)}
               >
@@ -147,10 +150,10 @@ export function CardPicker({ title, cards, interaction, sleeve, footer, onComman
             {footer}
             {interaction.secondaryButtons.map((button, index) => (
               <KeyTip key={button.label} keys={[button.label === 'Cancel' ? 'Esc' : null, index < 10 ? `Alt+${(index + 1) % 10}` : null].filter(Boolean).join(' / ')}>
-                <Button data-secondary data-cancel={button.label === 'Cancel' || undefined} variant="quiet" size="lg" onClick={() => onCommand(button.command)}>{button.label}{hints && index < 10 && <kbd aria-hidden="true">Alt+{(index + 1) % 10}</kbd>}</Button>
+                <Button data-secondary data-cancel={button.label === 'Cancel' || undefined} variant="quiet" size="lg" onClick={() => onCommand(button.command)}>{buttonText(t, button)}{hints && index < 10 && <kbd aria-hidden="true">Alt+{(index + 1) % 10}</kbd>}</Button>
               </KeyTip>
             ))}
-            {main && <Button data-primary variant="decision" size="lg" onClick={() => onCommand(main.command)}>{main.label}</Button>}
+            {main && <Button data-primary variant="decision" size="lg" onClick={() => onCommand(main.command)}>{buttonText(t, main)}</Button>}
           </footer>
         )}
       </div>
@@ -184,7 +187,7 @@ export function ChoicePanel({ prompt, onCommand, xLimit = null, startAtLimit = f
       // the server asks even with one ability, to confirm one that sacrifices its source: say so plainly
       const source = prompt.choices.length === 1 ? abilityChooserSource(prompt.text) : null;
       return (
-        <PanelShell title={source ? t('match.ability.one', { name: source }) : prompt.text || 'Choose one'}>
+        <PanelShell title={source ? t('match.ability.one', { name: source }) : prompt.text || t('match.ui.chooseOne')}>
           <div className={styles.options}>
             {prompt.choices.map((choice, index) => (
               <button key={choice.id} data-choice type="button" className={styles.option} onClick={() => onCommand({ type: 'uuid', id: choice.id })}>
@@ -207,11 +210,11 @@ export function ChoicePanel({ prompt, onCommand, xLimit = null, startAtLimit = f
       return <ChoiceList prompt={prompt} onCommand={onCommand} sourceId={sourceId} />;
     case 'choosePile':
       return (
-        <PanelShell title={prompt.text || 'Choose a pile'} wide>
+        <PanelShell title={prompt.text || t('match.ui.choosePile')} wide>
           <div className={styles.piles}>
             {[prompt.pile1, prompt.pile2].map((pile, index) => (
               <button key={index} data-choice type="button" className={styles.pileChoice} onClick={() => onCommand({ type: 'boolean', value: index === 0 })}>
-                <span className={styles.pileLabel}>Pile {index + 1} · {pile.length} {pile.length === 1 ? 'card' : 'cards'}</span>
+                <span className={styles.pileLabel}>{t('match.ui.pile', { number: index + 1, count: pile.length })}</span>
                 <div className={styles.pileCards}>
                   {pile.map((card) => <div key={card.id} className={styles.pileCard} data-card-id={card.id} {...zoom(card)}><CardFace card={card} size="small" /></div>)}
                 </div>
@@ -235,6 +238,7 @@ export function ChoicePanel({ prompt, onCommand, xLimit = null, startAtLimit = f
 
 /** Venturing: the dungeons to choose from, as their cards, so the rooms can be read before choosing (#385). */
 function DungeonChooser({ title, names, onCommand }: { title: string; names: string[]; onCommand(command: Command): void }) {
+  const t = useT();
   const zoom = useHoverZoom();
   return (
     <PanelShell title={title} wide>
@@ -243,7 +247,7 @@ function DungeonChooser({ title, names, onCommand }: { title: string; names: str
           const card = dungeonCardByName(name);
           return (
             <button key={name} data-choice type="button" className={styles.dungeonChoice} data-card-id={card.id}
-              aria-label={`Venture into ${name}`} onClick={() => onCommand({ type: 'string', value: name })} {...zoom(card)}>
+              aria-label={t('match.ui.ventureInto', { name })} onClick={() => onCommand({ type: 'string', value: name })} {...zoom(card)}>
               <CardFace card={card} size="normal" />
               <span className={styles.dungeonName}>
                 {index < 10 && <span className={styles.optionKey} aria-hidden="true">{(index + 1) % 10}</span>}
@@ -259,23 +263,24 @@ function DungeonChooser({ title, names, onCommand }: { title: string; names: str
 
 /** "Which room next": both rooms with what entering them does, beside the dungeon's card (#385). */
 function RoomChooser({ choice, dungeon, onCommand }: { choice: RoomChoice; dungeon: Dungeon | null; onCommand(command: Command): void }) {
+  const t = useT();
   const zoom = useHoverZoom();
   const card = dungeon?.card ?? (choice.dungeonName ? dungeonCardByName(choice.dungeonName) : null);
   const from = dungeon?.currentRoom;
   return (
-    <PanelShell title={choice.dungeonName ? `Next room in ${choice.dungeonName}` : 'Choose the next room'} wide>
+    <PanelShell title={choice.dungeonName ? t('match.ui.nextRoomIn', { name: choice.dungeonName }) : t('match.ui.chooseRoom')} wide>
       <div className={styles.roomChoice}>
         {card && <div className={styles.roomCard} data-card-id={card.id} {...zoom(card)}><CardFace card={card} size="normal" /></div>}
         <div className={styles.options}>
-          {from && <p className={styles.panelText}>You leave {from}. Choose where the venture marker goes:</p>}
+          {from && <p className={styles.panelText}>{t('match.ui.leaveRoom', { room: from })}</p>}
           {choice.options.map((option, index) => (
             <button key={option.name} data-choice type="button" className={styles.option} onClick={() => onCommand({ type: 'boolean', value: option.value })}>
               <span className={styles.optionKey} aria-hidden="true">{index + 1}</span>
               <span className={styles.roomText}>
                 <b>{option.name}</b>
                 {option.room && <span><PromptText text={option.room.effect} /></span>}
-                {option.room && option.room.leadsTo.length > 0 && <small>Leads to {option.room.leadsTo.join(' or ')}</small>}
-                {option.room && option.room.leadsTo.length === 0 && <small>The last room</small>}
+                {option.room && option.room.leadsTo.length > 0 && <small>{t('match.ui.leadsTo', { rooms: option.room.leadsTo.join(` ${t('match.mana.or')} `) })}</small>}
+                {option.room && option.room.leadsTo.length === 0 && <small>{t('match.ui.lastRoom')}</small>}
               </span>
             </button>
           ))}
@@ -287,6 +292,7 @@ function RoomChooser({ choice, dungeon, onCommand }: { choice: RoomChoice; dunge
 
 /** A player's dungeon laid out room by room: where the venture marker is, and where it can go next. */
 export function DungeonViewer({ title, dungeon, onClose }: { title: string; dungeon: Dungeon; onClose(): void }) {
+  const t = useT();
   const keyboard = useChoiceKeyboard();
   const zoom = useHoverZoom();
   return (
@@ -294,7 +300,7 @@ export function DungeonViewer({ title, dungeon, onClose }: { title: string; dung
       <div className={[styles.panel, styles.panelWide].join(' ')} onClick={(event) => event.stopPropagation()}>
         <header className={styles.panelHead}>
           <h2 className={styles.panelTitle}>{title}</h2>
-          <Button data-cancel variant="quiet" size="sm" onClick={onClose}>Close</Button>
+          <Button data-cancel variant="quiet" size="sm" onClick={onClose}>{t('ui.close')}</Button>
         </header>
         <div className={styles.roomChoice}>
           <div className={styles.roomCard} data-card-id={dungeon.card.id} {...zoom(dungeon.card)}><CardFace card={dungeon.card} size="normal" /></div>
@@ -305,15 +311,15 @@ export function DungeonViewer({ title, dungeon, onClose }: { title: string; dung
                 <span className={styles.roomText}>
                   <b>{room.name}</b>
                   <span><PromptText text={room.effect} /></span>
-                  {room.leadsTo.length > 0 && <small>Leads to {room.leadsTo.join(' or ')}</small>}
+                  {room.leadsTo.length > 0 && <small>{t('match.ui.leadsTo', { rooms: room.leadsTo.join(` ${t('match.mana.or')} `) })}</small>}
                 </span>
-                {room.current && <span className={styles.roomTag}>Venture marker</span>}
-                {room.next && <span className={styles.roomTag}>Next</span>}
+                {room.current && <span className={styles.roomTag}>{t('match.ui.ventureMarker')}</span>}
+                {room.next && <span className={styles.roomTag}>{t('match.ui.nextRoom')}</span>}
               </li>
             ))}
           </ol>
         </div>
-        {!dungeon.currentRoom && <p className={styles.panelText}>Not in a room yet.</p>}
+        {!dungeon.currentRoom && <p className={styles.panelText}>{t('match.ui.noRoom')}</p>}
       </div>
     </div>
   );
@@ -347,7 +353,7 @@ function ChoiceList({ prompt, onCommand, sourceId }: { prompt: Extract<Prompt, {
     () => sorted.filter((entry) => stripMarkup(entry.label).toLowerCase().includes(query.trim().toLowerCase())),
     [sorted, query],
   );
-  const title = stripMarkup(choice.message) || prompt.text || 'Choose one';
+  const title = stripMarkup(choice.message) || prompt.text || t('match.ui.chooseOne');
   if (isDungeonChoice(choice)) {
     return <DungeonChooser title={title} names={sorted.map((entry) => entry.value)} onCommand={onCommand} />;
   }
@@ -362,7 +368,7 @@ function ChoiceList({ prompt, onCommand, sourceId }: { prompt: Extract<Prompt, {
     <PanelShell title={title}>
       {choice.subMessage && <p className={styles.panelText}>{stripMarkup(choice.subMessage)}</p>}
       {entries.length > 8 && (
-        <input className={styles.search} placeholder="Search" value={query} onChange={(event) => setQuery(event.target.value)} aria-label="Search choices" />
+        <input className={styles.search} placeholder={t('match.ui.search')} value={query} onChange={(event) => setQuery(event.target.value)} aria-label={t('match.ui.searchChoices')} />
       )}
       <div className={[styles.options, entries.length > 8 ? styles.optionsScroll : ''].join(' ')}>
         {filtered.map((entry, index) => (
@@ -375,7 +381,7 @@ function ChoiceList({ prompt, onCommand, sourceId }: { prompt: Extract<Prompt, {
       {!choice.required && (
         <footer className={styles.panelFoot}>
           <KeyTip keys="Esc / Alt+1">
-            <Button data-secondary data-cancel variant="quiet" onClick={() => onCommand({ type: 'string', value: '' })}>Skip{hints && <kbd aria-hidden="true">Alt+1</kbd>}</Button>
+            <Button data-secondary data-cancel variant="quiet" onClick={() => onCommand({ type: 'string', value: '' })}>{t('match.mana.skip')}{hints && <kbd aria-hidden="true">Alt+1</kbd>}</Button>
           </KeyTip>
         </footer>
       )}
@@ -397,9 +403,9 @@ function AmountChooser({ prompt, onCommand, limit, startAtLimit }: {
   const clamp = (next: number) => Math.max(prompt.min, Math.min(max, next));
   const [value, setValue] = useState(() => (startAtLimit && limit !== null ? clamp(limit) : prompt.min));
   return (
-    <PanelShell title={prompt.text || 'Choose a number'}>
+    <PanelShell title={prompt.text || t('match.ui.chooseNumber')}>
       <div className={styles.amount}>
-        <Button variant="print" size="lg" onClick={() => setValue((current) => clamp(current - 1))} aria-label="Less" disabled={value <= prompt.min}>−</Button>
+        <Button variant="print" size="lg" onClick={() => setValue((current) => clamp(current - 1))} aria-label={t('match.ui.less')} disabled={value <= prompt.min}>−</Button>
         <input
           className={styles.amountValue}
           type="number"
@@ -413,30 +419,31 @@ function AmountChooser({ prompt, onCommand, limit, startAtLimit }: {
               onCommand({ type: 'integer', value });
             }
           }}
-          aria-label="Amount"
+          aria-label={t('match.ui.amount')}
         />
-        <Button variant="print" size="lg" onClick={() => setValue((current) => clamp(current + 1))} aria-label="More" disabled={value >= max}>+</Button>
+        <Button variant="print" size="lg" onClick={() => setValue((current) => clamp(current + 1))} aria-label={t('match.ui.more')} disabled={value >= max}>+</Button>
       </div>
       {shown - prompt.min <= 20 && shown > prompt.min && (
-        <input className={styles.slider} type="range" min={prompt.min} max={shown} value={Math.min(value, shown)} onChange={(event) => setValue(Number(event.target.value))} aria-label="Amount" />
+        <input className={styles.slider} type="range" min={prompt.min} max={shown} value={Math.min(value, shown)} onChange={(event) => setValue(Number(event.target.value))} aria-label={t('match.ui.amount')} />
       )}
       {limit !== null && <p className={styles.panelText}>{t('match.amount.mana', { count: limit })}</p>}
       <footer className={styles.panelFoot}>
-        <span className={styles.range}>{prompt.min} to {shown}</span>
-        <Button data-primary variant="decision" size="lg" onClick={() => onCommand({ type: 'integer', value })}>Choose {value}</Button>
+        <span className={styles.range}>{t('match.ui.range', { min: prompt.min, max: shown })}</span>
+        <Button data-primary variant="decision" size="lg" onClick={() => onCommand({ type: 'integer', value })}>{t('match.ui.chooseValue', { value })}</Button>
       </footer>
     </PanelShell>
   );
 }
 
 function MultiAmountChooser({ prompt, onCommand }: { prompt: Extract<Prompt, { kind: 'multiAmount' }>; onCommand(command: Command): void }) {
+  const t = useT();
   const hints = useKeyboardHints();
   const [values, setValues] = useState(prompt.items.map((item) => item.defaultValue ?? item.min ?? 0));
   const total = values.reduce((sum, value) => sum + value, 0);
   const valid = total >= prompt.min && total <= prompt.max
     && prompt.items.every((item, index) => values[index] >= (item.min ?? 0) && values[index] <= (item.max ?? Infinity));
   return (
-    <PanelShell title={prompt.title ?? (prompt.text || 'Divide')}>
+    <PanelShell title={prompt.title ?? (prompt.text || t('match.ui.divide'))}>
       {prompt.header && <p className={styles.panelText}>{stripMarkup(prompt.header)}</p>}
       <div className={styles.split}>
         {prompt.items.map((item, index) => (
@@ -454,13 +461,13 @@ function MultiAmountChooser({ prompt, onCommand }: { prompt: Extract<Prompt, { k
         ))}
       </div>
       <footer className={styles.panelFoot}>
-        <span className={styles.range}>Total {total} · needs {prompt.min === prompt.max ? prompt.min : `${prompt.min} to ${prompt.max}`}</span>
+        <span className={styles.range}>{t('match.ui.total', { total, needs: prompt.min === prompt.max ? `${prompt.min}` : t('match.ui.range', { min: prompt.min, max: prompt.max }) })}</span>
         {prompt.canCancel && (
           <KeyTip keys="Esc / Alt+1">
-            <Button data-secondary data-cancel variant="quiet" onClick={() => onCommand({ type: 'string', value: '' })}>Cancel{hints && <kbd aria-hidden="true">Alt+1</kbd>}</Button>
+            <Button data-secondary data-cancel variant="quiet" onClick={() => onCommand({ type: 'string', value: '' })}>{t('match.ui.cancel')}{hints && <kbd aria-hidden="true">Alt+1</kbd>}</Button>
           </KeyTip>
         )}
-        <Button data-primary variant="decision" size="lg" disabled={!valid} onClick={() => onCommand({ type: 'string', value: values.join(' ') })}>Done</Button>
+        <Button data-primary variant="decision" size="lg" disabled={!valid} onClick={() => onCommand({ type: 'string', value: values.join(' ') })}>{t('match.ui.done')}</Button>
       </footer>
     </PanelShell>
   );
@@ -472,23 +479,24 @@ export function StartingPlayerOverlay({ me, opponents, onChoose }: {
   opponents: { id: string; name: string }[];
   onChoose(playerId: string): void;
 }) {
+  const t = useT();
   const keyboard = useChoiceKeyboard();
   const hints = useKeyboardHints();
   return (
     <div ref={keyboard} tabIndex={-1} className={styles.scrim} role="dialog" aria-modal="true" aria-labelledby="start-title">
       <div className={styles.center}>
-        <h2 id="start-title" className={styles.bigTitle}>You choose who starts</h2>
-        <p className={styles.subtitle}>The player who goes first skips their first draw.</p>
+        <h2 id="start-title" className={styles.bigTitle}>{t('match.ui.whoStarts')}</h2>
+        <p className={styles.subtitle}>{t('match.ui.whoStarts.detail')}</p>
         <div className={styles.buttons}>
           {opponents.map((opponent, index) => (
             <KeyTip key={opponent.id} keys={index < 10 ? `Alt+${(index + 1) % 10}` : null}>
               <Button data-choice data-secondary variant="print" size="lg" onClick={() => onChoose(opponent.id)}>
-                {opponents.length === 1 ? 'Draw first' : `${opponent.name} starts`}
+                {opponents.length === 1 ? t('match.ui.drawFirst') : t('match.ui.starts', { name: opponent.name })}
                 {hints && index < 10 && <kbd aria-hidden="true">Alt+{(index + 1) % 10}</kbd>}
               </Button>
             </KeyTip>
           ))}
-          <Button data-choice data-primary variant="decision" size="xl" onClick={() => onChoose(me.id)}>Play first</Button>
+          <Button data-choice data-primary variant="decision" size="xl" onClick={() => onChoose(me.id)}>{t('match.ui.playFirst')}</Button>
         </div>
       </div>
     </div>
@@ -500,7 +508,7 @@ const END_GAME: Record<string, MessageKey> = { won: 'match.end.wonGame', lost: '
 const END_MATCH: Record<string, MessageKey> = { won: 'match.end.wonMatch', lost: 'match.end.lostMatch', draw: 'match.end.drawMatch' };
 
 /** The end of a game: who won, the match score, and where to go next. */
-export function GameOverOverlay({ message, endInfo, myName, onLeave, leaveLabel = 'Back to Play', onPlayAgain, onReview, rewards, stamps }: {
+export function GameOverOverlay({ message, endInfo, myName, onLeave, leaveLabel, onPlayAgain, onReview, rewards, stamps }: {
   message: string;
   endInfo: GameEndView | null;
   /** the player's name, to tell from the server's message who won when there is no end-of-game info */
@@ -540,9 +548,9 @@ export function GameOverOverlay({ message, endInfo, myName, onLeave, leaveLabel 
         {extra && <p className={styles.score}>{extra}</p>}
         {rewards}
         <div className={styles.buttons}>
-          <Button variant="print" size="lg" onClick={onLeave}>{leaveLabel}</Button>
-          {onReview && <Button variant="quiet" size="lg" onClick={onReview}>Review the game</Button>}
-          {onPlayAgain && <Button variant="decision" size="xl" onClick={onPlayAgain}>Play again</Button>}
+          <Button variant="print" size="lg" onClick={onLeave}>{leaveLabel ?? t('match.ui.backToPlay')}</Button>
+          {onReview && <Button variant="quiet" size="lg" onClick={onReview}>{t('match.ui.review')}</Button>}
+          {onPlayAgain && <Button variant="decision" size="xl" onClick={onPlayAgain}>{t('match.ui.playAgain')}</Button>}
         </div>
       </div>
     </div>
@@ -558,6 +566,7 @@ function VictoryStamp({ id }: { id: string }) {
 
 /** A zone's cards laid out to read (graveyard, exile, revealed). */
 export function ZoneViewer({ title, cards, onClose }: { title: string; cards: CardView[]; onClose(): void }) {
+  const t = useT();
   const keyboard = useChoiceKeyboard();
   const zoom = useHoverZoom();
   return (
@@ -565,9 +574,9 @@ export function ZoneViewer({ title, cards, onClose }: { title: string; cards: Ca
       <div className={styles.panel} onClick={(event) => event.stopPropagation()}>
         <header className={styles.panelHead}>
           <h2 className={styles.panelTitle}>{title}</h2>
-          <Button data-cancel variant="quiet" size="sm" onClick={onClose}>Close</Button>
+          <Button data-cancel variant="quiet" size="sm" onClick={onClose}>{t('ui.close')}</Button>
         </header>
-        {cards.length === 0 ? <p className={styles.panelText}>Empty.</p> : (
+        {cards.length === 0 ? <p className={styles.panelText}>{t('match.ui.empty')}</p> : (
           <div className={styles.grid}>
             {cards.map((card) => <div key={card.id} className={styles.pick} data-card-id={card.id} {...zoom(card)}><CardFace card={card} size="normal" /></div>)}
           </div>

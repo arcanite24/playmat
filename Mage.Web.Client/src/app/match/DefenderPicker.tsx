@@ -16,7 +16,7 @@ export function DefenderPicker({ attacker, options, onPick }: {
 }) {
   const t = useT();
   return (
-    <section className={styles.picker} aria-label="Choose what to attack">
+    <section className={styles.picker} aria-label={t('match.ui.chooseDefender')}>
       <h2 className={styles.title}><Swords size={20} aria-hidden="true" /> {attacker ? t('match.attack.named', { name: attacker }) : t('match.attack')}</h2>
       <ul className={styles.options}>
         {options.map((option) => (

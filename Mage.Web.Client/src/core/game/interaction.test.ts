@@ -102,7 +102,7 @@ describe('interaction model', () => {
     }));
     // nothing chosen yet on an optional choice (e.g. while casting): Cancel abandons it
     expect(optional.mainButton).toBeNull();
-    expect(optional.secondaryButtons).toEqual([{ label: 'Cancel', command: { type: 'uuid', id: null }, tone: 'danger' }]);
+    expect(optional.secondaryButtons).toEqual([{ label: 'Cancel', text: { key: 'match.ui.cancel' }, command: { type: 'uuid', id: null }, tone: 'danger' }]);
     expect(required.secondaryButtons).toEqual([]);
 
     const chosen = deriveInteraction(view(), parsePrompt('GAME_TARGET', {
@@ -132,7 +132,7 @@ describe('interaction model', () => {
     expect(interaction.mode).toBe('payMana');
     expect(interaction.mainButton).toBeNull();
     expect(interaction.secondaryButtons).toEqual([
-      { label: 'Cancel', command: { type: 'boolean', value: false }, tone: 'danger' },
+      { label: 'Cancel', text: { key: 'match.ui.cancel' }, command: { type: 'boolean', value: false }, tone: 'danger' },
     ]);
   });
 

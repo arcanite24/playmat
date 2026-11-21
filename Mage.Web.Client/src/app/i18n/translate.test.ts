@@ -50,8 +50,9 @@ describe('createTranslator', () => {
 describe('locale', () => {
   test('follows the browser when the setting is auto', () => {
     expect(browserLocale(['es-MX', 'en-US'])).toBe('es');
-    expect(browserLocale(['fr-FR', 'es'])).toBe('es');
-    expect(browserLocale(['fr-FR'])).toBe('en');
+    expect(browserLocale(['de-DE', 'es'])).toBe('es');
+    expect(browserLocale(['de-DE'])).toBe('en');
+    expect(browserLocale(['fr-CA', 'en'])).toBe('fr');
     expect(browserLocale([])).toBe('en');
     expect(resolveLocale('auto', ['es-AR'])).toBe('es');
     expect(resolveLocale('en', ['es-AR'])).toBe('en');

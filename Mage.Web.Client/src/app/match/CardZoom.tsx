@@ -6,12 +6,13 @@ import { stripMarkup } from '../../core/game/prompt';
 import { AbilityCard } from '../ui/AbilityCard';
 import { showsBackFace } from '../../core/images/imageLinks';
 import { CardFace } from '../ui/CardFace';
-import { useT } from '../i18n';
+import { useT, type Translate } from '../i18n';
 import { useCardStyle } from '../ui/cardStyles';
 import { PromptText } from '../ui/PromptText';
 import { useMatchUi } from './matchUi';
 import { toStagePoint, useStage } from './stageContext';
 import { lastPointerType } from './useLongPress';
+import './matchMessages';
 import styles from './CardZoom.module.css';
 
 const ZOOM_WIDTH = 340;
@@ -60,7 +61,7 @@ export function CardZoom({ large = false, big = false }: { large?: boolean; big?
   if (!shown || touch || detailOpen || !element || !element.isConnected || !element.matches(':hover')) return null;
   const card = shown.card as PermanentView;
   const back = card.secondCardFace;
-  const extra = details(card);
+  const extra = details(t, card);
   const rules = styled ? (card.rules ?? []).map(stripMarkup).filter(Boolean) : [];
   const width = large ? LARGE_WIDTH : big ? BIG_WIDTH : ZOOM_WIDTH;
   const height = width * (88 / 63);
@@ -120,20 +121,20 @@ export function CardZoom({ large = false, big = false }: { large?: boolean; big?
 }
 
 /** What the picture can't show: changed stats, counters, damage, who controls it. */
-function details(card: PermanentView & CardView): string[] {
+function details(t: Translate, card: PermanentView & CardView): string[] {
   const lines: string[] = [];
   if (card.power !== undefined && card.toughness !== undefined && (card.cardTypes ?? []).includes('CREATURE')) {
     const base = card.original;
     if (base && (base.power !== card.power || base.toughness !== card.toughness)) {
-      lines.push(`Now ${card.power}/${card.toughness} (printed ${base.power}/${base.toughness})`);
+      lines.push(t('match.zoom.now', { now: `${card.power}/${card.toughness}`, printed: `${base.power}/${base.toughness}` }));
     }
   }
-  if ((card.damage ?? 0) > 0) lines.push(`${card.damage} damage marked`);
+  if ((card.damage ?? 0) > 0) lines.push(t('match.zoom.damage', { count: card.damage ?? 0 }));
   for (const counter of card.counters ?? []) {
     if ((counter.count ?? 0) > 0) lines.push(`${counter.count} × ${counter.name}`);
   }
   if (card.nameController && card.nameOwner && card.nameOwner !== card.nameController) {
-    lines.push(`Controlled by ${card.nameController}, owned by ${card.nameOwner}`);
+    lines.push(t('match.card.controlled', { controller: card.nameController, owner: card.nameOwner }));
   }
 
   return lines;
