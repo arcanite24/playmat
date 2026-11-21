@@ -233,6 +233,10 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('adminUpdateApply', version),
     adminUpdateRollback: () =>
       rpc.call('adminUpdateRollback'),
+    adminSelfPlayStatus: () =>
+      rpc.call('adminSelfPlayStatus'),
+    adminSelfPlaySet: (paused: boolean, quietUtc?: string | null, cpuMax?: number | null, gamesMax?: number | null, jobs?: number | null) =>
+      rpc.call('adminSelfPlaySet', paused, quietUtc, cpuMax, gamesMax, jobs),
     adminGetReports: (openOnly?: boolean | null) =>
       rpc.call('adminGetReports', openOnly),
     adminCloseReport: (reportId: number, resolution: string) =>

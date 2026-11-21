@@ -2211,6 +2211,90 @@ export interface SeatView extends Serializable {
 export interface SelectableObjectView {
 }
 
+export interface SelfPlayChunk {
+    at?: number;
+    chunk?: string;
+    games?: number;
+    job?: string;
+    outcome?: string;
+    reason?: string;
+    seconds?: number;
+}
+
+export interface SelfPlayHour {
+    chunksDone?: number;
+    chunksStopped?: number;
+    games?: number;
+    start?: number;
+}
+
+export interface SelfPlayJob {
+    id?: string;
+    image?: string;
+    seedBase?: number;
+    tag?: number;
+}
+
+export interface SelfPlayRound {
+    accepted?: boolean;
+    elo?: string;
+    remoteGames?: number;
+    round?: number;
+    selfplaySeconds?: number;
+    sprtSeconds?: number;
+    trainSeconds?: number;
+}
+
+export interface SelfPlaySettings {
+    at?: number;
+    by?: string;
+    chunkGames?: number;
+    cpuMax?: number;
+    gamesMax?: number;
+    jobs?: number;
+    paused?: boolean;
+    quietUtc?: string;
+}
+
+export interface SelfPlayTotals {
+    chunksDone?: number;
+    chunksStopped?: number;
+    games?: number;
+}
+
+export interface SelfPlayTrainer {
+    at?: number;
+    history?: SelfPlayRound[];
+    localGames?: number;
+    phase?: string;
+    remoteGames?: number;
+    round?: number;
+    rounds?: number;
+    run?: string;
+}
+
+export interface SelfPlayView {
+    chunksDone24h?: number;
+    chunksStopped24h?: number;
+    chunksWaiting?: number;
+    console?: SelfPlaySettings;
+    detail?: string;
+    effective?: SelfPlaySettings;
+    games24h?: number;
+    games7d?: number;
+    hours?: SelfPlayHour[];
+    installed?: boolean;
+    job?: SelfPlayJob;
+    recent?: SelfPlayChunk[];
+    running?: boolean;
+    seconds24h?: number;
+    spoolMb?: number;
+    state?: string;
+    totals?: SelfPlayTotals;
+    trainer?: SelfPlayTrainer;
+    updatedAt?: number;
+}
+
 export interface Serializable {
 }
 
