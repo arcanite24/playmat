@@ -9,6 +9,10 @@ the SPRT's log). `<out>/rounds.jsonl` gets one line per round. The data window i
 Faster rounds: `--fast net` answers the decisions that won't be recorded with the network alone, so the search is
 spent only on the recorded ones; `--rollout small --rollout-init runs/bc` plays the playouts with a small MLP trained
 each round on the same games (`<out>/r<r>/rollout`), so the main network can grow without slowing the playouts.
+
+More games: `--remote playmat-rl --remote-image ghcr.io/arcanite24/playmat-selfplay:sha-...@sha256:...` also has
+the public server play the round while it is idle (ops/web/host/rl-worker.sh). The round's job goes there before
+the local games; after them, its finished chunks are pulled into the round's data (`remote.py`).
 """
 
 import argparse
@@ -18,6 +22,8 @@ import re
 import subprocess
 import sys
 import time
+
+import remote
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 RUST = os.path.dirname(HERE)
@@ -79,8 +85,12 @@ def main():
     ap.add_argument("--gate", default="-5,5",
                     help="the SPRT's elo0,elo1 for keeping a round's network (-5,5: keep it unless it got worse)")
     ap.add_argument("--bin", default=None, help="the folder with selfplay and archbench (default ../target/release)")
+    ap.add_argument("--remote", default=None, help="an ssh alias for the public server's playmat-rl account")
+    ap.add_argument("--remote-image", default=None, help="with --remote: the self-play image, by digest")
     ap.add_argument("--train-args", default="", help="more train.py flags, e.g. \"--bs 2048 --lr 1e-3\"")
     args = ap.parse_args()
+    if args.remote and not args.remote_image:
+        sys.exit("--remote needs --remote-image (ghcr.io/arcanite24/playmat-selfplay:...@sha256:...)")
     if args.bin:
         global BIN
         BIN = os.path.abspath(args.bin)
@@ -105,9 +115,33 @@ def main():
         net = os.path.join(cur, "net.pmnet")
         learner = entrant(args.policy, net, args, roll) + f"+temp={args.temp}"
         fast = ["--fast", args.fast] if args.fast and args.fast != "none" else []
+        job = None
+        if args.remote:
+            # the same learner with the networks where the worker mounts them; its seeds are the round's second half
+            if args.rollout == "small":
+                roll_file = os.path.join(roll, "net.pmnet")
+            elif args.rollout in (None, "builtin"):
+                roll_file = net
+            else:
+                roll_file = net if args.rollout == "self" else args.rollout
+            far = learner.replace(roll_file, "/job/rollout.pmnet").replace(net, "/job/net.pmnet")
+            try:
+                said, job = remote.put_job(args.remote, f"{tag}-r{r}", args.remote_image, far, net, roll_file,
+                                           args.keep, args.fast if args.fast != "none" else "", 1_000_000 * r + 500_000, r)
+                print("ROUNDS remote:", said, flush=True)
+            except Exception as e:  # the round goes on with the local games alone
+                print(f"ROUNDS remote job not sent: {e}", flush=True)
         run([exe("selfplay"), "--out", data, "--games", str(args.games), "--jobs", str(args.jobs), "--keep",
              str(args.keep), "--learner", learner, "--opponents", "self", "--seed", str(1_000_000 * r), "--tag", str(r)]
             + fast, os.path.join(rd, "selfplay.log"))
+        remote_games = None
+        if job is not None:
+            try:
+                n, g, size, rejected = remote.pull(args.remote, job, data)
+                remote_games = g
+                print(f"ROUNDS remote: {n} chunks, {g} games, {size >> 20} MB; rejected {rejected}", flush=True)
+            except Exception as e:
+                print(f"ROUNDS remote pull failed: {e}", flush=True)
         t1 = time.time()
         window = [os.path.join(HERE, "data", f"{tag}-r{k}") for k in range(max(1, r - args.window + 1), r + 1)]
         cmd = [sys.executable, "train.py", "--init", cur, "--out", rd, "--epochs", str(args.epochs), "--lr", str(args.lr)]
@@ -134,13 +168,18 @@ def main():
         elo = re.findall(r"SPRT result[^\n]*", out)
         line = {"round": r, "net_dir": rd, "from": cur, "rollout_dir": new_roll, "accepted": accepted,
                 "verdict": elo[-1] if elo else None,
-                "selfplay_s": round(t1 - t0), "train_s": round(t2 - t1), "sprt_s": round(time.time() - t2)}
+                "remote_games": remote_games, "selfplay_s": round(t1 - t0), "train_s": round(t2 - t1), "sprt_s": round(time.time() - t2)}
         with open(book, "a") as f:
             f.write(json.dumps(line) + "\n")
         print("ROUNDS", json.dumps(line), flush=True)
         if accepted:
             cur = rd
             roll = new_roll or roll
+    if args.remote:
+        try:
+            remote.ssh(args.remote, "stop")
+        except Exception as e:
+            print(f"ROUNDS remote stop failed: {e}", flush=True)
 
 
 if __name__ == "__main__":
