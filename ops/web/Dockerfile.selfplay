@@ -1,4 +1,4 @@
-# The Rust AI's self-play worker (rust/rl, docs/rust/Ai.md "Self-play on the Hetzner box"): `selfplay` and the deck
+# The Rust AI's self-play worker (rust/rl, docs/rust/Ai.md "Self-play on the public server"): `selfplay` and the deck
 # suite it plays, nothing else. Built for arm64 by .github/workflows/selfplay-image.yml and run on the public server
 # only when it is idle (ops/web/host/rl-worker.sh). The card data is compiled into the binary.
 FROM rust:1.94-slim-bookworm AS build

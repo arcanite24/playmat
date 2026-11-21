@@ -17,8 +17,9 @@ SPOOL=/srv/playmat-rl
 JOBS=3
 CHUNK_GAMES=300
 SPOOL_MAX_MB=4096
-# busy when more games than this run on the server, or its container uses more than CPU_MAX percent of one core
-GAMES_MAX=0
+# busy when more games than this are open (most wait on people and cost nothing), or the server uses more than
+# CPU_MAX percent of one core; the CPU check is the one that matters
+GAMES_MAX=4
 CPU_MAX=25
 MEM_MIN_MB=2500
 DISK_MIN_PCT=25

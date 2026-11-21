@@ -18,8 +18,14 @@ import tarfile
 import tempfile
 
 
+# Windows' own ssh.exe sends no stdin when it runs under an SSH session (a run started over ssh, Start-Process
+# included), so put-job would hang: Git for Windows' ssh doesn't have the bug. PLAYMAT_RL_SSH names another client.
+GIT_SSH = r"C:\Program Files\Git\usr\bin\ssh.exe"
+SSH = os.environ.get("PLAYMAT_RL_SSH") or (GIT_SSH if os.name == "nt" and os.path.exists(GIT_SSH) else "ssh")
+
+
 def ssh(host, cmd, data=None, timeout=600):
-    p = subprocess.run(["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=20", host, cmd], input=data,
+    p = subprocess.run([SSH, "-o", "BatchMode=yes", "-o", "ConnectTimeout=20", host, cmd], input=data,
                        capture_output=True, timeout=timeout)
     if p.returncode != 0:
         raise RuntimeError(f"ssh {host} {cmd}: {p.stderr.decode(errors='replace').strip()}")

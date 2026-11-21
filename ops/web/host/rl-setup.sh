@@ -14,13 +14,28 @@ if [[ ${1:-} == --remove ]]; then
   docker rm -f playmat-rl-worker > /dev/null 2>&1 || true
   rm -f /etc/systemd/system/playmat-rl-worker.{service,timer} /usr/local/bin/playmat-rl-{worker,transfer}
   systemctl daemon-reload
-  userdel playmat-rl 2> /dev/null || true
+  if id playmat-rl > /dev/null 2>&1; then userdel -f playmat-rl || echo "userdel playmat-rl failed; remove the account by hand" >&2; fi
   rm -rf "$SPOOL"
   echo "removed (/etc/playmat/rl.env kept)"
   exit 0
 fi
 
-id playmat-rl > /dev/null 2>&1 || useradd --system --home-dir "$SPOOL" --shell /bin/bash --user-group playmat-rl
+# a uid no account and no process uses: a container's user (999, 1000...) shows up on the host under the same number,
+# and the account must not be able to touch the server's processes or files
+if ! id playmat-rl > /dev/null 2>&1; then
+  uid=60000
+  while getent passwd "$uid" > /dev/null || getent group "$uid" > /dev/null || pgrep -U "$uid" > /dev/null; do
+    uid=$((uid + 1))
+  done
+  groupadd -g "$uid" playmat-rl
+  useradd -u "$uid" -g "$uid" --home-dir "$SPOOL" --no-create-home --shell /bin/bash playmat-rl
+fi
+for pid in $(pgrep -U "$(id -u playmat-rl)"); do
+  if grep -qE 'docker|containerd' "/proc/$pid/cgroup" 2> /dev/null; then
+    echo "playmat-rl's uid $(id -u playmat-rl) is a container's user too: run --remove, then this again" >&2
+    exit 1
+  fi
+done
 passwd -l playmat-rl > /dev/null
 mkdir -p "$SPOOL"/{jobs,job,out,state,work} "$SPOOL/.ssh"
 chown -R playmat-rl:playmat-rl "$SPOOL"
@@ -34,7 +49,7 @@ if [[ ! -e /etc/playmat/rl.env ]]; then
 # the self-play worker's settings (ops/web/host/rl-worker.sh has every one and its default)
 JOBS=3
 CHUNK_GAMES=300
-GAMES_MAX=0
+GAMES_MAX=4
 CPU_MAX=25
 QUIET_UTC=
 EOF
