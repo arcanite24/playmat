@@ -23,6 +23,7 @@ import subprocess
 import sys
 import time
 
+import fleet
 import remote
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -64,7 +65,7 @@ def elo_text(verdict):
     return m.group(0) if m else None
 
 
-def report(args, book, tag, r, phase, remote_games=None):
+def report(args, book, tag, r, phase, remote_games=None, lan_games=None):
     """The trainer's progress for the admin console's Self-play section (remote.progress); never fails the round."""
     if not args.remote:
         return
@@ -75,11 +76,12 @@ def report(args, book, tag, r, phase, remote_games=None):
                 h = json.loads(raw)
             except ValueError:
                 continue
-            history.append({k: h.get(k) for k in ("round", "accepted", "remote_games", "selfplay_s", "train_s", "sprt_s")}
+            history.append({k: h.get(k) for k in ("round", "accepted", "remote_games", "lan_games", "selfplay_s",
+                                                  "train_s", "sprt_s")}
                            | {"elo": elo_text(h.get("verdict"))})
     state = {"run": tag, "round": r, "rounds": args.start + args.rounds - 1, "phase": phase,
              "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "local_games": args.games,
-             "remote_games": remote_games, "history": history}
+             "remote_games": remote_games, "lan_games": lan_games, "history": history}
     try:
         remote.progress(args.remote, state)
     except Exception as e:
@@ -115,8 +117,13 @@ def main():
     ap.add_argument("--bin", default=None, help="the folder with selfplay and archbench (default ../target/release)")
     ap.add_argument("--remote", default=None, help="an ssh alias for the public server's playmat-rl account")
     ap.add_argument("--remote-image", default=None, help="with --remote: the self-play image, by digest")
+    ap.add_argument("--lan", default=None, help="idle LAN machines that play too, as alias:jobs (minivac:8,blindvac:4); "
+                    "each provisioned with fleet.py from this commit")
     ap.add_argument("--train-args", default="", help="more train.py flags, e.g. \"--bs 2048 --lr 1e-3\"")
     args = ap.parse_args()
+    if args.lan and args.games > fleet.SEED_BLOCK:
+        sys.exit(f"--lan needs --games <= {fleet.SEED_BLOCK} (the LAN hosts' seeds start there)")
+    fleet.parse_hosts(args.lan)
     if args.remote and not args.remote_image:
         sys.exit("--remote needs --remote-image (ghcr.io/arcanite24/playmat-selfplay:...@sha256:...)")
     if args.bin:
@@ -144,14 +151,14 @@ def main():
         learner = entrant(args.policy, net, args, roll) + f"+temp={args.temp}"
         fast = ["--fast", args.fast] if args.fast and args.fast != "none" else []
         job = None
+        if args.rollout == "small":
+            roll_file = os.path.join(roll, "net.pmnet")
+        elif args.rollout in (None, "builtin"):
+            roll_file = net
+        else:
+            roll_file = net if args.rollout == "self" else args.rollout
         if args.remote:
             # the same learner with the networks where the worker mounts them; its seeds are the round's second half
-            if args.rollout == "small":
-                roll_file = os.path.join(roll, "net.pmnet")
-            elif args.rollout in (None, "builtin"):
-                roll_file = net
-            else:
-                roll_file = net if args.rollout == "self" else args.rollout
             far = learner.replace(roll_file, "/job/rollout.pmnet").replace(net, "/job/net.pmnet")
             try:
                 said, job = remote.put_job(args.remote, f"{tag}-r{r}", args.remote_image, far, net, roll_file,
@@ -160,9 +167,34 @@ def main():
             except Exception as e:  # the round goes on with the local games alone
                 print(f"ROUNDS remote job not sent: {e}", flush=True)
         report(args, book, tag, r, "selfplay")
+        drivers = []
+        for h in fleet.parse_hosts(args.lan):
+            try:
+                why = fleet.check(h)
+            except Exception as e:
+                why = f"no answer ({e})"
+            if why:
+                print(f"ROUNDS lan {h.alias} left out: {why}", flush=True)
+                continue
+            os.makedirs(data, exist_ok=True)
+            d = fleet.Driver(h, r, learner, net, roll_file, args.keep, args.fast if args.fast != "none" else "", r, data,
+                             log=lambda m: print(m, flush=True))
+            d.start()
+            drivers.append(d)
         run([exe("selfplay"), "--out", data, "--games", str(args.games), "--jobs", str(args.jobs), "--keep",
              str(args.keep), "--learner", learner, "--opponents", "self", "--seed", str(1_000_000 * r), "--tag", str(r)]
             + fast, os.path.join(rd, "selfplay.log"))
+        lan_games = None
+        if drivers:
+            # the chunks under way finish (a few minutes at most); then each driver stops
+            for d in drivers:
+                d.stop()
+            for d in drivers:
+                d.join(600)
+                if d.is_alive():
+                    d.h.kill()
+            lan_games = {d.h.alias: d.games for d in drivers}
+            print(f"ROUNDS lan: {lan_games}; thrown away {sum(d.stopped for d in drivers)} chunks", flush=True)
         remote_games = None
         if job is not None:
             report(args, book, tag, r, "pull")
@@ -173,7 +205,7 @@ def main():
             except Exception as e:
                 print(f"ROUNDS remote pull failed: {e}", flush=True)
         t1 = time.time()
-        report(args, book, tag, r, "train", remote_games)
+        report(args, book, tag, r, "train", remote_games, lan_games)
         window = [os.path.join(HERE, "data", f"{tag}-r{k}") for k in range(max(1, r - args.window + 1), r + 1)]
         cmd = [sys.executable, "train.py", "--init", cur, "--out", rd, "--epochs", str(args.epochs), "--lr", str(args.lr)]
         cmd += args.train_args.split()
@@ -191,7 +223,7 @@ def main():
                     cmd += ["--data", w]
             run(cmd, os.path.join(rd, "train-rollout.log"))
         t2 = time.time()
-        report(args, book, tag, r, "sprt", remote_games)
+        report(args, book, tag, r, "sprt", remote_games, lan_games)
         a = entrant(args.policy, os.path.join(rd, "net.pmnet"), args, new_roll)
         b = entrant(args.policy, net, args, roll)
         out = run([exe("archbench"), "--entrants", f"{a},{b}", "--sprt", args.gate, "--max-deals", str(args.max_deals),
@@ -200,11 +232,11 @@ def main():
         elo = re.findall(r"SPRT result[^\n]*", out)
         line = {"round": r, "net_dir": rd, "from": cur, "rollout_dir": new_roll, "accepted": accepted,
                 "verdict": elo[-1] if elo else None,
-                "remote_games": remote_games, "selfplay_s": round(t1 - t0), "train_s": round(t2 - t1), "sprt_s": round(time.time() - t2)}
+                "remote_games": remote_games, "lan_games": lan_games, "selfplay_s": round(t1 - t0), "train_s": round(t2 - t1), "sprt_s": round(time.time() - t2)}
         with open(book, "a") as f:
             f.write(json.dumps(line) + "\n")
         print("ROUNDS", json.dumps(line), flush=True)
-        report(args, book, tag, r, "done", remote_games)
+        report(args, book, tag, r, "done", remote_games, lan_games)
         if accepted:
             cur = rd
             roll = new_roll or roll
