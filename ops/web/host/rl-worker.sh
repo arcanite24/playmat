@@ -37,7 +37,8 @@ PAUSED=0
 # server. The worker writes worker.json and history.jsonl there and copies in the trainer's trainer.json; the console
 # writes settings.json, which overrides rl.env field by field. No volume (an older compose file): no panel files.
 PANEL=
-for v in $(docker volume ls -q --filter label=com.docker.compose.volume=xmage-selfplay 2> /dev/null); do
+PANEL_TOOL=/usr/local/bin/playmat-rl-panel
+[[ -x $PANEL_TOOL ]] && for v in $(docker volume ls -q --filter label=com.docker.compose.volume=xmage-selfplay 2> /dev/null); do
   PANEL=$(docker volume inspect -f '{{.Mountpoint}}' "$v" 2> /dev/null) && [[ -d $PANEL ]] && break
   PANEL=
 done
@@ -47,7 +48,7 @@ DEFAULT_CPU_MAX=$CPU_MAX DEFAULT_GAMES_MAX=$GAMES_MAX DEFAULT_JOBS=$JOBS DEFAULT
 # nothing it writes is trusted): a bad or missing field keeps rl.env's value
 apply_settings() {
   CPU_MAX=$DEFAULT_CPU_MAX GAMES_MAX=$DEFAULT_GAMES_MAX JOBS=$DEFAULT_JOBS QUIET_UTC=$DEFAULT_QUIET_UTC PAUSED=0
-  [[ -n $PANEL && -f $PANEL/settings.json && ! -L $PANEL/settings.json ]] || return 0
+  [[ -n $PANEL ]] || return 0
   local key value
   while IFS=$'\t' read -r key value; do
     case $key in
@@ -57,24 +58,7 @@ apply_settings() {
       games_max) [[ $value =~ ^[0-9]{1,2}$ ]] && ((10#$value <= 50)) && GAMES_MAX=$((10#$value)) ;;
       jobs) [[ $value =~ ^[1-3]$ ]] && JOBS=$value ;;
     esac
-  done < <(head -c 4096 "$PANEL/settings.json" | python3 -c '
-import json, sys
-try:
-    j = json.load(sys.stdin)
-except Exception:
-    sys.exit(0)
-if isinstance(j, dict):
-    for k in ("paused", "quiet_utc", "cpu_max", "games_max", "jobs"):
-        v = j.get(k)
-        if isinstance(v, bool):
-            v = "true" if v else "false"
-        elif isinstance(v, (int, str)):
-            v = str(v)
-        else:
-            continue
-        if "\t" not in v and "\n" not in v:
-            print(k + "\t" + v)
-' 2> /dev/null)
+  done < <("$PANEL_TOOL" settings "$PANEL" 2> /dev/null)
 }
 apply_settings
 
@@ -92,9 +76,9 @@ panel() {
   local waiting spool_mb
   waiting=$(find "$SPOOL/out" -mindepth 2 -maxdepth 2 -name 'c*.json' 2> /dev/null | wc -l)
   spool_mb=$(du -sm "$SPOOL/out" 2> /dev/null | cut -f1)
-  python3 - "$PANEL/worker.json.tmp" "$1" "$2" "${J_ID:-}" "${J_IMAGE:-}" "${J_TAG:-}" "${J_SEED_BASE:-}" \
+  python3 - - "$1" "$2" "${J_ID:-}" "${J_IMAGE:-}" "${J_TAG:-}" "${J_SEED_BASE:-}" \
     "$PAUSED" "$QUIET_UTC" "$CPU_MAX" "$GAMES_MAX" "$JOBS" "$CHUNK_GAMES" "${spool_mb:-0}" "$waiting" \
-    "$(cat "$SPOOL/state/totals" 2> /dev/null)" << 'EOF' && chmod 644 "$PANEL/worker.json.tmp" && mv -f "$PANEL/worker.json.tmp" "$PANEL/worker.json"
+    "$(cat "$SPOOL/state/totals" 2> /dev/null)" << 'EOF' | "$PANEL_TOOL" write "$PANEL" worker.json
 import json, sys, time
 a = sys.argv[1:]
 def num(v):
@@ -106,11 +90,9 @@ json.dump({"at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "state": a[
            "settings": {"paused": a[7] == "1", "quietUtc": a[8], "cpuMax": num(a[9]), "gamesMax": num(a[10]),
                         "jobs": num(a[11]), "chunkGames": num(a[12])},
            "spoolMb": num(a[13]), "chunksWaiting": num(a[14]),
-           "totals": {"games": num(tot[0]), "chunksDone": num(tot[1]), "chunksStopped": num(tot[2])}}, open(a[0], "w"))
+           "totals": {"games": num(tot[0]), "chunksDone": num(tot[1]), "chunksStopped": num(tot[2])}}, sys.stdout)
 EOF
-  if [[ -f $SPOOL/trainer.json && ! -L $SPOOL/trainer.json && $SPOOL/trainer.json -nt $PANEL/trainer.json ]]; then
-    install -m 644 "$SPOOL/trainer.json" "$PANEL/trainer.json.tmp" && mv -f "$PANEL/trainer.json.tmp" "$PANEL/trainer.json"
-  fi
+  "$PANEL_TOOL" trainer "$PANEL" "$SPOOL/trainer.json" 2> /dev/null || true
 }
 
 # one line a chunk in history.jsonl (the last 5000 kept), and the running totals: record OUTCOME GAMES SECONDS REASON
@@ -127,12 +109,7 @@ record() {
   [[ -n $PANEL ]] || return 0
   python3 -c 'import json, sys, time; a = sys.argv[1:]; print(json.dumps({"at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     "job": a[0], "chunk": a[1], "outcome": a[2], "games": int(a[3]), "seconds": int(a[4]), "reason": a[5]}))' \
-    "$J_ID" "$chunk" "$1" "$2" "$3" "${4:-}" >> "$PANEL/history.jsonl"
-  chmod 644 "$PANEL/history.jsonl"
-  if (($(wc -l < "$PANEL/history.jsonl") > 5000)); then
-    tail -n 5000 "$PANEL/history.jsonl" > "$PANEL/history.jsonl.tmp" && chmod 644 "$PANEL/history.jsonl.tmp" \
-      && mv -f "$PANEL/history.jsonl.tmp" "$PANEL/history.jsonl"
-  fi
+    "$J_ID" "$chunk" "$1" "$2" "$3" "${4:-}" | "$PANEL_TOOL" append "$PANEL" 2> /dev/null || true
 }
 
 xmage_id() { docker ps -q -f label=com.docker.compose.project=xmage -f label=com.docker.compose.service=xmage | head -1; }
