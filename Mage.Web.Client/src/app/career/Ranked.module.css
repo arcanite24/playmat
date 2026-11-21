@@ -259,3 +259,15 @@
   .recent li { grid-template-columns: 5em minmax(0, 1fr); }
   .recent li small { display: none; }
 }
+
+/* "How Ranked works": reopens the first-visit intro */
+.howLink {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--brass);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}

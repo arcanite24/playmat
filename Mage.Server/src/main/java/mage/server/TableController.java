@@ -945,6 +945,9 @@ public class TableController {
      * against a goldfish (an AI with only basic lands) never counts. Each paid player hears about it right away (B269).
      */
     private void payCareer(Game game) {
+        // a ranked table's rewards are asked for by the table: remember which game it was, before the match's end
+        // forgets the table (#431)
+        mage.server.ladder.RankedService.gameEnded(table.getId(), game.getId());
         if (mage.server.ladder.RankedService.isRanked(table.getId()) && match.hasEnded()) {
             // a ranked match (#431) moves the player's rating and rank: won, lost, or drawn when neither won
             boolean humanWon = false;

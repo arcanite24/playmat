@@ -1144,6 +1144,11 @@ public final class CareerService {
     /** what a game paid, for the rewards screen; the latest game when the key is null */
     public CareerProgress.CareerGameResult gameResult(String user, String gameKey) throws SQLException {
         CareerStore store = CareerStore.get();
+        // a ranked table's rewards are its latest game's, paid as any game against the AI
+        UUID rankedGame = mage.server.ladder.RankedService.lastGame(gameKey);
+        if (rankedGame != null) {
+            gameKey = gameKey(rankedGame, user);
+        }
         if (gameKey != null && !gameKey.isEmpty()) {
             // a payout the gateway makes (XMAGE_ROUTE_CAREERPAYOUTS=rust) lands a moment after the game
             CareerPayouts.awaitPayout(store, gameKey);

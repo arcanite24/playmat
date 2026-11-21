@@ -146,10 +146,12 @@ import { gzipSync } from 'node:zlib';
 // a lazy chunk, League lines in two Home widgets, and the en/es strings. Measured app 885.7 kB
 // app raised 2026-11-19 from 888 kB for ladder seasons (#434): the season line and stamps, the season-end ceremony and
 // the Season widget (its own lazy chunk), and the en/es strings. Measured app 888.1 kB
+// app raised 2026-11-20 from 891 kB for phase 6 (#435) and the Ranked polish: Bo3, Modern and Limited rank strings, and
+// Ranked's first-visit intro (en/es) in the lazy Career chunk. Measured app 891.8 kB
 const BUDGET_KB = {
   entry: 86,
   initial: 221,
-  app: 891,
+  app: 894,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;
