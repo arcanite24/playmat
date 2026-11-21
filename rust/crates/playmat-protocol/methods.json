@@ -108,6 +108,8 @@
   "adminUpdateStatus": {"group": "Admin", "access": "session"},
   "adminUpdateApply": {"group": "Admin", "access": "session"},
   "adminUpdateRollback": {"group": "Admin", "access": "session"},
+  "adminSelfPlayStatus": {"group": "Admin", "access": "session"},
+  "adminSelfPlaySet": {"group": "Admin", "access": "session"},
   "adminGetReports": {"group": "Admin", "access": "session"},
   "adminCloseReport": {"group": "Admin", "access": "session"},
   "adminClientErrors": {"group": "Admin", "access": "session"},

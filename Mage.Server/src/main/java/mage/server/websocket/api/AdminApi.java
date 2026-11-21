@@ -5,6 +5,7 @@ import mage.game.Table;
 import mage.game.match.Match;
 import mage.server.Main;
 import mage.server.Moderation;
+import mage.server.SelfPlayStatus;
 import mage.server.Session;
 import mage.server.UpdateCheck;
 import mage.server.UpdateRunner;
@@ -215,6 +216,45 @@ final class AdminApi {
                             Staff.audit(actor, "server.rollback", null, null, null);
                             DiscordNotifier.staff().staffNews("Rollback started by " + actor + ".");
                             return UpdateCheck.get().status(false).withUpdater(UpdateRunner.get().info());
+                        }),
+
+                RpcMethod.named("adminSelfPlayStatus")
+                        .returns("SelfPlayView")
+                        .doc("Staff (admin): the Rust AI's self-play worker on this server's host (ops/web/host/rl-worker.sh): "
+                                + "its state, job and settings, the games it played in the last day and week (by hour), its "
+                                + "last chunks and the trainer's progress. installed is false without the xmage-selfplay volume.")
+                        .handler(call -> {
+                            Staff.require(ctx, call, StaffRole.ADMIN);
+                            return SelfPlayStatus.get().view();
+                        }),
+
+                RpcMethod.named("adminSelfPlaySet")
+                        .params(of("paused", BOOLEAN), optional("quietUtc", STRING), optional("cpuMax", INT),
+                                optional("gamesMax", INT), optional("jobs", INT))
+                        .returns("SelfPlayView")
+                        .doc("Staff (admin): settings for the self-play worker, read on its next run (within 2 minutes; a "
+                                + "pause also stops a chunk under way within 15 seconds). quietUtc (HH-HH or HH:MM-HH:MM, UTC; "
+                                + "empty for none) limits it to those hours; cpuMax (5-200, percent of one core) and gamesMax "
+                                + "(0-50) are when the server counts as busy; jobs (1-3) its cores. A missing value keeps the "
+                                + "host's own setting (rl.env).")
+                        .handler(call -> {
+                            String actor = Staff.require(ctx, call, StaffRole.ADMIN);
+                            boolean paused = call.bool(0);
+                            String quiet = call.optString(1, null);
+                            Integer cpuMax = call.has(2) ? call.integer(2) : null;
+                            Integer gamesMax = call.has(3) ? call.integer(3) : null;
+                            Integer jobs = call.has(4) ? call.integer(4) : null;
+                            SelfPlayStatus.SelfPlayView view;
+                            try {
+                                view = SelfPlayStatus.get().save(paused, quiet, cpuMax, gamesMax, jobs, actor);
+                            } catch (IllegalArgumentException | IllegalStateException e) {
+                                throw RpcException.invalidParams(e.getMessage());
+                            }
+                            Staff.audit(actor, "selfplay.settings", null, (paused ? "paused" : "running")
+                                    + (quiet == null ? "" : ", quiet " + (quiet.trim().isEmpty() ? "none" : quiet.trim()))
+                                    + (cpuMax == null ? "" : ", cpu " + cpuMax) + (gamesMax == null ? "" : ", games " + gamesMax)
+                                    + (jobs == null ? "" : ", jobs " + jobs), null);
+                            return view;
                         }),
 
                 RpcMethod.named("adminGetReports")

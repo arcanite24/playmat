@@ -60,6 +60,7 @@ public class WebClientApiContractTest {
             "reportPlayer", "clientReportError", "adminGetReports", "adminCloseReport", "adminClientErrors", // moderation stores
             "adminServerStats", // bridge metrics
             "adminUpdateStatus", "adminUpdateApply", "adminUpdateRollback", // the registry and GitHub, the updater's files
+            "adminSelfPlayStatus", "adminSelfPlaySet", // the self-play worker's files (SelfPlayStatusTest)
             "gamePractice", // game controller practice tools, with readable errors
             "ladderState", "ladderOpponent", "ladderPlay", "ladderResult", "leaguePlay", "leagueState", "leagueStart", "leagueSets",
             "leagueOpen", "leagueDecks", "leagueSaveDeck", "leagueDeleteDeck", "leagueCraftMissing", "homeLayoutGet", "homeLayoutSet", "homeActivity",

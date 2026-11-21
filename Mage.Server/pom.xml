@@ -446,6 +446,7 @@
                                 <class>mage.server.UpdateCheck$UpdateStatus</class>
                                 <class>mage.server.UpdateRunner$UpdaterInfo</class>
                                 <class>mage.server.UpdateRunner$UpdateJob</class>
+                                <class>mage.server.SelfPlayStatus$SelfPlayView</class>
                                 <class>mage.server.admin.AuditEntry</class>
                                 <class>mage.server.admin.AllowEntry</class>
                                 <class>mage.server.admin.Invite</class>

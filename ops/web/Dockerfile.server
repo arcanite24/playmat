@@ -81,7 +81,7 @@ RUN sed -i "s/\r$//" /usr/local/bin/xmage-server /usr/local/bin/xmage-backup \
       -Dxmage.healthPort=0 -Dxmage.replays=false -jar lib/mage-server-*.jar \
  && rm -rf db saved extensions mageserver.log \
  && useradd --system --home /opt/xmage xmage \
- && mkdir -p db cards-db logs saved updates /backups \
+ && mkdir -p db cards-db logs saved updates selfplay /backups \
  && chown -R xmage /opt/xmage /backups
 # The compose kit this image belongs with: the image-based deploy (ops/web/deploy/playmat-deploy) runs the compose file
 # of the version it deploys, taken from here, so a rollback rolls the compose file back too. Copied last: editing it

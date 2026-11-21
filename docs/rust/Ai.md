@@ -221,6 +221,11 @@ games for the trainer in that idle time. Training stays on the trainer's GPU; th
 - **Speed.** 2.0 games a second at 3 jobs with round 3's network (`netsearch` with the small rollout net,
   `--fast net`, `--keep 500`), about a quarter of the trainer's 10 jobs. The server's container stayed at 6–10%
   CPU throughout. A game is 145 KB of files, 5.5 KB gzipped. A 20-minute round adds up to 2,400 games.
+- **Admin console.** The Self-play tab shows the worker's state, the games it played each hour of the last day
+  (and the chunks it threw away), and the trainer's progress: `rounds.py --remote` reports each phase of a round
+  (`remote.py progress`), and the worker copies it into the `xmage-selfplay` volume with its own `worker.json` and
+  `history.jsonl`. Admins pause the worker there and set its quiet hours, limits and cores (`settings.json`,
+  checked by the worker field by field over `rl.env`; `SelfPlayStatus.java`).
 - **Windows trainers.** Windows' own ssh.exe sends no stdin when it runs under an SSH session (a run started
   over ssh, Start-Process included), so `put-job` would hang. `remote.py` uses Git for Windows' ssh when it's
   installed (`PLAYMAT_RL_SSH` names another).

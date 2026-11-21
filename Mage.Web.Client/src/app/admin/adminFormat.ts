@@ -29,6 +29,15 @@ export function describeAge(at: number, now: number): string {
   return `${formatDuration(seconds * 1000)} ago`;
 }
 
+/** A self-play image's short name: its tag, else the start of its digest. */
+export function shortImage(image?: string): string {
+  if (!image) return '';
+  const tag = /:([A-Za-z0-9._-]+)@/.exec(image)?.[1];
+  if (tag) return tag;
+  const digest = /@sha256:([0-9a-f]{12})/.exec(image)?.[1];
+  return digest ? `sha256:${digest}` : image;
+}
+
 export type InviteState = 'active' | 'used up' | 'expired' | 'revoked';
 
 /** Whether an invite link still works, and if not, why. */

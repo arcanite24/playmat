@@ -12,7 +12,7 @@ SPOOL=/srv/playmat-rl
 if [[ ${1:-} == --remove ]]; then
   systemctl disable --now playmat-rl-worker.timer 2> /dev/null || true
   docker rm -f playmat-rl-worker > /dev/null 2>&1 || true
-  rm -f /etc/systemd/system/playmat-rl-worker.{service,timer} /usr/local/bin/playmat-rl-{worker,transfer}
+  rm -f /etc/systemd/system/playmat-rl-worker.{service,timer} /usr/local/bin/playmat-rl-{worker,transfer,panel}
   systemctl daemon-reload
   if id playmat-rl > /dev/null 2>&1; then userdel -f playmat-rl || echo "userdel playmat-rl failed; remove the account by hand" >&2; fi
   rm -rf "$SPOOL"
@@ -39,10 +39,14 @@ done
 passwd -l playmat-rl > /dev/null
 mkdir -p "$SPOOL"/{jobs,job,out,state,work} "$SPOOL/.ssh"
 chown -R playmat-rl:playmat-rl "$SPOOL"
+# the worker's counters: root writes them, so not the transfer account's
+chown -R root:root "$SPOOL/state"
+chmod 755 "$SPOOL/state"
 chmod 750 "$SPOOL"
 chmod 700 "$SPOOL/.ssh"
 install -m 755 "$HERE/rl-worker.sh" /usr/local/bin/playmat-rl-worker
 install -m 755 "$HERE/rl-transfer.sh" /usr/local/bin/playmat-rl-transfer
+install -m 755 "$HERE/rl-panel.py" /usr/local/bin/playmat-rl-panel
 mkdir -p /etc/playmat
 if [[ ! -e /etc/playmat/rl.env ]]; then
   cat > /etc/playmat/rl.env << 'EOF'
