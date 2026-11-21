@@ -83,6 +83,25 @@ account; the image must be one CI built from the same commit as the local `selfp
 shows the worker's state, `list` the chunks waiting, `stop` drops the job. A chunk played with another image or
 other networks is thrown away, not trained on.
 
+More games from the LAN's idle machines: `--lan minivac:8,blindvac:4` (ssh alias and jobs, up to 4 hosts). The
+trainer drives them itself over ssh (`fleet.py`); nothing runs on them but `selfplay` under `~/playmat-rl`. While the
+round's local games run, each host plays 100-game chunks whenever it's idle (a Mac: no keyboard or mouse for 10
+minutes and a low load; Windows: other processes under 40% CPU and on AC power), at the lowest priority. It's
+checked every 15 s, a chunk is killed and thrown away when the host is in use again, and finished chunks are copied
+into the round's data as `<alias>-c<n>-*`. Seeds come from `1_000_000 * r + 100_000 * (1 + host)`, so `--games` stays
+at 100,000 or under. Each host needs the trainer's own build, from the same commit:
+
+```bash
+python fleet.py provision blindvac --bin ../target/release/selfplay.exe   # a Windows host: the trainer's exe
+python fleet.py provision minivac --on-host /Users/.../target/release/selfplay   # a Mac builds its own
+python fleet.py status minivac blindvac
+python fleet.py speed blindvac:4 --net runs/loop4/r3                     # one chunk, timed
+```
+
+Provision copies the deck suite and, from a Windows trainer, the Visual C++ runtime next to the exe (blindvac has
+none). A round leaves out a host provisioned from another commit or whose binary changed. A chunk whose trainer dies
+mid-way ends with it on a Mac (it watches the ssh channel); on Windows it finishes its 100 games.
+
 `--tx` takes JSON or `k=v` pairs (`d`, `heads`, `layers`, `ff`, `dim`, `trunk`, `text`). `rounds.py` logs one line a round to
 `runs/<out>/rounds.jsonl`. Keep `--jobs` and `--sprt-jobs` a few threads under the machine's count so its other
 services keep running.

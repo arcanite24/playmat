@@ -229,6 +229,11 @@ games for the trainer in that idle time. Training stays on the trainer's GPU; th
 - **Windows trainers.** Windows' own ssh.exe sends no stdin when it runs under an SSH session (a run started
   over ssh, Start-Process included), so `put-job` would hang. `remote.py` uses Git for Windows' ssh when it's
   installed (`PLAYMAT_RL_SSH` names another).
+- **The LAN's idle machines** (`rounds.py --lan`, `fleet.py`). The trainer drives them over ssh itself: there is no
+  production service to guard, so no worker, account or timer, just `selfplay` and the suite under `~/playmat-rl`.
+  A host plays 100-game chunks while it's idle and stops within 15 s when it isn't. blindvac (an i5-8250U laptop,
+  4 jobs) plays 3.0 games a second, more than the public server. minivac (an M4 Pro, the desk Mac) plays only after
+  10 minutes with no keyboard or mouse input.
 
 ## One decision at a time: policies
 
