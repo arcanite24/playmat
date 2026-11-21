@@ -11,7 +11,8 @@ moment it isn't), and copies the finished chunk back with scp.
     python fleet.py speed HOST --net DIR           one chunk with DIR's network, timed (provision first)
 
 Idle: a Mac when nobody has touched its keyboard or mouse for IDLE_MAC_S seconds and its load is low; Windows when
-the other processes use little CPU and it's on AC power. A host's selfplay must be the trainer's own build: provision
+the other processes use little CPU and it's on AC power; Linux (the Steam Deck) when it's on AC power, no Steam
+game is running and its load is low. A host's selfplay must be the trainer's own build: provision
 records the binary's sha256 and the trainer's commit, and a round checks both before it uses the host.
 """
 
@@ -120,7 +121,16 @@ class Host:
             if float(other.replace(",", "")) > CPU_OTHER_MAX:
                 return f"other processes use {other}% CPU"
             return None
-        out = self.sh("cat /proc/loadavg; nproc", timeout=30).split()
+        # Linux (the Steam Deck): on mains power, no Steam game running (Steam starts every game under
+        # `reaper SteamLaunch`; the brackets keep pgrep from matching this command), and a low load before a chunk
+        out = self.sh("cat /sys/class/power_supply/AC*/online 2>/dev/null | head -1; "
+                      "pgrep -f '[r]eaper SteamLaunch' > /dev/null && echo game || echo nogame; "
+                      "cat /proc/loadavg; nproc", timeout=30).split()
+        if out and out[0] == "0":
+            return "on battery"
+        if "game" in out:
+            return "a Steam game is running"
+        out = out[out.index("nogame") + 1:] if "nogame" in out else out
         if not playing and float(out[0]) / int(out[-1]) > LOAD_MAX:
             return f"load {out[0]} on {out[-1]} cores"
         return None
