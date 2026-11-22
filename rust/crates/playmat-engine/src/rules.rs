@@ -3798,15 +3798,17 @@ fn pick_color(
     if choices.len() == 1 {
         return Some(choices[0]);
     }
-    let owed: Vec<Color> = [Color::W, Color::R, Color::G, Color::U, Color::B]
-        .into_iter()
-        .filter(|c| unpaid.symbols_of(*c) > 0 && choices.contains(c))
-        .collect();
-    if owed.len() == 1 {
-        return Some(owed[0]);
-    }
-    if owed.is_empty() && Color::ALL.iter().all(|c| unpaid.symbols_of(*c) == 0) {
-        return choices.first().copied();
+    if !game.pool_mode(seat).0 && !spell_cares_about_mana_color(game, seat) {
+        let owed: Vec<Color> = [Color::W, Color::R, Color::G, Color::U, Color::B]
+            .into_iter()
+            .filter(|c| unpaid.symbols_of(*c) > 0 && choices.contains(c))
+            .collect();
+        if owed.len() == 1 {
+            return Some(owed[0]);
+        }
+        if owed.is_empty() && Color::ALL.iter().all(|c| unpaid.symbols_of(*c) == 0) {
+            return choices.first().copied();
+        }
     }
     let name = |c: &Color| ["White", "Blue", "Black", "Red", "Green"][c.index()].to_string();
     let q = Query::Choice { message: message.into(), choices: choices.iter().map(name).collect() };
@@ -3841,15 +3843,17 @@ fn color_among(
     if choices.len() == 1 {
         return Some(choices[0]);
     }
-    let owed: Vec<Color> = [Color::W, Color::R, Color::G, Color::U, Color::B]
-        .into_iter()
-        .filter(|c| unpaid.symbols_of(*c) > 0 && choices.contains(c))
-        .collect();
-    if owed.len() == 1 {
-        return Some(owed[0]);
-    }
-    if owed.is_empty() && Color::ALL.iter().all(|c| unpaid.symbols_of(*c) == 0) {
-        return choices.first().copied();
+    if !game.pool_mode(seat).0 && !spell_cares_about_mana_color(game, seat) {
+        let owed: Vec<Color> = [Color::W, Color::R, Color::G, Color::U, Color::B]
+            .into_iter()
+            .filter(|c| unpaid.symbols_of(*c) > 0 && choices.contains(c))
+            .collect();
+        if owed.len() == 1 {
+            return Some(owed[0]);
+        }
+        if owed.is_empty() && Color::ALL.iter().all(|c| unpaid.symbols_of(*c) == 0) {
+            return choices.first().copied();
+        }
     }
     let name = |c: &Color| ["White", "Blue", "Black", "Red", "Green"][c.index()].to_string();
     let q = Query::Choice { message: "Pick a mana color".into(), choices: choices.iter().map(name).collect() };
@@ -3990,20 +3994,11 @@ fn any_color_asking(
 
 /// `any_color_asking`; with no unpaid cost known (`HumanPlayer.currentlyUnpaidMana` is null: a mana ability whose
 /// own mana cost was paid by tapping a source, Hydro-Channeler's "{1}, {T}"), always asked
-fn any_color_owed(
-    game: &mut Game,
-    d: &mut dyn Decider,
-    seat: Seat,
-    unpaid: Option<&ManaCost>,
-    message: &str,
-) -> Option<Color> {
-    let owed: Vec<Color> =
-        Color::ALL.iter().copied().filter(|c| unpaid.is_some_and(|u| u.symbols_of(*c) > 0)).collect();
-    // `HumanPlayer.choose`: not for a spell of theirs that cares about the colors spent (`caresAboutManaColor`:
-    // Unexplained Vision's adamant)
-    let cares = spell_paid_for(game).is_some_and(|s| {
+/// Whether the spell currently being paid for cares about the colors of mana spent (`CardImpl.caresAboutManaColor`:
+/// Sunburst, Adamant, Converge / Prismatic Ending).
+fn spell_cares_about_mana_color(game: &Game, seat: Seat) -> bool {
+    spell_paid_for(game).is_some_and(|s| {
         let o = game.obj(s);
-        // (its effects' conditions: an intervening "if" isn't one, Clockwork Servant's adamant)
         let effects = o.def.spell.effects.iter().chain(o.def.spell.modes.iter().flat_map(|m| m.effects.iter())).chain(
             o.def.abilities.iter().flat_map(|a| match a {
                 AbilityDef::TriggeredAbility { effects, .. }
@@ -4014,9 +4009,29 @@ fn any_color_owed(
         );
         o.controller == seat
             && (o.def.abilities.contains(&AbilityDef::SunburstAbility)
-                || effects.into_iter().any(|e| format!("{e:?}").contains("ManaColorSpent")))
-    });
-    match if cares || unpaid.is_none() { usize::MAX } else { owed.len() } {
+                || o.def.spell.rule.contains("converge")
+                || effects.into_iter().any(|e| {
+                    let dbg = format!("{e:?}");
+                    dbg.contains("ManaColorSpent")
+                        || dbg.contains("ColorsSpent")
+                        || dbg.contains("PrismaticEndingEffect")
+                        || dbg.contains("EachTwoSpent")
+                }))
+    })
+}
+
+fn any_color_owed(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    seat: Seat,
+    unpaid: Option<&ManaCost>,
+    message: &str,
+) -> Option<Color> {
+    let owed: Vec<Color> =
+        Color::ALL.iter().copied().filter(|c| unpaid.is_some_and(|u| u.symbols_of(*c) > 0)).collect();
+    // `HumanPlayer.choose`: not when manual mana payment is on (Full Control) or for a spell that cares about colors
+    let skip_auto = game.pool_mode(seat).0 || spell_cares_about_mana_color(game, seat);
+    match if skip_auto || unpaid.is_none() { usize::MAX } else { owed.len() } {
         0 => {
             game.any_color_made = Some(Color::W);
             return Some(Color::W);
@@ -9109,7 +9124,11 @@ fn pay_mana_from(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCo
                     abilities.sort_by_key(|(i, _, _)| *i);
                 }
                 if let Some((_, abilities)) = offered {
-                    let choices = auto_pay_abilities(&abilities, &unpaid);
+                    let choices = if game.pool_mode(seat).0 || spell_cares_about_mana_color(game, seat) {
+                        abilities
+                    } else {
+                        auto_pay_abilities(&abilities, &unpaid)
+                    };
                     let chosen = if choices.len() == 1 {
                         Some(choices[0])
                     } else {
@@ -26138,6 +26157,56 @@ mod tests {
             assert_eq!((ok, d.asked), (paid, asked), "manual {manual}, unrestricted {unrestricted}, before {before}");
             assert_eq!(game.pool_mode(1), (false, false), "only the seat's own mode");
         }
+    }
+
+    /// Taps a given land once during `PlayMana`, records whether `ChooseAbility` was asked (and how many choices it
+    /// offered), then cancels the payment.
+    struct AbilityPromptProbe {
+        land: ObjId,
+        tapped: bool,
+        prompted: Option<usize>,
+    }
+
+    impl Decider for AbilityPromptProbe {
+        fn answer(&mut self, game: &Game, seat: Seat, query: &Query) -> Answer {
+            match query {
+                Query::PlayMana { .. } if !self.tapped => {
+                    self.tapped = true;
+                    Answer::Obj(self.land)
+                }
+                Query::PlayMana { .. } => Answer::Bool(false),
+                Query::ChooseAbility { abilities, .. } => {
+                    self.prompted = Some(abilities.len());
+                    Answer::Stop
+                }
+                _ => Passer.answer(game, seat, query),
+            }
+        }
+    }
+
+    /// #477: Full Control (manual pool mode) always prompts for a multi-ability land's mana ability during casting,
+    /// and pain lands always prompt instead of auto-selecting a 1-damage colored ability over painless {C}.
+    #[test]
+    fn manual_mode_and_pain_lands_prompt_for_mana_ability() {
+        let db = crate::cards();
+        let cost = ManaCost::parse("{1}{W}").unwrap();
+        // Sacred Foundry: auto-picks {W} normally, prompts both abilities in Full Control (manual mode)
+        for (manual, expected) in [(false, None), (true, Some(2))] {
+            let mut game = game_with(&db, &[("Sacred Foundry", 20)]);
+            let land = game.create_obj(db.get("Sacred Foundry").unwrap(), 0, Zone::Hand);
+            game.move_to(land, Zone::Battlefield);
+            game.set_pool_mode(0, manual, false);
+            let mut d = AbilityPromptProbe { land, tapped: false, prompted: None };
+            let _ = pay_mana_from(&mut game, &mut d, 0, &cost);
+            assert_eq!(d.prompted, expected, "Sacred Foundry with manual={manual}");
+        }
+        // Adarkar Wastes: pain land prompts all 3 abilities even with manual=false
+        let mut game = game_with(&db, &[("Adarkar Wastes", 20)]);
+        let land = game.create_obj(db.get("Adarkar Wastes").unwrap(), 0, Zone::Hand);
+        game.move_to(land, Zone::Battlefield);
+        let mut d = AbilityPromptProbe { land, tapped: false, prompted: None };
+        let _ = pay_mana_from(&mut game, &mut d, 0, &cost);
+        assert_eq!(d.prompted, Some(3), "Adarkar Wastes should prompt rather than auto-dealing 1 damage");
     }
 
     /// Pays an attack tax: yes to paying, then taps the first source offered; keeps whether the paying player's

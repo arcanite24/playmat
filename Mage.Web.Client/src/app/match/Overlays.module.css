@@ -142,11 +142,11 @@
   box-shadow: 0 0 0 3px var(--decision), 0 0 20px 4px var(--decision-glow);
 }
 
+/* sits in the decision corner (ActionCluster is hidden while an overlay owns the choice) so the hand stays clear */
 .peek {
   position: absolute;
-  left: 50%;
+  right: 40px;
   bottom: 40px;
-  translate: -50% 0;
   z-index: var(--z-overlay);
 }
 

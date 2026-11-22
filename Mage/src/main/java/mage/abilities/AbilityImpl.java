@@ -2002,6 +2002,9 @@ public abstract class AbilityImpl implements Ability {
      * @return true if the ability is impacted by the color of the mana used to pay for it.
      */
     public boolean caresAboutManaColor() {
+        if (abilityWord == AbilityWord.CONVERGE) {
+            return true;
+        }
         return this.getEffects().stream()
                 .filter(Objects::nonNull)
                 .map(Effect::getCondition)

@@ -205,7 +205,7 @@ describe('ChoicePanel', () => {
     const any = button(text);
     expect(within(any).getByText(/Sacrifice this artifact: Add/)).toBeTruthy();
     expect(any.querySelector('.ms-w, .ms-u, .ms-b, .ms-r, .ms-g')).toBeNull();
-    expect(screen.getAllByRole('button')).toHaveLength(3);
+    expect(dialog('Choose mana').querySelectorAll('[data-choice]')).toHaveLength(2);
     fireEvent.click(any);
     expect(sent).toEqual([{ type: 'uuid', id: 'any' }]);
   });
@@ -274,10 +274,28 @@ describe('ChoicePanel', () => {
     render(<ChoicePanel prompt={prompt} onCommand={onCommand} />);
     expect(screen.queryByRole('button', { name: 'Skip' })).toBeNull();
     fireEvent.change(screen.getByRole('textbox', { name: 'Search choices' }), { target: { value: 'gob' } });
-    const options = within(dialog('Choose a creature type')).getAllByRole('button');
+    const options = Array.from(dialog('Choose a creature type').querySelectorAll<HTMLButtonElement>('[data-choice]'));
     expect(options).toHaveLength(1);
     fireEvent.click(options[0]);
     expect(sent).toEqual([{ type: 'string', value: 'Goblin' }]);
+  });
+
+  test('can be hidden to look at the board and hand, preserving state and pausing choice keys (#476)', () => {
+    const { sent, onCommand } = answers();
+    const prompt = parsePrompt('GAME_GET_AMOUNT', { message: 'Choose X', min: 0, max: 5 });
+    render(<ChoicePanel prompt={prompt} onCommand={onCommand} />);
+    fireEvent.click(button('More'));
+    fireEvent.click(button('More'));
+    expect(button('Choose 2')).toBeTruthy();
+
+    fireEvent.click(button('See the board'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.keyDown(window, { key: '1' });
+    expect(sent).toEqual([]);
+
+    fireEvent.click(button('Back to choice'));
+    expect(dialog('Choose X')).toBeTruthy();
+    expect(button('Choose 2')).toBeTruthy();
   });
 
   test('choosePile: answers true for the first pile and false for the second', () => {
@@ -588,10 +606,11 @@ describe('choice keyboard ownership', () => {
     expect(document.activeElement).toBe(button(/Gain life/));
     fireEvent.keyDown(document.activeElement!, { key: 'Home' });
     expect(document.activeElement).toBe(button(/Draw a card/));
+    button('See the board').focus();
     fireEvent.keyDown(document.activeElement!, { key: 'Tab', shiftKey: true });
     expect(document.activeElement).toBe(button('Cancel'));
     fireEvent.keyDown(document.activeElement!, { key: 'Tab' });
-    expect(document.activeElement).toBe(button(/Draw a card/));
+    expect(document.activeElement).toBe(button('See the board'));
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(sent).toEqual([{ type: 'uuid', id: null }]);
   });

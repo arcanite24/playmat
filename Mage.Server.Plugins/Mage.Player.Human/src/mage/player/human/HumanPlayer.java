@@ -741,7 +741,7 @@ public class HumanPlayer extends PlayerImpl {
                 }
             }
 
-            if (!caresAboutManaColor && ManaUtil.tryToAutoSelectAManaColor(choice, currentlyUnpaidMana)) {
+            if (manaPool.isAutoPayment() && !caresAboutManaColor && ManaUtil.tryToAutoSelectAManaColor(choice, currentlyUnpaidMana)) {
                 return true;
             }
         }
@@ -1879,8 +1879,8 @@ public class HumanPlayer extends PlayerImpl {
                     caresAboutManaColor = card.caresAboutManaColor(game);
                 }
 
-                // Don't auto-pay if the spell cares about the color
-                if (!caresAboutManaColor) {
+                // Don't auto-pay if auto-payment is off (e.g. Full Control) or the spell cares about the color
+                if (manaPool.isAutoPayment() && !caresAboutManaColor) {
                     useableAbilities = ManaUtil.tryToAutoPay(unpaid, useableAbilities); // eliminates other abilities if one fits perfectly
                 }
                 currentlyUnpaidMana = unpaid;
