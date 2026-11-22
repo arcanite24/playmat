@@ -67,8 +67,40 @@ def load_token(env_path=None):
     sys.exit("HF_ARCHIVE error: HF_TOKEN not found in environment or .env")
 
 
+GITATTRIBUTES = """*.7z filter=lfs diff=lfs merge=lfs -text
+*.bin filter=lfs diff=lfs merge=lfs -text
+*.f16 filter=lfs diff=lfs merge=lfs -text
+*.f32 filter=lfs diff=lfs merge=lfs -text
+*.i32 filter=lfs diff=lfs merge=lfs -text
+*.npy filter=lfs diff=lfs merge=lfs -text
+*.npz filter=lfs diff=lfs merge=lfs -text
+*.pmnet filter=lfs diff=lfs merge=lfs -text
+*.pt filter=lfs diff=lfs merge=lfs -text
+*.pth filter=lfs diff=lfs merge=lfs -text
+*.safetensors filter=lfs diff=lfs merge=lfs -text
+*.tar filter=lfs diff=lfs merge=lfs -text
+*.tar.gz filter=lfs diff=lfs merge=lfs -text
+*.u16 filter=lfs diff=lfs merge=lfs -text
+*.u8 filter=lfs diff=lfs merge=lfs -text
+*.zst filter=lfs diff=lfs merge=lfs -text
+"""
+
+
 def ensure_repo(api, repo_id, repo_type):
     api.create_repo(repo_id=repo_id, repo_type=repo_type, private=False, exist_ok=True)
+    with tempfile.NamedTemporaryFile("w", suffix=".gitattributes", delete=False, encoding="utf-8", newline="\n") as f:
+        f.write(GITATTRIBUTES)
+        tmp = f.name
+    try:
+        api.upload_file(
+            path_or_fileobj=tmp,
+            path_in_repo=".gitattributes",
+            repo_id=repo_id,
+            repo_type=repo_type,
+            commit_message="Track binary shard and .pmnet extensions via LFS/Xet",
+        )
+    finally:
+        os.remove(tmp)
 
 
 def upload_checkpoint_dir(api, repo_id, local_dir, remote_name=None):
