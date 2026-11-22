@@ -1081,6 +1081,16 @@ export interface CareerRunReward {
     wins?: number;
 }
 
+export interface CareerSavedDeck {
+    active?: boolean;
+    deck?: DeckCardLists;
+    id?: string;
+    missing?: string[];
+    name?: string;
+    source?: string;
+    updated?: number;
+}
+
 export interface CareerSeat {
     cover?: CareerCover;
     name?: string;

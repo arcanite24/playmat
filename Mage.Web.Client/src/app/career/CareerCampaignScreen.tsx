@@ -314,7 +314,7 @@ function NodeDetail({ campaignId, school, chapter, node, back }: { campaignId: s
           </>
         )}
       </div>
-      {list && <DeckListDialog campaignId={campaignId} nodeId={node.id ?? ''} name={deckName} onClose={() => setList(false)} />}
+      {list && <DeckListDialog campaignId={campaignId} chapterId={chapter.id} nodeId={node.id ?? ''} name={deckName} onClose={() => setList(false)} />}
       {versus && (
         <Versus
           kicker={chapter.name}

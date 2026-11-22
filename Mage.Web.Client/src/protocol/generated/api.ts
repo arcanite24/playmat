@@ -381,6 +381,14 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('careerDeck'),
     careerSaveDeck: (deck: DeckCardLists) =>
       rpc.call('careerSaveDeck', deck),
+    careerDecks: () =>
+      rpc.call('careerDecks'),
+    careerSaveNamedDeck: (id: string | null, name: string, deck: DeckCardLists, activate?: boolean | null) =>
+      rpc.call('careerSaveNamedDeck', id, name, deck, activate),
+    careerSelectDeck: (id: string) =>
+      rpc.call('careerSelectDeck', id),
+    careerDeleteDeck: (id: string) =>
+      rpc.call('careerDeleteDeck', id),
     careerCollection: () =>
       rpc.call('careerCollection'),
     careerOpponents: () =>

@@ -492,6 +492,7 @@
                                 <class>mage.server.websocket.api.HomeApi$HomeGame</class>
                                 <class>mage.server.career.CareerContent$CareerStarter</class>
                                 <class>mage.server.career.CareerService$CareerOpponent</class>
+                                <class>mage.server.career.CareerService$CareerSavedDeck</class>
                                 <class>mage.server.career.CareerService$CareerShopSet</class>
                                 <class>mage.server.career.CareerService$CareerPackResult</class>
                                 <class>mage.server.career.CareerCard</class>

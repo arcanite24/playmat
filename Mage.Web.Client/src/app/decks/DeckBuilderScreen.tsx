@@ -1,7 +1,7 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { ArrowLeftRight, BarChart3, Check, ChevronLeft, ClipboardPaste, Columns3, Coins, Crown, Image as ImageIcon, Images, ListPlus, Minus, Mountain, Plus, Replace, Sparkles, TriangleAlert } from 'lucide-react';
 import { useMyCardStyles } from '../ui/cardStyles';
-import { useCallback, useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { CardView } from '../../protocol/generated/views';
@@ -151,12 +151,15 @@ export function DeckBuilder({ initial, mode }: { initial: DeckCardLists; mode?: 
   const formats = useMemo(() => formatMenu(server.data?.deckTypes ?? [DEFAULT_FORMAT]), [server.data]);
   const identity = useCommanderIdentity(deck, info, rules);
 
-  // autosave: the deck in storage always matches the screen, a moment later
+  // autosave: the deck in storage always matches the screen, a moment later (and flushes on unmount so the last edit isn't lost)
   const [savedDeck, setSavedDeck] = useState(initial);
   const saving = deck !== savedDeck;
+  const pendingSave = useRef<{ deck: DeckCardLists; mode: BuilderMode | undefined } | null>(null);
+  pendingSave.current = saving ? { deck, mode } : null;
   useEffect(() => {
     if (!saving) return;
     const timer = setTimeout(() => {
+      pendingSave.current = null;
       const finished = finalizeDeck(deck, useCardInfoStore.getState().info);
       if (mode) {
         mode.save(finished);
@@ -170,6 +173,13 @@ export function DeckBuilder({ initial, mode }: { initial: DeckCardLists; mode?: 
     return () => clearTimeout(timer);
   }, [deck, saving, mode]);
   useEffect(() => () => {
+    const latest = pendingSave.current;
+    if (latest) {
+      pendingSave.current = null;
+      const finished = finalizeDeck(latest.deck, useCardInfoStore.getState().info);
+      if (latest.mode) latest.mode.save(finished);
+      else void deckStorage.saveDeck(finished).catch(() => undefined);
+    }
     if (!mode) void useDecks.getState().refresh();
   }, [mode]);
 

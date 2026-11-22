@@ -9,7 +9,7 @@ import { api } from '../connection';
 import { toWire } from '../decks/deckModel';
 import { registerMessages, t as translate, useT, type MessageKey } from '../i18n';
 import messages from '../i18n/en/events';
-import { useServerState, useTables } from '../queries';
+import { refreshTables, useServerState, useTables } from '../queries';
 import { useDecks } from '../stores/decks';
 import { useDeckRoster } from '../stores/useDeckRoster';
 import { useEvents } from '../stores/events';
@@ -59,6 +59,20 @@ const TIMING_TEXT: Partial<Record<TimingOption, MessageKey>> = {
 
 const EMPTY_DECK = { cards: [], sideboard: [] };
 
+export function isOpenEvent(table: Pick<TableView, 'tableState'>): boolean {
+  return table.tableState === 'WAITING' || table.tableState === 'READY_TO_START';
+}
+
+export function isEventOwner(table: Pick<TableView, 'controllerName'>, userName: string): boolean {
+  return !!userName && (table.controllerName ?? '').split(', ')[0] === userName;
+}
+
+export function isSeatedInEvent(table: Pick<TableView, 'controllerName' | 'seats'>, userName: string): boolean {
+  if (!userName) return false;
+  if ((table.seats ?? []).some((seat) => seat.playerName === userName)) return true;
+  return (table.controllerName ?? '').split(', ').includes(userName);
+}
+
 /** Drafts, sealed and constructed events: join one, follow yours, or host a new one. */
 export function EventsScreen() {
   const { data: tables = [] } = useTables();
@@ -70,9 +84,10 @@ export function EventsScreen() {
   const t = useT();
   const roster = useDeckRoster();
   const [hosting, setHosting] = useState<EventKind | null>(null);
+  const [startingId, setStartingId] = useState<string | null>(null);
   const events = tables.filter((table) => table.isTournament && table.tableState !== 'FINISHED');
-  const open = events.filter((table) => table.tableState === 'WAITING');
-  const running = events.filter((table) => table.tableState !== 'WAITING');
+  const open = events.filter(isOpenEvent);
+  const running = events.filter((table) => !isOpenEvent(table));
 
   async function join(table: TableView) {
     if (!roomId || !table.tableId) return;
@@ -92,7 +107,24 @@ export function EventsScreen() {
       return null;
     });
     if (ok === false) notify(translate('events.joinFailed'), translate('events.seatRefused'), 'error');
-    else if (ok) notify(translate('events.joined'), translate('events.joined.detail', { name: table.tableName ?? '' }));
+    else if (ok) {
+      notify(translate('events.joined'), translate('events.joined.detail', { name: table.tableName ?? '' }));
+      refreshTables();
+    }
+  }
+
+  async function start(table: TableView) {
+    if (!roomId || !table.tableId) return;
+    setStartingId(table.tableId);
+    try {
+      const ok = await api.tournamentStart(roomId, table.tableId);
+      if (!ok) notify(translate('events.startFailed'), translate('events.couldNotStart'), 'error');
+      refreshTables();
+    } catch (error) {
+      notify(translate('events.startFailed'), error instanceof Error ? error.message : String(error), 'error');
+    } finally {
+      setStartingId(null);
+    }
   }
 
   return (
@@ -105,13 +137,16 @@ export function EventsScreen() {
       {mine.length > 0 && (
         <Zone label={t('events.yours')} tone="filled">
           <div className={styles.list}>
-            {mine.map((tournament) => (
-              <button key={tournament.tournamentId} type="button" className={styles.mine} onClick={() => navigate(`/event/${tournament.tournamentId}`)}>
-                <Trophy size={18} aria-hidden="true" />
-                <span>{tournament.view?.tournamentName ?? t('events.event')}</span>
-                <small>{tournament.view?.runningInfo || tournament.view?.tournamentState || t('events.open')}</small>
-              </button>
-            ))}
+            {mine.map((tournament) => {
+              const tableName = tables.find((table) => table.tableId === tournament.tableId)?.tableName;
+              return (
+                <button key={tournament.tournamentId} type="button" className={styles.mine} onClick={() => navigate(`/event/${tournament.tournamentId}`)}>
+                  <Trophy size={18} aria-hidden="true" />
+                  <span>{tournament.view?.tournamentName ?? tableName ?? t('events.event')}</span>
+                  <small>{tournament.view?.runningInfo || tournament.view?.tournamentState || t('events.open')}</small>
+                </button>
+              );
+            })}
           </div>
         </Zone>
       )}
@@ -138,9 +173,37 @@ export function EventsScreen() {
             <p className={styles.empty}>{t('events.noneWaiting')}</p>
           ) : (
             <div className={styles.list}>
-              {open.map((table) => (
-                <EventRow key={table.tableId} table={table} action={<Button size="sm" variant="print" onClick={() => void join(table)}>{t('events.join')}</Button>} />
-              ))}
+              {open.map((table) => {
+                const owner = isEventOwner(table, userName);
+                const seated = isSeatedInEvent(table, userName);
+                const ready = table.tableState === 'READY_TO_START';
+                const stateLabel = ready
+                  ? t(owner ? 'events.readyToStart' : 'events.waitingHost')
+                  : table.tableStateText;
+                const action = owner ? (
+                  <div className={styles.rowActions}>
+                    <Button size="sm" variant="quiet" onClick={() => roomId && table.tableId && void api.tableRemove(roomId, table.tableId).finally(refreshTables)}>
+                      {t('events.close')}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={ready ? 'decision' : 'print'}
+                      disabled={!ready || startingId === table.tableId}
+                      busy={startingId === table.tableId}
+                      onClick={() => void start(table)}
+                    >
+                      {t('events.startNow')}
+                    </Button>
+                  </div>
+                ) : seated ? (
+                  <Button size="sm" variant="quiet" onClick={() => roomId && table.tableId && void api.roomLeaveTableOrTournament(roomId, table.tableId).finally(refreshTables)}>
+                    {t('events.leave')}
+                  </Button>
+                ) : !ready ? (
+                  <Button size="sm" variant="print" onClick={() => void join(table)}>{t('events.join')}</Button>
+                ) : null;
+                return <EventRow key={table.tableId} table={table} stateText={stateLabel} action={action} />;
+              })}
             </div>
           )}
         </Zone>
@@ -168,7 +231,7 @@ export function EventsScreen() {
   );
 }
 
-function EventRow({ table, action }: { table: TableView; action: React.ReactNode }) {
+function EventRow({ table, stateText, action }: { table: TableView; stateText?: string; action: React.ReactNode }) {
   return (
     <article className={styles.row}>
       <div className={styles.rowMain}>
@@ -176,7 +239,7 @@ function EventRow({ table, action }: { table: TableView; action: React.ReactNode
         <p className={styles.rowMeta}>{table.gameType} · {table.additionalInfoShort || table.deckType}</p>
       </div>
       <span className={styles.rowState}>{table.seatsInfo}</span>
-      <span className={styles.rowState}>{table.tableStateText}</span>
+      <span className={styles.rowState}>{stateText ?? table.tableStateText}</span>
       {action}
     </article>
   );
@@ -316,6 +379,7 @@ function HostDialog({ open, initialKind, onOpenChange }: { open: boolean; initia
         if (!await api.tournamentStart(roomId, tableId)) throw new Error(translate('events.couldNotStart'));
       }
       notify(translate(fillAi ? 'events.starting' : 'events.opened'), translate(fillAi ? 'events.starting.detail' : 'events.opened.detail'));
+      refreshTables();
       onOpenChange(false);
     } catch (error) {
       notify(translate('events.hostFailed'), error instanceof Error ? error.message : String(error), 'error');

@@ -52,11 +52,11 @@ public class CareerServiceTest {
 
     @Test
     public void migrationsRunOnceAndRecordTheVersion() throws Exception {
-        assertEquals(8, store.schemaVersion());
+        assertEquals(9, store.schemaVersion());
         store.close();
         store = new CareerStore("jdbc:sqlite:" + file);
         CareerStore.use(store);
-        assertEquals(8, store.schemaVersion());
+        assertEquals(9, store.schemaVersion());
         assertNotNull(store.profile("ana"), "reopening keeps the data");
     }
 
@@ -296,5 +296,66 @@ public class CareerServiceTest {
         assertEquals("Chapter 1", shelf.get(7).unlockedBy);
         assertTrue(shelf.get(9).locked, "an unbeaten chapter's set stays locked");
         assertEquals("Chapter 3", shelf.get(9).unlockedBy);
+    }
+
+    @Test
+    public void savedCareerDecksMigrateLegacyDeckAndSupportSwitchRenameDeleteAndEarnedCampaignDecks() throws Exception {
+        store.addCard("ana", card("Savannah Lions", "rare"), 4);
+        store.addCard("ana", card("Swords to Plowshares", "uncommon"), 4);
+
+        mage.cards.decks.DeckCardLists legacy = new mage.cards.decks.DeckCardLists();
+        legacy.setName("My First Deck");
+        legacy.getCards().add(new mage.cards.decks.DeckCardInfo("Savannah Lions", "TST", "Savannah-Lions", 2));
+        legacy.getCards().add(new mage.cards.decks.DeckCardInfo("Plains", "TST", "1", 20));
+        CareerService.get().saveDeck("ana", legacy);
+
+        // Simulate a player who already beat the White campaign boss before multi-deck saving existed
+        store.finishCampaignNode("ana", "five-paths", "white-5", null, 50L);
+
+        List<CareerService.CareerSavedDeck> initial = CareerService.get().savedDecks("ana");
+        assertTrue(initial.size() >= 2, "legacy deck plus retroactively backfilled White campaign deck");
+        assertEquals("My First Deck", initial.get(0).name);
+        assertTrue(initial.get(0).active);
+        assertTrue(initial.stream().anyMatch(d -> "campaign:five-paths/white".equals(d.source) && "Shield and Feather".equals(d.name)),
+                "earned White campaign deck is backfilled");
+
+        // Create a second custom deck and activate it
+        mage.cards.decks.DeckCardLists second = new mage.cards.decks.DeckCardLists();
+        second.getCards().add(new mage.cards.decks.DeckCardInfo("Swords to Plowshares", "TST", "Swords-to-Plowshares", 4));
+        second.getCards().add(new mage.cards.decks.DeckCardInfo("Plains", "TST", "1", 20));
+        CareerService.CareerSavedDeck created = CareerService.get().saveNamedDeck("ana", null, "White Removal", second, true);
+        assertTrue(created.active);
+        assertEquals("White Removal", created.name);
+        // Legacy careerDeck() mirrors the active deck
+        assertEquals("White Removal", CareerService.get().deck("ana").getName());
+
+        // Switch back to the first deck
+        CareerService.CareerSavedDeck switched = CareerService.get().selectDeck("ana", initial.get(0).id);
+        assertTrue(switched.active);
+        assertEquals("My First Deck", CareerService.get().deck("ana").getName());
+
+        // Delete the newly created deck, keeping the rest; cannot delete the final deck
+        assertTrue(CareerService.get().deleteSavedDeck("ana", created.id));
+        for (CareerService.CareerSavedDeck d : CareerService.get().savedDecks("ana")) {
+            if (!d.id.equals(initial.get(0).id)) {
+                assertTrue(CareerService.get().deleteSavedDeck("ana", d.id));
+            }
+        }
+        assertThrows(CareerService.CareerException.class, () -> CareerService.get().deleteSavedDeck("ana", initial.get(0).id));
+    }
+
+    @Test
+    public void campaignBossRewardSavesChapterDeckIntoCareerDecks() throws Exception {
+        // Beating a boss with reward.deckCards adds cards AND saves the chapter deck to career_decks
+        mage.cards.decks.DeckCardLists whiteDeck = CareerCampaigns.get().deck("white-path.dck");
+        CareerService.get().saveEarnedDeck(store, "ana", "campaign:five-paths/white", "Shield and Feather", whiteDeck, 100L);
+
+        List<CareerService.CareerSavedDeck> decks = CareerService.get().savedDecks("ana");
+        assertTrue(decks.stream().anyMatch(d -> "campaign:five-paths/white".equals(d.source) && "Shield and Feather".equals(d.name)));
+
+        // Calling again with the same source is idempotent (no duplicates)
+        int before = decks.size();
+        CareerService.get().saveEarnedDeck(store, "ana", "campaign:five-paths/white", "Shield and Feather", whiteDeck, 200L);
+        assertEquals(before, CareerService.get().savedDecks("ana").size());
     }
 }
