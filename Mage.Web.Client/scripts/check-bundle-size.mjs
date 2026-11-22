@@ -152,10 +152,13 @@ import { gzipSync } from 'node:zlib';
 // Measured app 894.6 kB
 // app raised 2026-11-22 from 897 kB for Career multi-deck saving and human-hosted event controls (#469): lazy Career
 // and Events chunks plus their en/es strings. Measured app 898.2 kB
+// app raised 2026-11-22 from 902 kB for AI deck pool controls (#383), How to play & formats guide (#468), and era /
+// multi-set card filters (#236): lazy GuideScreen, AiDeckPicker and DeckBuilder era panel plus en/es strings.
+// Measured entry 81.9 kB, initial 217.9 kB (both under budget), app 911.3 kB
 const BUDGET_KB = {
   entry: 86,
   initial: 221,
-  app: 902,
+  app: 916,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;

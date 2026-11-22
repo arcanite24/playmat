@@ -7,7 +7,9 @@ import { CardFilterBar } from './CardFilterBar';
 import { InspectButton } from './CardInspect';
 import { useCardInfoStore } from './cardInfo';
 import styles from './DeckBuilder.module.css';
-import { EMPTY_FILTERS, intersectIdentity, onlyColorsIdentity, onlyInSidelinedSets, type CardFilters } from './filters';
+import {
+  effectiveSetCodes, EMPTY_FILTERS, intersectIdentity, onlyColorsIdentity, onlyInSidelinedSets, type CardFilters,
+} from './filters';
 
 const PAGE = 60;
 
@@ -16,7 +18,7 @@ const SIDELINED_SET_TYPES = new Set(['JOKE_SET', 'CUSTOM_SET', 'MAGIC_ARENA']);
 const EMPTY: string[] = [];
 const EMPTY_CARDS: CardView[] = [];
 
-function toCriteria(filters: CardFilters, format: string, start: number, ignoreSets: string[]): CardCriteria {
+function toCriteria(filters: CardFilters, format: string, start: number, ignoreSets: string[], setCodes: string[] | null): CardCriteria {
   const text = filters.text.trim();
   return {
     ignoreSetCodes: ignoreSets,
@@ -28,7 +30,7 @@ function toCriteria(filters: CardFilters, format: string, start: number, ignoreS
     webColors: filters.colors,
     colorMatch: 'any',
     types: filters.type ? [filters.type] : [],
-    setCodes: filters.set ? [filters.set] : undefined,
+    setCodes: setCodes ?? undefined,
     rarities: filters.rarity ? [filters.rarity] : [],
     manaValue: filters.manaValue ?? undefined,
     manaValueOperator: filters.manaValue === 7 ? 'gte' : filters.manaValue !== null ? 'eq' : undefined,
@@ -76,24 +78,33 @@ export function Collection({ format, identity, counts, limitOf, onAdd, onRemove,
     () => (sets.data ?? []).filter((set) => SIDELINED_SET_TYPES.has(set.type ?? '')).map((set) => set.setCode!).filter(Boolean),
     [sets.data],
   );
+  // newest sets first; the sidelined kinds only when they are shown
+  const setOptions = useMemo(
+    () => [...(sets.data ?? [])]
+      .filter((item) => item.setCode && (allSets || !SIDELINED_SET_TYPES.has(item.type ?? '')))
+      .sort((a, b) => (b.releaseDate ?? 0) - (a.releaseDate ?? 0)),
+    [sets.data, allSets],
+  );
   const ignoreSets = allSets ? EMPTY : sidelinedSets;
+  const matchedSetCodes = useMemo(() => effectiveSetCodes(query, setOptions), [query, setOptions]);
+  const noSetsMatch = matchedSetCodes !== null && matchedSetCodes.length === 0;
   const results = useInfiniteQuery({
-    queryKey: ['collection', query, format, ignoreSets, colorIdentity],
-    queryFn: ({ pageParam }) => api.searchCards(toCriteria(query, format, pageParam, ignoreSets), colorIdentity === null ? null : { colorIdentity }),
-    // wait for the set list so the first page already leaves the sidelined sets out
-    enabled: allSets || !sets.isPending,
+    queryKey: ['collection', query, format, ignoreSets, matchedSetCodes, colorIdentity],
+    queryFn: ({ pageParam }) => api.searchCards(toCriteria(query, format, pageParam, ignoreSets, matchedSetCodes), colorIdentity === null ? null : { colorIdentity }),
+    // wait for the set list so the first page already leaves the sidelined sets out (and era filters resolve)
+    enabled: !noSetsMatch && ((allSets && matchedSetCodes === null) || !sets.isPending),
     initialPageParam: 0,
     getNextPageParam: (last, pages) => (last.length < PAGE ? undefined : pages.length * PAGE),
     staleTime: 5 * 60_000,
   });
-  const cards = useMemo(() => (results.data?.pages ?? []).flat().filter(Boolean), [results.data]);
+  const cards = useMemo(() => (noSetsMatch ? EMPTY_CARDS : (results.data?.pages ?? []).flat().filter(Boolean)), [noSetsMatch, results.data]);
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = results;
 
   // a name typed still finds the cards printed only in the sets left out (Arena-only Alchemy cards, #392), after the rest
-  const searchSidelined = !allSets && query.text.trim() !== '' && !query.set && sidelinedSets.length > 0;
+  const searchSidelined = !allSets && query.text.trim() !== '' && matchedSetCodes === null && sidelinedSets.length > 0;
   const sidelined = useQuery({
     queryKey: ['collection-sidelined', query, format, sidelinedSets, colorIdentity],
-    queryFn: () => api.searchCards({ ...toCriteria(query, format, 0, []), setCodes: sidelinedSets }, colorIdentity === null ? null : { colorIdentity }),
+    queryFn: () => api.searchCards({ ...toCriteria(query, format, 0, [], sidelinedSets) }, colorIdentity === null ? null : { colorIdentity }),
     enabled: searchSidelined,
     staleTime: 5 * 60_000,
   });
@@ -127,14 +138,6 @@ export function Collection({ format, identity, counts, limitOf, onAdd, onRemove,
     observer.observe(element);
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
-
-  // newest sets first; the sidelined kinds only when they are shown
-  const setOptions = useMemo(
-    () => [...(sets.data ?? [])]
-      .filter((item) => item.setCode && (allSets || !SIDELINED_SET_TYPES.has(item.type ?? '')))
-      .sort((a, b) => (b.releaseDate ?? 0) - (a.releaseDate ?? 0)),
-    [sets.data, allSets],
-  );
 
   return (
     <section className={styles.collection} aria-label="Collection">

@@ -120,11 +120,34 @@
   box-shadow: inset 0 0 0 2px var(--ink-soft);
 }
 
+.zoneHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
 .zoneLabel {
   font-size: var(--text-2xl);
   letter-spacing: var(--tracking-print-wide);
   text-transform: uppercase;
   color: var(--ink);
+}
+
+.guideLink {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.guideLink:hover {
+  color: var(--ink-strong);
 }
 
 /* who you play: two printed segments, the chosen one outlined in ink */

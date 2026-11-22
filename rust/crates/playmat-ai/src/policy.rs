@@ -55,6 +55,55 @@ pub fn declines(message: &str) -> bool {
     message.starts_with("Pay ") && message.contains(" Replicate ")
 }
 
+/// Parse a leading "Pay <N> life ..." prompt (e.g. Phyrexian "Pay 2 life instead of {W}?" or life attack taxes).
+fn life_payment_amount(message: &str) -> Option<i32> {
+    let trimmed = message.trim_start();
+    let rest = trimmed.strip_prefix("Pay ").or_else(|| trimmed.strip_prefix("pay "))?;
+    let mut parts = rest.split_whitespace();
+    let n: i32 = parts.next()?.parse().ok()?;
+    let unit = parts.next()?;
+    (n > 0 && unit.trim_end_matches(|c: char| !c.is_ascii_alphabetic()).eq_ignore_ascii_case("life")).then_some(n)
+}
+
+/// If `message` is a Phyrexian life-replacement prompt ("Pay 2 life instead of {W}?"), return the WUBRG index (0..5).
+fn phyrexian_color_index(message: &str) -> Option<usize> {
+    let rest = message.trim_start().strip_prefix("Pay 2 life instead of {")?;
+    match rest.as_bytes().first()? {
+        b'W' => Some(0),
+        b'U' => Some(1),
+        b'B' => Some(2),
+        b'R' => Some(3),
+        b'G' => Some(4),
+        _ => None,
+    }
+}
+
+fn can_pay_color_without_life(game: &Game, seat: Seat, color: usize) -> bool {
+    if game.player(seat).mana_pool.colored[color] > 0 {
+        return true;
+    }
+    game.battlefield.iter().any(|id| {
+        let o = game.obj(*id);
+        o.controller == seat
+            && !o.tapped
+            && o.def.abilities.iter().any(|a| a.mana().is_some_and(|m| m.colored[color] > 0))
+    })
+}
+
+/// Whether the AI should decline a yes/no prompt in the current game state: replicate (always) or any lethal life
+/// payment (such as paying 2 life at 2 life for Norn's Annex, #419).
+pub fn declines_in_game(game: &Game, seat: Seat, message: &str) -> bool {
+    if declines(message) {
+        return true;
+    }
+    if let Some(life_cost) = life_payment_amount(message) {
+        if game.player(seat).life <= life_cost {
+            return true;
+        }
+    }
+    false
+}
+
 fn progress(game: &Game, seat: Seat) -> Progress {
     let p = game.player(seat);
     let tapped = game.battlefield.iter().filter(|id| game.obj(**id).tapped).count() as u64;
@@ -113,7 +162,11 @@ impl Policy {
                 .unwrap_or_else(|| choose_ability(game, seat, *source, abilities)),
             Query::ChooseAbility { source, abilities } => choose_ability(game, seat, *source, abilities),
             Query::PickTrigger { .. } => Answer::Trigger(0),
-            Query::YesNo { message } => Answer::Bool(!declines(message)),
+            Query::YesNo { message } => {
+                let decline = declines_in_game(game, seat, message)
+                    || phyrexian_color_index(message).is_some_and(|color| can_pay_color_without_life(game, seat, color));
+                Answer::Bool(!decline)
+            }
             Query::ChooseMode { modes } => modes.first().map(|m| Answer::Mode(*m)).unwrap_or(Answer::ModeDone),
             Query::Amount { min, max } => Answer::Int(x_amount(game, seat).clamp(*min, (*max).max(*min))),
             Query::Choice { message, choices } => choice(game, seat, message, choices),
@@ -943,5 +996,30 @@ mod tests {
         // other questions still get a yes
         let other = Query::YesNo { message: "Pay Kicker {2} ?".into() };
         assert_eq!(Policy::default().answer(&game, 0, &other), Answer::Bool(true));
+    }
+
+    /// The AI never pays lethal life for Phyrexian costs like Norn's Annex and prefers colored mana when available (#419)
+    #[test]
+    fn the_ai_does_not_pay_lethal_phyrexian_life_and_prefers_mana() {
+        use playmat_engine::decide::Decider;
+        let db = playmat_engine::cards();
+        let deck = Deck::parse("d", "20 Plains");
+        let mut game = new_duel(&db, [&deck, &deck], 1, 0).unwrap();
+        let q = Query::YesNo { message: "Pay 2 life instead of {W}?".into() };
+
+        // at 2 life, paying 2 life is lethal: both policy and search decline
+        game.player_mut(0).life = 2;
+        assert_eq!(Policy::default().answer(&game, 0, &q), Answer::Bool(false));
+        let mut table = crate::search::Table::new(vec![Some(crate::search::Config::default()), None]);
+        assert_eq!(table.answer(&game, 0, &q), Answer::Bool(false));
+
+        // at 4 life with no white mana available, policy can pay 2 life
+        game.player_mut(0).life = 4;
+        assert_eq!(Policy::default().answer(&game, 0, &q), Answer::Bool(true));
+
+        // with an untapped Plains on the battlefield, policy prefers paying {W} over 2 life
+        let plains = game.objs.iter().find(|o| o.owner == 0 && o.def.name == "Plains").unwrap().id;
+        game.move_to(plains, Zone::Battlefield);
+        assert_eq!(Policy::default().answer(&game, 0, &q), Answer::Bool(false));
     }
 }

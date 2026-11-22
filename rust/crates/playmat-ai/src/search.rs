@@ -601,7 +601,9 @@ pub fn candidates(game: &Game, seat: Seat, q: &Query, quick: &Answer, width: usi
                 add(Answer::Ability(*source, *i));
             }
         }
-        Query::YesNo { message } if !message.contains("mana pool") && !crate::policy::declines(message) => {
+        Query::YesNo { message }
+            if !message.contains("mana pool") && !crate::policy::declines_in_game(game, seat, message) =>
+        {
             add(Answer::Bool(true));
             add(Answer::Bool(false));
         }

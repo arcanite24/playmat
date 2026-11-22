@@ -198,13 +198,19 @@ export function HomeScreen() {
         </div>
 
         <div className={styles.playZone} role="group" aria-labelledby="play-zone-label">
-          <h2 id="play-zone-label" className={styles.zoneLabel}>{t('home.play')}</h2>
+          <div className={styles.zoneHead}>
+            <h2 id="play-zone-label" className={styles.zoneLabel}>{t('home.play')}</h2>
+            <button type="button" className={styles.guideLink} onClick={() => navigate('/guide')}>
+              {t('home.guide')}
+            </button>
+          </div>
           {emailUnconfirmed && <Suspense fallback={null}><EmailBanner /></Suspense>}
           {!firstGameDone && (
             <div className={styles.firstGame}>
               <p className={styles.firstGameText}>{t('home.firstGame.text')}</p>
               <span className={styles.firstGameActions}>
                 <Button variant="quiet" size="sm" onClick={skipFirstGame} disabled={busy}>{t('home.firstGame.skip')}</Button>
+                <Button variant="quiet" size="sm" onClick={() => navigate('/guide')} disabled={busy}>{t('home.guide')}</Button>
                 <Button variant="print" size="sm" onClick={() => selected && void play.playVsAi(selected.id, { guided: true })} disabled={busy || !selected}>
                   {t('home.firstGame.start')}
                 </Button>

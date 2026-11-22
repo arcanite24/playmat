@@ -24,7 +24,7 @@ describe('goldfishDeck', () => {
 
 const COMMANDER = 'Variant Magic - Commander';
 const starter = (file: string, format?: string): StarterDeck => ({ file, name: file, cards: 100, cover: { name: '', setCode: '', cardNumber: '' }, format });
-const meta = (file: string, format: string): MetaDeck => ({ file, name: file, format, tier: 'meta', share: 1, cards: 100, cover: { name: '', setCode: '', cardNumber: '' }, source: '' });
+const meta = (file: string, format: string, tier: MetaDeck['tier'] = 'meta'): MetaDeck => ({ file, name: file, format, tier, share: 1, cards: 100, cover: { name: '', setCode: '', cardNumber: '' }, source: '' });
 const saved = (id: string): RosterDeck => ({ id, name: id, note: '', cardCount: 100, cover: null, colors: [], starter: null, tags: [], draft: false });
 const commanderDeck = (name: string): DeckCardLists => ({ name, format: COMMANDER, cards: [{ cardName: 'Forest', amount: 99 }], sideboard: [{ cardName: 'Ghalta, Primal Hunger', amount: 1 }] });
 
@@ -63,5 +63,37 @@ describe('aiDecks', () => {
     );
     const decks = await aiDecks([], 3, true, { pool: 'every', own: 'own' });
     expect(decks.map((deck) => deck.name).sort()).toEqual(['a', 'm', 'mine']);
+  });
+
+  test('poolTiers lets players turn off competitive meta lists in random picks (#383)', async () => {
+    const MODERN = 'Constructed - Modern';
+    library({
+      starters: [starter('s1')],
+      metaDecks: [
+        meta('combo-meta', MODERN, 'meta'),
+        meta('brew-rogue', MODERN, 'rogue'),
+        meta('jank-fun', MODERN, 'fun'),
+      ],
+    });
+    const decks = await aiDecks([], 2, false, { format: MODERN, poolTiers: ['rogue', 'fun'] });
+    expect(decks.map((deck) => deck.name).sort()).toEqual(['brew-rogue', 'jank-fun']);
+  });
+
+  test('excludedIds and poolFormats filter random AI picks (#383)', async () => {
+    const STANDARD = 'Constructed - Standard';
+    const MODERN = 'Constructed - Modern';
+    library({
+      starters: [starter('keep-starter'), starter('ban-starter')],
+      metaDecks: [
+        meta('std-deck', STANDARD, 'fun'),
+        meta('mod-deck', MODERN, 'fun'),
+      ],
+    });
+    const decks = await aiDecks([], 2, false, {
+      pool: 'every',
+      poolFormats: [STANDARD],
+      excludedIds: ['starter:ban-starter'],
+    });
+    expect(decks.map((deck) => deck.name).sort()).toEqual(['keep-starter', 'std-deck']);
   });
 });

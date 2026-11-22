@@ -2,20 +2,21 @@ import { useQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
 import { formatRules, isCommanderFormat } from '../../core/decks/formats';
-import { metaDecksFor } from '../../core/decks/metaDecks';
+import { ALL_META_TIERS, type MetaTier } from '../../core/decks/metaDecks';
 import { api } from '../connection';
-import { META_PREFIX, useDecks, type RosterDeck } from '../stores/decks';
+import { useDecks } from '../stores/decks';
 import { useDeckRoster } from '../stores/useDeckRoster';
-import { sharedDeckId, useSharedDecks } from '../stores/sharedDecks';
+import { useSharedDecks } from '../stores/sharedDecks';
 import { registerMessages, useT } from '../i18n';
 import messages from '../i18n/en/career';
 import {
-  adaptiveSentence, adaptiveFormatFor, ghostOpponentId, ghostRecord, MIRROR_OPPONENT_ID, normalizeGhostCode, opponentSource,
+  adaptiveSentence, adaptiveFormatFor, ghostOpponentId, ghostRecord, normalizeGhostCode, opponentSource,
 } from '../solo/freePlay';
-import type { GhostOpponent, SharedDeck } from '../../protocol/generated/views';
-import type { MetaDeck } from '../../core/decks/metaDecks';
+import type { GhostOpponent } from '../../protocol/generated/views';
 import { DEFAULT_AI_OPTIONS, usePlay } from '../stores/play';
 import { AI_TYPES, DIFFICULTIES, difficultyOf, offeredAiTypes } from './aiSetup';
+import { buildAiDeckEntries, countRandomPool } from './aiDeckPool';
+import { AiDeckPicker, GHOST_CHOICE } from './AiDeckPicker';
 import { useServerState } from '../queries';
 import { Button } from '../ui/Button';
 import { Dialog } from '../ui/Dialog';
@@ -24,8 +25,11 @@ import styles from './AiSettingsDialog.module.css';
 
 registerMessages(messages);
 
-/** the deck menu's entry for a ghost deck; its code is asked for below the menu */
-const GHOST_CHOICE = '__ghost__';
+const TIER_KEYS: Record<MetaTier, 'ai.pool.tier.meta' | 'ai.pool.tier.rogue' | 'ai.pool.tier.fun'> = {
+  meta: 'ai.pool.tier.meta',
+  rogue: 'ai.pool.tier.rogue',
+  fun: 'ai.pool.tier.fun',
+};
 
 function Segmented<T extends string | number>({ label, value, options, onChange }: {
   label: string;
@@ -67,6 +71,27 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
   // the ghost entry is picked before its code is found; until then the saved choice stays as it was
   const [ghostPicked, setGhostPicked] = useState(source.kind === 'ghost');
   const deckValue = ghostPicked ? GHOST_CHOICE : options.opponentDeckId ?? '';
+  const allEntries = useMemo(
+    () => buildAiDeckEntries({ roster, metaDecks: decks.metaDecks, shared }),
+    [roster, decks.metaDecks, shared],
+  );
+  const commanderEntries = useMemo(
+    () => buildAiDeckEntries({ roster, metaDecks: decks.metaDecks, shared, commanderOnly: true }),
+    [roster, decks.metaDecks, shared],
+  );
+  const excludedSet = useMemo(() => new Set(options.excludedDeckIds ?? []), [options.excludedDeckIds]);
+  const poolTiers = useMemo(() => options.poolTiers ?? [...ALL_META_TIERS], [options.poolTiers]);
+  const poolFormats = useMemo(() => options.poolFormats ?? [], [options.poolFormats]);
+  const metaFormats = useMemo(() => [...new Set(decks.metaDecks.map((deck) => deck.format))], [decks.metaDecks]);
+  const poolStats = useMemo(
+    () => countRandomPool(allEntries, {
+      randomPool: options.randomPool,
+      poolTiers,
+      poolFormats,
+      excludedIds: options.excludedDeckIds ?? [],
+    }),
+    [allEntries, options.randomPool, poolTiers, poolFormats, options.excludedDeckIds],
+  );
 
   function pickDeck(value: string) {
     if (value === GHOST_CHOICE) {
@@ -75,6 +100,27 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
     }
     setGhostPicked(false);
     setOptions({ opponentDeckId: value || null, opponentLabel: null });
+  }
+
+  function toggleExcluded(id: string) {
+    const next = new Set(options.excludedDeckIds ?? []);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setOptions({ excludedDeckIds: [...next] });
+  }
+
+  function toggleTier(tier: MetaTier) {
+    const next = poolTiers.includes(tier)
+      ? poolTiers.filter((item) => item !== tier)
+      : [...poolTiers, tier];
+    setOptions({ poolTiers: next });
+  }
+
+  function togglePoolFormat(format: string) {
+    const next = poolFormats.includes(format)
+      ? poolFormats.filter((item) => item !== format)
+      : [...poolFormats, format];
+    setOptions({ poolFormats: next });
   }
 
   return (
@@ -115,18 +161,14 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
         </section>
 
         <section className={styles.row}>
-          <label className={styles.label} htmlFor="ai-deck">{t(options.opponents > 1 ? 'ai.deck.first' : 'ai.deck')}</label>
-          <select
-            id="ai-deck"
-            className={styles.select}
+          <h3 className={styles.label}>{t(options.opponents > 1 ? 'ai.deck.first' : 'ai.deck')}</h3>
+          <AiDeckPicker
+            entries={allEntries}
             value={deckValue}
-            onChange={(event) => pickDeck(event.target.value)}
-          >
-            <option value="">{t('ai.deck.random')}</option>
-            <option value={MIRROR_OPPONENT_ID}>{t('solo.mirror.option')}</option>
-            <option value={GHOST_CHOICE}>{t('solo.ghost.option')}</option>
-            <DeckGroups roster={roster} metaDecks={decks.metaDecks} shared={shared} />
-          </select>
+            onChange={pickDeck}
+            excludedIds={excludedSet}
+            onToggleExclude={toggleExcluded}
+          />
           {!ghostPicked && <p className={styles.detail}>{t(source.kind === 'mirror' ? 'solo.mirror.detail' : 'ai.deck.detail')}</p>}
           {ghostPicked && (
             <GhostFinder
@@ -146,6 +188,72 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
             onChange={(randomPool) => setOptions({ randomPool })}
           />
           <p className={styles.detail}>{t(options.randomPool === 'every' ? 'ai.pool.every.detail' : 'ai.pool.starters.detail')}</p>
+
+          <div className={styles.poolControls}>
+            <div className={styles.poolGroup}>
+              <span className={styles.subLabel}>{t('ai.pool.tiersLabel')}</span>
+              <div className={styles.chipGroup} role="group" aria-label={t('ai.pool.tiersLabel')}>
+                {ALL_META_TIERS.map((tier) => {
+                  const on = poolTiers.includes(tier);
+                  return (
+                    <button
+                      key={tier}
+                      type="button"
+                      className={on ? styles.chipOn : styles.chip}
+                      aria-pressed={on}
+                      onClick={() => toggleTier(tier)}
+                    >
+                      {t(TIER_KEYS[tier])}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className={styles.detail}>{t('ai.pool.tiersHint')}</p>
+            </div>
+
+            {metaFormats.length > 0 && (
+              <div className={styles.poolGroup}>
+                <span className={styles.subLabel}>{t('ai.pool.formatsLabel')}</span>
+                <div className={styles.chipGroup} role="group" aria-label={t('ai.pool.formatsLabel')}>
+                  <button
+                    type="button"
+                    className={poolFormats.length === 0 ? styles.chipOn : styles.chip}
+                    aria-pressed={poolFormats.length === 0}
+                    onClick={() => setOptions({ poolFormats: [] })}
+                  >
+                    {t('ai.picker.allFormats')}
+                  </button>
+                  {metaFormats.map((format) => {
+                    const on = poolFormats.includes(format);
+                    return (
+                      <button
+                        key={format}
+                        type="button"
+                        className={on ? styles.chipOn : styles.chip}
+                        aria-pressed={on}
+                        onClick={() => togglePoolFormat(format)}
+                      >
+                        {formatRules(format).label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className={styles.poolSummary}>
+              <span>{t('ai.pool.count', { allowed: poolStats.allowed, total: poolStats.total })}</span>
+              {excludedSet.size > 0 && (
+                <button
+                  type="button"
+                  className={styles.clearLink}
+                  onClick={() => setOptions({ excludedDeckIds: [] })}
+                >
+                  {t('ai.pool.clearExcluded', { count: excludedSet.size })}
+                </button>
+              )}
+            </div>
+          </div>
         </section>
 
         <section className={styles.row}>
@@ -200,20 +308,18 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
           {/* the pod's other seats; the first is "First AI's deck" above */}
           {POD_SEATS.slice(0, options.opponents - 1).map((seat, index) => (
             <div key={seat} className={styles.row}>
-              <label className={styles.label} htmlFor={`ai-pod-deck-${index}`}>{t(seat)}</label>
-              <select
-                id={`ai-pod-deck-${index}`}
-                className={styles.select}
+              <h4 className={styles.label}>{t(seat)}</h4>
+              <AiDeckPicker
+                entries={commanderEntries}
                 value={options.podDeckIds[index] ?? ''}
-                onChange={(event) => {
+                onChange={(picked) => {
                   const podDeckIds = [...options.podDeckIds];
-                  podDeckIds[index] = event.target.value || null;
+                  podDeckIds[index] = picked || null;
                   setOptions({ podDeckIds });
                 }}
-              >
-                <option value="">{t('ai.deck.random')}</option>
-                <DeckGroups roster={roster} metaDecks={decks.metaDecks} shared={shared} commanderOnly />
-              </select>
+                excludedIds={excludedSet}
+                allowSpecial={false}
+              />
             </div>
           ))}
           {options.opponents > 1 && <p className={styles.detail}>{t('ai.pod.seatDetail')}</p>}
@@ -224,56 +330,6 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
 }
 
 const POD_SEATS = ['ai.pod.seat2', 'ai.pod.seat3'] as const;
-
-/**
- * The decks the AI can be given, grouped: starters, commander starters, each format's decks, the player's own, and
- * the decks others share on the server. `commanderOnly` (a pod's seats) leaves out the starters, format decks and
- * shared decks that aren't commander decks.
- */
-function DeckGroups({ roster, metaDecks, shared = [], commanderOnly = false }: { roster: RosterDeck[]; metaDecks: MetaDeck[]; shared?: SharedDeck[]; commanderOnly?: boolean }) {
-  const t = useT();
-  const starters = roster.filter((deck) => deck.starter);
-  const mine = roster.filter((deck) => !deck.starter);
-  const sharedHere = shared.filter((deck) => deck.owner && deck.deckId && (!commanderOnly || isCommanderFormat(deck.format)));
-  // the AI's format decks, one group per format, in the order the index lists the formats
-  const metaFormats = useMemo(
-    () => [...new Set(metaDecks.map((deck) => deck.format))].filter((format) => !commanderOnly || isCommanderFormat(format)),
-    [metaDecks, commanderOnly],
-  );
-  return (
-    <>
-      {!commanderOnly && (
-        <optgroup label={t('ai.deck.starters')}>
-          {starters.filter((deck) => !isCommanderFormat(deck.starter?.format)).map((deck) => <option key={deck.id} value={deck.id}>{deck.name}</option>)}
-        </optgroup>
-      )}
-      {starters.some((deck) => isCommanderFormat(deck.starter?.format)) && (
-        <optgroup label={t('ai.deck.commanderStarters')}>
-          {starters.filter((deck) => isCommanderFormat(deck.starter?.format)).map((deck) => <option key={deck.id} value={deck.id}>{deck.name}</option>)}
-        </optgroup>
-      )}
-      {metaFormats.map((format) => (
-        <optgroup key={format} label={t('ai.deck.meta', { format: formatRules(format).label })}>
-          {metaDecksFor(metaDecks, format).map((deck) => <option key={deck.file} value={META_PREFIX + deck.file}>{deck.name}</option>)}
-        </optgroup>
-      ))}
-      {mine.length > 0 && (
-        <optgroup label={t('ai.deck.yours')}>
-          {mine.map((deck) => <option key={deck.id} value={deck.id}>{deck.name}</option>)}
-        </optgroup>
-      )}
-      {sharedHere.length > 0 && (
-        <optgroup label={t('ai.deck.shared')}>
-          {sharedHere.map((deck) => (
-            <option key={`${deck.owner}/${deck.deckId}`} value={sharedDeckId(deck.owner ?? '', deck.deckId ?? '')}>
-              {t('ai.deck.sharedBy', { name: deck.name ?? '', owner: deck.owner ?? '' })}
-            </option>
-          ))}
-        </optgroup>
-      )}
-    </>
-  );
-}
 
 /** The adaptive skill's sentence for the selected deck's kind of game (never the number). */
 function AdaptiveNote({ open }: { open: boolean }) {
