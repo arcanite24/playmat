@@ -1340,6 +1340,12 @@ export interface DirectoryPlayer {
     status?: string;
 }
 
+export interface Disk {
+    free?: number;
+    problem?: string;
+    total?: number;
+}
+
 export interface DraftClientMessage extends Serializable {
     draftPickView?: DraftPickView;
     draftView?: DraftView;
@@ -2375,6 +2381,7 @@ export interface ServerStats {
     backup?: BackupRun;
     bridge?: BridgeSnapshot;
     commit?: string;
+    disk?: Disk;
     heapMax?: number;
     heapUsed?: number;
     maintenance?: MaintenancePlan;

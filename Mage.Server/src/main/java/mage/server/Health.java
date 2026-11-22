@@ -101,6 +101,12 @@ public final class Health {
         if (backup != null) {
             health.put("backupProblem", backup.problem);
         }
+        // still 200 and "ok" when the disk is low: a restart frees nothing, and the deploy gate reads this
+        DiskStatus.Disk disk = DiskStatus.read();
+        if (disk != null) {
+            health.put("diskFreeBytes", disk.free);
+            health.put("diskProblem", disk.problem);
+        }
         return health;
     }
 

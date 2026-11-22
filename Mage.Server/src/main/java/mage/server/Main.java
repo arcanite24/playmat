@@ -294,6 +294,7 @@ public final class Main {
             mage.server.support.SupportHooks.start();
             Health.start(managerFactory);
             BackupStatus.startChecks();
+            DiskStatus.startChecks();
             // AI-against-AI batches carry on from before a restart
             mage.server.solo.BatchRunner.get().start();
             // Career tables from before a restart still pay when their saved games resume (B270)

@@ -132,11 +132,12 @@ public class Deck implements Serializable, Copyable<Deck> {
             );
             cardError += "\n\nPossible reasons:";
             cardError += "\n - deck problem: un-implemented card or outdated set (fix it by open in deck editor);";
-            cardError += "\n - server problem: memory issue (load your deck again or wait a server's restart).";
+            cardError += "\n - server problem: its card database failed for a moment (load your deck again).";
             return new GameException(cardError);
         } else {
-            // critical error, server must be restarted
-            return new GameException("Critical problems detected on the server side (memory issues), wait for a restart.");
+            // the server tries again every minute: a full disk or a stuck database comes back once it's fixed
+            return new GameException("Problem on the server side: " + CardRepository.describeProblem()
+                    + ". It retries by itself: try again in a few minutes.");
         }
     }
 
