@@ -49,7 +49,13 @@ def run(cmd, log):
 
 
 def entrant(policy, net, args, roll=None):
-    keys = [f"policy={policy}", "hide=1", f"samples={args.samples}", f"eval={args.eval}", f"net={net}"]
+    # `cfg:` starts from skill-4 (`extra_turns=0, playout=1, budget=3000, width=8`), so set full search defaults
+    # explicitly to match `host@s6` (`extra_turns=1, playout=2, budget=6000, width=12`)
+    keys = [
+        f"policy={policy}", "hide=1", f"samples={args.samples}", f"eval={args.eval}",
+        f"extra_turns={args.extra_turns}", f"playout={args.playout}",
+        f"budget={args.budget}", f"width={args.width}", f"net={net}",
+    ]
     if args.rollout == "small":
         # the round's small network plays the playouts
         keys.append(f"rollout={os.path.join(roll, 'net.pmnet')}")
@@ -100,6 +106,10 @@ def main():
     ap.add_argument("--jobs", type=int, default=12)
     ap.add_argument("--policy", default="ismcts", help="the search that plays: ismcts, gumbel, or netsearch")
     ap.add_argument("--samples", type=int, default=4)
+    ap.add_argument("--extra-turns", type=int, default=1)
+    ap.add_argument("--playout", type=int, default=2)
+    ap.add_argument("--budget", type=int, default=6000)
+    ap.add_argument("--width", type=int, default=12)
     ap.add_argument("--rollout", default=None,
                     help="a network for inside the playouts: self, small (an MLP trained each round), builtin, or a .pmnet")
     ap.add_argument("--rollout-init", default=None, help="with --rollout small: the first small network's run folder")
