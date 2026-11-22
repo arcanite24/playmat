@@ -164,7 +164,8 @@ impl Policy {
             Query::PickTrigger { .. } => Answer::Trigger(0),
             Query::YesNo { message } => {
                 let decline = declines_in_game(game, seat, message)
-                    || phyrexian_color_index(message).is_some_and(|color| can_pay_color_without_life(game, seat, color));
+                    || phyrexian_color_index(message)
+                        .is_some_and(|color| can_pay_color_without_life(game, seat, color));
                 Answer::Bool(!decline)
             }
             Query::ChooseMode { modes } => modes.first().map(|m| Answer::Mode(*m)).unwrap_or(Answer::ModeDone),

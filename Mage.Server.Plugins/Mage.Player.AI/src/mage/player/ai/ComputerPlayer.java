@@ -805,8 +805,18 @@ public class ComputerPlayer extends PlayerImpl {
     }
 
     /**
+     * Whether this AI prefers spending available colored mana instead of paying 2 life for Phyrexian costs.
+     * Kept off on the base {@link ComputerPlayer} so non-AI unit-test delegates keep their legacy default,
+     * and enabled on real AI players (MAD, simulated, MCTS).
+     */
+    protected boolean preferManaOverPhyrexianLife() {
+        return false;
+    }
+
+    /**
      * Never pay lethal life for optional life payments (such as Norn's Annex's {W/P} attack tax),
-     * and prefer paying colored mana over 2 life for Phyrexian costs when mana of that color is available (#419).
+     * and when {@link #preferManaOverPhyrexianLife()} is enabled, prefer paying colored mana over 2 life
+     * for Phyrexian costs when mana of that color is available (#419).
      */
     private boolean shouldDeclineLifePayment(String message, Ability source, Game game) {
         if (message == null || game == null) {
@@ -818,6 +828,9 @@ public class ComputerPlayer extends PlayerImpl {
         if (phyrexian.find()) {
             if (effectiveLife <= 2) {
                 return true;
+            }
+            if (!preferManaOverPhyrexianLife()) {
+                return false;
             }
             ColoredManaSymbol symbol = ColoredManaSymbol.lookup(phyrexian.group(1).toUpperCase(Locale.ENGLISH).charAt(0));
             return symbol != null && canPayColoredManaWithoutLife(symbol, game);

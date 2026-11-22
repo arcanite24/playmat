@@ -1437,6 +1437,11 @@ public class ComputerPlayer6 extends ComputerPlayer {
     }
 
     @Override
+    protected boolean preferManaOverPhyrexianLife() {
+        return true;
+    }
+
+    @Override
     public void selectAttackers(Game game, UUID attackingPlayerId) {
         logger.debug("selectAttackers");
         declareAttackers(game, playerId);
