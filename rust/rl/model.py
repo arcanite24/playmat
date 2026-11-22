@@ -103,14 +103,15 @@ class CardEmb(nn.Module):
     """The name embedding, plus (with `text`) a learned projection of the fixed card-text rows (`cardtext.py`):
     `weight[id] + text[id] @ proj`. `export` writes the sum as one table, so `net.rs` sees a plain embedding."""
 
-    def __init__(self, dim, text=False):
+    def __init__(self, dim, text=0):
         super().__init__()
         self.weight = nn.Parameter(torch.randn(BUCKETS, dim))
         if text:
             import numpy as np
             import os
 
-            rows = np.load(os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "cardtext.npy"))
+            fname = "cardtext_sem.npy" if int(text) == 2 else "cardtext.npy"
+            rows = np.load(os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", fname))
             self.register_buffer("text", torch.from_numpy(rows.astype("float32")))
             self.proj = nn.Parameter(torch.zeros(rows.shape[1], dim))
         else:
@@ -156,7 +157,7 @@ class Tx(nn.Module):
         super().__init__()
         self.cfg = {"d": d, "heads": heads, "layers": layers, "ff": ff, "dim": dim, "trunk": trunk}
         if text:
-            self.cfg["text"] = 1
+            self.cfg["text"] = int(text)
         if val_mlp:
             self.cfg["val_mlp"] = 1
         if gelu:
@@ -166,7 +167,7 @@ class Tx(nn.Module):
         self.val_mlp = bool(val_mlp)
         self.use_gelu = bool(gelu)
         self.drop = nn.Dropout(drop) if drop > 0 else nn.Identity()
-        self.emb = CardEmb(dim, bool(text))
+        self.emb = CardEmb(dim, int(text))
         self.ent_in = nn.Linear(dim + ENT_F, d)
         self.glob_in = nn.Linear(GLOB_F, d)
         self.blocks = nn.ModuleList()
