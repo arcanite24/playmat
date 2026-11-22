@@ -218,6 +218,8 @@ def build_parser():
     ap.add_argument("--q-mix", type=float, default=0.4, help="weight on root search Q-value in value target when present")
     ap.add_argument("--policy-recent", type=int, default=0, help="only train policy on the last N --data dirs (0 = all)")
     ap.add_argument("--samples-per-epoch", type=int, default=0, help="cap/stage this many decisions per epoch onto GPU (0 = all)")
+    ap.add_argument("--max-per-dir", type=int, default=0, help="cap decisions read per recent --data dir (0 = all)")
+    ap.add_argument("--max-old-per-dir", type=int, default=0, help="cap decisions read per older (value-only) --data dir (0 = all)")
     ap.add_argument("--no-critic", action="store_true", help="skip loading hid and training the PPO Critic")
     ap.add_argument("--upgrade-val-mlp", action="store_true", help="upgrade a v1 Tx checkpoint to the regularized 2-layer val_mlp head")
     ap.add_argument("--drop", type=float, default=0.0, help="training-only dropout inside Tx blocks")
@@ -243,7 +245,13 @@ def train_main(argv=None, shared_data=None):
     if shared_data is not None:
         data = shared_data
     else:
-        data = Data(args.data, load_critic=not args.no_critic)
+        data = Data(
+            args.data,
+            load_critic=not args.no_critic,
+            max_per_dir=args.max_per_dir,
+            max_old_per_dir=args.max_old_per_dir,
+            policy_recent=args.policy_recent,
+        )
         print(f"TRAIN {len(data)} decisions from {len(data.infos)} games, {time.time() - t0:.1f} s to read", flush=True)
     where, size = data.place(dev, args.gpu_data_gb)
     print(f"TRAIN data {size:.1f} GB on {where}", flush=True)

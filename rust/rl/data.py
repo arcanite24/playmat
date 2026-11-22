@@ -46,8 +46,8 @@ FIXED_COLS = [
 ]
 
 
-def _read(path, dtype):
-    return np.fromfile(path, dtype=dtype) if os.path.exists(path) else np.zeros(0, dtype)
+def _read(path, dtype, count=-1):
+    return np.fromfile(path, dtype=dtype, count=count) if os.path.exists(path) else np.zeros(0, dtype)
 
 
 def _offsets(counts):
@@ -168,29 +168,33 @@ def compact_dir(d, delete_chunks=True, min_shards=4):
 
 
 def _read_one_shard(args):
-    r, base, load_critic = args
-    meta = _read(base + ".meta.i32", np.int32).reshape(-1, META)
+    r, base, load_critic, max_steps = args
+    meta = _read(base + ".meta.i32", np.int32, count=max_steps * META if max_steps > 0 else -1).reshape(-1, META)
     if len(meta) == 0:
         return None
     n = len(meta)
+    c_ent = int(meta[:, 4].sum())
+    c_act = int(meta[:, 5].sum())
+    c_hid = int(meta[:, 6].sum())
+    c_pool = int(meta[:, 7].sum())
     d = {
         "r": r,
         "meta": meta,
-        "logp": _read(base + ".logp.f32", np.float32),
-        "glob": _read(base + ".glob.f16", np.float16).reshape(-1, GLOB_F),
-        "ents": _read(base + ".ents.f16", np.float16).reshape(-1, ENT_F),
-        "ent_ids": _read(base + ".ent_ids.u16", np.uint16),
-        "acts": _read(base + ".acts.f16", np.float16).reshape(-1, ACT_F),
-        "act_ids": _read(base + ".act_ids.u16", np.uint16),
-        "target": _read(base + ".target.f16", np.float16),
-        "pool": _read(base + ".pool.u16", np.uint16),
-        "pool_hand": _read(base + ".pool_hand.u8", np.uint8),
+        "logp": _read(base + ".logp.f32", np.float32, count=n),
+        "glob": _read(base + ".glob.f16", np.float16, count=n * GLOB_F).reshape(-1, GLOB_F),
+        "ents": _read(base + ".ents.f16", np.float16, count=c_ent * ENT_F).reshape(-1, ENT_F),
+        "ent_ids": _read(base + ".ent_ids.u16", np.uint16, count=c_ent),
+        "acts": _read(base + ".acts.f16", np.float16, count=c_act * ACT_F).reshape(-1, ACT_F),
+        "act_ids": _read(base + ".act_ids.u16", np.uint16, count=c_act),
+        "target": _read(base + ".target.f16", np.float16, count=c_act),
+        "pool": _read(base + ".pool.u16", np.uint16, count=c_pool),
+        "pool_hand": _read(base + ".pool_hand.u8", np.uint8, count=c_pool),
     }
     qp = base + ".qval.f16"
-    d["qval"] = _read(qp, np.float16) if os.path.exists(qp) else np.full(n, np.nan, dtype=np.float16)
+    d["qval"] = _read(qp, np.float16, count=n) if os.path.exists(qp) else np.full(n, np.nan, dtype=np.float16)
     if load_critic:
-        d["hid"] = _read(base + ".hid.f16", np.float16).reshape(-1, ENT_F)
-        d["hid_ids"] = _read(base + ".hid_ids.u16", np.uint16)
+        d["hid"] = _read(base + ".hid.f16", np.float16, count=c_hid * ENT_F).reshape(-1, ENT_F)
+        d["hid_ids"] = _read(base + ".hid_ids.u16", np.uint16, count=c_hid)
     d["games"], d["results"], d["turns"] = _read_games_meta(base)
     return d
 
@@ -198,13 +202,19 @@ def _read_one_shard(args):
 class Data:
     """Every decision in the shards under `dirs`, with each game's result and derived auxiliary targets."""
 
-    def __init__(self, dirs, load_critic=True, workers=8):
+    def __init__(self, dirs, load_critic=True, workers=8, max_per_dir=0, max_old_per_dir=0, policy_recent=0):
         self.load_critic = load_critic
         self.num_dirs = len(dirs)
+        pol_min = max(0, len(dirs) - policy_recent) if policy_recent > 0 else 0
         tasks = []
         for r, d in enumerate(dirs):
-            for base in _shard_bases(d):
-                tasks.append((r, base, load_critic))
+            bases = _shard_bases(d)
+            if not bases:
+                continue
+            lim = max_old_per_dir if (max_old_per_dir > 0 and r < pol_min) else max_per_dir
+            per_shard = (lim + len(bases) - 1) // len(bases) if lim > 0 else 0
+            for base in bases:
+                tasks.append((r, base, load_critic, per_shard))
         if workers > 1 and len(tasks) > 4:
             with ThreadPoolExecutor(max_workers=min(workers, len(tasks))) as ex:
                 parts = [p for p in ex.map(_read_one_shard, tasks) if p is not None]
