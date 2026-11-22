@@ -1,0 +1,36 @@
+name: Ops scripts
+
+# The host and container scripts in ops/web, against throwaway folders: entrypoint flags, backups, offsite packs,
+# and what the deploy's forced command accepts and probes.
+on:
+  push:
+    branches: [ "master" ]
+    paths:
+      - "ops/web/**"
+      - ".github/workflows/ops.yml"
+  pull_request:
+    paths:
+      - "ops/web/**"
+      - ".github/workflows/ops.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Tools
+        run: sudo apt-get update -q && sudo apt-get install -y -q sqlite3 shellcheck
+      - name: Server entrypoint (ops/web/server-entrypoint.sh)
+        run: bash ops/web/test-entrypoint.sh
+      - name: Backups (ops/web/backup.sh)
+        run: bash ops/web/test-backup.sh
+      - name: Offsite packs (ops/web/host/offsite.sh)
+        run: bash ops/web/host/test-offsite.sh
+      - name: Deploy command (ops/web/deploy/playmat-deploy)
+        run: bash ops/web/deploy/test-deploy.sh
+      - name: Watchdog and image transfer (shellcheck)
+        run: shellcheck -S warning ops/web/host/watchdog.sh ops/web/ship-images.sh

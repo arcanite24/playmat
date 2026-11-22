@@ -80,6 +80,9 @@ SNAPSHOT_MIN_FREE_MB=2048
 DRAIN_MINUTES=15
 HEALTH_TIMEOUT=300
 CONF=/etc/playmat-deploy.conf
+if [[ -z ${SSH_ORIGINAL_COMMAND+set} && -n ${PLAYMAT_DEPLOY_CONF:-} ]]; then
+  CONF=$PLAYMAT_DEPLOY_CONF
+fi
 [[ -r $CONF ]] || { echo "playmat-deploy: $CONF is missing or unreadable (run setup-deploy-user.sh)" >&2; exit 1; }
 # shellcheck source=/dev/null
 . "$CONF"
@@ -312,10 +315,20 @@ cancel_maintenance() {
   fi
 }
 
-# site_code: what https://$DOMAIN/ answers through this host's Caddy (not DNS: the certificate and routes are tested,
-# not the way there)
+# site_code: what this host's Caddy answers for /. With TLS_MODE=external Caddy serves plain HTTP on port 80 inside the
+# web container (docker-compose.proxy.yml publishes no host ports); otherwise probe https://$DOMAIN/ directly on
+# 127.0.0.1:$HTTPS_PORT so certificate and routes are tested without DNS.
 site_code() {
-  local domain port
+  local tls_mode domain port id code
+  tls_mode=$(env_get TLS_MODE)
+  if [[ $tls_mode == external ]]; then
+    id=$(container web)
+    [[ -n $id ]] || { echo 000; return 0; }
+    code=$(docker exec "$id" wget -S -O /dev/null -T 10 "http://127.0.0.1:80/" 2>&1 \
+      | awk '/^[[:space:]]*HTTP\/[0-9.]+ [0-9]{3}/ { c=$2 } END { print c }') || true
+    echo "${code:-000}"
+    return 0
+  fi
   domain=$(env_get DOMAIN)
   port=$(env_get HTTPS_PORT)
   port=${port:-443}

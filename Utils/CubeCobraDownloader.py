@@ -14,20 +14,13 @@ parser.add_argument('url', help="The URL for cube on CubeCobra (must be the over
 args = parser.parse_args()
 
 
-MageFolder = os.path.dirname(__file__)
-#Find mage folder
-for i in range(5):
-    if "mage" not in MageFolder:
-        break
-    MageFolder = os.path.join( os.path.abspath(MageFolder), os.path.pardir)
-    if i == 4:
-        "Place this script inside the /mage/ folder!"
-        exit(1)
-MageFolder = os.path.join(os.path.dirname(MageFolder), "mage")    
-#print(f"{MageFolder=}")
+MageFolder = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+cards_data_path = os.path.join(MageFolder, "Utils", "mtg-cards-data.txt")
+if not os.path.isfile(cards_data_path):
+    raise SystemExit(f"Could not find {cards_data_path}; run this script from the repository's Utils directory.")
 
 
-def clean(varStr): return re.sub('\W|^(?=\d)','', varStr)
+def clean(varStr): return re.sub(r'\W|^(?=\d)', '', varStr)
 
 
 def getDecklist(url):
@@ -51,7 +44,7 @@ print(f"{CobraOverview=}")
 deck, cubeName, owner = getDecklist(CobraOverview)
 print(f"\n{owner=} | {cubeName=}")
 
-with open( os.path.join(MageFolder, "Utils\mtg-cards-data.txt"), encoding="utf-8") as f:
+with open(cards_data_path, encoding="utf-8") as f:
     mtgcarddata = f.read()
 
 
@@ -73,7 +66,7 @@ public class {cleanOwner}s{cleanCubeName} extends DraftCube {{
 """
 
 for cardName in deck:
-    m = re.search(f"(?:{cardName}\|)(Khans of Tarkir|Fate Reforged|Dragons of Tarkir)\|", mtgcarddata)
+    m = re.search(rf"(?:{re.escape(cardName)}\|)(Khans of Tarkir|Fate Reforged|Dragons of Tarkir)\|", mtgcarddata)
     cardName = cardName.replace("\"", "\\\"")           #Henrie the toolbox... wizards come on
     prefSet = ""
     #print(f"{cardName:30}", end="")
@@ -88,22 +81,31 @@ JavaFile += """    }
 }"""
 
 
-idk = os.path.join(MageFolder, f"Mage.Server.Plugins\Mage.Tournament.BoosterDraft\src\mage\\tournament\cubes\{clean(owner)}s{clean(cubeName)}.java")
+idk = os.path.join(
+    MageFolder,
+    "Mage.Server.Plugins",
+    "Mage.Tournament.BoosterDraft",
+    "src",
+    "mage",
+    "tournament",
+    "cubes",
+    f"{clean(owner)}s{clean(cubeName)}.java",
+)
 if os.path.exists(idk):
     print("Cube already exists:", idk)
     exit(0)
-with open(idk, "w") as f:
+with open(idk, "w", encoding="utf-8") as f:
     f.write(JavaFile)
 
 
 print("\n---------------- ADD THE FOLLOWING TO EACH FILE RESPECTIVELY ----------------")
-print("[+] Mage.Server\src\\test\data\config_error.xml")
+print("[+] Mage.Server/src/test/data/config_error.xml")
 print(f"    --> <draftCube name=\"{owner}'s {cubeName}\" jar=\"mage-tournament-boosterdraft.jar\" className=\"mage.tournament.cubes.{cleanOwner}s{cleanCubeName}\"/>")
 
-print("\n[+] Mage.Server\\release\config\config.xml")
+print("\n[+] Mage.Server/release/config/config.xml")
 print(f"    --> <draftCube name=\"{owner}'s {cubeName}\" jar=\"mage-tournament-boosterdraft-${{project.version}}.jar\" className=\"mage.tournament.cubes.{cleanOwner}s{cleanCubeName}\"/>")
 
-print("\n[+] Mage.Server\config\config.xml")
+print("\n[+] Mage.Server/config/config.xml")
 print(f"    --> <draftCube name=\"{owner}'s {cubeName}\" jar=\"mage-tournament-boosterdraft.jar\" className=\"mage.tournament.cubes.{cleanOwner}s{cleanCubeName}\"/>")
 print("-----------------------------------------------------------------------------")
 

@@ -92,8 +92,11 @@ if [[ ! -f $local_kit/docker-compose.yml ]]; then
   grep -q 'XMAGE_SERVER_IMAGE' "$from/ops/web/docker-compose.yml" \
     || die "$from/ops/web/docker-compose.yml predates image deploys: git pull there first"
   install -d -m 750 -o deploy -g deploy "$local_kit"
-  install -m 644 -o deploy -g deploy "$from/ops/web/docker-compose.yml" "$from/ops/web/imgcache.conf.template" "$local_kit/"
+  install -m 644 -o deploy -g deploy "$from/ops/web/docker-compose.yml" "$from/ops/web/docker-compose.proxy.yml" "$from/ops/web/imgcache.conf.template" "$local_kit/"
   say "the checkout's compose kit is the local release ($local_kit)"
+elif [[ ! -f $local_kit/docker-compose.proxy.yml && -f $from/ops/web/docker-compose.proxy.yml ]]; then
+  install -m 644 -o deploy -g deploy "$from/ops/web/docker-compose.proxy.yml" "$local_kit/"
+  say "added docker-compose.proxy.yml to the local release ($local_kit)"
 fi
 [[ -e $COMPOSE_DIR/current ]] || ln -sfn "$local_kit" "$COMPOSE_DIR/current"
 chown -h deploy:deploy "$COMPOSE_DIR/current"

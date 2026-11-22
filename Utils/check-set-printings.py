@@ -45,18 +45,38 @@ def fetch_data(url):
     return {"data": cards}
 
 
+def read_cache(path):
+    if is_file_stale(path):
+        return None
+    try:
+        with open(path, encoding="utf-8") as f:
+            payload = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return None
+    data = payload.get("data") if isinstance(payload, dict) else None
+    return data if isinstance(data, list) else None
+
+
 def load_scryfall(code):
     path = os.path.join(DATA_DIR, code.upper() + "-scryfall.json")
-    if is_file_stale(path):
-        print(f"Fetching fresh data for {code} ...")
-        query = urlencode({"q": f"s:{code}", "order": "set", "unique": "prints", "include_extras": "true"})
-        os.makedirs(DATA_DIR, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(fetch_data(f"https://api.scryfall.com/cards/search?{query}"), f)
-    else:
+    cached = read_cache(path)
+    if cached is not None:
         print(f"Using cached data for {code}")
-    with open(path, encoding="utf-8") as f:
-        return json.load(f)["data"]
+        return cached
+    print(f"Fetching fresh data for {code} ...")
+    query = urlencode({"q": f"s:{code}", "order": "set", "unique": "prints", "include_extras": "true"})
+    payload = fetch_data(f"https://api.scryfall.com/cards/search?{query}")
+    os.makedirs(DATA_DIR, exist_ok=True)
+    tmp_path = path + ".tmp"
+    try:
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(payload, f)
+        os.replace(tmp_path, path)
+    except BaseException:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        raise
+    return payload["data"]
 
 
 def normalize(name):
