@@ -102,7 +102,21 @@ python fleet.py speed blindvac:4 --net runs/loop4/r3                     # one c
 
 Provision copies the deck suite and, from a Windows trainer, the Visual C++ runtime next to the exe (blindvac has
 none). A round leaves out a host provisioned from another commit or whose binary changed. A chunk whose trainer dies
-mid-way ends with it on a Mac or Linux (it watches the ssh channel); on Windows it finishes its 100 games.
+mid-way ends with it on a Mac or Linux (it watches the ssh channel); on Windows it finishes its 100 games. Mac and
+Linux hosts send a finished chunk back as one compressed tar stream (scp's round trip per file cost a cloud VM 48 s
+a chunk).
+
+A Spot VM on Google Cloud makes one more host for a round (`gcp.py`, the gcloud CLI logged in):
+
+```bash
+python gcp.py up --project multivac-club --bin ../selfplay-linux   # t2d-standard-16, provisioned, alias gcp-sp1
+python rounds.py ... --lan minivac:8,blindvac:4,steamdeck:8,gcp-sp1:16
+python gcp.py down --project multivac-club                          # the VM, its firewall rule and the alias
+```
+
+ssh to it is opened to the trainer's public IP only, its host keys come through gcloud (written to
+`~/.ssh/known_hosts_gcp`, checked strictly), and it deletes itself after `--hours` (8) even if `down` never runs.
+A t2d-standard-16 plays 100 games in 10 s, chunk to chunk.
 
 `--tx` takes JSON or `k=v` pairs (`d`, `heads`, `layers`, `ff`, `dim`, `trunk`, `text`). `rounds.py` logs one line a round to
 `runs/<out>/rounds.jsonl`. Keep `--jobs` and `--sprt-jobs` a few threads under the machine's count so its other

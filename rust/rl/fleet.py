@@ -19,11 +19,13 @@ records the binary's sha256 and the trainer's commit, and a round checks both be
 import argparse
 import base64
 import hashlib
+import io
 import json
 import os
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import threading
 import time
@@ -301,11 +303,13 @@ class Driver(threading.Thread):
                 self.log(f"FLEET {h.alias}: chunk c{n:06d} thrown away: {killed or result.get('error') or 'selfplay exited ' + str(result.get('code'))}")
                 n += 1
                 continue
+            t1 = time.time()
             try:
                 self._fetch(n)
                 self.games += CHUNK_GAMES
                 self.chunks += 1
-                self.log(f"FLEET {h.alias}: chunk c{n:06d}, {CHUNK_GAMES} games in {time.time() - t0:.0f} s")
+                self.log(f"FLEET {h.alias}: chunk c{n:06d}, {CHUNK_GAMES} games in {time.time() - t0:.0f} s "
+                         f"(played {t1 - t0:.0f} s, fetched {time.time() - t1:.0f} s; {result['summary'][9:70]})")
             except Exception as e:
                 self.stopped += 1
                 self.log(f"FLEET {h.alias}: chunk c{n:06d} not fetched: {e}")
@@ -330,7 +334,19 @@ class Driver(threading.Thread):
     def _fetch(self, n):
         tmp = tempfile.mkdtemp(dir=self.dest)
         try:
-            self.h.scp_from(f"out/c{n:06d}", tmp)
+            if self.h.windows():
+                self.h.scp_from(f"out/c{n:06d}", tmp)
+            else:
+                # one compressed stream, not a round trip per file: over the internet (a cloud VM) scp spends most
+                # of a chunk's time on its ~200 files
+                p = run([remote.SSH, "-o", "BatchMode=yes", "-o", "ConnectTimeout=15", self.h.alias,
+                         f"tar czf - -C '{self.h.path('out')}' c{n:06d}"], timeout=900)
+                os.makedirs(os.path.join(tmp, f"c{n:06d}"))
+                with tarfile.open(fileobj=io.BytesIO(p.stdout), mode="r:gz") as tar:
+                    for m in tar.getmembers():
+                        if m.isfile() and os.path.dirname(m.name) == f"c{n:06d}":
+                            with open(os.path.join(tmp, m.name), "wb") as f:
+                                shutil.copyfileobj(tar.extractfile(m), f)
             src = os.path.join(tmp, f"c{n:06d}")
             for name in os.listdir(src):
                 if os.path.isfile(os.path.join(src, name)):

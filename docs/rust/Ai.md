@@ -235,6 +235,9 @@ games for the trainer in that idle time. Training stays on the trainer's GPU; th
   4 jobs) plays 3.0 games a second, more than the public server. minivac (an M4 Pro, the desk Mac) plays only after
   10 minutes with no keyboard or mouse input. The Steam Deck (8 jobs, docked) plays 4.2 games a second while it's
   on AC power and no Steam game is running; its `selfplay` is built in `rust:1.94-slim-bookworm`.
+- **A cloud Spot VM** (`gcp.py`). A t2d-standard-16 on Google Cloud, created for a round and deleted after it,
+  joins as one more fleet host: 10 games a second chunk to chunk, more than the LAN together. Chunks come back as
+  one tar stream; with scp's round trip per file the fetch took six times as long as the games.
 
 ## One decision at a time: policies
 
