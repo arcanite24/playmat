@@ -44,6 +44,43 @@ fn sigma_gumbel(q: f32, most: usize) -> f32 {
 /// candidates a tree node keeps, as the playouts' network does
 const WIDTH: usize = 12;
 
+/// Public+own-hand game state fingerprint for safe MCTS tree reuse across consecutive moves.
+/// Reads only what `seat` can legally see (zero hidden info leak).
+fn state_hash(game: &Game, seat: Seat, q: &Query) -> u64 {
+    let mut h = 0xcbf2_9ce4_8422_2325u64;
+    let mut mix_u64 = |v: u64| {
+        h ^= v;
+        h = h.wrapping_mul(0x0100_0000_01b3);
+    };
+    mix_u64(game.turn as u64);
+    mix_u64(game.step.map_or(255, |s| s as u64));
+    mix_u64(game.active.map_or(255, |s| s as u64));
+    mix_u64(crate::obs::query_index(q) as u64);
+    mix_u64(game.players[0].life as i64 as u64);
+    mix_u64(game.players[1].life as i64 as u64);
+    mix_u64(game.players[0].hand.len() as u64);
+    mix_u64(game.players[1].hand.len() as u64);
+    mix_u64(game.stack.len() as u64);
+    for s in game.stack.iter() {
+        mix_u64(((s.card.0 as u64) << 8) | (s.controller as u64));
+    }
+    mix_u64(game.battlefield.len() as u64);
+    for &id in game.battlefield.iter() {
+        let o = game.obj(id);
+        let flags = (o.controller as u64)
+            | ((o.tapped as u64) << 2)
+            | ((o.attacking.is_some() as u64) << 3)
+            | ((o.blocked as u64) << 4)
+            | (((o.blocking.len().min(7)) as u64) << 5)
+            | (((o.damage.max(0) as u64) & 0xff) << 8);
+        mix_u64(((id.0 as u64) << 16) | flags);
+    }
+    for &id in &game.player(seat).hand {
+        mix_u64(id.0 as u64);
+    }
+    h
+}
+
 pub struct Kid {
     pub answer: Answer,
     pub prior: f32,
@@ -55,6 +92,7 @@ pub struct Kid {
 
 pub struct Node {
     pub seat: Seat,
+    pub hash: u64,
     pub kids: Vec<Kid>,
     pub n: u32,
 }
@@ -62,6 +100,72 @@ pub struct Node {
 #[derive(Default)]
 pub struct Tree {
     pub nodes: Vec<Node>,
+}
+
+impl Tree {
+    /// Extracts the reachable subtree rooted at `root_idx` into a compact new `Tree` (with `root_idx` at 0).
+    fn extract_subtree(&self, root_idx: usize) -> Tree {
+        let mut out = Vec::new();
+        let mut map = vec![usize::MAX; self.nodes.len()];
+        let mut stack = vec![root_idx];
+        map[root_idx] = 0;
+        out.push(Node { seat: 0, hash: 0, kids: Vec::new(), n: 0 });
+        while let Some(old_i) = stack.pop() {
+            let new_i = map[old_i];
+            let src = &self.nodes[old_i];
+            let mut kids = Vec::with_capacity(src.kids.len());
+            for k in &src.kids {
+                let child = k.node.map(|c| {
+                    if map[c] == usize::MAX {
+                        let ni = out.len();
+                        map[c] = ni;
+                        out.push(Node { seat: 0, hash: 0, kids: Vec::new(), n: 0 });
+                        stack.push(c);
+                    }
+                    map[c]
+                });
+                kids.push(Kid { answer: k.answer.clone(), prior: k.prior, n: k.n, w: k.w, node: child });
+            }
+            out[new_i] = Node { seat: src.seat, hash: src.hash, kids, n: src.n };
+        }
+        Tree { nodes: out }
+    }
+
+    /// Finds a node at depth 0 or 1 matching `(seat, hash)` and remaps it into a warm root matching `candidates`.
+    fn reuse_root(&self, seat: Seat, hash: u64, candidates: &[Answer], priors: &[f32]) -> Option<Tree> {
+        if self.nodes.is_empty() {
+            return None;
+        }
+        let mut found = None;
+        if self.nodes[0].seat == seat && self.nodes[0].hash == hash && !self.nodes[0].kids.is_empty() {
+            found = Some(0);
+        } else {
+            for k in &self.nodes[0].kids {
+                if let Some(c) = k.node {
+                    if self.nodes[c].seat == seat && self.nodes[c].hash == hash && !self.nodes[c].kids.is_empty() {
+                        found = Some(c);
+                        break;
+                    }
+                }
+            }
+        }
+        let idx = found?;
+        let mut sub = self.extract_subtree(idx);
+        let old_kids = std::mem::take(&mut sub.nodes[0].kids);
+        let mut new_kids = Vec::with_capacity(candidates.len());
+        let mut new_n = 0u32;
+        for (ans, &p) in candidates.iter().zip(priors) {
+            if let Some(old) = old_kids.iter().find(|k| &k.answer == ans) {
+                new_n += old.n;
+                new_kids.push(Kid { answer: ans.clone(), prior: p, n: old.n, w: old.w, node: old.node });
+            } else {
+                new_kids.push(Kid { answer: ans.clone(), prior: p, n: 0, w: 0.0, node: None });
+            }
+        }
+        sub.nodes[0].kids = new_kids;
+        sub.nodes[0].n = new_n;
+        Some(sub)
+    }
 }
 
 /// One iteration's way down the tree, carried by the playout (`Root::play_tree`)
@@ -136,7 +240,7 @@ impl Walk {
                         Some(c) => c,
                         None => {
                             let c = self.tree.nodes.len();
-                            self.tree.nodes.push(Node { seat, kids: Vec::new(), n: 0 });
+                            self.tree.nodes.push(Node { seat, hash: 0, kids: Vec::new(), n: 0 });
                             self.tree.nodes[0].kids[i].node = Some(c);
                             c
                         }
@@ -163,6 +267,7 @@ impl Walk {
             let p = net::softmax(&out.logits, 1.0);
             let node = &mut self.tree.nodes[at];
             node.seat = seat;
+            node.hash = state_hash(game, seat, q);
             node.kids = options
                 .iter()
                 .cloned()
@@ -211,7 +316,7 @@ impl Walk {
             Some(c) => c,
             None => {
                 let c = self.tree.nodes.len();
-                self.tree.nodes.push(Node { seat, kids: Vec::new(), n: 0 });
+                self.tree.nodes.push(Node { seat, hash: 0, kids: Vec::new(), n: 0 });
                 self.tree.nodes[at].kids[i].node = Some(c);
                 c
             }
@@ -262,11 +367,13 @@ pub struct Ismcts {
     rng: u64,
     last: Vec<f32>,
     last_val: Option<f32>,
+    /// Warm subtree from the previous decision for state-hash-guarded tree reuse
+    saved: Option<Tree>,
 }
 
 impl Ismcts {
     pub fn new(seed: u64) -> Ismcts {
-        Ismcts { rng: seed, last: Vec::new(), last_val: None }
+        Ismcts { rng: seed, last: Vec::new(), last_val: None, saved: None }
     }
 }
 
@@ -311,14 +418,21 @@ impl DecisionPolicy for Ismcts {
             alive.sort_by(|a, b| (g[*b] + logp[*b]).total_cmp(&(g[*a] + logp[*a])));
             alive.truncate(cfg.consider.max(2).min(n));
 
-            let kids = d
-                .candidates
-                .iter()
-                .cloned()
-                .zip(prior.iter().copied())
-                .map(|(answer, prior)| Kid { answer, prior, n: 0, w: 0.0, node: None })
-                .collect();
-            let mut tree = Tree { nodes: vec![Node { seat: d.seat, kids, n: 0 }] };
+            let cur_hash = state_hash(d.game, d.seat, d.query);
+            let mut tree = self
+                .saved
+                .take()
+                .and_then(|old| old.reuse_root(d.seat, cur_hash, d.candidates, &prior))
+                .unwrap_or_else(|| {
+                    let kids = d
+                        .candidates
+                        .iter()
+                        .cloned()
+                        .zip(prior.iter().copied())
+                        .map(|(answer, prior)| Kid { answer, prior, n: 0, w: 0.0, node: None })
+                        .collect();
+                    Tree { nodes: vec![Node { seat: d.seat, hash: cur_hash, kids, n: 0 }] }
+                });
 
             let m = alive.len();
             let rounds = (usize::BITS - (m.max(2) - 1).leading_zeros()).max(1) as usize;
@@ -393,7 +507,9 @@ impl DecisionPolicy for Ismcts {
                 .collect();
             self.last = net::softmax(&improved, 1.0);
             self.last_val = Some((v_mix as f32).clamp(0.0, 1.0));
-            return Some(Choice { answer: d.candidates[alive[0]].clone(), nodes });
+            let pick_i = alive[0];
+            self.saved = tree.nodes[0].kids[pick_i].node.map(|c| tree.extract_subtree(c));
+            return Some(Choice { answer: d.candidates[pick_i].clone(), nodes });
         }
 
         // Classic PUCT ISMCTS (with light exploration noise at root when temp > 0)
@@ -404,14 +520,21 @@ impl DecisionPolicy for Ismcts {
         } else {
             prior.clone()
         };
-        let kids = d
-            .candidates
-            .iter()
-            .cloned()
-            .zip(root_prior.iter().copied())
-            .map(|(answer, prior)| Kid { answer, prior, n: 0, w: 0.0, node: None })
-            .collect();
-        let mut tree = Tree { nodes: vec![Node { seat: d.seat, kids, n: 0 }] };
+        let cur_hash = state_hash(d.game, d.seat, d.query);
+        let mut tree = self
+            .saved
+            .take()
+            .and_then(|old| old.reuse_root(d.seat, cur_hash, d.candidates, &root_prior))
+            .unwrap_or_else(|| {
+                let kids = d
+                    .candidates
+                    .iter()
+                    .cloned()
+                    .zip(root_prior.iter().copied())
+                    .map(|(answer, prior)| Kid { answer, prior, n: 0, w: 0.0, node: None })
+                    .collect();
+                Tree { nodes: vec![Node { seat: d.seat, hash: cur_hash, kids, n: 0 }] }
+            });
         let mut nodes = 0u64;
         for it in 0..cfg.iters.max(1) as usize {
             if !pure_leaf && nodes >= cfg.budget {
@@ -441,6 +564,7 @@ impl DecisionPolicy for Ismcts {
             prior
         };
         let i = pick(&self.last, temp, &mut self.rng);
+        self.saved = tree.nodes[0].kids[i].node.map(|c| tree.extract_subtree(c));
         Some(Choice { answer: d.candidates[i].clone(), nodes })
     }
 

@@ -652,18 +652,32 @@ impl Tx {
         gbuf[..gn].copy_from_slice(&o.glob[..gn]);
         self.glob_in.apply_act(&gbuf[..self.glob_f], &mut ws.tmp1, false, false);
         ws.x[..d].copy_from_slice(&ws.tmp1);
-        // Rows 1..nt: entity tokens
+        // Rows 1..nt: entity tokens (when an Obs v2 81-glob obs is fed to a legacy v1 glob_f=65 model, skip
+        // graveyard/exile tokens that v1 never saw during training, while keeping legacy 65-glob parity fixtures exact)
+        let v1_filter = self.glob_f == GLOB_F_V1 && o.glob.len() > GLOB_F_V1;
+        let mut kept = 0usize;
         if n_ents > 0 {
             let ein = self.dim + ENT_F;
-            ws.ent_in_buf.resize(n_ents * ein, 0.0);
+            ws.ent_in_buf.clear();
+            ws.ent_in_buf.reserve(n_ents * ein);
             for i in 0..n_ents {
-                let dst = &mut ws.ent_in_buf[i * ein..(i + 1) * ein];
-                dst[..self.dim].copy_from_slice(self.embedding(o.ent_ids[i]));
-                dst[self.dim..].copy_from_slice(&o.ents[i * ENT_F..(i + 1) * ENT_F]);
+                let ef = &o.ents[i * ENT_F..(i + 1) * ENT_F];
+                if v1_filter && (ef[4] > 0.5 || ef[5] > 0.5) {
+                    continue;
+                }
+                ws.ent_in_buf.extend_from_slice(self.embedding(o.ent_ids[i]));
+                ws.ent_in_buf.extend_from_slice(ef);
+                kept += 1;
             }
-            self.ent_in.matmul_rows(&ws.ent_in_buf, n_ents, &mut ws.tmp2, false, false, false);
-            ws.x[d..].copy_from_slice(&ws.tmp2);
+            if kept > 0 {
+                self.ent_in.matmul_rows(&ws.ent_in_buf, kept, &mut ws.tmp2, false, false, false);
+                ws.x.resize((1 + kept) * d, 0.0);
+                ws.x[d..(1 + kept) * d].copy_from_slice(&ws.tmp2);
+            } else {
+                ws.x.resize(d, 0.0);
+            }
         }
+        let nt = 1 + kept;
         let rel = self.rel_bias.as_deref().and_then(|rb| {
             if o.ent_rel_idx.len() == n_ents && o.ent_rel_type.len() == n_ents {
                 Some((o.ent_rel_idx.as_slice(), o.ent_rel_type.as_slice(), rb))

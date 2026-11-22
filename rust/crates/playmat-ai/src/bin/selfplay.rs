@@ -55,8 +55,14 @@ fn main() {
     let games: usize = opt("--games").and_then(|v| v.parse().ok()).unwrap_or(2000);
     let jobs: usize = opt("--jobs").and_then(|v| v.parse().ok()).unwrap_or(10);
     let keep: u32 = opt("--keep").and_then(|v| v.parse().ok()).unwrap_or(1000);
-    let fast: Option<playmat_ai::decision::PolicyKind> =
-        opt("--fast").map(|v| v.parse().unwrap_or_else(|e| panic!("--fast {v}: {e}")));
+    let (fast, fast_iters): (Option<playmat_ai::decision::PolicyKind>, Option<u32>) = match opt("--fast") {
+        None => (None, None),
+        Some(v) if v.starts_with("ismcts:") => {
+            let n: u32 = v[7..].parse().unwrap_or_else(|e| panic!("--fast {v}: {e}"));
+            (None, Some(n))
+        }
+        Some(v) => (Some(v.parse().unwrap_or_else(|e| panic!("--fast {v}: {e}"))), None),
+    };
     let seed: usize = opt("--seed").and_then(|v| v.parse().ok()).unwrap_or(0);
     let tag: i32 = opt("--tag").and_then(|v| v.parse().ok()).unwrap_or(0);
     let out = opt("--out").expect("--out DIR");
@@ -124,7 +130,8 @@ fn main() {
                                     keep,
                                     (deal as u64) << 1 | seat as u64,
                                 )
-                                .with_fast(fast, seat);
+                                .with_fast(fast, seat)
+                                .with_fast_iters(fast_iters);
                                 table.set_policy(seat, Box::new(rec));
                             }
                         }

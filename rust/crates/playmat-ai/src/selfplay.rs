@@ -422,6 +422,8 @@ pub struct Recording {
     /// answers the decisions that won't be recorded, so the search is spent only on those that are (KataGo's
     /// playout cap randomization); `None` searches every decision
     pub fast: Option<Box<dyn DecisionPolicy>>,
+    /// when set (`--fast ismcts:N`), unrecorded decisions run `inner` with reduced `iters = N` (KataGo playout cap)
+    pub fast_iters: Option<u32>,
     pub rng: u64,
     name: String,
 }
@@ -430,12 +432,27 @@ impl Recording {
     pub fn new(kind: PolicyKind, seat: Seat, sink: Sink, keep: u32, seed: u64) -> Recording {
         let inner = kind.build(seat);
         let name = inner.name().to_string();
-        Recording { inner, sink, seen: crate::decision::Hidden::new(seat), keep, fast: None, rng: seed, name }
+        Recording {
+            inner,
+            sink,
+            seen: crate::decision::Hidden::new(seat),
+            keep,
+            fast: None,
+            fast_iters: None,
+            rng: seed,
+            name,
+        }
     }
 
     /// Decisions that won't be recorded are answered by `kind` instead
     pub fn with_fast(mut self, kind: Option<PolicyKind>, seat: Seat) -> Recording {
         self.fast = kind.map(|k| k.build(seat));
+        self
+    }
+
+    /// Decisions that won't be recorded run a fast mini-search with `iters` simulations (keeps tree warm & outcomes clean)
+    pub fn with_fast_iters(mut self, iters: Option<u32>) -> Recording {
+        self.fast_iters = iters;
         self
     }
 }
@@ -451,6 +468,22 @@ impl DecisionPolicy for Recording {
         }
         self.seen.observe(d.game);
         if (mix(&mut self.rng) % 1000) as u32 >= self.keep {
+            if let Some(fi) = self.fast_iters {
+                let mut cfg = d.config.clone();
+                cfg.iters = fi.max(2);
+                cfg.consider = cfg.consider.min(4);
+                cfg.samples = cfg.samples.min(2);
+                let df = Decision {
+                    game: d.game,
+                    seat: d.seat,
+                    query: d.query,
+                    quick: d.quick,
+                    candidates: d.candidates,
+                    config: &cfg,
+                    root: d.root,
+                };
+                return self.inner.decide(&df);
+            }
             return match self.fast.as_mut() {
                 Some(fast) => fast.decide(d),
                 None => self.inner.decide(d),
