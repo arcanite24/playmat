@@ -216,6 +216,79 @@ public class EmailVerificationTest {
     }
 
     @Test
+    void verificationFailsAndRetainsCodeWhenStorageIsUnavailable() throws Exception {
+        accounts.add("pat", PASSWORD, "pat@example.test");
+        EmailVerification verification = new EmailVerification();
+        String code = verification.issue("pat", "pat@example.test", 10);
+
+        Path adminDb = dir.resolve("admin.db");
+        try (java.sql.Connection conn = java.sql.DriverManager.getConnection("jdbc:sqlite:" + adminDb);
+             java.sql.Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate("CREATE TRIGGER block_verify BEFORE INSERT ON account_email BEGIN SELECT RAISE(ABORT, 'disk full'); END");
+        }
+        try {
+            assertThat(verification.verify("pat", code, 20)).isFalse();
+        } finally {
+            try (java.sql.Connection conn = java.sql.DriverManager.getConnection("jdbc:sqlite:" + adminDb);
+                 java.sql.Statement stmt = conn.createStatement()) {
+                stmt.executeUpdate("DROP TRIGGER IF EXISTS block_verify");
+            }
+        }
+
+        assertThat(EmailVerification.isVerified("pat")).isFalse();
+        assertThat(verification.verify("pat", code, 30)).as("same code still works once storage recovers").isTrue();
+        assertThat(EmailVerification.isVerified("pat")).isTrue();
+    }
+
+    @Test
+    void releaseStopsWithoutClearingVerificationWhenAccountUpdateFails() throws Exception {
+        long now = now();
+        Path accountsDb = dir.resolve("accounts-release-fail.db");
+        AuthorizedUserRepository sqliteAccounts = new AuthorizedUserRepository("jdbc:sqlite:" + accountsDb);
+        AuthorizedUserRepository.use(sqliteAccounts);
+        try {
+            sqliteAccounts.add("squat", PASSWORD, "owner@example.test");
+            store.accountRegistered("squat", now - 72 * HOUR);
+            AuthorizedUser holder = sqliteAccounts.getByName("squat");
+            holder.lastConnection = new Date(now - 72 * HOUR);
+            sqliteAccounts.update(holder);
+
+            try (java.sql.Connection conn = java.sql.DriverManager.getConnection("jdbc:sqlite:" + accountsDb);
+                 java.sql.Statement stmt = conn.createStatement()) {
+                stmt.executeUpdate("CREATE TRIGGER block_update BEFORE UPDATE ON authorized_user BEGIN SELECT RAISE(ABORT, 'read-only'); END");
+            }
+
+            assertThat(EmailVerification.release(holder, "newcomer", now)).isFalse();
+            assertThat(sqliteAccounts.getByName("squat").getEmail()).isEqualTo("owner@example.test");
+            assertThat(store.auditLog(null, "user.email.release", "squat", 0, 10)).isEmpty();
+        } finally {
+            sqliteAccounts.close();
+            AuthorizedUserRepository.use(accounts);
+        }
+    }
+
+    @Test
+    void changePasswordReturnsFalseAndKeepsRememberedLoginsWhenUpdateFails() throws Exception {
+        Path accountsDb = dir.resolve("accounts-pw-fail.db");
+        AuthorizedUserRepository sqliteAccounts = new AuthorizedUserRepository("jdbc:sqlite:" + accountsDb);
+        try {
+            sqliteAccounts.add("pat", PASSWORD, "pat@example.test");
+            String token = sqliteAccounts.rememberLogin("pat");
+            assertThat(token).isNotNull();
+
+            try (java.sql.Connection conn = java.sql.DriverManager.getConnection("jdbc:sqlite:" + accountsDb);
+                 java.sql.Statement stmt = conn.createStatement()) {
+                stmt.executeUpdate("CREATE TRIGGER block_pw_update BEFORE UPDATE ON authorized_user BEGIN SELECT RAISE(ABORT, 'read-only'); END");
+            }
+
+            assertThat(sqliteAccounts.changePassword("pat", "new horse 9")).isFalse();
+            assertThat(sqliteAccounts.isRememberedLogin("pat", token)).as("remembered logins stay when password update fails").isTrue();
+        } finally {
+            sqliteAccounts.close();
+        }
+    }
+
+    @Test
     void masks() {
         assertThat(EmailVerification.mask("neri@example.com")).isEqualTo("n***@example.com");
         assertThat(EmailVerification.mask(null)).isEmpty();

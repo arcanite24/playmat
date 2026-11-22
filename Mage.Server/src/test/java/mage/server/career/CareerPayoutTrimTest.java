@@ -48,4 +48,44 @@ public class CareerPayoutTrimTest {
             assertEquals(4, store.prunePayoutEvents(now + 1));
         }
     }
+
+    @Test
+    public void payPendingSkipsBadEventAndPaysRemaining() throws Exception {
+        Path file = dir.resolve("career-pending.db");
+        try (CareerStore store = new CareerStore("jdbc:sqlite:" + file)) {
+            CareerStore.use(store);
+            CareerPayouts.useRoute(CareerPayouts.JAVA);
+            try {
+                long now = System.currentTimeMillis();
+                store.createProfile("Ana", "test", CareerRules.START_COINS, now);
+
+                // First pending event is corrupt JSON; second is a valid pending Career match payout
+                assertTrue(store.addPayoutEvent("aaa-bad", now - 10, "{not valid json", "pending", null, null, null));
+
+                CareerPayoutEvent.Career table = new CareerPayoutEvent.Career();
+                table.kind = "duel";
+                table.user = "Ana";
+                table.opponent = "wren";
+                table.tier = 1;
+                CareerPayoutEvent good = new CareerPayoutEvent();
+                good.event = CareerPayoutEvent.MATCH_ENDED;
+                good.key = "zzz-good";
+                good.at = now;
+                good.day = CareerProgress.get().day();
+                good.career = table;
+                good.won = true;
+                good.turns = 6;
+                assertTrue(store.addPayoutEvent(good.key, now, new com.google.gson.Gson().toJson(good), "pending", null, null, null));
+
+                int paid = CareerPayouts.payPending();
+                assertEquals(1, paid);
+                assertEquals("paid", store.payoutEvent(good.key)[0]);
+                assertEquals("pending", store.payoutEvent("aaa-bad")[0]);
+                assertEquals(1, store.profile("Ana").wins);
+            } finally {
+                CareerPayouts.useRoute(null);
+                CareerStore.use(null);
+            }
+        }
+    }
 }

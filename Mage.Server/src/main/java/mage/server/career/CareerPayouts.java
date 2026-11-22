@@ -143,20 +143,36 @@ public final class CareerPayouts {
             return 0;
         }
         CareerStore store = CareerStore.get();
-        int paid = 0;
         try {
             store.prunePayoutEvents(System.currentTimeMillis() - KEEP_MILLIS);
-            for (Map.Entry<String, String> pending : store.pendingPayouts().entrySet()) {
-                CareerPayoutEvent event = new Gson().fromJson(pending.getValue(), CareerPayoutEvent.class);
-                if (CareerPayoutEvent.MATCH_ENDED.equals(event.event)) {
-                    CareerService.get().payMatch(store, event);
-                } else {
-                    CareerService.get().payGame(store, event);
-                }
-                paid++;
-            }
         } catch (SQLException | RuntimeException e) {
-            logger.error("Career: pending payouts can't be paid", e);
+            logger.error("Career: paid payout events can't be pruned", e);
+        }
+        Map<String, String> pendingPayouts;
+        try {
+            pendingPayouts = store.pendingPayouts();
+        } catch (SQLException | RuntimeException e) {
+            logger.error("Career: pending payouts can't be read", e);
+            return 0;
+        }
+        int paid = 0;
+        Gson gson = new Gson();
+        for (Map.Entry<String, String> pending : pendingPayouts.entrySet()) {
+            try {
+                CareerPayoutEvent event = gson.fromJson(pending.getValue(), CareerPayoutEvent.class);
+                if (event == null) {
+                    logger.error("Career: pending payout " + pending.getKey() + " is empty");
+                    continue;
+                }
+                Object result = CareerPayoutEvent.MATCH_ENDED.equals(event.event)
+                        ? CareerService.get().payMatch(store, event)
+                        : CareerService.get().payGame(store, event);
+                if (result != null) {
+                    paid++;
+                }
+            } catch (SQLException | RuntimeException e) {
+                logger.error("Career: pending payout " + pending.getKey() + " can't be paid", e);
+            }
         }
         if (paid > 0) {
             logger.info("Career: paid " + paid + " payouts the gateway left pending");

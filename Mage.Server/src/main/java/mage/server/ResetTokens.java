@@ -4,6 +4,7 @@ import java.security.SecureRandom;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.BooleanSupplier;
 
 /**
  * Codes sent by email (password resets, email verification): six digits, valid for a while and for a few guesses only, so they can't be
@@ -70,9 +71,21 @@ final class ResetTokens {
     }
 
     /**
+     * Like {@link #redeem}, consuming a matching code only when {@code onMatch} accepts it; if {@code onMatch}
+     * returns false (for example on a storage failure), the code stays pending for retry.
+     */
+    synchronized boolean redeem(String email, String code, long now, BooleanSupplier onMatch) {
+        return redeemCode(email, code, now, onMatch) != null;
+    }
+
+    /**
      * Like {@link #redeem}, saying how a right code reached the player; null when it is wrong or gone.
      */
     synchronized Redeemed redeemCode(String email, String code, long now) {
+        return redeemCode(email, code, now, () -> true);
+    }
+
+    synchronized Redeemed redeemCode(String email, String code, long now, BooleanSupplier onMatch) {
         String key = key(email);
         Pending entry = pending.get(key);
         if (entry == null) {
@@ -83,6 +96,9 @@ final class ResetTokens {
             return null;
         }
         if (code != null && java.security.MessageDigest.isEqual(entry.code.getBytes(), code.trim().getBytes())) {
+            if (!onMatch.getAsBoolean()) {
+                return null;
+            }
             pending.remove(key);
             return entry.seenByStaff ? Redeemed.FROM_STAFF : Redeemed.BY_MAIL;
         }

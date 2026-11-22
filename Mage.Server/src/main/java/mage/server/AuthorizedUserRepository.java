@@ -237,7 +237,9 @@ public class AuthorizedUserRepository {
         }
         Hash hash = new SimpleHash(Sha256Hash.ALGORITHM_NAME, password, rng.nextBytes(), 1024);
         user.setPasswordHash(hash);
-        update(user);
+        if (!updateUser(user)) {
+            return false;
+        }
         // a new password signs every remembered device out
         forgetLogins(userName);
         return true;
@@ -253,8 +255,7 @@ public class AuthorizedUserRepository {
             return false;
         }
         user.email = email == null || email.trim().isEmpty() ? null : email.trim();
-        update(user);
-        return true;
+        return updateUser(user);
     }
 
     /**
@@ -339,15 +340,19 @@ public class AuthorizedUserRepository {
         return new Sha256Hash(token).toHex();
     }
 
-    public void remove(final String userName) {
+    public boolean remove(final String userName) {
         try {
             DeleteBuilder<AuthorizedUser, Object> db = usersDao.deleteBuilder();
             db.where().eq("name", new SelectArg(userName));
-            db.delete();
+            if (db.delete() <= 0) {
+                return false;
+            }
         } catch (SQLException ex) {
             LOGGER.error("Error removing a user from DB - ", ex);
+            return false;
         }
         forgetLogins(userName);
+        return true;
     }
 
     /**
@@ -460,12 +465,17 @@ public class AuthorizedUserRepository {
         return null;
     }
 
-    public void update(AuthorizedUser authorizedUser) {
+    private boolean updateUser(AuthorizedUser authorizedUser) {
         try {
-            usersDao.update(authorizedUser);
+            return usersDao.update(authorizedUser) > 0;
         } catch (SQLException ex) {
             LOGGER.error("Error updating authorized_user", ex);
+            return false;
         }
+    }
+
+    public void update(AuthorizedUser authorizedUser) {
+        updateUser(authorizedUser);
     }
 
     public AuthorizedUser getByEmail(String userName) {

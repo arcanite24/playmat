@@ -38,12 +38,10 @@ public class GamesRoomImpl extends RoomImpl implements GamesRoom, Serializable {
     private static final int MAX_FINISHED_TABLES = 25;
 
     // server's lobby
-    private static List<TableView> lobbyTables = new ArrayList<>();
-    private static List<MatchView> lobbyMatches = new ArrayList<>();
-    private static List<RoomUsersView> lobbyUsers = new ArrayList<>();
-    private static final ScheduledExecutorService UPDATE_LOBBY_EXECUTOR = Executors.newSingleThreadScheduledExecutor(
-            new XmageThreadFactory(ThreadUtils.THREAD_PREFIX_SERVICE_LOBBY_REFRESH)
-    );
+    private volatile List<TableView> lobbyTables = new ArrayList<>();
+    private volatile List<MatchView> lobbyMatches = new ArrayList<>();
+    private volatile List<RoomUsersView> lobbyUsers = new ArrayList<>();
+    private final transient ScheduledExecutorService updateLobbyExecutor;
 
     private final ManagerFactory managerFactory;
     private final ConcurrentHashMap<UUID, Table> tables = new ConcurrentHashMap<>();
@@ -51,9 +49,12 @@ public class GamesRoomImpl extends RoomImpl implements GamesRoom, Serializable {
     public GamesRoomImpl(ManagerFactory managerFactory) {
         super(managerFactory.chatManager());
         this.managerFactory = managerFactory;
+        this.updateLobbyExecutor = Executors.newSingleThreadScheduledExecutor(
+                new XmageThreadFactory(ThreadUtils.THREAD_PREFIX_SERVICE_LOBBY_REFRESH + " " + getRoomId())
+        );
 
         // update lobby's data
-        UPDATE_LOBBY_EXECUTOR.scheduleAtFixedRate(() -> {
+        updateLobbyExecutor.scheduleAtFixedRate(() -> {
             try {
                 updateLobby();
             } catch (Exception e) {
@@ -65,10 +66,10 @@ public class GamesRoomImpl extends RoomImpl implements GamesRoom, Serializable {
 
     @Override
     public List<TableView> getTables() {
-        return lobbyTables;
+        return new ArrayList<>(lobbyTables);
     }
 
-    private void updateLobby() {
+    void updateLobby() {
         // tables and matches
         List<Table> allTables = new ArrayList<>(tables.values());
         allTables.sort(new TableListSorter());
@@ -79,10 +80,15 @@ public class GamesRoomImpl extends RoomImpl implements GamesRoom, Serializable {
                 tableList.add(new TableView(table));
             } else if (matchList.size() < MAX_FINISHED_TABLES) {
                 matchList.add(new MatchView(table));
-            } else {
+            } else if (!table.isTournamentSubTable()) {
                 // more since 50 matches finished since this match so removeUserFromAllTablesAndChat it
                 if (table.isTournament()) {
-                    managerFactory.tournamentManager().removeTournament(table.getTournament().getId());
+                    if (table.getTournament() != null && table.getTournament().getEndTime() == null && !table.getTournament().isAbort()) {
+                        continue;
+                    }
+                    if (table.getTournament() != null) {
+                        managerFactory.tournamentManager().removeTournament(table.getTournament().getId());
+                    }
                 }
                 managerFactory.tableManager().removeTable(table.getId());
                 this.removeTable(table.getId());
@@ -132,7 +138,7 @@ public class GamesRoomImpl extends RoomImpl implements GamesRoom, Serializable {
 
     @Override
     public List<MatchView> getFinished() {
-        return lobbyMatches;
+        return new ArrayList<>(lobbyMatches);
     }
 
     @Override
@@ -214,7 +220,7 @@ public class GamesRoomImpl extends RoomImpl implements GamesRoom, Serializable {
     /** Everyone online, hidden players included (each marked with their status): filter with Presence.visible. */
     @Override
     public List<RoomUsersView> getRoomUsersInfo() {
-        return lobbyUsers;
+        return new ArrayList<>(lobbyUsers);
     }
 
 }
