@@ -152,14 +152,21 @@ const PaintedMachine = forwardRef(function PaintedMachine(
     frame.current = requestAnimationFrame(tick);
   }, [draw, still]);
 
-  // fill the globe: on first sight, and when the capsules left change for some other reason than our own deliveries
+  const filled = useRef<{ id: string; globe: CabinetArt['globe']; key: string; count: number } | null>(null);
+  // fill the globe: on first sight, and when the machine or capsules change for some other reason than our own deliveries
   const key = capsules.join(',');
   useEffect(() => {
     const pile = heap.current;
-    if (pile && pile.balls.filter((ball) => !ball.leaving).length === capsules.length) return;
+    const prev = filled.current;
+    const live = pile ? pile.balls.filter((ball) => !ball.leaving).length : -1;
+    if (pile && prev && prev.id === id && prev.globe === globe && live === capsules.length && (prev.key === key || live < prev.count)) {
+      filled.current = { id, globe, key, count: capsules.length };
+      return;
+    }
     const next = new CapsuleHeap(globe);
     next.fill(capsules, id);
     heap.current = next;
+    filled.current = { id, globe, key, count: capsules.length };
     draw();
     // capsules is read through key
     // eslint-disable-next-line react-hooks/exhaustive-deps
