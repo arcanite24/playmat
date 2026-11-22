@@ -50,10 +50,10 @@ class Net(nn.Module):
         g = F.relu(self.glob1(b["glob"]))
         return F.relu(self.trunk2(F.relu(self.trunk1(torch.cat([p, g], -1)))))
 
-    def forward(self, b, return_vfeat=False):
+    def forward(self, b, return_vfeat=False, detach_val=False):
         """-> logits [B, K] (masked to -inf past each row's actions), value logit [B], state h [B, trunk]"""
         h = self.state(b)
-        v = self.value(h).squeeze(-1)
+        v = self.value(h.detach() if detach_val else h).squeeze(-1)
         a = self.act2(F.relu(self.act1(torch.cat([self.emb(b["act_ids"]), b["acts"]], -1))))
         q = self.query(h).unsqueeze(1)
         logits = (q * a).sum(-1) + self.abias(a).squeeze(-1)
@@ -182,7 +182,7 @@ class Tx(nn.Module):
             v_in = 3 * d + GLOB_F
             self.val_ln = nn.LayerNorm(v_in)
             self.val_fc1 = nn.Linear(v_in, trunk)
-            self.val_drop = nn.Dropout(0.15)
+            self.val_drop = nn.Dropout(0.3)
             self.val_fc2 = nn.Linear(trunk, 1)
             self.value = None
         else:
@@ -242,15 +242,16 @@ class Tx(nn.Module):
     def state(self, b):
         return self.state_tokens(b)[0]
 
-    def forward(self, b, return_vfeat=False):
+    def forward(self, b, return_vfeat=False, detach_val=False):
         t, mask = self.tokens(b)
         vfeat, mean = self._pool_val_features(t, mask, b["glob"])
         h = self._act(self.trunk1(torch.cat([t[:, 0], mean], -1)))
         if self.val_mlp:
-            vh = self.val_drop(self._act(self.val_fc1(self.val_ln(vfeat))))
+            vf = vfeat.detach() if detach_val else vfeat
+            vh = self.val_drop(self._act(self.val_fc1(self.val_ln(vf))))
             v = self.val_fc2(vh).squeeze(-1)
         else:
-            v = self.value(h).squeeze(-1)
+            v = self.value(h.detach() if detach_val else h).squeeze(-1)
         a = self.act_in(torch.cat([self.emb(b["act_ids"]), b["acts"]], -1))
         k, vv = self.act_kv(t).chunk(2, -1)
         a = a + self.act_o(self._attend(self.act_q(self.act_ln(a)), k, vv, mask))

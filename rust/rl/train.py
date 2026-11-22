@@ -68,15 +68,15 @@ def refit_value(net, critic, data, train_idx, test_idx, dev, bs, report, q_mix=0
         p.requires_grad_(False)
     for p in head_params:
         p.requires_grad_(True)
-    opt = torch.optim.AdamW(head_params, lr=1e-3, weight_decay=1e-2)
+    opt = torch.optim.AdamW(head_params, lr=5e-4, weight_decay=5e-2)
     rng = np.random.default_rng(1)
     perm = rng.permutation(train_idx)
-    if len(perm) > 2_000_000:
-        perm = perm[:2_000_000]
+    if len(perm) > 200_000:
+        perm = perm[:200_000]
     net.train()
     for i in range(0, len(perm), bs):
         b = data.batch(perm[i : i + bs], dev)
-        val = losses(net, None, None, b, q_mix=q_mix)[1]
+        val = losses(net, None, None, b, q_mix=q_mix, val_prob=1.0, detach_val=True)[1]
         opt.zero_grad(set_to_none=True)
         val.backward()
         opt.step()
@@ -87,12 +87,12 @@ def refit_value(net, critic, data, train_idx, test_idx, dev, bs, report, q_mix=0
     print(f"TRAIN value head refit: held-out log loss {ev['value_logloss']:.4f}", flush=True)
 
 
-def losses(net, critic, aux_head, b, q_mix=0.0, pol_min_run=0):
+def losses(net, critic, aux_head, b, q_mix=0.0, pol_min_run=0, val_prob=1.0, detach_val=False):
     want_aux = aux_head is not None
     if want_aux:
-        logits, v, h, vfeat = net(b, return_vfeat=True)
+        logits, v, h, vfeat = net(b, return_vfeat=True, detach_val=detach_val)
     else:
-        logits, v, h = net(b)
+        logits, v, h = net(b, detach_val=detach_val)
     logp = F.log_softmax(logits, -1)
     pol_per = -(b["target"] * logp).sum(-1)
     if pol_min_run > 0:
@@ -110,6 +110,12 @@ def losses(net, critic, aux_head, b, q_mix=0.0, pol_min_run=0):
         z_tgt = torch.where(has_q, (1.0 - q_mix) * z_tgt + q_mix * qv_safe, z_tgt)
     val_per = F.binary_cross_entropy_with_logits(v, z_tgt, reduction="none")
     vw = b["val_w"]
+    if val_prob < 1.0 and net.training:
+        # Subsample ~2-3 decisions per game per epoch so the trunk cannot memorize per-game binary outcomes
+        vm = (torch.rand_like(vw) < val_prob).float()
+        if vm.sum() < 1:
+            vm[0] = 1.0
+        vw = vw * vm
     val = (val_per * vw).sum() / vw.sum().clamp(min=1)
 
     bl = net.belief_logits(h, b["pool"])
@@ -118,9 +124,10 @@ def losses(net, critic, aux_head, b, q_mix=0.0, pol_min_run=0):
 
     crit = F.binary_cross_entropy_with_logits(critic(b), b["z"]) if critic is not None else torch.zeros((), device=v.device)
     if want_aux:
-        aux_pred = aux_head(vfeat)
+        aux_pred = aux_head(vfeat.detach() if detach_val else vfeat)
         aux_tgt = torch.stack([b["turns_left"], b["final_life_diff"]], -1)
-        aux = F.smooth_l1_loss(aux_pred, aux_tgt)
+        aux_per = F.smooth_l1_loss(aux_pred, aux_tgt, reduction="none").mean(-1)
+        aux = (aux_per * vw).sum() / vw.sum().clamp(min=1)
     else:
         aux = torch.zeros((), device=v.device)
 
@@ -223,7 +230,9 @@ def build_parser():
     ap.add_argument("--no-critic", action="store_true", help="skip loading hid and training the PPO Critic")
     ap.add_argument("--upgrade-val-mlp", action="store_true", help="upgrade a v1 Tx checkpoint to the regularized 2-layer val_mlp head")
     ap.add_argument("--drop", type=float, default=0.0, help="training-only dropout inside Tx blocks")
-    ap.add_argument("--val-wd", type=float, default=1e-2, help="weight decay on value head parameters")
+    ap.add_argument("--val-wd", type=float, default=5e-2, help="weight decay on value head parameters")
+    ap.add_argument("--val-prob", type=float, default=0.06, help="per-decision probability of including value/aux loss (prevents memorizing per-game outcomes)")
+    ap.add_argument("--detach-val", action="store_true", help="stop value/aux gradients from entering the shared transformer trunk")
     ap.add_argument("--val-stop-tol", type=float, default=0.004, help="held-out value loss rise before freezing trunk value grad")
     ap.add_argument("--ema", type=float, default=0.0, help="EMA decay for exported weights (e.g. 0.995; 0 disables)")
     ap.add_argument("--amp", type=int, default=-1, help="1: bf16 autocast on GPU; -1: auto at bs >= 1024")
@@ -350,13 +359,17 @@ def train_main(argv=None, shared_data=None):
             for i in range(0, len(perm), args.bs):
                 b = src.batch(perm[i : i + args.bs], dev)
                 with torch.autocast("cuda", dtype=torch.bfloat16, enabled=amp):
-                    pol, val, bel, crit, aux = losses(train_net, critic, aux_head, b, q_mix=args.q_mix, pol_min_run=pol_min_run)[:5]
+                    pol, val, bel, crit, aux = losses(
+                        train_net, critic, aux_head, b,
+                        q_mix=args.q_mix, pol_min_run=pol_min_run,
+                        val_prob=args.val_prob, detach_val=(args.detach_val or not value_on),
+                    )[:5]
                     loss = (
                         pol
-                        + (args.value_weight if value_on else 0.0) * val
+                        + args.value_weight * val
                         + args.belief_weight * bel
                         + (0.5 * crit if critic is not None else 0.0)
-                        + args.aux_weight * aux
+                        + (args.aux_weight if value_on else 0.0) * aux
                     )
                 opt.zero_grad(set_to_none=True)
                 loss.backward()
@@ -383,13 +396,17 @@ def train_main(argv=None, shared_data=None):
                     if n_i + 1 < len(starts):
                         ahead = pool.submit(src.batch, perm[starts[n_i + 1] : starts[n_i + 1] + args.bs], dev)
                     with torch.autocast("cuda", dtype=torch.bfloat16, enabled=amp):
-                        pol, val, bel, crit, aux = losses(train_net, critic, aux_head, b, q_mix=args.q_mix, pol_min_run=pol_min_run)[:5]
+                        pol, val, bel, crit, aux = losses(
+                            train_net, critic, aux_head, b,
+                            q_mix=args.q_mix, pol_min_run=pol_min_run,
+                            val_prob=args.val_prob, detach_val=(args.detach_val or not value_on),
+                        )[:5]
                         loss = (
                             pol
-                            + (args.value_weight if value_on else 0.0) * val
+                            + args.value_weight * val
                             + args.belief_weight * bel
                             + (0.5 * crit if critic is not None else 0.0)
-                            + args.aux_weight * aux
+                            + (args.aux_weight if value_on else 0.0) * aux
                         )
                     opt.zero_grad(set_to_none=True)
                     loss.backward()
