@@ -43,7 +43,7 @@ export function CareerDeckScreen() {
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const decks = savedDecks.data ?? [];
+  const decks = useMemo(() => savedDecks.data ?? [], [savedDecks.data]);
   const activeSaved = useMemo(() => decks.find((candidate) => candidate.active) ?? decks[0] ?? null, [decks]);
   const activeDeck = useMemo(() => (activeSaved ? toCareerDeck(activeSaved) : null), [activeSaved]);
 

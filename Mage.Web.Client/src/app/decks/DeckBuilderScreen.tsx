@@ -155,8 +155,8 @@ export function DeckBuilder({ initial, mode }: { initial: DeckCardLists; mode?: 
   const [savedDeck, setSavedDeck] = useState(initial);
   const saving = deck !== savedDeck;
   const pendingSave = useRef<{ deck: DeckCardLists; mode: BuilderMode | undefined } | null>(null);
-  pendingSave.current = saving ? { deck, mode } : null;
   useEffect(() => {
+    pendingSave.current = saving ? { deck, mode } : null;
     if (!saving) return;
     const timer = setTimeout(() => {
       pendingSave.current = null;

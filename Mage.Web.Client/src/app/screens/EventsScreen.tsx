@@ -59,15 +59,15 @@ const TIMING_TEXT: Partial<Record<TimingOption, MessageKey>> = {
 
 const EMPTY_DECK = { cards: [], sideboard: [] };
 
-export function isOpenEvent(table: Pick<TableView, 'tableState'>): boolean {
+function isOpenEvent(table: Pick<TableView, 'tableState'>): boolean {
   return table.tableState === 'WAITING' || table.tableState === 'READY_TO_START';
 }
 
-export function isEventOwner(table: Pick<TableView, 'controllerName'>, userName: string): boolean {
+function isEventOwner(table: Pick<TableView, 'controllerName'>, userName: string): boolean {
   return !!userName && (table.controllerName ?? '').split(', ')[0] === userName;
 }
 
-export function isSeatedInEvent(table: Pick<TableView, 'controllerName' | 'seats'>, userName: string): boolean {
+function isSeatedInEvent(table: Pick<TableView, 'controllerName' | 'seats'>, userName: string): boolean {
   if (!userName) return false;
   if ((table.seats ?? []).some((seat) => seat.playerName === userName)) return true;
   return (table.controllerName ?? '').split(', ').includes(userName);

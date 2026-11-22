@@ -21,7 +21,7 @@ export function useCareerDeck(profile: CareerProfile | undefined) {
   const owned = useMemo(() => ownedByName(collection.data ?? []), [collection.data]);
   const [fallbackDeck, setFallbackDeck] = useState<DeckCardLists | null>(null);
 
-  const decks = savedDecks.data ?? [];
+  const decks = useMemo(() => savedDecks.data ?? [], [savedDecks.data]);
   const activeSaved = useMemo(() => decks.find((candidate) => candidate.active) ?? decks[0] ?? null, [decks]);
   const activeDeck = useMemo(() => (activeSaved ? toCareerDeck(activeSaved) : null), [activeSaved]);
 
