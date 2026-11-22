@@ -268,9 +268,13 @@ class Driver(threading.Thread):
             self.log(f"FLEET {h.alias}: {self.problem}")
             return
         n = 0
+        last_end = 0.0  # when a chunk last finished on its own
         while not self.stopping.is_set():
             try:
-                why = h.busy()
+                # straight after a chunk the load is still its own games, so the next one is checked as if it were
+                # still playing (a Mac: no input for a minute; Linux: no load check); otherwise back-to-back chunks
+                # each wait for the load average to decay, and a host plays a quarter of the time
+                why = h.busy(playing=time.time() - last_end < 120)
             except Exception as e:
                 why = f"no answer ({e})"
             if why:
@@ -303,7 +307,7 @@ class Driver(threading.Thread):
                 self.log(f"FLEET {h.alias}: chunk c{n:06d} thrown away: {killed or result.get('error') or 'selfplay exited ' + str(result.get('code'))}")
                 n += 1
                 continue
-            t1 = time.time()
+            t1 = last_end = time.time()
             try:
                 self._fetch(n)
                 self.games += CHUNK_GAMES
