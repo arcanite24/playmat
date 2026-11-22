@@ -131,25 +131,37 @@ impl Tree {
         Tree { nodes: out }
     }
 
-    /// Finds a node at depth 0 or 1 matching `(seat, hash)` and remaps it into a warm root matching `candidates`.
+    /// Finds a node within BFS depth 3 matching `(seat, hash)` and remaps it into a warm root matching `candidates`.
     fn reuse_root(&self, seat: Seat, hash: u64, candidates: &[Answer], priors: &[f32]) -> Option<Tree> {
         if self.nodes.is_empty() {
             return None;
         }
-        let mut found = None;
-        if self.nodes[0].seat == seat && self.nodes[0].hash == hash && !self.nodes[0].kids.is_empty() {
-            found = Some(0);
-        } else {
-            for k in &self.nodes[0].kids {
-                if let Some(c) = k.node {
-                    if self.nodes[c].seat == seat && self.nodes[c].hash == hash && !self.nodes[c].kids.is_empty() {
-                        found = Some(c);
-                        break;
+        let mut queue = std::collections::VecDeque::from([(0usize, 0u8)]);
+        let mut best: Option<(usize, u32)> = None;
+        let mut best_depth: Option<u8> = None;
+        while let Some((idx, depth)) = queue.pop_front() {
+            if let Some(bd) = best_depth {
+                if depth > bd {
+                    break;
+                }
+            }
+            let node = &self.nodes[idx];
+            if node.seat == seat && node.hash == hash && !node.kids.is_empty() {
+                best_depth = Some(depth);
+                if best.is_none_or(|(_, bn)| node.n > bn) {
+                    best = Some((idx, node.n));
+                }
+                continue;
+            }
+            if depth < 3 {
+                for k in &node.kids {
+                    if let Some(c) = k.node {
+                        queue.push_back((c, depth + 1));
                     }
                 }
             }
         }
-        let idx = found?;
+        let (idx, _) = best?;
         let mut sub = self.extract_subtree(idx);
         let old_kids = std::mem::take(&mut sub.nodes[0].kids);
         let mut new_kids = Vec::with_capacity(candidates.len());
@@ -292,9 +304,13 @@ impl Walk {
         }
         let node = &self.tree.nodes[at];
         let visited: u32 = node.kids.iter().map(|k| k.n).sum();
-        let wsum: f64 = node.kids.iter().map(|k| k.w).sum();
-        // an unvisited answer starts at the node's mean so far (a coin before anything is known)
-        let fpu = if visited > 0 { wsum / visited as f64 } else { 0.5 };
+        let (wsum, p_vis) = node
+            .kids
+            .iter()
+            .filter(|k| k.n > 0)
+            .fold((0.0f64, 0.0f64), |(w, p), k| (w + k.w, p + k.prior as f64));
+        // FPU reduction (Leela/KataGo): discount unvisited children by sqrt(visited prior mass)
+        let fpu = if visited > 0 { (wsum / visited as f64 - 0.15 * p_vis.sqrt()).clamp(0.02, 0.98) } else { 0.5 };
         let sq = ((node.n + 1) as f64).sqrt();
         let score = |k: &Kid| {
             let q = if k.n > 0 { k.w / k.n as f64 } else { fpu };
@@ -438,19 +454,21 @@ impl DecisionPolicy for Ismcts {
             let rounds = (usize::BITS - (m.max(2) - 1).leading_zeros()).max(1) as usize;
             let total_iters = (cfg.iters.max(m as u32)) as usize;
             let mut nodes = 0u64;
-            let mut iter_idx = 0usize;
+            let mut world_idx = 0usize;
 
             'halving: for r in 0..rounds {
                 let each = (total_iters / (rounds * alive.len())).max(1);
-                // Round-robin over survivors so a budget cap never starves later candidates
+                // Common Random Numbers (CRN): compare all surviving candidates on the SAME determinization
+                // per rep, eliminating paired opponent-hand variance across candidates.
                 for _ in 0..each {
+                    let world = &games[world_idx % games.len()];
+                    world_idx += 1;
                     for &ci in &alive {
                         if !pure_leaf && nodes >= cfg.budget {
                             break 'halving;
                         }
                         let walk = Walk::new(tree, net.clone(), cpuct, pure_leaf, Some(ci));
-                        let (res, mut walk) = root.play_tree(games[iter_idx % games.len()].clone(), walk, per, stop);
-                        iter_idx += 1;
+                        let (res, mut walk) = root.play_tree(world.clone(), walk, per, stop);
                         match res {
                             Ok(o) => {
                                 nodes += o.nodes.max(1);
