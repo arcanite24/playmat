@@ -27,10 +27,18 @@ fn quiescent(game: &Game) -> bool {
         )
 }
 
-/// Monotonic Q-value transformation for Gumbel-ISMCTS (`c_visit = 50, c_scale = 0.25`):
-/// strong enough that a proven win (Q=1 vs Q=0) overcomes an overconfident prior (clamped log-prior >= -6.9).
+/// Monotonic Q-value transformation for Gumbel-ISMCTS (`c_visit = 50, c_scale = 0.25`), plus terminal
+/// discipline: proven wins (`q >= 0.999`) and proven losses (`q <= 0.001`) always override a low prior,
+/// while non-terminal moves (`0.02..=0.98`) keep full policy-prior regularization against value noise.
 fn sigma_gumbel(q: f32, most: usize) -> f32 {
-    (50.0 + most as f32) * 0.25 * q
+    let base = (50.0 + most as f32) * 0.25 * q;
+    if q >= 0.999 {
+        base + 10.0
+    } else if q <= 0.001 {
+        base - 10.0
+    } else {
+        base
+    }
 }
 
 /// candidates a tree node keeps, as the playouts' network does
@@ -108,7 +116,7 @@ impl Walk {
                 } else if s <= crate::eval::LOSE {
                     0.0
                 } else {
-                    crate::fitted::probability(s)
+                    crate::fitted::probability(s).clamp(0.02, 0.98)
                 };
                 self.leaf_value = Some((seat, p));
                 self.stop_now = true;
@@ -150,7 +158,7 @@ impl Walk {
                 return None;
             }
             let out = self.net.forward(&crate::obs::observe(game, seat, q, &options));
-            let leaf_v = 1.0 / (1.0 + (-out.value as f64).exp());
+            let leaf_v = (1.0 / (1.0 + (-out.value as f64).exp())).clamp(0.02, 0.98);
             self.leaf_value = Some((seat, leaf_v));
             let p = net::softmax(&out.logits, 1.0);
             let node = &mut self.tree.nodes[at];
@@ -237,7 +245,7 @@ fn eval_iteration(game: &Game, walk: &Walk, seat: Seat, base: i64, cfg: &Config,
         if let Some((ls, lv)) = walk.leaf_value {
             return if ls == seat { lv } else { 1.0 - lv };
         }
-        return crate::fitted::probability(net::score(net, game, seat));
+        return crate::fitted::probability(net::score(net, game, seat)).clamp(0.02, 0.98);
     }
     let roll_v = crate::eval::value_with(game, seat, base, cfg);
     if cfg.leaf_blend > 0 {
