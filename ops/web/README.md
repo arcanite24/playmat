@@ -62,6 +62,7 @@ docker compose -f ops/web/docker-compose.yml -f ops/web/docker-compose.proxy.yml
 - Caddy answers any `Host` on port 80, so a proxy that rewrites the host name still works.
 - Keep `TLS_MODE=external` in `.env`, not only in your command line: the [Update button](#update-button) and the [image-based deploy](deploy/) add `docker-compose.proxy.yml` when `.env` says so. They use the stock files only, so put your own changes in `.env` (the variables below) rather than in a third compose file.
 - A proxy on the host itself, not in Docker (a distro nginx): skip the network and proxy to Caddy's address on the compose network, `http://10.89.17.10:80` (`CADDY_IP`; Linux only). Use the override anyway, or 80/443 stay published.
+- **Plain HTTP without a TLS proxy in front** (a private LAN or Tailscale-only server): set `TLS_MODE=external` and `HTTP_PORT` (for example `8088`) without `docker-compose.proxy.yml`, and set `XMAGE_ALLOWED_ORIGINS` (and `XMAGE_PUBLIC_URL` if needed) to the `http://` origin players open (e.g. `http://myserver.local:8088`). The published `web` image defaults its game connection to `ws://<page host>/ws` on the same origin, which Caddy proxies to the server.
 
 **Traefik.** The override's labels route `Host(DOMAIN)` on `TRAEFIK_ENTRYPOINT` (default `websecure`) with the certificate resolver `TRAEFIK_CERTRESOLVER` (empty: Traefik's default certificate) to port 80:
 
@@ -158,6 +159,7 @@ Set these in `ops/web/.env` (Compose reads it automatically) or in the environme
 | `XMAGE_REPLAYS` | `true` | Record finished games with at least one human player for the web client's replays (`-Dxmage.replays`). |
 | `XMAGE_REPLAY_DAYS` | `30` | Replays older than this many days are deleted. |
 | `XMAGE_REPLAY_MAX` | `300` | At most this many replays are kept; the oldest go first. A replay is gzipped, about 10 kB per turn (a six-turn duel was 59 kB), so 300 replays usually take tens of megabytes. |
+| `XMAGE_DISK_MIN_FREE_MB` | `3072` | Free space threshold on the `db/` disk in MB (or 5% of the disk, whichever is more). Below it, `/healthz`, the admin Overview and the staff Discord channel (at most every 6 hours) warn that the disk is nearly full. |
 | `XMAGE_MEMORY` | sized to the machine | Java heap, e.g. `2g`. Empty: `XMAGE_HEAP_PERCENT` of the memory the container sees (its limit, else the host's), between 256 MB and 1 GB. The server logs the size it chose at start. |
 | `XMAGE_HEAP_PERCENT` | `40` | Share of the machine's memory the heap gets when `XMAGE_MEMORY` is empty. The rest is the JVM's own memory (classes, threads, code; about 400 MB) and the system's. |
 | `XMAGE_EXIT_ON_OOM` | `true` | Stop the server when the heap runs out, so Docker restarts it (in about 15 s) instead of leaving it running broken. Games in progress end either way. `false` keeps it running. |
@@ -943,7 +945,7 @@ The restore replaces the accounts and feedback databases (rebuilt from the dumps
 
 ### Off-site copies
 
-Backups on the server's own disk don't survive the loss of the server. `ops/web/host/install.sh` (see Host tools below) installs `playmat-offsite`, which packs the newest backup into `/var/backups/playmat/offsite/playmat-<name>.tar.gz` every day at 10:15 UTC and keeps three packs. Two ways take them off the machine; use either or both:
+Backups on the server's own disk don't survive the loss of the server. `ops/web/host/install.sh` (see Host tools below) installs `playmat-offsite`, which discovers the compose `xmage-backups` volume, packs the newest backup into `/var/backups/playmat/offsite/playmat-<name>.tar.gz` every day at 10:15 UTC (skipping loudly if the disk lacks twice the backup's size free), and keeps the newest pack (`KEEP_PACKS=1`). Two ways take them off the machine; use either or both:
 
 - **Pulled by another machine** (what the public server does: Multivac pulls). The other machine gets an SSH key that the server only lets run the export, so that machine can fetch the newest pack and nothing else, and someone who takes over the server can't reach or delete the copies. On the server, add to `/root/.ssh/authorized_keys`:
 
