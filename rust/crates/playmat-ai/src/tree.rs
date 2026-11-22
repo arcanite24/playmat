@@ -11,10 +11,16 @@
 use crate::decision::{Choice, Decision, DecisionPolicy};
 use crate::net::{self, Net};
 use crate::search::{candidates, Config};
-use crate::selfplay::{effective_temp, pick, sample_games, sigma, skipped, uniform};
+use crate::selfplay::{effective_temp, pick, sample_games, skipped, uniform};
 use playmat_engine::decide::{Answer, Query};
 use playmat_engine::state::{Game, Seat};
 use std::sync::Arc;
+
+/// Monotonic Q-value transformation for Gumbel-ISMCTS (`c_visit = 50, c_scale = 0.25`):
+/// strong enough that a proven win (Q=1 vs Q=0) overcomes an overconfident prior (clamped log-prior >= -6.9).
+fn sigma_gumbel(q: f32, most: usize) -> f32 {
+    (50.0 + most as f32) * 0.25 * q
+}
 
 /// candidates a tree node keeps, as the playouts' network does
 const WIDTH: usize = 12;
@@ -249,11 +255,13 @@ impl DecisionPolicy for Ismcts {
 
         if cfg.gumbel_root {
             let n = d.candidates.len();
+            // Clamped log-prior prevents an over-sharpened prior (-15 logits) from drowning out a proven search win
+            let logp: Vec<f32> = prior.iter().map(|&p| p.max(1e-3).ln()).collect();
             let g: Vec<f32> = (0..n)
                 .map(|_| if temp == 0 { 0.0 } else { -(-(uniform(&mut self.rng).max(1e-9)).ln()).ln() })
                 .collect();
             let mut alive: Vec<usize> = (0..n).collect();
-            alive.sort_by(|a, b| (g[*b] + out.logits[*b]).total_cmp(&(g[*a] + out.logits[*a])));
+            alive.sort_by(|a, b| (g[*b] + logp[*b]).total_cmp(&(g[*a] + logp[*a])));
             alive.truncate(cfg.consider.max(2).min(n));
 
             let kids = d
@@ -271,12 +279,13 @@ impl DecisionPolicy for Ismcts {
             let mut nodes = 0u64;
             let mut iter_idx = 0usize;
 
-            for r in 0..rounds {
+            'halving: for r in 0..rounds {
                 let each = (total_iters / (rounds * alive.len())).max(1);
-                for &ci in &alive {
-                    for _ in 0..each {
+                // Round-robin over survivors so a budget cap never starves later candidates
+                for _ in 0..each {
+                    for &ci in &alive {
                         if !pure_leaf && nodes >= cfg.budget {
-                            break;
+                            break 'halving;
                         }
                         let walk = Walk::new(tree, net.clone(), cpuct, pure_leaf, Some(ci));
                         let (res, mut walk) = root.play_tree(games[iter_idx % games.len()].clone(), walk, per, stop);
@@ -296,17 +305,24 @@ impl DecisionPolicy for Ismcts {
                 let key = |i: usize| {
                     let k = &tree.nodes[0].kids[i];
                     let q = if k.n > 0 { (k.w / k.n as f64) as f32 } else { v_prior as f32 };
-                    g[i] + out.logits[i] + sigma(q, most)
+                    g[i] + logp[i] + sigma_gumbel(q, most)
                 };
                 alive.sort_by(|a, b| key(*b).total_cmp(&key(*a)));
                 if r + 1 < rounds {
                     alive.truncate(alive.len().div_ceil(2));
                 }
             }
+            // Final sort in case 'halving broke early on budget
+            let most = tree.nodes[0].kids.iter().map(|k| k.n).max().unwrap_or(0) as usize;
+            let key = |i: usize| {
+                let k = &tree.nodes[0].kids[i];
+                let q = if k.n > 0 { (k.w / k.n as f64) as f32 } else { v_prior as f32 };
+                g[i] + logp[i] + sigma_gumbel(q, most)
+            };
+            alive.sort_by(|a, b| key(*b).total_cmp(&key(*a)));
 
             // Completed-Q improved policy target (Gumbel AlphaZero, Danihelka et al. 2022)
             let root_node = &tree.nodes[0];
-            let most = root_node.kids.iter().map(|k| k.n).max().unwrap_or(0) as usize;
             let total_n: u32 = root_node.kids.iter().map(|k| k.n).sum();
             let mut sum_p_vis = 0.0f64;
             let mut sum_p_q = 0.0f64;
@@ -325,7 +341,7 @@ impl DecisionPolicy for Ismcts {
                 .map(|i| {
                     let k = &root_node.kids[i];
                     let q = if k.n > 0 { (k.w / k.n as f64) as f32 } else { v_mix as f32 };
-                    out.logits[i] + sigma(q, most)
+                    logp[i] + sigma_gumbel(q, most)
                 })
                 .collect();
             self.last = net::softmax(&improved, 1.0);
