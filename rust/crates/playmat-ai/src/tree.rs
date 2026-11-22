@@ -1,16 +1,17 @@
-//! `ismcts`: an open-loop information-set tree search over the network's policy (#400 R3).
+//! `ismcts`: an open-loop information-set tree search over the network's policy (#400 R3 + Gumbel/Value-Leaf).
 //!
-//! Each iteration plays one sample of what the seat can't see (`selfplay::sample_games`, weighted by the belief)
-//! from the question. Where a question of either seat has been reached before along the same answers, the answer
-//! is picked by PUCT (`Q + cpuct · P · √N / (1 + n)`, P the network's policy); the first new question of the
-//! iteration is expanded with the network's policy, and the rest of the iteration is the ordinary playout (the quick
-//! answers, or `rollout`'s network) to the end of the next turn, scored by `eval`. Nodes are keyed by the answers
-//! taken, not by the game (open loop), so the samples share one tree. The answer is the most visited candidate.
+//! Each iteration plays one belief-weighted sample of what the seat can't see (`selfplay::sample_games`).
+//! - Inside the tree, nodes are keyed by the answers taken (open loop) and picked by PUCT.
+//! - With `Config::gumbel_root`, depth 0 uses Gumbel-top-k + sequential halving (Danihelka et al., 2022) and records
+//!   the completed-Q improved policy `softmax(logits + sigma(completed_Q))` as the training target, eliminating
+//!   exploration collapse on low-prior tactical plays (instants on the opponent's turn).
+//! - With `Config::leaf_blend > 0`, the expanded leaf's neural value `sigmoid(out.value)` is blended with (or at
+//!   `1000`, completely replaces) the rollout evaluation, removing 2-turn rollouts for 5x-15x more tree simulations/s.
 
 use crate::decision::{Choice, Decision, DecisionPolicy};
 use crate::net::{self, Net};
-use crate::search::candidates;
-use crate::selfplay::{pick, sample_games, skipped};
+use crate::search::{candidates, Config};
+use crate::selfplay::{effective_temp, pick, sample_games, sigma, skipped, uniform};
 use playmat_engine::decide::{Answer, Query};
 use playmat_engine::state::{Game, Seat};
 use std::sync::Arc;
@@ -46,18 +47,58 @@ pub struct Walk {
     expanded: bool,
     net: Arc<Net>,
     cpuct: f32,
+    pure_leaf: bool,
+    root_pick: Option<usize>,
+    /// Value logit (as probability 0..1) of the newly expanded leaf, with its seat
+    pub leaf_value: Option<(Seat, f64)>,
+    stop_now: bool,
 }
 
 impl Walk {
-    pub fn new(tree: Tree, net: Arc<Net>, cpuct: f32) -> Walk {
-        Walk { tree, at: Some(0), path: Vec::new(), expanded: false, net, cpuct }
+    pub fn new(tree: Tree, net: Arc<Net>, cpuct: f32, pure_leaf: bool, root_pick: Option<usize>) -> Walk {
+        Walk {
+            tree,
+            at: Some(0),
+            path: Vec::new(),
+            expanded: false,
+            net,
+            cpuct,
+            pure_leaf,
+            root_pick,
+            leaf_value: None,
+            stop_now: false,
+        }
     }
 
-    /// The tree's answer to this question, or `None` to leave it to the playout
+    /// True in pure value-leaf mode (`leaf_blend == 1000`) once a new leaf has been expanded and evaluated
+    pub fn should_stop(&self) -> bool {
+        self.stop_now
+    }
+
+    /// The tree's answer to this question, or `None` to leave it to the playout (or stop in pure-leaf mode)
     pub fn step(&mut self, game: &Game, seat: Seat, q: &Query, quick: &Answer) -> Option<Answer> {
         let at = self.at?;
         if skipped(q) {
             return None;
+        }
+        // Forced root candidate for Gumbel sequential halving
+        if at == 0 {
+            if let Some(i) = self.root_pick.take() {
+                if i < self.tree.nodes[0].kids.len() && q.accepts(&self.tree.nodes[0].kids[i].answer) {
+                    let child = match self.tree.nodes[0].kids[i].node {
+                        Some(c) => c,
+                        None => {
+                            let c = self.tree.nodes.len();
+                            self.tree.nodes.push(Node { seat, kids: Vec::new(), n: 0 });
+                            self.tree.nodes[0].kids[i].node = Some(c);
+                            c
+                        }
+                    };
+                    self.path.push((0, i));
+                    self.at = Some(child);
+                    return Some(self.tree.nodes[0].kids[i].answer.clone());
+                }
+            }
         }
         // a question with one answer worth trying passes through without moving
         let options = candidates(game, seat, q, quick, WIDTH);
@@ -70,6 +111,8 @@ impl Walk {
                 return None;
             }
             let out = self.net.forward(&crate::obs::observe(game, seat, q, &options));
+            let leaf_v = 1.0 / (1.0 + (-out.value as f64).exp());
+            self.leaf_value = Some((seat, leaf_v));
             let p = net::softmax(&out.logits, 1.0);
             let node = &mut self.tree.nodes[at];
             node.seat = seat;
@@ -80,6 +123,11 @@ impl Walk {
                 .map(|(answer, prior)| Kid { answer, prior, n: 0, w: 0.0, node: None })
                 .collect();
             self.expanded = true;
+            if self.pure_leaf {
+                self.at = None;
+                self.stop_now = true;
+                return None;
+            }
         } else if self.tree.nodes[at].seat != seat {
             self.at = None;
             return None;
@@ -132,14 +180,40 @@ impl Walk {
     }
 }
 
+fn eval_iteration(game: &Game, walk: &Walk, seat: Seat, base: i64, cfg: &Config, net: &Net) -> f64 {
+    let over = crate::eval::evaluate(game, seat);
+    if over >= crate::eval::WIN {
+        return 1.0;
+    }
+    if over <= crate::eval::LOSE {
+        return 0.0;
+    }
+    if cfg.leaf_blend >= 1000 {
+        if let Some((ls, lv)) = walk.leaf_value {
+            return if ls == seat { lv } else { 1.0 - lv };
+        }
+        return crate::fitted::probability(net::score(net, game, seat));
+    }
+    let roll_v = crate::eval::value_with(game, seat, base, cfg);
+    if cfg.leaf_blend > 0 {
+        if let Some((ls, lv)) = walk.leaf_value {
+            let lv_root = if ls == seat { lv } else { 1.0 - lv };
+            let a = cfg.leaf_blend as f64 / 1000.0;
+            return a * lv_root + (1.0 - a) * roll_v;
+        }
+    }
+    roll_v
+}
+
 pub struct Ismcts {
     rng: u64,
     last: Vec<f32>,
+    last_val: Option<f32>,
 }
 
 impl Ismcts {
     pub fn new(seed: u64) -> Ismcts {
-        Ismcts { rng: seed, last: Vec::new() }
+        Ismcts { rng: seed, last: Vec::new(), last_val: None }
     }
 }
 
@@ -150,43 +224,143 @@ impl DecisionPolicy for Ismcts {
 
     fn decide(&mut self, d: &Decision) -> Option<Choice> {
         self.last.clear();
+        self.last_val = None;
         if skipped(d.query) {
             return None;
         }
         let cfg = d.config;
+        let temp = effective_temp(cfg, d.game.turn);
         let net = net::of(&cfg.net);
         let out = net.forward(&crate::obs::observe(d.game, d.seat, d.query, d.candidates));
         let prior = net::softmax(&out.logits, 1.0);
+        let v_prior = 1.0 / (1.0 + (-out.value as f64).exp());
         let Some(root) = d.root else {
             self.last = prior;
-            let i = pick(&self.last, cfg.temp, &mut self.rng);
+            self.last_val = Some(v_prior as f32);
+            let i = pick(&self.last, temp, &mut self.rng);
             return Some(Choice { answer: d.candidates[i].clone(), nodes: 0 });
         };
+        let pure_leaf = cfg.leaf_blend >= 1000;
         let games = sample_games(&mut self.rng, d, root, &net, &out.h, cfg.samples.max(1));
         let stop = d.game.turn + 1 + cfg.extra_turns;
-        // each iteration's playout gets what netsearch gives each of its playouts, so the budgets compare
         let per = (cfg.budget / 16).clamp(50, cfg.playout_cap);
-        let base = crate::eval::score_with(d.game, d.seat, cfg);
+        let base = if pure_leaf { 0 } else { crate::eval::score_with(d.game, d.seat, cfg) };
+        let cpuct = cfg.cpuct as f32 / 1000.0;
+
+        if cfg.gumbel_root {
+            let n = d.candidates.len();
+            let g: Vec<f32> = (0..n)
+                .map(|_| if temp == 0 { 0.0 } else { -(-(uniform(&mut self.rng).max(1e-9)).ln()).ln() })
+                .collect();
+            let mut alive: Vec<usize> = (0..n).collect();
+            alive.sort_by(|a, b| (g[*b] + out.logits[*b]).total_cmp(&(g[*a] + out.logits[*a])));
+            alive.truncate(cfg.consider.max(2).min(n));
+
+            let kids = d
+                .candidates
+                .iter()
+                .cloned()
+                .zip(prior.iter().copied())
+                .map(|(answer, prior)| Kid { answer, prior, n: 0, w: 0.0, node: None })
+                .collect();
+            let mut tree = Tree { nodes: vec![Node { seat: d.seat, kids, n: 0 }] };
+
+            let m = alive.len();
+            let rounds = (usize::BITS - (m.max(2) - 1).leading_zeros()).max(1) as usize;
+            let total_iters = (cfg.iters.max(m as u32)) as usize;
+            let mut nodes = 0u64;
+            let mut iter_idx = 0usize;
+
+            for r in 0..rounds {
+                let each = (total_iters / (rounds * alive.len())).max(1);
+                for &ci in &alive {
+                    for _ in 0..each {
+                        if !pure_leaf && nodes >= cfg.budget {
+                            break;
+                        }
+                        let walk = Walk::new(tree, net.clone(), cpuct, pure_leaf, Some(ci));
+                        let (res, mut walk) = root.play_tree(games[iter_idx % games.len()].clone(), walk, per, stop);
+                        iter_idx += 1;
+                        match res {
+                            Ok(o) => {
+                                nodes += o.nodes.max(1);
+                                let v = eval_iteration(&o.game, &walk, d.seat, base, cfg, &net);
+                                walk.backup(v, d.seat);
+                            }
+                            Err(x) => nodes += x.max(1),
+                        }
+                        tree = walk.tree;
+                    }
+                }
+                let most = tree.nodes[0].kids.iter().map(|k| k.n).max().unwrap_or(0) as usize;
+                let key = |i: usize| {
+                    let k = &tree.nodes[0].kids[i];
+                    let q = if k.n > 0 { (k.w / k.n as f64) as f32 } else { v_prior as f32 };
+                    g[i] + out.logits[i] + sigma(q, most)
+                };
+                alive.sort_by(|a, b| key(*b).total_cmp(&key(*a)));
+                if r + 1 < rounds {
+                    alive.truncate(alive.len().div_ceil(2));
+                }
+            }
+
+            // Completed-Q improved policy target (Gumbel AlphaZero, Danihelka et al. 2022)
+            let root_node = &tree.nodes[0];
+            let most = root_node.kids.iter().map(|k| k.n).max().unwrap_or(0) as usize;
+            let total_n: u32 = root_node.kids.iter().map(|k| k.n).sum();
+            let mut sum_p_vis = 0.0f64;
+            let mut sum_p_q = 0.0f64;
+            for (k, &p) in root_node.kids.iter().zip(&prior) {
+                if k.n > 0 {
+                    sum_p_vis += p as f64;
+                    sum_p_q += (p as f64) * (k.w / k.n as f64);
+                }
+            }
+            let v_mix = if total_n > 0 && sum_p_vis > 1e-6 {
+                (v_prior + total_n as f64 * (sum_p_q / sum_p_vis)) / (1.0 + total_n as f64)
+            } else {
+                v_prior
+            };
+            let improved: Vec<f32> = (0..n)
+                .map(|i| {
+                    let k = &root_node.kids[i];
+                    let q = if k.n > 0 { (k.w / k.n as f64) as f32 } else { v_mix as f32 };
+                    out.logits[i] + sigma(q, most)
+                })
+                .collect();
+            self.last = net::softmax(&improved, 1.0);
+            self.last_val = Some((v_mix as f32).clamp(0.0, 1.0));
+            return Some(Choice { answer: d.candidates[alive[0]].clone(), nodes });
+        }
+
+        // Classic PUCT ISMCTS (with light exploration noise at root when temp > 0)
+        let root_prior: Vec<f32> = if temp > 0 && prior.len() > 1 {
+            let exp_noise: Vec<f32> = (0..prior.len()).map(|_| -(uniform(&mut self.rng).max(1e-7)).ln()).collect();
+            let ns: f32 = exp_noise.iter().sum::<f32>().max(1e-7);
+            prior.iter().zip(&exp_noise).map(|(p, e)| 0.8 * p + 0.2 * (e / ns)).collect()
+        } else {
+            prior.clone()
+        };
         let kids = d
             .candidates
             .iter()
             .cloned()
-            .zip(prior.iter().copied())
+            .zip(root_prior.iter().copied())
             .map(|(answer, prior)| Kid { answer, prior, n: 0, w: 0.0, node: None })
             .collect();
         let mut tree = Tree { nodes: vec![Node { seat: d.seat, kids, n: 0 }] };
-        let cpuct = cfg.cpuct as f32 / 1000.0;
         let mut nodes = 0u64;
         for it in 0..cfg.iters.max(1) as usize {
-            if nodes >= cfg.budget {
+            if !pure_leaf && nodes >= cfg.budget {
                 break;
             }
-            let walk = Walk::new(tree, net.clone(), cpuct);
+            let walk = Walk::new(tree, net.clone(), cpuct, pure_leaf, None);
             let (res, mut walk) = root.play_tree(games[it % games.len()].clone(), walk, per, stop);
             match res {
                 Ok(o) => {
                     nodes += o.nodes.max(1);
-                    walk.backup(crate::eval::value_with(&o.game, d.seat, base, cfg), d.seat);
+                    let v = eval_iteration(&o.game, &walk, d.seat, base, cfg, &net);
+                    walk.backup(v, d.seat);
                 }
                 Err(x) => nodes += x.max(1),
             }
@@ -194,17 +368,24 @@ impl DecisionPolicy for Ismcts {
         }
         let visits: Vec<f32> = tree.nodes[0].kids.iter().map(|k| k.n as f32).collect();
         let total: f32 = visits.iter().sum();
+        let wsum: f64 = tree.nodes[0].kids.iter().map(|k| k.w).sum();
         self.last = if total > 0.0 {
+            self.last_val = Some(((wsum / total as f64) as f32).clamp(0.0, 1.0));
             // ties in visits go to the likelier candidate under the network
             visits.iter().zip(&prior).map(|(v, p)| (v + p * 1e-3) / (total + 1e-3)).collect()
         } else {
+            self.last_val = Some(v_prior as f32);
             prior
         };
-        let i = pick(&self.last, cfg.temp, &mut self.rng);
+        let i = pick(&self.last, temp, &mut self.rng);
         Some(Choice { answer: d.candidates[i].clone(), nodes })
     }
 
     fn last_policy(&self) -> Option<&[f32]> {
         (!self.last.is_empty()).then_some(&self.last[..])
+    }
+
+    fn last_value(&self) -> Option<f32> {
+        self.last_val
     }
 }

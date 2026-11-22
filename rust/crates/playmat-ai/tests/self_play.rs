@@ -159,6 +159,16 @@ fn the_rust_transformer_matches_pytorch() {
     assert_eq!(cases["sha"].as_str().unwrap(), sha(&bytes));
 }
 
+/// Upgraded transformer (dedicated 2-layer value MLP with max-pool + glob skip, and tanh-GELU)
+#[test]
+fn the_rust_transformer_v2_matches_pytorch() {
+    let bytes = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/tx_v2_small.pmnet")).unwrap();
+    let net = Net::parse("tx_v2_small", &bytes).unwrap();
+    assert!(matches!(net, Net::Tx(_)));
+    let cases = parity(&net, "net_parity_tx_v2.json");
+    assert_eq!(cases["sha"].as_str().unwrap(), sha(&bytes));
+}
+
 /// Checks `net` against a fixture `parity.py` wrote, and gives the fixture
 fn parity(net: &Net, fixture: &str) -> serde_json::Value {
     let text = std::fs::read_to_string(format!("{}/tests/{fixture}", env!("CARGO_MANIFEST_DIR"))).unwrap();
@@ -203,11 +213,13 @@ fn network_policies_play_whole_games() {
     let db = playmat_engine::cards();
     let (a, b) = decks();
     // the last: Gumbel with the network answering inside the playouts too
-    for (kind, hide, rollout) in [
-        (PolicyKind::Net, false, None),
-        (PolicyKind::NetSearch, true, None),
-        (PolicyKind::Gumbel, true, Some("builtin".to_string())),
-        (PolicyKind::Ismcts, true, Some("builtin".to_string())),
+    for (kind, hide, rollout, gumbel_root, leaf_blend) in [
+        (PolicyKind::Net, false, None, false, 0),
+        (PolicyKind::NetSearch, true, None, false, 0),
+        (PolicyKind::Gumbel, true, Some("builtin".to_string()), false, 0),
+        (PolicyKind::Ismcts, true, Some("builtin".to_string()), false, 0),
+        (PolicyKind::Ismcts, true, None, true, 1000),
+        (PolicyKind::Ismcts, true, Some("builtin".to_string()), true, 500),
     ] {
         let cfg = Config {
             policy: kind,
@@ -218,6 +230,10 @@ fn network_policies_play_whole_games() {
             temp: 0,
             threads: 1,
             rollout,
+            gumbel_root,
+            leaf_blend,
+            iters: 16,
+            consider: 4,
             ..Config::default()
         };
         let mut game = new_duel(&db, [&a, &b], 11, 0).unwrap();

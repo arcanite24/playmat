@@ -50,7 +50,7 @@ class Net(nn.Module):
         g = F.relu(self.glob1(b["glob"]))
         return F.relu(self.trunk2(F.relu(self.trunk1(torch.cat([p, g], -1)))))
 
-    def forward(self, b):
+    def forward(self, b, return_vfeat=False):
         """-> logits [B, K] (masked to -inf past each row's actions), value logit [B], state h [B, trunk]"""
         h = self.state(b)
         v = self.value(h).squeeze(-1)
@@ -58,6 +58,8 @@ class Net(nn.Module):
         q = self.query(h).unsqueeze(1)
         logits = (q * a).sum(-1) + self.abias(a).squeeze(-1)
         logits = logits.masked_fill(~b["act_mask"], -1e9)
+        if return_vfeat:
+            return logits, v, h, h
         return logits, v, h
 
     def belief_logits(self, h, pool_ids):
@@ -123,17 +125,47 @@ class CardEmb(nn.Module):
         return F.embedding(ids, self.weight) + F.embedding(ids, self.text) @ self.proj
 
 
+class AuxHead(nn.Module):
+    """Training-only auxiliary positional head (predicts turns remaining and final life diff); never exported."""
+
+    def __init__(self, in_dim, hidden=128):
+        super().__init__()
+        self.fc1 = nn.Linear(in_dim, hidden)
+        self.fc2 = nn.Linear(hidden, 2)
+
+    def forward(self, x):
+        return self.fc2(F.gelu(self.fc1(x)))
+
+
+def _gelu(x):
+    return F.gelu(x, approximate="tanh")
+
+
 class Tx(nn.Module):
     """The transformer network (#400 R2): a global token and one token per entity through `layers` pre-norm
     self-attention blocks; each candidate attends to the tokens once. Same outputs as `Net`. `net.rs` (`Tx`) runs it
-    in plain Rust; everything here is written out by hand so the two match exactly."""
+    in plain Rust; everything here is written out by hand so the two match exactly.
 
-    def __init__(self, d=128, heads=4, layers=3, ff=256, dim=32, trunk=128, text=0):
+    Optional extensions (all default off so older checkpoints load identically):
+    - `val_mlp=1`: dedicated 2-layer value MLP reading `[t[:, 0], mean_ent, max_ent, glob]` with LayerNorm & dropout
+    - `gelu=1`: tanh-approximated GELU instead of ReLU in FFN / trunk / value layers
+    - `drop`: training-only dropout rate in transformer blocks (0.0 at eval/export)
+    """
+
+    def __init__(self, d=128, heads=4, layers=3, ff=256, dim=32, trunk=128, text=0, val_mlp=0, gelu=0, drop=0.0):
         super().__init__()
         self.cfg = {"d": d, "heads": heads, "layers": layers, "ff": ff, "dim": dim, "trunk": trunk}
         if text:
             self.cfg["text"] = 1
+        if val_mlp:
+            self.cfg["val_mlp"] = 1
+        if gelu:
+            self.cfg["gelu"] = 1
         self.heads = heads
+        self.d = d
+        self.val_mlp = bool(val_mlp)
+        self.use_gelu = bool(gelu)
+        self.drop = nn.Dropout(drop) if drop > 0 else nn.Identity()
         self.emb = CardEmb(dim, bool(text))
         self.ent_in = nn.Linear(dim + ENT_F, d)
         self.glob_in = nn.Linear(GLOB_F, d)
@@ -145,7 +177,15 @@ class Tx(nn.Module):
             self.blocks.append(b)
         self.ln_f = nn.LayerNorm(d)
         self.trunk1 = nn.Linear(2 * d, trunk)
-        self.value = nn.Linear(trunk, 1)
+        if self.val_mlp:
+            v_in = 3 * d + GLOB_F
+            self.val_ln = nn.LayerNorm(v_in)
+            self.val_fc1 = nn.Linear(v_in, trunk)
+            self.val_drop = nn.Dropout(0.15)
+            self.val_fc2 = nn.Linear(trunk, 1)
+            self.value = None
+        else:
+            self.value = nn.Linear(trunk, 1)
         self.belief = nn.Linear(trunk, dim)
         self.act_in = nn.Linear(dim + ACT_F, d)
         self.act_ln = nn.LayerNorm(d)
@@ -153,6 +193,9 @@ class Tx(nn.Module):
         self.act_ff = nn.Linear(d, d)
         self.query = nn.Linear(trunk, d)
         self.abias = nn.Linear(d, 1)
+
+    def _act(self, x):
+        return _gelu(x) if self.use_gelu else F.relu(x)
 
     def _attend(self, q, k, v, mask):
         """q [B, Q, d], k/v [B, T, d], mask [B, T] (True = attend) -> [B, Q, d], `heads` heads"""
@@ -176,29 +219,46 @@ class Tx(nn.Module):
         for blk in self.blocks:
             y = blk.ln1(x)
             q, k, v = blk.qkv(y).chunk(3, -1)
-            x = x + blk.out(self._attend(q, k, v, mask))
-            x = x + blk.ff2(F.relu(blk.ff1(blk.ln2(x))))
+            x = x + self.drop(blk.out(self._attend(q, k, v, mask)))
+            x = x + self.drop(blk.ff2(self._act(blk.ff1(blk.ln2(x)))))
         return self.ln_f(x), mask
+
+    def _pool_val_features(self, t, mask, glob):
+        m = mask[:, 1:].unsqueeze(-1).float()
+        ent_t = t[:, 1:]
+        mean = (ent_t * m).sum(1) / m.sum(1).clamp(min=1)
+        mx = torch.where(m > 0, ent_t, torch.full_like(ent_t, -1e9)).max(1).values
+        mx = torch.where(m.sum(1) > 0, mx, torch.zeros_like(mx))
+        return torch.cat([t[:, 0], mean, mx, glob], -1), mean
 
     def state_tokens(self, b):
         t, mask = self.tokens(b)
         m = mask[:, 1:].unsqueeze(-1).float()
         mean = (t[:, 1:] * m).sum(1) / m.sum(1).clamp(min=1)
-        h = F.relu(self.trunk1(torch.cat([t[:, 0], mean], -1)))
+        h = self._act(self.trunk1(torch.cat([t[:, 0], mean], -1)))
         return h, t, mask
 
     def state(self, b):
         return self.state_tokens(b)[0]
 
-    def forward(self, b):
-        h, t, mask = self.state_tokens(b)
-        v = self.value(h).squeeze(-1)
+    def forward(self, b, return_vfeat=False):
+        t, mask = self.tokens(b)
+        vfeat, mean = self._pool_val_features(t, mask, b["glob"])
+        h = self._act(self.trunk1(torch.cat([t[:, 0], mean], -1)))
+        if self.val_mlp:
+            vh = self.val_drop(self._act(self.val_fc1(self.val_ln(vfeat))))
+            v = self.val_fc2(vh).squeeze(-1)
+        else:
+            v = self.value(h).squeeze(-1)
         a = self.act_in(torch.cat([self.emb(b["act_ids"]), b["acts"]], -1))
         k, vv = self.act_kv(t).chunk(2, -1)
         a = a + self.act_o(self._attend(self.act_q(self.act_ln(a)), k, vv, mask))
-        a = a + F.relu(self.act_ff(a))
+        a = a + self._act(self.act_ff(a))
         logits = (self.query(h).unsqueeze(1) * a).sum(-1) + self.abias(a).squeeze(-1)
-        return logits.masked_fill(~b["act_mask"], -1e9), v, h
+        logits = logits.masked_fill(~b["act_mask"], -1e9)
+        if return_vfeat:
+            return logits, v, h, vfeat
+        return logits, v, h
 
     def belief_logits(self, h, pool_ids):
         return (self.belief(h).unsqueeze(1) * self.emb(pool_ids)).sum(-1)
@@ -223,12 +283,23 @@ def save_dir(net, d):
     json.dump(arch_of(net), open(f"{d}/arch.json", "w"))
 
 
-def load_dir(d, dev):
+def load_dir(d, dev, upgrade_val_mlp=False, drop=0.0):
     """The network in run folder `d` (arch.json says which; the first network without one)"""
     import os
     spec = json.load(open(f"{d}/arch.json")) if os.path.exists(f"{d}/arch.json") else {"arch": "mlp"}
+    upgraded = False
+    if upgrade_val_mlp and spec.get("arch") == "tx" and not spec.get("val_mlp"):
+        spec["val_mlp"] = 1
+        upgraded = True
+    if spec.get("arch") == "tx" and drop > 0:
+        spec["drop"] = drop
     net = build(spec).to(dev)
-    net.load_state_dict(torch.load(f"{d}/net.pt", map_location=dev))
+    sd = torch.load(f"{d}/net.pt", map_location=dev)
+    if upgraded:
+        sd = {k: v for k, v in sd.items() if not k.startswith("value.")}
+        net.load_state_dict(sd, strict=False)
+    else:
+        net.load_state_dict(sd)
     return net
 
 

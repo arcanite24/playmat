@@ -26,8 +26,17 @@ pub fn mix(state: &mut u64) -> u64 {
     z ^ (z >> 31)
 }
 
-fn uniform(state: &mut u64) -> f32 {
+pub(crate) fn uniform(state: &mut u64) -> f32 {
     (mix(state) >> 40) as f32 / (1u64 << 24) as f32
+}
+
+/// Effective sampling temperature: `cfg.temp` when `temp_turn == 0` or `turn <= temp_turn`, else 0 (greedy)
+pub(crate) fn effective_temp(cfg: &Config, turn: u32) -> u32 {
+    if cfg.temp_turn > 0 && turn > cfg.temp_turn {
+        0
+    } else {
+        cfg.temp
+    }
 }
 
 /// An index drawn from `p`
@@ -81,9 +90,10 @@ impl DecisionPolicy for NetPolicy {
         let net = net::of(&d.config.net);
         let o = obs::observe(d.game, d.seat, d.query, d.candidates);
         let out = net.forward(&o);
-        let t = if d.config.temp == 0 { 1.0 } else { d.config.temp as f32 / 1000.0 };
+        let temp = effective_temp(d.config, d.game.turn);
+        let t = if temp == 0 { 1.0 } else { temp as f32 / 1000.0 };
         self.last = softmax(&out.logits, t);
-        let i = pick(&self.last, d.config.temp, &mut self.rng);
+        let i = pick(&self.last, temp, &mut self.rng);
         Some(Choice { answer: d.candidates[i].clone(), nodes: 0 })
     }
 
@@ -96,11 +106,12 @@ impl DecisionPolicy for NetPolicy {
 pub struct NetSearch {
     rng: u64,
     last: Vec<f32>,
+    last_val: Option<f32>,
 }
 
 impl NetSearch {
     pub fn new(seed: u64) -> NetSearch {
-        NetSearch { rng: seed, last: Vec::new() }
+        NetSearch { rng: seed, last: Vec::new(), last_val: None }
     }
 }
 
@@ -186,17 +197,19 @@ impl DecisionPolicy for NetSearch {
 
     fn decide(&mut self, d: &Decision) -> Option<Choice> {
         self.last.clear();
+        self.last_val = None;
         if skipped(d.query) {
             return None;
         }
         let cfg = d.config;
+        let temp = effective_temp(cfg, d.game.turn);
         let net = net::of(&cfg.net);
         let o = obs::observe(d.game, d.seat, d.query, d.candidates);
         let out = net.forward(&o);
         let prior = softmax(&out.logits, 1.0);
         let Some(root) = d.root else {
             self.last = prior;
-            let i = pick(&self.last, cfg.temp, &mut self.rng);
+            let i = pick(&self.last, temp, &mut self.rng);
             return Some(Choice { answer: d.candidates[i].clone(), nodes: 0 });
         };
         // the likelier candidates, at most 4, that together hold most of the policy
@@ -246,13 +259,21 @@ impl DecisionPolicy for NetSearch {
             prior.iter().zip(&q).map(|(p, v)| if v.is_nan() { *p } else { p * (eta * (v - mean)).exp() }).collect();
         let s: f32 = post.iter().sum();
         post.iter_mut().for_each(|v| *v /= s);
+        let q_weighted: f32 = post.iter().zip(&q).map(|(p, v)| p * if v.is_nan() { mean } else { *v }).sum();
+        if !known.is_empty() && q_weighted.is_finite() {
+            self.last_val = Some(q_weighted.clamp(0.0, 1.0));
+        }
         self.last = post;
-        let i = pick(&self.last, cfg.temp, &mut self.rng);
+        let i = pick(&self.last, temp, &mut self.rng);
         Some(Choice { answer: d.candidates[i].clone(), nodes })
     }
 
     fn last_policy(&self) -> Option<&[f32]> {
         (!self.last.is_empty()).then_some(&self.last[..])
+    }
+
+    fn last_value(&self) -> Option<f32> {
+        self.last_val
     }
 }
 
@@ -263,16 +284,17 @@ impl DecisionPolicy for NetSearch {
 pub struct Gumbel {
     rng: u64,
     last: Vec<f32>,
+    last_val: Option<f32>,
 }
 
 impl Gumbel {
     pub fn new(seed: u64) -> Gumbel {
-        Gumbel { rng: seed, last: Vec::new() }
+        Gumbel { rng: seed, last: Vec::new(), last_val: None }
     }
 }
 
 /// `σ(q) = (50 + most plays) · 0.1 · q`, the Gumbel AlphaZero scale for values in 0..1
-fn sigma(q: f32, most: usize) -> f32 {
+pub(crate) fn sigma(q: f32, most: usize) -> f32 {
     (50.0 + most as f32) * 0.1 * q
 }
 
@@ -283,21 +305,23 @@ impl DecisionPolicy for Gumbel {
 
     fn decide(&mut self, d: &Decision) -> Option<Choice> {
         self.last.clear();
+        self.last_val = None;
         if skipped(d.query) {
             return None;
         }
         let cfg = d.config;
+        let temp = effective_temp(cfg, d.game.turn);
         let net = net::of(&cfg.net);
         let o = obs::observe(d.game, d.seat, d.query, d.candidates);
         let out = net.forward(&o);
         let n = out.logits.len();
         let Some(root) = d.root.filter(|_| n > 1) else {
             self.last = softmax(&out.logits, 1.0);
-            let i = pick(&self.last, cfg.temp, &mut self.rng);
+            let i = pick(&self.last, temp, &mut self.rng);
             return Some(Choice { answer: d.candidates[i].clone(), nodes: 0 });
         };
         let g: Vec<f32> = (0..n)
-            .map(|_| if cfg.temp == 0 { 0.0 } else { -(-(uniform(&mut self.rng).max(1e-9)).ln()).ln() })
+            .map(|_| if temp == 0 { 0.0 } else { -(-(uniform(&mut self.rng).max(1e-9)).ln()).ln() })
             .collect();
         let mut alive: Vec<usize> = (0..n).collect();
         alive.sort_by(|a, b| (g[*b] + out.logits[*b]).total_cmp(&(g[*a] + out.logits[*a])));
@@ -347,11 +371,18 @@ impl DecisionPolicy for Gumbel {
             })
             .collect();
         self.last = softmax(&improved, 1.0);
+        if plays[alive[0]] > 0 {
+            self.last_val = Some(((sum[alive[0]] / plays[alive[0]] as f64) as f32).clamp(0.0, 1.0));
+        }
         Some(Choice { answer: d.candidates[alive[0]].clone(), nodes })
     }
 
     fn last_policy(&self) -> Option<&[f32]> {
         (!self.last.is_empty()).then_some(&self.last[..])
+    }
+
+    fn last_value(&self) -> Option<f32> {
+        self.last_val
     }
 }
 
@@ -373,6 +404,8 @@ pub struct Step {
     pub target: Vec<f32>,
     /// log of the chosen answer's chance under the policy that chose it
     pub logp: f32,
+    /// search's estimated root win probability (0..1), or NaN if none
+    pub qval: f32,
 }
 
 /// The seats' recorded decisions, shared with the game's runner
@@ -445,6 +478,7 @@ impl DecisionPolicy for Recording {
             pool_in_hand: pool.iter().map(|(_, h)| *h).collect(),
             chosen,
             logp: target[chosen].max(1e-8).ln(),
+            qval: self.inner.last_value().unwrap_or(f32::NAN),
             target,
         };
         self.sink.lock().unwrap().push(step);
@@ -453,6 +487,10 @@ impl DecisionPolicy for Recording {
 
     fn last_policy(&self) -> Option<&[f32]> {
         self.inner.last_policy()
+    }
+
+    fn last_value(&self) -> Option<f32> {
+        self.inner.last_value()
     }
 }
 
@@ -492,7 +530,7 @@ pub struct Shard {
 }
 
 pub const META: usize = 10;
-const COLUMNS: [&str; 13] = [
+const COLUMNS: [&str; 14] = [
     "meta.i32",
     "logp.f32",
     "glob.f16",
@@ -505,6 +543,7 @@ const COLUMNS: [&str; 13] = [
     "hid_ids.u16",
     "pool.u16",
     "pool_hand.u8",
+    "qval.f16",
     "games.jsonl",
 ];
 
@@ -513,10 +552,10 @@ impl Shard {
         std::fs::create_dir_all(dir)?;
         let open = |c: &str| std::fs::File::create(format!("{dir}/{name}.{c}")).map(std::io::BufWriter::new);
         let mut files = Vec::new();
-        for c in &COLUMNS[..12] {
+        for c in &COLUMNS[..13] {
             files.push(open(c)?);
         }
-        Ok(Shard { files, games: open(COLUMNS[12])?, steps: 0 })
+        Ok(Shard { files, games: open(COLUMNS[13])?, steps: 0 })
     }
 
     /// Writes one game's decisions and its result (`result[seat]`: 1 won, 0 lost, 0.5 a draw)
@@ -559,6 +598,7 @@ impl Shard {
             f[9].write_all(&u(&s.hidden_ids))?;
             f[10].write_all(&u(&s.pool))?;
             f[11].write_all(&s.pool_in_hand.iter().map(|b| *b as u8).collect::<Vec<u8>>())?;
+            f[12].write_all(&f16(s.qval).to_le_bytes())?;
         }
         self.steps += steps.len();
         let mut line = info;

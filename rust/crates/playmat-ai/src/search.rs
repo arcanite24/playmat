@@ -57,6 +57,12 @@ pub struct Config {
     pub cpuct: u32,
     /// `ismcts`: at most this many iterations (playouts) a decision, whatever the budget
     pub iters: u32,
+    /// `ismcts`: weight per thousand on the expanded leaf's neural value vs rollout eval (0: rollout only, 1000: pure value-leaf, no rollout)
+    pub leaf_blend: u32,
+    /// `ismcts`: use Gumbel-top-k sequential halving at the root and completed-Q policy targets
+    pub gumbel_root: bool,
+    /// apply `temp` only on turns `<= temp_turn` (0: apply on all turns)
+    pub temp_turn: u32,
 }
 
 impl Default for Config {
@@ -93,6 +99,9 @@ impl Default for Config {
             consider: 4,
             cpuct: 300,
             iters: 256,
+            leaf_blend: 0,
+            gumbel_root: false,
+            temp_turn: 0,
         }
     }
 }

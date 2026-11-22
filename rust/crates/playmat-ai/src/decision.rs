@@ -118,6 +118,10 @@ pub trait DecisionPolicy: Send {
     fn last_policy(&self) -> Option<&[f32]> {
         None
     }
+    /// The search's estimated win probability (0..1) at its last decision, when available (`qval.f16` target)
+    fn last_value(&self) -> Option<f32> {
+        None
+    }
 }
 
 /// The game at the last priority question and the answers since: what a copy replays to reach the question.
@@ -394,6 +398,9 @@ impl Decider for Playout {
                 }
                 a = t;
                 by_tree = true;
+            } else if w.should_stop() {
+                self.stopped = true;
+                return Answer::Stop;
             }
         }
         if let (false, Some(net)) = (by_tree, &self.rollout) {
