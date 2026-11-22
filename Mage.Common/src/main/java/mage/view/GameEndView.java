@@ -102,6 +102,9 @@ public class GameEndView implements Serializable {
         } else {
             matchInfo = new StringBuilder("You need ").append(winsNeeded - wins == 1 ? "one more win " : winsNeeded - wins + " more wins ").append("to win the match.").toString();
         }
+        if (game.getTechnicalErrorReason() != null && !game.getTechnicalErrorReason().isEmpty()) {
+            additonalText.append("Game ended early due to a server error. ");
+        }
         additionalInfo = additonalText.toString();
 
     }

@@ -183,11 +183,28 @@ events.on('START_GAME', (message) => {
   api.gameJoin(gameId).catch((error) => notify('Could not join the game', String(error?.message ?? error), 'error'));
 });
 
-// errors also reach the game log, but a log line is easy to miss when an action silently fails
+/** Keep error toasts readable when the server attaches a full stack trace (the full text stays in the game log). */
+function summarizeGameError(raw: string | null | undefined): string {
+  if (!raw) return '';
+  const lines = raw.split(/\r?\n/).map((line) => stripMarkup(line)).filter(Boolean);
+  if (lines.length === 0) return '';
+  if (lines.length >= 2 && /^game error occurred:?$/i.test(lines[0])) {
+    return `${lines[0]} ${lines[1]}`;
+  }
+  return lines[0];
+}
+
+// errors and personal notices also reach the game log, but a log line is easy to miss when a cast reverts (#424)
 events.on('GAME_ERROR', (message, event) => {
   if (event.objectId && !useGames.getState().sessions[event.objectId]) return;
-  const text = stripMarkup(message);
+  const text = summarizeGameError(message);
   if (text) notify('Game error', text, 'error');
+});
+
+events.on('GAME_INFORM_PERSONAL', (message, event) => {
+  if (event.objectId && !useGames.getState().sessions[event.objectId]) return;
+  const text = stripMarkup(message?.message);
+  if (text) notify('Game notice', text, 'info');
 });
 
 // the server names the watched game in the event's object id; watching starts once the client asks for the game

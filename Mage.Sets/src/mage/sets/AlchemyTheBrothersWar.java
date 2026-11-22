@@ -23,6 +23,7 @@ public final class AlchemyTheBrothersWar extends ExpansionSet {
         this.hasBoosters = false;
         this.hasBasicLands = false;
 
+        cards.add(new SetCardInfo("Fallaji Antiquarian", 8, Rarity.RARE, mage.cards.f.FallajiAntiquarian.class));
         cards.add(new SetCardInfo("Gixian Recycler", 27, Rarity.RARE, mage.cards.g.GixianRecycler.class));
     }
 }

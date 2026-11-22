@@ -23,6 +23,7 @@ public class SpellStack extends ArrayDeque<StackObject> {
     private static final Logger logger = Logger.getLogger(SpellStack.class);
 
     protected Date dateLastAdded;
+    protected long lastAddedSeq;
 
     public SpellStack() {
     }
@@ -32,6 +33,8 @@ public class SpellStack extends ArrayDeque<StackObject> {
         for (StackObject spell : stack) {
             this.addLast(spell.copy());
         }
+        this.dateLastAdded = stack.dateLastAdded;
+        this.lastAddedSeq = stack.lastAddedSeq;
     }
 
     //resolve top StackObject
@@ -156,16 +159,22 @@ public class SpellStack extends ArrayDeque<StackObject> {
     public void push(StackObject e) {
         super.push(e);
         this.dateLastAdded = new Date();
+        this.lastAddedSeq++;
     }
 
     public void push(Game game, StackObject e) {
         super.push(e);
         this.dateLastAdded = new Date();
+        this.lastAddedSeq++;
         DataCollectorServices.getInstance().onTestsStackPush(game);
     }
 
     public Date getDateLastAdded() {
         return dateLastAdded;
+    }
+
+    public long getLastAddedSeq() {
+        return lastAddedSeq;
     }
 
     @Override

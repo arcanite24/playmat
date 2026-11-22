@@ -469,6 +469,13 @@ public interface Game extends MageItem, Serializable, Copyable<Game> {
      */
     void endWithTechnicalWinner(String reason);
 
+    /**
+     * Non-null if the game ended via {@link #endWithTechnicalWinner(String)}.
+     */
+    default String getTechnicalErrorReason() {
+        return null;
+    }
+
     void cleanUp();
 
     /*
