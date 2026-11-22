@@ -391,6 +391,52 @@ describe('GameOverOverlay', () => {
     expect(screen.getByRole('heading', { name: 'Defeat' })).toBeTruthy();
     expect(screen.getByText('You lost the game.')).toBeTruthy();
   });
+
+  test('View board collapses the dimming overlay into a compact return bar and restores it (#427)', () => {
+    const onLeave = vi.fn();
+    render(<GameOverOverlay message="You lost the game" endInfo={null} myName="me" onLeave={onLeave} />);
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    fireEvent.click(button('View board'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(button('Back to result')).toBeTruthy();
+    fireEvent.click(button('Back to Play'));
+    expect(onLeave).toHaveBeenCalledTimes(1);
+    fireEvent.click(button('Back to result'));
+    expect(screen.getByRole('dialog')).toBeTruthy();
+  });
+
+  test('shows the AI opponent deck name(s) from endInfo or client fallback (#416)', () => {
+    const { rerender } = render(
+      <GameOverOverlay
+        message="You won the game"
+        endInfo={{ won: true, opponentDecks: { 'AI Opponent': 'Mono-Red Aggro' } }}
+        myName="me"
+        onLeave={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Opponent's deck: Mono-Red Aggro")).toBeTruthy();
+
+    rerender(
+      <GameOverOverlay
+        message="You lost the game"
+        endInfo={{ won: false, opponentDecks: { 'AI 1': 'Atraxa', 'AI 2': 'Urza' } }}
+        myName="me"
+        onLeave={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('Opponent decks: AI 1: Atraxa · AI 2: Urza')).toBeTruthy();
+
+    rerender(
+      <GameOverOverlay
+        message="You won the game"
+        endInfo={null}
+        myName="me"
+        onLeave={vi.fn()}
+        opponentDecks={{ 'AI Opponent': 'Azorius Control' }}
+      />,
+    );
+    expect(screen.getByText("Opponent's deck: Azorius Control")).toBeTruthy();
+  });
 });
 
 describe('dungeons (#385)', () => {

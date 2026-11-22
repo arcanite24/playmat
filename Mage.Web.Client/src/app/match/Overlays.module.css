@@ -316,6 +316,45 @@
   background: radial-gradient(60% 50% at 50% 45%, rgb(var(--mat-rgb) / 0.6), rgb(var(--void-rgb) / 0.9));
 }
 
+.opponentDeck {
+  padding: 6px 18px;
+  border-radius: 999px;
+  background: rgb(var(--mat-rgb) / 0.72);
+  box-shadow: inset 0 0 0 1.5px var(--ink-faint);
+  color: var(--ink-strong);
+  font-size: 21px;
+  font-weight: 600;
+}
+
+/* compact floating return bar while inspecting the final board unobstructed (#427) */
+.boardBar {
+  position: absolute;
+  right: 40px;
+  bottom: 40px;
+  z-index: var(--z-overlay);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 18px;
+  border-radius: 16px;
+  background: rgb(var(--mat-rgb) / 0.92);
+  box-shadow: inset 0 0 0 1.5px var(--ink-faint), var(--shadow-held);
+  animation: place var(--dur-quick) var(--ease-place);
+}
+
+.boardResult {
+  font-family: var(--font-print);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: var(--tracking-print);
+  text-transform: uppercase;
+}
+
+:global([data-layout='tall']) .boardBar {
+  right: 24px;
+  bottom: calc(140px + var(--hand-raise, 0px));
+}
+
 /* the result, printed across the table */
 .endTitle {
   font-size: 200px;

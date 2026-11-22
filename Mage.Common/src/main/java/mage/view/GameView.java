@@ -70,6 +70,8 @@ public class GameView implements Serializable {
     private String activePlayerName = "";
     private final String priorityPlayerName;
     private final int turn;
+    /** true when it is day, false when it is night, null when neither day nor night (#407) */
+    private final Boolean daytime;
     private boolean special = false;
     private final boolean rollbackTurnsAllowed;
     private final MultiplayerAttackOption attackOption;
@@ -208,6 +210,7 @@ public class GameView implements Serializable {
         this.phase = state.getTurnPhaseType();
         this.step = state.getTurnStepType();
         this.turn = state.getTurnNum();
+        this.daytime = game.hasDayNight() ? game.checkDayNight(true) : null;
         this.activePlayerId = state.getActivePlayerId();
         if (state.getActivePlayerId() != null) {
             this.activePlayerName = state.getPlayer(state.getActivePlayerId()).getName();
@@ -330,6 +333,10 @@ public class GameView implements Serializable {
 
     public int getTurn() {
         return this.turn;
+    }
+
+    public Boolean getDaytime() {
+        return this.daytime;
     }
 
     public String getActivePlayerName() {

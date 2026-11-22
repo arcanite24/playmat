@@ -409,6 +409,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   // the rewards beat shows on the game-over screen itself (B277): leaving goes straight back, Details opens the screen
   const leave = useCallback(() => exit(false), [exit]);
   const deckId = usePlay((play) => play.deckId);
+  const playOpponentDecks = usePlay((play) => play.opponentDecks);
   // players see who is watching them too
   const watchers = useWatchers(state.gameId, mode === 'play' && !state.gameOver);
   // between games of a match the server deals the next game by itself: show the score, not a way out
@@ -665,6 +666,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
               turn={view?.turn ?? 0}
               started={!!view?.activePlayerId && !!view?.step}
               activeName={spectating ? view?.activePlayerName ?? null : null}
+              daytime={view?.daytime}
             />
 
             {board.me && seatHand && (
@@ -701,7 +703,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
             )}
 
             {mode === 'play' ? (
-              !overlayOpen && <ActionCluster
+              !overlayOpen && !state.gameOver && <ActionCluster
                 interaction={cornerInteraction}
                 awaiting={awaitingServer}
                 status={state.status}
@@ -748,6 +750,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
             <EngineBadge gameId={state.gameId} view={view} showNotice={mode === 'play' && !state.gameOver} />
             <GameMenu
               gameId={state.gameId}
+              currentTurn={view?.turn}
               quests={mode === 'play' && !state.gameOver}
               practice={mode === 'play' && !state.gameOver && !career && board.opponents.length > 0 && board.opponents.every((opponent) => opponent.player.isHuman === false)}
               solo={mode === 'play' && !state.gameOver && !career && !eventId && vsAi && (view?.turn ?? 0) > 0}
@@ -812,6 +815,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 onReview={mode === 'play' && vsAi && board.me ? () => setReviewing(true) : undefined}
                 rewards={rewardsAfter ? <Suspense fallback={null}><RewardsBeat gameId={state.gameId} onDetails={() => exit(true)} /></Suspense> : undefined}
                 stamps={stamps}
+                opponentDecks={vsAi && deckId ? playOpponentDecks : undefined}
               />
             )}
             {reviewing && (
@@ -1031,8 +1035,9 @@ const CONFIRM = {
   },
 } as const;
 
-function GameMenu({ gameId, quests, practice, solo, careerAssists, vsAi, onSaved, canConcede, onConcede, onLeave, rollback }: {
+function GameMenu({ gameId, currentTurn, quests, practice, solo, careerAssists, vsAi, onSaved, canConcede, onConcede, onLeave, rollback }: {
   gameId: string;
+  currentTurn?: number;
   /** playing (not watching or replaying) a game still running: the player's quests and what this game added */
   quests: boolean;
   /** a Career game against the computer, past the first turn: counted hints and one take-back, where the mode allows */
@@ -1134,7 +1139,7 @@ function GameMenu({ gameId, quests, practice, solo, careerAssists, vsAi, onSaved
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       {practice && <PracticeTools gameId={gameId} open={practiceOpen} onOpenChange={setPracticeOpen} />}
       {practice && <AdviceDialog gameId={gameId} open={adviceOpen} onOpenChange={setAdviceOpen} />}
-      {solo && <WhatIfDialog gameId={gameId} open={whatIfOpen} onOpenChange={setWhatIfOpen} />}
+      {solo && <WhatIfDialog gameId={gameId} open={whatIfOpen} onOpenChange={setWhatIfOpen} currentTurn={currentTurn} />}
       {careerAssists && !practice && (
         <AdviceDialog
           gameId={gameId}
