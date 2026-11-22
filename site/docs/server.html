@@ -131,6 +131,10 @@ docker compose -f ops/web/docker-compose.yml -f ops/web/docker-compose.proxy.yml
           port or name, set <code>XMAGE_ALLOWED_ORIGINS</code> and <code>XMAGE_PUBLIC_URL</code> to the address they open.
           Keep <code>TLS_MODE=external</code> in <code>.env</code>: the <a href="updates.html#button">Update button</a>
           reads it to keep using the override.</p>
+        <p>For a private LAN or Tailscale-only server over plain HTTP (no TLS proxy in front), set
+          <code>TLS_MODE=external</code> without the proxy override, publish port 80 (for example
+          <code>HTTP_PORT=8088</code>), and set <code>XMAGE_ALLOWED_ORIGINS</code> to the <code>http://</code> origin
+          players open. The published web image automatically connects to <code>/ws</code> on the same origin.</p>
 
         <h2 id="faq">Questions</h2>
         <h3 id="image-cache">How big does the card picture cache get?</h3>
@@ -146,9 +150,11 @@ docker compose -f ops/web/docker-compose.yml -f ops/web/docker-compose.proxy.yml
           disk. The first time after an update from before November 2026 it compacts <code>solo.db</code> and
           <code>career.db</code> once, which can take a minute on a big file; the log says how much it saved.</p>
         <p>The nightly backup keeps the newest <code>BACKUP_KEEP</code> copies (14), each about the size of the
-          databases. Check the last backup's size on the admin Overview and keep 14 of them well under your free disk;
-          lower <code>BACKUP_KEEP</code> on a small disk. A backup that would leave less than
-          <code>BACKUP_MIN_FREE_MB</code> (1024) free fails before it starts, and the staff channel hears about it.</p>
+          databases. Check the last backup's size and free disk on the admin Overview and keep 14 of them well under your
+          free disk; lower <code>BACKUP_KEEP</code> on a small disk. A backup that would leave less than
+          <code>BACKUP_MIN_FREE_MB</code> (1024) free fails before it starts, and when free space drops under
+          <code>XMAGE_DISK_MIN_FREE_MB</code> (3072 MB) or 5% of the disk, <code>/admin</code>, <code>/healthz</code>
+          and the staff channel warn that the disk is nearly full.</p>
         <h3 id="scryfall-mirror">Can the server take card pictures from my own Scryfall mirror?</h3>
         <p>Yes. Point the image cache at it in <code>.env</code> and run <code>up -d</code>:</p>
         <div class="terminal" role="region" aria-label="Settings for a Scryfall mirror">

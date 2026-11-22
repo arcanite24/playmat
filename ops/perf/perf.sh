@@ -176,8 +176,14 @@ new_run() {
   echo "perf: results in $RUN"
 }
 
+LOAD_EXIT=0
 vitest() { # vitest <log> <test filter> with env already exported
-  (cd "$CLIENT" && MAGE_SERVER_URL="$CLIENT_URL" npx vitest run "$2" --silent=false) >"$1" 2>&1 || true
+  LOAD_EXIT=0
+  (cd "$CLIENT" && MAGE_SERVER_URL="$CLIENT_URL" npx vitest run "$2" --silent=false) >"$1" 2>&1 || LOAD_EXIT=$?
+  echo "loadExitCode=$LOAD_EXIT" >>"$RUN/facts.txt"
+  if [ "$LOAD_EXIT" -ne 0 ]; then
+    echo "perf: the load failed (exit $LOAD_EXIT); see $1" >&2
+  fi
   grep -E '^\[perf-result\]|^\[load\]' -A6 "$1" || echo "perf: the load produced no result line; see $1"
 }
 
@@ -211,6 +217,10 @@ finish() {
     python3 "$HERE/perf.py" report "$JFR" "$RUN/recording.jfr" >"$RUN/report.txt" || echo "perf: JFR report failed"
   fi
   python3 "$HERE/perf.py" summarize "$RUN"
+  if [ "$LOAD_EXIT" -ne 0 ]; then
+    echo "perf: load exited $LOAD_EXIT; diagnostics saved in $RUN" >&2
+    exit 1
+  fi
 }
 
 # --- commands ----------------------------------------------------------------------------------------
@@ -286,7 +296,12 @@ case "$cmd" in
     # measure while every game is parked: past the hold turn, before the hold ends
     sleep $(( MAGE_PERF_HOLD_MS * 7 / 10000 ))
     snapshot held
-    wait "$load" || true
+    LOAD_EXIT=0
+    wait "$load" || LOAD_EXIT=$?
+    echo "loadExitCode=$LOAD_EXIT" >>"$RUN/facts.txt"
+    if [ "$LOAD_EXIT" -ne 0 ]; then
+      echo "perf: the load failed (exit $LOAD_EXIT); see $RUN/load.log" >&2
+    fi
     grep -E '^\[perf-result\]' "$RUN/load.log" || echo "perf: no result line; see $RUN/load.log"
     stop_sampler
     snapshot after
