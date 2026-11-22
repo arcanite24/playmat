@@ -74,12 +74,17 @@ function useGameChat(gameId: string, view: GameView | null, live: boolean, delay
       .then(async (id) => {
         if (cancelled || !id) return;
         await api.chatJoin(id, useSession.getState().userName);
+        if (cancelled) {
+          api.chatLeave(id).catch(() => undefined);
+          return;
+        }
         joined = id;
         setChatId(id);
       })
       .catch(() => undefined);
     return () => {
       cancelled = true;
+      setChatId(null);
       useEmotes.getState().clear();
       usePresence.getState().clear();
       if (joined) api.chatLeave(joined).catch(() => undefined);

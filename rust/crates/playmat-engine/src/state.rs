@@ -3443,12 +3443,15 @@ impl Game {
                     .flat_map(|s| self.player(s).graveyard.iter())
                     .filter(|id| self.filter_matches(filter, you, Some(source), **id))
                     .count() as i32,
-                // a source gone from the battlefield: its power as it last was there
+                // a source gone from the battlefield: its power/toughness as it last was there
                 Value::SourcePower => match self.obj(source).power_lki {
                     Some(p) if self.obj(source).zone != Zone::Battlefield => p,
                     _ => self.power_toughness(source).0,
                 },
-                Value::SourceToughness => self.power_toughness(source).1,
+                Value::SourceToughness => match self.obj(source).toughness_lki {
+                    Some(t) if self.obj(source).zone != Zone::Battlefield => t,
+                    _ => self.power_toughness(source).1,
+                },
                 // (`getSourcePermanentOrLKI`: as it last was on the battlefield, once it's gone)
                 Value::SourceMutatedCount => self.obj(source).merged.len() as i32,
                 Value::ControllerLife => self.player(you).life,

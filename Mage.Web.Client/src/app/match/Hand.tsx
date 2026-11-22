@@ -138,7 +138,7 @@ export function Hand({ cards, choosing = false, clickable, selected, pending = n
     }
     if (event.pointerType === 'touch' || faceDown || dragging || count === 0) return;
     const x = (event.clientX - event.currentTarget.getBoundingClientRect().left) / stage.scale;
-    const index = Math.max(0, Math.min(count - 1, Math.floor(x / spread)));
+    const index = Math.max(0, Math.min(count - 1, Math.floor((x + scroll) / spread)));
     if (keys[index] === hovered) return;
     setHovered(keys[index]);
     setZoom({ card: cards[index], x: event.clientX, y: event.clientY, sleeve });

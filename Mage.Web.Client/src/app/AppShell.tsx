@@ -59,16 +59,23 @@ const WelcomeDialog = lazy(() => import('./career/WelcomeDialog'));
 const SupportNotice = lazy(() => import('./support/SupportNotice').then((module) => ({ default: module.SupportNotice })));
 
 /** Planned maintenance, from the server info: when it starts, and what it means for new tables. */
-function MaintenanceChip() {
-  const t = useT();
+export function MaintenanceChip() {
   const info = useServerInfo();
   const at = info.data?.maintenanceAt ?? 0;
   if (!at) return null;
-  const now = info.dataUpdatedAt;
+  return <MaintenanceBanner key={at} at={at} message={info.data?.maintenanceMessage?.trim()} />;
+}
+
+function MaintenanceBanner({ at, message }: { at: number; message?: string }) {
+  const t = useT();
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, []);
   const label = at > now
     ? t('shell.maintenance', { time: new Date(at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) })
     : t('shell.maintenanceNow');
-  const message = info.data?.maintenanceMessage?.trim();
   return (
     <span className={styles.maintenance} role="status" title={[t('shell.maintenanceHint'), message].filter(Boolean).join(' ')}>
       <Wrench size={16} aria-hidden="true" />

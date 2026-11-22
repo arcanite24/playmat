@@ -4,6 +4,7 @@ import { toChatLines, type ChatLine } from '../../core/social/chatLine';
 import { useSession } from '../stores/session';
 
 const MAX_LINES = 200;
+const EMPTY_LINES: ChatLine[] = [];
 
 /**
  * A table's or an event's chat while it is on screen: found with `find`, joined, followed, and left again.
@@ -11,8 +12,10 @@ const MAX_LINES = 200;
  */
 export function useChatRoom(key: string | null, find: (key: string) => Promise<string | null>) {
   const [chatId, setChatId] = useState<string | null>(null);
-  const [lines, setLines] = useState<ChatLine[]>([]);
+  const [room, setRoom] = useState<{ key: string | null; lines: ChatLine[] }>({ key, lines: EMPTY_LINES });
   const loginCount = useSession((state) => state.loginCount);
+
+  useEffect(() => () => setRoom({ key: null, lines: EMPTY_LINES }), [key]);
 
   useEffect(() => {
     if (!key) return;
@@ -45,12 +48,18 @@ export function useChatRoom(key: string | null, find: (key: string) => Promise<s
     return events.on('CHATMESSAGE', (message, event) => {
       if (event.objectId !== chatId) return;
       const next = toChatLines(message, `${chatId}:${seq++}`);
-      if (next.length > 0) setLines((current) => [...current, ...next].slice(-MAX_LINES));
+      if (next.length > 0) {
+        setRoom((current) => ({
+          key,
+          lines: [...(current.key === key ? current.lines : EMPTY_LINES), ...next].slice(-MAX_LINES),
+        }));
+      }
     });
-  }, [chatId]);
+  }, [chatId, key]);
 
   const send = async (text: string) => {
     if (chatId && text.trim()) await api.chatSendMessage(chatId, useSession.getState().userName, text.trim());
   };
+  const lines = room.key === key ? room.lines : EMPTY_LINES;
   return { lines, ready: !!chatId, send };
 }

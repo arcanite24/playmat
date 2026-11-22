@@ -5,10 +5,11 @@ import { createFakeConnection } from '../../test/fakeConnection';
 
 async function load() {
   vi.resetModules();
-  vi.doMock('../connection', () => createFakeConnection());
+  const connection = createFakeConnection();
+  vi.doMock('../connection', () => connection);
   const { GameLog } = await import('./GameLog');
   const { useMatchUi } = await import('./matchUi');
-  return { GameLog, useMatchUi };
+  return { GameLog, useMatchUi, connection };
 }
 
 beforeEach(() => {
@@ -50,5 +51,22 @@ describe('GameLog (#249)', () => {
     });
     expect(useMatchUi.getState().logOpen).toBe(true);
     expect(localStorage.getItem('playmat.logPinned')).toBe('true');
+  });
+
+  test('leaves the game chat when unmounted while chatJoin is still in flight', async () => {
+    const { GameLog, connection } = await load();
+    let resolveJoin!: () => void;
+    connection.api.chatFindByGame = vi.fn(async () => 'chat-42');
+    connection.api.chatJoin = vi.fn(() => new Promise<void>((resolve) => { resolveJoin = resolve; }));
+    connection.api.chatLeave = vi.fn(async () => undefined);
+
+    const { unmount } = render(<GameLog gameId="g42" notices={[]} canChat view={null} />);
+    await vi.waitFor(() => expect(connection.api.chatJoin).toHaveBeenCalledWith('chat-42', expect.any(String)));
+
+    unmount();
+    expect(connection.api.chatLeave).not.toHaveBeenCalled();
+
+    resolveJoin();
+    await vi.waitFor(() => expect(connection.api.chatLeave).toHaveBeenCalledWith('chat-42'));
   });
 });
