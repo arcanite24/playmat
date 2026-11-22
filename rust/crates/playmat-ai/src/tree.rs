@@ -13,8 +13,19 @@ use crate::net::{self, Net};
 use crate::search::{candidates, Config};
 use crate::selfplay::{effective_temp, pick, sample_games, skipped, uniform};
 use playmat_engine::decide::{Answer, Query};
-use playmat_engine::state::{Game, Seat};
+use playmat_engine::state::{Game, Seat, Step};
 use std::sync::Arc;
+
+/// True when no spell/ability is pending on the stack and we are not mid-combat:
+/// pure value-leaf evaluation waits until the current stack/combat resolves (quiescence search).
+#[inline]
+fn quiescent(game: &Game) -> bool {
+    game.stack.is_empty()
+        && !matches!(
+            game.step,
+            Some(Step::DeclareAttackers | Step::DeclareBlockers | Step::FirstCombatDamage | Step::CombatDamage)
+        )
+}
 
 /// Monotonic Q-value transformation for Gumbel-ISMCTS (`c_visit = 50, c_scale = 0.25`):
 /// strong enough that a proven win (Q=1 vs Q=0) overcomes an overconfident prior (clamped log-prior >= -6.9).
@@ -58,6 +69,9 @@ pub struct Walk {
     /// Value logit (as probability 0..1) of the newly expanded leaf, with its seat
     pub leaf_value: Option<(Seat, f64)>,
     stop_now: bool,
+    /// In pure-leaf mode, finish resolving an active stack or combat step before evaluating the leaf
+    quiesce: bool,
+    q_steps: u32,
 }
 
 impl Walk {
@@ -73,6 +87,8 @@ impl Walk {
             root_pick,
             leaf_value: None,
             stop_now: false,
+            quiesce: false,
+            q_steps: 0,
         }
     }
 
@@ -83,6 +99,23 @@ impl Walk {
 
     /// The tree's answer to this question, or `None` to leave it to the playout (or stop in pure-leaf mode)
     pub fn step(&mut self, game: &Game, seat: Seat, q: &Query, quick: &Answer) -> Option<Answer> {
+        if self.quiesce {
+            self.q_steps += 1;
+            if quiescent(game) || self.q_steps >= 24 {
+                let s = net::score(&self.net, game, seat);
+                let p = if s >= crate::eval::WIN {
+                    1.0
+                } else if s <= crate::eval::LOSE {
+                    0.0
+                } else {
+                    crate::fitted::probability(s)
+                };
+                self.leaf_value = Some((seat, p));
+                self.stop_now = true;
+                self.quiesce = false;
+            }
+            return None;
+        }
         let at = self.at?;
         if skipped(q) {
             return None;
@@ -131,7 +164,13 @@ impl Walk {
             self.expanded = true;
             if self.pure_leaf {
                 self.at = None;
-                self.stop_now = true;
+                if quiescent(game) {
+                    self.stop_now = true;
+                } else {
+                    // Mid-stack or mid-combat: let quick answers finish resolving the stack/combat before scoring
+                    self.leaf_value = None;
+                    self.quiesce = true;
+                }
                 return None;
             }
         } else if self.tree.nodes[at].seat != seat {

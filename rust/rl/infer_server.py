@@ -1,8 +1,8 @@
 """Batched GPU inference server for Rust `selfplay` (`net=tcp://127.0.0.1:PORT`).
 
-Many Rust game threads (e.g. `--jobs 64`) send observations through a single `BatchClient` in `net.rs` over loopback
-TCP; this server runs one bf16/fp32 batched PyTorch forward pass on CUDA (or MPS) and returns `(value, logits, h)`.
-At connection start it sends the embedding table and belief linear layer once so `Net::belief` stays local in Rust.
+Zero-Python-loop flat protocol: Rust's `BatchClient` pre-pads and packs each batch into 7 contiguous arrays, so this
+server slices directly with zero-copy `np.frombuffer`, runs one bf16 batched PyTorch forward pass on CUDA (or MPS),
+and sends back flat `(v, logits, h)` arrays in one write.
 
     python infer_server.py --dir runs/loop5/r8 --port 18400 [--compile]
 """
@@ -63,53 +63,40 @@ class InferEngine:
         self.batches = 0
         self.items = 0
 
-    def forward_batch(self, globs, ent_ids_l, ents_l, act_ids_l, acts_l):
-        B = len(globs)
-        max_e = max((len(x) for x in ent_ids_l), default=0)
-        # Bucket padded widths so CUDA/MPS allocator & torch.compile only see a handful of shapes
-        w_e = max(8, ((max_e + 7) // 8) * 8)
-        max_a = max((len(x) for x in act_ids_l), default=0)
-        w_a = max(4, ((max_a + 3) // 4) * 4)
-
-        glob = np.stack(globs, axis=0)
-        ents = np.zeros((B, w_e, ENT_F), dtype=np.float32)
-        eids = np.zeros((B, w_e), dtype=np.int64)
-        em = np.zeros((B, w_e), dtype=np.bool_)
-        acts = np.zeros((B, w_a, ACT_F), dtype=np.float32)
-        aids = np.zeros((B, w_a), dtype=np.int64)
-        am = np.zeros((B, w_a), dtype=np.bool_)
-        n_acts = []
-        for i in range(B):
-            ne = len(ent_ids_l[i])
-            if ne > 0:
-                eids[i, :ne] = ent_ids_l[i]
-                ents[i, :ne] = ents_l[i]
-                em[i, :ne] = True
-            na = len(act_ids_l[i])
-            n_acts.append(na)
-            if na > 0:
-                aids[i, :na] = act_ids_l[i]
-                acts[i, :na] = acts_l[i]
-                am[i, :na] = True
+    def forward_flat(self, B, w_e, w_a, mv):
+        off = 0
+        glob = np.frombuffer(mv, dtype=np.float32, count=B * GLOB_F, offset=off).reshape(B, GLOB_F)
+        off += B * GLOB_F * 4
+        eids = np.frombuffer(mv, dtype=np.uint16, count=B * w_e, offset=off).reshape(B, w_e)
+        off += B * w_e * 2
+        ents = np.frombuffer(mv, dtype=np.float32, count=B * w_e * ENT_F, offset=off).reshape(B, w_e, ENT_F)
+        off += B * w_e * ENT_F * 4
+        em = np.frombuffer(mv, dtype=np.bool_, count=B * w_e, offset=off).reshape(B, w_e)
+        off += B * w_e
+        aids = np.frombuffer(mv, dtype=np.uint16, count=B * w_a, offset=off).reshape(B, w_a)
+        off += B * w_a * 2
+        acts = np.frombuffer(mv, dtype=np.float32, count=B * w_a * ACT_F, offset=off).reshape(B, w_a, ACT_F)
+        off += B * w_a * ACT_F * 4
+        am = np.frombuffer(mv, dtype=np.bool_, count=B * w_a, offset=off).reshape(B, w_a)
 
         dev = self.dev
         b = {
             "glob": torch.from_numpy(glob).to(dev),
             "ents": torch.from_numpy(ents).to(dev),
-            "ent_ids": torch.from_numpy(eids).to(dev),
+            "ent_ids": torch.from_numpy(eids.astype(np.int64)).to(dev),
             "ent_mask": torch.from_numpy(em).to(dev),
             "acts": torch.from_numpy(acts).to(dev),
-            "act_ids": torch.from_numpy(aids).to(dev),
+            "act_ids": torch.from_numpy(aids.astype(np.int64)).to(dev),
             "act_mask": torch.from_numpy(am).to(dev),
         }
         with self.lock, torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16, enabled=self.amp):
             logits, v, h = self.net(b)
-        logits_np = logits.float().cpu().numpy()
-        v_np = v.float().cpu().numpy()
-        h_np = h.float().cpu().numpy()
+        v_np = v.float().cpu().contiguous().numpy()
+        logits_np = logits.float().cpu().contiguous().numpy()
+        h_np = h.float().cpu().contiguous().numpy()
         self.batches += 1
         self.items += B
-        return logits_np, v_np, h_np, n_acts
+        return v_np, logits_np, h_np
 
 
 def handle_client(conn, engine, handshake):
@@ -117,44 +104,23 @@ def handle_client(conn, engine, handshake):
         conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         conn.sendall(handshake)
         while True:
-            hdr = recv_exact(conn, 8)
-            B, payload_bytes = struct.unpack("<II", hdr)
+            hdr = recv_exact(conn, 12)
+            B, w_e, w_a = struct.unpack("<III", hdr)
             if B == 0:
                 break
+            payload_bytes = (
+                B * GLOB_F * 4
+                + B * w_e * 2
+                + B * w_e * ENT_F * 4
+                + B * w_e
+                + B * w_a * 2
+                + B * w_a * ACT_F * 4
+                + B * w_a
+            )
             raw = recv_exact(conn, payload_bytes)
-            mv = memoryview(raw)
-            off = 0
-            globs, ent_ids_l, ents_l, act_ids_l, acts_l = [], [], [], [], []
-            for _ in range(B):
-                n_ent, n_act = struct.unpack_from("<HH", mv, off)
-                off += 4
-                globs.append(np.frombuffer(mv, dtype=np.float32, count=GLOB_F, offset=off))
-                off += GLOB_F * 4
-                ent_ids_l.append(np.frombuffer(mv, dtype=np.uint16, count=n_ent, offset=off))
-                off += n_ent * 2
-                if n_ent > 0:
-                    ents_l.append(np.frombuffer(mv, dtype=np.float32, count=n_ent * ENT_F, offset=off).reshape(n_ent, ENT_F))
-                    off += n_ent * ENT_F * 4
-                else:
-                    ents_l.append(None)
-                act_ids_l.append(np.frombuffer(mv, dtype=np.uint16, count=n_act, offset=off))
-                off += n_act * 2
-                if n_act > 0:
-                    acts_l.append(np.frombuffer(mv, dtype=np.float32, count=n_act * ACT_F, offset=off).reshape(n_act, ACT_F))
-                    off += n_act * ACT_F * 4
-                else:
-                    acts_l.append(None)
-
-            logits_np, v_np, h_np, n_acts = engine.forward_batch(globs, ent_ids_l, ents_l, act_ids_l, acts_l)
+            v_np, logits_np, h_np = engine.forward_flat(B, w_e, w_a, memoryview(raw))
             trunk = h_np.shape[1]
-            chunks = [struct.pack("<II", B, trunk)]
-            for i in range(B):
-                na = n_acts[i]
-                chunks.append(struct.pack("<fH", float(v_np[i]), na))
-                if na > 0:
-                    chunks.append(logits_np[i, :na].astype(np.float32, copy=False).tobytes())
-                chunks.append(h_np[i].astype(np.float32, copy=False).tobytes())
-            conn.sendall(b"".join(chunks))
+            conn.sendall(struct.pack("<II", B, trunk) + v_np.tobytes() + logits_np.tobytes() + h_np.tobytes())
     except EOFError:
         pass
     except Exception:

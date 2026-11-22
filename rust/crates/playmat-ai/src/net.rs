@@ -824,10 +824,12 @@ impl RemoteNet {
         let queue = Arc::new((Mutex::new(BatchQueue { reqs: Vec::new(), closed: false }), Condvar::new()));
         let q_bg = Arc::clone(&queue);
         let max_batch: usize = std::env::var("PLAYMAT_GPU_BATCH").ok().and_then(|v| v.parse().ok()).unwrap_or(64);
-        let wait_us: u64 = std::env::var("PLAYMAT_GPU_WAIT_US").ok().and_then(|v| v.parse().ok()).unwrap_or(400);
+        // Default 0: never call wait_timeout on Windows (where sub-15.6ms sleeps round up to 15.6ms!);
+        // natural coalescing happens while the previous GPU batch is in flight.
+        let wait_us: u64 = std::env::var("PLAYMAT_GPU_WAIT_US").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
 
         std::thread::spawn(move || {
-            let mut payload = Vec::<u8>::with_capacity(1 << 20);
+            let mut payload = Vec::<u8>::with_capacity(2 << 20);
             let mut resp_buf = Vec::<u8>::with_capacity(1 << 18);
             loop {
                 let batch = {
@@ -839,7 +841,6 @@ impl RemoteNet {
                     if g.reqs.is_empty() && g.closed {
                         break;
                     }
-                    // Coalesce concurrent worker threads briefly up to max_batch
                     if g.reqs.len() < max_batch && wait_us > 0 {
                         let deadline = Instant::now() + Duration::from_micros(wait_us);
                         while g.reqs.len() < max_batch && !g.closed {
@@ -858,55 +859,95 @@ impl RemoteNet {
                     g.reqs.drain(..take).collect::<Vec<_>>()
                 };
 
+                let b = batch.len();
+                let max_e = batch.iter().map(|r| r.obs.n_ents()).max().unwrap_or(0);
+                let max_a = batch.iter().map(|r| r.obs.n_acts()).max().unwrap_or(0);
+                let w_e = ((max_e + 7) / 8 * 8).max(8);
+                let w_a = ((max_a + 3) / 4 * 4).max(4);
+
+                // Pre-pack 7 flat contiguous arrays so Python infer_server.py runs with ZERO Python loops
+                let glob_bytes = b * GLOB_F * 4;
+                let eids_bytes = b * w_e * 2;
+                let ents_bytes = b * w_e * ENT_F * 4;
+                let em_bytes = b * w_e;
+                let aids_bytes = b * w_a * 2;
+                let acts_bytes = b * w_a * ACT_F * 4;
+                let am_bytes = b * w_a;
+                let total_bytes = 12 + glob_bytes + eids_bytes + ents_bytes + em_bytes + aids_bytes + acts_bytes + am_bytes;
                 payload.clear();
-                for req in &batch {
+                payload.resize(total_bytes, 0);
+                payload[0..4].copy_from_slice(&(b as u32).to_le_bytes());
+                payload[4..8].copy_from_slice(&(w_e as u32).to_le_bytes());
+                payload[8..12].copy_from_slice(&(w_a as u32).to_le_bytes());
+
+                let o_glob = 12;
+                let o_eids = o_glob + glob_bytes;
+                let o_ents = o_eids + eids_bytes;
+                let o_em = o_ents + ents_bytes;
+                let o_aids = o_em + em_bytes;
+                let o_acts = o_aids + aids_bytes;
+                let o_am = o_acts + acts_bytes;
+
+                for (i, req) in batch.iter().enumerate() {
                     let o = &req.obs;
-                    let ne = o.n_ents() as u16;
-                    let na = o.n_acts() as u16;
-                    payload.extend_from_slice(&ne.to_le_bytes());
-                    payload.extend_from_slice(&na.to_le_bytes());
-                    for &v in &o.glob {
-                        payload.extend_from_slice(&v.to_le_bytes());
+                    // glob
+                    let gd = &mut payload[o_glob + i * GLOB_F * 4..o_glob + (i + 1) * GLOB_F * 4];
+                    for (k, &v) in o.glob.iter().enumerate() {
+                        gd[k * 4..(k + 1) * 4].copy_from_slice(&v.to_le_bytes());
                     }
-                    for &id in &o.ent_ids {
-                        payload.extend_from_slice(&(id as u16).to_le_bytes());
+                    // entities
+                    let ne = o.n_ents().min(w_e);
+                    if ne > 0 {
+                        let id_base = o_eids + i * w_e * 2;
+                        for k in 0..ne {
+                            payload[id_base + k * 2..id_base + k * 2 + 2]
+                                .copy_from_slice(&(o.ent_ids[k] as u16).to_le_bytes());
+                        }
+                        let ef_base = o_ents + i * w_e * ENT_F * 4;
+                        for (k, &v) in o.ents[..ne * ENT_F].iter().enumerate() {
+                            payload[ef_base + k * 4..ef_base + k * 4 + 4].copy_from_slice(&v.to_le_bytes());
+                        }
+                        let em_base = o_em + i * w_e;
+                        payload[em_base..em_base + ne].fill(1);
                     }
-                    for &v in &o.ents {
-                        payload.extend_from_slice(&v.to_le_bytes());
-                    }
-                    for &id in &o.act_ids {
-                        payload.extend_from_slice(&(id as u16).to_le_bytes());
-                    }
-                    for &v in &o.acts {
-                        payload.extend_from_slice(&v.to_le_bytes());
+                    // actions
+                    let na = o.n_acts().min(w_a);
+                    if na > 0 {
+                        let id_base = o_aids + i * w_a * 2;
+                        for k in 0..na {
+                            payload[id_base + k * 2..id_base + k * 2 + 2]
+                                .copy_from_slice(&(o.act_ids[k] as u16).to_le_bytes());
+                        }
+                        let af_base = o_acts + i * w_a * ACT_F * 4;
+                        for (k, &v) in o.acts[..na * ACT_F].iter().enumerate() {
+                            payload[af_base + k * 4..af_base + k * 4 + 4].copy_from_slice(&v.to_le_bytes());
+                        }
+                        let am_base = o_am + i * w_a;
+                        payload[am_base..am_base + na].fill(1);
                     }
                 }
-                let mut hdr = [0u8; 8];
-                hdr[..4].copy_from_slice(&(batch.len() as u32).to_le_bytes());
-                hdr[4..].copy_from_slice(&(payload.len() as u32).to_le_bytes());
-                if stream.write_all(&hdr).is_err() || stream.write_all(&payload).is_err() {
+                if stream.write_all(&payload).is_err() {
                     break;
                 }
                 let Ok(rb) = read_u32(&mut stream) else { break };
                 let Ok(rtrunk) = read_u32(&mut stream) else { break };
-                debug_assert_eq!(rb as usize, batch.len());
-                for req in batch {
-                    let mut ihdr = [0u8; 6];
-                    if stream.read_exact(&mut ihdr).is_err() {
-                        break;
-                    }
-                    let value = f32::from_le_bytes([ihdr[0], ihdr[1], ihdr[2], ihdr[3]]);
-                    let na = u16::from_le_bytes([ihdr[4], ihdr[5]]) as usize;
-                    let need = (na + rtrunk as usize) * 4;
-                    resp_buf.resize(need, 0);
-                    if stream.read_exact(&mut resp_buf).is_err() {
-                        break;
-                    }
-                    let floats: Vec<f32> = resp_buf.as_chunks::<4>().0.iter().map(|c| f32::from_le_bytes(*c)).collect();
-                    let logits = floats[..na].to_vec();
-                    let h = floats[na..].to_vec();
+                debug_assert_eq!(rb as usize, b);
+                let trunk = rtrunk as usize;
+                let need = (b + b * w_a + b * trunk) * 4;
+                resp_buf.resize(need, 0);
+                if stream.read_exact(&mut resp_buf).is_err() {
+                    break;
+                }
+                let floats: Vec<f32> = resp_buf.as_chunks::<4>().0.iter().map(|c| f32::from_le_bytes(*c)).collect();
+                let vs = &floats[..b];
+                let all_logits = &floats[b..b + b * w_a];
+                let all_h = &floats[b + b * w_a..];
+                for (i, req) in batch.into_iter().enumerate() {
+                    let na = req.obs.n_acts().min(w_a);
+                    let logits = all_logits[i * w_a..i * w_a + na].to_vec();
+                    let h = all_h[i * trunk..(i + 1) * trunk].to_vec();
                     let (rlock, rcv) = &*req.reply;
-                    *rlock.lock().unwrap() = Some(Output { logits, value, h });
+                    *rlock.lock().unwrap() = Some(Output { logits, value: vs[i], h });
                     rcv.notify_one();
                 }
             }
