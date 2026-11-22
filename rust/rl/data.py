@@ -19,9 +19,12 @@ import os
 import time
 
 import numpy as np
-import torch
-
-from model import ACT_F, ENT_F, GLOB_F, GLOB_F_V1, NO_ENT
+try:
+    import torch
+    from model import ACT_F, ENT_F, GLOB_F, GLOB_F_V1, NO_ENT
+except ImportError:
+    torch = None
+    ENT_F, GLOB_F_V1, GLOB_F, ACT_F, NO_ENT = 49, 65, 81, 65, 255
 
 META = 10
 N_ENT, N_ACT, N_HID, N_POOL = 80, 16, 16, 64
