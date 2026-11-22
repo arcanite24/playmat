@@ -96,6 +96,8 @@ export default {
 
   'career.collection.title': 'Collection',
   'career.collection.count': { one: '{count} card', other: '{count} cards' },
+  'career.collection.playsets': { one: '{count} playset', other: '{count} playsets' },
+  'career.collection.missingPlayset': 'Missing playset',
   'career.collection.search': 'Search your cards',
   'career.collection.all': 'Every card (to craft)',
   'career.collection.empty': 'No cards match.',
@@ -753,6 +755,8 @@ export default {
   'career.binder': 'Binder',
   'career.binder.search': 'Search & craft',
   'career.binder.complete': '{have} of {total}',
+  'career.binder.playsets': '{have} / {total} playsets',
+  'career.binder.playsetComplete': 'You have a full playset of every card in this set.',
   'career.binder.page': 'Pages {page} of {pages}',
   'career.binder.previous': 'Previous pages',
   'career.binder.next': 'Next pages',

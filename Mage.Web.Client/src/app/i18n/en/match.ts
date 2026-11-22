@@ -55,6 +55,18 @@ export default {
   'match.turn.aria.player': "Turn {turn}, {name}'s turn",
   'match.turn.aria.starting': 'The game is starting',
 
+  // day / night indicator (#407)
+  'match.dayNight.day': 'Day',
+  'match.dayNight.night': 'Night',
+  'match.dayNight.ariaDay': 'It is currently Day. Show Day and Night rules.',
+  'match.dayNight.ariaNight': 'It is currently Night. Show Day and Night rules.',
+  'match.dayNight.nowDay': 'It is now Day.',
+  'match.dayNight.nowNight': 'It is now Night.',
+  'match.dayNight.stateDay': 'Currently Day',
+  'match.dayNight.stateNight': 'Currently Night',
+  'match.dayNight.toNight': 'Day → Night: If the active player casts no spells during their own turn, it becomes night next turn.',
+  'match.dayNight.toDay': 'Night → Day: If the active player casts 2 or more spells during their own turn, it becomes day next turn.',
+
   // player plates
   'match.plate.lost': 'Lost',
   'match.plate.out': 'Out',
@@ -141,6 +153,23 @@ export default {
   'match.end.lostMatch': 'You lost the match {wins}–{losses}.',
   'match.end.drawMatch': 'The match ended {wins}–{losses}.',
   'match.end.backToTables': 'Back to Tables',
+  'match.end.viewBoard': 'View board',
+  'match.end.backToResult': 'Back to result',
+  'match.end.opponentDeck': "Opponent's deck: {deck}",
+  'match.end.opponentDecks': 'Opponent decks: {decks}',
+
+  // what-if / play an earlier turn (#423)
+  'match.whatIf.title': 'Play an earlier turn',
+  'match.whatIf.description': 'Start a new game from the start of any saved turn below, with the same cards in the same places. Your current game is saved automatically so you can resume it later from the Saved games card on Home.',
+  'match.whatIf.descriptionWithTurn': 'Start a new game from the start of any saved turn below, with the same cards in the same places. Your current game is saved automatically at the start of turn {turn} — resume it anytime from the Saved games card on Home.',
+  'match.whatIf.currentTurn': 'Currently on turn {turn}',
+  'match.whatIf.thisTurn': 'Current turn',
+  'match.whatIf.loading': 'Loading saved turns…',
+  'match.whatIf.failed': "The saved turns couldn't be loaded.",
+  'match.whatIf.empty': 'No turns have been saved yet: the game saves a snapshot at the start of each turn.',
+  'match.whatIf.playFromHere': 'Play from here',
+  'match.whatIf.started': 'Starting a new game from the start of turn {turn}. Your previous game is saved under Saved games on Home.',
+  'match.whatIf.close': 'Close',
 
   // the game menu's quest tracker
   'match.quests': 'Quests',

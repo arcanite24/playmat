@@ -109,4 +109,8 @@ export default {
   'events.pool.limit': 'Set pool · {count} chosen ({limit} are used, picked at random)',
   'events.findSet': 'Find a set',
   'events.clear': 'Clear',
+  'events.draft.inspect': 'Inspect {name}',
+  'events.draft.inspectFallback': 'Inspect card',
+  'events.draft.hintSelected': 'Double-click or press Space to pick · Right-click or press I to inspect',
+  'events.draft.hintChoose': 'Choose a card · Right-click any card to inspect',
 } as const;

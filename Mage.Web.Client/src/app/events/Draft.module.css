@@ -151,8 +151,14 @@
   min-height: 0;
 }
 
+.cardWrap {
+  position: relative;
+}
+
 .card {
   position: relative;
+  display: block;
+  width: 100%;
   padding: 0;
   border: 0;
   border-radius: var(--card-radius);
@@ -162,7 +168,7 @@
   transition: transform var(--dur-quick) var(--ease-lift);
 }
 
-.card:hover {
+.cardWrap:hover .card {
   transform: translateY(-6px);
 }
 
@@ -175,6 +181,10 @@
   transform: translateY(-10px) scale(1.03);
 }
 
+.cardWrap:hover .cardSelected {
+  transform: translateY(-10px) scale(1.03);
+}
+
 .cardSelected::after {
   content: '';
   position: absolute;
@@ -182,6 +192,68 @@
   border-radius: calc(var(--card-radius) + 4px);
   box-shadow: 0 0 0 3px var(--decision), 0 0 26px 6px var(--decision-glow);
   pointer-events: none;
+}
+
+.inspectButton {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(var(--mat-rgb) / 0.88);
+  box-shadow: inset 0 0 0 1px var(--ink-faint);
+  color: var(--ink);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-quick) linear, transform var(--dur-quick) var(--ease-lift);
+}
+
+.cardWrap:hover .inspectButton {
+  opacity: 1;
+  transform: translateY(-6px);
+}
+
+.inspectButton:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--ink-strong);
+  outline-offset: 2px;
+}
+
+.inspectButton:hover {
+  box-shadow: inset 0 0 0 1.5px var(--ink-soft);
+}
+
+:global([data-touch]) .inspectButton {
+  opacity: 1;
+  min-width: var(--touch-target, 32px);
+  min-height: var(--touch-target, 32px);
+}
+
+.preview {
+  position: fixed;
+  z-index: var(--z-overlay);
+  pointer-events: none;
+  filter: drop-shadow(0 24px 40px rgb(var(--shade-rgb) / 0.6));
+  animation: lift var(--dur-quick) var(--ease-lift);
+}
+
+.previewFaces {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+@keyframes lift {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
 }
 
 .action {
@@ -271,7 +343,17 @@
   position: absolute;
   left: 0;
   width: 108px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--card-radius);
+  background: transparent;
+  cursor: pointer;
   animation: deal var(--dur-place) var(--ease-place) both;
+}
+
+.picked:focus-visible {
+  outline: 2px solid var(--ink-strong);
+  outline-offset: 2px;
 }
 
 @keyframes deal {

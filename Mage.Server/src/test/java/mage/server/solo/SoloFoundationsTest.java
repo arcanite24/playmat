@@ -186,10 +186,23 @@ public class SoloFoundationsTest {
         assertNull(store.loadTurn(game, 2, "Bea"), "only the owner plays a game's turns again");
         assertNull(store.loadTurn(game, 3, "Ana"));
 
-        // pruning: past the newest line per player, a line goes with its turns
+        // loading earlier turns before a branch point (#423)
+        store.putTurn(game, 3, "Ana", new byte[]{30});
+        List<SoloStore.TurnSnapshotRow> before3 = store.loadTurnsBefore(game, 3);
+        assertEquals(2, before3.size());
+        assertEquals(1, before3.get(0).turn);
+        assertEquals(2, before3.get(1).turn);
+        assertEquals(21, before3.get(1).snapshot[0]);
+
+        // pruning protects live game lines so running games never lose their turns (#423)
         String newer = java.util.UUID.randomUUID().toString();
         Thread.sleep(5);
         store.putLine(newer, "Ana", new byte[]{2});
+        assertEquals(0, store.pruneLines(System.currentTimeMillis() + 1000, 1, Arrays.asList(game, newer)));
+        assertEquals("Ana", store.lineOwner(game));
+        assertEquals(3, store.turns(game).size());
+
+        // once no longer live, pruning removes old lines with their turns
         assertEquals(1, store.pruneLines(0, 1));
         assertNull(store.lineOwner(game));
         assertTrue(store.turns(game).isEmpty());

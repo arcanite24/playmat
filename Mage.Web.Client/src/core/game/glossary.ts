@@ -146,8 +146,8 @@ const KEYWORDS: Entry[] = [
   { name: 'Saddle', text: 'Tap creatures with that much total power: it becomes saddled until end of turn. Only as a sorcery.' },
   { name: 'Enchant', text: 'An Aura can be attached only to the stated kind of object.' },
   { name: 'Fortify', text: 'Pay the cost: attach this Fortification to target land you control. Only as a sorcery.' },
-  { name: 'Daybound', text: 'If a player casts no spells during their own turn, it becomes night next turn and this transforms.' },
-  { name: 'Nightbound', text: 'If a player casts two or more spells during a turn, it becomes day next turn and this transforms.' },
+  { name: 'Daybound', text: "If it's neither day nor night, it becomes day as this enters. If it's day and the active player casts no spells during their own turn, it becomes night next turn and this transforms." },
+  { name: 'Nightbound', text: "If it's night and the active player casts two or more spells during their own turn, it becomes day next turn and this transforms." },
   { name: 'Mobilize', text: 'Whenever it attacks, create that many tapped and attacking 1/1 red Warrior tokens; sacrifice them at the next end step.' },
 ];
 
@@ -165,6 +165,11 @@ const ACTIONS: Entry[] = [
   { name: 'Adapt', text: 'If it has no +1/+1 counters, put that many +1/+1 counters on it.', forms: ['adapts'] },
   { name: 'Monstrosity', text: 'If it isn\'t monstrous, put that many +1/+1 counters on it and it becomes monstrous.', forms: ['monstrous'] },
   { name: 'Transform', text: 'Turn a double-faced card over to its other face.', forms: ['transforms', 'transformed'] },
+  {
+    name: 'Day and Night',
+    text: "Checked as each turn begins: if it's day and the active player cast no spells during their own turn, it becomes night; if it's night and the active player cast two or more spells during their own turn, it becomes day.",
+    match: /\b(?:becomes day|becomes night|neither day nor night|it's day|it's night)\b/i,
+  },
   { name: 'Discover', text: 'Exile cards from the top of your library until you hit a nonland card with that mana value or less; cast it for free or put it in your hand.', forms: ['discovers'] },
   // before Manifest, which must not claim "manifest dread"
   { name: 'Manifest dread', text: 'Look at the top two cards of your library. Put one onto the battlefield face down as a 2/2 creature and the other into your graveyard. If the face-down card is a creature card, you may turn it face up any time for its mana cost.', forms: ['manifests dread'] },

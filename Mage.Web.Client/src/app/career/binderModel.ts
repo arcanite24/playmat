@@ -1,6 +1,6 @@
 import type { CardView, CareerCard } from '../../protocol/generated/views';
 import { readJson, writeJson } from '../stores/persist';
-import { careerRarity, isBasic, type CareerRarity } from './careerModel';
+import { PLAYSET, careerRarity, isBasic, type CareerRarity } from './careerModel';
 import { freshUnlocks } from './hubModel';
 
 /**
@@ -68,4 +68,36 @@ export function writeBinderSeen(user: string, names: readonly string[]): void {
 export function newInBinder(seen: readonly string[] | null, names: readonly string[]): { fresh: Set<string>; seen: string[] } {
   const { fresh, seen: next } = freshUnlocks(seen, names);
   return { fresh: new Set(fresh), seen: next };
+}
+
+/** True when a non-basic card does not yet have a full playset (4 copies). */
+export function isMissingPlayset(name: string, owned: ReadonlyMap<string, number>, max = PLAYSET): boolean {
+  if (!name || isBasic(name)) return false;
+  return (owned.get(name.toLowerCase()) ?? 0) < max;
+}
+
+/** Filter a list of cards to those missing a full playset (excluding basic lands). */
+export function filterMissingPlayset<T extends { name: string }>(cards: readonly T[], owned: ReadonlyMap<string, number>, max = PLAYSET): T[] {
+  return cards.filter((card) => isMissingPlayset(card.name, owned, max));
+}
+
+/** Count how many non-basic cards in a set have a full playset (4 copies) out of the set's total non-basic cards. */
+export function playsetProgress(cards: readonly { name: string }[], owned: ReadonlyMap<string, number>, max = PLAYSET): { playsets: number; total: number } {
+  let playsets = 0;
+  let total = 0;
+  for (const card of cards) {
+    if (!card.name || isBasic(card.name)) continue;
+    total++;
+    if ((owned.get(card.name.toLowerCase()) ?? 0) >= max) playsets++;
+  }
+  return { playsets, total };
+}
+
+/** Count distinct non-basic cards with a full playset across the player's whole collection. */
+export function collectionPlaysetCount(owned: ReadonlyMap<string, number>, max = PLAYSET): number {
+  let playsets = 0;
+  for (const [name, count] of owned) {
+    if (!isBasic(name) && count >= max) playsets++;
+  }
+  return playsets;
 }
