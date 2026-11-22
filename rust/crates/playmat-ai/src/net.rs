@@ -1069,7 +1069,10 @@ static CACHE: OnceLock<Mutex<HashMap<String, Arc<Net>>>> = OnceLock::new();
 /// The network at `path`, read once per process (`builtin`: shipped net; `tcp://host:port`: GPU inference server)
 pub fn load(path: &str) -> Result<Arc<Net>, String> {
     let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
-    if let Some(n) = cache.lock().unwrap().get(path) {
+    // Hold the cache lock while loading/connecting so `--jobs 64` worker threads share ONE RemoteNet
+    // TCP connection and coalesce into true B=32..64 GPU batches instead of opening 64 separate B=1 sockets!
+    let mut map = cache.lock().unwrap();
+    if let Some(n) = map.get(path) {
         return Ok(Arc::clone(n));
     }
     let net = if path == "builtin" {
@@ -1081,7 +1084,7 @@ pub fn load(path: &str) -> Result<Arc<Net>, String> {
         Net::parse(path, &bytes)?
     };
     let net = Arc::new(net);
-    cache.lock().unwrap().insert(path.to_string(), Arc::clone(&net));
+    map.insert(path.to_string(), Arc::clone(&net));
     Ok(net)
 }
 

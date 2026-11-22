@@ -121,13 +121,15 @@ def handle_client(conn, engine, handshake):
             v_np, logits_np, h_np = engine.forward_flat(B, w_e, w_a, memoryview(raw))
             trunk = h_np.shape[1]
             conn.sendall(struct.pack("<II", B, trunk) + v_np.tobytes() + logits_np.tobytes() + h_np.tobytes())
-    except EOFError:
+    except (EOFError, ConnectionResetError, BrokenPipeError):
         pass
     except Exception:
         import traceback
         traceback.print_exc()
         sys.stdout.flush()
     finally:
+        if engine.batches > 0:
+            print(f"INFER_SERVER client done: {engine.items} evals in {engine.batches} batches (avg B={engine.items / engine.batches:.1f})", flush=True)
         conn.close()
 
 
