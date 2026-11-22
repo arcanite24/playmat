@@ -35,6 +35,7 @@ public final class DeckImportService {
     static final long CACHE_MILLIS = 5 * 60_000L;
     static final int CACHE_SIZE = 200;
     static final int IMPORTS_PER_MINUTE = 10;
+    static final long RATE_WINDOW_MILLIS = 60_000L;
     static final int FAILURES_TO_DEGRADE = 3;
     static final long DEGRADED_MILLIS = 30 * 60_000L;
 
@@ -194,16 +195,41 @@ public final class DeckImportService {
     }
 
     private void checkRate(String sessionKey, long now) throws DeckImportException {
-        Deque<Long> times = recentImports.computeIfAbsent(sessionKey == null ? "" : sessionKey, key -> new ArrayDeque<>());
-        synchronized (times) {
-            while (!times.isEmpty() && now - times.peekFirst() >= 60_000L) {
-                times.pollFirst();
-            }
+        pruneIdleSessions(now);
+        String key = sessionKey == null ? "" : sessionKey;
+        boolean[] limited = {false};
+        recentImports.compute(key, (k, existing) -> {
+            Deque<Long> times = existing != null ? existing : new ArrayDeque<>();
+            pruneExpired(times, now);
             if (times.size() >= IMPORTS_PER_MINUTE) {
-                throw new DeckImportException(DeckImportException.Reason.RATE_LIMITED, "Too many deck imports in a minute");
+                limited[0] = true;
+                return times;
             }
             times.addLast(now);
+            return times;
+        });
+        if (limited[0]) {
+            throw new DeckImportException(DeckImportException.Reason.RATE_LIMITED, "Too many deck imports in a minute");
         }
+    }
+
+    private void pruneIdleSessions(long now) {
+        for (String key : recentImports.keySet()) {
+            recentImports.computeIfPresent(key, (k, times) -> {
+                pruneExpired(times, now);
+                return times.isEmpty() ? null : times;
+            });
+        }
+    }
+
+    private static void pruneExpired(Deque<Long> times, long now) {
+        while (!times.isEmpty() && now - times.peekFirst() >= RATE_WINDOW_MILLIS) {
+            times.pollFirst();
+        }
+    }
+
+    int trackedSessionCount() {
+        return recentImports.size();
     }
 
     private void record(String site, DeckImportException.Reason failure) {

@@ -60,7 +60,7 @@ public class GameController implements GameCallback {
     private final ExecutorService gameExecutor;
     private static final Logger logger = Logger.getLogger(GameController.class);
 
-    private ScheduledExecutorService JOIN_WAITING_EXECUTOR = null;
+    private volatile ScheduledExecutorService JOIN_WAITING_EXECUTOR = null;
 
     private ScheduledFuture<?> responseIdleTimeoutFuture;
     private UUID responseIdleTimeoutPlayerId;
@@ -130,6 +130,7 @@ public class GameController implements GameCallback {
     }
 
     public void cleanUp() {
+        stopJoinWaiting();
         stopResponseIdleTimeout();
         for (PriorityTimer priorityTimer : timers.values()) {
             priorityTimer.cancel();
@@ -274,12 +275,14 @@ public class GameController implements GameCallback {
         );
 
         // wait all players
-        if (JOIN_WAITING_EXECUTOR == null) {
-            JOIN_WAITING_EXECUTOR = Executors.newSingleThreadScheduledExecutor(
+        ScheduledExecutorService joinWaitingExecutor = JOIN_WAITING_EXECUTOR;
+        if (joinWaitingExecutor == null) {
+            joinWaitingExecutor = Executors.newSingleThreadScheduledExecutor(
                     new XmageThreadFactory(ThreadUtils.THREAD_PREFIX_GAME_JOIN_WAITING + " " + game.getId())
             );
+            JOIN_WAITING_EXECUTOR = joinWaitingExecutor;
         }
-        JOIN_WAITING_EXECUTOR.scheduleAtFixedRate(() -> {
+        joinWaitingExecutor.scheduleAtFixedRate(() -> {
             try {
                 sendInfoAboutPlayersNotJoinedYetAndTryToFixIt();
             } catch (Exception ex) {
@@ -549,9 +552,17 @@ public class GameController implements GameCallback {
         return Optional.empty();
     }
 
+    private void stopJoinWaiting() {
+        ScheduledExecutorService executor = JOIN_WAITING_EXECUTOR;
+        JOIN_WAITING_EXECUTOR = null;
+        if (executor != null) {
+            executor.shutdownNow();
+        }
+    }
+
     private void checkJoinAndStart() {
         if (isAllJoined()) {
-            JOIN_WAITING_EXECUTOR.shutdownNow();
+            stopJoinWaiting();
             managerFactory.threadExecutor().getCallExecutor().execute(this::startGame);
         }
     }

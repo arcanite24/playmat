@@ -436,7 +436,8 @@ pub fn scryfall(body: &str, deck_id: &str) -> Result<ImportedDeck, Failure> {
     for (group, value) in entries {
         let section = match group.as_str() {
             "commanders" => Section::Commander,
-            "sideboard" | "outside" => Section::Side,
+            "outside" => Section::Companion,
+            "sideboard" => Section::Side,
             "maybeboard" => Section::Maybe,
             _ => Section::Main,
         };
@@ -608,7 +609,8 @@ pub(crate) mod tests {
         assert_eq!(deck.name.as_deref(), Some("[mtg-parser] 3 Amigos"));
         assert_eq!(deck.author.as_deref(), Some("gorila"));
         assert_eq!(deck.format.as_deref(), Some("Variant Magic - Commander"));
-        assert_eq!((count(&deck.commanders), count(&deck.side), deck.maybeboard_count), (2, 1, 0));
+        assert_eq!((count(&deck.commanders), count(&deck.side), deck.maybeboard_count), (2, 0, 0));
+        assert_eq!(names(&deck.companion), ["Obosh, the Preypiercer"]);
         assert_eq!(deck.cover.unwrap().set_code.as_deref(), Some("CMR"));
         assert_eq!(reason(scryfall(&fixture("scryfall/not-found.json"), "0")), Reason::NotFound);
 
