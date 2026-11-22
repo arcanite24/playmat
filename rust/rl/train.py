@@ -236,7 +236,8 @@ def build_parser():
     ap.add_argument("--val-stop-tol", type=float, default=0.004, help="held-out value loss rise before freezing trunk value grad")
     ap.add_argument("--ema", type=float, default=0.0, help="EMA decay for exported weights (e.g. 0.995; 0 disables)")
     ap.add_argument("--amp", type=int, default=-1, help="1: bf16 autocast on GPU; -1: auto at bs >= 1024")
-    ap.add_argument("--gpu-data-gb", type=float, default=12.0, help="keep whole dataset on GPU when <= this many GB")
+    ap.add_argument("--gpu-data-gb", type=float, default=5.0, help="keep whole dataset on GPU when <= this many GB")
+    ap.add_argument("--stage-chunk", type=int, default=800_000, help="max decisions staged to GPU at once (prevents WDDM VRAM spill)")
     ap.add_argument("--compile", action="store_true", help="use torch.compile on CUDA")
     ap.add_argument("--compact", action="store_true", help="compact multi-shard --data dirs before reading")
     return ap
@@ -336,28 +337,58 @@ def train_main(argv=None, shared_data=None):
 
     for ep in range(args.epochs):
         ep_t0 = time.time()
+        tl = torch.zeros(5, device=dev)
+        nb = 0
         if use_staging or (args.samples_per_epoch > 0 and args.samples_per_epoch < len(train_idx)):
             blocks = _select_epoch_blocks(data, epoch_samples, pol_min_run, rng)
-            view = data.stage_blocks(blocks, 512, dev)
-            # Filter out held-out games on GPU cleanly (zero leakage!)
-            v_train = torch.nonzero((view.store["game"] % 10) != 0, as_tuple=False).squeeze(-1)
-            perm = v_train[torch.randperm(len(v_train), device=dev)]
-            src = view
-            on_gpu = True
-        else:
-            src = data
-            on_gpu = (where.type == "cuda")
-            if on_gpu:
-                t_idx = torch.as_tensor(train_idx, dtype=torch.long, device=dev)
-                perm = t_idx[torch.randperm(len(t_idx), device=dev)]
-            else:
-                perm = rng.permutation(train_idx)
-
-        tl = torch.zeros(5, device=dev)
-        nb = math.ceil(len(perm) / args.bs)
-        if on_gpu:
+            rng.shuffle(blocks)
+            chunk_blks = max(1, args.stage_chunk // 512) if args.stage_chunk > 0 else len(blocks)
+            for ci in range(0, len(blocks), chunk_blks):
+                view = data.stage_blocks(blocks[ci : ci + chunk_blks], 512, dev)
+                # Filter out held-out games on GPU cleanly (zero leakage!)
+                v_train = torch.nonzero((view.store["game"] % 10) != 0, as_tuple=False).squeeze(-1)
+                perm = v_train[torch.randperm(len(v_train), device=dev)]
+                for i in range(0, len(perm), args.bs):
+                    b = view.batch(perm[i : i + args.bs], dev)
+                    with torch.autocast("cuda", dtype=torch.bfloat16, enabled=amp):
+                        pol, val, bel, crit, aux = losses(
+                            train_net, critic, aux_head, b,
+                            q_mix=args.q_mix, pol_min_run=pol_min_run,
+                            val_prob=args.val_prob, detach_val=(args.detach_val or not value_on),
+                        )[:5]
+                        loss = (
+                            pol
+                            + args.value_weight * val
+                            + args.belief_weight * bel
+                            + (0.5 * crit if critic is not None else 0.0)
+                            + (args.aux_weight if value_on else 0.0) * aux
+                        )
+                    opt.zero_grad(set_to_none=True)
+                    loss.backward()
+                    torch.nn.utils.clip_grad_norm_(net.parameters(), 1.0)
+                    opt.step()
+                    if step_count < steps:
+                        sched.step()
+                    step_count += 1
+                    if ema_sd is not None:
+                        d_ema = args.ema
+                        with torch.no_grad():
+                            for k, v in net.state_dict().items():
+                                if v.is_floating_point():
+                                    ema_sd[k].mul_(d_ema).add_(v.detach(), alpha=1.0 - d_ema)
+                                else:
+                                    ema_sd[k].copy_(v)
+                    tl += torch.stack([pol.detach(), val.detach(), bel.detach(), crit.detach(), aux.detach()]).float()
+                    nb += 1
+                del view, v_train, perm
+                if dev.type == "cuda":
+                    torch.cuda.empty_cache()
+        elif where.type == "cuda":
+            t_idx = torch.as_tensor(train_idx, dtype=torch.long, device=dev)
+            perm = t_idx[torch.randperm(len(t_idx), device=dev)]
+            nb = math.ceil(len(perm) / args.bs)
             for i in range(0, len(perm), args.bs):
-                b = src.batch(perm[i : i + args.bs], dev)
+                b = data.batch(perm[i : i + args.bs], dev)
                 with torch.autocast("cuda", dtype=torch.bfloat16, enabled=amp):
                     pol, val, bel, crit, aux = losses(
                         train_net, critic, aux_head, b,
@@ -388,13 +419,15 @@ def train_main(argv=None, shared_data=None):
                                 ema_sd[k].copy_(v)
                 tl += torch.stack([pol.detach(), val.detach(), bel.detach(), crit.detach(), aux.detach()]).float()
         else:
+            perm = rng.permutation(train_idx)
+            nb = math.ceil(len(perm) / args.bs)
             with ThreadPoolExecutor(1) as pool:
                 starts = list(range(0, len(perm), args.bs))
-                ahead = pool.submit(src.batch, perm[0 : args.bs], dev)
+                ahead = pool.submit(data.batch, perm[0 : args.bs], dev)
                 for n_i, i in enumerate(starts):
                     b = ahead.result()
                     if n_i + 1 < len(starts):
-                        ahead = pool.submit(src.batch, perm[starts[n_i + 1] : starts[n_i + 1] + args.bs], dev)
+                        ahead = pool.submit(data.batch, perm[starts[n_i + 1] : starts[n_i + 1] + args.bs], dev)
                     with torch.autocast("cuda", dtype=torch.bfloat16, enabled=amp):
                         pol, val, bel, crit, aux = losses(
                             train_net, critic, aux_head, b,
