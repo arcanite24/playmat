@@ -36,6 +36,8 @@ class Data:
         for r, d in enumerate(dirs):
             for meta_path in sorted(glob.glob(f"{d}/*.meta.i32")):
                 base = meta_path[: -len(".meta.i32")]
+                if "._" in os.path.basename(base):  # a Mac's AppleDouble metadata, not a shard
+                    continue
                 meta = _read(meta_path, np.int32).reshape(-1, META)
                 if len(meta) == 0:
                     continue
