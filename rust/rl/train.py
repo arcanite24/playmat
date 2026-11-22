@@ -139,7 +139,7 @@ def losses(net, critic, aux_head, b, q_mix=0.0, pol_min_run=0, val_prob=1.0, det
     return pol, val, bel, crit, aux, acc, acc_off, 1 - off.mean()
 
 
-def evaluate(net, critic, data, idx, dev, bs=2048, q_mix=0.0, pol_min_run=0):
+def evaluate(net, critic, data, idx, dev, bs=1024, q_mix=0.0, pol_min_run=0):
     net.eval()
     tot = np.zeros(8)
     n = 0
@@ -147,7 +147,8 @@ def evaluate(net, critic, data, idx, dev, bs=2048, q_mix=0.0, pol_min_run=0):
     if len(idx) > 150_000:
         step = max(len(idx) // 150_000, 1)
         idx = idx[::step]
-    with torch.no_grad():
+    amp_ev = dev.type == "cuda"
+    with torch.no_grad(), torch.autocast("cuda", dtype=torch.bfloat16, enabled=amp_ev):
         for i in range(0, len(idx), bs):
             j = idx[i : i + bs]
             b = data.batch(j, dev)
@@ -457,11 +458,6 @@ def train_main(argv=None, shared_data=None):
                                 else:
                                     ema_sd[k].copy_(v)
                     tl += torch.stack([pol.detach(), val.detach(), bel.detach(), crit.detach(), aux.detach()]).float()
-
-        if src is not data:
-            del src
-            if dev.type == "cuda":
-                torch.cuda.empty_cache()
 
         ev = evaluate(net, critic, data, test_idx, dev, pol_min_run=pol_min_run)
         ev["epoch"] = ep + 1
