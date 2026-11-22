@@ -6,6 +6,7 @@ import './matchMessages';
 import { useSettings } from '../stores/settings';
 import { useStage } from './stageContext';
 import { useCoarsePointer } from './useLongPress';
+import { DayNightBadge } from './DayNightBadge';
 import styles from './PhaseLadder.module.css';
 
 interface Rung {
@@ -36,7 +37,7 @@ const RUNGS: Rung[] = [
  * where the game stops for you on this player's turn; click a rung to toggle that stop. On a touch screen the rungs
  * are too small to aim at: the whole ladder is one button that opens the stops as a menu of full-size rows.
  */
-export function PhaseLadder({ step, myTurn, turn, started = true, activeName = null }: {
+export function PhaseLadder({ step, myTurn, turn, started = true, activeName = null, daytime }: {
   step: PhaseStep | undefined;
   myTurn: boolean;
   turn: number;
@@ -44,6 +45,8 @@ export function PhaseLadder({ step, myTurn, turn, started = true, activeName = n
   started?: boolean;
   /** watching: whose turn it is, by name (a spectator has no turn of their own) */
   activeName?: string | null;
+  /** true when it is day, false when it is night, undefined when neither (#407) */
+  daytime?: boolean;
 }) {
   const t = useT();
   const settings = useSettings((state) => state.settings);
@@ -71,6 +74,7 @@ export function PhaseLadder({ step, myTurn, turn, started = true, activeName = n
       <div className={styles.turn}>
         <span className={styles.turnNumber}>{started ? t('match.turn', { turn }) : t('match.turn.starting')}</span>
         {started && <span className={[styles.whose, activeName ? styles.whoseName : ''].join(' ')}>{activeName ?? t(myTurn ? 'match.turn.yours' : 'match.turn.theirs')}</span>}
+        <DayNightBadge daytime={daytime} />
         {fullControl && <span className={styles.full}>Full control</span>}
       </div>
       <ol className={styles.rungs}>

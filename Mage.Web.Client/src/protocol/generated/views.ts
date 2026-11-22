@@ -1450,6 +1450,7 @@ export interface GameEndView extends Serializable {
     loses?: number;
     matchInfo?: string;
     matchView?: MatchView;
+    opponentDecks?: { [index: string]: string };
     players?: PlayerView[];
     startTime?: DateAsNumber;
     wins?: number;
@@ -1502,6 +1503,7 @@ export interface GameView extends Serializable {
     canPlayObjects?: PlayableObjectsList;
     combat?: CombatGroupView[];
     companion?: RevealedView[];
+    daytime?: boolean;
     events?: GameEventView[];
     exiles?: { [index: string]: CardView }[];
     gameCycle?: number;

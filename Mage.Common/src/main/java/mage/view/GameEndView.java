@@ -4,7 +4,9 @@ package mage.view;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import mage.game.Game;
 import mage.game.GameState;
@@ -30,6 +32,8 @@ public class GameEndView implements Serializable {
     private int wins;
     private int loses;
     private final int winsNeeded;
+    /** non-human opponent player names mapped to their deck names, when known (#416) */
+    private final Map<String, String> opponentDecks = new LinkedHashMap<>();
 
     public GameEndView(GameState state, Game game, UUID playerId, Table table) {
         startTime = game.getStartTime();
@@ -68,6 +72,12 @@ public class GameEndView implements Serializable {
         for (MatchPlayer matchPlayer : match.getPlayers()) {
             if (matchPlayer.getPlayer().equals(you)) {
                 wins = matchPlayer.getWins();
+            } else if (!matchPlayer.getPlayer().isHuman() && matchPlayer.getDeck() != null
+                    && matchPlayer.getDeck().getName() != null) {
+                String deckName = matchPlayer.getDeck().getName().trim();
+                if (!deckName.isEmpty()) {
+                    opponentDecks.put(matchPlayer.getName(), deckName);
+                }
             }
             if (matchPlayer.isMatchWinner()) {
                 matchWinner = matchPlayer;
@@ -152,6 +162,10 @@ public class GameEndView implements Serializable {
 
     public PlayerView getClientPlayer() {
         return clientPlayer;
+    }
+
+    public Map<String, String> getOpponentDecks() {
+        return opponentDecks;
     }
 
 }

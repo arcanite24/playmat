@@ -1,4 +1,5 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { Eye } from 'lucide-react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Command, Interaction } from '../../core/game/interaction';
 import type { Prompt } from '../../core/game/prompt';
 import { abilityChooserSource, stripMarkup } from '../../core/game/prompt';
@@ -499,8 +500,8 @@ const END_TITLE: Record<string, MessageKey> = { won: 'match.end.victory', lost: 
 const END_GAME: Record<string, MessageKey> = { won: 'match.end.wonGame', lost: 'match.end.lostGame', draw: 'match.end.drawGame' };
 const END_MATCH: Record<string, MessageKey> = { won: 'match.end.wonMatch', lost: 'match.end.lostMatch', draw: 'match.end.drawMatch' };
 
-/** The end of a game: who won, the match score, and where to go next. */
-export function GameOverOverlay({ message, endInfo, myName, onLeave, leaveLabel = 'Back to Play', onPlayAgain, onReview, rewards, stamps }: {
+/** The end of a game: who won, the match score, opponent deck(s), and where to go next. */
+export function GameOverOverlay({ message, endInfo, myName, onLeave, leaveLabel = 'Back to Play', onPlayAgain, onReview, rewards, stamps, opponentDecks }: {
   message: string;
   endInfo: GameEndView | null;
   /** the player's name, to tell from the server's message who won when there is no end-of-game info */
@@ -514,9 +515,27 @@ export function GameOverOverlay({ message, endInfo, myName, onLeave, leaveLabel 
   rewards?: ReactNode;
   /** victory stamps (B300): yours, and the opponent's in a game against one; the winner's is pressed on the result */
   stamps?: { mine: string | null; theirs: string | null };
+  /** fallback map of non-human opponent seat name -> deck name when endInfo has not arrived yet (#416) */
+  opponentDecks?: Record<string, string>;
 }) {
   const t = useT();
   const paintedArt = usePaintedArt();
+  const [inspectingBoard, setInspectingBoard] = useState(false);
+
+  // Escape returns from board inspection back to the result overlay (unless a zone or card sheet is open)
+  useEffect(() => {
+    if (!inspectingBoard) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      const ui = useMatchUi.getState();
+      if (ui.viewer || ui.detail || ui.dungeonOf) return;
+      event.preventDefault();
+      setInspectingBoard(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [inspectingBoard]);
+
   // a match of several games ends on the match's result; a single game on the game's
   const matchEnd = matchResult(endInfo);
   const progress = matchEnd ? matchProgress(endInfo) : null;
@@ -527,19 +546,50 @@ export function GameOverOverlay({ message, endInfo, myName, onLeave, leaveLabel 
   // why a match ended early ("Bob has quit the match.")
   const extra = stripMarkup(endInfo?.additionalInfo);
   const stamp = !paintedArt ? null : result === 'won' ? stamps?.mine : result === 'lost' ? stamps?.theirs : null;
+  const title = t(result ? END_TITLE[result] : 'match.end.over');
+
+  // opponent AI deck name(s): server-authoritative GameEndView first, client fallback second (#416)
+  const serverDecks = Object.entries(endInfo?.opponentDecks ?? {}).filter(([, deck]) => !!deck?.trim());
+  const deckEntries = serverDecks.length > 0
+    ? serverDecks
+    : Object.entries(opponentDecks ?? {}).filter(([, deck]) => !!deck?.trim());
+  const deckLine = deckEntries.length === 1
+    ? t('match.end.opponentDeck', { deck: deckEntries[0][1] })
+    : deckEntries.length > 1
+      ? t('match.end.opponentDecks', { decks: deckEntries.map(([player, deck]) => `${player}: ${deck}`).join(' · ') })
+      : null;
+
+  if (inspectingBoard) {
+    return (
+      <aside className={styles.boardBar} aria-label={title}>
+        <span className={[styles.boardResult, result === 'won' ? styles.victory : result === 'lost' ? styles.defeat : ''].join(' ')}>
+          {title}
+        </span>
+        <Button variant="decision" size="md" onClick={() => setInspectingBoard(false)}>
+          {t('match.end.backToResult')}
+        </Button>
+        <Button variant="print" size="md" onClick={onLeave}>{leaveLabel}</Button>
+      </aside>
+    );
+  }
+
   return (
     <div className={[styles.scrim, styles.endScrim].join(' ')} role="dialog" aria-modal="true" aria-labelledby="game-over-title">
       <div className={styles.center}>
         <div className={styles.endHead}>
           <h2 id="game-over-title" className={[styles.endTitle, result === 'won' ? styles.victory : result === 'lost' ? styles.defeat : ''].join(' ')}>
-            {t(result ? END_TITLE[result] : 'match.end.over')}
+            {title}
           </h2>
           {stamp && <VictoryStamp id={stamp} />}
         </div>
         <p className={styles.subtitle}>{line}</p>
+        {deckLine && <p className={styles.opponentDeck}>{deckLine}</p>}
         {extra && <p className={styles.score}>{extra}</p>}
         {rewards}
         <div className={styles.buttons}>
+          <Button variant="quiet" size="lg" icon={<Eye size={20} />} onClick={() => setInspectingBoard(true)}>
+            {t('match.end.viewBoard')}
+          </Button>
           <Button variant="print" size="lg" onClick={onLeave}>{leaveLabel}</Button>
           {onReview && <Button variant="quiet" size="lg" onClick={onReview}>Review the game</Button>}
           {onPlayAgain && <Button variant="decision" size="xl" onClick={onPlayAgain}>Play again</Button>}

@@ -78,8 +78,14 @@ export function agoKey(at: number | undefined, now = Date.now()): { key: 'home.s
 export const turnsKey = (gameId: string) => ['solo', 'turns', gameId] as const;
 
 /** the turns of one of your games against the computer that can be played again (what-if lines) */
-export function useSoloTurns(gameId: string, enabled = true) {
-  return useQuery({ queryKey: turnsKey(gameId), queryFn: () => api.soloTurns(gameId), enabled: enabled && !!gameId, staleTime: 10_000 });
+export function useSoloTurns(gameId: string, enabled = true, turn?: number) {
+  return useQuery({
+    queryKey: [...turnsKey(gameId), turn ?? 0],
+    queryFn: () => api.soloTurns(gameId),
+    enabled: enabled && !!gameId,
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
 }
 
 /** a what-if line: play the game again from the start of one of its turns, at a new table */

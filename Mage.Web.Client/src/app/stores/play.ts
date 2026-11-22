@@ -94,6 +94,8 @@ interface PlayState {
   tableId: string | null;
   /** the deck of the latest game against the AI (for its sleeve and for playing again) */
   deckId: string | null;
+  /** non-human opponent seat names -> deck names for the latest solo game (#416 fallback) */
+  opponentDecks: Record<string, string>;
   lastOptions: PlayOverrides;
   /** where leaving the game goes when it isn't Play (Career matches lead back to Career) */
   returnPath: string | null;
@@ -135,6 +137,7 @@ export const usePlay = create<PlayState>((set, get) => ({
   error: null,
   tableId: null,
   deckId: null,
+  opponentDecks: {},
   lastOptions: {},
   returnPath: null,
   aiOptions: { ...DEFAULT_AI_OPTIONS, ...readJson<Partial<AiOptions>>(AI_OPTIONS_KEY, {}) },
@@ -158,7 +161,7 @@ export const usePlay = create<PlayState>((set, get) => ({
         ? { ...get().aiOptions, ...picked, rules: 'deck', opponentDeckId: null, podDeckIds: [] }
         : { ...get().aiOptions, ...picked };
     useCoach.getState().setGuided(guided);
-    set({ phase: 'starting', error: null, deckId, returnPath: null, lastOptions: practice ? { practice } : picked });
+    set({ phase: 'starting', error: null, deckId, opponentDecks: {}, returnPath: null, lastOptions: practice ? { practice } : picked });
     // a game outside any event: leaving it goes back to Play
     useEvents.setState({ currentTournamentId: null });
     try {
@@ -231,13 +234,16 @@ export const usePlay = create<PlayState>((set, get) => ({
       if (!await api.roomJoinTable(roomId, tableId, userName, 'HUMAN', 1, playerDeck)) {
         throw new Error(options.rules === 'deck' ? `Your deck isn't legal in ${rules.label}. Fix it in the deck builder, or play casual.` : 'Your deck was not accepted for this table.');
       }
+      const seatedOpponentDecks: Record<string, string> = {};
       for (const [index, rival] of rivals.entries()) {
         const name = practice ? 'Goldfish' : rivals.length === 1 ? 'AI Opponent' : `AI ${index + 1}`;
         if (!await api.roomJoinTable(roomId, tableId, name, options.aiType, skill, rival)) {
           throw new Error('The AI could not take its seat.');
         }
+        const deckName = rival.name?.trim();
+        if (deckName) seatedOpponentDecks[name] = deckName;
       }
-      set({ phase: 'waitingForGame' });
+      set({ phase: 'waitingForGame', opponentDecks: seatedOpponentDecks });
       if (!await api.matchStart(roomId, tableId)) throw new Error('The match could not start.');
     } catch (error) {
       const tableId = get().tableId;
