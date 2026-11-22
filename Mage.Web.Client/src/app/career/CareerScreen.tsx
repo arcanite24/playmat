@@ -344,7 +344,21 @@ function CareerHub({ profile }: { profile: CareerProfile }) {
               </div>
               <div className={hub.deckPlate}>
                 <span>
-                  <b>{deck.deck?.name ?? t('career.nav.deck')}</b>
+                  {deck.decks.length > 1 ? (
+                    <select
+                      className={hub.deckSelect}
+                      aria-label={t('career.decks.choose')}
+                      value={deck.activeId ?? ''}
+                      onChange={(event) => void deck.selectDeck(event.target.value).catch((error) => notify(t('career.decks.switchFailed'), error instanceof Error ? error.message : String(error), 'error'))}
+                      data-nav
+                    >
+                      {deck.decks.map((item) => (
+                        <option key={item.id} value={item.id}>{item.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <b>{deck.deck?.name ?? t('career.nav.deck')}</b>
+                  )}
                   <small>{deck.problem ?? t('career.deck.summary', { count: deck.size })}</small>
                 </span>
                 <Button variant="quiet" size="sm" onClick={() => navigate('/career/deck')} data-nav>{t('career.deck.edit')}</Button>

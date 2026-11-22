@@ -132,13 +132,21 @@ public final class CareerStore implements AutoCloseable {
                             + " PRIMARY KEY (user, format))",
                     "CREATE TABLE league_decks (user TEXT NOT NULL, id TEXT NOT NULL, name TEXT NOT NULL, format TEXT NOT NULL,"
                             + " deck TEXT NOT NULL, updated INTEGER NOT NULL, PRIMARY KEY (user, id))"
+            },
+            {
+                    // multi-deck saving for regular Career (starter, custom decks, and earned campaign decks);
+                    // the active deck stays mirrored into `decks` for backwards compatibility with `careerDeck`
+                    "CREATE TABLE career_decks (user TEXT NOT NULL, id TEXT NOT NULL, name TEXT NOT NULL,"
+                            + " deck TEXT NOT NULL, source TEXT, active INTEGER NOT NULL DEFAULT 0, updated INTEGER NOT NULL,"
+                            + " PRIMARY KEY (user, id))",
+                    "CREATE INDEX career_decks_by_user ON career_decks (user, updated)"
             }
     };
 
     /** every table that holds an account's rows, for deleting a Career */
     private static final String[] USER_TABLES = {"profile", "cards", "payouts", "stats", "quests", "achievements",
             "unlocks", "weekly", "progress_games", "campaign_nodes", "set_unlocks", "runs", "puzzle_results", "challenge_results",
-            "daily", "decks", "token_log", "pulls", "card_styles"};
+            "daily", "decks", "career_decks", "token_log", "pulls", "card_styles"};
     /**
      * The League's tables: not part of the Career file, so a Career import leaves them (and their ladder) as they are;
      * otherwise an import would start each format's League again, packs and wildcards included. Gone with the account.
@@ -1262,6 +1270,16 @@ public final class CareerStore implements AutoCloseable {
         }
     }
 
+    /** when the legacy single Career deck row was last updated, or 0 */
+    synchronized long deckUpdated(String user) throws SQLException {
+        try (PreparedStatement select = connection.prepareStatement("SELECT updated FROM decks WHERE user = ?")) {
+            select.setString(1, key(user));
+            try (ResultSet rows = select.executeQuery()) {
+                return rows.next() ? rows.getLong(1) : 0L;
+            }
+        }
+    }
+
     synchronized void putDeck(String user, String deck, long now) throws SQLException {
         try (PreparedStatement upsert = connection.prepareStatement("INSERT OR REPLACE INTO decks (user, deck, updated) VALUES (?, ?, ?)")) {
             upsert.setString(1, key(user));
@@ -1269,6 +1287,121 @@ public final class CareerStore implements AutoCloseable {
             upsert.setLong(3, now);
             upsert.executeUpdate();
         }
+    }
+
+    /** A saved Career deck as stored */
+    public static final class CareerDeckRow {
+        public String id;
+        public String name;
+        public String deck;
+        public String source;
+        public boolean active;
+        public long updated;
+    }
+
+    /** the account's saved Career decks, active first then newest first */
+    public synchronized List<CareerDeckRow> careerDecks(String user) throws SQLException {
+        List<CareerDeckRow> out = new ArrayList<>();
+        try (PreparedStatement select = connection.prepareStatement(
+                "SELECT id, name, deck, source, active, updated FROM career_decks WHERE user = ? ORDER BY active DESC, updated DESC, id")) {
+            select.setString(1, key(user));
+            try (ResultSet rows = select.executeQuery()) {
+                while (rows.next()) {
+                    out.add(readCareerDeckRow(rows));
+                }
+            }
+        }
+        return out;
+    }
+
+    public synchronized CareerDeckRow careerDeck(String user, String id) throws SQLException {
+        try (PreparedStatement select = connection.prepareStatement(
+                "SELECT id, name, deck, source, active, updated FROM career_decks WHERE user = ? AND id = ?")) {
+            select.setString(1, key(user));
+            select.setString(2, id);
+            try (ResultSet rows = select.executeQuery()) {
+                return rows.next() ? readCareerDeckRow(rows) : null;
+            }
+        }
+    }
+
+    synchronized CareerDeckRow careerDeckBySource(String user, String source) throws SQLException {
+        if (source == null || source.isEmpty()) {
+            return null;
+        }
+        try (PreparedStatement select = connection.prepareStatement(
+                "SELECT id, name, deck, source, active, updated FROM career_decks WHERE user = ? AND source = ? LIMIT 1")) {
+            select.setString(1, key(user));
+            select.setString(2, source);
+            try (ResultSet rows = select.executeQuery()) {
+                return rows.next() ? readCareerDeckRow(rows) : null;
+            }
+        }
+    }
+
+    synchronized CareerDeckRow activeCareerDeck(String user) throws SQLException {
+        try (PreparedStatement select = connection.prepareStatement(
+                "SELECT id, name, deck, source, active, updated FROM career_decks WHERE user = ? AND active = 1 LIMIT 1")) {
+            select.setString(1, key(user));
+            try (ResultSet rows = select.executeQuery()) {
+                return rows.next() ? readCareerDeckRow(rows) : null;
+            }
+        }
+    }
+
+    synchronized void putCareerDeck(String user, CareerDeckRow deck) throws SQLException {
+        try (PreparedStatement upsert = connection.prepareStatement(
+                "INSERT OR REPLACE INTO career_decks (user, id, name, deck, source, active, updated) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
+            upsert.setString(1, key(user));
+            upsert.setString(2, deck.id);
+            upsert.setString(3, deck.name);
+            upsert.setString(4, deck.deck);
+            upsert.setString(5, deck.source);
+            upsert.setInt(6, deck.active ? 1 : 0);
+            upsert.setLong(7, deck.updated);
+            upsert.executeUpdate();
+        }
+    }
+
+    synchronized void setActiveCareerDeck(String user, String id) throws SQLException {
+        String k = key(user);
+        try (PreparedStatement clear = connection.prepareStatement("UPDATE career_decks SET active = 0 WHERE user = ?")) {
+            clear.setString(1, k);
+            clear.executeUpdate();
+        }
+        try (PreparedStatement mark = connection.prepareStatement("UPDATE career_decks SET active = 1 WHERE user = ? AND id = ?")) {
+            mark.setString(1, k);
+            mark.setString(2, id);
+            mark.executeUpdate();
+        }
+    }
+
+    synchronized boolean deleteCareerDeck(String user, String id) throws SQLException {
+        try (PreparedStatement delete = connection.prepareStatement("DELETE FROM career_decks WHERE user = ? AND id = ?")) {
+            delete.setString(1, key(user));
+            delete.setString(2, id);
+            return delete.executeUpdate() == 1;
+        }
+    }
+
+    synchronized int careerDeckCount(String user) throws SQLException {
+        try (PreparedStatement select = connection.prepareStatement("SELECT COUNT(*) FROM career_decks WHERE user = ?")) {
+            select.setString(1, key(user));
+            try (ResultSet rows = select.executeQuery()) {
+                return rows.next() ? rows.getInt(1) : 0;
+            }
+        }
+    }
+
+    private static CareerDeckRow readCareerDeckRow(ResultSet rows) throws SQLException {
+        CareerDeckRow row = new CareerDeckRow();
+        row.id = rows.getString(1);
+        row.name = rows.getString(2);
+        row.deck = rows.getString(3);
+        row.source = rows.getString(4);
+        row.active = rows.getInt(5) != 0;
+        row.updated = rows.getLong(6);
+        return row;
     }
 
     // ---- the Career League (#433)

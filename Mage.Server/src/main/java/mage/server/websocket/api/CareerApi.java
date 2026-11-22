@@ -147,6 +147,49 @@ final class CareerApi {
                             });
                         }),
 
+                RpcMethod.named("careerDecks")
+                        .returns("CareerSavedDeck[]")
+                        .doc("Every saved Career deck the account keeps (active first, then newest first), including starter "
+                                + "and campaign chapter decks earned by beating bosses.")
+                        .handler(call -> {
+                            String user = career(ctx, call);
+                            return store(() -> CareerService.get().savedDecks(user));
+                        }),
+
+                RpcMethod.named("careerSaveNamedDeck")
+                        .params(optional("id", STRING), of("name", STRING), object("deck", "DeckCardLists"), optional("activate", BOOLEAN))
+                        .returns("CareerSavedDeck")
+                        .doc("Create (without id) or update a saved Career deck. Checked against the collection; pass activate "
+                                + "true to make it the active Career deck.")
+                        .handler(call -> {
+                            String user = career(ctx, call);
+                            String id = call.optString(0, null);
+                            String name = call.string(1);
+                            DeckCardLists deck = call.object(2, DeckCardLists.class);
+                            boolean activate = call.optBool(3, false);
+                            return store(() -> CareerService.get().saveNamedDeck(user, id, name, deck, activate));
+                        }),
+
+                RpcMethod.named("careerSelectDeck")
+                        .params(of("id", STRING))
+                        .returns("CareerSavedDeck")
+                        .doc("Make one of the account's saved Career decks the active deck for Career duels.")
+                        .handler(call -> {
+                            String user = career(ctx, call);
+                            String id = call.string(0);
+                            return store(() -> CareerService.get().selectDeck(user, id));
+                        }),
+
+                RpcMethod.named("careerDeleteDeck")
+                        .params(of("id", STRING))
+                        .returns("boolean")
+                        .doc("Delete one of the account's saved Career decks. Cards stay in the collection; at least one deck remains.")
+                        .handler(call -> {
+                            String user = career(ctx, call);
+                            String id = call.string(0);
+                            return store(() -> CareerService.get().deleteSavedDeck(user, id));
+                        }),
+
                 RpcMethod.named("careerCollection")
                         .returns("CareerCard[]")
                         .doc("Every card the account owns in Career, by printing. Basic lands are free and not listed.")

@@ -150,10 +150,12 @@ import { gzipSync } from 'node:zlib';
 // Ranked's first-visit intro (en/es) in the lazy Career chunk. Measured app 891.8 kB
 // app raised 2026-11-21 from 894 kB for the admin console's Self-play tab (#462): its page in the lazy admin chunk.
 // Measured app 894.6 kB
+// app raised 2026-11-22 from 897 kB for Career multi-deck saving and human-hosted event controls (#469): lazy Career
+// and Events chunks plus their en/es strings. Measured app 898.2 kB
 const BUDGET_KB = {
   entry: 86,
   initial: 221,
-  app: 897,
+  app: 902,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;

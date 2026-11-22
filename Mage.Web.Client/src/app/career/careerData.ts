@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { create } from 'zustand';
-import type { CareerCard, CareerCosmetic, CareerMatch, CareerPackResult, CareerProfile, CareerQuests, CareerState } from '../../protocol/generated/views';
+import type { CareerCard, CareerCosmetic, CareerMatch, CareerPackResult, CareerProfile, CareerQuests, CareerSavedDeck, CareerState } from '../../protocol/generated/views';
 import type { DeckCardLists } from '../../core/decks/types';
 import { api } from '../connection';
 import { toWire } from '../decks/deckModel';
@@ -12,7 +12,7 @@ import { readJson, writeJson } from '../stores/persist';
 import { useSession } from '../stores/session';
 import { useSettings } from '../stores/settings';
 import { MATCH_SIZES, warmCards, warmDeck } from '../ui/imageCache';
-import { saveCareerDeck, fetchStarterDeck } from './careerDeck';
+import { cacheActiveCareerDeck, saveCareerDeck, fetchStarterDeck, toCareerDeck } from './careerDeck';
 import { rewardsPath } from './progressModel';
 
 /** Career data from the server, cached per screen visit; every change goes through the server and back. */
@@ -20,6 +20,7 @@ const KEY = {
   state: ['career', 'state'],
   opponents: ['career', 'opponents'],
   collection: ['career', 'collection'],
+  decks: ['career', 'decks'],
   shop: ['career', 'shop'],
   starters: ['career', 'starters'],
   levels: ['career', 'levels'],
@@ -44,6 +45,45 @@ export function useCareerOpponents(enabled: boolean) {
 
 export function useCareerCollection(enabled: boolean) {
   return useQuery({ queryKey: KEY.collection, queryFn: () => api.careerCollection(), enabled: useSignedIn() && enabled, staleTime: 30_000 });
+}
+
+export function useCareerDecks(enabled: boolean) {
+  return useQuery({ queryKey: KEY.decks, queryFn: () => api.careerDecks(), enabled: useSignedIn() && enabled, staleTime: 10_000 });
+}
+
+/** Switch which saved Career deck is active for duels. */
+export async function selectCareerDeck(id: string): Promise<CareerSavedDeck> {
+  const chosen = await api.careerSelectDeck(id);
+  const user = useSession.getState().userName;
+  if (user && chosen) cacheActiveCareerDeck(user, toCareerDeck(chosen));
+  queryClient.setQueryData<CareerSavedDeck[]>(KEY.decks, (current) => {
+    if (!current) return chosen ? [chosen] : [];
+    const next = current.map((item) => (item.id === chosen.id ? chosen : { ...item, active: false }));
+    return next.sort((a, b) => Number(!!b.active) - Number(!!a.active) || (b.updated ?? 0) - (a.updated ?? 0));
+  });
+  void queryClient.invalidateQueries({ queryKey: KEY.decks });
+  return chosen;
+}
+
+/** Create (id null) or update a saved Career deck on the server. */
+export async function saveNamedCareerDeck(id: string | null, name: string, deck: DeckCardLists, activate = true): Promise<CareerSavedDeck> {
+  const saved = await api.careerSaveNamedDeck(id, name, toWire(deck) as never, activate);
+  const user = useSession.getState().userName;
+  if (user && saved?.active) cacheActiveCareerDeck(user, toCareerDeck(saved));
+  queryClient.setQueryData<CareerSavedDeck[]>(KEY.decks, (current) => {
+    const list = (current ?? []).filter((item) => item.id !== saved.id).map((item) => (saved.active ? { ...item, active: false } : item));
+    const next = [saved, ...list];
+    return next.sort((a, b) => Number(!!b.active) - Number(!!a.active) || (b.updated ?? 0) - (a.updated ?? 0));
+  });
+  void queryClient.invalidateQueries({ queryKey: KEY.decks });
+  return saved;
+}
+
+/** Delete a saved Career deck (the cards stay in the collection). */
+export async function deleteCareerDeck(id: string): Promise<boolean> {
+  const deleted = await api.careerDeleteDeck(id);
+  await queryClient.invalidateQueries({ queryKey: KEY.decks });
+  return deleted;
 }
 
 export function useCareerShop(enabled: boolean) {

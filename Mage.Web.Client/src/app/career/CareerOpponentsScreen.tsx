@@ -5,6 +5,7 @@ import type { AdaptiveView, CareerOpponent, CareerRank } from '../../protocol/ge
 import { registerMessages, useT } from '../i18n';
 import messages from '../i18n/en/career';
 import { usePlay } from '../stores/play';
+import { notify } from '../stores/toasts';
 import { Button } from '../ui/Button';
 import { useCareerOpponents, useCareerState } from './careerData';
 import { WINS_TO_UNLOCK, tiersOf } from './careerModel';
@@ -50,6 +51,23 @@ export function CareerOpponentsScreen() {
   return (
     <div ref={ladder} className={styles.ladder}>
       <LadderHead rank={state.data?.rank} adaptive={state.data?.adaptive} />
+      {deck.decks.length > 1 && (
+        <div className={styles.deckStrip}>
+          <label className={styles.deckStripField}>
+            <span>{t('career.decks.choose')}</span>
+            <select
+              value={deck.activeId ?? ''}
+              onChange={(event) => void deck.selectDeck(event.target.value).catch((error) => notify(t('career.decks.switchFailed'), error instanceof Error ? error.message : String(error), 'error'))}
+              data-nav
+            >
+              {deck.decks.map((item) => (
+                <option key={item.id} value={item.id}>{item.name}</option>
+              ))}
+            </select>
+          </label>
+          <Button variant="quiet" size="sm" onClick={() => navigate('/career/deck')} data-nav>{t('career.deck.edit')}</Button>
+        </div>
+      )}
       {deck.problem && (
         <div className={styles.deckWarning} role="status">
           <span>{deck.problem}</span>
