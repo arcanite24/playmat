@@ -169,6 +169,9 @@ pub fn call_of(v: &Value) -> Option<Call> {
         Call::Resync
     } else if o.contains_key("quit") {
         Call::Quit
+    } else if let Some(s) = o.get("advise") {
+        let (tx, _) = std::sync::mpsc::channel();
+        Call::Advise(u32::try_from(s.as_u64()?).ok()?, tx)
     } else {
         Call::Practice(
             o.get("practice")?.as_str()?.to_string(),
@@ -261,4 +264,101 @@ pub fn replay(rec: &Recorded, db: Arc<CardDb>) -> Result<Replayed, String> {
             std::cmp::Ordering::Greater => Some((log.len(), rec.log[log.len()].1.clone(), String::new())),
         });
     Ok(Replayed { log, ended, first_difference })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::mpsc::channel;
+
+    #[test]
+    fn call_round_trips_every_variant() {
+        let (tx, _rx) = channel();
+        let cases = [
+            Call::Join,
+            Call::Uuid(Some("obj-1".into())),
+            Call::Uuid(None),
+            Call::Bool(true),
+            Call::Int(7),
+            Call::Str("hello".into()),
+            Call::ManaType("GREEN".into()),
+            Call::Action("PASS".into(), Some(json!({"x": 1}))),
+            Call::Resync,
+            Call::Quit,
+            Call::Advise(5, tx),
+            Call::Practice("DRAW".into(), Some("Forest".into()), 2, None),
+        ];
+        for c in &cases {
+            let v = call_json(c);
+            let back = call_of(&v).unwrap_or_else(|| panic!("call_of failed for {v}"));
+            match (c, back) {
+                (Call::Join, Call::Join) | (Call::Resync, Call::Resync) | (Call::Quit, Call::Quit) => {}
+                (Call::Uuid(a), Call::Uuid(b)) => assert_eq!(*a, b),
+                (Call::Bool(a), Call::Bool(b)) => assert_eq!(*a, b),
+                (Call::Int(a), Call::Int(b)) => assert_eq!(*a, b),
+                (Call::Str(a), Call::Str(b)) => assert_eq!(*a, b),
+                (Call::ManaType(a), Call::ManaType(b)) => assert_eq!(*a, b),
+                (Call::Action(a, da), Call::Action(b, db)) => {
+                    assert_eq!(*a, b);
+                    assert_eq!(*da, db);
+                }
+                (Call::Advise(a, _), Call::Advise(b, _)) => assert_eq!(*a, b),
+                (Call::Practice(ta, ca, na, _), Call::Practice(tb, cb, nb, _)) => {
+                    assert_eq!(*ta, tb);
+                    assert_eq!(*ca, cb);
+                    assert_eq!(*na, nb);
+                }
+                (expected, got) => panic!("mismatch: expected {expected:?}, got {got:?}"),
+            }
+        }
+    }
+
+    #[test]
+    fn read_handles_and_skips_recorded_advise_calls() {
+        let dir = std::env::temp_dir().join(format!("playmat-record-test-{}", std::process::id()));
+        let path = dir.join("advise.jsonl");
+        let start = Start {
+            game_id: "g-advise".into(),
+            seed: 1,
+            seats: vec![
+                SeatStart {
+                    player_id: "p0".into(),
+                    name: "Alice".into(),
+                    human: true,
+                    deck: vec!["Mountain".into()],
+                    printings: vec![],
+                    user_data: None,
+                },
+                SeatStart {
+                    player_id: "p1".into(),
+                    name: "Bot".into(),
+                    human: false,
+                    deck: vec!["Mountain".into()],
+                    printings: vec![],
+                    user_data: None,
+                },
+            ],
+            rules: TableRules::default(),
+            timer: Timer::default(),
+            chooser: None,
+            record: None,
+            replay: None,
+            log_to: None,
+            drop_stale: false,
+            prelude: None,
+            lines: false,
+        };
+        let (tx, _rx) = channel();
+        {
+            let mut rec = Recorder::create(&path, &start).unwrap();
+            rec.call(0, &Call::Join, 1, None);
+            rec.call(0, &Call::Advise(4, tx), 1, None);
+            rec.call(0, &Call::Bool(true), 1, None);
+        }
+        let recorded = read(&path).expect("record with advise call should be readable");
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(recorded.calls.len(), 2);
+        assert!(matches!(recorded.calls[0], (0, Call::Join)));
+        assert!(matches!(recorded.calls[1], (0, Call::Bool(true))));
+    }
 }

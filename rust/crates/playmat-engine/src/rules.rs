@@ -1276,7 +1276,7 @@ fn check_infinite_loop(game: &mut Game, d: &mut dyn Decider, source: ObjId) {
                         if log::kept(game) {
                             let line = format!(
                                 "{} has confirmed that the game is a draw because of infinite looping.",
-                                log::player(controller)
+                                log::player(seat)
                             );
                             log::inform(game, line);
                         }
@@ -1286,7 +1286,7 @@ fn check_infinite_loop(game: &mut Game, d: &mut dyn Decider, source: ObjId) {
                         if log::kept(game) {
                             let line = format!(
                                 "{} has NOT confirmed that the game is a draw because of infinite looping.",
-                                log::player(controller)
+                                log::player(seat)
                             );
                             log::inform(game, line);
                         }
@@ -25834,6 +25834,7 @@ pub fn state_based_actions(game: &mut Game) -> bool {
             let gone: Vec<ObjId> =
                 game.exile.iter().copied().filter(|c| game.obj(*c).token && game.obj(*c).may_play.is_none()).collect();
             Arc::make_mut(&mut game.exile).retain(|c| !gone.contains(c));
+            any = true;
         }
         for s in 0..game.seats() {
             // the game is over once one player is left (`PlayerImpl.lostForced` concedes the loser, and
@@ -25926,6 +25927,7 @@ pub fn state_based_actions(game: &mut Game) -> bool {
                 let o = game.obj_mut(id);
                 o.add_counters("+1/+1", -n);
                 o.add_counters("-1/-1", -n);
+                any = true;
             }
         }
         // 702.102e: an Aura with bestow attached to nothing, or to what isn't a creature, becomes unattached (and a
@@ -25949,6 +25951,7 @@ pub fn state_based_actions(game: &mut Game) -> bool {
                 game.obj_mut(id).attached_to = None;
             }
             refresh_becomes(game);
+            any = true;
         }
         let dying: Vec<ObjId> = game
             .battlefield
@@ -26794,5 +26797,101 @@ mod tests {
         assert_eq!(d.0[1], serde_json::json!([]));
         assert!(game.looked_at.is_empty());
         assert!(game.player(0).hand.contains(&top[0]) || game.player(0).hand.contains(&top[1]));
+    }
+
+    #[test]
+    fn state_based_actions_report_counter_cancellation_exiled_token_and_bestow_detach() {
+        let db = crate::cards();
+        let mut game = game_with(&db, &[("Forest", 10)]);
+
+        // 704.5q: opposing +1/+1 and -1/-1 counters cancel and report SBA progress
+        let bear = on_battlefield(&mut game, &db, "Bear Cub", 0);
+        game.obj_mut(bear).add_counters("+1/+1", 2);
+        game.obj_mut(bear).add_counters("-1/-1", 1);
+        assert!(state_based_actions(&mut game));
+        assert_eq!(game.obj(bear).counter("+1/+1"), 1);
+        assert_eq!(game.obj(bear).counter("-1/-1"), 0);
+        assert!(!state_based_actions(&mut game));
+
+        // 704.5e: a token copy in exile without may_play ceases to exist and reports SBA progress
+        let token = game.create_obj(db.get("Bear Cub").unwrap(), 0, Zone::Exile);
+        game.obj_mut(token).token = true;
+        Arc::make_mut(&mut game.exile).push(token);
+        assert!(state_based_actions(&mut game));
+        assert!(!game.exile.contains(&token));
+        assert!(!state_based_actions(&mut game));
+
+        // 702.102e: a bestowed Aura on a non-creature detaches and reports SBA progress
+        let bestow_def = db.iter().find(|d| d.has_bestow()).cloned();
+        if let Some(bestow_def) = bestow_def {
+            let mut aura_def = (*bestow_def).clone();
+            aura_def.become_aura();
+            let land = on_battlefield(&mut game, &db, "Forest", 0);
+            let aura = game.create_obj(Arc::new(aura_def), 0, Zone::Battlefield);
+            Arc::make_mut(&mut game.battlefield).push(aura);
+            game.obj_mut(aura).attached_to = Some((land, game.obj(land).zcc));
+            assert!(state_based_actions(&mut game));
+            assert_eq!(game.obj(aura).attached_to, None);
+        }
+    }
+
+    struct LoopConfirmer {
+        confirm: [bool; 2],
+    }
+
+    impl Decider for LoopConfirmer {
+        fn answer(&mut self, game: &Game, seat: Seat, query: &Query) -> Answer {
+            if matches!(query, Query::YesNo { .. }) {
+                Answer::Bool(self.confirm[seat])
+            } else {
+                Passer.answer(game, seat, query)
+            }
+        }
+    }
+
+    #[test]
+    fn infinite_loop_confirmation_logs_the_answering_seat() {
+        let db = crate::cards();
+
+        // Both players confirm: log names seat 0 and seat 1 (not controller twice)
+        let mut game = game_with(&db, &[("Forest", 10)]);
+        game.log = Some(Vec::new());
+        let src = on_battlefield(&mut game, &db, "Bear Cub", 0);
+        game.loop_sources = vec![src];
+        game.loop_count = 15;
+        game.loop_stack = 0;
+        let mut both_yes = LoopConfirmer { confirm: [true, true] };
+        check_infinite_loop(&mut game, &mut both_yes, src);
+        assert!(game.over);
+        let lines = game.log.as_ref().unwrap();
+        assert!(lines.iter().any(|l| l.contains(&format!("{} has confirmed", log::player(0)))));
+        assert!(lines.iter().any(|l| l.contains(&format!("{} has confirmed", log::player(1)))));
+
+        // Seat 0 confirms, seat 1 declines: decline line names seat 1
+        let mut game = game_with(&db, &[("Forest", 10)]);
+        game.log = Some(Vec::new());
+        let src = on_battlefield(&mut game, &db, "Bear Cub", 0);
+        game.loop_sources = vec![src];
+        game.loop_count = 15;
+        game.loop_stack = 0;
+        let mut opp_no = LoopConfirmer { confirm: [true, false] };
+        check_infinite_loop(&mut game, &mut opp_no, src);
+        assert!(!game.over);
+        let lines = game.log.as_ref().unwrap();
+        assert!(lines.iter().any(|l| l.contains(&format!("{} has confirmed", log::player(0)))));
+        assert!(lines.iter().any(|l| l.contains(&format!("{} has NOT confirmed", log::player(1)))));
+    }
+
+    #[test]
+    fn source_toughness_uses_lki_after_leaving_battlefield() {
+        let db = crate::cards();
+        let mut game = game_with(&db, &[("Forest", 10)]);
+        let bear = on_battlefield(&mut game, &db, "Bear Cub", 0);
+        game.obj_mut(bear).add_counters("+1/+1", 3);
+        let amount = crate::card::Amount::Of(crate::card::Value::SourceToughness);
+        assert_eq!(game.value(&amount, 0, bear, 0), 5);
+        game.move_to(bear, Zone::Graveyard);
+        assert_eq!(game.obj(bear).zone, Zone::Graveyard);
+        assert_eq!(game.value(&amount, 0, bear, 0), 5);
     }
 }
