@@ -63,6 +63,8 @@ pub struct Config {
     pub gumbel_root: bool,
     /// apply `temp` only on turns `<= temp_turn` (0: apply on all turns)
     pub temp_turn: u32,
+    /// `ismcts`: optional wall-clock cap in ms per decision (0: disabled, deterministic iteration count)
+    pub time_ms: u32,
 }
 
 impl Default for Config {
@@ -102,6 +104,7 @@ impl Default for Config {
             leaf_blend: 0,
             gumbel_root: false,
             temp_turn: 0,
+            time_ms: 0,
         }
     }
 }

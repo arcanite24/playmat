@@ -87,6 +87,7 @@ pub fn with(mut c: Config, settings: &str) -> Result<Config, String> {
             "leaf_blend" => c.leaf_blend = n()?.min(1000) as u32,
             "gumbel_root" => c.gumbel_root = b()?,
             "temp_turn" => c.temp_turn = n()? as u32,
+            "time_ms" => c.time_ms = n()? as u32,
             _ => return Err(format!("unknown config key {k}")),
         }
     }
@@ -96,7 +97,7 @@ pub fn with(mut c: Config, settings: &str) -> Result<Config, String> {
 /// A config as `cfg:` settings (every field, so two builds' configs compare as text)
 pub fn label(c: &Config) -> String {
     format!(
-        "budget={}+width={}+extra_turns={}+playout_cap={}+policy={}+hide={}+samples={}+playout={}+eval={}+plans={}+mulligan_sim={}+blunder={}+net={}+temp={}+eta={}+rollout={}+consider={}+cpuct={}+iters={}+leaf_blend={}+gumbel_root={}+temp_turn={}",
+        "budget={}+width={}+extra_turns={}+playout_cap={}+policy={}+hide={}+samples={}+playout={}+eval={}+plans={}+mulligan_sim={}+blunder={}+net={}+temp={}+eta={}+rollout={}+consider={}+cpuct={}+iters={}+leaf_blend={}+gumbel_root={}+temp_turn={}+time_ms={}",
         c.budget,
         c.width,
         c.extra_turns,
@@ -118,7 +119,8 @@ pub fn label(c: &Config) -> String {
         c.iters,
         c.leaf_blend,
         c.gumbel_root as u8,
-        c.temp_turn
+        c.temp_turn,
+        c.time_ms
     )
 }
 

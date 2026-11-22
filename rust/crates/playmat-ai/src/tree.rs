@@ -168,8 +168,12 @@ impl Tree {
         let mut new_n = 0u32;
         for (ans, &p) in candidates.iter().zip(priors) {
             if let Some(old) = old_kids.iter().find(|k| &k.answer == ans) {
-                new_n += old.n;
-                new_kids.push(Kid { answer: ans.clone(), prior: p, n: old.n, w: old.w, node: old.node });
+                // Keep deep child subtrees warm while capping stale root visit weight (<= 4)
+                // so fresh CRN determinizations from the updated belief state dominate root ranking.
+                let keep_n = old.n.min(4);
+                let keep_w = if old.n > 0 { old.w * (keep_n as f64 / old.n as f64) } else { 0.0 };
+                new_n += keep_n;
+                new_kids.push(Kid { answer: ans.clone(), prior: p, n: keep_n, w: keep_w, node: old.node });
             } else {
                 new_kids.push(Kid { answer: ans.clone(), prior: p, n: 0, w: 0.0, node: None });
             }
@@ -455,17 +459,28 @@ impl DecisionPolicy for Ismcts {
             let total_iters = (cfg.iters.max(m as u32)) as usize;
             let mut nodes = 0u64;
             let mut world_idx = 0usize;
+            let started = (cfg.time_ms > 0).then(std::time::Instant::now);
 
             'halving: for r in 0..rounds {
                 let each = (total_iters / (rounds * alive.len())).max(1);
                 // Common Random Numbers (CRN): compare all surviving candidates on the SAME determinization
                 // per rep, eliminating paired opponent-hand variance across candidates.
                 for _ in 0..each {
+                    if let Some(t0) = started {
+                        if world_idx > 0 && t0.elapsed().as_millis() >= cfg.time_ms as u128 {
+                            break 'halving;
+                        }
+                    }
                     let world = &games[world_idx % games.len()];
                     world_idx += 1;
                     for &ci in &alive {
                         if !pure_leaf && nodes >= cfg.budget {
                             break 'halving;
+                        }
+                        if let Some(t0) = started {
+                            if world_idx > 1 && t0.elapsed().as_millis() >= cfg.time_ms as u128 {
+                                break 'halving;
+                            }
                         }
                         let walk = Walk::new(tree, net.clone(), cpuct, pure_leaf, Some(ci));
                         let (res, mut walk) = root.play_tree(world.clone(), walk, per, stop);
@@ -554,9 +569,15 @@ impl DecisionPolicy for Ismcts {
                 Tree { nodes: vec![Node { seat: d.seat, hash: cur_hash, kids, n: 0 }] }
             });
         let mut nodes = 0u64;
+        let started = (cfg.time_ms > 0).then(std::time::Instant::now);
         for it in 0..cfg.iters.max(1) as usize {
             if !pure_leaf && nodes >= cfg.budget {
                 break;
+            }
+            if let Some(t0) = started {
+                if it > 0 && t0.elapsed().as_millis() >= cfg.time_ms as u128 {
+                    break;
+                }
             }
             let walk = Walk::new(tree, net.clone(), cpuct, pure_leaf, None);
             let (res, mut walk) = root.play_tree(games[it % games.len()].clone(), walk, per, stop);
