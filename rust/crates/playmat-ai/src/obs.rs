@@ -1,34 +1,43 @@
-//! What a learned policy sees (#390 Track B, L0): one seat's observation of a game as numbers, and each candidate
-//! answer as numbers, for the network in `net` and the trainer in `rust/rl`.
+//! What a learned policy sees (#390 Track B, Obs v2): one seat's observation of a game as numbers, sparse
+//! relational edges between entities, and each candidate answer linked to its entity token.
 //!
 //! An observation has three parts:
 //!
-//! - global features (`GLOB_F`): life, cards in each zone, lands, the step, whose turn, what is being asked, and the
-//!   fitted score's features (`fitted::features`);
-//! - entities, one per object the seat can see (`ENT_F` features each, plus a hashed card name): the stack, both
-//!   battlefields and the seat's own hand, in that order, at most `MAX_ENT`;
-//! - actions, one per candidate answer (`ACT_F` features plus a hashed card name): what kind of answer it is, and the
-//!   object it names as an entity would be (a card in a graveyard or a library too, when the answer names one).
+//! - global features (`GLOB_F = 81`): `0..65` match v1 (`fitted::features`, life, zones, lands, step, query kind) so
+//!   v1/Wave A `.pmnet` models can slice `&glob[..65]` cleanly; `65..81` add per-color untapped mana sources for both
+//!   players `(W,U,B,R,G,C)`, incoming/outgoing unblocked combat damage vs life, and top-of-stack targeting/spell flags.
+//! - entities (`ENT_F = 49` each, plus card bucket and sparse relational edge `(ent_rel_idx, ent_rel_type)`), in order:
+//!   distinct stack items (top-first, never deduplicated against permanents), own battlefield, opponent battlefield,
+//!   own hand, playable/face-up exile, and top-K graveyards (own then opponent), capped at `MAX_ENT = 80`.
+//! - actions (`ACT_F = 65` each, plus card bucket and `act_ent_idx` pointing to the entity token the action names).
 //!
-//! `observe` never reads what the seat can't know: the opponent's hand cards (only their count), any library's order
-//! or contents, the random number generator. `tests/self_play.rs` checks that by swapping hidden cards. The critic
-//! used while training may see more: `hidden_entities` lists the opponent's hand, for training only.
+//! `observe` never reads what the seat can't know: opponent's hidden hand cards, any library's order or contents, or
+//! face-down exile the seat cannot play. `tests/self_play.rs` verifies zero leakage across resampled hidden states.
 
 use crate::fitted;
 use playmat_engine::card::{AbilityDef, CardType, Color};
 use playmat_engine::decide::{Answer, Query};
-use playmat_engine::state::{Game, ObjId, Seat, Step, Zone};
+use playmat_engine::state::{Game, ObjId, Seat, StackItem, Step, Target, Zone};
 
 /// Features per entity
 pub const ENT_F: usize = 49;
-/// Global features
-pub const GLOB_F: usize = 17 + 22 + 13 + 13;
+/// Legacy v1 global feature width (prefix of `GLOB_F` for backward-compatible `.pmnet` loading)
+pub const GLOB_F_V1: usize = 17 + 22 + 13 + 13;
+/// Global features (v1 65 + 12 colored untapped mana sources + 2 unblocked clocks + 2 stack flags)
+pub const GLOB_F: usize = GLOB_F_V1 + 16;
 /// Features per action
 pub const ACT_F: usize = 16 + ENT_F;
-/// Most entities in one observation (the rest are dropped, the stack and permanents first kept)
-pub const MAX_ENT: usize = 64;
+/// Most entities in one observation (stack, battlefields, own hand, playable exile, top-K graveyards)
+pub const MAX_ENT: usize = 80;
 /// Hash buckets for card names (0: no card)
 pub const BUCKETS: u32 = 4096;
+/// Sentinel index when an entity has no relational target or an action names no visible entity
+pub const NO_ENT: u8 = 255;
+/// Number of directed relational edge types (1: stack->target, 2: blocker->attacker, 3: aura/equip->attached, 4: stack->source)
+pub const NUM_REL_TYPES: usize = 4;
+
+/// Top-K most recent graveyard cards per player included as entities
+const GY_TOP_K: usize = 6;
 
 /// One seat's view of a game at a question
 #[derive(Clone, Debug, Default)]
@@ -37,9 +46,16 @@ pub struct Obs {
     /// `ENT_F` features per entity, flat
     pub ents: Vec<f32>,
     pub ent_ids: Vec<u32>,
+    /// Primary relational edge per entity: target entity index (`0..n_ents`, or `NO_ENT`)
+    pub ent_rel_idx: Vec<u8>,
+    /// Primary relational edge type per entity (`0` none, `1` stack->target, `2` blocker->attacker,
+    /// `3` aura/equip->attached, `4` stack->source)
+    pub ent_rel_type: Vec<u8>,
     /// `ACT_F` features per action, flat
     pub acts: Vec<f32>,
     pub act_ids: Vec<u32>,
+    /// Entity index in `0..n_ents` named by each candidate action (or `NO_ENT`)
+    pub act_ent_idx: Vec<u8>,
 }
 
 impl Obs {
@@ -143,6 +159,51 @@ pub fn entity(game: &Game, seat: Seat, id: ObjId, playable: &[ObjId], hidden: bo
     f
 }
 
+/// Features for a distinct stack item (spell or activated/triggered ability on the stack).
+/// Always encodes `Zone::Stack` (`f[3] = 1.0`) and `s.controller == seat` even when `s.card` is on the battlefield.
+fn stack_entity(game: &Game, seat: Seat, s: &StackItem) -> ([f32; ENT_F], u32) {
+    let mut f = [0f32; ENT_F];
+    let o = game.obj(s.card);
+    let def = s.def.as_deref().unwrap_or(&o.def);
+    f[0] = (s.controller == seat) as u8 as f32;
+    f[3] = 1.0; // Zone::Stack
+    for (i, t) in [
+        CardType::Artifact,
+        CardType::Creature,
+        CardType::Enchantment,
+        CardType::Instant,
+        CardType::Land,
+        CardType::Planeswalker,
+        CardType::Sorcery,
+        CardType::Battle,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        f[7 + i] = def.types.contains(&t) as u8 as f32;
+    }
+    f[15] = (s.ability.is_some()) as u8 as f32; // distinguish triggered/activated ability vs spell on stack
+    f[16] = def.mana_value() as f32 / 5.0;
+    f[17] = def.power as f32 / 5.0;
+    f[18] = def.toughness as f32 / 5.0;
+    for c in &def.colors {
+        let i = match c {
+            Color::W => 0,
+            Color::U => 1,
+            Color::B => 2,
+            Color::R => 3,
+            Color::G => 4,
+        };
+        f[28 + i] = 1.0;
+    }
+    for (i, k) in KEYWORDS.iter().enumerate() {
+        f[33 + i] = def.abilities.contains(k) as u8 as f32;
+    }
+    f[46] = def.abilities.contains(&AbilityDef::FlashAbility) as u8 as f32;
+    f[48] = def.subtypes.iter().any(|sub| sub == "Aura" || sub == "Equipment") as u8 as f32;
+    (f, card_id(&def.name))
+}
+
 fn step_index(s: Option<Step>) -> usize {
     match s {
         Some(Step::Untap) => 0,
@@ -180,7 +241,57 @@ pub fn query_index(q: &Query) -> usize {
     }
 }
 
-/// The global features
+/// Untapped mana sources on the battlefield for `seat` by `(W, U, B, R, G, C)`, scaled by `/ 3.0`.
+/// Reads only public battlefield state (zero hidden info leak).
+fn untapped_mana_sources(game: &Game, seat: Seat) -> [f32; 6] {
+    let mut out = [0f32; 6];
+    for &id in game.battlefield.iter() {
+        let o = game.obj(id);
+        if o.controller != seat || o.tapped {
+            continue;
+        }
+        if game.has_type(id, CardType::Creature)
+            && o.sick
+            && !game.has_ability(id, &AbilityDef::HasteAbility)
+        {
+            continue;
+        }
+        let mut can = [false; 6];
+        for ab in &o.def.abilities {
+            if let Some(m) = ab.mana() {
+                for ci in 0..5 {
+                    if m.colored[ci] > 0 {
+                        can[ci] = true;
+                    }
+                }
+                if m.colorless > 0 {
+                    can[5] = true;
+                }
+            }
+        }
+        for ci in 0..6 {
+            if can[ci] {
+                out[ci] += 1.0 / 3.0;
+            }
+        }
+    }
+    out
+}
+
+/// Unblocked attacking creature power controlled by `attacker` divided by `defender` life, capped at 2.0.
+fn unblocked_clock(game: &Game, attacker: Seat, defender: Seat) -> f32 {
+    let mut p = 0i32;
+    for &id in game.battlefield.iter() {
+        let o = game.obj(id);
+        if o.controller == attacker && o.attacking.is_some() && !o.blocked && game.has_type(id, CardType::Creature) {
+            p += game.power_toughness(id).0.max(0);
+        }
+    }
+    let life = game.player(defender).life.max(1) as f32;
+    (p as f32 / life).min(2.0)
+}
+
+/// The global features (`0..65` v1 compatible prefix, `65..81` v2 tactical additions)
 pub fn global(game: &Game, seat: Seat, q: &Query) -> Vec<f32> {
     let mut g: Vec<f32> = fitted::features(game, seat).iter().map(|v| *v as f32).collect();
     let opp = game.opponent(seat);
@@ -229,16 +340,35 @@ pub fn global(game: &Game, seat: Seat, q: &Query) -> Vec<f32> {
     let mut kind = [0f32; 13];
     kind[query_index(q)] = 1.0;
     g.extend(kind);
+    debug_assert_eq!(g.len(), GLOB_F_V1);
+
+    // Obs v2 additions (indices 65..81)
+    g.extend(untapped_mana_sources(game, seat));
+    g.extend(untapped_mana_sources(game, opp));
+    g.push(unblocked_clock(game, opp, seat));
+    g.push(unblocked_clock(game, seat, opp));
+    let top_targets_me = game.stack.last().is_some_and(|s| {
+        s.targets.iter().flatten().any(|t| match *t {
+            Target::Player(p) => p == seat,
+            Target::Obj(oid) => (oid.0 as usize) < game.objs.len() && game.obj(oid).controller == seat,
+        })
+    });
+    let top_is_spell = game.stack.last().is_some_and(|s| s.ability.is_none());
+    g.push(top_targets_me as u8 as f32);
+    g.push(top_is_spell as u8 as f32);
     debug_assert_eq!(g.len(), GLOB_F);
     g
 }
 
-/// The objects the seat sees, in order: the stack, permanents (its own first), its hand; at most `MAX_ENT`
+/// The objects the seat sees (legacy helper kept for callers): stack, permanents, own hand, playable exile, top-K GY
 pub fn visible(game: &Game, seat: Seat) -> Vec<ObjId> {
     let mut out: Vec<ObjId> = game.stack.iter().rev().map(|s| s.card).collect();
     out.extend(game.battlefield.iter().filter(|id| game.obj(**id).controller == seat));
     out.extend(game.battlefield.iter().filter(|id| game.obj(**id).controller != seat));
     out.extend(game.player(seat).hand.iter());
+    out.extend(game.exile.iter().filter(|id| !game.obj(**id).exiled_face_down && game.may_play_now(**id, seat)));
+    out.extend(game.player(seat).graveyard.iter().rev().take(GY_TOP_K));
+    out.extend(game.player(game.opponent(seat)).graveyard.iter().rev().take(GY_TOP_K));
     out.dedup();
     out.truncate(MAX_ENT);
     out
@@ -309,21 +439,172 @@ pub fn action(game: &Game, seat: Seat, q: &Query, a: &Answer, quick: bool, playa
     (f, id)
 }
 
+#[derive(Clone, Copy)]
+enum EntEntry {
+    Stack(usize), // index into game.stack
+    Obj(ObjId),
+}
+
 /// The seat's observation at question `q`, with its candidate answers (`candidates[0]` the quick one)
 pub fn observe(game: &Game, seat: Seat, q: &Query, candidates: &[Answer]) -> Obs {
     let playable: &[ObjId] = match q {
         Query::Priority { playable } => playable,
         _ => &[],
     };
-    let mut o = Obs { glob: global(game, seat, q), ..Obs::default() };
-    for id in visible(game, seat) {
-        o.ents.extend(entity(game, seat, id, playable, false));
-        o.ent_ids.push(card_id(&game.obj(id).def.name));
+    let opp = game.opponent(seat);
+    let mut entries: Vec<EntEntry> = Vec::with_capacity(MAX_ENT);
+    // 1. Distinct stack items (top-first, never merged with battlefield permanents)
+    for si in (0..game.stack.len()).rev() {
+        if entries.len() >= MAX_ENT {
+            break;
+        }
+        entries.push(EntEntry::Stack(si));
     }
+    // 2. Battlefield (own then opponent)
+    for &id in game.battlefield.iter().filter(|id| game.obj(**id).controller == seat) {
+        if entries.len() >= MAX_ENT {
+            break;
+        }
+        entries.push(EntEntry::Obj(id));
+    }
+    for &id in game.battlefield.iter().filter(|id| game.obj(**id).controller != seat) {
+        if entries.len() >= MAX_ENT {
+            break;
+        }
+        entries.push(EntEntry::Obj(id));
+    }
+    // 3. Own hand
+    for &id in &game.player(seat).hand {
+        if entries.len() >= MAX_ENT {
+            break;
+        }
+        entries.push(EntEntry::Obj(id));
+    }
+    // 4. Playable face-up exile (Impulse draw, Foretell, Plot, Adventure, Escape-like exile)
+    for &id in game.exile.iter() {
+        if entries.len() >= MAX_ENT {
+            break;
+        }
+        let obj = game.obj(id);
+        if !obj.exiled_face_down && game.may_play_now(id, seat) {
+            entries.push(EntEntry::Obj(id));
+        }
+    }
+    // 5. Top-K graveyards (own newest-first, then opponent newest-first; public zone, zero leak)
+    for &id in game.player(seat).graveyard.iter().rev().take(GY_TOP_K) {
+        if entries.len() >= MAX_ENT {
+            break;
+        }
+        entries.push(EntEntry::Obj(id));
+    }
+    for &id in game.player(opp).graveyard.iter().rev().take(GY_TOP_K) {
+        if entries.len() >= MAX_ENT {
+            break;
+        }
+        entries.push(EntEntry::Obj(id));
+    }
+
+    let n_ent = entries.len();
+    let mut o = Obs {
+        glob: global(game, seat, q),
+        ents: Vec::with_capacity(n_ent * ENT_F),
+        ent_ids: Vec::with_capacity(n_ent),
+        ent_rel_idx: vec![NO_ENT; n_ent],
+        ent_rel_type: vec![0; n_ent],
+        acts: Vec::with_capacity(candidates.len() * ACT_F),
+        act_ids: Vec::with_capacity(candidates.len()),
+        act_ent_idx: vec![NO_ENT; candidates.len()],
+    };
+
+    // Fast ObjId -> entity token index lookup (separate maps for stack spells vs non-stack objects)
+    let mut stack_tok: Vec<(ObjId, u8)> = Vec::new();
+    let mut obj_tok: Vec<(ObjId, u8)> = Vec::new();
+    for (idx, entry) in entries.iter().enumerate() {
+        match *entry {
+            EntEntry::Stack(si) => {
+                let s = &game.stack[si];
+                let (feat, cid) = stack_entity(game, seat, s);
+                o.ents.extend(feat);
+                o.ent_ids.push(cid);
+                if s.ability.is_none() {
+                    stack_tok.push((s.card, idx as u8));
+                }
+            }
+            EntEntry::Obj(id) => {
+                o.ents.extend(entity(game, seat, id, playable, false));
+                o.ent_ids.push(card_id(&game.obj(id).def.name));
+                obj_tok.push((id, idx as u8));
+            }
+        }
+    }
+    let find_tok = |oid: ObjId| -> Option<u8> {
+        if (oid.0 as usize) < game.objs.len() && game.obj(oid).zone == Zone::Stack {
+            stack_tok.iter().find(|(k, _)| *k == oid).map(|(_, v)| *v)
+        } else {
+            obj_tok.iter().find(|(k, _)| *k == oid).map(|(_, v)| *v)
+        }
+    };
+
+    // Populate primary sparse relational edge per entity:
+    //   1: stack_item -> targeted entity (spell on stack or permanent on battlefield)
+    //   2: blocker -> attacker
+    //   3: aura/equipment -> attached permanent
+    //   4: stack ability -> source permanent on battlefield (fallback when no object target)
+    for (idx, entry) in entries.iter().enumerate() {
+        match *entry {
+            EntEntry::Stack(si) => {
+                let s = &game.stack[si];
+                let mut linked = false;
+                for t in s.targets.iter().flatten() {
+                    if let Target::Obj(tid) = *t {
+                        if let Some(ti) = find_tok(tid) {
+                            if ti as usize != idx {
+                                o.ent_rel_idx[idx] = ti;
+                                o.ent_rel_type[idx] = 1;
+                                linked = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if !linked {
+                    if let Some(src_i) = obj_tok.iter().find(|(k, _)| *k == s.card).map(|(_, v)| *v) {
+                        if src_i as usize != idx {
+                            o.ent_rel_idx[idx] = src_i;
+                            o.ent_rel_type[idx] = 4;
+                        }
+                    }
+                }
+            }
+            EntEntry::Obj(id) => {
+                let obj = game.obj(id);
+                if obj.zone == Zone::Battlefield {
+                    if let Some(&atk) = obj.blocking.first() {
+                        if let Some(ai) = obj_tok.iter().find(|(k, _)| *k == atk).map(|(_, v)| *v) {
+                            o.ent_rel_idx[idx] = ai;
+                            o.ent_rel_type[idx] = 2;
+                        }
+                    } else if let Some((att, _)) = obj.attached_to {
+                        if let Some(ai) = obj_tok.iter().find(|(k, _)| *k == att).map(|(_, v)| *v) {
+                            o.ent_rel_idx[idx] = ai;
+                            o.ent_rel_type[idx] = 3;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Candidate actions + direct contextual entity pointer (`act_ent_idx`)
     for (i, a) in candidates.iter().enumerate() {
         let (f, id) = action(game, seat, q, a, i == 0, playable);
         o.acts.extend(f);
         o.act_ids.push(id);
+        if let Some(oid) = named(a) {
+            if let Some(ei) = find_tok(oid) {
+                o.act_ent_idx[i] = ei;
+            }
+        }
     }
     o
 }

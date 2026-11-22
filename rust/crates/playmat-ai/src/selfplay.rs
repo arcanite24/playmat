@@ -530,7 +530,7 @@ pub struct Shard {
 }
 
 pub const META: usize = 10;
-const COLUMNS: [&str; 14] = [
+const COLUMNS: [&str; 17] = [
     "meta.i32",
     "logp.f32",
     "glob.f16",
@@ -544,6 +544,9 @@ const COLUMNS: [&str; 14] = [
     "pool.u16",
     "pool_hand.u8",
     "qval.f16",
+    "ent_rel_idx.u8",
+    "ent_rel_type.u8",
+    "act_ent_idx.u8",
     "games.jsonl",
 ];
 
@@ -552,10 +555,10 @@ impl Shard {
         std::fs::create_dir_all(dir)?;
         let open = |c: &str| std::fs::File::create(format!("{dir}/{name}.{c}")).map(std::io::BufWriter::new);
         let mut files = Vec::new();
-        for c in &COLUMNS[..13] {
+        for c in &COLUMNS[..16] {
             files.push(open(c)?);
         }
-        Ok(Shard { files, games: open(COLUMNS[13])?, steps: 0 })
+        Ok(Shard { files, games: open(COLUMNS[16])?, steps: 0 })
     }
 
     /// Writes one game's decisions and its result (`result[seat]`: 1 won, 0 lost, 0.5 a draw)
@@ -599,6 +602,9 @@ impl Shard {
             f[10].write_all(&u(&s.pool))?;
             f[11].write_all(&s.pool_in_hand.iter().map(|b| *b as u8).collect::<Vec<u8>>())?;
             f[12].write_all(&f16(s.qval).to_le_bytes())?;
+            f[13].write_all(&s.obs.ent_rel_idx)?;
+            f[14].write_all(&s.obs.ent_rel_type)?;
+            f[15].write_all(&s.obs.act_ent_idx)?;
         }
         self.steps += steps.len();
         let mut line = info;

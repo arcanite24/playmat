@@ -21,10 +21,10 @@ import time
 import numpy as np
 import torch
 
-from model import ACT_F, ENT_F, GLOB_F
+from model import ACT_F, ENT_F, GLOB_F, GLOB_F_V1, NO_ENT
 
 META = 10
-N_ENT, N_ACT, N_HID, N_POOL = 64, 16, 16, 64
+N_ENT, N_ACT, N_HID, N_POOL = 80, 16, 16, 64
 
 # GLOB_F layout in obs.rs: 17 fitted features, then [turn/10, me.life/20, them.life/20, ...]
 GLOB_LIFE_ME = 17 + 1
@@ -104,9 +104,12 @@ def compact_dir(d, delete_chunks=True, min_shards=4):
     t0 = time.time()
     tmp = os.path.join(d, "_compact_tmp")
     any_qval = any(os.path.exists(b + ".qval.f16") for b in bases)
+    any_rel = any(os.path.exists(b + ".ent_rel_idx.u8") for b in bases)
     col_names = [ext for ext, _ in FIXED_COLS]
     if any_qval:
         col_names.append("qval.f16")
+    if any_rel:
+        col_names += ["ent_rel_idx.u8", "ent_rel_type.u8", "act_ent_idx.u8"]
     out_files = {ext: open(f"{tmp}.{ext}", "wb") for ext in col_names}
     all_games, all_res, all_turns = [], [], []
     n_steps = 0
@@ -133,6 +136,20 @@ def compact_dir(d, delete_chunks=True, min_shards=4):
                         out_files["qval.f16"].write(src.read())
                 else:
                     np.full(n, np.nan, dtype=np.float16).tofile(out_files["qval.f16"])
+            if any_rel:
+                c_ent = int(meta[:, 4].sum())
+                c_act = int(meta[:, 5].sum())
+                for ext, cnt, fill in [
+                    ("ent_rel_idx.u8", c_ent, NO_ENT),
+                    ("ent_rel_type.u8", c_ent, 0),
+                    ("act_ent_idx.u8", c_act, NO_ENT),
+                ]:
+                    rp = f"{base}.{ext}"
+                    if os.path.exists(rp):
+                        with open(rp, "rb") as src:
+                            out_files[ext].write(src.read())
+                    else:
+                        np.full(cnt, fill, dtype=np.uint8).tofile(out_files[ext])
             g, r, t = _read_games_meta(base)
             if len(g):
                 all_games.append(g)
@@ -169,7 +186,9 @@ def compact_dir(d, delete_chunks=True, min_shards=4):
 
 def _read_one_shard(args):
     r, base, load_critic, max_steps = args
-    meta = _read(base + ".meta.i32", np.int32, count=max_steps * META if max_steps > 0 else -1).reshape(-1, META)
+    meta_path = base + ".meta.i32"
+    total_n = os.path.getsize(meta_path) // (META * 4) if os.path.exists(meta_path) else 0
+    meta = _read(meta_path, np.int32, count=max_steps * META if max_steps > 0 else -1).reshape(-1, META)
     if len(meta) == 0:
         return None
     n = len(meta)
@@ -177,15 +196,33 @@ def _read_one_shard(args):
     c_act = int(meta[:, 5].sum())
     c_hid = int(meta[:, 6].sum())
     c_pool = int(meta[:, 7].sum())
+    # Auto-detect v1 (GLOB_F_V1=65) vs v2 (GLOB_F=81) glob.f16 width, padding legacy shards cleanly with zeros
+    gp = base + ".glob.f16"
+    g_w = (os.path.getsize(gp) // (2 * total_n)) if (os.path.exists(gp) and total_n > 0) else GLOB_F
+    glob_arr = _read(gp, np.float16, count=n * g_w).reshape(-1, g_w)
+    if g_w < GLOB_F:
+        pad = np.zeros((len(glob_arr), GLOB_F - g_w), dtype=np.float16)
+        glob_arr = np.concatenate([glob_arr, pad], axis=1)
+    elif g_w > GLOB_F:
+        glob_arr = glob_arr[:, :GLOB_F]
     d = {
         "r": r,
         "meta": meta,
         "logp": _read(base + ".logp.f32", np.float32, count=n),
-        "glob": _read(base + ".glob.f16", np.float16, count=n * GLOB_F).reshape(-1, GLOB_F),
+        "glob": glob_arr,
         "ents": _read(base + ".ents.f16", np.float16, count=c_ent * ENT_F).reshape(-1, ENT_F),
         "ent_ids": _read(base + ".ent_ids.u16", np.uint16, count=c_ent),
+        "ent_rel_idx": _read(base + ".ent_rel_idx.u8", np.uint8, count=c_ent)
+        if os.path.exists(base + ".ent_rel_idx.u8")
+        else np.full(c_ent, NO_ENT, dtype=np.uint8),
+        "ent_rel_type": _read(base + ".ent_rel_type.u8", np.uint8, count=c_ent)
+        if os.path.exists(base + ".ent_rel_type.u8")
+        else np.zeros(c_ent, dtype=np.uint8),
         "acts": _read(base + ".acts.f16", np.float16, count=c_act * ACT_F).reshape(-1, ACT_F),
         "act_ids": _read(base + ".act_ids.u16", np.uint16, count=c_act),
+        "act_ent_idx": _read(base + ".act_ent_idx.u8", np.uint8, count=c_act)
+        if os.path.exists(base + ".act_ent_idx.u8")
+        else np.full(c_act, NO_ENT, dtype=np.uint8),
         "target": _read(base + ".target.f16", np.float16, count=c_act),
         "pool": _read(base + ".pool.u16", np.uint16, count=c_pool),
         "pool_hand": _read(base + ".pool_hand.u8", np.uint8, count=c_pool),
@@ -221,7 +258,10 @@ class Data:
         else:
             parts = [p for p in (_read_one_shard(t) for t in tasks) if p is not None]
 
-        col_keys = ["meta", "logp", "glob", "ents", "ent_ids", "acts", "act_ids", "target", "pool", "pool_hand", "qval"]
+        col_keys = [
+            "meta", "logp", "glob", "ents", "ent_ids", "ent_rel_idx", "ent_rel_type",
+            "acts", "act_ids", "act_ent_idx", "target", "pool", "pool_hand", "qval",
+        ]
         if load_critic:
             col_keys += ["hid", "hid_ids"]
         for k in col_keys:
@@ -292,8 +332,11 @@ class Data:
             "glob": self.glob,
             "ents": self.ents,
             "ent_ids": self.ent_ids.astype(np.int16),
+            "ent_rel_idx": self.ent_rel_idx,
+            "ent_rel_type": self.ent_rel_type,
             "acts": self.acts,
             "act_ids": self.act_ids.astype(np.int16),
+            "act_ent_idx": self.act_ent_idx,
             "target": self.target,
             "pool": self.pool.astype(np.int16),
             "pool_hand": self.pool_hand,
@@ -345,8 +388,11 @@ class Data:
 
         ents, ent_off, n_ent = cat_var(self.ents, self.ent_off, self.n_ent)
         eids, _, _ = cat_var(self.ent_ids, self.ent_off, self.n_ent)
+        eridx, _, _ = cat_var(self.ent_rel_idx, self.ent_off, self.n_ent)
+        ertyp, _, _ = cat_var(self.ent_rel_type, self.ent_off, self.n_ent)
         acts, act_off, n_act = cat_var(self.acts, self.act_off, self.n_act)
         aids, _, _ = cat_var(self.act_ids, self.act_off, self.n_act)
+        aent, _, _ = cat_var(self.act_ent_idx, self.act_off, self.n_act)
         tgt, _, _ = cat_var(self.target, self.act_off, self.n_act)
         pool, pool_off, n_pool = cat_var(self.pool, self.pool_off, self.n_pool)
         ph, _, _ = cat_var(self.pool_hand, self.pool_off, self.n_pool)
@@ -355,10 +401,13 @@ class Data:
             "glob": cat_fixed(self.glob),
             "ents": ents,
             "ent_ids": eids.astype(np.int16),
+            "ent_rel_idx": eridx,
+            "ent_rel_type": ertyp,
             "ent_off": ent_off,
             "n_ent": n_ent,
             "acts": acts,
             "act_ids": aids.astype(np.int16),
+            "act_ent_idx": aent,
             "target": tgt,
             "act_off": act_off,
             "n_act": n_act,
@@ -415,8 +464,11 @@ class Data:
         t = lambda a, dt=torch.float32: torch.from_numpy(np.ascontiguousarray(a)).to(device=device, dtype=dt)
         ents, em = self._gather(self.ents, self.ent_off, self.n_ent, idx, N_ENT)
         eids, _ = self._gather(self.ent_ids, self.ent_off, self.n_ent, idx, N_ENT)
+        eridx, _ = self._gather(self.ent_rel_idx, self.ent_off, self.n_ent, idx, N_ENT)
+        ertyp, _ = self._gather(self.ent_rel_type, self.ent_off, self.n_ent, idx, N_ENT)
         acts, am = self._gather(self.acts, self.act_off, self.n_act, idx, N_ACT)
         aids, _ = self._gather(self.act_ids, self.act_off, self.n_act, idx, N_ACT)
+        aent, _ = self._gather(self.act_ent_idx, self.act_off, self.n_act, idx, N_ACT)
         tgt, _ = self._gather(self.target, self.act_off, self.n_act, idx, N_ACT)
         hid, hm = self._gather(self.hid, self.hid_off, self.n_hid, idx, N_HID)
         hids, _ = self._gather(self.hid_ids, self.hid_off, self.n_hid, idx, N_HID)
@@ -429,9 +481,12 @@ class Data:
             "ents": t(ents * em[..., None]),
             "ent_ids": t(eids * em, torch.long),
             "ent_mask": t(em, torch.bool),
+            "ent_rel_idx": t(np.where(em, eridx, NO_ENT), torch.long),
+            "ent_rel_type": t(np.where(em, ertyp, 0), torch.long),
             "acts": t(acts * am[..., None]),
             "act_ids": t(aids * am, torch.long),
             "act_mask": t(am, torch.bool),
+            "act_ent_idx": t(np.where(am, aent, NO_ENT), torch.long),
             "target": t(tgt),
             "chosen": t(np.minimum(self.chosen[idx], N_ACT - 1), torch.long),
             "logp": t(self.logp[idx]),
@@ -479,8 +534,9 @@ def _tgather_store(st, col, k, idx, width):
 
 
 def _pad_raw(raw):
-    widths = {"ents": N_ENT, "em": N_ENT, "eids": N_ENT, "acts": N_ACT, "am": N_ACT, "aids": N_ACT,
-              "tgt": N_ACT, "pool": N_POOL, "pm": N_POOL, "ph": N_POOL}
+    widths = {"ents": N_ENT, "em": N_ENT, "eids": N_ENT, "eridx": N_ENT, "ertyp": N_ENT,
+              "acts": N_ACT, "am": N_ACT, "aids": N_ACT, "aent": N_ACT, "tgt": N_ACT,
+              "pool": N_POOL, "pm": N_POOL, "ph": N_POOL}
     if "hid" in raw:
         widths.update({"hid": N_HID, "hm": N_HID, "hids": N_HID})
     out = dict(raw)
@@ -488,7 +544,8 @@ def _pad_raw(raw):
         v = raw[k]
         pad = w - v.shape[1]
         if pad > 0:
-            z = torch.zeros((v.shape[0], pad) + tuple(v.shape[2:]), dtype=v.dtype, device=v.device)
+            fill = NO_ENT if k in ("eridx", "aent") else 0
+            z = torch.full((v.shape[0], pad) + tuple(v.shape[2:]), fill, dtype=v.dtype, device=v.device)
             out[k] = torch.cat([v, z], 1)
     return out
 
@@ -500,14 +557,17 @@ def _batch_from_store(st, s, load_critic, idx, device, trim=True):
         i = torch.as_tensor(np.asarray(idx), dtype=torch.long, device=s)
     ents, em = _tgather_store(st, "ents", "ent", i, N_ENT)
     eids, _ = _tgather_store(st, "ent_ids", "ent", i, N_ENT)
+    eridx, _ = _tgather_store(st, "ent_rel_idx", "ent", i, N_ENT)
+    ertyp, _ = _tgather_store(st, "ent_rel_type", "ent", i, N_ENT)
     acts, am = _tgather_store(st, "acts", "act", i, N_ACT)
     aids, _ = _tgather_store(st, "act_ids", "act", i, N_ACT)
+    aent, _ = _tgather_store(st, "act_ent_idx", "act", i, N_ACT)
     tgt, _ = _tgather_store(st, "target", "act", i, N_ACT)
     pool, pm = _tgather_store(st, "pool", "pool", i, N_POOL)
     ph, _ = _tgather_store(st, "pool_hand", "pool", i, N_POOL)
     raw = {
-        "glob": st["glob"][i], "ents": ents, "em": em, "eids": eids,
-        "acts": acts, "am": am, "aids": aids, "tgt": tgt,
+        "glob": st["glob"][i], "ents": ents, "em": em, "eids": eids, "eridx": eridx, "ertyp": ertyp,
+        "acts": acts, "am": am, "aids": aids, "aent": aent, "tgt": tgt,
         "pool": pool, "pm": pm, "ph": ph,
         "chosen": st["chosen"][i], "logp": st["logp"][i], "z": st["z"][i],
         "qval": st["qval"][i], "turns_left": st["turns_left"][i],
@@ -531,9 +591,12 @@ def _batch_from_store(st, s, load_critic, idx, device, trim=True):
         "ents": r["ents"].to(f) * em[..., None],
         "ent_ids": r["eids"].long() * em,
         "ent_mask": em,
+        "ent_rel_idx": torch.where(em, r["eridx"].long(), NO_ENT),
+        "ent_rel_type": torch.where(em, r["ertyp"].long(), 0),
         "acts": r["acts"].to(f) * am[..., None],
         "act_ids": r["aids"].long() * am,
         "act_mask": am,
+        "act_ent_idx": torch.where(am, r["aent"].long(), NO_ENT),
         "target": tgt,
         "chosen": r["chosen"].clamp(max=am.shape[1] - 1),
         "logp": r["logp"].to(f),

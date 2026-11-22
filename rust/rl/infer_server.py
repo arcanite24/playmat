@@ -73,11 +73,17 @@ class InferEngine:
         off += B * w_e * ENT_F * 4
         em = np.frombuffer(mv, dtype=np.bool_, count=B * w_e, offset=off).reshape(B, w_e)
         off += B * w_e
+        eridx = np.frombuffer(mv, dtype=np.uint8, count=B * w_e, offset=off).reshape(B, w_e)
+        off += B * w_e
+        ertyp = np.frombuffer(mv, dtype=np.uint8, count=B * w_e, offset=off).reshape(B, w_e)
+        off += B * w_e
         aids = np.frombuffer(mv, dtype=np.uint16, count=B * w_a, offset=off).reshape(B, w_a)
         off += B * w_a * 2
         acts = np.frombuffer(mv, dtype=np.float32, count=B * w_a * ACT_F, offset=off).reshape(B, w_a, ACT_F)
         off += B * w_a * ACT_F * 4
         am = np.frombuffer(mv, dtype=np.bool_, count=B * w_a, offset=off).reshape(B, w_a)
+        off += B * w_a
+        aent = np.frombuffer(mv, dtype=np.uint8, count=B * w_a, offset=off).reshape(B, w_a)
 
         dev = self.dev
         b = {
@@ -85,9 +91,12 @@ class InferEngine:
             "ents": torch.from_numpy(ents).to(dev),
             "ent_ids": torch.from_numpy(eids.astype(np.int64)).to(dev),
             "ent_mask": torch.from_numpy(em).to(dev),
+            "ent_rel_idx": torch.from_numpy(eridx.astype(np.int64)).to(dev),
+            "ent_rel_type": torch.from_numpy(ertyp.astype(np.int64)).to(dev),
             "acts": torch.from_numpy(acts).to(dev),
             "act_ids": torch.from_numpy(aids.astype(np.int64)).to(dev),
             "act_mask": torch.from_numpy(am).to(dev),
+            "act_ent_idx": torch.from_numpy(aent.astype(np.int64)).to(dev),
         }
         with self.lock, torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16, enabled=self.amp):
             logits, v, h = self.net(b)
@@ -112,10 +121,10 @@ def handle_client(conn, engine, handshake):
                 B * GLOB_F * 4
                 + B * w_e * 2
                 + B * w_e * ENT_F * 4
-                + B * w_e
+                + B * w_e * 3
                 + B * w_a * 2
                 + B * w_a * ACT_F * 4
-                + B * w_a
+                + B * w_a * 2
             )
             raw = recv_exact(conn, payload_bytes)
             v_np, logits_np, h_np = engine.forward_flat(B, w_e, w_a, memoryview(raw))

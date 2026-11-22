@@ -13,9 +13,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 ENT_F = 49
-GLOB_F = 65
+GLOB_F_V1 = 65
+GLOB_F = 81
 ACT_F = 65
 BUCKETS = 4096
+NUM_REL_TYPES = 4
+NO_ENT = 255
 
 
 class Net(nn.Module):
@@ -153,7 +156,22 @@ class Tx(nn.Module):
     - `drop`: training-only dropout rate in transformer blocks (0.0 at eval/export)
     """
 
-    def __init__(self, d=128, heads=4, layers=3, ff=256, dim=32, trunk=128, text=0, val_mlp=0, gelu=0, drop=0.0):
+    def __init__(
+        self,
+        d=128,
+        heads=4,
+        layers=3,
+        ff=256,
+        dim=32,
+        trunk=128,
+        text=0,
+        val_mlp=0,
+        gelu=0,
+        glob_f=GLOB_F_V1,
+        rel=0,
+        act_ent=0,
+        drop=0.0,
+    ):
         super().__init__()
         self.cfg = {"d": d, "heads": heads, "layers": layers, "ff": ff, "dim": dim, "trunk": trunk}
         if text:
@@ -162,14 +180,24 @@ class Tx(nn.Module):
             self.cfg["val_mlp"] = 1
         if gelu:
             self.cfg["gelu"] = 1
+        if int(glob_f) != GLOB_F_V1:
+            self.cfg["glob_f"] = int(glob_f)
+        if rel:
+            self.cfg["rel"] = 1
+        if act_ent:
+            self.cfg["act_ent"] = 1
         self.heads = heads
         self.d = d
+        self.glob_f = int(glob_f)
         self.val_mlp = bool(val_mlp)
         self.use_gelu = bool(gelu)
+        self.use_rel = bool(rel)
+        self.act_ent = bool(act_ent)
         self.drop = nn.Dropout(drop) if drop > 0 else nn.Identity()
         self.emb = CardEmb(dim, int(text))
         self.ent_in = nn.Linear(dim + ENT_F, d)
-        self.glob_in = nn.Linear(GLOB_F, d)
+        self.glob_in = nn.Linear(self.glob_f, d)
+        self.rel_bias = nn.Parameter(torch.zeros(2 * NUM_REL_TYPES, heads)) if self.use_rel else None
         self.blocks = nn.ModuleList()
         for _ in range(layers):
             b = nn.Module()
@@ -179,7 +207,7 @@ class Tx(nn.Module):
         self.ln_f = nn.LayerNorm(d)
         self.trunk1 = nn.Linear(2 * d, trunk)
         if self.val_mlp:
-            v_in = 3 * d + GLOB_F
+            v_in = 3 * d + self.glob_f
             self.val_ln = nn.LayerNorm(v_in)
             self.val_fc1 = nn.Linear(v_in, trunk)
             self.val_drop = nn.Dropout(0.3)
@@ -188,7 +216,7 @@ class Tx(nn.Module):
         else:
             self.value = nn.Linear(trunk, 1)
         self.belief = nn.Linear(trunk, dim)
-        self.act_in = nn.Linear(dim + ACT_F, d)
+        self.act_in = nn.Linear(dim + ACT_F + (d if self.act_ent else 0), d)
         self.act_ln = nn.LayerNorm(d)
         self.act_q, self.act_kv, self.act_o = nn.Linear(d, d), nn.Linear(d, 2 * d), nn.Linear(d, d)
         self.act_ff = nn.Linear(d, d)
@@ -198,29 +226,59 @@ class Tx(nn.Module):
     def _act(self, x):
         return _gelu(x) if self.use_gelu else F.relu(x)
 
-    def _attend(self, q, k, v, mask):
-        """q [B, Q, d], k/v [B, T, d], mask [B, T] (True = attend) -> [B, Q, d], `heads` heads"""
+    def _glob(self, g):
+        if g.shape[-1] == self.glob_f:
+            return g
+        if g.shape[-1] > self.glob_f:
+            return g[..., : self.glob_f]
+        return F.pad(g, (0, self.glob_f - g.shape[-1]))
+
+    def _build_attn_bias(self, b, mask, dtype):
+        if self.rel_bias is None or "ent_rel_idx" not in b or "ent_rel_type" not in b:
+            return mask[:, None, None, :]
+        B, T = mask.shape
+        ne = T - 1
+        if ne <= 0:
+            return mask[:, None, None, :]
+        ri = b["ent_rel_idx"].long()
+        rt = b["ent_rel_type"].long()
+        em = b["ent_mask"]
+        ri_safe = ri.clamp(0, ne - 1)
+        valid = em & (rt >= 1) & (rt <= NUM_REL_TYPES) & (ri < ne) & em.gather(1, ri_safe)
+        bi, ei = torch.nonzero(valid, as_tuple=True)
+        if bi.numel() == 0:
+            return mask[:, None, None, :]
+        bias = torch.zeros((B, T, T, self.heads), device=mask.device, dtype=dtype)
+        bias.masked_fill_(~mask[:, None, :, None], float("-inf"))
+        ti = ri[bi, ei]
+        r = rt[bi, ei] - 1
+        rb = self.rel_bias.to(dtype)
+        bias.index_put_((bi, 1 + ei, 1 + ti), rb[r], accumulate=True)
+        bias.index_put_((bi, 1 + ti, 1 + ei), rb[r + NUM_REL_TYPES], accumulate=True)
+        return bias.permute(0, 3, 1, 2).contiguous()
+
+    def _attend(self, q, k, v, attn_mask):
+        """q [B, Q, d], k/v [B, T, d], attn_mask [B, 1/H, 1/Q, T] -> [B, Q, d], `heads` heads"""
         B, Q, D = q.shape
         T = k.shape[1]
         h, hd = self.heads, D // self.heads
         q = q.view(B, Q, h, hd).transpose(1, 2)
         k = k.view(B, T, h, hd).transpose(1, 2)
         v = v.view(B, T, h, hd).transpose(1, 2)
-        # the same softmax(q·k/√hd)·v as `net.rs`, in one fused kernel; the global token is always attended, so no row
-        # is fully masked
-        out = F.scaled_dot_product_attention(q, k, v, attn_mask=mask[:, None, None, :])
+        out = F.scaled_dot_product_attention(q, k, v, attn_mask=attn_mask)
         return out.transpose(1, 2).reshape(B, Q, D)
 
     def tokens(self, b):
         """-> tokens [B, 1+N, d] after the blocks (normed), mask [B, 1+N]"""
-        g = self.glob_in(b["glob"]).unsqueeze(1)
+        g = self.glob_in(self._glob(b["glob"])).unsqueeze(1)
         e = self.ent_in(torch.cat([self.emb(b["ent_ids"]), b["ents"]], -1))
         x = torch.cat([g, e], 1)
         mask = torch.cat([torch.ones_like(b["ent_mask"][:, :1]), b["ent_mask"]], 1)
+        attn_mask = self._build_attn_bias(b, mask, x.dtype)
         for blk in self.blocks:
             y = blk.ln1(x)
             q, k, v = blk.qkv(y).chunk(3, -1)
-            x = x + self.drop(blk.out(self._attend(q, k, v, mask)))
+            x = x + self.drop(blk.out(self._attend(q, k, v, attn_mask)))
             x = x + self.drop(blk.ff2(self._act(blk.ff1(blk.ln2(x)))))
         return self.ln_f(x), mask
 
@@ -230,7 +288,7 @@ class Tx(nn.Module):
         mean = (ent_t * m).sum(1) / m.sum(1).clamp(min=1)
         mx = torch.where(m > 0, ent_t, torch.full_like(ent_t, -1e9)).max(1).values
         mx = torch.where(m.sum(1) > 0, mx, torch.zeros_like(mx))
-        return torch.cat([t[:, 0], mean, mx, glob], -1), mean
+        return torch.cat([t[:, 0], mean, mx, self._glob(glob)], -1), mean
 
     def state_tokens(self, b):
         t, mask = self.tokens(b)
@@ -252,9 +310,23 @@ class Tx(nn.Module):
             v = self.val_fc2(vh).squeeze(-1)
         else:
             v = self.value(h.detach() if detach_val else h).squeeze(-1)
-        a = self.act_in(torch.cat([self.emb(b["act_ids"]), b["acts"]], -1))
+        if self.act_ent:
+            B, na = b["act_ids"].shape
+            ne = t.shape[1] - 1
+            if ne > 0 and "act_ent_idx" in b:
+                ae = b["act_ent_idx"].long()
+                ae_valid = (ae < ne) & b["act_mask"]
+                ae_safe = ae.clamp(0, ne - 1)
+                ctx = t[:, 1:].gather(1, ae_safe.unsqueeze(-1).expand(-1, -1, self.d))
+                ctx = ctx * ae_valid.unsqueeze(-1).to(ctx.dtype)
+            else:
+                ctx = torch.zeros((B, na, self.d), device=t.device, dtype=t.dtype)
+            a_feat = torch.cat([self.emb(b["act_ids"]), b["acts"], ctx], -1)
+        else:
+            a_feat = torch.cat([self.emb(b["act_ids"]), b["acts"]], -1)
+        a = self.act_in(a_feat)
         k, vv = self.act_kv(t).chunk(2, -1)
-        a = a + self.act_o(self._attend(self.act_q(self.act_ln(a)), k, vv, mask))
+        a = a + self.act_o(self._attend(self.act_q(self.act_ln(a)), k, vv, mask[:, None, None, :]))
         a = a + self._act(self.act_ff(a))
         logits = (self.query(h).unsqueeze(1) * a).sum(-1) + self.abias(a).squeeze(-1)
         logits = logits.masked_fill(~b["act_mask"], -1e9)

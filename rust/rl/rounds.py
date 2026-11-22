@@ -143,6 +143,8 @@ def main():
     ap.add_argument("--gpu-selfplay", action="store_true",
                     help="serve local selfplay evals from infer_server.py on GPU (use with --jobs 32..64)")
     ap.add_argument("--gpu-compile", action="store_true", help="with --gpu-selfplay: torch.compile the server model")
+    ap.add_argument("--hf-models", default=None, help="auto-upload each round checkpoint to this HF model repo")
+    ap.add_argument("--hf-dataset", default=None, help="auto-upload each round compacted data to this HF dataset repo")
     args = ap.parse_args()
     if args.lan and args.games > fleet.SEED_BLOCK:
         sys.exit(f"--lan needs --games <= {fleet.SEED_BLOCK} (the LAN hosts' seeds start there)")
@@ -312,6 +314,16 @@ def main():
             f.write(json.dumps(line) + "\n")
         print("ROUNDS", json.dumps(line), flush=True)
         report(args, book, tag, r, "done", remote_games, lan_games)
+        if args.hf_models or args.hf_dataset:
+            try:
+                import hf_archive
+                api = hf_archive.HfApi(token=hf_archive.load_token())
+                if args.hf_models:
+                    hf_archive.upload_checkpoint_dir(api, args.hf_models, rd, remote_name=f"{tag}/r{r}")
+                if args.hf_dataset and os.path.isdir(data):
+                    hf_archive.upload_data_dir(api, args.hf_dataset, data, remote_name=f"{tag}-r{r}")
+            except Exception as e:
+                print(f"ROUNDS hf archive failed (continuing): {e}", flush=True)
         if accepted:
             cur = rd
             roll = new_roll or roll

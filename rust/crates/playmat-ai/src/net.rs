@@ -11,7 +11,7 @@
 //! - Supports both v1 `Tx` checkpoints (ReLU + linear value head) and upgraded `Tx` checkpoints (`val_mlp=1` dedicated
 //!   2-layer value head reading `[t0, mean_ent, max_ent, glob]`, and `gelu=1` tanh-approx GELU).
 
-use crate::obs::{self, Obs, ACT_F, ENT_F, GLOB_F};
+use crate::obs::{self, Obs, ACT_F, ENT_F, GLOB_F, GLOB_F_V1, NO_ENT, NUM_REL_TYPES};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::{Read, Write};
@@ -240,13 +240,14 @@ impl Mlp {
         let belief = take("belief").ok();
         let (es, emb) = tensors.remove("emb.weight").ok_or("no emb.weight")?;
         let dim = es[1];
-        if ent1.inp != dim + ENT_F || glob1.inp != GLOB_F || act1.inp != dim + ACT_F {
+        if ent1.inp != dim + ENT_F || (glob1.inp != GLOB_F && glob1.inp != GLOB_F_V1) || act1.inp != dim + ACT_F {
             return Err(format!(
-                "{name}: made for other features (entity {}, global {}, action {}; this build has {}, {}, {})",
+                "{name}: made for other features (entity {}, global {}, action {}; this build has {}, {} or {}, {})",
                 ent1.inp - dim,
                 glob1.inp,
                 act1.inp - dim,
                 ENT_F,
+                GLOB_F_V1,
                 GLOB_F,
                 ACT_F
             ));
@@ -292,7 +293,10 @@ impl Mlp {
                 max[k] = if i == 0 { z[k] } else { max[k].max(z[k]) };
             }
         }
-        self.glob1.apply(&o.glob, &mut y, true);
+        let mut gbuf = [0f32; GLOB_F];
+        let gn = self.glob1.inp.min(o.glob.len());
+        gbuf[..gn].copy_from_slice(&o.glob[..gn]);
+        self.glob1.apply(&gbuf[..self.glob1.inp], &mut y, true);
         let mut t = mean;
         t.extend(max);
         t.extend_from_slice(&y);
@@ -434,6 +438,9 @@ pub struct Tx {
     pub d: usize,
     pub heads: usize,
     pub gelu: bool,
+    pub glob_f: usize,
+    pub rel_bias: Option<Vec<f32>>,
+    pub act_ent: bool,
     pub ent_in: Linear,
     pub glob_in: Linear,
     pub blocks: Vec<Block>,
@@ -468,6 +475,7 @@ fn attend_strided(
     nk: usize,
     d: usize,
     heads: usize,
+    rel: Option<(&[u8], &[u8], &[f32])>,
     out: &mut Vec<f32>,
     scores: &mut Vec<f32>,
 ) {
@@ -488,6 +496,31 @@ fn attend_strided(
                 let s = dot(qr, kr) * scale;
                 scores[j] = s;
                 m = m.max(s);
+            }
+            if let Some((r_idx, r_typ, rb)) = rel {
+                if qi >= 1 {
+                    let k_ent = qi - 1;
+                    let ne = r_idx.len().min(nk.saturating_sub(1));
+                    if k_ent < ne {
+                        let rt = r_typ[k_ent] as usize;
+                        if rt >= 1 && rt <= NUM_REL_TYPES {
+                            let tgt = r_idx[k_ent] as usize;
+                            if tgt < ne {
+                                let j = 1 + tgt;
+                                scores[j] += rb[(rt - 1) * heads + h];
+                                m = m.max(scores[j]);
+                            }
+                        }
+                        for j_ent in 0..ne {
+                            let rt = r_typ[j_ent] as usize;
+                            if rt >= 1 && rt <= NUM_REL_TYPES && r_idx[j_ent] as usize == k_ent {
+                                let j = 1 + j_ent;
+                                scores[j] += rb[(NUM_REL_TYPES + rt - 1) * heads + h];
+                                m = m.max(scores[j]);
+                            }
+                        }
+                    }
+                }
             }
             let mut z = 0.0f32;
             for s in scores.iter_mut() {
@@ -528,6 +561,8 @@ impl Tx {
         let layers = cfg["layers"].as_u64().ok_or("no layers")? as usize;
         let gelu = cfg["gelu"].as_u64().unwrap_or(0) != 0;
         let use_val_mlp = cfg["val_mlp"].as_u64().unwrap_or(0) != 0;
+        let use_rel = cfg["rel"].as_u64().unwrap_or(0) != 0;
+        let act_ent = cfg["act_ent"].as_u64().unwrap_or(0) != 0;
         let t = &mut t;
         let mut blocks = Vec::new();
         for i in 0..layers {
@@ -542,6 +577,15 @@ impl Tx {
             });
         }
         let (es, emb) = t.remove("emb.weight").ok_or("no emb.weight")?;
+        let rel_bias = if use_rel {
+            let (rs, rb) = t.remove("rel_bias").ok_or("no rel_bias")?;
+            if rs != vec![2 * NUM_REL_TYPES, heads] {
+                return Err(format!("{name}: bad rel_bias shape {rs:?}"));
+            }
+            Some(rb)
+        } else {
+            None
+        };
         let (value, val_mlp) = if use_val_mlp {
             (
                 None,
@@ -554,6 +598,8 @@ impl Tx {
         } else {
             (Some(take_linear(t, "value")?), None)
         };
+        let glob_in = take_linear(t, "glob_in")?;
+        let glob_f = glob_in.inp;
         let net = Tx {
             name: name.to_string(),
             emb,
@@ -561,8 +607,11 @@ impl Tx {
             d,
             heads,
             gelu,
+            glob_f,
+            rel_bias,
+            act_ent,
             ent_in: take_linear(t, "ent_in")?,
-            glob_in: take_linear(t, "glob_in")?,
+            glob_in,
             blocks,
             ln_f: take_norm(t, "ln_f")?,
             trunk1: take_linear(t, "trunk1")?,
@@ -578,7 +627,8 @@ impl Tx {
             query: take_linear(t, "query")?,
             abias: take_linear(t, "abias")?,
         };
-        if net.ent_in.inp != net.dim + ENT_F || net.glob_in.inp != GLOB_F || net.act_in.inp != net.dim + ACT_F {
+        let want_act = net.dim + ACT_F + if net.act_ent { net.d } else { 0 };
+        if net.ent_in.inp != net.dim + ENT_F || (net.glob_f != GLOB_F && net.glob_f != GLOB_F_V1) || net.act_in.inp != want_act {
             return Err(format!("{name}: made for other features than this build's"));
         }
         Ok(net)
@@ -596,8 +646,11 @@ impl Tx {
         let nt = 1 + n_ents;
         let d = self.d;
         ws.x.resize(nt * d, 0.0);
-        // Row 0: global token
-        self.glob_in.apply_act(&o.glob, &mut ws.tmp1, false, false);
+        // Row 0: global token (slice/pad to self.glob_f so v1=65 and v2=81 models both work)
+        let mut gbuf = [0f32; GLOB_F];
+        let gn = self.glob_f.min(o.glob.len());
+        gbuf[..gn].copy_from_slice(&o.glob[..gn]);
+        self.glob_in.apply_act(&gbuf[..self.glob_f], &mut ws.tmp1, false, false);
         ws.x[..d].copy_from_slice(&ws.tmp1);
         // Rows 1..nt: entity tokens
         if n_ents > 0 {
@@ -611,6 +664,13 @@ impl Tx {
             self.ent_in.matmul_rows(&ws.ent_in_buf, n_ents, &mut ws.tmp2, false, false, false);
             ws.x[d..].copy_from_slice(&ws.tmp2);
         }
+        let rel = self.rel_bias.as_deref().and_then(|rb| {
+            if o.ent_rel_idx.len() == n_ents && o.ent_rel_type.len() == n_ents {
+                Some((o.ent_rel_idx.as_slice(), o.ent_rel_type.as_slice(), rb))
+            } else {
+                None
+            }
+        });
         for b in &self.blocks {
             b.ln1.apply_rows(&ws.x, nt, &mut ws.norm);
             b.qkv.matmul_rows(&ws.norm, nt, &mut ws.qkv, false, false, false);
@@ -628,6 +688,7 @@ impl Tx {
                 nt,
                 d,
                 self.heads,
+                rel,
                 &mut ws.att,
                 &mut ws.scores,
             );
@@ -661,7 +722,7 @@ impl Tx {
         let mut h = Vec::with_capacity(self.trunk1.out);
         self.trunk1.apply_act(&ws.tmp1, &mut h, true, self.gelu);
         let value = if let Some(vm) = &self.val_mlp {
-            let vin = 3 * d + GLOB_F;
+            let vin = 3 * d + self.glob_f;
             ws.tmp2.resize(vin, 0.0);
             ws.tmp2[..2 * d].copy_from_slice(&ws.tmp1[..2 * d]);
             let mx = &mut ws.tmp2[2 * d..3 * d];
@@ -678,7 +739,11 @@ impl Tx {
             } else {
                 mx.fill(0.0);
             }
-            ws.tmp2[3 * d..].copy_from_slice(&o.glob);
+            let gn = self.glob_f.min(o.glob.len());
+            ws.tmp2[3 * d..3 * d + gn].copy_from_slice(&o.glob[..gn]);
+            if gn < self.glob_f {
+                ws.tmp2[3 * d + gn..vin].fill(0.0);
+            }
             ws.tmp3.resize(vin, 0.0);
             vm.ln.apply_slice(&ws.tmp2, &mut ws.tmp3);
             vm.fc1.apply_act(&ws.tmp3, &mut ws.tmp1, true, self.gelu);
@@ -715,13 +780,23 @@ impl Tx {
             self.act_kv.matmul_rows(&ws.norm, nt, &mut ws.act_kv, false, false, false);
             // Query from state h
             self.query.apply_act(&h, &mut ws.tmp1, false, false);
-            // Action inputs
-            let ain = self.dim + ACT_F;
+            // Action inputs (optionally concatenated with contextualized entity token `ws.norm[1 + act_ent_idx[i]]`)
+            let n_ents = nt - 1;
+            let ain = self.dim + ACT_F + if self.act_ent { d } else { 0 };
             ws.act_in_buf.resize(na * ain, 0.0);
             for i in 0..na {
                 let dst = &mut ws.act_in_buf[i * ain..(i + 1) * ain];
                 dst[..self.dim].copy_from_slice(self.embedding(o.act_ids[i]));
-                dst[self.dim..].copy_from_slice(&o.acts[i * ACT_F..(i + 1) * ACT_F]);
+                dst[self.dim..self.dim + ACT_F].copy_from_slice(&o.acts[i * ACT_F..(i + 1) * ACT_F]);
+                if self.act_ent {
+                    let ei = o.act_ent_idx.get(i).copied().unwrap_or(NO_ENT) as usize;
+                    let ctx = &mut dst[self.dim + ACT_F..];
+                    if ei < n_ents {
+                        ctx.copy_from_slice(&ws.norm[(1 + ei) * d..(2 + ei) * d]);
+                    } else {
+                        ctx.fill(0.0);
+                    }
+                }
             }
             self.act_in.matmul_rows(&ws.act_in_buf, na, &mut ws.act, false, false, false);
             self.act_ln.apply_rows(&ws.act, na, &mut ws.act_norm);
@@ -740,6 +815,7 @@ impl Tx {
                 nt,
                 d,
                 self.heads,
+                None,
                 &mut ws.act_att,
                 &mut ws.scores,
             );
@@ -865,15 +941,28 @@ impl RemoteNet {
                 let w_e = ((max_e + 7) / 8 * 8).max(8);
                 let w_a = ((max_a + 3) / 4 * 4).max(4);
 
-                // Pre-pack 7 flat contiguous arrays so Python infer_server.py runs with ZERO Python loops
+                // Pre-pack 10 flat contiguous arrays so Python infer_server.py runs with ZERO Python loops
                 let glob_bytes = b * GLOB_F * 4;
                 let eids_bytes = b * w_e * 2;
                 let ents_bytes = b * w_e * ENT_F * 4;
                 let em_bytes = b * w_e;
+                let eridx_bytes = b * w_e;
+                let ertyp_bytes = b * w_e;
                 let aids_bytes = b * w_a * 2;
                 let acts_bytes = b * w_a * ACT_F * 4;
                 let am_bytes = b * w_a;
-                let total_bytes = 12 + glob_bytes + eids_bytes + ents_bytes + em_bytes + aids_bytes + acts_bytes + am_bytes;
+                let aent_bytes = b * w_a;
+                let total_bytes = 12
+                    + glob_bytes
+                    + eids_bytes
+                    + ents_bytes
+                    + em_bytes
+                    + eridx_bytes
+                    + ertyp_bytes
+                    + aids_bytes
+                    + acts_bytes
+                    + am_bytes
+                    + aent_bytes;
                 payload.clear();
                 payload.resize(total_bytes, 0);
                 payload[0..4].copy_from_slice(&(b as u32).to_le_bytes());
@@ -884,15 +973,21 @@ impl RemoteNet {
                 let o_eids = o_glob + glob_bytes;
                 let o_ents = o_eids + eids_bytes;
                 let o_em = o_ents + ents_bytes;
-                let o_aids = o_em + em_bytes;
+                let o_eridx = o_em + em_bytes;
+                let o_ertyp = o_eridx + eridx_bytes;
+                let o_aids = o_ertyp + ertyp_bytes;
                 let o_acts = o_aids + aids_bytes;
                 let o_am = o_acts + acts_bytes;
+                let o_aent = o_am + am_bytes;
+                // Default sentinel NO_ENT (255) for entity/action indices
+                payload[o_eridx..o_eridx + eridx_bytes].fill(NO_ENT);
+                payload[o_aent..o_aent + aent_bytes].fill(NO_ENT);
 
                 for (i, req) in batch.iter().enumerate() {
                     let o = &req.obs;
                     // glob
                     let gd = &mut payload[o_glob + i * GLOB_F * 4..o_glob + (i + 1) * GLOB_F * 4];
-                    for (k, &v) in o.glob.iter().enumerate() {
+                    for (k, &v) in o.glob.iter().take(GLOB_F).enumerate() {
                         gd[k * 4..(k + 1) * 4].copy_from_slice(&v.to_le_bytes());
                     }
                     // entities
@@ -909,6 +1004,10 @@ impl RemoteNet {
                         }
                         let em_base = o_em + i * w_e;
                         payload[em_base..em_base + ne].fill(1);
+                        if o.ent_rel_idx.len() >= ne && o.ent_rel_type.len() >= ne {
+                            payload[o_eridx + i * w_e..o_eridx + i * w_e + ne].copy_from_slice(&o.ent_rel_idx[..ne]);
+                            payload[o_ertyp + i * w_e..o_ertyp + i * w_e + ne].copy_from_slice(&o.ent_rel_type[..ne]);
+                        }
                     }
                     // actions
                     let na = o.n_acts().min(w_a);
@@ -924,6 +1023,9 @@ impl RemoteNet {
                         }
                         let am_base = o_am + i * w_a;
                         payload[am_base..am_base + na].fill(1);
+                        if o.act_ent_idx.len() >= na {
+                            payload[o_aent + i * w_a..o_aent + i * w_a + na].copy_from_slice(&o.act_ent_idx[..na]);
+                        }
                     }
                 }
                 if stream.write_all(&payload).is_err() {

@@ -287,7 +287,7 @@ def train_main(argv=None, shared_data=None):
 
     aux_head = None
     if args.aux_weight > 0:
-        aux_in = (3 * net.d + GLOB_F) if isinstance(net, Tx) else net.trunk2.out_features
+        aux_in = (3 * net.d + net.glob_f) if isinstance(net, Tx) else net.trunk2.out_features
         aux_head = AuxHead(aux_in).to(dev)
 
     print(
