@@ -344,11 +344,12 @@ class Driver(threading.Thread):
                 # one compressed stream, not a round trip per file: over the internet (a cloud VM) scp spends most
                 # of a chunk's time on its ~200 files
                 p = run([remote.SSH, "-o", "BatchMode=yes", "-o", "ConnectTimeout=15", self.h.alias,
-                         f"tar czf - -C '{self.h.path('out')}' c{n:06d}"], timeout=900)
+                         f"COPYFILE_DISABLE=1 tar czf - -C '{self.h.path('out')}' c{n:06d}"], timeout=900)
                 os.makedirs(os.path.join(tmp, f"c{n:06d}"))
                 with tarfile.open(fileobj=io.BytesIO(p.stdout), mode="r:gz") as tar:
                     for m in tar.getmembers():
-                        if m.isfile() and os.path.dirname(m.name) == f"c{n:06d}":
+                        if (m.isfile() and os.path.dirname(m.name) == f"c{n:06d}"
+                                and not os.path.basename(m.name).startswith("._")):  # a Mac's AppleDouble files
                             with open(os.path.join(tmp, m.name), "wb") as f:
                                 shutil.copyfileobj(tar.extractfile(m), f)
             src = os.path.join(tmp, f"c{n:06d}")
