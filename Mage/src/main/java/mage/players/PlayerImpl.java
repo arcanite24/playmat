@@ -122,6 +122,7 @@ public abstract class PlayerImpl implements Player, Serializable {
     protected boolean passedUntilNextMain; // F7
     protected boolean passedUntilStackResolved; // F10
     protected Date dateLastAddedToStack;
+    protected long lastAddedToStackSeq;
     protected boolean passedUntilEndStepBeforeMyTurn; // F11
     protected boolean skippedAtLeastOnce; // used to track if passed started in specific phase
     /**
@@ -297,6 +298,7 @@ public abstract class PlayerImpl implements Player, Serializable {
         this.passedUntilNextMain = player.passedUntilNextMain;
         this.passedUntilStackResolved = player.passedUntilStackResolved;
         this.dateLastAddedToStack = player.dateLastAddedToStack;
+        this.lastAddedToStackSeq = player.lastAddedToStackSeq;
         this.passedUntilEndStepBeforeMyTurn = player.passedUntilEndStepBeforeMyTurn;
         this.skippedAtLeastOnce = player.skippedAtLeastOnce;
         this.passedAllTurns = player.passedAllTurns;
@@ -469,6 +471,7 @@ public abstract class PlayerImpl implements Player, Serializable {
         this.passedUntilNextMain = false;
         this.passedUntilStackResolved = false;
         this.dateLastAddedToStack = null;
+        this.lastAddedToStackSeq = 0;
         this.passedUntilEndStepBeforeMyTurn = false;
         this.skippedAtLeastOnce = false;
         this.passedAllTurns = false;
@@ -2705,6 +2708,7 @@ public abstract class PlayerImpl implements Player, Serializable {
         this.passedUntilNextMain = false;
         this.passedUntilStackResolved = false;
         this.dateLastAddedToStack = null;
+        this.lastAddedToStackSeq = 0;
         this.passedUntilEndStepBeforeMyTurn = false;
         this.skippedAtLeastOnce = false;
         this.passedAllTurns = false;
@@ -2786,6 +2790,7 @@ public abstract class PlayerImpl implements Player, Serializable {
                     resetPlayerPassedActions();
                     passedUntilStackResolved = true;
                     dateLastAddedToStack = game.getStack().getDateLastAdded();
+                    lastAddedToStackSeq = game.getStack().getLastAddedSeq();
                     this.skip();
                 }
                 break;

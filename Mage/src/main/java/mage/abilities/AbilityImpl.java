@@ -351,6 +351,9 @@ public abstract class AbilityImpl implements Ability {
         //    return false;
         //}
         if (getAbilityType() == AbilityType.SPELL && (getManaCostsToPay().isEmpty() && getCosts().isEmpty()) && !noMana) {
+            if (!game.isSimulation() && controller.isHuman() && sourceObject != null) {
+                game.informPlayer(controller, sourceObject.getName() + " has no mana cost and can't be cast this way.");
+            }
             return false;
         }
 

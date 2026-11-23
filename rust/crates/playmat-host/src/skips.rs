@@ -149,6 +149,9 @@ impl Passing {
             }
             "PASS_PRIORITY_UNTIL_MY_NEXT_TURN" => self.all_turns = true,
             "PASS_PRIORITY_UNTIL_STACK_RESOLVED" => {
+                if game.stack.is_empty() {
+                    return false;
+                }
                 self.until_stack_resolved = true;
                 self.stack_seen = game.stack.len();
             }
@@ -181,8 +184,14 @@ impl Passing {
         if self.turn && game.turn != self.turn_pressed {
             self.turn = false;
         }
-        // attacked: stop before blocks (`quickStop`)
-        if step == Step::DeclareAttackers && !active {
+        // Once the stack empties, end "resolve the stack" even if quickStop applies below so it doesn't linger
+        let mut just_resolved_stack = false;
+        if self.until_stack_resolved && game.stack.is_empty() {
+            self.until_stack_resolved = false;
+            just_resolved_stack = true;
+        }
+        // attacked: stop before blocks (`quickStop`), but don't block an explicit "resolve the stack" while items remain (#460)
+        if step == Step::DeclareAttackers && !active && !(self.until_stack_resolved && !game.stack.is_empty()) {
             let blockers = game
                 .battlefield
                 .iter()
@@ -203,7 +212,7 @@ impl Passing {
             return true;
         }
         if game.stack.is_empty() {
-            let mut check_step = true;
+            let mut check_step = !just_resolved_stack;
             if self.until_stack_resolved {
                 self.until_stack_resolved = false;
                 check_step = false;
@@ -232,10 +241,83 @@ impl Passing {
         } else {
             let new_objects = game.stack.len() > self.stack_seen;
             self.stack_seen = game.stack.len();
-            if self.until_stack_resolved && new_objects && active && settings.stop_on_stack_new_objects {
+            if self.until_stack_resolved && new_objects && settings.stop_on_stack_new_objects {
                 self.until_stack_resolved = false;
             }
             self.until_stack_resolved
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use playmat_ai::duel::{new_duel, Deck};
+    use playmat_engine::state::{StackItem, Step, Zone};
+    use std::sync::Arc;
+
+    fn setup_attackers_game() -> (Game, playmat_engine::state::ObjId) {
+        let db = playmat_engine::cards();
+        let deck = Deck::parse("d", "20 Forest\n40 Llanowar Elves");
+        let mut game = new_duel(&db, [&deck, &deck], 1, 0).unwrap();
+        game.turn = 3;
+        game.step = Some(Step::DeclareAttackers);
+        game.active = Some(0);
+
+        let attacker = *game.players[0].library.iter().find(|id| game.obj(**id).name() == "Llanowar Elves").unwrap();
+        let blocker = *game.players[1].library.iter().find(|id| game.obj(**id).name() == "Llanowar Elves").unwrap();
+        game.move_to(attacker, Zone::Battlefield);
+        game.move_to(blocker, Zone::Battlefield);
+        game.obj_mut(attacker).attacking = Some(1);
+        (game, attacker)
+    }
+
+    #[test]
+    fn resolve_stack_passes_all_declare_attackers_triggers_for_defender_and_stops_when_empty() {
+        let (mut game, attacker) = setup_attackers_game();
+
+        // Put 3 Shared Animosity-like triggers on the stack
+        for _ in 0..3 {
+            Arc::make_mut(&mut game.stack).push(StackItem { ability: Some((0, 0)), ..StackItem::spell(attacker, 0) });
+        }
+
+        let settings = Settings::parse(None);
+        let mut passing = Passing::default();
+        assert!(passing.press("PASS_PRIORITY_UNTIL_STACK_RESOLVED", &game));
+
+        // After 1st trigger resolves, 2 remain: defender must auto-pass (not stop at quickStop)
+        Arc::make_mut(&mut game.stack).pop();
+        assert!(passing.passes(&game, 1, &settings));
+
+        // After 2nd trigger resolves, 1 remains: defender still auto-passes
+        Arc::make_mut(&mut game.stack).pop();
+        assert!(passing.passes(&game, 1, &settings));
+
+        // Once stack empties, defender stops before declare blockers and flag is cleared
+        Arc::make_mut(&mut game.stack).pop();
+        assert!(!passing.passes(&game, 1, &settings));
+        assert!(!passing.until_stack_resolved);
+
+        // If attacker casts a new spell afterward, defender stops to respond
+        Arc::make_mut(&mut game.stack).push(StackItem::spell(attacker, 0));
+        assert!(!passing.passes(&game, 1, &settings));
+    }
+
+    #[test]
+    fn resolve_stack_stops_for_defender_when_new_spell_added() {
+        let (mut game, attacker) = setup_attackers_game();
+
+        for _ in 0..2 {
+            Arc::make_mut(&mut game.stack).push(StackItem { ability: Some((0, 0)), ..StackItem::spell(attacker, 0) });
+        }
+
+        let settings = Settings::parse(None);
+        let mut passing = Passing::default();
+        assert!(passing.press("PASS_PRIORITY_UNTIL_STACK_RESOLVED", &game));
+
+        // Opponent adds a new spell on top of the stack -> defender must stop
+        Arc::make_mut(&mut game.stack).push(StackItem::spell(attacker, 0));
+        assert!(!passing.passes(&game, 1, &settings));
+        assert!(!passing.until_stack_resolved);
     }
 }

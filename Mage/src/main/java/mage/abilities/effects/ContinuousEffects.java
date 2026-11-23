@@ -864,7 +864,9 @@ public class ContinuousEffects implements Serializable {
                                         message = sourceObject.getIdName() + ": " + message;
                                     }
                                     if (message != null && !message.isEmpty()) {
-                                        if (effect.sendMessageToUser()) {
+                                        boolean isCastPrevention = event.getType() == GameEvent.EventType.CAST_SPELL
+                                                || event.getType() == GameEvent.EventType.CAST_SPELL_LATE;
+                                        if (effect.sendMessageToUser() || isCastPrevention) {
                                             Player player = game.getPlayer(event.getPlayerId());
                                             if (player != null && !game.isSimulation()) {
                                                 game.informPlayer(player, message);

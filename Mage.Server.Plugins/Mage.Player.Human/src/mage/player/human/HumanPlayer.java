@@ -1332,6 +1332,14 @@ public class HumanPlayer extends PlayerImpl {
                 }
             }
 
+            // Once the stack has emptied, end "resolve the stack" even if a quickStop is active (e.g. defending in
+            // declare attackers), so it does not linger and accidentally pass a later spell on the stack.
+            boolean justFinishedResolvingStack = false;
+            if (isGameUnderControl() && passedUntilStackResolved && game.getStack().isEmpty()) {
+                passedUntilStackResolved = false;
+                justFinishedResolvingStack = true;
+            }
+
             // STOP conditions (temporary stop without skip reset)
             boolean quickStop = false;
             if (isGameUnderControl()) { // TODO: remove to enable quick stop for controlling player
@@ -1346,6 +1354,12 @@ public class HumanPlayer extends PlayerImpl {
                     boolean canStopOnZero = possibleBlockersCount == 0 && getControllingPlayersUserData(game).getUserSkipPrioritySteps().isStopOnDeclareBlockersWithZeroPermanents();
                     quickStop = canStopOnAny || canStopOnZero;
                 }
+            }
+
+            // An explicit "resolve the stack" action must still resolve the current stack during declare attackers;
+            // once the stack empties, quickStop still stops the defending player before declare blockers (#460).
+            if (isGameUnderControl() && passedUntilStackResolved && !game.getStack().isEmpty()) {
+                quickStop = false;
             }
 
             // SKIP - use the skip actions only if the player itself controls its turn
@@ -1380,7 +1394,7 @@ public class HumanPlayer extends PlayerImpl {
                 if (game.getStack().isEmpty()) {
                     // empty stack
 
-                    boolean dontCheckPassStep = false;
+                    boolean dontCheckPassStep = justFinishedResolvingStack;
                     if (passedUntilStackResolved) { // Don't skip to next step with this action. It always only resolves a stack. If stack is empty it does nothing.
                         passedUntilStackResolved = false;
                         dontCheckPassStep = true;
@@ -1449,14 +1463,15 @@ public class HumanPlayer extends PlayerImpl {
 
                 } else {
                     // non empty stack
-                    boolean haveNewObjectsOnStack = !Objects.equals(dateLastAddedToStack, game.getStack().getDateLastAdded());
+                    boolean haveNewObjectsOnStack = lastAddedToStackSeq != game.getStack().getLastAddedSeq()
+                            || !Objects.equals(dateLastAddedToStack, game.getStack().getDateLastAdded());
                     dateLastAddedToStack = game.getStack().getDateLastAdded();
+                    lastAddedToStackSeq = game.getStack().getLastAddedSeq();
                     if (passedUntilStackResolved) {
                         if (haveNewObjectsOnStack
-                                && (playerId.equals(game.getActivePlayerId())
                                 && controllingUserData
                                 .getUserSkipPrioritySteps()
-                                .isStopOnStackNewObjects())) {
+                                .isStopOnStackNewObjects()) {
                             // new objects on stack -- disable "pass until stack resolved"
                             passedUntilStackResolved = false;
                         } else {
