@@ -101,8 +101,8 @@ def losses(net, critic, aux_head, b, q_mix=0.0, pol_min_run=0, val_prob=1.0, det
     else:
         pol = pol_per.mean()
 
-    # Mix binary outcome z with root search Q-value when finite
-    z_tgt = b["z"]
+    # Mix TD(lambda) / binary outcome with root search Q-value when finite
+    z_tgt = b["z_td"]
     if q_mix > 0.0:
         qv = b["qval"]
         has_q = torch.isfinite(qv)
@@ -143,6 +143,7 @@ def evaluate(net, critic, data, idx, dev, bs=1024, q_mix=0.0, pol_min_run=0):
     net.eval()
     tot = np.zeros(8)
     n = 0
+    rec_pol_sum, rec_right_nq, rec_off_sum, rec_n = 0.0, 0.0, 0.0, 0.0
     # Cap eval set at 150k decisions for speed on huge multi-round replay buffers
     if len(idx) > 150_000:
         step = max(len(idx) // 150_000, 1)
@@ -156,8 +157,14 @@ def evaluate(net, critic, data, idx, dev, bs=1024, q_mix=0.0, pol_min_run=0):
             logits, v, h = net(b)
             logp = F.log_softmax(logits, -1)
             pol_per = -(b["target"] * logp).sum(-1)
+            right = (logits.argmax(-1) == b["target"].argmax(-1)).float()
+            off = (b["target"].argmax(-1) != 0).float()
             if pol_min_run > 0:
                 pm = (b["run"] >= pol_min_run).float()
+                rec_pol_sum += float((pol_per * pm).sum())
+                rec_right_nq += float((right * off * pm).sum())
+                rec_off_sum += float((off * pm).sum())
+                rec_n += float(pm.sum())
                 pol = (pol_per * pm).sum() / pm.sum().clamp(min=1)
             else:
                 pol = pol_per.mean()
@@ -166,8 +173,6 @@ def evaluate(net, critic, data, idx, dev, bs=1024, q_mix=0.0, pol_min_run=0):
             m = b["pool_mask"].float()
             bel = (F.binary_cross_entropy_with_logits(bl, b["pool_hand"], reduction="none") * m).sum() / m.sum().clamp(min=1)
             crit = F.binary_cross_entropy_with_logits(critic(b), b["z"]) if critic is not None else torch.zeros((), device=v.device)
-            right = (logits.argmax(-1) == b["target"].argmax(-1)).float()
-            off = (b["target"].argmax(-1) != 0).float()
             acc = right.mean()
             acc_off = (right * off).sum() / off.sum().clamp(min=1)
             out = (pol, val, bel, crit, torch.zeros(()), acc, acc_off, 1 - off.mean())
@@ -175,10 +180,14 @@ def evaluate(net, critic, data, idx, dev, bs=1024, q_mix=0.0, pol_min_run=0):
             n += len(j)
     net.train()
     pol, val, bel, crit, _, acc, acc_off, quick = tot / max(n, 1)
-    return {
-        "policy_ce": pol, "value_logloss": val, "belief_logloss": bel, "critic_logloss": crit,
+    res = {
+        "policy_ce": (rec_pol_sum / rec_n) if (pol_min_run > 0 and rec_n > 0) else pol,
+        "value_logloss": val, "belief_logloss": bel, "critic_logloss": crit,
         "accuracy": acc, "accuracy_not_quick": acc_off, "teacher_picks_quick": quick,
     }
+    if pol_min_run > 0 and rec_off_sum > 0:
+        res["recent_acc_nq"] = rec_right_nq / rec_off_sum
+    return res
 
 
 def _select_epoch_blocks(data, samples_target, pol_min_run, rng, block_len=512):
@@ -224,6 +233,7 @@ def build_parser():
     ap.add_argument("--belief-weight", type=float, default=0.2)
     ap.add_argument("--aux-weight", type=float, default=0.15, help="training-only auxiliary positional loss weight (0 disables)")
     ap.add_argument("--q-mix", type=float, default=0.4, help="weight on root search Q-value in value target when present")
+    ap.add_argument("--td-lambda", type=float, default=0.0, help="forward-looking TD(lambda) value target across future search Q-values (0 = plain z)")
     ap.add_argument("--policy-recent", type=int, default=0, help="only train policy on the last N --data dirs (0 = all)")
     ap.add_argument("--samples-per-epoch", type=int, default=0, help="cap/stage this many decisions per epoch onto GPU (0 = all)")
     ap.add_argument("--max-per-dir", type=int, default=0, help="cap decisions read per recent --data dir (0 = all)")
@@ -262,6 +272,7 @@ def train_main(argv=None, shared_data=None):
             max_per_dir=args.max_per_dir,
             max_old_per_dir=args.max_old_per_dir,
             policy_recent=args.policy_recent,
+            td_lambda=args.td_lambda,
         )
         print(f"TRAIN {len(data)} decisions from {len(data.infos)} games, {time.time() - t0:.1f} s to read", flush=True)
     where, size = data.place(dev, args.gpu_data_gb)

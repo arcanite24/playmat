@@ -242,7 +242,7 @@ def _read_one_shard(args):
 class Data:
     """Every decision in the shards under `dirs`, with each game's result and derived auxiliary targets."""
 
-    def __init__(self, dirs, load_critic=True, workers=8, max_per_dir=0, max_old_per_dir=0, policy_recent=0):
+    def __init__(self, dirs, load_critic=True, workers=8, max_per_dir=0, max_old_per_dir=0, policy_recent=0, td_lambda=0.0):
         self.load_critic = load_critic
         self.num_dirs = len(dirs)
         pol_min = max(0, len(dirs) - policy_recent) if policy_recent > 0 else 0
@@ -325,6 +325,38 @@ class Data:
         last_life[s_inv] = life_diff
         self.final_life_diff = np.clip(last_life[s_inv], -2.0, 2.0).astype(np.float32)
 
+        # Forward-looking TD(lambda) value target across each (run, game, seat) trajectory via O(N log L) suffix scan.
+        # G_t = (1 - lam) * q_{t+1} + lam * G_{t+1} when next step has finite search Q, else G_{t+1}; G_{T-1} = z.
+        if td_lambda > 0.0:
+            order = np.argsort(seat_key, kind="mergesort")
+            sk = seat_key[order]
+            qv_s = self.qval[order].astype(np.float32)
+            zv_s = self.z[order]
+            n_all = len(sk)
+            same_next = np.empty(n_all, dtype=bool)
+            same_next[:-1] = sk[:-1] == sk[1:]
+            same_next[-1] = False
+            next_q = np.empty(n_all, dtype=np.float32)
+            next_q[:-1] = qv_s[1:]
+            next_q[-1] = np.nan
+            has_nq = same_next & np.isfinite(next_q)
+            nq_safe = np.where(has_nq, np.clip(next_q, 0.0, 1.0), 0.0)
+            lam = float(td_lambda)
+            a = np.where(has_nq, lam, np.where(same_next, 1.0, 0.0)).astype(np.float32)
+            b = np.where(has_nq, (1.0 - lam) * nq_safe, np.where(same_next, 0.0, zv_s)).astype(np.float32)
+            step = 1
+            while step < n_all:
+                b[:-step] = b[:-step] + a[:-step] * b[step:]
+                a[:-step] = a[:-step] * a[step:]
+                if not np.any(a > 1e-6):
+                    break
+                step <<= 1
+            z_td = np.empty(n_all, dtype=np.float32)
+            z_td[order] = np.clip(b, 0.0, 1.0)
+            self.z_td = z_td
+        else:
+            self.z_td = self.z
+
         self.store = None
         self.store_dev = None
         self._pinned = False
@@ -346,6 +378,7 @@ class Data:
             "chosen": self.chosen.astype(np.int64),
             "logp": self.logp,
             "z": self.z,
+            "z_td": self.z_td,
             "qval": self.qval,
             "turns_left": self.turns_left,
             "final_life_diff": self.final_life_diff,
@@ -421,6 +454,7 @@ class Data:
             "chosen": cat_fixed(self.chosen).astype(np.int64),
             "logp": cat_fixed(self.logp),
             "z": cat_fixed(self.z),
+            "z_td": cat_fixed(self.z_td),
             "qval": cat_fixed(self.qval),
             "turns_left": cat_fixed(self.turns_left),
             "final_life_diff": cat_fixed(self.final_life_diff),
@@ -500,6 +534,7 @@ class Data:
             "pool_hand": t(ph * pm),
             "pool_mask": t(pm, torch.bool),
             "z": t(self.z[idx]),
+            "z_td": t(self.z_td[idx]),
             "qval": t(self.qval[idx]),
             "turns_left": t(self.turns_left[idx]),
             "final_life_diff": t(self.final_life_diff[idx]),
@@ -572,7 +607,7 @@ def _batch_from_store(st, s, load_critic, idx, device, trim=True):
         "glob": st["glob"][i], "ents": ents, "em": em, "eids": eids, "eridx": eridx, "ertyp": ertyp,
         "acts": acts, "am": am, "aids": aids, "aent": aent, "tgt": tgt,
         "pool": pool, "pm": pm, "ph": ph,
-        "chosen": st["chosen"][i], "logp": st["logp"][i], "z": st["z"][i],
+        "chosen": st["chosen"][i], "logp": st["logp"][i], "z": st["z"][i], "z_td": st["z_td"][i],
         "qval": st["qval"][i], "turns_left": st["turns_left"][i],
         "final_life_diff": st["final_life_diff"][i], "val_w": st["val_w"][i], "run": st["run"][i],
     }
@@ -607,6 +642,7 @@ def _batch_from_store(st, s, load_critic, idx, device, trim=True):
         "pool_hand": r["ph"].to(f) * pm,
         "pool_mask": pm,
         "z": r["z"].to(f),
+        "z_td": r["z_td"].to(f),
         "qval": r["qval"].to(f),
         "turns_left": r["turns_left"].to(f),
         "final_life_diff": r["final_life_diff"].to(f),
