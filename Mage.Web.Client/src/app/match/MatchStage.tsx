@@ -347,7 +347,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
     [commanders],
   );
   useWarmImages(view);
-  useAutoPay(session, state, board.me?.isMe ? board.me : null, autoPay && mode === 'play', {
+  useAutoPay(session, state, board.me?.isMe ? board.me : null, autoPay && !fullControl && mode === 'play', {
     hybrid: automation.autoPayHybrid,
     anyColor: automation.autoPayAnyColor,
     painful: automation.autoPayPainful,
@@ -486,9 +486,13 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   // a concession takes effect when the player holding priority passes: name them while it is pending
   const priorityName = (view?.players ?? []).find((player) => player.hasPriority && player.playerId !== myId)?.name ?? null;
   const choosingStarter = pregamePick === 'startingPlayer';
+  // peeking hides the active choice overlay so the player can inspect both the board and their hand (#476)
+  const [peekingPrompt, setPeekingPrompt] = useState<typeof prompt>(null);
+  const peeking = !!prompt && peekingPrompt === prompt;
+  const setPeeking = useCallback((next: boolean) => setPeekingPrompt(next ? prompt : null), [prompt]);
   // one decision, one set of controls: an overlay owns the choice while it's open
   const overlayOpen = (interaction.mode === 'mulligan' || choosingStarter || !!pickerCards || interaction.mode === 'panel') && !awaitingServer;
-  const handHidden = (interaction.mode === 'mulligan' || choosingStarter || !!pickerCards) && !awaitingServer;
+  const handHidden = (interaction.mode === 'mulligan' || choosingStarter || (!!pickerCards && !peeking)) && !awaitingServer;
   // a choice among cards in hand (discard, reveal...): eligible cards take the decision edge
   const choosingInHand = interaction.mode === 'target' && !pickerCards && [...clickable].some((id) => handIds.has(id));
   const opponentIds = useMemo(() => board.opponents.map((opponent) => opponent.player.playerId!), [board.opponents]);
@@ -688,7 +692,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 cards={handAndPlayables}
                 fromZone={fromZone}
                 choosing={choosingInHand}
-                clickable={pickerCards ? EMPTY : clickable}
+                clickable={overlayOpen ? EMPTY : clickable}
                 selected={interaction.selected}
                 pending={pending}
                 sleeve={sleeves.mine}
@@ -782,10 +786,12 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 interaction={interaction}
                 sleeve={sleeves.mine}
                 footer={prompt ? <TriggerOrderOptions gameId={state.gameId} prompt={prompt} onCommand={onCommand} /> : undefined}
+                peeking={peeking}
+                onPeekChange={setPeeking}
                 onCommand={onCommand}
               />
             )}
-            {interaction.mode === 'panel' && prompt && !awaitingServer && <ChoicePanel prompt={prompt} sourceId={choiceSource} dungeon={myDungeon} onCommand={onCommand} xLimit={announceLimit} startAtLimit={automation.xDefaultsToMax} />}
+            {interaction.mode === 'panel' && prompt && !awaitingServer && <ChoicePanel prompt={prompt} sourceId={choiceSource} dungeon={myDungeon} peeking={peeking} onPeekChange={setPeeking} onCommand={onCommand} xLimit={announceLimit} startAtLimit={automation.xDefaultsToMax} />}
             {viewer && <ZoneViewer title={viewer.title} cards={viewer.cards} onClose={() => openViewer(null)} />}
             {shownDungeon && shownDungeonPlayer && (
               <DungeonViewer

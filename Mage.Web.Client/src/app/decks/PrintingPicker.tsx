@@ -9,12 +9,14 @@ import { entryKey, printingOf, type PrintingRef } from './deckModel';
 import styles from './PrintingPicker.module.css';
 
 /** Every printing of a card, newest set first; picking one switches the deck entry (and its picture) to it. */
-export function PrintingPicker({ name, current, onPick, onClose, description = 'The deck uses the printing you pick, picture and all.' }: {
+export function PrintingPicker({ name, current, onPick, onPickCard, onClose, description = 'The deck uses the printing you pick, picture and all.' }: {
   /** the card whose printings are shown; null closes the picker */
   name: string | null;
   /** the entry's printing key (see entryKey) */
   current: string | null;
   onPick(printing: PrintingRef): void;
+  /** optional full CardView of the chosen printing, for callers that also display it outside the decklist */
+  onPickCard?(card: CardView): void;
   onClose(): void;
   /** what picking does, under the title */
   description?: string;
@@ -66,6 +68,7 @@ export function PrintingPicker({ name, current, onPick, onClose, description = '
                 aria-label={`${released.get(card.expansionSetCode)?.name ?? card.expansionSetCode} #${card.cardNumber}`}
                 onClick={() => {
                   onPick(printing);
+                  onPickCard?.(card);
                   onClose();
                 }}
               >

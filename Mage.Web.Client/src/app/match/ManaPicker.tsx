@@ -1,4 +1,4 @@
-import { Fragment, useLayoutEffect, useRef } from 'react';
+import { Fragment, useLayoutEffect, useRef, useState } from 'react';
 import type { ManaChoice } from '../../core/game/manaChoices';
 import { useT } from '../i18n';
 import { Button } from '../ui/Button';
@@ -9,7 +9,7 @@ import { useStage } from './stageContext';
 import { useChoiceKeyboard } from './useChoiceKeyboard';
 import styles from './ManaPicker.module.css';
 
-export function ManaPicker({ title, choices, sourceId, subMessage, onPick, onCancel, cancelLabel }: {
+export function ManaPicker({ title, choices, sourceId, subMessage, onPick, onCancel, cancelLabel, peeking, onPeekChange }: {
   title: string;
   choices: ManaChoice[];
   sourceId?: string | null;
@@ -17,14 +17,20 @@ export function ManaPicker({ title, choices, sourceId, subMessage, onPick, onCan
   onPick(index: number): void;
   onCancel?: () => void;
   cancelLabel?: string;
+  peeking?: boolean;
+  onPeekChange?(peeking: boolean): void;
 }) {
   const t = useT();
   const stage = useStage();
+  const [localPeek, setLocalPeek] = useState(false);
+  const hidden = peeking ?? localPeek;
+  const setHidden = onPeekChange ?? setLocalPeek;
   // the panel takes focus, number keys pick, arrows move, Escape cancels: the same keys as every other choice
-  const panel = useChoiceKeyboard();
+  const panel = useChoiceKeyboard(!hidden);
   const scrim = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
+    if (hidden) return;
     const element = scrim.current?.firstElementChild;
     if (!(element instanceof HTMLElement)) return;
     const place = () => {
@@ -48,7 +54,15 @@ export function ManaPicker({ title, choices, sourceId, subMessage, onPick, onCan
     const observer = new ResizeObserver(place);
     observer.observe(element);
     return () => observer.disconnect();
-  }, [stage, sourceId]);
+  }, [stage, sourceId, hidden]);
+
+  if (hidden) {
+    return (
+      <div className={styles.peek}>
+        <Button variant="decision" onClick={() => setHidden(false)}>Back to choice</Button>
+      </div>
+    );
+  }
 
   return (
     <div ref={scrim} className={styles.scrim}>
@@ -73,7 +87,10 @@ export function ManaPicker({ title, choices, sourceId, subMessage, onPick, onCan
         </div>
         <footer className={styles.footer}>
           <span>{t('match.mana.keys')}</span>
-          {onCancel && <Button data-secondary data-cancel variant="quiet" onClick={onCancel}>{cancelLabel ?? t('match.ability.cancel')}</Button>}
+          <div className={styles.actions}>
+            <Button variant="quiet" size="sm" onClick={() => setHidden(true)}>See the board</Button>
+            {onCancel && <Button data-secondary data-cancel variant="quiet" onClick={onCancel}>{cancelLabel ?? t('match.ability.cancel')}</Button>}
+          </div>
         </footer>
       </div>
     </div>

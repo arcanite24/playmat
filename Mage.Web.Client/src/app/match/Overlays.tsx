@@ -74,21 +74,29 @@ export function MulliganOverlay({ hand, interaction, sleeve, onCommand }: {
   );
 }
 
+/** Controlled or local "See the board" state shared by CardPicker and ChoicePanel. */
+function usePeekState(peeking?: boolean, onPeekChange?: (peeking: boolean) => void): [boolean, (next: boolean) => void] {
+  const [local, setLocal] = useState(false);
+  return [peeking ?? local, onPeekChange ?? setLocal];
+}
+
 /**
  * Choose among cards: off-board cards (library search, revealed cards) or the hand during a London mulligan.
  * Each click toggles a card; the server answers with the updated choice. Only the cards that can be chosen are shown
  * (a library search shows the lands it allows, not the whole library); Show all brings back the rest, greyed.
  */
-export function CardPicker({ title, cards, interaction, sleeve, footer, onCommand }: {
+export function CardPicker({ title, cards, interaction, sleeve, footer, peeking, onPeekChange, onCommand }: {
   title: string;
   cards: CardView[];
   interaction: Interaction;
   sleeve: string;
   /** more ways to answer, beside the main button */
   footer?: ReactNode;
+  peeking?: boolean;
+  onPeekChange?(peeking: boolean): void;
   onCommand(command: Command): void;
 }) {
-  const [hidden, setHidden] = useState(false);
+  const [hidden, setHidden] = usePeekState(peeking, onPeekChange);
   const keyboard = useChoiceKeyboard(!hidden);
   const hints = useKeyboardHints();
   const [showAll, setShowAll] = useState(false);
@@ -159,8 +167,13 @@ export function CardPicker({ title, cards, interaction, sleeve, footer, onComman
   );
 }
 
+interface PeekProps {
+  peeking?: boolean;
+  onPeekChange?(peeking: boolean): void;
+}
+
 /** Choices that don't live on the board: modes, named choices, piles, numbers. */
-export function ChoicePanel({ prompt, onCommand, xLimit = null, startAtLimit = false, sourceId, dungeon = null }: {
+export function ChoicePanel({ prompt, onCommand, xLimit = null, startAtLimit = false, sourceId, dungeon = null, peeking, onPeekChange }: {
   prompt: Prompt;
   sourceId?: string | null;
   /** the player's dungeon, for the "which room next" question */
@@ -170,22 +183,24 @@ export function ChoicePanel({ prompt, onCommand, xLimit = null, startAtLimit = f
   xLimit?: number | null;
   /** Start X at the most you can pay: the chooser starts at xLimit instead of the minimum */
   startAtLimit?: boolean;
-}) {
+} & PeekProps) {
   const t = useT();
   const hints = useKeyboardHints();
   const zoom = useHoverZoom();
+  const [hidden, setHidden] = usePeekState(peeking, onPeekChange);
+  const peek: PeekProps = { peeking: hidden, onPeekChange: setHidden };
   switch (prompt.kind) {
     case 'chooseAbility': {
       const mana = prompt.choices.map((choice) => parseManaAbility(choice.text));
       if (mana.length > 1 && mana.every((choice) => choice !== null)) {
-        return <ManaPicker title={t('match.mana.choose')} choices={mana} sourceId={sourceId}
+        return <ManaPicker title={t('match.mana.choose')} choices={mana} sourceId={sourceId} {...peek}
           onPick={(index) => onCommand({ type: 'uuid', id: prompt.choices[index].id })}
           onCancel={() => onCommand({ type: 'uuid', id: null })} />;
       }
       // the server asks even with one ability, to confirm one that sacrifices its source: say so plainly
       const source = prompt.choices.length === 1 ? abilityChooserSource(prompt.text) : null;
       return (
-        <PanelShell title={source ? t('match.ability.one', { name: source }) : prompt.text || 'Choose one'}>
+        <PanelShell title={source ? t('match.ability.one', { name: source }) : prompt.text || 'Choose one'} {...peek}>
           <div className={styles.options}>
             {prompt.choices.map((choice, index) => (
               <button key={choice.id} data-choice type="button" className={styles.option} onClick={() => onCommand({ type: 'uuid', id: choice.id })}>
@@ -205,10 +220,10 @@ export function ChoicePanel({ prompt, onCommand, xLimit = null, startAtLimit = f
       );
     }
     case 'chooseChoice':
-      return <ChoiceList prompt={prompt} onCommand={onCommand} sourceId={sourceId} />;
+      return <ChoiceList prompt={prompt} onCommand={onCommand} sourceId={sourceId} {...peek} />;
     case 'choosePile':
       return (
-        <PanelShell title={prompt.text || 'Choose a pile'} wide>
+        <PanelShell title={prompt.text || 'Choose a pile'} wide {...peek}>
           <div className={styles.piles}>
             {[prompt.pile1, prompt.pile2].map((pile, index) => (
               <button key={index} data-choice type="button" className={styles.pileChoice} onClick={() => onCommand({ type: 'boolean', value: index === 0 })}>
@@ -222,12 +237,12 @@ export function ChoicePanel({ prompt, onCommand, xLimit = null, startAtLimit = f
         </PanelShell>
       );
     case 'amount':
-      return <AmountChooser prompt={prompt} onCommand={onCommand} limit={xLimit} startAtLimit={startAtLimit} />;
+      return <AmountChooser prompt={prompt} onCommand={onCommand} limit={xLimit} startAtLimit={startAtLimit} {...peek} />;
     case 'multiAmount':
-      return <MultiAmountChooser prompt={prompt} onCommand={onCommand} />;
+      return <MultiAmountChooser prompt={prompt} onCommand={onCommand} {...peek} />;
     case 'ask': {
       const choice = roomChoice(prompt, dungeon);
-      return choice ? <RoomChooser choice={choice} dungeon={dungeon} onCommand={onCommand} /> : null;
+      return choice ? <RoomChooser choice={choice} dungeon={dungeon} onCommand={onCommand} {...peek} /> : null;
     }
     default:
       return null;
@@ -235,10 +250,10 @@ export function ChoicePanel({ prompt, onCommand, xLimit = null, startAtLimit = f
 }
 
 /** Venturing: the dungeons to choose from, as their cards, so the rooms can be read before choosing (#385). */
-function DungeonChooser({ title, names, onCommand }: { title: string; names: string[]; onCommand(command: Command): void }) {
+function DungeonChooser({ title, names, onCommand, peeking, onPeekChange }: { title: string; names: string[]; onCommand(command: Command): void } & PeekProps) {
   const zoom = useHoverZoom();
   return (
-    <PanelShell title={title} wide>
+    <PanelShell title={title} wide peeking={peeking} onPeekChange={onPeekChange}>
       <div className={styles.dungeons}>
         {names.map((name, index) => {
           const card = dungeonCardByName(name);
@@ -259,12 +274,12 @@ function DungeonChooser({ title, names, onCommand }: { title: string; names: str
 }
 
 /** "Which room next": both rooms with what entering them does, beside the dungeon's card (#385). */
-function RoomChooser({ choice, dungeon, onCommand }: { choice: RoomChoice; dungeon: Dungeon | null; onCommand(command: Command): void }) {
+function RoomChooser({ choice, dungeon, onCommand, peeking, onPeekChange }: { choice: RoomChoice; dungeon: Dungeon | null; onCommand(command: Command): void } & PeekProps) {
   const zoom = useHoverZoom();
   const card = dungeon?.card ?? (choice.dungeonName ? dungeonCardByName(choice.dungeonName) : null);
   const from = dungeon?.currentRoom;
   return (
-    <PanelShell title={choice.dungeonName ? `Next room in ${choice.dungeonName}` : 'Choose the next room'} wide>
+    <PanelShell title={choice.dungeonName ? `Next room in ${choice.dungeonName}` : 'Choose the next room'} wide peeking={peeking} onPeekChange={onPeekChange}>
       <div className={styles.roomChoice}>
         {card && <div className={styles.roomCard} data-card-id={card.id} {...zoom(card)}><CardFace card={card} size="normal" /></div>}
         <div className={styles.options}>
@@ -320,19 +335,29 @@ export function DungeonViewer({ title, dungeon, onClose }: { title: string; dung
   );
 }
 
-function PanelShell({ title, children, wide }: { title: string; children: React.ReactNode; wide?: boolean }) {
-  const keyboard = useChoiceKeyboard();
+function PanelShell({ title, children, wide, peeking = false, onPeekChange }: { title: string; children: React.ReactNode; wide?: boolean } & PeekProps) {
+  const keyboard = useChoiceKeyboard(!peeking);
+  if (peeking) {
+    return (
+      <div className={styles.peek}>
+        <Button variant="decision" onClick={() => onPeekChange?.(false)}>Back to choice</Button>
+      </div>
+    );
+  }
   return (
     <div ref={keyboard} tabIndex={-1} className={styles.scrim} role="dialog" aria-modal="true" aria-label={cleanText(title)}>
       <div className={[styles.panel, wide ? styles.panelWide : styles.panelNarrow].join(' ')}>
-        <h2 className={styles.panelTitle}><PromptText text={title} /></h2>
+        <header className={styles.panelHead}>
+          <h2 className={styles.panelTitle}><PromptText text={title} /></h2>
+          {onPeekChange && <Button variant="quiet" size="sm" onClick={() => onPeekChange(true)}>See the board</Button>}
+        </header>
         {children}
       </div>
     </div>
   );
 }
 
-function ChoiceList({ prompt, onCommand, sourceId }: { prompt: Extract<Prompt, { kind: 'chooseChoice' }>; onCommand(command: Command): void; sourceId?: string | null }) {
+function ChoiceList({ prompt, onCommand, sourceId, peeking, onPeekChange }: { prompt: Extract<Prompt, { kind: 'chooseChoice' }>; onCommand(command: Command): void; sourceId?: string | null } & PeekProps) {
   const t = useT();
   const hints = useKeyboardHints();
   const choice = prompt.choice;
@@ -350,17 +375,17 @@ function ChoiceList({ prompt, onCommand, sourceId }: { prompt: Extract<Prompt, {
   );
   const title = stripMarkup(choice.message) || prompt.text || 'Choose one';
   if (isDungeonChoice(choice)) {
-    return <DungeonChooser title={title} names={sorted.map((entry) => entry.value)} onCommand={onCommand} />;
+    return <DungeonChooser title={title} names={sorted.map((entry) => entry.value)} onCommand={onCommand} peeking={peeking} onPeekChange={onPeekChange} />;
   }
   const mana = sorted.map((entry) => parseManaColor(entry.label));
   if (mana.length > 0 && mana.every((entry) => entry !== null)) {
-    return <ManaPicker title={title} choices={mana} sourceId={sourceId} subMessage={choice.subMessage}
+    return <ManaPicker title={title} choices={mana} sourceId={sourceId} subMessage={choice.subMessage} peeking={peeking} onPeekChange={onPeekChange}
       onPick={(index) => onCommand({ type: 'string', value: sorted[index].value })}
       onCancel={choice.required ? undefined : () => onCommand({ type: 'string', value: '' })}
       cancelLabel={t('match.mana.skip')} />;
   }
   return (
-    <PanelShell title={title}>
+    <PanelShell title={title} peeking={peeking} onPeekChange={onPeekChange}>
       {choice.subMessage && <p className={styles.panelText}>{stripMarkup(choice.subMessage)}</p>}
       {entries.length > 8 && (
         <input className={styles.search} placeholder="Search" value={query} onChange={(event) => setQuery(event.target.value)} aria-label="Search choices" />
@@ -384,12 +409,12 @@ function ChoiceList({ prompt, onCommand, sourceId }: { prompt: Extract<Prompt, {
   );
 }
 
-function AmountChooser({ prompt, onCommand, limit, startAtLimit }: {
+function AmountChooser({ prompt, onCommand, limit, startAtLimit, peeking, onPeekChange }: {
   prompt: Extract<Prompt, { kind: 'amount' }>;
   onCommand(command: Command): void;
   limit: number | null;
   startAtLimit: boolean;
-}) {
+} & PeekProps) {
   const t = useT();
   const max = Math.min(prompt.max, 999);
   // X: the range shown stops at what the player could pay; typing or stepping past it stays possible (mana the
@@ -398,7 +423,7 @@ function AmountChooser({ prompt, onCommand, limit, startAtLimit }: {
   const clamp = (next: number) => Math.max(prompt.min, Math.min(max, next));
   const [value, setValue] = useState(() => (startAtLimit && limit !== null ? clamp(limit) : prompt.min));
   return (
-    <PanelShell title={prompt.text || 'Choose a number'}>
+    <PanelShell title={prompt.text || 'Choose a number'} peeking={peeking} onPeekChange={onPeekChange}>
       <div className={styles.amount}>
         <Button variant="print" size="lg" onClick={() => setValue((current) => clamp(current - 1))} aria-label="Less" disabled={value <= prompt.min}>−</Button>
         <input
@@ -430,14 +455,14 @@ function AmountChooser({ prompt, onCommand, limit, startAtLimit }: {
   );
 }
 
-function MultiAmountChooser({ prompt, onCommand }: { prompt: Extract<Prompt, { kind: 'multiAmount' }>; onCommand(command: Command): void }) {
+function MultiAmountChooser({ prompt, onCommand, peeking, onPeekChange }: { prompt: Extract<Prompt, { kind: 'multiAmount' }>; onCommand(command: Command): void } & PeekProps) {
   const hints = useKeyboardHints();
   const [values, setValues] = useState(prompt.items.map((item) => item.defaultValue ?? item.min ?? 0));
   const total = values.reduce((sum, value) => sum + value, 0);
   const valid = total >= prompt.min && total <= prompt.max
     && prompt.items.every((item, index) => values[index] >= (item.min ?? 0) && values[index] <= (item.max ?? Infinity));
   return (
-    <PanelShell title={prompt.title ?? (prompt.text || 'Divide')}>
+    <PanelShell title={prompt.title ?? (prompt.text || 'Divide')} peeking={peeking} onPeekChange={onPeekChange}>
       {prompt.header && <p className={styles.panelText}>{stripMarkup(prompt.header)}</p>}
       <div className={styles.split}>
         {prompt.items.map((item, index) => (

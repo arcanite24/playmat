@@ -1,15 +1,18 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { Images } from 'lucide-react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CardCriteria, CardView } from '../../protocol/generated/views';
 import { api } from '../connection';
 import { CardFace } from '../ui/CardFace';
 import { CardFilterBar } from './CardFilterBar';
 import { InspectButton } from './CardInspect';
 import { useCardInfoStore } from './cardInfo';
+import { entryKey, printingOf } from './deckModel';
 import styles from './DeckBuilder.module.css';
 import {
   effectiveSetCodes, EMPTY_FILTERS, intersectIdentity, onlyColorsIdentity, onlyInSidelinedSets, type CardFilters,
 } from './filters';
+import { PrintingPicker } from './PrintingPicker';
 
 const PAGE = 60;
 
@@ -68,6 +71,13 @@ export function Collection({ format, identity, counts, limitOf, onAdd, onRemove,
   const [allSets, setAllSets] = useState(false);
   // a commander deck shows what its commander allows, unless the player asks for everything
   const [anyIdentity, setAnyIdentity] = useState(false);
+  // printings chosen in the binder before adding to the deck (#478), by lowercase card name
+  const [chosenPrintings, setChosenPrintings] = useState<ReadonlyMap<string, CardView>>(() => new Map());
+  const [printingFor, setPrintingFor] = useState<CardView | null>(null);
+  const onChoosePrinting = useCallback((card: CardView) => {
+    onPreview(null);
+    setPrintingFor(card);
+  }, [onPreview]);
   const query = useDebounced(filters, 250);
   // "only these colors" is an identity limit too, on top of the commander's (both run on the server, Java and Rust alike)
   const allowed = intersectIdentity(identity && !anyIdentity ? identity : null, onlyColorsIdentity(query.colors, query.onlyColors));
@@ -115,18 +125,23 @@ export function Collection({ format, identity, counts, limitOf, onAdd, onRemove,
   useEffect(() => remember(cards), [cards, remember]);
   useEffect(() => remember(extras), [extras, remember]);
 
-  const tile = (card: CardView) => (
-    <CollectionCard
-      key={`${card.expansionSetCode}:${card.cardNumber}`}
-      card={card}
-      count={counts.get((card.name ?? '').toLowerCase()) ?? 0}
-      limit={limitOf(card)}
-      onAdd={onAdd}
-      onRemove={onRemove}
-      onPreview={onPreview}
-      onInspect={onInspect}
-    />
-  );
+  const tile = (card: CardView) => {
+    const key = (card.name ?? '').toLowerCase();
+    const effective = chosenPrintings.get(key) ?? card;
+    return (
+      <CollectionCard
+        key={`${card.expansionSetCode}:${card.cardNumber}`}
+        card={effective}
+        count={counts.get(key) ?? 0}
+        limit={limitOf(effective)}
+        onAdd={onAdd}
+        onRemove={onRemove}
+        onPreview={onPreview}
+        onInspect={onInspect}
+        onChoosePrinting={onChoosePrinting}
+      />
+    );
+  };
 
   const sentinel = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -187,11 +202,26 @@ export function Collection({ format, identity, counts, limitOf, onAdd, onRemove,
         <div ref={sentinel} className={styles.sentinel} aria-hidden="true" />
         {isFetchingNextPage && <p className={styles.note}>More cards…</p>}
       </div>
+      <PrintingPicker
+        name={printingFor?.name ?? null}
+        current={printingFor ? entryKey(printingOf(printingFor)) : null}
+        description="The card uses this printing in the binder and when you add it to your deck."
+        onClose={() => setPrintingFor(null)}
+        onPick={() => undefined}
+        onPickCard={(picked) => {
+          if (!picked.name) return;
+          setChosenPrintings((prev) => {
+            const next = new Map(prev);
+            next.set(picked.name!.toLowerCase(), picked);
+            return next;
+          });
+        }}
+      />
     </section>
   );
 }
 
-const CollectionCard = memo(function CollectionCard({ card, count, limit, onAdd, onRemove, onPreview, onInspect }: {
+const CollectionCard = memo(function CollectionCard({ card, count, limit, onAdd, onRemove, onPreview, onInspect, onChoosePrinting }: {
   card: CardView;
   count: number;
   limit: number;
@@ -199,6 +229,7 @@ const CollectionCard = memo(function CollectionCard({ card, count, limit, onAdd,
   onRemove(card: CardView): void;
   onPreview(card: CardView | null, anchor?: DOMRect): void;
   onInspect(card: CardView): void;
+  onChoosePrinting(card: CardView): void;
 }) {
   const full = count >= limit;
   return (
@@ -226,7 +257,18 @@ const CollectionCard = memo(function CollectionCard({ card, count, limit, onAdd,
           </span>
         )}
       </button>
-      <InspectButton card={card} label={`Look at ${card.name ?? 'the card'} up close`} onInspect={onInspect} />
+      <div className={styles.tileActions}>
+        <InspectButton card={card} label={`Look at ${card.name ?? 'the card'} up close`} onInspect={onInspect} />
+        <button
+          type="button"
+          className={styles.tileAction}
+          aria-label={`Choose the printing of ${card.name ?? 'the card'}`}
+          title="Choose printing"
+          onClick={() => onChoosePrinting(card)}
+        >
+          <Images size={16} aria-hidden="true" />
+        </button>
+      </div>
     </div>
   );
 });
