@@ -14,7 +14,80 @@ use crate::search::{candidates, Config};
 use crate::selfplay::{effective_temp, pick, sample_games, skipped, uniform};
 use playmat_engine::decide::{Answer, Query};
 use playmat_engine::state::{Game, Seat, Step};
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+
+const CACHE_SHARDS: usize = 16;
+const CACHE_MAX_PER_SHARD: usize = 512;
+
+/// Sharded thread-safe memoization cache for pure neural network evaluations (`Obs -> (priors, leaf_v)`).
+/// Eliminates redundant forward passes across determinized worlds (e.g., identical our-seat nodes across all
+/// `samples` worlds in root-parallel/multi-tree search, transpositions, and consecutive priority moves).
+pub struct EvalCache {
+    shards: Vec<Mutex<HashMap<(u64, u64), (Arc<[f32]>, f64)>>>,
+}
+
+impl EvalCache {
+    pub fn new() -> EvalCache {
+        EvalCache {
+            shards: (0..CACHE_SHARDS).map(|_| Mutex::new(HashMap::with_capacity(128))).collect(),
+        }
+    }
+
+    pub fn clear(&self) {
+        for s in &self.shards {
+            s.lock().unwrap().clear();
+        }
+    }
+
+    fn forward_priors(&self, net: &Net, obs: &crate::obs::Obs) -> (Arc<[f32]>, f64) {
+        let key = obs.hash128();
+        let si = (key.0 as usize) & (CACHE_SHARDS - 1);
+        {
+            let map = self.shards[si].lock().unwrap();
+            if let Some((p, v)) = map.get(&key) {
+                return (Arc::clone(p), *v);
+            }
+        }
+        let out = net.forward(obs);
+        let leaf_v = (1.0 / (1.0 + (-out.value as f64).exp())).clamp(0.02, 0.98);
+        let p: Arc<[f32]> = Arc::from(net::softmax(&out.logits, 1.0));
+        let mut map = self.shards[si].lock().unwrap();
+        if map.len() >= CACHE_MAX_PER_SHARD {
+            map.clear();
+        }
+        map.insert(key, (Arc::clone(&p), leaf_v));
+        (p, leaf_v)
+    }
+
+    fn quiesce_value(&self, net: &Net, game: &Game, seat: Seat) -> f64 {
+        let over = crate::eval::evaluate(game, seat);
+        if over >= crate::eval::WIN {
+            return 1.0;
+        }
+        if over <= crate::eval::LOSE {
+            return 0.0;
+        }
+        let q = Query::Priority { playable: Vec::new() };
+        let obs = crate::obs::observe(game, seat, &q, &[]);
+        let key = obs.hash128();
+        let si = (key.0 as usize) & (CACHE_SHARDS - 1);
+        {
+            let map = self.shards[si].lock().unwrap();
+            if let Some((_, v)) = map.get(&key) {
+                return *v;
+            }
+        }
+        let logit = net.state(&obs).1 as f64;
+        let p = (1.0 / (1.0 + (-logit).exp())).clamp(0.02, 0.98);
+        let mut map = self.shards[si].lock().unwrap();
+        if map.len() >= CACHE_MAX_PER_SHARD {
+            map.clear();
+        }
+        map.insert(key, (Arc::from([]), p));
+        p
+    }
+}
 
 /// True when no spell/ability is pending on the stack and we are not mid-combat:
 /// pure value-leaf evaluation waits until the current stack/combat resolves (quiescence search).
@@ -191,6 +264,7 @@ pub struct Walk {
     path: Vec<(usize, usize)>,
     expanded: bool,
     net: Arc<Net>,
+    cache: Arc<EvalCache>,
     cpuct: f32,
     pure_leaf: bool,
     root_pick: Option<usize>,
@@ -203,13 +277,21 @@ pub struct Walk {
 }
 
 impl Walk {
-    pub fn new(tree: Tree, net: Arc<Net>, cpuct: f32, pure_leaf: bool, root_pick: Option<usize>) -> Walk {
+    pub fn new(
+        tree: Tree,
+        net: Arc<Net>,
+        cache: Arc<EvalCache>,
+        cpuct: f32,
+        pure_leaf: bool,
+        root_pick: Option<usize>,
+    ) -> Walk {
         Walk {
             tree,
             at: Some(0),
             path: Vec::new(),
             expanded: false,
             net,
+            cache,
             cpuct,
             pure_leaf,
             root_pick,
@@ -230,14 +312,7 @@ impl Walk {
         if self.quiesce {
             self.q_steps += 1;
             if quiescent(game) || self.q_steps >= 24 {
-                let s = net::score(&self.net, game, seat);
-                let p = if s >= crate::eval::WIN {
-                    1.0
-                } else if s <= crate::eval::LOSE {
-                    0.0
-                } else {
-                    crate::fitted::probability(s).clamp(0.02, 0.98)
-                };
+                let p = self.cache.quiesce_value(&self.net, game, seat);
                 self.leaf_value = Some((seat, p));
                 self.stop_now = true;
                 self.quiesce = false;
@@ -277,17 +352,16 @@ impl Walk {
                 self.at = None;
                 return None;
             }
-            let out = self.net.forward(&crate::obs::observe(game, seat, q, &options));
-            let leaf_v = (1.0 / (1.0 + (-out.value as f64).exp())).clamp(0.02, 0.98);
+            let obs = crate::obs::observe(game, seat, q, &options);
+            let (p, leaf_v) = self.cache.forward_priors(&self.net, &obs);
             self.leaf_value = Some((seat, leaf_v));
-            let p = net::softmax(&out.logits, 1.0);
             let node = &mut self.tree.nodes[at];
             node.seat = seat;
             node.hash = state_hash(game, seat, q);
             node.kids = options
                 .iter()
                 .cloned()
-                .zip(p)
+                .zip(p.iter().copied())
                 .map(|(answer, prior)| Kid { answer, prior, n: 0, w: 0.0, node: None })
                 .collect();
             self.expanded = true;
@@ -370,7 +444,7 @@ fn eval_iteration(game: &Game, walk: &Walk, seat: Seat, base: i64, cfg: &Config,
         if let Some((ls, lv)) = walk.leaf_value {
             return if ls == seat { lv } else { 1.0 - lv };
         }
-        return crate::fitted::probability(net::score(net, game, seat)).clamp(0.02, 0.98);
+        return walk.cache.quiesce_value(net, game, seat);
     }
     let roll_v = crate::eval::value_with(game, seat, base, cfg);
     if cfg.leaf_blend > 0 {
@@ -389,11 +463,21 @@ pub struct Ismcts {
     last_val: Option<f32>,
     /// Warm subtree from the previous decision for state-hash-guarded tree reuse
     saved: Option<Tree>,
+    /// Exact neural-evaluation memoization cache shared across worlds and consecutive moves
+    cache: Arc<EvalCache>,
+    cache_net_ptr: usize,
 }
 
 impl Ismcts {
     pub fn new(seed: u64) -> Ismcts {
-        Ismcts { rng: seed, last: Vec::new(), last_val: None, saved: None }
+        Ismcts {
+            rng: seed,
+            last: Vec::new(),
+            last_val: None,
+            saved: None,
+            cache: Arc::new(EvalCache::new()),
+            cache_net_ptr: 0,
+        }
     }
 }
 
@@ -411,6 +495,11 @@ impl DecisionPolicy for Ismcts {
         let cfg = d.config;
         let temp = effective_temp(cfg, d.game.turn);
         let net = net::of(&cfg.net);
+        let net_ptr = Arc::as_ptr(&net) as usize;
+        if self.cache_net_ptr != net_ptr {
+            self.cache.clear();
+            self.cache_net_ptr = net_ptr;
+        }
         let out = net.forward(&crate::obs::observe(d.game, d.seat, d.query, d.candidates));
         let prior = net::softmax(&out.logits, 1.0);
         let v_prior = 1.0 / (1.0 + (-out.value as f64).exp());
@@ -465,8 +554,12 @@ impl DecisionPolicy for Ismcts {
                     })
                     .collect();
                 let mut nodes = 0u64;
+                let mut rem_iters = total_iters;
                 'par_halving: for r in 0..rounds {
-                    let each_per_world = (total_iters / (rounds * alive.len() * w_cnt)).max(1);
+                    let rounds_left = rounds - r;
+                    let round_budget = rem_iters / rounds_left;
+                    let each_per_world = (round_budget / (alive.len() * w_cnt)).max(1);
+                    rem_iters = rem_iters.saturating_sub(each_per_world * alive.len() * w_cnt);
                     let seat = d.seat;
                     if n_threads <= 1 {
                         for (tree, world) in trees.iter_mut().zip(games.iter()) {
@@ -483,7 +576,8 @@ impl DecisionPolicy for Ismcts {
                                             break 'wrep_seq;
                                         }
                                     }
-                                    let walk = Walk::new(tr, net.clone(), cpuct, pure_leaf, Some(ci));
+                                    let walk =
+                                        Walk::new(tr, net.clone(), self.cache.clone(), cpuct, pure_leaf, Some(ci));
                                     let (res, mut walk) = root.play_tree(world.clone(), walk, per, stop);
                                     match res {
                                         Ok(o) => {
@@ -502,6 +596,7 @@ impl DecisionPolicy for Ismcts {
                         let round_nodes = std::sync::atomic::AtomicU64::new(0);
                         let alive_ref = &alive;
                         let net_ref = &net;
+                        let cache_ref = &self.cache;
                         std::thread::scope(|s| {
                             for (t_chunk, g_chunk) in trees.chunks_mut(chunk_sz).zip(games.chunks_mut(chunk_sz)) {
                                 let rn = &round_nodes;
@@ -526,7 +621,14 @@ impl DecisionPolicy for Ismcts {
                                                         break 'wrep;
                                                     }
                                                 }
-                                                let walk = Walk::new(tr, net_ref.clone(), cpuct, pure_leaf, Some(ci));
+                                                let walk = Walk::new(
+                                                    tr,
+                                                    net_ref.clone(),
+                                                    cache_ref.clone(),
+                                                    cpuct,
+                                                    pure_leaf,
+                                                    Some(ci),
+                                                );
                                                 let (res, mut walk) = root_local.play_tree(world.clone(), walk, per, stop);
                                                 match res {
                                                     Ok(o) => {
@@ -649,7 +751,7 @@ impl DecisionPolicy for Ismcts {
                                 break 'halving;
                             }
                         }
-                        let walk = Walk::new(tree, net.clone(), cpuct, pure_leaf, Some(ci));
+                        let walk = Walk::new(tree, net.clone(), self.cache.clone(), cpuct, pure_leaf, Some(ci));
                         let (res, mut walk) = root.play_tree(world.clone(), walk, per, stop);
                         match res {
                             Ok(o) => {
@@ -746,7 +848,7 @@ impl DecisionPolicy for Ismcts {
                     break;
                 }
             }
-            let walk = Walk::new(tree, net.clone(), cpuct, pure_leaf, None);
+            let walk = Walk::new(tree, net.clone(), self.cache.clone(), cpuct, pure_leaf, None);
             let (res, mut walk) = root.play_tree(games[it % games.len()].clone(), walk, per, stop);
             match res {
                 Ok(o) => {
@@ -780,5 +882,40 @@ impl DecisionPolicy for Ismcts {
 
     fn last_value(&self) -> Option<f32> {
         self.last_val
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn eval_cache_matches_direct_forward() {
+        let net = net::of(&None);
+        let cache = EvalCache::new();
+        let obs = crate::obs::Obs {
+            glob: vec![0.5; crate::obs::GLOB_F],
+            ents: vec![0.25; crate::obs::ENT_F * 2],
+            ent_ids: vec![1, 2],
+            ent_rel_idx: vec![crate::obs::NO_ENT, crate::obs::NO_ENT],
+            ent_rel_type: vec![0, 0],
+            acts: vec![0.1; crate::obs::ACT_F * 2],
+            act_ids: vec![0, 3],
+            act_ent_idx: vec![crate::obs::NO_ENT, 0],
+        };
+        let mut obs2 = obs.clone();
+        obs2.glob[0] = 0.6;
+        assert_ne!(obs.hash128(), obs2.hash128());
+
+        let direct = net.forward(&obs);
+        let direct_p = net::softmax(&direct.logits, 1.0);
+        let direct_v = (1.0 / (1.0 + (-direct.value as f64).exp())).clamp(0.02, 0.98);
+
+        let (p1, v1) = cache.forward_priors(&net, &obs);
+        let (p2, v2) = cache.forward_priors(&net, &obs);
+        assert_eq!(&*p1, direct_p.as_slice());
+        assert_eq!(&*p2, direct_p.as_slice());
+        assert_eq!(v1, direct_v);
+        assert_eq!(v2, direct_v);
     }
 }

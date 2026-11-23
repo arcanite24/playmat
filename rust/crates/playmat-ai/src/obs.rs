@@ -65,6 +65,42 @@ impl Obs {
     pub fn n_acts(&self) -> usize {
         self.act_ids.len()
     }
+
+    /// 128-bit content hash of all observable features for exact neural-evaluation memoization.
+    pub fn hash128(&self) -> (u64, u64) {
+        let mut h1 = 0xcbf2_9ce4_8422_2325u64;
+        let mut h2 = 0x9e37_79b9_7f4a_7c15u64;
+        let mut mix = |v: u64| {
+            h1 ^= v;
+            h1 = h1.wrapping_mul(0x0100_0000_01b3);
+            h2 = h2.wrapping_add(v ^ (v >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
+        };
+        mix(self.glob.len() as u64);
+        mix(self.ent_ids.len() as u64);
+        mix(self.act_ids.len() as u64);
+        for &x in &self.glob {
+            mix(if x == 0.0 { 0 } else { x.to_bits() as u64 });
+        }
+        for &x in &self.ents {
+            mix(if x == 0.0 { 0 } else { x.to_bits() as u64 });
+        }
+        for &id in &self.ent_ids {
+            mix(id as u64);
+        }
+        for (&ri, &rt) in self.ent_rel_idx.iter().zip(&self.ent_rel_type) {
+            mix(((ri as u64) << 8) | (rt as u64));
+        }
+        for &x in &self.acts {
+            mix(if x == 0.0 { 0 } else { x.to_bits() as u64 });
+        }
+        for &id in &self.act_ids {
+            mix(id as u64);
+        }
+        for &ae in &self.act_ent_idx {
+            mix(ae as u64);
+        }
+        (h1, h2)
+    }
 }
 
 /// A card name's bucket: FNV-1a of the name, 1..BUCKETS
