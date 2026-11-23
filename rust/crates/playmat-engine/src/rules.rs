@@ -9118,11 +9118,8 @@ fn pay_mana_from(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCo
                     abilities.sort_by_key(|(i, _, _)| *i);
                 }
                 if let Some((_, abilities)) = offered {
-                    let choices = if game.pool_mode(seat).0 {
-                        abilities
-                    } else {
-                        auto_pay_abilities(&abilities, &unpaid)
-                    };
+                    let choices =
+                        if game.pool_mode(seat).0 { abilities } else { auto_pay_abilities(&abilities, &unpaid) };
                     let chosen = if choices.len() == 1 {
                         Some(choices[0])
                     } else {
