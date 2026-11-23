@@ -88,7 +88,7 @@ public final class SoloGames {
     }
 
     /** A solo table running now. */
-    private static final class Live {
+    static final class Live {
         final UUID tableId;
         final SavedTable info;
         volatile GameSnapshot latest;
@@ -226,9 +226,18 @@ public final class SoloGames {
             }
             Live entry = new Live(tableId, info);
             entry.gameId = match.getGame() == null ? null : match.getGame().getId();
+            if (resume != null) {
+                // Seed latest immediately so "Try this turn again" / "Save and leave" work right after a fork or resume (#482)
+                if (resume.line != null) {
+                    entry.latestLine = resume.line;
+                    entry.latestLineTurn = resume.fromTurn;
+                } else if (gameOptions.resumeFrom != null) {
+                    entry.latest = gameOptions.resumeFrom;
+                }
+            }
             live.put(tableId, entry);
-            if (resume != null && resume.sourceGameId != null && entry.gameId != null && resume.fromTurn > 1 && savedToNew != null) {
-                copyPriorTurns(entry, resume.sourceGameId, resume.fromTurn, savedToNew);
+            if (resume != null && entry.gameId != null) {
+                seedResumedTurns(entry, resume, savedToNew, gameOptions.resumeFrom);
             }
             gameOptions.turnSnapshots = snapshot -> snapshotTaken(entry, snapshot);
         } catch (RuntimeException e) {
@@ -584,33 +593,46 @@ public final class SoloGames {
     }
 
     /**
-     * Copies turns strictly before {@code fromTurn} from {@code sourceGameId} into {@code entry}'s new game line so
-     * forking, resuming, or playing an earlier turn keeps earlier turns available (#423).
+     * Copies turns strictly before {@code resume.fromTurn} from {@code resume.sourceGameId} and seeds the resumed turn
+     * itself into {@code entry}'s new game line so forking, resuming, or playing an earlier turn keeps every turn
+     * available immediately (#423, #482).
      */
-    private void copyPriorTurns(Live entry, UUID sourceGameId, int fromTurn, Map<UUID, UUID> savedToNew) {
+    void seedResumedTurns(Live entry, Resume resume, Map<UUID, UUID> savedToNew, GameSnapshot resumedSnapshot) {
         UUID newGameId = entry.gameId;
         writer.submit(() -> {
             try {
-                List<SoloStore.TurnSnapshotRow> prior = SoloStore.get().loadTurnsBefore(sourceGameId.toString(), fromTurn);
-                if (prior.isEmpty()) {
-                    return;
+                boolean hasLine = false;
+                if (resume.sourceGameId != null && resume.fromTurn > 1 && savedToNew != null) {
+                    List<SoloStore.TurnSnapshotRow> prior = SoloStore.get().loadTurnsBefore(resume.sourceGameId.toString(), resume.fromTurn);
+                    if (!prior.isEmpty()) {
+                        SoloStore.get().putLine(newGameId.toString(), entry.info.user, writeObject(entry.info));
+                        entry.lined = true;
+                        hasLine = true;
+                        for (SoloStore.TurnSnapshotRow row : prior) {
+                            if (row.snapshot == null) {
+                                continue;
+                            }
+                            byte[] carried;
+                            if (lineOf(row.snapshot) != null) {
+                                carried = row.snapshot;
+                            } else {
+                                carried = GameSnapshot.fromBytes(row.snapshot).withPlayers(savedToNew).toBytes();
+                            }
+                            SoloStore.get().putTurn(newGameId.toString(), row.turn, row.active, carried);
+                        }
+                    }
                 }
-                SoloStore.get().putLine(newGameId.toString(), entry.info.user, writeObject(entry.info));
-                entry.lined = true;
-                for (SoloStore.TurnSnapshotRow row : prior) {
-                    if (row.snapshot == null) {
-                        continue;
+                if (resume.fromTurn > 0 && (resume.line != null || resumedSnapshot != null)) {
+                    if (!hasLine) {
+                        SoloStore.get().putLine(newGameId.toString(), entry.info.user, writeObject(entry.info));
+                        entry.lined = true;
                     }
-                    byte[] carried;
-                    if (lineOf(row.snapshot) != null) {
-                        carried = row.snapshot;
-                    } else {
-                        carried = GameSnapshot.fromBytes(row.snapshot).withPlayers(savedToNew).toBytes();
-                    }
-                    SoloStore.get().putTurn(newGameId.toString(), row.turn, row.active, carried);
+                    String active = resumedSnapshot != null ? seatName(entry.info, resumedSnapshot.getActivePlayerId()) : "";
+                    byte[] payload = resume.line != null ? lineBytes(resume.line) : resumedSnapshot.toBytes();
+                    SoloStore.get().putTurn(newGameId.toString(), resume.fromTurn, active, payload);
                 }
             } catch (SQLException | IOException | RuntimeException e) {
-                logger.warn("Solo: earlier turns from game " + sourceGameId + " couldn't be carried over", e);
+                logger.warn("Solo: earlier turns from game " + resume.sourceGameId + " couldn't be carried over", e);
             }
         });
     }

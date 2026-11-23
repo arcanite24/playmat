@@ -1236,6 +1236,7 @@ impl Host {
         // `GameImpl.rollbackTurnsExecution`
         self.inform(format!("<font color='#FF8C00'>Player request: Rolling back to start of turn {turn}</font>"));
         self.turn_starts.split_off(&(turn + 1));
+        self.turn_seen = 0;
         for p in &mut self.seats {
             p.undo_point = None;
         }
@@ -1338,6 +1339,14 @@ impl Host {
         self.log_seen = self.game.log.as_ref().map_or(0, Vec::len);
         let turn = self.game.turn;
         self.inform(format!("The game carries on from the start of turn {turn}."));
+        // Emit HOST_TURN for the resumed turn immediately so solo saves, "Try this turn again",
+        // and "Play an earlier turn" always have it (#482).
+        if turn > 0 && !self.game.over {
+            self.turn_seen = turn;
+            self.turn_line(self.game.active);
+        } else {
+            self.turn_seen = 0;
+        }
     }
 
     /// `HOST_TURN`: the line to this turn's start, for Java's saves (a solo table's)
@@ -1772,7 +1781,7 @@ impl Decider for HostDecider<'_> {
                 }
             }
             // a new turn's start (a turn rolled back to starts again): the line to it, for a save
-            if game.turn != h.turn_seen {
+            if h.replaying.is_none() && game.turn != h.turn_seen {
                 h.turn_seen = game.turn;
                 h.game = game.clone();
                 h.turn_line(game.active);
