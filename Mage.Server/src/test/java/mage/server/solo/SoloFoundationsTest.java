@@ -210,6 +210,37 @@ public class SoloFoundationsTest {
     }
 
     @Test
+    public void seedResumedTurnsPersistsPriorAndResumedTurnForForks() throws Exception {
+        java.util.UUID sourceGame = java.util.UUID.randomUUID();
+        java.util.UUID newGame = java.util.UUID.randomUUID();
+        java.util.UUID tableId = java.util.UUID.randomUUID();
+
+        SoloGames.SavedTable table = new SoloGames.SavedTable();
+        table.user = "Ana";
+        table.title = "Ana vs Bot";
+        table.options = new mage.game.match.MatchOptions("Ana vs Bot", "Two Player Duel", false);
+
+        byte[] lineTurn1 = SoloGames.lineBytes("{\"turn\":1}");
+        byte[] lineTurn2 = SoloGames.lineBytes("{\"turn\":2}");
+        store.putLine(sourceGame.toString(), "Ana", SoloGames.writeObject(table));
+        store.putTurn(sourceGame.toString(), 1, "Ana", lineTurn1);
+        store.putTurn(sourceGame.toString(), 2, "Bot", lineTurn2);
+
+        SoloGames.Live entry = new SoloGames.Live(tableId, table);
+        entry.gameId = newGame;
+        SoloGames.Resume resume = new SoloGames.Resume(table, null, null, "{\"turn\":3}", sourceGame, 3);
+        SoloGames.get().seedResumedTurns(entry, resume, Collections.emptyMap(), null);
+        SoloGames.get().flush();
+
+        List<SoloStore.TurnRow> seeded = store.turns(newGame.toString());
+        assertEquals(3, seeded.size(), "both earlier turns and the resumed turn itself should be seeded (#482)");
+        assertEquals(1, seeded.get(0).turn);
+        assertEquals(2, seeded.get(1).turn);
+        assertEquals(3, seeded.get(2).turn);
+        assertEquals("Ana", store.lineOwner(newGame.toString()));
+    }
+
+    @Test
     public void aMatchupKeepsOnlyTheClosestGamesReplays() throws Exception {
         BatchRunner runner = BatchRunner.get();
         runner.use((spec, n, seed, owner) -> {

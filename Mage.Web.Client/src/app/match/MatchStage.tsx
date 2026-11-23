@@ -819,6 +819,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 // a rematch is only dealt against the computer; people go back to Tables
                 onPlayAgain={mode === 'play' && deckId && !eventId && vsAi ? playAgain : undefined}
                 onReview={mode === 'play' && vsAi && board.me ? () => setReviewing(true) : undefined}
+                onViewLog={() => useMatchUi.getState().toggleLog(true)}
                 rewards={rewardsAfter ? <Suspense fallback={null}><RewardsBeat gameId={state.gameId} onDetails={() => exit(true)} /></Suspense> : undefined}
                 stamps={stamps}
                 opponentDecks={vsAi && deckId ? playOpponentDecks : undefined}
@@ -1085,7 +1086,7 @@ function GameMenu({ gameId, currentTurn, quests, practice, solo, careerAssists, 
         onSaved();
       }
     } catch (failure) {
-      notify(choice === 'fork' ? 'Try again' : choice === 'takeBack' ? 'Take back' : 'Save', failure instanceof Error ? failure.message : String(failure));
+      notify(choice === 'fork' ? 'Try again' : choice === 'takeBack' ? 'Take back' : 'Save', failure instanceof Error ? failure.message : String(failure), 'error');
     }
   }
   return (

@@ -154,6 +154,7 @@ export default {
   'match.end.drawMatch': 'The match ended {wins}–{losses}.',
   'match.end.backToTables': 'Back to Tables',
   'match.end.viewBoard': 'View board',
+  'match.end.viewLog': 'View log',
   'match.end.backToResult': 'Back to result',
   'match.end.opponentDeck': "Opponent's deck: {deck}",
   'match.end.opponentDecks': 'Opponent decks: {decks}',

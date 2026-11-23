@@ -1,4 +1,4 @@
-import { Eye } from 'lucide-react';
+import { Eye, MessageSquare } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Command, Interaction } from '../../core/game/interaction';
 import type { Prompt } from '../../core/game/prompt';
@@ -526,7 +526,7 @@ const END_GAME: Record<string, MessageKey> = { won: 'match.end.wonGame', lost: '
 const END_MATCH: Record<string, MessageKey> = { won: 'match.end.wonMatch', lost: 'match.end.lostMatch', draw: 'match.end.drawMatch' };
 
 /** The end of a game: who won, the match score, opponent deck(s), and where to go next. */
-export function GameOverOverlay({ message, endInfo, myName, onLeave, leaveLabel = 'Back to Play', onPlayAgain, onReview, rewards, stamps, opponentDecks }: {
+export function GameOverOverlay({ message, endInfo, myName, onLeave, leaveLabel = 'Back to Play', onPlayAgain, onReview, onViewLog, rewards, stamps, opponentDecks }: {
   message: string;
   endInfo: GameEndView | null;
   /** the player's name, to tell from the server's message who won when there is no end-of-game info */
@@ -536,6 +536,8 @@ export function GameOverOverlay({ message, endInfo, myName, onLeave, leaveLabel 
   onPlayAgain?(): void;
   /** look back over the game: its turning point and mistakes */
   onReview?(): void;
+  /** collapse the scrim and open the game log drawer (#483) */
+  onViewLog?(): void;
   /** what the game paid, once the server says (B277) */
   rewards?: ReactNode;
   /** victory stamps (B300): yours, and the opponent's in a game against one; the winner's is pressed on the result */
@@ -547,13 +549,13 @@ export function GameOverOverlay({ message, endInfo, myName, onLeave, leaveLabel 
   const paintedArt = usePaintedArt();
   const [inspectingBoard, setInspectingBoard] = useState(false);
 
-  // Escape returns from board inspection back to the result overlay (unless a zone or card sheet is open)
+  // Escape returns from board inspection back to the result overlay (unless a zone, card sheet, or log is open)
   useEffect(() => {
     if (!inspectingBoard) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
       const ui = useMatchUi.getState();
-      if (ui.viewer || ui.detail || ui.dungeonOf) return;
+      if (ui.viewer || ui.detail || ui.dungeonOf || ui.logOpen) return;
       event.preventDefault();
       setInspectingBoard(false);
     };
@@ -615,6 +617,19 @@ export function GameOverOverlay({ message, endInfo, myName, onLeave, leaveLabel 
           <Button variant="quiet" size="lg" icon={<Eye size={20} />} onClick={() => setInspectingBoard(true)}>
             {t('match.end.viewBoard')}
           </Button>
+          {onViewLog && (
+            <Button
+              variant="quiet"
+              size="lg"
+              icon={<MessageSquare size={20} />}
+              onClick={() => {
+                setInspectingBoard(true);
+                onViewLog();
+              }}
+            >
+              {t('match.end.viewLog')}
+            </Button>
+          )}
           <Button variant="print" size="lg" onClick={onLeave}>{leaveLabel}</Button>
           {onReview && <Button variant="quiet" size="lg" onClick={onReview}>Review the game</Button>}
           {onPlayAgain && <Button variant="decision" size="xl" onClick={onPlayAgain}>Play again</Button>}

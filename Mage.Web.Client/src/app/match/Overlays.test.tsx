@@ -423,6 +423,19 @@ describe('GameOverOverlay', () => {
     expect(screen.getByRole('dialog')).toBeTruthy();
   });
 
+  test('View log collapses the scrim, opens the log, and Escape waits while the log is open (#483)', () => {
+    const onViewLog = vi.fn(() => useMatchUi.setState({ logOpen: true }));
+    render(<GameOverOverlay message="You won the game" endInfo={null} myName="me" onLeave={vi.fn()} onViewLog={onViewLog} />);
+    fireEvent.click(button('View log'));
+    expect(onViewLog).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    useMatchUi.setState({ logOpen: false });
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.getByRole('dialog')).toBeTruthy();
+  });
+
   test('shows the AI opponent deck name(s) from endInfo or client fallback (#416)', () => {
     const { rerender } = render(
       <GameOverOverlay

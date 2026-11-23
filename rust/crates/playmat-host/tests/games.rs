@@ -864,9 +864,13 @@ fn a_line_carries_the_game_on_from_a_turns_start() {
     game.call(Call::Join);
     let mut first = None;
     let mut log = Vec::new();
+    let mut carried_turns = Vec::new();
     let mut b = bot(8);
     loop {
         let e = game.events.recv_timeout(Duration::from_secs(60)).expect("the carried-on game answers");
+        if e.method == "HOST_TURN" {
+            carried_turns.push(e.data["turn"].as_u64().unwrap());
+        }
         if e.method == "CHATMESSAGE" {
             log.push(e.data["message"].as_str().unwrap_or("").to_string());
         }
@@ -884,6 +888,11 @@ fn a_line_carries_the_game_on_from_a_turns_start() {
     }
     let ended = game.join();
     assert_eq!(first.as_ref(), Some(&saved), "the same board as at the turn's start");
+    assert_eq!(
+        carried_turns.first().copied(),
+        Some(4),
+        "the resumed turn emits HOST_TURN immediately (#482): {carried_turns:?}"
+    );
     assert!(log.iter().any(|l| l.contains("carries on from the start of turn 4")), "{log:?}");
     assert!(!log.iter().any(|l| l.contains("keeps hand")), "the earlier game's log isn't sent again");
     assert!(ended.turns >= 4);

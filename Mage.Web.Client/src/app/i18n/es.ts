@@ -1791,6 +1791,7 @@ const es: Catalog = {
   'match.end.drawMatch': 'El enfrentamiento terminó {wins}–{losses}.',
   'match.end.backToTables': 'Volver a Mesas',
   'match.end.viewBoard': 'Ver mesa',
+  'match.end.viewLog': 'Ver registro',
   'match.end.backToResult': 'Volver al resultado',
   'match.end.opponentDeck': 'Mazo del rival: {deck}',
   'match.end.opponentDecks': 'Mazos rivales: {decks}',

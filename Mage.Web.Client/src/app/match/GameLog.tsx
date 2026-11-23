@@ -23,7 +23,7 @@ import { useMatchUi } from './matchUi';
 import { usePresence } from './presence';
 import styles from './GameLog.module.css';
 
-const MAX_LINES = 300;
+const MAX_LINES = 1500;
 /** a pinned log stays open while the player plays; kept in this browser */
 const PINNED_KEY = 'playmat.logPinned';
 
