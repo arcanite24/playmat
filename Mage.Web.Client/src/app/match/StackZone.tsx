@@ -6,6 +6,7 @@ import { AbilityCard } from '../ui/AbilityCard';
 import { CardFace } from '../ui/CardFace';
 import { zoneKeys } from './boardModel';
 import { useFlip } from './flip';
+import { isMatchObjectKey, preventMatchObjectMouseFocus } from './keyboard';
 import { useMatchUi } from './matchUi';
 import styles from './StackZone.module.css';
 
@@ -79,6 +80,15 @@ function StackItem({ item, index, total, clickable, selected, sleeve, onClick, o
         setSourceHover(null);
       }}
       onClick={() => clickable && onClick(item.id!)}
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onMouseDown={preventMatchObjectMouseFocus}
+      onKeyDown={(event) => {
+        if (clickable && isMatchObjectKey(event.nativeEvent)) {
+          event.preventDefault();
+          onClick(item.id!);
+        }
+      }}
       data-object-id={item.id}
       aria-label={`${ability ? 'Ability of ' : ''}${face.name}${index === 0 ? ', resolves next' : ''}`}
     >

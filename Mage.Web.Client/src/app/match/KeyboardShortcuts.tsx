@@ -16,6 +16,7 @@ const SHORTCUTS: { keys: string; label: MessageKey }[] = [
   { keys: 'Shift+Enter', label: 'match.shortcuts.passTurn' },
   { keys: 'F4 / F5 / F9 / F10', label: 'match.shortcuts.ahead' },
   { keys: 'M', label: 'match.shortcuts.mute' },
+  { keys: 'Controller', label: 'match.shortcuts.controller' },
 ];
 
 export function KeyboardShortcuts({ open, onOpenChange }: { open: boolean; onOpenChange(open: boolean): void }) {

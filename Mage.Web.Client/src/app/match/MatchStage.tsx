@@ -38,6 +38,7 @@ import { CardFace } from '../ui/CardFace';
 import { Dialog } from '../ui/Dialog';
 import { MatPrint } from './MatPrint';
 import { SettingsDialog } from '../screens/SettingsDialog';
+import { useShellUi } from '../stores/shellUi';
 import { KeyboardShortcuts } from './KeyboardShortcuts';
 import { Stitch } from '../ui/Stitch';
 import { ActionCluster } from './ActionCluster';
@@ -1053,7 +1054,7 @@ function GameMenu({ gameId, quests, practice, solo, careerAssists, vsAi, onSaved
   const [confirming, setConfirming] = useState<keyof typeof CONFIRM | null>(null);
   const t = useT();
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const { settingsOpen, setSettingsOpen } = useShellUi();
   const [practiceOpen, setPracticeOpen] = useState(false);
   const [adviceOpen, setAdviceOpen] = useState(false);
   const [whatIfOpen, setWhatIfOpen] = useState(false);

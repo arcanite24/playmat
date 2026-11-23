@@ -233,7 +233,7 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, attacking, 
       ].join(' ')}
       style={style}
       role={isClickable ? 'button' : undefined}
-      tabIndex={isClickable ? 0 : undefined}
+      tabIndex={isClickable ? 0 : -1}
       onMouseDown={preventMatchObjectMouseFocus}
       aria-label={describe(permanent, { tapped, asleep, isAttacking, isBlocking, isSelected, keywords: keywords.map((mark) => (mark.gained ? `${mark.name.toLowerCase()} (gained)` : mark.name.toLowerCase())) }) + (isClickable && targeting && !isSelected ? ', can be targeted' : '') + (isSource ? ', source of the ability' : '')}
       aria-pressed={isClickable ? isSelected : undefined}

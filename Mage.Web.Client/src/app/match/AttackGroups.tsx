@@ -22,7 +22,7 @@ export function AttackGroups({ groups, wanted, busy, remaining, onWant, onStop }
   const t = useT();
   if (groups.length === 0) return null;
   return (
-    <section className={styles.panel} aria-label={t('match.attackGroups.title')}>
+    <section className={styles.panel} aria-label={t('match.attackGroups.title')} data-pad>
       <h3 className={styles.title}><Swords size={18} aria-hidden="true" /> {t('match.attackGroups.title')}</h3>
       <ul className={styles.rows}>
         {groups.slice(0, MAX_GROUPS).map((group) => (

@@ -154,7 +154,7 @@ export function ActionCluster({
   const passAhead = canAct && (interaction.mode === 'priority' || interaction.mode === 'waiting');
 
   return (
-    <section className={styles.cluster} aria-label="Your decision" aria-live="polite">
+    <section className={styles.cluster} aria-label="Your decision" aria-live="polite" data-pad data-turn>
       {headline && <p className={[styles.headline, deciding ? styles.deciding : ''].join(' ')}><PromptText text={headline} /></p>}
       {fullControl && canAct && (
         <KeyTip keys="Ctrl+Shift" label="Turn full control off">
