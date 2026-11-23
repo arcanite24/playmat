@@ -149,6 +149,7 @@ const router = createBrowserRouter([
           },
           { path: '/train', lazy: () => import('./train/TrainScreen').then((m) => ({ Component: m.TrainScreen })) },
           { path: '/train/:tool', lazy: () => import('./train/TrainScreen').then((m) => ({ Component: m.TrainScreen })) },
+          { path: '/guide', lazy: () => import('./screens/GuideScreen').then((m) => ({ Component: m.GuideScreen })) },
           { path: '/history', lazy: () => import('./history/HistoryScreen').then((m) => ({ Component: m.HistoryScreen })) },
         ],
       },

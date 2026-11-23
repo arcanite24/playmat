@@ -1,6 +1,6 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useQuery } from '@tanstack/react-query';
-import { Heart, IdCard, Info, LogOut, MessageSquare, Settings, ShieldCheck, WifiOff, Wrench } from 'lucide-react';
+import { BookOpen, Heart, IdCard, Info, LogOut, MessageSquare, Settings, ShieldCheck, WifiOff, Wrench } from 'lucide-react';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { NavLink, Outlet, useMatch, useNavigate } from 'react-router-dom';
 import { APP_NAME } from './brand';
@@ -179,6 +179,7 @@ export function AppShell() {
             {career && connection === 'open' && <Suspense fallback={null}><ProgressChip /></Suspense>}
             {connection === 'open' && <Suspense fallback={null}><InboxButton /></Suspense>}
             <LobbyButton />
+            <IconButton label={t('shell.guide')} icon={<BookOpen size={18} />} onClick={() => navigate('/guide')} />
             <IconButton label={t('shell.settings')} icon={<Settings size={18} />} onClick={() => setSettingsOpen(true)} />
             <DropdownMenu.Root>
               <DropdownMenu.Trigger className={styles.user} aria-label={t('shell.account', { name: userName })}>
@@ -206,6 +207,9 @@ export function AppShell() {
                       <Heart size={16} aria-hidden="true" /> {t('shell.support')}
                     </DropdownMenu.Item>
                   )}
+                  <DropdownMenu.Item className={styles.menuItem} onSelect={() => navigate('/guide')}>
+                    <BookOpen size={16} aria-hidden="true" /> {t('shell.guide')}
+                  </DropdownMenu.Item>
                   <DropdownMenu.Item className={styles.menuItem} onSelect={() => navigate('/about')}>
                     <Info size={16} aria-hidden="true" /> {t('shell.about')}
                   </DropdownMenu.Item>

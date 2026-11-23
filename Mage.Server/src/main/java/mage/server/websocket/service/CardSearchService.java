@@ -15,6 +15,7 @@ import mage.filter.predicate.card.CardTextPredicate;
 import mage.view.CardView;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -55,9 +56,17 @@ public final class CardSearchService {
         if (criteria.getFormat() != null && !criteria.getFormat().isEmpty()) {
             DeckValidator validator = DeckValidatorFactory.instance.createDeckValidator(criteria.getFormat());
             if (validator instanceof Constructed) {
-                List<String> setCodes = ((Constructed) validator).getSetCodes();
-                if (setCodes != null && !setCodes.isEmpty()) {
-                    criteria.setCodes(setCodes);
+                List<String> formatSetCodes = ((Constructed) validator).getSetCodes();
+                if (formatSetCodes != null && !formatSetCodes.isEmpty()) {
+                    if (criteria.getSetCodes().isEmpty()) {
+                        criteria.setCodes(formatSetCodes);
+                    } else {
+                        Set<String> allowed = new HashSet<>(formatSetCodes);
+                        criteria.getSetCodes().retainAll(allowed);
+                        if (criteria.getSetCodes().isEmpty()) {
+                            return Collections.emptyList();
+                        }
+                    }
                 }
             }
         }

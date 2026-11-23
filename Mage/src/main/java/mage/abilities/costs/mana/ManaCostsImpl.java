@@ -190,7 +190,6 @@ public class ManaCostsImpl<T extends ManaCost> extends ArrayList<T> implements M
             return; // nothing to be done without any mana costs. prevents NRE from occurring here
         }
         Iterator<T> manaCostIterator = this.iterator();
-        Costs<PayLifeCost> tempCosts = new CostsImpl<>();
 
         while (manaCostIterator.hasNext()) {
             ManaCost manaCost = manaCostIterator.next();
@@ -199,14 +198,12 @@ public class ManaCostsImpl<T extends ManaCost> extends ArrayList<T> implements M
             }
             PayLifeCost payLifeCost = new PayLifeCost(2);
             if (payLifeCost.canPay(abilityToPay, source, payingPlayer.getId(), game)
-                    && payingPlayer.chooseUse(Outcome.LoseLife, "Pay 2 life instead of " + manaCost.getText().replace("/P", "") + '?', source, game)) {
+                    && payingPlayer.chooseUse(Outcome.LoseLife, "Pay 2 life instead of " + manaCost.getText().replace("/P", "") + '?', source, game)
+                    && payLifeCost.pay(source, game, source, payingPlayer.getId(), false, null)) {
                 manaCostIterator.remove();
-                tempCosts.add(payLifeCost);
                 this.incrPhyrexianPaid();
             }
         }
-
-        tempCosts.pay(source, game, source, payingPlayer.getId(), false, null);
     }
 
     private void handleWaterbendingCosts(Ability abilityToPay, Player payingPlayer, Ability source, Game game) {

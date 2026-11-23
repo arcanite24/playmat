@@ -11,6 +11,7 @@ import { queryClient } from '../queries';
 import { seatableAiType } from '../screens/aiSetup';
 import type { DeckCardLists } from '../../core/decks/types';
 import { formatRules, gameTypesFor } from '../../core/decks/formats';
+import { ALL_META_TIERS, type MetaTier } from '../../core/decks/metaDecks';
 import { notify } from './toasts';
 import { useCoach } from './coach';
 import { t } from '../i18n';
@@ -41,6 +42,12 @@ export interface AiOptions {
   podDeckIds: (string | null)[];
   /** random picks: starter decks, or 'every': starters, format decks and the player's own decks of the right kind */
   randomPool: RandomPool;
+  /** which meta-deck power tiers random AI picks may draw from (#383); unchecking 'meta' avoids competitive combo lists */
+  poolTiers: MetaTier[];
+  /** optional format whitelist for random AI format decks (#383); empty means any format matching the game */
+  poolFormats: string[];
+  /** deck ids (starter:..., meta:..., or saved ids) explicitly excluded from random AI picks (#383) */
+  excludedDeckIds: string[];
   /** the name of a ghost deck picked for the AI, for the setup summary */
   opponentLabel: string | null;
   /** the AI's skill follows the player's results (S049) instead of `skill` */
@@ -66,6 +73,9 @@ export const DEFAULT_AI_OPTIONS: AiOptions = {
   opponentDeckId: null,
   podDeckIds: [],
   randomPool: 'starters',
+  poolTiers: [...ALL_META_TIERS],
+  poolFormats: [],
+  excludedDeckIds: [],
   opponentLabel: null,
   adaptive: false,
   aiType: 'COMPUTER_MAD',
@@ -196,7 +206,15 @@ export const usePlay = create<PlayState>((set, get) => ({
           sourced ? options.podDeckIds : [source.kind === 'roster' ? source.id : null, ...options.podDeckIds],
           opponents - (sourced ? 1 : 0),
           commander,
-          { format, avoid: meta?.file ?? null, pool: options.randomPool, own: deckId },
+          {
+            format,
+            avoid: meta?.file ?? null,
+            pool: options.randomPool,
+            own: deckId,
+            poolTiers: options.poolTiers,
+            poolFormats: options.poolFormats,
+            excludedIds: options.excludedDeckIds,
+          },
         )).map(toWire)];
       // the AI's decks download as soon as they are known (one that turns out illegal gives way to a copy of yours)
       rivalDecks.forEach(warmDeck);

@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'vitest';
 import type { CardView } from '../../protocol/generated/views';
-import { EMPTY_FILTERS, intersectIdentity, isFiltered, matchesFilters, onlyColorsIdentity, onlyInSidelinedSets, type CardFilters } from './filters';
+import {
+  effectiveSetCodes, EMPTY_FILTERS, formatEraSummary, intersectIdentity, isFiltered, matchesFilters,
+  onlyColorsIdentity, onlyInSidelinedSets, setReleaseYear, setsMatchingEra, type CardFilters, type SetOption,
+} from './filters';
 
 const bolt = {
   name: 'Lightning Bolt', cardTypes: ['INSTANT'], subTypes: [], rules: ['Lightning Bolt deals 3 damage to any target.'],
@@ -94,5 +97,53 @@ describe('onlyInSidelinedSets (#392)', () => {
     const main = [{ name: 'Black Lotus', expansionSetCode: 'LEA' } as CardView];
     expect(onlyInSidelinedSets(main, [lotus, returner, { ...returner, expansionSetCode: 'Y99' }])).toEqual([returner]);
     expect(onlyInSidelinedSets([], [])).toEqual([]);
+  });
+});
+
+describe('era and multi-set filtering (#236)', () => {
+  const catalog: SetOption[] = [
+    { setCode: 'LEA', name: 'Limited Edition Alpha', releaseDate: Date.UTC(1993, 7, 5) },
+    { setCode: 'TMP', name: 'Tempest', releaseDate: Date.UTC(1997, 9, 14) },
+    { setCode: 'USG', name: "Urza's Saga", releaseDate: Date.UTC(1998, 9, 12) },
+    { setCode: 'RAV', name: 'Ravnica: City of Guilds', releaseDate: Date.UTC(2005, 9, 7) },
+    { setCode: 'M10', name: 'Magic 2010', releaseDate: Date.UTC(2009, 6, 17) },
+    { setCode: 'SOM', name: 'Scars of Mirrodin', releaseDate: Date.UTC(2010, 9, 1) },
+    { setCode: 'M19', name: 'Core Set 2019', releaseDate: Date.UTC(2018, 6, 13) },
+  ];
+
+  test('extracts UTC release years and filters sets by year range', () => {
+    expect(setReleaseYear(catalog[0])).toBe(1993);
+    expect(setReleaseYear({})).toBeNull();
+    // Pre-1998 (<= 1997)
+    expect(setsMatchingEra(catalog, null, 1997).map((s) => s.setCode)).toEqual(['LEA', 'TMP']);
+    // 1997-2005 inclusive
+    expect(setsMatchingEra(catalog, 1997, 2005).map((s) => s.setCode)).toEqual(['TMP', 'USG', 'RAV']);
+    // Modern era (2003+)
+    expect(setsMatchingEra(catalog, 2003, null).map((s) => s.setCode)).toEqual(['RAV', 'M10', 'SOM', 'M19']);
+  });
+
+  test('computes effectiveSetCodes for era, multi-set, and intersections', () => {
+    expect(effectiveSetCodes(EMPTY_FILTERS, catalog)).toBeNull();
+    expect(effectiveSetCodes({ ...EMPTY_FILTERS, yearFrom: 1997, yearTo: 2005 }, catalog)).toEqual(['TMP', 'USG', 'RAV']);
+    expect(effectiveSetCodes({ ...EMPTY_FILTERS, sets: ['LEA', 'RAV'] }, catalog)).toEqual(['LEA', 'RAV']);
+    // era + checked sets intersect cleanly
+    expect(effectiveSetCodes({ ...EMPTY_FILTERS, yearFrom: 1997, yearTo: 2005, sets: ['LEA', 'RAV'] }, catalog)).toEqual(['RAV']);
+    // impossible year range yields empty array
+    expect(effectiveSetCodes({ ...EMPTY_FILTERS, yearFrom: 2020, yearTo: 1995 }, catalog)).toEqual([]);
+  });
+
+  test('matchesFilters honors era and multi-set filters and reports isFiltered', () => {
+    const f = { ...EMPTY_FILTERS, yearFrom: 2005, yearTo: 2010 };
+    expect(isFiltered(f)).toBe(true);
+    expect([bolt, titan, dragon, helix].filter((c) => matchesFilters(c, f, catalog)).map((c) => c.name))
+      .toEqual(['Lightning Bolt', 'Wurmcoil Engine', 'Lightning Helix']);
+  });
+
+  test('formats concise trigger labels for presets, custom ranges and set counts', () => {
+    expect(formatEraSummary(EMPTY_FILTERS, catalog)).toBe('Era / Sets');
+    expect(formatEraSummary({ ...EMPTY_FILTERS, yearTo: 1997 }, catalog)).toBe('Pre-1998');
+    expect(formatEraSummary({ ...EMPTY_FILTERS, yearFrom: 1997, yearTo: 2005 }, catalog)).toBe('1997–2005');
+    expect(formatEraSummary({ ...EMPTY_FILTERS, yearFrom: 1999, yearTo: 2002 }, catalog)).toBe('1999–2002');
+    expect(formatEraSummary({ ...EMPTY_FILTERS, sets: ['TMP', 'USG'] }, catalog)).toBe('2 sets');
   });
 });

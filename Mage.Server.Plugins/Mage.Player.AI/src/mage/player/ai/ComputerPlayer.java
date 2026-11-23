@@ -2,6 +2,8 @@ package mage.player.ai;
 
 import mage.*;
 import mage.abilities.*;
+import mage.abilities.costs.Cost;
+import mage.abilities.costs.common.PayLifeCost;
 import mage.abilities.costs.mana.*;
 import mage.abilities.mana.ActivatedManaAbilityImpl;
 import mage.abilities.mana.ManaOptions;
@@ -35,6 +37,8 @@ import java.io.Serializable;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -783,12 +787,116 @@ public class ComputerPlayer extends PlayerImpl {
         return chooseUse(outcome, message, null, null, null, source, game);
     }
 
+    private static final Pattern PHYREXIAN_LIFE_PAYMENT = Pattern.compile("^Pay 2 life instead of \\{([WUBRG])\\}", Pattern.CASE_INSENSITIVE);
+    private static final Pattern PAY_LIFE_PROMPT = Pattern.compile("^Pay (\\d+) life\\b", Pattern.CASE_INSENSITIVE);
+
     @Override
     public boolean chooseUse(Outcome outcome, String message, String secondMessage, String trueText, String falseText, Ability source, Game game) {
         // Be proactive! Always use abilities, the evaluation function will decide if it's good or not
         // Otherwise some abilities won't be used by AI like LoseTargetEffect that has "bad" outcome
         // but still is good when targets opponent
-        return outcome != Outcome.AIDontUseIt; // Added for Desecration Demon sacrifice ability
+        if (outcome == Outcome.AIDontUseIt) { // Added for Desecration Demon sacrifice ability
+            return false;
+        }
+        if (shouldDeclineLifePayment(message, source, game)) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Whether this AI prefers spending available colored mana instead of paying 2 life for Phyrexian costs.
+     * Kept off on the base {@link ComputerPlayer} so non-AI unit-test delegates keep their legacy default,
+     * and enabled on real AI players (MAD, simulated, MCTS).
+     */
+    protected boolean preferManaOverPhyrexianLife() {
+        return false;
+    }
+
+    /**
+     * Never pay lethal life for optional life payments (such as Norn's Annex's {W/P} attack tax),
+     * and when {@link #preferManaOverPhyrexianLife()} is enabled, prefer paying colored mana over 2 life
+     * for Phyrexian costs when mana of that color is available (#419).
+     */
+    private boolean shouldDeclineLifePayment(String message, Ability source, Game game) {
+        if (message == null || game == null) {
+            return false;
+        }
+        String trimmed = message.trim();
+        int effectiveLife = this.getLife() - pendingLifePayment(source);
+        Matcher phyrexian = PHYREXIAN_LIFE_PAYMENT.matcher(trimmed);
+        if (phyrexian.find()) {
+            if (effectiveLife <= 2) {
+                return true;
+            }
+            if (!preferManaOverPhyrexianLife()) {
+                return false;
+            }
+            ColoredManaSymbol symbol = ColoredManaSymbol.lookup(phyrexian.group(1).toUpperCase(Locale.ENGLISH).charAt(0));
+            return symbol != null && canPayColoredManaWithoutLife(symbol, game);
+        }
+        Matcher payLife = PAY_LIFE_PROMPT.matcher(trimmed);
+        if (payLife.find()) {
+            try {
+                int lifeCost = Integer.parseInt(payLife.group(1));
+                if (lifeCost > 0 && effectiveLife <= lifeCost) {
+                    return true;
+                }
+            } catch (NumberFormatException ignored) {
+                // ignore implausibly large numbers
+            }
+        }
+        return false;
+    }
+
+    private int pendingLifePayment(Ability source) {
+        if (source == null || source.getCosts() == null) {
+            return 0;
+        }
+        int pending = 0;
+        for (Cost cost : source.getCosts()) {
+            if (cost instanceof PayLifeCost && !cost.isPaid()) {
+                String text = cost.getText();
+                if (text != null) {
+                    Matcher matcher = PAY_LIFE_PROMPT.matcher(text.trim());
+                    if (matcher.find()) {
+                        try {
+                            pending += Integer.parseInt(matcher.group(1));
+                        } catch (NumberFormatException ignored) {
+                            // ignore
+                        }
+                    }
+                }
+            }
+        }
+        return pending;
+    }
+
+    private boolean canPayColoredManaWithoutLife(ColoredManaSymbol symbol, Game game) {
+        Mana poolMana = getManaPool().getMana();
+        if (poolMana.getColor(symbol) > 0 || poolMana.getAny() > 0) {
+            return true;
+        }
+        for (MageObject producer : getAvailableManaProducers(game)) {
+            for (ActivatedManaAbilityImpl manaAbility : producer.getAbilities().getAvailableActivatedManaAbilities(Zone.BATTLEFIELD, playerId, game)) {
+                boolean costsLife = false;
+                for (Cost cost : manaAbility.getCosts()) {
+                    if (cost instanceof PayLifeCost) {
+                        costsLife = true;
+                        break;
+                    }
+                }
+                if (costsLife) {
+                    continue;
+                }
+                for (Mana netMana : manaAbility.getNetMana(game)) {
+                    if (netMana.getColor(symbol) > 0 || netMana.getAny() > 0) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     @Override

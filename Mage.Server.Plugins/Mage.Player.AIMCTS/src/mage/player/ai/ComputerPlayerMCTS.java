@@ -128,6 +128,11 @@ public class ComputerPlayerMCTS extends ComputerPlayer {
     }
 
     @Override
+    protected boolean preferManaOverPhyrexianLife() {
+        return true;
+    }
+
+    @Override
     public void selectAttackers(Game game, UUID attackingPlayerId) {
         StringBuilder sb = new StringBuilder();
         sb.append(game.getTurn().getValue(game.getTurnNum())).append(" player ").append(name).append(" attacking with: ");
