@@ -170,7 +170,9 @@ fn main() {
                     });
                     shard.game(deal, tag, &recorded, result, info).expect("write");
                     if g % 500 == 0 {
-                        eprintln!(
+                        use std::io::Write;
+                        let _ = writeln!(
+                            std::io::stderr(),
                             "SELFPLAY {g}/{games} games, {} steps, {:.0} s",
                             steps.load(Ordering::Relaxed),
                             started.elapsed().as_secs_f64()
