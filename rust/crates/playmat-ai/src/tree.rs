@@ -445,10 +445,10 @@ impl DecisionPolicy for Ismcts {
             let started = (cfg.time_ms > 0).then(std::time::Instant::now);
             let c_scale = cfg.c_scale as f32 / 1000.0;
 
-            if cfg.par > 1 && games.len() > 1 {
-                // Root-Parallel Multi-Tree Determinized Gumbel-ISMCTS:
+            if (cfg.par > 1 || cfg.multi_tree) && games.len() > 1 {
+                // Multi-Tree Determinized Gumbel-ISMCTS (sequential when par == 1, root-parallel when par > 1):
                 // Each determinized world owns an independent tree (eliminating cross-world strategy fusion),
-                // executed concurrently across `par` threads and aggregated by CRN at the root every halving round.
+                // aggregated by CRN at the root every halving round.
                 let w_cnt = games.len();
                 let n_threads = (cfg.par as usize).min(w_cnt).max(1);
                 let chunk_sz = w_cnt.div_ceil(n_threads);
@@ -467,51 +467,86 @@ impl DecisionPolicy for Ismcts {
                 let mut nodes = 0u64;
                 'par_halving: for r in 0..rounds {
                     let each_per_world = (total_iters / (rounds * alive.len() * w_cnt)).max(1);
-                    let round_nodes = std::sync::atomic::AtomicU64::new(0);
-                    let alive_ref = &alive;
-                    let net_ref = &net;
                     let seat = d.seat;
-                    std::thread::scope(|s| {
-                        for (t_chunk, g_chunk) in trees.chunks_mut(chunk_sz).zip(games.chunks_mut(chunk_sz)) {
-                            let rn = &round_nodes;
-                            let root_local = root.clone();
-                            s.spawn(move || {
-                                let mut local_nodes = 0u64;
-                                for (tree, world) in t_chunk.iter_mut().zip(g_chunk.iter()) {
-                                    let mut tr = std::mem::take(tree);
-                                    'wrep: for rep in 0..each_per_world {
-                                        if let Some(t0) = started {
-                                            if (r > 0 || rep > 0) && t0.elapsed().as_millis() >= cfg.time_ms as u128 {
-                                                break 'wrep;
-                                            }
+                    if n_threads <= 1 {
+                        for (tree, world) in trees.iter_mut().zip(games.iter()) {
+                            let mut tr = std::mem::take(tree);
+                            'wrep_seq: for rep in 0..each_per_world {
+                                if let Some(t0) = started {
+                                    if (r > 0 || rep > 0) && t0.elapsed().as_millis() >= cfg.time_ms as u128 {
+                                        break 'wrep_seq;
+                                    }
+                                }
+                                for &ci in &alive {
+                                    if let Some(t0) = started {
+                                        if (r > 0 || rep > 0) && t0.elapsed().as_millis() >= cfg.time_ms as u128 {
+                                            break 'wrep_seq;
                                         }
-                                        for &ci in alive_ref {
+                                    }
+                                    let walk = Walk::new(tr, net.clone(), cpuct, pure_leaf, Some(ci));
+                                    let (res, mut walk) = root.play_tree(world.clone(), walk, per, stop);
+                                    match res {
+                                        Ok(o) => {
+                                            nodes += o.nodes.max(1);
+                                            let v = eval_iteration(&o.game, &walk, seat, base, cfg, &net);
+                                            walk.backup(v, seat);
+                                        }
+                                        Err(x) => nodes += x.max(1),
+                                    }
+                                    tr = walk.tree;
+                                }
+                            }
+                            *tree = tr;
+                        }
+                    } else {
+                        let round_nodes = std::sync::atomic::AtomicU64::new(0);
+                        let alive_ref = &alive;
+                        let net_ref = &net;
+                        std::thread::scope(|s| {
+                            for (t_chunk, g_chunk) in trees.chunks_mut(chunk_sz).zip(games.chunks_mut(chunk_sz)) {
+                                let rn = &round_nodes;
+                                let root_local = root.clone();
+                                s.spawn(move || {
+                                    let mut local_nodes = 0u64;
+                                    for (tree, world) in t_chunk.iter_mut().zip(g_chunk.iter()) {
+                                        let mut tr = std::mem::take(tree);
+                                        'wrep: for rep in 0..each_per_world {
                                             if let Some(t0) = started {
-                                                if (r > 0 || rep > 0) && t0.elapsed().as_millis() >= cfg.time_ms as u128
+                                                if (r > 0 || rep > 0)
+                                                    && t0.elapsed().as_millis() >= cfg.time_ms as u128
                                                 {
                                                     break 'wrep;
                                                 }
                                             }
-                                            let walk = Walk::new(tr, net_ref.clone(), cpuct, pure_leaf, Some(ci));
-                                            let (res, mut walk) = root_local.play_tree(world.clone(), walk, per, stop);
-                                            match res {
-                                                Ok(o) => {
-                                                    local_nodes += o.nodes.max(1);
-                                                    let v = eval_iteration(&o.game, &walk, seat, base, cfg, net_ref);
-                                                    walk.backup(v, seat);
+                                            for &ci in alive_ref {
+                                                if let Some(t0) = started {
+                                                    if (r > 0 || rep > 0)
+                                                        && t0.elapsed().as_millis() >= cfg.time_ms as u128
+                                                    {
+                                                        break 'wrep;
+                                                    }
                                                 }
-                                                Err(x) => local_nodes += x.max(1),
+                                                let walk = Walk::new(tr, net_ref.clone(), cpuct, pure_leaf, Some(ci));
+                                                let (res, mut walk) = root_local.play_tree(world.clone(), walk, per, stop);
+                                                match res {
+                                                    Ok(o) => {
+                                                        local_nodes += o.nodes.max(1);
+                                                        let v = eval_iteration(&o.game, &walk, seat, base, cfg, net_ref);
+                                                        walk.backup(v, seat);
+                                                    }
+                                                    Err(x) => local_nodes += x.max(1),
+                                                }
+                                                tr = walk.tree;
                                             }
-                                            tr = walk.tree;
                                         }
+                                        *tree = tr;
                                     }
-                                    *tree = tr;
-                                }
-                                rn.fetch_add(local_nodes, std::sync::atomic::Ordering::Relaxed);
-                            });
-                        }
-                    });
-                    nodes += round_nodes.load(std::sync::atomic::Ordering::Relaxed);
+                                    rn.fetch_add(local_nodes, std::sync::atomic::Ordering::Relaxed);
+                                });
+                            }
+                        });
+                        nodes += round_nodes.load(std::sync::atomic::Ordering::Relaxed);
+                    }
                     let mut agg_n = vec![0u32; n];
                     let mut agg_w = vec![0.0f64; n];
                     for tr in &trees {

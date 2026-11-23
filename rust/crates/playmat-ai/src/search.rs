@@ -67,8 +67,10 @@ pub struct Config {
     pub time_ms: u32,
     /// `ismcts` + `gumbel_root`: Q-value scaling factor `c_scale` per thousand (default 250 -> 0.25)
     pub c_scale: u32,
-    /// `ismcts` + `gumbel_root`: root-parallel determinization worker threads (1 = single open-loop tree; >1 = multi-tree per world)
+    /// `ismcts` + `gumbel_root`: root-parallel determinization worker threads (1 = sequential; >1 = parallel across worlds)
     pub par: u32,
+    /// `ismcts` + `gumbel_root`: independent tree per determinized world (eliminates strategy fusion even at par=1)
+    pub multi_tree: bool,
 }
 
 impl Default for Config {
@@ -111,6 +113,7 @@ impl Default for Config {
             time_ms: 0,
             c_scale: 250,
             par: 1,
+            multi_tree: false,
         }
     }
 }
