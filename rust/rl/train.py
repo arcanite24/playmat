@@ -19,7 +19,23 @@ import torch
 import torch.nn.functional as F
 
 from data import Data, compact_dir
-from model import AuxHead, Critic, GLOB_F, Tx, build, export, load_dir, params, save_dir
+from model import AuxHead, Critic, GLOB_F, NO_ENT, Tx, build, export, load_dir, params, save_dir
+
+
+def oracle_batch(b):
+    """Appends opponent hidden-hand tokens (`hid`, `hid_ids`, `hid_mask`) onto entity tokens for Perfect-Information
+    Oracle Critic training/distillation (PerfectDou / Suphx style). Training-only; never exposed to playing nets."""
+    if "hid" not in b or b["hid"].shape[1] == 0:
+        return b
+    out = dict(b)
+    pad_ri = torch.full_like(b["hid_ids"], NO_ENT)
+    pad_rt = torch.zeros_like(b["hid_ids"])
+    out["ents"] = torch.cat([b["ents"], b["hid"]], dim=1)
+    out["ent_ids"] = torch.cat([b["ent_ids"], b["hid_ids"]], dim=1)
+    out["ent_mask"] = torch.cat([b["ent_mask"], b["hid_mask"]], dim=1)
+    out["ent_rel_idx"] = torch.cat([b["ent_rel_idx"], pad_ri], dim=1)
+    out["ent_rel_type"] = torch.cat([b["ent_rel_type"], pad_rt], dim=1)
+    return out
 
 
 def device():
@@ -87,22 +103,43 @@ def refit_value(net, critic, data, train_idx, test_idx, dev, bs, report, q_mix=0
     print(f"TRAIN value head refit: held-out log loss {ev['value_logloss']:.4f}", flush=True)
 
 
-def losses(net, critic, aux_head, b, q_mix=0.0, pol_min_run=0, val_prob=1.0, detach_val=False):
+def losses(
+    net,
+    critic,
+    aux_head,
+    b,
+    q_mix=0.0,
+    pol_min_run=0,
+    pol_old_weight=0.0,
+    val_prob=1.0,
+    detach_val=False,
+    oracle_net=None,
+    oracle_mix=0.0,
+    oracle_mode=False,
+):
     want_aux = aux_head is not None
+    nb_in = oracle_batch(b) if oracle_mode else b
     if want_aux:
-        logits, v, h, vfeat = net(b, return_vfeat=True, detach_val=detach_val)
+        logits, v, h, vfeat = net(nb_in, return_vfeat=True, detach_val=detach_val)
     else:
-        logits, v, h = net(b, detach_val=detach_val)
+        logits, v, h = net(nb_in, detach_val=detach_val)
     logp = F.log_softmax(logits, -1)
     pol_per = -(b["target"] * logp).sum(-1)
     if pol_min_run > 0:
-        pm = (b["run"] >= pol_min_run).float()
+        if pol_old_weight > 0.0:
+            pm = torch.where(b["run"] >= pol_min_run, 1.0, float(pol_old_weight))
+        else:
+            pm = (b["run"] >= pol_min_run).float()
         pol = (pol_per * pm).sum() / pm.sum().clamp(min=1)
     else:
         pol = pol_per.mean()
 
-    # Mix TD(lambda) / binary outcome with root search Q-value when finite
+    # Mix binary outcome with Perfect-Information Oracle value and/or root search Q-value when present
     z_tgt = b["z_td"]
+    if oracle_net is not None and oracle_mix > 0.0:
+        with torch.no_grad():
+            v_or = torch.sigmoid(oracle_net(oracle_batch(b))[1].float()).clamp(0.01, 0.99)
+        z_tgt = (1.0 - oracle_mix) * z_tgt + oracle_mix * v_or
     if q_mix > 0.0:
         qv = b["qval"]
         has_q = torch.isfinite(qv)
@@ -139,7 +176,7 @@ def losses(net, critic, aux_head, b, q_mix=0.0, pol_min_run=0, val_prob=1.0, det
     return pol, val, bel, crit, aux, acc, acc_off, 1 - off.mean()
 
 
-def evaluate(net, critic, data, idx, dev, bs=1024, q_mix=0.0, pol_min_run=0):
+def evaluate(net, critic, data, idx, dev, bs=1024, q_mix=0.0, pol_min_run=0, oracle_mode=False):
     net.eval()
     tot = np.zeros(8)
     n = 0
@@ -154,7 +191,8 @@ def evaluate(net, critic, data, idx, dev, bs=1024, q_mix=0.0, pol_min_run=0):
             j = idx[i : i + bs]
             b = data.batch(j, dev)
             # Evaluate value_logloss against true game outcome z (q_mix=0) and unweighted
-            logits, v, h = net(b)
+            nb_in = oracle_batch(b) if oracle_mode else b
+            logits, v, h = net(nb_in)
             logp = F.log_softmax(logits, -1)
             pol_per = -(b["target"] * logp).sum(-1)
             right = (logits.argmax(-1) == b["target"].argmax(-1)).float()
@@ -235,6 +273,10 @@ def build_parser():
     ap.add_argument("--q-mix", type=float, default=0.4, help="weight on root search Q-value in value target when present")
     ap.add_argument("--td-lambda", type=float, default=0.0, help="forward-looking TD(lambda) value target across future search Q-values (0 = plain z)")
     ap.add_argument("--policy-recent", type=int, default=0, help="only train policy on the last N --data dirs (0 = all)")
+    ap.add_argument("--pol-old-weight", type=float, default=0.0, help="policy weight for older dirs when --policy-recent > 0 (e.g. 0.25 prevents overfitting)")
+    ap.add_argument("--oracle-mode", action="store_true", help="train Perfect-Information Oracle Tx seeing opponent hidden hand (never exported as .pmnet)")
+    ap.add_argument("--oracle-dir", default=None, help="frozen Perfect-Information Oracle Tx dir for value distillation")
+    ap.add_argument("--oracle-mix", type=float, default=0.35, help="weight on oracle value prediction in value target when --oracle-dir is set")
     ap.add_argument("--samples-per-epoch", type=int, default=0, help="cap/stage this many decisions per epoch onto GPU (0 = all)")
     ap.add_argument("--max-per-dir", type=int, default=0, help="cap decisions read per recent --data dir (0 = all)")
     ap.add_argument("--max-old-per-dir", type=int, default=0, help="cap decisions read per older (value-only) --data dir (0 = all)")
@@ -263,12 +305,13 @@ def train_main(argv=None, shared_data=None):
         for d in args.data:
             if os.path.isdir(d):
                 compact_dir(d)
+    need_hid = (not args.no_critic) or args.oracle_mode or bool(args.oracle_dir)
     if shared_data is not None:
         data = shared_data
     else:
         data = Data(
             args.data,
-            load_critic=not args.no_critic,
+            load_critic=need_hid,
             max_per_dir=args.max_per_dir,
             max_old_per_dir=args.max_old_per_dir,
             policy_recent=args.policy_recent,
@@ -284,6 +327,12 @@ def train_main(argv=None, shared_data=None):
     train_idx, test_idx = np.nonzero(~held)[0], np.nonzero(held)[0]
     # Also evaluate held-out policy specifically on recent rounds if policy_recent > 0
     critic = None if args.no_critic else Critic().to(dev)
+    oracle_net = None
+    if args.oracle_dir:
+        oracle_net = load_dir(args.oracle_dir, dev).eval()
+        for p in oracle_net.parameters():
+            p.requires_grad_(False)
+        print(f"TRAIN oracle distillation from {args.oracle_dir} ({params(oracle_net)} params, mix={args.oracle_mix})", flush=True)
     if args.init:
         net = load_dir(args.init, dev, upgrade_val_mlp=args.upgrade_val_mlp, drop=args.drop)
         if critic is not None:
@@ -365,8 +414,9 @@ def train_main(argv=None, shared_data=None):
                     with torch.autocast("cuda", dtype=torch.bfloat16, enabled=amp):
                         pol, val, bel, crit, aux = losses(
                             train_net, critic, aux_head, b,
-                            q_mix=args.q_mix, pol_min_run=pol_min_run,
+                            q_mix=args.q_mix, pol_min_run=pol_min_run, pol_old_weight=args.pol_old_weight,
                             val_prob=args.val_prob, detach_val=(args.detach_val or not value_on),
+                            oracle_net=oracle_net, oracle_mix=args.oracle_mix, oracle_mode=args.oracle_mode,
                         )[:5]
                         loss = (
                             pol
@@ -404,8 +454,9 @@ def train_main(argv=None, shared_data=None):
                 with torch.autocast("cuda", dtype=torch.bfloat16, enabled=amp):
                     pol, val, bel, crit, aux = losses(
                         train_net, critic, aux_head, b,
-                        q_mix=args.q_mix, pol_min_run=pol_min_run,
+                        q_mix=args.q_mix, pol_min_run=pol_min_run, pol_old_weight=args.pol_old_weight,
                         val_prob=args.val_prob, detach_val=(args.detach_val or not value_on),
+                        oracle_net=oracle_net, oracle_mix=args.oracle_mix, oracle_mode=args.oracle_mode,
                     )[:5]
                     loss = (
                         pol
@@ -443,8 +494,9 @@ def train_main(argv=None, shared_data=None):
                     with torch.autocast("cuda", dtype=torch.bfloat16, enabled=amp):
                         pol, val, bel, crit, aux = losses(
                             train_net, critic, aux_head, b,
-                            q_mix=args.q_mix, pol_min_run=pol_min_run,
+                            q_mix=args.q_mix, pol_min_run=pol_min_run, pol_old_weight=args.pol_old_weight,
                             val_prob=args.val_prob, detach_val=(args.detach_val or not value_on),
+                            oracle_net=oracle_net, oracle_mix=args.oracle_mix, oracle_mode=args.oracle_mode,
                         )[:5]
                         loss = (
                             pol
@@ -470,7 +522,7 @@ def train_main(argv=None, shared_data=None):
                                     ema_sd[k].copy_(v)
                     tl += torch.stack([pol.detach(), val.detach(), bel.detach(), crit.detach(), aux.detach()]).float()
 
-        ev = evaluate(net, critic, data, test_idx, dev, pol_min_run=pol_min_run)
+        ev = evaluate(net, critic, data, test_idx, dev, pol_min_run=pol_min_run, oracle_mode=args.oracle_mode)
         ev["epoch"] = ep + 1
         ev["epoch_s"] = round(time.time() - ep_t0, 1)
         ev["train"] = (tl / max(nb, 1)).tolist()
@@ -489,11 +541,11 @@ def train_main(argv=None, shared_data=None):
 
     if ema_sd is not None:
         net.load_state_dict(ema_sd)
-        ev_ema = evaluate(net, critic, data, test_idx, dev, pol_min_run=pol_min_run)
+        ev_ema = evaluate(net, critic, data, test_idx, dev, pol_min_run=pol_min_run, oracle_mode=args.oracle_mode)
         report["ema_eval"] = ev_ema
         print(f"TRAIN EMA eval: {json.dumps({k: round(v, 4) if isinstance(v, float) else v for k, v in ev_ema.items()})}", flush=True)
 
-    if not value_on:
+    if not value_on and not args.oracle_mode:
         refit_value(net, critic, data, train_idx, test_idx, dev, args.bs, report, q_mix=args.q_mix)
 
     z = data.z[test_idx]
@@ -507,7 +559,8 @@ def train_main(argv=None, shared_data=None):
         critic.load_state_dict(best_critic[1])
         report["critic_best_logloss"] = best_critic[0]
         torch.save(critic.state_dict(), os.path.join(args.out, "critic.pt"))
-    export(net.cpu(), os.path.join(args.out, "net.pmnet"), {"trained": "train.py", "data": args.data, "epochs": args.epochs})
+    if not args.oracle_mode:
+        export(net.cpu(), os.path.join(args.out, "net.pmnet"), {"trained": "train.py", "data": args.data, "epochs": args.epochs})
     with open(os.path.join(args.out, "report.json"), "w") as f:
         json.dump(report, f, indent=1)
     print(f"TRAIN wrote {args.out}; total {time.time() - t0:.1f} s; belief base log loss {report['belief_base_logloss']:.4f}", flush=True)
