@@ -174,13 +174,31 @@ pub(crate) fn sample_games(
                 })
                 .collect();
             let m = drawn.iter().map(|(l, _)| *l).fold(f32::MIN, f32::max);
-            let w: Vec<f32> = drawn.iter().map(|(l, _)| (l - m).exp()).collect();
-            let s: f32 = w.iter().sum();
-            let w: Vec<f32> = w.iter().map(|v| v / s).collect();
-            let mut keep = Vec::new();
-            let mut picks: Vec<usize> = (0..k).map(|_| draw(&w, rng)).collect();
+            let mut w: Vec<f32> = drawn.iter().map(|(l, _)| (l - m).exp()).collect();
+            let mut keep = Vec::with_capacity(k);
+            let mut picks: Vec<usize> = Vec::with_capacity(k);
+            // Sample k distinct worlds without replacement so a peaked belief never collapses diversity to 1 world
+            for _ in 0..k.min(drawn.len()) {
+                let s: f32 = w.iter().sum();
+                if s <= 0.0 {
+                    break;
+                }
+                let mut u = uniform(rng) * s;
+                let mut idx = drawn.len() - 1;
+                for (i, &wi) in w.iter().enumerate() {
+                    if wi <= 0.0 {
+                        continue;
+                    }
+                    if u < wi {
+                        idx = i;
+                        break;
+                    }
+                    u -= wi;
+                }
+                w[idx] = 0.0;
+                picks.push(idx);
+            }
             picks.sort();
-            picks.dedup();
             for i in picks.into_iter().rev() {
                 keep.push(drawn.swap_remove(i).1);
             }
