@@ -11,7 +11,7 @@
 use crate::decision::{Choice, Decision, DecisionPolicy};
 use crate::net::{self, Net};
 use crate::search::{candidates, Config};
-use crate::selfplay::{effective_temp, pick, sample_games, skipped, uniform};
+use crate::selfplay::{effective_temp, pick, sample_games_weighted, skipped, uniform};
 use playmat_engine::decide::{Answer, Query};
 use playmat_engine::state::{Game, Seat, Step};
 use std::collections::HashMap;
@@ -510,7 +510,8 @@ impl DecisionPolicy for Ismcts {
             return Some(Choice { answer: d.candidates[i].clone(), nodes: 0 });
         };
         let pure_leaf = cfg.leaf_blend >= 1000;
-        let mut games = sample_games(&mut self.rng, d, root, &net, &out.h, cfg.samples.max(1));
+        let weighted = sample_games_weighted(&mut self.rng, d, root, &net, &out.h, cfg.samples.max(1));
+        let (mut games, weights): (Vec<Game>, Vec<f64>) = weighted.into_iter().unzip();
         let stop = d.game.turn + 1 + cfg.extra_turns;
         let per = (cfg.budget / 16).clamp(50, cfg.playout_cap);
         let base = if pure_leaf { 0 } else { crate::eval::score_with(d.game, d.seat, cfg) };
@@ -560,13 +561,19 @@ impl DecisionPolicy for Ismcts {
                     let round_budget = rem_iters / rounds_left;
                     let each_per_world = (round_budget / (alive.len() * w_cnt)).max(1);
                     rem_iters = rem_iters.saturating_sub(each_per_world * alive.len() * w_cnt);
+                    // Time-aware halving: reserve equal wall-clock slices per round so the final top-2 showdown
+                    // always runs, and prefer breaking between full CRN reps over breaking mid-round.
+                    let round_deadline = (cfg.time_ms as u128 * (r as u128 + 1)) / rounds as u128;
                     let seat = d.seat;
                     if n_threads <= 1 {
                         for (tree, world) in trees.iter_mut().zip(games.iter()) {
                             let mut tr = std::mem::take(tree);
                             'wrep_seq: for rep in 0..each_per_world {
                                 if let Some(t0) = started {
-                                    if (r > 0 || rep > 0) && t0.elapsed().as_millis() >= cfg.time_ms as u128 {
+                                    let el = t0.elapsed().as_millis();
+                                    if (rep > 0 && el >= round_deadline)
+                                        || ((r > 0 || rep > 0) && el >= cfg.time_ms as u128)
+                                    {
                                         break 'wrep_seq;
                                     }
                                 }
@@ -607,8 +614,9 @@ impl DecisionPolicy for Ismcts {
                                         let mut tr = std::mem::take(tree);
                                         'wrep: for rep in 0..each_per_world {
                                             if let Some(t0) = started {
-                                                if (r > 0 || rep > 0)
-                                                    && t0.elapsed().as_millis() >= cfg.time_ms as u128
+                                                let el = t0.elapsed().as_millis();
+                                                if (rep > 0 && el >= round_deadline)
+                                                    || ((r > 0 || rep > 0) && el >= cfg.time_ms as u128)
                                                 {
                                                     break 'wrep;
                                                 }
@@ -650,16 +658,18 @@ impl DecisionPolicy for Ismcts {
                         nodes += round_nodes.load(std::sync::atomic::Ordering::Relaxed);
                     }
                     let mut agg_n = vec![0u32; n];
+                    let mut agg_nw = vec![0.0f64; n];
                     let mut agg_w = vec![0.0f64; n];
-                    for tr in &trees {
+                    for (tr, &wt) in trees.iter().zip(&weights) {
                         for (i, k) in tr.nodes[0].kids.iter().enumerate() {
                             agg_n[i] += k.n;
-                            agg_w[i] += k.w;
+                            agg_nw[i] += wt * k.n as f64;
+                            agg_w[i] += wt * k.w;
                         }
                     }
                     let most = agg_n.iter().copied().max().unwrap_or(0) as usize;
                     let key = |i: usize| {
-                        let q = if agg_n[i] > 0 { (agg_w[i] / agg_n[i] as f64) as f32 } else { v_prior as f32 };
+                        let q = if agg_nw[i] > 0.0 { (agg_w[i] / agg_nw[i]) as f32 } else { v_prior as f32 };
                         g[i] + logp[i] + sigma_gumbel(q, most, c_scale)
                     };
                     alive.sort_by(|a, b| key(*b).total_cmp(&key(*a)));
@@ -673,16 +683,18 @@ impl DecisionPolicy for Ismcts {
                     }
                 }
                 let mut agg_n = vec![0u32; n];
+                let mut agg_nw = vec![0.0f64; n];
                 let mut agg_w = vec![0.0f64; n];
-                for tr in &trees {
+                for (tr, &wt) in trees.iter().zip(&weights) {
                     for (i, k) in tr.nodes[0].kids.iter().enumerate() {
                         agg_n[i] += k.n;
-                        agg_w[i] += k.w;
+                        agg_nw[i] += wt * k.n as f64;
+                        agg_w[i] += wt * k.w;
                     }
                 }
                 let most = agg_n.iter().copied().max().unwrap_or(0) as usize;
                 let key = |i: usize| {
-                    let q = if agg_n[i] > 0 { (agg_w[i] / agg_n[i] as f64) as f32 } else { v_prior as f32 };
+                    let q = if agg_nw[i] > 0.0 { (agg_w[i] / agg_nw[i]) as f32 } else { v_prior as f32 };
                     g[i] + logp[i] + sigma_gumbel(q, most, c_scale)
                 };
                 alive.sort_by(|a, b| key(*b).total_cmp(&key(*a)));
@@ -690,9 +702,9 @@ impl DecisionPolicy for Ismcts {
                 let mut sum_p_vis = 0.0f64;
                 let mut sum_p_q = 0.0f64;
                 for (i, &p) in prior.iter().enumerate() {
-                    if agg_n[i] > 0 {
+                    if agg_nw[i] > 0.0 {
                         sum_p_vis += p as f64;
-                        sum_p_q += (p as f64) * (agg_w[i] / agg_n[i] as f64);
+                        sum_p_q += (p as f64) * (agg_w[i] / agg_nw[i]);
                     }
                 }
                 let v_mix = if total_n > 0 && sum_p_vis > 1e-6 {
@@ -702,7 +714,7 @@ impl DecisionPolicy for Ismcts {
                 };
                 let improved: Vec<f32> = (0..n)
                     .map(|i| {
-                        let q = if agg_n[i] > 0 { (agg_w[i] / agg_n[i] as f64) as f32 } else { v_mix as f32 };
+                        let q = if agg_nw[i] > 0.0 { (agg_w[i] / agg_nw[i]) as f32 } else { v_mix as f32 };
                         logp[i] + sigma_gumbel(q, most, c_scale)
                     })
                     .collect();

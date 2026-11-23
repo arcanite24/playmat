@@ -145,17 +145,16 @@ fn hand_likelihood(
         .sum()
 }
 
-/// `k` samples of the game the seat might be in; with a belief head, the likelier ones under it (importance
-/// resampling, 3 drawn per kept)
-pub(crate) fn sample_games(
+/// `k` samples of the game the seat might be in, deduplicated with their exact belief-draw multiplicity weights
+/// (Rao-Blackwellized unbiased importance resampling, 3 drawn per kept).
+pub(crate) fn sample_games_weighted(
     rng: &mut u64,
     d: &Decision,
     root: &crate::decision::Root,
     net: &net::Net,
     state: &[f32],
     k: usize,
-) -> Vec<Game> {
-    // samples of the game, the likelier ones under the belief kept (importance resampling, 3 drawn per kept)
+) -> Vec<(Game, f64)> {
     let seed = ((d.game.turn as u64) << 40) ^ ((root.since.len() as u64) << 16) ^ d.seat as u64 ^ *rng;
     mix(rng);
     match &root.hidden {
@@ -177,17 +176,39 @@ pub(crate) fn sample_games(
             let w: Vec<f32> = drawn.iter().map(|(l, _)| (l - m).exp()).collect();
             let s: f32 = w.iter().sum();
             let w: Vec<f32> = w.iter().map(|v| v / s).collect();
-            let mut keep = Vec::new();
             let mut picks: Vec<usize> = (0..k).map(|_| draw(&w, rng)).collect();
             picks.sort();
-            picks.dedup();
-            for i in picks.into_iter().rev() {
-                keep.push(drawn.swap_remove(i).1);
+            let mut groups: Vec<(usize, u32)> = Vec::new();
+            for p in picks {
+                if let Some(last) = groups.last_mut() {
+                    if last.0 == p {
+                        last.1 += 1;
+                        continue;
+                    }
+                }
+                groups.push((p, 1));
+            }
+            let mut keep = Vec::with_capacity(groups.len());
+            for (i, cnt) in groups.into_iter().rev() {
+                keep.push((drawn.swap_remove(i).1, cnt as f64));
             }
             keep
         }
-        _ => (0..k).map(|j| root.sample(seed.wrapping_add(j as u64 * 0x9E37))).collect(),
+        _ => (0..k).map(|j| (root.sample(seed.wrapping_add(j as u64 * 0x9E37)), 1.0)).collect(),
     }
+}
+
+/// `k` samples of the game the seat might be in; with a belief head, the likelier ones under it (importance
+/// resampling, 3 drawn per kept)
+pub(crate) fn sample_games(
+    rng: &mut u64,
+    d: &Decision,
+    root: &crate::decision::Root,
+    net: &net::Net,
+    state: &[f32],
+    k: usize,
+) -> Vec<Game> {
+    sample_games_weighted(rng, d, root, net, state, k).into_iter().map(|(g, _)| g).collect()
 }
 
 impl DecisionPolicy for NetSearch {
