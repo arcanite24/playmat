@@ -6089,29 +6089,11 @@ impl AbilityDef {
             | AbilityDef::CardManaAbility { .. }
             | AbilityDef::AddEachControlledColorManaAbility { .. }
             | AbilityDef::DynamicManaAbility { .. } => ManaKind::Other,
-            // a `BasicManaAbility` with extra effects or costs (e.g. pain lands dealing 1 damage) should prompt (#477)
-            AbilityDef::WhiteManaAbility { effects, cost }
-            | AbilityDef::BlueManaAbility { effects, cost }
-            | AbilityDef::BlackManaAbility { effects, cost }
-            | AbilityDef::RedManaAbility { effects, cost }
-            | AbilityDef::GreenManaAbility { effects, cost }
-                if !effects.is_empty() || !cost.is_empty() =>
-            {
-                ManaKind::Other
-            }
             // a `BasicManaAbility` makes one mana; "{T}: Add {G}{G}" is a `SimpleManaAbility`
-            AbilityDef::ColoredManaAbility { amount, effects, cost, .. }
-                if *amount != 1 || !effects.is_empty() || !cost.is_empty() =>
-            {
-                ManaKind::Other
-            }
+            AbilityDef::ColoredManaAbility { amount, .. } if *amount != 1 => ManaKind::Other,
             // `SimpleManaAbility`s with a `ConditionalManaEffect` (Ugin's Labyrinth, Gemstone Caverns) or {C}{C}
-            AbilityDef::ColorlessManaAbility { amount, two_if_exiled, any_color_with, effects, cost, .. }
-                if *amount != 1
-                    || *two_if_exiled
-                    || any_color_with.is_some()
-                    || !effects.is_empty()
-                    || !cost.is_empty() =>
+            AbilityDef::ColorlessManaAbility { amount, two_if_exiled, any_color_with, .. }
+                if *amount != 1 || *two_if_exiled || any_color_with.is_some() =>
             {
                 ManaKind::Other
             }

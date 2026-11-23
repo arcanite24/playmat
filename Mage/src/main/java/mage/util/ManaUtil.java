@@ -71,10 +71,6 @@ public final class ManaUtil {
                 if (!(ability instanceof AnyColorManaAbility)) {
                     return useableAbilities;
                 }
-            } else if (ability.getEffects().size() > 1 || ability.getCosts().size() > 1) {
-                // A basic mana ability with extra effects or costs (e.g. pain lands dealing 1 damage)
-                // should prompt the player instead of auto-picking over painless alternatives.
-                return useableAbilities;
             }
         }
 

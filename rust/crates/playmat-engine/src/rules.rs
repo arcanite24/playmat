@@ -3798,7 +3798,7 @@ fn pick_color(
     if choices.len() == 1 {
         return Some(choices[0]);
     }
-    if !game.pool_mode(seat).0 && !spell_cares_about_mana_color(game, seat) {
+    if !game.pool_mode(seat).0 {
         let owed: Vec<Color> = [Color::W, Color::R, Color::G, Color::U, Color::B]
             .into_iter()
             .filter(|c| unpaid.symbols_of(*c) > 0 && choices.contains(c))
@@ -3843,7 +3843,7 @@ fn color_among(
     if choices.len() == 1 {
         return Some(choices[0]);
     }
-    if !game.pool_mode(seat).0 && !spell_cares_about_mana_color(game, seat) {
+    if !game.pool_mode(seat).0 {
         let owed: Vec<Color> = [Color::W, Color::R, Color::G, Color::U, Color::B]
             .into_iter()
             .filter(|c| unpaid.symbols_of(*c) > 0 && choices.contains(c))
@@ -3995,10 +3995,11 @@ fn any_color_asking(
 /// `any_color_asking`; with no unpaid cost known (`HumanPlayer.currentlyUnpaidMana` is null: a mana ability whose
 /// own mana cost was paid by tapping a source, Hydro-Channeler's "{1}, {T}"), always asked
 /// Whether the spell currently being paid for cares about the colors of mana spent (`CardImpl.caresAboutManaColor`:
-/// Sunburst, Adamant, Converge / Prismatic Ending).
+/// Sunburst, Adamant).
 fn spell_cares_about_mana_color(game: &Game, seat: Seat) -> bool {
     spell_paid_for(game).is_some_and(|s| {
         let o = game.obj(s);
+        // (its effects' conditions: an intervening "if" isn't one, Clockwork Servant's adamant)
         let effects = o.def.spell.effects.iter().chain(o.def.spell.modes.iter().flat_map(|m| m.effects.iter())).chain(
             o.def.abilities.iter().flat_map(|a| match a {
                 AbilityDef::TriggeredAbility { effects, .. }
@@ -4009,14 +4010,7 @@ fn spell_cares_about_mana_color(game: &Game, seat: Seat) -> bool {
         );
         o.controller == seat
             && (o.def.abilities.contains(&AbilityDef::SunburstAbility)
-                || o.def.spell.rule.contains("converge")
-                || effects.into_iter().any(|e| {
-                    let dbg = format!("{e:?}");
-                    dbg.contains("ManaColorSpent")
-                        || dbg.contains("ColorsSpent")
-                        || dbg.contains("PrismaticEndingEffect")
-                        || dbg.contains("EachTwoSpent")
-                }))
+                || effects.into_iter().any(|e| format!("{e:?}").contains("ManaColorSpent")))
     })
 }
 
@@ -9124,7 +9118,7 @@ fn pay_mana_from(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCo
                     abilities.sort_by_key(|(i, _, _)| *i);
                 }
                 if let Some((_, abilities)) = offered {
-                    let choices = if game.pool_mode(seat).0 || spell_cares_about_mana_color(game, seat) {
+                    let choices = if game.pool_mode(seat).0 {
                         abilities
                     } else {
                         auto_pay_abilities(&abilities, &unpaid)
@@ -26184,10 +26178,10 @@ mod tests {
         }
     }
 
-    /// #477: Full Control (manual pool mode) always prompts for a multi-ability land's mana ability during casting,
-    /// and pain lands always prompt instead of auto-selecting a 1-damage colored ability over painless {C}.
+    /// #477: Full Control (manual pool mode) always prompts for a multi-ability land's mana ability during casting
+    /// (both duals and pain lands, so the player can pick painless {C} or a specific color).
     #[test]
-    fn manual_mode_and_pain_lands_prompt_for_mana_ability() {
+    fn manual_mode_prompts_for_mana_ability() {
         let db = crate::cards();
         let cost = ManaCost::parse("{1}{W}").unwrap();
         // Sacred Foundry: auto-picks {W} normally, prompts both abilities in Full Control (manual mode)
@@ -26200,13 +26194,14 @@ mod tests {
             let _ = pay_mana_from(&mut game, &mut d, 0, &cost);
             assert_eq!(d.prompted, expected, "Sacred Foundry with manual={manual}");
         }
-        // Adarkar Wastes: pain land prompts all 3 abilities even with manual=false
+        // Adarkar Wastes: in Full Control (manual mode) prompts all 3 abilities ({C}, {W} + 1 dmg, {U} + 1 dmg)
         let mut game = game_with(&db, &[("Adarkar Wastes", 20)]);
         let land = game.create_obj(db.get("Adarkar Wastes").unwrap(), 0, Zone::Hand);
         game.move_to(land, Zone::Battlefield);
+        game.set_pool_mode(0, true, false);
         let mut d = AbilityPromptProbe { land, tapped: false, prompted: None };
         let _ = pay_mana_from(&mut game, &mut d, 0, &cost);
-        assert_eq!(d.prompted, Some(3), "Adarkar Wastes should prompt rather than auto-dealing 1 damage");
+        assert_eq!(d.prompted, Some(3), "Adarkar Wastes in Full Control should prompt all 3 abilities");
     }
 
     /// Pays an attack tax: yes to paying, then taps the first source offered; keeps whether the paying player's
