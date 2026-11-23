@@ -27,7 +27,7 @@ except ImportError:
     ENT_F, GLOB_F_V1, GLOB_F, ACT_F, NO_ENT = 49, 65, 81, 65, 255
 
 META = 10
-N_ENT, N_ACT, N_HID, N_POOL = 80, 16, 16, 64
+N_ENT, N_ACT, N_HID, N_POOL = 80, 24, 16, 64
 
 # GLOB_F layout in obs.rs: 17 fitted features, then [turn/10, me.life/20, them.life/20, ...]
 GLOB_LIFE_ME = 17 + 1

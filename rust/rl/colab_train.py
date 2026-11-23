@@ -26,6 +26,8 @@ def main():
     ap.add_argument("--dataset-repo", default="nerijs/playmat-ai-selfplay")
     ap.add_argument("--rounds", nargs="+", required=True, help="data/<round> names in dataset repo (oldest -> newest)")
     ap.add_argument("--init-ckpt", default=None, help="optional checkpoints/<name> in models repo to warm-start from")
+    ap.add_argument("--oracle-ckpt", default=None, help="optional checkpoints/<name> in models repo for oracle distillation")
+    ap.add_argument("--oracle-mix", type=float, default=0.0)
     ap.add_argument("--arch", default="tx")
     ap.add_argument("--tx", default="d=192,heads=6,layers=4,ff=512,dim=32,trunk=192,val_mlp=1,gelu=1,glob_f=81,rel=1,act_ent=1,text=2")
     ap.add_argument("--epochs", type=int, default=6)
@@ -34,10 +36,12 @@ def main():
     ap.add_argument("--drop", type=float, default=0.1)
     ap.add_argument("--val-prob", type=float, default=0.05)
     ap.add_argument("--val-wd", type=float, default=5e-2)
+    ap.add_argument("--value-weight", type=float, default=1.0)
     ap.add_argument("--aux-weight", type=float, default=0.0)
     ap.add_argument("--q-mix", type=float, default=0.4)
     ap.add_argument("--ema", type=float, default=0.995)
     ap.add_argument("--policy-recent", type=int, default=1)
+    ap.add_argument("--pol-old-weight", type=float, default=0.0)
     ap.add_argument("--max-old-per-dir", type=int, default=1500000)
     ap.add_argument("--samples-per-epoch", type=int, default=3000000)
     ap.add_argument("--stage-chunk", type=int, default=1500000)
@@ -90,6 +94,18 @@ def main():
         )
         init_dir = os.path.join(work, "checkpoints", args.init_ckpt)
 
+    oracle_dir = None
+    if args.oracle_ckpt:
+        print(f"COLAB downloading oracle checkpoint checkpoints/{args.oracle_ckpt}...", flush=True)
+        snapshot_download(
+            repo_id=args.models_repo,
+            repo_type="model",
+            local_dir=work,
+            allow_patterns=[f"checkpoints/{args.oracle_ckpt}/*"],
+            token=tok,
+        )
+        oracle_dir = os.path.join(work, "checkpoints", args.oracle_ckpt)
+
     # 2. Pull compacted self-play rounds from dataset repo
     allow_data = [f"data/{r}/merged.*" for r in args.rounds]
     print(f"COLAB downloading {len(args.rounds)} rounds from {args.dataset_repo}: {args.rounds}", flush=True)
@@ -115,15 +131,19 @@ def main():
         "--drop", str(args.drop),
         "--val-prob", str(args.val_prob),
         "--val-wd", str(args.val_wd),
+        "--value-weight", str(args.value_weight),
         "--aux-weight", str(args.aux_weight),
         "--q-mix", str(args.q_mix),
         "--ema", str(args.ema),
         "--policy-recent", str(args.policy_recent),
+        "--pol-old-weight", str(args.pol_old_weight),
         "--max-old-per-dir", str(args.max_old_per_dir),
         "--samples-per-epoch", str(args.samples_per_epoch),
         "--stage-chunk", str(args.stage_chunk),
         "--gpu-data-gb", str(args.gpu_data_gb),
     ]
+    if oracle_dir and args.oracle_mix > 0:
+        cmd += ["--oracle-dir", oracle_dir, "--oracle-mix", str(args.oracle_mix)]
     if init_dir:
         cmd += ["--init", init_dir]
     else:

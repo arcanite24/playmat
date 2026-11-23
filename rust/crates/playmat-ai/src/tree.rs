@@ -114,9 +114,6 @@ fn sigma_gumbel(q: f32, most: usize, c_scale: f32) -> f32 {
     }
 }
 
-/// candidates a tree node keeps, as the playouts' network does
-const WIDTH: usize = 12;
-
 /// Public+own-hand game state fingerprint for safe MCTS tree reuse across consecutive moves.
 /// Reads only what `seat` can legally see (zero hidden info leak).
 fn state_hash(game: &Game, seat: Seat, q: &Query) -> u64 {
@@ -267,6 +264,8 @@ pub struct Walk {
     cache: Arc<EvalCache>,
     cpuct: f32,
     pure_leaf: bool,
+    quiesce_net: bool,
+    width: usize,
     root_pick: Option<usize>,
     /// Value logit (as probability 0..1) of the newly expanded leaf, with its seat
     pub leaf_value: Option<(Seat, f64)>,
@@ -283,6 +282,8 @@ impl Walk {
         cache: Arc<EvalCache>,
         cpuct: f32,
         pure_leaf: bool,
+        quiesce_net: bool,
+        width: usize,
         root_pick: Option<usize>,
     ) -> Walk {
         Walk {
@@ -294,6 +295,8 @@ impl Walk {
             cache,
             cpuct,
             pure_leaf,
+            quiesce_net,
+            width: width.max(2),
             root_pick,
             leaf_value: None,
             stop_now: false,
@@ -311,11 +314,23 @@ impl Walk {
     pub fn step(&mut self, game: &Game, seat: Seat, q: &Query, quick: &Answer) -> Option<Answer> {
         if self.quiesce {
             self.q_steps += 1;
-            if quiescent(game) || self.q_steps >= 24 {
+            let cap = if self.quiesce_net { 16 } else { 24 };
+            if quiescent(game) || self.q_steps >= cap {
                 let p = self.cache.quiesce_value(&self.net, game, seat);
                 self.leaf_value = Some((seat, p));
                 self.stop_now = true;
                 self.quiesce = false;
+                return None;
+            }
+            if self.quiesce_net && !skipped(q) {
+                let options = candidates(game, seat, q, quick, self.width);
+                if options.len() >= 2 {
+                    let obs = crate::obs::observe(game, seat, q, &options);
+                    let (p, _) = self.cache.forward_priors(&self.net, &obs);
+                    if let Some((best_i, _)) = p.iter().enumerate().max_by(|a, b| a.1.total_cmp(b.1)) {
+                        return Some(options[best_i].clone());
+                    }
+                }
             }
             return None;
         }
@@ -343,7 +358,7 @@ impl Walk {
             }
         }
         // a question with one answer worth trying passes through without moving
-        let options = candidates(game, seat, q, quick, WIDTH);
+        let options = candidates(game, seat, q, quick, self.width);
         if options.len() < 2 {
             return None;
         }
@@ -510,6 +525,8 @@ impl DecisionPolicy for Ismcts {
             return Some(Choice { answer: d.candidates[i].clone(), nodes: 0 });
         };
         let pure_leaf = cfg.leaf_blend >= 1000;
+        let quiesce_net = cfg.quiesce_net;
+        let tree_width = cfg.width.max(2);
         let weighted = sample_games_weighted(&mut self.rng, d, root, &net, &out.h, cfg.samples.max(1));
         let (mut games, weights): (Vec<Game>, Vec<f64>) = weighted.into_iter().unzip();
         let stop = d.game.turn + 1 + cfg.extra_turns;
@@ -583,8 +600,16 @@ impl DecisionPolicy for Ismcts {
                                             break 'wrep_seq;
                                         }
                                     }
-                                    let walk =
-                                        Walk::new(tr, net.clone(), self.cache.clone(), cpuct, pure_leaf, Some(ci));
+                                    let walk = Walk::new(
+                                        tr,
+                                        net.clone(),
+                                        self.cache.clone(),
+                                        cpuct,
+                                        pure_leaf,
+                                        quiesce_net,
+                                        tree_width,
+                                        Some(ci),
+                                    );
                                     let (res, mut walk) = root.play_tree(world.clone(), walk, per, stop);
                                     match res {
                                         Ok(o) => {
@@ -635,6 +660,8 @@ impl DecisionPolicy for Ismcts {
                                                     cache_ref.clone(),
                                                     cpuct,
                                                     pure_leaf,
+                                                    quiesce_net,
+                                                    tree_width,
                                                     Some(ci),
                                                 );
                                                 let (res, mut walk) = root_local.play_tree(world.clone(), walk, per, stop);
@@ -763,7 +790,16 @@ impl DecisionPolicy for Ismcts {
                                 break 'halving;
                             }
                         }
-                        let walk = Walk::new(tree, net.clone(), self.cache.clone(), cpuct, pure_leaf, Some(ci));
+                        let walk = Walk::new(
+                            tree,
+                            net.clone(),
+                            self.cache.clone(),
+                            cpuct,
+                            pure_leaf,
+                            quiesce_net,
+                            tree_width,
+                            Some(ci),
+                        );
                         let (res, mut walk) = root.play_tree(world.clone(), walk, per, stop);
                         match res {
                             Ok(o) => {
@@ -860,7 +896,8 @@ impl DecisionPolicy for Ismcts {
                     break;
                 }
             }
-            let walk = Walk::new(tree, net.clone(), self.cache.clone(), cpuct, pure_leaf, None);
+            let walk =
+                Walk::new(tree, net.clone(), self.cache.clone(), cpuct, pure_leaf, quiesce_net, tree_width, None);
             let (res, mut walk) = root.play_tree(games[it % games.len()].clone(), walk, per, stop);
             match res {
                 Ok(o) => {

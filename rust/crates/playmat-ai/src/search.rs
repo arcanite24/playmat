@@ -71,6 +71,10 @@ pub struct Config {
     pub par: u32,
     /// `ismcts` + `gumbel_root`: independent tree per determinized world (eliminates strategy fusion even at par=1)
     pub multi_tree: bool,
+    /// `ismcts` + pure value-leaf: use cached neural policy (not heuristic `quick`) while resolving mid-combat/stack quiescence
+    pub quiesce_net: bool,
+    /// keep/mulligan and London bottom using the neural value head (`net.state`) instead of heuristic/goldfish rules
+    pub mulligan_net: bool,
 }
 
 impl Default for Config {
@@ -114,6 +118,8 @@ impl Default for Config {
             c_scale: 250,
             par: 1,
             multi_tree: false,
+            quiesce_net: false,
+            mulligan_net: false,
         }
     }
 }
