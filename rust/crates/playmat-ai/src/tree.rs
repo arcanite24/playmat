@@ -27,11 +27,11 @@ fn quiescent(game: &Game) -> bool {
         )
 }
 
-/// Monotonic Q-value transformation for Gumbel-ISMCTS (`c_visit = 50, c_scale = 0.25`), plus terminal
+/// Monotonic Q-value transformation for Gumbel-ISMCTS (`c_visit = 50`, configurable `c_scale`), plus terminal
 /// discipline: proven wins (`q >= 0.999`) and proven losses (`q <= 0.001`) always override a low prior,
-/// while non-terminal moves (`0.02..=0.98`) keep full policy-prior regularization against value noise.
-fn sigma_gumbel(q: f32, most: usize) -> f32 {
-    let base = (50.0 + most as f32) * 0.25 * q;
+/// while non-terminal moves (`0.02..=0.98`) keep policy-prior regularization against value noise.
+fn sigma_gumbel(q: f32, most: usize, c_scale: f32) -> f32 {
+    let base = (50.0 + most as f32) * c_scale * q;
     if q >= 0.999 {
         base + 10.0
     } else if q <= 0.001 {
@@ -461,6 +461,7 @@ impl DecisionPolicy for Ismcts {
             let mut world_idx = 0usize;
             let started = (cfg.time_ms > 0).then(std::time::Instant::now);
 
+            let c_scale = cfg.c_scale as f32 / 1000.0;
             'halving: for r in 0..rounds {
                 let each = (total_iters / (rounds * alive.len())).max(1);
                 // Common Random Numbers (CRN): compare all surviving candidates on the SAME determinization
@@ -499,7 +500,7 @@ impl DecisionPolicy for Ismcts {
                 let key = |i: usize| {
                     let k = &tree.nodes[0].kids[i];
                     let q = if k.n > 0 { (k.w / k.n as f64) as f32 } else { v_prior as f32 };
-                    g[i] + logp[i] + sigma_gumbel(q, most)
+                    g[i] + logp[i] + sigma_gumbel(q, most, c_scale)
                 };
                 alive.sort_by(|a, b| key(*b).total_cmp(&key(*a)));
                 if r + 1 < rounds {
@@ -511,7 +512,7 @@ impl DecisionPolicy for Ismcts {
             let key = |i: usize| {
                 let k = &tree.nodes[0].kids[i];
                 let q = if k.n > 0 { (k.w / k.n as f64) as f32 } else { v_prior as f32 };
-                g[i] + logp[i] + sigma_gumbel(q, most)
+                g[i] + logp[i] + sigma_gumbel(q, most, c_scale)
             };
             alive.sort_by(|a, b| key(*b).total_cmp(&key(*a)));
 
@@ -535,7 +536,7 @@ impl DecisionPolicy for Ismcts {
                 .map(|i| {
                     let k = &root_node.kids[i];
                     let q = if k.n > 0 { (k.w / k.n as f64) as f32 } else { v_mix as f32 };
-                    logp[i] + sigma_gumbel(q, most)
+                    logp[i] + sigma_gumbel(q, most, c_scale)
                 })
                 .collect();
             self.last = net::softmax(&improved, 1.0);
