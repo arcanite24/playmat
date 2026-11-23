@@ -89,6 +89,7 @@ pub fn with(mut c: Config, settings: &str) -> Result<Config, String> {
             "temp_turn" => c.temp_turn = n()? as u32,
             "time_ms" => c.time_ms = n()? as u32,
             "c_scale" => c.c_scale = n()? as u32,
+            "par" => c.par = n()?.max(1) as u32,
             _ => return Err(format!("unknown config key {k}")),
         }
     }
@@ -98,7 +99,7 @@ pub fn with(mut c: Config, settings: &str) -> Result<Config, String> {
 /// A config as `cfg:` settings (every field, so two builds' configs compare as text)
 pub fn label(c: &Config) -> String {
     format!(
-        "budget={}+width={}+extra_turns={}+playout_cap={}+policy={}+hide={}+samples={}+playout={}+eval={}+plans={}+mulligan_sim={}+blunder={}+net={}+temp={}+eta={}+rollout={}+consider={}+cpuct={}+iters={}+leaf_blend={}+gumbel_root={}+temp_turn={}+time_ms={}+c_scale={}",
+        "budget={}+width={}+extra_turns={}+playout_cap={}+policy={}+hide={}+samples={}+playout={}+eval={}+plans={}+mulligan_sim={}+blunder={}+net={}+temp={}+eta={}+rollout={}+consider={}+cpuct={}+iters={}+leaf_blend={}+gumbel_root={}+temp_turn={}+time_ms={}+c_scale={}+par={}",
         c.budget,
         c.width,
         c.extra_turns,
@@ -122,7 +123,8 @@ pub fn label(c: &Config) -> String {
         c.gumbel_root as u8,
         c.temp_turn,
         c.time_ms,
-        c.c_scale
+        c.c_scale,
+        c.par
     )
 }
 

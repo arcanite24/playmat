@@ -421,7 +421,7 @@ impl DecisionPolicy for Ismcts {
             return Some(Choice { answer: d.candidates[i].clone(), nodes: 0 });
         };
         let pure_leaf = cfg.leaf_blend >= 1000;
-        let games = sample_games(&mut self.rng, d, root, &net, &out.h, cfg.samples.max(1));
+        let mut games = sample_games(&mut self.rng, d, root, &net, &out.h, cfg.samples.max(1));
         let stop = d.game.turn + 1 + cfg.extra_turns;
         let per = (cfg.budget / 16).clamp(50, cfg.playout_cap);
         let base = if pure_leaf { 0 } else { crate::eval::score_with(d.game, d.seat, cfg) };
@@ -439,6 +439,142 @@ impl DecisionPolicy for Ismcts {
             alive.truncate(cfg.consider.max(2).min(n));
 
             let cur_hash = state_hash(d.game, d.seat, d.query);
+            let m = alive.len();
+            let rounds = (usize::BITS - (m.max(2) - 1).leading_zeros()).max(1) as usize;
+            let total_iters = (cfg.iters.max(m as u32)) as usize;
+            let started = (cfg.time_ms > 0).then(std::time::Instant::now);
+            let c_scale = cfg.c_scale as f32 / 1000.0;
+
+            if cfg.par > 1 && games.len() > 1 {
+                // Root-Parallel Multi-Tree Determinized Gumbel-ISMCTS:
+                // Each determinized world owns an independent tree (eliminating cross-world strategy fusion),
+                // executed concurrently across `par` threads and aggregated by CRN at the root every halving round.
+                let w_cnt = games.len();
+                let n_threads = (cfg.par as usize).min(w_cnt).max(1);
+                let chunk_sz = w_cnt.div_ceil(n_threads);
+                let mut trees: Vec<Tree> = (0..w_cnt)
+                    .map(|_| {
+                        let kids = d
+                            .candidates
+                            .iter()
+                            .cloned()
+                            .zip(prior.iter().copied())
+                            .map(|(answer, prior)| Kid { answer, prior, n: 0, w: 0.0, node: None })
+                            .collect();
+                        Tree { nodes: vec![Node { seat: d.seat, hash: cur_hash, kids, n: 0 }] }
+                    })
+                    .collect();
+                let mut nodes = 0u64;
+                'par_halving: for r in 0..rounds {
+                    let each_per_world = (total_iters / (rounds * alive.len() * w_cnt)).max(1);
+                    let round_nodes = std::sync::atomic::AtomicU64::new(0);
+                    let alive_ref = &alive;
+                    let net_ref = &net;
+                    let seat = d.seat;
+                    std::thread::scope(|s| {
+                        for (t_chunk, g_chunk) in trees.chunks_mut(chunk_sz).zip(games.chunks_mut(chunk_sz)) {
+                            let rn = &round_nodes;
+                            let root_local = root.clone();
+                            s.spawn(move || {
+                                let mut local_nodes = 0u64;
+                                for (tree, world) in t_chunk.iter_mut().zip(g_chunk.iter()) {
+                                    let mut tr = std::mem::take(tree);
+                                    'wrep: for rep in 0..each_per_world {
+                                        if let Some(t0) = started {
+                                            if (r > 0 || rep > 0) && t0.elapsed().as_millis() >= cfg.time_ms as u128 {
+                                                break 'wrep;
+                                            }
+                                        }
+                                        for &ci in alive_ref {
+                                            if let Some(t0) = started {
+                                                if (r > 0 || rep > 0) && t0.elapsed().as_millis() >= cfg.time_ms as u128
+                                                {
+                                                    break 'wrep;
+                                                }
+                                            }
+                                            let walk = Walk::new(tr, net_ref.clone(), cpuct, pure_leaf, Some(ci));
+                                            let (res, mut walk) = root_local.play_tree(world.clone(), walk, per, stop);
+                                            match res {
+                                                Ok(o) => {
+                                                    local_nodes += o.nodes.max(1);
+                                                    let v = eval_iteration(&o.game, &walk, seat, base, cfg, net_ref);
+                                                    walk.backup(v, seat);
+                                                }
+                                                Err(x) => local_nodes += x.max(1),
+                                            }
+                                            tr = walk.tree;
+                                        }
+                                    }
+                                    *tree = tr;
+                                }
+                                rn.fetch_add(local_nodes, std::sync::atomic::Ordering::Relaxed);
+                            });
+                        }
+                    });
+                    nodes += round_nodes.load(std::sync::atomic::Ordering::Relaxed);
+                    let mut agg_n = vec![0u32; n];
+                    let mut agg_w = vec![0.0f64; n];
+                    for tr in &trees {
+                        for (i, k) in tr.nodes[0].kids.iter().enumerate() {
+                            agg_n[i] += k.n;
+                            agg_w[i] += k.w;
+                        }
+                    }
+                    let most = agg_n.iter().copied().max().unwrap_or(0) as usize;
+                    let key = |i: usize| {
+                        let q = if agg_n[i] > 0 { (agg_w[i] / agg_n[i] as f64) as f32 } else { v_prior as f32 };
+                        g[i] + logp[i] + sigma_gumbel(q, most, c_scale)
+                    };
+                    alive.sort_by(|a, b| key(*b).total_cmp(&key(*a)));
+                    if r + 1 < rounds {
+                        alive.truncate(alive.len().div_ceil(2));
+                    }
+                    if let Some(t0) = started {
+                        if t0.elapsed().as_millis() >= cfg.time_ms as u128 {
+                            break 'par_halving;
+                        }
+                    }
+                }
+                let mut agg_n = vec![0u32; n];
+                let mut agg_w = vec![0.0f64; n];
+                for tr in &trees {
+                    for (i, k) in tr.nodes[0].kids.iter().enumerate() {
+                        agg_n[i] += k.n;
+                        agg_w[i] += k.w;
+                    }
+                }
+                let most = agg_n.iter().copied().max().unwrap_or(0) as usize;
+                let key = |i: usize| {
+                    let q = if agg_n[i] > 0 { (agg_w[i] / agg_n[i] as f64) as f32 } else { v_prior as f32 };
+                    g[i] + logp[i] + sigma_gumbel(q, most, c_scale)
+                };
+                alive.sort_by(|a, b| key(*b).total_cmp(&key(*a)));
+                let total_n: u32 = agg_n.iter().sum();
+                let mut sum_p_vis = 0.0f64;
+                let mut sum_p_q = 0.0f64;
+                for (i, &p) in prior.iter().enumerate() {
+                    if agg_n[i] > 0 {
+                        sum_p_vis += p as f64;
+                        sum_p_q += (p as f64) * (agg_w[i] / agg_n[i] as f64);
+                    }
+                }
+                let v_mix = if total_n > 0 && sum_p_vis > 1e-6 {
+                    (v_prior + total_n as f64 * (sum_p_q / sum_p_vis)) / (1.0 + total_n as f64)
+                } else {
+                    v_prior
+                };
+                let improved: Vec<f32> = (0..n)
+                    .map(|i| {
+                        let q = if agg_n[i] > 0 { (agg_w[i] / agg_n[i] as f64) as f32 } else { v_mix as f32 };
+                        logp[i] + sigma_gumbel(q, most, c_scale)
+                    })
+                    .collect();
+                self.last = net::softmax(&improved, 1.0);
+                self.last_val = Some((v_mix as f32).clamp(0.0, 1.0));
+                self.saved = None;
+                return Some(Choice { answer: d.candidates[alive[0]].clone(), nodes });
+            }
+
             let mut tree = self
                 .saved
                 .take()
@@ -454,14 +590,9 @@ impl DecisionPolicy for Ismcts {
                     Tree { nodes: vec![Node { seat: d.seat, hash: cur_hash, kids, n: 0 }] }
                 });
 
-            let m = alive.len();
-            let rounds = (usize::BITS - (m.max(2) - 1).leading_zeros()).max(1) as usize;
-            let total_iters = (cfg.iters.max(m as u32)) as usize;
             let mut nodes = 0u64;
             let mut world_idx = 0usize;
-            let started = (cfg.time_ms > 0).then(std::time::Instant::now);
 
-            let c_scale = cfg.c_scale as f32 / 1000.0;
             'halving: for r in 0..rounds {
                 let each = (total_iters / (rounds * alive.len())).max(1);
                 // Common Random Numbers (CRN): compare all surviving candidates on the SAME determinization
