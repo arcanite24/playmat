@@ -127,9 +127,10 @@ Chosen 24 Nov 2026: **2, "Java off the game path".**
    (most of the 4,802 declines). Each shadow difference is now kept in `differences.log`. `careerQuests`' declines
    are admin accounts, which Rust leaves to Java on purpose. Then: Close the platform diffs (`careerGameResult`, `careerQuests`, `searchCards`), cut `deckValidate` declines, then
    move the groups to `rust` one at a time, a week apart.
-6. Port the last Pioneer engine pieces, in waves, as before.
-7. Start the upstream ledger (#191) so new upstream changes stop drifting.
-8. Add a rule: a new game-facing feature ships with its Rust host side, or with a reason it stays on Java.
+6. **Under way: wave 17**, the unverified Pioneer cards the Career, starter and shadow decks use (46). Port the last Pioneer engine pieces, in waves, as before.
+7. **In review: #498** (ledger, `check`, a weekly report; 71 verified cards changed upstream play on Java until
+   re-verified). Start the upstream ledger (#191) so new upstream changes stop drifting.
+8. **In review: #491** (CLAUDE.md and a PR template carry the rule). Add a rule: a new game-facing feature ships with its Rust host side, or with a reason it stays on Java.
 
 ### Part B: limited
 
