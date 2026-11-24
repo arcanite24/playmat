@@ -103,17 +103,20 @@ Chosen 24 Nov 2026: **2, "Java off the game path".**
    - A spectator who started watching before the first board (right as the table started) was refused, so a game
      between people could never be watched from its start (`Hosted::watch`).
    - Deploy drains and restart-when-idle waited only for Java's games, so a restart could cut off a Rust-hosted game
-     mid-play. `/healthz` `gamesRunning` now counts both, and `hostedGames` is new.
+     mid-play. `/healthz` `gamesRunning` now counts both, and `hostedGames` is new. This gives hosted games the same
+     drain Java's get; it doesn't end a game nobody is playing, which a long drain still waits out or cuts off.
 
    The two games with no end are accounted for:
-   - `5b6e1d86` (16 Nov) was left for a save on turn 4, carried on as `ca140f0b` and finished. The left game waited
-     until a restart cut it off (the drain gap above).
+   - `5b6e1d86` (16 Nov) was left for a save on turn 4, carried on as `ca140f0b` and finished. The left game has no
+     end record, so it most likely waited until a restart cut it off (inferred: no log line shows the cut-off).
    - The totals count 215 ends where the records have 216: one end was lost from the counters across a restart.
 
 1. Record the state: update #182, the tracker (`progress-plan.json`) and this file's numbers.
 2. Decide the rollout default: 217 games without `error` or `panic` meets step E's gate. Deploy the drain fix
    first, then set `XMAGE_RUST_HOST_USERS=*` (owner's OK, production change).
-3. Host Career tables: the Career's tally and assists in the host, and setups (twists, nemesis, puzzles). Check
+3. **In review: #493** (Career duel and campaign tables: life, card and permanent edges, the opponent's
+   personality, hints counted on Java; Ranked refuses hints and practice tools in #492). Puzzles, horde, pods,
+   emblems and timed twists still stay on Java. Ranked, League and Ladder tables already qualify. Host Career tables: the Career's tally and assists in the host, and setups (twists, nemesis, puzzles). Check
    whether Ranked, League and Ladder tables already qualify, and fix what keeps them on Java.
 4. Host games that start from Java saves and setups, or convert them to lines.
 5. Close the platform diffs (`careerGameResult`, `careerQuests`, `searchCards`), cut `deckValidate` declines, then
