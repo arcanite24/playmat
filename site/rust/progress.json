@@ -258,13 +258,13 @@
  },
  "counted": {
   "engine_cards": 14024,
-  "verified_cards": 14000,
+  "verified_cards": 13929,
   "pioneer": {
    "cards": 15259,
    "in_engine": 13937,
-   "verified": 13913
+   "verified": 13842
   },
-  "java_card_files": 32749,
+  "java_card_files": 32849,
   "school": {
    "label": "Pioneer and Standard school decks",
    "decks": 42,
@@ -1022,15 +1022,15 @@
    "checked_in": 1455
   },
   "rust": {
-   "lines": 137429,
+   "lines": 143608,
    "crates": [
     {
      "crate": "playmat-ai",
-     "lines": 3163
+     "lines": 8616
     },
     {
      "crate": "playmat-engine",
-     "lines": 115437
+     "lines": 115680
     },
     {
      "crate": "playmat-gateway",
@@ -1038,11 +1038,11 @@
     },
     {
      "crate": "playmat-host",
-     "lines": 4817
+     "lines": 5255
     },
     {
      "crate": "playmat-platform",
-     "lines": 10302
+     "lines": 10347
     },
     {
      "crate": "playmat-protocol",
@@ -1055,6 +1055,6 @@
    ]
   }
  },
- "commit": "3c17be59c9f90ddd53d34d3c5b476c56587ea7fc",
- "generated": "2026-11-15"
+ "commit": "ff40572d392d2a53fc863106047776a474a2e825",
+ "generated": "2026-11-23"
 }
