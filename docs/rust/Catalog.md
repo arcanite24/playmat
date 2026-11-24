@@ -78,9 +78,13 @@ its name (kind 2), up to 2,001 cards. The 33 plain formats (Standard, Modern, Pa
 checked as `Constructed.validate` checks them: deck and sideboard size, copies (`maxCopiesMap`, 4 by default),
 banned and restricted cards, rarities and sets (a card is legal when any printing of its name is), with the same
 messages, sorted the same way (type, group, message, by UTF-16 code unit). The Commander bracket analysis runs for
-every deck, as Java does. The other 19 formats (Commander and its variants, Brawl, Oathbreaker, Momir, Freeform,
+every deck, as Java does. Three formats with small validators of their own are answered too, as their classes do it:
+`Constructed - Freeform` (the main deck's size: every Career deck), `Constructed - Freeform Unlimited` (any deck) and
+`Limited` (the main deck's size, and `maxCopiesMap`'s limits only). Before them they were most of the declined calls
+(4,802 in production from 12 to 24 Nov). The other 16 formats (Commander and its variants, Brawl, Oathbreaker, Momir,
 Historical Type 2, Tiny Leaders…) override the validation and are declined, as are decks with a card the catalog
-doesn't have (Java refuses those with its own message).
+doesn't have (Java refuses those with its own message). `deckValidateShadow.live.test.ts` checks the three against
+Java on the starter and meta decks, short ones and copy limits included.
 
 ## Rate limit
 

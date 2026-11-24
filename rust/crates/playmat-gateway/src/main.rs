@@ -41,6 +41,15 @@ pub struct App {
 }
 
 impl App {
+    /// Keeps a shadow difference beside the totals (`differences.log` in their folder), so a week of shadow can be
+    /// read back after the restarts that clear the server log; the file starts again past 2 MB (the old one is kept
+    /// as `differences.log.1`)
+    pub fn note_difference(&self, method: &str, difference: &str) {
+        let Some((path, _)) = &self.totals else { return };
+        let file = path.with_file_name("differences.log");
+        totals::append_capped(&file, &format!("{} {method} {difference}\n", totals::now()), 2 << 20);
+    }
+
     /// Writes the kept counters to their file, with what grew since the last write in today's bucket
     fn save_totals(&self) {
         let Some((path, totals)) = &self.totals else { return };

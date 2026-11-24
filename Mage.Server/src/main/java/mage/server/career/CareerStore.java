@@ -140,6 +140,11 @@ public final class CareerStore implements AutoCloseable {
                             + " deck TEXT NOT NULL, source TEXT, active INTEGER NOT NULL DEFAULT 0, updated INTEGER NOT NULL,"
                             + " PRIMARY KEY (user, id))",
                     "CREATE INDEX career_decks_by_user ON career_decks (user, updated)"
+            },
+            {
+                    // each ranked table's latest game (RankedService.lastGame): the rewards screen asks by table, the
+                    // payout is keyed by game. Kept here so a restart and the Rust platform (careerGameResult) find it.
+                    "CREATE TABLE ranked_games (table_id TEXT PRIMARY KEY, game_id TEXT NOT NULL, at INTEGER NOT NULL)"
             }
     };
 
@@ -1226,6 +1231,27 @@ public final class CareerStore implements AutoCloseable {
     }
 
     /** a Career table, so it survives a restart */
+    /** a ranked table's latest game (RankedService.gameEnded) */
+    public synchronized void putRankedGame(String tableId, String gameId, long now) throws SQLException {
+        try (PreparedStatement upsert = connection.prepareStatement(
+                "INSERT OR REPLACE INTO ranked_games (table_id, game_id, at) VALUES (?, ?, ?)")) {
+            upsert.setString(1, tableId);
+            upsert.setString(2, gameId);
+            upsert.setLong(3, now);
+            upsert.executeUpdate();
+        }
+    }
+
+    /** a ranked table's latest game, or null */
+    public synchronized String rankedGame(String tableId) throws SQLException {
+        try (PreparedStatement select = connection.prepareStatement("SELECT game_id FROM ranked_games WHERE table_id = ?")) {
+            select.setString(1, tableId);
+            try (ResultSet rows = select.executeQuery()) {
+                return rows.next() ? rows.getString(1) : null;
+            }
+        }
+    }
+
     synchronized void putCareerTable(String tableId, String data, long now) throws SQLException {
         try (PreparedStatement upsert = connection.prepareStatement(
                 "INSERT OR REPLACE INTO career_tables (table_id, data, created) VALUES (?, ?, ?)")) {

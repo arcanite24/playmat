@@ -446,6 +446,7 @@ fn on_reply(
             app.metrics.shadow(&method, difference.is_none());
             if let Some(difference) = difference {
                 warn!("shadow {method}: Rust answered differently at {difference}");
+                app.note_difference(&method, &difference);
             }
             send_client(text)
         }

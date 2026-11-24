@@ -82,8 +82,32 @@ fn error_type(name: &str) -> (i32, bool) {
     }
 }
 
+/// The formats whose validator isn't `Constructed`'s but is small enough to answer here, as Java's own classes do
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Simple {
+    /// `Freeform`: the main deck's size only
+    Freeform,
+    /// `FreeformUnlimited`: any deck
+    FreeformUnlimited,
+    /// `Limited`: the main deck's size, and the cards with a copy limit of their own (`maxCopiesMap`)
+    Limited,
+}
+
+impl Simple {
+    pub fn of(name: &str) -> Option<Simple> {
+        match name {
+            "Constructed - Freeform" => Some(Simple::Freeform),
+            "Constructed - Freeform Unlimited" => Some(Simple::FreeformUnlimited),
+            "Limited" => Some(Simple::Limited),
+            _ => None,
+        }
+    }
+}
+
 pub struct Format {
     pub plain: bool,
+    /// a format answered here though it isn't plain
+    pub simple: Option<Simple>,
     title: String,
     short_name: String,
     deck_min: usize,
@@ -163,10 +187,12 @@ impl Formats {
         let mut formats = HashMap::new();
         for r in sqlx::query("SELECT name, plain, title, short_name, deck_min FROM formats").fetch_all(pool).await? {
             let name: String = r.get(0);
+            let simple = Simple::of(&name);
             formats.insert(
                 name,
                 Format {
                     plain: r.get::<i64, _>(1) != 0,
+                    simple,
                     title: r.get::<Option<String>, _>(2).unwrap_or_default(),
                     short_name: r.get::<Option<String>, _>(3).unwrap_or_default(),
                     deck_min: r.get::<Option<i64>, _>(4).unwrap_or(0).max(0) as usize,
@@ -240,6 +266,9 @@ impl Formats {
         sideboard: &[Card],
         printings_of: &HashMap<String, Vec<(String, String)>>,
     ) -> Value {
+        if let Some(simple) = format.simple.filter(|_| !format.plain) {
+            return self.simple(deck_type, format, simple, cards, sideboard);
+        }
         let mut errors: Vec<Error> = Vec::new();
         let mut valid = true;
         let maindeck = cards.iter().filter(|c| !c.extra_deck).count();
@@ -329,6 +358,56 @@ impl Formats {
             }
         }
 
+        self.result(deck_type, format, errors, valid, cards, sideboard)
+    }
+
+    /// `Freeform`, `FreeformUnlimited` and `Limited`'s own `validate`
+    fn simple(&self, deck_type: &str, format: &Format, simple: Simple, cards: &[Card], sideboard: &[Card]) -> Value {
+        let mut errors: Vec<Error> = Vec::new();
+        let mut valid = true;
+        if simple != Simple::FreeformUnlimited {
+            let maindeck = cards.iter().filter(|c| !c.extra_deck).count();
+            if maindeck < format.deck_min {
+                errors.push(Error::new(
+                    "DECK_SIZE",
+                    "Deck",
+                    format!("Must contain at least {} cards: has only {} cards", format.deck_min, maindeck),
+                    false,
+                ));
+                valid = false;
+            }
+        }
+        if simple == Simple::Limited {
+            // `countCards(deck.getCards())`: the main deck; no limit but `maxCopiesMap`'s
+            let mut counts: Vec<(&str, usize)> = Vec::new();
+            for card in cards {
+                match counts.iter_mut().find(|(name, _)| *name == card.name) {
+                    Some(entry) => entry.1 += 1,
+                    None => counts.push((&card.name, 1)),
+                }
+            }
+            for (name, n) in counts {
+                if let Some((_, max)) = MAX_COPIES.iter().find(|(card, _)| *card == name) {
+                    if n > *max {
+                        errors.push(Error::new("OTHER", name, format!("Too many: {n}"), true));
+                        valid = false;
+                    }
+                }
+            }
+        }
+        self.result(deck_type, format, errors, valid, cards, sideboard)
+    }
+
+    /// `DeckValidationResult`: the errors sorted (`getErrorsListSorted`), and the Commander brackets of every deck
+    fn result(
+        &self,
+        deck_type: &str,
+        format: &Format,
+        mut errors: Vec<Error>,
+        valid: bool,
+        cards: &[Card],
+        sideboard: &[Card],
+    ) -> Value {
         let partly_valid = errors.iter().all(|e| error_type(&e.kind).1);
         // a stable sort, as List.sort: by type, then group, then message
         errors.sort_by(|a, b| {
@@ -460,6 +539,7 @@ mod tests {
     fn pauper() -> Format {
         Format {
             plain: true,
+            simple: None,
             title: "Constructed - Pauper".into(),
             short_name: "Pauper".into(),
             deck_min: 60,
@@ -497,5 +577,59 @@ mod tests {
     fn utf16_order() {
         assert_eq!(java_cmp("Ab", "a"), Ordering::Less);
         assert_eq!(java_cmp("\u{FF5E}", "\u{1F600}"), Ordering::Greater);
+    }
+
+    fn simple_format(name: &str, deck_min: usize) -> Format {
+        Format {
+            plain: false,
+            simple: Simple::of(name),
+            title: name.into(),
+            short_name: String::new(),
+            deck_min,
+            set_codes: vec![],
+            banned: vec![],
+            restricted: vec![],
+            single: HashSet::new(),
+            rarities: vec![],
+        }
+    }
+
+    #[test]
+    fn freeform_and_limited_validate_as_their_java_classes() {
+        let formats = Formats { formats: HashMap::new(), game_changers: HashSet::new(), combos: vec![] };
+        let printings = HashMap::new();
+        // Freeform: 39 cards is short; any number of copies and any sideboard is fine
+        let freeform = simple_format("Constructed - Freeform", 40);
+        let mut cards: Vec<Card> = (0..39).map(|_| card("Black Lotus", "LEA", "RARE")).collect();
+        let sideboard: Vec<Card> = (0..20).map(|_| card("Mox Ruby", "LEA", "RARE")).collect();
+        let result = formats.validate("Constructed - Freeform", &freeform, &cards, &sideboard, &printings);
+        assert_eq!(result["valid"], json!(false));
+        assert_eq!(result["partlyValid"], json!(true));
+        assert_eq!(result["errors"].as_array().unwrap().len(), 1);
+        assert_eq!(result["errors"][0]["message"], json!("Must contain at least 40 cards: has only 39 cards"));
+        assert_eq!(result["commanderBrackets"].as_array().unwrap().len(), 5);
+        cards.push(card("Black Lotus", "LEA", "RARE"));
+        assert_eq!(
+            formats.validate("Constructed - Freeform", &freeform, &cards, &sideboard, &printings)["valid"],
+            json!(true)
+        );
+        // Freeform Unlimited: anything
+        let unlimited = simple_format("Constructed - Freeform Unlimited", 0);
+        let one = vec![card("Island", "M10", "LAND")];
+        let result = formats.validate("Constructed - Freeform Unlimited", &unlimited, &one, &[], &printings);
+        assert_eq!(result["valid"], json!(true));
+        assert_eq!(result["errors"], json!([]));
+        // Limited: a pool's copies are fine, but a card's own limit holds
+        let limited = simple_format("Limited", 40);
+        let mut pool: Vec<Card> = (0..32).map(|_| card("Grizzly Bears", "M10", "COMMON")).collect();
+        pool.extend((0..8).map(|_| card("Seven Dwarves", "ELD", "COMMON")));
+        let result = formats.validate("Limited", &limited, &pool, &[], &printings);
+        assert_eq!(result["valid"], json!(false));
+        assert_eq!(result["partlyValid"], json!(false));
+        assert_eq!(result["errors"][0]["group"], json!("Seven Dwarves"));
+        assert_eq!(result["errors"][0]["message"], json!("Too many: 8"));
+        pool.pop();
+        pool.push(card("Grizzly Bears", "M10", "COMMON"));
+        assert_eq!(formats.validate("Limited", &limited, &pool, &[], &printings)["valid"], json!(true));
     }
 }
