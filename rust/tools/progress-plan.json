@@ -138,11 +138,14 @@
       "n": "E",
       "name": "Rollout",
       "status": "live",
-      "text": "Rust-hosted games for listed players, and for every player who turns on \"Play on the Rust engine\" in Settings, live since 11 Nov 2026. Then every AI duel whose decks qualify, by default. 217 production games from 12 to 24 Nov, none lost to an error or a panic. Next: the default for everyone, once a deploy waits for hosted games too.",
+      "text": "Rust-hosted games for listed players, and for every player who turns on \"Play on the Rust engine\" in Settings, live since 11 Nov 2026. Then every AI duel whose decks qualify, by default. 217 production games from 12 to 24 Nov, none lost to an error or a panic. Next: the default for everyone, once a deploy waits for hosted games too. In review: #491 (deploys wait for hosted games), #492 (no hints or practice tools in ranked hosted games) and #493 (Career duel and campaign tables on the host).",
       "gate": "A week with no game lost to the host, then the default",
       "pr": [
         261,
-        276
+        276,
+        491,
+        492,
+        493
       ]
     },
     {
