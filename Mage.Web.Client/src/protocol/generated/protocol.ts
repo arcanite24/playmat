@@ -71,6 +71,7 @@ export interface RpcMethods {
   gameJoin: { params: [gameId: UUID, sessionId: string]; result: boolean };
   hostGameEnded: { params: [gameId: UUID, token: string, winnerId: string | null, turns: number, reason: string, timeLeft?: unknown | null, summary?: unknown | null]; result: boolean };
   hostGameTurn: { params: [gameId: UUID, token: string, turn: number, activePlayerId: string | null, line: unknown]; result: boolean };
+  hostGameAssisted: { params: [gameId: UUID, token: string, what: string]; result: boolean };
   gameResync: { params: [gameId: UUID, sessionId: string]; result: boolean };
   gameStateResync: { params: [gameId: UUID, sessionId: string]; result: boolean };
   matchQuit: { params: [gameId: UUID, sessionId: string]; result: boolean };
@@ -366,6 +367,7 @@ export const RPC_METHODS: { readonly [M in RpcMethodName]: { readonly access: Rp
   gameJoin: { access: 'session', sessionParam: 1 },
   hostGameEnded: { access: 'public', sessionParam: -1 },
   hostGameTurn: { access: 'public', sessionParam: -1 },
+  hostGameAssisted: { access: 'public', sessionParam: -1 },
   gameResync: { access: 'session', sessionParam: 1 },
   gameStateResync: { access: 'session', sessionParam: 1 },
   matchQuit: { access: 'session', sessionParam: 1 },

@@ -52,11 +52,11 @@ public class CareerServiceTest {
 
     @Test
     public void migrationsRunOnceAndRecordTheVersion() throws Exception {
-        assertEquals(9, store.schemaVersion());
+        assertEquals(10, store.schemaVersion());
         store.close();
         store = new CareerStore("jdbc:sqlite:" + file);
         CareerStore.use(store);
-        assertEquals(9, store.schemaVersion());
+        assertEquals(10, store.schemaVersion());
         assertNotNull(store.profile("ana"), "reopening keeps the data");
     }
 

@@ -117,6 +117,11 @@ public final class RankedService {
         RankedService current = instance;
         if (current != null && current.isRankedTable(tableId)) {
             current.lastGames.put(tableId, gameId);
+            try {
+                mage.server.career.CareerStore.get().putRankedGame(tableId.toString(), gameId.toString(), System.currentTimeMillis());
+            } catch (java.sql.SQLException | RuntimeException e) {
+                logger.warn("Ranked: table " + tableId + "'s latest game can't be kept: " + e.getMessage());
+            }
         }
     }
 
@@ -127,8 +132,14 @@ public final class RankedService {
             return null;
         }
         try {
-            return current.lastGames.get(UUID.fromString(tableId));
-        } catch (IllegalArgumentException e) {
+            UUID game = current.lastGames.get(UUID.fromString(tableId));
+            if (game != null) {
+                return game;
+            }
+            // after a restart: the store keeps it (as the Rust platform reads it)
+            String kept = mage.server.career.CareerStore.get().rankedGame(tableId);
+            return kept == null ? null : UUID.fromString(kept);
+        } catch (RuntimeException | java.sql.SQLException e) {
             return null;
         }
     }

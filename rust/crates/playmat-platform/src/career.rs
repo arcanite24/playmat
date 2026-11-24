@@ -231,7 +231,36 @@ impl AdminStores {
                 stored(deck)
             }
             "careerGameResult" => {
-                let key = opt_string(&request.params, 0)?.unwrap_or_default();
+                let mut key = opt_string(&request.params, 0)?.unwrap_or_default();
+                if !key.is_empty() {
+                    // a ranked table's rewards are its latest game's (RankedService.lastGame, kept in ranked_games)
+                    let ranked: Option<String> =
+                        sqlx::query_scalar("SELECT game_id FROM ranked_games WHERE table_id = ?")
+                            .bind(&key)
+                            .fetch_optional(&mut *db)
+                            .await
+                            .ok()
+                            .flatten();
+                    if let Some(game) = ranked {
+                        key = format!("{game}/{user}");
+                    }
+                    // a payout the gateway makes lands a moment after the game (CareerPayouts.awaitPayout)
+                    let event = key.split('/').next().unwrap_or_default().to_string();
+                    let until = std::time::Instant::now() + std::time::Duration::from_millis(5000);
+                    while std::time::Instant::now() < until {
+                        let pending: Option<i64> =
+                            sqlx::query_scalar("SELECT 1 FROM payout_events WHERE key = ? AND state = 'pending'")
+                                .bind(&event)
+                                .fetch_optional(&mut *db)
+                                .await
+                                .ok()
+                                .flatten();
+                        if pending.is_none() {
+                            break;
+                        }
+                        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                    }
+                }
                 let details: Option<String> = if key.is_empty() {
                     sqlx::query_scalar(
                         "SELECT details FROM progress_games WHERE user = ? AND details IS NOT NULL ORDER BY at DESC LIMIT 1",
@@ -1237,6 +1266,8 @@ mod tests {
             "INSERT INTO decks VALUES ('neri', '{\"name\":\"Red\",\"cards\":[{\"cardName\":\"Zap\",\"amount\":3}]}', 1)",
             "INSERT INTO progress_games VALUES ('t1', 'neri', 10, '{\"coins\":25}'), ('g2/neri', 'neri', 20, '{\"coins\":5}'), \
              ('t3', 'neri', 30, NULL)",
+            "CREATE TABLE ranked_games (table_id TEXT PRIMARY KEY, game_id TEXT NOT NULL, at INTEGER NOT NULL)",
+            "INSERT INTO ranked_games VALUES ('r1', 'g2', 25)",
         ] {
             sqlx::query(sql).execute(&mut db).await.unwrap();
         }
@@ -1267,6 +1298,8 @@ mod tests {
         assert_eq!(call("careerGameResult", json!(["t1"])).await, json!({"coins": 25}));
         assert_eq!(call("careerGameResult", json!(["g2"])).await, json!({"coins": 5}));
         assert_eq!(call("careerGameResult", json!(["t3"])).await, Value::Null);
+        // a ranked table's key: its latest game's result (RankedService.lastGame)
+        assert_eq!(call("careerGameResult", json!(["r1"])).await, json!({"coins": 5}));
 
         // progression: the profile is made on the first ask
         assert_eq!(call("careerLevels", json!([])).await, Value::Null);

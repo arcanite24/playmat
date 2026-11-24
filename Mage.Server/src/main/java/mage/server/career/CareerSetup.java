@@ -709,6 +709,92 @@ public final class CareerSetup implements GameSetup {
         return info.createCard();
     }
 
+    /**
+     * What keeps the Rust host from playing this setup (docs/rust/GameHost.md, Career tables), or null when it plays
+     * it: life, extra cards and permanents for either side, and the opponent's personality.
+     */
+    public String hostProblem() {
+        if (puzzle != null) {
+            return "a Career puzzle or trial";
+        }
+        if (horde != null) {
+            return "a horde";
+        }
+        if (pod) {
+            return "a pod";
+        }
+        for (CareerTwists t : new CareerTwists[]{twists, you}) {
+            if (t == null) {
+                continue;
+            }
+            if (t.emblem != null) {
+                return "a Career twist the host lacks (an emblem)";
+            }
+            if (t.timed != null && !t.timed.isEmpty()) {
+                return "a Career twist the host lacks (a timed twist)";
+            }
+        }
+        return null;
+    }
+
+    /** the cards the setup puts in play, which the engine must have verified too */
+    public java.util.List<String> hostCards() {
+        java.util.List<String> names = new ArrayList<>();
+        for (CareerTwists t : new CareerTwists[]{twists, you}) {
+            if (t != null && t.permanents != null) {
+                t.permanents.forEach(entry -> names.add(name(entry)));
+            }
+        }
+        return names;
+    }
+
+    /**
+     * The edges as the host plays them ({@code apply} after the mulligans): {@code you} for the human, {@code opponent}
+     * for the other seat, each with its life, life bonus, extra cards, permanents and the log line's text after the
+     * player's name; and the opponent's {@code personality}.
+     */
+    public com.google.gson.JsonObject hostSetup() {
+        com.google.gson.JsonObject json = new com.google.gson.JsonObject();
+        if (you != null) {
+            json.add("you", hostEdge(you, " starts with"));
+        }
+        if (twists != null) {
+            json.add("opponent", hostEdge(twists, " starts with an edge"));
+        }
+        if (personality != null) {
+            com.google.gson.JsonObject p = new com.google.gson.JsonObject();
+            p.addProperty("aggression", personality.aggression);
+            p.addProperty("risk", personality.risk);
+            p.addProperty("patience", personality.patience);
+            json.add("personality", p);
+        }
+        return json;
+    }
+
+    private static com.google.gson.JsonObject hostEdge(CareerTwists t, String what) {
+        com.google.gson.JsonObject edge = new com.google.gson.JsonObject();
+        if (t.startingLife != null) {
+            edge.addProperty("life", t.startingLife);
+        }
+        edge.addProperty("lifeBonus", t.lifeBonus);
+        edge.addProperty("cards", Math.max(0, t.extraCards));
+        com.google.gson.JsonArray permanents = new com.google.gson.JsonArray();
+        if (t.permanents != null) {
+            for (String entry : t.permanents) {
+                com.google.gson.JsonObject card = new com.google.gson.JsonObject();
+                card.addProperty("name", name(entry));
+                card.addProperty("tapped", entry.endsWith("|tapped"));
+                permanents.add(card);
+            }
+        }
+        edge.add("permanents", permanents);
+        String described = describe(t);
+        if (!described.isEmpty()) {
+            edge.addProperty("log", what + described + ".");
+        }
+        return edge;
+    }
+
     public CareerTwists twists() {
         return twists;
     }

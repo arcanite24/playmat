@@ -93,8 +93,10 @@ impl Hosted {
         let json = e.json();
         if e.to.is_none() || e.to == Some(self.watch) {
             if let Some(w) = watcher_event(game_id, &self.human, &json) {
+                // held while it goes to the spectators, so one who starts watching meanwhile (`watch`) gets it once
+                let mut watched = self.watched.lock().unwrap();
                 if w["method"] != "CHATMESSAGE" && w["method"] != "GAME_OVER" {
-                    *self.watched.lock().unwrap() = Some(w["data"].clone());
+                    *watched = Some(w["data"].clone());
                 }
                 // a player's own log lines (a rollback that isn't available) aren't the spectators'
                 if e.to.is_none() || w["method"] != "CHATMESSAGE" {
@@ -112,10 +114,15 @@ impl Hosted {
         subscribers.push((seat, s));
     }
 
-    /// `gameWatchStart`: a spectator, sent the board at once. False when the game has no board yet.
+    /// `gameWatchStart`: a spectator, sent the board at once. One who comes before the game's first board (they
+    /// watch as soon as the table starts) gets it with the players, as the host sends it.
     pub fn watch(&self, game_id: &str, s: Subscriber, user: String) -> bool {
-        let Some(view) = self.watched.lock().unwrap().clone() else { return false };
-        let _ = s.events.send(json!({"objectId": game_id, "method": "GAME_INIT", "data": view}));
+        // the board and the list under one lock order (watched, then watchers), as `forward` takes them, so a
+        // board sent in between reaches the spectator either way
+        let watched = self.watched.lock().unwrap();
+        if let Some(view) = watched.clone() {
+            let _ = s.events.send(json!({"objectId": game_id, "method": "GAME_INIT", "data": view}));
+        }
         let mut watchers = self.watchers.lock().unwrap();
         watchers.retain(|(t, _)| t.connection != s.connection && !t.events.is_closed());
         watchers.push((s, user));
@@ -124,6 +131,11 @@ impl Hosted {
 
     pub fn unwatch(&self, connection: u64) {
         self.watchers.lock().unwrap().retain(|(t, _)| t.connection != connection);
+    }
+
+    /// the token Java gave the game (`HOST_GAME`), which the gateway's calls to Java carry
+    pub fn token(&self) -> &str {
+        &self.token
     }
 
     /// `gameWatchers`: the spectators' names
@@ -515,6 +527,12 @@ async fn turn(java_url: url::Url, game_id: String, token: String, data: Value) {
     tell_java(java_url, request, 2).await;
 }
 
+/// `hostGameAssisted` to Java: the host gave a Career game's player a hint, counted at once (`AdviceService`)
+pub async fn assisted(java_url: url::Url, game_id: String, token: String, what: &str) {
+    let request = json!({"jsonrpc": "2.0", "id": 1, "method": "hostGameAssisted", "params": [game_id, token, what]});
+    tell_java(java_url, request, 3).await;
+}
+
 /// A call of the gateway's own to Java, on a connection of its own; a few tries
 async fn tell_java(java_url: url::Url, request: Value, tries: u64) {
     use futures_util::{SinkExt, StreamExt};
@@ -706,5 +724,25 @@ mod tests {
         assert!(v["events"][0].get("targetId").is_none(), "the human's draw is hidden");
         let only_human = json!({"objectId": "g", "method": "GAME_INFORM_PERSONAL", "data": {"message": "x"}});
         assert!(watcher_event("g", "h", &only_human).is_none());
+    }
+
+    #[test]
+    fn a_spectator_before_the_first_board_gets_it() {
+        let seat = |name: &str| SeatInfo { player_id: format!("p-{name}"), name: name.into(), human: true };
+        let game = hosted(vec![seat("ann"), seat("bob")]);
+        let (w, mut w_rx) = tokio::sync::mpsc::unbounded_channel();
+        // the table started, the host hasn't sent a board yet
+        assert!(game.watch("g", Subscriber { connection: 3, events: w }, "eve".into()));
+        assert!(w_rx.try_recv().is_err(), "no board to send yet");
+        let init =
+            Event { method: "GAME_INIT".into(), object_id: "g".into(), data: json!({"players": []}), to: Some(0) };
+        game.forward("g", &init);
+        let first = w_rx.try_recv().expect("the first board");
+        assert_eq!(first["method"], "GAME_INIT");
+        assert!(w_rx.try_recv().is_err(), "once");
+        // a later spectator gets the board at once
+        let (late, mut late_rx) = tokio::sync::mpsc::unbounded_channel();
+        assert!(game.watch("g", Subscriber { connection: 4, events: late }, "zed".into()));
+        assert_eq!(late_rx.try_recv().unwrap()["method"], "GAME_INIT");
     }
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CardView } from '../../protocol/generated/views';
-import { explainCard, termSpans } from './glossary';
+import { explainCard, keywordsOf, termSpans } from './glossary';
 
 const creature = (rules: string[]): CardView => ({ name: 'Test', cardTypes: ['CREATURE'], rules });
 
@@ -112,6 +112,21 @@ describe('Duskmourn', () => {
     expect(termSpans("Betrayer's Bargain deals 5 damage.", bargain).some((span) => span.term)).toBe(false);
     expect(names({ name: 'Unholy Heat', cardTypes: ['INSTANT'], rules: ['{this} deals 2 damage to target creature.<i>Delirium</i> &mdash; It deals 6 damage instead.'] }))
       .toEqual(['Delirium']);
+  });
+
+  it('reads a flavor word that starts with a keyword as a flavor word (Echo of the Lost is not echo)', () => {
+    const marked = (text: string) => termSpans(text).filter((span) => span.term).map((span) => [span.text, span.term!.name]);
+    const emet = creature(['<i>Echo of the Lost</i> &mdash; During your turn, you may play cards from your graveyard.']);
+    expect(names(emet)).toEqual([]);
+    expect(keywordsOf(emet)).toEqual([]);
+    expect(marked('Echo of the Lost — During your turn, you may play cards from your graveyard.')).toEqual([]);
+    // nor does any other flavor word, whatever keyword or action it uses
+    expect(names(creature(['<i>Dash Attack</i> &mdash; Whenever {this} attacks, draw a card.']))).toEqual([]);
+    expect(marked('Ultimate Sacrifice — Sacrifice a creature: draw a card.')).toEqual([['Sacrifice', 'Sacrifice']]);
+    // a keyword with a dashed cost still counts
+    expect(names(creature(['Echo&mdash;Discard a card.']))).toEqual(['Echo']);
+    expect(marked('Echo—Discard a card.')).toEqual([['Echo', 'Echo']]);
+    expect(names(creature(['Echo {2}{R}']))).toEqual(['Echo']);
   });
 
   it('explains a face-down permanent, whatever it is', () => {

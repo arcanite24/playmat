@@ -443,6 +443,7 @@ fn a_tables_starting_life_and_free_mulligans_are_played() {
         ai_skill: Some(3),
         rollback: false,
         ai_pin: None,
+        ..playmat_host::TableRules::default()
     };
     let game = HostedGame::start(s, Arc::new(playmat_engine::cards())).unwrap();
     game.call(Call::Join);
@@ -961,10 +962,228 @@ fn practice_tools_and_advice_against_the_ai() {
                 game.call(Call::Practice("TELEPORT".into(), None, 1, Some(tx)));
                 assert!(rx.recv_timeout(Duration::from_secs(30)).unwrap().contains("Unknown"));
                 game.call(Call::Action("CONCEDE".into(), None));
+                // the Career pays nothing for it (`CareerTally.taint`)
+                assert_eq!(game.join().summary["taint"], "practice tools were used");
                 return;
             }
             _ => unreachable!(),
         }
     }
     panic!("stopped at stage {stage}");
+}
+
+#[test]
+fn a_ranked_table_gives_no_advice_and_no_practice_tools() {
+    let mut s = start(&deck("gw-company.txt"), &deck("b-zombies.txt"), 3, None);
+    s.rules.no_advice = Some("Ranked games are played without hints.".into());
+    s.rules.no_practice = Some("Practice tools are off in ranked games.".into());
+    let game = HostedGame::start(s, Arc::new(playmat_engine::cards())).unwrap();
+    game.call(Call::Join);
+    let mut b = bot(u64::MAX);
+    for _ in 0..20_000 {
+        let e = game.events.recv_timeout(Duration::from_secs(60)).expect("the host answers");
+        assert_ne!(e.method, "GAME_OVER");
+        let priority = e.method == "GAME_SELECT" && e.data["message"].as_str().is_some_and(|m| m.starts_with("Play"));
+        if !priority {
+            if let Some(c) = b.answer(&e) {
+                game.call(c);
+            }
+            continue;
+        }
+        let (tx, rx) = std::sync::mpsc::channel();
+        game.call(Call::Advise(4, tx));
+        let advice = rx.recv_timeout(Duration::from_secs(30)).expect("advice");
+        assert_eq!(advice["kind"], "NONE");
+        assert_eq!(advice["text"], "Ranked games are played without hints.");
+        let (tx, rx) = std::sync::mpsc::channel();
+        game.call(Call::Practice("LIFE".into(), None, 7, Some(tx)));
+        assert_eq!(rx.recv_timeout(Duration::from_secs(30)).unwrap(), "Practice tools are off in ranked games.");
+        game.call(Call::Action("CONCEDE".into(), None));
+        let ended = game.join();
+        assert!(ended.summary.get("taint").is_none(), "nothing was used");
+        assert_eq!(ended.reason, "conceded");
+        return;
+    }
+    panic!("no priority");
+}
+
+/// A Career table's setup (`CareerSetup.apply`): each side's edge after the mulligans, its log line, the opponent's
+/// personality, a limited number of hints that the end counts, and no practice tools
+#[test]
+fn a_career_setup_is_played() {
+    let mut s = start(&deck("gw-company.txt"), &deck("b-zombies.txt"), 4, None);
+    s.rules = playmat_host::TableRules::of(&serde_json::json!({
+        "noPractice": "Practice tools are off in Career games.",
+        "hintsLeft": 1,
+        "setup": {
+            "you": {"lifeBonus": 3, "cards": 0, "permanents": [], "log": " starts with: +3 life."},
+            "opponent": {"life": 25, "lifeBonus": 0, "cards": 1,
+                "permanents": [{"name": "Llanowar Elves", "tapped": true}],
+                "log": " starts with an edge: 25 life, 1 extra card, Llanowar Elves."},
+            "personality": {"aggression": 80, "risk": 40, "patience": 0}
+        }
+    }));
+    let game = HostedGame::start(s, Arc::new(playmat_engine::cards())).unwrap();
+    game.call(Call::Join);
+    let mut b = bot(u64::MAX);
+    let mut log = Vec::new();
+    for _ in 0..20_000 {
+        let e = game.events.recv_timeout(Duration::from_secs(60)).expect("the host answers");
+        if e.method == "CHATMESSAGE" {
+            log.push(e.data["message"].as_str().unwrap_or("").to_string());
+            continue;
+        }
+        assert_ne!(e.method, "GAME_OVER");
+        let v = &e.data["gameView"];
+        let priority = e.method == "GAME_SELECT" && e.data["message"].as_str().is_some_and(|m| m.starts_with("Play"));
+        if !priority {
+            if let Some(c) = b.answer(&e) {
+                game.call(c);
+            }
+            continue;
+        }
+        assert!(log.iter().any(|l| l.contains("starts with an edge: 25 life")), "{log:?}");
+        assert!(log.iter().any(|l| l.contains("tester</font> starts with: +3 life.")), "{log:?}");
+        let me = me_of(v);
+        let them = v["players"].as_array().unwrap().iter().find(|p| p["playerId"] != me["playerId"]).unwrap().clone();
+        // the opponent's life is set before the AI's turn can change it; the elves are theirs, tapped at the start
+        assert_eq!(v["turn"], 1, "the first priority");
+        assert_eq!(me["life"], 23);
+        assert_eq!(them["life"], 25);
+        let elves: Vec<&Value> =
+            them["battlefield"].as_object().unwrap().values().filter(|c| c["name"] == "Llanowar Elves").collect();
+        assert_eq!(elves.len(), 1);
+        // tapped, unless the opponent's own first turn untapped it
+        if v["activePlayerId"] == me["playerId"] {
+            assert_eq!(elves[0]["tapped"], true);
+        }
+        let (tx, rx) = std::sync::mpsc::channel();
+        game.call(Call::Advise(4, tx));
+        let first = rx.recv_timeout(Duration::from_secs(30)).expect("advice");
+        assert_ne!(first["kind"], "NONE", "{first}");
+        assert_eq!(first["hintsLeft"], 0);
+        let (tx, rx) = std::sync::mpsc::channel();
+        game.call(Call::Advise(4, tx));
+        assert_eq!(rx.recv_timeout(Duration::from_secs(30)).unwrap()["text"], "You've used this game's hints.");
+        let (tx, rx) = std::sync::mpsc::channel();
+        game.call(Call::Practice("LIFE".into(), None, 7, Some(tx)));
+        assert_eq!(rx.recv_timeout(Duration::from_secs(30)).unwrap(), "Practice tools are off in Career games.");
+        game.call(Call::Action("CONCEDE".into(), None));
+        let ended = game.join();
+        assert_eq!(ended.summary["hints"], 1);
+        assert!(ended.summary.get("taint").is_none());
+        return;
+    }
+    panic!("no priority");
+}
+
+/// A Career opponent with a personality plays whole games on the host
+#[test]
+fn a_career_personality_plays_games_to_their_end() {
+    for (seed, p) in [(11, json_p(100, 100, 0)), (12, json_p(-100, -100, 100)), (13, json_p(50, 30, 60))] {
+        let mut s = start(&deck("gw-company.txt"), &deck("b-zombies.txt"), seed, None);
+        s.rules = playmat_host::TableRules::of(&serde_json::json!({"setup": {"personality": p}}));
+        let (ended, _) = play_with(s, bot(u64::MAX));
+        assert!(ended.reason == "over" || ended.reason == "conceded", "seed {seed}: {}", ended.reason);
+    }
+}
+
+fn json_p(aggression: i32, risk: i32, patience: i32) -> Value {
+    serde_json::json!({"aggression": aggression, "risk": risk, "patience": patience})
+}
+
+/// A Career game carried on from a turn's line (a take-back, "Try this turn again") plays the opponent's personality
+/// and the setup's edges again the same: the board at the turn's start is the one the first game had
+#[test]
+fn a_career_game_carries_on_the_same() {
+    let (company, zombies) = (deck("gw-company.txt"), deck("b-zombies.txt"));
+    let rules = playmat_host::TableRules::of(&serde_json::json!({"setup": {
+        "opponent": {"life": 25, "lifeBonus": 0, "cards": 1, "permanents": [], "log": " starts with an edge."},
+        "personality": json_p(100, 100, 0)}}));
+    let mut s = start(&company, &zombies, 6, None);
+    s.lines = true;
+    s.rules = rules.clone();
+    let game = HostedGame::start(s, Arc::new(playmat_engine::cards())).unwrap();
+    game.call(Call::Join);
+    let mut b = bot(u64::MAX);
+    let mut line = None;
+    let saved = loop {
+        let e = game.events.recv_timeout(Duration::from_secs(60)).expect("the host answers");
+        assert_ne!(e.method, "GAME_OVER");
+        if e.method == "HOST_TURN" {
+            if e.data["turn"] == 5 {
+                line = Some(e.data["line"].clone());
+            }
+            continue;
+        }
+        let view = if matches!(e.method.as_str(), "GAME_INIT" | "GAME_UPDATE") { &e.data } else { &e.data["gameView"] };
+        if line.is_some() && view.is_object() {
+            break board(view);
+        }
+        if let Some(c) = b.answer(&e) {
+            game.call(c);
+        }
+    };
+    game.call(Call::Action("CONCEDE".into(), None));
+    let _ = game.join();
+    let prelude = playmat_host::record::prelude_of(&line.unwrap()).expect("the line reads back");
+    let mut s = start(&company, &zombies, 77, None);
+    s.game_id = "game-career-carried-on".into();
+    s.seats[0].player_id = "44444444-4444-4444-8444-444444444444".into();
+    s.seats[1].player_id = "55555555-5555-4555-8555-555555555555".into();
+    s.prelude = Some(prelude);
+    s.lines = true;
+    s.rules = rules;
+    let game = HostedGame::start(s, Arc::new(playmat_engine::cards())).unwrap();
+    game.call(Call::Join);
+    let mut b = bot(9);
+    let mut first = None;
+    loop {
+        let e = game.events.recv_timeout(Duration::from_secs(60)).expect("the carried-on game answers");
+        if e.method == "GAME_INIT" && first.is_none() {
+            first = Some(board(&e.data));
+        }
+        if e.method == "GAME_OVER" {
+            break;
+        }
+        if let Some(c) = b.answer(&e) {
+            game.call(c);
+        }
+    }
+    let _ = game.join();
+    assert_eq!(first, Some(saved), "the same board at turn 5's start");
+}
+
+/// The Career setup Java sends (CareerSetup.hostSetup), from the fixture Mage.Server's CareerSetupHostTest checks
+/// Java against: both sides read the same fields
+#[test]
+fn the_career_setup_java_sends_is_read_whole() {
+    use playmat_host::game::{CareerSetup, Edge, Personality};
+    let text =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/career-setup.json")).unwrap();
+    let v: serde_json::Value = serde_json::from_str(&text).unwrap();
+    let setup = CareerSetup::of(&v).expect("a setup");
+    assert_eq!(
+        setup.you,
+        Some(Edge {
+            life: Some(25),
+            life_bonus: 0,
+            cards: 2,
+            permanents: vec![],
+            log: Some(" starts with: 25 life, 2 extra cards.".into()),
+        })
+    );
+    assert_eq!(
+        setup.opponent,
+        Some(Edge {
+            life: None,
+            life_bonus: 5,
+            cards: 1,
+            permanents: vec![("Llanowar Elves".into(), true), ("Runeclaw Bear".into(), false)],
+            log: Some(" starts with an edge: +5 life, 1 extra card, Llanowar Elves, Runeclaw Bear.".into()),
+        })
+    );
+    assert_eq!(setup.personality, Some(Personality { aggression: 60, risk: -20, patience: 10 }));
+    // and back: what the host keeps for a restart is what Java sent
+    assert_eq!(setup.json(), v);
 }

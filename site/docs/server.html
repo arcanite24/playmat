@@ -185,15 +185,17 @@ IMGCACHE_FALLBACK=on                                     <span class="c"># Scryf
           <code>java</code> is safe: Java pays anything left waiting the next time it starts.
           <code>XMAGE_SHADOW_USERS</code> limits <code>shadow</code> to a few accounts while you try it. The gateway keeps its <code>shadow</code> and hosted-game counts across updates
           in <code>saved/gateway-totals.json</code> (<code>XMAGE_GATEWAY_TOTALS</code>), by day, so a week of them can be
-          read from <code>/totals</code> on port 17180 even after a deploy. Details are in
+          read from <code>/totals</code> on port 17180 even after a deploy. Each <code>shadow</code> difference is
+          also written to <code>saved/differences.log</code>, next to that file, so you can read what differed after
+          the server log has rotated. Details are in
           <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#rust-gateway">the README</a>.</p>
         <h3 id="rust-ai">What is <code>XMAGE_AI_BACKEND</code>?</h3>
         <p>A new AI written in Rust can play against people instead of the Java AI. It decides in milliseconds instead
           of seconds. Java still runs the game, and if the new AI ever loses track of it, the Java AI takes over for the
           rest of that game. <code>XMAGE_AI_BACKEND=rust</code> turns it on for the players listed in
           <code>XMAGE_RUST_AI_USERS</code> (user names separated by commas, or <code>*</code> for everyone), then run
-          <code>up -d</code>. It only plays one-on-one games whose cards are all verified against Java (14,019 cards for now, from the
-          Career, meta and starter decks and a wider share of the Pioneer pool; the server log names the cards that aren't). <code>XMAGE_ENGINE=java</code> turns it off again.
+          <code>up -d</code>. It only plays one-on-one games whose cards are all verified against Java (13,948 cards for now, from the
+          Career, meta and starter decks and a wider share of the Pioneer pool; the server log names the cards that aren't). A verified card that upstream XMage has changed since plays on Java again until it's checked once more (71 after the 23 Nov merge). <code>XMAGE_ENGINE=java</code> turns it off again.
           While it plays, it also checks the screens it would draw against Java's (every 10th question by default,
           <code>XMAGE_RUST_VIEWS_EVERY</code>; <code>0</code> turns that off), and its prompts and game log at every
           question (<code>XMAGE_RUST_PROMPTS=0</code> turns that off); the admin console's Overview shows how many
