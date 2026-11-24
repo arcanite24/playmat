@@ -1245,7 +1245,13 @@ fn timed_setup() -> Value {
                     "then": {"lifeBonus": 0, "cards": 0, "permanents": [], "emblem": "Glorious Anthem",
                         "log": " gets an edge: an emblem of Glorious Anthem."}},
                 {"when": "turn", "turn": 2, "who": "opponent", "gainLife": 3, "message": "Second wind: 3 life.",
-                    "rule": rule("At the beginning of turn 2, ", "Second wind: 3 life.")}]}
+                    "rule": rule("At the beginning of turn 2, ", "Second wind: 3 life.")},
+                // the boss's own life (the content's default), both true from the start: the second waits for the
+                // first to resolve, which takes it out of reach
+                {"when": "life", "life": 25, "who": "opponent", "gainLife": 5, "message": "Rally: 5 life.",
+                    "rule": rule("When this player's life is 25 or less, ", "Rally: 5 life.")},
+                {"when": "life", "life": 24, "who": "opponent", "gainLife": 0, "message": "Rally again.",
+                    "rule": rule("When this player's life is 24 or less, ", "Rally again.")}]}
     })
 }
 
@@ -1297,7 +1303,7 @@ fn career_timed_twists_trigger_once_each() {
             command[1]["rules"][0],
             "When your opponent's life is 17 or less, Phase two: the boss draws one. This ability triggers only once."
         );
-        assert_eq!(command[1]["rules"].as_array().unwrap().len(), 3);
+        assert_eq!(command[1]["rules"].as_array().unwrap().len(), 5);
         let bear = boss["battlefield"].as_object().unwrap().values().find(|c| c["name"] == "Runeclaw Bear").unwrap();
         assert_eq!(
             (&bear["power"], &bear["toughness"]),
@@ -1332,6 +1338,13 @@ fn career_timed_twists_trigger_once_each() {
         let three = twist("Phase three: an anthem.", "Computer</font> gets an edge: an emblem of Glorious Anthem.");
         // (lost, not dealt: `loseLife`)
         let tithe = twist("Tithe: 1 life.", "tester</font> loses 1 life from");
+        // the boss's own life: the first at once (a state trigger, on the first check), and the second only once the
+        // first has resolved and the boss is back down to 24
+        assert!(twist("Rally: 5 life.", "Computer</font> gains 5 life"), "seed {seed}: {log:?}");
+        let rally = log.iter().position(|l| l == "Rally: 5 life.").unwrap();
+        if let Some(again) = log.iter().position(|l| l == "Rally again.") {
+            assert!(again > rally + 1, "seed {seed}: held back while the first waited: {log:?}");
+        }
         // a trigger on the stack shows its rule
         let on_stack = |rule: &str| {
             views.iter().any(|v| {
