@@ -93,7 +93,7 @@ Chosen 24 Nov 2026: **2, "Java off the game path".**
 - **Java on the game path**: calls the gateway sends to Java for a Rust-hosted game, from table creation to the
   record (a new counter). Target 0.
 
-## Steps for the goal (none taken yet)
+## Steps for the goal
 
 ### Part A: every duel up to Pioneer on Rust
 
@@ -117,7 +117,7 @@ Chosen 24 Nov 2026: **2, "Java off the game path".**
 1. Record the state: update #182, the tracker (`progress-plan.json`) and this file's numbers.
 2. Decide the rollout default: 217 games without `error` or `panic` meets step E's gate. Deploy the drain fix
    first, then set `XMAGE_RUST_HOST_USERS=*` (owner's OK, production change).
-3. **In review: #493** (Career duel, campaign, gauntlet and challenge tables: life, card and permanent edges, the
+3. **Deployed 24 Nov (#493):** (Career duel, campaign, gauntlet and challenge tables: life, card and permanent edges, the
    opponent's personality, hints counted on Java; Ranked refuses hints and practice tools in #492). A gauntlet
    run's wounds, relics and levels arrive as the setup; the challenge board reads the host's tally. Puzzles and
    trials, horde, pods, limited runs, emblems and timed twists still stay on Java. This week's challenge (W48) has
@@ -127,19 +127,20 @@ Chosen 24 Nov 2026: **2, "Java off the game path".**
    Hosted games already save each turn as a line (`PLAYMAT-HOSTED-LINE`), which resumes on the host
    (`GameOptions.hostedLine`), so once hosting is the default no new Java saves are made. Old ones resume on Java
    until `SoloGames.RETENTION_MS` (30 days) prunes them; step 13 then drops the path. Career setups are step 3's.
-5. **In review: #497.** `careerGameResult` answers ranked tables' keys (the likely cause of the 106 differences
+5. **Deployed 24 Nov (#497).** `careerGameResult` answers ranked tables' keys (the likely cause of the 106 differences
    since 21 Nov; inferred, as the logs rotated). `deckValidate` answers Freeform, Freeform Unlimited and Limited
    (most of the 4,802 declines). Each shadow difference is now kept in `differences.log`. `careerQuests`' declines
    are admin accounts, which Rust leaves to Java on purpose. Then: Close the platform diffs (`careerGameResult`, `careerQuests`, `searchCards`), cut `deckValidate` declines, then
    move the groups to `rust` one at a time, a week apart.
-6. **Under way: wave 17**, the unverified Pioneer cards the Career, starter and shadow decks use (46). **Wave 18 next:** 121
+6. **Wave 17 in review (#500); wave 18 under way.** Wave 17 took the unverified Pioneer cards the Career, starter and
+   shadow decks use (46) and verified 19, so 13,948 cards play on Rust net of upstream-pending. **Wave 18:** 121
    cards outside the Pioneer pool that Career decks use. 114 come from the five-paths decks, which every challenge,
    every gauntlet fight and the five-paths campaign play; none of those 30 decks is fully verified now. 15 come from
    three roster decks (Orzhov Oppression, Rakdos Aristocrats, Boros Battalion). Of the roster's 12 decks, 4 are fully
    verified today. The three Commander starters stay on Java as Commander decks. Port the last Pioneer engine pieces, in waves, as before.
-7. **In review: #498** (ledger, `check`, a weekly report; 71 verified cards changed upstream play on Java until
+7. **Deployed 24 Nov (#498)** (ledger, `check`, a weekly report; 71 verified cards changed upstream play on Java until
    re-verified). Start the upstream ledger (#191) so new upstream changes stop drifting.
-8. **In review: #491** (CLAUDE.md and a PR template carry the rule). Add a rule: a new game-facing feature ships with its Rust host side, or with a reason it stays on Java.
+8. **Done (#491)** (CLAUDE.md and a PR template carry the rule). Add a rule: a new game-facing feature ships with its Rust host side, or with a reason it stays on Java.
 
 ### Part B: limited
 
