@@ -24,7 +24,7 @@ function decks(): DeckCardLists[] {
   const shadow = join(__dirname, '../../../../rust/crates/playmat-engine/shadow-decks/tier30');
   return [
     ...readdirSync(starters).filter((f) => f.endsWith('.dck')).map((f) => DeckSerializer.importDeck(readFileSync(join(starters, f), 'utf8'))),
-    ...readdirSync(shadow).filter((f) => f.endsWith('.txt')).map((f) => deckList(f, readFileSync(join(shadow, f), 'utf8'))),
+    ...readdirSync(shadow).filter((f) => f.endsWith('.txt')).map((f) => deckList(f, readFileSync(join(shadow, f), 'utf8')) as unknown as DeckCardLists),
   ];
 }
 
