@@ -62,7 +62,8 @@ pub struct TableRules {
     pub setup: Option<CareerSetup>,
 }
 
-/// A side's edge: its life set, then a life bonus, extra cards and permanents (`CareerSetup.edge`)
+/// A side's edge: its life set, then a life bonus, extra cards, permanents and an emblem (`CareerSetup.edge`), and
+/// the timed twists it holds (`CareerTimedTwists`)
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct Edge {
     pub life: Option<i32>,
@@ -70,8 +71,91 @@ pub struct Edge {
     pub cards: u32,
     /// each permanent's card name, and whether it enters tapped
     pub permanents: Vec<(String, bool)>,
+    /// the card whose abilities the side gets as an emblem (`EmblemOfCard`)
+    pub emblem: Option<String>,
     /// the log line after the player's name (" starts with an edge: 25 life.")
     pub log: Option<String>,
+    /// the edges that come in during the game, each once, on an "Emblem Twist" the side holds
+    pub timed: Vec<Timed>,
+}
+
+/// A timed twist (`CareerSetup.TimedTwist`, as `hostSetup` sends it): what it waits for, its rule and what it does
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct Timed {
+    /// "turn", "life" or "cast"
+    pub when: String,
+    /// "turn": the game's turn number whose upkeep (or a later one) brings it
+    pub turn: Option<u32>,
+    /// "life": the life at or below which it triggers
+    pub life: Option<i32>,
+    /// "cast": the card's name
+    pub card: Option<String>,
+    /// whose life or spells it watches (`CareerTimedTwists.who`): "you", the human, or "opponent", the twist's holder
+    /// (the human too, for the human's own twists)
+    pub who: String,
+    /// its rule text, as Java writes it (`getRule()`)
+    pub rule: String,
+    /// the line it writes in the game log
+    pub message: Option<String>,
+    /// life its holder gains (negative: loses)
+    pub gain_life: i32,
+    /// the edge its holder gets (its `log`: " gets an edge: …")
+    pub then: Option<Box<Edge>>,
+}
+
+impl Timed {
+    fn of(v: &Value) -> Option<Timed> {
+        Some(Timed {
+            when: v["when"].as_str()?.to_string(),
+            turn: v["turn"].as_u64().map(|n| n as u32),
+            life: v["life"].as_i64().map(|n| n as i32),
+            card: v["card"].as_str().map(String::from),
+            who: v["who"].as_str().unwrap_or("opponent").to_string(),
+            rule: v["rule"].as_str().unwrap_or("").to_string(),
+            message: v["message"].as_str().map(String::from),
+            gain_life: v["gainLife"].as_i64().unwrap_or(0) as i32,
+            then: Edge::of(&v["then"]).map(Box::new),
+        })
+    }
+
+    fn json(&self) -> Value {
+        let mut v = json!({"when": self.when, "who": self.who, "rule": self.rule, "gainLife": self.gain_life});
+        if let Some(n) = self.turn {
+            v["turn"] = json!(n);
+        }
+        if let Some(n) = self.life {
+            v["life"] = json!(n);
+        }
+        if let Some(c) = &self.card {
+            v["card"] = json!(c);
+        }
+        if let Some(m) = &self.message {
+            v["message"] = json!(m);
+        }
+        if let Some(e) = &self.then {
+            v["then"] = e.json();
+        }
+        v
+    }
+
+    /// The engine's twist: what it triggers on (`you`: the human's seat, `holder`: the twist's), its rule and what
+    /// it does; none for one it can't watch
+    fn engine(&self, db: &CardDb, you: Option<Seat>, holder: Seat) -> Option<playmat_engine::career::Timed> {
+        use playmat_engine::card::Trigger;
+        let seat = if self.who == "you" { you? } else { holder };
+        let on = match self.when.as_str() {
+            "turn" => Trigger::CareerTurn { turn: self.turn? },
+            "life" => Trigger::CareerLife { seat, life: self.life? },
+            "cast" => Trigger::CareerCast { seat, card: self.card.clone()? },
+            _ => return None,
+        };
+        let twist = playmat_engine::career::Twist {
+            message: self.message.clone(),
+            then: self.then.as_ref().map(|e| e.engine(db)),
+            gain_life: self.gain_life,
+        };
+        Some(playmat_engine::career::Timed { on, rule: self.rule.clone(), twist: Arc::new(twist) })
+    }
 }
 
 /// A Career opponent's leanings, each -100 to 100 (`CareerSetup.Personality`, `ComputerPlayer6.applyPersonality`)
@@ -108,7 +192,9 @@ impl Edge {
             life_bonus: v["lifeBonus"].as_i64().unwrap_or(0) as i32,
             cards: v["cards"].as_u64().unwrap_or(0) as u32,
             permanents,
+            emblem: v["emblem"].as_str().map(String::from),
             log: v["log"].as_str().map(String::from),
+            timed: v["timed"].as_array().map(|a| a.iter().filter_map(Timed::of).collect()).unwrap_or_default(),
         })
     }
 
@@ -118,10 +204,29 @@ impl Edge {
         if let Some(life) = self.life {
             v["life"] = json!(life);
         }
+        if let Some(emblem) = &self.emblem {
+            v["emblem"] = json!(emblem);
+        }
         if let Some(log) = &self.log {
             v["log"] = json!(log);
         }
+        if !self.timed.is_empty() {
+            v["timed"] = Value::Array(self.timed.iter().map(Timed::json).collect());
+        }
         v
+    }
+
+    /// The edge as the engine plays it, with its cards: one the engine lacks is left out, as Java's
+    /// `CareerSetup.create` leaves out a card it can't find
+    fn engine(&self, db: &CardDb) -> playmat_engine::career::Edge {
+        playmat_engine::career::Edge {
+            life: self.life,
+            life_bonus: self.life_bonus,
+            cards: self.cards,
+            permanents: self.permanents.iter().filter_map(|(n, t)| Some((db.get(n)?, *t))).collect(),
+            emblem: self.emblem.as_ref().and_then(|n| db.get(n)),
+            log: self.log.clone(),
+        }
     }
 }
 
@@ -1667,43 +1772,22 @@ impl Host {
     }
 
     /// A Career table's edges, after the mulligans (`GameImpl.init` runs `CareerSetup.apply` there): each side's life,
-    /// life bonus, extra cards and permanents, and its log line
+    /// life bonus, extra cards, permanents and emblem, its log line, then the "Emblem Twist" with its timed twists
     fn apply_setup(&mut self, db: &CardDb) {
         let Some(setup) = self.setup.clone() else { return };
         let human = self.humans().first().copied();
         let mut game = self.game.clone();
-        let mut lines = Vec::new();
         // in the game's player order, as Java's loop over the players
         for seat in 0..2 {
             let edge = if Some(seat) == human { &setup.you } else { &setup.opponent };
             let Some(edge) = edge else { continue };
-            if let Some(life) = edge.life {
-                game.player_mut(seat).life = life;
-            }
-            if edge.life_bonus != 0 {
-                let p = game.player_mut(seat);
-                p.life = (p.life + edge.life_bonus).max(1);
-            }
-            if edge.cards > 0 {
-                rules::draw(&mut game, seat, edge.cards as usize);
-            }
-            for (name, tapped) in &edge.permanents {
-                let Some(def) = db.get(name) else { continue };
-                let id = game.create_obj(def.clone(), seat, Zone::Exile);
-                let mut d = HostDecider { host: self };
-                rules::put_onto_battlefield(&mut game, &mut d, id, seat);
-                if *tapped && game.battlefield.contains(&id) {
-                    game.obj_mut(id).tapped = true;
-                }
-            }
-            if let Some(log) = &edge.log {
-                lines.push(format!("<font color='#20B2AA'>{}</font>{log}", self.names[seat]));
-            }
+            let mut d = HostDecider { host: self };
+            playmat_engine::career::edge(&mut game, &mut d, seat, &edge.engine(db));
+            let twists: Vec<_> = edge.timed.iter().filter_map(|t| t.engine(db, human, seat)).collect();
+            playmat_engine::career::twists_emblem(&mut game, seat, &twists);
         }
         self.game = game;
-        for line in lines {
-            self.inform(line);
-        }
+        self.log();
     }
 
     /// The game's end: who won, `GAME_OVER`
