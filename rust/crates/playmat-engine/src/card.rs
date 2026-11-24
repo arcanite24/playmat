@@ -514,6 +514,10 @@ pub enum Pred {
         cmp: Cmp,
         #[serde(default)]
         ability: bool,
+        /// a choice made as the spell resolves (`OneShotNonTargetEffect`'s adjuster, Black Sun's Twilight): the X
+        /// of the resolving spell, which isn't on the stack any more
+        #[serde(default)]
+        resolving: bool,
     },
     /// `AnotherTargetPredicate`: not one of the ability's earlier targets (while its targets are chosen)
     AnotherTarget,

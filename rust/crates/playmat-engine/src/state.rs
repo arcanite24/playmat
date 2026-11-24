@@ -2096,7 +2096,11 @@ impl Game {
             Pred::Toughness { cmp, n } => cmp.holds(self.power_toughness(id).1, *n),
             Pred::Tapped { v } => o.tapped == *v,
             // a target adjuster: not applied while checking what's playable (the spell not yet cast)
-            Pred::ManaValueX { cmp, ability } => {
+            Pred::ManaValueX { cmp, resolving: true, .. } => match &self.resolving_item {
+                Some(i) => cmp.holds(o.def.mana_value() as i32, i.x),
+                None => true,
+            },
+            Pred::ManaValueX { cmp, ability, .. } => {
                 // the spell's X (or with `ability`, any of its abilities'); a permanent's activated ability's
                 // (Sorin, Vengeful Bloodlord's -X) when no spell of it is on the stack
                 let on_stack = |spell: bool| {
