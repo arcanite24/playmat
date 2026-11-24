@@ -1,7 +1,7 @@
 {
   "_about": "The hand-kept half of the site's Rust tracker (site/rust/). rust/tools/progress.py adds the counted half and writes site/rust/progress.json. Status is one of: done, live, active, next, parked, later.",
-  "updated": "2026-11-15",
-  "goal": "games against the AI that cost a fraction of the server's CPU: one-on-one games against the AI with Pioneer and Standard decks, decided in milliseconds.",
+  "updated": "2026-11-24",
+  "goal": "Java off the game path: every one-on-one game up to Pioneer (Career, Ranked, League and Ladder tables included), then sealed, draft and tournaments, played on the Rust host by default, with sessions, the lobby and tables in Rust. Java keeps multiplayer, Commander and decks with cards Rust doesn't have.",
   "phases": [
     {
       "n": "0",
@@ -78,7 +78,7 @@
       "n": "6",
       "name": "Retire Java",
       "status": "active",
-      "text": "Started with AI games: since 11 Nov a one-on-one game against the AI can run on the Rust engine with no Java game behind it, for players who turn it on in Settings. Also built: one-on-one tables between people (best-of-three, timers, spectators), and the solo tools on hosted games (saves, \"Try this turn again\", advice, practice tools). Tournaments and drafts come once the pool covers limited card pools.",
+      "text": "Started with AI games: since 11 Nov a one-on-one game against the AI can run on the Rust engine with no Java game behind it, for players who turn it on in Settings. Also built: one-on-one tables between people (best-of-three, timers, spectators), and the solo tools on hosted games (saves, \"Try this turn again\", advice, practice tools). Tournaments and drafts come once the pool covers limited card pools. Since 24 Nov 2026 the goal is to take Java off the game path (docs/rust/Assessment-2026-11-24.md). From 12 to 24 Nov the Rust host played 217 production games (about 12% of all games), none ending in an error, and Java the other 88%. Career tables and games from Java saves still stay on Java.",
       "pr": [
         260,
         263,
@@ -138,7 +138,7 @@
       "n": "E",
       "name": "Rollout",
       "status": "live",
-      "text": "Rust-hosted games for listed players, and for every player who turns on \"Play on the Rust engine\" in Settings, live since 11 Nov 2026. Then every AI duel whose decks qualify, by default.",
+      "text": "Rust-hosted games for listed players, and for every player who turns on \"Play on the Rust engine\" in Settings, live since 11 Nov 2026. Then every AI duel whose decks qualify, by default. 217 production games from 12 to 24 Nov, none lost to an error or a panic. Next: the default for everyone, once a deploy waits for hosted games too.",
       "gate": "A week with no game lost to the host, then the default",
       "pr": [
         261,
@@ -148,8 +148,8 @@
     {
       "n": "F",
       "name": "Then",
-      "status": "next",
-      "text": "The engine pieces the last Pioneer cards need, and what still plays on Java only: the Career's games and assists, tournaments and drafts. The solo tools, advice, practice tools and games between people are built (phase 6).",
+      "status": "active",
+      "text": "Career tables (the Career's setups, twists, puzzles and assists), games carried on from Java's saves, the platform calls moved to rust, and the last Pioneer engine pieces. Then limited (sealed, draft, tournaments) set by set, then sessions, the lobby and tables in Rust (docs/rust/Assessment-2026-11-24.md).",
       "gate": "Per feature"
     }
   ],

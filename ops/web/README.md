@@ -847,7 +847,7 @@ The goal is $40 a month by default, counted over the calendar month (UTC) in US 
 
 ## Health
 
-- `xmage` answers `GET /healthz` on `127.0.0.1:17173` inside its container (`-Dxmage.healthPort`, 0 turns it off): its version and commit, uptime, players online, games running (`activeGames`, and `gamesRunning`, what a drain waits for), planned maintenance and any backup problem, as JSON.
+- `xmage` answers `GET /healthz` on `127.0.0.1:17173` inside its container (`-Dxmage.healthPort`, 0 turns it off): its version and commit, uptime, players online, games running (`activeGames`, Java's; `hostedGames`, the Rust host's; and `gamesRunning`, both, what a drain waits for), planned maintenance and any backup problem, as JSON.
 - The same loopback listener takes `POST /maintenance?minutes=N&message=...` (announce maintenance, as the owner's Settings does, without restart-when-idle) and `POST /maintenance/cancel`. The image-based deploy (`ops/web/deploy/playmat-deploy`) drains the server with them through `docker compose exec`, so it needs no admin password. Only processes inside the container reach them. It is healthy once that answers, which is after the card database is loaded; the first start gets 15 minutes for that. `docker compose exec xmage bash -c 'exec 3<>/dev/tcp/127.0.0.1/17173; printf "GET /healthz HTTP/1.0\r\n\r\n" >&3; cat <&3'` shows it.
 - The admin Overview shows the same version, the commit (the image build reads it from the checkout's `.git`), and the last backup.
 - `web` checks Caddy's admin API on `localhost:2019`. It starts only after `xmage` and `imgcache` are healthy.

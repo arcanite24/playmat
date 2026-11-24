@@ -148,6 +148,11 @@ public final class RustHost {
         return table != null && (table.isTournament() || table.isTournamentSubTable());
     }
 
+    /** games playing on the Rust host now: they have no GameController, so Java's own count misses them */
+    public static int running() {
+        return HOSTED.size();
+    }
+
     public static boolean isHosted(UUID gameId) {
         return gameId != null && HOSTED.containsKey(gameId);
     }
