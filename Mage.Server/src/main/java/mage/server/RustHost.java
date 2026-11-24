@@ -81,6 +81,12 @@ public final class RustHost {
     }
 
     private static final Map<UUID, Hosted> HOSTED = new ConcurrentHashMap<>();
+    /**
+     * the Career tables the host plays (docs/rust/GameHost.md, Career tables): the roster's duels, campaign nodes,
+     * gauntlet fights and the weekly challenge. What a run carries between fights (wounds, relics, levels) reaches the
+     * game as its setup, and the challenge's board reads the tally the host sends.
+     */
+    static final Set<String> HOSTED_CAREER_KINDS = new java.util.HashSet<>(java.util.Arrays.asList("duel", "campaign", "gauntlet", "challenge"));
 
     /**
      * A game whose human has been gone, or connected without a hosting gateway, this long ends as their loss (as a
@@ -187,12 +193,19 @@ public final class RustHost {
             }
             String names = users.stream().map(User::getName).reduce((a, b) -> a + " and " + b).orElse("");
             String why = null;
+            // a Career table plays its setup on the host when the host has every part of it
+            mage.server.career.CareerService.CareerTable career = mage.server.career.CareerService.get().tableInfo(tableId);
+            mage.server.career.CareerSetup careerSetup = career != null && options.setup instanceof mage.server.career.CareerSetup
+                    ? (mage.server.career.CareerSetup) options.setup : null;
             if (match.getPlayers().size() != 2) {
                 why = "not a duel";
-            } else if (options.setup != null || options.resumeFrom != null) {
+            } else if (options.resumeFrom != null || (options.setup != null && careerSetup == null)) {
                 why = "it starts from a setup or a save";
-            } else if (mage.server.career.CareerService.get().isCareerTable(tableId)) {
-                why = "a Career table";
+            } else if (career != null && !HOSTED_CAREER_KINDS.contains(career.kind)) {
+                // trials and puzzles start from a set position, hordes and pods aren't duels, limited plays sealed pools: later
+                why = "a Career " + career.kind + " table";
+            } else if (careerSetup != null && careerSetup.hostProblem() != null) {
+                why = careerSetup.hostProblem();
             } else if (isTournamentTable(managers, tableId)) {
                 // tournaments and drafts play limited pools, which need more cards in the engine first
                 why = "a tournament's table";
@@ -263,6 +276,9 @@ public final class RustHost {
             }
             JsonArray seats = new JsonArray();
             seatList.forEach(seats::add);
+            if (careerSetup != null) {
+                cards.addAll(careerSetup.hostCards());
+            }
             Set<String> missing = RustAiBridge.missing(cards);
             if (!missing.isEmpty()) {
                 logger.info("Rust host: " + names + "'s game doesn't qualify, not verified for Rust ("
@@ -295,6 +311,17 @@ public final class RustHost {
             if (mage.server.ladder.RankedService.isRanked(tableId)) {
                 data.addProperty("noAdvice", "Ranked games are played without hints.");
                 data.addProperty("noPractice", "Practice tools are off in ranked games.");
+            } else if (career != null) {
+                data.addProperty("noPractice", "Practice tools are off in Career games.");
+                if (!career.allowsAssists()) {
+                    data.addProperty("noAdvice", "Puzzles and trials are tests of their own: no hints here.");
+                } else {
+                    // a Career game's hints are counted (S010): the host says how many it gave at the end
+                    data.addProperty("hintsLeft", Math.max(0, mage.server.career.CareerService.HINTS_PER_GAME - career.hintsUsed));
+                }
+            }
+            if (careerSetup != null) {
+                data.add("setup", careerSetup.hostSetup());
             }
             // the match's priority timer, which the host runs as GameController does (0: none)
             data.addProperty("priorityTime", match.getOptions().getMatchTimeLimit().getPrioritySecs());
@@ -397,6 +424,21 @@ public final class RustHost {
     }
 
     /**
+     * The host helped a Career game's player ({@code hostGameAssisted}, "hint"): the table counts it as
+     * AdviceService does for a game Java plays, at once, so the table's next game (a take-back's) knows the hints left.
+     *
+     * @return false when the game isn't hosted or the token is wrong
+     */
+    public static boolean assisted(UUID gameId, String token, String what) {
+        Hosted h = HOSTED.get(gameId);
+        if (h == null || token == null || !h.token.equals(token) || !"hint".equals(what)) {
+            return false;
+        }
+        mage.server.career.CareerService.get().assisted(h.tableId, gameId, "hint");
+        return true;
+    }
+
+    /**
      * The host's line of a solo table's game at a turn's start ({@code hostGameTurn}): the solo saves keep it, as they
      * keep a Java game's turn snapshots.
      *
@@ -484,6 +526,12 @@ public final class RustHost {
             if (summary.has("taint") && summary.get("taint").isJsonPrimitive()) {
                 mage.server.career.CareerTally.taint(hosted.game.getId(), summary.get("taint").getAsString());
             }
+            // a Career game the host gave hints in (each counted when given, hostGameAssisted): its tally, made only now,
+            // is marked as CareerService.assisted marks a Java game's at the time
+            int hints = summary.has("hints") && summary.get("hints").isJsonPrimitive() ? summary.get("hints").getAsInt() : 0;
+            if (hints > 0) {
+                mage.server.career.CareerTally.taint(hosted.game.getId(), "the player was helped by a hint");
+            }
         } catch (RuntimeException e) {
             logger.warn("Rust host: game " + hosted.game.getId() + "'s end summary: " + e, e);
         }
@@ -534,6 +582,29 @@ public final class RustHost {
                     mage.interfaces.callback.ClientCallbackMethod.GAME_EMOTE, gameId, sent)));
         }
         return true;
+    }
+
+    /**
+     * A user whose session expired (User.removeUserFromAllTables): each hosted game of theirs ends as their quit, as
+     * Java's own games do then (GameManager.quitMatch), while the table is still there to record it. The host's game
+     * stops by itself once nobody answers it; its late end finds nothing to end.
+     *
+     * @return the games ended
+     */
+    public static int userLeft(UUID userId) {
+        int ended = 0;
+        for (Map.Entry<UUID, Hosted> e : HOSTED.entrySet()) {
+            Hosted h = e.getValue();
+            UUID playerId = h.playerOf(userId);
+            if (playerId == null || !HOSTED.remove(e.getKey(), h)) {
+                continue;
+            }
+            UUID other = h.otherThan(playerId);
+            logger.info("Rust host: game " + e.getKey() + "'s player left the server, ending it as their quit");
+            end(e.getKey(), h, other == null ? null : other.toString(), 0, "quit, the player left");
+            ended++;
+        }
+        return ended;
     }
 
     /** ends the hosted games whose humans are gone (above): as the gone one's loss, or a draw when both are */

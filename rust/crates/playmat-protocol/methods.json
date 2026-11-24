@@ -60,6 +60,7 @@
   "gameJoin": {"group": "Game", "access": "session"},
   "hostGameEnded": {"group": "Game", "access": "public"},
   "hostGameTurn": {"group": "Game", "access": "public"},
+  "hostGameAssisted": {"group": "Game", "access": "public"},
   "gameResync": {"group": "Game", "access": "session"},
   "gameStateResync": {"group": "Game", "access": "session"},
   "matchQuit": {"group": "Game", "access": "session"},

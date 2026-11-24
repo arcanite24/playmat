@@ -52,7 +52,7 @@ public class WebClientApiContractTest {
             "deckImportFromUrl", "deckImportSources", // deck website import service
             "testEndGame", "testConcedeMatch", // test mode helpers on table manager
             "gameResync", // the bridge resends its own copy of the open question
-            "hostGameEnded", "hostGameTurn", // the Rust host's game end and turn saves (RustHost.ended, RustHost.turn)
+            "hostGameEnded", "hostGameTurn", "hostGameAssisted", // the Rust host's game end, turn saves and hints (RustHost)
             "setCapabilities", "gameStateResync", // bridge protocol options and game state patches
             "chatSetIgnored", "gameWatchers", // user and game managers (social/UserRelations, watcher names)
             "replayList", "replayPage", // replay store (replay/ReplayStoreTest)

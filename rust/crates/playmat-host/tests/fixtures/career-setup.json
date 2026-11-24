@@ -1,0 +1,29 @@
+{
+  "you": {
+    "life": 25,
+    "lifeBonus": 0,
+    "cards": 2,
+    "permanents": [],
+    "log": " starts with: 25 life, 2 extra cards."
+  },
+  "opponent": {
+    "lifeBonus": 5,
+    "cards": 1,
+    "permanents": [
+      {
+        "name": "Llanowar Elves",
+        "tapped": true
+      },
+      {
+        "name": "Runeclaw Bear",
+        "tapped": false
+      }
+    ],
+    "log": " starts with an edge: +5 life, 1 extra card, Llanowar Elves, Runeclaw Bear."
+  },
+  "personality": {
+    "aggression": 60,
+    "risk": -20,
+    "patience": 10
+  }
+}

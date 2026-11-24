@@ -11,6 +11,16 @@ import org.junit.jupiter.api.Test;
 class RustHostTest {
 
     @Test
+    void hostsTheCareerKindsWhoseGamesAreDuelsFromTheStart() {
+        for (String kind : new String[]{"duel", "campaign", "gauntlet", "challenge"}) {
+            assertTrue(RustHost.HOSTED_CAREER_KINDS.contains(kind), kind);
+        }
+        for (String kind : new String[]{"trial", "puzzle", "horde", "limited"}) {
+            assertFalse(RustHost.HOSTED_CAREER_KINDS.contains(kind), kind);
+        }
+    }
+
+    @Test
     void aQuitLeavesTheMatchAConcedeOnlyTheGame() {
         // the host's reasons
         assertTrue(RustHost.quitsMatch("quit"));
@@ -20,6 +30,8 @@ class RustHostTest {
         assertFalse(RustHost.quitsMatch("error: a card"));
         // Java's own: a host that's gone with its player (the sweep, a matchQuit that reached Java)
         assertTrue(RustHost.quitsMatch("quit, its host is gone"));
+        // a player whose session expired (User.removeUserFromAllTables)
+        assertTrue(RustHost.quitsMatch("quit, the player left"));
         // a join that reached Java: the host is gone, the player isn't
         assertFalse(RustHost.quitsMatch("its host is gone"));
         assertFalse(RustHost.quitsMatch(null));

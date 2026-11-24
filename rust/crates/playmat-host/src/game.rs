@@ -56,6 +56,106 @@ pub struct TableRules {
     pub no_advice: Option<String>,
     /// why the table has no practice tools, when it hasn't (`noPractice`: Java's `GameController.practice`)
     pub no_practice: Option<String>,
+    /// hints a Career game has left (`hintsLeft`, `CareerService.HINTS_PER_GAME`); none: no limit
+    pub hints_left: Option<u32>,
+    /// a Career table's setup (`setup`: `CareerSetup.hostSetup`), as Java's `CareerSetup.apply` plays it
+    pub setup: Option<CareerSetup>,
+}
+
+/// A side's edge: its life set, then a life bonus, extra cards and permanents (`CareerSetup.edge`)
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct Edge {
+    pub life: Option<i32>,
+    pub life_bonus: i32,
+    pub cards: u32,
+    /// each permanent's card name, and whether it enters tapped
+    pub permanents: Vec<(String, bool)>,
+    /// the log line after the player's name (" starts with an edge: 25 life.")
+    pub log: Option<String>,
+}
+
+/// A Career opponent's leanings, each -100 to 100 (`CareerSetup.Personality`, `ComputerPlayer6.applyPersonality`)
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
+pub struct Personality {
+    pub aggression: i32,
+    pub risk: i32,
+    pub patience: i32,
+}
+
+/// What a Career table starts with: the human's edge (`you`), the opponent's, and the opponent's personality
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct CareerSetup {
+    pub you: Option<Edge>,
+    pub opponent: Option<Edge>,
+    pub personality: Option<Personality>,
+}
+
+impl Edge {
+    fn of(v: &Value) -> Option<Edge> {
+        if !v.is_object() {
+            return None;
+        }
+        let permanents = v["permanents"]
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .filter_map(|p| Some((p["name"].as_str()?.to_string(), p["tapped"].as_bool().unwrap_or(false))))
+                    .collect()
+            })
+            .unwrap_or_default();
+        Some(Edge {
+            life: v["life"].as_i64().map(|n| n as i32),
+            life_bonus: v["lifeBonus"].as_i64().unwrap_or(0) as i32,
+            cards: v["cards"].as_u64().unwrap_or(0) as u32,
+            permanents,
+            log: v["log"].as_str().map(String::from),
+        })
+    }
+
+    fn json(&self) -> Value {
+        let permanents: Vec<Value> = self.permanents.iter().map(|(n, t)| json!({"name": n, "tapped": t})).collect();
+        let mut v = json!({"lifeBonus": self.life_bonus, "cards": self.cards, "permanents": permanents});
+        if let Some(life) = self.life {
+            v["life"] = json!(life);
+        }
+        if let Some(log) = &self.log {
+            v["log"] = json!(log);
+        }
+        v
+    }
+}
+
+impl CareerSetup {
+    pub fn of(v: &Value) -> Option<CareerSetup> {
+        if !v.is_object() {
+            return None;
+        }
+        let p = &v["personality"];
+        let lean = |k: &str| p[k].as_i64().unwrap_or(0).clamp(-100, 100) as i32;
+        Some(CareerSetup {
+            you: Edge::of(&v["you"]),
+            opponent: Edge::of(&v["opponent"]),
+            personality: p.is_object().then(|| Personality {
+                aggression: lean("aggression"),
+                risk: lean("risk"),
+                patience: lean("patience"),
+            }),
+        })
+    }
+
+    pub fn json(&self) -> Value {
+        let mut v = json!({});
+        if let Some(e) = &self.you {
+            v["you"] = e.json();
+        }
+        if let Some(e) = &self.opponent {
+            v["opponent"] = e.json();
+        }
+        if let Some(p) = &self.personality {
+            v["personality"] = json!({"aggression": p.aggression, "risk": p.risk, "patience": p.patience});
+        }
+        v
+    }
 }
 
 impl Default for TableRules {
@@ -68,6 +168,8 @@ impl Default for TableRules {
             ai_pin: None,
             no_advice: None,
             no_practice: None,
+            hints_left: None,
+            setup: None,
         }
     }
 }
@@ -84,6 +186,8 @@ impl TableRules {
             ai_pin: v["aiPin"].as_str().map(String::from),
             no_advice: v["noAdvice"].as_str().map(String::from),
             no_practice: v["noPractice"].as_str().map(String::from),
+            hints_left: v["hintsLeft"].as_u64().map(|n| n as u32),
+            setup: CareerSetup::of(&v["setup"]),
         }
     }
 
@@ -99,6 +203,12 @@ impl TableRules {
         }
         if let Some(why) = &self.no_practice {
             v["noPractice"] = json!(why);
+        }
+        if let Some(n) = self.hints_left {
+            v["hintsLeft"] = json!(n);
+        }
+        if let Some(setup) = &self.setup {
+            v["setup"] = setup.json();
         }
         v
     }
@@ -429,6 +539,16 @@ struct Host {
     no_practice: Option<String>,
     /// a practice tool was used: the game pays no Career progress (`CareerTally.taint`)
     practiced: bool,
+    /// hints left (a Career game's), and how many were given: Java counts them at the end (`CareerService.assisted`)
+    hints_left: Option<u32>,
+    hints_given: u32,
+    /// the Career table's setup, played after the mulligans
+    setup: Option<CareerSetup>,
+    /// the AI's personality: the seed of its dice (the first game's, so a carried-on game rolls them again the same),
+    /// the turn it last leaned on, and the answers it gives in the AI's place
+    lean_seed: i64,
+    leaned_turn: u32,
+    lean_queue: std::collections::VecDeque<Answer>,
     /// the asked player is being asked at priority
     at_priority: bool,
     free_mulligans: u32,
@@ -578,6 +698,12 @@ impl Host {
             no_advice: start.rules.no_advice.clone(),
             no_practice: start.rules.no_practice.clone(),
             practiced: false,
+            hints_left: start.rules.hints_left,
+            hints_given: 0,
+            setup: first.rules.setup.clone(),
+            lean_seed: first.seed,
+            leaned_turn: 0,
+            lean_queue: std::collections::VecDeque::new(),
             at_priority: false,
             free_mulligans: first.rules.free_mulligans,
             replaying,
@@ -1419,6 +1545,9 @@ impl Host {
         if let Some(why) = &self.no_advice {
             return advice_none(why);
         }
+        if self.hints_left == Some(0) {
+            return advice_none("You've used this game's hints.");
+        }
         if self.ai.is_none() {
             return advice_none("Advice only works in a game against the computer.");
         }
@@ -1472,9 +1601,16 @@ impl Host {
             _ => ("NONE", "The AI has nothing to say about this question.".to_string(), vec![]),
         };
         let step_name = game.step.map(|s| s.name().to_string()).unwrap_or_default();
-        json!({"kind": kind, "text": text, "steps": steps, "millis": millis,
+        let mut advice = json!({"kind": kind, "text": text, "steps": steps, "millis": millis,
             "when": format!("Turn {}, {}", game.turn, step_name.to_lowercase()),
-            "reason": "The Rust AI's pick in your place."})
+            "reason": "The Rust AI's pick in your place."});
+        // a Career game counts its hints (`AdviceService.advise`): Java marks the game with them at its end
+        if let Some(left) = self.hints_left.as_mut() {
+            *left -= 1;
+            self.hints_given += 1;
+            advice["hintsLeft"] = json!(*left);
+        }
+        advice
     }
 
     fn play(&mut self, db: &CardDb) -> Ended {
@@ -1488,6 +1624,7 @@ impl Host {
         if !self.mulligans(first) {
             return self.finish();
         }
+        self.apply_setup(db);
         for seat in 0..2 {
             self.game.player_mut(seat).drawn = 0;
         }
@@ -1512,6 +1649,9 @@ impl Host {
                 break;
             }
             game = back;
+            // the turn gone back to leans again
+            self.leaned_turn = 0;
+            self.lean_queue.clear();
             let practice = std::mem::take(&mut self.practice);
             if !practice.is_empty() {
                 let mut d = HostDecider { host: self };
@@ -1524,6 +1664,46 @@ impl Host {
         }
         self.game = game;
         self.finish()
+    }
+
+    /// A Career table's edges, after the mulligans (`GameImpl.init` runs `CareerSetup.apply` there): each side's life,
+    /// life bonus, extra cards and permanents, and its log line
+    fn apply_setup(&mut self, db: &CardDb) {
+        let Some(setup) = self.setup.clone() else { return };
+        let human = self.humans().first().copied();
+        let mut game = self.game.clone();
+        let mut lines = Vec::new();
+        // in the game's player order, as Java's loop over the players
+        for seat in 0..2 {
+            let edge = if Some(seat) == human { &setup.you } else { &setup.opponent };
+            let Some(edge) = edge else { continue };
+            if let Some(life) = edge.life {
+                game.player_mut(seat).life = life;
+            }
+            if edge.life_bonus != 0 {
+                let p = game.player_mut(seat);
+                p.life = (p.life + edge.life_bonus).max(1);
+            }
+            if edge.cards > 0 {
+                rules::draw(&mut game, seat, edge.cards as usize);
+            }
+            for (name, tapped) in &edge.permanents {
+                let Some(def) = db.get(name) else { continue };
+                let id = game.create_obj(def.clone(), seat, Zone::Exile);
+                let mut d = HostDecider { host: self };
+                rules::put_onto_battlefield(&mut game, &mut d, id, seat);
+                if *tapped && game.battlefield.contains(&id) {
+                    game.obj_mut(id).tapped = true;
+                }
+            }
+            if let Some(log) = &edge.log {
+                lines.push(format!("<font color='#20B2AA'>{}</font>{log}", self.names[seat]));
+            }
+        }
+        self.game = game;
+        for line in lines {
+            self.inform(line);
+        }
     }
 
     /// The game's end: who won, `GAME_OVER`
@@ -1589,6 +1769,9 @@ impl Host {
         let mut summary = json!({"players": players, "tally": first, "tallies": tallies});
         if self.practiced {
             summary["taint"] = json!("practice tools were used");
+        }
+        if self.hints_given > 0 {
+            summary["hints"] = json!(self.hints_given);
         }
         summary
     }
@@ -1786,6 +1969,64 @@ fn run_practice(game: &mut Game, tools: Vec<(Seat, String, Option<String>, i32)>
     }
 }
 
+/// A Career opponent's personality on its attack (`ComputerPlayer6.applyPersonality`), once the AI is done
+/// choosing attackers: aggression sends creatures that would only trade, risk ones that could die for nothing, and
+/// patience keeps the weakest back while the defender can hit back. What to click: creatures to add, attackers to
+/// take back.
+fn lean(game: &Game, seat: Seat, creatures: &[ObjId], p: Personality, rng: &mut JavaRandom) -> Vec<ObjId> {
+    let opp = game.opponent(seat);
+    let power = |id: ObjId| game.power_toughness(id).0;
+    let creature = |id: &ObjId| game.has_type(*id, CardType::Creature);
+    let blockers: Vec<ObjId> = game
+        .battlefield
+        .iter()
+        .copied()
+        .filter(|b| game.obj(*b).controller == opp && !game.obj(*b).tapped && creature(b))
+        .collect();
+    // every blocker that could kill the attacker dies to it too
+    let trades = |a: ObjId| {
+        let (ap, at) = game.power_toughness(a);
+        blockers.iter().all(|b| {
+            let (bp, bt) = game.power_toughness(*b);
+            !(bp >= at && ap < bt)
+        })
+    };
+    let mut attacking: Vec<ObjId> = game
+        .battlefield
+        .iter()
+        .copied()
+        .filter(|a| game.obj(*a).controller == seat && game.obj(*a).attacking.is_some())
+        .collect();
+    let mut moves = Vec::new();
+    for &c in creatures {
+        if attacking.contains(&c) || power(c) <= 0 {
+            continue;
+        }
+        let chance = if trades(c) { p.aggression } else { p.risk / 2 };
+        if chance > 0 && rng.next_int_bound(100) < chance {
+            moves.push(c);
+            attacking.push(c);
+        }
+    }
+    let hold = p.patience / 40;
+    let pressure = game.battlefield.iter().any(|o| game.obj(*o).controller == opp && creature(o) && power(*o) > 0);
+    if hold > 0 && pressure && attacking.len() > 1 {
+        attacking.sort_by_key(|a| power(*a));
+        for _ in 0..hold {
+            if attacking.len() <= 1 {
+                break;
+            }
+            let weakest = attacking.remove(0);
+            if moves.contains(&weakest) {
+                moves.retain(|m| *m != weakest);
+            } else if !game.must_attack(weakest) {
+                moves.push(weakest);
+            }
+        }
+    }
+    moves
+}
+
 /// Java's `Advice.none`
 fn advice_none(why: &str) -> Value {
     json!({"kind": "NONE", "text": why, "steps": []})
@@ -1835,6 +2076,36 @@ impl Decider for HostDecider<'_> {
             return h.table.answer(game, seat, q);
         }
         if !h.seats[seat].human {
+            // a Career opponent's personality: after the AI's own attackers, the ones its leanings add or hold back
+            if let Query::Attackers { creatures } = q {
+                // what's left of another turn's (the engine stopped asking) isn't this one's
+                if h.leaned_turn != game.turn {
+                    h.lean_queue.clear();
+                }
+                if let Some(next) = h.lean_queue.pop_front() {
+                    h.table.record(game, q, &next);
+                    return next;
+                }
+                let a = h.table.answer(game, seat, q);
+                let personality = h.setup.as_ref().and_then(|s| s.personality);
+                if let (Some(p), true) =
+                    (personality, !matches!(a, Answer::Obj(_) | Answer::Stop) && h.leaned_turn != game.turn)
+                {
+                    h.leaned_turn = game.turn;
+                    // the turn's own dice: the same after an undo, a rollback or a carried-on game's prelude
+                    let mut dice = JavaRandom::new(h.lean_seed ^ ((game.turn as i64) << 24) ^ 0x5ca1_ab1e);
+                    let moves = lean(game, seat, creatures, p, &mut dice);
+                    if !moves.is_empty() {
+                        h.table.take_back();
+                        h.lean_queue.extend(moves.into_iter().map(Answer::Obj));
+                        h.lean_queue.push_back(a);
+                        let next = h.lean_queue.pop_front().unwrap();
+                        h.table.record(game, q, &next);
+                        return next;
+                    }
+                }
+                return a;
+            }
             // the AI's clock runs while it thinks at priority (`ComputerPlayer7.priority`)
             if !matches!(q, Query::Priority { .. }) || !h.clock.on() {
                 return h.table.answer(game, seat, q);
@@ -2032,9 +2303,12 @@ fn is_owed_choice(q: &Query) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{auto_order, is_owed_choice, TableRules};
+    use super::{auto_order, is_owed_choice, lean, CareerSetup, Edge, Personality, TableRules};
     use playmat_engine::decide::Query;
+    use playmat_engine::rng::JavaRandom;
+    use playmat_engine::state::{Game, ObjId, Seat, Zone};
     use serde_json::json;
+    use std::sync::Arc;
 
     /// a ladder bot's pin rides the table's rules and a record's, and old rules without one read as before (#435)
     #[test]
@@ -2078,5 +2352,55 @@ mod tests {
         assert!(!is_owed_choice(&color));
         let named = Query::Choice { message: "Card name".into(), choices: Vec::new() };
         assert!(!is_owed_choice(&named));
+    }
+
+    /// a Career table's setup rides the rules and a record's
+    #[test]
+    fn a_career_setup_round_trips() {
+        let v = json!({"hintsLeft": 2, "noPractice": "Practice tools are off in Career games.",
+            "setup": {"opponent": {"life": 25, "lifeBonus": 0, "cards": 1,
+                "permanents": [{"name": "Llanowar Elves", "tapped": true}], "log": " starts with an edge: 25 life."},
+                "personality": {"aggression": 60, "risk": -20, "patience": 200}}});
+        let rules = TableRules::of(&v);
+        assert_eq!(rules.hints_left, Some(2));
+        let setup = rules.setup.clone().unwrap();
+        assert!(setup.you.is_none());
+        let edge = setup.opponent.clone().unwrap();
+        assert_eq!(edge.life, Some(25));
+        assert_eq!(edge.permanents, vec![("Llanowar Elves".to_string(), true)]);
+        assert_eq!(setup.personality, Some(Personality { aggression: 60, risk: -20, patience: 100 }), "clamped");
+        assert_eq!(TableRules::of(&rules.json()), rules);
+        let plain = TableRules::of(&json!({}));
+        assert!(plain.setup.is_none() && plain.hints_left.is_none());
+        assert!(plain.json().get("setup").is_none());
+        let _ = (CareerSetup::default(), Edge::default());
+    }
+
+    fn creature(game: &mut Game, db: &playmat_engine::card::CardDb, name: &str, seat: Seat) -> ObjId {
+        let id = game.create_obj(db.get(name).unwrap().clone(), seat, Zone::Battlefield);
+        Arc::make_mut(&mut game.battlefield).push(id);
+        id
+    }
+
+    /// `ComputerPlayer6.applyPersonality`: aggression sends what would only trade, risk what dies for nothing, patience
+    /// holds the weakest back
+    #[test]
+    fn a_personality_leans_on_the_attack() {
+        let db = playmat_engine::cards();
+        let mut game = Game::new(2, JavaRandom::new(7).state());
+        let bear = creature(&mut game, &db, "Runeclaw Bear", 0);
+        let elves = creature(&mut game, &db, "Llanowar Elves", 0);
+        // the defender's 2/2 trades with the bear, and kills the elves for nothing
+        let _blocker = creature(&mut game, &db, "Runeclaw Bear", 1);
+        let mut rng = JavaRandom::new(1);
+        let all_in = Personality { aggression: 100, risk: 200, patience: 0 };
+        assert_eq!(lean(&game, 0, &[bear, elves], all_in, &mut rng), vec![bear, elves]);
+        let trades_only = Personality { aggression: 100, risk: 0, patience: 0 };
+        assert_eq!(lean(&game, 0, &[bear, elves], trades_only, &mut rng), vec![bear]);
+        let timid = Personality { aggression: -100, risk: -100, patience: 0 };
+        assert!(lean(&game, 0, &[bear, elves], timid, &mut rng).is_empty());
+        // patience 40: with the defender able to hit back, the weakest of two attackers stays home
+        let patient = Personality { aggression: 100, risk: 200, patience: 40 };
+        assert_eq!(lean(&game, 0, &[bear, elves], patient, &mut rng), vec![bear]);
     }
 }
