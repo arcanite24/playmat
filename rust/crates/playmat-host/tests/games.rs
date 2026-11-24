@@ -1091,3 +1091,65 @@ fn a_career_personality_plays_games_to_their_end() {
 fn json_p(aggression: i32, risk: i32, patience: i32) -> Value {
     serde_json::json!({"aggression": aggression, "risk": risk, "patience": patience})
 }
+
+/// A Career game carried on from a turn's line (a take-back, "Try this turn again") plays the opponent's personality
+/// and the setup's edges again the same: the board at the turn's start is the one the first game had
+#[test]
+fn a_career_game_carries_on_the_same() {
+    let (company, zombies) = (deck("gw-company.txt"), deck("b-zombies.txt"));
+    let rules = playmat_host::TableRules::of(&serde_json::json!({"setup": {
+        "opponent": {"life": 25, "lifeBonus": 0, "cards": 1, "permanents": [], "log": " starts with an edge."},
+        "personality": json_p(100, 100, 0)}}));
+    let mut s = start(&company, &zombies, 6, None);
+    s.lines = true;
+    s.rules = rules.clone();
+    let game = HostedGame::start(s, Arc::new(playmat_engine::cards())).unwrap();
+    game.call(Call::Join);
+    let mut b = bot(u64::MAX);
+    let mut line = None;
+    let saved = loop {
+        let e = game.events.recv_timeout(Duration::from_secs(60)).expect("the host answers");
+        assert_ne!(e.method, "GAME_OVER");
+        if e.method == "HOST_TURN" {
+            if e.data["turn"] == 5 {
+                line = Some(e.data["line"].clone());
+            }
+            continue;
+        }
+        let view = if matches!(e.method.as_str(), "GAME_INIT" | "GAME_UPDATE") { &e.data } else { &e.data["gameView"] };
+        if line.is_some() && view.is_object() {
+            break board(view);
+        }
+        if let Some(c) = b.answer(&e) {
+            game.call(c);
+        }
+    };
+    game.call(Call::Action("CONCEDE".into(), None));
+    let _ = game.join();
+    let prelude = playmat_host::record::prelude_of(&line.unwrap()).expect("the line reads back");
+    let mut s = start(&company, &zombies, 77, None);
+    s.game_id = "game-career-carried-on".into();
+    s.seats[0].player_id = "44444444-4444-4444-8444-444444444444".into();
+    s.seats[1].player_id = "55555555-5555-4555-8555-555555555555".into();
+    s.prelude = Some(prelude);
+    s.lines = true;
+    s.rules = rules;
+    let game = HostedGame::start(s, Arc::new(playmat_engine::cards())).unwrap();
+    game.call(Call::Join);
+    let mut b = bot(9);
+    let mut first = None;
+    loop {
+        let e = game.events.recv_timeout(Duration::from_secs(60)).expect("the carried-on game answers");
+        if e.method == "GAME_INIT" && first.is_none() {
+            first = Some(board(&e.data));
+        }
+        if e.method == "GAME_OVER" {
+            break;
+        }
+        if let Some(c) = b.answer(&e) {
+            game.call(c);
+        }
+    }
+    let _ = game.join();
+    assert_eq!(first, Some(saved), "the same board at turn 5's start");
+}

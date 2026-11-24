@@ -544,8 +544,9 @@ struct Host {
     hints_given: u32,
     /// the Career table's setup, played after the mulligans
     setup: Option<CareerSetup>,
-    /// the AI's personality: its dice, the turn it last leaned on, and the answers it gives in the AI's place
-    lean_rng: JavaRandom,
+    /// the AI's personality: the seed of its dice (the first game's, so a carried-on game rolls them again the same),
+    /// the turn it last leaned on, and the answers it gives in the AI's place
+    lean_seed: i64,
     leaned_turn: u32,
     lean_queue: std::collections::VecDeque<Answer>,
     /// the asked player is being asked at priority
@@ -700,7 +701,7 @@ impl Host {
             hints_left: start.rules.hints_left,
             hints_given: 0,
             setup: first.rules.setup.clone(),
-            lean_rng: JavaRandom::new(start.seed ^ 0x5ca1_ab1e),
+            lean_seed: first.seed,
             leaned_turn: 0,
             lean_queue: std::collections::VecDeque::new(),
             at_priority: false,
@@ -1648,6 +1649,9 @@ impl Host {
                 break;
             }
             game = back;
+            // the turn gone back to leans again
+            self.leaned_turn = 0;
+            self.lean_queue.clear();
             let practice = std::mem::take(&mut self.practice);
             if !practice.is_empty() {
                 let mut d = HostDecider { host: self };
@@ -2088,7 +2092,9 @@ impl Decider for HostDecider<'_> {
                     (personality, !matches!(a, Answer::Obj(_) | Answer::Stop) && h.leaned_turn != game.turn)
                 {
                     h.leaned_turn = game.turn;
-                    let moves = lean(game, seat, creatures, p, &mut h.lean_rng);
+                    // the turn's own dice: the same after an undo, a rollback or a carried-on game's prelude
+                    let mut dice = JavaRandom::new(h.lean_seed ^ ((game.turn as i64) << 24) ^ 0x5ca1_ab1e);
+                    let moves = lean(game, seat, creatures, p, &mut dice);
                     if !moves.is_empty() {
                         h.table.take_back();
                         h.lean_queue.extend(moves.into_iter().map(Answer::Obj));

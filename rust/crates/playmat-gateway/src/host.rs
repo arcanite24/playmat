@@ -126,6 +126,11 @@ impl Hosted {
         self.watchers.lock().unwrap().retain(|(t, _)| t.connection != connection);
     }
 
+    /// the token Java gave the game (`HOST_GAME`), which the gateway's calls to Java carry
+    pub fn token(&self) -> &str {
+        &self.token
+    }
+
     /// `gameWatchers`: the spectators' names
     pub fn watcher_names(&self) -> Vec<String> {
         let mut names: Vec<String> = self.watchers.lock().unwrap().iter().map(|(_, u)| u.clone()).collect();
@@ -513,6 +518,12 @@ async fn turn(java_url: url::Url, game_id: String, token: String, data: Value) {
     let request = json!({"jsonrpc": "2.0", "id": 1, "method": "hostGameTurn",
         "params": [game_id, token, data["turn"], data["activePlayerId"], data["line"]]});
     tell_java(java_url, request, 2).await;
+}
+
+/// `hostGameAssisted` to Java: the host gave a Career game's player a hint, counted at once (`AdviceService`)
+pub async fn assisted(java_url: url::Url, game_id: String, token: String, what: &str) {
+    let request = json!({"jsonrpc": "2.0", "id": 1, "method": "hostGameAssisted", "params": [game_id, token, what]});
+    tell_java(java_url, request, 3).await;
 }
 
 /// A call of the gateway's own to Java, on a connection of its own; a few tries

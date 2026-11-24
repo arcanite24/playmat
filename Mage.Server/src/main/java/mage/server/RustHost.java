@@ -81,6 +81,8 @@ public final class RustHost {
     }
 
     private static final Map<UUID, Hosted> HOSTED = new ConcurrentHashMap<>();
+    /** the Career tables the host plays (docs/rust/GameHost.md, Career tables): the roster's duels and campaign nodes */
+    private static final Set<String> HOSTED_CAREER_KINDS = new java.util.HashSet<>(java.util.Arrays.asList("duel", "campaign"));
 
     /**
      * A game whose human has been gone, or connected without a hosting gateway, this long ends as their loss (as a
@@ -190,6 +192,9 @@ public final class RustHost {
                 why = "not a duel";
             } else if (options.resumeFrom != null || (options.setup != null && careerSetup == null)) {
                 why = "it starts from a setup or a save";
+            } else if (career != null && !HOSTED_CAREER_KINDS.contains(career.kind)) {
+                // gauntlets, challenges and limited runs carry state between games or play limited pools: later
+                why = "a Career " + career.kind + " table";
             } else if (careerSetup != null && careerSetup.hostProblem() != null) {
                 why = careerSetup.hostProblem();
             } else if (isTournamentTable(managers, tableId)) {
@@ -410,6 +415,21 @@ public final class RustHost {
     }
 
     /**
+     * The host helped a Career game's player ({@code hostGameAssisted}, "hint"): the table counts it as
+     * AdviceService does for a game Java plays, at once, so the table's next game (a take-back's) knows the hints left.
+     *
+     * @return false when the game isn't hosted or the token is wrong
+     */
+    public static boolean assisted(UUID gameId, String token, String what) {
+        Hosted h = HOSTED.get(gameId);
+        if (h == null || token == null || !h.token.equals(token) || !"hint".equals(what)) {
+            return false;
+        }
+        mage.server.career.CareerService.get().assisted(h.tableId, gameId, "hint");
+        return true;
+    }
+
+    /**
      * The host's line of a solo table's game at a turn's start ({@code hostGameTurn}): the solo saves keep it, as they
      * keep a Java game's turn snapshots.
      *
@@ -497,10 +517,11 @@ public final class RustHost {
             if (summary.has("taint") && summary.get("taint").isJsonPrimitive()) {
                 mage.server.career.CareerTally.taint(hosted.game.getId(), summary.get("taint").getAsString());
             }
-            // a Career game's hints, as AdviceService counts them: each marks the game (S010)
+            // a Career game the host gave hints in (each counted when given, hostGameAssisted): its tally, made only now,
+            // is marked as CareerService.assisted marks a Java game's at the time
             int hints = summary.has("hints") && summary.get("hints").isJsonPrimitive() ? summary.get("hints").getAsInt() : 0;
-            for (int i = 0; i < hints; i++) {
-                mage.server.career.CareerService.get().assisted(hosted.tableId, hosted.game.getId(), "hint");
+            if (hints > 0) {
+                mage.server.career.CareerTally.taint(hosted.game.getId(), "the player was helped by a hint");
             }
         } catch (RuntimeException e) {
             logger.warn("Rust host: game " + hosted.game.getId() + "'s end summary: " + e, e);
