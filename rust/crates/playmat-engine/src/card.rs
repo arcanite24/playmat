@@ -1813,6 +1813,9 @@ pub enum CostDef {
         /// how many (Cathartic Reunion's two)
         #[serde(default = "one")]
         amount: usize,
+        /// cards with different names (Ormos, Archive Keeper's `OrmosArchiveKeeperTarget`)
+        #[serde(default)]
+        different_names: bool,
     },
     /// reveal between `min` and `max` cards of the filter from your hand; the number revealed is the ability's X
     /// (`RevealTargetFromHandCost`, `RevealTargetFromHandCostCount`)
@@ -2189,6 +2192,11 @@ pub enum EffectDef {
     BoostTargetEffect {
         power: Amount,
         toughness: Amount,
+        duration: Duration,
+    },
+    /// the targets switch their power and toughness (`SwitchPowerToughnessTargetEffect`, layer 7d: Crookclaw
+    /// Transmuter)
+    SwitchPowerToughnessTargetEffect {
         duration: Duration,
     },
     /// the source switches its power and toughness (`SwitchPowerToughnessSourceEffect`, layer 7d), while it's still
@@ -4408,8 +4416,12 @@ pub enum EffectDef {
     },
     /// 2 damage to the creature that entered; if it was a Dinosaur dealt damage, the source gets +2/+0 this turn
     MaraudingRaptorEffect,
-    /// as this enters: tapped, and its controller chooses a color (its chosen-color mana abilities make that color)
-    EntersTappedChooseColorEffect,
+    /// as this enters: tapped, and its controller chooses a color (its chosen-color mana abilities make that color),
+    /// other than `except` when there is one (the Thriving lands' "choose a color other than red")
+    EntersTappedChooseColorEffect {
+        #[serde(default)]
+        except: Option<String>,
+    },
     /// `ChooseColorEffect` as this enters: its controller chooses a color (its chosen-color mana abilities make it)
     ChooseColorEffect,
     /// a Case's "to solve": the source permanent becomes solved
@@ -5671,6 +5683,10 @@ pub enum AbilityDef {
         /// could sacrifice; `BasicManaEffect`'s `netAmount`)
         #[serde(default)]
         net: Option<Amount>,
+        /// a `SimpleManaAbility` with its own `ManaEffect` (the chosen color's `AddManaChosenColorEffect`, a Thriving
+        /// land's second ability): `ManaUtil.tryToAutoPay` doesn't tell it apart, so every ability is offered
+        #[serde(default)]
+        simple: bool,
         #[serde(default)]
         rule: String,
     },
@@ -6101,7 +6117,7 @@ impl AbilityDef {
             | AbilityDef::AddEachControlledColorManaAbility { .. }
             | AbilityDef::DynamicManaAbility { .. } => ManaKind::Other,
             // a `BasicManaAbility` makes one mana; "{T}: Add {G}{G}" is a `SimpleManaAbility`
-            AbilityDef::ColoredManaAbility { amount, .. } if *amount != 1 => ManaKind::Other,
+            AbilityDef::ColoredManaAbility { amount, simple, .. } if *amount != 1 || *simple => ManaKind::Other,
             // `SimpleManaAbility`s with a `ConditionalManaEffect` (Ugin's Labyrinth, Gemstone Caverns) or {C}{C}
             AbilityDef::ColorlessManaAbility { amount, two_if_exiled, any_color_with, .. }
                 if *amount != 1 || *two_if_exiled || any_color_with.is_some() =>

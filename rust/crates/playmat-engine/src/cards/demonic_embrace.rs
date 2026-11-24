@@ -14,7 +14,7 @@ fn play(game: &Game, cx: &StaticCx, seat: Seat, id: ObjId, _: &CardDef) -> Optio
         mana: ManaCost::parse("{1}{B}{B}").ok(),
         costs: vec![
             CostDef::PayLifeCost { amount: 3 },
-            CostDef::DiscardCardCost { filter: crate::card::Filter::default(), amount: 1 },
+            CostDef::DiscardCardCost { filter: crate::card::Filter::default(), amount: 1, different_names: false },
         ],
     })
 }

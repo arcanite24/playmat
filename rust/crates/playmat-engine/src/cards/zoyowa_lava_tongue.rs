@@ -13,7 +13,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     let src = cx.source_id();
     let cost = CostDef::OrCost {
         costs: vec![
-            CostDef::DiscardCardCost { filter: Filter::default(), amount: 1 },
+            CostDef::DiscardCardCost { filter: Filter::default(), amount: 1, different_names: false },
             CostDef::SacrificeTargetCost { filter: Filter::default(), amount: 1 },
         ],
     };
