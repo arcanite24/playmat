@@ -384,6 +384,8 @@ Career games."), and `hintsLeft` (the table's `HINTS_PER_GAME` less what it used
 The end summary's `hints` counts the hints the host gave, and `RustHost.summarize` marks the game with each one
 (`CareerService.assisted`) before the table pays. Take-backs go through the solo saves as for any hosted game.
 
-Still on Java, each with its reason in the log: puzzles and trials, hordes, pods, and twists with an emblem or timed
-twists.
+The hosted kinds are roster duels, campaign nodes, gauntlet fights (a run's wounds, relics and levels arrive as the
+setup) and the weekly challenge (its board reads `my_turns`, `life_at_end` and `creature_spells` from the host's tally).
+Still on Java, each with its reason in the log: puzzles and trials, hordes, pods, limited runs, and twists with an
+emblem or timed twists.
 

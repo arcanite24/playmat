@@ -11,6 +11,16 @@ import org.junit.jupiter.api.Test;
 class RustHostTest {
 
     @Test
+    void hostsTheCareerKindsWhoseGamesAreDuelsFromTheStart() {
+        for (String kind : new String[]{"duel", "campaign", "gauntlet", "challenge"}) {
+            assertTrue(RustHost.HOSTED_CAREER_KINDS.contains(kind), kind);
+        }
+        for (String kind : new String[]{"trial", "puzzle", "horde", "limited"}) {
+            assertFalse(RustHost.HOSTED_CAREER_KINDS.contains(kind), kind);
+        }
+    }
+
+    @Test
     void aQuitLeavesTheMatchAConcedeOnlyTheGame() {
         // the host's reasons
         assertTrue(RustHost.quitsMatch("quit"));

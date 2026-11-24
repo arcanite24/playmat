@@ -31,9 +31,9 @@ function starterDeck(starterId: string): DeckCardLists {
 const PERSONALITIES = ['pip', 'ilse', 'widow', 'grondel'];
 
 async function playOne(api: ReturnType<typeof createApi>, bus: EventBus, userName: string, opponentId: string,
-                       deck: unknown, hint: boolean) {
+                       deck: unknown, hint: boolean, play?: () => Promise<unknown>) {
   const started = new Promise<TableClientMessage>((resolve) => bus.on('START_GAME', (m) => resolve(m)));
-  await api.careerPlay(opponentId, deck as never);
+  await (play ? play() : api.careerPlay(opponentId, deck as never));
   const start = await started;
   const gameId = start.gameId!;
   const session = new GameSession(api, bus, { gameId, playerId: start.playerId ?? null, mode: 'play' });
@@ -126,7 +126,44 @@ async function careerDuel(prefix: string, pick: (ids: string[]) => string | unde
   }
 }
 
+/** this week's challenge: hosted unless its twist or its decks are ones the host lacks, which the log then says */
+async function careerChallenge() {
+  const userName = process.env.MAGE_CAREER_USER ?? `ch${Date.now() % 1000000}`;
+  const rpc = new RpcClient({ stateDiffs: true });
+  const bus = new EventBus(rpc);
+  const api = createApi(rpc);
+  await rpc.connect(SERVER_URL);
+  try {
+    await api.authRegister(userName, 'careerpass1', `${userName}@example.test`).catch(() => undefined);
+    expect(await api.connectUser(userName, 'careerpass1')).toBe(true);
+    const starters = await api.careerStarters();
+    if (!(await api.careerState()).profile) await api.careerStart(starters[0].id!);
+    const result = await playOne(api, bus, userName, '', null, false, () => api.careerChallengePlay());
+    console.log(`challenge: turn ${result.turns}`);
+    if (SERVER_LOG) {
+      const log = readFileSync(SERVER_LOG, 'utf8');
+      const hosted = log.includes(`Rust host: plays ${userName}'s game ${result.gameId}`);
+      const stays = log.split('\n').find((line) => line.includes(`Rust host: ${userName}'s game stays on Java`)
+        || line.includes(`Rust host: ${userName}'s game doesn't qualify`));
+      console.log(hosted ? 'hosted' : stays?.replace(/\s+=>.*/, '').slice(0, 200));
+      expect(stays ?? '', 'a challenge table is a kind the host plays').not.toContain('a Career challenge table');
+      expect(hosted || !!stays, 'the log says where the game ran').toBeTruthy();
+      if (hosted) {
+        const lines = log.split('\n');
+        const at = lines.findIndex((line) => line.includes(`Rust host: plays ${userName}'s game ${result.gameId}`));
+        expect(lines.slice(at).some((line) => line.includes(`Career: ${userName} `) && line.includes('paid')),
+          'the Career paid the hosted challenge').toBeTruthy();
+      }
+    }
+  } finally {
+    await api.disconnectSession(false).catch(() => undefined);
+    rpc.disconnect();
+  }
+}
+
 describe.skipIf(!live)('a Rust-hosted Career duel', () => {
+  test('this week\'s challenge goes to the host', () => careerChallenge(), 900_000);
+
   test('is played on Rust and paid by the Career', () => careerDuel('cr', (ids) => ids[0], false), 900_000);
 
   test('plays an opponent with a personality, and a hint is counted by the Career', () =>

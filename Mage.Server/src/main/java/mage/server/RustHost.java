@@ -81,8 +81,12 @@ public final class RustHost {
     }
 
     private static final Map<UUID, Hosted> HOSTED = new ConcurrentHashMap<>();
-    /** the Career tables the host plays (docs/rust/GameHost.md, Career tables): the roster's duels and campaign nodes */
-    private static final Set<String> HOSTED_CAREER_KINDS = new java.util.HashSet<>(java.util.Arrays.asList("duel", "campaign"));
+    /**
+     * the Career tables the host plays (docs/rust/GameHost.md, Career tables): the roster's duels, campaign nodes,
+     * gauntlet fights and the weekly challenge. What a run carries between fights (wounds, relics, levels) reaches the
+     * game as its setup, and the challenge's board reads the tally the host sends.
+     */
+    static final Set<String> HOSTED_CAREER_KINDS = new java.util.HashSet<>(java.util.Arrays.asList("duel", "campaign", "gauntlet", "challenge"));
 
     /**
      * A game whose human has been gone, or connected without a hosting gateway, this long ends as their loss (as a
@@ -193,7 +197,7 @@ public final class RustHost {
             } else if (options.resumeFrom != null || (options.setup != null && careerSetup == null)) {
                 why = "it starts from a setup or a save";
             } else if (career != null && !HOSTED_CAREER_KINDS.contains(career.kind)) {
-                // gauntlets, challenges and limited runs carry state between games or play limited pools: later
+                // trials and puzzles start from a set position, hordes and pods aren't duels, limited plays sealed pools: later
                 why = "a Career " + career.kind + " table";
             } else if (careerSetup != null && careerSetup.hostProblem() != null) {
                 why = careerSetup.hostProblem();
