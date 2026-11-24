@@ -2186,6 +2186,7 @@ impl Game {
             }
             Pred::Equipped => self.attachments(id).any(|a| self.has_subtype(a, "Equipment")),
             Pred::Enchanted => self.attachments(id).any(|a| self.has_subtype(a, "Aura")),
+            Pred::Renowned => o.marks.iter().any(|m| m == "renowned"),
             Pred::Modified => {
                 o.counters.iter().any(|(_, n)| *n > 0)
                     || self.attachments(id).any(|a| {
@@ -3419,6 +3420,13 @@ impl Game {
                 }
                 Value::CardsInHand => self.player(you).hand.len() as i32,
                 Value::ActivePlayerCardsInHand => self.active.map_or(0, |a| self.player(a).hand.len() as i32),
+                Value::CardsInAllHands => self.players.iter().map(|p| p.hand.len() as i32).sum(),
+                Value::TargetPlayerCardsInHand => {
+                    match self.resolving_item.as_ref().and_then(|i| i.targets.first()?.first().copied()) {
+                        Some(Target::Player(p)) => self.player(p).hand.len() as i32,
+                        _ => 0,
+                    }
+                }
                 Value::Speed => self.player(you).speed as i32,
                 Value::CardsDrawn => self.player(you).drawn as i32,
                 Value::LifeGained => self.player(you).life_gained,
@@ -3472,6 +3480,12 @@ impl Game {
                     .iter()
                     .filter(|id| self.filter_matches(filter, you, Some(source), **id))
                     .map(|id| self.power_toughness(*id).0)
+                    .sum(),
+                Value::TotalToughness { filter } => self
+                    .battlefield
+                    .iter()
+                    .filter(|id| self.filter_matches(filter, you, Some(source), **id))
+                    .map(|id| self.power_toughness(*id).1)
                     .sum(),
                 Value::Negative { of } => -self.value(of, you, source, x),
                 Value::Times { of, n } => self.value(of, you, source, x) * n,
