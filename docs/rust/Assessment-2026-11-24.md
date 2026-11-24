@@ -110,6 +110,9 @@ Chosen 24 Nov 2026: **2, "Java off the game path".**
    - `5b6e1d86` (16 Nov) was left for a save on turn 4, carried on as `ca140f0b` and finished. The left game has no
      end record, so it most likely waited until a restart cut it off (inferred: no log line shows the cut-off).
    - The totals count 215 ends where the records have 216: one end was lost from the counters across a restart.
+   - Found 24 Nov: a hosted game whose player leaves for good ran until the host's 30-minute limit. By then Java's
+     health check had removed its table (about 8 minutes), so the end was lost. #493 ends it as the player's quit
+     when Java drops them (3 minutes), as Java does for its own games.
 
 1. Record the state: update #182, the tracker (`progress-plan.json`) and this file's numbers.
 2. Decide the rollout default: 217 games without `error` or `panic` meets step E's gate. Deploy the drain fix
