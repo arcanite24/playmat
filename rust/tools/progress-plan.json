@@ -153,8 +153,13 @@
       "n": "F",
       "name": "Then",
       "status": "active",
-      "text": "Career tables (the Career's setups, twists, puzzles and assists), games carried on from Java's saves, the platform calls moved to rust, and the last Pioneer engine pieces. Then limited (sealed, draft, tournaments) set by set, then sessions, the lobby and tables in Rust (docs/rust/Assessment-2026-11-24.md).",
-      "gate": "Per feature"
+      "text": "Career tables: duels, campaign nodes, gauntlet fights and the weekly challenge go to the host in review (#493); puzzles, trials, hordes, pods, emblem and timed twists stay on Java. Java saves aren't converted: hosted games save as lines, and old Java saves expire after 30 days. Cards: wave 17 (46 Pioneer cards the Career, starter and shadow decks use) under way, then wave 18 (121 non-Pioneer cards in the five-paths and roster decks). Platform diffs (#497) and the upstream ledger (#498) in review. Then limited (sealed, draft, tournaments) set by set, then sessions, the lobby and tables in Rust (docs/rust/Assessment-2026-11-24.md).",
+      "gate": "Per feature",
+      "pr": [
+        493,
+        497,
+        498
+      ]
     }
   ],
   "measures": [
