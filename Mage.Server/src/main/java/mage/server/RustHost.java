@@ -575,6 +575,29 @@ public final class RustHost {
         return true;
     }
 
+    /**
+     * A user whose session expired (User.removeUserFromAllTables): each hosted game of theirs ends as their quit, as
+     * Java's own games do then (GameManager.quitMatch), while the table is still there to record it. The host's game
+     * stops by itself once nobody answers it; its late end finds nothing to end.
+     *
+     * @return the games ended
+     */
+    public static int userLeft(UUID userId) {
+        int ended = 0;
+        for (Map.Entry<UUID, Hosted> e : HOSTED.entrySet()) {
+            Hosted h = e.getValue();
+            UUID playerId = h.playerOf(userId);
+            if (playerId == null || !HOSTED.remove(e.getKey(), h)) {
+                continue;
+            }
+            UUID other = h.otherThan(playerId);
+            logger.info("Rust host: game " + e.getKey() + "'s player left the server, ending it as their quit");
+            end(e.getKey(), h, other == null ? null : other.toString(), 0, "quit, the player left");
+            ended++;
+        }
+        return ended;
+    }
+
     /** ends the hosted games whose humans are gone (above): as the gone one's loss, or a draw when both are */
     static void sweep() {
         long now = System.currentTimeMillis();

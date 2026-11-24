@@ -209,6 +209,10 @@ Built in `playmat-host` (the game) and `playmat-gateway` (`host.rs`, `connection
   host ends the game as a draw. The reason `conceded` ends the game; `quit` (`matchQuit`, or no answer for 30
   minutes) also marks the player as having left the match, so no next game starts. `RustHost.sweep` ends a game whose human has been gone, or connected without a hosting gateway, for
   35 minutes as their loss; the host itself ends a game as the human's loss after 30 minutes without an answer.
+  A player whose connection has been gone for 3 minutes is dropped by Java (`UserManagerImpl`), which ends their Java
+  games as their quit. `RustHost.userLeft` ends their hosted games the same way, while the table is still there to
+  record the end. Before this, an abandoned hosted game ran until the host's 30-minute limit, by which time Java's
+  health check had removed its table, so its end was lost.
 - **Reconnect.** `User.onReconnect` resends `START_GAME` for the user's hosted games; the client joins again and the
   gateway re-sends the view and the open question.
 - **A host that lost its game.** The gateway routes a hosted game's join and quit to the host, so one that reaches Java

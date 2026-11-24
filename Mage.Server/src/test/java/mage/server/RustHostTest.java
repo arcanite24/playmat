@@ -20,6 +20,8 @@ class RustHostTest {
         assertFalse(RustHost.quitsMatch("error: a card"));
         // Java's own: a host that's gone with its player (the sweep, a matchQuit that reached Java)
         assertTrue(RustHost.quitsMatch("quit, its host is gone"));
+        // a player whose session expired (User.removeUserFromAllTables)
+        assertTrue(RustHost.quitsMatch("quit, the player left"));
         // a join that reached Java: the host is gone, the player isn't
         assertFalse(RustHost.quitsMatch("its host is gone"));
         assertFalse(RustHost.quitsMatch(null));
