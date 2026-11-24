@@ -47,6 +47,7 @@ fn choose_color(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<(
                 no_tap: false,
                 creature_spell_haste: false,
                 net: None,
+                simple: true,
                 rule: rule.clone(),
             };
         }

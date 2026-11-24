@@ -79,6 +79,7 @@ EFFECTS = {
     'CounterTargetEffect': [],
     'BoostTargetEffect': [('power', 'int'), ('toughness', 'int'), ('duration', 'duration')],
     'SwitchPowerToughnessSourceEffect': [('duration', 'duration')],
+    'SwitchPowerToughnessTargetEffect': [('duration', 'duration')],
     'BoostSourceEffect': [('power', 'int'), ('toughness', 'int'), ('duration', 'duration'), (None, 'string')],
     'BoostControlledEffect': [('power', 'int'), ('toughness', 'int'), ('duration', 'duration'), ('filter', 'filter'),
                               ('exclude_source', 'bool')],
@@ -281,6 +282,11 @@ CUSTOM = {
                     'effects': [{'class': 'CardEffect', 'handler': 'HoldForRansom.HoldForRansomSacrificeEffect'}],
                     'targets': [],
                     'rule': "{7}: {this}'s controller sacrifices it and draws a card. Activate only as a sorcery."}},
+    # Warmonger's Chariot: "as long as equipped creature has defender, it can attack as though it didn't have
+    # defender" (`AsThoughEffectType.ATTACK` for the equipped creature: the engine's attack check reads it as an
+    # ability, as for `CanAttackAsThoughItDidntHaveDefenderSourceEffect`)
+    'WarmongersChariotEffect': lambda: {'class': 'GainAbilityAttachedEffect',
+                                        'ability': {'class': 'CanAttackAsThoughNoDefenderAbility'}},
     # "untap this land during each other player's untap step": the framework's (Urban Burgeoning's copy of it)
     'UrbanBurgeoningUntapEffect': lambda: {'class': 'UntapSourceDuringEachOtherPlayersUntapStepEffect'},
     # "and loses all abilities": the creature the Aura is attached to (`getPermanentSourceAttachedToIfItStillExists`)
@@ -555,6 +561,16 @@ CUSTOM = {
         'class': 'TriggeredAbility', 'java': 'DrawCardIfCreatureTypeAbility',
         'on': {'e': 'spell_cast', 'filter': [CREATURE, {'p': 'chosen_subtype', 'v': True}], 'who': 'you'},
         'effects': [{'class': 'DrawCardSourceControllerEffect', 'amount': 1}]},
+    # Scholar of the Lost Trove: "you may cast target instant, sorcery, or artifact card from your graveyard without
+    # paying its mana cost. If an instant or sorcery spell cast this way would be put into your graveyard, exile it
+    # instead" (asked "Cast X?"; an artifact spell resolves onto the battlefield)
+    'ScholarOfTheLostTroveEffect': lambda: {'class': 'MayCastTargetCardEffect', 'any_mana': False, 'free': True,
+                                            'then_exile': True},
+    # Curiosity: "whenever enchanted creature deals damage to an opponent, you may draw a card" (each `DAMAGED_PLAYER`)
+    'CuriosityAbility': lambda: {
+        'class': 'TriggeredAbility', 'java': 'CuriosityAbility',
+        'on': {'e': 'attached_deals_damage_to_player', 'only_combat': False, 'who': 'opponent'},
+        'effects': [{'class': 'DrawCardSourceControllerEffect', 'amount': 1}], 'optional': True},
     # "whenever an opponent is dealt damage by a red instant or sorcery spell you control or by a red planeswalker
     # you control, return this from your graveyard to your hand"
     'ChandrasPhoenixTriggeredAbility': lambda: {
@@ -1795,7 +1811,8 @@ class Translator:
             return {'v': sacrificed[arg]}
         if (m := re.fullmatch(r'new PermanentsTargetOpponentControlsCount\((.*)\)', arg)) and balanced(arg[4:]):
             return {'v': 'target_player_permanents', 'filter': self.filter(m.group(1))}
-        if arg == 'TargetManaValue.instance':
+        # (`TargetManaValue.CARD` since the 23 Nov upstream merge: the first target card's own mana value, Reanimate)
+        if arg in ('TargetManaValue.instance', 'TargetManaValue.CARD'):
             return {'v': 'target_mana_value'}
         if arg == 'InstantSorceryExileGraveyardCount.instance':
             return {'v': 'instant_sorcery_exile_graveyard'}
@@ -2310,6 +2327,11 @@ class Translator:
         if (m := re.fullmatch(r'new ExileTargetCost\(new TargetControlledPermanent\((StaticFilters\.\w+)\)\)'
                               r'\.withSourceExileZone\(false\)', canonical(expr))):
             return {'class': 'ExileTargetCost', 'filter': self.filter(m.group(1))}
+        # Ormos, Archive Keeper: "discard three cards with different names" (its `TargetCardInHand(3, …)` leaves out
+        # the names already chosen)
+        if canonical(expr) == 'new DiscardTargetCost(new OrmosArchiveKeeperTarget())' \
+                and 'class OrmosArchiveKeeperTarget extends TargetCardInHand' in (getattr(self, 'source', '') or ''):
+            return {'class': 'DiscardCardCost', 'filter': [], 'amount': 3, 'different_names': True}
         # "discard a card (of the filter)"
         if (m := re.fullmatch(r'new DiscardTargetCost\(new TargetCardInHand\((?!\d)(.*)\)\)', canonical(expr))):
             return {'class': 'DiscardCardCost', 'filter': self.filter(m.group(1)) if m.group(1) else []}
@@ -5411,6 +5433,11 @@ class Translator:
             return {'class': 'AsEntersBattlefieldAbility', 'java': cls, 'effects': [{'class': 'ChooseColorEffect'}]}
         if cls == 'EntersBattlefieldTappedAsItEntersChooseColorAbility' and not args:
             return {'class': 'AsEntersBattlefieldAbility', 'java': cls, 'effects': [{'class': 'EntersTappedChooseColorEffect'}]}
+        # "choose a color other than red" (the Thriving lands)
+        if cls == 'EntersBattlefieldTappedAsItEntersChooseColorAbility' and len(args) == 1 \
+                and (m := re.fullmatch(r'"(White|Blue|Black|Red|Green)"', args[0].strip())):
+            return {'class': 'AsEntersBattlefieldAbility', 'java': cls,
+                    'effects': [{'class': 'EntersTappedChooseColorEffect', 'except': m.group(1)}]}
         if cls == 'SimpleManaAbility' and len(args) == 3 and args[0].strip() == 'Zone.BATTLEFIELD' \
                 and args[2].strip() == 'new TapSourceCost()':
             if args[1].strip() == 'new AddManaChosenColorEffect()':
@@ -7026,6 +7053,10 @@ class Translator:
         # "whenever a player attacks with N or more creatures" (`DECLARED_ATTACKERS`)
         if cls == 'AureliaTheLawAboveTriggeredAbility' and n == 2 and re.fullmatch(r'\d+', args[1]):
             return out({'e': 'attacks_with', 'min': int(args[1]), 'filter': [CREATURE], 'who': 'any'}, args[0])
+        # Duelist's Heritage: "whenever one or more creatures attack, you may …" (`DECLARED_ATTACKERS`, any player's
+        # attack; the Java AI's custom outcome only steers its own choice)
+        if cls == 'DuelistsHeritageTriggeredAbility' and n == 2 and args[0] == 'Zone.BATTLEFIELD':
+            return out({'e': 'attacks_with', 'min': 1, 'filter': [CREATURE], 'who': 'any'}, args[1], True)
         # "whenever an opponent attacks with creatures, if two or more of those creatures are attacking you and/or
         # planeswalkers you control, draw a card" (in a duel, every attacker is)
         if cls == 'MangaraTheDiplomatTriggeredAbility' and n == 0:
@@ -9008,6 +9039,16 @@ def ability_statement(t, st, added):
                 and cm.group(1) in CUSTOM_STATIC_EFFECTS and holder.get('class') == 'SimpleStaticAbility':
             # a card's own continuous effect that is the engine's statics together (Stasis Field)
             holder.setdefault('effects', []).extend(CUSTOM_STATIC_EFFECTS[cm.group(1)]())
+        elif m.group(2) == 'Effect' and holder['class'] == 'CantBlockAbility':
+            # "can't block and can't be blocked" (Tormented Soul): the pseudo-ability reads no effects, so it is a
+            # static with both
+            e = t.effect(m.group(3))
+            if e.get('class') != 'GainAbilitySourceEffect' or e.get('duration') != 'WhileOnBattlefield':
+                raise Unsupported('CantBlockAbility with ' + e.get('class', '?'))
+            effects = holder.get('effects') or [{'class': 'GainAbilitySourceEffect', 'ability': {'class': 'CantBlockAbility'},
+                                                 'duration': 'WhileOnBattlefield'}]
+            holder.clear()
+            holder.update({'class': 'SimpleStaticAbility', 'java': 'CantBlockAbility', 'effects': effects + [e]})
         elif m.group(2) == 'Effect':
             # `doIfCostPaid.addEffect(e)`: e too, if it's paid
             holder.setdefault('also' if holder.get('class') == 'DoIfCostPaid' else 'effects', []).append(t.effect(m.group(3)))
@@ -9646,14 +9687,17 @@ def school_pool():
 
 
 PIONEER_POOL = os.path.join(ROOT, 'rust', 'crates', 'playmat-engine', 'cards', 'pioneer-pool.txt')
+# the Career decks' cards outside the Pioneer pool (wave 18)
+CAREER_POOL = os.path.join(ROOT, 'rust', 'crates', 'playmat-engine', 'cards', 'career-pool.txt')
 
 
 def engine_pool():
-    """The cards the engine takes in: the school and shadow decks' (`school_pool`) and every Pioneer-legal card
-    (`cards/pioneer-pool.txt`). Being in the engine isn't being trusted: `cards/verified.txt` decides which games
-    go to Rust."""
+    """The cards the engine takes in: the school and shadow decks' (`school_pool`), every Pioneer-legal card
+    (`cards/pioneer-pool.txt`) and the Career decks' cards outside it (`cards/career-pool.txt`). Being in the engine
+    isn't being trusted: `cards/verified.txt` decides which games go to Rust."""
     names = set(school_pool())
-    names.update(l.strip() for l in open(PIONEER_POOL) if l.strip() and not l.startswith('#'))
+    for pool in (PIONEER_POOL, CAREER_POOL):
+        names.update(l.strip() for l in open(pool) if l.strip() and not l.startswith('#'))
     return sorted(names)
 
 

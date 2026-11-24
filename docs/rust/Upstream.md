@@ -12,8 +12,8 @@ gate until they are checked again (#191).
   card or engine file the range changed:
   - `kind`: `new card`, `changed card`, `removed card` or `engine`;
   - `names`: the card names the sets print the class under;
-  - `scope`: `verified` (on `cards/verified.txt`), `engine` (in the engine, not verified), `pool` (Pioneer pool,
-    not in the engine) or `outside` (beyond the pool: recorded, not ported);
+  - `scope`: `verified` (on `cards/verified.txt`), `engine` (in the engine, not verified), `pool` (the Pioneer pool
+    and the Career decks' cards, `career-pool.txt`; not in the engine) or `outside` (beyond the pool: recorded, not ported);
   - `status`: `pending`, `ported`, `not-needed` or `blocked`, with `why`, the upstream `commit` and its `subject`,
     and the porting `pr` when there is one.
 - `rust/crates/playmat-engine/cards/upstream-pending.txt`: the verified cards with a `pending` change. The engine's

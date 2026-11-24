@@ -19,7 +19,7 @@ In `RustAiGameTest` a game takes 12 to 14 s of wall time, but little of that is 
 
 | | Today |
 |---|---|
-| Cards verified (a game goes to Rust only with these) | 14,019 of the 14,045 in the engine, less the 71 upstream changed since (13,948 play on Rust): the 881 of the gate run (the Career school decks, the shadow-test decks, the meta and starter decks) and 11,935 more from the verification factory (Engine.md) |
+| Cards verified (a game goes to Rust only with these) | 14,133 of the 14,160 in the engine, less the 71 upstream changed since (14,062 play on Rust): the 881 of the gate run (the Career school decks, the shadow-test decks, the meta and starter decks) and 12,049 more from the verification factory (Engine.md) |
 | Pioneer and Standard meta decks the AI picks from (`public/meta-decks`) | 24 of 24 fully covered (tiers 31 to 33) |
 | Modern meta decks | 12 of 12 fully covered (tiers 34 to 38) |
 | A player's own Modern decks the AI draws from with "every deck" (Domain Zoo, Esper Goryos, Izzet Prowess; main decks) | 3 of 3 fully covered (tier 40) |

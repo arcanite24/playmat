@@ -2143,7 +2143,7 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
             }
             sum >= *value
         }
-        CostDef::DiscardCardCost { filter, amount } => {
+        CostDef::DiscardCardCost { filter, amount, .. } => {
             game.player(seat).hand.iter().filter(|c| game.filter_matches(filter, seat, Some(id), **c)).count()
                 >= *amount
         }
@@ -2173,7 +2173,9 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
         CostDef::DiscardHandCost => true,
         // either one (`OrCost`)
         CostDef::OrCost { costs } => costs.iter().any(|c| or_cost_payable(game, seat, id, c)),
-        CostDef::ForageCost => can_pay_cost(game, seat, id, &forage_cost()),
+        // (its `TargetCardInYourGraveyard(3)` counts the card itself while it's still there: a creature card
+        // Osteomancer Adept lets you cast from your graveyard is playable with two others)
+        CostDef::ForageCost => game.player(seat).graveyard.len() >= 3 || can_pay_cost(game, seat, id, &forage_cost()),
         CostDef::BlightCost { .. } => !controlled_creatures(game, seat).is_empty(),
         // its options are {0} to {N-1} generic (`WaterbendCost`): `canPay` holds with nothing to tap or pay
         CostDef::WaterbendCost { .. } => true,
@@ -7985,7 +7987,7 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
         }
         // announced and paid as a `SacrificeTargetCost` in `cast_with`
         CostDef::SacrificeXTargetCost { .. } => {}
-        CostDef::DiscardCardCost { filter, amount } => {
+        CostDef::DiscardCardCost { filter, amount, different_names } => {
             let hand = game.player(seat).hand.clone();
             let possible: Vec<ObjId> =
                 hand.iter().copied().filter(|c| game.filter_matches(filter, seat, Some(id), *c)).collect();
@@ -7993,9 +7995,17 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             if possible.len() < *amount {
                 return false;
             }
-            let Some(chosen) = choose_cards(game, d, seat, &hand, &possible, *amount, *amount, "discard") else {
+            let chosen = if *different_names {
+                choose_cards_different_names(game, d, seat, &possible, *amount)
+            } else {
+                choose_cards(game, d, seat, &hand, &possible, *amount, *amount, "discard")
+            };
+            let Some(chosen) = chosen else {
                 return false;
             };
+            if chosen.len() < *amount {
+                return false;
+            }
             if let Some(top) = Arc::make_mut(&mut game.stack).last_mut() {
                 top.cost_discarded.extend(chosen.iter().copied());
             }
@@ -12644,6 +12654,15 @@ fn apply_each_effect(
                 let toughness = &v!(toughness);
                 for o in &objs {
                     boost(game, *o, *power, *toughness, *duration);
+                    until_next_turn(game, *duration, controller);
+                }
+            }
+            EffectDef::SwitchPowerToughnessTargetEffect { duration } => {
+                for o in &objs {
+                    boost(game, *o, 0, 0, *duration);
+                    if let Some(b) = Arc::make_mut(&mut game.boosts).last_mut() {
+                        b.switch = true;
+                    }
                     until_next_turn(game, *duration, controller);
                 }
             }
@@ -19393,7 +19412,7 @@ fn apply_each_effect(
             | EffectDef::ValgavothTerrorEaterReplacementEffect
             | EffectDef::ValgavothTerrorEaterPlayEffect
             | EffectDef::CantAttackBlockUnlessConditionSourceEffect { .. }
-            | EffectDef::EntersTappedChooseColorEffect
+            | EffectDef::EntersTappedChooseColorEffect { .. }
             | EffectDef::ChooseColorEffect
             | EffectDef::LeylineOfTheGuildpactEffect
             | EffectDef::BecomesCreatureAttachedEffect { .. }
@@ -19915,6 +19934,41 @@ fn choose_cards_rounds(
         }
         if chosen.len() == before {
             return Some(chosen);
+        }
+    }
+}
+
+/// `choose_cards` for a target that leaves out cards named as one already chosen (Ormos, Archive Keeper's "three
+/// cards with different names": `possibleTargets` without the chosen names), `n` of them; None: the decider stopped
+fn choose_cards_different_names(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    seat: Seat,
+    possible: &[ObjId],
+    n: usize,
+) -> Option<Vec<ObjId>> {
+    let mut chosen: Vec<ObjId> = Vec::new();
+    loop {
+        if chosen.len() >= n {
+            return Some(chosen);
+        }
+        let names: Vec<String> = chosen.iter().map(|c| game.obj(*c).name().to_string()).collect();
+        let left: Vec<ObjId> =
+            possible.iter().copied().filter(|c| !names.iter().any(|x| x == game.obj(*c).name())).collect();
+        if left.is_empty() {
+            return Some(chosen);
+        }
+        if left.len() == n - chosen.len() {
+            chosen.push(left[0]);
+            continue;
+        }
+        match ask(game, d, seat, &Query::Cards { objs: left.clone(), required: true }) {
+            Answer::Obj(o) if left.contains(&o) => chosen.push(o),
+            Answer::Stop => return None,
+            _ => {}
+        }
+        if d.stopped() {
+            return None;
         }
     }
 }
@@ -21682,17 +21736,21 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
                     o.marks.push(format!("mode:{chosen}"));
                     o.add_info("_modeChoice", &format!("Chosen mode: {}", chosen));
                 }
-                if matches!(e, EffectDef::EntersTappedChooseColorEffect | EffectDef::ChooseColorEffect) {
-                    if matches!(e, EffectDef::EntersTappedChooseColorEffect) {
+                if matches!(e, EffectDef::EntersTappedChooseColorEffect { .. } | EffectDef::ChooseColorEffect) {
+                    let mut except = None;
+                    if let EffectDef::EntersTappedChooseColorEffect { except: x } = e {
                         game.obj_mut(id).tapped = true;
+                        except = x.as_deref();
                     }
                     let names = ["White", "Blue", "Black", "Red", "Green"];
-                    let choices: Vec<String> = names.iter().map(|n| n.to_string()).collect();
+                    // (`ChoiceColor.removeColorFromChoices`: the Thriving lands' own color isn't offered)
+                    let choices: Vec<String> =
+                        names.iter().filter(|n| Some(**n) != except).map(|n| n.to_string()).collect();
                     let q = Query::Choice { message: "Choose color".into(), choices };
                     let c = loop {
                         match ask(game, d, controller, &q) {
                             Answer::Text(t) => {
-                                if let Some(k) = names.iter().position(|n| *n == t) {
+                                if let Some(k) = names.iter().position(|n| *n == t && Some(*n) != except) {
                                     break Color::ALL[k];
                                 }
                             }
@@ -21732,6 +21790,7 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
                                     no_tap: false,
                                     creature_spell_haste: false,
                                     net: None,
+                                    simple: true,
                                     rule: rule.clone(),
                                 }
                             };

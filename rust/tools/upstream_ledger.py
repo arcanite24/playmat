@@ -60,6 +60,11 @@ def lines(path):
     return {l.strip() for l in open(path, encoding='utf-8') if l.strip() and not l.startswith('#')}
 
 
+def engine_pool():
+    """the engine's pool: the Pioneer pool and the Career decks' cards outside it (transpile.engine_pool)"""
+    return lines(os.path.join(CARDS, 'pioneer-pool.txt')) | lines(os.path.join(CARDS, 'career-pool.txt'))
+
+
 # --- the ledger file: a small TOML of our own shape, written and read here ---------------------------------------
 
 def quote(s):
@@ -97,7 +102,7 @@ def read_ledger():
 # --- scan ---------------------------------------------------------------------------------------------------------
 
 def scan(base, head):
-    pool = lines(os.path.join(CARDS, 'pioneer-pool.txt'))
+    pool = engine_pool()
     verified = lines(os.path.join(CARDS, 'verified.txt'))
     in_engine = {c['name'] for c in json.load(open(os.path.join(CARDS, 'cards.json')))}
     by_class = names_by_class()
@@ -127,7 +132,7 @@ def scan(base, head):
             # a card outside the engine's pool waits for its format (#191's scope); one in it is judged by `check`
             entry['status'] = 'pending' if entry['scope'] != 'outside' else 'not-needed'
             if entry['scope'] == 'outside':
-                entry['why'] = 'outside the engine pool (Pioneer): recorded, not ported'
+                entry['why'] = 'outside the engine pool (Pioneer and Career): recorded, not ported'
         else:
             cls = path[len(ENGINE_DIR):-len('.java')].replace('/', '.')
             entry.update({'kind': 'engine', 'class': cls, 'scope': 'engine', 'status': 'pending'})
@@ -147,7 +152,7 @@ def scan(base, head):
 
 def changed_engine_cards(entries):
     """the names of changed and new cards in the engine's pool, which `check` judges"""
-    pool = lines(os.path.join(CARDS, 'pioneer-pool.txt'))
+    pool = engine_pool()
     names = set()
     for e in entries:
         if e['kind'] in ('changed card', 'new card') and e['scope'] != 'outside':

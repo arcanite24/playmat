@@ -354,8 +354,9 @@ Being in the engine and being trusted are kept apart.
 
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
-  Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (14,045 on 24 Nov). A card whose JSON the engine can't load yet is left out
+  Ravnica on, minus the bans), plus the Career decks' cards outside it, `cards/career-pool.txt` (121 names, wave 18).
+  `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler can express (14,160 on
+  24 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -1518,6 +1519,42 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
     - Wish: casting from outside the game.
     - Dalkovan Encampment: `WhenYouAttackDelayedTriggeredAbility`.
     - Jack-o'-Lantern: its `AnyColorManaAbility` form.
+
+  Wave 18, Career cards (24 Nov): the 121 cards outside the Pioneer pool that the Career decks use (the 30
+  five-paths decks and the orzhov-oppression, rakdos-aristocrats and boros-battalion roster decks). They are listed
+  in `cards/career-pool.txt`, which `engine_pool()` (and `upstream_ledger.py`) now reads beside the Pioneer pool. 115
+  came in (14,160 in the engine), 22 of them with new handlers. Three factory rounds (253 games, 248 matching, 2
+  differing, 3 Java unfinished) verified 114: 14,133 of 14,160. Rounds 2 and 3 were the Career decks themselves and a candidates round,
+  because round 1 never dealt the cards merged after it. Five-paths decks fully verified went from 0 of 30 to 23, and
+  roster decks from 7 of 12 to 10. The engine pieces each have a game under `shadow/wave18-career/`:
+  - A chosen-color mana ability (`ChosenColorManaAbility` once the color is chosen) is a `SimpleManaAbility` to
+    `ManaUtil.tryToAutoPay` (`ColoredManaAbility::simple`). A Thriving land therefore offers both its abilities when
+    paying, the one that can't pay too, as Java does.
+  - A resolved effect pointed at the entering card isn't that card's own static (`own_entering`). The finality
+    counter of a creature cast from the graveyard through Osteomancer Adept (and Leonardo, Noctis) now applies: the
+    effect's source is the spell, which keeps its id as it enters.
+  - Forage's can-pay counts the card itself while it is still in the graveyard (`TargetCardInYourGraveyard(3)`), so
+    a creature card Osteomancer Adept permits is playable with two other cards there.
+  - "Can't block and can't be blocked" on one `CantBlockAbility` (Tormented Soul) is a static with both.
+  - `EntersTappedChooseColorEffect { except }` (the Thriving lands' "a color other than red"),
+    `SwitchPowerToughnessTargetEffect`, `DiscardCardCost { different_names }` (Ormos), `ChooseOpponentEffect` and
+    the chosen player's hand count (Nyxathid), `CreaturesBecomeOtherTypeEffect`, exalted, undying, and the cards'
+    own handlers (Rhystic Study, Chain Lightning's copy, Lurking Predators, Read the Runes and more).
+
+  Blood Artist is verified on 13 matching games. Its one differing game parts where an overloaded Cyclonic Rift
+  returns three cards in Java's `HashSet` order (above), not on Blood Artist.
+
+  Not verified:
+  - Rhystic Study: one game where two Soulcipher Boards' triggers resolve in the other order. Not investigated.
+
+  Left out:
+  - Angel of the Dire Hour: `CastFromHandSourcePermanentCondition`.
+  - Exhume: `HashSet` order of the cards put onto the battlefield together.
+  - Ghoulraiser: a random card from an unordered set.
+  - Hunter's Insight: a delayed combat-damage trigger that refers to the target.
+  - Neyith of the Dire Hunt: the fights-or-becomes-blocked batch trigger and its must-be-blocked effect.
+  - Selvala, Heart of the Wilds: its trigger, and `AddManaInAnyCombination` with a dynamic amount.
+
   Wave 15, shared forms A (15 Nov): framework forms that block several of the claim's cards, then card classes,
   built in four slices. Ending the turn (`EndTurnEffect`, `Turn.endTurn`: `Game::end_turn`; every spell on the stack
   exiled, the resolving one too, abilities removed, combat left, the waiting triggers dropped; priority stops after
@@ -1623,7 +1660,7 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   Mastery, Territory Forge, Zariel), a stack ability's text once its source lost all abilities (Eaten by Piranhas
   under Isareth the Awakener's trigger), the "when you do" text of a Plan's sacrifice (Claim the Kingdom, Rewrite
   History), the finality counter of a creature cast from the graveyard through Leonardo or Osteomancer Adept in one
-  game each (Dragon Hunter, Anzrag's Rampage), Java's Zhur-Taa Druid not triggering when tapped while paying for a
+  game each (Dragon Hunter, Anzrag's Rampage; fixed in wave 18), Java's Zhur-Taa Druid not triggering when tapped while paying for a
   spell (an object identity check; blamed on Chaotic Transformation), Kappa Tech-Wrecker's counter cost, and one
   game each, not looked into, for Chainflail Centipede, Cloak and Dagger, Dark Intimations, Fblthp, Impossibly Lost,
   Figure of Fable, Relive the Past, Rush of Dread, Smaug, Wicked Worm, Terminal Velocity, U.S.S. Enterprise-D and

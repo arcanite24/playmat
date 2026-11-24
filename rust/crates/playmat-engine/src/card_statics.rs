@@ -1297,9 +1297,13 @@ pub(crate) fn replacements_applying(game: &Game, ev: &Event) -> usize {
     n
 }
 
-/// A permanent's own statics don't see it entering (Java's aren't active until it's on the battlefield)
+/// A permanent's own statics don't see it entering (Java's aren't active until it's on the battlefield). An effect
+/// that resolved pointed at the entering card isn't one of them, even with that card as its source: the watcher's
+/// `AddCounterEnteringCreatureEffect` of a spell Osteomancer Adept let you cast has the spell's ability as its source.
 fn own_entering(ev: &Event, cx: &StaticCx) -> bool {
-    ev.kind == EventType::EntersBattlefield && ev.target == Some(cx.source)
+    ev.kind == EventType::EntersBattlefield
+        && ev.target == Some(cx.source)
+        && !cx.targets.iter().any(|(t, _)| *t == Target::Obj(cx.source))
 }
 
 /// Whether a replacement handler for events of `kind` is in play
