@@ -117,11 +117,15 @@ Chosen 24 Nov 2026: **2, "Java off the game path".**
 1. Record the state: update #182, the tracker (`progress-plan.json`) and this file's numbers.
 2. Decide the rollout default: 217 games without `error` or `panic` meets step E's gate. Deploy the drain fix
    first, then set `XMAGE_RUST_HOST_USERS=*` (owner's OK, production change).
-3. **In review: #493** (Career duel and campaign tables: life, card and permanent edges, the opponent's
-   personality, hints counted on Java; Ranked refuses hints and practice tools in #492). Puzzles, horde, pods,
-   emblems and timed twists still stay on Java. Ranked, League and Ladder tables already qualify. Host Career tables: the Career's tally and assists in the host, and setups (twists, nemesis, puzzles). Check
+3. **In review: #493** (Career duel, campaign, gauntlet and challenge tables: life, card and permanent edges, the
+   opponent's personality, hints counted on Java; Ranked refuses hints and practice tools in #492). A gauntlet
+   run's wounds, relics and levels arrive as the setup; the challenge board reads the host's tally. Puzzles and
+   trials, horde, pods, limited runs, emblems and timed twists still stay on Java. This week's challenge (W48) has
+   19 unverified cards, so it stays on Java until wave 18. Ranked, League and Ladder tables already qualify. Host Career tables: the Career's tally and assists in the host, and setups (twists, nemesis, puzzles). Check
    whether Ranked, League and Ladder tables already qualify, and fix what keeps them on Java.
-4. Host games that start from Java saves and setups, or convert them to lines.
+4. **Decided 24 Nov: no conversion.** "Starts from a setup or a save" is a Java game resumed from a Java save.
+   Hosted games already save as lines (`rust_solo_saves`), so once hosting is the default no new Java saves are
+   made; the old ones resume on Java until they expire, and step 13 drops the path. Career setups are step 3's.
 5. **In review: #497.** `careerGameResult` answers ranked tables' keys (the likely cause of the 106 differences
    since 21 Nov; inferred, as the logs rotated). `deckValidate` answers Freeform, Freeform Unlimited and Limited
    (most of the 4,802 declines). Each shadow difference is now kept in `differences.log`. `careerQuests`' declines
