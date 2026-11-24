@@ -52,11 +52,23 @@ pub struct TableRules {
     /// the AI seat's search settings pinned by label (`entrants::pinned`, a ladder bot's generation, #435): played
     /// instead of what this build makes of `ai_skill`
     pub ai_pin: Option<String>,
+    /// why the table gives no advice, when it doesn't (`noAdvice`: Java's `GameController.advise`, a ranked game)
+    pub no_advice: Option<String>,
+    /// why the table has no practice tools, when it hasn't (`noPractice`: Java's `GameController.practice`)
+    pub no_practice: Option<String>,
 }
 
 impl Default for TableRules {
     fn default() -> Self {
-        TableRules { starting_life: 20, free_mulligans: 0, ai_skill: None, rollback: false, ai_pin: None }
+        TableRules {
+            starting_life: 20,
+            free_mulligans: 0,
+            ai_skill: None,
+            rollback: false,
+            ai_pin: None,
+            no_advice: None,
+            no_practice: None,
+        }
     }
 }
 
@@ -70,6 +82,8 @@ impl TableRules {
             ai_skill: v["aiSkill"].as_u64().map(|n| n as u32),
             rollback: v["rollbackTurns"].as_bool().unwrap_or(d.rollback),
             ai_pin: v["aiPin"].as_str().map(String::from),
+            no_advice: v["noAdvice"].as_str().map(String::from),
+            no_practice: v["noPractice"].as_str().map(String::from),
         }
     }
 
@@ -79,6 +93,12 @@ impl TableRules {
         // only a pinned seat says so: records from before pins read the same
         if let Some(pin) = &self.ai_pin {
             v["aiPin"] = json!(pin);
+        }
+        if let Some(why) = &self.no_advice {
+            v["noAdvice"] = json!(why);
+        }
+        if let Some(why) = &self.no_practice {
+            v["noPractice"] = json!(why);
         }
         v
     }
@@ -404,6 +424,11 @@ struct Host {
     restart: Option<Game>,
     /// practice tools to run at the human's next priority: for whom, the tool, its card and amount
     practice: Vec<(Seat, String, Option<String>, i32)>,
+    /// the table's refusals: advice and practice tools (a ranked game's)
+    no_advice: Option<String>,
+    no_practice: Option<String>,
+    /// a practice tool was used: the game pays no Career progress (`CareerTally.taint`)
+    practiced: bool,
     /// the asked player is being asked at priority
     at_priority: bool,
     free_mulligans: u32,
@@ -550,6 +575,9 @@ impl Host {
             rollback_request: None,
             restart: None,
             practice: Vec::new(),
+            no_advice: start.rules.no_advice.clone(),
+            no_practice: start.rules.no_practice.clone(),
+            practiced: false,
             at_priority: false,
             free_mulligans: first.rules.free_mulligans,
             replaying,
@@ -1365,6 +1393,9 @@ impl Host {
 
     /// A practice tool for the seat's player, queued for their next priority; why not, or empty
     fn queue_practice(&mut self, seat: Seat, tool: String, card: Option<String>, amount: i32) -> String {
+        if let Some(why) = &self.no_practice {
+            return why.clone();
+        }
         if self.ai.is_none() || !self.seats[seat].human {
             return "Practice tools only work in a game against the computer.".into();
         }
@@ -1379,11 +1410,15 @@ impl Host {
             _ => return format!("Unknown practice tool: {tool}"),
         }
         self.practice.push((seat, tool, card, amount));
+        self.practiced = true;
         String::new()
     }
 
     /// `gameAdvise`: what the AI would do in the seat's place at the open question (`AdviceService.advise`)
     fn advise(&mut self, seat: Seat, skill: u32) -> Value {
+        if let Some(why) = &self.no_advice {
+            return advice_none(why);
+        }
         if self.ai.is_none() {
             return advice_none("Advice only works in a game against the computer.");
         }
@@ -1551,7 +1586,11 @@ impl Host {
                 json!({"life": p.life, "poison": poison})
             })
             .collect();
-        json!({"players": players, "tally": first, "tallies": tallies})
+        let mut summary = json!({"players": players, "tally": first, "tallies": tallies});
+        if self.practiced {
+            summary["taint"] = json!("practice tools were used");
+        }
+        summary
     }
 
     fn over(&mut self, _winner: Option<Seat>, message: &str) {
