@@ -186,7 +186,7 @@ always play the same answers the same way twice, so it isn't safe to count on.
 Built in `playmat-host` (the game) and `playmat-gateway` (`host.rs`, `connection.rs`), with `RustHost` on the Java side.
 
 - **Start.** Java keeps the table and the match. At `TableController.startGame`, `RustHost.host` decides whether the
-  game qualifies (one human against one AI, not Career, not a setup or resume, the human connected through a hosting
+  game qualifies (one human against one AI, no setup but a Career one the host plays, not a resume, the human connected through a hosting
   gateway, every card verified, `XMAGE_RUST_HOST_USERS`), and logs why when it doesn't. If it does, Java sends
   the human's connection `HOST_GAME` (the game id, a token, the seed, each seat's player id, name, deck and, for the
   human, preferences, and in a match's later games the `chooser`) instead of making a game session; `START_GAME`
@@ -346,7 +346,7 @@ more cards ported first.
   and `.practice` refuse them. A game where a practice tool was used ends with `taint` in its summary, and Java taints
   its Career tally (`CareerTally.taint`), so it pays no progress, as a Java game doesn't.
 
-Not there: the Career's assists (hints and take-backs; Career tables stay on Java), "Request to see hand cards",
+Not there: "Request to see hand cards",
 and a replay of a carried-on game starts at the turn it carried on from.
 
 Checked by the `games` test (`two_people_play_a_game_to_its_end`, `a_player_not_asked_can_concede`,
@@ -364,3 +364,22 @@ advice and the practice tools.
    back to Java.
 3. **Order.** Fidelity and views (B and C) first, both measured on production games, before any game is played on
    Rust alone.
+
+## Career tables
+
+Built 24 Nov 2026 (docs/rust/Assessment-2026-11-24.md, step 3). A Career table goes to the host when its setup
+(`CareerSetup.hostProblem`) is one the host plays:
+- life set, a life bonus, extra cards and permanents for either side, after the mulligans as `GameImpl.init` runs
+  `CareerSetup.apply`, each with Java's log line;
+- the opponent's personality (`ComputerPlayer6.applyPersonality`): once the AI is done choosing attackers, aggression
+  adds the ones that would only trade, risk the ones that could die for nothing, and patience holds the weakest back
+  while the defender can hit back. Its dice are the game's own (seeded), and the answers go into the AI's line.
+
+`HOST_GAME` carries them as `setup` (`you`, `opponent`, `personality`), with `noPractice` ("Practice tools are off in
+Career games."), and `hintsLeft` (the table's `HINTS_PER_GAME` less what it used) or `noAdvice` for a puzzle or trial.
+The end summary's `hints` counts the hints the host gave, and `RustHost.summarize` marks the game with each one
+(`CareerService.assisted`) before the table pays. Take-backs go through the solo saves as for any hosted game.
+
+Still on Java, each with its reason in the log: puzzles and trials, hordes, pods, and twists with an emblem or timed
+twists.
+

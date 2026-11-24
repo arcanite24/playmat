@@ -182,12 +182,16 @@ public final class RustHost {
             }
             String names = users.stream().map(User::getName).reduce((a, b) -> a + " and " + b).orElse("");
             String why = null;
+            // a Career table plays its setup on the host when the host has every part of it
+            mage.server.career.CareerService.CareerTable career = mage.server.career.CareerService.get().tableInfo(tableId);
+            mage.server.career.CareerSetup careerSetup = career != null && options.setup instanceof mage.server.career.CareerSetup
+                    ? (mage.server.career.CareerSetup) options.setup : null;
             if (match.getPlayers().size() != 2) {
                 why = "not a duel";
-            } else if (options.setup != null || options.resumeFrom != null) {
+            } else if (options.resumeFrom != null || (options.setup != null && careerSetup == null)) {
                 why = "it starts from a setup or a save";
-            } else if (mage.server.career.CareerService.get().isCareerTable(tableId)) {
-                why = "a Career table";
+            } else if (careerSetup != null && careerSetup.hostProblem() != null) {
+                why = careerSetup.hostProblem();
             } else if (isTournamentTable(managers, tableId)) {
                 // tournaments and drafts play limited pools, which need more cards in the engine first
                 why = "a tournament's table";
@@ -258,6 +262,9 @@ public final class RustHost {
             }
             JsonArray seats = new JsonArray();
             seatList.forEach(seats::add);
+            if (careerSetup != null) {
+                cards.addAll(careerSetup.hostCards());
+            }
             Set<String> missing = RustAiBridge.missing(cards);
             if (!missing.isEmpty()) {
                 logger.info("Rust host: " + names + "'s game doesn't qualify, not verified for Rust ("
@@ -290,6 +297,17 @@ public final class RustHost {
             if (mage.server.ladder.RankedService.isRanked(tableId)) {
                 data.addProperty("noAdvice", "Ranked games are played without hints.");
                 data.addProperty("noPractice", "Practice tools are off in ranked games.");
+            } else if (career != null) {
+                data.addProperty("noPractice", "Practice tools are off in Career games.");
+                if (!career.allowsAssists()) {
+                    data.addProperty("noAdvice", "Puzzles and trials are tests of their own: no hints here.");
+                } else {
+                    // a Career game's hints are counted (S010): the host says how many it gave at the end
+                    data.addProperty("hintsLeft", Math.max(0, mage.server.career.CareerService.HINTS_PER_GAME - career.hintsUsed));
+                }
+            }
+            if (careerSetup != null) {
+                data.add("setup", careerSetup.hostSetup());
             }
             // the match's priority timer, which the host runs as GameController does (0: none)
             data.addProperty("priorityTime", match.getOptions().getMatchTimeLimit().getPrioritySecs());
@@ -478,6 +496,11 @@ public final class RustHost {
             // practice tools were used: the game pays no progress, as GameController.practice has it
             if (summary.has("taint") && summary.get("taint").isJsonPrimitive()) {
                 mage.server.career.CareerTally.taint(hosted.game.getId(), summary.get("taint").getAsString());
+            }
+            // a Career game's hints, as AdviceService counts them: each marks the game (S010)
+            int hints = summary.has("hints") && summary.get("hints").isJsonPrimitive() ? summary.get("hints").getAsInt() : 0;
+            for (int i = 0; i < hints; i++) {
+                mage.server.career.CareerService.get().assisted(hosted.tableId, hosted.game.getId(), "hint");
             }
         } catch (RuntimeException e) {
             logger.warn("Rust host: game " + hosted.game.getId() + "'s end summary: " + e, e);

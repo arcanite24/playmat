@@ -184,6 +184,12 @@ impl Table {
         self.since.push(a.clone());
     }
 
+    /// Takes back the last answer this table gave: the host gives others in its place first (a Career opponent's
+    /// personality adds attackers), then this one, each noted with `record`, so the table's line stays the game's
+    pub fn take_back(&mut self) -> Option<Answer> {
+        self.since.pop()
+    }
+
     /// Notes what the seats that search on samples see now
     fn observe(&mut self, game: &Game) {
         for (seat, cfg) in self.ai.iter().enumerate() {
