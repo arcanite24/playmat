@@ -1,0 +1,39 @@
+name: Upstream ledger
+
+# What upstream XMage (magefree/mage) changed in cards and the engine since the ledger's last sync
+# (rust/upstream/ledger.toml, docs/rust/Upstream.md): a weekly report in the run's summary. It changes nothing in the
+# repository; after an upstream merge, run `rust/tools/upstream_ledger.py scan` and `check` locally and commit them.
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Fetch upstream
+        run: git fetch --no-tags https://github.com/magefree/mage.git master:refs/remotes/upstream/master
+      - name: Report
+        run: |
+          synced=$(sed -n 's/^synced = "\(.*\)"/\1/p' rust/upstream/ledger.toml)
+          {
+            echo "## Upstream since the ledger's sync"
+            echo
+            echo "Synced at \`${synced:0:11}\`; upstream master is \`$(git rev-parse --short=11 upstream/master)\`, $(git rev-list --count "$synced"..upstream/master) commits on."
+            echo
+            echo '```'
+            python3 rust/tools/upstream_ledger.py scan --from "$synced" --to upstream/master
+            echo '```'
+            echo
+            echo "Verified cards among them (a merge of these puts them in \`upstream-pending.txt\` after \`check\`):"
+            echo
+            python3 -c "import tomllib; [print('- ' + ', '.join(c.get('names', [])) + ' (' + c['subject'] + ')') for c in tomllib.load(open('rust/upstream/ledger.toml','rb'))['change'] if c.get('scope') == 'verified']" | head -200
+          } >> "$GITHUB_STEP_SUMMARY"
