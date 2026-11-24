@@ -290,6 +290,9 @@ public class RankedServiceTest {
         RankedService.gameEnded(other, UUID.randomUUID());
         assertNull(RankedService.lastGame(other.toString()), "only ranked tables");
         assertNull(RankedService.lastGame("not-a-table"));
+        // kept in the Career store too: after a restart, and for the Rust platform's careerGameResult
+        assertEquals(second.toString(), career.rankedGame(table.toString()));
+        assertNull(career.rankedGame(other.toString()));
     }
 
     static BotRoster roster() {

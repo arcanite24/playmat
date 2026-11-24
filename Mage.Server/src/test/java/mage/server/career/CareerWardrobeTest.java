@@ -253,13 +253,13 @@ public class CareerWardrobeTest {
             sql.execute("UPDATE schema_version SET version = 4");
             // back to before M29 and the payout events and the League too, which come after it
             sql.execute("ALTER TABLE profile DROP COLUMN capsule_tokens");
-            for (String table : new String[]{"token_log", "pulls", "card_styles", "payout_events", "league", "league_tokens", "league_decks", "career_decks"}) {
+            for (String table : new String[]{"token_log", "pulls", "card_styles", "payout_events", "league", "league_tokens", "league_decks", "career_decks", "ranked_games"}) {
                 sql.execute("DROP TABLE " + table);
             }
         }
         store = new CareerStore("jdbc:sqlite:" + file);
         CareerStore.use(store);
-        assertEquals(9, store.schemaVersion());
+        assertEquals(10, store.schemaVersion());
         assertTrue(store.unlocksOf("Ana").stream().anyMatch(unlock -> unlock[1].equals("questing-knight")));
         assertTrue(store.unlocksOf("Ana").stream().noneMatch(unlock -> unlock[1].contains(" ")));
     }
