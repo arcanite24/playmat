@@ -51,7 +51,6 @@ public abstract class CardImpl extends MageObjectImpl implements Card {
     protected boolean flipCard;
     protected String flipCardName;
     protected boolean morphCard;
-    protected boolean entersAttacking;
     protected List<UUID> attachments = new ArrayList<>();
     protected boolean extraDeckCard = false;
 
@@ -373,7 +372,7 @@ public abstract class CardImpl extends MageObjectImpl implements Card {
     @Override
     public SpellAbility getSpellAbility() {
         if (spellAbility == null) {
-            for (Ability ability : abilities.getActivatedAbilities(Zone.HAND)) {
+            for (Ability ability : abilities) {
                 if (ability instanceof SpellAbility
                         && ((SpellAbility) ability).getSpellAbilityType() != SpellAbilityType.BASE_ALTERNATE) {
                     return spellAbility = (SpellAbility) ability;
@@ -598,12 +597,19 @@ public abstract class CardImpl extends MageObjectImpl implements Card {
 
     @Override
     public void applyEnterWithCounters(Permanent permanent, Ability source, Game game) {
-        Counters countersToAdd = game.getEnterWithCounters(permanent.getId());
+        // counters can be set by the permanent's id or by the main card's id,
+        // e.g. a double faced card enters as a side object with another id
+        UUID countersId = permanent.getId();
+        Counters countersToAdd = game.getEnterWithCounters(countersId);
+        if (countersToAdd == null && !this.getMainCard().getId().equals(countersId)) {
+            countersId = this.getMainCard().getId();
+            countersToAdd = game.getEnterWithCounters(countersId);
+        }
         if (countersToAdd != null) {
             for (Counter counter : countersToAdd.values()) {
                 permanent.addCounters(counter, source.getControllerId(), source, game);
             }
-            game.setEnterWithCounters(permanent.getId(), null);
+            game.setEnterWithCounters(countersId, null);
         }
     }
 
@@ -728,16 +734,6 @@ public abstract class CardImpl extends MageObjectImpl implements Card {
     @Override
     public String getFlipCardName() {
         return flipCardName;
-    }
-
-    @Override
-    public void setEntersAttacking(boolean entersAttacking) {
-        this.entersAttacking = entersAttacking;
-    }
-
-    @Override
-    public boolean getEntersAttacking() {
-        return entersAttacking;
     }
 
     @Override
