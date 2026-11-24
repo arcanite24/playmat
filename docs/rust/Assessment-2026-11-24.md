@@ -124,8 +124,9 @@ Chosen 24 Nov 2026: **2, "Java off the game path".**
    19 unverified cards, so it stays on Java until wave 18. Ranked, League and Ladder tables already qualify. Host Career tables: the Career's tally and assists in the host, and setups (twists, nemesis, puzzles). Check
    whether Ranked, League and Ladder tables already qualify, and fix what keeps them on Java.
 4. **Decided 24 Nov: no conversion.** "Starts from a setup or a save" is a Java game resumed from a Java save.
-   Hosted games already save as lines (`rust_solo_saves`), so once hosting is the default no new Java saves are
-   made; the old ones resume on Java until they expire, and step 13 drops the path. Career setups are step 3's.
+   Hosted games already save each turn as a line (`PLAYMAT-HOSTED-LINE`), which resumes on the host
+   (`GameOptions.hostedLine`), so once hosting is the default no new Java saves are made. Old ones resume on Java
+   until `SoloGames.RETENTION_MS` (30 days) prunes them; step 13 then drops the path. Career setups are step 3's.
 5. **In review: #497.** `careerGameResult` answers ranked tables' keys (the likely cause of the 106 differences
    since 21 Nov; inferred, as the logs rotated). `deckValidate` answers Freeform, Freeform Unlimited and Limited
    (most of the 4,802 declines). Each shadow difference is now kept in `differences.log`. `careerQuests`' declines
