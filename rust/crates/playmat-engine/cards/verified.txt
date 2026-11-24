@@ -546,6 +546,7 @@ Archetype of Imagination
 Archfiend of Depravity
 Archfiend of Ifnir
 Archfiend of the Dross
+Archfiend's Vessel
 Archghoul of Thraben
 Archipelagore
 Architect of the Untamed
@@ -604,6 +605,7 @@ Armored Armadillo
 Armored Cancrix
 Armored Kincaller
 Armored Scrapgorger
+Armored Transport
 Armored Wolf-Rider
 Armory Guard
 Armory Mice
@@ -891,6 +893,7 @@ Baral's Expertise
 Barbed Batterfist
 Barbed Bloodletter
 Barbed Servitor
+Bard Class
 Bard the Bowman
 Bard's Bow
 Bard's Company
@@ -937,6 +940,7 @@ Basilica Stalker
 Basilisk Collar
 Basking Broodscale
 Basking Capybara
+Basri Ket
 Basri's Acolyte
 Basri's Aegis
 Basri's Lieutenant
@@ -1122,6 +1126,7 @@ Bitter Triumph
 Bitterblade Warrior
 Bitterbloom Bearer
 Bitterbow Sharpshooters
+Black Cat
 Black Cat, Cunning Thief
 Black Dragon
 Black Mage's Rod
@@ -1556,6 +1561,7 @@ Broodspinner
 Brotherhood's End
 Brought Back
 Bruce Banner
+Bruenor Battlehammer
 Bruna, the Fading Light
 Bruse Tarl, Roving Rancher
 Brush Off
@@ -1905,6 +1911,7 @@ Chandra's Incinerator
 Chandra's Magmutt
 Chandra's Outburst
 Chandra's Outrage
+Chandra's Phoenix
 Chandra's Pyreling
 Chandra's Pyrohelix
 Chandra's Regulator
@@ -6934,6 +6941,7 @@ Liliana, Death Wielder
 Liliana, Death's Majesty
 Liliana, Dreadhorde General
 Liliana, Untouched by Death
+Liliana, Waker of the Dead
 Liliana, the Last Hope
 Liliana, the Necromancer
 Lilypad Village
@@ -7997,6 +8005,7 @@ Nessian Asp
 Nessian Boar
 Nessian Courser
 Nessian Demolok
+Nessian Game Warden
 Nessian Hornbeetle
 Nessian Wanderer
 Nessian Wilds Ravager
@@ -8716,6 +8725,7 @@ Pilfering Imp
 Pilgrim of the Ages
 Pilgrim of the Fires
 Pilgrim's Eye
+Pillage the Bog
 Pillar Launch
 Pillar of Light
 Pillar of Origins
@@ -9174,6 +9184,7 @@ Rage-Scarred Berserker
 Rageblood Shaman
 Ragefire
 Ragefire Hellkite
+Ragemonger
 Ragged Playmate
 Ragged Recluse
 Ragged Short Spear
@@ -9207,12 +9218,14 @@ Rakdos Joins Up
 Rakdos Keyrune
 Rakdos Locket
 Rakdos Ragemutt
+Rakdos Ringleader
 Rakdos Roustabout
 Rakdos Shred-Freak
 Rakdos Trumpeter
 Rakdos's Return
 Rakdos, Lord of Riots
 Rakdos, Patron of Chaos
+Rakdos, the Muscle
 Rakdos, the Showstopper
 Raking Claws
 Rakish Crew
@@ -10749,6 +10762,7 @@ Silverquill Charm
 Silverquill Command
 Silverquill Pledgemage
 Silverquill Silencer
+Silversmote Ghoul
 Silverstrike
 Silverwing Squadron
 Simian Simulacrum
@@ -10775,6 +10789,7 @@ Sinister Hideout
 Sinister Monolith
 Sinister Sabotage
 Sinkhole Surveyor
+Sinuous Benthisaur
 Sinuous Striker
 Sip of Hemlock
 Siphon Insight
@@ -11655,6 +11670,7 @@ Summit Sentinel
 Summon: Anima
 Summon: Esper Ramuh
 Summon: Fat Chocobo
+Summon: Fenrir
 Summon: G.F. Ifrit
 Summon: Knights of Round
 Summon: Primal Garuda
@@ -12698,6 +12714,7 @@ Triton Cavalry
 Triton Fortune Hunter
 Triton Shorestalker
 Triton Shorethief
+Triton Tactics
 Triton Waverider
 Triumph of Gerrard
 Triumphant Adventurer
@@ -13642,6 +13659,7 @@ Whisperer of the Wilds
 Whispering Madness
 Whispering Snitch
 Whispering Wizard
+Whispers of Emrakul
 Whisperwood Elemental
 White Auracite
 White Dragon
@@ -13759,6 +13777,7 @@ Wisdom of Ages
 Wisecrack
 Wishclaw Talisman
 Wishcoin Crab
+Wishful Merfolk
 Wispdrinker Vampire
 Wispweaver Angel
 Wistfulness

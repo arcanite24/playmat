@@ -14,6 +14,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     let e = EffectDef::LookLibraryAndPickControllerEffect {
         look: 5,
         look_count: None,
+        look_amount: None,
         pick: i32::MAX,
         filter: Filter::default(),
         picked: PutCards::Hand,

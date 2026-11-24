@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (14,024 on 15 Nov). A card whose JSON the engine can't load yet is left out
+  can express (14,045 on 24 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -1458,6 +1458,66 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   unordered ones (Reckoner Bankbuster, Moment of Truth, Emergent Sequence, The Three Seasons, Smuggler's Surprise,
   Turn the Earth, Festival of Embers, Hedge Whisperer, Eternal of Harsh Truths, Wildfire Eternal, Elemental
   Expressionist).
+  Wave 17, used Pioneer cards (24 Nov): unverified or missing cards that Pioneer decks use. 21 cards came in
+  (14,045 in the engine). Three factory rounds (58 games, 55 matching) verified 19 of them: 14,019 of 14,045. Round 3
+  was hand-made: Bruenor decks with expensive Equipment and red burn decks with Chandra's Phoenix, because rounds 1
+  and 2 never asked for Bruenor's free equip or returned the Phoenix. The engine and transpiler pieces each have a
+  game under `shadow/wave17-used/` (Triton Tactics and Basri Ket each have one too):
+  - `DiscardTargetEffect(n, true)` discards at random, with no RNG draw for fewer than two cards (upstream's
+    `CardsImpl.getRandom`).
+  - `LookLibraryAndPickControllerEffect` takes any `DynamicValue` as its count.
+  - `SpellsCostReductionControllerEffect` takes a colored reduction: Ragemonger's `{B}{R}`, with a Minotaur cast
+    while it's out. Bard Class uses it too, but no game cast a legendary creature with Bard Class at level 2.
+  - A 5-argument `BeginningOfEndStepTriggeredAbility` works from the graveyard (Silversmote Ghoul).
+  - Chandra's Phoenix returns when an opponent is dealt damage by a red instant, sorcery or planeswalker. That also
+    counts the spell that is resolving, which Rust keeps off the stack.
+  - `CostKind::MayFree` adds a "set cost" that asks first: Bruenor's "Pay {0} to equip instead?". It applies during
+    the playable check and is asked as the ability is activated. The turn watch records equip activations.
+  - Triton Tactics keeps its creatures and each turn's declared blocks (`TurnWatch::blocks`), so a blocker that died
+    in combat still taps the creature it blocked.
+  - A granted `DiesCreatureTriggeredAbility` built without `another` reads "Whenever a creature dies" (Necrosynthesis, not verified, so this one has no game).
+
+  Verified: Wishful Merfolk, Silversmote Ghoul, Bruenor Battlehammer, Nessian Game Warden, Chandra's Phoenix, Triton
+  Tactics, Ragemonger, Armored Transport, Black Cat, Liliana, Waker of the Dead, Basri Ket, Archfiend's Vessel,
+  Rakdos, the Muscle, Summon: Fenrir, Bard Class, Pillage the Bog, Rakdos Ringleader, Sinuous Benthisaur and
+  Whispers of Emrakul. No verified card changes.
+
+  Not verified:
+  - Nyxbloom Ancient: the playable check doesn't count `TAPPED_FOR_MANA` replacements, while Java's `ManaOptions`
+    does.
+  - Necrosynthesis: one game puts a counter differently; not investigated.
+  - Summon: Bahamut: the AI never cast it in 22 games.
+
+  Left out:
+  - Random or unordered: Polukranos, Deadbridge Chant, Tersa, Raph & Mikey.
+  - Forms the engine doesn't have:
+    - Brutal Hordechief: `ChooseBlockersEffect`.
+    - Kytheon: Gideon's attack requirement.
+    - Wakening Sun's Avatar: `CastFromHandSourcePermanentCondition`.
+    - Market Festival: `EnchantedTappedTriggeredManaAbility`.
+    - Sealock Monster: layer 4 land types.
+    - Master of Cruelties: attacks alone.
+    - The Masamune: extra triggers.
+    - Tyvar Kell and Rivaz: abilities granted to spells.
+    - Pyromancer's Goggles: `MANA_PAID`.
+    - Firebender Ascension: `TRIGGERED_ABILITY`.
+    - Moraug: tagged extra combats.
+    - Thieving Skydiver: kicker X.
+    - Xorn: Treasure replacement.
+  - Not attempted this wave, with the piece each one needs:
+    - Baral: `SpellCounteredControllerTriggeredAbility`.
+    - Nashi: its exile-and-cast effect.
+    - Ashiok, Wicked Manipulator: its life-payment replacement.
+    - The Irencrag: its becomes-a-legendary-Equipment effect.
+    - Drana and Linvala: its can't-activate effect plus gained abilities.
+    - Dragon's Fire: `DragonsFireCost`.
+    - Quilled Greatwurm: its counters-from-the-graveyard cast effect.
+    - Kinnan: `AddManaOfAnyTypeProducedEffect`.
+    - Roxanne: a `TapForManaAllTriggeredManaAbility` form.
+    - Mosswood Dreadknight: casting an adventure from the graveyard.
+    - Wish: casting from outside the game.
+    - Dalkovan Encampment: `WhenYouAttackDelayedTriggeredAbility`.
+    - Jack-o'-Lantern: its `AnyColorManaAbility` form.
   Wave 15, shared forms A (15 Nov): framework forms that block several of the claim's cards, then card classes,
   built in four slices. Ending the turn (`EndTurnEffect`, `Turn.endTurn`: `Game::end_turn`; every spell on the stack
   exiled, the resolving one too, abilities removed, combat left, the waiting triggers dropped; priority stops after

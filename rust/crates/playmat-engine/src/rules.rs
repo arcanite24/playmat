@@ -1328,6 +1328,7 @@ pub fn devourer_first_upkeep(game: &mut Game, card: ObjId, seat: Seat) {
         effects: vec![EffectDef::LookLibraryAndPickControllerEffect {
             look: 4,
             look_count: None,
+            look_amount: None,
             pick: 1,
             filter: Default::default(),
             picked: crate::card::PutCards::TopAny,
@@ -6276,7 +6277,9 @@ fn modified_cost_of(game: &Game, seat: Seat, id: ObjId, face: &CardDef, mut cost
                             cost.generic += *amount as u32;
                         }
                     }
-                    if let EffectDef::SpellsCostReductionControllerEffect { amount, filter, condition, dynamic } = e {
+                    if let EffectDef::SpellsCostReductionControllerEffect { amount, filter, condition, dynamic, mana } =
+                        e
+                    {
                         if s.controller == seat
                             && face_matches(game, filter, seat, *src, id, face)
                             && game.condition_holds(condition.as_ref(), seat, *src)
@@ -6286,6 +6289,9 @@ fn modified_cost_of(game: &Game, seat: Seat, id: ObjId, face: &CardDef, mut cost
                                 None => *amount,
                             };
                             reduce += n as u32;
+                            if let Some(less) = mana.as_deref().and_then(|m| ManaCost::parse(m).ok()) {
+                                reduce_by_mana(&mut cost, &less);
+                            }
                         }
                     }
                 }
@@ -6335,13 +6341,7 @@ fn modified_cost_of(game: &Game, seat: Seat, id: ObjId, face: &CardDef, mut cost
                     if (*stack_only && o.zone != Zone::Stack) || game.condition_holds(condition.as_ref(), seat, id) {
                         cost.generic = cost.generic.saturating_sub(*amount as u32);
                         if let Some(less) = mana.as_deref().and_then(|m| ManaCost::parse(m).ok()) {
-                            for k in 0..5 {
-                                let n = less.colored[k].min(cost.colored[k]);
-                                cost.colored[k] -= n;
-                                cost.phyrexian[k] = cost.phyrexian[k].min(cost.colored[k]);
-                            }
-                            cost.colorless = cost.colorless.saturating_sub(less.colorless);
-                            cost.generic = cost.generic.saturating_sub(less.generic);
+                            reduce_by_mana(&mut cost, &less);
                         }
                     }
                 }
@@ -6366,6 +6366,18 @@ fn modified_cost_of(game: &Game, seat: Seat, id: ObjId, face: &CardDef, mut cost
         cost.hybrid.clear();
     }
     cost
+}
+
+/// `CardUtil.adjustCost(ability, manaCosts, false)`: each colored symbol of `less` takes one of that color off the
+/// cost, a reduction left over is lost, and its generic part takes generic off
+fn reduce_by_mana(cost: &mut ManaCost, less: &ManaCost) {
+    for k in 0..5 {
+        let n = less.colored[k].min(cost.colored[k]);
+        cost.colored[k] -= n;
+        cost.phyrexian[k] = cost.phyrexian[k].min(cost.colored[k]);
+    }
+    cost.colorless = cost.colorless.saturating_sub(less.colorless);
+    cost.generic = cost.generic.saturating_sub(less.generic);
 }
 
 /// A `SpendManaAsAnyColorEffect` of `seat`'s applies to what they pay for: spell `spell`, or an ability (None) of
@@ -7055,6 +7067,14 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
             }
         }
     }
+    // a `SET_COST` that asks, after the other cost changes (Bruenor's "you may pay {0} rather than pay the equip
+    // cost")
+    {
+        let of = cards::CostCx { seat, card: id, face: &def, ability: Some(&def.abilities[index]) };
+        if !cards::may_free(game, d, &of, &mut mana) {
+            return false;
+        }
+    }
     for s in 0..game.seats() {
         game.player_mut(s).passed = false;
     }
@@ -7082,6 +7102,9 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
     // a discard cost's `DISCARDED_CARDS` came as it was paid
     if !game.discarded.is_empty() {
         game.discarded_cards();
+    }
+    if matches!(def.abilities[index], AbilityDef::EquipAbility { .. }) && !game.watch.equip_activated.contains(&seat) {
+        game.watch.equip_activated.push(seat);
     }
     // `ACTIVATED_ABILITY`: "when you cycle this card" (`CycleTriggeredAbility`), with the cycling's X
     if matches!(def.abilities[index], AbilityDef::CyclingAbility { .. }) {
@@ -7487,6 +7510,15 @@ fn adjusted_mana_cost_own(game: &Game, seat: Seat, id: ObjId, a: &AbilityDef, co
             }
         }
         cards::change_cost(game, kind, &of, &mut cost);
+    }
+    // a free-equip `SET_COST` that asks (Bruenor Battlehammer): while checking what's playable it applies; as this
+    // ability is activated (its item on top of the stack) it's asked in `activate_paying` instead
+    let activating = game.stack.last().is_some_and(|t| {
+        t.card == id
+            && t.ability.is_some_and(|(k, _)| game.obj(id).def.abilities.get(k).is_some_and(|b| std::ptr::eq(a, b)))
+    });
+    if !activating {
+        cards::change_cost(game, cards::CostKind::MayFree, &of, &mut cost);
     }
     cost
 }
@@ -8211,6 +8243,28 @@ fn discard(game: &mut Game, d: &mut dyn Decider, seat: Seat, amount: i32) -> Vec
         discard_card(game, seat, *c);
     }
     game.discarded_cards();
+    chosen
+}
+
+/// `PlayerImpl.discard(amount, true, …)`: `getRandomToDiscard` takes `amount` cards one at a time with
+/// `Cards.getRandom` (the hand in order, `RandomUtil.randomFromCollection`: no random number for a single card), and
+/// they're discarded in the order taken
+fn discard_at_random(game: &mut Game, seat: Seat, amount: i32) -> Vec<ObjId> {
+    let mut hand = game.player(seat).hand.clone();
+    let mut chosen = Vec::new();
+    for _ in 0..amount.max(0) {
+        if hand.is_empty() {
+            break;
+        }
+        let i = if hand.len() < 2 { 0 } else { game.rng.next_int_bound(hand.len() as i32) as usize };
+        chosen.push(hand.remove(i));
+    }
+    for c in &chosen {
+        discard_card(game, seat, *c);
+    }
+    if !chosen.is_empty() {
+        game.discarded_cards();
+    }
     chosen
 }
 
@@ -16781,6 +16835,7 @@ fn apply_each_effect(
             EffectDef::LookLibraryAndPickControllerEffect {
                 look,
                 look_count,
+                look_amount,
                 pick,
                 filter,
                 picked,
@@ -16795,7 +16850,10 @@ fn apply_each_effect(
                     // the damage a trigger saw (`SavedDamageValue`)
                     Some(c) if c == "x" => item.x,
                     Some(c) => count(game, c, controller),
-                    None => *look,
+                    None => match look_amount {
+                        Some(a) => v!(a),
+                        None => *look,
+                    },
                 };
                 let cards: Vec<ObjId> =
                     game.player(controller).library.iter().take(n.max(0) as usize).copied().collect();
@@ -16963,11 +17021,15 @@ fn apply_each_effect(
                     join_combat(game, o);
                 }
             }
-            EffectDef::DiscardTargetEffect { amount } => {
+            EffectDef::DiscardTargetEffect { amount, random } => {
                 // each target player, in the order chosen ("any number of target players")
                 let amount = v!(amount);
                 for p in &players {
-                    discard(game, d, *p, amount);
+                    if *random {
+                        discard_at_random(game, *p, amount);
+                    } else {
+                        discard(game, d, *p, amount);
+                    }
                 }
             }
             EffectDef::BecomesCreatureTargetEffect { token, duration, lose_abilities, still_land, named }
@@ -23455,6 +23517,22 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
         if amount > 0 {
             game.player_damage_batch.push((source, p, amount, combat));
         }
+        // Chandra's Phoenix: `getStackObject(event.getSourceId())`, the topmost spell or ability whose object or
+        // source is the damage's source, and that object (the spell, or the ability's source) red and an instant,
+        // a sorcery or a planeswalker
+        // (the resolving one is off the stack while it resolves)
+        if amount > 0 && game.stack.iter().chain(game.resolving_item.iter()).any(|t| t.card == source) {
+            let red_spell = game.colors(source).contains(&crate::card::Color::R)
+                && [CardType::Instant, CardType::Sorcery, CardType::Planeswalker]
+                    .iter()
+                    .any(|k| game.has_type(source, *k));
+            if red_spell {
+                let sources: Vec<ObjId> = game.players.iter().flat_map(|pl| pl.graveyard.iter().copied()).collect();
+                // (an opponent of the Phoenix's owner, whoever controls the spell)
+                let fired = game.triggers(sources, |_, _, you, t| matches!(t, Trigger::ChandrasPhoenix) && you != p);
+                game.pending.extend(fired);
+            }
+        }
         // noncombat damage by the creature an Equipment or Aura is attached to; by a source you control to an
         // opponent (`SourceDealsNoncombatDamageToOpponentTriggeredAbility`: a spell's controller, a permanent's)
         if !combat {
@@ -24404,6 +24482,10 @@ fn block_triggers(game: &mut Game) {
             let seen = (b, game.obj(b).zcc);
             if !game.watch.blocked.contains(&seen) {
                 game.watch.blocked.push(seen);
+            }
+            let block = (seen, (a, game.obj(a).zcc));
+            if !game.watch.blocks.contains(&block) {
+                game.watch.blocks.push(block);
             }
             let sources = game.trigger_sources();
             let fired = game.triggers(sources, |g, src, you, t| match t {

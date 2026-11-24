@@ -348,6 +348,10 @@ pub(crate) enum CostKind {
     /// is made only if they did; while checking what's playable it applies whenever the life could be paid
     /// (`inCheckPlayableState`)
     MayPayLife(i32),
+    /// `SET_COST` that asks first (Bruenor Battlehammer's free equip): as an ability is activated, once its targets
+    /// are chosen and its other cost changes made, its controller is asked "Pay {0} to equip instead {cost}?"
+    /// (`may_free`), and a yes clears its mana cost; while checking what's playable it applies (`apply` there)
+    MayFree,
 }
 
 /// The spell or ability whose cost a cost handler changes (Java's `abilityToModify`)
@@ -1106,6 +1110,53 @@ pub(crate) fn change_cost(game: &Game, kind: CostKind, of: &CostCx, cost: &mut M
     if of.ability.is_none() {
         each_own_static(game, of.card, &mut change);
     }
+}
+
+/// `CostKind::MayFree` as an ability is activated: for each handler that applies, in order, "Pay {0} to equip
+/// instead {cost}?"; a yes clears the mana cost. False when the decider stopped.
+pub(crate) fn may_free(game: &mut Game, d: &mut dyn Decider, of: &CostCx, mana: &mut ManaCost) -> bool {
+    let mut asks = 0;
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::Cost(CostMod { kind: CostKind::MayFree, applies, .. }) = h {
+            if applies(game, cx, of) {
+                asks += 1;
+            }
+        }
+    });
+    for _ in 0..asks {
+        let q = Query::YesNo { message: format!("Pay {{0}} to equip instead {}?", mana_text(mana)) };
+        let yes = loop {
+            match ask(game, d, of.seat, &q) {
+                Answer::Bool(b) => break b,
+                Answer::Stop => return false,
+                _ => {}
+            }
+        };
+        if yes {
+            *mana = ManaCost::default();
+        }
+    }
+    true
+}
+
+/// `ManaCosts.getText` of what's left to pay: generic, then the colored symbols in WUBRG order, then colorless
+fn mana_text(m: &ManaCost) -> String {
+    let mut out = String::new();
+    if m.generic > 0 {
+        out += &format!("{{{}}}", m.generic);
+    }
+    for (k, c) in ["W", "U", "B", "R", "G"].iter().enumerate() {
+        for _ in 0..m.colored[k] {
+            out += &format!("{{{c}}}");
+        }
+    }
+    for _ in 0..m.colorless {
+        out += "{C}";
+    }
+    if out.is_empty() {
+        out = "{0}".into();
+    }
+    out
 }
 
 /// What a spell being cast carries once its caster paid the life of a `CostKind::MayPayLife` handler

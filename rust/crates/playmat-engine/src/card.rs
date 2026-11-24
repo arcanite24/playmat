@@ -1179,6 +1179,9 @@ pub enum Trigger {
     OpponentsDealtNoncombatDamage,
     /// another permanent you control enters or dies, if its power is greater than this one's (Pelt Collector)
     PeltCollector,
+    /// from its owner's graveyard: an opponent is dealt damage by a red instant or sorcery spell or a red
+    /// planeswalker's ability (Chandra's Phoenix: `DAMAGED_PLAYER` whose source is on the stack)
+    ChandrasPhoenix,
     /// another creature dies, a creature card is put into a graveyard from anywhere other than the battlefield, or a
     /// creature card leaves your graveyard (Syr Konrad, the Grim: one `ZONE_CHANGE` each)
     SyrKonrad,
@@ -2567,6 +2570,9 @@ pub enum EffectDef {
         /// a `DynamicValue` amount instead (Samut's "{X} less, where X is your speed")
         #[serde(default)]
         dynamic: Option<Value>,
+        /// "cost {B}{R} less" (`ManaCosts`: Ragemonger), taken off as `SpellCostReductionSourceEffect`'s `mana` is
+        #[serde(default)]
+        mana: Option<String>,
     },
     /// a static ability's effect: this spell costs {amount} less (if the condition holds; `stack_only`: only while
     /// it's being cast, not for the playable check)
@@ -4326,9 +4332,11 @@ pub enum EffectDef {
         #[serde(default)]
         attacking: bool,
     },
-    /// the target player discards `amount` cards of their choice
+    /// the target player discards `amount` cards of their choice (`random`: at random)
     DiscardTargetEffect {
         amount: Amount,
+        #[serde(default)]
+        random: bool,
     },
     /// the speed designation's trigger: increase your speed by 1, up to 4 (`SpeedEffect`)
     IncreaseSpeedEffect,
@@ -4528,6 +4536,9 @@ pub enum EffectDef {
         look: i32,
         #[serde(default)]
         look_count: Option<String>,
+        /// any other `DynamicValue` for the number looked at (Nessian Game Warden)
+        #[serde(default)]
+        look_amount: Option<Amount>,
         pick: i32,
         #[serde(default)]
         filter: Filter,

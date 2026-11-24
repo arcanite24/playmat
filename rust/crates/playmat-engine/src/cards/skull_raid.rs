@@ -9,7 +9,7 @@ pub const HANDLERS: &[Handler] = &[Handler::effect("SkullRaid.SkullRaidEffect", 
 fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     let p = cx.player(0)?;
     let before = game.player(p).hand.len();
-    cx.run(game, d, &[EffectDef::DiscardTargetEffect { amount: Amount::Fixed(2) }]);
+    cx.run(game, d, &[EffectDef::DiscardTargetEffect { amount: Amount::Fixed(2), random: false }]);
     if d.stopped() {
         return None;
     }
