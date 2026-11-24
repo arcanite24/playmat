@@ -1,7 +1,7 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Check, ChevronRight, Crown, FolderPlus, FolderX, Images, MoreHorizontal, MoveRight, Trash2, ZoomIn } from 'lucide-react';
 import type { DeckRow, DeckZone } from './deckModel';
-import { zoneLabel, ZONES } from './zones';
+import { zoneLabel } from './zones';
 import styles from './DeckBuilder.module.css';
 
 export interface CardMenuActions {
@@ -18,21 +18,24 @@ export interface CardMenuActions {
  * Everything else a card in the deck can do, behind its "more" button: move it between the deck, sideboard (or command
  * zone) and maybeboard, file it in a category, change its printing, look at it up close, take it out.
  */
-export function CardMenu({ row, zone, commandZone, canCommand, categories, category, actions, className }: {
+export function CardMenu({ row, zone, zones, commandZone, canCommand, categories, category, actions, className }: {
   row: DeckRow;
   zone: DeckZone;
+  /** the zones this deck has (no maybeboard in a Career or League deck) */
+  zones: readonly DeckZone[];
   /** a commander deck: the sideboard is the command zone */
   commandZone: boolean;
   /** the card may go to the command zone now (it can command, and there is room) */
   canCommand: boolean;
-  categories: string[];
+  /** the deck's categories; null where the deck can't keep them */
+  categories: string[] | null;
   category: string | undefined;
   actions: CardMenuActions;
   className?: string;
 }) {
   const name = row.entry.cardName;
   const amount = row.entry.amount;
-  const targets = ZONES.filter((to) => to !== zone && !(commandZone && to === 'sideboard' && !canCommand));
+  const targets = zones.filter((to) => to !== zone && !(commandZone && to === 'sideboard' && !canCommand));
   return (
     <DropdownMenu.Root modal={false}>
       <DropdownMenu.Trigger asChild>
@@ -55,31 +58,33 @@ export function CardMenu({ row, zone, commandZone, canCommand, categories, categ
             </DropdownMenu.Item>
           ))}
           <DropdownMenu.Separator className={styles.menuSeparator} />
-          <DropdownMenu.Sub>
-            <DropdownMenu.SubTrigger className={styles.menuItem}>
-              <FolderPlus size={16} aria-hidden="true" /> Category{category ? `: ${category}` : ''}
-              <ChevronRight size={14} className={styles.menuChevron} aria-hidden="true" />
-            </DropdownMenu.SubTrigger>
-            <DropdownMenu.Portal>
-              <DropdownMenu.SubContent className={styles.menu} sideOffset={4} collisionPadding={12}>
-                {categories.map((label) => (
-                  <DropdownMenu.Item key={label} className={styles.menuItem} onSelect={() => actions.onCategory(row, label)}>
-                    <span className={styles.menuTick} aria-hidden="true">{label === category && <Check size={14} />}</span>
-                    {label}
+          {categories && (
+            <DropdownMenu.Sub>
+              <DropdownMenu.SubTrigger className={styles.menuItem}>
+                <FolderPlus size={16} aria-hidden="true" /> Category{category ? `: ${category}` : ''}
+                <ChevronRight size={14} className={styles.menuChevron} aria-hidden="true" />
+              </DropdownMenu.SubTrigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.SubContent className={styles.menu} sideOffset={4} collisionPadding={12}>
+                  {categories.map((label) => (
+                    <DropdownMenu.Item key={label} className={styles.menuItem} onSelect={() => actions.onCategory(row, label)}>
+                      <span className={styles.menuTick} aria-hidden="true">{label === category && <Check size={14} />}</span>
+                      {label}
+                    </DropdownMenu.Item>
+                  ))}
+                  {categories.length > 0 && <DropdownMenu.Separator className={styles.menuSeparator} />}
+                  <DropdownMenu.Item className={styles.menuItem} onSelect={() => actions.onNewCategory(row)}>
+                    <FolderPlus size={16} aria-hidden="true" /> New category…
                   </DropdownMenu.Item>
-                ))}
-                {categories.length > 0 && <DropdownMenu.Separator className={styles.menuSeparator} />}
-                <DropdownMenu.Item className={styles.menuItem} onSelect={() => actions.onNewCategory(row)}>
-                  <FolderPlus size={16} aria-hidden="true" /> New category…
-                </DropdownMenu.Item>
-                {category && (
-                  <DropdownMenu.Item className={styles.menuItem} onSelect={() => actions.onCategory(row, null)}>
-                    <FolderX size={16} aria-hidden="true" /> Out of {category}
-                  </DropdownMenu.Item>
-                )}
-              </DropdownMenu.SubContent>
-            </DropdownMenu.Portal>
-          </DropdownMenu.Sub>
+                  {category && (
+                    <DropdownMenu.Item className={styles.menuItem} onSelect={() => actions.onCategory(row, null)}>
+                      <FolderX size={16} aria-hidden="true" /> Out of {category}
+                    </DropdownMenu.Item>
+                  )}
+                </DropdownMenu.SubContent>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Sub>
+          )}
           <DropdownMenu.Item className={styles.menuItem} onSelect={() => actions.onPrinting(row, zone)}>
             <Images size={16} aria-hidden="true" /> Choose printing…
           </DropdownMenu.Item>

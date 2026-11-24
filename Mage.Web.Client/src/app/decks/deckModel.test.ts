@@ -4,7 +4,7 @@ import type { DeckCardLists } from '../../core/decks/types';
 import { groupRows } from './deckGroups';
 import {
   addCard, categoryOf, changePrinting, chooseCover, copiesByName, copyLimit, countZone, deckCategories, entryKey, finalizeDeck, groupDeck, manaCurve,
-  moveCard, removeCard, renameCategory, setCategory, toWire,
+  movableCopies, moveCard, removeCard, renameCategory, setCategory, toWire,
 } from './deckModel';
 
 const empty: DeckCardLists = { name: 'Test', cards: [], sideboard: [] };
@@ -50,6 +50,29 @@ describe('deck editing', () => {
     expect(toWire(deck)).not.toHaveProperty('maybeboard');
     expect(moveCard(deck, 'maybeboard', entryKey(bolt), 1, 'cards').cards).toEqual([{ ...bolt, amount: 4 }]);
     expect(moveCard(deck, 'cards', entryKey(bolt), 1, 'cards')).toBe(deck);
+  });
+
+  it('moves out of the maybeboard only within the copy limit', () => {
+    const deck = addCard(addCard(empty, 'cards', bolt, 3), 'maybeboard', boltAlt, 6);
+    const key = entryKey(boltAlt);
+    expect(movableCopies(deck, 'maybeboard', key, 6, 'cards', { limit: 4 })).toBe(1);
+    expect(movableCopies(deck, 'maybeboard', key, 6, 'sideboard', { limit: 3 })).toBe(0);
+    expect(movableCopies(deck, 'maybeboard', key, 6, 'cards', { limit: Infinity })).toBe(6);
+    // deck to sideboard leaves the count alone; into the maybeboard is always fine
+    expect(movableCopies(deck, 'cards', entryKey(bolt), 3, 'sideboard', { limit: 3 })).toBe(3);
+    expect(movableCopies(deck, 'cards', entryKey(bolt), 3, 'maybeboard', { limit: 0 })).toBe(3);
+    expect(movableCopies(deck, 'cards', entryKey(bolt), 1, 'cards', { limit: 4 })).toBe(0);
+  });
+
+  it('keeps the command zone to cards that may command, while it has room', () => {
+    const deck = addCard(addCard(empty, 'cards', mountain, 1), 'maybeboard', bolt, 1);
+    const open = { limit: 1, command: { allowed: true, max: 1 } };
+    expect(movableCopies(deck, 'cards', entryKey(mountain), 1, 'sideboard', { limit: 1, command: { allowed: false, max: 1 } })).toBe(0);
+    expect(movableCopies(deck, 'maybeboard', entryKey(bolt), 1, 'sideboard', open)).toBe(1);
+    const full = moveCard(deck, 'cards', entryKey(mountain), 1, 'sideboard');
+    expect(movableCopies(full, 'maybeboard', entryKey(bolt), 1, 'sideboard', open)).toBe(0);
+    // out of the command zone is always fine
+    expect(movableCopies(full, 'sideboard', entryKey(mountain), 1, 'cards', open)).toBe(1);
   });
 });
 

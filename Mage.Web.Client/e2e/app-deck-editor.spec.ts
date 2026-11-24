@@ -31,7 +31,9 @@ test.describe('app: deck editor layout', () => {
     await page.getByLabel('Search cards').fill('Lightning Bolt');
     const bolt = page.getByRole('button', { name: /^Lightning Bolt(, \d+ in deck)?\. Click to add/ }).first();
     await bolt.waitFor({ timeout: 30_000 });
-    for (let copy = 0; copy < 3; copy++) await bolt.click();
+    for (let copy = 0; copy < 2; copy++) await bolt.click();
+    // the third dragged from the binder onto the deck's tab
+    await bolt.dragTo(deckPanel(page).getByRole('tab', { name: 'Deck 2' }));
     await expect(page.getByRole('tab', { name: 'Deck 3' })).toBeVisible();
 
     // the seam: arrow keys widen the deck panel, and the width is remembered
@@ -66,11 +68,15 @@ test.describe('app: deck editor layout', () => {
     await expect(binder).toBeHidden();
     await expect(page.getByRole('tab', { name: 'Deck 4' })).toBeVisible();
 
-    // a card's menu: one Shock to the maybeboard, which never counts toward the deck
-    await deckPanel(page).getByRole('button', { name: 'More for Shock' }).click();
-    await page.getByRole('menuitem', { name: 'One to the maybeboard' }).click();
+    // Shock dragged to the maybeboard, which never counts toward the deck, then back with its menu
+    await deckPanel(page).getByRole('button', { name: /^1 Shock\. Click for one more/ }).dragTo(page.getByRole('tab', { name: 'Maybe 0' }));
     await expect(page.getByRole('tab', { name: 'Deck 3' })).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Maybe 1' })).toBeVisible();
+    await page.getByRole('tab', { name: 'Maybe 1' }).click();
+    await deckPanel(page).getByRole('button', { name: 'More for Shock' }).click();
+    await page.getByRole('menuitem', { name: 'One to the deck' }).click();
+    await expect(page.getByRole('tab', { name: 'Maybe 0' })).toBeVisible();
+    await page.getByRole('tab', { name: 'Deck 4' }).click();
 
     // a category, grouped by
     await deckPanel(page).getByRole('button', { name: 'More for Lightning Bolt' }).click();
@@ -85,11 +91,12 @@ test.describe('app: deck editor layout', () => {
     await deckPanel(page).getByRole('button', { name: 'Grid view' }).click();
     expect(await serious(page), 'deck first, grid by category').toEqual([]);
 
-    // undo takes back the category, then the move to the maybeboard
+    // undo takes back the category, then the move out of the maybeboard
     await deckPanel(page).getByRole('button', { name: 'Undo' }).click();
     await expect(deckPanel(page).getByRole('region', { name: 'Burn: 3' })).toHaveCount(0);
     await deckPanel(page).getByRole('button', { name: 'Undo' }).click();
-    await expect(page.getByRole('tab', { name: 'Deck 4' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Deck 3' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Maybe 1' })).toBeVisible();
     await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 10_000 });
 
     // the layout outlives a reload

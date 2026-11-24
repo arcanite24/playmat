@@ -155,8 +155,11 @@ export function DeckBuilder({ initial, mode }: { initial: DeckCardLists; mode?: 
     requestAnimationFrame(() => binderRef.current?.querySelector<HTMLInputElement>('input[aria-label="Search cards"], input[type="search"], input')?.focus());
   }, []);
   const closeBinder = useCallback(() => {
+    // focus inside the drawer would be left in an inert pane: it goes back to the button that opened it
+    const hadFocus = !!binderRef.current?.contains(document.activeElement);
     setBinderOpen(false);
     setPreview(null);
+    if (hadFocus) deckPaneRef.current?.querySelector<HTMLButtonElement>('[data-add-cards]')?.focus();
   }, []);
   const onLayout = useCallback((next: BuilderLayout) => {
     setPrefs({ layout: next });
@@ -174,6 +177,8 @@ export function DeckBuilder({ initial, mode }: { initial: DeckCardLists; mode?: 
         if (layout === 'deck') openBinder();
         else binderRef.current?.querySelector<HTMLInputElement>('input')?.focus();
       } else if (event.key === 'Escape' && layout === 'deck' && binderOpen && !target?.closest('[role="dialog"], [role="menu"]')) {
+        // handled: Career's Escape-to-go-back leaves the screen alone
+        event.preventDefault();
         closeBinder();
       }
     };
@@ -332,6 +337,8 @@ export function DeckBuilder({ initial, mode }: { initial: DeckCardLists; mode?: 
           identity={identity}
           saving={saving}
           limitFor={limitFor}
+          onAtLimit={atLimit}
+          keepsExtras={!mode}
           fixedFormat={!!mode}
           doneLabel={mode?.doneLabel ?? 'Decks'}
           banner={mode?.Banner ? <mode.Banner deck={deck} /> : null}

@@ -21,7 +21,7 @@ import { CoverDialog } from './CoverDialog';
 import { DeckInsights } from './DeckInsights';
 import { GROUP_BY_LABELS, groupRows, SORT_BY_LABELS, type GroupBy, type SortBy, type ViewGroup } from './deckGroups';
 import {
-  addCard, categoryOf, changePrinting, countZone, deckCategories, entryKey, manaCurve, moveCard, removeCard, renameCategory, setCategory,
+  addCard, categoryOf, changePrinting, countZone, deckCategories, entryKey, manaCurve, movableCopies, moveCard, removeCard, renameCategory, setCategory,
   zoneList, type DeckRow, type DeckZone,
 } from './deckModel';
 import { carriesCard, readDraggedCard, type DraggedCard, type PreviewKind } from './deckDrag';
@@ -49,6 +49,8 @@ export interface DeckPanelProps {
   identity: string[] | null;
   saving: boolean;
   limitFor(card: CardView | undefined, name: string): number;
+  /** says why a card at its limit can't take another copy */
+  onAtLimit(card: CardView | undefined, name: string, limit: number): void;
   /** the format is the mode's (Career decks are Freeform), not the player's to pick */
   fixedFormat: boolean;
   doneLabel: string;
@@ -68,16 +70,23 @@ export interface DeckPanelProps {
   onInspect(card: CardView): void;
   onDone(): void;
   onPlay(): void;
+  /**
+   * The deck keeps a maybeboard and categories. Free-play decks do; Career and League decks save only what the server
+   * plays, so there the two are left out rather than lost on the next load.
+   */
+  keepsExtras: boolean;
 }
 
 export function DeckPanel(props: DeckPanelProps) {
   const {
     deck, zone, onZone, info, formats, rules, identity, saving, fixedFormat, doneLabel, banner, layout, onLayout, onOpenBinder,
-    onChange, history, onDropBinderCard, onAddRow, onPreview, onInspect, onDone, onPlay,
+    onChange, history, onAtLimit, limitFor, onDropBinderCard, onAddRow, onPreview, onInspect, onDone, onPlay, keepsExtras,
   } = props;
   const format = deck.format || DEFAULT_FORMAT;
   const view = useBuilderPrefs((state) => state.view);
-  const groupBy = useBuilderPrefs((state) => state.groupBy);
+  const storedGroupBy = useBuilderPrefs((state) => state.groupBy);
+  const groupBy: GroupBy = !keepsExtras && storedGroupBy === 'category' ? 'type' : storedGroupBy;
+  const zones = keepsExtras ? ZONES : ZONES.filter((each) => each !== 'maybeboard');
   const sortBy = useBuilderPrefs((state) => state.sortBy);
   const cardSize = useBuilderPrefs((state) => state.cardSize);
   const commandZone = rules.commandZone;
@@ -107,8 +116,31 @@ export function DeckPanel(props: DeckPanelProps) {
   const [coverOpen, setCoverOpen] = useState(false);
 
   const roomInCommand = !!commandZone && sideCount < commandZone.max;
+  /**
+   * Copies moved between zones, within the copy limit (out of the maybeboard) and the command zone's rules; says why
+   * when fewer move than asked. True when any moved.
+   */
+  const move = (from: DeckZone, key: string, card: CardView | undefined, name: string, amount: number, to: DeckZone): boolean => {
+    const moveRules = {
+      limit: limitFor(card, name),
+      command: commandZone ? { allowed: canCommand(card, format), max: commandZone.max } : null,
+    };
+    const asked = Math.min(amount, zoneList(deck, from).find((entry) => entryKey(entry) === key)?.amount ?? 0);
+    const moving = movableCopies(deck, from, key, amount, to, moveRules);
+    if (moving < asked) {
+      if (commandZone && to === 'sideboard') {
+        if (!canCommand(card, format)) notify(`${name} can't lead the deck`, `Only a card that can be your ${commandZone.cardLabel.toLowerCase()} goes in the command zone.`);
+        else notify('The command zone is full', `It holds ${commandZone.max}. Put one back in the deck first.`);
+      } else {
+        onAtLimit(card, name, limitFor(card, name));
+      }
+    }
+    if (moving === 0) return false;
+    onChange((current) => moveCard(current, from, key, movableCopies(current, from, key, amount, to, moveRules), to));
+    return true;
+  };
   const actions: CardMenuActions = {
-    onMove: (row, from, to, amount) => onChange((current) => moveCard(current, from, row.key, amount, to)),
+    onMove: (row, from, to, amount) => move(from, row.key, row.card, row.entry.cardName, amount, to),
     onPrinting: (row, from) => setPrintingFor({ row, zone: from }),
     onInspect: (row) => row.card && onInspect(row.card),
     onCategory: (row, category) => onChange((current) => setCategory(current, row.entry.cardName, category)),
@@ -124,7 +156,8 @@ export function DeckPanel(props: DeckPanelProps) {
       zone={zone}
       commandZone={!!commandZone}
       canCommand={zone !== 'sideboard' && roomInCommand && canCommand(row.card, format)}
-      categories={categories}
+      zones={zones}
+      categories={keepsExtras ? categories : null}
       category={categoryOf(deck, row.entry.cardName)}
       actions={actions}
       className={className}
@@ -147,8 +180,7 @@ export function DeckPanel(props: DeckPanelProps) {
     if (card.zone === 'binder') onDropBinderCard(card, to);
     else if (card.zone !== to) {
       const amount = zoneList(deck, card.zone).find((entry) => entryKey(entry) === card.key)?.amount ?? 1;
-      onChange((current) => moveCard(current, card.zone as DeckZone, card.key, amount, to));
-      notify(`${card.name} moved`, `To the ${zoneLabel(to, !!commandZone).toLowerCase()}.`);
+      if (move(card.zone, card.key, info.get(card.key), card.name, amount, to)) notify(`${card.name} moved`, `To the ${zoneLabel(to, !!commandZone).toLowerCase()}.`);
     }
   };
   const onDropOnGroup = (card: DraggedCard, group: ViewGroup) => {
@@ -209,7 +241,7 @@ export function DeckPanel(props: DeckPanelProps) {
 
       <div className={panel.toolbar}>
         <div className={panel.zoneTabs} role="tablist" aria-label="Deck zone">
-          {ZONES.map((each) => (
+          {zones.map((each) => (
             <ZoneTab
               key={each}
               selected={zone === each}
@@ -222,11 +254,13 @@ export function DeckPanel(props: DeckPanelProps) {
           ))}
         </div>
         <ViewControls
+          groupBy={groupBy}
+          groupOptions={keepsExtras ? null : ['category']}
           layout={layout}
           onLayout={onLayout}
           history={history}
           add={layout === 'deck' && (
-            <Button variant="print" size="sm" icon={<Search size={15} />} onClick={onOpenBinder} title={`Search the binder (/). Cards go to the ${zoneLabel(zone, !!commandZone).toLowerCase()}.`}>
+            <Button variant="print" size="sm" icon={<Search size={15} />} onClick={onOpenBinder} data-add-cards title={`Search the binder (/). Cards go to the ${zoneLabel(zone, !!commandZone).toLowerCase()}.`}>
               Add cards
             </Button>
           )}
@@ -441,7 +475,10 @@ const VIEWS: { kind: DeckViewKind; label: string; icon: ReactNode }[] = [
 ];
 
 /** How the deck is drawn: the view, its grouping and sorting, the card size, the layout, and undo. */
-function ViewControls({ layout, onLayout, history, add }: {
+function ViewControls({ groupBy, groupOptions, layout, onLayout, history, add }: {
+  groupBy: GroupBy;
+  /** groupings this deck can't offer */
+  groupOptions: GroupBy[] | null;
   layout: BuilderLayout;
   onLayout: ((layout: BuilderLayout) => void) | null;
   history: DeckPanelProps['history'];
@@ -449,7 +486,6 @@ function ViewControls({ layout, onLayout, history, add }: {
   add: ReactNode;
 }) {
   const view = useBuilderPrefs((state) => state.view);
-  const groupBy = useBuilderPrefs((state) => state.groupBy);
   const sortBy = useBuilderPrefs((state) => state.sortBy);
   const cardSize = useBuilderPrefs((state) => state.cardSize);
   const set = useBuilderPrefs((state) => state.set);
@@ -473,7 +509,7 @@ function ViewControls({ layout, onLayout, history, add }: {
           <DropdownMenu.Content className={styles.menu} side="bottom" align="end" sideOffset={6} collisionPadding={12}>
             <DropdownMenu.Label className={styles.menuLabel}>Group by</DropdownMenu.Label>
             <DropdownMenu.RadioGroup value={groupBy} onValueChange={(value) => set({ groupBy: value as GroupBy })}>
-              {(Object.keys(GROUP_BY_LABELS) as GroupBy[]).map((key) => (
+              {(Object.keys(GROUP_BY_LABELS) as GroupBy[]).filter((key) => !groupOptions?.includes(key)).map((key) => (
                 <DropdownMenu.RadioItem key={key} value={key} className={styles.menuItem}>
                   <span className={styles.menuTick} aria-hidden="true"><DropdownMenu.ItemIndicator><Check size={14} /></DropdownMenu.ItemIndicator></span>
                   {GROUP_BY_LABELS[key]}

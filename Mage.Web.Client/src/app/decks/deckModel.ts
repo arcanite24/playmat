@@ -85,6 +85,31 @@ export function moveCard(deck: DeckCardLists, from: DeckZone, key: string, amoun
   return addCard(removeCard(deck, from, key, moved), to, { cardName: entry.cardName, setCode: entry.setCode ?? '', cardNumber: entry.cardNumber ?? '' }, moved);
 }
 
+/** What a move between zones must respect: the card's copy limit, and (a commander deck) the command zone's rules. */
+export interface MoveRules {
+  /** copies of the card the deck and sideboard may hold together */
+  limit: number;
+  /** a commander deck's sideboard is its command zone: whether this card may command, and how many fit there */
+  command?: { allowed: boolean; max: number } | null;
+}
+
+/**
+ * How many of `amount` copies may move from one zone to another. Moves out of the maybeboard count against the copy
+ * limit (moves between deck and sideboard leave the count alone), and the command zone takes only a card that may
+ * command, while it has room. Zero refuses the move.
+ */
+export function movableCopies(deck: DeckCardLists, from: DeckZone, key: string, amount: number, to: DeckZone, rules: MoveRules): number {
+  const entry = zoneList(deck, from).find((candidate) => entryKey(candidate) === key);
+  if (!entry || to === from) return 0;
+  let moved = Math.min(amount, entry.amount);
+  if (rules.command && to === 'sideboard') {
+    if (!rules.command.allowed) return 0;
+    moved = Math.min(moved, rules.command.max - countZone(deck, 'sideboard'));
+  }
+  if (from === 'maybeboard' && to !== 'maybeboard') moved = Math.min(moved, rules.limit - copiesByName(deck, entry.cardName));
+  return Math.max(0, moved);
+}
+
 /** One entry switched to another printing of the same card; copies already on that printing are merged. */
 export function changePrinting(deck: DeckCardLists, zone: DeckZone, key: string, printing: PrintingRef): DeckCardLists {
   const entry = zoneList(deck, zone).find((candidate) => entryKey(candidate) === key);
