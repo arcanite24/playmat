@@ -122,7 +122,10 @@ Chosen 24 Nov 2026: **2, "Java off the game path".**
    emblems and timed twists still stay on Java. Ranked, League and Ladder tables already qualify. Host Career tables: the Career's tally and assists in the host, and setups (twists, nemesis, puzzles). Check
    whether Ranked, League and Ladder tables already qualify, and fix what keeps them on Java.
 4. Host games that start from Java saves and setups, or convert them to lines.
-5. Close the platform diffs (`careerGameResult`, `careerQuests`, `searchCards`), cut `deckValidate` declines, then
+5. **In review: #497.** `careerGameResult` answers ranked tables' keys (the likely cause of the 106 differences
+   since 21 Nov; inferred, as the logs rotated). `deckValidate` answers Freeform, Freeform Unlimited and Limited
+   (most of the 4,802 declines). Each shadow difference is now kept in `differences.log`. `careerQuests`' declines
+   are admin accounts, which Rust leaves to Java on purpose. Then: Close the platform diffs (`careerGameResult`, `careerQuests`, `searchCards`), cut `deckValidate` declines, then
    move the groups to `rust` one at a time, a week apart.
 6. Port the last Pioneer engine pieces, in waves, as before.
 7. Start the upstream ledger (#191) so new upstream changes stop drifting.
