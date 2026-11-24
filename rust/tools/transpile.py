@@ -555,6 +555,11 @@ CUSTOM = {
         'class': 'TriggeredAbility', 'java': 'DrawCardIfCreatureTypeAbility',
         'on': {'e': 'spell_cast', 'filter': [CREATURE, {'p': 'chosen_subtype', 'v': True}], 'who': 'you'},
         'effects': [{'class': 'DrawCardSourceControllerEffect', 'amount': 1}]},
+    # "whenever an opponent is dealt damage by a red instant or sorcery spell you control or by a red planeswalker
+    # you control, return this from your graveyard to your hand"
+    'ChandrasPhoenixTriggeredAbility': lambda: {
+        'class': 'TriggeredAbility', 'java': 'ChandrasPhoenixTriggeredAbility', 'on': {'e': 'chandras_phoenix'},
+        'effects': [{'class': 'ReturnToHandSourceEffect', 'battlefield_only': False}]},
     'PeltCollectorTriggeredAbility': lambda: {
         'class': 'TriggeredAbility', 'java': 'PeltCollectorTriggeredAbility', 'on': {'e': 'pelt_collector'},
         'effects': [{'class': 'AddCountersSourceEffect', 'counter': {'name': '+1/+1', 'amount': 1}}]},
@@ -3526,6 +3531,10 @@ class Translator:
                 c = l.group(1)
             return {'class': 'ConditionalOneShotEffect', 'effect': self.effect(args[0]), 'otherwise': self.effect(args[1]),
                     'condition': self.condition(c)}
+        # "discards a card at random" (`randomDiscard`: Black Cat)
+        if cls == 'DiscardTargetEffect' and len(args) == 2 and re.fullmatch(r'\d+', args[0].strip()) \
+                and args[1].strip() == 'true':
+            return {'class': cls, 'amount': int(args[0]), 'random': True}
         if cls == 'DrawDiscardTargetEffect' and len(args) == 2 and all(re.fullmatch(r'\d+', a.strip()) for a in args):
             return {'class': cls, 'draw': int(args[0]), 'discard': int(args[1])}
         if cls == 'CreateTokenTargetEffect' and len(args) == 1 and (m := re.fullmatch(r'new (\w+Token)\(\)', args[0].strip())):
@@ -3895,6 +3904,10 @@ class Translator:
             return e
         if cls == 'SpellsCostReductionControllerEffect' and len(args) == 2 and re.fullmatch(r'\d+', args[1].strip()):
             return {'class': cls, 'filter': self.filter(args[0].strip()), 'amount': int(args[1])}
+        # "Minotaur spells you cast cost {B}{R} less" (`ManaCosts`: Ragemonger)
+        if cls == 'SpellsCostReductionControllerEffect' and len(args) == 2 \
+                and (m := re.fullmatch(r'new ManaCostsImpl(?:<>)?\("((?:\{[WUBRGC0-9]\})+)"\)', args[1].strip())):
+            return {'class': cls, 'filter': self.filter(args[0].strip()), 'amount': 0, 'mana': m.group(1)}
         if cls == 'SpellsCostReductionControllerEffect' and len(args) == 2 and args[1].strip() == 'ControllerSpeedCount.instance':
             return {'class': cls, 'filter': self.filter(args[0].strip()), 'amount': 0, 'dynamic': {'v': 'speed'}}
         # "it gains your choice of …": the choice is each ability's rule text
@@ -4814,7 +4827,11 @@ class Translator:
             # (the X a trigger saw, or the X paid: Heroes' Podium's "look at the top X cards")
             out['look_count'] = 'x'
         else:
-            raise Unsupported('argument ' + args[0])
+            # any other `DynamicValue` (Nessian Game Warden's Forests you control)
+            v = self.amount(args[0])
+            if not isinstance(v, dict):
+                raise Unsupported('argument ' + args[0])
+            out['look_amount'] = v
         if args[1] == 'Integer.MAX_VALUE' and 'look' in out:
             args[1] = str(out['look'])
         elif args[1] == 'Integer.MAX_VALUE':
@@ -5610,7 +5627,10 @@ class Translator:
             if args[0].strip() == 'Zone.GRAVEYARD':
                 a['on']['graveyard'] = True
             return a
-        if cls in STEP_TRIGGERS and len(args) == 4 and args[0].strip() == 'Zone.GRAVEYARD':
+        # (Zone.GRAVEYARD, controller, effect, optional, condition): an end step one with an intervening "if"
+        # (Silversmote Ghoul)
+        if cls in STEP_TRIGGERS and args[0].strip() == 'Zone.GRAVEYARD' \
+                and (len(args) == 4 or len(args) == 5 and cls == 'BeginningOfEndStepTriggeredAbility'):
             a = self.ability('new ' + cls + '(' + ','.join(args[1:]) + ')')
             a['on']['graveyard'] = True
             return a
@@ -6649,6 +6669,14 @@ class Translator:
                 return out({'e': 'sacrificed', 'filter': self.filter(args[2]),
                             'who': self.value('target_controller', args[3])}, args[1], flag(args[5]),
                            args[4] == 'SetTargetPointer.PLAYER')
+            # `SetTargetPointer.PERMANENT` for a card's own effect, which reads the sacrificed permanent
+            # (`StackItem::sacrificed_permanent`): Rakdos, the Muscle
+            if n == 6 and args[0] == 'Zone.BATTLEFIELD' and args[4] == 'SetTargetPointer.PERMANENT':
+                a = out({'e': 'sacrificed', 'filter': self.filter(args[2]),
+                         'who': self.value('target_controller', args[3])}, args[1], flag(args[5]))
+                if a['effects'][0].get('class') != 'CardEffect':
+                    raise Unsupported(cls + ' overload')
+                return a
             if n in (2, 3):
                 return out({'e': 'sacrificed', 'filter': self.filter(args[1]),
                             'who': self.value('target_controller', args[2]) if n == 3 else 'you'}, args[0])
@@ -10005,6 +10033,11 @@ def granted_rules(card):
                         r'new AddCountersSourceEffect\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)\s*'
                         r'\.setText\("[^"]*counters? on it"\)', with_tokens):
                     g['rule'] = re.sub(r'\b(counters? on) it\.$', r'\1 {this}.', g['rule'])
+                # a `DiesCreatureTriggeredAbility` built without `another` writes "Whenever a creature dies", whatever
+                # the quote says (Necrosynthesis' "Whenever another creature dies")
+                if (g.get('on') or {}).get('e') == 'dies_all' and (g.get('on') or {}).get('include_self') and \
+                        g['rule'].startswith('Whenever another creature dies, '):
+                    g['rule'] = 'Whenever a creature dies, ' + g['rule'][len('Whenever another creature dies, '):]
                 # `ReturnSourceFromGraveyardToBattlefieldEffect` writes its own text: "return this card from your
                 # graveyard to the battlefield" (Demonic Gifts' "return it to the battlefield")
                 if [e.get('handler') for e in g.get('effects', [])] == ['ReturnSourceFromGraveyardToBattlefieldEffect'] \

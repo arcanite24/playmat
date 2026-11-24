@@ -15,6 +15,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     let e = EffectDef::LookLibraryAndPickControllerEffect {
         look: 3,
         look_count: None,
+        look_amount: None,
         pick: 1,
         filter: cx.filters[0].clone(),
         picked: PutCards::Exiled,

@@ -1433,9 +1433,15 @@ pub struct BasePtSet {
     pub until_eot: bool,
 }
 
+/// An object as it was: its id and zone-change count (Java's `MageObjectReference`)
+pub type ObjRef = (ObjId, u32);
+
 /// What Java's watchers that reset each turn saw this turn, for the conditions, values and predicates that read them
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct TurnWatch {
+    /// the players who activated an equip ability this turn (`ACTIVATED_ABILITY` of an `EquipAbility`:
+    /// `BruenorBattlehammerWatcher`)
+    pub equip_activated: Vec<Seat>,
     /// `ExertedThisTurnWatcher`: the creatures exerted this turn, as they were
     pub exerted: Vec<(ObjId, u32)>,
     /// the players each attacker was declared attacking this turn (`ATTACKER_DECLARED` with a player as its
@@ -1491,6 +1497,12 @@ pub struct TurnWatch {
     pub graveyard_once: Vec<(ObjId, u32)>,
     /// `BlockedThisTurnWatcher`: each creature declared as a blocker this turn, as it was
     pub blocked: Vec<(ObjId, u32)>,
+    /// `BLOCKER_DECLARED` this turn: each blocker and the attacker it blocked, as they were then (Triton Tactics'
+    /// watcher)
+    pub blocks: Vec<((ObjId, u32), (ObjId, u32))>,
+    /// Triton Tactics' delayed tap: each resolved spell (as it was) and the creatures it untapped, as they were, for
+    /// its end of combat trigger to read even once they're gone (Java's `MageObjectReference`s)
+    pub triton_tactics: Vec<(ObjRef, Vec<ObjRef>)>,
     /// `DAMAGED_PLAYER` and `DAMAGED_PERMANENT` this turn, in order
     pub damage: Vec<DamageSeen>,
     /// each permanent that left the battlefield this turn (`ZONE_CHANGE` from it)
