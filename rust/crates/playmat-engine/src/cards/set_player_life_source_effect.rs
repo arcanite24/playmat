@@ -1,12 +1,14 @@
 //! `SetPlayerLifeSourceEffect(n)`: "your life total becomes N" (Form of the Dinosaur, Angel of Grace, Captive
-//! Audience): `PlayerImpl.setLife` for the controller, a gain or a loss of the difference (rule 118.5).
+//! Audience): `PlayerImpl.setLife` for the controller, a gain or a loss of the difference (rule 118.5). Also with a
+//! `DynamicValue` (Revival // Revenge's "double your life total", `MultipliedValue(ControllerLifeCount.instance, 2)`).
 
 use super::*;
 
-pub const HANDLERS: &[Handler] = &[Handler::effect("SetPlayerLifeSourceEffect", apply).args(&["int"])];
+pub const HANDLERS: &[Handler] = &[Handler::effect("SetPlayerLifeSourceEffect", apply).args(&["int_or_amount"])];
 
 fn apply(game: &mut Game, _d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
-    set_life(game, cx.controller(), cx.arg_int(0)?);
+    let to = cx.arg_int(0).or_else(|| cx.arg_amount(game, 0))?;
+    set_life(game, cx.controller(), to);
     Some(())
 }
 
