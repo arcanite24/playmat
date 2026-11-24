@@ -12235,7 +12235,7 @@ fn bind_slot(
             } else {
                 let rule = item_rule(game, item);
                 if b.rounds {
-                    choose_cards_rounds(game, d, who, &possible, min, max)?
+                    choose_cards_rounds_rule(game, d, who, &possible, min, max, &rule)?
                 } else {
                     choose_cards(game, d, who, &shown, &possible, min, max, &rule)?
                 }
@@ -19899,6 +19899,22 @@ fn choose_cards_rounds(
     min: usize,
     max: usize,
 ) -> Option<Vec<ObjId>> {
+    choose_cards_rounds_rule(game, d, seat, possible, min, max, "")
+}
+
+/// `choose_cards_rounds`, auto-choice reading `rule` as `TargetImpl.tryToAutoChoose` does (Blood Curdle's one creature of
+/// yours isn't picked by itself: its text says "destroy"); "" for no rule text.
+fn choose_cards_rounds_rule(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    seat: Seat,
+    possible: &[ObjId],
+    min: usize,
+    max: usize,
+    rule: &str,
+) -> Option<Vec<ObjId>> {
+    let rule = rule.to_lowercase();
+    let feel_bad = ["discard", "sacrifice", "destroy", "exile"].iter().any(|w| rule.contains(w));
     let mut chosen: Vec<ObjId> = Vec::new();
     let complete = |chosen: &Vec<ObjId>| {
         chosen.len() >= max || (chosen.len() >= min && possible.iter().all(|c| chosen.contains(c)))
@@ -19913,10 +19929,13 @@ fn choose_cards_rounds(
             }
             let left: Vec<ObjId> = possible.iter().copied().filter(|c| !chosen.contains(c)).collect();
             // `TargetImpl.tryToAutoChoose`: exactly the cards needed
-            if min == max && left.len() == min - chosen.len() && !left.is_empty() {
-                chosen.push(left[0]);
-                asked = true;
-                continue;
+            if min == max && left.len() == min - chosen.len() && !left.is_empty() && !rule.contains("search") {
+                let all = game.player(seat).auto_target_all;
+                if let Some(c) = left.iter().copied().find(|c| all || !(feel_bad && owns_target(game, seat, *c))) {
+                    chosen.push(c);
+                    asked = true;
+                    continue;
+                }
             }
             asked = true;
             let required = chosen.len() < min && !left.is_empty();
