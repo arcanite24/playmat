@@ -1159,23 +1159,30 @@ fn a_career_game_carries_on_the_same() {
 #[test]
 fn the_career_setup_java_sends_is_read_whole() {
     use playmat_host::game::{CareerSetup, Edge, Personality};
-    let text = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/career-setup.json")).unwrap();
+    let text =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/career-setup.json")).unwrap();
     let v: serde_json::Value = serde_json::from_str(&text).unwrap();
     let setup = CareerSetup::of(&v).expect("a setup");
-    assert_eq!(setup.you, Some(Edge {
-        life: Some(25),
-        life_bonus: 0,
-        cards: 2,
-        permanents: vec![],
-        log: Some(" starts with: 25 life, 2 extra cards.".into()),
-    }));
-    assert_eq!(setup.opponent, Some(Edge {
-        life: None,
-        life_bonus: 5,
-        cards: 1,
-        permanents: vec![("Llanowar Elves".into(), true), ("Runeclaw Bear".into(), false)],
-        log: Some(" starts with an edge: +5 life, 1 extra card, Llanowar Elves, Runeclaw Bear.".into()),
-    }));
+    assert_eq!(
+        setup.you,
+        Some(Edge {
+            life: Some(25),
+            life_bonus: 0,
+            cards: 2,
+            permanents: vec![],
+            log: Some(" starts with: 25 life, 2 extra cards.".into()),
+        })
+    );
+    assert_eq!(
+        setup.opponent,
+        Some(Edge {
+            life: None,
+            life_bonus: 5,
+            cards: 1,
+            permanents: vec![("Llanowar Elves".into(), true), ("Runeclaw Bear".into(), false)],
+            log: Some(" starts with an edge: +5 life, 1 extra card, Llanowar Elves, Runeclaw Bear.".into()),
+        })
+    );
     assert_eq!(setup.personality, Some(Personality { aggression: 60, risk: -20, patience: 10 }));
     // and back: what the host keeps for a restart is what Java sent
     assert_eq!(setup.json(), v);
