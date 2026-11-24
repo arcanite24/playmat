@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { CardView } from '../../protocol/generated/views';
 import type { DeckCardLists } from '../../core/decks/types';
-import { manaColumns } from './manaColumnLayout';
-import { addCard, changePrinting, chooseCover, copiesByName, copyLimit, countZone, entryKey, finalizeDeck, groupDeck, manaCurve, moveCard, removeCard } from './deckModel';
+import { groupRows } from './deckGroups';
+import {
+  addCard, categoryOf, changePrinting, chooseCover, copiesByName, copyLimit, countZone, deckCategories, entryKey, finalizeDeck, groupDeck, manaCurve,
+  moveCard, removeCard, renameCategory, setCategory, toWire,
+} from './deckModel';
 
 const empty: DeckCardLists = { name: 'Test', cards: [], sideboard: [] };
 const bolt = { cardName: 'Lightning Bolt', setCode: 'M10', cardNumber: '146' };
@@ -35,6 +38,33 @@ describe('deck editing', () => {
     const deck = moveCard(addCard(empty, 'cards', bolt, 3), 'cards', entryKey(bolt), 2);
     expect(countZone(deck, 'cards')).toBe(1);
     expect(countZone(deck, 'sideboard')).toBe(2);
+  });
+
+  it('keeps a maybeboard that never counts toward the limit or reaches the server', () => {
+    let deck = addCard(empty, 'cards', bolt, 4);
+    deck = moveCard(deck, 'cards', entryKey(bolt), 1, 'maybeboard');
+    expect(countZone(deck, 'cards')).toBe(3);
+    expect(countZone(deck, 'maybeboard')).toBe(1);
+    expect(copiesByName(deck, 'Lightning Bolt')).toBe(3);
+    deck = addCard(deck, 'maybeboard', mountain);
+    expect(toWire(deck)).not.toHaveProperty('maybeboard');
+    expect(moveCard(deck, 'maybeboard', entryKey(bolt), 1, 'cards').cards).toEqual([{ ...bolt, amount: 4 }]);
+    expect(moveCard(deck, 'cards', entryKey(bolt), 1, 'cards')).toBe(deck);
+  });
+});
+
+describe('categories', () => {
+  it('sets, renames and clears a category by card name', () => {
+    let deck = addCard(addCard(empty, 'cards', bolt, 4), 'maybeboard', mountain);
+    deck = setCategory(deck, 'Lightning Bolt', ' Removal ');
+    deck = setCategory(deck, 'Mountain', 'Mana');
+    deck = setCategory(deck, 'Gone', 'Old');
+    expect(categoryOf(deck, 'lightning bolt')).toBe('Removal');
+    expect(deckCategories(deck)).toEqual(['Mana', 'Removal']);
+    deck = renameCategory(deck, 'Removal', 'Mana');
+    expect(deckCategories(deck)).toEqual(['Mana']);
+    deck = setCategory(setCategory(setCategory(deck, 'Lightning Bolt', null), 'Mountain', ''), 'Gone', null);
+    expect(deck.categories).toBeUndefined();
   });
 });
 
@@ -69,27 +99,46 @@ describe('grouping and curve', () => {
   });
 });
 
-describe('mana value columns', () => {
-  it('puts 0 and 1 together, 6 and up together, lands apart, and counts copies', () => {
-    const card = (name: string, manaValue: number, types: CardView['cardTypes']) => ({ name, manaValue, cardTypes: types }) as CardView;
-    const entries = [
-      { cardName: 'Ornithopter', setCode: 'A', cardNumber: '1', amount: 1 },
-      { cardName: 'Bolt', setCode: 'A', cardNumber: '2', amount: 2 },
-      { cardName: 'Bear', setCode: 'A', cardNumber: '3', amount: 3 },
-      { cardName: 'Dragon', setCode: 'A', cardNumber: '4', amount: 1 },
-      { cardName: 'Mountain', setCode: 'A', cardNumber: '5', amount: 16 },
-    ];
-    const info = new Map([
-      ['A:1', card('Ornithopter', 0, ['ARTIFACT', 'CREATURE'])],
-      ['A:2', card('Bolt', 1, ['INSTANT'])],
-      ['A:3', card('Bear', 2, ['CREATURE'])],
-      ['A:4', card('Dragon', 7, ['CREATURE'])],
-      ['A:5', card('Mountain', 0, ['LAND'])],
-    ]);
-    const columns = manaColumns(entries, info);
-    expect(columns.map((column) => [column.key, column.count])).toEqual([['0-1', 3], ['2', 3], ['3', 0], ['4', 0], ['5', 0], ['6+', 1], ['lands', 16]]);
+describe('view groups', () => {
+  const card = (name: string, manaValue: number, types: CardView['cardTypes'], extra: Partial<CardView> = {}) => ({ name, manaValue, cardTypes: types, ...extra }) as CardView;
+  const entries = [
+    { cardName: 'Ornithopter', setCode: 'A', cardNumber: '1', amount: 1 },
+    { cardName: 'Bolt', setCode: 'A', cardNumber: '2', amount: 2 },
+    { cardName: 'Bear', setCode: 'A', cardNumber: '3', amount: 3 },
+    { cardName: 'Dragon', setCode: 'A', cardNumber: '4', amount: 1 },
+    { cardName: 'Mountain', setCode: 'A', cardNumber: '5', amount: 16 },
+  ];
+  const info = new Map([
+    ['A:1', card('Ornithopter', 0, ['ARTIFACT', 'CREATURE'], { rarity: 'UNCOMMON' })],
+    ['A:2', card('Bolt', 1, ['INSTANT'], { color: { red: true }, rarity: 'COMMON' })],
+    ['A:3', card('Bear', 2, ['CREATURE'], { color: { green: true }, rarity: 'COMMON' })],
+    ['A:4', card('Dragon', 7, ['CREATURE'], { color: { red: true, green: true }, rarity: 'MYTHIC' })],
+    ['A:5', card('Mountain', 0, ['LAND'], { rarity: 'LAND' })],
+  ]);
+  const shape = (groupBy: Parameters<typeof groupRows>[2]['groupBy'], extra = {}) =>
+    groupRows(entries, info, { groupBy, sortBy: 'mana', ...extra }).map((group) => [group.key, group.count]);
+
+  it('lays out mana value columns: 0 and 1 together, 6 and up together, lands apart', () => {
+    expect(shape('mana', { keepEmpty: true })).toEqual([['0-1', 3], ['2', 3], ['3', 0], ['4', 0], ['5', 0], ['6+', 1], ['lands', 16]]);
+    expect(shape('mana')).toEqual([['0-1', 3], ['2', 3], ['6+', 1], ['lands', 16]]);
+    const columns = groupRows(entries, info, { groupBy: 'mana', sortBy: 'mana' });
     expect(columns[0].rows.map((row) => row.entry.cardName)).toEqual(['Ornithopter', 'Bolt']);
-    expect(manaColumns([{ cardName: 'X', amount: 1 }], new Map()).at(-1)?.key).toBe('unknown');
+    expect(groupRows([{ cardName: 'X', amount: 1 }], new Map(), { groupBy: 'mana', sortBy: 'mana' }).at(-1)?.key).toBe('unknown');
+  });
+
+  it('groups by type, color and rarity', () => {
+    expect(shape('type')).toEqual([['creatures', 5], ['spells', 2], ['lands', 16]]);
+    expect(shape('color')).toEqual([['R', 2], ['G', 3], ['multi', 1], ['colorless', 1], ['lands', 16]]);
+    expect(shape('rarity')).toEqual([['MYTHIC', 1], ['UNCOMMON', 1], ['COMMON', 5], ['LAND', 16]]);
+    expect(shape('none')).toEqual([['all', 23]]);
+  });
+
+  it("puts the player's categories first and the rest by type", () => {
+    const groups = groupRows(entries, info, { groupBy: 'category', sortBy: 'name', categories: { bolt: 'Removal', dragon: 'Finishers' } });
+    expect(groups.map((group) => [group.label, group.count, group.category])).toEqual([
+      ['Finishers', 1, 'Finishers'], ['Removal', 2, 'Removal'], ['Creatures', 4, undefined], ['Lands', 16, undefined],
+    ]);
+    expect(groups[2].rows.map((row) => row.entry.cardName)).toEqual(['Bear', 'Ornithopter']);
   });
 });
 
