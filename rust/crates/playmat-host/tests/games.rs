@@ -443,6 +443,8 @@ fn a_tables_starting_life_and_free_mulligans_are_played() {
         ai_skill: Some(3),
         rollback: false,
         ai_pin: None,
+        no_advice: None,
+        no_practice: None,
     };
     let game = HostedGame::start(s, Arc::new(playmat_engine::cards())).unwrap();
     game.call(Call::Join);
@@ -961,10 +963,47 @@ fn practice_tools_and_advice_against_the_ai() {
                 game.call(Call::Practice("TELEPORT".into(), None, 1, Some(tx)));
                 assert!(rx.recv_timeout(Duration::from_secs(30)).unwrap().contains("Unknown"));
                 game.call(Call::Action("CONCEDE".into(), None));
+                // the Career pays nothing for it (`CareerTally.taint`)
+                assert_eq!(game.join().summary["taint"], "practice tools were used");
                 return;
             }
             _ => unreachable!(),
         }
     }
     panic!("stopped at stage {stage}");
+}
+
+#[test]
+fn a_ranked_table_gives_no_advice_and_no_practice_tools() {
+    let mut s = start(&deck("gw-company.txt"), &deck("b-zombies.txt"), 3, None);
+    s.rules.no_advice = Some("Ranked games are played without hints.".into());
+    s.rules.no_practice = Some("Practice tools are off in ranked games.".into());
+    let game = HostedGame::start(s, Arc::new(playmat_engine::cards())).unwrap();
+    game.call(Call::Join);
+    let mut b = bot(u64::MAX);
+    for _ in 0..20_000 {
+        let e = game.events.recv_timeout(Duration::from_secs(60)).expect("the host answers");
+        assert_ne!(e.method, "GAME_OVER");
+        let priority = e.method == "GAME_SELECT" && e.data["message"].as_str().is_some_and(|m| m.starts_with("Play"));
+        if !priority {
+            if let Some(c) = b.answer(&e) {
+                game.call(c);
+            }
+            continue;
+        }
+        let (tx, rx) = std::sync::mpsc::channel();
+        game.call(Call::Advise(4, tx));
+        let advice = rx.recv_timeout(Duration::from_secs(30)).expect("advice");
+        assert_eq!(advice["kind"], "NONE");
+        assert_eq!(advice["text"], "Ranked games are played without hints.");
+        let (tx, rx) = std::sync::mpsc::channel();
+        game.call(Call::Practice("LIFE".into(), None, 7, Some(tx)));
+        assert_eq!(rx.recv_timeout(Duration::from_secs(30)).unwrap(), "Practice tools are off in ranked games.");
+        game.call(Call::Action("CONCEDE".into(), None));
+        let ended = game.join();
+        assert!(ended.summary.get("taint").is_none(), "nothing was used");
+        assert_eq!(ended.reason, "conceded");
+        return;
+    }
+    panic!("no priority");
 }

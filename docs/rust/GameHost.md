@@ -342,6 +342,9 @@ more cards ported first.
   player's place, given as Java's `Advice` (what to play, attack or block).
 - **Practice tools.** `gamePractice` (HAND, BATTLEFIELD, DRAW, UNTAP_ALL, LIFE) queues the tool; it runs at the
   player's next priority, or at once when they hold priority, and is announced in the log. Games against the AI only.
+  A ranked table has neither: Java sends `noAdvice` and `noPractice` with `HOST_GAME`, as `GameController.advise`
+  and `.practice` refuse them. A game where a practice tool was used ends with `taint` in its summary, and Java taints
+  its Career tally (`CareerTally.taint`), so it pays no progress, as a Java game doesn't.
 
 Not there: the Career's assists (hints and take-backs; Career tables stay on Java), "Request to see hand cards",
 and a replay of a carried-on game starts at the turn it carried on from.

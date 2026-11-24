@@ -286,6 +286,11 @@ public final class RustHost {
             if (aiPin != null) {
                 data.addProperty("aiPin", aiPin);
             }
+            // what the table refuses, as GameController.advise and .practice do for a game Java plays
+            if (mage.server.ladder.RankedService.isRanked(tableId)) {
+                data.addProperty("noAdvice", "Ranked games are played without hints.");
+                data.addProperty("noPractice", "Practice tools are off in ranked games.");
+            }
             // the match's priority timer, which the host runs as GameController does (0: none)
             data.addProperty("priorityTime", match.getOptions().getMatchTimeLimit().getPrioritySecs());
             data.addProperty("bufferTime", match.getOptions().getMatchBufferTime().getBufferSecs());
@@ -469,6 +474,10 @@ public final class RustHost {
                 if (tally != null) {
                     mage.server.career.CareerTally.fromHost(hosted.game.getId(), playerId, tally);
                 }
+            }
+            // practice tools were used: the game pays no progress, as GameController.practice has it
+            if (summary.has("taint") && summary.get("taint").isJsonPrimitive()) {
+                mage.server.career.CareerTally.taint(hosted.game.getId(), summary.get("taint").getAsString());
             }
         } catch (RuntimeException e) {
             logger.warn("Rust host: game " + hosted.game.getId() + "'s end summary: " + e, e);
