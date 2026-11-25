@@ -6447,13 +6447,16 @@ fn modified_cost_of(game: &Game, seat: Seat, id: ObjId, face: &CardDef, mut cost
                                 None => *amount,
                             };
                             // a double-faced card whose other face has this ability too (Serah Farron's back adds
-                            // `ability.copy()`): Java registers both with one effect id and applies the effect once
-                            // per ability (`ContinuousEffects.costModification`), whichever face is up
+                            // `ability.copy()`): Java registers both abilities under one effect id, and
+                            // `ContinuousEffectsList.addEffect` adds the effect once per ability, so
+                            // `ContinuousEffects.costModification` runs each list entry over every ability: n abilities
+                            // reduce n * n times, whichever face is up (Serah: {2} four times, Ramos {6} costs 0)
                             let other = match &s.front {
                                 Some(front) => Some(front.clone()),
                                 None => s.def.transform_back.clone(),
                             };
-                            let times = 1 + other.map_or(0, |f| f.abilities.iter().filter(|b| *b == a).count());
+                            let faces = 1 + other.map_or(0, |f| f.abilities.iter().filter(|b| *b == a).count());
+                            let times = faces * faces;
                             reduce += n as u32 * times as u32;
                             if let Some(less) = mana.as_deref().and_then(|m| ManaCost::parse(m).ok()) {
                                 reduce_by_mana(&mut cost, &less);
