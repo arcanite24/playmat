@@ -268,19 +268,19 @@
  },
  "counted": {
   "engine_cards": 14230,
-  "verified_cards": 14151,
+  "verified_cards": 14206,
   "pioneer": {
    "cards": 15259,
    "in_engine": 14028,
-   "verified": 13950
+   "verified": 14005
   },
   "java_card_files": 32849,
   "school": {
    "label": "Pioneer and Standard school decks",
    "decks": 42,
-   "covered": 41,
+   "covered": 42,
    "cards": 410,
-   "cards_in": 409,
+   "cards_in": 410,
    "list": [
     {
      "deck": "act1-boros-aggro",
@@ -375,7 +375,7 @@
     {
      "deck": "meta-izzet-prowess",
      "cards": 20,
-     "missing": 1
+     "missing": 0
     },
     {
      "deck": "meta-mono-red-prowess",
@@ -497,9 +497,9 @@
   "meta": {
    "label": "Pioneer and Standard meta decks",
    "decks": 24,
-   "covered": 21,
+   "covered": 24,
    "cards": 278,
-   "cards_in": 276,
+   "cards_in": 278,
    "list": [
     {
      "deck": "pioneer-azorius-spirits",
@@ -524,7 +524,7 @@
     {
      "deck": "pioneer-izzet-prowess",
      "cards": 19,
-     "missing": 1
+     "missing": 0
     },
     {
      "deck": "pioneer-jeskai-ensoul",
@@ -564,7 +564,7 @@
     {
      "deck": "standard-azorius-control",
      "cards": 20,
-     "missing": 1
+     "missing": 0
     },
     {
      "deck": "standard-boros-dragons",
@@ -594,7 +594,7 @@
     {
      "deck": "standard-izzet-prowess",
      "cards": 20,
-     "missing": 1
+     "missing": 0
     },
     {
      "deck": "standard-izzet-spellementals",
@@ -1029,10 +1029,10 @@
    "played": 1360,
    "matched": 1357,
    "java_timeouts": 28,
-   "checked_in": 1503
+   "checked_in": 1506
   },
   "rust": {
-   "lines": 147185,
+   "lines": 147251,
    "crates": [
     {
      "crate": "playmat-ai",
@@ -1040,7 +1040,7 @@
     },
     {
      "crate": "playmat-engine",
-     "lines": 118147
+     "lines": 118213
     },
     {
      "crate": "playmat-gateway",
@@ -1065,6 +1065,6 @@
    ]
   }
  },
- "commit": "cd3c40702991e36d00b605479dfe69b7c2ca2af1",
+ "commit": "4ae618fcbc960713d9f5f2e28f0b7b4ce0049297",
  "generated": "2026-11-24"
 }

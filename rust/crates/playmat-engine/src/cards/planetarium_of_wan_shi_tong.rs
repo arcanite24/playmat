@@ -30,10 +30,10 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     if !choose_use(game, d, you, &message)? {
         return Some(());
     }
-    let pick = if parts.len() == 1 {
-        parts[0].0
+    let options = free_cast_choices(&full, &parts);
+    let pick = if options.len() == 1 {
+        options[0]
     } else {
-        let options: Vec<usize> = parts.iter().map(|(k, _)| *k).collect();
         match ask(game, d, you, &Query::ChooseAbility { source: card, abilities: options.clone() }) {
             Answer::Ability(o, k) if o == card && options.contains(&k) => k,
             Answer::Stop => return None,
