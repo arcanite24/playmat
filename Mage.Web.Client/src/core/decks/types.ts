@@ -55,6 +55,10 @@ export interface DeckCardLists {
   format?: string; // e.g. "Constructed - Standard", syncs with deckType
   cards: DeckCardInfo[];
   sideboard: DeckCardInfo[];
+  /** cards the player is considering: kept with the deck, never played, validated or sent to the server */
+  maybeboard?: DeckCardInfo[];
+  /** the player's own categories ("Ramp", "Removal"), by lowercase card name, to group the deck builder by */
+  categories?: Record<string, string>;
   cardLayout?: DeckCardLayout;
   sideboardLayout?: DeckCardLayout;
   coverCard?: DeckCoverCard;

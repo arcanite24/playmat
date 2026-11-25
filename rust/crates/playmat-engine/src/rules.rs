@@ -502,7 +502,23 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                     if !game.watch.exerted.contains(&at) {
                         game.watch.exerted.push(at);
                     }
-                    let fired = game.triggers([a], |_, _, _, t| matches!(t, Trigger::Exerted));
+                    // BECOMES_EXERTED: this one's own triggers, and "whenever you exert a creature"
+                    let seat = game.obj(a).controller;
+                    let fired = if game.battlefield.iter().any(|b| {
+                        game.obj(*b)
+                            .def
+                            .abilities
+                            .iter()
+                            .any(|x| matches!(x.trigger(), Some(Trigger::ExertedCreatureYou)))
+                    }) {
+                        let all: Vec<ObjId> = game.battlefield.iter().copied().collect();
+                        game.triggers(all, |_, src, ctrl, t| {
+                            matches!(t, Trigger::Exerted) && src == a
+                                || matches!(t, Trigger::ExertedCreatureYou) && ctrl == seat
+                        })
+                    } else {
+                        game.triggers([a], |_, _, _, t| matches!(t, Trigger::Exerted))
+                    };
                     let n = fired.len();
                     match game.attack_taps.iter().find(|(x, _)| *x == a).map(|(_, at)| *at) {
                         Some(at) => {
@@ -815,6 +831,10 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                         && name == "upkeep"
                         && you == active
                         && g.obj(src).zone == Zone::Battlefield)
+                    // a Career turn twist: any player's upkeep, from its turn on (`UPKEEP_STEP_PRE`)
+                    || (matches!(t, Trigger::CareerTurn { turn } if g.turn >= *turn)
+                        && name == "upkeep"
+                        && g.obj(src).zone == Zone::Command)
             });
             // "at the beginning of the next end step" delayed triggers: `GameState.handleEvent` checks the delayed
             // ones before the others
@@ -1336,6 +1356,7 @@ pub fn devourer_first_upkeep(game: &mut Game, card: ObjId, seat: Seat) {
             up_to: true,
             optional: false,
             pick_x: false,
+            otherwise: Vec::new(),
         }],
         source_zcc: game.obj(card).zcc,
         fixed: Vec::new(),
@@ -6000,6 +6021,10 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         Trigger::FirstSpellOpponentsTurn => {
             you == seat && g.active.is_some_and(|a| a != you) && g.player(seat).spells_cast == 1
         }
+        // a Career cast twist: the spell's name, any case (`spell.getName().equalsIgnoreCase`)
+        Trigger::CareerCast { seat: who, card } => {
+            *who == seat && g.obj(src).zone == Zone::Command && g.obj(spell).name().eq_ignore_ascii_case(card)
+        }
         _ => false,
     });
     let mut fired = fired;
@@ -8875,6 +8900,8 @@ fn hexproof_from(game: &Game, id: ObjId, s: ObjId) -> bool {
             "each_color" => !colors.is_empty(),
             // `HexproofFromPlaneswalkersAbility`: the spell or ability's source is a planeswalker
             "planeswalkers" => game.has_type(s, CardType::Planeswalker),
+            // `HexproofFromInstantsAbility` (Elenda, Saint of Dusk)
+            "instants" => game.has_type(s, CardType::Instant),
             c => kinds.iter().position(|k| *k == c).is_some_and(|i| colors.iter().any(|x| *x as usize == i)),
         },
         _ => false,
@@ -15425,11 +15452,15 @@ fn apply_each_effect(
                     }
                 }
             }
-            EffectDef::MayCastTargetFromGraveyardThisTurnEffect => {
+            EffectDef::MayCastTargetFromGraveyardThisTurnEffect { then_exile } => {
                 let turn = game.turn;
                 for o in &objs {
                     if game.obj(*o).zone == Zone::Graveyard && !game.obj(*o).is(CardType::Land) {
                         game.obj_mut(*o).may_play = Some((controller, turn));
+                        // `ThatSpellGraveyardExileReplacementEffect`, for the rest of the turn
+                        if *then_exile {
+                            game.exile_if_graveyard.push(*o);
+                        }
                     }
                 }
             }
@@ -16884,6 +16915,7 @@ fn apply_each_effect(
                 up_to,
                 optional,
                 pick_x,
+                otherwise,
             } => {
                 let pick = if *pick_x { &item.x.max(0) } else { pick };
                 let n = match look_count {
@@ -16956,6 +16988,13 @@ fn apply_each_effect(
                 {
                     return;
                 }
+                // "if you didn't put a card into your hand this way, …" (`otherwiseEffect`)
+                if chosen.is_empty() && !otherwise.is_empty() {
+                    apply_each_effect(game, d, item, otherwise, &[], source);
+                    if d.stopped() {
+                        return;
+                    }
+                }
             }
             EffectDef::DrawDiscardControllerEffect { draw: n, discard: k, optional } => {
                 if *optional {
@@ -16968,9 +17007,13 @@ fn apply_each_effect(
                 draw(game, controller, (*n).max(0) as usize);
                 discard(game, d, controller, *k);
             }
-            EffectDef::DiscardControllerEffect { amount } => {
+            EffectDef::DiscardControllerEffect { amount, random } => {
                 let amount = &v!(amount);
-                discard(game, d, controller, *amount);
+                if *random {
+                    discard_at_random(game, controller, *amount);
+                } else {
+                    discard(game, d, controller, *amount);
+                }
             }
             EffectDef::SacrificeEffect { filter, amount }
             | EffectDef::SacrificeOpponentsEffect { filter, amount }
@@ -17012,6 +17055,7 @@ fn apply_each_effect(
                     p.speed += 1;
                 }
             }
+            EffectDef::CareerTwistEffect { twist } => crate::career::resolve(game, d, controller, twist),
             EffectDef::GetEmblemEffect { emblem } => {
                 token_image(game, emblem, source.0);
                 let id = game.create_obj(Arc::new(emblem.card()), controller, Zone::Library);
@@ -22453,6 +22497,8 @@ fn state_triggers(game: &mut Game) {
             game.pending.push(t);
         }
     }
+    // a Career life twist's, from the command zone
+    crate::career::life_triggers(game);
 }
 
 /// The batch triggers waiting, the `ZONE_CHANGE_BATCH` ones (`ZoneChangeBatchTriggeredAbility`) in Java's trigger
@@ -22842,6 +22888,8 @@ fn waiting(game: &mut Game, pending: Vec<StackItem>) -> Vec<StackItem> {
         }
     }
     let mut pending = kept;
+    // a Career timed twist triggers once each game
+    crate::career::once_each_game(game, &mut pending);
     // a card's delayed trigger that triggers only once is gone once it has (`DelayedTriggeredAbilities.checkTriggers`):
     // what it triggered for after its first is dropped
     pending.retain(|t| {

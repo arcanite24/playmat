@@ -607,6 +607,8 @@ pub enum Pred {
     Enchanted,
     /// `ModifiedPredicate`: a counter on it, an Equipment attached, or an Aura its controller controls
     Modified,
+    /// renowned (`Permanent.isRenowned`: `RenownedTargetCondition`, Enshrouding Mist)
+    Renowned,
     /// `WasDealtDamageThisTurnPredicate`
     DamagedThisTurn,
     /// `DamagedPlayerThisTurnPredicate(who)`: it dealt damage this turn to you ("you"), an opponent ("opponent") or
@@ -1114,6 +1116,8 @@ pub enum Trigger {
     Evolved,
     /// this becomes exerted (`BecomesExertSourceTriggeredAbility`)
     Exerted,
+    /// you exert a creature (`ExertCreatureControllerTriggeredAbility`: Vizier of the True)
+    ExertedCreatureYou,
     /// this crews a Vehicle (`CrewsVehicleSourceTriggeredAbility`); its target is the Vehicle
     CrewsVehicle,
     /// this becomes tapped (`BecomesTappedSourceTriggeredAbility`)
@@ -1291,6 +1295,22 @@ pub enum Trigger {
     /// you surveil (`SurveilTriggeredAbility`, `SURVEILED`), or scry (`ScryTriggeredAbility`, `SCRIED`): X is the amount
     YouSurveilOrScry {
         surveil: bool,
+    },
+    /// a Career timed twist (`CareerTimedTwists.AtTurn`, `crate::career`): at the beginning of any upkeep of turn
+    /// `turn` or later; once each game
+    CareerTurn {
+        turn: u32,
+    },
+    /// a Career timed twist (`CareerTimedTwists.AtLife`): a state trigger, `seat`'s life is `life` or less; once each
+    /// game, and held back while another of its source's waits or is on the stack (`StateTriggeredAbility`)
+    CareerLife {
+        seat: usize,
+        life: i32,
+    },
+    /// a Career timed twist (`CareerTimedTwists.OnCast`): `seat` casts a spell named `card` (any case); once each game
+    CareerCast {
+        seat: usize,
+        card: String,
     },
 }
 
@@ -1956,6 +1976,10 @@ pub enum Value {
     CardsInHand,
     /// cards in the active player's hand (`CardsInHandCondition` with `TargetController.ACTIVE`)
     ActivePlayerCardsInHand,
+    /// cards in all players' hands (`CardsInAllHandsCount`: Werewolf of Ancient Hunger)
+    CardsInAllHands,
+    /// cards in the hand of the first target, a player (`CardsInTargetHandCount`: Toil // Trouble)
+    TargetPlayerCardsInHand,
     /// the controller's speed (`ControllerSpeedCount`)
     Speed,
     /// cards of the filter in the controller's graveyard (every graveyard: `CardsInAllGraveyardsCount`)
@@ -1974,6 +1998,10 @@ pub enum Value {
     ControllerLife,
     /// the total power of the permanents of the filter
     TotalPower {
+        filter: Filter,
+    },
+    /// the total toughness of the permanents of the filter (The Pride of Hull Clade)
+    TotalToughness {
         filter: Filter,
     },
     /// counters of a kind on the source while it's on the battlefield
@@ -3815,8 +3843,13 @@ pub enum EffectDef {
     /// "Activated abilities of sources with the chosen name can't be activated" (mana abilities too: Phyrexian
     /// Revoker)
     PhyrexianRevokerEffect,
-    /// Emry: you may cast the target (a nonland card in your graveyard) this turn
-    MayCastTargetFromGraveyardThisTurnEffect,
+    /// Emry: you may cast the target (a nonland card in your graveyard) this turn; `then_exile`: if it would be put
+    /// into your graveyard this turn, exile it instead (`MayCastTargetCardEffect(Duration.EndOfTurn, true)`: Jace,
+    /// Telepath Unbound)
+    MayCastTargetFromGraveyardThisTurnEffect {
+        #[serde(default)]
+        then_exile: bool,
+    },
     /// converge: exile the target nonland permanent if its mana value is at most the colors spent to cast this
     PrismaticEndingEffect,
     /// target player exiles a card from their graveyard
@@ -4039,9 +4072,11 @@ pub enum EffectDef {
         #[serde(default)]
         optional: bool,
     },
-    /// the controller discards `amount` cards
+    /// the controller discards `amount` cards (`random`: at random, Curse-Marred Demon)
     DiscardControllerEffect {
         amount: Amount,
+        #[serde(default)]
+        random: bool,
     },
     /// the target player reveals their hand and you choose a card of the filter; they discard it (Duress)
     DiscardCardYouChooseTargetEffect {
@@ -4356,6 +4391,12 @@ pub enum EffectDef {
     GetEmblemEffect {
         emblem: TokenDef,
     },
+    /// a Career timed twist resolving (`CareerTimedTwists.TwistEffect`): its message, its edge and its life. Made by
+    /// the host (`crate::career::twists_emblem`), never read from a card
+    CareerTwistEffect {
+        #[serde(skip)]
+        twist: Arc<crate::career::Twist>,
+    },
     /// the target player sacrifices `amount` permanents of the filter
     SacrificeEffect {
         filter: Filter,
@@ -4567,6 +4608,10 @@ pub enum EffectDef {
         /// pick up to the X paid in place of `pick` (Kayla's Reconstruction)
         #[serde(default)]
         pick_x: bool,
+
+        /// "if you didn't put a card … this way, …" (`withOtherwiseEffect`: Adventure Awaits)
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        otherwise: Vec<EffectDef>,
     },
     /// a static ability's effect: the permanents of `filter` have `ability`
     /// a static ability's effect: the permanent this Aura enchants has the ability

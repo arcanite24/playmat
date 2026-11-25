@@ -4,6 +4,8 @@
   grid-template-columns: repeat(8, 1fr);
   gap: 5px;
   height: 84px;
+  /* room for the tallest bar's number above it */
+  padding-top: 14px;
 }
 
 .bar {

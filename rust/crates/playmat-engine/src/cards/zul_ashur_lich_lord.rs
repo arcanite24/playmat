@@ -7,6 +7,6 @@ pub const HANDLERS: &[Handler] = &[Handler::effect("ZulAshurLichLord.PlayFromNot
 /// `PlayFromNotOwnHandZoneTargetEffect(GRAVEYARD, YOU, EndOfTurn, false, onlyCast)`: the engine's "you may cast the
 /// target from your graveyard this turn" (Emry's)
 fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
-    cx.run(game, d, &[EffectDef::MayCastTargetFromGraveyardThisTurnEffect]);
+    cx.run(game, d, &[EffectDef::MayCastTargetFromGraveyardThisTurnEffect { then_exile: false }]);
     Some(())
 }
