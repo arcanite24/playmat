@@ -20865,13 +20865,20 @@ fn sacrifice(game: &mut Game, id: ObjId) {
     });
     // "when you sacrifice …" of a card in its owner's graveyard (Curious Cadaver)
     let grave: Vec<ObjId> =
-        (0..game.seats()).flat_map(|p| game.player(p).graveyard.clone()).filter(|o| *o != id).collect();
+        (0..game.seats())
+            .flat_map(|p| game.player(p).graveyard.clone())
+            .filter(|o| *o != id && !game.short_lki.contains(o))
+            .collect();
     let fired_grave = game.triggers(grave, |g, src, you, t| {
         g.obj(src).zone == Zone::Graveyard
             && matches!(t, Trigger::Sacrificed { filter, who: w, graveyard: true } if Game::whose(w, you, who) && g.filter_matches(filter, you, Some(src), id))
     });
     let mut fired = fired;
-    fired.extend(fired_grave);
+    for t in fired_grave {
+        let k = game.trigger_key(&t);
+        let at = fired.iter().position(|f| game.trigger_key(f) > k).unwrap_or(fired.len());
+        fired.insert(at, t);
+    }
     let batch = game.triggers(sources, |g, src, you, t| {
         matches!(t, Trigger::SacrificedBatch { filter, who: w } if Game::whose(w, you, who) && g.filter_matches(filter, you, Some(src), id))
             && !g.batch_pending.iter().any(|p| p.card == src && same_ability(g, p, t))

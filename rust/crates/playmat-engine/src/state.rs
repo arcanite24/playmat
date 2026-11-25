@@ -4766,16 +4766,16 @@ impl Game {
                 _ => false,
             });
             // "whenever a creature dies while this card is in your graveyard" (Furious Forebear): cards already in a
-            // graveyard, not the one dying nor what left with it
+            // graveyard, not the one dying, nor one that went there since its player last passed, cast or made mana
+            // (Java's short-living LKI still sees it on the battlefield)
             let grave: Vec<ObjId> = (0..self.seats())
                 .flat_map(|p| self.player(p).graveyard.clone())
-                .filter(|o| *o != id && !self.lookback.contains(o))
+                .filter(|o| *o != id && !self.lookback.contains(o) && !self.short_lki.contains(o))
                 .collect();
-            let mut fired = fired;
-            fired.extend(self.triggers(grave, |g, src, you, t| {
+            let from_graveyard = self.triggers(grave, |g, src, you, t| {
                 g.obj(src).zone == Zone::Graveyard
                     && matches!(t, Trigger::DiesAll { filter, graveyard: true, .. } if g.filter_matches(filter, you, Some(src), id))
-            }));
+            });
             self.trigger_cause = None;
             let mut fired = self.pelt_collector(fired, id);
             // Hushbringer: a creature dying triggers nothing
@@ -4798,6 +4798,12 @@ impl Game {
                         *zcc = zcc.saturating_sub(1);
                     }
                 }
+            }
+            // (a card in a graveyard triggers as that card), each in its place in Java's trigger order
+            for t in from_graveyard {
+                let k = self.trigger_key(&t);
+                let at = fired.iter().position(|f| self.trigger_key(f) > k).unwrap_or(fired.len());
+                fired.insert(at, t);
             }
             // blitz: its granted "When this creature dies, draw a card."
             if self.obj(id).blitzed {
