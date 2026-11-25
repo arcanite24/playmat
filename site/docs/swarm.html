@@ -59,7 +59,7 @@
         <ul>
           <li><strong>A coordinator hands out work units.</strong> A unit is about a hundred games: which decks, which networks, which deals. It keeps only the metadata; the games go straight to storage (an R2 bucket, or a folder on the coordinator for a LAN).</li>
           <li><strong>Workers play units and send them back.</strong> Each game comes with its answer log, the list of every decision made in it.</li>
-          <li><strong>The trainer replays every game from its answer log</strong> and accepts the unit only if the replay ends the same way and records the same training data, bit for bit.</li>
+          <li><strong>The trainer replays every game from its answer log</strong> and accepts the unit only if every file matches its hash and the replay accepts every answer and ends the same way. Checking the recorded training data against the replay is the next step.</li>
           <li><strong>Every worker plays the same games.</strong> Workers are built <code>strict</code>, which pins the floating-point maths, so a Mac, a Windows PC and a Linux box (Intel or ARM) agree exactly.</li>
         </ul>
 

@@ -17,7 +17,9 @@ async fn main() -> anyhow::Result<()> {
     // every option can also come from the environment (the Docker image): --public-url is SWARM_PUBLIC_URL
     let opt = |name: &str| {
         args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).cloned().or_else(|| {
-            std::env::var(format!("SWARM_{}", name.trim_start_matches('-').replace('-', "_").to_uppercase())).ok()
+            std::env::var(format!("SWARM_{}", name.trim_start_matches('-').replace('-', "_").to_uppercase()))
+                .ok()
+                .filter(|v| !v.trim().is_empty())
         })
     };
     let db = opt("--db").unwrap_or_else(|| "swarm.db".into());
@@ -25,7 +27,13 @@ async fn main() -> anyhow::Result<()> {
     let store = match opt("--store") {
         Some(dir) => Store::Local(Local::new(PathBuf::from(dir), base.clone())),
         None if args.get(1).map(String::as_str) == Some("serve") => {
-            let env = |k: &str| std::env::var(k).map_err(|_| anyhow::anyhow!("{k} is not set (or pass --store DIR)"));
+            // an empty setting (mana.env.example's blanks) counts as unset
+            let env = |k: &str| {
+                std::env::var(k)
+                    .ok()
+                    .filter(|v| !v.trim().is_empty())
+                    .ok_or_else(|| anyhow::anyhow!("{k} is not set (or set SWARM_STORE / pass --store DIR)"))
+            };
             Store::R2(R2::new(
                 &env("SWARM_R2_ACCOUNT")?,
                 &env("SWARM_R2_BUCKET")?,

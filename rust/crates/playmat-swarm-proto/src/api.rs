@@ -4,7 +4,8 @@
 //!
 //! Worker: `POST /hello` once, then `POST /lease` until it gets a unit, `POST /units/<id>/heartbeat` while it plays,
 //! `POST /units/<id>/uploads` for presigned upload URLs, a `PUT` of every file, and `POST /units/<id>/complete` with
-//! the manifest (or `/fail`). Networks come from `GET /nets/<sha256>`, which redirects to the store.
+//! the manifest, or `/fail` (counts against the unit; that host never gets it again) or `/release` (handed back
+//! unplayed because the host stopped being idle: no failure). Networks come from `GET /nets/<sha256>`, which redirects to the store.
 //!
 //! Trainer: `POST /nets/<sha256>` for an upload URL, `POST /rounds` with the round's units, `GET /rounds/<id>` for
 //! progress, `GET /rounds/<id>/results` for the completed units and their files, `POST /units/<id>/verdict` once it has

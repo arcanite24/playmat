@@ -13,8 +13,8 @@ services:
     env_file:
       - path: mana.env
         required: false
+    # SWARM_PUBLIC_URL and the store settings come from mana.env (an `environment:` entry would override it)
     environment:
-      SWARM_PUBLIC_URL: ${SWARM_PUBLIC_URL:-http://localhost:17190}
       RUST_LOG: ${RUST_LOG:-info}
     volumes:
       - mana-data:/data

@@ -1,5 +1,5 @@
 //! The coordinator's lease rules over HTTP: a round's network links point at the coordinator whatever the trainer
-//! wrote, and a host that gives a unit back never gets it again (another host does).
+//! wrote, a host that fails a unit never gets it again (another host does), and a released unit isn't a failure.
 
 use playmat_swarm::store::{Local, Store};
 use playmat_swarm::Swarm;
@@ -102,6 +102,12 @@ async fn leases_follow_the_rules() {
     assert_eq!(l.unit.nets[0].url, format!("{base}/api/v1/nets/{sha}"));
     let got = http.get(&l.unit.nets[0].url).bearer_auth(&worker).send().await.unwrap().bytes().await.unwrap();
     assert_eq!(got.to_vec(), net);
+
+    // a release hands it back with no mark against the host: it may lease it again
+    let res = http.post(api("/units/t-r1-u000/release")).bearer_auth(&worker).send().await.unwrap();
+    assert_eq!(res.status(), StatusCode::NO_CONTENT);
+    let l: Lease = lease(laptop.host).await.unwrap().json().await.unwrap();
+    assert_eq!(l.unit.id, "t-r1-u000");
 
     let res = http
         .post(api("/units/t-r1-u000/fail"))

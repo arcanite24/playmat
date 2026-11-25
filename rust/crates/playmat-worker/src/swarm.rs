@@ -67,7 +67,20 @@ pub fn run(o: Opts) -> Result<(), String> {
         threads: o.jobs as u32,
         os: format!("{}-{}", std::env::consts::OS, std::env::consts::ARCH),
     };
-    let reply: HelloReply = api.post("/hello", &hello)?.json().map_err(|e| e.to_string())?;
+    // the coordinator may be down or restarting: keep asking, up to every five minutes (a refused token still stops)
+    let mut wait = 5;
+    let reply: HelloReply = loop {
+        match api.post("/hello", &hello) {
+            Ok(r) => break r.json().map_err(|e| e.to_string())?,
+            // "/hello: 401 Unauthorized ..." (from `check`): the coordinator answered and said no
+            Err(e) if e.split_once(": ").is_some_and(|(_, r)| r.starts_with('4')) => return Err(e),
+            Err(e) => {
+                eprintln!("HELLO {e}, again in {wait} s");
+                std::thread::sleep(Duration::from_secs(wait));
+                wait = (wait * 2).min(300);
+            }
+        }
+    };
     println!("WORKER {} (host {}) at {}, class {}, {} jobs", o.name, reply.host, api.base, hello.class, o.jobs);
     let nets_dir = format!("{}/nets", o.work);
     std::fs::create_dir_all(&nets_dir).map_err(|e| format!("{nets_dir}: {e}"))?;
@@ -105,6 +118,11 @@ pub fn run(o: Opts) -> Result<(), String> {
         let id = lease.unit.id.clone();
         match play(&api, &o, &nets_dir, lease) {
             Ok(games) => println!("DONE {id}: {games} games"),
+            // stopped for the host's sake (not idle, or the lease moved on): hand it back without counting a failure
+            Err(e) if e.starts_with("stopped:") => {
+                println!("RELEASE {id}: {e}");
+                let _ = api.post(&format!("/units/{id}/release"), &serde_json::json!({}));
+            }
             Err(e) => {
                 eprintln!("FAIL {id}: {e}");
                 let _ = api.post(&format!("/units/{id}/fail"), &Fail { reason: e });

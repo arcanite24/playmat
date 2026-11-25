@@ -158,8 +158,14 @@ def run_on_swarm(args, state, plan, learner_base):
         for u in us:
             slot_of[u["id"]] = i
         units += us
-    st = swarm.publish(client, "pfsp", args.swarm_run, rnd, units)
-    swarm.wait(client, st["id"])
+    try:
+        st = swarm.publish(client, "pfsp", args.swarm_run, rnd, units)
+    except RuntimeError as e:
+        if ": 409 " in str(e):
+            raise SystemExit(f"round {rnd} of pfsp/{args.swarm_run} is already on the coordinator: "
+                             f"pass another --swarm-round (or --seed)") from None
+        raise
+    swarm.wait(client, st["id"], timeout=args.swarm_wait_hours * 3600)
     accepted = swarm.pull(client, st["id"], args.out, args.worker_bin)
     for uid, m in accepted.items():
         item = plan[slot_of[uid]]
@@ -197,6 +203,8 @@ def main():
     ap.add_argument("--swarm-run", default="pfsp", help="the run's name on the coordinator")
     ap.add_argument("--swarm-round", type=int, default=None, help="the round number (default: --seed)")
     ap.add_argument("--worker-bin", default=None, help="playmat-worker, to replay the swarm's units")
+    ap.add_argument("--swarm-wait-hours", type=float, default=24.0,
+                    help="pull what's done after this long, even if units are still queued (no host can take them)")
     args = ap.parse_args()
 
     state = load_league(args.state, args.runs_dir)

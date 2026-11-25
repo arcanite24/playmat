@@ -127,6 +127,7 @@ pub fn router(s: Shared) -> Router {
         .route("/api/v1/units/{id}/uploads", post(uploads))
         .route("/api/v1/units/{id}/complete", post(complete))
         .route("/api/v1/units/{id}/fail", post(fail))
+        .route("/api/v1/units/{id}/release", post(release))
         .route("/api/v1/units/{id}/verdict", post(verdict))
         .route("/api/v1/nets/{sha}", get(get_net).post(put_net))
         .route("/api/v1/rounds", post(new_round))
@@ -462,6 +463,19 @@ async fn fail(
     let next = if state.get::<i64, _>("attempts") >= MAX_ATTEMPTS { "failed" } else { "queued" };
     sqlx::query("UPDATE units SET state = ?, host = NULL WHERE id = ?").bind(next).bind(&id).execute(&s.db).await?;
     s.audit(&c.name, "fail", &format!("{id}: {}", f.reason.chars().take(500).collect::<String>())).await;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// A unit handed back unplayed (the host stopped being idle): back to the queue with its attempt returned, and the
+/// host may take it again later. A failure counts against the unit; a release doesn't.
+async fn release(State(s): State<Shared>, headers: HeaderMap, Path(id): Path<String>) -> Res<StatusCode> {
+    let c = caller(&s, &headers, &[Role::Worker, Role::Trainer, Role::Admin]).await?;
+    leased(&s, &c, &id).await?;
+    sqlx::query("UPDATE units SET state = 'queued', host = NULL, attempts = MAX(attempts - 1, 0) WHERE id = ?")
+        .bind(&id)
+        .execute(&s.db)
+        .await?;
+    s.audit(&c.name, "release", &id).await;
     Ok(StatusCode::NO_CONTENT)
 }
 
