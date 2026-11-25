@@ -268,19 +268,19 @@
  },
  "counted": {
   "engine_cards": 14167,
-  "verified_cards": 14135,
+  "verified_cards": 14084,
   "pioneer": {
    "cards": 15259,
    "in_engine": 13965,
-   "verified": 13934
+   "verified": 13883
   },
   "java_card_files": 32849,
   "school": {
    "label": "Pioneer and Standard school decks",
    "decks": 42,
-   "covered": 42,
+   "covered": 41,
    "cards": 410,
-   "cards_in": 410,
+   "cards_in": 409,
    "list": [
     {
      "deck": "act1-boros-aggro",
@@ -375,7 +375,7 @@
     {
      "deck": "meta-izzet-prowess",
      "cards": 20,
-     "missing": 0
+     "missing": 1
     },
     {
      "deck": "meta-mono-red-prowess",
@@ -497,9 +497,9 @@
   "meta": {
    "label": "Pioneer and Standard meta decks",
    "decks": 24,
-   "covered": 24,
+   "covered": 21,
    "cards": 278,
-   "cards_in": 278,
+   "cards_in": 276,
    "list": [
     {
      "deck": "pioneer-azorius-spirits",
@@ -524,7 +524,7 @@
     {
      "deck": "pioneer-izzet-prowess",
      "cards": 19,
-     "missing": 0
+     "missing": 1
     },
     {
      "deck": "pioneer-jeskai-ensoul",
@@ -564,7 +564,7 @@
     {
      "deck": "standard-azorius-control",
      "cards": 20,
-     "missing": 0
+     "missing": 1
     },
     {
      "deck": "standard-boros-dragons",
@@ -594,7 +594,7 @@
     {
      "deck": "standard-izzet-prowess",
      "cards": 20,
-     "missing": 0
+     "missing": 1
     },
     {
      "deck": "standard-izzet-spellementals",
@@ -1032,7 +1032,7 @@
    "checked_in": 1482
   },
   "rust": {
-   "lines": 145769,
+   "lines": 146277,
    "crates": [
     {
      "crate": "playmat-ai",
@@ -1040,7 +1040,7 @@
     },
     {
      "crate": "playmat-engine",
-     "lines": 116998
+     "lines": 117239
     },
     {
      "crate": "playmat-gateway",
@@ -1048,7 +1048,7 @@
     },
     {
      "crate": "playmat-host",
-     "lines": 5837
+     "lines": 6104
     },
     {
      "crate": "playmat-platform",
@@ -1065,6 +1065,6 @@
    ]
   }
  },
- "commit": "7694f82f4ec47dc03500325a30b8db4ff19a4a21",
+ "commit": "33491dbf34ce6707696343810faeb986859de3e4",
  "generated": "2026-11-24"
 }

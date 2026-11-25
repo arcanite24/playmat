@@ -391,6 +391,8 @@ pub struct Obj {
     pub deathtouched: bool,
     /// a token: it exists only on the battlefield
     pub token: bool,
+    /// an emblem with a card's abilities (`EmblemOfCard`, a Career twist's): its view shows the card's printing
+    pub card_emblem: bool,
     /// where its triggered abilities sit in Java's `TriggeredAbilities` map (registered as cards are loaded, tokens as
     /// they're created): abilities that trigger on the same event wait in this order
     pub trigger_order: u64,
@@ -1318,6 +1320,8 @@ pub struct Game {
     pub attacks_if_able_next: Vec<(Seat, Filter, ObjId)>,
     /// triggered abilities with a limit each turn that triggered this turn: source, its zone changes, ability index
     pub triggered_this_turn: Vec<(ObjId, u32, usize)>,
+    /// the Career timed twists that have triggered (`crate::career`, once each game): their source and ability index
+    pub career_fired: Vec<(ObjId, usize)>,
     /// while triggered abilities go on the stack: what their targets trigger (ward, valiant), which Java's
     /// `addSimultaneousEvent` holds until every player's are on (`GameImpl.checkTriggered`)
     pub targeted_later: Option<Vec<StackItem>>,
@@ -1723,6 +1727,7 @@ impl Game {
             dont_untap_next: Vec::new(),
             attacks_if_able_next: Vec::new(),
             triggered_this_turn: Vec::new(),
+            career_fired: Vec::new(),
             targeted_later: None,
             sac_insert: None,
             entering_together: Vec::new(),
@@ -1969,6 +1974,7 @@ impl Game {
             token_image: None,
             deathtouched: false,
             token: false,
+            card_emblem: false,
             trigger_order: id.0 as u64,
             class_gained: Vec::new(),
             phased_out: false,

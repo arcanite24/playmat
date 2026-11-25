@@ -815,6 +815,10 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                         && name == "upkeep"
                         && you == active
                         && g.obj(src).zone == Zone::Battlefield)
+                    // a Career turn twist: any player's upkeep, from its turn on (`UPKEEP_STEP_PRE`)
+                    || (matches!(t, Trigger::CareerTurn { turn } if g.turn >= *turn)
+                        && name == "upkeep"
+                        && g.obj(src).zone == Zone::Command)
             });
             // "at the beginning of the next end step" delayed triggers: `GameState.handleEvent` checks the delayed
             // ones before the others
@@ -5977,6 +5981,10 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         Trigger::CastSecondSpell { who } => Game::whose(who, you, seat) && g.player(seat).spells_cast == 2,
         Trigger::FirstSpellOpponentsTurn => {
             you == seat && g.active.is_some_and(|a| a != you) && g.player(seat).spells_cast == 1
+        }
+        // a Career cast twist: the spell's name, any case (`spell.getName().equalsIgnoreCase`)
+        Trigger::CareerCast { seat: who, card } => {
+            *who == seat && g.obj(src).zone == Zone::Command && g.obj(spell).name().eq_ignore_ascii_case(card)
         }
         _ => false,
     });
@@ -16990,6 +16998,7 @@ fn apply_each_effect(
                     p.speed += 1;
                 }
             }
+            EffectDef::CareerTwistEffect { twist } => crate::career::resolve(game, d, controller, twist),
             EffectDef::GetEmblemEffect { emblem } => {
                 token_image(game, emblem, source.0);
                 let id = game.create_obj(Arc::new(emblem.card()), controller, Zone::Library);
@@ -22431,6 +22440,8 @@ fn state_triggers(game: &mut Game) {
             game.pending.push(t);
         }
     }
+    // a Career life twist's, from the command zone
+    crate::career::life_triggers(game);
 }
 
 /// The batch triggers waiting, the `ZONE_CHANGE_BATCH` ones (`ZoneChangeBatchTriggeredAbility`) in Java's trigger
@@ -22820,6 +22831,8 @@ fn waiting(game: &mut Game, pending: Vec<StackItem>) -> Vec<StackItem> {
         }
     }
     let mut pending = kept;
+    // a Career timed twist triggers once each game
+    crate::career::once_each_game(game, &mut pending);
     // a card's delayed trigger that triggers only once is gone once it has (`DelayedTriggeredAbilities.checkTriggers`):
     // what it triggered for after its first is dropped
     pending.retain(|t| {

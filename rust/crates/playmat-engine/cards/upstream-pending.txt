@@ -1,2 +1,55 @@
 # Verified cards upstream changed and Rust hasn't caught up with (rust/tools/upstream_ledger.py check):
 # the engine's gate leaves them out, so their games stay on Java until they're re-verified.
+# Prepare and vengeance cards: upstream 31c3adcc8cf (7 Nov) has Java ask "spell or ability?" when one is cast from
+# hand; the Rust engine casts it directly. They play on Java until rules.rs has the same choice (#509).
+Abigale, Poet Laureate
+Adventurous Eater
+Blazing Firesinger
+Bloodline Recollector
+Blossom-Blessed Angel
+Campus Composer
+Cheerful Osteomancer
+Diviner of Victory
+Elite Interceptor
+Emergency Phytomedic
+Emeritus of Abundance
+Emeritus of Conflict
+Emeritus of Ideation
+Emeritus of Truce
+Encouraging Aviator
+Fatehold Chronologist
+Goblin Glasswright
+Hallway Heckler
+Harmonized Trio
+Heartwood Crafter
+Honorbound Page
+Infirmary Healer
+Jadzi, Steward of Fate
+Kirol, History Buff
+Konstrari Improviser
+Landscape Painter
+Leech Collector
+Lluwen, Exchange Student
+Maelstrom Artisan
+Paradox Shaper
+Pigment Wrangler
+Pompous Battlemage
+Prudent Fateseer
+Quill-Blade Laureate
+Sanar, Unfinished Genius
+Scathing Shadelock
+Semester Foreseer
+Skycoach Conductor
+Spellbook Seeker
+Spiritcall Enthusiast
+Stingerquill Voxmancer
+Strife Scholar
+Studious First-Year
+Tam, Observant Sequencer
+Theorix Metamage
+Variable Chaser
+Vastlands Scavenger
+Vigorbloom Vanguard
+Void Extrapolator
+Whiplash Wordsmith
+Woodwork Prodigy

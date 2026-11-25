@@ -1292,6 +1292,22 @@ pub enum Trigger {
     YouSurveilOrScry {
         surveil: bool,
     },
+    /// a Career timed twist (`CareerTimedTwists.AtTurn`, `crate::career`): at the beginning of any upkeep of turn
+    /// `turn` or later; once each game
+    CareerTurn {
+        turn: u32,
+    },
+    /// a Career timed twist (`CareerTimedTwists.AtLife`): a state trigger, `seat`'s life is `life` or less; once each
+    /// game, and held back while another of its source's waits or is on the stack (`StateTriggeredAbility`)
+    CareerLife {
+        seat: usize,
+        life: i32,
+    },
+    /// a Career timed twist (`CareerTimedTwists.OnCast`): `seat` casts a spell named `card` (any case); once each game
+    CareerCast {
+        seat: usize,
+        card: String,
+    },
 }
 
 /// Mana abilities as `ManaUtil.tryToAutoPay` tells them apart: a basic one (`{T}: Add {G}`, pain lands too), one of
@@ -4355,6 +4371,12 @@ pub enum EffectDef {
     /// you get an emblem (abilities in the command zone), read like a token class
     GetEmblemEffect {
         emblem: TokenDef,
+    },
+    /// a Career timed twist resolving (`CareerTimedTwists.TwistEffect`): its message, its edge and its life. Made by
+    /// the host (`crate::career::twists_emblem`), never read from a card
+    CareerTwistEffect {
+        #[serde(skip)]
+        twist: Arc<crate::career::Twist>,
     },
     /// the target player sacrifices `amount` permanents of the filter
     SacrificeEffect {

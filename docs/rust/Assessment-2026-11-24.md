@@ -123,7 +123,7 @@ Chosen 24 Nov 2026: **2, "Java off the game path".**
    trials, horde, pods, limited runs, emblems and timed twists still stay on Java. This week's challenge (W48) has
    19 unverified cards, so it stays on Java until wave 18. Ranked, League and Ladder tables already qualify. Host Career tables: the Career's tally and assists in the host, and setups (twists, nemesis, puzzles). Check
    whether Ranked, League and Ladder tables already qualify, and fix what keeps them on Java.
-4. **Decided 24 Nov: no conversion.** "Starts from a setup or a save" is a Java game resumed from a Java save.
+4. **Decided 24 Nov: no conversion.** "It carries on a game Java saved" (logged as "starts from a setup or a save" before 25 Nov) is a Java game resumed from a Java save. In the first hour with hosting on for everyone, 7 of 8 were one player resuming saves of their Commander duels, which are out of scope: the game type is now checked first, so those log their game type.
    Hosted games already save each turn as a line (`PLAYMAT-HOSTED-LINE`), which resumes on the host
    (`GameOptions.hostedLine`), so once hosting is the default no new Java saves are made. Old ones resume on Java
    until `SoloGames.RETENTION_MS` (30 days) prunes them; step 13 then drops the path. Career setups are step 3's.
