@@ -5213,6 +5213,20 @@ pub enum AbilityDef {
         rule: String,
         #[serde(default)]
         colorless_made: bool,
+        /// "whenever a player taps a land": the filter is matched as Java's `filter.match` does, with no "you"
+        /// unless it says so, and the mana goes to the player who tapped it
+        #[serde(default)]
+        any_player: bool,
+    },
+    /// "whenever enchanted land is tapped for mana, its controller adds …" (`EnchantedTappedTriggeredManaAbility`, a
+    /// mana ability that triggers, resolved at once): `amount` mana of `color` ("any": each asked, as
+    /// `ChoiceColor`), to the land's controller or, with `aura_controller`, the Aura's (Market Festival)
+    EnchantedTappedTriggeredManaAbility {
+        color: String,
+        amount: u32,
+        #[serde(default)]
+        aura_controller: bool,
+        rule: String,
     },
     /// the blitz ability's "as it enters" part (Java lists it on its own)
     BlitzEntersAbility {

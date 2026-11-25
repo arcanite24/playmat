@@ -6815,6 +6815,23 @@ class Translator:
                                        self.strip_setters(args[0]))):
             return {'class': cls, 'java': cls, 'filter': self.filter(args[1]),
                     'color': {'White': 'W', 'Blue': 'U', 'Black': 'B', 'Red': 'R', 'Green': 'G'}[m.group(1)]}
+        # "whenever a player taps a land for mana, that player adds one mana of any type that land produced"
+        # (Zhur-Taa Ancient; the filter as Java matches it, so any player's unless it says "you")
+        if cls == 'TapForManaAllTriggeredManaAbility' and n == 3 and args[2] == 'SetTargetPointer.PERMANENT' \
+                and self.strip_setters(args[0]) == 'new AddManaOfAnyTypeProducedEffect()':
+            return {'class': cls, 'java': cls, 'filter': self.filter(args[1]), 'color': 'produced',
+                    'any_player': True}
+        # "whenever enchanted land is tapped for mana, its controller adds …"
+        if cls == 'EnchantedTappedTriggeredManaAbility' and n == 1:
+            e = self.strip_setters(args[0])
+            if e == 'new AddManaAnyColorAttachedControllerEffect()':
+                return {'class': cls, 'java': cls, 'color': 'any', 'amount': 1}
+            if e == 'new MarketFestivalManaEffect()':
+                return {'class': cls, 'java': cls, 'color': 'any', 'amount': 2, 'aura_controller': True}
+            m = re.fullmatch(r'new AddManaToManaPoolTargetControllerEffect\(new Mana\(ColoredManaSymbol\.([WUBRG])\),'
+                             r'"their"\)', e)
+            if m:
+                return {'class': cls, 'java': cls, 'color': m.group(1), 'amount': 1}
         # gift (an instant's or sorcery's: the gift is given as it resolves, before its effects)
         if cls == 'GiftAbility' and n == 2 and args[0] == 'this' and args[1] in GIFTS:
             name, tok = GIFTS[args[1]]
@@ -7888,6 +7905,10 @@ def translate(card_name, subtypes, facts):
     if not os.path.exists(path) and ' // ' in card_name:
         # a split card (a Room) is named after both halves
         cls = ''.join(class_name(n) for n in card_name.split(' // '))
+        path = os.path.join(SETS, cls[0].lower(), cls + '.java')
+    if not os.path.exists(path) and card_name in set_card_classes():
+        # a name the rule above doesn't spell (Raph & Mikey's "And", +2 Mace's "Plus2"): the sets' own class
+        cls = set_card_classes()[card_name]
         path = os.path.join(SETS, cls[0].lower(), cls + '.java')
     if not os.path.exists(path):
         raise Unsupported('no card class ' + cls)
@@ -9837,7 +9858,25 @@ def card_path(card_name):
         # a split card (a Room) is named after both halves
         cls = ''.join(class_name(n) for n in card_name.split(' // '))
         path = os.path.join(SETS, cls[0].lower(), cls + '.java')
+    if not os.path.exists(path) and card_name in set_card_classes():
+        cls = set_card_classes()[card_name]
+        path = os.path.join(SETS, cls[0].lower(), cls + '.java')
     return path
+
+
+_SET_CARD_CLASSES = None
+
+
+def set_card_classes():
+    """card name -> its class, from the sets' `SetCardInfo` lines (commented-out ones too)"""
+    global _SET_CARD_CLASSES
+    if _SET_CARD_CLASSES is None:
+        _SET_CARD_CLASSES = {}
+        pat = re.compile(r'new SetCardInfo\("((?:[^"\\]|\\.)*)",[^;]*?mage\.cards\.\w\.(\w+)\.class')
+        for f in sorted(glob.glob(os.path.join(ROOT, 'Mage.Sets', 'src', 'mage', 'sets', '*.java'))):
+            for m in pat.finditer(open(f, encoding='utf-8').read()):
+                _SET_CARD_CLASSES.setdefault(m.group(1), m.group(2))
+    return _SET_CARD_CLASSES
 
 
 EMBLEMS = os.path.join(ROOT, 'Mage', 'src', 'main', 'java', 'mage', 'game', 'command', 'emblems')

@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans), plus the Career decks' cards outside it, `cards/career-pool.txt` (121 names, wave 18).
-  `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler can express (14,195 on
+  `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler can express (14,213 on
   24 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
@@ -1697,6 +1697,38 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   - Serah Farron: Java takes {3} off Yuna, Hope of Spira and Rust {2}, as if the front face's reduction and
     Crystallized Serah's copy of it both applied.
   - Mnemonic Betrayal's delayed return puts the exiled cards into the graveyard in another order.
+
+  Wave 20c, Pioneer cards (24 Nov): the cards wave 19c left out, deck-used ones first, then `card-priority.tsv`.
+  18 came in (14,213 in the engine). Three factory rounds (74 games: 41 matching, 5 differing, 1 unfinished by Java,
+  27 skipped because they were recorded with a card later left out) verified 12: 14,186 of 14,213. Rounds 2 and 3
+  were hand-made (Aura ramp decks with Market Festival, Verdant Haven and Wolfwillow Haven; Ghostly Pilferer in blue
+  decks; Roxanne and Zhur-Taa Ancient with Lavaleaper). The 4 games under `shadow/wave20c/` cover the enchanted-land
+  mana Auras, Ghostly Pilferer, Roxanne's Meteorites with Zhur-Taa Ancient's mana, and the Guild Globe fix. The
+  pieces:
+  - `EnchantedTappedTriggeredManaAbility` ("whenever enchanted land is tapped for mana, its controller adds ..."),
+    with the effects `AddManaAnyColorAttachedControllerEffect`, `AddManaToManaPoolTargetControllerEffect` and
+    Market Festival's two mana of any colors, which go to the Aura's controller (`aura_controller`). The playable check
+    and paying both count it. Market Festival's colors are always asked; the others pick an owed color for the
+    paying player, as Java's `PutManaInPool` choice does.
+  - `TapForManaAllTriggeredManaAbility { any_player }` with `AddManaOfAnyTypeProducedEffect` ("whenever a player taps
+    a land for mana, that player adds one mana of any type it produced": Zhur-Taa Ancient, Dictate of Karametra).
+    `tap_for_mana_extra` now returns each source's possible kinds.
+  - Ghostly Pilferer's "whenever an opponent casts a spell from anywhere other than their hand" (its own handler).
+  - The transpiler finds a card's class from the sets' `SetCardInfo` lines when the class name isn't the card's
+    name, and `card_handlers` accepts only the `PutCards` constants the engine has.
+  - Fix: the playable check counts a two-different-colors mana ability's second mana when it pays a cost (Guild
+    Globe: its `{2}` ability paid from floating mana and a land). Game: `game-w20c-guild-globe-two-colors-playable`.
+
+  Not fixed: Java (since upstream 31c3adcc8cf) always shows the ability picker for a prepare card cast from outside
+  the battlefield, so Emeritus of Truce's prepared Swords to Plowshares is offered from hand. Making Rust ask too
+  breaks 60 checked-in games recorded before that change; it waits for the prepare cards' re-verification (#510).
+
+  Not verified, each with a differing game blamed on it: Don & Leo, Problem Solvers (2 games), Dark Leo & Shredder
+  (doesn't attack in Rust), Dictate of Karametra (a copy goes to the graveyard in Rust) and Lavaleaper. Pending (too
+  few games ran them): Anchovy & Banana Pizza and Raph & Leo, Sibling Rivals. Left out: Raph & Mikey
+  (`PutCards.BATTLEFIELD_TAPPED_ATTACKING`), the seven `CastFromHandSourcePermanentCondition` cards, graveyard dies
+  and sacrifice triggers, dice and `setRandom`, and the deck-used cards that need a spell-countered trigger,
+  `MANA_PAID` or mana abilities in the graveyard (Baral, Pyromancer's Goggles and others).
 
   Wave 15, shared forms A (15 Nov): framework forms that block several of the claim's cards, then card classes,
   built in four slices. Ending the turn (`EndTurnEffect`, `Turn.endTurn`: `Game::end_turn`; every spell on the stack

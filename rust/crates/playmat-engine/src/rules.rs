@@ -3335,28 +3335,66 @@ fn can_pay(game: &Game, seat: Seat, cost: &ManaCost) -> bool {
     can_pay_extra(game, seat, cost, Vec::new())
 }
 
-/// "whenever you tap a creature for mana, add an additional {G}" (Badgermole Cub): the colors tapping `id` for mana
-/// adds besides its own
-/// (each a pool kind: WUBRG 0-4, {C} 5; `made` is what the tapping makes, any of them for the playable check)
-fn tap_for_mana_extra(game: &Game, seat: Seat, id: ObjId, made: &[Mana]) -> Vec<usize> {
+/// "whenever you tap a creature for mana, add an additional {G}" (Badgermole Cub): the mana tapping `id` for mana
+/// adds besides its own, each one source's worth: the kinds it may be (one: a fixed {G}; several: "one mana of any type
+/// that land produced", any kind `made` has)
+/// (`made` is what the tapping makes, any of them for the playable check; `taps`: the ability taps `id`, as the
+/// `TAPPED_FOR_MANA` event needs)
+fn tap_for_mana_extra(game: &Game, seat: Seat, id: ObjId, made: &[Mana], taps: bool) -> Vec<Vec<Mana>> {
     let mut extra = Vec::new();
+    let one = |k: usize| if k == 5 { Mana { colorless: 1, ..Mana::default() } } else { Mana::of(Color::ALL[k], 1) };
     for b in game.battlefield.iter() {
         let s = game.obj(*b);
-        if s.controller != seat {
-            continue;
-        }
         for a in &s.def.abilities {
-            if let AbilityDef::TapForManaAllTriggeredManaAbility { filter, color, colorless_made, .. } = a {
+            if let AbilityDef::TapForManaAllTriggeredManaAbility { filter, color, colorless_made, any_player, .. } = a {
+                if if *any_player { !taps } else { s.controller != seat } {
+                    continue;
+                }
                 if *colorless_made && !made.iter().any(|m| m.colorless > 0) {
                     continue;
                 }
-                if game.filter_matches(filter, seat, Some(*b), id) {
-                    extra.push(if color == "C" { 5 } else { "WUBRG".find(color.as_str()).unwrap_or(4) });
+                if !game.filter_matches(filter, s.controller, Some(*b), id) {
+                    continue;
+                }
+                if color == "produced" {
+                    // `AddManaOfAnyTypeProducedEffect`: one of the types made, in `ChoiceColor`'s order (WUBRG, then C)
+                    let kinds: Vec<Mana> = (0..6)
+                        .filter(|k| made.iter().any(|m| if *k == 5 { m.colorless > 0 } else { m.colored[*k] > 0 }))
+                        .map(one)
+                        .collect();
+                    if !kinds.is_empty() {
+                        extra.push(kinds);
+                    }
+                } else {
+                    extra.push(vec![one(if color == "C" { 5 } else { "WUBRG".find(color.as_str()).unwrap_or(4) })]);
                 }
             }
         }
     }
     extra
+}
+
+/// "whenever enchanted land is tapped for mana, its controller adds …" (`EnchantedTappedTriggeredManaAbility`): the
+/// Auras on `id` with one, in battlefield order, and the mana each adds, one source's worth per mana (any color: all
+/// five)
+fn enchanted_tapped_extra(game: &Game, id: ObjId) -> Vec<(ObjId, Vec<Mana>)> {
+    let mut out = Vec::new();
+    for b in game.battlefield.iter() {
+        if game.attached(*b) != Some(id) {
+            continue;
+        }
+        for a in &game.obj(*b).def.abilities {
+            if let AbilityDef::EnchantedTappedTriggeredManaAbility { color, amount, .. } = a {
+                let kinds: Vec<Mana> = if color == "any" {
+                    Color::ALL.iter().map(|c| Mana::of(*c, 1)).collect()
+                } else {
+                    vec![Mana::of(Color::ALL["WUBRG".find(color.as_str()).unwrap_or(4)], 1)]
+                };
+                out.extend((0..*amount).map(|_| (*b, kinds.clone())));
+            }
+        }
+    }
+    out
 }
 
 /// a player's devotion to a color
@@ -3492,6 +3530,14 @@ fn pay_with_costly(
                     let one =
                         if *k < 5 { Mana::of(Color::ALL[*k], 1) } else { Mana { colorless: 1, ..Mana::default() } };
                     options.extend((0..*made).map(|_| vec![one]));
+                    // two mana of different colors (Guild Globe): the second, of any other color, pays too
+                    let m = costly.iter().find(|(s, ..)| s == c).map(|(_, m, _)| *m).unwrap_or_default();
+                    let two_different = game.obj(*c).def.abilities.iter().any(|a| {
+                        a.mana() == Some(m) && matches!(a, AbilityDef::ManaAbility { make: ManaMake::TwoDifferent, .. })
+                    });
+                    if two_different && *k < 5 {
+                        options.push(Color::ALL.iter().filter(|o| o.index() != *k).map(|o| Mana::of(*o, 1)).collect());
+                    }
                     for c in 0..5 {
                         r.colored[c] += sym.colored[c];
                     }
@@ -3530,13 +3576,9 @@ fn mana_options(
     for (id, a) in sources {
         // the mana its tapping triggers: one more source each
         let made: Vec<Mana> = a.iter().map(|(_, m)| *m).collect();
-        for k in tap_for_mana_extra(game, seat, id, &made) {
-            options.push(vec![if k == 5 {
-                Mana { colorless: 1, ..Mana::default() }
-            } else {
-                Mana::of(Color::ALL[k], 1)
-            }]);
-        }
+        options.extend(tap_for_mana_extra(game, seat, id, &made, true));
+        // "whenever enchanted land is tapped for mana": its Auras' mana, each one more source
+        options.extend(enchanted_tapped_extra(game, id).into_iter().map(|(_, m)| m));
         // Nykthos: its {2} and itself spent, the rest of its devotion more sources of that color
         if let Some((_, m)) = a
             .iter()
@@ -9925,13 +9967,50 @@ fn activate_mana_paying(
     // (a Treasure sacrificed for its mana: what it was as it was sacrificed)
     let treasure = game.has_subtype(id, "Treasure");
     game.player_mut(seat).add_pool_mana(m, snow, treasure);
-    let extra = tap_for_mana_extra(game, seat, id, &[m]);
-    let made = m.total() as i32 + extra.len() as i32;
-    for k in extra {
-        if k == 5 {
-            game.player_mut(seat).mana_pool.colorless += 1;
-        } else {
-            game.player_mut(seat).mana_pool.colored[k] += 1;
+    let extra = tap_for_mana_extra(game, seat, id, &[m], taps);
+    let mut made = m.total() as i32 + extra.len() as i32;
+    for kinds in extra {
+        let pool = &mut game.player_mut(seat).mana_pool;
+        pool.colorless += kinds[0].colorless;
+        for c in 0..5 {
+            pool.colored[c] += kinds[0].colored[c];
+        }
+    }
+    // "whenever enchanted land is tapped for mana, its controller adds …": each Aura's mana at once, a color asked
+    // for each "any color" one (`ChoiceColor`, "Choose color", or "Choose color N" for several)
+    if taps {
+        let auras: Vec<ObjId> = enchanted_tapped_extra(game, id).into_iter().map(|(a, _)| a).collect();
+        let mut seen: Vec<ObjId> = Vec::new();
+        for aura in auras {
+            if seen.contains(&aura) {
+                continue;
+            }
+            seen.push(aura);
+            let def = game.obj(aura).def.clone();
+            for a in &def.abilities {
+                let AbilityDef::EnchantedTappedTriggeredManaAbility { color, amount, aura_controller, .. } = a else {
+                    continue;
+                };
+                let who = if *aura_controller { game.obj(aura).controller } else { game.obj(id).controller };
+                for j in 0..*amount {
+                    let c = if color == "any" {
+                        let message =
+                            if *amount > 1 { format!("Choose color {}", j + 1) } else { "Choose color".to_string() };
+                        // (`HumanPlayer.choose` picks an owed color itself only for `Outcome.PutManaInPool`, the
+                        // player paying: Market Festival's `ManaChoice.chooseAnyColor` asks with `Outcome.Benefit`,
+                        // so always)
+                        let owed = (who == seat && !*aura_controller).then_some(unpaid);
+                        match any_color_owed(game, d, who, owed, &message) {
+                            Some(c) => c,
+                            None => return false,
+                        }
+                    } else {
+                        Color::ALL["WUBRG".find(color.as_str()).unwrap_or(4)]
+                    };
+                    game.player_mut(who).mana_pool.colored[c.index()] += 1;
+                    made += 1;
+                }
+            }
         }
     }
     note(game, EventKind::Mana, Some(seat), Some(id), None, made);
