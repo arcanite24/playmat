@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans), plus the Career decks' cards outside it, `cards/career-pool.txt` (121 names, wave 18).
-  `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler can express (14,213 on
+  `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler can express (14,227 on
   24 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
@@ -1667,6 +1667,51 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   (`TargetCardAndOrCardInLibrary`), Garruk, Savage Herald (`DamageAsThoughNotBlockedAbility`), Domri Rade
   (`CompoundAbility`), Invasion of Pyrulea (its `FilterPermanent`), Bond of Passion (`TargetPermanentOrPlayer`).
   The rest of the 322 weren't reached.
+
+  Wave 21c, Pioneer cards (24 Nov): the cards waves 19c and 20c left out, most-used first, less the prepare and
+  vengeance cards, `upstream-pending.txt` and waves 20a's and 20b's lists (583 cards, 118 used in a deck). 7 came in
+  (14,227 in the engine). Round 1 (5 factory decks and 2 hand-made Baral decks, 21 games) matched 14; the other 7
+  stopped in Java's harness on turn 1 and blame no card. Round 2 (6 hand-made decks for Plumb the Forbidden, Baral
+  and Bitter Work, every pairing both ways, 30 games) matched 29. The one left parts at Sorcerous Spyglass's "as it
+  enters" name, which Java asked twice with the opponent's priority in between; Baral sat on the battlefield and did
+  nothing there, so it isn't blamed. The 6 games under `shadow/wave21c/` cover Baral's trigger, Verity Circle, Lady
+  Octopus, Bitter Work, Waterbending Lesson, the Planisphere's granted text and Plumb with no creatures, with three
+  sacrificed and with the spell countered under its trigger. The pieces:
+  - `Trigger::SpellCounteredYou` ("whenever a spell or ability you control counters a spell",
+    `SpellCounteredControllerTriggeredAbility`: Baral, Chief of Compliance). `note_countered` takes the countering
+    controller and fires it, from the engine's counter effects and the three handlers that counter.
+  - `Trigger::BecomesTappedAll { not_attacking }` (`TappedNotAttackingTriggeredAbility`: Verity Circle). Attackers
+    are tapped through `tap_as(…, true)`, Java's `TAPPED` flag.
+  - `DrawNthOrNthCardTriggeredAbility` as an `or` of the first and second draw (Lady Octopus), `draws_nth` as an
+    `OrTriggeredAbility` part (Astrologian's Planisphere), and `ManaValueEqualSourceCounters { cmp }`
+    (`ManaValueCompareToCountersSourceCountPredicate`).
+  - A granted `OrTriggeredAbility` with no phrase of its own reads as Java writes it: its parts' texts, lower case,
+    joined with "or".
+  - Exhaust's `.setCondition(…)` (Bitter Work's "activate only during your turn").
+  - Waterbend inside a spell's `DoIfCostPaid` (Waterbending Lesson's "unless you waterbend {2}") is paid as its
+    generic mana: Java asks "Pay waterbend {2}?" and then only for the mana, with no permanents to tap. A spell's
+    own waterbend cost and a ward's are still left out.
+  - `CostDef::SacrificeAnyNumberCopyCost` (Plumb the Forbidden's own cost class): any number of creatures chosen as
+    it's paid, then a reflexive "copy this spell for each creature sacrificed this way". Java asks even with no
+    creatures, and a round that ends with Done after choosing some asks again, as crewing does.
+  - A reflexive trigger whose source is a spell stays on the stack when that spell is countered or otherwise leaves
+    it (every counter effect and `move_to` kept abilities already, now delayed items too), and
+    `CopySourceSpellEffect` copies a spell that has left the stack as it last was (`getSpellOrLKIStack`), for a
+    spell with no targets.
+  No verified card changes: a full transpile changes and drops none.
+
+  Left out, with the piece each needs (the 118 used ones looked at first):
+  - Card-specific engine pieces: Firebender Ascension (`TRIGGERED_ABILITY`), The Masamune (extra triggers), Raph &
+    Mikey (`BATTLEFIELD_TAPPED_ATTACKING`), Rivaz (abilities given to spells), Master of Cruelties (attacks alone),
+    Innkeeper's Talent (ward through a class level, counter doubling), Great Train Heist (a delayed combat-damage
+    trigger for the target opponent), Dalkovan Encampment and two others (`WhenYouAttackDelayedTriggeredAbility`).
+  - Fraying Sanity and the other curses: Auras attached to players.
+  - Jack-o'-Lantern (a mana ability in the graveyard) and Pyromancer's Goggles (`MANA_PAID`): both sit in the
+    payment and playable-check path every card uses, for one card each.
+  - Darksteel Colossus and Progenitus (shuffled into the library instead of going to a graveyard), Oscorp
+    Industries (`MayhemLandAbility`), Relentless Dead (`DynamicValueGenericManaCost`), Thorn Elemental
+    (`DamageAsThoughNotBlockedAbility`), Glacierwood Siege (an anchor word's static).
+  - The seven `CastFromHandSourcePermanentCondition` cards, dice, `setRandom` and the long tail: not reached.
 
   Wave 15, shared forms A (15 Nov): framework forms that block several of the claim's cards, then card classes,
   built in four slices. Ending the turn (`EndTurnEffect`, `Turn.endTurn`: `Game::end_turn`; every spell on the stack

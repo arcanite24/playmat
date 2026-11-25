@@ -4399,7 +4399,9 @@ impl Game {
                 p.outside.retain(|x| *x != id);
                 p.sideboard = p.sideboard.saturating_sub(1);
             }
-            Zone::Stack => Arc::make_mut(&mut self.stack).retain(|x| x.card != id || x.ability.is_some()),
+            Zone::Stack => {
+                Arc::make_mut(&mut self.stack).retain(|x| x.card != id || x.ability.is_some() || x.delayed.is_some())
+            }
         }
     }
 

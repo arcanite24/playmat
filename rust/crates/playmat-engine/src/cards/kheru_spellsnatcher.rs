@@ -14,7 +14,7 @@ fn apply(game: &mut Game, _d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         return Some(());
     }
     note_countered(game, o, cx.item.card, cx.controller());
-    Arc::make_mut(&mut game.stack).retain(|i| i.card != o || i.ability.is_some());
+    Arc::make_mut(&mut game.stack).retain(|i| i.card != o || i.ability.is_some() || i.delayed.is_some());
     game.move_to(o, Zone::Exile);
     if game.obj(o).zone != Zone::Exile || game.obj(o).token {
         return Some(());

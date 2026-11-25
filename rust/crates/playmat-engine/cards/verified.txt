@@ -705,6 +705,7 @@ Astelli Reclaimer
 Astor, Bearer of Blades
 Astral Cornucopia
 Astral Wingspan
+Astrologian's Planisphere
 Asylum Visitor
 At Knifepoint
 Atarka Beastbreaker
@@ -904,6 +905,7 @@ Banner of Kinship
 Bar the Gate
 Baral and Kari Zev
 Baral's Expertise
+Baral, Chief of Compliance
 Barbed Batterfist
 Barbed Bloodletter
 Barbed Servitor
@@ -1142,6 +1144,7 @@ Bitter Chill
 Bitter Reunion
 Bitter Revelation
 Bitter Triumph
+Bitter Work
 Bitterblade Warrior
 Bitterbloom Bearer
 Bitterbow Sharpshooters
@@ -6794,6 +6797,7 @@ Labyrinth Champion
 Labyrinth Guardian
 Labyrinth of Skophos
 Lacerate Flesh
+Lady Octopus, Inspired Inventor
 Lady of Laughter
 Lagomos, Hand of Hatred
 Lagonna-Band Elder
@@ -8901,6 +8905,7 @@ Plaza of Heroes
 Plea for Guidance
 Pledge of Unity
 Plow Through
+Plumb the Forbidden
 Plumecreed Escort
 Plumecreed Mentor
 Plummet
@@ -13331,6 +13336,7 @@ Verdant Outrider
 Verdant Rebirth
 Verdant Sun's Avatar
 Verdurous Gearhulk
+Verity Circle
 Verix Bladewing
 Vernadi Shieldmate
 Vessel of Ephemera
@@ -13702,6 +13708,7 @@ Water Tribe Captain
 Water Tribe Rallier
 Water Wings
 Waterbender Ascension
+Waterbending Lesson
 Waterbending Scroll
 Watercourser
 Waterfall Aerialist

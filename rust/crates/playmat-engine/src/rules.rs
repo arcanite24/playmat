@@ -8016,9 +8016,29 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             // `SacrificeTargetCost`: its target can be cancelled; any number (`TargetSacrifice(0, MAX)`) is up to all
             let rule = if game.foraging.get() { forage_rule(game, id) } else { "sacrifice".to_string() };
             let max = if copies { possible.len() } else { amount };
-            let Some(chosen) = choose_cards_with(game, d, seat, &possible, &possible, amount, max, &rule, true) else {
+            // Plumb the Forbidden with no creatures: Java still asks for "any number" ("selected 0"), and it's done
+            if copies
+                && possible.is_empty()
+                && matches!(ask(game, d, seat, &Query::Cards { objs: vec![], required: false }), Answer::Stop)
+            {
+                return false;
+            }
+            let Some(mut chosen) = choose_cards_with(game, d, seat, &possible, &possible, amount, max, &rule, true)
+            else {
                 return false;
             };
+            // any number (Plumb the Forbidden): `TargetImpl.choose`, a round that ended with Done after choosing
+            // something asks again, as crewing does
+            while copies && !chosen.is_empty() && chosen.len() < possible.len() {
+                let left: Vec<ObjId> = possible.iter().copied().filter(|c| !chosen.contains(c)).collect();
+                let Some(more) = choose_cards_with(game, d, seat, &left, &left, 0, left.len(), &rule, true) else {
+                    return false;
+                };
+                if more.is_empty() {
+                    break;
+                }
+                chosen.extend(more);
+            }
             if chosen.len() < amount {
                 return false;
             }
@@ -12748,7 +12768,8 @@ fn apply_each_effect(
                 if let Some(Target::Obj(o)) = target {
                     if game.obj(o).zone == Zone::Stack && !cant_be_countered(game, o) {
                         note_countered(game, o, item.card, item.controller);
-                        Arc::make_mut(&mut game.stack).retain(|i| i.card != o || i.ability.is_some());
+                        Arc::make_mut(&mut game.stack)
+                            .retain(|i| i.card != o || i.ability.is_some() || i.delayed.is_some());
                         game.move_to(o, Zone::Exile);
                     }
                 }
@@ -12779,7 +12800,8 @@ fn apply_each_effect(
                 if let Some(Target::Obj(o)) = target {
                     if game.obj(o).zone == Zone::Stack && !cant_be_countered(game, o) {
                         note_countered(game, o, item.card, item.controller);
-                        Arc::make_mut(&mut game.stack).retain(|i| i.card != o || i.ability.is_some());
+                        Arc::make_mut(&mut game.stack)
+                            .retain(|i| i.card != o || i.ability.is_some() || i.delayed.is_some());
                         game.move_to(o, Zone::Graveyard);
                     }
                 }
@@ -13514,14 +13536,21 @@ fn apply_each_effect(
             }
             EffectDef::CopySourceSpellEffect => {
                 let (spell, zcc) = source;
-                let Some(original) =
-                    game.stack.iter().find(|i| i.card == spell && i.ability.is_none() && i.delayed.is_none()).cloned()
-                else {
-                    continue;
+                let on_stack =
+                    game.stack.iter().find(|i| i.card == spell && i.ability.is_none() && i.delayed.is_none()).cloned();
+                let original = match on_stack {
+                    Some(o) if game.obj(spell).zcc == zcc => o,
+                    Some(_) => continue,
+                    // `getSpellOrLKIStack`: a reflexive trigger's spell that has left the stack (Plumb the Forbidden
+                    // countered) is copied as it last was; only a spell with no targets, whose last state is its card
+                    None if item.delayed.is_some()
+                        && game.obj(spell).zone != Zone::Stack
+                        && game.obj(spell).def.spell.targets.is_empty() =>
+                    {
+                        StackItem::spell(spell, controller)
+                    }
+                    None => continue,
                 };
-                if game.obj(spell).zcc != zcc {
-                    continue;
-                }
                 copy_spell(game, d, &original, controller);
             }
             EffectDef::ChandraTorchOfDefianceEffect => {
@@ -14650,7 +14679,8 @@ fn apply_each_effect(
                 for o in &objs {
                     let o = *o;
                     if game.obj(o).zone == Zone::Stack {
-                        Arc::make_mut(&mut game.stack).retain(|i| i.card != o || i.ability.is_some());
+                        Arc::make_mut(&mut game.stack)
+                            .retain(|i| i.card != o || i.ability.is_some() || i.delayed.is_some());
                     }
                     match zone.as_str() {
                         "HAND" => game.move_to(o, Zone::Hand),
@@ -15524,7 +15554,8 @@ fn apply_each_effect(
             EffectDef::ExileTargetEffect => {
                 for o in &objs {
                     if game.obj(*o).zone == Zone::Stack {
-                        Arc::make_mut(&mut game.stack).retain(|i| i.card != *o || i.ability.is_some());
+                        Arc::make_mut(&mut game.stack)
+                            .retain(|i| i.card != *o || i.ability.is_some() || i.delayed.is_some());
                     }
                     game.move_to(*o, Zone::Exile);
                 }
@@ -15534,7 +15565,8 @@ fn apply_each_effect(
                 for o in &objs {
                     match game.obj(*o).zone {
                         Zone::Stack => {
-                            Arc::make_mut(&mut game.stack).retain(|i| i.card != *o || i.ability.is_some());
+                            Arc::make_mut(&mut game.stack)
+                                .retain(|i| i.card != *o || i.ability.is_some() || i.delayed.is_some());
                         }
                         Zone::Battlefield => {}
                         _ => continue,
@@ -15873,7 +15905,8 @@ fn apply_each_effect(
                     let theirs: Vec<ObjId> = cards.iter().copied().filter(|c| game.obj(*c).owner == owner).collect();
                     for c in theirs {
                         if game.obj(c).zone == Zone::Stack {
-                            Arc::make_mut(&mut game.stack).retain(|i| i.card != c || i.ability.is_some());
+                            Arc::make_mut(&mut game.stack)
+                                .retain(|i| i.card != c || i.ability.is_some() || i.delayed.is_some());
                         }
                         to_library(game, c, true);
                     }
@@ -16102,7 +16135,8 @@ fn apply_each_effect(
             EffectDef::ReturnToHandTargetEffect => {
                 for o in &objs {
                     if game.obj(*o).zone == Zone::Stack {
-                        Arc::make_mut(&mut game.stack).retain(|i| i.card != *o || i.ability.is_some());
+                        Arc::make_mut(&mut game.stack)
+                            .retain(|i| i.card != *o || i.ability.is_some() || i.delayed.is_some());
                     }
                     game.move_to(*o, Zone::Hand);
                 }
@@ -16650,7 +16684,8 @@ fn apply_each_effect(
                 for t in legal.iter().flatten() {
                     if let Target::Obj(o) = t {
                         if game.obj(*o).zone == Zone::Stack {
-                            Arc::make_mut(&mut game.stack).retain(|i| i.card != *o || i.ability.is_some());
+                            Arc::make_mut(&mut game.stack)
+                                .retain(|i| i.card != *o || i.ability.is_some() || i.delayed.is_some());
                         }
                         game.move_to(*o, Zone::Hand);
                     }
@@ -19473,7 +19508,8 @@ fn apply_each_effect(
                 let Some(paid) = pay_unless(game, d, payer, spell, cost) else { return };
                 if !paid && !cant_be_countered(game, spell) {
                     note_countered(game, spell, item.card, item.controller);
-                    Arc::make_mut(&mut game.stack).retain(|i| i.card != spell || i.ability.is_some());
+                    Arc::make_mut(&mut game.stack)
+                        .retain(|i| i.card != spell || i.ability.is_some() || i.delayed.is_some());
                     game.move_to(spell, if *exile { Zone::Exile } else { Zone::Graveyard });
                 } else if paid && !if_they_do.is_empty() {
                     apply_each_effect(game, d, item, if_they_do, &[], source);
