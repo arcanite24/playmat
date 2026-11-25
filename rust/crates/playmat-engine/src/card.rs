@@ -959,6 +959,9 @@ pub enum Trigger {
     Sacrificed {
         filter: Filter,
         who: String,
+        /// from its card in its owner's graveyard (`Zone.GRAVEYARD`: Curious Cadaver)
+        #[serde(default)]
+        graveyard: bool,
     },
     /// `SacrificeOneOrMorePermanentsTriggeredAbility`: once for the permanents sacrificed together, from the batch
     /// event (after what triggers on each sacrifice and on them leaving)
@@ -1048,6 +1051,9 @@ pub enum Trigger {
         /// this triggers it whatever the filter says (`DiesThisOrAnotherTriggeredAbility`)
         #[serde(default)]
         this_unfiltered: bool,
+        /// from its card in its owner's graveyard, another creature dying (`Zone.GRAVEYARD`: Furious Forebear)
+        #[serde(default)]
+        graveyard: bool,
         /// "one or more": once for permanents dying together, after their other triggers (`DiesOneOrMoreTriggeredAbility`,
         /// `ZONE_CHANGE_BATCH`)
         #[serde(default)]
@@ -1121,8 +1127,14 @@ pub enum Trigger {
     Exerted,
     /// you exert a creature (`ExertCreatureControllerTriggeredAbility`: Vizier of the True)
     ExertedCreatureYou,
-    /// this crews a Vehicle (`CrewsVehicleSourceTriggeredAbility`); its target is the Vehicle
-    CrewsVehicle,
+    /// this crews a Vehicle (`CrewsVehicleSourceTriggeredAbility`); its target is the Vehicle. With `mounts`, saddling
+    /// a Mount too (`SADDLED_MOUNT`); with `main_phase`, only during its controller's main phase (Canyon Vaulter)
+    CrewsVehicle {
+        #[serde(default)]
+        mounts: bool,
+        #[serde(default)]
+        main_phase: bool,
+    },
     /// this becomes tapped (`BecomesTappedSourceTriggeredAbility`)
     BecomesTapped,
     /// a permanent of the filter becomes tapped (`BecomesTappedTriggeredAbility`); `not_attacking`: unless it
@@ -1311,6 +1323,9 @@ pub enum Trigger {
     /// you surveil (`SurveilTriggeredAbility`, `SURVEILED`), or scry (`ScryTriggeredAbility`, `SCRIED`): X is the amount
     YouSurveilOrScry {
         surveil: bool,
+        /// from its card in its owner's graveyard (`Zone.GRAVEYARD`: Blood Operative)
+        #[serde(default)]
+        graveyard: bool,
     },
     /// a Career timed twist (`CareerTimedTwists.AtTurn`, `crate::career`): at the beginning of any upkeep of turn
     /// `turn` or later; once each game
@@ -4121,6 +4136,9 @@ pub enum EffectDef {
         /// DynamicValue)`: Acquisitions Expert's party size)
         #[serde(default)]
         reveal: Option<Amount>,
+        /// "you may choose" (`setOptional(true)`: Extract the Truth): the choice may be nothing
+        #[serde(default)]
+        optional: bool,
     },
     /// exile the target until the source leaves the battlefield (Banishing Light)
     ExileUntilSourceLeavesEffect,

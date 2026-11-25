@@ -350,7 +350,16 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 Arc::make_mut(&mut game.boosts).retain(|b| b.until_turn_of != Some(active));
             }
             game.triggered_this_turn.clear();
-            game.watch = crate::state::TurnWatch::default();
+            let last = std::mem::take(&mut game.watch);
+            game.watch = crate::state::TurnWatch {
+                entered_last_turn: last
+                    .entered
+                    .iter()
+                    .zip(last.entered_permanents.iter())
+                    .map(|(e, p)| (e.0, e.2, p.0))
+                    .collect(),
+                ..Default::default()
+            };
             game.creature_died = false;
             game.creatures_died = 0;
             game.void_this_turn = false;
@@ -399,7 +408,8 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                             || matches!(e, EffectDef::DontUntapInControllersUntapStepAllEffect { controller, filter, .. }
                                 if (controller != "you" || g.obj(src).controller == active)
                                     && g.filter_matches(filter, g.obj(src).controller, Some(src), id))
-                    }) || dont_untap_now(game, id, active);
+                    }) || dont_untap_now(game, id, active)
+                        || cards::cant_untap(game, id);
                     // `DontUntapInControllersNextUntapStepTargetEffect`: used up by this untap step
                     let zcc = game.obj(id).zcc;
                     let skipped = game.skip_next_untap.contains(&(id, zcc));
@@ -437,7 +447,9 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 }) {
                     // "untap this during each other player's untap step" (a rules effect, once each untap step)
                     let was = game.obj(id).tapped;
-                    untap(game.obj_mut(id));
+                    if !cards::cant_untap(game, id) {
+                        untap(game.obj_mut(id));
+                    }
                     if was && !game.obj(id).tapped {
                         fire_untapped(game, id);
                     }
@@ -8101,9 +8113,11 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             if saddle {
                 // `SADDLED_MOUNT` (`SaddledMountWatcher.saddleMap`): which creatures saddled this Mount this turn
                 let mark = format!("saddled mount {} {} {}", id.0, game.obj(id).zcc, game.turn);
-                for o in crew {
-                    game.obj_mut(o).marks.push(mark.clone());
+                for o in &crew {
+                    game.obj_mut(*o).marks.push(mark.clone());
                 }
+                // "whenever this saddles a Mount": that Mount is its target
+                crews_triggers(game, &crew, id, true);
                 return true;
             }
             // "whenever this crews a Vehicle": that Vehicle is its target
@@ -8112,14 +8126,7 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                 let seen = (id, zcc, *o, game.obj(*o).zcc);
                 game.watch.crewed.push(seen);
             }
-            for o in crew {
-                let mut fired = game.triggers([o], |_, _, _, t| matches!(t, Trigger::CrewsVehicle));
-                for t in fired.iter_mut() {
-                    t.targets = vec![vec![Target::Obj(id)]];
-                    t.target_zcc = vec![vec![zcc]];
-                }
-                game.pending.extend(fired);
-            }
+            crews_triggers(game, &crew, id, false);
         }
         // `ReturnToHandChosenControlledPermanentCost`: chosen (`Targets.choose`), then returned together
         CostDef::ReturnToHandChosenControlledPermanentCost { filter, amount } => {
@@ -8610,6 +8617,10 @@ fn search_library(
         return Some(Vec::new());
     }
     let mut shown = game.player(seat).library.clone();
+    // `SEARCH_LIBRARY`'s amount (Aven Mindcensor): only the top cards are searched
+    if let Some(n) = cards::search_limit(game, seat, seat) {
+        shown.truncate(n);
+    }
     shown.sort_by(|a, b| game.obj(*a).name().cmp(game.obj(*b).name()));
     game.searching = Some((shown, Vec::new()));
     let chosen = search_library_cards(game, d, seat, filter, min, max, source);
@@ -8626,7 +8637,10 @@ fn search_library_cards(
     max: usize,
     source: ObjId,
 ) -> Option<Vec<ObjId>> {
-    let library = game.player(seat).library.clone();
+    let mut library = game.player(seat).library.clone();
+    if let Some(n) = cards::search_limit(game, seat, seat) {
+        library.truncate(n);
+    }
     let possible: Vec<ObjId> =
         library.iter().copied().filter(|c| game.filter_matches(filter, seat, Some(source), *c)).collect();
     let min = min.min(possible.len());
@@ -9303,9 +9317,17 @@ fn scried(game: &mut Game, seat: Seat, amount: i32, surveiled: bool) {
         you == seat
             && match t {
                 Trigger::YouScryOrSurveil => true,
-                Trigger::YouSurveilOrScry { surveil } => *surveil == surveiled,
+                Trigger::YouSurveilOrScry { surveil, graveyard: false } => *surveil == surveiled,
                 _ => false,
             }
+    });
+    game.pending.extend(fired.into_iter().map(|t| StackItem { x: amount, ..t }));
+    // "whenever you surveil" of a card in its owner's graveyard (Blood Operative)
+    let grave: Vec<ObjId> = game.player(seat).graveyard.clone();
+    let fired = game.triggers(grave, |g, src, you, t| {
+        you == seat
+            && g.obj(src).zone == Zone::Graveyard
+            && matches!(t, Trigger::YouSurveilOrScry { surveil, graveyard: true } if *surveil == surveiled)
     });
     game.pending.extend(fired.into_iter().map(|t| StackItem { x: amount, ..t }));
 }
@@ -16847,6 +16869,9 @@ fn apply_each_effect(
             }
             EffectDef::UntapAllEffect { filter } => {
                 for o in matching(game, filter, controller, source.0) {
+                    if cards::cant_untap(game, o) {
+                        continue;
+                    }
                     let was = game.obj(o).tapped;
                     game.obj_mut(o).tapped = false;
                     if was {
@@ -18695,6 +18720,9 @@ fn apply_each_effect(
                     }
                 }
                 for o in chosen {
+                    if cards::cant_untap(game, o) {
+                        continue;
+                    }
                     let was = game.obj(o).tapped;
                     game.obj_mut(o).tapped = false;
                     if was {
@@ -18821,7 +18849,7 @@ fn apply_each_effect(
                     }
                 }
             }
-            EffectDef::DiscardCardYouChooseTargetEffect { filter, reveal } => {
+            EffectDef::DiscardCardYouChooseTargetEffect { filter, reveal, optional } => {
                 if let Some(Target::Player(p)) = target {
                     let mut hand = game.player(p).hand.clone();
                     if let Some(n) = reveal {
@@ -18852,7 +18880,8 @@ fn apply_each_effect(
                     if !possible.is_empty() {
                         // the spell's text: your own card to discard isn't chosen by itself
                         let rule = item_rule(game, item);
-                        match choose_cards(game, d, controller, &hand, &possible, 1, 1, &rule) {
+                        let least = if *optional { 0 } else { 1 };
+                        match choose_cards(game, d, controller, &hand, &possible, least, 1, &rule) {
                             Some(chosen) => {
                                 for c in chosen {
                                     game.move_to(c, Zone::Graveyard);
@@ -20862,8 +20891,23 @@ fn sacrifice(game: &mut Game, id: ObjId) {
     }
     game.short_lki.push(id);
     let fired = game.triggers(sources.clone(), |g, src, you, t| {
-        matches!(t, Trigger::Sacrificed { filter, who: w } if Game::whose(w, you, who) && g.filter_matches(filter, you, Some(src), id))
+        matches!(t, Trigger::Sacrificed { filter, who: w, graveyard: false } if Game::whose(w, you, who) && g.filter_matches(filter, you, Some(src), id))
     });
+    // "when you sacrifice …" of a card in its owner's graveyard (Curious Cadaver)
+    let grave: Vec<ObjId> = (0..game.seats())
+        .flat_map(|p| game.player(p).graveyard.clone())
+        .filter(|o| *o != id && !game.short_lki.contains(o))
+        .collect();
+    let fired_grave = game.triggers(grave, |g, src, you, t| {
+        g.obj(src).zone == Zone::Graveyard
+            && matches!(t, Trigger::Sacrificed { filter, who: w, graveyard: true } if Game::whose(w, you, who) && g.filter_matches(filter, you, Some(src), id))
+    });
+    let mut fired = fired;
+    for t in fired_grave {
+        let k = game.trigger_key(&t);
+        let at = fired.iter().position(|f| game.trigger_key(f) > k).unwrap_or(fired.len());
+        fired.insert(at, t);
+    }
     let batch = game.triggers(sources, |g, src, you, t| {
         matches!(t, Trigger::SacrificedBatch { filter, who: w } if Game::whose(w, you, who) && g.filter_matches(filter, you, Some(src), id))
             && !g.batch_pending.iter().any(|p| p.card == src && same_ability(g, p, t))
@@ -22656,6 +22700,10 @@ fn token_effect(token: &crate::card::TokenDef, amount: i32) -> EffectDef {
 
 /// `untap`, with the `UNTAPPED` event's triggers (inspired) when it was tapped
 fn untap_permanent(game: &mut Game, id: ObjId) {
+    // `UNTAP` replaced: it stays tapped (Blossombind)
+    if cards::cant_untap(game, id) {
+        return;
+    }
     let was = game.obj(id).tapped;
     untap(game.obj_mut(id));
     if was && !game.obj(id).tapped {
@@ -24700,6 +24748,24 @@ fn attack(game: &mut Game, id: ObjId, defender: Seat, pw: Option<(ObjId, u32)>) 
     game.attack_taps.push((id, waiting));
 }
 
+/// `CREWED_VEHICLE` (or, `saddled`, `SADDLED_MOUNT`) for each creature of `crew`: its "whenever this crews a Vehicle"
+/// triggers, the Vehicle (or Mount) `id` their target (`CrewsVehicleSourceTriggeredAbility`'s fixed pointer)
+fn crews_triggers(game: &mut Game, crew: &[ObjId], id: ObjId, saddled: bool) {
+    let zcc = game.obj(id).zcc;
+    let main = matches!(game.step, Some(Step::PrecombatMain | Step::PostcombatMain));
+    for o in crew {
+        let mut fired = game.triggers([*o], |g, _, you, t| {
+            matches!(t, Trigger::CrewsVehicle { mounts, main_phase }
+                if (!saddled || *mounts) && (!*main_phase || main && g.active == Some(you)))
+        });
+        for t in fired.iter_mut() {
+            t.targets = vec![vec![Target::Obj(id)]];
+            t.target_zcc = vec![vec![zcc]];
+        }
+        game.pending.extend(fired);
+    }
+}
+
 /// Undoes a cost's tap (the cost wasn't paid): the "whenever this becomes tapped" triggers it fired go too
 fn untap_undo(game: &mut Game, id: ObjId) {
     game.obj_mut(id).tapped = false;
@@ -26041,6 +26107,10 @@ fn transform(game: &mut Game, id: ObjId) {
     if game.obj(id).copied_def.is_some() {
         return;
     }
+    // "can't transform" (Bound by Moonsilver): a restriction stops it, day and night's too
+    if cards::cant_transform(game, id) {
+        return;
+    }
     // its abilities waiting or on the stack keep the face they came from
     let old = game.obj(id).def.clone();
     for t in Arc::make_mut(&mut game.stack).iter_mut().chain(game.pending.iter_mut()) {
@@ -26598,6 +26668,14 @@ pub fn state_based_actions(game: &mut Game) -> bool {
             // 704.5a-c: 0 or less life, drawing from an empty library, ten or more poison counters
             // "you can't lose the game" (`PlayerImpl.canLose`: `LOSES` replaced); the empty library stays drawn from
             if !p.lost && (p.life <= 0 || p.drew_from_empty || poisoned) && !cards::cant_lose_or_win(game, s, false) {
+                // `LOSES` replaced: they stay in (and the next check sees them again)
+                if cards::any_replacement(game, cards::EventType::Loses) {
+                    let mut ev = cards::Event::new(cards::EventType::Loses, s);
+                    if cards::replace_event(game, &mut ev, 0) {
+                        continue;
+                    }
+                }
+                let p = game.player(s);
                 if log::kept(game) {
                     // `GameImpl.checkStateBasedActions`, `PlayerImpl.lost`: the last reason that holds is logged
                     let why = if poisoned {
