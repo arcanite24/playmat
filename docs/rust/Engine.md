@@ -356,6 +356,8 @@ Being in the engine and being trusted are kept apart.
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans), plus the Career decks' cards outside it, `cards/career-pool.txt` (121 names, wave 18).
   `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler can express (14,213 on
+
+  `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler can express (14,169 on
   24 Nov). A card whose JSON the engine can't load yet is left out
 
   `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler can express (14,214 on
@@ -1797,6 +1799,32 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   and sacrifice triggers, dice and `setRandom`, and the deck-used cards that need a spell-countered trigger,
   `MANA_PAID` or mana abilities in the graveyard (Baral, Pyromancer's Goggles and others).
 
+
+  Wave 20a, cheap cards (24 Nov): the cards of wave 19a's list it didn't reach, blocked only by their own classes,
+  most used first. Two came in (14,169 in the engine). Two factory rounds (28 games, 26 matching): the factory round
+  and a hand-made one, a red and white deck of artifact-token makers with both cards against a white deck that
+  ventures twice a turn (Nadaar, Veteran Dungeoneer, Cloister Gargoyle). One game under `shadow/wave20a/`
+  (`game-w20a-draconic-visitor-artifact-tokens`). Engine pieces:
+  - `ReplaceCreatureTokensEffect { artifacts }` (Draconic Visitor's `DraconicVisitorEffect`): an artifact token
+    created under your control is the 5/5 Dragon instead, applied before Divine Visitation's creature one, and one
+    more replacement effect to order (`token_copies`). Divine Visitation's JSON doesn't change (`artifacts` is
+    left out when false).
+  - `Rule::CantVenture` and `TurnWatch.ventured` (`VENTURE` and `VENTURED`): Keen-Eared Sentry's
+    `KeenEaredSentryEffect` stops an opponent's second venture in a turn.
+
+  Verified: Draconic Visitor (10 games made Dragons): 14,140 of 14,169. Not verified: Keen-Eared Sentry, its two
+  differing games part on Bilbo's Gambit's gift with the Sentry's player hexproof. `PromiseGiftCost` chooses the
+  opponent with `withNotTarget(true)`, so Java allows a hexproof opponent, while `rules.rs`'s promise goes through
+  `choose_target` and leaves them out, so Rust can't cast it. That's a gap for every gift card against
+  player hexproof (Leyline of Sanctity and 12 other verified cards), left as it is, since the wave changes no
+  verified card.
+
+  Left out of the list (159 candidates, nearly all used by no deck): Drana and Linvala (opponents' creatures'
+  activated abilities, mana spent as any color), Bumi, Unleashed (an extra combat phase only land creatures attack
+  in), Deadbridge Chant and Getaway Barrel (a random card), Agatha's Soul Cauldron, Ashaya, Soul of the Wild and
+  Imprisoned in the Moon (type and ability layers), Aven Mindcensor (Java's search-limit quirk), Charred Foyer //
+  Warped Space (a Room's alternative cost), Kili the Resourceful (an enduring-story equip cost). The rest weren't
+  reached.
 
   Wave 15, shared forms A (15 Nov): framework forms that block several of the claim's cards, then card classes,
   built in four slices. Ending the turn (`EndTurnEffect`, `Turn.endTurn`: `Game::end_turn`; every spell on the stack

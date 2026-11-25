@@ -3023,9 +3023,11 @@ pub enum EffectDef {
         n: usize,
     },
     /// a static ability's effect: if one or more creature tokens would be created under your control, that many of
-    /// `token` are created instead (Divine Visitation)
+    /// `token` are created instead (Divine Visitation); `artifacts`: artifact tokens instead (Draconic Visitor)
     ReplaceCreatureTokensEffect {
         token: TokenDef,
+        #[serde(default)]
+        artifacts: bool,
     },
     /// if one or more tokens would be created under your control, twice (`times`) that many are created instead
     /// (`creatures_only`: creature tokens, Ojer Taq)

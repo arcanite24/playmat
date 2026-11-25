@@ -21037,11 +21037,11 @@ fn grant(game: &mut Game, target: ObjId, ability: &AbilityDef) {
 }
 
 /// The `ReplaceCreatureTokensEffect`s of `seat`'s permanents: (source, token) for each, in battlefield order
-fn visitations(game: &Game, seat: Seat) -> Vec<(ObjId, crate::card::TokenDef)> {
+fn visitations(game: &Game, seat: Seat, artifacts: bool) -> Vec<(ObjId, crate::card::TokenDef)> {
     let mut out = Vec::new();
     game.any_static(|g, src, e| {
-        if let EffectDef::ReplaceCreatureTokensEffect { token } = e {
-            if g.obj(src).controller == seat {
+        if let EffectDef::ReplaceCreatureTokensEffect { token, artifacts: a } = e {
+            if g.obj(src).controller == seat && *a == artifacts {
                 out.push((src, token.clone()));
             }
         }
@@ -21053,10 +21053,23 @@ fn visitations(game: &Game, seat: Seat) -> Vec<(ObjId, crate::card::TokenDef)> {
 /// The token `seat` gets when an effect creates `def` for them: a creature token is the last Divine Visitation's
 /// token instead (each replaces the one before)
 fn made_token(game: &mut Game, seat: Seat, def: Arc<CardDef>) -> Arc<CardDef> {
+    // an artifact token is Draconic Visitor's Dragon instead (`DraconicVisitorEffect`), before a creature token is
+    // Divine Visitation's Angel
+    let def = if def.is(CardType::Artifact) {
+        match visitations(game, seat, true).pop() {
+            Some((src, token)) => {
+                token_image(game, &token, src);
+                Arc::new(token.card())
+            }
+            None => def,
+        }
+    } else {
+        def
+    };
     if !def.is(CardType::Creature) {
         return def;
     }
-    match visitations(game, seat).pop() {
+    match visitations(game, seat, false).pop() {
         Some((src, token)) => {
             token_image(game, &token, src);
             Arc::new(token.card())
@@ -21078,9 +21091,12 @@ fn token_copies(game: &Game, seat: Seat, token: &CardDef) -> usize {
         }
         false
     });
-    // Divine Visitation: one more replacement effect to order
+    // Divine Visitation (and Draconic Visitor for an artifact token): one more replacement effect to order
     if token.is(CardType::Creature) {
-        doublers += visitations(game, seat).len();
+        doublers += visitations(game, seat, false).len();
+    }
+    if token.is(CardType::Artifact) {
+        doublers += visitations(game, seat, true).len();
     }
     // two or more doublers: Java asks which applies first (the answers change nothing)
     for _ in 1..doublers {
@@ -23126,6 +23142,20 @@ fn complete_dungeon(game: &mut Game, id: ObjId) {
 /// moves to the first room or the next one, asking which of two (`DungeonRoom.chooseNextRoom`), and that room's
 /// ability triggers (`ROOM_ENTERED`). False: the decider stopped.
 fn venture(game: &mut Game, d: &mut dyn Decider, seat: Seat) -> bool {
+    // `VENTURE`, replaced by a rule-modifying effect (Keen-Eared Sentry): nothing happens
+    if cards::cant_venture(game, seat) {
+        return true;
+    }
+    let ok = venture_rooms(game, d, seat);
+    // `VENTURED`
+    if ok {
+        game.watch.ventured.push(seat);
+    }
+    ok
+}
+
+/// `ventureIntoDungeon` after its `VENTURE` event: the dungeon and the room
+fn venture_rooms(game: &mut Game, d: &mut dyn Decider, seat: Seat) -> bool {
     let current = player_dungeon(game, seat);
     let id = match current.filter(|c| dungeon_has_next_room(game, *c)) {
         Some(c) => c,
