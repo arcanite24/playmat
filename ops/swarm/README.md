@@ -31,7 +31,17 @@ Settings (`mana.env`, or `SWARM_*` in the environment):
 | `SWARM_R2_ACCOUNT`, `SWARM_R2_BUCKET`, `SWARM_R2_KEY_ID`, `SWARM_R2_SECRET` | the R2 bucket and a token with Object Read & Write on it alone |
 | `SWARM_STORE` | instead of R2, a folder the coordinator serves itself (`/data/store`): a LAN swarm |
 
-The port is bound to `127.0.0.1:17190` only: put a reverse proxy with TLS in front and send the whole host to it.
+With Cloudflare, the simplest front is a tunnel: no open port and no change to the game server's Caddy. Create one
+(`wrangler tunnel create mana`), give it the public hostname `mana.example.com` → `http://coordinator:17190`, put its
+token in `ops/swarm/tunnel.env` as `TUNNEL_TOKEN=...`, and start both with `--profile tunnel`:
+
+```bash
+docker compose -f ops/swarm/docker-compose.yml --profile tunnel up -d
+```
+
+The public Mana@Home coordinator runs this way on the Hetzner box (`/srv/mana`, compose project `mana`).
+
+Otherwise: the port is bound to `127.0.0.1:17190` only: put a reverse proxy with TLS in front and send the whole host to it.
 A Caddy on the host itself:
 
 ```
