@@ -267,14 +267,14 @@
   "source": "docs/rust/Engine.md"
  },
  "counted": {
-  "engine_cards": 14382,
-  "verified_cards": 14348,
+  "engine_cards": 14395,
+  "verified_cards": 14360,
   "pioneer": {
    "cards": 15259,
-   "in_engine": 14180,
-   "verified": 14147
+   "in_engine": 14193,
+   "verified": 14159
   },
-  "java_card_files": 32849,
+  "java_card_files": 32850,
   "school": {
    "label": "Pioneer and Standard school decks",
    "decks": 42,
@@ -1029,10 +1029,10 @@
    "played": 1360,
    "matched": 1357,
    "java_timeouts": 28,
-   "checked_in": 1625
+   "checked_in": 1632
   },
   "rust": {
-   "lines": 150385,
+   "lines": 150659,
    "crates": [
     {
      "crate": "playmat-ai",
@@ -1040,7 +1040,7 @@
     },
     {
      "crate": "playmat-engine",
-     "lines": 121347
+     "lines": 121621
     },
     {
      "crate": "playmat-gateway",
@@ -1065,6 +1065,6 @@
    ]
   }
  },
- "commit": "e486fe4789f05ed21d3df0fef9dafe666d9b760d",
+ "commit": "4db3028daca697ef059155df3a2e05691354eac2",
  "generated": "2026-11-25"
 }

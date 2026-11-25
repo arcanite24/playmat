@@ -9620,6 +9620,7 @@ Reckless Ransacking
 Reckless Reveler
 Reckless Scholar
 Reckless Stormseeker
+Reckless Velocitaur
 Reckoner Shakedown
 Reckoner's Bargain
 Reclaim
@@ -10212,10 +10213,12 @@ S.H.I.E.L.D. Deployment Drone
 S.H.I.E.L.D. Flying Car
 S.H.I.E.L.D. Helicarrier
 S.H.I.E.L.D. Spy Kit
+Saavik, Stoic Student
 Sab-Sunen, Luxa Embodied
 Saber-Tooth Moose-Lion
 Sabertooth Mauler
 Sabertooth Outrider
+Sabotage Strategist
 Sabotender
 Sacred Armory
 Sacred Cat
@@ -11083,6 +11086,7 @@ Skulking Killer
 Skull Prophet
 Skull Raid
 Skull Rend
+Skull Skaab
 Skullcap Snail
 Skullcrack
 Skullknocker Ogre
@@ -11522,6 +11526,7 @@ Spite of Mogis
 Spiteful Blow
 Spiteful Hexmage
 Spiteful Motives
+Spiteful Returned
 Spiteful Squad
 Spitfire Lagac
 Spitting Earth
@@ -11634,6 +11639,7 @@ Starfield Mystic
 Starfield Shepherd
 Starfield Vocalist
 Starfighter Pilot
+Starfleet Academy
 Starfleet Spanner Jockey
 Starforged Sword
 Stargaze
@@ -12141,6 +12147,7 @@ Syphon Fuel
 Syphon Sliver
 Syr Alin, the Lion's Claw
 Syr Armont, the Redeemer
+Syr Carah, the Bold
 Syr Elenora, the Discerning
 Syr Faren, the Hengehammer
 Syr Ginger, the Meal Ender
@@ -12821,6 +12828,7 @@ Toll of the Invasion
 Tolls of War
 Tolsimir, Friend to Wolves
 Tolsimir, Midnight's Light
+Toluz, Clever Conductor
 Tomakul Honor Guard
 Tomakul Scrapsmith
 Tomb Robber
@@ -13179,6 +13187,7 @@ Uncharted Voyage
 Unclaimed Territory
 Uncle Iroh
 Uncomfortable Chill
+Unconventional Tactics
 Uncovered Clues
 Undead Butler
 Undead Minotaur
@@ -13354,6 +13363,7 @@ Valgavoth's Lair
 Valgavoth's Onslaught
 Valgavoth, Terror Eater
 Valiant Knight
+Valiant Rescuer
 Valiant Veteran
 Valkyrie Aerial Unit
 Valkyrie Harbinger
@@ -14269,6 +14279,7 @@ Yuan-Ti Fang-Blade
 Yuan-Ti Malison
 Yue, the Moon Spirit
 Yuna, Hope of Spira
+Yuriko, Blade of the Mighty
 Yuriko, Hope from the Shadows
 Yuyan Archers
 Zacama, Primal Calamity
@@ -14277,6 +14288,7 @@ Zada's Commando
 Zagoth Crystal
 Zagoth Mamba
 Zagoth Triome
+Zagras, Thief of Heartbeats
 Zahid, Djinn of the Lamp
 Zahur, Glory's Past
 Zalto, Fire Giant Duke

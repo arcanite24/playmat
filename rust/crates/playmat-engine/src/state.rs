@@ -1565,6 +1565,8 @@ pub struct TurnWatch {
     pub sacrificed_objs: Vec<(Seat, ObjId, u32)>,
     /// `ACTIVATED_ABILITY` of a loyalty ability: who activated it, once each (Kiora of Salt and Sand's watcher)
     pub loyalty_activated: Vec<Seat>,
+    /// `ACTIVATED_ABILITY` of a cycling ability: who cycled which card, in order (Valiant Rescuer's watcher)
+    pub cycled: Vec<(Seat, ObjId)>,
 }
 
 /// One damage event a `TurnWatch` keeps: the source as it was and its controller then, what was dealt damage (a
@@ -2880,6 +2882,13 @@ impl Game {
                 if let Some(Trigger::DiscardsOneOrMore { filter, .. }) = self.trigger_of(&t) {
                     let you = t.controller;
                     t.x = cards.iter().filter(|c| self.filter_matches(filter, you, Some(t.card), **c)).count() as i32;
+                    // the cards discarded that are in the graveyard, as they are there (`DiscardedCardsEvent`,
+                    // `retainZone(Zone.GRAVEYARD)`: Toluz's "exile them"), for a handler to read
+                    t.batch = cards
+                        .iter()
+                        .filter(|c| self.obj(**c).zone == Zone::Graveyard)
+                        .map(|c| (*c, self.obj(*c).zcc, Zone::Hand))
+                        .collect();
                 }
                 self.pending.push(t);
             }

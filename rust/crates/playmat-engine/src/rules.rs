@@ -645,13 +645,19 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                             && g.filter_matches(filter, you, Some(src), a)
                     }
                     Trigger::AttacksAttached => g.attached(src) == Some(a),
+                    Trigger::AttacksThisOrAttached => src == a || g.attached(src) == Some(a),
                     _ => false,
                 });
                 for mut t in fired {
                     let all = t.ability.and_then(|(i, _)| game.item_def(&t).abilities[i].trigger().cloned());
                     let at_attacker = matches!(
                         all,
-                        Some(Trigger::AttacksAll { .. } | Trigger::AttacksAloneAll { .. } | Trigger::AttacksAttached)
+                        Some(
+                            Trigger::AttacksAll { .. }
+                                | Trigger::AttacksAloneAll { .. }
+                                | Trigger::AttacksAttached
+                                | Trigger::AttacksThisOrAttached
+                        )
                     );
                     if at_attacker && set_target_pointer(game, &t) {
                         t.targets = vec![vec![Target::Obj(a)]];
@@ -772,6 +778,15 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                             }
                             game.pending.push(item);
                         }
+                    }
+                    // a card's own "whenever one or more creatures attack you" (`AttacksYou`): those creatures
+                    let sources = game.trigger_sources();
+                    let fired =
+                        game.triggers(sources, |_, _, you, t| matches!(t, Trigger::AttacksYou) && you == defender);
+                    for mut t in fired {
+                        t.targets = vec![at_player.iter().map(|(a, _)| Target::Obj(*a)).collect()];
+                        t.target_zcc = vec![at_player.iter().map(|(_, z)| *z).collect()];
+                        game.pending.push(t);
                     }
                 }
             }
@@ -2582,9 +2597,11 @@ fn prototype(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
     castable(game, seat, id, &def).then_some((k, def))
 }
 
-/// Bestow: the card's ability index and the card as it's cast that way, an Aura spell, if it can be, from hand
+/// Bestow: the card's ability index and the card as it's cast that way, an Aura spell, if it can be, from hand (or
+/// from exile, where an effect lets the card be played: Spiteful Returned exiled by Syr Carah, the Bold)
 fn bestow(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
-    if game.obj(id).zone != Zone::Hand {
+    let zone = game.obj(id).zone;
+    if zone != Zone::Hand && !(zone == Zone::Exile && game.may_play_now(id, seat)) {
         return None;
     }
     let (k, def) = game.obj(id).def.bestow()?;
@@ -4474,7 +4491,7 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         if let Some((k, _)) = &prototype {
             options.push(*k);
         }
-        let bestow = if zone == Zone::Hand { bestow(game, seat, id) } else { None };
+        let bestow = bestow(game, seat, id);
         if let Some((k, _)) = &bestow {
             options.push(*k);
         }
@@ -7375,6 +7392,7 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
     }
     // `ACTIVATED_ABILITY`: "when you cycle this card" (`CycleTriggeredAbility`), with the cycling's X
     if matches!(def.abilities[index], AbilityDef::CyclingAbility { .. }) {
+        game.watch.cycled.push((seat, id));
         let x = game.stack.last().map_or(0, |t| t.x);
         let mut sources = vec![id];
         sources.extend(game.trigger_sources());
@@ -15270,6 +15288,7 @@ fn apply_each_effect(
                 // the exploiter's, on the battlefield or just sacrificed (a leaves-the-battlefield trigger)
                 let (src, zcc) = source;
                 let here = game.obj(src).zone == Zone::Battlefield && game.obj(src).zcc == zcc;
+                let mut all = Vec::new();
                 if here || src == o {
                     let mut fired = game.triggers([src], |_, s, _, t| matches!(t, Trigger::Exploits) && s == src);
                     // `SetTargetPointer.PERMANENT`: the exploited creature, as it was (Profaner of the Dead)
@@ -15280,8 +15299,20 @@ fn apply_each_effect(
                             t.target_zcc = vec![vec![game.obj(o).zcc]];
                         }
                     }
-                    game.pending.splice(at..at, fired);
+                    all.extend(fired);
                 }
+                // the same `EXPLOITED_CREATURE` event: a card's own trigger on any exploiter (on the battlefield)
+                let sources = game.trigger_sources();
+                let mut any = game.triggers(sources, |_, _, _, t| matches!(t, Trigger::ExploitsAny));
+                for t in any.iter_mut() {
+                    t.entering = Some(src);
+                    t.sacrificed_permanent = Some(o);
+                }
+                any.retain(|t| game.trigger_check_holds(t));
+                // one event: every trigger on it in Java's trigger order (Gurmag Drowner's own after Skull Skaab's)
+                all.extend(any);
+                all.sort_by_key(|t| game.trigger_key(t));
+                game.pending.splice(at..at, all);
             }
             EffectDef::BoomerangBasicsEffect => {
                 if let Some(o) = objs.first().copied().filter(|o| game.obj(*o).zone == Zone::Battlefield) {
@@ -24250,6 +24281,22 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             // the damage dealt (`SavedDamageValue.MUCH`)
             t.x = amount;
             game.pending.push(t);
+        }
+        // `DamagedPlayer`: a card's own `DAMAGED_PLAYER` trigger, its check on the source (`entering`)
+        if amount > 0 {
+            let sources = game.trigger_sources();
+            let fired = game.triggers(sources, |_, _, _, t| matches!(t, Trigger::DamagedPlayer));
+            for mut t in fired {
+                if set_target_pointer(game, &t) {
+                    t.targets = vec![vec![Target::Player(p)]];
+                    t.target_zcc = vec![vec![0]];
+                }
+                t.x = amount;
+                t.entering = Some(source);
+                if game.trigger_check_holds(&t) {
+                    game.pending.push(t);
+                }
+            }
         }
     }
     let mut damage_to_player: Vec<StackItem> = Vec::new();
