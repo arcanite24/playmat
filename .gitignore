@@ -82,3 +82,4 @@ Mage.Web.Client/.impeccable/review/
 /.local/
 # Mana@Home coordinator secrets (ops/swarm/mana.env.example)
 ops/swarm/mana.env
+ops/swarm/tunnel.env

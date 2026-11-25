@@ -44,7 +44,8 @@ impl Store {
                     return Ok(None);
                 }
                 let res = res.error_for_status()?;
-                Ok(res.content_length().or_else(|| res.headers().get("content-length")?.to_str().ok()?.parse().ok()))
+                // the header itself: reqwest's content_length() is the (empty) body's for a HEAD response
+                Ok(res.headers().get("content-length").and_then(|v| v.to_str().ok()?.parse().ok()))
             }
         }
     }

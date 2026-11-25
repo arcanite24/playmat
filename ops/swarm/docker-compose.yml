@@ -24,6 +24,20 @@ services:
     mem_limit: 256m
     cpus: 1
 
+  # Cloudflare Tunnel to the coordinator (`--profile tunnel`): an outbound connection, so no open port. The tunnel's
+  # public hostname (Zero Trust > Networks > Tunnels) points at http://coordinator:17190; TUNNEL_TOKEN in mana.env
+  tunnel:
+    profiles: [ "tunnel" ]
+    image: cloudflare/cloudflared:2026.11.0
+    restart: unless-stopped
+    command: [ "tunnel", "--no-autoupdate", "run" ]
+    env_file:
+      - path: tunnel.env
+        required: true
+    depends_on: [ coordinator ]
+    mem_limit: 128m
+    cpus: 0.5
+
   # a worker on the same machine, at the lowest CPU weight (`--profile worker`)
   worker:
     profiles: [ "worker" ]

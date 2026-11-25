@@ -55,7 +55,11 @@ fn check(what: &str, res: reqwest::blocking::Response) -> Result<reqwest::blocki
 pub fn run(o: Opts) -> Result<(), String> {
     idle::lower_priority();
     let api = Api {
-        http: Client::builder().timeout(Duration::from_secs(300)).build().map_err(|e| e.to_string())?,
+        http: Client::builder()
+            .timeout(Duration::from_secs(300))
+            .user_agent(concat!("playmat-worker/", env!("CARGO_PKG_VERSION")))
+            .build()
+            .map_err(|e| e.to_string())?,
         base: o.coordinator.trim_end_matches('/').to_string(),
         token: o.token.clone(),
     };

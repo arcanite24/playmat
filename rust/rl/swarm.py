@@ -28,6 +28,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 PROTOCOL = 1
 UNIT_GAMES = 100
+# Cloudflare's Browser Integrity Check turns away Python's default User-Agent (error 1010)
+UA = "mana-trainer/1 (playmat swarm.py)"
 
 
 def sha256_file(path):
@@ -45,16 +47,23 @@ class Client:
 
     def call(self, method, path, body=None, timeout=120):
         data = None if body is None else json.dumps(body).encode()
-        req = urllib.request.Request(f"{self.base}/api/v1{path}", data=data, method=method)
+        req = urllib.request.Request(f"{self.base}/api/v1{path}", data=data, method=method, headers={"User-Agent": UA})
         req.add_header("Authorization", f"Bearer {self.token}")
         if data is not None:
             req.add_header("Content-Type", "application/json")
-        try:
-            with urllib.request.urlopen(req, timeout=timeout) as r:
-                raw = r.read()
-                return json.loads(raw) if raw else None
-        except urllib.error.HTTPError as e:
-            raise RuntimeError(f"{method} {path}: {e.code} {e.read().decode(errors='replace')[:400]}") from None
+        for attempt in range(5):
+            try:
+                with urllib.request.urlopen(req, timeout=timeout) as r:
+                    raw = r.read()
+                    return json.loads(raw) if raw else None
+            except urllib.error.HTTPError as e:
+                raise RuntimeError(f"{method} {path}: {e.code} {e.read().decode(errors='replace')[:400]}") from None
+            except (urllib.error.URLError, TimeoutError, ConnectionError) as e:
+                # the network, not the coordinator: a DNS hiccup or a dropped connection
+                if attempt == 4:
+                    raise
+                print(f"SWARM {method} {path}: {e}, again", flush=True)
+                time.sleep(10 * (attempt + 1))
 
     def upload_net(self, path):
         """Uploads a network once (by its sha256) and gives the sha256"""
@@ -72,7 +81,7 @@ class Client:
 
 def put(url, body, tries=4):
     for i in range(tries):
-        req = urllib.request.Request(url, data=body, method="PUT")
+        req = urllib.request.Request(url, data=body, method="PUT", headers={"User-Agent": UA})
         req.add_header("Content-Length", str(len(body)))
         try:
             with urllib.request.urlopen(req, timeout=300):
@@ -85,7 +94,7 @@ def put(url, body, tries=4):
 
 
 def get(url, timeout=300):
-    with urllib.request.urlopen(url, timeout=timeout) as r:
+    with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=timeout) as r:
         return r.read()
 
 
