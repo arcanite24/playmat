@@ -3140,8 +3140,12 @@ pub enum EffectDef {
     ReturnSourceToHandNextEndStepEffect,
     /// as it enters: choose a basic land type (a land with `MultiversalPassagePassageEffect` becomes it)
     ChooseBasicLandTypeEffect,
-    /// as it enters: choose a creature type (Cavern of Souls)
-    ChooseCreatureTypeEffect,
+    /// as it enters: choose a creature type (Cavern of Souls), or one of these (`ChooseCreatureTypeEffect(outcome,
+    /// SubType...)`: Dawn-Blessed Pennant)
+    ChooseCreatureTypeEffect {
+        #[serde(default)]
+        only: Vec<String>,
+    },
     /// a spell its conditional mana was spent on can't be countered (Cavern of Souls; the mana marks the spell)
     CavernOfSoulsCantCounterEffect,
     /// "This land is the chosen type." (applied as the type is chosen)
@@ -4113,6 +4117,10 @@ pub enum EffectDef {
     /// the target player reveals their hand and you choose a card of the filter; they discard it (Duress)
     DiscardCardYouChooseTargetEffect {
         filter: Filter,
+        /// reveals only this many cards of their choice instead of their hand (`DiscardCardYouChooseTargetEffect(
+        /// DynamicValue)`: Acquisitions Expert's party size)
+        #[serde(default)]
+        reveal: Option<Amount>,
     },
     /// exile the target until the source leaves the battlefield (Banishing Light)
     ExileUntilSourceLeavesEffect,

@@ -76,6 +76,7 @@ Acolyte of Aclazotz
 Acolyte of Affliction
 Acolyte of the Inferno
 Acquisition Octopus
+Acquisitions Expert
 Acrobatic Leap
 Acrobatic Maneuver
 Act of Heroism
@@ -564,6 +565,7 @@ Archive Arbiter
 Archive Dragon
 Archmage Emeritus
 Archmage of Runes
+Archmage's Newt
 Archon of Absolution
 Archon of Emeria
 Archon of Falling Stars
@@ -1462,6 +1464,7 @@ Boulderbranch Golem
 Boulderfall
 Bounce Off
 Bouncer's Beatdown
+Bound in Gold
 Boundary Lands Ranger
 Bounding Felidar
 Bounding Krasis
@@ -1476,6 +1479,7 @@ Brackish Trudge
 Braids's Frightful Return
 Braids, Arisen Nightmare
 Brain Maggot
+Brain in a Jar
 Bramble Armor
 Bramble Familiar
 Bramble Wurm
@@ -1763,6 +1767,7 @@ Captain America's Shield
 Captain America, Super-Soldier
 Captain America, Wings of Freedom
 Captain Jean-Luc Picard
+Captain Jonathan Archer
 Captain Kathryn Janeway
 Captain Lannery Storm
 Captain Mar-Vell, Space-Born
@@ -1911,6 +1916,7 @@ Cephalid Inkmage
 Cephalopod Sentry
 Cerebral Confiscation
 Cerebral Download
+Ceremonial Groundbreaker
 Ceremonial Knife
 Ceremonious Rejection
 Certain Death
@@ -2015,6 +2021,7 @@ Check for Traps
 Checkpoint Officer
 Cheeky House-Mouse
 Cheerful Osteomancer
+Cheering Crowd
 Chelonian Tackle
 Chemister's Insight
 Chemister's Trick
@@ -2752,6 +2759,7 @@ Dawn of Hope
 Dawn to Dusk
 Dawn's Light Archer
 Dawn's Truce
+Dawn-Blessed Pennant
 Dawnbringer Charioteers
 Dawnbringer Cleric
 Dawnfeather Eagle
@@ -2823,6 +2831,7 @@ Death Begets Life
 Death Frenzy
 Death Wind
 Death in the Family
+Death to Our Enemies
 Death's Approach
 Death's Oasis
 Death's Presence
@@ -2948,6 +2957,7 @@ Demonlord Belzenlok
 Demystify
 Den Protector
 Den of the Bugbear
+Dennick, Pious Apprentice
 Deny Existence
 Deny the Divine
 Denzilore Fatehold
@@ -3883,6 +3893,7 @@ Eternal Student
 Eternal Taskmaster
 Eternal Thirst
 Eternity Snare
+Ether
 Ethereal Absolution
 Ethereal Ambush
 Ethereal Armor
@@ -4653,6 +4664,7 @@ Gaea's Courser
 Gaea's Gift
 Gaea's Might
 Gaea's Protector
+Gaea's Revenge
 Gaelicat
 Gainsay
 Gaius van Baelsar
@@ -4705,6 +4717,7 @@ Garruk's Warsteed
 Garruk, Caller of Beasts
 Garruk, Curse Breaker
 Garruk, Cursed Huntsman
+Garruk, Savage Herald
 Garruk, Unleashed
 Garruk, Veiled Butcher
 Gas Guzzler
@@ -4712,6 +4725,7 @@ Gastal Blockbuster
 Gastal Raider
 Gastal Thrillroller
 Gastal Thrillseeker
+Gate Colossus
 Gate to the Afterlife
 Gatebreaker Ram
 Gatecreeper Vine
@@ -4933,6 +4947,7 @@ Glass of the Guildpact
 Glassblower's Puzzleknot
 Glasspool Mimic
 Glassworks // Shattered Yard
+Gleam of Authority
 Gleam of Battle
 Gleaming Barrier
 Gleaming Bastion

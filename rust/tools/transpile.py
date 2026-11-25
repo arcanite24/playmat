@@ -3319,7 +3319,8 @@ class Translator:
             if r.get('class') != 'Reflexive':
                 raise Unsupported('reflexive ability ' + args[0])
             msg = args[2].strip()[1:-1] if args[2].strip() != 'null' else ''
-            return {'class': cls, 'cost': [self.cost(args[1])], 'message': msg, 'rule': WHEN_YOU_DO,
+            # (a reflexive made with its own text keeps it: `getRule`, capitalized, Death to Our Enemies)
+            return {'class': cls, 'cost': [self.cost(args[1])], 'message': msg, 'rule': r.get('rule', WHEN_YOU_DO),
                     'targets': r['targets'], 'effects': r['effects'], 'optional': args[3].strip() == 'true'}
         # `new DoIfCostPaid(null, otherwise, cost)`: only what's done when it isn't paid
         # `new DoIfCostPaid(effect, null, cost, optional)`
@@ -3505,6 +3506,11 @@ class Translator:
             return {'class': 'ChooseLandNameEffect'}
         if cls == 'ChooseCreatureTypeEffect' and len(args) == 1 and args[0].strip().startswith('Outcome.'):
             return {'class': cls}
+        # (outcome, SubType...): one of these (Dawn-Blessed Pennant)
+        if cls == 'ChooseCreatureTypeEffect' and len(args) > 1 and args[0].strip().startswith('Outcome.') \
+                and all((m := re.fullmatch(r'SubType\.(\w+)', a.strip())) and m.group(1) in self.subtypes
+                        for a in args[1:]):
+            return {'class': cls, 'only': [self.subtypes[a.strip()[len('SubType.'):]] for a in args[1:]]}
         # a Siege's "choose Khans or Dragons", kept on the permanent for its anchor-word abilities
         if cls == 'ChooseModeEffect' and args and all(re.fullmatch(r'ModeChoice\.\w+', a.strip()) for a in args):
             return {'class': cls, 'modes': [mode_choice(a) for a in args]}
@@ -4355,6 +4361,10 @@ class Translator:
                     'amount': self.value('amount', args[0]) if len(args) == 2 else 1}
         if cls == 'DiscardCardYouChooseTargetEffect' and not args:
             return {'class': cls, 'filter': []}
+        # (number of cards to reveal): they reveal that many of their choice, you choose one (Acquisitions Expert)
+        if cls == 'DiscardCardYouChooseTargetEffect' and len(args) == 1 \
+                and re.fullmatch(r'\d+|\w+Count\.instance', args[0].strip()):
+            return {'class': cls, 'filter': [], 'reveal': self.amount(args[0])}
         if cls == 'DrawDiscardControllerEffect' and len(args) <= 1:
             args = ['1', '1'] + args
         # "discard any number of cards, then draw that many (plus N)"
@@ -4789,6 +4799,11 @@ class Translator:
         cls, args = m.group(1), [a.strip() for a in split_args(m.group(2))] if m.group(2).strip() else []
         if cls == 'ReturnSourceFromGraveyardToHandEffect' and not args:
             return {'class': 'ReturnToHandSourceEffect', 'battlefield_only': False}
+        # "put this card from your graveyard on top of your library" (Gate Colossus's graveyard trigger): the engine's
+        # effect moves its source only from the graveyard, so only a trigger that works there takes it
+        if cls == 'PutOnLibrarySourceEffect' and args and args[0] in ('true', 'false') and len(args) <= 2 \
+                and getattr(self, 'trigger_zone', None) == 'Zone.GRAVEYARD':
+            return {'class': 'PutOnLibrarySourceEffect', 'top': args[0] == 'true'}
         # `returnFromNextZone`: the source in the zone it went to (a leaves trigger's source is that object already)
         if cls == 'ReturnToHandSourceEffect' and len(args) == 2 and args[0] in ('true', 'false') and args[1] == 'true':
             return {'class': 'ReturnToHandSourceEffect', 'battlefield_only': args[0] == 'true'}
@@ -5588,7 +5603,9 @@ class Translator:
                 if len(a) == 3 and a[2] != 'new TargetControlledCreaturePermanent()':
                     n = re.fullmatch(r'new TargetPermanent\((\w+)\)', a[2])
                     f = self.filter(n.group(1)) if n else None
-                    if not f or CREATURE not in f:
+                    # (or a creature type alone: "equip Citizen", a `FilterControlledPermanent(SubType.CITIZEN)` Java
+                    # takes as it is: Ceremonial Groundbreaker)
+                    if not f or (CREATURE not in f and not any(p.get('p') == 'subtype' for p in f)):
                         raise Unsupported('equip ' + ','.join(args))
                     target = [dict(p) for p in f] + ([YOU] if YOU not in f else [])
             else:
@@ -5854,7 +5871,11 @@ class Translator:
         # (Zone.GRAVEYARD, effect, filter, optional): it triggers from its owner's graveyard (Prized Amalgam)
         if cls == 'EntersBattlefieldAllTriggeredAbility' and len(args) == 4 and args[0].strip() == 'Zone.GRAVEYARD' \
                 and args[3].strip() in ('true', 'false'):
-            a = self.ability('new ' + cls + '(' + ','.join(args[1:]) + ')')
+            self.trigger_zone = 'Zone.GRAVEYARD'
+            try:
+                a = self.ability('new ' + cls + '(' + ','.join(args[1:]) + ')')
+            finally:
+                self.trigger_zone = None
             a['on']['graveyard'] = True
             return a
         if cls == 'EntersBattlefieldAllTriggeredAbility' and len(args) == 5 and args[0].strip() == 'Zone.BATTLEFIELD' \
@@ -9177,6 +9198,10 @@ def ability_statement(t, st, added):
                      r'|getModes\(\)\.getMode\(\)\.withFlavorWord|getDependedToTypes\(\)\.add|addDependedToType|setDependedToType)\(.*\)', st)
     if m and m.group(1) in t.vars:
         return True
+    # (a mana ability's undo is the human client's rollback of a payment: nothing the game rules see; Ether)
+    m = re.fullmatch(r'(\w+)\.setUndoPossible\(false\)', st)
+    if m and m.group(1) in t.vars:
+        return True
     # backup: an ability the card has and the backup target gains (`BackupAbility.addAbility`; with `true`, only
     # the target: a second backup of the card's)
     m = re.fullmatch(r'(\w+)\.addAbility\((.*?)(,true)?\)', st, re.S)
@@ -10312,6 +10337,11 @@ def granted_rules(card):
                     and re.search(r'new SurveilEffect\(1\)\)', card_source(card.get('name'))):
                 g['rule'] += (' <i>(Look at the top card of your library. You may put that card into your'
                               ' graveyard.)</i>')
+            # `new BolsterEffect(1)` writes its reminder (Gleam of Authority's "{W}, {T}: Bolster 1.")
+            if effects == ['BolsterEffect'] and g['rule'].endswith('Bolster 1.') \
+                    and re.search(r'new BolsterEffect\(1\)', card_source(card.get('name'))):
+                g['rule'] += (' <i>(Choose a creature with the least toughness among creatures you control and put'
+                              ' a +1/+1 counter on it.)</i>')
             # `new RegenerateSourceEffect()` writes "Regenerate {this}" (Molting Snakeskin's "Regenerate this creature")
             if effects == ['RegenerateSourceEffect'] and 'new RegenerateSourceEffect()' in card_source(card.get('name')):
                 g['rule'] = re.sub(r': Regenerate this (?:artifact|creature|permanent)\.', ': Regenerate {this}.',
