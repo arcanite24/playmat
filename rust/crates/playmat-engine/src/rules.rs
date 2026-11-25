@@ -8711,8 +8711,20 @@ fn owns_target(game: &Game, seat: Seat, id: ObjId) -> bool {
     }
 }
 
-/// `src`: the spell or ability's source, for its filters ("another")
+/// `src`: the spell or ability's source, for its filters ("another"). Cards in graveyards are left out while a static
+/// says they can't be the targets of spells or abilities (`CantBeTargetedCardsGraveyardsEffect`: Silent Gravestone,
+/// Underworld Cerberus)
 pub fn possible_targets(game: &Game, seat: Seat, def: &TargetDef, src: Option<ObjId>) -> (Vec<Seat>, Vec<ObjId>) {
+    let (players, mut objs) = possible_targets_all(game, seat, def, src);
+    if objs.iter().any(|o| game.obj(*o).zone == Zone::Graveyard)
+        && game.any_static(|_, _, e| matches!(e, EffectDef::CantBeTargetedCardsGraveyardsEffect))
+    {
+        objs.retain(|o| game.obj(*o).zone != Zone::Graveyard);
+    }
+    (players, objs)
+}
+
+fn possible_targets_all(game: &Game, seat: Seat, def: &TargetDef, src: Option<ObjId>) -> (Vec<Seat>, Vec<ObjId>) {
     // a player with hexproof can't be the target of their opponents' spells and abilities, nor one with protection
     // from the source (`PlayerImpl.canBeTargetedBy`'s `hasProtectionFrom`)
     let players: Vec<Seat> = (0..game.seats())
@@ -19460,6 +19472,8 @@ fn apply_each_effect(
             | EffectDef::EtchingOfKumanoReplacementEffect
             | EffectDef::BoostEnchantedEffect { .. }
             | EffectDef::CantAttackBlockAttachedEffect
+            | EffectDef::CantAttackAttachedEffect
+            | EffectDef::CantBeTargetedCardsGraveyardsEffect
             | EffectDef::CantBeBlockedByMoreThanOneAttachedEffect
             | EffectDef::MockingbirdEffect
             | EffectDef::CopyPermanentEffect { .. }
@@ -23957,6 +23971,13 @@ pub fn can_attack(game: &Game, seat: Seat, id: ObjId) -> bool {
         && !game.cant_attack_alone(id)
         && !game.has_ability(id, &AbilityDef::CantAttackAbility)
         && !cards::cant_attack(game, id)
+        && !game.battlefield.iter().any(|src| {
+            game.attached(*src) == Some(id)
+                && game.obj(*src).def.abilities.iter().any(|a| {
+                    matches!(a, AbilityDef::SimpleStaticAbility { effects, .. }
+                        if effects.contains(&EffectDef::CantAttackAttachedEffect))
+                })
+        })
 }
 
 /// `Combat.selectAttackers` and `HumanPlayer.selectAttackers`: asked only when something can attack; "special" is

@@ -4074,6 +4074,12 @@ pub enum EffectDef {
     },
     /// a static ability's effect: the permanent this is attached to can't attack or block
     CantAttackBlockAttachedEffect,
+    /// "cards in graveyards can't be the targets of spells or abilities" (a static's
+    /// `CantBeTargetedCardsGraveyardsEffect`, read by `possible_targets`)
+    CantBeTargetedCardsGraveyardsEffect,
+    /// "enchanted creature can't attack" (a static's `CantAttackAttachedEffect`: a restriction, not an ability, so a
+    /// "loses all abilities" leaves it: Retro-Mutation)
+    CantAttackAttachedEffect,
     /// each player (of `who`) discards `amount` cards they choose, all at once
     DiscardEachPlayerEffect {
         amount: Amount,

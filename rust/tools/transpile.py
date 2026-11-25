@@ -4426,6 +4426,12 @@ class Translator:
             return gains('GainAbilitySourceEffect', {'class': 'CanBlockOnlyFlyingAbility'})
         if cls == 'CantBeBlockedAttachedEffect' and args and args[0] in attachment and all(plain(a) for a in args[1:]):
             return gains('GainAbilityAttachedEffect', {'class': 'CantBeBlockedSourceAbility'})
+        # "cards in graveyards can't be the targets of spells or abilities" (Silent Gravestone, Underworld Cerberus)
+        if cls == 'CantBeTargetedCardsGraveyardsEffect' and not args:
+            return {'class': cls}
+        # "enchanted creature can't attack": a restriction of its own (Retro-Mutation's survives "loses all abilities")
+        if cls == 'CantAttackAttachedEffect' and args == ['AttachmentType.AURA']:
+            return {'class': cls}
         if cls == 'CantBlockAttachedEffect' and args and args[0] in attachment and all(plain(a) for a in args[1:]):
             return gains('GainAbilityAttachedEffect', {'class': 'CantBlockAbility'})
         if cls == 'CantActivateAbilitiesAttachedEffect' and not args:
