@@ -2055,7 +2055,7 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
 
   Wave 26b, Pioneer cards from Goddric, Cloaked Reveler to Ral Zarek, Guest Lecturer, third pass (25 Nov): the 363
   still unverified after wave 25b (waves 26a and 26c take the rest), starting from the 210 whose first blocker is
-  their own Java class. 17 came in (14,436 in the engine with wave 26a) and 13 were verified (14,390): Grasp of the
+  their own Java class. 17 came in (14,449 in the engine with waves 26a and 26c) and 13 were verified (14,403): Grasp of the
   Hieromancer, Green Dragon, Groundchuck & Dirtbag, Guul Draz Overseer, Hama Pashar, Ruin Seeker, Hoshi Sato,
   Exolinguist, Hundred-Battle Veteran, Jace, Cunning Castaway, Lolth, Spider Queen, Lyra, Tolarian Archangel, Ms.
   Marvel, Kamala Khan, Nahiri, Storm of Stone and Paranormal Analyst. Seven rounds on multivac: round 1 factory (52
@@ -2606,6 +2606,54 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
     War Shaman).
   - Layer 4 (Tom, Bert, and William; Zhao; Sugar Coat and others), and wave 24c's skips, still standing.
   - The rest: one card class or one engine piece each, not reached in the budget.
+
+  Wave 26c, Pioneer cards from Ral, Crackling Wit to Zurgo, Thunder's Decree, third pass (25 Nov): the 361 still
+  unverified in that range (waves 26a and 26b take the rest). 13 came in (14,421 in the engine) and 13 were verified
+  (14,382): Rediscover the Way, Sanctum of Fruitful Harvest, Serum-Core Chimera, Showdown of the Skalds, Sinister
+  Possession, Surveillance Monitor, Tameshi, Reality Architect, The Apprentice's Folly, The Last Ronin, Time of Ice,
+  Timely Interference, Winds of Qal Sisma and Withercrown. Rounds 1 (multivac), 2, 3 and 6 were factory rounds, 4, 5
+  and 7 hand-made (decks under `.local/w26c/factory/round-00N/decks`: Winds of Qal Sisma with power-4 creatures, the
+  sagas reaching chapter III against The Last Ronin, Serum-Core Chimera with cheap spells, Tameshi with bounce): 86
+  games (20, 12, 8, 10, 12, 12 and 12), 83 match, 2 differ (both Builder's Talent's, below), 1 Java unfinished. Every
+  chapter, the sagas' "this turn" triggers (Rediscover the Way, Showdown of the Skalds, The Last Ronin's
+  attacks-alone) and The Last Ronin's "when you do" went on the stack in matching games; Winds of Qal Sisma resolved
+  with and without a power-4 creature (round 4), Timely Interference kicked and not, Withercrown's upkeep both
+  sacrificed and paid in life, Serum-Core Chimera's discard damage and both of Tameshi's abilities (round 7). The
+  games under `shadow/wave26c/` cover every card. The pieces:
+  - Triggers: `Trigger::AttacksOrBlocksAttached` (Sinister Possession), `CollectEvidence` (the `EVIDENCE_COLLECTED`
+    a collect-evidence cost raises, Surveillance Monitor), and `LeavesAll { to_hand }` for
+    `ZoneChangeAllTriggeredAbility(…, Zone.HAND, …)` (Tameshi).
+  - `Layer::SetPower`: base power alone (`SetBasePowerEnchantedEffect`, Withercrown); the 7b set now carries power
+    and toughness separately.
+  - Handlers: Rediscover the Way's and Showdown of the Skalds' delayed triggers, The Last Ronin (mill, then a
+    reflexive return; its attacks-alone trigger), The Apprentice's Folly's name predicate, Sanctum of Fruitful
+    Harvest's mana, Withercrown's "unless you sacrifice", `SacrificeAllControllerEffect`,
+    `LoseLifeControllerAttachedEffect`.
+  - Transpiler: `LockedInCondition` read as its condition on a one-shot spell (Winds of Qal Sisma, Timely
+    Interference), a spell's three-argument `ConditionalReplacementEffect` of two damage preventions and
+    `ConditionalRequirementEffect` of "blocks if able"; a Saga's `CHAPTER_I` without `SagaChapter.` (Time of Ice);
+    "when you discard a card this way" as a reflexive trigger's text (Serum-Core Chimera).
+  - A full transpile changes and drops no existing card. It adds known leftovers outside the range: Evidence
+    Examiner, Hoshi Sato, Justice, Vance Astrovik.
+  No change alters a verified card: each new trigger, layer and mapping acts only for the new classes.
+  Withercrown and Rediscover the Way went on the list by hand: their only differing games (round 1 games 31 and 59)
+  both part where the already-verified Builder's Talent returns an Aura from the graveyard to the battlefield
+  (Withercrown, Candletrap): Java asks where to attach it once more than Rust does (its `AuraReplacementEffect` runs
+  with no source ability). That is a gap in Builder's Talent, open. Their abilities all ran in other matching games.
+  Left out, with what each needs:
+  - Modes with paw prints (Season of Loss, Season of the Burrow, the other Seasons); dynamic most modes (Riku,
+    Ruinous Wrecking Crew); target adjusters (Spinning Wheel Kick, Selective Snare, Webstrike Elite).
+  - `GainAbilityWithAttachmentEffect`'s equipment text; a granted trigger without its own text (Vorpal Sword).
+  - Requirements: a filtered blocker (Slayer's Cleaver); an extra end step (Y'shtola Rhul).
+  - Hash or random order: Unpredictable Cyclone's random bottom, Slaughter the Strong's and Suspend Aggression's
+    HashSets, Vortex Elemental's, Ziatora's Envoy's land choice.
+  - Layer 4: Werewolf Pack Leader, Zhao, the Moon Slayer, Realmwright, Starfield of Nyx, Ygra.
+  - Events Rust doesn't raise: who tapped a permanent (Solitary Sanctuary); damage to a player or planeswalker per
+    event (Vraska, Swarm's Eminence).
+  - A dynamic target filter (Scrap Trawler), copy for each (Zada), activation from hand (Urban Retreat, Zareth San,
+    Tetzimoc), an `ActivateIfCondition` subclass (Thought Shucker), an MDFC back (Tergrid), a trains trigger
+    (Savior of Ollenbock), player protection from everything (The Stasis Coffin), split second (Samut), a cycle
+    count watcher (Yidaro).
 
   Wave 24a, Pioneer cards A Killer Among Us to God-Eternal Kefnet (25 Nov): the 385 unverified Pioneer cards in that
   range (waves 24b and 24c take the rest). A stub-handler probe found 109 that translate with their own classes

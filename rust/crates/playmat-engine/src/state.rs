@@ -4841,7 +4841,7 @@ impl Game {
                 Trigger::PeltCollector => src != id && died_controller == you,
                 Trigger::SyrKonrad => src != id && g.has_type(id, CardType::Creature),
                 Trigger::DiesAttached { .. } => g.obj(src).attached_to.is_some_and(|(a, _)| a == id),
-                Trigger::LeavesAll { filter } => g.filter_matches(filter, you, Some(src), id),
+                Trigger::LeavesAll { filter, to_hand: false } => g.filter_matches(filter, you, Some(src), id),
                 Trigger::PutIntoGraveyardAll { .. } => into_graveyard(g, src, you, t),
                 _ => false,
             });
@@ -4913,7 +4913,9 @@ impl Game {
             let sources: Vec<ObjId> = self.battlefield.iter().copied().chain(self.delayed_holders()).collect();
             self.triggers(sources, |g, src, you, t| match t {
                 Trigger::LeavesBattlefield | Trigger::EntersOrLeaves => src == id,
-                Trigger::LeavesAll { filter } => g.filter_matches(filter, you, Some(src), id),
+                Trigger::LeavesAll { filter, to_hand } => {
+                    (!*to_hand || zone == Zone::Hand) && g.filter_matches(filter, you, Some(src), id)
+                }
                 _ => false,
             })
         } else if zone == Zone::Graveyard && from != Zone::Graveyard {

@@ -734,6 +734,8 @@ pub enum Trigger {
     AttacksAttached,
     /// this attacks (`ATTACKER_DECLARED`) or blocks (`CREATURE_BLOCKS`) (`AttacksOrBlocksTriggeredAbility`)
     AttacksOrBlocks,
+    /// the creature this is attached to attacks or blocks (`AttacksOrBlocksAttachedTriggeredAbility`)
+    AttacksOrBlocksAttached,
     /// this attacks, as its own `ATTACKER_DECLARED` event, in the attackers' order (`PackTacticsAbility`)
     AttackerDeclared,
     /// this or the creature it's attached to attacks (`ATTACKER_DECLARED`; a trigger handler's base,
@@ -952,6 +954,8 @@ pub enum Trigger {
     Valiant,
     /// you forage (`ForageTriggeredAbility`)
     Forage,
+    /// you collect evidence (`CollectEvidenceTriggeredAbility`, the `EVIDENCE_COLLECTED` event)
+    CollectEvidence,
     /// this card was discarded into exile by its madness (`MadnessTriggeredAbility`, from exile)
     MadnessExiled,
     /// this card is put into a graveyard from `from` ("library": `PutIntoGraveFromLibrarySourceTriggeredAbility`;
@@ -1060,6 +1064,9 @@ pub enum Trigger {
     /// a permanent of the filter leaves the battlefield; the trigger's X is the +1/+1 counters it had (The Ooze)
     LeavesAll {
         filter: Filter,
+        /// only to its owner's hand (`ZoneChangeAllTriggeredAbility(…, Zone.BATTLEFIELD, Zone.HAND, …)`: Tameshi)
+        #[serde(default)]
+        to_hand: bool,
     },
     /// a permanent of the filter dies; with `include_self`, this too when it matches
     DiesAll {
