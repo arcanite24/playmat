@@ -2234,8 +2234,9 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   Vine Gecko, Visions of Phyrexia, Winter, Misanthropic Guide and Zilortha, Strength Incarnate. Five rounds, all
   recorded on multivac: round 1 factory (16 games, with the pending Spell Blast, Summon: Choco/Mog and The
   Fall of Kroog), rounds 2, 3 and 5 hand-made (24 games each; decks under `.local/w24c/factory/round-00N/decks`) and
-  round 6 factory over the 14 new cards (22 games): 105 match, 5 differ. The 9 games under `shadow/wave24c/` cover
-  each card. The pieces:
+  round 6 factory over the 14 new cards (22 games): 105 match, 5 differ. The 10 games under `shadow/wave24c/` cover
+  each card (round 3 game 21: Winter's opponent discards from 6 to 3 at cleanup). No matching game shows a creature
+  dying by Zilortha's rule alone (damage at least its power, less than its toughness). The pieces:
   - Turn watchers (`TurnWatch`, cleared at untap): a face-down creature entered under a player (Tunnel Tipster), a
     player played a card from exile, lands too (Visions of Phyrexia), cast a kicked spell (Vine Gecko's first kicked
     spell; a bargained spell also sets `kicked`, so the predicate also asks for a `KickerAbility`), spells cast while
@@ -2266,7 +2267,8 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   transforming back (round 5 games 0 and 17, round 6 game 77). Any `castSpellWithAttributesForFree` over a
   transforming card whose back matches the filter differs the same way. Seen on the way: Basri Ket's -2 delayed
   trigger and Gloryheath Lynx's attack trigger go on the stack in the other order in Rust (round 5 game 4); both are
-  verified. Left out, with what each needs:
+  verified. Spireside Infiltrator entering tapped under Blind Obedience triggers its "whenever this becomes tapped" in
+  Java only (round 1 game 21, none of this wave's cards in it); both are verified. Left out, with what each needs:
   - Reflexive triggers that are optional or modal (Wishing Well, Tranquil Frillback); a target that's a player of a
     filter (Rix Maadi Guildmage); control of another player (Worst Fears); `CantBeSacrificed` granted under a
     condition (Zurgo, Thunder's Decree); decayed and paw-print counters (Rot-Curse Rakshasa, the Seasons cards);
