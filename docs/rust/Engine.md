@@ -1912,6 +1912,52 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
     (`DamageAsThoughNotBlockedAbility`), Glacierwood Siege (an anchor word's static).
   - The seven `CastFromHandSourcePermanentCondition` cards, dice, `setRandom` and the long tail: not reached.
 
+  Wave 22b, Pioneer cards L to Z (25 Nov): the 638 unverified Pioneer cards from L to Z (wave 22a takes A to K). A
+  probe (a stub handler for every short card-specific class) sorted them by blocker; the cheapest came first. 10 came in (14,286 in the engine), and the 22 already
+  in the engine but not verified went into round 1. Four rounds (round 1 factory on multivac, 32 games; round 3
+  hand-made, 40; round 4 factory, 20, both recorded on this Mac with master's Java): 76 match, 16 differ (all in round
+  1, blamed on Moment of Truth, Turn the Earth, The Three Seasons, Ob Nixilis Reignited, Silent Gravestone and Summon:
+  Bahamut). Verified, 13: Mercurial Chemister, Might Makes Right, Necrotic Fumes, Proud Wildbonder, Raph & Leo, Sibling
+  Rivals, Seven of Nine, Unassimilated, Smoky Lounge // Misty Salon, Stop Cold, Sundering Stroke, Teferi, Who Slows the
+  Sunset, Thorn Elemental, Vohar, Vodalian Desecrator and Voidwing Hybrid. Round 3's decks (Voidwing Hybrid and Vohar
+  with proliferate, Thorn Elemental and Might Makes Right with mana creatures against walls, Sundering Stroke with
+  twenty Mountains) are under `.local/w22b/factory/round-003/decks`. The 12 games under `shadow/wave22b/` cover each
+  card. The pieces:
+  - `AbilityDef::DamageAsThoughNotBlockedAbility` (Thorn Elemental, and granted by Proud Wildbonder): asked of the
+    attacker's controller as its combat damage is assigned with blockers, before the as-though effects
+    (`CombatGroup.assignDamageToBlockers`); a yes skips them.
+  - `Trigger::YouProliferate { graveyard }` (`ProliferatedControllerTriggeredAbility(Zone.GRAVEYARD, …)`: Voidwing
+    Hybrid's "return this from your graveyard"): the proliferating player's graveyard is read for it, as for
+    committed crimes.
+  - Transpiler forms: `TargetAnyTargetAmount(amount, min, max)` (Sundering Stroke), `new SimpleActivatedAbility(…)
+    .setCondition(c)` as an "activate only if" ability (Seven of Nine), `CantAttackBlockTargetEffect(UntilYourNextTurn)`
+    as the engine's can't attack and can't block until then, a spell's `ExileTargetCost` without
+    `withSourceExileZone(false)` (Necrotic Fumes: nothing reads the spell's exile zone), `StopColdEffect` as
+    `LoseAllAbilitiesAttachedEffect`.
+  - Handlers: `DiscardCostCardManaValue` (framework), Seven of Nine's, Sundering Stroke's (Java checks six red, not
+    seven), Vohar's and Might Makes Right's.
+  No verified card changes: a full transpile changes and drops none (it also adds Death to Our Enemies, Dennick and
+  Keys to the House, A to K cards left for wave 22a).
+
+  Not verified although their games matched, because Java orders them nondeterministically (documented earlier):
+  Smuggler's Surprise (`HashSet` returns), Wildfire Eternal (attackers' `HashSet`), Reckoner
+  Bankbuster (`withAdditionalTokens`) and Tainted Adversary (decayed sacrifice triggers). Pending: Lavaleaper, Rambling Possum,
+  Marina Vendrell, Nyxbloom Ancient, Retro-Mutation, Spell Blast, The Fall of Kroog, Vorinclex,
+  Summon: Choco/Mog. Left out, with what each needs:
+  - Lyra, Tolarian Archangel (a granted trigger's rule text, `GainAbilitySourceEffect` with `setText`), Search for
+    Glory and Tundra Fumarole (snow mana spent isn't tracked), Paragon of Modernity (colors spent on an activated
+    ability), Relic Amulet (`RemoveAllCountersSourceCost`'s count), Magmatic Sprinter and Withercrown
+    (`DoUnlessControllerPaysEffect`'s message), Spara's Adjudicators and two more (`GiveManaAbilityAndCastSourceAbility`),
+    Tyvar Kell, Ral, Crackling Wit and Prismari (abilities given to spells).
+  - Multiple kicker costs (Stronghold Arena, Temporal Firestorm, Urborg Lhurgoyf, Vodalian Mindsinger), extra steps
+    and phases (Y'shtola Rhul, Obeka), layer 4 type changes (Sealock Monster, Navigator's Compass, Pixie Illusionist,
+    Tune Up, Toph, Zhao), paw prints and modes chosen twice (the Seasons, Planewide Celebration, Moment of Reckoning),
+    `HashMap`/`HashSet` orders in their own classes (Rampage of the Clans, Pitiless Carnage, Wanderwine Farewell),
+    copy effects (Permeating Mass, Mirrorform and others), requirement effects (Trove of Temptation, Sizzling Soloist,
+    Public Enemy) and dice.
+  - The rest the probe found blocked only by their own class (Mondo Gecko, Sphinx's Decree, Wishing Well and
+    others) are one handler each, not reached.
+
   Wave 15, shared forms A (15 Nov): framework forms that block several of the claim's cards, then card classes,
   built in four slices. Ending the turn (`EndTurnEffect`, `Turn.endTurn`: `Game::end_turn`; every spell on the stack
   exiled, the resolving one too, abilities removed, combat left, the waiting triggers dropped; priority stops after
