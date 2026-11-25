@@ -19,7 +19,8 @@ its summary in the repository, and the record of what S0 built and measured ([S0
 | Coordinator | `playmat-swarm`, Rust (axum, SQLite WAL) next to the gateway on the Hetzner box. Metadata only. |
 | Game data | Presigned uploads to a private intake prefix on Cloudflare R2's free tier. Accepted shards move to the public Hugging Face dataset `nerijs/playmat-ai-selfplay` and leave the bucket. |
 | Work unit | About 100 seeded games, pinned to a build, networks (by sha256), a suite and an allowlisted config. |
-| Trust | Accounts, probation, a replay of every game from its answer log, re-run audits within a determinism class, per-worker statistics, quarantine by contributor. |
+| Trust | Accounts, probation, a replay of every game from its answer log, re-run audits by another account, per-worker statistics, quarantine by contributor. |
+| Determinism | CPU workers ship the strict build: every machine is one class, for about 30% more compute (decided 2026-11-25, after S0). |
 | Gates | SPRT matches on reputable and trusted workers, with a re-run audit. A passed gate promotes automatically. |
 | Credit | Reference core-seconds per accepted unit plus a capped quick-return bonus; spendable swarm credits for Playmat cosmetics 7 days after acceptance. |
 | Binaries | Built and signed by CI, auto-updated with signature checks. Units are data, never code. |
@@ -52,7 +53,8 @@ No unit trains a network or earns credit until it is accepted. In order:
 3. **Statistics.** Per worker against everyone on the same unit kind: win rate by seat, game length, spread of policy
    targets, time per game (Fishtest's residual, extended to training targets).
 4. **Re-run audit.** A replay can't show the search targets were honest, so a sample of units is re-run by another
-   account of the same determinism class and the answer-log hashes compared: all units in probation, about 3% after.
+   account and both hashes compared, the answer log's and the training data's: all units in probation, about 3%
+   after. With the strict build any CPU worker can re-run any other's unit.
 5. **Accept or quarantine.** A mismatch quarantines that worker's untrained data and opens an admin inbox item.
 
 ## Determinism
@@ -62,12 +64,14 @@ way form a determinism class (`determinism_class`): the target and the SIMD kern
 FMA, NEON), since those round differently, and the platform maths library behind `exp`, `ln` and `tanh`.
 
 The `strict` feature of `playmat-ai` (and `playmat-worker`) removes both: matrix products run the packed 8-lane loop
-in a fixed order, and the float functions come from the `libm` crate (`src/fm.rs`). S0 measured it at
-+28% on x86 and +35% on the Mac, just over the 25% the design set for making it the default, and confirmed that it
-plays the same 1,000 games, to the last bit of training data, on ARM macOS and two x86 Windows hosts
-([S0.md](S0.md)). Until that's decided, re-runs are matched within a class, and they compare the training data's
-hash as well as the answer log's: across classes, nearly every game records different numbers even when it makes
-the same moves.
+in a fixed order, and the float functions come from the `libm` crate (`src/fm.rs`). S0 confirmed that it plays the
+same 1,000 games, to the last bit of training data, on ARM macOS and two x86 Windows hosts, at +28% on x86 and +35%
+on the Mac ([S0.md](S0.md)).
+
+It is the swarm's default: a unit is strict unless it says otherwise (`Pins::strict`), and release workers are built
+with `--features strict`. It stays a feature, not a default one, so a workspace build (the game host, the gateway)
+keeps the faster kernels. A non-strict unit would be re-run only within its class; GPU units (S5) will need their
+own answer, since a GPU's float order is its own.
 
 ## Roadmap
 

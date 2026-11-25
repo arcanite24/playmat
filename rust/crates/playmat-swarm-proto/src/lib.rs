@@ -53,9 +53,14 @@ pub struct Pins {
     /// the suite folder under `archbench/`, and the sha256 of its suite.json
     pub suite: String,
     pub suite_sha256: String,
-    /// the unit needs the strict-math build (every CPU worker one determinism class)
-    #[serde(default)]
+    /// the unit needs the strict-math build, which makes every CPU worker one determinism class. The swarm's
+    /// default (decided after S0, docs/swarm/S0.md): a unit that doesn't say is strict
+    #[serde(default = "strict_by_default")]
     pub strict: bool,
+}
+
+fn strict_by_default() -> bool {
+    true
 }
 
 /// One opponent of the learner, drawn by weight per game; `config` is an Archbench entrant, or `self`
@@ -294,7 +299,7 @@ mod tests {
                 obs: 3,
                 suite: "constructed-2".into(),
                 suite_sha256: "x".into(),
-                strict: false,
+                strict: true,
             },
             nets: vec![NetRef { role: NetRole::Learner, sha256: SHA.into(), url: "https://example.invalid/n".into() }],
             learner: format!("cfg:policy=ismcts+net=@{SHA}+hide=1+iters=384+multi_tree=1+belief_ms=1"),
@@ -313,6 +318,15 @@ mod tests {
         check_unit(&unit()).unwrap();
         let json = serde_json::to_string(&unit()).unwrap();
         assert_eq!(serde_json::from_str::<WorkUnit>(&json).unwrap(), unit());
+    }
+
+    #[test]
+    fn a_unit_is_strict_unless_it_says_otherwise() {
+        let mut v = serde_json::to_value(unit()).unwrap();
+        v["pins"].as_object_mut().unwrap().remove("strict");
+        assert!(serde_json::from_value::<WorkUnit>(v.clone()).unwrap().pins.strict);
+        v["pins"]["strict"] = false.into();
+        assert!(!serde_json::from_value::<WorkUnit>(v).unwrap().pins.strict);
     }
 
     #[test]

@@ -99,7 +99,12 @@ fn run_unit(unit_path: &str, out: &str, nets_dir: &str, repo: &str, jobs: usize)
     let unit: WorkUnit = read_json(unit_path)?;
     proto::check_unit(&unit)?;
     if unit.pins.strict != STRICT {
-        return Err(format!("the unit wants strict={}, this build is strict={STRICT}", unit.pins.strict));
+        let build = if unit.pins.strict {
+            "cargo build --release -p playmat-worker --features strict"
+        } else {
+            "a build without --features strict"
+        };
+        return Err(format!("the unit wants strict={}, this build is strict={STRICT}: run {build}", unit.pins.strict));
     }
     if unit.kind == UnitKind::SelfplayGpu || unit.kind == UnitKind::Bench || unit.kind == UnitKind::Verify {
         return Err(format!("{:?} units aren't in S0", unit.kind));
