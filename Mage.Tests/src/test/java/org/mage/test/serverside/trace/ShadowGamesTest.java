@@ -91,8 +91,7 @@ public class ShadowGamesTest {
             }
             Arrays.sort(files);
             for (File file : files) {
-                StringBuilder errors = new StringBuilder();
-                decks.add(DeckImporter.importDeckFromFile(file.toString(), errors, false));
+                decks.add(importDeck(file));
                 names.add(folder.getName() + "/" + file.getName().replace(".txt", ""));
             }
         }
@@ -299,6 +298,24 @@ public class ShadowGamesTest {
         record.put("trace", entries);
         record.put("result", result);
         return record;
+    }
+
+    /**
+     * Fail on a deck that loads empty rather than record games with it. Several recording processes share the card
+     * database, and one that loses the race to open it ("Lock file recently modified") finds no card at all.
+     */
+    private static DeckCardLists importDeck(File file) {
+        StringBuilder messages = new StringBuilder();
+        DeckCardLists list = DeckImporter.importDeckFromFile(file.toString(), messages, false);
+        String errors = messages.toString().trim();
+        if (list.getCards().isEmpty()) {
+            throw new IllegalStateException("deck " + file + " didn't load: " + (errors.isEmpty() ? "no cards" : errors));
+        }
+        if (!errors.isEmpty()) {
+            // a card the database lacks: the deck plays without it, as it always has
+            System.out.println("[shadow] deck " + file.getName() + ": " + errors);
+        }
+        return list;
     }
 
     private static Map<String, Object> deck(String name, DeckCardLists list) {
