@@ -1517,6 +1517,12 @@ COST_ADJUSTERS = {
     # strange new worlds: `StrangeNewWorldsValue`, the differently named lands you control
     'SuusMahnaPractitionerAdjuster': ('new DifferentlyNamedPermanentCount(StaticFilters.FILTER_CONTROLLED_PERMANENT_LANDS)',
                                       None),
+    # {1} less for each creature in your party
+    'SeafloorStalkerAdjuster': ('PartyCount.instance', None),
+    # {4} less if an opponent controls four or more nonbasic lands (a duel: the one opponent's count)
+    'RazorlashTransmograntAdjuster': (4, {'c': 'permanents', 'filter': [
+        {'p': 'type', 't': 'LAND'}, {'p': 'not', 'x': {'p': 'supertype', 's': 'BASIC'}},
+        {'p': 'controller', 'who': 'opponent'}], 'cmp': 'OR_GREATER', 'n': 4, 'all': True}),
 }
 
 # a `FilterSpellOrPermanent` of any spell or a creature
@@ -4307,7 +4313,14 @@ class Translator:
                                 'additional +1/+1 counter on it.'}
             d = self.vars.get(args[0].strip()) or self.ability(args[0])
             if d.get('class') == 'WhenTargetDiesDelayed':
-                out = {'class': 'CreateWhenTargetDiesDelayedEffect', 'effects': d['effects'], 'rule': d['rule'],
+                # its own trigger phrase (`.setTriggerPhrase("When it dies this turn, ")`: Turn Inside Out): the
+                # sentence of the spell's rule that starts with it
+                tp = re.fullmatch(r'new WhenTargetDiesDelayedTriggeredAbility\(.*\)\.setTriggerPhrase\("([^"]+)"\)',
+                                  canonical(args[0].strip()), re.S)
+                rule = d['rule']
+                if tp and rule == RULE_FROM + 'When that creature dies this turn, >':
+                    rule = RULE_FROM + tp.group(1) + '>'
+                out = {'class': 'CreateWhenTargetDiesDelayedEffect', 'effects': d['effects'], 'rule': rule,
                        'to_player': d['to_player']}
                 if d.get('only_controlled'):
                     out['only_controlled'] = True
@@ -8531,9 +8544,10 @@ def card_statement(t, st, card, added, spell, modes, subtypes):
         if m:
             card.setdefault('supertypes', []).extend(x.split('.')[-1] for x in split_args(m.group(1)))
             return
-        # a meld card's colors (it has no mana cost to give them)
+        # a meld card's colors (it has no mana cost to give them), or a card's whose cost has no colored symbols
+        # (Sphinx of the Guildpact, "{7}" and all colors)
         m = re.fullmatch(r'this\.color\.set(White|Blue|Black|Red|Green)\(true\)', st)
-        if m and card.get('meld_card'):
+        if m and (card.get('meld_card') or ('cost' in card and not re.search(r'[WUBRG]', card['cost']))):
             color = {'White': 'W', 'Blue': 'U', 'Black': 'B', 'Red': 'R', 'Green': 'G'}[m.group(1)]
             card['colors'] = [c for c in 'WUBRG' if c in card.get('colors', []) + [color]]
             return
