@@ -252,7 +252,7 @@ App screens sit inside the stitched edge (10px inset) under a thin printed rail:
 
 The Play screen is the reference composition: deck roster column left, selected deck art printed full-bleed in the right two thirds, the PLAY zone over it with the amber button at its lower right as the largest control.
 
-Desktop first from 1280x720. Two breakpoints exist: 1200px (Home, Tables, Deck builder slim down: narrower roster and deck list, smaller binder cards) and 860px (Login). The match never reflows: it scales the 1920x1080 stage with `min(width/1920, height/1080)` and letterboxes into the mat vignette.
+Desktop first from 1280x720. Two breakpoints exist: 1200px (Home, Tables and the deck builder's binder slim down: narrower roster, smaller binder cards) and 860px (Login). The deck builder sizes itself by container queries instead: its panel and binder rearrange by their own width and height, which the player sets. The match never reflows: it scales the 1920x1080 stage with `min(width/1920, height/1080)` and letterboxes into the mat vignette.
 
 Layers: mat 0, board 10, rail and stitch 40, overlays 100, dialogs 200, toasts 300.
 
@@ -326,6 +326,15 @@ A card that didn't match the card database: an amber-tinted plate with an amber 
 
 ### Drop Target
 While a deck file, link or list is dragged over a shelf, the zone's printed outline thickens to 2px `ink-strong` and a dark plate says what will happen ("Drop a deck file, link or list"). A deck that has just arrived slides down onto the shelf over 620ms.
+
+### Deck Builder
+The binder (every card, or a Career pool) and the deck, with the layout in the player's hands and remembered per browser (`decks/builderPrefs.ts`).
+- **Split** (default): binder left, deck panel right, and between them a seam: a 4px `ink-ghost` grip that grows and brightens on hover and focus (`role="separator"`, arrow keys, Shift for big steps, Enter or double-click to reset). The panel runs from 300px to whatever leaves the binder 340px.
+- **Deck first**: the deck panel takes the page and the binder becomes a held sheet (mat-700 stock with grain, `ink-faint` outline, held shadow) that slides in over the deck's left 58% on Add cards or `/`, and slides away on Done or Escape. It is positioned inside the page, not fixed, so it works inside Career's transformed shell. A phone keeps its one-pane switch.
+- **Panel**: a filled zone that reads by its own size. Narrow: name, then format, count, legality and Saved on one line; zone tabs (Deck, Sideboard or Command zone, Maybe) and the view controls; the cards; then Curve and Basic lands as sections that fold (chevron, Label Print title, a one-line summary when folded), pinned under the cards when the panel is at least 720px tall. Wide (720px and up): the name and its standing share a line and the sections move to a 264px sticky rail beside the cards. The footer is a back chevron, Export, a More menu (lists, Numbers, Sideboard plans, Token art, Cover) and the one amber Play.
+- **Views**: List (names in groups, flowing into columns as the panel widens), Stacks (each group a column of placed cards overlapping to their name bars, a copies tab hanging off the left edge; grouped by mana value the columns run left to right as a curve), Grid (whole cards; each group asks for a row as wide as its cards). Group by type, the player's categories, mana value, color, rarity or nothing; sort by mana value or name; card size by a slider.
+- **A card in the deck**: click for one more, right-click (or `-`) for one less, its More menu to move it between zones, file it in a category, change printing, look closer or take it out. Cards drag onto zone tabs (move) and, grouped by category, onto a group (file); binder cards drag onto the deck. A held card's target gets the 2px `ink-strong` outline of a Drop Target.
+- Undo and redo (Ctrl+Z, Shift+Ctrl+Z) cover every change but typing in fields, where a burst of name typing is one step.
 
 ### Mat Print (signature)
 The selected deck's art printed into the mat in three separations (shadow, light, key) under a mat-green dye and a 4px halftone, masked to fade into the plain mat. Selecting a deck re-prints it: separations slide into register over 620ms.
