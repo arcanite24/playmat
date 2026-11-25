@@ -5853,6 +5853,7 @@ Horrid Vigor
 Horror of the Broken Lands
 Horror of the Dim
 Horta
+Hoshi Sato, Exolinguist
 Host of the Hereafter
 Hostage Taker
 Hostile Desert
@@ -8731,7 +8732,6 @@ Painter's Studio // Defaced Gallery
 Paired Tactician
 Palace Familiar
 Palace Siege
-Paladin Class
 Paladin of Atonement
 Paladin of Predation
 Paladin of the Bloodstained
