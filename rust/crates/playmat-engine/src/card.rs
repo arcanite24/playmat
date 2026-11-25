@@ -721,6 +721,10 @@ pub enum Trigger {
     /// with a target pointer, at it
     AttacksAloneAll {
         filter: Filter,
+        /// "attacks a player alone" (`AttacksPlayerAloneControlledTriggeredAbility`): the only attacker attacking that
+        /// player, others may attack planeswalkers or battles
+        #[serde(default)]
+        player: bool,
     },
     /// the creature this is attached to attacks (`AttacksAttachedTriggeredAbility`); with a target pointer, at it
     AttacksAttached,
@@ -2999,6 +3003,10 @@ pub enum EffectDef {
     CreateNextEndStepDelayedEffect {
         effects: Vec<EffectDef>,
         rule: String,
+        /// its effects act on the creating ability's targets as they are now (`CreateDelayedTriggeredAbilityEffect`'s
+        /// copied target pointer: In Thrall to the Pit's "sacrifice that creature")
+        #[serde(default)]
+        fixed_targets: bool,
     },
     /// "… at the beginning of the next turn's upkeep" (`AtTheBeginOfNextUpkeepDelayedTriggeredAbility`)
     CreateNextUpkeepDelayedEffect {
@@ -3254,6 +3262,28 @@ pub enum EffectDef {
     NoMaximumHandSizeEffect,
     /// players have no maximum hand size (the same effect, `TargetController.ANY`: Folio of Fancies)
     NoMaximumHandSizeAllEffect,
+    /// each card of the filter in your graveyard has flashback, for its mana cost or `cost` (Lier, Disciple of the
+    /// Drowned's and Iroh, Grand Lotus's own layer 6 effects: `addOtherAbility` of a `FlashbackAbility`);
+    /// `your_turn`: only during your turn. Read by `Game::flashbacks`
+    GraveyardFlashbackEffect {
+        filter: Filter,
+        #[serde(default)]
+        cost: Option<String>,
+        #[serde(default)]
+        your_turn: bool,
+    },
+    /// spells can't be countered (Lier's rule-modifying effect on `COUNTER`: any spell, any controller)
+    CantBeCounteredAllEffect,
+    /// you don't lose the game for having 0 or less life (`DontLoseByZeroOrLessLifeEffect`,
+    /// `setCanLoseByZeroOrLessLife(false)`)
+    DontLoseByZeroOrLessLifeEffect,
+    /// "{this} can't attack or block unless you pay `cost`" (`CantAttackBlockUnlessPaysSourceEffect`): asked as it's
+    /// declared an attacker (`attack`) or a blocker (`block`)
+    CantAttackBlockUnlessPaysSourceEffect {
+        cost: String,
+        attack: bool,
+        block: bool,
+    },
     /// "it can't be regenerated this turn" (`CantRegenerateTargetEffect(Duration.EndOfTurn)`, a rule-modifying effect
     /// on `REGENERATE`): resolving, each target as it is then (`target`), whose regeneration shields don't work
     CantRegenerateTargetEffect {

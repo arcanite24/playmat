@@ -293,6 +293,11 @@ CUSTOM = {
     'MysticSubdualEffect': lambda: {'class': 'LoseAllAbilitiesAttachedEffect'},
     # Stop Cold's "enchanted permanent loses all abilities" (the source's attached permanent, `removeAllAbilities`)
     'StopColdEffect': lambda: {'class': 'LoseAllAbilitiesAttachedEffect'},
+    # Lier, Disciple of the Drowned: "spells can't be countered" (`COUNTER` of any spell), and each instant and
+    # sorcery card in your graveyard has flashback for its mana cost
+    'LierDiscipleOfTheDrownedCounteredEffect': lambda: {'class': 'CantBeCounteredAllEffect'},
+    'LierDiscipleOfTheDrownedFlashbackEffect': lambda: {'class': 'GraveyardFlashbackEffect',
+                                                        'filter': [{'p': 'or', 'xs': [{'p': 'type', 't': 'INSTANT'}, {'p': 'type', 't': 'SORCERY'}]}]},
     # (players in range: both, in a duel)
     'SorcerousSpyglassActivationEffect': lambda: {'class': 'PithingNeedleEffect'},
     'PhyrexianRevokerEffect2': lambda: {'class': 'PhyrexianRevokerEffect'},
@@ -1311,6 +1316,19 @@ def filter_copies(source):
             continue
         source = source.replace(m.group(0), '', 1)
         source = source.replace(decl.group(0), 'static final ' + decl.group(1) + ' ' + b + ' = ' + made.group(1) + ';', 1)
+    # `static final FilterX b = a.copy();` after `a`'s adds, whose only change is its message (`b.setMessage("…")`:
+    # Labyrinth Raptor's "creatures you control with menace"): `b` declared as `a`'s constructor with `a`'s adds again
+    for m in re.finditer(r'static (?:final |private |public |protected )*(\w+(?:<[\w<>?, ]*>)?) (\w+)\s*=\s*(\w+)\.copy\(\);', source):
+        b, a = m.group(2), m.group(3)
+        made = re.search(r'static (?:final |private |public |protected )*\w+(?:<[\w<>?, ]*>)? ' + a
+                         + r'\s*=\s*(new Filter\w+(?:<[\w<>?, ]*>)?\(.*?\));', source, re.S)
+        calls = re.findall(r'\b' + b + r'\.(\w+)\(', source)
+        adds = [x.group(0) for x in re.finditer(r'\b' + a + r'\.add\([^;]*\);', source)]
+        if not made or any(c != 'setMessage' for c in calls) or any(x.start() > m.start() for x in re.finditer(r'\b' + a + r'\.add\(', source)):
+            continue
+        again = ' '.join(b + x[len(a):] for x in adds)
+        decl = 'static final ' + m.group(1) + ' ' + b + ' = ' + made.group(1) + ';' + (' static { ' + again + ' }' if again else '')
+        return filter_copies(source.replace(m.group(0), decl, 1))
     return source
 
 
@@ -1452,7 +1470,7 @@ MANA_BUILDERS_MORE = {
     # a creature spell of the chosen type or a legendary one (Kolvori)
     'new TheRinghartCrestManaBuilder()': {'filter': [{'p': 'type', 't': 'CREATURE'}, {'p': 'or', 'xs': [
         {'p': 'supertype', 's': 'LEGENDARY'}, {'p': 'chosen_subtype', 'v': True}]}]},
-    'new UnblinkingObserverManaBuilder()': {'filter': [_INSTANT_OR_SORCERY]},
+    'new UnblinkingObserverManaBuilder()': {'filter': [{'p': 'or', 'xs': [{'p': 'type', 't': 'INSTANT'}, {'p': 'type', 't': 'SORCERY'}]}]},
     'new VolsheTideturnerManaBuilder()': {'filter': [{'p': 'or', 'xs': [
         {'p': 'type', 't': 'INSTANT'}, {'p': 'type', 't': 'SORCERY'}, {'p': 'kicked_spell'}]}]},
     'new LordOfTheForsakenManaBuilder()': {'filter': [{'p': 'cast_from', 'zone': 'graveyard'}]},
@@ -3280,6 +3298,16 @@ class Translator:
             return e
         if (e := self.stack_effect(expr)) is not None:
             return e
+        # `new ConditionalOneShotEffect(…)[.addEffect(…)].setTargetPointer(new SecondTargetPointer())`: its effects
+        # (`ConditionalOneShotEffect.setTargetPointer` sets theirs) on the ability's second target (Mind Spiral's tap
+        # and stun counter)
+        m = re.fullmatch(r'(new ConditionalOneShotEffect\(.*\))\.setTargetPointer\(new SecondTargetPointer\(\)\)', canonical(expr), re.S)
+        if m and '.setTargetPointer(' not in m.group(1):
+            e = self.effect(m.group(1))
+            if e.get('class') == 'ConditionalOneShotEffect' and e.get('effect') and not e.get('otherwise'):
+                e['effect'] = {'class': 'TargetPointerEffect', 'target': 1, 'effect': e['effect']}
+                e['also'] = [{'class': 'TargetPointerEffect', 'target': 1, 'effect': x} for x in e.get('also', [])]
+                return e
         # `new ConditionalOneShotEffect(…).addEffect(e)[.addEffect(f)…]`: e (and f) too, when it holds
         m = re.fullmatch(r'(new ConditionalOneShotEffect\(.*\))\s*\.addEffect\((.*)\)', expr.strip(), re.S)
         if m and not balanced(expr.strip()):
@@ -3561,6 +3589,26 @@ class Translator:
                 'TargetController.ANY'], ['Integer.MAX_VALUE', 'Duration.WhileOnBattlefield', 'HandSizeModification.SET',
                                          'TargetController.ANY']):
             return {'class': 'NoMaximumHandSizeAllEffect'}
+        # "{this} can't attack or block unless you pay {2}" (Qal Sisma Behemoth: the `ManaCosts` constructor makes it
+        # `ATTACK_AND_BLOCK` whatever restriction it's given)
+        if cls == 'CantAttackBlockUnlessPaysSourceEffect' and len(args) == 2 \
+                and (mc := re.fullmatch(r'new ManaCostsImpl<?>?\("(\{[^"]*\})"\)', args[0].strip())):
+            return {'class': cls, 'cost': mc.group(1), 'attack': True, 'block': True}
+        # (text): "sacrifice that creature", the target's controller sacrificing it (a delayed threaten's)
+        if cls == 'SacrificeTargetEffect' and len(args) == 1 and re.fullmatch(r'"[^"]*"', args[0].strip()):
+            return {'class': cls}
+        # "you don't lose the game for having 0 or less life" (Marina Vendrell's Grimoire)
+        if cls == 'DontLoseByZeroOrLessLifeEffect' and [a.strip() for a in args] == ['Duration.WhileOnBattlefield']:
+            return {'class': cls}
+        # Iroh, Grand Lotus: during your turn, each non-Lesson instant and sorcery card in your graveyard has flashback
+        # for its mana cost (`false`), each Lesson card flashback {1} (`true`)
+        if cls == 'IrohGrandLotusEffect' and len(args) == 1 and args[0].strip() in ('true', 'false') \
+                and 'class IrohGrandLotusEffect' in (getattr(self, 'source', None) or ''):
+            if args[0].strip() == 'true':
+                return {'class': 'GraveyardFlashbackEffect', 'filter': [{'p': 'subtype', 's': 'Lesson'}],
+                        'cost': '{1}', 'your_turn': True}
+            return {'class': 'GraveyardFlashbackEffect', 'your_turn': True,
+                    'filter': [_INSTANT_OR_SORCERY, {'p': 'not', 'x': {'p': 'subtype', 's': 'Lesson'}}]}
         # "your maximum hand size is eight" (Doctor Octopus)
         if cls == 'MaximumHandSizeControllerEffect' and len(args) == 3 and re.fullmatch(r'\d+', args[0].strip()) \
                 and args[1].strip() == 'Duration.WhileOnBattlefield' \
@@ -4342,7 +4390,12 @@ class Translator:
                         'phase': d['phase']}
             if d.get('class') != 'NextEndStepDelayed':
                 raise Unsupported('delayed ability ' + args[0])
-            return {'class': 'CreateNextEndStepDelayedEffect', 'effects': d['effects'], 'rule': d['rule']}
+            out = {'class': 'CreateNextEndStepDelayedEffect', 'effects': d['effects'], 'rule': d['rule']}
+            # "sacrifice that creature": the delayed trigger points at the creating ability's targets
+            # (`CreateDelayedTriggeredAbilityEffect` copies its target pointer: In Thrall to the Pit)
+            if d['effects'] == [{'class': 'SacrificeTargetEffect'}]:
+                out['fixed_targets'] = True
+            return out
         if cls == 'UntapLandsEffect' and len(args) == 1 and re.fullmatch(r'\d+', args[0].strip()):
             return {'class': cls, 'amount': int(args[0])}
         # "untap up to three lands you control"
@@ -6993,8 +7046,10 @@ class Translator:
             if n == 2:
                 out['condition'] = self.condition(args[1])
             return out
+        # (its own ATTACKER_DECLARED trigger, so it waits before the DECLARED_ATTACKERS "whenever this attacks" ones:
+        # Goblin Guide's before Impetuous Devils')
         if cls == 'GoblinGuideTriggeredAbility' and args == ['new GoblinGuideEffect()', 'false']:
-            return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'attacks'}, 'optional': False,
+            return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'attacker_declared'}, 'optional': False,
                     'effects': [{'class': 'GoblinGuideEffect'}]}
         if cls in ('SpreeAbility', 'TieredAbility') and args == ['this']:
             return {'class': cls, 'java': cls}
@@ -7487,6 +7542,9 @@ class Translator:
             elif n == 4:
                 filt, pointer, optional = self.filter(args[1]), flag(args[2]), flag(args[3])
             return out({'e': 'attacks_alone_all', 'filter': filt}, args[0], optional, pointer)
+        # whenever a creature you control attacks a player alone; always with a target pointer at it
+        if cls == 'AttacksPlayerAloneControlledTriggeredAbility' and n == 1:
+            return out({'e': 'attacks_alone_all', 'filter': [CREATURE, YOU], 'player': True}, args[0], False, True)
         # whenever the equipped (enchanted) creature attacks; with a target pointer at it or the defending player
         if cls == 'AttacksAttachedTriggeredAbility' and 1 <= n <= 4:
             if n >= 3 and args[1] not in ('AttachmentType.EQUIPMENT', 'AttachmentType.AURA'):
@@ -9557,6 +9615,8 @@ RULE_FROM = '<rule from:'
 # effects of a delayed "at the beginning of the next end step" trigger, by their Java text (`getText`)
 NEXT_END_STEP_TEXTS = {
     'new SacrificeSourceEffect()': 'sacrifice {this}',
+    # (a threaten's "sacrifice that creature": the creating spell's target, In Thrall to the Pit)
+    'new SacrificeTargetEffect("sacrifice that creature")': 'sacrifice that creature',
     # (`DestroyAllEffect`'s text is "destroy all " and the filter's message, "permanent")
     'new DestroyAllEffect(StaticFilters.FILTER_PERMANENT)': 'destroy all permanent',
 }
@@ -10226,9 +10286,15 @@ def that_player_names(card):
                 # `TargetCreaturePermanent`'s own filter: "creature"
                 if each and not msgs and 'new TargetCreaturePermanent(' in src and 'target creature' in x.get('rule', ''):
                     msgs = ['creature']
-                if not msgs:
+                # an effect whose text is set names the target itself: the adjuster's new name isn't shown (Impetuous
+                # Devils' "up to one target creature defending player controls")
+                if not each and not msgs and 'new TargetCreaturePermanent(' in src and 'Filter' not in src \
+                        and re.search(r'\.setText\("[^"]*target creature', src):
+                    x['that_player_controls'] = False
+                elif not msgs:
                     raise Unsupported('a that-player target without its name')
-                x['that_player_name'] = max(msgs, key=len)
+                else:
+                    x['that_player_name'] = max(msgs, key=len)
             for v in x.values():
                 walk(v)
         elif isinstance(x, list):

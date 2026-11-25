@@ -563,6 +563,9 @@ pub struct Player {
     /// no maximum hand size for the rest of the game (`MaximumHandSizeControllerEffect` set to `Integer.MAX_VALUE`
     /// for `Duration.EndOfGame`: Sea Gate Restoration)
     pub no_max_hand_size: bool,
+    /// the maximum hand size reduced by this for the rest of the game (`MaximumHandSizeControllerEffect(n,
+    /// Duration.EndOfGame, REDUCE)`: Inspired Idea)
+    pub max_hand_reduction: u32,
     /// declared an attacker this turn (`PlayerAttackedWatcher`)
     pub attacked: bool,
     /// the attackers declared this turn, over every combat (`PlayerAttackedWatcher.getNumberOfAttackersCurrentTurn`)
@@ -3187,6 +3190,35 @@ impl Game {
                 o.def.abilities.len(),
                 CardDef { cost, printed_cost: Some(o.def.printed().clone()), ..(*o.def).clone() },
             ));
+        }
+        // a static that gives the cards of its filter in its controller's graveyard flashback (Lier's, Iroh's own
+        // layer 6 effects: `addOtherAbility` of a `FlashbackAbility`, for the card's mana cost or `cost`), after
+        // what it gained this turn
+        if o.zone == Zone::Graveyard {
+            let owner = o.owner;
+            let mut granted: Vec<Option<String>> = Vec::new();
+            self.any_static(|g, src, e| {
+                if let EffectDef::GraveyardFlashbackEffect { filter, cost, your_turn } = e {
+                    if g.obj(src).controller == owner
+                        && (!*your_turn || g.active == Some(owner))
+                        && g.filter_matches(filter, owner, Some(src), id)
+                    {
+                        granted.push(cost.clone());
+                    }
+                }
+                false
+            });
+            let first = o.def.abilities.len() + usize::from(o.flashback_turn == Some(self.turn));
+            for (k, c) in granted.into_iter().enumerate() {
+                let cost = match c {
+                    Some(c) => crate::card::ManaCost::parse(&c).unwrap_or_default(),
+                    None => o.def.cost.clone(),
+                };
+                out.push((
+                    first + k,
+                    CardDef { cost, printed_cost: Some(o.def.printed().clone()), ..(*o.def).clone() },
+                ));
+            }
         }
         out
     }

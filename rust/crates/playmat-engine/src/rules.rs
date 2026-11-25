@@ -606,13 +606,17 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             // ATTACKER_DECLARED triggers, in the order the attackers are listed
             game.trigger_cause = Some(TriggerCause::Attacked);
             let alone = attackers(game).len() == 1;
+            let alone_at_player = attackers(game).iter().filter(|a| game.obj(**a).attacking_pw.is_none()).count() == 1;
             for a in attackers(game) {
                 let sources: Vec<ObjId> = game.trigger_sources();
                 let fired = game.triggers(sources, |g, src, you, t| match t {
                     Trigger::EntersOrAttacks | Trigger::AttacksOrBlocks | Trigger::AttackerDeclared => src == a,
                     Trigger::AttacksFirstTime => src == a && first_attack.contains(&a),
                     Trigger::AttacksAll { filter, .. } => g.filter_matches(filter, you, Some(src), a),
-                    Trigger::AttacksAloneAll { filter } => alone && g.filter_matches(filter, you, Some(src), a),
+                    Trigger::AttacksAloneAll { filter, player } => {
+                        (if *player { alone_at_player && g.obj(a).attacking_pw.is_none() } else { alone })
+                            && g.filter_matches(filter, you, Some(src), a)
+                    }
                     Trigger::AttacksAttached => g.attached(src) == Some(a),
                     _ => false,
                 });
@@ -1703,6 +1707,7 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
                     || o.def.adventure.as_ref().is_some_and(|a| castable(game, seat, *id, a))
                     || spectacle(game, seat, *id).is_some()
                     || morph(game, seat, *id).is_some()
+                    || cleave(game, seat, *id).is_some()
                     // (cast for its mutate cost: Hex Magic's exiled cards)
                     || mutate(game, seat, *id).is_some()
                     // a modal double-faced card's back (Birgi exiled by Harnfel: Harnfel cast from exile)
@@ -2985,9 +2990,11 @@ fn valgavoth_def(def: &CardDef) -> CardDef {
 }
 
 /// Cleave: the card's ability index and the card with its cleave cost and effects, if it can be cast that way from
-/// hand.
+/// hand, or from exile while an effect lets its owner play it (Inspired Idea exiled by Expressive Iteration: Java's
+/// cleave is a spell ability of the card's own, offered wherever the card may be cast)
 fn cleave(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
-    if game.obj(id).zone != Zone::Hand {
+    let zone = game.obj(id).zone;
+    if zone != Zone::Hand && !(zone == Zone::Exile && game.may_play_now(id, seat)) {
         return None;
     }
     let (k, def) = game.obj(id).def.cleave()?;
@@ -8676,8 +8683,11 @@ fn cant_be_countered(game: &Game, spell: ObjId) -> bool {
         }
         _ => false,
     });
+    // Lier, Disciple of the Drowned's "spells can't be countered"
+    let all = game.any_static(|_, _, e| matches!(e, EffectDef::CantBeCounteredAllEffect));
     by_static
         || this_turn
+        || all
         || game.obj(spell).uncounterable
         || game.obj(spell).def.abilities.iter().any(|a| match a {
             AbilityDef::CantBeCounteredSourceAbility => true,
@@ -10632,6 +10642,17 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
             let alive: Vec<Seat> = (0..game.seats()).filter(|s| !game.player(*s).lost).collect();
             if let [w] = alive[..] {
                 game.player_mut(w).won = true;
+                // the losers' cards have left their hands, libraries and graveyards by then, and the effects Java
+                // applies as the game ends no longer count them (Song of Stupefaction's -X/-0 after Marina
+                // Vendrell's Grimoire made its controller lose)
+                for s in 0..game.seats() {
+                    if game.player(s).lost {
+                        let p = game.player_mut(s);
+                        p.hand.clear();
+                        p.library.clear();
+                        p.graveyard.clear();
+                    }
+                }
             }
         }
     }
@@ -15696,6 +15717,10 @@ fn apply_each_effect(
             | EffectDef::TeferiTimeRavelerEffect
             | EffectDef::NoMaximumHandSizeEffect
             | EffectDef::NoMaximumHandSizeAllEffect
+            | EffectDef::GraveyardFlashbackEffect { .. }
+            | EffectDef::CantBeCounteredAllEffect
+            | EffectDef::DontLoseByZeroOrLessLifeEffect
+            | EffectDef::CantAttackBlockUnlessPaysSourceEffect { .. }
             | EffectDef::MaximumHandSizeSetEffect { .. }
             | EffectDef::LoyaltyAbilitiesTwiceEffect
             | EffectDef::CreateTwiceThatManyTokensEffect { .. }
@@ -18483,14 +18508,23 @@ fn apply_each_effect(
                 let legal = if *no_copy_targets { &[][..] } else { legal };
                 create_delayed_trigger(game, item, ability, legal, source, *end_of_turn, *once);
             }
-            EffectDef::CreateNextEndStepDelayedEffect { effects, rule } => {
+            EffectDef::CreateNextEndStepDelayedEffect { effects, rule, fixed_targets } => {
+                let fixed: Vec<(ObjId, u32)> = if *fixed_targets {
+                    legal
+                        .iter()
+                        .flatten()
+                        .filter_map(|t| if let Target::Obj(o) = t { Some((*o, game.obj(*o).zcc)) } else { None })
+                        .collect()
+                } else {
+                    Vec::new()
+                };
                 let delayed = Delayed {
                     rule: rule.clone(),
                     sacrifice: Vec::new(),
                     warp_exile: Vec::new(),
                     effects: effects.clone(),
                     source_zcc: source.1,
-                    fixed: Vec::new(),
+                    fixed,
                     return_tapped: Vec::new(),
                     targets: Vec::new(),
                     condition: None,
@@ -24528,6 +24562,12 @@ fn attack_taxes(game: &Game, id: ObjId, defender: Seat, pw: Option<(ObjId, u32)>
                 }
             }
         }
+        // its own "can't attack unless you pay" (Qal Sisma Behemoth)
+        if let EffectDef::CantAttackBlockUnlessPaysSourceEffect { cost, attack: true, .. } = e {
+            if src == id {
+                out.push(cost.clone());
+            }
+        }
         false
     });
     out
@@ -24554,11 +24594,16 @@ fn pay_attack_taxes(
                 _ => {}
             }
         };
+        // `payOrRollback`: a payment given up part way is undone (the lands tapped for it untap)
+        let before = yes.then(|| game.clone());
         let paid = yes && pay_mana(game, d, seat, &mana);
         if d.stopped() {
             return None;
         }
         if !paid {
+            if let Some(before) = before {
+                *game = before;
+            }
             return Some(false);
         }
     }
@@ -24567,11 +24612,17 @@ fn pay_attack_taxes(
 
 /// The costs to declare a blocker: `CantBlockUnlessPayManaAllEffect`s of every permanent that apply, in battlefield
 /// order
-fn block_taxes(game: &Game) -> Vec<String> {
+fn block_taxes(game: &Game, blocker: ObjId) -> Vec<String> {
     let mut out = Vec::new();
     game.any_static(|g, src, e| {
         if let EffectDef::CantBlockUnlessPayManaAllEffect { cost, condition } = e {
             if g.condition_holds(condition.as_ref(), g.obj(src).controller, src) {
+                out.push(cost.clone());
+            }
+        }
+        // its own "can't block unless you pay" (Qal Sisma Behemoth)
+        if let EffectDef::CantAttackBlockUnlessPaysSourceEffect { cost, block: true, .. } = e {
+            if src == blocker {
                 out.push(cost.clone());
             }
         }
@@ -24582,8 +24633,8 @@ fn block_taxes(game: &Game) -> Vec<String> {
 
 /// `PayCostToAttackBlockEffectImpl.replaceEvent` on `DECLARE_BLOCKER`: each cost to block, "Pay {1} to block?" and
 /// paid then. Some(false): not paid, it doesn't block; None: stopped.
-fn pay_block_taxes(game: &mut Game, d: &mut dyn Decider, seat: Seat) -> Option<bool> {
-    for cost in block_taxes(game) {
+fn pay_block_taxes(game: &mut Game, d: &mut dyn Decider, seat: Seat, blocker: ObjId) -> Option<bool> {
+    for cost in block_taxes(game, blocker) {
         let mana = ability_mana_cost(&[CostDef::ManaCost { cost }]);
         let q = Query::YesNo { message: format!("Pay {} to block?", mana.text) };
         let yes = loop {
@@ -24593,11 +24644,16 @@ fn pay_block_taxes(game: &mut Game, d: &mut dyn Decider, seat: Seat) -> Option<b
                 _ => {}
             }
         };
+        // `payOrRollback`: a payment given up part way is undone (the lands tapped for it untap)
+        let before = yes.then(|| game.clone());
         let paid = yes && pay_mana(game, d, seat, &mana);
         if d.stopped() {
             return None;
         }
         if !paid {
+            if let Some(before) = before {
+                *game = before;
+            }
             return Some(false);
         }
     }
@@ -25179,6 +25235,11 @@ fn forced_blockers(game: &mut Game, seat: Seat) -> Vec<(ObjId, Vec<ObjId>)> {
         if !can_block_more(game, b) {
             continue;
         }
+        // one with a cost to block isn't forced (`checkIfThereArePayCostToAttackBlockEffects`: Qal Sisma Behemoth
+        // under Impetuous Devils' "blocks it this combat if able")
+        if !block_taxes(game, b).is_empty() {
+            continue;
+        }
         let forcing = forcing_attackers(game, b);
         let Some(&first) = forcing.first() else { continue };
         forced.push((b, forcing));
@@ -25355,7 +25416,7 @@ fn select_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
             refresh_blocked(game);
         } else if let Some(a) = chosen {
             // `CombatGroup.addBlocker`: the costs to block (`DECLARE_BLOCKER`), asked and paid first
-            let Some(paid) = pay_block_taxes(game, d, seat) else { return };
+            let Some(paid) = pay_block_taxes(game, d, seat, blocker) else { return };
             if !paid {
                 continue;
             }
@@ -25808,6 +25869,11 @@ fn loyalty_activations(game: &Game, seat: Seat) -> u8 {
 
 /// A player's maximum hand size: seven, or what the last `MaximumHandSizeSetEffect` of theirs in play sets
 fn max_hand_size(game: &Game, seat: Seat) -> usize {
+    unreduced_max_hand(game, seat).saturating_sub(game.player(seat).max_hand_reduction as usize)
+}
+
+/// The maximum hand size before Inspired Idea's reductions: 7, or what a "your maximum hand size is N" sets
+fn unreduced_max_hand(game: &Game, seat: Seat) -> usize {
     let mut size = MAX_HAND;
     for src in game.battlefield.iter() {
         let o = game.obj(*src);
@@ -25823,6 +25889,7 @@ fn max_hand_size(game: &Game, seat: Seat) -> usize {
             }
         }
     }
+    // (Inspired Idea's reduction is applied after the sets: it's usually the newer effect)
     size
 }
 
@@ -25837,10 +25904,16 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
     let excess = if unlimited { 0 } else { game.player(seat).hand.len().saturating_sub(max_hand) };
     if excess > 0 {
         if log::kept(game) {
-            let line = format!("{} discards down to {} hand cards", log::player(seat), max_hand);
+            // (Java's size goes below 0: three Inspired Ideas take 7 to -2)
+            let signed = unreduced_max_hand(game, seat) as i64 - game.player(seat).max_hand_reduction as i64;
+            let cards = if signed == 1 { "hand card" } else { "hand cards" };
+            let line = format!("{} discards down to {} {}", log::player(seat), signed, cards);
             log::inform(game, line);
         }
-        let mut chosen: Vec<ObjId> = Vec::new();
+        // (`PlayerImpl.getToDiscard`: with no more cards than that, the whole hand, nothing asked: Inspired Idea's
+        // reductions taking the size to 0)
+        let mut chosen: Vec<ObjId> =
+            if excess >= game.player(seat).hand.len() { game.player(seat).hand.clone() } else { Vec::new() };
         while chosen.len() < excess {
             let objs: Vec<ObjId> = game.player(seat).hand.iter().copied().filter(|c| !chosen.contains(c)).collect();
             match ask(game, d, seat, &Query::Cards { objs: objs.clone(), required: true }) {
@@ -26549,10 +26622,15 @@ pub fn state_based_actions(game: &mut Game) -> bool {
                 break;
             }
             let poisoned = poison(game, s) >= 10;
+            // `canLoseByZeroOrLessLife` (Marina Vendrell's Grimoire's `DontLoseByZeroOrLessLifeEffect`)
+            let by_life = game.player(s).life <= 0
+                && !game.any_static(|g, src, e| {
+                    matches!(e, EffectDef::DontLoseByZeroOrLessLifeEffect) && g.obj(src).controller == s
+                });
             let p = game.player(s);
             // 704.5a-c: 0 or less life, drawing from an empty library, ten or more poison counters
             // "you can't lose the game" (`PlayerImpl.canLose`: `LOSES` replaced); the empty library stays drawn from
-            if !p.lost && (p.life <= 0 || p.drew_from_empty || poisoned) && !cards::cant_lose_or_win(game, s, false) {
+            if !p.lost && (by_life || p.drew_from_empty || poisoned) && !cards::cant_lose_or_win(game, s, false) {
                 if log::kept(game) {
                     // `GameImpl.checkStateBasedActions`, `PlayerImpl.lost`: the last reason that holds is logged
                     let why = if poisoned {
