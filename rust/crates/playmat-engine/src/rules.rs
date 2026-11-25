@@ -831,6 +831,10 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                         && name == "upkeep"
                         && you == active
                         && g.obj(src).zone == Zone::Battlefield)
+                    // a Career turn twist: any player's upkeep, from its turn on (`UPKEEP_STEP_PRE`)
+                    || (matches!(t, Trigger::CareerTurn { turn } if g.turn >= *turn)
+                        && name == "upkeep"
+                        && g.obj(src).zone == Zone::Command)
             });
             // "at the beginning of the next end step" delayed triggers: `GameState.handleEvent` checks the delayed
             // ones before the others
@@ -6036,6 +6040,10 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         Trigger::CastSecondSpell { who } => Game::whose(who, you, seat) && g.player(seat).spells_cast == 2,
         Trigger::FirstSpellOpponentsTurn => {
             you == seat && g.active.is_some_and(|a| a != you) && g.player(seat).spells_cast == 1
+        }
+        // a Career cast twist: the spell's name, any case (`spell.getName().equalsIgnoreCase`)
+        Trigger::CareerCast { seat: who, card } => {
+            *who == seat && g.obj(src).zone == Zone::Command && g.obj(spell).name().eq_ignore_ascii_case(card)
         }
         _ => false,
     });
@@ -12333,7 +12341,7 @@ fn bind_slot(
             } else {
                 let rule = item_rule(game, item);
                 if b.rounds {
-                    choose_cards_rounds(game, d, who, &possible, min, max)?
+                    choose_cards_rounds_rule(game, d, who, &possible, min, max, &rule)?
                 } else {
                     choose_cards(game, d, who, &shown, &possible, min, max, &rule)?
                 }
@@ -17104,6 +17112,7 @@ fn apply_each_effect(
                     p.speed += 1;
                 }
             }
+            EffectDef::CareerTwistEffect { twist } => crate::career::resolve(game, d, controller, twist),
             EffectDef::GetEmblemEffect { emblem } => {
                 token_image(game, emblem, source.0);
                 let id = game.create_obj(Arc::new(emblem.card()), controller, Zone::Library);
@@ -20013,6 +20022,22 @@ fn choose_cards_rounds(
     min: usize,
     max: usize,
 ) -> Option<Vec<ObjId>> {
+    choose_cards_rounds_rule(game, d, seat, possible, min, max, "")
+}
+
+/// `choose_cards_rounds`, auto-choice reading `rule` as `TargetImpl.tryToAutoChoose` does (Blood Curdle's one creature of
+/// yours isn't picked by itself: its text says "destroy"); "" for no rule text.
+fn choose_cards_rounds_rule(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    seat: Seat,
+    possible: &[ObjId],
+    min: usize,
+    max: usize,
+    rule: &str,
+) -> Option<Vec<ObjId>> {
+    let rule = rule.to_lowercase();
+    let feel_bad = ["discard", "sacrifice", "destroy", "exile"].iter().any(|w| rule.contains(w));
     let mut chosen: Vec<ObjId> = Vec::new();
     let complete = |chosen: &Vec<ObjId>| {
         chosen.len() >= max || (chosen.len() >= min && possible.iter().all(|c| chosen.contains(c)))
@@ -20027,10 +20052,13 @@ fn choose_cards_rounds(
             }
             let left: Vec<ObjId> = possible.iter().copied().filter(|c| !chosen.contains(c)).collect();
             // `TargetImpl.tryToAutoChoose`: exactly the cards needed
-            if min == max && left.len() == min - chosen.len() && !left.is_empty() {
-                chosen.push(left[0]);
-                asked = true;
-                continue;
+            if min == max && left.len() == min - chosen.len() && !left.is_empty() && !rule.contains("search") {
+                let all = game.player(seat).auto_target_all;
+                if let Some(c) = left.iter().copied().find(|c| all || !(feel_bad && owns_target(game, seat, *c))) {
+                    chosen.push(c);
+                    asked = true;
+                    continue;
+                }
             }
             asked = true;
             let required = chosen.len() < min && !left.is_empty();
@@ -22526,6 +22554,8 @@ fn state_triggers(game: &mut Game) {
             game.pending.push(t);
         }
     }
+    // a Career life twist's, from the command zone
+    crate::career::life_triggers(game);
 }
 
 /// The batch triggers waiting, the `ZONE_CHANGE_BATCH` ones (`ZoneChangeBatchTriggeredAbility`) in Java's trigger
@@ -22915,6 +22945,8 @@ fn waiting(game: &mut Game, pending: Vec<StackItem>) -> Vec<StackItem> {
         }
     }
     let mut pending = kept;
+    // a Career timed twist triggers once each game
+    crate::career::once_each_game(game, &mut pending);
     // a card's delayed trigger that triggers only once is gone once it has (`DelayedTriggeredAbilities.checkTriggers`):
     // what it triggered for after its first is dropped
     pending.retain(|t| {

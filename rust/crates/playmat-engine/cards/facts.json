@@ -27776,7 +27776,7 @@
       {
         "class": "SimpleStaticAbility",
         "type": "STATIC",
-        "rule": "Equip abilities you activate of other Equipment cost {1} less to activate."
+        "rule": "equip abilities you activate of other Equipment cost {1} less to activate."
       },
       {
         "class": "SimpleStaticAbility",
@@ -31569,8 +31569,8 @@
         "rule": "{this} has haste as long as you control another Goblin."
       },
       {
-        "class": "SimpleActivatedAbility",
-        "type": "ACTIVATED_NONMANA",
+        "class": "SimpleManaAbility",
+        "type": "ACTIVATED_MANA",
         "rule": "{T}, Sacrifice another Goblin: Add {B}{R}."
       }
     ]
@@ -46075,7 +46075,14 @@
       {
         "class": "SpellAbility",
         "type": "SPELL",
-        "rule": "discard your hand, then draw a card for each card you've discarded this turn."
+        "rule": "discard your hand, then draw a card for each card you've discarded this turn.",
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Cards you've discarded this turn",
+            "value": "1"
+          }
+        ]
       }
     ]
   },
@@ -52927,7 +52934,7 @@
       {
         "class": "SpellAbility",
         "type": "SPELL",
-        "rule": "Exile the top X cards of your library. Until the end of your next turn, you may play those cards."
+        "rule": "exile the top X cards of your library. Until the end of your next turn, you may play those cards."
       }
     ]
   },
@@ -62821,7 +62828,16 @@
       {
         "class": "SimpleStaticAbility",
         "type": "STATIC",
-        "rule": "As long as you've surveilled this turn, {this} has deathtouch and \"Whenever this creature deals combat damage to a player, you draw a card.\""
+        "rule": "As long as you've surveilled this turn, {this} has deathtouch and \"Whenever this creature deals combat damage to a player, you draw a card.\"",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": "instance",
+            "trueText": "You've surveilled this turn",
+            "falseText": "You've surveilled this turn",
+            "useIcons": "true"
+          }
+        ]
       }
     ]
   },
@@ -84940,7 +84956,7 @@
       {
         "class": "BeginningOfEndStepTriggeredAbility",
         "type": "TRIGGERED_NONMANA",
-        "rule": "At the beginning of your end step, if instance, {this} becomes prepared. <i>(While it's prepared, you may cast a copy of its spell. Doing so unprepares it.)</i>"
+        "rule": "At the beginning of your end step, if two or more creatures died this turn, {this} becomes prepared. <i>(While it's prepared, you may cast a copy of its spell. Doing so unprepares it.)</i>"
       }
     ]
   },
@@ -87971,7 +87987,7 @@
       {
         "class": "SpellAbility",
         "type": "SPELL",
-        "rule": "Exile the top five cards of your library. You may play cards exiled this way until the end of your next turn.<br>You may play an additional land this turn."
+        "rule": "exile the top five cards of your library. You may play cards exiled this way until the end of your next turn. <br>You may play an additional land this turn."
       }
     ]
   },
@@ -147357,7 +147373,7 @@
       {
         "class": "BeginningOfEndStepTriggeredAbility",
         "type": "TRIGGERED_NONMANA",
-        "rule": "At the beginning of your end step, if an opponent has more cards in hand than you, {this} becomes prepared. <i>(While it's prepared, you may cast a copy of its spell. Doing so unprepares it.)</i>",
+        "rule": "At the beginning of each end step, if an opponent has more cards in hand than you, {this} becomes prepared. <i>(While it's prepared, you may cast a copy of its spell. Doing so unprepares it.)</i>",
         "hints": [
           {
             "class": "ConditionHint",
@@ -164987,8 +165003,8 @@
         "rule": "haste"
       },
       {
-        "class": "ExhaustAbility",
-        "type": "ACTIVATED_NONMANA",
+        "class": "ExhaustManaAbility",
+        "type": "ACTIVATED_MANA",
         "rule": "Exhaust &mdash; {G}, {T}: Add three mana of any one color. <i>(Activate each exhaust ability only once.)</i>"
       },
       {
@@ -225553,7 +225569,7 @@
       {
         "class": "SpellAbility",
         "type": "SPELL",
-        "rule": "Double your life total. Target opponent loses half their life, rounded up."
+        "rule": "double your life total. Target opponent loses half their life, rounded up."
       }
     ],
     "halves": [
@@ -225573,7 +225589,7 @@
           {
             "class": "SpellAbility",
             "type": "SPELL",
-            "rule": "Double your life total. Target opponent loses half their life, rounded up."
+            "rule": "double your life total. Target opponent loses half their life, rounded up."
           }
         ]
       }
@@ -238499,16 +238515,16 @@
       {
         "class": "BeginningOfSecondMainTriggeredAbility",
         "type": "TRIGGERED_NONMANA",
-        "rule": "At the beginning of your second main phase, if you gained 3 or more life this turn, {this} becomes prepared. <i>(While it's prepared, you may cast a copy of its spell. Doing so unprepares it.)</i>",
+        "rule": "At the beginning of your second main phase, if you gained 2 or more life this turn, {this} becomes prepared. <i>(While it's prepared, you may cast a copy of its spell. Doing so unprepares it.)</i>",
         "hints": [
           {
             "class": "ConditionHint",
             "condition": {
               "class": "mage.abilities.condition.common.YouGainedLifeCondition",
-              "text": "you gained 3 or more life this turn"
+              "text": "you gained 2 or more life this turn"
             },
-            "trueText": "You gained 3 or more life this turn",
-            "falseText": "You gained 3 or more life this turn",
+            "trueText": "You gained 2 or more life this turn",
+            "falseText": "You gained 2 or more life this turn",
             "useIcons": "true"
           }
         ]
@@ -284880,7 +284896,7 @@
       {
         "class": "SimpleActivatedAbility",
         "type": "ACTIVATED_NONMANA",
-        "rule": "{T}: Put a sin counter on {this}. Draw a card for each sin counter on {this} then you lose 1 life for each card in your hand."
+        "rule": "{T}: Put a sin counter on {this}. Draw a card for each sin counter on {this}, then you lose 1 life for each card in your hand."
       },
       {
         "class": "ActivateAsSorceryActivatedAbility",

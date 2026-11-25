@@ -303,6 +303,7 @@ Alhammarret's Archive
 Alien Invasion
 Aligned Hedron Network
 Alirios, Enraptured
+Alive // Well
 All That Glitters
 All-Fates Scroll
 All-Fates Stalker
@@ -1028,6 +1029,7 @@ Beckett Mariner, Impetuous Ensign
 Beckon Apparition
 Become Brutes
 Become Immense
+Bedeck // Bedazzle
 Bedevil
 Bedhead Beastie
 Bedlam Reveler
@@ -1061,6 +1063,7 @@ Bellows Lizard
 Belltoll Dragon
 Beloved Beggar
 Beloved Princess
+Beluna Grandsquall
 Beluna's Gatekeeper
 Benalish Faithbonder
 Benalish Honor Guard
@@ -3269,7 +3272,6 @@ Dragon's Disciple
 Dragon's Eye Savants
 Dragon's Eye Sentry
 Dragon's Hoard
-Dragon's Prey
 Dragon's Rage Channeler
 Dragon-Scarred Bear
 Dragon-Style Twins
@@ -3706,7 +3708,6 @@ Emeritus of Abundance
 Emeritus of Conflict
 Emeritus of Ideation
 Emeritus of Truce
-Emeritus of Woe
 Emet-Selch, Unsundered
 Emiel the Blessed
 Emil, Vastlands Roamer
@@ -4262,6 +4263,7 @@ Finale of Eternity
 Finale of Glory
 Finale of Revelation
 Finch Formation
+Find // Finality
 Finishing Blow
 Finneas, Ace Archer
 Firdoch Core
@@ -4355,6 +4357,7 @@ Fleeting Reflection
 Fleeting Spirit
 Fleetwheel Cruiser
 Flensing Raptor
+Flesh // Blood
 Flesh Burrower
 Flesh to Dust
 Fleshbag Marauder
@@ -4540,6 +4543,7 @@ Fresh Start
 Fresh-Faced Recruit
 Fretwork Colony
 Freya Crescent
+Friendly Fire
 Friendly Ghost
 Friendly Teddy
 Frilled Cave-Wurm
@@ -5165,7 +5169,6 @@ Gratuitous Violence
 Gravblade Heavy
 Grave Birthing
 Grave Bramble
-Grave Researcher
 Grave Strength
 Graveblade Marauder
 Gravebreaker Lamia
@@ -5692,6 +5695,7 @@ Hired Blade
 Hired Claw
 Hired Hexblade
 Hired Poisoner
+Hired Torturer
 Hissing Quagmire
 Historian of Zhalfir
 Historian's Wisdom
@@ -6389,7 +6393,6 @@ Join Shields
 Join the Dance
 Join the Dead
 Join the Maestros
-Joined Researchers
 Joint Exploration
 Jolene, Plundering Pugilist
 Jolly Gerbils
@@ -6537,6 +6540,7 @@ Kefka, Court Mage
 Kefnet the Mindful
 Kefnet's Last Word
 Kefnet's Monument
+Keldon Flamesage
 Keldon Overseer
 Keldon Raider
 Keldon Strike Team
@@ -7109,7 +7113,6 @@ Looming Spires
 Loot, Exuberant Explorer
 Loot, the Key to Everything
 Loot, the Nexus
-Loot, the Pathfinder
 Loporrit Scout
 Loran of the Third Path
 Loran's Escape
@@ -10331,7 +10334,6 @@ Scavenging Harpy
 Scavenging Ooze
 Scene of the Crime
 Scheming Aspirant
-Scheming Silvertongue
 Scheming Symmetry
 Scholar of Athreos
 Scholar of Stars
