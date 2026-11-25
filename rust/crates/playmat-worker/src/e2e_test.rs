@@ -2,7 +2,7 @@
 //! worker's run loop leases, plays, uploads and completes it, and the trainer downloads the result, replays it
 //! against the unit the coordinator leased, and accepts it.
 
-use crate::{sha_file, swarm, verify, STRICT};
+use crate::{swarm, verify, STRICT};
 use playmat_swarm::store::{Local, Store};
 use playmat_swarm::Swarm;
 use playmat_swarm_proto::api::*;
@@ -37,7 +37,9 @@ fn a_round_goes_through_the_coordinator() {
             builds: vec![],
             obs: 3,
             suite: "constructed-2".into(),
-            suite_sha256: sha_file(&format!("{repo}/archbench/constructed-2/suite.json")).unwrap(),
+            suite_sha256: playmat_swarm_proto::suite_sha256(
+                &std::fs::read(format!("{repo}/archbench/constructed-2/suite.json")).unwrap(),
+            ),
             strict: STRICT,
         },
         nets: vec![],

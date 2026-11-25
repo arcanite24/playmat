@@ -253,6 +253,18 @@ pub fn check_unit(u: &WorkUnit) -> Result<(), String> {
 }
 
 /// sha256 of some bytes, in hex
+/// A suite's pin: the sha256 of its `suite.json` with CRLF line ends read as LF, so a Windows checkout (git's
+/// autocrlf) pins the same suite as every other machine
+pub fn suite_sha256(suite_json: &[u8]) -> String {
+    let mut lf = Vec::with_capacity(suite_json.len());
+    for (i, &b) in suite_json.iter().enumerate() {
+        if !(b == b'\r' && suite_json.get(i + 1) == Some(&b'\n')) {
+            lf.push(b);
+        }
+    }
+    sha256_hex(&lf)
+}
+
 pub fn sha256_hex(bytes: &[u8]) -> String {
     use sha2::{Digest, Sha256};
     Sha256::digest(bytes).iter().map(|b| format!("{b:02x}")).collect()
@@ -288,6 +300,13 @@ pub fn determinism_class(strict: bool) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_suite_pins_the_same_with_crlf() {
+        assert_eq!(suite_sha256(b"{\r\n  \"a\": 1\r\n}\n"), suite_sha256(b"{\n  \"a\": 1\n}\n"));
+        assert_eq!(suite_sha256(b"{}\n"), sha256_hex(b"{}\n"));
+        assert_ne!(suite_sha256(b"a\rb"), suite_sha256(b"ab"));
+    }
 
     const SHA: &str = "6c9c9009f3f3ca4b7590f387539206c4ea7c424f309b4fb1b59762f3ce26c2e9";
 

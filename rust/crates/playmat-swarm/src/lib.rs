@@ -60,6 +60,8 @@ const SCHEMA: &[&str] = &[
     "CREATE INDEX IF NOT EXISTS units_state ON units(state, round)",
     "CREATE TABLE IF NOT EXISTS uploads (unit TEXT NOT NULL, path TEXT NOT NULL, size INTEGER NOT NULL, \
      sha256 TEXT NOT NULL, PRIMARY KEY(unit, path))",
+    // a host that gave a unit back never gets it again: a broken host can't use up a unit's attempts alone
+    "CREATE TABLE IF NOT EXISTS failures (unit TEXT NOT NULL, host INTEGER NOT NULL, PRIMARY KEY(unit, host))",
     "CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY, at INTEGER NOT NULL, actor TEXT NOT NULL, \
      action TEXT NOT NULL, detail TEXT NOT NULL)",
 ];
@@ -290,8 +292,10 @@ async fn lease(State(s): State<Shared>, headers: HeaderMap, Json(req): Json<Leas
         .await?;
     let rows = sqlx::query(
         "SELECT u.id, u.unit FROM units u JOIN rounds r ON r.id = u.round WHERE u.state = 'queued' \
+         AND NOT EXISTS (SELECT 1 FROM failures f WHERE f.unit = u.id AND f.host = ?) \
          ORDER BY r.priority DESC, r.id, u.id LIMIT 200",
     )
+    .bind(req.host)
     .fetch_all(&s.db)
     .await?;
     for row in rows {
@@ -448,7 +452,12 @@ async fn fail(
     Json(f): Json<Fail>,
 ) -> Res<StatusCode> {
     let c = caller(&s, &headers, &[Role::Worker, Role::Trainer, Role::Admin]).await?;
-    leased(&s, &c, &id).await?;
+    let (_, _, host) = leased(&s, &c, &id).await?;
+    sqlx::query("INSERT OR IGNORE INTO failures (unit, host) VALUES (?, ?)")
+        .bind(&id)
+        .bind(host)
+        .execute(&s.db)
+        .await?;
     let state = sqlx::query("SELECT attempts FROM units WHERE id = ?").bind(&id).fetch_one(&s.db).await?;
     let next = if state.get::<i64, _>("attempts") >= MAX_ATTEMPTS { "failed" } else { "queued" };
     sqlx::query("UPDATE units SET state = ?, host = NULL WHERE id = ?").bind(next).bind(&id).execute(&s.db).await?;
@@ -495,7 +504,7 @@ pub fn net_url(base: &str, sha: &str) -> String {
     format!("{base}/api/v1/nets/{sha}")
 }
 
-async fn new_round(State(s): State<Shared>, headers: HeaderMap, Json(r): Json<NewRound>) -> Res<Json<RoundStatus>> {
+async fn new_round(State(s): State<Shared>, headers: HeaderMap, Json(mut r): Json<NewRound>) -> Res<Json<RoundStatus>> {
     let c = caller(&s, &headers, &[Role::Trainer, Role::Admin]).await?;
     if r.units.is_empty() {
         return Err(bad("a round with no units"));
@@ -512,6 +521,12 @@ async fn new_round(State(s): State<Shared>, headers: HeaderMap, Json(r): Json<Ne
             if !valid_sha(&n.sha256) || s.store.size(&format!("nets/{}.pmnet", n.sha256)).await?.is_none() {
                 return Err(bad(format!("{}: network {} isn't uploaded", u.id, n.sha256)));
             }
+        }
+    }
+    // the coordinator says where its networks are: the trainer may know it by another address than workers do
+    for u in &mut r.units {
+        for n in &mut u.nets {
+            n.url = format!("{}/api/v1/nets/{}", s.base.trim_end_matches('/'), n.sha256);
         }
     }
     let mut tx = s.db.begin().await?;

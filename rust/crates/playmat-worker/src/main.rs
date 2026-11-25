@@ -103,7 +103,8 @@ fn sha_file(path: &str) -> Result<String, String> {
 /// The unit's suite: its folder under `archbench/`, checked against the pinned hash
 fn suite(unit: &WorkUnit, repo: &str) -> Result<(Value, Vec<playmat_ai::duel::Deck>), String> {
     let dir = format!("{repo}/archbench/{}", unit.pins.suite);
-    let sha = sha_file(&format!("{dir}/suite.json"))?;
+    let path = format!("{dir}/suite.json");
+    let sha = proto::suite_sha256(&std::fs::read(&path).map_err(|e| format!("{path}: {e}"))?);
     if sha != unit.pins.suite_sha256 {
         return Err(format!(
             "suite {}: suite.json is {sha}, the unit pins {}",

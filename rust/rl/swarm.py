@@ -66,6 +66,7 @@ class Client:
         return sha
 
     def net_url(self, sha):
+        # the coordinator rewrites it with its public address when the round is published
         return f"{self.base}/api/v1/nets/{sha}"
 
 
@@ -123,7 +124,10 @@ def net_refs(client, learner, opponents, nets):
 
 
 def suite_pin(suite_dir):
-    return os.path.basename(os.path.normpath(suite_dir)), sha256_file(os.path.join(suite_dir, "suite.json"))
+    """(name, sha256 of suite.json with CRLF read as LF): playmat_swarm_proto::suite_sha256"""
+    with open(os.path.join(suite_dir, "suite.json"), "rb") as f:
+        lf = f.read().replace(b"\r\n", b"\n")
+    return os.path.basename(os.path.normpath(suite_dir)), hashlib.sha256(lf).hexdigest()
 
 
 def make_units(client, project, run, rnd, learner, opponents, suite_dir, games, seed, keep, fast, nets,
