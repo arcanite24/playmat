@@ -1560,7 +1560,7 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   were added: a spell's own "then shuffle" (`ShuffleLibrarySourceEffect` with no arguments, Through the Forest Gate)
   and "assigns combat damage equal to its toughness" until end of turn (`CombatDamageByToughnessTargetEffect`, a
   granted static). A full transpile changes or drops no other card. Four factory rounds (142 games, 138 matching)
-  verified 26: 14,159 of 14,188. Round 3 was recorded on multivac. Round 4 was hand-made (ramp decks against walls),
+  verified 26: 14,159 of 14,188. Rounds 3 and 4 were recorded on multivac. Round 4 was hand-made (ramp decks against walls),
   because random rounds dealt Through the Forest Gate twice. One game per card or group of cards is under
   `shadow/wave19b/`. Shanna, Sisay's Legacy only stops abilities: the check that a card in hand can be cast (not yet
   on the stack) isn't an ability.
@@ -1570,9 +1570,10 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
     order (Java's ability list order for the pick).
   - Rambling Possum: Java returns the saddlers in `HashSet` order, so the hand order differs.
 
-  Left out: the cards whose engine piece is large (dynamic mana, reflexive triggers with up to X targets, layer
-  effects, draw replacements with a choice, extra or skipped turns and steps, maximum hand size, attachment-granted
-  abilities, dice, `HashSet` and random orders). They're listed in the wave's PR.
+  Left out: 83 cards looked at whose engine piece is large (dynamic mana, reflexive triggers with up to X targets,
+  layer effects, draw replacements with a choice, extra or skipped turns and steps, maximum hand size,
+  attachment-granted abilities, dice, `HashSet` and random orders), and 240 not attempted. The wave's PR lists each
+  with the statement the transpiler stops on.
 
   Wave 15, shared forms A (15 Nov): framework forms that block several of the claim's cards, then card classes,
   built in four slices. Ending the turn (`EndTurnEffect`, `Turn.endTurn`: `Game::end_turn`; every spell on the stack
