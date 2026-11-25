@@ -6039,6 +6039,18 @@ class Translator:
                     'effects': [self.effect('new DestroyTargetEffect()')],
                     'rule': 'Whenever a creature you control with deathtouch deals damage to a planeswalker, '
                             'destroy that planeswalker.'}
+        # Zagras, Thief of Heartbeats: "whenever a creature you control deals combat damage to a planeswalker, destroy
+        # that planeswalker." Java's `checkTrigger` asks that the damage's source is a planeswalker (not the damaged
+        # permanent), and destroys whatever permanent it damaged: a creature you control that's also a planeswalker
+        if cls == 'ZagrasThiefOfHeartbeatsTriggeredAbility' and not args:
+            return {'class': 'TriggeredAbility', 'java': cls,
+                    'on': {'e': 'damaged_permanent', 'of': 'source_to', 'combat': True,
+                           'source_filter': [{'p': 'type', 't': 'CREATURE'}, {'p': 'type', 't': 'PLANESWALKER'},
+                                             {'p': 'controller', 'who': 'you'}]},
+                    'optional': False, 'set_target_pointer': True,
+                    'effects': [self.effect('new DestroyTargetEffect()')],
+                    'rule': 'Whenever a creature you control deals combat damage to a planeswalker, '
+                            'destroy that planeswalker.'}
         # a Plan's "when the Nth plan counter is put on {this}, sacrifice it. When you do, …" (`COUNTER_ADDED`, the
         # counter that makes it N: Midnight Clock's form; its effect `DoWhenCostPaid(reflexive, SacrificeSourceCost,
         # "Sacrifice {this}?", false)`)
@@ -7899,6 +7911,24 @@ class Translator:
             on = {'e': 'zone_batch', 'from': zones[args[1]], 'to': zones[args[2]], 'filter': self.filter(args[3]),
                   'who': TARGET_CONTROLLERS[args[4]], 'cards': flag(args[5])}
             return out(on, args[0], n == 7 and flag(args[6]))
+        # a card's own `EXPLOITED_CREATURE` trigger on any exploiter, as a trigger handler's base writes it (a name
+        # for the engine's trigger, not a Java class): (effect[, optional]); the handler's check reads both creatures
+        if cls == 'ExploitedCreatureAnyTriggeredAbility' and n in (1, 2):
+            return out({'e': 'exploits_any'}, args[0], n == 2 and flag(args[1]))
+        # "whenever {this} or enchanted creature attacks", as a trigger handler's base writes it (a name for the
+        # engine's trigger, not a Java class): (effect[, optional]), a player pointer at the defending player
+        if cls == 'AttacksThisOrAttachedTriggeredAbility' and n in (1, 2):
+            a = out({'e': 'attacks_this_or_attached'}, args[0], n == 2 and flag(args[1]))
+            a['set_target_pointer_player'] = True
+            return a
+        # "whenever one or more creatures attack you", as a trigger handler's base writes it (a name for the
+        # engine's trigger, not a Java class): (effect[, optional]), a pointer at the creatures attacking you
+        if cls == 'AttacksYouTriggeredAbility' and n in (1, 2):
+            return out({'e': 'attacks_you'}, args[0], n == 2 and flag(args[1]))
+        # a card's own `DAMAGED_PLAYER` trigger, as a trigger handler's base writes it (a name for the engine's
+        # trigger, not a Java class): (effect[, optional]); the handler's check reads the source
+        if cls == 'DamagedPlayerTriggeredAbility' and n in (1, 2):
+            return out({'e': 'damaged_player'}, args[0], n == 2 and flag(args[1]))
         if cls == 'DealtCombatDamageToSourceTriggeredAbility' and n == 2:
             return out({'e': 'dealt_combat_damage'}, args[0], flag(args[1]))
         if cls == 'SpellControlledDealsDamageTriggeredAbility' and n == 4 and args[0] == 'Zone.BATTLEFIELD':
