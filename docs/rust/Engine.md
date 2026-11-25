@@ -2393,6 +2393,69 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
     tail of single-handler cards, not reached. The cards Engine.md already names as nondeterministic or blamed
     stayed out of the candidates.
 
+  Wave 26a, Pioneer cards A Killer Among Us to God-Eternal Kefnet, third pass (25 Nov): the 365 still unverified in
+  that range (waves 26b and 26c take the rest), 196 of them this wave's own. 11 came in (14,419 in the engine before
+  waves 26b and 26c) and 8 were verified (14,377): Academic Probation, Consulate Surveillance, Dal R'El, Augment Orphan,
+  Duskmantle Guildmage, Egon, God of Death, Extraction Specialist, Failure // Comply and Find the Path. Three
+  hand-made rounds on multivac, 40 games each (decks under `.local/w26a/factory/round-00N/decks`): round 1 (Chandra
+  and Find the Path, Duskmantle Guildmage, Failure // Comply with Consulate Surveillance and Academic Probation, red
+  aggro), round 2 (Cosmos Charger and Egon with foretell cards, Complete the Circuit, Dal R'El with landfall, a
+  removal deck), round 3 (Extraction Specialist, removal, rounds 1's Chandra and Guildmage decks again). 115 match, 5
+  differ. The 6 games under `shadow/wave26a/` cover Find the Path's granted {G}{G} picked while paying and the
+  Guildmage's delayed trigger on a discard; Academic Probation's two modes, Consulate Surveillance's prevention and
+  Comply; the Guildmage's mill and delayed trigger and Failure; Egon exiling two and, later, sacrificed for a card;
+  Dal R'El's landfall mana and its draw, Throne of Death's mill and draw; Extraction Specialist's return.
+  The pieces:
+  - `Game::names_chosen`: the names `ChooseACardNameEffect` and `ChooseLandNameEffect` choose, by source, read by
+    `OpponentsCantCastChosenUntilNextTurnEffect` (a `Rule::CantCastOnStack` handler: Academic Probation's first mode,
+    Comply). The AI names cards at random from the whole card list, so no game had an opponent holding the name.
+  - `Rule::CantUseActivatedAbilities` (`Permanent.canUseActivatedAbilities`): none of a permanent's activated
+    abilities, mana abilities too (`activations_forbidden`). Academic Probation's second mode, with its can't attack
+    or block restriction, until your next turn.
+  - `Handler::lasting` (`Duration.WhileControlled` on a resolved static): kept past the cleanup step; its own check
+    ends it. Extraction Specialist's "can't attack or block for as long as you control this creature" points at the
+    returned permanent and the Specialist as they are once it's back (`on_start`).
+  - Foretell: `AsThough::ForetellAnyTime` (`ALLOW_FORETELL_ANYTIME`, Cosmos Charger: Java's `applies` is true for
+    every player, so anyone may foretell on any turn while it's out) and the static cost handlers now change
+    foretell's {2} (`CostModificationEffect` on a `ForetellAbility`: Cosmos Charger's {1} less, seen as "Pay {1}").
+  - A delayed `PutCardIntoGraveFromAnywhereAllTriggeredAbility` (Duskmantle Guildmage's "this turn" ability) triggers
+    from its holder and for a card from any zone. `PutIntoGraveyardAll` triggered only from battlefield sources before.
+  - Paying checks (`can_pay_extra`): a source whose tapping abilities make different amounts of different kinds (an
+    Island with Find the Path's "{T}: Add {G}{G}") counts one ability at a time, as `ManaOptions` does: {U} or
+    {G}{G}, not two mana of either. Before, the Guildmage's {2}{U}{B} was offered with an Island, Find the Path on it,
+    and two Swamps (round 1 game 24). Sources whose abilities make one kind (Forest with Find the Path, {C} and {C}{C}
+    lands) count as before; the costly-ability and Nykthos fallbacks still see all of a source's mana.
+  - Transpiler: `new Mana(ManaType.GREEN, 2)` mana, `TargetCardInYourGraveyard(2, 2)` exile costs and
+    `addOtherwiseEffect` (Egon), `CastNextSpellDelayedTriggeredAbility` with `CopyTargetStackObjectEffect(…, n, …)`
+    (Complete the Circuit). Handlers: Chandra, Fire of Kaladesh, Consulate Surveillance, Duskmantle Guildmage, Complete
+    the Circuit, Dal R'El's `AddManaFromColorChoicesEffect`, Cosmos Charger, Extraction Specialist, Academic Probation.
+  - A full transpile changes and drops no existing card; it adds the known leftover Hoshi Sato, Exolinguist.
+  In the engine, not verified:
+  - Chandra, Fire of Kaladesh: every ability but the -7 was seen, but her untap trigger and Monastery Swiftspear's
+    prowess go on the stack in the other order in Rust (round 1 game 33, round 3 game 121), and Java's order isn't the
+    same in the two games.
+  - Complete the Circuit: no game cast another instant or sorcery after it resolved, so its copy never triggered.
+  - Cosmos Charger: its reduction was paid ("Pay {1}") but no one foretold on an opponent's turn.
+  Gaps in verified cards: Goblin Guide's and Scorch Spitter's attack triggers go on the stack in the other order in
+  Rust (round 1 games 8, 15 and 26, none of this wave's cards involved). Linvala, Shield of Sea Gate stops activated
+  abilities with `Rule::CantActivate`, which leaves mana abilities; Java's `canUseActivatedAbilities` stops those too
+  (not changed here).
+  Left out, with what each needs:
+  - Random or hash order: Amplifire, Creeping Dread, Awaken the Erstwhile, Exotic Pets, Bringer of the Last Gift,
+    Breeches (a coin flip), Fervent Mastery (random discard), Boneyard Parley, Corrosive Ooze.
+  - A "may" in a replacement (replacements get no decider): Channel Harm. An optional reflexive trigger: Dream Eater.
+    `ChooseBlockersEffect`: Brutal Hordechief. Mana-spent tracking: Berg Strider, Boreal Outrider. Phyrexian hybrid:
+    Ayara, Ajani, Sleeper Agent. Layer 4 and losing abilities: Azure Beastbinder, Armed and Armored, Circle of the Moon
+    Druid, Futurist Operative, Eccentric Apprentice, Domri, Arlinn, the Pack's Hope.
+  - `GainAbilityWithAttachmentEffect` and `SacrificeAttachmentCost`: Deconstruction Hammer, Citizen's Crowbar.
+    Auras on players: Cruel Reality, the curses, Faithbound Judge, Accursed Witch. Entering under an opponent's
+    control: Captive Audience. Token-creation replacement: Crafty Cutpurse.
+  - Trigger classes with an event or pointer Rust lacks: Dreadhound (from-zone), Flitterwing Nuisance (planeswalker
+    damage), Doran (an or-trigger's pointer), Dokuchi Silencer, Arashin War Beast (once per step), Foe-Razer Regent
+    (fight), Firesong and Sunspeaker (life-gain source), Font of Agonies (`LIFE_PAID`), Essence Symbiote (mutates).
+  - Erebos's Emissary, Cemetery Desecrator, Braided Net, Darksteel Colossus, Admiral Beckett Brass and the
+    `CastFromHandSourcePermanentCondition` cards; the rest of the 196, one class or one piece each, not reached.
+
   Wave 25a, Pioneer cards A Killer Among Us to God-Eternal Kefnet again (25 Nov): the 372 still unverified in that
   range (waves 25b and 25c take the rest). The stub-handler probe found 102 that translate with their own classes
   stubbed; the other 270 need layer 4, random or hash order, an unordered token batch, a framework class or a large
