@@ -4611,6 +4611,12 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                 o.def = Arc::new(def);
                 if !cast(game, d, seat, id) || game.step != Some(Step::DeclareBlockers) {
                     *game = before;
+                    return;
+                }
+                // what the returned attacker was attacking, for the permanent this spell becomes
+                let o = game.obj_mut(id);
+                if let Some(defender) = o.ninjutsu_defender.take() {
+                    o.sneak_defender = Some((defender, o.ninjutsu_pw.take()));
                 }
                 return;
             }
@@ -7084,8 +7090,15 @@ fn ward(game: &mut Game) {
         })
         .map(|(_, t)| t)
         .collect();
+    // once for each permanent however many of its targets it is (`findTargetingStackObject`: a trigger records each
+    // target and stack object it fired for, Nissa's Judgment's support and second target on one warded creature)
+    let mut seen = Vec::new();
     for t in permanent_targets.iter() {
         let Target::Obj(o) = *t else { continue };
+        if seen.contains(&o) {
+            continue;
+        }
+        seen.push(o);
         let obj = game.obj(o);
         // Surrak: a creature or creature spell of yours becomes the target of an opponent's spell or ability
         let creature = (obj.zone == Zone::Battlefield && game.has_type(o, CardType::Creature))
@@ -10920,7 +10933,11 @@ fn resolve_popped(game: &mut Game, d: &mut dyn Decider) {
         }
         // the X it was cast with, for its enters triggers (`GetXValue`)
         game.obj_mut(id).cast_x = item.x;
+        let sneaked = game.obj_mut(id).sneak_defender.take();
         enter_battlefield(game, d, id, item.controller, item.kicked);
+        if let Some((defender, pw)) = sneaked {
+            sneak_enters(game, id, item.controller, defender, pw);
+        }
         return;
     }
     let zcc = game.obj(id).zcc;
@@ -15775,7 +15792,6 @@ fn apply_each_effect(
             | EffectDef::CantAttackBlockUnlessPaysSourceEffect { .. }
             | EffectDef::MaximumHandSizeSetEffect { .. }
             | EffectDef::LoyaltyAbilitiesTwiceEffect
-            | EffectDef::CreateTwiceThatManyTokensEffect { .. }
             | EffectDef::ReplaceCreatureTokensEffect { .. }
             | EffectDef::AdditionalTriggersEffect { .. }
             | EffectDef::ModifyCountersAddedEffect { .. }
@@ -20004,6 +20020,8 @@ fn apply_each_effect(
                 game.eot_effects.push((EffectDef::NextSpellCantBeCounteredEffect { nth }, controller, source.0));
             }
             EffectDef::AttacksIfAbleAllEffect { this_turn: true, .. }
+            // resolved, it lasts for the turn (`Duration.EndOfTurn`: Kaya, Geist Hunter's -2)
+            | EffectDef::CreateTwiceThatManyTokensEffect { .. }
             | EffectDef::PlayFromGraveyardControllerEffect { duration: Some(_), .. }
             | EffectDef::GraveyardFromAnywhereExileReplacementEffect { duration: Some(_), .. }
             | EffectDef::PlayAdditionalLandsThisTurnEffect { .. } => {
@@ -21449,6 +21467,14 @@ fn token_copies(game: &Game, seat: Seat, token: &CardDef) -> usize {
         }
         false
     });
+    for (e, you, _) in &game.eot_effects {
+        if let EffectDef::CreateTwiceThatManyTokensEffect { times, creatures_only } = e {
+            if *you == seat && (!creatures_only || token.is(CardType::Creature)) {
+                n = n.saturating_mul((*times).max(0) as usize);
+                doublers += 1;
+            }
+        }
+    }
     // Divine Visitation (and Draconic Visitor for an artifact token): one more replacement effect to order
     if token.is(CardType::Creature) {
         doublers += visitations(game, seat, false).len();
@@ -24644,8 +24670,8 @@ fn attack_taxes(game: &Game, id: ObjId, defender: Seat, pw: Option<(ObjId, u32)>
             }
         }
         // its own "can't attack unless you pay" (Qal Sisma Behemoth)
-        if let EffectDef::CantAttackBlockUnlessPaysSourceEffect { cost, attack: true, .. } = e {
-            if src == id {
+        if let EffectDef::CantAttackBlockUnlessPaysSourceEffect { cost, attack: true, attached, .. } = e {
+            if if *attached { g.attached(src) == Some(id) } else { src == id } {
                 out.push(cost.clone());
             }
         }
@@ -24702,8 +24728,8 @@ fn block_taxes(game: &Game, blocker: ObjId) -> Vec<String> {
             }
         }
         // its own "can't block unless you pay" (Qal Sisma Behemoth)
-        if let EffectDef::CantAttackBlockUnlessPaysSourceEffect { cost, block: true, .. } = e {
-            if src == blocker {
+        if let EffectDef::CantAttackBlockUnlessPaysSourceEffect { cost, block: true, attached, .. } = e {
+            if if *attached { g.attached(src) == Some(blocker) } else { src == blocker } {
                 out.push(cost.clone());
             }
         }
@@ -24750,6 +24776,43 @@ fn has_static(game: &Game, id: ObjId, f: impl Fn(&EffectDef) -> bool) -> bool {
 }
 
 /// `Combat.addAttackerToCombat`: a new group for the attacker
+/// A permanent spell cast with sneak enters tapped (`ZonesHandler`'s `setTapped`, no event) and, a creature of the
+/// attacking player's, attacking what the returned attacker attacked while that's still a defender
+/// (`Combat.addEnteringAttackers`, 506.3a, 508.4a): a planeswalker gone, it isn't attacking
+fn sneak_enters(game: &mut Game, id: ObjId, controller: Seat, defender: Seat, pw: Option<(ObjId, u32)>) {
+    if game.obj(id).zone != Zone::Battlefield {
+        return;
+    }
+    game.obj_mut(id).tapped = true;
+    let in_combat = matches!(
+        game.step,
+        Some(Step::DeclareAttackers | Step::DeclareBlockers | Step::FirstCombatDamage | Step::CombatDamage)
+    );
+    if !in_combat
+        || game.active != Some(controller)
+        || game.obj(id).controller != controller
+        || !game.has_type(id, CardType::Creature)
+        || game.has_type(id, CardType::Battle)
+        || game.player(defender).lost
+    {
+        return;
+    }
+    if let Some((p, zcc)) = pw {
+        let defends = if game.has_type(p, CardType::Battle) {
+            game.obj(p).protector == Some(defender)
+        } else {
+            game.obj(p).controller == defender
+        };
+        if game.obj(p).zone != Zone::Battlefield || game.obj(p).zcc != zcc || !defends {
+            return;
+        }
+    }
+    let o = game.obj_mut(id);
+    o.attacking = Some(defender);
+    o.attacking_pw = pw;
+    join_combat(game, id);
+}
+
 fn join_combat(game: &mut Game, id: ObjId) {
     game.combat_groups.push(crate::state::CombatGroup { attacker: id, left: None });
 }

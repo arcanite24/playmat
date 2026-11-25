@@ -278,6 +278,9 @@ pub struct Obj {
     pub ninjutsu_defender: Option<Seat>,
     /// and the planeswalker it attacked, if one
     pub ninjutsu_pw: Option<(ObjId, u32)>,
+    /// a spell cast with sneak: the player and planeswalker the attacker it returned was attacking, the permanent it
+    /// becomes entering tapped and attacking it (702.190b, `SneakAbility.getSneakDefenders`)
+    pub sneak_defender: Option<(Seat, Option<(ObjId, u32)>)>,
     /// the permanent chosen as it entered (`ChooseCreatureEffect`), kept after it leaves
     pub chosen: Option<(ObjId, u32)>,
     /// a Class's level (1 until it gains another)
@@ -1965,6 +1968,7 @@ impl Game {
             escaped: false,
             ninjutsu_defender: None,
             ninjutsu_pw: None,
+            sneak_defender: None,
             chosen: None,
             class_level: 1,
             lki_class_level: 1,
@@ -4558,6 +4562,9 @@ impl Game {
         self.obj_mut(id).flashback = false;
         if !(from == Zone::Stack && zone == Zone::Battlefield) {
             self.obj_mut(id).escaped = false;
+        }
+        if from == Zone::Stack && zone != Zone::Battlefield {
+            self.obj_mut(id).sneak_defender = None;
         }
         // Rest in Peace (two of them: the player chooses which applies); one of yours only for your cards, one for
         // cards only not for tokens, and the ones resolved this turn

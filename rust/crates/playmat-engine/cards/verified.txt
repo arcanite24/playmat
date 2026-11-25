@@ -5446,6 +5446,7 @@ Hallar, the Firefletcher
 Hallowed Fountain
 Hallowed Respite
 Hallway Heckler
+Halo Forager
 Halo Fountain
 Halo Hopper
 Halo Scarab
@@ -6014,6 +6015,7 @@ Illvoi Infiltrator
 Illvoi Light Jammer
 Illvoi Operative
 Ilysian Caryatid
+Imaginary Threats
 Immersturm Predator
 Immersturm Raider
 Immersturm Skullcairn
@@ -6072,6 +6074,7 @@ Incandescent Aria
 Incendiary Flow
 Incendiary Sabotage
 Incinerating Blast
+Incinerator of the Guilty
 Incisor Glider
 Incorrigible Youths
 Incremental Growth
@@ -6236,6 +6239,7 @@ Invasion of Ravnica
 Invasion of Regatha
 Invasion of Segovia
 Invasion of Shandalar
+Invasion of Tarkir
 Invasion of Theros
 Invasion of Tolvada
 Invasion of Ulgrotha
@@ -6566,6 +6570,7 @@ Kaya's Ghostform
 Kaya's Onslaught
 Kaya's Wrath
 Kaya, Bane of the Dead
+Kaya, Geist Hunter
 Kaya, Intangible Slayer
 Kaya, Orzhov Usurper
 Kayla's Command
@@ -6682,6 +6687,7 @@ Kiora's Dismissal
 Kiora's Follower
 Kiora, Behemoth Beckoner
 Kiora, Master of the Depths
+Kiora, Sovereign of the Deep
 Kiora, the Crashing Wave
 Kiora, the Rising Tide
 Kird Chieftain
@@ -7337,6 +7343,7 @@ Magmatic Channeler
 Magmatic Chasm
 Magmatic Hellkite
 Magmatic Insight
+Magmatic Sprinter
 Magnetic Snuffler
 Magnificent End
 Magnifying Glass
@@ -7678,6 +7685,7 @@ Miasma Demon
 Miasmic Mummy
 Mica, Reader of Ruins
 Michelangelo, Game Master
+Michelangelo, Improviser
 Michelangelo, Mutant BFF
 Michelangelo, Weirdness to 11
 Michiko's Reign of Truth
@@ -8265,6 +8273,7 @@ Nissa of Shadowed Boughs
 Nissa's Defeat
 Nissa's Encouragement
 Nissa's Expedition
+Nissa's Judgment
 Nissa's Pilgrimage
 Nissa's Renewal
 Nissa's Revelation
@@ -8274,6 +8283,7 @@ Nissa, Ascended Animist
 Nissa, Genesis Mage
 Nissa, Nature's Artisan
 Nissa, Resurgent Animist
+Nissa, Vastwood Seer
 Nissa, Vital Force
 Nissa, Voice of Zendikar
 Nissa, Who Shakes the World
@@ -8439,6 +8449,7 @@ Oil-Gorger Troll
 Oildeep Gearhulk
 Oin the Brave
 Ojer Axonil, Deepest Might
+Ojer Kaslem, Deepest Growth
 Ojer Taq, Deepest Foundation
 Ojutai Exemplars
 Ojutai Interceptor
