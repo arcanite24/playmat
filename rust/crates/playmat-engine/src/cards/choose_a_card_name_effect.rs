@@ -58,6 +58,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
             return None;
         }
     };
+    game.names_chosen.push((source, chosen.clone()));
     if matches!(game.obj(source).zone, Zone::Battlefield | Zone::Stack) {
         game.obj_mut(source).chosen_name = Some(chosen);
     }

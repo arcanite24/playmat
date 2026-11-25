@@ -2704,6 +2704,9 @@ class Translator:
         elif b:
             mana = b.group(1).strip()
         m = re.fullmatch(r'Mana\.(White|Blue|Black|Red|Green|Colorless)Mana\((\d+)\)', mana)
+        # `new Mana(ManaType.GREEN, 2)` (Find the Path's granted "{T}: Add {G}{G}")
+        if not m and (t := re.fullmatch(r'new Mana\(\s*ManaType\.(WHITE|BLUE|BLACK|RED|GREEN|COLORLESS)\s*,\s*(\d+)\s*\)', mana)):
+            m = re.fullmatch(r'(\w+) (\d+)', t.group(1).capitalize() + ' ' + t.group(2))
         if not m:
             return None
         n = int(m.group(2))

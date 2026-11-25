@@ -1207,6 +1207,9 @@ pub struct Game {
     /// "until your next turn, you may cast spells of the filter as though they had flash": the player, the filter,
     /// the effect's source (Teferi, Time Raveler's +1)
     pub flash_until_next_turn: Vec<(Seat, crate::card::Filter, ObjId)>,
+    /// each name `ChooseACardNameEffect` chose, by its source (Java's `sourceId + INFO_KEY` state value, which outlives
+    /// the object: Comply's "until your next turn" reads it once the spell is gone), the latest last
+    pub names_chosen: Vec<(ObjId, String)>,
     /// the stack object resolving: where it was on the stack (from the bottom), and its card
     pub resolving: Option<(usize, ObjId)>,
     /// the stack object resolving, off the stack while it resolves (a view shows it where it was)
@@ -1722,6 +1725,7 @@ impl Game {
             no_lifegain_turn: None,
             attach_entering: None,
             flash_until_next_turn: Vec::new(),
+            names_chosen: Vec::new(),
             resolving: None,
             resolving_item: None,
             checking_item: None,
