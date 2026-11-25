@@ -2063,9 +2063,12 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   federation, Ether's copy and its exile on paying, Archmage's Newt's flashback, Death to Our Enemies' reflexive
   damage and Dennick's investigate. The pieces:
   - A mana ability's `ExileSourceCost` is paid with its other costs, before its mana (Ether's "{T}, Exile Ether:
-    Add {U}"). It was left unpaid: Ether stayed on the battlefield.
+    Add {U}"). It was left unpaid: Ether stayed on the battlefield. No other card has a mana ability with that cost.
   - `plot()` applies the cost modifications (`Increase`, `Reduce`, `Set`) to a plot ability, as
     `CostModificationEffect`s see a `PlotAbility` (Doc Aurlock's "plotting cards from your hand costs {2} less").
+    Anointed Peacekeeper and Skyseer's Chariot skip it, as Java's `isActivatedAbility` is false for a special
+    action; every other ability cost handler wants a permanent or a graveyard card, so plot from hand is Doc
+    Aurlock's alone.
   - `Obj::flashback_free`: a flashback given by Archmage's Newt while saddled costs {0}.
   - `DiscardCardYouChooseTargetEffect { reveal }`: the target opponent reveals that many cards (Acquisitions
     Expert's party count), chosen by them, and you choose from those.
