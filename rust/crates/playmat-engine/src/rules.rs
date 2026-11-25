@@ -502,7 +502,23 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                     if !game.watch.exerted.contains(&at) {
                         game.watch.exerted.push(at);
                     }
-                    let fired = game.triggers([a], |_, _, _, t| matches!(t, Trigger::Exerted));
+                    // BECOMES_EXERTED: this one's own triggers, and "whenever you exert a creature"
+                    let seat = game.obj(a).controller;
+                    let fired = if game.battlefield.iter().any(|b| {
+                        game.obj(*b)
+                            .def
+                            .abilities
+                            .iter()
+                            .any(|x| matches!(x.trigger(), Some(Trigger::ExertedCreatureYou)))
+                    }) {
+                        let all: Vec<ObjId> = game.battlefield.iter().copied().collect();
+                        game.triggers(all, |_, src, ctrl, t| {
+                            matches!(t, Trigger::Exerted) && src == a
+                                || matches!(t, Trigger::ExertedCreatureYou) && ctrl == seat
+                        })
+                    } else {
+                        game.triggers([a], |_, _, _, t| matches!(t, Trigger::Exerted))
+                    };
                     let n = fired.len();
                     match game.attack_taps.iter().find(|(x, _)| *x == a).map(|(_, at)| *at) {
                         Some(at) => {
@@ -1340,6 +1356,7 @@ pub fn devourer_first_upkeep(game: &mut Game, card: ObjId, seat: Seat) {
             up_to: true,
             optional: false,
             pick_x: false,
+            otherwise: Vec::new(),
         }],
         source_zcc: game.obj(card).zcc,
         fixed: Vec::new(),
@@ -8861,6 +8878,8 @@ fn hexproof_from(game: &Game, id: ObjId, s: ObjId) -> bool {
             "each_color" => !colors.is_empty(),
             // `HexproofFromPlaneswalkersAbility`: the spell or ability's source is a planeswalker
             "planeswalkers" => game.has_type(s, CardType::Planeswalker),
+            // `HexproofFromInstantsAbility` (Elenda, Saint of Dusk)
+            "instants" => game.has_type(s, CardType::Instant),
             c => kinds.iter().position(|k| *k == c).is_some_and(|i| colors.iter().any(|x| *x as usize == i)),
         },
         _ => false,
@@ -15411,11 +15430,15 @@ fn apply_each_effect(
                     }
                 }
             }
-            EffectDef::MayCastTargetFromGraveyardThisTurnEffect => {
+            EffectDef::MayCastTargetFromGraveyardThisTurnEffect { then_exile } => {
                 let turn = game.turn;
                 for o in &objs {
                     if game.obj(*o).zone == Zone::Graveyard && !game.obj(*o).is(CardType::Land) {
                         game.obj_mut(*o).may_play = Some((controller, turn));
+                        // `ThatSpellGraveyardExileReplacementEffect`, for the rest of the turn
+                        if *then_exile {
+                            game.exile_if_graveyard.push(*o);
+                        }
                     }
                 }
             }
@@ -16870,6 +16893,7 @@ fn apply_each_effect(
                 up_to,
                 optional,
                 pick_x,
+                otherwise,
             } => {
                 let pick = if *pick_x { &item.x.max(0) } else { pick };
                 let n = match look_count {
@@ -16942,6 +16966,13 @@ fn apply_each_effect(
                 {
                     return;
                 }
+                // "if you didn't put a card into your hand this way, …" (`otherwiseEffect`)
+                if chosen.is_empty() && !otherwise.is_empty() {
+                    apply_each_effect(game, d, item, otherwise, &[], source);
+                    if d.stopped() {
+                        return;
+                    }
+                }
             }
             EffectDef::DrawDiscardControllerEffect { draw: n, discard: k, optional } => {
                 if *optional {
@@ -16954,9 +16985,13 @@ fn apply_each_effect(
                 draw(game, controller, (*n).max(0) as usize);
                 discard(game, d, controller, *k);
             }
-            EffectDef::DiscardControllerEffect { amount } => {
+            EffectDef::DiscardControllerEffect { amount, random } => {
                 let amount = &v!(amount);
-                discard(game, d, controller, *amount);
+                if *random {
+                    discard_at_random(game, controller, *amount);
+                } else {
+                    discard(game, d, controller, *amount);
+                }
             }
             EffectDef::SacrificeEffect { filter, amount }
             | EffectDef::SacrificeOpponentsEffect { filter, amount }

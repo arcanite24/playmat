@@ -102,6 +102,7 @@ Adrenaline Jockey
 Adult Gold Dragon
 Advanced Stitchwing
 Advent of the Wurm
+Adventure Awaits
 Adventurer's Airship
 Adventurer's Inn
 Adventuring Gear
@@ -586,6 +587,7 @@ Arena Trickster
 Arena of Glory
 Ares, God of War
 Argentum Masticore
+Argivian Avenger
 Argivian Cavalier
 Argivian Phalanx
 Argoth, Sanctum of Nature
@@ -696,6 +698,7 @@ Assemble the Legion
 Assembled Alphas
 Assembly Specialist
 Assert Perfection
+Assimilate Essence
 Assure // Assemble
 Astelli Reclaimer
 Astor, Bearer of Blades
@@ -851,6 +854,7 @@ Badgermole
 Badgermole Cub
 Badlands Revival
 Baffling End
+Bag of Holding
 Bagel and Schmear
 Baird, Argivian Recruiter
 Baird, Steward of Argive
@@ -984,6 +988,7 @@ Battlefield Butcher
 Battlefield Forge
 Battlefield Promotion
 Battlefield Raptor
+Battlefield Scavenger
 Battlefield Thaumaturge
 Battlefly Swarm
 Battlefront Krushok
@@ -1114,6 +1119,7 @@ Biogenic Upgrade
 Biomass Mutation
 Biomathematician
 Biomechan Engineer
+Biorganic Carapace
 Bioshift
 Biosynthic Burst
 Biotech Specialist
@@ -1310,6 +1316,7 @@ Blooming Marsh
 Blooming Stinger
 Bloomvine Regent
 Blossom Dryad
+Blossom Prancer
 Blossom-Blessed Angel
 Blossoming Defense
 Blossoming Sands
@@ -1808,6 +1815,7 @@ Case of the Trampled Garden
 Case of the Uneaten Feast
 Case the Joint
 Casey Jones, Jury-Rig Justiciar
+Casey Jones, Vigilante
 Cast Away Doubt
 Cast Down
 Cast Out
@@ -2342,6 +2350,7 @@ Consuming Fervor
 Consuming Sinkhole
 Consuming Tide
 Contact Other Plane
+Contagious Vorrac
 Containment Breach
 Containment Construct
 Containment Membrane
@@ -2359,6 +2368,7 @@ Converter Beast
 Convicted Killer
 Conviction
 Convolute
+Cool but Rude
 Cooped Up
 Coordinated Assault
 Coordinated Charge
@@ -2600,6 +2610,7 @@ Curious Obsession
 Curious Pair
 Curse of the Swine
 Curse of the Werefox
+Curse-Marred Demon
 Cursed Courtier
 Cursed Minotaur
 Cursed Recording
@@ -3087,6 +3098,7 @@ Disciple of the Old Ways
 Disciple of the Ring
 Disciples of Gix
 Disciplined Duelist
+Discontinuity
 Discordant Piper
 Discover the Impossible
 Discovery // Dispersal
@@ -3132,6 +3144,7 @@ Diver Skaab
 Divergent Equation
 Diversion Specialist
 Diversion Unit
+Divert Disaster
 Divest
 Divide by Zero
 Divination
@@ -3311,6 +3324,7 @@ Draugr Recruiter
 Draugr Thought-Thief
 Draugr's Helm
 Drawn from Dreams
+Dread Defiler
 Dread Fugue
 Dread Presence
 Dread Rider
@@ -3557,6 +3571,7 @@ Eidolon of the Great Revel
 Eiganjo Exemplar
 Eiganjo Uprising
 Eiganjo, Seat of the Empire
+Eirdu, Carrier of Dawn
 Eject
 Eject the Warp Core
 Elaborate Firecannon
@@ -3597,6 +3612,7 @@ Elemental Summoning
 Elemental Teachings
 Elemental Uprising
 Elementalist Adept
+Elenda, Saint of Dusk
 Elenda, the Dusk Rose
 Elesh Norn
 Elesh Norn, Mother of Machines
@@ -3756,6 +3772,7 @@ Ennis, Debate Moderator
 Enraged Ceratok
 Enraged Flamecaster
 Enraged Giant
+Enshrouding Mist
 Ensoul Artifact
 Enter the Avatar State
 Enter the Enigma
@@ -5477,6 +5494,7 @@ Haywire Mite
 Hazard of the Dunes
 Hazardous Blast
 Hazardous Conditions
+Hazardroot Herbalist
 Haze of Pollen
 Hazel's Nocturne
 Hazoret the Fervent
@@ -6286,6 +6304,7 @@ Jace, Ingenious Mind-Mage
 Jace, Memory Adept
 Jace, Mirror Mage
 Jace, Unraveler of Secrets
+Jace, Vryn's Prodigy
 Jace, Wielder of Mysteries
 Jace, the Living Guildpact
 Jace, the Perfected Mind
@@ -7633,6 +7652,7 @@ Mind Carver
 Mind Drain
 Mind Drill Assailant
 Mind Flayer
+Mind Meanderer
 Mind Raker
 Mind Roots
 Mind Rot
@@ -8045,6 +8065,7 @@ Necromentia
 Necropanther
 Necropolis Regent
 Necrosquito
+Necrosynthesis
 Necrotic Wound
 Needle Spires
 Needlethorn Drake
@@ -8230,6 +8251,7 @@ Noxious Gearhulk
 Noxious Grasp
 Noxious Groodion
 Noxious Newt
+Noyan Dar, Roil Shaper
 Null Caller
 Null Group Biological Assets
 Nullify
@@ -9117,6 +9139,7 @@ Pull Through the Weft
 Pull from Tomorrow
 Pull from the Deep
 Pull from the Grave
+Pulsar Squadron Ace
 Pulse Tracker
 Pulse of Murasa
 Pummeler for Hire
@@ -9372,6 +9395,7 @@ Ranging Raptors
 Rank Rat
 Rankle and Torbran
 Rankle's Prank
+Rankle, Master of Pranks
 Rapacious Dragon
 Raphael's Technique
 Raphael, Ninja Destroyer
@@ -9560,6 +9584,7 @@ Reinforced Ronin
 Reito Sentinel
 Reject
 Reject Imperfection
+Rekindling Phoenix
 Release the Dogs
 Release the Gremlins
 Release to the Wind
@@ -9659,6 +9684,7 @@ Resolute Blademaster
 Resolute Reinforcements
 Resolute Rider
 Resolute Strike
+Resolute Survivors
 Resolute Watchdog
 Resonating Lute
 Resourceful Return
@@ -10096,6 +10122,7 @@ Sacred Peaks
 Saddleback Lagac
 Sadistic Skymarcher
 Safewright Cavalry
+Sage of Ancient Lore
 Sage of Days
 Sage of Lat-Nam
 Sage of Mysteries
@@ -11034,6 +11061,7 @@ Slayer's Plate
 Slaying Fire
 Sleek Schooner
 Sleep
+Sleep Magic
 Sleep Paralysis
 Sleep of the Dead
 Sleep with the Fishes
@@ -11977,6 +12005,7 @@ Synapse Necromage
 Synchronized Charge
 Synchronized Spellcraft
 Synchronized Strike
+Syncopate
 Syndic of Tithes
 Syndicate Enforcer
 Syndicate Guildmage
@@ -12335,6 +12364,7 @@ The Kami War
 The Kenriths' Royal Funeral
 The Key to the Vault
 The Last Agni Kai
+The Last Ride
 The Last Ronin's Technique
 The Legend of Kuruk
 The Legend of Kyoshi
@@ -12361,10 +12391,12 @@ The Modern Age
 The Monumental Facade
 The Mountain-king's Return
 The Mycosynth Gardens
+The Mycotyrant
 The Neutrinos
 The Notary Hobbits
 The Ooze
 The Ozolith
+The Pride of Hull Clade
 The Prima Vista
 The Princess Takes Flight
 The Queen of Dale
@@ -12633,6 +12665,7 @@ Titan of Industry
 Titan's Grave
 Titan's Presence
 Titan's Strength
+Titanbones, Towering Heart
 Titania's Command
 Titania, Rugged Rumbler
 Titanic Brawl
@@ -12651,6 +12684,7 @@ Tocasia's Welcome
 Tocasia, Dig Site Mentor
 Tocatli Honor Guard
 Together as One
+Toil // Trouble
 Tolarian Geyser
 Tolarian Kraken
 Tolarian Scholar
@@ -12866,6 +12900,7 @@ True-Faith Censer
 Truefire Captain
 Truefire Paladin
 Trueheart Duelist
+Trueheart Twins
 Trufflesnout
 Trumpet Blast
 Trumpeting Carnosaur
@@ -12898,6 +12933,7 @@ Turret Ogre
 Turtle Blimp
 Turtle Lair
 Turtle Power!
+Turtle Van
 Turtle-Duck
 Turtles in Time
 Tusked Colossodon
@@ -12911,6 +12947,7 @@ Twin Blades
 Twin Bolt
 Twinblade Assassins
 Twinblade Blessing
+Twinblade Geist
 Twinblade Paladin
 Twinferno
 Twinflame
@@ -13436,6 +13473,7 @@ Vizier of Remedies
 Vizier of Tumbling Sands
 Vizier of the Menagerie
 Vizier of the Scorpion
+Vizier of the True
 Vizkopa Confessor
 Vizkopa Guildmage
 Vizkopa Vampire
@@ -13739,6 +13777,7 @@ Weaver of Harmony
 Weaver of Lightning
 Web Up
 Web of Life and Destiny
+Web-Shooters
 Web-Warriors
 Webspinner Cuff
 Wedding Announcement
@@ -13893,6 +13932,7 @@ Winged Words
 Wingfold Pteron
 Wingmantle Chaplain
 Wingmate Roc
+Wingnut, Bat on the Belfry
 Wings of Hubris
 Wings of the Cosmos
 Wingshield Agent
@@ -14093,6 +14133,7 @@ Zada's Commando
 Zagoth Crystal
 Zagoth Mamba
 Zagoth Triome
+Zahid, Djinn of the Lamp
 Zahur, Glory's Past
 Zalto, Fire Giant Duke
 Zameck Guildmage
