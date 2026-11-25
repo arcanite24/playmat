@@ -10301,6 +10301,11 @@ def granted_rules(card):
                     and re.search(r'new SurveilEffect\(1\)\)', card_source(card.get('name'))):
                 g['rule'] += (' <i>(Look at the top card of your library. You may put that card into your'
                               ' graveyard.)</i>')
+            # `new BolsterEffect(1)` writes its reminder (Gleam of Authority's "{W}, {T}: Bolster 1.")
+            if effects == ['BolsterEffect'] and g['rule'].endswith('Bolster 1.') \
+                    and re.search(r'new BolsterEffect\(1\)', card_source(card.get('name'))):
+                g['rule'] += (' <i>(Choose a creature with the least toughness among creatures you control and put'
+                              ' a +1/+1 counter on it.)</i>')
             # `new RegenerateSourceEffect()` writes "Regenerate {this}" (Molting Snakeskin's "Regenerate this creature")
             if effects == ['RegenerateSourceEffect'] and 'new RegenerateSourceEffect()' in card_source(card.get('name')):
                 g['rule'] = re.sub(r': Regenerate this (?:artifact|creature|permanent)\.', ': Regenerate {this}.',

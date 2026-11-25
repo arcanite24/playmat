@@ -2047,6 +2047,72 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
     which creature the Aura goes on. Of the 92 new games, 86 match before the Serah change and 90 after it; the
     two left are those.
 
+  Wave 23a, Pioneer cards A Killer Among Us to Glyph Keeper (25 Nov): the 398 unverified Pioneer cards from A to
+  Gl, short Java classes whose pieces the engine has first. A stub-handler probe found 139 that translate with their
+  own classes stubbed, most of them static kinds or engine pieces. 15 came in (14,315 in the engine). 15 were
+  verified (14,281): Acquisitions Expert, Archmage's Newt, Bound in Gold, Brain in a Jar, Captain Jonathan Archer,
+  Ceremonial Groundbreaker, Cheering Crowd, Dawn-Blessed Pennant, Death to Our Enemies, Ether, Gaea's Revenge,
+  Garruk, Savage Herald, Gate Colossus and Gleam of Authority, 14 of those, and Dennick, Pious Apprentice, which
+  was already in (wave 22a held it; its back face's investigate fired in two matching games here). Both rounds were
+  recorded on multivac. Round 1 was a factory round (40 games, 29 matching at first, all 39 that Java finished
+  after the fixes below). Round 2 used 5 hand-made decks (Simic Gates with Satyr Wayfinder, Izzet spells, Orzhov and
+  Selesnya counters, Gruul Hardened Scales; 40 games, 22 matching at first, all 40 after the fixes). The decks are
+  under `.local/w23a/factory/round-002/decks`. The 11 games under `shadow/wave23a/` cover Gate Colossus's return to
+  the library, Cheering Crowd with Hardened Scales, Ceremonial Groundbreaker's "equip Citizen", Gleam of
+  Authority's bolster, Acquisitions Expert's reveal, Dawn-Blessed Pennant's return, Captain Jonathan Archer's
+  federation, Ether's copy and its exile on paying, Archmage's Newt's flashback, Death to Our Enemies' reflexive
+  damage and Dennick's investigate. The pieces:
+  - A mana ability's `ExileSourceCost` is paid with its other costs, before its mana (Ether's "{T}, Exile Ether:
+    Add {U}"). It was left unpaid: Ether stayed on the battlefield.
+  - `plot()` applies the cost modifications (`Increase`, `Reduce`, `Set`) to a plot ability, as
+    `CostModificationEffect`s see a `PlotAbility` (Doc Aurlock's "plotting cards from your hand costs {2} less").
+  - `Obj::flashback_free`: a flashback given by Archmage's Newt while saddled costs {0}.
+  - `DiscardCardYouChooseTargetEffect { reveal }`: the target opponent reveals that many cards (Acquisitions
+    Expert's party count), chosen by them, and you choose from those.
+  - `ChooseCreatureTypeEffect { only }`: the choice is among those types (Dawn-Blessed Pennant's eight).
+  - Transpiler forms: `PutOnLibrarySourceEffect` in a graveyard trigger (Gate Colossus), `setUndoPossible(false)`
+    ignored (Ether), `DiscardCardYouChooseTargetEffect(n|count)`, an equip ability whose target filter is a
+    subtype ("equip Citizen {1}"), and a granted `BolsterEffect(1)` ability's reminder text (Gleam of Authority).
+  - A `DoWhenCostPaid(reflexive, cost, message, optional)` keeps a reflexive trigger made with its own text, first
+    letter upper case, as `ReflexiveTriggeredAbility.getRule` shows it: "It deals 7 damage divided as you choose
+    among one or two targets." This changes two verified cards, Claim the Kingdom and Doom Reigns Supreme, whose plan
+    reflexive read "put an indestructible counter…" and "target opponent exiles…" lower case. Neither has a game
+    where it fires; Death to Our Enemies has 14 matching games where the same `PlanCounterThresholdTriggeredAbility`
+    form fires with Java's capital letter.
+  - Card handlers: `CantBeTargetedSourceEffect` (framework: seven cards use it, Gaea's Revenge's nongreen spells),
+    Bound in Gold (can't crew, can't activate non-mana abilities), Garruk, Savage Herald, Archmage's Newt, Brain in a
+    Jar, Doc Aurlock's plot reduction, Cheering Crowd (paid by the player whose main phase it is, through the counter
+    replacements), Gleam of Authority's count and `FederationCount`.
+  The full transpile changes no other card and drops none. It adds Hoshi Sato, Saavik and Starfleet Academy (outside
+  this wave's range), left out of `cards.json`.
+
+  In the engine, not verified: Doc Aurlock, Grizzled Genius. Its games match, but no one plotted a card or cast one
+  from a graveyard or exile while it was out, so neither reduction ran.
+
+  Left out, with the piece each needs:
+  - Layer 4: Futurist Operative, Circle of the Moon Druid, Blade of the Oni, Arcane Adaptation. Auras on players:
+    Faithbound Judge, the curses. Phyrexian hybrid: Ayara. Random: Cinderheart Giant (`setRandom`), Amplifier and
+    Getaway Barrel (random bottom order).
+  - Event types the engine doesn't have: Exquisite Archangel (`LOSES`), Angel of Grace
+    (`DAMAGE_CAUSES_LIFE_LOSS`), Enduring Angel (`LOSE_LIFE`), Crackling Emergence (`DESTROY_PERMANENT`).
+  - Demotion and Detention Vortex (`canUseActivatedAbilities` covers mana abilities; the Vortex's
+    `setMayActivate(OPPONENT)`), Glyph Keeper and Amulet of Safekeeping (countering an ability by its pointer),
+    Forgestoker Dragon (no end-of-combat expiry), Calamity (token copies, a saddled predicate), Cursecloth Wrappings
+    (embalm granted to a graveyard card), Galloping Lizrog (`RemoveVariableCountersTargetCost`), Brood Keeper,
+    Burning Earth, Ajani's Last Stand and Captain's Hook (their triggers), Acrobatic Cheerleader (a trigger limited
+    each game), Debris Field Crusher (a station level with keywords, an ability and P/T), Enter the Infinite and Deep
+    Space Scan (no maximum hand size until your next turn), Fruit of the First Tree (the attached toughness's last
+    known value), Flame Discharge (a watcher), Boiling Rock Rioter (casting from its exile while paying), Esoteric
+    Duplicator and Fire Giant's Fury (delayed setups), Forbidding Spirit (a can't-attack-unless-pay effect until your
+    next turn, from a trigger).
+  - No card facts: A-Heartfire Hero, Decorum Dissertation, Germination Practicum, Echocasting Symposium.
+  - Already in with documented Java nondeterminism or blame, left alone: Descent of the Dragons, Emergent Sequence,
+    Eternal of Harsh Truths, Festival of Embers, Dark Leo & Shredder, Don & Leo, Dictate of Karametra, Elemental
+    Expressionist, Dissension in the Ranks.
+  - The rest of the 398: one card class or one engine piece each, not reached in the budget.
+
+  Gaps found in verified cards: Claim the Kingdom's and Doom Reigns Supreme's reflexive text (above, fixed).
+
   Wave 15, shared forms A (15 Nov): framework forms that block several of the claim's cards, then card classes,
   built in four slices. Ending the turn (`EndTurnEffect`, `Turn.endTurn`: `Game::end_turn`; every spell on the stack
   exiled, the resolving one too, abilities removed, combat left, the waiting triggers dropped; priority stops after
