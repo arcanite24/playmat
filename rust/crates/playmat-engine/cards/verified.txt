@@ -14299,7 +14299,6 @@ Zada's Commando
 Zagoth Crystal
 Zagoth Mamba
 Zagoth Triome
-Zagras, Thief of Heartbeats
 Zahid, Djinn of the Lamp
 Zahur, Glory's Past
 Zalto, Fire Giant Duke
@@ -14337,7 +14336,6 @@ Zhur-Taa Goblin
 Zhur-Taa Swine
 Ziatora's Proving Ground
 Ziatora, the Incinerator
-Zilortha, Strength Incarnate
 Zimone and Dina
 Zimone's Experiment
 Zimone, All-Questioning
