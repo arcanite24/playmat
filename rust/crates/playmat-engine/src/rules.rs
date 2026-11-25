@@ -508,7 +508,23 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                     if !game.watch.exerted.contains(&at) {
                         game.watch.exerted.push(at);
                     }
-                    let fired = game.triggers([a], |_, _, _, t| matches!(t, Trigger::Exerted));
+                    // BECOMES_EXERTED: this one's own triggers, and "whenever you exert a creature"
+                    let seat = game.obj(a).controller;
+                    let fired = if game.battlefield.iter().any(|b| {
+                        game.obj(*b)
+                            .def
+                            .abilities
+                            .iter()
+                            .any(|x| matches!(x.trigger(), Some(Trigger::ExertedCreatureYou)))
+                    }) {
+                        let all: Vec<ObjId> = game.battlefield.iter().copied().collect();
+                        game.triggers(all, |_, src, ctrl, t| {
+                            matches!(t, Trigger::Exerted) && src == a
+                                || matches!(t, Trigger::ExertedCreatureYou) && ctrl == seat
+                        })
+                    } else {
+                        game.triggers([a], |_, _, _, t| matches!(t, Trigger::Exerted))
+                    };
                     let n = fired.len();
                     match game.attack_taps.iter().find(|(x, _)| *x == a).map(|(_, at)| *at) {
                         Some(at) => {
@@ -1356,6 +1372,7 @@ pub fn devourer_first_upkeep(game: &mut Game, card: ObjId, seat: Seat) {
             up_to: true,
             optional: false,
             pick_x: false,
+            otherwise: Vec::new(),
         }],
         source_zcc: game.obj(card).zcc,
         fixed: Vec::new(),
@@ -2866,7 +2883,7 @@ fn play_from_library(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId
     // the back's play ability after the front's abilities
     let index = |p: LibraryPlay| -> usize {
         match p {
-            LibraryPlay::Land | LibraryPlay::Cast => usize::from(def.adventure.is_some()),
+            LibraryPlay::Land | LibraryPlay::Cast => usize::from(def.adventure.is_some() || def.prepare.is_some()),
             LibraryPlay::Adventure => 0,
             LibraryPlay::Back => {
                 b + def
@@ -2877,8 +2894,10 @@ fn play_from_library(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId
             }
         }
     };
+    // (a prepare card's creature too, a1: upstream 31c3adcc8cf)
     let picker = plays.len() > 1
         || def.adventure.is_some()
+        || def.prepare.is_some()
         || def.back.is_some()
         || (plays[0] == LibraryPlay::Cast && def.cost.mana_value() == 0);
     let play = if picker {
@@ -3332,28 +3351,66 @@ fn can_pay(game: &Game, seat: Seat, cost: &ManaCost) -> bool {
     can_pay_extra(game, seat, cost, Vec::new())
 }
 
-/// "whenever you tap a creature for mana, add an additional {G}" (Badgermole Cub): the colors tapping `id` for mana
-/// adds besides its own
-/// (each a pool kind: WUBRG 0-4, {C} 5; `made` is what the tapping makes, any of them for the playable check)
-fn tap_for_mana_extra(game: &Game, seat: Seat, id: ObjId, made: &[Mana]) -> Vec<usize> {
+/// "whenever you tap a creature for mana, add an additional {G}" (Badgermole Cub): the mana tapping `id` for mana
+/// adds besides its own, each one source's worth: the kinds it may be (one: a fixed {G}; several: "one mana of any type
+/// that land produced", any kind `made` has)
+/// (`made` is what the tapping makes, any of them for the playable check; `taps`: the ability taps `id`, as the
+/// `TAPPED_FOR_MANA` event needs)
+fn tap_for_mana_extra(game: &Game, seat: Seat, id: ObjId, made: &[Mana], taps: bool) -> Vec<Vec<Mana>> {
     let mut extra = Vec::new();
+    let one = |k: usize| if k == 5 { Mana { colorless: 1, ..Mana::default() } } else { Mana::of(Color::ALL[k], 1) };
     for b in game.battlefield.iter() {
         let s = game.obj(*b);
-        if s.controller != seat {
-            continue;
-        }
         for a in &s.def.abilities {
-            if let AbilityDef::TapForManaAllTriggeredManaAbility { filter, color, colorless_made, .. } = a {
+            if let AbilityDef::TapForManaAllTriggeredManaAbility { filter, color, colorless_made, any_player, .. } = a {
+                if if *any_player { !taps } else { s.controller != seat } {
+                    continue;
+                }
                 if *colorless_made && !made.iter().any(|m| m.colorless > 0) {
                     continue;
                 }
-                if game.filter_matches(filter, seat, Some(*b), id) {
-                    extra.push(if color == "C" { 5 } else { "WUBRG".find(color.as_str()).unwrap_or(4) });
+                if !game.filter_matches(filter, s.controller, Some(*b), id) {
+                    continue;
+                }
+                if color == "produced" {
+                    // `AddManaOfAnyTypeProducedEffect`: one of the types made, in `ChoiceColor`'s order (WUBRG, then C)
+                    let kinds: Vec<Mana> = (0..6)
+                        .filter(|k| made.iter().any(|m| if *k == 5 { m.colorless > 0 } else { m.colored[*k] > 0 }))
+                        .map(one)
+                        .collect();
+                    if !kinds.is_empty() {
+                        extra.push(kinds);
+                    }
+                } else {
+                    extra.push(vec![one(if color == "C" { 5 } else { "WUBRG".find(color.as_str()).unwrap_or(4) })]);
                 }
             }
         }
     }
     extra
+}
+
+/// "whenever enchanted land is tapped for mana, its controller adds …" (`EnchantedTappedTriggeredManaAbility`): the
+/// Auras on `id` with one, in battlefield order, and the mana each adds, one source's worth per mana (any color: all
+/// five)
+fn enchanted_tapped_extra(game: &Game, id: ObjId) -> Vec<(ObjId, Vec<Mana>)> {
+    let mut out = Vec::new();
+    for b in game.battlefield.iter() {
+        if game.attached(*b) != Some(id) {
+            continue;
+        }
+        for a in &game.obj(*b).def.abilities {
+            if let AbilityDef::EnchantedTappedTriggeredManaAbility { color, amount, .. } = a {
+                let kinds: Vec<Mana> = if color == "any" {
+                    Color::ALL.iter().map(|c| Mana::of(*c, 1)).collect()
+                } else {
+                    vec![Mana::of(Color::ALL["WUBRG".find(color.as_str()).unwrap_or(4)], 1)]
+                };
+                out.extend((0..*amount).map(|_| (*b, kinds.clone())));
+            }
+        }
+    }
+    out
 }
 
 /// a player's devotion to a color
@@ -3489,6 +3546,14 @@ fn pay_with_costly(
                     let one =
                         if *k < 5 { Mana::of(Color::ALL[*k], 1) } else { Mana { colorless: 1, ..Mana::default() } };
                     options.extend((0..*made).map(|_| vec![one]));
+                    // two mana of different colors (Guild Globe): the second, of any other color, pays too
+                    let m = costly.iter().find(|(s, ..)| s == c).map(|(_, m, _)| *m).unwrap_or_default();
+                    let two_different = game.obj(*c).def.abilities.iter().any(|a| {
+                        a.mana() == Some(m) && matches!(a, AbilityDef::ManaAbility { make: ManaMake::TwoDifferent, .. })
+                    });
+                    if two_different && *k < 5 {
+                        options.push(Color::ALL.iter().filter(|o| o.index() != *k).map(|o| Mana::of(*o, 1)).collect());
+                    }
                     for c in 0..5 {
                         r.colored[c] += sym.colored[c];
                     }
@@ -3527,13 +3592,9 @@ fn mana_options(
     for (id, a) in sources {
         // the mana its tapping triggers: one more source each
         let made: Vec<Mana> = a.iter().map(|(_, m)| *m).collect();
-        for k in tap_for_mana_extra(game, seat, id, &made) {
-            options.push(vec![if k == 5 {
-                Mana { colorless: 1, ..Mana::default() }
-            } else {
-                Mana::of(Color::ALL[k], 1)
-            }]);
-        }
+        options.extend(tap_for_mana_extra(game, seat, id, &made, true));
+        // "whenever enchanted land is tapped for mana": its Auras' mana, each one more source
+        options.extend(enchanted_tapped_extra(game, id).into_iter().map(|(_, m)| m));
         // Nykthos: its {2} and itself spent, the rest of its devotion more sources of that color
         if let Some((_, m)) = a
             .iter()
@@ -4285,6 +4346,8 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             return;
         }
     }
+    // the picker already asked, with the spell among its choices (a prepare card's isn't asked again below)
+    let mut picked = false;
     if (zone == Zone::Hand || zone == Zone::Exile) && game.obj(id).def.adventure.is_none() {
         let mut options = if zone == Zone::Hand { activatable(game, seat, id) } else { Vec::new() };
         // foretell, a special action: during your turn, with {2} to pay
@@ -4395,21 +4458,25 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             if alternate.is_some() {
                 def = Arc::new(CardDef { cost: ManaCost::default(), ..(*def).clone() });
             }
+            // (a prepare card's creature is a1)
+            let spell = prepare_spell_index(&def);
             if if def.is(CardType::Land) { can_play_land(game, seat) } else { castable(game, seat, id, &def) } {
-                options.insert(0, 0);
+                options.insert(0, spell);
             }
             // (a modal double-faced card's faces always show the picker, one choice or two)
             if options.is_empty() {
                 return;
             }
-            let index = if options.len() == 1 && !mdfc {
+            let index = if options.len() == 1 && !mdfc && def.prepare.is_none() {
                 options[0]
             } else {
+                picked = def.prepare.is_some();
                 match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: options.clone() }) {
                     Answer::Ability(o, i) if o == id && options.contains(&i) => i,
                     _ => return,
                 }
             };
+            let index = if index == spell { 0 } else { index };
             // cast for its spectacle or warp cost (the whole card comes back as it leaves the stack)
             // (spectacle too: `SpectacleCondition`, "if its spectacle cost was paid", reads the same tag)
             // (web-slinging too: `WebSlingingCondition`, "if it was cast using web-slinging")
@@ -4767,10 +4834,11 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                 || ((!once.is_empty() || !plays.is_empty()) && castable(game, seat, id, &game.obj(id).def.clone()))
                 || !ways.is_empty())
         {
-            // `suppressAbilityPicker`: a {0} spell is picked (a0)
-            if game.obj(id).def.cost.mana_value() == 0 {
-                match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: vec![0] }) {
-                    Answer::Ability(o, 0) if o == id => {}
+            // `suppressAbilityPicker`: a {0} spell is picked (a0); a prepare card's creature always is (a1)
+            let k = prepare_spell_index(&game.obj(id).def);
+            if game.obj(id).def.cost.mana_value() == 0 || game.obj(id).def.prepare.is_some() {
+                match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: vec![k] }) {
+                    Answer::Ability(o, i) if o == id && i == k => {}
                     _ => return,
                 }
             }
@@ -4936,16 +5004,29 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
     // {X} spell is picked (a0), as is one cast without paying its mana cost (`allowCardToPlayWithoutMana` puts it in
     // `castSourceIdWithAlternateMana`, so the picker isn't hidden)
     // played from exile without paying its mana cost (Oracle's Vault)
+    // a prepare card (`CardWithSpellOption`) off the battlefield never hides it either: its creature (a1), the
+    // prepare spell not being castable (`PrepareCardSpellAbility.spellCanBeActivatedNow`, upstream 31c3adcc8cf)
     let free = game.obj(id).zone == Zone::Exile && game.obj(id).play_free;
-    if game.obj(id).def.cost.mana_value() == 0 || free {
-        match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: vec![0] }) {
-            Answer::Ability(o, 0) if o == id => {}
+    let k = prepare_spell_index(&game.obj(id).def);
+    if (game.obj(id).def.cost.mana_value() == 0 || free || game.obj(id).def.prepare.is_some()) && !picked {
+        match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: vec![k] }) {
+            Answer::Ability(o, i) if o == id && i == k => {}
             _ => return,
         }
     }
     if !(if free { cast_free(game, d, seat, id) } else { cast(game, d, seat, id) }) {
         // `PlayerImpl.cast` restores the game as it was before the cast
         *game = before;
+    }
+}
+
+/// The index of the spell ability the picker offers for casting a card: a prepare card's creature is `a1`, after its
+/// prepare spell (`PrepareCardSpellAbility`, never castable from the card); any other card's is `a0`
+fn prepare_spell_index(def: &CardDef) -> usize {
+    if def.prepare.is_some() {
+        def.abilities.iter().position(|a| *a == AbilityDef::SpellAbility).unwrap_or(0)
+    } else {
+        0
     }
 }
 
@@ -8889,6 +8970,8 @@ fn hexproof_from(game: &Game, id: ObjId, s: ObjId) -> bool {
             "each_color" => !colors.is_empty(),
             // `HexproofFromPlaneswalkersAbility`: the spell or ability's source is a planeswalker
             "planeswalkers" => game.has_type(s, CardType::Planeswalker),
+            // `HexproofFromInstantsAbility` (Elenda, Saint of Dusk)
+            "instants" => game.has_type(s, CardType::Instant),
             c => kinds.iter().position(|k| *k == c).is_some_and(|i| colors.iter().any(|x| *x as usize == i)),
         },
         _ => false,
@@ -9912,13 +9995,50 @@ fn activate_mana_paying(
     // (a Treasure sacrificed for its mana: what it was as it was sacrificed)
     let treasure = game.has_subtype(id, "Treasure");
     game.player_mut(seat).add_pool_mana(m, snow, treasure);
-    let extra = tap_for_mana_extra(game, seat, id, &[m]);
-    let made = m.total() as i32 + extra.len() as i32;
-    for k in extra {
-        if k == 5 {
-            game.player_mut(seat).mana_pool.colorless += 1;
-        } else {
-            game.player_mut(seat).mana_pool.colored[k] += 1;
+    let extra = tap_for_mana_extra(game, seat, id, &[m], taps);
+    let mut made = m.total() as i32 + extra.len() as i32;
+    for kinds in extra {
+        let pool = &mut game.player_mut(seat).mana_pool;
+        pool.colorless += kinds[0].colorless;
+        for c in 0..5 {
+            pool.colored[c] += kinds[0].colored[c];
+        }
+    }
+    // "whenever enchanted land is tapped for mana, its controller adds …": each Aura's mana at once, a color asked
+    // for each "any color" one (`ChoiceColor`, "Choose color", or "Choose color N" for several)
+    if taps {
+        let auras: Vec<ObjId> = enchanted_tapped_extra(game, id).into_iter().map(|(a, _)| a).collect();
+        let mut seen: Vec<ObjId> = Vec::new();
+        for aura in auras {
+            if seen.contains(&aura) {
+                continue;
+            }
+            seen.push(aura);
+            let def = game.obj(aura).def.clone();
+            for a in &def.abilities {
+                let AbilityDef::EnchantedTappedTriggeredManaAbility { color, amount, aura_controller, .. } = a else {
+                    continue;
+                };
+                let who = if *aura_controller { game.obj(aura).controller } else { game.obj(id).controller };
+                for j in 0..*amount {
+                    let c = if color == "any" {
+                        let message =
+                            if *amount > 1 { format!("Choose color {}", j + 1) } else { "Choose color".to_string() };
+                        // (`HumanPlayer.choose` picks an owed color itself only for `Outcome.PutManaInPool`, the
+                        // player paying: Market Festival's `ManaChoice.chooseAnyColor` asks with `Outcome.Benefit`,
+                        // so always)
+                        let owed = (who == seat && !*aura_controller).then_some(unpaid);
+                        match any_color_owed(game, d, who, owed, &message) {
+                            Some(c) => c,
+                            None => return false,
+                        }
+                    } else {
+                        Color::ALL["WUBRG".find(color.as_str()).unwrap_or(4)]
+                    };
+                    game.player_mut(who).mana_pool.colored[c.index()] += 1;
+                    made += 1;
+                }
+            }
         }
     }
     note(game, EventKind::Mana, Some(seat), Some(id), None, made);
@@ -15441,11 +15561,15 @@ fn apply_each_effect(
                     }
                 }
             }
-            EffectDef::MayCastTargetFromGraveyardThisTurnEffect => {
+            EffectDef::MayCastTargetFromGraveyardThisTurnEffect { then_exile } => {
                 let turn = game.turn;
                 for o in &objs {
                     if game.obj(*o).zone == Zone::Graveyard && !game.obj(*o).is(CardType::Land) {
                         game.obj_mut(*o).may_play = Some((controller, turn));
+                        // `ThatSpellGraveyardExileReplacementEffect`, for the rest of the turn
+                        if *then_exile {
+                            game.exile_if_graveyard.push(*o);
+                        }
                     }
                 }
             }
@@ -16900,6 +17024,7 @@ fn apply_each_effect(
                 up_to,
                 optional,
                 pick_x,
+                otherwise,
             } => {
                 let pick = if *pick_x { &item.x.max(0) } else { pick };
                 let n = match look_count {
@@ -16972,6 +17097,13 @@ fn apply_each_effect(
                 {
                     return;
                 }
+                // "if you didn't put a card into your hand this way, …" (`otherwiseEffect`)
+                if chosen.is_empty() && !otherwise.is_empty() {
+                    apply_each_effect(game, d, item, otherwise, &[], source);
+                    if d.stopped() {
+                        return;
+                    }
+                }
             }
             EffectDef::DrawDiscardControllerEffect { draw: n, discard: k, optional } => {
                 if *optional {
@@ -16984,9 +17116,13 @@ fn apply_each_effect(
                 draw(game, controller, (*n).max(0) as usize);
                 discard(game, d, controller, *k);
             }
-            EffectDef::DiscardControllerEffect { amount } => {
+            EffectDef::DiscardControllerEffect { amount, random } => {
                 let amount = &v!(amount);
-                discard(game, d, controller, *amount);
+                if *random {
+                    discard_at_random(game, controller, *amount);
+                } else {
+                    discard(game, d, controller, *amount);
+                }
             }
             EffectDef::SacrificeEffect { filter, amount }
             | EffectDef::SacrificeOpponentsEffect { filter, amount }
@@ -25796,8 +25932,23 @@ fn castable_parts(def: &Arc<CardDef>) -> Vec<(usize, Arc<CardDef>)> {
         vec![(0, def.clone()), (1, back.clone())]
     } else if let Some(adventure) = &def.adventure {
         vec![(1, def.clone()), (0, adventure.clone())]
+    } else if let Some(prepare) = &def.prepare {
+        // a prepare card's spell is a part the filter may match (`CardWithSpellOption.getSpellCard`), though only
+        // its creature can be cast (`free_cast_choices`)
+        vec![(1, def.clone()), (0, prepare.clone())]
     } else {
         vec![(0, def.clone())]
+    }
+}
+
+/// The `ChooseAbility` indices `chooseAbilityForCast(card, game, true)` offers among a card's castable parts: a
+/// prepare card's creature alone (a1), whichever of its parts the filter matched, because its prepare spell can't be
+/// cast (`PrepareCardSpellAbility.spellCanBeActivatedNow`, upstream 31c3adcc8cf); otherwise each part's
+fn free_cast_choices(full: &CardDef, parts: &[(usize, Arc<CardDef>)]) -> Vec<usize> {
+    if full.prepare.is_some() {
+        vec![1]
+    } else {
+        parts.iter().map(|(k, _)| *k).collect()
     }
 }
 
@@ -25875,10 +26026,10 @@ fn cast_one_for_free_from(
         return true;
     }
     let full = game.obj(card).def.clone();
-    let pick = if parts.len() == 1 {
-        parts[0].0
+    let options = free_cast_choices(&full, &parts);
+    let pick = if options.len() == 1 {
+        options[0]
     } else {
-        let options: Vec<usize> = parts.iter().map(|(k, _)| *k).collect();
         match ask(game, d, seat, &Query::ChooseAbility { source: card, abilities: options.clone() }) {
             Answer::Ability(o, k) if o == card && options.contains(&k) => k,
             Answer::Stop => return false,
@@ -25922,7 +26073,19 @@ fn discover(game: &mut Game, d: &mut dyn Decider, seat: Seat, n: i32) -> bool {
     if let Some(card) = hit {
         // (`getCastableComponents` doesn't look at targets: asked even with none to choose)
         {
-            let message = format!("Cast spell without paying its mana cost ({})?", log::object(game, card));
+            // (a prepare card's spell too when its mana value is `n` or less: `getCastableComponents` matches the
+            // filter on each part, though the creature is what's cast)
+            let mut parts = log::object(game, card);
+            if let Some(p) = game.obj(card).def.prepare.clone().filter(|p| p.mana_value() as i32 <= n) {
+                let r = crate::view::stack_ref(game, card);
+                parts = format!(
+                    "{} or <font color='{}' object_id='{r}f1'>{}</font> [{r}f1]",
+                    parts,
+                    crate::prompt::log_color(&p.colors),
+                    p.name
+                );
+            }
+            let message = format!("Cast spell without paying its mana cost ({})?", parts);
             let yes = loop {
                 match ask(game, d, seat, &Query::YesNo { message: message.clone() }) {
                     Answer::Bool(b) => break b,

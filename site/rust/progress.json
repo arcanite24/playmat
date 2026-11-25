@@ -267,20 +267,20 @@
   "source": "docs/rust/Engine.md"
  },
  "counted": {
-  "engine_cards": 14214,
-  "verified_cards": 14123,
+  "engine_cards": 14267,
+  "verified_cards": 14231,
   "pioneer": {
    "cards": 15259,
-   "in_engine": 14012,
-   "verified": 13922
+   "in_engine": 14065,
+   "verified": 14030
   },
   "java_card_files": 32849,
   "school": {
    "label": "Pioneer and Standard school decks",
    "decks": 42,
-   "covered": 41,
+   "covered": 42,
    "cards": 410,
-   "cards_in": 409,
+   "cards_in": 410,
    "list": [
     {
      "deck": "act1-boros-aggro",
@@ -375,7 +375,7 @@
     {
      "deck": "meta-izzet-prowess",
      "cards": 20,
-     "missing": 1
+     "missing": 0
     },
     {
      "deck": "meta-mono-red-prowess",
@@ -497,9 +497,9 @@
   "meta": {
    "label": "Pioneer and Standard meta decks",
    "decks": 24,
-   "covered": 21,
+   "covered": 24,
    "cards": 278,
-   "cards_in": 276,
+   "cards_in": 278,
    "list": [
     {
      "deck": "pioneer-azorius-spirits",
@@ -524,7 +524,7 @@
     {
      "deck": "pioneer-izzet-prowess",
      "cards": 19,
-     "missing": 1
+     "missing": 0
     },
     {
      "deck": "pioneer-jeskai-ensoul",
@@ -564,7 +564,7 @@
     {
      "deck": "standard-azorius-control",
      "cards": 20,
-     "missing": 1
+     "missing": 0
     },
     {
      "deck": "standard-boros-dragons",
@@ -594,7 +594,7 @@
     {
      "deck": "standard-izzet-prowess",
      "cards": 20,
-     "missing": 1
+     "missing": 0
     },
     {
      "deck": "standard-izzet-spellementals",
@@ -1029,10 +1029,10 @@
    "played": 1360,
    "matched": 1357,
    "java_timeouts": 28,
-   "checked_in": 1508
+   "checked_in": 1526
   },
   "rust": {
-   "lines": 147475,
+   "lines": 147760,
    "crates": [
     {
      "crate": "playmat-ai",
@@ -1040,7 +1040,7 @@
     },
     {
      "crate": "playmat-engine",
-     "lines": 118437
+     "lines": 118722
     },
     {
      "crate": "playmat-gateway",
@@ -1065,6 +1065,6 @@
    ]
   }
  },
- "commit": "523a2868b950ee41e40532b3317cdf6661d36cde",
+ "commit": "d2a0d18553630c85950e0e3208181e701ec6e6b6",
  "generated": "2026-11-24"
 }

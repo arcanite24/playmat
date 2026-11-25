@@ -1,0 +1,352 @@
+/* the zone being edited, as a list of names, stacks of cards or a grid of cards; --card-w is the player's card size */
+
+.empty {
+  padding: var(--space-4) 0;
+  color: var(--ink-dim);
+}
+
+.group {
+  break-inside: avoid;
+  margin: 0 0 var(--space-4);
+  border-radius: 10px;
+  transition: background-color var(--dur-quick) linear, box-shadow var(--dur-quick) linear;
+}
+
+/* a card held over a category it would join */
+.group[data-over] {
+  background: rgb(var(--ink-rgb) / 0.06);
+  box-shadow: inset 0 0 0 2px var(--ink-strong);
+}
+
+.groupHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 26px;
+  margin: 0 0 6px;
+  font-family: var(--font-print);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: var(--tracking-print-wide);
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.groupName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.groupCount {
+  margin-left: auto;
+  color: var(--ink-soft);
+  letter-spacing: var(--tracking-print);
+}
+
+.groupAction {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+
+.groupAction:hover,
+.groupAction:focus-visible {
+  background: rgb(var(--ink-rgb) / 0.1);
+  color: var(--ink-strong);
+}
+
+.groupEmpty {
+  margin: 0;
+  padding: 4px 0;
+  color: var(--ink-faint);
+  font-family: var(--font-print);
+}
+
+.rows,
+.stack,
+.cards {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ---- list: names in groups, which flow into columns once the panel is wide enough ---- */
+
+.list {
+  columns: 260px auto;
+  column-gap: var(--space-5);
+}
+
+.row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  cursor: grab;
+}
+
+.row:hover {
+  background: rgb(var(--ink-rgb) / 0.06);
+}
+
+.rowCount {
+  min-width: 18px;
+  font-family: var(--font-print);
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--ink-strong);
+  text-align: right;
+}
+
+.rowName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--text-sm);
+  color: var(--ink-strong);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowActions {
+  position: absolute;
+  right: 4px;
+  display: none;
+  gap: 2px;
+  padding-left: 14px;
+  background: linear-gradient(90deg, transparent, var(--mat-800) 12px);
+}
+
+.row:hover .rowActions,
+.row:focus-within .rowActions {
+  display: flex;
+}
+
+.rowActions button,
+.rowMenu {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: rgb(var(--ink-rgb) / 0.08);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.rowActions button:hover,
+.rowMenu[data-state='open'] {
+  background: rgb(var(--ink-rgb) / 0.18);
+}
+
+.offColor,
+.styledMark {
+  flex: none;
+}
+
+.offColor {
+  color: var(--oxblood-ink);
+}
+
+.styledMark {
+  color: var(--brass);
+}
+
+/* ---- stacks: each group a column of overlapping cards, each showing its name bar ---- */
+
+.stacks {
+  --strip: calc(var(--card-w) * 0.19);
+  --card-h: calc(var(--card-w) * 88 / 63);
+  column-width: var(--card-w);
+  column-gap: var(--space-5);
+  /* room for the copies tab, which hangs off each card's left edge */
+  padding-left: 14px;
+}
+
+/* by mana value the columns run left to right like the curve, wrapping when the panel is too narrow for all of them */
+.stacks[data-flow='row'] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-2) var(--space-5);
+  columns: auto;
+}
+
+.stacks .group {
+  width: var(--card-w);
+}
+
+.stacks[data-flow='row'] .group {
+  flex: none;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.stack .item + .item {
+  margin-top: calc(var(--strip) - var(--card-h));
+}
+
+.item {
+  position: relative;
+  width: var(--card-w);
+}
+
+.tile {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: var(--card-radius);
+  background: transparent;
+  cursor: pointer;
+  transition: transform var(--dur-quick) var(--ease-lift);
+}
+
+/* the hovered card in a stack slides out a little, so its edge shows where it is */
+.stack .tile:hover {
+  transform: translateX(6px);
+}
+
+.cards .tile:hover {
+  transform: translateY(-4px);
+}
+
+.tile:active {
+  transform: translateY(-1px) scale(0.98);
+}
+
+.tile:focus-visible {
+  z-index: 1;
+  outline: 2px solid var(--ink-strong);
+  outline-offset: 2px;
+}
+
+/* copies, printed on a placed tab at the card's top left (stacks) or under it (grid) */
+.amount {
+  position: absolute;
+  top: calc(var(--strip, 28px) / 2 - 10px);
+  left: -16px;
+  display: grid;
+  place-items: center;
+  min-width: 26px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--mat-600);
+  box-shadow: inset 0 0 0 1px var(--ink-faint), var(--shadow-placed);
+  font-family: var(--font-print);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-strong);
+  pointer-events: none;
+}
+
+.cards .amount {
+  top: auto;
+  bottom: -9px;
+  left: 50%;
+  translate: -50% 0;
+}
+
+.tileWarn {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  padding: 3px;
+  border-radius: 50%;
+  background: var(--mat-800);
+  color: var(--oxblood-ink);
+}
+
+.tileMenu {
+  position: absolute;
+  top: calc(var(--strip, 40px) / 2 - 12px);
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(var(--mat-rgb) / 0.9);
+  box-shadow: inset 0 0 0 1px var(--ink-faint);
+  color: var(--ink);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-quick) linear;
+}
+
+.cards .tileMenu {
+  top: 8px;
+  width: 30px;
+  height: 30px;
+}
+
+.item:hover .tileMenu,
+.tileMenu:focus-visible,
+.tileMenu[data-state='open'] {
+  opacity: 1;
+}
+
+.tileMenu:focus-visible {
+  outline: 2px solid var(--ink-strong);
+  outline-offset: 1px;
+}
+
+:global([data-touch]) .tileMenu {
+  opacity: 1;
+}
+
+/* ---- grid: every card whole, in rows ---- */
+
+/* groups sit side by side as wide as their cards, wrapping to the next row; a big group wraps its own cards */
+.grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  column-gap: var(--space-6);
+}
+
+.grid .group {
+  flex: 0 1 auto;
+  min-width: var(--card-w);
+  max-width: 100%;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, var(--card-w));
+  gap: 18px 12px;
+  padding-bottom: 10px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile,
+  .group {
+    transition: none;
+  }
+}
+
+/* a grid group can be a whole row wide: its count stays by its name */
+.grid .groupCount {
+  margin-left: 0;
+}

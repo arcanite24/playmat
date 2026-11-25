@@ -355,6 +355,9 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans), plus the Career decks' cards outside it, `cards/career-pool.txt` (121 names, wave 18).
+  `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler can express (14,213 on
+  24 Nov). A card whose JSON the engine can't load yet is left out
+
   `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler can express (14,214 on
   25 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
@@ -1555,6 +1558,7 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   - Neyith of the Dire Hunt: the fights-or-becomes-blocked batch trigger and its must-be-blocked effect.
   - Selvala, Heart of the Wilds: its trigger, and `AddManaInAnyCombination` with a dynamic amount.
 
+
   Wave 19b, effect statements M to Z (24 Nov): the 353 cards from M to Z that the transpiler rejected on one
   `effect` statement. 28 came in (14,188 in the engine), most of them with their own handlers; two transpiler forms
   were added: a spell's own "then shuffle" (`ShuffleLibrarySourceEffect` with no arguments, Through the Forest Gate)
@@ -1647,7 +1651,7 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
     verified and playing on Rust: their checked-in games pass only because they were recorded before that commit.
     The ledger has the change as pending engine entries (`PrepareCard`, `PrepareSpellCard`, `CardWithSpellOption`,
     and `VengeanceCard` beside them), which `check` doesn't turn into pending cards. Fixing it is its own wave: the
-    picker in `rules.rs`'s cast path, then the prepare cards' games recorded again.
+    picker in `rules.rs`'s cast path, then the prepare cards' games recorded again. Wave 20a did that (below).
   - Dragon's Prey: its one differing game parts on Cooking Campsite (Sidequest: Catch a Fish's back face): Java
     shows the ability picker for its mana ability and Rust doesn't. Not investigated.
   - Loot, the Pathfinder: out of the engine (`ExhaustManaAbility`).
@@ -1656,6 +1660,143 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   (`TargetCardAndOrCardInLibrary`), Garruk, Savage Herald (`DamageAsThoughNotBlockedAbility`), Domri Rade
   (`CompoundAbility`), Invasion of Pyrulea (its `FilterPermanent`), Bond of Passion (`TargetPermanentOrPlayer`).
   The rest of the 322 weren't reached.
+
+  Wave 19b, effect statements M to Z (24 Nov): the 353 cards from M to Z that the transpiler rejected on one
+  `effect` statement. 28 came in (14,188 in the engine), most of them with their own handlers; two transpiler forms
+  were added: a spell's own "then shuffle" (`ShuffleLibrarySourceEffect` with no arguments, Through the Forest Gate)
+  and "assigns combat damage equal to its toughness" until end of turn (`CombatDamageByToughnessTargetEffect`, a
+  granted static). A full transpile changes or drops no other card. Four factory rounds (142 games, 138 matching)
+  verified 26: 14,159 of 14,188. Rounds 3 and 4 were recorded on multivac. Round 4 was hand-made (ramp decks against walls),
+  because random rounds dealt Through the Forest Gate twice. One game per card or group of cards is under
+  `shadow/wave19b/`. Shanna, Sisay's Legacy only stops abilities: the check that a card in hand can be cast (not yet
+  on the stack) isn't an ability.
+
+  Not verified:
+  - Tainted Adversary: after one Zombie died, two decayed sacrifice triggers at end of combat resolve in another
+    order (Java's ability list order for the pick).
+  - Rambling Possum: Java returns the saddlers in `HashSet` order, so the hand order differs.
+
+  Left out: 83 cards looked at whose engine piece is large (dynamic mana, reflexive triggers with up to X targets,
+  layer effects, draw replacements with a choice, extra or skipped turns and steps, maximum hand size,
+  attachment-granted abilities, dice, `HashSet` and random orders), and 240 not attempted. The wave's PR lists each
+  with the statement the transpiler stops on.
+
+  Wave 19c, Pioneer cards (24 Nov): one of three disjoint lists of the Pioneer cards still out of the engine or
+  unverified (673 here). No shared form blocks more than 7 of them, so this wave took the cheap transpiler forms and
+  small engine pieces. 35 came in (14,195 in the engine). Three factory rounds (121 games, 117 matching) verified 41:
+  14,174 of 14,195. Round 3 was hand-made (exert decks, Cool but Rude, Turtle Van with Turtles to crew it). The 11
+  games under `shadow/wave19c/` cover the look-otherwise effect, Jace's cast-then-exile, the exert trigger, persist,
+  Toil // Trouble's hand count, Syncopate and Turtle Van. No kept game shows hexproof from instants, a renowned target
+  or Cool but Rude's level 3. The pieces:
+  - `LookLibraryAndPickControllerEffect { otherwise }` (`withOtherwiseEffect`): the effects run when no card was
+    picked (Pulsar Squadron Ace, Adventure Awaits).
+  - `DiscardControllerEffect { random }` discards at random (Cool but Rude, Casey Jones, Curse-Marred Demon).
+  - `CounterUnlessPaysEffect` with its exile flag (Syncopate), and `MayCastTargetFromGraveyardThisTurnEffect
+    { then_exile }` (Jace, Vryn's Prodigy).
+  - `Trigger::ExertedCreatureYou` ("whenever you exert a creature"): exerting an attacker now gathers these triggers
+    from the whole battlefield, beside the exerted creature's own (Vizier of the True, Resolute Survivors).
+  - Persist (`persist_ability.rs`, like undying with -1/-1 counters), hexproof from instants, `Pred::Renowned`, and
+    the values `CardsInAllHands`, `TargetPlayerCardsInHand` and `TotalToughness`.
+  - `Pred::CrewedSourceThisTurn` reads the source as it last was on the battlefield (`getSourcePermanentOrLKI`):
+    Turtle Van exiled in response to its attack trigger still puts the counter on the creature that crewed it.
+  - Transpiler only: a token's local filters, `//` comments in a card's conditions, `RummageEffect`,
+    `GainsChoiceOfAbilitiesEffect` with a text, `AlternativeCostSourceAbility` without a condition, the one-argument
+    `DealtDamageAttachedTriggeredAbility`, and `TargetHasSubtypeCondition`/`TargetObjectMatchesFilterCondition`/
+    `RenownedTargetCondition` as `source_targets`.
+
+  Pulsar Squadron Ace, Vizier of the True and Cool but Rude are verified on their matching games (19, 22 and 23
+  exercised), against the factory's "bug" verdict. Each has one differing game that parts on a verified card. For the
+  first two, the playable check doesn't count Guild Globe's `{2}`-cost mana ability (paid from floating mana and a
+  land), so Rust doesn't offer the Pulsar Squadron Ace that Java pays for with it. For Cool but Rude,
+  Java offers Emeritus of Truce's prepared Swords to Plowshares when it's cast from hand, and Rust doesn't.
+
+  Not verified:
+  - Vorinclex, Monstrous Raider: the engine's counter replacement doesn't cover a player's counters (energy).
+  - Summon: Bahamut: the AI never cast it.
+
+  Left out, with the piece each needs: `CastFromHandSourcePermanentCondition` (Java's shadow games read it false),
+  `CreateTokenEffect` with more than one extra token, `setRandom` and dice, `TapForManaAllTriggeredManaAbility` and
+  `EnchantedTappedTriggeredManaAbility` (mana triggers while paying), curses with `TargetController.ENCHANTED`,
+  "your next end step" delayed triggers (Glorious End), `andNotEquipment` (Dancing Sword, Haunted Plate Mail),
+  `DiscardCardCost(true)`, `RemoveUpToAmountCountersEffect` (Rhys), overload on a spell (Counterflux), extra turns
+  (Medomai), craft values, graveyard-zone dies and sacrifice triggers (Furious Forebear, Curious Cadaver),
+  `SimpleManaAbility` with exert or conditional mana, `GiveManaAbilityAndCastSourceAbility`, `FederationCount`,
+  station levels, `PutSourceOnBottomOwnerLibraryCost`, `RemoveCounterCost` and `ExileXFromYourGraveCost`.
+
+  Wave 20a, the prepare picker (24 Nov): upstream's 7 Nov change to prepare cards (31c3adcc8cf, wave 19a's "not
+  verified again"). Java's `HumanPlayer.suppressAbilityPicker` no longer hides the "Choose spell or ability to play"
+  picker for a `CardWithSpellOption` off the battlefield, so a prepare card cast from hand asks it with the creature as
+  the only choice (`a1`: the creature's `SpellAbility` is the card's second ability, after `PrepareCardSpellAbility`).
+  No vengeance card is in the engine (Hela, Mistress of Darkness is the only one in `Mage.Sets`, and she isn't in
+  `cards.json`), so all of it is about the 55 prepare cards. Engine pieces:
+  - The playable check needs nothing new: Java now collects both parts' abilities, but `PrepareCardSpellAbility` never
+    activates, so a prepare card is playable from hand exactly when its creature is, as in Rust.
+  - `rules.rs`'s cast path asks `ChooseAbility` for a prepare card cast from hand, from the graveyard, from exile and
+    from the top of the library, with the creature's index, at the same point Java does (before targets and costs).
+    The AI answers it like any other one-option picker, and the trace records it as Java does.
+  - A free cast (`cast_one_for_free_from`, discover, Planetarium of Wan Shi Tong, Sword of Once and Future) matches its
+    filter on each part of a prepare card, the prepare spell too, as `CardUtil.getCastableComponents` does
+    (`castable_parts`), and casts the creature without asking (`free_cast_choices`):
+    `PrepareCardSpellAbility.spellCanBeActivatedNow` gives no prepare spell to cast. The message lists the parts that
+    matched ("X or Y"). Sword of Once and Future's "exile it instead" is only for an instant or sorcery it cast; a
+    creature cast through its prepare spell's match isn't exiled on resolution.
+
+  Four factory rounds (280 games, 271 matching, 6 differing, 3 Java unfinished): 1, the factory over the 55 cards; 2,
+  hand-made, seven decks that cast them from hand and with discover; 3 and 4, the deck pairs of the 60 checked-in
+  games recorded before 7 Nov that cast one from hand, recorded again from the current Java under the same file names
+  (each picked, among its pair's matching seeds, for casting a prepare card from hand and then for the stack texts it
+  shares with the old game: 58 of the 60 do, 208 picker answers from hand in all; `factory/game-attacked-players-this-turn`
+  and `turn/coin-flip-gold-saucer` had no matching seed that does).
+  `factory/game-enters-tapped-doesnt-untap` came from round 4: round 3's three seeds of its pair all parted on Bilbo
+  (below). All 55 are verified, the four wave 19a left out (Joined Researchers, Emeritus of Woe, Grave Researcher,
+  Scheming Silvertongue) too: 14,139 of the 14,167 in the engine, and `upstream-pending.txt` is empty. Three games
+  under `shadow/wave20a/`: the picker from hand, discover hitting a prepare spell's mana value, Sword of Once and
+  Future casting the creature through its prepare spell. The picker from the graveyard, exile and library is written
+  but no game has it yet.
+
+  The six differing games all part on cards verified before, not on a prepare card; `verdicts` blamed Emeritus of
+  Conflict, Grave Researcher and Woodwork Prodigy (the first unverified card in each), and those three were added by
+  hand. Left as they are, since the wave changes no other verified card:
+  - Bilbo, Thief in the Night casting Glimpse of Freedom from the graveyard (three games): Java asks "Choose ability
+    to cast" (the cast or escape), Rust doesn't.
+  - Lumen-Class Frigate's station with the tapped Selfless Savior sacrificed in response: Java puts 2 charge counters
+    (its last-known power), Rust 1.
+  - Serah Farron: Java takes {3} off Yuna, Hope of Spira and Rust {2}, as if the front face's reduction and
+    Crystallized Serah's copy of it both applied.
+  - Mnemonic Betrayal's delayed return puts the exiled cards into the graveyard in another order.
+
+  Wave 20c, Pioneer cards (24 Nov): the cards wave 19c left out, deck-used ones first, then `card-priority.tsv`.
+  18 came in (14,213 in the engine). Three factory rounds (74 games: 41 matching, 5 differing, 1 unfinished by Java,
+  27 skipped because they were recorded with a card later left out) verified 12: 14,186 of 14,213. Rounds 2 and 3
+  were hand-made (Aura ramp decks with Market Festival, Verdant Haven and Wolfwillow Haven; Ghostly Pilferer in blue
+  decks; Roxanne and Zhur-Taa Ancient with Lavaleaper). The 4 games under `shadow/wave20c/` cover the enchanted-land
+  mana Auras, Ghostly Pilferer, Roxanne's Meteorites with Zhur-Taa Ancient's mana, and the Guild Globe fix. The
+  pieces:
+  - `EnchantedTappedTriggeredManaAbility` ("whenever enchanted land is tapped for mana, its controller adds ..."),
+    with the effects `AddManaAnyColorAttachedControllerEffect`, `AddManaToManaPoolTargetControllerEffect` and
+    Market Festival's two mana of any colors, which go to the Aura's controller (`aura_controller`). The playable check
+    and paying both count it. Market Festival's colors are always asked; the others pick an owed color for the
+    paying player, as Java's `PutManaInPool` choice does.
+  - `TapForManaAllTriggeredManaAbility { any_player }` with `AddManaOfAnyTypeProducedEffect` ("whenever a player taps
+    a land for mana, that player adds one mana of any type it produced": Zhur-Taa Ancient, Dictate of Karametra).
+    `tap_for_mana_extra` now returns each source's possible kinds.
+  - Ghostly Pilferer's "whenever an opponent casts a spell from anywhere other than their hand" (its own handler).
+  - The transpiler finds a card's class from the sets' `SetCardInfo` lines when the class name isn't the card's
+    name, and `card_handlers` accepts only the `PutCards` constants the engine has.
+  - Fix: the playable check counts a two-different-colors mana ability's second mana when it pays a cost (Guild
+    Globe: its `{2}` ability paid from floating mana and a land). Game: `game-w20c-guild-globe-two-colors-playable`.
+
+  Not fixed: Java (since upstream 31c3adcc8cf) always shows the ability picker for a prepare card cast from outside
+  the battlefield, so Emeritus of Truce's prepared Swords to Plowshares is offered from hand. Making Rust ask too
+  breaks 60 checked-in games recorded before that change; it waits for the prepare cards' re-verification (#510).
+
+  Not verified, each with a differing game blamed on it: Don & Leo, Problem Solvers (2 games), Dark Leo & Shredder
+  (doesn't attack in Rust), Dictate of Karametra (a copy goes to the graveyard in Rust) and Lavaleaper. Pending (too
+  few games ran them): Anchovy & Banana Pizza and Raph & Leo, Sibling Rivals. Left out: Raph & Mikey
+  (`PutCards.BATTLEFIELD_TAPPED_ATTACKING`), the seven `CastFromHandSourcePermanentCondition` cards, graveyard dies
+  and sacrifice triggers, dice and `setRandom`, and the deck-used cards that need a spell-countered trigger,
+  `MANA_PAID` or mana abilities in the graveyard (Baral, Pyromancer's Goggles and others).
+
 
   Wave 15, shared forms A (15 Nov): framework forms that block several of the claim's cards, then card classes,
   built in four slices. Ending the turn (`EndTurnEffect`, `Turn.endTurn`: `Game::end_turn`; every spell on the stack
