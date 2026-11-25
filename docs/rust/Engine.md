@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans), plus the Career decks' cards outside it, `cards/career-pool.txt` (121 names, wave 18).
-  `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler can express (14,160 on
+  `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler can express (14,195 on
   24 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
@@ -1554,6 +1554,45 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   - Hunter's Insight: a delayed combat-damage trigger that refers to the target.
   - Neyith of the Dire Hunt: the fights-or-becomes-blocked batch trigger and its must-be-blocked effect.
   - Selvala, Heart of the Wilds: its trigger, and `AddManaInAnyCombination` with a dynamic amount.
+
+  Wave 19c, Pioneer cards (24 Nov): one of three disjoint lists of the Pioneer cards still out of the engine or
+  unverified (673 here). No shared form blocks more than 7 of them, so this wave took the cheap transpiler forms and
+  small engine pieces. 35 came in (14,195 in the engine). Three factory rounds (121 games, 117 matching) verified 41:
+  14,174 of 14,195. Round 3 was hand-made (exert decks, Cool but Rude, Turtle Van with Turtles to crew it) and was
+  recorded on multivac. The engine pieces each have a game under `shadow/wave19c/`:
+  - `LookLibraryAndPickControllerEffect { otherwise }` (`withOtherwiseEffect`): the effects run when no card was
+    picked (Pulsar Squadron Ace, Adventure Awaits).
+  - `DiscardControllerEffect { random }` discards at random (Cool but Rude, Casey Jones, Curse-Marred Demon).
+  - `CounterUnlessPaysEffect` with its exile flag (Syncopate), and `MayCastTargetFromGraveyardThisTurnEffect
+    { then_exile }` (Jace, Vryn's Prodigy).
+  - `Trigger::ExertedCreatureYou` ("whenever you exert a creature"): exerting an attacker now gathers these triggers
+    from the whole battlefield, beside the exerted creature's own (Vizier of the True, Resolute Survivors).
+  - Persist (`persist_ability.rs`, like undying with -1/-1 counters), hexproof from instants, `Pred::Renowned`, and
+    the values `CardsInAllHands`, `TargetPlayerCardsInHand` and `TotalToughness`.
+  - `Pred::CrewedSourceThisTurn` reads the source as it last was on the battlefield (`getSourcePermanentOrLKI`):
+    Turtle Van exiled in response to its attack trigger still puts the counter on the creature that crewed it.
+  - Transpiler only: a token's local filters, `//` comments in a card's conditions, `RummageEffect`,
+    `GainsChoiceOfAbilitiesEffect` with a text, `AlternativeCostSourceAbility` without a condition, the one-argument
+    `DealtDamageAttachedTriggeredAbility`, and `TargetHasSubtypeCondition`/`TargetObjectMatchesFilterCondition`/
+    `RenownedTargetCondition` as `source_targets`.
+
+  Pulsar Squadron Ace, Vizier of the True and Cool but Rude are verified on their matching games (19, 22 and 23
+  exercised). Each has one differing game that parts on a verified card. For the first two, the playable check doesn't
+  count Guild Globe's `{2}`-cost mana ability, so Rust doesn't offer a spell that Java pays for with it. For Cool but Rude,
+  Java offers Emeritus of Truce's prepared Swords to Plowshares when it's cast from hand, and Rust doesn't.
+
+  Not verified:
+  - Vorinclex, Monstrous Raider: the engine's counter replacement doesn't cover a player's counters (energy).
+  - Summon: Bahamut: the AI never cast it.
+
+  Left out, with the piece each needs: `CastFromHandSourcePermanentCondition` (Java's shadow games read it false),
+  `CreateTokenEffect` with more than one extra token, `setRandom` and dice, `TapForManaAllTriggeredManaAbility` and
+  `EnchantedTappedTriggeredManaAbility` (mana triggers while paying), curses with `TargetController.ENCHANTED`,
+  "your next end step" delayed triggers (Glorious End), `andNotEquipment` (Dancing Sword, Haunted Plate Mail),
+  `DiscardCardCost(true)`, `RemoveUpToAmountCountersEffect` (Rhys), overload on a spell (Counterflux), extra turns
+  (Medomai), craft values, graveyard-zone dies and sacrifice triggers (Furious Forebear, Curious Cadaver),
+  `SimpleManaAbility` with exert or conditional mana, `GiveManaAbilityAndCastSourceAbility`, `FederationCount`,
+  station levels, `PutSourceOnBottomOwnerLibraryCost`, `RemoveCounterCost` and `ExileXFromYourGraveCost`.
 
   Wave 15, shared forms A (15 Nov): framework forms that block several of the claim's cards, then card classes,
   built in four slices. Ending the turn (`EndTurnEffect`, `Turn.endTurn`: `Game::end_turn`; every spell on the stack

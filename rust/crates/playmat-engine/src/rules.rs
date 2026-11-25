@@ -505,7 +505,11 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                     // BECOMES_EXERTED: this one's own triggers, and "whenever you exert a creature"
                     let seat = game.obj(a).controller;
                     let fired = if game.battlefield.iter().any(|b| {
-                        game.obj(*b).def.abilities.iter().any(|x| matches!(x.trigger(), Some(Trigger::ExertedCreatureYou)))
+                        game.obj(*b)
+                            .def
+                            .abilities
+                            .iter()
+                            .any(|x| matches!(x.trigger(), Some(Trigger::ExertedCreatureYou)))
                     }) {
                         let all: Vec<ObjId> = game.battlefield.iter().copied().collect();
                         game.triggers(all, |_, src, ctrl, t| {

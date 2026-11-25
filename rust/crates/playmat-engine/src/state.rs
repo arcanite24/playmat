@@ -2178,8 +2178,15 @@ impl Game {
                         .any(|(c, zcc, from)| *c == id && *zcc == o.zcc && (*from || !battlefield))
             }
             Pred::CrewedSourceThisTurn => source.is_some_and(|src| {
+                // the source as it last was on the battlefield (`getSourcePermanentOrLKI`): a Vehicle exiled with its
+                // attack trigger on the stack still knows who crewed it (Turtle Van)
                 let s = self.obj(src);
-                self.watch.crewed.iter().any(|(v, vz, c, cz)| *v == src && *vz == s.zcc && *c == id && *cz == o.zcc)
+                let vzcc = if s.zone == Zone::Battlefield {
+                    s.zcc
+                } else {
+                    self.watch.left_battlefield.iter().rev().find(|l| l.id == src).map_or(s.zcc, |l| l.zcc)
+                };
+                self.watch.crewed.iter().any(|(v, vz, c, cz)| *v == src && *vz == vzcc && *c == id && *cz == o.zcc)
             }),
             Pred::AttachedTo { filter } => {
                 self.attached(id).is_some_and(|to| self.filter_matches(filter, you, source, to))
