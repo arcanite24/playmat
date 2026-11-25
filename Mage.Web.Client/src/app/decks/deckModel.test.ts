@@ -146,7 +146,9 @@ describe('view groups', () => {
     expect(shape('mana')).toEqual([['0-1', 3], ['2', 3], ['6+', 1], ['lands', 16]]);
     const columns = groupRows(entries, info, { groupBy: 'mana', sortBy: 'mana' });
     expect(columns[0].rows.map((row) => row.entry.cardName)).toEqual(['Ornithopter', 'Bolt']);
-    expect(groupRows([{ cardName: 'X', amount: 1 }], new Map(), { groupBy: 'mana', sortBy: 'mana' }).at(-1)?.key).toBe('unknown');
+    expect(groupRows([{ cardName: 'X', amount: 1 }], new Map(), { groupBy: 'mana', sortBy: 'mana' }).at(-1)?.key).toBe('unknown');    // empty costs only between the cheapest and dearest the deck plays
+    const cheap = entries.filter((entry) => entry.cardName !== 'Dragon');
+    expect(groupRows(cheap, info, { groupBy: 'mana', sortBy: 'mana', keepEmpty: true }).map((group) => group.key)).toEqual(['0-1', '2', 'lands']);
   });
 
   it('groups by type, color and rarity', () => {

@@ -87,6 +87,7 @@ export function DeckPanel(props: DeckPanelProps) {
   const storedGroupBy = useBuilderPrefs((state) => state.groupBy);
   const groupBy: GroupBy = !keepsExtras && storedGroupBy === 'category' ? 'type' : storedGroupBy;
   const zones = keepsExtras ? ZONES : ZONES.filter((each) => each !== 'maybeboard');
+  const tabsId = useId();
   const sortBy = useBuilderPrefs((state) => state.sortBy);
   const cardSize = useBuilderPrefs((state) => state.cardSize);
   const commandZone = rules.commandZone;
@@ -240,10 +241,26 @@ export function DeckPanel(props: DeckPanelProps) {
       )}
 
       <div className={panel.toolbar}>
-        <div className={panel.zoneTabs} role="tablist" aria-label="Deck zone">
+        <div
+          className={panel.zoneTabs}
+          role="tablist"
+          aria-label="Deck zone"
+          onKeyDown={(event) => {
+            const at = zones.indexOf(zone);
+            const next = event.key === 'ArrowRight' ? zones[(at + 1) % zones.length]
+              : event.key === 'ArrowLeft' ? zones[(at - 1 + zones.length) % zones.length]
+                : event.key === 'Home' ? zones[0] : event.key === 'End' ? zones[zones.length - 1] : null;
+            if (!next) return;
+            event.preventDefault();
+            onZone(next);
+            document.getElementById(`${tabsId}-${next}`)?.focus();
+          }}
+        >
           {zones.map((each) => (
             <ZoneTab
               key={each}
+              id={`${tabsId}-${each}`}
+              controls={`${tabsId}-panel`}
               selected={zone === each}
               label={each === 'maybeboard' ? 'Maybe' : zoneLabel(each, !!commandZone)}
               title={each === 'maybeboard' ? 'Maybeboard: cards you are thinking about. Never played.' : undefined}
@@ -267,7 +284,7 @@ export function DeckPanel(props: DeckPanelProps) {
         />
       </div>
 
-      <DeckDropArea zone={zone} onDrop={(card) => card.zone === 'binder' && onDropBinderCard(card, zone)}>
+      <DeckDropArea id={`${tabsId}-panel`} labelledBy={`${tabsId}-${zone}`} onDrop={(card) => card.zone === 'binder' && onDropBinderCard(card, zone)}>
         <div className={panel.rail}>
           {commandZone && (
             <div className={panel.command}>
@@ -398,7 +415,10 @@ function landSummary(deck: DeckCardLists, info: ReadonlyMap<string, CardView>): 
 }
 
 /** A zone tab; a deck card dropped on it moves there, a binder card is added there. */
-function ZoneTab({ selected, label, title, count, onSelect, onDrop }: {
+function ZoneTab({ id, controls, selected, label, title, count, onSelect, onDrop }: {
+  id: string;
+  /** the tab panel it shows */
+  controls: string;
   selected: boolean;
   label: string;
   title?: string;
@@ -411,7 +431,10 @@ function ZoneTab({ selected, label, title, count, onSelect, onDrop }: {
     <button
       type="button"
       role="tab"
+      id={id}
+      aria-controls={controls}
       aria-selected={selected}
+      tabIndex={selected ? 0 : -1}
       title={title}
       className={selected ? panel.tabOn : panel.tab}
       data-over={over || undefined}
@@ -436,14 +459,15 @@ function ZoneTab({ selected, label, title, count, onSelect, onDrop }: {
 }
 
 /** The scrolling deck view, which takes binder cards dropped anywhere on it. */
-function DeckDropArea({ zone, onDrop, children }: { zone: DeckZone; onDrop(card: DraggedCard): void; children: ReactNode }) {
+function DeckDropArea({ id, labelledBy, onDrop, children }: { id: string; labelledBy: string; onDrop(card: DraggedCard): void; children: ReactNode }) {
   const [over, setOver] = useState(false);
   const accepts = (event: DragEvent) => carriesCard(event) && event.dataTransfer.effectAllowed !== 'move';
   return (
     <div
       className={panel.scroll}
+      id={id}
       role="tabpanel"
-      aria-label={`${zoneLabel(zone, false)} cards`}
+      aria-labelledby={labelledBy}
       data-over={over || undefined}
       onDragOver={(event) => {
         if (!accepts(event)) return;

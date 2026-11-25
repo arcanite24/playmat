@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type CSSProperties } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { CardView } from '../../protocol/generated/views';
@@ -58,6 +58,27 @@ export interface BuilderMode {
   onPlay(): void;
   /** shown above the deck list, given the deck as it is on screen (the League's missing cards and Craft missing) */
   Banner?: ComponentType<{ deck: DeckCardLists }>;
+}
+
+/**
+ * The binder sheet covers most of the deck under it: Tab and Shift+Tab stay inside the sheet while it's open (Done and
+ * Escape leave). The deck isn't made inert, so binder cards can still be dropped on what shows of it.
+ */
+function keepTabInside(event: ReactKeyboardEvent<HTMLDivElement>) {
+  if (event.key !== 'Tab') return;
+  const focusable = [...event.currentTarget.querySelectorAll<HTMLElement>(
+    'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+  )].filter((element) => element.getClientRects().length > 0);
+  if (focusable.length === 0) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
 }
 
 /** Opens the deck named in the URL: starter decks are copied into the library first, "new" makes an empty deck. */
@@ -299,6 +320,7 @@ export function DeckBuilder({ initial, mode }: { initial: DeckCardLists; mode?: 
         inert={!binderShown}
         role={layout === 'deck' ? 'region' : undefined}
         aria-label={layout === 'deck' ? 'Card binder' : undefined}
+        onKeyDown={layout === 'deck' && binderOpen ? keepTabInside : undefined}
       >
         {layout === 'deck' && (
           <div className={styles.drawerHead}>

@@ -124,8 +124,15 @@ export function groupRows(entries: DeckCardInfo[], info: ReadonlyMap<string, Car
     }
     case 'mana': {
       const map = bucket((row) => manaKey(row.card));
+      // stacks keep the empty costs between the cheapest and dearest the deck plays, so the columns line up as a curve
+      const costs = MANA_ORDER.slice(0, 6);
+      const used = costs.map((key, index) => (map.has(key) ? index : -1)).filter((index) => index >= 0);
+      const inRange = (key: (typeof MANA_ORDER)[number]) => {
+        const index = (costs as readonly string[]).indexOf(key);
+        return index >= 0 && used.length > 0 && index >= used[0] && index <= used[used.length - 1];
+      };
       return MANA_ORDER
-        .filter((key) => map.has(key) || (keepEmpty && key !== 'unknown' && key !== 'lands'))
+        .filter((key) => map.has(key) || (keepEmpty && inRange(key)))
         .map((key) => finish(key, key === 'lands' ? GROUP_LABELS.lands : key === 'unknown' ? GROUP_LABELS.unknown : key === '0-1' ? '0–1' : key, map.get(key) ?? [], sortBy, true));
     }
     case 'color': {

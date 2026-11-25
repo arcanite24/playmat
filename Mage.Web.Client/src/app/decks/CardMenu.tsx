@@ -1,4 +1,5 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { useRef } from 'react';
 import { Check, ChevronRight, Crown, FolderPlus, FolderX, Images, MoreHorizontal, MoveRight, Trash2, ZoomIn } from 'lucide-react';
 import type { DeckRow, DeckZone } from './deckModel';
 import { zoneLabel } from './zones';
@@ -35,6 +36,12 @@ export function CardMenu({ row, zone, zones, commandZone, canCommand, categories
 }) {
   const name = row.entry.cardName;
   const amount = row.entry.amount;
+  // focus goes back to the menu's button when it closes, unless a dialog it opened takes it
+  const handedOff = useRef(false);
+  const handOff = (run: () => void) => () => {
+    handedOff.current = true;
+    run();
+  };
   const targets = zones.filter((to) => to !== zone && !(commandZone && to === 'sideboard' && !canCommand));
   return (
     <DropdownMenu.Root modal={false}>
@@ -44,7 +51,10 @@ export function CardMenu({ row, zone, zones, commandZone, canCommand, categories
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content className={styles.menu} side="bottom" align="end" sideOffset={4} collisionPadding={12} onCloseAutoFocus={(event) => event.preventDefault()}>
+        <DropdownMenu.Content className={styles.menu} side="bottom" align="end" sideOffset={4} collisionPadding={12} onCloseAutoFocus={(event) => {
+          if (handedOff.current) event.preventDefault();
+          handedOff.current = false;
+        }}>
           <DropdownMenu.Label className={styles.menuLabel}>{amount} × {name}</DropdownMenu.Label>
           {targets.map((to) => (
             <DropdownMenu.Item key={to} className={styles.menuItem} onSelect={() => actions.onMove(row, zone, to, commandZone && to === 'sideboard' ? amount : 1)}>
@@ -73,7 +83,7 @@ export function CardMenu({ row, zone, zones, commandZone, canCommand, categories
                     </DropdownMenu.Item>
                   ))}
                   {categories.length > 0 && <DropdownMenu.Separator className={styles.menuSeparator} />}
-                  <DropdownMenu.Item className={styles.menuItem} onSelect={() => actions.onNewCategory(row)}>
+                  <DropdownMenu.Item className={styles.menuItem} onSelect={handOff(() => actions.onNewCategory(row))}>
                     <FolderPlus size={16} aria-hidden="true" /> New category…
                   </DropdownMenu.Item>
                   {category && (
@@ -85,11 +95,11 @@ export function CardMenu({ row, zone, zones, commandZone, canCommand, categories
               </DropdownMenu.Portal>
             </DropdownMenu.Sub>
           )}
-          <DropdownMenu.Item className={styles.menuItem} onSelect={() => actions.onPrinting(row, zone)}>
+          <DropdownMenu.Item className={styles.menuItem} onSelect={handOff(() => actions.onPrinting(row, zone))}>
             <Images size={16} aria-hidden="true" /> Choose printing…
           </DropdownMenu.Item>
           {row.card && (
-            <DropdownMenu.Item className={styles.menuItem} onSelect={() => actions.onInspect(row)}>
+            <DropdownMenu.Item className={styles.menuItem} onSelect={handOff(() => actions.onInspect(row))}>
               <ZoomIn size={16} aria-hidden="true" /> Look at it up close
             </DropdownMenu.Item>
           )}

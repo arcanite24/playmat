@@ -738,7 +738,8 @@
 
 .basics {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  /* five across when there's room; on the narrow rail they wrap three and two rather than clip */
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
   gap: 4px;
 }
 
