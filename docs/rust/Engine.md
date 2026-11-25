@@ -2053,19 +2053,19 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
     which creature the Aura goes on. Of the 92 new games, 86 match before the Serah change and 90 after it; the
     two left are those.
 
-  Wave 26b, Pioneer cards from Goddric, Cloaked Reveler to Ral Zarek, Guest Lecturer, third pass (25 Nov): the 363
-  still unverified after wave 25b (waves 26a and 26c take the rest), starting from the 210 whose first blocker is
-  their own Java class. 17 came in (14,449 in the engine with waves 26a and 26c) and 13 were verified (14,403): Grasp of the
+  Wave 26b, Pioneer cards from Goddric, Cloaked Reveler to Ral Zarek, Guest Lecturer, third pass (25 Nov): the 363 still
+  unverified after wave 25b (waves 26a and 26c take the rest), starting from the 210 whose first blocker is their own
+  Java class. 18 came in (14,450 in the engine with waves 26a and 26c) and 14 were verified (14,404): Grasp of the
   Hieromancer, Green Dragon, Groundchuck & Dirtbag, Guul Draz Overseer, Hama Pashar, Ruin Seeker, Hoshi Sato,
-  Exolinguist, Hundred-Battle Veteran, Jace, Cunning Castaway, Lolth, Spider Queen, Lyra, Tolarian Archangel, Ms.
-  Marvel, Kamala Khan, Nahiri, Storm of Stone and Paranormal Analyst. Seven rounds on multivac: round 1 factory (52
-  games), rounds 2 to 7 hand-made (60, 40, 36, 60, 30 and 30 games; decks under `.local/w26b/factory/round-00N/decks`):
-  302 match, 6 differ. Five are the transforming double-faced card's trigger order (the recorder gap under wave 22
-  above): Liliana, Heretical Healer's flip trigger with Workshop Assistant's dies trigger (round 1 game 267), Ashen
-  Reaper's (Invasion of Azgol's back) with Parker Luck's end step triggers (round 1 games 182 and 580), and Journey to
-  Eternity's return with Liliana's and with Lolth's dies triggers (round 2 games 20 and 25). The sixth is Paladin
-  Class (below). Rounds 1 to 6 replayed again after merging wave 26a give the same results. The 15 games under
-  `shadow/wave26b/` cover each verified card and each piece. The pieces:
+  Exolinguist, Hundred-Battle Veteran, Jace, Cunning Castaway, Justice, Vance Astrovik, Lolth, Spider Queen, Lyra,
+  Tolarian Archangel, Ms. Marvel, Kamala Khan, Nahiri, Storm of Stone and Paranormal Analyst. Eight rounds on multivac:
+  round 1 factory (52 games), rounds 2 to 8 hand-made (60, 40, 36, 60, 30, 30 and 30 games; decks under
+  `.local/w26b/factory/round-00N/decks`): 332 match, 6 differ. Five are the transforming double-faced card's trigger
+  order (the recorder gap under wave 22 above): Liliana, Heretical Healer's flip trigger with Workshop Assistant's dies
+  trigger (round 1 game 267), Ashen Reaper's (Invasion of Azgol's back) with Parker Luck's end step triggers (round 1
+  games 182 and 580), and Journey to Eternity's return with Liliana's and with Lolth's dies triggers (round 2 games 20
+  and 25). The sixth is Paladin Class (below). Rounds 1 to 6 replayed again after merging wave 26a give the same
+  results. The 16 games under `shadow/wave26b/` cover each verified card and each piece. The pieces:
   - `Layer::SetPower`: a static handler that sets the base power alone (`getPower().setModifiedBaseValue`, Ms.
     Marvel's "base power equal to the number of cards in your hand"), the twin of `SetToughness`. `set_pt` now gives
     an optional power and an optional toughness; one setting a single value keeps the other the others set.

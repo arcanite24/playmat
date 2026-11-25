@@ -267,12 +267,12 @@
   "source": "docs/rust/Engine.md"
  },
  "counted": {
-  "engine_cards": 14449,
-  "verified_cards": 14403,
+  "engine_cards": 14450,
+  "verified_cards": 14404,
   "pioneer": {
    "cards": 15259,
-   "in_engine": 14247,
-   "verified": 14202
+   "in_engine": 14248,
+   "verified": 14203
   },
   "java_card_files": 32850,
   "school": {
@@ -1029,7 +1029,7 @@
    "played": 1360,
    "matched": 1357,
    "java_timeouts": 28,
-   "checked_in": 1673
+   "checked_in": 1674
   },
   "rust": {
    "lines": 152319,
@@ -1065,6 +1065,6 @@
    ]
   }
  },
- "commit": "0bcb5dd2ac20eae9b659691bfa69ef635fa96208",
+ "commit": "f908d1da478b21de1c915a380ba2123ed6a00faa",
  "generated": "2026-11-25"
 }
