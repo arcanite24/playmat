@@ -158,10 +158,13 @@ import { gzipSync } from 'node:zlib';
 // app raised 2026-11-22 from 906 kB for AI deck pool controls (#383), How to play & formats guide (#468), and era /
 // multi-set card filters (#236): lazy GuideScreen, AiDeckPicker and DeckBuilder era panel plus en/es strings.
 // Measured entry 82.0 kB, initial 217.9 kB (both under budget), app 915.6 kB
+// app raised 2026-11-25 from 920 kB for the deck editor redesign (#513): stacks and grid views, card menu, maybeboard,
+// categories and undo, all in the lazy DeckBuilder chunk plus en/es strings. Measured entry 82.5 kB, initial 219.3 kB
+// (both under budget), app 928.2 kB
 const BUDGET_KB = {
   entry: 86,
   initial: 221,
-  app: 920,
+  app: 932,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;

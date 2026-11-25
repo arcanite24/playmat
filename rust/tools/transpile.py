@@ -3380,7 +3380,8 @@ class Translator:
         # (itBecomes): only text
         if cls == 'BecomePreparedSourceEffect' and len(args) == 1 and args[0].strip() in ('true', 'false'):
             return {'class': cls}
-        if cls == 'EmpowerJaceEffect' and len(args) == 1 and re.fullmatch(r'\d+', args[0].strip()):
+        # (amount): an int or a `DynamicValue` ("where X is the number of creatures you control": Repurposed Enforcer)
+        if cls == 'EmpowerJaceEffect' and len(args) == 1:
             return {'class': cls, 'amount': self.amount(args[0].strip()), 'token': token('JacePlaneswalkerToken')}
         # a Role token attached to the source (a handler: only while it's on the battlefield)
         if cls == 'CreateRoleAttachedSourceEffect' and len(args) == 1 and (m := re.fullmatch(r'RoleType\.(\w+)', args[0].strip())):
@@ -3492,6 +3493,9 @@ class Translator:
                 m := re.fullmatch(r'new BeholdCost\(SubType\.(\w+)\)', args[0].strip())):
             return {'class': 'TapSourceUnlessBeholdEffect', 'subtype': subtype_names()[m.group(1)]}
         if cls == 'TransformSourceEffect' and not args:
+            return {'class': cls}
+        # "then shuffle" as a spell's own effect (Through the Forest Gate)
+        if cls == 'ShuffleLibrarySourceEffect' and not args:
             return {'class': cls}
         if cls == 'CreateTwiceThatManyTokensEffect' and not args:
             return {'class': cls}
@@ -3964,6 +3968,15 @@ class Translator:
                     'effects': [{'class': 'AddCountersSourceEffect', 'counter': {'name': 'valor', 'amount': 1},
                                  'amount': {'v': 'x'}}],
                     'reflexive': 'Put that many valor counters on {this}.'}
+        # Tainted Adversary: pay any number of times; when you do, that many +1/+1 counters and twice that many Zombies
+        if cls == 'DoIfAnyNumberCostPaid' and len(args) == 2 and args[0].strip() == 'new TaintedAdversaryEffect()':
+            tokens = self.effect('new CreateTokenEffect(new ZombieDecayedToken())')
+            tokens['amount'] = {'v': 'times', 'of': {'v': 'x'}, 'n': 2}
+            return {'class': cls, 'cost': [self.cost(args[1].strip())],
+                    'effects': [{'class': 'AddCountersSourceEffect', 'counter': {'name': '+1/+1', 'amount': 1},
+                                 'amount': {'v': 'x'}}, tokens],
+                    'reflexive': 'Put that many +1/+1 counters on {this}, '
+                                 'then create twice that many 2/2 black Zombie creature tokens with decayed.'}
         # a cost reduction that applies while a condition holds
         if cls == 'ConditionalCostModificationEffect' and len(args) == 3:
             e = self.effect(args[0].strip())
@@ -4003,6 +4016,12 @@ class Translator:
         # "enchanted creature assigns combat damage equal to its toughness rather than its power" (Gauntlets of Light)
         if cls == 'CombatDamageByToughnessAttachedEffect' and len(args) == 2 and args[0].strip() == 'null':
             return {'class': cls}
+        # "until end of turn, target creature assigns combat damage equal to its toughness rather than its power"
+        # (Walking Bulwark): the target is given the static until end of turn, as the engine's grants keep one
+        if cls == 'CombatDamageByToughnessTargetEffect' and len(args) == 1 and args[0].strip() == 'Duration.EndOfTurn':
+            ability = {'class': 'SimpleStaticAbility', 'effects': [
+                {'class': 'CombatDamageByToughnessSourceEffect', 'duration': 'WhileOnBattlefield'}]}
+            return {'class': 'GainAbilityTargetEffect', 'ability': ability, 'duration': 'EndOfTurn'}
         # "as long as enchanted creature has vigilance, it assigns …" (a static's, under its condition)
         if cls == 'CombatDamageByToughnessAttachedEffect' and len(args) == 2 and args[0].strip() != 'null':
             return {'class': 'ConditionalContinuousEffect', 'effect': {'class': cls},
@@ -4424,12 +4443,19 @@ class Translator:
             return e
         # `OneShotNonTargetEffect(effect, target)`: as it resolves, the controller chooses (not targets) what the
         # target describes (`Targets.choose`), and the effect is pointed at what was chosen
-        if cls == 'OneShotNonTargetEffect' and len(args) == 2:
+        # (with an `XManaValueTargetAdjuster(cmp)` as its third argument: the mana value compared with the resolving
+        # spell's X)
+        adjuster = len(args) == 3 and re.fullmatch(
+            r'new XManaValueTargetAdjuster\((?:ComparisonType\.(OR_LESS|EQUAL_TO|OR_GREATER))?\)', args[2].strip())
+        if cls == 'OneShotNonTargetEffect' and (len(args) == 2 or adjuster):
             custom_effects.T = sys.modules[__name__]
             spec = custom_effects.Body(self).target_spec(args[1])
-            if not spec or spec['zone'] not in ('graveyard', 'battlefield', 'hand'):
+            if not spec or spec['zone'] not in ('graveyard', 'graveyards', 'battlefield', 'hand'):
                 raise Unsupported('effect OneShotNonTargetEffect of ' + args[1][:60])
-            bind = {'name': 'chosen', 'what': 'choose', 'zone': spec['zone'], 'filter': spec['filter'],
+            filt = spec['filter']
+            if adjuster:
+                filt = filt + [{'p': 'mana_value_x', 'cmp': adjuster.group(1) or 'EQUAL_TO', 'resolving': True}]
+            bind = {'name': 'chosen', 'what': 'choose', 'zone': spec['zone'], 'filter': filt,
                     'min': spec['min'], 'max': spec['max'], 'rounds': True}
             return {'class': 'Effects', 'bind': bind,
                     'effects': [{'class': 'Effects', 'effects': [self.effect(args[0])], 'to': 'chosen'}]}
@@ -4659,9 +4685,12 @@ class Translator:
             if args[1].strip() != 'null':
                 out['toughness'] = self.amount(args[1])
             return out
-        if cls == 'SetBasePowerToughnessTargetEffect' and len(args) == 3 and args[2] in ('Duration.EndOfTurn', 'Duration.EndOfGame'):
+        # (`Duration.Custom` with nothing that ends it lasts as `EndOfGame` does: while the target stays, The Bears of
+        # Littjara)
+        if cls == 'SetBasePowerToughnessTargetEffect' and len(args) == 3 \
+                and args[2] in ('Duration.EndOfTurn', 'Duration.EndOfGame', 'Duration.Custom'):
             return {'class': cls, 'power': self.amount(args[0]), 'toughness': self.amount(args[1]),
-                    **({'permanent': True} if args[2] == 'Duration.EndOfGame' else {})}
+                    **({'permanent': True} if args[2] in ('Duration.EndOfGame', 'Duration.Custom') else {})}
         if cls == 'SetBasePowerToughnessSourceEffect' and len(args) == 3 and re.fullmatch(pt, args[0]) \
                 and re.fullmatch(pt, args[1]) and args[2] in ('Duration.EndOfTurn', 'Duration.WhileOnBattlefield'):
             return {'class': 'SetBasePowerToughness7bSourceEffect', 'power': int(args[0]), 'toughness': int(args[1]),
@@ -7496,7 +7525,9 @@ class Translator:
         # any ability (a trigger handler's base, whose check says which: Herald of Anafenza's outlast)
         if name == 'StaticFilters.FILTER_SPELL_OR_ABILITY':
             return 'any'
-        if not re.search(r'FilterStackObject\s+' + re.escape(name) + r'\s*=\s*new (?:FilterStackObject|FilterActivatedOrTriggeredAbility)\("[^"]*"\)', src):
+        # (upstream's `FilterAbility` since 23 Nov sees mana abilities too, which only an exhaust mana ability would
+        # match: the engine's site doesn't have them)
+        if not re.search(r'(?:FilterStackObject|FilterAbility)\s+' + re.escape(name) + r'\s*=\s*new (?:FilterStackObject|FilterActivatedOrTriggeredAbility|FilterAbility)\("[^"]*"\)', src):
             raise Unsupported('ActivateAbilityTriggeredAbility filter ' + name)
         preds = re.findall(r'\b' + re.escape(name) + r'\.add\(([^;]*)\);', src)
         kinds = {'ExhaustAbilityPredicate.instance': 'exhaust', 'PowerUpAbilityPredicate.instance': 'power_up'}
@@ -7505,7 +7536,8 @@ class Translator:
         # (copy triggers: "an ability of an artifact" / "of equipped creature", "if it isn't a mana ability"; "an
         # ability that targets a creature or player"; the engine's site only sees abilities that aren't mana abilities)
         rest = sorted(canonical(x) for x in preds if x.strip() != 'NotManaAbilityPredicate.instance')
-        more = {'ArtifactSourcePredicate.instance': 'artifact', 'AbilitySourceAttachedPredicate.instance': 'attached',
+        more = {'ArtifactSourcePredicate.instance': 'artifact', 'KurkeshOnakkeAncientPredicate.instance': 'artifact',
+'AbilitySourceAttachedPredicate.instance': 'attached',
                 'new TargetsPermanentOrPlayerPredicate(StaticFilters.FILTER_PERMANENT_CREATURE,new FilterPlayer())':
                     'targets_creature_or_player'}
         if len(rest) == 1 and rest[0] in more and len(preds) <= 2:

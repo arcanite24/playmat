@@ -23,10 +23,10 @@ kind = "changed card"
 class = "mage.cards.a.AdrenalineJockey"
 names = ["Adrenaline Jockey"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "5be3c49b3e7"
 subject = "refactor: improved stack object filters, added support of NotManaAbilityPredicate, fixed few cards (part of #16793, clos"
-why = "no longer translates: ActivateAbilityTriggeredAbility filter filter2"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/a/AjaniOutlandChaperone.java"
@@ -34,10 +34,10 @@ kind = "changed card"
 class = "mage.cards.a.AjaniOutlandChaperone"
 names = ["Ajani, Outland Chaperone"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "71f14b09015"
 subject = "refactor: better and shared usage of nonland permanent card filter"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/a/AjaniUnyielding.java"
@@ -67,10 +67,10 @@ kind = "changed card"
 class = "mage.cards.a.ArchangelElspeth"
 names = ["Archangel Elspeth"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "71f14b09015"
 subject = "refactor: better and shared usage of nonland permanent card filter"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/a/AstelliReclaimer.java"
@@ -78,10 +78,10 @@ kind = "changed card"
 class = "mage.cards.a.AstelliReclaimer"
 names = ["Astelli Reclaimer"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "71f14b09015"
 subject = "refactor: better and shared usage of nonland permanent card filter"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/a/AuntiesSentence.java"
@@ -100,10 +100,10 @@ kind = "changed card"
 class = "mage.cards.b.BlackSunsTwilight"
 names = ["Black Sun's Twilight"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "34c0ae6d37f"
 subject = "OneShotNonTargetEffect improvements (#16637)"
-why = "no longer translates: effect OneShotNonTargetEffect"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/b/BladeholdWarWhip.java"
@@ -111,10 +111,10 @@ kind = "changed card"
 class = "mage.cards.b.BladeholdWarWhip"
 names = ["Bladehold War-Whip"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "49ebfcbd2f9"
 subject = "refactor: improved text generation in AbilitiesCostReductionControllerEffect"
-why = "no longer translates: effect AbilitiesCostReductionControllerEffect: argument filterEquip"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/b/BloodCurdle.java"
@@ -122,10 +122,10 @@ kind = "changed card"
 class = "mage.cards.b.BloodCurdle"
 names = ["Blood Curdle"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "34c0ae6d37f"
 subject = "OneShotNonTargetEffect improvements (#16637)"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/b/BolgsCompany.java"
@@ -133,10 +133,10 @@ kind = "changed card"
 class = "mage.cards.b.BolgsCompany"
 names = ["Bolg's Company"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "17ae9b7cd89"
 subject = "[HOB] Bolg's Company - fixed that its mana ability used the stack (#16687)"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/b/BoonweaverGiant.java"
@@ -166,10 +166,10 @@ kind = "changed card"
 class = "mage.cards.b.BuildersTalent"
 names = ["Builder's Talent"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "71f14b09015"
 subject = "refactor: better and shared usage of nonland permanent card filter"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/c/CallOfTheDeathDweller.java"
@@ -199,10 +199,10 @@ kind = "changed card"
 class = "mage.cards.c.ChangeOfFortune"
 names = ["Change of Fortune"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "9f6cf145deb"
 subject = "refactor: added shared card hint for Cards you've discarded this turn"
-why = "no longer translates: expression CardsDiscardedThisTurnCount.SINGULAR"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/c/CommuneWithLava.java"
@@ -210,10 +210,10 @@ kind = "changed card"
 class = "mage.cards.c.CommuneWithLava"
 names = ["Commune with Lava"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "ea262dca83c"
 subject = "Until the end of your next turn - fixed that it can't be used during the end step of your next turn (example: Commune wi"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/c/ConduitOfWorlds.java"
@@ -221,10 +221,10 @@ kind = "changed card"
 class = "mage.cards.c.ConduitOfWorlds"
 names = ["Conduit of Worlds"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "71f14b09015"
 subject = "refactor: better and shared usage of nonland permanent card filter"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/c/CrackdownConstruct.java"
@@ -265,10 +265,10 @@ kind = "changed card"
 class = "mage.cards.d.DarkbladeAgent"
 names = ["Darkblade Agent"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "86ba8fcddd1"
 subject = "[MKC] Implement Eye of Duskmantle with shared watcher and additional tests (related to #16405, #11669)"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/d/DeceiverOfForm.java"
@@ -287,10 +287,10 @@ kind = "changed card"
 class = "mage.cards.d.DemonicGifts"
 names = ["Demonic Gifts"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "746a81b10da"
 subject = "Demonic Gifts - fixed that it can return a creature that died again as a new object (related to #16465);"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/d/DestinedConfrontation.java"
@@ -309,10 +309,10 @@ kind = "changed card"
 class = "mage.cards.d.DonatellosTechnique"
 names = ["Donatello's Technique"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "2147e89dc75"
 subject = "tests: added verify checks for sneak ability usage and added additional tests for #14975"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/d/DragonsPrey.java"
@@ -320,10 +320,10 @@ kind = "changed card"
 class = "mage.cards.d.DragonsPrey"
 names = ["Dragon's Prey"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "ecd61fbcac1"
 subject = "refactor: fixed wrong usage of setCanWorksOnStackOnly"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/d/DreamshaperShaman.java"
@@ -331,10 +331,10 @@ kind = "changed card"
 class = "mage.cards.d.DreamshaperShaman"
 names = ["Dreamshaper Shaman"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "71f14b09015"
 subject = "refactor: better and shared usage of nonland permanent card filter"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/d/DriftgloomCoyote.java"
@@ -342,10 +342,10 @@ kind = "changed card"
 class = "mage.cards.d.DriftgloomCoyote"
 names = ["Driftgloom Coyote"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "e531cfff88f"
 subject = "[BLB] Driftgloom Coyote - fixed that it never got the counter (#16693)"
-why = "no longer translates: condition DriftgloomCoyoteCondition.instance"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/e/EaglesRescue.java"
@@ -397,10 +397,10 @@ kind = "changed card"
 class = "mage.cards.e.EmeritusOfWoe"
 names = ["Emeritus of Woe"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "c541e4e0f81"
 subject = "Emeritus of Woe - fixed wrong rules text;"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/e/ErtaisScorn.java"
@@ -430,10 +430,10 @@ kind = "changed card"
 class = "mage.cards.e.EscapeToTheWilds"
 names = ["Escape to the Wilds"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "ea262dca83c"
 subject = "Until the end of your next turn - fixed that it can't be used during the end step of your next turn (example: Commune wi"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/e/EvenTheScore.java"
@@ -485,10 +485,10 @@ kind = "changed card"
 class = "mage.cards.f.FighterClass"
 names = ["Fighter Class"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "49ebfcbd2f9"
 subject = "refactor: improved text generation in AbilitiesCostReductionControllerEffect"
-why = "no longer translates: effect AbilitiesCostReductionControllerEffect: argument filterEquip"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/f/FocusTheMind.java"
@@ -496,10 +496,10 @@ kind = "changed card"
 class = "mage.cards.f.FocusTheMind"
 names = ["Focus the Mind"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "ecd61fbcac1"
 subject = "refactor: fixed wrong usage of setCanWorksOnStackOnly"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/g/GeistlightSnare.java"
@@ -507,10 +507,10 @@ kind = "changed card"
 class = "mage.cards.g.GeistlightSnare"
 names = ["Geistlight Snare"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "ecd61fbcac1"
 subject = "refactor: fixed wrong usage of setCanWorksOnStackOnly"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/g/GemstoneCaverns.java"
@@ -572,10 +572,10 @@ kind = "changed card"
 class = "mage.cards.g.GigastormTitan"
 names = ["Gigastorm Titan"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "ecd61fbcac1"
 subject = "refactor: fixed wrong usage of setCanWorksOnStackOnly"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/g/GilgameshMasterAtArms.java"
@@ -616,10 +616,10 @@ kind = "changed card"
 class = "mage.cards.g.GraveResearcher"
 names = ["Grave Researcher"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "9a0e9af9ceb"
 subject = "Mana value - fixed that some cards lookup for card's mana value instead permanent's last known information (example: Aet"
-why = "no longer translates: expression TargetManaValue.CARD"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/g/GreenGoblinRevenant.java"
@@ -627,10 +627,10 @@ kind = "changed card"
 class = "mage.cards.g.GreenGoblinRevenant"
 names = ["Green Goblin, Revenant"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "9f6cf145deb"
 subject = "refactor: added shared card hint for Cards you've discarded this turn"
-why = "no longer translates: expression CardsDiscardedThisTurnCount.SINGULAR"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/g/GrimStrider.java"
@@ -660,10 +660,10 @@ kind = "changed card"
 class = "mage.cards.g.GuardianSunmare"
 names = ["Guardian Sunmare"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "71f14b09015"
 subject = "refactor: better and shared usage of nonland permanent card filter"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/g/GuildFeud.java"
@@ -682,10 +682,10 @@ kind = "changed card"
 class = "mage.cards.h.HagraMauling"
 names = ["Hagra Mauling"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "ecd61fbcac1"
 subject = "refactor: fixed wrong usage of setCanWorksOnStackOnly"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/h/HarshMentor.java"
@@ -715,10 +715,10 @@ kind = "changed card"
 class = "mage.cards.h.HulkGammaGoliath"
 names = ["Hulk, Gamma Goliath"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "49ebfcbd2f9"
 subject = "refactor: improved text generation in AbilitiesCostReductionControllerEffect"
-why = "no longer translates: effect AbilitiesCostReductionControllerEffect: argument filterPowerUp"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/h/Humiliate.java"
@@ -726,10 +726,10 @@ kind = "changed card"
 class = "mage.cards.h.Humiliate"
 names = ["Humiliate"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "34c0ae6d37f"
 subject = "OneShotNonTargetEffect improvements (#16637)"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/h/HuskbursterSwarm.java"
@@ -748,10 +748,10 @@ kind = "changed card"
 class = "mage.cards.i.IdentityEcho"
 names = ["Identity Echo"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "38034474654"
 subject = "refactor: replced custom class by shared in Identity Echo (related to Jace in  ae3de5eae24a68624a8d4887cf499c702146346b)"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/i/IllusionistsBracers.java"
@@ -759,10 +759,10 @@ kind = "changed card"
 class = "mage.cards.i.IllusionistsBracers"
 names = ["Illusionist's Bracers"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "5be3c49b3e7"
 subject = "refactor: improved stack object filters, added support of NotManaAbilityPredicate, fixed few cards (part of #16793, clos"
-why = "no longer translates: ActivateAbilityTriggeredAbility filter filter"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/i/ImmolationShaman.java"
@@ -781,10 +781,10 @@ kind = "changed card"
 class = "mage.cards.i.InquisitiveGlimmer"
 names = ["Inquisitive Glimmer"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "49ebfcbd2f9"
 subject = "refactor: improved text generation in AbilitiesCostReductionControllerEffect"
-why = "no longer translates: effect AbilitiesCostReductionControllerEffect: argument filterUnlock"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/j/JenniferWalters.java"
@@ -792,10 +792,10 @@ kind = "changed card"
 class = "mage.cards.j.JenniferWalters"
 names = ["Jennifer Walters"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "5a570a6fc9b"
 subject = "[MSH] The Sensational She-Hulk - fixed that the trigger damaged the damaged creature instead of the chosen target (#1669"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/j/JennikasTechnique.java"
@@ -803,10 +803,10 @@ kind = "changed card"
 class = "mage.cards.j.JennikasTechnique"
 names = ["Jennika's Technique"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "2147e89dc75"
 subject = "tests: added verify checks for sneak ability usage and added additional tests for #14975"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/j/JoinedResearchers.java"
@@ -814,10 +814,10 @@ kind = "changed card"
 class = "mage.cards.j.JoinedResearchers"
 names = ["Joined Researchers"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "9686dda5676"
 subject = "Joined Researchers - fixed that it doesn't become prepared at opponent's end step;"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/k/KaraisTechnique.java"
@@ -825,10 +825,10 @@ kind = "changed card"
 class = "mage.cards.k.KaraisTechnique"
 names = ["Karai's Technique"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "2147e89dc75"
 subject = "tests: added verify checks for sneak ability usage and added additional tests for #14975"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/k/KioraOfSaltAndSand.java"
@@ -847,10 +847,10 @@ kind = "changed card"
 class = "mage.cards.k.KitsunesTechnique"
 names = ["Kitsune's Technique"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "2147e89dc75"
 subject = "tests: added verify checks for sneak ability usage and added additional tests for #14975"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/k/KurkeshOnakkeAncient.java"
@@ -858,10 +858,10 @@ kind = "changed card"
 class = "mage.cards.k.KurkeshOnakkeAncient"
 names = ["Kurkesh, Onakke Ancient"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "5be3c49b3e7"
 subject = "refactor: improved stack object filters, added support of NotManaAbilityPredicate, fixed few cards (part of #16793, clos"
-why = "no longer translates: ActivateAbilityTriggeredAbility filter filter"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/l/LashwhipPredator.java"
@@ -869,10 +869,10 @@ kind = "changed card"
 class = "mage.cards.l.LashwhipPredator"
 names = ["Lashwhip Predator"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "ecd61fbcac1"
 subject = "refactor: fixed wrong usage of setCanWorksOnStackOnly"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/l/LathrilBladeOfTheElves.java"
@@ -880,10 +880,10 @@ kind = "changed card"
 class = "mage.cards.l.LathrilBladeOfTheElves"
 names = ["Lathril, Blade of the Elves"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "7fecba4e6f6"
 subject = "Require ten other untapped Elves for Lathril’s ability (#16821)"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/l/LeonardosTechnique.java"
@@ -891,10 +891,10 @@ kind = "changed card"
 class = "mage.cards.l.LeonardosTechnique"
 names = ["Leonardo's Technique"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "2147e89dc75"
 subject = "tests: added verify checks for sneak ability usage and added additional tests for #14975"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/l/LightPawsEmperorsVoice.java"
@@ -913,10 +913,10 @@ kind = "changed card"
 class = "mage.cards.l.LilianaTheNecromancer"
 names = ["Liliana, the Necromancer"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "34c0ae6d37f"
 subject = "OneShotNonTargetEffect improvements (#16637)"
-why = "no longer translates: effect OneShotNonTargetEffect of new TargetCardInGraveyard(0,2,filter)"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/l/LithoformEngine.java"
@@ -935,10 +935,10 @@ kind = "changed card"
 class = "mage.cards.l.LootThePathfinder"
 names = ["Loot, the Pathfinder"]
 scope = "verified"
-status = "pending"
+status = "not-needed"
 commit = "081d8586c3d"
 subject = "Loot, the Pathfinder - fixed that its exhaust mana ability used the stack and can be copied by cards like Pit Automaton "
-why = "no longer translates: ability ExhaustManaAbility"
+why = "not in the engine before or now: ability ExhaustManaAbility"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/m/MageDuel.java"
@@ -946,10 +946,10 @@ kind = "changed card"
 class = "mage.cards.m.MageDuel"
 names = ["Mage Duel"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "ecd61fbcac1"
 subject = "refactor: fixed wrong usage of setCanWorksOnStackOnly"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/m/MarduSiegebreaker.java"
@@ -968,10 +968,10 @@ kind = "changed card"
 class = "mage.cards.m.MistyKnightHeroForHire"
 names = ["Misty Knight, Hero for Hire"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "9f6cf145deb"
 subject = "refactor: added shared card hint for Cards you've discarded this turn"
-why = "no longer translates: expression CardsDiscardedThisTurnCount.SINGULAR"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/m/MortalitySpear.java"
@@ -979,10 +979,10 @@ kind = "changed card"
 class = "mage.cards.m.MortalitySpear"
 names = ["Mortality Spear"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "ecd61fbcac1"
 subject = "refactor: fixed wrong usage of setCanWorksOnStackOnly"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/n/NewGenerationsTechnique.java"
@@ -990,10 +990,10 @@ kind = "changed card"
 class = "mage.cards.n.NewGenerationsTechnique"
 names = ["New Generation's Technique"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "2147e89dc75"
 subject = "tests: added verify checks for sneak ability usage and added additional tests for #14975"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/o/OldGrowthTroll.java"
@@ -1034,10 +1034,10 @@ kind = "changed card"
 class = "mage.cards.p.PullThroughTheWeft"
 names = ["Pull Through the Weft"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "71f14b09015"
 subject = "refactor: better and shared usage of nonland permanent card filter"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/q/QueensBayPaladin.java"
@@ -1045,10 +1045,10 @@ kind = "changed card"
 class = "mage.cards.q.QueensBayPaladin"
 names = ["Queen's Bay Paladin"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "9a0e9af9ceb"
 subject = "Mana value - fixed that some cards lookup for card's mana value instead permanent's last known information (example: Aet"
-why = "no longer translates: expression TargetManaValue.CARD"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/r/RallyTheMonastery.java"
@@ -1056,10 +1056,10 @@ kind = "changed card"
 class = "mage.cards.r.RallyTheMonastery"
 names = ["Rally the Monastery"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "ecd61fbcac1"
 subject = "refactor: fixed wrong usage of setCanWorksOnStackOnly"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/r/RalsStaticaster.java"
@@ -1078,10 +1078,10 @@ kind = "changed card"
 class = "mage.cards.r.RangersAetherhive"
 names = ["Rangers' Aetherhive"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "5be3c49b3e7"
 subject = "refactor: improved stack object filters, added support of NotManaAbilityPredicate, fixed few cards (part of #16793, clos"
-why = "no longer translates: ActivateAbilityTriggeredAbility filter filter"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/r/RangersRefueler.java"
@@ -1089,10 +1089,10 @@ kind = "changed card"
 class = "mage.cards.r.RangersRefueler"
 names = ["Rangers' Refueler"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "5be3c49b3e7"
 subject = "refactor: improved stack object filters, added support of NotManaAbilityPredicate, fixed few cards (part of #16793, clos"
-why = "no longer translates: ActivateAbilityTriggeredAbility filter filter"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/r/RaphaelsTechnique.java"
@@ -1100,10 +1100,10 @@ kind = "changed card"
 class = "mage.cards.r.RaphaelsTechnique"
 names = ["Raphael's Technique"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "2147e89dc75"
 subject = "tests: added verify checks for sneak ability usage and added additional tests for #14975"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/r/ReturnToTheLightRealms.java"
@@ -1122,10 +1122,10 @@ kind = "changed card"
 class = "mage.cards.r.RevivalRevenge"
 names = ["Revival // Revenge"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "f8de455d9a8"
 subject = "Angelic Enforcer - fixed that a negative life total is not doubled;"
-why = "no longer translates: effect SetPlayerLifeSourceEffect: argument new MultipliedValue(ControllerLifeCount.instance,2)"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/r/RootingMoloch.java"
@@ -1166,10 +1166,10 @@ kind = "changed card"
 class = "mage.cards.s.SchemingSilvertongue"
 names = ["Scheming Silvertongue"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "f81c5724b52"
 subject = "Scheming Silvertongue - fixed wrong rules text;"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/s/ScourgeOfTheSkyclaves.java"
@@ -1199,10 +1199,10 @@ kind = "changed card"
 class = "mage.cards.s.SheoldredsRestoration"
 names = ["Sheoldred's Restoration"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "9a0e9af9ceb"
 subject = "Mana value - fixed that some cards lookup for card's mana value instead permanent's last known information (example: Aet"
-why = "no longer translates: expression TargetManaValue.CARD"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/s/ShreddersTechnique.java"
@@ -1210,10 +1210,10 @@ kind = "changed card"
 class = "mage.cards.s.ShreddersTechnique"
 names = ["Shredder's Technique"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "2147e89dc75"
 subject = "tests: added verify checks for sneak ability usage and added additional tests for #14975"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/s/SilenceTheBelievers.java"
@@ -1232,10 +1232,10 @@ kind = "changed card"
 class = "mage.cards.s.SilverFurMaster"
 names = ["Silver-Fur Master"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "49ebfcbd2f9"
 subject = "refactor: improved text generation in AbilitiesCostReductionControllerEffect"
-why = "no longer translates: effect AbilitiesCostReductionControllerEffect: argument filterNinjutsu"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/s/SmileAtDeath.java"
@@ -1265,10 +1265,10 @@ kind = "changed card"
 class = "mage.cards.s.SplintersTechnique"
 names = ["Splinter's Technique"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "2147e89dc75"
 subject = "tests: added verify checks for sneak ability usage and added additional tests for #14975"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/s/SquirmingEmergence.java"
@@ -1276,10 +1276,10 @@ kind = "changed card"
 class = "mage.cards.s.SquirmingEmergence"
 names = ["Squirming Emergence"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "71f14b09015"
 subject = "refactor: better and shared usage of nonland permanent card filter"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/s/StormHerald.java"
@@ -1298,10 +1298,10 @@ kind = "changed card"
 class = "mage.cards.s.SunBlessedHealer"
 names = ["Sun-Blessed Healer"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "71f14b09015"
 subject = "refactor: better and shared usage of nonland permanent card filter"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/s/SunspineLynx.java"
@@ -1320,10 +1320,10 @@ kind = "changed card"
 class = "mage.cards.s.SwatAway"
 names = ["Swat Away"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "ecd61fbcac1"
 subject = "refactor: fixed wrong usage of setCanWorksOnStackOnly"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/t/TheDarkhold.java"
@@ -1331,10 +1331,10 @@ kind = "changed card"
 class = "mage.cards.t.TheDarkhold"
 names = ["The Darkhold"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "d6b5bf29a8e"
 subject = "refactor: fixed texts, removed setText usage"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/t/TheEnd.java"
@@ -1342,10 +1342,10 @@ kind = "changed card"
 class = "mage.cards.t.TheEnd"
 names = ["The End"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "ecd61fbcac1"
 subject = "refactor: fixed wrong usage of setCanWorksOnStackOnly"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/t/TheLastRoninsTechnique.java"
@@ -1353,10 +1353,10 @@ kind = "changed card"
 class = "mage.cards.t.TheLastRoninsTechnique"
 names = ["The Last Ronin's Technique"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "2147e89dc75"
 subject = "tests: added verify checks for sneak ability usage and added additional tests for #14975"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/u/UnitedBattlefront.java"
@@ -1364,10 +1364,10 @@ kind = "changed card"
 class = "mage.cards.u.UnitedBattlefront"
 names = ["United Battlefront"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "71f14b09015"
 subject = "refactor: better and shared usage of nonland permanent card filter"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/v/VanishIntoEternity.java"
@@ -1375,10 +1375,10 @@ kind = "changed card"
 class = "mage.cards.v.VanishIntoEternity"
 names = ["Vanish into Eternity"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "ecd61fbcac1"
 subject = "refactor: fixed wrong usage of setCanWorksOnStackOnly"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/v/VenomsHunger.java"
@@ -1386,10 +1386,10 @@ kind = "changed card"
 class = "mage.cards.v.VenomsHunger"
 names = ["Venom's Hunger"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "ecd61fbcac1"
 subject = "refactor: fixed wrong usage of setCanWorksOnStackOnly"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/v/VirtueOfKnowledge.java"
@@ -1441,10 +1441,10 @@ kind = "changed card"
 class = "mage.cards.w.WayspeakerBodyguard"
 names = ["Wayspeaker Bodyguard"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "71f14b09015"
 subject = "refactor: better and shared usage of nonland permanent card filter"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/w/WeaverOfHarmony.java"
@@ -1474,10 +1474,10 @@ kind = "changed card"
 class = "mage.cards.w.WolfkinOutcast"
 names = ["Wolfkin Outcast"]
 scope = "verified"
-status = "pending"
+status = "ported"
 commit = "ecd61fbcac1"
 subject = "refactor: fixed wrong usage of setCanWorksOnStackOnly"
-why = "the translation changed: re-transpile and re-verify"
+why = "the same translation"
 
 [[change]]
 file = "Mage/src/main/java/mage/MageIdentifier.java"
@@ -2096,9 +2096,11 @@ file = "Mage/src/main/java/mage/cards/CardWithSpellOption.java"
 kind = "engine"
 class = "mage.cards.CardWithSpellOption"
 scope = "engine"
-status = "pending"
+status = "ported"
 commit = "31c3adcc8cf"
 subject = "Prepared cards - removed gui hacks and fixed wrong playable checks, returned standard choose spell dialog (part of #1560"
+why = "rules.rs shows the spell-or-ability picker for a prepare card off the battlefield (wave 20a)"
+pr = "512"
 
 [[change]]
 file = "Mage/src/main/java/mage/cards/CardsImpl.java"
@@ -2114,18 +2116,22 @@ file = "Mage/src/main/java/mage/cards/PrepareCard.java"
 kind = "engine"
 class = "mage.cards.PrepareCard"
 scope = "engine"
-status = "pending"
+status = "ported"
 commit = "31c3adcc8cf"
 subject = "Prepared cards - removed gui hacks and fixed wrong playable checks, returned standard choose spell dialog (part of #1560"
+why = "rules.rs shows the spell-or-ability picker for a prepare card off the battlefield, its creature a1 (wave 20a)"
+pr = "512"
 
 [[change]]
 file = "Mage/src/main/java/mage/cards/PrepareSpellCard.java"
 kind = "engine"
 class = "mage.cards.PrepareSpellCard"
 scope = "engine"
-status = "pending"
+status = "ported"
 commit = "31c3adcc8cf"
 subject = "Prepared cards - removed gui hacks and fixed wrong playable checks, returned standard choose spell dialog (part of #1560"
+why = "the prepare spell was never castable from the card in Rust, cascade and discover included (wave 20a)"
+pr = "512"
 
 [[change]]
 file = "Mage/src/main/java/mage/cards/PreparedSpellCopy.java"
@@ -2141,18 +2147,22 @@ file = "Mage/src/main/java/mage/cards/VengeanceCard.java"
 kind = "engine"
 class = "mage.cards.VengeanceCard"
 scope = "engine"
-status = "pending"
+status = "not-needed"
 commit = "31c3adcc8cf"
 subject = "Prepared cards - removed gui hacks and fixed wrong playable checks, returned standard choose spell dialog (part of #1560"
+why = "no vengeance card is in the engine (Hela, Mistress of Darkness is the only one in Mage.Sets)"
+pr = "512"
 
 [[change]]
 file = "Mage/src/main/java/mage/cards/VengeanceSpellCard.java"
 kind = "engine"
 class = "mage.cards.VengeanceSpellCard"
 scope = "engine"
-status = "pending"
+status = "not-needed"
 commit = "31c3adcc8cf"
 subject = "Prepared cards - removed gui hacks and fixed wrong playable checks, returned standard choose spell dialog (part of #1560"
+why = "no vengeance card is in the engine (Hela, Mistress of Darkness is the only one in Mage.Sets)"
+pr = "512"
 
 [[change]]
 file = "Mage/src/main/java/mage/cards/repository/TokenRepository.java"
@@ -2730,10 +2740,10 @@ kind = "changed card"
 class = "mage.cards.b.BruenorBattlehammer"
 names = ["Bruenor Battlehammer"]
 scope = "pool"
-status = "not-needed"
+status = "ported"
 commit = "643a7fc7021"
 subject = "Mana abilities improves with fixed event (ACTIVATED_ABILITY) (#16793)"
-why = "not in the engine before or now: effect BruenorBattlehammerBoostEffect"
+why = "the same translation"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/c/ConspiracyTheorist.java"
@@ -3019,7 +3029,7 @@ scope = "pool"
 status = "not-needed"
 commit = "49ebfcbd2f9"
 subject = "refactor: improved text generation in AbilitiesCostReductionControllerEffect"
-why = "not in the engine before or now: effect AbilitiesCostReductionControllerEffect: argument filterEquip"
+why = "not in the engine before or now: conditional cost modification CardStatic"
 
 [[change]]
 file = "Mage.Sets/src/mage/cards/n/NinjaTeen.java"

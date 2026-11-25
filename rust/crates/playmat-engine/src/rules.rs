@@ -831,6 +831,10 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                         && name == "upkeep"
                         && you == active
                         && g.obj(src).zone == Zone::Battlefield)
+                    // a Career turn twist: any player's upkeep, from its turn on (`UPKEEP_STEP_PRE`)
+                    || (matches!(t, Trigger::CareerTurn { turn } if g.turn >= *turn)
+                        && name == "upkeep"
+                        && g.obj(src).zone == Zone::Command)
             });
             // "at the beginning of the next end step" delayed triggers: `GameState.handleEvent` checks the delayed
             // ones before the others
@@ -2863,7 +2867,7 @@ fn play_from_library(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId
     // the back's play ability after the front's abilities
     let index = |p: LibraryPlay| -> usize {
         match p {
-            LibraryPlay::Land | LibraryPlay::Cast => usize::from(def.adventure.is_some()),
+            LibraryPlay::Land | LibraryPlay::Cast => usize::from(def.adventure.is_some() || def.prepare.is_some()),
             LibraryPlay::Adventure => 0,
             LibraryPlay::Back => {
                 b + def
@@ -2874,8 +2878,10 @@ fn play_from_library(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId
             }
         }
     };
+    // (a prepare card's creature too, a1: upstream 31c3adcc8cf)
     let picker = plays.len() > 1
         || def.adventure.is_some()
+        || def.prepare.is_some()
         || def.back.is_some()
         || (plays[0] == LibraryPlay::Cast && def.cost.mana_value() == 0);
     let play = if picker {
@@ -4324,6 +4330,8 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             return;
         }
     }
+    // the picker already asked, with the spell among its choices (a prepare card's isn't asked again below)
+    let mut picked = false;
     if (zone == Zone::Hand || zone == Zone::Exile) && game.obj(id).def.adventure.is_none() {
         let mut options = if zone == Zone::Hand { activatable(game, seat, id) } else { Vec::new() };
         // foretell, a special action: during your turn, with {2} to pay
@@ -4434,21 +4442,25 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             if alternate.is_some() {
                 def = Arc::new(CardDef { cost: ManaCost::default(), ..(*def).clone() });
             }
+            // (a prepare card's creature is a1)
+            let spell = prepare_spell_index(&def);
             if if def.is(CardType::Land) { can_play_land(game, seat) } else { castable(game, seat, id, &def) } {
-                options.insert(0, 0);
+                options.insert(0, spell);
             }
             // (a modal double-faced card's faces always show the picker, one choice or two)
             if options.is_empty() {
                 return;
             }
-            let index = if options.len() == 1 && !mdfc {
+            let index = if options.len() == 1 && !mdfc && def.prepare.is_none() {
                 options[0]
             } else {
+                picked = def.prepare.is_some();
                 match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: options.clone() }) {
                     Answer::Ability(o, i) if o == id && options.contains(&i) => i,
                     _ => return,
                 }
             };
+            let index = if index == spell { 0 } else { index };
             // cast for its spectacle or warp cost (the whole card comes back as it leaves the stack)
             // (spectacle too: `SpectacleCondition`, "if its spectacle cost was paid", reads the same tag)
             // (web-slinging too: `WebSlingingCondition`, "if it was cast using web-slinging")
@@ -4806,10 +4818,11 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                 || ((!once.is_empty() || !plays.is_empty()) && castable(game, seat, id, &game.obj(id).def.clone()))
                 || !ways.is_empty())
         {
-            // `suppressAbilityPicker`: a {0} spell is picked (a0)
-            if game.obj(id).def.cost.mana_value() == 0 {
-                match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: vec![0] }) {
-                    Answer::Ability(o, 0) if o == id => {}
+            // `suppressAbilityPicker`: a {0} spell is picked (a0); a prepare card's creature always is (a1)
+            let k = prepare_spell_index(&game.obj(id).def);
+            if game.obj(id).def.cost.mana_value() == 0 || game.obj(id).def.prepare.is_some() {
+                match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: vec![k] }) {
+                    Answer::Ability(o, i) if o == id && i == k => {}
                     _ => return,
                 }
             }
@@ -4975,16 +4988,29 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
     // {X} spell is picked (a0), as is one cast without paying its mana cost (`allowCardToPlayWithoutMana` puts it in
     // `castSourceIdWithAlternateMana`, so the picker isn't hidden)
     // played from exile without paying its mana cost (Oracle's Vault)
+    // a prepare card (`CardWithSpellOption`) off the battlefield never hides it either: its creature (a1), the
+    // prepare spell not being castable (`PrepareCardSpellAbility.spellCanBeActivatedNow`, upstream 31c3adcc8cf)
     let free = game.obj(id).zone == Zone::Exile && game.obj(id).play_free;
-    if game.obj(id).def.cost.mana_value() == 0 || free {
-        match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: vec![0] }) {
-            Answer::Ability(o, 0) if o == id => {}
+    let k = prepare_spell_index(&game.obj(id).def);
+    if (game.obj(id).def.cost.mana_value() == 0 || free || game.obj(id).def.prepare.is_some()) && !picked {
+        match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: vec![k] }) {
+            Answer::Ability(o, i) if o == id && i == k => {}
             _ => return,
         }
     }
     if !(if free { cast_free(game, d, seat, id) } else { cast(game, d, seat, id) }) {
         // `PlayerImpl.cast` restores the game as it was before the cast
         *game = before;
+    }
+}
+
+/// The index of the spell ability the picker offers for casting a card: a prepare card's creature is `a1`, after its
+/// prepare spell (`PrepareCardSpellAbility`, never castable from the card); any other card's is `a0`
+fn prepare_spell_index(def: &CardDef) -> usize {
+    if def.prepare.is_some() {
+        def.abilities.iter().position(|a| *a == AbilityDef::SpellAbility).unwrap_or(0)
+    } else {
+        0
     }
 }
 
@@ -6036,6 +6062,10 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         Trigger::CastSecondSpell { who } => Game::whose(who, you, seat) && g.player(seat).spells_cast == 2,
         Trigger::FirstSpellOpponentsTurn => {
             you == seat && g.active.is_some_and(|a| a != you) && g.player(seat).spells_cast == 1
+        }
+        // a Career cast twist: the spell's name, any case (`spell.getName().equalsIgnoreCase`)
+        Trigger::CareerCast { seat: who, card } => {
+            *who == seat && g.obj(src).zone == Zone::Command && g.obj(spell).name().eq_ignore_ascii_case(card)
         }
         _ => false,
     });
@@ -12333,7 +12363,7 @@ fn bind_slot(
             } else {
                 let rule = item_rule(game, item);
                 if b.rounds {
-                    choose_cards_rounds(game, d, who, &possible, min, max)?
+                    choose_cards_rounds_rule(game, d, who, &possible, min, max, &rule)?
                 } else {
                     choose_cards(game, d, who, &shown, &possible, min, max, &rule)?
                 }
@@ -17104,6 +17134,7 @@ fn apply_each_effect(
                     p.speed += 1;
                 }
             }
+            EffectDef::CareerTwistEffect { twist } => crate::career::resolve(game, d, controller, twist),
             EffectDef::GetEmblemEffect { emblem } => {
                 token_image(game, emblem, source.0);
                 let id = game.create_obj(Arc::new(emblem.card()), controller, Zone::Library);
@@ -20013,6 +20044,22 @@ fn choose_cards_rounds(
     min: usize,
     max: usize,
 ) -> Option<Vec<ObjId>> {
+    choose_cards_rounds_rule(game, d, seat, possible, min, max, "")
+}
+
+/// `choose_cards_rounds`, auto-choice reading `rule` as `TargetImpl.tryToAutoChoose` does (Blood Curdle's one creature of
+/// yours isn't picked by itself: its text says "destroy"); "" for no rule text.
+fn choose_cards_rounds_rule(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    seat: Seat,
+    possible: &[ObjId],
+    min: usize,
+    max: usize,
+    rule: &str,
+) -> Option<Vec<ObjId>> {
+    let rule = rule.to_lowercase();
+    let feel_bad = ["discard", "sacrifice", "destroy", "exile"].iter().any(|w| rule.contains(w));
     let mut chosen: Vec<ObjId> = Vec::new();
     let complete = |chosen: &Vec<ObjId>| {
         chosen.len() >= max || (chosen.len() >= min && possible.iter().all(|c| chosen.contains(c)))
@@ -20027,10 +20074,13 @@ fn choose_cards_rounds(
             }
             let left: Vec<ObjId> = possible.iter().copied().filter(|c| !chosen.contains(c)).collect();
             // `TargetImpl.tryToAutoChoose`: exactly the cards needed
-            if min == max && left.len() == min - chosen.len() && !left.is_empty() {
-                chosen.push(left[0]);
-                asked = true;
-                continue;
+            if min == max && left.len() == min - chosen.len() && !left.is_empty() && !rule.contains("search") {
+                let all = game.player(seat).auto_target_all;
+                if let Some(c) = left.iter().copied().find(|c| all || !(feel_bad && owns_target(game, seat, *c))) {
+                    chosen.push(c);
+                    asked = true;
+                    continue;
+                }
             }
             asked = true;
             let required = chosen.len() < min && !left.is_empty();
@@ -22526,6 +22576,8 @@ fn state_triggers(game: &mut Game) {
             game.pending.push(t);
         }
     }
+    // a Career life twist's, from the command zone
+    crate::career::life_triggers(game);
 }
 
 /// The batch triggers waiting, the `ZONE_CHANGE_BATCH` ones (`ZoneChangeBatchTriggeredAbility`) in Java's trigger
@@ -22915,6 +22967,8 @@ fn waiting(game: &mut Game, pending: Vec<StackItem>) -> Vec<StackItem> {
         }
     }
     let mut pending = kept;
+    // a Career timed twist triggers once each game
+    crate::career::once_each_game(game, &mut pending);
     // a card's delayed trigger that triggers only once is gone once it has (`DelayedTriggeredAbilities.checkTriggers`):
     // what it triggered for after its first is dropped
     pending.retain(|t| {
@@ -25819,8 +25873,23 @@ fn castable_parts(def: &Arc<CardDef>) -> Vec<(usize, Arc<CardDef>)> {
         vec![(0, def.clone()), (1, back.clone())]
     } else if let Some(adventure) = &def.adventure {
         vec![(1, def.clone()), (0, adventure.clone())]
+    } else if let Some(prepare) = &def.prepare {
+        // a prepare card's spell is a part the filter may match (`CardWithSpellOption.getSpellCard`), though only
+        // its creature can be cast (`free_cast_choices`)
+        vec![(1, def.clone()), (0, prepare.clone())]
     } else {
         vec![(0, def.clone())]
+    }
+}
+
+/// The `ChooseAbility` indices `chooseAbilityForCast(card, game, true)` offers among a card's castable parts: a
+/// prepare card's creature alone (a1), whichever of its parts the filter matched, because its prepare spell can't be
+/// cast (`PrepareCardSpellAbility.spellCanBeActivatedNow`, upstream 31c3adcc8cf); otherwise each part's
+fn free_cast_choices(full: &CardDef, parts: &[(usize, Arc<CardDef>)]) -> Vec<usize> {
+    if full.prepare.is_some() {
+        vec![1]
+    } else {
+        parts.iter().map(|(k, _)| *k).collect()
     }
 }
 
@@ -25898,10 +25967,10 @@ fn cast_one_for_free_from(
         return true;
     }
     let full = game.obj(card).def.clone();
-    let pick = if parts.len() == 1 {
-        parts[0].0
+    let options = free_cast_choices(&full, &parts);
+    let pick = if options.len() == 1 {
+        options[0]
     } else {
-        let options: Vec<usize> = parts.iter().map(|(k, _)| *k).collect();
         match ask(game, d, seat, &Query::ChooseAbility { source: card, abilities: options.clone() }) {
             Answer::Ability(o, k) if o == card && options.contains(&k) => k,
             Answer::Stop => return false,
@@ -25945,7 +26014,19 @@ fn discover(game: &mut Game, d: &mut dyn Decider, seat: Seat, n: i32) -> bool {
     if let Some(card) = hit {
         // (`getCastableComponents` doesn't look at targets: asked even with none to choose)
         {
-            let message = format!("Cast spell without paying its mana cost ({})?", log::object(game, card));
+            // (a prepare card's spell too when its mana value is `n` or less: `getCastableComponents` matches the
+            // filter on each part, though the creature is what's cast)
+            let mut parts = log::object(game, card);
+            if let Some(p) = game.obj(card).def.prepare.clone().filter(|p| p.mana_value() as i32 <= n) {
+                let r = crate::view::stack_ref(game, card);
+                parts = format!(
+                    "{} or <font color='{}' object_id='{r}f1'>{}</font> [{r}f1]",
+                    parts,
+                    crate::prompt::log_color(&p.colors),
+                    p.name
+                );
+            }
+            let message = format!("Cast spell without paying its mana cost ({})?", parts);
             let yes = loop {
                 match ask(game, d, seat, &Query::YesNo { message: message.clone() }) {
                     Answer::Bool(b) => break b,

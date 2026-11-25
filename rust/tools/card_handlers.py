@@ -211,6 +211,10 @@ def effect(t, cls, args, own_only=False):
         elif kind == 'amount':
             # an int or a `DynamicValue`: the engine's `Amount` as JSON (`EffectCx::arg_amount`)
             args[i] = json.dumps(t.amount(args[i]), sort_keys=True)
+        elif kind == 'int_or_amount':
+            # a number as written, else a `DynamicValue` as "amount" makes it
+            if not re.fullmatch(r'-?\d+', args[i]):
+                args[i] = json.dumps(t.amount(args[i]), sort_keys=True)
         elif kind == 'int':
             # a number as written (a `DynamicValue` overload stays unsupported)
             if not re.fullmatch(r'-?\d+', args[i]):
@@ -226,7 +230,18 @@ def effect(t, cls, args, own_only=False):
             # an argument the handler reads only some values of ("one_of:NinjutsuAbility.class|EquipAbility.class")
             if args[i] not in kind[len('one_of:'):].split('|'):
                 raise _unsupported(f'effect {cls}: argument {args[i]}')
-        elif kind not in ('text', 'int', 'bool', 'filter', 'effect', 'counter', 'counter_type', 'put_cards', 'ability', 'amount',
+        elif kind.startswith('ability_class_filter:'):
+            # a `FilterAbility` field of the card whose one predicate is `new AbilityClassPredicate(XAbility.class)`,
+            # given as "XAbility.class" (one of the listed ones)
+            src = getattr(t, 'source', None) or ''
+            name = re.escape(args[i])
+            preds = re.findall(r'\b' + name + r'\.add\(([^;]*)\);', src)
+            m = len(preds) == 1 and re.fullmatch(r'new AbilityClassPredicate\((\w+\.class)\)', preds[0].strip())
+            if not re.search(r'FilterAbility\s+' + name + r'\s*=\s*new FilterAbility\("[^"]*"\)', src) or not m \
+                    or m.group(1) not in kind[len('ability_class_filter:'):].split('|'):
+                raise _unsupported(f'effect {cls}: argument {args[i]}')
+            args[i] = m.group(1)
+        elif kind not in ('text', 'int', 'int_or_amount', 'bool', 'filter', 'effect', 'counter', 'counter_type', 'put_cards', 'ability', 'amount',
                           'while_on_battlefield', 'duration', 'until_your_next_turn') \
                 and not kind.startswith('one_of:'):
             raise _unsupported(f'argument kind {kind}')

@@ -19,7 +19,7 @@ In `RustAiGameTest` a game takes 12 to 14 s of wall time, but little of that is 
 
 | | Today |
 |---|---|
-| Cards verified (a game goes to Rust only with these) | 14,186 of the 14,213 in the engine, less the 71 upstream changed since (14,115 play on Rust): the 881 of the gate run (the Career school decks, the shadow-test decks, the meta and starter decks) and 12,102 more from the verification factory (Engine.md) |
+| Cards verified (a game goes to Rust only with these) | 14,218 of the 14,248 in the engine, `upstream-pending.txt` empty after wave 20a's prepare picker (#512): the 881 of the gate run (the Career school decks, the shadow-test decks, the meta and starter decks) and 12,108 more from the verification factory (Engine.md) |
 | Pioneer and Standard meta decks the AI picks from (`public/meta-decks`) | 24 of 24 fully covered (tiers 31 to 33) |
 | Modern meta decks | 12 of 12 fully covered (tiers 34 to 38) |
 | A player's own Modern decks the AI draws from with "every deck" (Domain Zoo, Esper Goryos, Izzet Prowess; main decks) | 3 of 3 fully covered (tier 40) |
@@ -375,6 +375,17 @@ Built 24 Nov 2026 (docs/rust/Assessment-2026-11-24.md, step 3). A Career table g
 (`CareerSetup.hostProblem`) is one the host plays:
 - life set, a life bonus, extra cards and permanents for either side, after the mulligans as `GameImpl.init` runs
   `CareerSetup.apply`, each with Java's log line;
+- an emblem of a card (`EmblemOfCard`): the card's static abilities in the command zone, shown with its rules and
+  printing. Only the emblems in `CareerSetup.HOST_EMBLEMS` go (Glorious Anthem: the gauntlet's banner relic, ascension
+  IX); another card's keeps the game on Java ("a Career emblem the host lacks (Fervor)");
+- timed twists (`CareerTimedTwists`): triggered abilities of an "Emblem Twist" in the holder's command zone, each once
+  each game. `turn` triggers at any upkeep from turn N on, `life` is a state trigger while the watched player is at N
+  life or less (one of the emblem's at a time: Java keeps the state trigger's flag by source), `cast` triggers when the
+  watched player casts a card of that name. Resolving, a twist writes its message, plays its edge (`then`, with its
+  " gets an edge" line) and gains or loses its life (`loseLife`, not damage). Java sends each twist's rule text
+  (`getRule()`) and the watched side (`who`: "you" is the human, "opponent" the twist's holder); a twist Java skips as
+  malformed isn't sent. The cards a twist brings in count for the verified gate (`hostCards`): the leviathan's
+  Ulamog's Crusher isn't in the engine yet, so its game stays on Java for that;
 - the opponent's personality (`ComputerPlayer6.applyPersonality`): once the AI is done choosing attackers, aggression
   adds the ones that would only trade, risk the ones that could die for nothing, and patience holds the weakest back
   while the defender can hit back. Its dice are the game's own (seeded), and the answers go into the AI's line.
@@ -386,6 +397,12 @@ The end summary's `hints` counts the hints the host gave, and `RustHost.summariz
 
 The hosted kinds are roster duels, campaign nodes, gauntlet fights (a run's wounds, relics and levels arrive as the
 setup) and the weekly challenge (its board reads `my_turns`, `life_at_end` and `creature_spells` from the host's tally).
-Still on Java, each with its reason in the log: puzzles and trials, hordes, pods, limited runs, and twists with an
-emblem or timed twists.
+Still on Java, each with its reason in the log: puzzles and trials, hordes, pods, limited runs, an emblem of a card
+outside `HOST_EMBLEMS` (the drum relic's Fervor), and a twist whose cards aren't verified for Rust.
+
+The engine side is `playmat-engine`'s `career.rs` (the edge, the emblems, the twists' triggers and effect); the host
+builds them from `setup` (`Edge::engine`, `Timed::engine`). The contract is pinned by
+`rust/crates/playmat-host/tests/fixtures/career-setup.json`, written and checked by `CareerSetupHostTest` and read by
+`the_career_setup_java_sends_is_read_whole`; `career_timed_twists_trigger_once_each` plays a seeded game where each
+kind fires once.
 
