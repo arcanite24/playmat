@@ -441,8 +441,31 @@ public class ComputerPlayer extends PlayerImpl {
             producers.addAll(this.getAvailableManaProducersWithCost(game));
         }
 
+        // a color pays only its own colorless hybrid symbol ({C/U}) while {C} pays any of them: tap their colors'
+        // sources first, or {C} can take the symbol that color could pay and leave one it can't (Ulalek, Fused
+        // Atrocity's {C/W}{C/U}{C/B}{C/R}{C/G} with four {C} sources and an Island)
+        if (!hasApprovingObject && unpaid instanceof ManaCosts) {
+            for (ManaCost part : (ManaCosts<ManaCost>) unpaid) {
+                if (part instanceof ColorlessHybridManaCost
+                        && payWithColorSource(ability, part, ((ColorlessHybridManaCost) part).getManaColor(), producers, game)) {
+                    return true;
+                }
+            }
+        }
+
         if (payWithManaAbilities(ability, unpaid, cost, producers, hasApprovingObject, game)) {
             return true;
+        }
+
+        // a colorless hybrid symbol nothing left pays: the color of one {C} already paid takes that one over, and its
+        // {C} moves to this one (ManaCostsImpl.assignPayment)
+        if (!hasApprovingObject && cost instanceof ColorlessHybridManaCost) {
+            for (ManaCost part : ability.getManaCostsToPay()) {
+                if (part instanceof ColorlessHybridManaCost && ((ColorlessHybridManaCost) part).isPaidWithColorlessOnly()
+                        && payWithColorSource(ability, part, ((ColorlessHybridManaCost) part).getManaColor(), producers, game)) {
+                    return true;
+                }
+            }
         }
 
         // pay special mana like convoke cost (tap for pay)
@@ -478,6 +501,33 @@ public class ComputerPlayer extends PlayerImpl {
             }
         }
 
+        return false;
+    }
+
+    /**
+     * Activates a mana ability with one way to make mana, mana of {@code color}, to pay {@code cost}.
+     *
+     * @return whether a mana ability was activated
+     */
+    private boolean payWithColorSource(Ability ability, ManaCost cost, ColoredManaSymbol color, List<MageObject> producers, Game game) {
+        for (MageObject mageObject : producers) {
+            for (ActivatedManaAbilityImpl manaAbility : getManaAbilitiesSortedByManaCount(mageObject, game)) {
+                List<Mana> netManas = manaAbility.getNetMana(game);
+                if (netManas.size() != 1) {
+                    continue;
+                }
+                Mana netMana = netManas.get(0);
+                if (netMana.getAny() > 0 || netMana.getColor(color) == 0) {
+                    continue;
+                }
+                if (netMana instanceof ConditionalMana && !((ConditionalMana) netMana).apply(ability, game, getId(), cost)) {
+                    continue;
+                }
+                if (activateAbility(manaAbility, game)) {
+                    return true;
+                }
+            }
+        }
         return false;
     }
 

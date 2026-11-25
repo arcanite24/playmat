@@ -54,8 +54,9 @@ const MAX_COST_OPTIONS = 64;
 
 /**
  * The ways to read a cost, most likely first: with `hybrid`, each hybrid symbol is either of its halves ({W/U}), a
- * twobrid symbol is its color or two generic ({2/W}), and a Phyrexian symbol is paid with its mana, never with life
- * ({W/P}); otherwise those make the cost unreadable, as X and snow always do. Null when the cost can't be read.
+ * twobrid symbol is its color or two generic ({2/W}), a colorless hybrid symbol is its color or {C} ({C/U}), and a
+ * Phyrexian symbol is paid with its mana, never with life ({W/P}); otherwise those make the cost unreadable, as X and
+ * snow always do. Null when the cost can't be read.
  */
 export function parseCostOptions(text: string, hybrid = true): ManaCostParts[] | null {
   const symbols = [...text.matchAll(/\{([^}]+)\}/g)].map((match) => match[1].toUpperCase());
@@ -72,6 +73,9 @@ export function parseCostOptions(text: string, hybrid = true): ManaCostParts[] |
       // colors before the two generic of a twobrid symbol
       parts = halves.filter((half) => half !== '2').map((half) => half as ManaColor);
       if (halves.includes('2')) parts.push(2);
+    } else if (hybrid && /^C\/[WUBRG]$/.test(symbol)) {
+      // colorless hybrid ({C/U}): its color or {C}
+      parts = [symbol[2] as ManaColor, 'C'];
     } else return null;
     options = options.flatMap((cost) => parts.map((part) => add(cost, part)));
     if (options.length > MAX_COST_OPTIONS) return null;
