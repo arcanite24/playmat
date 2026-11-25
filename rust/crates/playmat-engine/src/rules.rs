@@ -281,20 +281,9 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
     match step {
         Step::Untap => {
             note(game, EventKind::Turn, Some(active), None, None, 0);
-            // a skipped untap step (`TurnMod.withSkipStep(UNTAP)`: `UntapStep` isn't played, day and night not
-            // checked, nothing untaps); its permanents are no longer summoning sick all the same
-            if let Some(at) = game.skip_untap_steps.iter().position(|s| *s == active) {
-                game.skip_untap_steps.remove(at);
-                for id in Arc::clone(&game.battlefield).iter().copied() {
-                    if game.obj(id).controller == active {
-                        game.obj_mut(id).sick = false;
-                    }
-                }
-                return;
-            }
             // 726.2: the previous turn's active player cast no spells: day becomes night; two or more: night
             // becomes day (`UntapStep.handleDayNight`, before untapping)
-            if game.day.is_some() && game.turn > 1 {
+            if game.day.is_some() && game.turn > 1 && !game.skip_untap_steps.contains(&active) {
                 let previous = game.player((active + game.seats() - 1) % game.seats()).spells_cast;
                 let change = match game.day {
                     Some(true) => previous == 0,
@@ -375,6 +364,17 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             game.creatures_died = 0;
             game.void_this_turn = false;
             game.activated_this_turn.clear();
+            // a skipped untap step (`TurnMod.withSkipStep(UNTAP)`: `UntapStep` isn't played, day and night not
+            // checked, nothing phases in or untaps; the turn's own resets above still happen); its permanents are no longer summoning sick all the same
+            if let Some(at) = game.skip_untap_steps.iter().position(|s| *s == active) {
+                game.skip_untap_steps.remove(at);
+                for id in Arc::clone(&game.battlefield).iter().copied() {
+                    if game.obj(id).controller == active {
+                        game.obj_mut(id).sick = false;
+                    }
+                }
+                return;
+            }
             // 502.1: the active player's phased-out permanents phase in, before the untap (`PlayerImpl.phasing`);
             // what phased out indirectly comes back with what it's attached to
             let phasing_in: Vec<ObjId> = game
