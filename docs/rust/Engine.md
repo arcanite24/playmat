@@ -2292,6 +2292,147 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
 
   Gaps found in verified cards: Claim the Kingdom's and Doom Reigns Supreme's reflexive text (above, fixed).
 
+  Wave 24c, Pioneer cards from Ral, Crackling Wit to Zurgo, Thunder's Decree (25 Nov): 386 unverified Pioneer cards
+  (waves 24a and 24b take the rest). The wave 23c probe, run again on this range, sorted them by blocker. 14 came in
+  (14,350 in the engine) and 13 were verified (14,317): Rhys, the Evermore, Sidequest: Hunt the Mark, Single Combat,
+  Sphinx's Decree, Steer Clear, Storrev, Devkarin Lich, Trial of Agony, Tunnel Tipster, Urza Assembles the Titans,
+  Vine Gecko, Visions of Phyrexia, Winter, Misanthropic Guide and Zilortha, Strength Incarnate. Five rounds, all
+  recorded on multivac: round 1 factory (16 games, with the pending Spell Blast, Summon: Choco/Mog and The
+  Fall of Kroog), rounds 2, 3 and 5 hand-made (24 games each; decks under `.local/w24c/factory/round-00N/decks`) and
+  round 6 factory over the 14 new cards (22 games): 105 match, 5 differ. The 10 games under `shadow/wave24c/` cover
+  each card (round 3 game 21: Winter's opponent discards from 6 to 3 at cleanup). No matching game shows a creature
+  dying by Zilortha's rule alone (damage at least its power, less than its toughness). The pieces:
+  - Turn watchers (`TurnWatch`, cleared at untap): a face-down creature entered under a player (Tunnel Tipster), a
+    player played a card from exile, lands too (Visions of Phyrexia), cast a kicked spell (Vine Gecko's first kicked
+    spell; a bargained spell also sets `kicked`, so the predicate also asks for a `KickerAbility`), spells cast while
+    their caster controlled a Mount (Steer Clear), creatures and planeswalkers put into a graveyard this combat
+    (Storrev, also cleared at beginning of combat), and who turned each permanent face up (below).
+  - Player restrictions: no instant or sorcery spells during one turn (Sphinx's Decree), no creature or planeswalker
+    spells through a turn (Single Combat), loyalty abilities twice this turn (Urza Assembles the Titans' chapter III).
+    "Next turn" is counted for two players without extra turns. The two casting ones also stop a spell an effect
+    casts (`cast_with`): Java's `CAST_SPELL` check stopped a creature Dragon-Kami's Egg cast under Single Combat.
+  - Static rules: `Rule::MaxHandSize` (Winter) and `Rule::LethalByPower` (Zilortha). State-based actions, fight,
+    excess damage and lethal-damage assignment now ask `lethal_measure`, toughness unless Zilortha applies, so
+    nothing changes without it.
+  - Handlers: Trial of Agony (one of two targets chosen by their controller), Sidequest: Hunt the Mark, Single
+    Combat, Sphinx's Decree, Urza's scry-and-reveal, The Dragon-Kami Reborn (hatch and the Egg's cast).
+  - Transpiler: `RemoveUpToAmountCountersEffect(Integer.MAX_VALUE)` (Rhys). A full transpile changes and drops no
+    existing card (it adds 4 known leftovers: Dispelling Exhale, Hoshi Sato, Saavik, Starfleet Academy).
+  Changes to verified cards, each shown by a recorded game:
+  - Growing Dread's "whenever you turn a permanent face up" asked who controls the permanent; it's the player who
+    turned it (`turn_face_up_by`, `TurnWatch::turned_face_up_by`): Hauntwoods Shrieker turning up an opponent's
+    Kin-Tree Warden triggered the opponent's Growing Dread in Rust only (round 2 games 7 and 19, both match now;
+    game 7 is kept).
+  - Counters on a card that's cast don't follow it to the stack (122.2): a creature Dragon-Kami's Egg cast kept its
+    hatchling counter on the battlefield in Rust only (round 5 game 1, kept). Only cards cast with counters on them
+    change.
+  The Dragon-Kami Reborn stays unverified: Java's `getCastableComponents` takes both halves of a transforming
+  double-faced card (`DoubleFacedCard` is a `CardWithHalves`), so a hatched Dragon-Kami Reborn counts as a creature
+  to cast (its Egg) and Java asks which card even when only one other could be cast; Rust's `castable_parts` has no
+  transforming back (round 5 games 0 and 17, round 6 game 77). Any `castSpellWithAttributesForFree` over a
+  transforming card whose back matches the filter differs the same way. Seen on the way: Basri Ket's -2 delayed
+  trigger and Gloryheath Lynx's attack trigger go on the stack in the other order in Rust (round 5 game 4); both are
+  verified. Spireside Infiltrator entering tapped under Blind Obedience triggers its "whenever this becomes tapped" in
+  Java only (round 1 game 21, none of this wave's cards in it); both are verified. Left out, with what each needs:
+  - Reflexive triggers that are optional or modal (Wishing Well, Tranquil Frillback); a target that's a player of a
+    filter (Rix Maadi Guildmage); control of another player (Worst Fears); `CantBeSacrificed` granted under a
+    condition (Zurgo, Thunder's Decree); decayed and paw-print counters (Rot-Curse Rakshasa, the Seasons cards);
+    a card-name choice (Tamiyo, Collector of Tales); multiple kickers.
+  - `GainAbilityWithAttachmentEffect` (Spare Dagger, Sunfire Torch, Trickster's Talisman, The Dominion Bracelet) and
+    "for as long as the source stays" (Suncleanser, Touch of Moonglove's delayed trigger); suspend granted and
+    exiling a spell from the stack (Taigam); "until the end of your next turn" emblems (Teferi, Timeless Voyager).
+  - Large own classes (Tannuk, Yarus, Cruelclaw, Runed Halo, Sanar, Raphael), a meld card (Titania), and the long
+    tail of single-handler cards, not reached. The cards Engine.md already names as nondeterministic or blamed
+    stayed out of the candidates.
+
+  Wave 24a, Pioneer cards A Killer Among Us to God-Eternal Kefnet (25 Nov): the 385 unverified Pioneer cards in that
+  range (waves 24b and 24c take the rest). A stub-handler probe found 109 that translate with their own classes
+  stubbed; most of the rest need layer 4, random or hash order, mana-spent tracking or a framework class. 12 came in,
+  and 13 were verified: Aven Mindcensor, Blood Operative, Blossombind, Canyon Vaulter, Curious Cadaver, Dispelling
+  Exhale, Ephara, God of the Polis, Extract the Truth, Frozen in Ice, Furious Forebear, Exquisite Archangel, Bound by
+  Moonsilver and Doc Aurlock, Grizzled Genius, which was already in (wave 23a held it back because neither reduction
+  ran: here Think Twice's flashback asked "Pay {U}" with it out, in round 2's game 39, and "Pay {2}{U}" while an
+  opponent's Frozen in Ice took its abilities, in game 22; its plot reduction still hasn't been seen). Every round but
+  one was hand-made and recorded on multivac: round 2 (5 decks, 40 games: graveyard triggers, Auras, Doc Aurlock with
+  plot and flashback, Dragons with behold), round 4 (4 decks, 24 games: saddle and crew, Extract the Truth, Aven
+  Mindcensor against fetch lands and land searches), round 5 (4 decks, 40 games: Exquisite Archangel and Bound by
+  Moonsilver against daybound aggro and burn, Blossombind against +1/+1 counters). Round 3 was a factory round of the
+  first eight, recorded locally (16 games, 13 replayed). Every game Java finished matches. The decks are under
+  `.local/w24a/factory/round-00N/decks`. The 7 games under `shadow/wave24a/` cover Blood Operative's surveil return,
+  Curious Cadaver's sacrificed-Clue return and Furious Forebear's return; Ephara's draw, Dispelling Exhale's behold
+  ("Pay {4}?") and Frozen in Ice keeping a creature tapped; Doc Aurlock's flashback reduction; Frozen in Ice taking
+  Doc Aurlock's abilities and Blossombind keeping a creature tapped; Aven Mindcensor (searches of the top four, some
+  finding nothing), Canyon Vaulter's saddle trigger and Extract the Truth; Exquisite Archangel replacing a loss
+  (exiled, back to 20 life); Bound by Moonsilver moving by its sacrifice ability and keeping a daybound creature on
+  its front face through the night (seen as a front face staying out among the night faces; the state text doesn't
+  show attachments). Not seen in a trace: Blossombind's "can't have counters". The pieces:
+  - Graveyard-zone triggers: `DiesCreatureTriggeredAbility(Zone.GRAVEYARD, …)`, `SacrificePermanentTriggeredAbility(
+    Zone.GRAVEYARD, …)` and `SurveilTriggeredAbility(Zone.GRAVEYARD, …)` are `dies_all`, `sacrificed` and
+    `you_surveil_or_scry` with `graveyard: true`, which trigger only from a card in a graveyard. Two Java details
+    matter. A card that went to the graveyard since its player last passed, cast or made mana doesn't trigger
+    (Java's short-living LKI still sees it on the battlefield: Furious Forebear dying with the creature). And the
+    trigger takes its place among the event's other triggers by Java's trigger order (`trigger_key`), after the
+    "left in the same action" zone-change-count step, which is only for battlefield sources.
+  - `Rule::CantUntap`: `UNTAP` replaced, checked in the untap step (the "untap during each other player's untap
+    step" one too), `untap_permanent`, `UntapAllEffect` and the chosen-untap effect (Blossombind, Frozen in Ice).
+  - `Rule::SearchLimit`: `SEARCH_LIBRARY`'s amount; `search_library` shows and offers only the top N (Aven
+    Mindcensor, searches by an opponent of its controller). Java still lowers the least number to pick from the whole
+    library's matches, not the top four's; the engine's `min.min(possible.len())` reads the top four, and the
+    matching games with searches finding nothing there show the two agree (Java's chooser stops at what's possible).
+  - `CrewsVehicle { mounts, main_phase }`: `CrewsVehicleSourceTriggeredAbility(effect, mounts, mainPhase)`;
+    saddling fires the ones with `mounts` (Canyon Vaulter). The struct form replaces the unit variant: the cards that
+    had `crews_vehicle` read the same (both default false).
+  - `TurnWatch.entered_last_turn` (`PermanentsEnteredBattlefieldWatcher.enteringBattlefieldLastTurn`): Ephara's
+    condition.
+  - `DiscardCardYouChooseTargetEffect { optional }` (`setOptional(true)`: Extract the Truth may choose nothing).
+  - `EventType::Loses`: the state-based loss check asks the replacement handlers before a player loses (Java's
+    `canLose`); one that replaces it keeps them in, and the next check sees them again (Exquisite Archangel: exiled,
+    life set to the starting life as a gain). Not asked when another player wins (`PlayerImpl.won` loses the others
+    by `lostForced`).
+  - `Restrict::CantTransform` (`RestrictionEffect.canTransform`), checked in `transform`, day and night's too (Bound
+    by Moonsilver).
+  - A card in a graveyard that triggers on a creature dying is stopped by Hushbringer too (no game has it).
+  - Transpiler forms: the three graveyard triggers above, `CrewsVehicleSourceTriggeredAbility` with its two
+    booleans, `FrozenInIceAbilityEffect` as `LoseAllAbilitiesAttachedEffect`, and the optional discard.
+  - Card handlers: Blossombind, Frozen in Ice, Ephara's condition, Aven Mindcensor, Exquisite Archangel, Bound by
+    Moonsilver.
+  The full transpile changes no card in `cards.json` and drops none. It adds Hoshi Sato, Saavik and Starfleet
+  Academy (outside this range, as in wave 23a) and Reckless Velocitaur (outside it: its saddle trigger is the new
+  `CrewsVehicle` form), left out of `cards.json`.
+
+  Engine changes that could touch verified cards: the untap sites now ask `cards::cant_untap` (no verified card has
+  the rule); `search_library` asks `cards::search_limit` (likewise); the dies and sacrifice trigger collection now
+  also looks at graveyards (only `graveyard: true` triggers, which no verified card had); the turn's watch keeps last
+  turn's entries; the crew trigger moved into `crews_triggers` with the same targets and order; the state-based loss
+  check asks `LOSES` replacements (none among verified cards); `transform` asks `cards::cant_transform` (no verified
+  card has the restriction). No verified card changes in a recorded game: the 4 rounds' games all match (replayed
+  again on the final engine), and the strict shadow test passes.
+
+  Left out, with the piece each needs:
+  - Random or hash order: Florian, Voldaren Scion (random bottom order), Exotic Pets (`toSet` of counter types),
+    Ghastly Conscription (`Collections.shuffle`), Bringer of the Last Gift (`HashSet`), Cinderheart Giant
+    (`setRandom`), Amplifire (random bottom order), Awaken the Erstwhile (tokens by `HashMap` of players), Creeping
+    Dread (`HashMap` of discards), Flameskull (`HashSet` of the cards it may play), Capricious Hellraiser, Crystalline
+    Giant, Deadbridge Chant, Getaway Barrel.
+  - Mana-spent tracking: Berg Strider, Blessing of Frost, Forsworn Paladin, Boreal Outrider. Layer 4: Futurist
+    Operative, Eccentric Apprentice, Circle of the Moon Druid, Crackling Emergence, Arbiter of the Ideal, Blade of the
+    Oni, Encroaching Mycosynth. Phyrexian hybrid: Ajani, Sleeper Agent, Ayara.
+  - An "as you cast" snapshot watcher: Flame Discharge, Faerie Fencing. An optional reflexive trigger (`Delayed` has
+    no "may"): Dream Eater. A "for as long as you control" restriction on a fixed target: Extraction Specialist.
+    `RemoveVariableCountersTargetCost`: Galloping Lizrog. Delayed setups: Fire Giant's Fury, Esoteric Duplicator.
+    `DAMAGE_CAUSES_LIFE_LOSS`: Angel of Grace. `LOSE_LIFE` replacement: Enduring Angel.
+  - Acolyte's Reward (Java reads a null player), Churning Reservoir (counter-removed events), Arrow Storm
+    (`withCantBePrevented` at every damage site), Airtight Alibi (suspect), Falkenrath Gorger (abilities granted to
+    cards outside the battlefield), Assemble the Players (a once-each-turn cast watcher), Crippling Fear (a type chosen
+    by a spell), Detention Vortex (`setMayActivate`), Azor, the Lawbringer (an {X} payment on a trigger), Glorious End
+    and Darksteel Colossus (low value), and wave 23a's other skips in this range.
+  - Already in with documented Java nondeterminism or blame, left alone: Descent of the Dragons, Emergent Sequence,
+    Eternal of Harsh Truths, Festival of Embers, Dark Leo & Shredder, Don & Leo, Dictate of Karametra, Elemental
+    Expressionist, Dissension in the Ranks.
+  - The rest of the 385: one card class or one engine piece each, not reached in the budget.
+
+  Gaps found in verified cards: none.
+
   Wave 15, shared forms A (15 Nov): framework forms that block several of the claim's cards, then card classes,
   built in four slices. Ending the turn (`EndTurnEffect`, `Turn.endTurn`: `Game::end_turn`; every spell on the stack
   exiled, the resolving one too, abilities removed, combat left, the waiting triggers dropped; priority stops after

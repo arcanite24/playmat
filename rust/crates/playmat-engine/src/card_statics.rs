@@ -19,7 +19,8 @@
 //! - **costs**: `Handler::cost(name, CostKind::…, applies, apply)`, in `CostModificationType` order (increases, then
 //!   reductions, then sets) after the engine's own of that kind, for spells (`rules::modified_cost_of`, the spell's
 //!   own static abilities too: "this spell costs {2} less") and activated abilities (`adjusted_mana_cost_own`).
-//! - **restrictions**: `Handler::restriction(name, applies, &[Restrict::…])`: `rules::can_block`, `can_attack`.
+//! - **restrictions**: `Handler::restriction(name, applies, &[Restrict::…])`: `rules::can_block`, `can_attack`,
+//!   `transform`.
 //! - **rule-modifying**: `Handler::rule(name, Rule::CantCast(f))`: `rules::castable` (and the cast itself);
 //!   `Rule::CantCastOnStack(f)`: only the cast itself, after its targets (`CAST_SPELL_LATE` reading the spell);
 //!   `Rule::CantActivate(f)`: `rules::activatable` (activated abilities that aren't mana abilities);
@@ -231,6 +232,9 @@ pub(crate) enum EventType {
     /// statics already apply (`PermanentImpl.transform`, before `TRANSFORMED`). Nothing to change: a replacement
     /// does something as it transforms ("as this creature transforms into …": Sephiroth's emblem)
     Transforming,
+    /// `LOSES`: `player` would lose the game (the state-based check, `PlayerImpl.lost` through `canLose`); "replaced"
+    /// and they don't (Exquisite Archangel). Not when another player wins (`lostForced`)
+    Loses,
 }
 
 /// The event a replacement handler sees and may change (Java's `GameEvent`)
@@ -386,6 +390,8 @@ pub(crate) enum Restrict {
     CantBlock(fn(&Game, &StaticCx, ObjId, ObjId) -> bool),
     /// `canAttack` is false
     CantAttack(fn(&Game, &StaticCx, ObjId) -> bool),
+    /// `canTransform` is false (`PermanentImpl.checkTransformRestrictionEffects`)
+    CantTransform(fn(&Game, &StaticCx, ObjId) -> bool),
 }
 
 pub(crate) struct Restriction {
@@ -439,6 +445,19 @@ pub(crate) enum Rule {
     /// `VENTURE` whose `applies` reads only the player: `seat` doesn't venture into the dungeon
     /// (`GameImpl.ventureIntoDungeon` returns: Keen-Eared Sentry)
     CantVenture(fn(&Game, &StaticCx, Seat) -> bool),
+    /// `UNTAP` replaced with nothing (a `ReplacementEffect` whose `replaceEvent` returns true: Blossombind, Frozen in
+    /// Ice): the permanent `id` can't become untapped, in its untap step or by an effect (`PermanentImpl.untap`)
+    CantUntap(fn(&Game, &StaticCx, ObjId) -> bool),
+    /// `SEARCH_LIBRARY` whose `replaceEvent` sets its amount (Aven Mindcensor): `seat` searching `owner`'s library
+    /// searches only that many cards from its top (`PlayerImpl.searchLibrary`'s `librarySearchLimit`); None leaves it
+    SearchLimit(fn(&Game, &StaticCx, Seat, Seat) -> Option<usize>),
+    /// a `Layer.PlayerEffects` continuous effect's `player.setMaxHandSize`: `seat`'s maximum hand size, where it
+    /// sets one (Winter, Misanthropic Guide); None leaves it. Read by `rules::max_hand_size`, after the engine's own.
+    MaxHandSize(fn(&Game, &StaticCx, Seat) -> Option<usize>),
+    /// `GameState.addPowerInsteadOfToughnessForDamageLethalityFilter`: lethal damage to the creature `id` is
+    /// determined by its power rather than its toughness (Zilortha, Strength Incarnate), read by the state-based
+    /// actions (`max(power, 1)`) and `Permanent.getLethalDamage` (power)
+    LethalByPower(fn(&Game, &StaticCx, ObjId) -> bool),
 }
 
 /// The rules a rule-modifying handler's hook has (`Rule::Several`'s, or its one); none for another kind
@@ -792,7 +811,7 @@ pub(crate) fn cant_block(game: &Game, blocker: ObjId, attacker: ObjId) -> bool {
             out = restrict.iter().any(|r| match r {
                 Restrict::CantBeBlocked(f) => applies(game, cx, attacker) && f(game, cx, attacker, blocker),
                 Restrict::CantBlock(f) => applies(game, cx, blocker) && f(game, cx, blocker, attacker),
-                Restrict::CantAttack(_) => false,
+                Restrict::CantAttack(_) | Restrict::CantTransform(_) => false,
             });
         }
     });
@@ -810,6 +829,22 @@ pub(crate) fn cant_attack(game: &Game, attacker: ObjId) -> bool {
             out = restrict
                 .iter()
                 .any(|r| matches!(r, Restrict::CantAttack(f) if applies(game, cx, attacker) && f(game, cx, attacker)));
+        }
+    });
+    out
+}
+
+/// Whether a handler's restriction says the permanent `id` can't transform
+pub(crate) fn cant_transform(game: &Game, id: ObjId) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        if out {
+            return;
+        }
+        if let Hook::Restriction(Restriction { applies, restrict }) = h {
+            out = restrict
+                .iter()
+                .any(|r| matches!(r, Restrict::CantTransform(f) if applies(game, cx, id) && f(game, cx, id)));
         }
     });
     out
@@ -854,6 +889,31 @@ pub(crate) fn cant_have_counters(game: &Game, id: ObjId, counter: &str) -> bool 
     each_static(game, &mut |h, cx, _| {
         if let Hook::Rule(Rule::CantHaveCounters(f)) = h {
             out = out || f(game, cx, id, counter);
+        }
+    });
+    out
+}
+
+/// How many cards from the top of `owner`'s library `seat` searches, if a handler limits it (the last one that
+/// applies sets the event's amount, `SearchLibraryEvent.setAmount`)
+pub(crate) fn search_limit(game: &Game, seat: Seat, owner: Seat) -> Option<usize> {
+    let mut out = None;
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::Rule(Rule::SearchLimit(f)) = h {
+            if let Some(n) = f(game, cx, seat, owner) {
+                out = Some(n);
+            }
+        }
+    });
+    out
+}
+
+/// Whether a handler says the permanent `id` can't become untapped (`UNTAP` replaced)
+pub(crate) fn cant_untap(game: &Game, id: ObjId) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::Rule(Rule::CantUntap(f)) = h {
+            out = out || f(game, cx, id);
         }
     });
     out
@@ -923,6 +983,44 @@ pub(crate) fn cant_venture(game: &Game, seat: Seat) -> bool {
         }
     });
     out
+}
+
+/// The maximum hand size a handler sets for `seat` (the last one, in the order the statics are read), if any
+pub(crate) fn handler_max_hand_size(game: &Game, seat: Seat) -> Option<usize> {
+    let mut out = None;
+    each_static(game, &mut |h, cx, _| {
+        for r in rule_parts(h) {
+            if let Rule::MaxHandSize(f) = r {
+                if let Some(n) = f(game, cx, seat) {
+                    out = Some(n);
+                }
+            }
+        }
+    });
+    out
+}
+
+/// Whether lethal damage to the creature `id` is determined by its power (`Rule::LethalByPower`)
+pub(crate) fn lethal_by_power(game: &Game, id: ObjId) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        for r in rule_parts(h) {
+            if let Rule::LethalByPower(f) = r {
+                out = out || f(game, cx, id);
+            }
+        }
+    });
+    out
+}
+
+/// The power or toughness lethal damage to `id` is measured against (`Permanent.getLethalDamage`)
+pub(crate) fn lethal_measure(game: &Game, id: ObjId) -> i32 {
+    let (p, t) = game.power_toughness(id);
+    if lethal_by_power(game, id) {
+        p
+    } else {
+        t
+    }
 }
 
 /// Whether a rule-modifying handler says `seat` can't play lands (`PLAY_LAND`)

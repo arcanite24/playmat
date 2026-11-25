@@ -620,6 +620,14 @@ pub struct Player {
     /// the last turn a permanent entered face down under their control or they turned one face up (Oblivious
     /// Bookworm's watcher)
     pub face_down_turn: Option<u32>,
+    /// can't cast instant or sorcery spells during this turn, their next one when it was set (Sphinx's Decree)
+    pub no_instants_sorceries_turn: Option<u32>,
+    /// can't cast creature or planeswalker spells until the end of this turn (Single Combat's "until the end of your
+    /// next turn", the turn of its controller's next one)
+    pub no_creatures_planeswalkers_until: Option<u32>,
+    /// may activate the loyalty abilities of planeswalkers they control twice during this turn (Urza Assembles the
+    /// Titans' chapter III)
+    pub loyalty_twice_turn: Option<u32>,
 }
 
 impl Player {
@@ -1472,6 +1480,19 @@ pub struct TurnWatch {
     pub attacked_players: Vec<(ObjId, u32, Seat)>,
     /// `SpellsCastWatcher`, in the order they were cast
     pub spells: Vec<SpellSeen>,
+    /// the controllers of face-down creatures that entered the battlefield this turn (Tunnel Tipster's watcher)
+    pub face_down_creature_entered: Vec<Seat>,
+    /// who played a land or cast a spell from exile this turn (Visions of Phyrexia's watcher)
+    pub played_from_exile: Vec<Seat>,
+    /// who cast a kicked spell this turn (Vine Gecko's watcher)
+    pub kicked_cast: Vec<Seat>,
+    /// creature and planeswalker cards put into a graveyard since the last beginning of combat this turn, as the
+    /// cards they became there (Storrev, Devkarin Lich's watcher)
+    pub to_graveyard_this_combat: Vec<(ObjId, u32)>,
+    /// spells cast this turn while their caster controlled a Mount, as the spells they were (Steer Clear's watcher)
+    pub cast_with_mount: Vec<(ObjId, u32)>,
+    /// permanents turned face up this turn and the player who turned each (`TURNED_FACE_UP`'s player: Growing Dread)
+    pub turned_face_up_by: Vec<(ObjId, Seat)>,
     /// `PermanentsSacrificedWatcher`: who sacrificed, and whether it was an artifact
     pub sacrificed: Vec<(Seat, bool)>,
     /// `CardsLeftGraveyardWatcher`: the owner of each card that left a graveyard
@@ -1506,6 +1527,9 @@ pub struct TurnWatch {
     /// the same permanents, with their zone-change counts as they entered and their controllers then
     /// (`PermanentsEnteredBattlefieldWatcher.getThisTurnEnteringPermanents`)
     pub entered_permanents: Vec<(ObjId, u32, Seat)>,
+    /// `PermanentsEnteredBattlefieldWatcher`'s `enteringBattlefieldLastTurn`: each permanent that entered last turn,
+    /// as (its controller then, whether it was a creature, the object), kept as this turn's watch begins
+    pub entered_last_turn: Vec<(Seat, bool, ObjId)>,
     /// `COUNTER_ADDED` for +1/+1 counters: who put them, and how many (Iridescent Hornbeetle's watcher)
     pub p1p1_put: Vec<(Seat, i32)>,
     /// `CardsExiledThisTurnWatcher`: objects put into exile
@@ -4783,7 +4807,7 @@ impl Game {
                 Trigger::DiesIfCreature => src == id && g.has_type(id, CardType::Creature),
                 // the source counts too unless it says "another", but it must match like the others
                 // (Bishop of Wings, a Human, isn't "an Angel you control")
-                Trigger::DiesAll { filter, include_self, this_unfiltered, .. } => {
+                Trigger::DiesAll { filter, include_self, this_unfiltered, graveyard: false, .. } => {
                     (src == id && *this_unfiltered)
                         || (src != id || *include_self) && g.filter_matches(filter, you, Some(src), id)
                 }
@@ -4793,6 +4817,17 @@ impl Game {
                 Trigger::LeavesAll { filter } => g.filter_matches(filter, you, Some(src), id),
                 Trigger::PutIntoGraveyardAll { .. } => into_graveyard(g, src, you, t),
                 _ => false,
+            });
+            // "whenever a creature dies while this card is in your graveyard" (Furious Forebear): cards already in a
+            // graveyard, not the one dying, nor one that went there since its player last passed, cast or made mana
+            // (Java's short-living LKI still sees it on the battlefield)
+            let grave: Vec<ObjId> = (0..self.seats())
+                .flat_map(|p| self.player(p).graveyard.clone())
+                .filter(|o| *o != id && !self.lookback.contains(o) && !self.short_lki.contains(o))
+                .collect();
+            let from_graveyard = self.triggers(grave, |g, src, you, t| {
+                g.obj(src).zone == Zone::Graveyard
+                    && matches!(t, Trigger::DiesAll { filter, graveyard: true, .. } if g.filter_matches(filter, you, Some(src), id))
             });
             self.trigger_cause = None;
             let mut fired = self.pelt_collector(fired, id);
@@ -4816,6 +4851,20 @@ impl Game {
                         *zcc = zcc.saturating_sub(1);
                     }
                 }
+            }
+            // (a card in a graveyard triggers as that card, Hushbringer stopping it too), each in its place in Java's
+            // trigger order
+            let mut from_graveyard = from_graveyard;
+            let mut from: Vec<ObjId> = from_graveyard.iter().map(|t| t.card).collect();
+            let before = from.clone();
+            self.dont_cause_triggers(id, true, &mut from);
+            if from != before {
+                from_graveyard.retain(|t| from.contains(&t.card));
+            }
+            for t in from_graveyard {
+                let k = self.trigger_key(&t);
+                let at = fired.iter().position(|f| self.trigger_key(f) > k).unwrap_or(fired.len());
+                fired.insert(at, t);
             }
             // blitz: its granted "When this creature dies, draw a card."
             if self.obj(id).blitzed {
@@ -5380,6 +5429,10 @@ impl Game {
             Zone::Graveyard => {
                 if self.obj(id).def.is_permanent_card() {
                     self.player_mut(owner).descended += 1;
+                }
+                if self.obj(id).def.is(CardType::Creature) || self.obj(id).def.is(CardType::Planeswalker) {
+                    let zcc = self.obj(id).zcc;
+                    self.watch.to_graveyard_this_combat.push((id, zcc));
                 }
                 self.player_mut(owner).graveyard.push(id)
             }
