@@ -71,7 +71,10 @@ pub fn with(mut c: Config, settings: &str) -> Result<Config, String> {
             "playout_cap" => c.playout_cap = n()?,
             "policy" => c.policy = v.parse()?,
             "threads" => c.threads = n()? as usize,
-            "hide" => { c.hide = b()?; hide_explicit = true; },
+            "hide" => {
+                c.hide = b()?;
+                hide_explicit = true;
+            }
             "samples" => c.samples = n()?.max(1) as usize,
             "playout" => c.playout = n()? as u8,
             "eval" => c.eval = n()? as u8,
@@ -236,10 +239,7 @@ mod pin_tests {
             if field == "threads" || !field.chars().all(|c| c.is_ascii_lowercase() || c == '_') {
                 continue;
             }
-            assert!(
-                text.contains(&format!("{field}=")) || LATER.contains(&field),
-                "{field} is missing from the label"
-            );
+            assert!(text.contains(&format!("{field}=")) || LATER.contains(&field), "{field} is missing from the label");
         }
     }
 

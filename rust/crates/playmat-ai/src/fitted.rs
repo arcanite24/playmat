@@ -5,8 +5,8 @@
 //! the two seats' chances add to 1. Each card name on the battlefield also has a learned weight: what having one
 //! more copy than the opponent is worth, on top of the generic features.
 
-use crate::fm::Fm;
 use crate::eval;
+use crate::fm::Fm;
 use playmat_engine::card::{AbilityDef, CardType};
 use playmat_engine::state::{Game, Seat};
 use std::collections::HashMap;

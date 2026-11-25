@@ -6,8 +6,8 @@
 //! Shipped policies: `Playouts` (the default search), `Mcts`, `Quick` and `Random`. A Jev, LLM or ONNX decider is
 //! another implementation, set on a table with `Table::set_policy`.
 
-use crate::fm::Fm;
 use crate::eval;
+use crate::fm::Fm;
 use crate::policy::{Policy, Repeats};
 use crate::search::{candidates, Config};
 use playmat_engine::decide::{Answer, Decider, Query};

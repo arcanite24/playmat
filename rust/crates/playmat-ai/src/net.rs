@@ -142,8 +142,7 @@ impl Linear {
             b8.copy_from_slice(&self.b[ob..ob + 8]);
             let mut acc = [b8; R];
             let panel = &self.wp[blk * inp * 8..(blk + 1) * inp * 8];
-            for (k, w) in panel.chunks_exact(8).enumerate() {
-                let w: &[f32; 8] = w.try_into().unwrap();
+            for (k, w) in panel.as_chunks::<8>().0.iter().enumerate() {
                 for r in 0..R {
                     let v = xs[r][k];
                     for j in 0..8 {
@@ -313,7 +312,10 @@ impl Mlp {
         let belief = take("belief").ok();
         let (es, emb) = tensors.remove("emb.weight").ok_or("no emb.weight")?;
         let dim = es[1];
-        if ent1.inp != dim + ENT_F || (glob1.inp != GLOB_F && glob1.inp != GLOB_F_V2 && glob1.inp != GLOB_F_V1) || act1.inp != dim + ACT_F {
+        if ent1.inp != dim + ENT_F
+            || (glob1.inp != GLOB_F && glob1.inp != GLOB_F_V2 && glob1.inp != GLOB_F_V1)
+            || act1.inp != dim + ACT_F
+        {
             return Err(format!(
                 "{name}: made for other features (entity {}, global {}, action {}; this build has {}, {} or {}, {})",
                 ent1.inp - dim,
@@ -442,7 +444,14 @@ impl LayerNorm {
     fn apply_slice(&self, x: &[f32], y: &mut [f32]) {
         let n = x.len() as f32;
         let mean = x.iter().sum::<f32>() / n;
-        let var = x.iter().map(|&v| { let d = v - mean; d * d }).sum::<f32>() / n;
+        let var = x
+            .iter()
+            .map(|&v| {
+                let d = v - mean;
+                d * d
+            })
+            .sum::<f32>()
+            / n;
         let inv = 1.0 / (var + 1e-5).sqrt();
         for ((&v, (&w, &b)), dst) in x.iter().zip(self.w.iter().zip(&self.b)).zip(y.iter_mut()) {
             *dst = (v - mean) * inv * w + b;
@@ -576,7 +585,7 @@ fn attend_strided(
                     let ne = r_idx.len().min(nk.saturating_sub(1));
                     if k_ent < ne {
                         let rt = r_typ[k_ent] as usize;
-                        if rt >= 1 && rt <= NUM_REL_TYPES {
+                        if (1..=NUM_REL_TYPES).contains(&rt) {
                             let tgt = r_idx[k_ent] as usize;
                             if tgt < ne {
                                 let j = 1 + tgt;
@@ -586,7 +595,7 @@ fn attend_strided(
                         }
                         for j_ent in 0..ne {
                             let rt = r_typ[j_ent] as usize;
-                            if rt >= 1 && rt <= NUM_REL_TYPES && r_idx[j_ent] as usize == k_ent {
+                            if (1..=NUM_REL_TYPES).contains(&rt) && r_idx[j_ent] as usize == k_ent {
                                 let j = 1 + j_ent;
                                 scores[j] += rb[(NUM_REL_TYPES + rt - 1) * heads + h];
                                 m = m.max(scores[j]);
@@ -701,7 +710,10 @@ impl Tx {
             abias: take_linear(t, "abias")?,
         };
         let want_act = net.dim + ACT_F + if net.act_ent { net.d } else { 0 };
-        if net.ent_in.inp != net.dim + ENT_F || (net.glob_f != GLOB_F && net.glob_f != GLOB_F_V2 && net.glob_f != GLOB_F_V1) || net.act_in.inp != want_act {
+        if net.ent_in.inp != net.dim + ENT_F
+            || (net.glob_f != GLOB_F && net.glob_f != GLOB_F_V2 && net.glob_f != GLOB_F_V1)
+            || net.act_in.inp != want_act
+        {
             return Err(format!("{name}: made for other features than this build's"));
         }
         Ok(net)
@@ -1025,8 +1037,8 @@ impl RemoteNet {
                 let b = batch.len();
                 let max_e = batch.iter().map(|r| r.obs.n_ents()).max().unwrap_or(0);
                 let max_a = batch.iter().map(|r| r.obs.n_acts()).max().unwrap_or(0);
-                let w_e = ((max_e + 7) / 8 * 8).max(8);
-                let w_a = ((max_a + 3) / 4 * 4).max(4);
+                let w_e = (max_e.div_ceil(8) * 8).max(8);
+                let w_a = (max_a.div_ceil(4) * 4).max(4);
 
                 // Pre-pack 10 flat contiguous arrays so Python infer_server.py runs with ZERO Python loops
                 let glob_bytes = b * GLOB_F * 4;
@@ -1212,6 +1224,8 @@ impl RemoteNet {
 }
 
 /// A network: the first, pooled one, the transformer, or a GPU-batched remote server (`tcp://...`)
+// `Tx` is large, but a game holds one `Arc<Net>`, so boxing it buys nothing
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug)]
 pub enum Net {
     Mlp(Mlp),

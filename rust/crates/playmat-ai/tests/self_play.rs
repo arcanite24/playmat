@@ -197,9 +197,7 @@ fn parity(net: &Net, fixture: &str) -> serde_json::Value {
         v.as_array().unwrap().iter().map(|x| x.as_u64().unwrap() as u32).collect()
     };
     let u8v = |v: &serde_json::Value, n: usize, def: u8| -> Vec<u8> {
-        v.as_array()
-            .map(|arr| arr.iter().map(|x| x.as_u64().unwrap() as u8).collect())
-            .unwrap_or_else(|| vec![def; n])
+        v.as_array().map(|arr| arr.iter().map(|x| x.as_u64().unwrap() as u8).collect()).unwrap_or_else(|| vec![def; n])
     };
     let mut n = 0;
     for c in cases["cases"].as_array().unwrap() {

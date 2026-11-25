@@ -320,13 +320,7 @@ fn net_bottom(game: &Game, seat: Seat, cfg: &crate::search::Config) -> ObjId {
 fn net_wants(game: &Game, seat: Seat, taken: usize, cfg: &crate::search::Config) -> bool {
     let net = crate::net::of(&cfg.net);
     let keep = net_hand_value(&net, game, seat);
-    let mut pool: Vec<ObjId> = game
-        .player(seat)
-        .hand
-        .iter()
-        .chain(game.player(seat).library.iter())
-        .copied()
-        .collect();
+    let mut pool: Vec<ObjId> = game.player(seat).hand.iter().chain(game.player(seat).library.iter()).copied().collect();
     let size = 7usize.saturating_sub(taken + 1);
     let mut mix = Mix(seed(game, seat) ^ 0x4E45_544D);
     let deals = 8usize;
