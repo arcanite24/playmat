@@ -56,6 +56,7 @@ Abzan Runemark
 Abzan Skycaptain
 Academic Ascent
 Academic Dispute
+Academic Probation
 Academy Drake
 Academy Instructor
 Academy Journeymage
@@ -2367,6 +2368,7 @@ Consul's Shieldguard
 Consulate Crackdown
 Consulate Dreadnought
 Consulate Skygate
+Consulate Surveillance
 Consulate Turret
 Consult the Star Charts
 Consumed by Greed
@@ -2687,6 +2689,7 @@ Dain Ironfoot
 Dain's Company
 Dain, Lord of the Iron Hills
 Dakra Mystic
+Dal R'El, Augment Orphan
 Dalakos, Crafter of Wonders
 Dalkovan Packbeasts
 Damage Control Crew
@@ -3492,6 +3495,7 @@ Dusk Legion Zealot
 Dusk Rose Reliquary
 Duskborne Skymarcher
 Duskfang Mentor
+Duskmantle Guildmage
 Duskmantle Operative
 Duskmantle Seer
 Duskmourn's Domination
@@ -3599,6 +3603,7 @@ Effortless Master
 Efreet Flamepainter
 Efreet Weaponmaster
 Ego Drain
+Egon, God of Death
 Eidolon of Blossoms
 Eidolon of Countless Battles
 Eidolon of Inspiration
@@ -4012,6 +4017,7 @@ Extinguish the Light
 Extinguisher Battleship
 Extract a Confession
 Extract the Truth
+Extraction Specialist
 Extravagant Replication
 Extricator of Sin
 Exuberant Fuseling
@@ -4062,6 +4068,7 @@ Faerie Vandal
 Failed Conversion
 Failed Fording
 Failed Inspection
+Failure // Comply
 Fairgrounds Trumpeter
 Fairgrounds Warden
 Faith Unbroken
@@ -4306,6 +4313,7 @@ Finale of Glory
 Finale of Revelation
 Finch Formation
 Find // Finality
+Find the Path
 Finishing Blow
 Finneas, Ace Archer
 Firdoch Core

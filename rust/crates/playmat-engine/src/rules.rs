@@ -2651,14 +2651,29 @@ fn blitz(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
     castable(game, seat, id, &def).then_some((k, def))
 }
 
-/// Foretell, a special action: the ability's index, if the card is in hand during its owner's turn with {2} to pay
+/// Foretell, a special action: the ability's index, if the card is in hand during its owner's turn (any turn with
+/// an `ALLOW_FORETELL_ANYTIME` handler: Cosmos Charger) with its cost to pay
 fn foretell(game: &Game, seat: Seat, id: ObjId) -> Option<usize> {
     let o = game.obj(id);
-    if o.zone != Zone::Hand || game.active != Some(seat) {
+    if o.zone != Zone::Hand || game.active != Some(seat) && !cards::foretell_any_time(game, seat) {
         return None;
     }
     let (k, _) = o.def.foretold()?;
-    can_pay(game, seat, &ManaCost { generic: 2, ..ManaCost::default() }).then_some(k)
+    can_pay(game, seat, &foretell_cost(game, seat, id, k)).then_some(k)
+}
+
+/// Foretell's {2}, changed by the static handlers as `CostModificationEffect`s see a `ForetellAbility` (Cosmos
+/// Charger's "foretelling cards from your hand costs {1} less"), by `CostModificationType`
+fn foretell_cost(game: &Game, seat: Seat, id: ObjId, k: usize) -> ManaCost {
+    let mut cost = ManaCost { generic: 2, ..ManaCost::default() };
+    let o = game.obj(id);
+    if let Some(a) = o.def.abilities.get(k) {
+        let of = cards::CostCx { seat, card: id, face: &o.def, ability: Some(a) };
+        for kind in [cards::CostKind::Increase, cards::CostKind::Reduce, cards::CostKind::Set] {
+            cards::change_cost(game, kind, &of, &mut cost);
+        }
+    }
+    cost
 }
 
 /// Plot, a special action: the ability's index and cost, if the card is in hand as a sorcery with the cost to pay
@@ -3177,6 +3192,7 @@ fn activations_forbidden(game: &Game, id: ObjId) -> bool {
         && ([CardType::Artifact, CardType::Creature, CardType::Planeswalker].iter().any(|t| game.has_type(id, *t))
             && game.any_static(|_, _, e| matches!(e, EffectDef::ClarionConquerorEffect))
             || game.has_ability(id, &AbilityDef::CantActivateAbilitiesAbility)
+            || cards::cant_use_activated_abilities(game, id)
             || game.any_static(|g, src, e| {
                 matches!(e, EffectDef::CantBlockAttackActivateAttachedEffect) && g.attached(src) == Some(id)
             })
@@ -3193,6 +3209,46 @@ fn activations_forbidden(game: &Game, id: ObjId) -> bool {
 thread_local! {
     /// set while checking whether a mana ability's mana cost can be paid (its own check leaves such abilities out)
     static CHECKING_MANA_COST: std::cell::RefCell<Vec<ObjId>> = const { std::cell::RefCell::new(Vec::new()) };
+    /// set while `can_pay_extra` tries one of a source's tapping abilities at a time (`mana_options` counts only
+    /// that one): a source whose abilities make different amounts
+    static MANA_PICK: std::cell::RefCell<Vec<(ObjId, usize)>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// The sources whose abilities that tap them make different amounts of mana, of different kinds (an Island with Find
+/// the Path's "{T}: Add {G}{G}"), with those abilities: `ManaOptions` takes one ability or the other, {U} or {G}{G},
+/// where counting each mana of the larger one as either kind would let it make {U}{G}. At most four.
+fn alternative_mana_sources(game: &Game, seat: Seat) -> Vec<(ObjId, Vec<usize>)> {
+    let mut out = Vec::new();
+    for (id, a) in mana_sources(game, seat) {
+        let taps: Vec<(usize, Mana)> = a
+            .into_iter()
+            .filter(|(i, _)| {
+                let a = &game.obj(id).def.abilities[*i];
+                a.taps_source()
+                    && a.mana_ability_mana_cost().is_none()
+                    && !matches!(
+                        a,
+                        AbilityDef::NykthosShrineToNyxManaAbility { .. }
+                            | AbilityDef::CommanderColorIdentityManaAbility { .. }
+                    )
+            })
+            .collect();
+        let amount = |m: &Mana| m.colored.iter().copied().max().unwrap_or(0).max(m.colorless).max(1);
+        // the one kind an ability makes (a color, or 5: colorless)
+        let kind = |m: &Mana| {
+            let kinds: Vec<usize> =
+                (0..5).filter(|c| m.colored[*c] > 0).chain((m.colorless > 0).then_some(5)).collect();
+            (kinds.len() == 1).then(|| kinds[0])
+        };
+        let same_amount = taps.windows(2).all(|w| amount(&w[0].1) == amount(&w[1].1));
+        let kinds: Vec<Option<usize>> = taps.iter().map(|(_, m)| kind(m)).collect();
+        let plain = kinds.iter().all(|k| k.is_some());
+        let one_kind = kinds.windows(2).all(|w| w[0] == w[1]);
+        if taps.len() > 1 && !same_amount && plain && !one_kind && out.len() < 4 {
+            out.push((id, taps.iter().map(|(i, _)| *i).collect()));
+        }
+    }
+    out
 }
 
 /// A permanent's mana abilities: index, mana and kind
@@ -3507,9 +3563,37 @@ fn can_pay_extra(game: &Game, seat: Seat, cost: &ManaCost, extra: Vec<Vec<Mana>>
         c.phyrexian = [0; 5];
         return can_pay_extra(game, seat, &c, extra);
     }
-    let (options, _) = mana_options(game, seat, extra.clone(), false);
-    if options_pay(&options, cost) {
-        return true;
+    let alternatives = alternative_mana_sources(game, seat);
+    if alternatives.is_empty() {
+        let (options, _) = mana_options(game, seat, extra.clone(), false);
+        if options_pay(&options, cost) {
+            return true;
+        }
+    } else {
+        // each such source with one of its abilities at a time, every combination
+        let mut pick = vec![0usize; alternatives.len()];
+        loop {
+            let chosen: Vec<(ObjId, usize)> =
+                alternatives.iter().zip(&pick).map(|((id, ks), p)| (*id, ks[*p])).collect();
+            let outer = MANA_PICK.with(|f| std::mem::replace(&mut *f.borrow_mut(), chosen));
+            let (options, _) = mana_options(game, seat, extra.clone(), false);
+            MANA_PICK.with(|f| *f.borrow_mut() = outer);
+            if options_pay(&options, cost) {
+                return true;
+            }
+            let mut k = 0;
+            while k < pick.len() {
+                pick[k] += 1;
+                if pick[k] < alternatives[k].1.len() {
+                    break;
+                }
+                pick[k] = 0;
+                k += 1;
+            }
+            if k == pick.len() {
+                break;
+            }
+        }
     }
     // mana abilities with a mana cost (Castle Garenbrig's {2}{G}{G} for six {G}, two Giant's Boulders' {1} for
     // {R}{R}): the others pay their costs and what their mana doesn't (`addManaWithCost`, each source in turn)
@@ -3699,6 +3783,14 @@ fn mana_options(
                 ) && a.mana_ability_mana_cost().is_none()
             })
             .collect();
+        // (one of its tapping abilities at a time: `alternative_mana_sources`)
+        let picked = MANA_PICK.with(|f| f.borrow().iter().find(|(s, _)| *s == id).map(|(_, i)| *i));
+        let a: Vec<(usize, Mana)> = match picked {
+            Some(k) => {
+                a.into_iter().filter(|(i, _)| *i == k || !game.obj(id).def.abilities[*i].taps_source()).collect()
+            }
+            None => a,
+        };
         // `getManaAvailable`: an ability that doesn't tap the source is a source of its own (Relic of Legends'
         // "tap an untapped legendary creature"), the ones that tap it one source between them
         let (taps, own): (Vec<_>, Vec<_>) =
@@ -4709,7 +4801,8 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             if foretell == Some(index) {
                 // `ForetellExileEffect`: pay {2}, then exile it face down; it can't be cast this turn
                 let before = game.clone();
-                if !pay_special_action(game, d, seat, id, index, &ManaCost { generic: 2, ..ManaCost::default() }) {
+                let cost = foretell_cost(game, seat, id, index);
+                if !pay_special_action(game, d, seat, id, index, &cost) {
                     *game = before;
                     return;
                 }
@@ -13988,6 +14081,7 @@ fn apply_each_effect(
                 };
                 // the permanent entering, or the spell resolving (Unmoored Ego's next effect reads it), or an
                 // ability's source exiled to pay for it (The Stone Brain's next effect reads the source's value)
+                game.names_chosen.push((source.0, chosen.clone()));
                 if matches!(game.obj(source.0).zone, Zone::Battlefield | Zone::Stack | Zone::Exile) {
                     game.obj_mut(source.0).chosen_name = Some(chosen);
                 }
@@ -26167,7 +26261,7 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
     }
     game.eot_effects.clear();
     // (a static handler's "until your next turn" lasts past it)
-    game.card_statics.retain(|r| r.until_turn_of.is_some());
+    game.card_statics.retain(|r| r.until_turn_of.is_some() || r.lasting);
     let kept: Vec<(ObjId, u64)> = game.card_statics.iter().map(|r| (r.source, r.timestamp)).collect();
     game.static_amounts.retain(|(o, t, _)| kept.contains(&(*o, *t)));
     game.base_pt_until_eot.clear();
