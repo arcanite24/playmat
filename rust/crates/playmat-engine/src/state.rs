@@ -1439,6 +1439,8 @@ pub type ObjRef = (ObjId, u32);
 /// What Java's watchers that reset each turn saw this turn, for the conditions, values and predicates that read them
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct TurnWatch {
+    /// the players who ventured into the dungeon this turn (`VENTURED`: `KeenEaredSentryWatcher`)
+    pub ventured: Vec<Seat>,
     /// the players who activated an equip ability this turn (`ACTIVATED_ABILITY` of an `EquipAbility`:
     /// `BruenorBattlehammerWatcher`)
     pub equip_activated: Vec<Seat>,

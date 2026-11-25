@@ -320,6 +320,10 @@ CUSTOM = {
                                          'zones': ['graveyard', 'exile'],
                                          'filter': [{'p': 'not', 'x': {'p': 'type', 't': 'CREATURE'}}]},
     'DivineVisitationEffect': lambda: {'class': 'ReplaceCreatureTokensEffect', 'token': token('AngelVigilanceToken')},
+    # "if one or more artifact tokens would be created under your control, that many 5/5 red Dragon creature tokens
+    # with flying are created instead"
+    'DraconicVisitorEffect': lambda: {'class': 'ReplaceCreatureTokensEffect', 'token': token('Dragon55Token'),
+                                      'artifacts': True},
     # "if a red source you control would deal damage to an opponent or a permanent an opponent controls, it deals that
     # much damage plus 2 instead"
     'TorbranThaneOfRedFellEffect': lambda: {'class': 'ModifyDamageEffect', 'to_opponent': True, 'plus': 2,
