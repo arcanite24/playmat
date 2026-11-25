@@ -2,6 +2,7 @@
 //! copy for the AI's search. Java stays the oracle: shadow games (`replay`) check this engine against it.
 
 pub mod card;
+pub mod career;
 pub mod decide;
 pub mod fingerprint;
 pub mod log;

@@ -4398,12 +4398,19 @@ class Translator:
             return e
         # `OneShotNonTargetEffect(effect, target)`: as it resolves, the controller chooses (not targets) what the
         # target describes (`Targets.choose`), and the effect is pointed at what was chosen
-        if cls == 'OneShotNonTargetEffect' and len(args) == 2:
+        # (with an `XManaValueTargetAdjuster(cmp)` as its third argument: the mana value compared with the resolving
+        # spell's X)
+        adjuster = len(args) == 3 and re.fullmatch(
+            r'new XManaValueTargetAdjuster\((?:ComparisonType\.(OR_LESS|EQUAL_TO|OR_GREATER))?\)', args[2].strip())
+        if cls == 'OneShotNonTargetEffect' and (len(args) == 2 or adjuster):
             custom_effects.T = sys.modules[__name__]
             spec = custom_effects.Body(self).target_spec(args[1])
-            if not spec or spec['zone'] not in ('graveyard', 'battlefield', 'hand'):
+            if not spec or spec['zone'] not in ('graveyard', 'graveyards', 'battlefield', 'hand'):
                 raise Unsupported('effect OneShotNonTargetEffect of ' + args[1][:60])
-            bind = {'name': 'chosen', 'what': 'choose', 'zone': spec['zone'], 'filter': spec['filter'],
+            filt = spec['filter']
+            if adjuster:
+                filt = filt + [{'p': 'mana_value_x', 'cmp': adjuster.group(1) or 'EQUAL_TO', 'resolving': True}]
+            bind = {'name': 'chosen', 'what': 'choose', 'zone': spec['zone'], 'filter': filt,
                     'min': spec['min'], 'max': spec['max'], 'rounds': True}
             return {'class': 'Effects', 'bind': bind,
                     'effects': [{'class': 'Effects', 'effects': [self.effect(args[0])], 'to': 'chosen'}]}
@@ -7454,7 +7461,9 @@ class Translator:
         # any ability (a trigger handler's base, whose check says which: Herald of Anafenza's outlast)
         if name == 'StaticFilters.FILTER_SPELL_OR_ABILITY':
             return 'any'
-        if not re.search(r'FilterStackObject\s+' + re.escape(name) + r'\s*=\s*new (?:FilterStackObject|FilterActivatedOrTriggeredAbility)\("[^"]*"\)', src):
+        # (upstream's `FilterAbility` since 23 Nov sees mana abilities too, which only an exhaust mana ability would
+        # match: the engine's site doesn't have them)
+        if not re.search(r'(?:FilterStackObject|FilterAbility)\s+' + re.escape(name) + r'\s*=\s*new (?:FilterStackObject|FilterActivatedOrTriggeredAbility|FilterAbility)\("[^"]*"\)', src):
             raise Unsupported('ActivateAbilityTriggeredAbility filter ' + name)
         preds = re.findall(r'\b' + re.escape(name) + r'\.add\(([^;]*)\);', src)
         kinds = {'ExhaustAbilityPredicate.instance': 'exhaust', 'PowerUpAbilityPredicate.instance': 'power_up'}
@@ -7463,7 +7472,8 @@ class Translator:
         # (copy triggers: "an ability of an artifact" / "of equipped creature", "if it isn't a mana ability"; "an
         # ability that targets a creature or player"; the engine's site only sees abilities that aren't mana abilities)
         rest = sorted(canonical(x) for x in preds if x.strip() != 'NotManaAbilityPredicate.instance')
-        more = {'ArtifactSourcePredicate.instance': 'artifact', 'AbilitySourceAttachedPredicate.instance': 'attached',
+        more = {'ArtifactSourcePredicate.instance': 'artifact', 'KurkeshOnakkeAncientPredicate.instance': 'artifact',
+'AbilitySourceAttachedPredicate.instance': 'attached',
                 'new TargetsPermanentOrPlayerPredicate(StaticFilters.FILTER_PERMANENT_CREATURE,new FilterPlayer())':
                     'targets_creature_or_player'}
         if len(rest) == 1 and rest[0] in more and len(preds) <= 2:

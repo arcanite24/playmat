@@ -267,20 +267,20 @@
   "source": "docs/rust/Engine.md"
  },
  "counted": {
-  "engine_cards": 14207,
-  "verified_cards": 14104,
+  "engine_cards": 14214,
+  "verified_cards": 14126,
   "pioneer": {
    "cards": 15259,
-   "in_engine": 14005,
-   "verified": 13903
+   "in_engine": 14012,
+   "verified": 13925
   },
   "java_card_files": 32849,
   "school": {
    "label": "Pioneer and Standard school decks",
    "decks": 42,
-   "covered": 42,
+   "covered": 41,
    "cards": 410,
-   "cards_in": 410,
+   "cards_in": 409,
    "list": [
     {
      "deck": "act1-boros-aggro",
@@ -375,7 +375,7 @@
     {
      "deck": "meta-izzet-prowess",
      "cards": 20,
-     "missing": 0
+     "missing": 1
     },
     {
      "deck": "meta-mono-red-prowess",
@@ -497,9 +497,9 @@
   "meta": {
    "label": "Pioneer and Standard meta decks",
    "decks": 24,
-   "covered": 24,
+   "covered": 21,
    "cards": 278,
-   "cards_in": 278,
+   "cards_in": 276,
    "list": [
     {
      "deck": "pioneer-azorius-spirits",
@@ -524,7 +524,7 @@
     {
      "deck": "pioneer-izzet-prowess",
      "cards": 19,
-     "missing": 0
+     "missing": 1
     },
     {
      "deck": "pioneer-jeskai-ensoul",
@@ -564,7 +564,7 @@
     {
      "deck": "standard-azorius-control",
      "cards": 20,
-     "missing": 0
+     "missing": 1
     },
     {
      "deck": "standard-boros-dragons",
@@ -594,7 +594,7 @@
     {
      "deck": "standard-izzet-prowess",
      "cards": 20,
-     "missing": 0
+     "missing": 1
     },
     {
      "deck": "standard-izzet-spellementals",
@@ -1029,10 +1029,10 @@
    "played": 1360,
    "matched": 1357,
    "java_timeouts": 28,
-   "checked_in": 1498
+   "checked_in": 1508
   },
   "rust": {
-   "lines": 146763,
+   "lines": 147475,
    "crates": [
     {
      "crate": "playmat-ai",
@@ -1040,7 +1040,7 @@
     },
     {
      "crate": "playmat-engine",
-     "lines": 117992
+     "lines": 118437
     },
     {
      "crate": "playmat-gateway",
@@ -1048,7 +1048,7 @@
     },
     {
      "crate": "playmat-host",
-     "lines": 5837
+     "lines": 6104
     },
     {
      "crate": "playmat-platform",
@@ -1065,6 +1065,6 @@
    ]
   }
  },
- "commit": "ff5406dddfe2264833b96dde8c7802ecbfcc91a5",
+ "commit": "21fb0744012144cb448eb65c63586bde416a23db",
  "generated": "2026-11-24"
 }
