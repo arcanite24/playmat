@@ -419,6 +419,12 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                             if g.obj(src).controller != active
                                 && g.obj(id).controller == g.obj(src).controller
                                 && g.filter_matches(filter, g.obj(src).controller, Some(src), id))
+                }) || game.command_static(|g, src, e| {
+                    // an emblem's (Teferi, Who Slows the Sunset's)
+                    matches!(e, EffectDef::UntapAllDuringEachOtherPlayersUntapStepEffect { filter }
+                            if g.obj(src).controller != active
+                                && g.obj(id).controller == g.obj(src).controller
+                                && g.filter_matches(filter, g.obj(src).controller, Some(src), id))
                 }) {
                     // "untap this during each other player's untap step" (a rules effect, once each untap step)
                     let was = game.obj(id).tapped;
@@ -783,6 +789,16 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             // the draw step's draw comes before its triggers
             if step == Step::Draw {
                 draw(game, active, 1);
+                // `DrawStep`: then each other player who draws on an opponent's turn (`setDrawsOnOpponentsTurn`: Teferi,
+                // Who Slows the Sunset's emblem), in turn order from the active player
+                for i in 1..game.seats() {
+                    let p = (active + i) % game.seats();
+                    if game.command_static(|g, src, e| {
+                        matches!(e, EffectDef::DrawsOnOpponentsTurnEffect) && g.obj(src).controller == p
+                    }) {
+                        draw(game, p, 1);
+                    }
+                }
             }
             let name = match step {
                 Step::Upkeep => "upkeep",
@@ -14479,6 +14495,7 @@ fn apply_each_effect(
             | EffectDef::CombatDamageByToughnessControlledEffect { .. }
             | EffectDef::CombatDamageByToughnessAttachedEffect
             | EffectDef::CantBeBlockedByOneEffect { .. }
+            | EffectDef::CantBeBlockedByOneAllEffect { .. }
             | EffectDef::LegendRuleDoesntApplyEffect { .. } => {}
             EffectDef::SacrificeTargetEffect => {
                 for o in &objs {
@@ -15308,6 +15325,7 @@ fn apply_each_effect(
             | EffectDef::DontUntapInControllersUntapStepSourceEffect
             | EffectDef::UntapSourceDuringEachOtherPlayersUntapStepEffect
             | EffectDef::UntapAllDuringEachOtherPlayersUntapStepEffect { .. }
+            | EffectDef::DrawsOnOpponentsTurnEffect
             | EffectDef::ClarionConquerorEffect
             | EffectDef::CastAsThoughItHadFlashAllEffect { .. }
             | EffectDef::NarsetParterOfVeilsEffect
@@ -16990,9 +17008,21 @@ fn apply_each_effect(
                     p.speed += 1;
                 }
             }
-            EffectDef::GetEmblemEffect { emblem } => {
+            EffectDef::GetEmblemEffect { emblem } | EffectDef::GetEmblemTargetPlayerEffect { emblem } => {
+                // `GetEmblemTargetPlayerEffect`: the target player gets it (none still legal: no emblem)
+                let to = if matches!(e, EffectDef::GetEmblemTargetPlayerEffect { .. }) {
+                    let Some(p) = legal.iter().flatten().find_map(|t| match t {
+                        Target::Player(p) => Some(*p),
+                        _ => None,
+                    }) else {
+                        continue;
+                    };
+                    p
+                } else {
+                    controller
+                };
                 token_image(game, emblem, source.0);
-                let id = game.create_obj(Arc::new(emblem.card()), controller, Zone::Library);
+                let id = game.create_obj(Arc::new(emblem.card()), to, Zone::Library);
                 game.obj_mut(id).trigger_order = (1 << 32) + id.0 as u64;
                 // the emblem's set, for its view
                 if let Some((_, _, set, pick)) = game.token_made.take() {
@@ -24702,6 +24732,14 @@ fn min_blocked_by(game: &Game, a: ObjId) -> usize {
                 }
             }
         }
+    });
+    game.any_static(|g, src, e| {
+        if let EffectDef::CantBeBlockedByOneAllEffect { amount, filter } = e {
+            if g.filter_matches(filter, g.obj(src).controller, Some(src), a) {
+                min = min.max(*amount as usize);
+            }
+        }
+        false
     });
     min
 }
