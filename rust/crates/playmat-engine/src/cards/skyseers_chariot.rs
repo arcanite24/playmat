@@ -15,7 +15,8 @@ pub const HANDLERS: &[Handler] = &[Handler::cost(
 /// (`CardUtil.haveSameNames`), anyone's
 fn named_source_ability(game: &Game, cx: &StaticCx, of: &CostCx) -> bool {
     let Some(a) = of.ability else { return false };
-    if matches!(a, AbilityDef::RoomUnlockAbility { .. }) {
+    // (plot is a special action, not an activated ability: `isActivatedAbility` is false for it)
+    if matches!(a, AbilityDef::RoomUnlockAbility { .. } | AbilityDef::PlotAbility { .. }) {
         return false;
     }
     game.obj(cx.source).chosen_name.as_ref().is_some_and(|n| !n.is_empty() && *n == game.obj(of.card).name())

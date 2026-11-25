@@ -8,7 +8,7 @@ pub const HANDLERS: &[Handler] = &[Handler::effect("InThePresenceOfAges.InThePre
 /// The reveal, then `choose(TargetCardAndOrCardInLibrary(CREATURE, LAND))`: one `HumanPlayer.choose`, a pick at a time
 /// among the cards that still leave a creature role and a land role apart (`hasSharedRoles`), until two are chosen or
 /// none is left; the chosen cards to the hand, the rest to the graveyard
-fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
+pub(super) fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     let you = cx.controller();
     let cards: Vec<ObjId> = game.player(you).library.iter().take(4).copied().collect();
     if !cards.is_empty() {

@@ -138,7 +138,7 @@ Chosen 24 Nov 2026: **2, "Java off the game path".**
    and shadow decks use, wave 18 the 121 non-Pioneer cards the five-paths and roster decks use, waves 19a to 19c and
    20b to 21c the Pioneer cards still out of the engine or unverified, in disjoint lists. #512 added Java's
    spell-or-ability picker for prepare cards (upstream 31c3adcc8cf), so the 51 that #510 parked play on Rust again
-   and `upstream-pending.txt` is empty. On master: 14,239 of the 14,276 cards in the engine are verified (14,038 of the 15,259 Pioneer cards), and all
+   and `upstream-pending.txt` is empty. On master: 14,341 of the 14,374 cards in the engine are verified (14,140 of the 15,259 Pioneer cards, after waves 22–24), and all
    42 school decks and 24 meta decks are covered. Factory rounds record on multivac. What's left of the Pioneer pool
    mostly needs a card-specific handler or a large engine piece (layer effects, dynamic mana, extra turns and steps,
    Phyrexian hybrid mana), and known gaps in verified cards are listed in the wave PRs (a gift promised to a hexproof

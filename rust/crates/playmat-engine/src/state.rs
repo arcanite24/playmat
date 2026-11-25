@@ -99,6 +99,14 @@ impl Step {
 thread_local! {
     /// set while `Game::spell_grants` checks its filters
     static SPELL_GRANTS_BUSY: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    /// set while `Game::protected_from_ability_object` checks protection against an ability on the stack
+    static ABILITY_OBJECT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Whether a protection filter is being matched against an ability on the stack (`StackAbility`, mana value 0)
+/// rather than its source: `Game::protected_from_ability_object`
+pub fn ability_object() -> bool {
+    ABILITY_OBJECT.with(|x| x.get())
 }
 
 /// How long a control change (`GainControlTargetEffect`, layer 2) lasts
@@ -191,6 +199,8 @@ pub struct Obj {
     pub p1p1_added: bool,
     /// it has flashback for its mana cost this turn (Stingcaster Mage), while it stays in the graveyard
     pub flashback_turn: Option<u32>,
+    /// that flashback costs {0} instead of its mana cost (Archmage's Newt while saddled)
+    pub flashback_free: bool,
     /// a Case that was solved
     pub solved: bool,
     /// what it was before an effect changed its characteristics (`def`) until end of turn
@@ -276,8 +286,9 @@ pub struct Obj {
     pub lki_class_level: u32,
     /// exerted: doesn't untap during its controller's next untap step
     pub exerted: bool,
-    /// its power-up ability was activated (once each game, for this object)
-    pub powered_up: bool,
+    /// how many times its power-up ability was activated (once each game, for this object, unless an effect allows
+    /// more: Wonder Man, Hollywood Hero)
+    pub powered_up: u8,
     /// keyword statuses a permanent has while it stays (renowned, an exhaust ability activated), by name
     pub marks: Vec<String>,
     /// whether its tribute was paid, the last time it entered (Java's `tributeValue` state value, by card: it stays
@@ -552,6 +563,9 @@ pub struct Player {
     /// no maximum hand size for the rest of the game (`MaximumHandSizeControllerEffect` set to `Integer.MAX_VALUE`
     /// for `Duration.EndOfGame`: Sea Gate Restoration)
     pub no_max_hand_size: bool,
+    /// the maximum hand size reduced by this for the rest of the game (`MaximumHandSizeControllerEffect(n,
+    /// Duration.EndOfGame, REDUCE)`: Inspired Idea)
+    pub max_hand_reduction: u32,
     /// declared an attacker this turn (`PlayerAttackedWatcher`)
     pub attacked: bool,
     /// the attackers declared this turn, over every combat (`PlayerAttackedWatcher.getNumberOfAttackersCurrentTurn`)
@@ -606,6 +620,14 @@ pub struct Player {
     /// the last turn a permanent entered face down under their control or they turned one face up (Oblivious
     /// Bookworm's watcher)
     pub face_down_turn: Option<u32>,
+    /// can't cast instant or sorcery spells during this turn, their next one when it was set (Sphinx's Decree)
+    pub no_instants_sorceries_turn: Option<u32>,
+    /// can't cast creature or planeswalker spells until the end of this turn (Single Combat's "until the end of your
+    /// next turn", the turn of its controller's next one)
+    pub no_creatures_planeswalkers_until: Option<u32>,
+    /// may activate the loyalty abilities of planeswalkers they control twice during this turn (Urza Assembles the
+    /// Titans' chapter III)
+    pub loyalty_twice_turn: Option<u32>,
 }
 
 impl Player {
@@ -1391,6 +1413,9 @@ pub struct Game {
     pub resolving_controller: Option<(ObjId, Seat)>,
     /// while a `not_first` target is chosen: the ability's targets chosen before it
     pub chosen_before: Vec<Target>,
+    /// while a player is chosen, not targeted (`TargetPlayer.withNotTarget(true)`: `PromiseGiftCost`'s opponent):
+    /// hexproof and protection don't leave a player out
+    pub choosing_player: bool,
     /// lands that are a basic land type instead of their own for as long as a permanent stays (Tide Shaper): the land
     /// and its zone change count, the source and its count, the type
     pub land_becomes: Vec<(ObjId, u32, ObjId, u32, String)>,
@@ -1455,6 +1480,19 @@ pub struct TurnWatch {
     pub attacked_players: Vec<(ObjId, u32, Seat)>,
     /// `SpellsCastWatcher`, in the order they were cast
     pub spells: Vec<SpellSeen>,
+    /// the controllers of face-down creatures that entered the battlefield this turn (Tunnel Tipster's watcher)
+    pub face_down_creature_entered: Vec<Seat>,
+    /// who played a land or cast a spell from exile this turn (Visions of Phyrexia's watcher)
+    pub played_from_exile: Vec<Seat>,
+    /// who cast a kicked spell this turn (Vine Gecko's watcher)
+    pub kicked_cast: Vec<Seat>,
+    /// creature and planeswalker cards put into a graveyard since the last beginning of combat this turn, as the
+    /// cards they became there (Storrev, Devkarin Lich's watcher)
+    pub to_graveyard_this_combat: Vec<(ObjId, u32)>,
+    /// spells cast this turn while their caster controlled a Mount, as the spells they were (Steer Clear's watcher)
+    pub cast_with_mount: Vec<(ObjId, u32)>,
+    /// permanents turned face up this turn and the player who turned each (`TURNED_FACE_UP`'s player: Growing Dread)
+    pub turned_face_up_by: Vec<(ObjId, Seat)>,
     /// `PermanentsSacrificedWatcher`: who sacrificed, and whether it was an artifact
     pub sacrificed: Vec<(Seat, bool)>,
     /// `CardsLeftGraveyardWatcher`: the owner of each card that left a graveyard
@@ -1489,6 +1527,9 @@ pub struct TurnWatch {
     /// the same permanents, with their zone-change counts as they entered and their controllers then
     /// (`PermanentsEnteredBattlefieldWatcher.getThisTurnEnteringPermanents`)
     pub entered_permanents: Vec<(ObjId, u32, Seat)>,
+    /// `PermanentsEnteredBattlefieldWatcher`'s `enteringBattlefieldLastTurn`: each permanent that entered last turn,
+    /// as (its controller then, whether it was a creature, the object), kept as this turn's watch begins
+    pub entered_last_turn: Vec<(Seat, bool, ObjId)>,
     /// `COUNTER_ADDED` for +1/+1 counters: who put them, and how many (Iridescent Hornbeetle's watcher)
     pub p1p1_put: Vec<(Seat, i32)>,
     /// `CardsExiledThisTurnWatcher`: objects put into exile
@@ -1760,6 +1801,7 @@ impl Game {
             life_batch: Vec::new(),
             resolving_controller: None,
             chosen_before: Vec::new(),
+            choosing_player: false,
             land_becomes: Vec::new(),
             return_to_hand: Vec::new(),
             first_strike_step: false,
@@ -1886,6 +1928,7 @@ impl Game {
             power_lki: None,
             p1p1_added: false,
             flashback_turn: None,
+            flashback_free: false,
             solved: false,
             until_end_of_turn_def: None,
             lost_all: 0,
@@ -1926,7 +1969,7 @@ impl Game {
             class_level: 1,
             lki_class_level: 1,
             exerted: false,
-            powered_up: false,
+            powered_up: 0,
             marks: Vec::new(),
             tribute: None,
             creature_types: None,
@@ -2410,6 +2453,17 @@ impl Game {
                 }
             }
         }
+        out
+    }
+
+    /// Protection from the ability object itself, as its targets are chosen: `TargetPermanent.canTarget` checks
+    /// `game.getObject(source.getId())` as well as the source, and once the ability is on the stack that's its
+    /// `StackAbility`, whose mana value is 0 (Lavabrink Venturer choosing even can't be equipped). Its colors are the
+    /// source's, so only a filter on mana value reads `ability_object()`.
+    pub fn protected_from_ability_object(&self, id: ObjId, source: ObjId) -> bool {
+        ABILITY_OBJECT.with(|x| x.set(true));
+        let out = self.protected_from(id, source);
+        ABILITY_OBJECT.with(|x| x.set(false));
         out
     }
 
@@ -3151,10 +3205,44 @@ impl Game {
             out.push((k.unwrap_or(1), f));
         }
         if o.flashback_turn == Some(self.turn) {
+            let cost = if o.flashback_free {
+                crate::card::ManaCost::parse("{0}").unwrap_or_default()
+            } else {
+                o.def.cost.clone()
+            };
             out.push((
                 o.def.abilities.len(),
-                CardDef { printed_cost: Some(o.def.printed().clone()), ..(*o.def).clone() },
+                CardDef { cost, printed_cost: Some(o.def.printed().clone()), ..(*o.def).clone() },
             ));
+        }
+        // a static that gives the cards of its filter in its controller's graveyard flashback (Lier's, Iroh's own
+        // layer 6 effects: `addOtherAbility` of a `FlashbackAbility`, for the card's mana cost or `cost`), after
+        // what it gained this turn
+        if o.zone == Zone::Graveyard {
+            let owner = o.owner;
+            let mut granted: Vec<Option<String>> = Vec::new();
+            self.any_static(|g, src, e| {
+                if let EffectDef::GraveyardFlashbackEffect { filter, cost, your_turn } = e {
+                    if g.obj(src).controller == owner
+                        && (!*your_turn || g.active == Some(owner))
+                        && g.filter_matches(filter, owner, Some(src), id)
+                    {
+                        granted.push(cost.clone());
+                    }
+                }
+                false
+            });
+            let first = o.def.abilities.len() + usize::from(o.flashback_turn == Some(self.turn));
+            for (k, c) in granted.into_iter().enumerate() {
+                let cost = match c {
+                    Some(c) => crate::card::ManaCost::parse(&c).unwrap_or_default(),
+                    None => o.def.cost.clone(),
+                };
+                out.push((
+                    first + k,
+                    CardDef { cost, printed_cost: Some(o.def.printed().clone()), ..(*o.def).clone() },
+                ));
+            }
         }
         out
     }
@@ -4719,7 +4807,7 @@ impl Game {
                 Trigger::DiesIfCreature => src == id && g.has_type(id, CardType::Creature),
                 // the source counts too unless it says "another", but it must match like the others
                 // (Bishop of Wings, a Human, isn't "an Angel you control")
-                Trigger::DiesAll { filter, include_self, this_unfiltered, .. } => {
+                Trigger::DiesAll { filter, include_self, this_unfiltered, graveyard: false, .. } => {
                     (src == id && *this_unfiltered)
                         || (src != id || *include_self) && g.filter_matches(filter, you, Some(src), id)
                 }
@@ -4729,6 +4817,17 @@ impl Game {
                 Trigger::LeavesAll { filter } => g.filter_matches(filter, you, Some(src), id),
                 Trigger::PutIntoGraveyardAll { .. } => into_graveyard(g, src, you, t),
                 _ => false,
+            });
+            // "whenever a creature dies while this card is in your graveyard" (Furious Forebear): cards already in a
+            // graveyard, not the one dying, nor one that went there since its player last passed, cast or made mana
+            // (Java's short-living LKI still sees it on the battlefield)
+            let grave: Vec<ObjId> = (0..self.seats())
+                .flat_map(|p| self.player(p).graveyard.clone())
+                .filter(|o| *o != id && !self.lookback.contains(o) && !self.short_lki.contains(o))
+                .collect();
+            let from_graveyard = self.triggers(grave, |g, src, you, t| {
+                g.obj(src).zone == Zone::Graveyard
+                    && matches!(t, Trigger::DiesAll { filter, graveyard: true, .. } if g.filter_matches(filter, you, Some(src), id))
             });
             self.trigger_cause = None;
             let mut fired = self.pelt_collector(fired, id);
@@ -4752,6 +4851,20 @@ impl Game {
                         *zcc = zcc.saturating_sub(1);
                     }
                 }
+            }
+            // (a card in a graveyard triggers as that card, Hushbringer stopping it too), each in its place in Java's
+            // trigger order
+            let mut from_graveyard = from_graveyard;
+            let mut from: Vec<ObjId> = from_graveyard.iter().map(|t| t.card).collect();
+            let before = from.clone();
+            self.dont_cause_triggers(id, true, &mut from);
+            if from != before {
+                from_graveyard.retain(|t| from.contains(&t.card));
+            }
+            for t in from_graveyard {
+                let k = self.trigger_key(&t);
+                let at = fired.iter().position(|f| self.trigger_key(f) > k).unwrap_or(fired.len());
+                fired.insert(at, t);
             }
             // blitz: its granted "When this creature dies, draw a card."
             if self.obj(id).blitzed {
@@ -4987,6 +5100,7 @@ impl Game {
             }
             o.on_adventure = false;
             o.flashback_turn = None;
+            o.flashback_free = false;
             o.solved = false;
             o.exile_instead_of_dying = false;
             o.unearthed = false;
@@ -5007,7 +5121,7 @@ impl Game {
             o.play_tapped = false;
             o.pay_tax = 0;
             o.exerted = false;
-            o.powered_up = false;
+            o.powered_up = 0;
             o.marks.clear();
             o.creature_types = None;
             o.base_pt = None;
@@ -5315,6 +5429,10 @@ impl Game {
             Zone::Graveyard => {
                 if self.obj(id).def.is_permanent_card() {
                     self.player_mut(owner).descended += 1;
+                }
+                if self.obj(id).def.is(CardType::Creature) || self.obj(id).def.is(CardType::Planeswalker) {
+                    let zcc = self.obj(id).zcc;
+                    self.watch.to_graveyard_this_combat.push((id, zcc));
                 }
                 self.player_mut(owner).graveyard.push(id)
             }

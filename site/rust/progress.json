@@ -152,7 +152,7 @@
    "n": "F",
    "name": "Then",
    "status": "active",
-   "text": "Career tables: duels, campaign nodes, gauntlet fights and the weekly challenge go to the host (#493, deployed 24 Nov); timed twists and emblems too (#503); puzzles, trials, hordes and pods stay on Java. Java saves aren't converted: hosted games save as lines, and old Java saves expire after 30 days. Cards: waves 17 to 19 deployed 25 Nov; waves 20a to 21c and the prepare picker (#512) merged, not deployed: 14,239 of the 14,276 cards in the engine verified (14,038 of the 15,259 Pioneer cards), every school and meta deck covered. Platform diffs (#497) and the upstream ledger (#498) deployed 24 Nov. Then limited (sealed, draft, tournaments) set by set, then sessions, the lobby and tables in Rust (docs/rust/Assessment-2026-11-24.md).",
+   "text": "Career tables: duels, campaign nodes, gauntlet fights and the weekly challenge go to the host (#493, deployed 24 Nov); timed twists and emblems too (#503); puzzles, trials, hordes and pods stay on Java. Java saves aren't converted: hosted games save as lines, and old Java saves expire after 30 days. Cards: waves 17 to 19 deployed 25 Nov; waves 20a to 24c and the prepare picker (#512) merged, not deployed: 14,341 of the 14,374 cards in the engine verified (14,140 of the 15,259 Pioneer cards), every school and meta deck covered. Platform diffs (#497) and the upstream ledger (#498) deployed 24 Nov. Then limited (sealed, draft, tournaments) set by set, then sessions, the lobby and tables in Rust (docs/rust/Assessment-2026-11-24.md).",
    "gate": "Per feature",
    "pr": [
     493,
@@ -267,12 +267,12 @@
   "source": "docs/rust/Engine.md"
  },
  "counted": {
-  "engine_cards": 14276,
-  "verified_cards": 14239,
+  "engine_cards": 14374,
+  "verified_cards": 14341,
   "pioneer": {
    "cards": 15259,
-   "in_engine": 14074,
-   "verified": 14038
+   "in_engine": 14172,
+   "verified": 14140
   },
   "java_card_files": 32849,
   "school": {
@@ -1029,10 +1029,10 @@
    "played": 1360,
    "matched": 1357,
    "java_timeouts": 28,
-   "checked_in": 1533
+   "checked_in": 1622
   },
   "rust": {
-   "lines": 147925,
+   "lines": 150142,
    "crates": [
     {
      "crate": "playmat-ai",
@@ -1040,7 +1040,7 @@
     },
     {
      "crate": "playmat-engine",
-     "lines": 118887
+     "lines": 121104
     },
     {
      "crate": "playmat-gateway",
@@ -1065,6 +1065,6 @@
    ]
   }
  },
- "commit": "a9cde6830fbf8806504e27afa2ca6ab5fb3afdbd",
+ "commit": "0ad4191186810e88b2eafc7a3f9c15e8fee77505",
  "generated": "2026-11-25"
 }

@@ -721,6 +721,10 @@ pub enum Trigger {
     /// with a target pointer, at it
     AttacksAloneAll {
         filter: Filter,
+        /// "attacks a player alone" (`AttacksPlayerAloneControlledTriggeredAbility`): the only attacker attacking that
+        /// player, others may attack planeswalkers or battles
+        #[serde(default)]
+        player: bool,
     },
     /// the creature this is attached to attacks (`AttacksAttachedTriggeredAbility`); with a target pointer, at it
     AttacksAttached,
@@ -959,6 +963,9 @@ pub enum Trigger {
     Sacrificed {
         filter: Filter,
         who: String,
+        /// from its card in its owner's graveyard (`Zone.GRAVEYARD`: Curious Cadaver)
+        #[serde(default)]
+        graveyard: bool,
     },
     /// `SacrificeOneOrMorePermanentsTriggeredAbility`: once for the permanents sacrificed together, from the batch
     /// event (after what triggers on each sacrifice and on them leaving)
@@ -1048,6 +1055,9 @@ pub enum Trigger {
         /// this triggers it whatever the filter says (`DiesThisOrAnotherTriggeredAbility`)
         #[serde(default)]
         this_unfiltered: bool,
+        /// from its card in its owner's graveyard, another creature dying (`Zone.GRAVEYARD`: Furious Forebear)
+        #[serde(default)]
+        graveyard: bool,
         /// "one or more": once for permanents dying together, after their other triggers (`DiesOneOrMoreTriggeredAbility`,
         /// `ZONE_CHANGE_BATCH`)
         #[serde(default)]
@@ -1121,8 +1131,14 @@ pub enum Trigger {
     Exerted,
     /// you exert a creature (`ExertCreatureControllerTriggeredAbility`: Vizier of the True)
     ExertedCreatureYou,
-    /// this crews a Vehicle (`CrewsVehicleSourceTriggeredAbility`); its target is the Vehicle
-    CrewsVehicle,
+    /// this crews a Vehicle (`CrewsVehicleSourceTriggeredAbility`); its target is the Vehicle. With `mounts`, saddling
+    /// a Mount too (`SADDLED_MOUNT`); with `main_phase`, only during its controller's main phase (Canyon Vaulter)
+    CrewsVehicle {
+        #[serde(default)]
+        mounts: bool,
+        #[serde(default)]
+        main_phase: bool,
+    },
     /// this becomes tapped (`BecomesTappedSourceTriggeredAbility`)
     BecomesTapped,
     /// a permanent of the filter becomes tapped (`BecomesTappedTriggeredAbility`); `not_attacking`: unless it
@@ -1274,7 +1290,7 @@ pub enum Trigger {
         #[serde(default)]
         who: String,
     },
-    /// you activate an ability that isn't a mana ability, of `kind` ("exhaust", "power_up", "any";
+    /// you activate an ability that isn't a mana ability, of `kind` ("exhaust", "power_up", "boast", "any";
     /// "creature_or_land": of a creature or land permanent) (`ActivateAbilityTriggeredAbility`, `ACTIVATED_ABILITY`);
     /// with `opponent`, an opponent activates it (Runic Armasaur)
     /// "artifact": of an artifact (`ArtifactSourcePredicate`), "attached": of the permanent the trigger's source is
@@ -1299,12 +1315,21 @@ pub enum Trigger {
     /// a creature you control explores (`CreatureExploresTriggeredAbility`, `EXPLORED`)
     Explores,
     /// you proliferate (`ProliferatedControllerTriggeredAbility`, `PROLIFERATED`)
-    YouProliferate,
+    YouProliferate {
+        /// it triggers from its owner's graveyard instead of the battlefield (`Zone.GRAVEYARD`: Voidwing Hybrid)
+        #[serde(default)]
+        graveyard: bool,
+    },
+    /// you get one or more {E} (`COUNTERS_ADDED` of energy on you: Fabrication Module's own trigger class)
+    YouGetEnergy,
     /// this attacks for the first time each turn (`AttacksFirstTimeTriggeredAbility`)
     AttacksFirstTime,
     /// you surveil (`SurveilTriggeredAbility`, `SURVEILED`), or scry (`ScryTriggeredAbility`, `SCRIED`): X is the amount
     YouSurveilOrScry {
         surveil: bool,
+        /// from its card in its owner's graveyard (`Zone.GRAVEYARD`: Blood Operative)
+        #[serde(default)]
+        graveyard: bool,
     },
     /// a Career timed twist (`CareerTimedTwists.AtTurn`, `crate::career`): at the beginning of any upkeep of turn
     /// `turn` or later; once each game
@@ -2993,6 +3018,10 @@ pub enum EffectDef {
     CreateNextEndStepDelayedEffect {
         effects: Vec<EffectDef>,
         rule: String,
+        /// its effects act on the creating ability's targets as they are now (`CreateDelayedTriggeredAbilityEffect`'s
+        /// copied target pointer: In Thrall to the Pit's "sacrifice that creature")
+        #[serde(default)]
+        fixed_targets: bool,
     },
     /// "… at the beginning of the next turn's upkeep" (`AtTheBeginOfNextUpkeepDelayedTriggeredAbility`)
     CreateNextUpkeepDelayedEffect {
@@ -3134,8 +3163,12 @@ pub enum EffectDef {
     ReturnSourceToHandNextEndStepEffect,
     /// as it enters: choose a basic land type (a land with `MultiversalPassagePassageEffect` becomes it)
     ChooseBasicLandTypeEffect,
-    /// as it enters: choose a creature type (Cavern of Souls)
-    ChooseCreatureTypeEffect,
+    /// as it enters: choose a creature type (Cavern of Souls), or one of these (`ChooseCreatureTypeEffect(outcome,
+    /// SubType...)`: Dawn-Blessed Pennant)
+    ChooseCreatureTypeEffect {
+        #[serde(default)]
+        only: Vec<String>,
+    },
     /// a spell its conditional mana was spent on can't be countered (Cavern of Souls; the mana marks the spell)
     CavernOfSoulsCantCounterEffect,
     /// "This land is the chosen type." (applied as the type is chosen)
@@ -3244,6 +3277,28 @@ pub enum EffectDef {
     NoMaximumHandSizeEffect,
     /// players have no maximum hand size (the same effect, `TargetController.ANY`: Folio of Fancies)
     NoMaximumHandSizeAllEffect,
+    /// each card of the filter in your graveyard has flashback, for its mana cost or `cost` (Lier, Disciple of the
+    /// Drowned's and Iroh, Grand Lotus's own layer 6 effects: `addOtherAbility` of a `FlashbackAbility`);
+    /// `your_turn`: only during your turn. Read by `Game::flashbacks`
+    GraveyardFlashbackEffect {
+        filter: Filter,
+        #[serde(default)]
+        cost: Option<String>,
+        #[serde(default)]
+        your_turn: bool,
+    },
+    /// spells can't be countered (Lier's rule-modifying effect on `COUNTER`: any spell, any controller)
+    CantBeCounteredAllEffect,
+    /// you don't lose the game for having 0 or less life (`DontLoseByZeroOrLessLifeEffect`,
+    /// `setCanLoseByZeroOrLessLife(false)`)
+    DontLoseByZeroOrLessLifeEffect,
+    /// "{this} can't attack or block unless you pay `cost`" (`CantAttackBlockUnlessPaysSourceEffect`): asked as it's
+    /// declared an attacker (`attack`) or a blocker (`block`)
+    CantAttackBlockUnlessPaysSourceEffect {
+        cost: String,
+        attack: bool,
+        block: bool,
+    },
     /// "it can't be regenerated this turn" (`CantRegenerateTargetEffect(Duration.EndOfTurn)`, a rule-modifying effect
     /// on `REGENERATE`): resolving, each target as it is then (`target`), whose regeneration shields don't work
     CantRegenerateTargetEffect {
@@ -4107,6 +4162,13 @@ pub enum EffectDef {
     /// the target player reveals their hand and you choose a card of the filter; they discard it (Duress)
     DiscardCardYouChooseTargetEffect {
         filter: Filter,
+        /// reveals only this many cards of their choice instead of their hand (`DiscardCardYouChooseTargetEffect(
+        /// DynamicValue)`: Acquisitions Expert's party size)
+        #[serde(default)]
+        reveal: Option<Amount>,
+        /// "you may choose" (`setOptional(true)`: Extract the Truth): the choice may be nothing
+        #[serde(default)]
+        optional: bool,
     },
     /// exile the target until the source leaves the battlefield (Banishing Light)
     ExileUntilSourceLeavesEffect,
@@ -5346,6 +5408,13 @@ pub enum AbilityDef {
         #[serde(default)]
         costs: Vec<CostDef>,
     },
+    /// "as an additional cost to cast this spell, you may behold a <subtype>" (`BeholdAbility`): asked only when it
+    /// can be paid, and the spell is then kicked (`BeheldDragonCondition`)
+    BeholdAbility {
+        subtype: String,
+        #[serde(default)]
+        rule: String,
+    },
     /// "as an additional cost, you may blight N": N -1/-1 counters on a creature you control
     BlightAbility {
         amount: i32,
@@ -5550,6 +5619,9 @@ pub enum AbilityDef {
     ReadAheadAbility,
     /// skulk: can't be blocked by creatures with greater power
     SkulkAbility,
+    /// "You may have {this} assign its combat damage as though it weren't blocked." (Thorn Elemental): asked as its
+    /// combat damage is assigned with blockers (`CombatGroup.assignDamageToBlockers`)
+    DamageAsThoughNotBlockedAbility,
     /// intimidate: can be blocked only by artifact creatures and creatures that share a color with it
     IntimidateAbility,
     /// decayed: can't block (its attack trigger is listed on its own)

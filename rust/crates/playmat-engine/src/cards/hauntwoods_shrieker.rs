@@ -18,7 +18,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         && game.obj(o).face_down
         && choose_use(game, d, cx.controller(), &format!("Turn {} face up?", card.name))?
     {
-        turn_face_up(game, o, false);
+        turn_face_up_by(game, o, false, cx.controller());
     }
     Some(())
 }

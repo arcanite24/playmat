@@ -39,7 +39,7 @@ KEYWORDS = {
     'HexproofAbility', 'IndestructibleAbility', 'WhiteManaAbility', 'BlueManaAbility', 'BlackManaAbility',
     'RedManaAbility', 'GreenManaAbility', 'ColorlessManaAbility', 'CanBlockOnlyFlyingAbility', 'CantBeBlockedSourceAbility', 'CantBlockAbility', 'DauntAbility',
     'IslandwalkAbility', 'PlainswalkAbility', 'SwampwalkAbility', 'MountainwalkAbility', 'ForestwalkAbility', 'SkulkAbility', 'IntimidateAbility', 'DecayedAbility', 'WitherAbility',
-    'UmbraArmorAbility', 'CompleatedAbility',
+    'UmbraArmorAbility', 'CompleatedAbility', 'DamageAsThoughNotBlockedAbility',
     'ConvokeAbility', 'DayboundAbility', 'NightboundAbility', 'AscendAbility',
     'StartYourEnginesAbility', 'StoriedAbility', 'BecomeDayAsEntersAbility',
     # what a creature crews or saddles with (`CrewAbility.getCrewPower`, `SaddleCost.getSaddlePower`)
@@ -291,6 +291,15 @@ CUSTOM = {
     'UrbanBurgeoningUntapEffect': lambda: {'class': 'UntapSourceDuringEachOtherPlayersUntapStepEffect'},
     # "and loses all abilities": the creature the Aura is attached to (`getPermanentSourceAttachedToIfItStillExists`)
     'MysticSubdualEffect': lambda: {'class': 'LoseAllAbilitiesAttachedEffect'},
+    # Stop Cold's "enchanted permanent loses all abilities" (the source's attached permanent, `removeAllAbilities`)
+    'StopColdEffect': lambda: {'class': 'LoseAllAbilitiesAttachedEffect'},
+    # Lier, Disciple of the Drowned: "spells can't be countered" (`COUNTER` of any spell), and each instant and
+    # sorcery card in your graveyard has flashback for its mana cost
+    'LierDiscipleOfTheDrownedCounteredEffect': lambda: {'class': 'CantBeCounteredAllEffect'},
+    'LierDiscipleOfTheDrownedFlashbackEffect': lambda: {'class': 'GraveyardFlashbackEffect',
+                                                        'filter': [{'p': 'or', 'xs': [{'p': 'type', 't': 'INSTANT'}, {'p': 'type', 't': 'SORCERY'}]}]},
+    # Frozen in Ice's "enchanted creature loses all abilities" (the same, `removeAllAbilities` of the attached one)
+    'FrozenInIceAbilityEffect': lambda: {'class': 'LoseAllAbilitiesAttachedEffect'},
     # (players in range: both, in a duel)
     'SorcerousSpyglassActivationEffect': lambda: {'class': 'PithingNeedleEffect'},
     'PhyrexianRevokerEffect2': lambda: {'class': 'PhyrexianRevokerEffect'},
@@ -688,6 +697,8 @@ ABILITIES = {
     'SkipUntapOptionalAbility': [],
     'KickerAbility': [('cost', 'cost_text')],
     'BlightAbility': [('amount', 'int')],
+    # "as an additional cost to cast this spell, you may behold a <subtype>" (the spell is then kicked)
+    'BeholdAbility': [('subtype', 'subtype')],
     'FlashbackAbility': [(None, 'this'), ('cost', 'mana_costs')],
     'HarmonizeAbility': [(None, 'this'), ('cost', 'cost_text')],
     'EscapeAbility': [(None, 'this'), ('cost', 'cost_text'), ('exile', 'int')],
@@ -847,7 +858,7 @@ CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'},
               'TreasureSpentToCastCondition.instance': {'c': 'treasure_spent'},
               'MetalcraftCondition.instance': {'c': 'permanents', 'filter': [{'p': 'type', 't': 'ARTIFACT'}, {'p': 'controller', 'who': 'you'}], 'cmp': 'OR_GREATER', 'n': 3}, 'PlayLandCondition.instance': {'c': 'played_land'}, 'DeliriumCondition.instance': {'c': 'delirium'},
               # a bargained spell is kicked (`BargainAbility`)
-              'BargainedCondition.instance': {'c': 'kicked'}, 'CollectedEvidenceCondition.instance': {'c': 'kicked'}, 'RevealedOrControlledDragonCondition.instance': {'c': 'kicked'}, 'SurgedCondition.instance': {'c': 'kicked'}, 'SpectacleCondition.instance': {'c': 'kicked'},
+              'BargainedCondition.instance': {'c': 'kicked'}, 'CollectedEvidenceCondition.instance': {'c': 'kicked'}, 'RevealedOrControlledDragonCondition.instance': {'c': 'kicked'}, 'SurgedCondition.instance': {'c': 'kicked'}, 'BeheldDragonCondition.instance': {'c': 'kicked'}, 'SpectacleCondition.instance': {'c': 'kicked'},
               'ObsessivePursuitCondition.instance': {'c': 'sacrificed_this_turn', 'n': 3},
               'KaitoBaneOfNightmaresCondition.instance': {'c': 'and', 'xs': [
                   {'c': 'my_turn'}, {'c': 'source_counter', 'name': 'loyalty', 'n': 1}]},
@@ -1307,6 +1318,19 @@ def filter_copies(source):
             continue
         source = source.replace(m.group(0), '', 1)
         source = source.replace(decl.group(0), 'static final ' + decl.group(1) + ' ' + b + ' = ' + made.group(1) + ';', 1)
+    # `static final FilterX b = a.copy();` after `a`'s adds, whose only change is its message (`b.setMessage("…")`:
+    # Labyrinth Raptor's "creatures you control with menace"): `b` declared as `a`'s constructor with `a`'s adds again
+    for m in re.finditer(r'static (?:final |private |public |protected )*(\w+(?:<[\w<>?, ]*>)?) (\w+)\s*=\s*(\w+)\.copy\(\);', source):
+        b, a = m.group(2), m.group(3)
+        made = re.search(r'static (?:final |private |public |protected )*\w+(?:<[\w<>?, ]*>)? ' + a
+                         + r'\s*=\s*(new Filter\w+(?:<[\w<>?, ]*>)?\(.*?\));', source, re.S)
+        calls = re.findall(r'\b' + b + r'\.(\w+)\(', source)
+        adds = [x.group(0) for x in re.finditer(r'\b' + a + r'\.add\([^;]*\);', source)]
+        if not made or any(c != 'setMessage' for c in calls) or any(x.start() > m.start() for x in re.finditer(r'\b' + a + r'\.add\(', source)):
+            continue
+        again = ' '.join(b + x[len(a):] for x in adds)
+        decl = 'static final ' + m.group(1) + ' ' + b + ' = ' + made.group(1) + ';' + (' static { ' + again + ' }' if again else '')
+        return filter_copies(source.replace(m.group(0), decl, 1))
     return source
 
 
@@ -1448,7 +1472,7 @@ MANA_BUILDERS_MORE = {
     # a creature spell of the chosen type or a legendary one (Kolvori)
     'new TheRinghartCrestManaBuilder()': {'filter': [{'p': 'type', 't': 'CREATURE'}, {'p': 'or', 'xs': [
         {'p': 'supertype', 's': 'LEGENDARY'}, {'p': 'chosen_subtype', 'v': True}]}]},
-    'new UnblinkingObserverManaBuilder()': {'filter': [_INSTANT_OR_SORCERY]},
+    'new UnblinkingObserverManaBuilder()': {'filter': [{'p': 'or', 'xs': [{'p': 'type', 't': 'INSTANT'}, {'p': 'type', 't': 'SORCERY'}]}]},
     'new VolsheTideturnerManaBuilder()': {'filter': [{'p': 'or', 'xs': [
         {'p': 'type', 't': 'INSTANT'}, {'p': 'type', 't': 'SORCERY'}, {'p': 'kicked_spell'}]}]},
     'new LordOfTheForsakenManaBuilder()': {'filter': [{'p': 'cast_from', 'zone': 'graveyard'}]},
@@ -1515,6 +1539,12 @@ COST_ADJUSTERS = {
     # strange new worlds: `StrangeNewWorldsValue`, the differently named lands you control
     'SuusMahnaPractitionerAdjuster': ('new DifferentlyNamedPermanentCount(StaticFilters.FILTER_CONTROLLED_PERMANENT_LANDS)',
                                       None),
+    # {1} less for each creature in your party
+    'SeafloorStalkerAdjuster': ('PartyCount.instance', None),
+    # {4} less if an opponent controls four or more nonbasic lands (a duel: the one opponent's count)
+    'RazorlashTransmograntAdjuster': (4, {'c': 'permanents', 'filter': [
+        {'p': 'type', 't': 'LAND'}, {'p': 'not', 'x': {'p': 'supertype', 's': 'BASIC'}},
+        {'p': 'controller', 'who': 'opponent'}], 'cmp': 'OR_GREATER', 'n': 4, 'all': True}),
 }
 
 # a `FilterSpellOrPermanent` of any spell or a creature
@@ -2366,6 +2396,11 @@ class Translator:
         if (m := re.fullmatch(r'new ExileTargetCost\(new TargetControlledPermanent\((StaticFilters\.\w+)\)\)'
                               r'\.withSourceExileZone\(false\)', canonical(expr))):
             return {'class': 'ExileTargetCost', 'filter': self.filter(m.group(1))}
+        # a spell's "as an additional cost, exile a creature you control" (Necrotic Fumes): Java exiles it into the
+        # spell's own exile zone, which nothing of a sorcery reads again
+        if (m := re.fullmatch(r'new ExileTargetCost\(new TargetControlledPermanent\((StaticFilters\.\w+)\)\)', canonical(expr))) \
+                and 'this.getSpellAbility().addCost(new ExileTargetCost(' in (getattr(self, 'source', '') or ''):
+            return {'class': 'ExileTargetCost', 'filter': self.filter(m.group(1))}
         # Ormos, Archive Keeper: "discard three cards with different names" (its `TargetCardInHand(3, …)` leaves out
         # the names already chosen)
         if canonical(expr) == 'new DiscardTargetCost(new OrmosArchiveKeeperTarget())' \
@@ -2856,7 +2891,11 @@ class Translator:
             # the engine's effect numbers may be dynamic
             if what == 'effect' and kind == 'int' and name in ('amount', 'power', 'toughness'):
                 kind = 'amount'
-            v = self.value(kind, arg)
+            # "remove any number of counters" (Rhys, the Evermore)
+            if cls == 'RemoveUpToAmountCountersEffect' and arg.strip() == 'Integer.MAX_VALUE':
+                v = 2147483647
+            else:
+                v = self.value(kind, arg)
             if name:
                 out[name] = v
         return out
@@ -3027,6 +3066,11 @@ class Translator:
         return out
 
     def effect(self, expr):
+        # "you may choose a … card from it" (`DiscardCardYouChooseTargetEffect(filter).setOptional(true)`: Extract the
+        # Truth): the choice may be nothing (`TargetCard(0, n, …)`)
+        m = re.fullmatch(r'\s*new DiscardCardYouChooseTargetEffect\(([\w.]+)\)\.setOptional\(true\)\s*', expr)
+        if m:
+            return {'class': 'DiscardCardYouChooseTargetEffect', 'filter': self.filter(m.group(1)), 'optional': True}
         # rummage: `DoIfCostPaid` of drawing a card and a discard cost, by name (Battlefield Scavenger)
         if re.fullmatch(r'\s*new RummageEffect\(\)\s*', expr):
             expr = 'new DoIfCostPaid(new DrawCardSourceControllerEffect(1),new DiscardCardCost())'
@@ -3265,6 +3309,16 @@ class Translator:
             return e
         if (e := self.stack_effect(expr)) is not None:
             return e
+        # `new ConditionalOneShotEffect(…)[.addEffect(…)].setTargetPointer(new SecondTargetPointer())`: its effects
+        # (`ConditionalOneShotEffect.setTargetPointer` sets theirs) on the ability's second target (Mind Spiral's tap
+        # and stun counter)
+        m = re.fullmatch(r'(new ConditionalOneShotEffect\(.*\))\.setTargetPointer\(new SecondTargetPointer\(\)\)', canonical(expr), re.S)
+        if m and '.setTargetPointer(' not in m.group(1):
+            e = self.effect(m.group(1))
+            if e.get('class') == 'ConditionalOneShotEffect' and e.get('effect') and not e.get('otherwise'):
+                e['effect'] = {'class': 'TargetPointerEffect', 'target': 1, 'effect': e['effect']}
+                e['also'] = [{'class': 'TargetPointerEffect', 'target': 1, 'effect': x} for x in e.get('also', [])]
+                return e
         # `new ConditionalOneShotEffect(…).addEffect(e)[.addEffect(f)…]`: e (and f) too, when it holds
         m = re.fullmatch(r'(new ConditionalOneShotEffect\(.*\))\s*\.addEffect\((.*)\)', expr.strip(), re.S)
         if m and not balanced(expr.strip()):
@@ -3304,7 +3358,8 @@ class Translator:
             if r.get('class') != 'Reflexive':
                 raise Unsupported('reflexive ability ' + args[0])
             msg = args[2].strip()[1:-1] if args[2].strip() != 'null' else ''
-            return {'class': cls, 'cost': [self.cost(args[1])], 'message': msg, 'rule': WHEN_YOU_DO,
+            # (a reflexive made with its own text keeps it: `getRule`, capitalized, Death to Our Enemies)
+            return {'class': cls, 'cost': [self.cost(args[1])], 'message': msg, 'rule': r.get('rule', WHEN_YOU_DO),
                     'targets': r['targets'], 'effects': r['effects'], 'optional': args[3].strip() == 'true'}
         # `new DoIfCostPaid(null, otherwise, cost)`: only what's done when it isn't paid
         # `new DoIfCostPaid(effect, null, cost, optional)`
@@ -3490,6 +3545,11 @@ class Translator:
             return {'class': 'ChooseLandNameEffect'}
         if cls == 'ChooseCreatureTypeEffect' and len(args) == 1 and args[0].strip().startswith('Outcome.'):
             return {'class': cls}
+        # (outcome, SubType...): one of these (Dawn-Blessed Pennant)
+        if cls == 'ChooseCreatureTypeEffect' and len(args) > 1 and args[0].strip().startswith('Outcome.') \
+                and all((m := re.fullmatch(r'SubType\.(\w+)', a.strip())) and m.group(1) in self.subtypes
+                        for a in args[1:]):
+            return {'class': cls, 'only': [self.subtypes[a.strip()[len('SubType.'):]] for a in args[1:]]}
         # a Siege's "choose Khans or Dragons", kept on the permanent for its anchor-word abilities
         if cls == 'ChooseModeEffect' and args and all(re.fullmatch(r'ModeChoice\.\w+', a.strip()) for a in args):
             return {'class': cls, 'modes': [mode_choice(a) for a in args]}
@@ -3540,6 +3600,26 @@ class Translator:
                 'TargetController.ANY'], ['Integer.MAX_VALUE', 'Duration.WhileOnBattlefield', 'HandSizeModification.SET',
                                          'TargetController.ANY']):
             return {'class': 'NoMaximumHandSizeAllEffect'}
+        # "{this} can't attack or block unless you pay {2}" (Qal Sisma Behemoth: the `ManaCosts` constructor makes it
+        # `ATTACK_AND_BLOCK` whatever restriction it's given)
+        if cls == 'CantAttackBlockUnlessPaysSourceEffect' and len(args) == 2 \
+                and (mc := re.fullmatch(r'new ManaCostsImpl<?>?\("(\{[^"]*\})"\)', args[0].strip())):
+            return {'class': cls, 'cost': mc.group(1), 'attack': True, 'block': True}
+        # (text): "sacrifice that creature", the target's controller sacrificing it (a delayed threaten's)
+        if cls == 'SacrificeTargetEffect' and len(args) == 1 and re.fullmatch(r'"[^"]*"', args[0].strip()):
+            return {'class': cls}
+        # "you don't lose the game for having 0 or less life" (Marina Vendrell's Grimoire)
+        if cls == 'DontLoseByZeroOrLessLifeEffect' and [a.strip() for a in args] == ['Duration.WhileOnBattlefield']:
+            return {'class': cls}
+        # Iroh, Grand Lotus: during your turn, each non-Lesson instant and sorcery card in your graveyard has flashback
+        # for its mana cost (`false`), each Lesson card flashback {1} (`true`)
+        if cls == 'IrohGrandLotusEffect' and len(args) == 1 and args[0].strip() in ('true', 'false') \
+                and 'class IrohGrandLotusEffect' in (getattr(self, 'source', None) or ''):
+            if args[0].strip() == 'true':
+                return {'class': 'GraveyardFlashbackEffect', 'filter': [{'p': 'subtype', 's': 'Lesson'}],
+                        'cost': '{1}', 'your_turn': True}
+            return {'class': 'GraveyardFlashbackEffect', 'your_turn': True,
+                    'filter': [_INSTANT_OR_SORCERY, {'p': 'not', 'x': {'p': 'subtype', 's': 'Lesson'}}]}
         # "your maximum hand size is eight" (Doctor Octopus)
         if cls == 'MaximumHandSizeControllerEffect' and len(args) == 3 and re.fullmatch(r'\d+', args[0].strip()) \
                 and args[1].strip() == 'Duration.WhileOnBattlefield' \
@@ -3779,6 +3859,12 @@ class Translator:
                     'otherwise': {'class': 'SacrificeSourceEffect'}}
         if cls == 'CantBlockTargetEffect' and [a.strip() for a in args] == ['Duration.EndOfTurn']:
             return {'class': 'GainAbilityTargetEffect', 'ability': {'class': 'CantBlockAbility'}, 'duration': 'EndOfTurn'}
+        # "target creature can't attack or block until your next turn" (Spara's Adjudicators; the end-of-turn one is
+        # a handler, cant_attack_block_target_effect.rs): the engine's "can't attack" and "can't block" until then
+        if cls == 'CantAttackBlockTargetEffect' and [a.strip() for a in args] == ['Duration.UntilYourNextTurn']:
+            return {'class': 'Effects', 'effects': [
+                {'class': 'GainAbilityTargetEffect', 'ability': {'class': k}, 'duration': 'UntilYourNextTurn'}
+                for k in ('CantAttackAbility', 'CantBlockAbility')]}
         # "target creature can't be blocked by <filter> this turn"
         if cls == 'CantBeBlockedByAllTargetEffect' and len(args) == 2 and args[1].strip() == 'Duration.EndOfTurn':
             return {'class': 'GainAbilityTargetEffect', 'ability': {'class': 'CantBeBlockedByAbility', 'filter': self.filter(args[0])},
@@ -3977,6 +4063,10 @@ class Translator:
         if cls == 'InvestigateEffect' and len(args) <= 1 and args != ['true'] and args != ['false']:
             return {'class': 'CreateTokenEffect', 'token': token('ClueArtifactToken'),
                     'amount': self.value('amount', args[0]) if args else 1}
+        # `InvestigateEffect(false)`: no reminder text (a spell's text is Java's own, so only the Clue matters: Kellan,
+        # Inquisitive Prodigy's Tail the Suspect)
+        if cls == 'InvestigateEffect' and [a.strip() for a in args] == ['false']:
+            return {'class': 'CreateTokenEffect', 'token': token('ClueArtifactToken'), 'amount': 1}
         # create a token, then (you may) attach this Equipment to it
         if cls == 'CreateTokenAttachSourceEffect' and len(args) in (1, 2, 3):
             return {'class': 'CreateTokenEffect', 'token': self.value('token', args[0].strip()), 'amount': 1,
@@ -4290,7 +4380,14 @@ class Translator:
                                 'additional +1/+1 counter on it.'}
             d = self.vars.get(args[0].strip()) or self.ability(args[0])
             if d.get('class') == 'WhenTargetDiesDelayed':
-                out = {'class': 'CreateWhenTargetDiesDelayedEffect', 'effects': d['effects'], 'rule': d['rule'],
+                # its own trigger phrase (`.setTriggerPhrase("When it dies this turn, ")`: Turn Inside Out): the
+                # sentence of the spell's rule that starts with it
+                tp = re.fullmatch(r'new WhenTargetDiesDelayedTriggeredAbility\(.*\)\.setTriggerPhrase\("([^"]+)"\)',
+                                  canonical(args[0].strip()), re.S)
+                rule = d['rule']
+                if tp and rule == RULE_FROM + 'When that creature dies this turn, >':
+                    rule = RULE_FROM + tp.group(1) + '>'
+                out = {'class': 'CreateWhenTargetDiesDelayedEffect', 'effects': d['effects'], 'rule': rule,
                        'to_player': d['to_player']}
                 if d.get('only_controlled'):
                     out['only_controlled'] = True
@@ -4304,7 +4401,12 @@ class Translator:
                         'phase': d['phase']}
             if d.get('class') != 'NextEndStepDelayed':
                 raise Unsupported('delayed ability ' + args[0])
-            return {'class': 'CreateNextEndStepDelayedEffect', 'effects': d['effects'], 'rule': d['rule']}
+            out = {'class': 'CreateNextEndStepDelayedEffect', 'effects': d['effects'], 'rule': d['rule']}
+            # "sacrifice that creature": the delayed trigger points at the creating ability's targets
+            # (`CreateDelayedTriggeredAbilityEffect` copies its target pointer: In Thrall to the Pit)
+            if d['effects'] == [{'class': 'SacrificeTargetEffect'}]:
+                out['fixed_targets'] = True
+            return out
         if cls == 'UntapLandsEffect' and len(args) == 1 and re.fullmatch(r'\d+', args[0].strip()):
             return {'class': cls, 'amount': int(args[0])}
         # "untap up to three lands you control"
@@ -4323,6 +4425,10 @@ class Translator:
                     'amount': self.value('amount', args[0]) if len(args) == 2 else 1}
         if cls == 'DiscardCardYouChooseTargetEffect' and not args:
             return {'class': cls, 'filter': []}
+        # (number of cards to reveal): they reveal that many of their choice, you choose one (Acquisitions Expert)
+        if cls == 'DiscardCardYouChooseTargetEffect' and len(args) == 1 \
+                and re.fullmatch(r'\d+|\w+Count\.instance', args[0].strip()):
+            return {'class': cls, 'filter': [], 'reveal': self.amount(args[0])}
         if cls == 'DrawDiscardControllerEffect' and len(args) <= 1:
             args = ['1', '1'] + args
         # "discard any number of cards, then draw that many (plus N)"
@@ -4757,6 +4863,11 @@ class Translator:
         cls, args = m.group(1), [a.strip() for a in split_args(m.group(2))] if m.group(2).strip() else []
         if cls == 'ReturnSourceFromGraveyardToHandEffect' and not args:
             return {'class': 'ReturnToHandSourceEffect', 'battlefield_only': False}
+        # "put this card from your graveyard on top of your library" (Gate Colossus's graveyard trigger): the engine's
+        # effect moves its source only from the graveyard, so only a trigger that works there takes it
+        if cls == 'PutOnLibrarySourceEffect' and args and args[0] in ('true', 'false') and len(args) <= 2 \
+                and getattr(self, 'trigger_zone', None) == 'Zone.GRAVEYARD':
+            return {'class': 'PutOnLibrarySourceEffect', 'top': args[0] == 'true'}
         # `returnFromNextZone`: the source in the zone it went to (a leaves trigger's source is that object already)
         if cls == 'ReturnToHandSourceEffect' and len(args) == 2 and args[0] in ('true', 'false') and args[1] == 'true':
             return {'class': 'ReturnToHandSourceEffect', 'battlefield_only': args[0] == 'true'}
@@ -5049,6 +5160,10 @@ class Translator:
         if cls == 'TargetAnyTargetAmount' and len(args) == 1:
             amount = self.amount(args[0])
             return {'class': 'TargetAnyTarget', 'min': fewest(amount), 'max': 99, 'distribute': amount}
+        # (amount, min, max): a fixed amount divided among `min` to `max` targets (Sundering Stroke's 7 among one to
+        # three)
+        if cls == 'TargetAnyTargetAmount' and len(args) == 3 and all(re.fullmatch(r'\d+', a.strip()) for a in args):
+            return {'class': 'TargetAnyTarget', 'min': int(args[1]), 'max': int(args[2]), 'distribute': int(args[0])}
         if cls == 'TargetCreaturePermanentAmount' and len(args) == 1:
             amount = self.amount(args[0])
             return {'class': 'TargetPermanent', 'filter': [dict(CREATURE)], 'min': fewest(amount), 'max': 99,
@@ -5400,6 +5515,19 @@ class Translator:
                 raise Unsupported('ExhaustAbility condition ' + m.group(2))
             a['condition'] = self.value('condition', m.group(2))
             return a
+        # `new SimpleActivatedAbility(…).setCondition(condition)`: "activate only if", as
+        # `ActivateIfConditionActivatedAbility` (Seven of Nine's "{6}{U}: … if you control seven or more …")
+        m = re.fullmatch(r'(new SimpleActivatedAbility\(.*\))\s*\.setCondition\((\w+(?:\.[A-Z_a-z]\w*)?)\)', self.strip_setters(expr), re.S)
+        if m:
+            a = self.ability(m.group(1))
+            if a.get('class') != 'SimpleActivatedAbility' or a.get('modes') or a.get('min_x') or a.get('cant_be_copied') \
+                    or set(a) - {'class', 'java', 'effects', 'cost', 'targets', 'rule'}:
+                raise Unsupported('SimpleActivatedAbility condition ' + m.group(2))
+            a['java'] = a.get('java', 'SimpleActivatedAbility')
+            a['class'] = 'LimitedTimesPerTurnActivatedAbility'
+            a['limit'] = 4294967295
+            a['condition'] = self.value('condition', m.group(2))
+            return a
         # `….withTriggerCondition(condition)`: checked only as it triggers
         m = re.fullmatch(r'(.*\))\s*\.withTriggerCondition\((\w+(?:\.[A-Z_a-z]\w*)?|new \w+Condition\([^()]*\))\)', self.strip_setters(expr), re.S)
         if m:
@@ -5432,9 +5560,15 @@ class Translator:
         m = re.fullmatch(r'(.*\))\s*\.setDoOnlyOnceEachTurn\(true\)', self.strip_setters(expr), re.S)
         if m:
             a = self.ability(m.group(1))
-            if a.get('class') != 'TriggeredAbility' or any(e.get('class') == 'DoIfCostPaid' for e in a.get('effects', [])):
+            if a.get('class') != 'TriggeredAbility':
                 raise Unsupported('do only once each turn on ' + a.get('class', '?'))
-            a['optional'] = True
+            # an optional `DoIfCostPaid` asks instead, and paying it is what counts as done (Irreverent Gremlin)
+            paid = [e for e in a.get('effects', []) if e.get('class') == 'DoIfCostPaid']
+            if paid and (len(paid) != len(a.get('effects', [])) or a.get('optional')
+                         or not all(e.get('optional', True) for e in paid)):
+                raise Unsupported('do only once each turn on ' + a.get('class', '?'))
+            if not paid:
+                a['optional'] = True
             a['once_each_turn'] = True
             return a
         # `….setTiming(TimingRule.SORCERY)` on an ability from the graveyard
@@ -5533,7 +5667,9 @@ class Translator:
                 if len(a) == 3 and a[2] != 'new TargetControlledCreaturePermanent()':
                     n = re.fullmatch(r'new TargetPermanent\((\w+)\)', a[2])
                     f = self.filter(n.group(1)) if n else None
-                    if not f or CREATURE not in f:
+                    # (or a creature type alone: "equip Citizen", a `FilterControlledPermanent(SubType.CITIZEN)` Java
+                    # takes as it is: Ceremonial Groundbreaker)
+                    if not f or (CREATURE not in f and not any(p.get('p') == 'subtype' for p in f)):
                         raise Unsupported('equip ' + ','.join(args))
                     target = [dict(p) for p in f] + ([YOU] if YOU not in f else [])
             else:
@@ -5799,7 +5935,11 @@ class Translator:
         # (Zone.GRAVEYARD, effect, filter, optional): it triggers from its owner's graveyard (Prized Amalgam)
         if cls == 'EntersBattlefieldAllTriggeredAbility' and len(args) == 4 and args[0].strip() == 'Zone.GRAVEYARD' \
                 and args[3].strip() in ('true', 'false'):
-            a = self.ability('new ' + cls + '(' + ','.join(args[1:]) + ')')
+            self.trigger_zone = 'Zone.GRAVEYARD'
+            try:
+                a = self.ability('new ' + cls + '(' + ','.join(args[1:]) + ')')
+            finally:
+                self.trigger_zone = None
             a['on']['graveyard'] = True
             return a
         if cls == 'EntersBattlefieldAllTriggeredAbility' and len(args) == 5 and args[0].strip() == 'Zone.BATTLEFIELD' \
@@ -6516,6 +6656,9 @@ class Translator:
         # "when this exploits a creature" (`EXPLOITED_CREATURE`)
         if cls == 'ExploitCreatureTriggeredAbility' and (n in (1, 2) or n == 3 and args[2] == 'SetTargetPointer.NONE'):
             return trig({'e': 'exploits'}, [self.effect(args[0])], n >= 2 and flag(args[1]))
+        # (`SetTargetPointer.PERMANENT`: the effects point at the exploited creature, Profaner of the Dead)
+        if cls == 'ExploitCreatureTriggeredAbility' and n == 3 and args[2] == 'SetTargetPointer.PERMANENT':
+            return trig({'e': 'exploits'}, [self.effect(args[0])], flag(args[1]), set_target_pointer=True)
         if cls == 'BecomesMonstrousSourceTriggeredAbility' and n in (1, 2):
             return trig({'e': 'becomes_monstrous'}, [self.effect(args[0])], n == 2 and flag(args[1]))
         # mentor: whenever this attacks, a +1/+1 counter on target attacking creature with lesser power
@@ -6715,6 +6858,11 @@ class Translator:
                     'optional': optional, 'set_target_pointer': pointer}
 
         n = len(args)
+        # (effect, mountsAlso, yourMainPhaseOnly): "whenever this saddles a Mount or crews a Vehicle during your main
+        # phase" (Canyon Vaulter)
+        if cls == 'CrewsVehicleSourceTriggeredAbility' and n == 3 and args[1] in ('true', 'false') \
+                and args[2] in ('true', 'false'):
+            return out({'e': 'crews_vehicle', 'mounts': flag(args[1]), 'main_phase': flag(args[2])}, args[0])
         # "whenever you cast a spell of the filter, … that spell …": a target pointer at the spell
         if cls == 'SpellCastControllerTriggeredAbility' and n == 4 and args[3] == 'SetTargetPointer.SPELL':
             return out({'e': 'spell_cast', 'filter': self.filter(args[1]), 'who': 'you'}, args[0], flag(args[2]), True)
@@ -6747,6 +6895,12 @@ class Translator:
             # (Zone.BATTLEFIELD, effect, optional, filter, pointer): the pointer a flag or `SetTargetPointer`
             # (PERMANENT: at the card it became; PLAYER: at the dying creature's controller)
             # (an emblem's, `Zone.COMMAND`, the same: its triggers wait from the command zone)
+            # (Zone.GRAVEYARD, effect, optional, filter, false): while this card is in its owner's graveyard
+            # (Furious Forebear)
+            if n == 5 and args[0] == 'Zone.GRAVEYARD' and args[3] not in ('true', 'false') \
+                    and args[4] in ('false', 'SetTargetPointer.NONE'):
+                return out({'e': 'dies_all', 'filter': self.filter(args[3]), 'graveyard': True}, args[1],
+                           flag(args[2]))
             if n == 5 and args[0] in ('Zone.BATTLEFIELD', 'Zone.COMMAND') and args[3] not in ('true', 'false'):
                 kind = {'true': 'card', 'false': None, 'SetTargetPointer.PERMANENT': 'card', 'SetTargetPointer.NONE': None,
                         'SetTargetPointer.PLAYER': 'player'}.get(args[4], '?')
@@ -6829,6 +6983,11 @@ class Translator:
             return out({'e': 'sacrificed', 'filter': [{'p': 'not', 'x': {'p': 'another'}}], 'who': 'you'}, args[0],
                        n == 2 and flag(args[1]))
         if cls == 'SacrificePermanentTriggeredAbility':
+            # from its card in its owner's graveyard (Curious Cadaver)
+            if n == 6 and args[0] == 'Zone.GRAVEYARD' and args[4] == 'SetTargetPointer.NONE':
+                return out({'e': 'sacrificed', 'filter': self.filter(args[2]),
+                            'who': self.value('target_controller', args[3]), 'graveyard': True}, args[1],
+                           flag(args[5]))
             if n == 6 and args[0] == 'Zone.BATTLEFIELD' and args[4] in ('SetTargetPointer.NONE', 'SetTargetPointer.PLAYER'):
                 return out({'e': 'sacrificed', 'filter': self.filter(args[2]),
                             'who': self.value('target_controller', args[3])}, args[1], flag(args[5]),
@@ -6914,8 +7073,10 @@ class Translator:
             if n == 2:
                 out['condition'] = self.condition(args[1])
             return out
+        # (its own ATTACKER_DECLARED trigger, so it waits before the DECLARED_ATTACKERS "whenever this attacks" ones:
+        # Goblin Guide's before Impetuous Devils')
         if cls == 'GoblinGuideTriggeredAbility' and args == ['new GoblinGuideEffect()', 'false']:
-            return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'attacks'}, 'optional': False,
+            return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'attacker_declared'}, 'optional': False,
                     'effects': [{'class': 'GoblinGuideEffect'}]}
         if cls in ('SpreeAbility', 'TieredAbility') and args == ['this']:
             return {'class': cls, 'java': cls}
@@ -7408,6 +7569,9 @@ class Translator:
             elif n == 4:
                 filt, pointer, optional = self.filter(args[1]), flag(args[2]), flag(args[3])
             return out({'e': 'attacks_alone_all', 'filter': filt}, args[0], optional, pointer)
+        # whenever a creature you control attacks a player alone; always with a target pointer at it
+        if cls == 'AttacksPlayerAloneControlledTriggeredAbility' and n == 1:
+            return out({'e': 'attacks_alone_all', 'filter': [CREATURE, YOU], 'player': True}, args[0], False, True)
         # whenever the equipped (enchanted) creature attacks; with a target pointer at it or the defending player
         if cls == 'AttacksAttachedTriggeredAbility' and 1 <= n <= 4:
             if n >= 3 and args[1] not in ('AttachmentType.EQUIPMENT', 'AttachmentType.AURA'):
@@ -7492,6 +7656,9 @@ class Translator:
         if cls == 'DiscardCardControllerTriggeredAbility' and n in (2, 3):
             return out({'e': 'discards', 'who': 'you', 'filter': self.filter(args[2]) if n == 3 else []}, args[0],
                        flag(args[1]))
+        # "whenever a player discards a card" (`DISCARDED_CARD` of any player: Hostile Investigator)
+        if cls == 'DiscardCardPlayerTriggeredAbility' and n == 2:
+            return out({'e': 'discards', 'who': 'any'}, args[0], flag(args[1]))
         if cls == 'DiscardsACardOpponentTriggeredAbility' and n in (2, 3) \
                 and (n == 2 or args[2] in ('SetTargetPointer.NONE', 'SetTargetPointer.PLAYER')):
             a = out({'e': 'discards', 'who': 'opponent'}, args[0], flag(args[1]))
@@ -7549,6 +7716,14 @@ class Translator:
             elif n >= 2:
                 filt, optional = self.filter(args[1]), n == 3 and flag(args[2])
             return out({'e': 'blocker_declared', 'filter': filt, 'blocks': True, 'blocked': True}, args[0], optional)
+        # Mage Hunter's own class: "whenever an opponent casts or copies an instant or sorcery spell, they lose 1 life"
+        # (`COPIED_STACKOBJECT` or `SPELL_CAST`, a `FixedTarget` at the spell's controller)
+        if cls == 'MageHunterTriggeredAbility' and n == 0 \
+                and 'class MageHunterTriggeredAbility extends TriggeredAbilityImpl' in (getattr(self, 'source', '') or ''):
+            a = out({'e': 'spell_cast_or_copied', 'filter': [{'p': 'or', 'xs': [type_pred('INSTANT'), type_pred('SORCERY')]}],
+                     'who': 'opponent'}, 'new LoseLifeTargetEffect(1)')
+            a['set_target_pointer_player'] = True
+            return a
         # whenever you cast or copy an instant or sorcery spell
         if cls == 'MagecraftAbility' and n in (1, 2):
             return out({'e': 'spell_cast_or_copied', 'filter': [{'p': 'or', 'xs': [type_pred('INSTANT'), type_pred('SORCERY')]}],
@@ -7660,6 +7835,15 @@ class Translator:
         if cls == 'ActivateAbilityTriggeredAbility' and n == 3 and args[2].strip() == 'SetTargetPointer.SPELL':
             return copies_abilities(out({'e': 'ability_activated', 'kind': self.stack_filter_kind(args[1]),
                                          'pointer': True}, args[0]))
+        # Fabrication Module: "whenever you get one or more {E}, put a +1/+1 counter on target creature you control"
+        # (`COUNTERS_ADDED` of energy on you; the target is added after)
+        if cls == 'FabricationModuleTriggeredAbility' and n == 0:
+            return out({'e': 'you_get_energy'}, 'new AddCountersTargetEffect(CounterType.P1P1.createInstance())')
+        # Frenzied Raider: "whenever you activate a boast ability, put a +1/+1 counter on {this}" (`ACTIVATED_ABILITY`
+        # of a `BoastAbility`)
+        if cls == 'FrenziedRaiderTriggeredAbility' and n == 0:
+            return out({'e': 'ability_activated', 'kind': 'boast'},
+                       'new AddCountersSourceEffect(CounterType.P1P1.createInstance())')
         # Runic Armasaur: "whenever an opponent activates an ability of a creature or land that isn't a mana ability"
         if cls == 'RunicArmasaurTriggeredAbility' and n == 0:
             return out({'e': 'ability_activated', 'kind': 'creature_or_land', 'opponent': True},
@@ -7766,6 +7950,9 @@ class Translator:
         if cls == 'CommittedCrimeTriggeredAbility' and n == 3 and args[0].strip() == 'Zone.GRAVEYARD':
             return out({'e': 'committed_crime', 'graveyard': True}, args[1], flag(args[2]))
         if cls in ('SurveilTriggeredAbility', 'ScryTriggeredAbility') and n in (1, 2):
+            # (Zone.GRAVEYARD, effect): from its card in its owner's graveyard (Blood Operative)
+            if n == 2 and cls == 'SurveilTriggeredAbility' and args[0].strip() == 'Zone.GRAVEYARD':
+                return out({'e': 'you_surveil_or_scry', 'surveil': True, 'graveyard': True}, args[1])
             if n == 2 and cls == 'SurveilTriggeredAbility':
                 raise Unsupported(cls + ' ' + args[0])
             return out({'e': 'you_surveil_or_scry', 'surveil': cls == 'SurveilTriggeredAbility'}, args[0],
@@ -7774,6 +7961,9 @@ class Translator:
             return out({'e': 'explores'}, args[0])
         if cls == 'ProliferatedControllerTriggeredAbility' and n in (1, 2):
             return out({'e': 'you_proliferate'}, args[0], n == 2 and flag(args[1]))
+        # (Zone.GRAVEYARD, effect, optional): a card in its owner's graveyard (Voidwing Hybrid)
+        if cls == 'ProliferatedControllerTriggeredAbility' and n == 3 and args[0].strip() == 'Zone.GRAVEYARD':
+            return out({'e': 'you_proliferate', 'graveyard': True}, args[1], flag(args[2]))
         if cls == 'AttacksFirstTimeTriggeredAbility' and n == 2:
             return out({'e': 'attacks_first_time'}, args[0], flag(args[1]))
         # "whenever you (an opponent) lose life for the first time each turn"
@@ -8485,9 +8675,10 @@ def card_statement(t, st, card, added, spell, modes, subtypes):
         if m:
             card.setdefault('supertypes', []).extend(x.split('.')[-1] for x in split_args(m.group(1)))
             return
-        # a meld card's colors (it has no mana cost to give them)
+        # a meld card's colors (it has no mana cost to give them), or a card's whose cost has no colored symbols
+        # (Sphinx of the Guildpact, "{7}" and all colors)
         m = re.fullmatch(r'this\.color\.set(White|Blue|Black|Red|Green)\(true\)', st)
-        if m and card.get('meld_card'):
+        if m and (card.get('meld_card') or ('cost' in card and not re.search(r'[WUBRG]', card['cost']))):
             color = {'White': 'W', 'Blue': 'U', 'Black': 'B', 'Red': 'R', 'Green': 'G'}[m.group(1)]
             card['colors'] = [c for c in 'WUBRG' if c in card.get('colors', []) + [color]]
             return
@@ -9095,6 +9286,10 @@ def ability_statement(t, st, added):
                      r'|getModes\(\)\.getMode\(\)\.withFlavorWord|getDependedToTypes\(\)\.add|addDependedToType|setDependedToType)\(.*\)', st)
     if m and m.group(1) in t.vars:
         return True
+    # (a mana ability's undo is the human client's rollback of a payment: nothing the game rules see; Ether)
+    m = re.fullmatch(r'(\w+)\.setUndoPossible\(false\)', st)
+    if m and m.group(1) in t.vars:
+        return True
     # backup: an ability the card has and the backup target gains (`BackupAbility.addAbility`; with `true`, only
     # the target: a second backup of the card's)
     m = re.fullmatch(r'(\w+)\.addAbility\((.*?)(,true)?\)', st, re.S)
@@ -9450,6 +9645,8 @@ RULE_FROM = '<rule from:'
 # effects of a delayed "at the beginning of the next end step" trigger, by their Java text (`getText`)
 NEXT_END_STEP_TEXTS = {
     'new SacrificeSourceEffect()': 'sacrifice {this}',
+    # (a threaten's "sacrifice that creature": the creating spell's target, In Thrall to the Pit)
+    'new SacrificeTargetEffect("sacrifice that creature")': 'sacrifice that creature',
     # (`DestroyAllEffect`'s text is "destroy all " and the filter's message, "permanent")
     'new DestroyAllEffect(StaticFilters.FILTER_PERMANENT)': 'destroy all permanent',
 }
@@ -10119,9 +10316,15 @@ def that_player_names(card):
                 # `TargetCreaturePermanent`'s own filter: "creature"
                 if each and not msgs and 'new TargetCreaturePermanent(' in src and 'target creature' in x.get('rule', ''):
                     msgs = ['creature']
-                if not msgs:
+                # an effect whose text is set names the target itself: the adjuster's new name isn't shown (Impetuous
+                # Devils' "up to one target creature defending player controls")
+                if not each and not msgs and 'new TargetCreaturePermanent(' in src and 'Filter' not in src \
+                        and re.search(r'\.setText\("[^"]*target creature', src):
+                    x['that_player_controls'] = False
+                elif not msgs:
                     raise Unsupported('a that-player target without its name')
-                x['that_player_name'] = max(msgs, key=len)
+                else:
+                    x['that_player_name'] = max(msgs, key=len)
             for v in x.values():
                 walk(v)
         elif isinstance(x, list):
@@ -10230,6 +10433,11 @@ def granted_rules(card):
                     and re.search(r'new SurveilEffect\(1\)\)', card_source(card.get('name'))):
                 g['rule'] += (' <i>(Look at the top card of your library. You may put that card into your'
                               ' graveyard.)</i>')
+            # `new BolsterEffect(1)` writes its reminder (Gleam of Authority's "{W}, {T}: Bolster 1.")
+            if effects == ['BolsterEffect'] and g['rule'].endswith('Bolster 1.') \
+                    and re.search(r'new BolsterEffect\(1\)', card_source(card.get('name'))):
+                g['rule'] += (' <i>(Choose a creature with the least toughness among creatures you control and put'
+                              ' a +1/+1 counter on it.)</i>')
             # `new RegenerateSourceEffect()` writes "Regenerate {this}" (Molting Snakeskin's "Regenerate this creature")
             if effects == ['RegenerateSourceEffect'] and 'new RegenerateSourceEffect()' in card_source(card.get('name')):
                 g['rule'] = re.sub(r': Regenerate this (?:artifact|creature|permanent)\.', ': Regenerate {this}.',
