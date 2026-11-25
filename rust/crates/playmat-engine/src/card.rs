@@ -436,9 +436,12 @@ pub enum Pred {
         costs: Vec<String>,
     },
     /// `ManaValueEqualToCountersSourceCountPredicate`: mana value equal to the source's counters of this kind (as it
-    /// last was on the battlefield)
+    /// last was on the battlefield); with `cmp`, compared so (`ManaValueCompareToCountersSourceCountPredicate`:
+    /// Lady Octopus's `OR_LESS`)
     ManaValueEqualSourceCounters {
         counter: String,
+        #[serde(default)]
+        cmp: Option<Cmp>,
     },
     /// `ManaValueLessThanOrEqualToSourcePowerPredicate`: mana value at most the source's power (as it last was)
     ManaValueAtMostSourcePower,
@@ -1122,9 +1125,13 @@ pub enum Trigger {
     CrewsVehicle,
     /// this becomes tapped (`BecomesTappedSourceTriggeredAbility`)
     BecomesTapped,
-    /// a permanent of the filter becomes tapped (`BecomesTappedTriggeredAbility`)
+    /// a permanent of the filter becomes tapped (`BecomesTappedTriggeredAbility`); `not_attacking`: unless it
+    /// becomes tapped as it's declared as an attacker (`TappedNotAttackingTriggeredAbility`, the `TAPPED` event's
+    /// flag: Verity Circle)
     BecomesTappedAll {
         filter: Filter,
+        #[serde(default)]
+        not_attacking: bool,
     },
     /// the permanent this is attached to becomes tapped (`BecomesTappedAttachedTriggeredAbility`); a target pointer is
     /// that permanent
@@ -1257,6 +1264,9 @@ pub enum Trigger {
     },
     /// you give a gift (`GAVE_GIFT`, a card's own trigger class: Jolly Gerbils)
     GaveGift,
+    /// a spell or ability you control counters a spell (`SpellCounteredControllerTriggeredAbility`, `COUNTERED`:
+    /// Baral, Chief of Compliance)
+    SpellCounteredYou,
     /// a token of the filter is created (`CREATED_TOKEN`, a card's own trigger class: Voldaren Bloodcaster) under
     /// the control of `who` ("you", "opponent", "any"); it points at the token
     TokenCreated {
@@ -1736,6 +1746,11 @@ pub enum CostDef {
     /// exile a permanent of the filter you control (`ExileTargetCost` of a `TargetControlledPermanent`, chosen as
     /// the cost is paid; not into the source's exile zone: `withSourceExileZone(false)`)
     ExileTargetCost {
+        filter: Filter,
+    },
+    /// an additional cost: you may sacrifice any number of the filter's permanents, chosen as it's paid
+    /// (`TargetSacrifice(0, MAX)`); when you do, copy the spell for each (Plumb the Forbidden's own cost class)
+    SacrificeAnyNumberCopyCost {
         filter: Filter,
     },
     /// an additional cost: sacrifice any number (X, announced as the spell is cast) of the filter's permanents

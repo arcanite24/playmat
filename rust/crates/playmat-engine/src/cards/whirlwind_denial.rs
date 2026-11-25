@@ -39,7 +39,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
             Arc::make_mut(&mut game.stack).remove(now);
             removed.push(at);
         } else if game.obj(card).zone == Zone::Stack && !cant_be_countered(game, card) {
-            note_countered(game, card, cx.source_id());
+            note_countered(game, card, cx.source_id(), cx.controller());
             Arc::make_mut(&mut game.stack).remove(now);
             removed.push(at);
             game.move_to(card, Zone::Graveyard);

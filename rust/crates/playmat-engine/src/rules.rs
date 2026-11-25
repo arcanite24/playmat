@@ -238,10 +238,15 @@ fn note(
     }
 }
 
-/// `source`'s effect countered `spell`
-fn note_countered(game: &mut Game, spell: ObjId, source: ObjId) {
+/// `source`'s effect, controlled by `by`, countered `spell`
+fn note_countered(game: &mut Game, spell: ObjId, source: ObjId, by: Seat) {
     let player = Some(game.obj(spell).controller);
     note(game, EventKind::Countered, player, Some(source), Some(Target::Obj(spell)), 0);
+    // `COUNTERED`: "whenever a spell or ability you control counters a spell", the controller of the stack object
+    // that countered it
+    let sources = game.trigger_sources();
+    let fired = game.triggers(sources, |_, _, you, t| matches!(t, Trigger::SpellCounteredYou) && you == by);
+    game.pending.extend(fired);
 }
 
 /// Whether a resolved "doesn't untap" effect keeps `id` tapped in `active`'s untap step: one for as long as its
@@ -2167,6 +2172,7 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
             matching(game, filter, seat, id).iter().filter(|p| game.obj(**p).controller == seat).count() >= *amount
         }
         CostDef::SacrificeXTargetCost { .. }
+        | CostDef::SacrificeAnyNumberCopyCost { .. }
         | CostDef::TapXTargetCost { .. }
         | CostDef::RemoveXCountersSourceCost { .. } => true,
         // `CrewCost.canPay` looks without a source, so "another" doesn't leave out the vehicle itself (crewed, it
@@ -6603,6 +6609,7 @@ fn spell_rule_with_costs(rule: &str, costs: &[CostDef]) -> String {
             CostDef::DiscardCardCost { .. } | CostDef::DiscardSourceCost | CostDef::DiscardHandCost => Some("discard"),
             CostDef::SacrificeSourceCost
             | CostDef::SacrificeTargetCost { .. }
+            | CostDef::SacrificeAnyNumberCopyCost { .. }
             | CostDef::SacrificeXTargetCost { .. } => Some("sacrifice"),
             CostDef::ExileSourceCost
             | CostDef::ExileSourceFromGraveCost
@@ -8032,22 +8039,48 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                 None => return false,
             }
         }
-        CostDef::SacrificeTargetCost { filter, amount } => {
+        CostDef::SacrificeTargetCost { .. } | CostDef::SacrificeAnyNumberCopyCost { .. } => {
+            let (filter, amount, copies) = match c {
+                CostDef::SacrificeTargetCost { filter, amount } => (filter, *amount, false),
+                CostDef::SacrificeAnyNumberCopyCost { filter } => (filter, 0, true),
+                _ => return false,
+            };
             let possible: Vec<ObjId> =
                 matching(game, filter, seat, id).into_iter().filter(|p| game.obj(*p).controller == seat).collect();
             // not enough left (the mana paid first used them): `canPay` fails, nothing asked
-            if possible.len() < *amount {
+            if possible.len() < amount {
                 return false;
             }
-            // `SacrificeTargetCost`: its target can be cancelled
+            // `SacrificeTargetCost`: its target can be cancelled; any number (`TargetSacrifice(0, MAX)`) is up to all
             let rule = if game.foraging.get() { forage_rule(game, id) } else { "sacrifice".to_string() };
-            let Some(chosen) = choose_cards_with(game, d, seat, &possible, &possible, *amount, *amount, &rule, true)
+            let max = if copies { possible.len() } else { amount };
+            // Plumb the Forbidden with no creatures: Java still asks for "any number" ("selected 0"), and it's done
+            if copies
+                && possible.is_empty()
+                && matches!(ask(game, d, seat, &Query::Cards { objs: vec![], required: false }), Answer::Stop)
+            {
+                return false;
+            }
+            let Some(mut chosen) = choose_cards_with(game, d, seat, &possible, &possible, amount, max, &rule, true)
             else {
                 return false;
             };
-            if chosen.len() < *amount {
+            // any number (Plumb the Forbidden): `TargetImpl.choose`, a round that ended with Done after choosing
+            // something asks again, as crewing does
+            while copies && !chosen.is_empty() && chosen.len() < possible.len() {
+                let left: Vec<ObjId> = possible.iter().copied().filter(|c| !chosen.contains(c)).collect();
+                let Some(more) = choose_cards_with(game, d, seat, &left, &left, 0, left.len(), &rule, true) else {
+                    return false;
+                };
+                if more.is_empty() {
+                    break;
+                }
+                chosen.extend(more);
+            }
+            if chosen.len() < amount {
                 return false;
             }
+            let copied = if copies { chosen.len() } else { 0 };
             // sacrificed together: their dies triggers see each other die
             let outer = std::mem::replace(&mut game.lookback, game.battlefield.to_vec());
             let toughness = chosen.iter().map(|o| game.power_toughness(*o).1).max();
@@ -8075,6 +8108,22 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             let after = game.sac_insert;
             game.sac_insert = insert.map(|i| if i == start { after.unwrap_or(i) } else { i });
             game.lookback = outer;
+            // Plumb the Forbidden's cost: "when you do, copy this spell for each creature sacrificed this way", a
+            // reflexive trigger fired after paying (`CopySourceSpellEffect(sacrificed)`)
+            if copied > 0 {
+                let delayed = Delayed {
+                    rule: "When you do, copy this spell for each creature sacrificed this way.".into(),
+                    sacrifice: Vec::new(),
+                    warp_exile: Vec::new(),
+                    effects: vec![EffectDef::CopySourceSpellEffect; copied],
+                    source_zcc: game.obj(id).zcc,
+                    fixed: Vec::new(),
+                    return_tapped: Vec::new(),
+                    targets: Vec::new(),
+                    condition: None,
+                };
+                game.pending.push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(id, seat) });
+            }
         }
         // `ExileTargetCost.pay`: the permanent chosen (`Targets.choose`), then exiled
         CostDef::ExileTargetCost { filter } => {
@@ -12768,8 +12817,9 @@ fn apply_each_effect(
             EffectDef::CounterTargetExileEffect => {
                 if let Some(Target::Obj(o)) = target {
                     if game.obj(o).zone == Zone::Stack && !cant_be_countered(game, o) {
-                        note_countered(game, o, item.card);
-                        Arc::make_mut(&mut game.stack).retain(|i| i.card != o || i.ability.is_some());
+                        note_countered(game, o, item.card, item.controller);
+                        Arc::make_mut(&mut game.stack)
+                            .retain(|i| i.card != o || i.ability.is_some() || i.delayed.is_some());
                         game.move_to(o, Zone::Exile);
                     }
                 }
@@ -12799,8 +12849,9 @@ fn apply_each_effect(
                 }
                 if let Some(Target::Obj(o)) = target {
                     if game.obj(o).zone == Zone::Stack && !cant_be_countered(game, o) {
-                        note_countered(game, o, item.card);
-                        Arc::make_mut(&mut game.stack).retain(|i| i.card != o || i.ability.is_some());
+                        note_countered(game, o, item.card, item.controller);
+                        Arc::make_mut(&mut game.stack)
+                            .retain(|i| i.card != o || i.ability.is_some() || i.delayed.is_some());
                         game.move_to(o, Zone::Graveyard);
                     }
                 }
@@ -13535,14 +13586,21 @@ fn apply_each_effect(
             }
             EffectDef::CopySourceSpellEffect => {
                 let (spell, zcc) = source;
-                let Some(original) =
-                    game.stack.iter().find(|i| i.card == spell && i.ability.is_none() && i.delayed.is_none()).cloned()
-                else {
-                    continue;
+                let on_stack =
+                    game.stack.iter().find(|i| i.card == spell && i.ability.is_none() && i.delayed.is_none()).cloned();
+                let original = match on_stack {
+                    Some(o) if game.obj(spell).zcc == zcc => o,
+                    Some(_) => continue,
+                    // `getSpellOrLKIStack`: a reflexive trigger's spell that has left the stack (Plumb the Forbidden
+                    // countered) is copied as it last was; only a spell with no targets, whose last state is its card
+                    None if item.delayed.is_some()
+                        && game.obj(spell).zone != Zone::Stack
+                        && game.obj(spell).def.spell.targets.is_empty() =>
+                    {
+                        StackItem::spell(spell, controller)
+                    }
+                    None => continue,
                 };
-                if game.obj(spell).zcc != zcc {
-                    continue;
-                }
                 copy_spell(game, d, &original, controller);
             }
             EffectDef::ChandraTorchOfDefianceEffect => {
@@ -14284,6 +14342,21 @@ fn apply_each_effect(
                 }
             }
             EffectDef::DoIfCostPaid { effect, cost, also, otherwise, optional, mana_first } => {
+                // a waterbend cost here is paid as the generic mana it is (`WaterbendCost` is a `GenericManaCost`:
+                // `DoIfCostPaid` asks for the mana only, with no permanents to tap: Waterbending Lesson)
+                let as_mana: Vec<CostDef>;
+                let cost = if cost.iter().any(|c| matches!(c, CostDef::WaterbendCost { .. })) {
+                    as_mana = cost
+                        .iter()
+                        .map(|c| match c {
+                            CostDef::WaterbendCost { amount } => CostDef::ManaCost { cost: format!("{{{amount}}}") },
+                            c => c.clone(),
+                        })
+                        .collect();
+                    &as_mana
+                } else {
+                    cost
+                };
                 // a cost that can't be paid isn't asked about (mana always counts as payable)
                 let others: Vec<&CostDef> = cost.iter().filter(|c| !matches!(c, CostDef::ManaCost { .. })).collect();
                 let mut paid = false;
@@ -14657,7 +14730,8 @@ fn apply_each_effect(
                 for o in &objs {
                     let o = *o;
                     if game.obj(o).zone == Zone::Stack {
-                        Arc::make_mut(&mut game.stack).retain(|i| i.card != o || i.ability.is_some());
+                        Arc::make_mut(&mut game.stack)
+                            .retain(|i| i.card != o || i.ability.is_some() || i.delayed.is_some());
                     }
                     match zone.as_str() {
                         "HAND" => game.move_to(o, Zone::Hand),
@@ -15532,7 +15606,8 @@ fn apply_each_effect(
             EffectDef::ExileTargetEffect => {
                 for o in &objs {
                     if game.obj(*o).zone == Zone::Stack {
-                        Arc::make_mut(&mut game.stack).retain(|i| i.card != *o || i.ability.is_some());
+                        Arc::make_mut(&mut game.stack)
+                            .retain(|i| i.card != *o || i.ability.is_some() || i.delayed.is_some());
                     }
                     game.move_to(*o, Zone::Exile);
                 }
@@ -15542,7 +15617,8 @@ fn apply_each_effect(
                 for o in &objs {
                     match game.obj(*o).zone {
                         Zone::Stack => {
-                            Arc::make_mut(&mut game.stack).retain(|i| i.card != *o || i.ability.is_some());
+                            Arc::make_mut(&mut game.stack)
+                                .retain(|i| i.card != *o || i.ability.is_some() || i.delayed.is_some());
                         }
                         Zone::Battlefield => {}
                         _ => continue,
@@ -15881,7 +15957,8 @@ fn apply_each_effect(
                     let theirs: Vec<ObjId> = cards.iter().copied().filter(|c| game.obj(*c).owner == owner).collect();
                     for c in theirs {
                         if game.obj(c).zone == Zone::Stack {
-                            Arc::make_mut(&mut game.stack).retain(|i| i.card != c || i.ability.is_some());
+                            Arc::make_mut(&mut game.stack)
+                                .retain(|i| i.card != c || i.ability.is_some() || i.delayed.is_some());
                         }
                         to_library(game, c, true);
                     }
@@ -16110,7 +16187,8 @@ fn apply_each_effect(
             EffectDef::ReturnToHandTargetEffect => {
                 for o in &objs {
                     if game.obj(*o).zone == Zone::Stack {
-                        Arc::make_mut(&mut game.stack).retain(|i| i.card != *o || i.ability.is_some());
+                        Arc::make_mut(&mut game.stack)
+                            .retain(|i| i.card != *o || i.ability.is_some() || i.delayed.is_some());
                     }
                     game.move_to(*o, Zone::Hand);
                 }
@@ -16658,7 +16736,8 @@ fn apply_each_effect(
                 for t in legal.iter().flatten() {
                     if let Target::Obj(o) = t {
                         if game.obj(*o).zone == Zone::Stack {
-                            Arc::make_mut(&mut game.stack).retain(|i| i.card != *o || i.ability.is_some());
+                            Arc::make_mut(&mut game.stack)
+                                .retain(|i| i.card != *o || i.ability.is_some() || i.delayed.is_some());
                         }
                         game.move_to(*o, Zone::Hand);
                     }
@@ -19492,8 +19571,9 @@ fn apply_each_effect(
                 let Some(payer) = payer else { continue };
                 let Some(paid) = pay_unless(game, d, payer, spell, cost) else { return };
                 if !paid && !cant_be_countered(game, spell) {
-                    note_countered(game, spell, item.card);
-                    Arc::make_mut(&mut game.stack).retain(|i| i.card != spell || i.ability.is_some());
+                    note_countered(game, spell, item.card, item.controller);
+                    Arc::make_mut(&mut game.stack)
+                        .retain(|i| i.card != spell || i.ability.is_some() || i.delayed.is_some());
                     game.move_to(spell, if *exile { Zone::Exile } else { Zone::Graveyard });
                 } else if paid && !if_they_do.is_empty() {
                     apply_each_effect(game, d, item, if_they_do, &[], source);
@@ -24411,7 +24491,7 @@ fn attack(game: &mut Game, id: ObjId, defender: Seat, pw: Option<(ObjId, u32)>) 
     o.attacking = Some(defender);
     o.attacking_pw = pw;
     if !vigilance {
-        tap(game, id);
+        tap_as(game, id, true);
     }
     let waiting = game.pending.len();
     game.attack_taps.push((id, waiting));
@@ -24432,6 +24512,11 @@ fn untap_undo(game: &mut Game, id: ObjId) {
 
 /// Taps a permanent: "whenever this becomes tapped" triggers
 fn tap(game: &mut Game, id: ObjId) {
+    tap_as(game, id, false);
+}
+
+/// Taps a permanent; `attacking`: as it's declared as an attacker (the `TAPPED` event's flag)
+fn tap_as(game: &mut Game, id: ObjId, attacking: bool) {
     if game.obj(id).tapped {
         return;
     }
@@ -24440,8 +24525,9 @@ fn tap(game: &mut Game, id: ObjId) {
     game.pending.extend(fired);
     let sources = game.trigger_sources();
     let fired = game.triggers(sources, |g, src, you, t| {
-        matches!(t, Trigger::BecomesTappedAll { filter }
-            if g.obj(src).zone == Zone::Battlefield && g.filter_matches(filter, you, Some(src), id))
+        matches!(t, Trigger::BecomesTappedAll { filter, not_attacking }
+            if g.obj(src).zone == Zone::Battlefield && !(*not_attacking && attacking)
+                && g.filter_matches(filter, you, Some(src), id))
             || matches!(t, Trigger::BecomesTappedAttached) && g.attached(src) == Some(id)
     });
     for mut t in fired {
