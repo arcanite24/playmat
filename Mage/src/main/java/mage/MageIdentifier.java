@@ -44,6 +44,7 @@ public enum MageIdentifier {
     MikeyAndDonWatcher,
     VisionSpectralSynthezoidWatcher("Without paying manacost"),
     TheEighthDoctorWatcher,
+    TheHolodeckWatcher,
 
     // ----------------------------//
     //       alternate casts       //
