@@ -2229,20 +2229,25 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
 
   Wave 24a, Pioneer cards A Killer Among Us to God-Eternal Kefnet (25 Nov): the 385 unverified Pioneer cards in that
   range (waves 24b and 24c take the rest). A stub-handler probe found 109 that translate with their own classes
-  stubbed; most of the rest need layer 4, random or hash order, mana-spent tracking or a framework class. 12 came
-  in, and 13 were verified: Aven Mindcensor, Blood Operative, Blossombind, Canyon Vaulter, Curious Cadaver,
-  Dispelling Exhale, Ephara, God of the Polis, Extract the Truth, Frozen in Ice, Furious Forebear, Exquisite Archangel, Bound by Moonsilver, and Doc
-  Aurlock, Grizzled Genius, which was already in (wave 23a held it back because neither reduction ran: here Think
-  Twice's flashback paid {U} with it out in two matching games; its plot reduction still hasn't been seen). Every
-  round but one was hand-made and recorded on multivac: round 2 (5 decks, 40 games: graveyard triggers, Auras, Doc
-  Aurlock with plot and flashback, Dragons with behold), round 4 (4 decks, 24 games: saddle and crew, Extract the
-  Truth, Aven Mindcensor against fetch lands and land searches), round 5 (4 decks, 40 games: Exquisite Archangel and Bound by Moonsilver against daybound aggro and burn, Blossombind against +1/+1 counters). Round 3 was a factory round of the first
-  eight, recorded locally (16 games, 13 replayed). Every game Java finished matches. The decks are under
-  `.local/w24a/factory/round-00N/decks`. The 6 games under `shadow/wave24a/` cover Blood Operative's surveil
-  return, Curious Cadaver's sacrificed-Clue return and Furious Forebear's return; Ephara's draw, Dispelling Exhale's
-  behold ("Pay {4}?") and Frozen in Ice keeping a creature tapped; Doc Aurlock's flashback reduction and Blossombind
-  keeping a creature tapped; Aven Mindcensor (searches of the top four, some finding nothing), Canyon Vaulter's
-  saddle trigger and Extract the Truth; Exquisite Archangel replacing a loss (exiled, back to 20 life); Bound by Moonsilver moving by its sacrifice ability and keeping a daybound creature on its front face through the night. The pieces:
+  stubbed; most of the rest need layer 4, random or hash order, mana-spent tracking or a framework class. 12 came in,
+  and 13 were verified: Aven Mindcensor, Blood Operative, Blossombind, Canyon Vaulter, Curious Cadaver, Dispelling
+  Exhale, Ephara, God of the Polis, Extract the Truth, Frozen in Ice, Furious Forebear, Exquisite Archangel, Bound by
+  Moonsilver and Doc Aurlock, Grizzled Genius, which was already in (wave 23a held it back because neither reduction
+  ran: here Think Twice's flashback asked "Pay {U}" with it out, in round 2's game 39, and "Pay {2}{U}" while an
+  opponent's Frozen in Ice took its abilities, in game 22; its plot reduction still hasn't been seen). Every round but
+  one was hand-made and recorded on multivac: round 2 (5 decks, 40 games: graveyard triggers, Auras, Doc Aurlock with
+  plot and flashback, Dragons with behold), round 4 (4 decks, 24 games: saddle and crew, Extract the Truth, Aven
+  Mindcensor against fetch lands and land searches), round 5 (4 decks, 40 games: Exquisite Archangel and Bound by
+  Moonsilver against daybound aggro and burn, Blossombind against +1/+1 counters). Round 3 was a factory round of the
+  first eight, recorded locally (16 games, 13 replayed). Every game Java finished matches. The decks are under
+  `.local/w24a/factory/round-00N/decks`. The 7 games under `shadow/wave24a/` cover Blood Operative's surveil return,
+  Curious Cadaver's sacrificed-Clue return and Furious Forebear's return; Ephara's draw, Dispelling Exhale's behold
+  ("Pay {4}?") and Frozen in Ice keeping a creature tapped; Doc Aurlock's flashback reduction; Frozen in Ice taking
+  Doc Aurlock's abilities and Blossombind keeping a creature tapped; Aven Mindcensor (searches of the top four, some
+  finding nothing), Canyon Vaulter's saddle trigger and Extract the Truth; Exquisite Archangel replacing a loss
+  (exiled, back to 20 life); Bound by Moonsilver moving by its sacrifice ability and keeping a daybound creature on
+  its front face through the night (seen as a front face staying out among the night faces; the state text doesn't
+  show attachments). Not seen in a trace: Blossombind's "can't have counters". The pieces:
   - Graveyard-zone triggers: `DiesCreatureTriggeredAbility(Zone.GRAVEYARD, …)`, `SacrificePermanentTriggeredAbility(
     Zone.GRAVEYARD, …)` and `SurveilTriggeredAbility(Zone.GRAVEYARD, …)` are `dies_all`, `sacrificed` and
     `you_surveil_or_scry` with `graveyard: true`, which trigger only from a card in a graveyard. Two Java details
@@ -2268,19 +2273,22 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
     by `lostForced`).
   - `Restrict::CantTransform` (`RestrictionEffect.canTransform`), checked in `transform`, day and night's too (Bound
     by Moonsilver).
-  - A card in a graveyard that triggers on a creature dying is stopped by Hushbringer too.
+  - A card in a graveyard that triggers on a creature dying is stopped by Hushbringer too (no game has it).
   - Transpiler forms: the three graveyard triggers above, `CrewsVehicleSourceTriggeredAbility` with its two
     booleans, `FrozenInIceAbilityEffect` as `LoseAllAbilitiesAttachedEffect`, and the optional discard.
-  - Card handlers: Blossombind, Frozen in Ice, Ephara's condition, Aven Mindcensor, Exquisite Archangel, Bound by Moonsilver.
+  - Card handlers: Blossombind, Frozen in Ice, Ephara's condition, Aven Mindcensor, Exquisite Archangel, Bound by
+    Moonsilver.
   The full transpile changes no card in `cards.json` and drops none. It adds Hoshi Sato, Saavik and Starfleet
   Academy (outside this range, as in wave 23a) and Reckless Velocitaur (outside it: its saddle trigger is the new
   `CrewsVehicle` form), left out of `cards.json`.
 
-  Engine changes that could touch verified cards: the untap sites now ask `cards::cant_untap` (no verified card
-  has the rule); `search_library` asks `cards::search_limit` (likewise); the dies and sacrifice trigger collection
-  now also looks at graveyards (only `graveyard: true` triggers, which no verified card had); the turn's watch
-  keeps last turn's entries; the crew trigger moved into `crews_triggers` with the same targets and order; the state-based loss check asks `LOSES` replacements (none among verified cards); `transform` asks `cards::cant_transform` (no verified card has the restriction).
-  No verified card changes in a recorded game: the 5 rounds' games all match, and the strict shadow test passes.
+  Engine changes that could touch verified cards: the untap sites now ask `cards::cant_untap` (no verified card has
+  the rule); `search_library` asks `cards::search_limit` (likewise); the dies and sacrifice trigger collection now
+  also looks at graveyards (only `graveyard: true` triggers, which no verified card had); the turn's watch keeps last
+  turn's entries; the crew trigger moved into `crews_triggers` with the same targets and order; the state-based loss
+  check asks `LOSES` replacements (none among verified cards); `transform` asks `cards::cant_transform` (no verified
+  card has the restriction). No verified card changes in a recorded game: the 4 rounds' games all match (replayed
+  again on the final engine), and the strict shadow test passes.
 
   Left out, with the piece each needs:
   - Random or hash order: Florian, Voldaren Scion (random bottom order), Exotic Pets (`toSet` of counter types),
