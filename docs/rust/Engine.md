@@ -2047,6 +2047,54 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
     which creature the Aura goes on. Of the 92 new games, 86 match before the Serah change and 90 after it; the
     two left are those.
 
+  Wave 25b, Pioneer cards from Goddric, Cloaked Reveler to Ral Zarek, Guest Lecturer (25 Nov): the 374 still
+  unverified after wave 24b (waves 25a and 25c take the rest). 13 came in (14,387 in the engine) and 11 were
+  verified (14,352): Halo Forager, Imaginary Threats, Incinerator of the Guilty, Invasion of
+  Tarkir, Kaya, Geist Hunter, Kiora, Sovereign of the Deep, Magmatic Sprinter, Michelangelo, Improviser, Nissa's
+  Judgment, Nissa, Vastwood Seer and Ojer Kaslem, Deepest Growth. Four rounds on multivac: round 1 factory (46
+  games), rounds 2 to 4 hand-made (24, 18 and 18 games; decks under `.local/w25b/factory/round-00N/decks`): 100
+  match, 3 differ, 3 Java unfinished. Two of the three are the transforming double-faced card's trigger order (the
+  recorder gap under wave 22 above: Remnant of the Rising Star's trigger with Thraben Inspector's, round 4 game 1,
+  and with Nissa, Vastwood Seer's, round 4 game 13). The verdicts blamed the second on Nissa, so Nissa was added by
+  hand (9 exercised games, her flip and +1 among them). The third is Oppressive Rays (below). The 9 games under
+  `shadow/wave25b/` cover each card and each fix. The pieces:
+  - `CantAttackBlockUnlessPaysSourceEffect { attached }`: the attack and block tax on the creature an Aura enchants
+    (Oppressive Rays' `CantAttackBlockUnlessPaysAttachedEffect`).
+  - `CreateTwiceThatManyTokensEffect` until end of turn (Kaya's −2): resolving puts it in `eot_effects`, and
+    `token_copies` reads it there too.
+  - Framework handlers: `DoUnlessControllerPaysEffect` (only the "unless you remove two oil counters" form, Magmatic
+    Sprinter), `DontUntapInPlayersNextUntapStepAllEffect` and `PutCreatureAndOrLandFromHandOntoBattlefieldEffect`
+    (In the Presence of Ages' pick, now `choose_creature_and_or_land`; nothing asked with an empty hand).
+  - Transpiler: `SupportEffect` held in a variable on an instant or sorcery (Nissa's Judgment's support two), and
+    `CantAttackBlockUnlessPaysAttachedEffect(…, AttachmentType.AURA)`.
+  - Handlers: Kiora's cast trigger (the top X, a free cast of one with lesser mana value, the rest to the bottom),
+    Kaya's −6 (not exercised), Nissa's Judgment's damage, Imaginary Threats, Halo Forager's and Incinerator's
+    reflexive triggers, Invasion of Tarkir's reveal and Defiant Thundermaw, Ojer Kaslem's reveal and Nissa, Sage
+    Animist's +1 and −7 (the −7 not exercised).
+  Fixes to verified cards and the rules, each with its game in `shadow/wave25b/`:
+  - Sneak (702.190b): a permanent spell cast for its sneak cost enters tapped and, a creature, attacking what the
+    returned attacker attacked (`SneakAbility.getSneakDefenders`, in Java since 31 Oct). Rust had it enter untapped
+    and not attacking, a gap in every verified sneak creature (Leonardo, Donatello, Raphael, Splinter and the
+    others). `Obj::sneak_defender` holds the defender from the cast; round 1 games 111 and 433 (Michelangelo) match
+    with it and differed without it.
+  - Ward and the other "becomes the target" triggers on a permanent fire once per spell or ability however many of
+    its targets the permanent is (`findTargetingStackObject`): Nissa's Judgment's support and its second target on
+    one warded Kiora put one ward trigger on the stack, not two (round 1 game 286).
+  A full transpile changes and drops no other card in the engine.
+
+  Oppressive Rays and Jugan Defends the Temple are in the engine but stay unverified. Oppressive Rays' cost increase
+  also applies to the enchanted creature's mana abilities in Java (`isActivatedAbility`), which asks "Pay {3}" when
+  Llanowar Elves is tapped for mana (round 4 game 3); Rust's mana payment has no cost increase on mana abilities.
+  Remnant of the Rising Star's paid branch never ran in a matching game (only X=0 in the two games that differ), and
+  its reflexive trigger's rule text is a guess. Labyrinth Raptor matched in all 35 of its games again, but no
+  creature with menace was blocked, so it stays unverified. Left out, with what each needs: Ral Zarek, Guest
+  Lecturer (coin flips, skipped turns), Loathsome Troll and Pixie Guide (dice), Hide in Plain Sight, Mirran
+  Safehouse, Jeskai Infiltrator and Pitiless Carnage (`HashSet` or shuffle order), Origin of Spider-Man and the other
+  type changers (layer 4), Karn, Legacy Reforged (mana kept until end of turn), Jodah, the Unifier and Leyline of
+  Mutation (the WUBRG alternative cost and five-color mana), Primal Adversary (a reflexive trigger with an X-bounded
+  target and a custom animation), Long River Lurker (a delayed combat damage trigger), Mavinda (a cost on the spell
+  cast from a graveyard), Jin-Gitaxias (its saga chapter III hard to reach), and wave 24b's skips above.
+
   Wave 24b, Pioneer cards from Goddric, Cloaked Reveler to Ral Zarek, Guest Lecturer (25 Nov): 385 unverified Pioneer
   cards (waves 24a and 24c take the rest). A probe (a stub handler for every short card-specific class) sorted them by
   blocker. 12 came in (14,374 in the engine with waves 24a and 24c) and 11 were verified (14,341): Impetuous Devils,
