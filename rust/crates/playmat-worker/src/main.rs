@@ -10,7 +10,8 @@
 //! playmat-worker class
 //!     this machine's determinism class
 //! playmat-worker run --coordinator URL --name HOST [--token-file F] [--jobs N] [--work DIR] [--when idle|always]
-//!     [--units N]: plays units from a coordinator (`swarm.rs`); the token comes from `--token-file` or MANA_TOKEN
+//!     [--units N]: plays units from a coordinator (`swarm.rs`); the token comes from `--token-file` or MANA_TOKEN.
+//!     Every option can also be set as MANA_<NAME> (MANA_COORDINATOR, MANA_NAME, MANA_JOBS, MANA_WHEN, MANA_REPO...)
 //!
 //! Games run one per thread with `--jobs` threads; a unit's configs can't ask for more threads per game.
 
@@ -32,7 +33,7 @@ use std::process::exit;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Mutex;
 
-const STRICT: bool = cfg!(feature = "strict");
+const STRICT: bool = playmat_ai::STRICT;
 
 fn main() {
     // one thread per game, and no policy from the environment: `Config::default` reads both, and its thread count
@@ -40,7 +41,12 @@ fn main() {
     std::env::set_var("PLAYMAT_AI_THREADS", "1");
     std::env::remove_var("PLAYMAT_AI_POLICY");
     let args: Vec<String> = std::env::args().collect();
-    let opt = |name: &str| args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).cloned();
+    // every option of `run` can also come from the environment (the Docker image): --coordinator is MANA_COORDINATOR
+    let opt = |name: &str| {
+        args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).cloned().or_else(|| {
+            std::env::var(format!("MANA_{}", name.trim_start_matches('-').replace('-', "_").to_uppercase())).ok()
+        })
+    };
     let repo = opt("--repo").unwrap_or_else(|| env!("CARGO_MANIFEST_DIR").to_string() + "/../../..");
     let res = match args.get(1).map(String::as_str) {
         Some("class") => {

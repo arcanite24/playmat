@@ -72,6 +72,7 @@ pub fn run(o: Opts) -> Result<(), String> {
     let nets_dir = format!("{}/nets", o.work);
     std::fs::create_dir_all(&nets_dir).map_err(|e| format!("{nets_dir}: {e}"))?;
     let mut done = 0;
+    let mut waiting = false;
     loop {
         if o.idle {
             if let Some(why) = idle::busy(false) {
@@ -89,9 +90,17 @@ pub fn run(o: Opts) -> Result<(), String> {
             }
         };
         if res.status() == StatusCode::NO_CONTENT {
+            if !waiting {
+                println!(
+                    "WAIT no unit for this host ({}, build {}): asking every {} s",
+                    hello.class, hello.build, reply.poll_secs
+                );
+                waiting = true;
+            }
             std::thread::sleep(Duration::from_secs(reply.poll_secs));
             continue;
         }
+        waiting = false;
         let lease: Lease = res.json().map_err(|e| e.to_string())?;
         let id = lease.unit.id.clone();
         match play(&api, &o, &nets_dir, lease) {

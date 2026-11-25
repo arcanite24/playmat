@@ -92,7 +92,8 @@ own answer, since a GPU's float order is its own.
 | Answer logs and replay | `rust/crates/playmat-ai/src/answerlog.rs`, `src/play.rs` |
 | Strict float functions | `rust/crates/playmat-ai/src/fm.rs`, the `strict` feature |
 | Protocol types | `rust/crates/playmat-swarm-proto` |
-| Worker | `rust/crates/playmat-worker` (S0: `run-unit`, `verify`, `compare`, `class`) |
+| Worker | `rust/crates/playmat-worker` (S0: `run-unit`, `verify`, `compare`, `class`; S1: `run`) |
 | Coordinator | `rust/crates/playmat-swarm` (S1) |
-| Trainer client | `rust/rl/swarm.py` (S1) |
+| Trainer client | `rust/rl/swarm.py`, `pfsp_league.py --swarm` (S1) |
+| Images and compose | `ops/swarm/` (S1): the coordinator and the strict worker |
 | Tracker and admin | `Mage.Web.Client/src/app/swarm/`, `src/app/admin/SwarmPage.tsx` (S3) |

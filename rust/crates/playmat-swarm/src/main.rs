@@ -1,6 +1,7 @@
 //! playmat-swarm serve [--db swarm.db] [--listen 0.0.0.0:17190] --public-url URL [--store DIR]
 //!     runs the coordinator. Without `--store`, results and networks go to Cloudflare R2: SWARM_R2_ACCOUNT,
-//!     SWARM_R2_BUCKET, SWARM_R2_KEY_ID and SWARM_R2_SECRET. With it, to that folder, served by the coordinator (LAN)
+//!     SWARM_R2_BUCKET, SWARM_R2_KEY_ID and SWARM_R2_SECRET. With it, to that folder, served by the coordinator (LAN).
+//!     Options can also be set as SWARM_<NAME>: SWARM_DB, SWARM_LISTEN, SWARM_PUBLIC_URL, SWARM_STORE
 //! playmat-swarm token --db swarm.db --role worker|trainer|admin --name NAME
 //!     makes a token and prints it once; the database keeps only its hash
 
@@ -13,7 +14,12 @@ use std::path::PathBuf;
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt().with_env_filter(tracing_subscriber::EnvFilter::from_default_env()).init();
     let args: Vec<String> = std::env::args().collect();
-    let opt = |name: &str| args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).cloned();
+    // every option can also come from the environment (the Docker image): --public-url is SWARM_PUBLIC_URL
+    let opt = |name: &str| {
+        args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).cloned().or_else(|| {
+            std::env::var(format!("SWARM_{}", name.trim_start_matches('-').replace('-', "_").to_uppercase())).ok()
+        })
+    };
     let db = opt("--db").unwrap_or_else(|| "swarm.db".into());
     let base = opt("--public-url").unwrap_or_else(|| "http://localhost:17190".into());
     let store = match opt("--store") {

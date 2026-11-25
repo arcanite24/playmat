@@ -1,5 +1,9 @@
 //! Playmat's Rust AI (docs/rust/Ai.md): searches with whole-turn playouts on copies of the Rust engine's games.
 
+/// Whether this build is strict (`fm.rs`): one determinism class on every machine. Read it from here, so a crate
+/// that enables `playmat-ai/strict` without its own `strict` feature still says what it computes
+pub const STRICT: bool = cfg!(feature = "strict");
+
 pub mod answerlog;
 pub mod combat;
 pub mod decision;

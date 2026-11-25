@@ -1,0 +1,48 @@
+# Mana@Home's coordinator, on its own (docs/swarm/Design.md, ops/swarm/README.md). Not part of the game server's
+# compose file: run it next to it with `docker compose -f ops/swarm/docker-compose.yml up -d`.
+#
+# Without SWARM_STORE the coordinator keeps results in R2 (the four SWARM_R2_* settings in mana.env); with
+# SWARM_STORE=/data/store it keeps them on its volume and serves them itself (a LAN swarm, or a test).
+services:
+  coordinator:
+    image: ${MANA_COORDINATOR_IMAGE:-ghcr.io/arcanite24/mana-coordinator:latest}
+    build:
+      context: ../..
+      dockerfile: ops/swarm/Dockerfile.coordinator
+    restart: unless-stopped
+    env_file:
+      - path: mana.env
+        required: false
+    environment:
+      SWARM_PUBLIC_URL: ${SWARM_PUBLIC_URL:-http://localhost:17190}
+      RUST_LOG: ${RUST_LOG:-info}
+    volumes:
+      - mana-data:/data
+    # behind the host's reverse proxy: only localhost reaches it
+    ports:
+      - "${MANA_BIND:-127.0.0.1}:17190:17190"
+    mem_limit: 256m
+    cpus: 1
+
+  # a worker on the same machine, at the lowest CPU weight (`--profile worker`)
+  worker:
+    profiles: [ "worker" ]
+    image: ${MANA_WORKER_IMAGE:-ghcr.io/arcanite24/mana-worker:latest}
+    build:
+      context: ../..
+      dockerfile: ops/swarm/Dockerfile.worker
+    restart: unless-stopped
+    environment:
+      MANA_COORDINATOR: ${MANA_WORKER_COORDINATOR:-http://coordinator:17190}
+      MANA_NAME: ${MANA_NAME:-compose-worker}
+      MANA_TOKEN: ${MANA_WORKER_TOKEN:-}
+      MANA_JOBS: ${MANA_JOBS:-2}
+    volumes:
+      - mana-work:/work
+    cpus: ${MANA_JOBS:-2}
+    cpu_shares: 2
+    mem_limit: 2g
+
+volumes:
+  mana-data:
+  mana-work:
