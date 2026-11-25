@@ -2403,7 +2403,8 @@ class Translator:
         if (m := re.fullmatch(r'new CollectEvidenceCost\((\d+)\)', canonical(expr))):
             return {'class': 'CollectEvidenceCost', 'amount': int(m.group(1))}
         # "exile N cards from your graveyard" (Emeritus of Ideation; not with the source's exile zone)
-        if (m := re.fullmatch(r'new ExileFromGraveCost\(new TargetCardInYourGraveyard\((\d+)\)\)(?:\.withSourceExileZone\(false\))?',
+        # (`(n, n)`: exactly n, Egon, God of Death's)
+        if (m := re.fullmatch(r'new ExileFromGraveCost\(new TargetCardInYourGraveyard\((\d+)(?:,\1)?\)\)(?:\.withSourceExileZone\(false\))?',
                               canonical(expr))):
             return {'class': 'ExileFromGraveCost', 'amount': int(m.group(1))}
         # "exile N cards of the filter from your graveyard" ((n, n, filter): exactly n; a text argument only names
@@ -2722,6 +2723,9 @@ class Translator:
         elif b:
             mana = b.group(1).strip()
         m = re.fullmatch(r'Mana\.(White|Blue|Black|Red|Green|Colorless)Mana\((\d+)\)', mana)
+        # `new Mana(ManaType.GREEN, 2)` (Find the Path's granted "{T}: Add {G}{G}")
+        if not m and (t := re.fullmatch(r'new Mana\(\s*ManaType\.(WHITE|BLUE|BLACK|RED|GREEN|COLORLESS)\s*,\s*(\d+)\s*\)', mana)):
+            m = re.fullmatch(r'(\w+) (\d+)', t.group(1).capitalize() + ' ' + t.group(2))
         if not m:
             return None
         n = int(m.group(2))
@@ -4377,6 +4381,18 @@ class Translator:
                         'rule': 'When you cast your next instant or sorcery spell this turn with mana value 2 or less, '
                                 'copy that spell%s. You may choose new targets for the cop%s.'
                                 % (' twice' if twice else '', 'ies' if twice else 'y')}
+            # `CastNextSpellDelayedTriggeredAbility(CopyTargetStackObjectEffect(false, true, true, n, null), filter,
+            # true)`: the next spell of the filter this turn, copied n times with new targets (Complete the Circuit)
+            m = re.fullmatch(r'new CastNextSpellDelayedTriggeredAbility\(new CopyTargetStackObjectEffect\(false,true,true,(\d),null\),'
+                             r'(StaticFilters\.\w+),true\)', canonical(args[0].strip()))
+            if m:
+                n, f = int(m.group(1)), self.filter(m.group(2))
+                times = {1: '', 2: ' twice'}.get(n)
+                if times is None:
+                    raise Unsupported('CastNextSpellDelayedTriggeredAbility copying %d times' % n)
+                return {'class': 'CreateCopyNextSpellDelayedEffect', 'filter': f, 'copies': n,
+                        'rule': 'When you next cast %s this turn, copy that spell%s. You may choose new targets for the '
+                                'cop%s.' % (self.filter_message(m.group(2)), times, 'ies' if n > 1 else 'y')}
             # `CopyNextSpellDelayedTriggeredAbility(filter)`: the next spell of the filter this turn
             m = re.fullmatch(r'new CopyNextSpellDelayedTriggeredAbility\(([^,()]+|StaticFilters\.\w+)\)', canonical(args[0].strip()))
             if m:
@@ -9146,6 +9162,12 @@ def ability_statement(t, st, added):
         t.min_x = int(m.group(2))
         rest = m.group(3).strip().rstrip(';')
         return ability_statement(t, rest, added) if rest else True
+    # `effect.addOtherwiseEffect(new X())` on a local `DoIfCostPaid`: done if it isn't paid (Egon, God of Death's
+    # "If you can't, sacrifice {this} and draw a card")
+    m = re.fullmatch(r'(\w+)\.addOtherwiseEffect\((new .*)\)', st, re.S)
+    if m and isinstance(t.vars.get(m.group(1)), dict) and t.vars[m.group(1)].get('class') == 'DoIfCostPaid':
+        t.vars[m.group(1)].setdefault('otherwise', []).append(t.effect(m.group(2)))
+        return True
     """A constructor statement that builds or adds an ability (cards and tokens alike); False if it isn't one"""
     # a Saga: its lore counter as it enters (added to the card first), then a chapter ability per chapter
     # (`SagaAbility(this, maxChapter[, readAhead])`: read ahead enters with the lore counters chosen)
