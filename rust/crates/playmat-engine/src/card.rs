@@ -5352,6 +5352,13 @@ pub enum AbilityDef {
         #[serde(default)]
         costs: Vec<CostDef>,
     },
+    /// "as an additional cost to cast this spell, you may behold a <subtype>" (`BeholdAbility`): asked only when it
+    /// can be paid, and the spell is then kicked (`BeheldDragonCondition`)
+    BeholdAbility {
+        subtype: String,
+        #[serde(default)]
+        rule: String,
+    },
     /// "as an additional cost, you may blight N": N -1/-1 counters on a creature you control
     BlightAbility {
         amount: i32,

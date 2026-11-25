@@ -690,6 +690,8 @@ ABILITIES = {
     'SkipUntapOptionalAbility': [],
     'KickerAbility': [('cost', 'cost_text')],
     'BlightAbility': [('amount', 'int')],
+    # "as an additional cost to cast this spell, you may behold a <subtype>" (the spell is then kicked)
+    'BeholdAbility': [('subtype', 'subtype')],
     'FlashbackAbility': [(None, 'this'), ('cost', 'mana_costs')],
     'HarmonizeAbility': [(None, 'this'), ('cost', 'cost_text')],
     'EscapeAbility': [(None, 'this'), ('cost', 'cost_text'), ('exile', 'int')],
@@ -849,7 +851,7 @@ CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'},
               'TreasureSpentToCastCondition.instance': {'c': 'treasure_spent'},
               'MetalcraftCondition.instance': {'c': 'permanents', 'filter': [{'p': 'type', 't': 'ARTIFACT'}, {'p': 'controller', 'who': 'you'}], 'cmp': 'OR_GREATER', 'n': 3}, 'PlayLandCondition.instance': {'c': 'played_land'}, 'DeliriumCondition.instance': {'c': 'delirium'},
               # a bargained spell is kicked (`BargainAbility`)
-              'BargainedCondition.instance': {'c': 'kicked'}, 'CollectedEvidenceCondition.instance': {'c': 'kicked'}, 'RevealedOrControlledDragonCondition.instance': {'c': 'kicked'}, 'SurgedCondition.instance': {'c': 'kicked'}, 'SpectacleCondition.instance': {'c': 'kicked'},
+              'BargainedCondition.instance': {'c': 'kicked'}, 'CollectedEvidenceCondition.instance': {'c': 'kicked'}, 'RevealedOrControlledDragonCondition.instance': {'c': 'kicked'}, 'SurgedCondition.instance': {'c': 'kicked'}, 'BeheldDragonCondition.instance': {'c': 'kicked'}, 'SpectacleCondition.instance': {'c': 'kicked'},
               'ObsessivePursuitCondition.instance': {'c': 'sacrificed_this_turn', 'n': 3},
               'KaitoBaneOfNightmaresCondition.instance': {'c': 'and', 'xs': [
                   {'c': 'my_turn'}, {'c': 'source_counter', 'name': 'loyalty', 'n': 1}]},
@@ -5479,9 +5481,15 @@ class Translator:
         m = re.fullmatch(r'(.*\))\s*\.setDoOnlyOnceEachTurn\(true\)', self.strip_setters(expr), re.S)
         if m:
             a = self.ability(m.group(1))
-            if a.get('class') != 'TriggeredAbility' or any(e.get('class') == 'DoIfCostPaid' for e in a.get('effects', [])):
+            if a.get('class') != 'TriggeredAbility':
                 raise Unsupported('do only once each turn on ' + a.get('class', '?'))
-            a['optional'] = True
+            # an optional `DoIfCostPaid` asks instead, and paying it is what counts as done (Irreverent Gremlin)
+            paid = [e for e in a.get('effects', []) if e.get('class') == 'DoIfCostPaid']
+            if paid and (len(paid) != len(a.get('effects', [])) or a.get('optional')
+                         or not all(e.get('optional', True) for e in paid)):
+                raise Unsupported('do only once each turn on ' + a.get('class', '?'))
+            if not paid:
+                a['optional'] = True
             a['once_each_turn'] = True
             return a
         # `….setTiming(TimingRule.SORCERY)` on an ability from the graveyard
@@ -6563,6 +6571,9 @@ class Translator:
         # "when this exploits a creature" (`EXPLOITED_CREATURE`)
         if cls == 'ExploitCreatureTriggeredAbility' and (n in (1, 2) or n == 3 and args[2] == 'SetTargetPointer.NONE'):
             return trig({'e': 'exploits'}, [self.effect(args[0])], n >= 2 and flag(args[1]))
+        # (`SetTargetPointer.PERMANENT`: the effects point at the exploited creature, Profaner of the Dead)
+        if cls == 'ExploitCreatureTriggeredAbility' and n == 3 and args[2] == 'SetTargetPointer.PERMANENT':
+            return trig({'e': 'exploits'}, [self.effect(args[0])], flag(args[1]), set_target_pointer=True)
         if cls == 'BecomesMonstrousSourceTriggeredAbility' and n in (1, 2):
             return trig({'e': 'becomes_monstrous'}, [self.effect(args[0])], n == 2 and flag(args[1]))
         # mentor: whenever this attacks, a +1/+1 counter on target attacking creature with lesser power
@@ -7539,6 +7550,9 @@ class Translator:
         if cls == 'DiscardCardControllerTriggeredAbility' and n in (2, 3):
             return out({'e': 'discards', 'who': 'you', 'filter': self.filter(args[2]) if n == 3 else []}, args[0],
                        flag(args[1]))
+        # "whenever a player discards a card" (`DISCARDED_CARD` of any player: Hostile Investigator)
+        if cls == 'DiscardCardPlayerTriggeredAbility' and n == 2:
+            return out({'e': 'discards', 'who': 'any'}, args[0], flag(args[1]))
         if cls == 'DiscardsACardOpponentTriggeredAbility' and n in (2, 3) \
                 and (n == 2 or args[2] in ('SetTargetPointer.NONE', 'SetTargetPointer.PLAYER')):
             a = out({'e': 'discards', 'who': 'opponent'}, args[0], flag(args[1]))
@@ -7596,6 +7610,14 @@ class Translator:
             elif n >= 2:
                 filt, optional = self.filter(args[1]), n == 3 and flag(args[2])
             return out({'e': 'blocker_declared', 'filter': filt, 'blocks': True, 'blocked': True}, args[0], optional)
+        # Mage Hunter's own class: "whenever an opponent casts or copies an instant or sorcery spell, they lose 1 life"
+        # (`COPIED_STACKOBJECT` or `SPELL_CAST`, a `FixedTarget` at the spell's controller)
+        if cls == 'MageHunterTriggeredAbility' and n == 0 \
+                and 'class MageHunterTriggeredAbility extends TriggeredAbilityImpl' in (getattr(self, 'source', '') or ''):
+            a = out({'e': 'spell_cast_or_copied', 'filter': [{'p': 'or', 'xs': [type_pred('INSTANT'), type_pred('SORCERY')]}],
+                     'who': 'opponent'}, 'new LoseLifeTargetEffect(1)')
+            a['set_target_pointer_player'] = True
+            return a
         # whenever you cast or copy an instant or sorcery spell
         if cls == 'MagecraftAbility' and n in (1, 2):
             return out({'e': 'spell_cast_or_copied', 'filter': [{'p': 'or', 'xs': [type_pred('INSTANT'), type_pred('SORCERY')]}],
