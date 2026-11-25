@@ -355,8 +355,8 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans), plus the Career decks' cards outside it, `cards/career-pool.txt` (121 names, wave 18).
-  `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler can express (14,188 on
-  24 Nov). A card whose JSON the engine can't load yet is left out
+  `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler can express (14,207 on
+  25 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -1574,6 +1574,41 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   layer effects, draw replacements with a choice, extra or skipped turns and steps, maximum hand size,
   attachment-granted abilities, dice, `HashSet` and random orders), and 240 not attempted. The wave's PR lists each
   with the statement the transpiler stops on.
+
+  Wave 20b, wave 19b's leftovers (25 Nov): the 240 cards wave 19b didn't attempt, deck-used ones first. 19 came in
+  (14,207 in the engine), most with their own handlers: Pattern Matcher, Teferi, Who Slows the Sunset, Severance Priest,
+  Undercover Skrull, Smoky Lounge's Misty Salon, Tezzeret, Master of the Bridge, Majestic Metamorphosis, Mordenkainen's
+  Polymorph, Spider-Woman, Secret Agent, Sylvan Awakening, Nameless Inversion (`LoseAllCreatureTypesTargetEffect`) and
+  the lock-or-unlock-a-door effect (`LoockOrUnlockRoomTargetEffect`, Marina Vendrell). Transpiler forms and engine pieces: emblems in the
+  command zone are read for statics (`Game::command_static`: Teferi's "untap during each other player's untap step"
+  and "draw during each opponent's draw step", `DrawsOnOpponentsTurnEffect`), an emblem given to a target player
+  (`GetEmblemTargetPlayerEffect`, Ob Nixilis Reignited's emblem and its draw trigger), "creatures you control with
+  menace can't be blocked except by three or more" (`CantBeBlockedByOneAllEffect`, Sonorous Howlbonder), "enchanted creature can't attack"
+  (`CantAttackAttachedEffect`), "cards in graveyards can't be the targets of spells or abilities"
+  (`CantBeTargetedCardsGraveyardsEffect`, read by `possible_targets`) and `CreateXXTokenExiledEffectManaValueEffect`
+  (Severance Priest), and `AddCardSubtypeAllEffect` with no filter text (Ragost, Deft Gastronaut). A full transpile changes or drops no other card; it adds two more cards those pieces unlock (Keys to the
+  House, Dennick, Pious Apprentice), left for their own waves. Four rounds (156 games, 136 matching) verified 16:
+  14,175 of 14,207. Rounds were recorded on multivac. Round 4 was hand-made (Marina Vendrell with mana creatures and
+  Rooms, and the round 1 decks of Ob Nixilis Reignited and Undercover Skrull without Harmonized Trio). One game per card
+  is under `shadow/wave20b/`.
+
+  Ob Nixilis Reignited and Undercover Skrull are verified although one game each was blamed on them: both part on
+  Harmonized Trio, a verified prepare card, when Java shows its "Choose spell or ability to play" dialog while the card
+  is cast (master's 31c3adc, "returned standard choose spell dialog"). Stingerquill Voxmancer parts the same way in two
+  more games. Rust asks for the mana instead, so both cards need re-checking against that change.
+
+  Not verified:
+  - Silent Gravestone: three games differ (a creature spell Java casts that Rust doesn't offer, a copy's sacrifice
+    ability, the mana-pool question); not run down.
+  - Retro-Mutation: once it leaves, the creature it enchanted has its power back in Java (2/2) but not in Rust (1/1).
+  - Smoky Lounge // Misty Salon: one game where Java casts a spell Rust doesn't.
+  - Also seen: a Room exiled by Release to the Wind is cast (Locker Room) from exile in Java but not in Rust (both
+    verified cards; round 4). Seven round 4 games had a Java deck that loaded empty on multivac and were left out.
+
+  Left out: Tamiyo, Compleated Sage (`{G/U/P}` mana isn't supported), and the rest of the 240 cards, whose engine piece
+  is large (spell-granted abilities, alternative and next-turn casting, `HashSet` and random orders, layer 4 type
+  removal, color changes, face-down exile, cost forms like `RemoveVariableCountersTargetCost` and `ExileFromGraveCost`).
+  The wave's PR lists each card looked at with the reason.
 
   Wave 15, shared forms A (15 Nov): framework forms that block several of the claim's cards, then card classes,
   built in four slices. Ending the turn (`EndTurnEffect`, `Turn.endTurn`: `Game::end_turn`; every spell on the stack
