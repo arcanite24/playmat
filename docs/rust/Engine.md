@@ -1906,15 +1906,13 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   - The seven `CastFromHandSourcePermanentCondition` cards, dice, `setRandom` and the long tail: not reached.
 
   Wave 22a, Pioneer cards A to K (25 Nov): the 583 unverified Pioneer cards from A to K, cheapest first: shared
-  forms, then short card classes, then the cards decks use. 14 came in (14,290 in the engine). 14 were verified
-  (14,253): 12 of those, plus Anchovy & Banana Pizza and Dragon's Prey, which were already in. Rounds were recorded
+  forms, then short card classes, then the cards decks use. 14 came in (14,290 in the engine). 13 were verified (14,252): 11 of those, plus Anchovy & Banana Pizza and Dragon's Prey, which were already in. Rounds were recorded
   on multivac. Round 1 was a factory round (16 games, all 16 matching). Round 2 was a factory round (30 games, 29
   matching), and round 3 used 6 hand-made decks (30 games, 29 matching). The two that differ part at Descent of the
   Dragons and Hour of Need (below). Round 4 recorded the stale `factory/game-double-faced-return-no-counter` again
   from its seed with today's Java (1 game). It took another path, so round 5 used 3 hand-made Unbreakable Bond decks
   (12 games, 11 matching), and that game was replaced. The one that differs is Baneclaw Marauder's (below). The games
-  under `shadow/wave22a/` cover Kellan's draw, 70,000 Light-Years from Home, Keys to the House, Dennick cast by
-  disturb, Coalstoke Gearhulk's end-step exile and its double-faced case, Declaration in Stone, Enroot, Revealing
+  under `shadow/wave22a/` cover Kellan's draw, 70,000 Light-Years from Home, Keys to the House, Coalstoke Gearhulk's end-step exile and its double-faced case, Declaration in Stone, Enroot, Revealing
   Eye, Kami of Transience, Fiendslayer Paladin, Frenzied Raider's boast trigger and Fabrication Module's energy
   trigger. The pieces:
   - `Trigger::YouGetEnergy` (`FabricationModuleTriggeredAbility`, `COUNTERS_ADDED` of energy on you): `add_energy`
@@ -1948,11 +1946,15 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
     hybrid), Brutal Hordechief (choosing blockers), Bumi, Unleashed (extra combat), Imprisoned in the Moon and
     Ashaya (layer 4), Agatha's Soul Cauldron, Drana and Linvala (mana as any color, granted abilities), Kytheon
     (`RequirementEffect`), Inga and Esika (`MANA_PAID`), and the Invasion battles' back faces.
+  - Dennick, Pious Apprentice: cast and cast by disturb in three matching games, but Dennick, Pious Apparition's
+    investigate trigger never fired. Its handler and entry stay.
   - The rest of the 583: the shared framework classes listed in waves 19c to 21c, not reached in the budget.
 
   Gaps found in verified cards:
-  - Baneclaw Marauder: two blockers die with the Marauder in one combat damage step. Java's "that creature's
-    controller loses 1 life" then takes no life, but Rust takes 1 (round 5, game 9). Not run down.
+    - Baneclaw Marauder (Baneblade Scoundrel's back face) attacks and is blocked by another Baneclaw Marauder, and
+    they die together. Java's "that creature's controller loses 1 life" resolves without any life lost, but Rust
+    takes 1 (round 5, game 9). Concealing Curtains isn't in that combat. Probably the double-faced id again
+    (`getControllerOfFirstTargetOrLKI` on the blocker's face); not run down.
   - Turntimber Symbiosis still leaves a double-faced card without its +1/+1 counters, as the return effect did.
     Since 2bae2525ff8 Java may give them, but no game shows it yet.
 
