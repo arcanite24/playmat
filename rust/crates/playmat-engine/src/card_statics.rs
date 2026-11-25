@@ -30,7 +30,8 @@
 //!   `Rule::CantBeTargeted(f)`: a permanent as a target (`rules::targetable`); `Rule::Several(&[…])`: more than one;
 //!   `Rule::CantSearchLibrary(f)`: a library search (`rules::search_library` finds nothing);
 //!   `Rule::ManaBecomes(f)`: unspent mana changes kind instead of emptying (`rules::end_step`);
-//!   `Rule::CantPlayLands(f)`: `rules::can_play_land` (`PLAY_LAND` by a player).
+//!   `Rule::CantPlayLands(f)`: `rules::can_play_land` (`PLAY_LAND` by a player);
+//!   `Rule::CantVenture(f)`: `rules::venture` (`VENTURE` by a player: nothing happens).
 //! - **as-though**: `Handler::as_though(name, AsThough::Flash(f))`: `rules::castable`'s timing;
 //!   `AsThough::Haste(f)`: a {T} cost's summoning sickness (`rules::can_pay_cost`, mana abilities);
 //!   `AsThough::BlockDragon(f)`: blocking a Dragon with flying (`rules::can_block`);
@@ -435,6 +436,9 @@ pub(crate) enum Rule {
     /// `PLAY_LAND` whose `applies` reads only the player: `seat` can't play lands (Aggressive Mining), read by
     /// `rules::can_play_land`
     CantPlayLands(fn(&Game, &StaticCx, Seat) -> bool),
+    /// `VENTURE` whose `applies` reads only the player: `seat` doesn't venture into the dungeon
+    /// (`GameImpl.ventureIntoDungeon` returns: Keen-Eared Sentry)
+    CantVenture(fn(&Game, &StaticCx, Seat) -> bool),
 }
 
 /// The rules a rule-modifying handler's hook has (`Rule::Several`'s, or its one); none for another kind
@@ -902,6 +906,19 @@ pub(crate) fn keeps_damage(game: &Game, id: ObjId) -> bool {
         for r in rule_parts(h) {
             if let Rule::KeepsDamage(f) = r {
                 out = out || f(game, cx, id);
+            }
+        }
+    });
+    out
+}
+
+/// Whether a rule-modifying handler says `seat` can't venture into the dungeon (`VENTURE`)
+pub(crate) fn cant_venture(game: &Game, seat: Seat) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        for r in rule_parts(h) {
+            if let Rule::CantVenture(f) = r {
+                out = out || f(game, cx, seat);
             }
         }
     });
