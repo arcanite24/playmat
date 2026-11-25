@@ -378,6 +378,12 @@ Being in the engine and being trusted are kept apart.
     lead, not proof (a static effect can make a card that resolved next to it look guilty);
   - **pending** when it wasn't exercised enough; a later round takes it again, up to 3 rounds.
 
+  The factory's "verified" is a floor. From 25 Nov a porting wave puts a card on the list only when every ability it
+  has, other than a planeswalker's ultimate, ran in a matching game, and a rule that only matters in one case (a
+  static that changes a check) was seen in that case. A card whose defining ability never came up stays off, even
+  when the verdicts mark it verified (Labyrinth Raptor, waves 24b and 25b; Zilortha, Strength Incarnate and Zagras,
+  Thief of Heartbeats, taken off after waves 24c and 25c). It plays on Java until a game shows it.
+
   Recordings are kept, so after an engine fix `replay --all` and `verdicts` judge every round again without Java.
   The first two rounds (12 Nov 2026, 3,129 games over 3,313 candidates, the used ones first) verified 2,963 cards, for
   3,844 in all; 2,882 games matched and 135 differ, each listed in `bugs.md` by the card blamed. Replayed after

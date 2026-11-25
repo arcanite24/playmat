@@ -3236,7 +3236,8 @@ fn alternative_mana_sources(game: &Game, seat: Seat) -> Vec<(ObjId, Vec<usize>)>
         let amount = |m: &Mana| m.colored.iter().copied().max().unwrap_or(0).max(m.colorless).max(1);
         // the one kind an ability makes (a color, or 5: colorless)
         let kind = |m: &Mana| {
-            let kinds: Vec<usize> = (0..5).filter(|c| m.colored[*c] > 0).chain((m.colorless > 0).then_some(5)).collect();
+            let kinds: Vec<usize> =
+                (0..5).filter(|c| m.colored[*c] > 0).chain((m.colorless > 0).then_some(5)).collect();
             (kinds.len() == 1).then(|| kinds[0])
         };
         let same_amount = taps.windows(2).all(|w| amount(&w[0].1) == amount(&w[1].1));
@@ -3572,7 +3573,8 @@ fn can_pay_extra(game: &Game, seat: Seat, cost: &ManaCost, extra: Vec<Vec<Mana>>
         // each such source with one of its abilities at a time, every combination
         let mut pick = vec![0usize; alternatives.len()];
         loop {
-            let chosen: Vec<(ObjId, usize)> = alternatives.iter().zip(&pick).map(|((id, ks), p)| (*id, ks[*p])).collect();
+            let chosen: Vec<(ObjId, usize)> =
+                alternatives.iter().zip(&pick).map(|((id, ks), p)| (*id, ks[*p])).collect();
             let outer = MANA_PICK.with(|f| std::mem::replace(&mut *f.borrow_mut(), chosen));
             let (options, _) = mana_options(game, seat, extra.clone(), false);
             MANA_PICK.with(|f| *f.borrow_mut() = outer);
@@ -3784,10 +3786,9 @@ fn mana_options(
         // (one of its tapping abilities at a time: `alternative_mana_sources`)
         let picked = MANA_PICK.with(|f| f.borrow().iter().find(|(s, _)| *s == id).map(|(_, i)| *i));
         let a: Vec<(usize, Mana)> = match picked {
-            Some(k) => a
-                .into_iter()
-                .filter(|(i, _)| *i == k || !game.obj(id).def.abilities[*i].taps_source())
-                .collect(),
+            Some(k) => {
+                a.into_iter().filter(|(i, _)| *i == k || !game.obj(id).def.abilities[*i].taps_source()).collect()
+            }
             None => a,
         };
         // `getManaAvailable`: an ability that doesn't tap the source is a source of its own (Relic of Legends'
