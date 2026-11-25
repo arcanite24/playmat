@@ -152,7 +152,7 @@
    "n": "F",
    "name": "Then",
    "status": "active",
-   "text": "Career tables: duels, campaign nodes, gauntlet fights and the weekly challenge go to the host (#493, deployed 24 Nov); puzzles, trials, hordes, pods, emblem and timed twists stay on Java. Java saves aren't converted: hosted games save as lines, and old Java saves expire after 30 days. Cards: wave 17 (#500, 19 cards verified) in review, then wave 18 (121 non-Pioneer cards in the five-paths and roster decks). Platform diffs (#497) and the upstream ledger (#498) deployed 24 Nov. Then limited (sealed, draft, tournaments) set by set, then sessions, the lobby and tables in Rust (docs/rust/Assessment-2026-11-24.md).",
+   "text": "Career tables: duels, campaign nodes, gauntlet fights and the weekly challenge go to the host (#493, deployed 24 Nov); timed twists and emblems too (#503); puzzles, trials, hordes and pods stay on Java. Java saves aren't converted: hosted games save as lines, and old Java saves expire after 30 days. Cards: waves 17 to 19 deployed 25 Nov (14,151 cards play on Rust, 13,950 of the 15,259 Pioneer cards verified); the 51 prepare cards wait on the spell-or-ability picker (#512); waves 20a to 21c in review. Platform diffs (#497) and the upstream ledger (#498) deployed 24 Nov. Then limited (sealed, draft, tournaments) set by set, then sessions, the lobby and tables in Rust (docs/rust/Assessment-2026-11-24.md).",
    "gate": "Per feature",
    "pr": [
     493,
@@ -1065,6 +1065,6 @@
    ]
   }
  },
- "commit": "cd3c40702991e36d00b605479dfe69b7c2ca2af1",
+ "commit": "2b7b859218ca0ed640c1a854412f9568c4d651e5",
  "generated": "2026-11-24"
 }

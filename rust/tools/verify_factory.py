@@ -334,6 +334,10 @@ def record(args):
         if i == 0 and procs > 1:
             # the first one compiles if anything is stale; the rest start once it's past that
             time.sleep(args.stagger)
+        elif i < procs - 1:
+            # and a few seconds apart: two that open the card database at once can fail with "Lock file recently
+            # modified", and that one then finds no card, so its decks would load empty (ShadowGamesTest fails it)
+            time.sleep(5)
     bad = 0
     for p, logf in running:
         bad += p.wait() != 0
