@@ -1336,6 +1336,9 @@ pub enum Trigger {
     },
     /// you get one or more {E} (`COUNTERS_ADDED` of energy on you: Fabrication Module's own trigger class)
     YouGetEnergy,
+    /// you manifest dread (`MANIFESTED_DREAD`: Paranormal Analyst's own trigger class); the trigger points at the
+    /// cards that manifest dread put into the graveyard
+    YouManifestDread,
     /// this attacks for the first time each turn (`AttacksFirstTimeTriggeredAbility`)
     AttacksFirstTime,
     /// you surveil (`SurveilTriggeredAbility`, `SURVEILED`), or scry (`ScryTriggeredAbility`, `SCRIED`): X is the amount

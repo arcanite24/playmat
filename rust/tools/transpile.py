@@ -6864,6 +6864,13 @@ class Translator:
             a['java'] = cls
             a['trigger_condition'] = {'c': 'source_saddled'}
             return a
+        # "whenever this creature attacks, tap target creature defending player controls" (Grasp of the Hieromancer's
+        # own class): an attack trigger whose `checkTrigger` swaps its target for one of the defending player's
+        # creatures (`defending_player_targets`)
+        if cls == 'GraspOfTheHieromancerTriggeredAbility' and n == 2 and args[1] == 'false':
+            a = self.ability('new AttacksTriggeredAbility(' + args[0] + ',false)')
+            a['java'] = cls
+            return a
         # embalm and eternalize: {cost}, exile this from your graveyard: a token copy, as a sorcery
         if cls in ('EmbalmAbility', 'EternalizeAbility') and n in (2, 3) and args[1] == 'this':
             cost = self.cost(args[0])
@@ -10407,6 +10414,23 @@ def token_classes(names):
     return sorted(out)
 
 
+def defending_player_targets(card):
+    """`GraspOfTheHieromancerTriggeredAbility.checkTrigger` replaces the target it was built with by a creature the
+    defending player controls (a duel's one opponent, `DefendingPlayerControlsSourceAttackingPredicate`)"""
+    def walk(x):
+        if isinstance(x, dict):
+            if x.get('java') == 'GraspOfTheHieromancerTriggeredAbility':
+                if len(x.get('targets', [])) != 1 or x['targets'][0].get('filter') != [CREATURE]:
+                    raise Unsupported('ability GraspOfTheHieromancerTriggeredAbility')
+                x['targets'][0]['filter'].append({'p': 'controller', 'who': 'opponent'})
+            for v in x.values():
+                walk(v)
+        elif isinstance(x, list):
+            for v in x:
+                walk(v)
+    walk(card)
+
+
 def that_player_names(card):
     """`ThatPlayerControlsTargetAdjuster` names the target after its filter's message, "(controlled by B)" added:
     when the rule doesn't say "that player controls", that message is the card's filter whose text the rule has"""
@@ -10832,6 +10856,7 @@ def translate_card(name, subtypes, facts):
     if 'ChooseCreatureTypeEffect' in json.dumps(card.get('spell')):
         raise Unsupported('effect ChooseCreatureTypeEffect on a spell')
     that_player_names(card)
+    defending_player_targets(card)
     copies_spells_only(card)
     # `DoIfCostPaid.setOtherwiseText`: its copy constructor drops the text, so the game shows the default "If you
     # don't" (Rent Is Due's "Otherwise, sacrifice")
