@@ -9969,7 +9969,7 @@ fn activate_mana_paying(
                         // (`HumanPlayer.choose` picks an owed color itself only for `Outcome.PutManaInPool`, the
                         // player paying: Market Festival's `ManaChoice.chooseAnyColor` asks with `Outcome.Benefit`,
                         // so always)
-                        let owed = Some(unpaid).filter(|_| who == seat && !*aura_controller);
+                        let owed = (who == seat && !*aura_controller).then_some(unpaid);
                         match any_color_owed(game, d, who, owed, &message) {
                             Some(c) => c,
                             None => return false,
