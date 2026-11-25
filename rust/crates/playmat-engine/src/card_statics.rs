@@ -32,6 +32,7 @@
 //!   `Rule::CantSearchLibrary(f)`: a library search (`rules::search_library` finds nothing);
 //!   `Rule::ManaBecomes(f)`: unspent mana changes kind instead of emptying (`rules::end_step`);
 //!   `Rule::CantPlayLands(f)`: `rules::can_play_land` (`PLAY_LAND` by a player);
+//!   `Rule::CantPlayLandsFromHand(f)`: `rules::playable`'s lands in hand (`PLAY_LAND` of a card in hand);
 //!   `Rule::CantVenture(f)`: `rules::venture` (`VENTURE` by a player: nothing happens).
 //! - **as-though**: `Handler::as_though(name, AsThough::Flash(f))`: `rules::castable`'s timing;
 //!   `AsThough::Haste(f)`: a {T} cost's summoning sickness (`rules::can_pay_cost`, mana abilities);
@@ -442,6 +443,9 @@ pub(crate) enum Rule {
     /// `PLAY_LAND` whose `applies` reads only the player: `seat` can't play lands (Aggressive Mining), read by
     /// `rules::can_play_land`
     CantPlayLands(fn(&Game, &StaticCx, Seat) -> bool),
+    /// `PLAY_LAND` of a land card in its player's hand (`getZone(event.getSourceId()) == Zone.HAND`): `seat` can't
+    /// play lands from their hand (Experimental Frenzy), read where `rules::playable` offers the hand's lands
+    CantPlayLandsFromHand(fn(&Game, &StaticCx, Seat) -> bool),
     /// `VENTURE` whose `applies` reads only the player: `seat` doesn't venture into the dungeon
     /// (`GameImpl.ventureIntoDungeon` returns: Keen-Eared Sentry)
     CantVenture(fn(&Game, &StaticCx, Seat) -> bool),
@@ -1029,6 +1033,19 @@ pub(crate) fn cant_play_lands(game: &Game, seat: Seat) -> bool {
     each_static(game, &mut |h, cx, _| {
         if let Hook::Rule(Rule::CantPlayLands(f)) = h {
             out = out || f(game, cx, seat);
+        }
+    });
+    out
+}
+
+/// Whether a rule-modifying handler says `seat` can't play lands from their hand
+pub(crate) fn cant_play_lands_from_hand(game: &Game, seat: Seat) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        for r in rule_parts(h) {
+            if let Rule::CantPlayLandsFromHand(f) = r {
+                out = out || f(game, cx, seat);
+            }
         }
     });
     out

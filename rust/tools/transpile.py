@@ -296,6 +296,11 @@ CUSTOM = {
     # Lier, Disciple of the Drowned: "spells can't be countered" (`COUNTER` of any spell), and each instant and
     # sorcery card in your graveyard has flashback for its mana cost
     'LierDiscipleOfTheDrownedCounteredEffect': lambda: {'class': 'CantBeCounteredAllEffect'},
+    # Banefire: "if X is 5 or more, this spell can't be countered" (`COUNTER` of this spell while the spell's X is
+    # 5 or more, `testCondition`: a card condition)
+    'BanefireCantCounterEffect': lambda: {'class': 'ConditionalContinuousEffect',
+                                          'effect': {'class': 'CantBeCounteredSourceEffect'},
+                                          'condition': {'c': 'card', 'handler': 'Banefire.testCondition'}},
     'LierDiscipleOfTheDrownedFlashbackEffect': lambda: {'class': 'GraveyardFlashbackEffect',
                                                         'filter': [{'p': 'or', 'xs': [{'p': 'type', 't': 'INSTANT'}, {'p': 'type', 't': 'SORCERY'}]}]},
     # Frozen in Ice's "enchanted creature loses all abilities" (the same, `removeAllAbilities` of the attached one)
@@ -5728,7 +5733,7 @@ class Translator:
             return {'class': cls}
         if cls == 'SimpleStaticAbility' and args == ['Zone.HAND', 'new DiscardOntoBattlefieldEffect()']:
             args = args[1:]
-        if cls == 'SimpleStaticAbility' and len(args) == 2 and (args[0] in ('Zone.ALL', 'Zone.BATTLEFIELD', 'Zone.COMMAND') or (args[0] == 'Zone.STACK' and ('CantBeCounteredSourceEffect' in args[1] or (self.vars.get(args[1].strip()) or {}).get('class') == 'CantBeCounteredSourceEffect' or ((self.vars.get(args[1].strip()) or {}).get('effect') or {}).get('class') == 'CantBeCounteredSourceEffect'))):
+        if cls == 'SimpleStaticAbility' and len(args) == 2 and (args[0] in ('Zone.ALL', 'Zone.BATTLEFIELD', 'Zone.COMMAND') or (args[0] == 'Zone.STACK' and ('CantBeCounteredSourceEffect' in args[1] or args[1].strip() == 'new BanefireCantCounterEffect()' or(self.vars.get(args[1].strip()) or {}).get('class') == 'CantBeCounteredSourceEffect' or ((self.vars.get(args[1].strip()) or {}).get('effect') or {}).get('class') == 'CantBeCounteredSourceEffect'))):
             args = args[1:]
         # "you may cast this from exile / your graveyard" (`Zone.EXILED`, `Zone.GRAVEYARD`): an as-though handler of
         # the card's own, which checks the zone itself (`.in_any_zone()`)
@@ -7288,6 +7293,13 @@ class Translator:
                 and (n < 4 or args[3] in ('SetTargetPointer.NONE', 'SetTargetPointer.PERMANENT')):
             return out({'e': 'becomes_tapped_attached'}, args[0], n >= 3 and flag(args[2]),
                        n == 4 and args[3] == 'SetTargetPointer.PERMANENT')
+        # (`SetTargetPointer.PLAYER`, which Java's class refuses: only a trigger handler's base, for a class of its
+        # own that points at the attached permanent's controller: Chronic Flooding)
+        if cls == 'BecomesTappedAttachedTriggeredAbility' and n == 4 and re.fullmatch(r'"[^"]*"', args[1]) \
+                and args[3] == 'SetTargetPointer.PLAYER':
+            a = out({'e': 'becomes_tapped_attached'}, args[0], flag(args[2]), False)
+            a['set_target_pointer_player'] = True
+            return a
         # "whenever enchanted (equipped) creature is dealt damage", once for each of its batches
         # (the one-argument form: `Zone.BATTLEFIELD, effect, false, SetTargetPointer.NONE`, Sleep Magic)
         if cls == 'DealtDamageAttachedTriggeredAbility' and n == 1:
