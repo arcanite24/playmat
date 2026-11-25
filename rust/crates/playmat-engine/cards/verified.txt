@@ -288,6 +288,7 @@ Al Bhed Salvagers
 Alabaster Host Intercessor
 Alabaster Host Sanctifier
 Alabaster Kirin
+Alacrian Armory
 Alacrian Jaguar
 Alania's Pathmaker
 Alchemist's Assistant
@@ -776,6 +777,7 @@ Avacyn's Judgment
 Avacyn, Guardian Angel
 Avacynian Missionaries
 Avalanche Caller
+Avalanche Tusker
 Avarice Amulet
 Avaricious Dragon
 Avatar Enthusiasts
@@ -897,6 +899,7 @@ Bandit's Talent
 Bane Alley Blackguard
 Bane of Bala Ged
 Baneblade Scoundrel
+Banefire
 Banehound
 Baneslayer Angel
 Banewhip Punisher
@@ -2077,6 +2080,7 @@ Chrome Dome
 Chrome Host Seedshark
 Chrome Prowler
 Chrome Replicator
+Chronic Flooding
 Chronicle of Victory
 Chronicler of Heroes
 Chronostutter
@@ -3255,6 +3259,7 @@ Dovin's Acuity
 Dovin's Automaton
 Dovin's Dismissal
 Dovin's Veto
+Dovin, Architect of Law
 Dovin, Grand Arbiter
 Dovin, Hand of Control
 Down // Dirty
@@ -3978,6 +3983,7 @@ Experiment One
 Experimental Augury
 Experimental Aviator
 Experimental Confectioner
+Experimental Frenzy
 Experimental Overload
 Experimental Synthesizer
 Explore
@@ -4337,6 +4343,7 @@ Firemantle Mage
 Firemind Vessel
 Firemind's Foresight
 Firemind's Research
+Fires of Invention
 Fires of Victory
 Fireshrieker
 Firespitter Whelp

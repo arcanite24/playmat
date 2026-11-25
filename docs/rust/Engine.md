@@ -2345,6 +2345,39 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
     tail of single-handler cards, not reached. The cards Engine.md already names as nondeterministic or blamed
     stayed out of the candidates.
 
+  Wave 25a, Pioneer cards A Killer Among Us to God-Eternal Kefnet again (25 Nov): the 372 still unverified in that
+  range (waves 25b and 25c take the rest). The stub-handler probe found 102 that translate with their own classes
+  stubbed; the other 270 need layer 4, random or hash order, an unordered token batch, a framework class or a large
+  own class. 8 came in (14,382 in the engine before waves 25b and 25c) and 7 were verified (14,348):
+  Alacrian Armory, Avalanche Tusker, Banefire, Chronic Flooding, Dovin, Architect of Law, Experimental Frenzy and Fires
+  of Invention. New pieces:
+  - `skip_untap_steps` (`SkipNextPlayerUntapStepEffect`, Dovin's -9): the player's next untap step does nothing but
+    end summoning sickness. Only that effect adds to it.
+  - `Rule::CantPlayLandsFromHand` (Experimental Frenzy): `playable` drops hand lands and land back faces under it.
+    Fires of Invention is a `Rule::CantCast` (only on your turn, one spell a turn).
+  - `BecomesTappedAttachedTriggeredAbility` with `SetTargetPointer.PLAYER` (Chronic Flooding): the trigger targets
+    the tapped land's controller. Without the flag `tap_as` is unchanged.
+  - `DestroySourceEffect`, `ManaValueLessThanControlledLandCountPredicate` (Experimental Frenzy's top card),
+    Banefire's damage (no prevention at X 5 or more) and its "can't be countered" condition (a transpile.py custom
+    class, read from the spell's X on the stack).
+  Two hand-made rounds on multivac: round 1 (5 decks, 40 games: Banefire, Alacrian Armory with Mounts and Vehicles,
+  Avalanche Tusker, Chronic Flooding, Dovin, Avatar Destiny) and round 2 (4 decks, 40 games: Fires of Invention,
+  Experimental Frenzy, Banefire). 79 match, 1 differs. The decks are under `.local/w25a/factory/round-00N/decks`. The 3
+  games under `shadow/wave25a/` cover Banefire, Armory's trigger, Chronic Flooding's mill and Tusker's attack trigger;
+  Dovin's +1 and -1; Fires of Invention and Experimental Frenzy, with Frenzy destroying itself. Not seen: Dovin's -9,
+  Banefire at X 5 or more, a free cast from Fires.
+  - Avatar Destiny came in but stays unverified: in round 1's game 9 a 3/3 Gnarlid Colony that died with it, blocking
+    Monastery Swiftspear, milled 2 in Java and 3 here (the power Java reads as it last was). Reading the printed
+    power instead breaks games 4, 22 and 31, so the last-known power stays.
+  - Skipped: Defiant Greatmaw (the counters-added trigger tracks only +1/+1 counters, not who put them), Chandra,
+    Flame's Catalyst (a free cast resolving at end of turn), Blood Sun (losing all abilities but mana abilities),
+    Dovin Baan (its emblem), Bronzehide Lion (layer 4), Erdwal Illuminator (no investigate event), Brutal Hordechief
+    (`ChooseBlockersEffect`), Cryoshatter (an or-trigger's target pointer), Aang's Journey and Agency Outfitter
+    (`TargetCardAndOrCardInLibrary`), Emergent Ultimatum (three-colour choice), the `CastFromHandSourcePermanentCondition`
+    cards, A Killer Among Us and the other unordered token batches; the rest of the 102 not reached.
+  - Verified cards: no engine change alters one (the untap skip and the hand-land check only act with the new
+    effect and rule), and every recorded game with them matches. No gaps seen.
+
   Wave 24a, Pioneer cards A Killer Among Us to God-Eternal Kefnet (25 Nov): the 385 unverified Pioneer cards in that
   range (waves 24b and 24c take the rest). A stub-handler probe found 109 that translate with their own classes
   stubbed; most of the rest need layer 4, random or hash order, mana-spent tracking or a framework class. 12 came in,
