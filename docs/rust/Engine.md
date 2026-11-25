@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans), plus the Career decks' cards outside it, `cards/career-pool.txt` (121 names, wave 18).
-  `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler can express (14,167 on
+  `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler can express (14,195 on
   24 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
@@ -1593,6 +1593,26 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   (`TargetCardAndOrCardInLibrary`), Garruk, Savage Herald (`DamageAsThoughNotBlockedAbility`), Domri Rade
   (`CompoundAbility`), Invasion of Pyrulea (its `FilterPermanent`), Bond of Passion (`TargetPermanentOrPlayer`).
   The rest of the 322 weren't reached.
+
+  Wave 19b, effect statements M to Z (24 Nov): the 353 cards from M to Z that the transpiler rejected on one
+  `effect` statement. 28 came in (14,188 in the engine), most of them with their own handlers; two transpiler forms
+  were added: a spell's own "then shuffle" (`ShuffleLibrarySourceEffect` with no arguments, Through the Forest Gate)
+  and "assigns combat damage equal to its toughness" until end of turn (`CombatDamageByToughnessTargetEffect`, a
+  granted static). A full transpile changes or drops no other card. Four factory rounds (142 games, 138 matching)
+  verified 26: 14,159 of 14,188. Rounds 3 and 4 were recorded on multivac. Round 4 was hand-made (ramp decks against walls),
+  because random rounds dealt Through the Forest Gate twice. One game per card or group of cards is under
+  `shadow/wave19b/`. Shanna, Sisay's Legacy only stops abilities: the check that a card in hand can be cast (not yet
+  on the stack) isn't an ability.
+
+  Not verified:
+  - Tainted Adversary: after one Zombie died, two decayed sacrifice triggers at end of combat resolve in another
+    order (Java's ability list order for the pick).
+  - Rambling Possum: Java returns the saddlers in `HashSet` order, so the hand order differs.
+
+  Left out: 83 cards looked at whose engine piece is large (dynamic mana, reflexive triggers with up to X targets,
+  layer effects, draw replacements with a choice, extra or skipped turns and steps, maximum hand size,
+  attachment-granted abilities, dice, `HashSet` and random orders), and 240 not attempted. The wave's PR lists each
+  with the statement the transpiler stops on.
 
   Wave 15, shared forms A (15 Nov): framework forms that block several of the claim's cards, then card classes,
   built in four slices. Ending the turn (`EndTurnEffect`, `Turn.endTurn`: `Game::end_turn`; every spell on the stack
