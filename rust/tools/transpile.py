@@ -685,6 +685,19 @@ CUSTOM = {
         'class': 'TapForManaAllTriggeredManaAbility', 'java': 'GroundchuckAndDirtbagTriggeredAbility',
         'filter': [{'p': 'type', 't': 'LAND'}, YOU], 'color': 'G',
         'rule': 'Whenever you tap a land for mana, add {G}.'},
+    # "you may cast this card from your graveyard" (`MayCastFromGraveyardSourceAbility`, its own mana cost): its
+    # `MayCastFromGraveyardEffect` as a static handler that works from the graveyard (Hundred-Battle Veteran)
+    'MayCastFromGraveyardSourceAbility': lambda: {
+        'class': 'SimpleStaticAbility', 'java': 'MayCastFromGraveyardSourceAbility',
+        'effects': [{'class': 'CardStatic', 'handler': 'MayCastFromGraveyardEffect'}],
+        'rule': 'You may cast this card from your graveyard.'},
+    # Paranormal Analyst: "whenever you manifest dread, put a card you put into your graveyard this way into your
+    # hand" (`MANIFESTED_DREAD`, its pointer at the cards that went to the graveyard)
+    'ParanormalAnalystTriggeredAbility': lambda: {
+        'class': 'TriggeredAbility', 'java': 'ParanormalAnalystTriggeredAbility', 'on': {'e': 'you_manifest_dread'},
+        'effects': [{'class': 'CardEffect', 'handler': 'ParanormalAnalyst.ParanormalAnalystEffect'}],
+        'optional': False, 'rule': 'Whenever you manifest dread, put a card you put into your graveyard this way '
+                                   'into your hand.'},
     'MasterOfBarbsTriggeredAbility': lambda: {
         'class': 'DamagedOpponentsNoncombatTriggeredAbility', 'java': 'MasterOfBarbsTriggeredAbility',
         'effects': [{'class': 'BoostControlledEffect', 'power': 1, 'toughness': 0, 'duration': 'EndOfTurn',
@@ -4122,7 +4135,13 @@ class Translator:
         # a cost reduction that applies while a condition holds
         if cls == 'ConditionalCostModificationEffect' and len(args) == 3:
             e = self.effect(args[0].strip())
-            if e.get('class') != 'SpellsCostReductionControllerEffect':
+            # a static handler's cost change (Nahiri, Storm of Stone's equip discount): visited only while the
+            # condition holds, as a `ConditionalContinuousEffect` around a handler is
+            if e.get('class') == 'CardStatic':
+                return {'class': 'ConditionalContinuousEffect', 'effect': e,
+                        'condition': self.value('condition', args[1].strip())}
+            # (Paladin Class: "spells your opponents cast during your turn cost {1} more")
+            if e.get('class') not in ('SpellsCostReductionControllerEffect', 'SpellsCostIncreasingAllEffect'):
                 raise Unsupported('conditional cost modification ' + e.get('class', ''))
             e['condition'] = self.value('condition', args[1].strip())
             return e
@@ -9414,6 +9433,17 @@ def ability_statement(t, st, added):
     m = re.fullmatch(r'(\w+)\.addEffect\(new ElvenPassageUntapLandEffect\(\)\)', st)
     if m and m.group(1) in t.vars:
         return True
+    # `ability.appendToRule("…")` on a "you may cast this card from your graveyard" ability: more of its rule text, and
+    # `ability.addSubAbility(a)`: a, listed after it (Hundred-Battle Veteran's "if you do, it enters with a finality
+    # counter on it", an `EntersBattlefieldAbility` with `CastFromGraveyardSourceCondition`)
+    m = re.fullmatch(r'(\w+)\.appendToRule\("([^"]*)"\)', st)
+    if m and t.vars.get(m.group(1), {}).get('java') == 'MayCastFromGraveyardSourceAbility':
+        t.vars[m.group(1)]['rule'] += m.group(2)
+        return True
+    m = re.fullmatch(r'(\w+)\.addSubAbility\((.*)\)', st, re.S)
+    if m and t.vars.get(m.group(1), {}).get('java') == 'MayCastFromGraveyardSourceAbility':
+        t.vars[m.group(1)].setdefault('sub_abilities', []).append(t.ability(m.group(2)))
+        return True
     # `ability.setTriggersLimitEachTurn(n)` on a local trigger: it triggers at most n times each turn (Nanoform
     # Sentinel)
     m = re.fullmatch(r'(\w+)\.setTriggersLimitEachTurn\((\d+)\)', st)
@@ -9681,6 +9711,10 @@ def ability_statement(t, st, added):
                 added.append(t.ability(e.group(1)))
             return True
         added.append(t.ability(','.join(args)))
+        # an ability's sub-abilities (`addSubAbility`), each listed after it
+        if isinstance(added[-1], dict) and added[-1].get('sub_abilities'):
+            added[-1] = dict(added[-1])
+            added.extend(added[-1].pop('sub_abilities'))
         # decayed: its "when this attacks, sacrifice it at end of combat", listed on its own
         if added[-1].get('class') == 'DecayedAbility':
             added.append({'class': 'TriggeredAbility', 'java': 'AttacksTriggeredAbility', 'on': {'e': 'attacks'},

@@ -2581,6 +2581,9 @@ pub enum EffectDef {
         amount: i32,
         filter: Filter,
         who: String,
+        /// only while this holds (`ConditionalCostModificationEffect`: Paladin Class, during your turn)
+        #[serde(default)]
+        condition: Option<Condition>,
     },
     /// a static ability's effect (`DAMAGE_PLAYER`/`DAMAGE_PERMANENT` replacements: City on Fire, Tomik, Charging
     /// Tuskodon): damage from a source of `source` (as seen by its controller; `this_source`: this permanent,

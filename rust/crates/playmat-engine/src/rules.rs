@@ -6548,9 +6548,10 @@ fn modified_cost_of(game: &Game, seat: Seat, id: ObjId, face: &CardDef, mut cost
         for a in &s.def.abilities {
             if let AbilityDef::SimpleStaticAbility { effects, .. } = a {
                 for e in effects {
-                    if let EffectDef::SpellsCostIncreasingAllEffect { amount, filter, who } = e {
+                    if let EffectDef::SpellsCostIncreasingAllEffect { amount, filter, who, condition } = e {
                         if Game::whose(who, s.controller, seat)
                             && face_matches(game, filter, s.controller, *src, id, face)
+                            && game.condition_holds(condition.as_ref(), s.controller, *src)
                         {
                             cost.generic += *amount as u32;
                         }
