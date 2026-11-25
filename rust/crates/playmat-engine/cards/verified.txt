@@ -3688,6 +3688,7 @@ Emeritus of Abundance
 Emeritus of Conflict
 Emeritus of Ideation
 Emeritus of Truce
+Emeritus of Woe
 Emet-Selch, Unsundered
 Emiel the Blessed
 Emil, Vastlands Roamer
@@ -5147,6 +5148,7 @@ Gratuitous Violence
 Gravblade Heavy
 Grave Birthing
 Grave Bramble
+Grave Researcher
 Grave Strength
 Graveblade Marauder
 Gravebreaker Lamia
@@ -6368,6 +6370,7 @@ Join Shields
 Join the Dance
 Join the Dead
 Join the Maestros
+Joined Researchers
 Joint Exploration
 Jolene, Plundering Pugilist
 Jolly Gerbils
@@ -10298,6 +10301,7 @@ Scavenging Harpy
 Scavenging Ooze
 Scene of the Crime
 Scheming Aspirant
+Scheming Silvertongue
 Scheming Symmetry
 Scholar of Athreos
 Scholar of Stars
