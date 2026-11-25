@@ -320,6 +320,19 @@ mod tests {
         assert_eq!(serde_json::from_str::<WorkUnit>(&json).unwrap(), unit());
     }
 
+    /// The opponents `rust/rl/pfsp_league.py` plays the Phase 3 learner against, as `with_temp` sends them
+    #[test]
+    fn the_phase3_league_passes() {
+        let tail = "+hide=1+iters=256+samples=8+cpuct=1000+leaf_blend=1000+gumbel_root=1+multi_tree=1+mulligan_net=1+width=16+consider=12+extra_turns=2+temp=750+temp_turn=10";
+        for spec in [
+            format!("cfg:policy=ismcts+net=@{SHA}{tail}"),
+            format!("cfg:policy=ismcts+net=@{SHA}+hide=1+iters=128+cpuct=1000+leaf_blend=1000+multi_tree=1+mulligan_sim=1+extra_turns=0+temp=750+temp_turn=10"),
+            "host@s6".to_string(),
+        ] {
+            check_config(&spec, UnitKind::Selfplay).unwrap_or_else(|e| panic!("{spec}: {e}"));
+        }
+    }
+
     #[test]
     fn a_unit_is_strict_unless_it_says_otherwise() {
         let mut v = serde_json::to_value(unit()).unwrap();
