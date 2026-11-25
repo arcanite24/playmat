@@ -7289,6 +7289,7 @@ Mai, Scornful Striker
 Maja, Bretagard Protector
 Majestic Auricorn
 Majestic Heliopterus
+Majestic Metamorphosis
 Majestic Myriarch
 Make Disappear
 Make It So
@@ -7384,6 +7385,7 @@ March of Wretched Sorrow
 March of the Drowned
 March of the Multitudes
 March of the Returned
+March of the World Ooze
 Marchesa, Dealer of Death
 Mardu Ascendancy
 Mardu Banner
@@ -7879,6 +7881,7 @@ Morbid Opportunist
 Morbius the Living Vampire
 Morcant's Eyes
 Morcant's Loyalist
+Mordenkainen's Polymorph
 Morgue Burst
 Moritte of the Frost
 Morkrut Behemoth
@@ -8025,6 +8028,7 @@ Nahiri, the Harbinger
 Naiad of Hidden Coves
 Najal, the Storm Runner
 Namazu Trader
+Nameless Inversion
 Namor the Sub-Mariner
 Nanoform Sentinel
 Nantuko Husk
@@ -8690,6 +8694,7 @@ Patrician Geist
 Patriot, Shield Wielder
 Patron of the Valiant
 Pattern Buffer Preservation
+Pattern Matcher
 Pause for Reflection
 Pawpatch Formation
 Pay No Heed
@@ -9311,6 +9316,7 @@ Raging Redcap
 Raging Regisaur
 Raging Swordtooth
 Ragnarok, Divine Deliverance
+Ragost, Deft Gastronaut
 Rags // Riches
 Raiders' Karve
 Raiders' Spoils
@@ -10613,6 +10619,7 @@ Settle the Score
 Settle the Wreckage
 Seven Dwarves
 Seven-Tail Mentor
+Severance Priest
 Severed Strands
 Sewer Crocodile
 Sewer Shambler
@@ -11204,6 +11211,7 @@ Song of Totentanz
 Song-Mad Treachery
 Sonic Assault
 Sonic Shrieker
+Sonorous Howlbonder
 Soothsayer Adept
 Sorcerer of the Fang
 Sorcerer's Broom
@@ -11371,6 +11379,7 @@ Spider-Sense
 Spider-Slayer, Hatred Honed
 Spider-Suit
 Spider-UK
+Spider-Woman, Secret Agent
 Spider-Woman, Stunning Savior
 Spiders-Man, Heroic Horde
 Spidersilk Net
@@ -12003,6 +12012,7 @@ Sworn Guardian
 Sygg's Command
 Sygg, Wanderwine Wisdom
 Sylvan Advocate
+Sylvan Awakening
 Sylvan Brushstrider
 Sylvan Caryatid
 Sylvan Messenger
@@ -12296,6 +12306,7 @@ Tezzeret's Touch
 Tezzeret, Artifice Master
 Tezzeret, Cruel Captain
 Tezzeret, Master of Metal
+Tezzeret, Master of the Bridge
 Thalia and The Gitrog Monster
 Thalia's Lancers
 Thalia's Lieutenant
@@ -13079,6 +13090,7 @@ Undercity Uprising
 Undercity's Embrace
 Undercover Crocodelf
 Undercover Operative
+Undercover Skrull
 Underdark Basilisk
 Underfoot Underdogs
 Underground Mortuary
@@ -13090,6 +13102,7 @@ Undergrowth Scavenger
 Underhanded Designs
 Undersea Invader
 Underwater Tunnel // Slimy Aquarium
+Underworld Cerberus
 Underworld Charger
 Underworld Coinsmith
 Underworld Connections

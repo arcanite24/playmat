@@ -3047,6 +3047,16 @@ impl Game {
         })
     }
 
+    /// `any_static` for the command zone: the static abilities of emblems
+    pub fn command_static(&self, mut f: impl FnMut(&Game, ObjId, &EffectDef) -> bool) -> bool {
+        self.command.iter().any(|src| {
+            self.obj(*src).def.abilities.iter().any(|a| match a {
+                AbilityDef::SimpleStaticAbility { effects, .. } => effects.iter().any(|e| f(self, *src, e)),
+                _ => false,
+            })
+        })
+    }
+
     /// Whether a static ability of an attached Aura says `id` can't attack or block.
     /// Lovestruck Beast's restriction: it can't attack while its controller has no 1/1 creature
     pub fn cant_attack_alone(&self, id: ObjId) -> bool {

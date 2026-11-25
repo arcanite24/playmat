@@ -2703,6 +2703,9 @@ pub enum EffectDef {
     },
     /// a static ability's effect: untap the source during each other player's untap step
     UntapSourceDuringEachOtherPlayersUntapStepEffect,
+    /// an emblem's static: its controller draws a card during each opponent's draw step (`setDrawsOnOpponentsTurn`,
+    /// Teferi, Who Slows the Sunset's `TeferiWhoSlowsTheSunsetEmblemEffect`)
+    DrawsOnOpponentsTurnEffect,
     /// a static ability's effect: untap the permanents of `filter` during each other player's untap step
     UntapAllDuringEachOtherPlayersUntapStepEffect {
         filter: Filter,
@@ -3586,6 +3589,12 @@ pub enum EffectDef {
     CantBeBlockedByOneEffect {
         amount: i32,
     },
+    /// the permanents of the filter can't be blocked except by `amount` or more creatures (a static's
+    /// `CantBeBlockedByOneAllEffect`: their `setMinBlockedBy`)
+    CantBeBlockedByOneAllEffect {
+        amount: i32,
+        filter: Filter,
+    },
     /// untap each permanent of the filter
     UntapAllEffect {
         filter: Filter,
@@ -4104,6 +4113,12 @@ pub enum EffectDef {
     },
     /// a static ability's effect: the permanent this is attached to can't attack or block
     CantAttackBlockAttachedEffect,
+    /// "cards in graveyards can't be the targets of spells or abilities" (a static's
+    /// `CantBeTargetedCardsGraveyardsEffect`, read by `possible_targets`)
+    CantBeTargetedCardsGraveyardsEffect,
+    /// "enchanted creature can't attack" (a static's `CantAttackAttachedEffect`: a restriction, not an ability, so a
+    /// "loses all abilities" leaves it: Retro-Mutation)
+    CantAttackAttachedEffect,
     /// each player (of `who`) discards `amount` cards they choose, all at once
     DiscardEachPlayerEffect {
         amount: Amount,
@@ -4389,6 +4404,10 @@ pub enum EffectDef {
     IncreaseSpeedEffect,
     /// you get an emblem (abilities in the command zone), read like a token class
     GetEmblemEffect {
+        emblem: TokenDef,
+    },
+    /// the target player gets an emblem (`GetEmblemTargetPlayerEffect`: Ob Nixilis Reignited's −8)
+    GetEmblemTargetPlayerEffect {
         emblem: TokenDef,
     },
     /// a Career timed twist resolving (`CareerTimedTwists.TwistEffect`): its message, its edge and its life. Made by

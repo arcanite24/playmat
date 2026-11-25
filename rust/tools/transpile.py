@@ -3318,6 +3318,10 @@ class Translator:
             if EXTRA.get('token:CustomIllusionToken', {}).get('images'):
                 illusion['images'] = EXTRA['token:CustomIllusionToken']['images']
             return {'class': 'CreateXXTokenExiledEffect', 'token': illusion}
+        # Severance Priest's: a `SpiritXXToken` (X/X white Spirit) for the cards its source exiled
+        if cls == 'CreateXXTokenExiledEffectManaValueEffect' and len(args) == 2 \
+                and args[0].strip() == 'SpiritXXToken::new':
+            return {'class': 'CreateXXTokenExiledEffect', 'token': token('SpiritXXToken')}
         # a one-shot wrapper that starts a continuous effect: the effect itself
         if cls == 'AddContinuousEffectToGame' and len(args) == 1:
             return self.effect(args[0])
@@ -3360,11 +3364,16 @@ class Translator:
         if cls == 'AddBasicLandTypeAllLandsEffect' and len(args) == 1 \
                 and args[0].strip() in ('SubType.PLAINS', 'SubType.ISLAND', 'SubType.SWAMP', 'SubType.MOUNTAIN', 'SubType.FOREST'):
             return {'class': cls, 'subtype': subtype_names()[args[0].strip()[8:]]}
+        # Teferi, Who Slows the Sunset's emblem: "you draw a card during each opponent's draw step"
+        # (`setDrawsOnOpponentsTurn`, read by the draw step)
+        if cls == 'TeferiWhoSlowsTheSunsetEmblemEffect' and not args \
+                and 'class TeferiWhoSlowsTheSunsetEmblemEffect' in (getattr(self, 'source', None) or ''):
+            return {'class': 'DrawsOnOpponentsTurnEffect'}
         if cls == 'RottenmouthViperEffect' and [a.strip() for a in args] == ['new CountersSourceCount(CounterType.BLIGHT)']:
             return {'class': cls}
         # Laughing Jasper Flint: "creatures you control but don't own are Mercenaries in addition to their other types"
         if cls == 'AddCardSubtypeAllEffect' and len(args) == 3 and re.fullmatch(r'SubType\.\w+', args[1].strip()) \
-                and args[2].strip() == 'DependencyType.AddingCreatureType':
+                and args[2].strip() in ('DependencyType.AddingCreatureType', 'null'):
             return {'class': cls, 'filter': self.filter(args[0].strip()), 'subtype': subtype_names()[args[1].strip()[8:]]}
         # Evolved Sleeper: "becomes a Human Cleric with base power and toughness 2/2" until it leaves
         if cls == 'AddCardSubTypeSourceEffect' and len(args) > 1 and args[0].strip() == 'Duration.Custom' \
@@ -3708,6 +3717,9 @@ class Translator:
         # "{this} can't be blocked except by N or more creatures" (a static's, `setMinBlockedBy`)
         if cls == 'CantBeBlockedByOneEffect' and len(args) == 1 and re.fullmatch(r'\d+', args[0].strip()):
             return {'class': cls, 'amount': int(args[0].strip())}
+        # "each creature of the filter can't be blocked except by N or more creatures" (a static's, Sonorous Howlbonder)
+        if cls == 'CantBeBlockedByOneAllEffect' and len(args) == 2 and re.fullmatch(r'\d+', args[0].strip()):
+            return {'class': cls, 'amount': int(args[0].strip()), 'filter': self.filter(args[1].strip())}
         # "… for as long as you control this" (taken as for good)
         if cls == 'GainAbilityTargetEffect' and len(args) in (2, 3) and args[1].strip() == 'Duration.Custom' \
                 and (len(args) == 2 or args[2].strip().startswith('"')):
@@ -4285,7 +4297,7 @@ class Translator:
             return {'class': cls, 'amount': int(args[0]), 'only_controlled': True}
         if cls == 'PutIntoLibraryNFromTopTargetEffect' and len(args) == 1 and re.fullmatch(r'\d+', args[0].strip()):
             return {'class': cls, 'n': int(args[0])}
-        if cls == 'GetEmblemEffect' and len(args) == 1:
+        if cls in ('GetEmblemEffect', 'GetEmblemTargetPlayerEffect') and len(args) == 1:
             n = re.fullmatch(r'new (\w+Emblem)\(\)', args[0].strip())
             if not n:
                 raise Unsupported('emblem ' + args[0])
@@ -4478,6 +4490,12 @@ class Translator:
             return gains('GainAbilitySourceEffect', {'class': 'CanBlockOnlyFlyingAbility'})
         if cls == 'CantBeBlockedAttachedEffect' and args and args[0] in attachment and all(plain(a) for a in args[1:]):
             return gains('GainAbilityAttachedEffect', {'class': 'CantBeBlockedSourceAbility'})
+        # "cards in graveyards can't be the targets of spells or abilities" (Silent Gravestone, Underworld Cerberus)
+        if cls == 'CantBeTargetedCardsGraveyardsEffect' and not args:
+            return {'class': cls}
+        # "enchanted creature can't attack": a restriction of its own (Retro-Mutation's survives "loses all abilities")
+        if cls == 'CantAttackAttachedEffect' and args == ['AttachmentType.AURA']:
+            return {'class': cls}
         if cls == 'CantBlockAttachedEffect' and args and args[0] in attachment and all(plain(a) for a in args[1:]):
             return gains('GainAbilityAttachedEffect', {'class': 'CantBlockAbility'})
         if cls == 'CantActivateAbilitiesAttachedEffect' and not args:
@@ -7085,6 +7103,11 @@ class Translator:
             return out({'e': 'draws', 'who': 'you'}, args[0], flag(args[1]))
         if cls == 'DrawCardControllerTriggeredAbility' and n == 3 and args[0] == 'Zone.COMMAND':
             return out({'e': 'draws', 'who': 'you'}, args[1], flag(args[2]))
+        # Ob Nixilis Reignited's emblem: "whenever a player draws a card" (`DREW_CARD` of any player, from the command
+        # zone)
+        if cls == 'ObNixilisEmblemTriggeredAbility' and n == 2 \
+                and 'class ObNixilisEmblemTriggeredAbility' in (getattr(self, 'source', None) or ''):
+            return out({'e': 'draws', 'who': 'any'}, args[0], flag(args[1]))
         if cls == 'DrawCardOpponentTriggeredAbility' and n == 3:
             return out({'e': 'draws', 'who': 'opponent'}, args[0], flag(args[1]), flag(args[2]))
         # "whenever a source deals damage to this": the source's controller the player pointer (`DAMAGED_PERMANENT`)
