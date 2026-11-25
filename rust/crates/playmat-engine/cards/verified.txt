@@ -7460,6 +7460,7 @@ Master Trinketeer
 Master of Barbs
 Master of Diversion
 Master of Pearls
+Master of Predicaments
 Master of Waves
 Master of Winds
 Master of the Feast
@@ -7578,6 +7579,7 @@ Merfolk Falconer
 Merfolk Mistbinder
 Merfolk Secretkeeper
 Merfolk Skydiver
+Merfolk Spy
 Merfolk Trickster
 Merfolk Windrobber
 Merfolk of the Depths
@@ -7805,6 +7807,7 @@ Moldgraf Scavenger
 Mole Man, Moloid Master
 Molecular Modifier
 Molt Tender
+Molten Birth
 Molten Blast
 Molten Collapse
 Molten Duplication
@@ -8006,6 +8009,7 @@ Mythos of Snapdax
 Naban, Dean of Iteration
 Nadaar, Selfless Paladin
 Nadir Kraken
+Nael, Avizoa Aeronaut
 Naga Eternal
 Naga Fleshcrafter
 Naga Oracle
@@ -8392,6 +8396,7 @@ Old Gnawbone
 Old Hob, Alleycat Blues
 Old Rutstein
 Old Stickfingers
+Old Thrush
 Old-Growth Dryads
 Old-Growth Educator
 Old-Growth Troll
@@ -9164,6 +9169,7 @@ Purging Stormbrood
 Purifying Dragon
 Purphoros's Emissary
 Purphoros's Intervention
+Purphoros, Bronze-Blooded
 Purphoros, God of the Forge
 Purple Dragon Punks
 Purple Worm
@@ -9349,6 +9355,7 @@ Rakshasa Vizier
 Rakshasa's Bargain
 Rakshasa's Disdain
 Rakshasa's Secret
+Ral Zarek
 Ral's Dispersal
 Ral's Outburst
 Ral's Reinforcements
@@ -9515,6 +9522,7 @@ Reckless Cohort
 Reckless Crew
 Reckless Detective
 Reckless Fireweaver
+Reckless Handling
 Reckless Imp
 Reckless Impulse
 Reckless Lackey
@@ -9659,6 +9667,7 @@ Reptilian Reflection
 Repudiate // Replicate
 Repulsive Mutation
 Repulsor Blast
+Repurposed Enforcer
 Repurposing Bay
 Reputable Merchant
 Requiem Monolith
@@ -9820,6 +9829,7 @@ Riot Control
 Riot Gear
 Riot Piker
 Rip Apart
+Rip, Spawn Hunter
 Riparian Tiger
 Ripchain Razorkin
 Ripclaw Wrangler
@@ -10002,6 +10012,7 @@ Rowan's Grim Search
 Rowan's Stalwarts
 Rowan, Fearless Sparkmage
 Rowan, Scion of War
+Rowdy Crew
 Rowdy Research
 Rowdy Snowballers
 Roxanne, Starfall Savant
@@ -10653,6 +10664,7 @@ Shambling Suit
 Shambling Vent
 Shang-Chi, Master of Kung Fu
 Shanna, Purifying Blade
+Shanna, Sisay's Legacy
 Shantotto, Tactician Magician
 Shape the Sands
 Shaper Apprentice
@@ -10842,6 +10854,7 @@ Sigiled Skink
 Sigiled Starfish
 Sigiled Sword of Valeron
 Sign in Blood
+Signal the Clans
 Signpost Scarecrow
 Sigrid, God-Favored
 Silburlind Snapper
@@ -10973,8 +10986,10 @@ Skulduggery
 Skulking Killer
 Skull Prophet
 Skull Raid
+Skull Rend
 Skullcap Snail
 Skullcrack
+Skullknocker Ogre
 Skullport Merchant
 Skullsnap Nuisance
 Sky Crier
@@ -11199,6 +11214,7 @@ Sorcerous Spyglass
 Sorin the Mirthless
 Sorin's Guide
 Sorin's Thirst
+Sorin, Grim Nemesis
 Sorin, Solemn Visitor
 Sorin, Vampire Lord
 Sorin, Vengeful Bloodlord
@@ -11979,6 +11995,7 @@ Sword of Once and Future
 Sword of Vengeance
 Sword of Wealth and Power
 Sword of the Animist
+Sword-Point Diplomacy
 Swordsman, Sharp Scoundrel
 Swordsworn Cavalier
 Swordwise Centaur
@@ -12306,6 +12323,7 @@ The Antiquities War
 The Arkenstone
 The Astonishing Ant-Man
 The Autonomous Furnace
+The Bears of Littjara
 The Biblioplex
 The Binding of the Titans
 The Birth of Meletis
@@ -12328,6 +12346,7 @@ The Death of Gwen Stacy
 The Doctor, EMH
 The Dross Pits
 The Duras Sisters
+The Eagles Are Coming!
 The Earth Crystal
 The Earth King
 The Echoverse Fulcrum
@@ -12345,6 +12364,7 @@ The First Eruption
 The First Iroan Games
 The Flame of Keld
 The Gitrog Monster
+The Gitrog, Ravenous Ride
 The Gold Saucer
 The Goose Mother
 The Great Goblin
@@ -12366,6 +12386,7 @@ The Legend of Roku
 The Lion-Turtle
 The Locust God
 The Lonely Mountain
+The Long Reach of Night
 The Lord of the Eagles
 The Lunar Whale
 The Magic Mirror
@@ -12560,6 +12581,7 @@ Throne of Makindi
 Throne of the God-Pharaoh
 Thror's Map
 Throttle
+Through the Forest Gate
 Throw from the Saddle
 Throwing Knife
 Thrull Parasite
@@ -12823,6 +12845,7 @@ Traxos, Scourge of Kroog
 Treacherous Blessing
 Treacherous Greed
 Tread Upon
+Treasure Chest
 Treasure Cruise
 Treasure Dredger
 Treasure Keeper
@@ -13175,6 +13198,7 @@ Urborg Repossession
 Urborg Scavengers
 Urborg, Tomb of Yawgmoth
 Ureni's Rebuff
+Urgoros, the Empty One
 Urn of Godfire
 Ursine Champion
 Urza's Command
@@ -13580,6 +13604,7 @@ Walk the Plank
 Walk with the Ancestors
 Walk-In Closet // Forgotten Cellar
 Walker of the Wastes
+Walking Bulwark
 Walking Corpse
 Walking Sarcophagus
 Walking Skyscraper
@@ -13996,6 +14021,7 @@ Wolfwillow Haven
 Wolverine, Fierce Fighter
 Wood Elves
 Woodborn Behemoth
+Woodcaller Automaton
 Woodcutter's Grit
 Wooded Foothills
 Wooded Ridgeline

@@ -8,6 +8,7 @@ import { CardFilterBar } from './CardFilterBar';
 import { InspectButton } from './CardInspect';
 import { useCardInfoStore } from './cardInfo';
 import { entryKey, printingOf } from './deckModel';
+import { CARD_MIME } from './deckDrag';
 import styles from './DeckBuilder.module.css';
 import {
   effectiveSetCodes, EMPTY_FILTERS, intersectIdentity, onlyColorsIdentity, onlyInSidelinedSets, type CardFilters,
@@ -241,6 +242,15 @@ const CollectionCard = memo(function CollectionCard({ card, count, limit, onAdd,
       <button
         type="button"
         className={[styles.tile, full ? styles.tileFull : ''].join(' ')}
+        draggable
+        onDragStart={(event) => {
+          // dropped on the deck, a zone tab or a category, the card is added there
+          const printing = printingOf(card);
+          event.dataTransfer.setData(CARD_MIME, JSON.stringify({ zone: 'binder', key: entryKey(printing), name: card.name ?? '', printing }));
+          event.dataTransfer.setData('text/plain', card.name ?? '');
+          event.dataTransfer.effectAllowed = 'copy';
+          onPreview(null);
+        }}
         onClick={() => onAdd(card)}
         onContextMenu={(event) => {
           event.preventDefault();
