@@ -208,7 +208,7 @@ at the same point, so they sort into the layers, timestamps and replacement orde
 
 | Kind | Declaration | Java | Read by |
 |---|---|---|---|
-| continuous | `Handler::continuous(name, affects, Layer::Type(f) / Ability(f) / SetPt(f) / ModifyPt(f))` | `ContinuousEffectImpl` in layer 4, 6, 7b, 7c (`Layer::java()` names Java's layer and sublayer) | `has_subtype`, `granted_abilities`/`has_ability`, `power_toughness_layers` (7b in timestamp order with the rest; layer 6 lost to an older "loses all abilities") |
+| continuous | `Handler::continuous(name, affects, Layer::Type(f) / Ability(f) / SetPt(f) / SetToughness(f) / SetPower(f) / ModifyPt(f))` | `ContinuousEffectImpl` in layer 4, 6, 7b, 7c (`Layer::java()` names Java's layer and sublayer) | `has_subtype`, `granted_abilities`/`has_ability`, `power_toughness_layers` (7b in timestamp order with the rest; layer 6 lost to an older "loses all abilities") |
 | replacement | `Handler::replacement(name, &[EventType::…], applies, replace)` | `ReplacementEffectImpl`: `checksEventType`, `applies`, `replaceEvent` | `replace_event` at the event's point: `DrawCard` (each card drawn), `GainLife`, `NumberOfTriggers`, `DamagePlayer` and `DamagePermanent` (`deal_damage`, before the engine's preventions), `ZoneChange` (`move_to`: a replacement can change `ev.to`), `EntersBattlefield` (as a permanent enters, with the "enters with" replacements; a permanent's own statics don't see it entering) |
 | keeps mana | `Handler::keeps_mana(name, f)` | "you don't lose this mana as steps and phases end" (`YouDontLoseManaEffect`) | `end_step`'s pool emptying: `f` gives the mana kinds that stay |
 | mana | `Handler::mana(name, net, produce)` | a mana effect class (`ManaEffect.getNetMana`, `produceMana`) in a `SimpleManaAbility` or the card's own `ActivatedManaAbilityImpl` | `mana_sources_with_kinds` (`net`, what it could make, for paying and the AI) and `activate_mana_paying` (`produce`: asks, makes the mana) |
@@ -2052,6 +2052,64 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
     `Pay {1}` again where Rust has no source left). Yuna, Hope of Spira returning Spiral into Solitude doesn't ask
     which creature the Aura goes on. Of the 92 new games, 86 match before the Serah change and 90 after it; the
     two left are those.
+
+  Wave 26b, Pioneer cards from Goddric, Cloaked Reveler to Ral Zarek, Guest Lecturer, third pass (25 Nov): the 363
+  still unverified after wave 25b (waves 26a and 26c take the rest), starting from the 210 whose first blocker is
+  their own Java class. 16 came in (14,424 in the engine) and 13 were verified (14,382): Grasp of the Hieromancer,
+  Green Dragon, Groundchuck & Dirtbag, Guul Draz Overseer, Hama Pashar, Ruin Seeker, Hundred-Battle Veteran, Jace,
+  Cunning Castaway, Lolth, Spider Queen, Lyra, Tolarian Archangel, Ms. Marvel, Kamala Khan, Nahiri, Storm of Stone,
+  Paladin Class and Paranormal Analyst. Six rounds on multivac: round 1 factory (52 games), rounds 2 to 6 hand-made
+  (60, 40, 36, 60 and 30 games; decks under `.local/w26b/factory/round-00N/decks`): 273 match, 5 differ, all five
+  the transforming double-faced card's trigger order (the recorder gap under wave 22 above): Liliana, Heretical
+  Healer's flip trigger with Workshop Assistant's dies trigger (round 1 game 267), Ashen Reaper's (Invasion of
+  Azgol's back) with Parker Luck's end step triggers (round 1 games 182 and 580), and Journey to Eternity's return
+  with Liliana's and with Lolth's dies triggers (round 2 games 20 and 25). The 14 games under `shadow/wave26b/` cover
+  each verified card and each piece. The pieces:
+  - `Layer::SetPower`: a static handler that sets the base power alone (`getPower().setModifiedBaseValue`, Ms.
+    Marvel's "base power equal to the number of cards in your hand"), the twin of `SetToughness`. `set_pt` now gives
+    an optional power and an optional toughness; one setting a single value keeps the other the others set.
+  - `SpellsCostIncreasingAllEffect { condition }`, and `ConditionalCostModificationEffect` around a card's own cost
+    class (a `ConditionalContinuousEffect` of the `CardStatic`): Paladin Class's "spells your opponents cast during
+    your turn cost {1} more" (round 4 game 1: Essence Scatter taps three lands).
+  - `MayCastFromGraveyardSourceAbility` ("you may cast this card from your graveyard") with its `appendToRule` and
+    `addSubAbility` statements, and the `MayCastFromGraveyardEffect` as-though handler (Hundred-Battle Veteran, with
+    its finality counter).
+  - `Trigger::YouManifestDread` (`MANIFESTED_DREAD`): `manifest_dread_rest`, the end of `doManifestDread` that both
+    `ManifestDreadEffect` and `ManifestDreadThenAttachEffect` now share, moves the rest of the top two cards into the
+    graveyard as before and then fires it, pointing at the cards it put there (Paranormal Analyst). No verified card
+    triggers on it, so the verified manifest dread cards play as before.
+  - Transpiler: `GraspOfTheHieromancerTriggeredAbility` as an attack trigger whose target is a creature the defending
+    player controls (its `checkTrigger` swaps the target), `ReturnToBattlefieldUnderYourControlTargetEffect` with three
+    arguments, Groundchuck's mana trigger, `OneOrMoreCombatDamagePlayerTriggeredAbility` in the command zone (Lolth's
+    emblem), `LandfallAbility` with `SetTargetPointer.PERMANENT`, and the granted "until end of turn, whenever
+    {this}" rule (Lyra).
+  - Handlers: Green Dragon's delayed "is dealt damage, destroy it" (round 5 games 1 and 19 destroy a 3/3 with 1
+    damage and a 2/4 with 2), Jace's +1 delayed trigger, Liliana's flip (and her back's emblem, not exercised),
+    Journey's return and flip, Lolth's emblem (her ultimate, not exercised), Guul Draz Overseer's landfall (+1/+0, or
+    +2/+0 for a Swamp: both seen), Hama Pashar's doubled room triggers, Hundred-Battle Veteran's three kinds of
+    counters (summed over the creatures, as `CounterTypeCount` counts; a 7/7 with one +1/+1 counter), Ashen Reaper's
+    end step counter, Lyra's end step Angel, Ms. Marvel's base power, Paranormal Analyst's return of the card manifest
+    dread put into the graveyard. Nahiri's equip discount is a static handler's cost change visited only on your
+    turn (round 4: Equip {1} for nothing, first strike damage steps); Ms. Marvel keeps 8 to 13 cards through cleanup
+    in round 6.
+  A full transpile changes and drops no other card in the engine; Hoshi Sato, Exolinguist and Lightwheel
+  Enhancements now translate but stay out (below).
+
+  Liliana, Heretical Healer, Invasion of Azgol and Journey to Eternity are in the engine but stay unverified: each
+  differing game is its own unrecorded trigger position, not another card's (`ShadowStart.triggerOrder` gives -1 for a
+  transforming double-faced card; the fix is `instanceof DoubleFacedCard` in the recorder, a Java change left for its
+  own PR). Every one of their abilities ran in matching games (Liliana's flip in 6, +2 in 4, -X in 3; Azgol's enter
+  trigger in 11 and Ashen Reaper's counter in 2; Journey's return, flip and Atzal's ability in 4), so they can go on
+  the list by hand as wave 25b did for Nissa, or once the recorder is fixed. Labyrinth Raptor was in round 2's decks
+  and matched in 11 games, but no creature with menace was blocked, so it stays off again. Left out, with what each
+  needs: Kalitas (a token created inside a replacement), Muldrotha (casting a permanent of each type from the
+  graveyard), Maestros Ascendancy (`AIDontUseIt`), Push // Pull (a `Set` order), Green Sun's Twilight, Hatchery Spider
+  and Hoshi Sato (a random bottom order), Luxior and Honest Work (layer 4), Niko Defies Destiny (conditional mana),
+  Long River Lurker (a delayed combat damage trigger), Pawpatch Recruit (a trigger's target adjuster), Hedge Whisperer
+  (an animation that lasts while its source stays tapped), Oppressive Rays (a cost increase on mana abilities), Great
+  Train Heist (an extra combat), Ninja's Kunai (`GainAbilityWithAttachmentEffect`), Lightwheel Enhancements (max
+  speed), Mind Grind (a spell's minimum X), Light Up the Night and Ooze Flux (`RemoveVariableCountersTargetCost`),
+  Market Gnome (craft), Pyromancer's Goggles (mana-spent tracking), and the skips of waves 24b and 25b above.
 
   Wave 25b, Pioneer cards from Goddric, Cloaked Reveler to Ral Zarek, Guest Lecturer (25 Nov): the 374 still
   unverified after wave 24b (waves 25a and 25c take the rest). 13 came in (14,387 in the engine) and 11 were
