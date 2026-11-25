@@ -1317,6 +1317,8 @@ pub struct Game {
     pub subtypes_while_there: Vec<(ObjId, u32, String)>,
     /// permanents that don't untap during their controller's next untap step (and their zone change count)
     pub skip_next_untap: Vec<(ObjId, u32)>,
+    /// players whose next untap step is skipped, once for each (`SkipNextPlayerUntapStepEffect`'s `TurnMod`)
+    pub skip_untap_steps: Vec<Seat>,
     /// `DontUntapInControllersUntapStepTargetEffect`: a permanent (its zone change count) that doesn't untap while its
     /// source (its zone change count) stays on the battlefield under the controller it had (`Some`,
     /// `WhileControlled`), or (None, `DontUntapAsLongAsSourceTappedEffect`) while the source stays tapped
@@ -1761,6 +1763,7 @@ impl Game {
             subtypes_until_eot: Vec::new(),
             subtypes_while_there: Vec::new(),
             skip_next_untap: Vec::new(),
+            skip_untap_steps: Vec::new(),
             dont_untap_while: Vec::new(),
             extra_blocks: Vec::new(),
             requirements: Vec::new(),
