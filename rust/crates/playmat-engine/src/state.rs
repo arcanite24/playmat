@@ -1503,6 +1503,9 @@ pub struct TurnWatch {
     /// the same permanents, with their zone-change counts as they entered and their controllers then
     /// (`PermanentsEnteredBattlefieldWatcher.getThisTurnEnteringPermanents`)
     pub entered_permanents: Vec<(ObjId, u32, Seat)>,
+    /// `PermanentsEnteredBattlefieldWatcher`'s `enteringBattlefieldLastTurn`: each permanent that entered last turn,
+    /// as (its controller then, whether it was a creature, the object), kept as this turn's watch begins
+    pub entered_last_turn: Vec<(Seat, bool, ObjId)>,
     /// `COUNTER_ADDED` for +1/+1 counters: who put them, and how many (Iridescent Hornbeetle's watcher)
     pub p1p1_put: Vec<(Seat, i32)>,
     /// `CardsExiledThisTurnWatcher`: objects put into exile
@@ -4751,7 +4754,7 @@ impl Game {
                 Trigger::DiesIfCreature => src == id && g.has_type(id, CardType::Creature),
                 // the source counts too unless it says "another", but it must match like the others
                 // (Bishop of Wings, a Human, isn't "an Angel you control")
-                Trigger::DiesAll { filter, include_self, this_unfiltered, .. } => {
+                Trigger::DiesAll { filter, include_self, this_unfiltered, graveyard: false, .. } => {
                     (src == id && *this_unfiltered)
                         || (src != id || *include_self) && g.filter_matches(filter, you, Some(src), id)
                 }
@@ -4762,6 +4765,17 @@ impl Game {
                 Trigger::PutIntoGraveyardAll { .. } => into_graveyard(g, src, you, t),
                 _ => false,
             });
+            // "whenever a creature dies while this card is in your graveyard" (Furious Forebear): cards already in a
+            // graveyard, not the one dying nor what left with it
+            let grave: Vec<ObjId> = (0..self.seats())
+                .flat_map(|p| self.player(p).graveyard.clone())
+                .filter(|o| *o != id && !self.lookback.contains(o))
+                .collect();
+            let mut fired = fired;
+            fired.extend(self.triggers(grave, |g, src, you, t| {
+                g.obj(src).zone == Zone::Graveyard
+                    && matches!(t, Trigger::DiesAll { filter, graveyard: true, .. } if g.filter_matches(filter, you, Some(src), id))
+            }));
             self.trigger_cause = None;
             let mut fired = self.pelt_collector(fired, id);
             // Hushbringer: a creature dying triggers nothing

@@ -439,6 +439,12 @@ pub(crate) enum Rule {
     /// `VENTURE` whose `applies` reads only the player: `seat` doesn't venture into the dungeon
     /// (`GameImpl.ventureIntoDungeon` returns: Keen-Eared Sentry)
     CantVenture(fn(&Game, &StaticCx, Seat) -> bool),
+    /// `UNTAP` replaced with nothing (a `ReplacementEffect` whose `replaceEvent` returns true: Blossombind, Frozen in
+    /// Ice): the permanent `id` can't become untapped, in its untap step or by an effect (`PermanentImpl.untap`)
+    CantUntap(fn(&Game, &StaticCx, ObjId) -> bool),
+    /// `SEARCH_LIBRARY` whose `replaceEvent` sets its amount (Aven Mindcensor): `seat` searching `owner`'s library
+    /// searches only that many cards from its top (`PlayerImpl.searchLibrary`'s `librarySearchLimit`); None leaves it
+    SearchLimit(fn(&Game, &StaticCx, Seat, Seat) -> Option<usize>),
 }
 
 /// The rules a rule-modifying handler's hook has (`Rule::Several`'s, or its one); none for another kind
@@ -854,6 +860,31 @@ pub(crate) fn cant_have_counters(game: &Game, id: ObjId, counter: &str) -> bool 
     each_static(game, &mut |h, cx, _| {
         if let Hook::Rule(Rule::CantHaveCounters(f)) = h {
             out = out || f(game, cx, id, counter);
+        }
+    });
+    out
+}
+
+/// How many cards from the top of `owner`'s library `seat` searches, if a handler limits it (the last one that
+/// applies sets the event's amount, `SearchLibraryEvent.setAmount`)
+pub(crate) fn search_limit(game: &Game, seat: Seat, owner: Seat) -> Option<usize> {
+    let mut out = None;
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::Rule(Rule::SearchLimit(f)) = h {
+            if let Some(n) = f(game, cx, seat, owner) {
+                out = Some(n);
+            }
+        }
+    });
+    out
+}
+
+/// Whether a handler says the permanent `id` can't become untapped (`UNTAP` replaced)
+pub(crate) fn cant_untap(game: &Game, id: ObjId) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::Rule(Rule::CantUntap(f)) = h {
+            out = out || f(game, cx, id);
         }
     });
     out

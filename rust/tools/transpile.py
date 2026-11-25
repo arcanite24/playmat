@@ -293,6 +293,8 @@ CUSTOM = {
     'MysticSubdualEffect': lambda: {'class': 'LoseAllAbilitiesAttachedEffect'},
     # Stop Cold's "enchanted permanent loses all abilities" (the source's attached permanent, `removeAllAbilities`)
     'StopColdEffect': lambda: {'class': 'LoseAllAbilitiesAttachedEffect'},
+    # Frozen in Ice's "enchanted creature loses all abilities" (the same, `removeAllAbilities` of the attached one)
+    'FrozenInIceAbilityEffect': lambda: {'class': 'LoseAllAbilitiesAttachedEffect'},
     # (players in range: both, in a duel)
     'SorcerousSpyglassActivationEffect': lambda: {'class': 'PithingNeedleEffect'},
     'PhyrexianRevokerEffect2': lambda: {'class': 'PhyrexianRevokerEffect'},
@@ -3042,6 +3044,11 @@ class Translator:
         return out
 
     def effect(self, expr):
+        # "you may choose a … card from it" (`DiscardCardYouChooseTargetEffect(filter).setOptional(true)`: Extract the
+        # Truth): the choice may be nothing (`TargetCard(0, n, …)`)
+        m = re.fullmatch(r'\s*new DiscardCardYouChooseTargetEffect\(([\w.]+)\)\.setOptional\(true\)\s*', expr)
+        if m:
+            return {'class': 'DiscardCardYouChooseTargetEffect', 'filter': self.filter(m.group(1)), 'optional': True}
         # rummage: `DoIfCostPaid` of drawing a card and a discard cost, by name (Battlefield Scavenger)
         if re.fullmatch(r'\s*new RummageEffect\(\)\s*', expr):
             expr = 'new DoIfCostPaid(new DrawCardSourceControllerEffect(1),new DiscardCardCost())'
@@ -6794,6 +6801,11 @@ class Translator:
                     'optional': optional, 'set_target_pointer': pointer}
 
         n = len(args)
+        # (effect, mountsAlso, yourMainPhaseOnly): "whenever this saddles a Mount or crews a Vehicle during your main
+        # phase" (Canyon Vaulter)
+        if cls == 'CrewsVehicleSourceTriggeredAbility' and n == 3 and args[1] in ('true', 'false') \
+                and args[2] in ('true', 'false'):
+            return out({'e': 'crews_vehicle', 'mounts': flag(args[1]), 'main_phase': flag(args[2])}, args[0])
         # "whenever you cast a spell of the filter, … that spell …": a target pointer at the spell
         if cls == 'SpellCastControllerTriggeredAbility' and n == 4 and args[3] == 'SetTargetPointer.SPELL':
             return out({'e': 'spell_cast', 'filter': self.filter(args[1]), 'who': 'you'}, args[0], flag(args[2]), True)
@@ -6826,6 +6838,12 @@ class Translator:
             # (Zone.BATTLEFIELD, effect, optional, filter, pointer): the pointer a flag or `SetTargetPointer`
             # (PERMANENT: at the card it became; PLAYER: at the dying creature's controller)
             # (an emblem's, `Zone.COMMAND`, the same: its triggers wait from the command zone)
+            # (Zone.GRAVEYARD, effect, optional, filter, false): while this card is in its owner's graveyard
+            # (Furious Forebear)
+            if n == 5 and args[0] == 'Zone.GRAVEYARD' and args[3] not in ('true', 'false') \
+                    and args[4] in ('false', 'SetTargetPointer.NONE'):
+                return out({'e': 'dies_all', 'filter': self.filter(args[3]), 'graveyard': True}, args[1],
+                           flag(args[2]))
             if n == 5 and args[0] in ('Zone.BATTLEFIELD', 'Zone.COMMAND') and args[3] not in ('true', 'false'):
                 kind = {'true': 'card', 'false': None, 'SetTargetPointer.PERMANENT': 'card', 'SetTargetPointer.NONE': None,
                         'SetTargetPointer.PLAYER': 'player'}.get(args[4], '?')
@@ -6908,6 +6926,11 @@ class Translator:
             return out({'e': 'sacrificed', 'filter': [{'p': 'not', 'x': {'p': 'another'}}], 'who': 'you'}, args[0],
                        n == 2 and flag(args[1]))
         if cls == 'SacrificePermanentTriggeredAbility':
+            # from its card in its owner's graveyard (Curious Cadaver)
+            if n == 6 and args[0] == 'Zone.GRAVEYARD' and args[4] == 'SetTargetPointer.NONE':
+                return out({'e': 'sacrificed', 'filter': self.filter(args[2]),
+                            'who': self.value('target_controller', args[3]), 'graveyard': True}, args[1],
+                           flag(args[5]))
             if n == 6 and args[0] == 'Zone.BATTLEFIELD' and args[4] in ('SetTargetPointer.NONE', 'SetTargetPointer.PLAYER'):
                 return out({'e': 'sacrificed', 'filter': self.filter(args[2]),
                             'who': self.value('target_controller', args[3])}, args[1], flag(args[5]),
@@ -7865,6 +7888,9 @@ class Translator:
         if cls == 'CommittedCrimeTriggeredAbility' and n == 3 and args[0].strip() == 'Zone.GRAVEYARD':
             return out({'e': 'committed_crime', 'graveyard': True}, args[1], flag(args[2]))
         if cls in ('SurveilTriggeredAbility', 'ScryTriggeredAbility') and n in (1, 2):
+            # (Zone.GRAVEYARD, effect): from its card in its owner's graveyard (Blood Operative)
+            if n == 2 and cls == 'SurveilTriggeredAbility' and args[0].strip() == 'Zone.GRAVEYARD':
+                return out({'e': 'you_surveil_or_scry', 'surveil': True, 'graveyard': True}, args[1])
             if n == 2 and cls == 'SurveilTriggeredAbility':
                 raise Unsupported(cls + ' ' + args[0])
             return out({'e': 'you_surveil_or_scry', 'surveil': cls == 'SurveilTriggeredAbility'}, args[0],
