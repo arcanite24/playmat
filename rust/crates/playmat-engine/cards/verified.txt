@@ -7587,6 +7587,7 @@ Merciless Executioner
 Merciless Javelineer
 Merciless Repurposing
 Merciless Resolve
+Mercurial Chemister
 Mercurial Geists
 Mercurial Pretender
 Mercurial Spelldancer
@@ -7653,6 +7654,7 @@ Midnight Scavengers
 Midnight Snack
 Midnight Tilling
 Might Beyond Reason
+Might Makes Right
 Might of Murasa
 Might of the Ancestors
 Might of the Masses
@@ -8099,6 +8101,7 @@ Necropanther
 Necropolis Regent
 Necrosquito
 Necrosynthesis
+Necrotic Fumes
 Necrotic Wound
 Needle Spires
 Needlethorn Drake
@@ -9140,6 +9143,7 @@ Protective Parents
 Protective Response
 Protege's Awakening
 Protocol Knight
+Proud Wildbonder
 Proven Combatant
 Provisions Merchant
 Provoke the Trolls
@@ -9433,6 +9437,7 @@ Rankle and Torbran
 Rankle's Prank
 Rankle, Master of Pranks
 Rapacious Dragon
+Raph & Leo, Sibling Rivals
 Raphael's Technique
 Raphael, Ninja Destroyer
 Raphael, Tough Turtle
@@ -10637,6 +10642,7 @@ Setessan Training
 Settle the Score
 Settle the Wreckage
 Seven Dwarves
+Seven of Nine, Unassimilated
 Seven-Tail Mentor
 Severance Priest
 Severed Strands
@@ -11157,6 +11163,7 @@ Smite the Monstrous
 Smitten Swordmaster
 Smog Elemental
 Smoke Teller
+Smoky Lounge // Misty Salon
 Smoldering Efreet
 Smoldering Egg
 Smoldering Marsh
@@ -11702,6 +11709,7 @@ Stonewise Fortifier
 Stonework Packbeast
 Stony Strength
 Stony-Voiced Goblins
+Stop Cold
 Storm Caller
 Storm Fleet Aerialist
 Storm Fleet Arsonist
@@ -11881,6 +11889,7 @@ Sunder the Gateway
 Sunderflock
 Sundering Archaic
 Sundering Growth
+Sundering Stroke
 Sundial, Dawn Tyrant
 Sundown Pass
 Sunfall
@@ -12201,6 +12210,7 @@ Teferi, Master of Time
 Teferi, Temporal Pilgrim
 Teferi, Time Raveler
 Teferi, Timebender
+Teferi, Who Slows the Sunset
 Teleportal
 Teleportation Circle
 Tellah, Great Sage
@@ -12528,6 +12538,7 @@ Thor, God of Thunder
 Thorin Oakenshield
 Thorin's Last Stand
 Thorin, Mountain-king
+Thorn Elemental
 Thorn Lieutenant
 Thorn Mammoth
 Thornbow Archer
@@ -13528,6 +13539,7 @@ Vnwxt, Verbose Host
 Voda Sea Scavenger
 Vodalian Arcanist
 Vodalian Hexcatcher
+Vohar, Vodalian Desecrator
 Voice of Resurgence
 Voice of Victory
 Voice of the Blessed
@@ -13544,6 +13556,7 @@ Void Winnower
 Voidforged Titan
 Voidwalk
 Voidwielder
+Voidwing Hybrid
 Voja, Jaws of the Conclave
 Volatile Arsonist
 Volatile Fault

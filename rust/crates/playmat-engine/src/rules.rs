@@ -25328,8 +25328,13 @@ fn proliferate(game: &mut Game, d: &mut dyn Decider, seat: Seat) -> bool {
         }
     }
     // `PROLIFERATED`: "whenever you proliferate"
-    let fired =
-        game.triggers(game.trigger_sources(), |_, _, you, t| matches!(t, Trigger::YouProliferate) && you == seat);
+    // (a card's in its owner's graveyard too: Voidwing Hybrid's "return this from your graveyard")
+    let mut sources = game.trigger_sources();
+    sources.extend(game.player(seat).graveyard.iter().copied());
+    let fired = game.triggers(sources, |g, src, you, t| {
+        matches!(t, Trigger::YouProliferate { graveyard } if *graveyard == (g.obj(src).zone == Zone::Graveyard))
+            && you == seat
+    });
     game.pending.extend(fired);
     true
 }
@@ -25471,7 +25476,16 @@ fn combat_damage(game: &mut Game, d: &mut dyn Decider, first: bool) {
         // `applies` in turn, some asking) has it deal its damage as though it weren't blocked
         if !blockers.is_empty() {
             let mut unblocked = false;
-            for (seat, asks) in cards::damage_not_blocked(game, a) {
+            // its own `DamageAsThoughNotBlockedAbility` asks its controller first; a yes skips the as-though effects
+            if game.has_ability(a, &AbilityDef::DamageAsThoughNotBlockedAbility) {
+                let message = format!("Have {} assign damage as though it weren't blocked?", log::object(game, a));
+                let seat = game.obj(a).controller;
+                match choose_use(game, d, seat, &message) {
+                    Some(b) => unblocked = b,
+                    None => return,
+                }
+            }
+            for (seat, asks) in if unblocked { Vec::new() } else { cards::damage_not_blocked(game, a) } {
                 let yes = if asks {
                     let message = format!("Have {} assign damage as though it weren't blocked?", log::object(game, a));
                     match choose_use(game, d, seat, &message) {

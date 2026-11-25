@@ -1299,7 +1299,11 @@ pub enum Trigger {
     /// a creature you control explores (`CreatureExploresTriggeredAbility`, `EXPLORED`)
     Explores,
     /// you proliferate (`ProliferatedControllerTriggeredAbility`, `PROLIFERATED`)
-    YouProliferate,
+    YouProliferate {
+        /// it triggers from its owner's graveyard instead of the battlefield (`Zone.GRAVEYARD`: Voidwing Hybrid)
+        #[serde(default)]
+        graveyard: bool,
+    },
     /// you get one or more {E} (`COUNTERS_ADDED` of energy on you: Fabrication Module's own trigger class)
     YouGetEnergy,
     /// this attacks for the first time each turn (`AttacksFirstTimeTriggeredAbility`)
@@ -5552,6 +5556,9 @@ pub enum AbilityDef {
     ReadAheadAbility,
     /// skulk: can't be blocked by creatures with greater power
     SkulkAbility,
+    /// "You may have {this} assign its combat damage as though it weren't blocked." (Thorn Elemental): asked as its
+    /// combat damage is assigned with blockers (`CombatGroup.assignDamageToBlockers`)
+    DamageAsThoughNotBlockedAbility,
     /// intimidate: can be blocked only by artifact creatures and creatures that share a color with it
     IntimidateAbility,
     /// decayed: can't block (its attack trigger is listed on its own)
