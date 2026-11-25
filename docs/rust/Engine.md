@@ -1558,10 +1558,11 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   Wave 19a (24 Nov): first the 71 verified cards upstream changed (`upstream-pending.txt` after the 23 Nov merge),
   translated again from the current Java (`upstream_ledger.py requeue`), then cards A to L rejected on an `effect`
   statement. Four factory rounds (155 games, 139 matching) verified 65 of the 71 again and 8 new cards: 14,135 of
-  the 14,167 in the engine, none waiting on upstream. Rounds 3 and 4 were hand-made: Liliana, the Necromancer's −7,
+  the 14,167 in the engine, and `upstream-pending.txt` is empty again (but see the prepare cards below). Rounds 3 and 4 were hand-made: Liliana, the Necromancer's −7,
   Squirming Emergence and Beluna Grandsquall's Seek Thrills, and the deck pairs of five checked-in games that the
-  requeued cards broke (recorded again from the current Java, same file names). Engine and transpiler pieces, each
-  with a game under `shadow/wave19a/`:
+  requeued cards broke (recorded again from the current Java, same file names). Engine and transpiler pieces, with
+  ten games under `shadow/wave19a/` (Kurkesh, Black Sun's Twilight, Liliana, Change of Fortune, Misty Knight's
+  equip with Bladehold War-Whip, Revenge, Driftgloom Coyote, Blood Curdle, Beluna, Illusionist's Bracers):
   - `FilterAbility` stack filters (Kurkesh's "artifact ability"), and `abilities_cost_reduction_controller_effect`
     reading its ability classes from the card (`ability_class_filter` handler args).
   - `OneShotNonTargetEffect` over `graveyards` and with `XManaValueTargetAdjuster`: the `mana_value_x` predicate's
@@ -1578,7 +1579,10 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   - Joined Researchers, Emeritus of Woe, Grave Researcher, Scheming Silvertongue: upstream's 7 Nov change to
     prepare cards (31c3adcc8cf) shows the "choose spell or ability" picker for a prepare card cast from hand (the
     creature as `a1`). Rust casts it directly. All 55 prepare cards in the engine have this, 51 of them still
-    verified, so it needs its own wave (their games recorded again).
+    verified and playing on Rust: their checked-in games pass only because they were recorded before that commit.
+    The ledger has the change as pending engine entries (`PrepareCard`, `PrepareSpellCard`, `CardWithSpellOption`,
+    and `VengeanceCard` beside them), which `check` doesn't turn into pending cards. Fixing it is its own wave: the
+    picker in `rules.rs`'s cast path, then the prepare cards' games recorded again.
   - Dragon's Prey: its one differing game parts on Cooking Campsite (Sidequest: Catch a Fish's back face): Java
     shows the ability picker for its mana ability and Rust doesn't. Not investigated.
   - Loot, the Pathfinder: out of the engine (`ExhaustManaAbility`).
