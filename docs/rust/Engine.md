@@ -2058,9 +2058,9 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   Java class. 18 came in (14,450 in the engine with waves 26a and 26c) and 14 were verified (14,404): Grasp of the
   Hieromancer, Green Dragon, Groundchuck & Dirtbag, Guul Draz Overseer, Hama Pashar, Ruin Seeker, Hoshi Sato,
   Exolinguist, Hundred-Battle Veteran, Jace, Cunning Castaway, Justice, Vance Astrovik, Lolth, Spider Queen, Lyra,
-  Tolarian Archangel, Ms. Marvel, Kamala Khan, Nahiri, Storm of Stone and Paranormal Analyst. Eight rounds on multivac:
-  round 1 factory (52 games), rounds 2 to 8 hand-made (60, 40, 36, 60, 30, 30 and 30 games; decks under
-  `.local/w26b/factory/round-00N/decks`): 332 match, 6 differ. Five are the transforming double-faced card's trigger
+  Tolarian Archangel, Ms. Marvel, Kamala Khan, Nahiri, Storm of Stone and Paranormal Analyst. Nine rounds on multivac:
+  round 1 factory (52 games), rounds 2 to 9 hand-made (60, 40, 36, 60, 30, 30, 30 and 30 games; decks under
+  `.local/w26b/factory/round-00N/decks`): 362 match, 6 differ. Five are the transforming double-faced card's trigger
   order (the recorder gap under wave 22 above): Liliana, Heretical Healer's flip trigger with Workshop Assistant's dies
   trigger (round 1 game 267), Ashen Reaper's (Invasion of Azgol's back) with Parker Luck's end step triggers (round 1
   games 182 and 580), and Journey to Eternity's return with Liliana's and with Lolth's dies triggers (round 2 games 20
@@ -2102,23 +2102,24 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   differing game is its own unrecorded trigger position, not another card's (`ShadowStart.triggerOrder` gives -1 for a
   transforming double-faced card; the fix is `instanceof DoubleFacedCard` in the recorder, a Java change left for its
   own PR). Every one of their abilities ran in matching games (Liliana's flip in 6, +2 in 4, -X in 3; Azgol's enter
-  trigger in 11 and Ashen Reaper's counter in 2; Journey's return, flip and Atzal's ability in 4), so they can go on
-  the list by hand as wave 25b did for Nissa, or once the recorder is fixed. Paladin Class is in the engine and
-  matched in its 44 exercised games of rounds 4 and 5 (the cost increase, both levels, the level 3 attack trigger with
-  Grasp of the Hieromancer's), but round 7 game 25 parts with it: Paladin's and Grasp's attack triggers go on the
-  stack with their targets, Java's active player passes and the other player gets priority, while Rust asks the active
-  player for another "target attacking creature" (four attackers, one of them a Human Warrior token). With Grasp and
-  Paladin both taken as unverified the verdicts blame Paladin, so it stays off until that's understood. Labyrinth
-  Raptor was in round 2's decks and matched in 11 games, but no creature with menace was blocked, so it stays off
-  again. Left out, with what each needs: Kalitas (a token created inside a replacement), Muldrotha (casting a
-  permanent of each type from the graveyard), Maestros Ascendancy (`AIDontUseIt`), Push // Pull (a `Set` order), Green
-  Sun's Twilight and Hatchery Spider (a random bottom order of their own classes), Luxior and Honest Work (layer 4),
-  Niko Defies Destiny (conditional mana), Long River Lurker (a delayed combat damage trigger), Pawpatch Recruit (a
-  trigger's target adjuster), Hedge Whisperer (an animation that lasts while its source stays tapped), Oppressive Rays
-  (a cost increase on mana abilities), Great Train Heist (an extra combat), Ninja's Kunai
-  (`GainAbilityWithAttachmentEffect`), Lightwheel Enhancements (max speed), Mind Grind (a spell's minimum X), Light Up
-  the Night and Ooze Flux (`RemoveVariableCountersTargetCost`), Market Gnome (craft), Pyromancer's Goggles (mana-spent
-  tracking), and the skips of waves 24b and 25b above.
+  trigger in 11 and Ashen Reaper's counter in 2; Journey's return, flip and Atzal's ability in 4), so they can go on the
+  list by hand as wave 25b did for Nissa, or once the recorder is fixed. Paladin Class is in the engine and matched in
+  its 44 exercised games of rounds 4 and 5 (the cost increase, both levels, the level 3 attack trigger with Grasp of the
+  Hieromancer's), but round 7 game 25 parts with it: Paladin's and Grasp's attack triggers go on the stack with their
+  targets, Java's active player passes and the other player gets priority, while Rust asks the active player for another
+  "target attacking creature" (four attackers, one of them a Human Warrior token). With Grasp and Paladin both taken as
+  unverified the verdicts blame Paladin, so it stays off until that's understood. Labyrinth Raptor was in round 2's
+  decks and matched in 11 games, and round 9 put it with six menace creatures against the walls deck: 30 more games
+  match and its pump ran 42 times, but the AI never blocked a menace creature with two creatures, so it stays off again.
+  Left out, with what each needs: Kalitas (a token created inside a replacement), Muldrotha (casting a permanent of each
+  type from the graveyard), Maestros Ascendancy (`AIDontUseIt`), Push // Pull (a `Set` order), Green Sun's Twilight and
+  Hatchery Spider (a random bottom order of their own classes), Luxior and Honest Work (layer 4), Niko Defies Destiny
+  (conditional mana), Long River Lurker (a delayed combat damage trigger), Pawpatch Recruit (a trigger's target
+  adjuster), Hedge Whisperer (an animation that lasts while its source stays tapped), Oppressive Rays (a cost increase
+  on mana abilities), Great Train Heist (an extra combat), Ninja's Kunai (`GainAbilityWithAttachmentEffect`), Lightwheel
+  Enhancements (max speed), Mind Grind (a spell's minimum X), Light Up the Night and Ooze Flux
+  (`RemoveVariableCountersTargetCost`), Market Gnome (craft), Pyromancer's Goggles (mana-spent tracking), and the skips
+  of waves 24b and 25b above.
 
   Wave 25b, Pioneer cards from Goddric, Cloaked Reveler to Ral Zarek, Guest Lecturer (25 Nov): the 374 still
   unverified after wave 24b (waves 25a and 25c take the rest). 13 came in (14,387 in the engine) and 11 were
