@@ -4299,10 +4299,11 @@ impl Game {
         // static handlers' (`card_statics.rs`), by their timestamps with the others; one setting the toughness alone
         // keeps the power the others set
         for (at, bp, bt) in crate::rules::cards::set_pt(self, id) {
-            match bp {
-                Some(bp) => later(at, bp, bt),
-                None if toughness_only.is_none_or(|(s, _)| at >= s) => toughness_only = Some((at, bt)),
-                None => {}
+            match (bp, bt) {
+                (Some(bp), Some(bt)) => later(at, bp, bt),
+                (None, Some(bt)) if toughness_only.is_none_or(|(s, _)| at >= s) => toughness_only = Some((at, bt)),
+                (Some(bp), None) if power_only.is_none_or(|(s, _)| at >= s) => power_only = Some((at, bp)),
+                _ => {}
             }
         }
         if let Some((_, bp, bt)) = set {
