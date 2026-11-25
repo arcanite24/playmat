@@ -19,7 +19,7 @@ In `RustAiGameTest` a game takes 12 to 14 s of wall time, but little of that is 
 
 | | Today |
 |---|---|
-| Cards verified (a game goes to Rust only with these) | 14,177 of the 14,214 in the engine, less 51 prepare and vengeance cards that wait on Java's spell-or-ability choice (14,126 play on Rust; `upstream-pending.txt`, #510): the 881 of the gate run (the Career school decks, the shadow-test decks, the meta and starter decks) and 12,093 more from the verification factory (Engine.md). Upstream's 7 Nov change to prepare cards isn't in the engine yet, and the 51 verified prepare cards still play on Rust (Engine.md, wave 19a) |
+| Cards verified (a game goes to Rust only with these) | 14,174 of the 14,214 in the engine, less 51 prepare and vengeance cards that wait on Java's spell-or-ability choice (14,123 play on Rust; `upstream-pending.txt`, #510): the 881 of the gate run (the Career school decks, the shadow-test decks, the meta and starter decks) and 12,090 more from the verification factory (Engine.md). Upstream's 7 Nov change to prepare cards isn't in the engine yet, and the 51 verified prepare cards still play on Rust (Engine.md, wave 19a) |
 | Pioneer and Standard meta decks the AI picks from (`public/meta-decks`) | 24 of 24 fully covered (tiers 31 to 33) |
 | Modern meta decks | 12 of 12 fully covered (tiers 34 to 38) |
 | A player's own Modern decks the AI draws from with "every deck" (Domain Zoo, Esper Goryos, Izzet Prowess; main decks) | 3 of 3 fully covered (tier 40) |

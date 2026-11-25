@@ -7377,7 +7377,6 @@ Mardu Skullhunter
 Mardu Strike Leader
 Mardu Warshrieker
 Mardu Woe-Reaper
-Marina Vendrell
 Marionette Master
 Maritime Guard
 Mark for Death
@@ -8287,7 +8286,6 @@ Oath of Teferi
 Oath of the Ancient Wood
 Oathsworn Knight
 Oathsworn Vampire
-Ob Nixilis Reignited
 Ob Nixilis's Cruelty
 Ob Nixilis, Captive Kingpin
 Ob Nixilis, Unshackled
@@ -12142,7 +12140,6 @@ Teferi, Master of Time
 Teferi, Temporal Pilgrim
 Teferi, Time Raveler
 Teferi, Timebender
-Teferi, Who Slows the Sunset
 Teleportal
 Teleportation Circle
 Tellah, Great Sage

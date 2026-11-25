@@ -268,11 +268,11 @@
  },
  "counted": {
   "engine_cards": 14214,
-  "verified_cards": 14126,
+  "verified_cards": 14123,
   "pioneer": {
    "cards": 15259,
    "in_engine": 14012,
-   "verified": 13925
+   "verified": 13922
   },
   "java_card_files": 32849,
   "school": {
@@ -1065,6 +1065,6 @@
    ]
   }
  },
- "commit": "21fb0744012144cb448eb65c63586bde416a23db",
+ "commit": "523a2868b950ee41e40532b3317cdf6661d36cde",
  "generated": "2026-11-24"
 }

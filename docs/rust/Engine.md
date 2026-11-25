@@ -1587,23 +1587,31 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   (`CantAttackAttachedEffect`), "cards in graveyards can't be the targets of spells or abilities"
   (`CantBeTargetedCardsGraveyardsEffect`, read by `possible_targets`) and `CreateXXTokenExiledEffectManaValueEffect`
   (Severance Priest), and `AddCardSubtypeAllEffect` with no filter text (Ragost, Deft Gastronaut). A full transpile changes or drops no other card; it adds two more cards those pieces unlock (Keys to the
-  House, Dennick, Pious Apprentice), left for their own waves. Four rounds (156 games, 136 matching) verified 16:
-  14,177 of 14,214 with waves 19a and 19b. Rounds were recorded on multivac. Round 4 was hand-made (Marina Vendrell with mana creatures and
-  Rooms, and the round 1 decks of Ob Nixilis Reignited and Undercover Skrull without Harmonized Trio). One game per card
-  is under `shadow/wave20b/`.
+  House, Dennick, Pious Apprentice), left for their own waves. Five rounds (176 games, 156 matching) verified 13:
+  14,174 of 14,214 with waves 19a and 19b. Rounds were recorded on multivac. Rounds 4 and 5 were hand-made: Marina
+  Vendrell with mana creatures and Rooms, the round 1 decks of Ob Nixilis Reignited and Undercover Skrull without
+  Harmonized Trio, then Marina, Ob Nixilis and Teferi against walls so the planeswalkers live. One game per card is
+  under `shadow/wave20b/`, the three cards left unverified below included.
 
-  Ob Nixilis Reignited and Undercover Skrull are verified although one game each was blamed on them: both part on
+  Undercover Skrull is verified although one game was blamed on it (Ob Nixilis Reignited had one too): both part on
   Harmonized Trio, a prepare card, when Java shows its "Choose spell or ability to play" picker as it's cast
   (upstream's 31c3adcc8cf, see wave 19a). Stingerquill Voxmancer parts the same way in two more games. Both are in
   `upstream-pending.txt` now (#510).
 
   Not verified:
+  - Teferi, Who Slows the Sunset, Ob Nixilis Reignited and Marina Vendrell: their games match, but no matching game
+    reached Teferi's −7 or Ob Nixilis's −8 (the AI didn't take them, at loyalty 7 and 8 in round 5) or Marina's
+    "lock or unlock a door" (activated once, after a game had already parted). So the emblem pieces
+    (`command_static`, `DrawsOnOpponentsTurnEffect`, `GetEmblemTargetPlayerEffect`, the emblem's draw trigger) and
+    the door handler have no matching game yet.
   - Silent Gravestone: three games differ (a creature spell Java casts that Rust doesn't offer, a copy's sacrifice
     ability, the mana-pool question); not run down.
   - Retro-Mutation: once it leaves, the creature it enchanted has its power back in Java (2/2) but not in Rust (1/1).
   - Smoky Lounge // Misty Salon: one game where Java casts a spell Rust doesn't.
   - Also seen: a Room exiled by Release to the Wind is cast (Locker Room) from exile in Java but not in Rust (both
-    verified cards; round 4). Seven round 4 games had a Java deck that loaded empty on multivac and were left out.
+    verified cards; round 4). Seven round 4 games had a Java deck that loaded empty on multivac (no evidence either way).
+  - Spider-Woman, Secret Agent's "can't become untapped" is kept as "doesn't untap during its controller's untap
+    step" while you control her: an untap effect would still untap the creature.
 
   Left out: Tamiyo, Compleated Sage (`{G/U/P}` mana isn't supported), and the rest of the 240 cards, whose engine piece
   is large (spell-granted abilities, alternative and next-turn casting, `HashSet` and random orders, layer 4 type
