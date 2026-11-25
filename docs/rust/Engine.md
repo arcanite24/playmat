@@ -2047,6 +2047,55 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
     which creature the Aura goes on. Of the 92 new games, 86 match before the Serah change and 90 after it; the
     two left are those.
 
+  Wave 23c, Pioneer cards from Ral Zarek, Guest Lecturer to Zurgo, Thunder's Decree (25 Nov): 398 unverified Pioneer
+  cards (waves 23a and 23b take the rest). A probe (a stub handler for every short card-specific class) sorted them
+  by blocker. 11 came in (14,311 in the engine) and all 11 were verified (14,277): Razorlash Transmogrant, Retched
+  Wretch, Seafloor Stalker, Slumbering Trudge, Sphinx of the Guildpact, Super-Adaptoid, Teachings of the Kirin,
+  Thrun, Breaker of Silence, Tokka & Rahzar, Terrible Twos, Turn Inside Out and Wonder Man, Hollywood Hero. Four
+  rounds: round 1 factory on multivac (51 games, with the pending 22b cards), rounds 2 to 4 hand-made on this Mac (40,
+  24 and 24 games; decks under `.local/w23c/factory/round-00N/decks`): 133 match, 6 differ (all round 1, blamed on
+  Vorinclex, Rambling Possum and Retro-Mutation). The 8 games under `shadow/wave23c/` cover each card. The pieces:
+  - Handlers: Teachings of the Kirin's Orochi (exile a graveyard card, then a reflexive Spirit token or +1/+1
+    counter), Retched Wretch's (its -1/-1 counters as it last was, returned under its owner with all abilities lost,
+    as Abigale's), Thrun's can't-be-targeted (by a stack object an opponent controls whose source isn't green; the
+    playable check of a spell in hand has no stack object, so nothing stops it there, as in Java), Tokka & Rahzar's
+    mana-spent predicate, Slumbering Trudge's X condition, Super-Adaptoid's (its keyword counters in Java's order)
+    and its legendary-creature count, Wonder Man's.
+  - Power-up: `Obj::powered_up` is now a count, and `PowerUpAbility` can be activated while the count is below
+    `MAX_ACTIVATIONS` (1, or 2 under Wonder Man for its controller). Without Wonder Man nothing changes.
+  - Transpiler: `WhenTargetDiesDelayedTriggeredAbility(…).setTriggerPhrase(…)` keeps its phrase (Turn Inside Out);
+    the color branch covers colorless-cost cards with `this.color.setX(true)` (Sphinx of the Guildpact); cost
+    adjusters for Seafloor Stalker (party count) and Razorlash Transmogrant (an opponent's four nonbasic lands, so
+    `all` on the permanents condition: without it the count was only yours and every round 4 game parted).
+  - Replays load the start's graveyards: two Quicksilver, Brash Blur in an opening hand both begin on the
+    battlefield and the legend rule puts one in the graveyard before the first priority. The replay dropped it, so
+    the game parted at entry 0 (kept in `shadow/wave23c/`). Only the test harness changes.
+  No verified card changes: a full transpile changes and drops none (it also adds Death to Our Enemies).
+
+  Silent Gravestone matched in all 29 games here (20 exercised) but stays unverified: wave 22b's games blamed it
+  (documented earlier). Seen on the way: with Vorinclex, Monstrous Raider on the battlefield, a Saga's lore counter
+  as it enters differs (Java doubles it for Vorinclex's controller and doesn't halve it for an opponent, Rust the
+  reverse); Vorinclex isn't verified. Left out, with what each needs:
+  - No mill event (The Water Crystal), explore event (Twists and Turns), create-token event (Worldwalker Helm),
+    station event (Tapestry Warden) or counters-on-players event (Winding Constrictor); a replacement that asks
+    (Underrealm Lich).
+  - Durations: "until the end of your next turn" (Sphinx's Decree, Single Combat, Teferi, Timeless Voyager) and
+    "for as long as the source stays" (Skilled Animator, Unctus's Retrofitter).
+  - `GainAbilityWithAttachmentEffect` (Spare Dagger, Sunfire Torch, Trickster's Talisman, Trusty Boomerang, The
+    Dominion Bracelet); layer 6 removing abilities (Sludge Monster, Spark Rupture, which also changes types);
+    a restriction that reads the defender (The Aetherspark, Tomik, Orzhov Lawmage); `CastFromHandSourcePermanentCondition`,
+    unmapped on purpose (Scion of Vitu-Ghazi, Wakening Sun's Avatar).
+  - Tomik, Distinguished Advokist (graveyard-target and play-land-from-graveyard rules), Vengeful Strangler
+    (return transformed and attached), Saheeli's Lattice (craft materials), Starfleet Academy and Saavik (a count
+    over subtypes), Sanctuary Warden and Soul Diviner (removing a counter of any kind, chosen from a `HashMap`),
+    Sinister Possession (blocks-attached trigger), Spectra Ward (protection that keeps Auras), Venerated Loxodon and
+    Zephyr Singer (convoked creatures).
+  - Randomness and orders: Tajuru Paragon (random bottom order), Ral Zarek, Guest Lecturer (coin flips, skipped
+    turns), Rampage of the Clans and others (`HashMap`/`HashSet` in their own classes).
+  - Phyrexian mana (Tamiyo, Compleated Sage, Unctus, Grand Metatect, Ria Ivor), layer 4 type changes (Werewolf Pack
+    Leader, Wild Shape, Tenth District Hero, Xu-Ifit, Tune Up, Toph), triggers that extend `TriggeredAbilityImpl`
+    themselves, and the long tail of single-handler cards, not reached.
+
   Wave 15, shared forms A (15 Nov): framework forms that block several of the claim's cards, then card classes,
   built in four slices. Ending the turn (`EndTurnEffect`, `Turn.endTurn`: `Game::end_turn`; every spell on the stack
   exiled, the resolving one too, abilities removed, combat left, the waiting triggers dropped; priority stops after
