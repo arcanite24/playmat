@@ -4799,7 +4799,15 @@ impl Game {
                     }
                 }
             }
-            // (a card in a graveyard triggers as that card), each in its place in Java's trigger order
+            // (a card in a graveyard triggers as that card, Hushbringer stopping it too), each in its place in Java's
+            // trigger order
+            let mut from_graveyard = from_graveyard;
+            let mut from: Vec<ObjId> = from_graveyard.iter().map(|t| t.card).collect();
+            let before = from.clone();
+            self.dont_cause_triggers(id, true, &mut from);
+            if from != before {
+                from_graveyard.retain(|t| from.contains(&t.card));
+            }
             for t in from_graveyard {
                 let k = self.trigger_key(&t);
                 let at = fired.iter().position(|f| self.trigger_key(f) > k).unwrap_or(fired.len());

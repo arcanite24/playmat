@@ -19,7 +19,8 @@
 //! - **costs**: `Handler::cost(name, CostKind::…, applies, apply)`, in `CostModificationType` order (increases, then
 //!   reductions, then sets) after the engine's own of that kind, for spells (`rules::modified_cost_of`, the spell's
 //!   own static abilities too: "this spell costs {2} less") and activated abilities (`adjusted_mana_cost_own`).
-//! - **restrictions**: `Handler::restriction(name, applies, &[Restrict::…])`: `rules::can_block`, `can_attack`.
+//! - **restrictions**: `Handler::restriction(name, applies, &[Restrict::…])`: `rules::can_block`, `can_attack`,
+//!   `transform`.
 //! - **rule-modifying**: `Handler::rule(name, Rule::CantCast(f))`: `rules::castable` (and the cast itself);
 //!   `Rule::CantCastOnStack(f)`: only the cast itself, after its targets (`CAST_SPELL_LATE` reading the spell);
 //!   `Rule::CantActivate(f)`: `rules::activatable` (activated abilities that aren't mana abilities);
@@ -231,6 +232,9 @@ pub(crate) enum EventType {
     /// statics already apply (`PermanentImpl.transform`, before `TRANSFORMED`). Nothing to change: a replacement
     /// does something as it transforms ("as this creature transforms into …": Sephiroth's emblem)
     Transforming,
+    /// `LOSES`: `player` would lose the game (the state-based check, `PlayerImpl.lost` through `canLose`); "replaced"
+    /// and they don't (Exquisite Archangel). Not when another player wins (`lostForced`)
+    Loses,
 }
 
 /// The event a replacement handler sees and may change (Java's `GameEvent`)
@@ -386,6 +390,8 @@ pub(crate) enum Restrict {
     CantBlock(fn(&Game, &StaticCx, ObjId, ObjId) -> bool),
     /// `canAttack` is false
     CantAttack(fn(&Game, &StaticCx, ObjId) -> bool),
+    /// `canTransform` is false (`PermanentImpl.checkTransformRestrictionEffects`)
+    CantTransform(fn(&Game, &StaticCx, ObjId) -> bool),
 }
 
 pub(crate) struct Restriction {
@@ -798,7 +804,7 @@ pub(crate) fn cant_block(game: &Game, blocker: ObjId, attacker: ObjId) -> bool {
             out = restrict.iter().any(|r| match r {
                 Restrict::CantBeBlocked(f) => applies(game, cx, attacker) && f(game, cx, attacker, blocker),
                 Restrict::CantBlock(f) => applies(game, cx, blocker) && f(game, cx, blocker, attacker),
-                Restrict::CantAttack(_) => false,
+                Restrict::CantAttack(_) | Restrict::CantTransform(_) => false,
             });
         }
     });
@@ -816,6 +822,22 @@ pub(crate) fn cant_attack(game: &Game, attacker: ObjId) -> bool {
             out = restrict
                 .iter()
                 .any(|r| matches!(r, Restrict::CantAttack(f) if applies(game, cx, attacker) && f(game, cx, attacker)));
+        }
+    });
+    out
+}
+
+/// Whether a handler's restriction says the permanent `id` can't transform
+pub(crate) fn cant_transform(game: &Game, id: ObjId) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        if out {
+            return;
+        }
+        if let Hook::Restriction(Restriction { applies, restrict }) = h {
+            out = restrict
+                .iter()
+                .any(|r| matches!(r, Restrict::CantTransform(f) if applies(game, cx, id) && f(game, cx, id)));
         }
     });
     out

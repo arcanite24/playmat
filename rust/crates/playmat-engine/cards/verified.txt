@@ -788,6 +788,7 @@ Aven Gagglemaster
 Aven Heartstabber
 Aven Initiate
 Aven Interrupter
+Aven Mindcensor
 Aven Reedstalker
 Aven Sentry
 Aven Skirmisher
@@ -1264,6 +1265,7 @@ Blood Host
 Blood Hustler
 Blood Hypnotist
 Blood Mist
+Blood Operative
 Blood Pact
 Blood Petal Celebrant
 Blood Price
@@ -1328,6 +1330,7 @@ Bloomvine Regent
 Blossom Dryad
 Blossom Prancer
 Blossom-Blessed Angel
+Blossombind
 Blossoming Defense
 Blossoming Sands
 Blossoming Tortoise
@@ -1759,6 +1762,7 @@ Canyon Jerboa
 Canyon Lurkers
 Canyon Minotaur
 Canyon Slough
+Canyon Vaulter
 Caparocti Sunborn
 Capashen Knight
 Capenna Express
@@ -2620,6 +2624,7 @@ Curator of Mysteries
 Curator's Ward
 Curio Vendor
 Curiosity
+Curious Cadaver
 Curious Colossus
 Curious Farm Animals
 Curious Forager
@@ -3136,6 +3141,7 @@ Dismiss into Dream
 Dismissive Pyromancer
 Disowned Ancestor
 Dispel
+Dispelling Exhale
 Dispersal Technician
 Disperse
 Displace
@@ -3189,6 +3195,7 @@ Djinn of Fool's Fall
 Djinn of Wishes
 Djinn of the Fountain
 Djinni Windseer
+Doc Aurlock, Grizzled Genius
 Doc Ock's Henchmen
 Doc Ock's Tentacles
 Doc Ock, Sinister Scientist
@@ -3821,6 +3828,7 @@ Ephara's Dispersal
 Ephara's Enlightenment
 Ephara's Radiance
 Ephara's Warden
+Ephara, God of the Polis
 Ephemeral Shields
 Ephemerate
 Epic Confrontation
@@ -3995,6 +4003,7 @@ Extinguish All Hope
 Extinguish the Light
 Extinguisher Battleship
 Extract a Confession
+Extract the Truth
 Extravagant Replication
 Extricator of Sin
 Exuberant Fuseling
@@ -4612,6 +4621,7 @@ Frostfist Strider
 Frostpeak Yeti
 Frostpyre Arcanist
 Frostveil Ambush
+Frozen in Ice
 Fruit of Tizerus
 Fry
 Fuel the Flames
@@ -4634,6 +4644,7 @@ Fungal Infection
 Fungal Plots
 Fungal Rebirth
 Furious Bellow
+Furious Forebear
 Furious Reprisal
 Furious Resistance
 Furious Rise

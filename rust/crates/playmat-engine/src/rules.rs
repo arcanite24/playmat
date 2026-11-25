@@ -20864,11 +20864,10 @@ fn sacrifice(game: &mut Game, id: ObjId) {
         matches!(t, Trigger::Sacrificed { filter, who: w, graveyard: false } if Game::whose(w, you, who) && g.filter_matches(filter, you, Some(src), id))
     });
     // "when you sacrifice …" of a card in its owner's graveyard (Curious Cadaver)
-    let grave: Vec<ObjId> =
-        (0..game.seats())
-            .flat_map(|p| game.player(p).graveyard.clone())
-            .filter(|o| *o != id && !game.short_lki.contains(o))
-            .collect();
+    let grave: Vec<ObjId> = (0..game.seats())
+        .flat_map(|p| game.player(p).graveyard.clone())
+        .filter(|o| *o != id && !game.short_lki.contains(o))
+        .collect();
     let fired_grave = game.triggers(grave, |g, src, you, t| {
         g.obj(src).zone == Zone::Graveyard
             && matches!(t, Trigger::Sacrificed { filter, who: w, graveyard: true } if Game::whose(w, you, who) && g.filter_matches(filter, you, Some(src), id))
@@ -26070,6 +26069,10 @@ fn transform(game: &mut Game, id: ObjId) {
     if game.obj(id).copied_def.is_some() {
         return;
     }
+    // "can't transform" (Bound by Moonsilver): a restriction stops it, day and night's too
+    if cards::cant_transform(game, id) {
+        return;
+    }
     // its abilities waiting or on the stack keep the face they came from
     let old = game.obj(id).def.clone();
     for t in Arc::make_mut(&mut game.stack).iter_mut().chain(game.pending.iter_mut()) {
@@ -26620,6 +26623,14 @@ pub fn state_based_actions(game: &mut Game) -> bool {
             // 704.5a-c: 0 or less life, drawing from an empty library, ten or more poison counters
             // "you can't lose the game" (`PlayerImpl.canLose`: `LOSES` replaced); the empty library stays drawn from
             if !p.lost && (p.life <= 0 || p.drew_from_empty || poisoned) && !cards::cant_lose_or_win(game, s, false) {
+                // `LOSES` replaced: they stay in (and the next check sees them again)
+                if cards::any_replacement(game, cards::EventType::Loses) {
+                    let mut ev = cards::Event::new(cards::EventType::Loses, s);
+                    if cards::replace_event(game, &mut ev, 0) {
+                        continue;
+                    }
+                }
+                let p = game.player(s);
                 if log::kept(game) {
                     // `GameImpl.checkStateBasedActions`, `PlayerImpl.lost`: the last reason that holds is logged
                     let why = if poisoned {
