@@ -191,6 +191,8 @@ pub struct Obj {
     pub p1p1_added: bool,
     /// it has flashback for its mana cost this turn (Stingcaster Mage), while it stays in the graveyard
     pub flashback_turn: Option<u32>,
+    /// that flashback costs {0} instead of its mana cost (Archmage's Newt while saddled)
+    pub flashback_free: bool,
     /// a Case that was solved
     pub solved: bool,
     /// what it was before an effect changed its characteristics (`def`) until end of turn
@@ -1890,6 +1892,7 @@ impl Game {
             power_lki: None,
             p1p1_added: false,
             flashback_turn: None,
+            flashback_free: false,
             solved: false,
             until_end_of_turn_def: None,
             lost_all: 0,
@@ -3155,9 +3158,10 @@ impl Game {
             out.push((k.unwrap_or(1), f));
         }
         if o.flashback_turn == Some(self.turn) {
+            let cost = if o.flashback_free { crate::card::ManaCost::parse("{0}").unwrap_or_default() } else { o.def.cost.clone() };
             out.push((
                 o.def.abilities.len(),
-                CardDef { printed_cost: Some(o.def.printed().clone()), ..(*o.def).clone() },
+                CardDef { cost, printed_cost: Some(o.def.printed().clone()), ..(*o.def).clone() },
             ));
         }
         out
@@ -4991,6 +4995,7 @@ impl Game {
             }
             o.on_adventure = false;
             o.flashback_turn = None;
+            o.flashback_free = false;
             o.solved = false;
             o.exile_instead_of_dying = false;
             o.unearthed = false;

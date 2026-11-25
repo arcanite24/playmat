@@ -4774,6 +4774,11 @@ class Translator:
         cls, args = m.group(1), [a.strip() for a in split_args(m.group(2))] if m.group(2).strip() else []
         if cls == 'ReturnSourceFromGraveyardToHandEffect' and not args:
             return {'class': 'ReturnToHandSourceEffect', 'battlefield_only': False}
+        # "put this card from your graveyard on top of your library" (Gate Colossus's graveyard trigger): the engine's
+        # effect moves its source only from the graveyard, so only a trigger that works there takes it
+        if cls == 'PutOnLibrarySourceEffect' and args and args[0] in ('true', 'false') and len(args) <= 2 \
+                and getattr(self, 'trigger_zone', None) == 'Zone.GRAVEYARD':
+            return {'class': 'PutOnLibrarySourceEffect', 'top': args[0] == 'true'}
         # `returnFromNextZone`: the source in the zone it went to (a leaves trigger's source is that object already)
         if cls == 'ReturnToHandSourceEffect' and len(args) == 2 and args[0] in ('true', 'false') and args[1] == 'true':
             return {'class': 'ReturnToHandSourceEffect', 'battlefield_only': args[0] == 'true'}
@@ -5833,7 +5838,11 @@ class Translator:
         # (Zone.GRAVEYARD, effect, filter, optional): it triggers from its owner's graveyard (Prized Amalgam)
         if cls == 'EntersBattlefieldAllTriggeredAbility' and len(args) == 4 and args[0].strip() == 'Zone.GRAVEYARD' \
                 and args[3].strip() in ('true', 'false'):
-            a = self.ability('new ' + cls + '(' + ','.join(args[1:]) + ')')
+            self.trigger_zone = 'Zone.GRAVEYARD'
+            try:
+                a = self.ability('new ' + cls + '(' + ','.join(args[1:]) + ')')
+            finally:
+                self.trigger_zone = None
             a['on']['graveyard'] = True
             return a
         if cls == 'EntersBattlefieldAllTriggeredAbility' and len(args) == 5 and args[0].strip() == 'Zone.BATTLEFIELD' \
@@ -9139,6 +9148,10 @@ def ability_statement(t, st, added):
     # (a dependency only orders Java's layer system; the engine reads each effect where it's asked)
     m = re.fullmatch(r'(\w+)\.(?:set(?:Outcome|Text|TargetPointer|RuleAtTheTop|AbilityWord)|addHint|concatBy|withFlavorWord|withTargetDescription|withFirstModeFlavorWord'
                      r'|getModes\(\)\.getMode\(\)\.withFlavorWord|getDependedToTypes\(\)\.add|addDependedToType|setDependedToType)\(.*\)', st)
+    if m and m.group(1) in t.vars:
+        return True
+    # (a mana ability's undo is the human client's rollback of a payment: nothing the game rules see; Ether)
+    m = re.fullmatch(r'(\w+)\.setUndoPossible\(false\)', st)
     if m and m.group(1) in t.vars:
         return True
     # backup: an ability the card has and the backup target gains (`BackupAbility.addAbility`; with `true`, only
