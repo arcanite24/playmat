@@ -644,7 +644,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                         (if *player { alone_at_player && g.obj(a).attacking_pw.is_none() } else { alone })
                             && g.filter_matches(filter, you, Some(src), a)
                     }
-                    Trigger::AttacksAttached => g.attached(src) == Some(a),
+                    Trigger::AttacksAttached | Trigger::AttacksOrBlocksAttached => g.attached(src) == Some(a),
                     Trigger::AttacksThisOrAttached => src == a || g.attached(src) == Some(a),
                     _ => false,
                 });
@@ -8632,6 +8632,10 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             for c in chosen {
                 game.move_to(c, Zone::Exile);
             }
+            // `EVIDENCE_COLLECTED`, for the payer's "whenever you collect evidence" (Surveillance Monitor)
+            let sources = game.trigger_sources();
+            let fired = game.triggers(sources, |_, _, you, t| matches!(t, Trigger::CollectEvidence) && you == seat);
+            game.pending.extend(fired);
         }
         CostDef::DiscardSourceCost => game.move_to(id, Zone::Graveyard),
         // `PlayerImpl.discard(hand, true, …)`: each card in hand order, then the batch
@@ -25465,6 +25469,7 @@ fn block_triggers(game: &mut Game) {
         let sources = game.trigger_sources();
         let fired = game.triggers(sources, |g, src, you, t| match t {
             Trigger::Blocks | Trigger::AttacksOrBlocks | Trigger::BlocksOrBecomesBlocked => src == b,
+            Trigger::AttacksOrBlocksAttached => g.attached(src) == Some(b),
             Trigger::BlocksAll { filter } => g.filter_matches(filter, you, Some(src), b),
             _ => false,
         });

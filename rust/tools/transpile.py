@@ -1744,6 +1744,12 @@ def canonical(text):
     return re.sub(r'^(\w+) \.(?=[a-z])', r'\1.', ''.join(out).strip())
 
 
+def locked_in(cond):
+    """`new LockedInCondition(c)`'s condition: read once as a one-shot effect resolves, as any condition there is"""
+    m = re.fullmatch(r'new LockedInCondition\((.*)\)', canonical(cond.strip()), re.S)
+    return m.group(1) if m else cond
+
+
 def split_args(text):
     out, depth, start, quote, escaped = [], 0, 0, False, False
     for i, c in enumerate(text):
@@ -4669,6 +4675,19 @@ class Translator:
         if cls in ('CantBlockAllEffect', 'CantBeBlockedAllEffect') and len(args) in (2, 3) \
                 and args[1] in ('Duration.EndOfTurn', 'Duration.WhileOnBattlefield') and all(text(a) for a in args[2:]):
             return {'class': cls, 'filter': self.filter(args[0]), 'duration': DURATIONS[args[1]]}
+        # a spell's "prevent all combat damage that would be dealt this turn; <condition>: instead …" (Winds of Qal
+        # Sisma's ferocious, locked in as it resolves): one prevention or the other
+        if cls == 'ConditionalReplacementEffect' and len(args) == 3 \
+                and all(a.strip().startswith('new PreventAllDamageByAllPermanentsEffect(') for a in (args[0], args[2])):
+            return {'class': 'ConditionalOneShotEffect', 'effect': self.effect(args[0]), 'otherwise': self.effect(args[2]),
+                    'condition': self.condition(locked_in(args[1]))}
+        # a spell's "if this spell was kicked, that creature blocks this turn if able" (Timely Interference): the
+        # requirement, granted until end of turn when the condition holds as it resolves
+        if cls == 'ConditionalRequirementEffect' and len(args) in (2, 3) \
+                and canonical(args[0]) == 'new BlocksIfAbleTargetEffect(Duration.EndOfTurn)' \
+                and (len(args) == 2 or re.fullmatch(r'"[^"]*"', args[2].strip())):
+            return {'class': 'ConditionalOneShotEffect', 'effect': self.effect(args[0]),
+                    'condition': self.condition(locked_in(args[1]))}
         # "as long as …, <a replacement handler's effect>" (Vampire Socialite's "enters with an additional counter"):
         # the handler's replacement applies while the condition holds
         if cls == 'ConditionalReplacementEffect' and len(args) == 2:
@@ -6991,6 +7010,11 @@ class Translator:
         if cls == 'ZoneChangeAllTriggeredAbility' and n == 7 and args[:3] == ['Zone.BATTLEFIELD', 'Zone.BATTLEFIELD', 'null'] \
                 and re.fullmatch(r'"[^"]*"', args[5]):
             return out({'e': 'leaves_all', 'filter': self.filter(args[4])}, args[3], flag(args[6]))
+        # `ZoneChangeAllTriggeredAbility(Zone.BATTLEFIELD, Zone.BATTLEFIELD, Zone.HAND, …)`: a permanent of the filter
+        # returned to its owner's hand from the battlefield (Tameshi)
+        if cls == 'ZoneChangeAllTriggeredAbility' and n == 7 \
+                and args[:3] == ['Zone.BATTLEFIELD', 'Zone.BATTLEFIELD', 'Zone.HAND'] and re.fullmatch(r'"[^"]*"', args[5]):
+            return out({'e': 'leaves_all', 'filter': self.filter(args[4]), 'to_hand': True}, args[3], flag(args[6]))
         if cls == 'AttacksWithCreaturesTriggeredAbility' and n in (2, 3):
             if not re.fullmatch(r'\d+', args[1]):
                 raise Unsupported(cls + '(' + ','.join(args) + ')')
@@ -7229,6 +7253,8 @@ class Translator:
             a['limit_per_turn'] = 1
             a['trigger_condition'] = {'c': 'my_turn'}
             return a
+        if cls == 'CollectEvidenceTriggeredAbility' and n in (1, 2):
+            return out({'e': 'collect_evidence'}, args[0], n == 2 and flag(args[1]))
         if cls == 'ForageTriggeredAbility' and n == 1:
             return out({'e': 'forage'}, args[0])
         if cls == 'BecomesPlottedSourceTriggeredAbility' and n == 1:
@@ -7724,6 +7750,10 @@ class Translator:
         # combat: blocking and becoming blocked
         if cls == 'AttacksOrBlocksTriggeredAbility' and n == 2:
             return out({'e': 'attacks_or_blocks'}, args[0], flag(args[1]))
+        # "whenever enchanted creature attacks or blocks" (Sinister Possession)
+        if cls == 'AttacksOrBlocksAttachedTriggeredAbility' and n == 2 \
+                and args[1].strip() in ('AttachmentType.AURA', 'AttachmentType.EQUIPMENT'):
+            return out({'e': 'attacks_or_blocks_attached'}, args[0])
         if cls == 'BlocksSourceTriggeredAbility' and n in (1, 2):
             return out({'e': 'blocks'}, args[0], n == 2 and flag(args[1]))
         # "whenever this blocks or becomes blocked" (Jukai Trainee)
@@ -9143,7 +9173,7 @@ def ability_statement(t, st, added):
     if m and t.vars.get(m.group(1), {}).get('class') == 'SagaAbility':
         args = split_args(m.group(2))
         chapters = []
-        while args and (c := re.fullmatch(r'SagaChapter\.CHAPTER_(\w+)', args[0].strip())):
+        while args and (c := re.fullmatch(r'(?:SagaChapter\.)?CHAPTER_(\w+)', args[0].strip())):
             chapters.append(CHAPTERS[c.group(1)])
             args = args[1:]
         if len(chapters) == 1:
@@ -9739,6 +9769,10 @@ def fill_when_you_do(x, rule):
         for k, v in x.items():
             if v == WHEN_YOU_DO:
                 m = re.search(r'[Ww]hen you do, (.*)$', rule, re.S)
+                # "when you discard a card this way, …" (Serum-Core Chimera): its sentence, without the activation
+                # rider that follows it in the ability's rule
+                m = m or re.search(r'[Ww]hen you discard a card this way, (.*?)(?: Activate only as a sorcery\.)?$',
+                                   rule, re.S)
                 if not m:
                     raise Unsupported('a reflexive trigger without a text')
                 x[k] = m.group(1)
