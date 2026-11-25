@@ -9,11 +9,14 @@ pub const HANDLERS: &[Handler] = &[Handler::trigger(
     you_turned_it_up,
 )];
 
-/// you turned it face up (the event's player): the player who controls the permanent turned face up (checked
-/// while it's on the battlefield; gone, the counter has nothing to go on anyway)
+/// you turned it face up (the event's player, as `turn_face_up_by` records it; Hauntwoods Shrieker turns up a
+/// permanent it doesn't control)
 fn you_turned_it_up(game: &Game, item: &StackItem) -> bool {
     match item.targets.first().and_then(|ts| ts.first()) {
-        Some(Target::Obj(o)) => game.obj(*o).zone != Zone::Battlefield || game.obj(*o).controller == item.controller,
+        Some(Target::Obj(o)) => match game.watch.turned_face_up_by.iter().rev().find(|(id, _)| id == o) {
+            Some((_, by)) => *by == item.controller,
+            None => game.obj(*o).zone != Zone::Battlefield || game.obj(*o).controller == item.controller,
+        },
         _ => false,
     }
 }

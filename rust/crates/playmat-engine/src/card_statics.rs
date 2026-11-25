@@ -451,6 +451,13 @@ pub(crate) enum Rule {
     /// `SEARCH_LIBRARY` whose `replaceEvent` sets its amount (Aven Mindcensor): `seat` searching `owner`'s library
     /// searches only that many cards from its top (`PlayerImpl.searchLibrary`'s `librarySearchLimit`); None leaves it
     SearchLimit(fn(&Game, &StaticCx, Seat, Seat) -> Option<usize>),
+    /// a `Layer.PlayerEffects` continuous effect's `player.setMaxHandSize`: `seat`'s maximum hand size, where it
+    /// sets one (Winter, Misanthropic Guide); None leaves it. Read by `rules::max_hand_size`, after the engine's own.
+    MaxHandSize(fn(&Game, &StaticCx, Seat) -> Option<usize>),
+    /// `GameState.addPowerInsteadOfToughnessForDamageLethalityFilter`: lethal damage to the creature `id` is
+    /// determined by its power rather than its toughness (Zilortha, Strength Incarnate), read by the state-based
+    /// actions (`max(power, 1)`) and `Permanent.getLethalDamage` (power)
+    LethalByPower(fn(&Game, &StaticCx, ObjId) -> bool),
 }
 
 /// The rules a rule-modifying handler's hook has (`Rule::Several`'s, or its one); none for another kind
@@ -976,6 +983,44 @@ pub(crate) fn cant_venture(game: &Game, seat: Seat) -> bool {
         }
     });
     out
+}
+
+/// The maximum hand size a handler sets for `seat` (the last one, in the order the statics are read), if any
+pub(crate) fn handler_max_hand_size(game: &Game, seat: Seat) -> Option<usize> {
+    let mut out = None;
+    each_static(game, &mut |h, cx, _| {
+        for r in rule_parts(h) {
+            if let Rule::MaxHandSize(f) = r {
+                if let Some(n) = f(game, cx, seat) {
+                    out = Some(n);
+                }
+            }
+        }
+    });
+    out
+}
+
+/// Whether lethal damage to the creature `id` is determined by its power (`Rule::LethalByPower`)
+pub(crate) fn lethal_by_power(game: &Game, id: ObjId) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        for r in rule_parts(h) {
+            if let Rule::LethalByPower(f) = r {
+                out = out || f(game, cx, id);
+            }
+        }
+    });
+    out
+}
+
+/// The power or toughness lethal damage to `id` is measured against (`Permanent.getLethalDamage`)
+pub(crate) fn lethal_measure(game: &Game, id: ObjId) -> i32 {
+    let (p, t) = game.power_toughness(id);
+    if lethal_by_power(game, id) {
+        p
+    } else {
+        t
+    }
 }
 
 /// Whether a rule-modifying handler says `seat` can't play lands (`PLAY_LAND`)

@@ -274,6 +274,10 @@ fn dont_untap_now(game: &Game, id: ObjId, active: Seat) -> bool {
 
 fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
     let active = game.active.unwrap_or(0);
+    if step == Step::BeginCombat {
+        // `BEGIN_COMBAT_STEP_PRE` (Storrev, Devkarin Lich's watcher)
+        game.watch.to_graveyard_this_combat.clear();
+    }
     match step {
         Step::Untap => {
             note(game, EventKind::Turn, Some(active), None, None, 0);
@@ -2391,6 +2395,7 @@ fn castable(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> bool {
         && !cards::cant_cast(game, seat, id, def)
         && (game.player(seat).no_noncreature_turn != Some(game.turn) || def.is(CardType::Creature))
         && game.player(seat).no_spells_turn != Some(game.turn)
+        && !type_cast_forbidden(game, seat, def)
         && {
             // Java's playable check counts conditional mana for any spell (the payment then enforces it)
             game.paying_for.set(Some(ANY_SPELL));
@@ -4753,6 +4758,10 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             }
         }
         let play_tapped = game.obj(id).play_tapped;
+        // `LAND_PLAYED` from exile (Visions of Phyrexia's watcher)
+        if game.obj(id).zone == Zone::Exile {
+            game.watch.played_from_exile.push(seat);
+        }
         enter_battlefield(game, d, id, seat, false);
         if play_tapped && game.obj(id).zone == Zone::Battlefield {
             game.obj_mut(id).tapped = true;
@@ -5180,10 +5189,19 @@ fn cast_allowed_with(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId
     false
 }
 
+/// A player's `CAST_SPELL` restriction by card type: no instants or sorceries this turn (Sphinx's Decree), no
+/// creatures or planeswalkers through a turn (Single Combat)
+fn type_cast_forbidden(game: &Game, seat: Seat, def: &CardDef) -> bool {
+    let p = game.player(seat);
+    (p.no_instants_sorceries_turn == Some(game.turn) && (def.is(CardType::Instant) || def.is(CardType::Sorcery)))
+        || (p.no_creatures_planeswalkers_until.is_some_and(|t| game.turn <= t)
+            && (def.is(CardType::Creature) || def.is(CardType::Planeswalker)))
+}
+
 fn cast_with(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free: bool) -> bool {
     // `cast`'s `CAST_SPELL` rule check, for a spell an effect casts too (Avatar's Wrath stops a hideaway card)
     let def = game.obj(id).def.clone();
-    if cards::cant_cast(game, seat, id, &def) {
+    if cards::cant_cast(game, seat, id, &def) || type_cast_forbidden(game, seat, &def) {
         return false;
     }
     let outer = game.unpaid.replace(game.stack.len());
@@ -5248,6 +5266,8 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         let o = game.obj_mut(id);
         o.zone = Zone::Stack;
         o.zcc += 1;
+        // counters on a card in exile (a hatchling counter) don't follow it to the stack (122.2)
+        o.counters.clear();
         o.on_adventure = false;
         o.mana_spent = 0;
         o.treasure_spent = 0;
@@ -6045,7 +6065,17 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
                 c.mana_value() as i32 + game.stack.last().map_or(0, |t| t.x) * c.x as i32
             },
         };
+        if seen.from == Some(Zone::Exile) {
+            game.watch.played_from_exile.push(seat);
+        }
         game.watch.spells.push(seen);
+        if game.stack.last().is_some_and(|t| t.card == spell && t.ability.is_none() && t.kicked) {
+            game.watch.kicked_cast.push(seat);
+        }
+        if game.battlefield.iter().any(|o| game.obj(*o).controller == seat && game.has_subtype(*o, "Mount")) {
+            let zcc = game.obj(spell).zcc;
+            game.watch.cast_with_mount.push((spell, zcc));
+        }
         let p = game.player_mut(seat);
         p.flier_cast |= flier;
         p.spells_cast += 1;
@@ -10319,7 +10349,7 @@ fn pay_mana_ability_cost(
 fn fight_lethal(game: &Game, id: ObjId, from: ObjId) -> i32 {
     let mut lethal = i32::MAX;
     if game.has_type(id, CardType::Creature) {
-        lethal = (game.power_toughness(id).1 - game.obj(id).damage).max(0);
+        lethal = (cards::lethal_measure(game, id) - game.obj(id).damage).max(0);
         if game.has_ability(from, &AbilityDef::DeathtouchAbility) {
             lethal = lethal.min(1);
         }
@@ -21631,6 +21661,9 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
     if game.obj(id).zone == Zone::Battlefield && game.obj(id).face_down {
         let (seat, turn) = (game.obj(id).controller, game.turn);
         game.player_mut(seat).face_down_turn = Some(turn);
+        if game.has_type(id, CardType::Creature) {
+            game.watch.face_down_creature_entered.push(seat);
+        }
     }
     if log::kept(game) && game.obj(id).token && game.obj(id).zone == Zone::Battlefield {
         // `TokenImpl.putOntoBattlefield`
@@ -24037,7 +24070,7 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                 // `PermanentImpl.getLethalDamage` before the damage is marked
                 let mut lethal = i32::MAX;
                 if creature {
-                    lethal = (game.power_toughness(o).1 - game.obj(o).damage).max(0);
+                    lethal = (cards::lethal_measure(game, o) - game.obj(o).damage).max(0);
                     if deathtouch {
                         lethal = lethal.min(1);
                     }
@@ -25474,7 +25507,7 @@ fn live_blockers(game: &Game, a: ObjId) -> Vec<ObjId> {
 /// Damage that's lethal to `blocker` from `attacker` (`Permanent.getLethalDamage`: the attacker's current abilities,
 /// granted deathtouch too).
 fn lethal_damage(game: &Game, blocker: ObjId, attacker: ObjId) -> i32 {
-    let (_, t) = game.power_toughness(blocker);
+    let t = cards::lethal_measure(game, blocker);
     let lethal = (t - game.obj(blocker).damage).max(0);
     if game.has_ability(attacker, &AbilityDef::DeathtouchAbility) {
         lethal.min(1)
@@ -25865,6 +25898,7 @@ fn deal_hits(game: &mut Game, hits: Vec<(ObjId, Target, i32)>, gains: &mut Vec<(
 /// (`OathOfTeferiLoyaltyEffect`: `setLoyaltyActivationsAvailable(2)`)
 fn loyalty_activations(game: &Game, seat: Seat) -> u8 {
     if game.any_static(|g, src, e| matches!(e, EffectDef::LoyaltyAbilitiesTwiceEffect) && g.obj(src).controller == seat)
+        || game.player(seat).loyalty_twice_turn == Some(game.turn)
     {
         2
     } else {
@@ -25888,6 +25922,10 @@ fn max_hand_size(game: &Game, seat: Seat) -> usize {
                 }
             }
         }
+    }
+    // a card's own `Layer.PlayerEffects` effect (Winter, Misanthropic Guide's opponents)
+    if let Some(n) = cards::handler_max_hand_size(game, seat) {
+        size = n;
     }
     size
 }
@@ -26233,9 +26271,16 @@ fn merged_def(game: &Game, id: ObjId) -> CardDef {
 /// then `TURNED_FACE_UP` triggers ("when this is turned face up", "whenever a creature you control is turned face
 /// up" of permanents that aren't face down themselves)
 pub fn turn_face_up(game: &mut Game, id: ObjId, megamorph: bool) {
+    let controller = game.obj(id).controller;
+    turn_face_up_by(game, id, megamorph, controller);
+}
+
+/// `turn_face_up` by `by` (the event's player): Hauntwoods Shrieker turns up a permanent it doesn't control
+pub fn turn_face_up_by(game: &mut Game, id: ObjId, megamorph: bool, by: Seat) {
     if game.obj(id).face_up.is_none() {
         return;
     }
+    game.watch.turned_face_up_by.push((id, by));
     let controller = game.obj(id).controller;
     let o = game.obj(id);
     // "as this is turned face up" (a replacement of the event, while still face down)
@@ -26775,10 +26820,12 @@ pub fn state_based_actions(game: &mut Game) -> bool {
                 if !o.is(CardType::Creature) {
                     return false;
                 }
-                let (_, t) = game.power_toughness(*id);
+                let (p, t) = game.power_toughness(*id);
+                // Zilortha's creatures: their power, and one with 0 power needs 1 damage
+                let lethal = if t > 0 && cards::lethal_by_power(game, *id) { p.max(1) } else { t };
                 t <= 0
                     || (!game.has_ability(*id, &AbilityDef::IndestructibleAbility)
-                        && (o.damage >= t || (o.deathtouched && o.damage > 0)))
+                        && (o.damage >= lethal || (o.deathtouched && o.damage > 0)))
             })
             .collect();
         // `GameImpl.checkStateBasedActions` moves each permanent as it comes to it: an Aura after the creature it

@@ -9858,6 +9858,7 @@ Rhox Maulers
 Rhox Oracle
 Rhox Pummeler
 Rhuk, Hexgold Nabber
+Rhys, the Evermore
 Rhythm of the Wild
 Ribskiff
 Rick Jones, Destined Sidekick
@@ -10888,6 +10889,7 @@ Sibsig Icebreakers
 Sibsig Muckdraggers
 Sidequest: Card Collection
 Sidequest: Catch a Fish
+Sidequest: Hunt the Mark
 Sidequest: Raise a Chocobo
 Sidewinder Naga
 Sidisi's Faithful
@@ -11001,6 +11003,7 @@ Sin Prodder
 Sin, Spira's Punishment
 Sinew Dancer
 Singing Bell Strike
+Single Combat
 Singularity Rupture
 Sinister Concoction
 Sinister Cryologist
@@ -11425,6 +11428,7 @@ Sphinx of New Prahv
 Sphinx of the Final Word
 Sphinx of the Guildpact
 Sphinx's Approach
+Sphinx's Decree
 Sphinx's Disciple
 Sphinx's Insight
 Sphinx's Revelation
@@ -11678,6 +11682,7 @@ Steelgaze Griffin
 Steelswarm Operator
 Steeple Creeper
 Steeple Roc
+Steer Clear
 Stegron the Dinosaur Man
 Stensia Banquet
 Stensia Innkeeper
@@ -11798,6 +11803,7 @@ Stormtide Leviathan
 Stormwild Capridor
 Stormwing Dragon
 Stormwing Entity
+Storrev, Devkarin Lich
 Story Seeker
 Storyteller Pixie
 Strange Augmentation
@@ -12954,6 +12960,7 @@ Trench Stalker
 Treno, Dark City
 Trestle Troll
 Triad of Fates
+Trial of Agony
 Trial of Ambition
 Trial of Knowledge
 Trial of Solidarity
@@ -13023,6 +13030,7 @@ Tumbleweed Rising
 Tundra Tank
 Tunnel Rats
 Tunnel Surveyor
+Tunnel Tipster
 Tunneling Geopede
 Tura Kennerud, Skyknight
 Turn // Burn
@@ -13294,6 +13302,7 @@ Ureni's Rebuff
 Urgoros, the Empty One
 Urn of Godfire
 Ursine Champion
+Urza Assembles the Titans
 Urza's Command
 Urza's Rebuff
 Urza's Ruinous Blast
@@ -13522,6 +13531,7 @@ Vindictive Flamestoker
 Vindictive Triumph
 Vindictive Vampire
 Vindictive Warden
+Vine Gecko
 Vine Mare
 Vine Snare
 Vinebred Brawler
@@ -13553,6 +13563,7 @@ Vision of Love
 Visionary Augmenter
 Visionary's Dance
 Visions of Brutality
+Visions of Phyrexia
 Visions of Villainy
 Vito's Inquisitor
 Vito, Fanatic of Aclazotz
@@ -14055,6 +14066,7 @@ Winnowing
 Winota, Joiner of Forces
 Winter Soldier, Icy Assassin
 Winter's Intervention
+Winter, Misanthropic Guide
 Winter, Team Player
 Winter, Tormented Loner
 Winterflame
@@ -14284,6 +14296,7 @@ Zhur-Taa Goblin
 Zhur-Taa Swine
 Ziatora's Proving Ground
 Ziatora, the Incinerator
+Zilortha, Strength Incarnate
 Zimone and Dina
 Zimone's Experiment
 Zimone, All-Questioning

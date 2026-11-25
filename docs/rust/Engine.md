@@ -2227,6 +2227,59 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
 
   Gaps found in verified cards: Claim the Kingdom's and Doom Reigns Supreme's reflexive text (above, fixed).
 
+  Wave 24c, Pioneer cards from Ral, Crackling Wit to Zurgo, Thunder's Decree (25 Nov): 386 unverified Pioneer cards
+  (waves 24a and 24b take the rest). The wave 23c probe, run again on this range, sorted them by blocker. 14 came in
+  (14,350 in the engine) and 13 were verified (14,317): Rhys, the Evermore, Sidequest: Hunt the Mark, Single Combat,
+  Sphinx's Decree, Steer Clear, Storrev, Devkarin Lich, Trial of Agony, Tunnel Tipster, Urza Assembles the Titans,
+  Vine Gecko, Visions of Phyrexia, Winter, Misanthropic Guide and Zilortha, Strength Incarnate. Five rounds, all
+  recorded on multivac: round 1 factory (16 games, with the pending Spell Blast, Summon: Choco/Mog and The
+  Fall of Kroog), rounds 2, 3 and 5 hand-made (24 games each; decks under `.local/w24c/factory/round-00N/decks`) and
+  round 6 factory over the 14 new cards (22 games): 105 match, 5 differ. The 10 games under `shadow/wave24c/` cover
+  each card (round 3 game 21: Winter's opponent discards from 6 to 3 at cleanup). No matching game shows a creature
+  dying by Zilortha's rule alone (damage at least its power, less than its toughness). The pieces:
+  - Turn watchers (`TurnWatch`, cleared at untap): a face-down creature entered under a player (Tunnel Tipster), a
+    player played a card from exile, lands too (Visions of Phyrexia), cast a kicked spell (Vine Gecko's first kicked
+    spell; a bargained spell also sets `kicked`, so the predicate also asks for a `KickerAbility`), spells cast while
+    their caster controlled a Mount (Steer Clear), creatures and planeswalkers put into a graveyard this combat
+    (Storrev, also cleared at beginning of combat), and who turned each permanent face up (below).
+  - Player restrictions: no instant or sorcery spells during one turn (Sphinx's Decree), no creature or planeswalker
+    spells through a turn (Single Combat), loyalty abilities twice this turn (Urza Assembles the Titans' chapter III).
+    "Next turn" is counted for two players without extra turns. The two casting ones also stop a spell an effect
+    casts (`cast_with`): Java's `CAST_SPELL` check stopped a creature Dragon-Kami's Egg cast under Single Combat.
+  - Static rules: `Rule::MaxHandSize` (Winter) and `Rule::LethalByPower` (Zilortha). State-based actions, fight,
+    excess damage and lethal-damage assignment now ask `lethal_measure`, toughness unless Zilortha applies, so
+    nothing changes without it.
+  - Handlers: Trial of Agony (one of two targets chosen by their controller), Sidequest: Hunt the Mark, Single
+    Combat, Sphinx's Decree, Urza's scry-and-reveal, The Dragon-Kami Reborn (hatch and the Egg's cast).
+  - Transpiler: `RemoveUpToAmountCountersEffect(Integer.MAX_VALUE)` (Rhys). A full transpile changes and drops no
+    existing card (it adds 4 known leftovers: Dispelling Exhale, Hoshi Sato, Saavik, Starfleet Academy).
+  Changes to verified cards, each shown by a recorded game:
+  - Growing Dread's "whenever you turn a permanent face up" asked who controls the permanent; it's the player who
+    turned it (`turn_face_up_by`, `TurnWatch::turned_face_up_by`): Hauntwoods Shrieker turning up an opponent's
+    Kin-Tree Warden triggered the opponent's Growing Dread in Rust only (round 2 games 7 and 19, both match now;
+    game 7 is kept).
+  - Counters on a card that's cast don't follow it to the stack (122.2): a creature Dragon-Kami's Egg cast kept its
+    hatchling counter on the battlefield in Rust only (round 5 game 1, kept). Only cards cast with counters on them
+    change.
+  The Dragon-Kami Reborn stays unverified: Java's `getCastableComponents` takes both halves of a transforming
+  double-faced card (`DoubleFacedCard` is a `CardWithHalves`), so a hatched Dragon-Kami Reborn counts as a creature
+  to cast (its Egg) and Java asks which card even when only one other could be cast; Rust's `castable_parts` has no
+  transforming back (round 5 games 0 and 17, round 6 game 77). Any `castSpellWithAttributesForFree` over a
+  transforming card whose back matches the filter differs the same way. Seen on the way: Basri Ket's -2 delayed
+  trigger and Gloryheath Lynx's attack trigger go on the stack in the other order in Rust (round 5 game 4); both are
+  verified. Spireside Infiltrator entering tapped under Blind Obedience triggers its "whenever this becomes tapped" in
+  Java only (round 1 game 21, none of this wave's cards in it); both are verified. Left out, with what each needs:
+  - Reflexive triggers that are optional or modal (Wishing Well, Tranquil Frillback); a target that's a player of a
+    filter (Rix Maadi Guildmage); control of another player (Worst Fears); `CantBeSacrificed` granted under a
+    condition (Zurgo, Thunder's Decree); decayed and paw-print counters (Rot-Curse Rakshasa, the Seasons cards);
+    a card-name choice (Tamiyo, Collector of Tales); multiple kickers.
+  - `GainAbilityWithAttachmentEffect` (Spare Dagger, Sunfire Torch, Trickster's Talisman, The Dominion Bracelet) and
+    "for as long as the source stays" (Suncleanser, Touch of Moonglove's delayed trigger); suspend granted and
+    exiling a spell from the stack (Taigam); "until the end of your next turn" emblems (Teferi, Timeless Voyager).
+  - Large own classes (Tannuk, Yarus, Cruelclaw, Runed Halo, Sanar, Raphael), a meld card (Titania), and the long
+    tail of single-handler cards, not reached. The cards Engine.md already names as nondeterministic or blamed
+    stayed out of the candidates.
+
   Wave 24a, Pioneer cards A Killer Among Us to God-Eternal Kefnet (25 Nov): the 385 unverified Pioneer cards in that
   range (waves 24b and 24c take the rest). A stub-handler probe found 109 that translate with their own classes
   stubbed; most of the rest need layer 4, random or hash order, mana-spent tracking or a framework class. 12 came in,
