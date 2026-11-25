@@ -10,7 +10,11 @@ pub const HANDLERS: &[Handler] = &[Handler::effect("CoalstokeGearhulk.CoalstokeG
 /// step; the delayed trigger's text is the effect's own, after the trigger phrase, with the creature's log name
 fn apply(game: &mut Game, _d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     let o = cx.obj(0)?;
-    if game.obj(o).zone != Zone::Battlefield {
+    // `game.getPermanent(source.getFirstTarget())` looks for the card's id, which a double-faced card's permanent
+    // (its face) doesn't have: no delayed trigger, and it stays (Concealing Curtains)
+    let ob = game.obj(o);
+    let faced = ob.def.transform_back.is_some() || ob.def.back.is_some() || ob.front.is_some();
+    if faced || game.obj(o).zone != Zone::Battlefield {
         return Some(());
     }
     let rule = format!(

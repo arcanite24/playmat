@@ -1,4 +1,5 @@
 +2 Mace
+70,000 Light-Years from Home
 A Good Day to Die
 A Little Chat
 A Realm Reborn
@@ -378,6 +379,7 @@ Ancestral Statue
 Ancestral Vengeance
 Anchor to Reality
 Anchor to the Aether
+Anchovy & Banana Pizza
 Ancient Adamantoise
 Ancient Animus
 Ancient Brontodon
@@ -1790,6 +1792,7 @@ Carnage, Crimson Chaos
 Carnival // Carnage
 Carnival Hellsteed
 Carnivorous Canopy
+Carnivorous Cultivator
 Carnivorous Moss-Beast
 Carrier Thrall
 Carrion Crow
@@ -2188,6 +2191,7 @@ Cloudsteel Kirin
 Clutch of Currents
 Coalition Skyknight
 Coalition Warbrute
+Coalstoke Gearhulk
 Coastal Bulwark
 Coastal Discovery
 Coastal Piracy
@@ -2297,6 +2301,7 @@ Component Collector
 Compulsory Rest
 Concealed Courtyard
 Concealed Weapon
+Concealing Curtains
 Conceited Witch
 Concerted Defense
 Conciliator's Duelist
@@ -2857,6 +2862,7 @@ Decimator Beetle
 Decimator of the Provinces
 Decision Paralysis
 Decisive Denial
+Declaration in Stone
 Declare Dominance
 Decoction Module
 Decode Transmissions
@@ -2942,6 +2948,7 @@ Demonlord Belzenlok
 Demystify
 Den Protector
 Den of the Bugbear
+Dennick, Pious Apprentice
 Deny Existence
 Deny the Divine
 Denzilore Fatehold
@@ -3276,6 +3283,7 @@ Dragon's Disciple
 Dragon's Eye Savants
 Dragon's Eye Sentry
 Dragon's Hoard
+Dragon's Prey
 Dragon's Rage Channeler
 Dragon-Scarred Bear
 Dragon-Style Twins
@@ -4003,6 +4011,7 @@ Ezuri, Stalker of Spheres
 Fable of the Mirror-Breaker
 Fabled Hero
 Fabled Passage
+Fabrication Module
 Face Yourself
 Faceless Haven
 Facet Reader
@@ -4228,6 +4237,7 @@ Fields of Strife
 Fiend Artisan
 Fiend Binder
 Fiendish Panda
+Fiendslayer Paladin
 Fierce Empath
 Fierce Invocation
 Fierce Retribution
@@ -4542,6 +4552,7 @@ Frenzied Baloth
 Frenzied Devils
 Frenzied Goblin
 Frenzied Rage
+Frenzied Raider
 Frenzied Raptor
 Frenzied Tilling
 Fresh Start
@@ -6473,6 +6484,7 @@ Kambal, Profiteering Mayor
 Kami of Industry
 Kami of Restless Shadows
 Kami of Terrible Secrets
+Kami of Transience
 Kami of Whispered Hopes
 Kami's Flare
 Kang, Temporal Tyrant
@@ -6555,6 +6567,7 @@ Keldon Warcaller
 Kellan Joins Up
 Kellan's Lightblades
 Kellan, Daring Traveler
+Kellan, Inquisitive Prodigy
 Kellan, Planar Trailblazer
 Kellan, the Fae-Blooded
 Kellan, the Kid
@@ -6578,6 +6591,7 @@ Ketria Triome
 Key to the City
 Key to the Side-Door
 Keymaster Rogue
+Keys to the House
 Khaaaaaaaaaaaannn!
 Khalni Ambush
 Khan, Despot by Design

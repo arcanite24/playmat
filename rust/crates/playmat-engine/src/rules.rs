@@ -17286,14 +17286,13 @@ fn apply_each_effect(
                     // a token that died isn't a card to return (`game.getCard` finds none)
                     if game.obj(*o).zone == Zone::Graveyard && !game.obj(*o).token {
                         let under = if *owner { game.obj(*o).owner } else { controller };
-                        // a double-faced card enters as its face, which the counters (`setEnterWithCounters`, by the
-                        // card's id) don't find: Baneblade Scoundrel returned by Unbreakable Bond; nor does an Aura,
-                        // which `AuraReplacementEffect` puts there itself (Spiral into Solitude returned by Yuna)
-                        let faced = game.obj(*o).def.transform_back.is_some()
-                            || game.obj(*o).def.back.is_some()
-                            || game.obj(*o).def.subtypes.iter().any(|s| s == "Aura");
+                        // the counters (`setEnterWithCounters`, by the card's id) don't find an Aura, which
+                        // `AuraReplacementEffect` puts there itself (Spiral into Solitude returned by Yuna); a
+                        // double-faced card gets them on the face that enters (`ZonesHandler` carries them there
+                        // since 2bae2525ff8: Concealing Curtains returned by Coalstoke Gearhulk)
+                        let aura = game.obj(*o).def.subtypes.iter().any(|s| s == "Aura");
                         enter_battlefield(game, d, *o, under, false);
-                        if let Some(c) = counters.as_ref().filter(|_| !faced) {
+                        if let Some(c) = counters.as_ref().filter(|_| !aura) {
                             add_counters_by(game, *o, &c.name, c.amount, Some(controller));
                         }
                         if *tapped {
