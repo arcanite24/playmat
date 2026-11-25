@@ -2100,6 +2100,7 @@ status = "ported"
 commit = "31c3adcc8cf"
 subject = "Prepared cards - removed gui hacks and fixed wrong playable checks, returned standard choose spell dialog (part of #1560"
 why = "rules.rs shows the spell-or-ability picker for a prepare card off the battlefield (wave 20a)"
+pr = "512"
 
 [[change]]
 file = "Mage/src/main/java/mage/cards/CardsImpl.java"
@@ -2119,6 +2120,7 @@ status = "ported"
 commit = "31c3adcc8cf"
 subject = "Prepared cards - removed gui hacks and fixed wrong playable checks, returned standard choose spell dialog (part of #1560"
 why = "rules.rs shows the spell-or-ability picker for a prepare card off the battlefield, its creature a1 (wave 20a)"
+pr = "512"
 
 [[change]]
 file = "Mage/src/main/java/mage/cards/PrepareSpellCard.java"
@@ -2129,6 +2131,7 @@ status = "ported"
 commit = "31c3adcc8cf"
 subject = "Prepared cards - removed gui hacks and fixed wrong playable checks, returned standard choose spell dialog (part of #1560"
 why = "the prepare spell was never castable from the card in Rust, cascade and discover included (wave 20a)"
+pr = "512"
 
 [[change]]
 file = "Mage/src/main/java/mage/cards/PreparedSpellCopy.java"
@@ -2148,6 +2151,7 @@ status = "not-needed"
 commit = "31c3adcc8cf"
 subject = "Prepared cards - removed gui hacks and fixed wrong playable checks, returned standard choose spell dialog (part of #1560"
 why = "no vengeance card is in the engine (Hela, Mistress of Darkness is the only one in Mage.Sets)"
+pr = "512"
 
 [[change]]
 file = "Mage/src/main/java/mage/cards/VengeanceSpellCard.java"
@@ -2158,6 +2162,7 @@ status = "not-needed"
 commit = "31c3adcc8cf"
 subject = "Prepared cards - removed gui hacks and fixed wrong playable checks, returned standard choose spell dialog (part of #1560"
 why = "no vengeance card is in the engine (Hela, Mistress of Darkness is the only one in Mage.Sets)"
+pr = "512"
 
 [[change]]
 file = "Mage/src/main/java/mage/cards/repository/TokenRepository.java"
