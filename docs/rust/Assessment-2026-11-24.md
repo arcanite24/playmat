@@ -120,7 +120,8 @@ Chosen 24 Nov 2026: **2, "Java off the game path".**
 3. **Deployed 24 Nov (#493):** (Career duel, campaign, gauntlet and challenge tables: life, card and permanent edges, the
    opponent's personality, hints counted on Java; Ranked refuses hints and practice tools in #492). A gauntlet
    run's wounds, relics and levels arrive as the setup; the challenge board reads the host's tally. Puzzles and
-   trials, horde, pods, limited runs, emblems and timed twists still stay on Java. This week's challenge (W48) has
+   trials, horde, pods and limited runs still stay on Java; timed twists and the Glorious Anthem emblem are hosted
+   since #503 (deployed 25 Nov). This week's challenge (W48) has
    19 unverified cards, so it stays on Java until wave 18. Ranked, League and Ladder tables already qualify. Host Career tables: the Career's tally and assists in the host, and setups (twists, nemesis, puzzles). Check
    whether Ranked, League and Ladder tables already qualify, and fix what keeps them on Java.
 4. **Decided 24 Nov: no conversion.** "It carries on a game Java saved" (logged as "starts from a setup or a save" before 25 Nov) is a Java game resumed from a Java save. In the first hour with hosting on for everyone, 7 of 8 were one player resuming saves of their Commander duels, which are out of scope: the game type is now checked first, so those log their game type.
@@ -132,12 +133,16 @@ Chosen 24 Nov 2026: **2, "Java off the game path".**
    (most of the 4,802 declines). Each shadow difference is now kept in `differences.log`. `careerQuests`' declines
    are admin accounts, which Rust leaves to Java on purpose. Then: Close the platform diffs (`careerGameResult`, `careerQuests`, `searchCards`), cut `deckValidate` declines, then
    move the groups to `rust` one at a time, a week apart.
-6. **Wave 17 in review (#500); wave 18 under way.** Wave 17 took the unverified Pioneer cards the Career, starter and
-   shadow decks use (46) and verified 19, so 13,948 cards play on Rust net of upstream-pending. **Wave 18:** 121
-   cards outside the Pioneer pool that Career decks use. 114 come from the five-paths decks, which every challenge,
-   every gauntlet fight and the five-paths campaign play; none of those 30 decks is fully verified now. 15 come from
-   three roster decks (Orzhov Oppression, Rakdos Aristocrats, Boros Battalion). Of the roster's 12 decks, 4 are fully
-   verified today. The three Commander starters stay on Java as Commander decks. Port the last Pioneer engine pieces, in waves, as before.
+6. **Waves 17 to 19 deployed 25 Nov (#500, #502, #507 to #509; production at 2b7b859); waves 20a to 21c merged
+   25 Nov, not deployed (#511, #512, #514 to #516).** Wave 17 took the unverified Pioneer cards the Career, starter
+   and shadow decks use, wave 18 the 121 non-Pioneer cards the five-paths and roster decks use, waves 19a to 19c and
+   20b to 21c the Pioneer cards still out of the engine or unverified, in disjoint lists. #512 added Java's
+   spell-or-ability picker for prepare cards (upstream 31c3adcc8cf), so the 51 that #510 parked play on Rust again
+   and `upstream-pending.txt` is empty. On master: 14,341 of the 14,374 cards in the engine are verified (14,140 of the 15,259 Pioneer cards, after waves 22–24), and all
+   42 school decks and 24 meta decks are covered. Factory rounds record on multivac. What's left of the Pioneer pool
+   mostly needs a card-specific handler or a large engine piece (layer effects, dynamic mana, extra turns and steps,
+   Phyrexian hybrid mana), and known gaps in verified cards are listed in the wave PRs (a gift promised to a hexproof
+   opponent, Bilbo's escape choice, a Room cast from exile after Release to the Wind).
 7. **Deployed 24 Nov (#498)** (ledger, `check`, a weekly report; 71 verified cards changed upstream play on Java until
    re-verified). Start the upstream ledger (#191) so new upstream changes stop drifting.
 8. **Done (#491)** (CLAUDE.md and a PR template carry the rule). Add a rule: a new game-facing feature ships with its Rust host side, or with a reason it stays on Java.
