@@ -5129,8 +5129,7 @@ fn cast_allowed_with(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId
     // in the Night casting Glimpse of Freedom with too few other cards cancels while paying)
     let mut escaped = false;
     if !free && game.obj(id).def.adventure.is_none() {
-        let escape_at =
-            game.obj(id).def.abilities.iter().position(|a| matches!(a, AbilityDef::EscapeAbility { .. }));
+        let escape_at = game.obj(id).def.abilities.iter().position(|a| matches!(a, AbilityDef::EscapeAbility { .. }));
         if let Some(k) = escape_at.filter(|_| game.obj(id).def.escape().is_some()) {
             let options = vec![0, k];
             let pick = match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: options.clone() }) {
