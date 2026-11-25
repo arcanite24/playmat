@@ -391,6 +391,8 @@ pub struct Obj {
     pub deathtouched: bool,
     /// a token: it exists only on the battlefield
     pub token: bool,
+    /// an emblem with a card's abilities (`EmblemOfCard`, a Career twist's): its view shows the card's printing
+    pub card_emblem: bool,
     /// where its triggered abilities sit in Java's `TriggeredAbilities` map (registered as cards are loaded, tokens as
     /// they're created): abilities that trigger on the same event wait in this order
     pub trigger_order: u64,
@@ -1318,6 +1320,8 @@ pub struct Game {
     pub attacks_if_able_next: Vec<(Seat, Filter, ObjId)>,
     /// triggered abilities with a limit each turn that triggered this turn: source, its zone changes, ability index
     pub triggered_this_turn: Vec<(ObjId, u32, usize)>,
+    /// the Career timed twists that have triggered (`crate::career`, once each game): their source and ability index
+    pub career_fired: Vec<(ObjId, usize)>,
     /// while triggered abilities go on the stack: what their targets trigger (ward, valiant), which Java's
     /// `addSimultaneousEvent` holds until every player's are on (`GameImpl.checkTriggered`)
     pub targeted_later: Option<Vec<StackItem>>,
@@ -1725,6 +1729,7 @@ impl Game {
             dont_untap_next: Vec::new(),
             attacks_if_able_next: Vec::new(),
             triggered_this_turn: Vec::new(),
+            career_fired: Vec::new(),
             targeted_later: None,
             sac_insert: None,
             entering_together: Vec::new(),
@@ -1971,6 +1976,7 @@ impl Game {
             token_image: None,
             deathtouched: false,
             token: false,
+            card_emblem: false,
             trigger_order: id.0 as u64,
             class_gained: Vec::new(),
             phased_out: false,
@@ -2184,14 +2190,22 @@ impl Game {
                         .any(|(c, zcc, from)| *c == id && *zcc == o.zcc && (*from || !battlefield))
             }
             Pred::CrewedSourceThisTurn => source.is_some_and(|src| {
+                // the source as it last was on the battlefield (`getSourcePermanentOrLKI`): a Vehicle exiled with its
+                // attack trigger on the stack still knows who crewed it (Turtle Van)
                 let s = self.obj(src);
-                self.watch.crewed.iter().any(|(v, vz, c, cz)| *v == src && *vz == s.zcc && *c == id && *cz == o.zcc)
+                let vzcc = if s.zone == Zone::Battlefield {
+                    s.zcc
+                } else {
+                    self.watch.left_battlefield.iter().rev().find(|l| l.id == src).map_or(s.zcc, |l| l.zcc)
+                };
+                self.watch.crewed.iter().any(|(v, vz, c, cz)| *v == src && *vz == vzcc && *c == id && *cz == o.zcc)
             }),
             Pred::AttachedTo { filter } => {
                 self.attached(id).is_some_and(|to| self.filter_matches(filter, you, source, to))
             }
             Pred::Equipped => self.attachments(id).any(|a| self.has_subtype(a, "Equipment")),
             Pred::Enchanted => self.attachments(id).any(|a| self.has_subtype(a, "Aura")),
+            Pred::Renowned => o.marks.iter().any(|m| m == "renowned"),
             Pred::Modified => {
                 o.counters.iter().any(|(_, n)| *n > 0)
                     || self.attachments(id).any(|a| {
@@ -3035,6 +3049,16 @@ impl Game {
         })
     }
 
+    /// `any_static` for the command zone: the static abilities of emblems
+    pub fn command_static(&self, mut f: impl FnMut(&Game, ObjId, &EffectDef) -> bool) -> bool {
+        self.command.iter().any(|src| {
+            self.obj(*src).def.abilities.iter().any(|a| match a {
+                AbilityDef::SimpleStaticAbility { effects, .. } => effects.iter().any(|e| f(self, *src, e)),
+                _ => false,
+            })
+        })
+    }
+
     /// Whether a static ability of an attached Aura says `id` can't attack or block.
     /// Lovestruck Beast's restriction: it can't attack while its controller has no 1/1 creature
     pub fn cant_attack_alone(&self, id: ObjId) -> bool {
@@ -3425,6 +3449,13 @@ impl Game {
                 }
                 Value::CardsInHand => self.player(you).hand.len() as i32,
                 Value::ActivePlayerCardsInHand => self.active.map_or(0, |a| self.player(a).hand.len() as i32),
+                Value::CardsInAllHands => self.players.iter().map(|p| p.hand.len() as i32).sum(),
+                Value::TargetPlayerCardsInHand => {
+                    match self.resolving_item.as_ref().and_then(|i| i.targets.first()?.first().copied()) {
+                        Some(Target::Player(p)) => self.player(p).hand.len() as i32,
+                        _ => 0,
+                    }
+                }
                 Value::Speed => self.player(you).speed as i32,
                 Value::CardsDrawn => self.player(you).drawn as i32,
                 Value::LifeGained => self.player(you).life_gained,
@@ -3478,6 +3509,12 @@ impl Game {
                     .iter()
                     .filter(|id| self.filter_matches(filter, you, Some(source), **id))
                     .map(|id| self.power_toughness(*id).0)
+                    .sum(),
+                Value::TotalToughness { filter } => self
+                    .battlefield
+                    .iter()
+                    .filter(|id| self.filter_matches(filter, you, Some(source), **id))
+                    .map(|id| self.power_toughness(*id).1)
                     .sum(),
                 Value::Negative { of } => -self.value(of, you, source, x),
                 Value::Times { of, n } => self.value(of, you, source, x) * n,

@@ -197,10 +197,16 @@ public final class RustHost {
             mage.server.career.CareerService.CareerTable career = mage.server.career.CareerService.get().tableInfo(tableId);
             mage.server.career.CareerSetup careerSetup = career != null && options.setup instanceof mage.server.career.CareerSetup
                     ? (mage.server.career.CareerSetup) options.setup : null;
+            String gameType = match.getOptions().getGameType();
             if (match.getPlayers().size() != 2) {
                 why = "not a duel";
-            } else if (options.resumeFrom != null || (options.setup != null && careerSetup == null)) {
-                why = "it starts from a setup or a save";
+            } else if (gameType != null && !gameType.equals("Two Player Duel")) {
+                // before the save: a Commander game carried on from a save stays on Java for its game type
+                why = "its game type (" + gameType + ")";
+            } else if (options.resumeFrom != null) {
+                why = "it carries on a game Java saved";
+            } else if (options.setup != null && careerSetup == null) {
+                why = "it starts from a setup";
             } else if (career != null && !HOSTED_CAREER_KINDS.contains(career.kind)) {
                 // trials and puzzles start from a set position, hordes and pods aren't duels, limited plays sealed pools: later
                 why = "a Career " + career.kind + " table";

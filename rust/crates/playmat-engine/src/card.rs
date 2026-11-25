@@ -607,6 +607,8 @@ pub enum Pred {
     Enchanted,
     /// `ModifiedPredicate`: a counter on it, an Equipment attached, or an Aura its controller controls
     Modified,
+    /// renowned (`Permanent.isRenowned`: `RenownedTargetCondition`, Enshrouding Mist)
+    Renowned,
     /// `WasDealtDamageThisTurnPredicate`
     DamagedThisTurn,
     /// `DamagedPlayerThisTurnPredicate(who)`: it dealt damage this turn to you ("you"), an opponent ("opponent") or
@@ -1114,6 +1116,8 @@ pub enum Trigger {
     Evolved,
     /// this becomes exerted (`BecomesExertSourceTriggeredAbility`)
     Exerted,
+    /// you exert a creature (`ExertCreatureControllerTriggeredAbility`: Vizier of the True)
+    ExertedCreatureYou,
     /// this crews a Vehicle (`CrewsVehicleSourceTriggeredAbility`); its target is the Vehicle
     CrewsVehicle,
     /// this becomes tapped (`BecomesTappedSourceTriggeredAbility`)
@@ -1291,6 +1295,22 @@ pub enum Trigger {
     /// you surveil (`SurveilTriggeredAbility`, `SURVEILED`), or scry (`ScryTriggeredAbility`, `SCRIED`): X is the amount
     YouSurveilOrScry {
         surveil: bool,
+    },
+    /// a Career timed twist (`CareerTimedTwists.AtTurn`, `crate::career`): at the beginning of any upkeep of turn
+    /// `turn` or later; once each game
+    CareerTurn {
+        turn: u32,
+    },
+    /// a Career timed twist (`CareerTimedTwists.AtLife`): a state trigger, `seat`'s life is `life` or less; once each
+    /// game, and held back while another of its source's waits or is on the stack (`StateTriggeredAbility`)
+    CareerLife {
+        seat: usize,
+        life: i32,
+    },
+    /// a Career timed twist (`CareerTimedTwists.OnCast`): `seat` casts a spell named `card` (any case); once each game
+    CareerCast {
+        seat: usize,
+        card: String,
     },
 }
 
@@ -1956,6 +1976,10 @@ pub enum Value {
     CardsInHand,
     /// cards in the active player's hand (`CardsInHandCondition` with `TargetController.ACTIVE`)
     ActivePlayerCardsInHand,
+    /// cards in all players' hands (`CardsInAllHandsCount`: Werewolf of Ancient Hunger)
+    CardsInAllHands,
+    /// cards in the hand of the first target, a player (`CardsInTargetHandCount`: Toil // Trouble)
+    TargetPlayerCardsInHand,
     /// the controller's speed (`ControllerSpeedCount`)
     Speed,
     /// cards of the filter in the controller's graveyard (every graveyard: `CardsInAllGraveyardsCount`)
@@ -1974,6 +1998,10 @@ pub enum Value {
     ControllerLife,
     /// the total power of the permanents of the filter
     TotalPower {
+        filter: Filter,
+    },
+    /// the total toughness of the permanents of the filter (The Pride of Hull Clade)
+    TotalToughness {
         filter: Filter,
     },
     /// counters of a kind on the source while it's on the battlefield
@@ -2675,6 +2703,9 @@ pub enum EffectDef {
     },
     /// a static ability's effect: untap the source during each other player's untap step
     UntapSourceDuringEachOtherPlayersUntapStepEffect,
+    /// an emblem's static: its controller draws a card during each opponent's draw step (`setDrawsOnOpponentsTurn`,
+    /// Teferi, Who Slows the Sunset's `TeferiWhoSlowsTheSunsetEmblemEffect`)
+    DrawsOnOpponentsTurnEffect,
     /// a static ability's effect: untap the permanents of `filter` during each other player's untap step
     UntapAllDuringEachOtherPlayersUntapStepEffect {
         filter: Filter,
@@ -3560,6 +3591,12 @@ pub enum EffectDef {
     CantBeBlockedByOneEffect {
         amount: i32,
     },
+    /// the permanents of the filter can't be blocked except by `amount` or more creatures (a static's
+    /// `CantBeBlockedByOneAllEffect`: their `setMinBlockedBy`)
+    CantBeBlockedByOneAllEffect {
+        amount: i32,
+        filter: Filter,
+    },
     /// untap each permanent of the filter
     UntapAllEffect {
         filter: Filter,
@@ -3817,8 +3854,13 @@ pub enum EffectDef {
     /// "Activated abilities of sources with the chosen name can't be activated" (mana abilities too: Phyrexian
     /// Revoker)
     PhyrexianRevokerEffect,
-    /// Emry: you may cast the target (a nonland card in your graveyard) this turn
-    MayCastTargetFromGraveyardThisTurnEffect,
+    /// Emry: you may cast the target (a nonland card in your graveyard) this turn; `then_exile`: if it would be put
+    /// into your graveyard this turn, exile it instead (`MayCastTargetCardEffect(Duration.EndOfTurn, true)`: Jace,
+    /// Telepath Unbound)
+    MayCastTargetFromGraveyardThisTurnEffect {
+        #[serde(default)]
+        then_exile: bool,
+    },
     /// converge: exile the target nonland permanent if its mana value is at most the colors spent to cast this
     PrismaticEndingEffect,
     /// target player exiles a card from their graveyard
@@ -4041,9 +4083,11 @@ pub enum EffectDef {
         #[serde(default)]
         optional: bool,
     },
-    /// the controller discards `amount` cards
+    /// the controller discards `amount` cards (`random`: at random, Curse-Marred Demon)
     DiscardControllerEffect {
         amount: Amount,
+        #[serde(default)]
+        random: bool,
     },
     /// the target player reveals their hand and you choose a card of the filter; they discard it (Duress)
     DiscardCardYouChooseTargetEffect {
@@ -4071,6 +4115,12 @@ pub enum EffectDef {
     },
     /// a static ability's effect: the permanent this is attached to can't attack or block
     CantAttackBlockAttachedEffect,
+    /// "cards in graveyards can't be the targets of spells or abilities" (a static's
+    /// `CantBeTargetedCardsGraveyardsEffect`, read by `possible_targets`)
+    CantBeTargetedCardsGraveyardsEffect,
+    /// "enchanted creature can't attack" (a static's `CantAttackAttachedEffect`: a restriction, not an ability, so a
+    /// "loses all abilities" leaves it: Retro-Mutation)
+    CantAttackAttachedEffect,
     /// each player (of `who`) discards `amount` cards they choose, all at once
     DiscardEachPlayerEffect {
         amount: Amount,
@@ -4358,6 +4408,16 @@ pub enum EffectDef {
     GetEmblemEffect {
         emblem: TokenDef,
     },
+    /// the target player gets an emblem (`GetEmblemTargetPlayerEffect`: Ob Nixilis Reignited's −8)
+    GetEmblemTargetPlayerEffect {
+        emblem: TokenDef,
+    },
+    /// a Career timed twist resolving (`CareerTimedTwists.TwistEffect`): its message, its edge and its life. Made by
+    /// the host (`crate::career::twists_emblem`), never read from a card
+    CareerTwistEffect {
+        #[serde(skip)]
+        twist: Arc<crate::career::Twist>,
+    },
     /// the target player sacrifices `amount` permanents of the filter
     SacrificeEffect {
         filter: Filter,
@@ -4569,6 +4629,10 @@ pub enum EffectDef {
         /// pick up to the X paid in place of `pick` (Kayla's Reconstruction)
         #[serde(default)]
         pick_x: bool,
+
+        /// "if you didn't put a card … this way, …" (`withOtherwiseEffect`: Adventure Awaits)
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        otherwise: Vec<EffectDef>,
     },
     /// a static ability's effect: the permanents of `filter` have `ability`
     /// a static ability's effect: the permanent this Aura enchants has the ability
@@ -5170,6 +5234,20 @@ pub enum AbilityDef {
         rule: String,
         #[serde(default)]
         colorless_made: bool,
+        /// "whenever a player taps a land": the filter is matched as Java's `filter.match` does, with no "you"
+        /// unless it says so, and the mana goes to the player who tapped it
+        #[serde(default)]
+        any_player: bool,
+    },
+    /// "whenever enchanted land is tapped for mana, its controller adds …" (`EnchantedTappedTriggeredManaAbility`, a
+    /// mana ability that triggers, resolved at once): `amount` mana of `color` ("any": each asked, as
+    /// `ChoiceColor`), to the land's controller or, with `aura_controller`, the Aura's (Market Festival)
+    EnchantedTappedTriggeredManaAbility {
+        color: String,
+        amount: u32,
+        #[serde(default)]
+        aura_controller: bool,
+        rule: String,
     },
     /// the blitz ability's "as it enters" part (Java lists it on its own)
     BlitzEntersAbility {

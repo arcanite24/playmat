@@ -2028,6 +2028,22 @@ fn command_view(game: &Game, p: Seat) -> Vec<Value> {
                     ch.next().map(|f| f.to_uppercase().collect::<String>() + ch.as_str()).unwrap_or_default()
                 })
                 .collect();
+            // an emblem with a card's abilities (`EmblemOfCard`): the card's printing
+            if o.card_emblem {
+                let card = templates().get(&format!("permanent:{}", o.def.name));
+                let field = |k: &str| card.map(|c| c[k].clone()).filter(|v| !v.is_null());
+                return json!({
+                    "id": format!("M{}", i),
+                    "name": o.def.name,
+                    "cardNumber": field("cardNumber").unwrap_or(json!("")),
+                    "imageFileName": field("imageFileName").unwrap_or(json!("")),
+                    "imageNumber": field("imageNumber").unwrap_or(json!(0)),
+                    "usesVariousArt": field("usesVariousArt").unwrap_or(json!(false)),
+                    "expansionSetCode": field("expansionSetCode").unwrap_or(json!(o.def.set)),
+                    "rules": rules,
+                    "playableStats": {"basicManaAbilities": [], "basicPlayAbilities": [], "basicCastAbilities": [], "other": []},
+                });
+            }
             json!({
                 "id": format!("M{}", i),
                 "name": o.def.name,

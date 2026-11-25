@@ -710,8 +710,16 @@ public final class CareerSetup implements GameSetup {
     }
 
     /**
+     * The emblems the Rust host plays (an {@code EmblemOfCard} with the card's static abilities, checked there by
+     * playmat-host's tests): another card's emblem keeps the game on Java.
+     */
+    static final java.util.Set<String> HOST_EMBLEMS = java.util.Collections.unmodifiableSet(
+            new java.util.HashSet<>(Collections.singletonList("Glorious Anthem")));
+
+    /**
      * What keeps the Rust host from playing this setup (docs/rust/GameHost.md, Career tables), or null when it plays
-     * it: life, extra cards and permanents for either side, and the opponent's personality.
+     * it: life, extra cards, permanents, an emblem of {@link #HOST_EMBLEMS} and timed twists for either side, and the
+     * opponent's personality.
      */
     public String hostProblem() {
         if (puzzle != null) {
@@ -727,31 +735,69 @@ public final class CareerSetup implements GameSetup {
             if (t == null) {
                 continue;
             }
-            if (t.emblem != null) {
-                return "a Career twist the host lacks (an emblem)";
+            String emblem = hostEmblemProblem(t);
+            if (emblem != null) {
+                return emblem;
             }
-            if (t.timed != null && !t.timed.isEmpty()) {
-                return "a Career twist the host lacks (a timed twist)";
+            for (TimedTwist timed : timed(t)) {
+                emblem = timed.then == null ? null : hostEmblemProblem(timed.then);
+                if (emblem != null) {
+                    return emblem;
+                }
             }
         }
         return null;
     }
 
-    /** the cards the setup puts in play, which the engine must have verified too */
+    private static String hostEmblemProblem(CareerTwists t) {
+        if (t.emblem != null && !HOST_EMBLEMS.contains(t.emblem)) {
+            return "a Career emblem the host lacks (" + t.emblem + ")";
+        }
+        return null;
+    }
+
+    /** the timed twists that play: Java skips one that isn't well formed ({@code CareerTimedTwists.add}) */
+    private static List<TimedTwist> timed(CareerTwists t) {
+        List<TimedTwist> list = new ArrayList<>();
+        if (t.timed != null) {
+            for (TimedTwist timed : t.timed) {
+                if (timed != null && timed.problem() == null) {
+                    list.add(timed);
+                }
+            }
+        }
+        return list;
+    }
+
+    /** the cards the setup puts in play or makes emblems of, then or later: the engine must have verified them too */
     public java.util.List<String> hostCards() {
         java.util.List<String> names = new ArrayList<>();
         for (CareerTwists t : new CareerTwists[]{twists, you}) {
-            if (t != null && t.permanents != null) {
-                t.permanents.forEach(entry -> names.add(name(entry)));
+            if (t != null) {
+                cards(t, names);
+                for (TimedTwist timed : timed(t)) {
+                    if (timed.then != null) {
+                        cards(timed.then, names);
+                    }
+                }
             }
         }
         return names;
     }
 
+    private static void cards(CareerTwists t, List<String> names) {
+        if (t.permanents != null) {
+            t.permanents.forEach(entry -> names.add(name(entry)));
+        }
+        if (t.emblem != null) {
+            names.add(t.emblem);
+        }
+    }
+
     /**
      * The edges as the host plays them ({@code apply} after the mulligans): {@code you} for the human, {@code opponent}
-     * for the other seat, each with its life, life bonus, extra cards, permanents and the log line's text after the
-     * player's name; and the opponent's {@code personality}.
+     * for the other seat, each with its life, life bonus, extra cards, permanents, emblem, the log line's text after
+     * the player's name and its timed twists; and the opponent's {@code personality}.
      */
     public com.google.gson.JsonObject hostSetup() {
         com.google.gson.JsonObject json = new com.google.gson.JsonObject();
@@ -788,11 +834,53 @@ public final class CareerSetup implements GameSetup {
             }
         }
         edge.add("permanents", permanents);
+        if (t.emblem != null) {
+            edge.addProperty("emblem", t.emblem);
+        }
         String described = describe(t);
         if (!described.isEmpty()) {
             edge.addProperty("log", what + described + ".");
         }
+        List<TimedTwist> timed = timed(t);
+        if (!timed.isEmpty()) {
+            com.google.gson.JsonArray list = new com.google.gson.JsonArray();
+            timed.forEach(twist -> list.add(hostTimed(twist)));
+            edge.add("timed", list);
+        }
         return edge;
+    }
+
+    /**
+     * A timed twist as the host plays it: when it triggers, whose life or spells it watches ({@code who}: "you", the
+     * human, or "opponent", the twist's holder), its rule text as the emblem shows it, and its message, life and edge
+     */
+    private static com.google.gson.JsonObject hostTimed(TimedTwist twist) {
+        com.google.gson.JsonObject json = new com.google.gson.JsonObject();
+        json.addProperty("when", twist.when);
+        Ability ability;
+        switch (twist.when) {
+            case TimedTwist.TURN:
+                json.addProperty("turn", twist.turn);
+                ability = new CareerTimedTwists.AtTurn(twist);
+                break;
+            case TimedTwist.LIFE:
+                json.addProperty("life", twist.life);
+                ability = new CareerTimedTwists.AtLife(twist, null);
+                break;
+            default:
+                json.addProperty("card", twist.card);
+                ability = new CareerTimedTwists.OnCast(twist, null);
+        }
+        json.addProperty("who", CareerTimedTwists.who(twist));
+        json.addProperty("rule", ability.getRule());
+        if (twist.message != null) {
+            json.addProperty("message", twist.message);
+        }
+        json.addProperty("gainLife", twist.gainLife);
+        if (twist.then != null) {
+            json.add("then", hostEdge(twist.then, " gets an edge"));
+        }
+        return json;
     }
 
     public CareerTwists twists() {

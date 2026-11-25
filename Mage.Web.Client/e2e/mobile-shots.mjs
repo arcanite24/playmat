@@ -175,7 +175,8 @@ const screens = {
     await screens.builder(page);
     await page.getByRole('button', { name: /Click to add/ }).first().tap();
     await page.getByRole('button', { name: /^Deck list/ }).tap();
-    await page.getByRole('button', { name: /^Numbers/ }).tap();
+    await page.getByRole('button', { name: 'More deck tools' }).tap();
+    await page.getByRole('menuitem', { name: 'Numbers' }).tap();
   },
   event: async (page) => page.goto(`${base}/event/abc`),
   tables: async (page) => page.goto(`${base}/tables`),
