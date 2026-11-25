@@ -122,6 +122,14 @@ pub trait DecisionPolicy: Send {
     fn last_value(&self) -> Option<f32> {
         None
     }
+    /// Per-candidate search Q-values (0..1, or NaN for unvisited candidates) for v3 completed-Q training (`act_q.f16`)
+    fn last_action_qs(&self) -> Option<&[f32]> {
+        None
+    }
+    /// Per-candidate search visit counts for v3 shards (`act_n.u16`)
+    fn last_action_visits(&self) -> Option<&[u32]> {
+        None
+    }
 }
 
 /// The game at the last priority question and the answers since: what a copy replays to reach the question.

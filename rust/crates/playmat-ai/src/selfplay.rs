@@ -10,7 +10,7 @@
 
 use crate::decision::{Choice, Decision, DecisionPolicy, PolicyKind};
 use crate::net::{self, softmax};
-use crate::obs::{self, Obs, ACT_F, ENT_F, GLOB_F};
+use crate::obs::{self, Obs, ACT_F, BELIEF_META_F, ENT_F, GLOB_F};
 use crate::search::Config;
 use playmat_engine::decide::Query;
 use playmat_engine::state::{Game, ObjId, Seat, Zone};
@@ -157,8 +157,21 @@ pub(crate) fn sample_games_weighted(
 ) -> Vec<(Game, f64)> {
     let seed = ((d.game.turn as u64) << 40) ^ ((root.since.len() as u64) << 16) ^ d.seat as u64 ^ *rng;
     mix(rng);
-    match &root.hidden {
-        Some(h) if net.has_belief() => {
+    let Some(h) = &root.hidden else {
+        return vec![(root.snapshot.clone(), 1.0)];
+    };
+    let opp_unseen_hand = root
+        .snapshot
+        .player(root.snapshot.opponent(d.seat))
+        .hand
+        .iter()
+        .filter(|id| !h.seat_saw(**id))
+        .count();
+    // When opponent has no hidden hand cards (hellbent / fully revealed), cap world count to 2 so
+    // multi-tree search focuses depth instead of splitting iters across 16 near-identical trees.
+    let eff_k = if opp_unseen_hand == 0 { k.min(2).max(1) } else { k.max(1) };
+    match Some(h) {
+        Some(h) if net.has_belief() && opp_unseen_hand > 0 => {
             let seen = |id: ObjId| h.seat_saw(id);
             let pool: Vec<u32> = unseen(&root.snapshot, d.seat, seen)
                 .iter()
@@ -166,35 +179,69 @@ pub(crate) fn sample_games_weighted(
                 .collect();
             let z = net.belief(state, &pool);
             let logit: std::collections::HashMap<u32, f32> = pool.iter().copied().zip(z).collect();
-            let mut drawn: Vec<(f32, Game)> = (0..k * 3)
+            let n_draw = if d.config.belief_ms { eff_k * 6 } else { eff_k * 3 };
+            let mut drawn: Vec<(f32, Game)> = (0..n_draw)
                 .map(|j| {
                     let g = root.sample(seed.wrapping_add(j as u64 * 0x9E37));
                     (hand_likelihood(&g, d.seat, &logit, &seen), g)
                 })
                 .collect();
             let m = drawn.iter().map(|(l, _)| *l).fold(f32::MIN, f32::max);
-            let w: Vec<f32> = drawn.iter().map(|(l, _)| (l - m).exp()).collect();
-            let s: f32 = w.iter().sum();
-            let w: Vec<f32> = w.iter().map(|v| v / s).collect();
-            let mut picks: Vec<usize> = (0..k).map(|_| draw(&w, rng)).collect();
-            picks.sort();
-            let mut groups: Vec<(usize, u32)> = Vec::new();
-            for p in picks {
-                if let Some(last) = groups.last_mut() {
-                    if last.0 == p {
-                        last.1 += 1;
-                        continue;
-                    }
+            let w: Vec<f64> = drawn.iter().map(|(l, _)| ((l - m) as f64).exp()).collect();
+            let s: f64 = w.iter().sum::<f64>().max(1e-12);
+            if d.config.belief_ms {
+                // Phase 3: group proposals by sorted unseen opponent-hand card-ID multiset, sum exact
+                // posterior probability mass per distinct hand, and keep top-eff_k highest-posterior hands.
+                let opp = root.snapshot.opponent(d.seat);
+                let mut by_hand: std::collections::HashMap<Vec<u32>, (f64, usize)> = std::collections::HashMap::new();
+                for (j, (_, g)) in drawn.iter().enumerate() {
+                    let mut key: Vec<u32> = g
+                        .player(opp)
+                        .hand
+                        .iter()
+                        .filter(|id| !seen(**id))
+                        .map(|id| obs::card_id(&g.obj(*id).def.name))
+                        .collect();
+                    key.sort_unstable();
+                    let pj = w[j] / s;
+                    by_hand
+                        .entry(key)
+                        .and_modify(|e| e.0 += pj)
+                        .or_insert((pj, j));
                 }
-                groups.push((p, 1));
+                let mut ranked: Vec<(f64, usize)> = by_hand.into_values().collect();
+                ranked.sort_by(|a, b| b.0.total_cmp(&a.0));
+                ranked.truncate(eff_k);
+                let tot_p: f64 = ranked.iter().map(|(p, _)| *p).sum::<f64>().max(1e-12);
+                // Sort descending by index so swap_remove doesn't invalidate earlier indices
+                ranked.sort_by(|a, b| b.1.cmp(&a.1));
+                let mut keep = Vec::with_capacity(ranked.len());
+                for (p, idx) in ranked {
+                    keep.push((drawn.swap_remove(idx).1, (p / tot_p) * eff_k as f64));
+                }
+                keep
+            } else {
+                let wf: Vec<f32> = w.iter().map(|v| (v / s) as f32).collect();
+                let mut picks: Vec<usize> = (0..eff_k).map(|_| draw(&wf, rng)).collect();
+                picks.sort();
+                let mut groups: Vec<(usize, u32)> = Vec::new();
+                for p in picks {
+                    if let Some(last) = groups.last_mut() {
+                        if last.0 == p {
+                            last.1 += 1;
+                            continue;
+                        }
+                    }
+                    groups.push((p, 1));
+                }
+                let mut keep = Vec::with_capacity(groups.len());
+                for (i, cnt) in groups.into_iter().rev() {
+                    keep.push((drawn.swap_remove(i).1, cnt as f64));
+                }
+                keep
             }
-            let mut keep = Vec::with_capacity(groups.len());
-            for (i, cnt) in groups.into_iter().rev() {
-                keep.push((drawn.swap_remove(i).1, cnt as f64));
-            }
-            keep
         }
-        _ => (0..k).map(|j| (root.sample(seed.wrapping_add(j as u64 * 0x9E37)), 1.0)).collect(),
+        _ => (0..eff_k).map(|j| (root.sample(seed.wrapping_add(j as u64 * 0x9E37)), 1.0)).collect(),
     }
 }
 
@@ -427,6 +474,12 @@ pub struct Step {
     pub logp: f32,
     /// search's estimated root win probability (0..1), or NaN if none
     pub qval: f32,
+    /// v3: per-candidate search Q-value (0..1, or NaN for unvisited candidates)
+    pub act_q: Vec<f32>,
+    /// v3: per-candidate search visit counts
+    pub act_n: Vec<u32>,
+    /// v3: structured 8-float public-belief summary (`belief_meta.f16`)
+    pub belief_meta: [f32; BELIEF_META_F],
 }
 
 /// The seats' recorded decisions, shared with the game's runner
@@ -521,6 +574,16 @@ impl DecisionPolicy for Recording {
         let (hidden, hidden_ids) = obs::hidden_entities(d.game, d.seat);
         let seen = |id: ObjId| self.seen.seat_saw(id);
         let pool = unseen(d.game, d.seat, seen);
+        let act_q: Vec<f32> = match self.inner.last_action_qs() {
+            Some(qs) if qs.len() == k => qs.to_vec(),
+            _ => vec![f32::NAN; k],
+        };
+        let act_n: Vec<u32> = match self.inner.last_action_visits() {
+            Some(ns) if ns.len() == k => ns.to_vec(),
+            _ => vec![0u32; k],
+        };
+        let unseen_hand_count = pool.iter().filter(|(_, h)| *h).count();
+        let belief_meta = obs::belief_meta(d.game, d.seat, unseen_hand_count);
         let step = Step {
             seat: d.seat,
             turn: d.game.turn,
@@ -534,6 +597,9 @@ impl DecisionPolicy for Recording {
             logp: target[chosen].max(1e-8).ln(),
             qval: self.inner.last_value().unwrap_or(f32::NAN),
             target,
+            act_q,
+            act_n,
+            belief_meta,
         };
         self.sink.lock().unwrap().push(step);
         choice
@@ -545,6 +611,14 @@ impl DecisionPolicy for Recording {
 
     fn last_value(&self) -> Option<f32> {
         self.inner.last_value()
+    }
+
+    fn last_action_qs(&self) -> Option<&[f32]> {
+        self.inner.last_action_qs()
+    }
+
+    fn last_action_visits(&self) -> Option<&[u32]> {
+        self.inner.last_action_visits()
     }
 }
 
@@ -584,7 +658,7 @@ pub struct Shard {
 }
 
 pub const META: usize = 10;
-const COLUMNS: [&str; 17] = [
+const COLUMNS: [&str; 20] = [
     "meta.i32",
     "logp.f32",
     "glob.f16",
@@ -601,6 +675,9 @@ const COLUMNS: [&str; 17] = [
     "ent_rel_idx.u8",
     "ent_rel_type.u8",
     "act_ent_idx.u8",
+    "act_q.f16",
+    "act_n.u16",
+    "belief_meta.f16",
     "games.jsonl",
 ];
 
@@ -609,10 +686,10 @@ impl Shard {
         std::fs::create_dir_all(dir)?;
         let open = |c: &str| std::fs::File::create(format!("{dir}/{name}.{c}")).map(std::io::BufWriter::new);
         let mut files = Vec::new();
-        for c in &COLUMNS[..16] {
+        for c in &COLUMNS[..19] {
             files.push(open(c)?);
         }
-        Ok(Shard { files, games: open(COLUMNS[16])?, steps: 0 })
+        Ok(Shard { files, games: open(COLUMNS[19])?, steps: 0 })
     }
 
     /// Writes one game's decisions and its result (`result[seat]`: 1 won, 0 lost, 0.5 a draw)
@@ -659,6 +736,19 @@ impl Shard {
             f[13].write_all(&s.obs.ent_rel_idx)?;
             f[14].write_all(&s.obs.ent_rel_type)?;
             f[15].write_all(&s.obs.act_ent_idx)?;
+            let aq = if s.act_q.len() == s.obs.n_acts() {
+                h(&s.act_q)
+            } else {
+                h(&vec![f32::NAN; s.obs.n_acts()])
+            };
+            let an: Vec<u8> = if s.act_n.len() == s.obs.n_acts() {
+                s.act_n.iter().flat_map(|x| ((*x).min(u16::MAX as u32) as u16).to_le_bytes()).collect()
+            } else {
+                vec![0u8; s.obs.n_acts() * 2]
+            };
+            f[16].write_all(&aq)?;
+            f[17].write_all(&an)?;
+            f[18].write_all(&h(&s.belief_meta))?;
         }
         self.steps += steps.len();
         let mut line = info;

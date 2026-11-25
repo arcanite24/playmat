@@ -19,7 +19,7 @@ import torch
 import torch.nn.functional as F
 
 from data import Data, compact_dir
-from model import AuxHead, Critic, GLOB_F, NO_ENT, Tx, build, export, load_dir, params, save_dir
+from model import ActQHead, AuxHead, Critic, GLOB_F, NO_ENT, Tx, build, export, load_dir, params, save_dir
 
 
 def oracle_batch(b):
@@ -116,13 +116,20 @@ def losses(
     oracle_net=None,
     oracle_mix=0.0,
     oracle_mode=False,
+    act_q_head=None,
+    act_q_weight=0.0,
 ):
     want_aux = aux_head is not None
+    want_aq = act_q_head is not None and act_q_weight > 0.0
     nb_in = oracle_batch(b) if oracle_mode else b
-    if want_aux:
+    if want_aq:
+        logits, v, h, vfeat, act_emb = net(nb_in, return_vfeat=True, return_act_emb=True, detach_val=detach_val)
+    elif want_aux:
         logits, v, h, vfeat = net(nb_in, return_vfeat=True, detach_val=detach_val)
+        act_emb = None
     else:
         logits, v, h = net(nb_in, detach_val=detach_val)
+        vfeat, act_emb = None, None
     logp = F.log_softmax(logits, -1)
     pol_per = -(b["target"] * logp).sum(-1)
     if pol_min_run > 0:
@@ -162,11 +169,23 @@ def losses(
     crit = F.binary_cross_entropy_with_logits(critic(b), b["z"]) if critic is not None else torch.zeros((), device=v.device)
     if want_aux:
         aux_pred = aux_head(vfeat.detach() if detach_val else vfeat)
-        aux_tgt = torch.stack([b["turns_left"], b["final_life_diff"]], -1)
+        aux_tgt = torch.stack(
+            [b["turns_left"], b["final_life_diff"], b["next_life_delta"], b["next_board_delta"]], -1
+        )
         aux_per = F.smooth_l1_loss(aux_pred, aux_tgt, reduction="none").mean(-1)
         aux = (aux_per * vw).sum() / vw.sum().clamp(min=1)
     else:
         aux = torch.zeros((), device=v.device)
+    if want_aq and "act_q" in b:
+        aq = b["act_q"]
+        aq_mask = torch.isfinite(aq) & b["act_mask"]
+        if aq_mask.any():
+            aq_pred = act_q_head(act_emb)
+            aq_safe = torch.nan_to_num(aq, nan=0.5).clamp(0.0, 1.0)
+            aq_loss = (
+                F.binary_cross_entropy_with_logits(aq_pred, aq_safe, reduction="none") * aq_mask.float()
+            ).sum() / aq_mask.float().sum().clamp(min=1)
+            aux = aux + float(act_q_weight) * aq_loss
 
     right = (logits.argmax(-1) == b["target"].argmax(-1)).float()
     off = (b["target"].argmax(-1) != 0).float()
@@ -228,30 +247,24 @@ def evaluate(net, critic, data, idx, dev, bs=1024, q_mix=0.0, pol_min_run=0, ora
     return res
 
 
-def _select_epoch_blocks(data, samples_target, pol_min_run, rng, block_len=512):
-    """Picks block start indices totaling ~`samples_target` decisions, ensuring recent policy dirs get >= 50% share."""
+def _select_epoch_blocks(data, samples_target, pol_min_run, rng, block_len=512, recency_decay=0.92):
+    """Picks block start indices totaling ~`samples_target` decisions strictly WITHOUT replacement (hard <= 1.0x/epoch
+    pass cap per block) using smooth exponential recency weighting over runs. Eliminates narrow-window oversampling."""
     n_blocks = max(1, (len(data) + block_len - 1) // block_len)
     want_blocks = max(1, min(n_blocks, (samples_target + block_len - 1) // block_len))
     starts = np.arange(0, len(data), block_len)
-    if pol_min_run <= 0:
-        chosen = rng.choice(starts, size=want_blocks, replace=False)
-        chosen.sort()
-        return chosen
-    block_runs = data.run[starts]
-    recent = starts[block_runs >= pol_min_run]
-    older = starts[block_runs < pol_min_run]
-    if len(older) == 0 or len(recent) == 0:
-        chosen = rng.choice(starts, size=want_blocks, replace=False)
-        chosen.sort()
-        return chosen
-    # Allocate 60% of epoch blocks to recent policy rounds, 40% to older value replay buffer
-    n_rec = min(len(recent), max(1, int(want_blocks * 0.6)))
-    n_old = min(len(older), want_blocks - n_rec)
-    if n_rec + n_old < want_blocks:
-        n_rec = min(len(recent), want_blocks - n_old)
-    c_rec = rng.choice(recent, size=n_rec, replace=False)
-    c_old = rng.choice(older, size=n_old, replace=False) if n_old > 0 else np.zeros(0, dtype=starts.dtype)
-    chosen = np.concatenate([c_rec, c_old])
+    if want_blocks >= len(starts):
+        return starts
+    block_runs = data.run[starts].astype(np.float64)
+    max_run = float(block_runs.max()) if len(block_runs) else 0.0
+    if 0.0 < recency_decay < 1.0 and max_run > 0.0:
+        w = np.power(recency_decay, max_run - block_runs)
+    else:
+        w = np.ones(len(starts), dtype=np.float64)
+    if pol_min_run > 0:
+        w = np.where(block_runs >= pol_min_run, w * 1.5, w)
+    w = w / w.sum()
+    chosen = rng.choice(starts, size=want_blocks, replace=False, p=w)
     chosen.sort()
     return chosen
 
@@ -270,6 +283,8 @@ def build_parser():
     ap.add_argument("--value-weight", type=float, default=0.5)
     ap.add_argument("--belief-weight", type=float, default=0.2)
     ap.add_argument("--aux-weight", type=float, default=0.15, help="training-only auxiliary positional loss weight (0 disables)")
+    ap.add_argument("--act-q-weight", type=float, default=0.2, help="training-only v3 per-action Q head loss weight (0 disables)")
+    ap.add_argument("--recency-decay", type=float, default=0.92, help="exponential recency decay per run in block sampling (1.0 = uniform; always <= 1x/epoch)")
     ap.add_argument("--q-mix", type=float, default=0.4, help="weight on root search Q-value in value target when present")
     ap.add_argument("--td-lambda", type=float, default=0.0, help="forward-looking TD(lambda) value target across future search Q-values (0 = plain z)")
     ap.add_argument("--policy-recent", type=int, default=0, help="only train policy on the last N --data dirs (0 = all)")
@@ -282,6 +297,7 @@ def build_parser():
     ap.add_argument("--max-old-per-dir", type=int, default=0, help="cap decisions read per older (value-only) --data dir (0 = all)")
     ap.add_argument("--no-critic", action="store_true", help="skip loading hid and training the PPO Critic")
     ap.add_argument("--upgrade-val-mlp", action="store_true", help="upgrade a v1 Tx checkpoint to the regularized 2-layer val_mlp head")
+    ap.add_argument("--upgrade-glob-f", type=int, default=0, help="zero-loss expand glob_f on --init warm-start (e.g. 89)")
     ap.add_argument("--drop", type=float, default=0.0, help="training-only dropout inside Tx blocks")
     ap.add_argument("--val-wd", type=float, default=5e-2, help="weight decay on value head parameters")
     ap.add_argument("--val-prob", type=float, default=0.06, help="per-decision probability of including value/aux loss (prevents memorizing per-game outcomes)")
@@ -334,7 +350,7 @@ def train_main(argv=None, shared_data=None):
             p.requires_grad_(False)
         print(f"TRAIN oracle distillation from {args.oracle_dir} ({params(oracle_net)} params, mix={args.oracle_mix})", flush=True)
     if args.init:
-        net = load_dir(args.init, dev, upgrade_val_mlp=args.upgrade_val_mlp, drop=args.drop)
+        net = load_dir(args.init, dev, upgrade_val_mlp=args.upgrade_val_mlp, drop=args.drop, upgrade_glob_f=args.upgrade_glob_f)
         if critic is not None:
             cpath = os.path.join(args.init, "critic.pt")
             if os.path.exists(cpath):
@@ -348,7 +364,11 @@ def train_main(argv=None, shared_data=None):
     aux_head = None
     if args.aux_weight > 0:
         aux_in = (3 * net.d + net.glob_f) if isinstance(net, Tx) else net.trunk2.out_features
-        aux_head = AuxHead(aux_in).to(dev)
+        aux_head = AuxHead(aux_in, out_dim=4).to(dev)
+    act_q_head = None
+    if args.act_q_weight > 0:
+        aq_in = net.d if isinstance(net, Tx) else net.act2.out_features
+        act_q_head = ActQHead(aq_in).to(dev)
 
     print(
         f"TRAIN net {params(net)} params"
@@ -374,6 +394,8 @@ def train_main(argv=None, shared_data=None):
         extra_params += list(critic.parameters())
     if aux_head is not None:
         extra_params += list(aux_head.parameters())
+    if act_q_head is not None:
+        extra_params += list(act_q_head.parameters())
     param_groups = [
         {"params": base_params + extra_params, "weight_decay": 1e-4},
         {"params": vh_params, "weight_decay": args.val_wd},
@@ -401,7 +423,7 @@ def train_main(argv=None, shared_data=None):
         tl = torch.zeros(5, device=dev)
         nb = 0
         if use_staging or (args.samples_per_epoch > 0 and args.samples_per_epoch < len(train_idx)):
-            blocks = _select_epoch_blocks(data, epoch_samples, pol_min_run, rng)
+            blocks = _select_epoch_blocks(data, epoch_samples, pol_min_run, rng, recency_decay=args.recency_decay)
             rng.shuffle(blocks)
             chunk_blks = max(1, args.stage_chunk // 512) if args.stage_chunk > 0 else len(blocks)
             for ci in range(0, len(blocks), chunk_blks):
@@ -417,6 +439,7 @@ def train_main(argv=None, shared_data=None):
                             q_mix=args.q_mix, pol_min_run=pol_min_run, pol_old_weight=args.pol_old_weight,
                             val_prob=args.val_prob, detach_val=(args.detach_val or not value_on),
                             oracle_net=oracle_net, oracle_mix=args.oracle_mix, oracle_mode=args.oracle_mode,
+                            act_q_head=act_q_head, act_q_weight=args.act_q_weight,
                         )[:5]
                         loss = (
                             pol
@@ -457,6 +480,7 @@ def train_main(argv=None, shared_data=None):
                         q_mix=args.q_mix, pol_min_run=pol_min_run, pol_old_weight=args.pol_old_weight,
                         val_prob=args.val_prob, detach_val=(args.detach_val or not value_on),
                         oracle_net=oracle_net, oracle_mix=args.oracle_mix, oracle_mode=args.oracle_mode,
+                        act_q_head=act_q_head, act_q_weight=args.act_q_weight,
                     )[:5]
                     loss = (
                         pol
@@ -497,6 +521,7 @@ def train_main(argv=None, shared_data=None):
                             q_mix=args.q_mix, pol_min_run=pol_min_run, pol_old_weight=args.pol_old_weight,
                             val_prob=args.val_prob, detach_val=(args.detach_val or not value_on),
                             oracle_net=oracle_net, oracle_mix=args.oracle_mix, oracle_mode=args.oracle_mode,
+                            act_q_head=act_q_head, act_q_weight=args.act_q_weight,
                         )[:5]
                         loss = (
                             pol

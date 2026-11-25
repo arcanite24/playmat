@@ -11,7 +11,7 @@
 //! - Supports both v1 `Tx` checkpoints (ReLU + linear value head) and upgraded `Tx` checkpoints (`val_mlp=1` dedicated
 //!   2-layer value head reading `[t0, mean_ent, max_ent, glob]`, and `gelu=1` tanh-approx GELU).
 
-use crate::obs::{self, Obs, ACT_F, ENT_F, GLOB_F, GLOB_F_V1, NO_ENT, NUM_REL_TYPES};
+use crate::obs::{self, Obs, ACT_F, ENT_F, GLOB_F, GLOB_F_V1, GLOB_F_V2, NO_ENT, NUM_REL_TYPES};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::{Read, Write};
@@ -240,7 +240,7 @@ impl Mlp {
         let belief = take("belief").ok();
         let (es, emb) = tensors.remove("emb.weight").ok_or("no emb.weight")?;
         let dim = es[1];
-        if ent1.inp != dim + ENT_F || (glob1.inp != GLOB_F && glob1.inp != GLOB_F_V1) || act1.inp != dim + ACT_F {
+        if ent1.inp != dim + ENT_F || (glob1.inp != GLOB_F && glob1.inp != GLOB_F_V2 && glob1.inp != GLOB_F_V1) || act1.inp != dim + ACT_F {
             return Err(format!(
                 "{name}: made for other features (entity {}, global {}, action {}; this build has {}, {} or {}, {})",
                 ent1.inp - dim,
@@ -628,7 +628,7 @@ impl Tx {
             abias: take_linear(t, "abias")?,
         };
         let want_act = net.dim + ACT_F + if net.act_ent { net.d } else { 0 };
-        if net.ent_in.inp != net.dim + ENT_F || (net.glob_f != GLOB_F && net.glob_f != GLOB_F_V1) || net.act_in.inp != want_act {
+        if net.ent_in.inp != net.dim + ENT_F || (net.glob_f != GLOB_F && net.glob_f != GLOB_F_V2 && net.glob_f != GLOB_F_V1) || net.act_in.inp != want_act {
             return Err(format!("{name}: made for other features than this build's"));
         }
         Ok(net)
@@ -1088,6 +1088,36 @@ impl RemoteNet {
         rg.take().unwrap()
     }
 
+    /// Submits an entire wave of observations under one lock so they dispatch in a single GPU batch RPC.
+    pub fn forward_batch(&self, obs: &[Obs]) -> Vec<Output> {
+        if obs.is_empty() {
+            return Vec::new();
+        }
+        if obs.len() == 1 {
+            return vec![self.forward(&obs[0])];
+        }
+        let replies: Vec<Arc<(Mutex<Option<Output>>, Condvar)>> =
+            (0..obs.len()).map(|_| Arc::new((Mutex::new(None), Condvar::new()))).collect();
+        {
+            let (lock, cv) = &*self.queue;
+            let mut g = lock.lock().unwrap();
+            for (o, r) in obs.iter().zip(&replies) {
+                g.reqs.push(PendingReq { obs: o.clone(), reply: Arc::clone(r) });
+            }
+            cv.notify_one();
+        }
+        let mut out = Vec::with_capacity(obs.len());
+        for r in replies {
+            let (rlock, rcv) = &*r;
+            let mut rg = rlock.lock().unwrap();
+            while rg.is_none() {
+                rg = rcv.wait(rg).unwrap();
+            }
+            out.push(rg.take().unwrap());
+        }
+        out
+    }
+
     pub fn state(&self, o: &Obs) -> (Vec<f32>, f32) {
         let out = self.forward(o);
         (out.h, out.value)
@@ -1150,6 +1180,15 @@ impl Net {
             Net::Mlp(n) => n.forward(o),
             Net::Tx(n) => n.forward(o),
             Net::Remote(n) => n.forward(o),
+        }
+    }
+
+    /// Batched forward evaluation: coalesces an entire virtual-loss wave into one atomic GPU RPC on RemoteNet.
+    pub fn forward_batch(&self, obs: &[Obs]) -> Vec<Output> {
+        match self {
+            Net::Remote(n) => n.forward_batch(obs),
+            Net::Tx(n) => obs.iter().map(|o| n.forward(o)).collect(),
+            Net::Mlp(n) => obs.iter().map(|o| n.forward(o)).collect(),
         }
     }
 

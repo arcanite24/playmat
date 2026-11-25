@@ -14,7 +14,9 @@ import torch.nn.functional as F
 
 ENT_F = 49
 GLOB_F_V1 = 65
-GLOB_F = 81
+GLOB_F_V2 = 81
+GLOB_F = 89
+BELIEF_META_F = 8
 ACT_F = 65
 BUCKETS = 4096
 NUM_REL_TYPES = 4
@@ -53,7 +55,7 @@ class Net(nn.Module):
         g = F.relu(self.glob1(b["glob"]))
         return F.relu(self.trunk2(F.relu(self.trunk1(torch.cat([p, g], -1)))))
 
-    def forward(self, b, return_vfeat=False, detach_val=False):
+    def forward(self, b, return_vfeat=False, return_act_emb=False, detach_val=False):
         """-> logits [B, K] (masked to -inf past each row's actions), value logit [B], state h [B, trunk]"""
         h = self.state(b)
         v = self.value(h.detach() if detach_val else h).squeeze(-1)
@@ -61,6 +63,8 @@ class Net(nn.Module):
         q = self.query(h).unsqueeze(1)
         logits = (q * a).sum(-1) + self.abias(a).squeeze(-1)
         logits = logits.masked_fill(~b["act_mask"], -1e9)
+        if return_act_emb:
+            return logits, v, h, h, a
         if return_vfeat:
             return logits, v, h, h
         return logits, v, h
@@ -130,15 +134,28 @@ class CardEmb(nn.Module):
 
 
 class AuxHead(nn.Module):
-    """Training-only auxiliary positional head (predicts turns remaining and final life diff); never exported."""
+    """Training-only KataGo-style auxiliary positional head; never exported.
+    Predicts 4 dense targets: [turns_left, final_life_diff, next_life_delta, next_board_delta]."""
+
+    def __init__(self, in_dim, hidden=128, out_dim=4):
+        super().__init__()
+        self.fc1 = nn.Linear(in_dim, hidden)
+        self.fc2 = nn.Linear(hidden, out_dim)
+
+    def forward(self, x):
+        return self.fc2(F.gelu(self.fc1(x)))
+
+
+class ActQHead(nn.Module):
+    """Training-only per-action Q-value head for v3 shards (`act_q.f16`); never exported."""
 
     def __init__(self, in_dim, hidden=128):
         super().__init__()
         self.fc1 = nn.Linear(in_dim, hidden)
-        self.fc2 = nn.Linear(hidden, 2)
+        self.fc2 = nn.Linear(hidden, 1)
 
-    def forward(self, x):
-        return self.fc2(F.gelu(self.fc1(x)))
+    def forward(self, a):
+        return self.fc2(F.gelu(self.fc1(a))).squeeze(-1)
 
 
 def _gelu(x):
@@ -300,7 +317,7 @@ class Tx(nn.Module):
     def state(self, b):
         return self.state_tokens(b)[0]
 
-    def forward(self, b, return_vfeat=False, detach_val=False):
+    def forward(self, b, return_vfeat=False, return_act_emb=False, detach_val=False):
         t, mask = self.tokens(b)
         vfeat, mean = self._pool_val_features(t, mask, b["glob"])
         h = self._act(self.trunk1(torch.cat([t[:, 0], mean], -1)))
@@ -330,6 +347,8 @@ class Tx(nn.Module):
         a = a + self._act(self.act_ff(a))
         logits = (self.query(h).unsqueeze(1) * a).sum(-1) + self.abias(a).squeeze(-1)
         logits = logits.masked_fill(~b["act_mask"], -1e9)
+        if return_act_emb:
+            return logits, v, h, vfeat, a
         if return_vfeat:
             return logits, v, h, vfeat
         return logits, v, h
@@ -357,7 +376,7 @@ def save_dir(net, d):
     json.dump(arch_of(net), open(f"{d}/arch.json", "w"))
 
 
-def load_dir(d, dev, upgrade_val_mlp=False, drop=0.0):
+def load_dir(d, dev, upgrade_val_mlp=False, drop=0.0, upgrade_glob_f=0):
     """The network in run folder `d` (arch.json says which; the first network without one)"""
     import os
     spec = json.load(open(f"{d}/arch.json")) if os.path.exists(f"{d}/arch.json") else {"arch": "mlp"}
@@ -365,10 +384,26 @@ def load_dir(d, dev, upgrade_val_mlp=False, drop=0.0):
     if upgrade_val_mlp and spec.get("arch") == "tx" and not spec.get("val_mlp"):
         spec["val_mlp"] = 1
         upgraded = True
+    old_gf = int(spec.get("glob_f", GLOB_F_V1))
+    delta_gf = 0
+    if upgrade_glob_f and spec.get("arch") == "tx" and int(upgrade_glob_f) > old_gf:
+        delta_gf = int(upgrade_glob_f) - old_gf
+        spec["glob_f"] = int(upgrade_glob_f)
     if spec.get("arch") == "tx" and drop > 0:
         spec["drop"] = drop
     net = build(spec).to(dev)
     sd = torch.load(f"{d}/net.pt", map_location=dev)
+    if delta_gf > 0:
+        # Zero-loss warm-start expansion of glob_f (e.g. 81 -> 89):
+        # pad glob_in.weight and val_fc1.weight columns with 0, val_ln.weight with 1, val_ln.bias with 0
+        if "glob_in.weight" in sd and sd["glob_in.weight"].shape[1] == old_gf:
+            sd["glob_in.weight"] = F.pad(sd["glob_in.weight"], (0, delta_gf))
+        if "val_fc1.weight" in sd and sd["val_fc1.weight"].shape[1] + delta_gf == net.val_fc1.weight.shape[1]:
+            sd["val_fc1.weight"] = F.pad(sd["val_fc1.weight"], (0, delta_gf))
+        if "val_ln.weight" in sd and sd["val_ln.weight"].shape[0] + delta_gf == net.val_ln.weight.shape[0]:
+            sd["val_ln.weight"] = F.pad(sd["val_ln.weight"], (0, delta_gf), value=1.0)
+        if "val_ln.bias" in sd and sd["val_ln.bias"].shape[0] + delta_gf == net.val_ln.bias.shape[0]:
+            sd["val_ln.bias"] = F.pad(sd["val_ln.bias"], (0, delta_gf), value=0.0)
     if upgraded:
         sd = {k: v for k, v in sd.items() if not k.startswith("value.")}
         net.load_state_dict(sd, strict=False)

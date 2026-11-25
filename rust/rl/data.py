@@ -21,10 +21,10 @@ import time
 import numpy as np
 try:
     import torch
-    from model import ACT_F, ENT_F, GLOB_F, GLOB_F_V1, NO_ENT
+    from model import ACT_F, BELIEF_META_F, ENT_F, GLOB_F, GLOB_F_V1, GLOB_F_V2, NO_ENT
 except ImportError:
     torch = None
-    ENT_F, GLOB_F_V1, GLOB_F, ACT_F, NO_ENT = 49, 65, 81, 65, 255
+    ENT_F, GLOB_F_V1, GLOB_F_V2, GLOB_F, ACT_F, NO_ENT, BELIEF_META_F = 49, 65, 81, 89, 65, 255, 8
 
 META = 10
 N_ENT, N_ACT, N_HID, N_POOL = 80, 24, 16, 64
@@ -32,6 +32,8 @@ N_ENT, N_ACT, N_HID, N_POOL = 80, 24, 16, 64
 # GLOB_F layout in obs.rs: 17 fitted features, then [turn/10, me.life/20, them.life/20, ...]
 GLOB_LIFE_ME = 17 + 1
 GLOB_LIFE_OPP = 17 + 2
+GLOB_HAND_ME = 17 + 3
+GLOB_HAND_OPP = 17 + 4
 
 FIXED_COLS = [
     ("meta.i32", np.int32),
@@ -108,11 +110,22 @@ def compact_dir(d, delete_chunks=True, min_shards=4):
     tmp = os.path.join(d, "_compact_tmp")
     any_qval = any(os.path.exists(b + ".qval.f16") for b in bases)
     any_rel = any(os.path.exists(b + ".ent_rel_idx.u8") for b in bases)
+    any_v3 = any(os.path.exists(b + ".act_q.f16") for b in bases)
     col_names = [ext for ext, _ in FIXED_COLS]
     if any_qval:
         col_names.append("qval.f16")
     if any_rel:
         col_names += ["ent_rel_idx.u8", "ent_rel_type.u8", "act_ent_idx.u8"]
+    if any_v3:
+        col_names += ["act_q.f16", "act_n.u16", "belief_meta.f16"]
+    max_g_w = GLOB_F_V1
+    for base in bases:
+        mp = base + ".meta.i32"
+        gp = base + ".glob.f16"
+        if os.path.exists(mp) and os.path.exists(gp):
+            cnt = os.path.getsize(mp) // (META * 4)
+            if cnt > 0:
+                max_g_w = max(max_g_w, os.path.getsize(gp) // (2 * cnt))
     out_files = {ext: open(f"{tmp}.{ext}", "wb") for ext in col_names}
     all_games, all_res, all_turns = [], [], []
     n_steps = 0
@@ -125,6 +138,16 @@ def compact_dir(d, delete_chunks=True, min_shards=4):
             n_steps += n
             for ext, _ in FIXED_COLS:
                 p = f"{base}.{ext}"
+                if ext == "glob.f16" and os.path.exists(p):
+                    g_w = os.path.getsize(p) // (2 * n)
+                    if g_w != max_g_w:
+                        ga = _read(p, np.float16, count=n * g_w).reshape(n, g_w)
+                        if g_w < max_g_w:
+                            ga = np.concatenate([ga, np.zeros((n, max_g_w - g_w), dtype=np.float16)], axis=1)
+                        else:
+                            ga = ga[:, :max_g_w]
+                        ga.tofile(out_files[ext])
+                        continue
                 if os.path.exists(p):
                     with open(p, "rb") as src:
                         while True:
@@ -153,6 +176,19 @@ def compact_dir(d, delete_chunks=True, min_shards=4):
                             out_files[ext].write(src.read())
                     else:
                         np.full(cnt, fill, dtype=np.uint8).tofile(out_files[ext])
+            if any_v3:
+                c_act = int(meta[:, 5].sum())
+                for ext, cnt, dt, fill in [
+                    ("act_q.f16", c_act, np.float16, np.nan),
+                    ("act_n.u16", c_act, np.uint16, 0),
+                    ("belief_meta.f16", n * BELIEF_META_F, np.float16, 0.0),
+                ]:
+                    vp = f"{base}.{ext}"
+                    if os.path.exists(vp):
+                        with open(vp, "rb") as src:
+                            out_files[ext].write(src.read())
+                    else:
+                        np.full(cnt, fill, dtype=dt).tofile(out_files[ext])
             g, r, t = _read_games_meta(base)
             if len(g):
                 all_games.append(g)
@@ -232,6 +268,16 @@ def _read_one_shard(args):
     }
     qp = base + ".qval.f16"
     d["qval"] = _read(qp, np.float16, count=n) if os.path.exists(qp) else np.full(n, np.nan, dtype=np.float16)
+    aqp = base + ".act_q.f16"
+    d["act_q"] = _read(aqp, np.float16, count=c_act) if os.path.exists(aqp) else np.full(c_act, np.nan, dtype=np.float16)
+    anp = base + ".act_n.u16"
+    d["act_n"] = _read(anp, np.uint16, count=c_act) if os.path.exists(anp) else np.zeros(c_act, dtype=np.uint16)
+    bmp = base + ".belief_meta.f16"
+    d["belief_meta"] = (
+        _read(bmp, np.float16, count=n * BELIEF_META_F).reshape(-1, BELIEF_META_F)
+        if os.path.exists(bmp)
+        else np.zeros((n, BELIEF_META_F), dtype=np.float16)
+    )
     if load_critic:
         d["hid"] = _read(base + ".hid.f16", np.float16, count=c_hid * ENT_F).reshape(-1, ENT_F)
         d["hid_ids"] = _read(base + ".hid_ids.u16", np.uint16, count=c_hid)
@@ -263,7 +309,7 @@ class Data:
 
         col_keys = [
             "meta", "logp", "glob", "ents", "ent_ids", "ent_rel_idx", "ent_rel_type",
-            "acts", "act_ids", "act_ent_idx", "target", "pool", "pool_hand", "qval",
+            "acts", "act_ids", "act_ent_idx", "target", "act_q", "act_n", "pool", "pool_hand", "qval", "belief_meta",
         ]
         if load_critic:
             col_keys += ["hid", "hid_ids"]
@@ -324,6 +370,23 @@ class Data:
         last_life = np.zeros(s_inv.max() + 1, dtype=np.float32)
         last_life[s_inv] = life_diff
         self.final_life_diff = np.clip(last_life[s_inv], -2.0, 2.0).astype(np.float32)
+        # Auxiliary targets 3 & 4 (KataGo-style short-horizon deltas): life swing & hand+board swing to next decision
+        board_adv = (self.glob[:, GLOB_HAND_ME].astype(np.float32) - self.glob[:, GLOB_HAND_OPP].astype(np.float32)) + 0.5 * self.glob[:, 0].astype(np.float32)
+        s_ord = np.argsort(seat_key, kind="mergesort")
+        sk_ord = seat_key[s_ord]
+        same_n = np.empty(len(sk_ord), dtype=bool)
+        same_n[:-1] = sk_ord[:-1] == sk_ord[1:]
+        same_n[-1] = False
+        ld_ord = life_diff[s_ord]
+        ba_ord = board_adv[s_ord]
+        nld = np.zeros(len(sk_ord), dtype=np.float32)
+        nbd = np.zeros(len(sk_ord), dtype=np.float32)
+        nld[:-1] = np.where(same_n[:-1], ld_ord[1:] - ld_ord[:-1], 0.0)
+        nbd[:-1] = np.where(same_n[:-1], ba_ord[1:] - ba_ord[:-1], 0.0)
+        self.next_life_delta = np.empty(len(sk_ord), dtype=np.float32)
+        self.next_board_delta = np.empty(len(sk_ord), dtype=np.float32)
+        self.next_life_delta[s_ord] = np.clip(nld, -1.0, 1.0)
+        self.next_board_delta[s_ord] = np.clip(nbd, -1.0, 1.0)
 
         # Forward-looking TD(lambda) value target across each (run, game, seat) trajectory via O(N log L) suffix scan.
         # G_t = (1 - lam) * q_{t+1} + lam * G_{t+1} when next step has finite search Q, else G_{t+1}; G_{T-1} = z.
@@ -373,6 +436,8 @@ class Data:
             "act_ids": self.act_ids.astype(np.int16),
             "act_ent_idx": self.act_ent_idx,
             "target": self.target,
+            "act_q": self.act_q,
+            "act_n": self.act_n.astype(np.int32),
             "pool": self.pool.astype(np.int16),
             "pool_hand": self.pool_hand,
             "chosen": self.chosen.astype(np.int64),
@@ -382,6 +447,9 @@ class Data:
             "qval": self.qval,
             "turns_left": self.turns_left,
             "final_life_diff": self.final_life_diff,
+            "next_life_delta": self.next_life_delta,
+            "next_board_delta": self.next_board_delta,
+            "belief_meta": self.belief_meta,
             "val_w": self.val_w,
             "run": self.run,
         }
@@ -430,6 +498,8 @@ class Data:
         aids, _, _ = cat_var(self.act_ids, self.act_off, self.n_act)
         aent, _, _ = cat_var(self.act_ent_idx, self.act_off, self.n_act)
         tgt, _, _ = cat_var(self.target, self.act_off, self.n_act)
+        act_q, _, _ = cat_var(self.act_q, self.act_off, self.n_act)
+        act_n, _, _ = cat_var(self.act_n, self.act_off, self.n_act)
         pool, pool_off, n_pool = cat_var(self.pool, self.pool_off, self.n_pool)
         ph, _, _ = cat_var(self.pool_hand, self.pool_off, self.n_pool)
 
@@ -445,6 +515,8 @@ class Data:
             "act_ids": aids.astype(np.int16),
             "act_ent_idx": aent,
             "target": tgt,
+            "act_q": act_q,
+            "act_n": act_n.astype(np.int32),
             "act_off": act_off,
             "n_act": n_act,
             "pool": pool.astype(np.int16),
@@ -458,6 +530,9 @@ class Data:
             "qval": cat_fixed(self.qval),
             "turns_left": cat_fixed(self.turns_left),
             "final_life_diff": cat_fixed(self.final_life_diff),
+            "next_life_delta": cat_fixed(self.next_life_delta),
+            "next_board_delta": cat_fixed(self.next_board_delta),
+            "belief_meta": cat_fixed(self.belief_meta),
             "val_w": cat_fixed(self.val_w),
             "run": cat_fixed(self.run),
             "game": cat_fixed(self.game),
@@ -507,6 +582,8 @@ class Data:
         aids, _ = self._gather(self.act_ids, self.act_off, self.n_act, idx, N_ACT)
         aent, _ = self._gather(self.act_ent_idx, self.act_off, self.n_act, idx, N_ACT)
         tgt, _ = self._gather(self.target, self.act_off, self.n_act, idx, N_ACT)
+        act_q, _ = self._gather(self.act_q, self.act_off, self.n_act, idx, N_ACT)
+        act_n, _ = self._gather(self.act_n, self.act_off, self.n_act, idx, N_ACT)
         hid, hm = self._gather(self.hid, self.hid_off, self.n_hid, idx, N_HID)
         hids, _ = self._gather(self.hid_ids, self.hid_off, self.n_hid, idx, N_HID)
         pool, pm = self._gather(self.pool, self.pool_off, self.n_pool, idx, N_POOL)
@@ -525,6 +602,8 @@ class Data:
             "act_mask": t(am, torch.bool),
             "act_ent_idx": t(np.where(am, aent, NO_ENT), torch.long),
             "target": t(tgt),
+            "act_q": t(np.where(am, act_q.astype(np.float32), np.nan)),
+            "act_n": t(act_n * am, torch.long),
             "chosen": t(np.minimum(self.chosen[idx], N_ACT - 1), torch.long),
             "logp": t(self.logp[idx]),
             "hid": t(hid * hm[..., None]),
@@ -538,6 +617,9 @@ class Data:
             "qval": t(self.qval[idx]),
             "turns_left": t(self.turns_left[idx]),
             "final_life_diff": t(self.final_life_diff[idx]),
+            "next_life_delta": t(self.next_life_delta[idx]),
+            "next_board_delta": t(self.next_board_delta[idx]),
+            "belief_meta": t(self.belief_meta[idx]),
             "val_w": t(self.val_w[idx]),
             "run": t(self.run[idx], torch.long),
         }
@@ -573,7 +655,7 @@ def _tgather_store(st, col, k, idx, width):
 
 def _pad_raw(raw):
     widths = {"ents": N_ENT, "em": N_ENT, "eids": N_ENT, "eridx": N_ENT, "ertyp": N_ENT,
-              "acts": N_ACT, "am": N_ACT, "aids": N_ACT, "aent": N_ACT, "tgt": N_ACT,
+              "acts": N_ACT, "am": N_ACT, "aids": N_ACT, "aent": N_ACT, "tgt": N_ACT, "act_q": N_ACT, "act_n": N_ACT,
               "pool": N_POOL, "pm": N_POOL, "ph": N_POOL}
     if "hid" in raw:
         widths.update({"hid": N_HID, "hm": N_HID, "hids": N_HID})
@@ -582,7 +664,7 @@ def _pad_raw(raw):
         v = raw[k]
         pad = w - v.shape[1]
         if pad > 0:
-            fill = NO_ENT if k in ("eridx", "aent") else 0
+            fill = NO_ENT if k in ("eridx", "aent") else (float("nan") if k == "act_q" else 0)
             z = torch.full((v.shape[0], pad) + tuple(v.shape[2:]), fill, dtype=v.dtype, device=v.device)
             out[k] = torch.cat([v, z], 1)
     return out
@@ -601,15 +683,17 @@ def _batch_from_store(st, s, load_critic, idx, device, trim=True):
     aids, _ = _tgather_store(st, "act_ids", "act", i, N_ACT)
     aent, _ = _tgather_store(st, "act_ent_idx", "act", i, N_ACT)
     tgt, _ = _tgather_store(st, "target", "act", i, N_ACT)
+    act_q, _ = _tgather_store(st, "act_q", "act", i, N_ACT)
+    act_n, _ = _tgather_store(st, "act_n", "act", i, N_ACT)
     pool, pm = _tgather_store(st, "pool", "pool", i, N_POOL)
     ph, _ = _tgather_store(st, "pool_hand", "pool", i, N_POOL)
     raw = {
         "glob": st["glob"][i], "ents": ents, "em": em, "eids": eids, "eridx": eridx, "ertyp": ertyp,
-        "acts": acts, "am": am, "aids": aids, "aent": aent, "tgt": tgt,
+        "acts": acts, "am": am, "aids": aids, "aent": aent, "tgt": tgt, "act_q": act_q, "act_n": act_n,
         "pool": pool, "pm": pm, "ph": ph,
         "chosen": st["chosen"][i], "logp": st["logp"][i], "z": st["z"][i], "z_td": st["z_td"][i],
         "qval": st["qval"][i], "turns_left": st["turns_left"][i],
-        "final_life_diff": st["final_life_diff"][i], "val_w": st["val_w"][i], "run": st["run"][i],
+        "final_life_diff": st["final_life_diff"][i], "next_life_delta": st["next_life_delta"][i], "next_board_delta": st["next_board_delta"][i], "belief_meta": st["belief_meta"][i], "val_w": st["val_w"][i], "run": st["run"][i],
     }
     if load_critic:
         hid, hm = _tgather_store(st, "hid", "hid", i, N_HID)
@@ -636,6 +720,8 @@ def _batch_from_store(st, s, load_critic, idx, device, trim=True):
         "act_mask": am,
         "act_ent_idx": torch.where(am, r["aent"].long(), NO_ENT),
         "target": tgt,
+        "act_q": torch.where(am, r["act_q"].to(f), torch.full_like(r["act_q"].to(f), float("nan"))),
+        "act_n": r["act_n"].long() * am,
         "chosen": r["chosen"].clamp(max=am.shape[1] - 1),
         "logp": r["logp"].to(f),
         "pool": r["pool"].long() * pm,
@@ -646,6 +732,9 @@ def _batch_from_store(st, s, load_critic, idx, device, trim=True):
         "qval": r["qval"].to(f),
         "turns_left": r["turns_left"].to(f),
         "final_life_diff": r["final_life_diff"].to(f),
+        "next_life_delta": r["next_life_delta"].to(f),
+        "next_board_delta": r["next_board_delta"].to(f),
+        "belief_meta": r["belief_meta"].to(f),
         "val_w": r["val_w"].to(f),
         "run": r["run"].long(),
     }

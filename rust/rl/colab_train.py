@@ -14,7 +14,10 @@ import time
 
 def sh(cmd, cwd=None):
     print("COLAB $", " ".join(cmd), flush=True)
-    p = subprocess.run(cmd, cwd=cwd)
+    p = subprocess.Popen(cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+    for line in p.stdout:
+        print(line, end="", flush=True)
+    p.wait()
     if p.returncode != 0:
         sys.exit(f"COLAB failed ({p.returncode}): {' '.join(cmd)}")
 
@@ -37,7 +40,11 @@ def main():
     ap.add_argument("--val-prob", type=float, default=0.05)
     ap.add_argument("--val-wd", type=float, default=5e-2)
     ap.add_argument("--value-weight", type=float, default=1.0)
-    ap.add_argument("--aux-weight", type=float, default=0.0)
+    ap.add_argument("--aux-weight", type=float, default=0.15)
+    ap.add_argument("--act-q-weight", type=float, default=0.2)
+    ap.add_argument("--recency-decay", type=float, default=0.92)
+    ap.add_argument("--oracle-mode", action="store_true")
+    ap.add_argument("--upgrade-glob-f", type=int, default=0)
     ap.add_argument("--q-mix", type=float, default=0.4)
     ap.add_argument("--ema", type=float, default=0.995)
     ap.add_argument("--policy-recent", type=int, default=1)
@@ -58,9 +65,11 @@ def main():
         sys.exit("COLAB error: HF_TOKEN env var not set")
 
     print(f"COLAB GPU: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU'}", flush=True)
+    eff_gpu_gb = args.gpu_data_gb
     if torch.cuda.is_available():
         gb = torch.cuda.get_device_properties(0).total_memory / 2**30
-        print(f"COLAB VRAM: {gb:.1f} GB", flush=True)
+        eff_gpu_gb = min(args.gpu_data_gb, max(0.0, round(gb - 14.0, 1)))
+        print(f"COLAB VRAM: {gb:.1f} GB (effective --gpu-data-gb={eff_gpu_gb})", flush=True)
 
     work = "/content/playmat"
     os.makedirs(work, exist_ok=True)
@@ -71,7 +80,7 @@ def main():
         repo_id=args.models_repo,
         repo_type="model",
         local_dir=work,
-        allow_patterns=["code/rl/*", "cardtext/*"],
+        allow_patterns=["code/rl/train.py", "code/rl/model.py", "code/rl/data.py", "code/rl/cardtext.py", "code/rl/hf_archive.py", "cardtext/*"],
         token=tok,
     )
     rl_dir = os.path.join(work, "code", "rl")
@@ -133,6 +142,8 @@ def main():
         "--val-wd", str(args.val_wd),
         "--value-weight", str(args.value_weight),
         "--aux-weight", str(args.aux_weight),
+        "--act-q-weight", str(args.act_q_weight),
+        "--recency-decay", str(args.recency_decay),
         "--q-mix", str(args.q_mix),
         "--ema", str(args.ema),
         "--policy-recent", str(args.policy_recent),
@@ -140,12 +151,16 @@ def main():
         "--max-old-per-dir", str(args.max_old_per_dir),
         "--samples-per-epoch", str(args.samples_per_epoch),
         "--stage-chunk", str(args.stage_chunk),
-        "--gpu-data-gb", str(args.gpu_data_gb),
+        "--gpu-data-gb", str(eff_gpu_gb),
     ]
+    if args.oracle_mode:
+        cmd += ["--oracle-mode"]
     if oracle_dir and args.oracle_mix > 0:
         cmd += ["--oracle-dir", oracle_dir, "--oracle-mix", str(args.oracle_mix)]
     if init_dir:
         cmd += ["--init", init_dir]
+        if args.upgrade_glob_f > 0:
+            cmd += ["--upgrade-glob-f", str(args.upgrade_glob_f)]
     else:
         cmd += ["--arch", args.arch, "--tx", args.tx]
     for r in args.rounds:

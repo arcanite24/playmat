@@ -23,8 +23,12 @@ use playmat_engine::state::{Game, ObjId, Seat, StackItem, Step, Target, Zone};
 pub const ENT_F: usize = 49;
 /// Legacy v1 global feature width (prefix of `GLOB_F` for backward-compatible `.pmnet` loading)
 pub const GLOB_F_V1: usize = 17 + 22 + 13 + 13;
-/// Global features (v1 65 + 12 colored untapped mana sources + 2 unblocked clocks + 2 stack flags)
-pub const GLOB_F: usize = GLOB_F_V1 + 16;
+/// Legacy v2 global feature width (prefix of `GLOB_F` for backward-compatible `.pmnet` loading)
+pub const GLOB_F_V2: usize = GLOB_F_V1 + 16;
+/// Global features (v2 81 + 8 opponent archetype/decklist conditioning features inferred from public zones)
+pub const GLOB_F: usize = GLOB_F_V2 + 8;
+/// Width of v3 structured public-belief summary vector (`belief_meta.f16`)
+pub const BELIEF_META_F: usize = 8;
 /// Features per action
 pub const ACT_F: usize = 16 + ENT_F;
 /// Most entities in one observation (stack, battlefields, own hand, playable exile, top-K graveyards)
@@ -392,8 +396,118 @@ pub fn global(game: &Game, seat: Seat, q: &Query) -> Vec<f32> {
     let top_is_spell = game.stack.last().is_some_and(|s| s.ability.is_none());
     g.push(top_targets_me as u8 as f32);
     g.push(top_is_spell as u8 as f32);
+    debug_assert_eq!(g.len(), GLOB_F_V2);
+
+    // Obs v3 opponent archetype / decklist conditioning (indices 81..89):
+    // Strictly computed from legally visible opponent cards (battlefield, graveyard, stack, face-up exile)
+    // so there is zero hidden-information leakage in Bo1, and ready for open-decklist Bo3 conditioning.
+    g.extend(opponent_archetype_features(game, seat));
     debug_assert_eq!(g.len(), GLOB_F);
     g
+}
+
+/// 8 opponent archetype & interaction-threat features computed strictly from publicly visible opponent cards:
+/// [sweeper, counterspell, face_burn, spot_removal, combat_trick_or_instant, avg_nonland_mv/5, creature_ratio, seen_frac]
+pub fn opponent_archetype_features(game: &Game, seat: Seat) -> [f32; 8] {
+    let opp = game.opponent(seat);
+    let mut sweeper = 0.0f32;
+    let mut counter = 0.0f32;
+    let mut burn = 0.0f32;
+    let mut removal = 0.0f32;
+    let mut trick = 0.0f32;
+    let mut mv_sum = 0.0f32;
+    let mut creatures = 0.0f32;
+    let mut nonlands = 0.0f32;
+    let mut total_seen = 0.0f32;
+
+    let mut inspect = |id: ObjId| {
+        let o = game.obj(id);
+        if o.owner != opp || o.token {
+            return;
+        }
+        total_seen += 1.0;
+        let def = &o.def;
+        if def.types.contains(&CardType::Land) {
+            return;
+        }
+        nonlands += 1.0;
+        mv_sum += def.mana_value() as f32;
+        if def.types.contains(&CardType::Creature) {
+            creatures += 1.0;
+        }
+        let k = crate::policy::spell_kind(def);
+        if k.sweeper {
+            sweeper += 1.0;
+        }
+        if k.removal {
+            removal += 1.0;
+        }
+        if k.face && k.damage.is_some() {
+            burn += 1.0;
+        }
+        if k.pump || (def.types.contains(&CardType::Instant) && !k.removal && !k.face) {
+            trick += 1.0;
+        }
+        let rule_l = def.spell.rule.to_ascii_lowercase();
+        if rule_l.contains("counter target") {
+            counter += 1.0;
+        }
+    };
+
+    for &id in game.battlefield.iter() {
+        inspect(id);
+    }
+    for &id in game.player(opp).graveyard.iter() {
+        inspect(id);
+    }
+    for st in game.stack.iter() {
+        if st.controller == opp {
+            inspect(st.card);
+        }
+    }
+    for &id in game.exile.iter() {
+        if !game.obj(id).exiled_face_down {
+            inspect(id);
+        }
+    }
+    let denom = nonlands.max(1.0);
+    let opp_total = (total_seen + game.player(opp).hand.len() as f32 + game.player(opp).library.len() as f32).max(1.0);
+    [
+        (sweeper / 2.0).min(1.0),
+        (counter / 3.0).min(1.0),
+        (burn / 4.0).min(1.0),
+        (removal / 4.0).min(1.0),
+        (trick / 3.0).min(1.0),
+        (mv_sum / denom / 5.0).min(2.0),
+        creatures / denom,
+        (total_seen / opp_total).min(1.0),
+    ]
+}
+
+/// 8-float structured public-belief summary written to v3 shards (`belief_meta.f16`) for Phase 3 ReBeL / GT-CFR:
+/// [opp_unseen_hand/7, opp_untapped_lands/6, opp_W, opp_U, opp_B, opp_R, opp_G, opp_seen_frac]
+pub fn belief_meta(game: &Game, seat: Seat, unseen_hand_count: usize) -> [f32; BELIEF_META_F] {
+    let opp = game.opponent(seat);
+    let opp_mana = untapped_mana_sources(game, opp);
+    let opp_untapped_lands = game
+        .battlefield
+        .iter()
+        .filter(|id| {
+            let o = game.obj(**id);
+            o.controller == opp && game.has_type(**id, CardType::Land) && !o.tapped
+        })
+        .count() as f32;
+    let arch = opponent_archetype_features(game, seat);
+    [
+        (unseen_hand_count as f32 / 7.0).min(2.0),
+        (opp_untapped_lands / 6.0).min(2.0),
+        opp_mana[0],
+        opp_mana[1],
+        opp_mana[2],
+        opp_mana[3],
+        opp_mana[4],
+        arch[7],
+    ]
 }
 
 /// The objects the seat sees (legacy helper kept for callers): stack, permanents, own hand, playable exile, top-K GY

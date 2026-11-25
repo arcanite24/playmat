@@ -59,6 +59,7 @@ pub fn entrant(name: &str) -> Result<Entrant, String> {
 
 /// `config` with `key=value` settings joined by `+`
 pub fn with(mut c: Config, settings: &str) -> Result<Config, String> {
+    let mut hide_explicit = false;
     for kv in settings.split('+').filter(|s| !s.is_empty()) {
         let (k, v) = kv.split_once('=').ok_or_else(|| format!("{kv}: key=value"))?;
         let n = || v.parse::<u64>().map_err(|_| format!("{kv}: not a number"));
@@ -70,7 +71,7 @@ pub fn with(mut c: Config, settings: &str) -> Result<Config, String> {
             "playout_cap" => c.playout_cap = n()?,
             "policy" => c.policy = v.parse()?,
             "threads" => c.threads = n()? as usize,
-            "hide" => c.hide = b()?,
+            "hide" => { c.hide = b()?; hide_explicit = true; },
             "samples" => c.samples = n()?.max(1) as usize,
             "playout" => c.playout = n()? as u8,
             "eval" => c.eval = n()? as u8,
@@ -93,8 +94,15 @@ pub fn with(mut c: Config, settings: &str) -> Result<Config, String> {
             "multi_tree" => c.multi_tree = b()?,
             "quiesce_net" => c.quiesce_net = b()?,
             "mulligan_net" => c.mulligan_net = b()?,
+            "belief_ms" => c.belief_ms = b()?,
+            "cfr_root" => c.cfr_root = n()? as u32,
+            "vloss" => c.vloss = n()?.max(1) as usize,
+            "rm_root" => c.rm_root = b()?,
             _ => return Err(format!("unknown config key {k}")),
         }
+    }
+    if !hide_explicit && matches!(c.policy, PolicyKind::NetSearch | PolicyKind::Gumbel | PolicyKind::Ismcts) {
+        c.hide = true;
     }
     Ok(c)
 }
@@ -102,7 +110,7 @@ pub fn with(mut c: Config, settings: &str) -> Result<Config, String> {
 /// A config as `cfg:` settings (every field, so two builds' configs compare as text)
 pub fn label(c: &Config) -> String {
     format!(
-        "budget={}+width={}+extra_turns={}+playout_cap={}+policy={}+hide={}+samples={}+playout={}+eval={}+plans={}+mulligan_sim={}+blunder={}+net={}+temp={}+eta={}+rollout={}+consider={}+cpuct={}+iters={}+leaf_blend={}+gumbel_root={}+temp_turn={}+time_ms={}+c_scale={}+par={}+multi_tree={}+quiesce_net={}+mulligan_net={}",
+        "budget={}+width={}+extra_turns={}+playout_cap={}+policy={}+hide={}+samples={}+playout={}+eval={}+plans={}+mulligan_sim={}+blunder={}+net={}+temp={}+eta={}+rollout={}+consider={}+cpuct={}+iters={}+leaf_blend={}+gumbel_root={}+temp_turn={}+time_ms={}+c_scale={}+par={}+multi_tree={}+quiesce_net={}+mulligan_net={}+belief_ms={}+cfr_root={}+vloss={}+rm_root={}",
         c.budget,
         c.width,
         c.extra_turns,
@@ -130,7 +138,11 @@ pub fn label(c: &Config) -> String {
         c.par,
         c.multi_tree as u8,
         c.quiesce_net as u8,
-        c.mulligan_net as u8
+        c.mulligan_net as u8,
+        c.belief_ms as u8,
+        c.cfr_root,
+        c.vloss,
+        c.rm_root as u8
     )
 }
 

@@ -75,6 +75,14 @@ pub struct Config {
     pub quiesce_net: bool,
     /// keep/mulligan and London bottom using the neural value head (`net.state`) instead of heuristic/goldfish rules
     pub mulligan_net: bool,
+    /// Phase 3: top-K multiset Rao-Blackwellized belief resampling over 6*k proposals
+    pub belief_ms: bool,
+    /// Phase 3: belief-conditioned entropic/counterfactual risk blend at root (0 = off, 1..500 = alpha/1000)
+    pub cfr_root: u32,
+    /// Phase 3: intra-tree Virtual-Loss batch size for GPU/batched leaf evaluation (1 = sequential, 4..16 = batched)
+    pub vloss: usize,
+    /// Phase 3: saddle-point Regret-Matching+ adversarial belief tilting at root
+    pub rm_root: bool,
 }
 
 impl Default for Config {
@@ -120,6 +128,10 @@ impl Default for Config {
             multi_tree: false,
             quiesce_net: false,
             mulligan_net: false,
+            belief_ms: false,
+            cfr_root: 0,
+            vloss: 1,
+            rm_root: false,
         }
     }
 }
@@ -261,7 +273,7 @@ impl Table {
         }
         let candidates = candidates(game, seat, q, &quick, cfg.width);
         if candidates.len() < 2 {
-            return quick;
+            return candidates.into_iter().next().unwrap_or(quick);
         }
         // a lower skill's mistakes: now and then a candidate at random instead of the search (never a payment)
         if cfg.blunder > 0 && !matches!(q, Query::PlayMana { .. }) {
@@ -624,8 +636,26 @@ pub fn candidates(game: &Game, seat: Seat, q: &Query, quick: &Answer, width: usi
             }
         }
         Query::ChooseAbility { source, abilities } => {
+            drop(add);
+            let paying = game.unpaid.is_some() || game.mana_paid.is_some();
+            let def = &game.obj(*source).def;
+            let has_non_mana =
+                !paying && abilities.iter().any(|i| def.abilities.get(*i).is_some_and(|a| a.mana().is_none()));
+            if has_non_mana {
+                if let Some(Answer::Ability(src, qi)) = out.first() {
+                    if src == source && def.abilities.get(*qi).is_some_and(|a| a.mana().is_some()) {
+                        out.clear();
+                    }
+                }
+            }
             for i in abilities {
-                add(Answer::Ability(*source, *i));
+                if has_non_mana && def.abilities.get(*i).is_some_and(|a| a.mana().is_some()) {
+                    continue;
+                }
+                let a = Answer::Ability(*source, *i);
+                if !out.contains(&a) {
+                    out.push(a);
+                }
             }
         }
         Query::YesNo { message } if !message.contains("mana pool") && !crate::policy::declines(message) => {

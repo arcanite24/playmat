@@ -152,6 +152,8 @@ def main():
     args = ap.parse_args()
 
     dev = pick_device()
+    if dev.type == 'cuda':
+        torch.set_float32_matmul_precision('high')
     net = load_dir(args.dir, dev).eval()
     handshake = pack_handshake(net)
     if args.compile and dev.type == "cuda":
