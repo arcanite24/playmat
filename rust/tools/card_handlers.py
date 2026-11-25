@@ -201,7 +201,9 @@ def effect(t, cls, args, own_only=False):
         elif kind == 'put_cards':
             # `PutCards.X`: its engine name (`BATTLEFIELD_TAPPED`)
             m = re.fullmatch(r'PutCards\.(\w+)', args[i])
-            if not m:
+            # (only the constants the engine's `PutCards` has: not `BATTLEFIELD_TAPPED_ATTACKING`)
+            if not m or m.group(1) not in ('HAND', 'GRAVEYARD', 'BATTLEFIELD', 'BATTLEFIELD_TAPPED', 'EXILED', 'TOP_ANY',
+                                           'BOTTOM_ANY', 'BOTTOM_RANDOM', 'TOP_RANDOM', 'SHUFFLE'):
                 raise _unsupported(f'argument {args[i]}')
             args[i] = m.group(1)
         elif kind == 'ability':

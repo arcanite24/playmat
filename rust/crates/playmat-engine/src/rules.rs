@@ -4971,15 +4971,6 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             _ => return,
         }
     }
-    // a card with a prepare spell (`PrepareCard` is a `CardWithSpellOption`): `suppressAbilityPicker` never hides the
-    // picker off the battlefield, though it offers only the card's own spell (a1): the prepare spell can't be cast
-    // (`PrepareCardSpellAbility.spellCanBeActivatedNow`)
-    if game.obj(id).def.prepare.is_some() {
-        match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: vec![1] }) {
-            Answer::Ability(o, 1) if o == id => {}
-            _ => return,
-        }
-    }
     // `suppressAbilityPicker`: one spell ability is cast directly only with mana to pay (X counts 0), so a {0} or
     // {X} spell is picked (a0), as is one cast without paying its mana cost (`allowCardToPlayWithoutMana` puts it in
     // `castSourceIdWithAlternateMana`, so the picker isn't hidden)
@@ -9975,7 +9966,11 @@ fn activate_mana_paying(
                     let c = if color == "any" {
                         let message =
                             if *amount > 1 { format!("Choose color {}", j + 1) } else { "Choose color".to_string() };
-                        match any_color_owed(game, d, who, Some(unpaid), &message) {
+                        // (`HumanPlayer.choose` picks an owed color itself only for `Outcome.PutManaInPool`, the
+                        // player paying: Market Festival's `ManaChoice.chooseAnyColor` asks with `Outcome.Benefit`,
+                        // so always)
+                        let owed = Some(unpaid).filter(|_| who == seat && !*aura_controller);
+                        match any_color_owed(game, d, who, owed, &message) {
                             Some(c) => c,
                             None => return false,
                         }
