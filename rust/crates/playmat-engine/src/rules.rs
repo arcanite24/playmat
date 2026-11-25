@@ -1868,12 +1868,16 @@ pub fn playable_abilities(game: &Game, seat: Seat) -> Vec<(ObjId, usize, PlayKin
                             out.push((id, 0, PlayKind::Adventure, Some(1)));
                         }
                     }
-                    if o.zone == Zone::Hand {
+                    // (a Room from exile too, while an effect lets you cast it: Release to the Wind's, free)
+                    let room_free = o.zone == Zone::Exile && o.play_free;
+                    if o.zone == Zone::Hand || o.zone == Zone::Exile && !def.room.is_empty() {
                         for (h, half) in def.room.iter().enumerate() {
-                            if (!def.aftermath || h == 0) && castable(game, seat, id, half) {
+                            if (!def.aftermath || h == 0) && castable(game, seat, id, &free_half(half, room_free)) {
                                 out.push((id, h, PlayKind::RoomHalf, None));
                             }
                         }
+                    }
+                    if o.zone == Zone::Hand {
                         // a fused split card's halves together (`h2`)
                         if def.fused_spell().is_some_and(|f| castable(game, seat, id, &f)) {
                             out.push((id, 2, PlayKind::RoomHalf, None));
@@ -4942,8 +4946,10 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
     // a Room: the half to cast, always asked (h0, h1), even with one that can be
     if !game.obj(id).def.room.is_empty() {
         let full = game.obj(id).def.clone();
+        // (from exile without paying its mana cost: Release to the Wind)
+        let free = game.obj(id).zone == Zone::Exile && game.obj(id).play_free;
         let mut options: Vec<usize> =
-            (0..full.room.len()).filter(|k| castable(game, seat, id, &full.room[*k])).collect();
+            (0..full.room.len()).filter(|k| castable(game, seat, id, &free_half(&full.room[*k], free))).collect();
         // a fused split card from hand: both halves (`h2`, Java's card spell ability)
         let fused = full.fused_spell().filter(|f| game.obj(id).zone == Zone::Hand && castable(game, seat, id, f));
         if fused.is_some() {
@@ -4968,7 +4974,7 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                 o.room_cast = Some(k);
             }
         }
-        if !cast(game, d, seat, id) {
+        if !(if free { cast_free(game, d, seat, id) } else { cast(game, d, seat, id) }) {
             *game = before;
         }
         return;
@@ -5023,6 +5029,15 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
     if !(if free { cast_free(game, d, seat, id) } else { cast(game, d, seat, id) }) {
         // `PlayerImpl.cast` restores the game as it was before the cast
         *game = before;
+    }
+}
+
+/// A Room's half as the playable check sees it: with no mana cost when it's cast without paying one
+fn free_half(half: &Arc<CardDef>, free: bool) -> Arc<CardDef> {
+    if free {
+        Arc::new(CardDef { cost: ManaCost::default(), ..(**half).clone() })
+    } else {
+        half.clone()
     }
 }
 
@@ -5109,7 +5124,33 @@ fn cast_allowed_with(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId
             o.def = adventure;
         }
     }
+    // a card with escape, not cast free: the spell (a0) or escape (its own index), whatever the zone and whether its
+    // exile cost can be paid (`getCastableSpellAbilities` stops at the first `BASE_ALTERNATE` ability; Bilbo, Thief
+    // in the Night casting Glimpse of Freedom with too few other cards cancels while paying)
+    let mut escaped = false;
+    if !free && game.obj(id).def.adventure.is_none() {
+        let escape_at = game.obj(id).def.abilities.iter().position(|a| matches!(a, AbilityDef::EscapeAbility { .. }));
+        if let Some(k) = escape_at.filter(|_| game.obj(id).def.escape().is_some()) {
+            let options = vec![0, k];
+            let pick = match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: options.clone() }) {
+                Answer::Ability(o, i) if o == id && options.contains(&i) => i,
+                Answer::Stop => return false,
+                _ => 0,
+            };
+            if pick == k {
+                let full = game.obj(id).def.clone();
+                let f = full.escape().expect("an escape cost");
+                let o = game.obj_mut(id);
+                o.adventurer = Some(full);
+                o.def = Arc::new(f);
+                escaped = true;
+            }
+        }
+    }
     if cast_with(game, d, seat, id, free) {
+        if escaped {
+            game.obj_mut(id).escaped = true;
+        }
         return true;
     }
     *game = before;
@@ -5898,9 +5939,13 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
             None => return false,
         }
     }
-    // `PromiseGiftCost.pay`: the opponent it's promised to (a player is never auto-chosen)
+    // `PromiseGiftCost.pay`: the opponent it's promised to (a player is never auto-chosen), chosen, not targeted
+    // (`withNotTarget(true)`: an opponent with hexproof can be promised the gift)
     if game.stack.last().is_some_and(|t| t.gift_promised) {
-        let Some(chosen) = choose_target(game, d, seat, &TargetDef::TargetOpponent, Some(id), "", false) else {
+        game.choosing_player = true;
+        let chosen = choose_target(game, d, seat, &TargetDef::TargetOpponent, Some(id), "", false);
+        game.choosing_player = false;
+        let Some(chosen) = chosen else {
             return false;
         };
         let to = match chosen.first() {
@@ -6401,7 +6446,18 @@ fn modified_cost_of(game: &Game, seat: Seat, id: ObjId, face: &CardDef, mut cost
                                 Some(v) => game.value(&Amount::Of(v.clone()), seat, *src, 0).max(0),
                                 None => *amount,
                             };
-                            reduce += n as u32;
+                            // a double-faced card whose other face has this ability too (Serah Farron's back adds
+                            // `ability.copy()`): Java registers both abilities under one effect id, and
+                            // `ContinuousEffectsList.addEffect` adds the effect once per ability, so
+                            // `ContinuousEffects.costModification` runs each list entry over every ability: n abilities
+                            // reduce n * n times, whichever face is up (Serah: {2} four times, Ramos {6} costs 0)
+                            let other = match &s.front {
+                                Some(front) => Some(front.clone()),
+                                None => s.def.transform_back.clone(),
+                            };
+                            let faces = 1 + other.map_or(0, |f| f.abilities.iter().filter(|b| *b == a).count());
+                            let times = faces * faces;
+                            reduce += n as u32 * times as u32;
                             if let Some(less) = mana.as_deref().and_then(|m| ManaCost::parse(m).ok()) {
                                 reduce_by_mana(&mut cost, &less);
                             }
@@ -8283,6 +8339,11 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                 _ => None,
             });
             let rule = if game.foraging.get() { Some(forage_rule(game, id)) } else { rule };
+            // too few to choose: nothing asked (`TargetCardInYourGraveyard.canChoose`), the cost isn't paid
+            // (escape picked by an effect's cast with too few other cards: Bilbo casting Glimpse of Freedom)
+            if possible.len() < *amount {
+                return false;
+            }
             let Some(chosen) =
                 choose_cards(game, d, seat, &possible, &possible, *amount, *amount, &rule.unwrap_or("exile".into()))
             else {
@@ -8864,14 +8925,16 @@ pub fn possible_targets(game: &Game, seat: Seat, def: &TargetDef, src: Option<Ob
 
 fn possible_targets_all(game: &Game, seat: Seat, def: &TargetDef, src: Option<ObjId>) -> (Vec<Seat>, Vec<ObjId>) {
     // a player with hexproof can't be the target of their opponents' spells and abilities, nor one with protection
-    // from the source (`PlayerImpl.canBeTargetedBy`'s `hasProtectionFrom`)
+    // from the source (`PlayerImpl.canBeTargetedBy`'s `hasProtectionFrom`); a player chosen, not targeted, can
+    // (`TargetPlayer.canTarget` with `isNotTarget()`)
     let players: Vec<Seat> = (0..game.seats())
         .filter(|s| {
             !game.player(*s).lost
-                && (*s == seat
+                && (game.choosing_player
+                    || *s == seat
                     || !game.player_has(*s, &AbilityDef::HexproofAbility)
                     || cards::ignore_hexproof(game, seat, Target::Player(*s)))
-                && !src.is_some_and(|o| game.player_protected_from(*s, o))
+                && (game.choosing_player || !src.is_some_and(|o| game.player_protected_from(*s, o)))
         })
         .collect();
     let permanents = |f: &dyn Fn(ObjId) -> bool| -> Vec<ObjId> {
@@ -19363,7 +19426,6 @@ fn apply_each_effect(
                 game.attacks_if_able_next.push((controller, filter.clone(), source.0));
             }
             EffectDef::WinGameSourceControllerEffect => win_game(game, controller),
-            // `StationAbilityEffect`: the tapped creatures' power as it resolves, if the source is still there
             EffectDef::CraftEffect => {
                 // (the card exiled as the cost, still that card: `getStackMomentSourceZCC() + 1`)
                 let (o, zcc) = source;
@@ -19375,10 +19437,17 @@ fn apply_each_effect(
                     }
                 }
             }
+            // `StationAbilityEffect`: the tapped creatures' power as it resolves, if the source is still there
             EffectDef::StationEffect => {
                 let o = game.obj(source.0);
                 if o.zone == Zone::Battlefield && o.zcc == source.1 {
-                    let n: i32 = item.tapped_for_cost.iter().map(|c| game.power_toughness(*c).0).sum();
+                    // (Java keeps the tapped `Permanent` objects: one gone since has its power as it last was there,
+                    // Selfless Savior sacrificed in response with Lumen-Class Frigate's +1/+1)
+                    let power = |c: ObjId| match game.obj(c).zone {
+                        Zone::Battlefield => game.power_toughness(c).0,
+                        _ => game.obj(c).power_lki.unwrap_or_else(|| game.power_toughness(c).0),
+                    };
+                    let n: i32 = item.tapped_for_cost.iter().map(|c| power(*c)).sum();
                     if n > 0 {
                         game.obj_mut(source.0).add_counters("charge", n);
                         counters_put_triggers(game, source.0, "charge", n, Some(controller));
