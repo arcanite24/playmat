@@ -2383,10 +2383,7 @@ fn castable(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> bool {
         && !cards::cant_cast(game, seat, id, def)
         && (game.player(seat).no_noncreature_turn != Some(game.turn) || def.is(CardType::Creature))
         && game.player(seat).no_spells_turn != Some(game.turn)
-        && (game.player(seat).no_instants_sorceries_turn != Some(game.turn)
-            || !(def.is(CardType::Instant) || def.is(CardType::Sorcery)))
-        && (game.player(seat).no_creatures_planeswalkers_until.is_none_or(|t| game.turn > t)
-            || !(def.is(CardType::Creature) || def.is(CardType::Planeswalker)))
+        && !type_cast_forbidden(game, seat, def)
         && {
             // Java's playable check counts conditional mana for any spell (the payment then enforces it)
             game.paying_for.set(Some(ANY_SPELL));
@@ -5180,10 +5177,19 @@ fn cast_allowed_with(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId
     false
 }
 
+/// A player's `CAST_SPELL` restriction by card type: no instants or sorceries this turn (Sphinx's Decree), no
+/// creatures or planeswalkers through a turn (Single Combat)
+fn type_cast_forbidden(game: &Game, seat: Seat, def: &CardDef) -> bool {
+    let p = game.player(seat);
+    (p.no_instants_sorceries_turn == Some(game.turn) && (def.is(CardType::Instant) || def.is(CardType::Sorcery)))
+        || (p.no_creatures_planeswalkers_until.is_some_and(|t| game.turn <= t)
+            && (def.is(CardType::Creature) || def.is(CardType::Planeswalker)))
+}
+
 fn cast_with(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free: bool) -> bool {
     // `cast`'s `CAST_SPELL` rule check, for a spell an effect casts too (Avatar's Wrath stops a hideaway card)
     let def = game.obj(id).def.clone();
-    if cards::cant_cast(game, seat, id, &def) {
+    if cards::cant_cast(game, seat, id, &def) || type_cast_forbidden(game, seat, &def) {
         return false;
     }
     let outer = game.unpaid.replace(game.stack.len());
@@ -5248,6 +5254,8 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         let o = game.obj_mut(id);
         o.zone = Zone::Stack;
         o.zcc += 1;
+        // counters on a card in exile (a hatchling counter) don't follow it to the stack (122.2)
+        o.counters.clear();
         o.on_adventure = false;
         o.mana_spent = 0;
         o.treasure_spent = 0;
