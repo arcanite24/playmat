@@ -680,6 +680,11 @@ CUSTOM = {
         'class': 'TapForManaAllTriggeredManaAbility', 'java': 'NissaWhoShakesTheWorldTriggeredAbility',
         'filter': [{'p': 'subtype', 's': 'Forest'}, YOU], 'color': 'G',
         'rule': 'Whenever you tap a Forest for mana, add an additional {G}.'},
+    # Groundchuck & Dirtbag: "whenever you tap a land for mana, add {G}"
+    'GroundchuckAndDirtbagTriggeredAbility': lambda: {
+        'class': 'TapForManaAllTriggeredManaAbility', 'java': 'GroundchuckAndDirtbagTriggeredAbility',
+        'filter': [{'p': 'type', 't': 'LAND'}, YOU], 'color': 'G',
+        'rule': 'Whenever you tap a land for mana, add {G}.'},
     'MasterOfBarbsTriggeredAbility': lambda: {
         'class': 'DamagedOpponentsNoncombatTriggeredAbility', 'java': 'MasterOfBarbsTriggeredAbility',
         'effects': [{'class': 'BoostControlledEffect', 'power': 1, 'toughness': 0, 'duration': 'EndOfTurn',
@@ -4028,6 +4033,11 @@ class Translator:
             return {'class': 'ReturnFromGraveyardToBattlefieldTargetEffect', 'tapped': False}
         if cls == 'ReturnToBattlefieldUnderYourControlTargetEffect' and [a.strip() for a in args] == ['false', 'true']:
             return {'class': 'ReturnFromGraveyardToBattlefieldTargetEffect', 'tapped': True}
+        # (…, description): the description is only its text ("return it", Journey to Eternity)
+        if cls == 'ReturnToBattlefieldUnderYourControlTargetEffect' and len(args) == 3 \
+                and [a.strip() for a in args[:2]] in (['false', 'false'], ['false', 'true']) \
+                and re.fullmatch(r'"[^"]*"', args[2].strip()):
+            return {'class': 'ReturnFromGraveyardToBattlefieldTargetEffect', 'tapped': args[1].strip() == 'true'}
         if cls == 'ReturnToBattlefieldUnderOwnerControlTargetEffect' and len(args) == 2 \
                 and args[0].strip() in ('true', 'false') and args[1].strip() == 'false':
             return {'class': 'ReturnFromGraveyardToBattlefieldTargetEffect', 'tapped': args[0].strip() == 'true',
@@ -5926,6 +5936,12 @@ class Translator:
         # (Zone.BATTLEFIELD, effect, optional) is the two-argument form
         if cls == 'LandfallAbility' and len(args) == 3 and args[0].strip() == 'Zone.BATTLEFIELD':
             return self.ability('new LandfallAbility(' + ','.join(args[1:]) + ')')
+        # (…, SetTargetPointer.PERMANENT): its effects look at the land that entered (Guul Draz Overseer)
+        if cls == 'LandfallAbility' and len(args) == 4 and args[0].strip() == 'Zone.BATTLEFIELD' \
+                and args[3].strip() == 'SetTargetPointer.PERMANENT':
+            a = self.ability('new LandfallAbility(' + ','.join(args[1:3]) + ')')
+            a['set_target_pointer'] = True
+            return a
         # "when you gain life for the first time each turn, return this from your graveyard" (`when` only words it,
         # and the rule is read from the card's text)
         if cls == 'GainLifeFirstTimeTriggeredAbility' and len(args) == 4 \
@@ -7643,7 +7659,8 @@ class Translator:
                 filt = self.filter(args[1])
             elif n == 4:
                 pointer, filt, optional = args[1], self.filter(args[2]), flag(args[3])
-            elif n == 5 and args[0] in ('Zone.BATTLEFIELD', 'Zone.GRAVEYARD'):
+            # (an emblem's, `Zone.COMMAND`: Lolth's, as the battlefield's)
+            elif n == 5 and args[0] in ('Zone.BATTLEFIELD', 'Zone.GRAVEYARD', 'Zone.COMMAND'):
                 graveyard = args[0] == 'Zone.GRAVEYARD'
                 args = args[1:]
                 filt, pointer, optional = self.filter(args[1]), args[2], flag(args[3])
@@ -10621,6 +10638,12 @@ def granted_rules(card):
             # creating rule, which `CreateDelayedTriggeredAbilityEffect` writes as the ability's `getRule` (Full
             # Throttle's "At the beginning of each combat this turn, untap all creatures that attacked this turn.")
             g['rule'] = m.group(0)
+        elif g.get('class') == 'TriggeredAbility' and not quotes \
+                and (m := re.search(r'[Uu]ntil end of turn, (whenever \{this\} [^.<"]*\.)', rule or '')):
+            # a trigger the source gains until end of turn, written unquoted ("{3}{U}{U}: Until end of turn,
+            # whenever {this} deals combat damage to a player, draw two cards."): its own `getRule` is that sentence
+            # (Lyra, Tolarian Archangel)
+            g['rule'] = 'W' + m.group(1)[1:]
         elif g.get('class') in ('SimpleActivatedAbility', 'ActivateAsSorceryActivatedAbility', 'LoyaltyAbility',
                                 'TriggeredAbility', 'SimpleStaticAbility'):
             raise Unsupported('granted ' + g['class'] + ' without its rule text')
