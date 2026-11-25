@@ -40,11 +40,14 @@ import json
 import os
 import random
 import re
+import shutil
 import subprocess
 import sys
 import time
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+# `mvn` on Windows is mvn.cmd, which a bare name doesn't find
+MVN = shutil.which('mvn') or 'mvn'
 ENGINE = os.path.join(ROOT, 'rust', 'crates', 'playmat-engine')
 CARDS = os.path.join(ENGINE, 'cards', 'cards.json')
 FACTS = os.path.join(ENGINE, 'cards', 'facts.json')
@@ -330,7 +333,7 @@ def record(args):
         chunks = [todo[i::procs] for i in range(procs)]
         running = []
         for i, chunk in enumerate(chunks):
-            cmd = ['mvn', '-o', '-q', '-pl', 'Mage.Tests', 'test', '-Dtest=ShadowGamesTest',
+            cmd = [MVN, '-o', '-q', '-pl', 'Mage.Tests', 'test', '-Dtest=ShadowGamesTest',
                    '-Dsurefire.failIfNoSpecifiedTests=false',
                    '-Dxmage.shadowGames=' + rec, '-Dxmage.shadowGames.seeds=' + ','.join(chunk),
                    '-Dxmage.shadowGames.turns=%d' % args.turns,
@@ -593,7 +596,7 @@ def views(args):
                            + ['emblem:' + e for e in transpile.emblem_classes(names)]) + '\n')
     facts, full = os.path.join(tmp, 'facts.json'), os.path.join(tmp, 'views-full.json')
     log4j = os.path.join(ROOT, '.travis', 'log4j.properties')
-    subprocess.run(['mvn', '-o', '-q', '-pl', 'Mage.Tests', 'test', '-Dtest=CardFactsTest',
+    subprocess.run([MVN, '-o', '-q', '-pl', 'Mage.Tests', 'test', '-Dtest=CardFactsTest',
                     '-Dsurefire.failIfNoSpecifiedTests=false', '-Dxmage.cardFacts=' + facts,
                     '-Dxmage.cardFacts.pool=' + pool, '-Dxmage.cardFacts.views=' + full,
                     '-Dlog4j.configuration=file:' + log4j], cwd=ROOT, check=True)
