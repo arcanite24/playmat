@@ -268,11 +268,11 @@
  },
  "counted": {
   "engine_cards": 14167,
-  "verified_cards": 14135,
+  "verified_cards": 14139,
   "pioneer": {
    "cards": 15259,
    "in_engine": 13965,
-   "verified": 13934
+   "verified": 13938
   },
   "java_card_files": 32849,
   "school": {
@@ -1029,10 +1029,10 @@
    "played": 1360,
    "matched": 1357,
    "java_timeouts": 28,
-   "checked_in": 1482
+   "checked_in": 1485
   },
   "rust": {
-   "lines": 145769,
+   "lines": 145835,
    "crates": [
     {
      "crate": "playmat-ai",
@@ -1040,7 +1040,7 @@
     },
     {
      "crate": "playmat-engine",
-     "lines": 116998
+     "lines": 117064
     },
     {
      "crate": "playmat-gateway",
@@ -1065,6 +1065,6 @@
    ]
   }
  },
- "commit": "7694f82f4ec47dc03500325a30b8db4ff19a4a21",
+ "commit": "38c1c391abe57e9a57df081629cb2fdffc54d4e7",
  "generated": "2026-11-24"
 }

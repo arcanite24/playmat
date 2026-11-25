@@ -1584,7 +1584,7 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
     verified and playing on Rust: their checked-in games pass only because they were recorded before that commit.
     The ledger has the change as pending engine entries (`PrepareCard`, `PrepareSpellCard`, `CardWithSpellOption`,
     and `VengeanceCard` beside them), which `check` doesn't turn into pending cards. Fixing it is its own wave: the
-    picker in `rules.rs`'s cast path, then the prepare cards' games recorded again.
+    picker in `rules.rs`'s cast path, then the prepare cards' games recorded again. Wave 20a did that (below).
   - Dragon's Prey: its one differing game parts on Cooking Campsite (Sidequest: Catch a Fish's back face): Java
     shows the ability picker for its mana ability and Rust doesn't. Not investigated.
   - Loot, the Pathfinder: out of the engine (`ExhaustManaAbility`).
@@ -1593,6 +1593,44 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   (`TargetCardAndOrCardInLibrary`), Garruk, Savage Herald (`DamageAsThoughNotBlockedAbility`), Domri Rade
   (`CompoundAbility`), Invasion of Pyrulea (its `FilterPermanent`), Bond of Passion (`TargetPermanentOrPlayer`).
   The rest of the 322 weren't reached.
+
+  Wave 20a, the prepare picker (24 Nov): upstream's 7 Nov change to prepare cards (31c3adcc8cf, wave 19a's "not
+  verified again"). Java's `HumanPlayer.suppressAbilityPicker` no longer hides the "Choose spell or ability to play"
+  picker for a `CardWithSpellOption` off the battlefield, so a prepare card cast from hand asks it with the creature as
+  the only choice (`a1`: the creature's `SpellAbility` is the card's second ability, after `PrepareCardSpellAbility`).
+  No vengeance card is in the engine (Hela, Mistress of Darkness is the only one in `Mage.Sets`, and she isn't in
+  `cards.json`), so all of it is about the 55 prepare cards. Engine pieces:
+  - `rules.rs`'s cast path asks `ChooseAbility` for a prepare card cast from hand, from the graveyard, from exile and
+    from the top of the library, with the creature's index, at the same point Java does (before targets and costs).
+    The AI answers it like any other one-option picker, and the trace records it as Java does.
+  - A free cast (`cast_one_for_free_from`, discover, Planetarium of Wan Shi Tong, Sword of Once and Future) matches its
+    filter on each part of a prepare card, the prepare spell too, as `CardUtil.getCastableComponents` does
+    (`castable_parts`), and casts the creature without asking (`free_cast_choices`):
+    `PrepareCardSpellAbility.spellCanBeActivatedNow` gives no prepare spell to cast. The message lists the parts that
+    matched ("X or Y"). Sword of Once and Future's "exile it instead" is only for an instant or sorcery it cast; a
+    creature cast through its prepare spell's match isn't exiled on resolution.
+
+  Four factory rounds (280 games, 271 matching, 6 differing, 3 Java unfinished): 1, the factory over the 55 cards; 2,
+  hand-made, seven decks that cast them from hand and with discover; 3 and 4, the deck pairs of the 60 checked-in
+  games recorded before 7 Nov that cast one from hand, recorded again from the current Java under the same file names
+  (each replacement picked for the stack texts it shares with the old game; all of them ask the picker).
+  `factory/game-enters-tapped-doesnt-untap` came from round 4: round 3's three seeds of its pair all parted on Bilbo
+  (below). All 55 are verified, the four wave 19a left out (Joined Researchers, Emeritus of Woe, Grave Researcher,
+  Scheming Silvertongue) too: 14,139 of the 14,167 in the engine, and `upstream-pending.txt` is empty. Three games
+  under `shadow/wave20a/`: the picker from hand, discover hitting a prepare spell's mana value, Sword of Once and
+  Future casting the creature through its prepare spell. The picker from the graveyard, exile and library is written
+  but no game has it yet.
+
+  The six differing games all part on cards verified before, not on a prepare card; `verdicts` blamed Emeritus of
+  Conflict, Grave Researcher and Woodwork Prodigy (the first unverified card in each), and those three were added by
+  hand. Left as they are, since the wave changes no other verified card:
+  - Bilbo, Thief in the Night casting Glimpse of Freedom from the graveyard (three games): Java asks "Choose ability
+    to cast" (the cast or escape), Rust doesn't.
+  - Lumen-Class Frigate's station with the tapped Selfless Savior sacrificed in response: Java puts 2 charge counters
+    (its last-known power), Rust 1.
+  - Serah Farron: Java takes {3} off Yuna, Hope of Spira and Rust {2}, as if the front face's reduction and
+    Crystallized Serah's copy of it both applied.
+  - Mnemonic Betrayal's delayed return puts the exiled cards into the graveyard in another order.
 
   Wave 15, shared forms A (15 Nov): framework forms that block several of the claim's cards, then card classes,
   built in four slices. Ending the turn (`EndTurnEffect`, `Turn.endTurn`: `Game::end_turn`; every spell on the stack
