@@ -1343,6 +1343,9 @@ pub enum Trigger {
     },
     /// you get one or more {E} (`COUNTERS_ADDED` of energy on you: Fabrication Module's own trigger class)
     YouGetEnergy,
+    /// you manifest dread (`MANIFESTED_DREAD`: Paranormal Analyst's own trigger class); the trigger points at the
+    /// cards that manifest dread put into the graveyard
+    YouManifestDread,
     /// this attacks for the first time each turn (`AttacksFirstTimeTriggeredAbility`)
     AttacksFirstTime,
     /// you surveil (`SurveilTriggeredAbility`, `SURVEILED`), or scry (`ScryTriggeredAbility`, `SCRIED`): X is the amount
@@ -2588,6 +2591,9 @@ pub enum EffectDef {
         amount: i32,
         filter: Filter,
         who: String,
+        /// only while this holds (`ConditionalCostModificationEffect`: Paladin Class, during your turn)
+        #[serde(default)]
+        condition: Option<Condition>,
     },
     /// a static ability's effect (`DAMAGE_PLAYER`/`DAMAGE_PERMANENT` replacements: City on Fire, Tomik, Charging
     /// Tuskodon): damage from a source of `source` (as seen by its controller; `this_source`: this permanent,

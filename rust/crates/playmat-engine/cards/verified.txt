@@ -5215,6 +5215,7 @@ Grapple with the Past
 Grappling Kraken
 Grappling Sundew
 Grasp of Darkness
+Grasp of the Hieromancer
 Grasping Current
 Grasping Dunes
 Grasping Giant
@@ -5271,6 +5272,7 @@ Greater Sandwurm
 Greater Tanuki
 Greed's Gambit
 Greedy Freebooter
+Green Dragon
 Green Goblin, Revenant
 Greenbelt Guardian
 Greenbelt Radical
@@ -5333,6 +5335,7 @@ Grotag Night-Runner
 Grotesque Demise
 Grotesque Mutation
 Ground Assault
+Groundchuck & Dirtbag
 Grounded for Life
 Groundshaker Sliver
 Groundskeeper
@@ -5423,6 +5426,7 @@ Gutter Skulker
 Gutterbones
 Guttersnipe
 Guul Draz Mucklord
+Guul Draz Overseer
 Guy in the Chair
 Gwenna, Eyes of Gaea
 Gyre Engineer
@@ -5467,6 +5471,7 @@ Halo Hopper
 Halo Scarab
 Halo-Charged Skaab
 Halvar, God of Battle
+Hama Pashar, Ruin Seeker
 Hamato Guardian Stance
 Hamlet Captain
 Hamlet Glutton
@@ -5848,6 +5853,7 @@ Horrid Vigor
 Horror of the Broken Lands
 Horror of the Dim
 Horta
+Hoshi Sato, Exolinguist
 Host of the Hereafter
 Hostage Taker
 Hostile Desert
@@ -5914,6 +5920,7 @@ Humbling Elder
 Humiliate
 Humongulus
 Humpback Whales
+Hundred-Battle Veteran
 Hundred-Handed One
 Hungering Hydra
 Hungering Puppetbeast
@@ -6375,6 +6382,7 @@ Jace's Scrutiny
 Jace's Sentinel
 Jace's Triumph
 Jace, Arcane Strategist
+Jace, Cunning Castaway
 Jace, Ingenious Mind-Mage
 Jace, Memory Adept
 Jace, Mirror Mage
@@ -6506,6 +6514,7 @@ Junktroller
 Junkyard Genius
 Just the Wind
 Justice Strike
+Justice, Vance Astrovik
 Justiciar's Portal
 Jwar Isle Avenger
 Jwari Disruption
@@ -7175,6 +7184,7 @@ Lodestone Needle
 Lofty Denial
 Lofty Dreams
 Loki, God of Mischief
+Lolth, Spider Queen
 Lone Rider
 Lonely Arroyo
 Lonesome Unicorn
@@ -7296,6 +7306,7 @@ Lyev Decree
 Lyev Skyknight
 Lyra Dawnbringer
 Lyra, Archangel of Dawn
+Lyra, Tolarian Archangel
 Lys Alana Dignitary
 Lys Alana Informant
 M.O.D.O.K.
@@ -8008,6 +8019,7 @@ Mox Jasper
 Mox Opal
 Mr. Orfeo, the Boulder
 Mr. Spock, Science Officer
+Ms. Marvel, Kamala Khan
 Mu Yanling, Celestial Wind
 Mu Yanling, Sky Dancer
 Mu Yanling, Wind Rider
@@ -8111,6 +8123,7 @@ Nahiri's Stoneblades
 Nahiri's Warcrafting
 Nahiri, Forged in Fury
 Nahiri, Heir of the Ancients
+Nahiri, Storm of Stone
 Nahiri, the Harbinger
 Naiad of Hidden Coves
 Najal, the Storm Runner
@@ -8750,6 +8763,7 @@ Paralyzing Grasp
 Paramecia Coloniex
 Paranoid Delusions
 Paranoid Parish-Blade
+Paranormal Analyst
 Parasitic Grasp
 Parasitic Implant
 Parcelbeast

@@ -6641,9 +6641,10 @@ fn modified_cost_of(game: &Game, seat: Seat, id: ObjId, face: &CardDef, mut cost
         for a in &s.def.abilities {
             if let AbilityDef::SimpleStaticAbility { effects, .. } = a {
                 for e in effects {
-                    if let EffectDef::SpellsCostIncreasingAllEffect { amount, filter, who } = e {
+                    if let EffectDef::SpellsCostIncreasingAllEffect { amount, filter, who, condition } = e {
                         if Game::whose(who, s.controller, seat)
                             && face_matches(game, filter, s.controller, *src, id, face)
+                            && game.condition_holds(condition.as_ref(), s.controller, *src)
                         {
                             cost.generic += *amount as u32;
                         }
@@ -19884,11 +19885,7 @@ fn apply_each_effect(
                     },
                 };
                 let made = manifest(game, d, controller, &[card], false).first().copied();
-                for c in top {
-                    if game.obj(c).zone == Zone::Library {
-                        game.move_to(c, Zone::Graveyard);
-                    }
-                }
+                manifest_dread_rest(game, controller, &top);
                 if let Some(p) = made {
                     for c in counters {
                         put_counters(game, p, &c.name, c.amount, controller);
@@ -26842,6 +26839,24 @@ fn discover(game: &mut Game, d: &mut dyn Decider, seat: Seat, n: i32) -> bool {
     }
     let rest: Vec<ObjId> = exiled.into_iter().filter(|c| game.obj(*c).zone == Zone::Exile).collect();
     put_on_library(game, d, seat, &rest, false, false)
+}
+
+/// The end of `doManifestDread`, after the manifest: the rest of the top cards still in the library into the
+/// graveyard, then `ManifestedDreadEvent` ("whenever you manifest dread"), its triggers pointing at the cards it put
+/// there (`FixedTargets`)
+fn manifest_dread_rest(game: &mut Game, you: Seat, top: &[ObjId]) {
+    let rest: Vec<ObjId> = top.iter().copied().filter(|c| game.obj(*c).zone == Zone::Library).collect();
+    for c in &rest {
+        game.move_to(*c, Zone::Graveyard);
+    }
+    let gy: Vec<ObjId> = rest.into_iter().filter(|c| game.obj(*c).zone == Zone::Graveyard).collect();
+    let mut fired =
+        game.triggers(game.trigger_sources(), |_, _, ctrl, t| matches!(t, Trigger::YouManifestDread) && ctrl == you);
+    for t in &mut fired {
+        t.target_zcc = vec![gy.iter().map(|c| game.obj(*c).zcc).collect()];
+        t.targets = vec![gy.iter().map(|c| Target::Obj(*c)).collect()];
+    }
+    game.pending.extend(fired);
 }
 
 /// Manifests (or cloaks) cards (`ManifestEffect.doManifestCards`): each onto the battlefield face down as a 2/2

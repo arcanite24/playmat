@@ -680,6 +680,24 @@ CUSTOM = {
         'class': 'TapForManaAllTriggeredManaAbility', 'java': 'NissaWhoShakesTheWorldTriggeredAbility',
         'filter': [{'p': 'subtype', 's': 'Forest'}, YOU], 'color': 'G',
         'rule': 'Whenever you tap a Forest for mana, add an additional {G}.'},
+    # Groundchuck & Dirtbag: "whenever you tap a land for mana, add {G}"
+    'GroundchuckAndDirtbagTriggeredAbility': lambda: {
+        'class': 'TapForManaAllTriggeredManaAbility', 'java': 'GroundchuckAndDirtbagTriggeredAbility',
+        'filter': [{'p': 'type', 't': 'LAND'}, YOU], 'color': 'G',
+        'rule': 'Whenever you tap a land for mana, add {G}.'},
+    # "you may cast this card from your graveyard" (`MayCastFromGraveyardSourceAbility`, its own mana cost): its
+    # `MayCastFromGraveyardEffect` as a static handler that works from the graveyard (Hundred-Battle Veteran)
+    'MayCastFromGraveyardSourceAbility': lambda: {
+        'class': 'SimpleStaticAbility', 'java': 'MayCastFromGraveyardSourceAbility',
+        'effects': [{'class': 'CardStatic', 'handler': 'MayCastFromGraveyardEffect'}],
+        'rule': 'You may cast this card from your graveyard.'},
+    # Paranormal Analyst: "whenever you manifest dread, put a card you put into your graveyard this way into your
+    # hand" (`MANIFESTED_DREAD`, its pointer at the cards that went to the graveyard)
+    'ParanormalAnalystTriggeredAbility': lambda: {
+        'class': 'TriggeredAbility', 'java': 'ParanormalAnalystTriggeredAbility', 'on': {'e': 'you_manifest_dread'},
+        'effects': [{'class': 'CardEffect', 'handler': 'ParanormalAnalyst.ParanormalAnalystEffect'}],
+        'optional': False, 'rule': 'Whenever you manifest dread, put a card you put into your graveyard this way '
+                                   'into your hand.'},
     'MasterOfBarbsTriggeredAbility': lambda: {
         'class': 'DamagedOpponentsNoncombatTriggeredAbility', 'java': 'MasterOfBarbsTriggeredAbility',
         'effects': [{'class': 'BoostControlledEffect', 'power': 1, 'toughness': 0, 'duration': 'EndOfTurn',
@@ -4038,6 +4056,11 @@ class Translator:
             return {'class': 'ReturnFromGraveyardToBattlefieldTargetEffect', 'tapped': False}
         if cls == 'ReturnToBattlefieldUnderYourControlTargetEffect' and [a.strip() for a in args] == ['false', 'true']:
             return {'class': 'ReturnFromGraveyardToBattlefieldTargetEffect', 'tapped': True}
+        # (…, description): the description is only its text ("return it", Journey to Eternity)
+        if cls == 'ReturnToBattlefieldUnderYourControlTargetEffect' and len(args) == 3 \
+                and [a.strip() for a in args[:2]] in (['false', 'false'], ['false', 'true']) \
+                and re.fullmatch(r'"[^"]*"', args[2].strip()):
+            return {'class': 'ReturnFromGraveyardToBattlefieldTargetEffect', 'tapped': args[1].strip() == 'true'}
         if cls == 'ReturnToBattlefieldUnderOwnerControlTargetEffect' and len(args) == 2 \
                 and args[0].strip() in ('true', 'false') and args[1].strip() == 'false':
             return {'class': 'ReturnFromGraveyardToBattlefieldTargetEffect', 'tapped': args[0].strip() == 'true',
@@ -4122,7 +4145,13 @@ class Translator:
         # a cost reduction that applies while a condition holds
         if cls == 'ConditionalCostModificationEffect' and len(args) == 3:
             e = self.effect(args[0].strip())
-            if e.get('class') != 'SpellsCostReductionControllerEffect':
+            # a static handler's cost change (Nahiri, Storm of Stone's equip discount): visited only while the
+            # condition holds, as a `ConditionalContinuousEffect` around a handler is
+            if e.get('class') == 'CardStatic':
+                return {'class': 'ConditionalContinuousEffect', 'effect': e,
+                        'condition': self.value('condition', args[1].strip())}
+            # (Paladin Class: "spells your opponents cast during your turn cost {1} more")
+            if e.get('class') not in ('SpellsCostReductionControllerEffect', 'SpellsCostIncreasingAllEffect'):
                 raise Unsupported('conditional cost modification ' + e.get('class', ''))
             e['condition'] = self.value('condition', args[1].strip())
             return e
@@ -5961,6 +5990,12 @@ class Translator:
         # (Zone.BATTLEFIELD, effect, optional) is the two-argument form
         if cls == 'LandfallAbility' and len(args) == 3 and args[0].strip() == 'Zone.BATTLEFIELD':
             return self.ability('new LandfallAbility(' + ','.join(args[1:]) + ')')
+        # (…, SetTargetPointer.PERMANENT): its effects look at the land that entered (Guul Draz Overseer)
+        if cls == 'LandfallAbility' and len(args) == 4 and args[0].strip() == 'Zone.BATTLEFIELD' \
+                and args[3].strip() == 'SetTargetPointer.PERMANENT':
+            a = self.ability('new LandfallAbility(' + ','.join(args[1:3]) + ')')
+            a['set_target_pointer'] = True
+            return a
         # "when you gain life for the first time each turn, return this from your graveyard" (`when` only words it,
         # and the rule is read from the card's text)
         if cls == 'GainLifeFirstTimeTriggeredAbility' and len(args) == 4 \
@@ -6864,6 +6899,13 @@ class Translator:
             a['java'] = cls
             a['trigger_condition'] = {'c': 'source_saddled'}
             return a
+        # "whenever this creature attacks, tap target creature defending player controls" (Grasp of the Hieromancer's
+        # own class): an attack trigger whose `checkTrigger` swaps its target for one of the defending player's
+        # creatures (`defending_player_targets`)
+        if cls == 'GraspOfTheHieromancerTriggeredAbility' and n == 2 and args[1] == 'false':
+            a = self.ability('new AttacksTriggeredAbility(' + args[0] + ',false)')
+            a['java'] = cls
+            return a
         # embalm and eternalize: {cost}, exile this from your graveyard: a token copy, as a sorcery
         if cls in ('EmbalmAbility', 'EternalizeAbility') and n in (2, 3) and args[1] == 'this':
             cost = self.cost(args[0])
@@ -7685,7 +7727,8 @@ class Translator:
                 filt = self.filter(args[1])
             elif n == 4:
                 pointer, filt, optional = args[1], self.filter(args[2]), flag(args[3])
-            elif n == 5 and args[0] in ('Zone.BATTLEFIELD', 'Zone.GRAVEYARD'):
+            # (an emblem's, `Zone.COMMAND`: Lolth's, as the battlefield's)
+            elif n == 5 and args[0] in ('Zone.BATTLEFIELD', 'Zone.GRAVEYARD', 'Zone.COMMAND'):
                 graveyard = args[0] == 'Zone.GRAVEYARD'
                 args = args[1:]
                 filt, pointer, optional = self.filter(args[1]), args[2], flag(args[3])
@@ -9449,6 +9492,17 @@ def ability_statement(t, st, added):
     m = re.fullmatch(r'(\w+)\.addEffect\(new ElvenPassageUntapLandEffect\(\)\)', st)
     if m and m.group(1) in t.vars:
         return True
+    # `ability.appendToRule("…")` on a "you may cast this card from your graveyard" ability: more of its rule text, and
+    # `ability.addSubAbility(a)`: a, listed after it (Hundred-Battle Veteran's "if you do, it enters with a finality
+    # counter on it", an `EntersBattlefieldAbility` with `CastFromGraveyardSourceCondition`)
+    m = re.fullmatch(r'(\w+)\.appendToRule\("([^"]*)"\)', st)
+    if m and t.vars.get(m.group(1), {}).get('java') == 'MayCastFromGraveyardSourceAbility':
+        t.vars[m.group(1)]['rule'] += m.group(2)
+        return True
+    m = re.fullmatch(r'(\w+)\.addSubAbility\((.*)\)', st, re.S)
+    if m and t.vars.get(m.group(1), {}).get('java') == 'MayCastFromGraveyardSourceAbility':
+        t.vars[m.group(1)].setdefault('sub_abilities', []).append(t.ability(m.group(2)))
+        return True
     # `ability.setTriggersLimitEachTurn(n)` on a local trigger: it triggers at most n times each turn (Nanoform
     # Sentinel)
     m = re.fullmatch(r'(\w+)\.setTriggersLimitEachTurn\((\d+)\)', st)
@@ -9716,6 +9770,10 @@ def ability_statement(t, st, added):
                 added.append(t.ability(e.group(1)))
             return True
         added.append(t.ability(','.join(args)))
+        # an ability's sub-abilities (`addSubAbility`), each listed after it
+        if isinstance(added[-1], dict) and added[-1].get('sub_abilities'):
+            added[-1] = dict(added[-1])
+            added.extend(added[-1].pop('sub_abilities'))
         # decayed: its "when this attacks, sacrifice it at end of combat", listed on its own
         if added[-1].get('class') == 'DecayedAbility':
             added.append({'class': 'TriggeredAbility', 'java': 'AttacksTriggeredAbility', 'on': {'e': 'attacks'},
@@ -10412,6 +10470,23 @@ def token_classes(names):
     return sorted(out)
 
 
+def defending_player_targets(card):
+    """`GraspOfTheHieromancerTriggeredAbility.checkTrigger` replaces the target it was built with by a creature the
+    defending player controls (a duel's one opponent, `DefendingPlayerControlsSourceAttackingPredicate`)"""
+    def walk(x):
+        if isinstance(x, dict):
+            if x.get('java') == 'GraspOfTheHieromancerTriggeredAbility':
+                if len(x.get('targets', [])) != 1 or x['targets'][0].get('filter') != [CREATURE]:
+                    raise Unsupported('ability GraspOfTheHieromancerTriggeredAbility')
+                x['targets'][0]['filter'].append({'p': 'controller', 'who': 'opponent'})
+            for v in x.values():
+                walk(v)
+        elif isinstance(x, list):
+            for v in x:
+                walk(v)
+    walk(card)
+
+
 def that_player_names(card):
     """`ThatPlayerControlsTargetAdjuster` names the target after its filter's message, "(controlled by B)" added:
     when the rule doesn't say "that player controls", that message is the card's filter whose text the rule has"""
@@ -10677,6 +10752,12 @@ def granted_rules(card):
             # creating rule, which `CreateDelayedTriggeredAbilityEffect` writes as the ability's `getRule` (Full
             # Throttle's "At the beginning of each combat this turn, untap all creatures that attacked this turn.")
             g['rule'] = m.group(0)
+        elif g.get('class') == 'TriggeredAbility' and not quotes \
+                and (m := re.search(r'[Uu]ntil end of turn, (whenever \{this\} [^.<"]*\.)', rule or '')):
+            # a trigger the source gains until end of turn, written unquoted ("{3}{U}{U}: Until end of turn,
+            # whenever {this} deals combat damage to a player, draw two cards."): its own `getRule` is that sentence
+            # (Lyra, Tolarian Archangel)
+            g['rule'] = 'W' + m.group(1)[1:]
         elif g.get('class') in ('SimpleActivatedAbility', 'ActivateAsSorceryActivatedAbility', 'LoyaltyAbility',
                                 'TriggeredAbility', 'SimpleStaticAbility'):
             raise Unsupported('granted ' + g['class'] + ' without its rule text')
@@ -10831,6 +10912,7 @@ def translate_card(name, subtypes, facts):
     if 'ChooseCreatureTypeEffect' in json.dumps(card.get('spell')):
         raise Unsupported('effect ChooseCreatureTypeEffect on a spell')
     that_player_names(card)
+    defending_player_targets(card)
     copies_spells_only(card)
     # `DoIfCostPaid.setOtherwiseText`: its copy constructor drops the text, so the game shows the default "If you
     # don't" (Rent Is Due's "Otherwise, sacrifice")

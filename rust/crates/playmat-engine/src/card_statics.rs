@@ -162,7 +162,8 @@ pub(crate) enum Layer {
     SetPt(fn(&Game, &StaticCx, ObjId) -> (i32, i32)),
     /// layer 7b, the base toughness alone (`getToughness().setModifiedBaseValue`: Maha, Its Feathers Night)
     SetToughness(fn(&Game, &StaticCx, ObjId) -> i32),
-    /// layer 7b, the base power alone (`SetBasePowerEnchantedEffect`: Withercrown)
+    /// layer 7b, the base power alone (`getPower().setModifiedBaseValue`: Ms. Marvel, Kamala Khan;
+    /// `SetBasePowerEnchantedEffect`: Withercrown)
     SetPower(fn(&Game, &StaticCx, ObjId) -> i32),
     /// layer 7c, `PTChangingEffects_7` / `ModifyPT_7c`: what it adds to power and toughness
     ModifyPt(fn(&Game, &StaticCx, ObjId) -> (i32, i32)),
