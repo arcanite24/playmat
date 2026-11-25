@@ -13,7 +13,7 @@ fn apply(game: &mut Game, _d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     if game.obj(o).zone != Zone::Stack || cant_be_countered(game, o) {
         return Some(());
     }
-    note_countered(game, o, cx.item.card);
+    note_countered(game, o, cx.item.card, cx.controller());
     Arc::make_mut(&mut game.stack).retain(|i| i.card != o || i.ability.is_some());
     game.move_to(o, Zone::Exile);
     if game.obj(o).zone != Zone::Exile || game.obj(o).token {

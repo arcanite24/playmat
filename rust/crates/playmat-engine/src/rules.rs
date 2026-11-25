@@ -238,10 +238,15 @@ fn note(
     }
 }
 
-/// `source`'s effect countered `spell`
-fn note_countered(game: &mut Game, spell: ObjId, source: ObjId) {
+/// `source`'s effect, controlled by `by`, countered `spell`
+fn note_countered(game: &mut Game, spell: ObjId, source: ObjId, by: Seat) {
     let player = Some(game.obj(spell).controller);
     note(game, EventKind::Countered, player, Some(source), Some(Target::Obj(spell)), 0);
+    // `COUNTERED`: "whenever a spell or ability you control counters a spell", the controller of the stack object
+    // that countered it
+    let sources = game.trigger_sources();
+    let fired = game.triggers(sources, |_, _, you, t| matches!(t, Trigger::SpellCounteredYou) && you == by);
+    game.pending.extend(fired);
 }
 
 /// Whether a resolved "doesn't untap" effect keeps `id` tapped in `active`'s untap step: one for as long as its
@@ -12718,7 +12723,7 @@ fn apply_each_effect(
             EffectDef::CounterTargetExileEffect => {
                 if let Some(Target::Obj(o)) = target {
                     if game.obj(o).zone == Zone::Stack && !cant_be_countered(game, o) {
-                        note_countered(game, o, item.card);
+                        note_countered(game, o, item.card, item.controller);
                         Arc::make_mut(&mut game.stack).retain(|i| i.card != o || i.ability.is_some());
                         game.move_to(o, Zone::Exile);
                     }
@@ -12749,7 +12754,7 @@ fn apply_each_effect(
                 }
                 if let Some(Target::Obj(o)) = target {
                     if game.obj(o).zone == Zone::Stack && !cant_be_countered(game, o) {
-                        note_countered(game, o, item.card);
+                        note_countered(game, o, item.card, item.controller);
                         Arc::make_mut(&mut game.stack).retain(|i| i.card != o || i.ability.is_some());
                         game.move_to(o, Zone::Graveyard);
                     }
@@ -19428,7 +19433,7 @@ fn apply_each_effect(
                 let Some(payer) = payer else { continue };
                 let Some(paid) = pay_unless(game, d, payer, spell, cost) else { return };
                 if !paid && !cant_be_countered(game, spell) {
-                    note_countered(game, spell, item.card);
+                    note_countered(game, spell, item.card, item.controller);
                     Arc::make_mut(&mut game.stack).retain(|i| i.card != spell || i.ability.is_some());
                     game.move_to(spell, if *exile { Zone::Exile } else { Zone::Graveyard });
                 } else if paid && !if_they_do.is_empty() {
@@ -24308,7 +24313,7 @@ fn attack(game: &mut Game, id: ObjId, defender: Seat, pw: Option<(ObjId, u32)>) 
     o.attacking = Some(defender);
     o.attacking_pw = pw;
     if !vigilance {
-        tap(game, id);
+        tap_as(game, id, true);
     }
     let waiting = game.pending.len();
     game.attack_taps.push((id, waiting));
@@ -24329,6 +24334,11 @@ fn untap_undo(game: &mut Game, id: ObjId) {
 
 /// Taps a permanent: "whenever this becomes tapped" triggers
 fn tap(game: &mut Game, id: ObjId) {
+    tap_as(game, id, false);
+}
+
+/// Taps a permanent; `attacking`: as it's declared as an attacker (the `TAPPED` event's flag)
+fn tap_as(game: &mut Game, id: ObjId, attacking: bool) {
     if game.obj(id).tapped {
         return;
     }
@@ -24337,8 +24347,9 @@ fn tap(game: &mut Game, id: ObjId) {
     game.pending.extend(fired);
     let sources = game.trigger_sources();
     let fired = game.triggers(sources, |g, src, you, t| {
-        matches!(t, Trigger::BecomesTappedAll { filter }
-            if g.obj(src).zone == Zone::Battlefield && g.filter_matches(filter, you, Some(src), id))
+        matches!(t, Trigger::BecomesTappedAll { filter, not_attacking }
+            if g.obj(src).zone == Zone::Battlefield && !(*not_attacking && attacking)
+                && g.filter_matches(filter, you, Some(src), id))
             || matches!(t, Trigger::BecomesTappedAttached) && g.attached(src) == Some(id)
     });
     for mut t in fired {

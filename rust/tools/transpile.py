@@ -814,7 +814,7 @@ SIMPLE_TRIGGERS = {'EntersBattlefieldTriggeredAbility': 'enters', 'EntersBattlef
 # (nothing after it looks at which trigger it was)
 OR_PARTS = {'enters', 'attacks', 'dies', 'spell_cast', 'step_begins', 'becomes_target_of_spell',
             'combat_damage_to_player', 'enters_all', 'blocks', 'becomes_blocked', 'discards', 'cast_this', 'dies_all',
-            'attacks_attached', 'transforms_into', 'sacrificed', 'expend'}
+            'attacks_attached', 'transforms_into', 'sacrificed', 'expend', 'draws_nth'}
 
 TARGET_CONTROLLERS = {'TargetController.YOU': 'you', 'TargetController.NEXT': 'any', 'TargetController.ANY': 'any',
                       'TargetController.OPPONENT': 'opponent'}
@@ -1070,6 +1070,9 @@ def predicate(text, subtypes):
         return {'p': 'multicolored'}
     if (m := re.fullmatch(r'new ManaValueEqualToCountersSourceCountPredicate\((CounterType\.\w+)\)', text)) and m.group(1) in COUNTERS:
         return {'p': 'mana_value_equal_source_counters', 'counter': COUNTERS[m.group(1)]}
+    if (m := re.fullmatch(r'new ManaValueCompareToCountersSourceCountPredicate\((CounterType\.\w+),ComparisonType\.'
+                          r'(FEWER_THAN|MORE_THAN|EQUAL_TO|OR_LESS|OR_GREATER)\)', text)) and m.group(1) in COUNTERS:
+        return {'p': 'mana_value_equal_source_counters', 'counter': COUNTERS[m.group(1)], 'cmp': m.group(2)}
     if text == 'ManaValueLessThanOrEqualToSourcePowerPredicate.instance':
         return {'p': 'mana_value_at_most_source_power'}
     if text == 'GreatestPowerControlledPredicate.instance':
@@ -5336,6 +5339,14 @@ class Translator:
                 return a
             a['condition'] = self.value('condition', m.group(2))
             return a
+        # exhaust's `….setCondition(condition)`: "activate only if" (Bitter Work's "during your turn")
+        m = re.fullmatch(r'(new ExhaustAbility\(.*\))\s*\.setCondition\((\w+(?:\.[A-Z_a-z]\w*)?)\)', self.strip_setters(expr), re.S)
+        if m:
+            a = self.ability(m.group(1))
+            if a.get('class') != 'ExhaustAbility' or a.get('condition'):
+                raise Unsupported('ExhaustAbility condition ' + m.group(2))
+            a['condition'] = self.value('condition', m.group(2))
+            return a
         # `….withTriggerCondition(condition)`: checked only as it triggers
         m = re.fullmatch(r'(.*\))\s*\.withTriggerCondition\((\w+(?:\.[A-Z_a-z]\w*)?|new \w+Condition\([^()]*\))\)', self.strip_setters(expr), re.S)
         if m:
@@ -6669,6 +6680,11 @@ class Translator:
                 and canonical(args[2]) == 'new SpellCastOpponentTriggeredAbility(null,StaticFilters.FILTER_SPELL_A,false).withTriggerCondition(MyTurnCondition.instance)' \
                 and canonical(args[3]) == 'new DiesSourceTriggeredAbility(null,false)':
             return out({'e': 'opponent_casts_on_your_turn_or_dies'}, args[1])
+        # "whenever a creature an opponent controls becomes tapped, if it isn't being declared as an attacker"
+        # (effect, optional: Verity Circle)
+        if cls == 'TappedNotAttackingTriggeredAbility' and n == 2:
+            return out({'e': 'becomes_tapped_all', 'filter': [CREATURE, {'p': 'controller', 'who': 'opponent'}],
+                        'not_attacking': True}, args[0], flag(args[1]))
         # "whenever a <filter> becomes tapped" (effect, optional[, filter])
         if cls == 'BecomesTappedTriggeredAbility' and n in (2, 3):
             return out({'e': 'becomes_tapped_all',
@@ -7253,6 +7269,11 @@ class Translator:
         if cls == 'AllyEntersBattlefieldTriggeredAbility' and n == 2:
             return out({'e': 'enters_all', 'filter': [{'p': 'subtype', 's': 'Ally'}, YOU], 'include_self': True},
                        args[0], flag(args[1]))
+        # "whenever you draw your first or second card each turn" (`DrawNthOrNthCardTriggeredAbility(effect[,
+        # optional])`): either draw, one trigger (Lady Octopus)
+        if cls == 'DrawNthOrNthCardTriggeredAbility' and n in (1, 2):
+            return out({'e': 'or', 'ts': [{'e': 'draws_nth', 'n': 1}, {'e': 'draws_nth', 'n': 2}]}, args[0],
+                       n == 2 and flag(args[1]))
         # whenever you draw your `n`th card each turn
         if cls == 'DrawNthCardTriggeredAbility' and n == 3 and re.fullmatch(r'\d+', args[2]):
             return out({'e': 'draws_nth', 'n': int(args[2])}, args[0], flag(args[1]))
@@ -7562,6 +7583,9 @@ class Translator:
         if cls == 'BecomesRenownedSourceTriggeredAbility' and n == 2 and args[1] in ('true', 'false'):
             return out({'e': 'becomes_renowned_all', 'filter': [{'p': 'not', 'x': {'p': 'another'}}]}, args[0],
                        flag(args[1]))
+        # "whenever a spell or ability you control counters a spell" (`COUNTERED`, effect[, optional]: Baral)
+        if cls == 'SpellCounteredControllerTriggeredAbility' and n in (1, 2):
+            return out({'e': 'spell_countered_you'}, args[0], n == 2 and flag(args[1]))
         # a card's own `GAVE_GIFT` trigger (effect[, optional]): "whenever you give a gift" (Jolly Gerbils)
         if cls == 'GaveGiftTriggeredAbility' and n in (1, 2):
             return out({'e': 'gave_gift'}, args[0], n == 2 and flag(args[1]))
@@ -10431,8 +10455,16 @@ def translate_card(name, subtypes, facts):
             and ('INSTANT' in card.get('types', []) or 'SORCERY' in card.get('types', [])
                  or any(k in card for k in ('back', 'transform_back', 'adventure'))):
         raise Unsupported('condition GiftWasPromisedCondition.TRUE outside the spell')
-    # waterbend is paid as an activated ability's cost (or on its own); a spell's or a ward's isn't yet
-    if 'WaterbendCost' in json.dumps(card.get('spell')) or any(
+    # waterbend is paid as an activated ability's cost (or on its own: a spell's "unless you waterbend",
+    # `DoIfCostPaid`); a spell's or a ward's isn't yet
+    def _no_do_if_paid_costs(x):
+        if isinstance(x, dict):
+            return {k: _no_do_if_paid_costs(v) for k, v in x.items()
+                    if not (x.get('class') == 'DoIfCostPaid' and k == 'cost')}
+        if isinstance(x, list):
+            return [_no_do_if_paid_costs(v) for v in x]
+        return x
+    if 'WaterbendCost' in json.dumps(_no_do_if_paid_costs(card.get('spell'))) or any(
             'WaterbendCost' in json.dumps(a) for a in card.get('abilities', []) if a.get('class') == 'WardAbility'):
         raise Unsupported('cost WaterbendCost of a spell or ward')
     if WHEN_YOU_DO in json.dumps(card) or RULE_FROM in json.dumps(card):

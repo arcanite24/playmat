@@ -2076,14 +2076,14 @@ impl Game {
                     o.def.mana_value() as i32 <= power
                 })
             }
-            Pred::ManaValueEqualSourceCounters { counter } => source.is_some_and(|src| {
+            Pred::ManaValueEqualSourceCounters { counter, cmp } => source.is_some_and(|src| {
                 let s = self.obj(src);
                 let n = if s.zone == Zone::Battlefield {
                     s.counter(counter)
                 } else {
                     s.lki_counters.iter().filter(|(k, _)| k == counter).map(|(_, n)| *n).sum()
                 };
-                o.def.mana_value() as i32 == n
+                cmp.unwrap_or(crate::card::Cmp::EqualTo).holds(o.def.mana_value() as i32, n)
             }),
             Pred::AuraAttached => self
                 .battlefield
