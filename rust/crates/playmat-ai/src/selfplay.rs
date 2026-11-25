@@ -8,6 +8,7 @@
 //! - `Recording` wraps any seat's policy and writes each decision it makes (the observation, the candidates, the
 //!   choice, the policy's chances, the critic's extra view, the belief's labels) for training.
 
+use crate::fm::Fm;
 use crate::decision::{Choice, Decision, DecisionPolicy, PolicyKind};
 use crate::net::{self, softmax};
 use crate::obs::{self, Obs, ACT_F, BELIEF_META_F, ENT_F, GLOB_F};
@@ -131,7 +132,7 @@ fn hand_likelihood(
     logit: &std::collections::HashMap<u32, f32>,
     seen: &dyn Fn(ObjId) -> bool,
 ) -> f32 {
-    let ls = |z: f32| -(1.0 + (-z).exp()).ln();
+    let ls = |z: f32| -(1.0 + (-z).sexp()).sln();
     unseen(game, seat, seen)
         .iter()
         .map(|(id, in_hand)| {
@@ -187,7 +188,7 @@ pub(crate) fn sample_games_weighted(
                 })
                 .collect();
             let m = drawn.iter().map(|(l, _)| *l).fold(f32::MIN, f32::max);
-            let w: Vec<f64> = drawn.iter().map(|(l, _)| ((l - m) as f64).exp()).collect();
+            let w: Vec<f64> = drawn.iter().map(|(l, _)| ((l - m) as f64).sexp()).collect();
             let s: f64 = w.iter().sum::<f64>().max(1e-12);
             if d.config.belief_ms {
                 // Phase 3: group proposals by sorted unseen opponent-hand card-ID multiset, sum exact
@@ -324,7 +325,7 @@ impl DecisionPolicy for NetSearch {
         let eta = cfg.eta as f32 / 1000.0;
         // untried candidates keep their prior; tried ones are moved by how they scored against the mean
         let mut post: Vec<f32> =
-            prior.iter().zip(&q).map(|(p, v)| if v.is_nan() { *p } else { p * (eta * (v - mean)).exp() }).collect();
+            prior.iter().zip(&q).map(|(p, v)| if v.is_nan() { *p } else { p * (eta * (v - mean)).sexp() }).collect();
         let s: f32 = post.iter().sum();
         post.iter_mut().for_each(|v| *v /= s);
         let q_weighted: f32 = post.iter().zip(&q).map(|(p, v)| p * if v.is_nan() { mean } else { *v }).sum();
@@ -389,7 +390,7 @@ impl DecisionPolicy for Gumbel {
             return Some(Choice { answer: d.candidates[i].clone(), nodes: 0 });
         };
         let g: Vec<f32> = (0..n)
-            .map(|_| if temp == 0 { 0.0 } else { -(-(uniform(&mut self.rng).max(1e-9)).ln()).ln() })
+            .map(|_| if temp == 0 { 0.0 } else { -(-(uniform(&mut self.rng).max(1e-9)).sln()).sln() })
             .collect();
         let mut alive: Vec<usize> = (0..n).collect();
         alive.sort_by(|a, b| (g[*b] + out.logits[*b]).total_cmp(&(g[*a] + out.logits[*a])));
@@ -430,7 +431,7 @@ impl DecisionPolicy for Gumbel {
                 alive.truncate(alive.len().div_ceil(2));
             }
         }
-        let v = 1.0 / (1.0 + (-out.value).exp());
+        let v = 1.0 / (1.0 + (-out.value).sexp());
         let most = *plays.iter().max().unwrap_or(&0);
         let improved: Vec<f32> = (0..n)
             .map(|i| {
@@ -594,7 +595,7 @@ impl DecisionPolicy for Recording {
             pool: pool.iter().map(|(id, _)| obs::card_id(&d.game.obj(*id).def.name)).collect(),
             pool_in_hand: pool.iter().map(|(_, h)| *h).collect(),
             chosen,
-            logp: target[chosen].max(1e-8).ln(),
+            logp: target[chosen].max(1e-8).sln(),
             qval: self.inner.last_value().unwrap_or(f32::NAN),
             target,
             act_q,

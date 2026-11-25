@@ -11,6 +11,7 @@
 //! - Supports both v1 `Tx` checkpoints (ReLU + linear value head) and upgraded `Tx` checkpoints (`val_mlp=1` dedicated
 //!   2-layer value head reading `[t0, mean_ent, max_ent, glob]`, and `gelu=1` tanh-approx GELU).
 
+use crate::fm::Fm;
 use crate::obs::{self, Obs, ACT_F, ENT_F, GLOB_F, GLOB_F_V1, GLOB_F_V2, NO_ENT, NUM_REL_TYPES};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -24,7 +25,7 @@ fn act_val(x: f32, gelu: bool) -> f32 {
     if gelu {
         // Matches PyTorch F.gelu(x, approximate="tanh")
         const K: f32 = 0.797_884_6; // sqrt(2 / pi)
-        0.5 * x * (1.0 + (K * (x + 0.044_715 * x * x * x)).tanh())
+        0.5 * x * (1.0 + (K * (x + 0.044_715 * x * x * x)).stanh())
     } else {
         x.max(0.0)
     }
@@ -103,6 +104,70 @@ impl Linear {
         }
     }
 
+    /// The strict build's matrix product: per output, the bias and then each input in order, exactly as `apply_act`
+    /// sums a single row (no fused multiply-add: Rust never fuses on its own), eight rows at a time (then four, then
+    /// one) so each weight panel is read once per block. `y` is sized already.
+    #[cfg(feature = "strict")]
+    fn strict_rows(&self, x: &[f32], rows: usize, y: &mut [f32], do_act: bool, gelu: bool, add_to_y: bool) {
+        let inp = self.inp;
+        let mut r0 = 0;
+        while r0 < rows {
+            let left = rows - r0;
+            let n = if left >= 8 {
+                self.strict_block::<8>(&x[r0 * inp..(r0 + 8) * inp], &mut y[r0 * self.out..], do_act, gelu, add_to_y);
+                8
+            } else if left >= 4 {
+                self.strict_block::<4>(&x[r0 * inp..(r0 + 4) * inp], &mut y[r0 * self.out..], do_act, gelu, add_to_y);
+                4
+            } else {
+                self.strict_block::<1>(&x[r0 * inp..(r0 + 1) * inp], &mut y[r0 * self.out..], do_act, gelu, add_to_y);
+                1
+            };
+            r0 += n;
+        }
+    }
+
+    /// `R` rows of the strict product: `x` is `[R, inp]`, `y` starts at the first of them
+    #[cfg(feature = "strict")]
+    #[inline(always)]
+    fn strict_block<const R: usize>(&self, x: &[f32], y: &mut [f32], do_act: bool, gelu: bool, add_to_y: bool) {
+        let (inp, out) = (self.inp, self.out);
+        let blocks = out / 8;
+        assert!(x.len() == R * inp && y.len() >= R * out);
+        let xs: [&[f32]; R] = std::array::from_fn(|r| &x[r * inp..(r + 1) * inp]);
+        let fin = |acc: f32| if do_act { act_val(acc, gelu) } else { acc };
+        for blk in 0..blocks {
+            let ob = blk * 8;
+            let mut b8 = [0f32; 8];
+            b8.copy_from_slice(&self.b[ob..ob + 8]);
+            let mut acc = [b8; R];
+            let panel = &self.wp[blk * inp * 8..(blk + 1) * inp * 8];
+            for (k, w) in panel.chunks_exact(8).enumerate() {
+                let w: &[f32; 8] = w.try_into().unwrap();
+                for r in 0..R {
+                    let v = xs[r][k];
+                    for j in 0..8 {
+                        acc[r][j] += v * w[j];
+                    }
+                }
+            }
+            for (r, a) in acc.iter().enumerate() {
+                let dst = &mut y[r * out + ob..r * out + ob + 8];
+                for (d, &v) in dst.iter_mut().zip(a) {
+                    let v = fin(v);
+                    *d = if add_to_y { *d + v } else { v };
+                }
+            }
+        }
+        for (r, xr) in xs.iter().enumerate() {
+            for o in blocks * 8..out {
+                let v = fin(self.b[o] + dot(&self.w[o * inp..(o + 1) * inp], xr));
+                let d = &mut y[r * out + o];
+                *d = if add_to_y { *d + v } else { v };
+            }
+        }
+    }
+
     /// Flat batched matmul: `x` is `[rows, inp]`, writes `y` as `[rows, out]`.
     /// Uses `matrixmultiply::sgemm` (AVX2+FMA / NEON cache-blocked microkernels) for multi-row projections,
     /// and the packed 8-lane kernel for single rows.
@@ -126,6 +191,14 @@ impl Linear {
             debug_assert_eq!(y.len(), rows * out);
             debug_assert!(!do_act, "add_to_y with activation not supported");
         }
+        // the strict build skips `matrixmultiply`, whose kernels (AVX2 and FMA, NEON) round differently per machine,
+        // for the packed 8-lane loop: the same sums in the same order everywhere (crate::fm)
+        #[cfg(feature = "strict")]
+        {
+            self.strict_rows(x, rows, y, do_act, gelu, add_to_y);
+            return;
+        }
+        #[allow(unreachable_code)]
         let beta = if add_to_y { 1.0 } else { 0.0 };
         unsafe {
             matrixmultiply::sgemm(
@@ -524,7 +597,7 @@ fn attend_strided(
             }
             let mut z = 0.0f32;
             for s in scores.iter_mut() {
-                *s = (*s - m).exp();
+                *s = (*s - m).sexp();
                 z += *s;
             }
             let inv_z = 1.0 / z;
@@ -1214,7 +1287,7 @@ impl Net {
 pub fn softmax(logits: &[f32], temp: f32) -> Vec<f32> {
     let t = temp.max(1e-3);
     let m = logits.iter().copied().fold(f32::MIN, f32::max);
-    let e: Vec<f32> = logits.iter().map(|l| ((l - m) / t).exp()).collect();
+    let e: Vec<f32> = logits.iter().map(|l| ((l - m) / t).sexp()).collect();
     let s: f32 = e.iter().sum();
     e.iter().map(|v| v / s).collect()
 }

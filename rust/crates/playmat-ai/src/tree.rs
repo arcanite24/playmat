@@ -8,6 +8,7 @@
 //! - With `Config::leaf_blend > 0`, the expanded leaf's neural value `sigmoid(out.value)` is blended with (or at
 //!   `1000`, completely replaces) the rollout evaluation, removing 2-turn rollouts for 5x-15x more tree simulations/s.
 
+use crate::fm::Fm;
 use crate::decision::{Choice, Decision, DecisionPolicy};
 use crate::net::{self, Net};
 use crate::search::{candidates, Config};
@@ -61,7 +62,7 @@ impl EvalCache {
             return hit;
         }
         let out = net.forward(obs);
-        let leaf_v = (1.0 / (1.0 + (-out.value as f64).exp())).clamp(0.02, 0.98);
+        let leaf_v = (1.0 / (1.0 + (-out.value as f64).sexp())).clamp(0.02, 0.98);
         let p: Arc<[f32]> = Arc::from(net::softmax(&out.logits, 1.0));
         self.insert_cached(key, Arc::clone(&p), leaf_v);
         (p, leaf_v)
@@ -86,7 +87,7 @@ impl EvalCache {
             }
         }
         let logit = net.state(&obs).1 as f64;
-        let p = (1.0 / (1.0 + (-logit).exp())).clamp(0.02, 0.98);
+        let p = (1.0 / (1.0 + (-logit).sexp())).clamp(0.02, 0.98);
         let mut map = self.shards[si].lock().unwrap();
         if map.len() >= CACHE_MAX_PER_SHARD {
             map.clear();
@@ -141,13 +142,13 @@ fn aggregate_world_q(trees: &[Tree], weights: &[f64], i: usize, cfr_root: u32, f
         if k.n > 0 {
             let qw = k.w / k.n as f64;
             wt_sum += wt;
-            exp_sum += wt * (-beta * qw).exp();
+            exp_sum += wt * (-beta * qw).sexp();
         }
     }
     if wt_sum <= 0.0 || exp_sum <= 0.0 {
         return q_mean as f32;
     }
-    let q_ent = -(exp_sum / wt_sum).ln() / beta;
+    let q_ent = -(exp_sum / wt_sum).sln() / beta;
     ((1.0 - alpha) * q_mean + alpha * q_ent).clamp(0.0, 1.0) as f32
 }
 
@@ -171,7 +172,7 @@ fn tilted_world_weights(trees: &[Tree], base_weights: &[f64], alive: &[usize], p
         }
         let mult = if psum > 0.0 {
             let vw = vsum / psum;
-            (-eta * (vw - 0.5)).exp().clamp(0.5, 2.0)
+            (-eta * (vw - 0.5)).sexp().clamp(0.5, 2.0)
         } else {
             1.0
         };
@@ -697,7 +698,7 @@ fn run_vloss_wave(
     let outputs = net.forward_batch(&obs_batch);
     let mut eval_priors: Vec<(Arc<[f32]>, f64)> = Vec::with_capacity(outputs.len());
     for out in &outputs {
-        let lv = (1.0 / (1.0 + (-out.value as f64).exp())).clamp(0.02, 0.98);
+        let lv = (1.0 / (1.0 + (-out.value as f64).sexp())).clamp(0.02, 0.98);
         let p: Arc<[f32]> = Arc::from(net::softmax(&out.logits, 1.0));
         eval_priors.push((p, lv));
     }
@@ -806,7 +807,7 @@ impl DecisionPolicy for Ismcts {
         }
         let out = net.forward(&crate::obs::observe(d.game, d.seat, d.query, d.candidates));
         let prior = net::softmax(&out.logits, 1.0);
-        let v_prior = 1.0 / (1.0 + (-out.value as f64).exp());
+        let v_prior = 1.0 / (1.0 + (-out.value as f64).sexp());
         let Some(root) = d.root else {
             self.last = prior;
             self.last_val = Some(v_prior as f32);
@@ -827,9 +828,9 @@ impl DecisionPolicy for Ismcts {
         if cfg.gumbel_root {
             let n = d.candidates.len();
             // Clamped log-prior prevents an over-sharpened prior (-15 logits) from drowning out a proven search win
-            let logp: Vec<f32> = prior.iter().map(|&p| p.max(1e-3).ln()).collect();
+            let logp: Vec<f32> = prior.iter().map(|&p| p.max(1e-3).sln()).collect();
             let g: Vec<f32> = (0..n)
-                .map(|_| if temp == 0 { 0.0 } else { -(-(uniform(&mut self.rng).max(1e-9)).ln()).ln() })
+                .map(|_| if temp == 0 { 0.0 } else { -(-(uniform(&mut self.rng).max(1e-9)).sln()).sln() })
                 .collect();
             let mut alive: Vec<usize> = (0..n).collect();
             alive.sort_by(|a, b| (g[*b] + logp[*b]).total_cmp(&(g[*a] + logp[*a])));
@@ -1258,7 +1259,7 @@ impl DecisionPolicy for Ismcts {
 
         // Classic PUCT ISMCTS (with light exploration noise at root when temp > 0)
         let root_prior: Vec<f32> = if temp > 0 && prior.len() > 1 {
-            let exp_noise: Vec<f32> = (0..prior.len()).map(|_| -(uniform(&mut self.rng).max(1e-7)).ln()).collect();
+            let exp_noise: Vec<f32> = (0..prior.len()).map(|_| -(uniform(&mut self.rng).max(1e-7)).sln()).collect();
             let ns: f32 = exp_noise.iter().sum::<f32>().max(1e-7);
             prior.iter().zip(&exp_noise).map(|(p, e)| 0.8 * p + 0.2 * (e / ns)).collect()
         } else {
@@ -1360,7 +1361,7 @@ mod tests {
 
         let direct = net.forward(&obs);
         let direct_p = net::softmax(&direct.logits, 1.0);
-        let direct_v = (1.0 / (1.0 + (-direct.value as f64).exp())).clamp(0.02, 0.98);
+        let direct_v = (1.0 / (1.0 + (-direct.value as f64).sexp())).clamp(0.02, 0.98);
 
         let (p1, v1) = cache.forward_priors(&net, &obs);
         let (p2, v2) = cache.forward_priors(&net, &obs);

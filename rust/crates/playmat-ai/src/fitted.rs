@@ -5,6 +5,7 @@
 //! the two seats' chances add to 1. Each card name on the battlefield also has a learned weight: what having one
 //! more copy than the opponent is worth, on top of the generic features.
 
+use crate::fm::Fm;
 use crate::eval;
 use playmat_engine::card::{AbilityDef, CardType};
 use playmat_engine::state::{Game, Seat};
@@ -183,5 +184,5 @@ pub fn evaluate(game: &Game, seat: Seat) -> i64 {
 
 /// A fitted score as a chance of winning
 pub fn probability(score: i64) -> f64 {
-    1.0 / (1.0 + (-(score as f64) / 1000.0).exp())
+    1.0 / (1.0 + (-(score as f64) / 1000.0).sexp())
 }

@@ -9,8 +9,14 @@ publish.workspace = true
 [dependencies]
 playmat-engine = { path = "../playmat-engine" }
 matrixmultiply = "0.3"
+sha2 = "0.10"
+libm = { version = "0.2", optional = true }
 serde.workspace = true
 serde_json.workspace = true
+
+[features]
+# the same games on every machine: fixed-order matrix products and portable float functions (src/fm.rs)
+strict = ["dep:libm"]
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
