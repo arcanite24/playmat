@@ -3311,7 +3311,8 @@ class Translator:
             if r.get('class') != 'Reflexive':
                 raise Unsupported('reflexive ability ' + args[0])
             msg = args[2].strip()[1:-1] if args[2].strip() != 'null' else ''
-            return {'class': cls, 'cost': [self.cost(args[1])], 'message': msg, 'rule': WHEN_YOU_DO,
+            # (a reflexive made with its own text keeps it: `getRule`, capitalized, Death to Our Enemies)
+            return {'class': cls, 'cost': [self.cost(args[1])], 'message': msg, 'rule': r.get('rule', WHEN_YOU_DO),
                     'targets': r['targets'], 'effects': r['effects'], 'optional': args[3].strip() == 'true'}
         # `new DoIfCostPaid(null, otherwise, cost)`: only what's done when it isn't paid
         # `new DoIfCostPaid(effect, null, cost, optional)`
@@ -3497,6 +3498,11 @@ class Translator:
             return {'class': 'ChooseLandNameEffect'}
         if cls == 'ChooseCreatureTypeEffect' and len(args) == 1 and args[0].strip().startswith('Outcome.'):
             return {'class': cls}
+        # (outcome, SubType...): one of these (Dawn-Blessed Pennant)
+        if cls == 'ChooseCreatureTypeEffect' and len(args) > 1 and args[0].strip().startswith('Outcome.') \
+                and all((m := re.fullmatch(r'SubType\.(\w+)', a.strip())) and m.group(1) in self.subtypes
+                        for a in args[1:]):
+            return {'class': cls, 'only': [self.subtypes[a.strip()[len('SubType.'):]] for a in args[1:]]}
         # a Siege's "choose Khans or Dragons", kept on the permanent for its anchor-word abilities
         if cls == 'ChooseModeEffect' and args and all(re.fullmatch(r'ModeChoice\.\w+', a.strip()) for a in args):
             return {'class': cls, 'modes': [mode_choice(a) for a in args]}
@@ -4340,6 +4346,10 @@ class Translator:
                     'amount': self.value('amount', args[0]) if len(args) == 2 else 1}
         if cls == 'DiscardCardYouChooseTargetEffect' and not args:
             return {'class': cls, 'filter': []}
+        # (number of cards to reveal): they reveal that many of their choice, you choose one (Acquisitions Expert)
+        if cls == 'DiscardCardYouChooseTargetEffect' and len(args) == 1 \
+                and re.fullmatch(r'\d+|\w+Count\.instance', args[0].strip()):
+            return {'class': cls, 'filter': [], 'reveal': self.amount(args[0])}
         if cls == 'DrawDiscardControllerEffect' and len(args) <= 1:
             args = ['1', '1'] + args
         # "discard any number of cards, then draw that many (plus N)"
@@ -5572,7 +5582,9 @@ class Translator:
                 if len(a) == 3 and a[2] != 'new TargetControlledCreaturePermanent()':
                     n = re.fullmatch(r'new TargetPermanent\((\w+)\)', a[2])
                     f = self.filter(n.group(1)) if n else None
-                    if not f or CREATURE not in f:
+                    # (or a creature type alone: "equip Citizen", a `FilterControlledPermanent(SubType.CITIZEN)` Java
+                    # takes as it is: Ceremonial Groundbreaker)
+                    if not f or (CREATURE not in f and not any(p.get('p') == 'subtype' for p in f)):
                         raise Unsupported('equip ' + ','.join(args))
                     target = [dict(p) for p in f] + ([YOU] if YOU not in f else [])
             else:

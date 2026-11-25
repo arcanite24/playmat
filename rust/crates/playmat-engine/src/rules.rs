@@ -2612,7 +2612,15 @@ fn plot(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, ManaCost)> {
     if o.zone != Zone::Hand || o.owner != seat || !sorcery_speed(game, seat) {
         return None;
     }
-    let (k, cost) = o.def.plot()?;
+    let (k, mut cost) = o.def.plot()?;
+    // `PlotAbility` is an activated ability to `costModification` (Doc Aurlock's "plotting cards from your hand
+    // costs {2} less"): the static handlers' changes, by `CostModificationType`
+    if let Some(a) = o.def.abilities.get(k) {
+        let of = cards::CostCx { seat, card: id, face: &o.def, ability: Some(a) };
+        for kind in [cards::CostKind::Increase, cards::CostKind::Reduce, cards::CostKind::Set] {
+            cards::change_cost(game, kind, &of, &mut cost);
+        }
+    }
     // counted like a spell's cost: conditional mana counts too
     game.paying_for.set(Some(ANY_SPELL));
     let ok = can_pay(game, seat, &cost);
@@ -9929,6 +9937,8 @@ fn activate_mana_paying(
     for c in def.abilities[i].mana_costs().to_vec() {
         match c {
             CostDef::SacrificeSourceCost => sacrifice(game, id),
+            // "{T}, Exile Ether: Add {U}."
+            CostDef::ExileSourceCost => game.move_to(id, Zone::Exile),
             CostDef::PayLifeCost { amount } => lose_life(game, seat, amount),
             CostDef::PayEnergyCost { amount } => add_energy(game, seat, -amount),
             CostDef::RemoveCountersSourceCost { counter } => {
@@ -18718,9 +18728,24 @@ fn apply_each_effect(
                     }
                 }
             }
-            EffectDef::DiscardCardYouChooseTargetEffect { filter } => {
+            EffectDef::DiscardCardYouChooseTargetEffect { filter, reveal } => {
                 if let Some(Target::Player(p)) = target {
-                    let hand = game.player(p).hand.clone();
+                    let mut hand = game.player(p).hand.clone();
+                    if let Some(n) = reveal {
+                        // that many (or the whole hand, if it's no bigger), chosen by the player who reveals them
+                        let n = game.value(n, controller, source.0, item.x);
+                        if n <= 0 {
+                            continue;
+                        }
+                        let n = (n as usize).min(hand.len());
+                        if hand.len() > n {
+                            let rule = format!("card in {}'s hand", log::player(p));
+                            match choose_cards(game, d, p, &hand, &hand, n, n, &rule) {
+                                Some(chosen) => hand = chosen,
+                                None => return,
+                            }
+                        }
+                    }
                     let possible: Vec<ObjId> = hand
                         .iter()
                         .copied()
@@ -19742,7 +19767,7 @@ fn apply_each_effect(
             | EffectDef::BoostAllEffect { .. }
             | EffectDef::TapSourceUnlessPaysEffect { .. }
             | EffectDef::ChooseBasicLandTypeEffect
-            | EffectDef::ChooseCreatureTypeEffect
+            | EffectDef::ChooseCreatureTypeEffect { .. }
             | EffectDef::ChooseModeEffect { .. }
             | EffectDef::CavernOfSoulsCantCounterEffect
             | EffectDef::MultiversalPassagePassageEffect
@@ -22094,8 +22119,8 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
                         _ => None,
                     };
                 }
-                if let EffectDef::ChooseCreatureTypeEffect = e {
-                    let q = Query::Choice { message: "Choose a creature type".into(), choices: Vec::new() };
+                if let EffectDef::ChooseCreatureTypeEffect { only } = e {
+                    let q = Query::Choice { message: "Choose a creature type".into(), choices: only.clone() };
                     let chosen = loop {
                         match ask(game, d, controller, &q) {
                             Answer::Text(t) => break t,

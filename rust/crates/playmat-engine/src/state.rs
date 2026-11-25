@@ -3158,7 +3158,11 @@ impl Game {
             out.push((k.unwrap_or(1), f));
         }
         if o.flashback_turn == Some(self.turn) {
-            let cost = if o.flashback_free { crate::card::ManaCost::parse("{0}").unwrap_or_default() } else { o.def.cost.clone() };
+            let cost = if o.flashback_free {
+                crate::card::ManaCost::parse("{0}").unwrap_or_default()
+            } else {
+                o.def.cost.clone()
+            };
             out.push((
                 o.def.abilities.len(),
                 CardDef { cost, printed_cost: Some(o.def.printed().clone()), ..(*o.def).clone() },
