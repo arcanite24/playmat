@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans), plus the Career decks' cards outside it, `cards/career-pool.txt` (121 names, wave 18).
-  `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler can express (14,160 on
+  `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler can express (14,167 on
   24 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
@@ -1554,6 +1554,39 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   - Hunter's Insight: a delayed combat-damage trigger that refers to the target.
   - Neyith of the Dire Hunt: the fights-or-becomes-blocked batch trigger and its must-be-blocked effect.
   - Selvala, Heart of the Wilds: its trigger, and `AddManaInAnyCombination` with a dynamic amount.
+
+  Wave 19a (24 Nov): first the 71 verified cards upstream changed (`upstream-pending.txt` after the 23 Nov merge),
+  translated again from the current Java (`upstream_ledger.py requeue`), then cards A to L rejected on an `effect`
+  statement. Four factory rounds (155 games, 139 matching) verified 65 of the 71 again and 8 new cards: 14,135 of
+  the 14,167 in the engine, none waiting on upstream. Rounds 3 and 4 were hand-made: Liliana, the Necromancer's −7,
+  Squirming Emergence and Beluna Grandsquall's Seek Thrills, and the deck pairs of five checked-in games that the
+  requeued cards broke (recorded again from the current Java, same file names). Engine and transpiler pieces, each
+  with a game under `shadow/wave19a/`:
+  - `FilterAbility` stack filters (Kurkesh's "artifact ability"), and `abilities_cost_reduction_controller_effect`
+    reading its ability classes from the card (`ability_class_filter` handler args).
+  - `OneShotNonTargetEffect` over `graveyards` and with `XManaValueTargetAdjuster`: the `mana_value_x` predicate's
+    `resolving` flag compares with the resolving spell's X (Black Sun's Twilight; Liliana's −7 over every graveyard).
+  - `CardsDiscardedThisTurnCount`, `SetPlayerLifeSourceEffect` with a dynamic amount, Driftgloom Coyote's
+    last-known power.
+  - The rounds choice (`choose_cards_rounds_rule`) auto-picks as `TargetImpl.tryToAutoChoose` does: not your own
+    object when the ability's text says discard, sacrifice, destroy or exile, nor anything for a search. Blood
+    Curdle's menace counter on your only creature is asked. Humiliate uses the same path.
+  - New handlers: Alive // Well, Flesh // Blood, Keldon Flamesage, Bedeck // Bedazzle, Hired Torturer, Friendly
+    Fire, Find // Finality, Beluna Grandsquall.
+
+  Not verified again (they play on Java):
+  - Joined Researchers, Emeritus of Woe, Grave Researcher, Scheming Silvertongue: upstream's 7 Nov change to
+    prepare cards (31c3adcc8cf) shows the "choose spell or ability" picker for a prepare card cast from hand (the
+    creature as `a1`). Rust casts it directly. All 55 prepare cards in the engine have this, 51 of them still
+    verified, so it needs its own wave (their games recorded again).
+  - Dragon's Prey: its one differing game parts on Cooking Campsite (Sidequest: Catch a Fish's back face): Java
+    shows the ability picker for its mana ability and Rust doesn't. Not investigated.
+  - Loot, the Pathfinder: out of the engine (`ExhaustManaAbility`).
+
+  Left out of the wave's list: Ajani, Sleeper Agent (`{G/W/P}` mana), Invert // Invent
+  (`TargetCardAndOrCardInLibrary`), Garruk, Savage Herald (`DamageAsThoughNotBlockedAbility`), Domri Rade
+  (`CompoundAbility`), Invasion of Pyrulea (its `FilterPermanent`), Bond of Passion (`TargetPermanentOrPlayer`).
+  The rest of the 322 weren't reached.
 
   Wave 15, shared forms A (15 Nov): framework forms that block several of the claim's cards, then card classes,
   built in four slices. Ending the turn (`EndTurnEffect`, `Turn.endTurn`: `Game::end_turn`; every spell on the stack
