@@ -1274,7 +1274,7 @@ pub enum Trigger {
         #[serde(default)]
         who: String,
     },
-    /// you activate an ability that isn't a mana ability, of `kind` ("exhaust", "power_up", "any";
+    /// you activate an ability that isn't a mana ability, of `kind` ("exhaust", "power_up", "boast", "any";
     /// "creature_or_land": of a creature or land permanent) (`ActivateAbilityTriggeredAbility`, `ACTIVATED_ABILITY`);
     /// with `opponent`, an opponent activates it (Runic Armasaur)
     /// "artifact": of an artifact (`ArtifactSourcePredicate`), "attached": of the permanent the trigger's source is
@@ -1304,6 +1304,8 @@ pub enum Trigger {
         #[serde(default)]
         graveyard: bool,
     },
+    /// you get one or more {E} (`COUNTERS_ADDED` of energy on you: Fabrication Module's own trigger class)
+    YouGetEnergy,
     /// this attacks for the first time each turn (`AttacksFirstTimeTriggeredAbility`)
     AttacksFirstTime,
     /// you surveil (`SurveilTriggeredAbility`, `SURVEILED`), or scry (`ScryTriggeredAbility`, `SCRIED`): X is the amount

@@ -7300,6 +7300,14 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
                 && match kind.as_str() {
                     "exhaust" => matches!(ability, AbilityDef::ExhaustAbility { once: false, .. }),
                     "power_up" => matches!(ability, AbilityDef::PowerUpAbility { .. }),
+                    // a boast ability (`BoastAbility`: once each turn, only if the source attacked this turn)
+                    "boast" => matches!(
+                        ability,
+                        AbilityDef::LimitedTimesPerTurnActivatedAbility {
+                            condition: Some(Condition::SourceAttackedThisTurn),
+                            ..
+                        }
+                    ),
                     // `getSourcePermanentOrLKI`: a permanent's, or one its cost sacrificed
                     "creature_or_land" => {
                         (g.obj(id).zone == Zone::Battlefield || g.short_lki.contains(&id))
@@ -9160,7 +9168,8 @@ fn energy(game: &Game, seat: Seat) -> i32 {
     game.player(seat).counters.iter().filter(|(n, _)| n == "energy").map(|(_, k)| *k).sum()
 }
 
-/// Gives a player energy counters, or takes them (a negative amount)
+/// Gives a player energy counters, or takes them (a negative amount); getting one or more fires "whenever you get
+/// one or more {E}" (`COUNTERS_ADDED`)
 fn add_energy(game: &mut Game, seat: Seat, n: i32) {
     let counters = &mut game.player_mut(seat).counters;
     match counters.iter_mut().find(|(c, _)| c == "energy") {
@@ -9168,6 +9177,11 @@ fn add_energy(game: &mut Game, seat: Seat, n: i32) {
         None => counters.push(("energy".to_string(), n)),
     }
     counters.retain(|(_, k)| *k != 0);
+    if n > 0 {
+        let fired =
+            game.triggers(game.trigger_sources(), |_, _, you, t| matches!(t, Trigger::YouGetEnergy) && you == seat);
+        game.pending.extend(fired);
+    }
 }
 
 /// A player's poison counters (`CounterType.POISON`)
@@ -17335,14 +17349,13 @@ fn apply_each_effect(
                     // a token that died isn't a card to return (`game.getCard` finds none)
                     if game.obj(*o).zone == Zone::Graveyard && !game.obj(*o).token {
                         let under = if *owner { game.obj(*o).owner } else { controller };
-                        // a double-faced card enters as its face, which the counters (`setEnterWithCounters`, by the
-                        // card's id) don't find: Baneblade Scoundrel returned by Unbreakable Bond; nor does an Aura,
-                        // which `AuraReplacementEffect` puts there itself (Spiral into Solitude returned by Yuna)
-                        let faced = game.obj(*o).def.transform_back.is_some()
-                            || game.obj(*o).def.back.is_some()
-                            || game.obj(*o).def.subtypes.iter().any(|s| s == "Aura");
+                        // the counters (`setEnterWithCounters`, by the card's id) don't find an Aura, which
+                        // `AuraReplacementEffect` puts there itself (Spiral into Solitude returned by Yuna); a
+                        // double-faced card gets them on the face that enters (`ZonesHandler` carries them there
+                        // since 2bae2525ff8: Concealing Curtains returned by Coalstoke Gearhulk)
+                        let aura = game.obj(*o).def.subtypes.iter().any(|s| s == "Aura");
                         enter_battlefield(game, d, *o, under, false);
-                        if let Some(c) = counters.as_ref().filter(|_| !faced) {
+                        if let Some(c) = counters.as_ref().filter(|_| !aura) {
                             add_counters_by(game, *o, &c.name, c.amount, Some(controller));
                         }
                         if *tapped {

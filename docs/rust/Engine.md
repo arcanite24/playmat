@@ -355,14 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans), plus the Career decks' cards outside it, `cards/career-pool.txt` (121 names, wave 18).
-  `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler can express (14,213 on
-
-  `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler can express (14,169 on
-
-  `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler can express (14,255 on
-  24 Nov). A card whose JSON the engine can't load yet is left out
-
-  `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler can express (14,214 on
+  `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler can express (14,300 on
   25 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
@@ -1911,6 +1904,61 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
     Industries (`MayhemLandAbility`), Relentless Dead (`DynamicValueGenericManaCost`), Thorn Elemental
     (`DamageAsThoughNotBlockedAbility`), Glacierwood Siege (an anchor word's static).
   - The seven `CastFromHandSourcePermanentCondition` cards, dice, `setRandom` and the long tail: not reached.
+
+  Wave 22a, Pioneer cards A to K (25 Nov): the 583 unverified Pioneer cards from A to K, cheapest first: shared
+  forms, then short card classes, then the cards decks use. 14 came in (14,290 in the engine, 14,300 with wave 22b). 13 were verified (14,252, 14,265 with wave 22b): 11 of those, plus Anchovy & Banana Pizza and Dragon's Prey, which were already in. Rounds were recorded
+  on multivac. Round 1 was a factory round (16 games, all 16 matching). Round 2 was a factory round (30 games, 29
+  matching), and round 3 used 6 hand-made decks (30 games, 29 matching). The two that differ part at Descent of the
+  Dragons and Hour of Need (below). Round 4 recorded the stale `factory/game-double-faced-return-no-counter` again
+  from its seed with today's Java (1 game). It took another path, so round 5 used 3 hand-made Unbreakable Bond decks
+  (12 games, 11 matching), and that game was replaced. The one that differs is Baneclaw Marauder's (below). The games
+  under `shadow/wave22a/` cover Kellan's draw, 70,000 Light-Years from Home, Keys to the House, Coalstoke Gearhulk's end-step exile and its double-faced case, Declaration in Stone, Enroot, Revealing
+  Eye, Kami of Transience, Fiendslayer Paladin, Frenzied Raider's boast trigger and Fabrication Module's energy
+  trigger. The pieces:
+  - `Trigger::YouGetEnergy` (`FabricationModuleTriggeredAbility`, `COUNTERS_ADDED` of energy on you): `add_energy`
+    fires it.
+  - `AbilityActivated` of kind `boast` (`FrenziedRaiderTriggeredAbility`): a `LimitedTimesPerTurnActivatedAbility`
+    behind `SourceAttackedThisTurn`.
+  - `InvestigateEffect(false)` (no reminder text) as a Clue token (Kellan's Tail the Suspect).
+  - Card handlers: Kellan (draws if you controlled the artifact), 70,000 Light-Years from Home (the target's
+    controller may search for a basic land), Coalstoke Gearhulk (the delayed exile, its rule text as Java doubles
+    the trigger phrase), Declaration in Stone (counting with the target's token-ness for all of them, as Java does),
+    Enroot, Revealing Eye, Kami of Transience's condition, Fiendslayer Paladin (`CantBeTargeted`: a black or red
+    spell, an opponent's instant or any sorcery, Java's precedence), and Descent of the Dragons and Hour of Need.
+  - A double-faced card returned from a graveyard with counters
+    (`ReturnFromGraveyardToBattlefieldWithCounterTargetEffect`) gets them now. Since 2bae2525ff8, `ZonesHandler`
+    carries them to the face that enters (Concealing Curtains returned by Coalstoke Gearhulk with its finality
+    counter in round 3; Baneblade Scoundrel and Concealing Curtains returned by Unbreakable Bond with lifelink
+    counters in round 5). This changes verified cards: every `…WithCounterTargetEffect` return of a double-faced
+    card. The old factory game recorded Java from before that commit. An Aura is still left without them. Coalstoke
+    Gearhulk's own exile isn't set up for a double-faced card: `getPermanent` looks for the card's id, which the face
+    doesn't have.
+  The full transpile changes and drops none.
+
+  Left out, with the piece each needs:
+  - Descent of the Dragons and Hour of Need: with tokens for both players, Java creates them in the order of a
+    `HashMap` keyed by random player ids (one game each, rounds 2 and 3). The handlers stay.
+  - Random or hash orders: Awaken the Erstwhile and Creeping Dread (`HashMap`), Hatchery Spider and Green Sun's
+    Twilight (random bottom order), Deadbridge Chant and Haphazard Bombardment (random choices).
+  - Engine pieces: Kav Landseeker ("the end step of your next turn"), Extraction Specialist (`WhileControlled`),
+    Bound by Moonsilver (can't transform), Forsworn Paladin and Jetmir's Fixer (Treasure mana spent on abilities),
+    Berg Strider (snow mana paid), Dream Eater (an optional reflexive trigger), Ajani, Sleeper Agent (Phyrexian
+    hybrid), Brutal Hordechief (choosing blockers), Bumi, Unleashed (extra combat), Imprisoned in the Moon and
+    Ashaya (layer 4), Agatha's Soul Cauldron, Drana and Linvala (mana as any color, granted abilities), Kytheon
+    (`RequirementEffect`), Inga and Esika (`MANA_PAID`), and the Invasion battles' back faces.
+  - Dennick, Pious Apprentice: cast and cast by disturb in three matching games, but Dennick, Pious Apparition's
+    investigate trigger never fired. Its handler and entry stay.
+  - The rest of the 583: the shared framework classes listed in waves 19c to 21c, not reached in the budget.
+
+  Gaps found in verified cards:
+    - Baneclaw Marauder (Baneblade Scoundrel's back face) attacks and is blocked by another Baneclaw Marauder, and
+    they die together. Java's "that creature's controller loses 1 life" resolves without any life lost, but Rust
+    takes 1 (round 5, game 9). Concealing Curtains isn't in that combat. Probably the double-faced id again
+    (`getControllerOfFirstTargetOrLKI` on the blocker's face); not run down.
+  - Turntimber Symbiosis still leaves a double-faced card without its +1/+1 counters, as the return effect did.
+    Since 2bae2525ff8 Java may give them, but no game shows it yet.
+  - Coalstoke Gearhulk's menace, deathtouch and haste on a double-faced creature are untested. Java may miss that
+    face by id there too.
 
   Wave 22b, Pioneer cards L to Z (25 Nov): the 638 unverified Pioneer cards from L to Z (wave 22a takes A to K). A
   probe (a stub handler for every short card-specific class) sorted them by blocker; the cheapest came first. 10 came in (14,286 in the engine), and the 22 already
