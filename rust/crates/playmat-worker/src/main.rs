@@ -247,6 +247,9 @@ pub fn run_unit(
     if stop.load(Ordering::Relaxed) {
         return Err("stopped: the host isn't idle".into());
     }
+    if recording {
+        merge_shards(out, jobs.max(1))?;
+    }
     let mut results = results.into_inner().unwrap();
     results.sort_by_key(|r| r.0.deal);
     let mut failed = failed.into_inner().unwrap();
@@ -291,6 +294,23 @@ pub fn run_unit(
         manifest.games.len() as f64 / secs,
         manifest.class
     );
+    Ok(())
+}
+
+/// Joins the threads' shards `w00`..`wNN` into one shard `w`, in thread order: a unit's upload stays at about 20
+/// files however many threads played it (the coordinator takes at most 64 per unit)
+fn merge_shards(out: &str, jobs: usize) -> Result<(), String> {
+    for col in playmat_ai::selfplay::COLUMNS {
+        let path = format!("{out}/w.{col}");
+        let mut to = std::io::BufWriter::new(std::fs::File::create(&path).map_err(|e| format!("{path}: {e}"))?);
+        for job in 0..jobs {
+            let part = format!("{out}/w{job:02}.{col}");
+            let mut from = std::fs::File::open(&part).map_err(|e| format!("{part}: {e}"))?;
+            std::io::copy(&mut from, &mut to).map_err(|e| format!("{path}: {e}"))?;
+            std::fs::remove_file(&part).map_err(|e| format!("{part}: {e}"))?;
+        }
+        to.flush().map_err(|e| format!("{path}: {e}"))?;
+    }
     Ok(())
 }
 

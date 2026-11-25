@@ -67,7 +67,7 @@ fn a_round_goes_through_the_coordinator() {
         coordinator: base.clone(),
         token: worker.clone(),
         name: "alice-laptop".into(),
-        jobs: 1,
+        jobs: 2,
         work: tmp.join("work").to_string_lossy().into(),
         repo: repo.clone(),
         idle: false,
@@ -81,6 +81,9 @@ fn a_round_goes_through_the_coordinator() {
     let r = &results[0];
     assert_eq!((r.account.as_str(), r.host.as_str(), r.manifest.games.len()), ("alice", "alice-laptop", 2));
     assert!(!r.files.contains_key("unit.json"));
+    // the two threads' shards come as one: a unit's upload doesn't grow with its threads
+    assert!(r.files.contains_key("w.meta.i32") && !r.files.keys().any(|f| f.starts_with("w0")), "{:?}", r.files.keys());
+    assert_eq!(r.files.len(), playmat_ai::selfplay::COLUMNS.len() + 1);
     let dir = tmp.join("check");
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("unit.json"), serde_json::to_string(&r.work).unwrap()).unwrap();
@@ -89,6 +92,9 @@ fn a_round_goes_through_the_coordinator() {
         std::fs::write(dir.join(path), http.get(url).send().unwrap().bytes().unwrap()).unwrap();
     }
     verify(dir.to_str().unwrap(), &repo).unwrap();
+    let recorded: u64 = r.manifest.games.iter().map(|g| g.recorded as u64).sum();
+    let meta = std::fs::metadata(dir.join("w.meta.i32")).unwrap().len();
+    assert_eq!(meta, recorded * playmat_ai::selfplay::META as u64 * 4);
 
     let v = Verdict { accept: true, reason: "replayed".into() };
     let res = http.post(api(&format!("/units/{}/verdict", r.unit))).bearer_auth(&trainer).json(&v).send().unwrap();

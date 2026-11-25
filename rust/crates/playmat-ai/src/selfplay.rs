@@ -650,7 +650,9 @@ pub struct Shard {
 }
 
 pub const META: usize = 10;
-const COLUMNS: [&str; 20] = [
+/// The files of a shard, `<name>.<column>`: every one is its decisions (or games) one after another, so shards of
+/// one build join by appending each file to the other's
+pub const COLUMNS: [&str; 20] = [
     "meta.i32",
     "logp.f32",
     "glob.f16",
