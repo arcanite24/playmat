@@ -5807,6 +5807,7 @@ Horta
 Host of the Hereafter
 Hostage Taker
 Hostile Desert
+Hostile Investigator
 Hostile Minotaur
 Hostile Negotiations
 Hostile Takeover
@@ -6277,6 +6278,7 @@ Ironshell Beetle
 Irontread Crusher
 Ironwright's Cleansing
 Irresistible Prey
+Irreverent Gremlin
 Irreverent Revelers
 Irrigated Farmland
 Isamaru, Hound of Konda
@@ -6873,7 +6875,9 @@ Lava Coil
 Lava Dart
 Lava Serpent
 Lava Spike
+Lavabrink Venturer
 Lavakin Brawler
+Lavaleaper
 Lavaspur Boots
 Lavastep Raider
 Lavinia of the Tenth
@@ -7272,6 +7276,7 @@ Maestros Theater
 Magda, Brazen Outlaw
 Magda, the Hoardmaster
 Mage Duel
+Mage Hunter
 Mage Hunters' Onslaught
 Mage Tower Referee
 Mage's Attendant
@@ -8311,6 +8316,7 @@ Nyx Lotus
 Nyx Weaver
 Nyx-Fleece Ram
 Nyxathid
+Nyxbloom Ancient
 Nyxborn Brute
 Nyxborn Colossus
 Nyxborn Courser
@@ -8554,6 +8560,7 @@ Orzhov Keyrune
 Orzhov Locket
 Orzhov Racketeers
 Oscorp Research Team
+Osseous Exhale
 Osseous Sticktwister
 Ossification
 Osteomancer Adept
@@ -8811,6 +8818,7 @@ Pheres-Band Warchief
 Phlox, Unorthodox Doctor
 Phoenix Chick
 Phoenix Down
+Phoenix Fleet Airship
 Phoenix of Ash
 Photon Blast Barrage
 Photosynthetic Physician
@@ -8850,6 +8858,7 @@ Picnic Ruiner
 Pictures of Spider-Man
 Pieces of the Puzzle
 Pierce the Sky
+Piercing Exhale
 Piercing Light
 Piggy Bank
 Pigment Storm
@@ -8996,6 +9005,7 @@ Pouncing Lynx
 Pouncing Shoreshark
 Power Plant Worker
 Power Word Kill
+Powerful Broker
 Powerstone Engineer
 Powerstone Fracture
 Powerstone Shard
@@ -9102,6 +9112,7 @@ Prodigious Growth
 Prodigy's Prototype
 Profane Memento
 Profane Procession
+Profaner of the Dead
 Professional Face-Breaker
 Professional Wrestler
 Professor Dellian Fel
@@ -9269,6 +9280,7 @@ Quick Draw
 Quick Study
 Quick-Draw Dagger
 Quick-Draw Katana
+Quicken
 Quickling
 Quicksand Whirlpool
 Quicksilver Fisher

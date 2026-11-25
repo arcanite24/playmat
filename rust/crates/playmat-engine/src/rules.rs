@@ -5483,6 +5483,30 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
             }
         }
     }
+    // behold: `BeholdAbility.addOptionalAdditionalCosts`, asked only when it can be paid
+    for a in &def.abilities {
+        if let AbilityDef::BeholdAbility { subtype, .. } = a {
+            let c = CostDef::BeholdCost { subtype: subtype.clone() };
+            if !can_pay_cost(game, seat, id, &c) {
+                continue;
+            }
+            let article = if subtype.starts_with(['A', 'E', 'I', 'O', 'U']) { "an" } else { "a" };
+            let q = Query::YesNo { message: format!("Behold {article} {subtype}?") };
+            let pay = loop {
+                match ask(game, d, seat, &q) {
+                    Answer::Bool(b) => break b,
+                    Answer::Stop => return false,
+                    _ => {}
+                }
+            };
+            if pay {
+                teamwork = Some(c);
+                if let Some(top) = Arc::make_mut(&mut game.stack).last_mut() {
+                    top.kicked = true;
+                }
+            }
+        }
+    }
     // blight: `BlightAbility.addOptionalAdditionalCosts`, asked only with a creature to put the counters on
     let mut blight = None;
     for a in &def.abilities {
@@ -8799,6 +8823,13 @@ fn choose_target_in(
         // a spell can't target itself (rule 115.5), but Java's `TargetStackObject` offers it
         if !of_ability && !matches!(def, TargetDef::TargetStackObject { .. }) {
             objs.retain(|o| Some(*o) != source);
+        }
+        // an ability's targets are also checked against the ability object on the stack (mana value 0), not just
+        // its source; the playable check before it's on the stack sees only the source (an activated ability's
+        // targets come with no source, the ability on top)
+        let ability = of_ability || source.is_none() && game.stack.last().is_some_and(|t| t.ability.is_some());
+        if let (true, Some(s)) = (ability, src) {
+            objs.retain(|o| game.obj(*o).zone != Zone::Battlefield || !game.protected_from_ability_object(*o, s));
         }
         if let (TargetDef::TargetCardInGraveyard { single: true, .. }, Some(Target::Obj(first))) = (def, chosen.first())
         {
@@ -12184,6 +12215,15 @@ fn copy_spell_with(
         }
         _ => false,
     });
+    let mut fired = fired;
+    for t in fired.iter_mut() {
+        // a `FixedTarget` at the copy's controller (Mage Hunter's "they lose 1 life")
+        let a = t.ability.and_then(|(i, _)| game.item_def(t).abilities.get(i));
+        if matches!(a, Some(AbilityDef::TriggeredAbility { set_target_pointer_player: true, .. })) {
+            t.targets = vec![vec![Target::Player(controller)]];
+            t.target_zcc = vec![vec![0]];
+        }
+    }
     game.pending.extend(fired);
     Some(copy)
 }
@@ -14451,6 +14491,18 @@ fn apply_each_effect(
                         let before = game.clone();
                         if pay_costs_then_mana(game, d, controller, source.0, cost, *mana_first) {
                             paid = true;
+                            // `TriggeredAbility.setDidThisTurn`: a "do this only once each turn" trigger whose cost
+                            // was paid doesn't trigger again this turn (Irreverent Gremlin)
+                            if let Some((i, _)) = item.ability {
+                                let def = game.item_def(item);
+                                if matches!(
+                                    def.abilities.get(i),
+                                    Some(AbilityDef::TriggeredAbility { once_each_turn: true, .. })
+                                ) {
+                                    let did = (item.card, game.obj(item.card).zcc, i);
+                                    game.watch.did_this_turn.push(did);
+                                }
+                            }
                             if let Some(effect) = effect {
                                 apply_effects(game, d, item, std::slice::from_ref(&**effect), legal, source);
                             }
@@ -15120,7 +15172,15 @@ fn apply_each_effect(
                 let (src, zcc) = source;
                 let here = game.obj(src).zone == Zone::Battlefield && game.obj(src).zcc == zcc;
                 if here || src == o {
-                    let fired = game.triggers([src], |_, s, _, t| matches!(t, Trigger::Exploits) && s == src);
+                    let mut fired = game.triggers([src], |_, s, _, t| matches!(t, Trigger::Exploits) && s == src);
+                    // `SetTargetPointer.PERMANENT`: the exploited creature, as it was (Profaner of the Dead)
+                    for t in fired.iter_mut() {
+                        let a = t.ability.and_then(|(i, _)| game.item_def(t).abilities.get(i));
+                        if matches!(a, Some(AbilityDef::TriggeredAbility { set_target_pointer: true, .. })) {
+                            t.targets = vec![vec![Target::Obj(o)]];
+                            t.target_zcc = vec![vec![game.obj(o).zcc]];
+                        }
+                    }
                     game.pending.splice(at..at, fired);
                 }
             }

@@ -2047,6 +2047,68 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
     which creature the Aura goes on. Of the 92 new games, 86 match before the Serah change and 90 after it; the
     two left are those.
 
+  Wave 23b, Pioneer cards Goblin Test Pilot to Rakish Revelers (25 Nov): the 398 unverified Pioneer cards in that
+  range (waves 23a and 23c take the rest). The wave 22b probe, run again on this range, sorted them by blocker. 10 came
+  in (14,310 in the engine), and the 4 already in the engine but not verified (Lavaleaper, Marina Vendrell, Nyxbloom
+  Ancient, Hedge Whisperer) went into the same decks. Four rounds: rounds 1 and 2 hand-made (30 and 24 games,
+  recorded on multivac), round 3 factory-built (22 games, multivac) and round 4 hand-made (12, recorded on this Mac).
+  82 games match and 6 differ, all six blamed on Hedge Whisperer. Verified, 12 (14,278): Hostile Investigator,
+  Irreverent Gremlin, Lavabrink Venturer, Lavaleaper, Mage Hunter, Nyxbloom Ancient, Osseous Exhale, Phoenix Fleet
+  Airship, Piercing Exhale, Powerful Broker, Profaner of the Dead and Quicken. Each handler's branch fired in matching
+  games: Quicken's flash (Preordain and Strategic Planning cast in declare attackers), behold taken and declined (both
+  Exhales), Phoenix Fleet Airship's end-step copy, Powerful Broker's activation, Profaner's return (4 games), Irreverent
+  Gremlin's once-each-turn loot and Hostile Investigator's investigate. The hand-made decks are under
+  `.local/w23b/factory/round-00{1,2,4}/decks`. The 8 games under `shadow/wave23b/` cover each card. The pieces:
+  - Protection from an ability object: `TargetPermanent.canTarget` checks `game.getObject(source.getId())` as well as
+    the source, and once an ability is on the stack that's its `StackAbility`, mana value 0. So Lavabrink Venturer
+    choosing even can't be the target of any ability, its own controller's equip included. Java offers the equip
+    (the playable check runs before the ability is on the stack), then the activation fails. Round 3's game 66 parted
+    there. `Game::protected_from_ability_object` checks an ability's targets this way as they're chosen. Only a
+    mana value filter reads it (`state::ability_object()`, Lavabrink's predicate), so other protections give the
+    same answer as before.
+  - `AbilityDef::BeholdAbility { subtype }` (Osseous and Piercing Exhale; `BeheldDragonCondition` reads as kicked):
+    asked as an optional additional cost before blight, "Behold a Dragon?", when a Dragon can be beheld, and paid as a
+    `BeholdCost`.
+  - `MageHunterTriggeredAbility`: a spell cast or copied by an opponent. A trigger with `set_target_pointer_player`
+    now gets its controller's player as the target on the copy path too (it already did on the cast path). No
+    verified card uses that pair.
+  - Exploit triggers with `SetTargetPointer.PERMANENT` (Profaner of the Dead): the exploited creature is the trigger's
+    target, with its zcc. Only for `set_target_pointer` exploit triggers.
+  - `setDoOnlyOnceEachTurn` on a trigger whose effects are all optional `DoIfCostPaid` (Irreverent Gremlin): it isn't
+    made optional, and it's used up for the turn only once the cost is paid (`did_this_turn`). That combination didn't
+    translate before, so no verified card has it.
+  - `DiscardCardPlayerTriggeredAbility` with "one or more players" (Hostile Investigator) as a `discards` trigger
+    for any player.
+  - Handlers: Phoenix Fleet Airship's condition, Powerful Broker's (counters in Java's `Counters` hash order),
+    Quicken's flash (Java's `QuickenWatcher` is game-scoped; the next sorcery its controller casts uses it up),
+    Lavabrink Venturer's odd/even protection and Profaner of the Dead's return.
+  No verified card changes: a full transpile changes and drops none (it also adds Dispelling Exhale, another wave's).
+
+  Not verified: Hedge Whisperer (bug: a resolving `ConditionalContinuousEffect` is a no-op in Rust, so its land never
+  becomes a 5/5 "for as long as Hedge Whisperer remains tapped"; that needs an animation that ends when its source
+  untaps). Marina Vendrell stays pending: two games exercised her, and her five colors kept round 4 from casting her.
+  Left out, with what each needs:
+  - `HashMap`/`HashSet` orders or random choices: Golden Argosy (crewers' set), Indomitable Creativity, Pitiless
+    Carnage, Hour of Need, Green Sun's Twilight, Hatchery Spider, Kheru Lich Lord (also a delayed exile).
+  - No `CREATE_TOKEN` event (Queen Allenal, Quina, Jinnie Fay, Mirrormind Crown, Moonlit Meditation); token creation
+    inside a replacement (Kalitas); a delayed leaves trigger that holds tokens (Mysterio).
+  - Layer 4 type changes (Imprisoned in the Moon, One with the Stars, Nylea's Presence, Minimus Containment,
+    Hydro-Man); becoming a color (Mondo Gecko, Possessed Goat, Miles Morales); copy effects (Mirrorform, Lazav,
+    Likeness Looter); a meld result (Mishra, Lost to Phyrexia).
+  - Extra or next-turn steps (Kav Landseeker, Obeka); colors or Treasure spent (Paragon of Modernity, Jetmir's
+    Fixer); `MANA_PAID` (Inga and Esika); requirement effects (Public Enemy).
+  - Pieces of their own: Jackdaw Savior (the died creature while targeting), Lethal Exploit (modified creatures at
+    cast), Iona's Blessing (an extra block from an Aura), Hallowed Moonlight (was it cast, at entry), Karlov Watchdog
+    (`TURN_FACE_UP`), Nephalia Academy (a discard replacement), New Perspectives (cycling cost set), Hollow Marauder
+    (`TargetOpponent` min/max), Krumar Initiate (`PayLifeCost` of X), Molten Exhale (behold in `PayMoreToCast`),
+    Icewrought Sentry (tapping an untapped permanent), Pia Nalaar and Gwen Stacy (play a land or cast a spell),
+    Leonardo and Karai (sneak), Judith (abilities given to a spell), Pixie Guide (dice), Heliod's Punishment (lose
+    all abilities, then gain one), Knight-Errant of Eos (creatures that convoked it), Quilled Greatwurm (cast from the
+    graveyard by removing counters).
+  - Moment of Truth and Ob Nixilis Reignited: blamed for wave 22b's mismatches, left for that fix.
+  - The rest the probe found blocked only by their own class (God-Eternal Kefnet, Grub, Halo Forager, Iroh, Kiora,
+    Muldrotha, Niv-Mizzet, Supreme, and others) are one handler each, not reached.
+
   Wave 15, shared forms A (15 Nov): framework forms that block several of the claim's cards, then card classes,
   built in four slices. Ending the turn (`EndTurnEffect`, `Turn.endTurn`: `Game::end_turn`; every spell on the stack
   exiled, the resolving one too, abilities removed, combat left, the waiting triggers dropped; priority stops after
