@@ -2871,7 +2871,11 @@ class Translator:
             # the engine's effect numbers may be dynamic
             if what == 'effect' and kind == 'int' and name in ('amount', 'power', 'toughness'):
                 kind = 'amount'
-            v = self.value(kind, arg)
+            # "remove any number of counters" (Rhys, the Evermore)
+            if cls == 'RemoveUpToAmountCountersEffect' and arg.strip() == 'Integer.MAX_VALUE':
+                v = 2147483647
+            else:
+                v = self.value(kind, arg)
             if name:
                 out[name] = v
         return out

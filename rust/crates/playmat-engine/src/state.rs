@@ -617,6 +617,14 @@ pub struct Player {
     /// the last turn a permanent entered face down under their control or they turned one face up (Oblivious
     /// Bookworm's watcher)
     pub face_down_turn: Option<u32>,
+    /// can't cast instant or sorcery spells during this turn, their next one when it was set (Sphinx's Decree)
+    pub no_instants_sorceries_turn: Option<u32>,
+    /// can't cast creature or planeswalker spells until the end of this turn (Single Combat's "until the end of your
+    /// next turn", the turn of its controller's next one)
+    pub no_creatures_planeswalkers_until: Option<u32>,
+    /// may activate the loyalty abilities of planeswalkers they control twice during this turn (Urza Assembles the
+    /// Titans' chapter III)
+    pub loyalty_twice_turn: Option<u32>,
 }
 
 impl Player {
@@ -1469,6 +1477,19 @@ pub struct TurnWatch {
     pub attacked_players: Vec<(ObjId, u32, Seat)>,
     /// `SpellsCastWatcher`, in the order they were cast
     pub spells: Vec<SpellSeen>,
+    /// the controllers of face-down creatures that entered the battlefield this turn (Tunnel Tipster's watcher)
+    pub face_down_creature_entered: Vec<Seat>,
+    /// who played a land or cast a spell from exile this turn (Visions of Phyrexia's watcher)
+    pub played_from_exile: Vec<Seat>,
+    /// who cast a kicked spell this turn (Vine Gecko's watcher)
+    pub kicked_cast: Vec<Seat>,
+    /// creature and planeswalker cards put into a graveyard since the last beginning of combat this turn, as the
+    /// cards they became there (Storrev, Devkarin Lich's watcher)
+    pub to_graveyard_this_combat: Vec<(ObjId, u32)>,
+    /// spells cast this turn while their caster controlled a Mount, as the spells they were (Steer Clear's watcher)
+    pub cast_with_mount: Vec<(ObjId, u32)>,
+    /// permanents turned face up this turn and the player who turned each (`TURNED_FACE_UP`'s player: Growing Dread)
+    pub turned_face_up_by: Vec<(ObjId, Seat)>,
     /// `PermanentsSacrificedWatcher`: who sacrificed, and whether it was an artifact
     pub sacrificed: Vec<(Seat, bool)>,
     /// `CardsLeftGraveyardWatcher`: the owner of each card that left a graveyard
@@ -5348,6 +5369,10 @@ impl Game {
             Zone::Graveyard => {
                 if self.obj(id).def.is_permanent_card() {
                     self.player_mut(owner).descended += 1;
+                }
+                if self.obj(id).def.is(CardType::Creature) || self.obj(id).def.is(CardType::Planeswalker) {
+                    let zcc = self.obj(id).zcc;
+                    self.watch.to_graveyard_this_combat.push((id, zcc));
                 }
                 self.player_mut(owner).graveyard.push(id)
             }
