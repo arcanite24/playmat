@@ -1158,7 +1158,7 @@ fn a_career_game_carries_on_the_same() {
 /// Java against: both sides read the same fields
 #[test]
 fn the_career_setup_java_sends_is_read_whole() {
-    use playmat_host::game::{CareerSetup, Edge, Personality};
+    use playmat_host::game::{CareerSetup, Edge, Personality, Timed};
     let text =
         std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/career-setup.json")).unwrap();
     let v: serde_json::Value = serde_json::from_str(&text).unwrap();
@@ -1170,20 +1170,203 @@ fn the_career_setup_java_sends_is_read_whole() {
             life_bonus: 0,
             cards: 2,
             permanents: vec![],
+            emblem: None,
             log: Some(" starts with: 25 life, 2 extra cards.".into()),
+            timed: vec![Timed {
+                when: "turn".into(),
+                turn: Some(5),
+                who: "you".into(),
+                rule: "At the beginning of turn 5, Second Wind: 5 life. This ability triggers only once.".into(),
+                message: Some("Second Wind: 5 life.".into()),
+                gain_life: 5,
+                ..Timed::default()
+            }],
         })
     );
+    let opponent = setup.opponent.clone().expect("the opponent's edge");
     assert_eq!(
-        setup.opponent,
-        Some(Edge {
+        Edge { timed: vec![], ..opponent.clone() },
+        Edge {
             life: None,
             life_bonus: 5,
             cards: 1,
             permanents: vec![("Llanowar Elves".into(), true), ("Runeclaw Bear".into(), false)],
-            log: Some(" starts with an edge: +5 life, 1 extra card, Llanowar Elves, Runeclaw Bear.".into()),
+            emblem: Some("Glorious Anthem".into()),
+            log: Some(
+                " starts with an edge: +5 life, 1 extra card, Llanowar Elves, Runeclaw Bear, an emblem of Glorious Anthem."
+                    .into()
+            ),
+            timed: vec![],
+        }
+    );
+    // the boss's phases (the twist Java skips isn't sent): an edge, a life gain, a cast that costs life
+    let phase = &opponent.timed[0];
+    assert_eq!((phase.when.as_str(), phase.life, phase.who.as_str()), ("life", Some(12), "opponent"));
+    assert_eq!(
+        phase.then.as_deref(),
+        Some(&Edge {
+            cards: 2,
+            permanents: vec![("Runeclaw Bear".into(), true)],
+            log: Some(" gets an edge: 2 extra cards, Runeclaw Bear.".into()),
+            ..Edge::default()
         })
     );
+    assert_eq!((opponent.timed[1].life, opponent.timed[1].gain_life), (Some(6), 5));
+    let cast = &opponent.timed[2];
+    assert_eq!((cast.when.as_str(), cast.card.as_deref(), cast.who.as_str()), ("cast", Some("Lightning Bolt"), "you"));
+    assert_eq!((cast.gain_life, cast.message.as_deref()), (-2, None));
+    assert_eq!(
+        cast.rule,
+        "When your opponent casts Lightning Bolt, the opponent gets an edge. This ability triggers only once."
+    );
+    assert_eq!(opponent.timed.len(), 3);
     assert_eq!(setup.personality, Some(Personality { aggression: 60, risk: -20, patience: 10 }));
     // and back: what the host keeps for a restart is what Java sent
     assert_eq!(setup.json(), v);
+}
+
+/// The Career twists of a timed boss (`CareerTimedTwists`), as `CareerSetup.hostSetup` sends them: the opponent's
+/// emblem of Glorious Anthem and its "Emblem Twist" (two life phases and a turn), the player's own (a cast)
+fn timed_setup() -> Value {
+    let rule = |phrase: &str, text: &str| format!("{phrase}{text} This ability triggers only once.");
+    serde_json::json!({
+        "you": {"lifeBonus": 0, "cards": 0, "permanents": [], "timed": [
+            {"when": "cast", "card": "llanowar elves", "who": "you", "gainLife": -1, "message": "Tithe: 1 life.",
+                "rule": rule("When your opponent casts llanowar elves, ", "Tithe: 1 life.")}]},
+        "opponent": {"lifeBonus": 0, "cards": 0, "permanents": [{"name": "Runeclaw Bear", "tapped": false}],
+            "emblem": "Glorious Anthem",
+            "log": " starts with an edge: Runeclaw Bear, an emblem of Glorious Anthem.",
+            "timed": [
+                {"when": "life", "life": 17, "who": "you", "gainLife": 0, "message": "Phase two: the boss draws one.",
+                    "rule": rule("When your opponent's life is 17 or less, ", "Phase two: the boss draws one."),
+                    "then": {"lifeBonus": 0, "cards": 1, "permanents": [], "log": " gets an edge: 1 extra card."}},
+                {"when": "life", "life": 15, "who": "you", "gainLife": 0, "message": "Phase three: an anthem.",
+                    "rule": rule("When your opponent's life is 15 or less, ", "Phase three: an anthem."),
+                    "then": {"lifeBonus": 0, "cards": 0, "permanents": [], "emblem": "Glorious Anthem",
+                        "log": " gets an edge: an emblem of Glorious Anthem."}},
+                {"when": "turn", "turn": 2, "who": "opponent", "gainLife": 3, "message": "Second wind: 3 life.",
+                    "rule": rule("At the beginning of turn 2, ", "Second wind: 3 life.")},
+                // the boss's own life (the content's default), both true from the start: the second waits for the
+                // first to resolve, which takes it out of reach
+                {"when": "life", "life": 25, "who": "opponent", "gainLife": 5, "message": "Rally: 5 life.",
+                    "rule": rule("When this player's life is 25 or less, ", "Rally: 5 life.")},
+                {"when": "life", "life": 24, "who": "opponent", "gainLife": 0, "message": "Rally again.",
+                    "rule": rule("When this player's life is 24 or less, ", "Rally again.")}]}
+    })
+}
+
+/// Career timed twists play on the host as Java plays them: each triggers once (a turn's upkeep and every later one,
+/// a life threshold that holds from then on, a card cast again), goes on the stack, writes its message, then its
+/// edge and its life; the emblems show in the command zone with their rules, and the anthem pumps the boss's bear
+#[test]
+fn career_timed_twists_trigger_once_each() {
+    let mut fired_all = false;
+    for seed in 1..12 {
+        let mut s = start(&deck("gw-company.txt"), &deck("b-zombies.txt"), seed, None);
+        s.rules = playmat_host::TableRules::of(&serde_json::json!({"setup": timed_setup()}));
+        let (ended, events) = play_with(s, bot(14));
+        assert!(ended.reason == "over" || ended.reason == "conceded", "seed {seed}: {}", ended.reason);
+        let log: Vec<String> = events
+            .iter()
+            .filter(|e| e.method == "CHATMESSAGE")
+            .map(|e| e.data["message"].as_str().unwrap_or("").to_string())
+            .collect();
+        let count = |s: &str| log.iter().filter(|l| l.contains(s)).count();
+        // a twist's own line (its rule is in the "Ability triggers" line too)
+        let said = |s: &str| log.iter().filter(|l| *l == s).count();
+        let views: Vec<&Value> =
+            events
+                .iter()
+                .map(|e| {
+                    if matches!(e.method.as_str(), "GAME_INIT" | "GAME_UPDATE") {
+                        &e.data
+                    } else {
+                        &e.data["gameView"]
+                    }
+                })
+                .filter(|v| v.is_object())
+                .collect();
+        // the boss's emblems, from the start: the anthem with its rule and printing, and the twists' rules
+        // (at the first priority: the setup is played after the mulligans)
+        let first = &events.iter().find(|e| e.method == "GAME_SELECT").unwrap().data["gameView"];
+        let boss = first["players"].as_array().unwrap().iter().find(|p| p["playerId"] == AI).unwrap();
+        let command = boss["commandList"].as_array().unwrap();
+        assert_eq!(command.len(), 2, "{command:?}");
+        assert_eq!(command[0]["name"], "Glorious Anthem");
+        assert_eq!(command[0]["rules"], serde_json::json!(["Creatures you control get +1/+1."]));
+        assert_eq!(
+            (&command[0]["expansionSetCode"], &command[0]["cardNumber"]),
+            (&serde_json::json!("M21"), &serde_json::json!("21"))
+        );
+        assert_eq!(command[1]["name"], "Emblem Twist");
+        assert_eq!(
+            command[1]["rules"][0],
+            "When your opponent's life is 17 or less, Phase two: the boss draws one. This ability triggers only once."
+        );
+        assert_eq!(command[1]["rules"].as_array().unwrap().len(), 5);
+        let bear = boss["battlefield"].as_object().unwrap().values().find(|c| c["name"] == "Runeclaw Bear").unwrap();
+        assert_eq!(
+            (&bear["power"], &bear["toughness"]),
+            (&serde_json::json!("3"), &serde_json::json!("3")),
+            "the anthem"
+        );
+        let me = first["players"].as_array().unwrap().iter().find(|p| p["playerId"] == HUMAN).unwrap();
+        assert_eq!(me["commandList"].as_array().unwrap().len(), 1, "the player's own twists");
+        assert_eq!(
+            count("Computer</font> starts with an edge: Runeclaw Bear, an emblem of Glorious Anthem."),
+            1,
+            "{log:?}"
+        );
+        // each twist at most once: triggered (its rule in the log), then its message, then its edge or its life
+        let twist = |message: &str, then: &str| -> bool {
+            let n = said(message);
+            assert!(n <= 1, "seed {seed}: {message} {n} times: {log:?}");
+            let Some(at) = log.iter().position(|l| l == message) else { return false };
+            let rule = format!("{message} This ability triggers only once.");
+            let triggered = log.iter().position(|l| l.contains("Ability triggers: ") && l.ends_with(&rule));
+            assert!(triggered.is_some_and(|t| t < at), "seed {seed}: {message} triggered first: {log:?}");
+            assert_eq!(count(&rule), 1, "seed {seed}: {message} triggered once");
+            assert!(
+                log[at + 1..].iter().take(2).any(|l| l.contains(then)),
+                "seed {seed}: {message}, then {then}: {log:?}"
+            );
+            true
+        };
+        // the turn twist: once, though every later upkeep is past turn 2
+        assert!(twist("Second wind: 3 life.", "Computer</font> gains 3 life"), "seed {seed}: {log:?}");
+        let two = twist("Phase two: the boss draws one.", "Computer</font> gets an edge: 1 extra card.");
+        let three = twist("Phase three: an anthem.", "Computer</font> gets an edge: an emblem of Glorious Anthem.");
+        // (lost, not dealt: `loseLife`)
+        let tithe = twist("Tithe: 1 life.", "tester</font> loses 1 life from");
+        // the boss's own life: the first at once (a state trigger, on the first check), and the second only once the
+        // first has resolved and the boss is back down to 24
+        assert!(twist("Rally: 5 life.", "Computer</font> gains 5 life"), "seed {seed}: {log:?}");
+        let rally = log.iter().position(|l| l == "Rally: 5 life.").unwrap();
+        if let Some(again) = log.iter().position(|l| l == "Rally again.") {
+            assert!(again > rally + 1, "seed {seed}: held back while the first waited: {log:?}");
+        }
+        // a trigger on the stack shows its rule
+        let on_stack = |rule: &str| {
+            views.iter().any(|v| {
+                v["stack"].as_object().is_some_and(|s| {
+                    s.values().any(|i| i["rules"].as_array().is_some_and(|r| r.iter().any(|x| x == rule)))
+                })
+            })
+        };
+        assert!(on_stack(command[1]["rules"][2].as_str().unwrap()), "the turn twist on the stack");
+        let last = views.last().unwrap();
+        let boss = last["players"].as_array().unwrap().iter().find(|p| p["playerId"] == AI).unwrap();
+        if three {
+            // the phases in order, and the third's emblem joins the others
+            assert!(two, "{log:?}");
+            assert_eq!(boss["commandList"].as_array().unwrap().len(), 3);
+            assert_eq!(boss["commandList"][2]["name"], "Glorious Anthem");
+        }
+        if two && three && tithe {
+            fired_all = true;
+            println!("seed {seed}: every twist fired once");
+            break;
+        }
+    }
+    assert!(fired_all, "no seed fired every twist");
 }
