@@ -7574,6 +7574,7 @@ Merciless Executioner
 Merciless Javelineer
 Merciless Repurposing
 Merciless Resolve
+Mercurial Chemister
 Mercurial Geists
 Mercurial Pretender
 Mercurial Spelldancer
@@ -7640,6 +7641,7 @@ Midnight Scavengers
 Midnight Snack
 Midnight Tilling
 Might Beyond Reason
+Might Makes Right
 Might of Murasa
 Might of the Ancestors
 Might of the Masses
@@ -8086,6 +8088,7 @@ Necropanther
 Necropolis Regent
 Necrosquito
 Necrosynthesis
+Necrotic Fumes
 Necrotic Wound
 Needle Spires
 Needlethorn Drake
