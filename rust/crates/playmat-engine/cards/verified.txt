@@ -9505,6 +9505,7 @@ Razor Rings
 Razorfoot Griffin
 Razorkin Hordecaller
 Razorkin Needlehead
+Razorlash Transmogrant
 Razortip Whip
 Razortrap Gorge
 Razorverge Thicket
@@ -9755,6 +9756,7 @@ Restore with Empathy
 Restricted Office // Lecture Hall
 Resupply
 Resurrected Cultist
+Retched Wretch
 Retraction Helix
 Retreat to Coralhelm
 Retreat to Emeria
@@ -10473,6 +10475,7 @@ Sea-Dasher Octopus
 Seachrome Coast
 Seacoast Drake
 Seafloor Oracle
+Seafloor Stalker
 Seagraf Skaab
 Seal Away
 Seal from Existence
@@ -11145,6 +11148,7 @@ Sluiceway Scorpion
 Slum Reaper
 Slumbering Cerberus
 Slumbering Keepguard
+Slumbering Trudge
 Slumbering Walker
 Sly Requisitioner
 Smash to Dust
@@ -11379,6 +11383,7 @@ Sphinx of Forgotten Lore
 Sphinx of Magosi
 Sphinx of New Prahv
 Sphinx of the Final Word
+Sphinx of the Guildpact
 Sphinx's Approach
 Sphinx's Disciple
 Sphinx's Insight
@@ -11930,6 +11935,7 @@ Super Speed
 Super Strength
 Super Suit
 Super Villain Lockup
+Super-Adaptoid
 Super-Skrull
 Superior Foes of Spider-Man
 Supernatural Rescue
@@ -12187,6 +12193,7 @@ Tea, Earl Grey, Hot
 Teach by Example
 Teacher's Pest
 Teachings of the Archaics
+Teachings of the Kirin
 Team Avatar
 Team Pennant
 Team Tactics
@@ -12628,6 +12635,7 @@ Throwing Knife
 Thrull Parasite
 Thrumming Hivepool
 Thrummingbird
+Thrun, Breaker of Silence
 Thud
 Thunder Brute
 Thunder Drake
@@ -12740,6 +12748,7 @@ Tocasia, Dig Site Mentor
 Tocatli Honor Guard
 Together as One
 Toil // Trouble
+Tokka & Rahzar, Terrible Twos
 Tolarian Geyser
 Tolarian Kraken
 Tolarian Scholar
@@ -12979,6 +12988,7 @@ Tura Kennerud, Skyknight
 Turn // Burn
 Turn Against
 Turn Aside
+Turn Inside Out
 Turn into a Pumpkin
 Turn to Frog
 Turn to Slag
@@ -14064,6 +14074,7 @@ Wolfkin Outcast
 Wolfrider's Saddle
 Wolfwillow Haven
 Wolverine, Fierce Fighter
+Wonder Man, Hollywood Hero
 Wood Elves
 Woodborn Behemoth
 Woodcaller Automaton
