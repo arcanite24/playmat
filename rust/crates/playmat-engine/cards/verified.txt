@@ -6042,6 +6042,7 @@ Imperious Inkmage
 Imperious Oligarch
 Imperious Perfect
 Impervious Greatwurm
+Impetuous Devils
 Impetuous Sunchaser
 Implement of Combustion
 Implement of Examination
@@ -6062,6 +6063,7 @@ Impulse
 In Garruk's Wake
 In Oketra's Name
 In Search of Greatness
+In Thrall to the Pit
 In the Pale Moonlight
 In the Presence of Ages
 In the Trenches
@@ -6159,6 +6161,7 @@ Inspiration
 Inspiration from Beyond
 Inspire Awe
 Inspired Charge
+Inspired Idea
 Inspired Tethermage
 Inspired Ultimatum
 Inspiring Bard
@@ -6277,6 +6280,7 @@ Iroas's Blessing
 Iroas's Champion
 Iroas, God of Victory
 Iroh's Demonstration
+Iroh, Grand Lotus
 Iroh, Tea Master
 Iron Apprentice
 Iron Bully
@@ -6424,6 +6428,7 @@ Jhessian Thief
 Jhoira's Familiar
 Jhoira, Ageless Innovator
 Jhoira, Weatherlight Captain
+Jiang Yanggu, Alone
 Jiang Yanggu, Never Alone
 Jiang Yanggu, Wildcrafter
 Jibbirik Omnivore
@@ -6676,6 +6681,7 @@ Kiora's Dambreaker
 Kiora's Dismissal
 Kiora's Follower
 Kiora, Behemoth Beckoner
+Kiora, Master of the Depths
 Kiora, the Crashing Wave
 Kiora, the Rising Tide
 Kird Chieftain
@@ -7002,6 +7008,7 @@ Lich's Mastery
 Lich's Relic
 Lich-Knights' Conquest
 Lie in Wait
+Lier, Disciple of the Drowned
 Liesa, Forgotten Archangel
 Life Goes On
 Life's Legacy
@@ -7457,6 +7464,7 @@ Mardu Skullhunter
 Mardu Strike Leader
 Mardu Warshrieker
 Mardu Woe-Reaper
+Marina Vendrell's Grimoire
 Marionette Master
 Maritime Guard
 Mark for Death
@@ -7724,6 +7732,7 @@ Mind Raker
 Mind Roots
 Mind Rot
 Mind Sculpt
+Mind Spiral
 Mind Spring
 Mind Transfer Protocol
 Mind into Matter
@@ -7981,6 +7990,7 @@ Mu Yanling, Sky Dancer
 Mu Yanling, Wind Rider
 Mudbutton Cursetosser
 Mudflat Village
+Muerra, Trash Tactician
 Mugato
 Mugging
 Mukotai Ambusher
@@ -9267,6 +9277,7 @@ Pyrotechnic Performer
 Pyrotechnics
 Pyrrhic Blast
 Pyrrhic Strike
+Qal Sisma Behemoth
 Qarsi Deceiver
 Qarsi High Priest
 Qarsi Revenant

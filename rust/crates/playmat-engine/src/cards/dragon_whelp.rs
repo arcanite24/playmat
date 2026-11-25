@@ -14,6 +14,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         effects: vec![EffectDef::CreateNextEndStepDelayedEffect {
             effects: vec![EffectDef::SacrificeSourceEffect],
             rule: "At the beginning of the next end step, sacrifice {this}.".into(),
+            fixed_targets: false,
         }],
     };
     cx.run(game, d, &[e]);

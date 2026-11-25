@@ -2047,6 +2047,71 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
     which creature the Aura goes on. Of the 92 new games, 86 match before the Serah change and 90 after it; the
     two left are those.
 
+  Wave 24b, Pioneer cards from Goddric, Cloaked Reveler to Ral Zarek, Guest Lecturer (25 Nov): 385 unverified Pioneer
+  cards (waves 24a and 24c take the rest). A probe (a stub handler for every short card-specific class) sorted them by
+  blocker. 12 came in (14,374 in the engine with waves 24a and 24c) and 11 were verified (14,341): Impetuous Devils,
+  In Thrall to the Pit, Inspired Idea, Iroh, Grand Lotus, Jiang Yanggu, Alone, Kiora, Master of the Depths, Lier,
+  Disciple of the Drowned, Marina Vendrell's Grimoire, Mind Spiral, Muerra, Trash Tactician and Qal Sisma Behemoth.
+  Eight rounds: round 1 factory on multivac (39 games), rounds 2 to 7 hand-made on multivac (40, 30, 24, 24, 18 and 18
+  games) and round 8 hand-made on this Mac (20 games; decks under `.local/w24b/factory/round-00N/decks`): 211 match, 2
+  differ (both round 1). Game 40 is the transforming double-faced card's trigger order (Conduit of Storms and
+  Hauntwoods Shrieker, the recorder gap under wave 22 above). The verdicts blamed it on Muerra, which was on the
+  battlefield but had no part in it, so Muerra was added by hand (42 exercised games). Game 151 is a verified-card gap
+  left as it is: Redirect Lightning's {R} isn't offered a Treasure as a source, with no wave card in play before then.
+  The 16 games under `shadow/wave24b/` cover each card and each fix. The pieces:
+  - Flashback granted to graveyard cards (`GraveyardFlashbackEffect { filter, cost, your_turn }`, Lier's and Iroh's):
+    `Game::flashbacks` offers each instant or sorcery card of the filter in its owner's graveyard, at its own cost or
+    a fixed one (Iroh's Lessons for {1}), only on its owner's turn for Iroh. Lier's spells can't be countered
+    (`CantBeCounteredAllEffect`, read by `cant_be_countered`; not exercised).
+  - `DontLoseByZeroOrLessLifeEffect` (Marina Vendrell's Grimoire): the state-based check skips a player who controls
+    one.
+  - `CantAttackBlockUnlessPaysSourceEffect` (Qal Sisma Behemoth): its own attack and block taxes, asked as the other
+    taxes are ("Pay {2} to attack?"). `block_taxes` now takes the blocker.
+  - `MaximumHandSizeControllerEffect` with `REDUCE` and `EndOfGame` (Inspired Idea): `Player::max_hand_reduction`,
+    taken off after any "maximum hand size is N" (Java orders them by timestamp; Inspired Idea's is usually newer).
+  - `CreateNextEndStepDelayedEffect { fixed_targets }`: "sacrifice that creature" at the next end step acts on the
+    creating ability's target as it was (In Thrall to the Pit). Dragon Whelp's keeps `false`.
+  - "Attacks a player alone" (`AttacksPlayerAloneControlledTriggeredAbility`, Jiang Yanggu): `attacks_alone_all` with
+    `player`, counting only the creatures attacking a player.
+  - Transpiler: `SacrificeTargetEffect("text")`; `ConditionalOneShotEffect(…).addEffect(…).setTargetPointer(new
+    SecondTargetPointer())` puts each of its effects on the second target (Mind Spiral's tap and stun counter); a
+    `ThatPlayerControlsTargetAdjuster` target named by `TargetCreaturePermanent`'s own "creature" when the card has no
+    filter of its own, without the player's name when the ability's text is set (Impetuous Devils); `static final
+    FilterX b = a.copy();` with only `b.setMessage(…)` reads as `a` (Labyrinth Raptor's pump).
+  - Handlers: Kiora's +1 (untap), −2 (In the Presence of Ages' own body) and emblem fight (the −8 wasn't exercised),
+    Muerra's mana in any combination of {R} and {G} (named for the card: as a framework handler it took four
+    mana-ability cards out), and Labyrinth Raptor's sacrifice of a creature blocking it (none once the attacker has
+    left combat).
+  Fixes to verified cards and the rules, each with its game in `shadow/wave24b/`:
+  - Goblin Guide's trigger is its own `ATTACKER_DECLARED` one (`attacker_declared`), not `attacks`: it waits before
+    the `DECLARED_ATTACKERS` "whenever this attacks" triggers, so Java's list has Impetuous Devils' last (round 7
+    games 0 and 10; `cards.json` changes Goblin Guide's entry, the only existing entry that changes).
+  - Cleave is offered from exile while an effect lets its owner play the card (Inspired Idea exiled by Expressive
+    Iteration: Java asks the normal cast or cleave; round 4 game 15). It was hand only.
+  - A creature with a block tax isn't forced to block by a requirement (`checkIfThereArePayCostToAttackBlockEffects`:
+    Qal Sisma Behemoth under Impetuous Devils' "blocks it if able"; round 8 game 4).
+  - Attack and block taxes roll back when not all of them were paid (`payOrRollback`; round 3 game 13).
+  - Cleanup discards the whole hand without asking when it has no more cards than the excess (maximum hand size 0,
+    Inspired Idea; round 3 game 5), and the log names the maximum hand size before the reduction is clamped.
+  - An ability that ends the game clears each losing player's hand, library and graveyard as Java leaves them (Song of
+    Stupefaction's count; round 1 game 68).
+  - Vision Quest asks nothing when the graveyard it searches is empty (`HumanPlayer.choose` returns at once; round 8
+    game 14).
+  A full transpile changes and drops no other card in the engine (Goblin Guide's entry is the one change). It also
+  adds Avalanche Tusker (another wave's range, from the that-player target change) and four cards other changes
+  translate (Hoshi Sato, Reckless Velocitaur, Saavik, Starfleet Academy); none of them went into cards.json here.
+
+  Labyrinth Raptor is in the engine but stays unverified: it matched in all 24 of its games, but no creature with
+  menace was blocked, so its trigger never ran. Left out, with what each needs: Manaform Hellkite
+  (`DragonIllusionToken` facts), Pitiless Carnage (HashSet order), Incendiary Oracle (replacement order when it leaves
+  at the same time), Karlov Watchdog (`TURN_FACE_UP` can't come up), Hylda of the Icy Crown and Icewrought Sentry
+  (`TapUntappedPermanentTriggeredAbility`), Haunting Voyage (a creature type chosen on a spell), Oasis Ritualist,
+  Jack-o'-Lantern and Mage-Ring Network (mana abilities with exert, graveyard or storage costs), Patched Plaything
+  (`CastFromHandSourcePermanentCondition`, unmapped on purpose), Pia Nalaar, Consul of Revival (play from exile),
+  Possession Engine (crew), Kindle the Inner Flame (behold flashback) and Graven Lore (snow mana spent); the rest of
+  the range needs the large pieces (layer-4 type changes, Phyrexian hybrid mana, extra turns and combats, multiple
+  kickers, mana-spent tracking) or long card-specific effects.
+
   Wave 23c, Pioneer cards from Ral Zarek, Guest Lecturer to Zurgo, Thunder's Decree (25 Nov): 398 unverified Pioneer
   cards (waves 23a and 23b take the rest). A probe (a stub handler for every short card-specific class) sorted them
   by blocker. 11 came in (14,311 in the engine) and all 11 were verified (14,277): Razorlash Transmogrant, Retched
