@@ -281,6 +281,17 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
     match step {
         Step::Untap => {
             note(game, EventKind::Turn, Some(active), None, None, 0);
+            // a skipped untap step (`TurnMod.withSkipStep(UNTAP)`: `UntapStep` isn't played, day and night not
+            // checked, nothing untaps); its permanents are no longer summoning sick all the same
+            if let Some(at) = game.skip_untap_steps.iter().position(|s| *s == active) {
+                game.skip_untap_steps.remove(at);
+                for id in Arc::clone(&game.battlefield).iter().copied() {
+                    if game.obj(id).controller == active {
+                        game.obj_mut(id).sick = false;
+                    }
+                }
+                return;
+            }
             // 726.2: the previous turn's active player cast no spells: day becomes night; two or more: night
             // becomes day (`UntapStep.handleDayNight`, before untapping)
             if game.day.is_some() && game.turn > 1 {
@@ -1612,7 +1623,7 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
         if o.is(CardType::Land) {
             // a land with an adventure (Jidoor's Overture): its spell, with or without a land to play
             // (a land with disguise, Branch of Vitu-Ghazi: cast face down, with or without a land to play)
-            if can_play_land(game, seat)
+            if can_play_land(game, seat) && !cards::cant_play_lands_from_hand(game, seat)
                 || !activatable(game, seat, *id).is_empty()
                 || o.def.adventure.as_ref().is_some_and(|a| castable(game, seat, *id, a))
                 || morph(game, seat, *id).is_some()
@@ -1641,7 +1652,9 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             || plot(game, seat, *id).is_some()
             || suspend(game, seat, *id).is_some()
             || !activatable(game, seat, *id).is_empty()
-            || o.def.back.as_ref().is_some_and(|b| b.is(CardType::Land) && can_play_land(game, seat))
+            || o.def.back.as_ref().is_some_and(|b| {
+                b.is(CardType::Land) && can_play_land(game, seat) && !cards::cant_play_lands_from_hand(game, seat)
+            })
             || o.def.back.as_ref().is_some_and(|b| !b.is(CardType::Land) && castable(game, seat, *id, b))
         {
             out.push(*id);
@@ -24856,13 +24869,17 @@ fn tap_as(game: &mut Game, id: ObjId, attacking: bool) {
             || matches!(t, Trigger::BecomesTappedAttached) && g.attached(src) == Some(id)
     });
     for mut t in fired {
-        if matches!(
+        let attached = matches!(
             game.item_def(&t).abilities.get(t.ability.map_or(usize::MAX, |(i, _)| i)).and_then(|a| a.trigger()),
             Some(Trigger::BecomesTappedAttached)
-        ) && set_target_pointer(game, &t)
-        {
+        );
+        if attached && set_target_pointer(game, &t) {
             t.targets = vec![vec![Target::Obj(id)]];
             t.target_zcc = vec![vec![game.obj(id).zcc]];
+        } else if attached && set_target_pointer_player(game, &t) {
+            // its controller (Chronic Flooding's own class: `FixedTarget(attached.getControllerId())`)
+            t.targets = vec![vec![Target::Player(game.obj(id).controller)]];
+            t.target_zcc = vec![vec![0]];
         }
         game.pending.push(t);
     }
