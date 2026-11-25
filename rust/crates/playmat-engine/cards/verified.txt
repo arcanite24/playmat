@@ -1467,6 +1467,7 @@ Boulderbranch Golem
 Boulderfall
 Bounce Off
 Bouncer's Beatdown
+Bound by Moonsilver
 Bound in Gold
 Boundary Lands Ranger
 Bounding Felidar
@@ -3994,6 +3995,7 @@ Expose Evil
 Expose to Daylight
 Expressive Firedancer
 Expressive Iteration
+Exquisite Archangel
 Exquisite Blood
 Exquisite Firecraft
 Exsanguinate
