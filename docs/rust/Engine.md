@@ -1558,8 +1558,10 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   Wave 19c, Pioneer cards (24 Nov): one of three disjoint lists of the Pioneer cards still out of the engine or
   unverified (673 here). No shared form blocks more than 7 of them, so this wave took the cheap transpiler forms and
   small engine pieces. 35 came in (14,195 in the engine). Three factory rounds (121 games, 117 matching) verified 41:
-  14,174 of 14,195. Round 3 was hand-made (exert decks, Cool but Rude, Turtle Van with Turtles to crew it) and was
-  recorded on multivac. The engine pieces each have a game under `shadow/wave19c/`:
+  14,174 of 14,195. Round 3 was hand-made (exert decks, Cool but Rude, Turtle Van with Turtles to crew it). The 11
+  games under `shadow/wave19c/` cover the look-otherwise effect, Jace's cast-then-exile, the exert trigger, persist,
+  Toil // Trouble's hand count, Syncopate and Turtle Van. No kept game shows hexproof from instants, a renowned target
+  or Cool but Rude's level 3. The pieces:
   - `LookLibraryAndPickControllerEffect { otherwise }` (`withOtherwiseEffect`): the effects run when no card was
     picked (Pulsar Squadron Ace, Adventure Awaits).
   - `DiscardControllerEffect { random }` discards at random (Cool but Rude, Casey Jones, Curse-Marred Demon).
@@ -1577,8 +1579,9 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
     `RenownedTargetCondition` as `source_targets`.
 
   Pulsar Squadron Ace, Vizier of the True and Cool but Rude are verified on their matching games (19, 22 and 23
-  exercised). Each has one differing game that parts on a verified card. For the first two, the playable check doesn't
-  count Guild Globe's `{2}`-cost mana ability, so Rust doesn't offer a spell that Java pays for with it. For Cool but Rude,
+  exercised), against the factory's "bug" verdict. Each has one differing game that parts on a verified card. For the
+  first two, the playable check doesn't count Guild Globe's `{2}`-cost mana ability (paid from floating mana and a
+  land), so Rust doesn't offer the Pulsar Squadron Ace that Java pays for with it. For Cool but Rude,
   Java offers Emeritus of Truce's prepared Swords to Plowshares when it's cast from hand, and Rust doesn't.
 
   Not verified:
