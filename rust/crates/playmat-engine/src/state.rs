@@ -1443,6 +1443,8 @@ pub type ObjRef = (ObjId, u32);
 /// What Java's watchers that reset each turn saw this turn, for the conditions, values and predicates that read them
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct TurnWatch {
+    /// the players who ventured into the dungeon this turn (`VENTURED`: `KeenEaredSentryWatcher`)
+    pub ventured: Vec<Seat>,
     /// the players who activated an equip ability this turn (`ACTIVATED_ABILITY` of an `EquipAbility`:
     /// `BruenorBattlehammerWatcher`)
     pub equip_activated: Vec<Seat>,
@@ -2076,14 +2078,14 @@ impl Game {
                     o.def.mana_value() as i32 <= power
                 })
             }
-            Pred::ManaValueEqualSourceCounters { counter } => source.is_some_and(|src| {
+            Pred::ManaValueEqualSourceCounters { counter, cmp } => source.is_some_and(|src| {
                 let s = self.obj(src);
                 let n = if s.zone == Zone::Battlefield {
                     s.counter(counter)
                 } else {
                     s.lki_counters.iter().filter(|(k, _)| k == counter).map(|(_, n)| *n).sum()
                 };
-                o.def.mana_value() as i32 == n
+                cmp.unwrap_or(crate::card::Cmp::EqualTo).holds(o.def.mana_value() as i32, n)
             }),
             Pred::AuraAttached => self
                 .battlefield
@@ -3044,6 +3046,16 @@ impl Game {
                 o.zone == Zone::Battlefield && o.zcc == g.zcc && effects.iter().any(|e| f(self, g.target, e))
             }
             _ => false,
+        })
+    }
+
+    /// `any_static` for the command zone: the static abilities of emblems
+    pub fn command_static(&self, mut f: impl FnMut(&Game, ObjId, &EffectDef) -> bool) -> bool {
+        self.command.iter().any(|src| {
+            self.obj(*src).def.abilities.iter().any(|a| match a {
+                AbilityDef::SimpleStaticAbility { effects, .. } => effects.iter().any(|e| f(self, *src, e)),
+                _ => false,
+            })
         })
     }
 
@@ -4399,7 +4411,9 @@ impl Game {
                 p.outside.retain(|x| *x != id);
                 p.sideboard = p.sideboard.saturating_sub(1);
             }
-            Zone::Stack => Arc::make_mut(&mut self.stack).retain(|x| x.card != id || x.ability.is_some()),
+            Zone::Stack => {
+                Arc::make_mut(&mut self.stack).retain(|x| x.card != id || x.ability.is_some() || x.delayed.is_some())
+            }
         }
     }
 

@@ -133,14 +133,16 @@ Chosen 24 Nov 2026: **2, "Java off the game path".**
    (most of the 4,802 declines). Each shadow difference is now kept in `differences.log`. `careerQuests`' declines
    are admin accounts, which Rust leaves to Java on purpose. Then: Close the platform diffs (`careerGameResult`, `careerQuests`, `searchCards`), cut `deckValidate` declines, then
    move the groups to `rust` one at a time, a week apart.
-6. **Waves 17 to 19 deployed 25 Nov (#500, #502, #507 to #509; production at 2b7b859).** Wave 17 took the
-   unverified Pioneer cards the Career, starter and shadow decks use, wave 18 the 121 non-Pioneer cards the
-   five-paths and roster decks use, and waves 19a to 19c the Pioneer cards still out of the engine or unverified,
-   in three disjoint lists. 14,202 of the 14,230 cards in the engine are verified, 13,950 of the 15,259 Pioneer
-   cards. 14,151 play on Rust: the 51 prepare cards wait on Java's spell-or-ability picker (#510, upstream
-   31c3adcc8cf). Factory rounds now record on multivac. In review: #512 (the picker, which brings the 51 back),
-   #511, #514, #515 and #516 (waves 20a to 21c). What's left of the Pioneer pool mostly needs a card-specific
-   handler or a large engine piece (layer effects, dynamic mana, extra turns and steps, Phyrexian hybrid mana).
+6. **Waves 17 to 19 deployed 25 Nov (#500, #502, #507 to #509; production at 2b7b859); waves 20a to 21c merged
+   25 Nov, not deployed (#511, #512, #514 to #516).** Wave 17 took the unverified Pioneer cards the Career, starter
+   and shadow decks use, wave 18 the 121 non-Pioneer cards the five-paths and roster decks use, waves 19a to 19c and
+   20b to 21c the Pioneer cards still out of the engine or unverified, in disjoint lists. #512 added Java's
+   spell-or-ability picker for prepare cards (upstream 31c3adcc8cf), so the 51 that #510 parked play on Rust again
+   and `upstream-pending.txt` is empty. On master: 14,239 of the 14,276 cards in the engine are verified, and all
+   42 school decks and 24 meta decks are covered. Factory rounds record on multivac. What's left of the Pioneer pool
+   mostly needs a card-specific handler or a large engine piece (layer effects, dynamic mana, extra turns and steps,
+   Phyrexian hybrid mana), and known gaps in verified cards are listed in the wave PRs (a gift promised to a hexproof
+   opponent, Bilbo's escape choice, a Room cast from exile after Release to the Wind).
 7. **Deployed 24 Nov (#498)** (ledger, `check`, a weekly report; 71 verified cards changed upstream play on Java until
    re-verified). Start the upstream ledger (#191) so new upstream changes stop drifting.
 8. **Done (#491)** (CLAUDE.md and a PR template carry the rule). Add a rule: a new game-facing feature ships with its Rust host side, or with a reason it stays on Java.

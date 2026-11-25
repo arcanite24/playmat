@@ -1,3 +1,4 @@
++2 Mace
 A Good Day to Die
 A Little Chat
 A Realm Reborn
@@ -704,6 +705,7 @@ Astelli Reclaimer
 Astor, Bearer of Blades
 Astral Cornucopia
 Astral Wingspan
+Astrologian's Planisphere
 Asylum Visitor
 At Knifepoint
 Atarka Beastbreaker
@@ -903,6 +905,7 @@ Banner of Kinship
 Bar the Gate
 Baral and Kari Zev
 Baral's Expertise
+Baral, Chief of Compliance
 Barbed Batterfist
 Barbed Bloodletter
 Barbed Servitor
@@ -1022,6 +1025,7 @@ Beastcaller Savant
 Beastie Beatdown
 Beastrider Vanguard
 Beatrix, Loyal General
+Bebop & Rocksteady
 Bebop, Warthog Warrior
 Beckett Mariner, Impetuous Ensign
 Beckon Apparition
@@ -1140,6 +1144,7 @@ Bitter Chill
 Bitter Reunion
 Bitter Revelation
 Bitter Triumph
+Bitter Work
 Bitterblade Warrior
 Bitterbloom Bearer
 Bitterbow Sharpshooters
@@ -1212,6 +1217,7 @@ Blightbelly Rat
 Blightcaster
 Blighted Bat
 Blighted Blackthorn
+Blighted Burgeoning
 Blighted Cataract
 Blighted Fen
 Blighted Gorge
@@ -1617,6 +1623,7 @@ Burdened Stoneback
 Burglar Rat
 Buried Ruin
 Buried Treasure
+Buried in the Garden
 Burlfist Oak
 Burly Breaker
 Burn Away
@@ -3241,6 +3248,7 @@ Draconic Destiny
 Draconic Disciple
 Draconic Intervention
 Draconic Roar
+Draconic Visitor
 Dracosaur Auxiliary
 Drafna, Founder of Lat-Nam
 Drag Under
@@ -3704,6 +3712,7 @@ Emeritus of Abundance
 Emeritus of Conflict
 Emeritus of Ideation
 Emeritus of Truce
+Emeritus of Woe
 Emet-Selch, Unsundered
 Emiel the Blessed
 Emil, Vastlands Roamer
@@ -4798,6 +4807,7 @@ Ghostfire Blade
 Ghostform
 Ghostly Dancers
 Ghostly Keybearer
+Ghostly Pilferer
 Ghostly Sentinel
 Ghostly Wings
 Ghoulcaller Gisa
@@ -5164,6 +5174,7 @@ Gratuitous Violence
 Gravblade Heavy
 Grave Birthing
 Grave Bramble
+Grave Researcher
 Grave Strength
 Graveblade Marauder
 Gravebreaker Lamia
@@ -5306,6 +5317,7 @@ Gruul War Chant
 Gryff Rider
 Gryff's Boon
 Gryffwing Cavalry
+Guac & Marshmallow Pizza
 Guadosalam, Farplane Gateway
 Guarded Heir
 Guardian Automaton
@@ -6387,6 +6399,7 @@ Join Shields
 Join the Dance
 Join the Dead
 Join the Maestros
+Joined Researchers
 Joint Exploration
 Jolene, Plundering Pugilist
 Jolly Gerbils
@@ -6788,6 +6801,7 @@ Labyrinth Champion
 Labyrinth Guardian
 Labyrinth of Skophos
 Lacerate Flesh
+Lady Octopus, Inspired Inventor
 Lady of Laughter
 Lagomos, Hand of Hatred
 Lagonna-Band Elder
@@ -7280,6 +7294,7 @@ Mai, Scornful Striker
 Maja, Bretagard Protector
 Majestic Auricorn
 Majestic Heliopterus
+Majestic Metamorphosis
 Majestic Myriarch
 Make Disappear
 Make It So
@@ -7375,6 +7390,7 @@ March of Wretched Sorrow
 March of the Drowned
 March of the Multitudes
 March of the Returned
+March of the World Ooze
 Marchesa, Dealer of Death
 Mardu Ascendancy
 Mardu Banner
@@ -7400,6 +7416,7 @@ Mark for Death
 Mark of Mutiny
 Mark of the Vampire
 Marked by Honor
+Market Festival
 Marketback Walker
 Marketwatch Phantom
 Markov Baron
@@ -7637,6 +7654,7 @@ Migrating Ketradon
 Migration Path
 Migratory Greathorn
 Mikaeus, the Lunarch
+Mikey & Leo, Chaos & Order
 Mild-Mannered Librarian
 Militant Inquisitor
 Military Discipline
@@ -7868,6 +7886,7 @@ Morbid Opportunist
 Morbius the Living Vampire
 Morcant's Eyes
 Morcant's Loyalist
+Mordenkainen's Polymorph
 Morgue Burst
 Moritte of the Frost
 Morkrut Behemoth
@@ -8014,6 +8033,7 @@ Nahiri, the Harbinger
 Naiad of Hidden Coves
 Najal, the Storm Runner
 Namazu Trader
+Nameless Inversion
 Namor the Sub-Mariner
 Nanoform Sentinel
 Nantuko Husk
@@ -8679,6 +8699,7 @@ Patrician Geist
 Patriot, Shield Wielder
 Patron of the Valiant
 Pattern Buffer Preservation
+Pattern Matcher
 Pause for Reflection
 Pawpatch Formation
 Pay No Heed
@@ -8898,6 +8919,7 @@ Plaza of Heroes
 Plea for Guidance
 Pledge of Unity
 Plow Through
+Plumb the Forbidden
 Plumecreed Escort
 Plumecreed Mentor
 Plummet
@@ -9300,6 +9322,7 @@ Raging Redcap
 Raging Regisaur
 Raging Swordtooth
 Ragnarok, Divine Deliverance
+Ragost, Deft Gastronaut
 Rags // Riches
 Raiders' Karve
 Raiders' Spoils
@@ -10002,6 +10025,7 @@ Rowan, Scion of War
 Rowdy Crew
 Rowdy Research
 Rowdy Snowballers
+Roxanne, Starfall Savant
 Roxxon Brutes
 Royal Treatment
 Rubble Reading
@@ -10336,6 +10360,7 @@ Scavenging Harpy
 Scavenging Ooze
 Scene of the Crime
 Scheming Aspirant
+Scheming Silvertongue
 Scheming Symmetry
 Scholar of Athreos
 Scholar of Stars
@@ -10600,6 +10625,7 @@ Settle the Score
 Settle the Wreckage
 Seven Dwarves
 Seven-Tail Mentor
+Severance Priest
 Severed Strands
 Sewer Crocodile
 Sewer Shambler
@@ -11191,6 +11217,7 @@ Song of Totentanz
 Song-Mad Treachery
 Sonic Assault
 Sonic Shrieker
+Sonorous Howlbonder
 Soothsayer Adept
 Sorcerer of the Fang
 Sorcerer's Broom
@@ -11358,6 +11385,7 @@ Spider-Sense
 Spider-Slayer, Hatred Honed
 Spider-Suit
 Spider-UK
+Spider-Woman, Secret Agent
 Spider-Woman, Stunning Savior
 Spiders-Man, Heroic Horde
 Spidersilk Net
@@ -11990,6 +12018,7 @@ Sworn Guardian
 Sygg's Command
 Sygg, Wanderwine Wisdom
 Sylvan Advocate
+Sylvan Awakening
 Sylvan Brushstrider
 Sylvan Caryatid
 Sylvan Messenger
@@ -12283,6 +12312,7 @@ Tezzeret's Touch
 Tezzeret, Artifice Master
 Tezzeret, Cruel Captain
 Tezzeret, Master of Metal
+Tezzeret, Master of the Bridge
 Thalia and The Gitrog Monster
 Thalia's Lancers
 Thalia's Lieutenant
@@ -13066,6 +13096,7 @@ Undercity Uprising
 Undercity's Embrace
 Undercover Crocodelf
 Undercover Operative
+Undercover Skrull
 Underdark Basilisk
 Underfoot Underdogs
 Underground Mortuary
@@ -13077,6 +13108,7 @@ Undergrowth Scavenger
 Underhanded Designs
 Undersea Invader
 Underwater Tunnel // Slimy Aquarium
+Underworld Cerberus
 Underworld Charger
 Underworld Coinsmith
 Underworld Connections
@@ -13339,12 +13371,14 @@ Verazol, the Split Current
 Verdant Automaton
 Verdant Crescendo
 Verdant Force
+Verdant Haven
 Verdant Kraken
 Verdant Mastery
 Verdant Outrider
 Verdant Rebirth
 Verdant Sun's Avatar
 Verdurous Gearhulk
+Verity Circle
 Verix Bladewing
 Vernadi Shieldmate
 Vessel of Ephemera
@@ -13717,6 +13751,7 @@ Water Tribe Captain
 Water Tribe Rallier
 Water Wings
 Waterbender Ascension
+Waterbending Lesson
 Waterbending Scroll
 Watercourser
 Waterfall Aerialist
@@ -14000,6 +14035,7 @@ Wolfbat
 Wolfkin Bond
 Wolfkin Outcast
 Wolfrider's Saddle
+Wolfwillow Haven
 Wolverine, Fierce Fighter
 Wood Elves
 Woodborn Behemoth
@@ -14164,6 +14200,7 @@ Zhalfirin Lancer
 Zhalfirin Shapecraft
 Zhalfirin Void
 Zhao, Ruthless Admiral
+Zhur-Taa Ancient
 Zhur-Taa Druid
 Zhur-Taa Goblin
 Zhur-Taa Swine

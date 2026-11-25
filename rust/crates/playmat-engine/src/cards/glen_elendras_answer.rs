@@ -28,8 +28,8 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
                 count += 1;
             }
         } else if game.obj(o).zone == Zone::Stack && !cant_be_countered(game, o) {
-            note_countered(game, o, cx.source_id());
-            Arc::make_mut(&mut game.stack).retain(|i| i.card != o || i.ability.is_some());
+            note_countered(game, o, cx.source_id(), cx.controller());
+            Arc::make_mut(&mut game.stack).retain(|i| i.card != o || i.ability.is_some() || i.delayed.is_some());
             game.move_to(o, Zone::Graveyard);
             count += 1;
         }

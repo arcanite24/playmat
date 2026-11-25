@@ -436,9 +436,12 @@ pub enum Pred {
         costs: Vec<String>,
     },
     /// `ManaValueEqualToCountersSourceCountPredicate`: mana value equal to the source's counters of this kind (as it
-    /// last was on the battlefield)
+    /// last was on the battlefield); with `cmp`, compared so (`ManaValueCompareToCountersSourceCountPredicate`:
+    /// Lady Octopus's `OR_LESS`)
     ManaValueEqualSourceCounters {
         counter: String,
+        #[serde(default)]
+        cmp: Option<Cmp>,
     },
     /// `ManaValueLessThanOrEqualToSourcePowerPredicate`: mana value at most the source's power (as it last was)
     ManaValueAtMostSourcePower,
@@ -1122,9 +1125,13 @@ pub enum Trigger {
     CrewsVehicle,
     /// this becomes tapped (`BecomesTappedSourceTriggeredAbility`)
     BecomesTapped,
-    /// a permanent of the filter becomes tapped (`BecomesTappedTriggeredAbility`)
+    /// a permanent of the filter becomes tapped (`BecomesTappedTriggeredAbility`); `not_attacking`: unless it
+    /// becomes tapped as it's declared as an attacker (`TappedNotAttackingTriggeredAbility`, the `TAPPED` event's
+    /// flag: Verity Circle)
     BecomesTappedAll {
         filter: Filter,
+        #[serde(default)]
+        not_attacking: bool,
     },
     /// the permanent this is attached to becomes tapped (`BecomesTappedAttachedTriggeredAbility`); a target pointer is
     /// that permanent
@@ -1257,6 +1264,9 @@ pub enum Trigger {
     },
     /// you give a gift (`GAVE_GIFT`, a card's own trigger class: Jolly Gerbils)
     GaveGift,
+    /// a spell or ability you control counters a spell (`SpellCounteredControllerTriggeredAbility`, `COUNTERED`:
+    /// Baral, Chief of Compliance)
+    SpellCounteredYou,
     /// a token of the filter is created (`CREATED_TOKEN`, a card's own trigger class: Voldaren Bloodcaster) under
     /// the control of `who` ("you", "opponent", "any"); it points at the token
     TokenCreated {
@@ -1736,6 +1746,11 @@ pub enum CostDef {
     /// exile a permanent of the filter you control (`ExileTargetCost` of a `TargetControlledPermanent`, chosen as
     /// the cost is paid; not into the source's exile zone: `withSourceExileZone(false)`)
     ExileTargetCost {
+        filter: Filter,
+    },
+    /// an additional cost: you may sacrifice any number of the filter's permanents, chosen as it's paid
+    /// (`TargetSacrifice(0, MAX)`); when you do, copy the spell for each (Plumb the Forbidden's own cost class)
+    SacrificeAnyNumberCopyCost {
         filter: Filter,
     },
     /// an additional cost: sacrifice any number (X, announced as the spell is cast) of the filter's permanents
@@ -2703,6 +2718,9 @@ pub enum EffectDef {
     },
     /// a static ability's effect: untap the source during each other player's untap step
     UntapSourceDuringEachOtherPlayersUntapStepEffect,
+    /// an emblem's static: its controller draws a card during each opponent's draw step (`setDrawsOnOpponentsTurn`,
+    /// Teferi, Who Slows the Sunset's `TeferiWhoSlowsTheSunsetEmblemEffect`)
+    DrawsOnOpponentsTurnEffect,
     /// a static ability's effect: untap the permanents of `filter` during each other player's untap step
     UntapAllDuringEachOtherPlayersUntapStepEffect {
         filter: Filter,
@@ -3020,9 +3038,11 @@ pub enum EffectDef {
         n: usize,
     },
     /// a static ability's effect: if one or more creature tokens would be created under your control, that many of
-    /// `token` are created instead (Divine Visitation)
+    /// `token` are created instead (Divine Visitation); `artifacts`: artifact tokens instead (Draconic Visitor)
     ReplaceCreatureTokensEffect {
         token: TokenDef,
+        #[serde(default)]
+        artifacts: bool,
     },
     /// if one or more tokens would be created under your control, twice (`times`) that many are created instead
     /// (`creatures_only`: creature tokens, Ojer Taq)
@@ -3586,6 +3606,12 @@ pub enum EffectDef {
     CantBeBlockedByOneEffect {
         amount: i32,
     },
+    /// the permanents of the filter can't be blocked except by `amount` or more creatures (a static's
+    /// `CantBeBlockedByOneAllEffect`: their `setMinBlockedBy`)
+    CantBeBlockedByOneAllEffect {
+        amount: i32,
+        filter: Filter,
+    },
     /// untap each permanent of the filter
     UntapAllEffect {
         filter: Filter,
@@ -4104,6 +4130,12 @@ pub enum EffectDef {
     },
     /// a static ability's effect: the permanent this is attached to can't attack or block
     CantAttackBlockAttachedEffect,
+    /// "cards in graveyards can't be the targets of spells or abilities" (a static's
+    /// `CantBeTargetedCardsGraveyardsEffect`, read by `possible_targets`)
+    CantBeTargetedCardsGraveyardsEffect,
+    /// "enchanted creature can't attack" (a static's `CantAttackAttachedEffect`: a restriction, not an ability, so a
+    /// "loses all abilities" leaves it: Retro-Mutation)
+    CantAttackAttachedEffect,
     /// each player (of `who`) discards `amount` cards they choose, all at once
     DiscardEachPlayerEffect {
         amount: Amount,
@@ -4389,6 +4421,10 @@ pub enum EffectDef {
     IncreaseSpeedEffect,
     /// you get an emblem (abilities in the command zone), read like a token class
     GetEmblemEffect {
+        emblem: TokenDef,
+    },
+    /// the target player gets an emblem (`GetEmblemTargetPlayerEffect`: Ob Nixilis Reignited's −8)
+    GetEmblemTargetPlayerEffect {
         emblem: TokenDef,
     },
     /// a Career timed twist resolving (`CareerTimedTwists.TwistEffect`): its message, its edge and its life. Made by
@@ -5213,6 +5249,20 @@ pub enum AbilityDef {
         rule: String,
         #[serde(default)]
         colorless_made: bool,
+        /// "whenever a player taps a land": the filter is matched as Java's `filter.match` does, with no "you"
+        /// unless it says so, and the mana goes to the player who tapped it
+        #[serde(default)]
+        any_player: bool,
+    },
+    /// "whenever enchanted land is tapped for mana, its controller adds …" (`EnchantedTappedTriggeredManaAbility`, a
+    /// mana ability that triggers, resolved at once): `amount` mana of `color` ("any": each asked, as
+    /// `ChoiceColor`), to the land's controller or, with `aura_controller`, the Aura's (Market Festival)
+    EnchantedTappedTriggeredManaAbility {
+        color: String,
+        amount: u32,
+        #[serde(default)]
+        aura_controller: bool,
+        rule: String,
     },
     /// the blitz ability's "as it enters" part (Java lists it on its own)
     BlitzEntersAbility {
