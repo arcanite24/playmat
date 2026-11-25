@@ -2005,6 +2005,47 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
     Public Enemy) and dice.
   - The rest the probe found blocked only by their own class (Mondo Gecko, Sphinx's Decree, Wishing Well and
     others) are one handler each, not reached.
+  Wave 22, gaps in verified cards (25 Nov): the places earlier waves saw Java and Rust part on cards that were
+  already verified, so playing on Rust. Each fix has games under `shadow/wave22-gaps/`, the old recording that
+  showed the gap among them where it now matches:
+  - Gift (`PromiseGiftCost`): the opponent is chosen with `withNotTarget(true)`, so a player with hexproof (Leyline
+    of Sanctity, Keen-Eared Sentry) or protection can be promised the gift. `Game::choosing_player` makes
+    `possible_targets` skip both checks while the promise is chosen. This also verifies Keen-Eared Sentry (its two
+    wave 20a games match now, 19 exercised): 14,253 with wave 22b.
+  - Bilbo, Thief in the Night (and the other `cast_allowed` callers: Vaan, Conduit of Worlds, Evolving Door, the
+    dungeon rooms): a card with escape cast by an effect asks "Choose ability to cast", the spell (a0) or escape,
+    as `getCastableSpellAbilities` offers both under `PlayFromNotOwnHandZone`. Escape with too few other cards
+    pays its mana and then cancels: `ExileFromGraveCost` asks nothing when there are fewer cards than it needs.
+    Bilbo's card choice reads its ability's text for the auto-choice (its "exile it instead" keeps a lone card of
+    yours from being picked by itself). Java stops at the first `BASE_ALTERNATE` ability of any kind (flashback,
+    overload, jump-start, …); only escape is done.
+  - Station: a tapped creature that has left since has its power as it last was there (Java keeps the `Permanent`
+    objects): Selfless Savior sacrificed in response, with Lumen-Class Frigate's +1/+1. No game kept: the old one
+    now gets the charge counters right, then parts on Hobblefiend (below), and 92 new games never sacrificed a
+    creature while a station ability waited.
+  - Serah Farron: the back face adds `ability.copy()` of the front's reduction, which shares its effect id.
+    `ContinuousEffectsList.addEffect` adds the effect once per ability registered under that id, and
+    `ContinuousEffects.costModification` runs each entry over every ability, so two equal abilities reduce four
+    times, whichever face is up: Ramos, Dragon Engine costs nothing and Zetalpa, Primal Dawn `{W}{W}`.
+    `modified_cost_of` multiplies a `SpellsCostReductionControllerEffect` by the square of the count of equal
+    abilities on the card's two faces (only Serah's in the pool).
+  - A Room exiled by Release to the Wind: its halves are offered from exile (`h0`, `h1`), and cast free.
+  - Guild Globe's `{2}` mana ability in the playable check (Pulsar Squadron Ace): already fixed by wave 20c; both
+    old games match.
+
+  Left as they are:
+  - Mnemonic Betrayal: the return goes through a `HashSet<MageObjectReference>`, hashed on `UUID.randomUUID()`
+    ids, so its graveyard order can't be reproduced (as Winnowing's).
+  - Cooking Campsite: not a picker gap. Two Sidequest: Catch a Fish triggers resolve in the other order, so the
+    other copy transforms: `ShadowStart.triggerOrder` records the order of a modal double-faced card's halves, not
+    a transforming one's, so both record -1 and Rust falls back to the card's id. The fix is in the recorder (Java).
+  - Sorcerous Spyglass: one game in 30 asks its "as it enters" choice twice, with an opponent's answer in between
+    and no trace entry there; every other game asks it once. Taken as a Java-side glitch; Rust is unchanged.
+  - Seen on the way: Hobblefiend mutated by Porcuparrot activates its merged `{T}` ability (`B9a12`) in Java but
+    not in Rust (the old Frigate game parts there). Orb of Dragonkind's mana payment asks differently (Java asks
+    `Pay {1}` again where Rust has no source left). Yuna, Hope of Spira returning Spiral into Solitude doesn't ask
+    which creature the Aura goes on. Of the 92 new games, 86 match before the Serah change and 90 after it; the
+    two left are those.
 
   Wave 15, shared forms A (15 Nov): framework forms that block several of the claim's cards, then card classes,
   built in four slices. Ending the turn (`EndTurnEffect`, `Turn.endTurn`: `Game::end_turn`; every spell on the stack

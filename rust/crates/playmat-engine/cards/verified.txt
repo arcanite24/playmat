@@ -6544,6 +6544,7 @@ Kazuul's Fury
 Kazuul's Toll Collector
 Keen Buccaneer
 Keen Glidemaster
+Keen-Eared Sentry
 Keen-Eyed Curator
 Keening Apparition
 Keensight Mentor

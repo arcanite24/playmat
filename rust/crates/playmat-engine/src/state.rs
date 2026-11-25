@@ -1391,6 +1391,9 @@ pub struct Game {
     pub resolving_controller: Option<(ObjId, Seat)>,
     /// while a `not_first` target is chosen: the ability's targets chosen before it
     pub chosen_before: Vec<Target>,
+    /// while a player is chosen, not targeted (`TargetPlayer.withNotTarget(true)`: `PromiseGiftCost`'s opponent):
+    /// hexproof and protection don't leave a player out
+    pub choosing_player: bool,
     /// lands that are a basic land type instead of their own for as long as a permanent stays (Tide Shaper): the land
     /// and its zone change count, the source and its count, the type
     pub land_becomes: Vec<(ObjId, u32, ObjId, u32, String)>,
@@ -1760,6 +1763,7 @@ impl Game {
             life_batch: Vec::new(),
             resolving_controller: None,
             chosen_before: Vec::new(),
+            choosing_player: false,
             land_becomes: Vec::new(),
             return_to_hand: Vec::new(),
             first_strike_step: false,
