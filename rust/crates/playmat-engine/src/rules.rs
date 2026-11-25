@@ -7244,6 +7244,14 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
                 && match kind.as_str() {
                     "exhaust" => matches!(ability, AbilityDef::ExhaustAbility { once: false, .. }),
                     "power_up" => matches!(ability, AbilityDef::PowerUpAbility { .. }),
+                    // a boast ability (`BoastAbility`: once each turn, only if the source attacked this turn)
+                    "boast" => matches!(
+                        ability,
+                        AbilityDef::LimitedTimesPerTurnActivatedAbility {
+                            condition: Some(Condition::SourceAttackedThisTurn),
+                            ..
+                        }
+                    ),
                     // `getSourcePermanentOrLKI`: a permanent's, or one its cost sacrificed
                     "creature_or_land" => {
                         (g.obj(id).zone == Zone::Battlefield || g.short_lki.contains(&id))
@@ -9097,7 +9105,8 @@ fn energy(game: &Game, seat: Seat) -> i32 {
     game.player(seat).counters.iter().filter(|(n, _)| n == "energy").map(|(_, k)| *k).sum()
 }
 
-/// Gives a player energy counters, or takes them (a negative amount)
+/// Gives a player energy counters, or takes them (a negative amount); getting one or more fires "whenever you get
+/// one or more {E}" (`COUNTERS_ADDED`)
 fn add_energy(game: &mut Game, seat: Seat, n: i32) {
     let counters = &mut game.player_mut(seat).counters;
     match counters.iter_mut().find(|(c, _)| c == "energy") {
@@ -9105,6 +9114,11 @@ fn add_energy(game: &mut Game, seat: Seat, n: i32) {
         None => counters.push(("energy".to_string(), n)),
     }
     counters.retain(|(_, k)| *k != 0);
+    if n > 0 {
+        let fired =
+            game.triggers(game.trigger_sources(), |_, _, you, t| matches!(t, Trigger::YouGetEnergy) && you == seat);
+        game.pending.extend(fired);
+    }
 }
 
 /// A player's poison counters (`CounterType.POISON`)

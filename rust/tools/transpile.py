@@ -3977,6 +3977,10 @@ class Translator:
         if cls == 'InvestigateEffect' and len(args) <= 1 and args != ['true'] and args != ['false']:
             return {'class': 'CreateTokenEffect', 'token': token('ClueArtifactToken'),
                     'amount': self.value('amount', args[0]) if args else 1}
+        # `InvestigateEffect(false)`: no reminder text (a spell's text is Java's own, so only the Clue matters: Kellan,
+        # Inquisitive Prodigy's Tail the Suspect)
+        if cls == 'InvestigateEffect' and [a.strip() for a in args] == ['false']:
+            return {'class': 'CreateTokenEffect', 'token': token('ClueArtifactToken'), 'amount': 1}
         # create a token, then (you may) attach this Equipment to it
         if cls == 'CreateTokenAttachSourceEffect' and len(args) in (1, 2, 3):
             return {'class': 'CreateTokenEffect', 'token': self.value('token', args[0].strip()), 'amount': 1,
@@ -7660,6 +7664,15 @@ class Translator:
         if cls == 'ActivateAbilityTriggeredAbility' and n == 3 and args[2].strip() == 'SetTargetPointer.SPELL':
             return copies_abilities(out({'e': 'ability_activated', 'kind': self.stack_filter_kind(args[1]),
                                          'pointer': True}, args[0]))
+        # Fabrication Module: "whenever you get one or more {E}, put a +1/+1 counter on target creature you control"
+        # (`COUNTERS_ADDED` of energy on you; the target is added after)
+        if cls == 'FabricationModuleTriggeredAbility' and n == 0:
+            return out({'e': 'you_get_energy'}, 'new AddCountersTargetEffect(CounterType.P1P1.createInstance())')
+        # Frenzied Raider: "whenever you activate a boast ability, put a +1/+1 counter on {this}" (`ACTIVATED_ABILITY`
+        # of a `BoastAbility`)
+        if cls == 'FrenziedRaiderTriggeredAbility' and n == 0:
+            return out({'e': 'ability_activated', 'kind': 'boast'},
+                       'new AddCountersSourceEffect(CounterType.P1P1.createInstance())')
         # Runic Armasaur: "whenever an opponent activates an ability of a creature or land that isn't a mana ability"
         if cls == 'RunicArmasaurTriggeredAbility' and n == 0:
             return out({'e': 'ability_activated', 'kind': 'creature_or_land', 'opponent': True},
