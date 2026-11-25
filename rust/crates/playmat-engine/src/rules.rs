@@ -770,7 +770,8 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                     }
                     // a card's own "whenever one or more creatures attack you" (`AttacksYou`): those creatures
                     let sources = game.trigger_sources();
-                    let fired = game.triggers(sources, |_, _, you, t| matches!(t, Trigger::AttacksYou) && you == defender);
+                    let fired =
+                        game.triggers(sources, |_, _, you, t| matches!(t, Trigger::AttacksYou) && you == defender);
                     for mut t in fired {
                         t.targets = vec![at_player.iter().map(|(a, _)| Target::Obj(*a)).collect()];
                         t.target_zcc = vec![at_player.iter().map(|(_, z)| *z).collect()];
@@ -2583,9 +2584,11 @@ fn prototype(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
     castable(game, seat, id, &def).then_some((k, def))
 }
 
-/// Bestow: the card's ability index and the card as it's cast that way, an Aura spell, if it can be, from hand
+/// Bestow: the card's ability index and the card as it's cast that way, an Aura spell, if it can be, from hand (or
+/// from exile, where an effect lets the card be played: Spiteful Returned exiled by Syr Carah, the Bold)
 fn bestow(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
-    if game.obj(id).zone != Zone::Hand {
+    let zone = game.obj(id).zone;
+    if zone != Zone::Hand && !(zone == Zone::Exile && game.may_play_now(id, seat)) {
         return None;
     }
     let (k, def) = game.obj(id).def.bestow()?;
@@ -4475,7 +4478,7 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         if let Some((k, _)) = &prototype {
             options.push(*k);
         }
-        let bestow = if zone == Zone::Hand { bestow(game, seat, id) } else { None };
+        let bestow = bestow(game, seat, id);
         if let Some((k, _)) = &bestow {
             options.push(*k);
         }
@@ -15272,7 +15275,7 @@ fn apply_each_effect(
                 // the exploiter's, on the battlefield or just sacrificed (a leaves-the-battlefield trigger)
                 let (src, zcc) = source;
                 let here = game.obj(src).zone == Zone::Battlefield && game.obj(src).zcc == zcc;
-                let mut after = at;
+                let mut all = Vec::new();
                 if here || src == o {
                     let mut fired = game.triggers([src], |_, s, _, t| matches!(t, Trigger::Exploits) && s == src);
                     // `SetTargetPointer.PERMANENT`: the exploited creature, as it was (Profaner of the Dead)
@@ -15283,8 +15286,7 @@ fn apply_each_effect(
                             t.target_zcc = vec![vec![game.obj(o).zcc]];
                         }
                     }
-                    after += fired.len();
-                    game.pending.splice(at..at, fired);
+                    all.extend(fired);
                 }
                 // the same `EXPLOITED_CREATURE` event: a card's own trigger on any exploiter (on the battlefield)
                 let sources = game.trigger_sources();
@@ -15294,7 +15296,10 @@ fn apply_each_effect(
                     t.sacrificed_permanent = Some(o);
                 }
                 any.retain(|t| game.trigger_check_holds(t));
-                game.pending.splice(after..after, any);
+                // one event: every trigger on it in Java's trigger order (Gurmag Drowner's own after Skull Skaab's)
+                all.extend(any);
+                all.sort_by_key(|t| game.trigger_key(t));
+                game.pending.splice(at..at, all);
             }
             EffectDef::BoomerangBasicsEffect => {
                 if let Some(o) = objs.first().copied().filter(|o| game.obj(*o).zone == Zone::Battlefield) {

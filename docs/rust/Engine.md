@@ -2345,6 +2345,47 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
     tail of single-handler cards, not reached. The cards Engine.md already names as nondeterministic or blamed
     stayed out of the candidates.
 
+  Wave 25c, Pioneer cards from Ral, Crackling Wit to Zurgo, Thunder's Decree, second pass (25 Nov): the 373 still
+  unverified in that range (waves 25a and 25b take the rest). 13 came in (14,387 in the engine) and 12 were verified
+  (14,353): Reckless Velocitaur, Saavik, Stoic Student and Starfleet Academy (they already translated: wave 23a's
+  `FederationCount` and wave 24a's saddle trigger), Sabotage Strategist, Skull Skaab, Spiteful Returned, Syr Carah,
+  the Bold, Toluz, Clever Conductor, Unconventional Tactics, Valiant Rescuer, Yuriko, Blade of the Mighty and Zagras,
+  Thief of Heartbeats. Four rounds, all recorded on multivac: rounds 1 and 4 factory (20 and 32 games), rounds 2 and 3
+  hand-made (24 and 20 games; decks under `.local/w25c/factory/round-00N/decks`): 92 match, 4 differ, all Titania's.
+  Each new handler ran in a matching game. The 7 games under `shadow/wave25c/` cover every card. The pieces:
+  - Triggers: `Trigger::ExploitsAny` (Skull Skaab: any creature you control exploits, with the exploiter and the
+    exploited creature on the item), `AttacksThisOrAttached` (Spiteful Returned bestowed), `AttacksYou` (Sabotage
+    Strategist: the creatures attacking that player are its targets) and `DamagedPlayer` (Syr Carah: the source and
+    the damage on the item). Each is a pseudo-class the transpiler maps, as `ZoneChangeBatchTriggeredAbility` is.
+  - Watchers: `TurnWatch::cycled` (Valiant Rescuer's "another card for the first time each turn"), and the discarded
+    cards on a `DiscardsOneOrMore` trigger's batch (Toluz exiles them).
+  - Handlers: Yuriko's no spells or abilities during combat, Valiant Rescuer, Unconventional Tactics, Toluz (exile
+    the discarded cards; its dies trigger returns them), Syr Carah, Skull Skaab, Spiteful Returned, Sabotage
+    Strategist; the transpiler reads `ZagrasThiefOfHeartbeatsTriggeredAbility`. Java's Zagras checks that the damage
+    source is a creature and a planeswalker, so its trigger hardly ever fires; Rust copies that.
+  - A full transpile changes and drops no existing card. It adds 2 known leftovers: Avalanche Tusker, Hoshi Sato.
+  Changes to verified cards, each shown by a recorded game:
+  - The triggers on one `EXPLOITED_CREATURE` event wait in Java's trigger order: Skull Skaab's before Gurmag
+    Drowner's own (round 3 game 9, kept). Only games with Skull Skaab change.
+  - Bestow can be cast from exile where an effect lets the card be played: Java offered Spiteful Returned's bestow
+    from Syr Carah's exile (round 3 game 18, kept). Rust allowed bestow from hand only before.
+  Titania, Voice of Gaea stays unverified. Java keeps its "one or more land cards are put into your graveyard"
+  trigger on the melded Titania, Gaea Incarnate: Rust doesn't (round 2 game 2, round 3 games 1, 11 and 17).
+  Left out, with what each needs:
+  - Events Rust doesn't raise: a permanent becomes the target of a spell or ability (Skophos Maze-Warden), lost
+    control (Zidane), mana added (Tyvar the Bellicose), a ninjutsu activation (Satoru), a triggered ability
+    triggering (Strict Proctor), attached and unattached (Siona, Stitcher's Graft), a Mount saddled (Stubborn
+    Burrowfiend), who tapped a permanent (Sharae).
+  - `DEFENDER_ATTACKED` once per defender, planeswalkers included, in Java's HashMap order (Rigo).
+  - Counters on a player (Territorial Gorger); Auras attached to players (Trespasser's Curse, Torment of Scarabs).
+  - A trigger-class target with an adjuster (Satyr Firedancer); noncombat damage equal to toughness plus a +X
+    replacement (Taii Wakeen); "until your next end step" play permission and a play-from-exile trigger (Rocco);
+    playing a land from a zone (Shadow of the Goblin); harmonize granted (Songcrafter Mage); granted alternative
+    costs (Weftwalking, Runeforge Champion); a pointer plus a target on `TurnedFaceUpAllTriggeredAbility` (Temur
+    War Shaman).
+  - Layer 4 (Tom, Bert, and William; Zhao; Sugar Coat and others), and wave 24c's skips, still standing.
+  - The rest: one card class or one engine piece each, not reached in the budget.
+
   Wave 24a, Pioneer cards A Killer Among Us to God-Eternal Kefnet (25 Nov): the 385 unverified Pioneer cards in that
   range (waves 24b and 24c take the rest). A stub-handler probe found 109 that translate with their own classes
   stubbed; most of the rest need layer 4, random or hash order, mana-spent tracking or a framework class. 12 came in,
