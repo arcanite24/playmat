@@ -99,6 +99,14 @@ impl Step {
 thread_local! {
     /// set while `Game::spell_grants` checks its filters
     static SPELL_GRANTS_BUSY: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    /// set while `Game::protected_from_ability_object` checks protection against an ability on the stack
+    static ABILITY_OBJECT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Whether a protection filter is being matched against an ability on the stack (`StackAbility`, mana value 0)
+/// rather than its source: `Game::protected_from_ability_object`
+pub fn ability_object() -> bool {
+    ABILITY_OBJECT.with(|x| x.get())
 }
 
 /// How long a control change (`GainControlTargetEffect`, layer 2) lasts
@@ -278,8 +286,9 @@ pub struct Obj {
     pub lki_class_level: u32,
     /// exerted: doesn't untap during its controller's next untap step
     pub exerted: bool,
-    /// its power-up ability was activated (once each game, for this object)
-    pub powered_up: bool,
+    /// how many times its power-up ability was activated (once each game, for this object, unless an effect allows
+    /// more: Wonder Man, Hollywood Hero)
+    pub powered_up: u8,
     /// keyword statuses a permanent has while it stays (renowned, an exhaust ability activated), by name
     pub marks: Vec<String>,
     /// whether its tribute was paid, the last time it entered (Java's `tributeValue` state value, by card: it stays
@@ -1933,7 +1942,7 @@ impl Game {
             class_level: 1,
             lki_class_level: 1,
             exerted: false,
-            powered_up: false,
+            powered_up: 0,
             marks: Vec::new(),
             tribute: None,
             creature_types: None,
@@ -2417,6 +2426,17 @@ impl Game {
                 }
             }
         }
+        out
+    }
+
+    /// Protection from the ability object itself, as its targets are chosen: `TargetPermanent.canTarget` checks
+    /// `game.getObject(source.getId())` as well as the source, and once the ability is on the stack that's its
+    /// `StackAbility`, whose mana value is 0 (Lavabrink Venturer choosing even can't be equipped). Its colors are the
+    /// source's, so only a filter on mana value reads `ability_object()`.
+    pub fn protected_from_ability_object(&self, id: ObjId, source: ObjId) -> bool {
+        ABILITY_OBJECT.with(|x| x.set(true));
+        let out = self.protected_from(id, source);
+        ABILITY_OBJECT.with(|x| x.set(false));
         out
     }
 
@@ -5020,7 +5040,7 @@ impl Game {
             o.play_tapped = false;
             o.pay_tax = 0;
             o.exerted = false;
-            o.powered_up = false;
+            o.powered_up = 0;
             o.marks.clear();
             o.creature_types = None;
             o.base_pt = None;

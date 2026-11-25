@@ -5822,6 +5822,7 @@ Horta
 Host of the Hereafter
 Hostage Taker
 Hostile Desert
+Hostile Investigator
 Hostile Minotaur
 Hostile Negotiations
 Hostile Takeover
@@ -6292,6 +6293,7 @@ Ironshell Beetle
 Irontread Crusher
 Ironwright's Cleansing
 Irresistible Prey
+Irreverent Gremlin
 Irreverent Revelers
 Irrigated Farmland
 Isamaru, Hound of Konda
@@ -6888,7 +6890,9 @@ Lava Coil
 Lava Dart
 Lava Serpent
 Lava Spike
+Lavabrink Venturer
 Lavakin Brawler
+Lavaleaper
 Lavaspur Boots
 Lavastep Raider
 Lavinia of the Tenth
@@ -7287,6 +7291,7 @@ Maestros Theater
 Magda, Brazen Outlaw
 Magda, the Hoardmaster
 Mage Duel
+Mage Hunter
 Mage Hunters' Onslaught
 Mage Tower Referee
 Mage's Attendant
@@ -8326,6 +8331,7 @@ Nyx Lotus
 Nyx Weaver
 Nyx-Fleece Ram
 Nyxathid
+Nyxbloom Ancient
 Nyxborn Brute
 Nyxborn Colossus
 Nyxborn Courser
@@ -8569,6 +8575,7 @@ Orzhov Keyrune
 Orzhov Locket
 Orzhov Racketeers
 Oscorp Research Team
+Osseous Exhale
 Osseous Sticktwister
 Ossification
 Osteomancer Adept
@@ -8826,6 +8833,7 @@ Pheres-Band Warchief
 Phlox, Unorthodox Doctor
 Phoenix Chick
 Phoenix Down
+Phoenix Fleet Airship
 Phoenix of Ash
 Photon Blast Barrage
 Photosynthetic Physician
@@ -8865,6 +8873,7 @@ Picnic Ruiner
 Pictures of Spider-Man
 Pieces of the Puzzle
 Pierce the Sky
+Piercing Exhale
 Piercing Light
 Piggy Bank
 Pigment Storm
@@ -9011,6 +9020,7 @@ Pouncing Lynx
 Pouncing Shoreshark
 Power Plant Worker
 Power Word Kill
+Powerful Broker
 Powerstone Engineer
 Powerstone Fracture
 Powerstone Shard
@@ -9117,6 +9127,7 @@ Prodigious Growth
 Prodigy's Prototype
 Profane Memento
 Profane Procession
+Profaner of the Dead
 Professional Face-Breaker
 Professional Wrestler
 Professor Dellian Fel
@@ -9284,6 +9295,7 @@ Quick Draw
 Quick Study
 Quick-Draw Dagger
 Quick-Draw Katana
+Quicken
 Quickling
 Quicksand Whirlpool
 Quicksilver Fisher
@@ -9520,6 +9532,7 @@ Razor Rings
 Razorfoot Griffin
 Razorkin Hordecaller
 Razorkin Needlehead
+Razorlash Transmogrant
 Razortip Whip
 Razortrap Gorge
 Razorverge Thicket
@@ -9770,6 +9783,7 @@ Restore with Empathy
 Restricted Office // Lecture Hall
 Resupply
 Resurrected Cultist
+Retched Wretch
 Retraction Helix
 Retreat to Coralhelm
 Retreat to Emeria
@@ -10488,6 +10502,7 @@ Sea-Dasher Octopus
 Seachrome Coast
 Seacoast Drake
 Seafloor Oracle
+Seafloor Stalker
 Seagraf Skaab
 Seal Away
 Seal from Existence
@@ -11160,6 +11175,7 @@ Sluiceway Scorpion
 Slum Reaper
 Slumbering Cerberus
 Slumbering Keepguard
+Slumbering Trudge
 Slumbering Walker
 Sly Requisitioner
 Smash to Dust
@@ -11394,6 +11410,7 @@ Sphinx of Forgotten Lore
 Sphinx of Magosi
 Sphinx of New Prahv
 Sphinx of the Final Word
+Sphinx of the Guildpact
 Sphinx's Approach
 Sphinx's Disciple
 Sphinx's Insight
@@ -11945,6 +11962,7 @@ Super Speed
 Super Strength
 Super Suit
 Super Villain Lockup
+Super-Adaptoid
 Super-Skrull
 Superior Foes of Spider-Man
 Supernatural Rescue
@@ -12202,6 +12220,7 @@ Tea, Earl Grey, Hot
 Teach by Example
 Teacher's Pest
 Teachings of the Archaics
+Teachings of the Kirin
 Team Avatar
 Team Pennant
 Team Tactics
@@ -12643,6 +12662,7 @@ Throwing Knife
 Thrull Parasite
 Thrumming Hivepool
 Thrummingbird
+Thrun, Breaker of Silence
 Thud
 Thunder Brute
 Thunder Drake
@@ -12755,6 +12775,7 @@ Tocasia, Dig Site Mentor
 Tocatli Honor Guard
 Together as One
 Toil // Trouble
+Tokka & Rahzar, Terrible Twos
 Tolarian Geyser
 Tolarian Kraken
 Tolarian Scholar
@@ -12994,6 +13015,7 @@ Tura Kennerud, Skyknight
 Turn // Burn
 Turn Against
 Turn Aside
+Turn Inside Out
 Turn into a Pumpkin
 Turn to Frog
 Turn to Slag
@@ -14079,6 +14101,7 @@ Wolfkin Outcast
 Wolfrider's Saddle
 Wolfwillow Haven
 Wolverine, Fierce Fighter
+Wonder Man, Hollywood Hero
 Wood Elves
 Woodborn Behemoth
 Woodcaller Automaton

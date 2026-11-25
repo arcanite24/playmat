@@ -201,6 +201,20 @@ impl ShadowGame {
                 }
             }
         }
+        // the start's graveyards: a second copy of a legendary leyline (Quicksilver, Brash Blur) put onto the
+        // battlefield from an opening hand goes there by the legend rule before the first priority
+        let mut seat: Option<Seat> = None;
+        for line in self.start.fingerprint.lines() {
+            if let Some(rest) = line.strip_prefix("player ") {
+                seat = rest.split(' ').next().and_then(|w| w.parse().ok());
+            } else if let (Some(seat), Some(cards)) = (seat, line.strip_prefix(" graveyard ")) {
+                for name in cards.split('|').filter(|n| !n.is_empty()) {
+                    let def = db.get(name).ok_or_else(|| format!("card not in the engine: {}", name))?;
+                    let id = game.create_obj(def, seat, Zone::Graveyard);
+                    game.player_mut(seat).graveyard.push(id);
+                }
+            }
+        }
         // the start's exile (only an opening hand's action puts cards there)
         if let Some(line) = self.start.fingerprint.lines().find_map(|l| l.strip_prefix("exile ")) {
             for name in line.split('|').filter(|n| !n.is_empty()) {
