@@ -3337,7 +3337,8 @@ class Translator:
         # (itBecomes): only text
         if cls == 'BecomePreparedSourceEffect' and len(args) == 1 and args[0].strip() in ('true', 'false'):
             return {'class': cls}
-        if cls == 'EmpowerJaceEffect' and len(args) == 1 and re.fullmatch(r'\d+', args[0].strip()):
+        # (amount): an int or a `DynamicValue` ("where X is the number of creatures you control": Repurposed Enforcer)
+        if cls == 'EmpowerJaceEffect' and len(args) == 1:
             return {'class': cls, 'amount': self.amount(args[0].strip()), 'token': token('JacePlaneswalkerToken')}
         # a Role token attached to the source (a handler: only while it's on the battlefield)
         if cls == 'CreateRoleAttachedSourceEffect' and len(args) == 1 and (m := re.fullmatch(r'RoleType\.(\w+)', args[0].strip())):
@@ -3449,6 +3450,9 @@ class Translator:
                 m := re.fullmatch(r'new BeholdCost\(SubType\.(\w+)\)', args[0].strip())):
             return {'class': 'TapSourceUnlessBeholdEffect', 'subtype': subtype_names()[m.group(1)]}
         if cls == 'TransformSourceEffect' and not args:
+            return {'class': cls}
+        # "then shuffle" as a spell's own effect (Through the Forest Gate)
+        if cls == 'ShuffleLibrarySourceEffect' and not args:
             return {'class': cls}
         if cls == 'CreateTwiceThatManyTokensEffect' and not args:
             return {'class': cls}
@@ -3917,6 +3921,15 @@ class Translator:
                     'effects': [{'class': 'AddCountersSourceEffect', 'counter': {'name': 'valor', 'amount': 1},
                                  'amount': {'v': 'x'}}],
                     'reflexive': 'Put that many valor counters on {this}.'}
+        # Tainted Adversary: pay any number of times; when you do, that many +1/+1 counters and twice that many Zombies
+        if cls == 'DoIfAnyNumberCostPaid' and len(args) == 2 and args[0].strip() == 'new TaintedAdversaryEffect()':
+            tokens = self.effect('new CreateTokenEffect(new ZombieDecayedToken())')
+            tokens['amount'] = {'v': 'times', 'of': {'v': 'x'}, 'n': 2}
+            return {'class': cls, 'cost': [self.cost(args[1].strip())],
+                    'effects': [{'class': 'AddCountersSourceEffect', 'counter': {'name': '+1/+1', 'amount': 1},
+                                 'amount': {'v': 'x'}}, tokens],
+                    'reflexive': 'Put that many +1/+1 counters on {this}, '
+                                 'then create twice that many 2/2 black Zombie creature tokens with decayed.'}
         # a cost reduction that applies while a condition holds
         if cls == 'ConditionalCostModificationEffect' and len(args) == 3:
             e = self.effect(args[0].strip())
@@ -3950,6 +3963,12 @@ class Translator:
         # "enchanted creature assigns combat damage equal to its toughness rather than its power" (Gauntlets of Light)
         if cls == 'CombatDamageByToughnessAttachedEffect' and len(args) == 2 and args[0].strip() == 'null':
             return {'class': cls}
+        # "until end of turn, target creature assigns combat damage equal to its toughness rather than its power"
+        # (Walking Bulwark): the target is given the static until end of turn, as the engine's grants keep one
+        if cls == 'CombatDamageByToughnessTargetEffect' and len(args) == 1 and args[0].strip() == 'Duration.EndOfTurn':
+            ability = {'class': 'SimpleStaticAbility', 'effects': [
+                {'class': 'CombatDamageByToughnessSourceEffect', 'duration': 'WhileOnBattlefield'}]}
+            return {'class': 'GainAbilityTargetEffect', 'ability': ability, 'duration': 'EndOfTurn'}
         # "as long as enchanted creature has vigilance, it assigns …" (a static's, under its condition)
         if cls == 'CombatDamageByToughnessAttachedEffect' and len(args) == 2 and args[0].strip() != 'null':
             return {'class': 'ConditionalContinuousEffect', 'effect': {'class': cls},
@@ -4602,9 +4621,12 @@ class Translator:
             if args[1].strip() != 'null':
                 out['toughness'] = self.amount(args[1])
             return out
-        if cls == 'SetBasePowerToughnessTargetEffect' and len(args) == 3 and args[2] in ('Duration.EndOfTurn', 'Duration.EndOfGame'):
+        # (`Duration.Custom` with nothing that ends it lasts as `EndOfGame` does: while the target stays, The Bears of
+        # Littjara)
+        if cls == 'SetBasePowerToughnessTargetEffect' and len(args) == 3 \
+                and args[2] in ('Duration.EndOfTurn', 'Duration.EndOfGame', 'Duration.Custom'):
             return {'class': cls, 'power': self.amount(args[0]), 'toughness': self.amount(args[1]),
-                    **({'permanent': True} if args[2] == 'Duration.EndOfGame' else {})}
+                    **({'permanent': True} if args[2] in ('Duration.EndOfGame', 'Duration.Custom') else {})}
         if cls == 'SetBasePowerToughnessSourceEffect' and len(args) == 3 and re.fullmatch(pt, args[0]) \
                 and re.fullmatch(pt, args[1]) and args[2] in ('Duration.EndOfTurn', 'Duration.WhileOnBattlefield'):
             return {'class': 'SetBasePowerToughness7bSourceEffect', 'power': int(args[0]), 'toughness': int(args[1]),
