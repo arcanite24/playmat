@@ -9663,6 +9663,7 @@ Redcap Melee
 Redcap Raiders
 Redcap Thief
 Redirect Lightning
+Rediscover the Way
 Redrock Sentinel
 Redtooth Genealogist
 Redtooth Vanguard
@@ -10311,6 +10312,7 @@ Sanctum Seeker
 Sanctum Spirit
 Sanctum of All
 Sanctum of Calm Waters
+Sanctum of Fruitful Harvest
 Sanctum of Shattered Heights
 Sanctum of Stone Fangs
 Sanctum of Tranquil Light
@@ -10699,6 +10701,7 @@ Serra's Guardian
 Serrated Scorpion
 Serum Snare
 Serum Sovereign
+Serum-Core Chimera
 Servant of Tymaret
 Servant of the Conduit
 Servant of the Scale
@@ -10888,6 +10891,7 @@ Shortcut Seeker
 Shoulder to Shoulder
 Show of Confidence
 Show of Valor
+Showdown of the Skalds
 Showstopper
 Shrapnel Blast
 Shrapnel Slinger
@@ -11041,6 +11045,7 @@ Sinister Concoction
 Sinister Cryologist
 Sinister Hideout
 Sinister Monolith
+Sinister Possession
 Sinister Sabotage
 Sinkhole Surveyor
 Sinuous Benthisaur
@@ -12051,6 +12056,7 @@ Surrak, the Hunt Caller
 Surtland Elementalist
 Surtland Flinger
 Surtland Frostpyre
+Surveillance Monitor
 Surveillance Phantasm
 Surveillance Room
 Survey Mechan
@@ -12449,6 +12455,7 @@ Thaumaturge's Familiar
 Thawbringer
 The Ancient One
 The Antiquities War
+The Apprentice's Folly
 The Arkenstone
 The Astonishing Ant-Man
 The Autonomous Furnace
@@ -12508,6 +12515,7 @@ The Kenriths' Royal Funeral
 The Key to the Vault
 The Last Agni Kai
 The Last Ride
+The Last Ronin
 The Last Ronin's Technique
 The Legend of Kuruk
 The Legend of Kyoshi
@@ -12787,9 +12795,11 @@ Timberpack Wolf
 Time Ebb
 Time Stop
 Time Wipe
+Time of Ice
 Time to Feed
 Timeless Lotus
 Timely Hordemate
+Timely Interference
 Timid Shieldbearer
 Tin Street Dodger
 Tin Street Gossip
@@ -14080,6 +14090,7 @@ Windgrace Acolyte
 Windreader Sphinx
 Windrider Patrol
 Windrider Wizard
+Winds of Qal Sisma
 Winds of Rebuke
 Windstorm
 Windstorm Drake
@@ -14140,6 +14151,7 @@ Witherbloom Charm
 Witherbloom Command
 Witherbloom Pledgemage
 Witherbloom, the Balancer
+Withercrown
 Withering Curse
 Withering Torment
 Without Weakness
