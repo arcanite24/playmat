@@ -847,6 +847,8 @@ pub struct ResolvedStatic {
     /// `Duration.UntilYourNextTurn` (its first argument): it lasts until this player's next turn begins, not the
     /// turn's cleanup
     pub until_turn_of: Option<Seat>,
+    /// it lasts past the turn's cleanup, until its handler's own check stops it applying (`Handler::lasting`)
+    pub lasting: bool,
 }
 
 /// A card's own delayed triggered ability a resolved effect created (`game.addDelayedTriggeredAbility`, a
@@ -1207,6 +1209,9 @@ pub struct Game {
     /// "until your next turn, you may cast spells of the filter as though they had flash": the player, the filter,
     /// the effect's source (Teferi, Time Raveler's +1)
     pub flash_until_next_turn: Vec<(Seat, crate::card::Filter, ObjId)>,
+    /// each name `ChooseACardNameEffect` chose, by its source (Java's `sourceId + INFO_KEY` state value, which outlives
+    /// the object: Comply's "until your next turn" reads it once the spell is gone), the latest last
+    pub names_chosen: Vec<(ObjId, String)>,
     /// the stack object resolving: where it was on the stack (from the bottom), and its card
     pub resolving: Option<(usize, ObjId)>,
     /// the stack object resolving, off the stack while it resolves (a view shows it where it was)
@@ -1722,6 +1727,7 @@ impl Game {
             no_lifegain_turn: None,
             attach_entering: None,
             flash_until_next_turn: Vec::new(),
+            names_chosen: Vec::new(),
             resolving: None,
             resolving_item: None,
             checking_item: None,
@@ -4798,11 +4804,12 @@ impl Game {
             self.watch.exiled += 1;
         }
         // "whenever a card is put into a graveyard from anywhere" (`ZONE_CHANGE` to a graveyard): its source on the
-        // battlefield now, a card (not a token) of the filter whose owner is `who`
+        // battlefield now, or a delayed trigger's holder ("… this turn": Duskmantle Guildmage), a card (not a token)
+        // of the filter whose owner is `who`
         let into_graveyard = |g: &Game, src: ObjId, you: Seat, t: &Trigger| match t {
             Trigger::PutIntoGraveyardAll { filter, who } => {
                 src != id
-                    && g.obj(src).zone == Zone::Battlefield
+                    && (g.obj(src).zone == Zone::Battlefield || g.delayed_holders().any(|h| h == src))
                     && !g.obj(id).token
                     && Game::whose(who, you, g.obj(id).owner)
                     && g.filter_matches(filter, you, Some(src), id)
@@ -4912,7 +4919,7 @@ impl Game {
                 _ => false,
             })
         } else if zone == Zone::Graveyard && from != Zone::Graveyard {
-            let sources: Vec<ObjId> = self.battlefield.iter().copied().collect();
+            let sources: Vec<ObjId> = self.battlefield.iter().copied().chain(self.delayed_holders()).collect();
             self.triggers(sources, |g, src, you, t| {
                 into_graveyard(g, src, you, t)
                     || matches!(t, Trigger::SyrKonrad) && !g.obj(id).token && g.has_type(id, CardType::Creature)

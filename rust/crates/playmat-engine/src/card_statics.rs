@@ -24,6 +24,8 @@
 //! - **rule-modifying**: `Handler::rule(name, Rule::CantCast(f))`: `rules::castable` (and the cast itself);
 //!   `Rule::CantCastOnStack(f)`: only the cast itself, after its targets (`CAST_SPELL_LATE` reading the spell);
 //!   `Rule::CantActivate(f)`: `rules::activatable` (activated abilities that aren't mana abilities);
+//!   `Rule::CantUseActivatedAbilities(f)`: a permanent's activated abilities, mana abilities too
+//!   (`Permanent.canUseActivatedAbilities`, `rules::activations_forbidden`);
 //!   `Rule::CantLoseOrWin(f)`: the state-based loss check and `rules::win_game`;
 //!   `Rule::MaxActivations(f)`: a limited activated ability's times each turn (`rules::activatable`);
 //!   `Rule::CantHaveCounters(f)`: counters put on a permanent (`rules::counters_to_add`, before replacements).
@@ -40,7 +42,7 @@
 //!   `AsThough::ActivateAsInstant(f)`: a sorcery-speed activated ability's timing (`rules::activatable`);
 //!   `AsThough::Hexproof(f)`: hexproof, as targets are chosen (`rules::possible_targets`, `targetable`);
 //!   `AsThough::DamageNotBlocked(f)`: a blocked attacker assigns its combat damage as though it weren't blocked
-//!   (`rules::combat_damage`).
+//!   (`rules::combat_damage`); `AsThough::ForetellAnyTime(f)`: foretelling on any player's turn (`rules::foretell`).
 //!
 //! A handler's functions get a `StaticCx`: the effect's source and controller (Java's `source`), its timestamp, and
 //! the Java the transpiler translated for it. The same `CardStatic` resolving as a one-shot effect (Emergence Zone's
@@ -415,6 +417,10 @@ pub(crate) enum Rule {
     /// `ACTIVATE_ABILITY` of an activated ability that isn't a mana ability: `seat` can't activate the ability at
     /// `index` of `id` (Faith's Fetters)
     CantActivate(fn(&Game, &StaticCx, Seat, ObjId, usize) -> bool),
+    /// a `RestrictionEffect`'s `canUseActivatedAbilities` false: none of the permanent `id`'s activated abilities,
+    /// its mana abilities too, can be activated (`PlayerImpl.getUseableManaAbilities`, `getPlayable`: Academic
+    /// Probation)
+    CantUseActivatedAbilities(fn(&Game, &StaticCx, ObjId) -> bool),
     /// `LOSES` (`false`: `seat` can't lose the game, `PlayerImpl.canLose`) and `WINS` (`true`: `seat` can't win it,
     /// `PlayerImpl.won`)
     CantLoseOrWin(fn(&Game, &StaticCx, Seat, bool) -> bool),
@@ -509,6 +515,8 @@ pub(crate) enum AsThough {
     /// None: it doesn't apply; Some(false): it applies; Some(true): it applies if the effect's controller says yes
     /// to "Have (the attacker) assign damage as though it weren't blocked?" (an `applies` that asks: Zilortha's)
     DamageNotBlocked(fn(&Game, &StaticCx, ObjId) -> Option<bool>),
+    /// `ALLOW_FORETELL_ANYTIME`: `seat` may foretell cards on any player's turn (Cosmos Charger)
+    ForetellAnyTime(fn(&Game, &StaticCx, Seat) -> bool),
 }
 
 /// What casting a spell by an `AsThough::PlayThen` way does: (the permitting source, its controller, the spell).
@@ -703,6 +711,7 @@ pub(crate) fn resolve_static(
         })
         .collect();
     let mut until_turn_of = None;
+    let mut lasting = false;
     if let EffectDef::CardStatic { handler, args, effects, filters, abilities } = effect {
         if let Some(start) = handler.0.start {
             let cx = StaticCx { source, controller, timestamp, args, effects, filters, abilities, targets: &targets };
@@ -711,8 +720,9 @@ pub(crate) fn resolve_static(
         if handler.0.until_your_next_turn || args.first().is_some_and(|a| a.trim() == "Duration.UntilYourNextTurn") {
             until_turn_of = Some(controller);
         }
+        lasting = handler.0.lasting;
     }
-    let r = ResolvedStatic { effect: effect.clone(), source, controller, timestamp, targets, until_turn_of };
+    let r = ResolvedStatic { effect: effect.clone(), source, controller, timestamp, targets, until_turn_of, lasting };
     game.card_statics.push(r);
     Some(())
 }
@@ -1069,6 +1079,19 @@ pub(crate) fn cant_activate(game: &Game, seat: Seat, id: ObjId, index: usize) ->
     out
 }
 
+/// Whether a handler says none of the permanent `id`'s activated abilities, mana abilities too, can be activated
+pub(crate) fn cant_use_activated_abilities(game: &Game, id: ObjId) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        for r in rule_parts(h) {
+            if let Rule::CantUseActivatedAbilities(f) = r {
+                out = out || f(game, cx, id);
+            }
+        }
+    });
+    out
+}
+
 /// Whether a rule-modifying handler stops `seat` searching `owner`'s library for `source`'s spell or ability
 pub(crate) fn cant_search_library(game: &Game, seat: Seat, owner: Seat, source: ObjId) -> bool {
     let mut out = false;
@@ -1127,6 +1150,17 @@ pub(crate) fn block_dragon(game: &Game, id: ObjId) -> bool {
     each_static(game, &mut |h, cx, _| {
         if let Hook::AsThough(AsThough::BlockDragon(f)) = h {
             out = out || f(game, cx, id);
+        }
+    });
+    out
+}
+
+/// Whether an as-though handler lets `seat` foretell cards on any player's turn
+pub(crate) fn foretell_any_time(game: &Game, seat: Seat) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::AsThough(AsThough::ForetellAnyTime(f)) = h {
+            out = out || f(game, cx, seat);
         }
     });
     out
