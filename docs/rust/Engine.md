@@ -1600,6 +1600,8 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   the only choice (`a1`: the creature's `SpellAbility` is the card's second ability, after `PrepareCardSpellAbility`).
   No vengeance card is in the engine (Hela, Mistress of Darkness is the only one in `Mage.Sets`, and she isn't in
   `cards.json`), so all of it is about the 55 prepare cards. Engine pieces:
+  - The playable check needs nothing new: Java now collects both parts' abilities, but `PrepareCardSpellAbility` never
+    activates, so a prepare card is playable from hand exactly when its creature is, as in Rust.
   - `rules.rs`'s cast path asks `ChooseAbility` for a prepare card cast from hand, from the graveyard, from exile and
     from the top of the library, with the creature's index, at the same point Java does (before targets and costs).
     The AI answers it like any other one-option picker, and the trace records it as Java does.
@@ -1613,7 +1615,9 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   Four factory rounds (280 games, 271 matching, 6 differing, 3 Java unfinished): 1, the factory over the 55 cards; 2,
   hand-made, seven decks that cast them from hand and with discover; 3 and 4, the deck pairs of the 60 checked-in
   games recorded before 7 Nov that cast one from hand, recorded again from the current Java under the same file names
-  (each replacement picked for the stack texts it shares with the old game; all of them ask the picker).
+  (each picked, among its pair's matching seeds, for casting a prepare card from hand and then for the stack texts it
+  shares with the old game: 58 of the 60 do, 208 picker answers from hand in all; `factory/game-attacked-players-this-turn`
+  and `turn/coin-flip-gold-saucer` had no matching seed that does).
   `factory/game-enters-tapped-doesnt-untap` came from round 4: round 3's three seeds of its pair all parted on Bilbo
   (below). All 55 are verified, the four wave 19a left out (Joined Researchers, Emeritus of Woe, Grave Researcher,
   Scheming Silvertongue) too: 14,139 of the 14,167 in the engine, and `upstream-pending.txt` is empty. Three games
