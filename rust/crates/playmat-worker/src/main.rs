@@ -182,6 +182,7 @@ fn run_unit(unit_path: &str, out: &str, nets_dir: &str, repo: &str, jobs: usize)
                         deal: deal as u64,
                         winner: played.winner.map(|w| w as u8),
                         learner: p.me as u8,
+                        opponent: p.opponent as u32,
                         turns: played.turns,
                         answers: played.log.entries.len() as u32,
                         recorded: played.steps.len() as u32,
@@ -295,8 +296,8 @@ fn verify(dir: &str, repo: &str) -> Result<(), String> {
             continue;
         }
         let p: Pairing = play::pairing(deal as usize, decks.len(), &weights);
-        if p.me as u8 != claim.learner {
-            problems.push(format!("deal {deal}: the learner's seat differs"));
+        if p.me as u8 != claim.learner || p.opponent as u32 != claim.opponent {
+            problems.push(format!("deal {deal}: the learner's seat or opponent differs from what the deal decides"));
         }
         answers += log.entries.len();
         match catch_unwind(AssertUnwindSafe(|| play::replay_game(&setup, deal as usize, p, &log))) {

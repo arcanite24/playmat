@@ -103,6 +103,9 @@ pub struct GameSummary {
     pub winner: Option<u8>,
     /// which seat the learner had
     pub learner: u8,
+    /// the learner's opponent, by its index in the unit's `opponents` (the league's win rates, by opponent)
+    #[serde(default)]
+    pub opponent: u32,
     pub turns: u32,
     /// every answer of the game (the answer log's length) and the decisions recorded for training
     pub answers: u32,
