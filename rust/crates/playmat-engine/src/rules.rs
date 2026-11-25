@@ -2156,6 +2156,7 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
             matching(game, filter, seat, id).iter().filter(|p| game.obj(**p).controller == seat).count() >= *amount
         }
         CostDef::SacrificeXTargetCost { .. }
+        | CostDef::SacrificeAnyNumberCopyCost { .. }
         | CostDef::TapXTargetCost { .. }
         | CostDef::RemoveXCountersSourceCost { .. } => true,
         // `CrewCost.canPay` looks without a source, so "another" doesn't leave out the vehicle itself (crewed, it
@@ -6570,6 +6571,7 @@ fn spell_rule_with_costs(rule: &str, costs: &[CostDef]) -> String {
             CostDef::DiscardCardCost { .. } | CostDef::DiscardSourceCost | CostDef::DiscardHandCost => Some("discard"),
             CostDef::SacrificeSourceCost
             | CostDef::SacrificeTargetCost { .. }
+            | CostDef::SacrificeAnyNumberCopyCost { .. }
             | CostDef::SacrificeXTargetCost { .. } => Some("sacrifice"),
             CostDef::ExileSourceCost
             | CostDef::ExileSourceFromGraveCost
@@ -7999,22 +8001,28 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                 None => return false,
             }
         }
-        CostDef::SacrificeTargetCost { filter, amount } => {
+        CostDef::SacrificeTargetCost { .. } | CostDef::SacrificeAnyNumberCopyCost { .. } => {
+            let (filter, amount, copies) = match c {
+                CostDef::SacrificeTargetCost { filter, amount } => (filter, *amount, false),
+                CostDef::SacrificeAnyNumberCopyCost { filter } => (filter, 0, true),
+                _ => return false,
+            };
             let possible: Vec<ObjId> =
                 matching(game, filter, seat, id).into_iter().filter(|p| game.obj(*p).controller == seat).collect();
             // not enough left (the mana paid first used them): `canPay` fails, nothing asked
-            if possible.len() < *amount {
+            if possible.len() < amount {
                 return false;
             }
-            // `SacrificeTargetCost`: its target can be cancelled
+            // `SacrificeTargetCost`: its target can be cancelled; any number (`TargetSacrifice(0, MAX)`) is up to all
             let rule = if game.foraging.get() { forage_rule(game, id) } else { "sacrifice".to_string() };
-            let Some(chosen) = choose_cards_with(game, d, seat, &possible, &possible, *amount, *amount, &rule, true)
-            else {
+            let max = if copies { possible.len() } else { amount };
+            let Some(chosen) = choose_cards_with(game, d, seat, &possible, &possible, amount, max, &rule, true) else {
                 return false;
             };
-            if chosen.len() < *amount {
+            if chosen.len() < amount {
                 return false;
             }
+            let copied = if copies { chosen.len() } else { 0 };
             // sacrificed together: their dies triggers see each other die
             let outer = std::mem::replace(&mut game.lookback, game.battlefield.to_vec());
             let toughness = chosen.iter().map(|o| game.power_toughness(*o).1).max();
@@ -8042,6 +8050,22 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             let after = game.sac_insert;
             game.sac_insert = insert.map(|i| if i == start { after.unwrap_or(i) } else { i });
             game.lookback = outer;
+            // Plumb the Forbidden's cost: "when you do, copy this spell for each creature sacrificed this way", a
+            // reflexive trigger fired after paying (`CopySourceSpellEffect(sacrificed)`)
+            if copied > 0 {
+                let delayed = Delayed {
+                    rule: "When you do, copy this spell for each creature sacrificed this way.".into(),
+                    sacrifice: Vec::new(),
+                    warp_exile: Vec::new(),
+                    effects: vec![EffectDef::CopySourceSpellEffect; copied],
+                    source_zcc: game.obj(id).zcc,
+                    fixed: Vec::new(),
+                    return_tapped: Vec::new(),
+                    targets: Vec::new(),
+                    condition: None,
+                };
+                game.pending.push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(id, seat) });
+            }
         }
         // `ExileTargetCost.pay`: the permanent chosen (`Targets.choose`), then exiled
         CostDef::ExileTargetCost { filter } => {

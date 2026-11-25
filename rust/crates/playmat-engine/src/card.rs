@@ -1748,6 +1748,11 @@ pub enum CostDef {
     ExileTargetCost {
         filter: Filter,
     },
+    /// an additional cost: you may sacrifice any number of the filter's permanents, chosen as it's paid
+    /// (`TargetSacrifice(0, MAX)`); when you do, copy the spell for each (Plumb the Forbidden's own cost class)
+    SacrificeAnyNumberCopyCost {
+        filter: Filter,
+    },
     /// an additional cost: sacrifice any number (X, announced as the spell is cast) of the filter's permanents
     SacrificeXTargetCost {
         filter: Filter,

@@ -2472,6 +2472,15 @@ class Translator:
             return {'class': cls, 'subtype': subtype_names()[m.group(1)]}
         if cls == 'PayEnergyCost' and len(args) == 1 and re.fullmatch(r'\d+', args[0]):
             return {'class': cls, 'amount': int(args[0])}
+        # Plumb the Forbidden's own cost class: "you may sacrifice one or more creatures. When you do, copy this spell
+        # for each creature sacrificed this way" (a `SacrificeTargetCost` of `TargetSacrifice(0, MAX, ...)` whose `pay`
+        # fires a reflexive `CopySourceSpellEffect(sacrificed)`)
+        if cls == 'PlumbTheForbiddenCost' and not args:
+            src = getattr(self, 'source', '') or ''
+            if 'new TargetSacrifice(0, Integer.MAX_VALUE, StaticFilters.FILTER_CONTROLLED_CREATURES)' in src \
+                    and 'new CopySourceSpellEffect(sacrificed)' in src:
+                return {'class': 'SacrificeAnyNumberCopyCost',
+                        'filter': self.filter('StaticFilters.FILTER_CONTROLLED_CREATURES')}
         if cls == 'MillCardsCost' and len(args) == 1 and re.fullmatch(r'\d+', args[0]):
             return {'class': cls, 'amount': int(args[0])}
         # ward—pay life equal to {this}'s power
