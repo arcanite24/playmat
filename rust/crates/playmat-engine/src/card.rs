@@ -3312,6 +3312,10 @@ pub enum EffectDef {
         cost: String,
         attack: bool,
         block: bool,
+        /// the creature it's attached to instead (`CantAttackBlockUnlessPaysAttachedEffect`: Oppressive Rays'
+        /// "enchanted creature can't attack or block unless its controller pays {3}")
+        #[serde(default)]
+        attached: bool,
     },
     /// "it can't be regenerated this turn" (`CantRegenerateTargetEffect(Duration.EndOfTurn)`, a rule-modifying effect
     /// on `REGENERATE`): resolving, each target as it is then (`target`), whose regeneration shields don't work

@@ -3589,6 +3589,9 @@ class Translator:
             return {'class': cls}
         if cls == 'CreateTwiceThatManyTokensEffect' and not args:
             return {'class': cls}
+        # resolving, until end of turn (Kaya, Geist Hunter's -2): the same effect, kept for the turn
+        if cls == 'CreateTwiceThatManyTokensEffect' and args == ['Duration.EndOfTurn']:
+            return {'class': cls}
         # "if one or more (+1/+1) counters would be put on a … you control, that many plus one are put on it instead"
         if cls == 'ModifyCountersAddedEffect' and len(args) == 2 \
                 and (args[1].strip() == 'null' or args[1].strip() in COUNTERS):
@@ -3610,6 +3613,12 @@ class Translator:
         if cls == 'CantAttackBlockUnlessPaysSourceEffect' and len(args) == 2 \
                 and (mc := re.fullmatch(r'new ManaCostsImpl<?>?\("(\{[^"]*\})"\)', args[0].strip())):
             return {'class': cls, 'cost': mc.group(1), 'attack': True, 'block': True}
+        # "enchanted creature can't attack or block unless its controller pays {3}" (Oppressive Rays)
+        if cls == 'CantAttackBlockUnlessPaysAttachedEffect' and len(args) == 2 \
+                and args[1].strip() == 'AttachmentType.AURA' \
+                and (mc := re.fullmatch(r'new ManaCostsImpl<?>?\("(\{[^"]*\})"\)', args[0].strip())):
+            return {'class': 'CantAttackBlockUnlessPaysSourceEffect', 'cost': mc.group(1), 'attack': True,
+                    'block': True, 'attached': True}
         # (text): "sacrifice that creature", the target's controller sacrificing it (a delayed threaten's)
         if cls == 'SacrificeTargetEffect' and len(args) == 1 and re.fullmatch(r'"[^"]*"', args[0].strip()):
             return {'class': cls}
@@ -8757,6 +8766,13 @@ def card_statement(t, st, card, added, spell, modes, subtypes):
         m = re.fullmatch(r'this\.(power|toughness)=new MageInt\((-?\d+)\)', st)
         if m:
             card[m.group(1)] = int(m.group(2))
+            return
+        # support N on an instant or sorcery kept in a variable (Nissa's Judgment): `SupportEffect`'s constructor
+        # adds the spell's "up to N target creatures" as it's made, before the targets the card adds after it
+        m = re.fullmatch(r'(?:final )?(?:\w+ )?(\w+)=new SupportEffect\(this,(\d+),false\)', st)
+        if m and set(card.get('types', [])) & {'INSTANT', 'SORCERY'}:
+            t.vars[m.group(1)] = {'class': 'AddCountersTargetEffect', 'counter': {'name': '+1/+1', 'amount': 1}}
+            spell['targets'].append({'class': 'TargetPermanent', 'filter': [CREATURE], 'min': 0, 'max': int(m.group(2))})
             return
         before = len(added)
         if ability_statement(t, st, added):
