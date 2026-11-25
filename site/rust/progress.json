@@ -152,12 +152,13 @@
    "n": "F",
    "name": "Then",
    "status": "active",
-   "text": "Career tables: duels, campaign nodes, gauntlet fights and the weekly challenge go to the host in review (#493); puzzles, trials, hordes, pods, emblem and timed twists stay on Java. Java saves aren't converted: hosted games save as lines, and old Java saves expire after 30 days. Cards: wave 17 (46 Pioneer cards the Career, starter and shadow decks use) under way, then wave 18 (121 non-Pioneer cards in the five-paths and roster decks). Platform diffs (#497) and the upstream ledger (#498) in review. Then limited (sealed, draft, tournaments) set by set, then sessions, the lobby and tables in Rust (docs/rust/Assessment-2026-11-24.md).",
+   "text": "Career tables: duels, campaign nodes, gauntlet fights and the weekly challenge go to the host (#493, deployed 24 Nov); puzzles, trials, hordes, pods, emblem and timed twists stay on Java. Java saves aren't converted: hosted games save as lines, and old Java saves expire after 30 days. Cards: wave 17 (#500, 19 cards verified) in review, then wave 18 (121 non-Pioneer cards in the five-paths and roster decks). Platform diffs (#497) and the upstream ledger (#498) deployed 24 Nov. Then limited (sealed, draft, tournaments) set by set, then sessions, the lobby and tables in Rust (docs/rust/Assessment-2026-11-24.md).",
    "gate": "Per feature",
    "pr": [
     493,
     497,
-    498
+    498,
+    500
    ]
   }
  ],
@@ -267,19 +268,19 @@
  },
  "counted": {
   "engine_cards": 14160,
-  "verified_cards": 14062,
+  "verified_cards": 14011,
   "pioneer": {
    "cards": 15259,
    "in_engine": 13958,
-   "verified": 13861
+   "verified": 13810
   },
   "java_card_files": 32849,
   "school": {
    "label": "Pioneer and Standard school decks",
    "decks": 42,
-   "covered": 42,
+   "covered": 41,
    "cards": 410,
-   "cards_in": 410,
+   "cards_in": 409,
    "list": [
     {
      "deck": "act1-boros-aggro",
@@ -374,7 +375,7 @@
     {
      "deck": "meta-izzet-prowess",
      "cards": 20,
-     "missing": 0
+     "missing": 1
     },
     {
      "deck": "meta-mono-red-prowess",
@@ -496,9 +497,9 @@
   "meta": {
    "label": "Pioneer and Standard meta decks",
    "decks": 24,
-   "covered": 24,
+   "covered": 21,
    "cards": 278,
-   "cards_in": 278,
+   "cards_in": 276,
    "list": [
     {
      "deck": "pioneer-azorius-spirits",
@@ -523,7 +524,7 @@
     {
      "deck": "pioneer-izzet-prowess",
      "cards": 19,
-     "missing": 0
+     "missing": 1
     },
     {
      "deck": "pioneer-jeskai-ensoul",
@@ -563,7 +564,7 @@
     {
      "deck": "standard-azorius-control",
      "cards": 20,
-     "missing": 0
+     "missing": 1
     },
     {
      "deck": "standard-boros-dragons",
@@ -593,7 +594,7 @@
     {
      "deck": "standard-izzet-prowess",
      "cards": 20,
-     "missing": 0
+     "missing": 1
     },
     {
      "deck": "standard-izzet-spellementals",
@@ -1064,6 +1065,6 @@
    ]
   }
  },
- "commit": "abbe7d6c2ca0dc8864f362cfb41eef7c770a6aa0",
+ "commit": "38ad718fd886703ac5b3a6755a917682eeceb6c9",
  "generated": "2026-11-24"
 }
