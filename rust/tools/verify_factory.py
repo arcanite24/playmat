@@ -313,35 +313,44 @@ def record(args):
     seeds = open(os.path.join(out, 'seeds.txt')).read().strip().split(',')
     rec = os.path.join(out, 'rec')
     os.makedirs(rec, exist_ok=True)
-    done = {int(re.sub(r'\D', '', os.path.basename(f))) for f in glob.glob(os.path.join(rec, 'game-*.json'))}
-    seeds = [s for s in seeds if s and int(s) not in done]
-    if not seeds:
-        print('round %d: every game is recorded' % r, file=sys.stderr)
-        return
-    procs = max(1, min(args.procs, len(seeds)))
-    chunks = [seeds[i::procs] for i in range(procs)]
     log4j = os.path.join(ROOT, '.travis', 'log4j.properties')
-    running = []
-    for i, chunk in enumerate(chunks):
-        cmd = ['mvn', '-o', '-q', '-pl', 'Mage.Tests', 'test', '-Dtest=ShadowGamesTest',
-               '-Dsurefire.failIfNoSpecifiedTests=false',
-               '-Dxmage.shadowGames=' + rec, '-Dxmage.shadowGames.seeds=' + ','.join(chunk),
-               '-Dxmage.shadowGames.turns=%d' % args.turns,
-               '-Dxmage.shadowGames.decks=' + os.path.join(out, 'decks'),
-               '-Dxmage.dataCollectors.printGameLogs=false', '-Dlog4j.configuration=file:' + log4j]
-        logf = open(os.path.join(out, 'record-%02d.log' % i), 'w')
-        running.append((subprocess.Popen(cmd, cwd=ROOT, stdout=logf, stderr=subprocess.STDOUT), logf))
-        if i == 0 and procs > 1:
-            # the first one compiles if anything is stale; the rest start once it's past that
-            time.sleep(args.stagger)
-        elif i < procs - 1:
-            # and a few seconds apart: two that open the card database at once can fail with "Lock file recently
-            # modified", and that one then finds no card, so its decks would load empty (ShadowGamesTest fails it)
-            time.sleep(5)
-    bad = 0
-    for p, logf in running:
-        bad += p.wait() != 0
-        logf.close()
+    # a process that fails (most often one that lost the race to open the card database, see below) leaves its games
+    # unrecorded: those are started again in new processes, twice at most
+    for attempt in range(3):
+        done = {int(re.sub(r'\D', '', os.path.basename(f))) for f in glob.glob(os.path.join(rec, 'game-*.json'))}
+        todo = [s for s in seeds if s and int(s) not in done]
+        if not todo:
+            if attempt == 0:
+                print('round %d: every game is recorded' % r, file=sys.stderr)
+                return
+            break
+        if attempt > 0:
+            print('round %d: %d games again, after %d processes failed' % (r, len(todo), bad), file=sys.stderr)
+        procs = max(1, min(args.procs, len(todo)))
+        chunks = [todo[i::procs] for i in range(procs)]
+        running = []
+        for i, chunk in enumerate(chunks):
+            cmd = ['mvn', '-o', '-q', '-pl', 'Mage.Tests', 'test', '-Dtest=ShadowGamesTest',
+                   '-Dsurefire.failIfNoSpecifiedTests=false',
+                   '-Dxmage.shadowGames=' + rec, '-Dxmage.shadowGames.seeds=' + ','.join(chunk),
+                   '-Dxmage.shadowGames.turns=%d' % args.turns,
+                   '-Dxmage.shadowGames.decks=' + os.path.join(out, 'decks'),
+                   '-Dxmage.dataCollectors.printGameLogs=false', '-Dlog4j.configuration=file:' + log4j]
+            logf = open(os.path.join(out, ('record-%02d.log' if attempt == 0 else 'record-%02d.retry%d.log')
+                                     % ((i,) if attempt == 0 else (i, attempt))), 'w')
+            running.append((subprocess.Popen(cmd, cwd=ROOT, stdout=logf, stderr=subprocess.STDOUT), logf))
+            if i == 0 and procs > 1 and attempt == 0:
+                # the first one compiles if anything is stale; the rest start once it's past that
+                time.sleep(args.stagger)
+            elif i < procs - 1:
+                # and a few seconds apart: two that open the card database at once can fail with "Lock file
+                # recently modified", and that one then finds no card, so its decks would load empty
+                # (ShadowGamesTest fails it rather than record them)
+                time.sleep(5)
+        bad = 0
+        for p, logf in running:
+            bad += p.wait() != 0
+            logf.close()
     n = len(glob.glob(os.path.join(rec, 'game-*.json')))
     print('round %d: %d games recorded (%d processes failed)' % (r, n, bad), file=sys.stderr)
 
