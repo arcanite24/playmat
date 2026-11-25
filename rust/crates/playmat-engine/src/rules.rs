@@ -283,7 +283,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             note(game, EventKind::Turn, Some(active), None, None, 0);
             // 726.2: the previous turn's active player cast no spells: day becomes night; two or more: night
             // becomes day (`UntapStep.handleDayNight`, before untapping)
-            if game.day.is_some() && game.turn > 1 {
+            if game.day.is_some() && game.turn > 1 && !game.skip_untap_steps.contains(&active) {
                 let previous = game.player((active + game.seats() - 1) % game.seats()).spells_cast;
                 let change = match game.day {
                     Some(true) => previous == 0,
@@ -364,6 +364,17 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             game.creatures_died = 0;
             game.void_this_turn = false;
             game.activated_this_turn.clear();
+            // a skipped untap step (`TurnMod.withSkipStep(UNTAP)`: `UntapStep` isn't played, day and night not
+            // checked, nothing phases in or untaps; the turn's own resets above still happen); its permanents are no longer summoning sick all the same
+            if let Some(at) = game.skip_untap_steps.iter().position(|s| *s == active) {
+                game.skip_untap_steps.remove(at);
+                for id in Arc::clone(&game.battlefield).iter().copied() {
+                    if game.obj(id).controller == active {
+                        game.obj_mut(id).sick = false;
+                    }
+                }
+                return;
+            }
             // 502.1: the active player's phased-out permanents phase in, before the untap (`PlayerImpl.phasing`);
             // what phased out indirectly comes back with what it's attached to
             let phasing_in: Vec<ObjId> = game
@@ -634,13 +645,19 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                             && g.filter_matches(filter, you, Some(src), a)
                     }
                     Trigger::AttacksAttached => g.attached(src) == Some(a),
+                    Trigger::AttacksThisOrAttached => src == a || g.attached(src) == Some(a),
                     _ => false,
                 });
                 for mut t in fired {
                     let all = t.ability.and_then(|(i, _)| game.item_def(&t).abilities[i].trigger().cloned());
                     let at_attacker = matches!(
                         all,
-                        Some(Trigger::AttacksAll { .. } | Trigger::AttacksAloneAll { .. } | Trigger::AttacksAttached)
+                        Some(
+                            Trigger::AttacksAll { .. }
+                                | Trigger::AttacksAloneAll { .. }
+                                | Trigger::AttacksAttached
+                                | Trigger::AttacksThisOrAttached
+                        )
                     );
                     if at_attacker && set_target_pointer(game, &t) {
                         t.targets = vec![vec![Target::Obj(a)]];
@@ -761,6 +778,15 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                             }
                             game.pending.push(item);
                         }
+                    }
+                    // a card's own "whenever one or more creatures attack you" (`AttacksYou`): those creatures
+                    let sources = game.trigger_sources();
+                    let fired =
+                        game.triggers(sources, |_, _, you, t| matches!(t, Trigger::AttacksYou) && you == defender);
+                    for mut t in fired {
+                        t.targets = vec![at_player.iter().map(|(a, _)| Target::Obj(*a)).collect()];
+                        t.target_zcc = vec![at_player.iter().map(|(_, z)| *z).collect()];
+                        game.pending.push(t);
                     }
                 }
             }
@@ -1612,7 +1638,7 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
         if o.is(CardType::Land) {
             // a land with an adventure (Jidoor's Overture): its spell, with or without a land to play
             // (a land with disguise, Branch of Vitu-Ghazi: cast face down, with or without a land to play)
-            if can_play_land(game, seat)
+            if can_play_land(game, seat) && !cards::cant_play_lands_from_hand(game, seat)
                 || !activatable(game, seat, *id).is_empty()
                 || o.def.adventure.as_ref().is_some_and(|a| castable(game, seat, *id, a))
                 || morph(game, seat, *id).is_some()
@@ -1641,7 +1667,9 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             || plot(game, seat, *id).is_some()
             || suspend(game, seat, *id).is_some()
             || !activatable(game, seat, *id).is_empty()
-            || o.def.back.as_ref().is_some_and(|b| b.is(CardType::Land) && can_play_land(game, seat))
+            || o.def.back.as_ref().is_some_and(|b| {
+                b.is(CardType::Land) && can_play_land(game, seat) && !cards::cant_play_lands_from_hand(game, seat)
+            })
             || o.def.back.as_ref().is_some_and(|b| !b.is(CardType::Land) && castable(game, seat, *id, b))
         {
             out.push(*id);
@@ -2569,9 +2597,11 @@ fn prototype(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
     castable(game, seat, id, &def).then_some((k, def))
 }
 
-/// Bestow: the card's ability index and the card as it's cast that way, an Aura spell, if it can be, from hand
+/// Bestow: the card's ability index and the card as it's cast that way, an Aura spell, if it can be, from hand (or
+/// from exile, where an effect lets the card be played: Spiteful Returned exiled by Syr Carah, the Bold)
 fn bestow(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
-    if game.obj(id).zone != Zone::Hand {
+    let zone = game.obj(id).zone;
+    if zone != Zone::Hand && !(zone == Zone::Exile && game.may_play_now(id, seat)) {
         return None;
     }
     let (k, def) = game.obj(id).def.bestow()?;
@@ -4461,7 +4491,7 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         if let Some((k, _)) = &prototype {
             options.push(*k);
         }
-        let bestow = if zone == Zone::Hand { bestow(game, seat, id) } else { None };
+        let bestow = bestow(game, seat, id);
         if let Some((k, _)) = &bestow {
             options.push(*k);
         }
@@ -7375,6 +7405,7 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
     }
     // `ACTIVATED_ABILITY`: "when you cycle this card" (`CycleTriggeredAbility`), with the cycling's X
     if matches!(def.abilities[index], AbilityDef::CyclingAbility { .. }) {
+        game.watch.cycled.push((seat, id));
         let x = game.stack.last().map_or(0, |t| t.x);
         let mut sources = vec![id];
         sources.extend(game.trigger_sources());
@@ -15274,6 +15305,7 @@ fn apply_each_effect(
                 // the exploiter's, on the battlefield or just sacrificed (a leaves-the-battlefield trigger)
                 let (src, zcc) = source;
                 let here = game.obj(src).zone == Zone::Battlefield && game.obj(src).zcc == zcc;
+                let mut all = Vec::new();
                 if here || src == o {
                     let mut fired = game.triggers([src], |_, s, _, t| matches!(t, Trigger::Exploits) && s == src);
                     // `SetTargetPointer.PERMANENT`: the exploited creature, as it was (Profaner of the Dead)
@@ -15284,8 +15316,20 @@ fn apply_each_effect(
                             t.target_zcc = vec![vec![game.obj(o).zcc]];
                         }
                     }
-                    game.pending.splice(at..at, fired);
+                    all.extend(fired);
                 }
+                // the same `EXPLOITED_CREATURE` event: a card's own trigger on any exploiter (on the battlefield)
+                let sources = game.trigger_sources();
+                let mut any = game.triggers(sources, |_, _, _, t| matches!(t, Trigger::ExploitsAny));
+                for t in any.iter_mut() {
+                    t.entering = Some(src);
+                    t.sacrificed_permanent = Some(o);
+                }
+                any.retain(|t| game.trigger_check_holds(t));
+                // one event: every trigger on it in Java's trigger order (Gurmag Drowner's own after Skull Skaab's)
+                all.extend(any);
+                all.sort_by_key(|t| game.trigger_key(t));
+                game.pending.splice(at..at, all);
             }
             EffectDef::BoomerangBasicsEffect => {
                 if let Some(o) = objs.first().copied().filter(|o| game.obj(*o).zone == Zone::Battlefield) {
@@ -24264,6 +24308,22 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             t.x = amount;
             game.pending.push(t);
         }
+        // `DamagedPlayer`: a card's own `DAMAGED_PLAYER` trigger, its check on the source (`entering`)
+        if amount > 0 {
+            let sources = game.trigger_sources();
+            let fired = game.triggers(sources, |_, _, _, t| matches!(t, Trigger::DamagedPlayer));
+            for mut t in fired {
+                if set_target_pointer(game, &t) {
+                    t.targets = vec![vec![Target::Player(p)]];
+                    t.target_zcc = vec![vec![0]];
+                }
+                t.x = amount;
+                t.entering = Some(source);
+                if game.trigger_check_holds(&t) {
+                    game.pending.push(t);
+                }
+            }
+        }
     }
     let mut damage_to_player: Vec<StackItem> = Vec::new();
     if combat
@@ -24919,13 +24979,17 @@ fn tap_as(game: &mut Game, id: ObjId, attacking: bool) {
             || matches!(t, Trigger::BecomesTappedAttached) && g.attached(src) == Some(id)
     });
     for mut t in fired {
-        if matches!(
+        let attached = matches!(
             game.item_def(&t).abilities.get(t.ability.map_or(usize::MAX, |(i, _)| i)).and_then(|a| a.trigger()),
             Some(Trigger::BecomesTappedAttached)
-        ) && set_target_pointer(game, &t)
-        {
+        );
+        if attached && set_target_pointer(game, &t) {
             t.targets = vec![vec![Target::Obj(id)]];
             t.target_zcc = vec![vec![game.obj(id).zcc]];
+        } else if attached && set_target_pointer_player(game, &t) {
+            // its controller (Chronic Flooding's own class: `FixedTarget(attached.getControllerId())`)
+            t.targets = vec![vec![Target::Player(game.obj(id).controller)]];
+            t.target_zcc = vec![vec![0]];
         }
         game.pending.push(t);
     }

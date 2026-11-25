@@ -1320,6 +1320,8 @@ pub struct Game {
     pub subtypes_while_there: Vec<(ObjId, u32, String)>,
     /// permanents that don't untap during their controller's next untap step (and their zone change count)
     pub skip_next_untap: Vec<(ObjId, u32)>,
+    /// players whose next untap step is skipped, once for each (`SkipNextPlayerUntapStepEffect`'s `TurnMod`)
+    pub skip_untap_steps: Vec<Seat>,
     /// `DontUntapInControllersUntapStepTargetEffect`: a permanent (its zone change count) that doesn't untap while its
     /// source (its zone change count) stays on the battlefield under the controller it had (`Some`,
     /// `WhileControlled`), or (None, `DontUntapAsLongAsSourceTappedEffect`) while the source stays tapped
@@ -1566,6 +1568,8 @@ pub struct TurnWatch {
     pub sacrificed_objs: Vec<(Seat, ObjId, u32)>,
     /// `ACTIVATED_ABILITY` of a loyalty ability: who activated it, once each (Kiora of Salt and Sand's watcher)
     pub loyalty_activated: Vec<Seat>,
+    /// `ACTIVATED_ABILITY` of a cycling ability: who cycled which card, in order (Valiant Rescuer's watcher)
+    pub cycled: Vec<(Seat, ObjId)>,
 }
 
 /// One damage event a `TurnWatch` keeps: the source as it was and its controller then, what was dealt damage (a
@@ -1764,6 +1768,7 @@ impl Game {
             subtypes_until_eot: Vec::new(),
             subtypes_while_there: Vec::new(),
             skip_next_untap: Vec::new(),
+            skip_untap_steps: Vec::new(),
             dont_untap_while: Vec::new(),
             extra_blocks: Vec::new(),
             requirements: Vec::new(),
@@ -2881,6 +2886,13 @@ impl Game {
                 if let Some(Trigger::DiscardsOneOrMore { filter, .. }) = self.trigger_of(&t) {
                     let you = t.controller;
                     t.x = cards.iter().filter(|c| self.filter_matches(filter, you, Some(t.card), **c)).count() as i32;
+                    // the cards discarded that are in the graveyard, as they are there (`DiscardedCardsEvent`,
+                    // `retainZone(Zone.GRAVEYARD)`: Toluz's "exile them"), for a handler to read
+                    t.batch = cards
+                        .iter()
+                        .filter(|c| self.obj(**c).zone == Zone::Graveyard)
+                        .map(|c| (*c, self.obj(*c).zcc, Zone::Hand))
+                        .collect();
                 }
                 self.pending.push(t);
             }

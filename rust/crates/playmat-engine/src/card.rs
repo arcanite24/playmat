@@ -664,6 +664,10 @@ pub enum Trigger {
     /// this exploits a creature (`ExploitCreatureTriggeredAbility`, `EXPLOITED_CREATURE`): it triggers even when it
     /// sacrificed itself
     Exploits,
+    /// a creature exploits a creature, any exploiter (a trigger handler's base, `ExploitedCreatureAnyTriggeredAbility`:
+    /// Skull Skaab's "whenever a creature you control exploits a nontoken creature"): `entering` the exploiter,
+    /// `sacrificed_permanent` the exploited; the handler's check says which
+    ExploitsAny,
     /// this enters or transforms into this face (`TransformsOrEntersTriggeredAbility`)
     TransformsOrEnters,
     /// this is turned face up (`TurnedFaceUpSourceTriggeredAbility`, `TURNED_FACE_UP`)
@@ -732,6 +736,12 @@ pub enum Trigger {
     AttacksOrBlocks,
     /// this attacks, as its own `ATTACKER_DECLARED` event, in the attackers' order (`PackTacticsAbility`)
     AttackerDeclared,
+    /// this or the creature it's attached to attacks (`ATTACKER_DECLARED`; a trigger handler's base,
+    /// `AttacksThisOrAttachedTriggeredAbility`: Spiteful Returned's, a bestow creature's "{this} or enchanted creature")
+    AttacksThisOrAttached,
+    /// one or more creatures attack you, the player (`DEFENDER_ATTACKED` at you; a trigger handler's base,
+    /// `AttacksYouTriggeredAbility`: Sabotage Strategist's): a target pointer at those creatures
+    AttacksYou,
     /// this blocks (`BlocksSourceTriggeredAbility`, `CREATURE_BLOCKS`)
     Blocks,
     /// a creature of the filter blocks (`BlocksAllTriggeredAbility`); with a target pointer, at it, or at its
@@ -1031,6 +1041,10 @@ pub enum Trigger {
     /// a source you control deals noncombat damage to an opponent, each time (X the damage;
     /// `SourceDealsNoncombatDamageToOpponentTriggeredAbility`)
     SourceDealsNoncombatDamageToOpponent,
+    /// a source deals damage to a player, each `DAMAGED_PLAYER` event (a trigger handler's base,
+    /// `DamagedPlayerTriggeredAbility`: Syr Carah's "this or an instant or sorcery spell you control deals damage to a
+    /// player"): X the damage, `entering` the source, a target pointer at the player; the handler's check says which
+    DamagedPlayer,
     DealsDamageToOpponent {
         #[serde(default)]
         only_combat: bool,

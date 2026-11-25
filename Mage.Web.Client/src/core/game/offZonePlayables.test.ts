@@ -12,6 +12,7 @@ const view = {
       exile: { a1: { id: 'a1', name: 'Bonecrusher Giant' } },
       battlefield: { p1: { id: 'p1', name: 'Mountain' } },
       topCard: { id: 't1', name: 'Grizzly Bears' },
+      sideboard: { s1: { id: 's1', name: 'Llanowar Elves' } },
     },
     { playerId: 'them', graveyard: { o1: { id: 'o1', name: 'Shock' } }, exile: {} },
   ],
@@ -32,6 +33,10 @@ describe('offZonePlayables', () => {
 
   test('the top card of the library can be cast when the server lists it (Realmwalker)', () => {
     expect(offZonePlayables(view, ['t1'])).toEqual([{ card: { id: 't1', name: 'Grizzly Bears' }, zone: 'library' }]);
+  });
+
+  test('a sideboard card can be played when the server lists it (Wish, The Holodeck)', () => {
+    expect(offZonePlayables(view, ['s1'])).toEqual([{ card: { id: 's1', name: 'Llanowar Elves' }, zone: 'sideboard' }]);
   });
 
   test('hand, battlefield and unknown ids are not off-zone', () => {

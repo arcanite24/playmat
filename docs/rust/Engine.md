@@ -2393,6 +2393,84 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
     tail of single-handler cards, not reached. The cards Engine.md already names as nondeterministic or blamed
     stayed out of the candidates.
 
+  Wave 25a, Pioneer cards A Killer Among Us to God-Eternal Kefnet again (25 Nov): the 372 still unverified in that
+  range (waves 25b and 25c take the rest). The stub-handler probe found 102 that translate with their own classes
+  stubbed; the other 270 need layer 4, random or hash order, an unordered token batch, a framework class or a large
+  own class. 8 came in (14,382 in the engine before waves 25b and 25c) and 7 were verified (14,348):
+  Alacrian Armory, Avalanche Tusker, Banefire, Chronic Flooding, Dovin, Architect of Law, Experimental Frenzy and Fires
+  of Invention. New pieces:
+  - `skip_untap_steps` (`SkipNextPlayerUntapStepEffect`, Dovin's -9): the player's next untap step does nothing but
+    end summoning sickness. Only that effect adds to it.
+  - `Rule::CantPlayLandsFromHand` (Experimental Frenzy): `playable` drops hand lands and land back faces under it.
+    Fires of Invention is a `Rule::CantCast` (only on your turn, one spell a turn).
+  - `BecomesTappedAttachedTriggeredAbility` with `SetTargetPointer.PLAYER` (Chronic Flooding): the trigger targets
+    the tapped land's controller. Without the flag `tap_as` is unchanged.
+  - `DestroySourceEffect`, `ManaValueLessThanControlledLandCountPredicate` (Experimental Frenzy's top card),
+    Banefire's damage (no prevention at X 5 or more) and its "can't be countered" condition (a transpile.py custom
+    class, read from the spell's X on the stack).
+  Two hand-made rounds on multivac: round 1 (5 decks, 40 games: Banefire, Alacrian Armory with Mounts and Vehicles,
+  Avalanche Tusker, Chronic Flooding, Dovin, Avatar Destiny) and round 2 (4 decks, 40 games: Fires of Invention,
+  Experimental Frenzy, Banefire). 79 match, 1 differs. The decks are under `.local/w25a/factory/round-00N/decks`. The 3
+  games under `shadow/wave25a/` cover Banefire, Armory's trigger, Chronic Flooding's mill and Tusker's attack trigger;
+  Dovin's +1 and -1; Fires of Invention and Experimental Frenzy, with Frenzy destroying itself. Not seen: Dovin's -9,
+  Banefire at X 5 or more, a free cast from Fires.
+  - Avatar Destiny came in but stays unverified: in round 1's game 9 a 3/3 Gnarlid Colony that died with it, blocking
+    Monastery Swiftspear, milled 2 in Java and 3 here (the power Java reads as it last was). Reading the printed
+    power instead breaks games 4, 22 and 31, so the last-known power stays.
+  - Skipped: Defiant Greatmaw (the counters-added trigger tracks only +1/+1 counters, not who put them), Chandra,
+    Flame's Catalyst (a free cast resolving at end of turn), Blood Sun (losing all abilities but mana abilities),
+    Dovin Baan (its emblem), Bronzehide Lion (layer 4), Erdwal Illuminator (no investigate event), Brutal Hordechief
+    (`ChooseBlockersEffect`), Cryoshatter (an or-trigger's target pointer), Aang's Journey and Agency Outfitter
+    (`TargetCardAndOrCardInLibrary`), Emergent Ultimatum (three-colour choice), the `CastFromHandSourcePermanentCondition`
+    cards, A Killer Among Us and the other unordered token batches; the rest of the 102 not reached.
+  - Verified cards: no engine change alters one (the untap skip and the hand-land check only act with the new
+    effect and rule), and every recorded game with them matches. No gaps seen.
+
+  Wave 25c, Pioneer cards from Ral, Crackling Wit to Zurgo, Thunder's Decree, second pass (25 Nov): the 373 still
+  unverified in that range (waves 25a and 25b take the rest). 13 came in (14,387 in the engine) and 12 were verified
+  (14,353): Reckless Velocitaur, Saavik, Stoic Student and Starfleet Academy (they already translated: wave 23a's
+  `FederationCount` and wave 24a's saddle trigger), Sabotage Strategist, Skull Skaab, Spiteful Returned, Syr Carah,
+  the Bold, Toluz, Clever Conductor, Unconventional Tactics, Valiant Rescuer, Yuriko, Blade of the Mighty and Zagras,
+  Thief of Heartbeats. Four rounds, all recorded on multivac: rounds 1 and 4 factory (20 and 32 games), rounds 2 and 3
+  hand-made (24 and 20 games; decks under `.local/w25c/factory/round-00N/decks`): 92 match, 4 differ, all Titania's.
+  Every new trigger but Zagras's went on the stack in a matching game, and Starfleet Academy's mana ability was paid
+  for (round 2 game 11, kept). No matching game has a planeswalker dealt combat damage while Zagras is out, so its
+  trigger was never seen, in Java or in Rust; its cost reduction and deathtouch were. The 7 games under
+  `shadow/wave25c/` cover every card. The pieces:
+  - Triggers: `Trigger::ExploitsAny` (Skull Skaab: any creature you control exploits, with the exploiter and the
+    exploited creature on the item), `AttacksThisOrAttached` (Spiteful Returned bestowed), `AttacksYou` (Sabotage
+    Strategist: the creatures attacking that player are its targets) and `DamagedPlayer` (Syr Carah: the source and
+    the damage on the item). Each is a pseudo-class the transpiler maps, as `ZoneChangeBatchTriggeredAbility` is.
+  - Watchers: `TurnWatch::cycled` (Valiant Rescuer's "another card for the first time each turn"), and the discarded
+    cards on a `DiscardsOneOrMore` trigger's batch (Toluz exiles them).
+  - Handlers: Yuriko's no spells or abilities during combat, Valiant Rescuer, Unconventional Tactics, Toluz (exile
+    the discarded cards; its dies trigger returns them), Syr Carah, Skull Skaab, Spiteful Returned, Sabotage
+    Strategist; the transpiler reads `ZagrasThiefOfHeartbeatsTriggeredAbility`. Java's Zagras checks that the damage
+    source is a creature and a planeswalker (`permanent.isPlaneswalker`, not `damaged`), so its trigger fires only for
+    a creature planeswalker; Rust copies that.
+  - A full transpile changes and drops no existing card. It adds 2 known leftovers: Avalanche Tusker, Hoshi Sato.
+  Changes to verified cards, each shown by a recorded game:
+  - The triggers on one `EXPLOITED_CREATURE` event wait in Java's trigger order: Skull Skaab's before Gurmag
+    Drowner's own (round 3 game 9, kept). Only games with Skull Skaab change.
+  - Bestow can be cast from exile where an effect lets the card be played: Java offered Spiteful Returned's bestow
+    from Syr Carah's exile (round 3 game 18, kept). Rust allowed bestow from hand only before.
+  Titania, Voice of Gaea stays unverified. Java keeps its "one or more land cards are put into your graveyard"
+  trigger on the melded Titania, Gaea Incarnate: Rust doesn't (round 2 game 2, round 3 games 1, 11 and 17).
+  Left out, with what each needs:
+  - Events Rust doesn't raise: a permanent becomes the target of a spell or ability (Skophos Maze-Warden), lost
+    control (Zidane), mana added (Tyvar the Bellicose), a ninjutsu activation (Satoru), a triggered ability
+    triggering (Strict Proctor), attached and unattached (Siona, Stitcher's Graft), a Mount saddled (Stubborn
+    Burrowfiend), who tapped a permanent (Sharae).
+  - `DEFENDER_ATTACKED` once per defender, planeswalkers included, in Java's HashMap order (Rigo).
+  - Counters on a player (Territorial Gorger); Auras attached to players (Trespasser's Curse, Torment of Scarabs).
+  - A trigger-class target with an adjuster (Satyr Firedancer); noncombat damage equal to toughness plus a +X
+    replacement (Taii Wakeen); "until your next end step" play permission and a play-from-exile trigger (Rocco);
+    playing a land from a zone (Shadow of the Goblin); harmonize granted (Songcrafter Mage); granted alternative
+    costs (Weftwalking, Runeforge Champion); a pointer plus a target on `TurnedFaceUpAllTriggeredAbility` (Temur
+    War Shaman).
+  - Layer 4 (Tom, Bert, and William; Zhao; Sugar Coat and others), and wave 24c's skips, still standing.
+  - The rest: one card class or one engine piece each, not reached in the budget.
+
   Wave 24a, Pioneer cards A Killer Among Us to God-Eternal Kefnet (25 Nov): the 385 unverified Pioneer cards in that
   range (waves 24b and 24c take the rest). A stub-handler probe found 109 that translate with their own classes
   stubbed; most of the rest need layer 4, random or hash order, mana-spent tracking or a framework class. 12 came in,

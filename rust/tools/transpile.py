@@ -296,6 +296,11 @@ CUSTOM = {
     # Lier, Disciple of the Drowned: "spells can't be countered" (`COUNTER` of any spell), and each instant and
     # sorcery card in your graveyard has flashback for its mana cost
     'LierDiscipleOfTheDrownedCounteredEffect': lambda: {'class': 'CantBeCounteredAllEffect'},
+    # Banefire: "if X is 5 or more, this spell can't be countered" (`COUNTER` of this spell while the spell's X is
+    # 5 or more, `testCondition`: a card condition)
+    'BanefireCantCounterEffect': lambda: {'class': 'ConditionalContinuousEffect',
+                                          'effect': {'class': 'CantBeCounteredSourceEffect'},
+                                          'condition': {'c': 'card', 'handler': 'Banefire.testCondition'}},
     'LierDiscipleOfTheDrownedFlashbackEffect': lambda: {'class': 'GraveyardFlashbackEffect',
                                                         'filter': [{'p': 'or', 'xs': [{'p': 'type', 't': 'INSTANT'}, {'p': 'type', 't': 'SORCERY'}]}]},
     # Frozen in Ice's "enchanted creature loses all abilities" (the same, `removeAllAbilities` of the attached one)
@@ -5737,7 +5742,7 @@ class Translator:
             return {'class': cls}
         if cls == 'SimpleStaticAbility' and args == ['Zone.HAND', 'new DiscardOntoBattlefieldEffect()']:
             args = args[1:]
-        if cls == 'SimpleStaticAbility' and len(args) == 2 and (args[0] in ('Zone.ALL', 'Zone.BATTLEFIELD', 'Zone.COMMAND') or (args[0] == 'Zone.STACK' and ('CantBeCounteredSourceEffect' in args[1] or (self.vars.get(args[1].strip()) or {}).get('class') == 'CantBeCounteredSourceEffect' or ((self.vars.get(args[1].strip()) or {}).get('effect') or {}).get('class') == 'CantBeCounteredSourceEffect'))):
+        if cls == 'SimpleStaticAbility' and len(args) == 2 and (args[0] in ('Zone.ALL', 'Zone.BATTLEFIELD', 'Zone.COMMAND') or (args[0] == 'Zone.STACK' and ('CantBeCounteredSourceEffect' in args[1] or args[1].strip() == 'new BanefireCantCounterEffect()' or(self.vars.get(args[1].strip()) or {}).get('class') == 'CantBeCounteredSourceEffect' or ((self.vars.get(args[1].strip()) or {}).get('effect') or {}).get('class') == 'CantBeCounteredSourceEffect'))):
             args = args[1:]
         # "you may cast this from exile / your graveyard" (`Zone.EXILED`, `Zone.GRAVEYARD`): an as-though handler of
         # the card's own, which checks the zone itself (`.in_any_zone()`)
@@ -6047,6 +6052,18 @@ class Translator:
                     'optional': False, 'set_target_pointer': True,
                     'effects': [self.effect('new DestroyTargetEffect()')],
                     'rule': 'Whenever a creature you control with deathtouch deals damage to a planeswalker, '
+                            'destroy that planeswalker.'}
+        # Zagras, Thief of Heartbeats: "whenever a creature you control deals combat damage to a planeswalker, destroy
+        # that planeswalker." Java's `checkTrigger` asks that the damage's source is a planeswalker (not the damaged
+        # permanent), and destroys whatever permanent it damaged: a creature you control that's also a planeswalker
+        if cls == 'ZagrasThiefOfHeartbeatsTriggeredAbility' and not args:
+            return {'class': 'TriggeredAbility', 'java': cls,
+                    'on': {'e': 'damaged_permanent', 'of': 'source_to', 'combat': True,
+                           'source_filter': [{'p': 'type', 't': 'CREATURE'}, {'p': 'type', 't': 'PLANESWALKER'},
+                                             {'p': 'controller', 'who': 'you'}]},
+                    'optional': False, 'set_target_pointer': True,
+                    'effects': [self.effect('new DestroyTargetEffect()')],
+                    'rule': 'Whenever a creature you control deals combat damage to a planeswalker, '
                             'destroy that planeswalker.'}
         # a Plan's "when the Nth plan counter is put on {this}, sacrifice it. When you do, …" (`COUNTER_ADDED`, the
         # counter that makes it N: Midnight Clock's form; its effect `DoWhenCostPaid(reflexive, SacrificeSourceCost,
@@ -7285,6 +7302,13 @@ class Translator:
                 and (n < 4 or args[3] in ('SetTargetPointer.NONE', 'SetTargetPointer.PERMANENT')):
             return out({'e': 'becomes_tapped_attached'}, args[0], n >= 3 and flag(args[2]),
                        n == 4 and args[3] == 'SetTargetPointer.PERMANENT')
+        # (`SetTargetPointer.PLAYER`, which Java's class refuses: only a trigger handler's base, for a class of its
+        # own that points at the attached permanent's controller: Chronic Flooding)
+        if cls == 'BecomesTappedAttachedTriggeredAbility' and n == 4 and re.fullmatch(r'"[^"]*"', args[1]) \
+                and args[3] == 'SetTargetPointer.PLAYER':
+            a = out({'e': 'becomes_tapped_attached'}, args[0], flag(args[2]), False)
+            a['set_target_pointer_player'] = True
+            return a
         # "whenever enchanted (equipped) creature is dealt damage", once for each of its batches
         # (the one-argument form: `Zone.BATTLEFIELD, effect, false, SetTargetPointer.NONE`, Sleep Magic)
         if cls == 'DealtDamageAttachedTriggeredAbility' and n == 1:
@@ -7908,6 +7932,24 @@ class Translator:
             on = {'e': 'zone_batch', 'from': zones[args[1]], 'to': zones[args[2]], 'filter': self.filter(args[3]),
                   'who': TARGET_CONTROLLERS[args[4]], 'cards': flag(args[5])}
             return out(on, args[0], n == 7 and flag(args[6]))
+        # a card's own `EXPLOITED_CREATURE` trigger on any exploiter, as a trigger handler's base writes it (a name
+        # for the engine's trigger, not a Java class): (effect[, optional]); the handler's check reads both creatures
+        if cls == 'ExploitedCreatureAnyTriggeredAbility' and n in (1, 2):
+            return out({'e': 'exploits_any'}, args[0], n == 2 and flag(args[1]))
+        # "whenever {this} or enchanted creature attacks", as a trigger handler's base writes it (a name for the
+        # engine's trigger, not a Java class): (effect[, optional]), a player pointer at the defending player
+        if cls == 'AttacksThisOrAttachedTriggeredAbility' and n in (1, 2):
+            a = out({'e': 'attacks_this_or_attached'}, args[0], n == 2 and flag(args[1]))
+            a['set_target_pointer_player'] = True
+            return a
+        # "whenever one or more creatures attack you", as a trigger handler's base writes it (a name for the
+        # engine's trigger, not a Java class): (effect[, optional]), a pointer at the creatures attacking you
+        if cls == 'AttacksYouTriggeredAbility' and n in (1, 2):
+            return out({'e': 'attacks_you'}, args[0], n == 2 and flag(args[1]))
+        # a card's own `DAMAGED_PLAYER` trigger, as a trigger handler's base writes it (a name for the engine's
+        # trigger, not a Java class): (effect[, optional]); the handler's check reads the source
+        if cls == 'DamagedPlayerTriggeredAbility' and n in (1, 2):
+            return out({'e': 'damaged_player'}, args[0], n == 2 and flag(args[1]))
         if cls == 'DealtCombatDamageToSourceTriggeredAbility' and n == 2:
             return out({'e': 'dealt_combat_damage'}, args[0], flag(args[1]))
         if cls == 'SpellControlledDealsDamageTriggeredAbility' and n == 4 and args[0] == 'Zone.BATTLEFIELD':

@@ -1,6 +1,6 @@
 import type { CardView, GameView } from '../../protocol/generated/views';
 
-export type PlayableZone = 'exile' | 'graveyard' | 'library';
+export type PlayableZone = 'exile' | 'graveyard' | 'library' | 'sideboard';
 
 export interface OffZonePlayable {
   card: CardView;
@@ -10,8 +10,9 @@ export interface OffZonePlayable {
 /**
  * Cards the player can play right now from outside their hand and the battlefield: the creature half of an
  * adventurer waiting in exile, flashback and escape from the graveyard, a card exiled with "you may play it", the top
- * card of the library (Realmwalker, Courser of Kruphix, Future Sight). The server lists them among the playable
- * objects by card id; the board only shows those zones as piles.
+ * card of the library (Realmwalker, Courser of Kruphix, Future Sight), a card from outside the game (Wish, The
+ * Holodeck: the sideboard, which the server sends only to its owner). The server lists them among the playable objects
+ * by card id; the board shows those zones as piles, or not at all.
  */
 export function offZonePlayables(view: GameView | null | undefined, playable: Iterable<string>): OffZonePlayable[] {
   const ids = [...playable];
@@ -30,6 +31,9 @@ export function offZonePlayables(view: GameView | null | undefined, playable: It
   for (const player of view.players ?? []) {
     const top = player.topCard;
     if (top?.id && !zones.has(top.id)) zones.set(top.id, { card: top, zone: 'library' });
+  }
+  for (const player of view.players ?? []) {
+    for (const [id, card] of Object.entries(player.sideboard ?? {})) if (!zones.has(id)) zones.set(id, { card, zone: 'sideboard' });
   }
 
   const found: OffZonePlayable[] = [];
