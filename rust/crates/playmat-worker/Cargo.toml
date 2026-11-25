@@ -12,7 +12,18 @@ playmat-engine = { path = "../playmat-engine" }
 playmat-swarm-proto = { path = "../playmat-swarm-proto" }
 serde.workspace = true
 serde_json.workspace = true
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "blocking", "json"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.52", features = ["Win32_Foundation", "Win32_System_Threading"] }
 
 [features]
 # the strict build: every machine one determinism class (playmat-ai/src/fm.rs)
 strict = ["playmat-ai/strict"]
+
+[dev-dependencies]
+playmat-swarm = { path = "../playmat-swarm" }
+tokio.workspace = true

@@ -5,6 +5,8 @@
 //! A unit is data, never code: its configs are checked key by key against an allowlist, and its networks are named by
 //! sha256 (`net=@<sha256>`), which the worker resolves to files it fetched and checked itself.
 
+pub mod api;
+
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 

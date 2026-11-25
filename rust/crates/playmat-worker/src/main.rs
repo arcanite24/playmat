@@ -9,8 +9,15 @@
 //!     whether results of the same unit played every game alike (the determinism audit)
 //! playmat-worker class
 //!     this machine's determinism class
+//! playmat-worker run --coordinator URL --name HOST [--token-file F] [--jobs N] [--work DIR] [--when idle|always]
+//!     [--units N]: plays units from a coordinator (`swarm.rs`); the token comes from `--token-file` or MANA_TOKEN
 //!
 //! Games run one per thread with `--jobs` threads; a unit's configs can't ask for more threads per game.
+
+#[cfg(test)]
+mod e2e_test;
+mod idle;
+mod swarm;
 
 use playmat_ai::answerlog::AnswerLog;
 use playmat_ai::entrants::{entrant, Entrant};
@@ -22,7 +29,7 @@ use std::collections::BTreeMap;
 use std::io::{BufRead, Write};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::process::exit;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Mutex;
 
 const STRICT: bool = cfg!(feature = "strict");
@@ -46,8 +53,29 @@ fn main() {
             &opt("--nets").expect("--nets DIR"),
             &repo,
             opt("--jobs").and_then(|v| v.parse().ok()).unwrap_or(1),
+            &AtomicBool::new(false),
         ),
         Some("verify") => verify(args.get(2).expect("DIR"), &repo),
+        Some("run") => (|| {
+            let token = match opt("--token-file") {
+                Some(f) => std::fs::read_to_string(&f).map_err(|e| format!("{f}: {e}"))?.trim().to_string(),
+                None => std::env::var("MANA_TOKEN").map_err(|_| "--token-file F or MANA_TOKEN")?,
+            };
+            let jobs = opt("--jobs").and_then(|v| v.parse().ok()).unwrap_or_else(|| {
+                // half the cores by default: the machine stays usable
+                std::thread::available_parallelism().map_or(1, |n| (n.get() / 2).max(1))
+            });
+            swarm::run(swarm::Opts {
+                coordinator: opt("--coordinator").ok_or("--coordinator URL")?,
+                token,
+                name: opt("--name").ok_or("--name HOST")?,
+                jobs,
+                work: opt("--work").unwrap_or_else(|| "mana-work".into()),
+                repo: repo.clone(),
+                idle: opt("--when").as_deref() != Some("always"),
+                units: opt("--units").and_then(|v| v.parse().ok()).unwrap_or(0),
+            })
+        })(),
         Some("compare") => compare(&args[2..]),
         _ => Err("usage: playmat-worker run-unit|verify|compare|class (see the source's header)".into()),
     };
@@ -95,7 +123,15 @@ fn resolve(config: &str, nets: &BTreeMap<String, String>) -> Result<Entrant, Str
     entrant(&c)
 }
 
-fn run_unit(unit_path: &str, out: &str, nets_dir: &str, repo: &str, jobs: usize) -> Result<(), String> {
+/// Plays a unit into `out`. `stop` ends it between games (the host stopped being idle): the result is then an error
+pub fn run_unit(
+    unit_path: &str,
+    out: &str,
+    nets_dir: &str,
+    repo: &str,
+    jobs: usize,
+    stop: &AtomicBool,
+) -> Result<(), String> {
     let unit: WorkUnit = read_json(unit_path)?;
     proto::check_unit(&unit)?;
     if unit.pins.strict != STRICT {
@@ -147,9 +183,13 @@ fn run_unit(unit_path: &str, out: &str, nets_dir: &str, repo: &str, jobs: usize)
         for job in 0..jobs.max(1) {
             let (setup, learner, opponents, weights, next, results, failed, unit) =
                 (&setup, &learner, &opponents, &weights, &next, &results, &failed, &unit);
+            let stop = &*stop;
             s.spawn(move || {
                 let mut shard = recording.then(|| Shard::create(out, &format!("w{job:02}")).expect("shard"));
                 loop {
+                    if stop.load(Ordering::Relaxed) {
+                        break;
+                    }
                     let g = next.fetch_add(1, Ordering::Relaxed);
                     if g >= games {
                         break;
@@ -197,6 +237,9 @@ fn run_unit(unit_path: &str, out: &str, nets_dir: &str, repo: &str, jobs: usize)
             });
         }
     });
+    if stop.load(Ordering::Relaxed) {
+        return Err("stopped: the host isn't idle".into());
+    }
     let mut results = results.into_inner().unwrap();
     results.sort_by_key(|r| r.0.deal);
     let mut failed = failed.into_inner().unwrap();
@@ -213,7 +256,8 @@ fn run_unit(unit_path: &str, out: &str, nets_dir: &str, repo: &str, jobs: usize)
     for entry in std::fs::read_dir(out).map_err(|e| e.to_string())? {
         let entry = entry.map_err(|e| e.to_string())?;
         let name = entry.file_name().to_string_lossy().to_string();
-        if name != "manifest.json" && entry.path().is_file() {
+        // unit.json stays home: whoever checks a result replays it against the unit the coordinator leased
+        if name != "manifest.json" && name != "unit.json" && entry.path().is_file() {
             files.insert(name.clone(), sha_file(&format!("{out}/{name}"))?);
         }
     }
