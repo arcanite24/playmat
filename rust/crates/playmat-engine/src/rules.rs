@@ -2063,7 +2063,10 @@ fn activatable(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
                 continue;
             }
         }
-        if matches!(a, AbilityDef::PowerUpAbility { .. }) && o.powered_up {
+        // (`maxActivationsPerGame = 1`, which a `MAX_ACTIVATIONS` handler can raise)
+        if matches!(a, AbilityDef::PowerUpAbility { .. })
+            && u32::from(o.powered_up) >= cards::max_activations(game, seat, id, i, 1)
+        {
             continue;
         }
         if matches!(a, AbilityDef::ExhaustAbility { .. }) && o.marks.contains(&format!("exhaust{i}")) {
@@ -7109,7 +7112,7 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
         game.activated_this_turn.push((id, index));
     }
     if let AbilityDef::PowerUpAbility { .. } = def.abilities[index] {
-        game.obj_mut(id).powered_up = true;
+        game.obj_mut(id).powered_up = game.obj(id).powered_up.saturating_add(1);
     }
     if let AbilityDef::ExhaustAbility { .. } = def.abilities[index] {
         game.obj_mut(id).marks.push(format!("exhaust{index}"));

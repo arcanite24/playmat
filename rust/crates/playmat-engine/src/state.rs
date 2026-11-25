@@ -284,8 +284,9 @@ pub struct Obj {
     pub lki_class_level: u32,
     /// exerted: doesn't untap during its controller's next untap step
     pub exerted: bool,
-    /// its power-up ability was activated (once each game, for this object)
-    pub powered_up: bool,
+    /// how many times its power-up ability was activated (once each game, for this object, unless an effect allows
+    /// more: Wonder Man, Hollywood Hero)
+    pub powered_up: u8,
     /// keyword statuses a permanent has while it stays (renowned, an exhaust ability activated), by name
     pub marks: Vec<String>,
     /// whether its tribute was paid, the last time it entered (Java's `tributeValue` state value, by card: it stays
@@ -1938,7 +1939,7 @@ impl Game {
             class_level: 1,
             lki_class_level: 1,
             exerted: false,
-            powered_up: false,
+            powered_up: 0,
             marks: Vec::new(),
             tribute: None,
             creature_types: None,
@@ -5030,7 +5031,7 @@ impl Game {
             o.play_tapped = false;
             o.pay_tax = 0;
             o.exerted = false;
-            o.powered_up = false;
+            o.powered_up = 0;
             o.marks.clear();
             o.creature_types = None;
             o.base_pt = None;
