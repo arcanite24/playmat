@@ -39,7 +39,7 @@ KEYWORDS = {
     'HexproofAbility', 'IndestructibleAbility', 'WhiteManaAbility', 'BlueManaAbility', 'BlackManaAbility',
     'RedManaAbility', 'GreenManaAbility', 'ColorlessManaAbility', 'CanBlockOnlyFlyingAbility', 'CantBeBlockedSourceAbility', 'CantBlockAbility', 'DauntAbility',
     'IslandwalkAbility', 'PlainswalkAbility', 'SwampwalkAbility', 'MountainwalkAbility', 'ForestwalkAbility', 'SkulkAbility', 'IntimidateAbility', 'DecayedAbility', 'WitherAbility',
-    'UmbraArmorAbility', 'CompleatedAbility',
+    'UmbraArmorAbility', 'CompleatedAbility', 'DamageAsThoughNotBlockedAbility',
     'ConvokeAbility', 'DayboundAbility', 'NightboundAbility', 'AscendAbility',
     'StartYourEnginesAbility', 'StoriedAbility', 'BecomeDayAsEntersAbility',
     # what a creature crews or saddles with (`CrewAbility.getCrewPower`, `SaddleCost.getSaddlePower`)
@@ -291,6 +291,8 @@ CUSTOM = {
     'UrbanBurgeoningUntapEffect': lambda: {'class': 'UntapSourceDuringEachOtherPlayersUntapStepEffect'},
     # "and loses all abilities": the creature the Aura is attached to (`getPermanentSourceAttachedToIfItStillExists`)
     'MysticSubdualEffect': lambda: {'class': 'LoseAllAbilitiesAttachedEffect'},
+    # Stop Cold's "enchanted permanent loses all abilities" (the source's attached permanent, `removeAllAbilities`)
+    'StopColdEffect': lambda: {'class': 'LoseAllAbilitiesAttachedEffect'},
     # (players in range: both, in a duel)
     'SorcerousSpyglassActivationEffect': lambda: {'class': 'PithingNeedleEffect'},
     'PhyrexianRevokerEffect2': lambda: {'class': 'PhyrexianRevokerEffect'},
@@ -2366,6 +2368,11 @@ class Translator:
         if (m := re.fullmatch(r'new ExileTargetCost\(new TargetControlledPermanent\((StaticFilters\.\w+)\)\)'
                               r'\.withSourceExileZone\(false\)', canonical(expr))):
             return {'class': 'ExileTargetCost', 'filter': self.filter(m.group(1))}
+        # a spell's "as an additional cost, exile a creature you control" (Necrotic Fumes): Java exiles it into the
+        # spell's own exile zone, which nothing of a sorcery reads again
+        if (m := re.fullmatch(r'new ExileTargetCost\(new TargetControlledPermanent\((StaticFilters\.\w+)\)\)', canonical(expr))) \
+                and 'this.getSpellAbility().addCost(new ExileTargetCost(' in (getattr(self, 'source', '') or ''):
+            return {'class': 'ExileTargetCost', 'filter': self.filter(m.group(1))}
         # Ormos, Archive Keeper: "discard three cards with different names" (its `TargetCardInHand(3, …)` leaves out
         # the names already chosen)
         if canonical(expr) == 'new DiscardTargetCost(new OrmosArchiveKeeperTarget())' \
@@ -3779,6 +3786,12 @@ class Translator:
                     'otherwise': {'class': 'SacrificeSourceEffect'}}
         if cls == 'CantBlockTargetEffect' and [a.strip() for a in args] == ['Duration.EndOfTurn']:
             return {'class': 'GainAbilityTargetEffect', 'ability': {'class': 'CantBlockAbility'}, 'duration': 'EndOfTurn'}
+        # "target creature can't attack or block until your next turn" (Spara's Adjudicators; the end-of-turn one is
+        # a handler, cant_attack_block_target_effect.rs): the engine's "can't attack" and "can't block" until then
+        if cls == 'CantAttackBlockTargetEffect' and [a.strip() for a in args] == ['Duration.UntilYourNextTurn']:
+            return {'class': 'Effects', 'effects': [
+                {'class': 'GainAbilityTargetEffect', 'ability': {'class': k}, 'duration': 'UntilYourNextTurn'}
+                for k in ('CantAttackAbility', 'CantBlockAbility')]}
         # "target creature can't be blocked by <filter> this turn"
         if cls == 'CantBeBlockedByAllTargetEffect' and len(args) == 2 and args[1].strip() == 'Duration.EndOfTurn':
             return {'class': 'GainAbilityTargetEffect', 'ability': {'class': 'CantBeBlockedByAbility', 'filter': self.filter(args[0])},
@@ -5049,6 +5062,10 @@ class Translator:
         if cls == 'TargetAnyTargetAmount' and len(args) == 1:
             amount = self.amount(args[0])
             return {'class': 'TargetAnyTarget', 'min': fewest(amount), 'max': 99, 'distribute': amount}
+        # (amount, min, max): a fixed amount divided among `min` to `max` targets (Sundering Stroke's 7 among one to
+        # three)
+        if cls == 'TargetAnyTargetAmount' and len(args) == 3 and all(re.fullmatch(r'\d+', a.strip()) for a in args):
+            return {'class': 'TargetAnyTarget', 'min': int(args[1]), 'max': int(args[2]), 'distribute': int(args[0])}
         if cls == 'TargetCreaturePermanentAmount' and len(args) == 1:
             amount = self.amount(args[0])
             return {'class': 'TargetPermanent', 'filter': [dict(CREATURE)], 'min': fewest(amount), 'max': 99,
@@ -5398,6 +5415,19 @@ class Translator:
             a = self.ability(m.group(1))
             if a.get('class') != 'ExhaustAbility' or a.get('condition'):
                 raise Unsupported('ExhaustAbility condition ' + m.group(2))
+            a['condition'] = self.value('condition', m.group(2))
+            return a
+        # `new SimpleActivatedAbility(…).setCondition(condition)`: "activate only if", as
+        # `ActivateIfConditionActivatedAbility` (Seven of Nine's "{6}{U}: … if you control seven or more …")
+        m = re.fullmatch(r'(new SimpleActivatedAbility\(.*\))\s*\.setCondition\((\w+(?:\.[A-Z_a-z]\w*)?)\)', self.strip_setters(expr), re.S)
+        if m:
+            a = self.ability(m.group(1))
+            if a.get('class') != 'SimpleActivatedAbility' or a.get('modes') or a.get('min_x') or a.get('cant_be_copied') \
+                    or set(a) - {'class', 'java', 'effects', 'cost', 'targets', 'rule'}:
+                raise Unsupported('SimpleActivatedAbility condition ' + m.group(2))
+            a['java'] = a.get('java', 'SimpleActivatedAbility')
+            a['class'] = 'LimitedTimesPerTurnActivatedAbility'
+            a['limit'] = 4294967295
             a['condition'] = self.value('condition', m.group(2))
             return a
         # `….withTriggerCondition(condition)`: checked only as it triggers
@@ -7774,6 +7804,9 @@ class Translator:
             return out({'e': 'explores'}, args[0])
         if cls == 'ProliferatedControllerTriggeredAbility' and n in (1, 2):
             return out({'e': 'you_proliferate'}, args[0], n == 2 and flag(args[1]))
+        # (Zone.GRAVEYARD, effect, optional): a card in its owner's graveyard (Voidwing Hybrid)
+        if cls == 'ProliferatedControllerTriggeredAbility' and n == 3 and args[0].strip() == 'Zone.GRAVEYARD':
+            return out({'e': 'you_proliferate', 'graveyard': True}, args[1], flag(args[2]))
         if cls == 'AttacksFirstTimeTriggeredAbility' and n == 2:
             return out({'e': 'attacks_first_time'}, args[0], flag(args[1]))
         # "whenever you (an opponent) lose life for the first time each turn"
