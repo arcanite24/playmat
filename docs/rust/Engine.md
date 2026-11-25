@@ -2352,7 +2352,10 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   the Bold, Toluz, Clever Conductor, Unconventional Tactics, Valiant Rescuer, Yuriko, Blade of the Mighty and Zagras,
   Thief of Heartbeats. Four rounds, all recorded on multivac: rounds 1 and 4 factory (20 and 32 games), rounds 2 and 3
   hand-made (24 and 20 games; decks under `.local/w25c/factory/round-00N/decks`): 92 match, 4 differ, all Titania's.
-  Each new handler ran in a matching game. The 7 games under `shadow/wave25c/` cover every card. The pieces:
+  Every new trigger but Zagras's went on the stack in a matching game, and Starfleet Academy's mana ability was paid
+  for (round 2 game 11, kept). No matching game has a planeswalker dealt combat damage while Zagras is out, so its
+  trigger was never seen, in Java or in Rust; its cost reduction and deathtouch were. The 7 games under
+  `shadow/wave25c/` cover every card. The pieces:
   - Triggers: `Trigger::ExploitsAny` (Skull Skaab: any creature you control exploits, with the exploiter and the
     exploited creature on the item), `AttacksThisOrAttached` (Spiteful Returned bestowed), `AttacksYou` (Sabotage
     Strategist: the creatures attacking that player are its targets) and `DamagedPlayer` (Syr Carah: the source and
@@ -2362,7 +2365,8 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   - Handlers: Yuriko's no spells or abilities during combat, Valiant Rescuer, Unconventional Tactics, Toluz (exile
     the discarded cards; its dies trigger returns them), Syr Carah, Skull Skaab, Spiteful Returned, Sabotage
     Strategist; the transpiler reads `ZagrasThiefOfHeartbeatsTriggeredAbility`. Java's Zagras checks that the damage
-    source is a creature and a planeswalker, so its trigger hardly ever fires; Rust copies that.
+    source is a creature and a planeswalker (`permanent.isPlaneswalker`, not `damaged`), so its trigger fires only for
+    a creature planeswalker; Rust copies that.
   - A full transpile changes and drops no existing card. It adds 2 known leftovers: Avalanche Tusker, Hoshi Sato.
   Changes to verified cards, each shown by a recorded game:
   - The triggers on one `EXPLOITED_CREATURE` event wait in Java's trigger order: Skull Skaab's before Gurmag
