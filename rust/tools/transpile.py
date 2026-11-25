@@ -10244,6 +10244,12 @@ def granted_rules(card):
                 if not text.endswith(('.', '!', ')', '>', '"')) and card.get('name') not in UNENDED_GRANTED_TEXT:
                     text = text.rstrip(',') + '.'
                 g['rule'] = spaced_and(card, text)
+                # an `OrTriggeredAbility` without a trigger phrase of its own writes its parts' rules, first letters
+                # lower case, joined with " or " (`generateTriggerPhrase`): Astrologian's Planisphere's "whenever you
+                # cast a noncreature spell or whenever you draw your third card each turn, …"
+                if g.get('java') == 'OrTriggeredAbility' \
+                        and (m := re.fullmatch(r'Whenever (.+?) and whenever (.+)', g['rule'], re.S)):
+                    g['rule'] = 'whenever ' + m.group(1) + ' or whenever ' + m.group(2)
                 # `AddCountersSourceEffect` writes its own text: "counters on {this}" (Strength of Will's "on it"),
                 # unless it was given one (the Young Hero Role's `.setText("put a +1/+1 counter on it")`)
                 if [e.get('class') for e in g.get('effects', [])] == ['AddCountersSourceEffect'] and not re.search(

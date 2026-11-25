@@ -14263,6 +14263,21 @@ fn apply_each_effect(
                 }
             }
             EffectDef::DoIfCostPaid { effect, cost, also, otherwise, optional, mana_first } => {
+                // a waterbend cost here is paid as the generic mana it is (`WaterbendCost` is a `GenericManaCost`:
+                // `DoIfCostPaid` asks for the mana only, with no permanents to tap: Waterbending Lesson)
+                let as_mana: Vec<CostDef>;
+                let cost = if cost.iter().any(|c| matches!(c, CostDef::WaterbendCost { .. })) {
+                    as_mana = cost
+                        .iter()
+                        .map(|c| match c {
+                            CostDef::WaterbendCost { amount } => CostDef::ManaCost { cost: format!("{{{amount}}}") },
+                            c => c.clone(),
+                        })
+                        .collect();
+                    &as_mana
+                } else {
+                    cost
+                };
                 // a cost that can't be paid isn't asked about (mana always counts as payable)
                 let others: Vec<&CostDef> = cost.iter().filter(|c| !matches!(c, CostDef::ManaCost { .. })).collect();
                 let mut paid = false;
