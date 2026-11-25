@@ -2,7 +2,7 @@
 //! until your next turn. / Choose target nonland permanent. Until your next turn, it can't attack or block, and its
 //! activated abilities can't be activated."
 //! (the first mode is `OpponentsCantCastChosenUntilNextTurnEffect`'s handler; the second as Linvala, Shield of Sea
-//! Gate's restriction: its mana abilities aren't stopped)
+//! Gate's restriction, but with Java's `canUseActivatedAbilities`, which stops its mana abilities too)
 
 use super::*;
 
@@ -17,7 +17,7 @@ pub const HANDLERS: &[Handler] = &[
         &[Restrict::CantAttack(never_attack), Restrict::CantBlock(never_block)],
     )
     .until_your_next_turn(),
-    Handler::rule("AcademicProbation.AcademicProbationCantActivate", Rule::CantActivate(cant_activate))
+    Handler::rule("AcademicProbation.AcademicProbationCantActivate", Rule::CantUseActivatedAbilities(cant_use))
         .until_your_next_turn(),
 ];
 
@@ -51,6 +51,6 @@ fn never_block(_: &Game, _: &StaticCx, _: ObjId, _: ObjId) -> bool {
     true
 }
 
-fn cant_activate(game: &Game, cx: &StaticCx, _: Seat, id: ObjId, _: usize) -> bool {
+fn cant_use(game: &Game, cx: &StaticCx, id: ObjId) -> bool {
     cx.target_obj(game, 0) == Some(id)
 }
