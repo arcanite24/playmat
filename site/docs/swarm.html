@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Self-play swarm · Playmat docs</title>
+  <meta name="description" content="Mana@Home: run a coordinator and lend spare CPU to the AI's self-play games, with every result replayed before it is trained on.">
+  <meta name="theme-color" content="#0b120f">
+  <link rel="icon" href="../assets/brand/playmat-mark.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="docs.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="top">
+    <div class="wrap top-row">
+      <a class="brand" href="../" aria-label="Playmat home">
+        <img src="../assets/brand/playmat-logo.svg" alt="Playmat" width="172" height="40">
+      </a>
+      <nav aria-label="Site">
+        <ul class="nav">
+          <li><a href="https://playmat.deimos.studio">Play online</a></li>
+          <li><a href="../#download">Download</a></li>
+          <li><a href="../#host">Run a server</a></li>
+          <li><a href="./" aria-current="true">Docs</a></li>
+          <li><a href="../rust/">Rust port</a></li>
+          <li><a href="https://github.com/arcanite24/playmat">GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="docs">
+    <div class="wrap docs-row">
+      <nav class="docs-nav" aria-label="Docs">
+        <h2>Docs</h2>
+        <ul>
+          <li><a href="index.html">Overview</a></li>
+          <li><a href="server.html">Run a server</a></li>
+          <li><a href="updates.html">Updating</a></li>
+          <li><a href="admin.html">Staff and the admin console</a></li>
+          <li><a href="sso.html">Single sign-on</a></li>
+          <li><a href="capsules.html">Capsule machines</a></li>
+          <li><a href="ladder.html">Ranked and bots</a></li>
+          <li><a href="swarm.html" aria-current="page">Self-play swarm</a></li>
+        </ul>
+      </nav>
+      <article class="doc">
+        <h1>Self-play swarm</h1>
+        <p class="lede">Mana@Home lets people lend spare CPU to the AI's training. Workers play self-play games and
+          upload them; the trainer replays every game before it trains on it, so a broken or dishonest worker can only
+          waste its own time. This is early: it runs on a LAN, and the public coordinator isn't up yet.</p>
+
+        <h2 id="how">How it works</h2>
+        <ul>
+          <li><strong>A coordinator hands out work units.</strong> A unit is about a hundred games: which decks, which networks, which deals. It keeps only the metadata; the games go straight to storage (an R2 bucket, or a folder on the coordinator for a LAN).</li>
+          <li><strong>Workers play units and send them back.</strong> Each game comes with its answer log, the list of every decision made in it.</li>
+          <li><strong>The trainer replays every game from its answer log</strong> and accepts the unit only if every file matches its hash and the replay accepts every answer and ends the same way. Checking the recorded training data against the replay is the next step.</li>
+          <li><strong>Every worker plays the same games.</strong> Workers are built <code>strict</code>, which pins the floating-point maths, so a Mac, a Windows PC and a Linux box (Intel or ARM) agree exactly.</li>
+        </ul>
+
+        <h2 id="coordinator">Run a coordinator</h2>
+        <p>The coordinator is a small container (256 MB, one core) next to your server:</p>
+        <pre><code>cp ops/swarm/mana.env.example ops/swarm/mana.env
+docker compose -f ops/swarm/docker-compose.yml up -d coordinator
+docker compose -f ops/swarm/docker-compose.yml run --rm coordinator \
+  token --db /data/swarm.db --role worker --name alice</code></pre>
+        <p><code>token</code> prints the token once; the coordinator keeps only its hash. Make one <code>trainer</code>
+          token for yourself and one <code>worker</code> token per contributor. Without R2 settings, set
+          <code>SWARM_STORE=/data/store</code> to keep games on the coordinator. It listens on
+          <code>127.0.0.1:17190</code>: put your reverse proxy in front of it.</p>
+
+        <h2 id="worker">Run a worker</h2>
+        <pre><code>docker run -d --name mana --restart unless-stopped --cpus 4 \
+  -e MANA_COORDINATOR=https://your-coordinator -e MANA_NAME=my-pc \
+  -e MANA_TOKEN=... -e MANA_JOBS=4 -v mana-work:/work ghcr.io/arcanite24/mana-worker</code></pre>
+        <p>Or build it (<code>cargo build --release -p playmat-worker --features strict</code>) and run
+          <code>playmat-worker run --coordinator URL --name HOST --token-file F</code>. Outside Docker it plays only
+          while the machine is idle and hands a unit back the moment you come back to it. It always runs at the lowest
+          priority.</p>
+
+        <h2 id="train">Train on it</h2>
+        <p><code>rust/rl/pfsp_league.py --run-round --swarm URL --swarm-token-file F --out DIR</code> plans a league
+          round, publishes it, waits, replays what comes back and puts the accepted games in <code>DIR</code> for
+          <code>train.py</code>. <code>rust/rl/swarm.py</code> does the same steps one at a time.</p>
+
+        <p class="small">The settings, the API and the proxy setup are in
+          <a href="https://github.com/arcanite24/playmat/blob/master/ops/swarm/README.md">ops/swarm/README.md</a>, and
+          the design in <a href="https://github.com/arcanite24/playmat/blob/master/docs/swarm/Design.md">docs/swarm/Design.md</a>.</p>
+      </article>
+    </div>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-row">
+      <p>Something wrong or missing here? <a href="https://github.com/arcanite24/playmat/tree/master/site/docs">The docs are in the repository</a>; open an issue or a pull request.</p>
+      <p class="legal">Playmat is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC.</p>
+    </div>
+  </footer>
+</body>
+</html>

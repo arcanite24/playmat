@@ -5,6 +5,8 @@
 //! A unit is data, never code: its configs are checked key by key against an allowlist, and its networks are named by
 //! sha256 (`net=@<sha256>`), which the worker resolves to files it fetched and checked itself.
 
+pub mod api;
+
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -70,6 +72,29 @@ pub struct Opponent {
     pub weight: u64,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum VerifyMode {
+    /// replay every game from its answer log, check uploaded file hashes and outcomes (no search)
+    Replay,
+    /// re-play the unit from scratch, compare every game's log_sha256, steps_sha256 and uploaded file hashes
+    Rerun,
+}
+
+/// Attached to a `UnitKind::Verify` work unit by the coordinator
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct VerifySpec {
+    pub mode: VerifyMode,
+    /// id of the unit being verified
+    pub target_unit: String,
+    /// kind of the unit being verified (so a rerun knows whether to record shards)
+    pub target_kind: UnitKind,
+    /// the original worker's claimed manifest
+    pub manifest: ResultManifest,
+    /// presigned GET URLs for the original worker's uploaded files
+    pub files: BTreeMap<String, String>,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct WorkUnit {
     pub protocol: u32,
@@ -93,20 +118,29 @@ pub struct WorkUnit {
     /// lease deadline (unix seconds) and the unit's cost in credit units
     pub deadline: u64,
     pub cost: f64,
+    /// present when `kind == UnitKind::Verify`
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verify: Option<VerifySpec>,
 }
 
 /// One game of a result
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GameSummary {
     pub deal: u64,
     /// the winning seat, `None` for a draw or a game cut off at the turn cap
     pub winner: Option<u8>,
     /// which seat the learner had
     pub learner: u8,
+    /// the learner's opponent, by its index in the unit's `opponents` (the league's win rates, by opponent)
+    #[serde(default)]
+    pub opponent: u32,
     pub turns: u32,
     /// every answer of the game (the answer log's length) and the decisions recorded for training
     pub answers: u32,
     pub recorded: u32,
+    /// mean Shannon entropy of recorded policy targets in this game (for per-worker statistical checks)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub policy_entropy: Option<f32>,
     /// sha256 of the game's answer log: two runs of a game made the same decisions when these match
     pub log_sha256: String,
     /// sha256 of the game's recorded training steps (`playmat_ai::play::steps_hash`): and recorded the same data
@@ -244,10 +278,25 @@ pub fn check_unit(u: &WorkUnit) -> Result<(), String> {
     if !u.pins.suite.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
         return Err(format!("suite {:?}: not a suite name", u.pins.suite));
     }
+    if u.kind == UnitKind::Verify && u.verify.is_none() {
+        return Err("verify unit missing verify spec".into());
+    }
     Ok(())
 }
 
 /// sha256 of some bytes, in hex
+/// A suite's pin: the sha256 of its `suite.json` with CRLF line ends read as LF, so a Windows checkout (git's
+/// autocrlf) pins the same suite as every other machine
+pub fn suite_sha256(suite_json: &[u8]) -> String {
+    let mut lf = Vec::with_capacity(suite_json.len());
+    for (i, &b) in suite_json.iter().enumerate() {
+        if !(b == b'\r' && suite_json.get(i + 1) == Some(&b'\n')) {
+            lf.push(b);
+        }
+    }
+    sha256_hex(&lf)
+}
+
 pub fn sha256_hex(bytes: &[u8]) -> String {
     use sha2::{Digest, Sha256};
     Sha256::digest(bytes).iter().map(|b| format!("{b:02x}")).collect()
@@ -284,6 +333,13 @@ pub fn determinism_class(strict: bool) -> String {
 mod tests {
     use super::*;
 
+    #[test]
+    fn a_suite_pins_the_same_with_crlf() {
+        assert_eq!(suite_sha256(b"{\r\n  \"a\": 1\r\n}\n"), suite_sha256(b"{\n  \"a\": 1\n}\n"));
+        assert_eq!(suite_sha256(b"{}\n"), sha256_hex(b"{}\n"));
+        assert_ne!(suite_sha256(b"a\rb"), suite_sha256(b"ab"));
+    }
+
     const SHA: &str = "6c9c9009f3f3ca4b7590f387539206c4ea7c424f309b4fb1b59762f3ce26c2e9";
 
     fn unit() -> WorkUnit {
@@ -310,6 +366,7 @@ mod tests {
             fast: Some("ismcts:12".into()),
             deadline: 0,
             cost: 1.0,
+            verify: None,
         }
     }
 

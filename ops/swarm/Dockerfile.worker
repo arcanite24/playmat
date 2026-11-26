@@ -1,0 +1,31 @@
+# Mana@Home's worker (docs/swarm/Design.md): `playmat-worker` built strict (one determinism class on every platform),
+# plus the deck suites and decks the units name. The card data is compiled into the binary. Multi-arch: amd64 and
+# arm64 play the same games bit for bit.
+#
+#   docker run -d --name mana --restart unless-stopped --cpus 4 \
+#     -e MANA_COORDINATOR=https://mana.deimos.studio -e MANA_NAME=my-pc -e MANA_TOKEN=... -e MANA_JOBS=4 \
+#     -v mana-work:/work ghcr.io/arcanite24/mana-worker
+#
+# In a container the idle rules see only the host's load, so the image plays whenever it runs (MANA_WHEN=always);
+# limit it with --cpus, or set MANA_WHEN=idle to also wait for a quiet machine.
+FROM rust:1.94-slim-bookworm AS build
+WORKDIR /src
+COPY rust/ .
+ARG REVISION=dev
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    PLAYMAT_BUILD=$REVISION cargo build --release --locked -p playmat-worker --features strict \
+ && cp target/release/playmat-worker /usr/local/bin/playmat-worker
+
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates procps && rm -rf /var/lib/apt/lists/*
+COPY --from=build /usr/local/bin/playmat-worker /usr/local/bin/playmat-worker
+# the suites and their decks at their paths in the repository (suite.json names them from its root)
+COPY archbench/ /opt/repo/archbench/
+COPY Mage.Server/career-src/ /opt/repo/Mage.Server/career-src/
+ENV MANA_REPO=/opt/repo MANA_WORK=/work MANA_WHEN=always
+RUN mkdir /work && chown 65534:65534 /work
+USER 65534:65534
+VOLUME /work
+WORKDIR /work
+ENTRYPOINT ["/usr/local/bin/playmat-worker"]
+CMD ["run"]

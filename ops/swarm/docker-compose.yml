@@ -1,0 +1,62 @@
+# Mana@Home's coordinator, on its own (docs/swarm/Design.md, ops/swarm/README.md). Not part of the game server's
+# compose file: run it next to it with `docker compose -f ops/swarm/docker-compose.yml up -d`.
+#
+# Without SWARM_STORE the coordinator keeps results in R2 (the four SWARM_R2_* settings in mana.env); with
+# SWARM_STORE=/data/store it keeps them on its volume and serves them itself (a LAN swarm, or a test).
+services:
+  coordinator:
+    image: ${MANA_COORDINATOR_IMAGE:-ghcr.io/arcanite24/mana-coordinator:latest}
+    build:
+      context: ../..
+      dockerfile: ops/swarm/Dockerfile.coordinator
+    restart: unless-stopped
+    env_file:
+      - path: mana.env
+        required: false
+    # SWARM_PUBLIC_URL and the store settings come from mana.env (an `environment:` entry would override it)
+    environment:
+      RUST_LOG: ${RUST_LOG:-info}
+    volumes:
+      - mana-data:/data
+    # behind the host's reverse proxy: only localhost reaches it
+    ports:
+      - "${MANA_BIND:-127.0.0.1}:17190:17190"
+    mem_limit: 256m
+    cpus: 1
+
+  # Cloudflare Tunnel to the coordinator (`--profile tunnel`): an outbound connection, so no open port. The tunnel's
+  # public hostname (Zero Trust > Networks > Tunnels) points at http://coordinator:17190; TUNNEL_TOKEN in mana.env
+  tunnel:
+    profiles: [ "tunnel" ]
+    image: cloudflare/cloudflared:2026.11.0
+    restart: unless-stopped
+    command: [ "tunnel", "--no-autoupdate", "run" ]
+    env_file:
+      - path: tunnel.env
+        required: true
+    depends_on: [ coordinator ]
+    mem_limit: 128m
+    cpus: 0.5
+
+  # a worker on the same machine, at the lowest CPU weight (`--profile worker`)
+  worker:
+    profiles: [ "worker" ]
+    image: ${MANA_WORKER_IMAGE:-ghcr.io/arcanite24/mana-worker:latest}
+    build:
+      context: ../..
+      dockerfile: ops/swarm/Dockerfile.worker
+    restart: unless-stopped
+    environment:
+      MANA_COORDINATOR: ${MANA_WORKER_COORDINATOR:-http://coordinator:17190}
+      MANA_NAME: ${MANA_NAME:-compose-worker}
+      MANA_TOKEN: ${MANA_WORKER_TOKEN:-}
+      MANA_JOBS: ${MANA_JOBS:-2}
+    volumes:
+      - mana-work:/work
+    cpus: ${MANA_JOBS:-2}
+    cpu_shares: 2
+    mem_limit: 2g
+
+volumes:
+  mana-data:
+  mana-work:
