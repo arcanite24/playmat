@@ -3,6 +3,7 @@ import { assignmentAnswer, lethalFirst, parseDamageAssignment } from './damageAs
 import { poolId, poolTypes } from './payment';
 import { roomChoice } from './dungeon';
 import type { Prompt } from './prompt';
+import { actingPlayerId } from './turnControl';
 
 /** An answer to the server, independent of how the UI produced it. */
 export type Command =
@@ -75,12 +76,15 @@ export function playableIds(view: GameView | null | undefined): string[] {
   return Object.keys(view?.canPlayObjects?.objects ?? {});
 }
 
+/** The player whose decisions are on screen: ourselves, or the one whose turn we control while they're asked. */
 function myPlayer(view: GameView | null | undefined) {
-  return view?.players?.find((player) => player.playerId === view.myPlayerId);
+  const acting = actingPlayerId(view);
+  return view?.players?.find((player) => player.playerId === acting);
 }
 
 function isMyTurn(view: GameView | null | undefined): boolean {
-  return !!view?.myPlayerId && view.activePlayerId === view.myPlayerId;
+  const acting = actingPlayerId(view);
+  return !!acting && view?.activePlayerId === acting;
 }
 
 /** Label for passing priority, following Arena's wording. */
@@ -111,7 +115,7 @@ export function passLabel(view: GameView | null | undefined): string {
 }
 
 export function myAttackers(view: GameView | null | undefined): string[] {
-  const me = view?.myPlayerId;
+  const me = actingPlayerId(view);
   return (view?.combat ?? []).flatMap((group) =>
     Object.entries(group.attackers ?? {})
       .filter(([, card]) => !me || card.controllerId === undefined || card.controllerId === me)
@@ -119,7 +123,7 @@ export function myAttackers(view: GameView | null | undefined): string[] {
 }
 
 export function myBlockers(view: GameView | null | undefined): string[] {
-  const me = view?.myPlayerId;
+  const me = actingPlayerId(view);
   return (view?.combat ?? []).flatMap((group) =>
     Object.entries(group.blockers ?? {})
       .filter(([, card]) => !me || card.controllerId === undefined || card.controllerId === me)
@@ -134,7 +138,7 @@ export function deriveInteraction(view: GameView | null | undefined, prompt: Pro
     return {
       mode: 'waiting',
       prompt: null,
-      headline: view?.priorityPlayerName && view.priorityPlayerName !== myPlayer(view)?.name
+      headline: view?.priorityPlayerName && view.priorityPlayerName !== view.players?.find((player) => player.playerId === view.myPlayerId)?.name
         ? `Waiting for ${view.priorityPlayerName}`
         : 'Waiting',
       clickable: EMPTY_MAP,
