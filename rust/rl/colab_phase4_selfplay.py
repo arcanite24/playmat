@@ -33,6 +33,7 @@ def main():
     ap.add_argument("--fast-iters", type=int, default=64)
     ap.add_argument("--seed", type=int, default=19000)
     ap.add_argument("--tag", type=int, default=19)
+    ap.add_argument("--hardening", action="store_true", help="Focus on stress-control + stress-bigmana decks (13 decks)")
     ap.add_argument("--models-repo", default="nerijs/playmat-ai-checkpoints")
     ap.add_argument("--dataset-repo", default="nerijs/playmat-ai-selfplay")
     args = ap.parse_args()
@@ -112,13 +113,26 @@ def main():
         learner = f"cfg:policy=ismcts+net=tcp://127.0.0.1:{ports[args.learner_ckpt]}{common}"
         sib = f"cfg:policy=ismcts+net=tcp://127.0.0.1:{ports[args.sib_ckpt]}{opp_common}"
         ood = f"cfg:policy=ismcts+net=tcp://127.0.0.1:{ports[args.ood_ckpt]}{opp_common}"
-        opponents = f"self*5;{sib}*3;{ood}*1;host@s6*1"
+        suite_path = os.path.join(work, "archbench", "constructed-2")
+        if args.hardening:
+            import json
+            c2 = json.loads(open(os.path.join(suite_path, "suite.json")).read())
+            kws = ("control", "spirits", "dimir-midrange", "stompy", "landfall", "vigorbloom", "angels", "dragons", "greasefang")
+            sub = [d for d in c2["decks"] if any(k in d["file"] for k in kws)]
+            hdir = os.path.join(work, "archbench", "hardening-1")
+            os.makedirs(hdir, exist_ok=True)
+            open(os.path.join(hdir, "suite.json"), "w").write(json.dumps(dict(c2, suite="hardening@1", decks=sub), indent=2))
+            suite_path = hdir
+            print(f"HARDENING SUITE READY: {len(sub)} control+bigmana decks", flush=True)
+            opponents = f"self*4;{sib}*3;{ood}*1;host@s6*2"
+        else:
+            opponents = f"self*5;{sib}*3;{ood}*1;host@s6*1"
 
         cmd = [
             sp_bin,
             "--out", out_dir,
             "--repo", work,
-            "--suite", os.path.join(work, "archbench", "constructed-2"),
+            "--suite", suite_path,
             "--learner", learner,
             "--opponents", opponents,
             "--games", str(args.games),
@@ -148,7 +162,7 @@ def main():
 
     # Compact shards into merged.* and upload to HF dataset repo
     print(f"MERGING {out_dir}...", flush=True)
-    subprocess.run([sys.executable, "-u", os.path.join(rl_dir, "data.py"), "--merge", out_dir], check=True)
+    subprocess.run([sys.executable, "-u", os.path.join(rl_dir, "data.py"), "--compact", out_dir], check=True)
     api = HfApi(token=tok)
     print(f"UPLOADING {out_dir}/merged.* -> {args.dataset_repo}/data/{args.round}", flush=True)
     api.upload_folder(

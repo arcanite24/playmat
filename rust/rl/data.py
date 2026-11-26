@@ -750,7 +750,7 @@ def _batch_from_store(st, s, load_critic, idx, device, trim=True):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--compact", nargs="+", help="merge fleet chunk shards in each dir into one merged.* shard")
+    ap.add_argument("--compact", "--merge", dest="compact", nargs="+", help="merge fleet chunk shards in each dir into one merged.* shard")
     ap.add_argument("--keep-chunks", action="store_true")
     args = ap.parse_args()
     for d in args.compact or []:

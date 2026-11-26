@@ -6,7 +6,8 @@ param(
     [int]$Games = 1200,
     [int]$Iters = 512,
     [int]$Seed = 19000,
-    [int]$Tag = 19
+    [int]$Tag = 19,
+    [switch]$Hardening
 )
 $ErrorActionPreference = "Stop"
 $envPath = "C:\Users\neri\code\playmat-bt\.env"
@@ -25,7 +26,8 @@ $sargs = @(
     "--seed", "$Seed",
     "--tag", "$Tag"
 )
-foreach ($gpu in @("A100", "L4", "A100", "L4", "A100", "L4")) {
+if ($Hardening) { $sargs += "--hardening" }
+foreach ($gpu in @("L4", "A100", "L4", "A100", "L4", "A100", "L4", "A100", "L4", "A100", "L4", "A100")) {
     Write-Host "TRY_P4_SP $Round GPU=$gpu $(Get-Date -Format o)"
     & $colab --auth adc run --gpu $gpu --timeout 0 --env "HF_TOKEN=$env:HF_TOKEN" $py -- @sargs
     if ($LASTEXITCODE -eq 0) {
@@ -33,6 +35,6 @@ foreach ($gpu in @("A100", "L4", "A100", "L4", "A100", "L4")) {
         exit 0
     }
     Write-Host "P4_SP_RETRY $Round GPU=$gpu exit=$LASTEXITCODE"
-    Start-Sleep -Seconds 45
+    Start-Sleep -Seconds 60
 }
 exit 1

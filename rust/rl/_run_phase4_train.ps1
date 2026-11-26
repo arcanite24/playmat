@@ -14,6 +14,7 @@ param(
     [int]$Bs = 2048,
     [double]$Lr = 5e-4,
     [int]$PolicyRecent = 12,
+    [double]$RecencyDecay = 0.93,
     [int]$SamplesPerEpoch = 2000000
 )
 $ErrorActionPreference = "Stop"
@@ -54,18 +55,16 @@ $scriptArgs = @(
     "--opt", "$Opt",
     "--muon-lr", "$MuonLr",
     "--epochs", "$Epochs",
-    "--bs", "$Bs",
     "--lr", "$Lr",
     "--drop", "0.10",
     "--val-prob", "0.05",
     "--val-wd", "0.05",
     "--aux-weight", "0.20",
     "--act-q-weight", "0.50",
-    "--recency-decay", "0.93",
+    "--recency-decay", "$RecencyDecay",
     "--policy-recent", "$PolicyRecent",
     "--pol-old-weight", "0.25",
-    "--samples-per-epoch", "$SamplesPerEpoch",
-    "--gpu-data-gb", "18.0"
+    "--samples-per-epoch", "$SamplesPerEpoch"
 )
 if ($OracleMode) {
     $scriptArgs += "--oracle-mode"
@@ -78,8 +77,12 @@ $scriptArgs += $rounds
 $colab = "C:\Users\neri\.local\bin\colab.exe"
 $py = "C:\Users\neri\code\playmat-bt\rust\rl\colab_train.py"
 foreach ($gpu in @("A100", "L4", "A100", "L4", "A100", "L4", "A100", "L4")) {
-    Write-Host "TRY_P4_TRAIN $Name GPU=$gpu $(Get-Date -Format o)"
-    & $colab --auth adc run --gpu $gpu --high-mem --timeout 0 --env "HF_TOKEN=$env:HF_TOKEN" $py -- @scriptArgs
+    $runBs = if ($gpu -eq "T4" -and $Bs -gt 512) { 512 } elseif ($gpu -eq "L4" -and $Bs -gt 1024) { 1024 } else { $Bs }
+    $runGgb = if ($gpu -eq "T4") { "2.0" } elseif ($gpu -eq "L4") { "3.0" } else { "18.0" }
+    $runChunk = if ($gpu -eq "T4") { "300000" } elseif ($gpu -eq "L4") { "400000" } else { "1500000" }
+    $gpuArgs = @("--bs", "$runBs", "--gpu-data-gb", $runGgb, "--stage-chunk", $runChunk) + $scriptArgs
+    Write-Host "TRY_P4_TRAIN $Name GPU=$gpu bs=$runBs ggb=$runGgb $(Get-Date -Format o)"
+    & $colab --auth adc run --gpu $gpu --timeout 0 --env "HF_TOKEN=$env:HF_TOKEN" $py -- @gpuArgs
     if ($LASTEXITCODE -eq 0) {
         Write-Host "P4_TRAIN_OK $Name GPU=$gpu $(Get-Date -Format o)"
         exit 0
