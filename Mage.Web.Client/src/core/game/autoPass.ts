@@ -73,6 +73,11 @@ function isTurnFaceUp(text: string | undefined): boolean {
   return /\bturn this face-down\b/i.test((text ?? '').replace(/<[^>]*>/g, ''));
 }
 
+/** Flash-granting abilities (Alchemist's Refuge, Emergence Zone, Winding Canyons): worth stopping for at an opponent's end step. */
+function isFlashEnabler(text: string | undefined): boolean {
+  return /\bas though (?:they|it) had flash\b/i.test((text ?? '').replace(/<[^>]*>/g, ''));
+}
+
 /** The player's face-down permanents (the server cuts ability text, so the text alone can miss a long cost). */
 function myFaceDown(view: GameView): Set<string> {
   const acting = actingPlayerId(view);
@@ -87,10 +92,11 @@ function myFaceDown(view: GameView): Set<string> {
 export function meaningfulPlays(view: GameView | null | undefined, includeAbilities = true): string[] {
   const objects = view?.canPlayObjects?.objects ?? {};
   const faceDown = view ? myFaceDown(view) : new Set<string>();
+  const endStepWithHand = view?.step === 'END_TURN' && Object.keys(view.myHand ?? {}).length > 0;
   return Object.entries(objects)
     .filter(([id, stats]) => (stats.basicCastAbilities?.length ?? 0) + (stats.basicPlayAbilities?.length ?? 0)
       + (stats.other ?? []).filter((record) => !isManaText(record.value)
-        && (includeAbilities || faceDown.has(id) || isTurnFaceUp(record.value))).length > 0)
+        && (includeAbilities || faceDown.has(id) || isTurnFaceUp(record.value) || (endStepWithHand && isFlashEnabler(record.value)))).length > 0)
     .map(([id]) => id);
 }
 

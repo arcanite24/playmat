@@ -8,6 +8,7 @@ import mage.cards.Card;
 import mage.cards.decks.Deck;
 import mage.cards.repository.CardInfo;
 import mage.cards.repository.CardRepository;
+import mage.cards.repository.CardScanner;
 import mage.constants.MultiplayerAttackOption;
 import mage.constants.PlayerAction;
 import mage.constants.RangeOfInfluence;
@@ -23,6 +24,7 @@ import mage.game.turn.DeclareAttackersStep;
 import mage.player.human.HumanPlayer;
 import mage.players.net.UserData;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.Collections;
@@ -36,6 +38,11 @@ import java.util.concurrent.atomic.AtomicInteger;
  * and stop before Declare Blockers once the stack empties.
  */
 public class ResolveStackPriorityTest {
+
+    @BeforeClass
+    public static void setUpCards() {
+        CardScanner.scan();
+    }
 
     private static final class RecordingHumanPlayer extends HumanPlayer {
         final AtomicInteger prompts = new AtomicInteger();

@@ -11,7 +11,7 @@ import { resetCommand, type AutoRule, type AutoRuleKind } from '../../core/game/
 import { notificationsSupported, requestNotifications } from '../stores/attention';
 import { useAutoAnswers } from '../stores/autoAnswers';
 import { useGames } from '../stores/games';
-import { DEFAULT_NOTIFY_ON, DEFAULT_SETTINGS, FULL_CONTROL, STREAMLINED, useSettings, type NotificationKind, type PlaySettings } from '../stores/settings';
+import { AI_ACTION_DELAY_MAX, clampAiActionDelay, DEFAULT_NOTIFY_ON, DEFAULT_SETTINGS, FULL_CONTROL, STREAMLINED, useSettings, type NotificationKind, type PlaySettings } from '../stores/settings';
 
 const NOTIFICATION_KINDS: readonly NotificationKind[] = ['whispers', 'turn', 'gameStart', 'draft', 'tableJoins'];
 import { APP_NAME, APP_VERSION, PUBLIC_ORIGIN } from '../brand';
@@ -142,6 +142,27 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
             <Switch checked={settings.autoTargetLevel > 0} onChange={(value) => update({ autoTargetLevel: value ? 1 : 0 })} />
           </Row>
           <Row label={t('settings.handRequests')} detail={t('settings.handRequests.detail')}>{toggle('allowHandRequests')}</Row>
+          <Row label={t('settings.aiActionDelay')} detail={t('settings.aiActionDelay.detail')}>
+            <div className={[styles.volume, styles.pace].join(' ')}>
+              <input
+                type="range"
+                min={0}
+                max={AI_ACTION_DELAY_MAX}
+                step={0.5}
+                value={clampAiActionDelay(settings.aiActionDelay)}
+                onChange={(event) => update({ aiActionDelay: clampAiActionDelay(Number(event.target.value)) })}
+                aria-label={t('settings.aiActionDelay.label')}
+                aria-valuetext={clampAiActionDelay(settings.aiActionDelay) === 0
+                  ? t('settings.aiActionDelay.instant')
+                  : t('settings.aiActionDelay.seconds', { seconds: formatNumber(clampAiActionDelay(settings.aiActionDelay), { maximumFractionDigits: 1 }) })}
+              />
+              <span aria-hidden="true">
+                {clampAiActionDelay(settings.aiActionDelay) === 0
+                  ? t('settings.aiActionDelay.instant')
+                  : t('settings.aiActionDelay.seconds', { seconds: formatNumber(clampAiActionDelay(settings.aiActionDelay), { maximumFractionDigits: 1 }) })}
+              </span>
+            </div>
+          </Row>
           <h3 className={styles.groupHeading}>{t('settings.automation')}</h3>
           <p className={styles.intro}>{t('settings.automation.intro')}</p>
           <Row label={t('settings.autoPayHybrid')} detail={t('settings.autoPayHybrid.detail')}>{toggle('autoPayHybrid')}</Row>

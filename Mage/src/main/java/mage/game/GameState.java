@@ -734,6 +734,7 @@ public class GameState implements Serializable, Copyable<GameState> {
             player.reset();
         }
         this.reset();
+        effects.removeInactiveEffects(game);
         battlefield.reset(game);
         combat.reset(game);
         effects.apply(game);
