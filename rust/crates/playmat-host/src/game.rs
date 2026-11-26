@@ -620,8 +620,8 @@ struct Host {
     chooser: Option<Seat>,
     /// the rule texts of the triggers the open question asks to order, by place
     open_triggers: Vec<String>,
-    /// the open question, for advice
-    open_query: Option<Query>,
+    /// the open question, for advice, with the seat it's for (a controlled turn's: not the asked player's)
+    open_query: Option<(Seat, Query)>,
     /// the priority timer
     clock: Clock,
     /// the seat being asked, whose clock runs
@@ -1656,16 +1656,16 @@ impl Host {
         if self.ai.is_none() {
             return advice_none("Advice only works in a game against the computer.");
         }
-        let Some(q) = self.open_query.clone() else {
+        let Some((for_seat, q)) = self.open_query.clone() else {
             return advice_none("Ask while the game waits for you to act.");
         };
         let rules = TableRules { ai_skill: Some(skill), ..TableRules::default() };
         let mut seats = vec![None, None];
-        seats[seat] = rules.ai_config();
+        seats[for_seat] = rules.ai_config();
         let mut advisor = Table::new(seats);
         let began = Instant::now();
         let game = self.game.clone();
-        let a = advisor.answer(&game, seat, &q);
+        let a = advisor.answer(&game, for_seat, &q);
         let millis = began.elapsed().as_millis() as u64;
         let ids = &self.seats[seat].ids;
         let step = |text: String, o: ObjId| json!({"text": text, "objectId": ids.object(o), "targetIds": []});
@@ -2151,15 +2151,18 @@ impl Decider for HostDecider<'_> {
                 h.turn_line(game.active);
             }
         }
-        // a turn another player controls (Emrakul, the Promised End): the controller has the player do nothing it
-        // needn't; what it must answer, the quick policy answers
-        if game.controlled_by.iter().any(|(p, c)| *p == seat && *c != seat) {
+        // who answers: the player whose turn another controls (Emrakul, the Promised End; Mindslaver) is answered by
+        // that one, as Java's `GameController.perform` sends the controlled player's questions to the controller
+        let me = game.turn_controller(seat);
+        if me != seat && !h.seats[me].human {
+            // the AI controlling a person's turn has them do nothing they needn't; what they must answer, the quick
+            // policy answers
             if let Query::Priority { .. } = q {
                 return Answer::Bool(false);
             }
             return h.table.answer(game, seat, q);
         }
-        if !h.seats[seat].human {
+        if me == seat && !h.seats[seat].human {
             // a Career opponent's personality: after the AI's own attackers, the ones its leanings add or hold back
             if let Query::Attackers { creatures } = q {
                 // what's left of another turn's (the engine stopped asking) isn't this one's
@@ -2221,23 +2224,23 @@ impl Decider for HostDecider<'_> {
             }
             // `HumanPlayer.priority`: a spell just cast (an ability just activated) passes at once when the player's
             // settings say so, unless they held priority for it
-            if let Some((obj, before)) = h.seats[seat].just_played.take() {
+            if let Some((obj, before)) = h.seats[me].just_played.take() {
                 let item = game.stack.iter().skip(before).find(|i| i.card == obj && i.controller == seat);
-                let settings = &h.seats[seat].settings;
+                let settings = &h.seats[me].settings;
                 let pass = match item {
                     Some(i) if i.ability.is_none() && i.delayed.is_none() => settings.pass_after_cast,
                     Some(_) => settings.pass_after_activation,
                     None => false,
                 };
-                if pass && !h.seats[seat].passing.holding {
-                    h.seats[seat].passing.holding = false;
+                if pass && !h.seats[me].passing.holding {
+                    h.seats[me].passing.holding = false;
                     h.table.record(game, q, &Answer::Bool(false));
                     return Answer::Bool(false);
                 }
             }
             // held for one action: the next priority asks again
-            h.seats[seat].passing.holding = false;
-            let p = &mut h.seats[seat];
+            h.seats[me].passing.holding = false;
+            let p = &mut h.seats[me];
             if p.passing.passes(game, seat, &p.settings) {
                 h.table.record(game, q, &Answer::Bool(false));
                 return Answer::Bool(false);
@@ -2246,7 +2249,7 @@ impl Decider for HostDecider<'_> {
         // `useFirstManaAbility`: a permanent with several mana abilities uses its first
         if let Query::ChooseAbility { source, abilities } = q {
             let def = &game.obj(*source).def;
-            if h.seats[seat].settings.use_first_mana_ability
+            if h.seats[me].settings.use_first_mana_ability
                 && abilities.len() > 1
                 && abilities.iter().all(|i| def.abilities.get(*i).is_some_and(is_mana_ability))
             {
@@ -2256,7 +2259,7 @@ impl Decider for HostDecider<'_> {
             }
         }
         if let Query::YesNo { message } = q {
-            if let Some((_, yes)) = h.seats[seat].auto_answers.iter().find(|(t, _)| message.contains(t.as_str())) {
+            if let Some((_, yes)) = h.seats[me].auto_answers.iter().find(|(t, _)| message.contains(t.as_str())) {
                 let a = Answer::Bool(*yes);
                 h.table.record(game, q, &a);
                 return a;
@@ -2266,7 +2269,7 @@ impl Decider for HostDecider<'_> {
             let rules: Vec<String> =
                 triggers.iter().map(|(source, rule)| rule.replace("{this}", game.obj(*source).name())).collect();
             loop {
-                let open = match auto_order(&h.seats[seat].order_first, &h.seats[seat].order_last, &rules) {
+                let open = match auto_order(&h.seats[me].order_first, &h.seats[me].order_last, &rules) {
                     Ok(i) => {
                         let a = Answer::Trigger(i);
                         h.table.record(game, q, &a);
@@ -2288,7 +2291,7 @@ impl Decider for HostDecider<'_> {
                 h.open_triggers = rules.clone();
                 let q2 = q.clone();
                 // no id: "put it last" was just set, so the order is looked at again
-                let answer = h.ask(seat, prompt, &|h, c| match c {
+                let answer = h.ask(me, prompt, &|h, c| match c {
                     Call::Uuid(None) => Some(Answer::Unknown),
                     _ => h.answer_of(&q2, c),
                 });
@@ -2307,8 +2310,8 @@ impl Decider for HostDecider<'_> {
         prompts::offer_names(&mut prompt, q, &h.cards);
         let q2 = q.clone();
         h.at_priority = matches!(q, Query::Priority { .. });
-        h.open_query = Some(q.clone());
-        let answer = h.ask(seat, prompt, &|h, c| h.answer_of(&q2, c));
+        h.open_query = Some((seat, q.clone()));
+        let answer = h.ask(me, prompt, &|h, c| h.answer_of(&q2, c));
         h.open_query = None;
         h.at_priority = false;
         match answer {
@@ -2316,11 +2319,11 @@ impl Decider for HostDecider<'_> {
                 h.table.record(game, q, &a);
                 if let Query::Priority { playable } = q {
                     if let Answer::Obj(o) | Answer::Ability(o, _) = &a {
-                        h.seats[seat].just_played = Some((*o, game.stack.len()));
+                        h.seats[me].just_played = Some((*o, game.stack.len()));
                     }
                     // a permanent clicked for its mana: undoable until the player does anything else
                     let mana = matches!(a, Answer::Obj(o) if !playable.contains(&o) && game.battlefield.contains(&o));
-                    let p = &mut h.seats[seat];
+                    let p = &mut h.seats[me];
                     if !mana {
                         p.undo_point = None;
                     } else if p.undo_point.is_none() {
@@ -2458,6 +2461,128 @@ mod tests {
         assert!(plain.setup.is_none() && plain.hints_left.is_none());
         assert!(plain.json().get("setup").is_none());
         let _ = (CareerSetup::default(), Edge::default());
+    }
+
+    /// A turn the human controls (Emrakul, the Promised End): the controlled player's questions go to the human, whose
+    /// view lists that player's hand as whole cards and what they can play; the human casts from it, paying with a
+    /// dual land of theirs (Java's `GameController.perform`, `GameSessionPlayer.processControlledPlayers`)
+    #[test]
+    fn the_controller_plays_a_controlled_turn() {
+        use super::{Call, Event, Host, HostDecider, SeatStart, Start};
+        use playmat_engine::state::Step;
+        use serde_json::Value;
+        use std::sync::mpsc::channel;
+        use std::time::Duration;
+        let seat = |name: &str, human: bool| SeatStart {
+            player_id: format!("00000000-0000-0000-0000-00000000000{}", u8::from(!human)),
+            name: name.into(),
+            human,
+            deck: vec!["Forest".to_string(); 20],
+            printings: Vec::new(),
+            user_data: None,
+        };
+        let start = Start {
+            game_id: "c0n7r01d-0000-0000-0000-000000000000".into(),
+            seed: 5,
+            seats: vec![seat("Me", true), seat("Computer", false)],
+            rules: TableRules::default(),
+            timer: crate::Timer::default(),
+            chooser: None,
+            record: None,
+            replay: None,
+            log_to: None,
+            drop_stale: false,
+            prelude: None,
+            lines: false,
+        };
+        let (calls, calls_in) = channel();
+        let (events_out, events) = channel::<Event>();
+        let thread = std::thread::spawn(move || {
+            let db = playmat_engine::cards();
+            let mut h = Host::new(start, &db, "chat".into(), calls_in, events_out);
+            let mut game = h.game.clone();
+            let spell = game.create_obj(db.get("Call of the Conclave").unwrap().clone(), 1, Zone::Hand);
+            game.player_mut(1).hand.push(spell);
+            creature(&mut game, &db, "Temple Garden", 1);
+            creature(&mut game, &db, "Forest", 1);
+            game.turn = 2;
+            game.active = Some(1);
+            game.priority = Some(1);
+            game.step = Some(Step::PrecombatMain);
+            game.controlled_by.push((1, 0));
+            h.game = game.clone();
+            let mut d = HostDecider { host: &mut h };
+            playmat_engine::rules::play_from_priority(&mut game, &mut d, 0);
+            game
+        });
+        calls.send((0, Call::Join)).unwrap();
+        let card = |v: &Value, zone: &str, name: &str| -> Option<String> {
+            v[zone].as_object()?.iter().find(|(_, c)| c["name"] == name).map(|(id, _)| id.clone())
+        };
+        let mut cast = None;
+        let mut garden_tapped = false;
+        for _ in 0..200 {
+            let e = events.recv_timeout(Duration::from_secs(30)).expect("the host asks");
+            let prompt = !matches!(e.method.as_str(), "GAME_UPDATE" | "GAME_INIT" | "CHATMESSAGE");
+            if !prompt {
+                continue;
+            }
+            assert_eq!(e.to, Some(0), "the controlled player's questions go to its controller: {}", e.method);
+            let v = &e.data["gameView"];
+            let theirs = v["players"].as_array().unwrap().iter().find(|p| p["name"] == "Computer").unwrap();
+            let land = |name: &str| {
+                theirs["battlefield"]
+                    .as_object()
+                    .unwrap()
+                    .iter()
+                    .find(|(_, c)| c["name"] == name)
+                    .map(|(id, c)| (id.clone(), c["tapped"] == true))
+            };
+            match e.method.as_str() {
+                "GAME_SELECT" if cast.is_none() => {
+                    assert_eq!(v["priorityPlayerName"], "Computer");
+                    let hand = &v["opponentHands"]["Computer"];
+                    let id =
+                        card(&v["opponentHands"], "Computer", "Call of the Conclave").expect("their hand is listed");
+                    assert_eq!(hand[&id]["manaCostLeftStr"], serde_json::json!(["{G}", "{W}"]), "a whole card view");
+                    assert_eq!(hand[&id]["cardTypes"], serde_json::json!(["SORCERY"]));
+                    assert!(v["myHand"].as_object().unwrap().is_empty(), "the controller's own hand is theirs");
+                    let playable = &v["canPlayObjects"]["objects"][&id]["basicCastAbilities"][0]["value"];
+                    assert_eq!(playable, "Cast Call of the Conclave", "{}", v["canPlayObjects"]);
+                    cast = Some(id.clone());
+                    calls.send((0, Call::Uuid(Some(id)))).unwrap();
+                }
+                "GAME_PLAY_MANA" => {
+                    let (garden, tapped) = land("Temple Garden").unwrap();
+                    let next = if tapped { land("Forest").unwrap().0 } else { garden };
+                    calls.send((0, Call::Uuid(Some(next)))).unwrap();
+                }
+                "GAME_CHOOSE_ABILITY" => {
+                    // the dual land's white
+                    let (id, _) = e.data["choices"]
+                        .as_object()
+                        .unwrap()
+                        .iter()
+                        .find(|(_, r)| r.as_str().is_some_and(|r| r.contains("{W}")))
+                        .expect("a {W} ability");
+                    garden_tapped = true;
+                    calls.send((0, Call::Uuid(Some(id.clone())))).unwrap();
+                }
+                "GAME_SELECT" => {
+                    // the spell is cast: on the stack, theirs, paid with both lands
+                    assert!(card(v, "stack", "Call of the Conclave").is_some(), "{}", v["stack"]);
+                    assert!(land("Temple Garden").unwrap().1);
+                    assert!(land("Forest").unwrap().1);
+                    assert!(garden_tapped, "the dual land asked for its color");
+                    calls.send((0, Call::Quit)).unwrap();
+                    break;
+                }
+                m => panic!("unexpected {m}: {}", e.data),
+            }
+        }
+        let game = thread.join().unwrap();
+        assert!(cast.is_some());
+        assert!(game.player(1).hand.is_empty(), "cast from the controlled hand");
     }
 
     fn creature(game: &mut Game, db: &playmat_engine::card::CardDb, name: &str, seat: Seat) -> ObjId {

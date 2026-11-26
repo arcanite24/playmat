@@ -1580,7 +1580,8 @@ fn priority(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
     let step = game.step.unwrap_or(Step::Upkeep);
     if game.stack.is_empty()
         && !stops_in(step)
-        && !game.player(seat).every_priority
+        // (a turn another player controls: theirs is asked as they are)
+        && !game.player(game.turn_controller(seat)).every_priority
         && pass_with_mana_pool_check(game, d, seat)
     {
         return;
