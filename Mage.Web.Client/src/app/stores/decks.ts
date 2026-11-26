@@ -24,6 +24,9 @@ export interface RosterDeck {
   name: string;
   note: string;
   cardCount: number;
+  sideboardCount?: number;
+  format?: string;
+  updatedAt?: number;
   cover: { name?: string; setCode: string; cardNumber: string } | null;
   colors: string[];
   starter: StarterDeck | null;
@@ -62,6 +65,9 @@ function summaryToRoster(deck: DeckSummary): RosterDeck {
     name: deck.name || 'Untitled deck',
     note: deck.format ? `${formatRules(deck.format).label} · ${size}` : size,
     cardCount: deck.cardCount ?? 0,
+    sideboardCount: deck.sideboardCount ?? 0,
+    format: deck.format,
+    updatedAt: deck.updatedAt,
     cover: deck.coverCard ?? null,
     colors,
     starter: null,
@@ -78,6 +84,8 @@ function starterToRoster(starter: StarterDeck): RosterDeck {
     name: starter.name,
     note: `${isCommanderFormat(starter.format) ? 'Commander starter' : 'Starter deck'} · ${starter.cards} cards`,
     cardCount: starter.cards,
+    sideboardCount: 0,
+    format: starter.format,
     cover: starter.cover,
     colors: [],
     starter,

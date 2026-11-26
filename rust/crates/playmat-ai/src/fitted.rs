@@ -182,6 +182,47 @@ pub fn evaluate(game: &Game, seat: Seat) -> i64 {
     (logit(game, seat, weights()) * 1000.0).clamp(-30_000.0, 30_000.0) as i64
 }
 
+/// Fitted evaluation modulated by a deck's Playbook (archetype feature multipliers, key-card bonuses, and graveyard role value).
+pub fn evaluate_with_playbook(game: &Game, seat: Seat, pb: &crate::playbook::Playbook) -> i64 {
+    let over = eval::evaluate(game, seat);
+    if over >= eval::WIN || over <= eval::LOSE {
+        return over;
+    }
+    let w = weights();
+    let f = features(game, seat);
+    let mut z: f64 = f
+        .iter()
+        .zip(&w.features)
+        .zip(&pb.eval_weights)
+        .map(|((x, bw), mult)| x * bw * mult)
+        .sum();
+    if !w.cards.is_empty() || !pb.eval_card_bonus.is_empty() {
+        for id in game.battlefield.iter() {
+            let o = game.obj(*id);
+            let name = o.def.name.as_str();
+            if let Some(v) = w.cards.get(name) {
+                z += if o.controller == seat { *v } else { -*v };
+            }
+            if o.controller == seat {
+                if let Some(bonus) = pb.eval_card_bonus.get(name) {
+                    z += *bonus;
+                }
+            }
+        }
+    }
+    if !pb.graveyard_role_bonus.is_empty() {
+        for id in &game.player(seat).graveyard {
+            let name = game.obj(*id).def.name.as_str();
+            for (role, bonus) in &pb.graveyard_role_bonus {
+                if pb.has_role(name, role) {
+                    z += *bonus;
+                }
+            }
+        }
+    }
+    (z * 1000.0).clamp(-30_000.0, 30_000.0) as i64
+}
+
 /// A fitted score as a chance of winning
 pub fn probability(score: i64) -> f64 {
     1.0 / (1.0 + (-(score as f64) / 1000.0).sexp())

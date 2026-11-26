@@ -200,6 +200,8 @@
   "ladderPlay": {"group": "Ladder", "access": "session"},
   "leaguePlay": {"group": "Ladder", "access": "session"},
   "ladderResult": {"group": "Ladder", "access": "session"},
+  "ladderGameDeck": {"group": "Ladder", "access": "session"},
+  "ladderMythicStandings": {"group": "Ladder", "access": "session"},
   "leagueState": {"group": "League", "access": "session"},
   "leagueStart": {"group": "League", "access": "session"},
   "leagueSets": {"group": "League", "access": "session"},

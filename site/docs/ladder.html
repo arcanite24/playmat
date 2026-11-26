@@ -57,22 +57,21 @@
 
         <h2>What a bot is</h2>
         <ul>
-          <li>A school deck from <code>career/campaigns/decks/&lt;format&gt;/</code>.</li>
+          <li>A deck from either <code>career/campaigns/decks/&lt;format&gt;/</code> or the dedicated ranked pool in
+            <code>ladder/decks/&lt;format&gt;/</code> (100% Rust-verified and format-legal).</li>
           <li>One of the AI strengths the Rust engine plays: quick answers (skill 1), a fifth of the search (3), half (5)
-            or the full search (7). Weak decks are never paired with the full search; the strongest never play
-            without one.</li>
+            or the full search (7). Higher-rank Generation 2 bots add declarative AI Playbooks
+            (<code>ladder/playbooks.json</code> / <code>playmat-ai/src/playbooks.json</code>) for archetype profiles,
+            mana hold-up discipline, modal/discard/combat hints, wider search budgets, and Bo3 sideboard plans.</li>
           <li>A persona: a name, avatar, sleeves, playmat, frame and title from the cosmetics catalog. Stronger bots wear
             rarer cosmetics.</li>
         </ul>
-        <p>Standard and Pioneer have about 65 bots each. Each format is its own rating scale, with its starter deck at
-          skill 1 fixed at 1000.</p>
-        <p>Modern has 28 bots, in the Open and Bo3 queues only (it has no League). The Rust engine doesn't play every
-          card of the Modern school decks yet, so Modern bots play copies of the 11 decks that miss at most three cards
-          (<code>modern/ladder-*.dck</code>), with those cards swapped for the closest ones it plays. Career Story keeps
-          the decks as they are. Pauper misses too many cards for a ladder for now.</p>
-        <p>Each bot keeps the search settings it was rated with, so a stronger AI in a later release doesn't change
-          how the existing bots play or what they're rated. A stronger AI comes in as a new generation of bots,
-          rated against the old ones, beside them. Old bots can be retired: they're no longer met, but past games
+        <p>Standard fields 40 unique Open decks (98 bots), Pioneer 42 unique Open decks (102 bots), and Modern 30 unique
+          Open decks (58 bots, Open and Bo3 queues only). Each format is its own rating scale, with its starter deck at
+          skill 1 fixed at 1000. Pauper misses too many cards for a ladder for now.</p>
+        <p>Each bot keeps the search settings and playbook it was rated with, so a stronger AI in a later release doesn't
+          change how existing bots play or what they're rated. A stronger AI comes in as a new generation of bots, rated
+          against the old ones with <code>--fixed</code>. Old bots can be retired: they're no longer met, but past games
           still show who they were. Updating a server needs nothing for this.</p>
 
         <h2>Where they live</h2>
@@ -91,13 +90,18 @@
           <li>Each format has its own ladder: Bronze, Silver, Gold, Platinum and Diamond, with four tiers of four pips
             each, then Mythic. A win is a pip. Up to Gold, a third win in a row is two. Losses cost nothing in Bronze.
             From Silver up they cost a pip, but never drop you below the tier (Silver) or the rank (Gold and up).</li>
-          <li>Opponents are picked from the bots near the player's hidden rating. A pick holds until it is played, so it
-            can't be skipped.</li>
+          <li>Opponents are picked from distinct decks near the player's hidden rating. The pick is persisted in
+            <code>db/ladder.db</code> until played so it can't be dodged, and its exact deck stays hidden until the
+            match starts (an Expected Field forecast is shown instead). After every match -- especially a loss -- the
+            matchmaker rotates to a different deck and puts lost decks on cooldown so players never get stuck on one
+            adversary.</li>
           <li>Ranked games are best of one, with no hints, take-backs, practice tools, saves or what-ifs. Conceding or
-            leaving is a loss. A game the server loses in a restart doesn't count.</li>
-          <li>The Bo3 switch on the Ranked screen opens a second queue: best of three against the same bots, with the
-            sideboard coming in between games. It has its own rank and hidden rating. Its ranks unlock the same rewards
-            as best of one, once for both. Leaving between games is a loss like any other.</li>
+            leaving is a loss. A game the server loses in a restart doesn't count. Finished matches unlock post-game
+            inspection of the opponent's 60+15 decklist.</li>
+          <li>The Bo3 switch on the Ranked screen opens a second queue: best of three against the same bots, with
+            sideboarding between games for both the player and Playbook-equipped AI bots (using only cards publicly
+            revealed in earlier games). It has its own rank and hidden rating. Its ranks unlock the same rewards as best
+            of one, once for both. Leaving between games is a loss like any other.</li>
           <li>The Limited rank moves with Career's sealed and draft runs (<b>Career &rsaquo; Sealed &amp; draft</b>),
             not with a queue. When a run ends, it moves by the run's wins less its losses, in pips, with no streak
             bonus. A bad run costs one pip at most, with the same floors as above. Leaving a run after its first game

@@ -480,6 +480,13 @@
                                 <class>mage.server.websocket.api.LadderApi$LadderOpponent</class>
                                 <class>mage.server.websocket.api.LadderApi$LadderMatch</class>
                                 <class>mage.server.websocket.api.LadderApi$LadderResult</class>
+                                <class>mage.server.websocket.api.LadderApi$LadderFieldEntry</class>
+                                <class>mage.server.websocket.api.LadderApi$LadderDeckStat</class>
+                                <class>mage.server.websocket.api.LadderApi$LadderArchetypeStat</class>
+                                <class>mage.server.websocket.api.LadderApi$LadderContract</class>
+                                <class>mage.server.websocket.api.LadderApi$LadderDeckCard</class>
+                                <class>mage.server.websocket.api.LadderApi$LadderOpponentDeck</class>
+                                <class>mage.server.websocket.api.LadderApi$LadderMythicRow</class>
                                 <class>mage.server.career.CareerLeague$LeagueState</class>
                                 <class>mage.server.career.CareerLeague$LeagueFormat</class>
                                 <class>mage.server.career.CareerLeague$LeagueStarter</class>

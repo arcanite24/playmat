@@ -88,6 +88,7 @@ pub fn with(mut c: Config, settings: &str) -> Result<Config, String> {
             "consider" => c.consider = n()? as usize,
             "cpuct" => c.cpuct = n()? as u32,
             "iters" => c.iters = n()? as u32,
+            "playbook" => c.playbook = (v != "-").then(|| v.to_string()),
             "leaf_blend" => c.leaf_blend = n()?.min(1000) as u32,
             "gumbel_root" => c.gumbel_root = b()?,
             "temp_turn" => c.temp_turn = n()? as u32,
@@ -111,7 +112,8 @@ pub fn with(mut c: Config, settings: &str) -> Result<Config, String> {
 }
 
 /// The settings `label` names only where they differ from their defaults, in its order
-pub const LATER: [&str; 13] = [
+pub const LATER: [&str; 14] = [
+    "playbook",
     "leaf_blend",
     "gumbel_root",
     "temp_turn",
@@ -153,6 +155,9 @@ pub fn label(c: &Config) -> String {
         c.cpuct,
         c.iters,
     );
+    if let Some(pb) = c.playbook.as_deref() {
+        s.push_str(&format!("+playbook={pb}"));
+    }
     let later: [(u64, u64); 13] = [
         (c.leaf_blend as u64, 0),
         (c.gumbel_root as u64, 0),
@@ -168,7 +173,7 @@ pub fn label(c: &Config) -> String {
         (c.vloss as u64, 1),
         (c.rm_root as u64, 0),
     ];
-    for (k, (v, default)) in LATER.iter().zip(later) {
+    for (k, (v, default)) in LATER[1..].iter().zip(later) {
         if v != default {
             s.push_str(&format!("+{k}={v}"));
         }

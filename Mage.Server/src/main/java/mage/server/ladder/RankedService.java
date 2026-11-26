@@ -64,11 +64,12 @@ public final class RankedService {
     private final LadderStore store;
     private final BotRoster roster;
     private final LadderRatings ratings;
+    private final RankedMatchmaker matchmaker;
     /** tables being played, by table id */
     private final Map<UUID, RankedTable> tables = new ConcurrentHashMap<>();
     /** the ranked tables whose game the Rust host plays */
     private final Set<UUID> onRust = ConcurrentHashMap.newKeySet();
-    /** the bot picked for a player's next game, by user|format|queue, until it is played */
+    /** cached opponent pick for a player's next game, by user|format|queue (persisted in ladder_picks) */
     private final Map<String, String> picks = new ConcurrentHashMap<>();
     /** each finished table's result, for the client to show */
     private final Map<UUID, Result> results = Collections.synchronizedMap(new LinkedHashMap<UUID, Result>() {
@@ -82,6 +83,7 @@ public final class RankedService {
         this.store = store;
         this.roster = roster;
         this.ratings = new LadderRatings(store, roster);
+        this.matchmaker = new RankedMatchmaker(this.ratings, roster);
     }
 
     public static RankedService get() {
@@ -146,10 +148,21 @@ public final class RankedService {
 
     /** the search settings the ranked table's bot is pinned to (#435), for the Rust host; null at other tables */
     public static String pinOf(UUID tableId) {
+        BotRoster.Bot bot = botOf(tableId);
+        return bot == null ? null : bot.ai;
+    }
+
+    /** the AI playbook id of the ranked table's bot, for the Rust host and Bo3 sideboarder; null when none */
+    public static String playbookOf(UUID tableId) {
+        BotRoster.Bot bot = botOf(tableId);
+        return bot == null ? null : bot.playbook;
+    }
+
+    /** the bot playing at a live ranked table, or null */
+    public static BotRoster.Bot botOf(UUID tableId) {
         RankedService current = instance;
         RankedTable table = current == null ? null : current.tables.get(tableId);
-        BotRoster.Bot bot = table == null ? null : current.roster.bot(table.botId);
-        return bot == null ? null : bot.ai;
+        return table == null ? null : current.roster.bot(table.botId);
     }
 
     public static boolean isRanked(UUID tableId) {
@@ -261,41 +274,41 @@ public final class RankedService {
     }
 
     /**
-     * The bot the player's next game in `format` is against: the one already picked, or one drawn now from the bots
-     * near the player's rating, avoiding the last few met when it can.
+     * The bot the player's next game in `format` is against: the one already picked (persisted in SQLite so it
+     * survives restarts and can't be dodged), or one drawn now by {@link RankedMatchmaker} with deck deduplication
+     * and guaranteed post-loss rotation.
      */
     public BotRoster.Bot pick(String user, String format, String queue, long now) throws SQLException {
-        String pickKey = key(user) + "|" + format + "|" + queue;
+        String userKey = key(user);
+        String pickKey = userKey + "|" + format + "|" + queue;
         String picked = picks.get(pickKey);
-        if (picked != null && roster.bot(picked) != null) {
-            return roster.bot(picked);
-        }
-        Glicko2.Rating rating = ratings.player(user, format, queue, now);
-        List<LadderRatings.Candidate> candidates = ratings.candidates(format, queue, rating.rating);
-        if (candidates.isEmpty()) {
-            throw new IllegalStateException("There are no ladder bots for " + format);
-        }
-        Set<String> recent = new HashSet<>();
-        for (LadderStore.GameRow game : store.games(key(user), format, queue, AVOID_RECENT)) {
-            recent.add(game.bot);
-        }
-        List<LadderRatings.Candidate> fresh = new ArrayList<>();
-        for (LadderRatings.Candidate c : candidates) {
-            if (!recent.contains(c.bot.id)) {
-                fresh.add(c);
+        if (picked == null) {
+            picked = store.pick(userKey, format, queue);
+            if (picked != null) {
+                picks.put(pickKey, picked);
             }
         }
-        List<LadderRatings.Candidate> from = fresh.isEmpty() ? candidates : fresh;
-        // RandomUtil, so a test can seed the draw
-        BotRoster.Bot bot = from.get(mage.util.RandomUtil.nextInt(from.size())).bot;
+        if (picked != null) {
+            BotRoster.Bot kept = roster.bot(picked);
+            if (kept != null && kept.plays(queue) && format.equals(kept.format)) {
+                return kept;
+            }
+            picks.remove(pickKey);
+            store.clearPick(userKey, format, queue);
+        }
+        Glicko2.Rating rating = ratings.player(user, format, queue, now);
+        List<LadderStore.GameRow> recent = store.finishedGames(userKey, format, queue, RankedMatchmaker.HISTORY_LIMIT);
+        BotRoster.Bot bot = matchmaker.pick(format, queue, rating.rating, recent);
         picks.put(pickKey, bot.id);
+        store.putPick(userKey, format, queue, bot.id, now);
         return bot;
     }
 
     /** the table is about to be played: called before anyone sits, so the game starts as ranked */
     public void register(UUID tableId, String user, String format, String queue, BotRoster.Bot bot, String deckName, long now) throws SQLException {
         int season = season(now);
-        RankedTable table = new RankedTable(tableId, key(user), format, queue, bot.id, season);
+        String userKey = key(user);
+        RankedTable table = new RankedTable(tableId, userKey, format, queue, bot.id, season);
         LadderStore.GameRow row = new LadderStore.GameRow();
         row.id = tableId.toString();
         row.user = table.user;
@@ -303,11 +316,14 @@ public final class RankedService {
         row.queue = queue;
         row.season = season;
         row.bot = bot.id;
+        row.botDeck = bot.deck;
+        row.botArchetype = bot.effectiveArchetype();
         row.deck = deckName;
         row.started = now;
         store.startGame(row);
         tables.put(tableId, table);
-        picks.remove(key(user) + "|" + format + "|" + queue);
+        picks.remove(userKey + "|" + format + "|" + queue);
+        store.clearPick(userKey, format, queue);
     }
 
     /** the table never got going (a seat refused, the start failed): nothing counts; the pick stays */
@@ -319,6 +335,7 @@ public final class RankedService {
         }
         picks.put(table.user + "|" + table.format + "|" + table.queue, table.botId);
         try {
+            store.putPick(table.user, table.format, table.queue, table.botId, now);
             store.endGame(tableId.toString(), "void", now, null, null, null, null, null);
         } catch (SQLException e) {
             logger.warn("Ranked: an unstarted game couldn't be voided", e);
@@ -360,11 +377,15 @@ public final class RankedService {
         public double ratingAfter;
     }
 
+    public synchronized Result matchEnded(UUID tableId, double score, long now) throws SQLException {
+        return matchEnded(tableId, score, now, null, null);
+    }
+
     /**
      * The match at a ranked table ended: `score` is the player's (1 won, 0.5 drew, 0 lost). Moves the rating and the
      * rank, pays first reaches, and keeps the result for the client. Once per table.
      */
-    public synchronized Result matchEnded(UUID tableId, double score, long now) throws SQLException {
+    public synchronized Result matchEnded(UUID tableId, double score, long now, Integer turns, String gameScore) throws SQLException {
         RankedTable table = tables.remove(tableId);
         if (table == null) {
             return null;
@@ -414,7 +435,7 @@ public final class RankedService {
         }
         standing.updated = now;
         store.putStanding(standing);
-        store.endGame(result.tableId, result.status, now, result.stepBefore, result.stepAfter, result.ratingBefore, result.ratingAfter, engine);
+        store.endGame(result.tableId, result.status, now, result.stepBefore, result.stepAfter, result.ratingBefore, result.ratingAfter, engine, turns, gameScore);
         if (LEAGUE.equals(table.queue)) {
             payLeague(table, result, first, peakBefore, standing, score >= 1, now);
         } else {

@@ -21,6 +21,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
+import static mage.server.websocket.rpc.RpcParam.Type.BOOLEAN;
 import static mage.server.websocket.rpc.RpcParam.Type.STRING;
 import static mage.server.websocket.rpc.RpcParam.object;
 import static mage.server.websocket.rpc.RpcParam.of;
@@ -49,10 +50,20 @@ public final class LadderApi {
         public String frame;
         public String title;
         public String deckName;
-        /** WUBRG letters from the deck's basic lands */
+        /** WUBRG letters from the deck's spells and lands */
         public String colors;
         /** how hard it searches: quick, light, half or full */
         public String search;
+        /** macro archetype: aggro, burn, tempo, midrange, control, ramp, combo, graveyard, sacrifice, tribal */
+        public String archetype;
+        /** power tier: starter, budget, rogue, tier2, meta */
+        public String tier;
+        public String tagline;
+        public List<String> keyCards;
+        /** true on pre-match preview when exact decklist is kept hidden until the game starts */
+        public boolean deckHidden;
+        public Integer vsWon;
+        public Integer vsLost;
     }
 
     /** A ranked game, as listed */
@@ -62,10 +73,80 @@ public final class LadderApi {
         public String status;
         public LadderOpponent opponent;
         public String deck;
+        public String botArchetype;
         public Integer stepBefore;
         public Integer stepAfter;
+        public Integer delta;
+        public Integer turns;
+        public String gameScore;
+        public boolean inspectable;
         public long started;
         public Long ended;
+    }
+
+    /** One archetype slice in the player's current rating band */
+    public static class LadderFieldEntry {
+        public String archetype;
+        public int decks;
+        public List<String> sampleDecks = new ArrayList<>();
+        public int won;
+        public int lost;
+    }
+
+    /** Player's seasonal performance with one of their own decks */
+    public static class LadderDeckStat {
+        public String deck;
+        public int won;
+        public int lost;
+        public int drew;
+    }
+
+    /** Player's seasonal matchup record against one opponent archetype */
+    public static class LadderArchetypeStat {
+        public String archetype;
+        public int won;
+        public int lost;
+        public int drew;
+    }
+
+    /** A seasonal ranked milestone contract */
+    public static class LadderContract {
+        public String id;
+        public int progress;
+        public int target;
+        public boolean done;
+    }
+
+    /** One card line of an inspected post-match opponent decklist */
+    public static class LadderDeckCard {
+        public int amount;
+        public String name;
+    }
+
+    /** Opponent's full decklist, inspectable only after a ranked match finishes */
+    public static class LadderOpponentDeck {
+        public String gameId;
+        public String botId;
+        public String opponentName;
+        public String deckName;
+        public String archetype;
+        public String colors;
+        public String tagline;
+        public List<LadderDeckCard> main = new ArrayList<>();
+        public List<LadderDeckCard> sideboard = new ArrayList<>();
+    }
+
+    /** One row on the Living Mythic Standings leaderboard (humans and/or top calibrated bots) */
+    public static class LadderMythicRow {
+        public int rank;
+        public String name;
+        public int rating;
+        public boolean bot;
+        public String deckName;
+        public String archetype;
+        public String colors;
+        public int games;
+        public boolean you;
     }
 
     /** A player's standing in one format's Open queue */
@@ -106,6 +187,24 @@ public final class LadderApi {
         public LadderPastSeason lastSeason;
         /** every earlier season played here, newest first: the badge's season stamps */
         public List<LadderPastSeason> seasons;
+        /** true when one win reaches the next rank */
+        public boolean promotionNext;
+        /** the next rank name when promotionNext is true */
+        public String promotionTarget;
+        /** the lowest label a single loss can't drop the player below */
+        public String floorLabel;
+        /** next unpaid rank reward target (silver .. mythic), or null at Mythic */
+        public String nextRewardRank;
+        /** whether reaching nextRewardRank also pays a capsule token */
+        public boolean nextRewardToken;
+        /** active archetypes in the player's current rating band */
+        public List<LadderFieldEntry> fieldMeta;
+        /** player's seasonal W-L-D per deck piloted */
+        public List<LadderDeckStat> deckStats;
+        /** player's seasonal W-L-D vs opponent archetypes */
+        public List<LadderArchetypeStat> archetypeStats;
+        /** seasonal ranked milestone contracts */
+        public List<LadderContract> contracts;
     }
 
     /** A season the player played in a format and queue: how it ended, and (the last one) what its end paid */
@@ -177,12 +276,14 @@ public final class LadderApi {
                         .params(of("format", STRING), optional("queue", STRING))
                         .returns("LadderOpponent")
                         .doc("Who your next ranked game in the format is against: a bot near your hidden rating. The pick holds "
-                                + "until it's played, so it can't be skipped. Queue: open (the default), bo3 or league.")
+                                + "until it's played, so it can't be skipped, and hides exact deck details until the match starts. "
+                                + "Queue: open (the default), bo3 or league.")
                         .handler(call -> {
                             String user = CareerApi.career(ctx, call);
                             String format = queued(call.string(0));
                             String queue = queue(call.optString(1, RankedService.OPEN));
-                            return ladder(() -> opponent(RankedService.get().pick(user, format, queue, System.currentTimeMillis())));
+                            return ladder(() -> blindOpponent(user, format, queue,
+                                    RankedService.get().pick(user, format, queue, System.currentTimeMillis())));
                         }),
 
                 RpcMethod.named("ladderPlay")
@@ -217,6 +318,30 @@ public final class LadderApi {
                                 return null;
                             }
                             return ladder(() -> resultView(user, result, System.currentTimeMillis()));
+                        }),
+
+                RpcMethod.named("ladderGameDeck")
+                        .params(of("gameId", STRING))
+                        .returns("LadderOpponentDeck")
+                        .doc("Inspect the opponent's full 60+15 decklist for one of your finished ranked games. Returns null "
+                                + "while the game is still being played or for another player's game.")
+                        .handler(call -> {
+                            String user = CareerApi.career(ctx, call);
+                            String gameId = call.string(0);
+                            return ladder(() -> gameDeck(user, gameId));
+                        }),
+
+                RpcMethod.named("ladderMythicStandings")
+                        .params(of("format", STRING), optional("queue", STRING), optional("includeBots", BOOLEAN))
+                        .returns("LadderMythicRow[]")
+                        .doc("Living Mythic Standings for a format and queue: ranks Mythic human players alongside the top "
+                                + "calibrated ladder bots by live Glicko-2 rating (set includeBots=false for humans only).")
+                        .handler(call -> {
+                            String user = CareerApi.career(ctx, call);
+                            String format = queued(call.string(0));
+                            String queue = queue(call.optString(1, RankedService.OPEN));
+                            boolean includeBots = call.optBool(2, true);
+                            return ladder(() -> mythicStandings(user, format, queue, includeBots, System.currentTimeMillis()));
                         })
         );
     }
@@ -320,22 +445,193 @@ public final class LadderApi {
             view.mythicRating = (int) Math.round(ranked.ratings().player(user, format, queue, now).rating);
         }
         view.playing = ranked.playing(user);
+        // Rank floor, promotion stakes, and next rank reward preview
+        int rankIdx = LadderRank.rank(step);
+        if (step < LadderRank.MYTHIC_STEP) {
+            int nextRankStart = (rankIdx + 1) * LadderRank.RANK_STEPS;
+            view.promotionNext = step + 1 >= nextRankStart;
+            view.promotionTarget = LadderRank.RANKS[rankIdx + 1];
+            view.nextRewardRank = LadderRank.RANKS[rankIdx + 1];
+            view.nextRewardToken = "gold".equals(view.nextRewardRank)
+                    || "diamond".equals(view.nextRewardRank)
+                    || "mythic".equals(view.nextRewardRank);
+        }
+        if (step >= LadderRank.MYTHIC_STEP) {
+            view.floorLabel = "Mythic";
+        } else if (rankIdx == 0) {
+            view.floorLabel = LadderRank.label(step);
+        } else if (rankIdx == 1) {
+            view.floorLabel = LadderRank.label(step - LadderRank.pips(step));
+        } else {
+            view.floorLabel = LadderRank.label(rankIdx * LadderRank.RANK_STEPS);
+        }
+
+        // Seasonal analytics: deck W-L, archetype matchups, contracts, and field meta forecast
+        List<LadderStore.GameRow> seasonGames = ranked.store().seasonGames(key, format, queue, season);
+        java.util.Map<String, LadderDeckStat> decksMap = new java.util.LinkedHashMap<>();
+        java.util.Map<String, LadderArchetypeStat> archMap = new java.util.LinkedHashMap<>();
+        java.util.Set<String> wonDecks = new java.util.HashSet<>();
+        java.util.Set<String> defeatedArchetypes = new java.util.HashSet<>();
+        java.util.Set<String> lostArchetypes = new java.util.HashSet<>();
+        boolean avengedRival = false;
+        boolean bo3Comeback = false;
+        int bestStreak = 0;
+        int curStreak = 0;
+        // Iterate oldest-to-newest for streak and rival-avenged tracking
+        for (int i = seasonGames.size() - 1; i >= 0; i--) {
+            LadderStore.GameRow g = seasonGames.get(i);
+            BotRoster.Bot met = ranked.roster().bot(g.bot);
+            String arch = g.botArchetype != null && !g.botArchetype.isEmpty()
+                    ? g.botArchetype
+                    : (met != null ? met.effectiveArchetype() : "midrange");
+            String deckLabel = g.deck != null && !g.deck.isEmpty() ? g.deck : "Deck";
+
+            LadderDeckStat ds = decksMap.computeIfAbsent(deckLabel, d -> {
+                LadderDeckStat s = new LadderDeckStat();
+                s.deck = d;
+                return s;
+            });
+            LadderArchetypeStat as = archMap.computeIfAbsent(arch, a -> {
+                LadderArchetypeStat s = new LadderArchetypeStat();
+                s.archetype = a;
+                return s;
+            });
+            if ("won".equals(g.status)) {
+                ds.won++;
+                as.won++;
+                wonDecks.add(deckLabel);
+                defeatedArchetypes.add(arch);
+                if (lostArchetypes.contains(arch)) {
+                    avengedRival = true;
+                }
+                if ("2-1".equals(g.gameScore)) {
+                    bo3Comeback = true;
+                }
+                curStreak++;
+                if (curStreak > bestStreak) {
+                    bestStreak = curStreak;
+                }
+            } else if ("lost".equals(g.status)) {
+                ds.lost++;
+                as.lost++;
+                lostArchetypes.add(arch);
+                curStreak = 0;
+            } else {
+                ds.drew++;
+                as.drew++;
+                curStreak = 0;
+            }
+        }
+        view.deckStats = new ArrayList<>(decksMap.values());
+        view.deckStats.sort((a, b) -> Integer.compare((b.won + b.lost + b.drew), (a.won + a.lost + a.drew)));
+        view.archetypeStats = new ArrayList<>(archMap.values());
+        view.archetypeStats.sort((a, b) -> Integer.compare((b.won + b.lost + b.drew), (a.won + a.lost + a.drew)));
+        view.contracts = buildContracts(wonDecks.size(), defeatedArchetypes.size(), bestStreak, avengedRival, bo3Comeback, queue);
+
+        view.fieldMeta = new ArrayList<>();
+        if (!RankedService.LIMITED.equals(format)) {
+            double rating = ranked.ratings().player(user, format, queue, now).rating;
+            List<mage.server.ladder.LadderRatings.Candidate> near = ranked.ratings().candidatesByDeck(format, queue, rating, 0, 14);
+            java.util.Map<String, LadderFieldEntry> fieldMap = new java.util.LinkedHashMap<>();
+            for (mage.server.ladder.LadderRatings.Candidate c : near) {
+                String arch = c.bot.effectiveArchetype();
+                LadderFieldEntry fe = fieldMap.computeIfAbsent(arch, a -> {
+                    LadderFieldEntry e = new LadderFieldEntry();
+                    e.archetype = a;
+                    LadderArchetypeStat st = archMap.get(a);
+                    if (st != null) {
+                        e.won = st.won;
+                        e.lost = st.lost;
+                    }
+                    return e;
+                });
+                fe.decks++;
+                if (fe.sampleDecks.size() < 3 && c.bot.deckName != null && !fe.sampleDecks.contains(c.bot.deckName)) {
+                    fe.sampleDecks.add(c.bot.deckName);
+                }
+            }
+            view.fieldMeta.addAll(fieldMap.values());
+            view.fieldMeta.sort((a, b) -> Integer.compare(b.decks, a.decks));
+            if (view.fieldMeta.size() > 6) {
+                view.fieldMeta = new ArrayList<>(view.fieldMeta.subList(0, 6));
+            }
+        }
+
         view.recent = new ArrayList<>();
-        for (LadderStore.GameRow row : ranked.store().games(user.toLowerCase(java.util.Locale.ENGLISH), format, queue, RECENT)) {
+        for (LadderStore.GameRow row : ranked.store().games(key, format, queue, RECENT)) {
             if ("void".equals(row.status)) {
                 continue;
             }
             LadderGame game = new LadderGame();
             game.id = row.id;
             game.status = row.status;
-            game.opponent = opponent(ranked.roster().bot(row.bot));
+            BotRoster.Bot met = ranked.roster().bot(row.bot);
+            game.opponent = opponent(met);
             game.deck = row.deck;
+            game.botArchetype = row.botArchetype != null ? row.botArchetype : (met != null ? met.effectiveArchetype() : null);
             game.stepBefore = row.stepBefore;
             game.stepAfter = row.stepAfter;
+            if (row.stepBefore != null && row.stepAfter != null) {
+                game.delta = row.stepAfter - row.stepBefore;
+            }
+            game.turns = row.turns;
+            game.gameScore = row.gameScore;
+            game.inspectable = met != null && !"playing".equals(row.status);
             game.started = row.started;
             game.ended = row.ended;
             view.recent.add(game);
         }
+        return view;
+    }
+
+    private static List<LadderContract> buildContracts(int wonDecks, int defeatedArch, int bestStreak,
+                                                       boolean avengedRival, boolean bo3Comeback, String queue) {
+        List<LadderContract> list = new ArrayList<>();
+        list.add(contract("versatile", wonDecks, 3));
+        list.add(contract("field-tested", defeatedArch, 5));
+        list.add(contract("streak-master", bestStreak, 5));
+        list.add(contract("rival-avenged", avengedRival ? 1 : 0, 1));
+        if (RankedService.BO3.equals(queue)) {
+            list.add(contract("bo3-comeback", bo3Comeback ? 1 : 0, 1));
+        }
+        return list;
+    }
+
+    private static LadderContract contract(String id, int progress, int target) {
+        LadderContract c = new LadderContract();
+        c.id = id;
+        c.progress = Math.min(progress, target);
+        c.target = target;
+        c.done = progress >= target;
+        return c;
+    }
+
+    static LadderOpponent blindOpponent(String user, String format, String queue, BotRoster.Bot bot) throws SQLException {
+        LadderOpponent view = opponent(bot);
+        if (view == null) {
+            return null;
+        }
+        // Compute head-to-head against this bot's deck
+        int won = 0;
+        int lost = 0;
+        String key = user.toLowerCase(java.util.Locale.ENGLISH);
+        for (LadderStore.GameRow g : RankedService.get().store().finishedGames(key, format, queue, 100)) {
+            boolean same = bot.id.equals(g.bot) || (bot.deck != null && bot.deck.equals(g.botDeck));
+            if (same) {
+                if ("won".equals(g.status)) {
+                    won++;
+                } else if ("lost".equals(g.status)) {
+                    lost++;
+                }
+            }
+        }
+        view.vsWon = won;
+        view.vsLost = lost;
+        // True Ladder: hide exact decklist and colors before the match starts so players cannot counter-queue
+        view.deckHidden = true;
+        view.deckName = null;
+        view.colors = null;
+        view.keyCards = null;
         return view;
     }
 
@@ -356,7 +652,111 @@ public final class LadderApi {
         view.deckName = bot.deckName;
         view.colors = bot.colors;
         view.search = bot.search;
+        view.archetype = bot.effectiveArchetype();
+        view.tier = bot.effectiveTier();
+        view.tagline = bot.tagline;
+        view.keyCards = bot.keyCards;
         return view;
+    }
+
+    private static LadderOpponentDeck gameDeck(String user, String gameId) throws SQLException {
+        RankedService ranked = RankedService.get();
+        LadderStore.GameRow row = ranked.store().game(gameId);
+        if (row == null || !row.user.equalsIgnoreCase(user) || "playing".equals(row.status) || "void".equals(row.status)) {
+            return null;
+        }
+        BotRoster.Bot bot = ranked.roster().bot(row.bot);
+        if (bot == null) {
+            return null;
+        }
+        DeckCardLists lists;
+        try {
+            lists = ranked.roster().deck(bot);
+        } catch (java.io.IOException e) {
+            logger.warn("Ranked: couldn't read bot deck " + bot.deck + ": " + e.getMessage());
+            return null;
+        }
+        LadderOpponentDeck view = new LadderOpponentDeck();
+        view.gameId = gameId;
+        view.botId = bot.id;
+        view.opponentName = bot.persona == null ? bot.deckName : bot.persona.name;
+        view.deckName = bot.deckName;
+        view.archetype = bot.effectiveArchetype();
+        view.colors = bot.colors;
+        view.tagline = bot.tagline;
+        view.main = summarizeCards(lists.getCards());
+        view.sideboard = summarizeCards(lists.getSideboard());
+        return view;
+    }
+
+    private static List<LadderDeckCard> summarizeCards(List<mage.cards.decks.DeckCardInfo> cards) {
+        java.util.Map<String, Integer> counts = new java.util.LinkedHashMap<>();
+        if (cards != null) {
+            for (mage.cards.decks.DeckCardInfo c : cards) {
+                counts.merge(c.getCardName(), 1, Integer::sum);
+            }
+        }
+        List<LadderDeckCard> out = new ArrayList<>();
+        for (java.util.Map.Entry<String, Integer> e : counts.entrySet()) {
+            LadderDeckCard line = new LadderDeckCard();
+            line.name = e.getKey();
+            line.amount = e.getValue();
+            out.add(line);
+        }
+        out.sort((a, b) -> Integer.compare(b.amount, a.amount) != 0
+                ? Integer.compare(b.amount, a.amount)
+                : a.name.compareTo(b.name));
+        return out;
+    }
+
+    private static List<LadderMythicRow> mythicStandings(String user, String format, String queue, boolean includeBots, long now) throws SQLException {
+        RankedService ranked = RankedService.get();
+        int season = ranked.season(now);
+        String userKey = user.toLowerCase(java.util.Locale.ENGLISH);
+        List<LadderMythicRow> rows = new ArrayList<>();
+        // Human Mythic players in the current season
+        for (LadderStore.BoardRow br : ranked.store().mythicBoard(format, queue, season)) {
+            LadderMythicRow r = new LadderMythicRow();
+            r.name = br.user;
+            r.rating = (int) br.value;
+            r.bot = false;
+            r.games = br.games;
+            r.you = br.user.equalsIgnoreCase(userKey);
+            rows.add(r);
+        }
+        // Top calibrated bots (deduplicated by deck, highest-rated copy per deck)
+        if (includeBots) {
+            java.util.Map<String, LadderMythicRow> bestByDeck = new java.util.LinkedHashMap<>();
+            for (BotRoster.Bot bot : ranked.roster().bots(format, queue)) {
+                double rating = ranked.ratings().bot(bot, queue).rating;
+                String deckKey = bot.deck != null ? bot.deck : bot.id;
+                LadderMythicRow prev = bestByDeck.get(deckKey);
+                if (prev == null || rating > prev.rating) {
+                    LadderMythicRow r = new LadderMythicRow();
+                    r.name = bot.persona == null ? bot.deckName : bot.persona.name;
+                    r.rating = (int) Math.round(rating);
+                    r.bot = true;
+                    r.deckName = bot.deckName;
+                    r.archetype = bot.effectiveArchetype();
+                    r.colors = bot.colors;
+                    r.games = bot.games == null ? 0 : bot.games;
+                    bestByDeck.put(deckKey, r);
+                }
+            }
+            List<LadderMythicRow> botRows = new ArrayList<>(bestByDeck.values());
+            botRows.sort((a, b) -> Integer.compare(b.rating, a.rating));
+            if (botRows.size() > 25) {
+                botRows = botRows.subList(0, 25);
+            }
+            rows.addAll(botRows);
+        }
+        rows.sort((a, b) -> Integer.compare(b.rating, a.rating) != 0
+                ? Integer.compare(b.rating, a.rating)
+                : Boolean.compare(a.bot, b.bot));
+        for (int i = 0; i < rows.size(); i++) {
+            rows.get(i).rank = i + 1;
+        }
+        return rows;
     }
 
     private static LadderResult resultView(String user, RankedService.Result result, long now) throws SQLException {

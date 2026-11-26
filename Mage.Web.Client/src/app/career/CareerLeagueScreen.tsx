@@ -14,6 +14,7 @@ import { Pips } from './Portraits';
 import { leagueFormat, startReady, toggleStarter } from './leagueModel';
 import { openLeaguePack, playLeague, startLeague, useLeagueDecks, useLeagueSets, useLeagueState } from './leagueData';
 import { useRankedOpponent, useRankedState } from './rankedData';
+import { titleWords } from './rankedModel';
 import { SeasonBoards } from './SeasonBoards';
 import { Versus } from './Versus';
 import modes from './CareerModes.module.css';
@@ -215,7 +216,11 @@ function Queue({ format, state }: { format: string; state: LadderState }) {
       {versus && them && deck && (
         <Versus
           kicker={`${t('league.title')} · ${state.label ?? ''}`}
-          opponent={{ name: them.name ?? '', colors: them.colors, tagline: them.deckName }}
+          opponent={{
+            name: them.name ?? '',
+            avatar: them.avatar,
+            tagline: them.title ? titleWords(them.title) : undefined,
+          }}
           deck={{ name: deck.name ?? '' }}
           stakes={[t('career.ranked.stakeWin'), t('league.stakeTier')]}
           onFight={async () => {
