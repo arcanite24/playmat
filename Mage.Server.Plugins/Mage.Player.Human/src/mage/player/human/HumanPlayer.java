@@ -2884,6 +2884,20 @@ public class HumanPlayer extends PlayerImpl {
         }
     }
 
+    /**
+     * "Pass to end of turn" (PASS_PRIORITY_UNTIL_TURN_END_STEP) is for the turn it was pressed in. Pressed in an end
+     * step (or cleanup), the next end step it waited for was the next turn's: it skipped every stop of that turn, and
+     * when that turn was the player's own, their whole turn went by, first main phase and all.
+     */
+    @Override
+    public void endOfTurn(Game game) {
+        super.endOfTurn(game);
+        if (passedUntilEndOfTurn) {
+            passedUntilEndOfTurn = false;
+            skippedAtLeastOnce = false;
+        }
+    }
+
     @Override
     public void skip() {
         // waitResponseOpen(); //skip is direct event, no need to wait it
