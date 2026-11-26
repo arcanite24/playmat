@@ -65,6 +65,20 @@ function uuid(id: string | null): Command {
   return { type: 'uuid', id };
 }
 
+/** Note added to an optional trigger's target prompt (a target is required here; the "may" comes on resolution) */
+export const OPTIONAL_TRIGGER_NOTE = 'Optional: you can still decline when it resolves.';
+
+/**
+ * An optional ("you may") trigger's target prompt: XMage picks the target as the trigger goes on the stack and asks
+ * "may" only when it resolves, so the prompt says the decline comes later (a supporter took the forced pick for a
+ * forced effect: Qasali Slingers).
+ */
+export function optionalTriggerHeadline(text: string): string {
+  const base = text.trim();
+  if (!base) return OPTIONAL_TRIGGER_NOTE;
+  return `${/[.!?]$/.test(base) ? base : `${base}.`} ${OPTIONAL_TRIGGER_NOTE}`;
+}
+
 function clickMap(ids: Iterable<string>): Map<string, Command> {
   const map = new Map<string, Command>();
   for (const id of ids) map.set(id, uuid(id));
@@ -218,7 +232,7 @@ export function deriveInteraction(view: GameView | null | undefined, prompt: Pro
       return {
         mode: prompt.cards ? 'pickCards' : 'target',
         prompt,
-        headline: prompt.text,
+        headline: prompt.optionalTrigger ? optionalTriggerHeadline(prompt.text) : prompt.text,
         clickable: clickMap(new Set([...prompt.targets, ...selected])),
         selected,
         mainButton,

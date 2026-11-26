@@ -104,10 +104,17 @@ pub fn prompt(game: &Game, seat: Seat, q: &Query) -> Value {
             } else {
                 target_kind(game, players, objs)
             };
+            let mut options = Map::new();
+            options.insert("queryType".into(), json!("PICK_TARGET"));
+            options.insert("possibleTargets".into(), json!(targets.clone()));
+            // an optional ("you may") trigger's targets: its "may" is asked when it resolves (`HumanPlayer`)
+            if game.targeting_optional_trigger {
+                options.insert("optionalTrigger".into(), json!(true));
+            }
             json!({"method": "GAME_TARGET", "data": {
                 "message": format!("Select {kind}{}", about(game)), "flag": required,
                 "cardsView1": cards_view(game, &off), "targets": targets, "min": 0, "max": 0,
-                "options": {"queryType": "PICK_TARGET", "possibleTargets": targets.clone()}}})
+                "options": options}})
         }
         Query::Cards { objs, required } => {
             let text = if game.step == Some(playmat_engine::state::Step::Cleanup) {
@@ -414,5 +421,18 @@ mod tests {
         assert_eq!(prompt(&game, 0, &q)["data"]["message"], "Select target player");
         game.asking_defender = true;
         assert_eq!(prompt(&game, 0, &q)["data"]["message"], "Select player, planeswalker, or battle to attack");
+    }
+
+    /// An optional trigger's target question says so (`HumanPlayer.chooseTarget`'s `optionalTrigger`): the client
+    /// tells the player the "may" comes when it resolves
+    #[test]
+    fn an_optional_triggers_target_question_is_marked() {
+        let db = playmat_engine::cards();
+        let deck = Deck::parse("d", "20 Plains\n20 Llanowar Elves");
+        let mut game = new_duel(&db, [&deck, &deck], 1, 0).unwrap();
+        let q = Query::Target { players: vec![1], objs: Vec::new(), required: true };
+        assert!(prompt(&game, 0, &q)["data"]["options"].get("optionalTrigger").is_none());
+        game.targeting_optional_trigger = true;
+        assert_eq!(prompt(&game, 0, &q)["data"]["options"]["optionalTrigger"], true);
     }
 }
