@@ -31,7 +31,7 @@ pub(crate) async fn list_workers(State(s): State<Shared>, headers: HeaderMap) ->
     for t in tokens {
         let tid: i64 = t.get("id");
         let host_rows = sqlx::query(
-            "SELECT id, name, build, class, strict, threads, os, seen, accepted_units, mismatches, probation_passed \
+            "SELECT id, name, build, class, strict, threads, os, gpu, seen, accepted_units, mismatches, probation_passed \
              FROM hosts WHERE token = ? ORDER BY id ASC",
         )
         .bind(tid)
@@ -47,6 +47,7 @@ pub(crate) async fn list_workers(State(s): State<Shared>, headers: HeaderMap) ->
                 strict: h.get::<i64, _>("strict") != 0,
                 threads: h.get::<i64, _>("threads") as u32,
                 os: h.get("os"),
+                gpu: h.get("gpu"),
                 seen: h.get("seen"),
                 accepted_units: h.get::<i64, _>("accepted_units") as u64,
                 mismatches: h.get::<i64, _>("mismatches") as u64,

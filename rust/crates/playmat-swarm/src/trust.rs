@@ -67,6 +67,11 @@ pub fn should_rerun(
     kind: UnitKind,
     roll_0_99: u32,
 ) -> bool {
+    // GPU-batched units are non-bit-exact across hardware/precision and are verified via deterministic
+    // answer-log Replay plus statistical residual checks rather than CPU bit-exact re-runs.
+    if kind == UnitKind::SelfplayGpu {
+        return false;
+    }
     match trust {
         TrustLevel::Trusted => false,
         TrustLevel::Probation | TrustLevel::Banned => true,

@@ -53,6 +53,7 @@ async fn hello(http: &reqwest::Client, api: &impl Fn(&str) -> String, token: &st
             strict: true,
             threads: 4,
             os: "test".into(),
+            gpu: None,
         })
         .send()
         .await

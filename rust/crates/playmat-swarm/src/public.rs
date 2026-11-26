@@ -70,12 +70,20 @@ pub(crate) async fn public_round(s: &Swarm, id: i64) -> Res<PublicRound> {
 
 pub(crate) async fn status_snapshot(s: &Swarm) -> Res<Status> {
     let since = now() as i64 - 600;
-    let row = sqlx::query("SELECT COUNT(*) AS n, COALESCE(SUM(threads), 0) AS t FROM hosts WHERE seen >= ?")
-        .bind(since)
-        .fetch_one(&s.db)
-        .await?;
-    let mut st =
-        Status { hosts: row.get::<i64, _>("n") as u32, threads: row.get::<i64, _>("t") as u32, ..Default::default() };
+    let row = sqlx::query(
+        "SELECT COUNT(*) AS n, COALESCE(SUM(threads), 0) AS t, \
+         SUM(CASE WHEN gpu IS NOT NULL AND gpu != '' THEN 1 ELSE 0 END) AS g \
+         FROM hosts WHERE seen >= ?",
+    )
+    .bind(since)
+    .fetch_one(&s.db)
+    .await?;
+    let mut st = Status {
+        hosts: row.get::<i64, _>("n") as u32,
+        threads: row.get::<i64, _>("t") as u32,
+        gpu_hosts: row.get::<Option<i64>, _>("g").unwrap_or(0) as u32,
+        ..Default::default()
+    };
     for r in sqlx::query("SELECT os, COUNT(*) AS n FROM hosts WHERE seen >= ? GROUP BY os")
         .bind(since)
         .fetch_all(&s.db)

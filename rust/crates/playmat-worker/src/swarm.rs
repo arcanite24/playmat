@@ -3,7 +3,7 @@
 //! and completes the unit with the manifest. With `--when idle` it plays only while the machine is idle, and drops a
 //! unit (`/fail`, so it goes to another worker) when the machine stops being idle.
 
-use crate::{idle, read_json, run_unit, sha_file, verify_detailed, STRICT};
+use crate::{gpu, idle, read_json, run_unit, run_unit_with_infer, sha_file, verify_detailed, STRICT};
 use playmat_swarm_proto::api::*;
 use playmat_swarm_proto::{self as proto, GameSummary, ResultManifest, UnitKind, VerifyMode};
 use reqwest::blocking::Client;
@@ -53,11 +53,17 @@ fn check(what: &str, res: reqwest::blocking::Response) -> Result<reqwest::blocki
     Err(format!("{what}: {status} {}", res.text().unwrap_or_default().chars().take(300).collect::<String>()))
 }
 
+#[allow(dead_code)]
 pub fn run(o: Opts) -> Result<(), String> {
-    run_with_control(o, None)
+    run_with_options(o, None, None, "python3".into())
 }
 
-pub fn run_with_control(o: Opts, control: Option<Arc<crate::ui::Control>>) -> Result<(), String> {
+pub fn run_with_options(
+    o: Opts,
+    control: Option<Arc<crate::ui::Control>>,
+    gpu_label: Option<String>,
+    infer_py: String,
+) -> Result<(), String> {
     idle::lower_priority();
     let log = |msg: String| {
         println!("{msg}");
@@ -81,6 +87,7 @@ pub fn run_with_control(o: Opts, control: Option<Arc<crate::ui::Control>>) -> Re
         strict: STRICT,
         threads: o.jobs as u32,
         os: format!("{}-{}", std::env::consts::OS, std::env::consts::ARCH),
+        gpu: gpu_label.clone(),
     };
     // the coordinator may be down or restarting: keep asking, up to every five minutes (a refused token still stops)
     let mut wait = 5;
@@ -157,7 +164,7 @@ pub fn run_with_control(o: Opts, control: Option<Arc<crate::ui::Control>>) -> Re
             c.log(format!("LEASE {id} ({} games)", lease.unit.games));
         }
         let active_jobs = control.as_ref().map_or(o.jobs, |c| c.jobs.load(Ordering::Relaxed));
-        let mut active_o = Opts {
+        let active_o = Opts {
             coordinator: o.coordinator.clone(),
             token: o.token.clone(),
             name: o.name.clone(),
@@ -167,8 +174,7 @@ pub fn run_with_control(o: Opts, control: Option<Arc<crate::ui::Control>>) -> Re
             idle: idle_only,
             units: o.units,
         };
-        active_o.jobs = active_jobs;
-        match play(&api, &active_o, &nets_dir, lease, control.as_ref()) {
+        match play(&api, &active_o, &nets_dir, lease, control.as_ref(), &infer_py) {
             Ok(games) => {
                 log(format!("DONE {id}: {games} games"));
                 if let Some(c) = &control {
@@ -223,6 +229,7 @@ fn play(
     nets_dir: &str,
     lease: Lease,
     control: Option<&Arc<crate::ui::Control>>,
+    infer_py: &str,
 ) -> Result<usize, String> {
     if lease.unit.kind == UnitKind::Verify {
         return play_verify(api, o, nets_dir, lease);
@@ -240,8 +247,24 @@ fn play(
     std::fs::write(&unit_path, serde_json::to_string_pretty(&lease.unit).unwrap()).map_err(|e| e.to_string())?;
     println!("PLAY {id}: {} games from deal {}", lease.unit.games, lease.unit.seed);
 
+    let mut sidecars = Vec::new();
+    let mut infer_urls = BTreeMap::new();
+    if lease.unit.kind == UnitKind::SelfplayGpu {
+        for n in &lease.unit.nets {
+            if infer_urls.contains_key(&n.sha256) {
+                continue;
+            }
+            let path = format!("{nets_dir}/{}.pmnet", n.sha256);
+            let sc = gpu::InferSidecar::spawn(infer_py, &o.repo, &path, "auto", true)?;
+            println!("GPU SIDECAR {} -> {}", &n.sha256[..12.min(n.sha256.len())], sc.url);
+            infer_urls.insert(n.sha256.clone(), sc.url.clone());
+            sidecars.push(sc);
+        }
+    }
+
     let watcher = spawn_watcher(api, o.idle, &id, lease.lease_secs, control.cloned());
-    let played = run_unit(&unit_path, &out, nets_dir, &o.repo, o.jobs, &watcher.stop);
+    let played = run_unit_with_infer(&unit_path, &out, nets_dir, &o.repo, o.jobs, &watcher.stop, &infer_urls);
+    drop(sidecars);
     if let Some(w) = watcher.finish() {
         return Err(format!("stopped: {w}"));
     }

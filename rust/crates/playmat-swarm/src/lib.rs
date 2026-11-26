@@ -133,6 +133,7 @@ const MIGRATIONS: &[&str] = &[
     "ALTER TABLE units ADD COLUMN credit_status TEXT NOT NULL DEFAULT 'none'",
     "ALTER TABLE units ADD COLUMN credit_mature_at INTEGER",
     "ALTER TABLE units ADD COLUMN quarantined INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE hosts ADD COLUMN gpu TEXT",
 ];
 
 impl Swarm {
@@ -376,11 +377,13 @@ async fn hello(State(s): State<Shared>, headers: HeaderMap, Json(h): Json<Hello>
         return Err(bad("a host name of 1 to 64 characters"));
     }
     let probation_passed = i64::from(c.trust == TrustLevel::Trusted);
+    let gpu = h.gpu.as_deref().map(str::trim).filter(|s| !s.is_empty()).map(str::to_string);
     let id: i64 = sqlx::query(
-        "INSERT INTO hosts (token, name, build, class, strict, threads, os, seen, probation_passed) \
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) \
+        "INSERT INTO hosts (token, name, build, class, strict, threads, os, gpu, seen, probation_passed) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
          ON CONFLICT(token, name) DO UPDATE SET build = excluded.build, class = excluded.class, \
-         strict = excluded.strict, threads = excluded.threads, os = excluded.os, seen = excluded.seen RETURNING id",
+         strict = excluded.strict, threads = excluded.threads, os = excluded.os, gpu = excluded.gpu, \
+         seen = excluded.seen RETURNING id",
     )
     .bind(c.token)
     .bind(&h.name)
@@ -389,6 +392,7 @@ async fn hello(State(s): State<Shared>, headers: HeaderMap, Json(h): Json<Hello>
     .bind(h.strict)
     .bind(h.threads as i64)
     .bind(&h.os)
+    .bind(&gpu)
     .bind(now() as i64)
     .bind(probation_passed)
     .fetch_one(&s.db)
@@ -397,22 +401,22 @@ async fn hello(State(s): State<Shared>, headers: HeaderMap, Json(h): Json<Hello>
     Ok(Json(HelloReply { host: id, poll_secs: POLL_SECS }))
 }
 
-/// A host of the caller's token: (build, strict)
-async fn own_host(s: &Swarm, c: &Caller, host: i64) -> Res<(String, bool)> {
-    let row = sqlx::query("SELECT build, strict FROM hosts WHERE id = ? AND token = ?")
+/// A host of the caller's token: (build, strict, gpu)
+async fn own_host(s: &Swarm, c: &Caller, host: i64) -> Res<(String, bool, Option<String>)> {
+    let row = sqlx::query("SELECT build, strict, gpu FROM hosts WHERE id = ? AND token = ?")
         .bind(host)
         .bind(c.token)
         .fetch_optional(&s.db)
         .await?
         .ok_or_else(|| bad("no such host on this token: say hello first"))?;
     sqlx::query("UPDATE hosts SET seen = ? WHERE id = ?").bind(now() as i64).bind(host).execute(&s.db).await?;
-    Ok((row.get("build"), row.get::<i64, _>("strict") != 0))
+    Ok((row.get("build"), row.get::<i64, _>("strict") != 0, row.get("gpu")))
 }
 
 async fn lease(State(s): State<Shared>, headers: HeaderMap, Json(req): Json<LeaseRequest>) -> Res<Response> {
     let c = caller(&s, &headers, &[Role::Worker, Role::Trainer, Role::Admin]).await?;
     require_not_banned(&c)?;
-    let (build, strict) = own_host(&s, &c, req.host).await?;
+    let (build, strict, gpu) = own_host(&s, &c, req.host).await?;
     let _one = s.lease.lock().await;
     let t = now() as i64;
     // expired leases go back to the queue, or fail after MAX_ATTEMPTS
@@ -453,12 +457,18 @@ async fn lease(State(s): State<Shared>, headers: HeaderMap, Json(req): Json<Leas
                     continue;
                 }
             }
-            UnitKind::Selfplay | UnitKind::SelfplayGpu => {}
+            UnitKind::Selfplay => {}
+            UnitKind::SelfplayGpu => {
+                if gpu.is_none() {
+                    continue;
+                }
+            }
         }
 
         let mut unit: WorkUnit =
             serde_json::from_str(row.get::<String, _>("unit").as_str()).map_err(|e| bad(e.to_string()))?;
-        let needs_strict_match = !(kind == UnitKind::Verify && verify_mode_s.as_deref() == Some("replay"));
+        let needs_strict_match =
+            kind != UnitKind::SelfplayGpu && !(kind == UnitKind::Verify && verify_mode_s.as_deref() == Some("replay"));
         if (needs_strict_match && unit.pins.strict != strict)
             || !(unit.pins.builds.is_empty() || unit.pins.builds.contains(&build))
         {

@@ -1,0 +1,33 @@
+# Mana@Home GPU worker (S5, docs/swarm/S5.md): runs `playmat-worker` alongside PyTorch's zero-copy batched
+# `infer_server.py` on CUDA so `UnitKind::SelfplayGpu` units coalesce virtual-loss waves into large GPU batches.
+#
+#   docker run -d --name mana-gpu --restart unless-stopped --gpus all \
+#     -e MANA_COORDINATOR=https://mana.deimos.studio -e MANA_NAME=my-gpu -e MANA_TOKEN=... \
+#     -e MANA_JOBS=16 -e MANA_GPU=auto -v mana-work:/work ghcr.io/arcanite24/mana-worker-gpu:latest
+FROM rust:1.94-slim-bookworm AS build
+WORKDIR /src
+COPY rust/ .
+ARG REVISION=dev
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    PLAYMAT_BUILD=$REVISION cargo build --release --locked -p playmat-worker --features strict \
+ && cp target/release/playmat-worker /usr/local/bin/playmat-worker
+
+FROM nvidia/cuda:12.4.1-runtime-ubuntu22.04
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates procps python3 python3-pip \
+ && rm -rf /var/lib/apt/lists/* \
+ && pip3 install --no-cache-dir --index-url https://download.pytorch.org/whl/cu124 torch numpy
+
+COPY --from=build /usr/local/bin/playmat-worker /usr/local/bin/playmat-worker
+COPY archbench/ /opt/repo/archbench/
+COPY Mage.Server/career-src/ /opt/repo/Mage.Server/career-src/
+COPY rust/rl/infer_server.py rust/rl/model.py rust/rl/train.py rust/rl/data.py /opt/repo/rust/rl/
+
+ENV MANA_REPO=/opt/repo MANA_WORK=/work MANA_WHEN=always MANA_GPU=auto MANA_INFER_PY=python3
+RUN mkdir /work && chown 65534:65534 /work
+USER 65534:65534
+VOLUME /work
+WORKDIR /work
+ENTRYPOINT ["/usr/local/bin/playmat-worker"]
+CMD ["run"]

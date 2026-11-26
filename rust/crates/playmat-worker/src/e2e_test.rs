@@ -265,6 +265,7 @@ fn s2_gate_planted_cheaters_caught_by_real_verifier() {
                 strict: STRICT,
                 threads: 1,
                 os: "test".into(),
+                gpu: None,
             })
             .send()
             .unwrap()
@@ -527,6 +528,7 @@ fn s4_gate_swarm_agrees_with_trusted_only_gate() {
             strict: STRICT,
             threads: 1,
             os: "test".into(),
+            gpu: None,
         })
         .send()
         .unwrap()

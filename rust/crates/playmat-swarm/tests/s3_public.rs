@@ -101,6 +101,7 @@ async fn public_tracker_teams_profiles_transparency_and_cors() {
             strict: true,
             threads: 8,
             os: "macos-aarch64".into(),
+            gpu: None,
         })
         .send()
         .await
@@ -262,6 +263,7 @@ async fn public_tracker_teams_profiles_transparency_and_cors() {
                 strict: true,
                 threads: 2,
                 os: "linux-x86_64".into(),
+                gpu: None,
             })
             .send()
             .await
