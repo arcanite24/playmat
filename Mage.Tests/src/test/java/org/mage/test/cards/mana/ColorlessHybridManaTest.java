@@ -80,4 +80,24 @@ public class ColorlessHybridManaTest extends CardTestPlayerBase {
 
         assertPermanentCount(playerA, ULALEK, 1);
     }
+
+    @Test
+    public void testTwoColorsAllInPool() {
+        // the reported game: {U}{B}{C}{C}{C} floating, the {C} must leave {C/U} and {C/B} to the colors
+        addCard(Zone.BATTLEFIELD, playerA, "Wastes", 3);
+        addCard(Zone.BATTLEFIELD, playerA, "Island", 1);
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp", 1);
+        addCard(Zone.HAND, playerA, ULALEK);
+
+        activateManaAbility(1, PhaseStep.PRECOMBAT_MAIN, playerA, "{T}: Add {U}", 1);
+        activateManaAbility(1, PhaseStep.PRECOMBAT_MAIN, playerA, "{T}: Add {B}", 1);
+        activateManaAbility(1, PhaseStep.PRECOMBAT_MAIN, playerA, "{T}: Add {C}", 3);
+        castSpell(1, PhaseStep.PRECOMBAT_MAIN, playerA, ULALEK);
+
+        setStrictChooseMode(true);
+        setStopAt(1, PhaseStep.BEGIN_COMBAT);
+        execute();
+
+        assertPermanentCount(playerA, ULALEK, 1);
+    }
 }
