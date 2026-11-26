@@ -339,3 +339,38 @@
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: var(--space-4);
 }
+
+.llrTrack {
+  position: relative;
+  height: 10px;
+  border-radius: var(--radius-chip);
+  background: var(--mat-950);
+  border: 1px solid var(--ink-faint);
+  overflow: hidden;
+}
+
+.llrMid {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--ink-dim);
+}
+
+.llrBar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--sage);
+}
+
+.llrBarNeg {
+  background: var(--oxblood-lit);
+}
+
+.chartSvg {
+  width: 100%;
+  max-height: 220px;
+  display: block;
+}

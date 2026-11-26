@@ -151,4 +151,84 @@ describe('SwarmScreen public tracker', () => {
     expect(screen.getByText('Probation Cleared')).toBeTruthy();
     expect(screen.getByText('Team: Azorius Compute')).toBeTruthy();
   });
+
+  it('renders networks lineage, Archbench Elo chart, and SPRT gates', async () => {
+    mockFetch({
+      '/api/v1/networks': [
+        {
+          sha256: '2'.repeat(64),
+          label: 'gen-2',
+          parent_sha: '1'.repeat(64),
+          status: 'promoted',
+          created: 1795680000,
+          promoted_at: 1795681000,
+          download_url: 'https://mana.deimos.studio/api/v1/nets/' + '2'.repeat(64),
+          gate_id: 4,
+          gate_status: 'promoted',
+          gate_elo: 42.5,
+          gate_llr: 3.12,
+          bench_elo: 1125.0,
+          bench_ci95: 38.0,
+          bench_games: 200,
+          anchors: [{ opponent: 'host@s6', wins: 132, draws: 4, losses: 64, elo: 1125.0, ci95: 38.0 }],
+        },
+        {
+          sha256: '1'.repeat(64),
+          label: 'gen-1',
+          parent_sha: null,
+          status: 'superseded',
+          created: 1795600000,
+          promoted_at: 1795600000,
+          download_url: 'https://mana.deimos.studio/api/v1/nets/' + '1'.repeat(64),
+          gate_id: null,
+          gate_status: null,
+          gate_elo: null,
+          gate_llr: null,
+          bench_elo: 1030.0,
+          bench_ci95: 40.0,
+          bench_games: 200,
+          anchors: [],
+        },
+      ],
+      '/api/v1/gates': [
+        {
+          id: 4,
+          round_id: 10,
+          project: 'main',
+          run: 's4',
+          round: 2,
+          candidate_sha: '2'.repeat(64),
+          candidate_label: 'gen-2',
+          baseline_sha: '1'.repeat(64),
+          baseline_label: 'gen-1',
+          status: 'promoted',
+          held: false,
+          auto_promote: true,
+          elo0: 0,
+          elo1: 10,
+          alpha: 0.05,
+          beta: 0.05,
+          lower_bound: -2.944,
+          upper_bound: 2.944,
+          wins: 140,
+          draws: 10,
+          losses: 90,
+          elo: 42.5,
+          elo_ci95: 35.0,
+          llr: 3.12,
+          max_share: 0.5,
+          top_account_share: 0.35,
+          created: 1795680000,
+          decided_at: 1795681000,
+          decision_reason: 'SPRT passed',
+        },
+      ],
+    });
+
+    renderAt('/swarm/networks');
+    expect(await screen.findByText(/Gate #4: gen-2 vs gen-1/)).toBeTruthy();
+    expect(screen.getByRole('img', { name: /Archbench Elo over network generations/ })).toBeTruthy();
+    expect(screen.getByText(/1125 \+\/- 38 \(200g\)/)).toBeTruthy();
+    expect(screen.getByText(/host@s6: 132-4-64/)).toBeTruthy();
+  });
 });

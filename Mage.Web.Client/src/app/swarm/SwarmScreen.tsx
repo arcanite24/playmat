@@ -9,18 +9,21 @@ import {
   formatUnixAge,
   roundProgress,
   swarmPublic,
+  type GateStatus,
   type LeaderboardWindow,
+  type NetworkInfo,
   type PublicRound,
   type SwarmStatus,
   type TrustLevel,
 } from './swarmApi';
 import styles from './SwarmScreen.module.css';
 
-type Section = 'overview' | 'projects' | 'leaderboard' | 'transparency' | 'contribute';
+type Section = 'overview' | 'projects' | 'networks' | 'leaderboard' | 'transparency' | 'contribute';
 
 const NAV_ITEMS: { id: Section; label: string; to: string }[] = [
   { id: 'overview', label: 'Overview', to: '/swarm' },
   { id: 'projects', label: 'Projects', to: '/swarm/projects' },
+  { id: 'networks', label: 'Networks & Gates', to: '/swarm/networks' },
   { id: 'leaderboard', label: 'Leaderboards', to: '/swarm/leaderboard' },
   { id: 'transparency', label: 'Transparency', to: '/swarm/transparency' },
   { id: 'contribute', label: 'Contribute', to: '/swarm/contribute' },
@@ -50,7 +53,11 @@ export function SwarmScreen() {
   const [sseConnected, setSseConnected] = useState(false);
 
   const activeSection: Section =
-    section === 'projects' || section === 'leaderboard' || section === 'transparency' || section === 'contribute'
+    section === 'projects' ||
+    section === 'networks' ||
+    section === 'leaderboard' ||
+    section === 'transparency' ||
+    section === 'contribute'
       ? section
       : 'overview';
 
@@ -117,6 +124,8 @@ export function SwarmScreen() {
           <OverviewView />
         ) : activeSection === 'projects' ? (
           <ProjectsView />
+        ) : activeSection === 'networks' ? (
+          <NetworksView />
         ) : activeSection === 'leaderboard' ? (
           <LeaderboardView />
         ) : activeSection === 'transparency' ? (
@@ -280,6 +289,228 @@ function ProjectsView() {
       {projectsQ.data.map((round) => (
         <RoundCard key={round.id} round={round} />
       ))}
+    </>
+  );
+}
+
+function statusChipClass(status: string): string {
+  if (status === 'promoted' || status === 'passed') return `${styles.chip} ${styles.chipTrusted}`;
+  if (status === 'failed' || status === 'rejected' || status === 'rolled-back') return `${styles.chip} ${styles.chipBad}`;
+  if (status === 'held' || status === 'concentration-hold' || status === 'running') {
+    return `${styles.chip} ${styles.chipWarn}`;
+  }
+  return styles.chip;
+}
+
+function EloChart({ networks }: { networks: NetworkInfo[] }) {
+  const rated = [...networks]
+    .filter((n) => n.bench_elo !== null && n.bench_games > 0)
+    .reverse();
+
+  if (rated.length === 0) {
+    return <p className={styles.quiet}>No Archbench ratings recorded yet.</p>;
+  }
+
+  const w = 680;
+  const h = 190;
+  const padL = 52;
+  const padR = 24;
+  const padT = 18;
+  const padB = 34;
+  const elos = rated.map((n) => n.bench_elo as number);
+  const minElo = Math.floor((Math.min(...elos, 1000) - 25) / 25) * 25;
+  const maxElo = Math.ceil((Math.max(...elos, 1050) + 25) / 25) * 25;
+  const span = Math.max(50, maxElo - minElo);
+  const xFor = (i: number) =>
+    rated.length === 1 ? padL + (w - padL - padR) / 2 : padL + (i / (rated.length - 1)) * (w - padL - padR);
+  const yFor = (elo: number) => padT + ((maxElo - elo) / span) * (h - padT - padB);
+  const points = rated.map((n, i) => `${xFor(i).toFixed(1)},${yFor(n.bench_elo as number).toFixed(1)}`).join(' ');
+  const ticks = [minElo, Math.round((minElo + maxElo) / 2), maxElo];
+
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className={styles.chartSvg} role="img" aria-label="Archbench Elo over network generations">
+      {ticks.map((t) => {
+        const y = yFor(t);
+        return (
+          <g key={t}>
+            <line x1={padL} x2={w - padR} y1={y} y2={y} stroke="var(--ink-faint)" strokeDasharray="3 3" />
+            <text x={padL - 8} y={y + 4} textAnchor="end" fill="var(--ink-dim)" fontSize="11">
+              {t}
+            </text>
+          </g>
+        );
+      })}
+      {rated.length > 1 && (
+        <polyline fill="none" stroke="var(--sage)" strokeWidth="2.5" points={points} />
+      )}
+      {rated.map((n, i) => {
+        const cx = xFor(i);
+        const cy = yFor(n.bench_elo as number);
+        return (
+          <g key={n.sha256}>
+            <circle cx={cx} cy={cy} r="4.5" fill="var(--decision)" />
+            <text x={cx} y={h - 10} textAnchor="middle" fill="var(--ink-dim)" fontSize="11">
+              {n.label}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function GateCard({ gate }: { gate: GateStatus }) {
+  const games = gate.wins + gate.draws + gate.losses;
+  const bound = Math.max(Math.abs(gate.lower_bound), Math.abs(gate.upper_bound), 1);
+  const clamped = Math.max(-bound, Math.min(bound, gate.llr));
+  const halfPct = (Math.abs(clamped) / bound) * 50;
+  const barStyle = clamped >= 0
+    ? { left: '50%', width: `${halfPct}%` }
+    : { left: `${50 - halfPct}%`, width: `${halfPct}%` };
+
+  return (
+    <section className={styles.card}>
+      <div className={styles.cardHead}>
+        <h3 className={styles.cardTitle}>
+          Gate #{gate.id}: {gate.candidate_label} vs {gate.baseline_label}
+        </h3>
+        <div className={styles.chips}>
+          <span className={statusChipClass(gate.status)}>{gate.status}</span>
+          {gate.held && <span className={`${styles.chip} ${styles.chipWarn}`}>held</span>}
+          <span className={styles.chip}>
+            SPRT [{gate.elo0.toFixed(0)}, {gate.elo1.toFixed(0)}]
+          </span>
+        </div>
+      </div>
+
+      <div
+        className={styles.llrTrack}
+        role="progressbar"
+        aria-valuenow={Number(gate.llr.toFixed(2))}
+        aria-valuemin={Number(gate.lower_bound.toFixed(2))}
+        aria-valuemax={Number(gate.upper_bound.toFixed(2))}
+        aria-label={`Gate ${gate.id} SPRT log-likelihood ratio`}
+      >
+        <div className={styles.llrMid} />
+        <div
+          className={clamped < 0 ? `${styles.llrBar} ${styles.llrBarNeg}` : styles.llrBar}
+          style={barStyle}
+        />
+      </div>
+
+      <div className={styles.toolbar}>
+        <span className={styles.quiet}>
+          {gate.wins}W-{gate.draws}D-{gate.losses}L ({games} games) · {gate.elo >= 0 ? '+' : ''}
+          {gate.elo.toFixed(1)} +/- {gate.elo_ci95.toFixed(1)} Elo · LLR {gate.llr >= 0 ? '+' : ''}
+          {gate.llr.toFixed(2)} ({gate.lower_bound.toFixed(2)} .. {gate.upper_bound.toFixed(2)})
+        </span>
+        <span className={styles.quiet}>
+          Top account share: {(gate.top_account_share * 100).toFixed(0)}% (limit {(gate.max_share * 100).toFixed(0)}%)
+        </span>
+      </div>
+      {gate.decision_reason && <p className={styles.quiet}>{gate.decision_reason}</p>}
+    </section>
+  );
+}
+
+function NetworksView() {
+  const netsQ = useQuery({
+    queryKey: ['swarm', 'networks'],
+    queryFn: () => swarmPublic.networks(),
+    refetchInterval: 20_000,
+  });
+  const gatesQ = useQuery({
+    queryKey: ['swarm', 'gates'],
+    queryFn: () => swarmPublic.gates(),
+    refetchInterval: 15_000,
+  });
+
+  if (netsQ.isError) return <p className={styles.error} role="alert">{String(netsQ.error)}</p>;
+  if (gatesQ.isError) return <p className={styles.error} role="alert">{String(gatesQ.error)}</p>;
+
+  const networks = netsQ.data ?? [];
+  const gates = gatesQ.data ?? [];
+
+  return (
+    <>
+      <section className={styles.card} aria-labelledby="swarm-elo-chart">
+        <div className={styles.cardHead}>
+          <h2 id="swarm-elo-chart" className={styles.cardTitle}>Archbench strength over generations</h2>
+          <span className={styles.quiet}>Anchored to host@s6 = 1000 Elo</span>
+        </div>
+        <p className={styles.quiet}>
+          Archbench ratings against fixed non-evolving anchor opponents are the headline strength measure. Self-play
+          gate Elo only compares adjacent generations and can drift.
+        </p>
+        {!netsQ.data ? <p className={styles.quiet}>Loading network ratings...</p> : <EloChart networks={networks} />}
+      </section>
+
+      <section className={styles.card} aria-labelledby="swarm-gates-heading">
+        <div className={styles.cardHead}>
+          <h2 id="swarm-gates-heading" className={styles.cardTitle}>SPRT promotion gates</h2>
+          <span className={styles.quiet}>Reputable and trusted workers · cross-account concentration guard</span>
+        </div>
+        {!gatesQ.data ? (
+          <p className={styles.quiet}>Loading gates...</p>
+        ) : gates.length === 0 ? (
+          <p className={styles.quiet}>No SPRT gates published yet.</p>
+        ) : (
+          gates.map((gate) => <GateCard key={gate.id} gate={gate} />)
+        )}
+      </section>
+
+      <section className={styles.card} aria-labelledby="swarm-lineage">
+        <h2 id="swarm-lineage" className={styles.cardTitle}>Network lineage</h2>
+        {!netsQ.data ? (
+          <p className={styles.quiet}>Loading networks...</p>
+        ) : networks.length === 0 ? (
+          <p className={styles.quiet}>No networks registered yet.</p>
+        ) : (
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Network</th>
+                  <th>Status</th>
+                  <th>Gate</th>
+                  <th className={styles.num}>Archbench Elo</th>
+                  <th>Anchors</th>
+                  <th>Weights</th>
+                </tr>
+              </thead>
+              <tbody>
+                {networks.map((n) => (
+                  <tr key={n.sha256}>
+                    <td>
+                      <div><strong>{n.label}</strong></div>
+                      <div className={`${styles.mono} ${styles.quiet}`}>{n.sha256.slice(0, 12)}</div>
+                    </td>
+                    <td><span className={statusChipClass(n.status)}>{n.status}</span></td>
+                    <td className={styles.quiet}>
+                      {n.gate_id !== null
+                        ? `#${n.gate_id} ${n.gate_status ?? ''} (${n.gate_elo !== null ? `${n.gate_elo >= 0 ? '+' : ''}${n.gate_elo.toFixed(1)} Elo` : '-'})`
+                        : '-'}
+                    </td>
+                    <td className={styles.num}>
+                      {n.bench_elo !== null && n.bench_games > 0
+                        ? `${Math.round(n.bench_elo)} +/- ${Math.round(n.bench_ci95 ?? 0)} (${n.bench_games}g)`
+                        : 'Unrated'}
+                    </td>
+                    <td className={styles.quiet}>
+                      {n.anchors.length === 0
+                        ? '-'
+                        : n.anchors.map((a) => `${a.opponent}: ${a.wins}-${a.draws}-${a.losses}`).join(' · ')}
+                    </td>
+                    <td>
+                      <a href={n.download_url} target="_blank" rel="noreferrer">.pmnet</a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </>
   );
 }

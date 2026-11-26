@@ -380,3 +380,351 @@ fn s2_gate_planted_cheaters_caught_by_real_verifier() {
     }
     let _ = std::fs::remove_dir_all(&tmp);
 }
+
+fn kind_unit(repo: &str, id: &str, kind: UnitKind, seed: u64, games: u32, learner: &str) -> WorkUnit {
+    let mut u = test_unit(repo, id, seed, games, learner);
+    u.kind = kind;
+    u.keep = 0;
+    u
+}
+
+/// S4 Gate: "A swarm gate agrees with a trusted-only gate."
+/// Runs the exact same Match deals through (1) a trusted-only coordinator and (2) a mixed swarm coordinator with
+/// Reputable + Trusted workers and a planted sandbagger trying to flip unit 0's outcome. Asserts that after
+/// sandbagger rejection + reissue + verification, both gates reach identical W/D/L, Elo, LLR and status.
+#[test]
+fn s4_gate_swarm_agrees_with_trusted_only_gate() {
+    use crate::{read_json, run_unit};
+    use playmat_swarm_proto::ResultManifest;
+    use std::sync::atomic::AtomicBool;
+
+    std::env::set_var("PLAYMAT_AI_THREADS", "1");
+    let repo = format!("{}/../../..", env!("CARGO_MANIFEST_DIR"));
+    let tmp = std::env::temp_dir().join(format!("mana-s4-gate-e2e-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+
+    let learner = "cfg:policy=ismcts+net=builtin+hide=1+iters=4+samples=1";
+    let base_sha = "a".repeat(64);
+    let cand_sha = "b".repeat(64);
+    let sprt = SprtConfig { elo0: 0.0, elo1: 10.0, alpha: 0.05, beta: 0.05, max_share: 1.0, auto_promote: true };
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let http = Client::new();
+
+    // ---- 1. Trusted-only gate ----
+    let l1 = rt.block_on(tokio::net::TcpListener::bind("127.0.0.1:0")).unwrap();
+    let b1 = format!("http://{}", l1.local_addr().unwrap());
+    let s1 = rt
+        .block_on(Swarm::open(
+            tmp.join("trusted.db").to_str().unwrap(),
+            Store::Local(Local::new(tmp.join("store1"), b1.clone())),
+            &b1,
+        ))
+        .unwrap();
+    let tr1 = rt.block_on(s1.new_token(Role::Trainer, "trainer")).unwrap().token;
+    let w_tr = rt.block_on(s1.new_token_with_trust(Role::Worker, "trusted", Some(TrustLevel::Trusted))).unwrap().token;
+    rt.spawn(playmat_swarm::serve(l1, s1));
+
+    let units1 = vec![
+        kind_unit(&repo, "m-u000", UnitKind::Match, 730_000, 2, learner),
+        kind_unit(&repo, "m-u001", UnitKind::Match, 730_002, 2, learner),
+    ];
+    let g1: GateStatus = http
+        .post(format!("{b1}/api/v1/gates"))
+        .bearer_auth(&tr1)
+        .json(&NewGate {
+            project: "test".into(),
+            run: "s2-e2e".into(),
+            round: 1,
+            priority: 10,
+            candidate_sha: cand_sha.clone(),
+            candidate_label: "cand".into(),
+            baseline_sha: base_sha.clone(),
+            baseline_label: "base".into(),
+            sprt: sprt.clone(),
+            units: units1,
+        })
+        .send()
+        .unwrap()
+        .json()
+        .unwrap();
+
+    swarm::run(swarm::Opts {
+        coordinator: b1.clone(),
+        token: w_tr,
+        name: "trusted-1".into(),
+        jobs: 1,
+        work: tmp.join("w-trusted").to_string_lossy().into(),
+        repo: repo.clone(),
+        idle: false,
+        units: 2,
+    })
+    .unwrap();
+    for uid in ["m-u000", "m-u001"] {
+        assert_eq!(
+            http.post(format!("{b1}/api/v1/units/{uid}/verdict"))
+                .bearer_auth(&tr1)
+                .json(&Verdict { accept: true, reason: "trusted".into() })
+                .send()
+                .unwrap()
+                .status(),
+            204
+        );
+    }
+    let trusted_gate: GateStatus = http.get(format!("{b1}/api/v1/gates/{}", g1.id)).send().unwrap().json().unwrap();
+
+    // ---- 2. Swarm gate (Reputable workers + planted sandbagger + Trusted verifier) ----
+    let l2 = rt.block_on(tokio::net::TcpListener::bind("127.0.0.1:0")).unwrap();
+    let b2 = format!("http://{}", l2.local_addr().unwrap());
+    let s2 = rt
+        .block_on(Swarm::open(
+            tmp.join("swarm.db").to_str().unwrap(),
+            Store::Local(Local::new(tmp.join("store2"), b2.clone())),
+            &b2,
+        ))
+        .unwrap();
+    let tr2 = rt.block_on(s2.new_token(Role::Trainer, "trainer")).unwrap().token;
+    let sandbag =
+        rt.block_on(s2.new_token_with_trust(Role::Worker, "sandbagger", Some(TrustLevel::Reputable))).unwrap().token;
+    let rep1 = rt.block_on(s2.new_token_with_trust(Role::Worker, "rep-1", Some(TrustLevel::Reputable))).unwrap().token;
+    let rep2 = rt.block_on(s2.new_token_with_trust(Role::Worker, "rep-2", Some(TrustLevel::Reputable))).unwrap().token;
+    let ver = rt.block_on(s2.new_token_with_trust(Role::Worker, "verifier", Some(TrustLevel::Trusted))).unwrap().token;
+    rt.spawn(playmat_swarm::serve(l2, s2));
+
+    let units2 = vec![
+        kind_unit(&repo, "m-u000", UnitKind::Match, 730_000, 2, learner),
+        kind_unit(&repo, "m-u001", UnitKind::Match, 730_002, 2, learner),
+    ];
+    let g2: GateStatus = http
+        .post(format!("{b2}/api/v1/gates"))
+        .bearer_auth(&tr2)
+        .json(&NewGate {
+            project: "test".into(),
+            run: "s2-e2e".into(),
+            round: 1,
+            priority: 10,
+            candidate_sha: cand_sha,
+            candidate_label: "cand".into(),
+            baseline_sha: base_sha,
+            baseline_label: "base".into(),
+            sprt,
+            units: units2,
+        })
+        .send()
+        .unwrap()
+        .json()
+        .unwrap();
+
+    // Sandbagger leases m-u000 and flips every winner to try to poison the gate
+    let sh: HelloReply = http
+        .post(format!("{b2}/api/v1/hello"))
+        .bearer_auth(&sandbag)
+        .json(&Hello {
+            name: "sandbag-box".into(),
+            build: "dev".into(),
+            class: playmat_swarm_proto::determinism_class(STRICT),
+            strict: STRICT,
+            threads: 1,
+            os: "test".into(),
+        })
+        .send()
+        .unwrap()
+        .json()
+        .unwrap();
+    let sl: Lease = http
+        .post(format!("{b2}/api/v1/lease"))
+        .bearer_auth(&sandbag)
+        .json(&LeaseRequest { host: sh.host })
+        .send()
+        .unwrap()
+        .json()
+        .unwrap();
+    let sdir = tmp.join("sandbag");
+    let sout = sdir.join("out");
+    std::fs::create_dir_all(&sdir).unwrap();
+    std::fs::create_dir_all(tmp.join("nets")).unwrap();
+    std::fs::write(sdir.join("unit.json"), serde_json::to_string(&sl.unit).unwrap()).unwrap();
+    run_unit(
+        sdir.join("unit.json").to_str().unwrap(),
+        sout.to_str().unwrap(),
+        tmp.join("nets").to_str().unwrap(),
+        &repo,
+        1,
+        &AtomicBool::new(false),
+    )
+    .unwrap();
+    let mut sm: ResultManifest = read_json(sout.join("manifest.json").to_str().unwrap()).unwrap();
+    for g in &mut sm.games {
+        g.winner = match g.winner {
+            Some(0) => Some(1),
+            _ => Some(0),
+        };
+    }
+    let sfiles: Vec<FileInfo> = sm
+        .files
+        .iter()
+        .map(|(p, sha)| FileInfo {
+            path: p.clone(),
+            size: std::fs::metadata(sout.join(p)).unwrap().len(),
+            sha256: sha.clone(),
+        })
+        .collect();
+    let surls: Urls = http
+        .post(format!("{b2}/api/v1/units/{}/uploads", sl.unit.id))
+        .bearer_auth(&sandbag)
+        .json(&UploadRequest { files: sfiles })
+        .send()
+        .unwrap()
+        .json()
+        .unwrap();
+    for (p, u) in &surls.urls {
+        let body = std::fs::read(sout.join(p)).unwrap();
+        assert!(http.put(u).header("content-length", body.len()).body(body).send().unwrap().status().is_success());
+    }
+    assert_eq!(
+        http.post(format!("{b2}/api/v1/units/{}/complete", sl.unit.id))
+            .bearer_auth(&sandbag)
+            .json(&Complete { manifest: sm })
+            .send()
+            .unwrap()
+            .status(),
+        204
+    );
+
+    // Verifier catches the sandbagger on m-u000; trainer reissues m-u000; honest rep-1 & rep-2 play both units
+    swarm::run(swarm::Opts {
+        coordinator: b2.clone(),
+        token: ver.clone(),
+        name: "ver-1".into(),
+        jobs: 1,
+        work: tmp.join("w-ver1").to_string_lossy().into(),
+        repo: repo.clone(),
+        idle: false,
+        units: 1,
+    })
+    .unwrap();
+    assert_eq!(
+        http.post(format!("{b2}/api/v1/admin/units/m-u000/reissue")).bearer_auth(&tr2).send().unwrap().status(),
+        204
+    );
+    // Honest reputable workers play m-u000 and m-u001, each verified bit-for-bit by the trusted verifier
+    for (tok, nm, idx) in [(rep1, "rep-1", 1), (rep2, "rep-2", 2)] {
+        swarm::run(swarm::Opts {
+            coordinator: b2.clone(),
+            token: tok,
+            name: nm.into(),
+            jobs: 1,
+            work: tmp.join(format!("w-{nm}")).to_string_lossy().into(),
+            repo: repo.clone(),
+            idle: false,
+            units: 1,
+        })
+        .unwrap();
+        swarm::run(swarm::Opts {
+            coordinator: b2.clone(),
+            token: ver.clone(),
+            name: "ver-1".into(),
+            jobs: 1,
+            work: tmp.join(format!("w-ver-check-{idx}")).to_string_lossy().into(),
+            repo: repo.clone(),
+            idle: false,
+            units: 1,
+        })
+        .unwrap();
+    }
+
+    let swarm_gate: GateStatus = http.get(format!("{b2}/api/v1/gates/{}", g2.id)).send().unwrap().json().unwrap();
+    assert_eq!(
+        (swarm_gate.wins, swarm_gate.draws, swarm_gate.losses),
+        (trusted_gate.wins, trusted_gate.draws, trusted_gate.losses)
+    );
+    assert!((swarm_gate.elo - trusted_gate.elo).abs() < 1e-6);
+    assert!((swarm_gate.llr - trusted_gate.llr).abs() < 1e-6);
+    assert_eq!(swarm_gate.status, trusted_gate.status);
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn s4_bench_unit_runs_through_real_worker_and_rates_network() {
+    std::env::set_var("PLAYMAT_AI_THREADS", "1");
+    let repo = format!("{}/../../..", env!("CARGO_MANIFEST_DIR"));
+    let tmp = std::env::temp_dir().join(format!("mana-s4-bench-e2e-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let listener = rt.block_on(tokio::net::TcpListener::bind("127.0.0.1:0")).unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let s = rt
+        .block_on(Swarm::open(
+            tmp.join("bench.db").to_str().unwrap(),
+            Store::Local(Local::new(tmp.join("store"), base.clone())),
+            &base,
+        ))
+        .unwrap();
+    let trainer = rt.block_on(s.new_token(Role::Trainer, "trainer")).unwrap().token;
+    let rep = rt.block_on(s.new_token_with_trust(Role::Worker, "rep", Some(TrustLevel::Reputable))).unwrap().token;
+    let ver = rt.block_on(s.new_token_with_trust(Role::Worker, "ver", Some(TrustLevel::Trusted))).unwrap().token;
+    rt.spawn(playmat_swarm::serve(listener, s));
+
+    let http = Client::new();
+    let net_sha = "c".repeat(64);
+    let unit = kind_unit(
+        &repo,
+        "b-u000",
+        UnitKind::Bench,
+        730_000,
+        2,
+        "cfg:policy=ismcts+net=builtin+hide=1+iters=4+samples=1",
+    );
+    let bench: BenchStatus = http
+        .post(format!("{base}/api/v1/bench"))
+        .bearer_auth(&trainer)
+        .json(&NewBench {
+            project: "test".into(),
+            run: "s2-e2e".into(),
+            round: 1,
+            priority: 5,
+            net_sha: net_sha.clone(),
+            net_label: "bench-net".into(),
+            anchor_elo: 1000.0,
+            units: vec![unit],
+        })
+        .send()
+        .unwrap()
+        .json()
+        .unwrap();
+    assert_eq!(bench.games, 0);
+
+    swarm::run(swarm::Opts {
+        coordinator: base.clone(),
+        token: rep,
+        name: "rep-box".into(),
+        jobs: 1,
+        work: tmp.join("w-rep").to_string_lossy().into(),
+        repo: repo.clone(),
+        idle: false,
+        units: 1,
+    })
+    .unwrap();
+    swarm::run(swarm::Opts {
+        coordinator: base.clone(),
+        token: ver,
+        name: "ver-box".into(),
+        jobs: 1,
+        work: tmp.join("w-ver").to_string_lossy().into(),
+        repo: repo.clone(),
+        idle: false,
+        units: 1,
+    })
+    .unwrap();
+
+    let nets: Vec<NetworkInfo> = http.get(format!("{base}/api/v1/networks")).send().unwrap().json().unwrap();
+    let net = nets.iter().find(|n| n.sha256 == net_sha).unwrap();
+    assert_eq!(net.bench_games, 2);
+    assert!(net.bench_elo.is_some());
+    assert_eq!(net.anchors.len(), 1);
+    assert_eq!(net.anchors[0].opponent, "host@s6");
+    let _ = std::fs::remove_dir_all(&tmp);
+}
