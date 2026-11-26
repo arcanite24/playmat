@@ -1905,6 +1905,11 @@ impl Game {
         (seat + 1) % self.seats()
     }
 
+    /// Who makes the seat's decisions: the player controlling its turn (Emrakul, the Promised End), else itself
+    pub fn turn_controller(&self, seat: Seat) -> Seat {
+        self.controlled_by.iter().find(|(p, _)| *p == seat).map_or(seat, |(_, c)| *c)
+    }
+
     /// Creates a card owned by `owner` in `zone`, without putting it in that zone's list.
     pub fn create_obj(&mut self, def: Arc<CardDef>, owner: Seat, zone: Zone) -> ObjId {
         let id = ObjId(self.objs.len() as u32);

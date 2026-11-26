@@ -328,6 +328,11 @@ more cards ported first.
   asked waits for its turn, except concede, quit and the rollback answers. Best-of-three, timers, reconnect,
   spectators (who see one seat's side), replays (the first seat's view, with every player's hand) and records work
   as for games against the AI. Leaving or a 35-minute absence loses the game for that player; both gone is a draw.
+- **A turn another player controls** (Emrakul, the Promised End). When a person controls the turn, the controlled
+  seat's questions go to that person, as Java's `GameController.perform` sends them. Their view lists the
+  controlled hand under `opponentHands` (whole card views, keyed by the player's name), and `canPlayObjects` holds
+  the controlled seat's playables. Their answers, settings, F-keys and undo point stand for the controlled seat.
+  When the AI controls a person's turn, it still passes each priority, and the quick policy answers the rest.
 - **Rollbacks between people.** `ROLLBACK_TURNS` asks the other player (`USER_REQUEST_DIALOG` with
   `ADD_PERMISSION_TO_ROLLBACK_TURN` / `DENY_PERMISSION_TO_ROLLBACK_TURN`), as Java's `GameController` does; the
   game waits for the answer, then goes back or carries on.
