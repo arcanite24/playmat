@@ -4,13 +4,12 @@ import type { CareerCard, CareerCosmetic, CareerMatch, CareerPackResult, CareerP
 import type { DeckCardLists } from '../../core/decks/types';
 import { api } from '../connection';
 import { toWire } from '../decks/deckModel';
-import { queryClient } from '../queries';
+import { queryClient, useServerInfo } from '../queries';
 import { useEvents } from '../stores/events';
 import { useCareerVoice, type VoiceLines } from '../stores/careerVoice';
 import { usePlay } from '../stores/play';
 import { readJson, writeJson } from '../stores/persist';
 import { useSession } from '../stores/session';
-import { useSettings } from '../stores/settings';
 import { MATCH_SIZES, warmCards, warmDeck } from '../ui/imageCache';
 import { cacheActiveCareerDeck, saveCareerDeck, fetchStarterDeck, toCareerDeck } from './careerDeck';
 import { rewardsPath } from './progressModel';
@@ -104,10 +103,18 @@ export function useCareerLevels(enabled: boolean) {
 
 const NO_UNLOCKS: CareerCosmetic[] = [];
 
-/** The sleeves, playmats, avatars and titles this account's Career unlocked; asked once the player opted in here. */
+/**
+ * Whether this server's accounts earn progression cosmetics. They come from any game, so what an account owns is asked
+ * of the server whether or not Career was opened in this browser (the opt-in is kept per browser: a new device or
+ * cleared storage starts without it).
+ */
+export function useProgressionOn(): boolean {
+  return useServerInfo().data?.career === true;
+}
+
+/** The sleeves, playmats, avatars and titles this account's progression unlocked. */
 export function useCareerUnlocks(): CareerCosmetic[] {
-  const optedIn = useSettings((settings) => settings.settings.careerOptIn);
-  return useCareerLevels(optedIn).data?.unlocks ?? NO_UNLOCKS;
+  return useCareerLevels(useProgressionOn()).data?.unlocks ?? NO_UNLOCKS;
 }
 
 export function useCareerAchievements(enabled: boolean) {
@@ -301,3 +308,8 @@ export const useCareerLook = create<LookState>((set, get) => ({
     if (typeof window !== 'undefined') window.dispatchEvent(new Event(CAREER_LOOK_EVENT));
   },
 }));
+
+// a new browser takes the Career pieces the server kept (support/lookSync.ts): read them again once it has
+if (typeof window !== 'undefined') {
+  window.addEventListener('playmat:career-look-adopted', () => useCareerLook.setState({ looks: readJson<Record<string, CareerLook>>(LOOK_KEY, {}) }));
+}

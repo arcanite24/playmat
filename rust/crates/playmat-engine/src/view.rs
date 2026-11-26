@@ -48,7 +48,9 @@ pub fn game_view(game: &Game, seat: Seat, names: &[&str]) -> Value {
         "activePlayerId": game.active.map(|a| format!("P{}", a)),
         "activePlayerName": name(game.active),
         "priorityPlayerName": name(game.priority),
-        "special": game.special_mana && game.priority == Some(seat),
+        // the priority player's, shown to whoever makes their decisions (`GameView.special`: a controlled turn's
+        // controller)
+        "special": game.special_mana && game.priority.is_some_and(|p| game.turn_controller(p) == seat),
         "rollbackTurnsAllowed": false,
         "attackOption": "LEFT",
         "rangeOfInfluence": "ALL",
@@ -63,8 +65,14 @@ pub fn game_view(game: &Game, seat: Seat, names: &[&str]) -> Value {
         "lookedAt": looked_at_view(game, seat),
         "companion": [],
     });
-    if let (Some(_), true) = (game.step, game.priority == Some(seat)) {
-        v["canPlayObjects"] = can_play_objects(game, seat);
+    // `GameSessionPlayer.prepareGameView`: what the priority player can play, to whoever makes their decisions
+    if let (Some(_), Some(p)) = (game.step, game.priority.filter(|p| game.turn_controller(*p) == seat)) {
+        v["canPlayObjects"] = can_play_objects(game, p);
+    }
+    // `processControlledPlayers`: the hand of a player whose turn this one controls, as whole cards, by their name
+    for (p, _) in game.controlled_by.iter().filter(|(p, c)| *c == seat && *p != seat) {
+        let name = names.get(*p).map(|n| n.to_string()).unwrap_or_default();
+        v["opponentHands"][name] = cards_view(game, &game.player(*p).hand);
     }
     face_down_exiles(game, seat, &mut v);
     face_down_objects(game, seat, &mut v);

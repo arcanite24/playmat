@@ -494,8 +494,10 @@ function PlaymatSettings() {
   const [name, setName] = useState(settings.matCard?.name ?? '');
   const [problem, setProblem] = useState<string | null>(null);
   const listId = useId();
-  // Career cloths show once unlocked (the level track lists the unlocks; the Career screens share this query)
-  const levels = useQuery({ queryKey: ['career', 'levels'], queryFn: () => api.careerLevels(), enabled: settings.careerOptIn, staleTime: 30_000 });
+  // Career cloths show once unlocked (the level track lists the unlocks; the Career screens share this query), whether
+  // or not Career was opened in this browser
+  const progression = useServerInfo().data?.career === true;
+  const levels = useQuery({ queryKey: ['career', 'levels'], queryFn: () => api.careerLevels(), enabled: progression, staleTime: 30_000 });
   const unlocks = levels.data?.unlocks;
   // the Patron cloth is a thank-you for supporting the server: shown once owned, and as a quiet teaser where the server
   // takes support

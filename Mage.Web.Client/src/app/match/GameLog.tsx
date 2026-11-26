@@ -66,6 +66,9 @@ function useGameChat(gameId: string, view: GameView | null, live: boolean, delay
   useEffect(() => relay.setDelay(delayMs), [relay, delayMs]);
   useEffect(() => () => relay.dispose(), [relay]);
 
+  // a login after a dropped connection is a new server session, which isn't in the game's chat: join it again, or
+  // the log stops at the drop
+  const loginCount = useSession((state) => state.loginCount);
   useEffect(() => {
     if (!live) return;
     let cancelled = false;
@@ -85,18 +88,21 @@ function useGameChat(gameId: string, view: GameView | null, live: boolean, delay
     return () => {
       cancelled = true;
       setChatId(null);
+      // after a new login the old session's membership is gone with it: leaving now would race the join again
+      if (useSession.getState().loginCount !== loginCount) return;
       useEmotes.getState().clear();
       usePresence.getState().clear();
       if (joined) api.chatLeave(joined).catch(() => undefined);
     };
-  }, [gameId, live]);
+  }, [gameId, live, loginCount]);
 
+  // line ids run on across a rejoin: the lines from before it stay in the log
+  const seq = useRef(0);
   useEffect(() => {
     if (!chatId) return;
-    let seq = 0;
     return events.on('CHATMESSAGE', (message: ChatMessage, event) => {
       if (event.objectId !== chatId) return;
-      const parsed = parseChatMessage(message, `c${seq++}`);
+      const parsed = parseChatMessage(message, `c${seq.current++}`);
       if (!parsed) return;
       const me = useSession.getState().userName;
       const fromOther = parsed.tone !== 'chat' || parsed.who !== me;

@@ -59,6 +59,7 @@ pub fn entrant(name: &str) -> Result<Entrant, String> {
 
 /// `config` with `key=value` settings joined by `+`
 pub fn with(mut c: Config, settings: &str) -> Result<Config, String> {
+    let mut hide_explicit = false;
     for kv in settings.split('+').filter(|s| !s.is_empty()) {
         let (k, v) = kv.split_once('=').ok_or_else(|| format!("{kv}: key=value"))?;
         let n = || v.parse::<u64>().map_err(|_| format!("{kv}: not a number"));
@@ -70,7 +71,10 @@ pub fn with(mut c: Config, settings: &str) -> Result<Config, String> {
             "playout_cap" => c.playout_cap = n()?,
             "policy" => c.policy = v.parse()?,
             "threads" => c.threads = n()? as usize,
-            "hide" => c.hide = b()?,
+            "hide" => {
+                c.hide = b()?;
+                hide_explicit = true;
+            }
             "samples" => c.samples = n()?.max(1) as usize,
             "playout" => c.playout = n()? as u8,
             "eval" => c.eval = n()? as u8,
@@ -85,16 +89,52 @@ pub fn with(mut c: Config, settings: &str) -> Result<Config, String> {
             "cpuct" => c.cpuct = n()? as u32,
             "iters" => c.iters = n()? as u32,
             "playbook" => c.playbook = (v != "-").then(|| v.to_string()),
+            "leaf_blend" => c.leaf_blend = n()?.min(1000) as u32,
+            "gumbel_root" => c.gumbel_root = b()?,
+            "temp_turn" => c.temp_turn = n()? as u32,
+            "time_ms" => c.time_ms = n()? as u32,
+            "c_scale" => c.c_scale = n()? as u32,
+            "par" => c.par = n()?.max(1) as u32,
+            "multi_tree" => c.multi_tree = b()?,
+            "quiesce_net" => c.quiesce_net = b()?,
+            "mulligan_net" => c.mulligan_net = b()?,
+            "belief_ms" => c.belief_ms = b()?,
+            "cfr_root" => c.cfr_root = n()? as u32,
+            "vloss" => c.vloss = n()?.max(1) as usize,
+            "rm_root" => c.rm_root = b()?,
             _ => return Err(format!("unknown config key {k}")),
         }
+    }
+    if !hide_explicit && matches!(c.policy, PolicyKind::NetSearch | PolicyKind::Gumbel | PolicyKind::Ismcts) {
+        c.hide = true;
     }
     Ok(c)
 }
 
-/// A config as `cfg:` settings (every field, so two builds' configs compare as text)
+/// The settings `label` names only where they differ from their defaults, in its order
+pub const LATER: [&str; 14] = [
+    "playbook",
+    "leaf_blend",
+    "gumbel_root",
+    "temp_turn",
+    "time_ms",
+    "c_scale",
+    "par",
+    "multi_tree",
+    "quiesce_net",
+    "mulligan_net",
+    "belief_ms",
+    "cfr_root",
+    "vloss",
+    "rm_root",
+];
+
+/// A config as `cfg:` settings, so two builds' configs compare as text: every field up to `iters`, then the later ones
+/// only where they differ from their defaults, so a config that doesn't use them keeps the label it was pinned with
+/// (the ladder's bots, `ladder-calibrate`)
 pub fn label(c: &Config) -> String {
-    format!(
-        "budget={}+width={}+extra_turns={}+playout_cap={}+policy={}+hide={}+samples={}+playout={}+eval={}+plans={}+mulligan_sim={}+blunder={}+net={}+temp={}+eta={}+rollout={}+consider={}+cpuct={}+iters={}+playbook={}",
+    let mut s = format!(
+        "budget={}+width={}+extra_turns={}+playout_cap={}+policy={}+hide={}+samples={}+playout={}+eval={}+plans={}+mulligan_sim={}+blunder={}+net={}+temp={}+eta={}+rollout={}+consider={}+cpuct={}+iters={}",
         c.budget,
         c.width,
         c.extra_turns,
@@ -114,8 +154,31 @@ pub fn label(c: &Config) -> String {
         c.consider,
         c.cpuct,
         c.iters,
-        c.playbook.as_deref().unwrap_or("-")
-    )
+    );
+    if let Some(pb) = c.playbook.as_deref() {
+        s.push_str(&format!("+playbook={pb}"));
+    }
+    let later: [(u64, u64); 13] = [
+        (c.leaf_blend as u64, 0),
+        (c.gumbel_root as u64, 0),
+        (c.temp_turn as u64, 0),
+        (c.time_ms as u64, 0),
+        (c.c_scale as u64, 250),
+        (c.par as u64, 1),
+        (c.multi_tree as u64, 0),
+        (c.quiesce_net as u64, 0),
+        (c.mulligan_net as u64, 0),
+        (c.belief_ms as u64, 0),
+        (c.cfr_root as u64, 0),
+        (c.vloss as u64, 1),
+        (c.rm_root as u64, 0),
+    ];
+    for (k, (v, default)) in LATER[1..].iter().zip(later) {
+        if v != default {
+            s.push_str(&format!("+{k}={v}"));
+        }
+    }
+    s
 }
 
 /// The AI a table's skill plays (`TableRules.ai_skill`, 1–10 as Java's; `None`: the default, 6). Skills 0–1 play the
@@ -170,7 +233,8 @@ mod pin_tests {
         }
     }
 
-    /// the label names every setting but the threads, so a new `Config` field can't be left out of a pin
+    /// the label names every setting but the threads (the later ones where they're set), so a new `Config` field
+    /// can't be left out of a pin
     #[test]
     fn the_label_names_every_setting() {
         let debug = format!("{:?}", Config::default());
@@ -180,8 +244,17 @@ mod pin_tests {
             if field == "threads" || !field.chars().all(|c| c.is_ascii_lowercase() || c == '_') {
                 continue;
             }
-            assert!(text.contains(&format!("{field}=")), "{field} is missing from the label");
+            assert!(text.contains(&format!("{field}=")) || LATER.contains(&field), "{field} is missing from the label");
         }
+    }
+
+    /// a later setting that's set shows, and round-trips
+    #[test]
+    fn a_later_setting_shows_when_set() {
+        let c = with(Config::default(), "vloss=8+multi_tree=1").unwrap();
+        let text = label(&c);
+        assert!(text.ends_with("+multi_tree=1+vloss=8"), "{text}");
+        assert_eq!(format!("{:?}", pinned(&text).unwrap()), format!("{:?}", Some(c)));
     }
 
     #[test]

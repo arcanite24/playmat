@@ -6,6 +6,7 @@ import { CardFace } from '../ui/CardFace';
 import { Dialog } from '../ui/Dialog';
 import { useCardInfoStore } from './cardInfo';
 import { entryKey, printingOf, type PrintingRef } from './deckModel';
+import { allPrintings } from './printings';
 import styles from './PrintingPicker.module.css';
 
 /** Every printing of a card, newest set first; picking one switches the deck entry (and its picture) to it. */
@@ -25,7 +26,7 @@ export function PrintingPicker({ name, current, onPick, onPickCard, onClose, des
   const sets = useQuery({ queryKey: ['expansionSets'], queryFn: () => api.getExpansionSets(), staleTime: Infinity });
   const printings = useQuery({
     queryKey: ['printings', name],
-    queryFn: () => api.searchCards({ name: name!, uniqueNames: false, count: 500, start: 0 }),
+    queryFn: () => allPrintings(name!, (criteria) => api.searchCards(criteria)),
     enabled: !!name,
     staleTime: 10 * 60_000,
   });

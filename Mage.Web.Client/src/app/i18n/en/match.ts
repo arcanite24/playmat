@@ -77,6 +77,8 @@ export default {
 
   // an opponent's card revealed from their hand, still in it
   'match.hand.revealed': 'Revealed',
+  // the hand of a player whose turn you control (Mindslaver), shown in place of yours while they're asked
+  'match.hand.controlled': "{name}'s hand",
 
   // the decision corner
   'match.conceding': 'Concession sent. The game ends as soon as the server applies it.',

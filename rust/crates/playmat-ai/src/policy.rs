@@ -167,7 +167,17 @@ impl Policy {
                         .map(|i| Answer::Ability(*source, i))
                 })
                 .unwrap_or_else(|| choose_ability(game, seat, *source, abilities)),
-            Query::ChooseAbility { source, abilities } => choose_ability(game, seat, *source, abilities),
+            Query::ChooseAbility { source, abilities } => {
+                let paying = game.unpaid.is_some() || game.mana_paid.is_some();
+                let def = &game.obj(*source).def;
+                (!paying)
+                    .then(|| {
+                        abilities.iter().copied().find(|i| def.abilities.get(*i).is_some_and(|a| a.mana().is_none()))
+                    })
+                    .flatten()
+                    .map(|i| Answer::Ability(*source, i))
+                    .unwrap_or_else(|| choose_ability(game, seat, *source, abilities))
+            }
             Query::PickTrigger { .. } => Answer::Trigger(0),
             Query::YesNo { message } => {
                 let decline = declines_in_game(game, seat, message)

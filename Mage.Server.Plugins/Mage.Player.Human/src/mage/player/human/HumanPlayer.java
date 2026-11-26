@@ -900,6 +900,7 @@ public class HumanPlayer extends PlayerImpl {
             // manual choice
             if (responseId == null) {
                 options.put("chosenTargets", new HashSet<>(target.getTargets()));
+                markOptionalTrigger(options, target, source);
 
                 prepareForResponse(game);
                 if (!isExecutingMacro()) {
@@ -939,6 +940,16 @@ public class HumanPlayer extends PlayerImpl {
         }
 
         return target.isChosen(game) && target.getTargets().size() > 0;
+    }
+
+    /**
+     * Playmat: an optional ("you may") trigger's targets are chosen before its "may" is asked, on resolution; the web
+     * client says so in the prompt.
+     */
+    private static void markOptionalTrigger(Map<String, Serializable> options, Target target, Ability source) {
+        if (TriggeredAbility.isOptionalTriggerTarget(source, target)) {
+            options.put("optionalTrigger", true);
+        }
     }
 
     private Map<String, Serializable> getOptions(Target target, Map<String, Serializable> options) {
@@ -1088,6 +1099,7 @@ public class HumanPlayer extends PlayerImpl {
             if (responseId == null) {
                 Map<String, Serializable> options = getOptions(target, null);
                 options.put("chosenTargets", new HashSet<>(target.getTargets()));
+                markOptionalTrigger(options, target, source);
 
                 if (!possibleTargets.isEmpty()) {
                     options.put("possibleTargets", (Serializable) possibleTargets);
@@ -1195,6 +1207,7 @@ public class HumanPlayer extends PlayerImpl {
                 // selected
                 Map<String, Serializable> options = getOptions(target, null);
                 options.put("chosenTargets", new HashSet<>(target.getTargets()));
+                markOptionalTrigger(options, target, source);
                 if (!possibleTargets.isEmpty()) {
                     options.put("possibleTargets", (Serializable) possibleTargets);
                 }
@@ -2881,6 +2894,20 @@ public class HumanPlayer extends PlayerImpl {
             response.setAsyncWantCheat();
             response.notifyAll();
             logger.debug("Set cheat for waiting player: " + getId());
+        }
+    }
+
+    /**
+     * "Pass to end of turn" (PASS_PRIORITY_UNTIL_TURN_END_STEP) is for the turn it was pressed in. Pressed in an end
+     * step (or cleanup), the next end step it waited for was the next turn's: it skipped every stop of that turn, and
+     * when that turn was the player's own, their whole turn went by, first main phase and all.
+     */
+    @Override
+    public void endOfTurn(Game game) {
+        super.endOfTurn(game);
+        if (passedUntilEndOfTurn) {
+            passedUntilEndOfTurn = false;
+            skippedAtLeastOnce = false;
         }
     }
 

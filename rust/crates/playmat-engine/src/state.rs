@@ -1239,6 +1239,9 @@ pub struct Game {
     /// asking whom an attacker attacks (`HumanPlayer.selectDefender`'s `TargetDefender`): the host words the target
     /// question as Java does, "player, planeswalker, or battle to attack"
     pub asking_defender: bool,
+    /// choosing the targets of an optional ("you may") triggered ability as it goes on the stack: the host tells the
+    /// player the "may" is asked when it resolves (`HumanPlayer.chooseTarget`'s `optionalTrigger` option)
+    pub targeting_optional_trigger: bool,
     /// a melded permanent's two cards put into a graveyard or library (`move_to`): Java's owner orders them
     /// (`ZonesHandler.chooseOrder`), asked like `owed_choices`. The cards as `move_to` put them there, in order
     pub owed_meld_orders: Vec<(Seat, ObjId, ObjId)>,
@@ -1739,6 +1742,7 @@ impl Game {
             void_this_turn: false,
             owed_choices: Vec::new(),
             asking_defender: false,
+            targeting_optional_trigger: false,
             owed_meld_orders: Vec::new(),
             owed_replacement_choices: Default::default(),
             trigger_cause: None,
@@ -1903,6 +1907,11 @@ impl Game {
 
     pub fn opponent(&self, seat: Seat) -> Seat {
         (seat + 1) % self.seats()
+    }
+
+    /// Who makes the seat's decisions: the player controlling its turn (Emrakul, the Promised End), else itself
+    pub fn turn_controller(&self, seat: Seat) -> Seat {
+        self.controlled_by.iter().find(|(p, _)| *p == seat).map_or(seat, |(_, c)| *c)
     }
 
     /// Creates a card owned by `owner` in `zone`, without putting it in that zone's list.

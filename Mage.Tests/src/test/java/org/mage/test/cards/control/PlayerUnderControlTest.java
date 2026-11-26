@@ -2,7 +2,13 @@ package org.mage.test.cards.control;
 
 import mage.constants.PhaseStep;
 import mage.constants.Zone;
+import com.google.gson.JsonObject;
+import mage.cards.Card;
+import mage.game.permanent.Permanent;
+import mage.server.websocket.rpc.JsonCodec;
+import mage.view.CardView;
 import mage.view.GameView;
+import mage.view.SimpleCardView;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mage.test.serverside.base.CardTestPlayerBase;
@@ -37,6 +43,61 @@ public class PlayerUnderControlTest extends CardTestPlayerBase {
 
         setStrictChooseMode(true);
         setStopAt(3, PhaseStep.END_TURN);
+        execute();
+    }
+
+    @Test
+    public void test_ControllerSeesAndPlaysControlledHand() {
+        // the controller casts from the controlled player's hand and taps their lands, so their view needs that hand
+        // as whole cards (a client renders and casts from it) and the hand's spells and the lands among its playables
+        addCard(Zone.HAND, playerA, "Emrakul, the Promised End"); // {13}
+        addCard(Zone.BATTLEFIELD, playerA, "Forest", 13);
+        //
+        addCard(Zone.HAND, playerB, "Raise the Alarm"); // {1}{W}
+        addCard(Zone.BATTLEFIELD, playerB, "Plains", 1);
+        addCard(Zone.BATTLEFIELD, playerB, "Godless Shrine", 1);
+
+        castSpell(1, PhaseStep.PRECOMBAT_MAIN, playerA, "Emrakul, the Promised End");
+        addTarget(playerA, playerB);
+        waitStackResolved(1, PhaseStep.PRECOMBAT_MAIN);
+
+        // playerB holds priority on their own turn, under playerA's control
+        runCode("controller's view", 2, PhaseStep.PRECOMBAT_MAIN, playerB, (info, player, game) -> {
+            Assert.assertEquals(playerA.getId(), playerB.getTurnControlledBy());
+            Card alarm = playerB.getHand().getCards(game).stream()
+                    .filter(card -> card.getName().equals("Raise the Alarm"))
+                    .findFirst().orElse(null);
+            Permanent shrine = game.getBattlefield().getAllActivePermanents(playerB.getId()).stream()
+                    .filter(permanent -> permanent.getName().equals("Godless Shrine"))
+                    .findFirst().orElse(null);
+            Assert.assertNotNull(alarm);
+            Assert.assertNotNull(shrine);
+
+            GameView viewA = getGameView(playerA);
+            SimpleCardView inHand = viewA.getOpponentHands().get(playerB.getName()).get(alarm.getId());
+            Assert.assertTrue("the controlled hand is sent as whole cards", inHand instanceof CardView);
+            Assert.assertEquals("Raise the Alarm", ((CardView) inHand).getName());
+
+            Assert.assertNotNull(viewA.getCanPlayObjects());
+            Assert.assertTrue("the controller can cast from the controlled hand",
+                    viewA.getCanPlayObjects().containsObject(alarm.getId()));
+            Assert.assertTrue("the controller can tap the controlled player's dual land",
+                    viewA.getCanPlayObjects().containsObject(shrine.getId()));
+
+            // the web client gets the whole card, not only its picture's reference
+            JsonObject json = JsonCodec.GSON.toJsonTree(viewA).getAsJsonObject()
+                    .getAsJsonObject("opponentHands").getAsJsonObject(playerB.getName())
+                    .getAsJsonObject(alarm.getId().toString());
+            Assert.assertEquals("Raise the Alarm", json.get("name").getAsString());
+            Assert.assertTrue("rules reach the client", json.has("rules"));
+            Assert.assertTrue("the mana cost reaches the client", json.has("manaCostLeftStr") || json.has("manaCostStr"));
+
+            // the controlled player's own view keeps their hand as their own
+            Assert.assertTrue(getGameView(playerB).getOpponentHands().isEmpty());
+        });
+
+        setStrictChooseMode(true);
+        setStopAt(2, PhaseStep.END_TURN);
         execute();
     }
 

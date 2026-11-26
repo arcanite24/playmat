@@ -268,6 +268,19 @@ export function HomeScreen() {
               <span className={styles.aiSetupAction}>{t('home.change')}</span>
             </button>
           )}
+          {mode === 'meta' && (
+            <button type="button" className={styles.aiSetup} onClick={() => setAiOpen(true)} disabled={busy}>
+              <SlidersHorizontal size={16} aria-hidden="true" />
+              {/* the format's pool deals the AI's deck and the format's rules apply: only its pod size follows the setting */}
+              <span>{describeAi(
+                t,
+                { ...play.aiOptions, rules: 'casual', opponents: pickedFormat && formatRules(pickedFormat).commandZone !== null ? play.aiOptions.opponents : 1 },
+                t('ai.summary.metaDeck'),
+                soloReady ? t('solo.adaptive.summary') : undefined,
+              )}</span>
+              <span className={styles.aiSetupAction}>{t('home.change')}</span>
+            </button>
+          )}
           {mode === 'meta' && soloReady && <Suspense fallback={null}><MetaFormatPicker formats={metaFormats} value={pickedFormat} disabled={busy} onChange={setMetaFormat} /></Suspense>}
           {mode === 'practice' && <p className={styles.modeNote}>{t('home.practiceNote')}</p>}
           {mode === 'friend' && <p className={styles.modeNote}>{t('home.friendNote')}</p>}
@@ -299,7 +312,7 @@ export function HomeScreen() {
           </div>
         )}
       </section>
-      {aiLoaded && <Suspense fallback={null}><AiSettingsDialog open={aiOpen} onOpenChange={setAiOpen} /></Suspense>}
+      {aiLoaded && <Suspense fallback={null}><AiSettingsDialog open={aiOpen} onOpenChange={setAiOpen} formatDeck={mode === 'meta'} /></Suspense>}
     </div>
   );
 }

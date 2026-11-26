@@ -554,10 +554,10 @@ function ThanksShelf({ thanks }: { thanks: ThankYou }) {
 /** Settings, Cosmetics: the locker outside Career, with the Career track when the player has one. */
 export default function CosmeticsSettings() {
   const t = useT();
+  // what progression gave comes from the server, whether or not Career was opened in this browser
   const career = useServerInfo().data?.career === true;
-  const optedIn = useSettings((settings) => settings.settings.careerOptIn);
-  const levels = useCareerLevels(career && optedIn);
-  const achievements = useCareerAchievements(career && optedIn);
+  const levels = useCareerLevels(career);
+  const achievements = useCareerAchievements(career);
   if (levels.isLoading) return <p className={progress.panelNote}>{t('career.look.loading')}</p>;
   return (
     <div className={progress.settingsLocker}>

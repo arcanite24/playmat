@@ -1,4 +1,4 @@
-import type { CareerLevelTrack, PlayerLook, ServerInfo, SupportYou } from '../../protocol/generated/views';
+import type { CareerLevelTrack, PlayerLook, ServerInfo, SupportPerk, SupportYou } from '../../protocol/generated/views';
 import { api } from '../connection';
 import { queryClient } from '../queries';
 import { rosterOf, sleeveFor, useDecks } from '../stores/decks';
@@ -8,7 +8,7 @@ import { useSession } from '../stores/session';
 import { useSettings } from '../stores/settings';
 import { useTokenArt } from '../stores/tokenArt';
 import { rememberLook, SUPPORT_PERKS, useWear, wearOf } from './supportData';
-import { lookOf, sameLook } from './supportModel';
+import { lookOf, owns, sameLook } from './supportModel';
 import { loadCatalog } from '../ui/cosmeticsCatalog';
 import { CAREER_SLEEVES, provideRandomSleeves, setRandomSeed } from '../ui/sleeveArt';
 
@@ -21,6 +21,43 @@ import { CAREER_SLEEVES, provideRandomSleeves, setRandomSeed } from '../ui/sleev
 const PUSH_DELAY_MS = 1500;
 /** Career's look (career/careerData.ts), read here without loading Career */
 const CAREER_LOOK_KEY = 'playmat.career.look';
+/** fired once the Career look was taken from the server, so a loaded Career store reads it again */
+export const CAREER_LOOK_ADOPTED_EVENT = 'playmat:career-look-adopted';
+
+type StoredCareerLook = { avatar: string | null; title: string | null } & NonNullable<Parameters<typeof lookOf>[0]['career']>;
+
+/**
+ * The Career pieces of the look the server keeps for this account: what a browser that never picked any (a new
+ * device, cleared storage) starts from, so its first push doesn't take them off. Thank-you pieces stay with the
+ * thank-you set.
+ */
+export function careerLookFrom(stored: PlayerLook, perks: readonly SupportPerk[] | undefined): StoredCareerLook | null {
+  const piece = (kind: string, id: string | undefined) => (id && !owns(perks, kind, id) ? id : null);
+  const look: StoredCareerLook = { avatar: piece('avatar', stored.avatar), title: piece('title', stored.title) };
+  const frame = piece('frame', stored.frame);
+  if (frame) look.frame = frame;
+  const pet = piece('pet', stored.pet);
+  if (pet) look.pet = pet;
+  for (const kind of ['arrow', 'spark', 'stamp'] as const) {
+    const id = piece(kind, stored[kind]);
+    if (id) look[kind] = id;
+  }
+  const lands = piece('land', stored.lands);
+  if (lands) look.lands = lands;
+  if (stored.badges?.length) look.badges = stored.badges.slice(0, 3);
+  const any = look.avatar || look.title || Object.keys(look).length > 2;
+  return any ? look : null;
+}
+
+/** Takes the server's Career pieces when this browser holds no Career look for the account. */
+function adoptCareerLook(account: string, stored: PlayerLook | undefined, perks: readonly SupportPerk[] | undefined): void {
+  const looks = readJson<Record<string, StoredCareerLook>>(CAREER_LOOK_KEY, {});
+  if (!stored || looks[account]) return;
+  const look = careerLookFrom(stored, perks);
+  if (!look) return;
+  writeJson(CAREER_LOOK_KEY, { ...looks, [account]: look });
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(CAREER_LOOK_ADOPTED_EVENT));
+}
 
 let sent: { account: string; look: PlayerLook } | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
@@ -33,7 +70,7 @@ function currentLook(account: string): PlayerLook {
   // the deck being played, else the one chosen on Home
   const deckId = usePlay.getState().deckId ?? decks.selectedId;
   const deck = roster.find((candidate) => candidate.id === deckId) ?? roster[0];
-  const career = readJson<Record<string, { avatar: string | null; title: string | null } & NonNullable<Parameters<typeof lookOf>[0]['career']>>>(CAREER_LOOK_KEY, {})[account];
+  const career = readJson<Record<string, StoredCareerLook>>(CAREER_LOOK_KEY, {})[account];
   const perks = queryClient.getQueryData<SupportYou>([...SUPPORT_PERKS, account])?.perks;
   return lookOf({
     sleeve: deck ? sleeveFor(decks.sleeves, deck) : undefined,
@@ -67,11 +104,13 @@ async function push(): Promise<void> {
   if (careerOn) await loadCatalog(() => api.careerCosmetics());
   // the thank-you set first, so the look can wear it
   await queryClient.fetchQuery({ queryKey: [...SUPPORT_PERKS, account], queryFn: () => api.supportPerks(), staleTime: 5 * 60_000 }).catch(() => null);
-  // a new browser takes the account's token choices from the server first (unless it changed some itself)
+  // a new browser takes the account's token choices and Career pieces from the server first (unless it changed some
+  // itself): without them its first push would take off everything Career gave
   if (tokensFetched !== account) {
     const [mine] = await api.profileLooks([session.userName]).catch(() => []);
     tokensFetched = account;
     useTokenArt.getState().adopt(mine?.tokens);
+    adoptCareerLook(account, mine, queryClient.getQueryData<SupportYou>([...SUPPORT_PERKS, account])?.perks);
   }
   const look = currentLook(account);
   if (sent?.account === account && sameLook(sent.look, look)) return;

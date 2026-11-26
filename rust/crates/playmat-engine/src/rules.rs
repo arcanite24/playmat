@@ -1580,7 +1580,8 @@ fn priority(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
     let step = game.step.unwrap_or(Step::Upkeep);
     if game.stack.is_empty()
         && !stops_in(step)
-        && !game.player(seat).every_priority
+        // (a turn another player controls: theirs is asked as they are)
+        && !game.player(game.turn_controller(seat)).every_priority
         && pass_with_mana_pool_check(game, d, seat)
     {
         return;
@@ -10729,7 +10730,11 @@ fn spend_allowed(game: &Game, seat: Seat, src: ObjId, h: cards::SpendHandler, on
 }
 
 /// A `conditional_pool` entry's ability index at or past this names `Game::effect_mana` (an effect's mana)
+#[cfg(target_pointer_width = "64")]
 pub(crate) const EFFECT_MANA: usize = 1 << 40;
+/// 32-bit targets (the wasm32 browser worker): ability indexes stay far below this too
+#[cfg(not(target_pointer_width = "64"))]
+pub(crate) const EFFECT_MANA: usize = 1 << 30;
 
 /// The conditional mana ability (or an effect's stand-in for one) a `conditional_pool` entry was made by
 fn conditional_def(game: &Game, src: ObjId, j: usize) -> Option<&AbilityDef> {
@@ -23448,7 +23453,7 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
                     }
                 }
                 // its targets, which can't be cancelled; with no legal ones it's removed (rule 603.3d)
-                if let Some((rule, _, targets, _)) = ability.as_ref().and_then(|a| a.triggered()) {
+                if let Some((rule, _, targets, optional)) = ability.as_ref().and_then(|a| a.triggered()) {
                     let targets = mode_targets.as_deref().unwrap_or(targets);
                     // (`PlayerImpl.triggerAbility`'s `canChooseTarget`: every target first, so a later "up to one"
                     // isn't asked when an earlier one has none: Invasion of Muraganda with no creature of yours)
@@ -23458,7 +23463,10 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
                     if !possible {
                         Arc::make_mut(&mut game.stack).pop();
                     } else if !targets.is_empty() {
-                        if !choose_targets(game, d, seat, targets, None, rule, false) {
+                        game.targeting_optional_trigger = optional;
+                        let chosen = choose_targets(game, d, seat, targets, None, rule, false);
+                        game.targeting_optional_trigger = false;
+                        if !chosen {
                             if d.stopped() {
                                 return happened;
                             }
@@ -27395,6 +27403,44 @@ mod tests {
                 }
                 _ => Passer.answer(game, seat, query),
             }
+        }
+    }
+
+    /// Picks the first object of every target question, noting whether it was an optional trigger's
+    struct TargetFlags(Vec<bool>);
+
+    impl Decider for TargetFlags {
+        fn answer(&mut self, game: &Game, seat: Seat, query: &Query) -> Answer {
+            match query {
+                Query::Target { objs, .. } if !objs.is_empty() => {
+                    self.0.push(game.targeting_optional_trigger);
+                    Answer::Obj(objs[0])
+                }
+                _ => Passer.answer(game, seat, query),
+            }
+        }
+    }
+
+    /// An optional ("you may") trigger's targets are asked with `targeting_optional_trigger` set, so the host can say
+    /// the "may" comes on resolution; a mandatory one's without it
+    #[test]
+    fn optional_trigger_targets_are_flagged() {
+        let db = crate::cards();
+        for (creature, target, optional) in
+            [("Reclamation Sage", "Ornithopter", true), ("Ravenous Chupacabra", "Ornithopter", false)]
+        {
+            let mut game = game_with(&db, &[("Plains", 20)]);
+            // two choices, so the target isn't chosen automatically
+            for _ in 0..2 {
+                let thing = game.create_obj(db.get(target).unwrap(), 1, Zone::Hand);
+                game.move_to(thing, Zone::Battlefield);
+            }
+            let card = game.create_obj(db.get(creature).unwrap(), 0, Zone::Hand);
+            let mut d = TargetFlags(Vec::new());
+            put_onto_battlefield(&mut game, &mut d, card, 0);
+            check_state_and_triggered(&mut game, &mut d);
+            assert_eq!(d.0, vec![optional], "{creature}");
+            assert!(!game.targeting_optional_trigger, "{creature}: cleared after the targets");
         }
     }
 

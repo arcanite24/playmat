@@ -1,6 +1,7 @@
 //! Opening hands: whether the AI keeps or mulligans, and which cards go to the bottom (the London mulligan).
 //! Used by the Rust host for its AI seats and by the benches, so both play the same way.
 
+use crate::fm::Fm;
 use playmat_engine::card::CardType;
 use playmat_engine::rules;
 use playmat_engine::state::{Game, ObjId, Seat, Zone};
@@ -89,10 +90,13 @@ pub fn put_on_bottom(game: &mut Game, seat: Seat, card: ObjId) {
     game.obj_mut(card).zone = Zone::Library;
 }
 
-/// Whether the AI with `config` (`None`: the quick answers alone) mulligans `seat`'s hand: by the rule (modulated
-/// by the seat's Playbook when present), or with `Config::mulligan_sim` by goldfishing the hand.
+/// Whether the AI with `config` (`None`: the quick answers alone) mulligans `seat`'s hand: by the neural value head
+/// (`Config::mulligan_net`), by goldfishing (`Config::mulligan_sim`), by Playbook rules when configured, or by counting lands.
 pub fn wants(game: &Game, seat: Seat, taken: usize, config: Option<&crate::search::Config>) -> bool {
     if let Some(c) = config {
+        if c.mulligan_net && taken < 2 {
+            return net_wants(game, seat, taken, c);
+        }
         if c.mulligan_sim && taken < 2 {
             return sim_wants(game, seat, taken);
         }
@@ -103,10 +107,13 @@ pub fn wants(game: &Game, seat: Seat, taken: usize, config: Option<&crate::searc
     rule_wants(game, seat, taken)
 }
 
-/// The card the AI with `config` puts on the bottom: by the rule (modulated by Playbook when present), or with
-/// `Config::mulligan_sim` the one whose hand goldfishes best without it.
+/// The card the AI with `config` puts on the bottom: by the neural value head (`Config::mulligan_net`), by
+/// goldfishing (`Config::mulligan_sim`), by Playbook rules when configured, or by the rule.
 pub fn bottom(game: &Game, seat: Seat, config: Option<&crate::search::Config>) -> ObjId {
     if let Some(c) = config {
+        if c.mulligan_net {
+            return net_bottom(game, seat, c);
+        }
         if c.mulligan_sim {
             return sim_bottom(game, seat);
         }
@@ -342,4 +349,71 @@ fn sim_bottom(game: &Game, seat: Seat) -> ObjId {
         }
     }
     best.map_or_else(|| rule_bottom(game, seat), |(id, _)| id)
+}
+
+fn net_hand_value(net: &crate::net::Net, game: &Game, seat: Seat) -> f64 {
+    let mut g = game.clone();
+    g.turn = 1;
+    g.step = Some(playmat_engine::state::Step::PrecombatMain);
+    let q = playmat_engine::decide::Query::Priority { playable: Vec::new() };
+    let obs = crate::obs::observe(&g, seat, &q, &[]);
+    let logit = net.state(&obs).1 as f64;
+    1.0 / (1.0 + (-logit).sexp())
+}
+
+fn net_bottom_with(net: &crate::net::Net, game: &Game, seat: Seat) -> ObjId {
+    let hand = game.player(seat).hand.clone();
+    if hand.len() <= 1 {
+        return hand.first().copied().unwrap_or_else(|| rule_bottom(game, seat));
+    }
+    let mut best: Option<(ObjId, f64)> = None;
+    for id in hand {
+        let mut g = game.clone();
+        put_on_bottom(&mut g, seat, id);
+        let v = net_hand_value(net, &g, seat);
+        if best.is_none_or(|(_, b)| v > b) {
+            best = Some((id, v));
+        }
+    }
+    best.map_or_else(|| rule_bottom(game, seat), |(id, _)| id)
+}
+
+fn net_bottom(game: &Game, seat: Seat, cfg: &crate::search::Config) -> ObjId {
+    let net = crate::net::of(&cfg.net);
+    net_bottom_with(&net, game, seat)
+}
+
+fn net_wants(game: &Game, seat: Seat, taken: usize, cfg: &crate::search::Config) -> bool {
+    let net = crate::net::of(&cfg.net);
+    let keep = net_hand_value(&net, game, seat);
+    let mut pool: Vec<ObjId> = game.player(seat).hand.iter().chain(game.player(seat).library.iter()).copied().collect();
+    let size = 7usize.saturating_sub(taken + 1);
+    let mut mix = Mix(seed(game, seat) ^ 0x4E45_544D);
+    let deals = 8usize;
+    let mut mull = 0.0;
+    for _ in 0..deals {
+        mix.shuffle(&mut pool);
+        let mut g = game.clone();
+        let draw_n = 7.min(pool.len());
+        let new_hand = pool[..draw_n].to_vec();
+        let new_lib = pool[draw_n..].to_vec();
+        for &id in &new_hand {
+            g.obj_mut(id).zone = Zone::Hand;
+        }
+        for &id in &new_lib {
+            g.obj_mut(id).zone = Zone::Library;
+        }
+        g.player_mut(seat).hand = new_hand;
+        g.player_mut(seat).library = new_lib;
+        while g.player(seat).hand.len() > size + 1 {
+            let c = rule_bottom(&g, seat);
+            put_on_bottom(&mut g, seat, c);
+        }
+        while g.player(seat).hand.len() > size {
+            let c = net_bottom_with(&net, &g, seat);
+            put_on_bottom(&mut g, seat, c);
+        }
+        mull += net_hand_value(&net, &g, seat);
+    }
+    keep < mull / deals as f64
 }

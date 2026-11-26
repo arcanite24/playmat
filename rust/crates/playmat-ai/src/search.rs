@@ -59,6 +59,32 @@ pub struct Config {
     pub iters: u32,
     /// Forge-inspired AI playbook id (`profile:<arch>` or `<format>/<deck>`), `None` for generic heuristics
     pub playbook: Option<String>,
+    /// `ismcts`: weight per thousand on the expanded leaf's neural value vs rollout eval (0: rollout only, 1000: pure value-leaf, no rollout)
+    pub leaf_blend: u32,
+    /// `ismcts`: use Gumbel-top-k sequential halving at the root and completed-Q policy targets
+    pub gumbel_root: bool,
+    /// apply `temp` only on turns `<= temp_turn` (0: apply on all turns)
+    pub temp_turn: u32,
+    /// `ismcts`: optional wall-clock cap in ms per decision (0: disabled, deterministic iteration count)
+    pub time_ms: u32,
+    /// `ismcts` + `gumbel_root`: Q-value scaling factor `c_scale` per thousand (default 250 -> 0.25)
+    pub c_scale: u32,
+    /// `ismcts` + `gumbel_root`: root-parallel determinization worker threads (1 = sequential; >1 = parallel across worlds)
+    pub par: u32,
+    /// `ismcts` + `gumbel_root`: independent tree per determinized world (eliminates strategy fusion even at par=1)
+    pub multi_tree: bool,
+    /// `ismcts` + pure value-leaf: use cached neural policy (not heuristic `quick`) while resolving mid-combat/stack quiescence
+    pub quiesce_net: bool,
+    /// keep/mulligan and London bottom using the neural value head (`net.state`) instead of heuristic/goldfish rules
+    pub mulligan_net: bool,
+    /// Phase 3: top-K multiset Rao-Blackwellized belief resampling over 6*k proposals
+    pub belief_ms: bool,
+    /// Phase 3: belief-conditioned entropic/counterfactual risk blend at root (0 = off, 1..500 = alpha/1000)
+    pub cfr_root: u32,
+    /// Phase 3: intra-tree Virtual-Loss batch size for GPU/batched leaf evaluation (1 = sequential, 4..16 = batched)
+    pub vloss: usize,
+    /// Phase 3: saddle-point Regret-Matching+ adversarial belief tilting at root
+    pub rm_root: bool,
 }
 
 impl Default for Config {
@@ -96,6 +122,19 @@ impl Default for Config {
             cpuct: 300,
             iters: 256,
             playbook: None,
+            leaf_blend: 0,
+            gumbel_root: false,
+            temp_turn: 0,
+            time_ms: 0,
+            c_scale: 250,
+            par: 1,
+            multi_tree: false,
+            quiesce_net: false,
+            mulligan_net: false,
+            belief_ms: false,
+            cfr_root: 0,
+            vloss: 1,
+            rm_root: false,
         }
     }
 }
@@ -250,7 +289,7 @@ impl Table {
         }
         let candidates = candidates(game, seat, q, &quick, cfg.width);
         if candidates.len() < 2 {
-            return quick;
+            return candidates.into_iter().next().unwrap_or(quick);
         }
         // a lower skill's mistakes: now and then a candidate at random instead of the search (never a payment)
         if cfg.blunder > 0 && !matches!(q, Query::PlayMana { .. }) {
@@ -617,8 +656,26 @@ pub fn candidates(game: &Game, seat: Seat, q: &Query, quick: &Answer, width: usi
             }
         }
         Query::ChooseAbility { source, abilities } => {
+            drop(add);
+            let paying = game.unpaid.is_some() || game.mana_paid.is_some();
+            let def = &game.obj(*source).def;
+            let has_non_mana =
+                !paying && abilities.iter().any(|i| def.abilities.get(*i).is_some_and(|a| a.mana().is_none()));
+            if has_non_mana {
+                if let Some(Answer::Ability(src, qi)) = out.first() {
+                    if src == source && def.abilities.get(*qi).is_some_and(|a| a.mana().is_some()) {
+                        out.clear();
+                    }
+                }
+            }
             for i in abilities {
-                add(Answer::Ability(*source, *i));
+                if has_non_mana && def.abilities.get(*i).is_some_and(|a| a.mana().is_some()) {
+                    continue;
+                }
+                let a = Answer::Ability(*source, *i);
+                if !out.contains(&a) {
+                    out.push(a);
+                }
             }
         }
         Query::YesNo { message }

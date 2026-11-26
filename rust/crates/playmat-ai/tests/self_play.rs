@@ -94,7 +94,14 @@ impl Decider for Audit {
 }
 
 fn same(a: &Obs, b: &Obs) -> bool {
-    a.glob == b.glob && a.ents == b.ents && a.ent_ids == b.ent_ids && a.acts == b.acts && a.act_ids == b.act_ids
+    a.glob == b.glob
+        && a.ents == b.ents
+        && a.ent_ids == b.ent_ids
+        && a.ent_rel_idx == b.ent_rel_idx
+        && a.ent_rel_type == b.ent_rel_type
+        && a.acts == b.acts
+        && a.act_ids == b.act_ids
+        && a.act_ent_idx == b.act_ent_idx
 }
 
 #[test]
@@ -159,6 +166,26 @@ fn the_rust_transformer_matches_pytorch() {
     assert_eq!(cases["sha"].as_str().unwrap(), sha(&bytes));
 }
 
+/// Upgraded transformer (dedicated 2-layer value MLP with max-pool + glob skip, and tanh-GELU)
+#[test]
+fn the_rust_transformer_v2_matches_pytorch() {
+    let bytes = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/tx_v2_small.pmnet")).unwrap();
+    let net = Net::parse("tx_v2_small", &bytes).unwrap();
+    assert!(matches!(net, Net::Tx(_)));
+    let cases = parity(&net, "net_parity_tx_v2.json");
+    assert_eq!(cases["sha"].as_str().unwrap(), sha(&bytes));
+}
+
+/// Obs v2 + Sparse Relational Transformer (`glob_f=81, rel=1, act_ent=1, val_mlp=1, gelu=1`)
+#[test]
+fn the_rust_relational_transformer_matches_pytorch() {
+    let bytes = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/tx_rel_small.pmnet")).unwrap();
+    let net = Net::parse("tx_rel_small", &bytes).unwrap();
+    assert!(matches!(net, Net::Tx(_)));
+    let cases = parity(&net, "net_parity_tx_rel.json");
+    assert_eq!(cases["sha"].as_str().unwrap(), sha(&bytes));
+}
+
 /// Checks `net` against a fixture `parity.py` wrote, and gives the fixture
 fn parity(net: &Net, fixture: &str) -> serde_json::Value {
     let text = std::fs::read_to_string(format!("{}/tests/{fixture}", env!("CARGO_MANIFEST_DIR"))).unwrap();
@@ -169,14 +196,22 @@ fn parity(net: &Net, fixture: &str) -> serde_json::Value {
     let u = |v: &serde_json::Value| -> Vec<u32> {
         v.as_array().unwrap().iter().map(|x| x.as_u64().unwrap() as u32).collect()
     };
+    let u8v = |v: &serde_json::Value, n: usize, def: u8| -> Vec<u8> {
+        v.as_array().map(|arr| arr.iter().map(|x| x.as_u64().unwrap() as u8).collect()).unwrap_or_else(|| vec![def; n])
+    };
     let mut n = 0;
     for c in cases["cases"].as_array().unwrap() {
+        let ent_ids = u(&c["ent_ids"]);
+        let act_ids = u(&c["act_ids"]);
         let o = Obs {
             glob: f(&c["glob"]),
             ents: f(&c["ents"]),
-            ent_ids: u(&c["ent_ids"]),
+            ent_rel_idx: u8v(&c["ent_rel_idx"], ent_ids.len(), obs::NO_ENT),
+            ent_rel_type: u8v(&c["ent_rel_type"], ent_ids.len(), 0),
+            ent_ids,
             acts: f(&c["acts"]),
-            act_ids: u(&c["act_ids"]),
+            act_ent_idx: u8v(&c["act_ent_idx"], act_ids.len(), obs::NO_ENT),
+            act_ids,
         };
         let out = net.forward(&o);
         let want = f(&c["logits"]);
@@ -203,11 +238,13 @@ fn network_policies_play_whole_games() {
     let db = playmat_engine::cards();
     let (a, b) = decks();
     // the last: Gumbel with the network answering inside the playouts too
-    for (kind, hide, rollout) in [
-        (PolicyKind::Net, false, None),
-        (PolicyKind::NetSearch, true, None),
-        (PolicyKind::Gumbel, true, Some("builtin".to_string())),
-        (PolicyKind::Ismcts, true, Some("builtin".to_string())),
+    for (kind, hide, rollout, gumbel_root, leaf_blend) in [
+        (PolicyKind::Net, false, None, false, 0),
+        (PolicyKind::NetSearch, true, None, false, 0),
+        (PolicyKind::Gumbel, true, Some("builtin".to_string()), false, 0),
+        (PolicyKind::Ismcts, true, Some("builtin".to_string()), false, 0),
+        (PolicyKind::Ismcts, true, None, true, 1000),
+        (PolicyKind::Ismcts, true, Some("builtin".to_string()), true, 500),
     ] {
         let cfg = Config {
             policy: kind,
@@ -218,6 +255,10 @@ fn network_policies_play_whole_games() {
             temp: 0,
             threads: 1,
             rollout,
+            gumbel_root,
+            leaf_blend,
+            iters: 16,
+            consider: 4,
             ..Config::default()
         };
         let mut game = new_duel(&db, [&a, &b], 11, 0).unwrap();
@@ -253,8 +294,11 @@ fn net_speed() {
         glob: vec![0.3; obs::GLOB_F],
         ents: (0..30 * obs::ENT_F).map(|i| (i % 7) as f32 / 7.0).collect(),
         ent_ids: (0..30).map(|i| i * 37 % 4000 + 1).collect(),
+        ent_rel_idx: vec![obs::NO_ENT; 30],
+        ent_rel_type: vec![0; 30],
         acts: (0..10 * obs::ACT_F).map(|i| (i % 5) as f32 / 5.0).collect(),
         act_ids: (0..10).map(|i| i * 91 % 4000 + 1).collect(),
+        act_ent_idx: vec![obs::NO_ENT; 10],
     };
     let start = std::time::Instant::now();
     let n = 200;

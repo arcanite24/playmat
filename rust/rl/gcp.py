@@ -103,7 +103,7 @@ def up(a):
                 "--allow=tcp:22", f"--source-ranges={allow}/32", f"--target-tags={TAG}"], a.project)
     gcloud(["compute", "instances", "create", NAME, f"--zone={a.zone}", f"--machine-type={a.type}", *image,
             "--provisioning-model=SPOT", "--instance-termination-action=DELETE", f"--max-run-duration={a.hours}h",
-            "--boot-disk-size=20GB", "--boot-disk-type=pd-balanced", f"--tags={TAG}", "--labels=playmat=selfplay",
+            f"--boot-disk-size={a.disk_gb}GB", "--boot-disk-type=pd-balanced", f"--tags={TAG}", "--labels=playmat=selfplay",
             "--no-service-account", "--no-scopes",
             f"--metadata=ssh-keys={USER}:{pubkey()},block-project-ssh-keys=TRUE,enable-guest-attributes=TRUE,enable-oslogin=FALSE"],
            a.project)
@@ -156,6 +156,7 @@ def main():
     ap.add_argument("--zone", default="us-central1-a")
     ap.add_argument("--type", default="t2d-standard-16")
     ap.add_argument("--hours", type=int, default=8, help="the VM deletes itself after this long")
+    ap.add_argument("--disk-gb", type=int, default=20, help="boot disk size in GB")
     ap.add_argument("--allow-from", help="the IP ssh is opened to (default: this machine's public IP)")
     ap.add_argument("--bin", help="up: the selfplay to provision (Linux, for the VM's architecture)")
     ap.add_argument("--on-host", help=argparse.SUPPRESS)
