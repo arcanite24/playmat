@@ -1,0 +1,613 @@
+{
+ "suite": "tactics@3",
+ "created": "2026-11-23",
+ "about": "Hard multi-step tactical puzzles (stack counter-wars, Spell Pierce baiting, Prowess+Trample math, hold-up protection, Sunfall vs Intervention, two-turn lethal clocks, Giant Growth traps).",
+ "puzzles": [
+  {
+   "name": "stack-war-counter-and-burn",
+   "about": "Both at 3 life; opponent holds Negate. Cast Lightning Strike and Negate their Negate to win.",
+   "seats": [
+    {
+     "life": 3,
+     "battlefield": [
+      {
+       "name": "Mountain",
+       "count": 2
+      },
+      {
+       "name": "Island",
+       "count": 2
+      }
+     ],
+     "hand": [
+      "Lightning Strike",
+      "Negate"
+     ]
+    },
+    {
+     "life": 3,
+     "battlefield": [
+      {
+       "name": "Mountain",
+       "count": 2
+      },
+      {
+       "name": "Island",
+       "count": 2
+      }
+     ],
+     "hand": [
+      "Negate"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "win",
+    "turns": 0
+   }
+  },
+  {
+   "name": "bait-spell-pierce-burn",
+   "about": "Opponent at 3 with 1 Island and Spell Pierce. With 4 Mountains, play around Spell Pierce to resolve Lightning Strike.",
+   "seats": [
+    {
+     "life": 5,
+     "battlefield": [
+      {
+       "name": "Mountain",
+       "count": 4
+      }
+     ],
+     "hand": [
+      "Lightning Strike",
+      "Play with Fire"
+     ]
+    },
+    {
+     "life": 3,
+     "battlefield": [
+      "Island"
+     ],
+     "hand": [
+      "Spell Pierce"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "win",
+    "turns": 0
+   }
+  },
+  {
+   "name": "prowess-trample-burn-exact-7",
+   "about": "Opp at 7 behind Lions; Swiftspear + Play with Fire + Monstrous Rage = exact 7 (2 burn + 5 trample over Lions).",
+   "seats": [
+    {
+     "life": 10,
+     "battlefield": [
+      {
+       "name": "Mountain",
+       "count": 2
+      },
+      "Monastery Swiftspear"
+     ],
+     "hand": [
+      "Play with Fire",
+      "Monstrous Rage"
+     ]
+    },
+    {
+     "life": 7,
+     "battlefield": [
+      "Plains",
+      "Savannah Lions"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "win",
+    "turns": 0
+   }
+  },
+  {
+   "name": "hold-protection-dont-tap-out",
+   "about": "Opp holds Day of Judgment next turn. Hold 2 Forests for Heroic Intervention instead of tapping out for Gnarlback Rhino.",
+   "seats": [
+    {
+     "life": 10,
+     "battlefield": [
+      {
+       "name": "Forest",
+       "count": 4
+      },
+      "Serra Angel"
+     ],
+     "hand": [
+      "Gnarlback Rhino",
+      "Heroic Intervention"
+     ]
+    },
+    {
+     "life": 20,
+     "battlefield": [
+      {
+       "name": "Plains",
+       "count": 4
+      }
+     ],
+     "hand": [
+      "Day of Judgment"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "keep",
+    "card": "Serra Angel",
+    "turns": 1
+   }
+  },
+  {
+   "name": "sheoldred-upkeep-survival",
+   "about": "At 2 life facing Sheoldred: must kill Sheoldred before drawing on next turn to survive.",
+   "seats": [
+    {
+     "life": 2,
+     "battlefield": [
+      {
+       "name": "Swamp",
+       "count": 2
+      },
+      {
+       "name": "Mountain",
+       "count": 2
+      }
+     ],
+     "hand": [
+      "Go for the Throat",
+      "Lightning Strike"
+     ]
+    },
+    {
+     "life": 10,
+     "battlefield": [
+      {
+       "name": "Swamp",
+       "count": 4
+      },
+      "Sheoldred, the Apocalypse"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "survive",
+    "turns": 1
+   }
+  },
+  {
+   "name": "nighthawk-and-rats-double-block",
+   "about": "Opp attacks with Rhino (4/4 trample) and Lions (2/1) into 5 life: Nighthawk must block Rhino (lifelink) and Rats blocks Lions.",
+   "active": 1,
+   "seats": [
+    {
+     "life": 5,
+     "battlefield": [
+      "Swamp",
+      "Vampire Nighthawk",
+      "Typhoid Rats"
+     ]
+    },
+    {
+     "life": 20,
+     "battlefield": [
+      "Forest",
+      "Plains",
+      "Gnarlback Rhino",
+      "Savannah Lions"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "survive",
+    "turns": 0
+   }
+  },
+  {
+   "name": "growth-then-ram-through-lethal",
+   "about": "Opp at 5 behind Llanowar Elves. Must cast Giant Growth on Rhino (to 7/7 trample) BEFORE Ram Through for 6 excess lethal.",
+   "seats": [
+    {
+     "life": 10,
+     "battlefield": [
+      {
+       "name": "Forest",
+       "count": 3
+      },
+      "Gnarlback Rhino"
+     ],
+     "hand": [
+      "Giant Growth",
+      "Ram Through"
+     ]
+    },
+    {
+     "life": 5,
+     "battlefield": [
+      "Forest",
+      "Llanowar Elves"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "win",
+    "turns": 0
+   }
+  },
+  {
+   "name": "exert-glorybringer-plus-burn",
+   "about": "Opp at 7 behind Serra Angel: exert Glorybringer to kill Angel + 4 air + Lightning Strike face = exact 7.",
+   "seats": [
+    {
+     "life": 10,
+     "battlefield": [
+      {
+       "name": "Mountain",
+       "count": 2
+      },
+      "Glorybringer"
+     ],
+     "hand": [
+      "Lightning Strike"
+     ]
+    },
+    {
+     "life": 7,
+     "battlefield": [
+      "Plains",
+      "Serra Angel",
+      "Savannah Lions"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "win",
+    "turns": 0
+   }
+  },
+  {
+   "name": "wrath-plus-pierce-protection",
+   "about": "Opp has Serra Angel and holds Heroic Intervention with 2 Forests. Cast Day of Judgment and Spell Pierce Intervention.",
+   "seats": [
+    {
+     "life": 10,
+     "battlefield": [
+      {
+       "name": "Plains",
+       "count": 4
+      },
+      "Island"
+     ],
+     "hand": [
+      "Day of Judgment",
+      "Spell Pierce"
+     ]
+    },
+    {
+     "life": 20,
+     "battlefield": [
+      {
+       "name": "Forest",
+       "count": 2
+      },
+      "Serra Angel"
+     ],
+     "hand": [
+      "Heroic Intervention"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "remove",
+    "card": "Serra Angel",
+    "turns": 0
+   }
+  },
+  {
+   "name": "sunfall-beats-intervention",
+   "about": "Opp has Serra Angel and Heroic Intervention (2 Forests). Cast Sunfall (exile, non-targeting), not Murder.",
+   "seats": [
+    {
+     "life": 10,
+     "battlefield": [
+      {
+       "name": "Plains",
+       "count": 5
+      },
+      {
+       "name": "Swamp",
+       "count": 3
+      }
+     ],
+     "hand": [
+      "Sunfall",
+      "Murder"
+     ]
+    },
+    {
+     "life": 20,
+     "battlefield": [
+      {
+       "name": "Forest",
+       "count": 2
+      },
+      "Serra Angel"
+     ],
+     "hand": [
+      "Heroic Intervention"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "remove",
+    "card": "Serra Angel",
+    "turns": 0
+   }
+  },
+  {
+   "name": "helix-kills-before-strike",
+   "about": "Opp turn, Seat 0 at 2 life, opp at 3 with Lightning Strike. Cast Lightning Helix at opp face to win immediately.",
+   "active": 1,
+   "seats": [
+    {
+     "life": 2,
+     "battlefield": [
+      "Plains",
+      "Mountain"
+     ],
+     "hand": [
+      "Lightning Helix"
+     ]
+    },
+    {
+     "life": 3,
+     "battlefield": [
+      {
+       "name": "Mountain",
+       "count": 2
+      }
+     ],
+     "hand": [
+      "Lightning Strike"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "win",
+    "turns": 0
+   }
+  },
+  {
+   "name": "mutavault-and-rage-lethal",
+   "about": "Opp at 5 behind Llanowar Elves. Animate Mutavault, attack with Mutavault + Lions, Monstrous Rage the blocked/unblocked for 5.",
+   "seats": [
+    {
+     "life": 10,
+     "battlefield": [
+      "Mutavault",
+      {
+       "name": "Mountain",
+       "count": 2
+      },
+      "Savannah Lions"
+     ],
+     "hand": [
+      "Monstrous Rage"
+     ]
+    },
+    {
+     "life": 5,
+     "battlefield": [
+      "Forest",
+      "Llanowar Elves"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "win",
+    "turns": 0
+   }
+  },
+  {
+   "name": "hold-negate-dont-play-drake",
+   "about": "At 3 life; opp holds Lightning Strike. Hold 2 Islands for Negate instead of tapping out for Wind Drake.",
+   "seats": [
+    {
+     "life": 3,
+     "battlefield": [
+      {
+       "name": "Island",
+       "count": 3
+      },
+      "Wind Drake"
+     ],
+     "hand": [
+      "Wind Drake",
+      "Negate"
+     ]
+    },
+    {
+     "life": 20,
+     "battlefield": [
+      {
+       "name": "Mountain",
+       "count": 2
+      }
+     ],
+     "hand": [
+      "Lightning Strike"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "survive",
+    "turns": 1
+   }
+  },
+  {
+   "name": "fog-then-crackback-two-turn",
+   "about": "Opp turn, Seat 0 at 2, opp at 4 with Serra Angel + Lions. Fog on opp turn, then crack back with Glorybringer next turn.",
+   "active": 1,
+   "seats": [
+    {
+     "life": 2,
+     "battlefield": [
+      "Forest",
+      "Glorybringer"
+     ],
+     "hand": [
+      "Fog"
+     ]
+    },
+    {
+     "life": 4,
+     "battlefield": [
+      "Plains",
+      "Serra Angel",
+      "Savannah Lions"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "win",
+    "turns": 1
+   }
+  },
+  {
+   "name": "coil-nighthawk-before-attack",
+   "about": "Opp at 4 with Vampire Nighthawk. Must Lava Coil Nighthawk BEFORE attacking with Serra Angel (don't attack into deathtouch/lifelink).",
+   "seats": [
+    {
+     "life": 10,
+     "battlefield": [
+      {
+       "name": "Mountain",
+       "count": 2
+      },
+      "Serra Angel"
+     ],
+     "hand": [
+      "Lava Coil"
+     ]
+    },
+    {
+     "life": 4,
+     "battlefield": [
+      "Swamp",
+      "Vampire Nighthawk"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "win",
+    "turns": 0
+   }
+  },
+  {
+   "name": "two-turn-burn-clock",
+   "about": "Seat 0 at 5, opp at 6 with Serra Angel. Burn face twice across 2 turns (survive 4 dmg to 1 life) instead of wasting Strike on Angel.",
+   "seats": [
+    {
+     "life": 5,
+     "battlefield": [
+      {
+       "name": "Mountain",
+       "count": 2
+      }
+     ],
+     "hand": [
+      "Lightning Strike",
+      "Lightning Strike"
+     ]
+    },
+    {
+     "life": 6,
+     "battlefield": [
+      "Plains",
+      "Serra Angel"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "win",
+    "turns": 2
+   }
+  },
+  {
+   "name": "growth-saves-lion-from-strike",
+   "about": "Opp turn, opp casts Lightning Strike at Savannah Lions. Giant Growth in response saves Lions (5/4 survives 3 dmg).",
+   "active": 1,
+   "seats": [
+    {
+     "life": 10,
+     "battlefield": [
+      "Forest",
+      "Savannah Lions"
+     ],
+     "hand": [
+      "Giant Growth"
+     ]
+    },
+    {
+     "life": 20,
+     "battlefield": [
+      {
+       "name": "Mountain",
+       "count": 2
+      }
+     ],
+     "hand": [
+      "Lightning Strike"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "keep",
+    "card": "Savannah Lions",
+    "turns": 0
+   }
+  },
+  {
+   "name": "murder-not-cut-down-into-growth",
+   "about": "Opp has Nighthawk (2/3) + Forest + Giant Growth. Cut Down gets fizzled by Giant Growth; cast Murder.",
+   "seats": [
+    {
+     "life": 10,
+     "battlefield": [
+      {
+       "name": "Swamp",
+       "count": 3
+      }
+     ],
+     "hand": [
+      "Cut Down",
+      "Murder"
+     ]
+    },
+    {
+     "life": 20,
+     "battlefield": [
+      "Forest",
+      "Vampire Nighthawk"
+     ],
+     "hand": [
+      "Giant Growth"
+     ]
+    }
+   ],
+   "goal": {
+    "kind": "remove",
+    "card": "Vampire Nighthawk",
+    "turns": 0
+   }
+  }
+ ]
+}

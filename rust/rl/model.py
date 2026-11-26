@@ -13,9 +13,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 ENT_F = 49
-GLOB_F = 65
+GLOB_F_V1 = 65
+GLOB_F_V2 = 81
+GLOB_F = 89
+BELIEF_META_F = 8
 ACT_F = 65
 BUCKETS = 4096
+NUM_REL_TYPES = 4
+NO_ENT = 255
 
 
 class Net(nn.Module):
@@ -50,14 +55,18 @@ class Net(nn.Module):
         g = F.relu(self.glob1(b["glob"]))
         return F.relu(self.trunk2(F.relu(self.trunk1(torch.cat([p, g], -1)))))
 
-    def forward(self, b):
+    def forward(self, b, return_vfeat=False, return_act_emb=False, detach_val=False):
         """-> logits [B, K] (masked to -inf past each row's actions), value logit [B], state h [B, trunk]"""
         h = self.state(b)
-        v = self.value(h).squeeze(-1)
+        v = self.value(h.detach() if detach_val else h).squeeze(-1)
         a = self.act2(F.relu(self.act1(torch.cat([self.emb(b["act_ids"]), b["acts"]], -1))))
         q = self.query(h).unsqueeze(1)
         logits = (q * a).sum(-1) + self.abias(a).squeeze(-1)
         logits = logits.masked_fill(~b["act_mask"], -1e9)
+        if return_act_emb:
+            return logits, v, h, h, a
+        if return_vfeat:
+            return logits, v, h, h
         return logits, v, h
 
     def belief_logits(self, h, pool_ids):
@@ -101,14 +110,15 @@ class CardEmb(nn.Module):
     """The name embedding, plus (with `text`) a learned projection of the fixed card-text rows (`cardtext.py`):
     `weight[id] + text[id] @ proj`. `export` writes the sum as one table, so `net.rs` sees a plain embedding."""
 
-    def __init__(self, dim, text=False):
+    def __init__(self, dim, text=0):
         super().__init__()
         self.weight = nn.Parameter(torch.randn(BUCKETS, dim))
         if text:
             import numpy as np
             import os
 
-            rows = np.load(os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "cardtext.npy"))
+            fname = "cardtext_sem.npy" if int(text) == 2 else "cardtext.npy"
+            rows = np.load(os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", fname))
             self.register_buffer("text", torch.from_numpy(rows.astype("float32")))
             self.proj = nn.Parameter(torch.zeros(rows.shape[1], dim))
         else:
@@ -123,20 +133,88 @@ class CardEmb(nn.Module):
         return F.embedding(ids, self.weight) + F.embedding(ids, self.text) @ self.proj
 
 
+class AuxHead(nn.Module):
+    """Training-only KataGo-style auxiliary positional head; never exported.
+    Predicts 4 dense targets: [turns_left, final_life_diff, next_life_delta, next_board_delta]."""
+
+    def __init__(self, in_dim, hidden=128, out_dim=4):
+        super().__init__()
+        self.fc1 = nn.Linear(in_dim, hidden)
+        self.fc2 = nn.Linear(hidden, out_dim)
+
+    def forward(self, x):
+        return self.fc2(F.gelu(self.fc1(x)))
+
+
+class ActQHead(nn.Module):
+    """Training-only per-action Q-value head for v3 shards (`act_q.f16`); never exported."""
+
+    def __init__(self, in_dim, hidden=128):
+        super().__init__()
+        self.fc1 = nn.Linear(in_dim, hidden)
+        self.fc2 = nn.Linear(hidden, 1)
+
+    def forward(self, a):
+        return self.fc2(F.gelu(self.fc1(a))).squeeze(-1)
+
+
+def _gelu(x):
+    return F.gelu(x, approximate="tanh")
+
+
 class Tx(nn.Module):
     """The transformer network (#400 R2): a global token and one token per entity through `layers` pre-norm
     self-attention blocks; each candidate attends to the tokens once. Same outputs as `Net`. `net.rs` (`Tx`) runs it
-    in plain Rust; everything here is written out by hand so the two match exactly."""
+    in plain Rust; everything here is written out by hand so the two match exactly.
 
-    def __init__(self, d=128, heads=4, layers=3, ff=256, dim=32, trunk=128, text=0):
+    Optional extensions (all default off so older checkpoints load identically):
+    - `val_mlp=1`: dedicated 2-layer value MLP reading `[t[:, 0], mean_ent, max_ent, glob]` with LayerNorm & dropout
+    - `gelu=1`: tanh-approximated GELU instead of ReLU in FFN / trunk / value layers
+    - `drop`: training-only dropout rate in transformer blocks (0.0 at eval/export)
+    """
+
+    def __init__(
+        self,
+        d=128,
+        heads=4,
+        layers=3,
+        ff=256,
+        dim=32,
+        trunk=128,
+        text=0,
+        val_mlp=0,
+        gelu=0,
+        glob_f=GLOB_F_V1,
+        rel=0,
+        act_ent=0,
+        drop=0.0,
+    ):
         super().__init__()
         self.cfg = {"d": d, "heads": heads, "layers": layers, "ff": ff, "dim": dim, "trunk": trunk}
         if text:
-            self.cfg["text"] = 1
+            self.cfg["text"] = int(text)
+        if val_mlp:
+            self.cfg["val_mlp"] = 1
+        if gelu:
+            self.cfg["gelu"] = 1
+        if int(glob_f) != GLOB_F_V1:
+            self.cfg["glob_f"] = int(glob_f)
+        if rel:
+            self.cfg["rel"] = 1
+        if act_ent:
+            self.cfg["act_ent"] = 1
         self.heads = heads
-        self.emb = CardEmb(dim, bool(text))
+        self.d = d
+        self.glob_f = int(glob_f)
+        self.val_mlp = bool(val_mlp)
+        self.use_gelu = bool(gelu)
+        self.use_rel = bool(rel)
+        self.act_ent = bool(act_ent)
+        self.drop = nn.Dropout(drop) if drop > 0 else nn.Identity()
+        self.emb = CardEmb(dim, int(text))
         self.ent_in = nn.Linear(dim + ENT_F, d)
-        self.glob_in = nn.Linear(GLOB_F, d)
+        self.glob_in = nn.Linear(self.glob_f, d)
+        self.rel_bias = nn.Parameter(torch.zeros(2 * NUM_REL_TYPES, heads)) if self.use_rel else None
         self.blocks = nn.ModuleList()
         for _ in range(layers):
             b = nn.Module()
@@ -145,60 +223,135 @@ class Tx(nn.Module):
             self.blocks.append(b)
         self.ln_f = nn.LayerNorm(d)
         self.trunk1 = nn.Linear(2 * d, trunk)
-        self.value = nn.Linear(trunk, 1)
+        if self.val_mlp:
+            v_in = 3 * d + self.glob_f
+            self.val_ln = nn.LayerNorm(v_in)
+            self.val_fc1 = nn.Linear(v_in, trunk)
+            self.val_drop = nn.Dropout(0.3)
+            self.val_fc2 = nn.Linear(trunk, 1)
+            self.value = None
+        else:
+            self.value = nn.Linear(trunk, 1)
         self.belief = nn.Linear(trunk, dim)
-        self.act_in = nn.Linear(dim + ACT_F, d)
+        self.act_in = nn.Linear(dim + ACT_F + (d if self.act_ent else 0), d)
         self.act_ln = nn.LayerNorm(d)
         self.act_q, self.act_kv, self.act_o = nn.Linear(d, d), nn.Linear(d, 2 * d), nn.Linear(d, d)
         self.act_ff = nn.Linear(d, d)
         self.query = nn.Linear(trunk, d)
         self.abias = nn.Linear(d, 1)
 
-    def _attend(self, q, k, v, mask):
-        """q [B, Q, d], k/v [B, T, d], mask [B, T] (True = attend) -> [B, Q, d], `heads` heads"""
+    def _act(self, x):
+        return _gelu(x) if self.use_gelu else F.relu(x)
+
+    def _glob(self, g):
+        if g.shape[-1] == self.glob_f:
+            return g
+        if g.shape[-1] > self.glob_f:
+            return g[..., : self.glob_f]
+        return F.pad(g, (0, self.glob_f - g.shape[-1]))
+
+    def _build_attn_bias(self, b, mask, dtype):
+        if self.rel_bias is None or "ent_rel_idx" not in b or "ent_rel_type" not in b:
+            return mask[:, None, None, :]
+        B, T = mask.shape
+        ne = T - 1
+        if ne <= 0:
+            return mask[:, None, None, :]
+        ri = b["ent_rel_idx"].long()
+        rt = b["ent_rel_type"].long()
+        em = b["ent_mask"]
+        ri_safe = ri.clamp(0, ne - 1)
+        valid = em & (rt >= 1) & (rt <= NUM_REL_TYPES) & (ri < ne) & em.gather(1, ri_safe)
+        bi, ei = torch.nonzero(valid, as_tuple=True)
+        if bi.numel() == 0:
+            return mask[:, None, None, :]
+        bias = torch.zeros((B, T, T, self.heads), device=mask.device, dtype=dtype)
+        bias.masked_fill_(~mask[:, None, :, None], float("-inf"))
+        ti = ri[bi, ei]
+        r = rt[bi, ei] - 1
+        rb = self.rel_bias.to(dtype)
+        bias.index_put_((bi, 1 + ei, 1 + ti), rb[r], accumulate=True)
+        bias.index_put_((bi, 1 + ti, 1 + ei), rb[r + NUM_REL_TYPES], accumulate=True)
+        return bias.permute(0, 3, 1, 2).contiguous()
+
+    def _attend(self, q, k, v, attn_mask):
+        """q [B, Q, d], k/v [B, T, d], attn_mask [B, 1/H, 1/Q, T] -> [B, Q, d], `heads` heads"""
         B, Q, D = q.shape
         T = k.shape[1]
         h, hd = self.heads, D // self.heads
         q = q.view(B, Q, h, hd).transpose(1, 2)
         k = k.view(B, T, h, hd).transpose(1, 2)
         v = v.view(B, T, h, hd).transpose(1, 2)
-        # the same softmax(q·k/√hd)·v as `net.rs`, in one fused kernel; the global token is always attended, so no row
-        # is fully masked
-        out = F.scaled_dot_product_attention(q, k, v, attn_mask=mask[:, None, None, :])
+        out = F.scaled_dot_product_attention(q, k, v, attn_mask=attn_mask)
         return out.transpose(1, 2).reshape(B, Q, D)
 
     def tokens(self, b):
         """-> tokens [B, 1+N, d] after the blocks (normed), mask [B, 1+N]"""
-        g = self.glob_in(b["glob"]).unsqueeze(1)
+        g = self.glob_in(self._glob(b["glob"])).unsqueeze(1)
         e = self.ent_in(torch.cat([self.emb(b["ent_ids"]), b["ents"]], -1))
         x = torch.cat([g, e], 1)
         mask = torch.cat([torch.ones_like(b["ent_mask"][:, :1]), b["ent_mask"]], 1)
+        attn_mask = self._build_attn_bias(b, mask, x.dtype)
         for blk in self.blocks:
             y = blk.ln1(x)
             q, k, v = blk.qkv(y).chunk(3, -1)
-            x = x + blk.out(self._attend(q, k, v, mask))
-            x = x + blk.ff2(F.relu(blk.ff1(blk.ln2(x))))
+            x = x + self.drop(blk.out(self._attend(q, k, v, attn_mask)))
+            x = x + self.drop(blk.ff2(self._act(blk.ff1(blk.ln2(x)))))
         return self.ln_f(x), mask
+
+    def _pool_val_features(self, t, mask, glob):
+        m = mask[:, 1:].unsqueeze(-1).float()
+        ent_t = t[:, 1:]
+        mean = (ent_t * m).sum(1) / m.sum(1).clamp(min=1)
+        mx = torch.where(m > 0, ent_t, torch.full_like(ent_t, -1e9)).max(1).values
+        mx = torch.where(m.sum(1) > 0, mx, torch.zeros_like(mx))
+        return torch.cat([t[:, 0], mean, mx, self._glob(glob)], -1), mean
 
     def state_tokens(self, b):
         t, mask = self.tokens(b)
         m = mask[:, 1:].unsqueeze(-1).float()
         mean = (t[:, 1:] * m).sum(1) / m.sum(1).clamp(min=1)
-        h = F.relu(self.trunk1(torch.cat([t[:, 0], mean], -1)))
+        h = self._act(self.trunk1(torch.cat([t[:, 0], mean], -1)))
         return h, t, mask
 
     def state(self, b):
         return self.state_tokens(b)[0]
 
-    def forward(self, b):
-        h, t, mask = self.state_tokens(b)
-        v = self.value(h).squeeze(-1)
-        a = self.act_in(torch.cat([self.emb(b["act_ids"]), b["acts"]], -1))
+    def forward(self, b, return_vfeat=False, return_act_emb=False, detach_val=False):
+        t, mask = self.tokens(b)
+        vfeat, mean = self._pool_val_features(t, mask, b["glob"])
+        h = self._act(self.trunk1(torch.cat([t[:, 0], mean], -1)))
+        if self.val_mlp:
+            vf = vfeat.detach() if detach_val else vfeat
+            vh = self.val_drop(self._act(self.val_fc1(self.val_ln(vf))))
+            v = self.val_fc2(vh).squeeze(-1)
+        else:
+            v = self.value(h.detach() if detach_val else h).squeeze(-1)
+        if self.act_ent:
+            B, na = b["act_ids"].shape
+            ne = t.shape[1] - 1
+            if ne > 0 and "act_ent_idx" in b:
+                ae = b["act_ent_idx"].long()
+                ae_valid = (ae < ne) & b["act_mask"]
+                ae_safe = ae.clamp(0, ne - 1)
+                ctx = t[:, 1:].gather(1, ae_safe.unsqueeze(-1).expand(-1, -1, self.d))
+                ctx = ctx * ae_valid.unsqueeze(-1).to(ctx.dtype)
+            else:
+                ctx = torch.zeros((B, na, self.d), device=t.device, dtype=t.dtype)
+            a_feat = torch.cat([self.emb(b["act_ids"]), b["acts"], ctx], -1)
+        else:
+            a_feat = torch.cat([self.emb(b["act_ids"]), b["acts"]], -1)
+        a = self.act_in(a_feat)
         k, vv = self.act_kv(t).chunk(2, -1)
-        a = a + self.act_o(self._attend(self.act_q(self.act_ln(a)), k, vv, mask))
-        a = a + F.relu(self.act_ff(a))
+        a = a + self.act_o(self._attend(self.act_q(self.act_ln(a)), k, vv, mask[:, None, None, :]))
+        a = a + self._act(self.act_ff(a))
         logits = (self.query(h).unsqueeze(1) * a).sum(-1) + self.abias(a).squeeze(-1)
-        return logits.masked_fill(~b["act_mask"], -1e9), v, h
+        logits = logits.masked_fill(~b["act_mask"], -1e9)
+        if return_act_emb:
+            return logits, v, h, vfeat, a
+        if return_vfeat:
+            return logits, v, h, vfeat
+        return logits, v, h
 
     def belief_logits(self, h, pool_ids):
         return (self.belief(h).unsqueeze(1) * self.emb(pool_ids)).sum(-1)
@@ -223,12 +376,39 @@ def save_dir(net, d):
     json.dump(arch_of(net), open(f"{d}/arch.json", "w"))
 
 
-def load_dir(d, dev):
+def load_dir(d, dev, upgrade_val_mlp=False, drop=0.0, upgrade_glob_f=0):
     """The network in run folder `d` (arch.json says which; the first network without one)"""
     import os
     spec = json.load(open(f"{d}/arch.json")) if os.path.exists(f"{d}/arch.json") else {"arch": "mlp"}
+    upgraded = False
+    if upgrade_val_mlp and spec.get("arch") == "tx" and not spec.get("val_mlp"):
+        spec["val_mlp"] = 1
+        upgraded = True
+    old_gf = int(spec.get("glob_f", GLOB_F_V1))
+    delta_gf = 0
+    if upgrade_glob_f and spec.get("arch") == "tx" and int(upgrade_glob_f) > old_gf:
+        delta_gf = int(upgrade_glob_f) - old_gf
+        spec["glob_f"] = int(upgrade_glob_f)
+    if spec.get("arch") == "tx" and drop > 0:
+        spec["drop"] = drop
     net = build(spec).to(dev)
-    net.load_state_dict(torch.load(f"{d}/net.pt", map_location=dev))
+    sd = torch.load(f"{d}/net.pt", map_location=dev)
+    if delta_gf > 0:
+        # Zero-loss warm-start expansion of glob_f (e.g. 81 -> 89):
+        # pad glob_in.weight and val_fc1.weight columns with 0, val_ln.weight with 1, val_ln.bias with 0
+        if "glob_in.weight" in sd and sd["glob_in.weight"].shape[1] == old_gf:
+            sd["glob_in.weight"] = F.pad(sd["glob_in.weight"], (0, delta_gf))
+        if "val_fc1.weight" in sd and sd["val_fc1.weight"].shape[1] + delta_gf == net.val_fc1.weight.shape[1]:
+            sd["val_fc1.weight"] = F.pad(sd["val_fc1.weight"], (0, delta_gf))
+        if "val_ln.weight" in sd and sd["val_ln.weight"].shape[0] + delta_gf == net.val_ln.weight.shape[0]:
+            sd["val_ln.weight"] = F.pad(sd["val_ln.weight"], (0, delta_gf), value=1.0)
+        if "val_ln.bias" in sd and sd["val_ln.bias"].shape[0] + delta_gf == net.val_ln.bias.shape[0]:
+            sd["val_ln.bias"] = F.pad(sd["val_ln.bias"], (0, delta_gf), value=0.0)
+    if upgraded:
+        sd = {k: v for k, v in sd.items() if not k.startswith("value.")}
+        net.load_state_dict(sd, strict=False)
+    else:
+        net.load_state_dict(sd)
     return net
 
 
