@@ -18,6 +18,10 @@ export interface Stage {
    * nothing blocking). Returns a cancel, for a hold given up early.
    */
   present(view: GameView, ready: () => void): () => void;
+  /** override the per-view cap (ms) when the player explicitly slows AI playback */
+  maxHoldMs?: number;
+  /** override the queue length at which the table stops holding and catches up */
+  backlog?: number;
 }
 
 /**
@@ -99,7 +103,8 @@ export class PacedQueue {
         const step = this.steps.shift()!;
         const result = step() ?? { view: null };
         if (result.then) this.steps.unshift(result.then);
-        if (!result.view || !this.stage || catchUp || this.steps.length >= BACKLOG) continue;
+        const backlog = this.stage?.backlog ?? BACKLOG;
+        if (!result.view || !this.stage || catchUp || this.steps.length >= backlog) continue;
         this.hold(this.stage, result.view);
       }
     } finally {
@@ -126,6 +131,6 @@ export class PacedQueue {
     if (early) return;
     entry = { cancel, cap: null };
     this.holding = entry;
-    entry.cap = this.clock.setTimeout(ready, this.maxHoldMs);
+    entry.cap = this.clock.setTimeout(ready, stage.maxHoldMs ?? this.maxHoldMs);
   }
 }

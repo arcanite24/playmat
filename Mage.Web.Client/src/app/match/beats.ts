@@ -1,5 +1,5 @@
-import type { GameView } from '../../protocol/generated/views';
-import type { Stage } from '../../core/game/pacing';
+import type { CombatGroupView, GameView } from '../../protocol/generated/views';
+import { MAX_HOLD_MS, type Stage } from '../../core/game/pacing';
 import type { Primitive } from './cardVfx';
 
 /**
@@ -83,38 +83,102 @@ export function changeIn(id: string | null | undefined): number {
 
 /** Vfx notes a view within a frame or two of it being shown; a view it never notes (not drawn) doesn't wait long. */
 const NOTE_WAIT_MS = 250;
+/** when the player explicitly slows AI actions, let multi-AI turns queue far more steps before catching up */
+const AI_PACE_BACKLOG = 64;
+
+function combatIds(combat: CombatGroupView[] | undefined, role: 'attackers' | 'blockers'): Set<string> {
+  const ids = new Set<string>();
+  for (const group of combat ?? []) {
+    for (const id of Object.keys(group[role] ?? {})) ids.add(id);
+  }
+  return ids;
+}
+
+/**
+ * Whether `next` shows an AI action that a player following the table wants time to read: an AI putting a spell or
+ * ability onto the stack, an AI spell or ability resolving off the stack, or an AI declaring attackers or blockers.
+ * Mana taps, untaps, draws and empty step changes return false so pacing stays focused on real plays.
+ */
+export function isAiActionBeat(previous: GameView, next: GameView): boolean {
+  const aiIds = new Set(
+    (next.players ?? [])
+      .filter((player) => player.isHuman === false && player.playerId)
+      .map((player) => player.playerId!),
+  );
+  if (aiIds.size === 0) return false;
+
+  const prevStack = previous.stack ?? {};
+  const nextStack = next.stack ?? {};
+  for (const [id, item] of Object.entries(nextStack)) {
+    if (!(id in prevStack) && item.controllerId && aiIds.has(item.controllerId)) return true;
+  }
+  for (const [id, item] of Object.entries(prevStack)) {
+    if (!(id in nextStack) && item.controllerId && aiIds.has(item.controllerId)) return true;
+  }
+
+  for (const role of ['attackers', 'blockers'] as const) {
+    const prevCombat = combatIds(previous.combat, role);
+    for (const group of next.combat ?? []) {
+      for (const [id, card] of Object.entries(group[role] ?? {})) {
+        if (!prevCombat.has(id) && card.controllerId && aiIds.has(card.controllerId)) return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Creates a playback stage for the table (pacing.ts): each view waits for its noted blocking VFX, and when
+ * `aiDelayMs > 0` holds AI spells, resolutions and combat declarations for at least `aiDelayMs`.
+ */
+export function createTablePlayback(options: { aiDelayMs?: number } = {}): Stage {
+  const aiDelayMs = Math.max(0, options.aiDelayMs ?? 0);
+  let previous: GameView | null = null;
+  const stage: Stage = {
+    present(view, ready) {
+      const holdMs = aiDelayMs > 0 && previous && isAiActionBeat(previous, view) ? aiDelayMs : 0;
+      previous = view;
+      // a hidden page draws nothing (and its timers are throttled): it keeps up with the game
+      if (typeof document !== 'undefined' && document.hidden) {
+        ready();
+        return () => undefined;
+      }
+      const presentedAt = now();
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      const wake = () => {
+        const current = now();
+        const noted = beats.get(view);
+        const vfxLeft = noted ? noted.settle - (current - noted.at) : 0;
+        const aiLeft = holdMs > 0 ? holdMs - (current - presentedAt) : 0;
+        const left = Math.max(vfxLeft, aiLeft);
+        if (timer) clearTimeout(timer);
+        timer = null;
+        if (left <= 0) ready();
+        else timer = setTimeout(ready, left);
+      };
+      if (beats.has(view)) {
+        wake();
+      } else {
+        const waiters = waiting.get(view) ?? new Set();
+        waiters.add(wake);
+        waiting.set(view, waiters);
+        timer = setTimeout(() => {
+          waiters.delete(wake);
+          wake();
+        }, NOTE_WAIT_MS);
+      }
+      return () => {
+        if (timer) clearTimeout(timer);
+        waiting.get(view)?.delete(wake);
+      };
+    },
+  };
+  if (aiDelayMs > 0) {
+    stage.maxHoldMs = Math.max(MAX_HOLD_MS, aiDelayMs + 2000);
+    stage.backlog = AI_PACE_BACKLOG;
+  }
+  return stage;
+}
 
 /** The table as the pacing sees it (pacing.ts): each view is ready once its noted blocking playback is over. */
-export const tablePlayback: Stage = {
-  present(view, ready) {
-    // a hidden page draws nothing (and its timers are throttled): it keeps up with the game
-    if (typeof document !== 'undefined' && document.hidden) {
-      ready();
-      return () => undefined;
-    }
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const wake = () => {
-      const noted = beats.get(view);
-      const left = noted ? noted.settle - (now() - noted.at) : 0;
-      if (timer) clearTimeout(timer);
-      timer = null;
-      if (left <= 0) ready();
-      else timer = setTimeout(ready, left);
-    };
-    if (beats.has(view)) {
-      wake();
-    } else {
-      const waiters = waiting.get(view) ?? new Set();
-      waiters.add(wake);
-      waiting.set(view, waiters);
-      timer = setTimeout(() => {
-        waiters.delete(wake);
-        ready();
-      }, NOTE_WAIT_MS);
-    }
-    return () => {
-      if (timer) clearTimeout(timer);
-      waiting.get(view)?.delete(wake);
-    };
-  },
-};
+export const tablePlayback: Stage = createTablePlayback();

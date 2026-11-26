@@ -73,7 +73,7 @@ export function PrintingPicker({ name, current, onPick, onPickCard, onClose, des
                   onClose();
                 }}
               >
-                <CardFace card={card} size="normal" />
+                <CardFace card={card} size="normal" printed />
                 <span className={styles.caption}>
                   <b>{card.expansionSetCode}</b> #{card.cardNumber}
                   <small>{released.get(card.expansionSetCode)?.name}</small>

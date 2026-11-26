@@ -294,6 +294,10 @@
   text-align: right;
 }
 
+.pace span {
+  min-width: 8ch;
+}
+
 .select {
   flex: none;
   height: 44px;

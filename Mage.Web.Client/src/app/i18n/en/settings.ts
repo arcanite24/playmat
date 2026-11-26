@@ -124,6 +124,11 @@ export default {
   'settings.autoTarget.detail': 'Chooses the target when only one is legal.',
   'settings.handRequests': 'Opponents may ask to see my hand',
   'settings.handRequests.detail': 'You still approve every request.',
+  'settings.aiActionDelay': 'AI action pace',
+  'settings.aiActionDelay.detail': 'Pause briefly on AI spells, abilities, resolutions and combat declarations so you can read what happened before the game moves on.',
+  'settings.aiActionDelay.label': 'AI action delay',
+  'settings.aiActionDelay.instant': 'Instant',
+  'settings.aiActionDelay.seconds': '{seconds}s',
 
   'settings.stops.intro': 'The game gives you priority at these steps. Elsewhere it passes for you unless something happens.',
   'settings.stops.step': 'Step',

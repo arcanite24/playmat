@@ -178,8 +178,8 @@ function computeLayout(stage: Pick<StageContextValue, 'layout' | 'width' | 'heig
       return {
         left: FIELD_LEFT + index * width,
         width: width - (count > 1 ? 24 : 0),
-        frontTop: (count === 1 ? 330 : 300) + backGrowth - lift,
-        backTop: (count === 1 ? 160 : 150) - lift,
+        frontTop: (count === 1 ? 330 : 324) + backGrowth - lift,
+        backTop: 160 - lift,
         frontIdeal,
         backIdeal,
       };

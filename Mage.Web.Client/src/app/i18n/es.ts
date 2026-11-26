@@ -468,6 +468,11 @@ const es: Catalog = {
   'settings.autoTarget.detail': 'Elige el objetivo cuando solo hay uno legal.',
   'settings.handRequests': 'Los rivales pueden pedir ver mi mano',
   'settings.handRequests.detail': 'Igual apruebas cada solicitud.',
+  'settings.aiActionDelay': 'Ritmo de la IA',
+  'settings.aiActionDelay.detail': 'Hace una breve pausa en los hechizos, habilidades, resoluciones y declaraciones de combate de la IA para que puedas leer qué ocurrió antes de seguir.',
+  'settings.aiActionDelay.label': 'Pausa entre acciones de la IA',
+  'settings.aiActionDelay.instant': 'Instante',
+  'settings.aiActionDelay.seconds': '{seconds} s',
 
   'settings.stops.intro': 'La partida te da prioridad en estos pasos. En los demás pasa por ti, a menos que ocurra algo.',
   'settings.stops.step': 'Paso',

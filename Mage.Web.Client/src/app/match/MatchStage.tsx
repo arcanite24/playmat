@@ -29,7 +29,7 @@ import { useT } from '../i18n';
 import { useEvents } from '../stores/events';
 import { useGames } from '../stores/games';
 import { usePlay } from '../stores/play';
-import { useAutomation, useSettings } from '../stores/settings';
+import { clampAiActionDelay, useAutomation, useSettings } from '../stores/settings';
 import { useManaPaymentSettings } from './useManaPaymentSettings';
 import { progressionShown } from '../career/progressionEvents';
 import { notify } from '../stores/toasts';
@@ -79,7 +79,7 @@ import { useAutoPass } from './useAutoPass';
 import { useBlockDrag } from './useBlockDrag';
 import { useAutoOrder } from './useAutoOrder';
 import { Vfx } from './Vfx';
-import { tablePlayback } from './beats';
+import { createTablePlayback } from './beats';
 import { CardPicker, ChoicePanel, DungeonViewer, GameOverOverlay, MulliganOverlay, StartingPlayerOverlay, ZoneViewer } from './Overlays';
 import { PermanentStack } from './PermanentStack';
 import { clothOf, clothStyle } from './playmats';
@@ -187,6 +187,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   const largeZoom = useSettings((settings) => settings.settings.largeZoom);
   const bigZoom = useSettings((settings) => settings.settings.bigZoom);
   const matchSize = useSettings((settings) => settings.settings.matchSize);
+  const aiActionDelay = useSettings((settings) => settings.settings.aiActionDelay);
   // the browser's zoom keys and a trackpad pinch step the match size: zoom alone cancels out (#147)
   useMatchZoomKeys(true);
   useEffect(() => {
@@ -195,11 +196,11 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   }, [session, mode, broadcastDelay]);
   useEffect(() => {
     // while the table is drawn, the server's views are shown at its pace: each waits for the last one's swings and
-    // hits, and the result for the final board (beats.ts). Replays step through frames of their own.
+    // hits, AI spell pacing when set, and the result for the final board (beats.ts). Replays step through frames of their own.
     if (mode === 'replay') return;
-    session.setStage(tablePlayback);
+    session.setStage(createTablePlayback({ aiDelayMs: clampAiActionDelay(aiActionDelay) * 1000 }));
     return () => session.setStage(null);
-  }, [session, mode]);
+  }, [session, mode, aiActionDelay]);
   const viewer = useMatchUi((ui) => ui.viewer);
   const openViewer = useMatchUi((ui) => ui.openViewer);
   const deckSleeves = useSleeves();
@@ -866,6 +867,24 @@ interface RowProps {
 /** "Smaller cards on the battlefield": rows cap their cards at this share of the usual size. */
 const COMPACT_SCALE = 0.8;
 
+const CARD_RATIO = 88 / 63;
+
+/** Prominent frame around the battlefield of the player whose turn it is. */
+function ActiveBoardFrame({ place }: { place: RowsPlacement }) {
+  const top = Math.min(place.frontTop, place.backTop);
+  const bottom = Math.max(
+    place.frontTop + place.frontIdeal * CARD_RATIO,
+    place.backTop + place.backIdeal * CARD_RATIO,
+  );
+  return (
+    <div
+      className={styles.activeBoard}
+      style={{ left: place.left - 6, top: top - 6, width: place.width + 12, height: bottom - top + 12 }}
+      aria-hidden="true"
+    />
+  );
+}
+
 /** One player's two rows of permanents. A crowded row shrinks its cards, then wraps, then overlaps them: never past its box. */
 const Battlefield = memo(function Battlefield({ board, place, ...row }: RowProps & {
   board: PlayerBoard;
@@ -875,6 +894,7 @@ const Battlefield = memo(function Battlefield({ board, place, ...row }: RowProps
   const { left, width } = place;
   return (
     <>
+      {board.player.isActive && <ActiveBoardFrame place={place} />}
       <Row groups={board.front} left={left} width={width} top={place.frontTop} ideal={place.frontIdeal} min={58} forward={forward} label="Creatures" flip={!board.isMe} {...row} />
       <Row groups={board.back} left={left} width={width} top={place.backTop} ideal={place.backIdeal} min={50} forward={forward} label="Lands & permanents" flip={!board.isMe} {...row} />
     </>
@@ -958,7 +978,7 @@ function OpponentSide({ board, index, count, sleeve, handCount, revealed, decidi
         )}
         {count > 1 && (
           <div className={styles.theirMini}>
-            <MiniPiles player={player} commanders={commanders} />
+            <MiniPiles player={player} sleeve={sleeve} commanders={commanders} />
           </div>
         )}
       </div>
@@ -967,7 +987,15 @@ function OpponentSide({ board, index, count, sleeve, handCount, revealed, decidi
           <Piles player={player} sleeve={sleeve} isMe={false} commanders={commanders} />
         </div>
       )}
-      {count > 1 && !layout.tall && <span className={styles.seatName} style={{ left: place.left + 16 }} aria-hidden="true">{player.name}</span>}
+      {count > 1 && !layout.tall && (
+        <span
+          className={[styles.seatName, player.isActive ? styles.seatNameActive : ''].join(' ')}
+          style={{ left: place.left + 8, top: Math.max(10, place.backTop - 38), maxWidth: place.width - 16 }}
+          aria-hidden="true"
+        >
+          {player.name}
+        </span>
+      )}
       <HiddenHand playerId={player.playerId!} count={handCount} revealed={revealed} sleeve={sleeve} left={layout.hiddenHandX(index, count)} />
     </>
   );
