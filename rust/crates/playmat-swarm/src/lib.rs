@@ -5,12 +5,15 @@
 //! The API is `playmat_swarm_proto::api`.
 
 mod admin;
+mod public;
 pub mod store;
 pub mod trust;
 
 use axum::body::Bytes;
-use axum::extract::{DefaultBodyLimit, Path, Query, State};
-use axum::http::{HeaderMap, StatusCode};
+use axum::extract::{DefaultBodyLimit, Path, Query, Request, State};
+use axum::http::header::{ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN};
+use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
+use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Redirect, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
@@ -85,15 +88,19 @@ const SCHEMA: &[&str] = &[
      host INTEGER, unit TEXT, kind TEXT NOT NULL, base_credit REAL NOT NULL, bonus_mult REAL NOT NULL, \
      credit REAL NOT NULL, status TEXT NOT NULL, mature_at INTEGER NOT NULL, reason TEXT NOT NULL DEFAULT '')",
     "CREATE INDEX IF NOT EXISTS credits_token ON credits(token, status, at)",
+    "CREATE TABLE IF NOT EXISTS teams (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, \
+     description TEXT NOT NULL DEFAULT '', created INTEGER NOT NULL, owner_token INTEGER NOT NULL)",
 ];
 
-/// Idempotent S1 -> S2 column additions for existing SQLite databases.
+/// Idempotent S1 -> S2/S3 column additions for existing SQLite databases.
 const MIGRATIONS: &[&str] = &[
     "ALTER TABLE tokens ADD COLUMN trust TEXT NOT NULL DEFAULT 'probation'",
     "ALTER TABLE tokens ADD COLUMN accepted_units INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE tokens ADD COLUMN mismatches INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE tokens ADD COLUMN extra_audit_until INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE tokens ADD COLUMN credit_frozen_until INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE tokens ADD COLUMN team_id INTEGER",
+    "ALTER TABLE tokens ADD COLUMN team_joined_at INTEGER",
     "ALTER TABLE hosts ADD COLUMN accepted_units INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE hosts ADD COLUMN mismatches INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE hosts ADD COLUMN probation_passed INTEGER NOT NULL DEFAULT 0",
@@ -187,10 +194,28 @@ pub async fn serve(listener: tokio::net::TcpListener, s: Shared) -> std::io::Res
     axum::serve(listener, router(s)).await
 }
 
+async fn cors(req: Request, next: Next) -> Response {
+    let mut res =
+        if req.method() == Method::OPTIONS { StatusCode::NO_CONTENT.into_response() } else { next.run(req).await };
+    let h = res.headers_mut();
+    h.insert(ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*"));
+    h.insert(ACCESS_CONTROL_ALLOW_METHODS, HeaderValue::from_static("GET, POST, PUT, OPTIONS"));
+    h.insert(ACCESS_CONTROL_ALLOW_HEADERS, HeaderValue::from_static("Authorization, Content-Type"));
+    res
+}
+
 pub fn router(s: Shared) -> Router {
     Router::new()
-        .route("/api/v1/status", get(status))
-        .route("/api/v1/leaderboard", get(admin::leaderboard))
+        .route("/api/v1/status", get(public::status))
+        .route("/api/v1/events", get(public::events))
+        .route("/api/v1/projects", get(public::projects))
+        .route("/api/v1/feed", get(public::feed))
+        .route("/api/v1/leaderboard", get(public::leaderboard))
+        .route("/api/v1/teams", get(public::list_teams).post(public::create_team))
+        .route("/api/v1/teams/{id}/join", post(public::join_team))
+        .route("/api/v1/teams/leave", post(public::leave_team))
+        .route("/api/v1/contributors/{name}", get(public::contributor_profile))
+        .route("/api/v1/transparency", get(public::transparency))
         .route("/api/v1/tokens", post(new_token))
         .route("/api/v1/hello", post(hello))
         .route("/api/v1/lease", post(lease))
@@ -221,6 +246,7 @@ pub fn router(s: Shared) -> Router {
         .route("/api/v1/admin/inbox/{id}/resolve", post(admin::resolve_inbox))
         .route("/api/v1/admin/audit", get(admin::list_audit))
         .route("/store/{*key}", get(store_get).put(store_put).layer(DefaultBodyLimit::max(MAX_FILE as usize)))
+        .layer(middleware::from_fn(cors))
         .with_state(s)
 }
 
@@ -291,46 +317,11 @@ pub(crate) async fn caller(s: &Swarm, headers: &HeaderMap, roles: &[Role]) -> Re
     Ok(Caller { token: row.get("id"), name: row.get("name"), trust })
 }
 
-fn require_not_banned(c: &Caller) -> Res<()> {
+pub(crate) fn require_not_banned(c: &Caller) -> Res<()> {
     if c.trust == TrustLevel::Banned {
         return Err(ApiError(StatusCode::FORBIDDEN, "account is banned".into()));
     }
     Ok(())
-}
-
-// ---- public
-
-async fn status(State(s): State<Shared>) -> Res<Json<Status>> {
-    let since = now() as i64 - 600;
-    let row = sqlx::query("SELECT COUNT(*) AS n, COALESCE(SUM(threads), 0) AS t FROM hosts WHERE seen >= ?")
-        .bind(since)
-        .fetch_one(&s.db)
-        .await?;
-    let mut st =
-        Status { hosts: row.get::<i64, _>("n") as u32, threads: row.get::<i64, _>("t") as u32, ..Default::default() };
-    for r in sqlx::query("SELECT state, COUNT(*) AS n FROM units WHERE kind != 'verify' GROUP BY state")
-        .fetch_all(&s.db)
-        .await?
-    {
-        st.units.insert(r.get("state"), r.get::<i64, _>("n") as u32);
-    }
-    st.games_accepted =
-        sqlx::query("SELECT COALESCE(SUM(games), 0) AS g FROM units WHERE kind != 'verify' AND state = 'accepted'")
-            .fetch_one(&s.db)
-            .await?
-            .get::<i64, _>("g") as u64;
-    st.games_last_hour = sqlx::query(
-        "SELECT COALESCE(SUM(games), 0) AS g FROM units \
-         WHERE kind != 'verify' AND state IN ('complete', 'accepted') AND done_at >= ?",
-    )
-    .bind(now() as i64 - 3600)
-    .fetch_one(&s.db)
-    .await?
-    .get::<i64, _>("g") as u64;
-    st.open_inbox =
-        sqlx::query("SELECT COUNT(*) AS n FROM inbox WHERE status = 'open'").fetch_one(&s.db).await?.get::<i64, _>("n")
-            as u32;
-    Ok(Json(st))
 }
 
 // ---- admin

@@ -11,43 +11,6 @@ use playmat_swarm_proto::VerifyMode;
 use serde::Deserialize;
 use sqlx::Row;
 
-// ---- public leaderboard
-
-pub(crate) async fn leaderboard(State(s): State<Shared>) -> Res<Json<Vec<LeaderboardEntry>>> {
-    trust::mature_credits(&s.db).await?;
-    let rows = sqlx::query(
-        "SELECT t.id, t.name, t.trust, t.accepted_units, \
-         COALESCE((SELECT SUM(u.games) FROM units u JOIN hosts h ON h.id = u.host \
-                   WHERE h.token = t.id AND u.kind != 'verify' AND u.state = 'accepted'), 0) AS games, \
-         COALESCE((SELECT COUNT(*) FROM units u JOIN hosts h ON h.id = u.host \
-                   WHERE h.token = t.id AND u.kind = 'verify' AND u.state = 'accepted'), 0) AS verified_units, \
-         COALESCE((SELECT SUM(credit) FROM credits WHERE token = t.id AND status IN ('pending', 'matured')), 0.0) AS credit, \
-         COALESCE((SELECT SUM(credit) FROM credits WHERE token = t.id AND status = 'pending'), 0.0) AS credit_pending, \
-         COALESCE((SELECT SUM(credit) FROM credits WHERE token = t.id AND status = 'matured'), 0.0) AS credit_matured, \
-         COALESCE((SELECT SUM(credit) FROM credits WHERE token = t.id AND status = 'frozen'), 0.0) AS credit_frozen \
-         FROM tokens t WHERE t.role = 'worker' \
-         ORDER BY credit DESC, t.accepted_units DESC, t.id ASC",
-    )
-    .fetch_all(&s.db)
-    .await?;
-
-    let mut out = Vec::with_capacity(rows.len());
-    for r in rows {
-        out.push(LeaderboardEntry {
-            account: r.get("name"),
-            trust: TrustLevel::parse(r.get::<String, _>("trust").as_str()).unwrap_or(TrustLevel::Probation),
-            accepted_units: r.get::<i64, _>("accepted_units") as u64,
-            games: r.get::<i64, _>("games") as u64,
-            verified_units: r.get::<i64, _>("verified_units") as u64,
-            credit: r.get("credit"),
-            credit_pending: r.get("credit_pending"),
-            credit_matured: r.get("credit_matured"),
-            credit_frozen: r.get("credit_frozen"),
-        });
-    }
-    Ok(Json(out))
-}
-
 // ---- admin workers & tokens
 
 pub(crate) async fn list_workers(State(s): State<Shared>, headers: HeaderMap) -> Res<Json<Vec<WorkerInfo>>> {

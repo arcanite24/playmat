@@ -340,6 +340,8 @@ pub struct WorkerInfo {
 pub struct LeaderboardEntry {
     pub account: String,
     pub trust: TrustLevel,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub team: Option<String>,
     pub accepted_units: u64,
     pub games: u64,
     pub verified_units: u64,
@@ -347,6 +349,91 @@ pub struct LeaderboardEntry {
     pub credit_pending: f64,
     pub credit_matured: f64,
     pub credit_frozen: f64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NewTeam {
+    pub name: String,
+    #[serde(default)]
+    pub description: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct TeamInfo {
+    pub id: i64,
+    pub name: String,
+    pub description: String,
+    pub created: i64,
+    pub members: u32,
+    pub accepted_units: u64,
+    pub games: u64,
+    pub credit: f64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PublicRound {
+    pub id: i64,
+    pub project: String,
+    pub run: String,
+    pub round: u32,
+    pub priority: i32,
+    pub trained: bool,
+    pub created: i64,
+    pub units: BTreeMap<String, u32>,
+    pub games: u64,
+    pub verify_pending: u32,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct FeedItem {
+    pub unit: String,
+    pub project: String,
+    pub run: String,
+    pub round: u32,
+    pub kind: String,
+    pub account: String,
+    pub host: String,
+    pub games: u64,
+    pub credit: f64,
+    pub done_at: i64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ContributorHost {
+    pub name: String,
+    pub os: String,
+    pub class: String,
+    pub threads: u32,
+    pub seen: i64,
+    pub accepted_units: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ContributorProfile {
+    pub account: String,
+    pub trust: TrustLevel,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub team: Option<String>,
+    pub created: i64,
+    pub accepted_units: u64,
+    pub games: u64,
+    pub verified_units: u64,
+    pub credit: f64,
+    pub credit_pending: f64,
+    pub credit_matured: f64,
+    pub credit_frozen: f64,
+    pub badges: Vec<String>,
+    pub hosts: Vec<ContributorHost>,
+    pub recent: Vec<FeedItem>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TransparencyLog {
+    pub accepted_units: u64,
+    pub verified_units: u64,
+    pub rejected_units: u64,
+    pub quarantined_units: u64,
+    pub events: Vec<AuditEntry>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -358,7 +445,7 @@ pub struct AuditEntry {
     pub detail: String,
 }
 
-/// The public numbers (`GET /status`, no token): what the tracker will draw from
+/// The public numbers (`GET /status`, no token): what the tracker draws from
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Status {
     /// hosts seen in the last 10 minutes, and their threads
@@ -367,7 +454,16 @@ pub struct Status {
     pub units: BTreeMap<String, u32>,
     pub games_accepted: u64,
     pub games_last_hour: u64,
+    /// total recorded training decisions across accepted units
+    #[serde(default)]
+    pub total_decisions: u64,
     /// open items in the verification inbox (mismatches and statistical flags)
     #[serde(default)]
     pub open_inbox: u32,
+    /// active hosts in the last 10 minutes grouped by os/platform
+    #[serde(default)]
+    pub platforms: BTreeMap<String, u32>,
+    /// highest-priority active round, or the most recent round
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_round: Option<PublicRound>,
 }
