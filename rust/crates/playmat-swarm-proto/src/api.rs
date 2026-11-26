@@ -7,9 +7,10 @@
 //! the manifest, or `/fail` (counts against the unit; that host never gets it again) or `/release` (handed back
 //! unplayed because the host stopped being idle: no failure). Networks come from `GET /nets/<sha256>`, which redirects to the store.
 //!
-//! Trainer: `POST /nets/<sha256>` for an upload URL, `POST /rounds` with the round's units, `GET /rounds/<id>` for
-//! progress, `GET /rounds/<id>/results` for the completed units and their files, `POST /units/<id>/verdict` once it has
-//! replayed them. Admin: `POST /tokens`.
+//! Trainer: `POST /nets/<sha256>` for an upload URL, `POST /rounds` with the round's units, `GET /rounds` to list
+//! rounds, `GET /rounds/<id>` for progress, `POST /rounds/<id>/priority` to reprioritize a round,
+//! `POST /rounds/<id>/cancel` or `POST /units/<id>/cancel` to cancel remaining units, `GET /rounds/<id>/results` for
+//! the completed units and their files, `POST /units/<id>/verdict` once it has replayed them. Admin: `POST /tokens`.
 
 use crate::{ResultManifest, WorkUnit};
 use serde::{Deserialize, Serialize};
@@ -113,10 +114,32 @@ pub struct RoundStatus {
     pub project: String,
     pub run: String,
     pub round: u32,
-    /// units by state: queued, leased, complete (waiting for a verdict), accepted, rejected, failed
+    #[serde(default)]
+    pub priority: i32,
+    /// units by state: queued, leased, complete (waiting for a verdict), accepted, rejected, failed, cancelled
     pub units: BTreeMap<String, u32>,
     /// games in completed and accepted units
     pub games: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RoundPriority {
+    pub priority: i32,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Cancel {
+    #[serde(default)]
+    pub reason: String,
+    /// for a round cancel: also cancel units currently leased (their next heartbeat gets 409 Conflict)
+    #[serde(default)]
+    pub include_leased: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CancelReply {
+    pub cancelled: u32,
+    pub round: RoundStatus,
 }
 
 /// A completed unit, for the trainer to replay: the unit as the coordinator leased it (replay against this, never

@@ -4,7 +4,11 @@
 one folder, each file prefixed with its unit id, ready for `data.py` and `train.py`.
 
     python swarm.py --coordinator URL --token-file F status
+    python swarm.py --coordinator URL --token-file F rounds
     python swarm.py --coordinator URL --token-file F publish ROUND.json       (a NewRound, net paths allowed)
+    python swarm.py --coordinator URL --token-file F priority ROUND_ID N
+    python swarm.py --coordinator URL --token-file F cancel-round ROUND_ID [--include-leased] [--reason R]
+    python swarm.py --coordinator URL --token-file F cancel-unit UNIT_ID [--reason R]
     python swarm.py --coordinator URL --token-file F pull ROUND_ID OUT [--worker-bin B] [--wait]
 
 `pfsp_league.py --swarm URL` plans a PFSP round, publishes it with these functions and updates the league from the
@@ -249,8 +253,19 @@ def main():
     ap.add_argument("--token-file", default=None)
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("status")
+    sub.add_parser("rounds")
     p = sub.add_parser("publish")
     p.add_argument("round_json")
+    p = sub.add_parser("priority")
+    p.add_argument("round_id", type=int)
+    p.add_argument("priority", type=int)
+    p = sub.add_parser("cancel-round")
+    p.add_argument("round_id", type=int)
+    p.add_argument("--include-leased", action="store_true")
+    p.add_argument("--reason", default="")
+    p = sub.add_parser("cancel-unit")
+    p.add_argument("unit_id")
+    p.add_argument("--reason", default="")
     p = sub.add_parser("pull")
     p.add_argument("round_id", type=int)
     p.add_argument("out")
@@ -260,6 +275,16 @@ def main():
     c = client_from(args)
     if args.cmd == "status":
         print(json.dumps(c.call("GET", "/status"), indent=1))
+    elif args.cmd == "rounds":
+        print(json.dumps(c.call("GET", "/rounds"), indent=1))
+    elif args.cmd == "priority":
+        print(json.dumps(c.call("POST", f"/rounds/{args.round_id}/priority", {"priority": args.priority}), indent=1))
+    elif args.cmd == "cancel-round":
+        body = {"reason": args.reason, "include_leased": args.include_leased}
+        print(json.dumps(c.call("POST", f"/rounds/{args.round_id}/cancel", body), indent=1))
+    elif args.cmd == "cancel-unit":
+        c.call("POST", f"/units/{args.unit_id}/cancel", {"reason": args.reason})
+        print(f"SWARM cancelled {args.unit_id}")
     elif args.cmd == "publish":
         r = json.load(open(args.round_json))
         nets = {}

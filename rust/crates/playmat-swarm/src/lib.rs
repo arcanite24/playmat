@@ -128,10 +128,13 @@ pub fn router(s: Shared) -> Router {
         .route("/api/v1/units/{id}/complete", post(complete))
         .route("/api/v1/units/{id}/fail", post(fail))
         .route("/api/v1/units/{id}/release", post(release))
+        .route("/api/v1/units/{id}/cancel", post(cancel_unit))
         .route("/api/v1/units/{id}/verdict", post(verdict))
         .route("/api/v1/nets/{sha}", get(get_net).post(put_net))
-        .route("/api/v1/rounds", post(new_round))
+        .route("/api/v1/rounds", get(list_rounds).post(new_round))
         .route("/api/v1/rounds/{id}", get(round_status))
+        .route("/api/v1/rounds/{id}/priority", post(set_round_priority))
+        .route("/api/v1/rounds/{id}/cancel", post(cancel_round))
         .route("/api/v1/rounds/{id}/results", get(round_results))
         .route("/store/{*key}", get(store_get).put(store_put).layer(DefaultBodyLimit::max(MAX_FILE as usize)))
         .with_state(s)
@@ -570,7 +573,7 @@ async fn new_round(State(s): State<Shared>, headers: HeaderMap, Json(mut r): Jso
 }
 
 async fn round_json(s: &Swarm, id: i64) -> Res<RoundStatus> {
-    let r = sqlx::query("SELECT project, run, round FROM rounds WHERE id = ?")
+    let r = sqlx::query("SELECT project, run, round, priority FROM rounds WHERE id = ?")
         .bind(id)
         .fetch_optional(&s.db)
         .await?
@@ -580,6 +583,7 @@ async fn round_json(s: &Swarm, id: i64) -> Res<RoundStatus> {
         project: r.get("project"),
         run: r.get("run"),
         round: r.get::<i64, _>("round") as u32,
+        priority: r.get::<i64, _>("priority") as i32,
         units: BTreeMap::new(),
         games: 0,
     };
@@ -599,9 +603,100 @@ async fn round_json(s: &Swarm, id: i64) -> Res<RoundStatus> {
     Ok(st)
 }
 
+async fn list_rounds(State(s): State<Shared>, headers: HeaderMap) -> Res<Json<Vec<RoundStatus>>> {
+    caller(&s, &headers, &[Role::Trainer, Role::Admin]).await?;
+    let rows = sqlx::query("SELECT id FROM rounds ORDER BY id DESC").fetch_all(&s.db).await?;
+    let mut out = Vec::with_capacity(rows.len());
+    for row in rows {
+        out.push(round_json(&s, row.get("id")).await?);
+    }
+    Ok(Json(out))
+}
+
 async fn round_status(State(s): State<Shared>, headers: HeaderMap, Path(id): Path<i64>) -> Res<Json<RoundStatus>> {
     caller(&s, &headers, &[Role::Trainer, Role::Admin]).await?;
     round_json(&s, id).await.map(Json)
+}
+
+async fn set_round_priority(
+    State(s): State<Shared>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+    Json(req): Json<RoundPriority>,
+) -> Res<Json<RoundStatus>> {
+    let c = caller(&s, &headers, &[Role::Trainer, Role::Admin]).await?;
+    let n = sqlx::query("UPDATE rounds SET priority = ? WHERE id = ?")
+        .bind(req.priority as i64)
+        .bind(id)
+        .execute(&s.db)
+        .await?
+        .rows_affected();
+    if n == 0 {
+        return Err(ApiError(StatusCode::NOT_FOUND, format!("no round {id}")));
+    }
+    s.audit(&c.name, "priority", &format!("round {id} -> {}", req.priority)).await;
+    round_json(&s, id).await.map(Json)
+}
+
+async fn cancel_round(
+    State(s): State<Shared>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+    Json(req): Json<Cancel>,
+) -> Res<Json<CancelReply>> {
+    let c = caller(&s, &headers, &[Role::Trainer, Role::Admin]).await?;
+    // ensure the round exists before locking/updating
+    round_json(&s, id).await?;
+    let cancelled = {
+        let _one = s.lease.lock().await;
+        let query = if req.include_leased {
+            "UPDATE units SET state = 'cancelled', host = NULL, lease_until = NULL, verdict = ? \
+             WHERE round = ? AND state IN ('queued', 'leased')"
+        } else {
+            "UPDATE units SET state = 'cancelled', host = NULL, lease_until = NULL, verdict = ? \
+             WHERE round = ? AND state = 'queued'"
+        };
+        sqlx::query(query).bind(&req.reason).bind(id).execute(&s.db).await?.rows_affected() as u32
+    };
+    let detail = if req.reason.is_empty() {
+        format!("round {id}: {cancelled} units (include_leased={})", req.include_leased)
+    } else {
+        format!("round {id}: {cancelled} units (include_leased={}): {}", req.include_leased, req.reason)
+    };
+    s.audit(&c.name, "cancel", &detail).await;
+    let round = round_json(&s, id).await?;
+    Ok(Json(CancelReply { cancelled, round }))
+}
+
+async fn cancel_unit(
+    State(s): State<Shared>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Json(req): Json<Cancel>,
+) -> Res<StatusCode> {
+    let c = caller(&s, &headers, &[Role::Trainer, Role::Admin]).await?;
+    let _one = s.lease.lock().await;
+    let row = sqlx::query("SELECT state FROM units WHERE id = ?")
+        .bind(&id)
+        .fetch_optional(&s.db)
+        .await?
+        .ok_or_else(|| ApiError(StatusCode::NOT_FOUND, format!("no unit {id}")))?;
+    let state: String = row.get("state");
+    if state != "queued" && state != "leased" {
+        return Err(conflict(format!("{id} is {state}, can't cancel")));
+    }
+    sqlx::query("UPDATE units SET state = 'cancelled', host = NULL, lease_until = NULL, verdict = ? WHERE id = ?")
+        .bind(&req.reason)
+        .bind(&id)
+        .execute(&s.db)
+        .await?;
+    let detail = if req.reason.is_empty() {
+        format!("{id} (was {state})")
+    } else {
+        format!("{id} (was {state}): {}", req.reason)
+    };
+    s.audit(&c.name, "cancel", &detail).await;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[derive(Deserialize)]
