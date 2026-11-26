@@ -474,6 +474,30 @@ fn a_tables_starting_life_and_free_mulligans_are_played() {
 }
 
 #[test]
+fn a_table_whose_mulligans_cost_no_card_keeps_seven() {
+    // the web client's "no card lost" (FREE_MULLIGANS_ALL): seven free mulligans, the eighth costs a card
+    let mut s = start(&deck("gw-company.txt"), &deck("b-zombies.txt"), 3, None);
+    s.rules = playmat_host::TableRules { free_mulligans: 7, ..playmat_host::TableRules::default() };
+    let game = HostedGame::start(s, Arc::new(playmat_engine::cards())).unwrap();
+    game.call(Call::Join);
+    let mut asked = 0;
+    loop {
+        let e = game.events.recv_timeout(Duration::from_secs(60)).expect("the host answers");
+        if e.method == "GAME_ASK" {
+            asked += 1;
+            let text = e.data["message"].as_str().unwrap_or("").to_string();
+            let size = if asked <= 7 { "7" } else { "6" };
+            assert!(text.contains(size), "mulligan {asked} goes down to {size}: {text}");
+            game.call(Call::Bool(asked <= 7));
+            if asked == 8 {
+                break;
+            }
+        }
+    }
+    game.call(Call::Action("CONCEDE".into(), None));
+}
+
+#[test]
 fn a_hosted_game_writes_its_replay() {
     use std::io::BufRead;
     let path = std::env::temp_dir().join(format!("playmat-replay-{}.ndjson.gz.part", std::process::id()));

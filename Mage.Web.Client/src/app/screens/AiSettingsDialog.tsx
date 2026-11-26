@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
 import { formatRules, isCommanderFormat } from '../../core/decks/formats';
+import { FREE_MULLIGANS_ALL } from '../../core/game/tableSetup';
 import { ALL_META_TIERS, type MetaTier } from '../../core/decks/metaDecks';
 import { api } from '../connection';
 import { useDecks } from '../stores/decks';
@@ -282,6 +283,23 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
             />
           </section>
         </div>
+
+        <section className={styles.row}>
+          <h3 className={styles.label}>{t('ai.mulligans')}</h3>
+          <Segmented
+            label={t('ai.mulligans')}
+            value={options.freeMulligans >= FREE_MULLIGANS_ALL ? FREE_MULLIGANS_ALL : Math.min(options.freeMulligans, 1)}
+            options={[
+              { value: 0, label: t('ai.mulligans.standard') },
+              { value: 1, label: t('ai.mulligans.oneFree') },
+              { value: FREE_MULLIGANS_ALL, label: t('ai.mulligans.free') },
+            ]}
+            onChange={(freeMulligans) => setOptions({ freeMulligans })}
+          />
+          <p className={styles.detail}>
+            {t(options.freeMulligans >= FREE_MULLIGANS_ALL ? 'ai.mulligans.free.detail' : options.freeMulligans > 0 ? 'ai.mulligans.oneFree.detail' : 'ai.mulligans.standard.detail')}
+          </p>
+        </section>
 
         <section className={styles.row}>
           <h3 className={styles.label}>{t('ai.rules')}</h3>
