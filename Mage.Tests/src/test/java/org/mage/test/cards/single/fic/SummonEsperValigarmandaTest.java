@@ -54,4 +54,95 @@ public class SummonEsperValigarmandaTest extends CardTestPlayerBase {
 
         assertLife(playerB, 20 - 2 - 3);
     }
+
+    /**
+     * Reported: with only the saga's {R}{R} in the pool, red couldn't pay Stitch Together's {B}{B}. Red paid a {B}
+     * only once a Swamp had already paid the other one.
+     */
+    private void setupStitchTogether() {
+        addCard(Zone.HAND, playerA, esper, 1);
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 4);
+        addCard(Zone.GRAVEYARD, playerA, "Stitch Together", 1); // {B}{B} sorcery
+        addCard(Zone.GRAVEYARD, playerA, "Grizzly Bears", 1);
+
+        castSpell(1, PhaseStep.PRECOMBAT_MAIN, playerA, esper);
+        setChoice(playerA, "Stitch Together"); // chapter I exiles it
+
+        // turn 3, chapter II: {R}{R} and cast Stitch Together
+        setChoice(playerA, "Stitch Together");
+        setChoice(playerA, true);
+        addTarget(playerA, "Grizzly Bears");
+    }
+
+    private void assertStitchTogetherPaidWithRed() {
+        assertHandCount(playerA, "Grizzly Bears", 1);
+        assertExileCount(playerA, "Stitch Together", 0);
+        assertGraveyardCount(playerA, "Stitch Together", 1);
+        assertTappedCount("Mountain", false, 4); // paid from the pool only
+    }
+
+    @Test
+    public void test_AnyType_TwoRedPayBlackBlack_AutoPayment() {
+        setupStitchTogether();
+
+        setStrictChooseMode(true);
+        setStopAt(3, PhaseStep.POSTCOMBAT_MAIN);
+        execute();
+
+        assertStitchTogetherPaidWithRed();
+    }
+
+    @Test
+    public void test_AnyType_TwoRedPayBlackBlack_RestrictedAutoPayment() {
+        setupStitchTogether();
+        // the saga itself is cast with full auto-payment, then the pool is restricted for turn 3
+        runCode("restrict auto-payment", 2, PhaseStep.END_TURN, playerA, (info, player, game) -> {
+            player.getUserData().setManaPoolAutomaticRestricted(true);
+            player.getManaPool().setAutoPaymentRestricted(true);
+        });
+
+        setStrictChooseMode(true);
+        setStopAt(3, PhaseStep.POSTCOMBAT_MAIN);
+        execute();
+
+        assertStitchTogetherPaidWithRed();
+    }
+
+    @Test
+    public void test_AnyType_TwoRedPayBlackBlack_ManualPoolClicks() {
+        setupStitchTogether();
+        // the saga itself is cast with auto-payment, then mana is paid by clicks on the pool on turn 3
+        runCode("disable auto-payment", 2, PhaseStep.END_TURN, playerA, (info, player, game) -> {
+            disableManaAutoPayment(playerA);
+        });
+        setChoice(playerA, "Red");
+        setChoice(playerA, "Red");
+
+        setStrictChooseMode(true);
+        setStopAt(3, PhaseStep.POSTCOMBAT_MAIN);
+        execute();
+
+        assertStitchTogetherPaidWithRed();
+    }
+
+    @Test
+    public void test_AnyType_SwampAndRedPayBlackBlack_ManualPoolClicks() {
+        setupStitchTogether();
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp", 1);
+        runCode("disable auto-payment", 2, PhaseStep.END_TURN, playerA, (info, player, game) -> {
+            disableManaAutoPayment(playerA);
+        });
+        setChoice(playerA, "{T}: Add {B}"); // the Swamp
+        setChoice(playerA, "Black");
+        setChoice(playerA, "Red");
+
+        setStrictChooseMode(true);
+        setStopAt(3, PhaseStep.POSTCOMBAT_MAIN);
+        execute();
+
+        assertHandCount(playerA, "Grizzly Bears", 1);
+        assertGraveyardCount(playerA, "Stitch Together", 1);
+        assertTapped("Swamp", true);
+        assertTappedCount("Mountain", false, 4);
+    }
 }
