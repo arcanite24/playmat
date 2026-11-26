@@ -7,7 +7,7 @@ networks, game data and an audit log of run decisions.
 
 The living design, with diagrams and comments, is the Claude Doc
 [Mana@Home: volunteer computing for Playmat's AI](https://claude.ai/artifact/RjFvK6q3wXNbzeiP5AQm9g). This file is
-its summary in the repository, and the record of what S0 built and measured ([S0.md](S0.md)).
+its summary in the repository, with the record of what S0 built and measured ([S0.md](S0.md)) and of S1 and its gate round ([S1.md](S1.md)).
 
 ## Decisions
 
