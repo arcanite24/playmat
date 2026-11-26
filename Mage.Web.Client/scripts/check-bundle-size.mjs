@@ -161,10 +161,13 @@ import { gzipSync } from 'node:zlib';
 // app raised 2026-11-25 from 920 kB for the deck editor redesign (#513): stacks and grid views, card menu, maybeboard,
 // categories and undo, all in the lazy DeckBuilder chunk plus en/es strings. Measured entry 82.5 kB, initial 219.3 kB
 // (both under budget), app 928.2 kB
+// app raised 2026-11-26 from 932 kB for Mana@Home S3 (public /swarm tracker, leaderboards, teams, contributor
+// profiles, transparency log, and admin Swarm tab), all in lazy SwarmScreen and AdminScreen chunks. Measured entry
+// 83.1 kB, initial 219.9 kB (both under budget), app 940.2 kB
 const BUDGET_KB = {
   entry: 86,
   initial: 221,
-  app: 932,
+  app: 944,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;

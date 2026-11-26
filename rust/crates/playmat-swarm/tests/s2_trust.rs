@@ -602,3 +602,49 @@ async fn sleeper_cheater_caught_within_20_units_and_quarantined() {
     );
     let _ = std::fs::remove_dir_all(&tmp);
 }
+
+#[tokio::test]
+async fn s1_database_migrates_cleanly_to_s2() {
+    use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
+    use std::str::FromStr;
+
+    let tmp = std::env::temp_dir().join(format!("mana-s1-mig-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+    let db_path = tmp.join("swarm.db");
+
+    // Create a pure S1-era SQLite database (no S2 columns)
+    let opts =
+        SqliteConnectOptions::from_str(&format!("sqlite:{}", db_path.display())).unwrap().create_if_missing(true);
+    let db = SqlitePoolOptions::new().max_connections(1).connect_with(opts).await.unwrap();
+    for stmt in [
+        "CREATE TABLE tokens (id INTEGER PRIMARY KEY, hash TEXT NOT NULL UNIQUE, role TEXT NOT NULL, \
+         name TEXT NOT NULL, created INTEGER NOT NULL, revoked INTEGER NOT NULL DEFAULT 0)",
+        "CREATE TABLE hosts (id INTEGER PRIMARY KEY, token INTEGER NOT NULL, name TEXT NOT NULL, \
+         build TEXT NOT NULL, class TEXT NOT NULL, strict INTEGER NOT NULL, threads INTEGER NOT NULL, os TEXT NOT NULL, \
+         seen INTEGER NOT NULL, UNIQUE(token, name))",
+        "CREATE TABLE rounds (id INTEGER PRIMARY KEY, project TEXT NOT NULL, run TEXT NOT NULL, \
+         round INTEGER NOT NULL, priority INTEGER NOT NULL, created INTEGER NOT NULL, UNIQUE(project, run, round))",
+        "CREATE TABLE units (id TEXT PRIMARY KEY, round INTEGER NOT NULL, unit TEXT NOT NULL, \
+         state TEXT NOT NULL, host INTEGER, lease_until INTEGER, attempts INTEGER NOT NULL DEFAULT 0, manifest TEXT, \
+         games INTEGER NOT NULL DEFAULT 0, done_at INTEGER, verdict TEXT)",
+        "CREATE INDEX units_state ON units(state, round)",
+        "CREATE TABLE uploads (unit TEXT NOT NULL, path TEXT NOT NULL, size INTEGER NOT NULL, \
+         sha256 TEXT NOT NULL, PRIMARY KEY(unit, path))",
+        "CREATE TABLE failures (unit TEXT NOT NULL, host INTEGER NOT NULL, PRIMARY KEY(unit, host))",
+        "CREATE TABLE audit (id INTEGER PRIMARY KEY, at INTEGER NOT NULL, actor TEXT NOT NULL, \
+         action TEXT NOT NULL, detail TEXT NOT NULL)",
+        "INSERT INTO tokens (hash, role, name, created) VALUES ('deadbeef', 'trainer', 'trainer', 1000)",
+    ] {
+        sqlx::query(stmt).execute(&db).await.unwrap();
+    }
+    db.close().await;
+
+    // Opening with S2 Swarm::open must migrate in place without errors (including units_source index)
+    let store = Store::Local(Local::new(tmp.join("store"), "http://127.0.0.1:0".into()));
+    let s = Swarm::open(db_path.to_str().unwrap(), store, "http://127.0.0.1:0").await.unwrap();
+    let trust: String =
+        sqlx::query_scalar("SELECT trust FROM tokens WHERE name = 'trainer'").fetch_one(&s.db).await.unwrap();
+    assert_eq!(trust, "trusted");
+    let _ = std::fs::remove_dir_all(&tmp);
+}
