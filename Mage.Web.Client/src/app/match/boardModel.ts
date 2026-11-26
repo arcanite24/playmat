@@ -132,16 +132,29 @@ export function buildPlayerBoard(player: PlayerView, isMe: boolean): PlayerBoard
   };
 }
 
-/** The local player sits at the bottom; opponents across, in turn order starting after us. */
+/**
+ * The opponents in the order their turns come after `meIndex`'s, for seating clockwise: the next player sits on our
+ * left. The server lists players in table order and plays the turns the other way round (XMage's "A -> D -> C -> B"),
+ * so the player whose turn follows ours is the one listed just before us.
+ */
+export function turnOrderAfter<T>(players: readonly T[], meIndex: number): T[] {
+  const count = players.length;
+  const seated: T[] = [];
+  for (let step = 1; step < count; step++) seated.push(players[(((meIndex - step) % count) + count) % count]);
+  return seated;
+}
+
+/** The local player sits at the bottom; opponents across, clockwise: left to right in turn order starting after us. */
 export function buildBoard(view: GameView | null | undefined, myPlayerId: string | null): BoardModel {
   const players = view?.players ?? [];
   const meIndex = players.findIndex((player) => player.playerId === myPlayerId);
   const me = meIndex >= 0 ? players[meIndex] : null;
-  const ordered = meIndex >= 0 ? [...players.slice(meIndex + 1), ...players.slice(0, meIndex)] : players.slice(1);
   const bottom = me ?? players[0] ?? null;
+  // watching: whoever is listed first takes the bottom seat, the rest sit round from them
+  const opponents = players.length > 0 ? turnOrderAfter(players, Math.max(meIndex, 0)) : [];
   return {
     me: bottom ? buildPlayerBoard(bottom, !!me) : null,
-    opponents: (me ? ordered : players.slice(1)).map((player) => buildPlayerBoard(player, false)),
+    opponents: opponents.map((player) => buildPlayerBoard(player, false)),
     players: new Map(players.map((player) => [player.playerId!, player])),
   };
 }

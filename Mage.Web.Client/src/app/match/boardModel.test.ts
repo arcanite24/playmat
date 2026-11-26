@@ -48,11 +48,17 @@ describe('buildPlayerBoard', () => {
 });
 
 describe('buildBoard', () => {
-  it('seats me at the bottom and opponents in turn order after me', () => {
-    const view: GameView = { players: [player('a', []), player('me', []), player('c', [])] };
+  it('seats opponents clockwise: left to right in turn order after me', () => {
+    // the server lists players in table order and plays turns the other way round: a, me, c, d plays me -> a -> d -> c
+    const view: GameView = { players: [player('a', []), player('me', []), player('c', []), player('d', [])] };
     const board = buildBoard(view, 'me');
     expect(board.me?.player.playerId).toBe('me');
-    expect(board.opponents.map((o) => o.player.playerId)).toEqual(['c', 'a']);
+    expect(board.opponents.map((o) => o.player.playerId)).toEqual(['a', 'd', 'c']);
+  });
+
+  it('keeps everyone in their seat when the same table is listed from another start', () => {
+    const seats = (order: string[]) => buildBoard({ players: order.map((id) => player(id, [])) }, 'me').opponents.map((o) => o.player.playerId);
+    expect(seats(['me', 'b', 'c', 'd'])).toEqual(seats(['c', 'd', 'me', 'b']));
   });
 
   it('shows the first player at the bottom when watching', () => {
