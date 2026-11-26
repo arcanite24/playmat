@@ -223,6 +223,7 @@ export default {
   'ai.pod.one': 'One on one',
   'ai.pod.three': '3 players',
   'ai.pod.four': '4 players',
+  'ai.pod.formatDeckDetail': 'With a commander format, play a free-for-all against two or three AIs, each with a deck from the pool.',
   'ai.pod.detail': 'With a commander deck, play a free-for-all against two or three AIs. Other decks always play one on one.',
   'ai.deck.first': 'First AI\'s deck',
   'ai.pool': 'Random picks from',

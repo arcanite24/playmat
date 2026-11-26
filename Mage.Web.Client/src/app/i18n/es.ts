@@ -249,6 +249,7 @@ const es: Catalog = {
   'ai.pod.one': 'Uno contra uno',
   'ai.pod.three': '3 jugadores',
   'ai.pod.four': '4 jugadores',
+  'ai.pod.formatDeckDetail': 'Con un formato de commander, juega un todos contra todos frente a dos o tres IA, cada una con un mazo del formato.',
   'ai.pod.detail': 'Con un mazo de commander, juega un todos contra todos frente a dos o tres IA. Los demás mazos siempre juegan uno contra uno.',
   'ai.deck.first': 'Mazo de la primera IA',
   'ai.pool': 'Elecciones al azar entre',
