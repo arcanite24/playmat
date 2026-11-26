@@ -8,7 +8,8 @@ networks, game data and an audit log of run decisions.
 The living design, with diagrams and comments, is the Claude Doc
 [Mana@Home: volunteer computing for Playmat's AI](https://claude.ai/artifact/RjFvK6q3wXNbzeiP5AQm9g). This file is
 its summary in the repository, with the record of what S0 built and measured ([S0.md](S0.md)), S1 and its gate round
-([S1.md](S1.md)), S2 trust and credit ([S2.md](S2.md)), and S3 public tracker and admin ([S3.md](S3.md)).
+([S1.md](S1.md)), S2 trust and credit ([S2.md](S2.md)), S3 public tracker and admin ([S3.md](S3.md)), and S4 swarm
+gates and Archbench ratings ([S4.md](S4.md)).
 
 ## Decisions
 
@@ -94,7 +95,7 @@ own answer, since a GPU's float order is its own.
 | Strict float functions | `rust/crates/playmat-ai/src/fm.rs`, the `strict` feature |
 | Protocol types | `rust/crates/playmat-swarm-proto` |
 | Worker | `rust/crates/playmat-worker` (S0: `run-unit`, `verify`, `compare`, `class`; S1: `run`) |
-| Coordinator | `rust/crates/playmat-swarm` (S1; S2 adds `trust.rs`/`admin.rs`; S3 adds `public.rs` tracker/teams/SSE) |
-| Trainer client | `rust/rl/swarm.py`, `pfsp_league.py --swarm` (S1; S2 adds admin/inbox/leaderboard CLI) |
+| Coordinator | `rust/crates/playmat-swarm` (S1; S2 adds `trust.rs`/`admin.rs`; S3 adds `public.rs`; S4 adds `gates.rs` SPRT/Archbench) |
+| Trainer client | `rust/rl/swarm.py`, `pfsp_league.py --swarm` (S1; S2 adds admin/inbox/leaderboard; S4 adds gates/benches/rollback) |
 | Images and compose | `ops/swarm/` (S1): the coordinator and the strict worker |
-| Tracker and admin | `Mage.Web.Client/src/app/swarm/`, `src/app/admin/SwarmPage.tsx` (S3) |
+| Tracker and admin | `Mage.Web.Client/src/app/swarm/`, `src/app/admin/SwarmPage.tsx` (S3; S4 adds `/swarm/networks` and Gates & Networks admin) |

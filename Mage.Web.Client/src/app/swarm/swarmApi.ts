@@ -182,6 +182,82 @@ export interface QuarantineReply {
   credits_affected: number;
 }
 
+export interface AnchorScore {
+  opponent: string;
+  wins: number;
+  draws: number;
+  losses: number;
+  elo: number;
+  ci95: number;
+}
+
+export interface GateStatus {
+  id: number;
+  round_id: number;
+  project: string;
+  run: string;
+  round: number;
+  candidate_sha: string;
+  candidate_label: string;
+  baseline_sha: string;
+  baseline_label: string;
+  status: string;
+  held: boolean;
+  auto_promote: boolean;
+  elo0: number;
+  elo1: number;
+  alpha: number;
+  beta: number;
+  lower_bound: number;
+  upper_bound: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  elo: number;
+  elo_ci95: number;
+  llr: number;
+  max_share: number;
+  top_account_share: number;
+  created: number;
+  decided_at: number | null;
+  decision_reason: string;
+}
+
+export interface BenchStatus {
+  id: number;
+  round_id: number;
+  project: string;
+  run: string;
+  round: number;
+  net_sha: string;
+  net_label: string;
+  anchor_elo: number;
+  games: number;
+  elo: number;
+  ci95: number;
+  anchors: AnchorScore[];
+  created: number;
+  updated_at: number;
+}
+
+export interface NetworkInfo {
+  sha256: string;
+  label: string;
+  parent_sha?: string | null;
+  status: string;
+  created: number;
+  promoted_at: number | null;
+  download_url: string;
+  gate_id: number | null;
+  gate_status: string | null;
+  gate_elo: number | null;
+  gate_llr: number | null;
+  bench_elo: number | null;
+  bench_ci95: number | null;
+  bench_games: number;
+  anchors: AnchorScore[];
+}
+
 async function request<T>(base: string, path: string, init?: RequestInit & { token?: string }): Promise<T> {
   const headers: Record<string, string> = {};
   if (init?.body) headers['Content-Type'] = 'application/json';
@@ -212,6 +288,9 @@ export const swarmPublic = {
   contributor: (name: string, base = DEFAULT_SWARM_URL) =>
     request<ContributorProfile>(base, `/contributors/${encodeURIComponent(name)}`),
   transparency: (base = DEFAULT_SWARM_URL) => request<TransparencyLog>(base, '/transparency'),
+  networks: (base = DEFAULT_SWARM_URL) => request<NetworkInfo[]>(base, '/networks'),
+  gates: (base = DEFAULT_SWARM_URL) => request<GateStatus[]>(base, '/gates'),
+  benches: (base = DEFAULT_SWARM_URL) => request<BenchStatus[]>(base, '/benches'),
 };
 
 export function createSwarmAdminClient(base: string, token: string) {
@@ -256,6 +335,16 @@ export function createSwarmAdminClient(base: string, token: string) {
     inbox: (status?: string) => call<InboxItem[]>('GET', status ? `/admin/inbox?status=${status}` : '/admin/inbox'),
     resolveInbox: (id: number, action: 'confirm-cheat' | 'false-positive' | 'order-rerun' | 'dismiss', reason: string) =>
       call<void>('POST', `/admin/inbox/${id}/resolve`, { action, reason }),
+    networks: () => call<NetworkInfo[]>('GET', '/networks'),
+    gates: () => call<GateStatus[]>('GET', '/gates'),
+    benches: () => call<BenchStatus[]>('GET', '/benches'),
+    holdGate: (gateId: number, reason: string) =>
+      call<GateStatus>('POST', `/admin/gates/${gateId}/hold`, { reason }),
+    resumeGate: (gateId: number) => call<GateStatus>('POST', `/admin/gates/${gateId}/resume`, {}),
+    promoteGate: (gateId: number, reason: string) =>
+      call<GateStatus>('POST', `/admin/gates/${gateId}/promote`, { reason }),
+    rollbackNetwork: (targetSha: string, reason: string) =>
+      call<void>('POST', '/admin/networks/rollback', { target_sha: targetSha, reason }),
     audit: (params?: { action?: string; actor?: string; limit?: number }) => {
       const qs = new URLSearchParams();
       if (params?.action) qs.set('action', params.action);

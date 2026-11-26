@@ -445,6 +445,191 @@ pub struct AuditEntry {
     pub detail: String,
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct SprtConfig {
+    /// Null hypothesis Elo gain (typically 0.0)
+    #[serde(default)]
+    pub elo0: f64,
+    /// Alternative hypothesis Elo gain (typically 5.0 or 10.0)
+    #[serde(default = "default_elo1")]
+    pub elo1: f64,
+    /// False positive rate (typically 0.05)
+    #[serde(default = "default_alpha_beta")]
+    pub alpha: f64,
+    /// False negative rate (typically 0.05)
+    #[serde(default = "default_alpha_beta")]
+    pub beta: f64,
+    /// Maximum fraction of un-reverified games one account may contribute before cross-account re-runs are required
+    #[serde(default = "default_max_share")]
+    pub max_share: f64,
+    /// Promote candidate automatically when SPRT passes and concentration guard is satisfied
+    #[serde(default = "default_true")]
+    pub auto_promote: bool,
+}
+
+fn default_elo1() -> f64 {
+    10.0
+}
+
+fn default_alpha_beta() -> f64 {
+    0.05
+}
+
+fn default_max_share() -> f64 {
+    0.5
+}
+
+fn default_true() -> bool {
+    true
+}
+
+impl Default for SprtConfig {
+    fn default() -> Self {
+        Self {
+            elo0: 0.0,
+            elo1: default_elo1(),
+            alpha: default_alpha_beta(),
+            beta: default_alpha_beta(),
+            max_share: default_max_share(),
+            auto_promote: true,
+        }
+    }
+}
+
+/// Publishes an SPRT gate round (`UnitKind::Match` units on reputable/trusted workers)
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct NewGate {
+    pub project: String,
+    pub run: String,
+    pub round: u32,
+    #[serde(default)]
+    pub priority: i32,
+    pub candidate_sha: String,
+    pub candidate_label: String,
+    pub baseline_sha: String,
+    #[serde(default)]
+    pub baseline_label: String,
+    #[serde(default)]
+    pub sprt: SprtConfig,
+    pub units: Vec<WorkUnit>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct GateStatus {
+    pub id: i64,
+    pub round_id: i64,
+    pub project: String,
+    pub run: String,
+    pub round: u32,
+    pub candidate_sha: String,
+    pub candidate_label: String,
+    pub baseline_sha: String,
+    pub baseline_label: String,
+    /// running, concentration-hold, passed, promoted, failed, inconclusive, held, rolled-back
+    pub status: String,
+    pub held: bool,
+    pub auto_promote: bool,
+    pub elo0: f64,
+    pub elo1: f64,
+    pub alpha: f64,
+    pub beta: f64,
+    pub lower_bound: f64,
+    pub upper_bound: f64,
+    pub wins: u64,
+    pub draws: u64,
+    pub losses: u64,
+    pub elo: f64,
+    pub elo_ci95: f64,
+    pub llr: f64,
+    pub max_share: f64,
+    pub top_account_share: f64,
+    pub created: i64,
+    pub decided_at: Option<i64>,
+    pub decision_reason: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct AnchorScore {
+    pub opponent: String,
+    pub wins: u64,
+    pub draws: u64,
+    pub losses: u64,
+    pub elo: f64,
+    pub ci95: f64,
+}
+
+/// Publishes an Archbench rating round (`UnitKind::Bench` units against fixed anchors)
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct NewBench {
+    pub project: String,
+    pub run: String,
+    pub round: u32,
+    #[serde(default)]
+    pub priority: i32,
+    pub net_sha: String,
+    pub net_label: String,
+    /// Reference Elo of the primary anchor (default 1000.0 for host@s6)
+    #[serde(default = "default_anchor_elo")]
+    pub anchor_elo: f64,
+    pub units: Vec<WorkUnit>,
+}
+
+fn default_anchor_elo() -> f64 {
+    1000.0
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct BenchStatus {
+    pub id: i64,
+    pub round_id: i64,
+    pub project: String,
+    pub run: String,
+    pub round: u32,
+    pub net_sha: String,
+    pub net_label: String,
+    pub anchor_elo: f64,
+    pub games: u64,
+    pub elo: f64,
+    pub ci95: f64,
+    pub anchors: Vec<AnchorScore>,
+    pub created: i64,
+    pub updated_at: i64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct NetworkInfo {
+    pub sha256: String,
+    pub label: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_sha: Option<String>,
+    /// candidate, promoted, superseded, rejected, rolled-back
+    pub status: String,
+    pub created: i64,
+    pub promoted_at: Option<i64>,
+    pub download_url: String,
+    pub gate_id: Option<i64>,
+    pub gate_status: Option<String>,
+    pub gate_elo: Option<f64>,
+    pub gate_llr: Option<f64>,
+    pub bench_elo: Option<f64>,
+    pub bench_ci95: Option<f64>,
+    pub bench_games: u64,
+    #[serde(default)]
+    pub anchors: Vec<AnchorScore>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GateAction {
+    #[serde(default)]
+    pub reason: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RollbackRequest {
+    pub target_sha: String,
+    pub reason: String,
+}
+
 /// The public numbers (`GET /status`, no token): what the tracker draws from
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Status {

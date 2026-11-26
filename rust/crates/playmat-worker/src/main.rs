@@ -178,7 +178,7 @@ pub fn run_unit(
         };
         return Err(format!("the unit wants strict={}, this build is strict={STRICT}: run {build}", unit.pins.strict));
     }
-    if unit.kind == UnitKind::SelfplayGpu || unit.kind == UnitKind::Bench || unit.kind == UnitKind::Verify {
+    if unit.kind == UnitKind::SelfplayGpu || unit.kind == UnitKind::Verify {
         return Err(format!("{:?} units can't be run via run-unit", unit.kind));
     }
     let mut nets = BTreeMap::new();

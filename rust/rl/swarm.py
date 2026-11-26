@@ -3,10 +3,10 @@
 `playmat-worker verify` against the unit the coordinator leased, and accepts or rejects it. Accepted shards land in
 one folder, each file prefixed with its unit id, ready for `data.py` and `train.py`.
 
-    python swarm.py --coordinator URL --token-file F status
-    python swarm.py --coordinator URL --token-file F leaderboard
-    python swarm.py --coordinator URL --token-file F rounds
-    python swarm.py --coordinator URL --token-file F publish ROUND.json       (a NewRound, net paths allowed)
+    python swarm.py --coordinator URL --token-file F status|leaderboard|networks|gates|benches|rounds
+    python swarm.py --coordinator URL --token-file F publish|publish-gate|publish-bench FILE.json
+    python swarm.py --coordinator URL --token-file F hold-gate|resume-gate|promote-gate GATE_ID [--reason R]
+    python swarm.py --coordinator URL --token-file F rollback TARGET_SHA --reason R
     python swarm.py --coordinator URL --token-file F priority ROUND_ID N
     python swarm.py --coordinator URL --token-file F cancel-round ROUND_ID [--include-leased] [--reason R]
     python swarm.py --coordinator URL --token-file F cancel-unit UNIT_ID [--reason R]
@@ -286,8 +286,21 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("status")
     sub.add_parser("leaderboard")
+    sub.add_parser("networks")
+    sub.add_parser("gates")
+    sub.add_parser("benches")
     sub.add_parser("rounds")
     sub.add_parser("workers")
+    for cmd in ("publish-gate", "publish-bench"):
+        p = sub.add_parser(cmd)
+        p.add_argument("spec_json")
+    for cmd in ("hold-gate", "resume-gate", "promote-gate"):
+        p = sub.add_parser(cmd)
+        p.add_argument("gate_id", type=int)
+        p.add_argument("--reason", default="")
+    p = sub.add_parser("rollback")
+    p.add_argument("target_sha")
+    p.add_argument("--reason", required=True)
     p = sub.add_parser("inbox")
     p.add_argument("--status", default=None)
     p = sub.add_parser("resolve-inbox")
@@ -338,6 +351,41 @@ def main():
         print(json.dumps(c.call("GET", "/status"), indent=1))
     elif args.cmd == "leaderboard":
         print(json.dumps(c.call("GET", "/leaderboard"), indent=1))
+    elif args.cmd == "networks":
+        print(json.dumps(c.call("GET", "/networks"), indent=1))
+    elif args.cmd == "gates":
+        print(json.dumps(c.call("GET", "/gates"), indent=1))
+    elif args.cmd == "benches":
+        print(json.dumps(c.call("GET", "/benches"), indent=1))
+    elif args.cmd == "publish-gate":
+        r = json.load(open(args.spec_json))
+        nets = {}
+        for u in r["units"]:
+            u["learner"] = swarm_spec(u["learner"], c, nets)
+            for o in u["opponents"]:
+                if o["config"] != "self":
+                    o["config"] = swarm_spec(o["config"], c, nets)
+            u["nets"] = net_refs(c, u["learner"], [o["config"] for o in u["opponents"]], nets)
+        print(json.dumps(c.call("POST", "/gates", r), indent=1))
+    elif args.cmd == "publish-bench":
+        r = json.load(open(args.spec_json))
+        nets = {}
+        for u in r["units"]:
+            u["learner"] = swarm_spec(u["learner"], c, nets)
+            for o in u["opponents"]:
+                if o["config"] != "self":
+                    o["config"] = swarm_spec(o["config"], c, nets)
+            u["nets"] = net_refs(c, u["learner"], [o["config"] for o in u["opponents"]], nets)
+        print(json.dumps(c.call("POST", "/bench", r), indent=1))
+    elif args.cmd == "hold-gate":
+        print(json.dumps(c.call("POST", f"/admin/gates/{args.gate_id}/hold", {"reason": args.reason}), indent=1))
+    elif args.cmd == "resume-gate":
+        print(json.dumps(c.call("POST", f"/admin/gates/{args.gate_id}/resume", {"reason": args.reason}), indent=1))
+    elif args.cmd == "promote-gate":
+        print(json.dumps(c.call("POST", f"/admin/gates/{args.gate_id}/promote", {"reason": args.reason}), indent=1))
+    elif args.cmd == "rollback":
+        c.call("POST", "/admin/networks/rollback", {"target_sha": args.target_sha, "reason": args.reason})
+        print(f"SWARM rolled back promoted network to {args.target_sha}")
     elif args.cmd == "rounds":
         print(json.dumps(c.call("GET", "/rounds"), indent=1))
     elif args.cmd == "workers":

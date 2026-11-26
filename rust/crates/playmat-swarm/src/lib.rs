@@ -5,6 +5,7 @@
 //! The API is `playmat_swarm_proto::api`.
 
 mod admin;
+pub mod gates;
 mod public;
 pub mod store;
 pub mod trust;
@@ -90,6 +91,21 @@ const SCHEMA: &[&str] = &[
     "CREATE INDEX IF NOT EXISTS credits_token ON credits(token, status, at)",
     "CREATE TABLE IF NOT EXISTS teams (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, \
      description TEXT NOT NULL DEFAULT '', created INTEGER NOT NULL, owner_token INTEGER NOT NULL)",
+    "CREATE TABLE IF NOT EXISTS networks (sha256 TEXT PRIMARY KEY, label TEXT NOT NULL, parent_sha TEXT, \
+     status TEXT NOT NULL, created INTEGER NOT NULL, promoted_at INTEGER, bench_elo REAL, bench_ci95 REAL, \
+     bench_games INTEGER NOT NULL DEFAULT 0, anchors_json TEXT NOT NULL DEFAULT '[]')",
+    "CREATE TABLE IF NOT EXISTS gates (id INTEGER PRIMARY KEY, round_id INTEGER NOT NULL UNIQUE, \
+     candidate_sha TEXT NOT NULL, candidate_label TEXT NOT NULL, baseline_sha TEXT NOT NULL, \
+     baseline_label TEXT NOT NULL, status TEXT NOT NULL, held INTEGER NOT NULL DEFAULT 0, \
+     auto_promote INTEGER NOT NULL DEFAULT 1, elo0 REAL NOT NULL, elo1 REAL NOT NULL, alpha REAL NOT NULL, \
+     beta REAL NOT NULL, max_share REAL NOT NULL, wins INTEGER NOT NULL DEFAULT 0, draws INTEGER NOT NULL DEFAULT 0, \
+     losses INTEGER NOT NULL DEFAULT 0, elo REAL NOT NULL DEFAULT 0.0, elo_ci95 REAL NOT NULL DEFAULT 0.0, \
+     llr REAL NOT NULL DEFAULT 0.0, top_account_share REAL NOT NULL DEFAULT 0.0, created INTEGER NOT NULL, \
+     decided_at INTEGER, decision_reason TEXT NOT NULL DEFAULT '')",
+    "CREATE TABLE IF NOT EXISTS benches (id INTEGER PRIMARY KEY, round_id INTEGER NOT NULL UNIQUE, \
+     net_sha TEXT NOT NULL, net_label TEXT NOT NULL, anchor_elo REAL NOT NULL, games INTEGER NOT NULL DEFAULT 0, \
+     elo REAL NOT NULL DEFAULT 1000.0, ci95 REAL NOT NULL DEFAULT 0.0, anchors_json TEXT NOT NULL DEFAULT '[]', \
+     created INTEGER NOT NULL, updated_at INTEGER NOT NULL)",
 ];
 
 /// Idempotent S1 -> S2/S3 column additions for existing SQLite databases.
@@ -216,6 +232,11 @@ pub fn router(s: Shared) -> Router {
         .route("/api/v1/teams/leave", post(public::leave_team))
         .route("/api/v1/contributors/{name}", get(public::contributor_profile))
         .route("/api/v1/transparency", get(public::transparency))
+        .route("/api/v1/networks", get(gates::list_networks))
+        .route("/api/v1/gates", get(gates::list_gates).post(gates::new_gate))
+        .route("/api/v1/gates/{id}", get(gates::get_gate))
+        .route("/api/v1/benches", get(gates::list_benches))
+        .route("/api/v1/bench", post(gates::new_bench))
         .route("/api/v1/tokens", post(new_token))
         .route("/api/v1/hello", post(hello))
         .route("/api/v1/lease", post(lease))
@@ -244,6 +265,10 @@ pub fn router(s: Shared) -> Router {
         .route("/api/v1/admin/units/{id}/reissue", post(admin::reissue_unit))
         .route("/api/v1/admin/inbox", get(admin::list_inbox))
         .route("/api/v1/admin/inbox/{id}/resolve", post(admin::resolve_inbox))
+        .route("/api/v1/admin/gates/{id}/hold", post(gates::hold_gate))
+        .route("/api/v1/admin/gates/{id}/resume", post(gates::resume_gate))
+        .route("/api/v1/admin/gates/{id}/promote", post(gates::promote_gate))
+        .route("/api/v1/admin/networks/rollback", post(gates::rollback_network))
         .route("/api/v1/admin/audit", get(admin::list_audit))
         .route("/store/{*key}", get(store_get).put(store_put).layer(DefaultBodyLimit::max(MAX_FILE as usize)))
         .layer(middleware::from_fn(cors))
@@ -761,7 +786,7 @@ async fn verify_complete(
 
     // Apply verdict to target unit
     let trow = sqlx::query(
-        "SELECT u.state, u.unit, u.host, u.leased_at, u.done_at, h.token AS source_token \
+        "SELECT u.round, u.state, u.unit, u.host, u.leased_at, u.done_at, h.token AS source_token \
          FROM units u JOIN hosts h ON h.id = u.host WHERE u.id = ?",
     )
     .bind(&req.target_unit)
@@ -770,6 +795,7 @@ async fn verify_complete(
     let Some(trow) = trow else {
         return Ok(StatusCode::NO_CONTENT);
     };
+    let target_round: i64 = trow.get("round");
     let target_state: String = trow.get("state");
     let source_host: i64 = trow.get("host");
     let source_token: i64 = trow.get("source_token");
@@ -829,6 +855,7 @@ async fn verify_complete(
         .await;
     }
 
+    gates::on_round_updated(&s, target_round).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -867,14 +894,18 @@ async fn release(State(s): State<Shared>, headers: HeaderMap, Path(id): Path<Str
 
 // ---- networks and the trainer
 
-fn valid_sha(sha: &str) -> bool {
+pub(crate) fn valid_sha(sha: &str) -> bool {
     sha.len() == 64 && sha.bytes().all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
 }
 
 async fn get_net(State(s): State<Shared>, headers: HeaderMap, Path(sha): Path<String>) -> Res<Redirect> {
-    caller(&s, &headers, &[Role::Worker, Role::Trainer, Role::Admin]).await?;
     if !valid_sha(&sha) {
         return Err(bad("a network is named by its sha256"));
+    }
+    let is_public: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM networks WHERE sha256 = ?").bind(&sha).fetch_one(&s.db).await?;
+    if is_public == 0 {
+        caller(&s, &headers, &[Role::Worker, Role::Trainer, Role::Admin]).await?;
     }
     Ok(Redirect::temporary(&s.store.get_url(&format!("nets/{sha}.pmnet"), URL_SECS)))
 }
@@ -1146,13 +1177,14 @@ async fn verdict(
 ) -> Res<StatusCode> {
     let c = caller(&s, &headers, &[Role::Trainer, Role::Admin]).await?;
     let row = sqlx::query(
-        "SELECT u.state, u.unit, u.host, u.leased_at, u.done_at, h.token AS source_token \
+        "SELECT u.round, u.state, u.unit, u.host, u.leased_at, u.done_at, h.token AS source_token \
          FROM units u JOIN hosts h ON h.id = u.host WHERE u.id = ? AND u.kind != 'verify'",
     )
     .bind(&id)
     .fetch_optional(&s.db)
     .await?
     .ok_or_else(|| conflict(format!("{id} isn't waiting for a verdict")))?;
+    let target_round: i64 = row.get("round");
     let state: String = row.get("state");
     if state != "complete" {
         return Err(conflict(format!("{id} isn't waiting for a verdict")));
@@ -1205,6 +1237,7 @@ async fn verdict(
             trust::handle_mismatch(&s.db, source_token, source_host, &id, None, VerifyMode::Replay, &v.reason).await?;
         s.audit(&c.name, "rejected", &format!("{id}: {}", v.reason)).await;
     }
+    gates::on_round_updated(&s, target_round).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 

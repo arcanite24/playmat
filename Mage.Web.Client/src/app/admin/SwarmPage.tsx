@@ -17,7 +17,7 @@ import styles from './AdminScreen.module.css';
 const URL_STORAGE_KEY = 'mana.admin.url';
 const TOKEN_STORAGE_KEY = 'mana.admin.token';
 
-type SwarmAdminTab = 'inbox' | 'rounds' | 'workers' | 'audit';
+type SwarmAdminTab = 'inbox' | 'rounds' | 'gates' | 'workers' | 'audit';
 const TRUST_LEVELS: TrustLevel[] = ['probation', 'normal', 'reputable', 'trusted', 'banned'];
 
 /**
@@ -170,6 +170,7 @@ function SwarmAdminConsole({
           [
             ['inbox', `Inbox (${statusQ.data?.open_inbox ?? 0})`],
             ['rounds', 'Rounds & Queue'],
+            ['gates', 'Gates & Networks'],
             ['workers', 'Workers & Tokens'],
             ['audit', 'Audit Log'],
           ] as const
@@ -189,6 +190,7 @@ function SwarmAdminConsole({
 
       {tab === 'inbox' && <InboxSection url={url} client={client} onNotice={setNotice} />}
       {tab === 'rounds' && <RoundsSection url={url} client={client} onNotice={setNotice} />}
+      {tab === 'gates' && <GatesSection url={url} client={client} onNotice={setNotice} />}
       {tab === 'workers' && <WorkersSection url={url} client={client} onNotice={setNotice} />}
       {tab === 'audit' && <AuditSection url={url} client={client} />}
     </div>
@@ -513,6 +515,205 @@ function RoundsSection({
             </Button>
           </div>
         </div>
+      </section>
+    </>
+  );
+}
+
+function GatesSection({
+  url,
+  client,
+  onNotice,
+}: {
+  url: string;
+  client: AdminClient;
+  onNotice: (msg: string) => void;
+}) {
+  const [reason, setReason] = useState('');
+  const qc = useQueryClient();
+
+  const gatesQ = useQuery({
+    queryKey: ['swarmAdmin', url, 'gates'],
+    queryFn: () => client.gates(),
+  });
+  const netsQ = useQuery({
+    queryKey: ['swarmAdmin', url, 'networks'],
+    queryFn: () => client.networks(),
+  });
+
+  const holdM = useMutation({
+    mutationFn: ({ id, hold }: { id: number; hold: boolean }) =>
+      hold ? client.holdGate(id, reason.trim() || 'admin hold') : client.resumeGate(id),
+    onSuccess: (g, vars) => {
+      onNotice(`Gate #${g.id} ${vars.hold ? 'held' : 'resumed'} (${g.status}).`);
+      setReason('');
+      void qc.invalidateQueries({ queryKey: ['swarmAdmin', url] });
+    },
+    onError: (e) => onNotice(`Gate update failed: ${String(e)}`),
+  });
+
+  const promoteM = useMutation({
+    mutationFn: (id: number) => client.promoteGate(id, reason.trim()),
+    onSuccess: (g) => {
+      onNotice(`Gate #${g.id} promoted (${g.candidate_label}).`);
+      setReason('');
+      void qc.invalidateQueries({ queryKey: ['swarmAdmin', url] });
+    },
+    onError: (e) => onNotice(`Promote failed: ${String(e)}`),
+  });
+
+  const rollbackM = useMutation({
+    mutationFn: (targetSha: string) => client.rollbackNetwork(targetSha, reason.trim()),
+    onSuccess: (_d, sha) => {
+      onNotice(`Rolled back active network to ${sha.slice(0, 12)}.`);
+      setReason('');
+      void qc.invalidateQueries({ queryKey: ['swarmAdmin', url] });
+    },
+    onError: (e) => onNotice(`Rollback failed: ${String(e)}`),
+  });
+
+  return (
+    <>
+      <section className={swarmStyles.card}>
+        <h3 className={swarmStyles.cardTitle}>SPRT promotion gates</h3>
+        <Field
+          label="Action reason"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="Required for rollback or promoting an unpassed gate; logged to transparency audit"
+        />
+
+        {gatesQ.isError ? (
+          <p className={styles.error}>{String(gatesQ.error)}</p>
+        ) : !gatesQ.data ? (
+          <p className={styles.quiet}>Loading gates...</p>
+        ) : gatesQ.data.length === 0 ? (
+          <p className={styles.quiet}>No SPRT gates published yet.</p>
+        ) : (
+          <div className={swarmStyles.tableWrap}>
+            <table className={swarmStyles.table}>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Candidate vs Baseline</th>
+                  <th>Status</th>
+                  <th className={swarmStyles.num}>Record / Elo</th>
+                  <th className={swarmStyles.num}>LLR / Top share</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {gatesQ.data.map((g) => {
+                  const canPromote = g.status !== 'promoted' && (g.status === 'passed' || reason.trim().length > 0);
+                  return (
+                    <tr key={g.id}>
+                      <td>#{g.id}</td>
+                      <td>
+                        <strong>{g.candidate_label}</strong> vs {g.baseline_label}
+                      </td>
+                      <td>
+                        <span className={swarmStyles.chip}>{g.status}</span>
+                        {g.held && <span className={`${swarmStyles.chip} ${swarmStyles.chipWarn}`}>held</span>}
+                      </td>
+                      <td className={swarmStyles.num}>
+                        {g.wins}-{g.draws}-{g.losses} ({g.elo >= 0 ? '+' : ''}{g.elo.toFixed(1)})
+                      </td>
+                      <td className={swarmStyles.num}>
+                        {g.llr >= 0 ? '+' : ''}{g.llr.toFixed(2)} · {(g.top_account_share * 100).toFixed(0)}%
+                      </td>
+                      <td>
+                        <div className={swarmStyles.chips}>
+                          {g.held ? (
+                            <Button
+                              size="sm"
+                              variant="quiet"
+                              disabled={holdM.isPending}
+                              onClick={() => holdM.mutate({ id: g.id, hold: false })}
+                            >
+                              Resume
+                            </Button>
+                          ) : (
+                            (g.status === 'running' || g.status === 'concentration-hold') && (
+                              <Button
+                                size="sm"
+                                variant="quiet"
+                                disabled={holdM.isPending}
+                                onClick={() => holdM.mutate({ id: g.id, hold: true })}
+                              >
+                                Hold
+                              </Button>
+                            )
+                          )}
+                          {g.status !== 'promoted' && (
+                            <Button
+                              size="sm"
+                              variant="quiet"
+                              disabled={!canPromote || promoteM.isPending}
+                              onClick={() => promoteM.mutate(g.id)}
+                            >
+                              Promote
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section className={swarmStyles.card}>
+        <h3 className={swarmStyles.cardTitle}>Networks and rollback</h3>
+        {netsQ.isError ? (
+          <p className={styles.error}>{String(netsQ.error)}</p>
+        ) : !netsQ.data ? (
+          <p className={styles.quiet}>Loading networks...</p>
+        ) : netsQ.data.length === 0 ? (
+          <p className={styles.quiet}>No networks registered yet.</p>
+        ) : (
+          <div className={swarmStyles.tableWrap}>
+            <table className={swarmStyles.table}>
+              <thead>
+                <tr>
+                  <th>Label</th>
+                  <th>SHA-256</th>
+                  <th>Status</th>
+                  <th className={swarmStyles.num}>Archbench Elo</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {netsQ.data.map((n) => (
+                  <tr key={n.sha256}>
+                    <td><strong>{n.label}</strong></td>
+                    <td className={swarmStyles.mono}>{n.sha256.slice(0, 12)}</td>
+                    <td><span className={swarmStyles.chip}>{n.status}</span></td>
+                    <td className={swarmStyles.num}>
+                      {n.bench_elo !== null && n.bench_games > 0
+                        ? `${Math.round(n.bench_elo)} +/- ${Math.round(n.bench_ci95 ?? 0)}`
+                        : 'Unrated'}
+                    </td>
+                    <td>
+                      {n.status !== 'promoted' && (
+                        <Button
+                          size="sm"
+                          variant="quiet"
+                          disabled={!reason.trim() || rollbackM.isPending}
+                          onClick={() => rollbackM.mutate(n.sha256)}
+                        >
+                          Rollback here
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </>
   );

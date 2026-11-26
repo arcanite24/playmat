@@ -511,7 +511,8 @@ pub(crate) async fn transparency(State(s): State<Shared>) -> Res<Json<Transparen
 
     let rows = sqlx::query(
         "SELECT id, at, actor, action, detail FROM audit \
-         WHERE action IN ('round', 'priority', 'cancel', 'trained', 'promote', 'verify-accept', 'verify-reject') \
+         WHERE action IN ('round', 'priority', 'cancel', 'trained', 'promote', 'verify-accept', 'verify-reject', \
+                          'gate-pass', 'gate-fail', 'gate-hold', 'rollback', 'bench') \
          ORDER BY id DESC LIMIT 100",
     )
     .fetch_all(&s.db)
