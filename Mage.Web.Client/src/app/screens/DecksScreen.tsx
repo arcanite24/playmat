@@ -17,7 +17,6 @@ import { RichText } from '../i18n/RichText';
 import { SLEEVE_COLORS, chosenSleeve, sleeveFor, useDecks, type RosterDeck } from '../stores/decks';
 import { useDeckRoster } from '../stores/useDeckRoster';
 import { useDeckSyncStatus } from '../stores/deckSyncStatus';
-import { useSettings } from '../stores/settings';
 import { useServerInfo } from '../queries';
 import { openImport, useImportSheet } from '../stores/importSheet';
 import { Button } from '../ui/Button';
@@ -56,7 +55,8 @@ export function DecksScreen() {
   const [sleevePreview, setSleevePreview] = useState<{ color: string; name: string } | null>(null);
   const selected = roster.find((deck) => deck.id === decks.selectedId) ?? null;
   const arrivedId = useImportSheet((state) => state.arrivedId);
-  const career = useSettings((state) => state.settings.careerOptIn);
+  // Career sleeves the account unlocked, whether or not Career was opened in this browser
+  const career = useServerInfo().data?.career === true;
   const accounts = useServerInfo().data?.accounts === true;
   const navigate = useNavigate();
   const degraded = useDegradedSites();
