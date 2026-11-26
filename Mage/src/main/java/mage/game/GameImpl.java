@@ -1274,6 +1274,10 @@ public abstract class GameImpl implements Game {
         meldCards.clear();
         meldCards.putAll(restored.meldCards);
         startingPlayerId = restored.startingPlayerId;
+        // the new table shuffled its seats: everyone sits, and takes turns, as in the saved game
+        if (!state.seatLike(restored.state)) {
+            logger.warn("Game " + getId() + ": the saved game's seats don't match the table's, so the turn order may differ");
+        }
         state.restoreForRollBack(restored.state);
         state.setChoosingPlayerId(restored.state.getChoosingPlayerId());
         // the generator object didn't change, only its position, so it's still the one this thread draws from

@@ -234,6 +234,34 @@ public class GameState implements Serializable, Copyable<GameState> {
         permanentOrderNumber = 0;
     }
 
+    /**
+     * Seats the players as they sat in {@code saved} (the same players, by id): its table order and its turn order.
+     * A game carried on from a snapshot starts at a new table, whose match shuffles the seats; without this the
+     * resumed game would play its turns in another order.
+     *
+     * @return false when the players aren't the same, and nothing changed
+     */
+    public boolean seatLike(GameState saved) {
+        List<UUID> tableOrder = new ArrayList<>(saved.players.keySet());
+        List<UUID> turnOrder = new ArrayList<>(saved.playerList);
+        if (!new HashSet<>(tableOrder).equals(players.keySet()) || !new HashSet<>(turnOrder).equals(new HashSet<>(playerList))
+                || tableOrder.size() != players.size() || turnOrder.size() != playerList.size()) {
+            return false;
+        }
+        Map<UUID, Player> byId = new HashMap<>(players);
+        players.clear();
+        for (UUID playerId : tableOrder) {
+            players.put(playerId, byId.get(playerId));
+        }
+        UUID current = playerList.get();
+        playerList.clear();
+        playerList.addAll(0, turnOrder);
+        if (current != null) {
+            playerList.setCurrent(current);
+        }
+        return true;
+    }
+
     public void restoreForRollBack(GameState state) {
         restore(state, false);
         this.turn = state.turn;
