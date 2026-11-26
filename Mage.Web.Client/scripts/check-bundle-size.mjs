@@ -164,10 +164,13 @@ import { gzipSync } from 'node:zlib';
 // app raised 2026-11-26 from 932 kB for Mana@Home S3 (public /swarm tracker, leaderboards, teams, contributor
 // profiles, transparency log, and admin Swarm tab), all in lazy SwarmScreen and AdminScreen chunks. Measured entry
 // 83.1 kB, initial 219.9 kB (both under budget), app 940.2 kB
+// app raised 2026-11-26 from 944 kB for the AI Ranked overhaul (RankedDeckPicker modal, season analytics, milestones,
+// Living Mythic standings, opponent deck inspection, and en/es strings), all in lazy Career chunks. Measured entry
+// 83.2 kB, initial 219.9 kB (both under budget), app 949.5 kB
 const BUDGET_KB = {
   entry: 86,
   initial: 221,
-  app: 944,
+  app: 954,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;

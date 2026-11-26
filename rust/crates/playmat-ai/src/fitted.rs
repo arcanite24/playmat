@@ -190,12 +190,7 @@ pub fn evaluate_with_playbook(game: &Game, seat: Seat, pb: &crate::playbook::Pla
     }
     let w = weights();
     let f = features(game, seat);
-    let mut z: f64 = f
-        .iter()
-        .zip(&w.features)
-        .zip(&pb.eval_weights)
-        .map(|((x, bw), mult)| x * bw * mult)
-        .sum();
+    let mut z: f64 = f.iter().zip(&w.features).zip(&pb.eval_weights).map(|((x, bw), mult)| x * bw * mult).sum();
     if !w.cards.is_empty() || !pb.eval_card_bonus.is_empty() {
         for id in game.battlefield.iter() {
             let o = game.obj(*id);

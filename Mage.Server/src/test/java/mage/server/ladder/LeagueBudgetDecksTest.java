@@ -170,7 +170,8 @@ public class LeagueBudgetDecksTest {
                     assertTrue(bot.plays(RankedService.OPEN) && !bot.plays(RankedService.LEAGUE), bot.id);
                     continue;
                 }
-                boolean special = "budget".equals(bot.kind) || ("meta".equals(bot.kind) && bot.skill < 7);
+                boolean special = "budget".equals(bot.kind)
+                        || ("meta".equals(bot.kind) && (bot.skill < 7 || bot.generation >= 2));
                 assertEquals(!special, bot.plays(RankedService.OPEN) && bot.plays(RankedService.LEAGUE), bot.id);
             }
         } finally {

@@ -387,6 +387,7 @@ struct Playout {
 }
 
 impl Playout {
+    #[allow(clippy::too_many_arguments)]
     fn new(
         script: Vec<Answer>,
         cap: u64,

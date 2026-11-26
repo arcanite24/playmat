@@ -548,7 +548,23 @@ mod tests {
         let mut checked = 0;
         for b in bots.iter().filter(|b| b["generation"].as_u64() == Some(newest)) {
             let n = b["skill"].as_u64().unwrap() as u32;
-            let now = skill(Some(n)).map(|c| label(&c)).unwrap_or_else(|| "quick".into());
+            let now = skill(Some(n))
+                .map(|mut c| {
+                    if let Some(pb) = b["playbook"].as_str() {
+                        c.playbook = Some(pb.to_string());
+                        if n >= 7 {
+                            c.budget = 10_000;
+                            c.width = 16;
+                        } else if n >= 5 {
+                            c.budget = 4_500;
+                            c.width = 10;
+                            c.extra_turns = 1;
+                            c.blunder = 10;
+                        }
+                    }
+                    label(&c)
+                })
+                .unwrap_or_else(|| "quick".into());
             assert_eq!(
                 b["ai"].as_str().unwrap(),
                 now,
