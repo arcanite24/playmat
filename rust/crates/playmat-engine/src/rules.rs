@@ -10125,7 +10125,11 @@ fn spend_allowed(game: &Game, seat: Seat, src: ObjId, h: cards::SpendHandler, on
 }
 
 /// A `conditional_pool` entry's ability index at or past this names `Game::effect_mana` (an effect's mana)
+#[cfg(target_pointer_width = "64")]
 pub(crate) const EFFECT_MANA: usize = 1 << 40;
+/// 32-bit targets (the wasm32 browser worker): ability indexes stay far below this too
+#[cfg(not(target_pointer_width = "64"))]
+pub(crate) const EFFECT_MANA: usize = 1 << 30;
 
 /// The conditional mana ability (or an effect's stand-in for one) a `conditional_pool` entry was made by
 fn conditional_def(game: &Game, src: ObjId, j: usize) -> Option<&AbilityDef> {

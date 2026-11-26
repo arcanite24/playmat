@@ -1,6 +1,7 @@
 //! How good a game is for a seat: Java's `GameStateEvaluator2` with `ArtificialScoringSystem`, the scores MAD
 //! searches with, so the two AIs want the same things.
 
+use crate::fm::Fm;
 use playmat_engine::card::{AbilityDef, CardType};
 use playmat_engine::state::{Game, ObjId, Seat};
 
@@ -90,7 +91,7 @@ pub fn value(game: &Game, seat: Seat, base: i64, version: u8) -> f64 {
     if version >= 2 {
         crate::fitted::probability(s)
     } else {
-        0.5 + 0.5 * ((s - base) as f64 / 2500.0).tanh()
+        0.5 + 0.5 * ((s - base) as f64 / 2500.0).stanh()
     }
 }
 

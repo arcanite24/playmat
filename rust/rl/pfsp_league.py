@@ -140,6 +140,45 @@ def with_temp(spec, temp, temp_turn):
     return f"{spec}+temp={temp}+temp_turn={temp_turn}"
 
 
+def run_on_swarm(args, state, plan, learner_base):
+    """The round's slots as Mana@Home units (one opponent per slot); the accepted games update the league"""
+    import swarm
+    tok = (args.swarm_token_file and open(args.swarm_token_file).read().strip()) or os.environ.get("MANA_TOKEN")
+    if not tok:
+        raise ValueError("--swarm needs --swarm-token-file or MANA_TOKEN")
+    client = swarm.Client(args.swarm, tok)
+    rnd = args.swarm_round if args.swarm_round is not None else args.seed
+    nets, units, slot_of = {}, [], {}
+    for i, item in enumerate(plan):
+        # distinct deals per slot and round: 10k deals per slot, 1M per round
+        seed = 1_000_000 * rnd + 10_000 * i
+        us = swarm.make_units(client, "pfsp", args.swarm_run, rnd, with_temp(learner_base, item["temp"], item["temp_turn"]),
+                              [(item["opponent_spec"], 1)], item["suite"], item["games"], seed, args.keep,
+                              args.fast, nets, prefix=f"s{i:02d}u")
+        for u in us:
+            slot_of[u["id"]] = i
+        units += us
+    try:
+        st = swarm.publish(client, "pfsp", args.swarm_run, rnd, units)
+    except RuntimeError as e:
+        if ": 409 " in str(e):
+            raise SystemExit(f"round {rnd} of pfsp/{args.swarm_run} is already on the coordinator: "
+                             f"pass another --swarm-round (or --seed)") from None
+        raise
+    swarm.wait(client, st["id"], timeout=args.swarm_wait_hours * 3600)
+    accepted = swarm.pull(client, st["id"], args.out, args.worker_bin)
+    for uid, m in accepted.items():
+        item = plan[slot_of[uid]]
+        w, d, l = swarm.tally([m]).get(0, [0, 0, 0])
+        key = f"{args.learner}__vs__{item['opponent']}"
+        rec = state["history"].setdefault(key, {"w": 0, "d": 0, "l": 0, "games": 0})
+        rec["w"] += w
+        rec["d"] += d
+        rec["l"] += l
+        rec["games"] += w + d + l
+    print(f"SWARM round {rnd}: {len(accepted)} of {len(units)} units accepted into {args.out}", flush=True)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--state", default="league_state.json")
@@ -159,6 +198,13 @@ def main():
     ap.add_argument("--bin", default="../../rust/target/release/selfplay")
     ap.add_argument("--out", default=None, help="output shard directory when --run-round is set")
     ap.add_argument("--run-round", action="store_true")
+    ap.add_argument("--swarm", default=None, help="play the round on Mana@Home: the coordinator's URL (swarm.py)")
+    ap.add_argument("--swarm-token-file", default=None, help="a trainer token (or MANA_TOKEN)")
+    ap.add_argument("--swarm-run", default="pfsp", help="the run's name on the coordinator")
+    ap.add_argument("--swarm-round", type=int, default=None, help="the round number (default: --seed)")
+    ap.add_argument("--worker-bin", default=None, help="playmat-worker, to replay the swarm's units")
+    ap.add_argument("--swarm-wait-hours", type=float, default=24.0,
+                    help="pull what's done after this long, even if units are still queued (no host can take them)")
     args = ap.parse_args()
 
     state = load_league(args.state, args.runs_dir)
@@ -179,6 +225,11 @@ def main():
         raise ValueError("--out is required with --run-round")
     os.makedirs(args.out, exist_ok=True)
     learner_base = state["agents"][args.learner]["spec"]
+    if args.swarm:
+        run_on_swarm(args, state, plan, learner_base)
+        save_league(state, args.state)
+        print(f"Updated league state -> {args.state}")
+        return
     pat = re.compile(r"SELFPLAY against .*?: (\d+)-(\d+)-(\d+)")
     for i, item in enumerate(plan):
         sub_out = os.path.join(args.out, f"slot_{i:02d}_{item['opponent'].replace('@', '_')}")

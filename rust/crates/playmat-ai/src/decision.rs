@@ -7,6 +7,7 @@
 //! another implementation, set on a table with `Table::set_policy`.
 
 use crate::eval;
+use crate::fm::Fm;
 use crate::policy::{Policy, Repeats};
 use crate::search::{candidates, Config};
 use playmat_engine::decide::{Answer, Decider, Query};
@@ -601,7 +602,7 @@ fn worker(
                 (0..k).filter(|i| !dead[*i] && !fixed[*i]).max_by(|a, b| {
                     let ucb = |i: usize| {
                         let n = s.visits[i].max(1) as f64;
-                        s.value[i] / n + EXPLORE * ((total.max(1) as f64).ln() / n).sqrt()
+                        s.value[i] / n + EXPLORE * ((total.max(1) as f64).sln() / n).sqrt()
                     };
                     ucb(*a).total_cmp(&ucb(*b)).then(b.cmp(a))
                 })
@@ -618,7 +619,7 @@ fn worker(
             Ok(o) => {
                 s.nodes += o.nodes.max(1);
                 let score = eval::evaluate(&o.game, seat) as f64;
-                let v = 0.5 + 0.5 * ((score - base) / SCALE).tanh();
+                let v = 0.5 + 0.5 * ((score - base) / SCALE).stanh();
                 s.visits[i] += 1;
                 s.value[i] += v;
                 fixed[i] = plain[i];

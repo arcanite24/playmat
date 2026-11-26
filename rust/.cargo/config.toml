@@ -1,0 +1,7 @@
+# Windows builds link the C runtime statically, so an exe runs on a machine without the Visual C++ redistributable
+# (docs/swarm/S0.md: blindvac lacked vcruntime140.dll). Volunteers run the worker exe as it is.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
+
+[target.aarch64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

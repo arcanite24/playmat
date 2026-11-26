@@ -290,10 +290,7 @@ fn untapped_mana_sources(game: &Game, seat: Seat) -> [f32; 6] {
         if o.controller != seat || o.tapped {
             continue;
         }
-        if game.has_type(id, CardType::Creature)
-            && o.sick
-            && !game.has_ability(id, &AbilityDef::HasteAbility)
-        {
+        if game.has_type(id, CardType::Creature) && o.sick && !game.has_ability(id, &AbilityDef::HasteAbility) {
             continue;
         }
         let mut can = [false; 6];

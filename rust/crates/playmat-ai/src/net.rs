@@ -11,6 +11,7 @@
 //! - Supports both v1 `Tx` checkpoints (ReLU + linear value head) and upgraded `Tx` checkpoints (`val_mlp=1` dedicated
 //!   2-layer value head reading `[t0, mean_ent, max_ent, glob]`, and `gelu=1` tanh-approx GELU).
 
+use crate::fm::Fm;
 use crate::obs::{self, Obs, ACT_F, ENT_F, GLOB_F, GLOB_F_V1, GLOB_F_V2, NO_ENT, NUM_REL_TYPES};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -24,7 +25,7 @@ fn act_val(x: f32, gelu: bool) -> f32 {
     if gelu {
         // Matches PyTorch F.gelu(x, approximate="tanh")
         const K: f32 = 0.797_884_6; // sqrt(2 / pi)
-        0.5 * x * (1.0 + (K * (x + 0.044_715 * x * x * x)).tanh())
+        0.5 * x * (1.0 + (K * (x + 0.044_715 * x * x * x)).stanh())
     } else {
         x.max(0.0)
     }
@@ -103,6 +104,69 @@ impl Linear {
         }
     }
 
+    /// The strict build's matrix product: per output, the bias and then each input in order, exactly as `apply_act`
+    /// sums a single row (no fused multiply-add: Rust never fuses on its own), eight rows at a time (then four, then
+    /// one) so each weight panel is read once per block. `y` is sized already.
+    #[cfg(feature = "strict")]
+    fn strict_rows(&self, x: &[f32], rows: usize, y: &mut [f32], do_act: bool, gelu: bool, add_to_y: bool) {
+        let inp = self.inp;
+        let mut r0 = 0;
+        while r0 < rows {
+            let left = rows - r0;
+            let n = if left >= 8 {
+                self.strict_block::<8>(&x[r0 * inp..(r0 + 8) * inp], &mut y[r0 * self.out..], do_act, gelu, add_to_y);
+                8
+            } else if left >= 4 {
+                self.strict_block::<4>(&x[r0 * inp..(r0 + 4) * inp], &mut y[r0 * self.out..], do_act, gelu, add_to_y);
+                4
+            } else {
+                self.strict_block::<1>(&x[r0 * inp..(r0 + 1) * inp], &mut y[r0 * self.out..], do_act, gelu, add_to_y);
+                1
+            };
+            r0 += n;
+        }
+    }
+
+    /// `R` rows of the strict product: `x` is `[R, inp]`, `y` starts at the first of them
+    #[cfg(feature = "strict")]
+    #[inline(always)]
+    fn strict_block<const R: usize>(&self, x: &[f32], y: &mut [f32], do_act: bool, gelu: bool, add_to_y: bool) {
+        let (inp, out) = (self.inp, self.out);
+        let blocks = out / 8;
+        assert!(x.len() == R * inp && y.len() >= R * out);
+        let xs: [&[f32]; R] = std::array::from_fn(|r| &x[r * inp..(r + 1) * inp]);
+        let fin = |acc: f32| if do_act { act_val(acc, gelu) } else { acc };
+        for blk in 0..blocks {
+            let ob = blk * 8;
+            let mut b8 = [0f32; 8];
+            b8.copy_from_slice(&self.b[ob..ob + 8]);
+            let mut acc = [b8; R];
+            let panel = &self.wp[blk * inp * 8..(blk + 1) * inp * 8];
+            for (k, w) in panel.as_chunks::<8>().0.iter().enumerate() {
+                for r in 0..R {
+                    let v = xs[r][k];
+                    for j in 0..8 {
+                        acc[r][j] += v * w[j];
+                    }
+                }
+            }
+            for (r, a) in acc.iter().enumerate() {
+                let dst = &mut y[r * out + ob..r * out + ob + 8];
+                for (d, &v) in dst.iter_mut().zip(a) {
+                    let v = fin(v);
+                    *d = if add_to_y { *d + v } else { v };
+                }
+            }
+        }
+        for (r, xr) in xs.iter().enumerate() {
+            for o in blocks * 8..out {
+                let v = fin(self.b[o] + dot(&self.w[o * inp..(o + 1) * inp], xr));
+                let d = &mut y[r * out + o];
+                *d = if add_to_y { *d + v } else { v };
+            }
+        }
+    }
+
     /// Flat batched matmul: `x` is `[rows, inp]`, writes `y` as `[rows, out]`.
     /// Uses `matrixmultiply::sgemm` (AVX2+FMA / NEON cache-blocked microkernels) for multi-row projections,
     /// and the packed 8-lane kernel for single rows.
@@ -126,6 +190,14 @@ impl Linear {
             debug_assert_eq!(y.len(), rows * out);
             debug_assert!(!do_act, "add_to_y with activation not supported");
         }
+        // the strict build skips `matrixmultiply`, whose kernels (AVX2 and FMA, NEON) round differently per machine,
+        // for the packed 8-lane loop: the same sums in the same order everywhere (crate::fm)
+        #[cfg(feature = "strict")]
+        {
+            self.strict_rows(x, rows, y, do_act, gelu, add_to_y);
+            return;
+        }
+        #[allow(unreachable_code)]
         let beta = if add_to_y { 1.0 } else { 0.0 };
         unsafe {
             matrixmultiply::sgemm(
@@ -240,7 +312,10 @@ impl Mlp {
         let belief = take("belief").ok();
         let (es, emb) = tensors.remove("emb.weight").ok_or("no emb.weight")?;
         let dim = es[1];
-        if ent1.inp != dim + ENT_F || (glob1.inp != GLOB_F && glob1.inp != GLOB_F_V2 && glob1.inp != GLOB_F_V1) || act1.inp != dim + ACT_F {
+        if ent1.inp != dim + ENT_F
+            || (glob1.inp != GLOB_F && glob1.inp != GLOB_F_V2 && glob1.inp != GLOB_F_V1)
+            || act1.inp != dim + ACT_F
+        {
             return Err(format!(
                 "{name}: made for other features (entity {}, global {}, action {}; this build has {}, {} or {}, {})",
                 ent1.inp - dim,
@@ -369,7 +444,14 @@ impl LayerNorm {
     fn apply_slice(&self, x: &[f32], y: &mut [f32]) {
         let n = x.len() as f32;
         let mean = x.iter().sum::<f32>() / n;
-        let var = x.iter().map(|&v| { let d = v - mean; d * d }).sum::<f32>() / n;
+        let var = x
+            .iter()
+            .map(|&v| {
+                let d = v - mean;
+                d * d
+            })
+            .sum::<f32>()
+            / n;
         let inv = 1.0 / (var + 1e-5).sqrt();
         for ((&v, (&w, &b)), dst) in x.iter().zip(self.w.iter().zip(&self.b)).zip(y.iter_mut()) {
             *dst = (v - mean) * inv * w + b;
@@ -503,7 +585,7 @@ fn attend_strided(
                     let ne = r_idx.len().min(nk.saturating_sub(1));
                     if k_ent < ne {
                         let rt = r_typ[k_ent] as usize;
-                        if rt >= 1 && rt <= NUM_REL_TYPES {
+                        if (1..=NUM_REL_TYPES).contains(&rt) {
                             let tgt = r_idx[k_ent] as usize;
                             if tgt < ne {
                                 let j = 1 + tgt;
@@ -513,7 +595,7 @@ fn attend_strided(
                         }
                         for j_ent in 0..ne {
                             let rt = r_typ[j_ent] as usize;
-                            if rt >= 1 && rt <= NUM_REL_TYPES && r_idx[j_ent] as usize == k_ent {
+                            if (1..=NUM_REL_TYPES).contains(&rt) && r_idx[j_ent] as usize == k_ent {
                                 let j = 1 + j_ent;
                                 scores[j] += rb[(NUM_REL_TYPES + rt - 1) * heads + h];
                                 m = m.max(scores[j]);
@@ -524,7 +606,7 @@ fn attend_strided(
             }
             let mut z = 0.0f32;
             for s in scores.iter_mut() {
-                *s = (*s - m).exp();
+                *s = (*s - m).sexp();
                 z += *s;
             }
             let inv_z = 1.0 / z;
@@ -628,7 +710,10 @@ impl Tx {
             abias: take_linear(t, "abias")?,
         };
         let want_act = net.dim + ACT_F + if net.act_ent { net.d } else { 0 };
-        if net.ent_in.inp != net.dim + ENT_F || (net.glob_f != GLOB_F && net.glob_f != GLOB_F_V2 && net.glob_f != GLOB_F_V1) || net.act_in.inp != want_act {
+        if net.ent_in.inp != net.dim + ENT_F
+            || (net.glob_f != GLOB_F && net.glob_f != GLOB_F_V2 && net.glob_f != GLOB_F_V1)
+            || net.act_in.inp != want_act
+        {
             return Err(format!("{name}: made for other features than this build's"));
         }
         Ok(net)
@@ -952,8 +1037,8 @@ impl RemoteNet {
                 let b = batch.len();
                 let max_e = batch.iter().map(|r| r.obs.n_ents()).max().unwrap_or(0);
                 let max_a = batch.iter().map(|r| r.obs.n_acts()).max().unwrap_or(0);
-                let w_e = ((max_e + 7) / 8 * 8).max(8);
-                let w_a = ((max_a + 3) / 4 * 4).max(4);
+                let w_e = (max_e.div_ceil(8) * 8).max(8);
+                let w_a = (max_a.div_ceil(4) * 4).max(4);
 
                 // Pre-pack 10 flat contiguous arrays so Python infer_server.py runs with ZERO Python loops
                 let glob_bytes = b * GLOB_F * 4;
@@ -1139,6 +1224,8 @@ impl RemoteNet {
 }
 
 /// A network: the first, pooled one, the transformer, or a GPU-batched remote server (`tcp://...`)
+// `Tx` is large, but a game holds one `Arc<Net>`, so boxing it buys nothing
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug)]
 pub enum Net {
     Mlp(Mlp),
@@ -1214,7 +1301,7 @@ impl Net {
 pub fn softmax(logits: &[f32], temp: f32) -> Vec<f32> {
     let t = temp.max(1e-3);
     let m = logits.iter().copied().fold(f32::MIN, f32::max);
-    let e: Vec<f32> = logits.iter().map(|l| ((l - m) / t).exp()).collect();
+    let e: Vec<f32> = logits.iter().map(|l| ((l - m) / t).sexp()).collect();
     let s: f32 = e.iter().sum();
     e.iter().map(|v| v / s).collect()
 }

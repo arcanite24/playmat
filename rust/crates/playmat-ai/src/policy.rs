@@ -116,10 +116,7 @@ impl Policy {
                 let def = &game.obj(*source).def;
                 (!paying)
                     .then(|| {
-                        abilities
-                            .iter()
-                            .copied()
-                            .find(|i| def.abilities.get(*i).is_some_and(|a| a.mana().is_none()))
+                        abilities.iter().copied().find(|i| def.abilities.get(*i).is_some_and(|a| a.mana().is_none()))
                     })
                     .flatten()
                     .map(|i| Answer::Ability(*source, i))

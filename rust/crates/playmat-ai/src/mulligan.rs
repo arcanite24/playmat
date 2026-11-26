@@ -1,6 +1,7 @@
 //! Opening hands: whether the AI keeps or mulligans, and which cards go to the bottom (the London mulligan).
 //! Used by the Rust host for its AI seats and by the benches, so both play the same way.
 
+use crate::fm::Fm;
 use playmat_engine::card::CardType;
 use playmat_engine::rules;
 use playmat_engine::state::{Game, ObjId, Seat, Zone};
@@ -291,7 +292,7 @@ fn net_hand_value(net: &crate::net::Net, game: &Game, seat: Seat) -> f64 {
     let q = playmat_engine::decide::Query::Priority { playable: Vec::new() };
     let obs = crate::obs::observe(&g, seat, &q, &[]);
     let logit = net.state(&obs).1 as f64;
-    1.0 / (1.0 + (-logit).exp())
+    1.0 / (1.0 + (-logit).sexp())
 }
 
 fn net_bottom_with(net: &crate::net::Net, game: &Game, seat: Seat) -> ObjId {
@@ -319,13 +320,7 @@ fn net_bottom(game: &Game, seat: Seat, cfg: &crate::search::Config) -> ObjId {
 fn net_wants(game: &Game, seat: Seat, taken: usize, cfg: &crate::search::Config) -> bool {
     let net = crate::net::of(&cfg.net);
     let keep = net_hand_value(&net, game, seat);
-    let mut pool: Vec<ObjId> = game
-        .player(seat)
-        .hand
-        .iter()
-        .chain(game.player(seat).library.iter())
-        .copied()
-        .collect();
+    let mut pool: Vec<ObjId> = game.player(seat).hand.iter().chain(game.player(seat).library.iter()).copied().collect();
     let size = 7usize.saturating_sub(taken + 1);
     let mut mix = Mix(seed(game, seat) ^ 0x4E45_544D);
     let deals = 8usize;
