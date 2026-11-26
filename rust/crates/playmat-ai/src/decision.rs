@@ -132,6 +132,10 @@ pub struct Root {
     pub playout: u8,
     /// a network that answers the playouts' questions in place of the quick answers (`Config::rollout`)
     pub rollout: Option<Arc<crate::net::Net>>,
+    /// seat whose playout policy uses `playbook`
+    pub seat: Seat,
+    /// optional AI playbook guiding `seat`'s playout policy
+    pub playbook: Option<Arc<crate::playbook::Playbook>>,
 }
 
 /// What a seat has seen of the game: objects it saw in a public zone or that were shown to it. Its own hand it
@@ -283,7 +287,16 @@ impl Root {
         };
         let mut script = self.since.clone();
         script.push(candidate.clone());
-        let mut p = Playout::new(script, cap, stop_turn, shuffle, self.playout, self.rollout.clone());
+        let mut p = Playout::new(
+            script,
+            cap,
+            stop_turn,
+            shuffle,
+            self.playout,
+            self.rollout.clone(),
+            self.seat,
+            self.playbook.clone(),
+        );
         rules::play_from_priority_question(&mut g, &mut p, stop_turn);
         if p.diverged {
             Err(p.answers)
@@ -301,7 +314,16 @@ impl Root {
         cap: u64,
         stop_turn: u32,
     ) -> (Result<Outcome, u64>, crate::tree::Walk) {
-        let mut p = Playout::new(self.since.clone(), cap, stop_turn, None, self.playout, self.rollout.clone());
+        let mut p = Playout::new(
+            self.since.clone(),
+            cap,
+            stop_turn,
+            None,
+            self.playout,
+            self.rollout.clone(),
+            self.seat,
+            self.playbook.clone(),
+        );
         p.walk = Some(Box::new(walk));
         rules::play_from_priority_question(&mut g, &mut p, stop_turn);
         let walk = *p.walk.take().expect("the walk");
@@ -314,7 +336,16 @@ impl Root {
     pub fn play_on(&self, mut g: Game, candidate: &[Answer], cap: u64, stop_turn: u32) -> Result<Outcome, u64> {
         let mut script = self.since.clone();
         script.extend(candidate.iter().cloned());
-        let mut p = Playout::new(script, cap, stop_turn, None, self.playout, self.rollout.clone());
+        let mut p = Playout::new(
+            script,
+            cap,
+            stop_turn,
+            None,
+            self.playout,
+            self.rollout.clone(),
+            self.seat,
+            self.playbook.clone(),
+        );
         rules::play_from_priority_question(&mut g, &mut p, stop_turn);
         if p.diverged {
             Err(p.answers)
@@ -350,11 +381,17 @@ impl Playout {
         noise: Option<u64>,
         version: u8,
         rollout: Option<Arc<crate::net::Net>>,
+        seat: Seat,
+        playbook: Option<Arc<crate::playbook::Playbook>>,
     ) -> Playout {
+        let mut policy = [Policy::version(version), Policy::version(version)];
+        if let Some(pb) = playbook {
+            policy[seat.min(1)] = Policy::with_playbook(version, Some(pb));
+        }
         Playout {
             script,
             next: 0,
-            policy: [Policy::version(version), Policy::version(version)],
+            policy,
             repeats: Repeats::default(),
             answers: 0,
             cap,

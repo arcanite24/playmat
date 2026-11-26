@@ -43,6 +43,8 @@ pub struct Policy {
     banned: Vec<ObjId>,
     /// the stronger answers (`Config::playout` 2): instant-speed play, abilities, removal and burn by the effect
     v2: bool,
+    /// optional Forge-inspired AI playbook guiding this seat's heuristics
+    playbook: Option<Arc<crate::playbook::Playbook>>,
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -126,6 +128,11 @@ impl Policy {
         Policy { v2: v >= 2, ..Policy::default() }
     }
 
+    /// The quick answers of a `Config::playout` version guided by an optional Playbook
+    pub fn with_playbook(v: u8, playbook: Option<Arc<crate::playbook::Playbook>>) -> Policy {
+        Policy { v2: v >= 2, playbook, ..Policy::default() }
+    }
+
     pub fn answer(&mut self, game: &Game, seat: Seat, q: &Query) -> Answer {
         match q {
             Query::Priority { playable } => {
@@ -137,10 +144,10 @@ impl Policy {
             }
             Query::PlayMana { cost, sources } => pay(game, seat, cost, sources),
             Query::Target { players, objs, required } => self.target(game, seat, players, objs, *required),
-            Query::Attackers { creatures } => attack(game, seat, creatures),
+            Query::Attackers { creatures } => attack_with(game, seat, creatures, self.playbook.as_deref()),
             Query::Blockers { creatures } => self.block(game, seat, creatures),
             Query::BlockTarget { attackers } => self.block_target(game, attackers),
-            Query::Cards { objs, required } => cards(game, seat, objs, *required),
+            Query::Cards { objs, required } => cards_with(game, seat, objs, *required, self.playbook.as_deref()),
             Query::MultiAmount { defaults, .. } => {
                 Answer::Text(defaults.iter().map(|d| d.to_string()).collect::<Vec<_>>().join(" "))
             }
@@ -168,10 +175,20 @@ impl Policy {
                         .is_some_and(|color| can_pay_color_without_life(game, seat, color));
                 Answer::Bool(!decline)
             }
-            Query::ChooseMode { modes } => modes.first().map(|m| Answer::Mode(*m)).unwrap_or(Answer::ModeDone),
+            Query::ChooseMode { modes } => self.choose_mode(game, seat, modes),
             Query::Amount { min, max } => Answer::Int(x_amount(game, seat).clamp(*min, (*max).max(*min))),
             Query::Choice { message, choices } => choice(game, seat, message, choices),
         }
+    }
+
+    fn choose_mode(&self, game: &Game, seat: Seat, modes: &[usize]) -> Answer {
+        if let (Some(pb), Some(top)) = (self.playbook.as_deref(), game.stack.last()) {
+            let name = game.obj(top.card).def.name.as_str();
+            if let Some(m) = pb.preferred_mode(name, game, seat, modes) {
+                return Answer::Mode(m);
+            }
+        }
+        modes.first().map(|m| Answer::Mode(*m)).unwrap_or(Answer::ModeDone)
     }
 
     /// The playable objects less those that came straight back last time. Call once per priority question.
@@ -285,22 +302,29 @@ impl Policy {
         .unwrap_or(Answer::Stop)
     }
 
-    /// Blocks that kill the attacker or survive it, and chump blocks when the attack is lethal.
+    /// Blocks that kill the attacker or survive it, and chump blocks when the attack is lethal (or below playbook threshold).
     fn block(&mut self, game: &Game, seat: Seat, creatures: &[ObjId]) -> Answer {
         let attackers = rules::attackers(game);
         let unblocked: Vec<ObjId> = attackers.iter().copied().filter(|a| !game.obj(*a).blocked).collect();
         let incoming: i32 = unblocked.iter().map(|a| game.power_toughness(*a).0.max(0)).sum();
-        let lethal = incoming >= game.player(seat).life;
+        let life = game.player(seat).life;
+        let chump_at = self.playbook.as_deref().map_or(0, |pb| pb.chump_block_life_threshold);
+        let lethal = incoming >= life || (chump_at > 0 && life - incoming <= chump_at && incoming >= 4);
         for b in creatures {
             if self.tried_blockers.contains(b) || !game.obj(*b).blocking.is_empty() {
                 continue;
             }
             let (bp, bt) = game.power_toughness(*b);
+            let protected = self.playbook.as_deref().is_some_and(|pb| pb.is_protected(&game.obj(*b).def.name));
             let good = unblocked.iter().copied().filter(|a| rules::can_block(game, *b, *a)).find(|a| {
                 let (ap, at) = game.power_toughness(*a);
-                bt > ap || (bp >= at && eval::permanent_score(game, *a) >= eval::permanent_score(game, *b))
+                let survives = bt > ap;
+                if protected && !survives {
+                    return false;
+                }
+                survives || (bp >= at && eval::permanent_score(game, *a) >= eval::permanent_score(game, *b))
             });
-            let chump = if lethal {
+            let chump = if lethal && (!protected || incoming >= life) {
                 unblocked
                     .iter()
                     .copied()
@@ -330,8 +354,8 @@ impl Policy {
     }
 }
 
-/// Attacks with a creature no untapped opposing creature can block and kill, or with everything when that's lethal.
-fn attack(game: &Game, seat: Seat, creatures: &[ObjId]) -> Answer {
+/// Attacks with creatures guided by combat heuristics and optional Playbook role protection + aggression.
+fn attack_with(game: &Game, seat: Seat, creatures: &[ObjId], pb: Option<&crate::playbook::Playbook>) -> Answer {
     let opp = game.opponent(seat);
     let blockers: Vec<ObjId> = game
         .battlefield
@@ -344,20 +368,52 @@ fn attack(game: &Game, seat: Seat, creatures: &[ObjId]) -> Answer {
         .collect();
     let power: i32 =
         creatures.iter().chain(rules::attackers(game).iter()).map(|c| game.power_toughness(*c).0.max(0)).sum();
+    let lethal = power >= game.player(opp).life + blockers.len() as i32 * 2;
     if blockers.is_empty() && !creatures.is_empty() {
+        // Even with no blockers, control/ramp/combo decks keep protected mana dorks back unless lethal or they deal >= 2
+        if pb.is_some_and(|p| p.aggression < 0) && !lethal {
+            for c in creatures {
+                let (cp, _) = game.power_toughness(*c);
+                if cp <= 0 {
+                    continue;
+                }
+                if pb.is_some_and(|p| p.has_role(&game.obj(*c).def.name, "mana_dork")) && cp <= 1 {
+                    continue;
+                }
+                return Answer::Obj(*c);
+            }
+            return Answer::Bool(true);
+        }
         return Answer::Text("special".into());
     }
-    if power >= game.player(opp).life + blockers.len() as i32 * 2 && !creatures.is_empty() {
+    if lethal && !creatures.is_empty() {
         return Answer::Text("special".into());
     }
+    let aggro = pb.map_or(0, |p| p.aggression);
     for c in creatures {
         let (cp, ct) = game.power_toughness(*c);
         if cp <= 0 {
             continue;
         }
+        let name = game.obj(*c).def.name.as_str();
+        let protected = pb.is_some_and(|p| p.is_protected(name));
         let dies = blockers.iter().any(|b| rules::can_block(game, *b, *c) && game.power_toughness(*b).0 >= ct);
         if !dies {
+            // Protected utility creatures (e.g. mana dorks) still don't swing into bad taps when defensive
+            if protected && aggro < 0 && cp <= 1 {
+                continue;
+            }
             return Answer::Obj(*c);
+        }
+        // Aggressive playbooks happily trade non-protected attackers into equal or smaller blockers
+        if !protected && aggro >= 40 {
+            let trades_up_or_even = blockers
+                .iter()
+                .filter(|b| rules::can_block(game, **b, *c) && game.power_toughness(**b).0 >= ct)
+                .all(|b| cp >= game.power_toughness(*b).1);
+            if trades_up_or_even {
+                return Answer::Obj(*c);
+            }
         }
     }
     Answer::Bool(true)
@@ -441,28 +497,52 @@ fn choose_ability(game: &Game, _seat: Seat, source: ObjId, abilities: &[usize]) 
     Answer::Ability(source, best.or(abilities.first().copied()).unwrap_or(0))
 }
 
-/// Cards from the seat's own hand go least valuable first (discards); other cards most valuable first.
-fn cards(game: &Game, seat: Seat, objs: &[ObjId], required: bool) -> Answer {
+/// Cards from the seat's own hand go least valuable first (discards), respecting Playbook discard roles (e.g.
+/// discarding Reanimator targets first!); library/other cards respect tutor priority or go most valuable first.
+fn cards_with(game: &Game, seat: Seat, objs: &[ObjId], required: bool, pb: Option<&crate::playbook::Playbook>) -> Answer {
     let own_hand = objs.iter().all(|o| game.obj(*o).zone == Zone::Hand && game.obj(*o).owner == seat);
     if !required && own_hand {
         return Answer::Bool(false);
     }
-    let pick = if own_hand {
-        objs.iter().min_by_key(|o| eval::hand_card_score(game, **o))
-    } else {
-        objs.iter().max_by_key(|o| {
-            let v = if game.obj(**o).zone == Zone::Battlefield {
-                eval::permanent_score(game, **o)
-            } else {
-                eval::hand_card_score(game, **o)
-            };
-            if game.obj(**o).controller == seat {
-                v
-            } else {
-                -v
+    if own_hand {
+        if let Some(pb) = pb {
+            if !pb.discard_roles_first.is_empty() {
+                if let Some(target) = objs.iter().find(|o| pb.has_any_role(&game.obj(**o).def.name, &pb.discard_roles_first)) {
+                    return Answer::Obj(*target);
+                }
             }
-        })
-    };
+            let pick = objs.iter().min_by_key(|o| {
+                let name = game.obj(**o).def.name.as_str();
+                let keep_penalty = if pb.has_any_role(name, &pb.never_discard_roles) { 10_000 } else { 0 };
+                eval::hand_card_score(game, **o) + keep_penalty
+            });
+            return pick.map(|o| Answer::Obj(*o)).unwrap_or(Answer::Bool(false));
+        }
+        let pick = objs.iter().min_by_key(|o| eval::hand_card_score(game, **o));
+        return pick.map(|o| Answer::Obj(*o)).unwrap_or(Answer::Bool(false));
+    }
+    // Tutor / library search priority from active spell's CardRule
+    if let (Some(pb), Some(top)) = (pb, game.stack.last()) {
+        if let Some(rule) = pb.rule(&game.obj(top.card).def.name) {
+            for want in &rule.tutor_priority {
+                if let Some(o) = objs.iter().find(|id| game.obj(**id).def.name == *want) {
+                    return Answer::Obj(*o);
+                }
+            }
+        }
+    }
+    let pick = objs.iter().max_by_key(|o| {
+        let v = if game.obj(**o).zone == Zone::Battlefield {
+            eval::permanent_score(game, **o)
+        } else {
+            eval::hand_card_score(game, **o)
+        };
+        if game.obj(**o).controller == seat {
+            v
+        } else {
+            -v
+        }
+    });
     pick.map(|o| Answer::Obj(*o)).unwrap_or(Answer::Bool(false))
 }
 
@@ -732,13 +812,22 @@ impl Policy {
                 .collect()
         };
 
+        let pb = self.playbook.as_deref();
+        let min_counter_mv = pb.map_or(2, |p| p.min_counter_mv);
+
         // the stack: answer an opponent's spell, or let it resolve
         if let Some(top) = game.stack.last() {
             if top.controller == opp && top.ability.is_none() {
                 let spell = &game.obj(top.card).def;
-                let worth = spell.mana_value() >= 2 || spell_kind(spell).removal || spell_kind(spell).sweeper;
+                let worth = spell.mana_value() >= min_counter_mv
+                    || spell.types.contains(&CardType::Planeswalker)
+                    || spell_kind(spell).removal
+                    || spell_kind(spell).sweeper;
                 if worth {
-                    if let Some(c) = castable.iter().copied().find(|c| kind(*c).counter) {
+                    if let Some(c) = castable.iter().copied().find(|c| {
+                        let name = game.obj(*c).def.name.as_str();
+                        kind(*c).counter || pb.is_some_and(|p| p.has_role(name, "counter"))
+                    }) {
                         return Answer::Obj(c);
                     }
                 }
@@ -750,8 +839,17 @@ impl Policy {
         if combat {
             let attackers = rules::attackers(game);
             if !mine && !attackers.is_empty() {
-                // removal on an attacker
-                if let Some(c) = castable.iter().copied().find(|c| instant_speed(*c) && kind(*c).removal) {
+                // instant-speed cards scripted for opponent's attackers (e.g. The Wandering Emperor) or removal
+                if let Some(c) = castable.iter().copied().find(|c| {
+                    let name = game.obj(*c).def.name.as_str();
+                    instant_speed(*c)
+                        && (kind(*c).removal
+                            || pb.is_some_and(|p| {
+                                p.rule(name).is_some_and(|r| {
+                                    r.hold_for_step == Some(crate::playbook::HoldStep::CombatAttackers)
+                                }) && !p.should_hold_card(name, game, seat)
+                            }))
+                }) {
                     return Answer::Obj(c);
                 }
             }
@@ -770,7 +868,7 @@ impl Policy {
         }
 
         if !mine {
-            // the opponent's end step: use the mana left
+            // the opponent's end step: use the mana left (including Playbook eot_instant / Collected Company / draw)
             if step == Some(Step::EndTurn) {
                 let opp_creatures = !creatures(opp).is_empty();
                 let pick = castable
@@ -778,8 +876,17 @@ impl Policy {
                     .copied()
                     .filter(|c| instant_speed(*c) && !is(*c, CardType::Land))
                     .filter(|c| {
+                        let name = game.obj(*c).def.name.as_str();
+                        if pb.is_some_and(|p| p.should_hold_card(name, game, seat)) {
+                            return false;
+                        }
                         let k = kind(*c);
-                        (k.removal && opp_creatures) || k.draw || is(*c, CardType::Creature)
+                        let eot_tagged = pb.is_some_and(|p| {
+                            p.has_role(name, "eot_instant")
+                                || p.rule(name)
+                                    .is_some_and(|r| r.hold_for_step == Some(crate::playbook::HoldStep::OppEndStep))
+                        });
+                        eot_tagged || (k.removal && opp_creatures) || k.draw || is(*c, CardType::Creature)
                     })
                     .max_by_key(|c| game.obj(*c).def.mana_value());
                 if let Some(c) = pick {
@@ -798,41 +905,91 @@ impl Policy {
         {
             return Answer::Obj(land);
         }
-        // burn to the face when it's lethal
+        // burn to the face when lethal or opponent is within the Playbook's burn-face threshold
         let opp_life = game.player(opp).life;
+        let burn_threshold = pb.map_or(0, |p| p.burn_face_threshold_life);
         let burn: Vec<ObjId> =
             castable.iter().copied().filter(|c| kind(*c).face && kind(*c).damage.is_some()).collect();
         let total: i32 = burn.iter().map(|c| kind(*c).damage.unwrap_or(0)).sum();
-        if total >= opp_life {
+        if total >= opp_life || (burn_threshold > 0 && opp_life <= burn_threshold && !burn.is_empty()) {
             if let Some(c) = burn.iter().copied().max_by_key(|c| kind(*c).damage) {
                 return Answer::Obj(c);
             }
         }
         let my_count = creatures(seat).len();
         let opp_count = creatures(opp).len();
+        let my_life = game.player(seat).life;
+        let avail_mana = crate::playbook::available_mana(game, seat);
+        let reserve = pb.map_or(0, |p| p.reserve_mana(game, seat, &castable));
+        let precombat = step == Some(Step::PrecombatMain);
+        let has_attackers = precombat
+            && creatures(seat).iter().any(|id| {
+                let o = game.obj(*id);
+                !o.tapped && (!o.sick || game.has_ability(*id, &playmat_engine::card::AbilityDef::HasteAbility))
+            });
+        let sweeper_net = pb.map_or(1, |p| p.sweeper_min_net_creatures);
+        let sweeper_life = pb.map_or(0, |p| p.sweeper_emergency_life);
+
         let spell = castable
             .iter()
             .copied()
             .filter(|c| {
+                let o = game.obj(*c);
+                let name = o.def.name.as_str();
                 let k = kind(*c);
-                if is(*c, CardType::Land) || k.counter {
+                if is(*c, CardType::Land) || k.counter || pb.is_some_and(|p| p.has_role(name, "counter")) {
+                    return false;
+                }
+                if pb.is_some_and(|p| p.should_hold_card(name, game, seat)) {
                     return false;
                 }
                 // tricks wait for combat
                 if k.pump && !is(*c, CardType::Creature) {
                     return false;
                 }
-                // a sweeper only when it costs the opponent more creatures than it costs us
-                if k.sweeper && opp_count <= my_count {
-                    return false;
+                // a sweeper when net opponent creatures meet threshold, or emergency life
+                let is_sweeper = k.sweeper || pb.is_some_and(|p| p.has_role(name, "sweeper"));
+                if is_sweeper {
+                    let net = opp_count as i32 - my_count as i32;
+                    let emergency = sweeper_life > 0 && my_life <= sweeper_life && opp_count > 0;
+                    if net < sweeper_net && !emergency {
+                        return false;
+                    }
                 }
                 // removal needs something to remove
                 if k.removal && !k.face && opp_count == 0 && !is(*c, CardType::Creature) {
                     return false;
                 }
+                // Playbook instant-speed mana discipline: don't tap out of reserved counter/EOT mana
+                if reserve > 0 && !is_sweeper {
+                    let mv = o.def.mana_value();
+                    let is_eot = pb.is_some_and(|p| p.has_role(name, "eot_instant"));
+                    if is_eot || avail_mana.saturating_sub(mv) < reserve {
+                        return false;
+                    }
+                }
+                // Playbook main-2 creature discipline: attack first before deploying non-haste, non-lord creatures
+                if precombat && has_attackers && is(*c, CardType::Creature) {
+                    let haste = o.def.abilities.iter().any(|a| matches!(a, playmat_engine::card::AbilityDef::HasteAbility));
+                    let prefer_m1 = pb.is_some_and(|p| {
+                        p.has_role(name, "lord")
+                            || p.has_role(name, "haste")
+                            || p.rule(name).is_some_and(|r| r.prefer_before_combat)
+                    });
+                    let defer_m2 = pb.is_some_and(|p| {
+                        p.cast_creatures_main2 || p.rule(name).is_some_and(|r| r.prefer_main2)
+                    });
+                    if defer_m2 && !haste && !prefer_m1 {
+                        return false;
+                    }
+                }
                 true
             })
-            .max_by_key(|c| game.obj(*c).def.mana_value());
+            .max_by_key(|c| {
+                let o = game.obj(*c);
+                let rank = pb.map_or(usize::MAX, |p| p.play_rank(&o.def.name));
+                (std::cmp::Reverse(rank), o.def.mana_value())
+            });
         if let Some(c) = spell {
             return Answer::Obj(c);
         }

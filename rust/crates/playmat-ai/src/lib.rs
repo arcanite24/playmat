@@ -10,6 +10,7 @@ pub mod mirror;
 pub mod mulligan;
 pub mod net;
 pub mod obs;
+pub mod playbook;
 pub mod policy;
 pub mod search;
 pub mod selfplay;

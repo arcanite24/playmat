@@ -56,6 +56,15 @@ public final class LadderStore implements AutoCloseable {
                     "CREATE INDEX ladder_games_by_season ON ladder_games (format, queue, season)",
                     "CREATE INDEX ladder_standing_by_season ON ladder_standing (format, queue, season)",
             },
+            {
+                    // persisted anti-dodge opponent picks and richer game metadata for rotation and analytics
+                    "CREATE TABLE ladder_picks (user TEXT NOT NULL, format TEXT NOT NULL, queue TEXT NOT NULL,"
+                            + " bot_id TEXT NOT NULL, picked_at INTEGER NOT NULL, PRIMARY KEY (user, format, queue))",
+                    "ALTER TABLE ladder_games ADD COLUMN bot_deck TEXT",
+                    "ALTER TABLE ladder_games ADD COLUMN bot_archetype TEXT",
+                    "ALTER TABLE ladder_games ADD COLUMN turns INTEGER",
+                    "ALTER TABLE ladder_games ADD COLUMN game_score TEXT",
+            },
     };
 
     /** the season key of rewards paid once per account, not per season */
@@ -323,12 +332,16 @@ public final class LadderStore implements AutoCloseable {
         public Double ratingBefore;
         public Double ratingAfter;
         public String engine;
+        public String botDeck;
+        public String botArchetype;
+        public Integer turns;
+        public String gameScore;
     }
 
     public synchronized void startGame(GameRow g) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(
-                "INSERT INTO ladder_games (id, user, format, queue, season, bot, deck, status, started, engine)"
-                        + " VALUES (?, ?, ?, ?, ?, ?, ?, 'playing', ?, ?)")) {
+                "INSERT INTO ladder_games (id, user, format, queue, season, bot, deck, status, started, engine, bot_deck, bot_archetype)"
+                        + " VALUES (?, ?, ?, ?, ?, ?, ?, 'playing', ?, ?, ?, ?)")) {
             statement.setString(1, g.id);
             statement.setString(2, g.user);
             statement.setString(3, g.format);
@@ -338,6 +351,8 @@ public final class LadderStore implements AutoCloseable {
             statement.setString(7, g.deck);
             statement.setLong(8, g.started);
             statement.setString(9, g.engine);
+            statement.setString(10, g.botDeck);
+            statement.setString(11, g.botArchetype);
             statement.executeUpdate();
         }
     }
@@ -348,9 +363,16 @@ public final class LadderStore implements AutoCloseable {
      */
     public synchronized boolean endGame(String id, String status, long ended, Integer stepBefore, Integer stepAfter,
                                         Double ratingBefore, Double ratingAfter, String engine) throws SQLException {
+        return endGame(id, status, ended, stepBefore, stepAfter, ratingBefore, ratingAfter, engine, null, null);
+    }
+
+    public synchronized boolean endGame(String id, String status, long ended, Integer stepBefore, Integer stepAfter,
+                                        Double ratingBefore, Double ratingAfter, String engine,
+                                        Integer turns, String gameScore) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(
                 "UPDATE ladder_games SET status = ?, ended = ?, step_before = ?, step_after = ?, rating_before = ?,"
-                        + " rating_after = ?, engine = COALESCE(?, engine) WHERE id = ? AND status = 'playing'")) {
+                        + " rating_after = ?, engine = COALESCE(?, engine), turns = COALESCE(?, turns),"
+                        + " game_score = COALESCE(?, game_score) WHERE id = ? AND status = 'playing'")) {
             statement.setString(1, status);
             statement.setLong(2, ended);
             setInt(statement, 3, stepBefore);
@@ -358,9 +380,86 @@ public final class LadderStore implements AutoCloseable {
             setDouble(statement, 5, ratingBefore);
             setDouble(statement, 6, ratingAfter);
             statement.setString(7, engine);
-            statement.setString(8, id);
+            setInt(statement, 8, turns);
+            statement.setString(9, gameScore);
+            statement.setString(10, id);
             return statement.executeUpdate() == 1;
         }
+    }
+
+    // ---- persisted opponent picks
+
+    public synchronized String pick(String user, String format, String queue) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT bot_id FROM ladder_picks WHERE user = ? AND format = ? AND queue = ?")) {
+            statement.setString(1, user);
+            statement.setString(2, format);
+            statement.setString(3, queue);
+            try (ResultSet rows = statement.executeQuery()) {
+                return rows.next() ? rows.getString(1) : null;
+            }
+        }
+    }
+
+    public synchronized void putPick(String user, String format, String queue, String botId, long now) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "INSERT INTO ladder_picks (user, format, queue, bot_id, picked_at) VALUES (?, ?, ?, ?, ?)"
+                        + " ON CONFLICT (user, format, queue) DO UPDATE SET bot_id = excluded.bot_id, picked_at = excluded.picked_at")) {
+            statement.setString(1, user);
+            statement.setString(2, format);
+            statement.setString(3, queue);
+            statement.setString(4, botId);
+            statement.setLong(5, now);
+            statement.executeUpdate();
+        }
+    }
+
+    public synchronized void clearPick(String user, String format, String queue) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "DELETE FROM ladder_picks WHERE user = ? AND format = ? AND queue = ?")) {
+            statement.setString(1, user);
+            statement.setString(2, format);
+            statement.setString(3, queue);
+            statement.executeUpdate();
+        }
+    }
+
+    /** the player's finished (non-void, non-playing) games in a format and queue, newest first */
+    public synchronized java.util.List<GameRow> finishedGames(String user, String format, String queue, int limit) throws SQLException {
+        java.util.List<GameRow> out = new java.util.ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT * FROM ladder_games WHERE user = ? AND format = ? AND queue = ?"
+                        + " AND status IN ('won', 'lost', 'drew') ORDER BY started DESC LIMIT ?")) {
+            statement.setString(1, user);
+            statement.setString(2, format);
+            statement.setString(3, queue);
+            statement.setInt(4, limit);
+            try (ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) {
+                    out.add(gameRow(rows));
+                }
+            }
+        }
+        return out;
+    }
+
+    /** all finished games in one season for a player, format and queue, newest first */
+    public synchronized java.util.List<GameRow> seasonGames(String user, String format, String queue, int season) throws SQLException {
+        java.util.List<GameRow> out = new java.util.ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT * FROM ladder_games WHERE user = ? AND format = ? AND queue = ? AND season = ?"
+                        + " AND status IN ('won', 'lost', 'drew') ORDER BY started DESC")) {
+            statement.setString(1, user);
+            statement.setString(2, format);
+            statement.setString(3, queue);
+            statement.setInt(4, season);
+            try (ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) {
+                    out.add(gameRow(rows));
+                }
+            }
+        }
+        return out;
     }
 
     public synchronized GameRow game(String id) throws SQLException {
@@ -439,6 +538,7 @@ public final class LadderStore implements AutoCloseable {
                 "DELETE FROM ladder_standing WHERE lower(user) = ?",
                 "DELETE FROM ladder_games WHERE lower(user) = ?",
                 "DELETE FROM ladder_rewards WHERE lower(user) = ?",
+                "DELETE FROM ladder_picks WHERE lower(user) = ?",
         }) {
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
                 statement.setString(1, lower);
@@ -473,6 +573,11 @@ public final class LadderStore implements AutoCloseable {
         double ra = rows.getDouble("rating_after");
         g.ratingAfter = rows.wasNull() ? null : ra;
         g.engine = rows.getString("engine");
+        g.botDeck = rows.getString("bot_deck");
+        g.botArchetype = rows.getString("bot_archetype");
+        int turns = rows.getInt("turns");
+        g.turns = rows.wasNull() ? null : turns;
+        g.gameScore = rows.getString("game_score");
         return g;
     }
 

@@ -52,6 +52,8 @@ pub struct TableRules {
     /// the AI seat's search settings pinned by label (`entrants::pinned`, a ladder bot's generation, #435): played
     /// instead of what this build makes of `ai_skill`
     pub ai_pin: Option<String>,
+    /// optional Forge-inspired AI playbook id (`profile:<arch>` or `<format>/<deck>`) for the AI seat
+    pub ai_playbook: Option<String>,
     /// why the table gives no advice, when it doesn't (`noAdvice`: Java's `GameController.advise`, a ranked game)
     pub no_advice: Option<String>,
     /// why the table has no practice tools, when it hasn't (`noPractice`: Java's `GameController.practice`)
@@ -271,6 +273,7 @@ impl Default for TableRules {
             ai_skill: None,
             rollback: false,
             ai_pin: None,
+            ai_playbook: None,
             no_advice: None,
             no_practice: None,
             hints_left: None,
@@ -289,6 +292,7 @@ impl TableRules {
             ai_skill: v["aiSkill"].as_u64().map(|n| n as u32),
             rollback: v["rollbackTurns"].as_bool().unwrap_or(d.rollback),
             ai_pin: v["aiPin"].as_str().map(String::from),
+            ai_playbook: v["aiPlaybook"].as_str().map(String::from),
             no_advice: v["noAdvice"].as_str().map(String::from),
             no_practice: v["noPractice"].as_str().map(String::from),
             hints_left: v["hintsLeft"].as_u64().map(|n| n as u32),
@@ -302,6 +306,9 @@ impl TableRules {
         // only a pinned seat says so: records from before pins read the same
         if let Some(pin) = &self.ai_pin {
             v["aiPin"] = json!(pin);
+        }
+        if let Some(pb) = &self.ai_playbook {
+            v["aiPlaybook"] = json!(pb);
         }
         if let Some(why) = &self.no_advice {
             v["noAdvice"] = json!(why);
@@ -321,7 +328,11 @@ impl TableRules {
     /// The AI's search for its skill: Java's AI looks less far at a lower skill (`ComputerPlayer6.maxDepth`); the
     /// lowest skills play the quick answers only. A pinned seat plays its pin.
     pub fn ai_config(&self) -> Option<Config> {
-        playmat_ai::entrants::seat(self.ai_skill, self.ai_pin.as_deref())
+        let mut cfg = playmat_ai::entrants::seat(self.ai_skill, self.ai_pin.as_deref())?;
+        if cfg.playbook.is_none() {
+            cfg.playbook = self.ai_playbook.clone();
+        }
+        Some(cfg)
     }
 }
 
@@ -1827,6 +1838,27 @@ impl Host {
         let mut summary = summary;
         // the replay is complete: Java lists it
         summary["replayEvents"] = json!(self.replay.as_mut().map(|r| r.finish()).unwrap_or(0));
+        // publicly revealed cards of human seats (battlefield, graveyard, exile, stack) for Bo3 AI sideboarding
+        let mut revealed: Vec<String> = Vec::new();
+        for seat in self.humans() {
+            for o in self.game.objs.iter() {
+                if o.owner == seat
+                    && matches!(
+                        o.zone,
+                        playmat_engine::state::Zone::Battlefield
+                            | playmat_engine::state::Zone::Graveyard
+                            | playmat_engine::state::Zone::Exile
+                            | playmat_engine::state::Zone::Stack
+                    )
+                    && !revealed.contains(&o.def.name)
+                {
+                    revealed.push(o.def.name.clone());
+                }
+            }
+        }
+        if !revealed.is_empty() {
+            summary["revealedHumanCards"] = json!(revealed);
+        }
         Ended { winner, turns: self.game.turn, reason, time_left, summary }
     }
 

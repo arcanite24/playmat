@@ -308,10 +308,14 @@ public final class RustHost {
             if (aiSkill != null) {
                 data.addProperty("aiSkill", aiSkill);
             }
-            // a ladder bot plays the search it was rated with (#435)
+            // a ladder bot plays the search and playbook it was rated with (#435)
             String aiPin = mage.server.ladder.RankedService.pinOf(tableId);
             if (aiPin != null) {
                 data.addProperty("aiPin", aiPin);
+            }
+            String aiPlaybook = mage.server.ladder.RankedService.playbookOf(tableId);
+            if (aiPlaybook != null) {
+                data.addProperty("aiPlaybook", aiPlaybook);
             }
             // what the table refuses, as GameController.advise and .practice do for a game Java plays
             if (mage.server.ladder.RankedService.isRanked(tableId)) {
@@ -508,6 +512,15 @@ public final class RustHost {
         try {
             if (summary.has("replayEvents")) {
                 hosted.replayEvents = summary.get("replayEvents").getAsInt();
+            }
+            if (summary.has("revealedHumanCards") && summary.get("revealedHumanCards").isJsonArray()) {
+                List<String> revealed = new ArrayList<>();
+                for (com.google.gson.JsonElement el : summary.getAsJsonArray("revealedHumanCards")) {
+                    if (el.isJsonPrimitive()) {
+                        revealed.add(el.getAsString());
+                    }
+                }
+                mage.server.ladder.LadderSideboarder.recordRevealedNames(hosted.tableId, revealed);
             }
             if (Main.isTestMode()
                     || !mage.server.career.CareerService.enabled(hosted.managers.configSettings().isAuthenticationActivated())) {

@@ -1,3 +1,4 @@
+import { isCommanderFormat } from '../../core/decks/formats';
 import type { LadderResult, LadderState } from '../../protocol/generated/views';
 
 /**
@@ -100,4 +101,22 @@ export function formatKey(format: string | undefined): `career.ranked.format.${L
 /** the localStorage key that says a season's end was shown for a format and queue */
 export function seasonSeenKey(format: string, queue: string, season: number): string {
   return `playmat.seasonEnd.${queue}.${format}.${season}`;
+}
+
+/** server deckType string for a constructed ranked format (matches RankedService.deckType) */
+export function rankedDeckType(format: string): string {
+  if (format === 'pioneer') return 'Constructed - Pioneer';
+  if (format === 'modern') return 'Constructed - Modern';
+  return 'Constructed - Standard';
+}
+
+/** fast client pre-filter before asking the server validator: 60+ mainboard cards and not Commander */
+export function isRankedCandidate(deck: { cardCount: number; format?: string }): boolean {
+  return deck.cardCount >= 60 && !isCommanderFormat(deck.format);
+}
+
+/** turns a cosmetic title id (e.g. "multicolor-champion" or "t-duelist") into readable words */
+export function titleWords(id: string): string {
+  const words = id.replace(/^t-/, '').replace(/-/g, ' ');
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }

@@ -66,6 +66,7 @@ fn main() {
     let repo = env!("CARGO_MANIFEST_DIR").to_string() + "/../../..";
     let roster_path = format!("{repo}/Mage.Server/src/main/resources/ladder/bots.json");
     let decks_dir = format!("{repo}/Mage.Server/src/main/resources/career/campaigns/decks");
+    let ladder_decks_dir = format!("{repo}/Mage.Server/src/main/resources/ladder/decks");
     let log_path = opt("--log").unwrap_or_else(|| format!("{repo}/Mage.Server/ladder-src/calibration/games.jsonl"));
     let only = opt("--format").unwrap_or_else(|| "all".into());
     let rounds = num("--rounds", 2);
@@ -86,7 +87,12 @@ fn main() {
             continue;
         }
         let file = b["deck"].as_str().unwrap();
-        let text = std::fs::read_to_string(format!("{decks_dir}/{file}")).unwrap_or_else(|_| panic!("deck {file}"));
+        let deck_path = if let Some(rest) = file.strip_prefix("ladder/") {
+            format!("{ladder_decks_dir}/{rest}")
+        } else {
+            format!("{decks_dir}/{file}")
+        };
+        let text = std::fs::read_to_string(&deck_path).unwrap_or_else(|_| panic!("deck {file} ({deck_path})"));
         let deck = Deck::parse(file, &text);
         let id = b["id"].as_str().unwrap().to_string();
         let missing = deck.missing(&db);
@@ -96,10 +102,15 @@ fn main() {
         }
         let s = b["skill"].as_u64().unwrap() as u32;
         // its pin, or what this build plays at its skill
-        let config = match b["ai"].as_str() {
+        let mut config = match b["ai"].as_str() {
             Some(pin) => pinned(pin).unwrap_or_else(|e| panic!("{id}'s ai: {e}")),
             None => skill(Some(s)),
         };
+        if let (Some(c), Some(pb)) = (config.as_mut(), b["playbook"].as_str()) {
+            if c.playbook.is_none() && !pb.is_empty() && pb != "-" {
+                c.playbook = Some(pb.to_string());
+            }
+        }
         // one thread a seat: the jobs are the parallelism, and a seat's games don't depend on its threads
         let config = config.map(|c| Config { threads: 1, ..c });
         let ai = config.as_ref().map(label).unwrap_or_else(|| "quick".into());

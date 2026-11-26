@@ -417,6 +417,10 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('leaguePlay', format, deckId),
     ladderResult: (tableId: string) =>
       rpc.call('ladderResult', tableId),
+    ladderGameDeck: (gameId: string) =>
+      rpc.call('ladderGameDeck', gameId),
+    ladderMythicStandings: (format: string, queue?: string | null, includeBots?: boolean | null) =>
+      rpc.call('ladderMythicStandings', format, queue, includeBots),
     leagueState: () =>
       rpc.call('leagueState'),
     leagueStart: (format: string, starters: string[]) =>

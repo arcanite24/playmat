@@ -84,6 +84,7 @@ pub fn with(mut c: Config, settings: &str) -> Result<Config, String> {
             "consider" => c.consider = n()? as usize,
             "cpuct" => c.cpuct = n()? as u32,
             "iters" => c.iters = n()? as u32,
+            "playbook" => c.playbook = (v != "-").then(|| v.to_string()),
             _ => return Err(format!("unknown config key {k}")),
         }
     }
@@ -93,7 +94,7 @@ pub fn with(mut c: Config, settings: &str) -> Result<Config, String> {
 /// A config as `cfg:` settings (every field, so two builds' configs compare as text)
 pub fn label(c: &Config) -> String {
     format!(
-        "budget={}+width={}+extra_turns={}+playout_cap={}+policy={}+hide={}+samples={}+playout={}+eval={}+plans={}+mulligan_sim={}+blunder={}+net={}+temp={}+eta={}+rollout={}+consider={}+cpuct={}+iters={}",
+        "budget={}+width={}+extra_turns={}+playout_cap={}+policy={}+hide={}+samples={}+playout={}+eval={}+plans={}+mulligan_sim={}+blunder={}+net={}+temp={}+eta={}+rollout={}+consider={}+cpuct={}+iters={}+playbook={}",
         c.budget,
         c.width,
         c.extra_turns,
@@ -112,7 +113,8 @@ pub fn label(c: &Config) -> String {
         c.rollout.as_deref().unwrap_or("-"),
         c.consider,
         c.cpuct,
-        c.iters
+        c.iters,
+        c.playbook.as_deref().unwrap_or("-")
     )
 }
 

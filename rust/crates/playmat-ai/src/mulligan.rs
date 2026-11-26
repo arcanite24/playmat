@@ -89,22 +89,84 @@ pub fn put_on_bottom(game: &mut Game, seat: Seat, card: ObjId) {
     game.obj_mut(card).zone = Zone::Library;
 }
 
-/// Whether the AI with `config` (`None`: the quick answers alone) mulligans `seat`'s hand: by the rule, or with
-/// `Config::mulligan_sim` by goldfishing the hand against hands a mulligan would give
+/// Whether the AI with `config` (`None`: the quick answers alone) mulligans `seat`'s hand: by the rule (modulated
+/// by the seat's Playbook when present), or with `Config::mulligan_sim` by goldfishing the hand.
 pub fn wants(game: &Game, seat: Seat, taken: usize, config: Option<&crate::search::Config>) -> bool {
-    match config {
-        Some(c) if c.mulligan_sim && taken < 2 => sim_wants(game, seat, taken),
-        _ => rule_wants(game, seat, taken),
+    if let Some(c) = config {
+        if c.mulligan_sim && taken < 2 {
+            return sim_wants(game, seat, taken);
+        }
+        if let Some(pb) = crate::playbook::resolve(c.playbook.as_deref()) {
+            return playbook_wants(game, seat, taken, &pb);
+        }
     }
+    rule_wants(game, seat, taken)
 }
 
-/// The card the AI with `config` puts on the bottom: by the rule, or with `Config::mulligan_sim` the one whose hand
-/// goldfishes best without it
+/// The card the AI with `config` puts on the bottom: by the rule (modulated by Playbook when present), or with
+/// `Config::mulligan_sim` the one whose hand goldfishes best without it.
 pub fn bottom(game: &Game, seat: Seat, config: Option<&crate::search::Config>) -> ObjId {
-    match config {
-        Some(c) if c.mulligan_sim => sim_bottom(game, seat),
-        _ => rule_bottom(game, seat),
+    if let Some(c) = config {
+        if c.mulligan_sim {
+            return sim_bottom(game, seat);
+        }
+        if let Some(pb) = crate::playbook::resolve(c.playbook.as_deref()) {
+            return playbook_bottom(game, seat, &pb);
+        }
     }
+    rule_bottom(game, seat)
+}
+
+fn playbook_wants(game: &Game, seat: Seat, taken: usize, pb: &crate::playbook::Playbook) -> bool {
+    if taken >= 2 {
+        return false;
+    }
+    let hand = &game.player(seat).hand;
+    let parsed = cards(game, hand);
+    let lands = parsed.iter().filter(|c| c.land).count();
+    let min_l = if taken == 0 { pb.min_lands } else { pb.min_lands.saturating_sub(1).max(1) };
+    let max_l = if taken == 0 { pb.max_lands } else { pb.max_lands.min(5) };
+    if lands < min_l || lands > max_l {
+        return true;
+    }
+    // On 7 cards, also check color match and early curve action when configured
+    if taken == 0 {
+        let land_colors = parsed.iter().filter(|c| c.land).fold(0u8, |acc, c| acc | c.colors);
+        if pb.require_color_match && land_colors != 0 {
+            let castable_any = parsed
+                .iter()
+                .any(|c| !c.land && c.mv <= (lands as u32 + 1) && (c.colors & !land_colors == 0));
+            if !castable_any {
+                return true;
+            }
+        }
+        if let Some(max_mv) = pb.require_early_action_by_turn {
+            let has_early = parsed.iter().any(|c| !c.land && c.mv <= max_mv);
+            if !has_early {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn playbook_bottom(game: &Game, seat: Seat, pb: &crate::playbook::Playbook) -> ObjId {
+    let hand = &game.player(seat).hand;
+    let lands: Vec<ObjId> = hand.iter().copied().filter(|id| game.obj(*id).is(CardType::Land)).collect();
+    // Bottom excess lands above the playbook's preferred band
+    if lands.len() > pb.max_lands.saturating_sub(1).max(2) {
+        return lands[0];
+    }
+    // Otherwise bottom the highest-MV non-preferred-role spell
+    hand.iter()
+        .copied()
+        .filter(|id| !game.obj(*id).is(CardType::Land))
+        .max_by_key(|id| {
+            let o = game.obj(*id);
+            let preferred = pb.has_any_role(&o.def.name, &pb.prefer_keep_roles);
+            (!preferred, o.def.mana_value())
+        })
+        .unwrap_or(hand[0])
 }
 
 /// How many shuffles each goldfish estimate averages

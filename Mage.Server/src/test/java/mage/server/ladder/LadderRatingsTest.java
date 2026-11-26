@@ -86,7 +86,7 @@ public class LadderRatingsTest {
                 assertNotNull(bot.ai, bot.id + " is pinned to its generation's search");
                 assertTrue(bot.generation >= 1, bot.id + " has a generation");
                 assertTrue(bot.generation == 1 || bot.id.endsWith("-g" + bot.generation), bot.id + "'s id says its generation");
-                assertNotNull(LadderRatingsTest.class.getResource("/career/campaigns/decks/" + bot.deck), bot.id + "'s deck ships");
+                assertNotNull(LadderRatingsTest.class.getResource(BotRoster.deckResource(bot.deck)), bot.id + "'s deck ships");
                 BotRoster.Persona p = bot.persona;
                 assertTrue(names.add(p.name), "persona names are unique: " + p.name);
                 for (String id : Arrays.asList(p.avatar, p.sleeve, p.playmat, p.frame, p.title)) {

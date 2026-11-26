@@ -53,10 +53,16 @@ pub fn score(game: &Game, seat: Seat, version: u8) -> i64 {
     }
 }
 
-/// The score a config uses (`Config::eval`): 1 Java's, 2 the fitted one, 3 the network's value (`net`)
+/// The score a config uses (`Config::eval`): 1 Java's, 2 the fitted one (modulated by playbook when present), 3 the network's value (`net`)
 pub fn score_with(game: &Game, seat: Seat, cfg: &crate::search::Config) -> i64 {
     if cfg.eval >= 3 {
         crate::net::score(&crate::net::of(&cfg.net), game, seat)
+    } else if cfg.eval == 2 {
+        if let Some(pb) = crate::playbook::resolve(cfg.playbook.as_deref()) {
+            crate::fitted::evaluate_with_playbook(game, seat, &pb)
+        } else {
+            score(game, seat, cfg.eval)
+        }
     } else {
         score(game, seat, cfg.eval)
     }
@@ -64,7 +70,7 @@ pub fn score_with(game: &Game, seat: Seat, cfg: &crate::search::Config) -> i64 {
 
 /// `value` for a config's score
 pub fn value_with(game: &Game, seat: Seat, base: i64, cfg: &crate::search::Config) -> f64 {
-    if cfg.eval >= 3 {
+    if cfg.eval >= 2 {
         let s = score_with(game, seat, cfg);
         return if s >= WIN {
             1.0

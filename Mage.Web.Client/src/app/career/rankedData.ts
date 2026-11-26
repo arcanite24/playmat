@@ -1,12 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { LadderState } from '../../protocol/generated/views';
+import { toWire } from '../decks/deckModel';
 import { useT } from '../i18n';
 import { useCeremonies } from './ceremonies';
-import { seasonSeenKey } from './rankedModel';
+import { isRankedCandidate, rankedDeckType, seasonSeenKey } from './rankedModel';
 import type { DeckCardLists as WireDeck } from '../../protocol/generated/views';
 import { api } from '../connection';
 import { queryClient } from '../queries';
+import { useDecks, type RosterDeck } from '../stores/decks';
 import { useEvents } from '../stores/events';
 import { usePlay } from '../stores/play';
 import { useSession } from '../stores/session';
@@ -19,6 +21,9 @@ const KEY = {
   state: (format: string, queue: string) => ['career', 'ranked', 'state', format, queue],
   opponent: (format: string, queue: string) => ['career', 'ranked', 'opponent', format, queue],
   result: (tableId: string) => ['career', 'ranked', 'result', tableId],
+  gameDeck: (gameId: string) => ['career', 'ranked', 'gameDeck', gameId],
+  mythic: (format: string, queue: string, includeBots: boolean) => ['career', 'ranked', 'mythic', format, queue, includeBots],
+  legalDecks: (format: string, signature: string) => ['career', 'ranked', 'legalDecks', format, signature],
 } as const;
 
 export const RANKED_PATH = '/career/ranked';
@@ -43,6 +48,75 @@ export function useRankedState(format: string, enabled = true, queue: RankedQueu
 
 export function useRankedOpponent(format: string, enabled = true, queue: RankedQueue = 'open') {
   return useQuery({ queryKey: KEY.opponent(format, queue), queryFn: () => api.ladderOpponent(format, queue), enabled: useSignedIn() && enabled, staleTime: 0 });
+}
+
+export function useRankedGameDeck(gameId: string | null) {
+  return useQuery({
+    queryKey: KEY.gameDeck(gameId ?? ''),
+    queryFn: () => api.ladderGameDeck(gameId!),
+    enabled: useSignedIn() && !!gameId,
+    staleTime: Infinity,
+  });
+}
+
+export function useMythicStandings(format: string, queue: RankedQueue = 'open', includeBots = true, enabled = true) {
+  return useQuery({
+    queryKey: KEY.mythic(format, queue, includeBots),
+    queryFn: () => api.ladderMythicStandings(format, queue, includeBots),
+    enabled: useSignedIn() && enabled && format !== 'limited',
+    staleTime: 30_000,
+  });
+}
+
+/** Validates candidate decks from the player's library against the server's format validator and returns only legal decks. */
+export function useLegalRankedDecks(format: string, choices: readonly RosterDeck[], loaded: boolean) {
+  const signedIn = useSignedIn();
+  const candidates = useMemo(() => choices.filter(isRankedCandidate), [choices]);
+  const signature = useMemo(
+    () => candidates.map((d) => `${d.id}:${d.updatedAt ?? 0}:${d.cardCount}:${d.sideboardCount ?? 0}`).join('|'),
+    [candidates],
+  );
+  return useQuery({
+    queryKey: KEY.legalDecks(format, signature),
+    queryFn: async () => {
+      if (candidates.length === 0) return [] as RosterDeck[];
+      const deckType = rankedDeckType(format);
+      const loadList = useDecks.getState().loadList;
+      const legal: RosterDeck[] = [];
+      const BATCH = 6;
+      for (let i = 0; i < candidates.length; i += BATCH) {
+        const slice = candidates.slice(i, i + BATCH);
+        const results = await Promise.all(
+          slice.map(async (deck) => {
+            try {
+              const list = await loadList(deck.id);
+              const check = await api.deckValidate(deckType, toWire(list));
+              if (!check?.valid) return null;
+              return {
+                ...deck,
+                sideboardCount: deck.sideboardCount || list.sideboard.reduce((sum, c) => sum + c.amount, 0),
+              };
+            } catch {
+              return null;
+            }
+          }),
+        );
+        for (const item of results) {
+          if (item) legal.push(item);
+        }
+      }
+      const fits = (deck: RosterDeck) => (deck.format ?? deck.starter?.format ?? '').toLowerCase().includes(format);
+      return legal.sort((a, b) => {
+        const byFormat = Number(fits(b)) - Number(fits(a));
+        if (byFormat !== 0) return byFormat;
+        const bySaved = Number(!b.starter) - Number(!a.starter);
+        if (bySaved !== 0) return bySaved;
+        return a.name.localeCompare(b.name);
+      });
+    },
+    enabled: signedIn && loaded && format !== 'limited',
+    staleTime: 5 * 60_000,
+  });
 }
 
 /** a finished ranked table's result; asked again a few times, since the game can be left a moment before it's counted */

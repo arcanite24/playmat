@@ -57,6 +57,8 @@ pub struct Config {
     pub cpuct: u32,
     /// `ismcts`: at most this many iterations (playouts) a decision, whatever the budget
     pub iters: u32,
+    /// Forge-inspired AI playbook id (`profile:<arch>` or `<format>/<deck>`), `None` for generic heuristics
+    pub playbook: Option<String>,
 }
 
 impl Default for Config {
@@ -93,6 +95,7 @@ impl Default for Config {
             consider: 4,
             cpuct: 300,
             iters: 256,
+            playbook: None,
         }
     }
 }
@@ -137,7 +140,14 @@ pub struct Table {
 impl Table {
     pub fn new(ai: Vec<Option<Config>>) -> Table {
         let n = ai.len();
-        let policy = ai.iter().map(|c| Policy::version(c.as_ref().map_or(1, |c| c.playout))).collect();
+        let policy = ai
+            .iter()
+            .map(|c| {
+                let v = c.as_ref().map_or(1, |c| c.playout);
+                let pb = c.as_ref().and_then(|c| crate::playbook::resolve(c.playbook.as_deref()));
+                Policy::with_playbook(v, pb)
+            })
+            .collect();
         Table {
             hidden: (0..n).map(Hidden::new).collect(),
             plan: vec![Default::default(); n],
@@ -256,6 +266,8 @@ impl Table {
             hidden,
             playout: cfg.playout,
             rollout: cfg.rollout.as_ref().map(|p| crate::net::of(&Some(p.clone()))),
+            seat,
+            playbook: crate::playbook::resolve(cfg.playbook.as_deref()),
         });
         let slot = &mut self.deciders[seat];
         if !matches!(slot, Some((None, _))) && slot.as_ref().map(|(k, _)| *k) != Some(Some(cfg.policy)) {
@@ -460,6 +472,8 @@ impl Table {
             hidden: cfg.hide.then(|| self.hidden[seat].clone()),
             playout: cfg.playout,
             rollout: cfg.rollout.as_ref().map(|p| crate::net::of(&Some(p.clone()))),
+            seat,
+            playbook: crate::playbook::resolve(cfg.playbook.as_deref()),
         };
         let start = Instant::now();
         let stop = game.turn + 1 + cfg.extra_turns;
