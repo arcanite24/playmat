@@ -15,6 +15,7 @@ import { askedAboutCards } from '../../core/game/reveals';
 import { revealedInHand } from '../../core/game/revealedHand';
 import { delayLabel, isBroadcastDelay } from '../../core/game/broadcastDelay';
 import { spectatorHand } from '../../core/game/spectatorHand';
+import { controlledTurn } from '../../core/game/turnControl';
 import { matchProgress } from '../../core/game/matchProgress';
 import { pregameChoice } from '../../core/game/pregame';
 import { offBoardTargets } from '../../core/game/offBoardTargets';
@@ -253,10 +254,17 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   const chosen = useMemo(() => withPredictedAttack(interaction.selected, prediction), [interaction.selected, prediction]);
   const pending = prediction?.id ?? null;
   const sortedHand = useSettings((settings) => settings.settings.sortHand);
+  // a turn we control (Mindslaver, Emrakul): while its player is asked, their hand and lands are what we play from
+  const control = useMemo(() => (mode === 'play' ? controlledTurn(view) : null), [mode, view]);
+  const acting = control?.acting ? control : null;
+  const actingBoard = useMemo(
+    () => (acting ? board.opponents.find((one) => one.player.playerId === acting.player.playerId) ?? null : board.me?.isMe ? board.me : null),
+    [acting, board.opponents, board.me],
+  );
   const hand = useMemo(() => {
-    const cards = Object.values(view?.myHand ?? {});
+    const cards = acting ? acting.hand : Object.values(view?.myHand ?? {});
     return sortedHand ? sortHand(cards) : cards;
-  }, [view?.myHand, sortedHand]);
+  }, [acting, view?.myHand, sortedHand]);
   // cards played from exile or a graveyard (an adventurer, flashback) join the hand while they can be played
   const liveOffZone = useMemo(() => (interaction.mode === 'priority' ? offZonePlayables(view, clickable) : null), [interaction.mode, view, clickable]);
   const [lastOffZone, setLastOffZone] = useState<OffZoneHold>(NO_OFF_ZONE_HOLD);
@@ -347,13 +355,13 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
     [commanders],
   );
   useWarmImages(view);
-  useAutoPay(session, state, board.me?.isMe ? board.me : null, autoPay && !fullControl && mode === 'play', {
+  useAutoPay(session, state, actingBoard, autoPay && !fullControl && mode === 'play', {
     hybrid: automation.autoPayHybrid,
     anyColor: automation.autoPayAnyColor,
     painful: automation.autoPayPainful,
     afterX: automation.autoPayX,
   });
-  useAutoCrew(session, state, board.me?.isMe ? board.me : null, automation.autoCrew && mode === 'play');
+  useAutoCrew(session, state, actingBoard, automation.autoCrew && mode === 'play');
   useSkipSingleChoice(session, state, automation.skipSingleChoice && mode === 'play');
   useAutoDamage(session, state, mode === 'play' ? damageSplit : null, { plain: automation.autoAssignDamage, trample: automation.autoAssignTrample });
   // holding priority means the player wants every stop
@@ -607,7 +615,9 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 sleeve={theirSleeves.get(opponent.player.playerId!) ?? sleeves.theirs}
                 look={lookOf(opponent.player)}
                 handCount={opponent.player.handCount ?? 0}
-                revealed={revealedInHand(revealedHands, opponent.player.playerId)}
+                revealed={control && !control.acting && control.player.playerId === opponent.player.playerId
+                  ? control.hand
+                  : revealedInHand(revealedHands, opponent.player.playerId)}
                 clickable={clickable}
                 selected={interaction.selected}
                 attacking={attacking}
@@ -690,6 +700,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
             {board.me && !handHidden && mode === 'play' && (
               <Hand
                 cards={handAndPlayables}
+                label={acting ? t('match.hand.controlled', { name: acting.player.name ?? '' }) : undefined}
                 fromZone={fromZone}
                 choosing={choosingInHand}
                 clickable={overlayOpen ? EMPTY : clickable}

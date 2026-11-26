@@ -10,6 +10,7 @@ import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializer;
 import mage.cards.repository.CardInfo;
 import mage.cards.repository.CardRepository;
+import mage.view.CardView;
 import mage.view.SimpleCardView;
 
 import java.util.Date;
@@ -32,7 +33,9 @@ public final class JsonCodec {
                     src == null ? JsonNull.INSTANCE : new JsonPrimitive(src.getTime()))
             .registerTypeHierarchyAdapter(Date.class, (JsonDeserializer<Date>) (json, type, context) ->
                     json == null || json.isJsonNull() ? null : new Date(json.getAsLong()))
-            .registerTypeAdapter(SimpleCardView.class, (JsonSerializer<SimpleCardView>) (src, type, context) -> serializeSimpleCard(src))
+            // a whole card view where a simple one is declared (the hand of a player whose turn you control) stays whole
+            .registerTypeAdapter(SimpleCardView.class, (JsonSerializer<SimpleCardView>) (src, type, context) ->
+                    src instanceof CardView ? context.serialize(src, CardView.class) : serializeSimpleCard(src))
             .create();
 
     // simple views are serialized for every draft pick and deck, so names come from a cache, not one query per card

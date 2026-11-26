@@ -306,7 +306,11 @@ public class GameSessionPlayer extends GameSessionWatcher {
         if (!player.getPlayersUnderYourControl().isEmpty()) {
             for (UUID controlledPlayerId : player.getPlayersUnderYourControl()) {
                 Player opponent = game.getPlayer(controlledPlayerId);
-                gameView.getOpponentHands().put(opponent.getName(), new SimpleCardsView(opponent.getHand().getCards(game), true));
+                // whole card views, as the player's own hand: the controller casts from this hand (names, costs and
+                // rules), not only looks at its pictures
+                SimpleCardsView hand = new SimpleCardsView();
+                new CardsView(game, opponent.getHand().getCards(game), controlledPlayerId).forEach(hand::put);
+                gameView.getOpponentHands().put(opponent.getName(), hand);
             }
         }
     }

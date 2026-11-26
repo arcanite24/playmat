@@ -1735,6 +1735,7 @@ const es: Catalog = {
   'match.plate.aria.lost': '{name}, fuera de la partida',
   'match.plate.aria.disconnected': 'desconectado',
   'match.hand.revealed': 'Revelada',
+  'match.hand.controlled': 'Mano de {name}',
   'match.conceding': 'Concesión enviada. La partida termina en cuanto el servidor la aplique.',
   'match.conceding.waiting': 'Concesión enviada. Se aplica cuando {name} pase la prioridad.',
   'match.ask.cards': { one: 'La carta que estás mirando', other: 'Las {count} cartas que estás mirando' },
