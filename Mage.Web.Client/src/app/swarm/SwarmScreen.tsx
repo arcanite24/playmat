@@ -15,15 +15,17 @@ import {
   type PublicRound,
   type SwarmStatus,
   type TrustLevel,
+  type WatchGame,
 } from './swarmApi';
 import styles from './SwarmScreen.module.css';
 
-type Section = 'overview' | 'projects' | 'networks' | 'leaderboard' | 'transparency' | 'contribute';
+type Section = 'overview' | 'projects' | 'networks' | 'watch' | 'leaderboard' | 'transparency' | 'contribute';
 
 const NAV_ITEMS: { id: Section; label: string; to: string }[] = [
   { id: 'overview', label: 'Overview', to: '/swarm' },
   { id: 'projects', label: 'Projects', to: '/swarm/projects' },
   { id: 'networks', label: 'Networks & Gates', to: '/swarm/networks' },
+  { id: 'watch', label: 'Watch', to: '/swarm/watch' },
   { id: 'leaderboard', label: 'Leaderboards', to: '/swarm/leaderboard' },
   { id: 'transparency', label: 'Transparency', to: '/swarm/transparency' },
   { id: 'contribute', label: 'Contribute', to: '/swarm/contribute' },
@@ -55,6 +57,7 @@ export function SwarmScreen() {
   const activeSection: Section =
     section === 'projects' ||
     section === 'networks' ||
+    section === 'watch' ||
     section === 'leaderboard' ||
     section === 'transparency' ||
     section === 'contribute'
@@ -126,6 +129,8 @@ export function SwarmScreen() {
           <ProjectsView />
         ) : activeSection === 'networks' ? (
           <NetworksView />
+        ) : activeSection === 'watch' ? (
+          <WatchView />
         ) : activeSection === 'leaderboard' ? (
           <LeaderboardView />
         ) : activeSection === 'transparency' ? (
@@ -503,6 +508,173 @@ function NetworksView() {
                     </td>
                     <td>
                       <a href={n.download_url} target="_blank" rel="noreferrer">.pmnet</a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </>
+  );
+}
+
+function describeAnswerToken(tok: string): string {
+  if (tok.length < 2) return tok;
+  const seat = `P${tok[0]}`;
+  const kind = tok[1];
+  const rest = tok.slice(2);
+  if (kind === 'm') return `${seat} mulligan (${rest === '1' ? 'keep' : 'mull'})`;
+  if (kind === 'b') return `${seat} bottom card #${rest}`;
+  if (kind === 'A') return `${seat} action ${rest}`;
+  if (kind === 'O') return `${seat} target/object ${rest}`;
+  if (kind === 'B') return `${seat} blockers ${rest || 'none'}`;
+  if (kind === 'K') return `${seat} attackers ${rest || 'none'}`;
+  if (kind === 'Y') return `${seat} choice (${rest === '1' ? 'yes' : 'no'})`;
+  return `${seat} ${kind}${rest}`;
+}
+
+function WatchView() {
+  const [selected, setSelected] = useState<WatchGame | null>(null);
+  const [step, setStep] = useState(0);
+
+  const watchQ = useQuery({
+    queryKey: ['swarm', 'watch'],
+    queryFn: () => swarmPublic.watch(24),
+    refetchInterval: 15_000,
+  });
+  const replayQ = useQuery({
+    queryKey: ['swarm', 'watchReplay', selected?.unit, selected?.deal],
+    queryFn: () => swarmPublic.watchReplay(selected!.unit, selected!.deal),
+    enabled: selected !== null,
+  });
+
+  if (watchQ.isError) return <p className={styles.error} role="alert">{String(watchQ.error)}</p>;
+  const games = watchQ.data ?? [];
+
+  function openGame(g: WatchGame) {
+    setSelected(g);
+    setStep(0);
+  }
+
+  const tokens = replayQ.data?.tokens ?? [];
+  const activeStep = tokens.length > 0 ? Math.min(step, tokens.length - 1) : 0;
+
+  return (
+    <>
+      {selected && (
+        <section className={styles.card} aria-labelledby="swarm-watch-replay">
+          <div className={styles.cardHead}>
+            <h2 id="swarm-watch-replay" className={styles.cardTitle}>
+              Replay: {selected.unit} · Deal #{selected.deal}
+            </h2>
+            <button type="button" className={styles.copyBtn} onClick={() => setSelected(null)}>
+              Close
+            </button>
+          </div>
+          <p className={styles.quiet}>
+            {selected.project}/{selected.run} r{selected.round} ({selected.kind}) · Learner seat P
+            {selected.learner_seat} vs {selected.opponent} · {selected.turns} turns · {selected.answers} answers ·{' '}
+            {selected.winner === null ? 'Draw' : `Winner: P${selected.winner}`}
+          </p>
+          {replayQ.isPending ? (
+            <p className={styles.quiet}>Loading answer log...</p>
+          ) : replayQ.isError ? (
+            <p className={styles.error}>{String(replayQ.error)}</p>
+          ) : tokens.length === 0 ? (
+            <p className={styles.quiet}>{replayQ.data?.note || 'No answer-log preview available.'}</p>
+          ) : (
+            <>
+              <div className={styles.toolbar}>
+                <div className={styles.chips}>
+                  <button
+                    type="button"
+                    className={styles.copyBtn}
+                    disabled={activeStep <= 0}
+                    onClick={() => setStep((s) => Math.max(0, s - 1))}
+                  >
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.copyBtn}
+                    disabled={activeStep >= tokens.length - 1}
+                    onClick={() => setStep((s) => Math.min(tokens.length - 1, s + 1))}
+                  >
+                    Next
+                  </button>
+                  <span className={styles.chip}>
+                    Step {activeStep + 1} / {tokens.length}
+                  </span>
+                </div>
+                <strong className={styles.mono}>{describeAnswerToken(tokens[activeStep])}</strong>
+              </div>
+              <input
+                type="range"
+                aria-label="Replay step"
+                min={0}
+                max={Math.max(0, tokens.length - 1)}
+                value={activeStep}
+                onChange={(e) => setStep(Number(e.target.value))}
+              />
+              <div className={styles.codeBlock}>
+                <pre>{tokens.slice(Math.max(0, activeStep - 8), activeStep + 12).join(' ')}</pre>
+              </div>
+            </>
+          )}
+        </section>
+      )}
+
+      <section className={styles.card} aria-labelledby="swarm-watch-list">
+        <div className={styles.cardHead}>
+          <h2 id="swarm-watch-list" className={styles.cardTitle}>Live swarm games</h2>
+          <span className={styles.quiet}>Recent verified games across self-play, SPRT gates, and Archbench</span>
+        </div>
+        {!watchQ.data ? (
+          <p className={styles.quiet}>Loading recent games...</p>
+        ) : games.length === 0 ? (
+          <p className={styles.quiet}>No games available to watch yet.</p>
+        ) : (
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Unit / Deal</th>
+                  <th>Kind</th>
+                  <th>Opponent</th>
+                  <th>Result</th>
+                  <th className={styles.num}>Turns</th>
+                  <th className={styles.num}>Answers</th>
+                  <th>Contributor</th>
+                  <th>Replay</th>
+                </tr>
+              </thead>
+              <tbody>
+                {games.map((g) => (
+                  <tr key={`${g.unit}-${g.deal}`}>
+                    <td className={styles.mono}>{g.unit} #{g.deal}</td>
+                    <td><span className={styles.chip}>{g.kind}</span></td>
+                    <td className={styles.quiet}>{g.opponent}</td>
+                    <td>
+                      {g.winner === null
+                        ? 'Draw'
+                        : g.winner === g.learner_seat
+                          ? 'Learner win'
+                          : 'Opponent win'}
+                    </td>
+                    <td className={styles.num}>{g.turns}</td>
+                    <td className={styles.num}>{g.answers}</td>
+                    <td><Link to={`/swarm/contributors/${encodeURIComponent(g.account)}`}>{g.account}</Link></td>
+                    <td>
+                      <button
+                        type="button"
+                        className={styles.copyBtn}
+                        onClick={() => openGame(g)}
+                        aria-label={`Inspect deal ${g.deal} from ${g.unit}`}
+                      >
+                        Inspect
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -962,12 +1134,20 @@ function ContributeView() {
         </section>
 
         <section className={styles.card}>
+          <h2 className={styles.cardTitle}>Browser and Android worker (WASM)</h2>
+          <p className={styles.quiet}>
+            The strict Rust worker also compiles to WebAssembly (playmat-worker-wasm, strict-1 class) and aarch64 Android
+            so single-threaded Web Workers and Capacitor Android builds can contribute strict games and replay checks.
+          </p>
+        </section>
+
+        <section className={styles.card}>
           <h2 className={styles.cardTitle}>How trust and credit work</h2>
           <p className={styles.quiet}>
             New accounts and new hosts start in probation (100% re-run audit on the first 20 accepted units), then move
             to normal (~3% random re-run sample) and reputable (30 days and 2,000 accepted units with zero mismatches).
-            Credits follow Folding@home style reference core-seconds with a 1.5x quick-return bonus cap and mature 7 days
-            after acceptance.
+            Credits follow Folding@home style reference core-seconds with a 1.5x quick-return bonus cap, mature 7 days
+            after acceptance, and can be redeemed for Playmat cosmetic capsule tokens in the Capsule Shop.
           </p>
         </section>
       </div>

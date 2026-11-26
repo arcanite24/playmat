@@ -9,7 +9,7 @@ The living design, with diagrams and comments, is the Claude Doc
 [Mana@Home: volunteer computing for Playmat's AI](https://claude.ai/artifact/RjFvK6q3wXNbzeiP5AQm9g). This file is
 its summary in the repository, with the record of what S0 built and measured ([S0.md](S0.md)), S1 and its gate round
 ([S1.md](S1.md)), S2 trust and credit ([S2.md](S2.md)), S3 public tracker and admin ([S3.md](S3.md)), S4 swarm gates
-and Archbench ratings ([S4.md](S4.md)), and S5 GPU workers ([S5.md](S5.md)).
+and Archbench ratings ([S4.md](S4.md)), S5 GPU workers ([S5.md](S5.md)), and S6 reach ([S6.md](S6.md)).
 
 ## Decisions
 

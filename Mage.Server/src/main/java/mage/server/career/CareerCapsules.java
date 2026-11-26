@@ -1,12 +1,18 @@
 package mage.server.career;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.Reader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -120,6 +126,15 @@ public final class CareerCapsules {
         public int tokens;
         /** capsules left in the machine */
         public int left;
+    }
+
+    /** Result of redeeming matured Mana@Home swarm credits for capsule tokens (S6). */
+    public static class CareerSwarmRedeemResult {
+        public String account;
+        public int capsuleTokensAwarded;
+        public int tokens;
+        public double creditSpent;
+        public double creditRemaining;
     }
 
     private static volatile CareerCapsules instance;
@@ -440,5 +455,110 @@ public final class CareerCapsules {
             }
         }
         return worn;
+    }
+
+    /**
+     * Redeems matured Mana@Home swarm credits for Playmat cosmetic capsule tokens via the coordinator bridge
+     * (`POST /api/v1/bridge/redeem`, S6). Requires `SWARM_BRIDGE_SECRET` to be configured on both servers.
+     */
+    public CareerSwarmRedeemResult redeemSwarmCredits(String user, String workerToken) throws SQLException, CareerService.CareerException {
+        if (workerToken == null || workerToken.trim().isEmpty()) {
+            throw new CareerService.CareerException("Enter your Mana@Home worker token.");
+        }
+        String secret = System.getProperty("mana.bridgeSecret", System.getenv("SWARM_BRIDGE_SECRET"));
+        if (secret == null || secret.trim().isEmpty()) {
+            throw new CareerService.CareerException("Mana@Home credit redemption is not configured on this server.");
+        }
+        String baseUrl = System.getProperty("mana.coordinatorUrl", System.getenv("MANA_COORDINATOR_URL"));
+        if (baseUrl == null || baseUrl.trim().isEmpty()) {
+            baseUrl = "https://mana.deimos.studio";
+        }
+        baseUrl = baseUrl.replaceAll("/+$", "");
+
+        Gson gson = new Gson();
+        JsonObject payload = new JsonObject();
+        payload.addProperty("worker_token", workerToken.trim());
+        payload.addProperty("playmat_user", user);
+
+        int statusCode;
+        String responseBody;
+        HttpURLConnection conn = null;
+        try {
+            conn = (HttpURLConnection) new URL(baseUrl + "/api/v1/bridge/redeem").openConnection();
+            conn.setRequestMethod("POST");
+            conn.setConnectTimeout(10_000);
+            conn.setReadTimeout(15_000);
+            conn.setDoOutput(true);
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("User-Agent", "playmat-server");
+            conn.setRequestProperty("X-Swarm-Bridge-Secret", secret.trim());
+            byte[] outBytes = gson.toJson(payload).getBytes(StandardCharsets.UTF_8);
+            try (OutputStream out = conn.getOutputStream()) {
+                out.write(outBytes);
+            }
+            statusCode = conn.getResponseCode();
+            InputStream stream = statusCode >= 400 ? conn.getErrorStream() : conn.getInputStream();
+            responseBody = readUtf8(stream);
+        } catch (IOException e) {
+            throw new CareerService.CareerException("Could not reach Mana@Home coordinator: " + e.getMessage());
+        } finally {
+            if (conn != null) {
+                conn.disconnect();
+            }
+        }
+
+        if (statusCode < 200 || statusCode >= 300) {
+            String msg = "Coordinator returned HTTP " + statusCode;
+            try {
+                JsonObject err = JsonParser.parseString(responseBody).getAsJsonObject();
+                if (err.has("error")) {
+                    msg = err.get("error").getAsString();
+                }
+            } catch (Exception ignored) {
+                // plain text body
+            }
+            throw new CareerService.CareerException(msg);
+        }
+
+        JsonObject body = JsonParser.parseString(responseBody).getAsJsonObject();
+        String account = body.has("account") ? body.get("account").getAsString() : "";
+        int awarded = body.has("capsule_tokens") ? body.get("capsule_tokens").getAsInt() : 0;
+        double spent = body.has("credit_spent") ? body.get("credit_spent").getAsDouble() : 0.0;
+        double remaining = body.has("credit_remaining") ? body.get("credit_remaining").getAsDouble() : 0.0;
+        long redemptionId = body.has("redemption_id") && !body.get("redemption_id").isJsonNull()
+                ? body.get("redemption_id").getAsLong() : 0L;
+
+        CareerStore store = CareerStore.get();
+        CareerSwarmRedeemResult result = new CareerSwarmRedeemResult();
+        result.account = account;
+        result.capsuleTokensAwarded = awarded;
+        result.creditSpent = spent;
+        result.creditRemaining = remaining;
+
+        CareerService.refusing(() -> store.transaction(() -> {
+            long now = System.currentTimeMillis();
+            CareerService.ensureProfile(store, user, now);
+            if (awarded > 0) {
+                addTokens(store, user, awarded, "mana@home " + account + " #" + redemptionId, now);
+            }
+            result.tokens = store.profile(user).capsuleTokens;
+            return null;
+        }));
+        return result;
+    }
+
+    private static String readUtf8(InputStream stream) throws IOException {
+        if (stream == null) {
+            return "";
+        }
+        try (InputStream in = stream) {
+            ByteArrayOutputStream buf = new ByteArrayOutputStream();
+            byte[] chunk = new byte[4096];
+            int n;
+            while ((n = in.read(chunk)) != -1) {
+                buf.write(chunk, 0, n);
+            }
+            return new String(buf.toByteArray(), StandardCharsets.UTF_8);
+        }
     }
 }

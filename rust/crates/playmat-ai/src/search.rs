@@ -12,7 +12,34 @@ use crate::eval;
 use crate::policy::{Policy, Repeats};
 use playmat_engine::decide::{Answer, Decider, Query};
 use playmat_engine::state::{Game, Seat, Zone};
-use std::time::Instant;
+
+/// Monotonic timer that never panics on `wasm32-unknown-unknown` (where `std::time::Instant::now` traps).
+struct Timer {
+    #[cfg(not(target_arch = "wasm32"))]
+    start: std::time::Instant,
+}
+
+impl Timer {
+    #[inline]
+    fn start() -> Self {
+        Self {
+            #[cfg(not(target_arch = "wasm32"))]
+            start: std::time::Instant::now(),
+        }
+    }
+
+    #[inline]
+    fn elapsed_nanos(&self) -> u128 {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            self.start.elapsed().as_nanos()
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            0
+        }
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct Config {
@@ -313,7 +340,7 @@ impl Table {
             *slot = Some((Some(cfg.policy), cfg.policy.build(seat)));
         }
         let decider = &mut slot.as_mut().unwrap().1;
-        let start = Instant::now();
+        let start = Timer::start();
         let d = Decision {
             game,
             seat,
@@ -330,7 +357,7 @@ impl Table {
             seat,
             turn: game.turn,
             kind: kind(q),
-            nanos: start.elapsed().as_nanos(),
+            nanos: start.elapsed_nanos(),
             nodes,
             options: candidates.len(),
             permanents: game.battlefield.len(),
@@ -514,7 +541,7 @@ impl Table {
             seat,
             playbook: crate::playbook::resolve(cfg.playbook.as_deref()),
         };
-        let start = Instant::now();
+        let start = Timer::start();
         let stop = game.turn + 1 + cfg.extra_turns;
         let per = (cfg.budget / plans.len() as u64).clamp(50, cfg.playout_cap);
         let (best, nodes) = sampled(&root, game, seat, cfg, &plans, per, stop);
@@ -523,7 +550,7 @@ impl Table {
             seat,
             turn: game.turn,
             kind: kind(q),
-            nanos: start.elapsed().as_nanos(),
+            nanos: start.elapsed_nanos(),
             nodes,
             options: plans.len(),
             permanents: game.battlefield.len(),

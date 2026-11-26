@@ -641,6 +641,62 @@ pub struct RollbackRequest {
     pub reason: String,
 }
 
+/// Contributor's spendable matured swarm credit balance (`GET /api/v1/credits/balance`)
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct CreditBalance {
+    pub account: String,
+    pub credit_pending: f64,
+    pub credit_matured: f64,
+    pub credit_redeemed: f64,
+    pub credit_per_token: f64,
+    pub redeemable_tokens: u32,
+}
+
+/// Server-to-coordinator redemption request (`POST /api/v1/bridge/redeem`, authenticated via `X-Swarm-Bridge-Secret`)
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BridgeRedeemRequest {
+    pub worker_token: String,
+    pub playmat_user: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct BridgeRedeemReply {
+    pub account: String,
+    pub capsule_tokens: u32,
+    pub credit_spent: f64,
+    pub credit_remaining: f64,
+    pub redemption_id: Option<i64>,
+}
+
+/// One featured game listed on `/swarm/watch` (`GET /api/v1/watch`)
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WatchGame {
+    pub unit: String,
+    pub project: String,
+    pub run: String,
+    pub round: u32,
+    pub kind: String,
+    pub deal: u64,
+    pub account: String,
+    pub host: String,
+    pub learner_seat: u8,
+    pub opponent: String,
+    pub winner: Option<u8>,
+    pub turns: u32,
+    pub answers: u32,
+    pub recorded: u32,
+    pub log_sha256: String,
+    pub done_at: i64,
+}
+
+/// Move-by-move answer log replay for one game (`GET /api/v1/watch/{unit}/{deal}`)
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WatchReplay {
+    pub game: WatchGame,
+    pub tokens: Vec<String>,
+    pub note: String,
+}
+
 /// The public numbers (`GET /status`, no token): what the tracker draws from
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Status {
