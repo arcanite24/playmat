@@ -57,6 +57,8 @@ export interface AiOptions {
   winsNeeded: 1 | 2;
   /** null: the format's own (20, or 40 in Commander) */
   startingLife: 20 | 30 | 40 | null;
+  /** mulligans that cost no card: 0 (standard), 1, or `FREE_MULLIGANS_ALL` (none costs a card) */
+  freeMulligans: number;
   /**
    * 'deck': the game is played in the deck's format, and the server holds both decks to it;
    * 'casual': anything goes (Freeform, or Freeform Commander for a commander deck)
@@ -81,6 +83,7 @@ export const DEFAULT_AI_OPTIONS: AiOptions = {
   aiType: 'COMPUTER_MAD',
   winsNeeded: 1,
   startingLife: null,
+  freeMulligans: 0,
   rules: 'casual',
   opponents: 1,
 };
@@ -239,7 +242,7 @@ export const usePlay = create<PlayState>((set, get) => ({
         deckType,
         winsNeeded: options.winsNeeded,
         playerTypes: ['HUMAN', ...rivals.map(() => seatableAiType(options.aiType, queryClient.getQueryData<ServerState>(['serverState'])?.playerTypes))],
-        advanced: { startingLife: options.startingLife },
+        advanced: { startingLife: options.startingLife, freeMulligans: options.freeMulligans },
       }));
       // no table: the server doesn't know us any more (the session store sends us to sign in)
       const tableId = table?.tableId;

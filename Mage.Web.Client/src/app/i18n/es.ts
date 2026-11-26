@@ -232,6 +232,13 @@ const es: Catalog = {
   'ai.match.three': 'Al mejor de 3',
   'ai.life': 'Vida inicial',
   'ai.life.format': 'Formato',
+  'ai.mulligans': 'Mulligans',
+  'ai.mulligans.standard': 'Estándar',
+  'ai.mulligans.oneFree': 'Uno gratis',
+  'ai.mulligans.free': 'Sin perder cartas',
+  'ai.mulligans.standard.detail': 'Cada mulligan pone una carta en el fondo.',
+  'ai.mulligans.oneFree.detail': 'Tu primer mulligan se queda con siete cartas; los siguientes ponen una carta en el fondo.',
+  'ai.mulligans.free.detail': 'Los mulligans se quedan con siete cartas, hasta siete veces. La IA juega con la misma regla.',
   'ai.rules': 'Reglas',
   'ai.rules.casual': 'Casual',
   'ai.rules.deck': 'Formato del mazo',
@@ -260,6 +267,8 @@ const es: Catalog = {
   'ai.summary.bestOf3': 'al mejor de tres',
   'ai.summary.deckFormat': 'formato de tu mazo',
   'ai.summary.life': '{count} de vida',
+  'ai.summary.oneFreeMulligan': 'un mulligan gratis',
+  'ai.summary.freeMulligans': 'mulligans gratis',
 
   // the deck shelf
   'decks.yourDecks': 'Tus mazos',

@@ -31,6 +31,13 @@ describe("the AI's deck in the setup summary", () => {
     expect(describeAi(translate, { ...DEFAULT_AI_OPTIONS, rules: 'deck' }, null).split(' · ')).toContain(label);
   });
 
+  it('says when mulligans are free', () => {
+    const translate = createTranslator({ locale: 'en', messages: core, fallback: core });
+    expect(describeAi(translate, DEFAULT_AI_OPTIONS, null)).not.toContain('mulligan');
+    expect(describeAi(translate, { ...DEFAULT_AI_OPTIONS, freeMulligans: 1 }, null).split(' · ')).toContain('one free mulligan');
+    expect(describeAi(translate, { ...DEFAULT_AI_OPTIONS, freeMulligans: 7 }, null).split(' · ')).toContain('free mulligans');
+  });
+
   it('names roster and format decks, ghosts and the mirror', () => {
     expect(aiDeckLabel(t, options('deck-1'), 'Mono Red', true)).toBe('Mono Red');
     expect(aiDeckLabel(t, options(null), null, true)).toBeNull();

@@ -52,5 +52,8 @@ export function describeAi(t: Translate, options: AiOptions, deckName: string | 
   ];
   if (options.rules === 'deck') parts.push(t('ai.summary.deckFormat'));
   if (options.startingLife !== null) parts.push(t('ai.summary.life', { count: options.startingLife }));
+  // the dialog offers none, one, or all of them (FREE_MULLIGANS_ALL)
+  if (options.freeMulligans > 1) parts.push(t('ai.summary.freeMulligans'));
+  else if (options.freeMulligans === 1) parts.push(t('ai.summary.oneFreeMulligan'));
   return parts.join(' · ');
 }

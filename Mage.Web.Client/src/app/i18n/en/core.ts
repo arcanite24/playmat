@@ -206,6 +206,13 @@ export default {
   'ai.match.three': 'Best of 3',
   'ai.life': 'Starting life',
   'ai.life.format': 'Format',
+  'ai.mulligans': 'Mulligans',
+  'ai.mulligans.standard': 'Standard',
+  'ai.mulligans.oneFree': 'One free',
+  'ai.mulligans.free': 'No card lost',
+  'ai.mulligans.standard.detail': 'Each mulligan puts a card on the bottom.',
+  'ai.mulligans.oneFree.detail': 'Your first mulligan keeps seven cards; later ones put a card on the bottom.',
+  'ai.mulligans.free.detail': 'Mulligans keep seven cards, up to seven of them. The AI plays by the same rule.',
   'ai.rules': 'Rules',
   'ai.rules.casual': 'Casual',
   'ai.rules.deck': 'Deck’s format',
@@ -235,6 +242,8 @@ export default {
   'ai.summary.bestOf3': 'best of three',
   'ai.summary.deckFormat': "your deck's format",
   'ai.summary.life': '{count} life',
+  'ai.summary.oneFreeMulligan': 'one free mulligan',
+  'ai.summary.freeMulligans': 'free mulligans',
 
   // the deck shelf
   'decks.yourDecks': 'Your decks',

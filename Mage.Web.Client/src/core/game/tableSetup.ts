@@ -59,6 +59,12 @@ export function parseSeed(text: string): number | null {
   return Number(trimmed);
 }
 
+/**
+ * Free mulligans standing for "mulligans cost no card": the first seven keep the hand's size. A finite count, so an AI
+ * with a deck it never wants to keep (all lands) still stops: after these its mulligans cost cards and it keeps.
+ */
+export const FREE_MULLIGANS_ALL = 7;
+
 export const MULLIGAN_TYPES: { value: MulliganType; label: string }[] = [
   { value: 'GAME_DEFAULT', label: 'The format’s own' },
   { value: 'LONDON', label: 'London' },
@@ -159,7 +165,8 @@ export function describeAdvanced(advanced: TableAdvanced): string[] {
   const parts: string[] = [];
   if (advanced.mulliganType !== DEFAULT_ADVANCED.mulliganType) parts.push(`${MULLIGAN_TYPES.find((item) => item.value === advanced.mulliganType)?.label} mulligan`);
   if (parseSeed(advanced.seed) !== null) parts.push(`Seed ${advanced.seed.trim()}`);
-  if (advanced.freeMulligans > 0) parts.push(`${advanced.freeMulligans} free ${advanced.freeMulligans === 1 ? 'mulligan' : 'mulligans'}`);
+  if (advanced.freeMulligans >= FREE_MULLIGANS_ALL) parts.push('Free mulligans');
+  else if (advanced.freeMulligans > 0) parts.push(`${advanced.freeMulligans} free ${advanced.freeMulligans === 1 ? 'mulligan' : 'mulligans'}`);
   if (advanced.matchTimeLimit !== 'NONE') parts.push(TIME_LIMITS.find((item) => item.value === advanced.matchTimeLimit)?.label ?? '');
   if (advanced.rated) parts.push('Rated');
   if (advanced.planeChase) parts.push('Planechase');
