@@ -133,6 +133,8 @@ pub struct Passing {
     stack_seen: usize,
     /// the turn F5 was pressed in
     turn_pressed: u32,
+    /// the turn F4 was pressed in: it ends with that turn (`HumanPlayer.endOfTurn`)
+    end_of_turn_pressed: u32,
     /// HOLD_PRIORITY: no pass after casting
     pub holding: bool,
 }
@@ -142,7 +144,10 @@ impl Passing {
     pub fn press(&mut self, action: &str, game: &Game) -> bool {
         self.skipped_at_least_once = false;
         match action {
-            "PASS_PRIORITY_UNTIL_TURN_END_STEP" => self.until_end_of_turn = true,
+            "PASS_PRIORITY_UNTIL_TURN_END_STEP" => {
+                self.until_end_of_turn = true;
+                self.end_of_turn_pressed = game.turn;
+            }
             "PASS_PRIORITY_UNTIL_NEXT_TURN" => {
                 self.turn = true;
                 self.turn_pressed = game.turn;
@@ -183,6 +188,11 @@ impl Passing {
         }
         if self.turn && game.turn != self.turn_pressed {
             self.turn = false;
+        }
+        // pressed in an end step, the next end step it waits for is the next turn's: it would skip that whole turn
+        if self.until_end_of_turn && game.turn != self.end_of_turn_pressed {
+            self.until_end_of_turn = false;
+            self.skipped_at_least_once = false;
         }
         // Once the stack empties, end "resolve the stack" even if quickStop applies below so it doesn't linger
         let mut just_resolved_stack = false;
@@ -319,5 +329,51 @@ mod tests {
         Arc::make_mut(&mut game.stack).push(StackItem::spell(attacker, 0));
         assert!(!passing.passes(&game, 1, &settings));
         assert!(!passing.until_stack_resolved);
+    }
+
+    fn duel_at(turn: u32, active: Seat, step: Step) -> Game {
+        let db = playmat_engine::cards();
+        let deck = Deck::parse("d", "60 Mountain");
+        let mut game = new_duel(&db, [&deck, &deck], 1, 0).unwrap();
+        game.turn = turn;
+        game.active = Some(active);
+        game.step = Some(step);
+        game
+    }
+
+    /// web client defaults: stops at your main phases and at the opponent's end step
+    fn web_settings() -> Settings {
+        let user: serde_json::Value = serde_json::json!({
+            "userSkipPrioritySteps": {
+                "yourTurn": { "main1": true, "main2": true },
+                "opponentTurn": { "endOfTurn": true },
+                "stopOnAllEndPhases": true
+            }
+        });
+        Settings::parse(Some(&user))
+    }
+
+    #[test]
+    fn pass_to_end_of_turn_in_the_opponents_end_step_keeps_my_next_main_phase() {
+        let settings = web_settings();
+        let mut passing = Passing::default();
+        let game = duel_at(4, 1, Step::EndTurn);
+        assert!(passing.press("PASS_PRIORITY_UNTIL_TURN_END_STEP", &game));
+        assert!(passing.passes(&game, 0, &settings), "the end step it was pressed in is passed");
+
+        let next = duel_at(5, 0, Step::PrecombatMain);
+        assert!(!passing.passes(&next, 0, &settings), "my own first main phase stops");
+        assert!(!passing.until_end_of_turn);
+    }
+
+    #[test]
+    fn pass_to_end_of_turn_mid_turn_stops_at_that_turns_end_step() {
+        let settings = web_settings();
+        let mut passing = Passing::default();
+        let game = duel_at(4, 1, Step::PostcombatMain);
+        assert!(passing.press("PASS_PRIORITY_UNTIL_TURN_END_STEP", &game));
+        assert!(passing.passes(&game, 0, &settings));
+        assert!(!passing.passes(&duel_at(4, 1, Step::EndTurn), 0, &settings), "it stops at the end step");
+        assert!(!passing.until_end_of_turn);
     }
 }
