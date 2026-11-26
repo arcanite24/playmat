@@ -66,7 +66,6 @@ const SCHEMA: &[&str] = &[
      source_token INTEGER, leased_at INTEGER, credit REAL NOT NULL DEFAULT 0.0, \
      credit_status TEXT NOT NULL DEFAULT 'none', credit_mature_at INTEGER, quarantined INTEGER NOT NULL DEFAULT 0)",
     "CREATE INDEX IF NOT EXISTS units_state ON units(state, round)",
-    "CREATE INDEX IF NOT EXISTS units_source ON units(source_unit)",
     "CREATE TABLE IF NOT EXISTS uploads (unit TEXT NOT NULL, path TEXT NOT NULL, size INTEGER NOT NULL, \
      sha256 TEXT NOT NULL, PRIMARY KEY(unit, path))",
     // a host that gave a unit back never gets it again: a broken host can't use up a unit's attempts alone
@@ -128,6 +127,7 @@ impl Swarm {
                 }
             }
         }
+        sqlx::query("CREATE INDEX IF NOT EXISTS units_source ON units(source_unit)").execute(&db).await?;
         sqlx::query("UPDATE tokens SET trust = 'trusted' WHERE role IN ('trainer', 'admin') AND trust = 'probation'")
             .execute(&db)
             .await?;
