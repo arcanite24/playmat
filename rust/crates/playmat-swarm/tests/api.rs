@@ -31,6 +31,7 @@ fn unit(net: &str) -> WorkUnit {
         fast: None,
         deadline: 0,
         cost: 1.0,
+        verify: None,
     }
 }
 
@@ -147,6 +148,7 @@ fn plain_unit(id: &str, round: u32, seed: u64) -> WorkUnit {
         fast: None,
         deadline: 0,
         cost: 1.0,
+        verify: None,
     }
 }
 

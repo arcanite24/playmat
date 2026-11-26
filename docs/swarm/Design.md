@@ -7,7 +7,8 @@ networks, game data and an audit log of run decisions.
 
 The living design, with diagrams and comments, is the Claude Doc
 [Mana@Home: volunteer computing for Playmat's AI](https://claude.ai/artifact/RjFvK6q3wXNbzeiP5AQm9g). This file is
-its summary in the repository, with the record of what S0 built and measured ([S0.md](S0.md)) and of S1 and its gate round ([S1.md](S1.md)).
+its summary in the repository, with the record of what S0 built and measured ([S0.md](S0.md)), S1 and its gate round
+([S1.md](S1.md)), and S2 trust and credit ([S2.md](S2.md)).
 
 ## Decisions
 
@@ -93,7 +94,7 @@ own answer, since a GPU's float order is its own.
 | Strict float functions | `rust/crates/playmat-ai/src/fm.rs`, the `strict` feature |
 | Protocol types | `rust/crates/playmat-swarm-proto` |
 | Worker | `rust/crates/playmat-worker` (S0: `run-unit`, `verify`, `compare`, `class`; S1: `run`) |
-| Coordinator | `rust/crates/playmat-swarm` (S1) |
-| Trainer client | `rust/rl/swarm.py`, `pfsp_league.py --swarm` (S1) |
+| Coordinator | `rust/crates/playmat-swarm` (S1; S2 adds `src/trust.rs` and `src/admin.rs`) |
+| Trainer client | `rust/rl/swarm.py`, `pfsp_league.py --swarm` (S1; S2 adds admin/inbox/leaderboard CLI) |
 | Images and compose | `ops/swarm/` (S1): the coordinator and the strict worker |
 | Tracker and admin | `Mage.Web.Client/src/app/swarm/`, `src/app/admin/SwarmPage.tsx` (S3) |

@@ -2,12 +2,12 @@
 //!     runs the coordinator. Without `--store`, results and networks go to Cloudflare R2: SWARM_R2_ACCOUNT,
 //!     SWARM_R2_BUCKET, SWARM_R2_KEY_ID and SWARM_R2_SECRET. With it, to that folder, served by the coordinator (LAN).
 //!     Options can also be set as SWARM_<NAME>: SWARM_DB, SWARM_LISTEN, SWARM_PUBLIC_URL, SWARM_STORE
-//! playmat-swarm token --db swarm.db --role worker|trainer|admin --name NAME
+//! playmat-swarm token --db swarm.db --role worker|trainer|admin --name NAME [--trust probation|normal|reputable|trusted]
 //!     makes a token and prints it once; the database keeps only its hash
 
 use playmat_swarm::store::{Local, Store, R2};
 use playmat_swarm::Swarm;
-use playmat_swarm_proto::api::Role;
+use playmat_swarm_proto::api::{Role, TrustLevel};
 use std::path::PathBuf;
 
 #[tokio::main]
@@ -56,7 +56,14 @@ async fn main() -> anyhow::Result<()> {
                 .and_then(|r| Role::parse(&r))
                 .ok_or_else(|| anyhow::anyhow!("--role worker|trainer|admin"))?;
             let name = opt("--name").ok_or_else(|| anyhow::anyhow!("--name NAME"))?;
-            let t = swarm.new_token(role, &name).await?;
+            let trust = match opt("--trust") {
+                Some(t) => Some(
+                    TrustLevel::parse(&t)
+                        .ok_or_else(|| anyhow::anyhow!("--trust probation|normal|reputable|trusted|banned"))?,
+                ),
+                None => None,
+            };
+            let t = swarm.new_token_with_trust(role, &name, trust).await?;
             println!("{}", t.token);
         }
         _ => anyhow::bail!("usage: playmat-swarm serve|token (see the source's header)"),
