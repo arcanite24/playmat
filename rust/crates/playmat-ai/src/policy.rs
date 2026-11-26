@@ -509,7 +509,13 @@ fn choose_ability(game: &Game, _seat: Seat, source: ObjId, abilities: &[usize]) 
 
 /// Cards from the seat's own hand go least valuable first (discards), respecting Playbook discard roles (e.g.
 /// discarding Reanimator targets first!); library/other cards respect tutor priority or go most valuable first.
-fn cards_with(game: &Game, seat: Seat, objs: &[ObjId], required: bool, pb: Option<&crate::playbook::Playbook>) -> Answer {
+fn cards_with(
+    game: &Game,
+    seat: Seat,
+    objs: &[ObjId],
+    required: bool,
+    pb: Option<&crate::playbook::Playbook>,
+) -> Answer {
     let own_hand = objs.iter().all(|o| game.obj(*o).zone == Zone::Hand && game.obj(*o).owner == seat);
     if !required && own_hand {
         return Answer::Bool(false);
@@ -517,7 +523,9 @@ fn cards_with(game: &Game, seat: Seat, objs: &[ObjId], required: bool, pb: Optio
     if own_hand {
         if let Some(pb) = pb {
             if !pb.discard_roles_first.is_empty() {
-                if let Some(target) = objs.iter().find(|o| pb.has_any_role(&game.obj(**o).def.name, &pb.discard_roles_first)) {
+                if let Some(target) =
+                    objs.iter().find(|o| pb.has_any_role(&game.obj(**o).def.name, &pb.discard_roles_first))
+                {
                     return Answer::Obj(*target);
                 }
             }
@@ -980,15 +988,15 @@ impl Policy {
                 }
                 // Playbook main-2 creature discipline: attack first before deploying non-haste, non-lord creatures
                 if precombat && has_attackers && is(*c, CardType::Creature) {
-                    let haste = o.def.abilities.iter().any(|a| matches!(a, playmat_engine::card::AbilityDef::HasteAbility));
+                    let haste =
+                        o.def.abilities.iter().any(|a| matches!(a, playmat_engine::card::AbilityDef::HasteAbility));
                     let prefer_m1 = pb.is_some_and(|p| {
                         p.has_role(name, "lord")
                             || p.has_role(name, "haste")
                             || p.rule(name).is_some_and(|r| r.prefer_before_combat)
                     });
-                    let defer_m2 = pb.is_some_and(|p| {
-                        p.cast_creatures_main2 || p.rule(name).is_some_and(|r| r.prefer_main2)
-                    });
+                    let defer_m2 =
+                        pb.is_some_and(|p| p.cast_creatures_main2 || p.rule(name).is_some_and(|r| r.prefer_main2));
                     if defer_m2 && !haste && !prefer_m1 {
                         return false;
                     }

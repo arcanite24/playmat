@@ -140,9 +140,8 @@ fn playbook_wants(game: &Game, seat: Seat, taken: usize, pb: &crate::playbook::P
     if taken == 0 {
         let land_colors = parsed.iter().filter(|c| c.land).fold(0u8, |acc, c| acc | c.colors);
         if pb.require_color_match && land_colors != 0 {
-            let castable_any = parsed
-                .iter()
-                .any(|c| !c.land && c.mv <= (lands as u32 + 1) && (c.colors & !land_colors == 0));
+            let castable_any =
+                parsed.iter().any(|c| !c.land && c.mv <= (lands as u32 + 1) && (c.colors & !land_colors == 0));
             if !castable_any {
                 return true;
             }

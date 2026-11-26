@@ -61,6 +61,8 @@ impl Decider for Audit {
                 hidden: Some(self.hidden.clone()),
                 playout: 2,
                 rollout: None,
+                seat,
+                playbook: None,
             };
             for s in 0..3 {
                 let g = root.sample(self.checked as u64 * 7 + s);
@@ -138,7 +140,15 @@ fn the_opponents_hand_changes_the_critics_view_only() {
     let q = Query::Priority { playable: Vec::new() };
     let mut h = Hidden::new(0);
     h.observe(&game);
-    let root = Root { snapshot: game.clone(), since: Vec::new(), hidden: Some(h), playout: 2, rollout: None };
+    let root = Root {
+        snapshot: game.clone(),
+        since: Vec::new(),
+        hidden: Some(h),
+        playout: 2,
+        rollout: None,
+        seat: 0,
+        playbook: None,
+    };
     let g = (0..20).map(|s| root.sample(s)).find(|g| g.player(1).hand != game.player(1).hand).unwrap();
     assert!(same(&obs::observe(&game, 0, &q, &[]), &obs::observe(&g, 0, &q, &[])));
     assert_ne!(obs::hidden_entities(&game, 0).1, obs::hidden_entities(&g, 0).1);

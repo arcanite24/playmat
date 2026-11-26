@@ -314,10 +314,9 @@ impl Playbook {
                 let has = game.stack.last().is_some_and(|t| t.controller == opp && t.ability.is_none());
                 has == *want
             }
-            Condition::OppSpellMvAtLeast(mv) => game
-                .stack
-                .last()
-                .is_some_and(|t| t.controller == opp && t.ability.is_none() && game.obj(t.card).def.mana_value() >= *mv),
+            Condition::OppSpellMvAtLeast(mv) => game.stack.last().is_some_and(|t| {
+                t.controller == opp && t.ability.is_none() && game.obj(t.card).def.mana_value() >= *mv
+            }),
             Condition::Step(name) => game.step.is_some_and(|s| format!("{s:?}").eq_ignore_ascii_case(name)),
             Condition::MyTurn(want) => (game.active == Some(seat)) == *want,
             Condition::NotMyTurn(want) => (game.active != Some(seat)) == *want,
@@ -437,9 +436,10 @@ impl Playbook {
             let name = o.def.name.as_str();
             let is_hold_instant = self.has_role(name, "counter")
                 || self.has_role(name, "eot_instant")
-                || self.card_rules.get(name).is_some_and(|r| {
-                    matches!(r.hold_for_step, Some(HoldStep::OppEndStep | HoldStep::CombatAttackers))
-                });
+                || self
+                    .card_rules
+                    .get(name)
+                    .is_some_and(|r| matches!(r.hold_for_step, Some(HoldStep::OppEndStep | HoldStep::CombatAttackers)));
             if is_hold_instant {
                 let mv = o.def.mana_value();
                 if mv > 0 && mv <= available_mana(game, seat) {
@@ -599,7 +599,9 @@ mod tests {
         let mut game = new_duel(&db, [&d, &d], 1, 0).unwrap();
         // Put 3 untapped lands on battlefield, No More Lies (MV 2) and Stock Up (MV 3) in hand
         let mut placed = 0;
-        for id in game.objs.iter().filter(|o| o.owner == 0 && o.def.is(CardType::Land)).map(|o| o.id).collect::<Vec<_>>() {
+        for id in
+            game.objs.iter().filter(|o| o.owner == 0 && o.def.is(CardType::Land)).map(|o| o.id).collect::<Vec<_>>()
+        {
             if placed < 3 {
                 game.move_to(id, Zone::Battlefield);
                 placed += 1;
