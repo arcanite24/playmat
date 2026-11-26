@@ -529,3 +529,71 @@ pub(crate) async fn transparency(State(s): State<Shared>) -> Res<Json<Transparen
         .collect();
     Ok(Json(TransparencyLog { accepted_units, verified_units, rejected_units, quarantined_units, events }))
 }
+
+// ---- self-service volunteer worker signup (`POST /api/v1/register`)
+
+const REGISTER_WINDOW_SECS: i64 = 3600;
+const REGISTER_MAX_PER_HOUR: usize = 5;
+const RESERVED_NAMES: &[&str] =
+    &["admin", "administrator", "coordinator", "owner", "root", "staff", "system", "trainer", "verifier"];
+
+fn client_ip(headers: &HeaderMap) -> String {
+    if let Some(v) = headers.get("cf-connecting-ip").and_then(|h| h.to_str().ok()) {
+        return v.trim().to_string();
+    }
+    if let Some(v) = headers.get("x-forwarded-for").and_then(|h| h.to_str().ok()) {
+        if let Some(first) = v.split(',').next() {
+            return first.trim().to_string();
+        }
+    }
+    "local".to_string()
+}
+
+pub(crate) async fn register(
+    State(s): State<Shared>,
+    headers: HeaderMap,
+    Json(req): Json<RegisterRequest>,
+) -> Res<Json<TokenReply>> {
+    if std::env::var("MANA_DISABLE_REGISTRATION").ok().as_deref() == Some("1") {
+        return Err(ApiError(StatusCode::FORBIDDEN, "public worker registration is currently disabled".into()));
+    }
+    let name = req.name.trim();
+    if !(3..=32).contains(&name.len())
+        || name.starts_with('.')
+        || name.starts_with('-')
+        || !name.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.'))
+    {
+        return Err(bad("account name must be 3-32 characters of [A-Za-z0-9._-] and start with a letter or digit"));
+    }
+    let lower = name.to_ascii_lowercase();
+    if RESERVED_NAMES.contains(&lower.as_str()) {
+        return Err(bad("that account name is reserved"));
+    }
+
+    let ip = client_ip(&headers);
+    let t = now() as i64;
+    {
+        let mut limits = s.reg_limits.lock().await;
+        let entries = limits.entry(ip.clone()).or_default();
+        entries.retain(|&ts| t - ts < REGISTER_WINDOW_SECS);
+        if entries.len() >= REGISTER_MAX_PER_HOUR {
+            return Err(ApiError(
+                StatusCode::TOO_MANY_REQUESTS,
+                "too many registrations from this address; try again later".into(),
+            ));
+        }
+        entries.push(t);
+    }
+
+    let existing: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM tokens WHERE LOWER(name) = LOWER(?)")
+        .bind(name)
+        .fetch_one(&s.db)
+        .await?;
+    if existing > 0 {
+        return Err(conflict(format!("account name '{name}' is already taken")));
+    }
+
+    let reply = s.new_token_with_trust(Role::Worker, name, Some(TrustLevel::Probation)).await?;
+    s.audit(name, "register", &format!("self-service volunteer token {} registered", reply.id)).await;
+    Ok(Json(reply))
+}
