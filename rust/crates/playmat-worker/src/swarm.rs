@@ -3,11 +3,12 @@
 //! and completes the unit with the manifest. With `--when idle` it plays only while the machine is idle, and drops a
 //! unit (`/fail`, so it goes to another worker) when the machine stops being idle.
 
-use crate::{idle, read_json, run_unit, sha_file, STRICT};
+use crate::{idle, read_json, run_unit, sha_file, verify_detailed, STRICT};
 use playmat_swarm_proto::api::*;
-use playmat_swarm_proto::{self as proto, ResultManifest};
+use playmat_swarm_proto::{self as proto, GameSummary, ResultManifest, UnitKind, VerifyMode};
 use reqwest::blocking::Client;
 use reqwest::StatusCode;
+use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -159,6 +160,9 @@ fn fetch_net(api: &Api, nets_dir: &str, n: &proto::NetRef) -> Result<(), String>
 }
 
 fn play(api: &Api, o: &Opts, nets_dir: &str, lease: Lease) -> Result<usize, String> {
+    if lease.unit.kind == UnitKind::Verify {
+        return play_verify(api, o, nets_dir, lease);
+    }
     let id = lease.unit.id.clone();
     proto::check_unit(&lease.unit)?;
     for n in &lease.unit.nets {
@@ -172,43 +176,9 @@ fn play(api: &Api, o: &Opts, nets_dir: &str, lease: Lease) -> Result<usize, Stri
     std::fs::write(&unit_path, serde_json::to_string_pretty(&lease.unit).unwrap()).map_err(|e| e.to_string())?;
     println!("PLAY {id}: {} games from deal {}", lease.unit.games, lease.unit.seed);
 
-    // heartbeats, and the idle check while it plays: either stops the unit between games
-    let stop = Arc::new(AtomicBool::new(false));
-    let finished = Arc::new(AtomicBool::new(false));
-    let why: Arc<std::sync::Mutex<Option<String>>> = Arc::default();
-    let watcher = {
-        let (stop, finished, why) = (stop.clone(), finished.clone(), why.clone());
-        let (http, base, token, id, idle_rules) =
-            (api.http.clone(), api.base.clone(), api.token.clone(), id.clone(), o.idle);
-        let beat = Duration::from_secs((lease.lease_secs / 3).clamp(15, 300));
-        std::thread::spawn(move || {
-            let (mut beat_at, mut check_at) = (std::time::Instant::now(), std::time::Instant::now());
-            while !finished.load(Ordering::Relaxed) {
-                std::thread::sleep(Duration::from_secs(1));
-                if idle_rules && check_at.elapsed() >= Duration::from_secs(15) {
-                    check_at = std::time::Instant::now();
-                    if let Some(w) = idle::busy(true) {
-                        *why.lock().unwrap() = Some(w);
-                        stop.store(true, Ordering::Relaxed);
-                        return;
-                    }
-                }
-                if beat_at.elapsed() >= beat {
-                    beat_at = std::time::Instant::now();
-                    let res = http.post(format!("{base}/api/v1/units/{id}/heartbeat")).bearer_auth(&token).send();
-                    if res.is_ok_and(|r| r.status() == StatusCode::CONFLICT) {
-                        *why.lock().unwrap() = Some("the lease went to another host".into());
-                        stop.store(true, Ordering::Relaxed);
-                        return;
-                    }
-                }
-            }
-        })
-    };
-    let played = run_unit(&unit_path, &out, nets_dir, &o.repo, o.jobs, &stop);
-    finished.store(true, Ordering::Relaxed);
-    let _ = watcher.join();
-    if let Some(w) = why.lock().unwrap().take() {
+    let watcher = spawn_watcher(api, o.idle, &id, lease.lease_secs);
+    let played = run_unit(&unit_path, &out, nets_dir, &o.repo, o.jobs, &watcher.stop);
+    if let Some(w) = watcher.finish() {
         return Err(format!("stopped: {w}"));
     }
     played?;
@@ -240,4 +210,247 @@ fn play(api: &Api, o: &Opts, nets_dir: &str, lease: Lease) -> Result<usize, Stri
     let games = manifest.games.len();
     api.post(&format!("/units/{id}/complete"), &Complete { manifest })?;
     Ok(games)
+}
+
+struct Watcher {
+    stop: Arc<AtomicBool>,
+    finished: Arc<AtomicBool>,
+    why: Arc<std::sync::Mutex<Option<String>>>,
+    handle: std::thread::JoinHandle<()>,
+}
+
+impl Watcher {
+    fn finish(self) -> Option<String> {
+        self.finished.store(true, Ordering::Relaxed);
+        let _ = self.handle.join();
+        self.why.lock().unwrap().take()
+    }
+}
+
+fn spawn_watcher(api: &Api, idle_rules: bool, id: &str, lease_secs: u64) -> Watcher {
+    let stop = Arc::new(AtomicBool::new(false));
+    let finished = Arc::new(AtomicBool::new(false));
+    let why: Arc<std::sync::Mutex<Option<String>>> = Arc::default();
+    let handle = {
+        let (stop, finished, why) = (stop.clone(), finished.clone(), why.clone());
+        let (http, base, token, id) = (api.http.clone(), api.base.clone(), api.token.clone(), id.to_string());
+        let beat = Duration::from_secs((lease_secs / 3).clamp(15, 300));
+        std::thread::spawn(move || {
+            let (mut beat_at, mut check_at) = (std::time::Instant::now(), std::time::Instant::now());
+            while !finished.load(Ordering::Relaxed) {
+                std::thread::sleep(Duration::from_secs(1));
+                if idle_rules && check_at.elapsed() >= Duration::from_secs(15) {
+                    check_at = std::time::Instant::now();
+                    if let Some(w) = idle::busy(true) {
+                        *why.lock().unwrap() = Some(w);
+                        stop.store(true, Ordering::Relaxed);
+                        return;
+                    }
+                }
+                if beat_at.elapsed() >= beat {
+                    beat_at = std::time::Instant::now();
+                    let res = http.post(format!("{base}/api/v1/units/{id}/heartbeat")).bearer_auth(&token).send();
+                    if res.is_ok_and(|r| r.status() == StatusCode::CONFLICT) {
+                        *why.lock().unwrap() = Some("the lease went to another host".into());
+                        stop.store(true, Ordering::Relaxed);
+                        return;
+                    }
+                }
+            }
+        })
+    };
+    Watcher { stop, finished, why, handle }
+}
+
+/// Executes a `UnitKind::Verify` unit (either `Replay` or `Rerun`) and posts its `VerifyReport`.
+fn play_verify(api: &Api, o: &Opts, nets_dir: &str, lease: Lease) -> Result<usize, String> {
+    let id = lease.unit.id.clone();
+    proto::check_unit(&lease.unit)?;
+    let spec = lease.unit.verify.clone().ok_or("verify unit missing spec")?;
+    let dir = format!("{}/units/{id}", o.work);
+    let orig_dir = format!("{dir}/orig");
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&orig_dir).map_err(|e| format!("{orig_dir}: {e}"))?;
+
+    println!("VERIFY {id}: {:?} of {} ({} games)", spec.mode, spec.target_unit, lease.unit.games);
+    let started = std::time::Instant::now();
+
+    // Download every uploaded file and verify its sha256 against the claimed manifest
+    let mut file_mismatches: Vec<String> = Vec::new();
+    for (path, expected_sha) in &spec.manifest.files {
+        if path.contains('/') || path.contains('\\') || path.contains("..") {
+            file_mismatches.push(path.clone());
+            continue;
+        }
+        let Some(url) = spec.files.get(path) else {
+            file_mismatches.push(path.clone());
+            continue;
+        };
+        let res = api.http.get(url).send().map_err(|e| format!("download {path}: {e}"))?;
+        let bytes = check(path, res)?.bytes().map_err(|e| e.to_string())?;
+        let got_sha = proto::sha256_hex(&bytes);
+        if got_sha != *expected_sha {
+            file_mismatches.push(path.clone());
+        }
+        std::fs::write(format!("{orig_dir}/{path}"), &bytes).map_err(|e| format!("{path}: {e}"))?;
+    }
+
+    let mut target_unit = lease.unit.clone();
+    target_unit.id = spec.target_unit.clone();
+    target_unit.kind = spec.target_kind;
+    target_unit.verify = None;
+
+    let report = match spec.mode {
+        VerifyMode::Replay => {
+            std::fs::write(format!("{orig_dir}/unit.json"), serde_json::to_string_pretty(&target_unit).unwrap())
+                .map_err(|e| e.to_string())?;
+            std::fs::write(format!("{orig_dir}/manifest.json"), serde_json::to_string_pretty(&spec.manifest).unwrap())
+                .map_err(|e| e.to_string())?;
+            let out = verify_detailed(&orig_dir, &o.repo)?;
+            for f in out.file_mismatches {
+                if !file_mismatches.contains(&f) {
+                    file_mismatches.push(f);
+                }
+            }
+            let passed = out.passed && file_mismatches.is_empty();
+            let reason = if passed || !out.passed {
+                out.reason
+            } else {
+                format!("uploaded file hash mismatch: {file_mismatches:?}")
+            };
+            VerifyReport {
+                mode: spec.mode,
+                target_unit: spec.target_unit.clone(),
+                passed,
+                reason,
+                mismatches: out.mismatches,
+                file_mismatches,
+                elapsed_ms: started.elapsed().as_millis() as u64,
+            }
+        }
+        VerifyMode::Rerun => {
+            for n in &target_unit.nets {
+                fetch_net(api, nets_dir, n)?;
+            }
+            let target_unit_path = format!("{dir}/target_unit.json");
+            let rerun_dir = format!("{dir}/rerun");
+            std::fs::write(&target_unit_path, serde_json::to_string_pretty(&target_unit).unwrap())
+                .map_err(|e| e.to_string())?;
+
+            let watcher = spawn_watcher(api, o.idle, &id, lease.lease_secs);
+            let played = run_unit(&target_unit_path, &rerun_dir, nets_dir, &o.repo, o.jobs, &watcher.stop);
+            if let Some(w) = watcher.finish() {
+                return Err(format!("stopped: {w}"));
+            }
+            played?;
+
+            let rerun: ResultManifest = read_json(&format!("{rerun_dir}/manifest.json"))?;
+            compare_rerun(
+                &spec.manifest,
+                &rerun,
+                file_mismatches,
+                spec.target_unit.clone(),
+                started.elapsed().as_millis() as u64,
+            )
+        }
+    };
+
+    let games = lease.unit.games as usize;
+    api.post(&format!("/units/{id}/verify-complete"), &report)?;
+    println!(
+        "VERIFIED {id} ({:?} of {}): {} ({})",
+        report.mode,
+        report.target_unit,
+        if report.passed { "PASS" } else { "MISMATCH" },
+        report.reason
+    );
+    Ok(games)
+}
+
+fn compare_rerun(
+    claimed: &ResultManifest,
+    rerun: &ResultManifest,
+    mut file_mismatches: Vec<String>,
+    target_unit: String,
+    elapsed_ms: u64,
+) -> VerifyReport {
+    let mut problems: Vec<String> = Vec::new();
+    let mut mismatches: Vec<u64> = Vec::new();
+
+    if claimed.failed != rerun.failed {
+        problems.push(format!("failed deals differ: claimed {:?}, rerun {:?}", claimed.failed, rerun.failed));
+        mismatches.extend(&claimed.failed);
+        mismatches.extend(&rerun.failed);
+    }
+
+    let c_map: BTreeMap<u64, &GameSummary> = claimed.games.iter().map(|g| (g.deal, g)).collect();
+    let r_map: BTreeMap<u64, &GameSummary> = rerun.games.iter().map(|g| (g.deal, g)).collect();
+    for (&deal, rg) in &r_map {
+        match c_map.get(&deal) {
+            None => {
+                problems.push(format!("deal {deal}: missing from claimed manifest"));
+                mismatches.push(deal);
+            }
+            Some(cg) => {
+                if cg.winner != rg.winner
+                    || cg.learner != rg.learner
+                    || cg.opponent != rg.opponent
+                    || cg.turns != rg.turns
+                    || cg.answers != rg.answers
+                    || cg.recorded != rg.recorded
+                    || cg.log_sha256 != rg.log_sha256
+                    || cg.steps_sha256 != rg.steps_sha256
+                {
+                    problems.push(format!(
+                        "deal {deal}: mismatch (log {}, steps {})",
+                        if cg.log_sha256 == rg.log_sha256 { "same" } else { "DIFF" },
+                        if cg.steps_sha256 == rg.steps_sha256 { "same" } else { "DIFF" }
+                    ));
+                    mismatches.push(deal);
+                }
+            }
+        }
+    }
+    for &deal in c_map.keys() {
+        if !r_map.contains_key(&deal) {
+            problems.push(format!("deal {deal}: extra game in claimed manifest"));
+            mismatches.push(deal);
+        }
+    }
+
+    // Compare every uploaded file's sha256 against the bit-exact rerun shard files
+    for (name, r_sha) in &rerun.files {
+        match claimed.files.get(name) {
+            Some(c_sha) if c_sha == r_sha => {}
+            _ => {
+                problems.push(format!("file {name}: hash differs from rerun"));
+                if !file_mismatches.contains(name) {
+                    file_mismatches.push(name.clone());
+                }
+            }
+        }
+    }
+    for name in claimed.files.keys() {
+        if !rerun.files.contains_key(name) {
+            problems.push(format!("file {name}: unexpected extra file"));
+            if !file_mismatches.contains(name) {
+                file_mismatches.push(name.clone());
+            }
+        }
+    }
+    if !file_mismatches.is_empty() && problems.is_empty() {
+        problems.push(format!("uploaded file hash mismatch: {file_mismatches:?}"));
+    }
+
+    mismatches.sort();
+    mismatches.dedup();
+    file_mismatches.sort();
+    file_mismatches.dedup();
+    let passed = problems.is_empty() && mismatches.is_empty() && file_mismatches.is_empty();
+    let reason = if passed {
+        format!("rerun matched {} games and {} files bit-for-bit", rerun.games.len(), rerun.files.len())
+    } else {
+        problems.iter().take(5).cloned().collect::<Vec<_>>().join("; ")
+    };
+    VerifyReport { mode: VerifyMode::Rerun, target_unit, passed, reason, mismatches, file_mismatches, elapsed_ms }
 }

@@ -4,12 +4,18 @@
 one folder, each file prefixed with its unit id, ready for `data.py` and `train.py`.
 
     python swarm.py --coordinator URL --token-file F status
+    python swarm.py --coordinator URL --token-file F leaderboard
     python swarm.py --coordinator URL --token-file F rounds
     python swarm.py --coordinator URL --token-file F publish ROUND.json       (a NewRound, net paths allowed)
     python swarm.py --coordinator URL --token-file F priority ROUND_ID N
     python swarm.py --coordinator URL --token-file F cancel-round ROUND_ID [--include-leased] [--reason R]
     python swarm.py --coordinator URL --token-file F cancel-unit UNIT_ID [--reason R]
-    python swarm.py --coordinator URL --token-file F pull ROUND_ID OUT [--worker-bin B] [--wait]
+    python swarm.py --coordinator URL --token-file F pull ROUND_ID OUT [--worker-bin B] [--wait] [--accepted-only]
+    python swarm.py --coordinator URL --token-file F workers|inbox|audit
+    python swarm.py --coordinator URL --token-file F resolve-inbox ID ACTION [--reason R]
+    python swarm.py --coordinator URL --token-file F trust TOKEN_ID LEVEL [--reason R]
+    python swarm.py --coordinator URL --token-file F quarantine|restore TOKEN_ID [--round-id R] [--reason R]
+    python swarm.py --coordinator URL --token-file F mark-trained ROUND_ID | order-rerun UNIT_ID | reissue UNIT_ID
 
 `pfsp_league.py --swarm URL` plans a PFSP round, publishes it with these functions and updates the league from the
 accepted games. Only the standard library: the trainer needs nothing installed for it.
@@ -171,14 +177,15 @@ def publish(client, project, run, rnd, units, priority=0):
     return st
 
 
-def wait(client, round_id, poll=30, timeout=None):
-    """Waits until no unit is queued or leased; gives the last status"""
+def wait(client, round_id, poll=30, timeout=None, wait_verify=False):
+    """Waits until no unit is queued or leased (and optionally no verify units pending); gives the last status"""
     t0 = time.time()
     while True:
         st = client.call("GET", f"/rounds/{round_id}")
         u = st["units"]
-        print(f"SWARM round {round_id}: {json.dumps(u, sort_keys=True)}, {st['games']} games", flush=True)
-        if not u.get("queued") and not u.get("leased"):
+        vp = st.get("verify_pending", 0)
+        print(f"SWARM round {round_id}: {json.dumps(u, sort_keys=True)}, {st['games']} games, verify_pending={vp}", flush=True)
+        if not u.get("queued") and not u.get("leased") and (not wait_verify or vp == 0):
             return st
         if timeout and time.time() - t0 > timeout:
             return st
@@ -188,6 +195,31 @@ def wait(client, round_id, poll=30, timeout=None):
 def worker_bin():
     ext = ".exe" if os.name == "nt" else ""
     return os.path.join(REPO, "rust", "target", "release", "playmat-worker" + ext)
+
+
+def pull_accepted(client, round_id, out):
+    """Downloads shards for units already verified and accepted by swarm verifiers (S2)."""
+    os.makedirs(out, exist_ok=True)
+    accepted = {}
+    for r in client.call("GET", f"/rounds/{round_id}/results?state=accepted"):
+        tmp = tempfile.mkdtemp(prefix="swarm-accepted-")
+        try:
+            for path, url in r["files"].items():
+                if "/" in path or "\\" in path or path.startswith("."):
+                    raise ValueError(f"{r['unit']}: file name {path}")
+                dst = os.path.join(tmp, path)
+                with open(dst, "wb") as f:
+                    f.write(get(url))
+                expected = r["manifest"]["files"].get(path)
+                if expected and sha256_file(dst) != expected:
+                    raise ValueError(f"{r['unit']}/{path}: downloaded sha256 mismatch")
+            for name in os.listdir(tmp):
+                if name.startswith("w") or name == "answers.jsonl":
+                    shutil.move(os.path.join(tmp, name), os.path.join(out, f"{r['unit']}-{name}"))
+            accepted[r["unit"]] = r["manifest"]
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+    return accepted
 
 
 def pull(client, round_id, out, bin_path=None, repo=REPO):
@@ -253,7 +285,35 @@ def main():
     ap.add_argument("--token-file", default=None)
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("status")
+    sub.add_parser("leaderboard")
     sub.add_parser("rounds")
+    sub.add_parser("workers")
+    p = sub.add_parser("inbox")
+    p.add_argument("--status", default=None)
+    p = sub.add_parser("resolve-inbox")
+    p.add_argument("item_id", type=int)
+    p.add_argument("action", choices=["confirm-cheat", "false-positive", "order-rerun", "dismiss"])
+    p.add_argument("--reason", default="")
+    p = sub.add_parser("trust")
+    p.add_argument("token_id", type=int)
+    p.add_argument("level", choices=["probation", "normal", "reputable", "trusted", "banned"])
+    p.add_argument("--reason", default="")
+    for cmd in ("quarantine", "restore"):
+        p = sub.add_parser(cmd)
+        p.add_argument("token_id", type=int)
+        p.add_argument("--round-id", type=int, default=None)
+        p.add_argument("--reason", default="")
+    p = sub.add_parser("mark-trained")
+    p.add_argument("round_id", type=int)
+    p = sub.add_parser("order-rerun")
+    p.add_argument("unit_id")
+    p.add_argument("--reason", default="")
+    p = sub.add_parser("reissue")
+    p.add_argument("unit_id")
+    p = sub.add_parser("audit")
+    p.add_argument("--action", default=None)
+    p.add_argument("--actor", default=None)
+    p.add_argument("--limit", type=int, default=100)
     p = sub.add_parser("publish")
     p.add_argument("round_json")
     p = sub.add_parser("priority")
@@ -271,12 +331,44 @@ def main():
     p.add_argument("out")
     p.add_argument("--worker-bin", default=None)
     p.add_argument("--wait", action="store_true")
+    p.add_argument("--accepted-only", action="store_true")
     args = ap.parse_args()
     c = client_from(args)
     if args.cmd == "status":
         print(json.dumps(c.call("GET", "/status"), indent=1))
+    elif args.cmd == "leaderboard":
+        print(json.dumps(c.call("GET", "/leaderboard"), indent=1))
     elif args.cmd == "rounds":
         print(json.dumps(c.call("GET", "/rounds"), indent=1))
+    elif args.cmd == "workers":
+        print(json.dumps(c.call("GET", "/admin/workers"), indent=1))
+    elif args.cmd == "inbox":
+        qs = f"?status={args.status}" if args.status else ""
+        print(json.dumps(c.call("GET", f"/admin/inbox{qs}"), indent=1))
+    elif args.cmd == "resolve-inbox":
+        c.call("POST", f"/admin/inbox/{args.item_id}/resolve", {"action": args.action, "reason": args.reason})
+        print(f"SWARM resolved inbox item {args.item_id} ({args.action})")
+    elif args.cmd == "trust":
+        c.call("POST", f"/admin/tokens/{args.token_id}/trust", {"trust": args.level, "reason": args.reason})
+        print(f"SWARM token {args.token_id} -> {args.level}")
+    elif args.cmd in ("quarantine", "restore"):
+        body = {"round_id": args.round_id, "reason": args.reason}
+        print(json.dumps(c.call("POST", f"/admin/tokens/{args.token_id}/{args.cmd}", body), indent=1))
+    elif args.cmd == "mark-trained":
+        c.call("POST", f"/admin/rounds/{args.round_id}/trained", {})
+        print(f"SWARM round {args.round_id} marked trained")
+    elif args.cmd == "order-rerun":
+        print(json.dumps(c.call("POST", f"/admin/units/{args.unit_id}/rerun", {"reason": args.reason}), indent=1))
+    elif args.cmd == "reissue":
+        c.call("POST", f"/admin/units/{args.unit_id}/reissue", {})
+        print(f"SWARM reissued {args.unit_id}")
+    elif args.cmd == "audit":
+        params = [f"limit={args.limit}"]
+        if args.action:
+            params.append(f"action={args.action}")
+        if args.actor:
+            params.append(f"actor={args.actor}")
+        print(json.dumps(c.call("GET", f"/admin/audit?{'&'.join(params)}"), indent=1))
     elif args.cmd == "priority":
         print(json.dumps(c.call("POST", f"/rounds/{args.round_id}/priority", {"priority": args.priority}), indent=1))
     elif args.cmd == "cancel-round":
@@ -297,8 +389,8 @@ def main():
         publish(c, r["project"], r["run"], r["round"], r["units"], r.get("priority", 0))
     elif args.cmd == "pull":
         if args.wait:
-            wait(c, args.round_id)
-        ms = pull(c, args.round_id, args.out, args.worker_bin)
+            wait(c, args.round_id, wait_verify=args.accepted_only)
+        ms = pull_accepted(c, args.round_id, args.out) if args.accepted_only else pull(c, args.round_id, args.out, args.worker_bin)
         print(f"SWARM pulled {len(ms)} units, {sum(len(m['games']) for m in ms.values())} games into {args.out}")
 
 

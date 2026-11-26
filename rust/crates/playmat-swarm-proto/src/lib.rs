@@ -72,6 +72,29 @@ pub struct Opponent {
     pub weight: u64,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum VerifyMode {
+    /// replay every game from its answer log, check uploaded file hashes and outcomes (no search)
+    Replay,
+    /// re-play the unit from scratch, compare every game's log_sha256, steps_sha256 and uploaded file hashes
+    Rerun,
+}
+
+/// Attached to a `UnitKind::Verify` work unit by the coordinator
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct VerifySpec {
+    pub mode: VerifyMode,
+    /// id of the unit being verified
+    pub target_unit: String,
+    /// kind of the unit being verified (so a rerun knows whether to record shards)
+    pub target_kind: UnitKind,
+    /// the original worker's claimed manifest
+    pub manifest: ResultManifest,
+    /// presigned GET URLs for the original worker's uploaded files
+    pub files: BTreeMap<String, String>,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct WorkUnit {
     pub protocol: u32,
@@ -95,10 +118,13 @@ pub struct WorkUnit {
     /// lease deadline (unix seconds) and the unit's cost in credit units
     pub deadline: u64,
     pub cost: f64,
+    /// present when `kind == UnitKind::Verify`
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verify: Option<VerifySpec>,
 }
 
 /// One game of a result
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GameSummary {
     pub deal: u64,
     /// the winning seat, `None` for a draw or a game cut off at the turn cap
@@ -112,6 +138,9 @@ pub struct GameSummary {
     /// every answer of the game (the answer log's length) and the decisions recorded for training
     pub answers: u32,
     pub recorded: u32,
+    /// mean Shannon entropy of recorded policy targets in this game (for per-worker statistical checks)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub policy_entropy: Option<f32>,
     /// sha256 of the game's answer log: two runs of a game made the same decisions when these match
     pub log_sha256: String,
     /// sha256 of the game's recorded training steps (`playmat_ai::play::steps_hash`): and recorded the same data
@@ -249,6 +278,9 @@ pub fn check_unit(u: &WorkUnit) -> Result<(), String> {
     if !u.pins.suite.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
         return Err(format!("suite {:?}: not a suite name", u.pins.suite));
     }
+    if u.kind == UnitKind::Verify && u.verify.is_none() {
+        return Err("verify unit missing verify spec".into());
+    }
     Ok(())
 }
 
@@ -334,6 +366,7 @@ mod tests {
             fast: Some("ismcts:12".into()),
             deadline: 0,
             cost: 1.0,
+            verify: None,
         }
     }
 

@@ -130,6 +130,35 @@ fn resolve(config: &str, nets: &BTreeMap<String, String>) -> Result<Entrant, Str
     entrant(&c)
 }
 
+/// Mean Shannon entropy of recorded policy targets (with > 1 candidate) in a game, for S2 statistical checks.
+fn mean_policy_entropy(steps: &[playmat_ai::selfplay::Step]) -> Option<f32> {
+    let mut sum = 0.0f64;
+    let mut n = 0u64;
+    for s in steps {
+        if s.target.len() <= 1 {
+            continue;
+        }
+        let mut h = 0.0f64;
+        for &p in &s.target {
+            let p = p as f64;
+            if p > 1e-12 {
+                h -= p * p.ln();
+            }
+        }
+        if h.is_finite() {
+            sum += h;
+            n += 1;
+        }
+    }
+    (n > 0).then_some((sum / n as f64) as f32)
+}
+
+struct PlayedRow {
+    summary: GameSummary,
+    log: String,
+    shard: Option<(Vec<playmat_ai::selfplay::Step>, [f32; 2], Value)>,
+}
+
 /// Plays a unit into `out`. `stop` ends it between games (the host stopped being idle): the result is then an error
 pub fn run_unit(
     unit_path: &str,
@@ -150,7 +179,7 @@ pub fn run_unit(
         return Err(format!("the unit wants strict={}, this build is strict={STRICT}: run {build}", unit.pins.strict));
     }
     if unit.kind == UnitKind::SelfplayGpu || unit.kind == UnitKind::Bench || unit.kind == UnitKind::Verify {
-        return Err(format!("{:?} units aren't in S0", unit.kind));
+        return Err(format!("{:?} units can't be run via run-unit", unit.kind));
     }
     let mut nets = BTreeMap::new();
     for n in &unit.nets {
@@ -183,82 +212,88 @@ pub fn run_unit(
     std::fs::copy(unit_path, format!("{out}/unit.json")).map_err(|e| format!("{out}/unit.json: {e}"))?;
     let started = std::time::Instant::now();
     let next = AtomicUsize::new(0);
-    let results: Mutex<Vec<(GameSummary, String)>> = Mutex::new(Vec::new());
+    let results: Mutex<Vec<PlayedRow>> = Mutex::new(Vec::new());
     let failed: Mutex<Vec<u64>> = Mutex::new(Vec::new());
     let games = unit.games as usize;
     std::thread::scope(|s| {
-        for job in 0..jobs.max(1) {
+        for _job in 0..jobs.max(1) {
             let (setup, learner, opponents, weights, next, results, failed, unit) =
                 (&setup, &learner, &opponents, &weights, &next, &results, &failed, &unit);
             let stop = &*stop;
-            s.spawn(move || {
-                let mut shard = recording.then(|| Shard::create(out, &format!("w{job:02}")).expect("shard"));
-                loop {
-                    if stop.load(Ordering::Relaxed) {
-                        break;
-                    }
-                    let g = next.fetch_add(1, Ordering::Relaxed);
-                    if g >= games {
-                        break;
-                    }
-                    let deal = unit.seed as usize + g;
-                    let p = play::pairing(deal, setup.decks.len(), weights);
-                    let opp = opponents[p.opponent].as_ref().unwrap_or(learner);
-                    let mut configs = [opp.config.clone(), opp.config.clone()];
-                    configs[p.me] = learner.config.clone();
-                    let both = opponents[p.opponent].is_none();
-                    let record = [recording && (both || p.me == 0), recording && (both || p.me == 1)];
-                    let run = catch_unwind(AssertUnwindSafe(|| play::play_game(setup, deal, p, configs, record, rec)));
-                    let Ok(Ok(played)) = run else {
-                        failed.lock().unwrap().push(deal as u64);
-                        continue;
-                    };
-                    if let Some(shard) = shard.as_mut() {
-                        let result = match played.winner {
-                            Some(w) => [(w == 0) as u8 as f32, (w == 1) as u8 as f32],
-                            None => [0.5, 0.5],
-                        };
-                        let [a, b] = p.decks;
-                        let info = json!({
-                            "deal": deal, "decks": [setup.decks[a].name, setup.decks[b].name], "learner": p.me,
-                            "opponent": opp.name, "turns": played.turns, "first": p.first, "unit": unit.id,
-                        });
-                        shard.game(deal, unit.round as i32, &played.steps, result, info).expect("write");
-                    }
-                    let summary = GameSummary {
-                        deal: deal as u64,
-                        winner: played.winner.map(|w| w as u8),
-                        learner: p.me as u8,
-                        opponent: p.opponent as u32,
-                        turns: played.turns,
-                        answers: played.log.entries.len() as u32,
-                        recorded: played.steps.len() as u32,
-                        log_sha256: played.log.hash(),
-                        steps_sha256: play::steps_hash(&played.steps),
-                    };
-                    results.lock().unwrap().push((summary, played.log.encode()));
+            s.spawn(move || loop {
+                if stop.load(Ordering::Relaxed) {
+                    break;
                 }
-                if let Some(mut shard) = shard {
-                    shard.flush().expect("flush");
+                let g = next.fetch_add(1, Ordering::Relaxed);
+                if g >= games {
+                    break;
                 }
+                let deal = unit.seed as usize + g;
+                let p = play::pairing(deal, setup.decks.len(), weights);
+                let opp = opponents[p.opponent].as_ref().unwrap_or(learner);
+                let mut configs = [opp.config.clone(), opp.config.clone()];
+                configs[p.me] = learner.config.clone();
+                let both = opponents[p.opponent].is_none();
+                let record = [recording && (both || p.me == 0), recording && (both || p.me == 1)];
+                let run = catch_unwind(AssertUnwindSafe(|| play::play_game(setup, deal, p, configs, record, rec)));
+                let Ok(Ok(played)) = run else {
+                    failed.lock().unwrap().push(deal as u64);
+                    continue;
+                };
+                let summary = GameSummary {
+                    deal: deal as u64,
+                    winner: played.winner.map(|w| w as u8),
+                    learner: p.me as u8,
+                    opponent: p.opponent as u32,
+                    turns: played.turns,
+                    answers: played.log.entries.len() as u32,
+                    recorded: played.steps.len() as u32,
+                    policy_entropy: mean_policy_entropy(&played.steps),
+                    log_sha256: played.log.hash(),
+                    steps_sha256: play::steps_hash(&played.steps),
+                };
+                let shard = if recording {
+                    let result = match played.winner {
+                        Some(w) => [(w == 0) as u8 as f32, (w == 1) as u8 as f32],
+                        None => [0.5, 0.5],
+                    };
+                    let [a, b] = p.decks;
+                    let info = json!({
+                        "deal": deal, "decks": [setup.decks[a].name, setup.decks[b].name], "learner": p.me,
+                        "opponent": opp.name, "turns": played.turns, "first": p.first, "unit": unit.id,
+                    });
+                    Some((played.steps, result, info))
+                } else {
+                    None
+                };
+                results.lock().unwrap().push(PlayedRow { summary, log: played.log.encode(), shard });
             });
         }
     });
     if stop.load(Ordering::Relaxed) {
         return Err("stopped: the host isn't idle".into());
     }
-    if recording {
-        merge_shards(out, jobs.max(1))?;
-    }
     let mut results = results.into_inner().unwrap();
-    results.sort_by_key(|r| r.0.deal);
+    results.sort_by_key(|r| r.summary.deal);
+    // write one shard `w.*` in sorted deal order so shard file hashes are bit-identical at any --jobs count
+    if recording {
+        let mut shard = Shard::create(out, "w").map_err(|e| format!("shard: {e}"))?;
+        for r in &mut results {
+            if let Some((steps, result, info)) = r.shard.take() {
+                shard
+                    .game(r.summary.deal as usize, unit.round as i32, &steps, result, info)
+                    .map_err(|e| format!("shard: {e}"))?;
+            }
+        }
+        shard.flush().map_err(|e| format!("shard flush: {e}"))?;
+    }
     let mut failed = failed.into_inner().unwrap();
     failed.sort();
     let answers_path = format!("{out}/answers.jsonl");
     {
         let mut f = std::io::BufWriter::new(std::fs::File::create(&answers_path).map_err(|e| e.to_string())?);
-        for (s, log) in &results {
-            writeln!(f, "{}", json!({"deal": s.deal, "log_sha256": s.log_sha256, "log": log}))
+        for r in &results {
+            writeln!(f, "{}", json!({"deal": r.summary.deal, "log_sha256": r.summary.log_sha256, "log": r.log}))
                 .map_err(|e| e.to_string())?;
         }
     }
@@ -278,7 +313,7 @@ pub fn run_unit(
         build: option_env!("PLAYMAT_BUILD").unwrap_or("dev").into(),
         class: proto::determinism_class(STRICT),
         nets: unit.nets.iter().map(|n| n.sha256.clone()).collect(),
-        games: results.into_iter().map(|r| r.0).collect(),
+        games: results.into_iter().map(|r| r.summary).collect(),
         failed,
         files,
         elapsed_ms: started.elapsed().as_millis() as u64,
@@ -297,33 +332,49 @@ pub fn run_unit(
     Ok(())
 }
 
-/// Joins the threads' shards `w00`..`wNN` into one shard `w`, in thread order: a unit's upload stays at about 20
-/// files however many threads played it (the coordinator takes at most 64 per unit)
-fn merge_shards(out: &str, jobs: usize) -> Result<(), String> {
-    for col in playmat_ai::selfplay::COLUMNS {
-        let path = format!("{out}/w.{col}");
-        let mut to = std::io::BufWriter::new(std::fs::File::create(&path).map_err(|e| format!("{path}: {e}"))?);
-        for job in 0..jobs {
-            let part = format!("{out}/w{job:02}.{col}");
-            let mut from = std::fs::File::open(&part).map_err(|e| format!("{part}: {e}"))?;
-            std::io::copy(&mut from, &mut to).map_err(|e| format!("{path}: {e}"))?;
-            std::fs::remove_file(&part).map_err(|e| format!("{part}: {e}"))?;
-        }
-        to.flush().map_err(|e| format!("{path}: {e}"))?;
-    }
-    Ok(())
+pub struct VerifyOutcome {
+    pub passed: bool,
+    pub reason: String,
+    pub mismatches: Vec<u64>,
+    pub file_mismatches: Vec<String>,
+    pub elapsed_ms: u64,
 }
 
-fn verify(dir: &str, repo: &str) -> Result<(), String> {
+pub fn verify_detailed(dir: &str, repo: &str) -> Result<VerifyOutcome, String> {
     let unit: WorkUnit = read_json(&format!("{dir}/unit.json"))?;
     proto::check_unit(&unit)?;
     let manifest: ResultManifest = read_json(&format!("{dir}/manifest.json"))?;
     let mut problems: Vec<String> = Vec::new();
+    let mut mismatches: Vec<u64> = Vec::new();
+    let mut file_mismatches: Vec<String> = Vec::new();
     for (name, sha) in &manifest.files {
         if name.contains('/') || name.contains("..") {
             problems.push(format!("{name}: not a plain file name"));
-        } else if sha_file(&format!("{dir}/{name}"))? != *sha {
-            problems.push(format!("{name}: its hash differs from the manifest"));
+            file_mismatches.push(name.clone());
+        } else {
+            match sha_file(&format!("{dir}/{name}")) {
+                Ok(got) if got == *sha => {}
+                Ok(_) => {
+                    problems.push(format!("{name}: its hash differs from the manifest"));
+                    file_mismatches.push(name.clone());
+                }
+                Err(e) => {
+                    problems.push(e);
+                    file_mismatches.push(name.clone());
+                }
+            }
+        }
+    }
+    if unit.kind == UnitKind::Selfplay {
+        let meta_path = format!("{dir}/w.meta.i32");
+        if let Ok(meta) = std::fs::metadata(&meta_path) {
+            let recorded: u64 = manifest.games.iter().map(|g| g.recorded as u64).sum();
+            let want_bytes = recorded * playmat_ai::selfplay::META as u64 * 4;
+            if meta.len() != want_bytes {
+                problems
+                    .push(format!("w.meta.i32: {} bytes, expected {want_bytes} for {recorded} decisions", meta.len()));
+                file_mismatches.push("w.meta.i32".into());
+            }
         }
     }
     let (suite_json, decks) = suite(&unit, repo)?;
@@ -353,22 +404,26 @@ fn verify(dir: &str, repo: &str) -> Result<(), String> {
         let deal = v["deal"].as_u64().ok_or("answers.jsonl: no deal")?;
         let Some(claim) = claimed.get(&deal) else {
             problems.push(format!("deal {deal}: an answer log for a game the manifest doesn't list"));
+            mismatches.push(deal);
             continue;
         };
         let log = match AnswerLog::decode(v["log"].as_str().unwrap_or("")) {
             Ok(l) => l,
             Err(e) => {
                 problems.push(format!("deal {deal}: {e}"));
+                mismatches.push(deal);
                 continue;
             }
         };
         if log.hash() != claim.log_sha256 {
             problems.push(format!("deal {deal}: the log's hash differs from the manifest"));
+            mismatches.push(deal);
             continue;
         }
         let p: Pairing = play::pairing(deal as usize, decks.len(), &weights);
         if p.me as u8 != claim.learner || p.opponent as u32 != claim.opponent {
             problems.push(format!("deal {deal}: the learner's seat or opponent differs from what the deal decides"));
+            mismatches.push(deal);
         }
         answers += log.entries.len();
         match catch_unwind(AssertUnwindSafe(|| play::replay_game(&setup, deal as usize, p, &log))) {
@@ -378,29 +433,49 @@ fn verify(dir: &str, repo: &str) -> Result<(), String> {
                         "deal {deal}: replayed {:?} in {} turns, the manifest says {:?} in {}",
                         r.winner, r.turns, claim.winner, claim.turns
                     ));
+                    mismatches.push(deal);
                 }
             }
-            Ok(Err(e)) => problems.push(e),
-            Err(_) => problems.push(format!("deal {deal}: the replay panicked")),
+            Ok(Err(e)) => {
+                problems.push(e);
+                mismatches.push(deal);
+            }
+            Err(_) => {
+                problems.push(format!("deal {deal}: the replay panicked"));
+                mismatches.push(deal);
+            }
         }
         replayed += 1;
     }
     if replayed != manifest.games.len() {
         problems.push(format!("{} games listed, {replayed} answer logs", manifest.games.len()));
     }
-    println!(
+    let elapsed_ms = started.elapsed().as_millis() as u64;
+    let summary = format!(
         "VERIFY {}: {replayed} games, {answers} answers replayed in {:.2} s; {} problems",
         manifest.unit,
         started.elapsed().as_secs_f64(),
         problems.len()
     );
+    println!("{summary}");
     for p in problems.iter().take(20) {
         println!("  {p}");
     }
-    if problems.is_empty() {
+    let passed = problems.is_empty();
+    let reason = if passed { summary } else { problems.iter().take(5).cloned().collect::<Vec<_>>().join("; ") };
+    mismatches.sort();
+    mismatches.dedup();
+    file_mismatches.sort();
+    file_mismatches.dedup();
+    Ok(VerifyOutcome { passed, reason, mismatches, file_mismatches, elapsed_ms })
+}
+
+fn verify(dir: &str, repo: &str) -> Result<(), String> {
+    let out = verify_detailed(dir, repo)?;
+    if out.passed {
         Ok(())
     } else {
-        Err(format!("{} problems", problems.len()))
+        Err(out.reason)
     }
 }
 
