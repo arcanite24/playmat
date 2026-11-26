@@ -57,7 +57,11 @@ function Segmented<T extends string | number>({ label, value, options, onChange 
 }
 
 /** How the next game against the AI is set up. Changes apply right away and are remembered in this browser. */
-export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpenChange(open: boolean): void }) {
+/**
+ * The AI's settings. `formatDeck`: for Home's Format deck mode, where both decks come from the format's pool and the
+ * game plays the format's rules, so the deck, pool, rules and pod-deck rows are left out (the rest still applies).
+ */
+export function AiSettingsDialog({ open, onOpenChange, formatDeck = false }: { open: boolean; onOpenChange(open: boolean): void; formatDeck?: boolean }) {
   const options = usePlay((state) => state.aiOptions);
   const setOptions = usePlay((state) => state.setAiOptions);
   const decks = useDecks();
@@ -161,6 +165,8 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
           {options.adaptive && <AdaptiveNote open={open} />}
         </section>
 
+        {!formatDeck && (
+          <>
         <section className={styles.row}>
           <h3 className={styles.label}>{t(options.opponents > 1 ? 'ai.deck.first' : 'ai.deck')}</h3>
           <AiDeckPicker
@@ -256,6 +262,8 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
             </div>
           </div>
         </section>
+          </>
+        )}
 
         <section className={styles.row}>
           <h3 className={styles.label}>{t('ai.type')}</h3>
@@ -301,6 +309,7 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
           </p>
         </section>
 
+        {!formatDeck && (
         <section className={styles.row}>
           <h3 className={styles.label}>{t('ai.rules')}</h3>
           <Segmented
@@ -313,6 +322,7 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
             {t(options.rules === 'casual' ? 'ai.rules.casual.detail' : 'ai.rules.deck.detail')}
           </p>
         </section>
+        )}
 
         <section className={styles.row}>
           <h3 className={styles.label}>{t('ai.pod')}</h3>
@@ -322,9 +332,9 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
             options={[{ value: 1 as const, label: t('ai.pod.one') }, { value: 2 as const, label: t('ai.pod.three') }, { value: 3 as const, label: t('ai.pod.four') }]}
             onChange={(opponents) => setOptions({ opponents })}
           />
-          <p className={styles.detail}>{t('ai.pod.detail')}</p>
+          <p className={styles.detail}>{t(formatDeck ? 'ai.pod.formatDeckDetail' : 'ai.pod.detail')}</p>
           {/* the pod's other seats; the first is "First AI's deck" above */}
-          {POD_SEATS.slice(0, options.opponents - 1).map((seat, index) => (
+          {!formatDeck && POD_SEATS.slice(0, options.opponents - 1).map((seat, index) => (
             <div key={seat} className={styles.row}>
               <h4 className={styles.label}>{t(seat)}</h4>
               <AiDeckPicker
@@ -340,7 +350,7 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
               />
             </div>
           ))}
-          {options.opponents > 1 && <p className={styles.detail}>{t('ai.pod.seatDetail')}</p>}
+          {!formatDeck && options.opponents > 1 && <p className={styles.detail}>{t('ai.pod.seatDetail')}</p>}
         </section>
       </div>
     </Dialog>
