@@ -25,8 +25,10 @@ pub const ENT_F: usize = 49;
 pub const GLOB_F_V1: usize = 17 + 22 + 13 + 13;
 /// Legacy v2 global feature width (prefix of `GLOB_F` for backward-compatible `.pmnet` loading)
 pub const GLOB_F_V2: usize = GLOB_F_V1 + 16;
-/// Global features (v2 81 + 8 opponent archetype/decklist conditioning features inferred from public zones)
-pub const GLOB_F: usize = GLOB_F_V2 + 8;
+/// Legacy v3 global feature width (prefix of `GLOB_F` for backward-compatible `.pmnet` loading)
+pub const GLOB_F_V3: usize = GLOB_F_V2 + 8;
+/// Global features (v3 89 + 8 public pass/action-history & tempo features)
+pub const GLOB_F: usize = GLOB_F_V3 + 8;
 /// Width of v3 structured public-belief summary vector (`belief_meta.f16`)
 pub const BELIEF_META_F: usize = 8;
 /// Features per action
@@ -399,6 +401,28 @@ pub fn global(game: &Game, seat: Seat, q: &Query) -> Vec<f32> {
     // Strictly computed from legally visible opponent cards (battlefield, graveyard, stack, face-up exile)
     // so there is zero hidden-information leakage in Bo1, and ready for open-decklist Bo3 conditioning.
     g.extend(opponent_archetype_features(game, seat));
+    debug_assert_eq!(g.len(), GLOB_F_V3);
+
+    // Obs v4 public pass/action-history & tempo features (indices 89..97):
+    // Strictly public game state (zero hidden-information leakage).
+    let opp_untapped = lands(opp, true);
+    let opp_total = lands(opp, false);
+    let opp_draw_go = (game.active != Some(opp)
+        && opp_untapped >= 2.0
+        && them.spells_cast_last_turn == 0
+        && !them.hand.is_empty()) as u8 as f32;
+    let opp_open_frac = if opp_total > 0.0 { opp_untapped / opp_total } else { 0.0 };
+    let tempo_life = (((them.life_lost + them.life_lost_last_turn) - (me.life_lost + me.life_lost_last_turn)) as f32 / 10.0).clamp(-2.0, 2.0);
+    g.extend([
+        (me.spells_cast as f32 / 3.0).min(2.0),
+        (them.spells_cast as f32 / 3.0).min(2.0),
+        (them.spells_cast_last_turn as f32 / 3.0).min(2.0),
+        (them.expended as f32 / 6.0).min(2.0),
+        (me.expended as f32 / 6.0).min(2.0),
+        opp_draw_go,
+        opp_open_frac,
+        tempo_life,
+    ]);
     debug_assert_eq!(g.len(), GLOB_F);
     g
 }
@@ -481,11 +505,11 @@ pub fn opponent_archetype_features(game: &Game, seat: Seat) -> [f32; 8] {
     ]
 }
 
-/// 8-float structured public-belief summary written to v3 shards (`belief_meta.f16`) for Phase 3 ReBeL / GT-CFR:
-/// [opp_unseen_hand/7, opp_untapped_lands/6, opp_W, opp_U, opp_B, opp_R, opp_G, opp_seen_frac]
-pub fn belief_meta(game: &Game, seat: Seat, unseen_hand_count: usize) -> [f32; BELIEF_META_F] {
+/// 8 binary ground-truth hidden-hand threat labels written to v4 shards (`belief_meta.f16`) for training-time
+/// auxiliary supervision ONLY (never passed as input to inference):
+/// [has_counter, has_sweeper, has_spot_removal, has_burn_face, has_combat_trick, has_playable_instant_now, has_creature, has_land]
+pub fn belief_meta(game: &Game, seat: Seat, _unseen_hand_count: usize) -> [f32; BELIEF_META_F] {
     let opp = game.opponent(seat);
-    let opp_mana = untapped_mana_sources(game, opp);
     let opp_untapped_lands = game
         .battlefield
         .iter()
@@ -493,18 +517,40 @@ pub fn belief_meta(game: &Game, seat: Seat, unseen_hand_count: usize) -> [f32; B
             let o = game.obj(**id);
             o.controller == opp && game.has_type(**id, CardType::Land) && !o.tapped
         })
-        .count() as f32;
-    let arch = opponent_archetype_features(game, seat);
-    [
-        (unseen_hand_count as f32 / 7.0).min(2.0),
-        (opp_untapped_lands / 6.0).min(2.0),
-        opp_mana[0],
-        opp_mana[1],
-        opp_mana[2],
-        opp_mana[3],
-        opp_mana[4],
-        arch[7],
-    ]
+        .count();
+    let mut out = [0.0f32; BELIEF_META_F];
+    for &id in game.player(opp).hand.iter() {
+        let def = &game.obj(id).def;
+        if def.types.contains(&CardType::Land) {
+            out[7] = 1.0;
+            continue;
+        }
+        if def.types.contains(&CardType::Creature) {
+            out[6] = 1.0;
+        }
+        let is_instant = def.types.contains(&CardType::Instant)
+            || def.abilities.contains(&AbilityDef::FlashAbility);
+        if is_instant && (def.mana_value() as usize) <= opp_untapped_lands {
+            out[5] = 1.0;
+        }
+        let k = crate::policy::spell_kind(def);
+        if k.sweeper {
+            out[1] = 1.0;
+        }
+        if k.removal {
+            out[2] = 1.0;
+        }
+        if k.face {
+            out[3] = 1.0;
+        }
+        if k.pump {
+            out[4] = 1.0;
+        }
+        if def.spell.rule.to_ascii_lowercase().contains("counter target") {
+            out[0] = 1.0;
+        }
+    }
+    out
 }
 
 /// The objects the seat sees (legacy helper kept for callers): stack, permanents, own hand, playable exile, top-K GY

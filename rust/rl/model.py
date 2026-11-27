@@ -15,7 +15,8 @@ import torch.nn.functional as F
 ENT_F = 49
 GLOB_F_V1 = 65
 GLOB_F_V2 = 81
-GLOB_F = 89
+GLOB_F_V3 = 89
+GLOB_F = 97
 BELIEF_META_F = 8
 ACT_F = 65
 BUCKETS = 4096
@@ -146,6 +147,17 @@ class AuxHead(nn.Module):
         return self.fc2(F.gelu(self.fc1(x)))
 
 
+class ThreatHead(nn.Module):
+    """Training-only 8-target hidden-hand threat BCE auxiliary head for v4 shards (`belief_meta.f16`); never exported."""
+
+    def __init__(self, in_f, out_dim=BELIEF_META_F):
+        super().__init__()
+        self.net = nn.Sequential(nn.Linear(in_f, 128), nn.GELU(), nn.Linear(128, out_dim))
+
+    def forward(self, h):
+        return self.net(h)
+
+
 class ActQHead(nn.Module):
     """Training-only per-action Q-value head for v3 shards (`act_q.f16`); never exported."""
 
@@ -160,6 +172,36 @@ class ActQHead(nn.Module):
 
 def _gelu(x):
     return F.gelu(x, approximate="tanh")
+
+
+
+
+def hl_gauss_targets(z, n_bins=21, sigma_ratio=0.75):
+    """Exact HL-Gauss categorical target distribution over [0, 1] via Gaussian CDF differences (Stop Regressing, ICML 2024)."""
+    edges = torch.linspace(0.0, 1.0, n_bins + 1, device=z.device, dtype=torch.float32)
+    sigma = float(sigma_ratio) / float(n_bins - 1)
+    zc = z.float().clamp(0.0, 1.0).unsqueeze(-1)
+    cdf = 0.5 * (1.0 + torch.erf((edges.unsqueeze(0) - zc) / (sigma * (2.0 ** 0.5))))
+    p = (cdf[..., 1:] - cdf[..., :-1]).clamp(min=0.0)
+    return p / p.sum(dim=-1, keepdim=True).clamp(min=1e-8)
+
+
+def hl_gauss_mean(v_logits):
+    """Expected value in (0, 1) from HL-Gauss categorical value logits [B, K], or sigmoid(v) for scalar [B]."""
+    if v_logits.ndim == 1:
+        return torch.sigmoid(v_logits.float())
+    k = v_logits.shape[-1]
+    centers = torch.linspace(0.0, 1.0, k, device=v_logits.device, dtype=torch.float32)
+    probs = F.softmax(v_logits.float(), dim=-1)
+    return (probs * centers).sum(dim=-1)
+
+
+def hl_gauss_to_logit(v_logits):
+    """Converts HL-Gauss [B, K] value logits to equivalent scalar logit ln(mu/(1-mu)) for Rust/infer_server."""
+    if v_logits.ndim == 1:
+        return v_logits.float()
+    mu = hl_gauss_mean(v_logits).clamp(1e-5, 1.0 - 1e-5)
+    return torch.log(mu / (1.0 - mu))
 
 
 class Tx(nn.Module):
@@ -183,6 +225,7 @@ class Tx(nn.Module):
         trunk=128,
         text=0,
         val_mlp=0,
+        val_bins=1,
         gelu=0,
         glob_f=GLOB_F_V1,
         rel=0,
@@ -195,6 +238,8 @@ class Tx(nn.Module):
             self.cfg["text"] = int(text)
         if val_mlp:
             self.cfg["val_mlp"] = 1
+        if int(val_bins) > 1:
+            self.cfg["val_bins"] = int(val_bins)
         if gelu:
             self.cfg["gelu"] = 1
         if int(glob_f) != GLOB_F_V1:
@@ -207,6 +252,7 @@ class Tx(nn.Module):
         self.d = d
         self.glob_f = int(glob_f)
         self.val_mlp = bool(val_mlp)
+        self.val_bins = int(val_bins)
         self.use_gelu = bool(gelu)
         self.use_rel = bool(rel)
         self.act_ent = bool(act_ent)
@@ -228,7 +274,7 @@ class Tx(nn.Module):
             self.val_ln = nn.LayerNorm(v_in)
             self.val_fc1 = nn.Linear(v_in, trunk)
             self.val_drop = nn.Dropout(0.3)
-            self.val_fc2 = nn.Linear(trunk, 1)
+            self.val_fc2 = nn.Linear(trunk, self.val_bins)
             self.value = None
         else:
             self.value = nn.Linear(trunk, 1)
@@ -324,7 +370,8 @@ class Tx(nn.Module):
         if self.val_mlp:
             vf = vfeat.detach() if detach_val else vfeat
             vh = self.val_drop(self._act(self.val_fc1(self.val_ln(vf))))
-            v = self.val_fc2(vh).squeeze(-1)
+            v_raw = self.val_fc2(vh)
+            v = v_raw.squeeze(-1) if self.val_bins == 1 else v_raw
         else:
             v = self.value(h.detach() if detach_val else h).squeeze(-1)
         if self.act_ent:
@@ -376,7 +423,7 @@ def save_dir(net, d):
     json.dump(arch_of(net), open(f"{d}/arch.json", "w"))
 
 
-def load_dir(d, dev, upgrade_val_mlp=False, drop=0.0, upgrade_glob_f=0):
+def load_dir(d, dev, upgrade_val_mlp=False, drop=0.0, upgrade_glob_f=0, upgrade_val_bins=0):
     """The network in run folder `d` (arch.json says which; the first network without one)"""
     import os
     spec = json.load(open(f"{d}/arch.json")) if os.path.exists(f"{d}/arch.json") else {"arch": "mlp"}
@@ -384,6 +431,11 @@ def load_dir(d, dev, upgrade_val_mlp=False, drop=0.0, upgrade_glob_f=0):
     if upgrade_val_mlp and spec.get("arch") == "tx" and not spec.get("val_mlp"):
         spec["val_mlp"] = 1
         upgraded = True
+    upgraded_vb = False
+    if upgrade_val_bins and int(upgrade_val_bins) > 1 and spec.get("arch") == "tx" and int(spec.get("val_bins", 1)) != int(upgrade_val_bins):
+        spec["val_mlp"] = 1
+        spec["val_bins"] = int(upgrade_val_bins)
+        upgraded_vb = True
     old_gf = int(spec.get("glob_f", GLOB_F_V1))
     delta_gf = 0
     if upgrade_glob_f and spec.get("arch") == "tx" and int(upgrade_glob_f) > old_gf:
@@ -404,8 +456,8 @@ def load_dir(d, dev, upgrade_val_mlp=False, drop=0.0, upgrade_glob_f=0):
             sd["val_ln.weight"] = F.pad(sd["val_ln.weight"], (0, delta_gf), value=1.0)
         if "val_ln.bias" in sd and sd["val_ln.bias"].shape[0] + delta_gf == net.val_ln.bias.shape[0]:
             sd["val_ln.bias"] = F.pad(sd["val_ln.bias"], (0, delta_gf), value=0.0)
-    if upgraded:
-        sd = {k: v for k, v in sd.items() if not k.startswith("value.")}
+    if upgraded or upgraded_vb:
+        sd = {k: v for k, v in sd.items() if not k.startswith("value.") and (not upgraded_vb or not k.startswith("val_fc2."))}
         net.load_state_dict(sd, strict=False)
     else:
         net.load_state_dict(sd)

@@ -174,7 +174,34 @@ pub(crate) fn sample_games_weighted(
                 .map(|(id, _)| obs::card_id(&root.snapshot.obj(*id).def.name))
                 .collect();
             let z = net.belief(state, &pool);
-            let logit: std::collections::HashMap<u32, f32> = pool.iter().copied().zip(z).collect();
+            let mut logit: std::collections::HashMap<u32, f32> = pool.iter().copied().zip(z).collect();
+            if d.config.belief_pass {
+                // Bayesian pass-likelihood adjustment: if opponent holds >= 2 untapped lands outside their own
+                // main phase, gently upweight instants/flash and downweight payable sorcery-speed creatures.
+                let opp = root.snapshot.opponent(d.seat);
+                let opp_untapped_lands = root.snapshot.battlefield.iter().filter(|id| {
+                    let o = root.snapshot.obj(**id);
+                    o.controller == opp && !o.tapped && root.snapshot.has_type(**id, playmat_engine::card::CardType::Land)
+                }).count();
+                let opp_passed_open = root.snapshot.active != Some(opp) && opp_untapped_lands >= 2;
+                if opp_passed_open {
+                    for (id, _) in unseen(&root.snapshot, d.seat, seen) {
+                        let def = &root.snapshot.obj(id).def;
+                        let cid = obs::card_id(&def.name);
+                        let is_instant = def.types.contains(&playmat_engine::card::CardType::Instant)
+                            || def.abilities.contains(&playmat_engine::card::AbilityDef::FlashAbility);
+                        let is_creature = def.types.contains(&playmat_engine::card::CardType::Creature) && !is_instant;
+                        let mv = def.mana_value() as usize;
+                        if let Some(v) = logit.get_mut(&cid) {
+                            if is_instant && mv <= opp_untapped_lands {
+                                *v += 0.30;
+                            } else if is_creature && mv > 0 && mv <= opp_untapped_lands {
+                                *v -= 0.20;
+                            }
+                        }
+                    }
+                }
+            }
             let n_draw = if d.config.belief_ms { eff_k * 6 } else { eff_k * 3 };
             let mut drawn: Vec<(f32, Game)> = (0..n_draw)
                 .map(|j| {

@@ -12,7 +12,7 @@
 //!   2-layer value head reading `[t0, mean_ent, max_ent, glob]`, and `gelu=1` tanh-approx GELU).
 
 use crate::fm::Fm;
-use crate::obs::{self, Obs, ACT_F, ENT_F, GLOB_F, GLOB_F_V1, GLOB_F_V2, NO_ENT, NUM_REL_TYPES};
+use crate::obs::{self, Obs, ACT_F, ENT_F, GLOB_F, GLOB_F_V1, GLOB_F_V2, GLOB_F_V3, NO_ENT, NUM_REL_TYPES};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::{Read, Write};
@@ -313,7 +313,7 @@ impl Mlp {
         let (es, emb) = tensors.remove("emb.weight").ok_or("no emb.weight")?;
         let dim = es[1];
         if ent1.inp != dim + ENT_F
-            || (glob1.inp != GLOB_F && glob1.inp != GLOB_F_V2 && glob1.inp != GLOB_F_V1)
+            || (glob1.inp != GLOB_F && glob1.inp != GLOB_F_V3 && glob1.inp != GLOB_F_V2 && glob1.inp != GLOB_F_V1)
             || act1.inp != dim + ACT_F
         {
             return Err(format!(
@@ -711,7 +711,7 @@ impl Tx {
         };
         let want_act = net.dim + ACT_F + if net.act_ent { net.d } else { 0 };
         if net.ent_in.inp != net.dim + ENT_F
-            || (net.glob_f != GLOB_F && net.glob_f != GLOB_F_V2 && net.glob_f != GLOB_F_V1)
+            || (net.glob_f != GLOB_F && net.glob_f != GLOB_F_V3 && net.glob_f != GLOB_F_V2 && net.glob_f != GLOB_F_V1)
             || net.act_in.inp != want_act
         {
             return Err(format!("{name}: made for other features than this build's"));
@@ -847,7 +847,18 @@ impl Tx {
             vm.ln.apply_slice(&ws.tmp2, &mut ws.tmp3);
             vm.fc1.apply_act(&ws.tmp3, &mut ws.tmp1, true, self.gelu);
             vm.fc2.apply_act(&ws.tmp1, &mut ws.tmp2, false, false);
-            ws.tmp2[0]
+            if vm.fc2.out > 1 {
+                let probs = softmax(&ws.tmp2[..vm.fc2.out], 1.0);
+                let denom = (vm.fc2.out - 1) as f32;
+                let mut mu = 0.0f32;
+                for (i, &p) in probs.iter().enumerate() {
+                    mu += p * (i as f32 / denom);
+                }
+                let mu_c = mu.clamp(1e-5, 1.0 - 1e-5);
+                (mu_c / (1.0 - mu_c)).ln()
+            } else {
+                ws.tmp2[0]
+            }
         } else {
             self.value.as_ref().unwrap().apply_act(&h, &mut ws.tmp2, false, false);
             ws.tmp2[0]

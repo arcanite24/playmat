@@ -24,7 +24,7 @@ try:
     from model import ACT_F, BELIEF_META_F, ENT_F, GLOB_F, GLOB_F_V1, GLOB_F_V2, NO_ENT
 except ImportError:
     torch = None
-    ENT_F, GLOB_F_V1, GLOB_F_V2, GLOB_F, ACT_F, NO_ENT, BELIEF_META_F = 49, 65, 81, 89, 65, 255, 8
+    ENT_F, GLOB_F_V1, GLOB_F_V2, GLOB_F_V3, GLOB_F, ACT_F, NO_ENT, BELIEF_META_F = 49, 65, 81, 89, 97, 65, 255, 8
 
 META = 10
 N_ENT, N_ACT, N_HID, N_POOL = 80, 24, 16, 64
@@ -181,7 +181,7 @@ def compact_dir(d, delete_chunks=True, min_shards=4):
                 for ext, cnt, dt, fill in [
                     ("act_q.f16", c_act, np.float16, np.nan),
                     ("act_n.u16", c_act, np.uint16, 0),
-                    ("belief_meta.f16", n * BELIEF_META_F, np.float16, 0.0),
+                    ("belief_meta.f16", n * BELIEF_META_F, np.float16, np.nan),
                 ]:
                     vp = f"{base}.{ext}"
                     if os.path.exists(vp):
@@ -275,8 +275,8 @@ def _read_one_shard(args):
     bmp = base + ".belief_meta.f16"
     d["belief_meta"] = (
         _read(bmp, np.float16, count=n * BELIEF_META_F).reshape(-1, BELIEF_META_F)
-        if os.path.exists(bmp)
-        else np.zeros((n, BELIEF_META_F), dtype=np.float16)
+        if (os.path.exists(bmp) and g_w >= GLOB_F)
+        else np.full((n, BELIEF_META_F), np.nan, dtype=np.float16)
     )
     if load_critic:
         d["hid"] = _read(base + ".hid.f16", np.float16, count=c_hid * ENT_F).reshape(-1, ENT_F)

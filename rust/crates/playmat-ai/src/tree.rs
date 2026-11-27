@@ -123,14 +123,15 @@ fn quiescent(game: &Game) -> bool {
 /// - `cfr_root > 0`: blends expectation with entropic counterfactual certainty equivalent
 ///   `-(1/beta) * ln E_w[exp(-beta * Q(w, a))]` (beta = 3.0, alpha = cfr_root / 1000.0), penalizing
 ///   lines that suffer catastrophic loss in plausible opponent hands while staying exact when worlds agree.
-fn aggregate_world_q(trees: &[Tree], weights: &[f64], i: usize, cfr_root: u32, fallback: f32) -> f32 {
+fn aggregate_world_q(trees: &[Tree], weights: &[f64], i: usize, cfr_root: u32, fallback: f32, solver: bool) -> f32 {
     let mut nw = 0.0f64;
     let mut sw = 0.0f64;
     for (tr, &wt) in trees.iter().zip(weights) {
         let k = &tr.nodes[0].kids[i];
-        if k.n > 0 {
-            nw += wt * k.n as f64;
-            sw += wt * k.w;
+        if let Some(eq) = k.eff_q(solver) {
+            let cnt = k.n.max(1) as f64;
+            nw += wt * cnt;
+            sw += wt * cnt * eq;
         }
     }
     if nw <= 0.0 {
@@ -147,7 +148,7 @@ fn aggregate_world_q(trees: &[Tree], weights: &[f64], i: usize, cfr_root: u32, f
     for (tr, &wt) in trees.iter().zip(weights) {
         let k = &tr.nodes[0].kids[i];
         if k.n > 0 {
-            let qw = k.w / k.n as f64;
+            let qw = k.eff_q(solver).unwrap_or(k.w / k.n as f64);
             wt_sum += wt;
             exp_sum += wt * (-beta * qw).sexp();
         }
@@ -245,6 +246,25 @@ pub struct Kid {
     /// summed value from the view of the node's seat
     pub w: f64,
     pub node: Option<usize>,
+    /// MCTS-Solver proven outcome from node's seat (+1 win, -1 loss, 0 unknown)
+    pub proven: i8,
+    pub proven_dt: u8,
+}
+
+impl Kid {
+    #[inline]
+    fn new(answer: Answer, prior: f32) -> Kid {
+        Kid { answer, prior, n: 0, w: 0.0, node: None, proven: 0, proven_dt: 0 }
+    }
+
+    #[inline]
+    fn eff_q(&self, solver: bool) -> Option<f64> {
+        if solver && self.proven != 0 {
+            let dt = self.proven_dt.min(4) as f64;
+            return Some(if self.proven > 0 { 1.0 - 0.004 * dt } else { 0.004 * dt });
+        }
+        if self.n > 0 { Some(self.w / self.n as f64) } else { None }
+    }
 }
 
 pub struct Node {
@@ -252,6 +272,16 @@ pub struct Node {
     pub hash: u64,
     pub kids: Vec<Kid>,
     pub n: u32,
+    pub v_eval: f32,
+    pub proven: i8,
+    pub proven_dt: u8,
+}
+
+impl Node {
+    #[inline]
+    fn empty(seat: Seat) -> Node {
+        Node { seat, hash: 0, kids: Vec::new(), n: 0, v_eval: 0.5, proven: 0, proven_dt: 0 }
+    }
 }
 
 #[derive(Default)]
@@ -266,7 +296,7 @@ impl Tree {
         let mut map = vec![usize::MAX; self.nodes.len()];
         let mut stack = vec![root_idx];
         map[root_idx] = 0;
-        out.push(Node { seat: 0, hash: 0, kids: Vec::new(), n: 0 });
+        out.push(Node::empty(0));
         while let Some(old_i) = stack.pop() {
             let new_i = map[old_i];
             let src = &self.nodes[old_i];
@@ -276,14 +306,14 @@ impl Tree {
                     if map[c] == usize::MAX {
                         let ni = out.len();
                         map[c] = ni;
-                        out.push(Node { seat: 0, hash: 0, kids: Vec::new(), n: 0 });
+                        out.push(Node::empty(0));
                         stack.push(c);
                     }
                     map[c]
                 });
-                kids.push(Kid { answer: k.answer.clone(), prior: k.prior, n: k.n, w: k.w, node: child });
+                kids.push(Kid { answer: k.answer.clone(), prior: k.prior, n: k.n, w: k.w, node: child, proven: k.proven, proven_dt: k.proven_dt });
             }
-            out[new_i] = Node { seat: src.seat, hash: src.hash, kids, n: src.n };
+            out[new_i] = Node { seat: src.seat, hash: src.hash, kids, n: src.n, v_eval: src.v_eval, proven: src.proven, proven_dt: src.proven_dt };
         }
         Tree { nodes: out }
     }
@@ -330,9 +360,9 @@ impl Tree {
                 let keep_n = old.n.min(4);
                 let keep_w = if old.n > 0 { old.w * (keep_n as f64 / old.n as f64) } else { 0.0 };
                 new_n += keep_n;
-                new_kids.push(Kid { answer: ans.clone(), prior: p, n: keep_n, w: keep_w, node: old.node });
+                new_kids.push(Kid { answer: ans.clone(), prior: p, n: keep_n, w: keep_w, node: old.node, proven: 0, proven_dt: 0 });
             } else {
-                new_kids.push(Kid { answer: ans.clone(), prior: p, n: 0, w: 0.0, node: None });
+                new_kids.push(Kid::new(ans.clone(), p));
             }
         }
         sub.nodes[0].kids = new_kids;
@@ -365,6 +395,12 @@ pub struct Walk {
     vloss_applied: bool,
     pending_expand: Option<(usize, Seat, u64, Vec<Answer>, crate::obs::Obs)>,
     pending_quiesce: Option<(Seat, crate::obs::Obs)>,
+    solver: bool,
+    fpu_vnode: bool,
+    cpuct_dyn: bool,
+    /// True once the walk exits the minimax tree (e.g. quiesce / quick-answer rollout);
+    /// only in-tree terminal states (!left_tree) are sound for exact MCTS-Solver proofs.
+    left_tree: bool,
 }
 
 impl Walk {
@@ -399,7 +435,18 @@ impl Walk {
             vloss_applied: false,
             pending_expand: None,
             pending_quiesce: None,
+            solver: false,
+            fpu_vnode: false,
+            cpuct_dyn: false,
+            left_tree: false,
         }
+    }
+
+    fn with_opts(mut self, cfg: &Config) -> Self {
+        self.solver = cfg.solver;
+        self.fpu_vnode = cfg.fpu_vnode;
+        self.cpuct_dyn = cfg.cpuct_dyn;
+        self
     }
 
     fn apply_vloss(&mut self) {
@@ -443,6 +490,7 @@ impl Walk {
                 self.quiesce = false;
                 return None;
             }
+            self.left_tree = true;
             if self.quiesce_net && !skipped(q) {
                 let options = candidates(game, seat, q, quick, self.width);
                 if options.len() >= 2 {
@@ -467,7 +515,7 @@ impl Walk {
                         Some(c) => c,
                         None => {
                             let c = self.tree.nodes.len();
-                            self.tree.nodes.push(Node { seat, hash: 0, kids: Vec::new(), n: 0 });
+                            self.tree.nodes.push(Node::empty(seat));
                             self.tree.nodes[0].kids[i].node = Some(c);
                             c
                         }
@@ -486,6 +534,7 @@ impl Walk {
         if self.tree.nodes[at].kids.is_empty() {
             if self.expanded {
                 self.at = None;
+                self.left_tree = true;
                 return None;
             }
             let obs = crate::obs::observe(game, seat, q, &options);
@@ -496,11 +545,12 @@ impl Walk {
                     let node = &mut self.tree.nodes[at];
                     node.seat = seat;
                     node.hash = h_state;
+                    node.v_eval = leaf_v as f32;
                     node.kids = options
                         .iter()
                         .cloned()
                         .zip(p.iter().copied())
-                        .map(|(answer, prior)| Kid { answer, prior, n: 0, w: 0.0, node: None })
+                        .map(|(answer, prior)| Kid::new(answer, prior))
                         .collect();
                 } else {
                     self.pending_expand = Some((at, seat, h_state, options, obs));
@@ -512,6 +562,7 @@ impl Walk {
                 } else {
                     self.leaf_value = None;
                     self.quiesce = true;
+                    self.left_tree = true;
                 }
                 return None;
             }
@@ -520,11 +571,12 @@ impl Walk {
             let node = &mut self.tree.nodes[at];
             node.seat = seat;
             node.hash = h_state;
+            node.v_eval = leaf_v as f32;
             node.kids = options
                 .iter()
                 .cloned()
                 .zip(p.iter().copied())
-                .map(|(answer, prior)| Kid { answer, prior, n: 0, w: 0.0, node: None })
+                .map(|(answer, prior)| Kid::new(answer, prior))
                 .collect();
             self.expanded = true;
             if self.pure_leaf {
@@ -535,23 +587,36 @@ impl Walk {
                     // Mid-stack or mid-combat: let quick answers finish resolving the stack/combat before scoring
                     self.leaf_value = None;
                     self.quiesce = true;
+                    self.left_tree = true;
                 }
                 return None;
             }
         } else if self.tree.nodes[at].seat != seat {
             self.at = None;
+            self.left_tree = true;
             return None;
         }
         let node = &self.tree.nodes[at];
         let visited: u32 = node.kids.iter().map(|k| k.n).sum();
         let (wsum, p_vis) =
             node.kids.iter().filter(|k| k.n > 0).fold((0.0f64, 0.0f64), |(w, p), k| (w + k.w, p + k.prior as f64));
-        // FPU reduction (Leela/KataGo): discount unvisited children by sqrt(visited prior mass)
-        let fpu = if visited > 0 { (wsum / visited as f64 - 0.15 * p_vis.sqrt()).clamp(0.02, 0.98) } else { 0.5 };
+        // FPU reduction (Leela/KataGo): optionally anchor to node.v_eval instead of visited-kid average
+        let fpu = if self.fpu_vnode {
+            (node.v_eval as f64 - 0.15 * p_vis.sqrt()).clamp(0.02, 0.98)
+        } else if visited > 0 {
+            (wsum / visited as f64 - 0.15 * p_vis.sqrt()).clamp(0.02, 0.98)
+        } else {
+            0.5
+        };
+        let eff_cpuct = if self.cpuct_dyn {
+            self.cpuct as f64 * (1.0 + ((node.n as f64 + 197.0) / 196.0).sln())
+        } else {
+            self.cpuct as f64
+        };
         let sq = ((node.n + 1) as f64).sqrt();
         let score = |k: &Kid| {
-            let q = if k.n > 0 { k.w / k.n as f64 } else { fpu };
-            q + self.cpuct as f64 * k.prior as f64 * sq / (1.0 + k.n as f64)
+            let q = k.eff_q(self.solver).unwrap_or(fpu);
+            q + eff_cpuct * k.prior as f64 * sq / (1.0 + k.n as f64)
         };
         let best = node
             .kids
@@ -563,13 +628,14 @@ impl Walk {
             .map(|(i, _)| i);
         let Some(i) = best else {
             self.at = None;
+            self.left_tree = true;
             return None;
         };
         let child = match self.tree.nodes[at].kids[i].node {
             Some(c) => c,
             None => {
                 let c = self.tree.nodes.len();
-                self.tree.nodes.push(Node { seat, hash: 0, kids: Vec::new(), n: 0 });
+                self.tree.nodes.push(Node::empty(seat));
                 self.tree.nodes[at].kids[i].node = Some(c);
                 c
             }
@@ -579,44 +645,107 @@ impl Walk {
         Some(self.tree.nodes[at].kids[i].answer.clone())
     }
 
-    /// `v` is the iteration's value for `seat` (0..1)
-    fn backup(&mut self, v: f64, seat: Seat) {
-        for &(n, k) in &self.path {
-            let node = &mut self.tree.nodes[n];
-            let mine = if node.seat == seat { v } else { 1.0 - v };
-            node.n += 1;
-            node.kids[k].n += 1;
-            node.kids[k].w += mine;
+    /// `v` is the iteration's value for `seat` (0..1), with optional exact terminal proven outcome.
+    fn backup(&mut self, v: f64, seat: Seat, term_proven: i8, term_dt: u8) {
+        backup_path(&mut self.tree.nodes, &self.path, v, seat, term_proven, term_dt, self.solver);
+    }
+}
+
+fn backup_path(
+    nodes: &mut [Node],
+    path: &[(usize, usize)],
+    v: f64,
+    seat: Seat,
+    term_proven: i8,
+    term_dt: u8,
+    solver: bool,
+) {
+    let mut cur_p = if solver { term_proven } else { 0 };
+    let mut cur_dt = term_dt;
+    let mut cur_seat = seat;
+    for &(n, k) in path.iter().rev() {
+        let node = &mut nodes[n];
+        let mine = if node.seat == seat { v } else { 1.0 - v };
+        node.n += 1;
+        node.kids[k].n += 1;
+        node.kids[k].w += mine;
+        if cur_p != 0 {
+            let kp = if node.seat == cur_seat { cur_p } else { -cur_p };
+            let kid = &mut node.kids[k];
+            if kid.proven == 0 {
+                kid.proven = kp;
+                kid.proven_dt = cur_dt;
+            } else if kid.proven == kp {
+                if kp > 0 {
+                    kid.proven_dt = kid.proven_dt.min(cur_dt);
+                } else {
+                    kid.proven_dt = kid.proven_dt.max(cur_dt);
+                }
+            }
+            // Propagate exact minimax bounds upward: ANY winning kid => winning node; ALL losing kids => losing node
+            let mut best_win: Option<u8> = None;
+            let mut all_lose = !node.kids.is_empty();
+            let mut worst_lose: u8 = 0;
+            for kk in &node.kids {
+                if kk.proven > 0 {
+                    best_win = Some(best_win.map_or(kk.proven_dt, |b| b.min(kk.proven_dt)));
+                    all_lose = false;
+                } else if kk.proven < 0 {
+                    worst_lose = worst_lose.max(kk.proven_dt);
+                } else {
+                    all_lose = false;
+                }
+            }
+            if let Some(wdt) = best_win {
+                node.proven = 1;
+                node.proven_dt = wdt;
+                cur_p = 1;
+                cur_dt = wdt;
+                cur_seat = node.seat;
+            } else if all_lose {
+                node.proven = -1;
+                node.proven_dt = worst_lose;
+                cur_p = -1;
+                cur_dt = worst_lose;
+                cur_seat = node.seat;
+            } else {
+                cur_p = 0;
+            }
         }
     }
 }
 
-fn eval_iteration(game: &Game, walk: &Walk, seat: Seat, root_turn: u32, base: i64, cfg: &Config, net: &Net) -> f64 {
+fn eval_iteration(game: &Game, walk: &Walk, seat: Seat, root_turn: u32, base: i64, cfg: &Config, net: &Net) -> (f64, i8, u8) {
     let over = crate::eval::evaluate(game, seat);
     // Fastest-win / longest-survival discipline: immediate lethal (1.000) beats slow wins (0.996..0.984)
     // while staying strictly separated from non-terminal clamped leaves [0.020, 0.980].
-    let dt = game.turn.saturating_sub(root_turn).min(4) as f64;
+    let dt_u = game.turn.saturating_sub(root_turn).min(4) as u8;
+    let dt = dt_u as f64;
     if over >= crate::eval::WIN {
-        return 1.0 - 0.004 * dt;
+        let p = if !walk.left_tree { 1 } else { 0 };
+        return (1.0 - 0.004 * dt, p, dt_u);
     }
     if over <= crate::eval::LOSE {
-        return 0.004 * dt;
+        let p = if !walk.left_tree { -1 } else { 0 };
+        return (0.004 * dt, p, dt_u);
     }
     if cfg.leaf_blend >= 1000 {
-        if let Some((ls, lv)) = walk.leaf_value {
-            return if ls == seat { lv } else { 1.0 - lv };
-        }
-        return walk.cache.quiesce_value(net, game, seat);
+        let v = if let Some((ls, lv)) = walk.leaf_value {
+            if ls == seat { lv } else { 1.0 - lv }
+        } else {
+            walk.cache.quiesce_value(net, game, seat)
+        };
+        return (v, 0, 0);
     }
     let roll_v = crate::eval::value_with(game, seat, base, cfg);
     if cfg.leaf_blend > 0 {
         if let Some((ls, lv)) = walk.leaf_value {
             let lv_root = if ls == seat { lv } else { 1.0 - lv };
             let a = cfg.leaf_blend as f64 / 1000.0;
-            return a * lv_root + (1.0 - a) * roll_v;
+            return (a * lv_root + (1.0 - a) * roll_v, 0, 0);
         }
     }
-    roll_v
+    (roll_v, 0, 0)
 }
 
 /// Runs one synchronous Virtual-Loss wave across `trees` (up to `picks.len()` walks per tree), coalescing ALL
@@ -635,6 +764,7 @@ fn run_vloss_wave(
     stop: u32,
     cpuct: f32,
     tree_width: usize,
+    cfg: &Config,
 ) -> u64 {
     /// A leaf to expand once its batch is evaluated: node, seat, hash, options, the batch index and the cache key
     type Expand = (usize, Seat, u64, Vec<Answer>, usize, (u64, u64));
@@ -645,6 +775,7 @@ fn run_vloss_wave(
         leaf_value: Option<(Seat, f64)>,
         expand_idx: Option<Expand>,
         quiesce_idx: Option<(Seat, usize, (u64, u64))>,
+        left_tree: bool,
     }
 
     let mut obs_batch: Vec<crate::obs::Obs> = Vec::new();
@@ -655,7 +786,8 @@ fn run_vloss_wave(
         let mut cur_tree = std::mem::take(tr);
         for &ci in picks {
             let mut walk =
-                Walk::new(cur_tree, Arc::clone(net), Arc::clone(cache), cpuct, true, false, tree_width, Some(ci));
+                Walk::new(cur_tree, Arc::clone(net), Arc::clone(cache), cpuct, true, false, tree_width, Some(ci))
+                    .with_opts(cfg);
             walk.defer_eval = true;
             let (res, mut walk) = root.play_tree(world.clone(), walk, per, stop);
             let end_game = match res {
@@ -688,6 +820,7 @@ fn run_vloss_wave(
                 leaf_value: walk.leaf_value,
                 expand_idx,
                 quiesce_idx,
+                left_tree: walk.left_tree,
             });
             cur_tree = walk.tree;
         }
@@ -716,10 +849,11 @@ fn run_vloss_wave(
                 let node = &mut tr.nodes[at];
                 node.seat = es;
                 node.hash = eh;
+                node.v_eval = lv as f32;
                 node.kids = opts
                     .into_iter()
                     .zip(p.iter().copied())
-                    .map(|(answer, prior)| Kid { answer, prior, n: 0, w: 0.0, node: None })
+                    .map(|(answer, prior)| Kid::new(answer, prior))
                     .collect();
             }
             if pw.quiesce_idx.is_none() && leaf_val.is_none() {
@@ -733,27 +867,18 @@ fn run_vloss_wave(
         }
         if let Some(ref g) = pw.end_game {
             let over = crate::eval::evaluate(g, seat);
-            let dt = g.turn.saturating_sub(root_turn).min(4) as f64;
-            let v = if over >= crate::eval::WIN {
-                1.0 - 0.004 * dt
+            let dt_u = g.turn.saturating_sub(root_turn).min(4) as u8;
+            let dt = dt_u as f64;
+            let (v, tp, tdt) = if over >= crate::eval::WIN {
+                (1.0 - 0.004 * dt, if !pw.left_tree { 1 } else { 0 }, dt_u)
             } else if over <= crate::eval::LOSE {
-                0.004 * dt
+                (0.004 * dt, if !pw.left_tree { -1 } else { 0 }, dt_u)
             } else if let Some((ls, lv)) = leaf_val {
-                if ls == seat {
-                    lv
-                } else {
-                    1.0 - lv
-                }
+                (if ls == seat { lv } else { 1.0 - lv }, 0, 0)
             } else {
-                cache.quiesce_value(net, g, seat)
+                (cache.quiesce_value(net, g, seat), 0, 0)
             };
-            for &(n, k) in &pw.path {
-                let node = &mut tr.nodes[n];
-                let mine = if node.seat == seat { v } else { 1.0 - v };
-                node.n += 1;
-                node.kids[k].n += 1;
-                node.kids[k].w += mine;
-            }
+            backup_path(&mut tr.nodes, &pw.path, v, seat, tp, tdt, cfg.solver);
         }
     }
     nodes
@@ -832,11 +957,18 @@ impl DecisionPolicy for Ismcts {
             let n = d.candidates.len();
             // Clamped log-prior prevents an over-sharpened prior (-15 logits) from drowning out a proven search win
             let logp: Vec<f32> = prior.iter().map(|&p| p.max(1e-3).sln()).collect();
+            let sel_logp: Vec<f32> = if temp > 0 && cfg.forced_k > 0 && n > 1 {
+                let eps = (cfg.forced_k as f32 / 10000.0).clamp(0.005, 0.08);
+                let uni = 1.0 / n as f32;
+                prior.iter().map(|&p| ((1.0 - eps) * p + eps * uni).max(1e-3).sln()).collect()
+            } else {
+                logp.clone()
+            };
             let g: Vec<f32> = (0..n)
                 .map(|_| if temp == 0 { 0.0 } else { -(-(uniform(&mut self.rng).max(1e-9)).sln()).sln() })
                 .collect();
             let mut alive: Vec<usize> = (0..n).collect();
-            alive.sort_by(|a, b| (g[*b] + logp[*b]).total_cmp(&(g[*a] + logp[*a])));
+            alive.sort_by(|a, b| (g[*b] + sel_logp[*b]).total_cmp(&(g[*a] + sel_logp[*a])));
             alive.truncate(cfg.consider.max(2).min(n));
 
             let cur_hash = state_hash(d.game, d.seat, d.query);
@@ -860,9 +992,9 @@ impl DecisionPolicy for Ismcts {
                             .iter()
                             .cloned()
                             .zip(prior.iter().copied())
-                            .map(|(answer, prior)| Kid { answer, prior, n: 0, w: 0.0, node: None })
+                            .map(|(answer, prior)| Kid::new(answer, prior))
                             .collect();
-                        Tree { nodes: vec![Node { seat: d.seat, hash: cur_hash, kids, n: 0 }] }
+                        Tree { nodes: vec![Node { seat: d.seat, hash: cur_hash, kids, n: 0, v_eval: v_prior as f32, proven: 0, proven_dt: 0 }] }
                     })
                     .collect();
                 let mut nodes = 0u64;
@@ -901,6 +1033,7 @@ impl DecisionPolicy for Ismcts {
                                 stop,
                                 cpuct,
                                 tree_width,
+                                d.config,
                             );
                         }
                     } else if n_threads <= 1 {
@@ -930,13 +1063,14 @@ impl DecisionPolicy for Ismcts {
                                         quiesce_net,
                                         tree_width,
                                         Some(ci),
-                                    );
+                                    )
+                                    .with_opts(cfg);
                                     let (res, mut walk) = root.play_tree(world.clone(), walk, per, stop);
                                     match res {
                                         Ok(o) => {
                                             nodes += o.nodes.max(1);
-                                            let v = eval_iteration(&o.game, &walk, seat, root_turn, base, cfg, &net);
-                                            walk.backup(v, seat);
+                                            let (v, tp, tdt) = eval_iteration(&o.game, &walk, seat, root_turn, base, cfg, &net);
+                                            walk.backup(v, seat, tp, tdt);
                                         }
                                         Err(x) => nodes += x.max(1),
                                     }
@@ -984,16 +1118,17 @@ impl DecisionPolicy for Ismcts {
                                                     quiesce_net,
                                                     tree_width,
                                                     Some(ci),
-                                                );
+                                                )
+                                                .with_opts(cfg);
                                                 let (res, mut walk) =
                                                     root_local.play_tree(world.clone(), walk, per, stop);
                                                 match res {
                                                     Ok(o) => {
                                                         local_nodes += o.nodes.max(1);
-                                                        let v = eval_iteration(
+                                                        let (v, tp, tdt) = eval_iteration(
                                                             &o.game, &walk, seat, root_turn, base, cfg, net_ref,
                                                         );
-                                                        walk.backup(v, seat);
+                                                        walk.backup(v, seat, tp, tdt);
                                                     }
                                                     Err(x) => local_nodes += x.max(1),
                                                 }
@@ -1025,7 +1160,7 @@ impl DecisionPolicy for Ismcts {
                     };
                     let most = agg_n.iter().copied().max().unwrap_or(0) as usize;
                     let key = |i: usize| {
-                        let q = aggregate_world_q(&trees, &eff_w, i, cfg.cfr_root, v_prior as f32);
+                        let q = aggregate_world_q(&trees, &eff_w, i, cfg.cfr_root, v_prior as f32, cfg.solver);
                         g[i] + logp[i] + sigma_gumbel(q, most, c_scale)
                     };
                     alive.sort_by(|a, b| key(*b).total_cmp(&key(*a)));
@@ -1052,7 +1187,7 @@ impl DecisionPolicy for Ismcts {
                     if cfg.rm_root { tilted_world_weights(&trees, &weights, &alive, &prior) } else { weights.clone() };
                 let most = agg_n.iter().copied().max().unwrap_or(0) as usize;
                 let key = |i: usize| {
-                    let q = aggregate_world_q(&trees, &eff_w, i, cfg.cfr_root, v_prior as f32);
+                    let q = aggregate_world_q(&trees, &eff_w, i, cfg.cfr_root, v_prior as f32, cfg.solver);
                     g[i] + logp[i] + sigma_gumbel(q, most, c_scale)
                 };
                 alive.sort_by(|a, b| key(*b).total_cmp(&key(*a)));
@@ -1072,7 +1207,7 @@ impl DecisionPolicy for Ismcts {
                 };
                 let improved: Vec<f32> = (0..n)
                     .map(|i| {
-                        let q = aggregate_world_q(&trees, &weights, i, cfg.cfr_root, v_mix as f32);
+                        let q = aggregate_world_q(&trees, &weights, i, cfg.cfr_root, v_mix as f32, cfg.solver);
                         logp[i] + sigma_gumbel(q, most, c_scale)
                     })
                     .collect();
@@ -1113,9 +1248,9 @@ impl DecisionPolicy for Ismcts {
                         .iter()
                         .cloned()
                         .zip(prior.iter().copied())
-                        .map(|(answer, prior)| Kid { answer, prior, n: 0, w: 0.0, node: None })
+                        .map(|(answer, prior)| Kid::new(answer, prior))
                         .collect();
-                    Tree { nodes: vec![Node { seat: d.seat, hash: cur_hash, kids, n: 0 }] }
+                    Tree { nodes: vec![Node { seat: d.seat, hash: cur_hash, kids, n: 0, v_eval: v_prior as f32, proven: 0, proven_dt: 0 }] }
                 });
 
             let mut nodes = 0u64;
@@ -1150,13 +1285,14 @@ impl DecisionPolicy for Ismcts {
                             stop,
                             cpuct,
                             tree_width,
+                            d.config,
                         );
                     }
                     tree = std::mem::take(&mut trees_one[0]);
                     let most = tree.nodes[0].kids.iter().map(|k| k.n).max().unwrap_or(0) as usize;
                     let key = |i: usize| {
                         let k = &tree.nodes[0].kids[i];
-                        let q = if k.n > 0 { (k.w / k.n as f64) as f32 } else { v_prior as f32 };
+                        let q = k.eff_q(cfg.solver).map(|x| x as f32).unwrap_or(v_prior as f32);
                         g[i] + logp[i] + sigma_gumbel(q, most, c_scale)
                     };
                     alive.sort_by(|a, b| key(*b).total_cmp(&key(*a)));
@@ -1193,13 +1329,14 @@ impl DecisionPolicy for Ismcts {
                             quiesce_net,
                             tree_width,
                             Some(ci),
-                        );
+                        )
+                        .with_opts(cfg);
                         let (res, mut walk) = root.play_tree(world.clone(), walk, per, stop);
                         match res {
                             Ok(o) => {
                                 nodes += o.nodes.max(1);
-                                let v = eval_iteration(&o.game, &walk, d.seat, root_turn, base, cfg, &net);
-                                walk.backup(v, d.seat);
+                                let (v, tp, tdt) = eval_iteration(&o.game, &walk, d.seat, root_turn, base, cfg, &net);
+                                walk.backup(v, d.seat, tp, tdt);
                             }
                             Err(x) => nodes += x.max(1),
                         }
@@ -1209,7 +1346,7 @@ impl DecisionPolicy for Ismcts {
                 let most = tree.nodes[0].kids.iter().map(|k| k.n).max().unwrap_or(0) as usize;
                 let key = |i: usize| {
                     let k = &tree.nodes[0].kids[i];
-                    let q = if k.n > 0 { (k.w / k.n as f64) as f32 } else { v_prior as f32 };
+                    let q = k.eff_q(cfg.solver).map(|x| x as f32).unwrap_or(v_prior as f32);
                     g[i] + logp[i] + sigma_gumbel(q, most, c_scale)
                 };
                 alive.sort_by(|a, b| key(*b).total_cmp(&key(*a)));
@@ -1221,7 +1358,7 @@ impl DecisionPolicy for Ismcts {
             let most = tree.nodes[0].kids.iter().map(|k| k.n).max().unwrap_or(0) as usize;
             let key = |i: usize| {
                 let k = &tree.nodes[0].kids[i];
-                let q = if k.n > 0 { (k.w / k.n as f64) as f32 } else { v_prior as f32 };
+                let q = k.eff_q(cfg.solver).map(|x| x as f32).unwrap_or(v_prior as f32);
                 g[i] + logp[i] + sigma_gumbel(q, most, c_scale)
             };
             alive.sort_by(|a, b| key(*b).total_cmp(&key(*a)));
@@ -1245,7 +1382,7 @@ impl DecisionPolicy for Ismcts {
             let improved: Vec<f32> = (0..n)
                 .map(|i| {
                     let k = &root_node.kids[i];
-                    let q = if k.n > 0 { (k.w / k.n as f64) as f32 } else { v_mix as f32 };
+                    let q = k.eff_q(cfg.solver).map(|x| x as f32).unwrap_or(v_mix as f32);
                     logp[i] + sigma_gumbel(q, most, c_scale)
                 })
                 .collect();
@@ -1258,12 +1395,14 @@ impl DecisionPolicy for Ismcts {
                     let k = &root_node.kids[i];
                     let q = if k.n > 0 { (k.w / k.n as f64) as f32 } else { f32::NAN };
                     eprintln!(
-                        "  cand[{i}] {:?} prior={:.4} logp={:.3} n={} q={:.4} key={:.3}",
+                        "  cand[{i}] {:?} prior={:.4} logp={:.3} n={} q={:.4} prov=({},{}) key={:.3}",
                         d.candidates[i],
                         prior[i],
                         logp[i],
                         k.n,
                         q,
+                        k.proven,
+                        k.proven_dt,
                         key(i)
                     );
                 }
@@ -1297,9 +1436,9 @@ impl DecisionPolicy for Ismcts {
                     .iter()
                     .cloned()
                     .zip(root_prior.iter().copied())
-                    .map(|(answer, prior)| Kid { answer, prior, n: 0, w: 0.0, node: None })
+                    .map(|(answer, prior)| Kid::new(answer, prior))
                     .collect();
-                Tree { nodes: vec![Node { seat: d.seat, hash: cur_hash, kids, n: 0 }] }
+                Tree { nodes: vec![Node { seat: d.seat, hash: cur_hash, kids, n: 0, v_eval: v_prior as f32, proven: 0, proven_dt: 0 }] }
             });
         let mut nodes = 0u64;
         let started = (cfg.time_ms > 0).then(std::time::Instant::now);
@@ -1313,19 +1452,53 @@ impl DecisionPolicy for Ismcts {
                 }
             }
             let walk =
-                Walk::new(tree, net.clone(), self.cache.clone(), cpuct, pure_leaf, quiesce_net, tree_width, None);
+                Walk::new(tree, net.clone(), self.cache.clone(), cpuct, pure_leaf, quiesce_net, tree_width, None).with_opts(cfg);
             let (res, mut walk) = root.play_tree(games[it % games.len()].clone(), walk, per, stop);
             match res {
                 Ok(o) => {
                     nodes += o.nodes.max(1);
-                    let v = eval_iteration(&o.game, &walk, d.seat, root_turn, base, cfg, &net);
-                    walk.backup(v, d.seat);
+                    let (v, tp, tdt) = eval_iteration(&o.game, &walk, d.seat, root_turn, base, cfg, &net);
+                    walk.backup(v, d.seat, tp, tdt);
                 }
                 Err(x) => nodes += x.max(1),
             }
             tree = walk.tree;
         }
-        let visits: Vec<f32> = tree.nodes[0].kids.iter().map(|k| k.n as f32).collect();
+        let mut visits: Vec<f32> = tree.nodes[0].kids.iter().map(|k| k.n as f32).collect();
+        // KataGo policy target pruning for PUCT when temp > 0 && forced_k > 0
+        if temp > 0 && cfg.forced_k > 0 && visits.len() > 1 {
+            let best_i = visits
+                .iter()
+                .enumerate()
+                .max_by(|a, b| a.1.total_cmp(b.1))
+                .map(|(i, _)| i)
+                .unwrap_or(0);
+            let root_n = tree.nodes[0].n.max(1) as f64;
+            let best_k = &tree.nodes[0].kids[best_i];
+            let best_q = best_k.eff_q(cfg.solver).unwrap_or(0.5);
+            let best_puct = best_q + cpuct as f64 * best_k.prior as f64 * root_n.sqrt() / (1.0 + best_k.n as f64);
+            let fk = cfg.forced_k as f64 / 100.0;
+            for (i, k) in tree.nodes[0].kids.iter().enumerate() {
+                if i == best_i || k.n == 0 {
+                    continue;
+                }
+                let q = k.eff_q(cfg.solver).unwrap_or(0.5);
+                let forced = (fk * k.prior as f64 * root_n).sqrt().floor() as u32;
+                if q < best_q && forced > 0 {
+                    let mut n_eff = k.n;
+                    let floor_n = k.n.saturating_sub(forced);
+                    while n_eff > floor_n {
+                        let cand_puct = q + cpuct as f64 * k.prior as f64 * root_n.sqrt() / (1.0 + n_eff as f64);
+                        if cand_puct < best_puct {
+                            n_eff -= 1;
+                        } else {
+                            break;
+                        }
+                    }
+                    visits[i] = if n_eff <= 1 && forced >= 1 { 0.0 } else { n_eff as f32 };
+                }
+            }
+        }
         let total: f32 = visits.iter().sum();
         let wsum: f64 = tree.nodes[0].kids.iter().map(|k| k.w).sum();
         self.last = if total > 0.0 {
@@ -1398,8 +1571,11 @@ mod tests {
             nodes: vec![Node {
                 seat: 0,
                 hash: 0,
-                kids: vec![Kid { answer: Answer::Bool(false), prior: 1.0, n: 10, w: 10.0 * q, node: None }],
+                kids: vec![Kid { answer: Answer::Bool(false), prior: 1.0, n: 10, w: 10.0 * q, node: None, proven: 0, proven_dt: 0 }],
                 n: 10,
+                v_eval: q as f32,
+                proven: 0,
+                proven_dt: 0,
             }],
         };
         let trees = vec![mk(0.9), mk(0.1)];

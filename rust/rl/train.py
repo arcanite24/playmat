@@ -19,7 +19,7 @@ import torch
 import torch.nn.functional as F
 
 from data import Data, compact_dir
-from model import ActQHead, AuxHead, Critic, GLOB_F, NO_ENT, Tx, build, export, load_dir, params, save_dir
+from model import ActQHead, AuxHead, Critic, GLOB_F, NO_ENT, ThreatHead, Tx, build, export, hl_gauss_mean, hl_gauss_targets, load_dir, params, save_dir
 
 
 def oracle_batch(b):
@@ -103,6 +103,80 @@ def refit_value(net, critic, data, train_idx, test_idx, dev, bs, report, q_mix=0
     print(f"TRAIN value head refit: held-out log loss {ev['value_logloss']:.4f}", flush=True)
 
 
+
+
+@torch.no_grad()
+def _zeropower_ns5(G, steps=5):
+    """5-step Newton-Schulz polar orthogonalization for Muon (Keller Jordan, 2024)."""
+    a, b, c = 3.4445, -4.7750, 2.0315
+    X = G.bfloat16()
+    transposed = X.size(0) > X.size(1)
+    if transposed:
+        X = X.T
+    X = X / (X.norm() + 1e-7)
+    for _ in range(steps):
+        A = X @ X.T
+        B = b * A + c * (A @ A)
+        X = a * X + B @ X
+    if transposed:
+        X = X.T
+    return X.to(G.dtype)
+
+
+class MuonHybrid(torch.optim.Optimizer):
+    """Muon (Newton-Schulz orthogonalized momentum) on 2D hidden Transformer matrices + AdamW on all other params."""
+
+    def __init__(self, param_groups, momentum=0.95, betas=(0.9, 0.999), eps=1e-8):
+        defaults = dict(lr=1e-3, weight_decay=1e-4, momentum=momentum, betas=betas, eps=eps, is_muon=False)
+        super().__init__(param_groups, defaults)
+
+    @torch.no_grad()
+    def step(self, closure=None):
+        loss = closure() if closure is not None else None
+        for group in self.param_groups:
+            lr = group["lr"]
+            wd = group["weight_decay"]
+            if group.get("is_muon", False):
+                mom = group["momentum"]
+                for p in group["params"]:
+                    if p.grad is None:
+                        continue
+                    g = p.grad
+                    st = self.state[p]
+                    if "buf" not in st:
+                        st["buf"] = torch.zeros_like(g)
+                    buf = st["buf"]
+                    buf.mul_(mom).add_(g)
+                    u = g.add(buf, alpha=mom)  # Nesterov momentum
+                    orth = _zeropower_ns5(u)
+                    scale = max(1.0, p.size(0) / p.size(1)) ** 0.5
+                    if wd > 0:
+                        p.mul_(1.0 - lr * wd)
+                    p.add_(orth, alpha=-lr * scale)
+            else:
+                b1, b2 = group["betas"]
+                eps = group["eps"]
+                for p in group["params"]:
+                    if p.grad is None:
+                        continue
+                    g = p.grad
+                    st = self.state[p]
+                    if "step" not in st:
+                        st["step"] = 0
+                        st["m"] = torch.zeros_like(g)
+                        st["v"] = torch.zeros_like(g)
+                    st["step"] += 1
+                    m, v = st["m"], st["v"]
+                    m.mul_(b1).add_(g, alpha=1.0 - b1)
+                    v.mul_(b2).addcmul_(g, g, value=1.0 - b2)
+                    bc1 = 1.0 - b1 ** st["step"]
+                    bc2 = 1.0 - b2 ** st["step"]
+                    if wd > 0:
+                        p.mul_(1.0 - lr * wd)
+                    p.addcdiv_(m / bc1, (v / bc2).sqrt().add_(eps), value=-lr)
+        return loss
+
+
 def losses(
     net,
     critic,
@@ -118,13 +192,18 @@ def losses(
     oracle_mode=False,
     act_q_head=None,
     act_q_weight=0.0,
+    opt_pol_weight=0.0,
+    threat_head=None,
+    threat_weight=0.0,
 ):
     want_aux = aux_head is not None
+    want_aux_or_threat = want_aux or (threat_head is not None and threat_weight > 0.0)
     want_aq = act_q_head is not None and act_q_weight > 0.0
+    want_threat = threat_head is not None and threat_weight > 0.0
     nb_in = oracle_batch(b) if oracle_mode else b
     if want_aq:
         logits, v, h, vfeat, act_emb = net(nb_in, return_vfeat=True, return_act_emb=True, detach_val=detach_val)
-    elif want_aux:
+    elif want_aux_or_threat:
         logits, v, h, vfeat = net(nb_in, return_vfeat=True, detach_val=detach_val)
         act_emb = None
     else:
@@ -152,7 +231,23 @@ def losses(
         has_q = torch.isfinite(qv)
         qv_safe = torch.nan_to_num(qv, nan=0.5).clamp(0.0, 1.0)
         z_tgt = torch.where(has_q, (1.0 - q_mix) * z_tgt + q_mix * qv_safe, z_tgt)
-    val_per = F.binary_cross_entropy_with_logits(v, z_tgt, reduction="none")
+    if v.ndim == 2:
+        hl_p = hl_gauss_targets(z_tgt, n_bins=v.shape[-1], sigma_ratio=0.75)
+        val_per = -(hl_p * F.log_softmax(v.float(), dim=-1)).sum(-1)
+    else:
+        val_per = F.binary_cross_entropy_with_logits(v, z_tgt, reduction="none")
+    if opt_pol_weight > 0.0 and "qval" in b:
+        qv_o = b["qval"]
+        has_qo = torch.isfinite(qv_o)
+        if has_qo.any():
+            v_est = hl_gauss_mean(v.detach())
+            adv = (torch.nan_to_num(qv_o, nan=0.5).clamp(0.0, 1.0) - v_est).clamp(min=0.0)
+            w_opt = torch.where(has_qo, adv * adv, torch.zeros_like(adv))
+            if pol_min_run > 0:
+                w_opt = w_opt * (b["run"] >= pol_min_run).float()
+            ws_opt = w_opt.sum()
+            if ws_opt > 1e-6:
+                pol = pol + float(opt_pol_weight) * ((pol_per * w_opt).sum() / ws_opt)
     vw = b["val_w"]
     if val_prob < 1.0 and net.training:
         # Subsample ~2-3 decisions per game per epoch so the trunk cannot memorize per-game binary outcomes
@@ -186,6 +281,16 @@ def losses(
                 F.binary_cross_entropy_with_logits(aq_pred, aq_safe, reduction="none") * aq_mask.float()
             ).sum() / aq_mask.float().sum().clamp(min=1)
             aux = aux + float(act_q_weight) * aq_loss
+    if want_threat and "belief_meta" in b:
+        bm = b["belief_meta"]
+        bm_mask = torch.isfinite(bm)
+        if bm_mask.any():
+            th_pred = threat_head(vfeat.detach() if detach_val else vfeat)
+            bm_safe = torch.nan_to_num(bm, nan=0.0).clamp(0.0, 1.0)
+            th_loss = (
+                F.binary_cross_entropy_with_logits(th_pred, bm_safe, reduction="none") * bm_mask.float()
+            ).sum() / bm_mask.float().sum().clamp(min=1)
+            aux = aux + float(threat_weight) * th_loss
 
     right = (logits.argmax(-1) == b["target"].argmax(-1)).float()
     off = (b["target"].argmax(-1) != 0).float()
@@ -225,7 +330,12 @@ def evaluate(net, critic, data, idx, dev, bs=1024, q_mix=0.0, pol_min_run=0, ora
                 pol = (pol_per * pm).sum() / pm.sum().clamp(min=1)
             else:
                 pol = pol_per.mean()
-            val = F.binary_cross_entropy_with_logits(v, b["z"])
+            if v.ndim == 2:
+                v_mu = hl_gauss_mean(v).clamp(1e-6, 1.0 - 1e-6)
+                with torch.amp.autocast("cuda", enabled=False):
+                    val = F.binary_cross_entropy(v_mu.float().clamp(1e-6, 1.0 - 1e-6), b["z"].float())
+            else:
+                val = F.binary_cross_entropy_with_logits(v, b["z"])
             bl = net.belief_logits(h, b["pool"])
             m = b["pool_mask"].float()
             bel = (F.binary_cross_entropy_with_logits(bl, b["pool_hand"], reduction="none") * m).sum() / m.sum().clamp(min=1)
@@ -298,6 +408,11 @@ def build_parser():
     ap.add_argument("--no-critic", action="store_true", help="skip loading hid and training the PPO Critic")
     ap.add_argument("--upgrade-val-mlp", action="store_true", help="upgrade a v1 Tx checkpoint to the regularized 2-layer val_mlp head")
     ap.add_argument("--upgrade-glob-f", type=int, default=0, help="zero-loss expand glob_f on --init warm-start (e.g. 89)")
+    ap.add_argument("--upgrade-val-bins", type=int, default=0, help="upgrade scalar value head to HL-Gauss N bins (e.g. 21)")
+    ap.add_argument("--threat-weight", type=float, default=0.0, help="v4 hidden-hand 8-threat BCE auxiliary loss weight")
+    ap.add_argument("--opt-pol-weight", type=float, default=0.0, help="KataGo optimistic surprise-weighted policy loss weight")
+    ap.add_argument("--opt", default="adamw", choices=["adamw", "muon"], help="optimizer: adamw or muon (2D hidden matrices)")
+    ap.add_argument("--muon-lr", type=float, default=0.012, help="max lr for Muon 2D matrix group")
     ap.add_argument("--drop", type=float, default=0.0, help="training-only dropout inside Tx blocks")
     ap.add_argument("--val-wd", type=float, default=5e-2, help="weight decay on value head parameters")
     ap.add_argument("--val-prob", type=float, default=0.06, help="per-decision probability of including value/aux loss (prevents memorizing per-game outcomes)")
@@ -350,7 +465,7 @@ def train_main(argv=None, shared_data=None):
             p.requires_grad_(False)
         print(f"TRAIN oracle distillation from {args.oracle_dir} ({params(oracle_net)} params, mix={args.oracle_mix})", flush=True)
     if args.init:
-        net = load_dir(args.init, dev, upgrade_val_mlp=args.upgrade_val_mlp, drop=args.drop, upgrade_glob_f=args.upgrade_glob_f)
+        net = load_dir(args.init, dev, upgrade_val_mlp=args.upgrade_val_mlp, drop=args.drop, upgrade_glob_f=args.upgrade_glob_f, upgrade_val_bins=args.upgrade_val_bins)
         if critic is not None:
             cpath = os.path.join(args.init, "critic.pt")
             if os.path.exists(cpath):
@@ -369,6 +484,10 @@ def train_main(argv=None, shared_data=None):
     if args.act_q_weight > 0:
         aq_in = net.d if isinstance(net, Tx) else net.act2.out_features
         act_q_head = ActQHead(aq_in).to(dev)
+    threat_head = None
+    if args.threat_weight > 0:
+        th_in = (3 * net.d + net.glob_f) if isinstance(net, Tx) else net.trunk2.out_features
+        threat_head = ThreatHead(th_in).to(dev)
 
     print(
         f"TRAIN net {params(net)} params"
@@ -396,18 +515,39 @@ def train_main(argv=None, shared_data=None):
         extra_params += list(aux_head.parameters())
     if act_q_head is not None:
         extra_params += list(act_q_head.parameters())
-    param_groups = [
-        {"params": base_params + extra_params, "weight_decay": 1e-4},
-        {"params": vh_params, "weight_decay": args.val_wd},
-    ]
-    opt = torch.optim.AdamW(param_groups, lr=args.lr, fused=dev.type == "cuda")
+    if threat_head is not None:
+        extra_params += list(threat_head.parameters())
+    if args.opt == "muon":
+        muon_p, adam_base = [], []
+        for n_p, p in net.named_parameters():
+            if id(p) in vh_ids:
+                continue
+            if p.ndim == 2 and not n_p.startswith("emb.") and not n_p.startswith("belief.") and not n_p.startswith("abias.") and not n_p.startswith("query.") and min(p.shape) >= 32:
+                muon_p.append(p)
+            else:
+                adam_base.append(p)
+        param_groups = [
+            {"params": muon_p, "lr": args.muon_lr, "weight_decay": 1e-4, "is_muon": True},
+            {"params": adam_base + extra_params, "lr": args.lr, "weight_decay": 1e-4, "is_muon": False},
+            {"params": vh_params, "lr": args.lr, "weight_decay": args.val_wd, "is_muon": False},
+        ]
+        opt = MuonHybrid(param_groups)
+        max_lrs = [args.muon_lr, args.lr, args.lr]
+        print(f"TRAIN optimizer=MuonHybrid (muon_2d={len(muon_p)} tensors @ lr={args.muon_lr}, adamw @ lr={args.lr})", flush=True)
+    else:
+        param_groups = [
+            {"params": base_params + extra_params, "weight_decay": 1e-4},
+            {"params": vh_params, "weight_decay": args.val_wd},
+        ]
+        opt = torch.optim.AdamW(param_groups, lr=args.lr, fused=dev.type == "cuda")
+        max_lrs = args.lr
 
     # Decide per-epoch decision budget (auto-stage onto GPU when data spilled to CPU on CUDA!)
     use_staging = (dev.type == "cuda" and where.type == "cpu")
     epoch_samples = args.samples_per_epoch if args.samples_per_epoch > 0 else (2_000_000 if use_staging else len(train_idx))
     est_train_per_ep = min(len(train_idx), int(epoch_samples * 0.91)) if (use_staging or args.samples_per_epoch > 0) else len(train_idx)
     steps = max(1, args.epochs * math.ceil(est_train_per_ep / args.bs))
-    sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=args.lr, total_steps=steps + args.epochs * 4, pct_start=0.1)
+    sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=max_lrs, total_steps=steps + args.epochs * 4, pct_start=0.1)
 
     train_net = torch.compile(net) if (args.compile and dev.type == "cuda") else net
     ema_sd = {k: v.detach().clone() for k, v in net.state_dict().items()} if args.ema > 0 else None
@@ -439,7 +579,7 @@ def train_main(argv=None, shared_data=None):
                             q_mix=args.q_mix, pol_min_run=pol_min_run, pol_old_weight=args.pol_old_weight,
                             val_prob=args.val_prob, detach_val=(args.detach_val or not value_on),
                             oracle_net=oracle_net, oracle_mix=args.oracle_mix, oracle_mode=args.oracle_mode,
-                            act_q_head=act_q_head, act_q_weight=args.act_q_weight,
+                            act_q_head=act_q_head, act_q_weight=args.act_q_weight, opt_pol_weight=args.opt_pol_weight, threat_head=threat_head, threat_weight=args.threat_weight,
                         )[:5]
                         loss = (
                             pol
@@ -480,7 +620,7 @@ def train_main(argv=None, shared_data=None):
                         q_mix=args.q_mix, pol_min_run=pol_min_run, pol_old_weight=args.pol_old_weight,
                         val_prob=args.val_prob, detach_val=(args.detach_val or not value_on),
                         oracle_net=oracle_net, oracle_mix=args.oracle_mix, oracle_mode=args.oracle_mode,
-                        act_q_head=act_q_head, act_q_weight=args.act_q_weight,
+                        act_q_head=act_q_head, act_q_weight=args.act_q_weight, opt_pol_weight=args.opt_pol_weight, threat_head=threat_head, threat_weight=args.threat_weight,
                     )[:5]
                     loss = (
                         pol
@@ -521,7 +661,7 @@ def train_main(argv=None, shared_data=None):
                             q_mix=args.q_mix, pol_min_run=pol_min_run, pol_old_weight=args.pol_old_weight,
                             val_prob=args.val_prob, detach_val=(args.detach_val or not value_on),
                             oracle_net=oracle_net, oracle_mix=args.oracle_mix, oracle_mode=args.oracle_mode,
-                            act_q_head=act_q_head, act_q_weight=args.act_q_weight,
+                            act_q_head=act_q_head, act_q_weight=args.act_q_weight, opt_pol_weight=args.opt_pol_weight, threat_head=threat_head, threat_weight=args.threat_weight,
                         )[:5]
                         loss = (
                             pol

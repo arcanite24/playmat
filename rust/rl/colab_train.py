@@ -45,6 +45,11 @@ def main():
     ap.add_argument("--recency-decay", type=float, default=0.92)
     ap.add_argument("--oracle-mode", action="store_true")
     ap.add_argument("--upgrade-glob-f", type=int, default=0)
+    ap.add_argument("--upgrade-val-bins", type=int, default=0)
+    ap.add_argument("--threat-weight", type=float, default=0.0)
+    ap.add_argument("--opt-pol-weight", type=float, default=0.0)
+    ap.add_argument("--opt", default="adamw")
+    ap.add_argument("--muon-lr", type=float, default=0.012)
     ap.add_argument("--q-mix", type=float, default=0.4)
     ap.add_argument("--ema", type=float, default=0.995)
     ap.add_argument("--policy-recent", type=int, default=1)
@@ -143,6 +148,10 @@ def main():
         "--value-weight", str(args.value_weight),
         "--aux-weight", str(args.aux_weight),
         "--act-q-weight", str(args.act_q_weight),
+        "--threat-weight", str(args.threat_weight),
+        "--opt-pol-weight", str(args.opt_pol_weight),
+        "--opt", str(args.opt),
+        "--muon-lr", str(args.muon_lr),
         "--recency-decay", str(args.recency_decay),
         "--q-mix", str(args.q_mix),
         "--ema", str(args.ema),
@@ -161,6 +170,8 @@ def main():
         cmd += ["--init", init_dir]
         if args.upgrade_glob_f > 0:
             cmd += ["--upgrade-glob-f", str(args.upgrade_glob_f)]
+        if args.upgrade_val_bins > 0:
+            cmd += ["--upgrade-val-bins", str(args.upgrade_val_bins)]
     else:
         cmd += ["--arch", args.arch, "--tx", args.tx]
     for r in args.rounds:

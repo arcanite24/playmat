@@ -114,6 +114,16 @@ pub struct Config {
     pub rm_root: bool,
     /// external decider endpoint (`tcp://host:port[?obs=1]` or `cmd:<command>`) for `PolicyKind::External`
     pub external: Option<String>,
+    /// Pre-Phase-4: exact MCTS-Solver proven terminal win/loss propagation (undiluted by stale shallow visits)
+    pub solver: bool,
+    /// Pre-Phase-4: Leela/KataGo Node-Value FPU (use node.v_eval instead of visited-kid average wsum/visited)
+    pub fpu_vnode: bool,
+    /// Pre-Phase-4: logarithmic dynamic c_puct(N) = cpuct * (1 + ln((N + 197) / 196))
+    pub cpuct_dyn: bool,
+    /// Pre-Phase-4: Bayesian pass-history belief reweighting when opp holds >= 2 untapped lands
+    pub belief_pass: bool,
+    /// KataGo forced playouts / self-play exploration factor (0 = off; e.g. 200 = k=2.0 when temp > 0)
+    pub forced_k: u32,
 }
 
 impl Default for Config {
@@ -166,6 +176,11 @@ impl Default for Config {
             vloss: 1,
             rm_root: false,
             external: std::env::var("PLAYMAT_EXT_URL").ok(),
+            solver: false,
+            fpu_vnode: false,
+            cpuct_dyn: false,
+            belief_pass: false,
+            forced_k: 0,
         }
     }
 }
