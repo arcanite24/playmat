@@ -1,0 +1,24 @@
+# name: Train200 tri-bgu-midrange-8
+# archetype: midrange
+# colors: BGU
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Bontu the Glorified
+3 Earthshaker Dreadmaw
+4 Frenzied Baloth
+4 Impossible Choice
+1 Kraven the Hunter
+2 Perilous Voyage
+2 Serum Snare
+1 Skaab Goliath
+4 Skystrike Officer
+1 Slither Blade
+2 The Mindskinner
+3 Thornbow Archer
+3 Titania, Rugged Rumbler
+4 Unforgiving Aim
+4 Ferenginar
+4 Forest
+4 Island
+4 Lush Oasis
+4 Swamp
+4 Thornwood Falls

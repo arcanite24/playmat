@@ -1,0 +1,21 @@
+# name: Train200 guild-rw-control-8
+# archetype: control
+# colors: RW
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Abstruse Interference
+2 Chandra's Triumph
+4 Charging Strifeknight
+3 Dracosaur Auxiliary
+1 Drakuseth, Maw of Flames
+4 Horribly Awry
+2 Justiciar's Portal
+4 Lithobraking
+2 Lorehold Command
+3 Personify
+3 Scorchmark
+2 Shake the Foundations
+2 Warping Wail
+4 Battlefield Forge
+13 Mountain
+5 Plains
+4 Sundown Pass

@@ -1,0 +1,19 @@
+# name: Train200 mono-r-aggro-1
+# archetype: aggro
+# colors: R
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Betrayer's Bargain
+3 Bonded Construct
+4 Call In a Professional
+2 Consuming Sinkhole
+3 Emberheart Challenger
+2 Everquill Phoenix
+4 Fleeting Effigy
+2 Ghitu Lavarunner
+3 Joust
+2 Mardu Blazebringer
+2 Open Fire
+2 Rhuk, Hexgold Nabber
+4 Riveteers Initiate
+4 Speed, Young Avenger
+21 Mountain

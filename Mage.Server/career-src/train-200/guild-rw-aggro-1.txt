@@ -1,0 +1,21 @@
+# name: Train200 guild-rw-aggro-1
+# archetype: aggro
+# colors: RW
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Bilbo's Gambit
+4 Clockwork Percussionist
+2 Felonious Rage
+3 Flash Thompson, Spider-Fan
+4 Glorious Protector
+2 Goblin Javelineer
+3 Improvised Weaponry
+3 Jor Kadeen, First Goldwarden
+4 Masked Meower
+3 Moonrager's Slash
+2 The Vision
+4 Thorin Oakenshield
+1 Vampire's Zeal
+4 Alpine Meadow
+7 Mountain
+6 Plains
+4 Sacred Peaks

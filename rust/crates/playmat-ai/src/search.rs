@@ -124,6 +124,7 @@ pub struct Config {
     pub belief_pass: bool,
     /// KataGo forced playouts / self-play exploration factor (0 = off; e.g. 200 = k=2.0 when temp > 0)
     pub forced_k: u32,
+    pub threat_w: u32,
 }
 
 impl Default for Config {
@@ -181,6 +182,7 @@ impl Default for Config {
             cpuct_dyn: false,
             belief_pass: false,
             forced_k: 0,
+            threat_w: 0,
         }
     }
 }
@@ -219,6 +221,8 @@ pub struct Table {
     pub answers: u64,
     /// the game stops after this many answers (a guard against a game that never ends)
     pub max_answers: u64,
+    /// optional per-game wall-clock deadline (`PLAYMAT_GAME_TIMEOUT_SECS`)
+    pub deadline: Option<std::time::Instant>,
     stop: bool,
 }
 
@@ -245,6 +249,14 @@ impl Table {
             stats: Vec::new(),
             answers: 0,
             max_answers: 200_000,
+            #[cfg(not(target_arch = "wasm32"))]
+            deadline: std::env::var("PLAYMAT_GAME_TIMEOUT_SECS")
+                .ok()
+                .and_then(|v| v.parse::<u64>().ok())
+                .filter(|&secs| secs > 0)
+                .map(|secs| std::time::Instant::now() + std::time::Duration::from_secs(secs)),
+            #[cfg(target_arch = "wasm32")]
+            deadline: None,
             stop: false,
         }
     }
@@ -264,9 +276,9 @@ impl Table {
         })
     }
 
-    /// Whether the game was cut off by `max_answers`
+    /// Whether the game was cut off by `max_answers` or `deadline`
     pub fn stopped_early(&self) -> bool {
-        self.stop
+        self.stop || self.deadline.is_some_and(|dl| std::time::Instant::now() >= dl)
     }
 
     /// Notes an answer given by someone else (a mirrored game's other seat), so later searches can replay it.
@@ -585,7 +597,11 @@ impl Decider for Table {
     fn answer(&mut self, game: &Game, seat: Seat, q: &Query) -> Answer {
         self.answers += 1;
         self.observe(game);
-        if self.answers > self.max_answers {
+        #[cfg(not(target_arch = "wasm32"))]
+        let timed_out = self.deadline.is_some_and(|dl| std::time::Instant::now() >= dl);
+        #[cfg(target_arch = "wasm32")]
+        let timed_out = false;
+        if self.answers > self.max_answers || timed_out {
             self.stop = true;
             return Answer::Stop;
         }
@@ -606,7 +622,7 @@ impl Decider for Table {
     }
 
     fn stopped(&self) -> bool {
-        self.stop
+        self.stop || self.deadline.is_some_and(|dl| std::time::Instant::now() >= dl)
     }
 }
 

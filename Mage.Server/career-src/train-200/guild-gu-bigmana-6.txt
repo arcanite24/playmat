@@ -1,0 +1,21 @@
+# name: Train200 guild-gu-bigmana-6
+# archetype: bigmana
+# colors: GU
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Air Servant
+2 Applied Biomancy
+3 Aven Reedstalker
+2 Challenger Troll
+3 Dissenter's Deliverance
+3 Fear of Isolation
+3 Gigantosaurus
+3 Mistbreath Elder
+4 Primordial Wurm
+4 Pugnacious Hammerskull
+2 Rescue
+3 Threadbind Clique
+1 You Come to a River
+4 Dreamroot Cascade
+10 Forest
+7 Island
+4 Transformative Commons

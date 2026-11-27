@@ -1,0 +1,24 @@
+# name: Train200 tri-wub-aggro-31
+# archetype: aggro
+# colors: WUB
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Aggressive Sabotage
+2 Ashnod's Intervention
+3 Dauntless Bodyguard
+2 Dream Strix
+4 Duskwielder
+1 Hamato Guardian Stance
+3 Illvoi Galeblade
+3 Larder Zombie
+1 Master of the Feast
+3 Ozai's Cruelty
+3 Ranger's Hawk
+4 Recruitment Officer
+3 Sphinx of New Prahv
+4 Spin Out
+4 Abandoned Campground
+2 Island
+3 Plains
+4 Shipwreck Marsh
+4 Soured Springs
+4 Swamp

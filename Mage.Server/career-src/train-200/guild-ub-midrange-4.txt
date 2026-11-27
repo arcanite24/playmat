@@ -1,0 +1,23 @@
+# name: Train200 guild-ub-midrange-4
+# archetype: midrange
+# colors: UB
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Acererak the Archlich
+3 Cobbled Lancer
+1 Devouring Sugarmaw
+4 Forsaken Miner
+2 Grotesque Demise
+4 Herald of Torment
+2 Killing Glare
+1 Loch Mare
+2 Maha, Its Feathers Night
+4 Overkill
+2 Rotting Regisaur
+2 Sphinx of Forgotten Lore
+2 Torrential Gearhulk
+3 Whoosh!
+1 You Are Already Dead
+4 Dimir Guildgate
+5 Island
+4 Murky Sewer
+11 Swamp

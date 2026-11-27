@@ -62,10 +62,11 @@ fn main() {
     let tally: Mutex<Vec<[u32; 3]>> = Mutex::new(vec![[0; 3]; opponents.len()]);
     let steps = AtomicUsize::new(0);
     let failed = AtomicUsize::new(0);
+    let done = AtomicUsize::new(0);
     std::thread::scope(|s| {
         for job in 0..jobs {
-            let (setup, learner, opponents, weights, tally, steps, failed, next, out) =
-                (&setup, &learner, &opponents, &weights, &tally, &steps, &failed, &next, &out);
+            let (setup, learner, opponents, weights, tally, steps, failed, done, next, out) =
+                (&setup, &learner, &opponents, &weights, &tally, &steps, &failed, &done, &next, &out);
             s.spawn(move || {
                 let name = format!("w{job:02}");
                 let mut shard = Shard::create(out, &name).expect("shard");
@@ -105,6 +106,15 @@ fn main() {
                         t[oi][k] += 1;
                     }
                     steps.fetch_add(played.steps.len(), Ordering::Relaxed);
+                    let d_now = done.fetch_add(1, Ordering::Relaxed) + 1;
+                    if d_now % 100 == 0 || d_now == games {
+                        eprintln!(
+                            "SELFPLAY_PROGRESS {d_now}/{games} failed={} steps={} elapsed={}s",
+                            failed.load(Ordering::Relaxed),
+                            steps.load(Ordering::Relaxed),
+                            started.elapsed().as_secs()
+                        );
+                    }
                     let [a, b] = p.decks;
                     let info = json!({
                         "deal": deal, "decks": [setup.decks[a].name, setup.decks[b].name], "learner": me,

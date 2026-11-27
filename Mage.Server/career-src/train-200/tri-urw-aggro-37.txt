@@ -1,0 +1,23 @@
+# name: Train200 tri-urw-aggro-37
+# archetype: aggro
+# colors: URW
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Bombur, Gentle Dreamer
+3 Collateral Damage
+3 Crowd of True Believers
+3 Encumbered Reejerey
+1 Flame-Blessed Bolt
+3 Fleeting Effigy
+3 Kitesail Scout
+4 Lavastep Raider
+3 Prismari Charm
+4 Prismari Pledgemage
+3 Sacred Fire
+3 Sunrise Cavalier
+3 Survive the Night
+4 Avengers Hangar
+1 Island
+5 Mountain
+4 Peculiar Lighthouse
+3 Plains
+4 Wandering Fumarole

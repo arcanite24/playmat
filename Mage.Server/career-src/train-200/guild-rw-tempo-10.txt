@@ -1,0 +1,21 @@
+# name: Train200 guild-rw-tempo-10
+# archetype: tempo
+# colors: RW
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Goblin Tomb Raider
+4 Horribly Awry
+4 Immolating Glare
+2 Light the Way
+3 Marwyn, the Clearcutter
+2 Mortal's Ardor
+2 Mutant Town Musicians
+4 Rem Karolus, Stalwart Slayer
+4 Sawblade Scamp
+1 Sky Terror
+4 Topple the Statue
+2 Tweeze
+2 Warping Wail
+4 Fields of Strife
+8 Mountain
+6 Plains
+4 Sundown Pass

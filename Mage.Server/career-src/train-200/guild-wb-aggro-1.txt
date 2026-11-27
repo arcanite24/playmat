@@ -1,0 +1,21 @@
+# name: Train200 guild-wb-aggro-1
+# archetype: aggro
+# colors: WB
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Burdened Stoneback
+3 Circle of Power
+3 Diregraf Ghoul
+3 Flowerfoot Swordmaster
+4 Graveyard Marshal
+3 Heliod, Sun-Crowned
+2 Locust Spray
+3 Sea Gate Banneret
+2 Smite
+3 Spawn of Mayhem
+4 Spiteful Hexmage
+3 Vicious Rumors
+3 You're Not Alone
+4 Caves of Koilos
+4 Insomnia, Crown City
+6 Plains
+7 Swamp

@@ -199,7 +199,8 @@ def losses(
     want_aux = aux_head is not None
     want_aux_or_threat = want_aux or (threat_head is not None and threat_weight > 0.0)
     want_aq = act_q_head is not None and act_q_weight > 0.0
-    want_threat = threat_head is not None and threat_weight > 0.0
+    has_net_threat = getattr(net, "threat", None) is not None
+    want_threat = (has_net_threat or threat_head is not None) and threat_weight > 0.0
     nb_in = oracle_batch(b) if oracle_mode else b
     if want_aq:
         logits, v, h, vfeat, act_emb = net(nb_in, return_vfeat=True, return_act_emb=True, detach_val=detach_val)
@@ -285,7 +286,7 @@ def losses(
         bm = b["belief_meta"]
         bm_mask = torch.isfinite(bm)
         if bm_mask.any():
-            th_pred = threat_head(vfeat.detach() if detach_val else vfeat)
+            th_pred = net.threat(h) if has_net_threat else threat_head(vfeat.detach() if detach_val else vfeat)
             bm_safe = torch.nan_to_num(bm, nan=0.0).clamp(0.0, 1.0)
             th_loss = (
                 F.binary_cross_entropy_with_logits(th_pred, bm_safe, reduction="none") * bm_mask.float()
@@ -465,7 +466,7 @@ def train_main(argv=None, shared_data=None):
             p.requires_grad_(False)
         print(f"TRAIN oracle distillation from {args.oracle_dir} ({params(oracle_net)} params, mix={args.oracle_mix})", flush=True)
     if args.init:
-        net = load_dir(args.init, dev, upgrade_val_mlp=args.upgrade_val_mlp, drop=args.drop, upgrade_glob_f=args.upgrade_glob_f, upgrade_val_bins=args.upgrade_val_bins)
+        net = load_dir(args.init, dev, upgrade_val_mlp=args.upgrade_val_mlp, drop=args.drop, upgrade_glob_f=args.upgrade_glob_f, upgrade_val_bins=args.upgrade_val_bins, upgrade_threat=(args.threat_weight > 0))
         if critic is not None:
             cpath = os.path.join(args.init, "critic.pt")
             if os.path.exists(cpath):
@@ -474,6 +475,8 @@ def train_main(argv=None, shared_data=None):
         kw = tx_sizes(args.tx) if args.arch == "tx" else {}
         if args.arch == "tx" and args.drop > 0:
             kw["drop"] = args.drop
+        if args.arch == "tx" and args.threat_weight > 0:
+            kw["threat_head"] = 1
         net = build({"arch": args.arch, **kw}).to(dev)
 
     aux_head = None
@@ -485,7 +488,7 @@ def train_main(argv=None, shared_data=None):
         aq_in = net.d if isinstance(net, Tx) else net.act2.out_features
         act_q_head = ActQHead(aq_in).to(dev)
     threat_head = None
-    if args.threat_weight > 0:
+    if args.threat_weight > 0 and getattr(net, "threat", None) is None:
         th_in = (3 * net.d + net.glob_f) if isinstance(net, Tx) else net.trunk2.out_features
         threat_head = ThreatHead(th_in).to(dev)
 

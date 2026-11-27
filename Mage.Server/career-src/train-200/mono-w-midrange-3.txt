@@ -1,0 +1,20 @@
+# name: Train200 mono-w-midrange-3
+# archetype: midrange
+# colors: W
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Alley Evasion
+2 Anafenza, Unyielding Lineage
+1 Angel of Condemnation
+1 Cavalier of Dawn
+3 Dazzling Angel
+4 Expose Evil
+2 Gisela, the Broken Blade
+3 Justiciar's Portal
+4 Prehistoric Pet
+3 Resolute Watchdog
+2 Righteous Valkyrie
+1 Savannah Lions
+3 Searing Light
+2 Snare Thopter
+3 Stagecoach Security
+24 Plains

@@ -1,0 +1,19 @@
+# name: Train200 guild-gu-control-8
+# archetype: control
+# colors: GU
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Aggressive Mammoth
+4 Bloated Contaminator
+4 Bounce Off
+2 Convolute
+2 Garruk's Horde
+4 Glorious Decay
+4 Long River's Pull
+2 Rakshasa's Disdain
+4 Siren's Ruse
+4 Sunbringer's Touch
+2 Teferi's Time Twist
+8 Forest
+10 Island
+4 Thornwood Falls
+4 Woodland Stream

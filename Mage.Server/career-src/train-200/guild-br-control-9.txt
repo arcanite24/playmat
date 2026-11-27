@@ -1,0 +1,21 @@
+# name: Train200 guild-br-control-9
+# archetype: control
+# colors: BR
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Chandra's Fury
+4 Charging Monstrosaur
+1 Draconic Roar
+2 Galvanize
+2 Glint-Horn Buccaneer
+2 Seismic Rupture
+4 Slaying Fire
+2 Spell Shrivel
+2 Stingerback Terror
+3 Void Shatter
+3 Volt Charge
+4 Vraska's Final Mercy
+3 Warping Wail
+4 Bloodfell Caves
+4 Canyon Slough
+15 Mountain
+3 Swamp

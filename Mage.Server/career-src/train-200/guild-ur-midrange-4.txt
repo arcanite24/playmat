@@ -1,0 +1,22 @@
+# name: Train200 guild-ur-midrange-4
+# archetype: midrange
+# colors: UR
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Abhorrent Oculus
+1 Adeliz, the Cinder Wind
+1 Bonehoard Dracosaur
+3 Brambleback Brute
+2 Depths of Desire
+1 Fleeting Effigy
+4 Galestrike
+3 Lightning Stormkin
+3 Rearing Embermare
+2 Siren's Ruse
+2 Skizzik
+3 Skycoach Conductor
+4 Skycrash
+4 Wayward Guide-Beast
+7 Island
+9 Mountain
+4 Spectacle Summit
+4 Steam Vents

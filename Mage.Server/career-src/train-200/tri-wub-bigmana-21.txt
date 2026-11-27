@@ -1,0 +1,23 @@
+# name: Train200 tri-wub-bigmana-21
+# archetype: bigmana
+# colors: WUB
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Aetherstorm Roc
+4 Avian Oddity
+4 Basri, Tomorrow's Champion
+3 Black Sun's Twilight
+2 Blessed Defiance
+2 Cruel Finality
+2 Encumbered Reejerey
+2 Horned Loch-Whale
+2 Lyra Dawnbringer
+4 Mahamoti Djinn
+1 Overkill
+3 Ray Fillet, Man Ray
+3 Voracious Greatshark
+4 Forlorn Flats
+4 Great Arashin City
+6 Island
+5 Plains
+4 Soured Springs
+2 Swamp

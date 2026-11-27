@@ -121,6 +121,7 @@ pub fn with(mut c: Config, settings: &str) -> Result<Config, String> {
             "cpuct_dyn" => c.cpuct_dyn = b()?,
             "belief_pass" => c.belief_pass = b()?,
             "forced_k" => c.forced_k = n()? as u32,
+            "threat_w" => c.threat_w = n()? as u32,
             _ => return Err(format!("unknown config key {k}")),
         }
     }
@@ -133,7 +134,7 @@ pub fn with(mut c: Config, settings: &str) -> Result<Config, String> {
 }
 
 /// The settings `label` names only where they differ from their defaults, in its order
-pub const LATER: [&str; 20] = [
+pub const LATER: [&str; 21] = [
     "playbook",
     "leaf_blend",
     "gumbel_root",
@@ -153,6 +154,7 @@ pub const LATER: [&str; 20] = [
     "cpuct_dyn",
     "belief_pass",
     "forced_k",
+    "threat_w",
     "external",
 ];
 
@@ -185,7 +187,7 @@ pub fn label(c: &Config) -> String {
     if let Some(pb) = c.playbook.as_deref() {
         s.push_str(&format!("+playbook={pb}"));
     }
-    let later: [(u64, u64); 18] = [
+    let later: [(u64, u64); 19] = [
         (c.leaf_blend as u64, 0),
         (c.gumbel_root as u64, 0),
         (c.temp_turn as u64, 0),
@@ -204,8 +206,9 @@ pub fn label(c: &Config) -> String {
         (c.cpuct_dyn as u64, 0),
         (c.belief_pass as u64, 0),
         (c.forced_k as u64, 0),
+        (c.threat_w as u64, 0),
     ];
-    for (k, (v, default)) in LATER[1..19].iter().zip(later) {
+    for (k, (v, default)) in LATER[1..20].iter().zip(later) {
         if v != default {
             s.push_str(&format!("+{k}={v}"));
         }

@@ -1,0 +1,23 @@
+# name: Train200 tri-gur-bigmana-30
+# archetype: bigmana
+# colors: GUR
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Ball Lightning
+3 Bayou Groff
+3 Breakneck Berserker
+1 Captain Michael Burnham
+2 Chrome Host Seedshark
+4 Colossal Skyturtle
+2 Crushing Canopy
+3 Demanding Dragon
+2 Might of the Old Ways
+2 Polukranos Reborn
+3 Sleep-Cursed Faerie
+4 Stormcrag Elemental
+4 Unsummon
+4 Botanical Sanctum
+4 Forest
+4 Hedge Maze
+4 Island
+5 Mountain
+4 Stark Industries

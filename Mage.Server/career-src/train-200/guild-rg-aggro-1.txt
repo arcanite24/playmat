@@ -1,0 +1,22 @@
+# name: Train200 guild-rg-aggro-1
+# archetype: aggro
+# colors: RG
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Atarka's Command
+3 Crossroads Consecrator
+4 Deathbellow Raider
+2 Demon Bolt
+2 Glade Watcher
+2 Gruul Spellbreaker
+3 Lupine Prototype
+4 Make Mischief
+2 Moonveil Regent
+2 Rhonas the Indomitable
+2 Searing Blood
+4 Skyway Sniper
+4 Swordwise Centaur
+3 Uncaged Fury
+4 Bristling Backwoods
+6 Forest
+7 Mountain
+4 Sheltered Thicket

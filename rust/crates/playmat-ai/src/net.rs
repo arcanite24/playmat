@@ -531,6 +531,7 @@ pub struct Tx {
     pub value: Option<Linear>,
     pub val_mlp: Option<ValMlp>,
     pub belief: Linear,
+    pub threat: Option<Linear>,
     pub act_in: Linear,
     pub act_ln: LayerNorm,
     pub act_q: Linear,
@@ -700,6 +701,7 @@ impl Tx {
             value,
             val_mlp,
             belief: take_linear(t, "belief")?,
+            threat: take_linear(t, "threat").ok(),
             act_in: take_linear(t, "act_in")?,
             act_ln: take_norm(t, "act_ln")?,
             act_q: take_linear(t, "act_q")?,
@@ -949,6 +951,18 @@ impl Tx {
         self.belief.apply_act(h, &mut q, false, false);
         cards.iter().map(|c| dot(self.embedding(*c), &q)).collect()
     }
+
+    pub fn threat(&self, h: &[f32]) -> [f32; crate::obs::BELIEF_META_F] {
+        let mut out = [0.0f32; crate::obs::BELIEF_META_F];
+        if let Some(th) = &self.threat {
+            let mut q = Vec::new();
+            th.apply_act(h, &mut q, false, false);
+            for i in 0..out.len().min(q.len()) {
+                out[i] = q[i];
+            }
+        }
+        out
+    }
 }
 
 struct PendingReq {
@@ -968,6 +982,7 @@ pub struct RemoteNet {
     emb: Vec<f32>,
     dim: usize,
     belief: Option<Linear>,
+    threat: Option<Linear>,
 }
 
 impl std::fmt::Debug for RemoteNet {
@@ -998,13 +1013,21 @@ impl RemoteNet {
         let trunk = read_u32(&mut stream).map_err(|e| format!("{url} handshake: {e}"))? as usize;
         let mut has_b = [0u8; 1];
         stream.read_exact(&mut has_b).map_err(|e| format!("{url} handshake: {e}"))?;
-        let (emb, belief) = if has_b[0] != 0 {
+        let (emb, belief) = if (has_b[0] & 1) != 0 {
             let emb = read_f32s(&mut stream, buckets * dim).map_err(|e| format!("{url} emb: {e}"))?;
             let bw = read_f32s(&mut stream, dim * trunk).map_err(|e| format!("{url} bw: {e}"))?;
             let bb = read_f32s(&mut stream, dim).map_err(|e| format!("{url} bb: {e}"))?;
             (emb, Some(Linear::new(bw, bb, dim, trunk)))
         } else {
             (Vec::new(), None)
+        };
+        let threat = if (has_b[0] & 2) != 0 {
+            let tf = crate::obs::BELIEF_META_F;
+            let tw = read_f32s(&mut stream, tf * trunk).map_err(|e| format!("{url} tw: {e}"))?;
+            let tb = read_f32s(&mut stream, tf).map_err(|e| format!("{url} tb: {e}"))?;
+            Some(Linear::new(tw, tb, tf, trunk))
+        } else {
+            None
         };
 
         let queue = Arc::new((Mutex::new(BatchQueue { reqs: Vec::new(), closed: false }), Condvar::new()));
@@ -1165,7 +1188,7 @@ impl RemoteNet {
             }
         });
 
-        Ok(RemoteNet { name: url.to_string(), queue, emb, dim, belief })
+        Ok(RemoteNet { name: url.to_string(), queue, emb, dim, belief, threat })
     }
 
     pub fn forward(&self, o: &Obs) -> Output {
@@ -1231,6 +1254,18 @@ impl RemoteNet {
                 dot(&self.emb[i * self.dim..(i + 1) * self.dim], &q)
             })
             .collect()
+    }
+
+    pub fn threat(&self, h: &[f32]) -> [f32; crate::obs::BELIEF_META_F] {
+        let mut out = [0.0f32; crate::obs::BELIEF_META_F];
+        if let Some(th) = &self.threat {
+            let mut q = Vec::new();
+            th.apply_act(h, &mut q, false, false);
+            for i in 0..out.len().min(q.len()) {
+                out[i] = q[i];
+            }
+        }
+        out
     }
 }
 
@@ -1304,6 +1339,22 @@ impl Net {
             Net::Mlp(n) => n.belief(h, cards),
             Net::Tx(n) => n.belief(h, cards),
             Net::Remote(n) => n.belief(h, cards),
+        }
+    }
+
+    pub fn has_threat(&self) -> bool {
+        match self {
+            Net::Mlp(_) => false,
+            Net::Tx(n) => n.threat.is_some(),
+            Net::Remote(n) => n.threat.is_some(),
+        }
+    }
+
+    pub fn threat(&self, h: &[f32]) -> [f32; crate::obs::BELIEF_META_F] {
+        match self {
+            Net::Mlp(_) => [0.0; crate::obs::BELIEF_META_F],
+            Net::Tx(n) => n.threat(h),
+            Net::Remote(n) => n.threat(h),
         }
     }
 }

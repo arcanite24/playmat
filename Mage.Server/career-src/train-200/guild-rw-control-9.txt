@@ -1,0 +1,21 @@
+# name: Train200 guild-rw-control-9
+# archetype: control
+# colors: RW
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Abstruse Interference
+1 Academic Ascent
+2 Boiling Earth
+2 Cavalier of Flame
+4 Champion of the Clachan
+2 Fuel the Flames
+2 Lightning Helix
+4 Long Road Home
+4 Rebel Salvo
+2 Red Hulk
+3 Shake the Foundations
+3 Spell Shrivel
+2 Warping Wail
+4 Battlefield Forge
+11 Mountain
+7 Plains
+4 Sacred Foundry

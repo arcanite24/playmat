@@ -1,0 +1,23 @@
+# name: Train200 tri-brg-midrange-3
+# archetype: midrange
+# colors: BRG
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Akul the Unrepentant
+2 Charging Monstrosaur
+2 Daemogoth Titan
+3 Decadent Dragon
+4 Dread Wanderer
+2 Gigantic Big Bear
+4 Heartless Act
+2 Kolaghan's Command
+4 Lupine Prototype
+2 Phyrexian Obliterator
+2 Reaver Ambush
+3 Smaug the Magnificent
+4 Take Out the Trash
+1 Forest
+5 Mountain
+4 Orion
+4 Racers' Ring
+4 Rugged Highlands
+6 Swamp

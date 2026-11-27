@@ -203,10 +203,25 @@ pub(crate) fn sample_games_weighted(
                 }
             }
             let n_draw = if d.config.belief_ms { eff_k * 6 } else { eff_k * 3 };
+            let threat_logits = if d.config.threat_w > 0 && net.has_threat() {
+                Some(net.threat(state))
+            } else {
+                None
+            };
+            let threat_scale = d.config.threat_w as f32 / 1000.0;
             let mut drawn: Vec<(f32, Game)> = (0..n_draw)
                 .map(|j| {
                     let g = root.sample(seed.wrapping_add(j as u64 * 0x9E37));
-                    (hand_likelihood(&g, d.seat, &logit, &seen), g)
+                    let mut ll = hand_likelihood(&g, d.seat, &logit, &seen);
+                    if let Some(tl) = &threat_logits {
+                        let y = obs::belief_meta(&g, d.seat, 0);
+                        let mut t_ll = 0.0f32;
+                        for k in 0..obs::BELIEF_META_F {
+                            t_ll += y[k] * tl[k].clamp(-6.0, 6.0);
+                        }
+                        ll += threat_scale * t_ll;
+                    }
+                    (ll, g)
                 })
                 .collect();
             let m = drawn.iter().map(|(l, _)| *l).fold(f32::MIN, f32::max);

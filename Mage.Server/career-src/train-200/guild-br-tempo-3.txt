@@ -1,0 +1,24 @@
+# name: Train200 guild-br-tempo-3
+# archetype: tempo
+# colors: BR
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Abstruse Interference
+4 Bitter Triumph
+2 Burning Hands
+2 Demon of Catastrophes
+4 Embereth Veteran
+1 First Day of Class
+3 Goblin Guide
+1 Goldnight Castigator
+3 Pale Rider of Trostad
+3 Shatterskull Charger
+3 Spell Shrivel
+2 Stingerquill Voxmancer
+2 Stolen Vitality
+2 Tectonic Hazard
+3 Volcanic Spite
+1 Warping Wail
+4 Bloodfell Caves
+9 Mountain
+4 Stingerquill Annex
+5 Swamp

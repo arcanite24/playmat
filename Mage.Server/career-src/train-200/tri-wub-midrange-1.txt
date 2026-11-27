@@ -1,0 +1,22 @@
+# name: Train200 tri-wub-midrange-1
+# archetype: midrange
+# colors: WUB
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Cloaked Siren
+4 Curator of Mysteries
+4 Dauntless Bodyguard
+3 Death Wind
+4 Dire Tactics
+3 Divining Duelist
+4 Loch Mare
+1 Oketra the True
+4 Soul of Ravnica
+2 Spell Queller
+4 Statute of Denial
+1 Vanish into Eternity
+4 Avengers Hangar
+6 Island
+4 Isolated Chapel
+4 Neglected Manor
+3 Plains
+3 Swamp

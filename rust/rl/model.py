@@ -230,6 +230,7 @@ class Tx(nn.Module):
         glob_f=GLOB_F_V1,
         rel=0,
         act_ent=0,
+        threat_head=0,
         drop=0.0,
     ):
         super().__init__()
@@ -248,6 +249,8 @@ class Tx(nn.Module):
             self.cfg["rel"] = 1
         if act_ent:
             self.cfg["act_ent"] = 1
+        if threat_head:
+            self.cfg["threat_head"] = 1
         self.heads = heads
         self.d = d
         self.glob_f = int(glob_f)
@@ -279,6 +282,7 @@ class Tx(nn.Module):
         else:
             self.value = nn.Linear(trunk, 1)
         self.belief = nn.Linear(trunk, dim)
+        self.threat = nn.Linear(trunk, BELIEF_META_F) if threat_head else None
         self.act_in = nn.Linear(dim + ACT_F + (d if self.act_ent else 0), d)
         self.act_ln = nn.LayerNorm(d)
         self.act_q, self.act_kv, self.act_o = nn.Linear(d, d), nn.Linear(d, 2 * d), nn.Linear(d, d)
@@ -423,7 +427,7 @@ def save_dir(net, d):
     json.dump(arch_of(net), open(f"{d}/arch.json", "w"))
 
 
-def load_dir(d, dev, upgrade_val_mlp=False, drop=0.0, upgrade_glob_f=0, upgrade_val_bins=0):
+def load_dir(d, dev, upgrade_val_mlp=False, drop=0.0, upgrade_glob_f=0, upgrade_val_bins=0, upgrade_threat=False):
     """The network in run folder `d` (arch.json says which; the first network without one)"""
     import os
     spec = json.load(open(f"{d}/arch.json")) if os.path.exists(f"{d}/arch.json") else {"arch": "mlp"}
@@ -441,6 +445,10 @@ def load_dir(d, dev, upgrade_val_mlp=False, drop=0.0, upgrade_glob_f=0, upgrade_
     if upgrade_glob_f and spec.get("arch") == "tx" and int(upgrade_glob_f) > old_gf:
         delta_gf = int(upgrade_glob_f) - old_gf
         spec["glob_f"] = int(upgrade_glob_f)
+    upgraded_th = False
+    if upgrade_threat and spec.get("arch") == "tx" and not spec.get("threat_head"):
+        spec["threat_head"] = 1
+        upgraded_th = True
     if spec.get("arch") == "tx" and drop > 0:
         spec["drop"] = drop
     net = build(spec).to(dev)
@@ -456,9 +464,13 @@ def load_dir(d, dev, upgrade_val_mlp=False, drop=0.0, upgrade_glob_f=0, upgrade_
             sd["val_ln.weight"] = F.pad(sd["val_ln.weight"], (0, delta_gf), value=1.0)
         if "val_ln.bias" in sd and sd["val_ln.bias"].shape[0] + delta_gf == net.val_ln.bias.shape[0]:
             sd["val_ln.bias"] = F.pad(sd["val_ln.bias"], (0, delta_gf), value=0.0)
-    if upgraded or upgraded_vb:
-        sd = {k: v for k, v in sd.items() if not k.startswith("value.") and (not upgraded_vb or not k.startswith("val_fc2."))}
+    if upgraded or upgraded_vb or upgraded_th:
+        if upgraded or upgraded_vb:
+            sd = {k: v for k, v in sd.items() if not k.startswith("value.") and (not upgraded_vb or not k.startswith("val_fc2."))}
         net.load_state_dict(sd, strict=False)
+        if upgraded_th and getattr(net, "threat", None) is not None:
+            nn.init.zeros_(net.threat.weight)
+            nn.init.zeros_(net.threat.bias)
     else:
         net.load_state_dict(sd)
     return net

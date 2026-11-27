@@ -1,0 +1,22 @@
+# name: Train200 guild-ub-midrange-5
+# archetype: midrange
+# colors: UB
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Chrome Prowler
+3 Diregraf Ghoul
+2 Dirge Bat
+4 Emeritus of Ideation
+3 Faerie Impostor
+2 Glen Elendra Guardian
+3 Hero's Downfall
+2 Hunted Nightmare
+3 Into the Roil
+2 Lunar Rejection
+2 Moonshadow
+3 Stern Dismissal
+1 Three Steps Ahead
+2 Volatile Rig
+4 Darkslick Shores
+10 Island
+4 Sunken Hollow
+6 Swamp

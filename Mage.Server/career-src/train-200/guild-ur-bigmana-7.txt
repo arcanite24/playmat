@@ -1,0 +1,22 @@
+# name: Train200 guild-ur-bigmana-7
+# archetype: bigmana
+# colors: UR
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Cogwork Wrestler
+1 Dragonhawk, Fate's Tempest
+3 Fiery Conclusion
+4 Goblin Guide
+2 Goldnight Castigator
+4 Havoc Devils
+2 Krenko, Baron of Tin Street
+2 Precise Strike
+2 Ragefire Hellkite
+2 Relic Golem
+3 Shimmer Dragon
+3 Sphinx of Magosi
+2 Terror of the Peaks
+3 Unsummon
+4 Highland Lake
+6 Island
+11 Mountain
+4 Thundering Falls

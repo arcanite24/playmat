@@ -1,0 +1,21 @@
+# name: Train200 guild-bg-bigmana-7
+# archetype: bigmana
+# colors: BG
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Cactuar
+3 Cling to Dust
+2 Dark Remedy
+2 Drana, the Last Bloodchief
+4 Dust Stalker
+2 Iridescent Vinelasher
+3 Nightmarish End
+2 Rampaging Baloths
+3 Rampaging Brontodon
+1 Sarulf, Realm Eater
+4 Soul of the Harvest
+2 Spawn of Mayhem
+3 Super-Skrull
+7 Forest
+4 Jungle Hollow
+10 Swamp
+4 Witherbloom Campus

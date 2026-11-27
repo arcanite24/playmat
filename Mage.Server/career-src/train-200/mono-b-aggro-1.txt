@@ -1,0 +1,19 @@
+# name: Train200 mono-b-aggro-1
+# archetype: aggro
+# colors: B
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Bloodsoaked Champion
+3 Bonded Construct
+4 Circle of Power
+2 Creeping Chill
+1 Depressurize
+2 Grotesque Mutation
+3 Homicide Investigator
+1 Lash of Thorns
+2 Master of the Feast
+4 Raven of Fell Omens
+4 Sanitarium Skeleton
+3 Scarab Feast
+4 Traxos, Scourge of Kroog
+2 Whiplash, Vengeful Engineer
+21 Swamp

@@ -1,0 +1,26 @@
+# name: Train200 tri-ubr-control-12
+# archetype: control
+# colors: UBR
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Collective Nightmare
+2 Final Flare
+1 Fire Prophecy
+4 Flashfreeze
+2 Frostbite Pyromental
+2 Gates Ablaze
+2 Gutsplitter Gang
+1 Metallic Rebuke
+1 Quaketusk Boar
+3 Rakdos, Patron of Chaos
+2 Siren's Ruse
+2 Smash to Dust
+2 Spellgyre
+3 Spikefield Hazard
+3 Supreme Will
+2 Wizard's Lightning
+5 Island
+6 Mountain
+4 Murky Sewer
+4 Ominous Asylum
+3 Swamp
+4 Tramway Station

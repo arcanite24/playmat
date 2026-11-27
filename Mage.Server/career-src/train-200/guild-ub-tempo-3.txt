@@ -1,0 +1,23 @@
+# name: Train200 guild-ub-tempo-3
+# archetype: tempo
+# colors: UB
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Abhorrent Oculus
+1 Ceremonious Rejection
+2 Consider the Prime Directive
+2 Creeping Chill
+2 Depower
+3 Lantern Bearer
+4 Moat Piranhas
+3 Neutralizing Blast
+4 Pitiless Horde
+2 Rapid Hybridization
+2 Scales of Shale
+1 Sleep-Cursed Faerie
+2 Syphon Essence
+4 Thoughtbound Phantasm
+4 Unsubstantiate
+4 Contaminated Aquifer
+11 Island
+4 Submerged Boneyard
+3 Swamp

@@ -1,0 +1,21 @@
+# name: Train200 guild-rw-bigmana-6
+# archetype: bigmana
+# colors: RW
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Bounding Felidar
+2 Descendant of Storms
+2 Dragonhawk, Fate's Tempest
+3 Embermaw Hellion
+2 Fear of Being Hunted
+2 Fierce Retribution
+4 Inferno of the Star Mounts
+2 Iroas, God of Victory
+2 Martial Glory
+4 Monastery Swiftspear
+4 Owlin Historian
+2 Purphoros, God of the Forge
+4 Surge of Righteousness
+9 Mountain
+4 Needle Spires
+8 Plains
+4 Wind-Scarred Crag

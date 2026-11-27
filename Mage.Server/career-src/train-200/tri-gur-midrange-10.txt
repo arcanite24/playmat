@@ -1,0 +1,25 @@
+# name: Train200 tri-gur-midrange-10
+# archetype: midrange
+# colors: GUR
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Balustrade Wurm
+3 Bloated Contaminator
+3 Bristlebud Farmer
+4 Daring Buccaneer
+2 Fading Hope
+1 Fae of Wishes
+3 Flick a Coin
+2 Geralf's Masterpiece
+2 Heartfire
+4 Maelstrom Artisan
+1 Molten Blast
+3 Pit Fight
+3 Rustvine Cultivator
+2 Stoic Sphinx
+1 Volcanic Spite
+4 Andoria
+4 Forest
+4 Game Trail
+2 Island
+6 Mountain
+4 Vineglimmer Snarl

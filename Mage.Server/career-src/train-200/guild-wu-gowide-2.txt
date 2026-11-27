@@ -1,0 +1,21 @@
+# name: Train200 guild-wu-gowide-2
+# archetype: gowide
+# colors: WU
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Aspirant's Ascent
+4 Elite Interceptor
+4 Faerie Miscreant
+3 Gloryheath Lynx
+4 Holy Cow
+3 Light the Way
+4 Loyal Pegasus
+3 Resolute Watchdog
+1 Spontaneous Flight
+2 Thassa, Deep-Dwelling
+4 Wanderbrine Trapper
+2 Warlord's Elite
+1 Warping Wail
+4 Adarkar Wastes
+4 Island
+10 Plains
+4 Tranquil Cove

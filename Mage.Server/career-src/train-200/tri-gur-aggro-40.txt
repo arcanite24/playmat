@@ -1,0 +1,23 @@
+# name: Train200 tri-gur-aggro-40
+# archetype: aggro
+# colors: GUR
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Beast-Kin Ranger
+4 Blur of Blades
+3 Brinebarrow Intruder
+1 Chase Inspiration
+4 Flame Lash
+3 Goblin Blast-Runner
+3 Humbling Elder
+4 Lightning Stormkin
+4 Norin, Swift Survivalist
+3 Rabbit Battery
+2 Radiating Lightning
+2 Strength of the Coalition
+2 Surrak, Elusive Hunter
+4 Airship Engine Room
+2 Forest
+4 Highland Forest
+2 Island
+5 Mountain
+4 Spirebluff Canal

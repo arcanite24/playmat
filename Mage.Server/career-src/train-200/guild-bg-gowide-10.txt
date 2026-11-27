@@ -1,0 +1,21 @@
+# name: Train200 guild-bg-gowide-10
+# archetype: gowide
+# colors: BG
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+1 Bristlebane Battler
+2 Heirloom Auntie
+4 Highspire Infusion
+4 Leering Onlooker
+3 MACO Strike Team
+3 Nettle Sentinel
+3 Nightmare Shepherd
+4 Project Deathlok Soldier
+3 Putrefy
+3 Redtooth Vanguard
+3 Shakedown Heavy
+1 Skulduggery
+4 Stalking Drone
+6 Forest
+4 Necroblossom Snarl
+8 Swamp
+4 Woodland Chasm

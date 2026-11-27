@@ -1,0 +1,22 @@
+# name: Train200 guild-gu-control-9
+# archetype: control
+# colors: GU
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+1 Alchemist's Retrieval
+3 Break Down the Door
+4 Chain to Memory
+2 Champions of the Perfect
+4 Countersculpt
+1 Defiler of Vigor
+2 Keep Safe
+3 Lookout's Dispersal
+2 Lurking Roper
+3 Mossbeard Ancient
+2 Protect the Negotiators
+2 Resculpt
+2 Skyreaping
+3 Stubborn Denial
+7 Forest
+4 Guadosalam, Farplane Gateway
+11 Island
+4 Transformative Commons

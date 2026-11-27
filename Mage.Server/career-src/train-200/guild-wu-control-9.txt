@@ -1,0 +1,23 @@
+# name: Train200 guild-wu-control-9
+# archetype: control
+# colors: WU
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+1 Basri's Solidarity
+1 Broken Concentration
+3 Change the Equation
+4 Code of Constraint
+3 Crystalline Nautilus
+2 Fear of Falling
+1 Illusory Angel
+3 Invoke the Divine
+1 Machine Over Matter
+2 Psychic Rebuttal
+3 Restore the Peace
+4 Rookie Mistake
+2 Scatter Ray
+2 Shimmer Dragon
+2 Topple the Statue
+4 Glacial Floodplain
+13 Island
+4 Lonely Arroyo
+5 Plains

@@ -1,0 +1,21 @@
+# name: Train200 guild-gw-control-8
+# archetype: control
+# colors: GW
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Abstruse Interference
+4 Aven Interrupter
+2 Briar Hydra
+3 Choose Your Weapon
+2 Complete Disregard
+2 Herald of Eternal Dawn
+4 Long Road Home
+1 Origin of Metalbending
+2 Rapier Wit
+4 Spell Shrivel
+4 United Front
+2 Vigorbloom Charm
+2 Warping Wail
+6 Forest
+12 Plains
+4 Radiant Grove
+4 Suburban Sanctuary

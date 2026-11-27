@@ -1,0 +1,22 @@
+# name: Train200 guild-ur-tempo-3
+# archetype: tempo
+# colors: UR
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Annihilating Fire
+1 Ball Lightning
+4 Cathartic Pyre
+2 Cunning Maneuver
+3 Disappearing Act
+2 Force Away
+4 Humbling Elder
+2 Illusory Angel
+2 Keep Safe
+2 Reality Shift
+4 Reinforced Ronin
+3 Spider-Sense
+4 Starfleet Spanner Jockey
+3 Vesuvan Drifter
+9 Island
+5 Mountain
+4 Sulfur Falls
+4 Volatile Fjord

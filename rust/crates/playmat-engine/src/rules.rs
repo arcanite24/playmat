@@ -34,7 +34,13 @@ pub fn play_from_priority_question(game: &mut Game, d: &mut dyn Decider, stop_on
 
 fn play_on(game: &mut Game, d: &mut dyn Decider, stop_on_turn: u32, mut resume: bool) {
     let mut first = true;
+    let mut step_iters: u32 = 0;
     while !game.over && !d.stopped() {
+        step_iters += 1;
+        if step_iters > 5_000 {
+            game.over = true;
+            break;
+        }
         let step = match game.step {
             Some(s) => s,
             None => return,
@@ -190,7 +196,13 @@ fn next_step(game: &Game, step: Step) -> Option<Step> {
 /// begins (Java's extra `CleanupStep` turn mod), which checks again. `resume`: a copy taken while a seat was asked at
 /// this priority plays on from it.
 fn cleanup_priority(game: &mut Game, d: &mut dyn Decider, mut resume: bool) {
+    let mut cleanup_iters: u32 = 0;
     loop {
+        cleanup_iters += 1;
+        if cleanup_iters > 200 {
+            game.over = true;
+            return;
+        }
         if !std::mem::take(&mut resume) {
             if !check_state_and_triggered(game, d) || game.over || d.stopped() {
                 return;
@@ -1267,7 +1279,13 @@ fn priority_round(game: &mut Game, d: &mut dyn Decider, mut resume: bool) {
         // `GameImpl.playPriority` starts the loop count again
         game.loop_count = 0;
     }
+    let mut round_iters: u32 = 0;
     loop {
+        round_iters += 1;
+        if round_iters > 500 {
+            game.over = true;
+            return;
+        }
         let mut seat = active;
         if std::mem::take(&mut resume) {
             seat = game.priority.unwrap_or(active);
@@ -1278,7 +1296,13 @@ fn priority_round(game: &mut Game, d: &mut dyn Decider, mut resume: bool) {
         }
         loop {
             game.priority = Some(seat);
+            let mut seat_iters: u32 = 0;
             while !game.player(seat).passed {
+                seat_iters += 1;
+                if seat_iters > 500 {
+                    game.over = true;
+                    return;
+                }
                 check_state_and_triggered(game, d);
                 if game.over || d.stopped() {
                     return;
@@ -23194,7 +23218,13 @@ fn take_batch(game: &mut Game) -> Vec<StackItem> {
 /// True: state-based actions were performed or triggers were put on the stack (`GameImpl.checkStateAndTriggered`).
 fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
     let mut happened = false;
+    let mut sba_iters: u32 = 0;
     loop {
+        sba_iters += 1;
+        if sba_iters > 500 {
+            game.over = true;
+            return happened;
+        }
         game.counter_removed_batch.clear();
         if !game.batch_pending.is_empty() {
             let batch = take_batch(game);

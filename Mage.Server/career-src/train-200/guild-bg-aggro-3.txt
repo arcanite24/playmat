@@ -1,0 +1,22 @@
+# name: Train200 guild-bg-aggro-3
+# archetype: aggro
+# colors: BG
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Cactuar
+1 Chief Warg's Company
+2 Daemogoth Titan
+4 Extended Absence
+4 Flaxen Intruder
+3 General Chang, Cold Warrior
+4 Locust Spray
+2 Moment of Defiance
+2 Reality Hemorrhage
+1 Shape the Sands
+4 Sinkhole Surveyor
+3 Swordwise Centaur
+3 Vastlands Scavenger
+3 Wight
+4 Foggy Bottom Swamp
+6 Forest
+4 Subterranean Cavern
+7 Swamp

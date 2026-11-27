@@ -1,0 +1,24 @@
+# name: Train200 tri-wub-gowide-41
+# archetype: gowide
+# colors: WUB
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+1 Creakwood Safewright
+3 Curator of Mysteries
+4 Dorothea, Vengeful Victim
+4 Duskborne Skymarcher
+1 Heirloom Auntie
+4 High Fae Trickster
+2 Jump Scare
+3 Loyal Pegasus
+2 Not on My Watch
+3 Reaver Drone
+4 Stoneforge Acolyte
+2 Tandem Tactics
+3 Watcher of the Spheres
+2 Whisper of the Dross
+4 Deserted Beach
+4 Fatehold Annex
+4 Idyllic Beachfront
+3 Island
+6 Plains
+1 Swamp

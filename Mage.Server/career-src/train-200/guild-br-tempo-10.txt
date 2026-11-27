@@ -1,0 +1,22 @@
+# name: Train200 guild-br-tempo-10
+# archetype: tempo
+# colors: BR
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Abstruse Interference
+2 Annihilating Fire
+4 Bold Impaler
+4 Decadent Dragon
+2 Final Flare
+3 Kessig Wolfrider
+4 Moonrager's Slash
+4 Phoenix Chick
+3 Plasma Cascade
+4 Spell Shrivel
+1 Tormented Hero
+2 Tragedy Feaster
+2 Violent Urge
+1 You Are Already Dead
+4 Blood Crypt
+4 Goblin-town
+12 Mountain
+2 Swamp

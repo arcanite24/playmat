@@ -70,6 +70,10 @@ def pack_handshake(net):
         bw = net.belief.weight.detach().float().cpu().contiguous()
         bb = net.belief.bias.detach().float().cpu().contiguous()
         has_bel = 1
+        th = getattr(net, "threat", None)
+        has_threat = 1 if th is not None else 0
+        tw = th.weight.detach().float().cpu().contiguous() if has_threat else torch.zeros(0)
+        tb = th.bias.detach().float().cpu().contiguous() if has_threat else torch.zeros(0)
     else:
         emb = net.emb.weight.detach().float().cpu().contiguous()
         dim = emb.shape[1]
@@ -77,10 +81,17 @@ def pack_handshake(net):
         has_bel = 1 if net.belief is not None else 0
         bw = net.belief.weight.detach().float().cpu().contiguous() if has_bel else torch.zeros(0)
         bb = net.belief.bias.detach().float().cpu().contiguous() if has_bel else torch.zeros(0)
-    hdr = struct.pack("<IIIB", dim, BUCKETS, trunk, has_bel)
+        has_threat = 0
+        tw = torch.zeros(0)
+        tb = torch.zeros(0)
+    flags = (1 if has_bel else 0) | (2 if has_threat else 0)
+    hdr = struct.pack("<IIIB", dim, BUCKETS, trunk, flags)
+    out = hdr
     if has_bel:
-        return hdr + emb.numpy().tobytes() + bw.numpy().tobytes() + bb.numpy().tobytes()
-    return hdr
+        out += emb.numpy().tobytes() + bw.numpy().tobytes() + bb.numpy().tobytes()
+    if has_threat:
+        out += tw.numpy().tobytes() + tb.numpy().tobytes()
+    return out
 
 
 def unpack_flat(B, w_e, w_a, mv):
