@@ -1,8 +1,9 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Check, Copy } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Copy, Globe, Laptop, Play, Server, Smartphone } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { APP_NAME } from '../brand';
+import { Mark } from '../ui/Mark';
 import {
   DEFAULT_SWARM_URL,
   formatCredit,
@@ -97,8 +98,11 @@ export function SwarmScreen() {
             <ArrowLeft size={16} aria-hidden="true" /> {APP_NAME}
           </Link>
           <div className={styles.brand}>
-            <h1 className={styles.title}>Mana@Home</h1>
-            <p className={styles.subtitle}>Public self-play swarm tracker for Playmat AI</p>
+            <Mark size={30} />
+            <div className={styles.brandText}>
+              <h1 className={styles.title}>Mana@Home</h1>
+              <p className={styles.subtitle}>Community self-play swarm for Playmat&apos;s open Magic AI</p>
+            </div>
           </div>
           <span className={styles.liveBadge} aria-live="polite">
             <span className={sseConnected ? styles.liveDot : styles.liveDotOffline} aria-hidden="true" />
@@ -144,6 +148,31 @@ export function SwarmScreen() {
   );
 }
 
+function rankClass(index: number): string {
+  if (index === 0) return `${styles.rankCell} ${styles.rank1}`;
+  if (index === 1) return `${styles.rankCell} ${styles.rank2}`;
+  if (index === 2) return `${styles.rankCell} ${styles.rank3}`;
+  return styles.rankCell;
+}
+
+const HOW_IT_WORKS = [
+  {
+    num: '01',
+    title: 'Play in the background',
+    body: 'Use a browser tab, desktop app, spare Android phone, or Docker container. Workers run at lowest priority and stay out of the way while you use your machine.',
+  },
+  {
+    num: '02',
+    title: 'Independently verified',
+    body: 'Every submitted game is checked from its complete move log, and sampled work is replayed bit-for-bit on another contributor\'s machine before entering training.',
+  },
+  {
+    num: '03',
+    title: 'Trained and tested openly',
+    body: 'Verified games train the next neural network generation. A new model only promotes after beating the current champion in an open head-to-head match.',
+  },
+];
+
 function OverviewView() {
   const statusQ = useQuery({
     queryKey: ['swarm', 'status'],
@@ -155,42 +184,247 @@ function OverviewView() {
     queryFn: () => swarmPublic.feed(25),
     refetchInterval: 15_000,
   });
+  const lbQ = useQuery({
+    queryKey: ['swarm', 'leaderboard', 'all'],
+    queryFn: () => swarmPublic.leaderboard('all'),
+    refetchInterval: 30_000,
+    retry: false,
+  });
+  const netsQ = useQuery({
+    queryKey: ['swarm', 'networks'],
+    queryFn: () => swarmPublic.networks(),
+    refetchInterval: 30_000,
+    retry: false,
+  });
 
-  if (statusQ.isError) {
-    return <p className={styles.error} role="alert">Could not reach coordinator: {String(statusQ.error)}</p>;
-  }
   const st = statusQ.data;
-  if (!st) return <p className={styles.quiet}>Loading live swarm status...</p>;
-
-  const platforms = Object.entries(st.platforms ?? {});
-  const gamesPerSec = (st.games_last_hour / 3600).toFixed(2);
+  const platforms = Object.entries(st?.platforms ?? {});
+  const gamesPerSec = st ? (st.games_last_hour / 3600).toFixed(2) : '0.00';
+  const topContributors = (lbQ.data ?? []).slice(0, 5);
+  const networks = netsQ.data ?? [];
+  const ratedNetworks = [...networks]
+    .filter((n) => n.bench_elo !== null && n.bench_games > 0)
+    .sort((a, b) => b.created - a.created);
+  const latestRated = ratedNetworks[0] ?? null;
 
   return (
     <>
-      <dl className={styles.kpiGrid}>
-        <div className={styles.kpi}>
-          <dt>Games accepted</dt>
-          <dd>{st.games_accepted.toLocaleString()}</dd>
-          <span className={styles.kpiNote}>{st.units.accepted ?? 0} verified units</span>
+      <section className={styles.hero} aria-labelledby="swarm-hero-title">
+        <div className={styles.heroCopy}>
+          <span className={styles.eyebrow}>
+            <span className={st && st.hosts > 0 ? styles.liveDot : styles.liveDotOffline} aria-hidden="true" />
+            {st && st.hosts > 0
+              ? `${st.hosts} ${st.hosts === 1 ? 'machine' : 'machines'} playing right now`
+              : 'Open community self-play'}
+          </span>
+          <h2 id="swarm-hero-title" className={styles.heroTitle}>
+            Help train Playmat&apos;s Magic AI
+          </h2>
+          <p className={styles.heroLead}>
+            Mana@Home pools spare CPU and GPU time from players to run real 60-card self-play games in the background.
+            Every match is replayed and checked independently, then used to train open neural networks anyone can play
+            against or inspect.
+          </p>
+          <div className={styles.heroActions}>
+            <Link to="/swarm/contribute" className={styles.btnPrimary}>
+              Start contributing <ArrowRight size={15} aria-hidden="true" />
+            </Link>
+            <Link to="/swarm/watch" className={styles.btnSecondary}>
+              <Play size={14} aria-hidden="true" /> Watch live games
+            </Link>
+            <Link to="/swarm/networks" className={styles.sectionLink}>
+              Strength progress <ArrowRight size={14} aria-hidden="true" />
+            </Link>
+          </div>
         </div>
-        <div className={styles.kpi}>
-          <dt>Throughput</dt>
-          <dd>{st.games_last_hour.toLocaleString()}/hr</dd>
-          <span className={styles.kpiNote}>{gamesPerSec} games/sec in last hour</span>
-        </div>
-        <div className={styles.kpi}>
-          <dt>Active workers</dt>
-          <dd>{st.hosts}</dd>
-          <span className={styles.kpiNote}>{st.threads} CPU threads online</span>
-        </div>
-        <div className={styles.kpi}>
-          <dt>Decisions recorded</dt>
-          <dd>{st.total_decisions.toLocaleString()}</dd>
-          <span className={styles.kpiNote}>{st.units.queued ?? 0} queued, {st.units.leased ?? 0} leased</span>
-        </div>
-      </dl>
 
-      {st.active_round && <RoundCard round={st.active_round} heading="Active round" />}
+        <div className={styles.heroAside}>
+          {statusQ.isError ? (
+            <p className={styles.error} role="alert">Could not reach coordinator: {String(statusQ.error)}</p>
+          ) : !st ? (
+            <p className={styles.quiet}>Loading live swarm status...</p>
+          ) : (
+            <dl className={styles.heroKpiGrid}>
+              <div className={styles.heroKpi}>
+                <dt>Games accepted</dt>
+                <dd>{st.games_accepted.toLocaleString()}</dd>
+                <span className={styles.kpiNote}>{st.units.accepted ?? 0} verified units</span>
+              </div>
+              <div className={styles.heroKpi}>
+                <dt>Throughput</dt>
+                <dd>{st.games_last_hour.toLocaleString()}/hr</dd>
+                <span className={styles.kpiNote}>{gamesPerSec} games/sec last hour</span>
+              </div>
+              <div className={styles.heroKpi}>
+                <dt>Active workers</dt>
+                <dd>{st.hosts}</dd>
+                <span className={styles.kpiNote}>{st.threads} CPU threads online</span>
+              </div>
+              <div className={styles.heroKpi}>
+                <dt>Decisions recorded</dt>
+                <dd>{st.total_decisions.toLocaleString()}</dd>
+                <span className={styles.kpiNote}>{st.units.queued ?? 0} queued, {st.units.leased ?? 0} leased</span>
+              </div>
+            </dl>
+          )}
+        </div>
+      </section>
+
+      {st?.active_round && <RoundCard round={st.active_round} heading="Active round" />}
+
+      <section className={styles.subSection} aria-labelledby="swarm-how-title">
+        <div className={styles.sectionHead}>
+          <h2 id="swarm-how-title" className={styles.sectionTitle}>How it works</h2>
+          <Link to="/swarm/transparency" className={styles.sectionLink}>
+            Verification and open data <ArrowRight size={14} aria-hidden="true" />
+          </Link>
+        </div>
+        <div className={styles.stepsGrid}>
+          {HOW_IT_WORKS.map((item) => (
+            <article key={item.num} className={styles.stepCard}>
+              <span className={styles.stepNum}>{item.num}</span>
+              <h3 className={styles.stepTitle}>{item.title}</h3>
+              <p className={styles.stepBody}>{item.body}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className={styles.subSection} aria-labelledby="swarm-ways-title">
+        <div className={styles.sectionHead}>
+          <h2 id="swarm-ways-title" className={styles.sectionTitle}>Pick how you want to help</h2>
+          <Link to="/swarm/contribute" className={styles.sectionLink}>
+            All setup options <ArrowRight size={14} aria-hidden="true" />
+          </Link>
+        </div>
+        <div className={styles.waysGrid}>
+          <article className={styles.wayCard}>
+            <div className={styles.wayTop}>
+              <span className={styles.wayIcon} aria-hidden="true"><Globe size={18} /></span>
+              <span className={styles.chip}>Zero install</span>
+            </div>
+            <h3 className={styles.wayTitle}>In this browser</h3>
+            <p className={styles.wayDesc}>
+              Pick a handle and run the strict Rust engine inside a background Web Worker while a tab stays open.
+            </p>
+            <Link to="/swarm/contribute" className={styles.wayAction}>
+              Open browser worker <ArrowRight size={14} aria-hidden="true" />
+            </Link>
+          </article>
+
+          <article className={styles.wayCard}>
+            <div className={styles.wayTop}>
+              <span className={styles.wayIcon} aria-hidden="true"><Laptop size={18} /></span>
+              <span className={styles.chip}>Set and forget</span>
+            </div>
+            <h3 className={styles.wayTitle}>Windows, Mac &amp; Linux</h3>
+            <p className={styles.wayDesc}>
+              One-line signed installer with an idle-only background service, local pause/thread panel, and verified
+              auto-updates.
+            </p>
+            <Link to="/swarm/contribute" className={styles.wayAction}>
+              Get desktop installer <ArrowRight size={14} aria-hidden="true" />
+            </Link>
+          </article>
+
+          <article className={styles.wayCard}>
+            <div className={styles.wayTop}>
+              <span className={styles.wayIcon} aria-hidden="true"><Server size={18} /></span>
+              <span className={styles.chip}>CPU or NVIDIA GPU</span>
+            </div>
+            <h3 className={styles.wayTitle}>Docker &amp; Homelabs</h3>
+            <p className={styles.wayDesc}>
+              Multi-arch CPU container or CUDA GPU container for fast batched self-play on desktops and servers.
+            </p>
+            <Link to="/swarm/contribute" className={styles.wayAction}>
+              Copy Docker command <ArrowRight size={14} aria-hidden="true" />
+            </Link>
+          </article>
+
+          <article className={styles.wayCard}>
+            <div className={styles.wayTop}>
+              <span className={styles.wayIcon} aria-hidden="true"><Smartphone size={18} /></span>
+              <span className={styles.chip}>Charger + Wi-Fi</span>
+            </div>
+            <h3 className={styles.wayTitle}>Android</h3>
+            <p className={styles.wayDesc}>
+              Signed arm64 APK for a spare phone. Runs strictly while plugged in and on unmetered Wi-Fi.
+            </p>
+            <a
+              href="https://github.com/arcanite24/mana-at-home/releases/latest"
+              target="_blank"
+              rel="noreferrer"
+              className={styles.wayAction}
+            >
+              Download latest APK <ArrowRight size={14} aria-hidden="true" />
+            </a>
+          </article>
+        </div>
+      </section>
+
+      <div className={styles.split}>
+        <section className={styles.card} aria-labelledby="swarm-top-contributors">
+          <div className={styles.cardHead}>
+            <h2 id="swarm-top-contributors" className={styles.cardTitle}>Top contributors</h2>
+            <Link to="/swarm/leaderboard" className={styles.sectionLink}>
+              Full leaderboard <ArrowRight size={14} aria-hidden="true" />
+            </Link>
+          </div>
+          {topContributors.length === 0 ? (
+            <p className={styles.quiet}>
+              {lbQ.isPending ? 'Loading leaderboard...' : 'Contributor standings appear once units are accepted.'}
+            </p>
+          ) : (
+            <div className={styles.tableWrap}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Contributor</th>
+                    <th className={styles.num}>Games</th>
+                    <th className={styles.num}>Credit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topContributors.map((entry, idx) => (
+                    <tr key={entry.account}>
+                      <td className={rankClass(idx)}>{idx + 1}</td>
+                      <td>
+                        <Link to={`/swarm/contributors/${encodeURIComponent(entry.account)}`}>{entry.account}</Link>
+                      </td>
+                      <td className={styles.num}>{entry.games.toLocaleString()}</td>
+                      <td className={styles.num}>{formatCredit(entry.credit)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        <section className={styles.card} aria-labelledby="swarm-strength-snapshot">
+          <div className={styles.cardHead}>
+            <h2 id="swarm-strength-snapshot" className={styles.cardTitle}>AI strength progress</h2>
+            <Link to="/swarm/networks" className={styles.sectionLink}>
+              Networks &amp; gates <ArrowRight size={14} aria-hidden="true" />
+            </Link>
+          </div>
+          {latestRated ? (
+            <p className={styles.quiet}>
+              Latest rated: <strong>{latestRated.label}</strong> ·{' '}
+              {Math.round(latestRated.bench_elo as number)} +/- {Math.round(latestRated.bench_ci95 ?? 0)} Elo (
+              {latestRated.bench_games} games vs host@s6 = 1000)
+            </p>
+          ) : (
+            <p className={styles.quiet}>
+              {netsQ.isPending
+                ? 'Loading network ratings...'
+                : 'Networks are rated against fixed opponents on held-out decks after every generation.'}
+            </p>
+          )}
+          {ratedNetworks.length > 0 && <EloChart networks={networks} />}
+        </section>
+      </div>
 
       {platforms.length > 0 && (
         <section className={styles.card} aria-labelledby="swarm-platforms">
@@ -245,6 +479,19 @@ function OverviewView() {
           </div>
         )}
       </section>
+
+      <footer className={styles.footerNote}>
+        <span>Open-source client, reproducible builds, and public weights.</span>
+        <div className={styles.footerLinks}>
+          <a href="https://github.com/arcanite24/mana-at-home" target="_blank" rel="noreferrer">
+            Client releases (GitHub)
+          </a>
+          <a href="https://huggingface.co/nerijs" target="_blank" rel="noreferrer">
+            Open weights (Hugging Face)
+          </a>
+          <Link to="/swarm/transparency">Public audit log</Link>
+        </div>
+      </footer>
     </>
   );
 }
@@ -311,15 +558,15 @@ function statusChipClass(status: string): string {
 function EloChart({ networks }: { networks: NetworkInfo[] }) {
   const rated = [...networks]
     .filter((n) => n.bench_elo !== null && n.bench_games > 0)
-    .reverse();
+    .sort((a, b) => a.created - b.created);
 
   if (rated.length === 0) {
     return <p className={styles.quiet}>No Archbench ratings recorded yet.</p>;
   }
 
   const w = 680;
-  const h = 190;
-  const padL = 52;
+  const h = 196;
+  const padL = 56;
   const padR = 24;
   const padT = 18;
   const padB = 34;
@@ -340,7 +587,7 @@ function EloChart({ networks }: { networks: NetworkInfo[] }) {
         return (
           <g key={t}>
             <line x1={padL} x2={w - padR} y1={y} y2={y} stroke="var(--ink-faint)" strokeDasharray="3 3" />
-            <text x={padL - 8} y={y + 4} textAnchor="end" fill="var(--ink-dim)" fontSize="11">
+            <text x={padL - 8} y={y + 4} textAnchor="end" fill="var(--ink-soft)" fontSize="12">
               {t}
             </text>
           </g>
@@ -352,10 +599,11 @@ function EloChart({ networks }: { networks: NetworkInfo[] }) {
       {rated.map((n, i) => {
         const cx = xFor(i);
         const cy = yFor(n.bench_elo as number);
+        const anchor = rated.length === 1 ? 'middle' : i === 0 ? 'start' : i === rated.length - 1 ? 'end' : 'middle';
         return (
           <g key={n.sha256}>
             <circle cx={cx} cy={cy} r="4.5" fill="var(--decision)" />
-            <text x={cx} y={h - 10} textAnchor="middle" fill="var(--ink-dim)" fontSize="11">
+            <text x={cx} y={h - 10} textAnchor={anchor} fill="var(--ink-soft)" fontSize="12">
               {n.label}
             </text>
           </g>
@@ -1198,6 +1446,20 @@ function ContributeView() {
   const tokenDisplay = minted ? minted.token : 'YOUR_WORKER_TOKEN';
   const hostDisplay = minted ? `${minted.account}-pc` : 'my-pc';
 
+  const unixInstallCmd = `curl -fsSL https://raw.githubusercontent.com/arcanite24/mana-at-home/main/scripts/install.sh | sh
+mkdir -p ~/.config/mana && printf '%s\\n' '${tokenDisplay}' > ~/.config/mana/worker.token
+~/.local/bin/playmat-worker install-service \\
+  --coordinator ${DEFAULT_SWARM_URL} \\
+  --name ${hostDisplay} \\
+  --token-file ~/.config/mana/worker.token \\
+  --repo ~/.local/share/mana-repo \\
+  --when idle --ui --auto-update`;
+
+  const winInstallCmd = `irm https://raw.githubusercontent.com/arcanite24/mana-at-home/main/scripts/install.ps1 | iex
+New-Item -ItemType Directory -Force "$env:USERPROFILE\\.config\\mana" | Out-Null
+Set-Content -NoNewline "$env:USERPROFILE\\.config\\mana\\worker.token" "${tokenDisplay}"
+"$env:LOCALAPPDATA\\ManaAtHome\\playmat-worker.exe" install-service --coordinator ${DEFAULT_SWARM_URL} --name ${hostDisplay} --token-file "$env:USERPROFILE\\.config\\mana\\worker.token" --repo "$env:LOCALAPPDATA\\ManaAtHome\\repo" --when idle --ui --auto-update`;
+
   const dockerCmd = `docker run -d --name mana --restart unless-stopped --cpus 4 \\
   -e MANA_COORDINATOR=${DEFAULT_SWARM_URL} \\
   -e MANA_NAME=${hostDisplay} \\
@@ -1206,47 +1468,40 @@ function ContributeView() {
   -v mana-work:/work \\
   ghcr.io/arcanite24/mana-worker:latest`;
 
-  const cliCmd = `# Download signed strict binary from https://github.com/arcanite24/mana-at-home/releases/latest
-./playmat-worker install-service \\
-  --coordinator ${DEFAULT_SWARM_URL} \\
-  --name ${hostDisplay} \\
-  --token-file ~/.config/mana/worker.token \\
-  --jobs 4 \\
-  --when idle \\
-  --ui \\
-  --auto-update`;
+  const dockerGpuCmd = `docker run -d --name mana-gpu --restart unless-stopped --gpus all --cpus 8 \\
+  -e MANA_COORDINATOR=${DEFAULT_SWARM_URL} \\
+  -e MANA_NAME=${hostDisplay}-gpu \\
+  -e MANA_TOKEN=${tokenDisplay} \\
+  -e MANA_JOBS=8 \\
+  -e MANA_GPU=auto \\
+  -v mana-work-gpu:/work \\
+  ghcr.io/arcanite24/mana-worker-gpu:latest`;
 
   return (
     <>
       <section className={styles.card} aria-labelledby="swarm-signup-title">
-        <h2 id="swarm-signup-title" className={styles.cardTitle}>Get a volunteer worker token</h2>
+        <h2 id="swarm-signup-title" className={styles.cardTitle}>Step 1: Get a volunteer worker token</h2>
         <p className={styles.quiet}>
           Choose a contributor handle (3-32 characters of letters, digits, dot, hyphen, underscore) to mint a one-time
-          worker token. New accounts start in probation and never require a Playmat login.
+          worker token. No Playmat account or login is required; your handle appears on the leaderboard.
         </p>
-        <form onSubmit={(e) => void onRegister(e)} className={styles.toolbar}>
+        <form onSubmit={(e) => void onRegister(e)} className={styles.formRow}>
           <label className={styles.quiet}>
             Contributor handle{' '}
             <input
               type="text"
+              className={styles.textInput}
               value={handle}
               onChange={(e) => setHandle(e.target.value)}
               placeholder="your-handle"
               minLength={3}
               maxLength={32}
               required
-              style={{
-                padding: '6px 10px',
-                borderRadius: 6,
-                border: '1px solid var(--ink-faint)',
-                background: 'var(--mat-950)',
-                color: 'var(--ink-strong)',
-              }}
             />
           </label>
           <button
             type="submit"
-            className={styles.copyBtn}
+            className={styles.btnPrimary}
             aria-label="Create worker token"
             disabled={submitting || handle.trim().length < 3}
           >
@@ -1258,16 +1513,85 @@ function ContributeView() {
           <>
             <p className={styles.quiet} role="status">
               Token created for <strong>{minted.account}</strong>. Copy and save it now; it is shown only once and has
-              been filled into the commands and browser worker below.
+              been filled into the browser worker and install commands below.
             </p>
             <CopyableCode label="worker token" code={minted.token} />
           </>
         )}
       </section>
 
-      <div className={styles.split}>
+      <section className={styles.card} aria-labelledby="swarm-browser-worker">
+        <div className={styles.cardHead}>
+          <h2 id="swarm-browser-worker" className={styles.cardTitle}>Easiest: Contribute in this browser (WASM)</h2>
+          <span className={styles.chip}>
+            {browserStatus} · {browserUnits} units
+          </span>
+        </div>
+        <p className={styles.quiet}>
+          Zero installation. Runs the exact strict-1 Rust worker inside a background Web Worker while this tab stays
+          open. Close the tab whenever you want to stop.
+        </p>
+        <div className={styles.toolbar}>
+          <input
+            type="password"
+            className={styles.textInput}
+            aria-label="Browser worker token"
+            placeholder="Paste mana_worker_... token"
+            value={browserToken}
+            onChange={(e) => setBrowserToken(e.target.value)}
+            disabled={browserRunning}
+            style={{ flex: '1 1 240px' }}
+          />
+          {!browserRunning ? (
+            <button
+              type="button"
+              className={styles.btnPrimary}
+              disabled={browserToken.trim().length < 10}
+              onClick={startBrowserWorker}
+              aria-label="Start browser worker"
+            >
+              Start browser worker
+            </button>
+          ) : (
+            <button
+              type="button"
+              className={styles.btnSecondary}
+              onClick={stopBrowserWorker}
+              aria-label="Stop browser worker"
+            >
+              Stop worker
+            </button>
+          )}
+        </div>
+        {browserError && <p className={styles.error} role="alert">{browserError}</p>}
+        {browserLogs.length > 0 && (
+          <div className={styles.codeBlock}>
+            <pre>{browserLogs.join('\n')}</pre>
+          </div>
+        )}
+      </section>
+
+      <div className={styles.contributeGrid}>
         <section className={styles.card}>
-          <h2 className={styles.cardTitle}>Docker worker (recommended)</h2>
+          <h2 className={styles.cardTitle}>Desktop app: macOS &amp; Linux</h2>
+          <p className={styles.quiet}>
+            Downloads the signed strict binary and pinned card suites, installs an idle-only background service, opens a
+            local pause/thread panel at http://127.0.0.1:17195, and auto-updates with Ed25519 verification.
+          </p>
+          <CopyableCode label="macOS and Linux installer" code={unixInstallCmd} />
+        </section>
+
+        <section className={styles.card}>
+          <h2 className={styles.cardTitle}>Desktop app: Windows (PowerShell)</h2>
+          <p className={styles.quiet}>
+            Same signed background service and local control panel for Windows 10/11, with pinned suites bundled
+            automatically.
+          </p>
+          <CopyableCode label="Windows installer" code={winInstallCmd} />
+        </section>
+
+        <section className={styles.card}>
+          <h2 className={styles.cardTitle}>Docker worker (CPU)</h2>
           <p className={styles.quiet}>
             Multi-arch (amd64 and arm64), built with strict deterministic math and pinned card suites.
           </p>
@@ -1275,80 +1599,33 @@ function ContributeView() {
         </section>
 
         <section className={styles.card}>
-          <h2 className={styles.cardTitle}>Desktop service, control panel, and signed updates</h2>
+          <h2 className={styles.cardTitle}>Docker worker (NVIDIA CUDA GPU)</h2>
           <p className={styles.quiet}>
-            Prebuilt Ed25519-signed binaries and Android APKs ship from{' '}
-            <a href="https://github.com/arcanite24/mana-at-home/releases/latest" target="_blank" rel="noreferrer">
-              github.com/arcanite24/mana-at-home
-            </a>
-            . Runs at lowest OS priority with a loopback panel at http://127.0.0.1:17195 and verified auto-updates.
+            Batches neural network evaluations onto an NVIDIA GPU for fast self-play rounds. Requires the NVIDIA
+            Container Toolkit.
           </p>
-          <CopyableCode label="Native worker command" code={cliCmd} />
+          <CopyableCode label="Docker GPU worker command" code={dockerGpuCmd} />
         </section>
 
         <section className={styles.card}>
-          <div className={styles.cardHead}>
-            <h2 className={styles.cardTitle}>Contribute in this browser (WASM)</h2>
-            <span className={styles.chip}>
-              {browserStatus} · {browserUnits} units
-            </span>
-          </div>
+          <h2 className={styles.cardTitle}>Android (arm64 APK)</h2>
           <p className={styles.quiet}>
-            Runs the exact strict-1 Rust worker inside a single-threaded Web Worker while this tab stays open.
+            Use a spare Android phone as a quiet worker. Runs strictly while charging on unmetered Wi-Fi and pauses if
+            the battery gets warm. Download the signed APK from{' '}
+            <a href="https://github.com/arcanite24/mana-at-home/releases/latest" target="_blank" rel="noreferrer">
+              github.com/arcanite24/mana-at-home/releases
+            </a>
+            .
           </p>
-          <div className={styles.toolbar}>
-            <input
-              type="password"
-              aria-label="Browser worker token"
-              placeholder="Paste mana_worker_... token"
-              value={browserToken}
-              onChange={(e) => setBrowserToken(e.target.value)}
-              disabled={browserRunning}
-              style={{
-                padding: '6px 10px',
-                borderRadius: 6,
-                border: '1px solid var(--ink-faint)',
-                background: 'var(--mat-950)',
-                color: 'var(--ink-strong)',
-                flex: '1 1 200px',
-              }}
-            />
-            {!browserRunning ? (
-              <button
-                type="button"
-                className={styles.copyBtn}
-                disabled={browserToken.trim().length < 10}
-                onClick={startBrowserWorker}
-                aria-label="Start browser worker"
-              >
-                Start browser worker
-              </button>
-            ) : (
-              <button
-                type="button"
-                className={styles.copyBtn}
-                onClick={stopBrowserWorker}
-                aria-label="Stop browser worker"
-              >
-                Stop worker
-              </button>
-            )}
-          </div>
-          {browserError && <p className={styles.error} role="alert">{browserError}</p>}
-          {browserLogs.length > 0 && (
-            <div className={styles.codeBlock}>
-              <pre>{browserLogs.join('\n')}</pre>
-            </div>
-          )}
         </section>
 
         <section className={styles.card}>
           <h2 className={styles.cardTitle}>How trust and credit work</h2>
           <p className={styles.quiet}>
-            New accounts and new hosts start in probation (100% re-run audit on the first 20 accepted units), then move
-            to normal (~3% random re-run sample) and reputable (30 days and 2,000 accepted units with zero mismatches).
-            Credits follow Folding@home style reference core-seconds with a 1.5x quick-return bonus cap, mature 7 days
-            after acceptance, and can be redeemed for Playmat cosmetic capsule tokens in the Capsule Shop.
+            New accounts and hosts start in probation (100% re-run audit on the first 20 accepted units), then move to
+            normal (~3% random re-run sample) and reputable (30 days and 2,000 accepted units with zero mismatches).
+            Credits follow Folding@home style core-seconds with a 1.5x quick-return cap, mature 7 days after acceptance,
+            and can be redeemed for Playmat cosmetic capsule tokens in the Capsule Shop.
           </p>
         </section>
       </div>
