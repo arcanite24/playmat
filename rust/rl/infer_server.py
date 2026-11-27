@@ -5,9 +5,11 @@ server slices directly with zero-copy `np.frombuffer`, runs one bf16 batched PyT
 and sends back flat `(v, logits, h)` arrays in one write.
 
     python infer_server.py --dir runs/loop5/r8 --port 18400 [--compile]
+    python infer_server.py --pmnet path/to/net.pmnet --port 0 [--device auto|cuda|mps|cpu] [--amp 1]
 """
 
 import argparse
+import json
 import socket
 import struct
 import sys
@@ -17,8 +19,33 @@ import time
 import numpy as np
 import torch
 
-from model import ACT_F, BUCKETS, ENT_F, GLOB_F, Tx, load_dir
+from model import ACT_F, BUCKETS, ENT_F, GLOB_F, Net, Tx, load_dir
 from train import device as pick_device
+
+
+def load_pmnet(path, dev):
+    raw = open(path, "rb").read()
+    nl = raw.index(b"\n")
+    header = json.loads(raw[:nl])
+    off = nl + 1
+    sd = {}
+    for name, shape in header["tensors"]:
+        n = 1
+        for d in shape:
+            n *= d
+        arr = np.frombuffer(raw, dtype="<f4", count=n, offset=off).copy()
+        sd[name] = torch.from_numpy(arr).view(*shape)
+        off += 4 * n
+    net = Tx(**header["config"]) if header.get("arch") == "tx" else Net(belief="belief.weight" in sd)
+    # Zero-pad legacy v1/v2 global input weights (65 or 81 cols) to current GLOB_F=89 to match playmat-ai/net.rs
+    cur_sd = net.state_dict()
+    for k, w in list(sd.items()):
+        if k in cur_sd and w.ndim == 2 and w.shape[0] == cur_sd[k].shape[0] and w.shape[1] < cur_sd[k].shape[1]:
+            padded = torch.zeros_like(cur_sd[k])
+            padded[:, : w.shape[1]] = w
+            sd[k] = padded
+    net.load_state_dict(sd)
+    return net.to(dev).eval()
 
 
 def recv_exact(conn, n):
@@ -144,17 +171,20 @@ def handle_client(conn, engine, handshake):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dir", required=True, help="run folder with net.pt and arch.json")
+    src = ap.add_mutually_exclusive_group(required=True)
+    src.add_argument("--dir", help="run folder with net.pt and arch.json")
+    src.add_argument("--pmnet", help="exported .pmnet file to serve directly")
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=18400)
+    ap.add_argument("--device", default="auto", choices=["auto", "cuda", "mps", "cpu"])
     ap.add_argument("--amp", type=int, default=1)
     ap.add_argument("--compile", action="store_true")
     args = ap.parse_args()
 
-    dev = pick_device()
+    dev = pick_device() if args.device == "auto" else torch.device(args.device)
     if dev.type == 'cuda':
         torch.set_float32_matmul_precision('high')
-    net = load_dir(args.dir, dev).eval()
+    net = load_pmnet(args.pmnet, dev) if args.pmnet else load_dir(args.dir, dev).eval()
     handshake = pack_handshake(net)
     if args.compile and dev.type == "cuda":
         net = torch.compile(net)

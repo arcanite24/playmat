@@ -329,6 +329,9 @@ def main():
     p.add_argument("--limit", type=int, default=100)
     p = sub.add_parser("publish")
     p.add_argument("round_json")
+    p = sub.add_parser("publish-gpu")
+    p.add_argument("round_json")
+    p.add_argument("--vloss", type=int, default=8)
     p = sub.add_parser("priority")
     p.add_argument("round_id", type=int)
     p.add_argument("priority", type=int)
@@ -425,10 +428,15 @@ def main():
     elif args.cmd == "cancel-unit":
         c.call("POST", f"/units/{args.unit_id}/cancel", {"reason": args.reason})
         print(f"SWARM cancelled {args.unit_id}")
-    elif args.cmd == "publish":
+    elif args.cmd in ("publish", "publish-gpu"):
         r = json.load(open(args.round_json))
         nets = {}
         for u in r["units"]:
+            if args.cmd == "publish-gpu":
+                u["kind"] = "selfplay-gpu"
+                u.setdefault("pins", {})["strict"] = False
+                if "vloss=" not in u["learner"] and args.vloss > 1:
+                    u["learner"] = f"{u['learner']}+vloss={args.vloss}"
             u["learner"] = swarm_spec(u["learner"], c, nets)
             for o in u["opponents"]:
                 if o["config"] != "self":

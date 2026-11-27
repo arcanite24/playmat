@@ -17,6 +17,7 @@
 
 #[cfg(test)]
 mod e2e_test;
+mod gpu;
 mod idle;
 mod swarm;
 mod ui;
@@ -54,14 +55,47 @@ fn main() {
             println!("{}", proto::determinism_class(STRICT));
             Ok(())
         }
-        Some("run-unit") => run_unit(
-            args.get(2).expect("UNIT.json"),
-            &opt("--out").expect("--out DIR"),
-            &opt("--nets").expect("--nets DIR"),
-            &repo,
-            opt("--jobs").and_then(|v| v.parse().ok()).unwrap_or(1),
-            &AtomicBool::new(false),
-        ),
+        Some("run-unit") => {
+            let mut infer_urls = BTreeMap::new();
+            if let Some(spec) = opt("--infer") {
+                for pair in spec.split(',') {
+                    if let Some((sha, url)) = pair.split_once('=') {
+                        infer_urls.insert(sha.trim().to_string(), url.trim().to_string());
+                    }
+                }
+            }
+            run_unit_with_infer(
+                args.get(2).expect("UNIT.json"),
+                &opt("--out").expect("--out DIR"),
+                &opt("--nets").expect("--nets DIR"),
+                &repo,
+                opt("--jobs").and_then(|v| v.parse().ok()).unwrap_or(1),
+                &AtomicBool::new(false),
+                &infer_urls,
+            )
+        }
+        Some("parity") => (|| {
+            let pmnet = opt("--pmnet").ok_or("--pmnet FILE")?;
+            let cases = opt("--cases").and_then(|v| v.parse().ok()).unwrap_or(16);
+            let tol = opt("--tol").and_then(|v| v.parse().ok()).unwrap_or(0.05);
+            let (_sidecar, url) = match opt("--infer") {
+                Some(u) => (None, u),
+                None => {
+                    let py = opt("--infer-py").unwrap_or_else(|| "python3".into());
+                    let dev = opt("--device").unwrap_or_else(|| "auto".into());
+                    let amp = opt("--amp").as_deref() != Some("0");
+                    let sc = gpu::InferSidecar::spawn(&py, &repo, &pmnet, &dev, amp)?;
+                    let u = sc.url.clone();
+                    (Some(sc), u)
+                }
+            };
+            let rep = gpu::check_parity(&pmnet, &url, cases, tol)?;
+            println!(
+                "PARITY OK ({} cases, tol {}): max_logit_diff={:.6}, max_value_diff={:.6}",
+                rep.cases, tol, rep.max_logit_diff, rep.max_value_diff
+            );
+            Ok(())
+        })(),
         Some("verify") => verify(args.get(2).expect("DIR"), &repo),
         Some("run") | Some("ui") => (|| {
             let with_ui = args.get(1).map(String::as_str) == Some("ui");
@@ -76,6 +110,12 @@ fn main() {
             let coordinator = opt("--coordinator").ok_or("--coordinator URL")?;
             let name = opt("--name").ok_or("--name HOST")?;
             let idle_only = opt("--when").as_deref() != Some("always");
+            let gpu_label = match opt("--gpu").as_deref() {
+                None | Some("") | Some("0") | Some("off") => None,
+                Some("auto") | Some("1") => gpu::detect_gpu(),
+                Some(explicit) => Some(explicit.to_string()),
+            };
+            let infer_py = opt("--infer-py").unwrap_or_else(|| "python3".into());
             let opts = swarm::Opts {
                 coordinator: coordinator.clone(),
                 token,
@@ -86,18 +126,19 @@ fn main() {
                 idle: idle_only,
                 units: opt("--units").and_then(|v| v.parse().ok()).unwrap_or(0),
             };
-            if with_ui {
+            let ctrl = if with_ui {
                 let port = opt("--port").and_then(|v| v.parse().ok()).unwrap_or(17195);
-                let ctrl = ui::Control::new(name, coordinator, proto::determinism_class(STRICT), jobs, idle_only);
-                let addr = ui::spawn_server(port, ctrl.clone())?;
+                let c = ui::Control::new(name, coordinator, proto::determinism_class(STRICT), jobs, idle_only);
+                let addr = ui::spawn_server(port, c.clone())?;
                 println!("UI http://{addr}");
-                swarm::run_with_control(opts, Some(ctrl))
+                Some(c)
             } else {
-                swarm::run(opts)
-            }
+                None
+            };
+            swarm::run_with_options(opts, ctrl, gpu_label, infer_py)
         })(),
         Some("compare") => compare(&args[2..]),
-        _ => Err("usage: playmat-worker run|ui|run-unit|verify|compare|class (see the source's header)".into()),
+        _ => Err("usage: playmat-worker run|ui|run-unit|verify|parity|compare|class (see the source's header)".into()),
     };
     if let Err(e) = res {
         eprintln!("playmat-worker: {e}");
@@ -182,9 +223,21 @@ pub fn run_unit(
     jobs: usize,
     stop: &AtomicBool,
 ) -> Result<(), String> {
+    run_unit_with_infer(unit_path, out, nets_dir, repo, jobs, stop, &BTreeMap::new())
+}
+
+pub fn run_unit_with_infer(
+    unit_path: &str,
+    out: &str,
+    nets_dir: &str,
+    repo: &str,
+    jobs: usize,
+    stop: &AtomicBool,
+    infer_urls: &BTreeMap<String, String>,
+) -> Result<(), String> {
     let unit: WorkUnit = read_json(unit_path)?;
     proto::check_unit(&unit)?;
-    if unit.pins.strict != STRICT {
+    if unit.kind != UnitKind::SelfplayGpu && unit.pins.strict != STRICT {
         let build = if unit.pins.strict {
             "cargo build --release -p playmat-worker --features strict"
         } else {
@@ -192,8 +245,8 @@ pub fn run_unit(
         };
         return Err(format!("the unit wants strict={}, this build is strict={STRICT}: run {build}", unit.pins.strict));
     }
-    if unit.kind == UnitKind::SelfplayGpu || unit.kind == UnitKind::Verify {
-        return Err(format!("{:?} units can't be run via run-unit", unit.kind));
+    if unit.kind == UnitKind::Verify {
+        return Err("Verify units can't be run via run-unit".into());
     }
     let mut nets = BTreeMap::new();
     for n in &unit.nets {
@@ -202,7 +255,8 @@ pub fn run_unit(
         if sha != n.sha256 {
             return Err(format!("{path}: the file is {sha}"));
         }
-        nets.insert(n.sha256.clone(), path);
+        let target = infer_urls.get(&n.sha256).cloned().unwrap_or(path);
+        nets.insert(n.sha256.clone(), target);
     }
     let (suite_json, decks) = suite(&unit, repo)?;
     let learner = resolve(&unit.learner, &nets)?;
@@ -220,7 +274,7 @@ pub fn run_unit(
         turns: suite_json["turn_cap"].as_u64().unwrap_or(30) as u32,
         mulligans: suite_json["mulligans"].as_bool().unwrap_or(false),
     };
-    let recording = matches!(unit.kind, UnitKind::Selfplay);
+    let recording = matches!(unit.kind, UnitKind::Selfplay | UnitKind::SelfplayGpu);
 
     std::fs::create_dir_all(out).map_err(|e| format!("{out}: {e}"))?;
     std::fs::copy(unit_path, format!("{out}/unit.json")).map_err(|e| format!("{out}/unit.json: {e}"))?;

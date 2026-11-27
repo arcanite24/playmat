@@ -76,6 +76,7 @@ async fn leases_follow_the_rules() {
         strict: true,
         threads: 1,
         os: "test".into(),
+        gpu: None,
     };
     let laptop: HelloReply = http
         .post(api("/hello"))
@@ -251,6 +252,7 @@ async fn rounds_can_be_reprioritized_and_units_cancelled() {
             strict: true,
             threads: 1,
             os: "test".into(),
+            gpu: None,
         })
         .send()
         .await

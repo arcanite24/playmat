@@ -90,6 +90,9 @@ pub struct Hello {
     pub strict: bool,
     pub threads: u32,
     pub os: String,
+    /// Optional GPU accelerator label (e.g. "cuda:RTX 4080" or "mps"); enables `UnitKind::SelfplayGpu` leases
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gpu: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -318,6 +321,8 @@ pub struct HostInfo {
     pub strict: bool,
     pub threads: u32,
     pub os: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gpu: Option<String>,
     pub seen: i64,
     pub accepted_units: u64,
     pub mismatches: u64,
@@ -642,6 +647,9 @@ pub struct Status {
     /// hosts seen in the last 10 minutes, and their threads
     pub hosts: u32,
     pub threads: u32,
+    /// GPU-capable hosts seen in the last 10 minutes
+    #[serde(default)]
+    pub gpu_hosts: u32,
     pub units: BTreeMap<String, u32>,
     pub games_accepted: u64,
     pub games_last_hour: u64,
