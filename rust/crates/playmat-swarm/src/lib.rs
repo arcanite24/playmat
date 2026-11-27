@@ -236,9 +236,37 @@ async fn root_redirect() -> Redirect {
     Redirect::temporary(&target)
 }
 
+async fn wasm_asset(Path(key): Path<String>) -> Response {
+    if !store::valid_key(&key) {
+        return (StatusCode::BAD_REQUEST, "invalid asset path").into_response();
+    }
+    let root = std::env::var("SWARM_WASM_DIR").unwrap_or_else(|_| "/data/wasm".into());
+    let path = std::path::Path::new(&root).join(&key);
+    let Ok(bytes) = tokio::fs::read(&path).await else {
+        return (StatusCode::NOT_FOUND, "wasm asset not installed").into_response();
+    };
+    let ct = if key.ends_with(".wasm") {
+        "application/wasm"
+    } else if key.ends_with(".json") {
+        "application/json"
+    } else {
+        "application/octet-stream"
+    };
+    (
+        StatusCode::OK,
+        [
+            (axum::http::header::CONTENT_TYPE, HeaderValue::from_static(ct)),
+            (axum::http::header::CACHE_CONTROL, HeaderValue::from_static("public, max-age=3600")),
+        ],
+        bytes,
+    )
+        .into_response()
+}
+
 pub fn router(s: Shared) -> Router {
     Router::new()
         .route("/", get(root_redirect))
+        .route("/wasm/{*key}", get(wasm_asset))
         .route("/api/v1/status", get(public::status))
         .route("/api/v1/events", get(public::events))
         .route("/api/v1/projects", get(public::projects))
