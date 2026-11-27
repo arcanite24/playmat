@@ -223,7 +223,7 @@ pub fn check_config(config: &str, kind: UnitKind) -> Result<(), String> {
         match k {
             "time_ms" if n()? > 0 => return Err("time_ms: a wall-clock cap makes games depend on the machine".into()),
             "threads" | "par" if n()? > 1 => return Err(format!("{k}={v}: more than one thread per game")),
-            "vloss" if kind != UnitKind::SelfplayGpu && n()? > 1 => {
+            "vloss" if !matches!(kind, UnitKind::SelfplayGpu | UnitKind::Verify) && n()? > 1 => {
                 return Err("vloss: only GPU-batched units use virtual loss".into())
             }
             "net" | "rollout" if v == "builtin" || (k == "rollout" && v == "-") => {}
