@@ -957,9 +957,8 @@ impl Tx {
         if let Some(th) = &self.threat {
             let mut q = Vec::new();
             th.apply_act(h, &mut q, false, false);
-            for i in 0..out.len().min(q.len()) {
-                out[i] = q[i];
-            }
+            let n = out.len().min(q.len());
+            out[..n].copy_from_slice(&q[..n]);
         }
         out
     }
@@ -1261,9 +1260,8 @@ impl RemoteNet {
         if let Some(th) = &self.threat {
             let mut q = Vec::new();
             th.apply_act(h, &mut q, false, false);
-            for i in 0..out.len().min(q.len()) {
-                out[i] = q[i];
-            }
+            let n = out.len().min(q.len());
+            out[..n].copy_from_slice(&q[..n]);
         }
         out
     }
