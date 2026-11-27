@@ -697,6 +697,27 @@ pub struct WatchReplay {
     pub note: String,
 }
 
+/// Request body for `POST /api/v1/admin/rounds/{id}/purge-intake` (draining R2 intake after HF archive)
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PurgeIntakeRequest {
+    /// Allow purging even if the round has not been marked trained yet
+    #[serde(default)]
+    pub force: bool,
+    /// Also delete intake objects for rejected/cancelled units
+    #[serde(default)]
+    pub include_rejected: bool,
+    /// Optional Hugging Face archive reference recorded in the audit log
+    #[serde(default)]
+    pub archive_ref: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PurgeIntakeReply {
+    pub round_id: i64,
+    pub units_purged: u32,
+    pub files_deleted: u32,
+}
+
 /// The public numbers (`GET /status`, no token): what the tracker draws from
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Status {

@@ -157,7 +157,8 @@
 		# link lists also point the card back at upload.wikimedia.org. wss: covers a client built with
 		# VITE_MAGE_SERVER_URL pointing at another host. blob: in connect-src: three.js reads a pet model's embedded
 		# texture with fetch(blob:…), and without it the pet draws untextured, all white.
-		Content-Security-Policy "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cards.scryfall.io https://*.scryfall.io https://api.scryfall.com https://c1.scryfall.com https://svgs.scryfall.io https://upload.wikimedia.org; font-src 'self' data:; connect-src 'self' blob: wss: https://api.scryfall.com https://challenges.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; worker-src 'self' blob:; manifest-src 'self'"
+		# mana.deimos.studio + *.r2.cloudflarestorage.com + wasm-unsafe-eval: Mana@Home tracker, Live Watch, and browser WASM worker.
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cards.scryfall.io https://*.scryfall.io https://api.scryfall.com https://c1.scryfall.com https://svgs.scryfall.io https://upload.wikimedia.org; font-src 'self' data:; connect-src 'self' blob: wss: https://api.scryfall.com https://challenges.cloudflare.com https://mana.deimos.studio https://*.r2.cloudflarestorage.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; worker-src 'self' blob:; manifest-src 'self'"
 	}
 }
 
