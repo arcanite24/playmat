@@ -473,6 +473,8 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('careerMachines'),
     careerBuyTokens: (count: number) =>
       rpc.call('careerBuyTokens', count),
+    careerRedeemSwarmCredits: (workerToken: string) =>
+      rpc.call('careerRedeemSwarmCredits', workerToken),
     careerPull: (machine: string, count: number) =>
       rpc.call('careerPull', machine, count),
     careerEquipStyle: (card: string, item?: string | null) =>

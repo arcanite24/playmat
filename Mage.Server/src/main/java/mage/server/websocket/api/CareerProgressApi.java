@@ -190,6 +190,16 @@ final class CareerProgressApi {
                             return CareerApi.store(() -> CareerCapsules.get().buyTokens(user, count));
                         }),
 
+                RpcMethod.named("careerRedeemSwarmCredits")
+                        .params(of("workerToken", STRING))
+                        .returns("CareerSwarmRedeemResult")
+                        .doc("Redeem matured Mana@Home swarm credits for cosmetic capsule tokens via the coordinator bridge.")
+                        .handler(call -> {
+                            String user = CareerApi.career(ctx, call);
+                            String workerToken = call.string(0);
+                            return CareerApi.store(() -> CareerCapsules.get().redeemSwarmCredits(user, workerToken));
+                        }),
+
                 RpcMethod.named("careerPull")
                         .params(of("machine", STRING), of("count", INT))
                         .returns("CareerPullResult")

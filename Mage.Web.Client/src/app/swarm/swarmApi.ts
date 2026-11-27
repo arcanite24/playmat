@@ -258,6 +258,40 @@ export interface NetworkInfo {
   anchors: AnchorScore[];
 }
 
+export interface WatchGame {
+  unit: string;
+  project: string;
+  run: string;
+  round: number;
+  kind: string;
+  deal: number;
+  account: string;
+  host: string;
+  learner_seat: number;
+  opponent: string;
+  winner: number | null;
+  turns: number;
+  answers: number;
+  recorded: number;
+  log_sha256: string;
+  done_at: number;
+}
+
+export interface WatchReplay {
+  game: WatchGame;
+  tokens: string[];
+  note: string;
+}
+
+export interface CreditBalance {
+  account: string;
+  credit_pending: number;
+  credit_matured: number;
+  credit_redeemed: number;
+  credit_per_token: number;
+  redeemable_tokens: number;
+}
+
 async function request<T>(base: string, path: string, init?: RequestInit & { token?: string }): Promise<T> {
   const headers: Record<string, string> = {};
   if (init?.body) headers['Content-Type'] = 'application/json';
@@ -293,6 +327,11 @@ export const swarmPublic = {
   benches: (base = DEFAULT_SWARM_URL) => request<BenchStatus[]>(base, '/benches'),
   register: (name: string, base = DEFAULT_SWARM_URL) =>
     request<TokenReply>(base, '/register', { method: 'POST', body: JSON.stringify({ name }) }),
+  watch: (limit = 24, base = DEFAULT_SWARM_URL) => request<WatchGame[]>(base, `/watch?limit=${limit}`),
+  watchReplay: (unit: string, deal: number, base = DEFAULT_SWARM_URL) =>
+    request<WatchReplay>(base, `/watch/${encodeURIComponent(unit)}/${deal}`),
+  creditBalance: (workerToken: string, base = DEFAULT_SWARM_URL) =>
+    request<CreditBalance>(base, '/credits/balance', { token: workerToken }),
 };
 
 export function createSwarmAdminClient(base: string, token: string) {

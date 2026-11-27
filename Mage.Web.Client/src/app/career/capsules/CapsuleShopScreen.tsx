@@ -15,7 +15,7 @@ import { useStill } from '../motion';
 import { Machine } from './Machine';
 import { ItemShowcase, type ShowcaseItem } from './ItemShowcase';
 import showcase from './ItemShowcase.module.css';
-import { buyTokens, machineItems, machineSize, ownedIn, pull, reveal, setOwned, useMachines } from './capsuleData';
+import { buyTokens, machineItems, machineSize, ownedIn, pull, redeemSwarmCredits, reveal, setOwned, useMachines } from './capsuleData';
 import { readUnopened, saveUnopened } from './unopened';
 import { TokenIcon } from './TokenIcon';
 import { WearButton, WearSlot } from './WearStyle';
@@ -99,6 +99,9 @@ export function CapsuleShopScreen() {
 function TokenWallet({ shop }: { shop: CareerMachines }) {
   const t = useT();
   const [buying, setBuying] = useState<number | null>(null);
+  const [swarmOpen, setSwarmOpen] = useState(false);
+  const [swarmToken, setSwarmToken] = useState('');
+  const [redeeming, setRedeeming] = useState(false);
   const price = shop.tokenPrice ?? 120;
   const coins = shop.coins ?? 0;
   const buy = async (count: number) => {
@@ -111,6 +114,25 @@ function TokenWallet({ shop }: { shop: CareerMachines }) {
       notify(t('capsules.buyFailed'), reason instanceof Error ? reason.message : String(reason), 'error');
     } finally {
       setBuying(null);
+    }
+  };
+  const redeem = async () => {
+    const clean = swarmToken.trim();
+    if (!clean) return;
+    setRedeeming(true);
+    try {
+      const res = await redeemSwarmCredits(clean);
+      setSwarmToken('');
+      if ((res.capsuleTokensAwarded ?? 0) > 0) {
+        playCareerCue('coins');
+        notify('Mana@Home credits redeemed', `Awarded ${res.capsuleTokensAwarded} capsule token(s) from ${res.account ?? 'swarm'}.`, 'info');
+      } else {
+        notify('Mana@Home credits checked', `No full matured tokens ready yet (${(res.creditRemaining ?? 0).toFixed(1)} matured credit).`, 'info');
+      }
+    } catch (reason) {
+      notify('Mana@Home redemption failed', reason instanceof Error ? reason.message : String(reason), 'error');
+    } finally {
+      setRedeeming(false);
     }
   };
   return (
@@ -127,7 +149,25 @@ function TokenWallet({ shop }: { shop: CareerMachines }) {
             <TokenIcon size={16} /> {count} · <Coins size={14} aria-hidden="true" /> {formatNumber(price * count)}
           </Button>
         ))}
+        <Button variant="quiet" onClick={() => setSwarmOpen((v) => !v)} aria-label="Redeem Mana@Home credits">
+          Mana@Home
+        </Button>
       </span>
+      {swarmOpen && (
+        <span className={styles.buy}>
+          <input
+            type="password"
+            aria-label="Mana@Home worker token"
+            value={swarmToken}
+            onChange={(e) => setSwarmToken(e.target.value)}
+            placeholder="mana_worker_..."
+            style={{ padding: '6px 8px', borderRadius: 6, border: '1px solid var(--ink-faint)', background: 'var(--mat-950)', color: 'var(--ink-strong)' }}
+          />
+          <Button variant="quiet" disabled={redeeming || !swarmToken.trim()} onClick={() => void redeem()} aria-label="Claim capsule tokens from Mana@Home">
+            Claim
+          </Button>
+        </span>
+      )}
       <small className={styles.earn}>{t('capsules.earn')}</small>
     </section>
   );

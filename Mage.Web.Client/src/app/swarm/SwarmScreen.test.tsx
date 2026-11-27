@@ -244,4 +244,58 @@ describe('SwarmScreen public tracker', () => {
     expect(await screen.findByText(/Token created for/)).toBeTruthy();
     expect(screen.getByText(/MANA_TOKEN=mana_worker_minted_demo/)).toBeTruthy();
   });
+
+  it('lists live swarm games on /swarm/watch and steps through a game answer log', async () => {
+    mockFetch({
+      '/api/v1/watch?limit=24': [
+        {
+          unit: 's6-u000',
+          project: 'main',
+          run: 's6',
+          round: 1,
+          kind: 'match',
+          deal: 900,
+          account: 'alice',
+          host: 'alice-pc',
+          learner_seat: 0,
+          opponent: 'host@s6',
+          winner: 0,
+          turns: 8,
+          answers: 3,
+          recorded: 0,
+          log_sha256: 'a'.repeat(64),
+          done_at: 1795680000,
+        },
+      ],
+      '/api/v1/watch/s6-u000/900': {
+        game: {
+          unit: 's6-u000',
+          project: 'main',
+          run: 's6',
+          round: 1,
+          kind: 'match',
+          deal: 900,
+          account: 'alice',
+          host: 'alice-pc',
+          learner_seat: 0,
+          opponent: 'host@s6',
+          winner: 0,
+          turns: 8,
+          answers: 3,
+          recorded: 0,
+          log_sha256: 'a'.repeat(64),
+          done_at: 1795680000,
+        },
+        tokens: ['0m1', '1m1', '0A0'],
+        note: '',
+      },
+    });
+
+    renderAt('/swarm/watch');
+    expect(await screen.findByText(/s6-u000 #900/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Inspect deal 900/ }));
+    expect(await screen.findByText(/P0 mulligan \(keep\)/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(await screen.findByText(/P1 mulligan \(keep\)/)).toBeTruthy();
+  });
 });

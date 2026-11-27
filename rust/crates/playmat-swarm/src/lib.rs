@@ -5,6 +5,7 @@
 //! The API is `playmat_swarm_proto::api`.
 
 mod admin;
+mod bridge;
 pub mod gates;
 mod public;
 pub mod store;
@@ -108,6 +109,8 @@ const SCHEMA: &[&str] = &[
      net_sha TEXT NOT NULL, net_label TEXT NOT NULL, anchor_elo REAL NOT NULL, games INTEGER NOT NULL DEFAULT 0, \
      elo REAL NOT NULL DEFAULT 1000.0, ci95 REAL NOT NULL DEFAULT 0.0, anchors_json TEXT NOT NULL DEFAULT '[]', \
      created INTEGER NOT NULL, updated_at INTEGER NOT NULL)",
+    "CREATE TABLE IF NOT EXISTS credit_redemptions (id INTEGER PRIMARY KEY, token INTEGER NOT NULL, \
+     playmat_user TEXT NOT NULL, credit_spent REAL NOT NULL, capsule_tokens INTEGER NOT NULL, created INTEGER NOT NULL)",
 ];
 
 /// Idempotent S1 -> S2/S3 column additions for existing SQLite databases.
@@ -237,6 +240,10 @@ pub fn router(s: Shared) -> Router {
         .route("/api/v1/contributors/{name}", get(public::contributor_profile))
         .route("/api/v1/transparency", get(public::transparency))
         .route("/api/v1/register", post(public::register))
+        .route("/api/v1/watch", get(public::watch_list))
+        .route("/api/v1/watch/{unit}/{deal}", get(public::watch_replay))
+        .route("/api/v1/credits/balance", get(bridge::balance))
+        .route("/api/v1/bridge/redeem", post(bridge::redeem))
         .route("/api/v1/networks", get(gates::list_networks))
         .route("/api/v1/gates", get(gates::list_gates).post(gates::new_gate))
         .route("/api/v1/gates/{id}", get(gates::get_gate))

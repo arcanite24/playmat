@@ -228,6 +228,7 @@
   "careerCosmetics": {"group": "CareerProgress", "access": "session"},
   "careerMachines": {"group": "CareerProgress", "access": "session"},
   "careerBuyTokens": {"group": "CareerProgress", "access": "session"},
+  "careerRedeemSwarmCredits": {"group": "CareerProgress", "access": "session"},
   "careerPull": {"group": "CareerProgress", "access": "session"},
   "careerEquipStyle": {"group": "CareerProgress", "access": "session"},
   "careerHall": {"group": "CareerProgress", "access": "session"},

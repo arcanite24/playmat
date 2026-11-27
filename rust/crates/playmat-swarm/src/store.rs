@@ -49,6 +49,32 @@ impl Store {
             }
         }
     }
+
+    /// Reads a UTF-8 text object up to `max_bytes` (used by `/api/v1/watch/{unit}/{deal}` to inspect `answers.jsonl`).
+    pub async fn read_text(&self, key: &str, max_bytes: usize) -> Option<String> {
+        match self {
+            Store::Local(l) => {
+                let p = l.path(key).ok()?;
+                let meta = std::fs::metadata(&p).ok()?;
+                if meta.len() as usize > max_bytes {
+                    return None;
+                }
+                std::fs::read_to_string(&p).ok()
+            }
+            Store::R2(r) => {
+                let url = r.presign("GET", key, None, 60, now());
+                let res = r.http.get(url).send().await.ok()?;
+                if !res.status().is_success() {
+                    return None;
+                }
+                let bytes = res.bytes().await.ok()?;
+                if bytes.len() > max_bytes {
+                    return None;
+                }
+                String::from_utf8(bytes.to_vec()).ok()
+            }
+        }
+    }
 }
 
 pub fn now() -> u64 {

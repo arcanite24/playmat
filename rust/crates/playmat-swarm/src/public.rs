@@ -605,3 +605,144 @@ pub(crate) async fn register(
     s.audit(name, "register", &format!("self-service volunteer token {} registered", reply.id)).await;
     Ok(Json(reply))
 }
+
+// ---- S6 Live Watch (`GET /api/v1/watch` and `GET /api/v1/watch/{unit}/{deal}`)
+
+#[derive(Deserialize)]
+pub(crate) struct WatchQuery {
+    limit: Option<i64>,
+}
+
+pub(crate) async fn watch_list(State(s): State<Shared>, Query(q): Query<WatchQuery>) -> Res<Json<Vec<WatchGame>>> {
+    let limit = q.limit.unwrap_or(24).clamp(1, 60) as usize;
+    let rows = sqlx::query(
+        "SELECT u.id, u.kind, u.unit, u.manifest, u.done_at, r.project, r.run, r.round, \
+                t.name AS account, h.name AS host \
+         FROM units u \
+         JOIN rounds r ON r.id = u.round \
+         JOIN hosts h ON h.id = u.host \
+         JOIN tokens t ON t.id = h.token \
+         WHERE u.kind != 'verify' AND u.state IN ('accepted', 'complete') AND u.manifest IS NOT NULL \
+         ORDER BY u.done_at DESC LIMIT 12",
+    )
+    .fetch_all(&s.db)
+    .await?;
+
+    let mut out = Vec::new();
+    for row in rows {
+        let work: playmat_swarm_proto::WorkUnit = match serde_json::from_str(row.get::<String, _>("unit").as_str()) {
+            Ok(w) => w,
+            Err(_) => continue,
+        };
+        let manifest: playmat_swarm_proto::ResultManifest =
+            match serde_json::from_str(row.get::<String, _>("manifest").as_str()) {
+                Ok(m) => m,
+                Err(_) => continue,
+            };
+        let unit_id: String = row.get("id");
+        let kind: String = row.get("kind");
+        let project: String = row.get("project");
+        let run: String = row.get("run");
+        let round = row.get::<i64, _>("round") as u32;
+        let account: String = row.get("account");
+        let host: String = row.get("host");
+        let done_at: i64 = row.get("done_at");
+
+        for g in manifest.games.into_iter().rev().take(4) {
+            let opp = work.opponents.get(g.opponent as usize).map_or_else(|| "self".into(), |o| o.config.clone());
+            out.push(WatchGame {
+                unit: unit_id.clone(),
+                project: project.clone(),
+                run: run.clone(),
+                round,
+                kind: kind.clone(),
+                deal: g.deal,
+                account: account.clone(),
+                host: host.clone(),
+                learner_seat: g.learner,
+                opponent: opp,
+                winner: g.winner,
+                turns: g.turns,
+                answers: g.answers,
+                recorded: g.recorded,
+                log_sha256: g.log_sha256,
+                done_at,
+            });
+            if out.len() >= limit {
+                return Ok(Json(out));
+            }
+        }
+    }
+    Ok(Json(out))
+}
+
+pub(crate) async fn watch_replay(
+    State(s): State<Shared>,
+    Path((unit_id, deal)): Path<(String, u64)>,
+) -> Res<Json<WatchReplay>> {
+    let row = sqlx::query(
+        "SELECT u.id, u.round AS round_id, u.kind, u.unit, u.manifest, u.done_at, \
+                r.project, r.run, r.round, t.name AS account, h.name AS host \
+         FROM units u \
+         JOIN rounds r ON r.id = u.round \
+         JOIN hosts h ON h.id = u.host \
+         JOIN tokens t ON t.id = h.token \
+         WHERE u.id = ? AND u.kind != 'verify' AND u.manifest IS NOT NULL",
+    )
+    .bind(&unit_id)
+    .fetch_optional(&s.db)
+    .await?
+    .ok_or_else(|| ApiError(StatusCode::NOT_FOUND, format!("no playable watch unit {unit_id}")))?;
+
+    let round_id: i64 = row.get("round_id");
+    let work: playmat_swarm_proto::WorkUnit =
+        serde_json::from_str(row.get::<String, _>("unit").as_str()).map_err(|e| bad(e.to_string()))?;
+    let manifest: playmat_swarm_proto::ResultManifest =
+        serde_json::from_str(row.get::<String, _>("manifest").as_str()).map_err(|e| bad(e.to_string()))?;
+    let g = manifest
+        .games
+        .into_iter()
+        .find(|g| g.deal == deal)
+        .ok_or_else(|| ApiError(StatusCode::NOT_FOUND, format!("deal {deal} not in unit {unit_id}")))?;
+    let opp = work.opponents.get(g.opponent as usize).map_or_else(|| "self".into(), |o| o.config.clone());
+    let game = WatchGame {
+        unit: unit_id.clone(),
+        project: row.get("project"),
+        run: row.get("run"),
+        round: row.get::<i64, _>("round") as u32,
+        kind: row.get("kind"),
+        deal: g.deal,
+        account: row.get("account"),
+        host: row.get("host"),
+        learner_seat: g.learner,
+        opponent: opp,
+        winner: g.winner,
+        turns: g.turns,
+        answers: g.answers,
+        recorded: g.recorded,
+        log_sha256: g.log_sha256,
+        done_at: row.get("done_at"),
+    };
+
+    let key = format!("intake/{round_id}/{unit_id}/answers.jsonl");
+    let mut tokens = Vec::new();
+    let mut note = String::new();
+    if let Some(text) = s.store.read_text(&key, 4 << 20).await {
+        for line in text.lines() {
+            if let Ok(val) = serde_json::from_str::<serde_json::Value>(line) {
+                if val.get("deal").and_then(|v| v.as_u64()) == Some(deal) {
+                    if let Some(log) = val.get("log").and_then(|v| v.as_str()) {
+                        tokens = log.split_whitespace().map(str::to_string).collect();
+                    }
+                    break;
+                }
+            }
+        }
+        if tokens.is_empty() {
+            note = "Answer log archived or no decision tokens recorded for this deal.".into();
+        }
+    } else {
+        note = "Answer log has moved to the Hugging Face archive or exceeds inline preview size.".into();
+    }
+    Ok(Json(WatchReplay { game, tokens, note }))
+}

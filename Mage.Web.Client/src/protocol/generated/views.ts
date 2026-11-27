@@ -1136,6 +1136,14 @@ export interface CareerSticker {
     phrase?: string;
 }
 
+export interface CareerSwarmRedeemResult {
+    account?: string;
+    capsuleTokensAwarded?: number;
+    creditRemaining?: number;
+    creditSpent?: number;
+    tokens?: number;
+}
+
 export interface CareerTip {
     on?: string;
     text?: string;
