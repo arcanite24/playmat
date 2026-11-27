@@ -202,6 +202,12 @@ pub const ALLOWED_KEYS: &[&str] = &[
     "vloss",
     "rm_root",
     "threads",
+    "solver",
+    "fpu_vnode",
+    "cpuct_dyn",
+    "belief_pass",
+    "forced_k",
+    "threat_w",
 ];
 
 /// Checks a learner or opponent config for a unit of `kind`: `self`, a named entrant (`host@s6`), or `cfg:k=v+...`

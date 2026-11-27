@@ -869,7 +869,7 @@ impl Tx {
                     mu += p * (i as f32 / denom);
                 }
                 let mu_c = mu.clamp(1e-5, 1.0 - 1e-5);
-                (mu_c / (1.0 - mu_c)).ln()
+                (mu_c / (1.0 - mu_c)).sln()
             } else {
                 ws.tmp2[0]
             }
