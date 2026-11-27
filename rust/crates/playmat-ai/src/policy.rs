@@ -457,9 +457,41 @@ fn attack_with(game: &Game, seat: Seat, creatures: &[ObjId], pb: Option<&crate::
             o.controller == opp && !o.tapped && game.has_type(*b, CardType::Creature)
         })
         .collect();
-    let power: i32 =
-        creatures.iter().chain(rules::attackers(game).iter()).map(|c| game.power_toughness(*c).0.max(0)).sum();
-    let lethal = power >= game.player(opp).life + blockers.len() as i32 * 2;
+    let mut atk_powers: Vec<i32> = creatures
+        .iter()
+        .chain(rules::attackers(game).iter())
+        .map(|c| game.power_toughness(*c).0.max(0))
+        .collect();
+    let power: i32 = atk_powers.iter().sum();
+    atk_powers.sort_unstable_by(|a, b| b.cmp(a));
+    // Guaranteed unblocked damage even if opponent blocks the largest attackers (ignoring flying/evasion, conservative).
+    let unblocked_min: i32 = atk_powers.iter().skip(blockers.len()).sum();
+    let hand_pump: i32 = if atk_powers.len() > blockers.len() {
+        let avail_mana = crate::playbook::available_mana(game, seat);
+        game.player(seat)
+            .hand
+            .iter()
+            .filter_map(|id| {
+                let def = &game.obj(*id).def;
+                let k = spell_kind(def);
+                if !def.types.contains(&CardType::Instant) || !k.pump || def.mana_value() > avail_mana {
+                    return None;
+                }
+                let colors_ok = def
+                    .cost
+                    .colored
+                    .iter()
+                    .enumerate()
+                    .all(|(ci, &need)| need == 0 || can_pay_color_without_life(game, seat, ci));
+                colors_ok.then_some(k.pump_power.unwrap_or(2))
+            })
+            .max()
+            .unwrap_or(0)
+    } else {
+        0
+    };
+    let lethal = power >= game.player(opp).life + blockers.len() as i32 * 2
+        || (unblocked_min > 0 && unblocked_min + hand_pump >= game.player(opp).life);
     if blockers.is_empty() && !creatures.is_empty() {
         // Even with no blockers, control/ramp/combo decks keep protected mana dorks back unless lethal or they deal >= 2
         if pb.is_some_and(|p| p.aggression < 0) && !lethal {

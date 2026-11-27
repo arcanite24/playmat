@@ -395,15 +395,24 @@ class LlmAdapter(Adapter):
     def _call_provider(self, prompt: str) -> Tuple[str, int, int, float]:
         if self.provider == "mock":
             return '{"choice": 0, "reason": "mock quick pick"}', 80, 12, 0.0
-        if self.provider == "anthropic":
-            return self._call_anthropic(prompt)
-        if self.provider == "vertex-anthropic":
-            return self._call_vertex_anthropic(prompt)
-        if self.provider == "gemini":
-            return self._call_gemini(prompt)
-        if self.provider == "vertex-gemini":
-            return self._call_vertex_gemini(prompt)
-        return self._call_openai_compat(prompt)
+        last_err: Optional[Exception] = None
+        for attempt in range(3):
+            try:
+                if self.provider == "anthropic":
+                    return self._call_anthropic(prompt)
+                if self.provider == "vertex-anthropic":
+                    return self._call_vertex_anthropic(prompt)
+                if self.provider == "gemini":
+                    return self._call_gemini(prompt)
+                if self.provider == "vertex-gemini":
+                    return self._call_vertex_gemini(prompt)
+                return self._call_openai_compat(prompt)
+            except Exception as e:
+                last_err = e
+                if attempt < 2:
+                    time.sleep(1.5 * (2 ** attempt))
+        assert last_err is not None
+        raise last_err
 
     def decide(self, req: Dict[str, Any]) -> Dict[str, Any]:
         cands = req.get("candidates") or []
