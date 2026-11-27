@@ -122,15 +122,17 @@ p { margin: 0; text-wrap: pretty; }
 .top-row { display: flex; align-items: center; justify-content: space-between; height: 68px; gap: 16px; }
 .brand img { height: 40px; width: auto; }
 
-.nav { display: flex; align-items: center; gap: 28px; list-style: none; margin: 0; padding: 0; }
+.nav { display: flex; align-items: center; gap: 24px; list-style: none; margin: 0; padding: 0; }
 .nav a {
   font: 700 1rem/1 var(--font-print);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ink-dim);
   text-decoration: none;
+  white-space: nowrap;
 }
-.nav a:hover { color: var(--ink-strong); }
+.nav a:hover, .nav a[aria-current="page"] { color: var(--ink-strong); }
+.nav a[aria-current="page"] { text-decoration: underline; text-decoration-color: var(--decision); text-underline-offset: 6px; text-decoration-thickness: 2px; }
 
 /* ---------- hero ---------- */
 

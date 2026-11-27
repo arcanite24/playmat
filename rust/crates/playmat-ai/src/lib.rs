@@ -10,6 +10,7 @@ pub mod decision;
 pub mod duel;
 pub mod entrants;
 pub mod eval;
+pub mod external;
 pub mod fitted;
 pub mod fm;
 pub mod mirror;

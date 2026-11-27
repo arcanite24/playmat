@@ -52,6 +52,19 @@ pub fn entrant(name: &str) -> Result<Entrant, String> {
             })
         }
         _ if name.starts_with("cfg:") => Some(with(s4, &name[4..])?),
+        _ if name.starts_with("ext:") => {
+            let spec = name["ext:".len()..].trim();
+            if spec.is_empty() {
+                return Err("ext: requires an endpoint (tcp://host:port or cmd:<command>)".to_string());
+            }
+            Some(Config {
+                policy: PolicyKind::External,
+                hide: true,
+                width: 24,
+                external: Some(spec.to_string()),
+                ..Config::default()
+            })
+        }
         _ => return Err(format!("unknown entrant {name}")),
     };
     Ok(Entrant { name: name.to_string(), config })
@@ -102,17 +115,20 @@ pub fn with(mut c: Config, settings: &str) -> Result<Config, String> {
             "cfr_root" => c.cfr_root = n()? as u32,
             "vloss" => c.vloss = n()?.max(1) as usize,
             "rm_root" => c.rm_root = b()?,
+            "external" => c.external = (v != "-").then(|| v.to_string()),
             _ => return Err(format!("unknown config key {k}")),
         }
     }
-    if !hide_explicit && matches!(c.policy, PolicyKind::NetSearch | PolicyKind::Gumbel | PolicyKind::Ismcts) {
+    if !hide_explicit
+        && matches!(c.policy, PolicyKind::NetSearch | PolicyKind::Gumbel | PolicyKind::Ismcts | PolicyKind::External)
+    {
         c.hide = true;
     }
     Ok(c)
 }
 
 /// The settings `label` names only where they differ from their defaults, in its order
-pub const LATER: [&str; 14] = [
+pub const LATER: [&str; 15] = [
     "playbook",
     "leaf_blend",
     "gumbel_root",
@@ -127,6 +143,7 @@ pub const LATER: [&str; 14] = [
     "cfr_root",
     "vloss",
     "rm_root",
+    "external",
 ];
 
 /// A config as `cfg:` settings, so two builds' configs compare as text: every field up to `iters`, then the later ones
@@ -173,10 +190,13 @@ pub fn label(c: &Config) -> String {
         (c.vloss as u64, 1),
         (c.rm_root as u64, 0),
     ];
-    for (k, (v, default)) in LATER[1..].iter().zip(later) {
+    for (k, (v, default)) in LATER[1..14].iter().zip(later) {
         if v != default {
             s.push_str(&format!("+{k}={v}"));
         }
+    }
+    if let Some(ext) = c.external.as_deref() {
+        s.push_str(&format!("+external={ext}"));
     }
     s
 }

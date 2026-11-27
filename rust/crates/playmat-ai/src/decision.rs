@@ -37,6 +37,8 @@ pub enum PolicyKind {
     Gumbel,
     /// an open-loop information-set tree search over the network's policy (`tree::Ismcts`)
     Ismcts,
+    /// an external AI adapter over NDJSON TCP or subprocess (`external::ExternalPolicy`: Jev, LLMs, ONNX, MCP, etc.)
+    External,
 }
 
 impl PolicyKind {
@@ -50,6 +52,7 @@ impl PolicyKind {
             PolicyKind::NetSearch => "netsearch",
             PolicyKind::Gumbel => "gumbel",
             PolicyKind::Ismcts => "ismcts",
+            PolicyKind::External => "external",
         }
     }
 
@@ -68,6 +71,7 @@ impl PolicyKind {
             PolicyKind::NetSearch => Box::new(crate::selfplay::NetSearch::new(0x6e73_0000 + seat as u64)),
             PolicyKind::Gumbel => Box::new(crate::selfplay::Gumbel::new(0x6762_0000 + seat as u64)),
             PolicyKind::Ismcts => Box::new(crate::tree::Ismcts::new(0x6973_0000 + seat as u64)),
+            PolicyKind::External => Box::new(crate::external::ExternalPolicy::new(seat)),
         }
     }
 }
@@ -84,7 +88,10 @@ impl FromStr for PolicyKind {
             "netsearch" => Ok(PolicyKind::NetSearch),
             "gumbel" => Ok(PolicyKind::Gumbel),
             "ismcts" => Ok(PolicyKind::Ismcts),
-            other => Err(format!("unknown AI policy {other:?} (playouts, mcts, quick, random, net, netsearch)")),
+            "ext" | "external" => Ok(PolicyKind::External),
+            other => {
+                Err(format!("unknown AI policy {other:?} (playouts, mcts, quick, random, net, netsearch, external)"))
+            }
         }
     }
 }

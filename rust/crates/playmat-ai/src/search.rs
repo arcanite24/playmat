@@ -112,6 +112,8 @@ pub struct Config {
     pub vloss: usize,
     /// Phase 3: saddle-point Regret-Matching+ adversarial belief tilting at root
     pub rm_root: bool,
+    /// external decider endpoint (`tcp://host:port[?obs=1]` or `cmd:<command>`) for `PolicyKind::External`
+    pub external: Option<String>,
 }
 
 impl Default for Config {
@@ -125,6 +127,7 @@ impl Default for Config {
         // the network's search as measured (#390 Track B): on samples of what the seat can't see, scored by the
         // network's value
         let netsearch = matches!(policy, PolicyKind::NetSearch | PolicyKind::Gumbel | PolicyKind::Ismcts);
+        let hide_default = netsearch || policy == PolicyKind::External;
         Config {
             budget: 6000,
             width: 12,
@@ -134,7 +137,7 @@ impl Default for Config {
             playout_cap: 1500,
             policy,
             threads: threads.max(1),
-            hide: netsearch,
+            hide: hide_default,
             samples: if netsearch { 4 } else { 1 },
             playout: 2,
             eval: if netsearch { 3 } else { 2 },
@@ -162,6 +165,7 @@ impl Default for Config {
             cfr_root: 0,
             vloss: 1,
             rm_root: false,
+            external: std::env::var("PLAYMAT_EXT_URL").ok(),
         }
     }
 }

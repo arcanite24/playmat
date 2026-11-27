@@ -1,0 +1,2043 @@
+{
+  "_about": "Hand-kept benchmark records for Playmat's public Benchmarks page (site/benchmarks/). rust/tools/benchmarks.py merges live Archbench suite counts from archbench/ and writes site/benchmarks/benchmarks.json.",
+  "updated": "2026-11-26",
+  "hf_checkpoints_url": "https://huggingface.co/nerijs/playmat-ai-checkpoints",
+  "hf_dataset_url": "https://huggingface.co/nerijs/playmat-ai-selfplay",
+  "summary": {
+    "total_corpus_games": 235387,
+    "total_corpus_decisions": 5772117,
+    "total_corpus_rounds": 54,
+    "peak_elo_vs_host": "+137",
+    "peak_elo_vs_fair_host": "+203",
+    "peak_ood_leader": "phase4-final-1.3m-v4-soup",
+    "peak_ood_elo": 1022,
+    "peak_tactics4_pct": 94,
+    "peak_tactics4_score": "60/64",
+    "llm_cost_range": "$0.44 - $8.93",
+    "llm_think_range": "10 - 28 min"
+  },
+  "combined_gauntlet": {
+    "title": "Combined Fair Bradley-Terry Gauntlet (Phase 4)",
+    "date": "2026-11-25",
+    "games": 1500,
+    "failed": 0,
+    "gpu_evals": "35.2M",
+    "search": "iters=256, samples=8, vloss=16, hide=1 (50 games/pair per suite)",
+    "note": "750 games on constructed@2 (42 Pioneer & Standard decks) + 750 games on strictly unseen constructed-ood@1 (38 held-out Modern, Limited, and Brawl decks). Every neural entrant plays fair imperfect-information rules (hide=1); host@s6 is Playmat's omniscient heuristic baseline.",
+    "entries": [
+      {
+        "rank": 1,
+        "id": "phase4-final-1.3m-v4-soup",
+        "name": "Phase 4 2.05M Soup",
+        "checkpoint": "phase4-final-1.3m-v4-soup",
+        "family": "Playmat Neural (Obs-v4)",
+        "params": "2.05M",
+        "arch": "4L x 192 Rel-Tx + BGE-small text",
+        "search": "Gumbel ISMCTS @ 256 + fpu_vnode + solver",
+        "fair": true,
+        "c2_elo": 1022,
+        "c2_wdl": "129-11-110",
+        "ood_elo": 1022,
+        "ood_wdl": "130-9-111",
+        "combined_wdl": "259-20-221",
+        "combined_pct": 53.8,
+        "avg_elo": 1022.0,
+        "delta_p3_base": 43.0,
+        "vs_host_wdl": "57-4-39",
+        "note": "#1 overall and #1 on strictly unseen OOD decks (beat every entrant H2H on OOD, including omniscient host@s6 27-2-21)."
+      },
+      {
+        "rank": 2,
+        "id": "phase4-final-5m-v4-soup",
+        "name": "Phase 4 5.07M Soup",
+        "checkpoint": "phase4-final-5m-v4-soup",
+        "family": "Playmat Neural (Obs-v4)",
+        "params": "5.07M",
+        "arch": "6L x 256 Rel-Tx + BGE-small text",
+        "search": "Gumbel ISMCTS @ 256 + fpu_vnode + solver",
+        "fair": true,
+        "c2_elo": 1022,
+        "c2_wdl": "129-11-110",
+        "ood_elo": 1001,
+        "ood_wdl": "120-11-119",
+        "combined_wdl": "249-22-229",
+        "combined_pct": 52.0,
+        "avg_elo": 1011.5,
+        "delta_p3_base": 32.5,
+        "vs_host_wdl": "55-4-41",
+        "note": "#2 combined; beat host@s6 31-2-17 on constructed@2 and lifted stress-bigmana from 0 Elo to +68 Elo."
+      },
+      {
+        "rank": 3,
+        "id": "phase3-final-5m-v3-matched",
+        "name": "Phase 3 5.07M Soup (Phase 4 Search)",
+        "checkpoint": "phase3-final-5m-v3-soup",
+        "family": "Playmat Neural (Obs-v3)",
+        "params": "5.07M",
+        "arch": "6L x 256 Rel-Tx + BGE-small text",
+        "search": "Gumbel ISMCTS @ 256 + fpu_vnode + solver",
+        "fair": true,
+        "c2_elo": 1023,
+        "c2_wdl": "129-12-109",
+        "ood_elo": 997,
+        "ood_wdl": "118-11-121",
+        "combined_wdl": "247-23-230",
+        "combined_pct": 51.7,
+        "avg_elo": 1010.0,
+        "delta_p3_base": 31.0,
+        "vs_host_wdl": "53-3-44 (vs P3 base)",
+        "note": "Control ablation isolating Phase 4 search upgrades (+31.0 Elo pure search gain over Phase 3 base)."
+      },
+      {
+        "rank": 4,
+        "id": "phase3-final-1.3m-v3-soup",
+        "name": "Phase 3 2.05M Soup",
+        "checkpoint": "phase3-final-1.3m-v3-soup",
+        "family": "Playmat Neural (Obs-v3)",
+        "params": "2.05M",
+        "arch": "4L x 192 Rel-Tx + BGE-small text",
+        "search": "Gumbel ISMCTS @ 256 (Phase 3 base)",
+        "fair": true,
+        "c2_elo": 1016,
+        "c2_wdl": "125-14-111",
+        "ood_elo": 992,
+        "ood_wdl": "116-11-123",
+        "combined_wdl": "241-25-234",
+        "combined_pct": 50.7,
+        "avg_elo": 1004.0,
+        "delta_p3_base": 25.0,
+        "vs_host_wdl": "—",
+        "note": "Phase 3 lightweight champion; 4-checkpoint weighted soup trained on 36 rounds (5.21M decisions)."
+      },
+      {
+        "rank": 5,
+        "id": "phase3-final-5m-v3-base",
+        "name": "Phase 3 5.07M Soup (Base)",
+        "checkpoint": "phase3-final-5m-v3-soup",
+        "family": "Playmat Neural (Obs-v3)",
+        "params": "5.07M",
+        "arch": "6L x 256 Rel-Tx + BGE-small text",
+        "search": "Gumbel ISMCTS @ 256 (Phase 3 base)",
+        "fair": true,
+        "c2_elo": 988,
+        "c2_wdl": "114-11-125",
+        "ood_elo": 970,
+        "ood_wdl": "106-12-132",
+        "combined_wdl": "220-23-257",
+        "combined_pct": 46.3,
+        "avg_elo": 979.0,
+        "delta_p3_base": 0.0,
+        "vs_host_wdl": "—",
+        "note": "Reference anchor for Phase 4 deltas. Was #1 on OOD in the Phase 3 gauntlet (1099.0 Elo vs host@s6-fair = 1000)."
+      },
+      {
+        "rank": 6,
+        "id": "host@s6",
+        "name": "Rust Host Skill 6 (Omniscient)",
+        "checkpoint": null,
+        "family": "Playmat Heuristic",
+        "params": "244 fitted weights",
+        "arch": "Whole-turn playouts + logistic eval",
+        "search": "Playouts (6000 nodes, extra_turns=1)",
+        "fair": false,
+        "c2_elo": 929,
+        "c2_wdl": "89-11-150",
+        "ood_elo": 1018,
+        "ood_wdl": "126-14-110",
+        "combined_wdl": "215-25-260",
+        "combined_pct": 45.5,
+        "avg_elo": 973.5,
+        "delta_p3_base": -5.5,
+        "vs_host_wdl": "Anchor",
+        "note": "Shipped Rust search AI. Sees hidden cards (hide=0); still lost 89-150 on constructed@2 to the fair neural soups."
+      }
+    ]
+  },
+  "deep_showcases": {
+    "title": "Deep-Search Showcases & Full Playmat Lineage",
+    "note": "All neural showcases play strictly fair imperfect-information rules (hide=1) against Playmat's omniscient heuristic baseline host@s6 (~1437-1464 Elo on the random=1000 scale). Delta vs host@s6 is directly measured head-to-head on constructed@2.",
+    "entries": [
+      {
+        "id": "phase3-r15b-5m-aux4@1024",
+        "name": "Phase 3 5.07M Aux4 @ 1024 (A100)",
+        "checkpoint": "phase3-r15b-5m-aux4",
+        "generation": "Phase 3",
+        "params": "5.07M",
+        "search": "GPU ISMCTS @ 1024, vloss=8, hide=1",
+        "fair": true,
+        "suite": "constructed@2",
+        "games": 200,
+        "wdl_vs_host": "134-7-59",
+        "win_pct": 68.8,
+        "elo_vs_host": 137.0,
+        "est_vs_fair_host": 203.0,
+        "est_random_scale": 1574,
+        "speed": "GPU batched (avg B=25.4)",
+        "date": "2026-11-24",
+        "note": "Highest measured H2H win rate vs omniscient host@s6 on constructed@2 (trained 100% on constructed@2)."
+      },
+      {
+        "id": "wavec-final-1.3m-soup@2048",
+        "name": "Wave C 2.05M Soup @ 2048 (CPU)",
+        "checkpoint": "wavec-final-1.3m-soup",
+        "generation": "Wave C",
+        "params": "2.05M",
+        "search": "Multi-tree ISMCTS @ 2048, samples=16, et=3, hide=1",
+        "fair": true,
+        "suite": "constructed@2",
+        "games": 400,
+        "wdl_vs_host": "267-13-120",
+        "win_pct": 68.4,
+        "elo_vs_host": 134.0,
+        "est_vs_fair_host": 178.0,
+        "est_random_scale": 1571,
+        "speed": "30.5 s worst (32c CPU)",
+        "date": "2026-11-24",
+        "note": "400-game uncapped CPU peak; +26 Elo jump from iters=1024 to 2048 with no saturation."
+      },
+      {
+        "id": "wavec-r14-1.3m@1024",
+        "name": "Wave C R14 2.05M @ 1024 (CPU)",
+        "checkpoint": "wavec-r14-1.3m-sem-oracle",
+        "generation": "Wave C",
+        "params": "2.05M",
+        "search": "Multi-tree ISMCTS @ 1024, samples=16, et=3, hide=1",
+        "fair": true,
+        "suite": "constructed@2",
+        "games": 400,
+        "wdl_vs_host": "252-17-131",
+        "win_pct": 65.1,
+        "elo_vs_host": 108.0,
+        "est_vs_fair_host": 152.0,
+        "est_random_scale": 1545,
+        "speed": "14.7 s worst (32c CPU)",
+        "date": "2026-11-24",
+        "note": "Scored 275-15-110 (70.6%, +152 Elo) directly against fair host@s6-fair over 400 games."
+      },
+      {
+        "id": "phase3-final-5m-v3-soup@1024",
+        "name": "Phase 3 5.07M V3 Soup @ 1024 (L4)",
+        "checkpoint": "phase3-final-5m-v3-soup",
+        "generation": "Phase 3",
+        "params": "5.07M",
+        "search": "GPU ISMCTS @ 1024, vloss=8, hide=1",
+        "fair": true,
+        "suite": "constructed@2",
+        "games": 120,
+        "wdl_vs_host": "73-4-43",
+        "win_pct": 62.5,
+        "elo_vs_host": 88.7,
+        "est_vs_fair_host": 169.0,
+        "est_random_scale": 1526,
+        "speed": "GPU batched (L4, B=25.8)",
+        "date": "2026-11-24",
+        "note": "Also scored 48-1-31 (+74.9 Elo vs omniscient host@s6) on unseen constructed-ood@1."
+      },
+      {
+        "id": "phase4-final-10m-v4-soup@1024",
+        "name": "Phase 4 10.10M V4 Soup @ 1024 (L4)",
+        "checkpoint": "phase4-final-10m-v4-soup",
+        "generation": "Phase 4",
+        "params": "10.10M",
+        "search": "GPU ISMCTS @ 1024, vloss=16, fpu_vnode+solver, hide=1",
+        "fair": true,
+        "suite": "constructed@2",
+        "games": 120,
+        "wdl_vs_host": "22-3-15 (45-5-30 pool)",
+        "win_pct": 58.8,
+        "elo_vs_host": 86.0,
+        "est_vs_fair_host": 152.0,
+        "est_random_scale": 1523,
+        "speed": "GPU batched (L4, B=49.9)",
+        "date": "2026-11-25",
+        "note": "#1 in the 10.10M deep-search showcase (1043 BT Elo): beat Phase 3 10.10M 23-2-15 (+70 Elo H2H / +43 BT) and host@s6 +86 Elo BT."
+      },
+      {
+        "id": "obsv2-r4-1.3m@1024",
+        "name": "Obs-v2 R4 1.3M (Under 2s Cap)",
+        "checkpoint": "obsv2-r4-1.3m",
+        "generation": "Obs-v2",
+        "params": "1.30M",
+        "search": "Multi-tree ISMCTS @ 1024, par=4, time_ms=1600, hide=1",
+        "fair": true,
+        "suite": "constructed@2",
+        "games": 400,
+        "wdl_vs_host": "237-10-153",
+        "win_pct": 60.5,
+        "elo_vs_host": 75.0,
+        "est_vs_fair_host": 98.0,
+        "est_random_scale": 1512,
+        "speed": "1.63 s worst (4c CPU)",
+        "date": "2026-11-23",
+        "note": "Real-time < 2 s move cap with 128-bit sharded EvalCache; 100% on tactics@2."
+      },
+      {
+        "id": "host@s6",
+        "name": "Rust Host Skill 6 (Shipped Default)",
+        "checkpoint": null,
+        "generation": "Search v2",
+        "params": "244 weights",
+        "search": "Playouts (6000 nodes, eval=2, et=1, hide=0)",
+        "fair": false,
+        "suite": "constructed@2",
+        "games": 2000,
+        "wdl_vs_host": "Anchor (0.0)",
+        "win_pct": 50.0,
+        "elo_vs_host": 0.0,
+        "est_vs_fair_host": 23.0,
+        "est_random_scale": 1437,
+        "speed": "338 ms worst (6 ms solo)",
+        "date": "2026-11-14",
+        "note": "Default server AI. Full search with fitted logistic evaluation; sees hidden cards."
+      },
+      {
+        "id": "host@s4",
+        "name": "Rust Host Skill 4",
+        "checkpoint": null,
+        "generation": "Search v2",
+        "params": "244 weights",
+        "search": "Playouts (3000 nodes, width=8, blunder=2%)",
+        "fair": false,
+        "suite": "constructed@2",
+        "games": 2000,
+        "wdl_vs_host": "—",
+        "win_pct": null,
+        "elo_vs_host": -35.0,
+        "est_vs_fair_host": -12.0,
+        "est_random_scale": 1402,
+        "speed": "9 ms worst (solo)",
+        "date": "2026-11-14",
+        "note": "Half budget, this turn only, 1-in-50 random blunder."
+      },
+      {
+        "id": "loop5-r8-netsearch",
+        "name": "Loop 5 R8 730k (Early Self-Play)",
+        "checkpoint": "loop5",
+        "generation": "Loop 5",
+        "params": "730k",
+        "search": "netsearch + eval=2, hide=1",
+        "fair": true,
+        "suite": "constructed@2",
+        "games": 800,
+        "wdl_vs_host": "343-32-425",
+        "win_pct": 44.9,
+        "elo_vs_host": -36.0,
+        "est_vs_fair_host": -13.0,
+        "est_random_scale": 1401,
+        "speed": "921 ms worst (CPU)",
+        "date": "2026-11-22",
+        "note": "Starting neural baseline before Obs-v2, multi-tree Gumbel-ISMCTS, and Oracle distillation."
+      },
+      {
+        "id": "host@s2",
+        "name": "Rust Host Skill 2",
+        "checkpoint": null,
+        "generation": "Search v2",
+        "params": "Java eval",
+        "search": "Playouts (1200 nodes, width=5, blunder=10%)",
+        "fair": false,
+        "suite": "constructed@2",
+        "games": 2000,
+        "wdl_vs_host": "—",
+        "win_pct": null,
+        "elo_vs_host": -68.0,
+        "est_vs_fair_host": -45.0,
+        "est_random_scale": 1369,
+        "speed": "149 ms worst",
+        "date": "2026-11-14",
+        "note": "Entry-level search opponent."
+      },
+      {
+        "id": "rl-v1-net",
+        "name": "Track B RL MLP (Policy Alone, No Search)",
+        "checkpoint": null,
+        "generation": "Track B",
+        "params": "139k",
+        "search": "Single forward pass, no tree search, hide=1",
+        "fair": true,
+        "suite": "constructed@2",
+        "games": 2400,
+        "wdl_vs_host": "28% vs host@s6",
+        "win_pct": 28.0,
+        "elo_vs_host": -150.0,
+        "est_vs_fair_host": -127.0,
+        "est_random_scale": 1287,
+        "speed": "13 ms worst (1c CPU)",
+        "date": "2026-11-16",
+        "note": "First plain-Rust neural policy trained with PPO; zero search nodes."
+      },
+      {
+        "id": "rust-quick",
+        "name": "Rust Quick Policy (No Search)",
+        "checkpoint": null,
+        "generation": "Heuristic",
+        "params": "Rules",
+        "search": "Quick answers only (0 search nodes)",
+        "fair": true,
+        "suite": "constructed@2",
+        "games": 2000,
+        "wdl_vs_host": "—",
+        "win_pct": null,
+        "elo_vs_host": -264.0,
+        "est_vs_fair_host": -241.0,
+        "est_random_scale": 1173,
+        "speed": "< 1 ms",
+        "date": "2026-11-14",
+        "note": "Skill 0-1 instant heuristic policy."
+      },
+      {
+        "id": "random",
+        "name": "Random Legal Move (Archbench Anchor)",
+        "checkpoint": null,
+        "generation": "Anchor",
+        "params": "—",
+        "search": "Seeded uniform random candidate",
+        "fair": true,
+        "suite": "constructed@2",
+        "games": 2000,
+        "wdl_vs_host": "—",
+        "win_pct": null,
+        "elo_vs_host": -437.0,
+        "est_vs_fair_host": -414.0,
+        "est_random_scale": 1000,
+        "speed": "< 1 ms",
+        "date": "2026-11-14",
+        "note": "Fixed 1000 Elo anchor across all Archbench constructed suites."
+      }
+    ]
+  },
+  "progression": [
+    {
+      "stage": "Random",
+      "label": "random",
+      "elo_vs_host": -437,
+      "random_scale": 1000,
+      "date": "2026-11-11",
+      "note": "Archbench anchor"
+    },
+    {
+      "stage": "Quick",
+      "label": "rust-quick",
+      "elo_vs_host": -264,
+      "random_scale": 1173,
+      "date": "2026-11-14",
+      "note": "No-search heuristic"
+    },
+    {
+      "stage": "RL v1 Net",
+      "label": "139k MLP",
+      "elo_vs_host": -150,
+      "random_scale": 1287,
+      "date": "2026-11-16",
+      "note": "Zero-search PPO policy"
+    },
+    {
+      "stage": "Loop 5",
+      "label": "730k Tx",
+      "elo_vs_host": -36,
+      "random_scale": 1401,
+      "date": "2026-11-22",
+      "note": "netsearch + eval=2"
+    },
+    {
+      "stage": "Host s6",
+      "label": "host@s6",
+      "elo_vs_host": 0,
+      "random_scale": 1437,
+      "date": "2026-11-14",
+      "note": "Omniscient Rust playouts"
+    },
+    {
+      "stage": "Obs-v2",
+      "label": "1.3M @ 1024",
+      "elo_vs_host": 75,
+      "random_scale": 1512,
+      "date": "2026-11-23",
+      "note": "Multi-tree ISMCTS (< 2 s)"
+    },
+    {
+      "stage": "Wave C",
+      "label": "2.05M @ 2048",
+      "elo_vs_host": 134,
+      "random_scale": 1571,
+      "date": "2026-11-24",
+      "note": "BGE text + Oracle + et=3"
+    },
+    {
+      "stage": "Phase 3",
+      "label": "5.07M @ 1024",
+      "elo_vs_host": 137,
+      "random_scale": 1574,
+      "date": "2026-11-24",
+      "note": "GPU vloss=8 (5.37x faster)"
+    },
+    {
+      "stage": "Phase 4",
+      "label": "10.10M / 2.05M",
+      "elo_vs_host": 152,
+      "random_scale": 1589,
+      "date": "2026-11-25",
+      "note": "Obs-v4 + clean AdamW + fpu/solver (+43 BT over P3 10M; #1 OOD)"
+    }
+  ],
+  "tactics": {
+    "note": "Fixed tactical and competitive decision puzzles evaluated over 4 seeds each. hide=0 tests full-information tactical calculation; hide=1 tests fair imperfect-information play (including open-mana discipline and Nash burn standoffs).",
+    "entries": [
+      {
+        "name": "Phase 4 2.05M Soup @ 256",
+        "checkpoint": "phase4-final-1.3m-v4-soup",
+        "tactics2": null,
+        "tactics3": null,
+        "tactics4_full": {
+          "solved": 60,
+          "total": 64,
+          "pct": 93.8
+        },
+        "tactics4_fair": {
+          "solved": 48,
+          "total": 64,
+          "pct": 75.0
+        },
+        "pro_fair": {
+          "solved": 44,
+          "total": 64,
+          "pct": 68.8
+        },
+        "highlight": "Ties all-time tactics@4 (15/16 puzzles 4/4) and pro-decisions@1 records at iters=256."
+      },
+      {
+        "name": "Phase 4 10.10M Soup @ 1024",
+        "checkpoint": "phase4-final-10m-v4-soup",
+        "tactics2": null,
+        "tactics3": null,
+        "tactics4_full": {
+          "solved": 60,
+          "total": 64,
+          "pct": 93.8
+        },
+        "tactics4_fair": {
+          "solved": 48,
+          "total": 64,
+          "pct": 75.0
+        },
+        "pro_fair": null,
+        "highlight": "Ties all-time tactics@4 record (60/64, 94%); solves Fog alpha-strike, Nash burn standoff, and Spell Pierce wrath hold."
+      },
+      {
+        "name": "Phase 3 2.05M V3 Soup @ 256",
+        "checkpoint": "phase3-final-1.3m-v3-soup",
+        "tactics2": null,
+        "tactics3": {
+          "solved": 64,
+          "total": 72,
+          "pct": 88.9
+        },
+        "tactics4_full": {
+          "solved": 60,
+          "total": 64,
+          "pct": 93.8
+        },
+        "tactics4_fair": {
+          "solved": 52,
+          "total": 64,
+          "pct": 81.3
+        },
+        "pro_fair": {
+          "solved": 44,
+          "total": 64,
+          "pct": 68.8
+        },
+        "highlight": "Highest fair tactics@4 (81.3%) and tied #1 on tactics@3 (89%) and pro-decisions@1 (68.8%)."
+      },
+      {
+        "name": "Phase 4 10.10M Soup @ 256",
+        "checkpoint": "phase4-final-10m-v4-soup",
+        "tactics2": null,
+        "tactics3": null,
+        "tactics4_full": {
+          "solved": 56,
+          "total": 64,
+          "pct": 87.5
+        },
+        "tactics4_fair": {
+          "solved": 48,
+          "total": 64,
+          "pct": 75.0
+        },
+        "pro_fair": {
+          "solved": 40,
+          "total": 64,
+          "pct": 62.5
+        },
+        "highlight": "+4 seeds over Phase 4 5.07M on both fair suites."
+      },
+      {
+        "name": "Phase 4 5.07M Soup @ 256",
+        "checkpoint": "phase4-final-5m-v4-soup",
+        "tactics2": null,
+        "tactics3": null,
+        "tactics4_full": {
+          "solved": 56,
+          "total": 64,
+          "pct": 87.5
+        },
+        "tactics4_fair": {
+          "solved": 44,
+          "total": 64,
+          "pct": 68.8
+        },
+        "pro_fair": {
+          "solved": 36,
+          "total": 64,
+          "pct": 56.3
+        },
+        "highlight": "+4 seeds over Phase 3 5.07M on tactics@4 full-info."
+      },
+      {
+        "name": "Wave C 5.07M Sem-Oracle @ 1024",
+        "checkpoint": "wavec-r12-5m-sem-oracle",
+        "tactics2": {
+          "solved": 124,
+          "total": 124,
+          "pct": 100.0
+        },
+        "tactics3": {
+          "solved": 64,
+          "total": 72,
+          "pct": 88.9
+        },
+        "tactics4_full": null,
+        "tactics4_fair": null,
+        "pro_fair": null,
+        "highlight": "Tied all-time tactics@3 record (64/72, 89%); best belief_ll (0.2079)."
+      },
+      {
+        "name": "Wave C 2.05M Soup @ 256",
+        "checkpoint": "wavec-final-1.3m-soup",
+        "tactics2": {
+          "solved": 124,
+          "total": 124,
+          "pct": 100.0
+        },
+        "tactics3": {
+          "solved": 64,
+          "total": 72,
+          "pct": 88.9
+        },
+        "tactics4_full": {
+          "solved": 56,
+          "total": 64,
+          "pct": 87.5
+        },
+        "tactics4_fair": {
+          "solved": 52,
+          "total": 64,
+          "pct": 81.3
+        },
+        "pro_fair": {
+          "solved": 44,
+          "total": 64,
+          "pct": 68.8
+        },
+        "highlight": "100% tactics@2, 89% tactics@3, 81% fair tactics@4."
+      },
+      {
+        "name": "Rust Host Skill 6 (Heuristic Anchor)",
+        "checkpoint": null,
+        "tactics2": {
+          "solved": 120,
+          "total": 124,
+          "pct": 96.8
+        },
+        "tactics3": {
+          "solved": 60,
+          "total": 72,
+          "pct": 83.3
+        },
+        "tactics4_full": {
+          "solved": 48,
+          "total": 64,
+          "pct": 75.0
+        },
+        "tactics4_fair": {
+          "solved": 48,
+          "total": 64,
+          "pct": 75.0
+        },
+        "pro_fair": {
+          "solved": 40,
+          "total": 64,
+          "pct": 62.5
+        },
+        "highlight": "Strong heuristic baseline, beaten by +19% on tactics@4 (full) and +6% on pro-decisions@1."
+      },
+      {
+        "name": "Loop 5 R8 730k (Early Baseline)",
+        "checkpoint": "loop5",
+        "tactics2": {
+          "solved": 100,
+          "total": 124,
+          "pct": 80.6
+        },
+        "tactics3": null,
+        "tactics4_full": null,
+        "tactics4_fair": null,
+        "pro_fair": null,
+        "highlight": "Pre-Obs-v2 baseline; missed instant-speed tricks on opponent's turn."
+      }
+    ]
+  },
+  "stress_suites": {
+    "title": "Archetype Anti-Exploitability Stress Check (Phase 4)",
+    "date": "2026-11-25",
+    "entrant": "phase4-final-5m-v4-soup@256 (hide=1) vs omniscient host@s6",
+    "games_per_suite": 40,
+    "suites": [
+      {
+        "name": "Big Mana",
+        "id": "stress-bigmana",
+        "decks": 7,
+        "pre_wdl": "12-0-12",
+        "pre_elo": 0,
+        "wdl": "24-0-16",
+        "pct": 60.0,
+        "elo": 68,
+        "note": "Primary hardening target: flipped from 0 Elo to +68 Elo."
+      },
+      {
+        "name": "Burn & Prowess",
+        "id": "stress-burn",
+        "decks": 6,
+        "pre_wdl": "18-0-6",
+        "pre_elo": 182,
+        "wdl": "24-0-16",
+        "pct": 60.0,
+        "elo": 68,
+        "note": "Remains clearly positive across 40 fair games."
+      },
+      {
+        "name": "Draw-Go Control",
+        "id": "stress-control",
+        "decks": 6,
+        "pre_wdl": "10-8-6",
+        "pre_elo": 56,
+        "wdl": "16-12-12",
+        "pct": 55.0,
+        "elo": 34,
+        "note": "Positive with 30% draw rate under 30-turn cap."
+      },
+      {
+        "name": "Go-Wide Aggro",
+        "id": "stress-gowide",
+        "decks": 6,
+        "pre_wdl": "16-0-8",
+        "pre_elo": 116,
+        "wdl": "19-0-21",
+        "pct": 47.5,
+        "elo": -16,
+        "note": "Tracked for Phase 5 rotating hardening mix."
+      }
+    ]
+  },
+  "java_comparison": {
+    "date": "2026-11-11",
+    "harness": "RustAiGameTest (48 seeded school-deck games vs RandomDriver, 20-turn cap)",
+    "note": "Java XMage's MAD AI cannot run inside the Rust engine, so both engines were measured on the same 48 seeded games in Java against a RandomDriver seat, alongside single-thread CPU benchmarks.",
+    "rows": [
+      {
+        "name": "Playmat Rust MCTS (through bridge)",
+        "won": 42,
+        "drew": 4,
+        "lost": 2,
+        "p99_ms": 39,
+        "worst_ms": 73,
+        "cpu_game_s": 2.8,
+        "note": "7 games handed back to Java on early engine diffs."
+      },
+      {
+        "name": "Playmat Rust Playouts (through bridge)",
+        "won": 41,
+        "drew": 6,
+        "lost": 1,
+        "p99_ms": 1,
+        "worst_ms": 6,
+        "cpu_game_s": 0.56,
+        "note": "8 games handed back to Java; 0.56 s includes full Rust host."
+      },
+      {
+        "name": "XMage Java MAD AI (skill 4)",
+        "won": 37,
+        "drew": 9,
+        "lost": 2,
+        "p99_ms": 1600,
+        "worst_ms": 1900,
+        "cpu_game_s": 8.6,
+        "note": "Original Java minimax/MAD search (8.6 to 12.0 s CPU/game)."
+      }
+    ]
+  },
+  "external_engines": {
+    "title": "Other Magic: The Gathering AIs & Engines (Research Survey, Nov 2026)",
+    "note": "No universal cross-engine MTG Elo ladder exists yet because each engine implements its own card scripting and rules interface. This survey compares the strongest publicly documented MTG game-playing AIs by architecture, card coverage, search depth, fairness, and practical speed/cost.",
+    "entries": [
+      {
+        "name": "Playmat AI (Phase 4 Neural ISMCTS)",
+        "category": "Neural RL + Search",
+        "engine": "Playmat Rust Engine",
+        "cards": "14,400+ verified (Pioneer/Standard)",
+        "method": "Transformer (2.05M-10.10M) + BGE-small card-text embeddings + Perfect-Info Oracle distillation + Multi-tree Gumbel-ISMCTS (fpu_vnode + MCTS-Solver)",
+        "fairness": "Strict imperfect-info (hide=1, zero-leakage tested)",
+        "speed_cost": "0.5-15 s/move (CPU/GPU) | $0 / game",
+        "status": "Active, open weights (MIT)",
+        "strengths": "Beats omniscient heuristic search by up to +137 Elo and wins #1 on 38 strictly unseen OOD decks; 94% on tactics@4.",
+        "limits": "Card pool covers Pioneer/Standard and growing; 1v1 focus (multiplayer stays on Java).",
+        "url": "https://huggingface.co/nerijs/playmat-ai-checkpoints",
+        "ours": true
+      },
+      {
+        "name": "Playmat Rust Search (host@s6)",
+        "category": "Heuristic + Fitted Search",
+        "engine": "Playmat Rust Engine",
+        "cards": "14,400+ verified",
+        "method": "Whole-turn playouts (extra_turns=1) + L2 logistic fitted evaluation (244 card weights) + declarative Playbooks for Ranked bots",
+        "fairness": "Default omniscient (hide=0); fair mode optional (hide=1)",
+        "speed_cost": "1 ms p99 / 6 ms worst | $0 / game",
+        "status": "Live on playmat.deimos.studio",
+        "strengths": "100x+ faster than Java XMage MAD while outscoring it vs random (41-6-1 vs 37-9-2); instant browser play.",
+        "limits": "Beaten by Playmat's neural ISMCTS by 86-137 Elo on constructed@2.",
+        "url": "https://github.com/arcanite24/playmat",
+        "ours": true
+      },
+      {
+        "name": "Gemini Decision 1 (Google Decisions API)",
+        "category": "Calibrated Decision Model",
+        "engine": "Playmat Rust Engine via playmat-ext-v1",
+        "cards": "Any card (reads rules text directly)",
+        "method": "Single-prefill calibrated choice model (POST /v1beta/decisions, 0 output tokens, normalized probabilities over legal actions)",
+        "fairness": "Strict imperfect-info (hide=1, zero-leakage tested)",
+        "speed_cost": "358-389 ms/move | zsh.0078 / game (zsh.10/1M input)",
+        "status": "Live (Beta, Nov 2026) -- directly benchmarked",
+        "strengths": "11-14x faster and ~100x cheaper than generative reasoning LLMs; scored 1194 Elo (+194 over random) on constructed@2 duels and 8/16 (50%) on pro-decisions@1 with zero fallbacks.",
+        "limits": "No multi-turn tree search or thinking tokens; trails Playmat neural/search models on full duels and trails reasoning LLMs (Gemini 3.5 Flash 14/16, GPT-5.2 13/16) on multi-step stack puzzles.",
+        "url": "https://aistudio.google.com/docs/models/gemini-decision-1",
+        "ours": false
+      },
+      {
+        "name": "XMage Java MAD AI (ComputerPlayer7)",
+        "category": "Classical Search",
+        "engine": "XMage (Java)",
+        "cards": "28,000+ (full MTG)",
+        "method": "Server-side minimax / MAD search over stack & priority with GameStateEvaluator2",
+        "fairness": "Sees hidden cards in default simulation",
+        "speed_cost": "1.6 s p99 / 8.6-12 s CPU per game | $0 / game",
+        "status": "Active (open source)",
+        "strengths": "Broadest multiplayer/Commander & full-card support; strong local stack evaluation.",
+        "limits": "Heavy CPU cost per game, shallow multi-turn lookahead, no learned policy or belief tracking.",
+        "url": "https://github.com/magefree/mage",
+        "ours": false
+      },
+      {
+        "name": "Forge AI (Card-Forge)",
+        "category": "Rule-Based Heuristics",
+        "engine": "Forge (Java)",
+        "cards": "99%+ of MTG (~29,000+)",
+        "method": "Per-card canPlayAI() scripts, AiHints, threat heuristics, and per-creature combat loops",
+        "fairness": "Configurable heuristics (no deep hidden-info search)",
+        "speed_cost": "Fast on simple boards; slows on wide token boards | $0 / game",
+        "status": "Active (open source, 2.9k stars)",
+        "strengths": "Widely regarded as the best practical PvE MTG engine for sheer card coverage, drafts, and aggro/midrange decks.",
+        "limits": "Evaluates cards mostly in isolation; no multi-turn tree search or learned generalization; weak on control/combo without hand-coded hints.",
+        "url": "https://github.com/Card-Forge/forge",
+        "ours": false
+      },
+      {
+        "name": "Magarena AI",
+        "category": "Classical Tree Search",
+        "engine": "Magarena (Java)",
+        "cards": "Scripted subset (simplified ruleset)",
+        "method": "Expectimax & Monte Carlo Tree Search (Melvin Zhang MCTS) with hand-crafted MagicScore",
+        "fairness": "Supports standard and cheating (open-hand) modes",
+        "speed_cost": "Seconds per move | $0 / game",
+        "status": "Maintenance / archived (last push 2023)",
+        "strengths": "Historically regarded as the strongest classical lookahead AI among open-source engines thanks to its pruned, search-friendly ruleset.",
+        "limits": "Much smaller card pool, simplified rules, no neural networks or cross-card text generalization.",
+        "url": "https://github.com/magarena/magarena",
+        "ours": false
+      },
+      {
+        "name": "MageZero (WillWroble)",
+        "category": "Deck-Local Neural RL",
+        "engine": "Modified XMage fork + PyTorch",
+        "cards": "Deck-specific subgames (16-opponent pool)",
+        "method": "AlphaZero-style RL + MCTS decomposing MTG into single-deck environments",
+        "fairness": "Imperfect-information state vectorization",
+        "speed_cost": "Local GPU/CPU | $0 / game",
+        "status": "Active alpha (v0.3.0-alpha, Oct/Nov 2026)",
+        "strengths": "Clean open-source AlphaZero framework on full XMage rules; proves focused deck-local RL works without LLM API costs.",
+        "limits": "Trains per-deck specialists rather than a universal cross-deck / zero-shot OOD model.",
+        "url": "https://github.com/WillWroble/MageZero",
+        "ours": false
+      },
+      {
+        "name": "MTG-Causal-RL (Academic, 2026)",
+        "category": "Causal RL Research",
+        "engine": "Custom Gymnasium Environment",
+        "cards": "Competitive Standard archetypes",
+        "method": "Causal Graph-Factored Advantage PPO (CGFA-PPO) over 3,077-dim partial obs + Structural Causal Model",
+        "fairness": "Partial observation with masked discrete actions",
+        "speed_cost": "Research benchmark | $0 / game",
+        "status": "Academic paper (2026)",
+        "strengths": "Targets explicit causal credit assignment (e.g., holding mana for counterspells) and cross-archetype transfer.",
+        "limits": "Simplified Gymnasium environment rather than a full 14,000+ card rules engine.",
+        "url": "https://arxiv.org/",
+        "ours": false
+      },
+      {
+        "name": "Frontier LLMs via MCP (mage-bench)",
+        "category": "Frontier LLM Agents",
+        "engine": "XMage + MCP Bridge",
+        "cards": "28,000+ (reads oracle text directly)",
+        "method": "Claude Opus 4.6, GPT-5.2, Gemini 3 Pro, DeepSeek V3.2 piloting full XMage games via structured tool calls",
+        "fairness": "Strict imperfect-information (human player view)",
+        "speed_cost": "10 - 28 min thinking/game | $0.44 - $8.93 / game",
+        "status": "Active benchmark (mage-bench.com)",
+        "strengths": "Zero-shot understanding of any card ever printed, including multiplayer Commander politics and novel combos.",
+        "limits": "Orders of magnitude slower and costlier per game than dedicated RL/MCTS; still commits occasional tactical/state blunders.",
+        "url": "https://mage-bench.com",
+        "ours": false
+      },
+      {
+        "name": "MTG Arena Sparky",
+        "category": "Official Scripted Bot",
+        "engine": "MTG Arena (Proprietary)",
+        "cards": "Fixed starter/tutorial decks",
+        "method": "Proprietary localized rule scripts",
+        "fairness": "Tutorial bot",
+        "speed_cost": "Instant | Free (closed)",
+        "status": "Live in MTG Arena",
+        "strengths": "Fast, polished onboarding experience inside the official client.",
+        "limits": "Universally considered the weakest MTG bot; frequently miscalculates combat and removal timing.",
+        "url": "https://magic.wizards.com/en/mtgarena",
+        "ours": false
+      }
+    ]
+  },
+  "llm_leaderboard": {
+    "title": "Strongest Frontier LLMs on Magic: The Gathering (mage-bench Season 1)",
+    "source_name": "mage-bench (GregorStocks/mage-bench)",
+    "source_url": "https://mage-bench.com",
+    "repo_url": "https://github.com/GregorStocks/mage-bench",
+    "generated_at": "2026-03-20",
+    "total_games": 208,
+    "total_models": 35,
+    "scale_note": "mage-bench Elo is computed strictly among 35 LLMs playing each other on XMage via MCP (1v1 & multiplayer). It is NOT on the same numeric scale as Playmat's Archbench Elo. Showing cost and thinking time per game alongside Elo highlights the trade-off between general-purpose LLMs and specialized neural game engines.",
+    "other_benchmarks_note": "Other public MTG LLM benchmarks show the same frontier split: on ManaBench (picking the optimal 60th card for a 59-card tournament deck), OpenAI o3 leads near 63% and Claude 3.7 Sonnet near 49.5%, while unassisted open-weight models like Llama 3.3/4 hover near 20-27% (random is 16.7%). On MTG Bench (engineless turn simulation via MCP), even top frontier models still suffer irreversible state-tracking errors without a rules engine.",
+    "entries": [
+      {
+        "rank": 1,
+        "name": "Claude Opus 4.6 (medium)",
+        "provider": "Anthropic",
+        "elo": 1747,
+        "games": 16,
+        "win_rate": 87.5,
+        "cost_usd": 8.93,
+        "think_s": 620,
+        "blunder": 0.49,
+        "open_weight": false
+      },
+      {
+        "rank": 2,
+        "name": "GPT-5.2 (medium)",
+        "provider": "OpenAI",
+        "elo": 1737,
+        "games": 11,
+        "win_rate": 100.0,
+        "cost_usd": 2.23,
+        "think_s": 828,
+        "blunder": 0.29,
+        "open_weight": false
+      },
+      {
+        "rank": 3,
+        "name": "Gemini 3 Pro (medium)",
+        "provider": "Google",
+        "elo": 1722,
+        "games": 11,
+        "win_rate": 90.9,
+        "cost_usd": 4.18,
+        "think_s": 1008,
+        "blunder": 0.81,
+        "open_weight": false,
+        "tag": "Season 1 Champion"
+      },
+      {
+        "rank": 4,
+        "name": "GPT-5.3 Codex (medium)",
+        "provider": "OpenAI",
+        "elo": 1717,
+        "games": 10,
+        "win_rate": 90.0,
+        "cost_usd": 1.9,
+        "think_s": 711,
+        "blunder": 0.38,
+        "open_weight": false
+      },
+      {
+        "rank": 5,
+        "name": "DeepSeek V3.2",
+        "provider": "DeepSeek",
+        "elo": 1682,
+        "games": 10,
+        "win_rate": 80.0,
+        "cost_usd": 0.51,
+        "think_s": 1668,
+        "blunder": 1.0,
+        "open_weight": true,
+        "tag": "Top Open-Weight"
+      },
+      {
+        "rank": 6,
+        "name": "GLM 4.7 (medium)",
+        "provider": "Z.ai",
+        "elo": 1675,
+        "games": 10,
+        "win_rate": 80.0,
+        "cost_usd": 0.66,
+        "think_s": 750,
+        "blunder": 0.75,
+        "open_weight": true
+      },
+      {
+        "rank": 7,
+        "name": "GPT-5.4 (medium)",
+        "provider": "OpenAI",
+        "elo": 1658,
+        "games": 8,
+        "win_rate": 75.0,
+        "cost_usd": 3.44,
+        "think_s": 1252,
+        "blunder": 0.45,
+        "open_weight": false
+      },
+      {
+        "rank": 8,
+        "name": "Kimi K2.5 (medium)",
+        "provider": "Moonshot AI",
+        "elo": 1652,
+        "games": 10,
+        "win_rate": 70.0,
+        "cost_usd": 0.44,
+        "think_s": 842,
+        "blunder": 0.85,
+        "open_weight": true
+      },
+      {
+        "rank": 9,
+        "name": "Grok 4.1 Fast (medium)",
+        "provider": "xAI",
+        "elo": 1637,
+        "games": 11,
+        "win_rate": 63.6,
+        "cost_usd": 0.49,
+        "think_s": 1781,
+        "blunder": 0.73,
+        "open_weight": false
+      },
+      {
+        "rank": 10,
+        "name": "Claude Haiku 4.5 (low)",
+        "provider": "Anthropic",
+        "elo": 1637,
+        "games": 10,
+        "win_rate": 70.0,
+        "cost_usd": 1.71,
+        "think_s": 409,
+        "blunder": 0.94,
+        "open_weight": false
+      },
+      {
+        "rank": 11,
+        "name": "Gemini 3 Flash (medium)",
+        "provider": "Google",
+        "elo": 1622,
+        "games": 10,
+        "win_rate": 60.0,
+        "cost_usd": 1.25,
+        "think_s": 883,
+        "blunder": 1.57,
+        "open_weight": false
+      },
+      {
+        "rank": 13,
+        "name": "o3 (medium)",
+        "provider": "OpenAI",
+        "elo": 1609,
+        "games": 13,
+        "win_rate": 53.8,
+        "cost_usd": 3.34,
+        "think_s": 2055,
+        "blunder": 0.8,
+        "open_weight": false
+      },
+      {
+        "rank": 16,
+        "name": "Qwen3 Coder 480B",
+        "provider": "Qwen",
+        "elo": 1601,
+        "games": 11,
+        "win_rate": 54.5,
+        "cost_usd": 0.39,
+        "think_s": 442,
+        "blunder": 0.93,
+        "open_weight": true
+      },
+      {
+        "rank": 19,
+        "name": "Llama 4 Maverick",
+        "provider": "Meta",
+        "elo": 1590,
+        "games": 11,
+        "win_rate": 45.5,
+        "cost_usd": 0.23,
+        "think_s": 250,
+        "blunder": 0.81,
+        "open_weight": true
+      }
+    ]
+  },
+  "efficiency_compare": [
+    {
+      "name": "Playmat Rust Playouts (host@s6)",
+      "group": "Playmat",
+      "game_time_s": 0.56,
+      "cost_usd": 0.0,
+      "note": "Full game CPU including Rust engine (1 ms p99 decision)."
+    },
+    {
+      "name": "XMage Java MAD AI (skill 4)",
+      "group": "Engine",
+      "game_time_s": 10.3,
+      "cost_usd": 0.0,
+      "note": "8.6 to 12.0 s CPU/game (1.6 s p99 decision)."
+    },
+    {
+      "name": "Playmat Neural ISMCTS (2.05M @ 256, CPU)",
+      "group": "Playmat",
+      "game_time_s": 12.0,
+      "cost_usd": 0.0,
+      "note": "Fair hide=1 neural search with 128-bit EvalCache (< 1.6 s/move)."
+    },
+    {
+      "name": "Claude Opus 4.6 (mage-bench)",
+      "group": "LLM",
+      "game_time_s": 620.0,
+      "cost_usd": 8.93,
+      "note": "10.3 min avg thinking time and $8.93 API cost per game."
+    },
+    {
+      "name": "GPT-5.2 (mage-bench)",
+      "group": "LLM",
+      "game_time_s": 828.0,
+      "cost_usd": 2.23,
+      "note": "13.8 min avg thinking time and $2.23 API cost per game."
+    },
+    {
+      "name": "Gemini 3 Pro (mage-bench)",
+      "group": "LLM",
+      "game_time_s": 1008.0,
+      "cost_usd": 4.18,
+      "note": "16.8 min avg thinking time and $4.18 API cost per game."
+    },
+    {
+      "name": "DeepSeek V3.2 (mage-bench)",
+      "group": "LLM",
+      "game_time_s": 1668.0,
+      "cost_usd": 0.51,
+      "note": "27.8 min avg thinking time and $0.51 API cost per game."
+    }
+  ],
+  "adapter_runs": [
+    {
+      "mode": "duels",
+      "suite": "constructed@2",
+      "date": "2026-11-26",
+      "deals": 25,
+      "elapsed_s": 30.55,
+      "leaderboard": [
+        {
+          "name": "Playmat host@s6",
+          "elo": 1404.8,
+          "won": 218,
+          "drew": 11,
+          "lost": 71,
+          "games": 300,
+          "win_pct": 74.5,
+          "spec": "host@s6",
+          "worst_decision_ms": 114
+        },
+        {
+          "name": "Playmat host@s4",
+          "elo": 1365.5,
+          "won": 204,
+          "drew": 8,
+          "lost": 88,
+          "games": 300,
+          "win_pct": 69.33,
+          "spec": "host@s4",
+          "worst_decision_ms": 62
+        },
+        {
+          "name": "Playmat host@s2",
+          "elo": 1355.8,
+          "won": 199,
+          "drew": 10,
+          "lost": 91,
+          "games": 300,
+          "win_pct": 68.0,
+          "spec": "host@s2",
+          "worst_decision_ms": 65
+        },
+        {
+          "name": "Greedy Aggro heuristic",
+          "elo": 1171.8,
+          "won": 119,
+          "drew": 9,
+          "lost": 172,
+          "games": 300,
+          "win_pct": 41.17,
+          "spec": "open:greedy-aggro",
+          "worst_decision_ms": 14,
+          "telemetry": {
+            "adapter": "open:greedy-aggro",
+            "decisions": 13431,
+            "fallbacks": 0,
+            "fallback_rate": 0.0,
+            "errors": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cost_usd": 0.0,
+            "avg_latency_ms": 0.0,
+            "p50_latency_ms": 0.0,
+            "p99_latency_ms": 0.02,
+            "worst_latency_ms": 0.13
+          }
+        },
+        {
+          "name": "Playmat rust-quick",
+          "elo": 1158.0,
+          "won": 112,
+          "drew": 11,
+          "lost": 177,
+          "games": 300,
+          "win_pct": 39.17,
+          "spec": "rust-quick",
+          "worst_decision_ms": 0
+        },
+        {
+          "name": "Forge-style heuristic",
+          "elo": 1158.0,
+          "won": 113,
+          "drew": 9,
+          "lost": 178,
+          "games": 300,
+          "win_pct": 39.17,
+          "spec": "open:forge-heuristic",
+          "worst_decision_ms": 16,
+          "telemetry": {
+            "adapter": "open:forge-heuristic",
+            "decisions": 13698,
+            "fallbacks": 0,
+            "fallback_rate": 0.0,
+            "errors": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cost_usd": 0.0,
+            "avg_latency_ms": 0.0,
+            "p50_latency_ms": 0.0,
+            "p99_latency_ms": 0.02,
+            "worst_latency_ms": 1.11
+          }
+        },
+        {
+          "name": "random",
+          "elo": 1000.0,
+          "won": 52,
+          "drew": 8,
+          "lost": 240,
+          "games": 300,
+          "win_pct": 18.67,
+          "spec": "random",
+          "worst_decision_ms": 0
+        }
+      ],
+      "pairs": [
+        {
+          "a": "Playmat host@s6",
+          "b": "Playmat host@s4",
+          "a_won": 28,
+          "drew": 2,
+          "b_won": 20
+        },
+        {
+          "a": "Playmat host@s6",
+          "b": "Playmat host@s2",
+          "a_won": 25,
+          "drew": 3,
+          "b_won": 22
+        },
+        {
+          "a": "Playmat host@s6",
+          "b": "Greedy Aggro heuristic",
+          "a_won": 39,
+          "drew": 1,
+          "b_won": 10
+        },
+        {
+          "a": "Playmat host@s6",
+          "b": "Playmat rust-quick",
+          "a_won": 39,
+          "drew": 2,
+          "b_won": 9
+        },
+        {
+          "a": "Playmat host@s6",
+          "b": "Forge-style heuristic",
+          "a_won": 41,
+          "drew": 1,
+          "b_won": 8
+        },
+        {
+          "a": "Playmat host@s6",
+          "b": "random",
+          "a_won": 46,
+          "drew": 2,
+          "b_won": 2
+        },
+        {
+          "a": "Playmat host@s4",
+          "b": "Playmat host@s2",
+          "a_won": 23,
+          "drew": 2,
+          "b_won": 25
+        },
+        {
+          "a": "Playmat host@s4",
+          "b": "Greedy Aggro heuristic",
+          "a_won": 39,
+          "drew": 1,
+          "b_won": 10
+        },
+        {
+          "a": "Playmat host@s4",
+          "b": "Playmat rust-quick",
+          "a_won": 36,
+          "drew": 1,
+          "b_won": 13
+        },
+        {
+          "a": "Playmat host@s4",
+          "b": "Forge-style heuristic",
+          "a_won": 39,
+          "drew": 1,
+          "b_won": 10
+        },
+        {
+          "a": "Playmat host@s4",
+          "b": "random",
+          "a_won": 47,
+          "drew": 1,
+          "b_won": 2
+        },
+        {
+          "a": "Playmat host@s2",
+          "b": "Greedy Aggro heuristic",
+          "a_won": 36,
+          "drew": 1,
+          "b_won": 13
+        },
+        {
+          "a": "Playmat host@s2",
+          "b": "Playmat rust-quick",
+          "a_won": 39,
+          "drew": 1,
+          "b_won": 10
+        },
+        {
+          "a": "Playmat host@s2",
+          "b": "Forge-style heuristic",
+          "a_won": 35,
+          "drew": 1,
+          "b_won": 14
+        },
+        {
+          "a": "Playmat host@s2",
+          "b": "random",
+          "a_won": 42,
+          "drew": 2,
+          "b_won": 6
+        },
+        {
+          "a": "Greedy Aggro heuristic",
+          "b": "Playmat rust-quick",
+          "a_won": 25,
+          "drew": 3,
+          "b_won": 22
+        },
+        {
+          "a": "Greedy Aggro heuristic",
+          "b": "Forge-style heuristic",
+          "a_won": 26,
+          "drew": 2,
+          "b_won": 22
+        },
+        {
+          "a": "Greedy Aggro heuristic",
+          "b": "random",
+          "a_won": 35,
+          "drew": 1,
+          "b_won": 14
+        },
+        {
+          "a": "Playmat rust-quick",
+          "b": "Forge-style heuristic",
+          "a_won": 22,
+          "drew": 3,
+          "b_won": 25
+        },
+        {
+          "a": "Playmat rust-quick",
+          "b": "random",
+          "a_won": 36,
+          "drew": 1,
+          "b_won": 13
+        },
+        {
+          "a": "Forge-style heuristic",
+          "b": "random",
+          "a_won": 34,
+          "drew": 1,
+          "b_won": 15
+        }
+      ]
+    },
+    {
+      "mode": "duels",
+      "suite": "constructed@2",
+      "date": "2026-11-26",
+      "deals": 3,
+      "elapsed_s": 191.61,
+      "leaderboard": [
+        {
+          "name": "Playmat host@s6",
+          "elo": 1380.9,
+          "won": 19,
+          "drew": 1,
+          "lost": 4,
+          "games": 24,
+          "win_pct": 81.25,
+          "spec": "host@s6",
+          "worst_decision_ms": 67
+        },
+        {
+          "name": "Playmat rust-quick",
+          "elo": 1249.5,
+          "won": 14,
+          "drew": 0,
+          "lost": 10,
+          "games": 24,
+          "win_pct": 58.33,
+          "spec": "rust-quick",
+          "worst_decision_ms": 0
+        },
+        {
+          "name": "Forge-style heuristic",
+          "elo": 1194.0,
+          "won": 11,
+          "drew": 1,
+          "lost": 12,
+          "games": 24,
+          "win_pct": 47.92,
+          "spec": "open:forge-heuristic",
+          "worst_decision_ms": 251,
+          "telemetry": {
+            "adapter": "open:forge-heuristic",
+            "decisions": 977,
+            "fallbacks": 0,
+            "fallback_rate": 0.0,
+            "errors": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cost_usd": 0.0,
+            "avg_latency_ms": 0.01,
+            "p50_latency_ms": 0.0,
+            "p99_latency_ms": 0.03,
+            "worst_latency_ms": 0.08
+          }
+        },
+        {
+          "name": "Gemini Decision 1",
+          "elo": 1194.0,
+          "won": 11,
+          "drew": 1,
+          "lost": 12,
+          "games": 24,
+          "win_pct": 47.92,
+          "spec": "gemini-decision:gemini-decision-1",
+          "worst_decision_ms": 826,
+          "telemetry": {
+            "adapter": "gemini-decision:gemini-decision-1",
+            "decisions": 1514,
+            "fallbacks": 0,
+            "fallback_rate": 0.0,
+            "errors": 0,
+            "input_tokens": 1871535,
+            "output_tokens": 0,
+            "cost_usd": 0.187154,
+            "avg_latency_ms": 358.36,
+            "p50_latency_ms": 359.69,
+            "p99_latency_ms": 689.16,
+            "worst_latency_ms": 826.21
+          }
+        },
+        {
+          "name": "random",
+          "elo": 1000.0,
+          "won": 3,
+          "drew": 1,
+          "lost": 20,
+          "games": 24,
+          "win_pct": 14.58,
+          "spec": "random",
+          "worst_decision_ms": 0
+        }
+      ],
+      "pairs": [
+        {
+          "a": "Playmat host@s6",
+          "b": "Playmat rust-quick",
+          "a_won": 4,
+          "drew": 0,
+          "b_won": 2
+        },
+        {
+          "a": "Playmat host@s6",
+          "b": "Forge-style heuristic",
+          "a_won": 5,
+          "drew": 0,
+          "b_won": 1
+        },
+        {
+          "a": "Playmat host@s6",
+          "b": "Gemini Decision 1",
+          "a_won": 5,
+          "drew": 0,
+          "b_won": 1
+        },
+        {
+          "a": "Playmat host@s6",
+          "b": "random",
+          "a_won": 5,
+          "drew": 1,
+          "b_won": 0
+        },
+        {
+          "a": "Playmat rust-quick",
+          "b": "Forge-style heuristic",
+          "a_won": 3,
+          "drew": 0,
+          "b_won": 3
+        },
+        {
+          "a": "Playmat rust-quick",
+          "b": "Gemini Decision 1",
+          "a_won": 4,
+          "drew": 0,
+          "b_won": 2
+        },
+        {
+          "a": "Playmat rust-quick",
+          "b": "random",
+          "a_won": 5,
+          "drew": 0,
+          "b_won": 1
+        },
+        {
+          "a": "Forge-style heuristic",
+          "b": "Gemini Decision 1",
+          "a_won": 2,
+          "drew": 1,
+          "b_won": 3
+        },
+        {
+          "a": "Forge-style heuristic",
+          "b": "random",
+          "a_won": 5,
+          "drew": 0,
+          "b_won": 1
+        },
+        {
+          "a": "Gemini Decision 1",
+          "b": "random",
+          "a_won": 5,
+          "drew": 0,
+          "b_won": 1
+        }
+      ]
+    },
+    {
+      "mode": "puzzles",
+      "suite": "pro-decisions@1",
+      "date": "2026-11-26",
+      "seeds": 1,
+      "puzzles": 16,
+      "elapsed_s": 3532.7,
+      "standings": [
+        {
+          "name": "Gemini 3.5 Flash (Vertex MaaS)",
+          "spec": "llm:vertex-maas/google/gemini-3.5-flash",
+          "solved": 14,
+          "total": 16,
+          "pct": 87.5,
+          "categories": {
+            "aggro_race": {
+              "solved": 4,
+              "total": 4,
+              "pct": 100.0
+            },
+            "combat_math": {
+              "solved": 4,
+              "total": 4,
+              "pct": 100.0
+            },
+            "control_stack": {
+              "solved": 4,
+              "total": 4,
+              "pct": 100.0
+            },
+            "tempo_open_mana": {
+              "solved": 2,
+              "total": 4,
+              "pct": 50.0
+            }
+          },
+          "telemetry": {
+            "adapter": "llm:vertex-maas/google/gemini-3.5-flash",
+            "decisions": 108,
+            "fallbacks": 0,
+            "fallback_rate": 0.0,
+            "errors": 0,
+            "input_tokens": 43226,
+            "output_tokens": 4631,
+            "cost_usd": 0.035506,
+            "avg_latency_ms": 4480.9,
+            "p50_latency_ms": 3649.91,
+            "p99_latency_ms": 19512.95,
+            "worst_latency_ms": 30086.95
+          }
+        },
+        {
+          "name": "Gemini 3.1 Pro (Vertex MaaS)",
+          "spec": "llm:vertex-maas/google/gemini-3.1-pro-preview",
+          "solved": 13,
+          "total": 16,
+          "pct": 81.25,
+          "categories": {
+            "aggro_race": {
+              "solved": 4,
+              "total": 4,
+              "pct": 100.0
+            },
+            "combat_math": {
+              "solved": 4,
+              "total": 4,
+              "pct": 100.0
+            },
+            "control_stack": {
+              "solved": 3,
+              "total": 4,
+              "pct": 75.0
+            },
+            "tempo_open_mana": {
+              "solved": 2,
+              "total": 4,
+              "pct": 50.0
+            }
+          },
+          "telemetry": {
+            "adapter": "llm:vertex-maas/google/gemini-3.1-pro-preview",
+            "decisions": 117,
+            "fallbacks": 2,
+            "fallback_rate": 0.0171,
+            "errors": 2,
+            "input_tokens": 45458,
+            "output_tokens": 4426,
+            "cost_usd": 0.144028,
+            "avg_latency_ms": 8873.55,
+            "p50_latency_ms": 7093.42,
+            "p99_latency_ms": 28719.55,
+            "worst_latency_ms": 35661.94
+          }
+        },
+        {
+          "name": "GPT-5.2 (OpenAI)",
+          "spec": "llm:openai/gpt-5.2",
+          "solved": 13,
+          "total": 16,
+          "pct": 81.25,
+          "categories": {
+            "aggro_race": {
+              "solved": 3,
+              "total": 4,
+              "pct": 75.0
+            },
+            "combat_math": {
+              "solved": 4,
+              "total": 4,
+              "pct": 100.0
+            },
+            "control_stack": {
+              "solved": 4,
+              "total": 4,
+              "pct": 100.0
+            },
+            "tempo_open_mana": {
+              "solved": 2,
+              "total": 4,
+              "pct": 50.0
+            }
+          },
+          "telemetry": {
+            "adapter": "llm:openai/gpt-5.2",
+            "decisions": 102,
+            "fallbacks": 2,
+            "fallback_rate": 0.0196,
+            "errors": 0,
+            "input_tokens": 40060,
+            "output_tokens": 25082,
+            "cost_usd": 0.421253,
+            "avg_latency_ms": 5456.89,
+            "p50_latency_ms": 3968.77,
+            "p99_latency_ms": 37830.13,
+            "worst_latency_ms": 40147.1
+          }
+        },
+        {
+          "name": "GLM 5.2 (Vertex MaaS)",
+          "spec": "llm:vertex-maas/zai-org/glm-5.2-maas",
+          "solved": 12,
+          "total": 16,
+          "pct": 75.0,
+          "categories": {
+            "aggro_race": {
+              "solved": 4,
+              "total": 4,
+              "pct": 100.0
+            },
+            "combat_math": {
+              "solved": 4,
+              "total": 4,
+              "pct": 100.0
+            },
+            "control_stack": {
+              "solved": 3,
+              "total": 4,
+              "pct": 75.0
+            },
+            "tempo_open_mana": {
+              "solved": 1,
+              "total": 4,
+              "pct": 25.0
+            }
+          },
+          "telemetry": {
+            "adapter": "llm:vertex-maas/zai-org/glm-5.2-maas",
+            "decisions": 94,
+            "fallbacks": 17,
+            "fallback_rate": 0.1809,
+            "errors": 0,
+            "input_tokens": 47513,
+            "output_tokens": 116213,
+            "cost_usd": 0.260934,
+            "avg_latency_ms": 9315.59,
+            "p50_latency_ms": 5751.56,
+            "p99_latency_ms": 24419.65,
+            "worst_latency_ms": 24419.65
+          }
+        },
+        {
+          "name": "Playmat host@s6",
+          "spec": "host@s6",
+          "solved": 10,
+          "total": 16,
+          "pct": 62.5,
+          "categories": {
+            "aggro_race": {
+              "solved": 3,
+              "total": 4,
+              "pct": 75.0
+            },
+            "combat_math": {
+              "solved": 3,
+              "total": 4,
+              "pct": 75.0
+            },
+            "control_stack": {
+              "solved": 3,
+              "total": 4,
+              "pct": 75.0
+            },
+            "tempo_open_mana": {
+              "solved": 1,
+              "total": 4,
+              "pct": 25.0
+            }
+          }
+        },
+        {
+          "name": "Playmat rust-quick",
+          "spec": "rust-quick",
+          "solved": 10,
+          "total": 16,
+          "pct": 62.5,
+          "categories": {
+            "aggro_race": {
+              "solved": 0,
+              "total": 4,
+              "pct": 0.0
+            },
+            "combat_math": {
+              "solved": 4,
+              "total": 4,
+              "pct": 100.0
+            },
+            "control_stack": {
+              "solved": 4,
+              "total": 4,
+              "pct": 100.0
+            },
+            "tempo_open_mana": {
+              "solved": 2,
+              "total": 4,
+              "pct": 50.0
+            }
+          }
+        },
+        {
+          "name": "DeepSeek V4.1 Flash (Vertex MaaS)",
+          "spec": "llm:vertex-maas/deepseek-ai/deepseek-v4.1-flash-maas",
+          "solved": 9,
+          "total": 16,
+          "pct": 56.25,
+          "categories": {
+            "aggro_race": {
+              "solved": 2,
+              "total": 4,
+              "pct": 50.0
+            },
+            "combat_math": {
+              "solved": 3,
+              "total": 4,
+              "pct": 75.0
+            },
+            "control_stack": {
+              "solved": 4,
+              "total": 4,
+              "pct": 100.0
+            },
+            "tempo_open_mana": {
+              "solved": 0,
+              "total": 4,
+              "pct": 0.0
+            }
+          },
+          "telemetry": {
+            "adapter": "llm:vertex-maas/deepseek-ai/deepseek-v4.1-flash-maas",
+            "decisions": 92,
+            "fallbacks": 0,
+            "fallback_rate": 0.0,
+            "errors": 0,
+            "input_tokens": 35750,
+            "output_tokens": 3783,
+            "cost_usd": 0.006594,
+            "avg_latency_ms": 1178.35,
+            "p50_latency_ms": 1115.09,
+            "p99_latency_ms": 2177.85,
+            "worst_latency_ms": 2177.85
+          }
+        },
+        {
+          "name": "Gemini Decision 1",
+          "spec": "gemini-decision:gemini-decision-1",
+          "solved": 8,
+          "total": 16,
+          "pct": 50.0,
+          "categories": {
+            "aggro_race": {
+              "solved": 3,
+              "total": 4,
+              "pct": 75.0
+            },
+            "combat_math": {
+              "solved": 3,
+              "total": 4,
+              "pct": 75.0
+            },
+            "control_stack": {
+              "solved": 1,
+              "total": 4,
+              "pct": 25.0
+            },
+            "tempo_open_mana": {
+              "solved": 1,
+              "total": 4,
+              "pct": 25.0
+            }
+          },
+          "telemetry": {
+            "adapter": "gemini-decision:gemini-decision-1",
+            "decisions": 95,
+            "fallbacks": 0,
+            "fallback_rate": 0.0,
+            "errors": 0,
+            "input_tokens": 43395,
+            "output_tokens": 0,
+            "cost_usd": 0.00434,
+            "avg_latency_ms": 388.99,
+            "p50_latency_ms": 370.73,
+            "p99_latency_ms": 804.74,
+            "worst_latency_ms": 804.74
+          }
+        },
+        {
+          "name": "Gemma 4 26B (Vertex MaaS)",
+          "spec": "llm:vertex-maas/google/gemma-4-26b-a4b-it-maas",
+          "solved": 8,
+          "total": 16,
+          "pct": 50.0,
+          "categories": {
+            "aggro_race": {
+              "solved": 2,
+              "total": 4,
+              "pct": 50.0
+            },
+            "combat_math": {
+              "solved": 2,
+              "total": 4,
+              "pct": 50.0
+            },
+            "control_stack": {
+              "solved": 4,
+              "total": 4,
+              "pct": 100.0
+            },
+            "tempo_open_mana": {
+              "solved": 0,
+              "total": 4,
+              "pct": 0.0
+            }
+          },
+          "telemetry": {
+            "adapter": "llm:vertex-maas/google/gemma-4-26b-a4b-it-maas",
+            "decisions": 90,
+            "fallbacks": 0,
+            "fallback_rate": 0.0,
+            "errors": 0,
+            "input_tokens": 37084,
+            "output_tokens": 5517,
+            "cost_usd": 0.005364,
+            "avg_latency_ms": 1028.47,
+            "p50_latency_ms": 876.3,
+            "p99_latency_ms": 5905.55,
+            "worst_latency_ms": 5905.55
+          }
+        },
+        {
+          "name": "GPT-OSS 120B (Vertex MaaS)",
+          "spec": "llm:vertex-maas/openai/gpt-oss-120b-maas",
+          "solved": 8,
+          "total": 16,
+          "pct": 50.0,
+          "categories": {
+            "aggro_race": {
+              "solved": 1,
+              "total": 4,
+              "pct": 25.0
+            },
+            "combat_math": {
+              "solved": 4,
+              "total": 4,
+              "pct": 100.0
+            },
+            "control_stack": {
+              "solved": 2,
+              "total": 4,
+              "pct": 50.0
+            },
+            "tempo_open_mana": {
+              "solved": 1,
+              "total": 4,
+              "pct": 25.0
+            }
+          },
+          "telemetry": {
+            "adapter": "llm:vertex-maas/openai/gpt-oss-120b-maas",
+            "decisions": 96,
+            "fallbacks": 2,
+            "fallback_rate": 0.0208,
+            "errors": 1,
+            "input_tokens": 43921,
+            "output_tokens": 67941,
+            "cost_usd": 0.047353,
+            "avg_latency_ms": 3532.18,
+            "p50_latency_ms": 2490.95,
+            "p99_latency_ms": 60055.57,
+            "worst_latency_ms": 60055.57
+          }
+        },
+        {
+          "name": "Forge-style heuristic",
+          "spec": "open:forge-heuristic",
+          "solved": 5,
+          "total": 16,
+          "pct": 31.25,
+          "categories": {
+            "aggro_race": {
+              "solved": 1,
+              "total": 4,
+              "pct": 25.0
+            },
+            "combat_math": {
+              "solved": 2,
+              "total": 4,
+              "pct": 50.0
+            },
+            "control_stack": {
+              "solved": 1,
+              "total": 4,
+              "pct": 25.0
+            },
+            "tempo_open_mana": {
+              "solved": 1,
+              "total": 4,
+              "pct": 25.0
+            }
+          },
+          "telemetry": {
+            "adapter": "open:forge-heuristic",
+            "decisions": 77,
+            "fallbacks": 0,
+            "fallback_rate": 0.0,
+            "errors": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cost_usd": 0.0,
+            "avg_latency_ms": 0.01,
+            "p50_latency_ms": 0.01,
+            "p99_latency_ms": 0.06,
+            "worst_latency_ms": 0.06
+          }
+        }
+      ]
+    }
+  ]
+}
