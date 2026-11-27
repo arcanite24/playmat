@@ -160,6 +160,6 @@
 	}
 }
 
-# The sites: TLS_MODE picks them (sites-https.caddy, the default, or sites-external.caddy behind your own reverse
-# proxy). Both import the site above.
+# TLS_MODE selects sites-https.caddy (default), sites-external.caddy (same Docker network), or
+# sites-external-host.caddy (reverse proxy on another host). All three import the site above.
 import sites-{$TLS_MODE:https}.caddy

@@ -155,7 +155,14 @@ env_set() {
 ARGS=()
 compose_args() {
   ARGS=(-p "$PROJECT" --project-directory "$1" -f "$1/docker-compose.yml")
-  [[ $(env_get TLS_MODE) == external && -f $1/docker-compose.proxy.yml ]] && ARGS+=(-f "$1/docker-compose.proxy.yml")
+  case $(env_get TLS_MODE) in
+    external)
+      [[ -f $1/docker-compose.proxy.yml ]] && ARGS+=(-f "$1/docker-compose.proxy.yml")
+      ;;
+    external-host)
+      [[ -f $1/docker-compose.external-host.yml ]] && ARGS+=(-f "$1/docker-compose.external-host.yml")
+      ;;
+  esac
   ARGS+=(--env-file "$ENV_FILE")
 }
 

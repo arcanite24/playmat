@@ -1,0 +1,8 @@
+# Behind a reverse proxy on another host: publish plain HTTP for that host to reach.
+# Set UPSTREAM_PROXIES in .env to the proxy host's IP/CIDR.
+services:
+  web:
+    environment:
+      TLS_MODE: external-host
+    ports: !override
+      - "${HTTP_PORT:-80}:80"

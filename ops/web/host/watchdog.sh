@@ -30,10 +30,11 @@ if [[ -r /etc/playmat-deploy.conf ]] && command -v playmat-compose > /dev/null; 
 else
   ENV_FILE=$PLAYMAT_DIR/ops/web/.env
   COMPOSE=(docker compose -f "$PLAYMAT_DIR/ops/web/docker-compose.yml")
-  # behind the host's own reverse proxy (TLS_MODE=external): the proxy override too
-  if [[ $(sed -n 's/^TLS_MODE=//p' "$ENV_FILE" 2>/dev/null | tail -1) == external ]]; then
-    COMPOSE+=(-f "$PLAYMAT_DIR/ops/web/docker-compose.proxy.yml")
-  fi
+  mode=$(sed -n 's/^TLS_MODE=//p' "$ENV_FILE" 2>/dev/null | tail -1)
+  case $mode in
+    external) COMPOSE+=(-f "$PLAYMAT_DIR/ops/web/docker-compose.proxy.yml") ;;
+    external-host) COMPOSE+=(-f "$PLAYMAT_DIR/ops/web/docker-compose.external-host.yml") ;;
+  esac
   COMPOSE+=(--env-file "$ENV_FILE")
 fi
 mkdir -p "$STATE_DIR"

@@ -1,0 +1,8 @@
+# TLS_MODE=external-host: your reverse proxy runs on another host and holds the certificate.
+# It forwards to this host's published HTTP_PORT (docker-compose.external-host.yml).
+# Plain HTTP only: no certificates, no ACME, no local CA, nothing on 443.
+# Any Host name is answered. Set UPSTREAM_PROXIES to the proxy host's IP/CIDR;
+# only that address range is believed about who the client is.
+http:// {
+        import site
+}
