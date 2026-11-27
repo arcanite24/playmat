@@ -136,9 +136,11 @@
     }
 
     runs.slice().reverse().forEach(function (run) {
-      var title = run.mode === 'duels'
-        ? run.suite + ' Duels (' + run.deals + ' deals/pair · ' + day(run.date) + ')'
-        : run.suite + ' Decisions (' + run.puzzles + ' puzzles × ' + run.seeds + ' seed' + (run.seeds === 1 ? '' : 's') + ' · ' + day(run.date) + ')';
+      var title = run.title
+        ? run.title + ' · ' + day(run.date)
+        : (run.mode === 'duels'
+          ? run.suite + ' Duels (' + run.deals + ' deals/pair · ' + day(run.date) + ')'
+          : run.suite + ' Decisions (' + run.puzzles + ' puzzles × ' + run.seeds + ' seed' + (run.seeds === 1 ? '' : 's') + ' · ' + day(run.date) + ')');
       panel.appendChild(el('div', { 'class': 'bm-panel-head' }, [
         el('h4', { style: 'margin:8px 0 0;font:700 1.1rem/1.2 var(--font-print);letter-spacing:0.06em;text-transform:uppercase;color:var(--ink-strong)', text: title }),
         el('span', { 'class': 'bm-panel-meta', text: 'Wall time: ' + run.elapsed_s + ' s' })
@@ -376,7 +378,7 @@
 
       var rows = ds.entries.filter(function (r) {
         if (filter === 'fair') return r.fair;
-        if (filter === 'neural') return ['Phase 4', 'Phase 3', 'Wave C', 'Obs-v2', 'Loop 5', 'Track B'].indexOf(r.generation) !== -1;
+        if (filter === 'neural') return ['Phase 5', 'Phase 4', 'Phase 3', 'Wave C', 'Obs-v2', 'Loop 5', 'Track B'].indexOf(r.generation) !== -1;
         if (filter === 'heuristic') return ['Search v2', 'Heuristic', 'Anchor'].indexOf(r.generation) !== -1;
         return true;
       }).sort(function (a, b) {
@@ -939,7 +941,7 @@
     stats.appendChild(statCard(
       '<em>' + s.peak_tactics4_pct + '%</em>',
       'tactics@4 full-info record',
-      s.peak_tactics4_score + ' seeds solved; 100% tactics@2, 89% tactics@3, 69% fair pro-decisions@1'
+      s.peak_tactics4_score + ' full-info; 88% fair tactics@4 (Phase 5 Threat), 100% tactics@2, 69% pro-decisions@1'
     ));
     stats.appendChild(statCard(
       '<em>$0</em> / game',
