@@ -197,6 +197,18 @@ impl Linear {
             self.strict_rows(x, rows, y, do_act, gelu, add_to_y);
             return;
         }
+        #[cfg(all(feature = "gpu-wgpu", not(feature = "strict")))]
+        {
+            static USE_WGPU: OnceLock<bool> = OnceLock::new();
+            let use_wgpu = *USE_WGPU.get_or_init(|| std::env::var("PLAYMAT_WGPU").as_deref() == Ok("1"));
+            if use_wgpu && rows * out * inp >= 65_536 {
+                if let Ok(ctx) = crate::gpu_wgpu::WgpuContext::global() {
+                    if ctx.matmul_rows(x, &self.w, &self.b, rows, inp, out, y, do_act, gelu, add_to_y).is_ok() {
+                        return;
+                    }
+                }
+            }
+        }
         #[allow(unreachable_code)]
         let beta = if add_to_y { 1.0 } else { 0.0 };
         unsafe {
