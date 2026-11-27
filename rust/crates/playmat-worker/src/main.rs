@@ -19,8 +19,10 @@
 mod e2e_test;
 mod gpu;
 mod idle;
+mod service;
 mod swarm;
 mod ui;
+mod update;
 
 use playmat_ai::answerlog::AnswerLog;
 use playmat_ai::entrants::{entrant, Entrant};
@@ -55,6 +57,94 @@ fn main() {
             println!("{}", proto::determinism_class(STRICT));
             Ok(())
         }
+        Some("version") => {
+            println!(
+                "playmat-worker {} (release {}, build {}, class {})",
+                env!("CARGO_PKG_VERSION"),
+                update::current_release_tag(),
+                update::current_build(),
+                proto::determinism_class(STRICT)
+            );
+            Ok(())
+        }
+        Some("self-update") => (|| {
+            let update_repo = opt("--update-repo").unwrap_or_else(|| update::DEFAULT_UPDATE_REPO.into());
+            let pubkey = opt("--pubkey").unwrap_or_else(|| update::DEFAULT_RELEASE_PUBKEY_HEX.into());
+            let check_only = args.iter().any(|a| a == "--check");
+            let force = args.iter().any(|a| a == "--force");
+            match update::check_or_apply(&update_repo, &pubkey, !check_only, force)? {
+                update::UpdateOutcome::UpToDate { tag } => println!("UP TO DATE ({tag})"),
+                update::UpdateOutcome::Available { tag, asset } => {
+                    println!("UPDATE AVAILABLE: {tag} ({asset}, signature verified)")
+                }
+                update::UpdateOutcome::Updated { tag, path } => {
+                    println!("UPDATED to {tag} ({}, signature + sha256 verified)", path.display())
+                }
+            }
+            Ok(())
+        })(),
+        Some("sign-sums") => (|| {
+            let sums_path = opt("--sums").ok_or("--sums SHA256SUMS.txt")?;
+            let out_path = opt("--out").unwrap_or_else(|| format!("{sums_path}.sig"));
+            let seed = match opt("--key-file") {
+                Some(f) => std::fs::read_to_string(&f).map_err(|e| format!("{f}: {e}"))?.trim().to_string(),
+                None => std::env::var("MANA_RELEASE_SIGNING_KEY")
+                    .map_err(|_| "--key-file F or MANA_RELEASE_SIGNING_KEY")?,
+            };
+            let payload = std::fs::read(&sums_path).map_err(|e| format!("{sums_path}: {e}"))?;
+            let sig = update::sign_bytes(&payload, &seed)?;
+            std::fs::write(&out_path, format!("{sig}\n")).map_err(|e| format!("{out_path}: {e}"))?;
+            println!("SIGNED {sums_path} -> {out_path}");
+            Ok(())
+        })(),
+        Some("verify-sig") => (|| {
+            let sums_path = opt("--sums").ok_or("--sums SHA256SUMS.txt")?;
+            let sig_path = opt("--sig").unwrap_or_else(|| format!("{sums_path}.sig"));
+            let pubkey = opt("--pubkey").unwrap_or_else(|| update::DEFAULT_RELEASE_PUBKEY_HEX.into());
+            let payload = std::fs::read(&sums_path).map_err(|e| format!("{sums_path}: {e}"))?;
+            let sig = std::fs::read_to_string(&sig_path).map_err(|e| format!("{sig_path}: {e}"))?;
+            update::verify_signature(&payload, &sig, &pubkey)?;
+            println!("SIGNATURE OK ({sums_path})");
+            Ok(())
+        })(),
+        Some("install-service") => (|| {
+            let exe = std::env::current_exe().map_err(|e| format!("current_exe: {e}"))?;
+            let coordinator = opt("--coordinator").unwrap_or_else(|| "https://mana.deimos.studio".into());
+            let name = opt("--name").ok_or("--name HOST")?;
+            let token_file = opt("--token-file").ok_or("--token-file F")?;
+            let jobs = opt("--jobs")
+                .and_then(|v| v.parse().ok())
+                .unwrap_or_else(|| std::thread::available_parallelism().map_or(1, |n| (n.get() / 2).max(1)));
+            let idle_only = opt("--when").as_deref() != Some("always");
+            let gpu = opt("--gpu").filter(|g| !g.is_empty() && g != "0" && g != "off");
+            let auto_update = args.iter().any(|a| a == "--auto-update")
+                || std::env::var("MANA_AUTO_UPDATE").as_deref() == Ok("1");
+            let with_ui = args.iter().any(|a| a == "--ui");
+            let ui_port = opt("--port").and_then(|v| v.parse().ok()).unwrap_or(17195);
+            let work = opt("--work").unwrap_or_else(|| {
+                std::env::var("HOME")
+                    .or_else(|_| std::env::var("USERPROFILE"))
+                    .map(|h| format!("{h}/.cache/mana-work"))
+                    .unwrap_or_else(|_| "mana-work".into())
+            });
+            let msg = service::install(&service::ServiceOpts {
+                exe,
+                coordinator,
+                name,
+                token_file,
+                jobs,
+                work,
+                repo: repo.clone(),
+                idle: idle_only,
+                gpu,
+                auto_update,
+                with_ui,
+                ui_port,
+            })?;
+            println!("{msg}");
+            Ok(())
+        })(),
+        Some("uninstall-service") => service::uninstall().map(|msg| println!("{msg}")),
         Some("run-unit") => {
             let mut infer_urls = BTreeMap::new();
             if let Some(spec) = opt("--infer") {
@@ -116,6 +206,9 @@ fn main() {
                 Some(explicit) => Some(explicit.to_string()),
             };
             let infer_py = opt("--infer-py").unwrap_or_else(|| "python3".into());
+            let auto_update = args.iter().any(|a| a == "--auto-update")
+                || std::env::var("MANA_AUTO_UPDATE").as_deref() == Ok("1");
+            let update_repo = opt("--update-repo").unwrap_or_else(|| update::DEFAULT_UPDATE_REPO.into());
             let opts = swarm::Opts {
                 coordinator: coordinator.clone(),
                 token,
@@ -135,10 +228,13 @@ fn main() {
             } else {
                 None
             };
-            swarm::run_with_options(opts, ctrl, gpu_label, infer_py)
+            swarm::run_with_all_options(opts, ctrl, gpu_label, infer_py, auto_update, update_repo)
         })(),
         Some("compare") => compare(&args[2..]),
-        _ => Err("usage: playmat-worker run|ui|run-unit|verify|parity|compare|class (see the source's header)".into()),
+        _ => Err(
+            "usage: playmat-worker run|ui|self-update|install-service|uninstall-service|run-unit|verify|parity|compare|class|version"
+                .into(),
+        ),
     };
     if let Err(e) = res {
         eprintln!("playmat-worker: {e}");

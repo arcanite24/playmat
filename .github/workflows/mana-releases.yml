@@ -43,6 +43,7 @@ jobs:
         shell: bash
         env:
           PLAYMAT_BUILD: ${{ github.sha }}
+          MANA_RELEASE_TAG: ${{ github.ref_name }}
         run: |
           cargo build --manifest-path rust/Cargo.toml --release --locked -p playmat-worker --features strict
           mkdir -p dist
@@ -63,11 +64,18 @@ jobs:
           pattern: playmat-worker-*
           merge-multiple: true
           path: release-files
-      - name: Combine SHA256SUMS
+      - name: Combine SHA256SUMS and sign
+        env:
+          MANA_RELEASE_SIGNING_KEY: ${{ secrets.MANA_RELEASE_SIGNING_KEY }}
         run: |
           cd release-files
           cat *.sha256 | sort > SHA256SUMS.txt
           cat SHA256SUMS.txt
+          if [ -n "${MANA_RELEASE_SIGNING_KEY:-}" ]; then
+            chmod +x playmat-worker-linux-amd64
+            ./playmat-worker-linux-amd64 sign-sums --sums SHA256SUMS.txt --out SHA256SUMS.txt.sig
+            ./playmat-worker-linux-amd64 verify-sig --sums SHA256SUMS.txt --sig SHA256SUMS.txt.sig
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: mana-worker-release

@@ -12,6 +12,7 @@ playmat-engine = { path = "../playmat-engine" }
 playmat-swarm-proto = { path = "../playmat-swarm-proto" }
 serde.workspace = true
 serde_json.workspace = true
+ed25519-dalek = { version = "2", default-features = false, features = ["std"] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "blocking", "json"] }
 
 [target.'cfg(unix)'.dependencies]
