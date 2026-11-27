@@ -137,6 +137,7 @@ const MIGRATIONS: &[&str] = &[
     "ALTER TABLE units ADD COLUMN credit_mature_at INTEGER",
     "ALTER TABLE units ADD COLUMN quarantined INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE hosts ADD COLUMN gpu TEXT",
+    "ALTER TABLE rounds ADD COLUMN archived INTEGER NOT NULL DEFAULT 0",
 ];
 
 impl Swarm {
@@ -227,8 +228,45 @@ async fn cors(req: Request, next: Next) -> Response {
     res
 }
 
+async fn root_redirect() -> Redirect {
+    let target = std::env::var("SWARM_TRACKER_URL")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .unwrap_or_else(|| "https://playmat.deimos.studio/swarm".to_string());
+    Redirect::temporary(&target)
+}
+
+async fn wasm_asset(Path(key): Path<String>) -> Response {
+    if !store::valid_key(&key) {
+        return (StatusCode::BAD_REQUEST, "invalid asset path").into_response();
+    }
+    let root = std::env::var("SWARM_WASM_DIR").unwrap_or_else(|_| "/data/wasm".into());
+    let path = std::path::Path::new(&root).join(&key);
+    let Ok(bytes) = tokio::fs::read(&path).await else {
+        return (StatusCode::NOT_FOUND, "wasm asset not installed").into_response();
+    };
+    let ct = if key.ends_with(".wasm") {
+        "application/wasm"
+    } else if key.ends_with(".json") {
+        "application/json"
+    } else {
+        "application/octet-stream"
+    };
+    (
+        StatusCode::OK,
+        [
+            (axum::http::header::CONTENT_TYPE, HeaderValue::from_static(ct)),
+            (axum::http::header::CACHE_CONTROL, HeaderValue::from_static("public, max-age=3600")),
+        ],
+        bytes,
+    )
+        .into_response()
+}
+
 pub fn router(s: Shared) -> Router {
     Router::new()
+        .route("/", get(root_redirect))
+        .route("/wasm/{*key}", get(wasm_asset))
         .route("/api/v1/status", get(public::status))
         .route("/api/v1/events", get(public::events))
         .route("/api/v1/projects", get(public::projects))
@@ -273,6 +311,7 @@ pub fn router(s: Shared) -> Router {
         .route("/api/v1/admin/tokens/{id}/restore", post(admin::restore_token))
         .route("/api/v1/admin/tokens/{id}/credit", post(admin::adjust_credit))
         .route("/api/v1/admin/rounds/{id}/trained", post(admin::mark_round_trained))
+        .route("/api/v1/admin/rounds/{id}/purge-intake", post(admin::purge_round_intake))
         .route("/api/v1/admin/units/{id}/rerun", post(admin::order_unit_rerun))
         .route("/api/v1/admin/units/{id}/reissue", post(admin::reissue_unit))
         .route("/api/v1/admin/inbox", get(admin::list_inbox))

@@ -348,6 +348,23 @@ def main():
     p.add_argument("--worker-bin", default=None)
     p.add_argument("--wait", action="store_true")
     p.add_argument("--accepted-only", action="store_true")
+    p = sub.add_parser("archive-round")
+    p.add_argument("round_id", type=int)
+    p.add_argument("--dataset", default="nerijs/playmat-ai-selfplay")
+    p.add_argument("--remote-name", default=None)
+    p.add_argument("--out", default=None)
+    p.add_argument("--purge", action="store_true", help="delete intake objects from R2 after HF upload succeeds")
+    p.add_argument("--force", action="store_true", help="allow purging even before the round is marked trained")
+    p.add_argument("--include-rejected", action="store_true")
+    p = sub.add_parser("purge-intake")
+    p.add_argument("round_id", type=int)
+    p.add_argument("--force", action="store_true")
+    p.add_argument("--include-rejected", action="store_true")
+    p.add_argument("--archive-ref", default="")
+    p = sub.add_parser("publish-hf-net")
+    p.add_argument("pmnet")
+    p.add_argument("--label", required=True)
+    p.add_argument("--repo", default="nerijs/playmat-ai-models")
     args = ap.parse_args()
     c = client_from(args)
     if args.cmd == "status":
@@ -448,6 +465,65 @@ def main():
             wait(c, args.round_id, wait_verify=args.accepted_only)
         ms = pull_accepted(c, args.round_id, args.out) if args.accepted_only else pull(c, args.round_id, args.out, args.worker_bin)
         print(f"SWARM pulled {len(ms)} units, {sum(len(m['games']) for m in ms.values())} games into {args.out}")
+    elif args.cmd == "purge-intake":
+        rep = c.call("POST", f"/admin/rounds/{args.round_id}/purge-intake", {
+            "force": args.force,
+            "include_rejected": args.include_rejected,
+            "archive_ref": args.archive_ref,
+        })
+        print(json.dumps(rep, indent=1))
+    elif args.cmd == "archive-round":
+        import hf_archive
+        st = c.call("GET", f"/rounds/{args.round_id}")
+        remote_name = args.remote_name or f"{st['project']}-{st['run']}-r{st['round']}-id{args.round_id}"
+        tmp_dir = None
+        out_dir = args.out
+        if not out_dir:
+            tmp_dir = tempfile.mkdtemp(prefix=f"swarm-archive-r{args.round_id}-")
+            out_dir = tmp_dir
+        try:
+            ms = pull_accepted(c, args.round_id, out_dir)
+            if not ms:
+                raise SystemExit(f"SWARM round {args.round_id}: no accepted units to archive")
+            api = hf_archive.HfApi(token=hf_archive.load_token())
+            hf_archive.ensure_repo(api, args.dataset, "dataset")
+            has_shards = any(f.startswith("w") or "-w" in f for f in os.listdir(out_dir))
+            if has_shards:
+                hf_archive.upload_data_dir(api, args.dataset, out_dir, remote_name=remote_name, compact=True)
+            else:
+                api.upload_folder(
+                    folder_path=out_dir,
+                    path_in_repo=f"data/{remote_name}",
+                    repo_id=args.dataset,
+                    repo_type="dataset",
+                    commit_message=f"Archive Mana@Home round {args.round_id} ({remote_name})",
+                )
+            archive_ref = f"hf://datasets/{args.dataset}/data/{remote_name}"
+            print(f"SWARM archived round {args.round_id} ({len(ms)} units) -> {archive_ref}", flush=True)
+            if args.purge:
+                rep = c.call("POST", f"/admin/rounds/{args.round_id}/purge-intake", {
+                    "force": args.force,
+                    "include_rejected": args.include_rejected,
+                    "archive_ref": archive_ref,
+                })
+                print(f"SWARM purged intake: {json.dumps(rep)}", flush=True)
+        finally:
+            if tmp_dir:
+                shutil.rmtree(tmp_dir, ignore_errors=True)
+    elif args.cmd == "publish-hf-net":
+        import hf_archive
+        sha = sha256_file(args.pmnet)
+        api = hf_archive.HfApi(token=hf_archive.load_token())
+        hf_archive.ensure_repo(api, args.repo, "model")
+        path_in_repo = f"nets/{args.label}-{sha[:12]}.pmnet"
+        api.upload_file(
+            path_or_fileobj=args.pmnet,
+            path_in_repo=path_in_repo,
+            repo_id=args.repo,
+            repo_type="model",
+            commit_message=f"Publish promoted network {args.label} ({sha})",
+        )
+        print(f"SWARM published {args.pmnet} -> hf://{args.repo}/{path_in_repo} (sha256={sha})", flush=True)
 
 
 if __name__ == "__main__":

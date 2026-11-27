@@ -64,6 +64,17 @@ pub fn run_with_options(
     gpu_label: Option<String>,
     infer_py: String,
 ) -> Result<(), String> {
+    run_with_all_options(o, control, gpu_label, infer_py, false, crate::update::DEFAULT_UPDATE_REPO.into())
+}
+
+pub fn run_with_all_options(
+    o: Opts,
+    control: Option<Arc<crate::ui::Control>>,
+    gpu_label: Option<String>,
+    infer_py: String,
+    auto_update: bool,
+    update_repo: String,
+) -> Result<(), String> {
     idle::lower_priority();
     let log = |msg: String| {
         println!("{msg}");
@@ -112,7 +123,23 @@ pub fn run_with_options(
     std::fs::create_dir_all(&nets_dir).map_err(|e| format!("{nets_dir}: {e}"))?;
     let mut done = 0;
     let mut waiting = false;
+    let mut last_update_check =
+        std::time::Instant::now().checked_sub(Duration::from_secs(6 * 3600)).unwrap_or_else(std::time::Instant::now);
+    let update_pubkey =
+        std::env::var("MANA_UPDATE_PUBKEY").unwrap_or_else(|_| crate::update::DEFAULT_RELEASE_PUBKEY_HEX.into());
     loop {
+        if auto_update && last_update_check.elapsed() >= Duration::from_secs(6 * 3600) {
+            last_update_check = std::time::Instant::now();
+            match crate::update::check_or_apply(&update_repo, &update_pubkey, true, false) {
+                Ok(crate::update::UpdateOutcome::Updated { tag, .. }) => {
+                    log(format!("UPDATE installed signed release {tag}; restarting worker"));
+                    return Ok(());
+                }
+                Ok(crate::update::UpdateOutcome::UpToDate { .. }) => {}
+                Ok(crate::update::UpdateOutcome::Available { .. }) => {}
+                Err(e) => log(format!("UPDATE check skipped: {e}")),
+            }
+        }
         if let Some(c) = &control {
             if c.paused.load(Ordering::Relaxed) {
                 c.set_status("paused", None);

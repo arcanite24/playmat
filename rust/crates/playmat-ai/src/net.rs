@@ -1368,6 +1368,18 @@ pub fn softmax(logits: &[f32], temp: f32) -> Vec<f32> {
 
 static CACHE: OnceLock<Mutex<HashMap<String, Arc<Net>>>> = OnceLock::new();
 
+/// Registers raw `.pmnet` bytes in the process network cache under `key` (used by WASM / in-memory workers).
+pub fn register_bytes(key: &str, bytes: &[u8]) -> Result<Arc<Net>, String> {
+    let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut map = cache.lock().unwrap();
+    if let Some(n) = map.get(key) {
+        return Ok(Arc::clone(n));
+    }
+    let net = Arc::new(Net::parse(key, bytes)?);
+    map.insert(key.to_string(), Arc::clone(&net));
+    Ok(net)
+}
+
 /// The network at `path`, read once per process (`builtin`: shipped net; `tcp://host:port`: GPU inference server)
 pub fn load(path: &str) -> Result<Arc<Net>, String> {
     let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));

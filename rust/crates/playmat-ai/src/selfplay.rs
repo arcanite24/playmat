@@ -700,9 +700,9 @@ pub fn f16(v: f32) -> u16 {
 /// size, question kind, the writer's tag. `logp.f32` one float each. `glob.f16`, `ents.f16`, `ent_ids.u16`,
 /// `acts.f16`, `act_ids.u16`, `target.f16`, `hid.f16`, `hid_ids.u16`, `pool.u16`, `pool_hand.u8` the rest, in
 /// order. Each game's result is a line of `games.jsonl`.
-pub struct Shard {
-    files: Vec<std::io::BufWriter<std::fs::File>>,
-    games: std::io::BufWriter<std::fs::File>,
+pub struct Shard<W = std::io::BufWriter<std::fs::File>> {
+    files: Vec<W>,
+    games: W,
     pub steps: usize,
 }
 
@@ -732,7 +732,7 @@ pub const COLUMNS: [&str; 20] = [
     "games.jsonl",
 ];
 
-impl Shard {
+impl Shard<std::io::BufWriter<std::fs::File>> {
     pub fn create(dir: &str, name: &str) -> std::io::Result<Shard> {
         std::fs::create_dir_all(dir)?;
         let open = |c: &str| std::fs::File::create(format!("{dir}/{name}.{c}")).map(std::io::BufWriter::new);
@@ -742,7 +742,24 @@ impl Shard {
         }
         Ok(Shard { files, games: open(COLUMNS[19])?, steps: 0 })
     }
+}
 
+impl Shard<Vec<u8>> {
+    pub fn create_mem() -> Shard<Vec<u8>> {
+        Shard { files: vec![Vec::new(); 19], games: Vec::new(), steps: 0 }
+    }
+
+    pub fn into_files(self, prefix: &str) -> Vec<(String, Vec<u8>)> {
+        let mut out = Vec::with_capacity(20);
+        for (c, buf) in COLUMNS[..19].iter().zip(self.files) {
+            out.push((format!("{prefix}.{c}"), buf));
+        }
+        out.push((format!("{prefix}.{}", COLUMNS[19]), self.games));
+        out
+    }
+}
+
+impl<W: Write> Shard<W> {
     /// Writes one game's decisions and its result (`result[seat]`: 1 won, 0 lost, 0.5 a draw)
     pub fn game(
         &mut self,
