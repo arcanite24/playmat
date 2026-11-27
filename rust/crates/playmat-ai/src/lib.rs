@@ -13,6 +13,8 @@ pub mod eval;
 pub mod external;
 pub mod fitted;
 pub mod fm;
+#[cfg(feature = "gpu-wgpu")]
+pub mod gpu_wgpu;
 pub mod mirror;
 pub mod mulligan;
 pub mod net;

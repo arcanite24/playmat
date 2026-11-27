@@ -24,6 +24,8 @@ windows-sys = { version = "0.52", features = ["Win32_Foundation", "Win32_System_
 [features]
 # the strict build: every machine one determinism class (playmat-ai/src/fm.rs)
 strict = ["playmat-ai/strict"]
+# optional native Rust GPU compute backend (Metal/Vulkan/DX12 via wgpu)
+gpu-wgpu = ["playmat-ai/gpu-wgpu"]
 
 [dev-dependencies]
 playmat-swarm = { path = "../playmat-swarm" }
