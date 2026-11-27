@@ -99,6 +99,20 @@ export function howToEarn(t: Translate, item: CareerCatalogItem, achievements: r
   return t('career.look.inCareer');
 }
 
+/** What the player did to earn an achievement-linked cosmetic, once the achievement is visible (non-secret or achieved). */
+export function howToEarnDetail(item: CareerCatalogItem, achievements: readonly CareerAchievement[]): string | null {
+  for (const source of item.sources ?? []) {
+    if (source.kind !== 'achievement' || !source.ref) continue;
+    const achievement = achievements.find((entry) => entry.id === source.ref);
+    if (!achievement || (achievement.secret && !achievement.achieved)) continue;
+    const tierIndex = (source.at ?? 0) - 1;
+    const tierText = tierIndex >= 0 ? achievement.tiers?.[tierIndex]?.text : undefined;
+    const text = (tierText || achievement.text || '').trim();
+    if (text) return text;
+  }
+  return null;
+}
+
 /** Whether a player has an item: unlocked, or free for everyone. */
 export function ownsItem(unlocks: readonly CareerCosmetic[], item: CareerCatalogItem): boolean {
   return !!item.free || unlocks.some((unlock) => unlock.kind === item.kind && unlock.id === item.id);

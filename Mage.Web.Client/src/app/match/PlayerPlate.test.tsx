@@ -1,4 +1,4 @@
-import { act, render } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { noteBeats } from './beats';
 import { PlayerPlate } from './PlayerPlate';
@@ -35,5 +35,37 @@ describe('player plate life', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('player plate commander damage toggle', () => {
+  it('starts collapsed in compact multiplayer seats and toggles the breakdown on click without targeting the player', () => {
+    const onClick = vi.fn();
+    render(
+      <PlayerPlate
+        player={{ playerId: 'ai1', name: 'AI One', life: 32 }}
+        isMe={false}
+        compact
+        targetable
+        selected={false}
+        deciding={false}
+        onClick={onClick}
+        commanderDamage={[
+          { name: 'Atraxa, Praetors\' Voice', amount: 8 },
+          { name: 'Krenko, Mob Boss', amount: 15 },
+        ]}
+      />,
+    );
+    expect(screen.queryByRole('group', { name: 'Commander damage taken' })).toBeNull();
+    const toggle = screen.getByRole('button', { name: /AI One, highest commander damage 15/i });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(toggle);
+    expect(onClick).not.toHaveBeenCalled();
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByRole('group', { name: 'Commander damage taken' })).toBeTruthy();
+    expect(screen.getByText('Atraxa')).toBeTruthy();
+    expect(screen.getByText('Krenko')).toBeTruthy();
+    fireEvent.click(toggle);
+    expect(screen.queryByRole('group', { name: 'Commander damage taken' })).toBeNull();
   });
 });

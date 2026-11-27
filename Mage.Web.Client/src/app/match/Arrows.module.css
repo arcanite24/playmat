@@ -125,8 +125,8 @@
 
 /* how many creatures a trunk carries, where its feeders meet */
 .attackCount circle {
-  fill: var(--oxblood);
-  stroke: var(--oxblood-lit);
+  fill: color-mix(in srgb, var(--attack, var(--oxblood-lit)) 68%, var(--mat-950));
+  stroke: var(--attack, var(--oxblood-lit));
   stroke-width: 3;
   filter: drop-shadow(0 3px 4px rgb(var(--shade-rgb) / 0.65));
 }
@@ -135,6 +135,27 @@
   fill: var(--ink-strong);
   font-family: var(--font-print);
   font-size: 22px;
+  font-weight: 700;
+  text-anchor: middle;
+}
+
+/* hovering one defender dims arrows aimed at every other defender */
+.dim {
+  opacity: 0.14;
+  transition: opacity var(--dur-quick) linear;
+}
+
+/* numbered target marker along multi-target spell/ability arrows */
+.targetBadge circle {
+  fill: var(--mat-900);
+  stroke: var(--ink);
+  stroke-width: 2.5;
+}
+
+.targetBadge text {
+  fill: var(--ink-strong);
+  font-family: var(--font-print);
+  font-size: 18px;
   font-weight: 700;
   text-anchor: middle;
 }

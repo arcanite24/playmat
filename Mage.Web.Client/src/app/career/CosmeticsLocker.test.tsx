@@ -47,6 +47,14 @@ describe('the locker', () => {
     expect(screen.getByText('Hello!')).toBeTruthy();
     expect(screen.getAllByText(/Earned in Career/).length).toBe(5);
   });
+
+  test('unlocked cosmetics still show how they were earned', () => {
+    renderLocker();
+    // Owl is owned (unlocked), not free, so its tile still displays how it was earned (without a lock icon)
+    const owl = screen.getByRole('radio', { name: /Owl/ });
+    expect((owl as HTMLButtonElement).disabled).toBe(false);
+    expect(owl.textContent).toMatch(/Earned in Career/);
+  });
 });
 
 describe('Settings, Cosmetics', () => {

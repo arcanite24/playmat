@@ -22,7 +22,12 @@ const START: DeckCardLists = {
 };
 
 /** the panel with its deck held in state, the way the builder holds it */
-function Harness({ keepsExtras = true, onAtLimit = vi.fn(), seen }: { keepsExtras?: boolean; onAtLimit?: DeckPanelProps['onAtLimit']; seen(deck: DeckCardLists): void }) {
+function Harness({ keepsExtras = true, onAtLimit = vi.fn(), onPreview = vi.fn(), seen }: {
+  keepsExtras?: boolean;
+  onAtLimit?: DeckPanelProps['onAtLimit'];
+  onPreview?: DeckPanelProps['onPreview'];
+  seen(deck: DeckCardLists): void;
+}) {
   const [deck, setDeck] = useState(START);
   const [zone, setZone] = useState<DeckZone>('cards');
   seen(deck);
@@ -47,7 +52,7 @@ function Harness({ keepsExtras = true, onAtLimit = vi.fn(), seen }: { keepsExtra
       history={{ undo: vi.fn(), redo: vi.fn(), canUndo: false, canRedo: false }}
       onDropBinderCard={vi.fn()}
       onAddRow={vi.fn()}
-      onPreview={vi.fn()}
+      onPreview={onPreview}
       onInspect={vi.fn()}
       onDone={vi.fn()}
       onPlay={vi.fn()}
@@ -123,5 +128,16 @@ describe('DeckPanel', () => {
     await user.click(screen.getByRole('button', { name: 'More for Lightning Bolt' }));
     expect(screen.queryByRole('menuitem', { name: /^Category/ })).toBeNull();
     expect(screen.queryByRole('menuitem', { name: /maybeboard/ })).toBeNull();
+  });
+
+  test('opening a card menu clears the hover preview and keeps the trigger open for selection', async () => {
+    const onPreview = vi.fn();
+    renderPanel({ onPreview });
+    const user = userEvent.setup();
+    const trigger = screen.getByRole('button', { name: 'More for Lightning Bolt' });
+    await user.click(trigger);
+    expect(onPreview).toHaveBeenCalledWith(null);
+    expect(trigger.getAttribute('data-state')).toBe('open');
+    expect(screen.getByRole('menuitem', { name: 'Choose printing…' })).toBeTruthy();
   });
 });

@@ -22,7 +22,14 @@ const SIDELINED_SET_TYPES = new Set(['JOKE_SET', 'CUSTOM_SET', 'MAGIC_ARENA']);
 const EMPTY: string[] = [];
 const EMPTY_CARDS: CardView[] = [];
 
-function toCriteria(filters: CardFilters, format: string, start: number, ignoreSets: string[], setCodes: string[] | null): CardCriteria {
+function toCriteria(
+  filters: CardFilters,
+  format: string,
+  start: number,
+  ignoreSets: string[],
+  setCodes: string[] | null,
+  uniqueNames: boolean,
+): CardCriteria {
   const text = filters.text.trim();
   return {
     ignoreSetCodes: ignoreSets,
@@ -39,7 +46,7 @@ function toCriteria(filters: CardFilters, format: string, start: number, ignoreS
     manaValue: filters.manaValue ?? undefined,
     manaValueOperator: filters.manaValue === 7 ? 'gte' : filters.manaValue !== null ? 'eq' : undefined,
     format: format || undefined,
-    uniqueNames: true,
+    uniqueNames,
     sortBy: 'name',
     start,
     count: PAGE,
@@ -70,6 +77,8 @@ export function Collection({ format, identity, counts, limitOf, onAdd, onRemove,
 }) {
   const [filters, setFilters] = useState<CardFilters>(EMPTY_FILTERS);
   const [allSets, setAllSets] = useState(false);
+  // null = auto (show every printing when explicit sets are filtered, unique names otherwise); boolean = manual override
+  const [allPrintingsPref, setAllPrintingsPref] = useState<boolean | null>(null);
   // a commander deck shows what its commander allows, unless the player asks for everything
   const [anyIdentity, setAnyIdentity] = useState(false);
   // printings chosen in the binder before adding to the deck (#478), by lowercase card name
@@ -98,10 +107,13 @@ export function Collection({ format, identity, counts, limitOf, onAdd, onRemove,
   );
   const ignoreSets = allSets ? EMPTY : sidelinedSets;
   const matchedSetCodes = useMemo(() => effectiveSetCodes(query, setOptions), [query, setOptions]);
+  const explicitSetFilter = !!query.set || (query.sets?.length ?? 0) > 0;
+  const showAllPrintings = allPrintingsPref ?? explicitSetFilter;
+  const uniqueNames = !showAllPrintings;
   const noSetsMatch = matchedSetCodes !== null && matchedSetCodes.length === 0;
   const results = useInfiniteQuery({
-    queryKey: ['collection', query, format, ignoreSets, matchedSetCodes, colorIdentity],
-    queryFn: ({ pageParam }) => api.searchCards(toCriteria(query, format, pageParam, ignoreSets, matchedSetCodes), colorIdentity === null ? null : { colorIdentity }),
+    queryKey: ['collection', query, format, ignoreSets, matchedSetCodes, colorIdentity, uniqueNames],
+    queryFn: ({ pageParam }) => api.searchCards(toCriteria(query, format, pageParam, ignoreSets, matchedSetCodes, uniqueNames), colorIdentity === null ? null : { colorIdentity }),
     // wait for the set list so the first page already leaves the sidelined sets out (and era filters resolve)
     enabled: !noSetsMatch && ((allSets && matchedSetCodes === null) || !sets.isPending),
     initialPageParam: 0,
@@ -114,8 +126,8 @@ export function Collection({ format, identity, counts, limitOf, onAdd, onRemove,
   // a name typed still finds the cards printed only in the sets left out (Arena-only Alchemy cards, #392), after the rest
   const searchSidelined = !allSets && query.text.trim() !== '' && matchedSetCodes === null && sidelinedSets.length > 0;
   const sidelined = useQuery({
-    queryKey: ['collection-sidelined', query, format, sidelinedSets, colorIdentity],
-    queryFn: () => api.searchCards({ ...toCriteria(query, format, 0, [], sidelinedSets) }, colorIdentity === null ? null : { colorIdentity }),
+    queryKey: ['collection-sidelined', query, format, sidelinedSets, colorIdentity, uniqueNames],
+    queryFn: () => api.searchCards({ ...toCriteria(query, format, 0, [], sidelinedSets, uniqueNames) }, colorIdentity === null ? null : { colorIdentity }),
     enabled: searchSidelined,
     staleTime: 5 * 60_000,
   });
@@ -128,7 +140,8 @@ export function Collection({ format, identity, counts, limitOf, onAdd, onRemove,
 
   const tile = (card: CardView) => {
     const key = (card.name ?? '').toLowerCase();
-    const effective = chosenPrintings.get(key) ?? card;
+    // when showing all printings, each tile represents its own exact release and must not be collapsed into one chosen printing
+    const effective = showAllPrintings ? card : (chosenPrintings.get(key) ?? card);
     return (
       <CollectionCard
         key={`${card.expansionSetCode}:${card.cardNumber}`}
@@ -175,6 +188,14 @@ export function Collection({ format, identity, counts, limitOf, onAdd, onRemove,
             <label className={styles.toggle} title="Joke sets, unofficial sets and Arena-only cards">
               <input type="checkbox" checked={allSets} onChange={(event) => setAllSets(event.target.checked)} />
               Joke &amp; digital sets
+            </label>
+            <label className={styles.toggle} title="Show every printing of each card (automatically enabled when filtering by specific sets)">
+              <input
+                type="checkbox"
+                checked={showAllPrintings}
+                onChange={(event) => setAllPrintingsPref(event.target.checked === explicitSetFilter ? null : event.target.checked)}
+              />
+              All printings
             </label>
           </>
         )}

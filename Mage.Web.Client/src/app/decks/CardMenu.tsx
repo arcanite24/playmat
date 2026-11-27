@@ -19,7 +19,7 @@ export interface CardMenuActions {
  * Everything else a card in the deck can do, behind its "more" button: move it between the deck, sideboard (or command
  * zone) and maybeboard, file it in a category, change its printing, look at it up close, take it out.
  */
-export function CardMenu({ row, zone, zones, commandZone, canCommand, categories, category, actions, className }: {
+export function CardMenu({ row, zone, zones, commandZone, canCommand, categories, category, actions, className, onOpenChange }: {
   row: DeckRow;
   zone: DeckZone;
   /** the zones this deck has (no maybeboard in a Career or League deck) */
@@ -33,6 +33,7 @@ export function CardMenu({ row, zone, zones, commandZone, canCommand, categories
   category: string | undefined;
   actions: CardMenuActions;
   className?: string;
+  onOpenChange?(open: boolean): void;
 }) {
   const name = row.entry.cardName;
   const amount = row.entry.amount;
@@ -44,7 +45,7 @@ export function CardMenu({ row, zone, zones, commandZone, canCommand, categories
   };
   const targets = zones.filter((to) => to !== zone && !(commandZone && to === 'sideboard' && !canCommand));
   return (
-    <DropdownMenu.Root modal={false}>
+    <DropdownMenu.Root onOpenChange={onOpenChange}>
       <DropdownMenu.Trigger asChild>
         <button type="button" className={className} aria-label={`More for ${name}`} title="More" onClick={(event) => event.stopPropagation()} onContextMenu={(event) => event.stopPropagation()}>
           <MoreHorizontal size={15} aria-hidden="true" />

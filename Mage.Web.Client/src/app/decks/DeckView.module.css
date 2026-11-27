@@ -97,7 +97,8 @@
   cursor: grab;
 }
 
-.row:hover {
+.row:hover,
+.row:has(.rowMenu[data-state='open']) {
   background: rgb(var(--ink-rgb) / 0.06);
 }
 
@@ -130,7 +131,8 @@
 }
 
 .row:hover .rowActions,
-.row:focus-within .rowActions {
+.row:focus-within .rowActions,
+.row:has(.rowMenu[data-state='open']) .rowActions {
   display: flex;
 }
 
