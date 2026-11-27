@@ -242,7 +242,7 @@ describe('SwarmScreen public tracker', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create worker token' }));
 
     expect(await screen.findByText(/Token created for/)).toBeTruthy();
-    expect(screen.getByText(/MANA_TOKEN=mana_worker_minted_demo/)).toBeTruthy();
+    expect(screen.getAllByText(/MANA_TOKEN=mana_worker_minted_demo/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('lists live swarm games on /swarm/watch and steps through a game answer log', async () => {
@@ -297,5 +297,63 @@ describe('SwarmScreen public tracker', () => {
     expect(await screen.findByText(/P0 mulligan \(keep\)/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(await screen.findByText(/P1 mulligan \(keep\)/)).toBeTruthy();
+  });
+
+  it('renders plain-English landing page sections, top contributors, and strength progress on /swarm', async () => {
+    mockFetch({
+      '/api/v1/status': {
+        hosts: 4,
+        threads: 22,
+        units: { accepted: 20, queued: 2 },
+        games_accepted: 2500,
+        games_last_hour: 300,
+        total_decisions: 85000,
+        open_inbox: 0,
+        platforms: { 'linux-x86_64': 2, 'macos-aarch64': 1, 'windows-x86_64': 1 },
+        active_round: null,
+      },
+      '/api/v1/feed?limit=25': [],
+      '/api/v1/leaderboard?window=all': [
+        {
+          account: 'homelab',
+          trust: 'trusted',
+          team: null,
+          accepted_units: 20,
+          games: 2500,
+          verified_units: 10,
+          credit: 420.5,
+          credit_pending: 0,
+          credit_matured: 420.5,
+          credit_frozen: 0,
+        },
+      ],
+      '/api/v1/networks': [
+        {
+          sha256: '3'.repeat(64),
+          label: 'mana-zero-g1',
+          parent_sha: null,
+          status: 'promoted',
+          created: 1795812716,
+          promoted_at: 1795813000,
+          download_url: 'https://mana.deimos.studio/api/v1/nets/' + '3'.repeat(64),
+          gate_id: 1,
+          gate_status: 'promoted',
+          gate_elo: 180.0,
+          gate_llr: 3.1,
+          bench_elo: 980.0,
+          bench_ci95: 65.0,
+          bench_games: 40,
+          anchors: [],
+        },
+      ],
+    });
+
+    renderAt('/swarm');
+    expect(await screen.findByRole('heading', { name: /Help train Playmat's Magic AI/ })).toBeTruthy();
+    expect(screen.getByRole('link', { name: /Start contributing/ })).toBeTruthy();
+    expect(screen.getByText('How it works')).toBeTruthy();
+    expect(screen.getByText('Pick how you want to help')).toBeTruthy();
+    expect(await screen.findByText('homelab')).toBeTruthy();
+    expect((await screen.findAllByText('mana-zero-g1')).length).toBeGreaterThanOrEqual(1);
   });
 });
