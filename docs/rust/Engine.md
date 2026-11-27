@@ -3386,6 +3386,15 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
     (`RestrictionEffect`, `CostModificationEffectImpl`, `ContinuousEffectImpl`), and `custom_triggers.py` (+597 translated ->
     23,899). Wave 2 (319 Track 3/4 candidates, 248 finished games) matched 223/248 (+284 verified -> 15,189 total). Three
     regression games under `shadow/full-catalog/` cover both waves.
+  - **Wave 3 bulk sweep (800 next highest-priority unverified cards, 532 games):** Initially matched 436/531 (+632);
+    fixing 8 shared engine bugs (`ConditionalOneShotEffect` slot forwarding inside `apply_sequence` for Caravan Vigil;
+    `lki_attached_to` fallback in `BoostEquippedUntilEndOfTurnEffect` / `GainAbilityAttachedUntilEndOfTurnEffect` for
+    Briar Shield; 2-arg `BrainstormEffect` for Brainsurge; `amount` + `filter` + `"it"` overload support in
+    `DamageEverythingEffect` for Canopy Surge, Bloodfire Colossus, and Borrowing the East Wind; `TapSourceUnlessPaysEffect`
+    execution in `apply_effects` for Carnophage; CDA power in `ScavengeEffect` for Boneyard Mycodrax; `add_counters_by`
+    in `EarthbendTargetEffect` for Bumi + Branching Evolution; and `MyriadAbility` reminder text for Blade of Selves)
+    brought it to **489/531 matching (92.1%, 0 skipped)** and **+667 newly verified cards -> 15,856 verified**. Two more
+    regression games under `shadow/full-catalog/` cover these fixes.
 
 To regenerate after the pool or the Java cards change (in this order; the files are generated, so on a merge conflict
 regenerate them rather than merge by hand, and `site/rust/progress.json` with `progress.py`):

@@ -4616,6 +4616,9 @@ class Translator:
                 args = [a[0]] + (a[1:] + ['false', 'false'])[:2] + ['true']
             else:
                 raise Unsupported('effect WishEffect(' + ','.join(a) + ')')
+        # `DamageEverythingEffect(n, "it")`: the 2nd string arg is just the source name in rules text
+        if cls == 'DamageEverythingEffect' and len(args) == 2 and re.fullmatch(r'"[^"]*"', args[1].strip()):
+            args = [args[0]]
         # a class written by hand in Rust (src/cards/, card_handlers.py)
         if cls not in EFFECTS and (h := card_handlers.effect(self, cls, args)) is not None:
             return h
@@ -5870,8 +5873,13 @@ class Translator:
                                  'filter': [{'p': 'subtype', 's': 'Spirit'},
                                             {'p': 'mv', 'cmp': 'OR_LESS', 'n': int(args[0].strip())}]}]}
         if cls == 'MyriadAbility' and len(args) <= 1 and (not args or args[0].strip() in ('true', 'false')):
+            hint = not args or args[0].strip() == 'true'
+            rule = ("myriad <i>(Whenever this creature attacks, for each opponent other than the defending player, "
+                    "put a token that's a copy of this creature onto the battlefield tapped and attacking "
+                    "that player or a planeswalker they control. Exile those tokens at the end of combat.)</i>"
+                    if hint else "myriad")
             return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'attacks'},
-                    'effects': [{'class': 'MyriadEffect'}], 'rule': 'myriad'}
+                    'effects': [{'class': 'MyriadEffect'}], 'rule': rule}
         if cls == 'EchoAbility' and len(args) == 1:
             a = args[0].strip()
             if re.fullmatch(r'"[^"]*"', a):

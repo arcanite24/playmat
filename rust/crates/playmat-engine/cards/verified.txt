@@ -29,6 +29,7 @@ Abbey Gargoyles
 Abbey Griffin
 Abbey Matron
 Abbot of Keral Keep
+Abduction
 Aberrant Manawurm
 Aberrant Mind Sorcerer
 Aberrant Researcher
@@ -90,6 +91,7 @@ Academic Ascent
 Academic Dispute
 Academic Probation
 Academy Drake
+Academy Elite
 Academy Instructor
 Academy Journeymage
 Academy Loremaster
@@ -119,6 +121,7 @@ Acid Rain
 Acid Web Spider
 Acid-Spewer Dragon
 Acidic Slime
+Acidic Sliver
 Acolyte of Aclazotz
 Acolyte of Affliction
 Acolyte of Xathrid
@@ -134,6 +137,7 @@ Act of Heroism
 Act of Treason
 Act on Impulse
 Action News Crew
+Active Volcano
 Adagia, Windswept Bastion
 Adamant Will
 Adanto Vanguard
@@ -160,6 +164,7 @@ Adrenaline Jockey
 Adrix and Nev, Twincasters
 Adroit Hateflayer
 Adult Gold Dragon
+Adun Oakenshield
 Advance Scout
 Advanced Hoverguard
 Advanced Stitchwing
@@ -329,6 +334,7 @@ Air-Cult Elemental
 Airbender Ascension
 Airbender's Reversal
 Airbending Lesson
+Airborne Aid
 Airdrop Aeronauts
 Airdrop Condor
 Airlift Chaplain
@@ -415,6 +421,7 @@ Alaborn Cavalier
 Alaborn Grenadier
 Alaborn Musketeer
 Alaborn Trooper
+Alaborn Veteran
 Alaborn Zealot
 Alacrian Armory
 Alacrian Jaguar
@@ -445,6 +452,7 @@ Algae Gharial
 Alhammarret's Archive
 Alharu, Solemn Ritualist
 Ali Baba
+Alibou, Ancient Witness
 Alicia Masters, Skilled Sculptor
 Alien Invasion
 Aligned Hedron Network
@@ -481,6 +489,7 @@ Along the Crooked Way
 Alpha Authority
 Alpha Kavu
 Alpha Myr
+Alpha Tyrranax
 Alpharael, Dreaming Acolyte
 Alpharael, Stonechosen
 Alphinaud Leveilleur
@@ -509,6 +518,7 @@ Amateur Auteur
 Amateur Hero
 Amazing Acrobatics
 Amazing Spider-Girl
+Ambassador Laquatus
 Ambassador Oak
 Amber Prison
 Ambition's Cost
@@ -552,6 +562,7 @@ Ana Disciple
 Anaba Ancestor
 Anaba Bodyguard
 Anaba Shaman
+Anaba Spirit Crafter
 Anaconda
 Anafenza, Kin-Tree Spirit
 Anafenza, Unyielding Lineage
@@ -570,6 +581,7 @@ Ancestral Anger
 Ancestral Blade
 Ancestral Katana
 Ancestral Mask
+Ancestral Memories
 Ancestral Recall
 Ancestral Reminiscence
 Ancestral Statue
@@ -736,6 +748,7 @@ Apocalypse Runner
 Apostle of Invasion
 Apostle of Purifying Light
 Apothecary Geist
+Apothecary Initiate
 Apothecary Stomper
 Appa, Aang's Companion
 Appa, Loyal Sky Bison
@@ -749,6 +762,7 @@ Appetite for the Unnatural
 Applied Biomancy
 Applied Geometry
 Apprentice Sharpshooter
+Apprentice Sorcerer
 Apprentice Wizard
 Approach of the Second Sun
 April O'Neil, Hacktivist
@@ -765,6 +779,7 @@ Araba Mothrider
 Arabella, Abandoned Doll
 Arachnoform
 Arachnoid Adaptation
+Arachnus Web
 Aradara Express
 Aragorn and Arwen, Wed
 Arahbo, the First Fang
@@ -775,6 +790,7 @@ Arashin Foremost
 Arashin Sovereign
 Arashin Sunshield
 Arasta of the Endless Web
+Arbaaz Mir
 Arbalest Elite
 Arbalest Engineers
 Arbiter of Woe
@@ -797,6 +813,7 @@ Arcane Amphisbaena
 Arcane Encyclopedia
 Arcane Epiphany
 Arcane Flight
+Arcane Heist
 Arcane Infusion
 Arcane Investigator
 Arcane Laboratory
@@ -845,6 +862,7 @@ Archivist
 Archmage Emeritus
 Archmage of Echoes
 Archmage of Runes
+Archmage's Charm
 Archmage's Newt
 Archon of Absolution
 Archon of Cruelty
@@ -927,6 +945,7 @@ Armistice
 Armix, Filigree Thrasher
 Armor Sliver
 Armor Wars
+Armor of Faith
 Armor of Shadows
 Armorcraft Judge
 Armored Armadillo
@@ -941,6 +960,7 @@ Armored Scrapgorger
 Armored Skaab
 Armored Transport
 Armored Warhorse
+Armored Whirl Turtle
 Armored Wolf-Rider
 Armorer Guildmage
 Armory Automaton
@@ -1015,6 +1035,7 @@ Ashen Firebeast
 Ashen Monstrosity
 Ashen Powder
 Ashen Rider
+Ashenmoor Cohort
 Ashenmoor Gouger
 Ashenmoor Liege
 Ashes of the Abhorrent
@@ -1049,6 +1070,7 @@ Asphyxiate
 Aspirant's Ascent
 Aspiring Aeronaut
 Assassin Den
+Assassin Gauntlet
 Assassin Initiate
 Assassin's Ink
 Assassin's Strike
@@ -1101,6 +1123,8 @@ Atomize
 Atraxa's Fall
 Atraxa's Skitterfang
 Atraxa, Grand Unifier
+Atraxa, Praetors' Voice
+Atraxi Warden
 Atris, Oracle of Half-Truths
 Atrocious Experiment
 Atsushi, the Blazing Sky
@@ -1129,6 +1153,7 @@ Augmenting Automaton
 Augur il-Vec
 Augur of Autumn
 Augur of Bolas
+Augur of Skulls
 Augury Owl
 Augury Raven
 Aunt May
@@ -1141,8 +1166,10 @@ Aura Fracture
 Aura Gnarlid
 Aura Shards
 Aura Thief
+Aura of Dominion
 Aura of Silence
 Auramancer
+Auramancer's Guise
 Auratog
 Aurelia, Exemplar of Justice
 Aurelia, the Law Above
@@ -1200,6 +1227,7 @@ Avatar of the Resolute
 Avatar's Wrath
 Aveline de Grandpre
 Aven Archer
+Aven Augur
 Aven Battle Priest
 Aven Brigadier
 Aven Cloudchaser
@@ -1226,6 +1254,7 @@ Aven Squire
 Aven Sunstriker
 Aven Surveyor
 Aven Tactician
+Aven Trooper
 Aven Warcraft
 Aven Wind Guide
 Aven Wind Mage
@@ -1284,10 +1313,12 @@ Aziza, Mage Tower Captain
 Azor's Elocutors
 Azor's Gateway
 Azorius Arrester
+Azorius Chancery
 Azorius Charm
 Azorius Cluestone
 Azorius First-Wing
 Azorius Guildgate
+Azorius Herald
 Azorius Justiciar
 Azorius Keyrune
 Azorius Knight-Arbiter
@@ -1303,6 +1334,7 @@ Azure Mage
 Azusa's Many Journeys
 Azusa, Lost but Seeking
 Ba Sing Se
+Baboon Spirit
 Back for More
 Back for Seconds
 Back on Track
@@ -1319,6 +1351,7 @@ Badgey, Malicious Glitch
 Badlands
 Badlands Revival
 Baffling End
+Bag End Banquet
 Bag End Porter
 Bag of Holding
 Bagel and Schmear
@@ -1339,77 +1372,127 @@ Balduvian Barbarians
 Balduvian Bears
 Balduvian Berserker
 Balduvian Conjurer
+Balduvian Frostwaker
 Balduvian Horde
+Balefire Dragon
+Balefire Liege
 Baleful Ammit
 Baleful Beholder
 Baleful Eidolon
 Baleful Mastery
+Baleful Strix
 Balemurk Leech
 Balin, Loremaster
 Ball Lightning
 Ballista Charger
+Ballista Squad
 Ballista Watcher
+Balloon Peddler
+Ballroom
 Ballroom Brawlers
+Ballynock Cohort
+Ballynock Trapper
 Ballyrush Banneret
+Balm of Restoration
 Balmor, Battlemage Captain
 Baloth Gorger
 Baloth Null
+Baloth Packhunter
+Baloth Prime
 Baloth Pup
+Balshan Collaborator
+Balshan Griffin
 Balthier and Fran
+Balthor the Stout
 Balustrade Wurm
 Bamboo Grove Archer
 Band Together
+Bandage
 Bandit's Haul
 Bandit's Talent
 Bane Alley Blackguard
 Bane of Bala Ged
+Bane's Invoker
 Baneblade Scoundrel
 Banefire
+Baneful Omen
 Banehound
 Baneslayer Angel
 Banewhip Punisher
+Banish from Edoras
 Banish into Fable
 Banisher Priest
 Banishing Betrayal
 Banishing Light
 Banishing Slash
+Banishment Decree
 Bankrupt in Blood
 Banner of Kinship
+Banners Raised
+Banshee
 Banshee of the Dread Choir
+Banshee's Blade
+Bant Battlemage
+Bant Charm
+Bant Panorama
+Bant Sureblade
+Bar the Door
 Bar the Gate
 Baral and Kari Zev
 Baral's Expertise
 Baral, Chief of Compliance
 Barbarian General
+Barbarian Horde
+Barbarian Lunatic
+Barbarian Riftcutter
+Barbarian Ring
+Barbary Apes
 Barbed Batterfist
 Barbed Bloodletter
 Barbed Servitor
+Barbed Sextant
+Barbed Sliver
+Barbed Spike
+Barbed-Back Wurm
 Bard Class
 Bard the Bowman
 Bard's Bow
 Bard's Company
+Bard, Heir of Girion
 Bard, King of Dale
+Bargain
 Barge In
 Barging Sergeant
 Bark of Doran
 Bark-Knuckle Boxer
 Barkchannel Pathway
 Barkform Harvester
+Barkhide Mauler
 Barkhide Troll
 Barkweave Crusher
+Barl's Cage
 Baron Bertram Graywater
 Baron Strucker, HYDRA Overlord
+Baron Vladimir Harkonnen
 Baron, Airship Kingdom
 Barony Vampire
+Barrage Ogre
 Barrage Tyrant
 Barrage of Boulders
 Barrage of Expendables
 Barrels of Blasting Jelly
+Barren Glory
+Barren Moor
 Barrensteppe Siege
+Barrenton Cragtreads
+Barrenton Medic
 Barret Wallace
+Barret, Avalanche Leader
 Barricade Breaker
 Barrier Breach
 Barrier of Bones
+Barrin's Codex
+Barrin, Master Wizard
 Barrin, Tolarian Archmage
 Barrow Naughty
 Barrow Witches
@@ -1417,10 +1500,14 @@ Bartered Cow
 Bartizan Bats
 Bartolome del Presidio
 Bartz and Boko
+Basal Sliver
+Basal Thrull
 Basalt Gargoyle
+Basalt Monolith
 Basalt Ravager
 Base Camp
 Baseball Bat
+Bash to Bits
 Bashful Beastie
 Basic Conjuration
 Basilica Bell-Haunt
@@ -1430,8 +1517,11 @@ Basilica Shepherd
 Basilica Skullbomb
 Basilica Stalker
 Basilisk Collar
+Basilisk Gate
+Basim Ibn Ishaq
 Basking Broodscale
 Basking Capybara
+Basking Rootwalla
 Basri Ket
 Basri's Acolyte
 Basri's Aegis
@@ -1440,49 +1530,83 @@ Basri's Solidarity
 Basri, Devoted Paladin
 Basri, Tomorrow's Champion
 Bassara Tower Archer
+Bast, Panther Goddess
 Bastion Enforcer
 Bastion Inventor
 Bastion Mastodon
+Bastion Protector
 Bastion of Remembrance
 Bat Whisperer
 Bat'leth
 Bathe in Dragonfire
 Battalion Foot Soldier
 Batterbone
+Battered Golem
 Batterhorn
+Battering Craghorn
 Battering Krasis
 Battershield Warrior
 Batterskull
 Battery Bearer
 Battle Brawler
 Battle Cry Goblin
+Battle Frenzy
+Battle Hurda
+Battle Hymn
 Battle Mammoth
 Battle Mastery
 Battle Menu
+Battle Plan
+Battle Rampart
+Battle Screech
 Battle Sliver
+Battle Squadron
+Battle Strain
+Battle Tactics
 Battle at the Bridge
 Battle for Bretagard
+Battle of Hoover Dam
+Battle of Wolf 359
 Battle-Mad Ronin
 Battle-Rage Blessing
 Battle-Rattle Shaman
+Battle-Scarred Goblin
 Battle-Scarred Survivalist
 Battlefield Butcher
 Battlefield Forge
+Battlefield Percher
 Battlefield Promotion
 Battlefield Raptor
 Battlefield Scavenger
 Battlefield Thaumaturge
+Battleflight Eagle
 Battlefly Swarm
 Battlefront Krushok
+Battlegate Mimic
+Battleground Geist
+Battlegrowth
+Battlemage's Bracers
 Battlesong Berserker
+Battlewand Oak
 Battlewing Mystic
+Battlewise Aven
 Battlewise Hoplite
 Battlewise Valor
 Baxter Stockman
+Baxter, Fly in the Ointment
+Bay Falcon
+Bayek of Siwa
 Baylen, the Haymaker
+Bayou
+Bayou Dragonfly
 Bayou Groff
 Bazaar Krovod
+Bazaar Trademage
+Bazaar Trader
+Bazaar of Baghdad
+Beacon Behemoth
 Beacon Bolt
+Beacon Hawk
 Beaming Defiance
 Beamsaw Prospector
 Beamtown Beatstick
@@ -1496,14 +1620,20 @@ Bearer of Glory
 Bearer of Memory
 Bearer of Silence
 Bearer of the Heavens
+Bearscape
+Beast Attack
+Beast Hunt
+Beast Mode
 Beast Whisperer
 Beast Within
+Beast of Burden
 Beast, Erudite Aerialist
 Beast-Kin Ranger
 Beastbond Outcaster
 Beastcaller Savant
 Beastie Beatdown
 Beastrider Vanguard
+Beasts of Bogardan
 Beatrix, Loyal General
 Bebop & Rocksteady
 Bebop, Warthog Warrior
@@ -1511,16 +1641,21 @@ Beckett Mariner, Impetuous Ensign
 Beckon Apparition
 Become Brutes
 Become Immense
+Become the Avalanche
 Bedeck // Bedazzle
 Bedevil
 Bedhead Beastie
+Bedlam
 Bedlam Reveler
 Bedrock Tortoise
+Bee Sting
 Beetle, Legacy Criminal
 Beetle-Headed Merchants
+Beetleback Chief
 Beetleform Mage
 Befriending the Moths
 Befuddle
+Behemoth Sledge
 Behind the Scenes
 Behold the Beyond
 Behold the Multiverse
@@ -1528,11 +1663,14 @@ Behold the Sinister Six!
 Behold the Unspeakable
 Beifong's Bounty Hunters
 Bejeweled Warg
+Belbe's Armor
+Belbe's Percher
 Beledros Witherbloom
 Belladonna Took
 Belle of the Brawl
 Belligerent Brontodon
 Belligerent Guest
+Belligerent Hatchling
 Belligerent Sliver
 Belligerent Whiptail
 Belligerent Yearling
@@ -1540,64 +1678,101 @@ Belligerent of the Ball
 Bellowing Aegisaur
 Bellowing Bruiser
 Bellowing Crier
+Bellowing Fiend
 Bellowing Saddlebrute
+Bellowing Tanglewurm
 Bellows Lizard
 Belltoll Dragon
+Belltower Sphinx
 Beloved Beggar
+Beloved Chaplain
 Beloved Princess
 Beluna Grandsquall
 Beluna's Gatekeeper
+Ben Solo
+Ben-Ben, Akki Hermit
 Benalish Cavalry
+Benalish Emissary
 Benalish Faithbonder
+Benalish Heralds
 Benalish Honor Guard
+Benalish Knight
+Benalish Lancer
 Benalish Marshal
+Benalish Missionary
 Benalish Sleeper
+Benalish Trapper
+Benalish Veteran
 Bender's Waterskin
 Beneath the Sands
 Benefaction of Rhonas
+Benevolent Ancestor
+Benevolent Hydra
+Benjamin Sisko, Besieged
 Benthic Biomancer
 Benthic Criminologists
+Benthic Djinn
 Benthic Giant
 Benthic Infiltrator
 Beorn, Reluctant Host
+Bequeathal
 Bereaved Survivor
+Beregond of the Guard
+Berserkers of Blood Ridge
 Berserkers' Onslaught
 Berta, Wise Extrapolator
 Beseech the Mirror
+Beseech the Queen
 Beskir Shieldmate
 Besmirch
 Besotted Knight
 Bespoke Battlegarb
+Bespoke Battlewagon
 Bespoke Bo
+Bessie, the Doctor's Roadster
 Bestial Bloodline
 Bestial Incursion
 Bestow Greatness
 Betor, Kin to All
+Betrayal
 Betrayal at the Vault
 Betrayer's Bargain
+Bewilder
 Bewildering Blizzard
 Beyeen Veil
 Beyond the Quiet
 Beza, the Bounding Spring
+Bhaal's Invoker
+Bib Fortuna
 Biblioplex Assistant
+Biblioplex Kraken
 Bident of Thassa
+Big Bertha
+Big Mother Mouser
 Big Play
 Big Score
+Big Wheel
 Bigfin Bouncer
+Bighorner Rancher
 Bilbo Baggins, Burglar
 Bilbo's Deadly Slice
 Bilbo's Gambit
+Bilbo's Ring
 Bilbo, Luckwearer
 Bilbo, Thief in the Night
+Bilbo, Unexpected Adventurer
 Bile Blight
 Bile-Vial Boggart
 Bilious Skulldweller
+Bill the Pony
+Billiard Room
 Billowing Shriekmass
 Bind the Monster
 Binding Geist
 Binding Mummy
 Binding Negotiation
 Binding the Old Gods
+Bio-Asset Allocator
 Bioengineered Future
 Bioessence Hydra
 Biogenic Ooze
@@ -1605,15 +1780,18 @@ Biogenic Upgrade
 Biomass Mutation
 Biomathematician
 Biomechan Engineer
+Bionic Blow
 Biorganic Carapace
 Bioshift
 Biosynthic Burst
 Biotech Specialist
 Biovisionary
 Bird Admirer
+Bird Maiden
 Birds of Paradise
 Birgi, God of Storytelling
 Birnin Zana Plaza
+Birthing Boughs
 Birthing Hulk
 Bishop of Binding
 Bishop of Rebirth
@@ -1622,81 +1800,128 @@ Bishop of the Bloodstained
 Bishop's Soldier
 Bite Down
 Biting Rain
+Biting Tether
 Biting-Palm Ninja
 Bitter Chill
+Bitter Downfall
 Bitter Reunion
 Bitter Revelation
 Bitter Triumph
 Bitter Work
 Bitterblade Warrior
 Bitterbloom Bearer
+Bitterblossom
 Bitterbow Sharpshooters
 Bitterthorn, Nissa's Animus
+Black Bolt, Inhuman King
+Black Carriage
 Black Cat
 Black Cat, Cunning Thief
 Black Dragon
+Black Lotus
 Black Mage's Rod
+Black Market Connections
 Black Market Tycoon
 Black Oak of Odunos
+Black Panther, Claws of Bast
+Black Panther, Most Dangerous
 Black Panther, Vanguard
+Black Poplar Shaman
+Black Scarab
 Black Sun's Twilight
+Black Tom Cassidy
 Black Waltz No. 3
+Black Widow, Agile Avenger
+Black Widow, Daring Operative
+Black Widow, Deadly Hunter
 Black Widow, Double Agent
+Black Widow, Intel Expert
+Black Widow, Natasha Romanoff
 Black Widow, Super Spy
 Blackblade Reforged
 Blackbloom Rogue
 Blackcleave Cliffs
+Blackcleave Goblin
 Blacklance Paragon
+Blackmail
 Blacksnag Buzzard
 Blade Banish
 Blade Historian
 Blade Instructor
 Blade Juggler
+Blade Sliver
+Blade Splicer
+Blade of Selves
 Blade of the Bloodchief
+Blade of the Sixth Pride
 Blade-Blizzard Kitsune
+Blade-Tribe Berserkers
 Bladebrand
 Bladecoil Serpent
 Bladed Ambassador
 Bladed Battle-Fan
+Bladed Pinions
+Bladed Sentinel
 Bladegraft Aspirant
 Bladehold War-Whip
+Blademane Baku
+Blades of Velis Vel
 Bladestitched Skaab
 Bladetusk Boar
+Bladewing's Thrall
+Bladewing, Deathless Tyrant
 Blanchwood Armor
 Blanchwood Prowler
+Blanchwood Treefolk
+Blanket of Night
 Blaring Captain
 Blaring Recruiter
+Blasphemous Act
 Blasphemous Edict
 Blast Zone
 Blast of Genius
+Blasted Landscape
+Blaster Mage
 Blastfire Bolt
+Blasting Station
+Blatant Thievery
+Blaze
 Blaze Commando
 Blazemire Verge
+Blazethorn Scarecrow
 Blazing Bomb
 Blazing Crescendo
 Blazing Firesinger
 Blazing Hellhound
 Blazing Hope
+Blazing Rootwalla
 Blazing Volley
 Bleachbone Verge
+Bleak Coven Vampires
 Blech, Loafing Pest
 Bleed Dry
 Bleeding Edge
 Bleeding Woods
 Blessed Alliance
+Blessed Breath
 Blessed Defiance
 Blessed Ghoul
+Blessed Hippogriff
 Blessed Light
+Blessed Orator
 Blessed Reincarnation
 Blessed Sanctuary
 Blessed Spirits
 Blessing
 Blessing of Belzenlok
 Blex, Vexing Pest
+Blight Grenade
 Blight Herder
 Blight Keeper
+Blight Mamba
 Blight Pile
 Blight Rot
+Blight Sickle
 Blight-Breath Catoblepas
 Blightbeetle
 Blightbelly Rat
@@ -1707,30 +1932,54 @@ Blighted Burgeoning
 Blighted Cataract
 Blighted Fen
 Blighted Gorge
+Blighted Shaman
 Blighted Steppe
 Blighted Woodland
 Blightreaper Thallid
+Blightsoil Druid
+Blightspeaker
 Blightstep Pathway
+Blightwidow
 Blind Obedience
+Blind Phantasm
 Blind Seer
+Blind Zealot
+Blind with Anger
+Blind-Spot Giant
 Blindblast
 Blinding Drone
 Blinding Flare
 Blinding Fog
+Blinding Light
+Blinding Mage
+Blinding Radiance
 Blinding Spray
 Blink Dog
 Blink of an Eye
+Blinking Spirit
+Blinkmoth Nexus
+Blinkmoth Well
+Blister Beetle
 Blistercoil Weird
+Blistergrub
+Blistering Barrier
+Blistering Dieflyn
+Blistering Firecat
 Blisterpod
 Blisterspit Gremlin
+Blisterstick Shaman
 Blitz Automaton
+Blitz Hellion
 Blitz Leech
 Blitz of the Thunder-Raptor
 Blitzball
 Blitzball Shot
 Blizzard Brawl
+Blizzard Strix
 Bloated Contaminator
 Bloated Processor
+Bloated Toad
+Blockade Runner
 Blood Age General
 Blood Artist
 Blood Aspirant
@@ -1741,65 +1990,96 @@ Blood Burglar
 Blood Crypt
 Blood Curdle
 Blood Divination
+Blood Feud
 Blood Fountain
+Blood Funnel
 Blood Glutton
 Blood Host
 Blood Hustler
 Blood Hypnotist
+Blood Knight
 Blood Mist
 Blood Moon
 Blood Operative
 Blood Pact
+Blood Pet
 Blood Petal Celebrant
 Blood Price
 Blood Reckoning
 Blood Researcher
+Blood Rites
 Blood Scrivener
 Blood Servitor
 Blood Spatter Analysis
+Blood Speaker
+Blood Tithe
+Blood Vassal
 Blood for Bones
 Blood-Chin Fanatic
 Blood-Chin Rager
 Blood-Cursed Knight
+Blood-Sport Champion
 Blood-Toll Harpy
 Bloodbond Vampire
 Bloodbriar
 Bloodchief's Thirst
 Bloodcrazed Hoplite
+Bloodcrazed Neonate
 Bloodcrazed Paladin
 Bloodcrazed Socialite
+Bloodcrusher of Khorne
 Bloodfell Caves
+Bloodfire Dwarf
 Bloodfire Enforcers
 Bloodfire Expert
+Bloodfire Kavu
 Bloodfire Mentor
+Bloodflow Connoisseur
 Bloodfray Giant
 Bloodghast
+Bloodgift Demon
 Bloodhall Priest
 Bloodhaze Wolverine
 Bloodhunter Bat
+Bloodied Ghost
+Bloodletter Quill
 Bloodletter of Aclazotz
 Bloodline Bidding
 Bloodline Culling
+Bloodline Keeper
+Bloodline Necromancer
 Bloodline Pretender
 Bloodline Recollector
 Bloodlust Inciter
 Bloodmad Vampire
+Bloodmark Mentor
 Bloodmist Infiltrator
 Bloodrage Brawler
+Bloodrite Invoker
 Bloodrock Cyclops
+Bloodroot Apothecary
+Bloodscent
+Bloodshed Fever
+Bloodshot Cyclops
 Bloodsky Berserker
 Bloodsoaked Altar
 Bloodsoaked Champion
 Bloodstained Mire
+Bloodstoke Howler
+Bloodstone Cameo
 Bloodstone Goblin
 Bloodsworn Squire
+Bloodsworn Steward
 Bloodtallow Candle
 Bloodthirsty Adversary
 Bloodthirsty Aerialist
 Bloodthirsty Conqueror
 Bloodthorn Flail
+Bloodthorn Taunter
+Bloodthrone Vampire
 Bloodtithe Collector
 Bloodtithe Harvester
+Bloodtracker
 Bloodvial Purveyor
 Bloodwater Entity
 Bloody Betrayal
@@ -1810,49 +2090,90 @@ Blooming Blast
 Blooming Marsh
 Blooming Stinger
 Bloomvine Regent
+Blor the Impervious
 Blossom Dryad
 Blossom Prancer
 Blossom-Blessed Angel
 Blossombind
+Blossoming Bogbeast
+Blossoming Calm
 Blossoming Defense
 Blossoming Sands
 Blossoming Tortoise
+Blossoming Wreath
 Blot Out
 Blot Out the Sky
 Blow Your House Down
+Blowfly Infestation
+Bludgeoning Pain
 Blue Dragon
+Blue Scarab
 Blue Sun's Twilight
+Blunt the Assault
+Blur
 Blur Sliver
 Blur of Blades
+Blur of Heroism
+Blurred Mongoose
 Blustersquall
+Boar Umbra
 Boar-q-pine
 Board the Weatherlight
 Boarding Action
+Boartusk Liege
+Body Count
 Body Dropper
 Body Launderer
+Body of Knowledge
 Body of Research
 Bofur, Reliable Guardian
 Bog Badger
+Bog Down
+Bog Elemental
+Bog Glider
+Bog Imp
 Bog Naughty
+Bog Raiders
+Bog Rats
+Bog Smugglers
+Bog Tatters
+Bog Wraith
+Bog Wreckage
+Bog-Strider Ash
+Bogardan Firefiend
+Bogardan Rager
 Bogbrew Witch
+Boggart Arsonists
 Boggart Brute
 Boggart Cursecrafter
+Boggart Harbinger
+Boggart Loggers
 Boggart Mischief
 Boggart Prankster
+Boggart Ram-Gang
+Boggart Shenanigans
+Boggart Sprite-Chaser
 Bogslither's Embrace
 Bogstomper
 Bogwater Lumaret
+Boil
 Boilerbilges Ripper
+Boiling Blood
 Boiling Earth
 Boiling Rock Prison
+Boiling Seas
 Bojuka Bog
+Bojuka Brigand
 Bola Slinger
+Bola Warrior
 Bolas's Citadel
 Bold Biochemist
+Bold Defense
 Bold Impaler
 Boldwyr Aggressor
 Bolg of the North
 Bolg's Company
+Bolg, Erebor's Reckoning
 Bolrac-Clan Basher
 Bolrac-Clan Crusher
 Bolt Bend
@@ -1865,6 +2186,7 @@ Bomat Courier
 Bombard
 Bomber Corps
 Bombur, Gentle Dreamer
+Bond Beetle
 Bond of Discipline
 Bond of Flourishing
 Bond of Insight
@@ -1874,34 +2196,55 @@ Bonded Herdbeast
 Bonded Horncrest
 Bonders' Enclave
 Bonds of Mortality
+Bonds of Quicksilver
 Bone Dragon
+Bone Flute
+Bone Miser
 Bone Picker
 Bone Pit Brute
+Bone Sabres
 Bone Saw
+Bone Shards
 Bone Shredder
 Bone Splinters
 Bone to Ash
 Bone-Cairn Butcher
 Bonebind Orator
+Bonebreaker Giant
 Bonecache Overseer
+Bonecaller Cleric
 Boneclad Necromancer
 Boneclub Berserker
 Bonecrusher Giant
 Bonehoard
 Bonehoard Dracosaur
+Boneknitter
 Bonepicker Skirge
 Bonescythe Sliver
+Boneshard Slasher
+Bonesplitter
+Bonesplitter Sliver
+Bonethorn Valesk
 Boneyard Desecrator
 Boneyard Lurker
+Boneyard Mycodrax
+Boneyard Wurm
 Bonny Pall, Clearcutter
 Bontu the Glorified
 Bontu's Last Reckoning
 Bontu's Monument
 Book Devourer
+Book of Mazarbul
+Book of Rass
 Bookwurm
+Boom // Bust
 Boom Box
+Boomerang
 Boomerang Basics
+Boomerang, Blade Flinger
 Boommobile
+Boompile
+Boon Reflection
 Boon Satyr
 Boon of Boseiju
 Boon of Emrakul
@@ -1914,37 +2257,59 @@ Boosted Sloop
 Boot Nipper
 Bootleggers' Stash
 Boots of Speed
+Bor Gullet
+Borborygmos
 Borborygmos Enraged
 Borborygmos and Fblthp
+Border Guard
+Border Patrol
 Borderland Marauder
 Borderland Minotaur
+Borderland Ranger
+Boreal Centaur
+Boreal Druid
 Boreal Elemental
+Boreal Griffin
+Boreal Shelf
+Borg Scout Sphere
+Boris Devilboon
 Born to Drive
 Boros Battleshaper
 Boros Challenger
 Boros Charm
 Boros Cluestone
 Boros Elite
+Boros Garrison
 Boros Guildgate
+Boros Guildmage
 Boros Keyrune
 Boros Locket
 Boros Mastiff
 Boros Reckoner
+Boros Recruit
+Boros Signet
+Boros Swiftblade
 Borough Backup
 Borrowed Grace
 Borrowed Hostility
 Borrowed Knowledge
 Borrowed Malevolence
 Borrowed Time
+Borrowing the East Wind
 Bortuk Bonerattle
+Bosco, Just a Bear
 Boseiju Reaches Skyward
 Boseiju, Who Endures
+Bosk Banneret
 Boss Uramon, Shadow's Reach
+Boss's Chauffeur
 Bot Bashing Time
 Botanical Brawler
 Botanical Plaza
 Botanical Sanctum
 Bothersome Noisemaker
+Bottle Gnomes
+Bottle of Suleiman
 Bottomless Pit
 Bottomless Pool // Locker Room
 Boughside Wanderers
@@ -1957,24 +2322,39 @@ Bounce Off
 Bouncer's Beatdown
 Bound by Moonsilver
 Bound in Gold
+Bound in Silence
 Boundary Lands Ranger
 Bounding Felidar
 Bounding Krasis
 Bounding Wolf
+Bountiful Harvest
+Bountiful Landscape
 Bounty Agent
+Bounty Hunter
 Bounty of Might
 Bounty of the Luxa
 Bovine Intervention
 Bow of Nylea
 Brackish Blunder
 Brackish Trudge
+Brackwater Elemental
+Brago, King Eternal
 Braids's Frightful Return
 Braids, Arisen Nightmare
+Braids, Cabal Minion
+Braidwood Cup
+Braidwood Sextant
+Brain Freeze
 Brain Maggot
+Brain Weevil
 Brain in a Jar
+Braingeyser
+Brainstone
 Brainstorm
+Brainsurge
 Brallin, Skyshark Rider
 Bramble Armor
+Bramble Creeper
 Bramble Familiar
 Bramble Wurm
 Brambleback Brute
@@ -1982,13 +2362,25 @@ Bramblecrush
 Bramblefort Fink
 Brambleguard Captain
 Brambleguard Veteran
+Bramblesnap
 Brambleweft Behemoth
+Bramblewood Paragon
 Branch of Vitu-Ghazi
 Branchblight Stalker
+Branching Bolt
+Branching Evolution
 Branchloft Pathway
+Branchsnap Lorian
+Brand
+Brandywine Farmer
 Brash Taunter
+Brass Gnat
 Brass Knuckles
+Brass Man
+Brass Secretary
+Brass Squire
 Brass's Bounty
+Brassclaw Orcs
 Brave Brawler
 Brave the Elements
 Brave the Sands
@@ -1996,6 +2388,7 @@ Brave the Wilds
 Brave-Kin Duo
 Brawl-Bash Ogre
 Brawler's Plate
+Brawn, Amadeus Cho
 Brazen Blademaster
 Brazen Borrower
 Brazen Buccaneers
@@ -2009,6 +2402,8 @@ Breach
 Breach the Multiverse
 Breaching Dragonstorm
 Breaching Hippocamp
+Break Asunder
+Break Down
 Break Down the Door
 Break Out
 Break Through the Line
@@ -2018,44 +2413,67 @@ Breaker of Armies
 Breaking // Entering
 Breakneck Berserker
 Breakneck Rider
+Breath Weapon
+Breath of Darigaaz
+Breath of Fire
+Breath of Malfegor
+Breath of the Sleepless
+Breathstealer
 Bred for the Hunt
 Breeches, Eager Pillager
 Breeding Pool
 Bretagard Stronghold
 Bria, Riptide Rogue
 Briar Hydra
+Briar Shield
+Briarberry Cohort
 Briarbridge Tracker
+Briarhorn
+Briarknit Kami
 Briarpack Alpha
 Briber's Purse
 Bride's Gown
+Bridge from Below
+Bridgeworks Battle
 Bridled Bighorn
 Bright Reprisal
 Brightblade Stoat
+Brightcap Badger
 Brightclimb Pathway
 Brightfield Glider
 Brightfield Mustang
 Brightglass Gearhulk
 Brightmare
 Brightspear Zealot
+Brightstone Ritual
 Brightwood Tracker
 Brigid's Command
 Brigid, Clachan's Heart
+Brigid, Hero of Kinsbaile
+Brigone, Soldier of Meletis
 Brilliance Unleashed
+Brilliant Halo
+Brilliant Plan
 Brilliant Restoration
 Brilliant Spectrum
+Brilliant Wings
 Brimaz, King of Oreskos
+Brimstone Dragon
 Brimstone Roundup
 Brimstone Trebuchet
 Brimstone Vandal
+Brimstone Volley
 Brindle Boar
 Brindle Shoat
 Brine Giant
+Brine Shaman
 Brinebarrow Intruder
 Brineborn Cutthroat
 Bring Low
 Bring the Ending
 Bring to Light
 Bring to Trial
+Brion Stoutarm
 Brisela, Voice of Nightmares
 Bristlebane Battler
 Bristlebane Outrider
@@ -2065,21 +2483,27 @@ Bristling Backwoods
 Bristling Boar
 Bristling Hydra
 Bristly Bill, Spine Sower
+Brittle Effigy
 Broadcast Rambler
 Broadcast Takeover
 Broadside Barrage
+Broadside Bombardiers
 Broken Bond
 Broken Concentration
 Broken Dam
+Broken Fall
 Broken Wings
 Brokers Ascendancy
 Brokers Charm
+Brokers Confluence
 Brokers Hideout
 Brokers Initiate
 Brokers Veteran
 Bronze Cudgels
+Bronze Guardian
 Bronze Sable
 Bronze Sword
+Bronze Walrus
 Bronzebeak Moa
 Bronzeplate Boar
 Brood Butcher
@@ -2087,15 +2511,26 @@ Brood Monitor
 Brood Weaver
 Broodbirth Viper
 Broodguard Elite
+Broodhatch Nantuko
 Broodheart Engine
 Broodhunter Wurm
+Brooding Saurian
 Broodrage Mycoid
 Broodspinner
+Broodwarden
+Brotherhood Outcast
+Brotherhood Patriarch
+Brotherhood Regalia
+Brotherhood Spy
+Brotherhood Vertibird
 Brotherhood's End
+Brothers of Fire
 Brought Back
+Browse
 Bruce Banner
 Bruenor Battlehammer
 Bruna, the Fading Light
+Bruse Tarl, Boorish Herder
 Bruse Tarl, Roving Rancher
 Brush Off
 Brushfire Elemental
@@ -2103,27 +2538,47 @@ Brushland
 Brushstrider
 Brushwagg
 Brutal Cathar
+Brutal Deceiver
 Brutal Expulsion
+Brutal Nightstalker
+Brutalizer Exarch
+Brute Force
 Brute Strength
 Brute Suit
+Bubble Matrix
 Bubble Smuggler
 Bubble Snare
 Bubbling Cauldron
 Buccaneer's Bravado
+Bucky Barnes, Eager Ally
 Bucolic Ranch
 Budding Insurgent
+Bugenhagen, Wise Elder
+Builder's Blessing
 Builder's Talent
 Built to Last
 Built to Smash
 Bulette
 Bulk Up
+Bull Aurochs
+Bull Cerodon
+Bull Hippo
+Bull Rush
 Bull's Strength
 Bullseye, Death Dealer
+Bullwhip
 Bulwark Giant
 Bulwark Ox
 Bumbleflower's Sharepot
 Bumi Bash
+Bumi's Feast Lecture
+Bumi, Eclectic Earthbender
+Bump in the Night
+Buoyancy
+Burden of Guilt
+Burdened Aerialist
 Burdened Stoneback
+Bureau Headmaster
 Burglar Rat
 Buried Ruin
 Buried Treasure
@@ -2138,13 +2593,17 @@ Burn the Accursed
 Burn, Burn, Tree and Fern
 Burner Rocket
 Burning Anger
+Burning Cloak
 Burning Curiosity
 Burning Hands
+Burning Oil
+Burning Palm Efreet
 Burning Prophet
 Burning Shield Askari
 Burning Sun Cavalry
 Burning Sun's Avatar
 Burning Sun's Fury
+Burning Wish
 Burning-Fist Minotaur
 Burning-Rune Demon
 Burning-Tree Emissary
@@ -2156,16 +2615,24 @@ Burrog Banemaker
 Burrog Barrage
 Burrog Befuddler
 Burrowguard Mentor
+Burrowing
 Burrowing Razormaw
 Burst Lightning
+Burst of Energy
+Burst of Speed
 Burst of Strength
 Bury in Books
+Bushmaster, Coiled Henchman
 Bushmeat Poacher
 Bushwhack
 Bushy Bodyguard
 Buster Sword
+Butch DeLoria, Tunnel Snake
+Butcher Ghoul
 Butcher of the Horde
+Butcher's Cleaver
 Butcher's Glee
+Butterbur, Bree Innkeeper
 Buy Your Silence
 Buzz Bots
 Buzzard-Wasp Colony
@@ -2176,32 +2643,57 @@ Bygone Colossus
 Byrke, Long Ear of the Law
 Byway Barterer
 Byway Courier
+C-Pillar of the Paruns
+Cabal Archon
+Cabal Coffers
 Cabal Evangel
+Cabal Executioner
+Cabal Initiate
+Cabal Inquisitor
 Cabal Paladin
+Cabal Patriarch
+Cabal Pit
+Cabal Slaver
 Cabal Stronghold
+Cabal Surgeon
+Cabal Torturer
+Cabal Trainee
 Cabaretti Ascendancy
 Cabaretti Charm
 Cabaretti Courtyard
 Cabaretti Initiate
 Cache Grab
 Cached Defenses
+Cackling Counterpart
+Cackling Flames
+Cackling Imp
 Cackling Prowler
 Cackling Slasher
+Cackling Witch
 Cacophodon
 Cacophony Scamp
+Cacophony Unleashed
 Cactarantula
 Cactuar
 Cactusfolk Sureshot
 Cadaver Imp
 Cadaverous Knight
+Cadira, Caller of the Small
 Caelorna, Coral Tyrant
+Cage of Hands
 Caged Zombie
+Cagemail
 Calamitous Cave-In
 Calamitous Tide
 Calamity Bearer
+Calamity of Cinders
 Calamity's Wake
+Calcite Snapper
 Calculated Dismissal
+Caldaia Guardian
 Caldaia Strongarm
+Caldera Lake
+Caldera Pyremaw
 Caligo Skin-Witch
 Calix, Destiny's Hand
 Calix, Guided by Fate
@@ -2212,6 +2704,7 @@ Call for Unity
 Call of the Conclave
 Call of the Death-Dweller
 Call of the Full Moon
+Call of the Herd
 Call of the Nightwing
 Call the Bloodline
 Call the Cavalry
@@ -2219,13 +2712,22 @@ Call the Gatewatch
 Call the Mountain Chocobo
 Call the Scions
 Call the Spirit Dragons
+Call to Glory
+Call to Heel
+Call to Mind
+Call to Serve
 Call to the Feast
+Call to the Grave
 Callaphe, Beloved of the Sea
+Caller of Gales
 Caller of the Pack
 Callous Bloodmage
+Callous Deceiver
 Callous Dismissal
 Callous Inspector
 Callous Sell-Sword
+Calmwater Mentor
+Caltrops
 Camaraderie
 Camellia, the Seedmiser
 Camera Launcher
@@ -2235,9 +2737,12 @@ Campus Crier
 Campus Guide
 Campus Renovation
 Can't Stay Away
+Canal Dredger
 Canal Monitor
 Cancel
+Candelabra of Tawnos
 Candlegrove Witch
+Candlekeep Sage
 Candlelight Vigil
 Candlelit Cavalry
 Candlestick
@@ -2246,14 +2751,20 @@ Candy Grapple
 Candy Trail
 Cankerbloom
 Canonized in Blood
+Canoptek Spyder
 Canopy Baloth
+Canopy Claws
+Canopy Dragon
 Canopy Gorger
 Canopy Spider
 Canopy Stalker
+Canopy Surge
 Canopy Tactician
 Canopy Vista
 Cantankerous Captain
 Cantankerous Keepers
+Cantina Band
+Cantivore
 Canyon Crab
 Canyon Crawler
 Canyon Drake
@@ -2262,23 +2773,43 @@ Canyon Lurkers
 Canyon Minotaur
 Canyon Slough
 Canyon Vaulter
+Canyon Wildcat
 Cao Ren, Wei Commander
 Caparocti Sunborn
 Capashen Knight
+Capashen Standard
+Capashen Templar
+Capashen Unicorn
 Capenna Express
 Capital City
+Capital Guard
+Capricious Sliver
+Capricious Sorcerer
+Captain America's Motorcycle
 Captain America's Shield
+Captain America, Liberator
+Captain America, Skybound
+Captain America, Steve Rogers
 Captain America, Super-Soldier
+Captain America, Team Leader
+Captain America, Unbowed
 Captain America, Wings of Freedom
+Captain Janeway, Endgame
 Captain Jean-Luc Picard
 Captain Jonathan Archer
 Captain Kathryn Janeway
+Captain Kirk, Boldly Going
 Captain Lannery Storm
 Captain Mar-Vell, Space-Born
 Captain Marvel, Earth's Protector
 Captain Michael Burnham
+Captain Phasma
 Captain Pike, Fullness of Time
+Captain Sisay
 Captain Storm, Cosmium Raider
+Captain of Umbar
+Captain of the Mists
+Captain of the Watch
 Captain's Call
 Captain's Claws
 Captain's Tutelage
@@ -2286,32 +2817,60 @@ Captivating Cave
 Captivating Crew
 Captivating Gyre
 Captivating Unicorn
+Captive Flame
 Captive Weird
+Capture
 Capture Sphere
+Captured by Lagacs
 Caradora, Heart of Alacria
+Carapace Forger
+Caravan Hurda
+Caravan Vigil
 Cardassia Prime
 Careening Mine Cart
+Carefree Swinemaster
+Careful Consideration
 Careful Cultivation
+Careful Study
+Caregiver
 Careless Celebrant
+Caress of Phyrexia
 Caretaker's Talent
 Cargo Ship
+Caribou Range
+Carmen, Cruel Skymarcher
+Carnage Altar
 Carnage Gladiator
+Carnage Interpreter
 Carnage Tyrant
 Carnage, Crimson Chaos
+Carnassid
+Carnifex Demon
 Carnival // Carnage
 Carnival Hellsteed
 Carnivorous Canopy
 Carnivorous Cultivator
 Carnivorous Moss-Beast
+Carnivorous Plant
+Carnophage
+Carrier Pigeons
 Carrier Thrall
+Carrion
+Carrion Ants
+Carrion Beetles
+Carrion Call
 Carrion Crow
 Carrion Cruiser
+Carrion Feeder
 Carrion Grub
+Carrion Howler
 Carrion Imp
 Carrion Locust
 Carrion Screecher
+Carrion Wall
 Carrot Cake
 Cartel Aristocrat
+Cartographer
 Cartographer's Companion
 Cartographer's Survey
 Cartouche of Ambition
@@ -2320,6 +2879,7 @@ Cartouche of Solidarity
 Cartouche of Strength
 Cartouche of Zeal
 Carven Caryatid
+Casal, Lurkwood Pathfinder
 Cascade Seer
 Cascading Cataracts
 Case of the Burning Masks
@@ -2330,25 +2890,33 @@ Case of the Gorgon's Kiss
 Case of the Locked Hothouse
 Case of the Ransacked Lab
 Case of the Shattered Pact
+Case of the Shifting Visage
 Case of the Stashed Skeleton
 Case of the Trampled Garden
 Case of the Uneaten Feast
 Case the Joint
+Casey Jones, Back Alley Brute
 Casey Jones, Jury-Rig Justiciar
 Casey Jones, Vigilante
 Cast Away Doubt
 Cast Down
 Cast Out
 Cast into Darkness
+Cast into the Fire
 Castaway's Despair
+Castigate
 Castle Ardenvale
 Castle Doom
 Castle Embereth
 Castle Garenbrig
 Castle Locthwain
+Castle Raptors
+Castle Sengir
 Castle Vantress
 Casualties of War
+Cat Burglar
 Cat Collector
+Cat Warriors
 Cat-Gator
 Cat-Owl
 Cataclysmic Gearhulk
@@ -2358,26 +2926,44 @@ Catacomb Slug
 Catalog
 Catalyst Elemental
 Catapult Fodder
+Cateran Brute
 Cateran Enforcer
+Cateran Kidnappers
+Cateran Overlord
+Cateran Persuader
+Cateran Slaver
+Cateran Summons
+Caterwauling Boggart
 Cathar Commando
 Cathar's Call
 Cathar's Companion
 Cathar's Shield
 Cathars' Crusade
 Catharsis
+Cathartic Adept
 Cathartic Parting
 Cathartic Pyre
 Cathartic Reunion
+Cathedral Acolyte
+Cathedral Sanctifier
+Cathedral of War
+Cathodion
 Caught Red-Handed
 Caught in the Brights
 Caught in the Crossfire
 Cauldron Familiar
+Cauldron Haze
 Cauldron of Essence
+Cauldron of Souls
 Cauldron's Gift
 Caustic Bronco
 Caustic Caterpillar
+Caustic Crawler
 Caustic Exhale
+Caustic Hound
+Caustic Rain
 Caustic Tar
+Caustic Wasps
 Cautious Survivor
 Cavalcade of Calamity
 Cavalier of Dawn
@@ -2388,7 +2974,14 @@ Cavalier of Thorns
 Cavalry Drillmaster
 Cavalry Master
 Cavalry Pegasus
+Cave People
+Cave Sense
+Cave Tiger
+Cave of Temptation
 Cave of the Frost Dragon
+Cave-In
+Cavern Crawler
+Cavern Harpy
 Cavern Lampad
 Cavern Stomper
 Cavern Whisperer
@@ -2399,52 +2992,95 @@ Cazur, Ruthless Stalker
 Cease // Desist
 Celebrate the Mountain-king
 Celebrity Fencer
+Celestial Ancient
 Celestial Archon
 Celestial Armor
+Celestial Colonnade
 Celestial Crusader
 Celestial Enforcer
 Celestial Flare
+Celestial Gatekeeper
 Celestial Messenger
+Celestial Prism
+Celestial Purge
 Celestial Regulator
 Celestial Unicorn
 Celestus Sanctifier
 Cement Shoes
+Cemetery Gate
 Cemetery Prowler
+Cemetery Reaper
 Cemetery Recruitment
 Cemetery Tampering
+Cenn's Heir
+Cenn's Tactician
 Cenote Scout
 Censor
+Centaur Archer
 Centaur Battlemaster
+Centaur Chieftain
 Centaur Courser
+Centaur Garden
+Centaur Glade
 Centaur Healer
 Centaur Nurturer
 Centaur Peacemaker
+Centaur Rootcaster
+Centaur Safeguard
+Centaur Veteran
 Centaur's Herald
 Center Soul
+Cephalid Aristocrat
+Cephalid Broker
+Cephalid Coliseum
+Cephalid Illusionist
 Cephalid Inkmage
+Cephalid Inkshrouder
+Cephalid Looter
+Cephalid Pathmage
+Cephalid Retainer
+Cephalid Sage
+Cephalid Scout
 Cephalopod Sentry
 Cerebral Confiscation
 Cerebral Download
 Ceremonial Groundbreaker
+Ceremonial Guard
 Ceremonial Knife
 Ceremonious Rejection
+Cerodon Yearling
 Certain Death
 Cerulean Drake
+Cerulean Sphinx
 Cerulean Wisps
+Cerulean Wyvern
 Cetacean Ops
+Ceti Eel
 Cha'DIch Investigator
+Chain Devil
 Chain Lightning
+Chain Reaction
 Chain to Memory
+Chainbreaker
+Chained Brute
 Chained to the Rocks
+Chainer's Edict
 Chainer's Torment
 Chainflail Centipede
+Chainflinger
+Chains of Custody
 Chainsaw
 Chainweb Aracnir
 Chainwhip Cyclops
+Chakra Meditation
 Chakram Retriever
 Chakram Slinger
+Chalice of Life
 Chalk Outline
 Challenger Troll
+Chamber of Manipulation
+Chambered Nautilus
+Chameleon Colossus
 Chameleon, Master of Disguise
 Champion of Arashin
 Champion of Dusan
@@ -2453,11 +3089,17 @@ Champion of Rhonas
 Champion of Wits
 Champion of the Clachan
 Champion of the Flame
+Champion of the Parish
 Champion of the Path
 Champion of the Perished
 Champion of the Weird
+Champions from Beyond
 Champions of the Perfect
+Chance-Met Elves
+Chancellor Gorkon
 Chancellor of Tales
+Chandler
+Chandra Nalaar
 Chandra's Defeat
 Chandra's Embercat
 Chandra's Emberling
@@ -2488,20 +3130,31 @@ Chandra, Novice Pyromancer
 Chandra, Pyrogenius
 Chandra, Pyromaster
 Chandra, Torch of Defiance
+Chandra, the Firebrand
 Change of Fortune
 Change the Equation
+Changeling Outcast
+Changeling Sentinel
 Changeling Wayfinder
+Channel the Suns
 Channeled Dragonfire
 Channeler Initiate
+Chant of the Skifsang
 Chaos Channeler
+Chaos Charm
 Chaos Imps
 Chaos Maw
 Chaos Spewer
+Chaos Terminator Lord
 Chaos Wand
 Chaoslace
 Chaotic Transformation
+Chapel Geist
 Chaplain of Alms
 Chaplain's Blessing
+Char
+Charcoal Diamond
+Chardalyn Dragon
 Charforger
 Charge
 Charge Through
@@ -2509,14 +3162,19 @@ Charge of the Forever-Beast
 Charge of the Mites
 Charge the Sanctum
 Charging Badger
+Charging Bandits
 Charging Griffin
 Charging Hooligan
 Charging Monstrosaur
+Charging Paladin
 Charging Rhino
+Charging Slateback
 Charging Strifeknight
+Charging Troll
 Charging Tuskodon
 Charging War Boar
 Chariot of Victory
+Charisma Bobblehead
 Charismatic Vanguard
 Charity Extractor
 Charix, the Raging Isle
@@ -2526,10 +3184,17 @@ Charmed Stray
 Charming Prince
 Charming Scoundrel
 Charnel Troll
+Charred Graverobber
 Chart a Course
+Chartooth Cougar
 Chase Inspiration
+Chase Stein, Runaway
+Chasm Drake
 Chasm Guide
 Chasm Skulker
+Chastise
+Chatter of the Squirrel
+Chatterstorm
 Check for Traps
 Checkpoint Officer
 Cheeky House-Mouse
@@ -2541,10 +3206,12 @@ Chemister's Trick
 Chevill, Bane of Monsters
 Chewbacca, the Beast
 Chief Engineer
+Chief Kyle, Transporter Tech
 Chief Warg's Company
 Chief of the Edge
 Chief of the Foundry
 Chief of the Scale
+Chieftain en-Dal
 Child of Night
 Child of the Pack
 Child of the Volcano
