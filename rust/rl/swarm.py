@@ -150,7 +150,7 @@ def suite_pin(suite_dir):
 
 
 def make_units(client, project, run, rnd, learner, opponents, suite_dir, games, seed, keep, fast, nets,
-               strict=True, prefix="u", unit_games=UNIT_GAMES):
+               strict=True, prefix="u", unit_games=UNIT_GAMES, obs=4):
     """Units of up to `unit_games` games: `learner` against `opponents` ([(spec or "self", weight)]), deals from
     `seed` on. Network paths in the specs are uploaded and named by sha256."""
     learner = swarm_spec(learner, client, nets)
@@ -162,7 +162,7 @@ def make_units(client, project, run, rnd, learner, opponents, suite_dir, games, 
         units.append({
             "protocol": PROTOCOL, "id": f"{project}-{run}-r{rnd}-{prefix}{i:03d}", "project": project, "run": run,
             "round": rnd, "kind": "selfplay",
-            "pins": {"builds": [], "obs": 3, "suite": suite, "suite_sha256": suite_sha, "strict": strict},
+            "pins": {"builds": [], "obs": obs, "suite": suite, "suite_sha256": suite_sha, "strict": strict},
             "nets": refs,
             "learner": learner, "opponents": opps, "seed": seed + start, "games": min(unit_games, games - start),
             "keep": keep, "fast": fast, "deadline": 0, "cost": 1.0,
