@@ -13244,6 +13244,24 @@ fn apply_sequence(
                     refresh_piles(game, &mut slots);
                     apply_sequence(game, d, &it, e, &pointed, source, &slots);
                 }
+                EffectDef::ConditionalOneShotEffect { condition, effect, otherwise, also, .. } => {
+                    let chosen = if game.condition_holds(Some(condition), it.controller, source.0) {
+                        effect.as_deref()
+                    } else {
+                        otherwise.as_deref()
+                    };
+                    for sub in chosen.into_iter().chain(also.iter()) {
+                        if matches!(sub, EffectDef::Effects { .. }) {
+                            refresh_piles(game, &mut slots);
+                            apply_sequence(game, d, &it, sub, &pointed, source, &slots);
+                        } else {
+                            apply_effects(game, d, &it, std::slice::from_ref(sub), &pointed, source);
+                        }
+                        if d.stopped() {
+                            return;
+                        }
+                    }
+                }
                 EffectDef::PileRetainZoneEffect { pile, zone } => {
                     let keep = match zone.as_str() {
                         "LIBRARY" => Zone::Library,
@@ -13731,8 +13749,7 @@ fn apply_each_effect(
                     p.until_end_of_turn_def = Some(earthbent(&eot));
                 }
                 if n > 0 {
-                    p.add_counters("+1/+1", n);
-                    counters_put_triggers(game, o, "+1/+1", n, Some(item.controller));
+                    add_counters_by(game, o, "+1/+1", n, Some(item.controller));
                 }
                 game.earthbent.push((o, zcc));
             }
@@ -16169,9 +16186,24 @@ fn apply_each_effect(
                     }
                 }
             }
-            // `ScavengeEffect`: the card's power (`game.getCard`, wherever it went) in +1/+1 counters
+            // `ScavengeEffect`: the card's power (`game.getCard`, wherever it went) in +1/+1 counters,
+            // including characteristic-defining abilities like Boneyard Mycodrax (`*/*`).
             EffectDef::ScavengeEffect => {
-                let n = game.obj(source.0).def.power;
+                let o = game.obj(source.0);
+                let n = o
+                    .def
+                    .abilities
+                    .iter()
+                    .find_map(|a| match a {
+                        AbilityDef::SimpleStaticAbility { effects, .. } => effects.iter().find_map(|e| match e {
+                            EffectDef::SetBasePowerToughnessAmountSourceEffect { amount } => {
+                                Some(game.value(amount, o.owner, source.0, 0))
+                            }
+                            _ => None,
+                        }),
+                        _ => None,
+                    })
+                    .unwrap_or(o.def.power);
                 if n > 0 {
                     for o in &objs {
                         put_counters(game, *o, "+1/+1", n, controller);
@@ -20410,7 +20442,6 @@ fn apply_each_effect(
             | EffectDef::NowhereToRunWardEffect
             | EffectDef::TenaciousUnderdogEffect
             | EffectDef::BoostAllEffect { .. }
-            | EffectDef::TapSourceUnlessPaysEffect { .. }
             | EffectDef::ChooseBasicLandTypeEffect
             | EffectDef::ChooseCreatureTypeEffect { .. }
             | EffectDef::ChooseModeEffect { .. }
@@ -20548,21 +20579,56 @@ fn apply_each_effect(
                     apply_effects(game, d, item, effects, legal, source);
                 }
             }
+            EffectDef::TapSourceUnlessPaysEffect { life } => {
+                let (src, zcc) = source;
+                let name = game.obj(src).def.name.clone();
+                let paid = game.player(controller).life >= *life && {
+                    let q = Query::YesNo {
+                        message: format!("pay {} life? (otherwise {} becomes tapped)", life, name),
+                    };
+                    loop {
+                        match ask(game, d, controller, &q) {
+                            Answer::Bool(b) => break b,
+                            Answer::Stop => return,
+                            _ => {}
+                        }
+                    }
+                };
+                if paid {
+                    lose_life(game, controller, *life);
+                } else if game.obj(src).zone == Zone::Battlefield && game.obj(src).zcc == zcc {
+                    tap(game, src);
+                }
+            }
             EffectDef::BoostEquippedUntilEndOfTurnEffect { power, toughness } => {
                 let (p, t) = (v!(power), v!(toughness));
                 let (src, zcc) = source;
-                if game.obj(src).zcc == zcc {
-                    if let Some(c) = game.attached(src) {
-                        boost(game, c, p, t, Duration::EndOfTurn);
-                    }
+                let attached = if game.obj(src).zcc == zcc {
+                    game.attached(src)
+                } else if game.obj(src).zcc == zcc + 1 {
+                    game.obj(src).lki_attached_to.and_then(|(to, tz)| {
+                        (game.obj(to).zone == Zone::Battlefield && game.obj(to).zcc == tz).then_some(to)
+                    })
+                } else {
+                    None
+                };
+                if let Some(c) = attached {
+                    boost(game, c, p, t, Duration::EndOfTurn);
                 }
             }
             EffectDef::GainAbilityAttachedUntilEndOfTurnEffect { ability } => {
                 let (src, zcc) = source;
-                if game.obj(src).zcc == zcc {
-                    if let Some(c) = game.attached(src) {
-                        grant(game, c, ability);
-                    }
+                let attached = if game.obj(src).zcc == zcc {
+                    game.attached(src)
+                } else if game.obj(src).zcc == zcc + 1 {
+                    game.obj(src).lki_attached_to.and_then(|(to, tz)| {
+                        (game.obj(to).zone == Zone::Battlefield && game.obj(to).zcc == tz).then_some(to)
+                    })
+                } else {
+                    None
+                };
+                if let Some(c) = attached {
+                    grant(game, c, ability);
                 }
             }
             EffectDef::LoseAbilityTargetEffect { ability, until_your_next_turn: true } => {

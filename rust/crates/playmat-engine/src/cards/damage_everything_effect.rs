@@ -4,14 +4,14 @@ use super::*;
 
 pub const HANDLERS: &[Handler] = &[Handler::effect("DamageEverythingEffect", apply)
     .filters(&["StaticFilters.FILTER_PERMANENT_CREATURE"])
-    // (only the one-argument constructor: a second argument fails "one_of:")
-    .args(&["int", "one_of:"])];
+    .args(&["amount", "filter"])];
 
-/// N damage from the source to each creature, then to each player
+/// N damage from the source to each matching creature, then to each player
 fn apply(game: &mut Game, _d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
-    let n = cx.arg_int(0)?;
+    let n = cx.arg_amount(game, 0)?;
     let src = cx.source_id();
-    for o in matching(game, &cx.filters[0], cx.controller(), src) {
+    let filter = cx.filters.get(1).unwrap_or(&cx.filters[0]);
+    for o in matching(game, filter, cx.controller(), src) {
         deal_damage(game, src, Target::Obj(o), n, false);
     }
     for s in 0..game.seats() {
