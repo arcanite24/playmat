@@ -676,6 +676,8 @@ pub struct WatchGame {
     pub run: String,
     pub round: u32,
     pub kind: String,
+    #[serde(default)]
+    pub suite: String,
     pub deal: u64,
     pub account: String,
     pub host: String,

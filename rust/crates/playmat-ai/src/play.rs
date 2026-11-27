@@ -160,6 +160,172 @@ pub struct Replayed {
     pub turns: u32,
 }
 
+/// One human-readable decision snapshot produced by `replay_trace` (used by Live Watch).
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct TraceFrame {
+    pub index: usize,
+    pub turn: u32,
+    pub step: String,
+    pub active: usize,
+    pub seat: usize,
+    pub life: [i32; 2],
+    pub hands: [usize; 2],
+    pub board: [Vec<String>; 2],
+    pub stack: Vec<String>,
+    pub action: String,
+}
+
+/// Full human-readable replay trace of a game (`replay_trace`).
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct ReplayedTrace {
+    pub decks: [String; 2],
+    pub first: usize,
+    pub winner: Option<Seat>,
+    pub turns: u32,
+    pub frames: Vec<TraceFrame>,
+}
+
+fn snapshot_board(game: &Game) -> [Vec<String>; 2] {
+    let mut b = [Vec::new(), Vec::new()];
+    for &id in game.battlefield.iter() {
+        let o = game.obj(id);
+        let label = if o.tapped { format!("{} (T)", o.name()) } else { o.name().to_string() };
+        if o.controller < 2 {
+            b[o.controller].push(label);
+        }
+    }
+    b
+}
+
+fn snapshot_stack(game: &Game) -> Vec<String> {
+    game.stack.iter().map(|s| game.obj(s.card).name().to_string()).collect()
+}
+
+fn describe_answer(game: &Game, seat: Seat, a: &playmat_engine::decide::Answer) -> String {
+    use playmat_engine::decide::Answer;
+    match a {
+        Answer::Bool(true) => format!("P{seat}: Yes / Continue"),
+        Answer::Bool(false) => format!("P{seat}: Pass / No"),
+        Answer::Int(n) => format!("P{seat}: Choose {n}"),
+        Answer::Text(t) => format!("P{seat}: Choose {t}"),
+        Answer::ManaType(m) => format!("P{seat}: Add {m} mana"),
+        Answer::Player(p) => format!("P{seat}: Target Player {p}"),
+        Answer::Obj(id) => format!("P{seat}: Play / Choose {}", game.obj(*id).name()),
+        Answer::Ability(id, k) => format!("P{seat}: Activate {} (#{k})", game.obj(*id).name()),
+        Answer::Trigger(k) => format!("P{seat}: Order trigger #{k}"),
+        Answer::Mode(k) => format!("P{seat}: Choose mode #{k}"),
+        Answer::ModeDone => format!("P{seat}: Done choosing modes"),
+        Answer::ModeCancel => format!("P{seat}: Cancel"),
+        Answer::Unknown => format!("P{seat}: Unknown"),
+        Answer::Stop => format!("P{seat}: Stop"),
+    }
+}
+
+struct TracingReplayer<'a> {
+    inner: Replayer<'a>,
+    frames: Vec<TraceFrame>,
+}
+
+impl playmat_engine::decide::Decider for TracingReplayer<'_> {
+    fn answer(
+        &mut self,
+        game: &Game,
+        seat: Seat,
+        query: &playmat_engine::decide::Query,
+    ) -> playmat_engine::decide::Answer {
+        let idx = self.inner.pos;
+        let a = self.inner.answer(game, seat, query);
+        if self.inner.problem.is_none() {
+            self.frames.push(TraceFrame {
+                index: idx,
+                turn: game.turn,
+                step: game.step.map(|s| format!("{s:?}")).unwrap_or_else(|| "Setup".into()),
+                active: game.active.unwrap_or(0),
+                seat,
+                life: [game.player(0).life, game.player(1).life],
+                hands: [game.player(0).hand.len(), game.player(1).hand.len()],
+                board: snapshot_board(game),
+                stack: snapshot_stack(game),
+                action: describe_answer(game, seat, &a),
+            });
+        }
+        a
+    }
+
+    fn stopped(&self) -> bool {
+        self.inner.stopped()
+    }
+}
+
+/// Replays a deal from its answer log and emits a human-readable turn-by-turn board trace.
+pub fn replay_trace(setup: &Setup, deal: usize, p: Pairing, log: &AnswerLog) -> Result<ReplayedTrace, String> {
+    let decks = [&setup.decks[p.decks[0]], &setup.decks[p.decks[1]]];
+    let mut game = new_duel(setup.db, decks, seed(deal), p.first)?;
+    let replayer = RefCell::new(TracingReplayer { inner: Replayer::new(log), frames: Vec::new() });
+    if setup.mulligans {
+        mulligan::london(
+            &mut game,
+            p.first,
+            0,
+            &mut |g, seat, _| {
+                let mut tr = replayer.borrow_mut();
+                let idx = tr.inner.pos;
+                let m = tr.inner.mulligan(seat);
+                if tr.inner.problem.is_none() {
+                    tr.frames.push(TraceFrame {
+                        index: idx,
+                        turn: 0,
+                        step: "Mulligan".into(),
+                        active: p.first,
+                        seat,
+                        life: [g.player(0).life, g.player(1).life],
+                        hands: [g.player(0).hand.len(), g.player(1).hand.len()],
+                        board: snapshot_board(g),
+                        stack: vec![],
+                        action: if m { format!("P{seat}: Mulligan") } else { format!("P{seat}: Keep hand") },
+                    });
+                }
+                m
+            },
+            &mut |g, seat| {
+                let mut tr = replayer.borrow_mut();
+                let idx = tr.inner.pos;
+                let id = tr.inner.bottom(g, seat);
+                if tr.inner.problem.is_none() {
+                    tr.frames.push(TraceFrame {
+                        index: idx,
+                        turn: 0,
+                        step: "Mulligan".into(),
+                        active: p.first,
+                        seat,
+                        life: [g.player(0).life, g.player(1).life],
+                        hands: [g.player(0).hand.len(), g.player(1).hand.len()],
+                        board: snapshot_board(g),
+                        stack: vec![],
+                        action: format!("P{seat}: Bottom {}", g.obj(id).name()),
+                    });
+                }
+                id
+            },
+        );
+    }
+    let mut tr = replayer.into_inner();
+    rules::play_from_priority(&mut game, &mut tr, setup.turns);
+    if let Some(why) = tr.inner.problem {
+        return Err(format!("deal {deal}: {why}"));
+    }
+    if !tr.inner.finished() {
+        return Err(format!("deal {deal}: the game ended with {} of {} answers used", tr.inner.pos, log.entries.len()));
+    }
+    Ok(ReplayedTrace {
+        decks: [decks[0].name.clone(), decks[1].name.clone()],
+        first: p.first,
+        winner: winner(&game),
+        turns: game.turn,
+        frames: tr.frames,
+    })
+}
+
 /// Plays a deal again from its answer log. Fails if any answer doesn't fit the game or the log isn't used up.
 pub fn replay_game(setup: &Setup, deal: usize, p: Pairing, log: &AnswerLog) -> Result<Replayed, String> {
     let decks = [&setup.decks[p.decks[0]], &setup.decks[p.decks[1]]];

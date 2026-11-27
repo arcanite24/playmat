@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Check, Copy } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { APP_NAME } from '../brand';
 import {
@@ -13,6 +13,7 @@ import {
   type LeaderboardWindow,
   type NetworkInfo,
   type PublicRound,
+  type ReplayedTrace,
   type SwarmStatus,
   type TrustLevel,
   type WatchGame,
@@ -538,6 +539,17 @@ function describeAnswerToken(tok: string): string {
 function WatchView() {
   const [selected, setSelected] = useState<WatchGame | null>(null);
   const [step, setStep] = useState(0);
+  const [trace, setTrace] = useState<ReplayedTrace | null>(null);
+  const [traceBusy, setTraceBusy] = useState(false);
+  const [traceError, setTraceError] = useState<string | null>(null);
+  const traceWorkerRef = useRef<Worker | null>(null);
+
+  useEffect(() => {
+    return () => {
+      traceWorkerRef.current?.terminate();
+      traceWorkerRef.current = null;
+    };
+  }, []);
 
   const watchQ = useQuery({
     queryKey: ['swarm', 'watch'],
@@ -556,10 +568,46 @@ function WatchView() {
   function openGame(g: WatchGame) {
     setSelected(g);
     setStep(0);
+    setTrace(null);
+    setTraceError(null);
+  }
+
+  function decodeBoardReplay() {
+    if (!selected || !replayQ.data || replayQ.data.tokens.length === 0) return;
+    const suite = replayQ.data.game.suite || selected.suite || 'constructed-2';
+    setTraceBusy(true);
+    setTraceError(null);
+    if (!traceWorkerRef.current) {
+      traceWorkerRef.current = new Worker(new URL('./swarmWasmWorker.ts', import.meta.url), { type: 'module' });
+    }
+    const w = traceWorkerRef.current;
+    const reqId = Date.now();
+    const onMsg = (ev: MessageEvent) => {
+      const msg = ev.data as { type: string; id?: number; trace?: ReplayedTrace; error?: string };
+      if (msg.id !== reqId) return;
+      w.removeEventListener('message', onMsg);
+      setTraceBusy(false);
+      if (msg.type === 'trace' && msg.trace) {
+        setTrace(msg.trace);
+      } else {
+        setTraceError(msg.error || 'Failed to decode replay');
+      }
+    };
+    w.addEventListener('message', onMsg);
+    w.postMessage({
+      cmd: 'trace',
+      id: reqId,
+      coordinator: DEFAULT_SWARM_URL,
+      suite,
+      deal: selected.deal,
+      log: replayQ.data.tokens.join(' '),
+    });
   }
 
   const tokens = replayQ.data?.tokens ?? [];
-  const activeStep = tokens.length > 0 ? Math.min(step, tokens.length - 1) : 0;
+  const totalSteps = trace ? trace.frames.length : tokens.length;
+  const activeStep = totalSteps > 0 ? Math.min(step, totalSteps - 1) : 0;
+  const activeFrame = trace && trace.frames.length > 0 ? trace.frames[activeStep] : null;
 
   return (
     <>
@@ -569,15 +617,29 @@ function WatchView() {
             <h2 id="swarm-watch-replay" className={styles.cardTitle}>
               Replay: {selected.unit} · Deal #{selected.deal}
             </h2>
-            <button type="button" className={styles.copyBtn} onClick={() => setSelected(null)}>
-              Close
-            </button>
+            <div className={styles.chips}>
+              {tokens.length > 0 && !trace && (
+                <button
+                  type="button"
+                  className={styles.copyBtn}
+                  onClick={decodeBoardReplay}
+                  disabled={traceBusy}
+                  aria-label="Decode board state with WASM"
+                >
+                  {traceBusy ? 'Decoding...' : 'Decode board state (WASM)'}
+                </button>
+              )}
+              <button type="button" className={styles.copyBtn} onClick={() => setSelected(null)}>
+                Close
+              </button>
+            </div>
           </div>
           <p className={styles.quiet}>
             {selected.project}/{selected.run} r{selected.round} ({selected.kind}) · Learner seat P
             {selected.learner_seat} vs {selected.opponent} · {selected.turns} turns · {selected.answers} answers ·{' '}
             {selected.winner === null ? 'Draw' : `Winner: P${selected.winner}`}
           </p>
+          {traceError && <p className={styles.error} role="alert">{traceError}</p>}
           {replayQ.isPending ? (
             <p className={styles.quiet}>Loading answer log...</p>
           ) : replayQ.isError ? (
@@ -599,28 +661,57 @@ function WatchView() {
                   <button
                     type="button"
                     className={styles.copyBtn}
-                    disabled={activeStep >= tokens.length - 1}
-                    onClick={() => setStep((s) => Math.min(tokens.length - 1, s + 1))}
+                    disabled={activeStep >= totalSteps - 1}
+                    onClick={() => setStep((s) => Math.min(totalSteps - 1, s + 1))}
                   >
                     Next
                   </button>
                   <span className={styles.chip}>
-                    Step {activeStep + 1} / {tokens.length}
+                    Step {activeStep + 1} / {totalSteps}
                   </span>
+                  {activeFrame && (
+                    <span className={styles.chip}>
+                      Turn {activeFrame.turn} · {activeFrame.step} (Active: P{activeFrame.active})
+                    </span>
+                  )}
                 </div>
-                <strong className={styles.mono}>{describeAnswerToken(tokens[activeStep])}</strong>
+                <strong className={styles.mono}>
+                  {activeFrame ? activeFrame.action : describeAnswerToken(tokens[activeStep])}
+                </strong>
               </div>
               <input
                 type="range"
                 aria-label="Replay step"
                 min={0}
-                max={Math.max(0, tokens.length - 1)}
+                max={Math.max(0, totalSteps - 1)}
                 value={activeStep}
                 onChange={(e) => setStep(Number(e.target.value))}
               />
-              <div className={styles.codeBlock}>
-                <pre>{tokens.slice(Math.max(0, activeStep - 8), activeStep + 12).join(' ')}</pre>
-              </div>
+              {activeFrame && trace ? (
+                <div className={styles.split}>
+                  {[0, 1].map((seat) => (
+                    <div key={seat} className={styles.kpi}>
+                      <dt>
+                        P{seat}: {trace.decks[seat]} {seat === selected.learner_seat ? '(Learner)' : '(Opponent)'}
+                      </dt>
+                      <dd>
+                        {activeFrame.life[seat]} life · {activeFrame.hands[seat]} in hand
+                      </dd>
+                      <span className={styles.kpiNote}>
+                        Board:{' '}
+                        {activeFrame.board[seat].length > 0 ? activeFrame.board[seat].join(', ') : '(empty)'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className={styles.codeBlock}>
+                  <pre>{tokens.slice(Math.max(0, activeStep - 8), activeStep + 12).join(' ')}</pre>
+                </div>
+              )}
+              {activeFrame && activeFrame.stack.length > 0 && (
+                <p className={styles.quiet}>Stack: {activeFrame.stack.join(' -> ')}</p>
+              )}
             </>
           )}
         </section>
@@ -1031,6 +1122,22 @@ function ContributeView() {
   const [regError, setRegError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const [browserToken, setBrowserToken] = useState('');
+  const [browserHost, setBrowserHost] = useState('browser-wasm');
+  const [browserRunning, setBrowserRunning] = useState(false);
+  const [browserStatus, setBrowserStatus] = useState('idle');
+  const [browserUnits, setBrowserUnits] = useState(0);
+  const [browserLogs, setBrowserLogs] = useState<string[]>([]);
+  const [browserError, setBrowserError] = useState<string | null>(null);
+  const wasmWorkerRef = useRef<Worker | null>(null);
+
+  useEffect(() => {
+    return () => {
+      wasmWorkerRef.current?.terminate();
+      wasmWorkerRef.current = null;
+    };
+  }, []);
+
   async function onRegister(e: React.FormEvent) {
     e.preventDefault();
     const clean = handle.trim();
@@ -1040,11 +1147,52 @@ function ContributeView() {
     try {
       const reply = await swarmPublic.register(clean);
       setMinted({ account: clean, token: reply.token });
+      setBrowserToken(reply.token);
+      setBrowserHost(`${clean}-browser`);
     } catch (err) {
       setRegError(err instanceof Error ? err.message : String(err));
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function startBrowserWorker() {
+    const tok = browserToken.trim();
+    if (!tok) return;
+    setBrowserError(null);
+    setBrowserRunning(true);
+    setBrowserStatus('starting');
+    if (!wasmWorkerRef.current) {
+      const w = new Worker(new URL('./swarmWasmWorker.ts', import.meta.url), { type: 'module' });
+      w.addEventListener('message', (ev: MessageEvent) => {
+        const msg = ev.data as { type: string; status?: string; log?: string; unitsDone?: number; error?: string };
+        if (msg.type === 'status') {
+          if (msg.status) setBrowserStatus(msg.status);
+          if (typeof msg.unitsDone === 'number') setBrowserUnits(msg.unitsDone);
+          if (msg.log) setBrowserLogs((prev) => [msg.log!, ...prev].slice(0, 12));
+        } else if (msg.type === 'error') {
+          setBrowserError(msg.error || 'Worker error');
+          setBrowserRunning(false);
+          setBrowserStatus('error');
+        } else if (msg.type === 'stopped') {
+          if (typeof msg.unitsDone === 'number') setBrowserUnits(msg.unitsDone);
+          setBrowserRunning(false);
+          setBrowserStatus('stopped');
+        }
+      });
+      wasmWorkerRef.current = w;
+    }
+    wasmWorkerRef.current.postMessage({
+      cmd: 'start',
+      coordinator: DEFAULT_SWARM_URL,
+      token: tok,
+      name: browserHost.trim() || 'browser-wasm',
+    });
+  }
+
+  function stopBrowserWorker() {
+    wasmWorkerRef.current?.postMessage({ cmd: 'stop' });
+    setBrowserStatus('stopping after current unit');
   }
 
   const tokenDisplay = minted ? minted.token : 'YOUR_WORKER_TOKEN';
@@ -1058,13 +1206,15 @@ function ContributeView() {
   -v mana-work:/work \\
   ghcr.io/arcanite24/mana-worker:latest`;
 
-  const cliCmd = `cargo build --release -p playmat-worker --features strict
-./rust/target/release/playmat-worker ui \\
+  const cliCmd = `# Download signed strict binary from https://github.com/arcanite24/mana-at-home/releases/latest
+./playmat-worker install-service \\
   --coordinator ${DEFAULT_SWARM_URL} \\
   --name ${hostDisplay} \\
   --token-file ~/.config/mana/worker.token \\
   --jobs 4 \\
-  --when idle`;
+  --when idle \\
+  --ui \\
+  --auto-update`;
 
   return (
     <>
@@ -1108,7 +1258,7 @@ function ContributeView() {
           <>
             <p className={styles.quiet} role="status">
               Token created for <strong>{minted.account}</strong>. Copy and save it now; it is shown only once and has
-              been filled into the commands below.
+              been filled into the commands and browser worker below.
             </p>
             <CopyableCode label="worker token" code={minted.token} />
           </>
@@ -1125,20 +1275,71 @@ function ContributeView() {
         </section>
 
         <section className={styles.card}>
-          <h2 className={styles.cardTitle}>Desktop control panel and CLI</h2>
+          <h2 className={styles.cardTitle}>Desktop service, control panel, and signed updates</h2>
           <p className={styles.quiet}>
-            Runs at lowest OS priority, pauses when your computer is busy (--when idle), and serves a local control
-            panel at http://127.0.0.1:17195. Replace ui with run for headless boxes.
+            Prebuilt Ed25519-signed binaries and Android APKs ship from{' '}
+            <a href="https://github.com/arcanite24/mana-at-home/releases/latest" target="_blank" rel="noreferrer">
+              github.com/arcanite24/mana-at-home
+            </a>
+            . Runs at lowest OS priority with a loopback panel at http://127.0.0.1:17195 and verified auto-updates.
           </p>
           <CopyableCode label="Native worker command" code={cliCmd} />
         </section>
 
         <section className={styles.card}>
-          <h2 className={styles.cardTitle}>Browser and Android worker (WASM)</h2>
+          <div className={styles.cardHead}>
+            <h2 className={styles.cardTitle}>Contribute in this browser (WASM)</h2>
+            <span className={styles.chip}>
+              {browserStatus} · {browserUnits} units
+            </span>
+          </div>
           <p className={styles.quiet}>
-            The strict Rust worker also compiles to WebAssembly (playmat-worker-wasm, strict-1 class) and aarch64 Android
-            so single-threaded Web Workers and Capacitor Android builds can contribute strict games and replay checks.
+            Runs the exact strict-1 Rust worker inside a single-threaded Web Worker while this tab stays open.
           </p>
+          <div className={styles.toolbar}>
+            <input
+              type="password"
+              aria-label="Browser worker token"
+              placeholder="Paste mana_worker_... token"
+              value={browserToken}
+              onChange={(e) => setBrowserToken(e.target.value)}
+              disabled={browserRunning}
+              style={{
+                padding: '6px 10px',
+                borderRadius: 6,
+                border: '1px solid var(--ink-faint)',
+                background: 'var(--mat-950)',
+                color: 'var(--ink-strong)',
+                flex: '1 1 200px',
+              }}
+            />
+            {!browserRunning ? (
+              <button
+                type="button"
+                className={styles.copyBtn}
+                disabled={browserToken.trim().length < 10}
+                onClick={startBrowserWorker}
+                aria-label="Start browser worker"
+              >
+                Start browser worker
+              </button>
+            ) : (
+              <button
+                type="button"
+                className={styles.copyBtn}
+                onClick={stopBrowserWorker}
+                aria-label="Stop browser worker"
+              >
+                Stop worker
+              </button>
+            )}
+          </div>
+          {browserError && <p className={styles.error} role="alert">{browserError}</p>}
+          {browserLogs.length > 0 && (
+            <div className={styles.codeBlock}>
+              <pre>{browserLogs.join('\n')}</pre>
+            </div>
+          )}
         </section>
 
         <section className={styles.card}>

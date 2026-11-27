@@ -264,6 +264,7 @@ export interface WatchGame {
   run: string;
   round: number;
   kind: string;
+  suite?: string;
   deal: number;
   account: string;
   host: string;
@@ -281,6 +282,27 @@ export interface WatchReplay {
   game: WatchGame;
   tokens: string[];
   note: string;
+}
+
+export interface TraceFrame {
+  index: number;
+  turn: number;
+  step: string;
+  active: number;
+  seat: number;
+  life: [number, number];
+  hands: [number, number];
+  board: [string[], string[]];
+  stack: string[];
+  action: string;
+}
+
+export interface ReplayedTrace {
+  decks: [string, string];
+  first: number;
+  winner: number | null;
+  turns: number;
+  frames: TraceFrame[];
 }
 
 export interface CreditBalance {
