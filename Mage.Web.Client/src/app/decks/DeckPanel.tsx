@@ -162,6 +162,9 @@ export function DeckPanel(props: DeckPanelProps) {
       category={categoryOf(deck, row.entry.cardName)}
       actions={actions}
       className={className}
+      onOpenChange={(open) => {
+        if (open) onPreview(null);
+      }}
     />
   );
 

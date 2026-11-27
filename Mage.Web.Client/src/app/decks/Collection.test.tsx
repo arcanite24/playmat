@@ -72,4 +72,34 @@ describe('Collection printing picker (#478)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Lightning Bolt\. Click to add/ }));
     expect(onAdd).toHaveBeenCalledWith(boltLea);
   });
+
+  test('shows all printings when filtering by a specific set in the card binder', async () => {
+    const onAdd = vi.fn();
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <Collection
+          format="Modern"
+          identity={null}
+          counts={new Map()}
+          limitOf={() => 4}
+          onAdd={onAdd}
+          onRemove={vi.fn()}
+          onPreview={vi.fn()}
+          onInspect={vi.fn()}
+        />
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText('Lightning Bolt:M11#149')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Era \/ Sets/ }));
+    fireEvent.click(screen.getByLabelText(/Magic 2011/));
+
+    await waitFor(() => {
+      expect(mockSearchCards).toHaveBeenCalledWith(expect.objectContaining({
+        setCodes: ['M11'],
+        uniqueNames: false,
+      }));
+    });
+    expect(await screen.findByText('Lightning Bolt:LEA#161')).toBeTruthy();
+  });
 });

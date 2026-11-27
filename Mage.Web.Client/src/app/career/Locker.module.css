@@ -222,6 +222,13 @@ button.tile:not(:disabled):hover {
   line-height: 1.25;
 }
 
+.howEarned {
+  color: var(--ink-dim);
+  font-size: var(--text-xs);
+  line-height: 1.25;
+  opacity: 0.82;
+}
+
 .how svg {
   flex: none;
   translate: 0 1px;

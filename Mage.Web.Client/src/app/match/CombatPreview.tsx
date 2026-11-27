@@ -5,6 +5,7 @@ import type { Interaction } from '../../core/game/interaction';
 import type { GameView } from '../../protocol/generated/views';
 import { useT, type Translate } from '../i18n';
 import { useObjectBoxes } from './boardAnchors';
+import { useMatchUi } from './matchUi';
 import './matchMessages';
 import styles from './CombatPreview.module.css';
 
@@ -12,10 +13,41 @@ import styles from './CombatPreview.module.css';
  * While you declare blockers, an estimate of how combat ends for the blocks as they stand (core/game/combatPreview):
  * each blocked combatant is marked dies or survives, and a small panel above the decision corner says what each
  * fight does, the damage that gets through and your life after combat. While you declare attackers, the panel says
- * what the attack deals if nothing blocks. Hidden at any other time.
+ * what the attack deals if nothing blocks; when attacking several defenders, it also groups attackers per defender
+ * with matching arrow colors and hover-to-isolate. Hidden at any other time.
  */
 
 const MAX_ROWS = 6;
+
+interface DefenderGroup {
+  id: string;
+  name: string;
+  color: string | null;
+  damage: number;
+  attackers: string[];
+}
+
+/** Group attacking creatures by defender, collapsing identical name + P/T into "4× Goblin 1/1". */
+function summarizeAttackers(t: Translate, preview: Preview, colors?: ReadonlyMap<string, string>): DefenderGroup[] {
+  const byId = new Map<string, { name: string; damage: number; counts: Map<string, number> }>();
+  for (const pair of preview.pairs) {
+    let entry = byId.get(pair.defenderId);
+    if (!entry) {
+      entry = { name: pair.defenderName, damage: 0, counts: new Map() };
+      byId.set(pair.defenderId, entry);
+    }
+    entry.damage += pair.result.toDefender;
+    const key = withPt(t, pair.attacker);
+    entry.counts.set(key, (entry.counts.get(key) ?? 0) + 1);
+  }
+  return [...byId.entries()].map(([id, entry]) => ({
+    id,
+    name: entry.name,
+    color: colors?.get(id) ?? null,
+    damage: entry.damage,
+    attackers: [...entry.counts.entries()].map(([text, count]) => (count > 1 ? `${count}× ${text}` : text)),
+  }));
+}
 
 function label(t: Translate, fighter: Fighter): string {
   return fighter.name || t('match.combat.faceDownName');
@@ -53,8 +85,14 @@ function lifeLines(t: Translate, preview: Preview, attacking: boolean): string[]
   });
 }
 
-export function CombatPreview({ view, mode }: { view: GameView | null | undefined; mode: Interaction['mode'] }) {
+export function CombatPreview({ view, mode, defenderColors }: {
+  view: GameView | null | undefined;
+  mode: Interaction['mode'];
+  defenderColors?: ReadonlyMap<string, string>;
+}) {
   const t = useT();
+  const setHoveredDefender = useMatchUi((state) => state.setHoveredDefender);
+  const hoveredDefender = useMatchUi((state) => state.hoveredDefender);
   const active = mode === 'declareBlockers' || mode === 'declareAttackers';
   const preview = useMemo(() => (active ? combatPreview(view) : null), [active, view]);
   const blocking = mode === 'declareBlockers';
@@ -69,6 +107,10 @@ export function CombatPreview({ view, mode }: { view: GameView | null | undefine
   if (!preview) return null;
   const myId = view?.myPlayerId;
   const rows = blocking ? preview.pairs.map((pair) => pairLine(t, pair, myId)) : [];
+  const multiOpponent = (view?.players?.length ?? 0) > 2;
+  const attackBreakdown = !blocking && (preview.defenders.length > 1 || (multiOpponent && preview.pairs.length > 0))
+    ? summarizeAttackers(t, preview, preview.defenders.length > 1 ? defenderColors : undefined)
+    : [];
   const gains = [...preview.gains].map(([id, life]) => (id === myId
     ? t('match.combat.gainYou', { life })
     : t('match.combat.gainThem', { life, name: view?.players?.find((player) => player.playerId === id)?.name ?? '' })));
@@ -100,6 +142,25 @@ export function CombatPreview({ view, mode }: { view: GameView | null | undefine
       })}
       <section className={styles.panel} aria-live="polite" aria-label={title}>
         <h3 className={styles.title}>{title}</h3>
+        {attackBreakdown.length > 0 && (
+          <ul className={styles.defenders}>
+            {attackBreakdown.map((group) => (
+              <li
+                key={group.id}
+                className={[styles.defenderRow, hoveredDefender === group.id ? styles.defenderActive : ''].join(' ')}
+                onPointerEnter={() => setHoveredDefender(group.id)}
+                onPointerLeave={() => setHoveredDefender(null)}
+              >
+                <span className={styles.defenderHead}>
+                  {group.color && <span className={styles.swatch} style={{ background: group.color }} aria-hidden="true" />}
+                  <b>{group.name}</b>
+                  <span className={styles.defenderDmg}>{group.damage}</span>
+                </span>
+                <span className={styles.defenderList}>{group.attackers.join(', ')}</span>
+              </li>
+            ))}
+          </ul>
+        )}
         {rows.length > 0 && (
           <ul className={styles.rows}>
             {rows.slice(0, MAX_ROWS).map((row, index) => <li key={index}>{row}</li>)}

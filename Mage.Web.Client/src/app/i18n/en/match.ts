@@ -74,6 +74,11 @@ export default {
   'match.plate.disconnectedTitle': 'Lost connection to the server. They have a few minutes to come back before they lose.',
   'match.plate.aria.lost': '{name}, out of the game',
   'match.plate.aria.disconnected': 'disconnected',
+  'match.plate.commanderToggle': '{name}, highest commander damage {damage}. Toggle commander damage breakdown',
+  'match.plate.commanderShow': 'Click to show commander damage',
+  'match.plate.commanderHide': 'Click to hide commander damage',
+  'match.menu.commanderDamageShow': 'Show commander damage',
+  'match.menu.commanderDamageHide': 'Hide commander damage',
 
   // an opponent's card revealed from their hand, still in it
   'match.hand.revealed': 'Revealed',
@@ -90,6 +95,9 @@ export default {
   'match.attack': 'Attack…',
   'match.attack.named': '{name} attacks…',
   'match.attackGroups.title': 'Attack with',
+  'match.attackGroups.target': 'Target',
+  'match.attackGroups.ask': 'Ask',
+  'match.attackGroups.default': 'Opponent',
   'match.attackGroups.how': 'How many {name} attack',
   'match.attackGroups.all': 'All',
   'match.attackGroups.none': 'None',

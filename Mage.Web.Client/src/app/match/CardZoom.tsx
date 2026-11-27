@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { CardView, PermanentView } from '../../protocol/generated/views';
+import type { CardView, GameView, PermanentView } from '../../protocol/generated/views';
 import { isStackAbility } from '../../core/game/cards';
 import { explainCard } from '../../core/game/glossary';
 import { stripMarkup } from '../../core/game/prompt';
+import { describeStackTargets } from '../../core/game/stackTargets';
 import { AbilityCard } from '../ui/AbilityCard';
 import { showsBackFace } from '../../core/images/imageLinks';
 import { CardFace } from '../ui/CardFace';
@@ -30,7 +31,12 @@ const PANEL_GAP = 14;
  * The hovered card, large, beside the pointer (after a short delay so sweeping the board stays calm). `large`
  * (watching, for a stream): bigger still, at the edge of the table away from the pointer, where it hides less.
  */
-export function CardZoom({ large = false, big = false }: { large?: boolean; big?: boolean }) {
+export function CardZoom({ large = false, big = false, view, attackTargets }: {
+  large?: boolean;
+  big?: boolean;
+  view?: GameView | null;
+  attackTargets?: ReadonlyMap<string, string>;
+}) {
   const zoom = useMatchUi((state) => state.zoom);
   const dragging = useMatchUi((state) => state.dragging);
   const detailOpen = useMatchUi((state) => !!state.detail);
@@ -60,7 +66,7 @@ export function CardZoom({ large = false, big = false }: { large?: boolean; big?
   if (!shown || touch || detailOpen || !element || !element.isConnected || !element.matches(':hover')) return null;
   const card = shown.card as PermanentView;
   const back = card.secondCardFace;
-  const extra = details(card);
+  const extra = details(card, view, attackTargets);
   const rules = styled ? (card.rules ?? []).map(stripMarkup).filter(Boolean) : [];
   const width = large ? LARGE_WIDTH : big ? BIG_WIDTH : ZOOM_WIDTH;
   const height = width * (88 / 63);
@@ -119,9 +125,13 @@ export function CardZoom({ large = false, big = false }: { large?: boolean; big?
   );
 }
 
-/** What the picture can't show: changed stats, counters, damage, who controls it. */
-function details(card: PermanentView & CardView): string[] {
+/** What the picture can't show: changed stats, counters, damage, combat target, stack modes/targets, who controls it. */
+function details(card: PermanentView & CardView, view?: GameView | null, attackTargets?: ReadonlyMap<string, string>): string[] {
   const lines: string[] = [];
+  if (card.id) {
+    const attacking = attackTargets?.get(card.id);
+    if (attacking) lines.push(`Attacking ${attacking}`);
+  }
   if (card.power !== undefined && card.toughness !== undefined && (card.cardTypes ?? []).includes('CREATURE')) {
     const base = card.original;
     if (base && (base.power !== card.power || base.toughness !== card.toughness)) {
@@ -134,6 +144,15 @@ function details(card: PermanentView & CardView): string[] {
   }
   if (card.nameController && card.nameOwner && card.nameOwner !== card.nameController) {
     lines.push(`Controlled by ${card.nameController}, owned by ${card.nameOwner}`);
+  }
+  if (view?.stack && card.id && card.id in view.stack) {
+    const summary = describeStackTargets(card, view);
+    for (const line of summary.lines) {
+      const prefix = line.index !== null && summary.targetCount > 1 ? `[${line.index}] ` : '';
+      if (line.effect && line.targetName) lines.push(`${prefix}${line.effect} → ${line.targetName}`);
+      else if (line.effect) lines.push(`Chosen: ${line.effect}`);
+      else if (line.targetName) lines.push(`${prefix}Target: ${line.targetName}`);
+    }
   }
 
   return lines;

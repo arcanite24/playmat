@@ -22,18 +22,19 @@ import { CareerAvatar } from './CareerScreen';
 import { ShowcaseBadges, TitleText } from './LookParts';
 import { PlateFrame } from './PlateFrame';
 import { PatronPlaymat, PatronTitle, PetShelf, SupporterMarks, SupporterSleeveItem } from './SupporterLocker';
-import { howToEarn, itemKey, LOCKER_TABS, markSeen, ownsItem, readSeen, tabOf, unseen, type LockerTab } from './wardrobe';
+import { howToEarn, howToEarnDetail, itemKey, LOCKER_TABS, markSeen, ownsItem, readSeen, tabOf, unseen, type LockerTab } from './wardrobe';
 import progress from './Progress.module.css';
 import styles from './Locker.module.css';
 
 registerMessages(messages);
 
-/** What every tile needs to know: whose locker, what they own, how to say where a locked piece comes from. */
+/** What every tile needs to know: whose locker, what they own, how to say where a piece comes from. */
 interface Shelf {
   user: string;
   look: CareerLook;
   owns(item: CareerCatalogItem): boolean;
   how(item: CareerCatalogItem): string;
+  detail(item: CareerCatalogItem): string | null;
   /** unlocked since the player last looked */
   fresh: ReadonlySet<string>;
   locale: string;
@@ -82,6 +83,7 @@ export function CosmeticsLocker({ track, achievements, career = true }: {
     look,
     owns: (item) => ownsItem(unlocks, item),
     how: (item) => howToEarn(t, item, achievements),
+    detail: (item) => howToEarnDetail(item, achievements),
     fresh: freshKeys,
     locale,
   };
@@ -167,21 +169,27 @@ function Tile({ shelf, item, on, onPick, children, wide = false }: {
   const t = useT();
   const owned = shelf.owns(item);
   const rarity = rarityOf(item);
-  const how = owned ? null : shelf.how(item);
+  const how = item.free ? null : shelf.how(item);
+  const detail = item.free ? null : shelf.detail(item);
+  const fullHow = how && detail ? `${how} — ${detail}` : how;
   const body = (
     <>
       <span className={styles.preview}>{children}</span>
       <span className={styles.name}>{catalogName(item, shelf.locale)}</span>
       <span className={styles.rarity}>{t(`career.rarity.${rarity}` as MessageKey)}</span>
-      {how && <small className={styles.how}><Lock size={11} aria-hidden="true" /> {how}</small>}
+      {how && (
+        owned
+          ? <small className={styles.howEarned}>{fullHow}</small>
+          : <small className={styles.how}><Lock size={11} aria-hidden="true" /> {how}</small>
+      )}
       {shelf.fresh.has(itemKey(item)) && <span className={styles.dot} role="img" aria-label={t('career.locker.new')} />}
     </>
   );
   const className = [styles.tile, owned ? '' : styles.locked, wide ? styles.wide : ''].join(' ');
   const style = { '--rarity': RARITY_COLORS[rarity] } as CSSProperties;
-  if (!onPick) return <div className={className} style={style} title={how ?? undefined}>{body}</div>;
+  if (!onPick) return <div className={className} style={style} title={fullHow ?? undefined}>{body}</div>;
   return (
-    <button type="button" role="radio" aria-checked={!!on} disabled={!owned} className={className} style={style} title={how ?? undefined} onClick={onPick} data-nav>
+    <button type="button" role="radio" aria-checked={!!on} disabled={!owned} className={className} style={style} title={fullHow ?? undefined} onClick={onPick} data-nav>
       {body}
     </button>
   );
@@ -252,7 +260,9 @@ function TitleShelf({ shelf, catalog, thanks }: ShelfProps & { thanks: ThankYou 
         {shelfOrder(shelf, catalogOf('title', catalog)).map((item) => {
           const owned = shelf.owns(item);
           const rarity = rarityOf(item);
-          const how = owned ? null : shelf.how(item);
+          const how = item.free ? null : shelf.how(item);
+          const detail = item.free ? null : shelf.detail(item);
+          const fullHow = how && detail ? `${how} — ${detail}` : how;
           return (
             <button
               key={item.id}
@@ -262,13 +272,17 @@ function TitleShelf({ shelf, catalog, thanks }: ShelfProps & { thanks: ThankYou 
               disabled={!owned}
               className={[styles.titleTile, owned ? '' : styles.locked].join(' ')}
               style={{ '--rarity': RARITY_COLORS[rarity] } as CSSProperties}
-              title={how ?? undefined}
+              title={fullHow ?? undefined}
               onClick={() => pick(item.id!)}
               data-nav
             >
               <span className={styles.titleName}>{catalogName(item, shelf.locale)}</span>
               <span className={styles.rarity}>{t(`career.rarity.${rarity}` as MessageKey)}</span>
-              {how && <small className={styles.how}><Lock size={11} aria-hidden="true" /> {how}</small>}
+              {how && (
+                owned
+                  ? <small className={styles.howEarned}>{fullHow}</small>
+                  : <small className={styles.how}><Lock size={11} aria-hidden="true" /> {how}</small>
+              )}
               {shelf.fresh.has(itemKey(item)) && <span className={styles.dot} role="img" aria-label={t('career.locker.new')} />}
             </button>
           );

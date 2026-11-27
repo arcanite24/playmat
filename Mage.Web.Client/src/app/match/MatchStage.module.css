@@ -364,7 +364,7 @@
   letter-spacing: var(--tracking-print-wide);
   text-transform: uppercase;
   color: var(--ink);
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .seatNameActive {

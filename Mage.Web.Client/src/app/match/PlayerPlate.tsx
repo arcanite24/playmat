@@ -42,6 +42,12 @@ export interface PlayerPlateProps {
   onPay?(id: string): void;
   /** combat damage taken from each commander (Commander games) */
   commanderDamage?: readonly { name: string; amount: number }[];
+  /** keep the plate inside the left seat column (multiplayer opponents): extras wrap under life, never over the board */
+  compact?: boolean;
+  /** global override for showing commander damage chips expanded */
+  commanderDamageExpanded?: boolean;
+  /** hover callbacks (multiplayer combat tracking highlights attackers aimed at this player) */
+  onHoverChange?(hovering: boolean): void;
   /** outside your range of influence: you can't affect this player, nor they you */
   outOfRange?: boolean;
   /** the look the player chose (servers with accounts): their Career avatar and title, a supporter's ring and heart */
@@ -103,7 +109,10 @@ function useOnBeat(value: number, id: string | undefined): number {
 }
 
 /** A player's seat: who they are, their life, counters, floating mana and clock. */
-export function PlayerPlate({ player, isMe, targetable, selected, deciding, sleeve, onClick, toPay, payable, onPay, commanderDamage = [], outOfRange = false, look }: PlayerPlateProps) {
+export function PlayerPlate({
+  player, isMe, targetable, selected, deciding, sleeve, onClick, toPay, payable, onPay,
+  commanderDamage = [], compact = false, commanderDamageExpanded, onHoverChange, outOfRange = false, look,
+}: PlayerPlateProps) {
   const t = useT();
   // the total changes when what changes it lands on the table (the swing connecting, the motes arriving), not before
   const life = useOnBeat(player.life ?? 0, player.playerId);
@@ -111,6 +120,13 @@ export function PlayerPlate({ player, isMe, targetable, selected, deciding, slee
   const out = !!player.hasLeft;
   const previous = useRef(life);
   const [delta, setDelta] = useState<{ value: number; key: number } | null>(null);
+  // commander damage can be toggled open/closed per seat; multiplayer left-column seats start collapsed so they never crowd the board
+  const [cmdrLocal, setCmdrLocal] = useState<{ base: boolean | undefined; open: boolean } | null>(null);
+  const cmdrOpen = cmdrLocal && cmdrLocal.base === commanderDamageExpanded
+    ? cmdrLocal.open
+    : (commanderDamageExpanded !== undefined ? commanderDamageExpanded : !compact);
+  const highestCmdr = commanderDamage.reduce((max, hit) => Math.max(max, hit.amount), 0);
+  const cmdrSummary = commanderDamage.map((hit) => `${hit.name}: ${hit.amount}/${COMMANDER_DAMAGE_LETHAL}`).join('\n');
   const disconnected = useDisconnected(out ? undefined : player.name);
   // fancy combat effects (#413): the total counts down (or up) instead of jumping
   const fancy = useSettings((state) => state.settings.combatFx !== 'simple' && state.settings.animations);
@@ -152,6 +168,7 @@ export function PlayerPlate({ player, isMe, targetable, selected, deciding, slee
       className={[
         styles.plate,
         isMe ? styles.mine : styles.theirs,
+        compact ? styles.compact : '',
         targetable ? styles.targetable : '',
         selected ? styles.selected : '',
         player.hasLeft ? styles.left : '',
@@ -163,6 +180,8 @@ export function PlayerPlate({ player, isMe, targetable, selected, deciding, slee
       role={targetable ? 'button' : 'group'}
       tabIndex={targetable ? 0 : undefined}
       onMouseDown={preventMatchObjectMouseFocus}
+      onPointerEnter={onHoverChange ? () => onHoverChange(true) : undefined}
+      onPointerLeave={onHoverChange ? () => onHoverChange(false) : undefined}
       aria-label={out
         ? t('match.plate.aria.lost', { name: player.name ?? '' })
         : `${player.name}, ${life} life${disconnected ? `, ${t('match.plate.aria.disconnected')}` : ''}${outOfRange ? ', out of range' : ''}${targetable ? ', can be targeted' : ''}`}
@@ -265,17 +284,35 @@ export function PlayerPlate({ player, isMe, targetable, selected, deciding, slee
             </div>
           )}
           {commanderDamage.length > 0 && (
-            // each hit is its own chip in the columns; the group only names them
-            <div className={styles.commanderDamage} role="group" aria-label="Commander damage taken">
-              {commanderDamage.map((hit) => (
-                <span
-                  key={hit.name}
-                  className={[styles.counter, styles.hit, hit.amount >= COMMANDER_DAMAGE_LETHAL - 6 ? styles.hitDanger : ''].join(' ')}
-                  title={`${hit.amount} combat damage from ${hit.name}; ${COMMANDER_DAMAGE_LETHAL} loses the game`}
-                >
-                  <Swords size={15} aria-hidden="true" /> <span className={styles.hitName}>{hit.name.split(',')[0]}</span> <b>{hit.amount}</b>
-                </span>
-              ))}
+            <div className={styles.commanderDamageWrap}>
+              <button
+                type="button"
+                className={[styles.counter, styles.hit, styles.cmdrToggle, highestCmdr >= COMMANDER_DAMAGE_LETHAL - 6 ? styles.hitDanger : ''].join(' ')}
+                aria-expanded={cmdrOpen}
+                aria-label={t('match.plate.commanderToggle', { name: player.name ?? '', damage: highestCmdr })}
+                title={`${cmdrSummary}\n${t(cmdrOpen ? 'match.plate.commanderHide' : 'match.plate.commanderShow')}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setCmdrLocal({ base: commanderDamageExpanded, open: !cmdrOpen });
+                }}
+              >
+                <Swords size={15} aria-hidden="true" />
+                <b>{highestCmdr}</b>
+                {commanderDamage.length > 1 && <small className={styles.cmdrCount}>×{commanderDamage.length}</small>}
+              </button>
+              {cmdrOpen && (
+                <div className={compact ? styles.cmdrPopover : styles.commanderDamage} role="group" aria-label="Commander damage taken">
+                  {commanderDamage.map((hit) => (
+                    <span
+                      key={hit.name}
+                      className={[styles.counter, styles.hit, hit.amount >= COMMANDER_DAMAGE_LETHAL - 6 ? styles.hitDanger : ''].join(' ')}
+                      title={`${hit.amount} combat damage from ${hit.name}; ${COMMANDER_DAMAGE_LETHAL} loses the game`}
+                    >
+                      <Swords size={15} aria-hidden="true" /> <span className={styles.hitName}>{hit.name.split(',')[0]}</span> <b>{hit.amount}</b>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           )}
           {counters.map((counter) => (

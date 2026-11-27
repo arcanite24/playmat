@@ -177,10 +177,14 @@ import { gzipSync } from 'node:zlib';
 // app raised 2026-11-26 from 975 kB for Phase 6 & stretch completion (Companion Bond evolution UI, procedural 3D pet rigs
 // and accessories, Command-Zone frames, Two-Headed Giant screen, SchemeBanner overlay, Curator's Picks 20% off Boutique,
 // mixed-kind capsule views for Waves 4-5, and en/es strings). Measured entry 83.5 kB, initial 220.3 kB, app 980.4 kB
+// app raised 2026-11-27 from 985 kB for Ko-fi feedback batch (multiplayer AttackGroups target picker, commander damage
+// toggle, multi-defender combat colors & breakdown, multi-effect stack target clarity, unlocked cosmetic earn criteria,
+// PrintingPicker favorites & filter, and binder all-printings mode), all in lazy screen chunks plus en/es strings.
+// Measured entry 83.5 kB, initial 220.3 kB (both under budget), app 989.4 kB
 const BUDGET_KB = {
   entry: 86,
   initial: 221,
-  app: 985,
+  app: 992,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;
