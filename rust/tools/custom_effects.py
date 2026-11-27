@@ -930,6 +930,21 @@ class Body:
         elif (m := re.fullmatch(r'for\((?:final )?(?:Card|UUID) (\w+):(\w+)(?:\.getCards\(game\)|\.getTargets\(\))?\)', h)) \
                 and self.kind(m.group(2)) == 'pile':
             each, var, kind = {'kind': 'cards', 'from': self.ref(m.group(2))[1]}, m.group(1), 'card'
+        elif (m := re.fullmatch(r'for\((?:final )?UUID (\w+):(?:this\.)?getTargetPointer\(\)\.getTargets\(game,source\)\)', h)):
+            # bind targets into a pile and loop over each target card/permanent
+            if _has_return(body):
+                raise Unsupported('return in a loop')
+            pile = self.new_slot('cards')
+            inner = self.child()
+            inner.in_loop = True
+            slot = self.new_slot('each')
+            inner.refs[m.group(1)] = ('card', slot)
+            effects = inner.nodes(body)
+            if not effects:
+                raise Unsupported('empty loop')
+            return {'class': 'Effects', 'bind': {'name': pile, 'what': 'targets'},
+                    'effects': [{'class': 'Effects', 'effects': effects,
+                                 'each': {'kind': 'cards', 'from': pile, 'name': slot}}]}
         if each is None:
             raise Unsupported('loop ' + header)
         # a return in the body ends the whole apply, not one pass
@@ -1423,23 +1438,91 @@ def _strip_comments(source):
 import custom_statics  # noqa: E402: it imports this module's helpers
 
 
+def _bind_ctor_args(cls, body, args):
+    """When an inner class is instantiated with simple constructor arguments (`new FooEffect(3)` or `new FooEffect(filter)`),
+    match its constructor with `len(args)` parameters and substitute `private final` fields assigned directly from
+    those parameters into `body`. Returns `(new_body, bound_field_names)` or raises Unsupported."""
+    safe_re = re.compile(
+        r'^(?:-?\d+|true|false|"[^"\\]*"|(?:CounterType|SubType|CardType|SuperType|ObjectColor|Duration|Zone|Outcome|StaticFilters)\.\w+|'
+        r'new ManaCostsImpl<>\("[^"\\]*"\)|new GenericManaCost\(\d+\)|[A-Za-z_]\w*(?:\.(?:instance|PLURAL|SINGULAR))?)$'
+    )
+    clean_args = [a.strip() for a in args]
+    if not all(safe_re.fullmatch(a) for a in clean_args):
+        raise Unsupported('constructor arguments')
+    # find constructor matching len(args) parameters (not the copy constructor)
+    for m in re.finditer(r'\b' + re.escape(cls) + r'\s*\(([^)]*)\)\s*\{', body):
+        pstr = m.group(1).strip()
+        if not pstr:
+            continue
+        raw_params = _split(pstr, ',')
+        if len(raw_params) != len(clean_args):
+            continue
+        params = []
+        ok = True
+        for rp in raw_params:
+            pm = re.fullmatch(r'(?:final\s+)?([\w.<>\[\]]+)\s+(\w+)', rp.strip())
+            if not pm or pm.group(1) == cls:
+                ok = False
+                break
+            params.append((pm.group(1), pm.group(2)))
+        if not ok:
+            continue
+        end = _matching(body, m.end() - 1, '{', '}')
+        cbody = body[m.end():end - 1]
+        pmap = {pname: clean_args[i] for i, (_, pname) in enumerate(params)}
+        bound = {}
+        # verify every statement in constructor is super(...), staticText=..., or [this.]field = param
+        stmts = parse(cbody)
+        valid = True
+        for node in stmts:
+            if node[0] != 'stmt':
+                valid = False
+                break
+            st = node[1]
+            if st.startswith('super(') or st.startswith('staticText=') or st.startswith('this.staticText='):
+                continue
+            am = re.fullmatch(r'(?:this\.)?(\w+)=(\w+)', st)
+            if am and am.group(2) in pmap:
+                bound[am.group(1)] = pmap[am.group(2)]
+                continue
+            valid = False
+            break
+        if not valid:
+            continue
+        # substitute `this.field` and bare `field` (outside declarations) in body, and replace super(param)
+        new_body = body
+        # first replace super(...) calls using pmap
+        for pname, aval in pmap.items():
+            new_body = re.sub(r'(super\([^)]*)\b' + re.escape(pname) + r'\b', r'\1' + aval, new_body)
+        # remove constructor + field declarations for bound fields, and substitute in method bodies
+        for fname, aval in bound.items():
+            new_body = re.sub(r'\bthis\.' + re.escape(fname) + r'\b', aval, new_body)
+            # replace field references in method bodies (avoid replacing the declaration line itself)
+            new_body = re.sub(r'(?<![\w.])' + re.escape(fname) + r'(?![\w(=])', aval, new_body)
+        return new_body, set(bound.keys())
+    raise Unsupported('constructor arguments')
+
+
 def _translate(t, cls, args, source):
     source = _strip_comments(source)
     found = class_body(source, cls)
     if not found:
         raise Unsupported('not declared')
     extends, body = found
-    if extends in custom_statics.KINDS and not args:
+    bound_fields = set()
+    if args:
+        body, bound_fields = _bind_ctor_args(cls, body, args)
+    if extends in custom_statics.KINDS:
         return custom_statics.translate(t, cls, extends, body, T)
     if extends != 'OneShotEffect':
         raise Unsupported('extends ' + extends)
-    if args:
-        raise Unsupported('constructor arguments')
-    # instance state (fields set in the constructor) isn't read
+    # instance state (fields set in the constructor) isn't read unless bound above
     fields = {}
     for m in re.finditer(r'\n\s*(?:private |protected |public )?(?:static )?(?:final )?([\w<>]+) (\w+)\s*(=\s*([^;]*))?;', _top_level(body)):
         typ, name, init = m.group(1), m.group(2), m.group(4)
         if typ in ('return',) or '(' in typ:
+            continue
+        if name in bound_fields:
             continue
         if 'static' in m.group(0) and init is not None:
             if typ.endswith(('Value', 'Count')) or typ == 'DynamicValue':

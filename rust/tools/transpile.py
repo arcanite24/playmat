@@ -17,6 +17,7 @@ import sys
 
 import card_handlers
 import custom_effects
+import custom_triggers
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 SETS = os.path.join(ROOT, 'Mage.Sets', 'src', 'mage', 'cards')
@@ -39,6 +40,7 @@ KEYWORDS = {
     'HexproofAbility', 'ShroudAbility', 'IndestructibleAbility', 'WhiteManaAbility', 'BlueManaAbility', 'BlackManaAbility',
     'RedManaAbility', 'GreenManaAbility', 'ColorlessManaAbility', 'CanBlockOnlyFlyingAbility', 'CantBeBlockedSourceAbility', 'CantBlockAbility', 'DauntAbility',
     'IslandwalkAbility', 'PlainswalkAbility', 'SwampwalkAbility', 'MountainwalkAbility', 'ForestwalkAbility', 'SkulkAbility', 'IntimidateAbility', 'DecayedAbility', 'WitherAbility', 'InfectAbility',
+    'FearAbility', 'ShadowAbility', 'HorsemanshipAbility', 'SpaceflightAbility', 'SplitSecondAbility', 'PartnerAbility', 'FlankingAbility',
     'UmbraArmorAbility', 'CompleatedAbility', 'DamageAsThoughNotBlockedAbility',
     'ConvokeAbility', 'DayboundAbility', 'NightboundAbility', 'AscendAbility',
     'StartYourEnginesAbility', 'StoriedAbility', 'BecomeDayAsEntersAbility',
@@ -107,7 +109,7 @@ EFFECTS = {
     'LoseLifeOpponentsEffect': [('amount', 'int')],
     'LoseLifeSourceControllerEffect': [('amount', 'int'), (None, 'bool')],
     'LoseLifeTargetEffect': [('amount', 'int')],
-    'DestroyAllEffect': [('filter', 'filter'), (None, 'false')],
+    'DestroyAllEffect': [('filter', 'filter'), (None, 'bool')],
     'DamageAllEffect': [('amount', 'int'), ('filter', 'filter')],
     'ReturnFromYourGraveyardToBattlefieldAllEffect': [('filter', 'filter')],
     'BoostAllEffect': [('power', 'int'), ('toughness', 'int'), ('duration', 'duration'), ('filter', 'filter'),
@@ -890,6 +892,14 @@ CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'},
               'TwoOrMoreSpellsWereCastLastTurnCondition.instance': {'c': 'two_spells_last_turn'},
               'BlightedCondition.instance': {'c': 'kicked'}, 'TeamworkCondition.instance': {'c': 'kicked'}, 'RaidCondition.instance': {'c': 'raid'},
               'RevoltCondition.instance': {'c': 'revolt'},
+              'MyTurnBeforeAttackersDeclaredCondition.instance': {'c': 'my_turn_before_attackers_declared'},
+              'IsStepCondition.getMyUpkeep()': {'c': 'is_step', 'step': 'UPKEEP', 'only_yours': True},
+              'CastFromHandSourcePermanentCondition.instance': {'c': 'cast_from_hand'},
+              'ManaWasSpentCondition.WHITE': {'c': 'mana_color_spent', 'color': 'W', 'n': 1},
+              'ManaWasSpentCondition.BLUE': {'c': 'mana_color_spent', 'color': 'U', 'n': 1},
+              'ManaWasSpentCondition.BLACK': {'c': 'mana_color_spent', 'color': 'B', 'n': 1},
+              'ManaWasSpentCondition.RED': {'c': 'mana_color_spent', 'color': 'R', 'n': 1},
+              'ManaWasSpentCondition.GREEN': {'c': 'mana_color_spent', 'color': 'G', 'n': 1},
               'CitysBlessingCondition.instance': {'c': 'citys_blessing'},
               'EnduringStoryCondition.instance': {'c': 'enduring_story'},
               # cast using web-slinging: the engine keeps it as the spell's kicked flag, as surge's
@@ -1133,7 +1143,7 @@ def predicate(text, subtypes):
     if text == 'DefendingPlayerOwnsCardPredicate.instance':
         return {'p': 'owner', 'who': 'opponent'}
     if text == 'DefendingPlayerControlsSourceAttackingPredicate.instance':
-        return {'p': 'controller', 'who': 'opponent'}
+        return {'p': 'defending_player_controls_source_attacking'}
     # an outlaw: an Assassin, Mercenary, Pirate, Rogue or Warlock
     if text == 'CutDownPredicate.instance':
         return {'p': 'total_power_toughness', 'n': 5}
@@ -2000,6 +2010,8 @@ class Translator:
             return self.condition(self.conditions[arg])
         if arg == 'SourceEnteredOrControlsBasicLandCondition.instance':
             return {'c': 'or', 'xs': [{'c': 'source_entered_this_turn'}, self.condition('YouControlABasicLandCondition.instance')]}
+        if (m := re.fullmatch(r'new IsStepCondition\(PhaseStep\.(\w+)(?:,(true|false))?\)', arg)):
+            return {'c': 'is_step', 'step': m.group(1), 'only_yours': m.group(2) != 'false'}
         if arg == 'YouControlABasicLandCondition.instance':
             return {'c': 'permanents', 'filter': [LAND, {'p': 'supertype', 's': 'BASIC'}], 'cmp': 'OR_GREATER', 'n': 1}
         # any player controls a permanent of the filter (`game.getBattlefield().count(filter, …) > 0`)
@@ -2531,8 +2543,21 @@ class Translator:
         if cls == 'DiscardTargetCost' and len(args) == 1 \
                 and (n := re.fullmatch(r'new TargetCardInHand\((\d+),(.*)\)', canonical(args[0]))):
             return {'class': 'DiscardCardCost', 'filter': self.filter(n.group(2)), 'amount': int(n.group(1))}
-        if cls == 'DiscardCardCost' and len(args) <= 1 and args != ['true']:
-            return {'class': cls, 'filter': self.filter(args[0]) if args and args[0] != 'false' else []}
+        if cls == 'DiscardCardCost' and len(args) <= 2:
+            if not args:
+                return {'class': cls, 'filter': []}
+            if len(args) == 1 and args[0].strip() in ('true', 'false'):
+                out = {'class': cls, 'filter': []}
+                if args[0].strip() == 'true':
+                    out['random'] = True
+                return out
+            if len(args) == 1:
+                return {'class': cls, 'filter': self.filter(args[0])}
+            if len(args) == 2 and args[1].strip() in ('true', 'false'):
+                out = {'class': cls, 'filter': self.filter(args[0])}
+                if args[1].strip() == 'true':
+                    out['random'] = True
+                return out
         if cls == 'BeholdCost' and len(args) == 1 and (m := re.fullmatch(r'SubType\.(\w+)', args[0].strip())):
             return {'class': cls, 'subtype': subtype_names()[m.group(1)]}
         if cls == 'DiscardHandCost' and not args:
@@ -2742,9 +2767,10 @@ class Translator:
         if cost != 'new TapSourceCost()':
             out['cost'], out['no_tap'] = [self.cost(cost)], True
         if net is not None:
-            if out['class'] != 'ColoredManaAbility' or not out.get('no_tap'):
+            if not out.get('no_tap'):
                 return None
-            out['net'] = self.amount(net)
+            if out['class'] == 'ColoredManaAbility':
+                out['net'] = self.amount(net)
         return out
 
     def java_mana(self, expr):
@@ -3755,10 +3781,11 @@ class Translator:
         if cls == 'DiscardControllerEffect' and len(args) == 2 and re.fullmatch(r'\d+', args[0].strip()) \
                 and args[1].strip() == 'true':
             return {'class': cls, 'amount': int(args[0]), 'random': True}
-        # "discards a card at random" (`randomDiscard`: Black Cat)
-        if cls == 'DiscardTargetEffect' and len(args) == 2 and re.fullmatch(r'\d+', args[0].strip()) \
-                and args[1].strip() == 'true':
-            return {'class': cls, 'amount': int(args[0]), 'random': True}
+        # "discards cards at random" (`randomDiscard`: Black Cat, Mind Twist, Mind Shatter)
+        if cls == 'DiscardTargetEffect' and len(args) == 2 and args[1].strip() == 'true':
+            return {'class': cls, 'amount': self.amount(args[0]), 'random': True}
+        if cls == 'GoadTargetEffect' and (not args or (len(args) == 1 and args[0].strip() == 'Duration.UntilYourNextTurn')):
+            return {'class': cls}
         if cls == 'DrawDiscardTargetEffect' and len(args) == 2 and all(re.fullmatch(r'\d+', a.strip()) for a in args):
             return {'class': cls, 'draw': int(args[0]), 'discard': int(args[1])}
         if cls == 'CreateTokenTargetEffect' and len(args) == 1 and (m := re.fullmatch(r'new (\w+Token)\(\)', args[0].strip())):
@@ -3793,6 +3820,34 @@ class Translator:
                 and args[0].strip() in ('Duration.EndOfTurn', 'Duration.Custom', 'Duration.WhileOnBattlefield', 'Duration.EndOfGame'):
             return {'class': 'AddCardSubTypeTargetEffect', 'subtype': subtype_names()[args[1].strip()[8:]],
                     'duration': 'EndOfTurn' if args[0].strip() == 'Duration.EndOfTurn' else 'WhileOnBattlefield'}
+        if cls == 'BecomesColorTargetEffect' and len(args) in (1, 2, 3):
+            a = [x.strip() for x in args]
+            dur_s = a[-1]
+            if dur_s in ('Duration.EndOfTurn', 'Duration.Custom', 'Duration.WhileOnBattlefield', 'Duration.EndOfGame'):
+                dur = 'EndOfTurn' if dur_s == 'Duration.EndOfTurn' else 'WhileOnBattlefield'
+                col, retain = None, False
+                cmap = {'ObjectColor.WHITE': 'W', 'ObjectColor.BLUE': 'U', 'ObjectColor.BLACK': 'B',
+                        'ObjectColor.RED': 'R', 'ObjectColor.GREEN': 'G'}
+                ok = True
+                if len(a) >= 2:
+                    if a[0] in cmap:
+                        col = cmap[a[0]]
+                    elif a[0] == 'null':
+                        col = None
+                    else:
+                        ok = False
+                if len(a) == 3:
+                    if a[1] in ('true', 'false'):
+                        retain = a[1] == 'true'
+                    else:
+                        ok = False
+                if ok:
+                    out = {'class': cls, 'duration': dur}
+                    if col is not None:
+                        out['color'] = col
+                    if retain:
+                        out['retain'] = True
+                    return out
         # (a Phyrexian, not black, is the per-card handler's: Portal to Phyrexia)
         if cls == 'AddCreatureTypeAdditionEffect' and len(args) == 2 and re.fullmatch(r'SubType\.\w+', args[0].strip()) \
                 and args[1].strip() in ('true', 'false') \
@@ -5795,6 +5850,76 @@ class Translator:
             return {'class': cls, 'java': cls}
         if cls == 'CommanderColorIdentityManaAbility' and not args:
             return {'class': cls, 'java': cls}
+        if cls == 'BushidoAbility' and len(args) == 1:
+            amt = self.amount(args[0])
+            return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'blocks_or_becomes_blocked'},
+                    'effects': [{'class': 'BoostSourceEffect', 'power': amt, 'toughness': amt, 'duration': 'EndOfTurn'}]}
+        if cls == 'PartnerWithAbility' and len(args) in (1, 2, 3) and re.fullmatch(r'"([^"]+)"', args[0].strip()):
+            partner = args[0].strip()[1:-1]
+            return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'enters'},
+                    'targets': [{'class': 'TargetPlayer'}],
+                    'effects': [{'class': 'PartnerWithSearchEffect', 'name': partner}]}
+        if cls == 'LivingWeaponAbility' and not args:
+            return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'enters'},
+                    'effects': [{'class': 'CreateTokenEffect', 'token': token('PhyrexianGermToken'),
+                                 'amount': 1, 'attach_source': False}]}
+        if cls == 'SoulshiftAbility' and len(args) == 1 and re.fullmatch(r'\d+', args[0].strip()):
+            return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'dies'},
+                    'effects': [{'class': 'ReturnToHandTargetEffect'}],
+                    'targets': [{'class': 'TargetCardInYourGraveyard',
+                                 'filter': [{'p': 'subtype', 's': 'Spirit'},
+                                            {'p': 'mv', 'cmp': 'OR_LESS', 'n': int(args[0].strip())}]}]}
+        if cls == 'MyriadAbility' and len(args) <= 1 and (not args or args[0].strip() in ('true', 'false')):
+            return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'attacks'},
+                    'effects': [{'class': 'MyriadEffect'}], 'rule': 'myriad'}
+        if cls == 'EchoAbility' and len(args) == 1:
+            a = args[0].strip()
+            if re.fullmatch(r'"[^"]*"', a):
+                ec = {'class': 'ManaCost', 'cost': a[1:-1]}
+            else:
+                ec = self.cost(a)
+            return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'echo_upkeep'},
+                    'effects': [{'class': 'EchoEffect', 'cost': ec}]}
+        if cls == 'CastOnlyDuringPhaseStepSourceAbility' and len(args) in (1, 2, 3, 4):
+            a = [x.strip() for x in args]
+            phase, step, cond = None, None, None
+            if len(a) == 1:
+                if (m := re.fullmatch(r'TurnPhase\.(\w+)', a[0])):
+                    phase = m.group(1)
+                elif (m := re.fullmatch(r'PhaseStep\.(\w+)', a[0])):
+                    step = m.group(1)
+                else:
+                    raise Unsupported('ability ' + cls)
+            elif len(a) == 2:
+                if (m := re.fullmatch(r'TurnPhase\.(\w+)', a[0])):
+                    phase = m.group(1)
+                elif (m := re.fullmatch(r'PhaseStep\.(\w+)', a[0])):
+                    step = m.group(1)
+                else:
+                    raise Unsupported('ability ' + cls)
+                if a[1] != 'null':
+                    cond = self.condition(a[1])
+            else:
+                if a[0] != 'null':
+                    m = re.fullmatch(r'TurnPhase\.(\w+)', a[0])
+                    if not m:
+                        raise Unsupported('ability ' + cls)
+                    phase = m.group(1)
+                if a[1] != 'null':
+                    m = re.fullmatch(r'PhaseStep\.(\w+)', a[1])
+                    if not m:
+                        raise Unsupported('ability ' + cls)
+                    step = m.group(1)
+                if a[2] != 'null':
+                    cond = self.condition(a[2])
+            out = {'class': cls, 'java': cls}
+            if phase:
+                out['phase'] = phase
+            if step:
+                out['step'] = step
+            if cond is not None:
+                out['condition'] = cond
+            return out
         if cls == 'NykthosShrineToNyxManaAbility' and not args:
             return {'class': cls, 'java': cls, 'cost': [{'class': 'ManaCost', 'cost': '{2}'}]}
         # "as this enters, choose a color" (only as it enters: the engine's choice rewrites its mana abilities)
@@ -6301,8 +6426,12 @@ class Translator:
                     return {'class': 'ConditionalManaAbility', 'java': cls, 'color': COLOR_LETTERS[n.group(1)],
                             'filter': self.filter(b.group(1))}
             elif re.fullmatch(r'\d+', args[0].strip()):
-                return {'class': 'ConditionalManaAbility', 'java': cls, 'amount': int(args[0]),
-                        'filter': self.filter(b.group(1))}
+                n = int(args[0])
+                out = {'class': 'ConditionalManaAbility', 'java': cls, 'amount': n,
+                       'filter': self.filter(b.group(1))}
+                if n > 1:
+                    out['combination'] = True
+                return out
         # "{T}: Add {R}. Activate only if …"
         if cls == 'ActivateIfConditionManaAbility' and len(args) == 4 and args[0] == 'Zone.BATTLEFIELD' \
                 and args[2] == 'new TapSourceCost()':
@@ -6502,6 +6631,10 @@ class Translator:
             m['java'] = cls
             return m
         if cls not in ABILITIES:
+            try:
+                return custom_triggers.translate(self, cls, [x.strip() for x in args], getattr(self, 'source', None), sys.modules[__name__])
+            except (custom_triggers.Unsupported, Unsupported):
+                pass
             raise Unsupported('ability ' + cls)
         a = self.build(cls, args, ABILITIES[cls], 'ability')
         if 'effect' in a:
@@ -8428,9 +8561,6 @@ def translate(card_name, subtypes, facts):
     for a in card['abilities']:
         if a.get('class') == 'FlashbackAbility' and a.get('cost') is JUMP_START:
             a['cost'] = card.get('cost', '')
-    # a creature cast from suspend gains haste, which the engine doesn't do yet
-    if 'CREATURE' in card.get('types', []) and any(a.get('class') == 'SuspendAbility' for a in card['abilities']):
-        raise Unsupported('suspend on a creature')
     rule = next((f['rule'] for f in java_abilities if f['class'] == 'SpellAbility'), '')
     # spree: one or more modes, each with its own cost
     if any(a['class'] == 'SpreeAbility' for a in card['abilities']):
@@ -10310,6 +10440,8 @@ PIONEER_POOL = os.path.join(ROOT, 'rust', 'crates', 'playmat-engine', 'cards', '
 CAREER_POOL = os.path.join(ROOT, 'rust', 'crates', 'playmat-engine', 'cards', 'career-pool.txt')
 # most-played non-Pioneer cards on production (server logs, replays, decks, ladder)
 SERVER_POOL = os.path.join(ROOT, 'rust', 'crates', 'playmat-engine', 'cards', 'server-pool.txt')
+# all remaining non-Alchemy cards in Mage.Sets
+FULL_POOL = os.path.join(ROOT, 'rust', 'crates', 'playmat-engine', 'cards', 'full-pool.txt')
 
 
 def engine_pool():
@@ -10318,7 +10450,7 @@ def engine_pool():
     server cards outside them (`cards/server-pool.txt`). Being in the engine isn't being trusted: `cards/verified.txt`
     decides which games go to Rust."""
     names = set(school_pool())
-    for pool in (PIONEER_POOL, CAREER_POOL, SERVER_POOL):
+    for pool in (PIONEER_POOL, CAREER_POOL, SERVER_POOL, FULL_POOL):
         if os.path.exists(pool):
             names.update(l.strip() for l in open(pool) if l.strip() and not l.startswith('#'))
     return sorted(names)

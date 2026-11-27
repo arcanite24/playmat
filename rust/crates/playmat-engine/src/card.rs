@@ -64,6 +64,8 @@ pub struct ManaCost {
     /// counts them as generic (`SnowManaCost.testPay`); the payment takes them after hybrid and before generic
     /// (`ManaCostsImpl.assignPayment`), from mana a snow permanent made (its source filter)
     pub snow: u32,
+    /// printed with no mana cost (`""`, Ancestral Vision, Living End): unpayable as a normal cast (MTG 118.6)
+    pub unpayable: bool,
     pub text: String,
 }
 
@@ -494,6 +496,8 @@ pub enum Pred {
     ChosenName,
     /// `AdventurePredicate`: a card with an Adventure
     Adventure,
+    /// `DefendingPlayerControlsSourceAttackingPredicate`: controlled by defending player while source is attacking
+    DefendingPlayerControlsSourceAttacking,
     /// `ManaValuePredicate`
     Mv {
         cmp: Cmp,
@@ -1360,6 +1364,8 @@ pub enum Trigger {
     CareerTurn {
         turn: u32,
     },
+    /// `EchoAbility`: at the beginning of your upkeep, if echo hasn't been paid under your control since ETB
+    EchoUpkeep,
     /// a Career timed twist (`CareerTimedTwists.AtLife`): a state trigger, `seat`'s life is `life` or less; once each
     /// game, and held back while another of its source's waits or is on the stack (`StateTriggeredAbility`)
     CareerLife {
@@ -1526,6 +1532,16 @@ pub enum Condition {
     /// four or more card types among cards exiled with the source (Keen-Eyed Curator)
     ExiledCardTypes {
         n: usize,
+    },
+    /// `CastFromHandSourcePermanentCondition`: this permanent was cast from hand
+    CastFromHand,
+    /// `MyTurnBeforeAttackersDeclaredCondition`: your turn during beginning, precombat main, or beginning of combat
+    MyTurnBeforeAttackersDeclared,
+    /// `IsStepCondition`: current step matches `step` (and active player is you when `only_yours`)
+    IsStep {
+        step: String,
+        #[serde(default = "yes")]
+        only_yours: bool,
     },
     SourceEnteredThisTurn,
     /// `SourceAttackingCondition`
@@ -1904,6 +1920,9 @@ pub enum CostDef {
         /// cards with different names (Ormos, Archive Keeper's `OrmosArchiveKeeperTarget`)
         #[serde(default)]
         different_names: bool,
+        /// discard at random (`new DiscardCardCost(true)`)
+        #[serde(default)]
+        random: bool,
     },
     /// reveal between `min` and `max` cards of the filter from your hand; the number revealed is the ability's X
     /// (`RevealTargetFromHandCost`, `RevealTargetFromHandCostCount`)
@@ -4834,6 +4853,26 @@ pub enum EffectDef {
     ShuffleLibraryTargetEffect,
     /// static (layer 4): nonbasic lands are Mountains (Blood Moon)
     NonbasicLandsAreMountainsEffect,
+    /// `PartnersWithSearchEffect`: target player may search their library for `name`, put it into hand, shuffle
+    PartnerWithSearchEffect {
+        name: String,
+    },
+    /// `MyriadEffect`: in multiplayer, creates tapped-and-attacking copies for each other opponent (no-op in 1v1)
+    MyriadEffect,
+    /// `EchoEffect`: sacrifice source unless controller pays `cost`
+    EchoEffect {
+        cost: CostDef,
+    },
+    /// `BecomesColorTargetEffect`: target permanent or spell becomes `color` (or chosen color if None)
+    BecomesColorTargetEffect {
+        #[serde(default)]
+        color: Option<Color>,
+        #[serde(default)]
+        retain: bool,
+        duration: Duration,
+    },
+    /// `GoadTargetEffect`: target creature is goaded until your next turn (must attack each combat if able)
+    GoadTargetEffect,
 }
 
 /// A number an `Effects` sequence works out before its effects
@@ -5698,6 +5737,31 @@ pub enum AbilityDef {
     WitherAbility,
     /// damage this deals to a creature is -1/-1 counters and to a player is poison counters (`InfectAbility`)
     InfectAbility,
+    /// can only be blocked by artifact creatures and/or black creatures (`FearAbility`)
+    FearAbility,
+    /// can only block or be blocked by creatures with shadow (`ShadowAbility`)
+    ShadowAbility,
+    /// can only be blocked by creatures with horsemanship (`HorsemanshipAbility`)
+    HorsemanshipAbility,
+    /// can only block or be blocked by creatures with spaceflight (`SpaceflightAbility`)
+    SpaceflightAbility,
+    /// while this spell is on the stack, players can't cast spells or activate non-mana abilities (`SplitSecondAbility`)
+    SplitSecondAbility,
+    /// commander marker keyword (`PartnerAbility`)
+    PartnerAbility,
+    /// whenever a creature without flanking blocks this creature, the blocking creature gets -1/-1 until end of turn
+    FlankingAbility,
+    /// `CastOnlyDuringPhaseStepSourceAbility`: cast this spell only during `phase`/`step` when `condition` holds
+    CastOnlyDuringPhaseStepSourceAbility {
+        #[serde(default)]
+        phase: Option<String>,
+        #[serde(default)]
+        step: Option<String>,
+        #[serde(default)]
+        condition: Option<Condition>,
+        #[serde(default)]
+        rule: String,
+    },
     DefenderAbility,
     /// this can block only creatures with flying
     CanBlockOnlyFlyingAbility,
@@ -6340,11 +6404,15 @@ impl AbilityDef {
             | AbilityDef::CardManaAbility { .. }
             | AbilityDef::AddEachControlledColorManaAbility { .. }
             | AbilityDef::DynamicManaAbility { .. } => ManaKind::Other,
-            // a `BasicManaAbility` makes one mana; "{T}: Add {G}{G}" is a `SimpleManaAbility`
-            AbilityDef::ColoredManaAbility { amount, simple, .. } if *amount != 1 || *simple => ManaKind::Other,
-            // `SimpleManaAbility`s with a `ConditionalManaEffect` (Ugin's Labyrinth, Gemstone Caverns) or {C}{C}
-            AbilityDef::ColorlessManaAbility { amount, two_if_exiled, any_color_with, .. }
-                if *amount != 1 || *two_if_exiled || any_color_with.is_some() =>
+            // a `BasicManaAbility` makes one mana; "{T}: Add {G}{G}" or a `SimpleManaAbility` with a cost isn't one
+            AbilityDef::ColoredManaAbility { amount, simple, cost, .. }
+                if *amount != 1 || *simple || !cost.is_empty() =>
+            {
+                ManaKind::Other
+            }
+            // `SimpleManaAbility`s with a `ConditionalManaEffect` (Ugin's Labyrinth, Gemstone Caverns), a cost, or {C}{C}
+            AbilityDef::ColorlessManaAbility { amount, two_if_exiled, any_color_with, cost, .. }
+                if *amount != 1 || *two_if_exiled || any_color_with.is_some() || !cost.is_empty() =>
             {
                 ManaKind::Other
             }
@@ -6826,7 +6894,8 @@ impl CardDef {
                 face.set = json.set.clone();
             }
         }
-        let cost = ManaCost::parse(&json.cost)?;
+        let mut cost = ManaCost::parse(&json.cost)?;
+        cost.unpayable = json.cost.trim().is_empty();
         let colors = json.colors.unwrap_or_else(|| cost.colors());
         Ok(CardDef {
             set: json.set,

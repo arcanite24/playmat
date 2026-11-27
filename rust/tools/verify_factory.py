@@ -133,7 +133,7 @@ def mana_value(card):
 
 def load_errors():
     """the cards of cards.json the engine can't load (lib.rs's test prints them), which can't be played"""
-    p = subprocess.run(['cargo', '+stable', 'test', '--release', '-q', '-p', 'playmat-engine', '--lib',
+    p = subprocess.run(['cargo', '+stable', 'test', '--profile', 'shadow', '-q', '-p', 'playmat-engine', '--lib',
                         'every_verified_card_loads', '--', '--nocapture'], cwd=os.path.join(ROOT, 'rust'),
                        capture_output=True, text=True)
     out, on = set(), False
@@ -266,11 +266,24 @@ def build(args):
             lines[n] += 4
         for n in l:
             lines[n] += 4
-        # fill: verified cheap spells of the deck's colors up to 36 spells
+        # fill: ramp for high-MV decks, cheap cantrips for graveyard/delve decks, else cheap verified spells up to 36
         pool = [f for key, fs in fillers.items() if set(key) <= set(colors) for f in fs]
         rng.shuffle(pool)
+        has_big = any(mana_value(cards[n]) >= 6 for n in s)
+        has_gy = any(any(a.get('class') in ('DelveAbility', 'EscapeAbility', 'FlashbackAbility')
+                         for a in cards[n].get('abilities', [])) for n in s)
+        boosts = []
+        if has_big:
+            boosts += [c for c in ('Sol Ring', 'Mind Stone', 'Fellwar Stone', 'Thought Vessel') if c in verified]
+            if 'G' in colors:
+                boosts += [c for c in ('Birds of Paradise', "Nature's Lore", 'Farseek') if c in verified]
+        if has_gy:
+            if 'U' in colors:
+                boosts += [c for c in ('Brainstorm', 'Ponder', 'Opt', 'Consider') if c in verified]
+            if 'R' in colors:
+                boosts += [c for c in ('Faithless Looting',) if c in verified]
         spells_n = sum(v for k, v in lines.items() if not is_land(cards[k]))
-        for f in pool:
+        for f in boosts + pool:
             if spells_n >= 36:
                 break
             if f not in lines:
@@ -333,10 +346,17 @@ def record(args):
         chunks = [todo[i::procs] for i in range(procs)]
         running = []
         for i, chunk in enumerate(chunks):
-            cmd = [MVN, '-o', '-q', '-pl', 'Mage.Tests', 'test', '-Dtest=ShadowGamesTest',
+            seed_arg = '-Dxmage.shadowGames.seeds=' + ','.join(chunk)
+            if len(chunk) > 60:
+                sf = os.path.join(out, 'seeds-%02d.txt' % i)
+                with open(sf, 'w') as sfh:
+                    sfh.write(','.join(chunk) + '\n')
+                seed_arg = '-Dxmage.shadowGames.seedsFile=' + sf
+            cmd = [MVN, '-o', '-q', '-pl', 'Mage.Tests', 'test', '-Dtest=ShadowGamesTest#recordShadowGames',
                    '-Dsurefire.failIfNoSpecifiedTests=false',
-                   '-Dxmage.shadowGames=' + rec, '-Dxmage.shadowGames.seeds=' + ','.join(chunk),
+                   '-Dxmage.shadowGames=' + rec, seed_arg,
                    '-Dxmage.shadowGames.turns=%d' % args.turns,
+                   '-Dxmage.shadowGames.threads=%d' % args.threads,
                    '-Dxmage.shadowGames.decks=' + os.path.join(out, 'decks'),
                    '-Dxmage.dataCollectors.printGameLogs=false', '-Dlog4j.configuration=file:' + log4j]
             logf = open(os.path.join(out, ('record-%02d.log' if attempt == 0 else 'record-%02d.retry%d.log')
@@ -370,8 +390,8 @@ def replay(args):
         rec = os.path.join(out, 'rec')
         env = dict(os.environ, PLAYMAT_SHADOW=rec)
         env.pop('PLAYMAT_SHADOW_STRICT', None)
-        cmd = ['cargo', '+stable', 'test', '--release', '-q', '-p', 'playmat-engine', '--test', 'shadow', '--',
-               '--nocapture']
+        cmd = ['cargo', '+stable', 'test', '--profile', 'shadow', '-q', '-p', 'playmat-engine', '--test', 'shadow',
+               '--', '--nocapture']
         p = subprocess.run(cmd, cwd=os.path.join(ROOT, 'rust'), env=env, capture_output=True, text=True)
         results = parse_replay(p.stderr)
         with open(os.path.join(out, 'replay.json'), 'w') as fh:
@@ -614,14 +634,15 @@ def main():
     p.add_argument('--priority', help='a TSV with card and score columns that orders the candidates')
     p.add_argument('--used-only', action='store_true', help='only candidates with a score above 0')
     p.add_argument('--limit', type=int, default=0)
-    p.add_argument('--per-deck', type=int, default=6, help='candidate spells per deck')
+    p.add_argument('--per-deck', type=int, default=8, help='candidate spells per deck')
     p.add_argument('--lands-per-deck', type=int, default=2, help='candidate lands per deck')
     p.add_argument('--decks-per-card', type=int, default=3)
     p.add_argument('--games-per-deck', type=int, default=2)
     p.add_argument('--max-tries', type=int, default=3, help='rounds a candidate may take before it is left pending')
     p.add_argument('--seed', type=int, default=20261112)
     p.add_argument('--turns', type=int, default=20)
-    p.add_argument('--procs', type=int, default=8)
+    p.add_argument('--procs', type=int, default=1)
+    p.add_argument('--threads', type=int, default=8, help='concurrent games inside each Maven JVM')
     p.add_argument('--stagger', type=int, default=60, help='seconds between the first recorder and the rest')
     p.add_argument('--min-games', type=int, default=3)
     p.add_argument('--write', action='store_true', help='verdicts: add newly verified cards to cards/verified.txt')
