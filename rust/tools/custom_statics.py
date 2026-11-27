@@ -28,12 +28,14 @@ def translate(t, cls, extends, body, transpiler):
     """a card's own static effect class -> an engine effect, or Unsupported"""
     global T
     T = transpiler
-    # a static ability's effect lasts while its source is on the battlefield; one a resolving ability creates (for a
-    # turn) isn't one of these
-    durations = set(re.findall(r'\bsuper\(\s*Duration\.(\w+)', body))
-    if durations != {'WhileOnBattlefield'}:
+    # a static ability's effect lasts while its source is on the battlefield (or until end of turn for resolving statics)
+    durations = set(re.findall(r'\bsuper\([^;]*?\bDuration\.(\w+)', body))
+    if not durations or not durations <= {'WhileOnBattlefield', 'EndOfTurn'}:
         raise Unsupported('duration ' + ','.join(sorted(durations)))
+    dur = 'EndOfTurn' if durations == {'EndOfTurn'} else 'WhileOnBattlefield'
     if extends == 'ReplacementEffectImpl':
+        if dur != 'WhileOnBattlefield':
+            raise Unsupported('duration ' + dur)
         events = set(re.findall(r'EventType\.(\w+)', method_body(body, 'checksEventType')[1] or ''))
         if events == {'NUMBER_OF_TRIGGERS'}:
             return _additional_triggers(t, body)
@@ -46,6 +48,14 @@ def translate(t, cls, extends, body, transpiler):
         if events in ({'DAMAGE_PLAYER', 'DAMAGE_PERMANENT'}, {'DAMAGE_PLAYER'}):
             return _damage(t, body, events == {'DAMAGE_PLAYER'})
         raise Unsupported('replacement of ' + ','.join(sorted(events)))
+    if extends == 'RestrictionEffect':
+        return _restriction(t, body, dur)
+    if extends == 'CostModificationEffectImpl':
+        if dur != 'WhileOnBattlefield':
+            raise Unsupported('duration ' + dur)
+        return _cost_mod(t, body)
+    if extends == 'ContinuousEffectImpl':
+        return _continuous(t, body, dur)
     raise Unsupported('extends ' + extends)
 
 
@@ -535,3 +545,131 @@ def _enters_with(t, body):
         else:
             raise Unsupported('test part ' + repr(c)[:80])
     return out
+
+
+def _restriction(t, body, dur='WhileOnBattlefield'):
+    """Simple `RestrictionEffect` subclasses with `applies(Permanent permanent, Ability source, Game game)` and
+    unconditional `canBlock` or `canBeBlocked` returning false."""
+    params, abody = method_body(body, 'applies')
+    if not abody or not re.fullmatch(r'\s*Permanent\s+(\w+)\s*,\s*Ability\s+source\s*,\s*Game\s+game\s*', params or ''):
+        raise Unsupported('restriction applies')
+    pvar = re.match(r'\s*Permanent\s+(\w+)', params).group(1)
+    # check which restriction methods are overridden
+    has_attack = method_body(body, 'canAttack')[1]
+    has_block = method_body(body, 'canBlock')[1]
+    has_be_blocked = method_body(body, 'canBeBlocked')[1]
+    has_other = any(method_body(body, m)[1] for m in ('canAttackCheckAfter', 'canBeTargeted', 'canUseActivatedAbilities'))
+    if has_other or has_attack:
+        raise Unsupported('restriction method')
+    eff_cls = None
+    if has_block and not has_be_blocked and re.sub(r'\s+', '', has_block) == 'returnfalse;':
+        eff_cls = 'CantBlockAllEffect'
+    elif has_be_blocked and not has_block and re.sub(r'\s+', '', has_be_blocked) == 'returnfalse;':
+        eff_cls = 'CantBeBlockedAllEffect'
+    else:
+        raise Unsupported('restriction method body')
+    # translate `applies` with `pvar` as subject 'perm'
+    st = StaticTest(t, class_filters(t, body), lambdas={pvar: 'perm'})
+    f = _map_atoms(_formula(parse(abody), {}), st.atom)
+    filt = []
+    for c in _conjuncts(f):
+        if _subjects(c) == {'perm'}:
+            p = _pred_of(c, 'perm')
+            filt.extend(p['xs'] if p['p'] == 'and' else [p])
+        else:
+            raise Unsupported('restriction test ' + repr(c)[:60])
+    if not filt:
+        raise Unsupported('restriction empty filter')
+    return {'class': eff_cls, 'filter': filt, 'duration': dur}
+
+
+def _cost_mod(t, body):
+    """Simple `CostModificationEffectImpl` subclasses: `REDUCE_COST` / `INCREASE_COST` with `CardUtil.reduceCost` /
+    `increaseCost(abilityToModify, N)` on `SpellAbility` matching a filter and controller."""
+    cm = set(re.findall(r'CostModificationType\.(\w+)', body))
+    if cm not in ({'REDUCE_COST'}, {'INCREASE_COST'}):
+        raise Unsupported('cost mod type')
+    reduce = cm == {'REDUCE_COST'}
+    _, apply_b = method_body(body, 'apply')
+    if not apply_b:
+        raise Unsupported('cost mod no apply')
+    ac = re.sub(r'\s+', '', apply_b)
+    if reduce:
+        m = re.fullmatch(r'CardUtil\.reduceCost\(abilityToModify,(\d+)\);returntrue;', ac)
+    else:
+        m = re.fullmatch(r'CardUtil\.increaseCost\(abilityToModify,(\d+)\);returntrue;', ac)
+    if not m:
+        raise Unsupported('cost mod apply ' + ac[:60])
+    amount = int(m.group(1))
+    params, abody = method_body(body, 'applies')
+    if not abody or 'abilityToModify' not in (params or ''):
+        raise Unsupported('cost mod applies')
+    # Only handle straightforward `if (abilityToModify instanceof SpellAbility)` patterns with a card/spell filter
+    nodes = parse(abody)
+    ac_app = re.sub(r'\s+', '', abody)
+    if 'instanceofSpellAbility' not in ac_app:
+        raise Unsupported('cost mod non-spell')
+    # match controller check
+    who = None
+    if 'source.isControlledBy(abilityToModify.getControllerId())' in ac_app or 'abilityToModify.isControlledBy(source.getControllerId())' in ac_app:
+        who = 'you'
+    elif 'game.getOpponents(source.getControllerId()).contains(abilityToModify.getControllerId())' in ac_app:
+        who = 'opponent'
+    if who is None:
+        raise Unsupported('cost mod who')
+    if reduce and who != 'you':
+        raise Unsupported('cost mod reduce non-you')
+    # look for a single `filter.match(spell, ...)` or `filter.match(card, ...)`
+    fm = re.search(r'(\w+(?:\.\w+)?)\.match\((?:spell|card|game\.getCard\([^)]+\))(?:,[^)]+)?\)', abody)
+    if not fm:
+        raise Unsupported('cost mod filter')
+    fmap = class_filters(t, body)
+    fname = fm.group(1)
+    if fname in fmap:
+        filt = fmap[fname]
+    else:
+        filt = t.filter(fname)
+    # ensure there are no extra conditions we didn't parse (strict: body must be short & simple)
+    if any(kw in ac_app for kw in ('Watcher', 'for(', 'while(', 'getCounters', 'getAmount', 'getTarget', 'choose')):
+        raise Unsupported('cost mod complex')
+    if reduce:
+        return {'class': 'SpellsCostReductionControllerEffect', 'filter': filt, 'amount': amount}
+    return {'class': 'SpellsCostIncreasingAllEffect', 'filter': filt, 'amount': amount, 'who': who}
+
+
+def _continuous(t, body, dur='WhileOnBattlefield'):
+    """Simple `ContinuousEffectImpl` subclasses: layer 7c P/T boost (`addPower`/`addToughness`) or layer 6 keyword
+    grant (`addAbility(Keyword.getInstance(), ...)`) over a `getAllActivePermanents(filter, ...)` loop."""
+    _, apply_b = method_body(body, 'apply')
+    if not apply_b:
+        raise Unsupported('continuous no apply')
+    ac = re.sub(r'\s+', '', apply_b)
+    # Layer 7c: `for (Permanent p : game.getBattlefield().getAllActivePermanents(filter, [source.getControllerId(),] game)) { p.addPower(P); p.addToughness(T); } return true;`
+    if 'SubLayer.ModifyPT_7c' in body:
+        m = re.fullmatch(
+            r'for\(Permanent(\w+):game\.getBattlefield\(\)\.getAllActivePermanents\(([\w.]+),(source\.getControllerId\(\),)?game\)\)'
+            r'\{\1\.addPower\((-?\d+)\);\1\.addToughness\((-?\d+)\);\}returntrue;',
+            ac,
+        )
+        if m:
+            fmap = class_filters(t, body)
+            fname = m.group(2)
+            filt = fmap[fname] if fname in fmap else t.filter(fname)
+            cls = 'BoostControlledEffect' if m.group(3) else 'BoostAllEffect'
+            return {'class': cls, 'power': int(m.group(4)), 'toughness': int(m.group(5)),
+                    'duration': dur, 'filter': filt, 'exclude_source': False}
+    # Layer 6: `for (Permanent p : game.getBattlefield().getAllActivePermanents(filter, [source.getControllerId(),] game)) { p.addAbility(Keyword.getInstance(), source.getSourceId(), game); } return true;`
+    if 'Layer.AbilityAddingRemovingEffects_6' in body:
+        m = re.fullmatch(
+            r'for\(Permanent(\w+):game\.getBattlefield\(\)\.getAllActivePermanents\(([\w.]+),(source\.getControllerId\(\),)?game\)\)'
+            r'\{\1\.addAbility\((\w+)\.getInstance\(\),source\.getSourceId\(\),game\);\}returntrue;',
+            ac,
+        )
+        if m and m.group(4) in T.KEYWORDS:
+            fmap = class_filters(t, body)
+            fname = m.group(2)
+            filt = fmap[fname] if fname in fmap else t.filter(fname)
+            cls = 'GainAbilityControlledEffect' if m.group(3) else 'GainAbilityAllEffect'
+            return {'class': cls, 'ability': {'class': m.group(4)},
+                    'duration': dur, 'filter': filt, 'exclude_source': False}
+    raise Unsupported('extends ContinuousEffectImpl')

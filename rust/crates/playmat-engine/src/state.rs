@@ -432,6 +432,10 @@ pub struct Obj {
     pub merge_base: Option<Arc<CardDef>>,
     /// cards exiled to pay this spell's delve cost (`MurktideRegentValue`)
     pub delved_cards: Vec<ObjId>,
+    /// `EchoAbility`: the controller for whom echo has already triggered on this permanent
+    pub echo_paid: Option<Seat>,
+    /// creature cast from suspend gains haste as it enters (702.62a)
+    pub suspended_haste: bool,
 }
 
 impl Obj {
@@ -1217,6 +1221,10 @@ pub struct Game {
     pub flash_until_next_turn: Vec<(Seat, crate::card::Filter, ObjId)>,
     /// "you gain <ability> until your next turn" (`GainAbilityControllerEffect`, The One Ring): player, ability, source
     pub player_abilities_until_next_turn: Vec<(Seat, crate::card::AbilityDef, ObjId)>,
+    /// `BecomesColorTargetEffect` overrides: `(target, zcc, colors, retain, until_eot)`
+    pub color_overrides: Vec<(ObjId, u32, Vec<crate::card::Color>, bool, bool)>,
+    /// `GoadTargetEffect`: `(target, zcc, goader_seat)` — expires at start of `goader_seat`'s next turn
+    pub goaded: Vec<(ObjId, u32, Seat)>,
     /// each name `ChooseACardNameEffect` chose, by its source (Java's `sourceId + INFO_KEY` state value, which outlives
     /// the object: Comply's "until your next turn" reads it once the spell is gone), the latest last
     pub names_chosen: Vec<(ObjId, String)>,
@@ -1745,6 +1753,8 @@ impl Game {
             attach_entering: None,
             flash_until_next_turn: Vec::new(),
             player_abilities_until_next_turn: Vec::new(),
+            color_overrides: Vec::new(),
+            goaded: Vec::new(),
             names_chosen: Vec::new(),
             resolving: None,
             resolving_item: None,
@@ -2069,6 +2079,8 @@ impl Game {
             merged_top: None,
             merge_base: None,
             delved_cards: Vec::new(),
+            echo_paid: None,
+            suspended_haste: false,
         }));
         id
     }
@@ -2179,6 +2191,9 @@ impl Game {
                 source.and_then(|src| self.obj(src).chosen_name.as_ref()).is_some_and(|n| *n == self.obj(id).def.name)
             }
             Pred::Adventure => self.obj(id).def.adventure.is_some() || self.obj(id).adventurer.is_some(),
+            Pred::DefendingPlayerControlsSourceAttacking => {
+                source.is_some_and(|s| self.obj(s).attacking == Some(self.obj(id).controller))
+            }
             Pred::Mv { cmp, n } => cmp.holds(o.def.mana_value() as i32, *n),
             Pred::Power { cmp, n } => cmp.holds(self.power_toughness(id).0, *n),
             Pred::TotalPowerToughness { n } => {
@@ -2716,16 +2731,33 @@ impl Game {
             return true;
         }
         let lost_at = self.abilities_lost_at(id);
-        self.battlefield.iter().chain(self.command.iter()).any(|src| {
+        thread_local! {
+            static CHECKING_STATIC_SRC: std::cell::RefCell<Vec<ObjId>> = const { std::cell::RefCell::new(Vec::new()) };
+        }
+        let from_static = self.battlefield.iter().chain(self.command.iter()).any(|src| {
             let s = self.obj(*src);
-            !lost_at.is_some_and(|at| self.static_at(*src) < at)
-                && s.def.abilities.iter().any(|a| match a {
-                    AbilityDef::SimpleStaticAbility { effects, .. } => {
-                        effects.iter().any(|e| self.static_gives(e, *src, s.controller, id, ability))
-                    }
-                    _ => false,
-                })
-        }) || crate::rules::cards::abilities(self, id, lost_at).contains(ability)
+            if lost_at.is_some_and(|at| self.static_at(*src) < at) {
+                return false;
+            }
+            // Guard against self-referential ability-granting statics (e.g., Cavalry Master:
+            // "Other creatures you control with flanking have flanking").
+            let already = CHECKING_STATIC_SRC.with(|v| v.borrow().contains(src));
+            if already {
+                return false;
+            }
+            CHECKING_STATIC_SRC.with(|v| v.borrow_mut().push(*src));
+            let matched = s.def.abilities.iter().any(|a| match a {
+                AbilityDef::SimpleStaticAbility { effects, .. } => {
+                    effects.iter().any(|e| self.static_gives(e, *src, s.controller, id, ability))
+                }
+                _ => false,
+            });
+            CHECKING_STATIC_SRC.with(|v| {
+                v.borrow_mut().pop();
+            });
+            matched
+        });
+        from_static || crate::rules::cards::abilities(self, id, lost_at).contains(ability)
     }
 
     /// The timestamp of the newest attached Aura's "enchanted creature loses all abilities and is a …"
@@ -3201,7 +3233,7 @@ impl Game {
             }
             EffectDef::AttacksIfAbleAttachedEffect => g.attached(src) == Some(id),
             _ => false,
-        }) || self.eot_effects.iter().any(|(e, you, src)| match e {
+        }) || self.goaded.iter().any(|(t, z, _)| *t == id && *z == o.zcc) || self.eot_effects.iter().any(|(e, you, src)| match e {
             // "attack this turn if able" (Bident of Thassa): `AttackedThisTurnWatcher`'s creatures are done
             EffectDef::AttacksIfAbleAllEffect { filter, this_turn: true } => {
                 self.filter_matches(filter, *you, Some(*src), id) && !self.attacked_this_turn.contains(&(id, o.zcc))
@@ -3350,13 +3382,28 @@ impl Game {
         })
     }
 
-    /// An object's colors: all five for a nonland permanent under Leyline of the Guildpact
+    /// An object's colors: all five for a nonland permanent under Leyline of the Guildpact, plus Layer 5 overrides
     pub fn colors(&self, id: ObjId) -> Vec<crate::card::Color> {
         let o = self.obj(id);
-        if o.zone == Zone::Battlefield && !o.is(CardType::Land) && self.guildpact(o.controller, false) {
-            return crate::card::Color::ALL.to_vec();
+        let mut out = if o.zone == Zone::Battlefield && !o.is(CardType::Land) && self.guildpact(o.controller, false) {
+            crate::card::Color::ALL.to_vec()
+        } else {
+            o.def.colors.clone()
+        };
+        for (target, zcc, cols, retain, _) in &self.color_overrides {
+            if *target == id && *zcc == o.zcc {
+                if *retain {
+                    for c in cols {
+                        if !out.contains(c) {
+                            out.push(*c);
+                        }
+                    }
+                } else {
+                    out = cols.clone();
+                }
+            }
         }
-        o.def.colors.clone()
+        out
     }
 
     /// `BecomesAllBasicsControlledEffect`: the lands of a player with it are every basic land type, their basic mana
@@ -3909,6 +3956,10 @@ impl Game {
                 let o = self.obj(source);
                 o.cast || (o.zone != Zone::Battlefield && o.cast_lki)
             }
+            Condition::CastFromHand => {
+                let o = self.obj(source);
+                o.cast_from == Some(Zone::Hand) && (o.zone == Zone::Stack || o.cast || (o.zone != Zone::Battlefield && o.cast_lki))
+            }
             Condition::Raid => self.player(you).attacked,
             Condition::CitysBlessing => self.player(you).citys_blessing,
             Condition::MaxSpeed => self.player(you).speed >= 4,
@@ -3922,6 +3973,23 @@ impl Game {
             Condition::NoSpellsLastTurn => self.turn >= 2 && self.players.iter().all(|p| p.spells_cast_last_turn == 0),
             Condition::TwoSpellsLastTurn => self.players.iter().any(|p| p.spells_cast_last_turn >= 2),
             Condition::Revolt => self.player(you).permanent_left,
+            Condition::MyTurnBeforeAttackersDeclared => {
+                self.active == Some(you)
+                    && matches!(
+                        self.step,
+                        Some(
+                            Step::Untap
+                                | Step::Upkeep
+                                | Step::Draw
+                                | Step::PrecombatMain
+                                | Step::BeginCombat
+                        )
+                    )
+            }
+            Condition::IsStep { step, only_yours } => {
+                self.step.is_some_and(|st| st.name() == step.as_str())
+                    && (!*only_yours || self.active == Some(you))
+            }
             Condition::InstantsSorceriesCast { n } => self.player(you).instants_sorceries_cast >= *n,
             // `getStackObject`: the spell is still on the stack as it resolves, and its targets are as they last were
             // the resolving spell or ability's targets (Little Bear's trigger), else its spell's on the stack

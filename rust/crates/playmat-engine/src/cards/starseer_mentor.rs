@@ -20,7 +20,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     let Some(player) = cx.player(0) else { return Some(()) };
     let src = cx.source_id();
     let sacrifice = CostDef::SacrificeTargetCost { filter: cx.filters[0].clone(), amount: 1 };
-    let discard = CostDef::DiscardCardCost { filter: Filter::default(), amount: 1, different_names: false };
+    let discard = CostDef::DiscardCardCost { filter: Filter::default(), amount: 1, different_names: false, random: false };
     let usable: Vec<&CostDef> =
         [&sacrifice, &discard].into_iter().filter(|c| can_pay_cost(game, player, src, c)).collect();
     let mut paid = false;

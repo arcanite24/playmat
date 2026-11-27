@@ -3359,6 +3359,34 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
   card blamed, with the lines where Java and Rust differ). Each engine fix it leads to gets one regression game under
   `shadow/factory/`.
 
+  Full-catalog expansion & 4-track scaling milestone (23,899 translated of 32,993 non-Alchemy cards, 15,189 verified):
+  - **Verification speed (Track 1):** Added `[profile.shadow]` in `rust/Cargo.toml` (`lto = false`, `codegen-units = 16`)
+    for fast compile/replay iteration; added in-JVM multi-threading (`-Dxmage.shadowGames.threads=N`, initializing
+    `TokenRepository.instance.init()` up front to avoid unsynchronized token-list duplication) and `-Dxmage.shadowGames.seedsFile`
+    to `ShadowGamesTest.java`; updated `verify_factory.py` to default to `--profile shadow`, `--procs 1 --threads 8`,
+    `--per-deck 8`, and automatic ramp/cantrip injection for high-MV and graveyard-cost decks.
+  - **Catalog expansion & Wave 1 (Track 2):** Added `cards/full-pool.txt` (17,480 non-Alchemy cards outside the Pioneer,
+    Career, and server pools) and additively appended their card/token/emblem facts to `cards/facts.json` (catching
+    non-zero-arg token constructors in `CardFactsTest.java`), taking translation from 14,509 to 23,302 with zero engine changes.
+    Wave 1 (500 highest-priority unverified cards, 374 games) surfaced 7 shared engine bugs (`at_that_player` missing
+    `Effects`/`DiscardTargetEffect` for Anvil of Bogardan; `GainAbilityAllEffect` ignoring `exclude_source` for Aura Flux;
+    no-mana-cost printed spells like Ancestral Vision treated as free-castable instead of unpayable; reflexive `DoWhenCostPaid`
+    dropping `Target::Obj` targets for Anointer of Valor; `TapTargetCost`/`UntapTargetCost` not verifying actual state change
+    for Aboshan; `ConditionalAnyColorManaAbility` missing `combination: true` in the 2-arg transpiler branch for Ancient
+    Holocron; `alternative_mana_sources` and `mana_kind` for multi-mana fixed/costly `SimpleManaAbility` lands like Ancient
+    Spring and An-Havva Township). Fixing them raised Wave 1 from 312/374 to 358/374 matching (+443 verified).
+  - **Shared engine primitives & transpiler generalization (Tracks 3 & 4):** Added combat/evasion keywords (`FearAbility`,
+    `ShadowAbility`, `HorsemanshipAbility`, `SpaceflightAbility`, `SplitSecondAbility`, `PartnerAbility`, `PartnerWithAbility`,
+    `FlankingAbility`, `BushidoAbility`), `CastOnlyDuringPhaseStepSourceAbility`, `MyTurnBeforeAttackersDeclared`, `IsStep`,
+    `CastFromHand`, `ManaColorSpent`, `LivingWeaponAbility`, `SoulshiftAbility`, `MyriadAbility`, `EchoAbility`,
+    `BecomesColorTargetEffect`, `GoadTargetEffect`, `DiscardCardCost { random }`, `DiscardTargetEffect { random }`,
+    suspend-creature haste, `DestroyAllEffect` 2-arg form, `ColorlessManaAbility` net-mana/sac-cost support (Ashnod's Altar,
+    Krark-Clan Ironworks), `DefendingPlayerControlsSourceAttacking` predicate, re-entrancy guard in `Game::has_ability`
+    (Cavalry Master), and generalized `custom_effects.py` (ctor-arg binding, target-pointer loops), `custom_statics.py`
+    (`RestrictionEffect`, `CostModificationEffectImpl`, `ContinuousEffectImpl`), and `custom_triggers.py` (+597 translated ->
+    23,899). Wave 2 (319 Track 3/4 candidates, 248 finished games) matched 223/248 (+284 verified -> 15,189 total). Three
+    regression games under `shadow/full-catalog/` cover both waves.
+
 To regenerate after the pool or the Java cards change (in this order; the files are generated, so on a merge conflict
 regenerate them rather than merge by hand, and `site/rust/progress.json` with `progress.py`):
 

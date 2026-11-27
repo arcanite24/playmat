@@ -25,7 +25,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
                 filter: Filter(vec![Pred::Not { x: Box::new(Pred::Type { t: CardType::Land }) }]),
                 amount: 1,
             },
-            CostDef::DiscardCardCost { filter: Filter::default(), amount: 1, different_names: false },
+            CostDef::DiscardCardCost { filter: Filter::default(), amount: 1, different_names: false, random: false },
         ],
     };
     let message = format!("Sacrifice a nonland permanent or discard a card to avoid {dmg} damage?");
