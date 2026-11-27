@@ -854,49 +854,123 @@ function CopyableCode({ label, code }: { label: string; code: string }) {
 }
 
 function ContributeView() {
+  const [handle, setHandle] = useState('');
+  const [minted, setMinted] = useState<{ account: string; token: string } | null>(null);
+  const [regError, setRegError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function onRegister(e: React.FormEvent) {
+    e.preventDefault();
+    const clean = handle.trim();
+    if (!clean) return;
+    setSubmitting(true);
+    setRegError(null);
+    try {
+      const reply = await swarmPublic.register(clean);
+      setMinted({ account: clean, token: reply.token });
+    } catch (err) {
+      setRegError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const tokenDisplay = minted ? minted.token : 'YOUR_WORKER_TOKEN';
+  const hostDisplay = minted ? `${minted.account}-pc` : 'my-pc';
+
   const dockerCmd = `docker run -d --name mana --restart unless-stopped --cpus 4 \\
   -e MANA_COORDINATOR=${DEFAULT_SWARM_URL} \\
-  -e MANA_NAME=my-pc \\
-  -e MANA_TOKEN=YOUR_WORKER_TOKEN \\
+  -e MANA_NAME=${hostDisplay} \\
+  -e MANA_TOKEN=${tokenDisplay} \\
   -e MANA_JOBS=4 \\
   -v mana-work:/work \\
   ghcr.io/arcanite24/mana-worker:latest`;
 
   const cliCmd = `cargo build --release -p playmat-worker --features strict
-./rust/target/release/playmat-worker run \\
+./rust/target/release/playmat-worker ui \\
   --coordinator ${DEFAULT_SWARM_URL} \\
-  --name my-pc \\
+  --name ${hostDisplay} \\
   --token-file ~/.config/mana/worker.token \\
   --jobs 4 \\
   --when idle`;
 
   return (
-    <div className={styles.split}>
-      <section className={styles.card}>
-        <h2 className={styles.cardTitle}>Docker worker (recommended)</h2>
+    <>
+      <section className={styles.card} aria-labelledby="swarm-signup-title">
+        <h2 id="swarm-signup-title" className={styles.cardTitle}>Get a volunteer worker token</h2>
         <p className={styles.quiet}>
-          Multi-arch (amd64 and arm64), built with strict deterministic math and pinned card suites.
+          Choose a contributor handle (3-32 characters of letters, digits, dot, hyphen, underscore) to mint a one-time
+          worker token. New accounts start in probation and never require a Playmat login.
         </p>
-        <CopyableCode label="Docker worker command" code={dockerCmd} />
+        <form onSubmit={(e) => void onRegister(e)} className={styles.toolbar}>
+          <label className={styles.quiet}>
+            Contributor handle{' '}
+            <input
+              type="text"
+              value={handle}
+              onChange={(e) => setHandle(e.target.value)}
+              placeholder="your-handle"
+              minLength={3}
+              maxLength={32}
+              required
+              style={{
+                padding: '6px 10px',
+                borderRadius: 6,
+                border: '1px solid var(--ink-faint)',
+                background: 'var(--mat-950)',
+                color: 'var(--ink-strong)',
+              }}
+            />
+          </label>
+          <button
+            type="submit"
+            className={styles.copyBtn}
+            aria-label="Create worker token"
+            disabled={submitting || handle.trim().length < 3}
+          >
+            {submitting ? 'Creating...' : 'Create worker token'}
+          </button>
+        </form>
+        {regError && <p className={styles.error} role="alert">{regError}</p>}
+        {minted && (
+          <>
+            <p className={styles.quiet} role="status">
+              Token created for <strong>{minted.account}</strong>. Copy and save it now; it is shown only once and has
+              been filled into the commands below.
+            </p>
+            <CopyableCode label="worker token" code={minted.token} />
+          </>
+        )}
       </section>
 
-      <section className={styles.card}>
-        <h2 className={styles.cardTitle}>Native CLI worker</h2>
-        <p className={styles.quiet}>
-          Runs at lowest OS priority and pauses automatically when your computer is in use (--when idle).
-        </p>
-        <CopyableCode label="Native CLI worker command" code={cliCmd} />
-      </section>
+      <div className={styles.split}>
+        <section className={styles.card}>
+          <h2 className={styles.cardTitle}>Docker worker (recommended)</h2>
+          <p className={styles.quiet}>
+            Multi-arch (amd64 and arm64), built with strict deterministic math and pinned card suites.
+          </p>
+          <CopyableCode label="Docker worker command" code={dockerCmd} />
+        </section>
 
-      <section className={styles.card}>
-        <h2 className={styles.cardTitle}>How trust and credit work</h2>
-        <p className={styles.quiet}>
-          New accounts and new hosts start in probation (100% re-run audit on the first 20 accepted units), then move
-          to normal (~3% random re-run sample) and reputable (30 days and 2,000 accepted units with zero mismatches).
-          Credits follow Folding@home style reference core-seconds with a 1.5x quick-return bonus cap and mature 7 days
-          after acceptance.
-        </p>
-      </section>
-    </div>
+        <section className={styles.card}>
+          <h2 className={styles.cardTitle}>Desktop control panel and CLI</h2>
+          <p className={styles.quiet}>
+            Runs at lowest OS priority, pauses when your computer is busy (--when idle), and serves a local control
+            panel at http://127.0.0.1:17195. Replace ui with run for headless boxes.
+          </p>
+          <CopyableCode label="Native worker command" code={cliCmd} />
+        </section>
+
+        <section className={styles.card}>
+          <h2 className={styles.cardTitle}>How trust and credit work</h2>
+          <p className={styles.quiet}>
+            New accounts and new hosts start in probation (100% re-run audit on the first 20 accepted units), then move
+            to normal (~3% random re-run sample) and reputable (30 days and 2,000 accepted units with zero mismatches).
+            Credits follow Folding@home style reference core-seconds with a 1.5x quick-return bonus cap and mature 7 days
+            after acceptance.
+          </p>
+        </section>
+      </div>
+    </>
   );
 }

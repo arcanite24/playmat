@@ -223,6 +223,12 @@ pub struct TokenReply {
     pub token: String,
 }
 
+/// Self-service volunteer signup (`POST /api/v1/register`, rate-limited, always starts at Probation)
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RegisterRequest {
+    pub name: String,
+}
+
 /// Submitted by a verifier worker to `POST /units/<id>/verify-complete`
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VerifyReport {

@@ -231,4 +231,17 @@ describe('SwarmScreen public tracker', () => {
     expect(screen.getByText(/1125 \+\/- 38 \(200g\)/)).toBeTruthy();
     expect(screen.getByText(/host@s6: 132-4-64/)).toBeTruthy();
   });
+
+  it('registers a volunteer worker token on /swarm/contribute and fills commands', async () => {
+    mockFetch({
+      '/api/v1/register': { id: 42, token: 'mana_worker_minted_demo' },
+    });
+
+    renderAt('/swarm/contribute');
+    fireEvent.change(screen.getByLabelText(/Contributor handle/), { target: { value: 'new_volunteer' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create worker token' }));
+
+    expect(await screen.findByText(/Token created for/)).toBeTruthy();
+    expect(screen.getByText(/MANA_TOKEN=mana_worker_minted_demo/)).toBeTruthy();
+  });
 });

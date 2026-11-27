@@ -24,7 +24,7 @@ use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use sqlx::{Row, SqlitePool};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::str::FromStr;
 use std::sync::Arc;
 use store::{now, Store};
@@ -46,6 +46,8 @@ pub struct Swarm {
     pub base: String,
     /// one lease at a time, so two workers never get the same unit
     pub(crate) lease: tokio::sync::Mutex<()>,
+    /// sliding-window registration timestamps per client IP (rate limiting `POST /api/v1/register`)
+    pub(crate) reg_limits: tokio::sync::Mutex<HashMap<String, Vec<i64>>>,
 }
 
 pub type Shared = Arc<Swarm>;
@@ -159,6 +161,7 @@ impl Swarm {
             store,
             base: base.trim_end_matches('/').to_string(),
             lease: tokio::sync::Mutex::new(()),
+            reg_limits: tokio::sync::Mutex::new(HashMap::new()),
         }))
     }
 
@@ -232,6 +235,7 @@ pub fn router(s: Shared) -> Router {
         .route("/api/v1/teams/leave", post(public::leave_team))
         .route("/api/v1/contributors/{name}", get(public::contributor_profile))
         .route("/api/v1/transparency", get(public::transparency))
+        .route("/api/v1/register", post(public::register))
         .route("/api/v1/networks", get(gates::list_networks))
         .route("/api/v1/gates", get(gates::list_gates).post(gates::new_gate))
         .route("/api/v1/gates/{id}", get(gates::get_gate))

@@ -19,6 +19,7 @@
 mod e2e_test;
 mod idle;
 mod swarm;
+mod ui;
 
 use playmat_ai::answerlog::AnswerLog;
 use playmat_ai::entrants::{entrant, Entrant};
@@ -62,7 +63,8 @@ fn main() {
             &AtomicBool::new(false),
         ),
         Some("verify") => verify(args.get(2).expect("DIR"), &repo),
-        Some("run") => (|| {
+        Some("run") | Some("ui") => (|| {
+            let with_ui = args.get(1).map(String::as_str) == Some("ui");
             let token = match opt("--token-file") {
                 Some(f) => std::fs::read_to_string(&f).map_err(|e| format!("{f}: {e}"))?.trim().to_string(),
                 None => std::env::var("MANA_TOKEN").map_err(|_| "--token-file F or MANA_TOKEN")?,
@@ -71,19 +73,31 @@ fn main() {
                 // half the cores by default: the machine stays usable
                 std::thread::available_parallelism().map_or(1, |n| (n.get() / 2).max(1))
             });
-            swarm::run(swarm::Opts {
-                coordinator: opt("--coordinator").ok_or("--coordinator URL")?,
+            let coordinator = opt("--coordinator").ok_or("--coordinator URL")?;
+            let name = opt("--name").ok_or("--name HOST")?;
+            let idle_only = opt("--when").as_deref() != Some("always");
+            let opts = swarm::Opts {
+                coordinator: coordinator.clone(),
                 token,
-                name: opt("--name").ok_or("--name HOST")?,
+                name: name.clone(),
                 jobs,
                 work: opt("--work").unwrap_or_else(|| "mana-work".into()),
                 repo: repo.clone(),
-                idle: opt("--when").as_deref() != Some("always"),
+                idle: idle_only,
                 units: opt("--units").and_then(|v| v.parse().ok()).unwrap_or(0),
-            })
+            };
+            if with_ui {
+                let port = opt("--port").and_then(|v| v.parse().ok()).unwrap_or(17195);
+                let ctrl = ui::Control::new(name, coordinator, proto::determinism_class(STRICT), jobs, idle_only);
+                let addr = ui::spawn_server(port, ctrl.clone())?;
+                println!("UI http://{addr}");
+                swarm::run_with_control(opts, Some(ctrl))
+            } else {
+                swarm::run(opts)
+            }
         })(),
         Some("compare") => compare(&args[2..]),
-        _ => Err("usage: playmat-worker run-unit|verify|compare|class (see the source's header)".into()),
+        _ => Err("usage: playmat-worker run|ui|run-unit|verify|compare|class (see the source's header)".into()),
     };
     if let Err(e) = res {
         eprintln!("playmat-worker: {e}");

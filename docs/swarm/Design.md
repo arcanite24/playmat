@@ -94,8 +94,8 @@ own answer, since a GPU's float order is its own.
 | Answer logs and replay | `rust/crates/playmat-ai/src/answerlog.rs`, `src/play.rs` |
 | Strict float functions | `rust/crates/playmat-ai/src/fm.rs`, the `strict` feature |
 | Protocol types | `rust/crates/playmat-swarm-proto` |
-| Worker | `rust/crates/playmat-worker` (S0: `run-unit`, `verify`, `compare`, `class`; S1: `run`) |
-| Coordinator | `rust/crates/playmat-swarm` (S1; S2 adds `trust.rs`/`admin.rs`; S3 adds `public.rs`; S4 adds `gates.rs` SPRT/Archbench) |
+| Worker | `rust/crates/playmat-worker` (S0: `run-unit`, `verify`, `compare`, `class`; S1: `run`; S3: `ui` desktop panel) |
+| Coordinator | `rust/crates/playmat-swarm` (S1; S2 adds `trust.rs`/`admin.rs`; S3 adds `public.rs` + `/register`; S4 adds `gates.rs` SPRT/Archbench) |
 | Trainer client | `rust/rl/swarm.py`, `pfsp_league.py --swarm` (S1; S2 adds admin/inbox/leaderboard; S4 adds gates/benches/rollback) |
-| Images and compose | `ops/swarm/` (S1): the coordinator and the strict worker |
-| Tracker and admin | `Mage.Web.Client/src/app/swarm/`, `src/app/admin/SwarmPage.tsx` (S3; S4 adds `/swarm/networks` and Gates & Networks admin) |
+| Images and compose | `ops/swarm/` (S1), `.github/workflows/mana-releases.yml` (standalone strict worker binaries) |
+| Tracker and admin | `Mage.Web.Client/src/app/swarm/`, `src/app/admin/SwarmPage.tsx` (S3/S4), [Contribute.md](Contribute.md) |

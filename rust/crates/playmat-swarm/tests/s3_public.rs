@@ -217,5 +217,57 @@ async fn public_tracker_teams_profiles_transparency_and_cors() {
     let trans: TransparencyLog = http.get(api("/transparency")).send().await.unwrap().json().await.unwrap();
     assert_eq!(trans.accepted_units, 1);
     assert!(trans.events.iter().any(|e| e.action == "round"));
+
+    // Self-service volunteer signup: validates name, prevents duplicates, rate-limits per IP, issues Probation token
+    assert_eq!(
+        http.post(api("/register"))
+            .header("x-forwarded-for", "203.0.113.10")
+            .json(&RegisterRequest { name: "admin".into() })
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::BAD_REQUEST
+    );
+    let reg: TokenReply = http
+        .post(api("/register"))
+        .header("x-forwarded-for", "203.0.113.10")
+        .json(&RegisterRequest { name: "volunteer_1".into() })
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert!(reg.token.starts_with("mana_worker_"));
+    // Duplicate (case-insensitive) rejected with 409
+    assert_eq!(
+        http.post(api("/register"))
+            .header("x-forwarded-for", "203.0.113.11")
+            .json(&RegisterRequest { name: "VOLUNTEER_1".into() })
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::CONFLICT
+    );
+    // Registered token can introduce a host
+    assert_eq!(
+        http.post(api("/hello"))
+            .bearer_auth(&reg.token)
+            .json(&Hello {
+                name: "vol-box".into(),
+                build: "dev".into(),
+                class: "strict-1".into(),
+                strict: true,
+                threads: 2,
+                os: "linux-x86_64".into(),
+            })
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::OK
+    );
     let _ = std::fs::remove_dir_all(&tmp);
 }

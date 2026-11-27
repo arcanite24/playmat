@@ -291,6 +291,8 @@ export const swarmPublic = {
   networks: (base = DEFAULT_SWARM_URL) => request<NetworkInfo[]>(base, '/networks'),
   gates: (base = DEFAULT_SWARM_URL) => request<GateStatus[]>(base, '/gates'),
   benches: (base = DEFAULT_SWARM_URL) => request<BenchStatus[]>(base, '/benches'),
+  register: (name: string, base = DEFAULT_SWARM_URL) =>
+    request<TokenReply>(base, '/register', { method: 'POST', body: JSON.stringify({ name }) }),
 };
 
 export function createSwarmAdminClient(base: string, token: string) {

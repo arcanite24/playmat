@@ -54,7 +54,17 @@ fn check(what: &str, res: reqwest::blocking::Response) -> Result<reqwest::blocki
 }
 
 pub fn run(o: Opts) -> Result<(), String> {
+    run_with_control(o, None)
+}
+
+pub fn run_with_control(o: Opts, control: Option<Arc<crate::ui::Control>>) -> Result<(), String> {
     idle::lower_priority();
+    let log = |msg: String| {
+        println!("{msg}");
+        if let Some(c) = &control {
+            c.log(msg);
+        }
+    };
     let api = Api {
         http: Client::builder()
             .timeout(Duration::from_secs(300))
@@ -81,20 +91,35 @@ pub fn run(o: Opts) -> Result<(), String> {
             Err(e) if e.split_once(": ").is_some_and(|(_, r)| r.starts_with('4')) => return Err(e),
             Err(e) => {
                 eprintln!("HELLO {e}, again in {wait} s");
+                if let Some(c) = &control {
+                    c.set_status("reconnecting", None);
+                    c.log(format!("HELLO {e}, retry in {wait}s"));
+                }
                 std::thread::sleep(Duration::from_secs(wait));
                 wait = (wait * 2).min(300);
             }
         }
     };
-    println!("WORKER {} (host {}) at {}, class {}, {} jobs", o.name, reply.host, api.base, hello.class, o.jobs);
+    log(format!("WORKER {} (host {}) at {}, class {}, {} jobs", o.name, reply.host, api.base, hello.class, o.jobs));
     let nets_dir = format!("{}/nets", o.work);
     std::fs::create_dir_all(&nets_dir).map_err(|e| format!("{nets_dir}: {e}"))?;
     let mut done = 0;
     let mut waiting = false;
     loop {
-        if o.idle {
+        if let Some(c) = &control {
+            if c.paused.load(Ordering::Relaxed) {
+                c.set_status("paused", None);
+                std::thread::sleep(Duration::from_secs(1));
+                continue;
+            }
+        }
+        let idle_only = control.as_ref().map_or(o.idle, |c| c.idle_only.load(Ordering::Relaxed));
+        if idle_only {
             if let Some(why) = idle::busy(false) {
-                println!("WAIT {why}");
+                if let Some(c) = &control {
+                    c.set_status("waiting (machine busy)", None);
+                }
+                log(format!("WAIT {why}"));
                 std::thread::sleep(Duration::from_secs(reply.poll_secs));
                 continue;
             }
@@ -103,16 +128,22 @@ pub fn run(o: Opts) -> Result<(), String> {
             Ok(r) => r,
             Err(e) => {
                 eprintln!("LEASE {e}");
+                if let Some(c) = &control {
+                    c.log(format!("LEASE {e}"));
+                }
                 std::thread::sleep(Duration::from_secs(reply.poll_secs));
                 continue;
             }
         };
         if res.status() == StatusCode::NO_CONTENT {
+            if let Some(c) = &control {
+                c.set_status("waiting for work", None);
+            }
             if !waiting {
-                println!(
+                log(format!(
                     "WAIT no unit for this host ({}, build {}): asking every {} s",
                     hello.class, hello.build, reply.poll_secs
-                );
+                ));
                 waiting = true;
             }
             std::thread::sleep(Duration::from_secs(reply.poll_secs));
@@ -121,15 +152,42 @@ pub fn run(o: Opts) -> Result<(), String> {
         waiting = false;
         let lease: Lease = res.json().map_err(|e| e.to_string())?;
         let id = lease.unit.id.clone();
-        match play(&api, &o, &nets_dir, lease) {
-            Ok(games) => println!("DONE {id}: {games} games"),
-            // stopped for the host's sake (not idle, or the lease moved on): hand it back without counting a failure
+        if let Some(c) = &control {
+            c.set_status("working", Some(id.clone()));
+            c.log(format!("LEASE {id} ({} games)", lease.unit.games));
+        }
+        let active_jobs = control.as_ref().map_or(o.jobs, |c| c.jobs.load(Ordering::Relaxed));
+        let mut active_o = Opts {
+            coordinator: o.coordinator.clone(),
+            token: o.token.clone(),
+            name: o.name.clone(),
+            jobs: active_jobs,
+            work: o.work.clone(),
+            repo: o.repo.clone(),
+            idle: idle_only,
+            units: o.units,
+        };
+        active_o.jobs = active_jobs;
+        match play(&api, &active_o, &nets_dir, lease, control.as_ref()) {
+            Ok(games) => {
+                log(format!("DONE {id}: {games} games"));
+                if let Some(c) = &control {
+                    c.record_done(games);
+                }
+            }
+            // stopped for the host's sake (not idle, paused, or the lease moved on): hand it back without counting a failure
             Err(e) if e.starts_with("stopped:") => {
-                println!("RELEASE {id}: {e}");
+                log(format!("RELEASE {id}: {e}"));
+                if let Some(c) = &control {
+                    c.set_status("paused", None);
+                }
                 let _ = api.post(&format!("/units/{id}/release"), &serde_json::json!({}));
             }
             Err(e) => {
                 eprintln!("FAIL {id}: {e}");
+                if let Some(c) = &control {
+                    c.log(format!("FAIL {id}: {e}"));
+                }
                 let _ = api.post(&format!("/units/{id}/fail"), &Fail { reason: e });
             }
         }
@@ -159,7 +217,13 @@ fn fetch_net(api: &Api, nets_dir: &str, n: &proto::NetRef) -> Result<(), String>
     std::fs::rename(&tmp, &path).map_err(|e| format!("{path}: {e}"))
 }
 
-fn play(api: &Api, o: &Opts, nets_dir: &str, lease: Lease) -> Result<usize, String> {
+fn play(
+    api: &Api,
+    o: &Opts,
+    nets_dir: &str,
+    lease: Lease,
+    control: Option<&Arc<crate::ui::Control>>,
+) -> Result<usize, String> {
     if lease.unit.kind == UnitKind::Verify {
         return play_verify(api, o, nets_dir, lease);
     }
@@ -176,7 +240,7 @@ fn play(api: &Api, o: &Opts, nets_dir: &str, lease: Lease) -> Result<usize, Stri
     std::fs::write(&unit_path, serde_json::to_string_pretty(&lease.unit).unwrap()).map_err(|e| e.to_string())?;
     println!("PLAY {id}: {} games from deal {}", lease.unit.games, lease.unit.seed);
 
-    let watcher = spawn_watcher(api, o.idle, &id, lease.lease_secs);
+    let watcher = spawn_watcher(api, o.idle, &id, lease.lease_secs, control.cloned());
     let played = run_unit(&unit_path, &out, nets_dir, &o.repo, o.jobs, &watcher.stop);
     if let Some(w) = watcher.finish() {
         return Err(format!("stopped: {w}"));
@@ -227,7 +291,13 @@ impl Watcher {
     }
 }
 
-fn spawn_watcher(api: &Api, idle_rules: bool, id: &str, lease_secs: u64) -> Watcher {
+fn spawn_watcher(
+    api: &Api,
+    idle_rules: bool,
+    id: &str,
+    lease_secs: u64,
+    control: Option<Arc<crate::ui::Control>>,
+) -> Watcher {
     let stop = Arc::new(AtomicBool::new(false));
     let finished = Arc::new(AtomicBool::new(false));
     let why: Arc<std::sync::Mutex<Option<String>>> = Arc::default();
@@ -239,6 +309,13 @@ fn spawn_watcher(api: &Api, idle_rules: bool, id: &str, lease_secs: u64) -> Watc
             let (mut beat_at, mut check_at) = (std::time::Instant::now(), std::time::Instant::now());
             while !finished.load(Ordering::Relaxed) {
                 std::thread::sleep(Duration::from_secs(1));
+                if let Some(c) = &control {
+                    if c.paused.load(Ordering::Relaxed) {
+                        *why.lock().unwrap() = Some("paused from local UI".into());
+                        stop.store(true, Ordering::Relaxed);
+                        return;
+                    }
+                }
                 if idle_rules && check_at.elapsed() >= Duration::from_secs(15) {
                     check_at = std::time::Instant::now();
                     if let Some(w) = idle::busy(true) {
@@ -337,7 +414,7 @@ fn play_verify(api: &Api, o: &Opts, nets_dir: &str, lease: Lease) -> Result<usiz
             std::fs::write(&target_unit_path, serde_json::to_string_pretty(&target_unit).unwrap())
                 .map_err(|e| e.to_string())?;
 
-            let watcher = spawn_watcher(api, o.idle, &id, lease.lease_secs);
+            let watcher = spawn_watcher(api, o.idle, &id, lease.lease_secs, None);
             let played = run_unit(&target_unit_path, &rerun_dir, nets_dir, &o.repo, o.jobs, &watcher.stop);
             if let Some(w) = watcher.finish() {
                 return Err(format!("stopped: {w}"));
