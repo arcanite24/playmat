@@ -104,7 +104,7 @@ docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env up -d</code
 docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env pull xmage web
 docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env up -d --no-build</code></pre>
         </div>
-        <p>Behind a reverse proxy, add the matching override after the first <code>-f</code> in both commands:
+        <p>Behind your own reverse proxy, add the matching override after the first <code>-f</code> in both commands:
           <code>ops/web/docker-compose.proxy.yml</code> for <code>TLS_MODE=external</code>, or
           <code>ops/web/docker-compose.external-host.yml</code> for <code>TLS_MODE=external-host</code>.</p>
         <p>If <code>.env</code> names the images with a digest (<code>…@sha256:…</code>, the updater writes them that way),

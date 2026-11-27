@@ -60,11 +60,12 @@ docker compose -f ops/web/docker-compose.yml -f ops/web/docker-compose.proxy.yml
 - `DOMAIN` is the public name. `XMAGE_ALLOWED_ORIGINS` and `XMAGE_PUBLIC_URL` default to `https://$DOMAIN`, which is right when the proxy serves it on 443. If players use another port or more than one name, set both: the server refuses game connections whose browser origin isn't in `XMAGE_ALLOWED_ORIGINS`, and `XMAGE_PUBLIC_URL` goes into join links, emails and the GitHub sign-in callback.
 - Caddy believes `X-Forwarded-For` from any private address (`UPSTREAM_PROXIES` defaults to `private_ranges` in this mode), so rate limits and the server's per-address caps see each player. Set `UPSTREAM_PROXIES` to your proxy network's subnet to narrow it (`docker network inspect proxy -f '{{(index .IPAM.Config 0).Subnet}}'`).
 - Caddy answers any `Host` on port 80, so a proxy that rewrites the host name still works.
-- Keep `TLS_MODE=external` or `external-host` in `.env`: the Update button and image-based deploy select the matching override (`docker-compose.proxy.yml` or `docker-compose.external-host.yml`). They use stock files only, so put your own changes in `.env` rather than a third compose file.
+ Keep `TLS_MODE=external` in `.env`, not only in your command line: the [Update button](#update-button) and the [image-based deploy](deploy/) add `docker-compose.proxy.yml` when `.env` says so. They use the stock files only, so put your own changes in `.env` (the variables below) rather than in a third compose file.
+- A proxy on the host itself, not in Docker (a distro nginx): skip the network and proxy to Caddy's address on the compose network, `http://10.89.17.10:80` (`CADDY_IP`; Linux only). Use the override anyway, or 80/443 stay published
 
 ### Reverse proxy on another host (external-host)
 
-Use this mode when your reverse proxy runs on another machine and reaches Playmat over the LAN. It also works for a proxy installed directly on the Playmat host. No shared Docker network is needed.
+Use this mode when your reverse proxy runs on another machine and reaches Playmat over the LAN. where shared Docker network is needed.
 
 Set these values in `ops/web/.env`:
 
@@ -79,7 +80,7 @@ Start Playmat with the external-host override:
 
 The override publishes only HTTP_PORT to container port 80. Caddy serves plain HTTP; your reverse proxy holds the public certificate and forwards requests to http://PLAYMAT_HOST:8088. Allow WebSocket upgrades on /ws and use a long read timeout. Restrict the published port to the proxy IP in your host firewall, and set UPSTREAM_PROXIES to that proxy's exact IP or CIDR.
 
-Keep TLS_MODE=external-host in .env so the Update button and image-based deploy select this override.
+Keep TLS_MODE=external-host in .env so the Update and image-based deploy select this override.
 
 **Traefik.** The override's labels route `Host(DOMAIN)` on `TRAEFIK_ENTRYPOINT` (default `websecure`) with the certificate resolver `TRAEFIK_CERTRESOLVER` (empty: Traefik's default certificate) to port 80:
 
