@@ -37,6 +37,7 @@ def main():
     ap.add_argument("--bs", type=int, default=2048)
     ap.add_argument("--lr", type=float, default=1.2e-3)
     ap.add_argument("--drop", type=float, default=0.1)
+    ap.add_argument("--card-id-drop", type=float, default=0.0)
     ap.add_argument("--val-prob", type=float, default=0.05)
     ap.add_argument("--val-wd", type=float, default=5e-2)
     ap.add_argument("--value-weight", type=float, default=1.0)
@@ -143,6 +144,7 @@ def main():
         "--epochs", str(args.epochs),
         "--lr", str(args.lr),
         "--drop", str(args.drop),
+        "--card-id-drop", str(args.card_id_drop),
         "--val-prob", str(args.val_prob),
         "--val-wd", str(args.val_wd),
         "--value-weight", str(args.value_weight),

@@ -327,11 +327,30 @@ impl Policy {
             .filter(|b| !self.tried_blockers.contains(b) && game.obj(*b).blocking.is_empty())
             .collect();
 
+        let true_lethal = incoming >= life;
         for b in &available {
             let (bp, bt) = game.power_toughness(*b);
             let b_deathtouch = game.has_ability(*b, &AbilityDef::DeathtouchAbility);
             let protected = self.playbook.as_deref().is_some_and(|pb| pb.is_protected(&game.obj(*b).def.name));
+            let max_prev = if true_lethal {
+                attackers
+                    .iter()
+                    .copied()
+                    .filter(|a| rules::can_block(game, *b, *a))
+                    .map(|a| damage_prevented(game, *b, a))
+                    .max()
+                    .unwrap_or(0)
+            } else {
+                0
+            };
             let good = unblocked.iter().copied().filter(|a| rules::can_block(game, *b, *a)).find(|a| {
+                if true_lethal {
+                    let prev = damage_prevented(game, *b, *a);
+                    // Never waste a blocker on a small "good trade" while dying to a bigger unblocked attacker.
+                    if incoming - prev >= life && prev < max_prev {
+                        return false;
+                    }
+                }
                 let (ap, at) = game.power_toughness(*a);
                 let a_deathtouch = game.has_ability(*a, &AbilityDef::DeathtouchAbility);
                 let survives = bt > ap && !(a_deathtouch && ap > 0);
@@ -785,6 +804,8 @@ pub struct Kind {
     pub face: bool,
     /// makes a creature bigger or better for the turn
     pub pump: bool,
+    /// power boost granted by a pump spell (e.g. +3 for Giant Growth)
+    pub pump_power: Option<i32>,
     /// draws or looks for cards
     pub draw: bool,
     /// a land or permanent that becomes a creature (Mutavault)
@@ -793,9 +814,24 @@ pub struct Kind {
     pub sweeper: bool,
 }
 
-/// The kind of a card's spell
+/// The kind of a card's spell (memoized per thread to avoid repeated string/Debug allocations in hot loops)
 pub fn spell_kind(def: &playmat_engine::card::CardDef) -> Kind {
-    kind_of(&def.spell.rule.to_lowercase(), &format!("{:?}", def.spell.effects))
+    thread_local! {
+        static CACHE: std::cell::RefCell<HashMap<(usize, u32), Kind>> = std::cell::RefCell::new(HashMap::with_capacity(512));
+    }
+    let key = (def as *const playmat_engine::card::CardDef as usize, crate::obs::card_id(&def.name));
+    CACHE.with(|c| {
+        if let Some(&k) = c.borrow().get(&key) {
+            return k;
+        }
+        let k = kind_of(&def.spell.rule.to_lowercase(), &format!("{:?}", def.spell.effects));
+        let mut map = c.borrow_mut();
+        if map.len() >= 4096 {
+            map.clear();
+        }
+        map.insert(key, k);
+        k
+    })
 }
 
 /// The kind of a card's ability, by its index
@@ -825,6 +861,19 @@ fn kind_of(rule: &str, effects: &str) -> Kind {
         || rule.contains("each creature")
         || effects.contains("DestroyAllEffect")
         || effects.contains("DamageAllEffect");
+    let pump = (rule.contains("target creature gets +")
+        || rule.contains("target attacking creature gets +")
+        || effects.contains("BoostTargetEffect"))
+        && !rule.contains("gets -");
+    let pump_power = if pump {
+        rule.find("gets +").and_then(|at| {
+            let rest = &rule[at + 6..];
+            let n: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+            n.parse::<i32>().ok()
+        })
+    } else {
+        None
+    };
     Kind {
         counter: rule.contains("counter target") || effects.contains("CounterTargetEffect"),
         removal: !sweeper
@@ -840,8 +889,8 @@ fn kind_of(rule: &str, effects: &str) -> Kind {
                 || effects.contains("FightTargetsEffect")),
         damage,
         face,
-        pump: (rule.contains("target creature gets +") || effects.contains("BoostTargetEffect"))
-            && !rule.contains("gets -"),
+        pump,
+        pump_power,
         draw: rule.contains("draw") || rule.contains("look at the top"),
         animate: effects.contains("BecomesCreatureSourceEffect"),
         sweeper,
@@ -938,10 +987,27 @@ impl Policy {
                     let o = game.obj(*a);
                     (mine && o.blocked) || (!mine && !o.blocked_by.is_empty())
                 });
-                if fighting {
-                    if let Some(c) = castable.iter().copied().find(|c| instant_speed(*c) && kind(*c).pump) {
-                        return Answer::Obj(c);
+                let has_unblocked = mine && attackers.iter().any(|a| !game.obj(*a).blocked);
+                let unblocked_dmg: i32 = if has_unblocked {
+                    attackers.iter().map(|a| incoming_player_damage(game, *a)).sum()
+                } else {
+                    0
+                };
+                let opp_life = game.player(opp).life;
+                if let Some(c) = castable.iter().copied().find(|c| {
+                    if !instant_speed(*c) {
+                        return false;
                     }
+                    let k = kind(*c);
+                    if !k.pump {
+                        return false;
+                    }
+                    if fighting {
+                        return true;
+                    }
+                    has_unblocked && unblocked_dmg + k.pump_power.unwrap_or(2) >= opp_life
+                }) {
+                    return Answer::Obj(c);
                 }
             }
             return Answer::Bool(false);
@@ -1140,7 +1206,28 @@ impl Policy {
                 .max_by_key(|o| eval::permanent_score(game, *o));
             return attacking.map(Answer::Obj);
         }
-        // help: its own creature in a fight
+        // help: lethal pump on an unblocked attacker first, else its own creature in a fight
+        if k.pump && matches!(game.step, Some(Step::DeclareBlockers)) && game.active == Some(seat) {
+            let attackers = rules::attackers(game);
+            let unblocked_dmg: i32 = attackers.iter().map(|a| incoming_player_damage(game, *a)).sum();
+            let opp_life = game.player(opp).life;
+            let boost = k.pump_power.unwrap_or(2);
+            let lethal_unblocked = objs
+                .iter()
+                .copied()
+                .filter(|o| {
+                    let x = game.obj(*o);
+                    x.controller == seat && x.attacking.is_some() && !x.blocked && x.attacking_pw.is_none()
+                })
+                .filter(|o| {
+                    let mult = if game.has_ability(*o, &AbilityDef::DoubleStrikeAbility) { 2 } else { 1 };
+                    unblocked_dmg + boost * mult >= opp_life
+                })
+                .max_by_key(|o| (game.has_ability(*o, &AbilityDef::DoubleStrikeAbility), eval::permanent_score(game, *o)));
+            if let Some(o) = lethal_unblocked {
+                return Some(Answer::Obj(o));
+            }
+        }
         let fighting = objs
             .iter()
             .copied()

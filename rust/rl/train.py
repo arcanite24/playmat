@@ -415,6 +415,7 @@ def build_parser():
     ap.add_argument("--opt", default="adamw", choices=["adamw", "muon"], help="optimizer: adamw or muon (2D hidden matrices)")
     ap.add_argument("--muon-lr", type=float, default=0.012, help="max lr for Muon 2D matrix group")
     ap.add_argument("--drop", type=float, default=0.0, help="training-only dropout inside Tx blocks")
+    ap.add_argument("--card-id-drop", type=float, default=0.0, help="training-only probability of dropping learned card-ID residual while keeping BGE card-text projection")
     ap.add_argument("--val-wd", type=float, default=5e-2, help="weight decay on value head parameters")
     ap.add_argument("--val-prob", type=float, default=0.06, help="per-decision probability of including value/aux loss (prevents memorizing per-game outcomes)")
     ap.add_argument("--detach-val", action="store_true", help="stop value/aux gradients from entering the shared transformer trunk")
@@ -499,6 +500,9 @@ def train_main(argv=None, shared_data=None):
         + f", bs {args.bs}, bf16={amp}, on {dev}",
         flush=True,
     )
+    if args.card_id_drop > 0 and hasattr(net, "emb") and hasattr(net.emb, "id_drop"):
+        net.emb.id_drop = float(args.card_id_drop)
+        print(f"TRAIN card_id_drop={net.emb.id_drop:.2f} (BGE text projection always kept)", flush=True)
     if args.holdout:
         ids = torch.tensor(json.load(open(args.holdout))["ids"], device=dev)
         weight = net.emb.weight

@@ -181,8 +181,7 @@ pub fn entity(game: &Game, seat: Seat, id: ObjId, playable: &[ObjId], hidden: bo
             _ => f[27] += *n as f32 / 3.0,
         }
     }
-    let colors = if on_field { game.colors(id) } else { def.colors.clone() };
-    for c in colors {
+    let mut mark_color = |c: Color| {
         let i = match c {
             Color::W => 0,
             Color::U => 1,
@@ -191,6 +190,15 @@ pub fn entity(game: &Game, seat: Seat, id: ObjId, playable: &[ObjId], hidden: bo
             Color::G => 4,
         };
         f[28 + i] = 1.0;
+    };
+    if on_field {
+        for c in game.colors(id) {
+            mark_color(c);
+        }
+    } else {
+        for &c in &def.colors {
+            mark_color(c);
+        }
     }
     for (i, k) in KEYWORDS.iter().enumerate() {
         f[33 + i] = if on_field { game.has_ability(id, k) } else { def.abilities.contains(k) } as u8 as f32;
@@ -469,8 +477,7 @@ pub fn opponent_archetype_features(game: &Game, seat: Seat) -> [f32; 8] {
         if k.pump || (def.types.contains(&CardType::Instant) && !k.removal && !k.face) {
             trick += 1.0;
         }
-        let rule_l = def.spell.rule.to_ascii_lowercase();
-        if rule_l.contains("counter target") {
+        if k.counter {
             counter += 1.0;
         }
     };
@@ -518,6 +525,12 @@ pub fn belief_meta(game: &Game, seat: Seat, _unseen_hand_count: usize) -> [f32; 
             o.controller == opp && game.has_type(**id, CardType::Land) && !o.tapped
         })
         .count();
+    belief_meta_with_lands(game, seat, opp_untapped_lands)
+}
+
+/// Fast path for repeated threat scoring over resampled worlds sharing the same battlefield.
+pub fn belief_meta_with_lands(game: &Game, seat: Seat, opp_untapped_lands: usize) -> [f32; BELIEF_META_F] {
+    let opp = game.opponent(seat);
     let mut out = [0.0f32; BELIEF_META_F];
     for &id in game.player(opp).hand.iter() {
         let def = &game.obj(id).def;
@@ -546,7 +559,7 @@ pub fn belief_meta(game: &Game, seat: Seat, _unseen_hand_count: usize) -> [f32; 
         if k.pump {
             out[4] = 1.0;
         }
-        if def.spell.rule.to_ascii_lowercase().contains("counter target") {
+        if k.counter {
             out[0] = 1.0;
         }
     }

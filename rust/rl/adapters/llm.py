@@ -26,9 +26,15 @@ SYSTEM_PROMPT = (
 
 # Approximate fallback pricing ($ per 1M tokens: input, output) when provider doesn't return usage.cost
 FALLBACK_PRICING: Dict[str, Tuple[float, float]] = {
+    "claude-opus-5": (15.0, 75.0),
+    "claude-sonnet-5": (3.0, 15.0),
     "claude-opus": (15.0, 75.0),
     "claude-sonnet": (3.0, 15.0),
     "claude-haiku": (0.8, 4.0),
+    "gpt-6.2-astra": (5.0, 25.0),
+    "gpt-6.1-sol": (2.5, 12.5),
+    "gpt-6-luna": (0.40, 2.0),
+    "gpt-6": (2.5, 12.5),
     "gpt-5-mini": (0.25, 2.0),
     "gpt-5.4-mini": (0.75, 4.5),
     "gpt-5.2": (1.75, 14.0),
@@ -37,13 +43,20 @@ FALLBACK_PRICING: Dict[str, Tuple[float, float]] = {
     "gpt-4.1": (2.0, 8.0),
     "gpt-4o-mini": (0.15, 0.6),
     "o3": (2.0, 8.0),
+    "gemini-4-carbon": (2.5, 15.0),
+    "gemini-4-argon": (1.25, 8.0),
+    "gemini-4-neon": (0.40, 2.5),
+    "gemini-4-hydrogen": (0.15, 0.8),
+    "gemini-4": (1.25, 8.0),
     "gemini-3.5-flash": (0.50, 3.0),
     "gemini-3.1-pro": (2.0, 12.0),
     "gemini-3-pro": (2.0, 12.0),
     "gemini-2.5-pro": (1.25, 10.0),
     "gemini-2.5-flash": (0.15, 0.6),
+    "deepseek-v4.1": (0.14, 0.42),
     "deepseek-v4": (0.14, 0.42),
     "deepseek": (0.28, 0.42),
+    "glm-5.2": (0.60, 2.0),
     "glm-5": (0.60, 2.0),
     "gemma-4": (0.10, 0.30),
     "gpt-oss-120b": (0.15, 0.60),
@@ -213,7 +226,7 @@ class LlmAdapter(Adapter):
             headers["X-Title"] = "Playmat Archbench"
 
         is_openai_reasoning = self.provider == "openai" and (
-            self.model.startswith("gpt-5") or self.model.startswith(("o1", "o3", "o4"))
+            self.model.startswith(("gpt-5", "gpt-6", "o1", "o3", "o4"))
         )
         body_obj: Dict[str, Any] = {
             "model": self.model,
@@ -309,13 +322,87 @@ class LlmAdapter(Adapter):
         out_tok = int(meta.get("candidatesTokenCount", 0) or 0)
         return text, in_tok, out_tok, _estimate_cost(self.model, in_tok, out_tok)
 
+    def _call_vertex_anthropic(self, prompt: str) -> Tuple[str, int, int, float]:
+        pid = _resolve_vertex_project()
+        loc = os.environ.get("VERTEX_ANTHROPIC_LOCATION", "global")
+        host = "aiplatform.googleapis.com" if loc == "global" else f"{loc}-aiplatform.googleapis.com"
+        url = (
+            self.base_url
+            or f"https://{host}/v1/projects/{pid}/locations/{loc}/publishers/anthropic/models/{self.model}:rawPredict"
+        ).rstrip("/")
+        token = _resolve_vertex_token()
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
+        body_obj: Dict[str, Any] = {
+            "anthropic_version": "vertex-2023-10-16",
+            "max_tokens": max(self.max_tokens, 512),
+            "temperature": self.temperature,
+            "system": SYSTEM_PROMPT,
+            "messages": [{"role": "user", "content": prompt}],
+        }
+        req = urllib.request.Request(url, data=json.dumps(body_obj).encode("utf-8"), headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        blocks = data.get("content") or []
+        text = "".join(b.get("text", "") for b in blocks if b.get("type") == "text")
+        usage = data.get("usage") or {}
+        in_tok = int(usage.get("input_tokens", 0) or 0)
+        out_tok = int(usage.get("output_tokens", 0) or 0)
+        return text, in_tok, out_tok, _estimate_cost(self.model, in_tok, out_tok)
+
+    def _call_vertex_gemini(self, prompt: str) -> Tuple[str, int, int, float]:
+        pid = _resolve_vertex_project()
+        loc = os.environ.get("VERTEX_LOCATION", "global")
+        host = "aiplatform.googleapis.com" if loc == "global" else f"{loc}-aiplatform.googleapis.com"
+        url = (
+            self.base_url
+            or f"https://{host}/v1/projects/{pid}/locations/{loc}/publishers/google/models/{self.model}:generateContent"
+        ).rstrip("/")
+        token = _resolve_vertex_token()
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
+        gen_cfg: Dict[str, Any] = {
+            "temperature": self.temperature,
+            "maxOutputTokens": max(self.max_tokens, 1536),
+            "responseMimeType": "application/json",
+        }
+        if self.reasoning_effort:
+            eff = self.reasoning_effort.lower()
+            if eff in ("minimal", "low", "medium", "high"):
+                gen_cfg["thinkingConfig"] = {"thinkingLevel": eff.upper()}
+            elif eff.isdigit():
+                gen_cfg["thinkingConfig"] = {"thinkingBudget": int(eff)}
+        body_obj = {
+            "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "generationConfig": gen_cfg,
+        }
+        req = urllib.request.Request(url, data=json.dumps(body_obj).encode("utf-8"), headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        cands = data.get("candidates") or []
+        parts = ((cands[0].get("content") or {}).get("parts") or []) if cands else []
+        text = "".join(p.get("text", "") for p in parts if not p.get("thought"))
+        meta = data.get("usageMetadata") or {}
+        in_tok = int(meta.get("promptTokenCount", 0) or 0)
+        out_tok = int(meta.get("candidatesTokenCount", 0) or 0)
+        return text, in_tok, out_tok, _estimate_cost(self.model, in_tok, out_tok)
+
     def _call_provider(self, prompt: str) -> Tuple[str, int, int, float]:
         if self.provider == "mock":
             return '{"choice": 0, "reason": "mock quick pick"}', 80, 12, 0.0
         if self.provider == "anthropic":
             return self._call_anthropic(prompt)
+        if self.provider == "vertex-anthropic":
+            return self._call_vertex_anthropic(prompt)
         if self.provider == "gemini":
             return self._call_gemini(prompt)
+        if self.provider == "vertex-gemini":
+            return self._call_vertex_gemini(prompt)
         return self._call_openai_compat(prompt)
 
     def decide(self, req: Dict[str, Any]) -> Dict[str, Any]:

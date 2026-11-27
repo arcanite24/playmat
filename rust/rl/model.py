@@ -114,6 +114,7 @@ class CardEmb(nn.Module):
     def __init__(self, dim, text=0):
         super().__init__()
         self.weight = nn.Parameter(torch.randn(BUCKETS, dim))
+        self.id_drop = 0.0
         if text:
             import numpy as np
             import os
@@ -129,9 +130,13 @@ class CardEmb(nn.Module):
         return self.weight if self.text is None else self.weight + self.text @ self.proj
 
     def forward(self, ids):
+        w = F.embedding(ids, self.weight)
         if self.text is None:
-            return F.embedding(ids, self.weight)
-        return F.embedding(ids, self.weight) + F.embedding(ids, self.text) @ self.proj
+            return w
+        if self.training and self.id_drop > 0.0:
+            keep = (torch.rand(ids.shape, device=ids.device) >= self.id_drop).to(w.dtype).unsqueeze(-1)
+            w = w * keep
+        return w + F.embedding(ids, self.text) @ self.proj
 
 
 class AuxHead(nn.Module):

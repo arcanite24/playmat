@@ -208,13 +208,28 @@ pub(crate) fn sample_games_weighted(
             } else {
                 None
             };
+            let opp_untapped_lands = if threat_logits.is_some() {
+                let opp = root.snapshot.opponent(d.seat);
+                root.snapshot
+                    .battlefield
+                    .iter()
+                    .filter(|id| {
+                        let o = root.snapshot.obj(**id);
+                        o.controller == opp
+                            && root.snapshot.has_type(**id, playmat_engine::card::CardType::Land)
+                            && !o.tapped
+                    })
+                    .count()
+            } else {
+                0
+            };
             let threat_scale = d.config.threat_w as f32 / 1000.0;
             let mut drawn: Vec<(f32, Game)> = (0..n_draw)
                 .map(|j| {
                     let g = root.sample(seed.wrapping_add(j as u64 * 0x9E37));
                     let mut ll = hand_likelihood(&g, d.seat, &logit, &seen);
                     if let Some(tl) = &threat_logits {
-                        let y = obs::belief_meta(&g, d.seat, 0);
+                        let y = obs::belief_meta_with_lands(&g, d.seat, opp_untapped_lands);
                         let mut t_ll = 0.0f32;
                         for k in 0..obs::BELIEF_META_F {
                             t_ll += y[k] * tl[k].clamp(-6.0, 6.0);
