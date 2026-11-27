@@ -1066,9 +1066,11 @@ fn ability_rule(a: &crate::card::AbilityDef) -> Option<String> {
             A::LifelinkAbility => "Lifelink",
             A::DeathtouchAbility => "Deathtouch",
             A::WitherAbility => "Wither <i>(This deals damage to creatures in the form of -1/-1 counters.)</i>",
+            A::InfectAbility => "Infect <i>(This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)</i>",
             A::DefenderAbility => "Defender",
             A::MenaceAbility => "Menace",
             A::HexproofAbility => "Hexproof",
+            A::ShroudAbility => "Shroud",
             A::IndestructibleAbility => "Indestructible",
             A::FlashAbility => "Flash",
             A::WardAbility { rule, .. }

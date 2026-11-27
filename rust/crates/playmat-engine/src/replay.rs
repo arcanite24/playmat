@@ -159,7 +159,9 @@ impl ShadowGame {
                 game.player_mut(seat).library.push(id);
                 set_printing(&mut game, id, s.library_printings.get(i));
                 if let Some(o) = s.library_trigger_order.get(i).filter(|o| **o >= 0) {
-                    game.obj_mut(id).trigger_order = *o as u64;
+                    let obj = game.obj_mut(id);
+                    obj.trigger_order = *o as u64;
+                    obj.trigger_order_recorded = true;
                 }
             }
             for (i, name) in s.hand.iter().enumerate() {
@@ -168,7 +170,9 @@ impl ShadowGame {
                 game.player_mut(seat).hand.push(id);
                 set_printing(&mut game, id, s.hand_printings.get(i));
                 if let Some(o) = s.hand_trigger_order.get(i).filter(|o| **o >= 0) {
-                    game.obj_mut(id).trigger_order = *o as u64;
+                    let obj = game.obj_mut(id);
+                    obj.trigger_order = *o as u64;
+                    obj.trigger_order_recorded = true;
                 }
             }
         }

@@ -36,9 +36,9 @@ BASIC_LANDS = {
 KEYWORDS = {
     'FlyingAbility', 'ReachAbility', 'HasteAbility', 'VigilanceAbility', 'TrampleAbility', 'FirstStrikeAbility',
     'CantBeCounteredSourceAbility', 'DoubleStrikeAbility', 'LifelinkAbility', 'DeathtouchAbility', 'DefenderAbility', 'MenaceAbility', 'FlashAbility', 'ReboundAbility', 'ImproviseAbility', 'DevoidAbility',
-    'HexproofAbility', 'IndestructibleAbility', 'WhiteManaAbility', 'BlueManaAbility', 'BlackManaAbility',
+    'HexproofAbility', 'ShroudAbility', 'IndestructibleAbility', 'WhiteManaAbility', 'BlueManaAbility', 'BlackManaAbility',
     'RedManaAbility', 'GreenManaAbility', 'ColorlessManaAbility', 'CanBlockOnlyFlyingAbility', 'CantBeBlockedSourceAbility', 'CantBlockAbility', 'DauntAbility',
-    'IslandwalkAbility', 'PlainswalkAbility', 'SwampwalkAbility', 'MountainwalkAbility', 'ForestwalkAbility', 'SkulkAbility', 'IntimidateAbility', 'DecayedAbility', 'WitherAbility',
+    'IslandwalkAbility', 'PlainswalkAbility', 'SwampwalkAbility', 'MountainwalkAbility', 'ForestwalkAbility', 'SkulkAbility', 'IntimidateAbility', 'DecayedAbility', 'WitherAbility', 'InfectAbility',
     'UmbraArmorAbility', 'CompleatedAbility', 'DamageAsThoughNotBlockedAbility',
     'ConvokeAbility', 'DayboundAbility', 'NightboundAbility', 'AscendAbility',
     'StartYourEnginesAbility', 'StoriedAbility', 'BecomeDayAsEntersAbility',
@@ -871,7 +871,7 @@ _TALLIES = ('GOLD', 'BLOODLINE', 'MUSTER', 'QUEST', 'ICE', 'WISH', 'REVIVAL', 'N
             'FILM', 'FATE', 'CRYSTAL', 'TASK', 'SUPPLY', 'SKEWER', 'SIN', 'DIVINITY', 'FORESHADOW', 'CHORUS', 'EMBER', 'BLOOD',
             'PROMOTION', 'NET', 'TIME', 'INCUBATION', 'JUDGMENT', 'BLAZE', 'DREAD', 'RITUAL', 'SUSPECT', 'INGENUITY',
             'KNOWLEDGE', 'LANDMARK', 'INVITATION', 'ISOLATION', 'POISON', 'COIN', 'FILIBUSTER', 'BLOODSTAIN',
-            'GEM', 'IMPOSTOR', 'DOOM', 'HARMONY', 'GHOSTFORM', 'FLAME')
+            'GEM', 'IMPOSTOR', 'DOOM', 'HARMONY', 'GHOSTFORM', 'FLAME', 'BURDEN')
 # (a name may come with its article: `HOUR("hour", "an")`)
 for _m in re.finditer(r'^    (\w+)\("([a-z][a-z -]*)"(?:, "\w+")?\)', open(os.path.join(ROOT, 'Mage', 'src', 'main', 'java', 'mage', 'counters',
                                                                  'CounterType.java')).read(), re.M):
@@ -3612,8 +3612,12 @@ class Translator:
             return {'class': 'TapSourceUnlessBeholdEffect', 'subtype': subtype_names()[m.group(1)]}
         if cls == 'TransformSourceEffect' and not args:
             return {'class': cls}
-        # "then shuffle" as a spell's own effect (Through the Forest Gate)
+        # "then shuffle" as a spell's own effect (Through the Forest Gate) or optional (Ponder)
         if cls == 'ShuffleLibrarySourceEffect' and not args:
+            return {'class': cls}
+        if cls == 'ShuffleLibrarySourceEffect' and args == ['true']:
+            return {'class': 'ShuffleLibrarySourceOptionalEffect'}
+        if cls == 'NonbasicLandsAreMountainsEffect' and not args:
             return {'class': cls}
         if cls == 'CreateTwiceThatManyTokensEffect' and not args:
             return {'class': cls}
@@ -3786,7 +3790,7 @@ class Translator:
         # is gone from the game (`ContinuousEffectsList.removeInactiveEffects`), so it lasts as long as the target stays
         if cls == 'BecomesCreatureTypeTargetEffect' and len(args) == 3 and re.fullmatch(r'SubType\.\w+', args[1].strip()) \
                 and args[2].strip() == 'false' \
-                and args[0].strip() in ('Duration.EndOfTurn', 'Duration.Custom', 'Duration.WhileOnBattlefield'):
+                and args[0].strip() in ('Duration.EndOfTurn', 'Duration.Custom', 'Duration.WhileOnBattlefield', 'Duration.EndOfGame'):
             return {'class': 'AddCardSubTypeTargetEffect', 'subtype': subtype_names()[args[1].strip()[8:]],
                     'duration': 'EndOfTurn' if args[0].strip() == 'Duration.EndOfTurn' else 'WhileOnBattlefield'}
         # (a Phyrexian, not black, is the per-card handler's: Portal to Phyrexia)
@@ -3944,9 +3948,11 @@ class Translator:
         # a triggered ability's "add {R}{R}" (Gloin): the same mana, into the controller's pool as it resolves
         if cls == 'AddManaToManaPoolSourceControllerEffect' and len(args) == 1:
             return self.effect('new BasicManaEffect(' + args[0] + ')')
-        # "you gain hexproof until end of turn" (as it resolves)
+        # "you gain hexproof until end of turn" (as it resolves), or "protection from everything until your next turn" (The One Ring)
         if cls == 'GainAbilityControllerEffect' and len(args) == 2 and args[1].strip() == 'Duration.EndOfTurn':
             return {'class': cls, 'ability': self.ability(args[0]), 'until_end_of_turn': True}
+        if cls == 'GainAbilityControllerEffect' and len(args) == 2 and args[1].strip() == 'Duration.UntilYourNextTurn':
+            return {'class': cls, 'ability': self.ability(args[0]), 'until_your_next_turn': True}
         if cls == 'BasicManaEffect' and len(args) == 1:
             a = args[0].strip()
             if (n := re.fullmatch(r'newMana\(ManaType\.(WHITE|BLUE|BLACK|RED|GREEN|COLORLESS),(\d+)\)', a.replace(' ', ''))):
@@ -4339,7 +4345,7 @@ class Translator:
                 and (dc := delayed_class(getattr(self, 'source', None), m.group(1))) is not None \
                 and card_handlers.find(getattr(self, 'source', None), m.group(1), 'trigger', True):
             a = card_handlers.trigger(self, m.group(1), split_args(m.group(2)) if m.group(2).strip() else [])
-            if dc['duration'] not in ('Duration.EndOfTurn', 'Duration.EndOfGame') \
+            if dc['duration'] not in ('Duration.EndOfTurn', 'Duration.EndOfGame', 'Duration.UntilEndOfYourNextTurn') \
                     or dc['optional'] != a.get('optional', False):
                 raise Unsupported('delayed ability %s: %s' % (m.group(1), dc['duration']))
             if dc['rule'] is not None:
@@ -4353,12 +4359,32 @@ class Translator:
             out = {'class': 'CreateDelayedTriggerEffect', 'ability': a}
             if dc['duration'] == 'Duration.EndOfTurn':
                 out['end_of_turn'] = True
+            elif dc['duration'] == 'Duration.UntilEndOfYourNextTurn':
+                out['until_end_of_next_turn'] = True
             if dc['once']:
                 out['once'] = True
             # `copyTargets` false: it points at nothing until its trigger sets a pointer
             if len(args) == 2:
                 out['no_copy_targets'] = True
             return out
+        # `WhenYouAttackDelayedTriggeredAbility(effect)`: "Whenever you attack this turn, <effect>" (Dalkovan Encampment)
+        if cls == 'CreateDelayedTriggeredAbilityEffect' and len(args) == 1 \
+                and (m := re.fullmatch(r'new WhenYouAttackDelayedTriggeredAbility\((.*)\)', canonical(args[0].strip()), re.S)) \
+                and balanced('x(' + m.group(1) + ')'):
+            inner_args = split_args(m.group(1))
+            if len(inner_args) == 1:
+                eff = self.effect(inner_args[0])
+                text = None
+                if (c := re.fullmatch(r'new (\w+)\(\)', inner_args[0].strip())):
+                    text = class_static_text(getattr(self, 'source', None), c.group(1))
+                rule = ('Whenever you attack this turn, ' + text + '.') if text else 'Whenever you attack this turn.'
+                return {'class': 'CreateDelayedTriggerEffect', 'end_of_turn': True, 'ability': {
+                    'class': 'TriggeredAbility',
+                    'on': {'e': 'attacks_with', 'min': 1, 'filter': [CREATURE]},
+                    'effects': [eff],
+                    'optional': False,
+                    'rule': rule,
+                }}
         # "at the beginning of the next end step, …": its effects then
         if cls == 'CreateDelayedTriggeredAbilityEffect' and len(args) == 2 and args[1].strip() == 'false':
             args = args[:1]
@@ -5796,7 +5822,9 @@ class Translator:
         # an opponent of its controller controls
         if cls == 'ProtectionFromEachOpponentAbility' and not args:
             return {'class': 'ProtectionAbility', 'filter': [OPPONENT]}
-        if cls == 'DelveAbility' and args in ([], ['false']):
+        if cls == 'ProtectionFromEverythingAbility' and not args:
+            return {'class': 'ProtectionAbility', 'filter': []}
+        if cls == 'DelveAbility' and args in ([], ['false'], ['true']):
             return {'class': cls}
         # `new EnchantAbility(auraTarget)`: what it can enchant is the spell's target
         if cls == 'EnchantAbility' and len(args) == 1:
@@ -8439,8 +8467,10 @@ def translate(card_name, subtypes, facts):
         first = {'effects': spell['effects'], 'targets': spell['targets']}
         if 'first_mode_cost' in spell:
             first['cost'] = spell['first_mode_cost']
+        if 'first_mode_paw_print' in spell:
+            first['paw_print'] = spell['first_mode_paw_print']
         card['spell'] = {'modes': [first] + modes, 'rule': rule}
-        for k in ('min_modes', 'max_modes', 'more_modes'):
+        for k in ('min_modes', 'max_modes', 'more_modes', 'max_paw_prints', 'repeat_modes'):
             if k in spell:
                 card['spell'][k] = spell[k]
     elif spell['effects'] or spell['targets'] or spell.get('costs'):
@@ -8911,6 +8941,19 @@ def card_statement(t, st, card, added, spell, modes, subtypes):
         if m:
             spell['min_modes' if m.group(1) == 'Min' else 'max_modes'] = int(m.group(2))
             return
+        m = re.fullmatch(r'this\.getSpellAbility\(\)\.getModes\(\)\.setMaxPawPrints\((\d+)\)', st)
+        if m:
+            spell['max_paw_prints'] = int(m.group(1))
+            return
+        m = re.fullmatch(r'this\.getSpellAbility\(\)\.getModes\(\)\.setMayChooseSameModeMoreThanOnce\((true|false)\)', st)
+        if m:
+            if m.group(1) == 'true':
+                spell['repeat_modes'] = True
+            return
+        m = re.fullmatch(r'this\.getSpellAbility\(\)\.getModes\(\)\.getMode\(\)\.withPawPrintValue\((\d+)\)', st)
+        if m:
+            spell['first_mode_paw_print'] = int(m.group(1))
+            return
         # hints and flavor words are display; a watcher is the engine's own bookkeeping
         if re.fullmatch(r'this\.getSpellAbility\(\)\.(addHint|addWatcher|withFirstModeFlavorWord|setAbilityWord)\(.*\)', st):
             return
@@ -9126,6 +9169,9 @@ def mode_expr(t, arg):
     while (n := re.fullmatch(r'(.*)\.(?:withFlavorWord|setModeTag)\("[^"]*"\)', arg, re.S)):
         arg = n.group(1).strip()
     cost = None
+    paw_print = None
+    if (n := re.fullmatch(r'(.*)\.withPawPrintValue\((\d+)\)', arg, re.S)):
+        arg, paw_print = n.group(1).strip(), int(n.group(2))
     if (n := re.fullmatch(r'(.*)\.withCost\((.*)\)', arg, re.S)) and split_args(n.group(2)) == [n.group(2).strip()]:
         arg, cost = n.group(1).strip(), mode_cost(n.group(2))
     while True:
@@ -9149,6 +9195,8 @@ def mode_expr(t, arg):
     out = {'effects': mode.get('effects', []) + more, 'targets': mode.get('targets', []) + chained}
     if cost:
         out['cost'] = cost
+    if paw_print:
+        out['paw_print'] = paw_print
     return out
 
 
@@ -9723,9 +9771,10 @@ def ability_statement(t, st, added):
                                                            {'c': 'not', 'x': {'c': 'solved'}}]},
                           'effects': [{'class': 'SolveEffect'}]})
             solved = t.ability(parts[2])
-            # (a static solved ability: each of its effects conditional on being solved, Case of the Gateway Express)
+            # (a static solved ability: each of its effects conditional on being solved, Case of the Gateway Express / Locked Hothouse)
             static_solved = solved.get('class') == 'SimpleStaticAbility' and solved.get('effects') and all(
-                e.get('class') == 'ConditionalContinuousEffect' and e.get('condition') == {'c': 'solved'}
+                e.get('class') in ('ConditionalContinuousEffect', 'ConditionalAsThoughEffect')
+                and e.get('condition') == {'c': 'solved'}
                 for e in solved['effects'])
             # (`withTriggerCondition(SolvedSourceCondition.SOLVED)`, checked only as it triggers: Case of the Shattered Pact)
             if {'c': 'solved'} not in (solved.get('condition'), solved.get('trigger_condition')) and not static_solved:
@@ -10259,15 +10308,19 @@ def school_pool():
 PIONEER_POOL = os.path.join(ROOT, 'rust', 'crates', 'playmat-engine', 'cards', 'pioneer-pool.txt')
 # the Career decks' cards outside the Pioneer pool (wave 18)
 CAREER_POOL = os.path.join(ROOT, 'rust', 'crates', 'playmat-engine', 'cards', 'career-pool.txt')
+# most-played non-Pioneer cards on production (server logs, replays, decks, ladder)
+SERVER_POOL = os.path.join(ROOT, 'rust', 'crates', 'playmat-engine', 'cards', 'server-pool.txt')
 
 
 def engine_pool():
     """The cards the engine takes in: the school and shadow decks' (`school_pool`), every Pioneer-legal card
-    (`cards/pioneer-pool.txt`) and the Career decks' cards outside it (`cards/career-pool.txt`). Being in the engine
-    isn't being trusted: `cards/verified.txt` decides which games go to Rust."""
+    (`cards/pioneer-pool.txt`), the Career decks' cards outside it (`cards/career-pool.txt`), and the most-played
+    server cards outside them (`cards/server-pool.txt`). Being in the engine isn't being trusted: `cards/verified.txt`
+    decides which games go to Rust."""
     names = set(school_pool())
-    for pool in (PIONEER_POOL, CAREER_POOL):
-        names.update(l.strip() for l in open(pool) if l.strip() and not l.startswith('#'))
+    for pool in (PIONEER_POOL, CAREER_POOL, SERVER_POOL):
+        if os.path.exists(pool):
+            names.update(l.strip() for l in open(pool) if l.strip() and not l.startswith('#'))
     return sorted(names)
 
 

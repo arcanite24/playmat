@@ -410,6 +410,8 @@ pub struct Obj {
     /// where its triggered abilities sit in Java's `TriggeredAbilities` map (registered as cards are loaded, tokens as
     /// they're created): abilities that trigger on the same event wait in this order
     pub trigger_order: u64,
+    /// whether `trigger_order` came from `ShadowStart` (vs falling back to `id.0` on legacy `-1` recordings)
+    pub trigger_order_recorded: bool,
     /// a Class's levels gained (on the battlefield), with where the abilities they add are in trigger order
     pub class_gained: Vec<(u32, u64)>,
     /// phased out (702.26): still on the battlefield (its zone), but treated as though it doesn't exist, so it's
@@ -428,6 +430,8 @@ pub struct Obj {
     /// a mutated permanent: its own card as it was before the first mutation, while `def` is the merged permanent
     /// (the top card's characteristics, every card's abilities)
     pub merge_base: Option<Arc<CardDef>>,
+    /// cards exiled to pay this spell's delve cost (`MurktideRegentValue`)
+    pub delved_cards: Vec<ObjId>,
 }
 
 impl Obj {
@@ -866,6 +870,8 @@ pub struct DelayedTrigger {
     pub target_zcc: Vec<Vec<u32>>,
     /// `Duration.EndOfTurn`: it ends in the cleanup step (otherwise it lasts the game)
     pub end_of_turn: bool,
+    /// `Duration.UntilEndOfYourNextTurn`: expires at cleanup of `seat`'s turn with `turn > created_turn`
+    pub until_end_of_next_turn: Option<(Seat, u32)>,
     /// `triggerOnlyOnce`: it's gone once it has triggered
     pub once: bool,
 }
@@ -1209,6 +1215,8 @@ pub struct Game {
     /// "until your next turn, you may cast spells of the filter as though they had flash": the player, the filter,
     /// the effect's source (Teferi, Time Raveler's +1)
     pub flash_until_next_turn: Vec<(Seat, crate::card::Filter, ObjId)>,
+    /// "you gain <ability> until your next turn" (`GainAbilityControllerEffect`, The One Ring): player, ability, source
+    pub player_abilities_until_next_turn: Vec<(Seat, crate::card::AbilityDef, ObjId)>,
     /// each name `ChooseACardNameEffect` chose, by its source (Java's `sourceId + INFO_KEY` state value, which outlives
     /// the object: Comply's "until your next turn" reads it once the spell is gone), the latest last
     pub names_chosen: Vec<(ObjId, String)>,
@@ -1651,7 +1659,13 @@ impl Game {
 
     /// a snow permanent (`SuperType.SNOW`): its mana pays snow symbols
     pub fn is_snow(&self, id: ObjId) -> bool {
-        self.obj(id).def.supertypes.iter().any(|s| s == "SNOW")
+        self.has_supertype(id, "SNOW")
+    }
+
+    pub fn has_supertype(&self, id: ObjId, s: &str) -> bool {
+        let o = self.obj(id);
+        o.def.supertypes.iter().any(|x| x == s)
+            || (o.zone == Zone::Battlefield && crate::rules::cards::has_supertype(self, id, s))
     }
 
     pub fn new(seats: usize, seed_state: i64) -> Game {
@@ -1730,6 +1744,7 @@ impl Game {
             no_lifegain_turn: None,
             attach_entering: None,
             flash_until_next_turn: Vec::new(),
+            player_abilities_until_next_turn: Vec::new(),
             names_chosen: Vec::new(),
             resolving: None,
             resolving_item: None,
@@ -2045,6 +2060,7 @@ impl Game {
             token: false,
             card_emblem: false,
             trigger_order: id.0 as u64,
+            trigger_order_recorded: false,
             class_gained: Vec::new(),
             phased_out: false,
             phased_indirect: false,
@@ -2052,6 +2068,7 @@ impl Game {
             merged: Vec::new(),
             merged_top: None,
             merge_base: None,
+            delved_cards: Vec::new(),
         }));
         id
     }
@@ -2067,7 +2084,7 @@ impl Game {
         match p {
             Pred::Type { t } => self.has_type(id, *t),
             Pred::Subtype { s } => self.has_subtype(id, s),
-            Pred::Supertype { s } => o.def.supertypes.iter().any(|x| x == s),
+            Pred::Supertype { s } => self.has_supertype(id, s),
             Pred::Color { c } => self.colors(id).contains(c),
             // a spell is controlled by who cast it, not its card's owner (an opponent's card cast with Psychic
             // Intrusion)
@@ -2977,15 +2994,20 @@ impl Game {
         (o.zone == Zone::Battlefield && o.zcc == zcc).then_some(to)
     }
 
-    /// Where a waiting trigger is in Java's trigger order: its source's, or for an ability a Class level added, after
-    /// every object's own (in the order the levels were gained)
-    pub fn trigger_key(&self, t: &StackItem) -> u64 {
-        // a card's delayed trigger: `GameState.handleEvent` checks the delayed ones after every object's, in the order
-        // they were created
+    /// Where a waiting trigger is in Java's trigger order: `GameState.handleEvent` checks delayed triggers first, in
+    /// the order they were created, then every object's own (or for an ability a Class level added, after every
+    /// object's own, in the order the levels were gained)
+    pub fn trigger_key(&self, t: &StackItem) -> (u8, u64) {
+        // a card's delayed trigger: `GameState.handleEvent` checks `delayed.checkTriggers` before
+        // `triggers.checkTriggers`, in the order they were created
         if let Some(h) = t.from_delayed {
             let k = self.delayed_triggers.iter().position(|d| d.holder == h).unwrap_or(0);
-            return (1 << 41) + k as u64;
+            return (0, k as u64);
         }
+        (1, self.trigger_key_object(t))
+    }
+
+    fn trigger_key_object(&self, t: &StackItem) -> u64 {
         let o = self.obj(t.card);
         if let Some((i, _)) = t.ability {
             if let Some(crate::card::Condition::ClassLevel { n }) =
@@ -4113,9 +4135,10 @@ impl Game {
             || self.any_static(|g, src, e| g.obj(src).controller == seat && gives(g, e, src, seat, ability))
             || self.eot_effects.iter().any(|(e, you, _)| {
                 *you == seat
-                    && matches!(e, EffectDef::GainAbilityControllerEffect { ability: given, until_end_of_turn: true }
+                    && matches!(e, EffectDef::GainAbilityControllerEffect { ability: given, until_end_of_turn: true, .. }
                         if **given == *ability)
             })
+            || self.player_abilities_until_next_turn.iter().any(|(you, given, _)| *you == seat && given == ability)
     }
 
     /// The cards in `source`'s exile zone for the permanent it is now (`UnlicensedHearseValue`): each card once, and
@@ -4149,6 +4172,11 @@ impl Game {
             }
         }
         self.any_static(|g, src, e| g.obj(src).controller == seat && gives(g, e, src, seat, source))
+            || self.player_abilities_until_next_turn.iter().any(|(you, ability, src)| {
+                *you == seat
+                    && matches!(ability, AbilityDef::ProtectionAbility { filter }
+                        if self.filter_matches(filter, seat, Some(*src), source))
+            })
     }
 
     pub fn static_gives(&self, e: &EffectDef, src: ObjId, you: Seat, id: ObjId, ability: &AbilityDef) -> bool {

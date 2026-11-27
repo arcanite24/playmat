@@ -3,7 +3,7 @@ package mage.game.trace;
 import mage.abilities.DelayedTriggeredAbility;
 import mage.abilities.TriggeredAbility;
 import mage.cards.Card;
-import mage.cards.ModalDoubleFacedCard;
+import mage.cards.DoubleFacedCard;
 import mage.game.Game;
 import mage.game.stack.StackAbility;
 import mage.game.stack.StackObject;
@@ -117,16 +117,16 @@ public final class ShadowStart {
     }
 
     /**
-     * A card's place in the triggered-ability registration order. A modal double-faced card's abilities are its
+     * A card's place in the triggered-ability registration order. A double-faced card's abilities are its
      * halves', registered right after it as the cards load ({@code GameImpl.loadCards}), so it takes its first half's
      * place.
      */
     static int triggerOrder(List<UUID> triggerSources, Card card) {
         int k = triggerSources.indexOf(card.getId());
-        if (k < 0 && card instanceof ModalDoubleFacedCard) {
-            ModalDoubleFacedCard mdfc = (ModalDoubleFacedCard) card;
-            int left = triggerSources.indexOf(mdfc.getLeftHalfCard().getId());
-            int right = triggerSources.indexOf(mdfc.getRightHalfCard().getId());
+        if (k < 0 && card instanceof DoubleFacedCard) {
+            DoubleFacedCard dfc = (DoubleFacedCard) card;
+            int left = triggerSources.indexOf(dfc.getLeftHalfCard().getId());
+            int right = triggerSources.indexOf(dfc.getRightHalfCard().getId());
             k = left < 0 ? right : right < 0 ? left : Math.min(left, right);
         }
         return k;

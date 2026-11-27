@@ -267,12 +267,12 @@
   "source": "docs/rust/Engine.md"
  },
  "counted": {
-  "engine_cards": 14450,
-  "verified_cards": 14404,
+  "engine_cards": 14509,
+  "verified_cards": 14462,
   "pioneer": {
    "cards": 15259,
-   "in_engine": 14248,
-   "verified": 14203
+   "in_engine": 14260,
+   "verified": 14213
   },
   "java_card_files": 32850,
   "school": {
@@ -1029,18 +1029,18 @@
    "played": 1360,
    "matched": 1357,
    "java_timeouts": 28,
-   "checked_in": 1674
+   "checked_in": 1680
   },
   "rust": {
-   "lines": 152319,
+   "lines": 171906,
    "crates": [
     {
      "crate": "playmat-ai",
-     "lines": 8622
+     "lines": 15033
     },
     {
      "crate": "playmat-engine",
-     "lines": 123281
+     "lines": 124011
     },
     {
      "crate": "playmat-gateway",
@@ -1048,11 +1048,11 @@
     },
     {
      "crate": "playmat-host",
-     "lines": 6104
+     "lines": 6361
     },
     {
      "crate": "playmat-platform",
-     "lines": 10514
+     "lines": 10725
     },
     {
      "crate": "playmat-protocol",
@@ -1061,10 +1061,26 @@
     {
      "crate": "playmat-statediff",
      "lines": 340
+    },
+    {
+     "crate": "playmat-swarm",
+     "lines": 7213
+    },
+    {
+     "crate": "playmat-swarm-proto",
+     "lines": 1178
+    },
+    {
+     "crate": "playmat-worker",
+     "lines": 3094
+    },
+    {
+     "crate": "playmat-worker-wasm",
+     "lines": 493
     }
    ]
   }
  },
- "commit": "8d330dc0e249fa1ce3187bf96ebd5d0666c70c70",
- "generated": "2026-11-25"
+ "commit": "b065a86dbbac715e4184d7d81d2744732c7fdd38",
+ "generated": "2026-11-27"
 }
