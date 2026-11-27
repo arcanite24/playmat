@@ -194,9 +194,9 @@ fn tilted_world_weights(trees: &[Tree], base_weights: &[f64], alive: &[usize], p
 fn sigma_gumbel(q: f32, most: usize, c_scale: f32) -> f32 {
     let base = (50.0 + most as f32) * c_scale * q;
     if q > 0.9801 {
-        base + 500.0 * (q - 0.98)
+        base + 1000.0 * (q - 0.98)
     } else if q < 0.0199 {
-        base - 500.0 * (0.02 - q)
+        base - 1000.0 * (0.02 - q)
     } else {
         base
     }
@@ -490,14 +490,16 @@ impl Walk {
                 self.quiesce = false;
                 return None;
             }
-            self.left_tree = true;
-            if self.quiesce_net && !skipped(q) {
+            if !skipped(q) {
                 let options = candidates(game, seat, q, quick, self.width);
                 if options.len() >= 2 {
-                    let obs = crate::obs::observe(game, seat, q, &options);
-                    let (p, _) = self.cache.forward_priors(&self.net, &obs);
-                    if let Some((best_i, _)) = p.iter().enumerate().max_by(|a, b| a.1.total_cmp(b.1)) {
-                        return Some(options[best_i].clone());
+                    self.left_tree = true;
+                    if self.quiesce_net {
+                        let obs = crate::obs::observe(game, seat, q, &options);
+                        let (p, _) = self.cache.forward_priors(&self.net, &obs);
+                        if let Some((best_i, _)) = p.iter().enumerate().max_by(|a, b| a.1.total_cmp(b.1)) {
+                            return Some(options[best_i].clone());
+                        }
                     }
                 }
             }
@@ -562,7 +564,6 @@ impl Walk {
                 } else {
                     self.leaf_value = None;
                     self.quiesce = true;
-                    self.left_tree = true;
                 }
                 return None;
             }
@@ -587,7 +588,6 @@ impl Walk {
                     // Mid-stack or mid-combat: let quick answers finish resolving the stack/combat before scoring
                     self.leaf_value = None;
                     self.quiesce = true;
-                    self.left_tree = true;
                 }
                 return None;
             }
