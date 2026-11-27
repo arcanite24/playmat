@@ -337,6 +337,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             // "until your next turn" ends as it begins
             game.attacks_opponent.retain(|(s, _)| *s != active);
             game.flash_until_next_turn.retain(|(s, _, _)| *s != active);
+            game.player_abilities_until_next_turn.retain(|(s, _, _)| *s != active);
             game.attacks_if_able_next.retain(|(s, _, _)| *s != active);
             game.card_statics.retain(|r| r.until_turn_of != Some(active));
             game.lost_until_turn_of.retain(|(_, _, _, s)| *s != active);
@@ -4150,9 +4151,20 @@ fn color_among(
 }
 
 /// `AnyColorLandsProduceManaEffect.getManaTypes`: the colors (and whether colorless) the mana abilities of the lands
-/// `seat` (`opponent`: an opponent) controls could make, other than `source`'s; another such ability adds nothing
-/// (Java stops the loop there, `inManaTypeCalculation`)
+/// `seat` (`opponent`: an opponent) controls could make, other than `source`'s; guards recursion per source
+/// (`inManaTypeCalculation`) so two opposing Exotic Orchards can still see each other's controller's other lands
 fn lands_could_produce(game: &Game, seat: Seat, source: ObjId, opponent: bool) -> (Vec<Color>, bool) {
+    let mut visited = vec![source];
+    lands_could_produce_inner(game, seat, source, opponent, &mut visited)
+}
+
+fn lands_could_produce_inner(
+    game: &Game,
+    seat: Seat,
+    source: ObjId,
+    opponent: bool,
+    visited: &mut Vec<ObjId>,
+) -> (Vec<Color>, bool) {
     let mut colors = Vec::new();
     let mut colorless = false;
     for &o in game.battlefield.iter() {
@@ -4161,7 +4173,20 @@ fn lands_could_produce(game: &Game, seat: Seat, source: ObjId, opponent: bool) -
             continue;
         }
         for a in &game.obj(o).def.abilities {
-            if matches!(a, AbilityDef::AnyColorLandsProduceManaAbility { .. }) {
+            if let AbilityDef::AnyColorLandsProduceManaAbility { opponent: opp2, any_type: any2, .. } = a {
+                if !visited.contains(&o) {
+                    visited.push(o);
+                    let (c2, cl2) = lands_could_produce_inner(game, c, o, *opp2, visited);
+                    visited.pop();
+                    for col in c2 {
+                        if !colors.contains(&col) {
+                            colors.push(col);
+                        }
+                    }
+                    if *any2 {
+                        colorless |= cl2;
+                    }
+                }
                 continue;
             }
             let Some(m) = a.mana() else { continue };
@@ -5417,11 +5442,22 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
     }
     game.remove_from_zone(id);
     // cast from a graveyard, it left it (`ZONE_CHANGE` GRAVEYARD to STACK: Ark of Hunger's "whenever one or more
-    // cards leave your graveyard", `CardsLeftGraveyardWatcher`)
+    // cards leave your graveyard", `CardsLeftGraveyardWatcher`, Murktide Regent, Syr Konrad)
     if from == Zone::Graveyard {
         let owner = game.obj(id).owner;
         game.left_graveyard.push(id);
         game.watch.left_graveyard.push(owner);
+        let sources: Vec<ObjId> = game.battlefield.iter().copied().collect();
+        let fired = game.triggers(sources, |g, src, you, t| match t {
+            Trigger::SyrKonrad => owner == you && g.has_type(id, CardType::Creature),
+            Trigger::CardLeavesYourGraveyard { filter, your_turn } => {
+                owner == you
+                    && (!*your_turn || g.active == Some(you))
+                    && g.filter_matches(filter, you, Some(src), id)
+            }
+            _ => false,
+        });
+        game.pending.extend(fired);
     }
     {
         let o = game.obj_mut(id);
@@ -5432,6 +5468,7 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         o.on_adventure = false;
         o.mana_spent = 0;
         o.treasure_spent = 0;
+        o.delved_cards.clear();
     }
     Arc::make_mut(&mut game.stack).push(StackItem::spell(id, seat));
     let def = game.obj(id).def.clone();
@@ -5871,17 +5908,27 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         let possible = |game: &Game, k: usize| {
             def.spell.modes[k].targets.iter().all(|t| x_count_target(t) || target_possible(game, seat, t, Some(id)))
         };
-        if n == min {
+        let max_paws = def.spell.max_paw_prints;
+        let repeat = def.spell.repeat_modes;
+        if n == min && !repeat && max_paws == 0 {
             modes = (0..n).filter(|k| possible(game, *k)).collect();
         } else {
-            while modes.len() < max {
-                let available: Vec<usize> = (0..n).filter(|k| !modes.contains(k) && possible(game, *k)).collect();
+            let mut paws_used: u32 = 0;
+            while (max_paws == 0 && modes.len() < max) || (max_paws > 0 && paws_used < max_paws) {
+                let available: Vec<usize> = (0..n)
+                    .filter(|k| {
+                        (repeat || !modes.contains(k))
+                            && (max_paws == 0 || paws_used + def.spell.modes[*k].paw_print <= max_paws)
+                            && possible(game, *k)
+                    })
+                    .collect();
                 if available.is_empty() {
                     break;
                 }
                 match ask(game, d, seat, &Query::ChooseMode { modes: available.clone() }) {
                     Answer::Mode(k) if available.contains(&k) => {
                         modes.push(k);
+                        paws_used += def.spell.modes[k].paw_print;
                         // (the spell shows the modes chosen so far while the next is asked)
                         if let Some(top) = Arc::make_mut(&mut game.stack).last_mut() {
                             top.modes = modes.clone();
@@ -9205,6 +9252,7 @@ fn possible_targets_all(game: &Game, seat: Seat, def: &TargetDef, src: Option<Ob
                     || *s == seat
                     || !game.player_has(*s, &AbilityDef::HexproofAbility)
                     || cards::ignore_hexproof(game, seat, Target::Player(*s)))
+                && (game.choosing_player || !game.player_has(*s, &AbilityDef::ShroudAbility))
                 && (game.choosing_player || !src.is_some_and(|o| game.player_protected_from(*s, o)))
         })
         .collect();
@@ -9318,10 +9366,11 @@ fn possible_targets_all(game: &Game, seat: Seat, def: &TargetDef, src: Option<Ob
 /// Whether `seat` may target a permanent with a spell or ability of `src`: not an opponent's with hexproof, nor one
 /// with protection from a color of `src`.
 fn targetable(game: &Game, seat: Seat, id: ObjId, src: Option<ObjId>) -> bool {
-    (game.obj(id).controller == seat
-        || !game.has_ability(id, &AbilityDef::HexproofAbility)
-        || (game.has_type(id, CardType::Creature) && nowhere_to_run(game, game.obj(id).controller))
-        || cards::ignore_hexproof(game, seat, Target::Obj(id)))
+    !game.has_ability(id, &AbilityDef::ShroudAbility)
+        && (game.obj(id).controller == seat
+            || !game.has_ability(id, &AbilityDef::HexproofAbility)
+            || (game.has_type(id, CardType::Creature) && nowhere_to_run(game, game.obj(id).controller))
+            || cards::ignore_hexproof(game, seat, Target::Obj(id)))
         && !src.is_some_and(|s| game.protected_from(id, s))
         && !src.is_some_and(|s| {
             game.obj(id).controller != seat
@@ -10025,6 +10074,7 @@ fn special_mana_payment(
             for c in &chosen {
                 game.move_to(*c, Zone::Exile);
             }
+            game.obj_mut(spell).delved_cards.extend(chosen.iter().copied());
             add(game, Mana { colorless: chosen.len() as u32, ..Mana::default() });
             Some(!chosen.is_empty())
         }
@@ -11770,6 +11820,8 @@ fn singleton_keyword(a: &AbilityDef) -> bool {
             | AbilityDef::TrampleAbility
             | AbilityDef::FlyingAbility
             | AbilityDef::WitherAbility
+            | AbilityDef::InfectAbility
+            | AbilityDef::ShroudAbility
             | AbilityDef::IntimidateAbility
             | AbilityDef::VigilanceAbility
             | AbilityDef::DefenderAbility
@@ -11782,6 +11834,7 @@ fn singleton_keyword(a: &AbilityDef) -> bool {
 /// triggered ability (Old-Growth Troll, Curious Obsession) adds that ability to what it enchants.
 fn refresh_land_types(game: &mut Game) {
     let mut types: Vec<String> = Vec::new();
+    let mut blood_moon = false;
     let mut granted: Vec<(ObjId, AbilityDef)> = Vec::new();
     // (and an emblem's: Mu Yanling, Sky Dancer's "Islands you control have '{T}: Draw a card.'")
     for id in game.battlefield.iter().chain(game.command.iter()) {
@@ -11842,6 +11895,9 @@ fn refresh_land_types(game: &mut Game) {
                             if !types.contains(subtype) {
                                 types.push(subtype.clone());
                             }
+                        }
+                        EffectDef::NonbasicLandsAreMountainsEffect => {
+                            blood_moon = true;
                         }
                         // (Skygames: enchanted land has "{T}: … Activate only as a sorcery.")
                         EffectDef::GainAbilityAttachedEffect { ability }
@@ -12086,6 +12142,11 @@ fn refresh_land_types(game: &mut Game) {
         let o = game.obj(id);
         let base = o.land_type_base.as_ref().map(|(b, _, _)| b.clone()).unwrap_or_else(|| o.def.clone());
         let mut given: Vec<String> = if base.types.contains(&CardType::Land) { types.clone() } else { Vec::new() };
+        // Blood Moon: nonbasic lands lose their subtypes/abilities and become Mountains (layer 4)
+        if blood_moon && base.types.contains(&CardType::Land) && !base.supertypes.iter().any(|s| s == "BASIC") {
+            given.insert(0, "=Mountain".into());
+            given.insert(1, "Mountain".into());
+        }
         // the latest "becomes", marked `=Type`: it replaces the land's types and abilities first
         if let Some((_, _, _, _, t)) = game.land_becomes.iter().rev().find(|(l, _, _, _, _)| *l == id) {
             if base.types.contains(&CardType::Land) {
@@ -15115,6 +15176,13 @@ fn apply_each_effect(
                     let mut library = game.player(p).library.clone();
                     game.rng.shuffle(&mut library);
                     game.player_mut(p).library = library;
+                }
+            }
+            EffectDef::ShuffleLibrarySourceOptionalEffect => {
+                if choose_use(game, d, controller, "Shuffle your library?").unwrap_or(false) {
+                    let mut library = game.player(controller).library.clone();
+                    game.rng.shuffle(&mut library);
+                    game.player_mut(controller).library = library;
                 }
             }
             EffectDef::MoveTargetCardsEffect { zone } => {
@@ -18747,9 +18815,24 @@ fn apply_each_effect(
                     game.when_dies.push((o, zcc, turn, *to_player, t));
                 }
             }
-            EffectDef::CreateDelayedTriggerEffect { ability, end_of_turn, once, no_copy_targets } => {
+            EffectDef::CreateDelayedTriggerEffect {
+                ability,
+                end_of_turn,
+                until_end_of_next_turn,
+                once,
+                no_copy_targets,
+            } => {
                 let legal = if *no_copy_targets { &[][..] } else { legal };
-                create_delayed_trigger(game, item, ability, legal, source, *end_of_turn, *once);
+                create_delayed_trigger(
+                    game,
+                    item,
+                    ability,
+                    legal,
+                    source,
+                    *end_of_turn,
+                    *until_end_of_next_turn,
+                    *once,
+                );
             }
             EffectDef::CreateNextEndStepDelayedEffect { effects, rule, fixed_targets } => {
                 let fixed: Vec<(ObjId, u32)> = if *fixed_targets {
@@ -20113,7 +20196,8 @@ fn apply_each_effect(
             | EffectDef::MultiversalPassagePassageEffect
             | EffectDef::QuantumRiddlerReplacementEffect
             | EffectDef::ArtistsTalentEffect { .. }
-            | EffectDef::GainAbilityControllerEffect { until_end_of_turn: false, .. }
+            | EffectDef::GainAbilityControllerEffect { until_end_of_turn: false, until_your_next_turn: false, .. }
+            | EffectDef::NonbasicLandsAreMountainsEffect
             | EffectDef::LeylineOfTheVoidEffect
             | EffectDef::CantAttackAloneSourceEffect
             | EffectDef::CantAttackAloneAttachedEffect
@@ -20446,6 +20530,10 @@ fn apply_each_effect(
             EffectDef::GainAbilityControllerEffect { until_end_of_turn: true, .. }
             | EffectDef::PreventAllDamageByAllPermanentsEffect { .. } => {
                 game.eot_effects.push((e.clone(), controller, source.0));
+            }
+            // "you gain protection from everything until your next turn" (The One Ring)
+            EffectDef::GainAbilityControllerEffect { ability, until_your_next_turn: true, .. } => {
+                game.player_abilities_until_next_turn.push((controller, (**ability).clone(), source.0));
             }
             EffectDef::PreventDamageToTargetEffect { amount, combat_only } => {
                 for t in legal.first().cloned().unwrap_or_default() {
@@ -22184,10 +22272,14 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
     {
         let o = game.obj(id);
         let dfc = o.printed_def.as_ref().unwrap_or(&o.def);
-        // (a modal double-faced card with a nonland back keeps its place: Birgi's "Whenever you cast a spell" waits
-        // before Treacherous Blessing's)
+        // (a double-faced card whose trigger order was recorded by `ShadowStart` keeps its true loadCards place;
+        // legacy recordings that wrote -1 fall back to `DFC_ORDER`)
         let land_back = dfc.back.as_ref().is_some_and(|b| b.is(CardType::Land));
-        if !o.token && (dfc.transform_back.is_some() || land_back) && o.trigger_order < DFC_ORDER {
+        if !o.token
+            && !o.trigger_order_recorded
+            && (dfc.transform_back.is_some() || land_back)
+            && o.trigger_order < DFC_ORDER
+        {
             let k = DFC_ORDER + game.obj(id).trigger_order;
             game.obj_mut(id).trigger_order = k;
         }
@@ -22240,12 +22332,15 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
     if let Some(def) = real_def {
         game.obj_mut(id).def = def;
     }
+    let blood_mooned = def.is(CardType::Land)
+        && !def.supertypes.iter().any(|s| s == "BASIC")
+        && game.any_static(|_, _, e| matches!(e, EffectDef::NonbasicLandsAreMountainsEffect));
     // the counters it enters with, put once it's set up (replacement effects see them: Doubling Season)
     let mut entering: Vec<(&str, i32)> = Vec::new();
     let zcc = {
         let o = game.obj_mut(id);
         o.controller = controller;
-        if tapped_by_static || def.abilities.iter().any(|a| a.is_enters_tapped()) {
+        if tapped_by_static || (!blood_mooned && def.abilities.iter().any(|a| a.is_enters_tapped())) {
             o.tapped = true;
         }
         // compleated: two fewer for each phyrexian symbol paid with life (none at all when that leaves none)
@@ -22732,8 +22827,9 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
         }
     }
     // Java's continuous effects apply before the event is checked: Kaito, entering on its controller's turn with
-    // loyalty, enters as a creature
+    // loyalty, enters as a creature; Ascend grants the city's blessing immediately on reaching ten permanents
     refresh_becomes(game);
+    game.update_ascend();
     // everything that triggers on this event, in Java's registration order
     let mut sources: Vec<ObjId> = game.battlefield.iter().copied().filter(|s| *s != id).collect();
     sources.insert(0, id);
@@ -23534,6 +23630,7 @@ fn create_delayed_trigger(
     legal: &[Vec<Target>],
     source: (ObjId, u32),
     end_of_turn: bool,
+    until_end_of_next_turn: bool,
     once: bool,
 ) {
     let mut def = (*game.obj(source.0).def).clone();
@@ -23551,12 +23648,14 @@ fn create_delayed_trigger(
                 .collect()
         })
         .collect();
+    let until_next = until_end_of_next_turn.then_some((item.controller, game.turn));
     game.delayed_triggers.push(crate::state::DelayedTrigger {
         holder,
         source,
         targets: legal.to_vec(),
         target_zcc,
         end_of_turn,
+        until_end_of_next_turn: until_next,
         once,
     });
 }
@@ -24219,6 +24318,7 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                 || src.zone == Zone::Stack && game.spell_grants(source).contains(a)
         }
     };
+    let src_infect = keyword(&AbilityDef::InfectAbility);
     let (src_deathtouch, src_lifelink) = match game.combat_keywords.iter().find(|k| combat && k.0 == source) {
         Some((_, deathtouch, lifelink)) if src.zone == Zone::Battlefield => (*deathtouch, *lifelink),
         _ => (keyword(&AbilityDef::DeathtouchAbility), keyword(&AbilityDef::LifelinkAbility)),
@@ -24232,7 +24332,11 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                 combat,
                 ..GameEvent::new(EventKind::Damage)
             });
-            lose_life_by(game, s, amount, Some(source), combat);
+            if src_infect {
+                add_poison(game, s, amount);
+            } else {
+                lose_life_by(game, s, amount, Some(source), combat);
+            }
             if amount > 0 {
                 let seen = crate::state::DamageSeen {
                     source,
@@ -24282,8 +24386,8 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             }
             let deathtouch = src_deathtouch;
             let creature = game.has_type(o, CardType::Creature);
-            // wither: a creature gets -1/-1 counters, not damage (`checkWither`)
-            let wither = creature && keyword(&AbilityDef::WitherAbility);
+            // wither / infect: a creature gets -1/-1 counters, not damage (`checkWither`)
+            let wither = creature && (keyword(&AbilityDef::WitherAbility) || keyword(&AbilityDef::InfectAbility));
             game.damaged_batch.push((o, amount, combat));
             let planeswalker = game.has_type(o, CardType::Planeswalker);
             let battle = game.has_type(o, CardType::Battle);
@@ -26324,8 +26428,12 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
         game.update_guildpact();
     }
     game.subtypes_until_eot.clear();
-    // `Duration.EndOfTurn` delayed triggered abilities end (`DelayedTriggeredAbilities.removeEndOfTurnAbilities`)
-    game.delayed_triggers.retain(|t| !t.end_of_turn);
+    // `Duration.EndOfTurn` and `Duration.UntilEndOfYourNextTurn` delayed triggered abilities end
+    let active = game.active;
+    let turn = game.turn;
+    game.delayed_triggers.retain(|t| {
+        !t.end_of_turn && !t.until_end_of_next_turn.is_some_and(|(s, made)| active == Some(s) && turn > made)
+    });
     // phased-out permanents too: Java's `Battlefield.endOfTurn` goes over every permanent (Kaito Shizuki)
     for id in game.all_permanents() {
         if game.obj(id).loyalty_used > 0 {
@@ -26369,7 +26477,7 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
 fn legend_rule(game: &mut Game, d: &mut dyn Decider) -> bool {
     // (not those a `LegendRuleDoesntApplyEffect` covers: `legendRuleApplies`)
     let legendary = |g: &Game, id: ObjId| {
-        g.obj(id).def.supertypes.iter().any(|t| t == "LEGENDARY")
+        g.has_supertype(id, "LEGENDARY")
             && !g.any_static(|g, src, e| {
                 matches!(e, EffectDef::LegendRuleDoesntApplyEffect { filter }
                     if g.filter_matches(filter, g.obj(src).controller, Some(src), id))
@@ -27117,15 +27225,17 @@ pub fn state_based_actions(game: &mut Game) -> bool {
         }
         // 702.102e: an Aura with bestow attached to nothing, or to what isn't a creature, becomes unattached (and a
         // creature again) rather than going to the graveyard
+        // 704.5n: an Equipment attached to an illegal permanent (non-creature or protected from it) becomes unattached
         let unattach: Vec<ObjId> = game
             .battlefield
             .iter()
             .copied()
             .filter(|id| {
                 let o = game.obj(*id);
+                let bestow_aura = o.def.has_bestow() && o.def.has_subtype("Aura");
+                let equipment = o.def.has_subtype("Equipment") && !game.has_type(*id, CardType::Creature);
                 o.attached_to.is_some()
-                    && o.def.has_bestow()
-                    && o.def.has_subtype("Aura")
+                    && (bestow_aura || equipment)
                     && game
                         .attached(*id)
                         .is_none_or(|to| !game.has_type(to, CardType::Creature) || game.protected_from(to, *id))

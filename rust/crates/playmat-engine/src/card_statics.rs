@@ -156,6 +156,8 @@ pub(crate) type AffectsFn = fn(&Game, &StaticCx, ObjId) -> bool;
 pub(crate) enum Layer {
     /// layer 4, `TypeChangingEffects_4`: the subtypes it adds
     Type(fn(&Game, &StaticCx, ObjId) -> Vec<String>),
+    /// layer 4, `TypeChangingEffects_4`: the supertypes it adds (e.g. "LEGENDARY": Super-Soldier Serum)
+    SuperType(fn(&Game, &StaticCx, ObjId) -> Vec<String>),
     /// layer 6, `AbilityAddingRemovingEffects_6`: the abilities it adds
     Ability(fn(&Game, &StaticCx, ObjId) -> Vec<AbilityDef>),
     /// layer 7b, `PTChangingEffects_7` / `SetPT_7b`: the base power and toughness it sets
@@ -174,7 +176,7 @@ impl Layer {
     #[allow(dead_code)]
     pub fn java(&self) -> (&'static str, &'static str) {
         match self {
-            Layer::Type(_) => ("TypeChangingEffects_4", "NA"),
+            Layer::Type(_) | Layer::SuperType(_) => ("TypeChangingEffects_4", "NA"),
             Layer::Ability(_) => ("AbilityAddingRemovingEffects_6", "NA"),
             Layer::SetPt(_) | Layer::SetToughness(_) | Layer::SetPower(_) => ("PTChangingEffects_7", "SetPT_7b"),
             Layer::ModifyPt(_) => ("PTChangingEffects_7", "ModifyPT_7c"),
@@ -817,6 +819,28 @@ fn has_subtype_now(game: &Game, id: ObjId, s: &str) -> bool {
     each_static(game, &mut check);
     // a card's own, in every zone (`Zone.ALL`: `HasSubtypesSourceEffect`)
     each_own_static(game, id, &mut check);
+    out
+}
+
+/// Layer 4: whether a handler gives `id` the supertype `s` (e.g. "LEGENDARY")
+pub(crate) fn has_supertype(game: &Game, id: ObjId, s: &str) -> bool {
+    thread_local!(static INSIDE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) });
+    if INSIDE.with(|x| x.replace(true)) {
+        return false;
+    }
+    let mut out = false;
+    let mut check = |h: &'static Hook, cx: &StaticCx, _: &EffectDef| {
+        let Hook::Continuous(c) = h else { return };
+        for layer in c.layers() {
+            if let Layer::SuperType(f) = layer {
+                if !out && (c.affects)(game, cx, id) && f(game, cx, id).iter().any(|x| x == s) {
+                    out = true;
+                }
+            }
+        }
+    };
+    each_static(game, &mut check);
+    INSIDE.with(|x| x.set(false));
     out
 }
 

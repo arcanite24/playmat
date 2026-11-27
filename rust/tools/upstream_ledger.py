@@ -61,8 +61,10 @@ def lines(path):
 
 
 def engine_pool():
-    """the engine's pool: the Pioneer pool and the Career decks' cards outside it (transpile.engine_pool)"""
-    return lines(os.path.join(CARDS, 'pioneer-pool.txt')) | lines(os.path.join(CARDS, 'career-pool.txt'))
+    """the engine's pool: Pioneer, Career, and server-pool cards outside them (transpile.engine_pool)"""
+    return (lines(os.path.join(CARDS, 'pioneer-pool.txt'))
+            | lines(os.path.join(CARDS, 'career-pool.txt'))
+            | lines(os.path.join(CARDS, 'server-pool.txt')))
 
 
 # --- the ledger file: a small TOML of our own shape, written and read here ---------------------------------------

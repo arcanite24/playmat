@@ -1,0 +1,49 @@
+# Most-played non-Pioneer cards on production (server logs, replays, user decks, ladder):
+# Waves A (Hammer Time + Boros Energy), B (quick 1v1 unlocks), and C (Eternal + Commander staples).
+# transpile.engine_pool() and upstream_ledger.py read this beside pioneer-pool.txt and career-pool.txt.
+Ajani, Nacatl Pariah
+Amalia Benavides Aguirre
+Ancient Tomb
+Beast Within
+Birds of Paradise
+Blood Moon
+Bojuka Bog
+Brainstorm
+Counterspell
+Dark Ritual
+Demonic Tutor
+Esper Sentinel
+Eternal Witness
+Exotic Orchard
+Faithless Looting
+Farseek
+Fellwar Stone
+Fireblast
+Galvanic Blast
+Galvanic Discharge
+Generous Gift
+Goblin Bombardment
+Guide of Souls
+Inkmoth Nexus
+Lightning Greaves
+Lotus Petal
+Mind Stone
+Murktide Regent
+Nature's Lore
+Ocelot Pride
+Paradise Mantle
+Ponder
+Puresteel Paladin
+Seasoned Pyromancer
+Sink into Stupor
+Skullclamp
+Sneaky Snacker
+Sol Ring
+Stoneforge Mystic
+Swords to Plowshares
+The One Ring
+Thought Vessel
+Thraben Charm
+Three Visits
+Verdant Catacombs
+Wasteland

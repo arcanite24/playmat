@@ -2053,6 +2053,39 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
     which creature the Aura goes on. Of the 92 new games, 86 match before the Serah change and 90 after it; the
     two left are those.
 
+  Server usage waves A–C, most-played production staples (27 Nov): 58 cards prioritized from production Playmat game
+  logs across Modern/Hammer Time/Boros Energy (Wave A: 16 cards), quick 1–3 card 1v1 deck unlocks (Wave B: 17 cards),
+  and Eternal/Commander staples (Wave C: 25 cards). Registered the 46 non-Pioneer/non-Career cards in
+  `cards/server-pool.txt` (wired into `transpile.py` and `upstream_ledger.py`), merged their Java facts into
+  `cards/facts.json`, and translated all 58 (14,509 in the engine). Three verification batches (81 replayed games:
+  39/39, 26/26, 16/16 matching, 0 differing) verified all 58: 14,462 of 14,509. Six representative regression games
+  live under `shadow/server-waves/`. The engine, transpiler, and recorder pieces:
+  - `AbilityDef::ShroudAbility` (`Lightning Greaves`), `AbilityDef::InfectAbility` (`Inkmoth Nexus`: poison counters
+    to players, `-1/-1` counters to creatures), `EffectDef::NonbasicLandsAreMountainsEffect` (`Blood Moon`:
+    `refresh_land_types` and ETB-tapped skip), `EffectDef::ShuffleLibrarySourceOptionalEffect`,
+    `EffectDef::GainAbilityControllerEffect { until_your_next_turn }` with `ProtectionFromEverythingAbility`
+    (`The One Ring` + `BURDEN` counter tally), `EffectDef::CreateDelayedTriggerEffect { until_end_of_next_turn }`
+    (`Season of the Bold`), `Layer::SuperType` (`Game::has_supertype`), pawprint/repeatable spell modes (`paw_print`,
+    `max_paw_prints`, `repeat_modes`), `DelveAbility(true)` recording `Obj::delved_cards`, and
+    `WhenYouAttackDelayedTriggeredAbility` (`Dalkovan Encampment`).
+  - Thirteen card handlers under `src/cards/`: `esper_sentinel`, `kili_the_resourceful`, `super_soldier_serum`,
+    `ajani_nacatl_pariah`, `dalkovan_encampment`, `galvanic_discharge`, `ocelot_pride`, `seasoned_pyromancer`,
+    `amalia_benavides_aguirre`, `season_of_the_bold`, `exhume`, `murktide_regent`, and
+    `look_library_controller_effect` (`Ponder`).
+  - Fixes caught by shadow verification:
+    - `enter_battlefield_now` calls `game.update_ascend()` right after `refresh_becomes` so Ascend grants the city's
+      blessing immediately when the 10th permanent enters mid-resolution (`Ocelot Pride`).
+    - State-based action 704.5n unattaches Equipment attached to a non-creature or to a permanent with protection from
+      it (`game-sw-equipment-protection-sba`).
+    - `lands_could_produce` guards recursion per source (`inManaTypeCalculation`) so two opposing `Exotic Orchard`s
+      can see each other's controller's other lands (`game-sw-exotic-orchard-galvanic-blast`).
+    - `ShadowStart.triggerOrder` now handles all `DoubleFacedCard`s (including transforming DFCs, fixing the recorder
+      gap noted above); `replay.rs` marks recorded orders so `DFC_ORDER` only applies to legacy `-1` recordings.
+    - `Game::trigger_key` orders `from_delayed` triggers before normal object triggers (`GameState.handleEvent` checks
+      `delayed.checkTriggers` before `triggers.checkTriggers`: `Dalkovan Encampment` with `Guide of Souls`).
+    - Casting a spell from a graveyard (`rules.rs` `cast`) now fires `Trigger::CardLeavesYourGraveyard` and
+      `Trigger::SyrKonrad` (`Murktide Regent` with `Faithless Looting` flashback).
+
   Wave 26b, Pioneer cards from Goddric, Cloaked Reveler to Ral Zarek, Guest Lecturer, third pass (25 Nov): the 363 still
   unverified after wave 25b (waves 26a and 26c take the rest), starting from the 210 whose first blocker is their own
   Java class. 18 came in (14,450 in the engine with waves 26a and 26c) and 14 were verified (14,404): Grasp of the

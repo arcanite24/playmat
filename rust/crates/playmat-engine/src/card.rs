@@ -3036,6 +3036,8 @@ pub enum EffectDef {
         #[serde(default)]
         end_of_turn: bool,
         #[serde(default)]
+        until_end_of_next_turn: bool,
+        #[serde(default)]
         once: bool,
         #[serde(default)]
         no_copy_targets: bool,
@@ -3136,11 +3138,14 @@ pub enum EffectDef {
         ability: Box<AbilityDef>,
         filter: Filter,
     },
-    /// you have the ability (hexproof); resolving with `until_end_of_turn`, until end of turn (Dawn's Truce)
+    /// you have the ability (hexproof); resolving with `until_end_of_turn`, until end of turn (Dawn's Truce),
+    /// or with `until_your_next_turn`, until your next turn (The One Ring)
     GainAbilityControllerEffect {
         ability: Box<AbilityDef>,
         #[serde(default)]
         until_end_of_turn: bool,
+        #[serde(default)]
+        until_your_next_turn: bool,
     },
     /// "when you cast your next instant or sorcery spell this turn, copy that spell. You may choose new targets for
     /// the copy." (`CopyNextSpellDelayedTriggeredAbility`; with a filter, the next spell of it, and its rule)
@@ -4821,10 +4826,14 @@ pub enum EffectDef {
     },
     /// `controller.shuffleLibrary(source, game)`
     ShuffleLibrarySourceEffect,
+    /// `new ShuffleLibrarySourceEffect(true)`: "you may shuffle" (Ponder)
+    ShuffleLibrarySourceOptionalEffect,
     /// its controller sacrifices each target permanent (`SacrificeTargetEffect`, `permanent.sacrifice(source, game)`)
     SacrificeTargetEffect,
     /// the target player shuffles their library (`ShuffleLibraryTargetEffect`)
     ShuffleLibraryTargetEffect,
+    /// static (layer 4): nonbasic lands are Mountains (Blood Moon)
+    NonbasicLandsAreMountainsEffect,
 }
 
 /// A number an `Effects` sequence works out before its effects
@@ -4983,6 +4992,12 @@ pub struct SpellDef {
     /// `Modes.setMoreCondition`: up to this many modes while the condition holds as the modes are chosen
     #[serde(default)]
     pub more_modes: Option<(usize, Condition)>,
+    /// `Modes.setMaxPawPrints`: pawprint budget across chosen modes (Season of the Bold)
+    #[serde(default)]
+    pub max_paw_prints: u32,
+    /// `Modes.setMayChooseSameModeMoreThanOnce`: the same mode can be chosen multiple times
+    #[serde(default)]
+    pub repeat_modes: bool,
 }
 
 /// `Modes`' counts for a modal ability that isn't "choose one": "choose up to one" (`setMinModes(0)`), "choose one or
@@ -5017,6 +5032,9 @@ pub struct ModeDef {
     /// a spree mode's additional mana cost
     #[serde(default)]
     pub cost: Option<String>,
+    /// a pawprint mode's cost (`withPawPrintValue`)
+    #[serde(default)]
+    pub paw_print: u32,
 }
 
 impl SpellDef {
@@ -5678,6 +5696,8 @@ pub enum AbilityDef {
     DeathtouchAbility,
     /// damage this deals to a creature is -1/-1 counters instead (`PermanentImpl.checkWither`)
     WitherAbility,
+    /// damage this deals to a creature is -1/-1 counters and to a player is poison counters (`InfectAbility`)
+    InfectAbility,
     DefenderAbility,
     /// this can block only creatures with flying
     CanBlockOnlyFlyingAbility,
@@ -5800,6 +5820,8 @@ pub enum AbilityDef {
     /// changeling: the card is every creature type (`CardDef::all_creature_types`)
     ChangelingAbility,
     HexproofAbility,
+    /// this permanent or player can't be the target of spells or abilities (`ShroudAbility`)
+    ShroudAbility,
     /// hexproof from a color, "monocolored", "multicolored" or "each_color" (`HexproofFromBlackAbility`…: the
     /// spell's or ability's source object is of it)
     HexproofFromAbility {
@@ -7416,6 +7438,7 @@ impl CardDef {
             effects: self.room[k].spell.effects.clone(),
             targets: self.room[k].spell.targets.clone(),
             cost: None,
+            paw_print: 0,
         };
         def.spell = SpellDef {
             // (" // " splits it back into the halves' rules for their targets)

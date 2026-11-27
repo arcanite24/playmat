@@ -340072,5 +340072,951 @@
         "rule_hidden": true
       }
     ]
+  },
+  {
+    "name": "Ajani, Nacatl Pariah",
+    "set": "MH3",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "EntersBattlefieldTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When {this} enters, create a 2/1 white Cat Warrior creature token."
+      },
+      {
+        "class": "DiesOneOrMoreTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "Whenever one or more other Cats you control die, you may exile {this}, then return him to the battlefield transformed under his owner's control."
+      },
+      {
+        "class": "LoyaltyAbility",
+        "type": "ACTIVATED_NONMANA",
+        "rule": "+2: Put a +1/+1 counter on each Cat you control."
+      },
+      {
+        "class": "LoyaltyAbility",
+        "type": "ACTIVATED_NONMANA",
+        "rule": "0: Create a 2/1 white Cat Warrior creature token. When you do, if you control a red permanent other than {this}, he deals damage equal to the number of creatures you control to any target."
+      },
+      {
+        "class": "LoyaltyAbility",
+        "type": "ACTIVATED_NONMANA",
+        "rule": "-4: Each opponent chooses an artifact, a creature, an enchantment and a planeswalker from among the nonland permanents they control, then sacrifices the rest."
+      }
+    ]
+  },
+  {
+    "name": "Amalia Benavides Aguirre",
+    "set": "LCI",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "WardAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "ward&mdash;Pay 3 life."
+      },
+      {
+        "class": "GainLifeControllerTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "Whenever you gain life, {this} explores. Then destroy all other creatures if its power is exactly 20."
+      }
+    ]
+  },
+  {
+    "name": "Ancient Tomb",
+    "set": "TMP",
+    "abilities": [
+      {
+        "class": "PlayLandAbility",
+        "type": "PLAY_LAND",
+        "rule": "Play Ancient Tomb",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
+      },
+      {
+        "class": "SimpleManaAbility",
+        "type": "ACTIVATED_MANA",
+        "rule": "{T}: Add {C}{C}. {this} deals 2 damage to you."
+      }
+    ]
+  },
+  {
+    "name": "Beast Within",
+    "set": "NPH",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": "destroy target permanent. Its controller creates a 3/3 green Beast creature token."
+      }
+    ]
+  },
+  {
+    "name": "Birds of Paradise",
+    "set": "M12",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "FlyingAbility",
+        "type": "EVASION",
+        "rule": "flying"
+      },
+      {
+        "class": "AnyColorManaAbility",
+        "type": "ACTIVATED_MANA",
+        "rule": "{T}: Add one mana of any color."
+      }
+    ]
+  },
+  {
+    "name": "Blood Moon",
+    "set": "9ED",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "SimpleStaticAbility",
+        "type": "STATIC",
+        "rule": "nonbasic lands are Mountains."
+      }
+    ]
+  },
+  {
+    "name": "Bojuka Bog",
+    "set": "WWK",
+    "abilities": [
+      {
+        "class": "PlayLandAbility",
+        "type": "PLAY_LAND",
+        "rule": "Play Bojuka Bog",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
+      },
+      {
+        "class": "EntersBattlefieldTappedAbility",
+        "type": "STATIC",
+        "rule": "{this} enters tapped."
+      },
+      {
+        "class": "EntersBattlefieldTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When {this} enters, exile target player's graveyard."
+      },
+      {
+        "class": "BlackManaAbility",
+        "type": "ACTIVATED_MANA",
+        "rule": "{T}: Add {B}."
+      }
+    ]
+  },
+  {
+    "name": "Brainstorm",
+    "set": "MMQ",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": "draw three cards, then put two cards from your hand on top of your library in any order."
+      }
+    ]
+  },
+  {
+    "name": "Counterspell",
+    "set": "7ED",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": "counter target spell."
+      }
+    ]
+  },
+  {
+    "name": "Dark Ritual",
+    "set": "MMQ",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": "add {B}{B}{B}."
+      }
+    ]
+  },
+  {
+    "name": "Demonic Tutor",
+    "set": "SUM",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": "search your library for a card, put that card into your hand, then shuffle."
+      }
+    ]
+  },
+  {
+    "name": "Esper Sentinel",
+    "set": "H2R",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "EsperSentinelTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "Whenever an opponent casts their first noncreature spell each turn, draw a card unless that player pays {X}, where X is {this}'s power."
+      }
+    ]
+  },
+  {
+    "name": "Eternal Witness",
+    "set": "5DN",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "EntersBattlefieldTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When {this} enters, you may return target card from your graveyard to your hand."
+      }
+    ]
+  },
+  {
+    "name": "Exotic Orchard",
+    "set": "CON",
+    "abilities": [
+      {
+        "class": "PlayLandAbility",
+        "type": "PLAY_LAND",
+        "rule": "Play Exotic Orchard",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
+      },
+      {
+        "class": "AnyColorLandsProduceManaAbility",
+        "type": "ACTIVATED_MANA",
+        "rule": "{T}: Add one mana of any color that a land an opponent controls could produce."
+      }
+    ]
+  },
+  {
+    "name": "Faithless Looting",
+    "set": "DKA",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": "draw two cards, then discard two cards."
+      },
+      {
+        "class": "FlashbackAbility",
+        "type": "SPELL",
+        "rule": "Flashback {2}{R} <i>(You may cast this card from your graveyard for its flashback cost. Then exile it.)</i>"
+      }
+    ]
+  },
+  {
+    "name": "Farseek",
+    "set": "M13",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": "search your library for a Plains, Island, Swamp, or Mountain card, put it onto the battlefield tapped, then shuffle."
+      }
+    ]
+  },
+  {
+    "name": "Fellwar Stone",
+    "set": "9ED",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "AnyColorLandsProduceManaAbility",
+        "type": "ACTIVATED_MANA",
+        "rule": "{T}: Add one mana of any color that a land an opponent controls could produce."
+      }
+    ]
+  },
+  {
+    "name": "Fireblast",
+    "set": "VIS",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": "{this} deals 4 damage to any target."
+      },
+      {
+        "class": "AlternativeCostSourceAbility",
+        "type": "STATIC",
+        "rule": "You may sacrifice two Mountains rather than pay this spell's mana cost.",
+        "rule_at_top": true
+      }
+    ]
+  },
+  {
+    "name": "Galvanic Blast",
+    "set": "SOM",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": "{this} deals 2 damage to any target.<br><i>Metalcraft</i> &mdash; {this} deals 4 damage instead if you control three or more artifacts.",
+        "hints": [
+          {
+            "class": "MetalcraftHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Galvanic Discharge",
+    "set": "MH3",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": "Choose target creature or planeswalker. You get {E}{E}{E}, then you may pay any amount of {E}. {this} deals that much damage to that permanent."
+      }
+    ]
+  },
+  {
+    "name": "Generous Gift",
+    "set": "SLZ",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": "destroy target permanent. Its controller creates a 3/3 green Elephant creature token."
+      }
+    ]
+  },
+  {
+    "name": "Goblin Bombardment",
+    "set": "TMP",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "SimpleActivatedAbility",
+        "type": "ACTIVATED_NONMANA",
+        "rule": "Sacrifice a creature: {this} deals 1 damage to any target."
+      }
+    ]
+  },
+  {
+    "name": "Guide of Souls",
+    "set": "MH3",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "EntersBattlefieldControlledTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "Whenever another creature you control enters, you gain 1 life and get {E}."
+      },
+      {
+        "class": "AttacksWithCreaturesTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "Whenever you attack, you may pay {E}{E}{E}. When you do, put two +1/+1 counters and a flying counter on target attacking creature. It becomes an Angel in addition to its other types."
+      }
+    ]
+  },
+  {
+    "name": "Inkmoth Nexus",
+    "set": "MBS",
+    "abilities": [
+      {
+        "class": "PlayLandAbility",
+        "type": "PLAY_LAND",
+        "rule": "Play Inkmoth Nexus",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
+      },
+      {
+        "class": "ColorlessManaAbility",
+        "type": "ACTIVATED_MANA",
+        "rule": "{T}: Add {C}."
+      },
+      {
+        "class": "SimpleActivatedAbility",
+        "type": "ACTIVATED_NONMANA",
+        "rule": "{1}: {this} becomes a 1/1 Phyrexian Blinkmoth artifact creature with flying and infect until end of turn. It's still a land. <i>(It deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)</i>"
+      }
+    ]
+  },
+  {
+    "name": "Lightning Greaves",
+    "set": "MRD",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "SimpleStaticAbility",
+        "type": "STATIC",
+        "rule": "equipped creature has haste and shroud."
+      },
+      {
+        "class": "EquipAbility",
+        "type": "ACTIVATED_NONMANA",
+        "rule": "Equip {0}"
+      }
+    ]
+  },
+  {
+    "name": "Lotus Petal",
+    "set": "TMP",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "AnyColorManaAbility",
+        "type": "ACTIVATED_MANA",
+        "rule": "{T}, Sacrifice {this}: Add one mana of any color."
+      }
+    ]
+  },
+  {
+    "name": "Mind Stone",
+    "set": "10E",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "ColorlessManaAbility",
+        "type": "ACTIVATED_MANA",
+        "rule": "{T}: Add {C}."
+      },
+      {
+        "class": "SimpleActivatedAbility",
+        "type": "ACTIVATED_NONMANA",
+        "rule": "{1}, {T}, Sacrifice {this}: Draw a card."
+      }
+    ]
+  },
+  {
+    "name": "Murktide Regent",
+    "set": "SLP",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "DelveAbility",
+        "type": "STATIC",
+        "rule": "Delve <i>(Each card you exile from your graveyard while casting this spell pays for {1}.)</i>",
+        "rule_at_top": true,
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Cards in your graveyard",
+            "value": {
+              "class": "mage.abilities.dynamicvalue.common.CardsInControllerGraveyardCount",
+              "text": "1"
+            }
+          }
+        ]
+      },
+      {
+        "class": "FlyingAbility",
+        "type": "EVASION",
+        "rule": "flying"
+      },
+      {
+        "class": "EntersBattlefieldAbility",
+        "type": "STATIC",
+        "rule": "{this} enters with a +1/+1 counter on it for each instant and sorcery card exiled with it."
+      },
+      {
+        "class": "MurktideRegentTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "Whenever an instant or sorcery card leaves your graveyard, put a +1/+1 counter on {this}."
+      }
+    ]
+  },
+  {
+    "name": "Nature's Lore",
+    "set": "5ED",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": "search your library for a Forest card, put that card onto the battlefield, then shuffle."
+      }
+    ]
+  },
+  {
+    "name": "Ocelot Pride",
+    "set": "MH3",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "FirstStrikeAbility",
+        "type": "STATIC",
+        "rule": "first strike"
+      },
+      {
+        "class": "LifelinkAbility",
+        "type": "STATIC",
+        "rule": "lifelink"
+      },
+      {
+        "class": "AscendAbility",
+        "type": "STATIC",
+        "rule": "Ascend <i>(If you control ten or more permanents, you get the city's blessing for the rest of the game.)</i>"
+      },
+      {
+        "class": "BeginningOfEndStepTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "At the beginning of your end step, if you gained life this turn, create a 1/1 white Cat creature token. Then if you have the city's blessing, for each token you control that entered the battlefield this turn, create a token that's a copy of it.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.YouGainedLifeCondition",
+              "text": "you gained life this turn"
+            },
+            "trueText": "You gained life this turn",
+            "falseText": "You gained life this turn",
+            "useIcons": "true"
+          },
+          {
+            "class": "CitysBlessingHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Paradise Mantle",
+    "set": "5DN",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "SimpleStaticAbility",
+        "type": "STATIC",
+        "rule": "equipped creature has \"{T}: Add one mana of any color.\""
+      },
+      {
+        "class": "EquipAbility",
+        "type": "ACTIVATED_NONMANA",
+        "rule": "Equip {1}"
+      }
+    ]
+  },
+  {
+    "name": "Ponder",
+    "set": "M12",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": "look at the top three cards of your library, then put them back in any order. You may shuffle. <br>Draw a card."
+      }
+    ]
+  },
+  {
+    "name": "Puresteel Paladin",
+    "set": "NPH",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "EntersBattlefieldControlledTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "Whenever an Equipment you control enters, you may draw a card."
+      },
+      {
+        "class": "SimpleStaticAbility",
+        "type": "STATIC",
+        "rule": "<i>Metalcraft</i> &mdash; Equipment you control have equip {0} as long as you control three or more artifacts.",
+        "hints": [
+          {
+            "class": "MetalcraftHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Seasoned Pyromancer",
+    "set": "SLP",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "EntersBattlefieldTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When {this} enters, discard two cards, then draw two cards. For each nonland card discarded this way, create a 1/1 red Elemental creature token."
+      },
+      {
+        "class": "SimpleActivatedAbility",
+        "type": "ACTIVATED_NONMANA",
+        "rule": "{3}{R}{R}, Exile this card from your graveyard: Create two 1/1 red Elemental creature tokens."
+      }
+    ]
+  },
+  {
+    "name": "Sink into Stupor",
+    "set": "MH3",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": "return target spell or nonland permanent an opponent controls to its owner's hand."
+      },
+      {
+        "class": "PlayLandAbility",
+        "type": "PLAY_LAND",
+        "rule": "Play Soporific Springs",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
+      },
+      {
+        "class": "AsEntersBattlefieldAbility",
+        "type": "STATIC",
+        "rule": "As {this} enters, you may pay 3 life. If you don't, it enters tapped."
+      },
+      {
+        "class": "BlueManaAbility",
+        "type": "ACTIVATED_MANA",
+        "rule": "{T}: Add {U}."
+      }
+    ]
+  },
+  {
+    "name": "Skullclamp",
+    "set": "DST",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "SimpleStaticAbility",
+        "type": "STATIC",
+        "rule": "equipped creature gets +1/-1."
+      },
+      {
+        "class": "DiesAttachedTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "Whenever equipped creature dies, draw two cards."
+      },
+      {
+        "class": "EquipAbility",
+        "type": "ACTIVATED_NONMANA",
+        "rule": "Equip {1}"
+      }
+    ]
+  },
+  {
+    "name": "Sneaky Snacker",
+    "set": "MH3",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "FlyingAbility",
+        "type": "EVASION",
+        "rule": "flying"
+      },
+      {
+        "class": "DrawNthCardTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When you draw your third card in a turn, return this card from your graveyard to the battlefield tapped.",
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Cards drawn this turn",
+            "value": "1"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Sol Ring",
+    "set": "SUM",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "SimpleManaAbility",
+        "type": "ACTIVATED_MANA",
+        "rule": "{T}: Add {C}{C}."
+      }
+    ]
+  },
+  {
+    "name": "Stoneforge Mystic",
+    "set": "WWK",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "EntersBattlefieldTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When {this} enters, you may search your library for an Equipment card, reveal it, put it into your hand, then shuffle."
+      },
+      {
+        "class": "SimpleActivatedAbility",
+        "type": "ACTIVATED_NONMANA",
+        "rule": "{1}{W}, {T}: You may put an Equipment card from your hand onto the battlefield."
+      }
+    ]
+  },
+  {
+    "name": "Swords to Plowshares",
+    "set": "ICE",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": "Exile target creature. Its controller gains life equal to its power."
+      }
+    ]
+  },
+  {
+    "name": "The One Ring",
+    "set": "HOC",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "IndestructibleAbility",
+        "type": "STATIC",
+        "rule": "indestructible"
+      },
+      {
+        "class": "EntersBattlefieldTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When {this} enters, if you cast it, you gain protection from everything until your next turn."
+      },
+      {
+        "class": "BeginningOfUpkeepTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "At the beginning of your upkeep, you lose 1 life for each burden counter on {this}."
+      },
+      {
+        "class": "SimpleActivatedAbility",
+        "type": "ACTIVATED_NONMANA",
+        "rule": "{T}: Put a burden counter on {this}, then draw a card for each burden counter on {this}."
+      }
+    ]
+  },
+  {
+    "name": "Thought Vessel",
+    "set": "TRC",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "SimpleStaticAbility",
+        "type": "STATIC",
+        "rule": "You have no maximum hand size."
+      },
+      {
+        "class": "ColorlessManaAbility",
+        "type": "ACTIVATED_MANA",
+        "rule": "{T}: Add {C}."
+      }
+    ]
+  },
+  {
+    "name": "Thraben Charm",
+    "set": "MH3",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": "choose one &mdash;<br>&bull {this} deals damage equal to twice the number of creatures you control to target creature.<br>&bull Destroy target enchantment.<br>&bull Exile any number of target players' graveyards.<br>",
+        "hints": [
+          {
+            "class": "CreaturesYouControlHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Three Visits",
+    "set": "MSC",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": "search your library for a Forest card, put it onto the battlefield, then shuffle."
+      }
+    ]
+  },
+  {
+    "name": "Verdant Catacombs",
+    "set": "ZEN",
+    "abilities": [
+      {
+        "class": "PlayLandAbility",
+        "type": "PLAY_LAND",
+        "rule": "Play Verdant Catacombs",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
+      },
+      {
+        "class": "FetchLandActivatedAbility",
+        "type": "ACTIVATED_NONMANA",
+        "rule": "{T}, Pay 1 life, Sacrifice {this}: Search your library for a Swamp or Forest card, put it onto the battlefield, then shuffle."
+      }
+    ]
+  },
+  {
+    "name": "Wasteland",
+    "set": "TMP",
+    "abilities": [
+      {
+        "class": "PlayLandAbility",
+        "type": "PLAY_LAND",
+        "rule": "Play Wasteland",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
+      },
+      {
+        "class": "ColorlessManaAbility",
+        "type": "ACTIVATED_MANA",
+        "rule": "{T}: Add {C}."
+      },
+      {
+        "class": "SimpleActivatedAbility",
+        "type": "ACTIVATED_NONMANA",
+        "rule": "{T}, Sacrifice {this}: Destroy target nonbasic land."
+      }
+    ]
+  },
+  {
+    "name": "token:CatWarrior21Token",
+    "images": {
+      "MH3": 1
+    },
+    "abilities": []
+  },
+  {
+    "name": "token:RitualOfTheReturnedZombieToken",
+    "images": {
+      "JOU": 1
+    },
+    "abilities": []
   }
 ]
