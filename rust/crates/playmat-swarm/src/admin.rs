@@ -286,6 +286,70 @@ pub(crate) async fn mark_round_trained(
     Ok(StatusCode::NO_CONTENT)
 }
 
+/// Deletes R2/local `intake/{round}/{unit}/*` objects after a round has been trained and archived to Hugging Face.
+pub(crate) async fn purge_round_intake(
+    State(s): State<Shared>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+    Json(req): Json<PurgeIntakeRequest>,
+) -> Res<Json<PurgeIntakeReply>> {
+    let c = caller(&s, &headers, &[Role::Trainer, Role::Admin]).await?;
+    let round = sqlx::query("SELECT trained FROM rounds WHERE id = ?")
+        .bind(id)
+        .fetch_optional(&s.db)
+        .await?
+        .ok_or_else(|| ApiError(StatusCode::NOT_FOUND, format!("no round {id}")))?;
+    let trained: i64 = round.get("trained");
+    if trained == 0 && !req.force {
+        return Err(conflict(format!(
+            "round {id} is not marked trained yet; mark it trained first or pass force=true"
+        )));
+    }
+    let states: &[&str] = if req.include_rejected { &["accepted", "rejected", "cancelled"] } else { &["accepted"] };
+    let rows = sqlx::query(
+        "SELECT id, state, manifest FROM units WHERE round = ? AND kind != 'verify' AND manifest IS NOT NULL",
+    )
+    .bind(id)
+    .fetch_all(&s.db)
+    .await?;
+
+    let mut units_purged = 0u32;
+    let mut files_deleted = 0u32;
+    for row in rows {
+        let uid: String = row.get("id");
+        let state: String = row.get("state");
+        if !states.contains(&state.as_str()) {
+            continue;
+        }
+        let manifest_str: String = row.get("manifest");
+        let Ok(manifest) = serde_json::from_str::<playmat_swarm_proto::ResultManifest>(&manifest_str) else {
+            continue;
+        };
+        let mut unit_removed = false;
+        for file in manifest.files.keys() {
+            let key = format!("intake/{id}/{uid}/{file}");
+            if s.store.delete(&key).await? {
+                files_deleted += 1;
+                unit_removed = true;
+            }
+        }
+        if unit_removed {
+            units_purged += 1;
+        }
+    }
+    sqlx::query("UPDATE rounds SET archived = 1 WHERE id = ?").bind(id).execute(&s.db).await?;
+    let detail = if req.archive_ref.trim().is_empty() {
+        format!("round {id}: purged {files_deleted} files across {units_purged} units")
+    } else {
+        format!(
+            "round {id}: purged {files_deleted} files across {units_purged} units (archive={})",
+            req.archive_ref.trim()
+        )
+    };
+    s.audit(&c.name, "purge-intake", &detail).await;
+    Ok(Json(PurgeIntakeReply { round_id: id, units_purged, files_deleted }))
+}
+
 pub(crate) async fn order_unit_rerun(
     State(s): State<Shared>,
     headers: HeaderMap,

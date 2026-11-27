@@ -75,6 +75,29 @@ impl Store {
             }
         }
     }
+
+    /// Deletes an object from the store (`Ok(true)` if removed, `Ok(false)` if already absent).
+    pub async fn delete(&self, key: &str) -> anyhow::Result<bool> {
+        match self {
+            Store::Local(l) => {
+                let p = l.path(key)?;
+                match std::fs::remove_file(&p) {
+                    Ok(()) => Ok(true),
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
+                    Err(e) => Err(e.into()),
+                }
+            }
+            Store::R2(r) => {
+                let url = r.presign("DELETE", key, None, 60, now());
+                let res = r.http.delete(url).send().await?;
+                if res.status() == reqwest::StatusCode::NOT_FOUND {
+                    return Ok(false);
+                }
+                res.error_for_status()?;
+                Ok(true)
+            }
+        }
+    }
 }
 
 pub fn now() -> u64 {
