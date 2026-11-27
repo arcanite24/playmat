@@ -70,6 +70,7 @@ function Challenge({ challenge }: { challenge: CareerChallenge }) {
             <p className={styles.small}>
               {t('career.node.skill', { skill: challenge.skill ?? 1 })} · {t('career.challenge.fixed')}
               {challenge.format ? ` · ${t('career.challenge.format', { format: challenge.format })}` : ''}
+              {challenge.planeChase ? ` · ${t('career.planechase.active')}` : ''}
             </p>
             <p className={styles.rule}>{rule}</p>
             {twists.length > 0 && (
@@ -100,7 +101,12 @@ function Challenge({ challenge }: { challenge: CareerChallenge }) {
           kicker={t('career.challenge.week', { week: challenge.week ?? '' })}
           opponent={{ name: challenge.opponentName ?? '', cover: challenge.cover, boss: true }}
           deck={{ name: challenge.name ?? '' }}
-          stakes={[t('career.challenge.fixed'), ...twists.map((line) => t(line.key, line.vars)), rule]}
+          stakes={[
+            t('career.challenge.fixed'),
+            ...(challenge.planeChase ? [t('career.planechase.active')] : []),
+            ...twists.map((line) => t(line.key, line.vars)),
+            rule,
+          ]}
           onFight={() => playMode('challenge', () => api.careerChallengePlay())}
           onClose={() => setVersus(false)}
         />

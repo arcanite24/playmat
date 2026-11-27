@@ -1,0 +1,45 @@
+{
+  "$comment": "Cosmetics of the Goblin Sketchbook set (Legends Showcase capsule machine), written by art/machine-specs.mjs from career/machines/legends-showcase.json: edit that file and re-run, not this one.",
+  "out": "public/career-art/cardstyle/gobbo",
+  "house": false,
+  "panels": true,
+  "grid": {
+    "cols": 4,
+    "rows": 2,
+    "canvas": "landscape"
+  },
+  "size": "640x894",
+  "anchors": [],
+  "refs": [],
+  "style": "lively inked watercolor and gouache field illustration in rusty red, soot charcoal, and warm lantern amber",
+  "rules": "These are full-art pictures for playing cards: the client draws a small name plate over the top edge, mana symbols at the top right and power and toughness at the bottom right, so keep the main subject in the middle of the panel and the top 15% and bottom 15% calm and uncluttered (sky, ground, water, background texture), with nothing important in the corners. Each panel shows its own subject as one clear, readable scene, the same style and palette as its neighbours, as if the whole row were a matched, limited-edition art series.",
+  "spare": "an extra painting in the same style: a grinning ragged scout waving a flaming torch while sprinting across a rocky pass",
+  "items": [
+    {
+      "id": "goblin-guide",
+      "subject": "a grinning ragged scout waving a flaming torch while sprinting across a rocky pass"
+    },
+    {
+      "id": "goblin-lackey",
+      "subject": "a scrappy armored goblin charging ahead carrying a battered iron shield and club"
+    },
+    {
+      "id": "goblin-matron",
+      "subject": "a wise scarred goblin matriarch pointing from a cliffside encampment of war banners"
+    },
+    {
+      "id": "siege-gang-commander",
+      "subject": "a helmeted goblin chief standing atop a rickety wooden siege catapult with lit fuses"
+    },
+    {
+      "id": "muxus-goblin-grandee",
+      "subject": "an ostentatious goblin warlord seated on a gilded scrap-iron throne surrounded by banners"
+    },
+    {
+      "id": "set-gobbo",
+      "out": "public/career-art/sleeve/set-gobbo.webp",
+      "size": "540x756",
+      "subject": "the BACK of a playing card in the same style: a symmetrical ornamental design (it is seen upside down too) with a central emblem drawn from this set's theme, framed by a painted border; no logo, no oval, no five dots, no lettering"
+    }
+  ]
+}

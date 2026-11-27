@@ -248,10 +248,14 @@ public final class CareerSetup implements GameSetup {
     private final CareerTwists you;
     /** a horde game (S036): the opponent's deck plays itself */
     private HordeRules horde;
+    /** an Archenemy game (Phase 5): either the player or the boss flips a Scheme every upkeep */
+    private ArchenemyRules archenemy;
+    /** a Two-Headed Giant solo match (Phase 5.4): You + AI Partner vs 2 AI */
+    private TwoHeadedGiantSpec thg;
     /** how the opponent AI leans (S042), or null for its plain self */
     private Personality personality;
 
-    /** a setup that only carries a horde or a personality */
+    /** a setup that only carries a horde, archenemy, two-headed giant or a personality */
     public static CareerSetup plain() {
         return new CareerSetup(null, null);
     }
@@ -263,6 +267,25 @@ public final class CareerSetup implements GameSetup {
 
     public HordeRules horde() {
         return horde;
+    }
+
+    public CareerSetup withArchenemy(ArchenemyRules archenemy) {
+        this.archenemy = archenemy;
+        return this;
+    }
+
+    public ArchenemyRules archenemy() {
+        return archenemy;
+    }
+
+    public CareerSetup withTwoHeadedGiant(TwoHeadedGiantSpec thg) {
+        this.thg = thg;
+        return this;
+    }
+
+    public static CareerSetup twoHeadedGiant(TwoHeadedGiantSpec thg, Personality personality) {
+        CareerSetup setup = pod(plain()).withTwoHeadedGiant(thg);
+        return withPersonality(setup, personality);
     }
 
     /** the setup (or a plain one) with the opponent's personality; null personality leaves it as it was */
@@ -298,11 +321,11 @@ public final class CareerSetup implements GameSetup {
     /** the game state key prefix the AI reads its personality from (ComputerPlayer6) */
     public static final String PERSONALITY_KEY = "ai.personality.";
 
-    /** A horde (S036): what the player must live through. */
+    /** A horde (S036 / 2.0): what the player must live through (survive <= 0 means Endless Waves). */
     public static class HordeRules implements Serializable {
         private static final long serialVersionUID = 1L;
         public String name;
-        /** the horde's turns to live through */
+        /** the horde's turns to live through (0 or negative = Endless Waves) */
         public int survive = 8;
         /** cards the horde flips on its first turn */
         public int flip = 1;
@@ -310,6 +333,43 @@ public final class CareerSetup implements GameSetup {
         public int rampEvery = 2;
         /** the horde's life; null for 20 */
         public Integer life;
+        /** optional player starting life override (e.g. 40 for Commander Horde) */
+        public Integer playerLife;
+    }
+
+    /** A single Archenemy Scheme set in motion on the Archenemy's upkeep. */
+    public static class SchemeSpec implements Serializable {
+        private static final long serialVersionUID = 1L;
+        public String id;
+        public String name;
+        public String text;
+        public int damageOpponents;
+        public int lifeLossOpponents;
+        public int gainLife;
+        public int drawCards;
+        public int opponentsDiscard;
+        public List<String> permanents = new ArrayList<>();
+        public String emblem;
+    }
+
+    /** Archenemy rules: who holds the Scheme deck (player or boss), starting life, and randomized Scheme list. */
+    public static class ArchenemyRules implements Serializable {
+        private static final long serialVersionUID = 1L;
+        public String name;
+        /** true = "Become the Archenemy" (human vs 3 AI); false = "Hunt the Archenemy" (boss flips schemes) */
+        public boolean playerIsArchenemy;
+        public int archenemyLife = 60;
+        public int challengerLife = 20;
+        public List<SchemeSpec> schemes = new ArrayList<>();
+    }
+
+    /** Two-Headed Giant solo rules (Phase 5.4): team tags so allies never attack each other, shared win condition. */
+    public static class TwoHeadedGiantSpec implements Serializable {
+        private static final long serialVersionUID = 1L;
+        public String name;
+        public String partnerName;
+        public int teamLife = 30;
+        public boolean commander;
     }
 
     private CareerSetup(CareerTwists twists, Puzzle puzzle, boolean pod, CareerTwists you) {
@@ -457,6 +517,12 @@ public final class CareerSetup implements GameSetup {
             }
         }
         if (horde != null && humanId != null) {
+            if (horde.playerLife != null) {
+                Player humanPlayer = game.getPlayer(humanId);
+                if (humanPlayer != null) {
+                    humanPlayer.setLife(horde.playerLife, game, null);
+                }
+            }
             for (Player player : game.getPlayers().values()) {
                 if (!player.getId().equals(humanId)) {
                     if (horde.life != null) {
@@ -464,10 +530,49 @@ public final class CareerSetup implements GameSetup {
                     }
                     player.getHand().clear();
                     game.addEmblem(new HordeEmblem(horde), null, player.getId());
+                    String goal = horde.survive > 0
+                            ? "Live through " + horde.survive + " of its turns."
+                            : "Endless Waves: survive as many waves as you can.";
                     game.informPlayers("Horde: " + (horde.name == null ? "the horde" : horde.name) + " flips its cards onto the battlefield "
-                            + "each turn, and its creatures have haste and attack every combat. Live through " + horde.survive + " of its turns.");
+                            + "each turn, and its creatures have haste and attack every combat. " + goal);
                 }
             }
+        }
+        if (archenemy != null && humanId != null && archenemy.schemes != null && !archenemy.schemes.isEmpty()) {
+            UUID holderId = null;
+            for (Player player : game.getPlayers().values()) {
+                boolean isHolder = archenemy.playerIsArchenemy
+                        ? player.getId().equals(humanId)
+                        : (!player.getId().equals(humanId) && holderId == null);
+                if (isHolder) {
+                    holderId = player.getId();
+                    player.setLife(archenemy.archenemyLife, game, null);
+                    game.addEmblem(new ArchenemyEmblem(archenemy), null, player.getId());
+                } else {
+                    player.setLife(archenemy.challengerLife, game, null);
+                }
+            }
+            game.informPlayers("Archenemy: " + (archenemy.name == null ? "The Scheme Deck" : archenemy.name)
+                    + " is active. A Scheme is set in motion at the start of the Archenemy's upkeep.");
+        }
+        if (thg != null && humanId != null) {
+            UUID partnerId = null;
+            List<String> enemyNames = new ArrayList<>();
+            for (Player player : game.getPlayers().values()) {
+                player.setLife(thg.teamLife, game, null);
+                if (player.getId().equals(humanId)) {
+                    game.getState().setValue("career.thg.team." + player.getId(), "allies");
+                } else if (partnerId == null && (thg.partnerName == null || thg.partnerName.equals(player.getName()))) {
+                    partnerId = player.getId();
+                    game.getState().setValue("career.thg.team." + player.getId(), "allies");
+                } else {
+                    game.getState().setValue("career.thg.team." + player.getId(), "enemies");
+                    enemyNames.add(player.getName());
+                }
+            }
+            game.addEmblem(new TwoHeadedGiantEmblem(thg.partnerName != null ? thg.partnerName : "AI Partner"), null, humanId);
+            game.informPlayers("Two-Headed Giant: You and " + (thg.partnerName != null ? thg.partnerName : "your AI partner")
+                    + " battle " + String.join(" & ", enemyNames) + " (" + thg.teamLife + " life each).");
         }
         if (personality != null && humanId != null) {
             for (Player player : game.getPlayers().values()) {
@@ -500,6 +605,67 @@ public final class CareerSetup implements GameSetup {
                     + (puzzle.text == null ? "Win this turn." : puzzle.text));
         }
         game.applyEffects();
+    }
+
+    /** Two-Headed Giant team emblem: grants victory immediately once both opposing heads fall. */
+    public static class TwoHeadedGiantEmblem extends mage.game.command.Emblem {
+
+        public TwoHeadedGiantEmblem(String partnerName) {
+            super("Two-Headed Giant (" + partnerName + ")");
+            this.getAbilities().add(new mage.abilities.triggers.BeginningOfUpkeepTriggeredAbility(
+                    Zone.COMMAND, TargetController.ANY, new TwoHeadedGiantCheckEffect(), false));
+        }
+
+        private TwoHeadedGiantEmblem(final TwoHeadedGiantEmblem emblem) {
+            super(emblem);
+        }
+
+        @Override
+        public void setSourceObjectAndInitImage(mage.MageObject sourceObject) {
+            this.sourceObject = sourceObject;
+        }
+
+        @Override
+        public TwoHeadedGiantEmblem copy() {
+            return new TwoHeadedGiantEmblem(this);
+        }
+    }
+
+    static class TwoHeadedGiantCheckEffect extends OneShotEffect {
+
+        TwoHeadedGiantCheckEffect() {
+            super(Outcome.Benefit);
+            staticText = "When both opposing heads are eliminated, your team wins the game.";
+        }
+
+        private TwoHeadedGiantCheckEffect(final TwoHeadedGiantCheckEffect effect) {
+            super(effect);
+        }
+
+        @Override
+        public TwoHeadedGiantCheckEffect copy() {
+            return new TwoHeadedGiantCheckEffect(this);
+        }
+
+        @Override
+        public boolean apply(Game game, Ability source) {
+            Player human = game.getPlayer(source.getControllerId());
+            if (human == null || !human.isInGame()) {
+                return false;
+            }
+            boolean enemyAlive = false;
+            for (Player player : game.getPlayers().values()) {
+                if ("enemies".equals(game.getState().getValue("career.thg.team." + player.getId())) && player.isInGame()) {
+                    enemyAlive = true;
+                    break;
+                }
+            }
+            if (!enemyAlive) {
+                game.informPlayers("Two-Headed Giant: Both opposing heads have fallen — your team wins!");
+                human.won(game);
+            }
+            return true;
+        }
     }
 
     /** the horde's engine: flip cards each upkeep; creatures with haste that attack each combat */
@@ -569,12 +735,17 @@ public final class CareerSetup implements GameSetup {
             Object counted = game.getState().getValue(TURNS);
             int turn = (counted instanceof Integer ? (Integer) counted : 0) + 1;
             game.getState().setValue(TURNS, turn);
-            if (turn > survive) {
+            if (survive > 0 && turn > survive) {
                 game.informPlayers("The horde is spent: you lived through " + survive + " of its turns.");
                 horde.lost(game);
                 return true;
             }
             int count = flip + (turn - 1) / rampEvery;
+            if (survive <= 0 && horde.getLibrary().size() < count && !horde.getGraveyard().isEmpty()) {
+                horde.moveCards(horde.getGraveyard(), Zone.LIBRARY, source, game);
+                horde.shuffleLibrary(source, game);
+                game.informPlayers("Endless Horde: wave " + turn + " reshuffles the fallen back into the tide.");
+            }
             mage.cards.Cards cards = new mage.cards.CardsImpl(horde.getLibrary().getTopCards(game, count));
             if (cards.isEmpty()) {
                 return true;
@@ -587,6 +758,110 @@ public final class CareerSetup implements GameSetup {
             }
             horde.moveCards(permanents, Zone.BATTLEFIELD, source, game);
             horde.moveCards(rest, Zone.GRAVEYARD, source, game);
+            return true;
+        }
+    }
+
+    /** Archenemy engine: sets the next Scheme in motion on the Archenemy's upkeep. */
+    public static class ArchenemyEmblem extends mage.game.command.Emblem {
+
+        public ArchenemyEmblem(ArchenemyRules rules) {
+            super(rules.name == null ? "Archenemy Scheme Deck" : rules.name);
+            this.getAbilities().add(new mage.abilities.triggers.BeginningOfUpkeepTriggeredAbility(
+                    Zone.COMMAND, TargetController.YOU, new SchemeTriggerEffect(rules.schemes), false));
+        }
+
+        private ArchenemyEmblem(final ArchenemyEmblem emblem) {
+            super(emblem);
+        }
+
+        @Override
+        public void setSourceObjectAndInitImage(mage.MageObject sourceObject) {
+            this.sourceObject = sourceObject;
+        }
+
+        @Override
+        public ArchenemyEmblem copy() {
+            return new ArchenemyEmblem(this);
+        }
+    }
+
+    static class SchemeTriggerEffect extends OneShotEffect {
+        static final String INDEX_KEY = "career.archenemy.index";
+        private final List<SchemeSpec> schemes;
+
+        SchemeTriggerEffect(List<SchemeSpec> schemes) {
+            super(Outcome.Benefit);
+            this.schemes = new ArrayList<>(schemes);
+            staticText = "set the next Scheme in motion";
+        }
+
+        private SchemeTriggerEffect(final SchemeTriggerEffect effect) {
+            super(effect);
+            this.schemes = new ArrayList<>(effect.schemes);
+        }
+
+        @Override
+        public SchemeTriggerEffect copy() {
+            return new SchemeTriggerEffect(this);
+        }
+
+        @Override
+        public boolean apply(Game game, Ability source) {
+            Player holder = game.getPlayer(source.getControllerId());
+            if (holder == null || schemes.isEmpty()) {
+                return false;
+            }
+            Object raw = game.getState().getValue(INDEX_KEY);
+            int idx = raw instanceof Integer ? (Integer) raw : 0;
+            SchemeSpec scheme = schemes.get(idx % schemes.size());
+            game.getState().setValue(INDEX_KEY, idx + 1);
+            game.informPlayers("Scheme in motion — " + scheme.name + ": " + scheme.text);
+
+            if (scheme.gainLife > 0) {
+                holder.gainLife(scheme.gainLife, game, source);
+            }
+            if (scheme.drawCards > 0) {
+                holder.drawCards(scheme.drawCards, source, game);
+            }
+            for (UUID oppId : game.getOpponents(holder.getId())) {
+                Player opp = game.getPlayer(oppId);
+                if (opp == null) {
+                    continue;
+                }
+                if (scheme.damageOpponents > 0) {
+                    opp.damage(scheme.damageOpponents, source.getSourceId(), source, game);
+                }
+                if (scheme.lifeLossOpponents > 0) {
+                    opp.loseLife(scheme.lifeLossOpponents, game, source, false);
+                }
+                if (scheme.opponentsDiscard > 0) {
+                    opp.discard(scheme.opponentsDiscard, false, false, source, game);
+                }
+            }
+            if (scheme.permanents != null && !scheme.permanents.isEmpty()) {
+                List<PutToBattlefieldInfo> battlefield = new ArrayList<>();
+                for (String entry : scheme.permanents) {
+                    Card card = create(entry);
+                    if (card != null) {
+                        battlefield.add(new PutToBattlefieldInfo(card, entry.endsWith("|tapped")));
+                    }
+                }
+                if (!battlefield.isEmpty()) {
+                    game.cheat(holder.getId(), Collections.emptyList(), Collections.emptyList(), battlefield,
+                            Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
+                }
+            }
+            if (scheme.emblem != null && !scheme.emblem.isEmpty()) {
+                Card emblemCard = create(scheme.emblem);
+                if (emblemCard != null) {
+                    mage.game.command.Emblem emblem = new EmblemOfCard(emblemCard);
+                    game.addEmblem(emblem, emblemCard, holder.getId());
+                    for (Ability ability : emblem.getAbilities()) {
+                        game.getState().addAbility(ability, null, emblem);
+                    }
+                }
+            }
             return true;
         }
     }

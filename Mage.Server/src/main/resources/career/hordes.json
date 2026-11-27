@@ -2,6 +2,7 @@
  {
   "id": "shamblers",
   "name": "The Shambling Tide",
+  "difficulty": "normal",
   "text": "Zombies without end, one more every other turn. Hold the line for eight of their turns.",
   "survive": 8,
   "flip": 1,
@@ -13,6 +14,7 @@
  {
   "id": "goblin-rush",
   "name": "Goblin Rush",
+  "difficulty": "normal",
   "text": "Two goblins a turn from the start, three later on. Seven turns, and they hit fast.",
   "survive": 7,
   "flip": 2,
@@ -24,6 +26,7 @@
  {
   "id": "elf-stampede",
   "name": "Elf Stampede",
+  "difficulty": "normal",
   "text": "Slow to start, then the forest empties. Ten turns, and something huge is in there.",
   "survive": 10,
   "flip": 1,
@@ -31,5 +34,89 @@
   "life": 25,
   "cover": "Craterhoof Behemoth",
   "deck": {"Llanowar Elves": 10, "Elvish Mystic": 8, "Elvish Warrior": 10, "Wood Elves": 8, "Elvish Visionary": 8, "Craterhoof Behemoth": 1}
+ },
+ {
+  "id": "vampire-bloodmoon",
+  "name": "Vampire Bloodmoon",
+  "difficulty": "heroic",
+  "text": "Lifelinkers and aristocrats drain the table while their coven grows thicker every wave.",
+  "survive": 9,
+  "flip": 1,
+  "rampEvery": 2,
+  "life": 30,
+  "cover": "Bloodline Keeper",
+  "deck": {"Vampire Lacerator": 10, "Vampire Nighthawk": 8, "Blood Artist": 8, "Gifted Aetherborn": 8, "Captivating Vampire": 5, "Bloodline Keeper": 4, "Falkenrath Aristocrat": 3}
+ },
+ {
+  "id": "clockwork-legion",
+  "name": "The Clockwork Legion",
+  "difficulty": "heroic",
+  "text": "Relentless artifact constructs and modular steel that snowball if left unchecked.",
+  "survive": 9,
+  "flip": 2,
+  "rampEvery": 3,
+  "life": 30,
+  "cover": "Wurmcoil Engine",
+  "deck": {"Ornithopter": 8, "Arcbound Worker": 10, "Arcbound Ravager": 6, "Steel Overseer": 6, "Master of Etherium": 6, "Myr Battlesphere": 4, "Wurmcoil Engine": 3}
+ },
+ {
+  "id": "sliver-hive",
+  "name": "The Sliver Hive",
+  "difficulty": "heroic",
+  "text": "Every sliver buffs the swarm. Clear the lords or drown beneath flying first-striking giants.",
+  "survive": 9,
+  "flip": 2,
+  "rampEvery": 3,
+  "life": 30,
+  "cover": "Sliver Hivelord",
+  "deck": {"Muscle Sliver": 8, "Predatory Sliver": 8, "Sinew Sliver": 8, "Winged Sliver": 8, "Striking Sliver": 8, "Megantic Sliver": 4, "Sliver Hivelord": 2}
+ },
+ {
+  "id": "angelic-crusade",
+  "name": "Angelic Crusade",
+  "difficulty": "heroic",
+  "text": "A wall of vigilant flying angels that heals the Horde back out of reach.",
+  "survive": 10,
+  "flip": 1,
+  "rampEvery": 2,
+  "life": 35,
+  "cover": "Lyra Dawnbringer",
+  "deck": {"Youthful Valkyrie": 10, "Giada, Font of Hope": 6, "Serra Angel": 10, "Resplendent Angel": 6, "Baneslayer Angel": 5, "Lyra Dawnbringer": 4, "Sephara, Sky's Blade": 3}
+ },
+ {
+  "id": "dragon-roost",
+  "name": "The Dragon Roost",
+  "difficulty": "mythic",
+  "text": "Firebreathing skies and thunderous wings. Bring removal or get scorched in seven waves.",
+  "survive": 8,
+  "flip": 1,
+  "rampEvery": 2,
+  "life": 35,
+  "cover": "Utvara Hellkite",
+  "deck": {"Dragon Hatchling": 10, "Furnace Whelp": 8, "Shivan Dragon": 8, "Thunderbreak Regent": 6, "Stormbreath Dragon": 6, "Glorybringer": 5, "Utvara Hellkite": 3}
+ },
+ {
+  "id": "phyrexian-oil",
+  "name": "Phyrexian Oil",
+  "difficulty": "mythic",
+  "text": "Toxic infect predators and obliterators. Ten poison counters end your stand instantly.",
+  "survive": 8,
+  "flip": 2,
+  "rampEvery": 3,
+  "life": 35,
+  "cover": "Phyrexian Obliterator",
+  "deck": {"Glistener Elf": 10, "Plague Stinger": 8, "Blighted Agent": 8, "Ichorclaw Myr": 8, "Phyrexian Vatmother": 6, "Phyrexian Obliterator": 4, "Skithiryx, the Blight Dragon": 2}
+ },
+ {
+  "id": "eldrazi-incursion",
+  "name": "Eldrazi Incursion",
+  "difficulty": "mythic",
+  "text": "Reality-shattering titans and annihilators march from the Blind Eternities.",
+  "survive": 10,
+  "flip": 1,
+  "rampEvery": 2,
+  "life": 40,
+  "cover": "Artisan of Kozilek",
+  "deck": {"Eldrazi Mimic": 10, "Matter Reshaper": 8, "Thought-Knot Seer": 6, "Reality Smasher": 6, "Bane of Bala Ged": 6, "Ulamog's Crusher": 6, "Artisan of Kozilek": 4}
  }
 ]

@@ -382,6 +382,24 @@ export interface CareerAdminView {
     xp?: number;
 }
 
+export interface CareerArchenemyEncounter {
+    archenemyLife?: number;
+    beaten?: boolean;
+    challengerLife?: number;
+    commander?: boolean;
+    cover?: CareerCover;
+    id?: string;
+    mode?: string;
+    name?: string;
+    opponents?: string[];
+    text?: string;
+}
+
+export interface CareerArchenemyState {
+    encounters?: CareerArchenemyEncounter[];
+    schemes?: CareerScheme[];
+}
+
 export interface CareerAscension {
     level?: number;
     text?: string;
@@ -445,6 +463,7 @@ export interface CareerCatalogItem {
     mastery?: string;
     name?: string;
     path?: string;
+    price?: number;
     rank?: number;
     rarity?: string;
     ring?: string;
@@ -467,6 +486,7 @@ export interface CareerChallenge {
     id?: string;
     name?: string;
     opponentName?: string;
+    planeChase?: boolean;
     rule?: string;
     skill?: number;
     text?: string;
@@ -553,6 +573,7 @@ export interface CareerGameResult {
     opened?: string[];
     opponent?: string;
     packs?: number;
+    petBond?: CareerPetBondResult;
     quests?: CareerQuestProgress[];
     renownAfter?: number;
     renownBefore?: number;
@@ -596,6 +617,7 @@ export interface CareerHorde {
     bestTurns?: number;
     cover?: CareerCover;
     deckSize?: number;
+    difficulty?: string;
     flip?: number;
     id?: string;
     life?: number;
@@ -698,8 +720,19 @@ export interface CareerMachine {
 }
 
 export interface CareerMachineItem {
+    accent?: string;
     card?: string;
+    color?: string;
+    dark?: string;
+    dye?: string;
+    es?: string;
     id?: string;
+    kind?: string;
+    light?: string;
+    name?: string;
+    ring?: string;
+    shades?: string[];
+    style?: string;
     subject?: string;
 }
 
@@ -832,12 +865,15 @@ export interface CareerOpponent {
     bounty?: number;
     colors?: string;
     cover?: CareerCover;
+    format?: string;
     id?: string;
     lines?: CareerLines;
     lists?: number;
     name?: string;
     nemesis?: boolean;
     pips?: number;
+    pod?: boolean;
+    podNames?: string[];
     raid?: boolean;
     rivalBefore?: string;
     rivalChapter?: number;
@@ -873,6 +909,27 @@ export interface CareerPayout {
     xp?: number;
 }
 
+export interface CareerPetBondResult {
+    nextTierXp?: number;
+    petId?: string;
+    tier?: number;
+    tieredUp?: boolean;
+    unlockedTitle?: string;
+    xp?: number;
+    xpGained?: number;
+}
+
+export interface CareerPetProgress {
+    games?: number;
+    id?: string;
+    nextTierXp?: number;
+    style?: string;
+    tier?: number;
+    unlockedStyles?: string[];
+    wins?: number;
+    xp?: number;
+}
+
 export interface CareerPoolCard {
     cardNumber?: string;
     colors?: string;
@@ -884,6 +941,13 @@ export interface CareerPoolCard {
     rating?: number;
     removal?: boolean;
     setCode?: string;
+}
+
+export interface CareerPreconResult {
+    deck?: CareerSavedDeck;
+    free?: boolean;
+    profile?: CareerProfile;
+    starterId?: string;
 }
 
 export interface CareerProfile {
@@ -921,8 +985,10 @@ export interface CareerPublicProfile {
 export interface CareerPull {
     card?: string;
     item?: string;
+    kind?: string;
     machineDone?: boolean;
     machineRewards?: CareerCosmetic[];
+    name?: string;
     set?: string;
     setDone?: boolean;
     setReward?: CareerCosmetic;
@@ -1021,6 +1087,7 @@ export interface CareerRun {
     bosses?: CareerRunBoss[];
     choices?: string[];
     colors?: string;
+    commander?: CareerRunCard;
     deck?: CareerRunCard[];
     deckSize?: number;
     ended?: number;
@@ -1031,6 +1098,7 @@ export interface CareerRun {
     mode?: string;
     next?: CareerRunBoss;
     offer?: CareerOffer;
+    planeChase?: boolean;
     relics?: CareerRelic[];
     runCoins?: number;
     seed?: string;
@@ -1047,7 +1115,9 @@ export interface CareerRunBoss {
     cover?: CareerCover;
     name?: string;
     number?: number;
+    secondName?: string;
     skill?: number;
+    skirmish?: boolean;
     twists?: CareerTwists;
     type?: string;
 }
@@ -1084,11 +1154,18 @@ export interface CareerRunReward {
 export interface CareerSavedDeck {
     active?: boolean;
     deck?: DeckCardLists;
+    format?: string;
     id?: string;
     missing?: string[];
     name?: string;
     source?: string;
     updated?: number;
+}
+
+export interface CareerScheme {
+    id?: string;
+    name?: string;
+    text?: string;
 }
 
 export interface CareerSeat {
@@ -1105,6 +1182,7 @@ export interface CareerSetProgress {
 }
 
 export interface CareerShopSet {
+    category?: string;
     cover?: CareerCover;
     locked?: boolean;
     name?: string;
@@ -1118,14 +1196,19 @@ export interface CareerStarter {
     cards?: number;
     colors?: string;
     cover?: CareerCover;
+    format?: string;
     id?: string;
     name?: string;
+    track?: string;
 }
 
 export interface CareerState {
     adaptive?: AdaptiveView;
+    commanderPreconGift?: boolean;
     enabled?: boolean;
+    ownedPrecons?: string[];
     profile?: CareerProfile;
+    questPref?: string;
     rank?: CareerRank;
     recent?: CareerPayout[];
 }
@@ -1142,6 +1225,31 @@ export interface CareerSwarmRedeemResult {
     creditRemaining?: number;
     creditSpent?: number;
     tokens?: number;
+}
+
+export interface CareerThgPair {
+    beaten?: boolean;
+    commander?: boolean;
+    cover?: CareerCover;
+    enemies?: string[];
+    id?: string;
+    name?: string;
+    teamLife?: number;
+    text?: string;
+}
+
+export interface CareerThgPartner {
+    archetype?: string;
+    commander?: boolean;
+    cover?: CareerCover;
+    id?: string;
+    name?: string;
+    text?: string;
+}
+
+export interface CareerThgState {
+    pairs?: CareerThgPair[];
+    partners?: CareerThgPartner[];
 }
 
 export interface CareerTip {
@@ -1701,6 +1809,7 @@ export interface LadderGame {
 
 export interface LadderMatch {
     opponent?: LadderOpponent;
+    podOpponents?: LadderOpponent[];
     tableId?: string;
     warm?: CareerCover[];
 }
@@ -1771,6 +1880,8 @@ export interface LadderResult {
     mythicRating?: number;
     opponent?: LadderOpponent;
     packs?: number;
+    placement?: number;
+    podOpponents?: LadderOpponent[];
     queue?: string;
     reached?: string[];
     status?: string;
@@ -1880,6 +1991,7 @@ export interface LeagueFormat {
     mixed?: boolean;
     startPacks?: number;
     started?: boolean;
+    starterCount?: number;
     starters?: LeagueStarter[];
     tokens?: number;
 }
@@ -2162,6 +2274,7 @@ export interface PlayerLook {
     badges?: string[];
     cardStyles?: { [index: string]: string };
     cloth?: string;
+    commandFrame?: string;
     deckTokens?: { [index: string]: string };
     flair?: string;
     frame?: string;
@@ -2169,6 +2282,8 @@ export interface PlayerLook {
     level?: number;
     name?: string;
     pet?: string;
+    petStyle?: string;
+    petTier?: number;
     sleeve?: string;
     spark?: string;
     stamp?: string;
@@ -2582,6 +2697,7 @@ export interface StartOptions {
     cubeCards?: string[];
     cubeId?: string;
     mode?: string;
+    planeChase?: boolean;
     seed?: string;
     setCode?: string;
     variant?: string;

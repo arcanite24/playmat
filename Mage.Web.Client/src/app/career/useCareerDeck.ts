@@ -5,7 +5,7 @@ import { useT } from '../i18n';
 import { useSession } from '../stores/session';
 import { cacheActiveCareerDeck, ensureCareerDeck, toCareerDeck } from './careerDeck';
 import { selectCareerDeck, useCareerCollection, useCareerDecks, useCareerStarters } from './careerData';
-import { DECK_MIN, mainDeckSize, ownedByName, shortfalls } from './careerModel';
+import { COMMANDER_TOTAL, CONSTRUCTED_FORMAT, DECK_MIN, isCommanderFormat, mainDeckSize, ownedByName, shortfalls, sideboardSize } from './careerModel';
 
 /**
  * The account's active Career deck and full list of saved Career decks, whether the active deck can be played,
@@ -45,18 +45,35 @@ export function useCareerDeck(profile: CareerProfile | undefined) {
     await selectCareerDeck(id);
   }, [activeSaved?.id]);
 
+  const format = activeSaved?.format ?? deck?.format ?? CONSTRUCTED_FORMAT;
+  const isCommander = isCommanderFormat(format);
+  const commanderDecks = useMemo(() => decks.filter((item) => isCommanderFormat(item.format)), [decks]);
+  const constructedDecks = useMemo(() => decks.filter((item) => !isCommanderFormat(item.format)), [decks]);
   const size = deck ? mainDeckSize(deck) : 0;
+  const cmdrCount = deck ? sideboardSize(deck) : 0;
+  const totalSize = size + cmdrCount;
   const missing = useMemo(() => (deck && collection.data ? shortfalls(deck, owned) : []), [deck, owned, collection.data]);
   const problem = !deck ? null
-    : size < DECK_MIN ? t('career.deck.notReady', { min: DECK_MIN, count: size })
-      : missing.length > 0 ? t('career.deck.missing', { count: missing.length }) : null;
+    : isCommander
+      ? (cmdrCount < 1
+        ? t('career.deck.needCommander')
+        : totalSize !== COMMANDER_TOTAL
+          ? t('career.deck.commanderSize', { total: COMMANDER_TOTAL, count: totalSize })
+          : missing.length > 0 ? t('career.deck.missing', { count: missing.length }) : null)
+      : size < DECK_MIN ? t('career.deck.notReady', { min: DECK_MIN, count: size })
+        : missing.length > 0 ? t('career.deck.missing', { count: missing.length }) : null;
   const opened = starters.data?.find((candidate) => candidate.id === starter);
   return {
     deck,
     activeId: activeSaved?.id ?? null,
+    activeSaved,
+    format,
+    isCommander,
     decks,
+    commanderDecks,
+    constructedDecks,
     selectDeck,
-    size,
+    size: isCommander ? totalSize : size,
     problem,
     cover: opened?.cover ?? null,
     colors: opened?.colors,

@@ -45,6 +45,7 @@
           <li><a href="updates.html">Updating</a></li>
           <li><a href="admin.html">Staff and the admin console</a></li>
           <li><a href="sso.html">Single sign-on</a></li>
+          <li><a href="career.html">Career and solo modes</a></li>
           <li><a href="capsules.html">Capsule machines</a></li>
           <li><a href="ladder.html" aria-current="page">Ladder bots</a></li>
           <li><a href="swarm.html">Self-play swarm</a></li>
@@ -67,9 +68,11 @@
           <li>A persona: a name, avatar, sleeves, playmat, frame and title from the cosmetics catalog. Stronger bots wear
             rarer cosmetics.</li>
         </ul>
-        <p>Standard fields 40 unique Open decks (98 bots), Pioneer 42 unique Open decks (102 bots), and Modern 30 unique
-          Open decks (58 bots, Open and Bo3 queues only). Each format is its own rating scale, with its starter deck at
-          skill 1 fixed at 1000. Pauper misses too many cards for a ladder for now.</p>
+        <p>Standard fields 40 unique Open decks (98 bots), Pioneer 42 unique Open decks (102 bots), Modern 30 unique
+          Open decks (58 bots, Open and Bo3 queues only), Commander 31 unique 100-card decks (62 bots across 1v1 Duel,
+          4-Player Pod, and League), Pauper 23 unique commons-only decks (46 bots across Bo1, Bo3, and League), Brawl
+          21 unique 60-card singleton decks (42 bots across 1v1 and League), and Legacy 21 unique eternal decks (42 bots
+          across Bo1 and Bo3). Each format is its own rating scale, with its starter deck at skill 1 fixed at 1000.</p>
         <p>Each bot keeps the search settings and playbook it was rated with, so a stronger AI in a later release doesn't
           change how existing bots play or what they're rated. A stronger AI comes in as a new generation of bots, rated
           against the old ones with <code>--fixed</code>. Old bots can be retired: they're no longer met, but past games
@@ -103,6 +106,11 @@
             sideboarding between games for both the player and Playbook-equipped AI bots (using only cards publicly
             revealed in earlier games). It has its own rank and hidden rating. Its ranks unlock the same rewards as best
             of one, once for both. Leaving between games is a loss like any other.</li>
+          <li>Commander Ranked offers both <b>1v1 Duel</b> and <b>4-Player Pod</b> queues. In 4-Player Pods, the server
+            seats three distinct AI Commander decks near your rating and scores exact finish order: 1st place awards +2
+            pips, 2nd awards +1 pip in Bronze through Gold (safe in Platinum+), 3rd is safe in Bronze through Gold (-1
+            in Platinum and Diamond), and 4th costs 1 pip from Silver up. Bronze and Silver include anti-combo Bracket
+            Protection that keeps high-power meta decks out until Gold.</li>
           <li>The Limited rank moves with Career's sealed and draft runs (<b>Career &rsaquo; Sealed &amp; draft</b>),
             not with a queue. When a run ends, it moves by the run's wins less its losses, in pips, with no streak
             bonus. A bad run costs one pip at most, with the same floors as above. Leaving a run after its first game
@@ -138,9 +146,12 @@
         <p>The League (<b>Career &rsaquo; League</b>) is Ranked played with the cards an account owns. It is on wherever
           Career is.</p>
         <ul>
-          <li>A player starts a format's League by picking two of its starter decks. Their cards join the Career
-            collection (never past four of a card), each becomes a League deck, and the format's packs are added. The
-            account's first League also gives 4 common, 3 uncommon and 1 rare wildcard.</li>
+          <li>A player starts a 60-card format's League by picking two of its starter decks, or starts the
+            <b>Commander Precon Upgrade League</b> by picking one 100-card precon plus six Commander and expansion
+            packs. Their cards join the Career collection (never past four of a card), each becomes a League deck, and
+            the format's packs are added. Commander League decks enforce singleton rules and can be queued in either
+            1v1 Duel or 4-Player Pod tables. The account's first League also gives 4 common, 3 uncommon and 1 rare
+            wildcard.</li>
           <li>League packs come from the format's own sets. Standard picks a set; Pioneer also has a mixed pack. A pack
             uses the format's League packs first, then a Career pack token, then 100 coins. Every fourth League pack
             also gives a rare wildcard, and every twelfth a mythic one instead.</li>

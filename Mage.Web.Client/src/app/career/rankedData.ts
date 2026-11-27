@@ -30,7 +30,7 @@ export const RANKED_PATH = '/career/ranked';
 
 export function rankedPath(format: string, tableId?: string | null, queue: RankedQueue = 'open'): string {
   const params = new URLSearchParams({ format });
-  if (queue === 'bo3') params.set('queue', queue);
+  if (queue === 'bo3' || queue === 'pod') params.set('queue', queue);
   if (tableId) params.set('table', tableId);
   return `${RANKED_PATH}?${params.toString()}`;
 }
@@ -39,8 +39,8 @@ function useSignedIn(): boolean {
   return useSession((state) => state.phase === 'signedIn');
 }
 
-/** the ranked queues: Open (Bo1), Bo3 (#435) and the Career League (#433) */
-export type RankedQueue = 'open' | 'bo3' | 'league';
+/** the ranked queues: Open (Bo1 / 1v1), Bo3 (#435), 4-Player Commander Pod, and the Career League (#433) */
+export type RankedQueue = 'open' | 'bo3' | 'pod' | 'league';
 
 export function useRankedState(format: string, enabled = true, queue: RankedQueue = 'open') {
   return useQuery({ queryKey: KEY.state(format, queue), queryFn: () => api.ladderState(format, queue), enabled: useSignedIn() && enabled, staleTime: 0 });
@@ -71,7 +71,7 @@ export function useMythicStandings(format: string, queue: RankedQueue = 'open', 
 /** Validates candidate decks from the player's library against the server's format validator and returns only legal decks. */
 export function useLegalRankedDecks(format: string, choices: readonly RosterDeck[], loaded: boolean) {
   const signedIn = useSignedIn();
-  const candidates = useMemo(() => choices.filter(isRankedCandidate), [choices]);
+  const candidates = useMemo(() => choices.filter((deck) => isRankedCandidate(deck, format)), [choices, format]);
   const signature = useMemo(
     () => candidates.map((d) => `${d.id}:${d.updatedAt ?? 0}:${d.cardCount}:${d.sideboardCount ?? 0}`).join('|'),
     [candidates],
@@ -136,7 +136,7 @@ export function useRankedResult(tableId: string | null) {
 }
 
 /** Starts a ranked game; leaving it shows Career's rewards, then the ranked screen with the result. */
-export async function playRanked(format: string, deck: WireDeck, queue: 'open' | 'bo3' = 'open'): Promise<void> {
+export async function playRanked(format: string, deck: WireDeck, queue: 'open' | 'bo3' | 'pod' = 'open'): Promise<void> {
   useEvents.setState({ currentTournamentId: null });
   usePlay.setState({ phase: 'waitingForGame', error: null, deckId: null, returnPath: rankedPath(format, null, queue) });
   try {

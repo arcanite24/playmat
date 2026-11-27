@@ -37,6 +37,8 @@ public final class CareerChallenges {
         public String rule;
         /** the format, for a generated challenge */
         public String format;
+        /** true when Planechase is enabled on this weekly challenge */
+        public boolean planeChase;
         /** a content pack's challenge runs only in this ISO week ("2026-W44"); the built-in ones take turns */
         public String week;
     }
@@ -57,6 +59,7 @@ public final class CareerChallenges {
         /** the leaderboard mode this week's scores go to */
         public String boardMode;
         public String format;
+        public boolean planeChase;
         public int attempts;
         public boolean won;
         public Integer bestTurns;
@@ -261,6 +264,7 @@ public final class CareerChallenges {
         view.rule = challenge.rule == null ? "turns" : challenge.rule;
         view.boardMode = boardMode(challenge);
         view.format = challenge.format;
+        view.planeChase = challenge.planeChase;
         boolean lifeFirst = "life".equals(view.rule);
         mage.server.solo.Leaderboards.Leaderboard board = mage.server.solo.Leaderboards.get()
                 .board(view.boardMode, view.week, user, mage.server.solo.Leaderboards.SCOPE_SERVER, null, BOARD_SIZE);

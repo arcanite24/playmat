@@ -502,6 +502,7 @@
                                 <class>mage.server.career.CareerService$CareerSavedDeck</class>
                                 <class>mage.server.career.CareerService$CareerShopSet</class>
                                 <class>mage.server.career.CareerService$CareerPackResult</class>
+                                <class>mage.server.career.CareerService$CareerPreconResult</class>
                                 <class>mage.server.career.CareerCard</class>
                                 <class>mage.server.career.CareerProgress$CareerQuests</class>
                                 <class>mage.server.career.CareerProgress$CareerQuest</class>
@@ -520,6 +521,8 @@
                                 <class>mage.server.career.CareerProgress$CareerAchievementTier</class>
                                 <class>mage.server.career.CareerProgress$CareerHall</class>
                                 <class>mage.server.career.CareerProgress$CareerMoment</class>
+                                <class>mage.server.career.CareerPets$CareerPetProgress</class>
+                                <class>mage.server.career.CareerPets$CareerPetBondResult</class>
                                 <class>mage.server.career.CareerCosmetics$CareerCatalogItem</class>
                                 <class>mage.server.career.CareerCapsules$CareerMachines</class>
                                 <class>mage.server.career.CareerCapsules$CareerPullResult</class>
@@ -545,6 +548,8 @@
                                 <class>mage.server.career.MetaLibrary$MetaFormat</class>
                                 <class>mage.server.career.CareerLimited$LimitedShape</class>
                                 <class>mage.server.career.CareerHordes$CareerHorde</class>
+                                <class>mage.server.career.CareerArchenemy$CareerArchenemyState</class>
+                                <class>mage.server.career.CareerTwoHeadedGiant$CareerThgState</class>
                                 <class>mage.server.career.CareerPuzzles$CareerDailyPuzzle</class>
                                 <class>mage.server.career.CareerPuzzles$CareerMinedPuzzle</class>
                                 <class>mage.server.solo.PuzzleKit$PuzzleExport</class>

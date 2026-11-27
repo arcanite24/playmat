@@ -2,5 +2,21 @@
   {
     "id": "full-art",
     "wave": 1
+  },
+  {
+    "id": "commander-vault",
+    "wave": 2
+  },
+  {
+    "id": "planar-horizons",
+    "wave": 3
+  },
+  {
+    "id": "tabletop-atelier",
+    "wave": 4
+  },
+  {
+    "id": "legends-showcase",
+    "wave": 5
   }
 ]

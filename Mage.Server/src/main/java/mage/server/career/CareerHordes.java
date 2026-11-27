@@ -32,6 +32,7 @@ public final class CareerHordes {
     static class Horde {
         String id;
         String name;
+        String difficulty;
         String text;
         int survive;
         int flip;
@@ -45,6 +46,7 @@ public final class CareerHordes {
     public static class CareerHorde {
         public String id;
         public String name;
+        public String difficulty;
         public String text;
         public int survive;
         public int flip;
@@ -66,6 +68,8 @@ public final class CareerHordes {
         public DeckCardLists hordeDeck;
         public CareerSetup setup;
         public String name;
+        public boolean commander;
+        public boolean endless;
     }
 
     private static volatile CareerHordes instance;
@@ -122,6 +126,7 @@ public final class CareerHordes {
             CareerHorde view = new CareerHorde();
             view.id = horde.id;
             view.name = horde.name;
+            view.difficulty = horde.difficulty == null ? "normal" : horde.difficulty;
             view.text = horde.text;
             view.survive = horde.survive;
             view.flip = horde.flip;
@@ -158,38 +163,66 @@ public final class CareerHordes {
     }
 
     /**
-     * @param deckFile a deck of the meta library (a 60-card format) to bring
+     * @param deckFile a deck of the meta library (when {@code customDeck} is null)
+     * @param customDeck optional player-supplied deck (personal, Career, or Commander deck)
+     * @param endless true for Endless Waves (no turn cap; score is waves survived)
      */
     public Plan attempt(String user, String hordeId, String deckFile) throws SQLException, CareerService.CareerException {
+        return attempt(user, hordeId, deckFile, null, false);
+    }
+
+    public Plan attempt(String user, String hordeId, String deckFile, DeckCardLists customDeck, boolean endless) throws SQLException, CareerService.CareerException {
         Horde horde = hordes.get(hordeId);
         if (horde == null) {
             throw new CareerService.CareerException("There's no horde " + hordeId + ".");
         }
-        MetaLibrary.MetaDeck meta = MetaLibrary.get().deck(deckFile);
-        if (meta == null || meta.deckType == null || !meta.deckType.startsWith("Constructed")) {
-            throw new CareerService.CareerException("Bring a deck of the meta library to a horde.");
-        }
         Plan plan = new Plan();
         plan.horde = horde;
         plan.name = horde.name;
-        try {
-            plan.playerDeck = CareerCampaigns.get().deck(deckFile);
-        } catch (IOException e) {
-            throw new CareerService.CareerException("That deck can't be read: " + e.getMessage());
+        plan.endless = endless;
+        if (customDeck != null) {
+            int mainCount = customDeck.getCards().stream().mapToInt(DeckCardInfo::getAmount).sum();
+            int sbCount = customDeck.getSideboard().stream().mapToInt(DeckCardInfo::getAmount).sum();
+            if (mainCount + sbCount < 40) {
+                throw new CareerService.CareerException("Bring a deck with at least 40 cards to face a horde.");
+            }
+            plan.playerDeck = customDeck;
+            plan.commander = mainCount >= 98 && sbCount >= 1 && sbCount <= 2;
+        } else {
+            MetaLibrary.MetaDeck meta = MetaLibrary.get().deck(deckFile);
+            if (meta == null || meta.deckType == null
+                    || (!meta.deckType.startsWith("Constructed") && !meta.deckType.contains("Commander") && !meta.deckType.contains("Brawl"))) {
+                throw new CareerService.CareerException("Bring a deck of the meta library or your own deck to a horde.");
+            }
+            try {
+                plan.playerDeck = CareerCampaigns.get().deck(deckFile);
+            } catch (IOException e) {
+                throw new CareerService.CareerException("That deck can't be read: " + e.getMessage());
+            }
+            plan.commander = meta.deckType.contains("Commander");
         }
         plan.hordeDeck = new DeckCardLists();
         plan.hordeDeck.setName(horde.name);
         for (Map.Entry<String, Integer> entry : horde.deck.entrySet()) {
             CardInfo info = CardRepository.instance.findPreferredCoreExpansionCard(entry.getKey());
-            plan.hordeDeck.getCards().add(info == null ? new DeckCardInfo(entry.getKey(), null, null, entry.getValue())
-                    : new DeckCardInfo(info.getName(), info.getCardNumber(), info.getSetCode(), entry.getValue()));
+            int copies = plan.commander ? entry.getValue() * 2 : entry.getValue();
+            plan.hordeDeck.getCards().add(info == null ? new DeckCardInfo(entry.getKey(), null, null, copies)
+                    : new DeckCardInfo(info.getName(), info.getCardNumber(), info.getSetCode(), copies));
+        }
+        if (plan.commander && horde.cover != null) {
+            CardInfo boss = CardRepository.instance.findPreferredCoreExpansionCard(horde.cover);
+            plan.hordeDeck.getSideboard().add(boss == null ? new DeckCardInfo(horde.cover, null, null, 1)
+                    : new DeckCardInfo(boss.getName(), boss.getCardNumber(), boss.getSetCode(), 1));
         }
         CareerSetup.HordeRules rules = new CareerSetup.HordeRules();
         rules.name = horde.name;
-        rules.survive = horde.survive;
-        rules.flip = horde.flip;
+        rules.survive = endless ? 0 : (plan.commander ? Math.max(12, horde.survive + 3) : horde.survive);
+        rules.flip = plan.commander ? horde.flip + 1 : horde.flip;
         rules.rampEvery = horde.rampEvery;
-        rules.life = horde.life;
+        rules.life = plan.commander ? ((horde.life == null ? 20 : horde.life) * 2) : horde.life;
+        if (plan.commander) {
+            rules.playerLife = 40;
+        }
         plan.setup = CareerSetup.plain().withHorde(rules);
         mage.server.solo.Leaderboards.get().attempt(mage.server.solo.Leaderboards.HORDE, horde.id, user);
         return plan;

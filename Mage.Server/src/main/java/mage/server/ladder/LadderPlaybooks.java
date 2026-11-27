@@ -27,6 +27,18 @@ public final class LadderPlaybooks {
         public Map<String, Integer> out;
     }
 
+    public static class ProfileCombat {
+        public Integer aggression;
+        public List<String> protectRoles;
+        public Integer chumpBlockLifeThreshold;
+        public Double blockEvasivePriority;
+    }
+
+    public static class Profile {
+        public String id;
+        public ProfileCombat combat;
+    }
+
     public static class DeckPlaybook {
         public String profile;
         public String archetype;
@@ -36,16 +48,22 @@ public final class LadderPlaybooks {
     }
 
     private static class Bundle {
-        Map<String, Object> profiles;
+        Map<String, Profile> profiles;
         Map<String, DeckPlaybook> decks;
     }
 
     private static volatile LadderPlaybooks instance;
 
+    private final Map<String, Profile> profiles;
     private final Map<String, DeckPlaybook> decks;
 
     LadderPlaybooks(Reader reader) {
         Bundle b = new Gson().fromJson(reader, Bundle.class);
+        Map<String, Profile> profMap = new LinkedHashMap<>();
+        if (b != null && b.profiles != null) {
+            profMap.putAll(b.profiles);
+        }
+        this.profiles = Collections.unmodifiableMap(profMap);
         Map<String, DeckPlaybook> map = new LinkedHashMap<>();
         if (b != null && b.decks != null) {
             map.putAll(b.decks);
@@ -89,5 +107,18 @@ public final class LadderPlaybooks {
 
     public Map<String, DeckPlaybook> decks() {
         return decks;
+    }
+
+    /** Looks up a playbook archetype profile by id (accepts optional `profile:` prefix). */
+    public Profile profile(String id) {
+        if (id == null || id.isEmpty()) {
+            return null;
+        }
+        String key = id.startsWith("profile:") ? id.substring("profile:".length()) : id;
+        return profiles.get(key);
+    }
+
+    public Map<String, Profile> profiles() {
+        return profiles;
     }
 }

@@ -66,7 +66,7 @@ public class LadderRatingsTest {
     @Test
     void theShippedRosterIsCalibratedAndComplete() throws Exception {
         BotRoster roster = BotRoster.get();
-        assertEquals(new HashSet<>(Arrays.asList("standard", "pioneer", "modern")), roster.formats());
+        assertEquals(new HashSet<>(Arrays.asList("standard", "pioneer", "modern", "commander", "pauper", "brawl", "legacy")), roster.formats());
         assertNotNull(roster.calibration(), "bots.json says how it was measured");
         Set<String> cosmetics = cosmeticIds();
         Set<String> names = new HashSet<>();

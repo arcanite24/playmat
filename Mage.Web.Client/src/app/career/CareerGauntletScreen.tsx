@@ -104,13 +104,14 @@ function Offer({ offer, run }: { offer: CareerOffer; run: CareerRun }) {
       <h2 id="gauntlet-offer" className={styles.panelTitle}>{title}</h2>
       {offer.text && <p className={styles.small}>{offer.text}</p>}
       {offer.kind === 'shop' && <p className={styles.small}>{t('career.gauntlet.runCoins', { coins: run.runCoins ?? 0 })}</p>}
-      {offer.kind === 'draft' ? (
+      {offer.kind === 'draft' || offer.kind === 'commander' || offer.kind === 'upgrade' ? (
         <ul className={styles.draftGrid} aria-label={t('career.gauntlet.draftPack')}>
           {(offer.options ?? []).map((option) => (
             <li key={option.id}>
               <button type="button" className={styles.draftCard} disabled={busy !== null} aria-busy={busy === option.id || undefined} onClick={() => void confirm([option.id ?? ''])}>
                 <CardArt card={option.cards?.[0] ? { name: option.cards[0].name, setCode: option.cards[0].setCode, cardNumber: option.cards[0].cardNumber } : undefined} name={option.name ?? ''} className={styles.draftArt} />
                 <span>{option.name}</span>
+                {option.text && <small>{option.text}</small>}
               </button>
             </li>
           ))}
@@ -158,7 +159,7 @@ function Offer({ offer, run }: { offer: CareerOffer; run: CareerRun }) {
   );
 }
 
-const DIRECT = new Set(['shop', 'rest', 'event', 'relic']);
+const DIRECT = new Set(['shop', 'rest', 'event', 'relic', 'trim']);
 
 function OfferOption({ option, chosen, onToggle }: { option: CareerOfferOption; chosen: boolean; onToggle(): void }) {
   const t = useT();
@@ -267,10 +268,15 @@ function Ladder({ run, rewards }: { run: CareerRun; rewards: CareerRunReward[] }
       </div>
       {versus && next && (
         <Versus
-          kicker={heading}
-          opponent={{ name: next.name ?? '', cover: next.cover, boss }}
-          deck={{ name: t('career.gauntlet.title') }}
+          kicker={next.skirmish ? `${heading} · ${t('career.gauntlet.skirmish')}` : heading}
+          opponent={{
+            name: next.skirmish && next.secondName ? `${next.name ?? ''} & ${next.secondName}` : (next.name ?? ''),
+            cover: next.cover,
+            boss,
+          }}
+          deck={{ name: run.commander?.name ? `${run.commander.name} · ${t('career.gauntlet.title')}` : t('career.gauntlet.title') }}
           stakes={[
+            ...(next.skirmish ? [t('career.gauntlet.skirmishStake')] : []),
             t('career.node.skill', { skill: next.skill ?? 1 }),
             ...twistLines(next.twists).map((line) => t(line.key, line.vars)),
             t('career.versus.oneLoss'),

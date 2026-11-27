@@ -19,10 +19,12 @@ export interface CommandProps {
   onCast?(id: string): void;
   /** cards the hand shows while they can be played from here (an adventurer in exile, flashback): see PileTop */
   inHand?: ReadonlySet<string>;
+  /** equipped Command-Zone frame cosmetic id (kind "cmdframe") */
+  commandFrame?: string | null;
 }
 
 /** Library, graveyard, exile and command zone of one player, as piles on the mat. */
-export function Piles({ player, sleeve, isMe, commanders = [], clickable, onCast, inHand }: { player: PlayerView; sleeve: string; isMe: boolean } & CommandProps) {
+export function Piles({ player, sleeve, isMe, commanders = [], clickable, onCast, inHand, commandFrame }: { player: PlayerView; sleeve: string; isMe: boolean } & CommandProps) {
   const t = useT();
   const openViewer = useMatchUi((state) => state.openViewer);
   const libraryRef = useRef<HTMLButtonElement>(null);
@@ -55,7 +57,7 @@ export function Piles({ player, sleeve, isMe, commanders = [], clickable, onCast
         <PileOfCards title={`${name} exile`} label="Exile" cards={exile} sleeve={sleeve} inHand={inHand} onOpen={() => openViewer({ title: `${name} exile`, cards: exile })} />
       )}
       {waiting.map((commander) => (
-        <CommanderPile key={commander.id} commander={commander} sleeve={sleeve} castable={!!clickable?.has(commander.id)} onCast={onCast} owner={name} />
+        <CommanderPile key={commander.id} commander={commander} sleeve={sleeve} castable={!!clickable?.has(commander.id)} onCast={onCast} owner={name} commandFrame={commandFrame} />
       ))}
       {dungeon && <DungeonPile dungeon={dungeon} owner={name} playerId={player.playerId!} />}
       {others.length > 0 && (
@@ -92,12 +94,13 @@ function DungeonPile({ dungeon, owner, playerId }: { dungeon: Dungeon; owner: st
 }
 
 /** A commander in the command zone, face up: it glows when it can be cast, and says what casting it costs extra. */
-function CommanderPile({ commander, sleeve, castable, onCast, owner }: {
+function CommanderPile({ commander, sleeve, castable, onCast, owner, commandFrame }: {
   commander: CommanderStatus;
   sleeve: string;
   castable: boolean;
   onCast?(id: string): void;
   owner: string;
+  commandFrame?: string | null;
 }) {
   const setZoom = useMatchUi((state) => state.setZoom);
   const openViewer = useMatchUi((state) => state.openViewer);
@@ -105,7 +108,8 @@ function CommanderPile({ commander, sleeve, castable, onCast, owner }: {
   return (
     <button
       type="button"
-      className={[styles.pile, castable ? styles.castable : ''].join(' ')}
+      className={[styles.pile, castable ? styles.castable : '', commandFrame ? styles.cmdFramed : ''].join(' ')}
+      data-cmd-frame={commandFrame ?? undefined}
       aria-label={label}
       data-object-id={commander.id}
       onClick={() => (castable && onCast ? onCast(commander.id) : openViewer({ title: `${owner} command zone`, cards: [commander.card] }))}
@@ -171,7 +175,7 @@ const COMMANDER_ZONE_LABEL = {
  * Their commanders stay visible by name in every public zone (command zone, battlefield, graveyard, exile), with tax
  * while waiting in the command zone.
  */
-export function MiniPiles({ player, sleeve = '', commanders = [] }: { player: PlayerView; sleeve?: string } & Pick<CommandProps, 'commanders'>) {
+export function MiniPiles({ player, sleeve = '', commanders = [], commandFrame }: { player: PlayerView; sleeve?: string } & Pick<CommandProps, 'commanders' | 'commandFrame'>) {
   const t = useT();
   const openViewer = useMatchUi((state) => state.openViewer);
   const setZoom = useMatchUi((state) => state.setZoom);
@@ -218,7 +222,9 @@ export function MiniPiles({ player, sleeve = '', commanders = [] }: { player: Pl
               styles.chipCommander,
               !inCommand ? styles.chipCommanderOut : '',
               commander.zone === 'battlefield' ? styles.chipCommanderPlay : '',
+              commandFrame ? styles.chipFramed : '',
             ].join(' ')}
+            data-cmd-frame={commandFrame ?? undefined}
             aria-label={`${name} commander ${commander.name} is ${zoneLabel}${inCommand && commander.tax > 0 ? `, costs ${commander.tax} more` : ''}`}
             title={`${commander.name} (${zoneLabel})`}
             onClick={() => openViewer({ title: inCommand ? `${name} command zone` : `${name} commander`, cards: [commander.card] })}

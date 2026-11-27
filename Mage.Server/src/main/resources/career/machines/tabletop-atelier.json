@@ -1,0 +1,642 @@
+{
+  "id": "tabletop-atelier",
+  "name": "Tabletop Atelier",
+  "es": "Taller de mesa",
+  "blurb": "Ten matched tabletop aesthetic sets: each holds a playmat, avatar, companion, plate frame, and Command-Zone frame.",
+  "blurbEs": "Diez colecciones de estética de mesa: cada una trae tapete, avatar, compañero, marco y marco de zona de mando.",
+  "kind": "mixed",
+  "cabinet": {
+    "body": "#5c3d28",
+    "trim": "#d48c55"
+  },
+  "reward": {
+    "kind": "pet",
+    "id": "atelier-owl"
+  },
+  "title": {
+    "kind": "title",
+    "id": "grand-artificer"
+  },
+  "sets": [
+    {
+      "id": "clockwk",
+      "name": "Clockwork Workshop",
+      "es": "Taller de relojería",
+      "capsule": "#b87a3d",
+      "style": "warm brass artificer oil painting with gears, blueprint amber, and mahogany wood shadows",
+      "items": [
+        {
+          "id": "clockwk-mat",
+          "kind": "playmat",
+          "name": "Clockwork Mat",
+          "es": "Tapete de relojería",
+          "dye": "#3a2818",
+          "shades": [
+            "#3a2818",
+            "#3a2818",
+            "#b87a3d",
+            "#b87a3d",
+            "#e0a958",
+            "#e0a958",
+            "#f4f1ea"
+          ],
+          "subject": "a wide serene tabletop playmat evoking Clockwork Workshop"
+        },
+        {
+          "id": "clockwk-avatar",
+          "kind": "avatar",
+          "name": "Brass Artificer",
+          "es": "Artífice de latón",
+          "light": "#b87a3d",
+          "dark": "#3a2818",
+          "subject": "a painterly fantasy portrait bust of Brass Artificer in the theme of Clockwork Workshop"
+        },
+        {
+          "id": "clockwk-pet",
+          "kind": "pet",
+          "name": "Brass Beetle",
+          "es": "Escarabajo de latón",
+          "subject": "an adorable small magical tabletop companion creature, Brass Beetle, matching Clockwork Workshop"
+        },
+        {
+          "id": "clockwk-frame",
+          "kind": "frame",
+          "name": "Gearwork Ring",
+          "es": "Anillo de engranajes",
+          "ring": "#b87a3d",
+          "accent": "#e0a958",
+          "style": "double",
+          "subject": "a circular ornamental portrait frame medallion titled Gearwork Ring in the style of Clockwork Workshop"
+        },
+        {
+          "id": "clockwk-cmd",
+          "kind": "cmdframe",
+          "name": "Artificer Command",
+          "es": "Mando de artífice",
+          "ring": "#b87a3d",
+          "accent": "#e0a958",
+          "style": "rays",
+          "subject": "an ornate vertical Command-Zone card border frame titled Artificer Command matching Clockwork Workshop"
+        }
+      ]
+    },
+    {
+      "id": "sunken",
+      "name": "Sunken Library",
+      "es": "Biblioteca sumergida",
+      "capsule": "#2d6f82",
+      "style": "deep oceanic watercolor and oil with bioluminescent teal scrolls, coral arches, and sunken marble",
+      "items": [
+        {
+          "id": "sunken-mat",
+          "kind": "playmat",
+          "name": "Sunken Study",
+          "es": "Estudio sumergido",
+          "dye": "#132c36",
+          "shades": [
+            "#132c36",
+            "#132c36",
+            "#2d6f82",
+            "#2d6f82",
+            "#66c2d6",
+            "#66c2d6",
+            "#f4f1ea"
+          ],
+          "subject": "a wide serene tabletop playmat evoking Sunken Library"
+        },
+        {
+          "id": "sunken-avatar",
+          "kind": "avatar",
+          "name": "Tide Scholar",
+          "es": "Erudita de mareas",
+          "light": "#2d6f82",
+          "dark": "#132c36",
+          "subject": "a painterly fantasy portrait bust of Tide Scholar in the theme of Sunken Library"
+        },
+        {
+          "id": "sunken-pet",
+          "kind": "pet",
+          "name": "Reef Octopus",
+          "es": "Pulpo de arrecife",
+          "subject": "an adorable small magical tabletop companion creature, Reef Octopus, matching Sunken Library"
+        },
+        {
+          "id": "sunken-frame",
+          "kind": "frame",
+          "name": "Coral Filigree",
+          "es": "Filigrana de coral",
+          "ring": "#2d6f82",
+          "accent": "#66c2d6",
+          "style": "double",
+          "subject": "a circular ornamental portrait frame medallion titled Coral Filigree in the style of Sunken Library"
+        },
+        {
+          "id": "sunken-cmd",
+          "kind": "cmdframe",
+          "name": "Abyssal Command",
+          "es": "Mando abisal",
+          "ring": "#2d6f82",
+          "accent": "#66c2d6",
+          "style": "rays",
+          "subject": "an ornate vertical Command-Zone card border frame titled Abyssal Command matching Sunken Library"
+        }
+      ]
+    },
+    {
+      "id": "coven",
+      "name": "Moonlit Coven",
+      "es": "Aquelarre lunar",
+      "capsule": "#6d4a8a",
+      "style": "gothic twilight oil painting with silver moonbeams, violet mist, and carved darkstone runes",
+      "items": [
+        {
+          "id": "coven-mat",
+          "kind": "playmat",
+          "name": "Moonlit Clearing",
+          "es": "Claro lunar",
+          "dye": "#21162c",
+          "shades": [
+            "#21162c",
+            "#21162c",
+            "#6d4a8a",
+            "#6d4a8a",
+            "#c69bf0",
+            "#c69bf0",
+            "#f4f1ea"
+          ],
+          "subject": "a wide serene tabletop playmat evoking Moonlit Coven"
+        },
+        {
+          "id": "coven-avatar",
+          "kind": "avatar",
+          "name": "Night Herbalist",
+          "es": "Herborista nocturna",
+          "light": "#6d4a8a",
+          "dark": "#21162c",
+          "subject": "a painterly fantasy portrait bust of Night Herbalist in the theme of Moonlit Coven"
+        },
+        {
+          "id": "coven-pet",
+          "kind": "pet",
+          "name": "Shadow Cat",
+          "es": "Gato sombrío",
+          "subject": "an adorable small magical tabletop companion creature, Shadow Cat, matching Moonlit Coven"
+        },
+        {
+          "id": "coven-frame",
+          "kind": "frame",
+          "name": "Silver Crescent",
+          "es": "Creciente de plata",
+          "ring": "#6d4a8a",
+          "accent": "#c69bf0",
+          "style": "double",
+          "subject": "a circular ornamental portrait frame medallion titled Silver Crescent in the style of Moonlit Coven"
+        },
+        {
+          "id": "coven-cmd",
+          "kind": "cmdframe",
+          "name": "Coven Command",
+          "es": "Mando del aquelarre",
+          "ring": "#6d4a8a",
+          "accent": "#c69bf0",
+          "style": "rays",
+          "subject": "an ornate vertical Command-Zone card border frame titled Coven Command matching Moonlit Coven"
+        }
+      ]
+    },
+    {
+      "id": "hoard",
+      "name": "Dragon's Hoard",
+      "es": "Tesoro del dragón",
+      "capsule": "#b5492e",
+      "style": "rich volcanic treasure-vault oil painting in ruby crimson, hammered gold coins, and glowing embers",
+      "items": [
+        {
+          "id": "hoard-mat",
+          "kind": "playmat",
+          "name": "Vault of Gold",
+          "es": "Bóveda de oro",
+          "dye": "#361812",
+          "shades": [
+            "#361812",
+            "#361812",
+            "#b5492e",
+            "#b5492e",
+            "#f0b956",
+            "#f0b956",
+            "#f4f1ea"
+          ],
+          "subject": "a wide serene tabletop playmat evoking Dragon's Hoard"
+        },
+        {
+          "id": "hoard-avatar",
+          "kind": "avatar",
+          "name": "Wyrm Keeper",
+          "es": "Guardián de sierpes",
+          "light": "#b5492e",
+          "dark": "#361812",
+          "subject": "a painterly fantasy portrait bust of Wyrm Keeper in the theme of Dragon's Hoard"
+        },
+        {
+          "id": "hoard-pet",
+          "kind": "pet",
+          "name": "Ember Wyrmling",
+          "es": "Cría de brasa",
+          "subject": "an adorable small magical tabletop companion creature, Ember Wyrmling, matching Dragon's Hoard"
+        },
+        {
+          "id": "hoard-frame",
+          "kind": "frame",
+          "name": "Dragonscale Rim",
+          "es": "Borde de escamas",
+          "ring": "#b5492e",
+          "accent": "#f0b956",
+          "style": "double",
+          "subject": "a circular ornamental portrait frame medallion titled Dragonscale Rim in the style of Dragon's Hoard"
+        },
+        {
+          "id": "hoard-cmd",
+          "kind": "cmdframe",
+          "name": "Hoard Command",
+          "es": "Mando del tesoro",
+          "ring": "#b5492e",
+          "accent": "#f0b956",
+          "style": "rays",
+          "subject": "an ornate vertical Command-Zone card border frame titled Hoard Command matching Dragon's Hoard"
+        }
+      ]
+    },
+    {
+      "id": "botan",
+      "name": "Botanical Conservatory",
+      "es": "Invernadero botánico",
+      "capsule": "#4a8c54",
+      "style": "sunlit Victorian conservatory gouache with emerald ferns, gilded glasshouse arches, and blooming orchids",
+      "items": [
+        {
+          "id": "botan-mat",
+          "kind": "playmat",
+          "name": "Glasshouse Lawn",
+          "es": "Prado del invernadero",
+          "dye": "#1b3320",
+          "shades": [
+            "#1b3320",
+            "#1b3320",
+            "#4a8c54",
+            "#4a8c54",
+            "#a3d982",
+            "#a3d982",
+            "#f4f1ea"
+          ],
+          "subject": "a wide serene tabletop playmat evoking Botanical Conservatory"
+        },
+        {
+          "id": "botan-avatar",
+          "kind": "avatar",
+          "name": "Spore Botanist",
+          "es": "Botánica de esporas",
+          "light": "#4a8c54",
+          "dark": "#1b3320",
+          "subject": "a painterly fantasy portrait bust of Spore Botanist in the theme of Botanical Conservatory"
+        },
+        {
+          "id": "botan-pet",
+          "kind": "pet",
+          "name": "Moss Sprite",
+          "es": "Duende de musgo",
+          "subject": "an adorable small magical tabletop companion creature, Moss Sprite, matching Botanical Conservatory"
+        },
+        {
+          "id": "botan-frame",
+          "kind": "frame",
+          "name": "Woven Vine",
+          "es": "Enredadera tejida",
+          "ring": "#4a8c54",
+          "accent": "#a3d982",
+          "style": "double",
+          "subject": "a circular ornamental portrait frame medallion titled Woven Vine in the style of Botanical Conservatory"
+        },
+        {
+          "id": "botan-cmd",
+          "kind": "cmdframe",
+          "name": "Verdant Command",
+          "es": "Mando verdoso",
+          "ring": "#4a8c54",
+          "accent": "#a3d982",
+          "style": "rays",
+          "subject": "an ornate vertical Command-Zone card border frame titled Verdant Command matching Botanical Conservatory"
+        }
+      ]
+    },
+    {
+      "id": "harbor",
+      "name": "Neon Harbor",
+      "es": "Puerto neón",
+      "capsule": "#2a8ea8",
+      "style": "rain-slicked cyberpunk twilight painting with glowing cyan canals, warm lantern reflections, and dark slate",
+      "items": [
+        {
+          "id": "harbor-mat",
+          "kind": "playmat",
+          "name": "Rainy Pier",
+          "es": "Muelle lluvioso",
+          "dye": "#122433",
+          "shades": [
+            "#122433",
+            "#122433",
+            "#2a8ea8",
+            "#2a8ea8",
+            "#ff66a3",
+            "#ff66a3",
+            "#f4f1ea"
+          ],
+          "subject": "a wide serene tabletop playmat evoking Neon Harbor"
+        },
+        {
+          "id": "harbor-avatar",
+          "kind": "avatar",
+          "name": "Aether Courier",
+          "es": "Mensajero de éter",
+          "light": "#2a8ea8",
+          "dark": "#122433",
+          "subject": "a painterly fantasy portrait bust of Aether Courier in the theme of Neon Harbor"
+        },
+        {
+          "id": "harbor-pet",
+          "kind": "pet",
+          "name": "Cyber Koi",
+          "es": "Koi cibernético",
+          "subject": "an adorable small magical tabletop companion creature, Cyber Koi, matching Neon Harbor"
+        },
+        {
+          "id": "harbor-frame",
+          "kind": "frame",
+          "name": "Circuit Rim",
+          "es": "Borde de circuito",
+          "ring": "#2a8ea8",
+          "accent": "#ff66a3",
+          "style": "double",
+          "subject": "a circular ornamental portrait frame medallion titled Circuit Rim in the style of Neon Harbor"
+        },
+        {
+          "id": "harbor-cmd",
+          "kind": "cmdframe",
+          "name": "Neon Command",
+          "es": "Mando neón",
+          "ring": "#2a8ea8",
+          "accent": "#ff66a3",
+          "style": "rays",
+          "subject": "an ornate vertical Command-Zone card border frame titled Neon Command matching Neon Harbor"
+        }
+      ]
+    },
+    {
+      "id": "mirage",
+      "name": "Desert Mirage",
+      "es": "Espejismo del desierto",
+      "capsule": "#c78e42",
+      "style": "sun-drenched golden dune oil painting with sandstone obelisks, turquoise oasis shimmer, and warm ochre haze",
+      "items": [
+        {
+          "id": "mirage-mat",
+          "kind": "playmat",
+          "name": "Golden Dunes",
+          "es": "Dunas doradas",
+          "dye": "#3a2915",
+          "shades": [
+            "#3a2915",
+            "#3a2915",
+            "#c78e42",
+            "#c78e42",
+            "#f5d07a",
+            "#f5d07a",
+            "#f4f1ea"
+          ],
+          "subject": "a wide serene tabletop playmat evoking Desert Mirage"
+        },
+        {
+          "id": "mirage-avatar",
+          "kind": "avatar",
+          "name": "Dune Nomad",
+          "es": "Nómada de dunas",
+          "light": "#c78e42",
+          "dark": "#3a2915",
+          "subject": "a painterly fantasy portrait bust of Dune Nomad in the theme of Desert Mirage"
+        },
+        {
+          "id": "mirage-pet",
+          "kind": "pet",
+          "name": "Sand Fennec",
+          "es": "Fénec de arena",
+          "subject": "an adorable small magical tabletop companion creature, Sand Fennec, matching Desert Mirage"
+        },
+        {
+          "id": "mirage-frame",
+          "kind": "frame",
+          "name": "Sunstone Rim",
+          "es": "Borde de piedra solar",
+          "ring": "#c78e42",
+          "accent": "#f5d07a",
+          "style": "double",
+          "subject": "a circular ornamental portrait frame medallion titled Sunstone Rim in the style of Desert Mirage"
+        },
+        {
+          "id": "mirage-cmd",
+          "kind": "cmdframe",
+          "name": "Oasis Command",
+          "es": "Mando del oasis",
+          "ring": "#c78e42",
+          "accent": "#f5d07a",
+          "style": "rays",
+          "subject": "an ornate vertical Command-Zone card border frame titled Oasis Command matching Desert Mirage"
+        }
+      ]
+    },
+    {
+      "id": "frost",
+      "name": "Frostbound Spire",
+      "es": "Aguja helada",
+      "capsule": "#5b92b8",
+      "style": "crisp alpine oil painting with glacier ice prisms, aurora ribbons, and frosted silver pine",
+      "items": [
+        {
+          "id": "frost-mat",
+          "kind": "playmat",
+          "name": "Glacier Terrace",
+          "es": "Terraza glaciar",
+          "dye": "#162636",
+          "shades": [
+            "#162636",
+            "#162636",
+            "#5b92b8",
+            "#5b92b8",
+            "#bfe6ff",
+            "#bfe6ff",
+            "#f4f1ea"
+          ],
+          "subject": "a wide serene tabletop playmat evoking Frostbound Spire"
+        },
+        {
+          "id": "frost-avatar",
+          "kind": "avatar",
+          "name": "Rime Warden",
+          "es": "Guardián de escarcha",
+          "light": "#5b92b8",
+          "dark": "#162636",
+          "subject": "a painterly fantasy portrait bust of Rime Warden in the theme of Frostbound Spire"
+        },
+        {
+          "id": "frost-pet",
+          "kind": "pet",
+          "name": "Snow Owl",
+          "es": "Búho nival",
+          "subject": "an adorable small magical tabletop companion creature, Snow Owl, matching Frostbound Spire"
+        },
+        {
+          "id": "frost-frame",
+          "kind": "frame",
+          "name": "Icicle Crown",
+          "es": "Corona de carámbanos",
+          "ring": "#5b92b8",
+          "accent": "#bfe6ff",
+          "style": "double",
+          "subject": "a circular ornamental portrait frame medallion titled Icicle Crown in the style of Frostbound Spire"
+        },
+        {
+          "id": "frost-cmd",
+          "kind": "cmdframe",
+          "name": "Glacier Command",
+          "es": "Mando glaciar",
+          "ring": "#5b92b8",
+          "accent": "#bfe6ff",
+          "style": "rays",
+          "subject": "an ornate vertical Command-Zone card border frame titled Glacier Command matching Frostbound Spire"
+        }
+      ]
+    },
+    {
+      "id": "feywld",
+      "name": "Feywild Clearing",
+      "es": "Claro feérico",
+      "capsule": "#b85c94",
+      "style": "enchanted storybook gouache with twilight magenta fireflies, iridescent toadstools, and ancient silver birches",
+      "items": [
+        {
+          "id": "feywld-mat",
+          "kind": "playmat",
+          "name": "Fairy Ring",
+          "es": "Círculo feérico",
+          "dye": "#2e1726",
+          "shades": [
+            "#2e1726",
+            "#2e1726",
+            "#b85c94",
+            "#b85c94",
+            "#f5a6d4",
+            "#f5a6d4",
+            "#f4f1ea"
+          ],
+          "subject": "a wide serene tabletop playmat evoking Feywild Clearing"
+        },
+        {
+          "id": "feywld-avatar",
+          "kind": "avatar",
+          "name": "Fey Trickster",
+          "es": "Embaucadora feérica",
+          "light": "#b85c94",
+          "dark": "#2e1726",
+          "subject": "a painterly fantasy portrait bust of Fey Trickster in the theme of Feywild Clearing"
+        },
+        {
+          "id": "feywld-pet",
+          "kind": "pet",
+          "name": "Moon Moth",
+          "es": "Polilla lunar",
+          "subject": "an adorable small magical tabletop companion creature, Moon Moth, matching Feywild Clearing"
+        },
+        {
+          "id": "feywld-frame",
+          "kind": "frame",
+          "name": "Blossom Ring",
+          "es": "Anillo de flores",
+          "ring": "#b85c94",
+          "accent": "#f5a6d4",
+          "style": "double",
+          "subject": "a circular ornamental portrait frame medallion titled Blossom Ring in the style of Feywild Clearing"
+        },
+        {
+          "id": "feywld-cmd",
+          "kind": "cmdframe",
+          "name": "Fey Command",
+          "es": "Mando feérico",
+          "ring": "#b85c94",
+          "accent": "#f5a6d4",
+          "style": "rays",
+          "subject": "an ornate vertical Command-Zone card border frame titled Fey Command matching Feywild Clearing"
+        }
+      ]
+    },
+    {
+      "id": "voidrk",
+      "name": "Eldrazi Void",
+      "es": "Vacío eldrazi",
+      "capsule": "#7c52a8",
+      "style": "alien geometric wasteland painting in chalky bone, floating bismuth crystals, and deep violet aurora",
+      "items": [
+        {
+          "id": "voidrk-mat",
+          "kind": "playmat",
+          "name": "Bismuth Wastes",
+          "es": "Yermos de bismuto",
+          "dye": "#1d1429",
+          "shades": [
+            "#1d1429",
+            "#1d1429",
+            "#7c52a8",
+            "#7c52a8",
+            "#d2b4fc",
+            "#d2b4fc",
+            "#f4f1ea"
+          ],
+          "subject": "a wide serene tabletop playmat evoking Eldrazi Void"
+        },
+        {
+          "id": "voidrk-avatar",
+          "kind": "avatar",
+          "name": "Void Seer",
+          "es": "Vidente del vacío",
+          "light": "#7c52a8",
+          "dark": "#1d1429",
+          "subject": "a painterly fantasy portrait bust of Void Seer in the theme of Eldrazi Void"
+        },
+        {
+          "id": "voidrk-pet",
+          "kind": "pet",
+          "name": "Prism Scion",
+          "es": "Vástago prismático",
+          "subject": "an adorable small magical tabletop companion creature, Prism Scion, matching Eldrazi Void"
+        },
+        {
+          "id": "voidrk-frame",
+          "kind": "frame",
+          "name": "Fractured Halo",
+          "es": "Halo fracturado",
+          "ring": "#7c52a8",
+          "accent": "#d2b4fc",
+          "style": "double",
+          "subject": "a circular ornamental portrait frame medallion titled Fractured Halo in the style of Eldrazi Void"
+        },
+        {
+          "id": "voidrk-cmd",
+          "kind": "cmdframe",
+          "name": "Void Command",
+          "es": "Mando del vacío",
+          "ring": "#7c52a8",
+          "accent": "#d2b4fc",
+          "style": "rays",
+          "subject": "an ornate vertical Command-Zone card border frame titled Void Command matching Eldrazi Void"
+        }
+      ]
+    }
+  ]
+}

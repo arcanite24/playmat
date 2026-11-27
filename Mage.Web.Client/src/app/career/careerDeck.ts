@@ -2,13 +2,14 @@ import type { DeckCardInfo, DeckCardLists } from '../../core/decks/types';
 import type { CareerSavedDeck } from '../../protocol/generated/views';
 import { api } from '../connection';
 import { readJson, writeJson } from '../stores/persist';
+import { CONSTRUCTED_FORMAT } from './careerModel';
 
 /**
  * The Career deck: kept on the server so it follows the account to any device (B311), with a copy of the active deck
  * in this browser for a quick start. Accounts can save multiple Career decks (including starter and earned campaign
  * decks) and switch which one is active.
  */
-const FORMAT = 'Constructed - Freeform';
+const FORMAT = CONSTRUCTED_FORMAT;
 
 function key(user: string): string {
   return `playmat.career.deck.${user.toLowerCase()}`;
@@ -20,7 +21,7 @@ export function loadCareerDeck(user: string): DeckCardLists | null {
 }
 
 export function cacheActiveCareerDeck(user: string, deck: DeckCardLists): DeckCardLists {
-  const kept = { ...deck, id: deck.id || 'career', format: FORMAT, updatedAt: deck.updatedAt ?? Date.now() };
+  const kept = { ...deck, id: deck.id || 'career', format: deck.format || FORMAT, updatedAt: deck.updatedAt ?? Date.now() };
   writeJson(key(user), kept);
   return kept;
 }
@@ -40,7 +41,7 @@ export function toCareerDeck(saved: CareerSavedDeck): DeckCardLists {
   return {
     id: saved.id || 'career',
     name: saved.name || saved.deck?.name || 'Career deck',
-    format: FORMAT,
+    format: saved.format || FORMAT,
     cards: (saved.deck?.cards ?? []).map(toEntry),
     sideboard: (saved.deck?.sideboard ?? []).map(toEntry),
     updatedAt: saved.updated,

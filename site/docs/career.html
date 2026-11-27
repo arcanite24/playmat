@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Career and single-player modes · Playmat docs</title>
+  <meta name="description" content="Career tracks, Commander Career, Leagues, Roguelike Gauntlet, Hordes 2.0, Archenemy, Planechase, Two-Headed Giant, Companion Bond evolution, and the Coin Cosmetics Boutique.">
+  <meta name="theme-color" content="#0b120f">
+  <link rel="icon" href="../assets/brand/playmat-mark.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="docs.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="top">
+    <div class="wrap top-row">
+      <a class="brand" href="../" aria-label="Playmat home">
+        <img src="../assets/brand/playmat-logo.svg" alt="Playmat" width="172" height="40">
+      </a>
+      <nav aria-label="Site">
+        <ul class="nav">
+          <li><a href="https://playmat.deimos.studio">Play online</a></li>
+          <li><a href="../#download">Download</a></li>
+          <li><a href="../#host">Run a server</a></li>
+          <li><a href="./" aria-current="true">Docs</a></li>
+          <li><a href="../rust/">Rust port</a></li>
+          <li><a href="../benchmarks/">Benchmarks</a></li>
+          <li><a href="https://github.com/arcanite24/playmat">GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="docs">
+    <div class="wrap docs-row">
+      <nav class="docs-nav" aria-label="Docs">
+        <h2>Docs</h2>
+        <ul>
+          <li><a href="index.html">Overview</a></li>
+          <li><a href="server.html">Run a server</a></li>
+          <li><a href="updates.html">Updating</a></li>
+          <li><a href="admin.html">Staff and the admin console</a></li>
+          <li><a href="sso.html">Single sign-on</a></li>
+          <li><a href="career.html" aria-current="page">Career and solo modes</a></li>
+          <li><a href="capsules.html">Capsule machines</a></li>
+          <li><a href="ladder.html">Ranked and bots</a></li>
+          <li><a href="swarm.html">Self-play swarm</a></li>
+        </ul>
+      </nav>
+      <article class="doc">
+        <h1>Career and single-player modes</h1>
+        <p class="lede">Playmat's Career is a multi-track single-player hub spanning 60-card Constructed, 100-card
+          Commander, Limited, and tabletop PvE variants — all free to play with zero real-money gating.</p>
+
+        <h2>Multi-track onboarding and deck building</h2>
+        <ul>
+          <li><strong>Starting tracks:</strong> New Career accounts pick either a 60-card Constructed starter or one of
+            six 100-card Commander precons. Existing accounts receive a one-time free Commander precon claim, and
+            additional precon bundles can be bought with Career coins in the Shop.</li>
+          <li><strong>Format-aware Career decks:</strong> Decks saved in <code>career_decks</code> store their format
+            (Constructed, Commander, Brawl). Editing a Commander deck enforces 100-card singleton rules and exposes
+            color-identity filtering and a Pick Commander quick filter in the collection binder.</li>
+          <li><strong>Quest focus:</strong> Players can set a quest track preference (<code>any</code>,
+            <code>constructed</code>, or <code>commander</code>) so daily and weekly quests match how they play.</li>
+        </ul>
+
+        <h2>Commander Career core</h2>
+        <ul>
+          <li><strong>Commander Precon Upgrade League:</strong> Start with 1 Commander precon and 6 packs in
+            <code>league.json</code>, build a singleton deck from your league pool, and play either 1v1 duels or 4-player
+            pods toward the same Commander League progression.</li>
+          <li><strong>Commander Roster &amp; Tables:</strong> Five tiers of 20 curated Commander encounters
+            (<code>commander-opponents.json</code>), progressing from kitchen-table 1v1 duels into themed 4-player pods
+            and asymmetric raid bosses.</li>
+          <li><strong>Commander AI Ranked &amp; Bracket Protection:</strong> Queue in 1v1 Commander Duel or 4-Player
+            Commander Pod with placement movement (1st +2 pips, 2nd +1/safe, 3rd safe/-1, 4th -1). Bronze and Silver pods
+            automatically restrict matchmaking to precon/upgraded brackets so new players are never blown out by
+            high-power combo decks.</li>
+        </ul>
+
+        <h2>Roguelike Gauntlet and PvE variants</h2>
+        <ul>
+          <li><strong>Commanders of the Spire (Commander Gauntlet):</strong> Draft 1 of 3 Legendary Commanders with a
+            starting Command Relic and 2 of 4 color-matched singleton packs, fight 3-player Skirmish Elites, cut weak
+            cards at Rest sites, and forge rare bombs at the Foil Forge across 27 relics and 20+ themed bosses.</li>
+          <li><strong>Hordes 2.0:</strong> Ten themed Horde encounters across Normal, Heroic, and Mythic difficulties.
+            Bring any personal, Career, Commander, or Meta deck; Commander decks automatically scale to 40 life and 12
+            waves, with an optional Endless Waves mode.</li>
+          <li><strong>Archenemy:</strong> Twenty-four Schemes (<code>schemes.json</code>) powering both Hunt the
+            Archenemy (60-life Scheme boss) and Become the Archenemy (1v3 with your own 20-card Scheme deck), complete
+            with a battlefield Scheme reveal banner.</li>
+          <li><strong>Planechase:</strong> Toggle XMage's built-in 21 Planes in Gauntlet, Weekly Challenges, Archenemy,
+            and Two-Headed Giant. A collapsible battlefield Plane banner displays active static/chaos text and a
+            sorcery-speed Roll Planar Die button.</li>
+          <li><strong>Two-Headed Giant (Solo):</strong> Pair up with one of six selectable AI Partner archetypes
+            (Constructed 30 life or Commander 40 life) against opposing 2-head pairs, with team-aware AI combat targeting
+            and shared victory conditions.</li>
+          <li><strong>Story Campaigns, Weekly Challenges &amp; Puzzles:</strong> Narrative sagas including Five Paths,
+            Guilds of the Crossroads (multicolor Constructed), and The Table of Four (Commander), alongside 24 rotating
+            Weekly Challenges and 35 tactical/Commander puzzles.</li>
+        </ul>
+
+        <h2>Companion Bond evolution and cosmetics</h2>
+        <ul>
+          <li><strong>Bond Tiers 1 to 5:</strong> Finishing counted games with a pet or companion equipped earns Bond XP
+            in <code>pet_progress</code> (Migration 12). Tier 2 unlocks reactive table emotes on Commander casts, clutch
+            low-life survival, and wins; Tiers 3 and 4 unlock 3D/companion accessories (Gold Crown, Cool Shades, Wizard
+            Hat, Mana Collar); Tier 5 unlocks the Astral Aura and the exclusive <em>Mythic Bond</em> title.</li>
+          <li><strong>Earnable 3D companions:</strong> Alongside the Party Corgi and Debug Duck perk pets, the Clockwork
+            Owl, Ember Hatchling, and Rune Golem Pup render as articulated low-poly 3D companions in
+            <code>PetScene.tsx</code>.</li>
+          <li><strong>Command-Zone frames:</strong> Equip gilded Command-Zone borders (Gold Filigree, Phyrexian Gilded,
+            Ravnica Guildcrest, Eldrazi Void, Theros Constellation, plus Atelier frames) synced via
+            <code>PlayerLook.commandFrame</code>.</li>
+          <li><strong>Coin Cosmetics Boutique &amp; Gacha Waves 1 to 5:</strong> Buy playmats, sleeves, avatars, frames,
+            companions, emotes, and titles directly with Career coins — with six deterministic <em>Curator's Picks</em>
+            discounted 20% each UTC ISO week — or pull duplicate-free cosmetics from five Capsule machines (Full Art,
+            Commander Vault, Planar Horizons, Tabletop Atelier, and Legends Showcase).</li>
+        </ul>
+      </article>
+    </div>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-row">
+      <p>Something wrong or missing here? <a href="https://github.com/arcanite24/playmat/tree/master/site/docs">The docs are in the repository</a>; open an issue or a pull request.</p>
+      <p class="legal">Playmat is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC.</p>
+    </div>
+  </footer>
+</body>
+</html>

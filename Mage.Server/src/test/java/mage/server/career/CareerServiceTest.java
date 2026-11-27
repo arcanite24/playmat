@@ -52,11 +52,11 @@ public class CareerServiceTest {
 
     @Test
     public void migrationsRunOnceAndRecordTheVersion() throws Exception {
-        assertEquals(10, store.schemaVersion());
+        assertEquals(12, store.schemaVersion());
         store.close();
         store = new CareerStore("jdbc:sqlite:" + file);
         CareerStore.use(store);
-        assertEquals(10, store.schemaVersion());
+        assertEquals(12, store.schemaVersion());
         assertNotNull(store.profile("ana"), "reopening keeps the data");
     }
 
@@ -357,5 +357,66 @@ public class CareerServiceTest {
         int before = decks.size();
         CareerService.get().saveEarnedDeck(store, "ana", "campaign:five-paths/white", "Shield and Feather", whiteDeck, 200L);
         assertEquals(before, CareerService.get().savedDecks("ana").size());
+    }
+
+    @Test
+    public void commanderStartersFreePreconGiftCoinBundlesFormatDecksAndQuestPref() throws Exception {
+        CareerContent content = CareerContent.get();
+        long commanderCount = content.starters().stream().filter(s -> "commander".equals(s.track)).count();
+        assertEquals(6, commanderCount, "six 100-card Commander precons are available in Career");
+        assertEquals(CareerRules.FORMAT_COMMANDER, content.starter("ghalta-primal-stampede").format);
+
+        // Existing Constructed account ("ana") is eligible for 1 free Commander precon gift
+        assertTrue(CareerService.get().commanderPreconGiftAvailable("ana"));
+        service.useCardLookup(key -> {
+            String name = key.startsWith("name|") ? key.substring(5) : key.substring(key.indexOf('|') + 1);
+            Rarity rarity = "Forest".equals(name) || "Plains".equals(name) || "Swamp".equals(name) || "Mountain".equals(name) || "Island".equals(name)
+                    ? Rarity.LAND : Rarity.RARE;
+            return printing(name, rarity);
+        });
+        try {
+            int coinsBefore = store.profile("ana").coins;
+            CareerService.CareerPreconResult gift = CareerService.get().acquirePrecon("ana", "ghalta-primal-stampede");
+            assertTrue(gift.free, "first Commander precon is free for existing constructed account");
+            assertEquals(coinsBefore, gift.profile.coins, "free gift costs 0 coins");
+            assertEquals(CareerRules.FORMAT_COMMANDER, gift.deck.format);
+            assertFalse(CareerService.get().commanderPreconGiftAvailable("ana"), "free gift is one-time only");
+            assertTrue(CareerService.get().ownedPrecons("ana").contains("ghalta-primal-stampede"));
+
+            // Duplicate precon is refused
+            assertThrows(CareerService.CareerException.class,
+                    () -> CareerService.get().acquirePrecon("ana", "ghalta-primal-stampede"));
+
+            // Second precon costs PRECON_PRICE (800 coins)
+            assertThrows(CareerService.CareerException.class,
+                    () -> CareerService.get().acquirePrecon("ana", "teysa-orzhov-tribute"));
+            store.addCoins("ana", CareerRules.PRECON_PRICE);
+            CareerService.CareerPreconResult bought = CareerService.get().acquirePrecon("ana", "teysa-orzhov-tribute");
+            assertFalse(bought.free);
+            assertEquals(coinsBefore, bought.profile.coins);
+            assertEquals(CareerRules.FORMAT_COMMANDER, bought.deck.format);
+
+            // Custom Commander deck saves and keeps its format
+            mage.cards.decks.DeckCardLists custom = new mage.cards.decks.DeckCardLists();
+            custom.getCards().add(new mage.cards.decks.DeckCardInfo("Forest", "TST", "Forest", 35));
+            CareerService.CareerSavedDeck customCmdr = CareerService.get().saveNamedDeck(
+                    "ana", null, "Custom Brew", custom, true, CareerRules.FORMAT_COMMANDER);
+            assertEquals(CareerRules.FORMAT_COMMANDER, customCmdr.format);
+
+            // Quest preference updates and normalizes invalid values to "any"
+            assertEquals("commander", CareerService.get().setQuestPref("ana", "commander"));
+            assertEquals("constructed", CareerService.get().setQuestPref("ana", "constructed"));
+            assertEquals("any", CareerService.get().setQuestPref("ana", "bogus"));
+
+            // Commander Opponents Roster: 5 tiers, 20 encounters including 4-player pods, rival arc, and raid bosses
+            List<CareerService.CareerOpponent> cmdrOpps = CareerService.get().commanderOpponents("ana");
+            assertEquals(20, cmdrOpps.size());
+            assertTrue(cmdrOpps.stream().anyMatch(o -> o.pod && o.podNames != null && o.podNames.size() == 3), "has 4-player pods");
+            assertTrue(cmdrOpps.stream().anyMatch(o -> o.raid && o.tier == 5), "has tier 5 Commander raid bosses");
+            assertTrue(cmdrOpps.stream().filter(o -> o.tier == 1).allMatch(o -> o.unlocked), "tier 1 is unlocked");
+            assertTrue(cmdrOpps.stream().filter(o -> o.tier > 1).noneMatch(o -> o.unlocked), "tiers 2-5 start locked");
+        } finally {
+            service.useCardLookup(null);
+        }
     }
 }

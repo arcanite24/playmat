@@ -415,6 +415,418 @@
         "clock": 1.5,
         "evasive_power": 1.25
       }
+    },
+    "cmdr_voltron": {
+      "id": "cmdr_voltron",
+      "mulligan": {
+        "minLands": 2,
+        "maxLands": 4,
+        "requireEarlyActionByTurn": 2,
+        "requireColorMatch": true,
+        "preferKeepRoles": [
+          "ramp",
+          "protection",
+          "equipment",
+          "aura"
+        ]
+      },
+      "timing": {
+        "holdManaForInstants": true,
+        "holdManaPriority": 55,
+        "castCreaturesMain2": false,
+        "minCounterMv": 2,
+        "sweeperMinNetCreatures": 3,
+        "sweeperEmergencyLife": 12,
+        "burnFaceThresholdLife": 10,
+        "useEotDraw": false
+      },
+      "combat": {
+        "aggression": 65,
+        "protectRoles": [
+          "commander",
+          "engine"
+        ],
+        "chumpBlockLifeThreshold": 8,
+        "blockEvasivePriority": 1.2
+      },
+      "evalMultipliers": {
+        "power": 1.65,
+        "evasive_power": 1.55,
+        "clock": 1.85,
+        "other_permanents": 1.35,
+        "life_score": 1.1
+      }
+    },
+    "cmdr_tokens": {
+      "id": "cmdr_tokens",
+      "mulligan": {
+        "minLands": 3,
+        "maxLands": 4,
+        "requireEarlyActionByTurn": 3,
+        "requireColorMatch": true,
+        "preferKeepRoles": [
+          "ramp",
+          "token_maker",
+          "engine",
+          "anthem"
+        ]
+      },
+      "timing": {
+        "holdManaForInstants": false,
+        "holdManaPriority": 20,
+        "castCreaturesMain2": false,
+        "minCounterMv": 3,
+        "sweeperMinNetCreatures": 4,
+        "sweeperEmergencyLife": 10,
+        "burnFaceThresholdLife": 8,
+        "useEotDraw": false
+      },
+      "combat": {
+        "aggression": 45,
+        "protectRoles": [
+          "commander",
+          "token_maker",
+          "lord",
+          "engine"
+        ],
+        "chumpBlockLifeThreshold": 12,
+        "blockEvasivePriority": 1.15
+      },
+      "evalMultipliers": {
+        "creatures": 1.75,
+        "power": 1.4,
+        "other_permanents": 1.3,
+        "clock": 1.45
+      }
+    },
+    "cmdr_ramp": {
+      "id": "cmdr_ramp",
+      "mulligan": {
+        "minLands": 3,
+        "maxLands": 5,
+        "requireEarlyActionByTurn": 2,
+        "requireColorMatch": true,
+        "preferKeepRoles": [
+          "ramp",
+          "mana_dork",
+          "mana_rock",
+          "finisher"
+        ]
+      },
+      "timing": {
+        "holdManaForInstants": false,
+        "holdManaPriority": 15,
+        "castCreaturesMain2": false,
+        "minCounterMv": 3,
+        "sweeperMinNetCreatures": 3,
+        "sweeperEmergencyLife": 12,
+        "burnFaceThresholdLife": 6,
+        "useEotDraw": false
+      },
+      "combat": {
+        "aggression": 40,
+        "protectRoles": [
+          "commander",
+          "mana_dork",
+          "engine"
+        ],
+        "chumpBlockLifeThreshold": 12,
+        "blockEvasivePriority": 1.05
+      },
+      "evalMultipliers": {
+        "lands": 1.85,
+        "power": 1.5,
+        "toughness": 1.35,
+        "hand": 1.25
+      }
+    },
+    "cmdr_aristocrats": {
+      "id": "cmdr_aristocrats",
+      "mulligan": {
+        "minLands": 3,
+        "maxLands": 4,
+        "requireEarlyActionByTurn": 2,
+        "requireColorMatch": true,
+        "preferKeepRoles": [
+          "fodder",
+          "sac_outlet",
+          "drain",
+          "ramp"
+        ]
+      },
+      "timing": {
+        "holdManaForInstants": false,
+        "holdManaPriority": 30,
+        "castCreaturesMain2": true,
+        "minCounterMv": 3,
+        "sweeperMinNetCreatures": 3,
+        "sweeperEmergencyLife": 10,
+        "burnFaceThresholdLife": 10,
+        "useEotDraw": false
+      },
+      "combat": {
+        "aggression": 25,
+        "protectRoles": [
+          "commander",
+          "sac_outlet",
+          "drain",
+          "engine"
+        ],
+        "chumpBlockLifeThreshold": 14,
+        "blockEvasivePriority": 1.15
+      },
+      "evalMultipliers": {
+        "creatures": 1.45,
+        "other_permanents": 1.5,
+        "graveyard": 1.4,
+        "life_score": 1.2
+      }
+    },
+    "cmdr_spellslinger": {
+      "id": "cmdr_spellslinger",
+      "mulligan": {
+        "minLands": 3,
+        "maxLands": 4,
+        "requireEarlyActionByTurn": 2,
+        "requireColorMatch": true,
+        "preferKeepRoles": [
+          "ramp",
+          "cantrip",
+          "draw",
+          "counter"
+        ]
+      },
+      "timing": {
+        "holdManaForInstants": true,
+        "holdManaPriority": 75,
+        "castCreaturesMain2": true,
+        "minCounterMv": 3,
+        "sweeperMinNetCreatures": 2,
+        "sweeperEmergencyLife": 14,
+        "burnFaceThresholdLife": 10,
+        "useEotDraw": true
+      },
+      "combat": {
+        "aggression": 20,
+        "protectRoles": [
+          "commander",
+          "engine",
+          "payoff"
+        ],
+        "chumpBlockLifeThreshold": 12,
+        "blockEvasivePriority": 1.3
+      },
+      "evalMultipliers": {
+        "hand": 1.65,
+        "lands": 1.35,
+        "evasive_power": 1.3,
+        "other_permanents": 1.35
+      }
+    },
+    "cmdr_tribal": {
+      "id": "cmdr_tribal",
+      "mulligan": {
+        "minLands": 3,
+        "maxLands": 4,
+        "requireEarlyActionByTurn": 2,
+        "requireColorMatch": true,
+        "preferKeepRoles": [
+          "ramp",
+          "early_play",
+          "lord",
+          "engine"
+        ]
+      },
+      "timing": {
+        "holdManaForInstants": false,
+        "holdManaPriority": 20,
+        "castCreaturesMain2": false,
+        "minCounterMv": 3,
+        "sweeperMinNetCreatures": 4,
+        "sweeperEmergencyLife": 10,
+        "burnFaceThresholdLife": 8,
+        "useEotDraw": false
+      },
+      "combat": {
+        "aggression": 50,
+        "protectRoles": [
+          "commander",
+          "lord",
+          "engine",
+          "mana_dork"
+        ],
+        "chumpBlockLifeThreshold": 10,
+        "blockEvasivePriority": 1.15
+      },
+      "evalMultipliers": {
+        "creatures": 1.55,
+        "power": 1.4,
+        "clock": 1.55,
+        "evasive_power": 1.25
+      }
+    },
+    "cmdr_reanimator": {
+      "id": "cmdr_reanimator",
+      "mulligan": {
+        "minLands": 3,
+        "maxLands": 4,
+        "requireEarlyActionByTurn": 2,
+        "requireColorMatch": true,
+        "preferKeepRoles": [
+          "ramp",
+          "mill",
+          "reanimate",
+          "finisher"
+        ]
+      },
+      "timing": {
+        "holdManaForInstants": false,
+        "holdManaPriority": 25,
+        "castCreaturesMain2": true,
+        "minCounterMv": 3,
+        "sweeperMinNetCreatures": 2,
+        "sweeperEmergencyLife": 12,
+        "burnFaceThresholdLife": 6,
+        "useEotDraw": false
+      },
+      "combat": {
+        "aggression": 35,
+        "protectRoles": [
+          "commander",
+          "engine"
+        ],
+        "chumpBlockLifeThreshold": 12,
+        "blockEvasivePriority": 1.1
+      },
+      "evalMultipliers": {
+        "graveyard": 2.1,
+        "power": 1.4,
+        "hand": 1.2,
+        "lands": 1.3
+      }
+    },
+    "cmdr_lifegain": {
+      "id": "cmdr_lifegain",
+      "mulligan": {
+        "minLands": 3,
+        "maxLands": 4,
+        "requireEarlyActionByTurn": 2,
+        "requireColorMatch": true,
+        "preferKeepRoles": [
+          "ramp",
+          "lifegain",
+          "payoff",
+          "engine"
+        ]
+      },
+      "timing": {
+        "holdManaForInstants": false,
+        "holdManaPriority": 25,
+        "castCreaturesMain2": false,
+        "minCounterMv": 3,
+        "sweeperMinNetCreatures": 3,
+        "sweeperEmergencyLife": 15,
+        "burnFaceThresholdLife": 8,
+        "useEotDraw": false
+      },
+      "combat": {
+        "aggression": 30,
+        "protectRoles": [
+          "commander",
+          "engine",
+          "payoff"
+        ],
+        "chumpBlockLifeThreshold": 12,
+        "blockEvasivePriority": 1.2
+      },
+      "evalMultipliers": {
+        "life_score": 1.6,
+        "life": 1.5,
+        "creatures": 1.35,
+        "other_permanents": 1.35
+      }
+    },
+    "cmdr_artifacts": {
+      "id": "cmdr_artifacts",
+      "mulligan": {
+        "minLands": 2,
+        "maxLands": 4,
+        "requireEarlyActionByTurn": 2,
+        "requireColorMatch": true,
+        "preferKeepRoles": [
+          "mana_rock",
+          "ramp",
+          "engine",
+          "payoff"
+        ]
+      },
+      "timing": {
+        "holdManaForInstants": true,
+        "holdManaPriority": 45,
+        "castCreaturesMain2": true,
+        "minCounterMv": 3,
+        "sweeperMinNetCreatures": 3,
+        "sweeperEmergencyLife": 12,
+        "burnFaceThresholdLife": 8,
+        "useEotDraw": true
+      },
+      "combat": {
+        "aggression": 30,
+        "protectRoles": [
+          "commander",
+          "engine",
+          "payoff"
+        ],
+        "chumpBlockLifeThreshold": 12,
+        "blockEvasivePriority": 1.2
+      },
+      "evalMultipliers": {
+        "other_permanents": 1.85,
+        "lands": 1.35,
+        "hand": 1.3,
+        "power": 1.2
+      }
+    },
+    "cmdr_control": {
+      "id": "cmdr_control",
+      "mulligan": {
+        "minLands": 3,
+        "maxLands": 5,
+        "requireEarlyActionByTurn": 2,
+        "requireColorMatch": true,
+        "preferKeepRoles": [
+          "ramp",
+          "draw",
+          "counter",
+          "sweeper"
+        ]
+      },
+      "timing": {
+        "holdManaForInstants": true,
+        "holdManaPriority": 80,
+        "castCreaturesMain2": true,
+        "minCounterMv": 3,
+        "sweeperMinNetCreatures": 2,
+        "sweeperEmergencyLife": 15,
+        "burnFaceThresholdLife": 6,
+        "useEotDraw": true
+      },
+      "combat": {
+        "aggression": 10,
+        "protectRoles": [
+          "commander",
+          "engine",
+          "finisher"
+        ],
+        "chumpBlockLifeThreshold": 14,
+        "blockEvasivePriority": 1.35
+      },
+      "evalMultipliers": {
+        "hand": 1.75,
+        "lands": 1.5,
+        "life_score": 1.3,
+        "other_permanents": 1.4
+      }
     }
   },
   "decks": {

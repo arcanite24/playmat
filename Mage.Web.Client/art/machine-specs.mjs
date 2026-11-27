@@ -24,13 +24,22 @@ const RULES = [
   'Each panel shows its own subject as one clear, readable scene, the same style and palette as its neighbours, as if the whole row were a matched, limited-edition art series.',
 ].join(' ');
 
+const MIXED_LAYOUT = {
+  playmat: { dir: 'playmat', size: '1280x720', rule: 'A wide 16:9 tabletop playmat with a calm, low-contrast textured center so playing cards read crisply over it, and painterly theme accents along the outer edges.' },
+  avatar: { dir: 'avatar', size: '512x512', rule: 'A centered bust portrait medallion subject with dramatic workshop lighting and clean silhouette.' },
+  pet: { dir: 'companion', size: '512x512', rule: 'A charming tabletop companion creature in full-body view centered with breathing room around it on a deep moody background.' },
+  frame: { dir: 'plate-frame', size: '512x512', rule: 'An ornate circular portrait border motif with clean dark interior so an avatar sits inside it.' },
+  cmdframe: { dir: 'cmdframe', size: '540x756', rule: 'An ornate vertical rectangular border frame for a commander card slot with a calm dark interior center.' },
+};
+
 const machine = process.argv[2] ?? 'full-art';
 const refs = JSON.parse(readFileSync(join(ART, 'style-refs.json'), 'utf8'));
 const content = JSON.parse(readFileSync(join(MACHINES, `${machine}.json`), 'utf8'));
+const isMixed = content.kind === 'mixed';
 for (const set of content.sets) {
   const spec = {
-    $comment: `Card styles of the ${set.name} set (${content.name} capsule machine), written by art/machine-specs.mjs from career/machines/${machine}.json: edit that file and re-run, not this one.`,
-    out: `public/career-art/cardstyle/${set.id}`,
+    $comment: `Cosmetics of the ${set.name} set (${content.name} capsule machine), written by art/machine-specs.mjs from career/machines/${machine}.json: edit that file and re-run, not this one.`,
+    out: isMixed ? `public/career-art/mixed/${set.id}` : `public/career-art/cardstyle/${set.id}`,
     house: false,
     panels: true,
     grid: { cols: 4, rows: 2, canvas: 'landscape' },
@@ -38,10 +47,23 @@ for (const set of content.sets) {
     anchors: [],
     refs: refs[set.id] ?? [],
     style: set.style,
-    rules: RULES,
+    rules: isMixed
+      ? 'Each item belongs to a unified tabletop cosmetic collection sharing the exact same palette, brushwork, and motif. No text, letters, numbers, logos, or borders.'
+      : RULES,
     spare: `an extra painting in the same style: ${set.items[0].subject}`,
     items: [
-      ...set.items.map((item) => ({ id: item.id.slice(set.id.length + 1), subject: item.subject })),
+      ...set.items.map((item) => {
+        if (!isMixed) {
+          return { id: item.id.slice(set.id.length + 1), subject: item.subject };
+        }
+        const layout = MIXED_LAYOUT[item.kind] ?? { dir: item.kind ?? 'cardstyle', size: '512x512', rule: '' };
+        return {
+          id: item.id,
+          out: `public/career-art/${layout.dir}/${item.id}.webp`,
+          size: layout.size,
+          subject: `${item.subject}. ${layout.rule}`.trim(),
+        };
+      }),
       {
         id: `set-${set.id}`,
         out: `public/career-art/sleeve/set-${set.id}.webp`,

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { create } from 'zustand';
-import type { CareerCard, CareerCosmetic, CareerMatch, CareerPackResult, CareerProfile, CareerQuests, CareerSavedDeck, CareerState } from '../../protocol/generated/views';
+import type { CareerCard, CareerCosmetic, CareerMatch, CareerPackResult, CareerPetProgress, CareerPreconResult, CareerProfile, CareerQuests, CareerSavedDeck, CareerState } from '../../protocol/generated/views';
 import type { DeckCardLists } from '../../core/decks/types';
 import { api } from '../connection';
 import { toWire } from '../decks/deckModel';
@@ -18,6 +18,7 @@ import { rewardsPath } from './progressModel';
 const KEY = {
   state: ['career', 'state'],
   opponents: ['career', 'opponents'],
+  commanderOpponents: ['career', 'commanderOpponents'],
   collection: ['career', 'collection'],
   decks: ['career', 'decks'],
   shop: ['career', 'shop'],
@@ -40,6 +41,10 @@ export function useCareerState() {
 
 export function useCareerOpponents(enabled: boolean) {
   return useQuery({ queryKey: KEY.opponents, queryFn: () => api.careerOpponents(), enabled: useSignedIn() && enabled, staleTime: 0 });
+}
+
+export function useCareerCommanderOpponents(enabled: boolean) {
+  return useQuery({ queryKey: KEY.commanderOpponents, queryFn: () => api.careerCommanderOpponents(), enabled: useSignedIn() && enabled, staleTime: 0 });
 }
 
 export function useCareerCollection(enabled: boolean) {
@@ -65,8 +70,17 @@ export async function selectCareerDeck(id: string): Promise<CareerSavedDeck> {
 }
 
 /** Create (id null) or update a saved Career deck on the server. */
-export async function saveNamedCareerDeck(id: string | null, name: string, deck: DeckCardLists, activate = true): Promise<CareerSavedDeck> {
-  const saved = await api.careerSaveNamedDeck(id, name, toWire(deck) as never, activate);
+export async function saveNamedCareerDeck(
+  id: string | null,
+  name: string,
+  deck: DeckCardLists,
+  activate = true,
+  format?: string,
+): Promise<CareerSavedDeck> {
+  const resolvedFormat = format ?? deck.format;
+  const saved = resolvedFormat
+    ? await api.careerSaveNamedDeck(id, name, toWire(deck) as never, activate, resolvedFormat)
+    : await api.careerSaveNamedDeck(id, name, toWire(deck) as never, activate);
   const user = useSession.getState().userName;
   if (user && saved?.active) cacheActiveCareerDeck(user, toCareerDeck(saved));
   queryClient.setQueryData<CareerSavedDeck[]>(KEY.decks, (current) => {
@@ -144,20 +158,64 @@ export function useCareerSetProgress(enabled: boolean) {
   return useQuery({ queryKey: KEY.sets, queryFn: () => api.careerSetProgress(), enabled: useSignedIn() && enabled, staleTime: 30_000 });
 }
 
+/** Companion & pet bond progression: XP, tier (1-5), games/wins, and equipped accessory/aura style. */
+export function useCareerPets(enabled: boolean) {
+  return useQuery({ queryKey: ['career', 'pets'], queryFn: () => api.careerPets(), enabled: useSignedIn() && enabled, staleTime: 10_000 });
+}
+
+/** Equip or clear an unlocked accessory/aura style on a companion and refresh the player's table look. */
+export async function setPetStyle(petId: string, style: string | null): Promise<CareerPetProgress> {
+  const updated = await api.careerSetPetStyle(petId, style ?? 'none');
+  queryClient.setQueryData<CareerPetProgress[]>(['career', 'pets'], (current) => {
+    const list = (current ?? []).filter((item) => item.id !== updated.id);
+    return [updated, ...list];
+  });
+  void queryClient.invalidateQueries({ queryKey: ['career', 'pets'] });
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('playmat:refresh-look'));
+  return updated;
+}
+
 /** A changed profile shows everywhere at once. */
 function setProfile(profile: CareerProfile | undefined) {
   if (!profile) return;
   queryClient.setQueryData<CareerState>(KEY.state, (state) => ({ ...(state ?? { enabled: true }), profile }));
 }
 
+/** Buy a boutique cosmetic directly with Career coins; refreshes wallet and unlocks. */
+export async function buyCosmetic(kind: string, id: string): Promise<CareerProfile> {
+  const profile = await api.careerBuyCosmetic(kind, id);
+  setProfile(profile);
+  void queryClient.invalidateQueries({ queryKey: KEY.levels });
+  void queryClient.invalidateQueries({ queryKey: KEY.state });
+  return profile;
+}
+
 /** Open a Career with a starter; its deck becomes the Career deck on this browser. */
-export async function startCareer(starterId: string, starterName: string): Promise<void> {
+export async function startCareer(starterId: string, starterName: string, format?: string): Promise<void> {
   const profile = await api.careerStart(starterId);
   const user = useSession.getState().userName;
   const deck = await fetchStarterDeck(starterId, starterName).catch(() => null);
-  if (deck) await saveCareerDeck(user, deck);
+  if (deck) await saveCareerDeck(user, format ? { ...deck, format } : deck);
   setProfile(profile);
   void queryClient.invalidateQueries({ queryKey: ['career'] });
+}
+
+/** Claim 1 free Commander precon (existing non-Commander accounts) or buy an additional precon bundle with coins. */
+export async function acquirePrecon(starterId: string): Promise<CareerPreconResult> {
+  const result = await api.careerAcquirePrecon(starterId);
+  setProfile(result.profile);
+  void queryClient.invalidateQueries({ queryKey: KEY.state });
+  void queryClient.invalidateQueries({ queryKey: KEY.collection });
+  void queryClient.invalidateQueries({ queryKey: KEY.decks });
+  return result;
+}
+
+/** Set the account's quest track preference ('any', 'constructed', or 'commander') for future quest rolls. */
+export async function setQuestPref(pref: 'any' | 'constructed' | 'commander'): Promise<string> {
+  const saved = await api.careerSetQuestPref(pref);
+  queryClient.setQueryData<CareerState>(KEY.state, (state) => (state ? { ...state, questPref: saved } : state));
+  void queryClient.invalidateQueries({ queryKey: KEY.quests });
+  return saved;
 }
 
 /** A pack just bought, with the names of the cards the collection didn't have before (they open as new). */
@@ -265,6 +323,22 @@ export async function playCareer(opponentId: string, deck: DeckCardLists, voice:
   }
 }
 
+/** Start a Commander Career roster encounter (1v1 duel or 4-player pod). */
+export async function playCommanderCareer(opponentId: string, deck: DeckCardLists, voice: VoiceLines | null = null, adaptive = false): Promise<void> {
+  useEvents.setState({ currentTournamentId: null });
+  useCareerVoice.getState().speak(voice);
+  usePlay.setState({ phase: 'waitingForGame', error: null, deckId: null, returnPath: '/career/opponents?track=commander' });
+  warmDeck(deck);
+  try {
+    const match = await api.careerCommanderPlay(opponentId, toWire(deck), adaptive || null);
+    warmMatch(match);
+    usePlay.setState({ tableId: match?.tableId ?? null, returnPath: rewardsPath(match?.tableId ?? null, true, '/career/opponents?track=commander') });
+  } catch (error) {
+    usePlay.setState({ phase: 'idle', tableId: null });
+    throw error;
+  }
+}
+
 /** After a Career match the payout and the open tiers have changed. */
 export function refreshCareer(): void {
   void queryClient.invalidateQueries({ queryKey: ['career'] });
@@ -278,6 +352,7 @@ export interface CareerLook {
   avatar: string | null;
   title: string | null;
   frame?: string | null;
+  commandFrame?: string | null;
   pet?: string | null;
   arrow?: string | null;
   spark?: string | null;

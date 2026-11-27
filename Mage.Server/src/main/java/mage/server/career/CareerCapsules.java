@@ -47,14 +47,28 @@ public final class CareerCapsules {
         public String trim;
     }
 
-    /** One capsule: a card style of one card. */
+    /** One capsule: a card style of one card, or a typed cosmetic inside a "mixed" machine. */
     public static class CareerMachineItem {
-        /** "<set>-<card slug>"; its picture is cardstyle/<set>/<card slug>.webp */
+        /** "<set>-<slug>"; cardstyles live at cardstyle/<set>/<slug>.webp, mixed items at <kind>/<id>.webp */
         public String id;
-        /** the card it styles, by its English name */
+        /** optional per-item cosmetic kind for "mixed" machines (playmat, avatar, pet, frame, cmdframe, sleeve, ...) */
+        public String kind;
+        /** display name for non-cardstyle items */
+        public String name;
+        public String es;
+        /** the card it styles, by its English name (cardstyle items only) */
         public String card;
         /** what the picture shows (the art prompt) */
         public String subject;
+        /** optional look metadata for mixed items */
+        public String color;
+        public String dye;
+        public List<String> shades;
+        public String light;
+        public String dark;
+        public String ring;
+        public String accent;
+        public String style;
     }
 
     /** Five capsules in one style and theme. */
@@ -109,6 +123,9 @@ public final class CareerCapsules {
         public String item;
         public String set;
         public String card;
+        /** for "mixed" machines: the item's cosmetic kind and display name */
+        public String kind;
+        public String name;
         /** this capsule finished its set, and the set's reward */
         public boolean setDone;
         public CareerProgress.CareerCosmetic setReward;
@@ -247,7 +264,7 @@ public final class CareerCapsules {
     }
 
     /**
-     * The catalog entries machines add (CareerCosmetics): every card style, and every set's sleeve. A machine's own
+     * The catalog entries machines add (CareerCosmetics): every capsule item, and every set's sleeve. A machine's own
      * reward and title are ordinary catalog items (cosmetics.json); the catalog gives them their source.
      */
     List<CareerCosmetics.CareerCatalogItem> catalogItems() {
@@ -255,14 +272,24 @@ public final class CareerCapsules {
         for (CareerMachine machine : machines) {
             for (CareerMachineSet set : machine.sets) {
                 for (CareerMachineItem item : set.items) {
+                    String itemKind = itemKind(machine, item);
                     CareerCosmetics.CareerCatalogItem style = new CareerCosmetics.CareerCatalogItem();
-                    style.kind = machine.kind;
+                    style.kind = itemKind;
                     style.id = item.id;
-                    style.name = item.card;
-                    style.es = item.card;
+                    style.name = item.name != null ? item.name : item.card;
+                    style.es = item.es != null ? item.es : style.name;
                     style.rarity = "rare";
-                    style.color = set.capsule;
-                    style.card = item.card;
+                    style.color = item.color != null ? item.color : set.capsule;
+                    style.dye = item.dye;
+                    style.shades = item.shades;
+                    style.light = item.light;
+                    style.dark = item.dark;
+                    style.ring = item.ring;
+                    style.accent = item.accent;
+                    style.style = item.style;
+                    if (CARD_STYLE.equals(itemKind)) {
+                        style.card = item.card;
+                    }
                     style.series = set.id;
                     style.sources.add(new CareerCosmetics.CareerCosmeticSource("capsule", machine.id, 0));
                     catalog.add(style);
@@ -321,9 +348,15 @@ public final class CareerCapsules {
         return owned;
     }
 
-    private String kindOf(String item) {
-        CareerMachine machine = machineOf.get(item);
+    static String itemKind(CareerMachine machine, CareerMachineItem item) {
+        if (item != null && item.kind != null && !item.kind.isEmpty()) {
+            return item.kind;
+        }
         return machine == null ? "" : machine.kind;
+    }
+
+    private String kindOf(String item) {
+        return itemKind(machineOf.get(item), items.get(item));
     }
 
     /** Buys tokens with coins, in one of the shop's bundles. */
@@ -389,7 +422,8 @@ public final class CareerCapsules {
             addTokens(store, user, -pulls, "pull " + machine.id, now);
             for (int index = 0; index < pulls; index++) {
                 CareerMachineItem item = left.remove(draw.nextInt(left.size()));
-                store.addUnlock(user, machine.kind, item.id, now);
+                String itemKind = itemKind(machine, item);
+                store.addUnlock(user, itemKind, item.id, now);
                 store.addPull(user, machine.id, item.id, now);
                 owned.add(item.id);
                 CareerMachineSet set = setOf.get(item.id);
@@ -397,6 +431,10 @@ public final class CareerCapsules {
                 pull.item = item.id;
                 pull.set = set.id;
                 pull.card = item.card;
+                if ("mixed".equals(machine.kind)) {
+                    pull.kind = itemKind;
+                    pull.name = item.name != null ? item.name : item.card;
+                }
                 if (set.items.stream().allMatch(one -> owned.contains(one.id))) {
                     pull.setDone = true;
                     pull.setReward = set.reward;
@@ -432,7 +470,7 @@ public final class CareerCapsules {
         CareerStore store = CareerStore.get();
         if (itemId != null) {
             CareerMachineItem item = item(itemId);
-            if (item == null || !item.card.equals(card)) {
+            if (item == null || item.card == null || !item.card.equals(card)) {
                 throw new CareerService.CareerException("That style isn't for " + card + ".");
             }
             if (!owned(store, user).contains(itemId)) {
@@ -450,7 +488,7 @@ public final class CareerCapsules {
         Map<String, String> worn = new LinkedHashMap<>();
         for (Map.Entry<String, String> style : store.cardStyles(user).entrySet()) {
             CareerMachineItem item = item(style.getValue());
-            if (item != null && item.card.equals(style.getKey()) && owned.contains(item.id)) {
+            if (item != null && item.card != null && item.card.equals(style.getKey()) && owned.contains(item.id)) {
                 worn.put(style.getKey(), item.id);
             }
         }

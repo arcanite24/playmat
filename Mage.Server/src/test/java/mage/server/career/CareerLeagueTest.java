@@ -44,6 +44,10 @@ public class CareerLeagueTest {
         // the server registers these from config.xml at start
         mage.cards.decks.DeckValidatorFactory.instance.addDeckType("Constructed - Standard", mage.deck.Standard.class);
         mage.cards.decks.DeckValidatorFactory.instance.addDeckType("Constructed - Pioneer", mage.deck.Pioneer.class);
+        mage.cards.decks.DeckValidatorFactory.instance.addDeckType("Variant Magic - Commander", mage.deck.Commander.class);
+        mage.cards.decks.DeckValidatorFactory.instance.addDeckType("Constructed - Pauper", mage.deck.Pauper.class);
+        mage.cards.decks.DeckValidatorFactory.instance.addDeckType("Variant Magic - Brawl", mage.deck.Brawl.class);
+        mage.cards.decks.DeckValidatorFactory.instance.addDeckType("Constructed - Legacy", mage.deck.Legacy.class);
     }
 
     @BeforeEach
@@ -73,14 +77,33 @@ public class CareerLeagueTest {
     void everyStarterIsLegalInItsFormat() throws Exception {
         for (String format : league.formats()) {
             List<CareerLeague.LeagueStarter> starters = league.starters(format);
-            assertTrue(starters.size() >= CareerLeague.STARTERS, format + " has starters to pick two of");
+            assertTrue(starters.size() >= league.requiredStarters(format), format + " has enough starters to start");
             for (CareerLeague.LeagueStarter starter : starters) {
                 DeckCardLists deck = CareerCampaigns.get().deck(starter.id);
                 assertEquals(Collections.emptyList(), DeckLegality.problems(RankedService.deckType(format), deck),
                         starter.id + " must be legal in " + format);
-                assertTrue(starter.cards >= 60, starter.id + " is a whole deck");
+                assertTrue(starter.cards >= ("commander".equals(format) ? 100 : 60), starter.id + " is a whole deck");
             }
         }
+    }
+
+    @Test
+    void commanderPreconUpgradeLeagueStartsWithOnePreconAndSixCommanderPacks() throws Exception {
+        store.createProfile("Ana", "test", CareerRules.START_COINS, 1L);
+        List<String> ids = starterIds("commander");
+        assertTrue(ids.size() >= 6, "six Commander League precons available");
+        assertEquals(1, league.requiredStarters("commander"));
+        CareerLeague.LeagueStart start = league.start("Ana", "commander", Collections.singletonList(ids.get(0)));
+        assertEquals(1, start.decks.size());
+        CareerLeague.LeagueDeck deck = start.decks.get(0);
+        assertEquals(100, deck.cards);
+        assertEquals(Collections.emptyList(), deck.missing);
+        assertEquals(Collections.emptyList(), deck.illegal);
+        assertEquals(6, store.leagueTokens("ana", "commander"));
+        assertNotNull(league.playable("ana", "commander", deck.id));
+        List<CareerLeague.LeagueSet> sets = league.sets("commander");
+        assertTrue(sets.size() > 5, "Commander League exposes mixed pack plus Commander/Masters and expansion sets");
+        assertEquals(CareerLeague.MIXED, sets.get(0).setCode);
     }
 
     @Test

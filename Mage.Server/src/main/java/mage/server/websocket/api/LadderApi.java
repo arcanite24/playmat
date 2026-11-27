@@ -226,6 +226,8 @@ public final class LadderApi {
     public static class LadderMatch {
         public String tableId;
         public LadderOpponent opponent;
+        /** all 3 AI opponents in a 4-player Commander pod */
+        public List<LadderOpponent> podOpponents;
         public List<CareerContent.CareerCover> warm;
     }
 
@@ -236,6 +238,10 @@ public final class LadderApi {
         /** won, lost or drew */
         public String status;
         public LadderOpponent opponent;
+        /** 1..4 finish placement in a 4-player Commander pod, or null for 1v1 */
+        public Integer placement;
+        /** all 3 pod opponents when played in a 4-player Commander pod */
+        public List<LadderOpponent> podOpponents;
         public int stepBefore;
         public int stepAfter;
         public String labelBefore;
@@ -295,10 +301,10 @@ public final class LadderApi {
                         .handler(call -> play(ctx, call)),
 
                 RpcMethod.named("leaguePlay")
-                        .params(of("format", STRING), of("deckId", STRING))
+                        .params(of("format", STRING), of("deckId", STRING), optional("pod", BOOLEAN))
                         .returns("LadderMatch")
                         .doc("Start a League game in the format with one of your League decks (by id), against the League's picked "
-                                + "bot. The deck must be legal there and every card in it owned. Otherwise like ladderPlay.")
+                                + "bot (or a 4-player pod when format is commander and pod is true). The deck must be legal there and every card in it owned.")
                         .handler(call -> leaguePlay(ctx, call)),
 
                 RpcMethod.named("ladderResult")
@@ -765,6 +771,16 @@ public final class LadderApi {
         view.format = result.format;
         view.status = result.status;
         view.opponent = opponent(RankedService.get().roster().bot(result.botId));
+        view.placement = result.placement;
+        if (result.podBotIds != null && !result.podBotIds.isEmpty()) {
+            view.podOpponents = new ArrayList<>();
+            for (String podBotId : result.podBotIds) {
+                LadderOpponent opp = opponent(RankedService.get().roster().bot(podBotId));
+                if (opp != null) {
+                    view.podOpponents.add(opp);
+                }
+            }
+        }
         view.stepBefore = result.stepBefore;
         view.stepAfter = result.stepAfter;
         view.labelBefore = LadderRank.label(result.stepBefore);
@@ -792,7 +808,10 @@ public final class LadderApi {
         if (RankedService.LEAGUE.equals(queue)) {
             throw RpcException.invalidParams("League games start with leaguePlay and a League deck.");
         }
-        return start(ctx, call, user, format, queue, deck);
+        if (RankedService.POD.equals(queue) && !"commander".equals(format)) {
+            throw RpcException.invalidParams("The 4-player Pod queue is only available for Commander.");
+        }
+        return start(ctx, call, user, format, queue, deck, RankedService.POD.equals(queue));
     }
 
     /** a League game: the server's copy of the League deck, owned and legal */
@@ -800,14 +819,15 @@ public final class LadderApi {
         String user = CareerApi.career(ctx, call);
         String format = format(call.string(0));
         String deckId = call.string(1);
+        boolean pod = call.optBool(2, false) && "commander".equals(format);
         if (RankedService.get().playing(user)) {
             throw RpcException.invalidParams("Finish your ranked game first: one at a time.");
         }
         CareerLeague.LeagueDeck deck = CareerApi.store(() -> CareerLeague.get().playable(user, format, deckId));
-        return start(ctx, call, user, format, RankedService.LEAGUE, deck.deck);
+        return start(ctx, call, user, format, RankedService.LEAGUE, deck.deck, pod);
     }
 
-    private static Object start(ApiContext ctx, RpcCall call, String user, String format, String queue, DeckCardLists deck) throws RpcException {
+    private static Object start(ApiContext ctx, RpcCall call, String user, String format, String queue, DeckCardLists deck, boolean pod) throws RpcException {
         RankedService ranked = RankedService.get();
         if (ranked.playing(user)) {
             throw RpcException.invalidParams("Finish your ranked game first: one at a time.");
@@ -819,27 +839,50 @@ public final class LadderApi {
             throw RpcException.invalidParams("This deck isn't legal in " + name + ": " + String.join("; ", problems) + ".");
         }
         long now = System.currentTimeMillis();
-        BotRoster.Bot bot = ladder(() -> ranked.pick(user, format, queue, now));
-        DeckCardLists botDeck;
-        try {
-            botDeck = ranked.roster().deck(bot);
-        } catch (java.io.IOException e) {
-            throw new RpcException(RpcException.SERVER_ERROR, "The opponent's deck can't be read", e);
+        boolean isCommander = "commander".equals(format);
+        boolean isBrawl = "brawl".equals(format);
+        boolean javaOnly = isCommander || isBrawl;
+        List<BotRoster.Bot> bots = pod
+                ? ladder(() -> ranked.pickPod(user, format, queue, now))
+                : java.util.Collections.singletonList(ladder(() -> ranked.pick(user, format, queue, now)));
+        BotRoster.Bot primary = bots.get(0);
+        List<mage.server.career.CareerCampaigns.DuelSeat> seats = new ArrayList<>();
+        List<CareerContent.CareerCover> warm = new ArrayList<>();
+        List<LadderOpponent> podOpponents = new ArrayList<>();
+        for (BotRoster.Bot bot : bots) {
+            DeckCardLists botDeck;
+            try {
+                botDeck = ranked.roster().deck(bot);
+            } catch (java.io.IOException e) {
+                throw new RpcException(RpcException.SERVER_ERROR, "The opponent's deck can't be read", e);
+            }
+            mage.server.career.CareerCampaigns.DuelSeat seat = new mage.server.career.CareerCampaigns.DuelSeat();
+            seat.name = bot.persona == null ? bot.deckName : bot.persona.name;
+            seat.skill = bot.skill;
+            // Commander and Brawl stay on Java AI (CLAUDE.md); 1v1 Constructed uses default Mad/Rust host routing
+            seat.aiType = javaOnly ? PlayerType.COMPUTER_MAD.name() : null;
+            seat.deck = botDeck;
+            seats.add(seat);
+            warm.addAll(CareerApi.printings(botDeck));
+            podOpponents.add(opponent(bot));
         }
-        String name = bot.persona == null ? bot.deckName : bot.persona.name;
         String deckName = deck.getName();
+        String gameType = isCommander
+                ? (pod ? "Commander Free For All" : "Commander Two Player Duel")
+                : isBrawl
+                    ? "Brawl Two Player Duel"
+                    : "Two Player Duel";
         UUID[] registered = new UUID[1];
         String tableId;
         try {
-            mage.server.career.CareerCampaigns.DuelSeat seat = new mage.server.career.CareerCampaigns.DuelSeat();
-            seat.name = name;
-            seat.skill = bot.skill;
-            seat.aiType = null; // the Mad AI, which the Rust host plays
-            seat.deck = botDeck;
-            tableId = CareerApi.startMatch(ctx, call, user, "Two Player Duel", deckType, RankedService.winsNeeded(queue), deck,
-                    java.util.Collections.singletonList(seat), id -> {
+            tableId = CareerApi.startMatch(ctx, call, user, gameType, deckType, RankedService.winsNeeded(queue), deck,
+                    seats, id -> {
                         try {
-                            ranked.register(id, user, format, queue, bot, deckName, now);
+                            if (pod) {
+                                ranked.registerPod(id, user, format, queue, bots, deckName, now);
+                            } else {
+                                ranked.register(id, user, format, queue, primary, deckName, now);
+                            }
                             registered[0] = id;
                         } catch (SQLException e) {
                             throw new IllegalStateException("The ranked game couldn't be recorded", e);
@@ -853,8 +896,11 @@ public final class LadderApi {
         }
         LadderMatch match = new LadderMatch();
         match.tableId = tableId;
-        match.opponent = opponent(bot);
-        match.warm = CareerApi.printings(botDeck);
+        match.opponent = opponent(primary);
+        if (pod) {
+            match.podOpponents = podOpponents;
+        }
+        match.warm = warm;
         return match;
     }
 

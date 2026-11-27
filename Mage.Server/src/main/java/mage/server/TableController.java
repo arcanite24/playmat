@@ -984,7 +984,32 @@ public class TableController {
             double score = humanWon ? 1 : otherWon ? 0 : 0.5;
             String gameScore = match.getOptions().getWinsNeeded() > 1 ? (humanWins + "-" + otherWins) : null;
             try {
-                mage.server.ladder.RankedService.get().matchEnded(table.getId(), score, System.currentTimeMillis(), game.getTurnNum(), gameScore);
+                mage.server.ladder.RankedService rankedSvc = mage.server.ladder.RankedService.get();
+                if (rankedSvc.isPodTable(table.getId()) || match.getPlayers().size() > 2) {
+                    int placement = humanWon ? 1 : 4;
+                    if (!humanWon) {
+                        for (MatchPlayer mp : match.getPlayers()) {
+                            if (mp.getPlayer().isHuman()) {
+                                CareerTally t = CareerTally.of(game.getId(), mp.getPlayer().getId());
+                                if (t != null && t.podPlacement() > 0) {
+                                    placement = t.podPlacement();
+                                } else {
+                                    int alive = 0;
+                                    for (MatchPlayer other : match.getPlayers()) {
+                                        if (!other.getPlayer().isHuman() && !other.getPlayer().hasLost() && !other.getPlayer().hasLeft()) {
+                                            alive++;
+                                        }
+                                    }
+                                    placement = Math.max(2, Math.min(4, alive + 1));
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    rankedSvc.matchEndedPod(table.getId(), placement, System.currentTimeMillis(), game.getTurnNum());
+                } else {
+                    rankedSvc.matchEnded(table.getId(), score, System.currentTimeMillis(), game.getTurnNum(), gameScore);
+                }
             } catch (java.sql.SQLException | RuntimeException e) {
                 logger.error("Ranked: the result of table " + table.getId() + " couldn't be recorded", e);
             }

@@ -167,10 +167,20 @@ import { gzipSync } from 'node:zlib';
 // app raised 2026-11-26 from 944 kB for the AI Ranked overhaul (RankedDeckPicker modal, season analytics, milestones,
 // Living Mythic standings, opponent deck inspection, and en/es strings), all in lazy Career chunks. Measured entry
 // 83.2 kB, initial 219.9 kB (both under budget), app 949.5 kB
+// app raised 2026-11-26 from 954 kB for the Coin Cosmetics Boutique, Waves 2-3 capsule cabinet configs, and Phase 2
+// Commander Career (track-aware Career Hub, 6 Commander precons & free gift modal, format-aware Career Deck Builder
+// with color-identity and Pick Commander filters, Commander packs/precons shop tabs, quest focus, and en/es strings),
+// all in lazy Career chunks. Measured entry 83.4 kB, initial 220.2 kB (both under budget), app 960.8 kB
+// app raised 2026-11-26 from 965 kB for Phases 3-5 (Commander Ranked/League/Pod UI, Pauper/Brawl/Legacy/Limited tabs,
+// Commanders of the Spire Gauntlet, Hordes 2.0, Archenemy mode screen, MatchStage PlaneBanner, and en/es strings),
+// all in lazy Career and Match chunks. Measured entry 83.4 kB, initial 220.2 kB (both under budget), app 968.5 kB
+// app raised 2026-11-26 from 975 kB for Phase 6 & stretch completion (Companion Bond evolution UI, procedural 3D pet rigs
+// and accessories, Command-Zone frames, Two-Headed Giant screen, SchemeBanner overlay, Curator's Picks 20% off Boutique,
+// mixed-kind capsule views for Waves 4-5, and en/es strings). Measured entry 83.5 kB, initial 220.3 kB, app 980.4 kB
 const BUDGET_KB = {
   entry: 86,
   initial: 221,
-  app: 954,
+  app: 985,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;

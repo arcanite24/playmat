@@ -43,6 +43,8 @@ import { KeyboardShortcuts } from './KeyboardShortcuts';
 import { Stitch } from '../ui/Stitch';
 import { ActionCluster } from './ActionCluster';
 import { AttackGroups } from './AttackGroups';
+import { PlaneBanner } from './PlaneBanner';
+import { SchemeBanner } from './SchemeBanner';
 import { AlwaysAnswerMenu, TriggerOrderOptions } from './AutoAnswer';
 import { BetweenGames } from './BetweenGames';
 import { Arrows } from './Arrows';
@@ -373,6 +375,36 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   const playerNames = (view?.players ?? []).map((player) => player.name).join('\n');
   const looks = usePlayerLooks(playerNames.split('\n'), true);
   const lookOf = useCallback((player: PlayerView | undefined): PlayerLook | undefined => (player?.name ? looks[player.name.trim().toLowerCase()] ?? undefined : undefined), [looks]);
+  // Phase 6 Pet Bond Tier 2+: reactive table emotes on Commander cast, clutch low-life survival, or match win
+  const myLook = lookOf(board.me?.player);
+  const myBondTier = myLook?.petTier ?? 1;
+  const myLife = board.me?.player.life;
+  const myCommandersOnBoard = useMemo(
+    () => (myId ? (commanders.get(myId) ?? []).filter((c) => c.zone === 'battlefield').map((c) => c.id).sort().join(',') : ''),
+    [commanders, myId],
+  );
+  const petTrackRef = useRef<{ life?: number; cmds: string; won: boolean }>({ life: undefined, cmds: '', won: false });
+  const [petReaction, setPetReaction] = useState<{ count: number; line?: string } | null>(null);
+  useEffect(() => {
+    const prev = petTrackRef.current;
+    let line: string | null = null;
+    if (myBondTier >= 2 && myLook?.pet) {
+      const won = Boolean(state.gameOver && /\bwon\b/i.test(state.gameOver));
+      if (won && !prev.won) {
+        line = 'Victory!';
+      } else if (myCommandersOnBoard && myCommandersOnBoard !== prev.cmds && myCommandersOnBoard.length > prev.cmds.length) {
+        line = 'Command!';
+      } else if (myLife !== undefined && prev.life !== undefined && prev.life > 3 && myLife > 0 && myLife <= 3) {
+        line = 'Hold on!';
+      }
+      prev.won = won;
+    }
+    prev.life = myLife;
+    prev.cmds = myCommandersOnBoard;
+    if (line) {
+      setPetReaction((current) => ({ count: (current?.count ?? 0) + 1, line }));
+    }
+  }, [myBondTier, myLook?.pet, myLife, myCommandersOnBoard, state.gameOver]);
   const mine = board.me?.isMe ? deckSleeves.mine : playerSleeve(lookOf(board.me?.player), deckSleeves.mine);
   const sleeves = useMemo(() => ({
     ...deckSleeves, mine,
@@ -652,9 +684,16 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                     onPay={onClick}
                     commanderDamage={damageTaken(board.me.player)}
                   />
-                  {lookOf(board.me.player)?.pet && (
+                  {myLook?.pet && (
                     <div className={styles.myPet}>
-                      <PetSpot pet={lookOf(board.me.player)?.pet} owner={board.me.player.name ?? ''} isMe={board.me.isMe} />
+                      <PetSpot
+                        pet={myLook.pet}
+                        owner={board.me.player.name ?? ''}
+                        isMe={board.me.isMe}
+                        tier={myLook.petTier}
+                        style={myLook.petStyle}
+                        reaction={petReaction}
+                      />
                     </div>
                   )}
                   {emotes && <EmoteButton gameId={state.gameId} />}
@@ -668,6 +707,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                     clickable={canAct ? clickable : undefined}
                     onCast={onClick}
                     inHand={offZoneInHand}
+                    commandFrame={myLook?.commandFrame}
                   />
                 </div>
               </>
@@ -753,6 +793,8 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
             {defenders && (attackDrop.manualDefender || !(automation.attackPlayerByDefault && defaultDefender(defenders))) && <DefenderPicker attacker={attackerName} options={defenders} onPick={onClick} />}
             <Vfx view={view} myPlayerId={myId} sparks={sparks} />
             <Arrows sourceId={arrowSource} targetIds={arrowTargets} live={choosingTargets} attacks={attacks} leads={leads} tints={arrowTint} />
+            <PlaneBanner view={view} playable={clickable} canAct={canAct && !awaitingServer} onRoll={onClick} />
+            <SchemeBanner />
             <EmoteBubbles view={view} gameId={state.gameId} />
             {mode === 'play' && <Coach view={view ?? null} mode={choosingStarter ? 'panel' : interaction.mode} awaiting={awaitingServer} gameOver={!!state.gameOver} />}
             {mode === 'play' && <LessonCoach gameId={state.gameId} view={view ?? null} mode={choosingStarter ? 'panel' : interaction.mode} awaiting={awaitingServer} gameOver={!!state.gameOver} />}
@@ -973,18 +1015,18 @@ function OpponentSide({ board, index, count, sleeve, handCount, revealed, decidi
         />
         {look?.pet && count === 1 && (
           <div className={styles.theirPet}>
-            <PetSpot pet={look.pet} owner={player.name ?? ''} isMe={false} />
+            <PetSpot pet={look.pet} owner={player.name ?? ''} isMe={false} tier={look.petTier} style={look.petStyle} />
           </div>
         )}
         {count > 1 && (
           <div className={styles.theirMini}>
-            <MiniPiles player={player} sleeve={sleeve} commanders={commanders} />
+            <MiniPiles player={player} sleeve={sleeve} commanders={commanders} commandFrame={look?.commandFrame} />
           </div>
         )}
       </div>
       {count === 1 && (
         <div className={styles.theirPiles} style={layout.theirPiles}>
-          <Piles player={player} sleeve={sleeve} isMe={false} commanders={commanders} />
+          <Piles player={player} sleeve={sleeve} isMe={false} commanders={commanders} commandFrame={look?.commandFrame} />
         </div>
       )}
       {count > 1 && !layout.tall && (

@@ -89,12 +89,15 @@ export function pickFormat(formats: readonly string[] | undefined, wanted: strin
   return wanted && list.includes(wanted) ? wanted : list[0];
 }
 
-/** the ladder's formats the client knows the names of (#435 adds Modern, and Limited, the rank sealed and draft runs move) */
-export type LadderFormat = 'standard' | 'pioneer' | 'modern' | 'limited';
+/** the ladder's formats the client knows the names of */
+export type LadderFormat = 'standard' | 'pioneer' | 'modern' | 'commander' | 'pauper' | 'brawl' | 'legacy' | 'limited';
 
 /** a format's name key: an unknown format reads as Standard */
 export function formatKey(format: string | undefined): `career.ranked.format.${LadderFormat}` {
-  const known: LadderFormat = format === 'pioneer' || format === 'modern' || format === 'limited' ? format : 'standard';
+  const known: LadderFormat =
+    format === 'pioneer' || format === 'modern' || format === 'commander' || format === 'pauper' || format === 'brawl' || format === 'legacy' || format === 'limited'
+      ? format
+      : 'standard';
   return `career.ranked.format.${known}`;
 }
 
@@ -107,11 +110,20 @@ export function seasonSeenKey(format: string, queue: string, season: number): st
 export function rankedDeckType(format: string): string {
   if (format === 'pioneer') return 'Constructed - Pioneer';
   if (format === 'modern') return 'Constructed - Modern';
+  if (format === 'commander') return 'Variant Magic - Commander';
+  if (format === 'pauper') return 'Constructed - Pauper';
+  if (format === 'brawl') return 'Variant Magic - Brawl';
+  if (format === 'legacy') return 'Constructed - Legacy';
   return 'Constructed - Standard';
 }
 
-/** fast client pre-filter before asking the server validator: 60+ mainboard cards and not Commander */
-export function isRankedCandidate(deck: { cardCount: number; format?: string }): boolean {
+/** fast client pre-filter before asking the server validator */
+export function isRankedCandidate(deck: { cardCount: number; format?: string }, format?: string): boolean {
+  if (format === 'commander') return deck.cardCount >= 98 && isCommanderFormat(deck.format);
+  if (format === 'brawl') {
+    const low = (deck.format ?? '').toLowerCase();
+    return deck.cardCount >= 58 && (low.includes('brawl') || isCommanderFormat(deck.format));
+  }
   return deck.cardCount >= 60 && !isCommanderFormat(deck.format);
 }
 

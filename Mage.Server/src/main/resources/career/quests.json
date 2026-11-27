@@ -789,5 +789,56 @@
     "xp": 600,
     "counts": "Games with a deck of two or more colors",
     "weekly": true
+  },
+  {
+    "id": "cast-commander-3",
+    "text": "Cast your commander 3 times",
+    "counter": "commander_casts",
+    "target": 3,
+    "coins": 40,
+    "xp": 150,
+    "counts": "Commander games, any kind",
+    "track": "commander"
+  },
+  {
+    "id": "commander-damage-21",
+    "text": "Deal 21 combat damage with commanders",
+    "counter": "commander_damage",
+    "target": 21,
+    "coins": 50,
+    "xp": 200,
+    "counts": "Commander games, any kind",
+    "track": "commander"
+  },
+  {
+    "id": "pod-eliminations-2",
+    "text": "Eliminate 2 opponents in multiplayer pods",
+    "counter": "pod_eliminations",
+    "target": 2,
+    "coins": 50,
+    "xp": 200,
+    "counts": "Games with three or more players",
+    "track": "commander"
+  },
+  {
+    "id": "win-commander-1",
+    "text": "Win a Commander game",
+    "counter": "wins_format_commander",
+    "target": 1,
+    "coins": 40,
+    "xp": 150,
+    "counts": "Commander games, any kind",
+    "track": "commander"
+  },
+  {
+    "id": "weekly-commander-casts-10",
+    "text": "Cast your commander 10 times this week",
+    "counter": "commander_casts",
+    "target": 10,
+    "coins": 150,
+    "xp": 600,
+    "counts": "Commander games, any kind",
+    "weekly": true,
+    "track": "commander"
   }
 ]

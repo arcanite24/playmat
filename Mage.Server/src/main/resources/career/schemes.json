@@ -1,0 +1,222 @@
+{
+  "schemes": [
+    {
+      "id": "all-shall-smolder",
+      "name": "All Shall Smolder in My Wake",
+      "text": "Deal 3 damage to each opponent.",
+      "damageOpponents": 3
+    },
+    {
+      "id": "know-naught-but-fire",
+      "name": "Know Naught but Fire",
+      "text": "Deal 4 damage to each opponent and draw a card.",
+      "damageOpponents": 4,
+      "drawCards": 1
+    },
+    {
+      "id": "dead-shall-serve",
+      "name": "The Dead Shall Serve",
+      "text": "Put two Walking Corpse onto the battlefield under your control.",
+      "permanents": ["Walking Corpse", "Walking Corpse"]
+    },
+    {
+      "id": "feed-the-machine",
+      "name": "Feed the Machine",
+      "text": "Draw two cards and gain 4 life.",
+      "drawCards": 2,
+      "gainLife": 4
+    },
+    {
+      "id": "my-crushing-masterstroke",
+      "name": "My Crushing Masterstroke",
+      "text": "Each opponent loses 3 life and discards a card; you gain 3 life.",
+      "lifeLossOpponents": 3,
+      "opponentsDiscard": 1,
+      "gainLife": 3
+    },
+    {
+      "id": "i-delight-in-your-convulsions",
+      "name": "I Delight in Your Convulsions",
+      "text": "Each opponent loses 3 life; you gain 6 life.",
+      "lifeLossOpponents": 3,
+      "gainLife": 6
+    },
+    {
+      "id": "your-fate-is-thrice-sealed",
+      "name": "Your Fate Is Thrice Sealed",
+      "text": "Draw three cards.",
+      "drawCards": 3
+    },
+    {
+      "id": "every-hope-shall-vanish",
+      "name": "Every Hope Shall Vanish",
+      "text": "Each opponent discards two cards.",
+      "opponentsDiscard": 2
+    },
+    {
+      "id": "rotting-soil-and-bone",
+      "name": "Rotting Soil and Bone",
+      "text": "Put a Zombie Goliath onto the battlefield under your control.",
+      "permanents": ["Zombie Goliath"]
+    },
+    {
+      "id": "the-iron-guardian-stirs",
+      "name": "The Iron Guardian Stirs",
+      "text": "Put a Steel Overseer and an Ornithopter onto the battlefield.",
+      "permanents": ["Steel Overseer", "Ornithopter"]
+    },
+    {
+      "id": "behold-the-power-of-destruction",
+      "name": "Behold the Power of Destruction",
+      "text": "Put a Shivan Dragon onto the battlefield under your control.",
+      "permanents": ["Shivan Dragon"]
+    },
+    {
+      "id": "only-blood-ends-your-nightmares",
+      "name": "Only Blood Ends Your Nightmares",
+      "text": "Each opponent loses 2 life and discards a card.",
+      "lifeLossOpponents": 2,
+      "opponentsDiscard": 1
+    },
+    {
+      "id": "a-display-of-my-dark-power",
+      "name": "A Display of My Dark Power",
+      "text": "Put an Arcane Signet and a Mind Stone onto the battlefield.",
+      "permanents": ["Arcane Signet", "Mind Stone"]
+    },
+    {
+      "id": "approach-my-molten-realm",
+      "name": "Approach My Molten Realm",
+      "text": "Gain an Impact Tremors emblem and deal 2 damage to each opponent.",
+      "emblem": "Impact Tremors",
+      "damageOpponents": 2
+    },
+    {
+      "id": "embrace-my-diabolical-vision",
+      "name": "Embrace My Diabolical Vision",
+      "text": "Draw two cards and each opponent discards a card.",
+      "drawCards": 2,
+      "opponentsDiscard": 1
+    },
+    {
+      "id": "realms-befitting-my-majesty",
+      "name": "Realms Befitting My Majesty",
+      "text": "Put a Command Tower and a Chromatic Lantern onto the battlefield.",
+      "permanents": ["Command Tower", "Chromatic Lantern"]
+    },
+    {
+      "id": "tooth-claw-and-tail",
+      "name": "Tooth, Claw, and Tail",
+      "text": "Put a Craw Wurm onto the battlefield and draw a card.",
+      "permanents": ["Craw Wurm"],
+      "drawCards": 1
+    },
+    {
+      "id": "look-skyward-and-despair",
+      "name": "Look Skyward and Despair",
+      "text": "Put a Serra Angel onto the battlefield under your control.",
+      "permanents": ["Serra Angel"]
+    },
+    {
+      "id": "mortal-flesh-is-weak",
+      "name": "Mortal Flesh Is Weak",
+      "text": "Each opponent loses 4 life.",
+      "lifeLossOpponents": 4
+    },
+    {
+      "id": "my-undead-horde-awakens",
+      "name": "My Undead Horde Awakens",
+      "text": "Put a Vampire Nighthawk and a Blood Artist onto the battlefield.",
+      "permanents": ["Vampire Nighthawk", "Blood Artist"]
+    },
+    {
+      "id": "nature-shields-its-own",
+      "name": "Nature Shields Its Own",
+      "text": "Gain 8 life and put a Llanowar Elves onto the battlefield.",
+      "gainLife": 8,
+      "permanents": ["Llanowar Elves"]
+    },
+    {
+      "id": "the-very-soil-shall-shake",
+      "name": "The Very Soil Shall Shake",
+      "text": "Gain a Glorious Anthem emblem and gain 3 life.",
+      "emblem": "Glorious Anthem",
+      "gainLife": 3
+    },
+    {
+      "id": "which-of-you-burns-brightest",
+      "name": "Which of You Burns Brightest?",
+      "text": "Deal 5 damage to each opponent.",
+      "damageOpponents": 5
+    },
+    {
+      "id": "your-puny-minds-cannot-fathom",
+      "name": "Your Puny Minds Cannot Fathom",
+      "text": "Draw two cards and put two Raging Goblin onto the battlefield.",
+      "drawCards": 2,
+      "permanents": ["Raging Goblin", "Raging Goblin"]
+    }
+  ],
+  "encounters": [
+    {
+      "id": "hunt-tyrant",
+      "name": "Hunt the Dread Tyrant",
+      "mode": "hunt",
+      "commander": false,
+      "text": "Face a 60-life Archenemy who sets a Scheme in motion every turn, while two AI challengers battle beside you at the table.",
+      "archenemyLife": 60,
+      "challengerLife": 20,
+      "cover": "Shivan Dragon",
+      "seats": [
+        {"name": "The Dread Tyrant", "deck": "black-5.dck", "skill": 5},
+        {"name": "Vanguard Knight", "deck": "white-3.dck", "skill": 3},
+        {"name": "Arcane Seer", "deck": "blue-3.dck", "skill": 3}
+      ]
+    },
+    {
+      "id": "hunt-orthodoxy",
+      "name": "Hunt the Machine Orthodoxy",
+      "mode": "hunt",
+      "commander": false,
+      "text": "A 60-life Scheme Overlord commands relentless white-black attrition across a four-seat battlefield.",
+      "archenemyLife": 60,
+      "challengerLife": 20,
+      "cover": "Serra Angel",
+      "seats": [
+        {"name": "Grand Cenobite", "deck": "white-5.dck", "skill": 5},
+        {"name": "Wildwood Ranger", "deck": "green-3.dck", "skill": 3},
+        {"name": "Ember Battlemage", "deck": "red-3.dck", "skill": 3}
+      ]
+    },
+    {
+      "id": "become-overlord",
+      "name": "Become the Archenemy (1v3)",
+      "mode": "become",
+      "commander": false,
+      "text": "Command a 50-life life total and a 20-card Scheme Deck against three AI challengers. One Scheme triggers every upkeep.",
+      "archenemyLife": 50,
+      "challengerLife": 20,
+      "cover": "Vampire Nighthawk",
+      "seats": [
+        {"name": "Sunblade Paladin", "deck": "white-3.dck", "skill": 3},
+        {"name": "Tidepool Mage", "deck": "blue-3.dck", "skill": 3},
+        {"name": "Briar Hunter", "deck": "green-3.dck", "skill": 3}
+      ]
+    },
+    {
+      "id": "become-elder",
+      "name": "Commander Archenemy (1v3)",
+      "mode": "become",
+      "commander": true,
+      "text": "Bring a 100-card Commander deck at 60 life with a Scheme Deck against three rival Commanders.",
+      "archenemyLife": 60,
+      "challengerLife": 35,
+      "cover": "Utvara Hellkite",
+      "seats": [
+        {"name": "Krenko's Mob", "deck": "commander/act1-goblins.dck", "skill": 4},
+        {"name": "Oloro's Court", "deck": "commander/act1-lifegain.dck", "skill": 4},
+        {"name": "Ghalta's Stampede", "deck": "commander/starter.dck", "skill": 4}
+      ]
+    }
+  ]
+}

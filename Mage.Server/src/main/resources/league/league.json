@@ -1,21 +1,94 @@
 {
   "_doc": "The Career League (#433): per format, the school decks a new League can start from (pick two; their cards join the collection and each becomes an editable League deck), the packs a start gives, and whether the format has a mixed pack drawing from all its sets. Wildcards come with the account's first League only. Rewards are in CareerLeague.",
-  "startWildcards": {"common": 4, "uncommon": 3, "rare": 1, "mythic": 0},
+  "startWildcards": {
+    "common": 4,
+    "uncommon": 3,
+    "rare": 1,
+    "mythic": 0
+  },
   "_packWildcards": "The wildcard track: every League pack an account opens counts; every rareEvery-th adds a rare wildcard, every mythicEvery-th a mythic one instead. ProgressionBalanceTest checks the pace this gives.",
-  "packWildcards": {"rareEvery": 4, "mythicEvery": 12},
+  "packWildcards": {
+    "rareEvery": 4,
+    "mythicEvery": 12
+  },
   "_seasonEnd": "What the end of a ladder season (#434) pays a format's League, by the peak rank reached that season: packs of the format and mythic wildcards. Paid when the player first plays or looks at the League in a later season.",
   "seasonEnd": {
-    "bronze": {"packs": 1}, "silver": {"packs": 2}, "gold": {"packs": 3},
-    "platinum": {"packs": 4}, "diamond": {"packs": 5}, "mythic": {"packs": 6, "mythic": 2}
+    "bronze": {
+      "packs": 1
+    },
+    "silver": {
+      "packs": 2
+    },
+    "gold": {
+      "packs": 3
+    },
+    "platinum": {
+      "packs": 4
+    },
+    "diamond": {
+      "packs": 5
+    },
+    "mythic": {
+      "packs": 6,
+      "mythic": 2
+    }
   },
   "formats": {
     "standard": {
-      "starters": ["standard/starter.dck", "standard/act1-skies.dck", "standard/act1-stompy.dck"],
+      "starters": [
+        "standard/starter.dck",
+        "standard/act1-skies.dck",
+        "standard/act1-stompy.dck"
+      ],
       "packs": 6,
       "mixed": false
     },
     "pioneer": {
-      "starters": ["pioneer/starter.dck", "pioneer/act1-boros-aggro.dck", "pioneer/act1-green-stompy.dck", "pioneer/act1-mono-black-devotion.dck"],
+      "starters": [
+        "pioneer/starter.dck",
+        "pioneer/act1-boros-aggro.dck",
+        "pioneer/act1-green-stompy.dck",
+        "pioneer/act1-mono-black-devotion.dck"
+      ],
+      "packs": 6,
+      "mixed": true
+    },
+    "commander": {
+      "starterCount": 1,
+      "starters": [
+        "commander/starter.dck",
+        "commander/act1-goblins.dck",
+        "commander/act1-lifegain.dck",
+        "commander/act1-rakdos.dck",
+        "commander/act2-gruul.dck",
+        "commander/act2-voltron.dck"
+      ],
+      "packs": 6,
+      "mixed": true
+    },
+    "pauper": {
+      "starterCount": 2,
+      "starters": [
+        "pauper/starter.dck",
+        "pauper/act1-goblins.dck",
+        "pauper/act1-weenie.dck",
+        "pauper/act1-boss.dck",
+        "pauper/act2-boros.dck",
+        "pauper/act2-golgari.dck"
+      ],
+      "packs": 8,
+      "mixed": true
+    },
+    "brawl": {
+      "starterCount": 1,
+      "starters": [
+        "brawl/starter.dck",
+        "brawl/opp-krenko.dck",
+        "brawl/opp-tatyova.dck",
+        "brawl/opp-lathril.dck",
+        "brawl/opp-aurelia.dck",
+        "brawl/opp-kykar.dck"
+      ],
       "packs": 6,
       "mixed": true
     }

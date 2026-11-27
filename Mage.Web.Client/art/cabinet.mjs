@@ -13,7 +13,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { draw, fetchRef, upload } from './wavespeed.mjs';
+import { draw, fetchRef, resolveBackend, upload } from './wavespeed.mjs';
 
 const ART = dirname(fileURLToPath(import.meta.url));
 const MACHINES = resolve(ART, '../../Mage.Server/src/main/resources/career/machines');
@@ -34,7 +34,7 @@ function parts(machine) {
       aspect: '2:3',
       prompt: [
         `Paint one capsule-vending machine built by an artificer: a sturdy, slightly squat contraption, seen straight from the front at eye level, perfectly symmetrical about its vertical centre, the whole machine in frame.`,
-        `From top to bottom: a small brass finial; a large clear glass globe, a true circle taking about the top half of the machine, completely EMPTY inside — no capsules, no objects — its inside a deep shadowed green-black with only two or three soft painted reflections on the glass; a thick brass collar ring holding the globe; then the cabinet, a squared-off box of ${body ? `oxblood-red enamel (${body})` : 'dark enamel'} with polished brass (${trim ?? '#e3b25a'}) edging, a few rivets and restrained filigree on its corners.`,
+        `From top to bottom: a small brass finial; a large clear glass globe, a true circle taking about the top half of the machine, completely EMPTY inside — no capsules, no objects — its inside a deep shadowed green-black with only two or three soft painted reflections on the glass; a thick brass collar ring holding the globe; then the cabinet, a squared-off box of ${body ? `lacquered enamel (${body})` : 'dark enamel'} with polished metallic (${trim ?? '#e3b25a'}) edging, a few rivets and restrained filigree on its corners.`,
         `On the cabinet's front: at the left, a small brass coin-slot plate with a narrow vertical slot; at the right, a round flat brass mounting disc with a small centre hub (nothing attached to it: no handle, no lever, no wheel); at the bottom centre, a dark open delivery chute with a brass lip, deep enough to see shadow inside. Four short brass feet.`,
         GROUND,
         CRAFT,
@@ -61,26 +61,29 @@ function parts(machine) {
 
 async function main() {
   const [id, ...rest] = process.argv.slice(2);
-  if (!id) throw new Error('usage: node art/cabinet.mjs <machine> [--only body,crank,capsule] [--dry]');
+  if (!id) throw new Error('usage: node art/cabinet.mjs <machine> [--only body,crank,capsule] [--backend gemini|wavespeed] [--dry]');
   const only = rest.includes('--only') ? rest[rest.indexOf('--only') + 1].split(',') : null;
+  const backend = resolveBackend(rest.includes('--backend') ? rest[rest.indexOf('--backend') + 1] : null);
   const machine = JSON.parse(readFileSync(join(MACHINES, `${id}.json`), 'utf8'));
   const todo = Object.entries(parts(machine)).filter(([part]) => !only || only.includes(part));
   if (rest.includes('--dry')) {
-    for (const [part, { prompt }] of todo) console.log(`--- ${part}\n${prompt}\n`);
+    for (const [part, { prompt }] of todo) console.log(`--- ${part} (${backend})\n${prompt}\n`);
     return;
   }
   const work = join(ART, '.wavespeed', 'cabinet', id);
   mkdirSync(work, { recursive: true });
   const refs = [];
-  for (const ref of REFS) refs.push(await upload(await fetchRef(ref, join(ART, '.refs', 'cabinet'))));
+  for (const ref of REFS) refs.push(await upload(await fetchRef(ref, join(ART, '.refs', 'cabinet')), backend));
   await Promise.all(todo.map(async ([part, { prompt, aspect }]) => {
     const started = Date.now();
-    const answer = await draw(prompt, refs, aspect);
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
     const png = join(work, `${part}.${stamp}.png`);
-    writeFileSync(png, Buffer.from(await (await fetch(answer.url)).arrayBuffer()));
-    writeFileSync(join(work, `${part}.${stamp}.json`), `${JSON.stringify({ task: answer.id, prompt, refs: REFS }, null, 2)}\n`);
-    console.log(`${part}  ${((Date.now() - started) / 1000).toFixed(0)}s  ${png}`);
+    const answer = await draw(prompt, refs, aspect, { backend, outPath: png });
+    if (answer.url) {
+      writeFileSync(png, Buffer.from(await (await fetch(answer.url)).arrayBuffer()));
+    }
+    writeFileSync(join(work, `${part}.${stamp}.json`), `${JSON.stringify({ backend, task: answer.id, model: answer.model, prompt, refs: REFS }, null, 2)}\n`);
+    console.log(`${part}  ${((Date.now() - started) / 1000).toFixed(0)}s  ${answer.file ?? png}`);
   }));
 }
 

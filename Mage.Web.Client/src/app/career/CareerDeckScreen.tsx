@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { Copy, Plus, Trash2 } from 'lucide-react';
+import { Copy, Crown, Plus, Shield, Trash2 } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import type { CardView, CareerSavedDeck } from '../../protocol/generated/views';
+import { parseIdentity } from '../../core/decks/formats';
 import type { DeckCardInfo, DeckCardLists } from '../../core/decks/types';
 import { api } from '../connection';
 import { CardFilterBar } from '../decks/CardFilterBar';
@@ -20,14 +21,37 @@ import { CardFace } from '../ui/CardFace';
 import { Dialog } from '../ui/Dialog';
 import { ensureCareerDeck, saveCareerDeck, toCareerDeck } from './careerDeck';
 import { deleteCareerDeck, saveNamedCareerDeck, selectCareerDeck, useCareerCollection, useCareerDecks, useCareerState } from './careerData';
-import { careerLimit, mainDeckSize, ownedByName } from './careerModel';
+import { careerLimit, COMMANDER_FORMAT, CONSTRUCTED_FORMAT, isCommanderFormat, mainDeckSize, ownedByName } from './careerModel';
 import builder from '../decks/DeckBuilder.module.css';
 import styles from './Career.module.css';
 
 registerMessages(messages);
 
 function savedDeckCount(saved: CareerSavedDeck): number {
-  return (saved.deck?.cards ?? []).reduce((sum, entry) => sum + (entry.amount ?? 0), 0);
+  const main = (saved.deck?.cards ?? []).reduce((sum, entry) => sum + (entry.amount ?? 0), 0);
+  if (isCommanderFormat(saved.format)) {
+    const cmdr = (saved.deck?.sideboard ?? []).reduce((sum, entry) => sum + (entry.amount ?? 0), 0);
+    return main + cmdr;
+  }
+  return main;
+}
+
+function canBeCommander(card: CardView): boolean {
+  const supers = card.superTypes ?? [];
+  const types = card.cardTypes ?? [];
+  if (supers.includes('LEGENDARY') && types.includes('CREATURE')) return true;
+  return (card.rules ?? []).some((rule) => /can be your commander/i.test(rule));
+}
+
+function cardFitsIdentity(card: CardView, identity: readonly string[]): boolean {
+  const allowed = new Set(identity);
+  const color = card.color ?? {};
+  if (color.white && !allowed.has('W')) return false;
+  if (color.blue && !allowed.has('U')) return false;
+  if (color.black && !allowed.has('B')) return false;
+  if (color.red && !allowed.has('R')) return false;
+  if (color.green && !allowed.has('G')) return false;
+  return parseIdentity(card.originalColorIdentity).every((letter) => allowed.has(letter));
 }
 
 /** The Career decks in the deck builder: only owned cards, as many as owned; basic lands are free. */
@@ -62,14 +86,15 @@ export function CareerDeckScreen() {
   const activeId = activeSaved?.id ?? null;
 
   const owned = useMemo(() => ownedByName(collection.data ?? []), [collection.data]);
+  const activeFormat = activeSaved?.format ?? deck?.format ?? CONSTRUCTED_FORMAT;
   const save = useCallback((next: DeckCardLists) => {
     if (activeId) {
-      void saveNamedCareerDeck(activeId, next.name || activeSaved?.name || t('career.nav.deck'), next, true)
+      void saveNamedCareerDeck(activeId, next.name || activeSaved?.name || t('career.nav.deck'), next, true, next.format || activeFormat)
         .catch((error) => notify(t('career.decks.saveFailed'), error instanceof Error ? error.message : String(error), 'error'));
       return;
     }
     void saveCareerDeck(user, next);
-  }, [activeId, activeSaved?.name, user, t]);
+  }, [activeId, activeSaved?.name, activeFormat, user, t]);
 
   const mode = useMemo<BuilderMode>(() => ({
     Binder: OwnedBinder,
@@ -92,10 +117,18 @@ export function CareerDeckScreen() {
     }
   }
 
-  async function onCreateNew() {
+  async function onCreateNew(format?: string) {
     setBusy(true);
     try {
-      await saveNamedCareerDeck(null, t('career.decks.newName'), { name: t('career.decks.newName'), cards: [], sideboard: [] }, true);
+      const isCmdr = isCommanderFormat(format);
+      const name = isCmdr ? t('career.decks.newCommanderName') : t('career.decks.newName');
+      await saveNamedCareerDeck(
+        null,
+        name,
+        { name, ...(isCmdr ? { format: COMMANDER_FORMAT } : {}), cards: [], sideboard: [] },
+        true,
+        isCmdr ? COMMANDER_FORMAT : undefined,
+      );
     } catch (error) {
       notify(t('career.decks.saveFailed'), error instanceof Error ? error.message : String(error), 'error');
     } finally {
@@ -108,7 +141,7 @@ export function CareerDeckScreen() {
     setBusy(true);
     try {
       const copyName = t('career.decks.copyOf', { name: deck.name || t('career.nav.deck') });
-      await saveNamedCareerDeck(null, copyName, { ...deck, name: copyName }, true);
+      await saveNamedCareerDeck(null, copyName, { ...deck, name: copyName }, true, activeFormat);
     } catch (error) {
       notify(t('career.decks.saveFailed'), error instanceof Error ? error.message : String(error), 'error');
     } finally {
@@ -146,14 +179,23 @@ export function CareerDeckScreen() {
           >
             {decks.map((item) => (
               <option key={item.id} value={item.id}>
-                {item.name} ({savedDeckCount(item)})
+                {isCommanderFormat(item.format) ? `[${t('career.track.commander')}] ` : ''}{item.name} ({savedDeckCount(item)})
               </option>
             ))}
           </select>
+          {isCommanderFormat(activeFormat) && (
+            <span className={styles.formatPill}>
+              <Crown size={13} aria-hidden="true" />
+              {t('career.track.commander')}
+            </span>
+          )}
         </label>
         <div className={styles.deckBarActions}>
           <Button size="sm" variant="print" icon={<Plus size={15} />} disabled={busy} onClick={() => void onCreateNew()}>
             {t('career.decks.new')}
+          </Button>
+          <Button size="sm" variant="print" icon={<Crown size={15} />} disabled={busy} onClick={() => void onCreateNew(COMMANDER_FORMAT)}>
+            {t('career.decks.newCommander')}
           </Button>
           <Button size="sm" variant="quiet" icon={<Copy size={15} />} disabled={busy} onClick={() => void onDuplicate()}>
             {t('career.decks.duplicate')}
@@ -192,11 +234,14 @@ export function CareerDeckScreen() {
 }
 
 /** The binder: every card the Career owns, one tile per card name. */
-export function OwnedBinder({ counts, limitOf, onAdd, onRemove, onPreview, onInspect }: BinderProps) {
+export function OwnedBinder({ format, identity, counts, limitOf, onAdd, onRemove, onPreview, onInspect }: BinderProps) {
   const t = useT();
   const collection = useCareerCollection(true);
+  const commanderMode = isCommanderFormat(format);
   // names and types by default, as this binder always searched
   const [filters, setFilters] = useState<CardFilters>({ ...EMPTY_FILTERS, anyText: true });
+  const [limitIdentity, setLimitIdentity] = useState(true);
+  const [commandersOnly, setCommandersOnly] = useState(false);
   const sets = useQuery({ queryKey: ['expansionSets'], queryFn: () => api.getExpansionSets(), staleTime: Infinity });
   // one printing per name, as deck entries
   const entries = useMemo<DeckCardInfo[]>(() => {
@@ -210,7 +255,12 @@ export function OwnedBinder({ counts, limitOf, onAdd, onRemove, onPreview, onIns
   const info = useCardInfo(entries);
   const cards = useMemo<CardView[]>(() => entries.map((entry) => info.get(entryKey(entry))
     ?? { name: entry.cardName, expansionSetCode: entry.setCode ?? undefined, cardNumber: entry.cardNumber ?? undefined }), [entries, info]);
-  const shown = useMemo(() => cards.filter((card) => matchesFilters(card, filters)), [cards, filters]);
+  const shown = useMemo(() => cards.filter((card) => {
+    if (!matchesFilters(card, filters)) return false;
+    if (commanderMode && commandersOnly && !canBeCommander(card)) return false;
+    if (commanderMode && limitIdentity && identity !== null && !cardFitsIdentity(card, identity)) return false;
+    return true;
+  }), [cards, filters, commanderMode, commandersOnly, limitIdentity, identity]);
   // only the sets something owned comes from, newest first
   const setOptions = useMemo(() => {
     const owned = new Set(cards.map((card) => card.expansionSetCode));
@@ -220,6 +270,35 @@ export function OwnedBinder({ counts, limitOf, onAdd, onRemove, onPreview, onIns
   return (
     <section className={builder.collection} aria-label={t('career.nav.collection')}>
       <CardFilterBar filters={filters} onChange={setFilters} sets={setOptions} />
+      {commanderMode && (
+        <div className={styles.commanderTools} role="group" aria-label={t('career.deck.commanderTools')}>
+          <button
+            type="button"
+            className={[styles.cmdrChip, commandersOnly ? styles.cmdrChipOn : ''].join(' ')}
+            aria-pressed={commandersOnly}
+            onClick={() => setCommandersOnly((on) => !on)}
+          >
+            <Crown size={14} aria-hidden="true" />
+            {t('career.deck.pickCommander')}
+          </button>
+          {identity !== null && (
+            <button
+              type="button"
+              className={[styles.cmdrChip, limitIdentity ? styles.cmdrChipOn : ''].join(' ')}
+              aria-pressed={limitIdentity}
+              onClick={() => setLimitIdentity((on) => !on)}
+            >
+              <Shield size={14} aria-hidden="true" />
+              {t('career.deck.inIdentity')}
+              {identity.length > 0 && (
+                <span className={styles.cmdrPips}>
+                  {identity.map((letter) => <i key={letter} className={`ms ms-cost ms-${letter.toLowerCase()}`} aria-hidden="true" />)}
+                </span>
+              )}
+            </button>
+          )}
+        </div>
+      )}
       <div className={builder.results}>
         {collection.isPending ? (
           <p className={builder.note}>{t('career.loading')}</p>

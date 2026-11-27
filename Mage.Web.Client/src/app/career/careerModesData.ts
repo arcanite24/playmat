@@ -18,7 +18,7 @@ import { rewardsPath } from './progressModel';
  * Career modes from the server: campaigns, the puzzle book, the gauntlet, solo sealed and draft, the weekly challenge
  * and hordes. Each play call starts a table the way a roster match does; leaving the game comes back to the mode.
  */
-export type ModeKind = 'campaign' | 'puzzle' | 'gauntlet' | 'limited' | 'challenge' | 'horde';
+export type ModeKind = 'campaign' | 'puzzle' | 'gauntlet' | 'limited' | 'challenge' | 'horde' | 'archenemy' | 'thg';
 
 export const MODE_PATHS: Record<ModeKind, string> = {
   campaign: '/career/campaign',
@@ -27,6 +27,8 @@ export const MODE_PATHS: Record<ModeKind, string> = {
   limited: '/career/limited',
   challenge: '/career/challenge',
   horde: '/career/hordes',
+  archenemy: '/career/archenemy',
+  thg: '/career/thg',
 };
 
 const KEY = {
@@ -37,6 +39,8 @@ const KEY = {
   gauntlet: ['career', 'gauntlet'],
   limited: ['career', 'limited'],
   hordes: ['career', 'hordes'],
+  archenemy: ['career', 'archenemy'],
+  thg: ['career', 'thg'],
   meta: ['metaLibrary'],
   result: (gameKey: string) => ['career', 'result', gameKey],
 } as const;
@@ -73,6 +77,16 @@ export function useLimited(enabled: boolean) {
 /** the hordes (S036), with the player's best against each */
 export function useHordes(enabled: boolean) {
   return useQuery({ queryKey: KEY.hordes, queryFn: () => api.careerHordes(), enabled: useSignedIn() && enabled, staleTime: 0 });
+}
+
+/** Archenemy encounters and the 24-card Scheme catalog (Phase 5.2) */
+export function useArchenemy(enabled: boolean) {
+  return useQuery({ queryKey: KEY.archenemy, queryFn: () => api.careerArchenemy(), enabled: useSignedIn() && enabled, staleTime: 0 });
+}
+
+/** Two-Headed Giant solo mode: selectable AI partners and opposing 2-head pairs (Phase 5.4) */
+export function useThg(enabled: boolean) {
+  return useQuery({ queryKey: KEY.thg, queryFn: () => api.careerThg(), enabled: useSignedIn() && enabled, staleTime: 0 });
 }
 
 /** the meta library's formats and decks: what a horde is faced with */

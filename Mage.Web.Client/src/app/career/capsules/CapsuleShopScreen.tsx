@@ -7,9 +7,8 @@ import messages from '../../i18n/en/career';
 import { notify } from '../../stores/toasts';
 import { useSession } from '../../stores/session';
 import { Button } from '../../ui/Button';
-import { cardStyleArt } from '../../ui/cardStyles';
 import { catalogName, rarityOf, useCatalog } from '../../ui/cosmeticsCatalog';
-import { sleeveArtOf } from './capsuleArt';
+import { capsuleItemArt, sleeveArtOf } from './capsuleArt';
 import { playCareerCue } from '../careerSound';
 import { useStill } from '../motion';
 import { Machine } from './Machine';
@@ -336,21 +335,50 @@ function SetRow({ set, machine, owned, flash, onShow }: {
       <span className={styles.slots}>
         {(set.items ?? []).map((item) => {
           const have = owned.has(item.id ?? '');
+          const itemKind = item.kind || machine.kind || 'cardstyle';
+          const label = itemKind === 'cardstyle'
+            ? (item.card ?? '')
+            : catalogName({ name: item.name ?? item.card, es: item.es, id: item.id }, locale);
+          const art = capsuleItemArt(itemKind, item.id, item.card);
           if (have) {
+            if (itemKind === 'cardstyle') {
+              return (
+                <WearSlot key={item.id} card={item.card ?? ''} item={item.id ?? ''} flash={flash?.has(item.id ?? '') ?? false}
+                  art={art}
+                  onOpen={(from) => onShow({
+                    kind: 'cardstyle',
+                    id: item.id ?? '',
+                    card: item.card ?? '',
+                    art: art ?? '',
+                    name: label,
+                    rarity: rarity('cardstyle', item.id ?? ''),
+                    source,
+                    note: t('capsules.show.wornOn', { card: item.card ?? '' }),
+                    accent: set.capsule,
+                  }, from)} />
+              );
+            }
             return (
-              <WearSlot key={item.id} card={item.card ?? ''} item={item.id ?? ''} flash={flash?.has(item.id ?? '') ?? false}
-                art={cardStyleArt(item.id ?? '', item.card ?? '')}
-                onOpen={(from) => onShow({
-                  kind: 'cardstyle',
+              <button
+                key={item.id}
+                type="button"
+                className={[styles.slot, showcase.trigger, flash?.has(item.id ?? '') ? styles.slotFlash : ''].join(' ')}
+                title={label}
+                aria-label={t('capsules.look', { name: label })}
+                onClick={(event) => onShow({
+                  kind: itemKind,
                   id: item.id ?? '',
-                  card: item.card ?? '',
-                  art: cardStyleArt(item.id ?? '', item.card ?? '') ?? '',
-                  name: item.card ?? '',
-                  rarity: rarity('cardstyle', item.id ?? ''),
+                  art: art ?? '',
+                  name: label,
+                  rarity: rarity(itemKind, item.id ?? ''),
                   source,
-                  note: t('capsules.show.wornOn', { card: item.card ?? '' }),
                   accent: set.capsule,
-                }, from)} />
+                  ratio: itemKind === 'playmat' ? 16 / 9 : itemKind === 'cmdframe' ? 5 / 7 : 1,
+                }, event.currentTarget)}
+                data-nav
+              >
+                {art && <img src={art} alt="" loading="lazy" draggable={false} />}
+              </button>
             );
           }
           return (

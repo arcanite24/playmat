@@ -1,6 +1,6 @@
 import { Crown, Eye, Flame, Shield, Swords, Trophy } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Navigate, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import type { LadderDeckStat, LadderOpponent, LadderResult, LadderState } from '../../protocol/generated/views';
 import { toWire } from '../decks/deckModel';
 import { registerMessages, useT, type MessageKey } from '../i18n';
@@ -61,9 +61,20 @@ export function CareerRankedScreen() {
   const [params, setParams] = useSearchParams();
   const wanted = params.get('format') ?? read(LAST_FORMAT);
   const tableId = params.get('table');
-  const queue: 'open' | 'bo3' = (params.has('format') ? params.get('queue') : read(LAST_QUEUE)) === 'bo3' ? 'bo3' : 'open';
-  const first = useRankedState(pickFormat(undefined, wanted), !!career.data?.enabled, queue);
-  const format = pickFormat(first.data?.formats, wanted);
+  const rawQueue = params.has('format') ? params.get('queue') : read(LAST_QUEUE);
+  const initialQueue: 'open' | 'bo3' | 'pod' = rawQueue === 'bo3' ? 'bo3' : rawQueue === 'pod' ? 'pod' : 'open';
+  const first = useRankedState(pickFormat(undefined, wanted === 'limited' ? 'standard' : wanted), !!career.data?.enabled, initialQueue === 'pod' && wanted !== 'commander' ? 'open' : initialQueue);
+  const baseFormats = first.data?.formats ?? ['standard', 'pioneer'];
+  const allFormats = baseFormats.includes('limited') ? baseFormats : [...baseFormats, 'limited'];
+  const format = pickFormat(allFormats, wanted);
+  const isCommander = format === 'commander';
+  const isLimited = format === 'limited';
+  const isBrawl = format === 'brawl';
+  const queue: 'open' | 'bo3' | 'pod' = isCommander
+    ? (initialQueue === 'pod' ? 'pod' : 'open')
+    : isLimited || isBrawl
+      ? 'open'
+      : (initialQueue === 'bo3' ? 'bo3' : 'open');
   const state = useRankedState(format, !!career.data?.enabled, queue);
   const [intro, setIntro] = useState(false);
   const [inspectGameId, setInspectGameId] = useState<string | null>(null);
@@ -75,21 +86,41 @@ export function CareerRankedScreen() {
     write(LAST_QUEUE, queue);
   }, [first.data?.formats, format, queue]);
 
-  const go = (next: { format?: string; queue?: 'open' | 'bo3' }) => {
-    const query: Record<string, string> = { format: next.format ?? format };
-    if ((next.queue ?? queue) === 'bo3') query.queue = 'bo3';
+  const go = (next: { format?: string; queue?: 'open' | 'bo3' | 'pod' }) => {
+    const nextFormat = next.format ?? format;
+    const requestedQueue = next.queue ?? queue;
+    const nextQueue = nextFormat === 'commander'
+      ? (requestedQueue === 'pod' ? 'pod' : 'open')
+      : nextFormat === 'limited' || nextFormat === 'brawl'
+        ? 'open'
+        : (requestedQueue === 'bo3' ? 'bo3' : 'open');
+    const query: Record<string, string> = { format: nextFormat };
+    if (nextQueue === 'bo3' || nextQueue === 'pod') query.queue = nextQueue;
     setParams(query);
   };
 
   if (career.isPending) return <p className={modes.note}>{t('career.loading')}</p>;
   if (!career.data?.enabled) return <Navigate to="/career" replace />;
-  const formats = state.data?.formats ?? first.data?.formats ?? ['standard', 'pioneer'];
+  const serverFormats = state.data?.formats ?? first.data?.formats ?? ['standard', 'pioneer'];
+  const formats = serverFormats.includes('limited') ? serverFormats : [...serverFormats, 'limited'];
+  const queueTabs: readonly ('open' | 'bo3' | 'pod')[] = isCommander
+    ? ['open', 'pod']
+    : isLimited || isBrawl
+      ? []
+      : ['open', 'bo3'];
+  const kickerKey: MessageKey = isLimited
+    ? 'career.ranked.kickerLimited'
+    : queue === 'bo3'
+      ? 'career.ranked.kickerBo3'
+      : queue === 'pod'
+        ? 'career.ranked.kickerPod'
+        : 'career.ranked.kicker';
   return (
     <div className={modes.page}>
       <div className={`${modes.scroll} ${modes.capped}`}>
         <header className={modes.modeHead}>
           <div>
-            <p className={modes.kicker}><Trophy size={16} aria-hidden="true" /> {t(queue === 'bo3' ? 'career.ranked.kickerBo3' : 'career.ranked.kicker')}</p>
+            <p className={modes.kicker}><Trophy size={16} aria-hidden="true" /> {t(kickerKey)}</p>
             <h1 className={modes.modeTitle}>{t('career.ranked.title')}</h1>
             <p className={modes.lead}>
               {t('career.ranked.lead')}{' '}
@@ -97,21 +128,31 @@ export function CareerRankedScreen() {
             </p>
           </div>
           <div className={styles.switches}>
-            <div className={styles.formats} role="tablist" aria-label={t('career.ranked.queues')}>
-              {(['open', 'bo3'] as const).map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  role="tab"
-                  aria-selected={item === queue}
-                  className={[styles.format, item === queue ? styles.formatOn : ''].join(' ')}
-                  onClick={() => go({ queue: item })}
-                  data-nav
-                >
-                  {t(item === 'bo3' ? 'career.ranked.queue.bo3' : 'career.ranked.queue.bo1')}
-                </button>
-              ))}
-            </div>
+            {queueTabs.length > 1 && (
+              <div className={styles.formats} role="tablist" aria-label={t('career.ranked.queues')}>
+                {queueTabs.map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    role="tab"
+                    aria-selected={item === queue}
+                    className={[styles.format, item === queue ? styles.formatOn : ''].join(' ')}
+                    onClick={() => go({ queue: item })}
+                    data-nav
+                  >
+                    {t(
+                      item === 'bo3'
+                        ? 'career.ranked.queue.bo3'
+                        : item === 'pod'
+                          ? 'career.ranked.queue.pod'
+                          : isCommander
+                            ? 'career.ranked.queue.duel'
+                            : 'career.ranked.queue.bo1',
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className={styles.formats} role="tablist" aria-label={t('career.ranked.formats')}>
               {formats.map((item) => (
                 <button
@@ -148,14 +189,31 @@ export function CareerRankedScreen() {
               <MythicStandings format={format} queue={queue} />
               <SeasonBoards state={state.data} />
             </div>
-            <Queue
-              key={`${format}-${queue}`}
-              format={format}
-              queue={queue}
-              state={state.data}
-              versus={versus}
-              setVersus={setVersus}
-            />
+            {isLimited ? (
+              <aside className={styles.queue} aria-labelledby="ranked-limited-queue">
+                <h2 id="ranked-limited-queue" className={modes.subhead}>{t('career.ranked.limitedTitle')}</h2>
+                <p className={modes.small}>{t('career.ranked.limitedLead')}</p>
+                <div className={modes.actions}>
+                  <Link to="/career/limited" data-nav>
+                    <Button variant="decision" size="lg" icon={<Swords size={18} />}>{t('career.ranked.limitedStart')}</Button>
+                  </Link>
+                </div>
+                <ul className={modes.lines} aria-label={t('career.ranked.rules')}>
+                  <li>{t('career.ranked.limitedRule1')}</li>
+                  <li>{t('career.ranked.limitedRule2')}</li>
+                  <li>{t('career.ranked.limitedRule3')}</li>
+                </ul>
+              </aside>
+            ) : (
+              <Queue
+                key={`${format}-${queue}`}
+                format={format}
+                queue={queue}
+                state={state.data}
+                versus={versus}
+                setVersus={setVersus}
+              />
+            )}
           </div>
         )}
         <OpponentDeckDialog gameId={inspectGameId} onClose={() => setInspectGameId(null)} />
@@ -265,7 +323,7 @@ export function OpponentCard({ opponent }: { opponent: LadderOpponent }) {
 
 function Queue({ format, queue, state, versus, setVersus }: {
   format: string;
-  queue: 'open' | 'bo3';
+  queue: 'open' | 'bo3' | 'pod';
   state: LadderState;
   versus: boolean;
   setVersus: (open: boolean) => void;
@@ -306,11 +364,13 @@ function Queue({ format, queue, state, versus, setVersus }: {
   }
 
   const field = state.fieldMeta ?? [];
+  const isPod = queue === 'pod';
+  const bracketProtected = format === 'commander' && (state.step ?? 0) < 32;
   const stakes = [
     ...(state.promotionNext && state.promotionTarget
       ? [t('career.ranked.promotionStake', { rank: t(rankKey(state.promotionTarget)) })]
       : []),
-    t('career.ranked.stakeWin'),
+    t(isPod ? 'career.ranked.stakePod' : 'career.ranked.stakeWin'),
     t(state.step && state.step >= 16 ? 'career.ranked.stakeLoss' : 'career.ranked.stakeBronze'),
   ];
 
@@ -357,15 +417,16 @@ function Queue({ format, queue, state, versus, setVersus }: {
       )}
 
       <ul className={modes.lines} aria-label={t('career.ranked.rules')}>
-        <li>{t(queue === 'bo3' ? 'career.ranked.ruleBo3' : 'career.ranked.ruleBo1')}</li>
+        <li>{t(queue === 'bo3' ? 'career.ranked.ruleBo3' : queue === 'pod' ? 'career.ranked.rulePod' : 'career.ranked.ruleBo1')}</li>
+        {bracketProtected && <li>{t('career.ranked.ruleBracketProtected')}</li>}
         <li>{t('career.ranked.ruleNoAssists')}</li>
         <li>{t('career.ranked.ruleLeave')}</li>
       </ul>
       {versus && them && deck && (
         <Versus
-          kicker={`${state.promotionNext && state.promotionTarget ? `${t('career.ranked.promotion', { rank: t(rankKey(state.promotionTarget)) })} · ` : ''}${t('career.ranked.title')}${queue === 'bo3' ? ` · ${t('career.ranked.queue.bo3')}` : ''} · ${state.label ?? ''}`}
+          kicker={`${state.promotionNext && state.promotionTarget ? `${t('career.ranked.promotion', { rank: t(rankKey(state.promotionTarget)) })} · ` : ''}${t('career.ranked.title')}${queue === 'bo3' ? ` · ${t('career.ranked.queue.bo3')}` : queue === 'pod' ? ` · ${t('career.ranked.queue.pod')}` : ''} · ${state.label ?? ''}`}
           opponent={{
-            name: them.name ?? '',
+            name: isPod ? t('career.ranked.podTableTitle', { lead: them.name ?? '' }) : (them.name ?? ''),
             avatar: them.avatar,
             tagline: them.title ? titleWords(them.title) : undefined,
           }}
@@ -465,7 +526,7 @@ function Analytics({ state }: { state: LadderState }) {
   );
 }
 
-function MythicStandings({ format, queue }: { format: string; queue: 'open' | 'bo3' }) {
+function MythicStandings({ format, queue }: { format: string; queue: 'open' | 'bo3' | 'pod' }) {
   const t = useT();
   const [includeBots, setIncludeBots] = useState(true);
   const query = useMythicStandings(format, queue, includeBots, format !== 'limited');
@@ -619,13 +680,18 @@ export function ResultCard({ result, onInspect, onNextMatch }: {
   const moved = movement(result);
   const after = rankAt(result.stepAfter ?? 0);
   const reached = result.reached ?? [];
+  const podNames = (result.podOpponents ?? []).map((item) => item.name).filter(Boolean).join(', ');
+  const placement = result.placement;
+  const placementLabel = placement && placement >= 1 && placement <= 4
+    ? t(`career.ranked.placement.${placement}` as MessageKey)
+    : null;
   return (
     <section className={[styles.result, styles[`result_${result.status ?? 'drew'}`]].join(' ')} role="status" aria-label={t('career.ranked.lastGame')}>
       <Emblem rank={after.rank} size="sm" />
       <div className={styles.cardBody}>
         <h2 className={styles.resultTitle}>
-          {t(`career.ranked.status.${(['won', 'lost', 'drew'] as const).find((s) => s === result.status) ?? 'drew'}`)}
-          {result.opponent?.name ? ` · ${result.opponent.name}` : ''}
+          {placementLabel ?? t(`career.ranked.status.${(['won', 'lost', 'drew'] as const).find((s) => s === result.status) ?? 'drew'}`)}
+          {podNames ? ` · ${podNames}` : result.opponent?.name ? ` · ${result.opponent.name}` : ''}
         </h2>
         <PipRow pips={pipRow(result.stepAfter ?? 0, result.stepBefore ?? 0)} label={result.labelAfter ?? ''} />
         <p className={modes.small}>

@@ -30,6 +30,13 @@ export function petOf(id: string | undefined | null): PetKind | null {
   return id ? PETS[id] ?? null : null;
 }
 
+/** Earnable Career companions that render as full articulated 3D low-poly models in PetScene.tsx (Phase 6.1). */
+export const PROCEDURAL_3D_PETS = new Set(['clockwork-owl', 'mini-dragon', 'golem-pup']);
+
+export function proceduralModelOf(id: string | undefined | null): string | null {
+  return id && PROCEDURAL_3D_PETS.has(id) ? `procedural:${id}` : null;
+}
+
 /** An earned companion: its painted still (art/specs/companion.json) and its name in the reader's language. */
 export interface Companion {
   id: string;

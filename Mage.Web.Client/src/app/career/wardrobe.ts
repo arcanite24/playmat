@@ -82,6 +82,10 @@ export function sourceWords(t: Translate, source: CareerCosmeticSource, achievem
       return t('career.locker.fromLadder', { rank: t(`career.ranked.rank.${source.ref ?? 'bronze'}` as MessageKey) });
     case 'capsuleSet':
       return t('career.locker.fromCapsuleSet', { name: titleLabel(source.ref ?? '') });
+    case 'shop':
+      return t('career.locker.fromShop', { coins: value });
+    case 'petBond':
+      return t('career.locker.fromPetBond', { tier: value });
     default:
       return t('career.look.inCareer');
   }
@@ -90,7 +94,9 @@ export function sourceWords(t: Translate, source: CareerCosmeticSource, achievem
 /** How to earn an item: every place that gives it, or "Earned in Career" when the catalog doesn't say. */
 export function howToEarn(t: Translate, item: CareerCatalogItem, achievements: readonly CareerAchievement[]): string {
   const sources = item.sources ?? [];
-  return sources.length ? sources.map((source) => sourceWords(t, source, achievements)).join(' · ') : t('career.look.inCareer');
+  if (sources.length) return sources.map((source) => sourceWords(t, source, achievements)).join(' · ');
+  if ((item.price ?? 0) > 0) return t('career.locker.fromShop', { coins: item.price ?? 0 });
+  return t('career.look.inCareer');
 }
 
 /** Whether a player has an item: unlocked, or free for everyone. */
@@ -104,9 +110,10 @@ export type LockerTab = 'avatar' | 'title' | 'frame' | 'sleeve' | 'playmat' | 'p
 
 export const LOCKER_TABS: LockerTab[] = ['avatar', 'title', 'frame', 'sleeve', 'playmat', 'pet', 'emote', 'battlefield', 'land', 'cardstyle', 'thanks'];
 
-/** The tab a catalog kind sits under: arrows, sparks and stamps share the battlefield's. */
+/** The tab a catalog kind sits under: arrows, sparks and stamps share the battlefield's; cmdframe shares frame. */
 export function tabOf(kind: string | undefined): LockerTab | null {
   if (kind === 'arrow' || kind === 'spark' || kind === 'stamp') return 'battlefield';
+  if (kind === 'cmdframe') return 'frame';
   return LOCKER_TABS.includes(kind as LockerTab) && kind !== 'battlefield' && kind !== 'thanks' ? (kind as CatalogKind & LockerTab) : null;
 }
 

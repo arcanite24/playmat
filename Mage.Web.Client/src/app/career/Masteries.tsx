@@ -11,6 +11,7 @@ export function Masteries({ list }: { list: CareerMastery[] }) {
   const groups: { kind: string; label: MessageKey }[] = [
     { kind: 'color', label: 'career.mastery.colors' },
     { kind: 'format', label: 'career.mastery.formats' },
+    { kind: 'mode', label: 'career.mastery.modes' },
   ];
   return (
     <div className={styles.masteries}>

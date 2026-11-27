@@ -357,6 +357,58 @@ public class RankedServiceTest {
         assertEquals(first.id, afterRestart.id, "unplayed pick survives restart");
     }
 
+    @Test
+    void commanderPodPicksThreeDistinctDecksProtectsBronzeFromMetaAndRecordsPlacement() throws Exception {
+        StringBuilder bots = new StringBuilder();
+        String[][] entries = {
+                {"c-starter-1", "commander/a.dck", "starter", "1000"},
+                {"c-starter-2", "commander/b.dck", "starter", "1060"},
+                {"c-budget-1", "commander/c.dck", "budget", "1140"},
+                {"c-budget-2", "commander/d.dck", "budget", "1200"},
+                {"c-meta-1", "commander/e.dck", "meta", "1220"},
+                {"c-meta-2", "commander/f.dck", "meta", "1240"}
+        };
+        for (int i = 0; i < entries.length; i++) {
+            if (i > 0) bots.append(',');
+            String[] e = entries[i];
+            bots.append("{\"id\":\"").append(e[0])
+                    .append("\",\"format\":\"commander\",\"deck\":\"").append(e[1])
+                    .append("\",\"tier\":\"").append(e[2])
+                    .append("\",\"skill\":3,\"prior\":").append(e[3])
+                    .append(",\"rating\":").append(e[3])
+                    .append(",\"rd\":120,\"games\":1,\"ai\":\"java-mad\",\"persona\":{\"name\":\"Cmdr ").append(i).append("\"}}");
+        }
+        BotRoster cmdrRoster = new BotRoster(new StringReader("{\"anchors\":{\"commander\":\"c-starter-1\"},\"bots\":[" + bots + "]}"));
+        RankedService service = RankedService.forTests(store, cmdrRoster);
+
+        // Bronze player gets 3 distinct Commander decks and no meta-tier combo decks
+        List<BotRoster.Bot> pod = service.pickPod("neri", "commander", RankedService.POD, NOW);
+        assertEquals(3, pod.size());
+        Set<String> decks = new HashSet<>();
+        for (BotRoster.Bot b : pod) {
+            assertTrue(decks.add(b.deck), "pod decks must be distinct: " + b.deck);
+            assertFalse("meta".equalsIgnoreCase(b.tier), "Bronze pod should not include meta tier bot: " + b.id);
+        }
+
+        UUID table = UUID.randomUUID();
+        service.registerPod(table, "neri", "commander", RankedService.POD, pod, "Meren", NOW);
+        RankedService.Result firstPlace = service.matchEndedPod(table, 1, NOW, null);
+        assertNotNull(firstPlace);
+        assertEquals(Integer.valueOf(1), firstPlace.placement);
+        assertEquals("won", firstPlace.status);
+        assertEquals(0, firstPlace.stepBefore);
+        assertEquals(2, firstPlace.stepAfter, "1st place in a 4-player pod awards +2 pips");
+
+        // 2nd place in Bronze awards +1 pip
+        List<BotRoster.Bot> pod2 = service.pickPod("neri", "commander", RankedService.POD, NOW + 1);
+        UUID table2 = UUID.randomUUID();
+        service.registerPod(table2, "neri", "commander", RankedService.POD, pod2, "Meren", NOW + 1);
+        RankedService.Result secondPlace = service.matchEndedPod(table2, 2, NOW + 1, null);
+        assertNotNull(secondPlace);
+        assertEquals(Integer.valueOf(2), secondPlace.placement);
+        assertEquals(3, secondPlace.stepAfter, "2nd place in Bronze awards +1 pip");
+    }
+
     static BotRoster roster() {
         StringBuilder bots = new StringBuilder();
         String[][] all = {{"standard", "weak", "1000"}, {"standard", "low", "1150"}, {"standard", "mid", "1200"},

@@ -36,6 +36,8 @@ export function careerLookFrom(stored: PlayerLook, perks: readonly SupportPerk[]
   const look: StoredCareerLook = { avatar: piece('avatar', stored.avatar), title: piece('title', stored.title) };
   const frame = piece('frame', stored.frame);
   if (frame) look.frame = frame;
+  const commandFrame = piece('cmdframe', stored.commandFrame);
+  if (commandFrame) look.commandFrame = commandFrame;
   const pet = piece('pet', stored.pet);
   if (pet) look.pet = pet;
   for (const kind of ['arrow', 'spark', 'stamp'] as const) {
@@ -145,7 +147,13 @@ useSettings.subscribe((state, previous) => {
   if (state.settings.matCloth !== previous.settings.matCloth) syncLook();
 });
 useWear.subscribe(() => syncLook());
-if (typeof window !== 'undefined') window.addEventListener('playmat:career-look', () => syncLook());
+if (typeof window !== 'undefined') {
+  window.addEventListener('playmat:career-look', () => syncLook());
+  window.addEventListener('playmat:refresh-look', () => {
+    sent = null;
+    syncLook(true);
+  });
+}
 usePlay.subscribe((state, previous) => {
   if (state.deckId !== previous.deckId && state.deckId) syncLook(true);
 });

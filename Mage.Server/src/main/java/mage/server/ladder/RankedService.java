@@ -35,6 +35,8 @@ public final class RankedService {
     public static final String BO3 = "bo3";
     /** the Career League (#433): the same ladder, played with League decks built from the Career collection */
     public static final String LEAGUE = "league";
+    /** 4-player Commander Free-For-All Ranked Pod queue with placement-based scoring */
+    public static final String POD = "pod";
     /** the season key of a standing's season-end reward (League packs by peak) */
     public static final String SEASON_END = "season-end";
     /**
@@ -56,6 +58,12 @@ public final class RankedService {
         types.put("pioneer", "Constructed - Pioneer");
         // Modern (#435): the Open and Bo3 queues, with the ladder copies of its school decks (no League)
         types.put("modern", "Constructed - Modern");
+        // Commander (Phase 3): 1v1 Duel (open), 4-Player Pod (pod), and Precon Upgrade League (league); stays on Java
+        types.put("commander", "Variant Magic - Commander");
+        // Pauper, Brawl & Legacy (Phase 4): full ladder coverage across Constructed and singleton formats
+        types.put("pauper", "Constructed - Pauper");
+        types.put("brawl", "Variant Magic - Brawl");
+        types.put("legacy", "Constructed - Legacy");
         DECK_TYPES = Collections.unmodifiableMap(types);
     }
 
@@ -197,7 +205,7 @@ public final class RankedService {
     }
 
     public static boolean isQueue(String queue) {
-        return OPEN.equals(queue) || BO3.equals(queue) || LEAGUE.equals(queue);
+        return OPEN.equals(queue) || BO3.equals(queue) || LEAGUE.equals(queue) || POD.equals(queue);
     }
 
     /** games a match needs won: two in the Bo3 queue, one elsewhere */
@@ -205,9 +213,9 @@ public final class RankedService {
         return BO3.equals(queue) ? 2 : 1;
     }
 
-    /** the queue whose bots a queue plays: Bo3 meets the Open queue's */
+    /** the queue whose bots a queue plays: Bo3 and Pod meet the Open queue's bots */
     public static String botQueue(String queue) {
-        return BO3.equals(queue) ? OPEN : queue;
+        return BO3.equals(queue) || POD.equals(queue) ? OPEN : queue;
     }
 
     public static String deckType(String format) {
@@ -245,17 +253,30 @@ public final class RankedService {
         public final String format;
         public final String queue;
         public final String botId;
+        public final List<String> podBotIds;
+        public final boolean pod;
         /** the season the game started in, which it counts for */
         public final int season;
 
         RankedTable(UUID tableId, String user, String format, String queue, String botId, int season) {
+            this(tableId, user, format, queue, botId, Collections.emptyList(), false, season);
+        }
+
+        RankedTable(UUID tableId, String user, String format, String queue, String botId, List<String> podBotIds, boolean pod, int season) {
             this.tableId = tableId;
             this.user = user;
             this.format = format;
             this.queue = queue;
             this.botId = botId;
+            this.podBotIds = podBotIds == null ? Collections.emptyList() : Collections.unmodifiableList(new ArrayList<>(podBotIds));
+            this.pod = pod;
             this.season = season;
         }
+    }
+
+    public boolean isPodTable(UUID tableId) {
+        RankedTable table = tableId == null ? null : tables.get(tableId);
+        return table != null && table.pod;
     }
 
     public boolean isRankedTable(UUID tableId) {
@@ -298,17 +319,130 @@ public final class RankedService {
         }
         Glicko2.Rating rating = ratings.player(user, format, queue, now);
         List<LadderStore.GameRow> recent = store.finishedGames(userKey, format, queue, RankedMatchmaker.HISTORY_LIMIT);
-        BotRoster.Bot bot = matchmaker.pick(format, queue, rating.rating, recent);
+        BotRoster.Bot bot = pickWithBracketProtection(userKey, format, queue, rating.rating, recent, now);
         picks.put(pickKey, bot.id);
         store.putPick(userKey, format, queue, bot.id, now);
         return bot;
     }
 
+    /**
+     * For Commander in Bronze/Silver, avoids pairing players against high-power `meta` combo decks so casual and
+     * precon decks face fair Precon/Upgraded/Focused pods until Gold+.
+     */
+    private BotRoster.Bot pickWithBracketProtection(String userKey, String format, String queue, double rating,
+                                                    List<LadderStore.GameRow> recent, long now) throws SQLException {
+        if ("commander".equals(format)) {
+            int season = season(now);
+            LadderStore.Standing standing = store.standing(userKey, format, queue, season);
+            int rank = standing == null ? 0 : LadderRank.rank(standing.step);
+            if (rank <= 1) {
+                // Bronze & Silver: prefer starter / budget / rogue / tier2 decks (no high-power meta combos)
+                List<BotRoster.Bot> friendly = new ArrayList<>();
+                for (BotRoster.Bot candidate : roster.bots(format, queue)) {
+                    if (!"meta".equals(candidate.effectiveTier())) {
+                        friendly.add(candidate);
+                    }
+                }
+                if (!friendly.isEmpty()) {
+                    Set<String> recentDecks = new HashSet<>();
+                    for (int i = 0; i < Math.min(3, recent.size()); i++) {
+                        if (recent.get(i).botDeck != null) {
+                            recentDecks.add(recent.get(i).botDeck);
+                        }
+                    }
+                    Map<String, Double> botRatingMap = new java.util.HashMap<>();
+                    for (BotRoster.Bot candidate : friendly) {
+                        botRatingMap.put(candidate.id, ratings.bot(candidate, queue).rating);
+                    }
+                    friendly.sort((a, b) -> Double.compare(
+                            Math.abs(botRatingMap.get(a.id) - rating),
+                            Math.abs(botRatingMap.get(b.id) - rating)));
+                    List<BotRoster.Bot> pool = new ArrayList<>();
+                    for (BotRoster.Bot candidate : friendly) {
+                        if (!recentDecks.contains(candidate.deck)) {
+                            pool.add(candidate);
+                        }
+                        if (pool.size() >= 6) {
+                            break;
+                        }
+                    }
+                    if (pool.isEmpty()) {
+                        pool = friendly.subList(0, Math.min(4, friendly.size()));
+                    }
+                    return pool.get(java.util.concurrent.ThreadLocalRandom.current().nextInt(pool.size()));
+                }
+            }
+        }
+        return matchmaker.pick(format, queue, rating, recent);
+    }
+
+    /** Picks 3 distinct-deck Commander bots for a 4-player Ranked or League pod, anchored on the player's primary pick. */
+    public List<BotRoster.Bot> pickPod(String user, String format, String queue, long now) throws SQLException {
+        BotRoster.Bot primary = pick(user, format, queue, now);
+        List<BotRoster.Bot> out = new ArrayList<>();
+        out.add(primary);
+        Set<String> usedDecks = new HashSet<>();
+        if (primary.deck != null) {
+            usedDecks.add(primary.deck);
+        }
+        String userKey = key(user);
+        LadderStore.Standing standing = store.standing(userKey, format, queue, season(now));
+        boolean casualBracket = "commander".equals(format) && (standing == null || LadderRank.rank(standing.step) <= 1);
+        double target = ratings.player(user, format, queue, now).rating;
+        List<BotRoster.Bot> pool = new ArrayList<>();
+        for (BotRoster.Bot candidate : roster.bots(format, queue)) {
+            if (candidate.deck != null && usedDecks.contains(candidate.deck)) {
+                continue;
+            }
+            if (casualBracket && "meta".equals(candidate.effectiveTier())) {
+                continue;
+            }
+            pool.add(candidate);
+        }
+        if (pool.size() < 2) {
+            pool = new ArrayList<>(roster.bots(format, queue));
+            pool.removeIf(b -> b.deck != null && usedDecks.contains(b.deck));
+        }
+        Map<String, Double> poolRatings = new java.util.HashMap<>();
+        for (BotRoster.Bot candidate : pool) {
+            poolRatings.put(candidate.id, ratings.bot(candidate, queue).rating);
+        }
+        pool.sort((a, b) -> Double.compare(
+                Math.abs(poolRatings.get(a.id) - target),
+                Math.abs(poolRatings.get(b.id) - target)));
+        List<BotRoster.Bot> window = new ArrayList<>(pool.subList(0, Math.min(10, pool.size())));
+        Collections.shuffle(window);
+        for (BotRoster.Bot candidate : window) {
+            if (candidate.deck == null || usedDecks.add(candidate.deck)) {
+                out.add(candidate);
+                if (out.size() == 3) {
+                    break;
+                }
+            }
+        }
+        return out;
+    }
+
     /** the table is about to be played: called before anyone sits, so the game starts as ranked */
     public void register(UUID tableId, String user, String format, String queue, BotRoster.Bot bot, String deckName, long now) throws SQLException {
+        registerInternal(tableId, user, format, queue, bot, Collections.emptyList(), false, deckName, now);
+    }
+
+    /** Registers a 4-player Commander Ranked or League pod table with its 3 AI bots. */
+    public void registerPod(UUID tableId, String user, String format, String queue, List<BotRoster.Bot> bots, String deckName, long now) throws SQLException {
+        BotRoster.Bot primary = bots.get(0);
+        List<String> ids = new ArrayList<>();
+        for (BotRoster.Bot b : bots) {
+            ids.add(b.id);
+        }
+        registerInternal(tableId, user, format, queue, primary, ids, true, deckName, now);
+    }
+
+    private void registerInternal(UUID tableId, String user, String format, String queue, BotRoster.Bot bot,
+                                  List<String> podBotIds, boolean pod, String deckName, long now) throws SQLException {
         int season = season(now);
         String userKey = key(user);
-        RankedTable table = new RankedTable(tableId, userKey, format, queue, bot.id, season);
+        RankedTable table = new RankedTable(tableId, userKey, format, queue, bot.id, podBotIds, pod, season);
         LadderStore.GameRow row = new LadderStore.GameRow();
         row.id = tableId.toString();
         row.user = table.user;
@@ -365,6 +499,10 @@ public final class RankedService {
         /** won, lost or drew */
         public String status;
         public String botId;
+        /** all 3 pod bot IDs when played in a 4-player Commander pod */
+        public List<String> podBotIds = new ArrayList<>();
+        /** 1..4 placement in a 4-player Commander pod, or null for 1v1 */
+        public Integer placement;
         public int stepBefore;
         public int stepAfter;
         public int delta;
@@ -386,6 +524,19 @@ public final class RankedService {
      * rank, pays first reaches, and keeps the result for the client. Once per table.
      */
     public synchronized Result matchEnded(UUID tableId, double score, long now, Integer turns, String gameScore) throws SQLException {
+        return matchEndedInternal(tableId, score, null, now, turns, gameScore);
+    }
+
+    /**
+     * Records a finished 4-player Commander Ranked or League pod with exact placement (1 = winner, 2..4 = finish order).
+     */
+    public synchronized Result matchEndedPod(UUID tableId, int placement, long now, Integer turns) throws SQLException {
+        int clamped = Math.max(1, Math.min(4, placement));
+        double score = clamped == 1 ? 1.0 : clamped == 2 ? 0.5 : 0.0;
+        return matchEndedInternal(tableId, score, clamped, now, turns, "#" + clamped);
+    }
+
+    private synchronized Result matchEndedInternal(UUID tableId, double score, Integer placement, long now, Integer turns, String gameScore) throws SQLException {
         RankedTable table = tables.remove(tableId);
         if (table == null) {
             return null;
@@ -403,13 +554,19 @@ public final class RankedService {
         }
         int peakBefore = standing.peak;
         LadderRatings.Outcome outcome = ratings.record(table.user, table.botId, table.queue, score, now);
-        LadderRank.Move move = LadderRank.after(standing.step, standing.streak, score);
+        LadderRank.Move move = placement != null
+                ? LadderRank.afterPod(standing.step, standing.streak, placement)
+                : LadderRank.after(standing.step, standing.streak, score);
         Result result = new Result();
         result.tableId = tableId.toString();
         result.format = table.format;
         result.queue = table.queue;
-        result.status = score >= 1 ? "won" : score <= 0 ? "lost" : "drew";
+        result.status = placement != null
+                ? (placement == 1 ? "won" : "lost")
+                : (score >= 1 ? "won" : score <= 0 ? "lost" : "drew");
         result.botId = table.botId;
+        result.podBotIds = new ArrayList<>(table.podBotIds);
+        result.placement = placement;
         result.stepBefore = standing.step;
         result.stepAfter = move.step;
         result.delta = move.delta;

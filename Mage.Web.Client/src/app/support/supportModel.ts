@@ -88,7 +88,7 @@ export interface LookInputs {
   careerAvatar?: string | null;
   careerTitle?: string | null;
   /** the rest of the progression look (career/careerData.ts CareerLook) */
-  career?: { frame?: string | null; pet?: string | null; arrow?: string | null; spark?: string | null; stamp?: string | null; lands?: string | null; badges?: string[] };
+  career?: { frame?: string | null; commandFrame?: string | null; pet?: string | null; arrow?: string | null; spark?: string | null; stamp?: string | null; lands?: string | null; badges?: string[] };
   perks?: readonly SupportPerk[];
   wear?: Wear;
   /** token pictures (ui/tokenArt.ts): the account's, and the deck being played's own */
@@ -109,6 +109,7 @@ export function lookOf({ sleeve, cloth, careerAvatar, careerTitle, career, perks
   // the supporter ring and a pet perk (corgi, contributors' duck), when worn, come before an earned frame and companion
   if (wear.frame && owns(perks, 'frame', THANK_YOU.frame)) look.frame = THANK_YOU.frame;
   else if (career?.frame) look.frame = career.frame;
+  if (career?.commandFrame) look.commandFrame = career.commandFrame;
   if (wear.flair && owns(perks, 'flair', THANK_YOU.flair)) look.flair = THANK_YOU.flair;
   const pet = wornPet(perks, wear);
   if (pet) look.pet = pet;
@@ -132,7 +133,7 @@ function sameMap(a: Record<string, string> | undefined, b: Record<string, string
 
 /** Whether two looks are the same, so an unchanged look isn't sent again. */
 export function sameLook(a: PlayerLook | null | undefined, b: PlayerLook | null | undefined): boolean {
-  const keys: (keyof PlayerLook)[] = ['sleeve', 'cloth', 'avatar', 'frame', 'title', 'flair', 'pet', 'arrow', 'spark', 'stamp', 'lands', 'level'];
+  const keys: (keyof PlayerLook)[] = ['sleeve', 'cloth', 'avatar', 'frame', 'commandFrame', 'title', 'flair', 'pet', 'petTier', 'petStyle', 'arrow', 'spark', 'stamp', 'lands', 'level'];
   return !!a && !!b && keys.every((key) => (a[key] ?? null) === (b[key] ?? null))
     && (a.badges ?? []).join() === (b.badges ?? []).join()
     && Object.keys(a.cardStyles ?? {}).length === Object.keys(b.cardStyles ?? {}).length

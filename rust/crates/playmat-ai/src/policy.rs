@@ -3,7 +3,7 @@
 //! the search's answer budget ends any loop).
 
 use crate::eval;
-use playmat_engine::card::{CardType, ManaCost};
+use playmat_engine::card::{AbilityDef, CardType, ManaCost};
 use playmat_engine::decide::{Answer, Query};
 use playmat_engine::rules;
 use playmat_engine::state::{Game, Obj, ObjId, Seat, Step, Zone};
@@ -312,43 +312,67 @@ impl Policy {
         .unwrap_or(Answer::Stop)
     }
 
-    /// Blocks that kill the attacker or survive it, and chump blocks when the attack is lethal (or below playbook threshold).
+    /// Blocks that kill the attacker or survive it, and chump/gang-blocks (including tramplers) when the attack is
+    /// lethal (or below playbook threshold).
     fn block(&mut self, game: &Game, seat: Seat, creatures: &[ObjId]) -> Answer {
         let attackers = rules::attackers(game);
         let unblocked: Vec<ObjId> = attackers.iter().copied().filter(|a| !game.obj(*a).blocked).collect();
-        let incoming: i32 = unblocked.iter().map(|a| game.power_toughness(*a).0.max(0)).sum();
+        let incoming: i32 = attackers.iter().map(|a| incoming_player_damage(game, *a)).sum();
         let life = game.player(seat).life;
         let chump_at = self.playbook.as_deref().map_or(0, |pb| pb.chump_block_life_threshold);
         let lethal = incoming >= life || (chump_at > 0 && life - incoming <= chump_at && incoming >= 4);
-        for b in creatures {
-            if self.tried_blockers.contains(b) || !game.obj(*b).blocking.is_empty() {
-                continue;
-            }
+        let available: Vec<ObjId> = creatures
+            .iter()
+            .copied()
+            .filter(|b| !self.tried_blockers.contains(b) && game.obj(*b).blocking.is_empty())
+            .collect();
+
+        for b in &available {
             let (bp, bt) = game.power_toughness(*b);
+            let b_deathtouch = game.has_ability(*b, &AbilityDef::DeathtouchAbility);
             let protected = self.playbook.as_deref().is_some_and(|pb| pb.is_protected(&game.obj(*b).def.name));
             let good = unblocked.iter().copied().filter(|a| rules::can_block(game, *b, *a)).find(|a| {
                 let (ap, at) = game.power_toughness(*a);
-                let survives = bt > ap;
+                let a_deathtouch = game.has_ability(*a, &AbilityDef::DeathtouchAbility);
+                let survives = bt > ap && !(a_deathtouch && ap > 0);
                 if protected && !survives {
                     return false;
                 }
-                survives || (bp >= at && eval::permanent_score(game, *a) >= eval::permanent_score(game, *b))
+                let kills = bp >= at || (b_deathtouch && bp > 0);
+                survives || (kills && eval::permanent_score(game, *a) >= eval::permanent_score(game, *b))
             });
-            let chump = if lethal && (!protected || incoming >= life) {
-                unblocked
-                    .iter()
-                    .copied()
-                    .filter(|a| rules::can_block(game, *b, *a))
-                    .max_by_key(|a| game.power_toughness(*a).0)
-            } else {
-                None
-            };
-            if let Some(a) = good.or(chump) {
+            if let Some(a) = good {
                 self.tried_blockers.push(*b);
                 self.blocker = Some(a);
                 return Answer::Obj(*b);
             }
         }
+
+        if lethal {
+            // Sac cheapest available blocker first (e.g. tokens before real creatures) to stop lethal / trample overflow
+            let mut chumpers: Vec<ObjId> = available
+                .iter()
+                .copied()
+                .filter(|b| {
+                    let protected = self.playbook.as_deref().is_some_and(|pb| pb.is_protected(&game.obj(*b).def.name));
+                    !protected || incoming >= life
+                })
+                .collect();
+            chumpers.sort_by_key(|b| eval::permanent_score(game, *b));
+            for b in chumpers {
+                let target = attackers
+                    .iter()
+                    .copied()
+                    .filter(|a| rules::can_block(game, b, *a) && damage_prevented(game, b, *a) > 0)
+                    .max_by_key(|a| (damage_prevented(game, b, *a), incoming_player_damage(game, *a)));
+                if let Some(a) = target {
+                    self.tried_blockers.push(b);
+                    self.blocker = Some(a);
+                    return Answer::Obj(b);
+                }
+            }
+        }
+
         Answer::Bool(true)
     }
 
@@ -357,11 +381,49 @@ impl Policy {
             Some(a) if attackers.contains(&a) => Answer::Obj(a),
             _ => attackers
                 .iter()
-                .max_by_key(|a| game.power_toughness(**a).0)
+                .max_by_key(|a| (incoming_player_damage(game, **a), game.power_toughness(**a).0))
                 .map(|a| Answer::Obj(*a))
                 .unwrap_or(Answer::Bool(false)),
         }
     }
+}
+
+/// Combat damage this attacker is still projected to deal to the defending player given currently declared blockers,
+/// accounting for trample overflow, double strike, and attacker deathtouch.
+pub(crate) fn incoming_player_damage(game: &Game, attacker: ObjId) -> i32 {
+    let o = game.obj(attacker);
+    if o.attacking_pw.is_some() {
+        return 0;
+    }
+    let ap = game.power_toughness(attacker).0.max(0);
+    let total = if game.has_ability(attacker, &AbilityDef::DoubleStrikeAbility) { ap * 2 } else { ap };
+    if !o.blocked {
+        return total;
+    }
+    if !game.has_ability(attacker, &AbilityDef::TrampleAbility) {
+        return 0;
+    }
+    let deathtouch = game.has_ability(attacker, &AbilityDef::DeathtouchAbility);
+    let absorbed: i32 =
+        o.blocked_by.iter().map(|b| if deathtouch { 1 } else { game.power_toughness(*b).1.max(0) }).sum();
+    (total - absorbed).max(0)
+}
+
+/// How much projected player damage adding `blocker` to `attacker` would prevent.
+pub(crate) fn damage_prevented(game: &Game, blocker: ObjId, attacker: ObjId) -> i32 {
+    let rem = incoming_player_damage(game, attacker);
+    if rem <= 0 {
+        return 0;
+    }
+    if !game.has_ability(attacker, &AbilityDef::TrampleAbility) {
+        return rem;
+    }
+    let absorb = if game.has_ability(attacker, &AbilityDef::DeathtouchAbility) {
+        1
+    } else {
+        game.power_toughness(blocker).1.max(0)
+    };
+    rem.min(absorb)
 }
 
 /// Attacks with creatures guided by combat heuristics and optional Playbook role protection + aggression.

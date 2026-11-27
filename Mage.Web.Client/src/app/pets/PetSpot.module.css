@@ -145,3 +145,46 @@
     animation: none;
   }
 }
+
+/* Phase 6 Pet Bond evolution: subtle gilded/mythic aura, accessory crest, and reactive emote bubble */
+.auraGilded .still img {
+  filter: drop-shadow(0 3px 4px rgb(0 0 0 / 0.45)) drop-shadow(0 0 8px rgb(226 194 122 / 0.48));
+}
+
+.auraMythic .still img {
+  filter: drop-shadow(0 3px 4px rgb(0 0 0 / 0.5)) drop-shadow(0 0 12px rgb(240 138 75 / 0.72)) drop-shadow(0 0 20px rgb(103 232 249 / 0.4));
+}
+
+.crest {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: rgb(22 24 31 / 0.88);
+  color: #f4c95d;
+  box-shadow: 0 0 0 1.5px rgb(244 201 93 / 0.75), 0 2px 6px rgb(0 0 0 / 0.45);
+  pointer-events: none;
+}
+
+.bubble {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 4px);
+  translate: -50% 0;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgb(var(--mat-rgb) / 0.94);
+  color: var(--ink-strong);
+  box-shadow: 0 0 0 1px rgb(226 194 122 / 0.65), 0 4px 12px rgb(0 0 0 / 0.4);
+  font-family: var(--font-print);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 4;
+}

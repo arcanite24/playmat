@@ -54,6 +54,12 @@ final class CareerApi {
         public CareerLadder.CareerRank rank;
         /** the adaptive skill Career games play at when asked for (S049) */
         public mage.server.career.AdaptiveSkill.AdaptiveView adaptive;
+        /** true when an existing non-Commander account can claim 1 free 100-card Commander precon */
+        public boolean commanderPreconGift;
+        /** Commander starter ids already owned by this account */
+        public List<String> ownedPrecons;
+        /** quest track preference: "any", "constructed", or "commander" */
+        public String questPref;
     }
 
     /** A Career match was set up; the game starts like any other. */
@@ -101,6 +107,9 @@ final class CareerApi {
                                 if (state.profile != null) {
                                     state.rank = store(() -> CareerLadder.rank(user));
                                     state.adaptive = store(() -> mage.server.career.AdaptiveSkill.view(user, "career"));
+                                    state.commanderPreconGift = store(() -> CareerService.get().commanderPreconGiftAvailable(user));
+                                    state.ownedPrecons = store(() -> CareerService.get().ownedPrecons(user));
+                                    state.questPref = store(() -> CareerStore.get().questPref(user));
                                 }
                             }
                             return state;
@@ -122,6 +131,27 @@ final class CareerApi {
                             String user = career(ctx, call);
                             String starterId = call.string(0);
                             return store(() -> CareerService.get().start(user, starterId));
+                        }),
+
+                RpcMethod.named("careerAcquirePrecon")
+                        .params(of("starterId", STRING))
+                        .returns("CareerPreconResult")
+                        .doc("Claim one free 100-card Commander precon (for existing non-Commander accounts) or buy an additional "
+                                + "Commander precon bundle with Career coins, adding its cards and an editable deck.")
+                        .handler(call -> {
+                            String user = career(ctx, call);
+                            String starterId = call.string(0);
+                            return store(() -> CareerService.get().acquirePrecon(user, starterId));
+                        }),
+
+                RpcMethod.named("careerSetQuestPref")
+                        .params(of("pref", STRING))
+                        .returns("string")
+                        .doc("Set the account's quest track preference ('any', 'constructed', or 'commander') for future quest rolls.")
+                        .handler(call -> {
+                            String user = career(ctx, call);
+                            String pref = call.string(0);
+                            return store(() -> CareerService.get().setQuestPref(user, pref));
                         }),
 
                 RpcMethod.named("careerDeck")
@@ -157,17 +187,18 @@ final class CareerApi {
                         }),
 
                 RpcMethod.named("careerSaveNamedDeck")
-                        .params(optional("id", STRING), of("name", STRING), object("deck", "DeckCardLists"), optional("activate", BOOLEAN))
+                        .params(optional("id", STRING), of("name", STRING), object("deck", "DeckCardLists"), optional("activate", BOOLEAN), optional("format", STRING))
                         .returns("CareerSavedDeck")
                         .doc("Create (without id) or update a saved Career deck. Checked against the collection; pass activate "
-                                + "true to make it the active Career deck.")
+                                + "true to make it the active Career deck, and format for Commander or Constructed decks.")
                         .handler(call -> {
                             String user = career(ctx, call);
                             String id = call.optString(0, null);
                             String name = call.string(1);
                             DeckCardLists deck = call.object(2, DeckCardLists.class);
                             boolean activate = call.optBool(3, false);
-                            return store(() -> CareerService.get().saveNamedDeck(user, id, name, deck, activate));
+                            String format = call.optString(4, null);
+                            return store(() -> CareerService.get().saveNamedDeck(user, id, name, deck, activate, format));
                         }),
 
                 RpcMethod.named("careerSelectDeck")
@@ -207,6 +238,14 @@ final class CareerApi {
                             return store(() -> CareerService.get().opponents(user));
                         }),
 
+                RpcMethod.named("careerCommanderOpponents")
+                        .returns("CareerOpponent[]")
+                        .doc("The 5-tier Commander Career roster (1v1 duels, 4-player pods, rival arc, and raid bosses) with unlock state.")
+                        .handler(call -> {
+                            String user = career(ctx, call);
+                            return store(() -> CareerService.get().commanderOpponents(user));
+                        }),
+
                 RpcMethod.named("careerPlay")
                         .params(of("opponentId", STRING), object("deck", "DeckCardLists"), optional("adaptive", BOOLEAN))
                         .returns("CareerMatch")
@@ -214,6 +253,12 @@ final class CareerApi {
                                 + "The server sets up the table and starts the match; the game arrives like any other. Adaptive: the "
                                 + "AI's skill follows your hidden Career rating instead of the tier's, to keep your win rate near 55%.")
                         .handler(call -> play(ctx, call)),
+
+                RpcMethod.named("careerCommanderPlay")
+                        .params(of("opponentId", STRING), object("deck", "DeckCardLists"), optional("adaptive", BOOLEAN))
+                        .returns("CareerMatch")
+                        .doc("Start a Commander Career encounter (1v1 Commander duel or 4-player Commander pod) with an owned 100-card Commander deck.")
+                        .handler(call -> playCommander(ctx, call)),
 
                 RpcMethod.named("careerShop")
                         .returns("CareerShopSet[]")
@@ -352,6 +397,80 @@ final class CareerApi {
         return match;
     }
 
+    private static CareerMatch playCommander(ApiContext ctx, RpcCall call) throws RpcException {
+        String user = career(ctx, call);
+        String opponentId = call.string(0);
+        DeckCardLists deck = call.object(1, DeckCardLists.class);
+        CareerContent content = CareerContent.get();
+        CareerContent.Opponent opponent = content.commanderOpponent(opponentId);
+        if (opponent == null) {
+            throw RpcException.invalidParams("There is no Commander opponent " + opponentId + ".");
+        }
+        if (store(() -> CareerStore.get().profile(user)) == null) {
+            throw RpcException.invalidParams("Open a Career first.");
+        }
+        if (!store(() -> CareerService.get().commanderUnlocked(user, opponentId))) {
+            throw RpcException.invalidParams("Beat " + mage.server.career.CareerRules.WINS_TO_UNLOCK_NEXT_TIER
+                    + " Commander tables in tier " + (opponent.tier - 1) + " to unlock " + opponent.name + ".");
+        }
+        List<String> legality = LadderApi.legality(mage.server.career.CareerRules.FORMAT_COMMANDER, deck);
+        if (!legality.isEmpty()) {
+            throw RpcException.invalidParams("This deck isn't legal in Commander: " + String.join("; ", legality) + ".");
+        }
+        List<String> problems = store(() -> CareerService.get().ownershipProblems(user, deck));
+        if (!problems.isEmpty()) {
+            throw RpcException.invalidParams("You don't own enough copies: " + String.join("; ", problems.subList(0, Math.min(5, problems.size())))
+                    + (problems.size() > 5 ? " (and " + (problems.size() - 5) + " more)" : "") + ".");
+        }
+        CareerContent.Tier tier = content.commanderTier(opponent.tier);
+        boolean adaptive = call.has(2) && call.bool(2);
+        int skill = adaptive ? store(() -> mage.server.career.AdaptiveSkill.skillFor(user, "career"))
+                : opponent.skill != null ? opponent.skill : tier.skill;
+        boolean pod = opponent.podDecks != null && opponent.podDecks.size() > 1;
+        List<CareerCampaigns.DuelSeat> seats = new ArrayList<>();
+        List<CareerContent.CareerCover> warm = new ArrayList<>();
+        try {
+            if (pod) {
+                for (int i = 0; i < opponent.podDecks.size(); i++) {
+                    DeckCardLists aiDeck = content.loadDeckRef(opponent.podDecks.get(i));
+                    CareerCampaigns.DuelSeat seat = new CareerCampaigns.DuelSeat();
+                    seat.name = (opponent.podNames != null && i < opponent.podNames.size())
+                            ? opponent.podNames.get(i) : (opponent.name + " " + (i + 1));
+                    seat.skill = skill;
+                    seat.aiType = PlayerType.COMPUTER_MAD.name();
+                    seat.deck = aiDeck;
+                    seats.add(seat);
+                    warm.addAll(printings(aiDeck));
+                }
+            } else {
+                DeckCardLists aiDeck = content.loadDeckRef(opponent.deck);
+                CareerCampaigns.DuelSeat seat = new CareerCampaigns.DuelSeat();
+                seat.name = opponent.name;
+                seat.skill = skill;
+                seat.aiType = PlayerType.COMPUTER_MAD.name();
+                seat.deck = aiDeck;
+                seats.add(seat);
+                warm.addAll(printings(aiDeck));
+            }
+        } catch (java.io.IOException e) {
+            throw new RpcException(RpcException.SERVER_ERROR, "The opponent's Commander deck can't be read", e);
+        }
+        mage.server.career.CareerSetup setup = store(() -> mage.server.career.CareerLadder.setup(user, opponent));
+        String gameType = pod ? "Commander Free For All" : "Commander Two Player Duel";
+        String tableId = startMatch(ctx, call, user, gameType, mage.server.career.CareerRules.FORMAT_COMMANDER, 1, deck, seats,
+                id -> {
+                    CareerService.get().register(id, user, opponent.id, opponent.tier, setup);
+                    if (adaptive) {
+                        mage.server.career.AdaptiveSkill.mark(id, user, "career");
+                    }
+                });
+        CareerMatch match = new CareerMatch();
+        match.tableId = tableId;
+        match.opponentId = opponent.id;
+        match.warm = warm;
+        return match;
+    }
+
     /**
      * Sets up and starts a Career table: the player against one AI, best of one, no rollbacks (a rollback could
      * replay a lost game for its payout). {@code register} tells the Career service about the table before anyone
@@ -377,6 +496,11 @@ final class CareerApi {
      */
     static String startMatch(ApiContext ctx, RpcCall call, String user, String gameType, String deckType, int winsNeeded,
                              DeckCardLists deck, List<CareerCampaigns.DuelSeat> seats, java.util.function.Consumer<UUID> register) throws RpcException {
+        return startMatch(ctx, call, user, gameType, deckType, winsNeeded, deck, seats, false, register);
+    }
+
+    static String startMatch(ApiContext ctx, RpcCall call, String user, String gameType, String deckType, int winsNeeded,
+                             DeckCardLists deck, List<CareerCampaigns.DuelSeat> seats, boolean planeChase, java.util.function.Consumer<UUID> register) throws RpcException {
         String sessionId = call.sessionId();
         UUID roomId = ctx.managers.gamesRoomManager().getMainRoomId();
         boolean pod = seats.size() > 1;
@@ -386,6 +510,9 @@ final class CareerApi {
         options.setWinsNeeded(Math.max(1, winsNeeded));
         options.setRollbackTurnsAllowed(false);
         options.setSpectatorsAllowed(true);
+        if (planeChase) {
+            options.setPlaneChase(true);
+        }
         if (pod) {
             // a free-for-all: anyone may attack anyone
             options.setAttackOption(MultiplayerAttackOption.MULTIPLE);

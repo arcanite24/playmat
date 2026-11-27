@@ -1,12 +1,14 @@
-import { Heart, Lock, PawPrint, Shuffle, Stamp } from 'lucide-react';
+import { Crown, Heart, Lock, PawPrint, Shuffle, Sparkles, Stamp } from 'lucide-react';
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
-import type { CareerAchievement, CareerCatalogItem, CareerLevelTrack } from '../../protocol/generated/views';
+import type { CareerAchievement, CareerCatalogItem, CareerLevelTrack, CareerPetProgress } from '../../protocol/generated/views';
 import { registerMessages, useI18n, useT, type MessageKey } from '../i18n';
 import messages from '../i18n/en/career';
 import { clothOf, clothSwatch } from '../match/playmats';
+import { PETS } from '../pets/pets';
 import { useServerInfo } from '../queries';
 import { useSession } from '../stores/session';
 import { useSettings } from '../stores/settings';
+import { notify } from '../stores/toasts';
 import { useThankYou, type ThankYou } from '../support/supportData';
 import { CardFace } from '../ui/CardFace';
 import { catalogName, catalogOf, rarityOf, RARITY_COLORS, useCatalog, type CatalogKind } from '../ui/cosmeticsCatalog';
@@ -15,7 +17,7 @@ import { cardStyleArt, useMyCardStyles } from '../ui/cardStyles';
 import { Link } from 'react-router-dom';
 import { equipStyle } from './capsules/capsuleData';
 import { Art } from './Art';
-import { useCareerAchievements, useCareerLevels, useCareerLook, type CareerLook } from './careerData';
+import { setPetStyle, useCareerAchievements, useCareerLevels, useCareerLook, useCareerPets, type CareerLook } from './careerData';
 import { CareerAvatar } from './CareerScreen';
 import { ShowcaseBadges, TitleText } from './LookParts';
 import { PlateFrame } from './PlateFrame';
@@ -276,6 +278,18 @@ function TitleShelf({ shelf, catalog, thanks }: ShelfProps & { thanks: ThankYou 
   );
 }
 
+function CommandFramePreview({ ring, accent }: { ring?: string; accent?: string }) {
+  return (
+    <span
+      className={styles.cmdPreview}
+      style={{ '--cmd-ring': ring ?? '#e2c27a', '--cmd-accent': accent ?? '#9e7328' } as CSSProperties}
+      aria-hidden="true"
+    >
+      <Crown size={20} />
+    </span>
+  );
+}
+
 function FrameShelf({ shelf, catalog, thanks }: ShelfProps & { thanks: ThankYou }) {
   const t = useT();
   // the supporter ring, when worn, wins over an earned frame: picking one here takes the ring off
@@ -285,17 +299,40 @@ function FrameShelf({ shelf, catalog, thanks }: ShelfProps & { thanks: ThankYou 
     if (ring && id) thanks.choose({ frame: false });
   };
   const avatar = <CareerAvatar id={shelf.look.avatar} name={shelf.user} size={52} />;
+  const cmdFrames = catalogOf('cmdframe', catalog);
   return (
-    <ShelfPanel id="frame" note={t('career.locker.frameNote')}>
-      <div className={styles.tiles} role="radiogroup" aria-label={t('career.locker.tab.frame')}>
-        <PlainTile on={!ring && !shelf.look.frame} label={t('career.locker.noFrame')} onPick={() => pick(null)}>{avatar}</PlainTile>
-        {shelfOrder(shelf, catalogOf('frame', catalog)).map((item) => (
-          <Tile key={item.id} shelf={shelf} item={item} on={!ring && shelf.look.frame === item.id} onPick={() => pick(item.id!)}>
-            <PlateFrame frame={item.id}>{avatar}</PlateFrame>
-          </Tile>
-        ))}
-      </div>
-    </ShelfPanel>
+    <div className={styles.stack}>
+      <ShelfPanel id="frame" note={t('career.locker.frameNote')}>
+        <div className={styles.tiles} role="radiogroup" aria-label={t('career.locker.tab.frame')}>
+          <PlainTile on={!ring && !shelf.look.frame} label={t('career.locker.noFrame')} onPick={() => pick(null)}>{avatar}</PlainTile>
+          {shelfOrder(shelf, catalogOf('frame', catalog)).map((item) => (
+            <Tile key={item.id} shelf={shelf} item={item} on={!ring && shelf.look.frame === item.id} onPick={() => pick(item.id!)}>
+              <PlateFrame frame={item.id}>{avatar}</PlateFrame>
+            </Tile>
+          ))}
+        </div>
+      </ShelfPanel>
+      {cmdFrames.length > 0 && (
+        <ShelfPanel id="cmdframe" title={t('career.locker.commandFrames')} note={t('career.locker.commandFramesNote')}>
+          <div className={styles.tiles} role="radiogroup" aria-label={t('career.locker.commandFrames')}>
+            <PlainTile on={!shelf.look.commandFrame} label={t('career.locker.default')} onPick={() => choose(shelf, { commandFrame: null })}>
+              <span className={styles.cmdPreviewPlain} aria-hidden="true"><Crown size={18} /></span>
+            </PlainTile>
+            {shelfOrder(shelf, cmdFrames).map((item) => (
+              <Tile
+                key={item.id}
+                shelf={shelf}
+                item={item}
+                on={shelf.look.commandFrame === item.id}
+                onPick={() => choose(shelf, { commandFrame: item.id! })}
+              >
+                <CommandFramePreview ring={item.ring} accent={item.accent} />
+              </Tile>
+            ))}
+          </div>
+        </ShelfPanel>
+      )}
+    </div>
   );
 }
 
@@ -331,27 +368,122 @@ function PlaymatShelf({ shelf, catalog }: ShelfProps) {
   );
 }
 
+const PET_STYLES: { id: string | null; tier: number; label: MessageKey }[] = [
+  { id: null, tier: 1, label: 'career.pet.style.none' },
+  { id: 'crown', tier: 3, label: 'career.pet.style.crown' },
+  { id: 'shades', tier: 3, label: 'career.pet.style.shades' },
+  { id: 'wizard-hat', tier: 4, label: 'career.pet.style.wizardHat' },
+  { id: 'mana-collar', tier: 4, label: 'career.pet.style.manaCollar' },
+  { id: 'astral-aura', tier: 5, label: 'career.pet.style.astralAura' },
+];
+
 function CompanionShelf({ shelf, catalog, thanks }: ShelfProps & { thanks: ThankYou }) {
   const t = useT();
+  const petsQuery = useCareerPets(true);
+  const bondById = useMemo(() => {
+    const map = new Map<string, CareerPetProgress>();
+    for (const entry of petsQuery.data ?? []) {
+      if (entry.id) map.set(entry.id, entry);
+    }
+    return map;
+  }, [petsQuery.data]);
+  const [savingStyle, setSavingStyle] = useState(false);
+
   // a pet perk (the party corgi, the debug duck), when worn, wins over an earned companion: picking one here sends it home
   const corgi = thanks.pet !== null;
+  const activePetId = thanks.pet ?? shelf.look.pet ?? null;
+  const activeBond = activePetId ? bondById.get(activePetId) : undefined;
+  const activeTier = Math.max(1, activeBond?.tier ?? 1);
+  const activeXp = activeBond?.xp ?? 0;
+  const activeNext = activeBond?.nextTierXp ?? 100;
+  const activeStyle = activeBond?.style ?? null;
+  const activeName = useMemo(() => {
+    if (!activePetId) return null;
+    if (activePetId in PETS) return t(PETS[activePetId as keyof typeof PETS].name);
+    const cat = catalog.find((item) => item.kind === 'pet' && item.id === activePetId);
+    return cat ? catalogName(cat, shelf.locale) : activePetId;
+  }, [activePetId, catalog, shelf.locale, t]);
+
   const pick = (id: string | null) => {
     choose(shelf, { pet: id });
     if (corgi && id) thanks.choose({ pet: false });
   };
+
+  async function pickStyle(style: string | null) {
+    if (!activePetId || savingStyle) return;
+    setSavingStyle(true);
+    try {
+      await setPetStyle(activePetId, style);
+    } catch (reason) {
+      notify(t('career.pet.styleError'), reason instanceof Error ? reason.message : String(reason), 'error');
+    } finally {
+      setSavingStyle(false);
+    }
+  }
+
   return (
-    <ShelfPanel id="pet" note={t('career.locker.petNote')}>
-      <div className={styles.tiles} role="radiogroup" aria-label={t('career.locker.tab.pet')}>
-        <PlainTile on={!corgi && !shelf.look.pet} label={t('career.locker.noPet')} onPick={() => pick(null)}>
-          <span className={progress.noPet} aria-hidden="true" />
-        </PlainTile>
-        {shelfOrder(shelf, catalogOf('pet', catalog)).map((item) => (
-          <Tile key={item.id} shelf={shelf} item={item} on={!corgi && shelf.look.pet === item.id} onPick={() => pick(item.id!)}>
-            <Art kind="companion" id={item.id!} size={64} fallback={<PawPrint size={36} aria-hidden="true" />} />
-          </Tile>
-        ))}
-      </div>
-    </ShelfPanel>
+    <div className={styles.stack}>
+      {activePetId && (
+        <section className={styles.bondCard} aria-label={t('career.pet.bondTitle')}>
+          <div className={styles.bondHead}>
+            <div>
+              <span className={styles.bondEyebrow}><Sparkles size={13} aria-hidden="true" /> {t('career.pet.bondTitle')}</span>
+              <h4 className={styles.bondName}>{activeName} · {t('career.pet.tier', { tier: activeTier })}</h4>
+            </div>
+            <span className={styles.bondStats}>
+              {activeNext > 0
+                ? t('career.pet.xpProgress', { xp: activeXp, next: activeNext })
+                : t('career.pet.xpMax', { xp: activeXp })}
+              {(activeBond?.games ?? 0) > 0 && ` · ${t('career.pet.games', { count: activeBond?.games ?? 0 })}`}
+            </span>
+          </div>
+          <div className={styles.bondBar} aria-hidden="true">
+            <span style={{ width: `${activeNext > 0 ? Math.min(100, Math.round((activeXp / activeNext) * 100)) : 100}%` }} />
+          </div>
+          <p className={styles.bondPerks}>{t('career.pet.perksNote')}</p>
+          <div className={styles.styleRow} role="radiogroup" aria-label={t('career.pet.stylesLabel')}>
+            {PET_STYLES.map((option) => {
+              const unlocked = activeTier >= option.tier;
+              const checked = (activeStyle ?? null) === option.id;
+              return (
+                <button
+                  key={option.id ?? 'none'}
+                  type="button"
+                  role="radio"
+                  aria-checked={checked}
+                  disabled={!unlocked || savingStyle}
+                  className={[styles.styleChip, unlocked ? '' : styles.styleLocked].join(' ')}
+                  onClick={() => void pickStyle(option.id)}
+                  data-nav
+                >
+                  {!unlocked && <Lock size={11} aria-hidden="true" />}
+                  {t(option.label)}
+                  {!unlocked && <small>T{option.tier}</small>}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+      <ShelfPanel id="pet" note={t('career.locker.petNote')}>
+        <div className={styles.tiles} role="radiogroup" aria-label={t('career.locker.tab.pet')}>
+          <PlainTile on={!corgi && !shelf.look.pet} label={t('career.locker.noPet')} onPick={() => pick(null)}>
+            <span className={progress.noPet} aria-hidden="true" />
+          </PlainTile>
+          {shelfOrder(shelf, catalogOf('pet', catalog)).map((item) => {
+            const bond = item.id ? bondById.get(item.id) : undefined;
+            return (
+              <Tile key={item.id} shelf={shelf} item={item} on={!corgi && shelf.look.pet === item.id} onPick={() => pick(item.id!)}>
+                <span className={styles.petPreview}>
+                  <Art kind="companion" id={item.id!} size={64} fallback={<PawPrint size={36} aria-hidden="true" />} />
+                  {bond && (bond.tier ?? 1) > 1 && <span className={styles.tierBadge}>T{bond.tier}</span>}
+                </span>
+              </Tile>
+            );
+          })}
+        </div>
+      </ShelfPanel>
+    </div>
   );
 }
 

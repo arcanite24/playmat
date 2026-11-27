@@ -61,11 +61,11 @@ export async function openLeaguePack(format: string, setCode: string) {
 }
 
 /** Starts a League game with a League deck; leaving it shows Career's rewards, then the League with the result. */
-export async function playLeague(format: string, deckId: string): Promise<void> {
+export async function playLeague(format: string, deckId: string, pod = false): Promise<void> {
   useEvents.setState({ currentTournamentId: null });
   usePlay.setState({ phase: 'waitingForGame', error: null, deckId: null, returnPath: leaguePath(format) });
   try {
-    const match = await api.leaguePlay(format, deckId);
+    const match = pod ? await api.leaguePlay(format, deckId, true) : await api.leaguePlay(format, deckId);
     warmMatch(match);
     const tableId = match?.tableId ?? null;
     usePlay.setState({ tableId, returnPath: rewardsPath(tableId, true, leaguePath(format, tableId)) });

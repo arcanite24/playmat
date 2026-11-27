@@ -1,0 +1,45 @@
+{
+  "$comment": "Cosmetics of the Pauper Heroes set (Legends Showcase capsule machine), written by art/machine-specs.mjs from career/machines/legends-showcase.json: edit that file and re-run, not this one.",
+  "out": "public/career-art/cardstyle/pauper-hero",
+  "house": false,
+  "panels": true,
+  "grid": {
+    "cols": 4,
+    "rows": 2,
+    "canvas": "landscape"
+  },
+  "size": "640x894",
+  "anchors": [],
+  "refs": [],
+  "style": "gritty painterly fantasy illustration in weathered coastal blues, warm torchlight ochre, and expressive oil brushwork",
+  "rules": "These are full-art pictures for playing cards: the client draws a small name plate over the top edge, mana symbols at the top right and power and toughness at the bottom right, so keep the main subject in the middle of the panel and the top 15% and bottom 15% calm and uncluttered (sky, ground, water, background texture), with nothing important in the corners. Each panel shows its own subject as one clear, readable scene, the same style and palette as its neighbours, as if the whole row were a matched, limited-edition art series.",
+  "spare": "an extra painting in the same style: a colossal abyssal sea serpent coiling around sunken academy arches under storm surf",
+  "items": [
+    {
+      "id": "tolarian-terror",
+      "subject": "a colossal abyssal sea serpent coiling around sunken academy arches under storm surf"
+    },
+    {
+      "id": "gurmag-angler",
+      "subject": "a bioluminescent swamp leviathan rising from misty black water beside gnarled roots"
+    },
+    {
+      "id": "kor-skyfisher",
+      "subject": "an agile sky scout leaping between cliff ledges on braided ropes with hooked steel"
+    },
+    {
+      "id": "mulldrifter",
+      "subject": "a luminous drifting river elemental with translucent fin-wings gliding over twilight reeds"
+    },
+    {
+      "id": "gray-merchant-of-asphodel",
+      "subject": "a masked underworld ferryman carrying a glowing brass censer across still gray water"
+    },
+    {
+      "id": "set-pauper-hero",
+      "out": "public/career-art/sleeve/set-pauper-hero.webp",
+      "size": "540x756",
+      "subject": "the BACK of a playing card in the same style: a symmetrical ornamental design (it is seen upside down too) with a central emblem drawn from this set's theme, framed by a painted border; no logo, no oval, no five dots, no lettering"
+    }
+  ]
+}

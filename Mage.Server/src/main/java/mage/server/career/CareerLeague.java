@@ -80,8 +80,13 @@ public final class CareerLeague {
 
     static final class FormatConfig {
         List<String> starters = new ArrayList<>();
+        int starterCount;
         int packs;
         boolean mixed;
+
+        int requiredStarters() {
+            return starterCount > 0 ? starterCount : STARTERS;
+        }
     }
 
     // ---- views
@@ -102,8 +107,10 @@ public final class CareerLeague {
         /** pack tokens of this format */
         public int tokens;
         public int decks;
-        /** the starters to pick two of, while not started */
+        /** the starters to pick from, while not started */
         public List<LeagueStarter> starters;
+        /** how many starters must be picked to begin this format's League (1 for Commander, 2 for 60-card) */
+        public int starterCount;
         public int startPacks;
         public boolean mixed;
     }
@@ -277,6 +284,7 @@ public final class CareerLeague {
             f.started = started.containsKey(format);
             f.tokens = store.leagueTokens(user, format);
             f.decks = deckCounts.getOrDefault(format, 0);
+            f.starterCount = config.requiredStarters();
             f.startPacks = config.packs;
             f.mixed = config.mixed;
             if (!f.started) {
@@ -308,7 +316,7 @@ public final class CareerLeague {
                 starter.id = file;
                 starter.name = deck.getName() == null || deck.getName().isEmpty() ? file : deck.getName();
                 starter.colors = colors(file);
-                starter.cards = mainCount(deck);
+                starter.cards = ("commander".equals(format) || "brawl".equals(format)) ? totalCount(deck) : mainCount(deck);
                 out.add(starter);
             } catch (IOException e) {
                 logger.warn("League: starter " + file + " can't be read", e);
@@ -334,17 +342,31 @@ public final class CareerLeague {
         return n;
     }
 
+    static int totalCount(DeckCardLists deck) {
+        int n = mainCount(deck);
+        for (DeckCardInfo info : deck.getSideboard()) {
+            n += info.getAmount();
+        }
+        return n;
+    }
+
+    public int requiredStarters(String format) {
+        FormatConfig cfg = config.formats.get(format);
+        return cfg == null ? STARTERS : cfg.requiredStarters();
+    }
+
     /**
-     * Starts the account's League in a format with two of its starters: their cards join the collection (up to a
-     * playset of each name; nothing past it turns into coins or wildcards), each becomes a League deck, the format's
-     * packs are added and, with the account's first League, the starting wildcards. All of it in one transaction, once
-     * per format.
+     * Starts the account's League in a format with its required starter decks (1 for Commander, 2 for 60-card):
+     * their cards join the collection (up to a playset of each name; nothing past it turns into coins or wildcards),
+     * each becomes a League deck, the format's packs are added and, with the account's first League, the starting
+     * wildcards. All of it in one transaction, once per format.
      */
     public LeagueStart start(String user, String format, List<String> starterIds) throws SQLException, CareerService.CareerException {
         FormatConfig config = formatConfig(format);
+        int need = config.requiredStarters();
         Set<String> picked = new HashSet<>(starterIds == null ? Collections.<String>emptyList() : starterIds);
-        if (picked.size() != STARTERS || !config.starters.containsAll(picked)) {
-            throw new CareerService.CareerException("Pick two of the " + name(format) + " starter decks.");
+        if (picked.size() != need || !config.starters.containsAll(picked)) {
+            throw new CareerService.CareerException("Pick " + (need == 1 ? "one" : "two") + " of the " + name(format) + " starter decks.");
         }
         List<String> ordered = config.starters.stream().filter(picked::contains).collect(Collectors.toList());
         Map<String, DeckCardLists> decks = new LinkedHashMap<>();
@@ -415,17 +437,28 @@ public final class CareerLeague {
     /** the sets a format's League opens packs of: released expansions and core sets with packs that the format allows */
     public List<LeagueSet> sets(String format) throws CareerService.CareerException {
         FormatConfig config = formatConfig(format);
-        Set<String> legal = new HashSet<>(legalSets(format));
+        boolean eternalCommander = "commander".equals(format);
+        Set<String> legal = eternalCommander ? Collections.emptySet() : new HashSet<>(legalSets(format));
+        boolean allSets = eternalCommander || legal.isEmpty();
+        List<LeagueSet> priority = new ArrayList<>();
         List<LeagueSet> out = new ArrayList<>();
         for (CareerService.CareerShopSet offer : CareerService.get().shop()) {
-            if (legal.contains(offer.setCode)) {
+            if (allSets || legal.contains(offer.setCode)) {
                 LeagueSet set = new LeagueSet();
                 set.setCode = offer.setCode;
                 set.name = offer.name;
                 set.releaseDate = offer.releaseDate;
                 set.cover = offer.cover;
-                out.add(set);
+                if (eternalCommander && ("commander".equals(offer.category) || "masters".equals(offer.category))) {
+                    priority.add(set);
+                } else {
+                    out.add(set);
+                }
             }
+        }
+        if (!priority.isEmpty()) {
+            priority.addAll(out);
+            out = priority;
         }
         if (config.mixed && out.size() > 1) {
             LeagueSet mixed = new LeagueSet();
@@ -610,7 +643,7 @@ public final class CareerLeague {
         if (view.deck == null) {
             view.deck = new DeckCardLists();
         }
-        view.cards = mainCount(view.deck);
+        view.cards = ("commander".equals(row.format) || "brawl".equals(row.format)) ? totalCount(view.deck) : mainCount(view.deck);
         view.missing = CareerService.get().ownershipProblems(user, view.deck);
         view.craft = craftPlan(user, view.deck, CareerStore.get().profile(user));
         try {

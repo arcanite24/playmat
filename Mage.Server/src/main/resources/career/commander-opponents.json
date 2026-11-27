@@ -1,0 +1,535 @@
+{
+  "tiers": [
+    {
+      "tier": 1,
+      "name": "Kitchen Table",
+      "skill": 2,
+      "badge": "Table Regular"
+    },
+    {
+      "tier": 2,
+      "name": "Game Night Pods",
+      "skill": 3,
+      "badge": "Pod Tactician"
+    },
+    {
+      "tier": 3,
+      "name": "Store Champions",
+      "skill": 4,
+      "badge": "Command Adept"
+    },
+    {
+      "tier": 4,
+      "name": "Elder Dragons",
+      "skill": 6,
+      "badge": "Elder Strategist"
+    },
+    {
+      "tier": 5,
+      "name": "Arch-Commanders",
+      "skill": 7,
+      "badge": "Arch-Commander"
+    }
+  ],
+  "opponents": [
+    {
+      "id": "cmdr-ghalta",
+      "name": "Bram & Ghalta",
+      "tier": 1,
+      "colors": "G",
+      "deck": "meta:commander/starter.dck",
+      "tagline": "Honest mono-green ramp leading into a 12/12 trampling dinosaur.",
+      "measured": 62,
+      "cover": {
+        "name": "Ghalta, Primal Hunger",
+        "setCode": "FDN",
+        "cardNumber": "222"
+      },
+      "personality": {
+        "aggression": 45,
+        "risk": 20,
+        "patience": -10
+      }
+    },
+    {
+      "id": "cmdr-tin-street",
+      "name": "Rix & Krenko",
+      "tier": 1,
+      "colors": "R",
+      "deck": "meta:commander/act1-goblins.dck",
+      "tagline": "Swarms the table with hasty goblins every combat step.",
+      "measured": 58,
+      "cover": {
+        "name": "Krenko, Tin Street Kingpin",
+        "setCode": "WAR",
+        "cardNumber": "137"
+      },
+      "personality": {
+        "aggression": 60,
+        "risk": 35,
+        "patience": -20
+      }
+    },
+    {
+      "id": "cmdr-karlov",
+      "name": "Orin & Karlov",
+      "tier": 1,
+      "colors": "WB",
+      "deck": "meta:commander/act1-lifegain.dck",
+      "tagline": "Slow, steady lifegain that turns Karlov into a removal engine.",
+      "measured": 55,
+      "cover": {
+        "name": "Karlov of the Ghost Council",
+        "setCode": "RVR",
+        "cardNumber": "193"
+      },
+      "personality": {
+        "aggression": -10,
+        "risk": -15,
+        "patience": 45
+      }
+    },
+    {
+      "id": "cmdr-judith",
+      "name": "Syra & Judith",
+      "tier": 1,
+      "colors": "BR",
+      "deck": "meta:commander/act1-rakdos.dck",
+      "tagline": "Pings down blockers whenever her creatures hit the graveyard.",
+      "measured": 54,
+      "cover": {
+        "name": "Judith, the Scourge Diva",
+        "setCode": "RNA",
+        "cardNumber": "185"
+      },
+      "personality": {
+        "aggression": 35,
+        "risk": 40,
+        "patience": 0
+      }
+    },
+    {
+      "id": "cmdr-pod-tribal",
+      "name": "The Tribal Table",
+      "tier": 2,
+      "colors": "WRG",
+      "deck": "meta:commander/act2-humans.dck",
+      "podDecks": [
+        "meta:commander/act2-humans.dck",
+        "meta:commander/act1-goblins.dck",
+        "meta:commander/act2-dragons.dck"
+      ],
+      "podNames": [
+        "Adeline's Vanguard",
+        "Tin Street Mob",
+        "Lathliss's Brood"
+      ],
+      "tagline": "4-Player Pod: Humans, Goblins, and Dragons collide in a creature brawl.",
+      "measured": 52,
+      "cover": {
+        "name": "Adeline, Resplendent Cathar",
+        "setCode": "MID",
+        "cardNumber": "1"
+      }
+    },
+    {
+      "id": "cmdr-pod-graveyard",
+      "name": "The Graveyard Shift",
+      "tier": 2,
+      "colors": "WBG",
+      "deck": "meta:commander/act2-midrange.dck",
+      "podDecks": [
+        "meta:commander/act2-midrange.dck",
+        "meta:commander/act1-rakdos.dck",
+        "meta:commander/act1-lifegain.dck"
+      ],
+      "podNames": [
+        "Meren of Nel Toth",
+        "Judith's Encore",
+        "Karlov's Ledger"
+      ],
+      "tagline": "4-Player Pod: Recursion, sacrifice triggers, and ghostly attrition.",
+      "measured": 50,
+      "cover": {
+        "name": "Meren of Clan Nel Toth",
+        "setCode": "TDC",
+        "cardNumber": "297"
+      }
+    },
+    {
+      "id": "cmdr-pod-combat",
+      "name": "The Voltron Arena",
+      "tier": 2,
+      "colors": "WRG",
+      "deck": "meta:commander/act2-voltron.dck",
+      "podDecks": [
+        "meta:commander/act2-voltron.dck",
+        "meta:commander/act2-gruul.dck",
+        "meta:commander/act2-boros.dck"
+      ],
+      "podNames": [
+        "Wyleth's Armory",
+        "Xenagos's Revel",
+        "Aurelia's Legion"
+      ],
+      "tagline": "4-Player Pod: Watch your commander damage as three combat masters swing big.",
+      "measured": 48,
+      "cover": {
+        "name": "Wyleth, Soul of Steel",
+        "setCode": "CMR",
+        "cardNumber": "362"
+      }
+    },
+    {
+      "id": "cmdr-pod-court",
+      "name": "The Monarch's Court",
+      "tier": 2,
+      "colors": "WUBR",
+      "deck": "meta:commander/signature.dck",
+      "podDecks": [
+        "meta:commander/signature.dck",
+        "meta:commander/act2-control.dck",
+        "meta:commander/act2-combo.dck"
+      ],
+      "podNames": [
+        "Queen Marchesa",
+        "Oloro the Ascetic",
+        "Niv-Mizzet"
+      ],
+      "tagline": "4-Player Pod: Fight for the crown against cunning control and spellslinger mages.",
+      "measured": 47,
+      "cover": {
+        "name": "Queen Marchesa",
+        "setCode": "OTC",
+        "cardNumber": "239"
+      }
+    },
+    {
+      "id": "cmdr-giada",
+      "name": "Seraphina & Giada",
+      "tier": 3,
+      "colors": "W",
+      "deck": "meta:commander/meta-giada.dck",
+      "tagline": "An airborne choir of ever-growing Angels.",
+      "measured": 46,
+      "cover": {
+        "name": "Giada, Font of Hope",
+        "setCode": "FDN",
+        "cardNumber": "141"
+      },
+      "personality": {
+        "aggression": 25,
+        "risk": -10,
+        "patience": 30
+      }
+    },
+    {
+      "id": "cmdr-hakbal",
+      "name": "Thalassa & Hakbal",
+      "tier": 3,
+      "colors": "UG",
+      "deck": "meta:commander/meta-hakbal.dck",
+      "tagline": "Relentless Merfolk exploration that buries you in lands and counters.",
+      "measured": 45,
+      "cover": {
+        "name": "Hakbal of the Surging Soul",
+        "setCode": "LCC",
+        "cardNumber": "3"
+      },
+      "personality": {
+        "aggression": 35,
+        "risk": 10,
+        "patience": 20
+      }
+    },
+    {
+      "id": "cmdr-pantlaza",
+      "name": "Huatzin & Pantlaza",
+      "tier": 3,
+      "colors": "WRG",
+      "deck": "meta:commander/meta-pantlaza.dck",
+      "tagline": "Cascading Dinosaur value turn after turn.",
+      "measured": 44,
+      "cover": {
+        "name": "Pantlaza, Sun-Favored",
+        "setCode": "LCC",
+        "cardNumber": "4"
+      },
+      "personality": {
+        "aggression": 45,
+        "risk": 25,
+        "patience": 0
+      }
+    },
+    {
+      "id": "cmdr-rival-1",
+      "name": "Vaelor's First Brood",
+      "tier": 3,
+      "colors": "URG",
+      "deck": "meta:commander/act3-dragons.dck",
+      "tagline": "Your Commander rival enters the store championship piloting Miirym.",
+      "measured": 42,
+      "cover": {
+        "name": "Miirym, Sentinel Wyrm",
+        "setCode": "CLB",
+        "cardNumber": "284"
+      },
+      "rival": {
+        "chapter": 1,
+        "before": "I upgraded my precon for tonight. Let's see if your 99 can survive twin dragons.",
+        "after": "Good match. Next time we meet at the Elder table, I'm bringing the full hoard."
+      }
+    },
+    {
+      "id": "cmdr-pod-aristocrats",
+      "name": "The Blood Pact Pod",
+      "tier": 4,
+      "colors": "WBRG",
+      "deck": "meta:commander/meta-korvold.dck",
+      "podDecks": [
+        "meta:commander/meta-korvold.dck",
+        "meta:commander/meta-chatterfang.dck",
+        "meta:commander/meta-sephiroth.dck"
+      ],
+      "podNames": [
+        "Korvold, Fae-Cursed",
+        "Chatterfang's Swarm",
+        "Sephiroth's Cult"
+      ],
+      "tagline": "4-Player Pod: Three cutthroat sacrifice engines racing to drain the table.",
+      "measured": 38,
+      "cover": {
+        "name": "Korvold, Fae-Cursed King",
+        "setCode": "ELD",
+        "cardNumber": "329"
+      }
+    },
+    {
+      "id": "cmdr-pod-warlords",
+      "name": "The Crimson Conclave",
+      "tier": 4,
+      "colors": "WBR",
+      "deck": "meta:commander/meta-edgar.dck",
+      "podDecks": [
+        "meta:commander/meta-edgar.dck",
+        "meta:commander/meta-kaalia.dck",
+        "meta:commander/meta-isshin.dck"
+      ],
+      "podNames": [
+        "Edgar Markov",
+        "Kaalia of the Vast",
+        "Isshin Two-Blades"
+      ],
+      "tagline": "4-Player Pod: Mardu combat royalty throwing haymakers every turn.",
+      "measured": 37,
+      "cover": {
+        "name": "Edgar Markov",
+        "setCode": "INR",
+        "cardNumber": "234"
+      }
+    },
+    {
+      "id": "cmdr-pod-swarm",
+      "name": "The Overgrowth Pod",
+      "tier": 4,
+      "colors": "WRBG",
+      "deck": "meta:commander/meta-lathril.dck",
+      "podDecks": [
+        "meta:commander/meta-lathril.dck",
+        "meta:commander/meta-krenko.dck",
+        "meta:commander/act3-tokens.dck"
+      ],
+      "podNames": [
+        "Lathril's Elves",
+        "Krenko's Mob",
+        "Jetmir's Carnival"
+      ],
+      "tagline": "4-Player Pod: Pack your board wipes \u2014 hundreds of tokens are coming.",
+      "measured": 36,
+      "cover": {
+        "name": "Lathril, Blade of the Elves",
+        "setCode": "FDN",
+        "cardNumber": "242"
+      }
+    },
+    {
+      "id": "cmdr-rival-2",
+      "name": "Vaelor's High Table",
+      "tier": 4,
+      "colors": "WUBG",
+      "deck": "meta:commander/meta-yshtola.dck",
+      "podDecks": [
+        "meta:commander/meta-yshtola.dck",
+        "meta:commander/meta-kinnan.dck",
+        "meta:commander/meta-cloud.dck"
+      ],
+      "podNames": [
+        "Vaelor & Y'shtola",
+        "Kinnan Prodigy",
+        "Cloud Strife"
+      ],
+      "tagline": "Rival Pod: Outlast Vaelor and two store legends at the high-power table.",
+      "measured": 35,
+      "cover": {
+        "name": "Y'shtola, Night's Blessed",
+        "setCode": "FIC",
+        "cardNumber": "191"
+      },
+      "rival": {
+        "chapter": 2,
+        "before": "One-on-one wasn't enough. Win this four-player pod and we'll settle things at the summit.",
+        "after": "You read the whole table like a book. One last match awaits \u2014 bring your strongest list."
+      }
+    },
+    {
+      "id": "cmdr-pod-apex",
+      "name": "The Apex Table",
+      "tier": 5,
+      "colors": "WUBRG",
+      "deck": "meta:commander/meta-kinnan.dck",
+      "podDecks": [
+        "meta:commander/meta-kinnan.dck",
+        "meta:commander/meta-yuriko.dck",
+        "meta:commander/meta-korvold.dck"
+      ],
+      "podNames": [
+        "Kinnan Prodigy",
+        "Yuriko Shadow",
+        "Korvold King"
+      ],
+      "tagline": "4-Player Pod: The deadliest high-power commanders at the table together.",
+      "measured": 30,
+      "cover": {
+        "name": "Kinnan, Bonder Prodigy",
+        "setCode": "IKO",
+        "cardNumber": "192"
+      }
+    },
+    {
+      "id": "cmdr-rival-3",
+      "name": "Vaelor, Arch-Commander",
+      "tier": 5,
+      "colors": "WUBRG",
+      "deck": "meta:commander/meta-ur-dragon.dck",
+      "tagline": "Rival Finale: Face Vaelor's five-color Ur-Dragon list for the crown.",
+      "measured": 28,
+      "cover": {
+        "name": "The Ur-Dragon",
+        "setCode": "PF25",
+        "cardNumber": "15"
+      },
+      "rival": {
+        "chapter": 3,
+        "before": "Every game led here. Five colors, ancient wings \u2014 show me your masterpiece.",
+        "after": "The table is yours, Arch-Commander. Nobody pilots a hundred cards better."
+      }
+    },
+    {
+      "id": "cmdr-raid-ur-dragon",
+      "name": "Raid: The Ur-Dragon's Roost",
+      "tier": 5,
+      "colors": "WUBRG",
+      "deck": "meta:commander/meta-ur-dragon.dck",
+      "raid": true,
+      "tagline": "Commander Raid Boss: Starts at 120 life and summons reinforcements as its health falls.",
+      "measured": 25,
+      "cover": {
+        "name": "The Ur-Dragon",
+        "setCode": "PF25",
+        "cardNumber": "15"
+      },
+      "twists": {
+        "lifeBonus": 80,
+        "phases": [
+          {
+            "atLife": 80,
+            "say": "The Ur-Dragon roars \u2014 wings darken the sky!",
+            "tokens": [
+              {
+                "name": "Dragon",
+                "power": 4,
+                "toughness": 4,
+                "colors": "R",
+                "count": 2,
+                "abilities": [
+                  "flying"
+                ]
+              }
+            ]
+          },
+          {
+            "atLife": 40,
+            "say": "Ancient dragonfire erupts across the battlefield!",
+            "draw": 3,
+            "tokens": [
+              {
+                "name": "Dragon",
+                "power": 5,
+                "toughness": 5,
+                "colors": "R",
+                "count": 2,
+                "abilities": [
+                  "flying",
+                  "haste"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "cmdr-raid-yuriko",
+      "name": "Raid: Shadow of the Spire",
+      "tier": 5,
+      "colors": "UB",
+      "deck": "meta:commander/meta-yuriko.dck",
+      "raid": true,
+      "tagline": "Commander Raid Boss: 120-life Yuriko ambush with phased ninja strikes.",
+      "measured": 24,
+      "cover": {
+        "name": "Yuriko, the Tiger's Shadow",
+        "setCode": "FCA",
+        "cardNumber": "60"
+      },
+      "twists": {
+        "lifeBonus": 80,
+        "phases": [
+          {
+            "atLife": 80,
+            "say": "Shadows slip behind your defenses.",
+            "tokens": [
+              {
+                "name": "Ninja",
+                "power": 2,
+                "toughness": 2,
+                "colors": "UB",
+                "count": 3,
+                "abilities": [
+                  "unblockable"
+                ]
+              }
+            ]
+          },
+          {
+            "atLife": 40,
+            "say": "The Spire's assassins strike in unison!",
+            "draw": 3,
+            "tokens": [
+              {
+                "name": "Assassin",
+                "power": 3,
+                "toughness": 3,
+                "colors": "B",
+                "count": 3,
+                "abilities": [
+                  "deathtouch"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

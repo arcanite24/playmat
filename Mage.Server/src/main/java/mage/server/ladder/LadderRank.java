@@ -113,4 +113,40 @@ public final class LadderRank {
         }
         return new Move(step, 0, 0, false);
     }
+
+    /**
+     * Placement-based rank movement for 4-player Commander Pods:
+     * <ul>
+     *   <li>1st place: +2 pips (builds streak, +3 on 3+ streak through Gold)</li>
+     *   <li>2nd place: +1 pip in Bronze–Gold, protected (+0) in Platinum–Mythic</li>
+     *   <li>3rd place: protected (+0) in Bronze–Gold, -1 pip (respecting rank floor) in Platinum–Diamond</li>
+     *   <li>4th place: -1 pip in Silver+ (respecting tier/rank floors; Bronze and Mythic never drop)</li>
+     * </ul>
+     */
+    public static Move afterPod(int step, int streak, int placement) {
+        int rank = rank(step);
+        if (placement <= 1) {
+            int nextStreak = streak + 1;
+            boolean bonus = nextStreak >= STREAK && rank <= LAST_STREAK_RANK;
+            int gain = bonus ? 3 : 2;
+            int next = Math.min(MYTHIC_STEP, step + gain);
+            return new Move(next, nextStreak, next - step, bonus);
+        }
+        if (placement == 2) {
+            if (rank <= LAST_STREAK_RANK) {
+                int next = Math.min(MYTHIC_STEP, step + 1);
+                return new Move(next, streak, next - step, false);
+            }
+            return new Move(step, 0, 0, false);
+        }
+        if (placement == 3) {
+            if (rank <= LAST_STREAK_RANK || step >= MYTHIC_STEP) {
+                return new Move(step, 0, 0, false);
+            }
+            int rankFloor = rank * RANK_STEPS;
+            int next = Math.max(rankFloor, step - 1);
+            return new Move(next, 0, next - step, false);
+        }
+        return after(step, 0, 0.0);
+    }
 }
