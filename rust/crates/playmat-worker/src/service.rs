@@ -186,16 +186,27 @@ pub fn install(opts: &ServiceOpts) -> Result<String, String> {
     }
     #[cfg(target_os = "windows")]
     {
+        // Windows `schtasks /TR` rejects commands longer than 261 characters, so write a small `.cmd` launcher beside the binary.
+        let base_dir = opts.exe.parent().ok_or("executable has no parent directory")?;
+        let cmd_path = base_dir.join("run-worker.cmd");
+        let log_path = base_dir.join("worker.log");
         let tr = render_windows_task_tr(opts);
+        let script = format!("@echo off\r\n{tr} >> \"{}\" 2>&1\r\n", log_path.display());
+        std::fs::write(&cmd_path, script).map_err(|e| format!("write {}: {e}", cmd_path.display()))?;
+        let launcher = format!("\"{}\"", cmd_path.display());
         let st = Command::new("schtasks")
-            .args(["/Create", "/F", "/SC", "ONLOGON", "/TN", "ManaAtHomeWorker", "/TR", &tr])
+            .args(["/Create", "/F", "/SC", "ONLOGON", "/TN", "ManaAtHomeWorker", "/TR", &launcher])
             .status()
             .map_err(|e| format!("schtasks /Create: {e}"))?;
         if !st.success() {
             return Err(format!("schtasks /Create failed ({st})"));
         }
         let _ = Command::new("schtasks").args(["/Run", "/TN", "ManaAtHomeWorker"]).status();
-        Ok("installed and started Windows Scheduled Task ManaAtHomeWorker".into())
+        Ok(format!(
+            "installed and started Windows Scheduled Task ManaAtHomeWorker via {} (logs: {})",
+            cmd_path.display(),
+            log_path.display()
+        ))
     }
     #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
     {
