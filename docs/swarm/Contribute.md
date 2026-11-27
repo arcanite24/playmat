@@ -32,20 +32,38 @@ docker run -d --name mana --restart unless-stopped --cpus 4 \
   ghcr.io/arcanite24/mana-worker:latest
 ```
 
-### Option B: Desktop control panel (`playmat-worker ui`)
+### Option B: Prebuilt desktop worker (`playmat-worker ui` + background service)
 
-Build the strict worker (or download a prebuilt binary from the `Mana@Home worker releases` workflow) and launch the
-built-in local web panel on `http://127.0.0.1:17195`:
+Download a signed strict binary (Linux, macOS, Windows) from the standalone client releases at
+`https://github.com/arcanite24/mana-at-home/releases/latest` (or build from source with
+`cargo build --release -p playmat-worker --features strict`) and launch the built-in local control panel on
+`http://127.0.0.1:17195`:
 
 ```bash
-cargo build --release -p playmat-worker --features strict
-./rust/target/release/playmat-worker ui \
+./playmat-worker ui \
   --coordinator https://mana.deimos.studio \
   --name my-desktop \
   --token-file ~/.config/mana/worker.token \
   --jobs 4 \
-  --when idle
+  --when idle \
+  --auto-update
 ```
+
+To install it as a user background service (macOS LaunchAgent, Linux systemd user unit, or Windows Scheduled Task):
+
+```bash
+./playmat-worker install-service \
+  --coordinator https://mana.deimos.studio \
+  --name my-desktop \
+  --token-file ~/.config/mana/worker.token \
+  --jobs 4 \
+  --when idle \
+  --ui \
+  --auto-update
+```
+
+Verify or apply signed updates manually at any time with `./playmat-worker self-update` (checks the Ed25519 signature on
+`SHA256SUMS.txt` and the binary's SHA-256 before replacing the executable).
 
 The local panel binds strictly to loopback (`127.0.0.1`) and lets you pause/resume, change CPU thread count, toggle
 idle-only scheduling, and follow worker activity.
