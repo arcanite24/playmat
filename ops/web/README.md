@@ -64,25 +64,6 @@ docker compose -f ops/web/docker-compose.yml -f ops/web/docker-compose.proxy.yml
 - A proxy on the host itself, not in Docker (a distro nginx): skip the network and proxy to Caddy's address on the compose network, `http://10.89.17.10:80` (`CADDY_IP`; Linux only). Use the override anyway, or 80/443 stay published.
 - **Plain HTTP without a TLS proxy in front** (a private LAN or Tailscale-only server): set `TLS_MODE=external` and `HTTP_PORT` (for example `8088`) without `docker-compose.proxy.yml`, and set `XMAGE_ALLOWED_ORIGINS` (and `XMAGE_PUBLIC_URL` if needed) to the `http://` origin players open (e.g. `http://myserver.local:8088`). The published `web` image defaults its game connection to `ws://<page host>/ws` on the same origin, which Caddy proxies to the server.
 
-### Reverse proxy on another host (external-host)
-
-Use this mode when your reverse proxy runs on another machine and reaches Playmat over the LAN. where shared Docker network is needed.
-
-Set these values in `ops/web/.env`:
-
-    DOMAIN=play.example.com
-    TLS_MODE=external-host
-    HTTP_PORT=8088
-    UPSTREAM_PROXIES=192.0.2.23/32  # replace with your proxy source IP
-
-Start Playmat with the external-host override:
-
-    docker compose -f ops/web/docker-compose.yml -f ops/web/docker-compose.external-host.yml --env-file ops/web/.env up -d
-
-The override publishes only HTTP_PORT to container port 80. Caddy serves plain HTTP; your reverse proxy holds the public certificate and forwards requests to http://PLAYMAT_HOST:8088. Allow WebSocket upgrades on /ws and use a long read timeout. Restrict the published port to the proxy IP in your host firewall, and set UPSTREAM_PROXIES to that proxy's exact IP or CIDR.
-
-Keep TLS_MODE=external-host in .env so the Update and image-based deploy select this override.
-
 **Traefik.** The override's labels route `Host(DOMAIN)` on `TRAEFIK_ENTRYPOINT` (default `websecure`) with the certificate resolver `TRAEFIK_CERTRESOLVER` (empty: Traefik's default certificate) to port 80:
 
 ```bash
@@ -138,6 +119,29 @@ play.example.com {
 ```
 
 Check it from any container on the proxy network: `curl -H 'Host: play.example.com' http://playmat/` returns the client's page.
+
+### Reverse proxy on another host (external-host)
+
+Use this mode when your reverse proxy runs on another machine and reaches Playmat over the LAN, where no shared Docker network is available.
+
+Set these values in `ops/web/.env`:
+
+```bash
+DOMAIN=play.example.com
+TLS_MODE=external-host
+HTTP_PORT=8088
+UPSTREAM_PROXIES=192.0.2.23/32  # replace with your proxy source IP
+```
+
+Start Playmat with the external-host override (requires Compose 2.24 or later for `ports: !override`):
+
+```bash
+docker compose -f ops/web/docker-compose.yml -f ops/web/docker-compose.external-host.yml --env-file ops/web/.env up -d
+```
+
+[`docker-compose.external-host.yml`](docker-compose.external-host.yml) publishes only `HTTP_PORT` to container port 80. Caddy serves plain HTTP; your reverse proxy holds the public certificate and forwards requests to `http://PLAYMAT_HOST:8088`. Allow WebSocket upgrades on `/ws` and use a long read timeout. Restrict the published port to the proxy IP in your host firewall, and set `UPSTREAM_PROXIES` to that proxy's exact IP or CIDR.
+
+Keep `TLS_MODE=external-host` in `.env` so the [Update button](#update-button) and the [image-based deploy](deploy/) select this override.
 
 ### Next to Caddy's own HTTPS (PROXIED_HOST)
 
