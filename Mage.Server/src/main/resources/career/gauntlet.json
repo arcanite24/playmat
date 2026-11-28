@@ -60,7 +60,32 @@
   {
    "name": "Rust and Ruin",
    "deck": "blue-1.dck",
+   "skill": 1
+  },
+  {
+   "name": "Thornwood Scout",
+   "deck": "green-1.dck",
+   "skill": 1
+  },
+  {
+   "name": "Cinder Raider",
+   "deck": "red-1.dck",
    "skill": 2
+  },
+  {
+   "name": "Graveyard Stalker",
+   "deck": "black-1.dck",
+   "skill": 2
+  },
+  {
+   "name": "Sunblade Initiate",
+   "deck": "white-2.dck",
+   "skill": 2
+  },
+  {
+   "name": "Tidepool Scholar",
+   "deck": "blue-2.dck",
+   "skill": 3
   },
   {
    "name": "The Howling Pack",
@@ -76,14 +101,49 @@
    }
   },
   {
-   "name": "The Tidecaller",
-   "deck": "green-1.dck",
+   "name": "Briar Warden",
+   "deck": "green-2.dck",
+   "skill": 3
+  },
+  {
+   "name": "Cinderheart Berserker",
+   "deck": "red-2.dck",
    "skill": 4
+  },
+  {
+   "name": "Blight Herald",
+   "deck": "black-2.dck",
+   "skill": 4
+  },
+  {
+   "name": "The Tidecaller",
+   "deck": "blue-3.dck",
+   "skill": 4
+  },
+  {
+   "name": "Bastion Captain",
+   "deck": "white-3.dck",
+   "skill": 4
+  },
+  {
+   "name": "Canopy Behemoth",
+   "deck": "green-3.dck",
+   "skill": 5
   },
   {
    "name": "Ember Twins",
    "deck": "black-4.dck",
    "skill": 5
+  },
+  {
+   "name": "Tempest Arcanist",
+   "deck": "blue-4.dck",
+   "skill": 5
+  },
+  {
+   "name": "Valkyrie Vanguard",
+   "deck": "white-4.dck",
+   "skill": 6
   },
   {
    "name": "The Pale Lord",
@@ -221,6 +281,174 @@
    "name": "Field Bandages",
    "text": "Elites leave no wound.",
    "run": "bandages"
+  },
+  {
+   "id": "arcane-signet",
+   "name": "Arcane Signet",
+   "text": "Start each fight with an Arcane Signet in play.",
+   "you": {
+    "permanents": [
+     "Arcane Signet"
+    ]
+   }
+  },
+  {
+   "id": "command-beacon",
+   "name": "Command Tower Shard",
+   "text": "Start each fight with a Command Tower in play.",
+   "you": {
+    "permanents": [
+     "Command Tower"
+    ]
+   }
+  },
+  {
+   "id": "swiftfoot-boots",
+   "name": "Swiftfoot Boots",
+   "text": "Start each fight with Swiftfoot Boots in play.",
+   "you": {
+    "permanents": [
+     "Swiftfoot Boots"
+    ]
+   }
+  },
+  {
+   "id": "elvish-boon",
+   "name": "Elvish Mystic's Boon",
+   "text": "Start each fight with Llanowar Elves in play.",
+   "you": {
+    "permanents": [
+     "Llanowar Elves"
+    ]
+   }
+  },
+  {
+   "id": "chromatic-lantern",
+   "name": "Dragon's Lantern",
+   "text": "Start each fight with a Chromatic Lantern in play.",
+   "you": {
+    "permanents": [
+     "Chromatic Lantern"
+    ]
+   }
+  },
+  {
+   "id": "soul-bell",
+   "name": "Soul Warden's Bell",
+   "text": "Start each fight with a Soul Warden in play.",
+   "you": {
+    "permanents": [
+     "Soul Warden"
+    ]
+   }
+  },
+  {
+   "id": "heros-blade",
+   "name": "Hero's Blade",
+   "text": "Start each fight with Hero's Blade in play.",
+   "you": {
+    "permanents": [
+     "Hero's Blade"
+    ]
+   }
+  },
+  {
+   "id": "goblin-horn",
+   "name": "Goblin War Horn",
+   "text": "Your creatures deal 1 damage to each opponent on entry (an Impact Tremors emblem).",
+   "you": {
+    "emblem": "Impact Tremors"
+   }
+  },
+  {
+   "id": "intangible-crest",
+   "name": "Crest of the Swarm",
+   "text": "Your creature tokens get +1/+1 and vigilance (an Intangible Virtue emblem).",
+   "you": {
+    "emblem": "Intangible Virtue"
+   }
+  },
+  {
+   "id": "primal-uprising",
+   "name": "Primal Uprising",
+   "text": "Your creatures have trample and big creatures draw cards (a Garruk's Uprising emblem).",
+   "you": {
+    "emblem": "Garruk's Uprising"
+   }
+  },
+  {
+   "id": "rhystic-tome",
+   "name": "Rhystic Tome",
+   "text": "Draw an extra card on turn 3 and turn 6.",
+   "you": {
+    "timed": [
+     {
+      "when": "turn",
+      "turn": 3,
+      "who": "you",
+      "then": {
+       "extraCards": 1
+      },
+      "message": "Rhystic Tome: draw a card."
+     },
+     {
+      "when": "turn",
+      "turn": 6,
+      "who": "you",
+      "then": {
+       "extraCards": 1
+      },
+      "message": "Rhystic Tome: draw a card."
+     }
+    ]
+   }
+  },
+  {
+   "id": "vampiric-pact",
+   "name": "Vampiric Pact",
+   "text": "Start with 5 less life, but draw 2 extra cards.",
+   "you": {
+    "lifeBonus": -5,
+    "extraCards": 2
+   }
+  },
+  {
+   "id": "aegis-table",
+   "name": "Aegis of the Spire",
+   "text": "Start each fight with 6 more life.",
+   "you": {
+    "lifeBonus": 6
+   }
+  },
+  {
+   "id": "blood-chalice",
+   "name": "Blood Artist's Chalice",
+   "text": "Every opponent starts with 5 less life; you start with 2 less life.",
+   "you": {
+    "lifeBonus": -2
+   },
+   "opponent": {
+    "lifeBonus": -5
+   }
+  },
+  {
+   "id": "rations",
+   "name": "Spire Rations",
+   "text": "On turn 4, gain 4 life and draw a card.",
+   "you": {
+    "timed": [
+     {
+      "when": "turn",
+      "turn": 4,
+      "who": "you",
+      "gainLife": 4,
+      "then": {
+       "extraCards": 1
+      },
+      "message": "Spire Rations: gain 4 life and draw a card."
+     }
+    ]
+   }
   }
  ],
  "events": [
@@ -318,6 +546,27 @@
      "label": "Pay 10 run coins for a bundle",
      "coins": -10,
      "bundle": true
+    },
+    {
+     "id": "pass",
+     "label": "Walk on"
+    }
+   ]
+  },
+  {
+   "id": "foil-forge",
+   "name": "The Foil Forge",
+   "text": "An anvil glows with mythic heat. You can temper a rare bomb for your deck, or burn away dead weight.",
+   "options": [
+    {
+     "id": "upgrade",
+     "label": "Forge a rare bomb in your colors",
+     "upgrade": true
+    },
+    {
+     "id": "trim",
+     "label": "Burn away a weak card from your deck",
+     "trim": true
     },
     {
      "id": "pass",
@@ -441,6 +690,11 @@
    "id": "draft",
    "name": "Draft",
    "text": "Draft three packs against seven bots, then run the deck."
+  },
+  {
+   "id": "commander",
+   "name": "Commanders of the Spire",
+   "text": "Draft a Legendary Commander with a signature Command Relic and two color-matched singleton packs. Elites are 3-player skirmishes."
   }
  ],
  "modes": [
@@ -458,6 +712,206 @@
    "id": "endless",
    "name": "Endless",
    "text": "Opponents that keep getting tougher until you lose. Score is your wins."
+  }
+ ],
+ "finalBosses": [
+  {
+   "name": "The Last Gate",
+   "deck": "blue-5.dck",
+   "skill": 7,
+   "twists": {
+    "startingLife": 30,
+    "extraCards": 1
+   }
+  },
+  {
+   "name": "Archon of the Ivory Spire",
+   "deck": "white-5.dck",
+   "skill": 7,
+   "twists": {
+    "startingLife": 30,
+    "emblem": "Glorious Anthem"
+   }
+  },
+  {
+   "name": "Dread Sovereign",
+   "deck": "black-5.dck",
+   "skill": 7,
+   "twists": {
+    "startingLife": 28,
+    "extraCards": 1
+   }
+  },
+  {
+   "name": "Inferno Overlord",
+   "deck": "red-5.dck",
+   "skill": 7,
+   "twists": {
+    "startingLife": 28,
+    "emblem": "Impact Tremors"
+   }
+  },
+  {
+   "name": "Primal Worldbreaker",
+   "deck": "green-5.dck",
+   "skill": 7,
+   "twists": {
+    "startingLife": 32,
+    "permanents": [
+     "Llanowar Elves"
+    ]
+   }
+  },
+  {
+   "name": "Chronicle Architect",
+   "deck": "blue-path.dck",
+   "skill": 7,
+   "twists": {
+    "startingLife": 30,
+    "extraCards": 1
+   }
+  }
+ ],
+ "commanderBosses": [
+  {
+   "name": "Krenko's Alley",
+   "deck": "commander/act1-goblins.dck",
+   "skill": 2
+  },
+  {
+   "name": "Oloro's Chapel",
+   "deck": "commander/act1-lifegain.dck",
+   "skill": 2
+  },
+  {
+   "name": "Ghalta's Clearing",
+   "deck": "commander/starter.dck",
+   "skill": 3
+  },
+  {
+   "name": "Rakdos Carnival",
+   "deck": "commander/act1-rakdos.dck",
+   "skill": 3
+  },
+  {
+   "name": "Gruul Stampede",
+   "deck": "commander/act2-gruul.dck",
+   "skill": 4
+  },
+  {
+   "name": "Sram's Armory",
+   "deck": "commander/act2-voltron.dck",
+   "skill": 4
+  },
+  {
+   "name": "Talrand's Aerie",
+   "deck": "commander/act2-control.dck",
+   "skill": 5
+  },
+  {
+   "name": "Meren's Ossuary",
+   "deck": "commander/act2-midrange.dck",
+   "skill": 5
+  },
+  {
+   "name": "Aurelia's Citadel",
+   "deck": "commander/act2-boros.dck",
+   "skill": 6
+  },
+  {
+   "name": "Dragonlord's Roost",
+   "deck": "commander/act3-dragons.dck",
+   "skill": 7,
+   "twists": {
+    "lifeBonus": 10,
+    "extraCards": 1
+   }
+  }
+ ],
+ "commanders": [
+  {
+   "id": "krenko",
+   "name": "Krenko, Mob Boss",
+   "colors": "R",
+   "relic": "goblin-horn",
+   "text": "Overwhelm the board with exponential Goblin tokens."
+  },
+  {
+   "id": "talrand",
+   "name": "Talrand, Sky Summoner",
+   "colors": "U",
+   "relic": "rhystic-tome",
+   "text": "Cast instants and sorceries to fill the sky with Drakes."
+  },
+  {
+   "id": "ghalta",
+   "name": "Ghalta, Primal Hunger",
+   "colors": "G",
+   "relic": "elvish-boon",
+   "text": "Ramp into huge creatures and drop a 12/12 trampler for GG."
+  },
+  {
+   "id": "trostani",
+   "name": "Trostani, Selesnya's Voice",
+   "colors": "WG",
+   "relic": "aegis-table",
+   "text": "Populate tokens and gain life equal to their toughness."
+  },
+  {
+   "id": "meren",
+   "name": "Meren of Clan Nel Toth",
+   "colors": "BG",
+   "relic": "vampiric-pact",
+   "text": "Turn sacrifice and attrition into relentless reanimation."
+  },
+  {
+   "id": "teysa",
+   "name": "Teysa Karlov",
+   "colors": "WB",
+   "relic": "soul-bell",
+   "text": "Double death triggers and command an army of spirits."
+  },
+  {
+   "id": "aurelia",
+   "name": "Aurelia, the Warleader",
+   "colors": "WR",
+   "relic": "heros-blade",
+   "text": "Lead extra combat phases with haste and vigilance."
+  },
+  {
+   "id": "tatyova",
+   "name": "Tatyova, Benthic Druid",
+   "colors": "UG",
+   "relic": "command-beacon",
+   "text": "Turn every land drop into life and card draw."
+  },
+  {
+   "id": "niv-mizzet",
+   "name": "Niv-Mizzet, Parun",
+   "colors": "UR",
+   "relic": "arcane-signet",
+   "text": "Uncounterable card draw that pings every foe."
+  },
+  {
+   "id": "lathril",
+   "name": "Lathril, Blade of the Elves",
+   "colors": "BG",
+   "relic": "intangible-crest",
+   "text": "Build an Elf swarm and drain the entire table."
+  },
+  {
+   "id": "giada",
+   "name": "Giada, Font of Hope",
+   "colors": "W",
+   "relic": "banner",
+   "text": "Ramp and supercharge an angelic air force."
+  },
+  {
+   "id": "ayara",
+   "name": "Ayara, First of Locthwain",
+   "colors": "B",
+   "relic": "blood-chalice",
+   "text": "Drain life whenever black creatures enter and sacrifice for cards."
   }
  ]
 }

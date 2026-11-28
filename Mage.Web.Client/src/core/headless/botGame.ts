@@ -54,8 +54,8 @@ export interface BotGameOptions {
   stateDiffs?: boolean;
   /** preferences sent after signing in, as the app does (stops, auto-payment...); the server's defaults otherwise */
   userData?: UserData;
-  /** answers a prompt before the bot does: a command, or undefined to let the bot answer */
-  intercept?: (state: GameSessionState) => Command | undefined;
+  /** answers a prompt before the bot does: a command, undefined to let the bot answer, or null to leave it open */
+  intercept?: (state: GameSessionState) => Command | undefined | null;
   /** stop answering after this turn and leave the game open until `holdUntil` (epoch ms), then concede; perf runs use it to measure held games */
   holdAfterTurn?: number;
   holdUntil?: number;
@@ -265,7 +265,9 @@ export function botPlay(
       // and left no artifact to sacrifice), so it can't be cast this turn
       if (state.interaction.mode === 'priority' && lastMode === 'payMana' && lastCast && state.view?.myHand?.[lastCast]) unaffordable.add(lastCast);
       lastMode = state.interaction.mode;
-      const command = options.intercept?.(state) ?? chooseBotCommand(state.view, state.interaction, unaffordable);
+      const intercepted = options.intercept?.(state);
+      if (intercepted === null) return;
+      const command = intercepted ?? chooseBotCommand(state.view, state.interaction, unaffordable);
       lastPay = state.interaction.mode === 'payMana' && command?.type === 'uuid' && command.id
         ? { headline: state.interaction.headline, id: command.id }
         : null;

@@ -1,0 +1,18 @@
+# name: Train200 mono-r-gowide-3
+# archetype: gowide
+# colors: R
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Blisterpod
+1 Chimney Rabble
+2 Full Bore
+4 Goblin Arsonist
+3 Inferno Hellion
+4 Kavaron Harrier
+3 Prowcatcher Specialist
+3 Reinforced Ronin
+2 Runaway Carriage
+2 Sazacap's Brew
+4 Spark Jolt
+4 Swab Goblin
+2 Thunderbreak Regent
+22 Mountain

@@ -73,6 +73,11 @@ public class UserManagerImpl implements UserManager {
         final Lock w = lock.writeLock();
         w.lock();
         try {
+            for (User existing : users.values()) {
+                if (existing.getName().equals(userName)) {
+                    return Optional.empty(); //user already exists
+                }
+            }
             users.put(user.getId(), user);
         } finally {
             w.unlock();

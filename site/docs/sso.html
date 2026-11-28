@@ -28,6 +28,7 @@
           <li><a href="../#host">Run a server</a></li>
           <li><a href="./" aria-current="true">Docs</a></li>
           <li><a href="../rust/">Rust port</a></li>
+          <li><a href="../benchmarks/">Benchmarks</a></li>
           <li><a href="https://github.com/arcanite24/playmat">GitHub</a></li>
         </ul>
       </nav>
@@ -46,6 +47,7 @@
           <li><a href="sso.html" aria-current="page">Single sign-on</a></li>
           <li><a href="capsules.html">Capsule machines</a></li>
           <li><a href="ladder.html">Ranked and bots</a></li>
+          <li><a href="swarm.html">Self-play swarm</a></li>
         </ul>
       </nav>
       <article class="doc">
@@ -70,7 +72,7 @@
             <thead><tr><th>Setting</th><th>What it does</th></tr></thead>
             <tbody>
               <tr><td><code>AUTH_TRUSTED_HEADER</code></td><td>The header your proxy sets. Setting it turns single sign-on on. Needs <code>XMAGE_AUTH=true</code>.</td></tr>
-              <tr><td><code>AUTH_TRUSTED_PROXIES</code></td><td>Where the proxy connects to Playmat from: IPs or ranges, separated by spaces. Empty uses <code>UPSTREAM_PROXIES</code>.</td></tr>
+              <tr><td><code>AUTH_TRUSTED_PROXIES</code></td><td>Where the proxy connects to Playmat from: IPs or ranges, separated by spaces. Required: empty trusts nobody, and it doesn't follow <code>UPSTREAM_PROXIES</code>. Never a CDN's ranges such as Cloudflare's.</td></tr>
               <tr><td><code>XMAGE_PASSWORD_SIGNIN</code></td><td><code>false</code> makes the sign-on the only way in: no passwords, registration, reset codes or Sign in with GitHub. The admin password still opens the console.</td></tr>
               <tr><td><code>XMAGE_TRUSTED_HEADER_STRIP_DOMAIN</code></td><td><code>true</code> signs <code>alice@example.com</code> in as <code>alice</code>.</td></tr>
             </tbody>
@@ -96,6 +98,8 @@
         <div class="terminal" role="region" aria-label="Single sign-on settings">
 <pre><code>XMAGE_AUTH=true
 AUTH_TRUSTED_HEADER=Remote-User
+<span class="c"># where the sign-on proxy connects from (the address you gave UPSTREAM_PROXIES for it)</span>
+AUTH_TRUSTED_PROXIES=172.17.0.1/32
 <span class="c"># keep passwords on until everyone has come through the sign-on once</span>
 XMAGE_PASSWORD_SIGNIN=true</code></pre>
         </div>

@@ -52,11 +52,11 @@ public class CareerServiceTest {
 
     @Test
     public void migrationsRunOnceAndRecordTheVersion() throws Exception {
-        assertEquals(8, store.schemaVersion());
+        assertEquals(12, store.schemaVersion());
         store.close();
         store = new CareerStore("jdbc:sqlite:" + file);
         CareerStore.use(store);
-        assertEquals(8, store.schemaVersion());
+        assertEquals(12, store.schemaVersion());
         assertNotNull(store.profile("ana"), "reopening keeps the data");
     }
 
@@ -296,5 +296,127 @@ public class CareerServiceTest {
         assertEquals("Chapter 1", shelf.get(7).unlockedBy);
         assertTrue(shelf.get(9).locked, "an unbeaten chapter's set stays locked");
         assertEquals("Chapter 3", shelf.get(9).unlockedBy);
+    }
+
+    @Test
+    public void savedCareerDecksMigrateLegacyDeckAndSupportSwitchRenameDeleteAndEarnedCampaignDecks() throws Exception {
+        store.addCard("ana", card("Savannah Lions", "rare"), 4);
+        store.addCard("ana", card("Swords to Plowshares", "uncommon"), 4);
+
+        mage.cards.decks.DeckCardLists legacy = new mage.cards.decks.DeckCardLists();
+        legacy.setName("My First Deck");
+        legacy.getCards().add(new mage.cards.decks.DeckCardInfo("Savannah Lions", "TST", "Savannah-Lions", 2));
+        legacy.getCards().add(new mage.cards.decks.DeckCardInfo("Plains", "TST", "1", 20));
+        CareerService.get().saveDeck("ana", legacy);
+
+        // Simulate a player who already beat the White campaign boss before multi-deck saving existed
+        store.finishCampaignNode("ana", "five-paths", "white-5", null, 50L);
+
+        List<CareerService.CareerSavedDeck> initial = CareerService.get().savedDecks("ana");
+        assertTrue(initial.size() >= 2, "legacy deck plus retroactively backfilled White campaign deck");
+        assertEquals("My First Deck", initial.get(0).name);
+        assertTrue(initial.get(0).active);
+        assertTrue(initial.stream().anyMatch(d -> "campaign:five-paths/white".equals(d.source) && "Shield and Feather".equals(d.name)),
+                "earned White campaign deck is backfilled");
+
+        // Create a second custom deck and activate it
+        mage.cards.decks.DeckCardLists second = new mage.cards.decks.DeckCardLists();
+        second.getCards().add(new mage.cards.decks.DeckCardInfo("Swords to Plowshares", "TST", "Swords-to-Plowshares", 4));
+        second.getCards().add(new mage.cards.decks.DeckCardInfo("Plains", "TST", "1", 20));
+        CareerService.CareerSavedDeck created = CareerService.get().saveNamedDeck("ana", null, "White Removal", second, true);
+        assertTrue(created.active);
+        assertEquals("White Removal", created.name);
+        // Legacy careerDeck() mirrors the active deck
+        assertEquals("White Removal", CareerService.get().deck("ana").getName());
+
+        // Switch back to the first deck
+        CareerService.CareerSavedDeck switched = CareerService.get().selectDeck("ana", initial.get(0).id);
+        assertTrue(switched.active);
+        assertEquals("My First Deck", CareerService.get().deck("ana").getName());
+
+        // Delete the newly created deck, keeping the rest; cannot delete the final deck
+        assertTrue(CareerService.get().deleteSavedDeck("ana", created.id));
+        for (CareerService.CareerSavedDeck d : CareerService.get().savedDecks("ana")) {
+            if (!d.id.equals(initial.get(0).id)) {
+                assertTrue(CareerService.get().deleteSavedDeck("ana", d.id));
+            }
+        }
+        assertThrows(CareerService.CareerException.class, () -> CareerService.get().deleteSavedDeck("ana", initial.get(0).id));
+    }
+
+    @Test
+    public void campaignBossRewardSavesChapterDeckIntoCareerDecks() throws Exception {
+        // Beating a boss with reward.deckCards adds cards AND saves the chapter deck to career_decks
+        mage.cards.decks.DeckCardLists whiteDeck = CareerCampaigns.get().deck("white-path.dck");
+        CareerService.get().saveEarnedDeck(store, "ana", "campaign:five-paths/white", "Shield and Feather", whiteDeck, 100L);
+
+        List<CareerService.CareerSavedDeck> decks = CareerService.get().savedDecks("ana");
+        assertTrue(decks.stream().anyMatch(d -> "campaign:five-paths/white".equals(d.source) && "Shield and Feather".equals(d.name)));
+
+        // Calling again with the same source is idempotent (no duplicates)
+        int before = decks.size();
+        CareerService.get().saveEarnedDeck(store, "ana", "campaign:five-paths/white", "Shield and Feather", whiteDeck, 200L);
+        assertEquals(before, CareerService.get().savedDecks("ana").size());
+    }
+
+    @Test
+    public void commanderStartersFreePreconGiftCoinBundlesFormatDecksAndQuestPref() throws Exception {
+        CareerContent content = CareerContent.get();
+        long commanderCount = content.starters().stream().filter(s -> "commander".equals(s.track)).count();
+        assertEquals(6, commanderCount, "six 100-card Commander precons are available in Career");
+        assertEquals(CareerRules.FORMAT_COMMANDER, content.starter("ghalta-primal-stampede").format);
+
+        // Existing Constructed account ("ana") is eligible for 1 free Commander precon gift
+        assertTrue(CareerService.get().commanderPreconGiftAvailable("ana"));
+        service.useCardLookup(key -> {
+            String name = key.startsWith("name|") ? key.substring(5) : key.substring(key.indexOf('|') + 1);
+            Rarity rarity = "Forest".equals(name) || "Plains".equals(name) || "Swamp".equals(name) || "Mountain".equals(name) || "Island".equals(name)
+                    ? Rarity.LAND : Rarity.RARE;
+            return printing(name, rarity);
+        });
+        try {
+            int coinsBefore = store.profile("ana").coins;
+            CareerService.CareerPreconResult gift = CareerService.get().acquirePrecon("ana", "ghalta-primal-stampede");
+            assertTrue(gift.free, "first Commander precon is free for existing constructed account");
+            assertEquals(coinsBefore, gift.profile.coins, "free gift costs 0 coins");
+            assertEquals(CareerRules.FORMAT_COMMANDER, gift.deck.format);
+            assertFalse(CareerService.get().commanderPreconGiftAvailable("ana"), "free gift is one-time only");
+            assertTrue(CareerService.get().ownedPrecons("ana").contains("ghalta-primal-stampede"));
+
+            // Duplicate precon is refused
+            assertThrows(CareerService.CareerException.class,
+                    () -> CareerService.get().acquirePrecon("ana", "ghalta-primal-stampede"));
+
+            // Second precon costs PRECON_PRICE (800 coins)
+            assertThrows(CareerService.CareerException.class,
+                    () -> CareerService.get().acquirePrecon("ana", "teysa-orzhov-tribute"));
+            store.addCoins("ana", CareerRules.PRECON_PRICE);
+            CareerService.CareerPreconResult bought = CareerService.get().acquirePrecon("ana", "teysa-orzhov-tribute");
+            assertFalse(bought.free);
+            assertEquals(coinsBefore, bought.profile.coins);
+            assertEquals(CareerRules.FORMAT_COMMANDER, bought.deck.format);
+
+            // Custom Commander deck saves and keeps its format
+            mage.cards.decks.DeckCardLists custom = new mage.cards.decks.DeckCardLists();
+            custom.getCards().add(new mage.cards.decks.DeckCardInfo("Forest", "TST", "Forest", 35));
+            CareerService.CareerSavedDeck customCmdr = CareerService.get().saveNamedDeck(
+                    "ana", null, "Custom Brew", custom, true, CareerRules.FORMAT_COMMANDER);
+            assertEquals(CareerRules.FORMAT_COMMANDER, customCmdr.format);
+
+            // Quest preference updates and normalizes invalid values to "any"
+            assertEquals("commander", CareerService.get().setQuestPref("ana", "commander"));
+            assertEquals("constructed", CareerService.get().setQuestPref("ana", "constructed"));
+            assertEquals("any", CareerService.get().setQuestPref("ana", "bogus"));
+
+            // Commander Opponents Roster: 5 tiers, 20 encounters including 4-player pods, rival arc, and raid bosses
+            List<CareerService.CareerOpponent> cmdrOpps = CareerService.get().commanderOpponents("ana");
+            assertEquals(20, cmdrOpps.size());
+            assertTrue(cmdrOpps.stream().anyMatch(o -> o.pod && o.podNames != null && o.podNames.size() == 3), "has 4-player pods");
+            assertTrue(cmdrOpps.stream().anyMatch(o -> o.raid && o.tier == 5), "has tier 5 Commander raid bosses");
+            assertTrue(cmdrOpps.stream().filter(o -> o.tier == 1).allMatch(o -> o.unlocked), "tier 1 is unlocked");
+            assertTrue(cmdrOpps.stream().filter(o -> o.tier > 1).noneMatch(o -> o.unlocked), "tiers 2-5 start locked");
+        } finally {
+            service.useCardLookup(null);
+        }
     }
 }

@@ -88,6 +88,8 @@ export function useServerInfo() {
     queryFn: () => api.serverInfo().catch(() => null),
     enabled: signedIn,
     staleTime: 5 * 60_000,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
   });
 }
 

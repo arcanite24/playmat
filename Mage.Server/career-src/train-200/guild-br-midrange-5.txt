@@ -1,0 +1,22 @@
+# name: Train200 guild-br-midrange-5
+# archetype: midrange
+# colors: BR
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+1 Akoum Firebird
+3 Demon of Catastrophes
+3 Diregraf Ghoul
+4 Ebondeath, Dracolich
+3 Gutterbones
+2 Lupine Prototype
+1 Pharika's Cure
+4 Rakdos, Lord of Riots
+2 Rakdos, the Showstopper
+2 Stomped by the Foot
+3 Vayne's Treachery
+2 Vein Ripper
+4 Volcanic Spite
+2 Wring Flesh
+4 Cinder Barrens
+5 Mountain
+4 Sulfurous Mire
+11 Swamp

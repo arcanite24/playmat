@@ -49,6 +49,14 @@ export default function RewardsBeat({ gameId, onDetails }: { gameId: string; onD
         )}
       {levelUp && <p className={styles.level}>{t('career.beat.levelUp', { level: paid.levelAfter ?? 0 })}</p>}
       {(paid.renownAfter ?? 0) > (paid.renownBefore ?? 0) && <p className={styles.level}>{t('career.beat.renown', { count: paid.renownAfter ?? 0 })}</p>}
+      {paid.petBond && (paid.petBond.xpGained ?? 0) > 0 && (
+        <p className={paid.petBond.tieredUp ? styles.level : styles.note}>
+          {paid.petBond.tieredUp
+            ? t('career.beat.petTierUp', { xp: paid.petBond.xpGained ?? 0, tier: paid.petBond.tier ?? 1 })
+            : t('career.beat.petBond', { xp: paid.petBond.xpGained ?? 0, tier: paid.petBond.tier ?? 1 })}
+          {paid.petBond.unlockedTitle ? ` · ${t('career.beat.petTitle')}` : ''}
+        </p>
+      )}
       {(paid.masteries?.length ?? 0) > 0 && (
         <ul className={styles.bonuses}>
           {paid.masteries!.map((mastery) => (

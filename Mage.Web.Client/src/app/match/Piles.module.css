@@ -187,8 +187,67 @@ button.chip:disabled {
   color: var(--ink-strong);
 }
 
+.chipCommanderOut {
+  color: var(--ink-dim);
+  background: rgb(var(--mat-rgb) / 0.5);
+}
+
+.chipCommanderPlay {
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px rgb(var(--decision-rgb) / 0.55);
+}
+
+.chipCommanderPlay > svg {
+  color: var(--decision);
+}
+
 /* touch: the counters beside a seat open their zones; a finger needs a bigger chip */
 :global([data-touch]) .chip {
   min-height: var(--touch-target, 0px);
   min-width: var(--touch-target, 0px);
+}
+
+/* Phase 6 Command-Zone Frames (kind "cmdframe") */
+.cmdFramed[data-cmd-frame='cmd-gold-filigree'] .stack {
+  box-shadow: 0 0 0 2px #e2c27a, 0 0 0 4px #9e7328, 0 0 16px rgb(226 194 122 / 0.42);
+}
+
+.cmdFramed[data-cmd-frame='cmd-phyrexian'] .stack {
+  box-shadow: 0 0 0 2px #d8cbb5, 0 0 0 4px #991b1b, 0 0 18px rgb(153 27 27 / 0.55);
+}
+
+.cmdFramed[data-cmd-frame='cmd-ravnica'] .stack {
+  box-shadow: 0 0 0 2px #5da9e9, 0 0 0 4px #f4d35e, 0 0 16px rgb(93 169 233 / 0.45);
+}
+
+.cmdFramed[data-cmd-frame='cmd-eldrazi'] .stack {
+  box-shadow: 0 0 0 2px #c4b5fd, 0 0 0 4px #7e22ce, 0 0 20px rgb(168 85 247 / 0.58);
+}
+
+.cmdFramed[data-cmd-frame='cmd-constellation'] .stack {
+  box-shadow: 0 0 0 2px #67e8f9, 0 0 0 4px #facc15, 0 0 20px rgb(103 232 249 / 0.52);
+}
+
+.cmdFramed[data-cmd-frame] .label {
+  color: var(--ink-strong);
+}
+
+.chipFramed[data-cmd-frame='cmd-gold-filigree'] {
+  box-shadow: inset 0 0 0 1.5px #e2c27a, 0 0 10px rgb(226 194 122 / 0.35);
+}
+
+.chipFramed[data-cmd-frame='cmd-phyrexian'] {
+  box-shadow: inset 0 0 0 1.5px #d8cbb5, 0 0 10px rgb(153 27 27 / 0.45);
+}
+
+.chipFramed[data-cmd-frame='cmd-ravnica'] {
+  box-shadow: inset 0 0 0 1.5px #5da9e9, 0 0 10px rgb(244 211 94 / 0.35);
+}
+
+.chipFramed[data-cmd-frame='cmd-eldrazi'] {
+  box-shadow: inset 0 0 0 1.5px #c4b5fd, 0 0 12px rgb(168 85 247 / 0.45);
+}
+
+.chipFramed[data-cmd-frame='cmd-constellation'] {
+  box-shadow: inset 0 0 0 1.5px #67e8f9, 0 0 12px rgb(250 204 21 / 0.4);
 }

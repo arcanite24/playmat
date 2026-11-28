@@ -1,0 +1,114 @@
+{
+  "partners": [
+    {
+      "id": "boros-vanguard",
+      "name": "Boros Vanguard",
+      "archetype": "Aggro",
+      "commander": false,
+      "deck": "pioneer/act1-boros-aggro.dck",
+      "skill": 6,
+      "text": "Fast white-red pressure that punishes slow starts while you control the board.",
+      "cover": "Lightning Helix"
+    },
+    {
+      "id": "azorius-tactician",
+      "name": "Azorius Tactician",
+      "archetype": "Control",
+      "commander": false,
+      "deck": "pioneer/budget-azorius-control.dck",
+      "skill": 6,
+      "text": "Holds up removal, sweepers, and card draw to cover your aggro or combo line.",
+      "cover": "Teferi, Hero of Dominaria"
+    },
+    {
+      "id": "golgari-warden",
+      "name": "Golgari Warden",
+      "archetype": "Midrange",
+      "commander": false,
+      "deck": "pioneer/budget-golgari-midrange.dck",
+      "skill": 6,
+      "text": "Grinds out opposing threats with efficient removal and resilient threats.",
+      "cover": "Vraska, Golgari Queen"
+    },
+    {
+      "id": "izzet-spellslinger",
+      "name": "Izzet Spellslinger",
+      "archetype": "Tempo",
+      "commander": false,
+      "deck": "pioneer/budget-izzet-prowess.dck",
+      "skill": 6,
+      "text": "Chains cheap cantrips and burn spells to race both opposing heads.",
+      "cover": "Monastery Swiftspear"
+    },
+    {
+      "id": "selesnya-commander",
+      "name": "Trostani's Vanguard",
+      "archetype": "Commander Tokens",
+      "commander": true,
+      "deck": "commander/act3-tokens.dck",
+      "skill": 6,
+      "text": "Floods the battlefield with tokens and lifegain to anchor a Commander 2HG team.",
+      "cover": "Trostani, Selesnya's Voice"
+    },
+    {
+      "id": "control-commander",
+      "name": "Arcane Ally",
+      "archetype": "Commander Control",
+      "commander": true,
+      "deck": "commander/act2-control.dck",
+      "skill": 6,
+      "text": "Answers opposing bombs and draws cards while you build your Commander engine.",
+      "cover": "Talrand, Sky Summoner"
+    }
+  ],
+  "pairs": [
+    {
+      "id": "guild-clash",
+      "name": "The Guild Clash",
+      "commander": false,
+      "teamLife": 30,
+      "text": "Gruul monsters backed by Dimir disruption. Coordinate your tempo and focus one head down.",
+      "cover": "Bloodbraid Elf",
+      "enemies": [
+        { "name": "Gruul Brawler", "deck": "pioneer/act2-gruul-midrange.dck", "skill": 5 },
+        { "name": "Dimir Schemer", "deck": "pioneer/act2-dimir-control.dck", "skill": 5 }
+      ]
+    },
+    {
+      "id": "sky-and-ember",
+      "name": "Sky & Ember",
+      "commander": false,
+      "teamLife": 30,
+      "text": "Relentless Mono-Red burn teamed up with Azorius Spirits in the air.",
+      "cover": "Spell Queller",
+      "enemies": [
+        { "name": "Ember Striker", "deck": "pioneer/act2-red-burn.dck", "skill": 6 },
+        { "name": "Spirit Captain", "deck": "pioneer/act3-azorius-spirits.dck", "skill": 6 }
+      ]
+    },
+    {
+      "id": "commander-conclave",
+      "name": "Draconic Conclave",
+      "commander": true,
+      "teamLife": 40,
+      "text": "Two Commander powerhouses — Dragons and Boros Equipment — teaming up for a 40-life war.",
+      "cover": "Lathliss, Dragon Queen",
+      "enemies": [
+        { "name": "Dragon Sovereign", "deck": "commander/act2-dragons.dck", "skill": 6 },
+        { "name": "Boros Forgemaster", "deck": "commander/act2-boros.dck", "skill": 6 }
+      ]
+    },
+    {
+      "id": "commander-syndicate",
+      "name": "The Shadow Syndicate",
+      "commander": true,
+      "teamLife": 40,
+      "text": "High-power Commander duo combining Rakdos aggression with resilient midrange value.",
+      "cover": "Rakdos, Lord of Riots",
+      "enemies": [
+        { "name": "Rakdos Warlord", "deck": "commander/act1-rakdos.dck", "skill": 7 },
+        { "name": "Vault Tactician", "deck": "commander/act2-midrange.dck", "skill": 7 }
+      ]
+    }
+  ]
+}

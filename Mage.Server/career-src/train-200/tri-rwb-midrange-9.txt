@@ -1,0 +1,24 @@
+# name: Train200 tri-rwb-midrange-9
+# archetype: midrange
+# colors: RWB
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Ambitious Assault
+3 Aurelia, the Law Above
+4 Bloodfray Giant
+3 Butcher of the Horde
+3 Flameblade Adept
+4 Go for the Throat
+2 Manhole Missile
+3 Master of the Feast
+1 Morkrut Behemoth
+3 Resolute Watchdog
+2 Smelt
+2 Thunderbreak Regent
+2 Tiger-Dillo
+2 Winter's Intervention
+4 Furycalm Snarl
+4 Haunted Ridge
+6 Mountain
+2 Plains
+4 Rabanastre, Royal City
+4 Swamp

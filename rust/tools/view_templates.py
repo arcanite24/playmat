@@ -7,6 +7,7 @@ abilities' rules ("abilities:<name>"), from the facts.
 
     python3 rust/tools/view_templates.py <views-full.json> <facts-full.json>
 """
+import gzip
 import json
 import os
 import sys
@@ -26,10 +27,11 @@ def main():
     # each card's and token's abilities' rules, in Java's order (the engine's), for abilities on the stack
     for name, f in facts.items():
         out['abilities:' + name] = [a.get('rule', '') for a in f.get('abilities', [])]
-    path = os.path.join(os.path.dirname(__file__), '..', 'crates', 'playmat-engine', 'cards', 'views.json')
-    with open(path, 'w') as f:
-        json.dump(out, f, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
-        f.write('\n')
+    path = os.path.join(os.path.dirname(__file__), '..', 'crates', 'playmat-engine', 'cards', 'views.json.gz')
+    payload = (json.dumps(out, ensure_ascii=False, sort_keys=True, separators=(',', ':')) + '\n').encode('utf-8')
+    with open(path, 'wb') as raw:
+        with gzip.GzipFile(filename='views.json', mode='wb', fileobj=raw, compresslevel=9, mtime=0) as gz:
+            gz.write(payload)
     print(len(out), 'views')
 
 

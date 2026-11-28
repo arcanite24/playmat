@@ -28,6 +28,7 @@
           <li><a href="../#host">Run a server</a></li>
           <li><a href="./" aria-current="true">Docs</a></li>
           <li><a href="../rust/">Rust port</a></li>
+          <li><a href="../benchmarks/">Benchmarks</a></li>
           <li><a href="https://github.com/arcanite24/playmat">GitHub</a></li>
         </ul>
       </nav>
@@ -44,8 +45,10 @@
           <li><a href="updates.html">Updating</a></li>
           <li><a href="admin.html">Staff and the admin console</a></li>
           <li><a href="sso.html">Single sign-on</a></li>
+          <li><a href="career.html">Career and solo modes</a></li>
           <li><a href="capsules.html">Capsule machines</a></li>
           <li><a href="ladder.html" aria-current="page">Ladder bots</a></li>
+          <li><a href="swarm.html">Self-play swarm</a></li>
         </ul>
       </nav>
       <article class="doc">
@@ -56,15 +59,24 @@
 
         <h2>What a bot is</h2>
         <ul>
-          <li>A school deck from <code>career/campaigns/decks/&lt;format&gt;/</code>.</li>
+          <li>A deck from either <code>career/campaigns/decks/&lt;format&gt;/</code> or the dedicated ranked pool in
+            <code>ladder/decks/&lt;format&gt;/</code> (100% Rust-verified and format-legal).</li>
           <li>One of the AI strengths the Rust engine plays: quick answers (skill 1), a fifth of the search (3), half (5)
-            or the full search (7). Weak decks are never paired with the full search; the strongest never play
-            without one.</li>
+            or the full search (7). Higher-rank Generation 2 bots add declarative AI Playbooks
+            (<code>ladder/playbooks.json</code> / <code>playmat-ai/src/playbooks.json</code>) for archetype profiles,
+            mana hold-up discipline, modal/discard/combat hints, wider search budgets, and Bo3 sideboard plans.</li>
           <li>A persona: a name, avatar, sleeves, playmat, frame and title from the cosmetics catalog. Stronger bots wear
             rarer cosmetics.</li>
         </ul>
-        <p>Standard and Pioneer have about 65 bots each. Each format is its own rating scale, with its starter deck at
-          skill 1 fixed at 1000.</p>
+        <p>Standard fields 40 unique Open decks (98 bots), Pioneer 42 unique Open decks (102 bots), Modern 30 unique
+          Open decks (58 bots, Open and Bo3 queues only), Commander 31 unique 100-card decks (62 bots across 1v1 Duel,
+          4-Player Pod, and League), Pauper 23 unique commons-only decks (46 bots across Bo1, Bo3, and League), Brawl
+          21 unique 60-card singleton decks (42 bots across 1v1 and League), and Legacy 21 unique eternal decks (42 bots
+          across Bo1 and Bo3). Each format is its own rating scale, with its starter deck at skill 1 fixed at 1000.</p>
+        <p>Each bot keeps the search settings and playbook it was rated with, so a stronger AI in a later release doesn't
+          change how existing bots play or what they're rated. A stronger AI comes in as a new generation of bots, rated
+          against the old ones with <code>--fixed</code>. Old bots can be retired: they're no longer met, but past games
+          still show who they were. Updating a server needs nothing for this.</p>
 
         <h2>Where they live</h2>
         <ul>
@@ -82,10 +94,28 @@
           <li>Each format has its own ladder: Bronze, Silver, Gold, Platinum and Diamond, with four tiers of four pips
             each, then Mythic. A win is a pip. Up to Gold, a third win in a row is two. Losses cost nothing in Bronze.
             From Silver up they cost a pip, but never drop you below the tier (Silver) or the rank (Gold and up).</li>
-          <li>Opponents are picked from the bots near the player's hidden rating. A pick holds until it is played, so it
-            can't be skipped.</li>
+          <li>Opponents are picked from distinct decks near the player's hidden rating. The pick is persisted in
+            <code>db/ladder.db</code> until played so it can't be dodged, and its exact deck stays hidden until the
+            match starts (an Expected Field forecast is shown instead). After every match -- especially a loss -- the
+            matchmaker rotates to a different deck and puts lost decks on cooldown so players never get stuck on one
+            adversary.</li>
           <li>Ranked games are best of one, with no hints, take-backs, practice tools, saves or what-ifs. Conceding or
-            leaving is a loss. A game the server loses in a restart doesn't count.</li>
+            leaving is a loss. A game the server loses in a restart doesn't count. Finished matches unlock post-game
+            inspection of the opponent's 60+15 decklist.</li>
+          <li>The Bo3 switch on the Ranked screen opens a second queue: best of three against the same bots, with
+            sideboarding between games for both the player and Playbook-equipped AI bots (using only cards publicly
+            revealed in earlier games). It has its own rank and hidden rating. Its ranks unlock the same rewards as best
+            of one, once for both. Leaving between games is a loss like any other.</li>
+          <li>Commander Ranked offers both <b>1v1 Duel</b> and <b>4-Player Pod</b> queues. In 4-Player Pods, the server
+            seats three distinct AI Commander decks near your rating and scores exact finish order: 1st place awards +2
+            pips, 2nd awards +1 pip in Bronze through Gold (safe in Platinum+), 3rd is safe in Bronze through Gold (-1
+            in Platinum and Diamond), and 4th costs 1 pip from Silver up. Bronze and Silver include anti-combo Bracket
+            Protection that keeps high-power meta decks out until Gold.</li>
+          <li>The Limited rank moves with Career's sealed and draft runs (<b>Career &rsaquo; Sealed &amp; draft</b>),
+            not with a queue. When a run ends, it moves by the run's wins less its losses, in pips, with no streak
+            bonus. A bad run costs one pip at most, with the same floors as above. Leaving a run after its first game
+            counts it with the games left as losses. A cube drafted from your own deck doesn't count. It has its own seasons, boards and
+            rank rewards, but no Mythic rating.</li>
           <li>Reaching a rank for the first time unlocks its title, sleeve and frame. Gold, Diamond and Mythic also pay a
             capsule token. The usual Career XP, quests and daily rewards apply as in any other game.</li>
         </ul>
@@ -116,9 +146,12 @@
         <p>The League (<b>Career &rsaquo; League</b>) is Ranked played with the cards an account owns. It is on wherever
           Career is.</p>
         <ul>
-          <li>A player starts a format's League by picking two of its starter decks. Their cards join the Career
-            collection (never past four of a card), each becomes a League deck, and the format's packs are added. The
-            account's first League also gives 4 common, 3 uncommon and 1 rare wildcard.</li>
+          <li>A player starts a 60-card format's League by picking two of its starter decks, or starts the
+            <b>Commander Precon Upgrade League</b> by picking one 100-card precon plus six Commander and expansion
+            packs. Their cards join the Career collection (never past four of a card), each becomes a League deck, and
+            the format's packs are added. Commander League decks enforce singleton rules and can be queued in either
+            1v1 Duel or 4-Player Pod tables. The account's first League also gives 4 common, 3 uncommon and 1 rare
+            wildcard.</li>
           <li>League packs come from the format's own sets. Standard picks a set; Pioneer also has a mixed pack. A pack
             uses the format's League packs first, then a Career pack token, then 100 coins. Every fourth League pack
             also gives a rare wildcard, and every twelfth a mythic one instead.</li>

@@ -93,6 +93,10 @@ const router = createBrowserRouter([
   { path: '/terms', lazy: () => import('./screens/LegalScreen').then((m) => ({ Component: m.TermsScreen })) },
   // the month's server costs and supporting them, readable before signing in
   { path: '/support', lazy: () => import('./support/SupportScreen').then((m) => ({ Component: m.SupportScreen })) },
+  // Mana@Home public self-play swarm tracker, readable without signing in
+  { path: '/swarm', lazy: () => import('./swarm/SwarmScreen').then((m) => ({ Component: m.SwarmScreen })) },
+  { path: '/swarm/contributors/:name', lazy: () => import('./swarm/SwarmScreen').then((m) => ({ Component: m.SwarmScreen })) },
+  { path: '/swarm/:section', lazy: () => import('./swarm/SwarmScreen').then((m) => ({ Component: m.SwarmScreen })) },
   { path: '/admin', lazy: () => import('./admin/AdminScreen').then((m) => ({ Component: m.AdminScreen })) },
   // dev builds only: every signature effect on a mock table (#226)
   ...(import.meta.env.DEV ? [{ path: '/dev/vfx', lazy: () => import('./dev/VfxGallery').then((m) => ({ Component: m.VfxGallery })) }] : []),
@@ -149,6 +153,7 @@ const router = createBrowserRouter([
           },
           { path: '/train', lazy: () => import('./train/TrainScreen').then((m) => ({ Component: m.TrainScreen })) },
           { path: '/train/:tool', lazy: () => import('./train/TrainScreen').then((m) => ({ Component: m.TrainScreen })) },
+          { path: '/guide', lazy: () => import('./screens/GuideScreen').then((m) => ({ Component: m.GuideScreen })) },
           { path: '/history', lazy: () => import('./history/HistoryScreen').then((m) => ({ Component: m.HistoryScreen })) },
         ],
       },

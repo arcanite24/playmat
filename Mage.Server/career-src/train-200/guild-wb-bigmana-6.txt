@@ -1,0 +1,22 @@
+# name: Train200 guild-wb-bigmana-6
+# archetype: bigmana
+# colors: WB
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Abyssal Gorestalker
+2 Aegis Angel
+3 Appa, Steadfast Guardian
+3 Cleaving Reaper
+3 Easy Prey
+2 Exalted Sunborn
+1 Final Payment
+2 Interjection
+4 Knight of the Ebon Legion
+3 Ravenous Necrotitan
+2 Super-Skrull
+2 Terminal Criticism
+2 Tormented Hero
+2 Wojek Investigator
+4 Forum of Amity
+6 Plains
+4 Shattered Sanctum
+11 Swamp

@@ -1,0 +1,504 @@
+/* Fancy Arena-style deck box selector for Ranked */
+
+.heroCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 156px;
+  padding: 12px 14px;
+  border: 1px solid rgb(var(--ink-rgb) / 0.22);
+  border-radius: var(--radius-zone);
+  background: var(--mat-950);
+  color: var(--ink-strong);
+  font: inherit;
+  text-align: left;
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.1),
+    0 8px 22px rgb(0 0 0 / 0.32);
+  transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+.heroCard:hover {
+  border-color: var(--brass);
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.14),
+    0 12px 28px rgb(0 0 0 / 0.42),
+    0 0 0 1px color-mix(in srgb, var(--brass) 35%, transparent);
+}
+
+.heroCard:focus-visible {
+  outline: 2px solid var(--decision);
+  outline-offset: 2px;
+}
+
+.heroArt {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transition: transform 320ms ease;
+}
+
+.heroCard:hover .heroArt {
+  transform: scale(1.04);
+}
+
+.heroScrim {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgb(var(--void-rgb) / 0.62) 0%, rgb(var(--void-rgb) / 0.24) 40%, rgb(var(--void-rgb) / 0.92) 92%),
+    radial-gradient(circle at 90% 10%, rgb(var(--void-rgb) / 0.28), transparent 55%);
+  pointer-events: none;
+}
+
+.heroTop,
+.heroBottom {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
+.heroBottom {
+  align-items: flex-end;
+  margin-top: auto;
+  padding-top: 28px;
+}
+
+.legalPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgb(var(--void-rgb) / 0.68);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.14);
+  color: var(--ink-strong);
+  font-family: var(--font-print);
+  font-size: 10px;
+  letter-spacing: var(--tracking-print);
+  text-transform: uppercase;
+  backdrop-filter: blur(6px);
+}
+
+.heroInfo {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+.heroName {
+  color: var(--ink-strong);
+  font-family: var(--font-print);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 2px 8px rgb(0 0 0 / 0.75);
+}
+
+.heroMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+}
+
+.changePill {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgb(var(--void-rgb) / 0.72);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brass) 55%, transparent);
+  color: var(--ink-strong);
+  font-family: var(--font-print);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-print);
+  text-transform: uppercase;
+  backdrop-filter: blur(6px);
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.heroCard:hover .changePill {
+  background: var(--brass);
+  color: var(--mat-950);
+}
+
+/* Loading & Empty States */
+.skeleton {
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  min-height: 140px;
+  padding: 16px;
+  border-radius: var(--radius-zone);
+  background: rgb(var(--ink-rgb) / 0.04);
+  box-shadow: inset 0 0 0 1px var(--ink-ghost);
+}
+
+.skeletonBar {
+  width: 64%;
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgb(var(--ink-rgb) / 0.06), rgb(var(--ink-rgb) / 0.16), rgb(var(--ink-rgb) / 0.06));
+  background-size: 200% 100%;
+  animation: deck-shimmer 1.4s ease-in-out infinite;
+}
+
+.skeletonLabel {
+  color: var(--ink-dim);
+  font-size: var(--text-xs);
+}
+
+@keyframes deck-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.emptyBox {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 20px 16px;
+  border: 1px dashed rgb(var(--ink-rgb) / 0.24);
+  border-radius: var(--radius-zone);
+  background: rgb(var(--ink-rgb) / 0.025);
+  text-align: center;
+}
+
+.emptyIcon {
+  color: var(--ink-dim);
+}
+
+.emptyTitle {
+  color: var(--ink-strong);
+  font-size: var(--text-sm);
+}
+
+.emptyLead {
+  margin: 0;
+  color: var(--ink-dim);
+  font-size: var(--text-xs);
+  max-width: 28ch;
+}
+
+.emptyAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-control);
+  background: rgb(var(--ink-rgb) / 0.1);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink-rgb) / 0.18);
+  color: var(--ink-strong);
+  font-family: var(--font-print);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-print);
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.emptyAction:hover {
+  background: rgb(var(--ink-rgb) / 0.16);
+}
+
+/* Modal Deck Grid */
+.dialogBody {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.dialogLead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dialogCount {
+  margin: 0;
+  color: var(--ink-dim);
+  font-size: var(--text-sm);
+}
+
+.libraryLink {
+  color: var(--brass);
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.searchWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 200px;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 10px;
+  color: var(--ink-dim);
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 7px 30px 7px 32px;
+  border: 1px solid rgb(var(--ink-rgb) / 0.18);
+  border-radius: var(--radius-control);
+  background: rgb(var(--ink-rgb) / 0.05);
+  color: var(--ink-strong);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--brass);
+}
+
+.searchClear {
+  position: absolute;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+
+.searchClear:hover {
+  color: var(--ink-strong);
+  background: rgb(var(--ink-rgb) / 0.1);
+}
+
+.colorFilters {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.colorChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 9px;
+  border: 1px solid rgb(var(--ink-rgb) / 0.16);
+  border-radius: 999px;
+  background: rgb(var(--ink-rgb) / 0.04);
+  color: var(--ink-dim);
+  font: inherit;
+  font-family: var(--font-print);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-print);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.colorPipBtn {
+  padding: 0;
+  width: 30px;
+}
+
+.colorChip:hover {
+  border-color: rgb(var(--ink-rgb) / 0.35);
+  color: var(--ink-strong);
+}
+
+.colorChipOn {
+  border-color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 22%, transparent);
+  color: var(--ink-strong);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+  gap: 12px;
+  max-height: 58vh;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  border: 1px solid rgb(var(--ink-rgb) / 0.15);
+  border-radius: var(--radius-zone);
+  background: rgb(var(--ink-rgb) / 0.04);
+  color: var(--ink-strong);
+  font: inherit;
+  text-align: left;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+}
+
+.tile:hover {
+  border-color: rgb(var(--ink-rgb) / 0.38);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgb(0 0 0 / 0.32);
+}
+
+.tileOn {
+  border-color: var(--decision);
+  box-shadow:
+    0 0 0 1px var(--decision),
+    0 8px 22px rgb(0 0 0 / 0.38);
+}
+
+.tileWindow {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  background: var(--mat-950);
+  overflow: hidden;
+}
+
+.tileArt {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transition: transform 280ms ease;
+}
+
+.tile:hover .tileArt {
+  transform: scale(1.06);
+}
+
+.tileFade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgb(var(--void-rgb) / 0.12) 0%, transparent 45%, rgb(var(--void-rgb) / 0.78) 100%);
+  pointer-events: none;
+}
+
+.activeBadge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--decision);
+  color: var(--mat-950);
+  font-family: var(--font-print);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: var(--tracking-print);
+  text-transform: uppercase;
+}
+
+.tileSize {
+  position: absolute;
+  bottom: 7px;
+  left: 9px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgb(var(--void-rgb) / 0.72);
+  color: var(--ink-soft);
+  font-family: var(--font-print);
+  font-size: 11px;
+  letter-spacing: var(--tracking-print);
+}
+
+.tileFoot {
+  display: grid;
+  gap: 5px;
+  padding: 10px 12px 12px;
+}
+
+.tileHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tileName {
+  font-family: var(--font-print);
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--ink-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tileSub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  color: var(--ink-dim);
+}
+
+.recordBadge {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgb(var(--ink-rgb) / 0.08);
+  color: var(--ink-soft);
+  font-family: var(--font-print);
+  font-size: 11px;
+}
+
+.newSeason {
+  color: var(--ink-dim);
+}
+
+.noMatch {
+  margin: 12px 0;
+  color: var(--ink-dim);
+  text-align: center;
+  font-size: var(--text-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heroCard,
+  .heroArt,
+  .tile,
+  .tileArt,
+  .skeletonBar {
+    transition: none;
+    animation: none;
+  }
+}

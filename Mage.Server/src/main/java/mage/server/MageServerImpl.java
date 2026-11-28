@@ -395,18 +395,19 @@ public class MageServerImpl implements MageServer {
             logger.error("table not found : " + tableId);
             return false;
         }
+        Optional<Session> session = managerFactory.sessionManager().getSession(sessionId);
+        if (!session.isPresent()) {
+            logger.error("Session not found : " + sessionId);
+            return false;
+        }
+        UUID userId = session.get().getUserId();
+        if (!controller.get().isOwner(userId)) {
+            return false;
+        }
         if (!controller.get().changeTableStateToStarting()) {
             return false;
         }
-        execute("startMatch", sessionId, () -> {
-            Optional<Session> session = managerFactory.sessionManager().getSession(sessionId);
-            if (!session.isPresent()) {
-                logger.error("Session not found : " + sessionId);
-            } else {
-                UUID userId = session.get().getUserId();
-                managerFactory.tableManager().startMatch(userId, roomId, tableId);
-            }
-        });
+        execute("startMatch", sessionId, () -> managerFactory.tableManager().startMatch(userId, roomId, tableId));
         return true;
     }
 
@@ -417,18 +418,19 @@ public class MageServerImpl implements MageServer {
             logger.error("table not found : " + tableId);
             return false;
         }
+        Optional<Session> session = managerFactory.sessionManager().getSession(sessionId);
+        if (!session.isPresent()) {
+            logger.error("Session not found : " + sessionId);
+            return false;
+        }
+        UUID userId = session.get().getUserId();
+        if (!controller.get().isOwner(userId)) {
+            return false;
+        }
         if (!controller.get().changeTableStateToStarting()) {
             return false;
         }
-        execute("startTournament", sessionId, () -> {
-            Optional<Session> session = managerFactory.sessionManager().getSession(sessionId);
-            if (!session.isPresent()) {
-                logger.error("Session not found : " + sessionId);
-            } else {
-                UUID userId = session.get().getUserId();
-                managerFactory.tableManager().startTournament(userId, roomId, tableId);
-            }
-        });
+        execute("startTournament", sessionId, () -> managerFactory.tableManager().startTournament(userId, roomId, tableId));
         return true;
     }
 

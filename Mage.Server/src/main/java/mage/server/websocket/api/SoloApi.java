@@ -169,14 +169,19 @@ final class SoloApi {
                                 throw RpcException.invalidParams(e.getMessage());
                             }
                             if (liveTable != null) {
-                                // the game it branches from stays as it was: kept, to resume later
-                                String problem = SoloGames.get().keep(liveTable, user);
+                                // validate before starting the new table so a start failure never detaches the live game (#423)
+                                String problem = SoloGames.get().canKeep(liveTable, user);
                                 if (problem != null) {
                                     throw RpcException.invalidParams(problem);
                                 }
                             }
                             SoloViews.SoloTable table = start(ctx, call, user, line);
                             if (liveTable != null) {
+                                // the game it branches from stays as it was: kept, to resume later
+                                String problem = SoloGames.get().keep(liveTable, user);
+                                if (problem != null) {
+                                    logger.warn("Solo: the game a what-if branched from couldn't be kept: " + problem);
+                                }
                                 try {
                                     leave(ctx, call, gameId);
                                 } catch (Exception e) {

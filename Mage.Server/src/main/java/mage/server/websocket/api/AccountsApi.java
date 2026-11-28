@@ -401,6 +401,9 @@ final class AccountsApi {
      * moment so the caller's answer (and the message) arrive first. The audit log keeps its record.
      */
     static void delete(ApiContext ctx, String name, String message) throws SQLException {
+        if (!AuthorizedUserRepository.getInstance().remove(name)) {
+            throw new SQLException("Account " + name + " couldn't be deleted");
+        }
         DeckStore.get().deleteAll(name);
         try {
             CareerService.get().delete(name);
@@ -430,7 +433,6 @@ final class AccountsApi {
         }
         UserStatsRepository.instance.remove(name);
         AccessPolicy.get().store().forgetAccount(name);
-        AuthorizedUserRepository.getInstance().remove(name);
         logger.info("Account deleted: " + name);
         if (ctx.managers != null) {
             ctx.managers.userManager().getUserByName(name).ifPresent(user -> {

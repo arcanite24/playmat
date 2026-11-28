@@ -1,0 +1,19 @@
+# name: Train200 guild-gw-midrange-5
+# archetype: midrange
+# colors: GW
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Ancient Animus
+4 Break the Spell
+3 Fear of Exposure
+3 Fierce Retribution
+1 Get Lost
+3 Monica Rambeau
+4 Mutagen Man, Living Ooze
+4 Rustvine Cultivator
+3 Selvala, Eager Trailblazer
+4 Summon: Titan
+3 Veteran Beastrider
+4 Brushland
+4 Creosote Heath
+9 Forest
+7 Plains

@@ -294,6 +294,7 @@ public final class Main {
             mage.server.support.SupportHooks.start();
             Health.start(managerFactory);
             BackupStatus.startChecks();
+            DiskStatus.startChecks();
             // AI-against-AI batches carry on from before a restart
             mage.server.solo.BatchRunner.get().start();
             // Career tables from before a restart still pay when their saved games resume (B270)
@@ -308,6 +309,10 @@ public final class Main {
                 mage.server.career.CareerHistoryCredit.startOnce();
             }
             UpdateRunner.startWatching();
+            // pruning and compaction of solo.db and career.db, hourly, from 10 minutes after start
+            if (!Boolean.getBoolean(exitAfterStartupProp)) {
+                StoreUpkeep.start(mage.server.career.CareerService.enabled(config.isAuthenticationActivated()));
+            }
 
             if (testMode) {
                 logger.info("MAGE server running in test mode");

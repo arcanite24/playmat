@@ -1,0 +1,22 @@
+# name: Train200 guild-ub-bigmana-7
+# archetype: bigmana
+# colors: UB
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Boon of Erebos
+2 Dockside Chef
+2 Dragon's Prey
+2 Dreamcaller Siren
+2 Ebondeath, Dracolich
+1 Failed Fording
+3 Fleeting Distraction
+2 Mouth of the Storm
+3 Proft, Sinister Mastermind
+3 Quicksilver Fisher
+2 Rune-Scarred Demon
+4 Steelclad Spirit
+3 The Mindskinner
+4 Tyrannical Pitlord
+9 Island
+4 Murky Sewer
+8 Swamp
+4 Waterfront District

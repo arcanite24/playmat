@@ -1,0 +1,40 @@
+{
+  "$comment": "NB 2.1 art spec for the Coin Cosmetics Boutique emote stickers (Commander table talk and Goblin chaos packs).",
+  "out": "public/career-art/sticker",
+  "aspect": "1:1",
+  "size": "192x192",
+  "items": [
+    {
+      "id": "not-the-threat",
+      "subject": "a cute innocent sheep wearing a tiny floating halo and blinking with wide eyes"
+    },
+    {
+      "id": "have-response",
+      "subject": "two crisp mana islands beside a raised arcane palm holding a shimmering counterspell rune spark"
+    },
+    {
+      "id": "board-wipe",
+      "subject": "a dramatic broom sweeping tiny stars and dust in a wide sparkling arc"
+    },
+    {
+      "id": "deal",
+      "subject": "two stylized gauntlet hands clasping in a firm handshake with a small four-point star above"
+    },
+    {
+      "id": "swing-all",
+      "subject": "three crossed swords pointing forward with bold motion streaks behind them"
+    },
+    {
+      "id": "math-blockers",
+      "subject": "a bewildered goblin scratching its chin beside an abacus with sliding beads"
+    },
+    {
+      "id": "no-regrets",
+      "subject": "a fearless horned goblin wearing round spectacles giving an enthusiastic thumbs up"
+    },
+    {
+      "id": "topdeck",
+      "subject": "a single playing card rising out of a deck wrapped in radiant sunburst rays"
+    }
+  ]
+}

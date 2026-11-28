@@ -1,0 +1,24 @@
+# name: Train200 tri-gur-control-20
+# archetype: control
+# colors: GUR
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Bonded Horncrest
+2 Code of Constraint
+2 Decisive Denial
+2 Depower
+4 Destructive Revelry
+2 Flame Sweep
+4 Hellkite Punisher
+2 Lithobraking
+2 Long River's Pull
+2 Perils of the Past
+4 Spell Snare
+2 Supreme Will
+1 Twining Twins
+2 You Find the Villains' Lair
+2 Forest
+6 Island
+6 Mountain
+4 Omashu City
+4 Steam Vents
+4 Transformative Commons

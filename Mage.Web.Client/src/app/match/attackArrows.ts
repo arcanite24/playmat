@@ -1,6 +1,49 @@
-import type { CombatGroupView } from '../../protocol/generated/views';
+import type { CombatGroupView, GameView } from '../../protocol/generated/views';
 import { fighterOf } from '../../core/game/combatPreview';
 import type { PlayerBoard } from './boardModel';
+
+/** High-contrast per-defender arrow colors when creatures attack multiple defenders at once. */
+export const DEFENDER_COLORS = ['#d9534f', '#5ea8e6', '#e0a94c', '#7ec98b', '#b88ae8', '#e678a8'] as const;
+
+/** Stable color per attackable defender (opponents and their planeswalkers/battles), for multi-defender combat. */
+export function defenderColorMap(view: GameView | null | undefined, myId: string | null): Map<string, string> {
+  const colors = new Map<string, string>();
+  const opponents = (view?.players ?? []).filter((player) => player.playerId && player.playerId !== myId);
+  opponents.forEach((player, index) => {
+    const color = DEFENDER_COLORS[index % DEFENDER_COLORS.length];
+    colors.set(player.playerId!, color);
+    for (const [id, permanent] of Object.entries(player.battlefield ?? {})) {
+      const types = permanent.cardTypes ?? [];
+      if (types.includes('PLANESWALKER') || types.includes('BATTLE')) colors.set(id, color);
+    }
+  });
+  return colors;
+}
+
+/** Map each attacking permanent id to the display name of the player, planeswalker, or battle it is attacking. */
+export function attackerTargetNames(combat: readonly CombatGroupView[] | undefined, view: GameView | null | undefined): Map<string, string> {
+  const names = new Map<string, string>();
+  const players = new Map((view?.players ?? []).map((player) => [player.playerId!, player.name ?? 'Player']));
+  for (const group of combat ?? []) {
+    const defenderId = group.defenderId;
+    if (!defenderId) continue;
+    let label = group.defenderName || players.get(defenderId) || '';
+    if (!label) {
+      for (const player of view?.players ?? []) {
+        const perm = player.battlefield?.[defenderId];
+        if (perm?.name) {
+          label = perm.name;
+          break;
+        }
+      }
+    }
+    if (!label) continue;
+    for (const attackerId of Object.keys(group.attackers ?? {})) {
+      names.set(attackerId, label);
+    }
+  }
+  return names;
+}
 
 /**
  * How attack arrows are drawn when many creatures attack: one arrow per stack on the table (identical tokens share a

@@ -1,0 +1,17 @@
+# name: Train200 mono-g-bigmana-5
+# archetype: bigmana
+# colors: G
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Agonasaur Rex
+2 Blitzball Shot
+3 Champion of Dusan
+4 Drover Grizzly
+2 Kessig Prowler
+3 Pounce
+2 Railway Brawler
+2 Surrak and Goreclaw
+3 Titan's Presence
+3 Ulvenwald Oddity
+4 Venerated Rotpriest
+4 Vorinclex, Monstrous Raider
+25 Forest

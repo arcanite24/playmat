@@ -1,0 +1,23 @@
+# name: Train200 guild-rg-bigmana-8
+# archetype: bigmana
+# colors: RG
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Balustrade Wurm
+2 Crocodile of the Crossing
+3 Daring Buccaneer
+2 Dracosaur Auxiliary
+3 Greasewrench Goblin
+2 Inferno Hellion
+2 Invasive Maneuvers
+3 Pit Fight
+1 Prizefight
+1 Quakestrider Ceratops
+2 Reality Smasher
+3 Relic Golem
+3 Scrapshooter
+2 Silverback Elder
+2 Titanic Growth
+9 Forest
+4 Game Trail
+4 Los Diablos Missile Base
+8 Mountain

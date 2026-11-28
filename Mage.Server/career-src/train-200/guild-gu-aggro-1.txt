@@ -1,0 +1,20 @@
+# name: Train200 guild-gu-aggro-1
+# archetype: aggro
+# colors: GU
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Abhorrent Oculus
+4 Aerial Predation
+4 Cobbled Lancer
+4 Cuboid Colony
+4 Insidious Fungus
+1 Mechan Shieldmate
+3 Most Decrepit Old Bird
+2 Overcharged Amalgam
+3 Reality Hemorrhage
+3 Savage Punch
+4 Starfleet Spanner Jockey
+3 Touch of the Void
+5 Forest
+4 Guadosalam, Farplane Gateway
+8 Island
+4 Restless Vinestalk

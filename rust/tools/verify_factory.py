@@ -7,7 +7,7 @@ but not verified against Java, at scale, with shadow games.
     python3 rust/tools/verify_factory.py replay   --work W [--round R | --all]
     python3 rust/tools/verify_factory.py verdicts --work W [--min-games 3] [--write]
     python3 rust/tools/verify_factory.py run      --work W [--limit N] [--procs 8] [--write]   # all four
-    python3 rust/tools/verify_factory.py views    --work W    # cards/views.json for the verified cards
+    python3 rust/tools/verify_factory.py views    --work W    # cards/views.json.gz for the verified cards
 
 `build` takes the candidates (by default every card in cards.json that isn't on cards/verified.txt, in the order of
 a priority list such as card-priority.tsv's score when one is given, else by name) and makes a round of legal
@@ -30,7 +30,7 @@ else one named on a line that differs, else the unverified card that was last on
 `verdicts.tsv` and `bugs.md` (mismatches clustered by the blamed card) in the work folder; `--write` adds the
 newly verified cards to cards/verified.txt.
 
-`views` writes cards/views.json again for the verified cards (CardFactsTest with views, then view_templates.py):
+`views` writes cards/views.json.gz again for the verified cards (CardFactsTest with views, then view_templates.py):
 a verified card needs a view template, the rest of the pool doesn't (docs/rust/Views.md).
 """
 import argparse
@@ -40,11 +40,14 @@ import json
 import os
 import random
 import re
+import shutil
 import subprocess
 import sys
 import time
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+# `mvn` on Windows is mvn.cmd, which a bare name doesn't find
+MVN = shutil.which('mvn') or 'mvn'
 ENGINE = os.path.join(ROOT, 'rust', 'crates', 'playmat-engine')
 CARDS = os.path.join(ENGINE, 'cards', 'cards.json')
 FACTS = os.path.join(ENGINE, 'cards', 'facts.json')
@@ -130,7 +133,7 @@ def mana_value(card):
 
 def load_errors():
     """the cards of cards.json the engine can't load (lib.rs's test prints them), which can't be played"""
-    p = subprocess.run(['cargo', '+stable', 'test', '--release', '-q', '-p', 'playmat-engine', '--lib',
+    p = subprocess.run(['cargo', '+stable', 'test', '--profile', 'shadow', '-q', '-p', 'playmat-engine', '--lib',
                         'every_verified_card_loads', '--', '--nocapture'], cwd=os.path.join(ROOT, 'rust'),
                        capture_output=True, text=True)
     out, on = set(), False
@@ -263,11 +266,24 @@ def build(args):
             lines[n] += 4
         for n in l:
             lines[n] += 4
-        # fill: verified cheap spells of the deck's colors up to 36 spells
+        # fill: ramp for high-MV decks, cheap cantrips for graveyard/delve decks, else cheap verified spells up to 36
         pool = [f for key, fs in fillers.items() if set(key) <= set(colors) for f in fs]
         rng.shuffle(pool)
+        has_big = any(mana_value(cards[n]) >= 6 for n in s)
+        has_gy = any(any(a.get('class') in ('DelveAbility', 'EscapeAbility', 'FlashbackAbility')
+                         for a in cards[n].get('abilities', [])) for n in s)
+        boosts = []
+        if has_big:
+            boosts += [c for c in ('Sol Ring', 'Mind Stone', 'Fellwar Stone', 'Thought Vessel') if c in verified]
+            if 'G' in colors:
+                boosts += [c for c in ('Birds of Paradise', "Nature's Lore", 'Farseek') if c in verified]
+        if has_gy:
+            if 'U' in colors:
+                boosts += [c for c in ('Brainstorm', 'Ponder', 'Opt', 'Consider') if c in verified]
+            if 'R' in colors:
+                boosts += [c for c in ('Faithless Looting',) if c in verified]
         spells_n = sum(v for k, v in lines.items() if not is_land(cards[k]))
-        for f in pool:
+        for f in boosts + pool:
             if spells_n >= 36:
                 break
             if f not in lines:
@@ -313,31 +329,51 @@ def record(args):
     seeds = open(os.path.join(out, 'seeds.txt')).read().strip().split(',')
     rec = os.path.join(out, 'rec')
     os.makedirs(rec, exist_ok=True)
-    done = {int(re.sub(r'\D', '', os.path.basename(f))) for f in glob.glob(os.path.join(rec, 'game-*.json'))}
-    seeds = [s for s in seeds if s and int(s) not in done]
-    if not seeds:
-        print('round %d: every game is recorded' % r, file=sys.stderr)
-        return
-    procs = max(1, min(args.procs, len(seeds)))
-    chunks = [seeds[i::procs] for i in range(procs)]
     log4j = os.path.join(ROOT, '.travis', 'log4j.properties')
-    running = []
-    for i, chunk in enumerate(chunks):
-        cmd = ['mvn', '-o', '-q', '-pl', 'Mage.Tests', 'test', '-Dtest=ShadowGamesTest',
-               '-Dsurefire.failIfNoSpecifiedTests=false',
-               '-Dxmage.shadowGames=' + rec, '-Dxmage.shadowGames.seeds=' + ','.join(chunk),
-               '-Dxmage.shadowGames.turns=%d' % args.turns,
-               '-Dxmage.shadowGames.decks=' + os.path.join(out, 'decks'),
-               '-Dxmage.dataCollectors.printGameLogs=false', '-Dlog4j.configuration=file:' + log4j]
-        logf = open(os.path.join(out, 'record-%02d.log' % i), 'w')
-        running.append((subprocess.Popen(cmd, cwd=ROOT, stdout=logf, stderr=subprocess.STDOUT), logf))
-        if i == 0 and procs > 1:
-            # the first one compiles if anything is stale; the rest start once it's past that
-            time.sleep(args.stagger)
-    bad = 0
-    for p, logf in running:
-        bad += p.wait() != 0
-        logf.close()
+    # a process that fails (most often one that lost the race to open the card database, see below) leaves its games
+    # unrecorded: those are started again in new processes, twice at most
+    for attempt in range(3):
+        done = {int(re.sub(r'\D', '', os.path.basename(f))) for f in glob.glob(os.path.join(rec, 'game-*.json'))}
+        todo = [s for s in seeds if s and int(s) not in done]
+        if not todo:
+            if attempt == 0:
+                print('round %d: every game is recorded' % r, file=sys.stderr)
+                return
+            break
+        if attempt > 0:
+            print('round %d: %d games again, after %d processes failed' % (r, len(todo), bad), file=sys.stderr)
+        procs = max(1, min(args.procs, len(todo)))
+        chunks = [todo[i::procs] for i in range(procs)]
+        running = []
+        for i, chunk in enumerate(chunks):
+            seed_arg = '-Dxmage.shadowGames.seeds=' + ','.join(chunk)
+            if len(chunk) > 60:
+                sf = os.path.join(out, 'seeds-%02d.txt' % i)
+                with open(sf, 'w') as sfh:
+                    sfh.write(','.join(chunk) + '\n')
+                seed_arg = '-Dxmage.shadowGames.seedsFile=' + sf
+            cmd = [MVN, '-o', '-q', '-pl', 'Mage.Tests', 'test', '-Dtest=ShadowGamesTest#recordShadowGames',
+                   '-Dsurefire.failIfNoSpecifiedTests=false',
+                   '-Dxmage.shadowGames=' + rec, seed_arg,
+                   '-Dxmage.shadowGames.turns=%d' % args.turns,
+                   '-Dxmage.shadowGames.threads=%d' % args.threads,
+                   '-Dxmage.shadowGames.decks=' + os.path.join(out, 'decks'),
+                   '-Dxmage.dataCollectors.printGameLogs=false', '-Dlog4j.configuration=file:' + log4j]
+            logf = open(os.path.join(out, ('record-%02d.log' if attempt == 0 else 'record-%02d.retry%d.log')
+                                     % ((i,) if attempt == 0 else (i, attempt))), 'w')
+            running.append((subprocess.Popen(cmd, cwd=ROOT, stdout=logf, stderr=subprocess.STDOUT), logf))
+            if i == 0 and procs > 1 and attempt == 0:
+                # the first one compiles if anything is stale; the rest start once it's past that
+                time.sleep(args.stagger)
+            elif i < procs - 1:
+                # and a few seconds apart: two that open the card database at once can fail with "Lock file
+                # recently modified", and that one then finds no card, so its decks would load empty
+                # (ShadowGamesTest fails it rather than record them)
+                time.sleep(5)
+        bad = 0
+        for p, logf in running:
+            bad += p.wait() != 0
+            logf.close()
     n = len(glob.glob(os.path.join(rec, 'game-*.json')))
     print('round %d: %d games recorded (%d processes failed)' % (r, n, bad), file=sys.stderr)
 
@@ -354,8 +390,8 @@ def replay(args):
         rec = os.path.join(out, 'rec')
         env = dict(os.environ, PLAYMAT_SHADOW=rec)
         env.pop('PLAYMAT_SHADOW_STRICT', None)
-        cmd = ['cargo', '+stable', 'test', '--release', '-q', '-p', 'playmat-engine', '--test', 'shadow', '--',
-               '--nocapture']
+        cmd = ['cargo', '+stable', 'test', '--profile', 'shadow', '-q', '-p', 'playmat-engine', '--test', 'shadow',
+               '--', '--nocapture']
         p = subprocess.run(cmd, cwd=os.path.join(ROOT, 'rust'), env=env, capture_output=True, text=True)
         results = parse_replay(p.stderr)
         with open(os.path.join(out, 'replay.json'), 'w') as fh:
@@ -580,7 +616,7 @@ def views(args):
                            + ['emblem:' + e for e in transpile.emblem_classes(names)]) + '\n')
     facts, full = os.path.join(tmp, 'facts.json'), os.path.join(tmp, 'views-full.json')
     log4j = os.path.join(ROOT, '.travis', 'log4j.properties')
-    subprocess.run(['mvn', '-o', '-q', '-pl', 'Mage.Tests', 'test', '-Dtest=CardFactsTest',
+    subprocess.run([MVN, '-o', '-q', '-pl', 'Mage.Tests', 'test', '-Dtest=CardFactsTest',
                     '-Dsurefire.failIfNoSpecifiedTests=false', '-Dxmage.cardFacts=' + facts,
                     '-Dxmage.cardFacts.pool=' + pool, '-Dxmage.cardFacts.views=' + full,
                     '-Dlog4j.configuration=file:' + log4j], cwd=ROOT, check=True)
@@ -598,14 +634,15 @@ def main():
     p.add_argument('--priority', help='a TSV with card and score columns that orders the candidates')
     p.add_argument('--used-only', action='store_true', help='only candidates with a score above 0')
     p.add_argument('--limit', type=int, default=0)
-    p.add_argument('--per-deck', type=int, default=6, help='candidate spells per deck')
+    p.add_argument('--per-deck', type=int, default=8, help='candidate spells per deck')
     p.add_argument('--lands-per-deck', type=int, default=2, help='candidate lands per deck')
     p.add_argument('--decks-per-card', type=int, default=3)
     p.add_argument('--games-per-deck', type=int, default=2)
     p.add_argument('--max-tries', type=int, default=3, help='rounds a candidate may take before it is left pending')
     p.add_argument('--seed', type=int, default=20261112)
     p.add_argument('--turns', type=int, default=20)
-    p.add_argument('--procs', type=int, default=8)
+    p.add_argument('--procs', type=int, default=1)
+    p.add_argument('--threads', type=int, default=8, help='concurrent games inside each Maven JVM')
     p.add_argument('--stagger', type=int, default=60, help='seconds between the first recorder and the rest')
     p.add_argument('--min-games', type=int, default=3)
     p.add_argument('--write', action='store_true', help='verdicts: add newly verified cards to cards/verified.txt')

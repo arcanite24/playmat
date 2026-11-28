@@ -46,13 +46,33 @@ public final class BotRoster {
         public String deck;
         public String deckName;
         public String colors;
-        /** the school deck's kind: starter, signature, act1, act2, act3, meta, budget (a meta list made cheap, for the League) */
+        /** the school deck's kind: starter, signature, act1, act2, act3, meta, budget (a meta list made cheap, for the League), rogue, tier2 */
         public String kind;
-        /** the queues it plays in (open, league); none listed: both */
+        /** macro archetype for matchmaking diversity and AI profiles: aggro, burn, tempo, midrange, control, ramp, combo, graveyard, sacrifice, tribal */
+        public String archetype;
+        /** power tier: starter, budget, rogue, tier2, meta */
+        public String tier;
+        /** optional AI playbook id under playbooks/ (e.g. standard/meta-azorius-control or profile:control) */
+        public String playbook;
+        /** short playstyle description for the ranked UI */
+        public String tagline;
+        /** signature cards for scouting and post-match summary */
+        public List<String> keyCards;
+        /** the queues it plays in (open, league; Bo3 plays the Open queue's); none listed: both */
         public List<String> queues;
         /** the AI skill the Rust host plays it at (1 quick, 3 light, 5 half, 7 full search) */
         public int skill;
         public String search;
+        /**
+         * The search settings it was rated with, pinned (#435): the Rust host plays this label instead of what a later
+         * build makes of the skill, so the bot plays as measured. "quick" is the quick answers alone; null follows the
+         * skill. The Java AI, for games the Rust host can't play, still plays the skill.
+         */
+        public String ai;
+        /** the AI generation it was made in (#435): a stronger Rust AI adds bots of a new generation beside the old */
+        public int generation;
+        /** no longer picked (#435); kept so the games against it still show who it was */
+        public boolean retired;
         /** the rating guessed before calibration */
         public int prior;
         public Persona persona;
@@ -66,7 +86,11 @@ public final class BotRoster {
 
         /** whether the bot plays in the queue */
         public boolean plays(String queue) {
-            return queues == null || queues.isEmpty() || queues.contains(queue);
+            if (retired) {
+                return false;
+            }
+            String plays = RankedService.botQueue(queue);
+            return queues == null || queues.isEmpty() || queues.contains(plays);
         }
 
         public boolean calibrated() {
@@ -78,6 +102,62 @@ public final class BotRoster {
             return calibrated()
                     ? new Glicko2.Rating(rating, rd == null ? Glicko2.MAX_RD : rd, Glicko2.START_VOLATILITY)
                     : new Glicko2.Rating(prior, Glicko2.MAX_RD, Glicko2.START_VOLATILITY);
+        }
+
+        /** normalized macro archetype: explicit metadata, or inferred from deck name/path for older entries */
+        public String effectiveArchetype() {
+            if (archetype != null && !archetype.isEmpty()) {
+                return archetype;
+            }
+            String text = ((deckName == null ? "" : deckName) + " " + (deck == null ? "" : deck)).toLowerCase(java.util.Locale.ENGLISH);
+            if (text.contains("burn")) {
+                return "burn";
+            }
+            if (text.contains("control")) {
+                return "control";
+            }
+            if (text.contains("sacrifice") || text.contains("aristocrat")) {
+                return "sacrifice";
+            }
+            if (text.contains("reanimat") || text.contains("goryo") || text.contains("grave") || text.contains("phoenix") || text.contains("greasefang") || text.contains("dredge")) {
+                return "graveyard";
+            }
+            if (text.contains("combo") || text.contains("storm") || text.contains("living-end") || text.contains("rhinos")) {
+                return "combo";
+            }
+            if (text.contains("ramp") || text.contains("landfall") || text.contains("tron") || text.contains("devotion") || text.contains("domain")) {
+                return "ramp";
+            }
+            if (text.contains("tempo") || text.contains("prowess") || text.contains("spirits") || text.contains("skies") || text.contains("merfolk") || text.contains("rogue") || text.contains("spellementals")) {
+                return "tempo";
+            }
+            if (text.contains("aggro") || text.contains("weenie") || text.contains("mono-red") || text.contains("red line") || text.contains("red deck wins") || text.contains("zoo") || text.contains("lizards")) {
+                return "aggro";
+            }
+            if (text.contains("humans") || text.contains("vampires") || text.contains("angels") || text.contains("dragons") || text.contains("elves") || text.contains("goblins")) {
+                return "tribal";
+            }
+            return "midrange";
+        }
+
+        /** normalized tier: explicit metadata, or derived from kind */
+        public String effectiveTier() {
+            if (tier != null && !tier.isEmpty()) {
+                return tier;
+            }
+            if ("meta".equals(kind) || "act3".equals(kind)) {
+                return "meta";
+            }
+            if ("tier2".equals(kind) || "act2".equals(kind)) {
+                return "tier2";
+            }
+            if ("rogue".equals(kind)) {
+                return "rogue";
+            }
+            if ("budget".equals(kind)) {
+                return "budget";
+            }
+            return "starter";
         }
     }
 
@@ -99,6 +179,7 @@ public final class BotRoster {
     private static volatile BotRoster instance;
 
     private final Map<String, Bot> bots = new LinkedHashMap<>();
+    private final Map<String, Persona> personasByName = new LinkedHashMap<>();
     private final Map<String, String> anchors;
     private final Calibration calibration;
 
@@ -109,6 +190,9 @@ public final class BotRoster {
         for (Bot bot : file.bots) {
             if (bots.put(bot.id, bot) != null) {
                 throw new IllegalStateException("Two ladder bots are called " + bot.id);
+            }
+            if (bot.persona != null && bot.persona.name != null && !bot.persona.name.trim().isEmpty()) {
+                personasByName.putIfAbsent(bot.persona.name.trim().toLowerCase(java.util.Locale.ROOT), bot.persona);
             }
         }
     }
@@ -137,6 +221,15 @@ public final class BotRoster {
 
     public Bot bot(String id) {
         return bots.get(id);
+    }
+
+    /** the cosmetic persona for a ladder bot's display name (case-insensitive), or null if none */
+    public Persona personaByName(String name) {
+        if (name == null) {
+            return null;
+        }
+        String key = name.trim().toLowerCase(java.util.Locale.ROOT);
+        return key.isEmpty() ? null : personasByName.get(key);
     }
 
     public List<Bot> bots() {
@@ -183,8 +276,37 @@ public final class BotRoster {
         return calibration;
     }
 
+    /** the classpath resource path for a bot's deck file */
+    public static String deckResource(String deckPath) {
+        if (deckPath != null && deckPath.startsWith("ladder/")) {
+            return "/ladder/decks/" + deckPath.substring("ladder/".length());
+        }
+        return "/career/campaigns/decks/" + deckPath;
+    }
+
     /** the bot's deck, as the server plays it */
     public DeckCardLists deck(Bot bot) throws IOException {
+        if (bot.deck != null && bot.deck.startsWith("ladder/")) {
+            String resource = deckResource(bot.deck);
+            InputStream stream = BotRoster.class.getResourceAsStream(resource);
+            if (stream == null) {
+                throw new IOException("Missing ladder deck " + resource);
+            }
+            java.nio.file.Path file = java.nio.file.Files.createTempFile("ladder-", ".dck");
+            try {
+                try (InputStream in = stream) {
+                    java.nio.file.Files.copy(in, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                }
+                StringBuilder errors = new StringBuilder();
+                DeckCardLists deck = mage.cards.decks.importer.DeckImporter.importDeckFromFile(file.toString(), errors, false);
+                if (deck == null || deck.getCards().isEmpty()) {
+                    throw new IOException("Ladder deck " + resource + " can't be read: " + errors);
+                }
+                return deck;
+            } finally {
+                java.nio.file.Files.deleteIfExists(file);
+            }
+        }
         return CareerCampaigns.get().deck(bot.deck);
     }
 }

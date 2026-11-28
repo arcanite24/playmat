@@ -17,8 +17,15 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 anyhow = "1"
 toml = "0.8"
+flate2 = "1"
 
 [profile.release]
 lto = "thin"
 codegen-units = 1
 strip = true
+
+[profile.shadow]
+inherits = "release"
+lto = false
+codegen-units = 16
+strip = false

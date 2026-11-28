@@ -28,6 +28,7 @@
           <li><a href="../#host">Run a server</a></li>
           <li><a href="./" aria-current="true">Docs</a></li>
           <li><a href="../rust/">Rust port</a></li>
+          <li><a href="../benchmarks/">Benchmarks</a></li>
           <li><a href="https://github.com/arcanite24/playmat">GitHub</a></li>
         </ul>
       </nav>
@@ -46,6 +47,7 @@
           <li><a href="sso.html">Single sign-on</a></li>
           <li><a href="capsules.html">Capsule machines</a></li>
           <li><a href="ladder.html">Ranked and bots</a></li>
+          <li><a href="swarm.html">Self-play swarm</a></li>
         </ul>
       </nav>
       <article class="doc">
@@ -89,6 +91,14 @@
           without a new build. A pack is a zip with <code>pack.json</code> and its decks under <code>decks/</code>.
           Owners upload one there, or put the folder in <code>db/content-packs/</code> and press <strong>Reload</strong>.
           A pack with problems stays out and says why. Packs are in the nightly backup.</p>
+
+        <h2 id="self-play">Self-play</h2>
+        <p>If the server plays training games for the Rust AI in its idle time (the self-play worker, see
+          <a href="server.html#selfplay">Run a server</a>), admins follow it in the <strong>Self-play</strong> tab:
+          what the worker is doing, the games it played each hour of the last day, the chunks it threw away when
+          players came back, and the trainer's rounds. From there they can pause it and set its quiet hours, the
+          server CPU and open games that count as busy, and its cores. The worker picks the settings up within 2
+          minutes; a pause also stops a chunk under way. An empty field keeps the host's own setting.</p>
 
         <h2 id="home-widgets">Home widgets</h2>
         <p>Players can put widgets under Play on Home (ranks, quests, packs, streak, saved games and more) and arrange

@@ -1,0 +1,22 @@
+# name: Train200 guild-bg-midrange-5
+# archetype: midrange
+# colors: BG
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Agonasaur Rex
+4 Archdruid's Charm
+1 Corrupted Conviction
+3 Crocodile of the Crossing
+3 Death in the Family
+4 Demon of Catastrophes
+4 Dungeon Crawler
+4 Edge Rover
+3 Inspiring Call
+1 Ob Nixilis, Unshackled
+1 Old-Growth Troll
+2 Shopkeeper's Bane
+2 Traxos, Scourge of Kroog
+1 Wring Flesh
+9 Forest
+4 Illegitimate Business
+4 Restless Cottage
+7 Swamp

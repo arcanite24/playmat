@@ -44,6 +44,7 @@ public enum MageIdentifier {
     MikeyAndDonWatcher,
     VisionSpectralSynthezoidWatcher("Without paying manacost"),
     TheEighthDoctorWatcher,
+    TheHolodeckWatcher,
 
     // ----------------------------//
     //       alternate casts       //
@@ -96,7 +97,8 @@ public enum MageIdentifier {
     UndeadSprinterAlternateCast,
     GwenomRemorselessAlternateCast,
     AlienSymbiosisAlternateCast,
-    InsideInformationAlternateCast;
+    InsideInformationAlternateCast,
+    EyeOfDuskmantleAlternateCast;
 
     /**
      * Additional text if there is need to differentiate two very similar effects

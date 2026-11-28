@@ -68,6 +68,11 @@ public final class SimulatedPlayer2 extends ComputerPlayer {
     }
 
     @Override
+    protected boolean preferManaOverPhyrexianLife() {
+        return true;
+    }
+
+    @Override
     public SimulatedPlayer2 copy() {
         return new SimulatedPlayer2(this);
     }

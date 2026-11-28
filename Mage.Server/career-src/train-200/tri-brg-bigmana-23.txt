@@ -1,0 +1,24 @@
+# name: Train200 tri-brg-bigmana-23
+# archetype: bigmana
+# colors: BRG
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Cactuar
+2 Champion of the Weird
+2 Crushing Canopy
+2 Dark Betrayal
+3 Geier Reach Bandit
+4 Greenbelt Rampager
+1 Junji, the Midnight Sky
+2 Large Bear
+2 Lava Dart
+2 Perils of the Past
+2 Ripjaw Raptor
+4 Stormbreath Dragon
+4 The Speed Demon
+3 Traxos, Scourge of Kroog
+5 Forest
+4 Geothermal Bog
+4 Konstrari Annex
+4 Mountain
+4 Razortrap Gorge
+4 Swamp

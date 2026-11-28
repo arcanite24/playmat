@@ -1,0 +1,20 @@
+# name: Train200 guild-br-bigmana-6
+# archetype: bigmana
+# colors: BR
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Ball Lightning
+1 Brambleback Brute
+3 Fiery Impulse
+4 Graf Reaver
+2 Grim Strider
+4 Hulking Bugbear
+3 Junji, the Midnight Sky
+4 Lord of the Forsaken
+2 Mouser Attack!
+2 Ruthless Sniper
+4 Tyrannical Pitlord
+3 Vile Rebirth
+4 Blackcleave Cliffs
+4 Bloodfell Caves
+6 Mountain
+11 Swamp

@@ -61,4 +61,22 @@ public class LadderRankTest {
         assertEquals(step("gold", 2, 1), draw.step);
         assertEquals(0, draw.streak);
     }
+
+    @Test
+    void podPlacementMovementRewardsFirstAndProtectsSecondThird() {
+        LadderRank.Move first = LadderRank.afterPod(step("gold", 3, 0), 0, 1);
+        assertEquals(2, first.delta, "1st place in a 4-player pod awards +2 pips");
+        LadderRank.Move secondGold = LadderRank.afterPod(step("gold", 3, 0), 0, 2);
+        assertEquals(1, secondGold.delta, "2nd place in Bronze–Gold awards +1 pip");
+        LadderRank.Move secondPlat = LadderRank.afterPod(step("platinum", 3, 2), 0, 2);
+        assertEquals(0, secondPlat.delta, "2nd place in Platinum+ is protected");
+        LadderRank.Move thirdGold = LadderRank.afterPod(step("gold", 3, 2), 0, 3);
+        assertEquals(0, thirdGold.delta, "3rd place in Bronze–Gold is protected");
+        LadderRank.Move thirdPlat = LadderRank.afterPod(step("platinum", 3, 2), 0, 3);
+        assertEquals(-1, thirdPlat.delta, "3rd place in Platinum–Diamond loses 1 pip");
+        LadderRank.Move fourthBronze = LadderRank.afterPod(step("bronze", 2, 2), 0, 4);
+        assertEquals(0, fourthBronze.delta, "4th place in Bronze costs nothing");
+        LadderRank.Move fourthSilver = LadderRank.afterPod(step("silver", 2, 2), 0, 4);
+        assertEquals(-1, fourthSilver.delta, "4th place in Silver+ loses 1 pip");
+    }
 }

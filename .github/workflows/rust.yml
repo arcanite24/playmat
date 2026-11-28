@@ -25,7 +25,7 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     defaults:
       run:
         working-directory: rust
@@ -44,3 +44,8 @@ jobs:
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: Tests
         run: cargo test --workspace --locked
+      # the Mana@Home worker ships strict (docs/swarm/S0.md) and a workspace build never turns the feature on;
+      # unit tests and strict_bits (the recorded float bits) only: the other integration tests already ran above,
+      # and this job is near its timeout
+      - name: Strict build
+        run: cargo test -p playmat-ai -p playmat-worker -p playmat-swarm-proto --lib --bins --test strict_bits --features playmat-ai/strict --locked

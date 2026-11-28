@@ -20,6 +20,8 @@ import { SettingsPage } from './SettingsPage';
 import { SoloPage } from './SoloPage';
 import { StaffPage } from './StaffPage';
 import { SupportPage } from './SupportPage';
+import { SelfPlayPage } from './SelfPlayPage';
+import { SwarmPage } from './SwarmPage';
 import { UpdatesPage } from './UpdatesPage';
 import { atLeast, describeAge, formatBytes, formatDate, formatDuration, MUTE_CHOICES, type StaffRole } from './adminFormat';
 import styles from './AdminScreen.module.css';
@@ -155,6 +157,8 @@ const SECTIONS: { id: string; label: string; role: StaffRole }[] = [
   // payments: admins and the owner, not moderators
   { id: 'support', label: 'Support', role: 'admin' },
   { id: 'updates', label: 'Updates', role: 'admin' },
+  { id: 'selfplay', label: 'Self-play', role: 'admin' },
+  { id: 'swarm', label: 'Swarm', role: 'admin' },
   { id: 'staff', label: 'Staff', role: 'owner' },
   { id: 'errors', label: 'Client errors', role: 'moderator' },
   { id: 'audit', label: 'Audit', role: 'moderator' },
@@ -188,6 +192,8 @@ function Console({ staff }: { staff: StaffSession }) {
           <Tabs.Content value="solo" className={styles.panel}><SoloPage api={api} role={role} /></Tabs.Content>
           <Tabs.Content value="support" className={styles.panel}><SupportPage api={api} /></Tabs.Content>
           <Tabs.Content value="updates" className={styles.panel}><UpdatesPage api={api} role={role} /></Tabs.Content>
+          <Tabs.Content value="selfplay" className={styles.panel}><SelfPlayPage api={api} /></Tabs.Content>
+          <Tabs.Content value="swarm" className={styles.panel}><SwarmPage /></Tabs.Content>
         </>
       )}
       {atLeast(role, 'owner') && <Tabs.Content value="staff" className={styles.panel}><StaffPage api={api} actor={staff.actor} /></Tabs.Content>}
@@ -215,6 +221,7 @@ function Overview({ api, role, onUpdates }: { api: AdminApi; role: StaffRole; on
   const most = Math.max(1, ...buckets);
   const backup = data.backup;
   const maintenance = data.maintenance;
+  const disk = data.disk;
   return (
     <div className={styles.overview}>
       <p className={styles.quiet}>
@@ -236,6 +243,11 @@ function Overview({ api, role, onUpdates }: { api: AdminApi; role: StaffRole; on
           Maintenance {(maintenance.startsAt ?? 0) > (data.now ?? 0) ? `at ${formatDate(maintenance.startsAt ?? 0)}` : 'under way'}, announced by {maintenance.by}: no new tables can start.
         </p>
       )}
+      {disk?.problem && (
+        <p className={styles.backupBad}>
+          {disk.problem}. Old backups and deploy snapshots are the usual suspects.
+        </p>
+      )}
       <dl className={styles.numbers}>
         <Stat label="Players online" value={data.usersOnline ?? 0} />
         <Stat label="Tables" value={data.tables ?? 0} />
@@ -243,6 +255,7 @@ function Overview({ api, role, onUpdates }: { api: AdminApi; role: StaffRole; on
         <Stat label="Connections" value={bridge?.connections ?? 0} />
         <Stat label="CPU (this server)" value={data.processCpu !== undefined && data.processCpu >= 0 ? `${Math.round(data.processCpu * 100)}%` : '—'} />
         <Stat label="Load (1 min)" value={data.systemLoad !== undefined && data.systemLoad >= 0 ? `${data.systemLoad.toFixed(2)} / ${data.processors} cores` : '—'} />
+        <Stat label="Disk free" value={disk?.total ? `${((disk.free ?? 0) / 2 ** 30).toFixed(1)} of ${Math.round(disk.total / 2 ** 30)} GB` : '—'} />
         <Stat label="Memory" value={`${formatBytes(data.heapUsed ?? 0)} of ${formatBytes(data.heapMax ?? 0)}`} />
         <Stat label="Up for" value={formatDuration(data.uptimeMillis ?? 0)} />
       </dl>

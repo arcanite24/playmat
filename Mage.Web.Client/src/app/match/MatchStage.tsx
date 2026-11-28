@@ -15,6 +15,7 @@ import { askedAboutCards } from '../../core/game/reveals';
 import { revealedInHand } from '../../core/game/revealedHand';
 import { delayLabel, isBroadcastDelay } from '../../core/game/broadcastDelay';
 import { spectatorHand } from '../../core/game/spectatorHand';
+import { controlledTurn } from '../../core/game/turnControl';
 import { matchProgress } from '../../core/game/matchProgress';
 import { pregameChoice } from '../../core/game/pregame';
 import { offBoardTargets } from '../../core/game/offBoardTargets';
@@ -28,7 +29,7 @@ import { useT } from '../i18n';
 import { useEvents } from '../stores/events';
 import { useGames } from '../stores/games';
 import { usePlay } from '../stores/play';
-import { useAutomation, useSettings } from '../stores/settings';
+import { clampAiActionDelay, useAutomation, useSettings } from '../stores/settings';
 import { useManaPaymentSettings } from './useManaPaymentSettings';
 import { progressionShown } from '../career/progressionEvents';
 import { notify } from '../stores/toasts';
@@ -42,10 +43,12 @@ import { KeyboardShortcuts } from './KeyboardShortcuts';
 import { Stitch } from '../ui/Stitch';
 import { ActionCluster } from './ActionCluster';
 import { AttackGroups } from './AttackGroups';
+import { PlaneBanner } from './PlaneBanner';
+import { SchemeBanner } from './SchemeBanner';
 import { AlwaysAnswerMenu, TriggerOrderOptions } from './AutoAnswer';
 import { BetweenGames } from './BetweenGames';
 import { Arrows } from './Arrows';
-import { combatArrows, stackLeads } from './attackArrows';
+import { attackerTargetNames, combatArrows, defenderColorMap, stackLeads } from './attackArrows';
 import { buildBoard, cardKey, fitRow, type PermanentGroup, type PlayerBoard } from './boardModel';
 import { CardDetail } from './CardDetail';
 import { Coach } from './Coach';
@@ -78,7 +81,7 @@ import { useAutoPass } from './useAutoPass';
 import { useBlockDrag } from './useBlockDrag';
 import { useAutoOrder } from './useAutoOrder';
 import { Vfx } from './Vfx';
-import { tablePlayback } from './beats';
+import { createTablePlayback } from './beats';
 import { CardPicker, ChoicePanel, DungeonViewer, GameOverOverlay, MulliganOverlay, StartingPlayerOverlay, ZoneViewer } from './Overlays';
 import { PermanentStack } from './PermanentStack';
 import { clothOf, clothStyle } from './playmats';
@@ -186,6 +189,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   const largeZoom = useSettings((settings) => settings.settings.largeZoom);
   const bigZoom = useSettings((settings) => settings.settings.bigZoom);
   const matchSize = useSettings((settings) => settings.settings.matchSize);
+  const aiActionDelay = useSettings((settings) => settings.settings.aiActionDelay);
   // the browser's zoom keys and a trackpad pinch step the match size: zoom alone cancels out (#147)
   useMatchZoomKeys(true);
   useEffect(() => {
@@ -194,11 +198,11 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   }, [session, mode, broadcastDelay]);
   useEffect(() => {
     // while the table is drawn, the server's views are shown at its pace: each waits for the last one's swings and
-    // hits, and the result for the final board (beats.ts). Replays step through frames of their own.
+    // hits, AI spell pacing when set, and the result for the final board (beats.ts). Replays step through frames of their own.
     if (mode === 'replay') return;
-    session.setStage(tablePlayback);
+    session.setStage(createTablePlayback({ aiDelayMs: clampAiActionDelay(aiActionDelay) * 1000 }));
     return () => session.setStage(null);
-  }, [session, mode]);
+  }, [session, mode, aiActionDelay]);
   const viewer = useMatchUi((ui) => ui.viewer);
   const openViewer = useMatchUi((ui) => ui.openViewer);
   const deckSleeves = useSleeves();
@@ -227,7 +231,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
 
   useEffect(() => setCardMotion(animations), [animations]);
   // a new game starts with a clean table
-  useEffect(() => () => useMatchUi.setState({ zoom: null, dragging: null, viewer: null, logOpen: false, detail: null, sourceHover: null, promptSource: null }), []);
+  useEffect(() => () => useMatchUi.setState({ zoom: null, dragging: null, viewer: null, logOpen: false, detail: null, sourceHover: null, promptSource: null, hoveredDefender: null, hoveredStackId: null }), []);
 
   // a click's likely outcome (a land tapped for mana) shows at once; the server's next view replaces it
   const board = useMemo(() => buildBoard(withPrediction(view, prediction), playerId), [view, prediction, playerId]);
@@ -247,16 +251,25 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   const combat = useKeptDefenders(view);
   const combatNow = useMemo(() => combatArrows(combat), [combat]);
   const { blocking, attacks } = combatNow;
+  const defenderColors = useMemo(() => defenderColorMap(view, playerId), [view, playerId]);
+  const attackTargetNames = useMemo(() => attackerTargetNames(combat, view), [combat, view]);
   const leads = useMemo(() => stackLeads([board.me, ...board.opponents]), [board.me, board.opponents]);
   // a creature declared as an attacker steps forward before the server confirms it
   const attacking = useMemo(() => withPredictedAttack(combatNow.attacking, prediction), [combatNow.attacking, prediction]);
   const chosen = useMemo(() => withPredictedAttack(interaction.selected, prediction), [interaction.selected, prediction]);
   const pending = prediction?.id ?? null;
   const sortedHand = useSettings((settings) => settings.settings.sortHand);
+  // a turn we control (Mindslaver, Emrakul): while its player is asked, their hand and lands are what we play from
+  const control = useMemo(() => (mode === 'play' ? controlledTurn(view) : null), [mode, view]);
+  const acting = control?.acting ? control : null;
+  const actingBoard = useMemo(
+    () => (acting ? board.opponents.find((one) => one.player.playerId === acting.player.playerId) ?? null : board.me?.isMe ? board.me : null),
+    [acting, board.opponents, board.me],
+  );
   const hand = useMemo(() => {
-    const cards = Object.values(view?.myHand ?? {});
+    const cards = acting ? acting.hand : Object.values(view?.myHand ?? {});
     return sortedHand ? sortHand(cards) : cards;
-  }, [view?.myHand, sortedHand]);
+  }, [acting, view?.myHand, sortedHand]);
   // cards played from exile or a graveyard (an adventurer, flashback) join the hand while they can be played
   const liveOffZone = useMemo(() => (interaction.mode === 'priority' ? offZonePlayables(view, clickable) : null), [interaction.mode, view, clickable]);
   const [lastOffZone, setLastOffZone] = useState<OffZoneHold>(NO_OFF_ZONE_HOLD);
@@ -342,18 +355,22 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   const attackDrop = useAttackTarget(session, state, myId, automation.attackPlayerByDefault && mode === 'play');
   const attackMany = useAttackGroups(session, state, mode === 'play' && !state.gameOver);
   const commanders = useMemo(() => commandersByPlayer(view), [view]);
+  const hasCommanders = commanders.size > 0;
+  // commander damage breakdown toggle (starts collapsed in multiplayer so left-column plates stay clear of creatures)
+  const [cmdrExpanded, setCmdrExpanded] = useState<boolean | undefined>(undefined);
+  const cmdrShown = cmdrExpanded ?? board.opponents.length <= 1;
   const damageTaken = useCallback(
     (player: PlayerView) => commanderDamageTo(player, commanders).map((hit) => ({ name: hit.commander.name, amount: hit.amount })),
     [commanders],
   );
   useWarmImages(view);
-  useAutoPay(session, state, board.me?.isMe ? board.me : null, autoPay && mode === 'play', {
+  useAutoPay(session, state, actingBoard, autoPay && !fullControl && mode === 'play', {
     hybrid: automation.autoPayHybrid,
     anyColor: automation.autoPayAnyColor,
     painful: automation.autoPayPainful,
     afterX: automation.autoPayX,
   });
-  useAutoCrew(session, state, board.me?.isMe ? board.me : null, automation.autoCrew && mode === 'play');
+  useAutoCrew(session, state, actingBoard, automation.autoCrew && mode === 'play');
   useSkipSingleChoice(session, state, automation.skipSingleChoice && mode === 'play');
   useAutoDamage(session, state, mode === 'play' ? damageSplit : null, { plain: automation.autoAssignDamage, trample: automation.autoAssignTrample });
   // holding priority means the player wants every stop
@@ -364,6 +381,36 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   const playerNames = (view?.players ?? []).map((player) => player.name).join('\n');
   const looks = usePlayerLooks(playerNames.split('\n'), true);
   const lookOf = useCallback((player: PlayerView | undefined): PlayerLook | undefined => (player?.name ? looks[player.name.trim().toLowerCase()] ?? undefined : undefined), [looks]);
+  // Phase 6 Pet Bond Tier 2+: reactive table emotes on Commander cast, clutch low-life survival, or match win
+  const myLook = lookOf(board.me?.player);
+  const myBondTier = myLook?.petTier ?? 1;
+  const myLife = board.me?.player.life;
+  const myCommandersOnBoard = useMemo(
+    () => (myId ? (commanders.get(myId) ?? []).filter((c) => c.zone === 'battlefield').map((c) => c.id).sort().join(',') : ''),
+    [commanders, myId],
+  );
+  const petTrackRef = useRef<{ life?: number; cmds: string; won: boolean }>({ life: undefined, cmds: '', won: false });
+  const [petReaction, setPetReaction] = useState<{ count: number; line?: string } | null>(null);
+  useEffect(() => {
+    const prev = petTrackRef.current;
+    let line: string | null = null;
+    if (myBondTier >= 2 && myLook?.pet) {
+      const won = Boolean(state.gameOver && /\bwon\b/i.test(state.gameOver));
+      if (won && !prev.won) {
+        line = 'Victory!';
+      } else if (myCommandersOnBoard && myCommandersOnBoard !== prev.cmds && myCommandersOnBoard.length > prev.cmds.length) {
+        line = 'Command!';
+      } else if (myLife !== undefined && prev.life !== undefined && prev.life > 3 && myLife > 0 && myLife <= 3) {
+        line = 'Hold on!';
+      }
+      prev.won = won;
+    }
+    prev.life = myLife;
+    prev.cmds = myCommandersOnBoard;
+    if (line) {
+      setPetReaction((current) => ({ count: (current?.count ?? 0) + 1, line }));
+    }
+  }, [myBondTier, myLook?.pet, myLife, myCommandersOnBoard, state.gameOver]);
   const mine = board.me?.isMe ? deckSleeves.mine : playerSleeve(lookOf(board.me?.player), deckSleeves.mine);
   const sleeves = useMemo(() => ({
     ...deckSleeves, mine,
@@ -409,6 +456,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   // the rewards beat shows on the game-over screen itself (B277): leaving goes straight back, Details opens the screen
   const leave = useCallback(() => exit(false), [exit]);
   const deckId = usePlay((play) => play.deckId);
+  const playOpponentDecks = usePlay((play) => play.opponentDecks);
   // players see who is watching them too
   const watchers = useWatchers(state.gameId, mode === 'play' && !state.gameOver);
   // between games of a match the server deals the next game by itself: show the score, not a way out
@@ -422,13 +470,18 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
     if (deckId) void usePlay.getState().playVsAi(deckId, lastOptions);
   }, [exit, deckId]);
 
-  // the arrow starts at the spell being cast (top of the stack) while it chooses targets
+  // the arrow starts at the spell being cast (top of the stack) while choosing targets, or at whichever stack item is hovered
+  const hoveredStackId = useMatchUi((ui) => ui.hoveredStackId);
   const choosingTargets = interaction.mode === 'target' && !awaitingServer;
-  const arrowSource = stack[0]?.id ?? null;
+  const activeStackItem = useMemo(
+    () => (choosingTargets ? stack[0] ?? null : ((hoveredStackId ? stack.find((item) => item.id === hoveredStackId) : null) ?? stack[0] ?? null)),
+    [choosingTargets, hoveredStackId, stack],
+  );
+  const arrowSource = activeStackItem?.id ?? null;
   const arrowTargets = useMemo(() => {
     if (choosingTargets) return [...interaction.selected];
-    return (stack[0]?.targets ?? []).filter(Boolean) as string[];
-  }, [choosingTargets, interaction.selected, stack]);
+    return (activeStackItem?.targets ?? []).filter(Boolean) as string[];
+  }, [choosingTargets, interaction.selected, activeStackItem]);
 
   const prompt = interaction.prompt;
   // the permanent a question is asked for stays marked while it's open (#227)
@@ -485,9 +538,13 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   // a concession takes effect when the player holding priority passes: name them while it is pending
   const priorityName = (view?.players ?? []).find((player) => player.hasPriority && player.playerId !== myId)?.name ?? null;
   const choosingStarter = pregamePick === 'startingPlayer';
+  // peeking hides the active choice overlay so the player can inspect both the board and their hand (#476)
+  const [peekingPrompt, setPeekingPrompt] = useState<typeof prompt>(null);
+  const peeking = !!prompt && peekingPrompt === prompt;
+  const setPeeking = useCallback((next: boolean) => setPeekingPrompt(next ? prompt : null), [prompt]);
   // one decision, one set of controls: an overlay owns the choice while it's open
   const overlayOpen = (interaction.mode === 'mulligan' || choosingStarter || !!pickerCards || interaction.mode === 'panel') && !awaitingServer;
-  const handHidden = (interaction.mode === 'mulligan' || choosingStarter || !!pickerCards) && !awaitingServer;
+  const handHidden = (interaction.mode === 'mulligan' || choosingStarter || (!!pickerCards && !peeking)) && !awaitingServer;
   // a choice among cards in hand (discard, reveal...): eligible cards take the decision edge
   const choosingInHand = interaction.mode === 'target' && !pickerCards && [...clickable].some((id) => handIds.has(id));
   const opponentIds = useMemo(() => board.opponents.map((opponent) => opponent.player.playerId!), [board.opponents]);
@@ -602,7 +659,9 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 sleeve={theirSleeves.get(opponent.player.playerId!) ?? sleeves.theirs}
                 look={lookOf(opponent.player)}
                 handCount={opponent.player.handCount ?? 0}
-                revealed={revealedInHand(revealedHands, opponent.player.playerId)}
+                revealed={control && !control.acting && control.player.playerId === opponent.player.playerId
+                  ? control.hand
+                  : revealedInHand(revealedHands, opponent.player.playerId)}
                 clickable={clickable}
                 selected={interaction.selected}
                 attacking={attacking}
@@ -614,6 +673,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 layout={layout}
                 commanders={commanders.get(opponent.player.playerId!) ?? NO_COMMANDERS}
                 commanderDamage={damageTaken(opponent.player)}
+                commanderDamageExpanded={cmdrExpanded}
                 outOfRange={!inRange(view, myId, opponent.player.playerId!)}
               />
             ))}
@@ -635,10 +695,18 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                     payable={canAct ? clickable : undefined}
                     onPay={onClick}
                     commanderDamage={damageTaken(board.me.player)}
+                    commanderDamageExpanded={cmdrExpanded}
                   />
-                  {lookOf(board.me.player)?.pet && (
+                  {myLook?.pet && (
                     <div className={styles.myPet}>
-                      <PetSpot pet={lookOf(board.me.player)?.pet} owner={board.me.player.name ?? ''} isMe={board.me.isMe} />
+                      <PetSpot
+                        pet={myLook.pet}
+                        owner={board.me.player.name ?? ''}
+                        isMe={board.me.isMe}
+                        tier={myLook.petTier}
+                        style={myLook.petStyle}
+                        reaction={petReaction}
+                      />
                     </div>
                   )}
                   {emotes && <EmoteButton gameId={state.gameId} />}
@@ -652,19 +720,21 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                     clickable={canAct ? clickable : undefined}
                     onCast={onClick}
                     inHand={offZoneInHand}
+                    commandFrame={myLook?.commandFrame}
                   />
                 </div>
               </>
             )}
 
             <Reveals groups={reveals} myPlayerId={myId} opponentIds={opponentIds} autoDismiss={autoDismissReveals} />
-            <StackZone items={stack} clickable={clickable} selected={interaction.selected} sleeveOf={sleeveOf} onClick={onClick} originOf={originOf} />
+            <StackZone items={stack} view={view} clickable={clickable} selected={interaction.selected} sleeveOf={sleeveOf} onClick={onClick} originOf={originOf} />
             <PhaseLadder
               step={view?.step}
               myTurn={!spectating && !!myId && view?.activePlayerId === myId}
               turn={view?.turn ?? 0}
               started={!!view?.activePlayerId && !!view?.step}
               activeName={spectating ? view?.activePlayerName ?? null : null}
+              daytime={view?.daytime}
             />
 
             {board.me && seatHand && (
@@ -684,9 +754,10 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
             {board.me && !handHidden && mode === 'play' && (
               <Hand
                 cards={handAndPlayables}
+                label={acting ? t('match.hand.controlled', { name: acting.player.name ?? '' }) : undefined}
                 fromZone={fromZone}
                 choosing={choosingInHand}
-                clickable={pickerCards ? EMPTY : clickable}
+                clickable={overlayOpen ? EMPTY : clickable}
                 selected={interaction.selected}
                 pending={pending}
                 sleeve={sleeves.mine}
@@ -701,7 +772,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
             )}
 
             {mode === 'play' ? (
-              !overlayOpen && <ActionCluster
+              !overlayOpen && !state.gameOver && <ActionCluster
                 interaction={cornerInteraction}
                 awaiting={awaitingServer}
                 status={state.status}
@@ -728,13 +799,25 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
             )}
 
             {damageSplit && canAct && !awaitingServer && <DamageAssigner split={damageSplit} />}
-            {canAct && <CombatPreview view={view} mode={interaction.mode} />}
+            {canAct && <CombatPreview view={view} mode={interaction.mode} defenderColors={defenderColors} />}
             {canAct && interaction.mode === 'declareAttackers' && !overlayOpen && (
-              <AttackGroups groups={attackMany.groups} wanted={attackMany.wanted} busy={attackMany.busy} remaining={attackMany.remaining} onWant={attackMany.want} onStop={attackMany.stop} />
+              <AttackGroups
+                groups={attackMany.groups}
+                wanted={attackMany.wanted}
+                busy={attackMany.busy}
+                remaining={attackMany.remaining}
+                onWant={attackMany.want}
+                onStop={attackMany.stop}
+                defenders={attackMany.defenders}
+                defender={attackMany.defender}
+                onDefender={attackMany.setDefender}
+              />
             )}
             {defenders && (attackDrop.manualDefender || !(automation.attackPlayerByDefault && defaultDefender(defenders))) && <DefenderPicker attacker={attackerName} options={defenders} onPick={onClick} />}
             <Vfx view={view} myPlayerId={myId} sparks={sparks} />
-            <Arrows sourceId={arrowSource} targetIds={arrowTargets} live={choosingTargets} attacks={attacks} leads={leads} tints={arrowTint} />
+            <Arrows sourceId={arrowSource} targetIds={arrowTargets} live={choosingTargets} attacks={attacks} leads={leads} tints={arrowTint} defenderColors={defenderColors} />
+            <PlaneBanner view={view} playable={clickable} canAct={canAct && !awaitingServer} onRoll={onClick} />
+            <SchemeBanner />
             <EmoteBubbles view={view} gameId={state.gameId} />
             {mode === 'play' && <Coach view={view ?? null} mode={choosingStarter ? 'panel' : interaction.mode} awaiting={awaitingServer} gameOver={!!state.gameOver} />}
             {mode === 'play' && <LessonCoach gameId={state.gameId} view={view ?? null} mode={choosingStarter ? 'panel' : interaction.mode} awaiting={awaitingServer} gameOver={!!state.gameOver} />}
@@ -748,6 +831,8 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
             <EngineBadge gameId={state.gameId} view={view} showNotice={mode === 'play' && !state.gameOver} />
             <GameMenu
               gameId={state.gameId}
+              currentTurn={view?.turn}
+              commanderToggle={hasCommanders ? { shown: cmdrShown, toggle: () => setCmdrExpanded(!cmdrShown) } : null}
               quests={mode === 'play' && !state.gameOver}
               practice={mode === 'play' && !state.gameOver && !career && board.opponents.length > 0 && board.opponents.every((opponent) => opponent.player.isHuman === false)}
               solo={mode === 'play' && !state.gameOver && !career && !eventId && vsAi && (view?.turn ?? 0) > 0}
@@ -779,10 +864,12 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 interaction={interaction}
                 sleeve={sleeves.mine}
                 footer={prompt ? <TriggerOrderOptions gameId={state.gameId} prompt={prompt} onCommand={onCommand} /> : undefined}
+                peeking={peeking}
+                onPeekChange={setPeeking}
                 onCommand={onCommand}
               />
             )}
-            {interaction.mode === 'panel' && prompt && !awaitingServer && <ChoicePanel prompt={prompt} sourceId={choiceSource} dungeon={myDungeon} onCommand={onCommand} xLimit={announceLimit} startAtLimit={automation.xDefaultsToMax} />}
+            {interaction.mode === 'panel' && prompt && !awaitingServer && <ChoicePanel prompt={prompt} sourceId={choiceSource} dungeon={myDungeon} peeking={peeking} onPeekChange={setPeeking} onCommand={onCommand} xLimit={announceLimit} startAtLimit={automation.xDefaultsToMax} />}
             {viewer && <ZoneViewer title={viewer.title} cards={viewer.cards} onClose={() => openViewer(null)} />}
             {shownDungeon && shownDungeonPlayer && (
               <DungeonViewer
@@ -810,8 +897,10 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 // a rematch is only dealt against the computer; people go back to Tables
                 onPlayAgain={mode === 'play' && deckId && !eventId && vsAi ? playAgain : undefined}
                 onReview={mode === 'play' && vsAi && board.me ? () => setReviewing(true) : undefined}
+                onViewLog={() => useMatchUi.getState().toggleLog(true)}
                 rewards={rewardsAfter ? <Suspense fallback={null}><RewardsBeat gameId={state.gameId} onDetails={() => exit(true)} /></Suspense> : undefined}
                 stamps={stamps}
+                opponentDecks={vsAi && deckId ? playOpponentDecks : undefined}
               />
             )}
             {reviewing && (
@@ -819,7 +908,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 <GameReview gameId={state.gameId} me={board.me?.player.name ?? null} onNavigate={() => setReviewing(false)} />
               </Dialog>
             )}
-            <CardZoom large={spectating && largeZoom} big={bigZoom} />
+            <CardZoom large={spectating && largeZoom} big={bigZoom} view={view} attackTargets={attackTargetNames} />
             <CardDetail view={view} extra={pickerCards ?? viewer?.cards ?? NO_CARDS} sleeveOf={sleeveOf} attacking={attacking} blocking={blocking} />
           </div>
         );
@@ -844,6 +933,24 @@ interface RowProps {
 /** "Smaller cards on the battlefield": rows cap their cards at this share of the usual size. */
 const COMPACT_SCALE = 0.8;
 
+const CARD_RATIO = 88 / 63;
+
+/** Prominent frame around the battlefield of the player whose turn it is. */
+function ActiveBoardFrame({ place }: { place: RowsPlacement }) {
+  const top = Math.min(place.frontTop, place.backTop);
+  const bottom = Math.max(
+    place.frontTop + place.frontIdeal * CARD_RATIO,
+    place.backTop + place.backIdeal * CARD_RATIO,
+  );
+  return (
+    <div
+      className={styles.activeBoard}
+      style={{ left: place.left - 6, top: top - 6, width: place.width + 12, height: bottom - top + 12 }}
+      aria-hidden="true"
+    />
+  );
+}
+
 /** One player's two rows of permanents. A crowded row shrinks its cards, then wraps, then overlaps them: never past its box. */
 const Battlefield = memo(function Battlefield({ board, place, ...row }: RowProps & {
   board: PlayerBoard;
@@ -853,6 +960,7 @@ const Battlefield = memo(function Battlefield({ board, place, ...row }: RowProps
   const { left, width } = place;
   return (
     <>
+      {board.player.isActive && <ActiveBoardFrame place={place} />}
       <Row groups={board.front} left={left} width={width} top={place.frontTop} ideal={place.frontIdeal} min={58} forward={forward} label="Creatures" flip={!board.isMe} {...row} />
       <Row groups={board.back} left={left} width={width} top={place.backTop} ideal={place.backIdeal} min={50} forward={forward} label="Lands & permanents" flip={!board.isMe} {...row} />
     </>
@@ -897,7 +1005,7 @@ function Row({ groups, left, width, top, ideal, min, forward, label, flip, ...re
 }
 
 /** An opponent's half: their rows mirrored above the seam, their seat, piles and hidden hand. */
-function OpponentSide({ board, index, count, sleeve, handCount, revealed, deciding, layout, commanders, commanderDamage, outOfRange, look, ...row }: RowProps & {
+function OpponentSide({ board, index, count, sleeve, handCount, revealed, deciding, layout, commanders, commanderDamage, commanderDamageExpanded, outOfRange, look, ...row }: RowProps & {
   layout: MatchLayout;
   look: PlayerLook | undefined;
   board: PlayerBoard;
@@ -909,10 +1017,15 @@ function OpponentSide({ board, index, count, sleeve, handCount, revealed, decidi
   deciding: boolean;
   commanders: readonly CommanderStatus[];
   commanderDamage: readonly { name: string; amount: number }[];
+  commanderDamageExpanded?: boolean;
   outOfRange: boolean;
 }) {
   const place = layout.them(index, count);
   const player = board.player;
+  const setHoveredDefender = useMatchUi((state) => state.setHoveredDefender);
+  const onHoverDefender = useCallback((hovering: boolean) => {
+    setHoveredDefender(hovering ? (player.playerId ?? null) : null);
+  }, [setHoveredDefender, player.playerId]);
   return (
     <>
       <Battlefield board={board} sleeve={sleeve} place={place} {...row} />
@@ -921,31 +1034,44 @@ function OpponentSide({ board, index, count, sleeve, handCount, revealed, decidi
           player={player}
           isMe={false}
           sleeve={sleeve}
+          compact={count > 1}
           targetable={row.clickable.has(player.playerId!)}
           selected={row.selected.has(player.playerId!)}
           deciding={deciding}
           onClick={() => row.onClick(player.playerId!)}
           commanderDamage={commanderDamage}
+          commanderDamageExpanded={commanderDamageExpanded}
+          onHoverChange={count > 1 ? onHoverDefender : undefined}
           outOfRange={outOfRange}
           look={look}
         />
         {look?.pet && count === 1 && (
           <div className={styles.theirPet}>
-            <PetSpot pet={look.pet} owner={player.name ?? ''} isMe={false} />
+            <PetSpot pet={look.pet} owner={player.name ?? ''} isMe={false} tier={look.petTier} style={look.petStyle} />
           </div>
         )}
         {count > 1 && (
           <div className={styles.theirMini}>
-            <MiniPiles player={player} commanders={commanders} />
+            <MiniPiles player={player} sleeve={sleeve} commanders={commanders} commandFrame={look?.commandFrame} />
           </div>
         )}
       </div>
       {count === 1 && (
         <div className={styles.theirPiles} style={layout.theirPiles}>
-          <Piles player={player} sleeve={sleeve} isMe={false} commanders={commanders} />
+          <Piles player={player} sleeve={sleeve} isMe={false} commanders={commanders} commandFrame={look?.commandFrame} />
         </div>
       )}
-      {count > 1 && !layout.tall && <span className={styles.seatName} style={{ left: place.left + 16 }} aria-hidden="true">{player.name}</span>}
+      {count > 1 && !layout.tall && (
+        <span
+          className={[styles.seatName, player.isActive ? styles.seatNameActive : ''].join(' ')}
+          style={{ left: place.left + 8, top: Math.max(10, place.backTop - 38), maxWidth: place.width - 16 }}
+          onPointerEnter={() => setHoveredDefender(player.playerId ?? null)}
+          onPointerLeave={() => setHoveredDefender(null)}
+          aria-hidden="true"
+        >
+          {player.name}
+        </span>
+      )}
       <HiddenHand playerId={player.playerId!} count={handCount} revealed={revealed} sleeve={sleeve} left={layout.hiddenHandX(index, count)} />
     </>
   );
@@ -1031,8 +1157,11 @@ const CONFIRM = {
   },
 } as const;
 
-function GameMenu({ gameId, quests, practice, solo, careerAssists, vsAi, onSaved, canConcede, onConcede, onLeave, rollback }: {
+function GameMenu({ gameId, currentTurn, commanderToggle, quests, practice, solo, careerAssists, vsAi, onSaved, canConcede, onConcede, onLeave, rollback }: {
   gameId: string;
+  currentTurn?: number;
+  /** Commander games: toggle commander damage chips across every seat */
+  commanderToggle: { shown: boolean; toggle(): void } | null;
   /** playing (not watching or replaying) a game still running: the player's quests and what this game added */
   quests: boolean;
   /** a Career game against the computer, past the first turn: counted hints and one take-back, where the mode allows */
@@ -1074,7 +1203,7 @@ function GameMenu({ gameId, quests, practice, solo, careerAssists, vsAi, onSaved
         onSaved();
       }
     } catch (failure) {
-      notify(choice === 'fork' ? 'Try again' : choice === 'takeBack' ? 'Take back' : 'Save', failure instanceof Error ? failure.message : String(failure));
+      notify(choice === 'fork' ? 'Try again' : choice === 'takeBack' ? 'Take back' : 'Save', failure instanceof Error ? failure.message : String(failure), 'error');
     }
   }
   return (
@@ -1086,6 +1215,11 @@ function GameMenu({ gameId, quests, practice, solo, careerAssists, vsAi, onSaved
         <DropdownMenu.Portal>
           <DropdownMenu.Content className={styles.menuContent} align="end" sideOffset={8}>
             {quests && <QuestTracker gameId={gameId} open={menuOpen} />}
+            {commanderToggle && (
+              <DropdownMenu.Item className={styles.menuItem} onSelect={commanderToggle.toggle}>
+                {t(commanderToggle.shown ? 'match.menu.commanderDamageHide' : 'match.menu.commanderDamageShow')}
+              </DropdownMenu.Item>
+            )}
             <DropdownMenu.Item className={styles.menuItem} onSelect={() => setSettingsOpen(true)}>Settings</DropdownMenu.Item>
             <DropdownMenu.Item className={styles.menuItem} onSelect={() => setShortcutsOpen(true)}>{t('match.shortcuts.title')}</DropdownMenu.Item>
             {practice && (
@@ -1134,7 +1268,7 @@ function GameMenu({ gameId, quests, practice, solo, careerAssists, vsAi, onSaved
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       {practice && <PracticeTools gameId={gameId} open={practiceOpen} onOpenChange={setPracticeOpen} />}
       {practice && <AdviceDialog gameId={gameId} open={adviceOpen} onOpenChange={setAdviceOpen} />}
-      {solo && <WhatIfDialog gameId={gameId} open={whatIfOpen} onOpenChange={setWhatIfOpen} />}
+      {solo && <WhatIfDialog gameId={gameId} open={whatIfOpen} onOpenChange={setWhatIfOpen} currentTurn={currentTurn} />}
       {careerAssists && !practice && (
         <AdviceDialog
           gameId={gameId}

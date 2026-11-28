@@ -1,0 +1,22 @@
+# name: Train200 guild-wu-bigmana-6
+# archetype: bigmana
+# colors: WU
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Apostle of Invasion
+2 Archipelagore
+2 Battle Menu
+2 Divide by Zero
+3 Legion Angel
+3 Nephalia Seakite
+3 Novice Knight
+3 Quickling
+3 Reality Smasher
+2 Soaring Drake
+3 Soul Partition
+2 Svyelun of Sea and Sky
+1 Unexplained Disappearance
+4 V'Ger, the Intruder
+4 Abandoned Campground
+10 Island
+4 Meticulous Archive
+7 Plains

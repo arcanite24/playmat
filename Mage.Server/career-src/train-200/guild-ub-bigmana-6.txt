@@ -1,0 +1,21 @@
+# name: Train200 guild-ub-bigmana-6
+# archetype: bigmana
+# colors: UB
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Abhorrent Oculus
+1 Bellowing Saddlebrute
+4 Deathless Behemoth
+3 Desculpting Blast
+4 Doom Whisperer
+2 Fake Your Own Death
+2 Glamermite
+3 Gutsplitter Gang
+3 Jace's Scrutiny
+2 Kalakscion, Hunger Tyrant
+3 Purging Stormbrood
+3 Skittering Heartstopper
+3 Wanted Scoundrels
+6 Island
+4 Serpent's Pass
+4 Shipwreck Marsh
+11 Swamp

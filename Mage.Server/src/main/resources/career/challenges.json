@@ -84,5 +84,244 @@
    "deck": "blue-5.dck",
    "skill": 5
   }
+ },
+ {
+  "id": "planar-vanguard",
+  "name": "Planar Vanguard",
+  "text": "Battle across the Multiverse with Planechase active against an aggressive white host.",
+  "format": "standard",
+  "planeChase": true,
+  "playerDeck": "red-path.dck",
+  "opponent": {
+   "name": "Planar Marshal",
+   "deck": "white-4.dck",
+   "skill": 4
+  }
+ },
+ {
+  "id": "cmdr-goblin-mob",
+  "name": "Commander Showcase: Krenko's Mob",
+  "text": "Pilot Ghalta's green giants against Krenko's relentless Goblin swarm in 1v1 Commander.",
+  "format": "commander",
+  "playerDeck": "commander/starter.dck",
+  "opponent": {
+   "name": "Krenko, Mob Boss",
+   "deck": "commander/act1-goblins.dck",
+   "skill": 4
+  }
+ },
+ {
+  "id": "cmdr-planar-dragons",
+  "name": "Planar Commander: Dragon Skies",
+  "text": "Planechase Commander showdown! Outmaneuver a draconic air force while hopping planes.",
+  "format": "commander",
+  "planeChase": true,
+  "playerDeck": "commander/act2-boros.dck",
+  "opponent": {
+   "name": "Elder Dragonlord",
+   "deck": "commander/act3-dragons.dck",
+   "skill": 5
+  }
+ },
+ {
+  "id": "pauper-mirror-burn",
+  "name": "Pauper Gauntlet: Commons Clash",
+  "text": "Pure commons-only Magic: beat Pauper Red Deck Wins before your life hits zero.",
+  "format": "pauper",
+  "rule": "life",
+  "playerDeck": "pauper/starter.dck",
+  "opponent": {
+   "name": "Cinder Pyromancer",
+   "deck": "pauper/meta-red-deck-wins.dck",
+   "skill": 4
+  }
+ },
+ {
+  "id": "pauper-tron-breaker",
+  "name": "Breaking the Tron",
+  "text": "Race Pauper Flicker Tron with Boros tokens before their late-game engine locks the board.",
+  "format": "pauper",
+  "playerDeck": "pauper/act2-boros.dck",
+  "opponent": {
+   "name": "Urza's Machinist",
+   "deck": "pauper/meta-urzatron.dck",
+   "skill": 5
+  }
+ },
+ {
+  "id": "legacy-delver-test",
+  "name": "Legacy Crucible: Delver Tempo",
+  "text": "Survive Legacy Izzet Delver's tempo barrage using Death and Taxes.",
+  "format": "legacy",
+  "playerDeck": "legacy/starter.dck",
+  "opponent": {
+   "name": "Delver Ace",
+   "deck": "legacy/meta-izzet-delver.dck",
+   "skill": 5
+  }
+ },
+ {
+  "id": "legacy-eldrazi-siege",
+  "name": "Legacy Siege: Titan Wasteland",
+  "text": "Hold back Legacy Eldrazi Stompy with classic Burn. Fewest turns wins.",
+  "format": "legacy",
+  "playerDeck": "legacy/act2-burn.dck",
+  "opponent": {
+   "name": "Void Breaker",
+   "deck": "legacy/meta-eldrazi.dck",
+   "skill": 5
+  }
+ },
+ {
+  "id": "modern-titan-clash",
+  "name": "Modern Showdown: Jund vs Control",
+  "text": "Grind out a Modern matchup where the opponent starts with an extra card.",
+  "format": "modern",
+  "playerDeck": "modern/starter.dck",
+  "opponent": {
+   "name": "Modern Master",
+   "deck": "modern/act2-uw-control.dck",
+   "skill": 5,
+   "twists": {
+    "extraCards": 1
+   }
+  }
+ },
+ {
+  "id": "emblem-fervor-sprint",
+  "name": "Haste Arena",
+  "text": "Your opponent's creatures all have haste (Fervor emblem). Stabilize with the highest life total.",
+  "rule": "life",
+  "playerDeck": "white-path.dck",
+  "opponent": {
+   "name": "Blitz General",
+   "deck": "red-4.dck",
+   "skill": 4,
+   "twists": {
+    "emblem": "Fervor"
+   }
+  }
+ },
+ {
+  "id": "emblem-anthem-wall",
+  "name": "Citadel of Iron",
+  "text": "The enemy starts with a Glorious Anthem emblem and 26 life.",
+  "playerDeck": "black-path.dck",
+  "opponent": {
+   "name": "Iron Commander",
+   "deck": "white-4.dck",
+   "skill": 5,
+   "twists": {
+    "startingLife": 26,
+    "emblem": "Glorious Anthem"
+   }
+  }
+ },
+ {
+  "id": "planar-graveyard",
+  "name": "Planar Chaos: Ossuary",
+  "text": "Planechase is active! Battle an undead horde across shifting realms.",
+  "planeChase": true,
+  "playerDeck": "green-path.dck",
+  "opponent": {
+   "name": "Necro-Walker",
+   "deck": "black-4.dck",
+   "skill": 4
+  }
+ },
+ {
+  "id": "cmdr-voltron-duel",
+  "name": "Commander Showcase: Blade & Shield",
+  "text": "Pit Sram's Voltron armory against Oloro's lifegain fortress.",
+  "format": "commander",
+  "playerDeck": "commander/act2-voltron.dck",
+  "opponent": {
+   "name": "Oloro's Warden",
+   "deck": "commander/act1-lifegain.dck",
+   "skill": 4
+  }
+ },
+ {
+  "id": "cmdr-grave-cycle",
+  "name": "Commander Showcase: Graveyard Shift",
+  "text": "Pilot Meren's midrange graveyard engine against Talrand's counterspell skies.",
+  "format": "commander",
+  "playerDeck": "commander/act2-midrange.dck",
+  "opponent": {
+   "name": "Talrand, Sky Summoner",
+   "deck": "commander/act2-control.dck",
+   "skill": 5
+  }
+ },
+ {
+  "id": "no-creatures-spellcraft",
+  "name": "Spellcraft Only",
+  "text": "Win without casting a single creature spell! Control the board and close fast.",
+  "rule": "no-creatures",
+  "playerDeck": "blue-path.dck",
+  "opponent": {
+   "name": "Wildwood Brute",
+   "deck": "green-4.dck",
+   "skill": 4
+  }
+ },
+ {
+  "id": "tremors-colosseum",
+  "name": "Molten Colosseum",
+  "text": "Every opposing creature shocks you on entry (Impact Tremors emblem). Preserve your life total.",
+  "rule": "life",
+  "playerDeck": "green-path.dck",
+  "opponent": {
+   "name": "Forge Warden",
+   "deck": "red-4.dck",
+   "skill": 5,
+   "twists": {
+    "emblem": "Impact Tremors"
+   }
+  }
+ },
+ {
+  "id": "pioneer-tempo-race",
+  "name": "Pioneer Sprint",
+  "text": "Outrace Pioneer Boros Aggro starting with an extra mana rock.",
+  "format": "pioneer",
+  "playerDeck": "pioneer/starter.dck",
+  "opponent": {
+   "name": "Sunhome Captain",
+   "deck": "pioneer/act1-boros-aggro.dck",
+   "skill": 4,
+   "twists": {
+    "permanents": [
+     "Mind Stone"
+    ]
+   }
+  }
+ },
+ {
+  "id": "planar-uprising",
+  "name": "Planar Chaos: Stampede",
+  "text": "Planechase active! Your foe starts with Garruk's Uprising emblem.",
+  "planeChase": true,
+  "playerDeck": "blue-path.dck",
+  "opponent": {
+   "name": "Primal Walker",
+   "deck": "green-5.dck",
+   "skill": 5,
+   "twists": {
+    "emblem": "Garruk's Uprising"
+   }
+  }
+ },
+ {
+  "id": "cmdr-rakdos-carnival",
+  "name": "Commander Showcase: Chaos Carnival",
+  "text": "Gruul Stampede clashes with Rakdos Carnival in an explosive Commander duel.",
+  "format": "commander",
+  "playerDeck": "commander/act2-gruul.dck",
+  "opponent": {
+   "name": "Carnival Ringmaster",
+   "deck": "commander/act1-rakdos.dck",
+   "skill": 5
+  }
  }
 ]

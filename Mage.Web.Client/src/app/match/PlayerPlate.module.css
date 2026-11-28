@@ -68,8 +68,9 @@
 }
 
 .avatarArt {
-  width: 100%;
-  height: 100%;
+  width: calc(100% - 4px);
+  height: calc(100% - 4px);
+  border-radius: 50%;
   object-fit: contain;
 }
 
@@ -215,20 +216,30 @@
   border-left: 1.5px solid var(--ink-faint);
 }
 
-/* tall: the piles stand right beside the seat, so the seat keeps to its column and its extras wrap under the life */
-:global([data-layout='tall']) .plate {
+/* tall, or multiplayer opponent seats in the left column: stay inside the seat column so extras never cover the board */
+:global([data-layout='tall']) .plate,
+.compact {
   flex-wrap: wrap;
   max-width: 266px;
   row-gap: 8px;
 }
 
-:global([data-layout='tall']) .extras {
+:global([data-layout='tall']) .extras,
+.compact .extras {
   display: flex;
   flex-wrap: wrap;
   flex-basis: 100%;
   gap: 4px 6px;
   padding-left: 0;
   border-left: 0;
+}
+
+.compact .info {
+  flex: 1;
+}
+
+.compact .name {
+  max-width: 150px;
 }
 
 .counter {
@@ -335,9 +346,52 @@
   letter-spacing: var(--tracking-print);
 }
 
+/* commander damage toggle and breakdown */
+.commanderDamageWrap {
+  position: relative;
+  display: contents;
+}
+
+.compact .commanderDamageWrap {
+  display: inline-flex;
+  align-items: center;
+}
+
+.cmdrToggle {
+  border: 0;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px var(--ink-faint);
+}
+
+.cmdrToggle:hover,
+.cmdrToggle:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 1.5px var(--ink-strong);
+}
+
+.cmdrCount {
+  font-size: 13px;
+  opacity: 0.78;
+}
+
 /* its hits stand in the columns as chips of their own */
 .commanderDamage {
   display: contents;
+}
+
+/* in compact multiplayer seats, expanded commander damage opens as a toggleable card instead of stretching the plate */
+.cmdrPopover {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  z-index: var(--z-lifted);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  border-radius: 10px;
+  background: rgb(var(--mat-rgb) / 0.96);
+  box-shadow: inset 0 0 0 1.5px var(--ink-faint), var(--shadow-held);
 }
 
 .hitName {

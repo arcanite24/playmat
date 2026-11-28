@@ -18,7 +18,9 @@
 #   ladder.db                                       SQLite copy (ladder ratings: players and bots, per format and queue)
 #   content-packs.tar.gz                            the content packs folder (campaigns, puzzles, opponents staff added)
 # H2 dumps are taken online: AUTO_SERVER lets this process join the running server's database.
-# SQLite copies use the online backup API. The newest $BACKUP_KEEP (default 14) backups are kept.
+# SQLite copies use the online backup API, then VACUUM INTO compacts each copy (the live files keep the pages of
+# deleted rows; the copies don't need them). The newest $BACKUP_KEEP (default 14) backups are kept.
+# A run that would leave less than $BACKUP_MIN_FREE_MB (default 1024) MB free on the backups disk fails before it starts.
 # Every run writes db/backup-status.json, which the server reads for /admin and its staff alerts.
 set -euo pipefail
 
@@ -26,6 +28,7 @@ DB_DIR=${XMAGE_DB_DIR:-/opt/xmage/db}
 BACKUP_DIR=${BACKUP_DIR:-/backups}
 BACKUP_AT=${BACKUP_AT:-03:30}
 BACKUP_KEEP=${BACKUP_KEEP:-14}
+BACKUP_MIN_FREE_MB=${BACKUP_MIN_FREE_MB:-1024}
 H2_DBS=(authorized_user.h2 feedback.h2)
 SQLITE_DBS=(authorized_user.db user_stats.db table_record.db web_decks.db web_reports.db career.db web_admin.db support.db solo.db web_presence.db ladder.db)
 PACKS=content-packs
@@ -50,15 +53,42 @@ write_status() {
     && mv "$STATUS.tmp" "$STATUS" || log "can't write $STATUS"
 }
 
+# room_check: the copies need, at most, every database's size plus the biggest again (its uncompacted copy while
+# VACUUM INTO writes the compacted one), and BACKUP_MIN_FREE_MB must stay free after that
+room_check() {
+  local need=0 biggest=0 size free db
+  for db in "${SQLITE_DBS[@]}" "${H2_DBS[@]/%/.mv.db}"; do
+    [[ -e $DB_DIR/$db ]] || continue
+    size=$(stat -c %s "$DB_DIR/$db")
+    need=$(( need + size ))
+    (( size > biggest )) && biggest=$size
+  done
+  need=$(( need + biggest + BACKUP_MIN_FREE_MB * 1024 * 1024 ))
+  if [[ -n ${BACKUP_FREE_BYTES:-} ]]; then
+    free=$BACKUP_FREE_BYTES
+  else
+    free=$(df -P -B1 "$BACKUP_DIR" | awk 'NR == 2 { print $4 }')
+  fi
+  if [[ ! $free =~ ^[0-9]+$ ]] || (( free < need )); then
+    log "not enough disk for a backup: $(( ${free:-0} / 1048576 )) MB free, $(( need / 1048576 )) MB needed" \
+      "(lower BACKUP_KEEP or remove old backups)"
+    return 1
+  fi
+}
+
 backup_once() {
   local name tmp h2 size
   name=$(date -u +%Y%m%dT%H%M%SZ)
   tmp=$BACKUP_DIR/.partial-$name
   trap 'write_status failed "$name"' ERR
-  h2=$(h2_jar)
+  # leftovers of interrupted runs first: a run that died of a full disk leaves its partial copy behind
+  find "$BACKUP_DIR" -maxdepth 1 -name '.partial-*' -mmin +120 -exec rm -rf {} +
+  room_check
+  h2=
   mkdir -p "$tmp"
   for db in "${H2_DBS[@]}"; do
     [[ -e $DB_DIR/$db.mv.db ]] || continue
+    [[ -n $h2 ]] || h2=$(h2_jar)
     # With the server running, AUTO_SERVER hands the SCRIPT command to the server's process, which writes the file in
     # its own container. So the dump goes to the db volume both containers mount, at the same path, then moves here.
     local dump=$DB_DIR/.backup-$db.sql
@@ -73,6 +103,9 @@ backup_once() {
   for db in "${SQLITE_DBS[@]}"; do
     [[ -e $DB_DIR/$db ]] || continue
     sqlite3 -cmd ".timeout 30000" "$DB_DIR/$db" ".backup '$tmp/$db'"
+    # compact the copy (not the live file, which the server keeps writing)
+    sqlite3 "$tmp/$db" "VACUUM INTO '$tmp/$db.compact'"
+    mv "$tmp/$db.compact" "$tmp/$db"
   done
   if [[ -d $DB_DIR/$PACKS ]]; then
     tar -czf "$tmp/$PACKS.tar.gz" -C "$DB_DIR" "$PACKS"
@@ -105,13 +138,15 @@ restore() {
   local name=${1:?usage: xmage-backup restore NAME}
   local src=$BACKUP_DIR/$name h2
   [[ -d $src ]] || { echo "xmage-backup: no backup named $name (see: xmage-backup list)" >&2; exit 1; }
-  if (exec 3<>/dev/tcp/xmage/17172) 2>/dev/null; then
+  local server_host=${BACKUP_SERVER_HOST:-xmage}
+  if (exec 3<>"/dev/tcp/$server_host/17172") 2>/dev/null; then
     echo "xmage-backup: the xmage server is running; stop it first: docker compose stop xmage" >&2
     exit 1
   fi
-  h2=$(h2_jar)
+  h2=
   for db in "${H2_DBS[@]}"; do
     [[ -f $src/$db.sql.gz ]] || continue
+    [[ -n $h2 ]] || h2=$(h2_jar)
     rm -f "$DB_DIR/$db".*.db
     gunzip -c "$src/$db.sql.gz" > "/tmp/$db.sql"
     java -Xmx256m -cp "$h2" org.h2.tools.RunScript \

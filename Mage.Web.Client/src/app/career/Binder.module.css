@@ -108,7 +108,7 @@
 .bookHead {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: baseline;
+  align-items: center;
   gap: 6px var(--space-3);
 }
 
@@ -121,10 +121,38 @@
   grid-column: 1 / -1;
 }
 
+.bookMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px var(--space-3);
+}
+
 .complete {
   color: var(--brass-ink);
   font-family: var(--font-print);
   font-weight: 700;
+}
+
+.playsets {
+  color: var(--ink-soft);
+  font-family: var(--font-print);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.toggle input {
+  accent-color: var(--brass);
 }
 
 .spread {

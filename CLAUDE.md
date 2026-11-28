@@ -14,3 +14,18 @@ new installs read the site, not the repository.
 - Write plainly, in the site's voice: a fan project, no marketing.
 - `.github/workflows/site.yml` deploys the site on pushes to master that touch `site/**`.
 - Say in the PR which docs changed, or why none needed to.
+
+## Game-facing features ship with their Rust side
+
+Java is leaving the game path (docs/rust/Assessment-2026-11-24.md): one-on-one games up to Pioneer, then limited, play
+on the Rust host (docs/rust/GameHost.md), and the platform calls answer from Rust (playmat-platform). A change that
+players see in a game, or in a call the gateway routes, ships with its Rust side in the same PR:
+
+- a new game option, prompt, assist, table kind or setup is handled by `playmat-host`, or `RustHost` keeps those
+  games on Java and logs why ("stays on Java: …"). That reason is a gap to close, not a resting place;
+- a new or changed RPC in a routed group gets its playmat-platform handler, or declines on purpose with a comment
+  saying why;
+- a change to a Java card or engine class is translated again (`rust/tools/transpile.py`), or the card goes on
+  `upstream-pending.txt` (docs/rust/Upstream.md).
+
+Say in the PR what its Rust side is, or why it has none.

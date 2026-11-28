@@ -41,7 +41,7 @@ export interface HandProps {
   cardWidth?: number;
 }
 
-const ZONE_TAG: Record<PlayableZone, string> = { exile: 'From exile', graveyard: 'From graveyard', library: 'From library' };
+const ZONE_TAG: Record<PlayableZone, string> = { exile: 'From exile', graveyard: 'From graveyard', library: 'From library', sideboard: 'From sideboard' };
 
 const DRAG_THRESHOLD = 12;
 /** how far the fan's outermost cards sit below its middle, at most: a big hand stays a shallow arc instead of sinking off the stage */
@@ -138,7 +138,7 @@ export function Hand({ cards, choosing = false, clickable, selected, pending = n
     }
     if (event.pointerType === 'touch' || faceDown || dragging || count === 0) return;
     const x = (event.clientX - event.currentTarget.getBoundingClientRect().left) / stage.scale;
-    const index = Math.max(0, Math.min(count - 1, Math.floor(x / spread)));
+    const index = Math.max(0, Math.min(count - 1, Math.floor((x + scroll) / spread)));
     if (keys[index] === hovered) return;
     setHovered(keys[index]);
     setZoom({ card: cards[index], x: event.clientX, y: event.clientY, sleeve });

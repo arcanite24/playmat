@@ -1,0 +1,25 @@
+# name: Train200 tri-wub-tempo-51
+# archetype: tempo
+# colors: WUB
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Basri, Tomorrow's Champion
+2 Circle of Power
+2 Dispel
+3 Harbin, Vanguard Aviator
+1 It'll Quench Ya!
+4 Necrogen Scudder
+4 Pious Wayfarer
+2 Radiant Purge
+2 Rotting Regisaur
+2 Scarab Feast
+3 Stubborn Denial
+4 Surgical Precision
+1 Threnody Singer
+2 Unauthorized Exit
+2 You Come to a River
+4 Ice Tunnel
+3 Island
+4 Plains
+4 Sunken Hollow
+3 Swamp
+4 Undercity Sewers

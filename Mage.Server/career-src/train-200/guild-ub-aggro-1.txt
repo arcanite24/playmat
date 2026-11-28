@@ -1,0 +1,22 @@
+# name: Train200 guild-ub-aggro-1
+# archetype: aggro
+# colors: UB
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Aggressive Sabotage
+2 Archfiend of the Dross
+2 Azula Always Lies
+3 Blacklance Paragon
+3 Cruel Feeding
+4 Demon Wall
+3 Faerie Impostor
+3 Scorpion Sentinel
+2 Serum Snare
+3 Smothering Abomination
+3 Spiteful Hexmage
+4 Thoughtbound Phantasm
+1 Tragedy Feaster
+3 Vicious Rumors
+4 A.I.M. Labs
+4 Fetid Pools
+4 Island
+9 Swamp

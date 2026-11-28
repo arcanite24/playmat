@@ -146,10 +146,45 @@ import { gzipSync } from 'node:zlib';
 // a lazy chunk, League lines in two Home widgets, and the en/es strings. Measured app 885.7 kB
 // app raised 2026-11-19 from 888 kB for ladder seasons (#434): the season line and stamps, the season-end ceremony and
 // the Season widget (its own lazy chunk), and the en/es strings. Measured app 888.1 kB
+// app raised 2026-11-20 from 891 kB for phase 6 (#435) and the Ranked polish: Bo3, Modern and Limited rank strings, and
+// Ranked's first-visit intro (en/es) in the lazy Career chunk. Measured app 891.8 kB
+// app raised 2026-11-21 from 894 kB for the admin console's Self-play tab (#462): its page in the lazy admin chunk.
+// Measured app 894.6 kB
+// app raised 2026-11-22 from 897 kB for Career multi-deck saving and human-hosted event controls (#469): lazy Career
+// and Events chunks plus their en/es strings. Measured app 898.2 kB
+// app raised 2026-11-22 from 902 kB for web UX quick wins (#467 draft card zoom, #427 view board after game end,
+// #416 AI opponent deck name, #408 missing playset filter & counter, #407 day/night indicator & rules hint,
+// #423 earlier-turn dialog clarity): all in lazy screen chunks plus en/es strings. Measured app 902.8 kB
+// app raised 2026-11-22 from 906 kB for AI deck pool controls (#383), How to play & formats guide (#468), and era /
+// multi-set card filters (#236): lazy GuideScreen, AiDeckPicker and DeckBuilder era panel plus en/es strings.
+// Measured entry 82.0 kB, initial 217.9 kB (both under budget), app 915.6 kB
+// app raised 2026-11-25 from 920 kB for the deck editor redesign (#513): stacks and grid views, card menu, maybeboard,
+// categories and undo, all in the lazy DeckBuilder chunk plus en/es strings. Measured entry 82.5 kB, initial 219.3 kB
+// (both under budget), app 928.2 kB
+// app raised 2026-11-26 from 932 kB for Mana@Home S3 (public /swarm tracker, leaderboards, teams, contributor
+// profiles, transparency log, and admin Swarm tab), all in lazy SwarmScreen and AdminScreen chunks. Measured entry
+// 83.1 kB, initial 219.9 kB (both under budget), app 940.2 kB
+// app raised 2026-11-26 from 944 kB for the AI Ranked overhaul (RankedDeckPicker modal, season analytics, milestones,
+// Living Mythic standings, opponent deck inspection, and en/es strings), all in lazy Career chunks. Measured entry
+// 83.2 kB, initial 219.9 kB (both under budget), app 949.5 kB
+// app raised 2026-11-26 from 954 kB for the Coin Cosmetics Boutique, Waves 2-3 capsule cabinet configs, and Phase 2
+// Commander Career (track-aware Career Hub, 6 Commander precons & free gift modal, format-aware Career Deck Builder
+// with color-identity and Pick Commander filters, Commander packs/precons shop tabs, quest focus, and en/es strings),
+// all in lazy Career chunks. Measured entry 83.4 kB, initial 220.2 kB (both under budget), app 960.8 kB
+// app raised 2026-11-26 from 965 kB for Phases 3-5 (Commander Ranked/League/Pod UI, Pauper/Brawl/Legacy/Limited tabs,
+// Commanders of the Spire Gauntlet, Hordes 2.0, Archenemy mode screen, MatchStage PlaneBanner, and en/es strings),
+// all in lazy Career and Match chunks. Measured entry 83.4 kB, initial 220.2 kB (both under budget), app 968.5 kB
+// app raised 2026-11-26 from 975 kB for Phase 6 & stretch completion (Companion Bond evolution UI, procedural 3D pet rigs
+// and accessories, Command-Zone frames, Two-Headed Giant screen, SchemeBanner overlay, Curator's Picks 20% off Boutique,
+// mixed-kind capsule views for Waves 4-5, and en/es strings). Measured entry 83.5 kB, initial 220.3 kB, app 980.4 kB
+// app raised 2026-11-27 from 985 kB for Ko-fi feedback batch (multiplayer AttackGroups target picker, commander damage
+// toggle, multi-defender combat colors & breakdown, multi-effect stack target clarity, unlocked cosmetic earn criteria,
+// PrintingPicker favorites & filter, and binder all-printings mode), all in lazy screen chunks plus en/es strings.
+// Measured entry 83.5 kB, initial 220.3 kB (both under budget), app 989.4 kB
 const BUDGET_KB = {
   entry: 86,
   initial: 221,
-  app: 891,
+  app: 992,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;

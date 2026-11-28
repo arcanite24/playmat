@@ -15,7 +15,7 @@
  * Needs WAVESPEED_API_KEY and python3 with Pillow. About $0.05 a picture at 1k.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -24,6 +24,15 @@ const CLIENT = resolve(ART, '..');
 const API = 'https://api.wavespeed.ai/api/v3';
 const MODEL = process.env.WAVESPEED_MODEL ?? 'google/nano-banana-2.1/edit';
 const TEXT_MODEL = MODEL.replace(/\/edit$/, '/text-to-image');
+const GEMINI_MODEL = process.env.GEMINI_IMAGE_MODEL ?? 'gemini-nano-banana-2.1';
+const GEMINI_BIN = process.env.GEMINI_API_BIN ?? 'gemini-api';
+
+export function resolveBackend(explicit) {
+  const chosen = (explicit ?? process.env.ART_BACKEND ?? '').toLowerCase();
+  if (chosen === 'gemini' || chosen === 'wavespeed') return chosen;
+  if (process.env.WAVESPEED_API_KEY) return 'wavespeed';
+  return 'gemini';
+}
 
 /** what keeps a picture from reading as generated: said to every picture */
 const CRAFT = [
@@ -39,15 +48,17 @@ const SERIES_NOTE = 'The last reference image is the first picture of this same 
 
 function options(argv) {
   const [type, ...rest] = argv;
-  const flags = { type, only: null, force: false, dry: false };
+  const flags = { type, only: null, force: false, dry: false, backend: null, size: '1K' };
   for (let index = 0; index < rest.length; index++) {
     const flag = rest[index];
     if (flag === '--only') flags.only = rest[++index].split(',');
     else if (flag === '--force') flags.force = true;
     else if (flag === '--dry') flags.dry = true;
+    else if (flag === '--backend') flags.backend = rest[++index];
+    else if (flag === '--image-size') flags.size = rest[++index];
     else throw new Error(`unknown flag ${flag}`);
   }
-  if (!type) throw new Error('usage: node art/wavespeed.mjs style-<set> [--only id,id] [--force] [--dry]');
+  if (!type) throw new Error('usage: node art/wavespeed.mjs style-<set> [--only id,id] [--force] [--dry] [--backend gemini|wavespeed]');
   return flags;
 }
 
@@ -72,7 +83,8 @@ function auth() {
   return { Authorization: `Bearer ${key}` };
 }
 
-export async function upload(path) {
+export async function upload(path, backend = resolveBackend()) {
+  if (backend === 'gemini') return path;
   const bytes = readFileSync(path);
   const type = path.endsWith('.png') ? 'image/png' : 'image/jpeg';
   const ticket = await http(`${API}/media/uploads`, {
@@ -85,8 +97,32 @@ export async function upload(path) {
   return ticket.download_url;
 }
 
-/** Submit once (a retry could bill twice), then poll. */
-export async function draw(prompt, images, aspect) {
+/** Draw via gemini-api CLI (Nano Banana 2.1) or WaveSpeed. Returns `{ id, url?, file?, model }`. */
+export async function draw(prompt, images, aspect, opts = {}) {
+  const backend = resolveBackend(opts.backend);
+  if (backend === 'gemini') {
+    const outPath = opts.outPath;
+    if (!outPath) throw new Error('gemini backend requires opts.outPath');
+    mkdirSync(dirname(outPath), { recursive: true });
+    const args = [
+      'image',
+      prompt,
+      '-m', GEMINI_MODEL,
+      '--aspect-ratio', aspect,
+      '--image-size', opts.imageSize ?? '1K',
+      '--out', outPath,
+    ];
+    for (const img of images) args.push('-i', img);
+    const run = spawnSync(GEMINI_BIN, args, { encoding: 'utf8' });
+    if (run.status !== 0) {
+      throw new Error(`gemini-api image failed (exit ${run.status}): ${(run.stderr || run.stdout || '').trim()}`);
+    }
+    const written = (run.stdout || '').trim().split('\n').pop()?.trim() || outPath;
+    if (written !== outPath && existsSync(written)) {
+      copyFileSync(written, outPath);
+    }
+    return { id: `gemini:${GEMINI_MODEL}`, file: existsSync(outPath) ? outPath : written, model: GEMINI_MODEL };
+  }
   const model = images.length ? MODEL : TEXT_MODEL;
   const payload = { prompt, aspect_ratio: aspect, resolution: '1k', output_format: 'png', ...(images.length ? { images } : {}) };
   const task = await http(`${API}/${model}`, { method: 'POST', headers: { ...auth(), 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }, 'submit');
@@ -99,7 +135,7 @@ export async function draw(prompt, images, aspect) {
       if (/ (429|5\d\d) /.test(String(error))) continue;
       throw error;
     }
-    if (result.status === 'completed') return { id: task.id, url: result.outputs[0] };
+    if (result.status === 'completed') return { id: task.id, url: result.outputs[0], model };
     if (['failed', 'cancelled', 'timeout', 'deleted'].includes(result.status)) throw new Error(`task ${task.id} ${result.status}: ${result.error}`);
   }
   throw new Error(`task ${task.id} still running after 5 minutes`);
@@ -136,10 +172,13 @@ ImageOps.fit(im, (${width}, ${height}), Image.LANCZOS).save(sys.argv[2], 'WEBP',
 
 function prompt(spec, item, series) {
   const sleeve = item.id.startsWith('set-');
+  const lead = sleeve
+    ? `Paint ${item.subject}.`
+    : spec.lead
+      ? `${spec.lead} Subject: ${item.subject}.`
+      : `Paint a full-art illustration for a fantasy trading card, portrait orientation. Subject: ${item.subject}.`;
   return [
-    sleeve
-      ? `Paint ${item.subject}.`
-      : `Paint a full-art illustration for a fantasy trading card, portrait orientation. Subject: ${item.subject}.`,
+    lead,
     `Style: ${spec.style}`,
     sleeve ? 'The design fills the whole card edge to edge.' : spec.rules,
     spec.refs?.length ? REFS_NOTE : '',
@@ -162,29 +201,33 @@ async function main() {
     return;
   }
 
+  const backend = resolveBackend(flags.backend);
+  const aspect = spec.aspect ?? '3:4';
   const refs = [];
-  for (const ref of spec.refs ?? []) refs.push(await upload(await fetchRef(ref, join(ART, '.refs', set))));
+  for (const ref of spec.refs ?? []) refs.push(await upload(await fetchRef(ref, join(ART, '.refs', set)), backend));
 
   // the series anchor: the set's first card, drawn now if it is being redrawn
   const first = spec.items[0];
   let anchor = null;
   for (const item of todo) {
-    const series = item !== first;
+    const series = item !== first && spec.series !== false;
     if (series && !anchor) {
       const drawn = readdirSync(work).filter((name) => name.startsWith(`${first.id}.`) && name.endsWith('.png')).sort().pop();
-      if (drawn) anchor = await upload(join(work, drawn));
+      if (drawn) anchor = await upload(join(work, drawn), backend);
     }
     const text = prompt(spec, item, series && anchor);
     const images = [...refs, ...(series && anchor ? [anchor] : [])];
     const started = Date.now();
-    const answer = await draw(text, images, '3:4');
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
     const png = join(work, `${item.id}.${stamp}.png`);
-    writeFileSync(png, Buffer.from(await (await fetch(answer.url)).arrayBuffer()));
-    writeFileSync(join(work, `${item.id}.${stamp}.json`), `${JSON.stringify({ task: answer.id, model: MODEL, prompt: text, refs: spec.refs ?? [], series: Boolean(series && anchor) }, null, 2)}\n`);
-    cut(png, outOf(item), sizeOf(item));
+    const answer = await draw(text, images, item.aspect ?? aspect, { backend, outPath: png, imageSize: flags.size });
+    if (answer.url) {
+      writeFileSync(png, Buffer.from(await (await fetch(answer.url)).arrayBuffer()));
+    }
+    writeFileSync(join(work, `${item.id}.${stamp}.json`), `${JSON.stringify({ backend, task: answer.id, model: answer.model ?? MODEL, prompt: text, refs: spec.refs ?? [], series: Boolean(series && anchor) }, null, 2)}\n`);
+    cut(answer.file ?? png, outOf(item), sizeOf(item));
     console.log(`${item.id}  ${((Date.now() - started) / 1000).toFixed(0)}s  ${outOf(item).slice(CLIENT.length + 1)}`);
-    if (item === first) anchor = await upload(png);
+    if (item === first && spec.series !== false) anchor = await upload(answer.file ?? png, backend);
   }
 }
 

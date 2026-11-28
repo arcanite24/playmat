@@ -2,9 +2,13 @@
 //! a time with the quick answers finishing the declaration. A plan is the answers to give in order: the creatures to
 //! toggle (blockers each followed by the attacker they block, when the engine will ask which), then done.
 
+use crate::eval;
+use crate::policy::incoming_player_damage;
+use playmat_engine::card::AbilityDef;
 use playmat_engine::decide::{Answer, Query};
 use playmat_engine::rules;
 use playmat_engine::state::{Game, ObjId};
+use std::collections::HashMap;
 
 /// Most plans a search compares
 pub const MAX_PLANS: usize = 24;
@@ -79,6 +83,47 @@ pub fn plans(game: &Game, q: &Query, quick: &Answer) -> Option<Vec<Vec<Answer>>>
                     add(plan(&blocks));
                 }
             } else {
+                // Large boards (e.g. token swarms): include greedy multi-block plans that stop lethal / trample damage
+                // before falling back to single-blocker plans.
+                let defender = game.obj(options[0].0).controller;
+                let life = game.player(defender).life;
+                let mut rem: HashMap<ObjId, i32> =
+                    attackers.iter().map(|a| (*a, incoming_player_damage(game, *a))).collect();
+                let mut sorted_opts = options.clone();
+                sorted_opts.sort_by_key(|(b, _)| eval::permanent_score(game, *b));
+                let mut anti_lethal = Vec::new();
+                for (b, o) in &sorted_opts {
+                    let total_rem: i32 = rem.values().sum();
+                    if total_rem < life {
+                        break;
+                    }
+                    let best = o
+                        .iter()
+                        .copied()
+                        .filter_map(|a| {
+                            let r = *rem.get(&a).unwrap_or(&0);
+                            if r <= 0 {
+                                return None;
+                            }
+                            let trample = game.has_ability(a, &AbilityDef::TrampleAbility);
+                            let prevented = if !trample {
+                                r
+                            } else if game.has_ability(a, &AbilityDef::DeathtouchAbility) {
+                                r.min(1)
+                            } else {
+                                r.min(game.power_toughness(*b).1.max(0))
+                            };
+                            (prevented > 0).then_some((a, prevented, r))
+                        })
+                        .max_by_key(|(_, prevented, r)| (*prevented, *r));
+                    if let Some((a, prevented, _)) = best {
+                        anti_lethal.push((*b, a));
+                        *rem.entry(a).or_insert(0) -= prevented;
+                    }
+                }
+                if !anti_lethal.is_empty() {
+                    add(plan(&anti_lethal));
+                }
                 for (b, o) in &options {
                     for a in o {
                         add(plan(&[(*b, *a)]));

@@ -126,6 +126,12 @@ public final class CareerService {
         public int lists;
         /** the AI: "archmage" when tier five's hybrid AI is meant to play it (S050) */
         public String aiType;
+        /** "constructed" or "commander" */
+        public String format;
+        /** true for 4-player Commander pod encounters */
+        public boolean pod;
+        /** display names of the 3 AI pod opponents, when pod is true */
+        public List<String> podNames;
     }
 
     /** How much of a set the collection has: different cards owned (any printing) of the set's cards. */
@@ -142,12 +148,22 @@ public final class CareerService {
         public String name;
         public String releaseDate;
         public int price;
+        /** "standard" (core & expansion), "commander" (Commander Legends / Battlebond), or "masters" (Horizons / Remastered) */
+        public String category;
         /** a campaign chapter has to open it first */
         public boolean locked;
         /** the campaign chapter that opens it (to beat while locked, beaten once open); null for the newest sets */
         public String unlockedBy;
         /** the card whose art is on the set's packs; null without a card database */
         public CareerContent.CareerCover cover;
+    }
+
+    /** What claiming or buying a Commander precon gave. */
+    public static class CareerPreconResult {
+        public String starterId;
+        public boolean free;
+        public CareerSavedDeck deck;
+        public CareerProfile profile;
     }
 
     /** What a pack gave, and the Career afterwards. */
@@ -193,11 +209,15 @@ public final class CareerService {
             throw new CareerException("The starter deck can't be read: " + e.getMessage());
         }
         CareerStore store = CareerStore.get();
+        boolean isCommander = content.isCommanderStarter(starterId);
         boolean created = store.transaction(() -> {
             // progression made the profile with the account's first counted game; picking a starter opens the collection
             if (!store.createProfile(user, starterId, CareerRules.START_COINS, System.currentTimeMillis())
                     && !store.openCollection(user, starterId, CareerRules.START_COINS)) {
                 return false;
+            }
+            if (isCommander) {
+                store.setQuestPref(user, "commander");
             }
             for (DeckCardInfo info : CareerContent.allCards(deck)) {
                 CareerCard card = resolve(info);
@@ -211,6 +231,140 @@ public final class CareerService {
             throw new CareerException("You already have a Career.");
         }
         return store.profile(user);
+    }
+
+    /** True when an existing non-Commander Career account can still claim one free 100-card Commander precon. */
+    public boolean commanderPreconGiftAvailable(String user) throws SQLException {
+        CareerStore store = CareerStore.get();
+        CareerProfile profile = store.profile(user);
+        if (profile == null || !profile.collection) {
+            return false;
+        }
+        if (CareerContent.get().isCommanderStarter(profile.starter)) {
+            return false;
+        }
+        return store.stats(user).getOrDefault("commander_precon_gift", 0) == 0;
+    }
+
+    /** Commander starter IDs this account already owns (from starting Career with one or acquiring a precon). */
+    public List<String> ownedPrecons(String user) throws SQLException {
+        CareerStore store = CareerStore.get();
+        CareerProfile profile = store.profile(user);
+        if (profile == null || !profile.collection) {
+            return Collections.emptyList();
+        }
+        Map<String, Integer> stats = store.stats(user);
+        List<String> owned = new ArrayList<>();
+        for (CareerContent.CareerStarter starter : CareerContent.get().starters()) {
+            if (!"commander".equals(starter.track)) {
+                continue;
+            }
+            if (starter.id.equals(profile.starter)
+                    || stats.getOrDefault("precon:" + starter.id, 0) > 0
+                    || store.careerDeckBySource(user, "starter:" + starter.id) != null) {
+                owned.add(starter.id);
+            }
+        }
+        return owned;
+    }
+
+    /**
+     * Claims a 100-card Commander precon for free (one-time gift for existing non-Commander accounts) or buys an
+     * additional Commander precon bundle for {@link CareerRules#PRECON_PRICE} coins. Adds every non-basic card (up to
+     * playset) to the collection and saves an editable Commander deck in {@code career_decks}.
+     */
+    public CareerPreconResult acquirePrecon(String user, String starterId) throws SQLException, CareerException {
+        CareerContent content = CareerContent.get();
+        CareerContent.CareerStarter starter = content.starter(starterId);
+        if (starter == null || !"commander".equals(starter.track)) {
+            throw new CareerException("There is no Commander precon " + starterId + ".");
+        }
+        DeckCardLists deck;
+        try {
+            deck = content.starterDeck(starterId);
+        } catch (java.io.IOException e) {
+            throw new CareerException("The Commander precon can't be read: " + e.getMessage());
+        }
+        CareerStore store = CareerStore.get();
+        long now = System.currentTimeMillis();
+        boolean[] wasFree = new boolean[1];
+        CareerStore.CareerDeckRow[] savedRow = new CareerStore.CareerDeckRow[1];
+        Gson gson = new Gson();
+        refusing(() -> store.transaction(() -> {
+            CareerProfile profile = store.profile(user);
+            if (profile == null || !profile.collection) {
+                throw new SQLException(new CareerException("Open your Career collection first."));
+            }
+            ensureSavedDecksInitialized(store, user, profile, now);
+            Map<String, Integer> stats = store.stats(user);
+            String source = "starter:" + starterId;
+            if (starterId.equals(profile.starter)
+                    || stats.getOrDefault("precon:" + starterId, 0) > 0
+                    || store.careerDeckBySource(user, source) != null) {
+                throw new SQLException(new CareerException("You already own " + starter.name + "."));
+            }
+            boolean free = !content.isCommanderStarter(profile.starter)
+                    && stats.getOrDefault("commander_precon_gift", 0) == 0;
+            if (!free) {
+                if (profile.coins < CareerRules.PRECON_PRICE) {
+                    throw new SQLException(new CareerException(
+                            starter.name + " costs " + CareerRules.PRECON_PRICE + " coins; you have " + profile.coins + "."));
+                }
+                store.addCoins(user, -CareerRules.PRECON_PRICE);
+            } else {
+                store.addStat(user, "commander_precon_gift", 1);
+            }
+            wasFree[0] = free;
+            for (DeckCardInfo info : CareerContent.allCards(deck)) {
+                CareerCard card = resolve(info);
+                if (card == null || CareerRules.LAND.equals(card.rarity)) {
+                    continue;
+                }
+                int have = store.owned(user, card.name);
+                int room = Math.max(0, CareerRules.PLAYSET - have);
+                int add = Math.min(info.getAmount(), room);
+                if (add > 0) {
+                    store.addCard(user, card, add);
+                }
+            }
+            store.addStat(user, "precon:" + starterId, 1);
+            String cleanName = cleanDeckName(starter.name, deck.getName());
+            DeckCardLists copy = copyDeckWithName(deck, cleanName);
+            CareerStore.CareerDeckRow row = new CareerStore.CareerDeckRow();
+            row.id = UUID.randomUUID().toString();
+            row.name = cleanName;
+            row.deck = gson.toJson(copy);
+            row.source = source;
+            row.format = CareerRules.FORMAT_COMMANDER;
+            row.active = store.activeCareerDeck(user) == null;
+            row.updated = now;
+            if (store.careerDeckCount(user) < MAX_SAVED_DECKS) {
+                store.putCareerDeck(user, row);
+                if (row.active) {
+                    store.putDeck(user, row.deck, now);
+                }
+                savedRow[0] = store.careerDeck(user, row.id);
+            }
+            return null;
+        }));
+        CareerPreconResult result = new CareerPreconResult();
+        result.starterId = starterId;
+        result.free = wasFree[0];
+        result.profile = store.profile(user);
+        if (savedRow[0] != null) {
+            result.deck = toSavedDeckView(savedRow[0], ownedCounts(store, user), gson);
+        }
+        return result;
+    }
+
+    /** Sets the account's quest track preference ("any", "constructed", or "commander"). */
+    public String setQuestPref(String user, String pref) throws SQLException {
+        CareerStore store = CareerStore.get();
+        return store.transaction(() -> {
+            ensureProfile(store, user, System.currentTimeMillis());
+            store.setQuestPref(user, pref);
+            return store.questPref(user);
+        });
     }
 
     /**
@@ -409,6 +563,38 @@ public final class CareerService {
         return view;
     }
 
+    public List<CareerOpponent> commanderOpponents(String user) throws SQLException {
+        CareerContent content = CareerContent.get();
+        List<CareerContent.Opponent> roster = content.commanderOpponents();
+        Map<String, Integer> wins = CareerStore.get().winsByOpponent(user);
+        Map<Integer, Integer> winsByTier = new LinkedHashMap<>();
+        for (CareerContent.Opponent opponent : roster) {
+            winsByTier.merge(opponent.tier, wins.getOrDefault(opponent.id, 0), Integer::sum);
+        }
+        List<CareerContent.Opponent> sorted = new ArrayList<>(roster);
+        sorted.sort(java.util.Comparator.comparingInt((CareerContent.Opponent opponent) -> opponent.tier)
+                .thenComparing(opponent -> opponent.rival != null)
+                .thenComparing(opponent -> opponent.raid)
+                .thenComparingInt(opponent -> -CareerContent.measuredWinRate(opponent)));
+        List<CareerOpponent> views = new ArrayList<>();
+        CareerLadder.Nemesis nemesis = CareerLadder.nemesis(user);
+        for (CareerContent.Opponent opponent : sorted) {
+            CareerOpponent view = opponentView(content, opponent, wins, winsByTier, nemesis != null && opponent.id.equals(nemesis.opponentId));
+            view.tierName = content.commanderTier(opponent.tier).name;
+            view.unlocked = (opponent.tier == 1 || winsByTier.getOrDefault(opponent.tier - 1, 0) >= CareerRules.WINS_TO_UNLOCK_NEXT_TIER)
+                    && CareerLadder.rivalOpen(opponent, roster, wins);
+            view.format = "commander";
+            view.pod = opponent.podDecks != null && opponent.podDecks.size() > 1;
+            view.podNames = opponent.podNames;
+            views.add(view);
+        }
+        return views;
+    }
+
+    public boolean commanderUnlocked(String user, String opponentId) throws SQLException {
+        return commanderOpponents(user).stream().anyMatch(view -> view.id.equals(opponentId) && view.unlocked);
+    }
+
     public boolean unlocked(String user, String opponentId) throws SQLException {
         return opponents(user).stream().anyMatch(view -> view.id.equals(opponentId) && view.unlocked);
     }
@@ -581,6 +767,12 @@ public final class CareerService {
             if (result == null && !CareerPayouts.waitsForRust(event)) {
                 return null;
             }
+            if (!"puzzle".equals(table.kind) && !"trial".equals(table.kind) && turns >= CareerRewards.get().turnFloor()) {
+                boolean commanderCast = counted.counters().getOrDefault("commanders_cast", 0) > 0;
+                boolean prestigeMode = "horde".equals(table.kind) || "gauntlet".equals(table.kind)
+                        || "archenemy".equals(table.kind) || "commander".equals(table.kind);
+                awardPetBond(store, table.user, won, commanderCast, prestigeMode, result, now);
+            }
             CareerRules.Reward reward = matchReward(event);
             CareerPayout payout = new CareerPayout();
             payout.matchKey = tableId.toString();
@@ -601,6 +793,25 @@ public final class CareerService {
     private static CareerRules.Reward matchReward(CareerPayoutEvent event) {
         CareerPayoutEvent.Career table = event.career;
         return assistedReward(modeReward(table.kind, table.tier, event.won, event.turns), table.assisted);
+    }
+
+    /** Awards Bond XP to the player's equipped pet (if any) and attaches the summary to the saved game result. */
+    private void awardPetBond(CareerStore store, String user, boolean won, boolean commanderCast,
+                              boolean prestigeMode, CareerProgress.CareerGameResult result, long now) {
+        try {
+            mage.server.support.PlayerLook look = mage.server.support.Support.get().store().look(user);
+            if (look == null || look.pet == null || look.pet.isEmpty()) {
+                return;
+            }
+            CareerPets.CareerPetBondResult bond = CareerPets.get()
+                    .recordGame(store, user, look.pet, won, commanderCast, prestigeMode, now);
+            if (bond != null && result != null && result.gameKey != null) {
+                result.petBond = bond;
+                store.setGameDetails(result.gameKey, new Gson().toJson(result));
+            }
+        } catch (SQLException | RuntimeException e) {
+            logger.warn("Pet bond XP update skipped for " + user + ": " + e.getMessage());
+        }
     }
 
     /**
@@ -686,6 +897,7 @@ public final class CareerService {
                 CareerCampaigns.get().finished(store, table.user, table.ref, won, result, now);
                 break;
             case "gauntlet":
+                store.addStat(table.user, "games_mode_gauntlet", 1);
                 CareerGauntlet.get().finished(store, table.user, table.ref, won, result, now);
                 break;
             case "puzzle":
@@ -698,7 +910,16 @@ public final class CareerService {
                 CareerLimited.get().finished(store, table.user, table.ref, won, result, now);
                 break;
             case "horde":
+                store.addStat(table.user, "games_mode_horde", 1);
                 CareerHordes.get().finished(store, table.user, table.ref, won, tally, result, now);
+                break;
+            case "archenemy":
+                store.addStat(table.user, "games_mode_archenemy", 1);
+                CareerArchenemy.get().finished(store, table.user, table.ref, won, result, now);
+                break;
+            case "thg":
+                store.addStat(table.user, "games_mode_thg", 1);
+                CareerTwoHeadedGiant.get().finished(store, table.user, table.ref, won, result);
                 break;
             case "duel":
                 CareerLadder.finished(store, table.user, table.opponent, won, result, now);
@@ -862,6 +1083,17 @@ public final class CareerService {
                         waiting.won = seat.won;
                         results.put(seat.user, waiting);
                     }
+                }
+            }
+            if (finished.turns >= CareerRewards.get().turnFloor()) {
+                long bondNow = System.currentTimeMillis();
+                for (CareerPayoutEvent.Seat seat : event.finished.seats) {
+                    if (!seat.counted) {
+                        continue;
+                    }
+                    boolean commanderCast = seat.counters != null && seat.counters.getOrDefault("commanders_cast", 0) > 0;
+                    boolean prestigeMode = "event".equals(finished.kind) || "pod".equals(finished.kind);
+                    awardPetBond(store, seat.user, seat.won, commanderCast, prestigeMode, paid == null ? null : paid.get(seat.user), bondNow);
                 }
             }
         } catch (SQLException | RuntimeException e) {
@@ -1118,9 +1350,28 @@ public final class CareerService {
         });
     }
 
+    /** Saved Career decks one account can keep */
+    public static final int MAX_SAVED_DECKS = 40;
+    private static final int MAX_DECK_NAME = 60;
+
+    /** One saved Career deck, ready for the deck switcher and editor. */
+    public static class CareerSavedDeck {
+        public String id;
+        public String name;
+        public String format;
+        public DeckCardLists deck;
+        public boolean active;
+        /** where the deck came from ("starter:<id>", "campaign:<campaign>/<chapter>"), or null */
+        public String source;
+        public long updated;
+        /** cards the deck has more copies of than the collection owns (empty when playable) */
+        public List<String> missing;
+    }
+
     /**
-     * Saves the account's Career deck (B311), checked against the collection: every card the deck has more copies of
-     * than the account owns is a problem, and nothing is saved.
+     * Saves the account's active Career deck (B311), checked against the collection: every card the deck has more
+     * copies of than the account owns is a problem, and nothing is saved. Also keeps the active saved Career deck row
+     * in sync when multi-deck storage is initialized.
      */
     public void saveDeck(String user, DeckCardLists deck) throws SQLException, CareerException {
         CareerStore store = CareerStore.get();
@@ -1132,7 +1383,20 @@ public final class CareerService {
         if (!problems.isEmpty()) {
             throw new CareerException("The deck has cards you don't own: " + String.join("; ", problems) + ".");
         }
-        store.putDeck(user, new Gson().toJson(deck), System.currentTimeMillis());
+        long now = System.currentTimeMillis();
+        Gson gson = new Gson();
+        String json = gson.toJson(deck);
+        store.transaction(() -> {
+            store.putDeck(user, json, now);
+            CareerStore.CareerDeckRow active = store.activeCareerDeck(user);
+            if (active != null) {
+                active.name = cleanDeckName(deck.getName(), active.name);
+                active.deck = json;
+                active.updated = now;
+                store.putCareerDeck(user, active);
+            }
+            return null;
+        });
     }
 
     /** the account's saved Career deck, or null */
@@ -1141,9 +1405,372 @@ public final class CareerService {
         return json == null ? null : new Gson().fromJson(json, DeckCardLists.class);
     }
 
+    /**
+     * Every saved Career deck the account keeps, active first then newest first. On first access for an existing
+     * account, migrates the legacy single Career deck (or starter) and any chapter decks already earned from campaigns.
+     */
+    public List<CareerSavedDeck> savedDecks(String user) throws SQLException, CareerException {
+        CareerStore store = CareerStore.get();
+        CareerProfile profile = store.profile(user);
+        if (profile == null || !profile.collection) {
+            return Collections.emptyList();
+        }
+        long now = System.currentTimeMillis();
+        List<CareerStore.CareerDeckRow> rows = store.transaction(() -> {
+            ensureSavedDecksInitialized(store, user, profile, now);
+            syncActiveFromLegacyIfNewer(store, user);
+            return store.careerDecks(user);
+        });
+        Map<String, Integer> owned = ownedCounts(store, user);
+        Gson gson = new Gson();
+        List<CareerSavedDeck> out = new ArrayList<>(rows.size());
+        for (CareerStore.CareerDeckRow row : rows) {
+            out.add(toSavedDeckView(row, owned, gson));
+        }
+        return out;
+    }
+
+    /**
+     * Creates (id null/blank) or updates a saved Career deck. Checked against the collection like {@link #saveDeck}.
+     * When {@code activate} is true (or this is already the active deck), updates the active slot and mirrors to {@code decks}.
+     */
+    public CareerSavedDeck saveNamedDeck(String user, String id, String name, DeckCardLists deck, boolean activate)
+            throws SQLException, CareerException {
+        return saveNamedDeck(user, id, name, deck, activate, null);
+    }
+
+    /**
+     * Creates (id null/blank) or updates a saved Career deck with an optional deck format ("Constructed - Freeform" or
+     * "Variant Magic - Commander"). Checked against the collection like {@link #saveDeck}.
+     */
+    public CareerSavedDeck saveNamedDeck(String user, String id, String name, DeckCardLists deck, boolean activate, String format)
+            throws SQLException, CareerException {
+        CareerStore store = CareerStore.get();
+        CareerProfile profile = store.profile(user);
+        if (profile == null || !profile.collection) {
+            throw new CareerException("Open your Career collection first.");
+        }
+        if (deck == null) {
+            throw new CareerException("Send a deck to save.");
+        }
+        List<String> problems = ownershipProblems(user, deck);
+        if (!problems.isEmpty()) {
+            throw new CareerException("The deck has cards you don't own: " + String.join("; ", problems) + ".");
+        }
+        long now = System.currentTimeMillis();
+        String trimmedId = id == null ? "" : id.trim();
+        String requestedFormat = normalizeDeckFormat(format);
+        Gson gson = new Gson();
+        CareerStore.CareerDeckRow[] saved = new CareerStore.CareerDeckRow[1];
+        refusing(() -> store.transaction(() -> {
+            ensureSavedDecksInitialized(store, user, profile, now);
+            CareerStore.CareerDeckRow existing = trimmedId.isEmpty() ? null : store.careerDeck(user, trimmedId);
+            if (!trimmedId.isEmpty() && existing == null) {
+                throw new SQLException(new CareerException("That Career deck doesn't exist."));
+            }
+            if (existing == null && store.careerDeckCount(user) >= MAX_SAVED_DECKS) {
+                throw new SQLException(new CareerException("You already have " + MAX_SAVED_DECKS + " Career decks. Delete one first."));
+            }
+            String cleanName = cleanDeckName(name, existing != null ? existing.name : deck.getName());
+            deck.setName(cleanName);
+            String json = gson.toJson(deck);
+
+            CareerStore.CareerDeckRow row = existing != null ? existing : new CareerStore.CareerDeckRow();
+            if (existing == null) {
+                row.id = UUID.randomUUID().toString();
+            }
+            row.name = cleanName;
+            row.deck = json;
+            if (requestedFormat != null) {
+                row.format = requestedFormat;
+            } else if (row.format == null || row.format.isEmpty()) {
+                row.format = CareerRules.FORMAT_CONSTRUCTED;
+            }
+            row.updated = now;
+            boolean makeActive = activate || (existing != null && existing.active) || store.activeCareerDeck(user) == null;
+            row.active = makeActive;
+            store.putCareerDeck(user, row);
+            if (makeActive) {
+                store.setActiveCareerDeck(user, row.id);
+                store.putDeck(user, json, now);
+            }
+            saved[0] = store.careerDeck(user, row.id);
+            return null;
+        }));
+        Map<String, Integer> owned = ownedCounts(store, user);
+        return toSavedDeckView(saved[0], owned, gson);
+    }
+
+    private static String normalizeDeckFormat(String format) {
+        if (format == null || format.trim().isEmpty()) {
+            return null;
+        }
+        String trimmed = format.trim();
+        if (CareerRules.FORMAT_COMMANDER.equalsIgnoreCase(trimmed) || "commander".equalsIgnoreCase(trimmed)) {
+            return CareerRules.FORMAT_COMMANDER;
+        }
+        return CareerRules.FORMAT_CONSTRUCTED;
+    }
+
+    /** Makes one of the account's saved Career decks the active deck for Career duels. */
+    public CareerSavedDeck selectDeck(String user, String id) throws SQLException, CareerException {
+        CareerStore store = CareerStore.get();
+        CareerProfile profile = store.profile(user);
+        if (profile == null || !profile.collection) {
+            throw new CareerException("Open your Career collection first.");
+        }
+        String trimmedId = id == null ? "" : id.trim();
+        long now = System.currentTimeMillis();
+        CareerStore.CareerDeckRow[] chosen = new CareerStore.CareerDeckRow[1];
+        refusing(() -> store.transaction(() -> {
+            ensureSavedDecksInitialized(store, user, profile, now);
+            CareerStore.CareerDeckRow row = store.careerDeck(user, trimmedId);
+            if (row == null) {
+                throw new SQLException(new CareerException("That Career deck doesn't exist."));
+            }
+            store.setActiveCareerDeck(user, row.id);
+            store.putDeck(user, row.deck, now);
+            chosen[0] = store.careerDeck(user, row.id);
+            return null;
+        }));
+        Map<String, Integer> owned = ownedCounts(store, user);
+        return toSavedDeckView(chosen[0], owned, new Gson());
+    }
+
+    /** Deletes a saved Career deck (keeping the cards in the collection). Refuses to delete the last deck. */
+    public boolean deleteSavedDeck(String user, String id) throws SQLException, CareerException {
+        CareerStore store = CareerStore.get();
+        CareerProfile profile = store.profile(user);
+        if (profile == null || !profile.collection) {
+            throw new CareerException("Open your Career collection first.");
+        }
+        String trimmedId = id == null ? "" : id.trim();
+        long now = System.currentTimeMillis();
+        boolean[] deleted = new boolean[1];
+        refusing(() -> store.transaction(() -> {
+            ensureSavedDecksInitialized(store, user, profile, now);
+            CareerStore.CareerDeckRow row = store.careerDeck(user, trimmedId);
+            if (row == null) {
+                return null;
+            }
+            if (store.careerDeckCount(user) <= 1) {
+                throw new SQLException(new CareerException("Keep at least one Career deck."));
+            }
+            deleted[0] = store.deleteCareerDeck(user, row.id);
+            if (deleted[0] && row.active) {
+                List<CareerStore.CareerDeckRow> remaining = store.careerDecks(user);
+                if (!remaining.isEmpty()) {
+                    CareerStore.CareerDeckRow next = remaining.get(0);
+                    store.setActiveCareerDeck(user, next.id);
+                    store.putDeck(user, next.deck, now);
+                }
+            }
+            return null;
+        }));
+        return deleted[0];
+    }
+
+    /**
+     * Records an earned campaign chapter deck in the account's saved Career decks (idempotent per source, keeping the
+     * player's currently active deck selected). Called inside a campaign payout transaction.
+     */
+    void saveEarnedDeck(CareerStore store, String user, String source, String name, DeckCardLists deck, long now) throws SQLException {
+        CareerProfile profile = store.profile(user);
+        if (profile == null || !profile.collection) {
+            return;
+        }
+        ensureSavedDecksInitialized(store, user, profile, now);
+        if (store.careerDeckBySource(user, source) != null) {
+            return;
+        }
+        if (store.careerDeckCount(user) >= MAX_SAVED_DECKS) {
+            return;
+        }
+        String cleanName = cleanDeckName(name, deck.getName());
+        DeckCardLists copy = copyDeckWithName(deck, cleanName);
+        CareerStore.CareerDeckRow row = new CareerStore.CareerDeckRow();
+        row.id = UUID.randomUUID().toString();
+        row.name = cleanName;
+        row.deck = new Gson().toJson(copy);
+        row.source = source;
+        row.active = store.activeCareerDeck(user) == null;
+        row.updated = now;
+        store.putCareerDeck(user, row);
+        if (row.active) {
+            store.putDeck(user, row.deck, now);
+        }
+    }
+
+    private void ensureSavedDecksInitialized(CareerStore store, String user, CareerProfile profile, long now) throws SQLException {
+        if (store.careerDeckCount(user) > 0) {
+            return;
+        }
+        Gson gson = new Gson();
+        String legacyJson = store.deck(user);
+        long legacyUpdated = store.deckUpdated(user);
+        if (legacyJson != null && !legacyJson.isEmpty()) {
+            DeckCardLists legacy = gson.fromJson(legacyJson, DeckCardLists.class);
+            String starterName = starterNameOf(profile.starter);
+            String name = cleanDeckName(legacy != null ? legacy.getName() : null, starterName);
+            CareerStore.CareerDeckRow row = new CareerStore.CareerDeckRow();
+            row.id = UUID.randomUUID().toString();
+            row.name = name;
+            row.deck = legacyJson;
+            row.source = profile.starter != null && !profile.starter.isEmpty() ? "starter:" + profile.starter : null;
+            row.format = CareerContent.get().isCommanderStarter(profile.starter)
+                    ? CareerRules.FORMAT_COMMANDER : CareerRules.FORMAT_CONSTRUCTED;
+            row.active = true;
+            row.updated = legacyUpdated > 0 ? legacyUpdated : now;
+            store.putCareerDeck(user, row);
+        } else if (profile.starter != null && !profile.starter.isEmpty()) {
+            try {
+                DeckCardLists starterDeck = CareerContent.get().starterDeck(profile.starter);
+                String name = cleanDeckName(starterNameOf(profile.starter), starterDeck.getName());
+                DeckCardLists copy = copyDeckWithName(starterDeck, name);
+                String json = gson.toJson(copy);
+                CareerStore.CareerDeckRow row = new CareerStore.CareerDeckRow();
+                row.id = UUID.randomUUID().toString();
+                row.name = name;
+                row.deck = json;
+                row.source = "starter:" + profile.starter;
+                row.format = CareerContent.get().isCommanderStarter(profile.starter)
+                        ? CareerRules.FORMAT_COMMANDER : CareerRules.FORMAT_CONSTRUCTED;
+                row.active = true;
+                row.updated = now;
+                store.putCareerDeck(user, row);
+                store.putDeck(user, json, now);
+            } catch (java.io.IOException e) {
+                logger.warn("Starter deck can't be read during Career deck migration: " + profile.starter, e);
+            }
+        }
+        // Backfill any chapter decks already earned from completed campaign bosses on this account
+        long order = now - 1;
+        for (CareerCampaigns.EarnedDeck earned : CareerCampaigns.get().earnedDecks(store, user)) {
+            if (store.careerDeckBySource(user, earned.source) != null || store.careerDeckCount(user) >= MAX_SAVED_DECKS) {
+                continue;
+            }
+            String cleanName = cleanDeckName(earned.name, earned.deck.getName());
+            DeckCardLists copy = copyDeckWithName(earned.deck, cleanName);
+            CareerStore.CareerDeckRow row = new CareerStore.CareerDeckRow();
+            row.id = UUID.randomUUID().toString();
+            row.name = cleanName;
+            row.deck = gson.toJson(copy);
+            row.source = earned.source;
+            row.active = store.activeCareerDeck(user) == null;
+            row.updated = order--;
+            store.putCareerDeck(user, row);
+            if (row.active) {
+                store.putDeck(user, row.deck, now);
+            }
+        }
+    }
+
+    private void syncActiveFromLegacyIfNewer(CareerStore store, String user) throws SQLException {
+        long legacyUpdated = store.deckUpdated(user);
+        if (legacyUpdated <= 0) {
+            return;
+        }
+        CareerStore.CareerDeckRow active = store.activeCareerDeck(user);
+        if (active == null || legacyUpdated <= active.updated) {
+            return;
+        }
+        String legacyJson = store.deck(user);
+        if (legacyJson == null || legacyJson.isEmpty()) {
+            return;
+        }
+        DeckCardLists parsed = new Gson().fromJson(legacyJson, DeckCardLists.class);
+        active.name = cleanDeckName(parsed != null ? parsed.getName() : null, active.name);
+        active.deck = legacyJson;
+        active.updated = legacyUpdated;
+        store.putCareerDeck(user, active);
+    }
+
+    private static String starterNameOf(String starterId) {
+        if (starterId == null || starterId.isEmpty()) {
+            return "Career deck";
+        }
+        CareerContent.CareerStarter starter = CareerContent.get().starter(starterId);
+        return starter != null && starter.name != null && !starter.name.isEmpty() ? starter.name : "Career deck";
+    }
+
+    private static String cleanDeckName(String primary, String fallback) {
+        String candidate = primary != null ? primary.trim() : "";
+        if (candidate.isEmpty()) {
+            candidate = fallback != null ? fallback.trim() : "";
+        }
+        if (candidate.isEmpty()) {
+            candidate = "Career deck";
+        }
+        return candidate.length() > MAX_DECK_NAME ? candidate.substring(0, MAX_DECK_NAME).trim() : candidate;
+    }
+
+    private static DeckCardLists copyDeckWithName(DeckCardLists deck, String name) {
+        DeckCardLists copy = new DeckCardLists();
+        copy.setName(name);
+        if (deck.getCards() != null) {
+            copy.setCards(new ArrayList<>(deck.getCards()));
+        }
+        if (deck.getSideboard() != null) {
+            copy.setSideboard(new ArrayList<>(deck.getSideboard()));
+        }
+        return copy;
+    }
+
+    private Map<String, Integer> ownedCounts(CareerStore store, String user) throws SQLException {
+        Map<String, Integer> owned = new java.util.HashMap<>();
+        for (CareerCard card : store.collection(user)) {
+            if (card.name != null) {
+                owned.merge(card.name, card.count, Integer::sum);
+            }
+        }
+        return owned;
+    }
+
+    private CareerSavedDeck toSavedDeckView(CareerStore.CareerDeckRow row, Map<String, Integer> owned, Gson gson) {
+        CareerSavedDeck view = new CareerSavedDeck();
+        view.id = row.id;
+        view.name = row.name;
+        view.format = row.format == null || row.format.isEmpty() ? CareerRules.FORMAT_CONSTRUCTED : row.format;
+        view.deck = gson.fromJson(row.deck, DeckCardLists.class);
+        if (view.deck != null && (view.deck.getName() == null || view.deck.getName().isEmpty())) {
+            view.deck.setName(row.name);
+        }
+        view.active = row.active;
+        view.source = row.source;
+        view.updated = row.updated;
+        view.missing = ownershipProblemsFrom(owned, view.deck);
+        return view;
+    }
+
+    private List<String> ownershipProblemsFrom(Map<String, Integer> owned, DeckCardLists deck) {
+        if (deck == null) {
+            return Collections.emptyList();
+        }
+        Map<String, Integer> needed = new LinkedHashMap<>();
+        for (DeckCardInfo info : CareerContent.allCards(deck)) {
+            if (BASIC_NAMES.contains(info.getCardName())) {
+                continue;
+            }
+            needed.merge(info.getCardName(), info.getAmount(), Integer::sum);
+        }
+        List<String> problems = new ArrayList<>();
+        for (Map.Entry<String, Integer> entry : needed.entrySet()) {
+            int have = owned.getOrDefault(entry.getKey(), 0);
+            if (have < entry.getValue()) {
+                problems.add(entry.getKey() + ": " + entry.getValue() + " in the deck, " + have + " owned");
+            }
+        }
+        return problems;
+    }
+
     /** what a game paid, for the rewards screen; the latest game when the key is null */
     public CareerProgress.CareerGameResult gameResult(String user, String gameKey) throws SQLException {
         CareerStore store = CareerStore.get();
+        // a ranked table's rewards are its latest game's, paid as any game against the AI
+        UUID rankedGame = mage.server.ladder.RankedService.lastGame(gameKey);
+        if (rankedGame != null) {
+            gameKey = gameKey(rankedGame, user);
+        }
         if (gameKey != null && !gameKey.isEmpty()) {
             // a payout the gateway makes (XMAGE_ROUTE_CAREERPAYOUTS=rust) lands a moment after the game
             CareerPayouts.awaitPayout(store, gameKey);
@@ -1202,12 +1829,17 @@ public final class CareerService {
 
     // ---- the shop
 
-    /** sets with boosters, newest first: core sets and expansions that are out */
+    private static final Set<String> COMMANDER_SHOP_SETS = new java.util.HashSet<>(java.util.Arrays.asList("CMR", "BBD"));
+    private static final Set<String> MASTERS_SHOP_SETS = new java.util.HashSet<>(java.util.Arrays.asList(
+            "MH3", "MH2", "2X2", "DMR", "RVR", "LTR"));
+
+    /** sets with boosters, newest first: core sets, expansions, and curated Commander & Masters booster sets */
     public List<CareerShopSet> shop() {
         Date now = new Date();
         return Sets.getInstance().values().stream()
                 .filter(ExpansionSet::hasBoosters)
-                .filter(set -> set.getSetType() == SetType.EXPANSION || set.getSetType() == SetType.CORE)
+                .filter(set -> set.getSetType() == SetType.EXPANSION || set.getSetType() == SetType.CORE
+                        || COMMANDER_SHOP_SETS.contains(set.getCode()) || MASTERS_SHOP_SETS.contains(set.getCode()))
                 .filter(set -> set.getReleaseDate() != null && !set.getReleaseDate().after(now))
                 .sorted(Comparator.comparing(ExpansionSet::getReleaseDate).reversed())
                 .map(set -> {
@@ -1216,6 +1848,8 @@ public final class CareerService {
                     view.name = set.getName();
                     view.releaseDate = new java.text.SimpleDateFormat("yyyy-MM-dd").format(set.getReleaseDate());
                     view.price = CareerRules.PACK_PRICE;
+                    view.category = COMMANDER_SHOP_SETS.contains(set.getCode()) ? "commander"
+                            : MASTERS_SHOP_SETS.contains(set.getCode()) ? "masters" : "standard";
                     view.cover = packArt(set.getCode());
                     return view;
                 })
@@ -1477,6 +2111,8 @@ public final class CareerService {
         int levelPaid;
         // since M29
         Map<String, String> cardStyles;
+        // saved Career decks
+        List<CareerStore.CareerDeckRow> savedDecks;
     }
 
     /** The account's Career, gone for good (an account deletion). False when it had none. */
@@ -1510,6 +2146,7 @@ public final class CareerService {
         file.unlocks = store.unlocks(user);
         file.levelPaid = store.profileInt(user, "level_paid");
         file.cardStyles = store.cardStyles(user);
+        file.savedDecks = store.careerDecks(user);
         String body = Base64.getEncoder().encodeToString(new Gson().toJson(file).getBytes(StandardCharsets.UTF_8));
         return "career1." + body + "." + sign(body, store.secret());
     }
@@ -1576,6 +2213,14 @@ public final class CareerService {
             if (file.cardStyles != null) {
                 for (Map.Entry<String, String> style : file.cardStyles.entrySet()) {
                     store.setCardStyle(user, style.getKey(), style.getValue());
+                }
+            }
+            if (file.savedDecks != null) {
+                for (CareerStore.CareerDeckRow savedDeck : file.savedDecks) {
+                    store.putCareerDeck(user, savedDeck);
+                    if (savedDeck.active) {
+                        store.putDeck(user, savedDeck.deck, savedDeck.updated);
+                    }
                 }
             }
             store.setProfileInt(user, "show_progress", file.profile.showProgress || file.version < 2 ? 1 : 0);

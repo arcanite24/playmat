@@ -153,6 +153,14 @@ public class SerializationTest extends CardTestPlayerBase {
     }
 
     @Test
+    public void test_Single_BeholdCards() {
+        // BeholdType is held by behold costs and abilities, so it must be serializable (game snapshots)
+        processSingleCard("Dispelling Exhale"); // BeholdAbility
+        processSingleCard("Champion of the Clachan"); // BeholdAndExileCost
+        processSingleCard("Caustic Exhale"); // BeholdCost
+    }
+
+    @Test
     public void test_LondonMulligan() {
         LondonMulligan mulligan = new LondonMulligan(15);
         Object compressed = CompressUtil.compress(mulligan);

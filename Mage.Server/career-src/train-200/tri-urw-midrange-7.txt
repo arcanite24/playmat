@@ -1,0 +1,22 @@
+# name: Train200 tri-urw-midrange-7
+# archetype: midrange
+# colors: URW
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Charging Monstrosaur
+3 Dragon Turtle
+1 Dragon's Eye Sentry
+4 Drill Too Deep
+2 Enduring Curiosity
+3 Force Away
+3 Kinsbaile Aspirant
+3 Skyswimmer Koi
+1 Test of Priorities
+4 The Neutrinos
+4 Twilight Panther
+4 Vanish into Eternity
+4 Airship Engine Room
+4 Alpine Meadow
+4 Island
+4 Meticulous Archive
+4 Mountain
+4 Plains

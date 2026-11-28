@@ -1,0 +1,19 @@
+# name: Train200 mono-b-bigmana-4
+# archetype: bigmana
+# colors: B
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Archfiend of Ifnir
+4 Arisen Gorgon
+1 Candy Grapple
+3 Clackbridge Troll
+2 Darklight Phoenix
+3 Doomsday Excruciator
+2 Give In to Violence
+2 Herald of Kozilek
+3 Monoist Sentry
+3 Moonshadow
+2 Plague Belcher
+3 Power Word Kill
+2 Stomped by the Foot
+1 Vile Mutilator
+25 Swamp

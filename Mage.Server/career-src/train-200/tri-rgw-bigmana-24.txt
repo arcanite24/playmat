@@ -1,0 +1,23 @@
+# name: Train200 tri-rgw-bigmana-24
+# archetype: bigmana
+# colors: RGW
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Agonasaur Rex
+2 Archangel of Tithes
+4 Burdened Stoneback
+2 Burst Lightning
+2 Flame Spill
+4 Ghor-Clan Rampager
+3 Ilharg, the Raze-Boar
+2 Joust
+2 Old-Growth Dryads
+2 Penance Stare
+3 Rith, Liberated Primeval
+2 Shivan Branch-Burner
+4 Swarmborn Giant
+5 Forest
+4 Furycalm Snarl
+4 Game Trail
+5 Mountain
+3 Plains
+4 Rabanastre, Royal City

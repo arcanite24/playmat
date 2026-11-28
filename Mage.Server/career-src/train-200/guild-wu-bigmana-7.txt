@@ -1,0 +1,21 @@
+# name: Train200 guild-wu-bigmana-7
+# archetype: bigmana
+# colors: WU
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Captive Weird
+3 Flock Impostor
+4 Geistwave
+4 Giant Koi
+3 Leyline Phantom
+2 Moonlit Lamenter
+3 Nephalia Moondrakes
+2 Resolute Strike
+3 Shatterwing Pegasus
+2 Silumgar Sorcerer
+1 Surtland Elementalist
+3 Thoughtbound Phantasm
+2 Your Fate Ends Here
+11 Island
+6 Plains
+4 Restless Anchorage
+4 University Campus

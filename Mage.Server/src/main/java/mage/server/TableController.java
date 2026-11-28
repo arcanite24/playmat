@@ -227,10 +227,7 @@ public class TableController {
     }
 
     public synchronized boolean replaceDraftPlayer(Player oldPlayer, String name, PlayerType playerType, int skill) {
-        Optional<Player> newPlayerOpt = createPlayer(name, playerType, skill);
-        if (!newPlayerOpt.isPresent()) {
-            logger.error("Can't replace draft player " + oldPlayer.getName() + " in table " + table.getId()
-                    + ": can't create player of type " + playerType);
+        if (oldPlayer == null || tournament == null) {
             return false;
         }
         if (table.getState() != TableState.DRAFTING) {
@@ -238,21 +235,33 @@ public class TableController {
                     + ": table state " + table.getState());
             return false;
         }
-        Player newPlayer = newPlayerOpt.get();
         TournamentPlayer oldTournamentPlayer = tournament.getPlayer(oldPlayer.getId());
+        if (oldTournamentPlayer == null) {
+            logger.error("Can't replace draft player " + oldPlayer.getName() + " in table " + table.getId()
+                    + ": player is not in tournament");
+            return false;
+        }
+        Optional<Player> newPlayerOpt = createPlayer(name, playerType, skill);
+        if (!newPlayerOpt.isPresent()) {
+            logger.error("Can't replace draft player " + oldPlayer.getName() + " in table " + table.getId()
+                    + ": can't create player of type " + playerType);
+            return false;
+        }
+        Player newPlayer = newPlayerOpt.get();
+        boolean draftReplaced = managerFactory.draftManager().getController(table.getId())
+                .map(controller -> controller.replacePlayer(oldPlayer, newPlayer))
+                .orElse(false);
+        if (!draftReplaced) {
+            logger.error("Can't replace draft player " + oldPlayer.getName() + " in draft, table " + table.getId());
+            return false;
+        }
+
         tournament.removePlayer(oldPlayer.getId());
         tournament.addPlayer(newPlayer, playerType);
 
         TournamentPlayer newTournamentPlayer = tournament.getPlayer(newPlayer.getId());
         newTournamentPlayer.setState(oldTournamentPlayer.getState());
         newTournamentPlayer.setReplacedTournamentPlayer(oldTournamentPlayer);
-
-        boolean draftReplaced = managerFactory.draftManager().getController(table.getId())
-                .map(controller -> controller.replacePlayer(oldPlayer, newPlayer))
-                .orElse(false);
-        if (!draftReplaced) {
-            logger.error("Draft player " + oldPlayer.getName() + " replaced in tournament but not in draft, table " + table.getId());
-        }
         return true;
     }
 
@@ -945,11 +954,25 @@ public class TableController {
      * against a goldfish (an AI with only basic lands) never counts. Each paid player hears about it right away (B269).
      */
     private void payCareer(Game game) {
+        // a ranked table's rewards are asked for by the table: remember which game it was, before the match's end
+        // forgets the table (#431)
+        mage.server.ladder.RankedService.gameEnded(table.getId(), game.getId());
+        if (mage.server.ladder.RankedService.isRanked(table.getId())) {
+            mage.server.ladder.LadderSideboarder.recordRevealedFromGame(table.getId(), game);
+        }
         if (mage.server.ladder.RankedService.isRanked(table.getId()) && match.hasEnded()) {
+            mage.server.ladder.LadderSideboarder.forget(table.getId());
             // a ranked match (#431) moves the player's rating and rank: won, lost, or drawn when neither won
             boolean humanWon = false;
             boolean otherWon = false;
+            int humanWins = 0;
+            int otherWins = 0;
             for (MatchPlayer matchPlayer : match.getPlayers()) {
+                if (matchPlayer.getPlayer().isHuman()) {
+                    humanWins = matchPlayer.getWins();
+                } else {
+                    otherWins = matchPlayer.getWins();
+                }
                 if (matchPlayer.isMatchWinner()) {
                     if (matchPlayer.getPlayer().isHuman()) {
                         humanWon = true;
@@ -959,8 +982,34 @@ public class TableController {
                 }
             }
             double score = humanWon ? 1 : otherWon ? 0 : 0.5;
+            String gameScore = match.getOptions().getWinsNeeded() > 1 ? (humanWins + "-" + otherWins) : null;
             try {
-                mage.server.ladder.RankedService.get().matchEnded(table.getId(), score, System.currentTimeMillis());
+                mage.server.ladder.RankedService rankedSvc = mage.server.ladder.RankedService.get();
+                if (rankedSvc.isPodTable(table.getId()) || match.getPlayers().size() > 2) {
+                    int placement = humanWon ? 1 : 4;
+                    if (!humanWon) {
+                        for (MatchPlayer mp : match.getPlayers()) {
+                            if (mp.getPlayer().isHuman()) {
+                                CareerTally t = CareerTally.of(game.getId(), mp.getPlayer().getId());
+                                if (t != null && t.podPlacement() > 0) {
+                                    placement = t.podPlacement();
+                                } else {
+                                    int alive = 0;
+                                    for (MatchPlayer other : match.getPlayers()) {
+                                        if (!other.getPlayer().isHuman() && !other.getPlayer().hasLost() && !other.getPlayer().hasLeft()) {
+                                            alive++;
+                                        }
+                                    }
+                                    placement = Math.max(2, Math.min(4, alive + 1));
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    rankedSvc.matchEndedPod(table.getId(), placement, System.currentTimeMillis(), game.getTurnNum());
+                } else {
+                    rankedSvc.matchEnded(table.getId(), score, System.currentTimeMillis(), game.getTurnNum(), gameScore);
+                }
             } catch (java.sql.SQLException | RuntimeException e) {
                 logger.error("Ranked: the result of table " + table.getId() + " couldn't be recorded", e);
             }
@@ -1079,6 +1128,16 @@ public class TableController {
         UUID gameId = match.getGame() == null ? null : match.getGame().getId();
         ThreadUtils.setGameThreadStatus(gameId, ThreadUtils.THREAD_GAME_STATUS_SIDEBOARD);
         try {
+            if (mage.server.ladder.RankedService.isRanked(table.getId())) {
+                String playbookId = mage.server.ladder.RankedService.playbookOf(table.getId());
+                if (playbookId != null) {
+                    for (MatchPlayer mp : match.getPlayers()) {
+                        if (!mp.getPlayer().isHuman() && mp.getDeck() != null) {
+                            mage.server.ladder.LadderSideboarder.apply(table.getId(), playbookId, mp.getDeck());
+                        }
+                    }
+                }
+            }
             try {
                 match.sideboard();
             } finally {

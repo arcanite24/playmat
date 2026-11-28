@@ -10,12 +10,15 @@ use std::sync::Arc;
 use std::sync::OnceLock;
 
 /// Each card's view as Java builds it out of a game (`new CardView(card)`, written by `CardFactsTest` with
-/// `-Dxmage.cardFacts.views`), by name, without its ids: what the engine's card views start from.
-pub const VIEWS_JSON: &str = include_str!("../cards/views.json");
+/// `-Dxmage.cardFacts.views`), by name, without its ids: what the engine's card views start from (gzip-compressed).
+pub const VIEWS_JSON_GZ: &[u8] = include_bytes!("../cards/views.json.gz");
 
 fn templates() -> &'static HashMap<String, Value> {
     static T: OnceLock<HashMap<String, Value>> = OnceLock::new();
-    T.get_or_init(|| serde_json::from_str(VIEWS_JSON).unwrap_or_default())
+    T.get_or_init(|| {
+        let dec = flate2::read::GzDecoder::new(VIEWS_JSON_GZ);
+        serde_json::from_reader(dec).unwrap_or_default()
+    })
 }
 
 /// The game as Java has it, where it differs: a card entering from a hand while its as-enters choices are asked is
@@ -48,7 +51,9 @@ pub fn game_view(game: &Game, seat: Seat, names: &[&str]) -> Value {
         "activePlayerId": game.active.map(|a| format!("P{}", a)),
         "activePlayerName": name(game.active),
         "priorityPlayerName": name(game.priority),
-        "special": game.special_mana && game.priority == Some(seat),
+        // the priority player's, shown to whoever makes their decisions (`GameView.special`: a controlled turn's
+        // controller)
+        "special": game.special_mana && game.priority.is_some_and(|p| game.turn_controller(p) == seat),
         "rollbackTurnsAllowed": false,
         "attackOption": "LEFT",
         "rangeOfInfluence": "ALL",
@@ -63,8 +68,14 @@ pub fn game_view(game: &Game, seat: Seat, names: &[&str]) -> Value {
         "lookedAt": looked_at_view(game, seat),
         "companion": [],
     });
-    if let (Some(_), true) = (game.step, game.priority == Some(seat)) {
-        v["canPlayObjects"] = can_play_objects(game, seat);
+    // `GameSessionPlayer.prepareGameView`: what the priority player can play, to whoever makes their decisions
+    if let (Some(_), Some(p)) = (game.step, game.priority.filter(|p| game.turn_controller(*p) == seat)) {
+        v["canPlayObjects"] = can_play_objects(game, p);
+    }
+    // `processControlledPlayers`: the hand of a player whose turn this one controls, as whole cards, by their name
+    for (p, _) in game.controlled_by.iter().filter(|(p, c)| *c == seat && *p != seat) {
+        let name = names.get(*p).map(|n| n.to_string()).unwrap_or_default();
+        v["opponentHands"][name] = cards_view(game, &game.player(*p).hand);
     }
     face_down_exiles(game, seat, &mut v);
     face_down_objects(game, seat, &mut v);
@@ -1058,9 +1069,18 @@ fn ability_rule(a: &crate::card::AbilityDef) -> Option<String> {
             A::LifelinkAbility => "Lifelink",
             A::DeathtouchAbility => "Deathtouch",
             A::WitherAbility => "Wither <i>(This deals damage to creatures in the form of -1/-1 counters.)</i>",
+            A::InfectAbility => "Infect <i>(This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)</i>",
+            A::FearAbility => "Fear",
+            A::ShadowAbility => "Shadow",
+            A::HorsemanshipAbility => "Horsemanship",
+            A::SpaceflightAbility => "Spaceflight",
+            A::SplitSecondAbility => "Split second",
+            A::PartnerAbility => "Partner",
+            A::FlankingAbility => "Flanking",
             A::DefenderAbility => "Defender",
             A::MenaceAbility => "Menace",
             A::HexproofAbility => "Hexproof",
+            A::ShroudAbility => "Shroud",
             A::IndestructibleAbility => "Indestructible",
             A::FlashAbility => "Flash",
             A::WardAbility { rule, .. }
@@ -2028,6 +2048,22 @@ fn command_view(game: &Game, p: Seat) -> Vec<Value> {
                     ch.next().map(|f| f.to_uppercase().collect::<String>() + ch.as_str()).unwrap_or_default()
                 })
                 .collect();
+            // an emblem with a card's abilities (`EmblemOfCard`): the card's printing
+            if o.card_emblem {
+                let card = templates().get(&format!("permanent:{}", o.def.name));
+                let field = |k: &str| card.map(|c| c[k].clone()).filter(|v| !v.is_null());
+                return json!({
+                    "id": format!("M{}", i),
+                    "name": o.def.name,
+                    "cardNumber": field("cardNumber").unwrap_or(json!("")),
+                    "imageFileName": field("imageFileName").unwrap_or(json!("")),
+                    "imageNumber": field("imageNumber").unwrap_or(json!(0)),
+                    "usesVariousArt": field("usesVariousArt").unwrap_or(json!(false)),
+                    "expansionSetCode": field("expansionSetCode").unwrap_or(json!(o.def.set)),
+                    "rules": rules,
+                    "playableStats": {"basicManaAbilities": [], "basicPlayAbilities": [], "basicCastAbilities": [], "other": []},
+                });
+            }
             json!({
                 "id": format!("M{}", i),
                 "name": o.def.name,

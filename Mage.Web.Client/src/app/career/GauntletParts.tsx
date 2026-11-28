@@ -48,6 +48,7 @@ export function GauntletEntry({ data, coins }: { data: CareerGauntletState; coin
   const [variant, setVariant] = useState('jumpstart');
   const [ascension, setAscension] = useState(0);
   const [seed, setSeed] = useState('');
+  const [planeChase, setPlaneChase] = useState(false);
   const [cube, setCube] = useState('');
   const [cubeDeck, setCubeDeck] = useState('');
   const [setCode, setSetCode] = useState('');
@@ -65,7 +66,7 @@ export function GauntletEntry({ data, coins }: { data: CareerGauntletState; coin
 
   async function start() {
     setBusy(true);
-    const options: StartOptions = { mode, variant, ascension: mode === 'map' ? ascension : 0, seed: seed.trim() || undefined };
+    const options: StartOptions = { mode, variant, ascension: mode === 'map' ? ascension : 0, seed: seed.trim() || undefined, planeChase };
     if (variant === 'cube') {
       if (chosenDeck.deck) options.cubeCards = [...chosenDeck.deck.cards, ...(chosenDeck.deck.sideboard ?? [])].map((card) => card.cardName ?? '').filter(Boolean);
       else options.cubeId = cube;
@@ -149,6 +150,10 @@ export function GauntletEntry({ data, coins }: { data: CareerGauntletState; coin
           <input value={seed} onChange={(event) => setSeed(event.target.value)} placeholder="K7Q2-9F3M" maxLength={12} spellCheck={false} />
         </label>
       </div>
+      <label className={styles.field}>
+        <input type="checkbox" checked={planeChase} onChange={(event) => setPlaneChase(event.target.checked)} />{' '}
+        <span>{t('career.planechase.toggle')}</span>
+      </label>
       {mode === 'map' && open === 0 && <p className={styles.small}>{t('career.gauntlet.ascensionLocked')}</p>}
       {mode === 'map' && level.length > 0 && (
         <ul className={styles.reasons}>{level.map((item) => <li key={item.level}><b>{item.title}:</b> {item.text}</li>)}</ul>
@@ -180,6 +185,8 @@ export function RunStatus({ run }: { run: CareerRun }) {
     <section className={styles.card} aria-labelledby="run-status">
       <h2 id="run-status" className={styles.cardLabel}>{t('career.gauntlet.status')}</h2>
       <ul className={styles.statusList}>
+        {run.commander?.name && <li><Crown size={14} aria-hidden="true" /> {t('career.gauntlet.commanderIs', { name: run.commander.name })}</li>}
+        {run.planeChase && <li><Sparkles size={14} aria-hidden="true" /> {t('career.planechase.active')}</li>}
         <li><Coins size={14} aria-hidden="true" /> {t('career.gauntlet.runCoins', { coins: run.runCoins ?? 0 })}</li>
         {(run.wounds ?? 0) > 0 && <li><HeartCrack size={14} aria-hidden="true" /> {t('career.gauntlet.wounds', { count: run.wounds ?? 0, life: (run.wounds ?? 0) * (run.woundLife ?? 2) })}</li>}
         {run.ascensionTitle && <li><Landmark size={14} aria-hidden="true" /> {run.ascensionTitle}</li>}

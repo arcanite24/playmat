@@ -2,6 +2,7 @@ package mage.server.websocket.api;
 
 import mage.cards.decks.DeckCardLists;
 import mage.players.PlayerType;
+import mage.server.career.CareerArchenemy;
 import mage.server.career.CareerCampaigns;
 import mage.server.career.CareerChallenges;
 import mage.server.career.CareerGauntlet;
@@ -21,6 +22,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static mage.server.websocket.rpc.RpcParam.Type.ARRAY;
+import static mage.server.websocket.rpc.RpcParam.Type.BOOLEAN;
 import static mage.server.websocket.rpc.RpcParam.Type.INT;
 import static mage.server.websocket.rpc.RpcParam.Type.STRING;
 import static mage.server.websocket.rpc.RpcParam.object;
@@ -173,25 +175,101 @@ final class CareerModesApi {
                             return CareerApi.store(() -> CareerHordes.get().hordes(user));
                         }),
                 RpcMethod.named("careerHordePlay")
-                        .params(of("hordeId", STRING), of("deckFile", STRING))
+                        .params(of("hordeId", STRING), optional("deckFile", STRING), optionalObject("deck", "DeckCardLists"), optional("endless", BOOLEAN))
                         .returns("CareerMatch")
-                        .doc("Face a horde with a deck of the meta library (deckFile from metaLibrary). The first time you live "
-                                + "through it pays.")
+                        .doc("Face a horde with a deck of the meta library (deckFile) or any personal/Career/Commander deck (deck). "
+                                + "Optional endless=true launches Endless Waves mode. Commander decks automatically scale the horde to 40 life and 12 waves.")
                         .handler(call -> {
                             String user = profiled(ctx, call);
                             String hordeId = call.string(0);
-                            String deckFile = call.string(1);
+                            String deckFile = call.has(1) ? call.string(1) : null;
+                            DeckCardLists customDeck = call.has(2) ? call.object(2, DeckCardLists.class) : null;
+                            boolean endless = call.optBool(3, false);
                             CareerHordes.Plan plan;
                             try {
-                                plan = CareerApi.store(() -> CareerHordes.get().attempt(user, hordeId, deckFile));
+                                plan = CareerApi.store(() -> CareerHordes.get().attempt(user, hordeId, deckFile, customDeck, endless));
                             } catch (RuntimeException e) {
                                 throw RpcException.invalidParams(e.getMessage());
                             }
                             CareerHordes.Plan ready = plan;
-                            String tableId = CareerApi.startMatch(ctx, call, user, plan.name, "Constructed - Freeform", plan.playerDeck,
-                                    PlayerType.COMPUTER_MAD, 3, plan.hordeDeck,
+                            String deckType = plan.commander ? "Variant Magic - Freeform Commander" : "Constructed - Freeform";
+                            String gameType = plan.commander ? "Freeform Commander Two Player Duel" : "Two Player Duel";
+                            CareerCampaigns.DuelSeat seat = new CareerCampaigns.DuelSeat();
+                            seat.name = plan.name;
+                            seat.skill = 3;
+                            seat.aiType = PlayerType.COMPUTER_MAD.name();
+                            seat.deck = plan.hordeDeck;
+                            String tableId = CareerApi.startMatch(ctx, call, user, gameType, deckType, 1, plan.playerDeck,
+                                    java.util.Collections.singletonList(seat),
                                     id -> CareerService.get().register(id, user, "horde", hordeId, ready.setup));
                             return match(tableId, "horde:" + hordeId, plan.hordeDeck);
+                        }),
+
+                // ---- archenemy (Phase 5.2)
+                RpcMethod.named("careerArchenemy")
+                        .returns("CareerArchenemyState")
+                        .doc("Archenemy encounters (Hunt the Archenemy and Become the Archenemy 1v3) and the 24-card Scheme catalog.")
+                        .handler(call -> {
+                            String user = CareerApi.career(ctx, call);
+                            return CareerApi.store(() -> CareerArchenemy.get().state(user));
+                        }),
+                RpcMethod.named("careerArchenemyPlay")
+                        .params(of("encounterId", STRING), optional("deckFile", STRING), optionalObject("deck", "DeckCardLists"), optional("planeChase", BOOLEAN))
+                        .returns("CareerMatch")
+                        .doc("Start an Archenemy encounter with a meta deck or personal/Commander deck, optionally with Planechase enabled.")
+                        .handler(call -> {
+                            String user = profiled(ctx, call);
+                            String encounterId = call.string(0);
+                            String deckFile = call.has(1) ? call.string(1) : null;
+                            DeckCardLists customDeck = call.has(2) ? call.object(2, DeckCardLists.class) : null;
+                            boolean planeChase = call.optBool(3, false);
+                            CareerArchenemy.Plan plan;
+                            try {
+                                plan = CareerApi.store(() -> CareerArchenemy.get().attempt(user, encounterId, deckFile, customDeck, planeChase));
+                            } catch (RuntimeException e) {
+                                throw RpcException.invalidParams(e.getMessage());
+                            }
+                            String gameType = plan.commander ? "Commander Free For All" : "Free For All";
+                            String deckType = plan.commander ? "Variant Magic - Freeform Commander" : "Constructed - Freeform";
+                            String tableId = CareerApi.startMatch(ctx, call, user, gameType, deckType, 1, plan.playerDeck,
+                                    plan.seats, plan.planeChase,
+                                    id -> CareerService.get().register(id, user, "archenemy", encounterId, plan.setup));
+                            return match(tableId, "archenemy:" + encounterId, plan.seats.get(0).deck);
+                        }),
+
+                // ---- two-headed giant solo (Phase 5.4)
+                RpcMethod.named("careerThg")
+                        .returns("CareerThgState")
+                        .doc("Two-Headed Giant solo mode: selectable AI partners and opposing 2-head pairs across Constructed and Commander.")
+                        .handler(call -> {
+                            String user = CareerApi.career(ctx, call);
+                            return CareerApi.store(() -> mage.server.career.CareerTwoHeadedGiant.get().state(user));
+                        }),
+                RpcMethod.named("careerThgPlay")
+                        .params(of("pairId", STRING), of("partnerId", STRING), optional("deckFile", STRING), optionalObject("deck", "DeckCardLists"), optional("planeChase", BOOLEAN))
+                        .returns("CareerMatch")
+                        .doc("Launch a 2v2 Two-Headed Giant solo match with a chosen AI partner and personal/Career/Meta deck.")
+                        .handler(call -> {
+                            String user = profiled(ctx, call);
+                            String pairId = call.string(0);
+                            String partnerId = call.string(1);
+                            String deckFile = call.has(2) ? call.string(2) : null;
+                            DeckCardLists customDeck = call.has(3) ? call.object(3, DeckCardLists.class) : null;
+                            boolean planeChase = call.optBool(4, false);
+                            mage.server.career.CareerTwoHeadedGiant.Plan plan;
+                            try {
+                                plan = CareerApi.store(() -> mage.server.career.CareerTwoHeadedGiant.get()
+                                        .attempt(user, pairId, partnerId, deckFile, customDeck, planeChase));
+                            } catch (RuntimeException e) {
+                                throw RpcException.invalidParams(e.getMessage());
+                            }
+                            mage.server.career.CareerTwoHeadedGiant.Plan ready = plan;
+                            String deckType = plan.commander ? "Variant Magic - Freeform Commander" : "Constructed - Freeform";
+                            String gameType = plan.commander ? "Freeform Commander Free For All" : "Free For All";
+                            String tableId = CareerApi.startMatch(ctx, call, user, gameType, deckType, 1, plan.playerDeck,
+                                    plan.seats, plan.planeChase,
+                                    id -> CareerService.get().register(id, user, "thg", pairId, ready.setup));
+                            return match(tableId, "thg:" + pairId, plan.seats.isEmpty() ? null : plan.seats.get(0).deck);
                         }),
                 RpcMethod.named("metaLibrary")
                         .returns("MetaFormat[]")
@@ -216,8 +294,16 @@ final class CareerModesApi {
                         .handler(call -> {
                             String user = profiled(ctx, call);
                             CareerChallenges.Plan plan = plan(() -> CareerChallenges.get().attempt(user));
-                            String tableId = CareerApi.startMatch(ctx, call, user, plan.challenge.opponent.name, "Constructed - Freeform",
-                                    plan.playerDeck, CareerApi.aiType(plan.challenge.opponent.aiType), plan.challenge.opponent.skill, plan.opponentDeck,
+                            boolean isCommander = "commander".equalsIgnoreCase(plan.challenge.format);
+                            CareerCampaigns.DuelSeat seat = new CareerCampaigns.DuelSeat();
+                            seat.name = plan.challenge.opponent.name;
+                            seat.skill = plan.challenge.opponent.skill;
+                            seat.aiType = isCommander ? PlayerType.COMPUTER_MAD.name() : plan.challenge.opponent.aiType;
+                            seat.deck = plan.opponentDeck;
+                            String gameType = isCommander ? "Commander Two Player Duel" : "Two Player Duel";
+                            String deckType = isCommander ? "Variant Magic - Freeform Commander" : "Constructed - Freeform";
+                            String tableId = CareerApi.startMatch(ctx, call, user, gameType, deckType, 1,
+                                    plan.playerDeck, java.util.Collections.singletonList(seat), plan.challenge.planeChase,
                                     id -> CareerService.get().register(id, user, "challenge", plan.week, plan.setup));
                             return match(tableId, "challenge:" + plan.week, plan.opponentDeck);
                         }),
@@ -270,8 +356,37 @@ final class CareerModesApi {
                         .handler(call -> {
                             String user = profiled(ctx, call);
                             CareerGauntlet.Plan plan = plan(() -> CareerGauntlet.get().plan(user));
-                            String tableId = CareerApi.startMatch(ctx, call, user, plan.boss.name, "Limited", plan.playerDeck,
-                                    CareerApi.aiType(plan.boss.aiType), plan.skill, plan.opponentDeck,
+                            if (plan.commander != null) {
+                                List<CareerCampaigns.DuelSeat> seats = new ArrayList<>();
+                                CareerCampaigns.DuelSeat first = new CareerCampaigns.DuelSeat();
+                                first.name = plan.boss.name;
+                                first.skill = plan.skill;
+                                first.aiType = PlayerType.COMPUTER_MAD.name();
+                                first.deck = plan.opponentDeck;
+                                seats.add(first);
+                                if (plan.skirmish && plan.secondBoss != null && plan.secondOpponentDeck != null) {
+                                    CareerCampaigns.DuelSeat second = new CareerCampaigns.DuelSeat();
+                                    second.name = plan.secondBoss.name;
+                                    second.skill = Math.max(1, plan.skill - 1);
+                                    second.aiType = PlayerType.COMPUTER_MAD.name();
+                                    second.deck = plan.secondOpponentDeck;
+                                    seats.add(second);
+                                }
+                                String gameType = seats.size() > 1
+                                        ? "Freeform Commander Free For All"
+                                        : "Freeform Commander Two Player Duel";
+                                String tableId = CareerApi.startMatch(ctx, call, user, gameType, "Variant Magic - Freeform Commander",
+                                        1, plan.playerDeck, seats, plan.planeChase,
+                                        id -> CareerService.get().register(id, user, "gauntlet", plan.runId, plan.setup));
+                                return match(tableId, "gauntlet:" + plan.runId, plan.opponentDeck);
+                            }
+                            CareerCampaigns.DuelSeat seat = new CareerCampaigns.DuelSeat();
+                            seat.name = plan.boss.name;
+                            seat.skill = plan.skill;
+                            seat.aiType = plan.boss.aiType;
+                            seat.deck = plan.opponentDeck;
+                            String tableId = CareerApi.startMatch(ctx, call, user, "Two Player Duel", "Limited", 1, plan.playerDeck,
+                                    java.util.Collections.singletonList(seat), plan.planeChase,
                                     id -> CareerService.get().register(id, user, "gauntlet", plan.runId, plan.setup));
                             return match(tableId, "gauntlet:" + plan.runId, plan.opponentDeck);
                         }),

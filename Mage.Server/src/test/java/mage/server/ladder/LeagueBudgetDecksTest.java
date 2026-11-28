@@ -61,6 +61,7 @@ public class LeagueBudgetDecksTest {
         // the server registers these from config.xml at start
         mage.cards.decks.DeckValidatorFactory.instance.addDeckType("Constructed - Standard", mage.deck.Standard.class);
         mage.cards.decks.DeckValidatorFactory.instance.addDeckType("Constructed - Pioneer", mage.deck.Pioneer.class);
+        mage.cards.decks.DeckValidatorFactory.instance.addDeckType("Constructed - Modern", mage.deck.Modern.class);
     }
 
     /**
@@ -72,7 +73,7 @@ public class LeagueBudgetDecksTest {
         org.junit.jupiter.api.Assumptions.assumeTrue(Boolean.getBoolean("xmage.writeBudgetDecks"), "writes only when asked");
         Set<String> verified = verified();
         for (String format : FORMATS) {
-            Pool pool = new Pool(format, verified);
+            Pool pool = new Pool(format, verified, Collections.emptySet(), Rarity.COMMON, Rarity.UNCOMMON);
             try (java.util.stream.Stream<Path> files = Files.list(DECKS.resolve(format))) {
                 for (Path meta : (Iterable<Path>) files.sorted()::iterator) {
                     String file = meta.getFileName().toString();
@@ -164,7 +165,13 @@ public class LeagueBudgetDecksTest {
             }
             assertTrue(budget, "the League meets budget bots");
             for (BotRoster.Bot bot : BotRoster.get().bots()) {
-                boolean special = "budget".equals(bot.kind) || ("meta".equals(bot.kind) && bot.skill < 7);
+                if ("modern".equals(bot.format)) {
+                    // Modern has no League (#435)
+                    assertTrue(bot.plays(RankedService.OPEN) && !bot.plays(RankedService.LEAGUE), bot.id);
+                    continue;
+                }
+                boolean special = "budget".equals(bot.kind)
+                        || ("meta".equals(bot.kind) && (bot.skill < 7 || bot.generation >= 2));
                 assertEquals(!special, bot.plays(RankedService.OPEN) && bot.plays(RankedService.LEAGUE), bot.id);
             }
         } finally {
@@ -174,7 +181,7 @@ public class LeagueBudgetDecksTest {
 
     // ---- the generator
 
-    private static Set<String> verified() throws IOException {
+    static Set<String> verified() throws IOException {
         Set<String> out = new HashSet<>();
         for (String line : Files.readAllLines(VERIFIED, StandardCharsets.UTF_8)) {
             if (!line.trim().isEmpty()) {
@@ -184,20 +191,20 @@ public class LeagueBudgetDecksTest {
         return out;
     }
 
-    private static boolean pricey(Rarity rarity) {
+    static boolean pricey(Rarity rarity) {
         return rarity == Rarity.RARE || rarity == Rarity.MYTHIC;
     }
 
-    /** the commons and uncommons of the format's sets that the Rust host plays, by name: their newest printing */
-    private static final class Pool {
+    /** the format's cards of the given rarities that the Rust host plays and the format allows, by name: their newest printing */
+    static final class Pool {
         final Map<String, CardInfo> cards = new java.util.TreeMap<>();
         final List<String> sets;
 
-        Pool(String format, Set<String> verified) {
+        Pool(String format, Set<String> verified, Set<String> banned, Rarity... rarities) {
             sets = mage.server.career.CareerLeague.legalSets(format);
-            CardCriteria criteria = new CardCriteria().rarities(Rarity.COMMON, Rarity.UNCOMMON).setCodes(sets.toArray(new String[0]));
+            CardCriteria criteria = new CardCriteria().rarities(rarities).setCodes(sets.toArray(new String[0]));
             for (CardInfo info : CardRepository.instance.findCards(criteria)) {
-                if (!verified.contains(info.getName()) || info.getTypes().contains(CardType.LAND) || info.isNightCard()) {
+                if (!verified.contains(info.getName()) || banned.contains(info.getName()) || info.getTypes().contains(CardType.LAND) || info.isNightCard()) {
                     continue;
                 }
                 cards.merge(info.getName(), info, (a, b) -> order(a) >= order(b) ? a : b);
@@ -223,7 +230,7 @@ public class LeagueBudgetDecksTest {
     }
 
     /** a card as the deck has it, read once */
-    private static final class Line {
+    static final class Line {
         final int amount;
         final CardInfo info;
 
@@ -250,8 +257,8 @@ public class LeagueBudgetDecksTest {
                 copies.merge(line.info.getName(), line.amount, Integer::sum);
             }
         }
-        Map<String, Line> outMain = swap(main, colors, pool, copies);
-        Map<String, Line> outSide = swap(side, colors, pool, copies);
+        Map<String, Line> outMain = swap(main, colors, pool, copies, card -> !pricey(card.getRarity()));
+        Map<String, Line> outSide = swap(side, colors, pool, copies, card -> !pricey(card.getRarity()));
         StringBuilder text = new StringBuilder("NAME:Budget ").append(deck.getName()).append('\n');
         for (Line line : outMain.values()) {
             text.append(line.amount).append(" [").append(line.info.getSetCode()).append(':').append(line.info.getCardNumber()).append("] ")
@@ -264,7 +271,7 @@ public class LeagueBudgetDecksTest {
         return text.toString();
     }
 
-    private static List<Line> lines(List<DeckCardInfo> cards) {
+    static List<Line> lines(List<DeckCardInfo> cards) {
         List<Line> out = new ArrayList<>();
         for (DeckCardInfo card : cards) {
             CardInfo info = CardRepository.instance.findCard(card.getSetCode(), card.getCardNumber());
@@ -277,7 +284,7 @@ public class LeagueBudgetDecksTest {
     }
 
     /** the deck's colours, from its spells */
-    private static String colors(List<Line> main) {
+    static String colors(List<Line> main) {
         Set<Character> found = new TreeSet<>();
         for (Line line : main) {
             if (!line.info.getTypes().contains(CardType.LAND)) {
@@ -298,16 +305,17 @@ public class LeagueBudgetDecksTest {
     }
 
     /**
-     * The list with each rare and mythic swapped: a land for basics of the colours it makes (the deck's colours, in
-     * turn, when it makes none or any), a spell for the closest common or uncommon (see {@link #distance}), never past
-     * four copies of a name.
+     * The list with each card `keep` refuses swapped (for the budget decks, each rare and mythic): a land for basics of
+     * the colours it makes (the deck's colours, in turn, when it makes none or any), a spell for the closest card of the
+     * pool (see {@link #distance}), never past four copies of a name.
      */
-    private static Map<String, Line> swap(List<Line> lines, String colors, Pool pool, Map<String, Integer> copies) {
+    static Map<String, Line> swap(List<Line> lines, String colors, Pool pool, Map<String, Integer> copies,
+                                  java.util.function.Predicate<CardInfo> keep) {
         Map<String, Line> out = new LinkedHashMap<>();
         int basicTurn = 0;
         for (Line line : lines) {
             CardInfo card = line.info;
-            if (!pricey(card.getRarity())) {
+            if (keep.test(card)) {
                 add(out, card, line.amount);
                 continue;
             }

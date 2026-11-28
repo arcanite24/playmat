@@ -75,6 +75,49 @@ python rounds.py --init runs/loop3/r4 --out runs/loop4 --policy netsearch --roll
 folder with `selfplay` and `archbench`. `train.py` keeps the decisions on the GPU when they fit in `--gpu-data-gb`
 (default 8); `prof_train.py` times a step's parts.
 
+More games from the public server's idle hours (docs/rust/Ai.md, "Self-play on the public server"): with
+`--remote ALIAS --remote-image ghcr.io/arcanite24/playmat-selfplay:sha-...@sha256:...`, each round's job goes to the
+server before the local games and the chunks it finished are pulled into the round's data after them (seeds from
+`1_000_000 * r + 500_000`, so they never repeat the local ones). `ALIAS` is an ssh alias for the server's `playmat-rl`
+account; the image must be one CI built from the same commit as the local `selfplay`. On Windows, `remote.py` uses Git for Windows' ssh (the system ssh.exe sends no stdin under an SSH session); `PLAYMAT_RL_SSH` picks another. `python remote.py ALIAS status`
+shows the worker's state, `list` the chunks waiting, `stop` drops the job. A chunk played with another image or
+other networks is thrown away, not trained on.
+
+More games from the LAN's idle machines: `--lan minivac:8,blindvac:4,steamdeck:8` (ssh alias and jobs, up to 4 hosts). The
+trainer drives them itself over ssh (`fleet.py`); nothing runs on them but `selfplay` under `~/playmat-rl`. While the
+round's local games run, each host plays 100-game chunks whenever it's idle (a Mac: no keyboard or mouse for 10
+minutes and a low load; Windows: other processes under 40% CPU and on AC power; Linux, the Steam Deck: on AC power, no Steam game running
+and a low load), at the lowest priority. It's
+checked every 15 s, a chunk is killed and thrown away when the host is in use again, and finished chunks are copied
+into the round's data as `<alias>-c<n>-*`. Seeds come from `1_000_000 * r + 100_000 * (1 + host)`, so `--games` stays
+at 100,000 or under. Each host needs the trainer's own build, from the same commit:
+
+```bash
+python fleet.py provision blindvac --bin ../target/release/selfplay.exe   # a Windows host: the trainer's exe
+python fleet.py provision minivac --on-host /Users/.../target/release/selfplay   # a Mac builds its own
+python fleet.py provision steamdeck --bin selfplay-linux   # Linux x86_64, built in rust:1.94-slim-bookworm
+python fleet.py status minivac blindvac
+python fleet.py speed blindvac:4 --net runs/loop4/r3                     # one chunk, timed
+```
+
+Provision copies the deck suite and, from a Windows trainer, the Visual C++ runtime next to the exe (blindvac has
+none). A round leaves out a host provisioned from another commit or whose binary changed. A chunk whose trainer dies
+mid-way ends with it on a Mac or Linux (it watches the ssh channel); on Windows it finishes its 100 games. Mac and
+Linux hosts send a finished chunk back as one compressed tar stream (scp's round trip per file cost a cloud VM 48 s
+a chunk).
+
+A Spot VM on Google Cloud makes one more host for a round (`gcp.py`, the gcloud CLI logged in):
+
+```bash
+python gcp.py up --project multivac-club --bin ../selfplay-linux   # t2d-standard-16, provisioned, alias gcp-sp1
+python rounds.py ... --lan minivac:8,blindvac:4,steamdeck:8,gcp-sp1:16
+python gcp.py down --project multivac-club                          # the VM, its firewall rule and the alias
+```
+
+ssh to it is opened to the trainer's public IP only, its host keys come through gcloud (written to
+`~/.ssh/known_hosts_gcp`, checked strictly), and it deletes itself after `--hours` (8) even if `down` never runs.
+A t2d-standard-16 plays 100 games in 10 s, chunk to chunk.
+
 `--tx` takes JSON or `k=v` pairs (`d`, `heads`, `layers`, `ff`, `dim`, `trunk`, `text`). `rounds.py` logs one line a round to
 `runs/<out>/rounds.jsonl`. Keep `--jobs` and `--sprt-jobs` a few threads under the machine's count so its other
 services keep running.

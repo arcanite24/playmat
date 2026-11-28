@@ -133,6 +133,38 @@ describe('ImageResolver', () => {
     expect(lookups).toBe(3);
   });
 
+  test('gives up and clears inFlight on a non-JSON 200 response from the image proxy so the batch can retry later', async () => {
+    let clock = 1_000_000;
+    let lookups = 0;
+    const fetchImpl = vi.fn(async (url: RequestInfo | URL) => {
+      if (String(url).endsWith('scryfall-links.json')) return jsonResponse(LINKS);
+      lookups++;
+      if (lookups === 1) return new Response('<html>proxy error</html>', { status: 200, headers: { 'Content-Type': 'text/html' } });
+      return jsonResponse({ data: [{ set: 'm10', collector_number: '146', image_uris: { normal: 'bolt-recovered' } }] });
+    }) as unknown as typeof fetch;
+    const resolver = new ImageResolver({
+      fetch: fetchImpl,
+      store: memoryStore(),
+      batchDelayMs: 1,
+      minRequestIntervalMs: 0,
+      retryDelayMs: 1,
+      now: () => clock,
+    });
+    const bolt = { name: 'Lightning Bolt', expansionSetCode: 'M10', cardNumber: '146' };
+    const listener = vi.fn();
+    resolver.subscribeCard(bolt, listener);
+
+    expect(resolver.resolve(bolt)).toBeNull();
+    await vi.waitFor(() => expect(resolver.resolve(bolt)).toContain('cards/named?exact=Lightning+Bolt'));
+    expect(listener).toHaveBeenCalled();
+
+    // After the 1-minute backoff expires, the printing is no longer stuck in inFlight and retries cleanly
+    clock += 61_000;
+    expect(resolver.resolve(bolt)).toBeNull();
+    await vi.waitFor(() => expect(resolver.resolve(bolt)).toBe('bolt-recovered'));
+    expect(lookups).toBe(2);
+  });
+
   test('reads the persistent cache before the network', async () => {
     const store = memoryStore({ 'm10/146': { front: { normal: 'cached' }, fetchedAt: Date.now() } });
     const fetchImpl = vi.fn(async () => jsonResponse(LINKS)) as unknown as typeof fetch;

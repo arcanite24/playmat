@@ -52,6 +52,12 @@ public final class CareerTally {
     private int spellsThisTurn;
     private int manaThisTurn;
     private int lowestLife = Integer.MAX_VALUE;
+    /** exact placement (1..4) in a multiplayer pod, captured on LOST; 0 until known */
+    private int podPlacement;
+
+    public synchronized int podPlacement() {
+        return podPlacement;
+    }
     /** opponents this player dealt the latest damage to, for pod eliminations */
     private final Set<UUID> lastHit = new HashSet<>();
     /** one-game feats (B309): the best value of each and the turn it happened on */
@@ -474,6 +480,19 @@ public final class CareerTally {
                     }
                     break;
                 case LOST:
+                    if (me.equals(event.getPlayerId()) && game.getPlayers().size() > 2) {
+                        int stillIn = 0;
+                        for (Player p : game.getPlayers().values()) {
+                            if (p != null && !p.getId().equals(me) && !p.hasLost() && !p.hasLeft()) {
+                                stillIn++;
+                            }
+                        }
+                        synchronized (tally) {
+                            if (tally.podPlacement == 0) {
+                                tally.podPlacement = Math.max(2, Math.min(game.getPlayers().size(), stillIn + 1));
+                            }
+                        }
+                    }
                     if (!me.equals(event.getPlayerId()) && game.getPlayers().size() > 2) {
                         boolean mine;
                         synchronized (tally) {
@@ -578,6 +597,11 @@ public final class CareerTally {
             tally.moment("storm", tally.spellsThisTurn, game.getTurnNum());
             if (spell == null) {
                 return;
+            }
+            Player caster = game.getPlayer(tally.playerId);
+            if (caster != null && game.getCommandersIds(caster, CommanderCardType.COMMANDER_OR_OATHBREAKER, false)
+                    .contains(spell.getSourceId())) {
+                tally.add("commander_casts", 1);
             }
             ObjectColor color = spell.getColor(game);
             if (color.isWhite()) {

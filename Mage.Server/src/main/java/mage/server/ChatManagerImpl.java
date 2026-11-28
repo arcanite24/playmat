@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 public class ChatManagerImpl implements ChatManager {
 
     private static final Logger logger = Logger.getLogger(ChatManagerImpl.class);
-    private static final HashMap<String, String> lastUserMessages = new HashMap<>(); // user->chat+message
+    private final ConcurrentHashMap<String, String> lastUserMessages = new ConcurrentHashMap<>(); // user->chat+message
 
     private final ManagerFactory managerFactory;
     private final ConcurrentHashMap<UUID, ChatSession> chatSessions = new ConcurrentHashMap<>();
@@ -156,11 +156,10 @@ public class ChatManagerImpl implements ChatManager {
 
                     // spam protection
                     String messageId = chatId.toString() + message;
-                    if (messageId.equals(lastUserMessages.get(userName))) {
-                        chatSessions.get(chatId).broadcastInfoToUser(user.get(), "Ignore duplicated message");
+                    if (messageId.equals(lastUserMessages.put(userName, messageId))) {
+                        chatSession.broadcastInfoToUser(user.get(), "Ignore duplicated message");
                         return;
                     }
-                    lastUserMessages.put(userName, messageId);
 
                     // message limit
                     if (message.length() > Constants.MAX_CHAT_MESSAGE_SIZE) {

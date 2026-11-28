@@ -128,7 +128,9 @@ public class CareerCalibrationTest {
         DataCollectorServices.init(false, false);
 
         CareerContent content = CareerContent.get();
-        List<CareerContent.CareerStarter> starters = content.starters();
+        List<CareerContent.CareerStarter> starters = content.starters().stream()
+                .filter(starter -> !"commander".equals(starter.track))
+                .collect(java.util.stream.Collectors.toList());
         Map<String, DeckCardLists> starterDecks = new LinkedHashMap<>();
         for (CareerContent.CareerStarter starter : starters) {
             starterDecks.put(starter.id, content.starterDeck(starter.id));

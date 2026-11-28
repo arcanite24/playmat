@@ -262,11 +262,19 @@ impl AdminStores {
             self.run(caller, request, &mut admin, reports.as_deref_mut(), &mut audits).await
         };
         let end = if keep && answer.is_ok() { "COMMIT" } else { "ROLLBACK" };
-        let mut ended = sqlx::query(end).execute(&mut *admin).await.is_ok();
-        if let Some(connection) = reports.as_deref_mut() {
-            ended &= sqlx::query(end).execute(connection).await.is_ok();
-        }
-        if !ended {
+        let admin_ended = sqlx::query(end).execute(&mut *admin).await.is_ok();
+        let reports_ended = match reports.as_deref_mut() {
+            Some(connection) => {
+                let second_end = if admin_ended { end } else { "ROLLBACK" };
+                sqlx::query(second_end).execute(connection).await.is_ok()
+            }
+            None => true,
+        };
+        if !admin_ended || !reports_ended {
+            let _ = sqlx::query("ROLLBACK").execute(&mut *admin).await;
+            if let Some(connection) = reports.as_deref_mut() {
+                let _ = sqlx::query("ROLLBACK").execute(connection).await;
+            }
             warn!("Admin database: {end} failed for {method}");
             return Outcome::Declined;
         }
@@ -1127,6 +1135,34 @@ mod tests {
         assert!(reopened.get("resolvedBy").is_none());
         let missing = stores.call(&mod_, &request("adminClientErrorResolve", json!([9])), true).await;
         assert_eq!(missing, Outcome::error(INVALID_PARAMS, "There is no client error 9"));
+        std::fs::remove_dir_all(dir).ok();
+    }
+
+    #[tokio::test]
+    async fn failed_commit_rolls_back_pooled_connection() {
+        let (stores, dir) = stores().await;
+        let boss = caller("Boss");
+        sqlx::query("PRAGMA foreign_keys = ON").execute(&stores.admin).await.unwrap();
+        sqlx::query("CREATE TABLE fk_parent (id INTEGER PRIMARY KEY)").execute(&stores.admin).await.unwrap();
+        sqlx::query(
+            "CREATE TABLE fk_child (id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES fk_parent(id) DEFERRABLE INITIALLY DEFERRED)",
+        )
+        .execute(&stores.admin)
+        .await
+        .unwrap();
+        sqlx::query(
+            "CREATE TRIGGER fail_audit_commit AFTER INSERT ON audit_entry BEGIN INSERT INTO fk_child (parent_id) VALUES (999); END",
+        )
+        .execute(&stores.admin)
+        .await
+        .unwrap();
+
+        let failed = stores.call(&boss, &request("adminAllowAdd", json!(["blocked"])), true).await;
+        assert_eq!(failed, Outcome::Declined);
+
+        sqlx::query("DROP TRIGGER fail_audit_commit").execute(&stores.admin).await.unwrap();
+        let recovered = result(stores.call(&boss, &request("adminAllowAdd", json!(["after"])), true).await);
+        assert_eq!(recovered["name"], "after");
         std::fs::remove_dir_all(dir).ok();
     }
 

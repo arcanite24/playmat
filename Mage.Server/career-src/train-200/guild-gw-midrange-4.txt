@@ -1,0 +1,19 @@
+# name: Train200 guild-gw-midrange-4
+# archetype: midrange
+# colors: GW
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Archangel of Tithes
+4 Llanowar Greenwidow
+4 Mardu Woe-Reaper
+4 Mutant's Prey
+4 Outland Colossus
+4 Pawpatch Formation
+4 Regal Imperiosaur
+2 Reluctant Dounguard
+4 Thraben Gargoyle
+1 Topple the Statue
+3 Verdant Rebirth
+4 Blossoming Sands
+11 Forest
+5 Plains
+4 Vigorbloom Annex

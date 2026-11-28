@@ -121,5 +121,38 @@
       "setCode": "RTR",
       "cardNumber": "206"
     }
+  },
+  {
+    "file": "ghalta-primal-stampede.dck",
+    "name": "Ghalta's Primal Stampede",
+    "cards": 100,
+    "format": "Variant Magic - Commander",
+    "cover": {
+      "name": "Ghalta, Primal Hunger",
+      "setCode": "CMM",
+      "cardNumber": "292"
+    }
+  },
+  {
+    "file": "teysa-orzhov-tribute.dck",
+    "name": "Teysa's Orzhov Tribute",
+    "cards": 100,
+    "format": "Variant Magic - Commander",
+    "cover": {
+      "name": "Teysa Karlov",
+      "setCode": "CMM",
+      "cardNumber": "359"
+    }
+  },
+  {
+    "file": "meren-grave-cycle.dck",
+    "name": "Meren's Grave Cycle",
+    "cards": 100,
+    "format": "Variant Magic - Commander",
+    "cover": {
+      "name": "Meren of Clan Nel Toth",
+      "setCode": "C15",
+      "cardNumber": "49"
+    }
   }
 ]

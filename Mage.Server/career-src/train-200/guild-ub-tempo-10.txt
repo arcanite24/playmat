@@ -1,0 +1,24 @@
+# name: Train200 guild-ub-tempo-10
+# archetype: tempo
+# colors: UB
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Abhorrent Oculus
+2 Bloodvial Purveyor
+1 Cobbled Lancer
+1 Collective Nightmare
+2 Concerted Defense
+2 Extended Absence
+3 Failed Inspection
+2 Fake Your Own Death
+3 Forsaken Miner
+4 Gas Guzzler
+2 Kefnet the Mindful
+3 Long Goodbye
+2 Rapid Hybridization
+4 Saw It Coming
+4 Tiger-Seal
+1 Winged Portent
+8 Island
+4 Soured Springs
+6 Swamp
+4 Treno, Dark City

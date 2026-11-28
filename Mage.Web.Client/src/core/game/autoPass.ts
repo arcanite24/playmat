@@ -1,6 +1,7 @@
 import type { GameView } from '../../protocol/generated/views';
 import { myAttackers, myBlockers } from './interaction';
 import type { Prompt } from './prompt';
+import { actingPlayerId } from './turnControl';
 
 /**
  * Arena-style smart passing, decided on the client. The server asks for priority at every stop; when the player
@@ -27,7 +28,9 @@ export function combatStopHere(view: GameView | null | undefined, stops: TurnCom
   const step = view.step === 'DECLARE_ATTACKERS' ? 'attackers' : view.step === 'DECLARE_BLOCKERS' ? 'blockers' : null;
   if (!step) return false;
   if (!(view.combat ?? []).some((group) => Object.keys(group.attackers ?? {}).length > 0)) return false;
-  const myTurn = !!view.myPlayerId && view.activePlayerId === view.myPlayerId;
+  // on a turn we control (Mindslaver), its player's decisions are ours: their turn plays as our own
+  const acting = actingPlayerId(view);
+  const myTurn = !!acting && view.activePlayerId === acting;
   return !!(myTurn ? stops.yourTurn : stops.opponentTurn)?.[step];
 }
 
@@ -70,9 +73,15 @@ function isTurnFaceUp(text: string | undefined): boolean {
   return /\bturn this face-down\b/i.test((text ?? '').replace(/<[^>]*>/g, ''));
 }
 
+/** Flash-granting abilities (Alchemist's Refuge, Emergence Zone, Winding Canyons): worth stopping for at an opponent's end step. */
+function isFlashEnabler(text: string | undefined): boolean {
+  return /\bas though (?:they|it) had flash\b/i.test((text ?? '').replace(/<[^>]*>/g, ''));
+}
+
 /** The player's face-down permanents (the server cuts ability text, so the text alone can miss a long cost). */
 function myFaceDown(view: GameView): Set<string> {
-  const mine = (view.players ?? []).find((player) => player.playerId === view.myPlayerId);
+  const acting = actingPlayerId(view);
+  const mine = (view.players ?? []).find((player) => player.playerId === acting);
   return new Set(Object.entries(mine?.battlefield ?? {}).filter(([, permanent]) => permanent.faceDown).map(([id]) => id));
 }
 
@@ -83,10 +92,11 @@ function myFaceDown(view: GameView): Set<string> {
 export function meaningfulPlays(view: GameView | null | undefined, includeAbilities = true): string[] {
   const objects = view?.canPlayObjects?.objects ?? {};
   const faceDown = view ? myFaceDown(view) : new Set<string>();
+  const endStepWithHand = view?.step === 'END_TURN' && Object.keys(view.myHand ?? {}).length > 0;
   return Object.entries(objects)
     .filter(([id, stats]) => (stats.basicCastAbilities?.length ?? 0) + (stats.basicPlayAbilities?.length ?? 0)
       + (stats.other ?? []).filter((record) => !isManaText(record.value)
-        && (includeAbilities || faceDown.has(id) || isTurnFaceUp(record.value))).length > 0)
+        && (includeAbilities || faceDown.has(id) || isTurnFaceUp(record.value) || (endStepWithHand && isFlashEnabler(record.value)))).length > 0)
     .map(([id]) => id);
 }
 
@@ -139,7 +149,8 @@ export function autoAnswer(view: GameView | null | undefined, prompt: Prompt | n
   switch (prompt.kind) {
     case 'priority':
     {
-      const myTurn = !!view.myPlayerId && view.activePlayerId === view.myPlayerId;
+      const acting = actingPlayerId(view);
+      const myTurn = !!acting && view.activePlayerId === acting;
       // a stop the player did not ask for (core/game/stops), auto-pass on or off: only a Vehicle to crew or a land
       // to animate keeps it
       if (myTurn && view.step === 'BEGIN_COMBAT' && !settings.beginCombatStop && Object.keys(view.stack ?? {}).length === 0) {

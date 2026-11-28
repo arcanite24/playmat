@@ -42,4 +42,51 @@ public class BetorAncestorsVoiceTest extends CardTestPlayerBase {
         assertLife(playerA, 20 + 8);
         assertCounterCount(playerA, "Rhox Faithmender", CounterType.P1P1, 8);
     }
+
+    @Test
+    public void test_OnlyTargetsYourGraveyard() {
+        addCard(Zone.BATTLEFIELD, playerA, betor, 1);
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 1);
+        addCard(Zone.HAND, playerA, "Shock", 1);
+        addCard(Zone.GRAVEYARD, playerA, "Grizzly Bears", 1);
+        addCard(Zone.GRAVEYARD, playerB, "Runeclaw Bear", 1);
+
+        // Player A loses 2 life so MV <= 2 creatures are eligible
+        castSpell(1, PhaseStep.PRECOMBAT_MAIN, playerA, "Shock", playerA);
+
+        addTarget(playerA, TestPlayer.TARGET_SKIP); // first target: no other creature to put counters on
+        addTarget(playerA, "Grizzly Bears"); // second target: must only allow own graveyard
+
+        setStrictChooseMode(true);
+        setStopAt(2, PhaseStep.PRECOMBAT_MAIN);
+        execute();
+
+        assertPermanentCount(playerA, "Grizzly Bears", 1);
+        assertGraveyardCount(playerB, "Runeclaw Bear", 1);
+    }
+
+    @Test
+    public void test_CannotTargetOpponentsGraveyard() {
+        addCard(Zone.BATTLEFIELD, playerA, betor, 1);
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 1);
+        addCard(Zone.HAND, playerA, "Shock", 1);
+        addCard(Zone.GRAVEYARD, playerB, "Runeclaw Bear", 1);
+
+        castSpell(1, PhaseStep.PRECOMBAT_MAIN, playerA, "Shock", playerA);
+
+        addTarget(playerA, TestPlayer.TARGET_SKIP); // first target: no other creature player A controls
+        addTarget(playerA, "Runeclaw Bear"); // illegal target: in opponent's graveyard
+
+        setStrictChooseMode(true);
+        setStopAt(2, PhaseStep.PRECOMBAT_MAIN);
+        try {
+            execute();
+            org.junit.Assert.fail("Betor should not be able to target a creature card in an opponent's graveyard");
+        } catch (AssertionError expected) {
+            // Expected: Runeclaw Bear in player B's graveyard is not a legal target
+        }
+
+        assertGraveyardCount(playerB, "Runeclaw Bear", 1);
+        assertPermanentCount(playerA, "Runeclaw Bear", 0);
+    }
 }

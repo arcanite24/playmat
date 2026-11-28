@@ -1,0 +1,23 @@
+# name: Train200 guild-ub-control-9
+# archetype: control
+# colors: UB
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Bloodvial Purveyor
+1 Dread Summons
+2 Galestrike
+2 Geralf's Masterpiece
+4 Highly Illogical
+1 Jwari Disruption
+3 Lunar Rejection
+1 Mirrodin Avenged
+2 Narset's Reversal
+3 Polymorphist's Jest
+4 Retraction Helix
+2 Sphinx of Clear Skies
+1 Swarm, Being of Bees
+2 Test of Priorities
+3 Wild Unraveling
+14 Island
+4 Shipwreck Marsh
+4 Swamp
+4 Watery Grave

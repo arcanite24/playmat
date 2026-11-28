@@ -9,12 +9,22 @@ const client = new URL('../../../', import.meta.url);
 const read = (path: string) => JSON.parse(readFileSync(new URL(path, client), 'utf8'));
 const spec = (kind: ArtKind): string[] => read(`art/specs/${kind}.json`).items.map((item: { id: string }) => item.id);
 const painted = (kind: ArtKind, id: string) => existsSync(new URL(`public/career-art/${kind}/${id}.webp`, client));
-// specs that draw into another type's folder: illustrated sleeves are sleeves; painted lands have their own folder
+// specs that draw into another type's folder: illustrated sleeves, painted lands, and NB 2.1 Coin Boutique cosmetics
 const OTHER_SPECS: { spec: string; out: string }[] = [
   { spec: 'sleeve-scene', out: 'sleeve' },
   { spec: 'land', out: 'land' },
+  { spec: 'boutique-avatar', out: 'avatar' },
+  { spec: 'boutique-sleeve', out: 'sleeve' },
+  { spec: 'boutique-playmat', out: 'playmat' },
+  { spec: 'boutique-plate-frame', out: 'plate-frame' },
+  { spec: 'boutique-sticker', out: 'sticker' },
+  { spec: 'phase6-companions', out: 'companion' },
 ];
 const otherSpec = (name: string): string[] => read(`art/specs/${name}.json`).items.map((item: { id: string }) => item.id);
+const specFor = (kind: ArtKind): string[] => [
+  ...spec(kind),
+  ...OTHER_SPECS.filter((entry) => entry.out === kind).flatMap((entry) => otherSpec(entry.spec)),
+];
 
 const KINDS: ArtKind[] = ['achievement', 'reward', 'frame', 'avatar', 'portrait', 'crest', 'sleeve', 'playmat', 'companion', 'sticker', 'stamp', 'plate-frame'];
 const REWARDS: RewardArt[] = [
@@ -37,9 +47,9 @@ describe('painted art', () => {
     // the cosmetics catalog (B293): every painted kind has a spec item per catalog item
     const catalog: CareerCatalogItem[] = read('../Mage.Server/src/main/resources/career/cosmetics.json');
     const ids = (kind: string) => catalog.filter((item) => item.kind === kind).map((item) => item.id!);
-    const missing = (kind: string, art: ArtKind) => ids(kind).filter((id) => !spec(art).includes(id));
+    const missing = (kind: string, art: ArtKind) => ids(kind).filter((id) => !specFor(art).includes(id));
     expect(missing('avatar', 'avatar')).toEqual([]);
-    expect(ids('sleeve').filter((id) => !spec('sleeve').includes(id) && !otherSpec('sleeve-scene').includes(id))).toEqual([]);
+    expect(missing('sleeve', 'sleeve')).toEqual([]);
     // a painted land style (no set code) has a card for each basic
     const basics = ['plains', 'island', 'swamp', 'mountain', 'forest'];
     const paintedLands = catalog.filter((item) => item.kind === 'land' && !item.set).flatMap((item) => basics.map((basic) => `${item.id}-${basic}`));
@@ -50,7 +60,7 @@ describe('painted art', () => {
     expect(missing('frame', 'plate-frame')).toEqual([]);
     // the free table-talk phrases are words, not pictures
     const stickers = catalog.filter((item) => item.kind === 'emote' && !item.free).flatMap((item) => item.stickers ?? []).map((sticker) => sticker.id!);
-    expect(stickers.filter((id) => !spec('sticker').includes(id))).toEqual([]);
+    expect(stickers.filter((id) => !specFor('sticker').includes(id))).toEqual([]);
     expect(SCHOOL_CRESTS.filter((id) => !spec('crest').includes(id))).toEqual([]);
     expect(['W', 'U', 'B', 'R', 'G', 'C', 'M'].filter((id) => !spec('crest').includes(id))).toEqual([]);
     expect(['W', 'U', 'B', 'R', 'G', 'C'].flatMap((letter) => [letter, `${letter}-boss`]).filter((id) => !spec('portrait').includes(id))).toEqual([]);

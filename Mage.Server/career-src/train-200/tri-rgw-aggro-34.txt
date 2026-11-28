@@ -1,0 +1,25 @@
+# name: Train200 tri-rgw-aggro-34
+# archetype: aggro
+# colors: RGW
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+1 Bloodthirsty Adversary
+4 Bonded Construct
+4 Excavation Explosion
+3 Fiery Temper
+2 Fin Fang Foom
+4 Fleeting Effigy
+2 Huatli's Final Strike
+1 Immolating Glare
+2 Lovestruck Beast
+4 Prompto Argentum
+4 Reinforced Ronin
+3 Savai Thundermane
+2 Skullcrack
+2 Surrak, Elusive Hunter
+1 Thoughtweft Charge
+4 Dedicated Commons
+2 Forest
+4 Fortified Village
+6 Mountain
+1 Plains
+4 Timber Gorge

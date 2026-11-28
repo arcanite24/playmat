@@ -47,5 +47,101 @@
     "neo/389",
     "neo/399"
   ],
-  "paper-lands": []
+  "paper-lands": [],
+  "astral-constellation": [
+    "thb/250",
+    "thb/251",
+    "thb/254"
+  ],
+  "botanical-herbarium": [
+    "usg/233",
+    "zen/182",
+    "mh2/375"
+  ],
+  "alchemists-brass": [
+    "mps/24",
+    "mps/19",
+    "mps/8"
+  ],
+  "catacomb-etching": [
+    "mid/272",
+    "mid/273",
+    "vow/272"
+  ],
+  "sunforge-mosaic": [
+    "dmu/295",
+    "dmu/302",
+    "dmu/298"
+  ],
+  "volcanic-woodcut": [
+    "sld/1647",
+    "sld/1648"
+  ],
+  "moss-ruin": [
+    "zen/246",
+    "znr/278",
+    "rav/299"
+  ],
+  "abyssal-ink": [
+    "neo/295",
+    "neo/296",
+    "neo/297"
+  ],
+  "mythic-tapestry": [
+    "eld/272",
+    "eld/284",
+    "woe/263"
+  ],
+  "reliquary-lands": [
+    "unh/136",
+    "unh/137",
+    "unh/140"
+  ],
+  "ukiyo-horizons": [
+    "neo/293",
+    "neo/295",
+    "neo/299",
+    "neo/301"
+  ],
+  "celestial-atlas": [
+    "thb/250",
+    "thb/252",
+    "thb/254"
+  ],
+  "deco-metropolis": [
+    "snc/272",
+    "snc/274",
+    "snc/276"
+  ],
+  "wilderness-oil": [
+    "rtr/241",
+    "rtr/245",
+    "gtc/240"
+  ],
+  "frontier-fetches": [],
+  "kamigawa-scrolls": [
+    "neo/412",
+    "neo/413",
+    "neo/414"
+  ],
+  "monolith-realms": [
+    "zen/238",
+    "bfz/260",
+    "roe/233"
+  ],
+  "ancient-wonders": [
+    "usg/321",
+    "tmp/321",
+    "csp/145"
+  ],
+  "sanctuary-plates": [
+    "mh2/261",
+    "tsp/269",
+    "chk/279"
+  ],
+  "old-world-duals": [
+    "lea/286",
+    "lea/287",
+    "lea/285"
+  ]
 }

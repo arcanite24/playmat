@@ -25,6 +25,10 @@ interface MatchUiState {
   sourceHover: string | null;
   /** the permanent the open prompt is asked for (its ability is resolving), marked on the table (#227) */
   promptSource: string | null;
+  /** defender id hovered on a seat plate, seat name, or combat breakdown: isolates attack arrows aimed at them */
+  hoveredDefender: string | null;
+  /** stack object id currently hovered: shows its target arrows instead of only the top of the stack */
+  hoveredStackId: string | null;
   setZoom(zoom: MatchUiState['zoom']): void;
   setPointer(pointer: MatchUiState['pointer']): void;
   setArrowFrom(point: MatchUiState['arrowFrom']): void;
@@ -35,6 +39,8 @@ interface MatchUiState {
   toggleLog(open?: boolean): void;
   openDetail(detail: MatchUiState['detail']): void;
   setSourceHover(id: string | null): void;
+  setHoveredDefender(id: string | null): void;
+  setHoveredStackId(id: string | null): void;
 }
 
 export const useMatchUi = create<MatchUiState>((set) => ({
@@ -49,6 +55,8 @@ export const useMatchUi = create<MatchUiState>((set) => ({
   detail: null,
   sourceHover: null,
   promptSource: null,
+  hoveredDefender: null,
+  hoveredStackId: null,
   setZoom: (zoom) => set({ zoom }),
   setPointer: (pointer) => set({ pointer }),
   setArrowFrom: (arrowFrom) => set({ arrowFrom }),
@@ -60,4 +68,6 @@ export const useMatchUi = create<MatchUiState>((set) => ({
   // the zoomed copy would sit on top of the detail view
   openDetail: (detail) => set({ detail, zoom: null }),
   setSourceHover: (sourceHover) => set({ sourceHover }),
+  setHoveredDefender: (hoveredDefender) => set({ hoveredDefender }),
+  setHoveredStackId: (hoveredStackId) => set({ hoveredStackId }),
 }));

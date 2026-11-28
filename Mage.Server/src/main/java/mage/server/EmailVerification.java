@@ -72,15 +72,17 @@ public final class EmailVerification {
     }
 
     /** The player proved they read this address (a mailed code, or GitHub vouching for it). */
-    public static void markVerified(String userName, String email, long now) {
+    public static boolean markVerified(String userName, String email, long now) {
         if (isBlank(userName) || isBlank(email)) {
-            return;
+            return false;
         }
         try {
             store().emailVerified(userName, email, now);
             logger.info("Email verified for " + userName);
+            return true;
         } catch (SQLException | IllegalStateException e) {
             logger.error("Email verification can't be stored for " + userName, e);
+            return false;
         }
     }
 
@@ -126,11 +128,20 @@ public final class EmailVerification {
             return false;
         }
         // the code was made for the address it went to: if the email changed since, it no longer matches
-        if (!codes.redeem(codeKey(account.getName(), account.getEmail()), code, now)) {
-            logger.info("Wrong or expired email code for " + account.getName());
+        boolean[] storageFailed = {false};
+        boolean verified = codes.redeem(codeKey(account.getName(), account.getEmail()), code, now, () -> {
+            boolean saved = markVerified(account.getName(), account.getEmail(), now);
+            if (!saved) {
+                storageFailed[0] = true;
+            }
+            return saved;
+        });
+        if (!verified) {
+            if (!storageFailed[0]) {
+                logger.info("Wrong or expired email code for " + account.getName());
+            }
             return false;
         }
-        markVerified(account.getName(), account.getEmail(), now);
         return true;
     }
 
@@ -240,7 +251,10 @@ public final class EmailVerification {
         if (!releasable(holder, now)) {
             return false;
         }
-        AuthorizedUserRepository.getInstance().changeEmail(holder.getName(), null);
+        if (!AuthorizedUserRepository.getInstance().changeEmail(holder.getName(), null)) {
+            logger.error("Unverified email couldn't be released from " + holder.getName());
+            return false;
+        }
         try {
             AdminStore store = AccessPolicy.get().store();
             store.emailUnverified(holder.getName());

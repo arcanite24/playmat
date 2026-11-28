@@ -14,6 +14,7 @@ import styles from './Versus.module.css';
 /** Who the player faces, as the versus screen shows them. */
 export interface VersusOpponent {
   name: string;
+  avatar?: string | null;
   tagline?: string;
   colors?: string;
   cover?: ArtCard | null;
@@ -89,6 +90,7 @@ export function Versus({ opponent, deck, stakes, kicker, onFight, onClose }: {
         <div className={styles.them}>
           <CardArt card={opponent.cover} name={opponent.name} colors={opponent.colors} boss={opponent.boss} className={styles.sideArt} />
           <div className={styles.sideText}>
+            {opponent.avatar && <CareerAvatar id={opponent.avatar} name={opponent.name} size={72} />}
             <b className={styles.sideName}>{opponent.name}</b>
             {opponent.tagline && <small className={styles.sideNote}>{opponent.tagline}</small>}
             <Pips colors={opponent.colors} />

@@ -39,8 +39,11 @@ else
 fi
 mkdir -p "$STATE_DIR"
 
-env_value() { sed -n "s/^$1=//p" "$ENV_FILE" 2>/dev/null | tail -1; }
+env_value() { sed -n "s/^$1=//p" "$ENV_FILE" 2>/dev/null | tail -1 | sed -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'$/\1/"; }
 DOMAIN=$(env_value DOMAIN)
+TLS_MODE=$(env_value TLS_MODE)
+HTTPS_PORT=$(env_value HTTPS_PORT)
+HTTPS_PORT=${HTTPS_PORT:-443}
 WEBHOOK=$(env_value XMAGE_DISCORD_STAFF_WEBHOOK)
 [[ -n $WEBHOOK ]] || WEBHOOK=$(env_value XMAGE_DISCORD_WEBHOOK)
 HOST_LABEL=${DOMAIN:-$(hostname)}
@@ -61,7 +64,7 @@ if [[ ${1:-} == test ]]; then
 fi
 
 # problem KEY MESSAGE: remembered under KEY; posted when new or every REPEAT_HOURS
-declare -A seen=()
+declare -A seen=() checked=()
 problem() {
   local key=$1 msg=$2 file=$STATE_DIR/$1 now last
   seen[$key]=1
@@ -75,11 +78,13 @@ problem() {
 }
 
 # services: every one the compose file defines must run, and be healthy when it has a health check
+checked[compose]=1
 mapfile -t services < <("${COMPOSE[@]}" config --services 2>/dev/null)
 if (( ${#services[@]} == 0 )); then
   problem compose "can't read the compose project (${COMPOSE[*]})"
 fi
 for svc in "${services[@]}"; do
+  checked["svc-$svc"]=1
   id=$("${COMPOSE[@]}" ps -q "$svc" 2>/dev/null | head -1)
   if [[ -z $id ]]; then
     problem "svc-$svc" "service $svc isn't running"
@@ -93,28 +98,41 @@ for svc in "${services[@]}"; do
 done
 
 # disk and memory
+checked[disk]=1
 disk=$(df --output=pcent / | tail -1 | tr -dc '0-9')
 (( disk > DISK_MAX )) && problem disk "the root disk is ${disk}% full (alert above ${DISK_MAX}%)"
+checked[memory]=1
 mem=$(awk '/MemTotal/ {t=$2} /MemAvailable/ {a=$2} END {printf "%d", a * 100 / t}' /proc/meminfo)
 (( mem < MEM_MIN )) && problem memory "only ${mem}% of memory is available (alert below ${MEM_MIN}%)"
 
 # the site over HTTPS, and its certificate
 if [[ -n $DOMAIN ]]; then
-  code=$(curl -s -o /dev/null -m 15 -w '%{http_code}' "https://$DOMAIN/")
-  [[ $code == 200 ]] || problem https "https://$DOMAIN/ answered $code"
-  end=$(echo | openssl s_client -connect 127.0.0.1:443 -servername "$DOMAIN" 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
+  url="https://$DOMAIN/"
+  [[ $TLS_MODE != external && $HTTPS_PORT != 443 ]] && url="https://$DOMAIN:$HTTPS_PORT/"
+  checked[https]=1
+  code=$(curl -s -o /dev/null -m 15 -w '%{http_code}' "$url")
+  [[ $code == 200 ]] || problem https "$url answered $code"
+  end=$(echo | openssl s_client -connect "127.0.0.1:$HTTPS_PORT" -servername "$DOMAIN" 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
   if [[ -n $end ]]; then
+    checked[cert]=1
     days=$(( ($(date -d "$end" +%s) - $(date +%s)) / 86400 ))
     (( days < CERT_DAYS )) && problem cert "the certificate for $DOMAIN expires in $days days"
+  elif [[ $TLS_MODE == external ]]; then
+    log "cert: skipped for $DOMAIN (TLS_MODE=external; no local certificate on 127.0.0.1:$HTTPS_PORT)"
   else
+    checked[cert]=1
     problem cert "can't read the certificate for $DOMAIN"
   fi
 fi
 
-# problems that were open and are gone now
+# problems that were open and are gone now (only clear keys whose probe actually ran this time)
 for file in "$STATE_DIR"/*; do
   [[ -e $file ]] || continue
   key=$(basename "$file")
+  if [[ -z ${checked[$key]:-} ]]; then
+    log "kept (not checked this run): $key"
+    continue
+  fi
   if [[ -z ${seen[$key]:-} ]]; then
     rm -f "$file"
     log "cleared: $key"

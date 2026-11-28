@@ -40,6 +40,8 @@ public final class LadderRatings {
     static final double WIDEN = 50;
     /** the fewest bots matchmaking wants to choose from */
     static final int MIN_CANDIDATES = 3;
+    /** the fewest distinct decks matchmaking wants in its candidate window */
+    public static final int MIN_DISTINCT_DECKS = 8;
 
     /** rated games are recorded one at a time: bots are shared, and a rating is read, updated and written back */
     private static final Object RECORDING = new Object();
@@ -169,5 +171,77 @@ public final class LadderRatings {
             below += WIDEN;
             above += WIDEN;
         }
+    }
+
+    /**
+     * All eligible bots in `format` and `queue`, deduplicated by deck (picking the skill variant closest to `target`).
+     * Weakest first.
+     */
+    public List<Candidate> allByDeck(String format, String queue, double target) throws SQLException {
+        java.util.Map<String, Candidate> best = new java.util.LinkedHashMap<>();
+        for (BotRoster.Bot bot : roster.bots(format, queue)) {
+            Candidate c = new Candidate(bot, bot(bot, queue));
+            String key = deckKey(bot);
+            Candidate prev = best.get(key);
+            if (prev == null || isCloser(c, prev, target)) {
+                best.put(key, c);
+            }
+        }
+        List<Candidate> out = new ArrayList<>(best.values());
+        out.sort((a, b) -> Double.compare(a.rating.rating, b.rating.rating));
+        return out;
+    }
+
+    /**
+     * Distinct-deck candidates near `rating + targetShift`: widens the `[BELOW, ABOVE]` window by {@link #WIDEN}
+     * until it holds at least `minDistinctDecks` unique decks (or every unique deck in the format). When multiple
+     * skill copies of one deck fall in the window, keeps only the copy closest to the target rating.
+     */
+    public List<Candidate> candidatesByDeck(String format, String queue, double rating, double targetShift, int minDistinctDecks) throws SQLException {
+        List<Candidate> all = new ArrayList<>();
+        java.util.Set<String> totalDecks = new java.util.HashSet<>();
+        for (BotRoster.Bot bot : roster.bots(format, queue)) {
+            all.add(new Candidate(bot, bot(bot, queue)));
+            totalDecks.add(deckKey(bot));
+        }
+        if (all.isEmpty()) {
+            return Collections.emptyList();
+        }
+        double target = rating + targetShift;
+        int want = Math.min(Math.max(1, minDistinctDecks), totalDecks.size());
+        double below = BELOW;
+        double above = ABOVE;
+        while (true) {
+            java.util.Map<String, Candidate> best = new java.util.LinkedHashMap<>();
+            for (Candidate c : all) {
+                if (c.rating.rating >= target - below && c.rating.rating <= target + above) {
+                    String key = deckKey(c.bot);
+                    Candidate prev = best.get(key);
+                    if (prev == null || isCloser(c, prev, target)) {
+                        best.put(key, c);
+                    }
+                }
+            }
+            if (best.size() >= want) {
+                List<Candidate> out = new ArrayList<>(best.values());
+                out.sort((a, b) -> Double.compare(a.rating.rating, b.rating.rating));
+                return out;
+            }
+            below += WIDEN;
+            above += WIDEN;
+        }
+    }
+
+    static String deckKey(BotRoster.Bot bot) {
+        return bot.deck != null && !bot.deck.isEmpty() ? bot.deck : bot.id;
+    }
+
+    private static boolean isCloser(Candidate a, Candidate b, double target) {
+        double da = Math.abs(a.rating.rating - target);
+        double db = Math.abs(b.rating.rating - target);
+        if (Math.abs(da - db) > 1e-6) {
+            return da < db;
+        }
+        return a.bot.id.compareTo(b.bot.id) < 0;
     }
 }

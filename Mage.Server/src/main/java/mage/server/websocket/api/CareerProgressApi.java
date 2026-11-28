@@ -190,6 +190,27 @@ final class CareerProgressApi {
                             return CareerApi.store(() -> CareerCapsules.get().buyTokens(user, count));
                         }),
 
+                RpcMethod.named("careerBuyCosmetic")
+                        .params(of("kind", STRING), of("id", STRING))
+                        .returns("CareerProfile")
+                        .doc("Buy a boutique cosmetic directly with Career coins; returns the profile after.")
+                        .handler(call -> {
+                            String user = CareerApi.career(ctx, call);
+                            String kind = call.string(0);
+                            String id = call.string(1);
+                            return CareerApi.store(() -> mage.server.career.CareerCosmetics.get().buy(user, kind, id));
+                        }),
+
+                RpcMethod.named("careerRedeemSwarmCredits")
+                        .params(of("workerToken", STRING))
+                        .returns("CareerSwarmRedeemResult")
+                        .doc("Redeem matured Mana@Home swarm credits for cosmetic capsule tokens via the coordinator bridge.")
+                        .handler(call -> {
+                            String user = CareerApi.career(ctx, call);
+                            String workerToken = call.string(0);
+                            return CareerApi.store(() -> CareerCapsules.get().redeemSwarmCredits(user, workerToken));
+                        }),
+
                 RpcMethod.named("careerPull")
                         .params(of("machine", STRING), of("count", INT))
                         .returns("CareerPullResult")
@@ -221,6 +242,27 @@ final class CareerProgressApi {
                         .handler(call -> {
                             String user = CareerApi.career(ctx, call);
                             return CareerApi.store(() -> CareerProgress.get().hall(user));
+                        }),
+
+                RpcMethod.named("careerPets")
+                        .returns("CareerPetProgress[]")
+                        .doc("Bond XP, evolution tier (1-5), games/wins, and equipped accessory/aura style for every "
+                                + "companion the account has bonded with.")
+                        .handler(call -> {
+                            String user = CareerApi.career(ctx, call);
+                            return CareerApi.store(() -> mage.server.career.CareerPets.get().list(user));
+                        }),
+
+                RpcMethod.named("careerSetPetStyle")
+                        .params(of("petId", STRING), optional("style", STRING))
+                        .returns("CareerPetProgress")
+                        .doc("Equip or clear an unlocked accessory/aura style on a companion (crown, shades, wizard-hat, "
+                                + "mana-collar, astral-aura, or null/none).")
+                        .handler(call -> {
+                            String user = CareerApi.career(ctx, call);
+                            String petId = call.string(0);
+                            String style = call.optString(1, null);
+                            return CareerApi.store(() -> mage.server.career.CareerPets.get().setStyle(user, petId, style));
                         }),
 
                 RpcMethod.named("gameEmote")

@@ -14,6 +14,6 @@ pub const HANDLERS: &[Handler] = &[Handler::as_though(
 fn play(game: &Game, cx: &StaticCx, seat: Seat, id: ObjId, _: &CardDef) -> Option<PlayWay> {
     (id == cx.source && seat == cx.controller && game.obj(id).zone == Zone::Graveyard).then(|| PlayWay {
         mana: ManaCost::parse("{1}{U}{B}{B}").ok(),
-        costs: vec![CostDef::DiscardCardCost { filter: crate::card::Filter::default(), amount: 2 }],
+        costs: vec![CostDef::DiscardCardCost { filter: crate::card::Filter::default(), amount: 2, different_names: false, random: false }],
     })
 }

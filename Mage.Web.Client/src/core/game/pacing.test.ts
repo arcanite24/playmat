@@ -142,6 +142,26 @@ describe('PacedQueue', () => {
     expect(applied).toEqual([2, 3]);
     expect(queue.pending).toBe(0);
   });
+
+  it('honors stage maxHoldMs and backlog overrides for slower AI pacing', () => {
+    const { stage, playing, finish } = handStage();
+    stage.maxHoldMs = 7000;
+    stage.backlog = 32;
+    const queue = new PacedQueue(stage);
+    const applied: number[] = [];
+    queue.push(() => ({ view: view(0) }));
+    for (let turn = 1; turn <= 10; turn++) queue.push(() => (applied.push(turn), { view: view(turn) }));
+    // stays held past default MAX_HOLD_MS up to stage.maxHoldMs
+    vi.advanceTimersByTime(MAX_HOLD_MS);
+    expect(applied).toEqual([]);
+    // and plays every queued view instead of skipping past BACKLOG=5
+    finish();
+    expect(applied).toEqual([1]);
+    expect(playing).toHaveLength(1);
+    expect(playing[0].view.turn).toBe(1);
+    vi.advanceTimersByTime(7000);
+    expect(applied).toEqual([1, 2]);
+  });
 });
 
 describe('GameSession pacing', () => {

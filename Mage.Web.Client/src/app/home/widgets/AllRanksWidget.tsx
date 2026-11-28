@@ -7,16 +7,22 @@ import { rankClass } from './widgetModel';
 import { Tile } from './Tile';
 import styles from './Widgets.module.css';
 
-const FORMATS = ['standard', 'pioneer'] as const;
+const FORMATS = ['standard', 'pioneer', 'modern'] as const;
+/** formats most players never touch: their rows show once played */
+const QUIET: readonly string[] = ['modern', 'limited'];
 
-function Row({ format, queue = 'open' }: { format: (typeof FORMATS)[number]; queue?: RankedQueue }) {
+function Row({ format, queue = 'open' }: { format: (typeof FORMATS)[number] | 'limited'; queue?: RankedQueue }) {
   const t = useT();
   const state = useRankedState(format, true, queue).data;
   const step = state?.step ?? 0;
   const name = t(`career.ranked.format.${format}`);
+  // Bo3 and the quieter formats show once played: most players stay in Bo1 Standard and Pioneer
+  const played = (state?.won ?? 0) + (state?.lost ?? 0) + (state?.drew ?? 0) > 0 || (state?.peakStep ?? 0) > 0;
+  if ((queue === 'bo3' || QUIET.includes(format)) && !played) return null;
+  const label = queue === 'league' ? t('home.widget.allRanks.league', { format: name }) : queue === 'bo3' ? t('home.widget.allRanks.bo3', { format: name }) : name;
   return (
     <li className={[styles.row, rankClass(step)].join(' ')}>
-      <span>{queue === 'league' ? t('home.widget.allRanks.league', { format: name }) : name} · <b className={styles.rankLabel}>{state?.label ?? '…'}</b></span>
+      <span>{label} · <b className={styles.rankLabel}>{state?.label ?? '…'}</b></span>
       <RankPips step={step} label={state?.label ?? ''} />
     </li>
   );
@@ -30,6 +36,8 @@ export default function AllRanksWidget({ editing }: WidgetProps) {
     <Tile title={t('home.widget.allRanks')} to={RANKED_PATH} editing={editing}>
       <ul className={styles.list}>
         {FORMATS.map((format) => <Row key={format} format={format} />)}
+        {FORMATS.map((format) => <Row key={`bo3-${format}`} format={format} queue="bo3" />)}
+        <Row format="limited" />
         {FORMATS.filter((format) => leagues.some((item) => item.format === format)).map((format) => <Row key={`league-${format}`} format={format} queue="league" />)}
       </ul>
     </Tile>

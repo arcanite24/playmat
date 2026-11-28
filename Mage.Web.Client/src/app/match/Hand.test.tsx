@@ -260,6 +260,17 @@ describe('a hand too big for the stage (storm, Commander, castable from exile)',
     expect(screen.getByRole('button', { name: /^Show \d+ earlier cards$/ })).toBeTruthy();
   });
 
+  test('hovering a scrolled hand lifts and zooms the card under the pointer, not an earlier scrolled-out card', () => {
+    const { spread, fan, scroll } = renderBig(big);
+    fireEvent.click(screen.getByRole('button', { name: /^Show \d+ more cards$/ }));
+    expect(scroll()).toBeGreaterThan(spread * 5);
+    const expectedIndex = Math.floor((spread * 2 + 2 + scroll()) / spread);
+    fireEvent.pointerMove(fan, { pointerType: 'mouse', clientX: spread * 2 + 2, clientY: 900 });
+    const lifted = screen.getAllByRole('listitem').filter((item) => item.className.includes('lifted')).map((item) => item.getAttribute('aria-label'));
+    expect(lifted).toEqual([`Card ${expectedIndex}`]);
+    expect(useMatchUi.getState().zoom?.card.name).toBe(`Card ${expectedIndex}`);
+  });
+
   test('a normal hand neither scrolls nor shows arrows', () => {
     render(
       <StageContext.Provider value={DEFAULT_STAGE}>

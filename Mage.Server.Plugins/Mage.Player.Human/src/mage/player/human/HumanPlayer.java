@@ -741,7 +741,7 @@ public class HumanPlayer extends PlayerImpl {
                 }
             }
 
-            if (!caresAboutManaColor && ManaUtil.tryToAutoSelectAManaColor(choice, currentlyUnpaidMana)) {
+            if (manaPool.isAutoPayment() && !caresAboutManaColor && ManaUtil.tryToAutoSelectAManaColor(choice, currentlyUnpaidMana)) {
                 return true;
             }
         }
@@ -900,6 +900,7 @@ public class HumanPlayer extends PlayerImpl {
             // manual choice
             if (responseId == null) {
                 options.put("chosenTargets", new HashSet<>(target.getTargets()));
+                markOptionalTrigger(options, target, source);
 
                 prepareForResponse(game);
                 if (!isExecutingMacro()) {
@@ -939,6 +940,16 @@ public class HumanPlayer extends PlayerImpl {
         }
 
         return target.isChosen(game) && target.getTargets().size() > 0;
+    }
+
+    /**
+     * Playmat: an optional ("you may") trigger's targets are chosen before its "may" is asked, on resolution; the web
+     * client says so in the prompt.
+     */
+    private static void markOptionalTrigger(Map<String, Serializable> options, Target target, Ability source) {
+        if (TriggeredAbility.isOptionalTriggerTarget(source, target)) {
+            options.put("optionalTrigger", true);
+        }
     }
 
     private Map<String, Serializable> getOptions(Target target, Map<String, Serializable> options) {
@@ -1088,6 +1099,7 @@ public class HumanPlayer extends PlayerImpl {
             if (responseId == null) {
                 Map<String, Serializable> options = getOptions(target, null);
                 options.put("chosenTargets", new HashSet<>(target.getTargets()));
+                markOptionalTrigger(options, target, source);
 
                 if (!possibleTargets.isEmpty()) {
                     options.put("possibleTargets", (Serializable) possibleTargets);
@@ -1195,6 +1207,7 @@ public class HumanPlayer extends PlayerImpl {
                 // selected
                 Map<String, Serializable> options = getOptions(target, null);
                 options.put("chosenTargets", new HashSet<>(target.getTargets()));
+                markOptionalTrigger(options, target, source);
                 if (!possibleTargets.isEmpty()) {
                     options.put("possibleTargets", (Serializable) possibleTargets);
                 }
@@ -1332,6 +1345,14 @@ public class HumanPlayer extends PlayerImpl {
                 }
             }
 
+            // Once the stack has emptied, end "resolve the stack" even if a quickStop is active (e.g. defending in
+            // declare attackers), so it does not linger and accidentally pass a later spell on the stack.
+            boolean justFinishedResolvingStack = false;
+            if (isGameUnderControl() && passedUntilStackResolved && game.getStack().isEmpty()) {
+                passedUntilStackResolved = false;
+                justFinishedResolvingStack = true;
+            }
+
             // STOP conditions (temporary stop without skip reset)
             boolean quickStop = false;
             if (isGameUnderControl()) { // TODO: remove to enable quick stop for controlling player
@@ -1346,6 +1367,12 @@ public class HumanPlayer extends PlayerImpl {
                     boolean canStopOnZero = possibleBlockersCount == 0 && getControllingPlayersUserData(game).getUserSkipPrioritySteps().isStopOnDeclareBlockersWithZeroPermanents();
                     quickStop = canStopOnAny || canStopOnZero;
                 }
+            }
+
+            // An explicit "resolve the stack" action must still resolve the current stack during declare attackers;
+            // once the stack empties, quickStop still stops the defending player before declare blockers (#460).
+            if (isGameUnderControl() && passedUntilStackResolved && !game.getStack().isEmpty()) {
+                quickStop = false;
             }
 
             // SKIP - use the skip actions only if the player itself controls its turn
@@ -1380,7 +1407,7 @@ public class HumanPlayer extends PlayerImpl {
                 if (game.getStack().isEmpty()) {
                     // empty stack
 
-                    boolean dontCheckPassStep = false;
+                    boolean dontCheckPassStep = justFinishedResolvingStack;
                     if (passedUntilStackResolved) { // Don't skip to next step with this action. It always only resolves a stack. If stack is empty it does nothing.
                         passedUntilStackResolved = false;
                         dontCheckPassStep = true;
@@ -1449,14 +1476,15 @@ public class HumanPlayer extends PlayerImpl {
 
                 } else {
                     // non empty stack
-                    boolean haveNewObjectsOnStack = !Objects.equals(dateLastAddedToStack, game.getStack().getDateLastAdded());
+                    boolean haveNewObjectsOnStack = lastAddedToStackSeq != game.getStack().getLastAddedSeq()
+                            || !Objects.equals(dateLastAddedToStack, game.getStack().getDateLastAdded());
                     dateLastAddedToStack = game.getStack().getDateLastAdded();
+                    lastAddedToStackSeq = game.getStack().getLastAddedSeq();
                     if (passedUntilStackResolved) {
                         if (haveNewObjectsOnStack
-                                && (playerId.equals(game.getActivePlayerId())
                                 && controllingUserData
                                 .getUserSkipPrioritySteps()
-                                .isStopOnStackNewObjects())) {
+                                .isStopOnStackNewObjects()) {
                             // new objects on stack -- disable "pass until stack resolved"
                             passedUntilStackResolved = false;
                         } else {
@@ -1879,8 +1907,8 @@ public class HumanPlayer extends PlayerImpl {
                     caresAboutManaColor = card.caresAboutManaColor(game);
                 }
 
-                // Don't auto-pay if the spell cares about the color
-                if (!caresAboutManaColor) {
+                // Don't auto-pay if auto-payment is off (e.g. Full Control) or the spell cares about the color
+                if (manaPool.isAutoPayment() && !caresAboutManaColor) {
                     useableAbilities = ManaUtil.tryToAutoPay(unpaid, useableAbilities); // eliminates other abilities if one fits perfectly
                 }
                 currentlyUnpaidMana = unpaid;
@@ -2494,14 +2522,6 @@ public class HumanPlayer extends PlayerImpl {
         // force to show ability picker for double faces cards in hand/commander/exile and other zones
         Card mainCard = game.getCard(CardUtil.getMainCardId(game, ability.getSourceId()));
         if (mainCard != null && !Zone.BATTLEFIELD.equals(game.getState().getZone(mainCard.getId()))) {
-            if (mainCard instanceof CardWithSpellOption) {
-                CardWithSpellOption card = (CardWithSpellOption) mainCard;
-                boolean mainAvailable = card.isMainCardCastOptionAvailable(game);
-                boolean spellAvailable = card.isSpellCardCastOptionAvailable(game);
-                if (mainAvailable != spellAvailable) {
-                    return true;
-                }
-            }
             if (mainCard instanceof SplitCard
                     || mainCard instanceof CardWithSpellOption
                     || mainCard instanceof ModalDoubleFacedCard) {
@@ -2874,6 +2894,20 @@ public class HumanPlayer extends PlayerImpl {
             response.setAsyncWantCheat();
             response.notifyAll();
             logger.debug("Set cheat for waiting player: " + getId());
+        }
+    }
+
+    /**
+     * "Pass to end of turn" (PASS_PRIORITY_UNTIL_TURN_END_STEP) is for the turn it was pressed in. Pressed in an end
+     * step (or cleanup), the next end step it waited for was the next turn's: it skipped every stop of that turn, and
+     * when that turn was the player's own, their whole turn went by, first main phase and all.
+     */
+    @Override
+    public void endOfTurn(Game game) {
+        super.endOfTurn(game);
+        if (passedUntilEndOfTurn) {
+            passedUntilEndOfTurn = false;
+            skippedAtLeastOnce = false;
         }
     }
 

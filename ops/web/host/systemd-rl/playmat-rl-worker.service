@@ -1,0 +1,14 @@
+[Unit]
+Description=Playmat self-play worker: one chunk of the Rust AI's games while the server is idle (rl-worker.sh)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/playmat-rl-worker
+# the script waits on its container: its own share of the machine is the smallest there is
+Nice=19
+IOSchedulingClass=idle
+CPUWeight=1
+TimeoutStartSec=20min
+ExecStopPost=-/usr/bin/docker rm -f playmat-rl-worker

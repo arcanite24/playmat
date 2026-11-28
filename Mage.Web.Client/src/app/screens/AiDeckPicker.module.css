@@ -1,0 +1,246 @@
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.selectedBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-control);
+  background: rgb(var(--mat-rgb) / 0.65);
+  box-shadow: inset 0 0 0 1.5px var(--ink-faint);
+}
+
+.selectedName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-strong);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.selectedActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.browseToggle,
+.clearPick {
+  height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: rgb(var(--ink-rgb) / 0.06);
+  box-shadow: inset 0 0 0 1px var(--ink-ghost);
+  color: var(--ink-strong);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.browseToggle:hover,
+.clearPick:hover {
+  box-shadow: inset 0 0 0 1px var(--ink-faint);
+}
+
+.quickModes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip,
+.chipOn {
+  height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(var(--ink-rgb) / 0.04);
+  box-shadow: inset 0 0 0 1px var(--ink-ghost);
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chip:hover {
+  color: var(--ink-strong);
+  box-shadow: inset 0 0 0 1px var(--ink-faint);
+}
+
+.chipOn {
+  background: rgb(var(--ink-rgb) / 0.12);
+  box-shadow: inset 0 0 0 1.5px var(--ink-strong);
+  color: var(--ink-strong);
+}
+
+.browser {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: var(--radius-control);
+  background: rgb(var(--mat-rgb) / 0.55);
+  box-shadow: inset 0 0 0 1px var(--ink-ghost);
+}
+
+.searchRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.searchBox {
+  flex: 1 1 180px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: var(--radius-control);
+  background: rgb(var(--mat-rgb) / 0.7);
+  box-shadow: inset 0 0 0 1.5px var(--ink-faint);
+  color: var(--ink-soft);
+}
+
+.searchBox input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-strong);
+  font-size: var(--text-sm);
+  outline: none;
+}
+
+.miniSelect {
+  height: 36px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: rgb(var(--mat-rgb) / 0.7);
+  box-shadow: inset 0 0 0 1.5px var(--ink-faint);
+  color: var(--ink-strong);
+  font-size: var(--text-xs);
+}
+
+.filterRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.row,
+.rowSelected,
+.rowExcluded {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  background: rgb(var(--ink-rgb) / 0.03);
+}
+
+.rowSelected {
+  background: rgb(var(--ink-rgb) / 0.12);
+  box-shadow: inset 0 0 0 1.5px var(--ink-strong);
+}
+
+.rowExcluded {
+  opacity: 0.6;
+}
+
+.pickButton {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 2px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-strong);
+  text-align: left;
+  cursor: pointer;
+}
+
+.deckName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  color: var(--ink-dim);
+  font-size: var(--text-xs);
+}
+
+.tier {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgb(var(--ink-rgb) / 0.08);
+  color: var(--ink-soft);
+  font-family: var(--font-print);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: var(--tracking-print);
+  text-transform: uppercase;
+}
+
+.excludeBtn,
+.excludeBtnOn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+
+.excludeBtn:hover {
+  background: rgb(var(--ink-rgb) / 0.08);
+  color: var(--ink-strong);
+}
+
+.excludeBtnOn {
+  background: rgb(var(--danger-rgb, 180 60 60) / 0.16);
+  color: var(--danger-text);
+}
+
+.empty {
+  margin: 8px 0;
+  color: var(--ink-dim);
+  font-size: var(--text-xs);
+  text-align: center;
+}

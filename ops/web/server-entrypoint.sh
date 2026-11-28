@@ -134,6 +134,11 @@ is_uint "$REPLAY_DAYS" || die "XMAGE_REPLAY_DAYS must be a whole number (got '$R
 REPLAY_MAX=${XMAGE_REPLAY_MAX:-300}
 is_uint "$REPLAY_MAX" || die "XMAGE_REPLAY_MAX must be a whole number (got '$REPLAY_MAX')"
 
+# --- disk ------------------------------------------------------------------------------------
+# free disk under which the server calls it nearly full (/healthz, /admin and the staff channel)
+DISK_MIN_FREE_MB=${XMAGE_DISK_MIN_FREE_MB:-3072}
+is_uint "$DISK_MIN_FREE_MB" || die "XMAGE_DISK_MIN_FREE_MB must be a whole number (got '$DISK_MIN_FREE_MB')"
+
 # --- desktop clients ---------------------------------------------------------------------------
 # The desktop protocol (JBoss Remoting) is gone (docs/RustMigration.md phase 1): web clients only.
 if [ "${XMAGE_DESKTOP:-}" = true ]; then
@@ -208,7 +213,6 @@ if [ "$OIDC_ONLY" = true ]; then
     || die "XMAGE_OIDC_ONLY=true needs the provider set: XMAGE_OIDC_DISCOVERY, XMAGE_OIDC_CLIENT_ID and XMAGE_OIDC_CLIENT_SECRET"
   [ -n "${XMAGE_PUBLIC_URL:-}" ] || die "XMAGE_OIDC_ONLY=true needs XMAGE_PUBLIC_URL: the provider sends players back to it"
   [ "${XMAGE_AUTH:-false}" = true ] || die "XMAGE_OIDC_ONLY=true needs XMAGE_AUTH=true: the provider is the only sign-in, and it signs in with accounts"
-  [ "$DESKTOP" = true ] && echo "xmage-server: warning: XMAGE_OIDC_ONLY=true with XMAGE_DESKTOP=true; desktop clients can't sign in on such a server" >&2
 fi
 
 # --- support for the server ---------------------------------------------------------------------
@@ -296,6 +300,10 @@ args=$(mktemp /tmp/xmage-jvm.XXXXXX)
   echo "-Xmx$HEAP"
   for flag in $GC_FLAGS; do echo "$flag"; done
   echo "-XX:MaxMetaspaceSize=${XMAGE_METASPACE:-512m}"
+  # Java4Shell (CVE-2026-114938): the x86-64 AVX-512 Base64 intrinsic can write past the end of its output on malformed
+  # input. Off, Base64 runs as plain Java (the server decodes little of it). Every platform knows the flag; ARM doesn't
+  # have the bug. XMAGE_BASE64_INTRINSICS=on puts the intrinsic back, on a JRE with the fix (17.0.21.1, 21.0.13.1, ...).
+  [ "${XMAGE_BASE64_INTRINSICS:-off}" = on ] || echo "-XX:-UseBASE64Intrinsics"
   # out of heap, the JVM limps on with every game broken and new players turned away; exiting lets Docker's restart
   # policy bring the server back in seconds
   [ "${XMAGE_EXIT_ON_OOM:-true}" = true ] && echo "-XX:+ExitOnOutOfMemoryError"
@@ -333,6 +341,7 @@ args=$(mktemp /tmp/xmage-jvm.XXXXXX)
   echo "-Dxmage.replays.dir=$APP/saved/replays"
   echo "-Dxmage.replays.retentionDays=$REPLAY_DAYS"
   echo "-Dxmage.replays.maxCount=$REPLAY_MAX"
+  echo "-Dxmage.disk.minFreeMB=$DISK_MIN_FREE_MB"
   if [ -n "${XMAGE_ADMIN_PASSWORD:-}" ]; then
     # quoted for the argfile format: backslashes and double quotes escaped
     printf '"-Dxmage.adminPassword=%s"\n' "$(printf '%s' "$XMAGE_ADMIN_PASSWORD" | sed 's/[\\"]/\\&/g')"

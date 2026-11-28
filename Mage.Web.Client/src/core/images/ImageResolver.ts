@@ -321,7 +321,18 @@ export class ImageResolver {
       return;
     }
 
-    const body = await response.json() as { data?: ScryfallCard[] };
+    let body: { data?: ScryfallCard[] };
+    try {
+      const parsed = await response.json();
+      if (!parsed || typeof parsed !== 'object') {
+        this.giveUp(batch);
+        return;
+      }
+      body = parsed as { data?: ScryfallCard[] };
+    } catch {
+      this.giveUp(batch);
+      return;
+    }
     const now = this.options.now();
     const found = new Map<string, PrintingImages>();
     for (const card of body.data ?? []) {

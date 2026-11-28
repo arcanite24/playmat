@@ -1,6 +1,7 @@
 //! Opening hands: whether the AI keeps or mulligans, and which cards go to the bottom (the London mulligan).
 //! Used by the Rust host for its AI seats and by the benches, so both play the same way.
 
+use crate::fm::Fm;
 use playmat_engine::card::CardType;
 use playmat_engine::rules;
 use playmat_engine::state::{Game, ObjId, Seat, Zone};
@@ -89,22 +90,89 @@ pub fn put_on_bottom(game: &mut Game, seat: Seat, card: ObjId) {
     game.obj_mut(card).zone = Zone::Library;
 }
 
-/// Whether the AI with `config` (`None`: the quick answers alone) mulligans `seat`'s hand: by the rule, or with
-/// `Config::mulligan_sim` by goldfishing the hand against hands a mulligan would give
+/// Whether the AI with `config` (`None`: the quick answers alone) mulligans `seat`'s hand: by the neural value head
+/// (`Config::mulligan_net`), by goldfishing (`Config::mulligan_sim`), by Playbook rules when configured, or by counting lands.
 pub fn wants(game: &Game, seat: Seat, taken: usize, config: Option<&crate::search::Config>) -> bool {
-    match config {
-        Some(c) if c.mulligan_sim && taken < 2 => sim_wants(game, seat, taken),
-        _ => rule_wants(game, seat, taken),
+    if let Some(c) = config {
+        if c.mulligan_net && taken < 2 {
+            return net_wants(game, seat, taken, c);
+        }
+        if c.mulligan_sim && taken < 2 {
+            return sim_wants(game, seat, taken);
+        }
+        if let Some(pb) = crate::playbook::resolve(c.playbook.as_deref()) {
+            return playbook_wants(game, seat, taken, &pb);
+        }
     }
+    rule_wants(game, seat, taken)
 }
 
-/// The card the AI with `config` puts on the bottom: by the rule, or with `Config::mulligan_sim` the one whose hand
-/// goldfishes best without it
+/// The card the AI with `config` puts on the bottom: by the neural value head (`Config::mulligan_net`), by
+/// goldfishing (`Config::mulligan_sim`), by Playbook rules when configured, or by the rule.
 pub fn bottom(game: &Game, seat: Seat, config: Option<&crate::search::Config>) -> ObjId {
-    match config {
-        Some(c) if c.mulligan_sim => sim_bottom(game, seat),
-        _ => rule_bottom(game, seat),
+    if let Some(c) = config {
+        if c.mulligan_net {
+            return net_bottom(game, seat, c);
+        }
+        if c.mulligan_sim {
+            return sim_bottom(game, seat);
+        }
+        if let Some(pb) = crate::playbook::resolve(c.playbook.as_deref()) {
+            return playbook_bottom(game, seat, &pb);
+        }
     }
+    rule_bottom(game, seat)
+}
+
+fn playbook_wants(game: &Game, seat: Seat, taken: usize, pb: &crate::playbook::Playbook) -> bool {
+    if taken >= 2 {
+        return false;
+    }
+    let hand = &game.player(seat).hand;
+    let parsed = cards(game, hand);
+    let lands = parsed.iter().filter(|c| c.land).count();
+    let min_l = if taken == 0 { pb.min_lands } else { pb.min_lands.saturating_sub(1).max(1) };
+    let max_l = if taken == 0 { pb.max_lands } else { pb.max_lands.min(5) };
+    if lands < min_l || lands > max_l {
+        return true;
+    }
+    // On 7 cards, also check color match and early curve action when configured
+    if taken == 0 {
+        let land_colors = parsed.iter().filter(|c| c.land).fold(0u8, |acc, c| acc | c.colors);
+        if pb.require_color_match && land_colors != 0 {
+            let castable_any =
+                parsed.iter().any(|c| !c.land && c.mv <= (lands as u32 + 1) && (c.colors & !land_colors == 0));
+            if !castable_any {
+                return true;
+            }
+        }
+        if let Some(max_mv) = pb.require_early_action_by_turn {
+            let has_early = parsed.iter().any(|c| !c.land && c.mv <= max_mv);
+            if !has_early {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn playbook_bottom(game: &Game, seat: Seat, pb: &crate::playbook::Playbook) -> ObjId {
+    let hand = &game.player(seat).hand;
+    let lands: Vec<ObjId> = hand.iter().copied().filter(|id| game.obj(*id).is(CardType::Land)).collect();
+    // Bottom excess lands above the playbook's preferred band
+    if lands.len() > pb.max_lands.saturating_sub(1).max(2) {
+        return lands[0];
+    }
+    // Otherwise bottom the highest-MV non-preferred-role spell
+    hand.iter()
+        .copied()
+        .filter(|id| !game.obj(*id).is(CardType::Land))
+        .max_by_key(|id| {
+            let o = game.obj(*id);
+            let preferred = pb.has_any_role(&o.def.name, &pb.prefer_keep_roles);
+            (!preferred, o.def.mana_value())
+        })
+        .unwrap_or(hand[0])
 }
 
 /// How many shuffles each goldfish estimate averages
@@ -280,4 +348,71 @@ fn sim_bottom(game: &Game, seat: Seat) -> ObjId {
         }
     }
     best.map_or_else(|| rule_bottom(game, seat), |(id, _)| id)
+}
+
+fn net_hand_value(net: &crate::net::Net, game: &Game, seat: Seat) -> f64 {
+    let mut g = game.clone();
+    g.turn = 1;
+    g.step = Some(playmat_engine::state::Step::PrecombatMain);
+    let q = playmat_engine::decide::Query::Priority { playable: Vec::new() };
+    let obs = crate::obs::observe(&g, seat, &q, &[]);
+    let logit = net.state(&obs).1 as f64;
+    1.0 / (1.0 + (-logit).sexp())
+}
+
+fn net_bottom_with(net: &crate::net::Net, game: &Game, seat: Seat) -> ObjId {
+    let hand = game.player(seat).hand.clone();
+    if hand.len() <= 1 {
+        return hand.first().copied().unwrap_or_else(|| rule_bottom(game, seat));
+    }
+    let mut best: Option<(ObjId, f64)> = None;
+    for id in hand {
+        let mut g = game.clone();
+        put_on_bottom(&mut g, seat, id);
+        let v = net_hand_value(net, &g, seat);
+        if best.is_none_or(|(_, b)| v > b) {
+            best = Some((id, v));
+        }
+    }
+    best.map_or_else(|| rule_bottom(game, seat), |(id, _)| id)
+}
+
+fn net_bottom(game: &Game, seat: Seat, cfg: &crate::search::Config) -> ObjId {
+    let net = crate::net::of(&cfg.net);
+    net_bottom_with(&net, game, seat)
+}
+
+fn net_wants(game: &Game, seat: Seat, taken: usize, cfg: &crate::search::Config) -> bool {
+    let net = crate::net::of(&cfg.net);
+    let keep = net_hand_value(&net, game, seat);
+    let mut pool: Vec<ObjId> = game.player(seat).hand.iter().chain(game.player(seat).library.iter()).copied().collect();
+    let size = 7usize.saturating_sub(taken + 1);
+    let mut mix = Mix(seed(game, seat) ^ 0x4E45_544D);
+    let deals = 8usize;
+    let mut mull = 0.0;
+    for _ in 0..deals {
+        mix.shuffle(&mut pool);
+        let mut g = game.clone();
+        let draw_n = 7.min(pool.len());
+        let new_hand = pool[..draw_n].to_vec();
+        let new_lib = pool[draw_n..].to_vec();
+        for &id in &new_hand {
+            g.obj_mut(id).zone = Zone::Hand;
+        }
+        for &id in &new_lib {
+            g.obj_mut(id).zone = Zone::Library;
+        }
+        g.player_mut(seat).hand = new_hand;
+        g.player_mut(seat).library = new_lib;
+        while g.player(seat).hand.len() > size + 1 {
+            let c = rule_bottom(&g, seat);
+            put_on_bottom(&mut g, seat, c);
+        }
+        while g.player(seat).hand.len() > size {
+            let c = net_bottom_with(&net, &g, seat);
+            put_on_bottom(&mut g, seat, c);
+        }
+        mull += net_hand_value(&net, &g, seat);
+    }
+    keep < mull / deals as f64
 }

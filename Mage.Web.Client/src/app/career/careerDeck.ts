@@ -1,13 +1,15 @@
-import type { DeckCardLists } from '../../core/decks/types';
+import type { DeckCardInfo, DeckCardLists } from '../../core/decks/types';
+import type { CareerSavedDeck } from '../../protocol/generated/views';
 import { api } from '../connection';
 import { readJson, writeJson } from '../stores/persist';
+import { CONSTRUCTED_FORMAT } from './careerModel';
 
 /**
- * The Career deck: one deck per account, kept on the server so it follows the account to any device (B311), with a
- * copy in this browser for a quick start. It's apart from the deck library (free-play decks may hold any card; this
- * one only cards the account owns). The server checks it again when it's saved and when a match starts.
+ * The Career deck: kept on the server so it follows the account to any device (B311), with a copy of the active deck
+ * in this browser for a quick start. Accounts can save multiple Career decks (including starter and earned campaign
+ * decks) and switch which one is active.
  */
-const FORMAT = 'Constructed - Freeform';
+const FORMAT = CONSTRUCTED_FORMAT;
 
 function key(user: string): string {
   return `playmat.career.deck.${user.toLowerCase()}`;
@@ -18,10 +20,32 @@ export function loadCareerDeck(user: string): DeckCardLists | null {
   return deck && Array.isArray(deck.cards) && Array.isArray(deck.sideboard) ? deck : null;
 }
 
-function keepHere(user: string, deck: DeckCardLists): DeckCardLists {
-  const kept = { ...deck, id: 'career', format: FORMAT, updatedAt: Date.now() };
+export function cacheActiveCareerDeck(user: string, deck: DeckCardLists): DeckCardLists {
+  const kept = { ...deck, id: deck.id || 'career', format: deck.format || FORMAT, updatedAt: deck.updatedAt ?? Date.now() };
   writeJson(key(user), kept);
   return kept;
+}
+
+function keepHere(user: string, deck: DeckCardLists): DeckCardLists {
+  return cacheActiveCareerDeck(user, { ...deck, id: 'career', updatedAt: Date.now() });
+}
+
+/** Converts a server CareerSavedDeck into the deck builder's DeckCardLists shape. */
+export function toCareerDeck(saved: CareerSavedDeck): DeckCardLists {
+  const toEntry = (card: { cardName?: string; setCode?: string; cardNumber?: string; amount?: number }): DeckCardInfo => ({
+    cardName: card.cardName ?? '',
+    setCode: card.setCode ?? '',
+    cardNumber: card.cardNumber ?? '',
+    amount: card.amount ?? 1,
+  });
+  return {
+    id: saved.id || 'career',
+    name: saved.name || saved.deck?.name || 'Career deck',
+    format: saved.format || FORMAT,
+    cards: (saved.deck?.cards ?? []).map(toEntry),
+    sideboard: (saved.deck?.sideboard ?? []).map(toEntry),
+    updatedAt: saved.updated,
+  };
 }
 
 /** Keeps the deck here at once and on the server behind it; a refused deck (cards it doesn't own) stays only here. */

@@ -15,6 +15,9 @@ on:
       - "rust/crates/playmat-engine/shadow-decks/**"
       - "Mage.Web.Client/public/meta-decks/**"
       - "Mage.Server/career-src/**"
+      # the AI benchmarks page (site/benchmarks/) counts these
+      - "archbench/**"
+      - "rust/tools/benchmarks*"
   workflow_dispatch: {}
 
 permissions:
@@ -37,6 +40,8 @@ jobs:
       - uses: actions/configure-pages@v5
       - name: Count the Rust port's progress
         run: python3 rust/tools/progress.py
+      - name: Build the AI benchmarks data
+        run: python3 rust/tools/benchmarks.py
       - uses: actions/upload-pages-artifact@v4
         with:
           path: site

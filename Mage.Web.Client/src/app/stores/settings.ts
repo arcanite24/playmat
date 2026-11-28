@@ -116,6 +116,8 @@ export interface PlaySettings {
   bigZoom: boolean;
   /** playing: the creatures and the hand drawn bigger than the fitted layout, for a laptop screen (#147, local only) */
   matchSize: MatchSize;
+  /** playing vs AI: pause on AI spells, resolutions and combat declarations in seconds (0 = instant, up to 5s in 0.5s steps; local only) */
+  aiActionDelay: number;
   /** Career: the player chose to try it (local only; a server Career profile counts too) */
   careerOptIn: boolean;
   /** Career: the menu music on Career's screens (synthesized, local only) */
@@ -201,6 +203,7 @@ export const DEFAULT_SETTINGS: PlaySettings = {
   largeZoom: false,
   bigZoom: false,
   matchSize: 'fit',
+  aiActionDelay: 0,
   careerOptIn: false,
   careerMusic: true,
   musicVolume: 0.5,
@@ -258,8 +261,21 @@ export function toUserData(settings: PlaySettings, fullControl = false): UserDat
   };
 }
 
+export const AI_ACTION_DELAY_MAX = 5;
+
+/** Clamps the AI action pacing delay to 0..5 seconds in 0.5-second steps. */
+export function clampAiActionDelay(value: unknown): number {
+  const n = typeof value === 'number' && Number.isFinite(value) ? value : 0;
+  return Math.min(AI_ACTION_DELAY_MAX, Math.max(0, Math.round(n * 2) / 2));
+}
+
+function loadSettings(): PlaySettings {
+  const loaded = { ...DEFAULT_SETTINGS, ...readJson<Partial<PlaySettings>>(SETTINGS_KEY, {}) };
+  return { ...loaded, aiActionDelay: clampAiActionDelay(loaded.aiActionDelay) };
+}
+
 export const useSettings = create<SettingsState>((set, get) => ({
-  settings: { ...DEFAULT_SETTINGS, ...readJson<Partial<PlaySettings>>(SETTINGS_KEY, {}) },
+  settings: loadSettings(),
   fullControl: false,
 
   setFullControl(on) {
@@ -269,7 +285,8 @@ export const useSettings = create<SettingsState>((set, get) => ({
   },
 
   update(patch) {
-    const settings = { ...get().settings, ...patch };
+    const nextPatch = patch.aiActionDelay !== undefined ? { ...patch, aiActionDelay: clampAiActionDelay(patch.aiActionDelay) } : patch;
+    const settings = { ...get().settings, ...nextPatch };
     writeJson(SETTINGS_KEY, settings);
     set({ settings });
     void get().syncToServer();

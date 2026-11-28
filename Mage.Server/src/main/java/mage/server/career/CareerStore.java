@@ -132,13 +132,37 @@ public final class CareerStore implements AutoCloseable {
                             + " PRIMARY KEY (user, format))",
                     "CREATE TABLE league_decks (user TEXT NOT NULL, id TEXT NOT NULL, name TEXT NOT NULL, format TEXT NOT NULL,"
                             + " deck TEXT NOT NULL, updated INTEGER NOT NULL, PRIMARY KEY (user, id))"
+            },
+            {
+                    // multi-deck saving for regular Career (starter, custom decks, and earned campaign decks);
+                    // the active deck stays mirrored into `decks` for backwards compatibility with `careerDeck`
+                    "CREATE TABLE career_decks (user TEXT NOT NULL, id TEXT NOT NULL, name TEXT NOT NULL,"
+                            + " deck TEXT NOT NULL, source TEXT, active INTEGER NOT NULL DEFAULT 0, updated INTEGER NOT NULL,"
+                            + " PRIMARY KEY (user, id))",
+                    "CREATE INDEX career_decks_by_user ON career_decks (user, updated)"
+            },
+            {
+                    // each ranked table's latest game (RankedService.lastGame): the rewards screen asks by table, the
+                    // payout is keyed by game. Kept here so a restart and the Rust platform (careerGameResult) find it.
+                    "CREATE TABLE ranked_games (table_id TEXT PRIMARY KEY, game_id TEXT NOT NULL, at INTEGER NOT NULL)"
+            },
+            {
+                    // Phase 2 Commander Career: format-aware saved decks and quest track preference ("any", "constructed", "commander")
+                    "ALTER TABLE career_decks ADD COLUMN format TEXT NOT NULL DEFAULT 'Constructed - Freeform'",
+                    "ALTER TABLE profile ADD COLUMN quest_pref TEXT NOT NULL DEFAULT 'any'"
+            },
+            {
+                    // Phase 6 Pet Bond Evolution: per-pet XP, tier (1-5), games/wins, and equipped accessory/aura style
+                    "CREATE TABLE pet_progress (user TEXT NOT NULL, pet_id TEXT NOT NULL, xp INTEGER NOT NULL DEFAULT 0,"
+                            + " tier INTEGER NOT NULL DEFAULT 1, games INTEGER NOT NULL DEFAULT 0, wins INTEGER NOT NULL DEFAULT 0,"
+                            + " style TEXT, updated INTEGER NOT NULL, PRIMARY KEY (user, pet_id))"
             }
     };
 
     /** every table that holds an account's rows, for deleting a Career */
     private static final String[] USER_TABLES = {"profile", "cards", "payouts", "stats", "quests", "achievements",
             "unlocks", "weekly", "progress_games", "campaign_nodes", "set_unlocks", "runs", "puzzle_results", "challenge_results",
-            "daily", "decks", "token_log", "pulls", "card_styles"};
+            "daily", "decks", "career_decks", "token_log", "pulls", "card_styles", "pet_progress"};
     /**
      * The League's tables: not part of the Career file, so a Career import leaves them (and their ladder) as they are;
      * otherwise an import would start each format's League again, packs and wildcards included. Gone with the account.
@@ -148,14 +172,23 @@ public final class CareerStore implements AutoCloseable {
     private static volatile CareerStore instance;
 
     private final Connection connection;
+    private final java.io.File file;
 
     public CareerStore(String jdbcUrl) throws SQLException {
         connection = DriverManager.getConnection(jdbcUrl);
+        file = mage.server.solo.SoloStore.fileOf(jdbcUrl);
         try (Statement statement = connection.createStatement()) {
             statement.execute("PRAGMA foreign_keys = ON");
             statement.execute("PRAGMA busy_timeout = 5000");
         }
+        // a new file is made incremental before its first table; an older one is converted by reclaimSpace
+        mage.server.util.SqliteSpace.preferIncremental(connection);
         migrate();
+    }
+
+    /** gives pruned rows' pages back to the disk (mage.server.util.SqliteSpace) */
+    public synchronized mage.server.util.SqliteSpace.Result reclaimSpace() throws SQLException {
+        return mage.server.util.SqliteSpace.reclaim(connection, file, "career.db");
     }
 
     public static CareerStore get() {
@@ -300,6 +333,19 @@ public final class CareerStore implements AutoCloseable {
                 return rows.next() ? new String[]{rows.getString(1), rows.getString(2), rows.getString(3), rows.getString(4),
                         rows.getString(5), rows.getString(6)} : null;
             }
+        }
+    }
+
+    /**
+     * Shadow keeps, with each event, the payout's rows before and after: every row of its accounts in
+     * {@link #PAYOUT_TABLES}, whole histories included, so a few hundred KB an event. Once Rust's replay matched them
+     * ("same") or left them ("skipped") they're of no more use; differences and declines keep theirs, to look into.
+     */
+    synchronized int trimCheckedPayoutEvents() throws SQLException {
+        try (PreparedStatement update = connection.prepareStatement(
+                "UPDATE payout_events SET before = NULL, after = NULL"
+                        + " WHERE checked IN ('same', 'skipped') AND (before IS NOT NULL OR after IS NOT NULL)")) {
+            return update.executeUpdate();
         }
     }
 
@@ -845,6 +891,7 @@ public final class CareerStore implements AutoCloseable {
             case "quest_day":
             case "reroll_day":
             case "quest_week":
+            case "quest_pref":
             case "pack_tokens":
             case "capsule_tokens":
             case "level_paid":
@@ -1196,6 +1243,27 @@ public final class CareerStore implements AutoCloseable {
     }
 
     /** a Career table, so it survives a restart */
+    /** a ranked table's latest game (RankedService.gameEnded) */
+    public synchronized void putRankedGame(String tableId, String gameId, long now) throws SQLException {
+        try (PreparedStatement upsert = connection.prepareStatement(
+                "INSERT OR REPLACE INTO ranked_games (table_id, game_id, at) VALUES (?, ?, ?)")) {
+            upsert.setString(1, tableId);
+            upsert.setString(2, gameId);
+            upsert.setLong(3, now);
+            upsert.executeUpdate();
+        }
+    }
+
+    /** a ranked table's latest game, or null */
+    public synchronized String rankedGame(String tableId) throws SQLException {
+        try (PreparedStatement select = connection.prepareStatement("SELECT game_id FROM ranked_games WHERE table_id = ?")) {
+            select.setString(1, tableId);
+            try (ResultSet rows = select.executeQuery()) {
+                return rows.next() ? rows.getString(1) : null;
+            }
+        }
+    }
+
     synchronized void putCareerTable(String tableId, String data, long now) throws SQLException {
         try (PreparedStatement upsert = connection.prepareStatement(
                 "INSERT OR REPLACE INTO career_tables (table_id, data, created) VALUES (?, ?, ?)")) {
@@ -1240,6 +1308,16 @@ public final class CareerStore implements AutoCloseable {
         }
     }
 
+    /** when the legacy single Career deck row was last updated, or 0 */
+    synchronized long deckUpdated(String user) throws SQLException {
+        try (PreparedStatement select = connection.prepareStatement("SELECT updated FROM decks WHERE user = ?")) {
+            select.setString(1, key(user));
+            try (ResultSet rows = select.executeQuery()) {
+                return rows.next() ? rows.getLong(1) : 0L;
+            }
+        }
+    }
+
     synchronized void putDeck(String user, String deck, long now) throws SQLException {
         try (PreparedStatement upsert = connection.prepareStatement("INSERT OR REPLACE INTO decks (user, deck, updated) VALUES (?, ?, ?)")) {
             upsert.setString(1, key(user));
@@ -1247,6 +1325,136 @@ public final class CareerStore implements AutoCloseable {
             upsert.setLong(3, now);
             upsert.executeUpdate();
         }
+    }
+
+    /** A saved Career deck as stored */
+    public static final class CareerDeckRow {
+        public String id;
+        public String name;
+        public String deck;
+        public String source;
+        public String format = CareerRules.FORMAT_CONSTRUCTED;
+        public boolean active;
+        public long updated;
+    }
+
+    /** the account's saved Career decks, active first then newest first */
+    public synchronized List<CareerDeckRow> careerDecks(String user) throws SQLException {
+        List<CareerDeckRow> out = new ArrayList<>();
+        try (PreparedStatement select = connection.prepareStatement(
+                "SELECT id, name, deck, source, format, active, updated FROM career_decks WHERE user = ? ORDER BY active DESC, updated DESC, id")) {
+            select.setString(1, key(user));
+            try (ResultSet rows = select.executeQuery()) {
+                while (rows.next()) {
+                    out.add(readCareerDeckRow(rows));
+                }
+            }
+        }
+        return out;
+    }
+
+    public synchronized CareerDeckRow careerDeck(String user, String id) throws SQLException {
+        try (PreparedStatement select = connection.prepareStatement(
+                "SELECT id, name, deck, source, format, active, updated FROM career_decks WHERE user = ? AND id = ?")) {
+            select.setString(1, key(user));
+            select.setString(2, id);
+            try (ResultSet rows = select.executeQuery()) {
+                return rows.next() ? readCareerDeckRow(rows) : null;
+            }
+        }
+    }
+
+    synchronized CareerDeckRow careerDeckBySource(String user, String source) throws SQLException {
+        if (source == null || source.isEmpty()) {
+            return null;
+        }
+        try (PreparedStatement select = connection.prepareStatement(
+                "SELECT id, name, deck, source, format, active, updated FROM career_decks WHERE user = ? AND source = ? LIMIT 1")) {
+            select.setString(1, key(user));
+            select.setString(2, source);
+            try (ResultSet rows = select.executeQuery()) {
+                return rows.next() ? readCareerDeckRow(rows) : null;
+            }
+        }
+    }
+
+    synchronized CareerDeckRow activeCareerDeck(String user) throws SQLException {
+        try (PreparedStatement select = connection.prepareStatement(
+                "SELECT id, name, deck, source, format, active, updated FROM career_decks WHERE user = ? AND active = 1 LIMIT 1")) {
+            select.setString(1, key(user));
+            try (ResultSet rows = select.executeQuery()) {
+                return rows.next() ? readCareerDeckRow(rows) : null;
+            }
+        }
+    }
+
+    synchronized void putCareerDeck(String user, CareerDeckRow deck) throws SQLException {
+        String fmt = deck.format == null || deck.format.trim().isEmpty() ? CareerRules.FORMAT_CONSTRUCTED : deck.format.trim();
+        try (PreparedStatement upsert = connection.prepareStatement(
+                "INSERT OR REPLACE INTO career_decks (user, id, name, deck, source, format, active, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")) {
+            upsert.setString(1, key(user));
+            upsert.setString(2, deck.id);
+            upsert.setString(3, deck.name);
+            upsert.setString(4, deck.deck);
+            upsert.setString(5, deck.source);
+            upsert.setString(6, fmt);
+            upsert.setInt(7, deck.active ? 1 : 0);
+            upsert.setLong(8, deck.updated);
+            upsert.executeUpdate();
+        }
+    }
+
+    synchronized void setActiveCareerDeck(String user, String id) throws SQLException {
+        String k = key(user);
+        try (PreparedStatement clear = connection.prepareStatement("UPDATE career_decks SET active = 0 WHERE user = ?")) {
+            clear.setString(1, k);
+            clear.executeUpdate();
+        }
+        try (PreparedStatement mark = connection.prepareStatement("UPDATE career_decks SET active = 1 WHERE user = ? AND id = ?")) {
+            mark.setString(1, k);
+            mark.setString(2, id);
+            mark.executeUpdate();
+        }
+    }
+
+    synchronized boolean deleteCareerDeck(String user, String id) throws SQLException {
+        try (PreparedStatement delete = connection.prepareStatement("DELETE FROM career_decks WHERE user = ? AND id = ?")) {
+            delete.setString(1, key(user));
+            delete.setString(2, id);
+            return delete.executeUpdate() == 1;
+        }
+    }
+
+    synchronized int careerDeckCount(String user) throws SQLException {
+        try (PreparedStatement select = connection.prepareStatement("SELECT COUNT(*) FROM career_decks WHERE user = ?")) {
+            select.setString(1, key(user));
+            try (ResultSet rows = select.executeQuery()) {
+                return rows.next() ? rows.getInt(1) : 0;
+            }
+        }
+    }
+
+    private static CareerDeckRow readCareerDeckRow(ResultSet rows) throws SQLException {
+        CareerDeckRow row = new CareerDeckRow();
+        row.id = rows.getString(1);
+        row.name = rows.getString(2);
+        row.deck = rows.getString(3);
+        row.source = rows.getString(4);
+        String fmt = rows.getString(5);
+        row.format = fmt == null || fmt.isEmpty() ? CareerRules.FORMAT_CONSTRUCTED : fmt;
+        row.active = rows.getInt(6) != 0;
+        row.updated = rows.getLong(7);
+        return row;
+    }
+
+    public synchronized String questPref(String user) throws SQLException {
+        String value = profileText(user, "quest_pref");
+        return "commander".equals(value) || "constructed".equals(value) ? value : "any";
+    }
+
+    public synchronized void setQuestPref(String user, String pref) throws SQLException {
+        String clean = "commander".equals(pref) || "constructed".equals(pref) ? pref : "any";
+        setProfileText(user, "quest_pref", clean);
     }
 
     // ---- the Career League (#433)
@@ -1664,5 +1872,72 @@ public final class CareerStore implements AutoCloseable {
             }
         }
         return board;
+    }
+
+    // ---- pet bond progression (Phase 6)
+
+    /** One pet's bond progress for an account. */
+    public static class PetProgressRow {
+        public String petId;
+        public int xp;
+        public int tier;
+        public int games;
+        public int wins;
+        public String style;
+        public long updated;
+    }
+
+    public synchronized List<PetProgressRow> petProgress(String user) throws SQLException {
+        List<PetProgressRow> list = new ArrayList<>();
+        try (PreparedStatement select = connection.prepareStatement(
+                "SELECT pet_id, xp, tier, games, wins, style, updated FROM pet_progress WHERE user = ? ORDER BY xp DESC, pet_id ASC")) {
+            select.setString(1, key(user));
+            try (ResultSet rows = select.executeQuery()) {
+                while (rows.next()) {
+                    list.add(readPetRow(rows));
+                }
+            }
+        }
+        return list;
+    }
+
+    public synchronized PetProgressRow petProgress(String user, String petId) throws SQLException {
+        try (PreparedStatement select = connection.prepareStatement(
+                "SELECT pet_id, xp, tier, games, wins, style, updated FROM pet_progress WHERE user = ? AND pet_id = ?")) {
+            select.setString(1, key(user));
+            select.setString(2, petId);
+            try (ResultSet rows = select.executeQuery()) {
+                return rows.next() ? readPetRow(rows) : null;
+            }
+        }
+    }
+
+    synchronized void upsertPetProgress(String user, PetProgressRow row) throws SQLException {
+        try (PreparedStatement upsert = connection.prepareStatement(
+                "INSERT INTO pet_progress (user, pet_id, xp, tier, games, wins, style, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+                        + " ON CONFLICT (user, pet_id) DO UPDATE SET xp = excluded.xp, tier = excluded.tier,"
+                        + " games = excluded.games, wins = excluded.wins, style = excluded.style, updated = excluded.updated")) {
+            upsert.setString(1, key(user));
+            upsert.setString(2, row.petId);
+            upsert.setInt(3, row.xp);
+            upsert.setInt(4, row.tier);
+            upsert.setInt(5, row.games);
+            upsert.setInt(6, row.wins);
+            upsert.setString(7, row.style);
+            upsert.setLong(8, row.updated);
+            upsert.executeUpdate();
+        }
+    }
+
+    private static PetProgressRow readPetRow(ResultSet rows) throws SQLException {
+        PetProgressRow row = new PetProgressRow();
+        row.petId = rows.getString(1);
+        row.xp = rows.getInt(2);
+        row.tier = rows.getInt(3);
+        row.games = rows.getInt(4);
+        row.wins = rows.getInt(5);
+        row.style = rows.getString(6);
+        row.updated = rows.getLong(7);
+        return row;
     }
 }

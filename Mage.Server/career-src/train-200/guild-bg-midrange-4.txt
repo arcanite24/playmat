@@ -1,0 +1,21 @@
+# name: Train200 guild-bg-midrange-4
+# archetype: midrange
+# colors: BG
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Battle Mammoth
+3 Devouring Sugarmaw
+4 Exemplar of Strength
+1 Glorious Decay
+2 Hewed Stone Retainers
+1 Kraven the Hunter
+3 Master of the Feast
+4 Moonshadow
+3 Mutant's Prey
+3 Pharika, God of Affliction
+3 Sugar Rush
+4 Test of Courage
+1 Ulcerate
+8 Forest
+4 Strangled Cemetery
+8 Swamp
+4 Temple of Malady

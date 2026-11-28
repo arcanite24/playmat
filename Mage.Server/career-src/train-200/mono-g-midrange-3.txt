@@ -1,0 +1,18 @@
+# name: Train200 mono-g-midrange-3
+# archetype: midrange
+# colors: G
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+1 Cankerbloom
+1 Colossadactyl
+2 Gigantosaurus
+3 Healer of the Glade
+3 Lizard, Connors's Curse
+4 Natural End
+1 Natural State
+2 Nessian Boar
+4 Old-Growth Dryads
+4 Traxos, Scourge Eternal
+4 Ultron, Artificial Malevolence
+4 Verdant Rebirth
+3 Wear Down
+24 Forest

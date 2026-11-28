@@ -7,6 +7,7 @@
 //! another implementation, set on a table with `Table::set_policy`.
 
 use crate::eval;
+use crate::fm::Fm;
 use crate::policy::{Policy, Repeats};
 use crate::search::{candidates, Config};
 use playmat_engine::decide::{Answer, Decider, Query};
@@ -36,6 +37,8 @@ pub enum PolicyKind {
     Gumbel,
     /// an open-loop information-set tree search over the network's policy (`tree::Ismcts`)
     Ismcts,
+    /// an external AI adapter over NDJSON TCP or subprocess (`external::ExternalPolicy`: Jev, LLMs, ONNX, MCP, etc.)
+    External,
 }
 
 impl PolicyKind {
@@ -49,6 +52,7 @@ impl PolicyKind {
             PolicyKind::NetSearch => "netsearch",
             PolicyKind::Gumbel => "gumbel",
             PolicyKind::Ismcts => "ismcts",
+            PolicyKind::External => "external",
         }
     }
 
@@ -67,6 +71,7 @@ impl PolicyKind {
             PolicyKind::NetSearch => Box::new(crate::selfplay::NetSearch::new(0x6e73_0000 + seat as u64)),
             PolicyKind::Gumbel => Box::new(crate::selfplay::Gumbel::new(0x6762_0000 + seat as u64)),
             PolicyKind::Ismcts => Box::new(crate::tree::Ismcts::new(0x6973_0000 + seat as u64)),
+            PolicyKind::External => Box::new(crate::external::ExternalPolicy::new(seat)),
         }
     }
 }
@@ -83,7 +88,10 @@ impl FromStr for PolicyKind {
             "netsearch" => Ok(PolicyKind::NetSearch),
             "gumbel" => Ok(PolicyKind::Gumbel),
             "ismcts" => Ok(PolicyKind::Ismcts),
-            other => Err(format!("unknown AI policy {other:?} (playouts, mcts, quick, random, net, netsearch)")),
+            "ext" | "external" => Ok(PolicyKind::External),
+            other => {
+                Err(format!("unknown AI policy {other:?} (playouts, mcts, quick, random, net, netsearch, external)"))
+            }
         }
     }
 }
@@ -118,6 +126,18 @@ pub trait DecisionPolicy: Send {
     fn last_policy(&self) -> Option<&[f32]> {
         None
     }
+    /// The search's estimated win probability (0..1) at its last decision, when available (`qval.f16` target)
+    fn last_value(&self) -> Option<f32> {
+        None
+    }
+    /// Per-candidate search Q-values (0..1, or NaN for unvisited candidates) for v3 completed-Q training (`act_q.f16`)
+    fn last_action_qs(&self) -> Option<&[f32]> {
+        None
+    }
+    /// Per-candidate search visit counts for v3 shards (`act_n.u16`)
+    fn last_action_visits(&self) -> Option<&[u32]> {
+        None
+    }
 }
 
 /// The game at the last priority question and the answers since: what a copy replays to reach the question.
@@ -132,6 +152,10 @@ pub struct Root {
     pub playout: u8,
     /// a network that answers the playouts' questions in place of the quick answers (`Config::rollout`)
     pub rollout: Option<Arc<crate::net::Net>>,
+    /// seat whose playout policy uses `playbook`
+    pub seat: Seat,
+    /// optional AI playbook guiding `seat`'s playout policy
+    pub playbook: Option<Arc<crate::playbook::Playbook>>,
 }
 
 /// What a seat has seen of the game: objects it saw in a public zone or that were shown to it. Its own hand it
@@ -283,7 +307,16 @@ impl Root {
         };
         let mut script = self.since.clone();
         script.push(candidate.clone());
-        let mut p = Playout::new(script, cap, stop_turn, shuffle, self.playout, self.rollout.clone());
+        let mut p = Playout::new(
+            script,
+            cap,
+            stop_turn,
+            shuffle,
+            self.playout,
+            self.rollout.clone(),
+            self.seat,
+            self.playbook.clone(),
+        );
         rules::play_from_priority_question(&mut g, &mut p, stop_turn);
         if p.diverged {
             Err(p.answers)
@@ -301,7 +334,16 @@ impl Root {
         cap: u64,
         stop_turn: u32,
     ) -> (Result<Outcome, u64>, crate::tree::Walk) {
-        let mut p = Playout::new(self.since.clone(), cap, stop_turn, None, self.playout, self.rollout.clone());
+        let mut p = Playout::new(
+            self.since.clone(),
+            cap,
+            stop_turn,
+            None,
+            self.playout,
+            self.rollout.clone(),
+            self.seat,
+            self.playbook.clone(),
+        );
         p.walk = Some(Box::new(walk));
         rules::play_from_priority_question(&mut g, &mut p, stop_turn);
         let walk = *p.walk.take().expect("the walk");
@@ -314,7 +356,16 @@ impl Root {
     pub fn play_on(&self, mut g: Game, candidate: &[Answer], cap: u64, stop_turn: u32) -> Result<Outcome, u64> {
         let mut script = self.since.clone();
         script.extend(candidate.iter().cloned());
-        let mut p = Playout::new(script, cap, stop_turn, None, self.playout, self.rollout.clone());
+        let mut p = Playout::new(
+            script,
+            cap,
+            stop_turn,
+            None,
+            self.playout,
+            self.rollout.clone(),
+            self.seat,
+            self.playbook.clone(),
+        );
         rules::play_from_priority_question(&mut g, &mut p, stop_turn);
         if p.diverged {
             Err(p.answers)
@@ -343,6 +394,7 @@ struct Playout {
 }
 
 impl Playout {
+    #[allow(clippy::too_many_arguments)]
     fn new(
         script: Vec<Answer>,
         cap: u64,
@@ -350,11 +402,17 @@ impl Playout {
         noise: Option<u64>,
         version: u8,
         rollout: Option<Arc<crate::net::Net>>,
+        seat: Seat,
+        playbook: Option<Arc<crate::playbook::Playbook>>,
     ) -> Playout {
+        let mut policy = [Policy::version(version), Policy::version(version)];
+        if let Some(pb) = playbook {
+            policy[seat.min(1)] = Policy::with_playbook(version, Some(pb));
+        }
         Playout {
             script,
             next: 0,
-            policy: [Policy::version(version), Policy::version(version)],
+            policy,
             repeats: Repeats::default(),
             answers: 0,
             cap,
@@ -394,6 +452,9 @@ impl Decider for Playout {
                 }
                 a = t;
                 by_tree = true;
+            } else if w.should_stop() {
+                self.stopped = true;
+                return Answer::Stop;
             }
         }
         if let (false, Some(net)) = (by_tree, &self.rollout) {
@@ -586,7 +647,7 @@ fn worker(
                 (0..k).filter(|i| !dead[*i] && !fixed[*i]).max_by(|a, b| {
                     let ucb = |i: usize| {
                         let n = s.visits[i].max(1) as f64;
-                        s.value[i] / n + EXPLORE * ((total.max(1) as f64).ln() / n).sqrt()
+                        s.value[i] / n + EXPLORE * ((total.max(1) as f64).sln() / n).sqrt()
                     };
                     ucb(*a).total_cmp(&ucb(*b)).then(b.cmp(a))
                 })
@@ -603,7 +664,7 @@ fn worker(
             Ok(o) => {
                 s.nodes += o.nodes.max(1);
                 let score = eval::evaluate(&o.game, seat) as f64;
-                let v = 0.5 + 0.5 * ((score - base) / SCALE).tanh();
+                let v = 0.5 + 0.5 * ((score - base) / SCALE).stanh();
                 s.visits[i] += 1;
                 s.value[i] += v;
                 fixed[i] = plain[i];

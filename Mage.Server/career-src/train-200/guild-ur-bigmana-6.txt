@@ -1,0 +1,22 @@
+# name: Train200 guild-ur-bigmana-6
+# archetype: bigmana
+# colors: UR
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Arni Brokenbrow
+4 Backstreet Bruiser
+2 Champion of the Path
+3 Charging Monstrosaur
+3 Draconic Roar
+4 Dread Defiler
+1 Fleeting Distraction
+2 Hullbreaker Horror
+2 Illvoi Galeblade
+2 Overwhelming Surge
+2 Shore Up
+2 Steel Hellkite
+2 Thassa, Deep-Dwelling
+4 Thorin, Mountain-king
+8 Island
+9 Mountain
+4 Swiftwater Cliffs
+4 Temple of Epiphany

@@ -1,0 +1,20 @@
+# name: Train200 guild-wu-midrange-4
+# archetype: midrange
+# colors: WU
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Acrobatic Maneuver
+2 Angelic Guardian
+4 Cobbled Lancer
+4 Encumbered Reejerey
+1 Fear of Impostors
+2 Kastral, the Windcrested
+3 Kefnet the Mindful
+4 Kyodai, Soul of Kamigawa
+4 Lyra, Archangel of Dawn
+3 Resculpt
+1 Swift Response
+4 You Come to a River
+4 Fortified Beachhead
+7 Island
+9 Plains
+4 Sharlayan, Nation of Scholars

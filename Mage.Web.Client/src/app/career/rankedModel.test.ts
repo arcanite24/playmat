@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { climb, movement, MYTHIC_STEP, pickFormat, pipRow, rankAt, rankKey, record } from './rankedModel';
+import { climb, isRankedCandidate, movement, MYTHIC_STEP, pickFormat, pipRow, rankAt, rankedDeckType, rankKey, record } from './rankedModel';
 
 describe('ranked steps', () => {
   it('read as rank, tier and pips the way the server counts them', () => {
@@ -36,5 +36,23 @@ describe('ranked steps', () => {
     expect(pickFormat(['standard', 'pioneer'], 'pioneer')).toBe('pioneer');
     expect(pickFormat(['standard', 'pioneer'], 'modern')).toBe('standard');
     expect(pickFormat(undefined, null)).toBe('standard');
+  });
+
+  it('maps constructed ranked formats and pre-filters candidate decks', () => {
+    expect(rankedDeckType('standard')).toBe('Constructed - Standard');
+    expect(rankedDeckType('pioneer')).toBe('Constructed - Pioneer');
+    expect(rankedDeckType('modern')).toBe('Constructed - Modern');
+    expect(rankedDeckType('commander')).toBe('Variant Magic - Commander');
+    expect(rankedDeckType('pauper')).toBe('Constructed - Pauper');
+    expect(rankedDeckType('brawl')).toBe('Variant Magic - Brawl');
+    expect(rankedDeckType('legacy')).toBe('Constructed - Legacy');
+    expect(isRankedCandidate({ cardCount: 60, format: 'Constructed - Pioneer' })).toBe(true);
+    expect(isRankedCandidate({ cardCount: 60 })).toBe(true);
+    expect(isRankedCandidate({ cardCount: 40, format: 'Limited' })).toBe(false);
+    expect(isRankedCandidate({ cardCount: 99, format: 'Variant Magic - Commander' })).toBe(false);
+    expect(isRankedCandidate({ cardCount: 99, format: 'Variant Magic - Commander' }, 'commander')).toBe(true);
+    expect(isRankedCandidate({ cardCount: 60, format: 'Constructed - Standard' }, 'commander')).toBe(false);
+    expect(isRankedCandidate({ cardCount: 59, format: 'Variant Magic - Brawl' }, 'brawl')).toBe(true);
+    expect(isRankedCandidate({ cardCount: 60, format: 'Constructed - Pauper' }, 'pauper')).toBe(true);
   });
 });

@@ -1,0 +1,22 @@
+# name: Train200 guild-ur-aggro-1
+# archetype: aggro
+# colors: UR
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Buccaneer's Bravado
+4 Complete Disregard
+1 Daring Thunder-Thief
+1 Dive Down
+2 Dragon Turtle
+2 Fervent Champion
+3 Geyser Drake
+4 Hobgoblin, Mantled Marauder
+3 Monastery Swiftspear
+4 Slick Sequence
+3 Stalked Researcher
+4 Supreme Phantom
+4 The Wondrous Wasp
+2 Volt Charge
+4 Andoria
+7 Island
+6 Mountain
+4 TCRI Building

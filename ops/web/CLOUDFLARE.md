@@ -4,7 +4,7 @@ The public server's DNS lives at Cloudflare. Today its records are **DNS only** 
 
 1. Pick how the origin gets its certificate.
 2. Set the SSL mode and WebSockets.
-3. Trust Cloudflare's addresses (`UPSTREAM_PROXIES`).
+3. Trust Cloudflare's addresses (`UPSTREAM_PROXIES`), and only for the client's address, never for sign-on (`AUTH_TRUSTED_PROXIES`).
 4. Optionally, close the origin to everyone but Cloudflare.
 5. Flip the record to Proxied and check.
 
@@ -66,6 +66,14 @@ printf 'UPSTREAM_PROXIES="%s"\n' "$(for f in ips-v4 ips-v6; do curl -fsS https:/
 
 Paste the line into `.env` (or replace the existing one), then `docker compose up -d web`. Ranges are separated by spaces.
 
+Keep `127.0.0.1/32` in the list if anything on the box itself (a health check, a local proxy) connects to Caddy and should be believed too: `UPSTREAM_PROXIES` replaces the default rather than adding to it.
+
+**Never put Cloudflare's ranges in `AUTH_TRUSTED_PROXIES`.** That setting is the single sign-on proxy's address: Caddy keeps the sign-on header (`AUTH_TRUSTED_HEADER`) only on requests from it, and the server signs the connection in as whatever user the header names. Every visitor's request arrives from a Cloudflare address, and Cloudflare passes their headers through, so trusting those ranges would let anyone sign in as any user, the owner included. `AUTH_TRUSTED_PROXIES` defaults to trusting nobody (`255.255.255.255/32`) and doesn't follow `UPSTREAM_PROXIES`. Older versions of `docker-compose.yml` did fall back to `UPSTREAM_PROXIES`: on a checkout from before that changed, also set `AUTH_TRUSTED_PROXIES=255.255.255.255/32` in `.env` (or to your sign-on proxy's own address if you use single sign-on), and check it after `docker compose up -d web`:
+
+```bash
+docker compose exec web printenv AUTH_TRUSTED_PROXIES
+```
+
 This is what keeps the per-player limits right: Caddy's `WS_RATE_LIMIT` and `IMG_API_RATE_LIMIT`, the server's concurrent connections per address, sign-in and registration throttles, and the address sent to Turnstile. If `UPSTREAM_PROXIES` misses a Cloudflare range, every player arriving through that range shows up as one Cloudflare address. They then share a single quota and lock each other out, and moderation sees Cloudflare instead of the player.
 
 Cloudflare rarely changes the list, but rerun the one-liner now and then (and update the firewall below, if you restricted it). Check before you flip the record to Proxied. The ranges do nothing until then, because no peer comes from them.
@@ -96,7 +104,7 @@ The limits stay correct without this step: a direct connection from outside Clou
 
 ## 5. Flip and check
 
-1. Set `UPSTREAM_PROXIES` (step 3) and the SSL mode (step 2) first.
+1. Set `UPSTREAM_PROXIES` (step 3) and the SSL mode (step 2) first. Check that `AUTH_TRUSTED_PROXIES` holds none of Cloudflare's ranges (step 3).
 2. In DNS, switch both `playmat` records (A and AAAA) to **Proxied**.
 3. Check that requests go through Cloudflare: `curl -sI https://playmat.deimos.studio/ | grep -i 'server\|cf-ray'` shows `server: cloudflare` and a `cf-ray`.
 4. Open the site, sign in and play a game. In the admin console, the player list should show your own address, not one from Cloudflare's ranges.
@@ -109,5 +117,5 @@ Do it in this order, so the site stays up throughout:
 1. **Firewall first.** If you restricted it, open TCP 80 and 443 and UDP 443 to everyone again (`0.0.0.0/0` and `::/0`, or `hcloud firewall replace-rules firewall-1 --rules-file rules-before.json`). Once DNS points straight at the box, players connect from their own addresses.
 2. **Origin CA only:** give Caddy a browser-trusted certificate while still proxied. Remove `docker-compose.override.yml` (or the three volume lines) and run `docker compose up -d web`. Caddy then gets a Let's Encrypt certificate through Cloudflare with the HTTP challenge, which needs port 80 open (step 1). Check that browsers will accept the certificate before going on: `curl -sI --resolve playmat.deimos.studio:443:46.224.105.107 https://playmat.deimos.studio/` must succeed without `-k`.
 3. **DNS:** switch both records back to **DNS only**. Proxied records have a short TTL, so most players move over within about five minutes.
-4. **UPSTREAM_PROXIES:** clear it in `.env` and run `docker compose up -d web`. Leaving it set is harmless, since no peer comes from those ranges any more, but it's clearer without.
+4. **UPSTREAM_PROXIES:** clear it in `.env` (or set it back to `127.0.0.1/32`) and run `docker compose up -d web`. Leaving it set is harmless, since no peer comes from those ranges any more, but it's clearer without. Leave `AUTH_TRUSTED_PROXIES` alone: it never held Cloudflare's ranges, and it stays `255.255.255.255/32` unless you use single sign-on.
 5. If you switched Cloudflare's SSL mode or WebSockets just for this, they no longer matter for a DNS-only record.

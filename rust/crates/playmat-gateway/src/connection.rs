@@ -446,6 +446,7 @@ fn on_reply(
             app.metrics.shadow(&method, difference.is_none());
             if let Some(difference) = difference {
                 warn!("shadow {method}: Rust answered differently at {difference}");
+                app.note_difference(&method, &difference);
             }
             send_client(text)
         }
@@ -736,8 +737,19 @@ fn hosted_call(
             let (tx, rx) = std::sync::mpsc::channel();
             let (out, answer) = std::sync::mpsc::channel();
             hosted.call(seat, playmat_host::Call::Advise(skill.clamp(1, 10), tx));
+            // a Career game's hint (its advice says how many are left) is counted by Java at once
+            let tell = (
+                tokio::runtime::Handle::current(),
+                app.config.java_url.clone(),
+                game_id.to_string(),
+                hosted.token().to_string(),
+            );
             std::thread::spawn(move || {
                 if let Ok(advice) = rx.recv_timeout(std::time::Duration::from_secs(30)) {
+                    if advice.get("hintsLeft").is_some() {
+                        let (handle, java_url, game_id, token) = tell;
+                        handle.spawn(crate::host::assisted(java_url, game_id, token, "hint"));
+                    }
                     let _ = out.send(Ok(advice));
                 }
             });

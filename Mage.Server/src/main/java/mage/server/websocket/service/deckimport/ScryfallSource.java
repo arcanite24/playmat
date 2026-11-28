@@ -103,8 +103,9 @@ final class ScryfallSource implements DeckSource {
         switch (name) {
             case "commanders":
                 return ImportedDeck.Section.COMMANDER;
-            case "sideboard":
             case "outside":
+                return ImportedDeck.Section.COMPANION;
+            case "sideboard":
                 return ImportedDeck.Section.SIDE;
             case "maybeboard":
                 return ImportedDeck.Section.MAYBE;

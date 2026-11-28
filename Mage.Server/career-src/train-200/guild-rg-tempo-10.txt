@@ -1,0 +1,24 @@
+# name: Train200 guild-rg-tempo-10
+# archetype: tempo
+# colors: RG
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Abstruse Interference
+3 Bloodthirsty Adversary
+3 Cleansing Wildfire
+1 Excavation Mole
+1 Fell the Pheasant
+2 Furious Resistance
+4 Horribly Awry
+2 Hungry Flames
+4 Lupine Prototype
+1 Pawpatch Formation
+2 Pugnacious Hammerskull
+2 Reckless Lackey
+3 Slickshot Show-Off
+2 Tears of Valakut
+3 Vile Redeemer
+3 Wilt
+4 Bleeding Woods
+5 Forest
+9 Mountain
+4 Sheltered Thicket

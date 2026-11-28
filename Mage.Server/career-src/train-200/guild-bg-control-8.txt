@@ -1,0 +1,20 @@
+# name: Train200 guild-bg-control-8
+# archetype: control
+# colors: BG
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 A Good Day to Die
+2 Charge Through
+2 Dread Summons
+2 Fog of War
+4 Horribly Awry
+4 Nylea, Keen-Eyed
+2 Prizefight
+2 Rocksteady, Crash Courser
+4 Sorin's Thirst
+2 Summon: Titan
+4 Vicious Offering
+4 Void Shatter
+4 Ferenginar
+10 Forest
+4 Formidable Commons
+8 Swamp

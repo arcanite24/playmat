@@ -1,0 +1,22 @@
+# name: Train200 tri-brg-gowide-43
+# archetype: gowide
+# colors: BRG
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+1 Atsushi, the Blazing Sky
+2 Awaken the Bear
+4 Eye Gouge
+3 Fleeting Effigy
+2 Gift of Strength
+3 Goldnight Castigator
+4 Greenbelt Rampager
+4 Hexhaven Invigorator
+4 Loam Dryad
+4 Mistbreath Elder
+3 Pilfering Imp
+4 Spinneret and Spiderling
+4 Blackcleave Cliffs
+4 Boiling Rock Prison
+4 Commercial District
+5 Forest
+3 Mountain
+2 Swamp

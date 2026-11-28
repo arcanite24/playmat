@@ -194,7 +194,14 @@ impl Cards {
         if let Some(format) = c.format.as_deref().filter(|f| !f.is_empty()) {
             if self.formats.contains(format) {
                 if let Some(codes) = self.format_sets.get(format) {
-                    c.set_codes.extend(codes.iter().cloned());
+                    if c.set_codes.is_empty() {
+                        c.set_codes.extend(codes.iter().cloned());
+                    } else {
+                        c.set_codes.retain(|code| codes.iter().any(|allowed| allowed == code));
+                        if c.set_codes.is_empty() {
+                            return Found::Printings(Vec::new());
+                        }
+                    }
                 }
             }
         }

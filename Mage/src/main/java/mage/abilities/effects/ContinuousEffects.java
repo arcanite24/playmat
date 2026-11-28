@@ -864,7 +864,9 @@ public class ContinuousEffects implements Serializable {
                                         message = sourceObject.getIdName() + ": " + message;
                                     }
                                     if (message != null && !message.isEmpty()) {
-                                        if (effect.sendMessageToUser()) {
+                                        boolean isCastPrevention = event.getType() == GameEvent.EventType.CAST_SPELL
+                                                || event.getType() == GameEvent.EventType.CAST_SPELL_LATE;
+                                        if (effect.sendMessageToUser() || isCastPrevention) {
                                             Player player = game.getPlayer(event.getPlayerId());
                                             if (player != null && !game.isSimulation()) {
                                                 game.informPlayer(player, message);
@@ -1007,7 +1009,6 @@ public class ContinuousEffects implements Serializable {
 
     //20091005 - 613
     public synchronized void apply(Game game) {
-        removeInactiveEffects(game);
         List<ContinuousEffect> activeLayerEffects = getLayeredEffects(game); // main call
 
         List<ContinuousEffect> layer = filterLayeredEffects(activeLayerEffects, Layer.CopyEffects_1);
@@ -1043,6 +1044,10 @@ public class ContinuousEffects implements Serializable {
             if (!game.getBattlefield().fireControlChangeEvents(game)) {
                 break;
             }
+            // re-check Duration.WhileControlled and other inactive effects with the updated controllers
+            removeInactiveEffects(game);
+            activeLayerEffects = getLayeredEffects(game, "layer_2");
+            layer = filterLayeredEffects(activeLayerEffects, Layer.ControlChangingEffects_2);
             // reset control before reapplying control changing effects
             game.getBattlefield().resetPermanentsControl();
         }

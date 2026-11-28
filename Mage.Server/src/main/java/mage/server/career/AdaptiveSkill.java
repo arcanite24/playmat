@@ -103,8 +103,11 @@ public final class AdaptiveSkill {
 
     /** a marked table's game ended */
     public static void ended(UUID tableId, String user, boolean won) {
-        String[] marked = tableId == null ? null : TABLES.remove(tableId);
-        if (marked == null || !marked[0].equalsIgnoreCase(user)) {
+        if (tableId == null || user == null) {
+            return;
+        }
+        String[] marked = TABLES.get(tableId);
+        if (marked == null || marked[0] == null || !marked[0].equalsIgnoreCase(user) || !TABLES.remove(tableId, marked)) {
             return;
         }
         try {

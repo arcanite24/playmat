@@ -42,7 +42,44 @@ function until(session: GameSession, done: () => boolean, ms: number) {
   });
 }
 
+const SERVER_LOG = process.env.MATCH_SERVER_LOG ?? '';
+
 describe.skipIf(!live)('a Rust-hosted game', () => {
+  // Java drops a user 3 minutes after their connection goes (UserManagerImpl), and ends their games as their quit:
+  // a hosted game too, while its table is there to record the end (RustHost.userLeft)
+  test.skipIf(!SERVER_LOG)('ends as its player\'s quit when they never come back', async () => {
+    const userName = `rq${Date.now() % 100000}`;
+    const first = await signIn(userName);
+    const roomId = await first.api.serverGetMainRoomId();
+    const table = await first.api.roomCreateTable(roomId, {
+      name: `Headless ${userName}`,
+      gameType: 'Two Player Duel',
+      deckType: 'Constructed - Freeform',
+      winsNeeded: 1,
+      playerTypes: ['HUMAN', 'COMPUTER_MAD'],
+    });
+    expect(await first.api.roomJoinTable(roomId, table.tableId!, userName, 'HUMAN', 1, DECK)).toBe(true);
+    expect(await first.api.roomJoinTable(roomId, table.tableId!, `AI ${userName}`, 'COMPUTER_MAD', 2, DECK)).toBe(true);
+    expect(await first.api.matchStart(roomId, table.tableId!)).toBe(true);
+    const start = await first.started;
+    const gameId = start.gameId!;
+    const session = new GameSession(first.api, first.bus, { gameId, playerId: start.playerId ?? null, mode: 'play' });
+    await first.api.gameJoin(gameId);
+    await until(session, () => !!session.getState().view && session.getState().interaction.mode !== 'waiting', 20_000);
+    session.dispose();
+    first.rpc.disconnect();
+    const log = () => readFileSync(SERVER_LOG, 'utf8');
+    expect(log()).toContain(`Rust host: plays ${userName}'s game ${gameId}`);
+    let ended = '';
+    for (let i = 0; i < 60 && !ended; i++) {
+      await new Promise((r) => setTimeout(r, 5_000));
+      ended = log().split('\n').find((line) => line.includes(`Rust host: game ${gameId} ended`)) ?? '';
+    }
+    console.log(ended.replace(/\s+=>.*/, ''));
+    expect(ended, 'the game ends').toContain('quit, the player left');
+    expect(ended).toContain(`winner AI ${userName}`);
+  }, 360_000);
+
   test('comes back after its player reconnects', async () => {
     const userName = `rh${Date.now() % 100000}`;
     const first = await signIn(userName);

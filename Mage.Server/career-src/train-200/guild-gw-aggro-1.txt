@@ -1,0 +1,20 @@
+# name: Train200 guild-gw-aggro-1
+# archetype: aggro
+# colors: GW
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Bayou Groff
+4 Bishop of Wings
+2 Bloated Contaminator
+2 Bomat Courier
+4 Destroy Evil
+3 Gift of Growth
+4 Jewel Thief
+3 Novice Knight
+3 Reality Hemorrhage
+4 Redtooth Vanguard
+3 Staunch Shieldmate
+3 Touch of the Void
+7 Forest
+4 Fortified Village
+4 Kyoshi Village
+6 Plains

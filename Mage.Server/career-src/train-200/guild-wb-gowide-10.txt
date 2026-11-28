@@ -1,0 +1,21 @@
+# name: Train200 guild-wb-gowide-10
+# archetype: gowide
+# colors: WB
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Allied Assault
+2 Bloodletter of Aclazotz
+4 Divine Smite
+3 Grim Strider
+3 Hunted Nightmare
+1 Incisor Glider
+3 Olivia's Bloodsworn
+4 Order of Midnight
+1 Rabid Attack
+3 Rustwing Falcon
+4 Sanitarium Skeleton
+3 Spiteful Hexmage
+4 Wanted Scoundrels
+4 Concealed Courtyard
+4 Plains
+4 Silverquill Campus
+10 Swamp

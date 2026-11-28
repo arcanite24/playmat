@@ -1,0 +1,22 @@
+# name: Train200 guild-gu-tempo-3
+# archetype: tempo
+# colors: GU
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+1 Ascendant Packleader
+3 Befuddle
+3 Bristlebane Battler
+4 Captive Weird
+4 Champion of Dusan
+3 Confounding Riddle
+3 Dazzling Lights
+3 Disdainful Stroke
+2 Hunt the Hunter
+4 Jaspera Sentinel
+2 Reality Hemorrhage
+3 Stern Dismissal
+2 Stoic Sphinx
+1 Thirst for Knowledge
+6 Forest
+8 Island
+4 Mutant Town
+4 Woodland Stream

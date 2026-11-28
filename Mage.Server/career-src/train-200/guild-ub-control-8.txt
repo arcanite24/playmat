@@ -1,0 +1,25 @@
+# name: Train200 guild-ub-control-8
+# archetype: control
+# colors: UB
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Ammit Eternal
+1 Annul
+1 Archive Dragon
+2 Dark Deed
+2 Deadly Embrace
+2 Didn't Say Please
+3 Dissolve
+2 Keep Safe
+2 Minor Misstep
+3 Ob Nixilis's Cruelty
+2 Path of Peril
+2 Ray of Enfeeblement
+2 Runaway Carriage
+2 Skulduggery
+1 Unfortunate Accident
+2 Winged Portent
+3 Yargle, Glutton of Urborg
+7 Island
+4 Sinister Hideout
+11 Swamp
+4 Undercity Sewers

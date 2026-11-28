@@ -1,0 +1,20 @@
+# name: Train200 guild-rw-midrange-5
+# archetype: midrange
+# colors: RW
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Archon of Sun's Grace
+4 Bright Reprisal
+3 Fire Nation Cadets
+1 Fry
+4 Gallant Strike
+2 Giant Killer
+3 Goblin Tomb Raider
+2 Hulking Bugbear
+2 Krenko's Buzzcrusher
+3 Smelt
+4 Stormbreath Dragon
+4 Summon: Choco/Mog
+4 Elegant Parlor
+8 Mountain
+8 Plains
+4 Rabanastre, Royal City

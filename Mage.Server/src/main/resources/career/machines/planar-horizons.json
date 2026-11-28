@@ -1,0 +1,363 @@
+{
+  "id": "planar-horizons",
+  "wave": 3,
+  "name": "Planar Horizons",
+  "es": "Horizontes planares",
+  "blurb": "Ten painted sets of five: full-art basic cycles, shocklands, fetchlands, channel lands and iconic realms.",
+  "blurbEs": "Diez sets pintados de cinco: ciclos de tierras básicas, shocklands, fetchlands, tierras canal y reinos icónicos.",
+  "kind": "cardstyle",
+  "cabinet": {
+    "body": "#21426b",
+    "trim": "#cbd5e1"
+  },
+  "reward": {
+    "kind": "playmat",
+    "id": "starlit-orrery"
+  },
+  "title": {
+    "kind": "title",
+    "id": "high-roller"
+  },
+  "sets": [
+    {
+      "id": "ukiyo-horizons",
+      "name": "Ukiyo Horizons",
+      "es": "Horizontes Ukiyo",
+      "capsule": "#385b99",
+      "style": "Traditional Japanese woodblock landscape print (shin-hanga): flat layered sky gradients, crisp black key lines, subtle woodgrain paper texture, serene atmospheric distance.",
+      "items": [
+        {
+          "id": "ukiyo-horizons-plains",
+          "card": "Plains",
+          "subject": "golden rice terraces and swaying pampas grass stretching toward pale mist-wrapped hills at dawn"
+        },
+        {
+          "id": "ukiyo-horizons-island",
+          "card": "Island",
+          "subject": "a quiet pine-topped sea stack rising out of layered Prussian-blue coastal swells under a pale crescent moon"
+        },
+        {
+          "id": "ukiyo-horizons-swamp",
+          "card": "Swamp",
+          "subject": "still dark lotus ponds and bent weeping willows shrouded in indigo twilight mist"
+        },
+        {
+          "id": "ukiyo-horizons-mountain",
+          "card": "Mountain",
+          "subject": "a steep snow-dusted volcanic peak glowing coral-red in late afternoon sun above drifting clouds"
+        },
+        {
+          "id": "ukiyo-horizons-forest",
+          "card": "Forest",
+          "subject": "towering cedar trunks and mossy stone steps vanishing into cool emerald mountain fog"
+        }
+      ]
+    },
+    {
+      "id": "celestial-atlas",
+      "name": "Celestial Atlas",
+      "es": "Atlas celeste",
+      "capsule": "#6b4c9a",
+      "style": "Astronomical watercolour and gold-ink landscape painting: twilight skies filled with subtle painted nebulae and brass-thin star arcs over calm silhouetted terrain.",
+      "items": [
+        {
+          "id": "celestial-atlas-plains",
+          "card": "Plains",
+          "subject": "wide pale chalk downs and a lone standing stone beneath a sweeping arc of golden morning stars"
+        },
+        {
+          "id": "celestial-atlas-island",
+          "card": "Island",
+          "subject": "a mirror-still lagoon reflecting towering star-strewn clouds and a quiet coral atoll"
+        },
+        {
+          "id": "celestial-atlas-swamp",
+          "card": "Swamp",
+          "subject": "black mirror peat pools reflecting faint violet constellations between skeletal bog cypresses"
+        },
+        {
+          "id": "celestial-atlas-mountain",
+          "card": "Mountain",
+          "subject": "jagged basalt spires silhouetted against a blazing meteor shower and warm crimson horizon"
+        },
+        {
+          "id": "celestial-atlas-forest",
+          "card": "Forest",
+          "subject": "ancient silver-barked redwood giants parting overhead to frame a glowing emerald aurora"
+        }
+      ]
+    },
+    {
+      "id": "deco-metropolis",
+      "name": "Deco Metropolis",
+      "es": "Metrópoli Decó",
+      "capsule": "#b58b38",
+      "style": "Art Deco architectural gouache painting: towering geometric spires, stepped arches, brushed brass trim, dramatic sunlit diagonal shadows, clean crisp edges.",
+      "items": [
+        {
+          "id": "deco-metropolis-hallowed-fountain",
+          "card": "Hallowed Fountain",
+          "subject": "a soaring white-marble stepped fountain plaza crowned with brass sun-arches and clear cascading pools"
+        },
+        {
+          "id": "deco-metropolis-watery-grave",
+          "card": "Watery Grave",
+          "subject": "a cavernous Art Deco subterranean canal flanked by dark slate colonnades and dim teal bridge lamps"
+        },
+        {
+          "id": "deco-metropolis-blood-crypt",
+          "card": "Blood Crypt",
+          "subject": "a grand crimson-lit iron foundry hall with towering geometric braziers and shadowed catwalks"
+        },
+        {
+          "id": "deco-metropolis-stomping-ground",
+          "card": "Stomping Ground",
+          "subject": "wild red-brick ruins and cracked geometric pillars overtaken by massive tangled roots and mossy boulders"
+        },
+        {
+          "id": "deco-metropolis-temple-garden",
+          "card": "Temple Garden",
+          "subject": "a sunlit glass-and-limestone conservatory atrium brimming with terraced cypresses and pale stone arches"
+        }
+      ]
+    },
+    {
+      "id": "wilderness-oil",
+      "name": "Wilderness Oil",
+      "es": "Óleo salvaje",
+      "capsule": "#3c705e",
+      "style": "Classic Hudson River School oil painting: luminous atmospheric skies, sweeping natural panoramas, rich earthen pigments, visible canvas brushwork.",
+      "items": [
+        {
+          "id": "wilderness-oil-godless-shrine",
+          "card": "Godless Shrine",
+          "subject": "a solitary white-stone cathedral ruin perched on a dark basalt crag under brooding silver storm clouds"
+        },
+        {
+          "id": "wilderness-oil-steam-vents",
+          "card": "Steam Vents",
+          "subject": "towering coastal geysers sending sunlit white steam plumes over wet slate cliffs and turquoise surf"
+        },
+        {
+          "id": "wilderness-oil-overgrown-tomb",
+          "card": "Overgrown Tomb",
+          "subject": "sunken mossy stone vaults half-swallowed by giant roots and soft emerald forest floor light"
+        },
+        {
+          "id": "wilderness-oil-sacred-foundry",
+          "card": "Sacred Foundry",
+          "subject": "a cliffside sun-temple carved into red canyon rock, golden smelter rivers glowing inside its arches"
+        },
+        {
+          "id": "wilderness-oil-breeding-pool",
+          "card": "Breeding Pool",
+          "subject": "crystal-clear terraced rainforest pools ringed with lush ferns, misty cliffs and bioluminescent lilies"
+        }
+      ]
+    },
+    {
+      "id": "frontier-fetches",
+      "name": "Frontier Fetches",
+      "es": "Tierras de frontera",
+      "capsule": "#8c6134",
+      "style": "Cut-paper diorama and gouache landscape: crisp layered silhouettes, soft cast paper shadows between depth planes, rich earthy and mineral hues.",
+      "items": [
+        {
+          "id": "frontier-fetches-windswept-heath",
+          "card": "Windswept Heath",
+          "subject": "rolling amber moors and leaning birch trees sweeping toward distant sun-washed green hills"
+        },
+        {
+          "id": "frontier-fetches-bloodstained-mire",
+          "card": "Bloodstained Mire",
+          "subject": "crimson mineral pools winding through black volcanic mudflats and charred deadwood"
+        },
+        {
+          "id": "frontier-fetches-arid-mesa",
+          "card": "Arid Mesa",
+          "subject": "layered red-ochre sandstone plateaus rising from a pale sunlit desert plain"
+        },
+        {
+          "id": "frontier-fetches-marsh-flats",
+          "card": "Marsh Flats",
+          "subject": "silver-white salt marshes and dark peat channels stretching toward a quiet clouded horizon"
+        },
+        {
+          "id": "frontier-fetches-verdant-catacombs",
+          "card": "Verdant Catacombs",
+          "subject": "a shadowed mossy ravine opening onto root-laced limestone crypt arches beneath thick canopy"
+        }
+      ]
+    },
+    {
+      "id": "kamigawa-scrolls",
+      "name": "Kamigawa Scrolls",
+      "es": "Pergaminos de Kamigawa",
+      "capsule": "#2e6b7a",
+      "style": "Painted vertical silk-scroll landscape: delicate mineral pigments on warm silk, sweeping cloud bands, restrained gold-dust accents, calm vertical rhythm.",
+      "items": [
+        {
+          "id": "kamigawa-scrolls-boseiju-who-endures",
+          "card": "Boseiju, Who Endures",
+          "subject": "a colossal ancient sky-piercing cedar tree cradling terraced wooden shrines among mist-wrapped boughs"
+        },
+        {
+          "id": "kamigawa-scrolls-otawara-soaring-city",
+          "card": "Otawara, Soaring City",
+          "subject": "graceful curved-roof pavilions resting on floating pale stone islands drifting through cerulean clouds"
+        },
+        {
+          "id": "kamigawa-scrolls-takenuma-abandoned-mire",
+          "card": "Takenuma, Abandoned Mire",
+          "subject": "a half-submerged wooden torii gate and mossy lantern shrines in dark misty marsh waters"
+        },
+        {
+          "id": "kamigawa-scrolls-eiganjo-seat-of-the-empire",
+          "card": "Eiganjo, Seat of the Empire",
+          "subject": "a serene white-walled mountain citadel crowned with golden eaves shining above sunlit clouds"
+        },
+        {
+          "id": "kamigawa-scrolls-sokenzan-crucible-of-defiance",
+          "card": "Sokenzan, Crucible of Defiance",
+          "subject": "steep crimson volcanic cliffs laced with glowing forge bridges and drifting ash plumes"
+        }
+      ]
+    },
+    {
+      "id": "monolith-realms",
+      "name": "Monolith Realms",
+      "es": "Reinos monolíticos",
+      "capsule": "#4c516d",
+      "style": "Monumental fantasy oil painting in muted slate, ochre and bone tones: awe-inspiring architectural scale, tiny distant birds for proportion, moody overcast drama.",
+      "items": [
+        {
+          "id": "monolith-realms-cavern-of-souls",
+          "card": "Cavern of Souls",
+          "subject": "a vast echoing limestone cavern lit by a pale shaft of daylight over an underground river and carved alcoves"
+        },
+        {
+          "id": "monolith-realms-nykthos-shrine-to-nyx",
+          "card": "Nykthos, Shrine to Nyx",
+          "subject": "a grand circular colonnade of marble pillars opening onto a deep starry night chasm"
+        },
+        {
+          "id": "monolith-realms-urborg-tomb-of-yawgmoth",
+          "card": "Urborg, Tomb of Yawgmoth",
+          "subject": "a colossal weathered iron ribcage half-sunk in black marsh water under heavy pewter clouds"
+        },
+        {
+          "id": "monolith-realms-cabal-coffers",
+          "card": "Cabal Coffers",
+          "subject": "a towering subterranean vault of dark obsidian pillars and dim bronze braziers stacked with ancient chests"
+        },
+        {
+          "id": "monolith-realms-mutavault",
+          "card": "Mutavault",
+          "subject": "an amorphous shifting stone bastion whose arched walls subtly resemble wings, antlers and shields"
+        }
+      ]
+    },
+    {
+      "id": "ancient-wonders",
+      "name": "Ancient Wonders",
+      "es": "Maravillas antiguas",
+      "capsule": "#6b3848",
+      "style": "Weathered fresco and tempera painting: mineral earth pigments, fine craquelure plaster texture, timeless mythic atmosphere, subdued natural lighting.",
+      "items": [
+        {
+          "id": "ancient-wonders-field-of-the-dead",
+          "card": "Field of the Dead",
+          "subject": "endless misty moorland dotted with weathered standing stones and faint pale willow-wisps at dusk"
+        },
+        {
+          "id": "ancient-wonders-dark-depths",
+          "card": "Dark Depths",
+          "subject": "a sheer abyssal glacier fissure where something impossibly vast sleeps beneath translucent blue-black ice"
+        },
+        {
+          "id": "ancient-wonders-wasteland",
+          "card": "Wasteland",
+          "subject": "shattered marble columns and sun-bleached dust flats stretching under a stark pale sky"
+        },
+        {
+          "id": "ancient-wonders-strip-mine",
+          "card": "Strip Mine",
+          "subject": "vast terraced quarry steps carved deep into rust-red stone under drifting dust and scaffolding"
+        },
+        {
+          "id": "ancient-wonders-gaeas-cradle",
+          "card": "Gaea's Cradle",
+          "subject": "an immense sunlit forest amphitheatre formed by a ring of colossal ancient living trees around a golden glade"
+        }
+      ]
+    },
+    {
+      "id": "sanctuary-plates",
+      "name": "Sanctuary Plates",
+      "es": "Láminas de santuario",
+      "capsule": "#3e6e68",
+      "style": "Hand-tinted copperplate landscape engraving: crisp architectural linework paired with soft hand-applied watercolour glazes in sage, slate blue and warm sandstone.",
+      "items": [
+        {
+          "id": "sanctuary-plates-yavimaya-cradle-of-growth",
+          "card": "Yavimaya, Cradle of Growth",
+          "subject": "a sprawling cathedral-like canopy of intertwined emerald boughs and mossy root bridges over sunlit ferns"
+        },
+        {
+          "id": "sanctuary-plates-maze-of-ith",
+          "card": "Maze of Ith",
+          "subject": "a spiralling fortress of tall weathered stone corridors rising from misty coastal crags"
+        },
+        {
+          "id": "sanctuary-plates-academy-ruins",
+          "card": "Academy Ruins",
+          "subject": "a broken domed library half-submerged in a tranquil blue lagoon, brass astrolabes resting in the shallows"
+        },
+        {
+          "id": "sanctuary-plates-volraths-stronghold",
+          "card": "Volrath's Stronghold",
+          "subject": "a dark terraced obsidian citadel built inside a hollow volcanic mountain mouth"
+        },
+        {
+          "id": "sanctuary-plates-minamo-school-at-waters-edge",
+          "card": "Minamo, School at Water's Edge",
+          "subject": "graceful tiered timber halls perched beside a dramatic misty waterfall cascading into clear pools"
+        }
+      ]
+    },
+    {
+      "id": "old-world-duals",
+      "name": "Old World Duals",
+      "es": "Duales del viejo mundo",
+      "capsule": "#8a6d3b",
+      "style": "Classic 1990s fantasy gouache and watercolour illustration: warm sunlit nostalgia, soft atmospheric edges, rich organic pigments and traditional hand-painted charm.",
+      "items": [
+        {
+          "id": "old-world-duals-tundra",
+          "card": "Tundra",
+          "subject": "quiet snow-dusted alpine meadows and icy blue glacial streams under pale sunlit mountain peaks"
+        },
+        {
+          "id": "old-world-duals-underground-sea",
+          "card": "Underground Sea",
+          "subject": "a vast luminous subterranean ocean reflecting towering stalactites and deep indigo cavern vaults"
+        },
+        {
+          "id": "old-world-duals-badlands",
+          "card": "Badlands",
+          "subject": "eroded crimson canyon mesas and shadowy ravines glowing in warm copper sunset light"
+        },
+        {
+          "id": "old-world-duals-taiga",
+          "card": "Taiga",
+          "subject": "rugged spruce-clad mountain slopes rising into crisp misty granite ridges at golden hour"
+        },
+        {
+          "id": "old-world-duals-savannah",
+          "card": "Savannah",
+          "subject": "wide golden grasslands dotted with flat-topped acacia trees beneath a warm sweeping cloudscape"
+        }
+      ]
+    }
+  ]
+}

@@ -279,4 +279,79 @@ public class CareerGauntletMapTest {
         CareerGauntlet.CareerRun map = gauntlet.start("Ana", options("map", null, 0));
         assertEquals(gauntlet.rules().maxWins, map.maxWins, "the other modes keep the pay table's count");
     }
+
+    @Test
+    public void commanderGauntletDraftsCommanderGrantsRelicAndSupportsRestTrim() throws Exception {
+        mage.cards.repository.CardScanner.scan();
+        CareerGauntlet.StartOptions opts = options("map", CareerGauntlet.seedCode(999L), 0);
+        opts.variant = GauntletPacks.COMMANDER;
+        CareerGauntlet.CareerRun started = gauntlet.start("Ana", opts);
+        assertEquals("commander", started.offer.kind);
+        assertEquals(3, started.offer.options.size());
+        assertEquals(1, started.offer.pick);
+
+        // Pick the first offered Legendary Commander -> grants its starting Command Relic and offers 4 color-matched packs
+        CareerGauntlet.CareerRun afterCommander = gauntlet.pick("Ana", Collections.singletonList(started.offer.options.get(0).id));
+        assertNotNull(afterCommander.commander);
+        assertFalse(afterCommander.relics.isEmpty(), "commander grants starting Command Relic");
+        assertEquals("start", afterCommander.offer.kind);
+        assertEquals(4, afterCommander.offer.options.size());
+        assertEquals(2, afterCommander.offer.pick);
+
+        // Pick 2 color-matched packs -> ready for row 0 fight
+        CareerGauntlet.CareerRun ready = takeFirst(afterCommander);
+        assertNull(ready.offer);
+        assertTrue(ready.deckSize >= 40, "commander + two 20-card packs");
+
+        // Move to first fight and verify Plan sets Commander in sideboard
+        CareerGauntlet.CareerRun atFight = gauntlet.move("Ana", ready.choices.get(0));
+        assertNotNull(atFight.next);
+        CareerGauntlet.Plan plan = gauntlet.plan("Ana");
+        assertNotNull(plan.commander);
+        assertEquals(1, plan.playerDeck.getSideboard().size(), "commander goes in the command zone sideboard");
+
+        // Verify rest site offers Trim and trims 1 card cleanly
+        CareerGauntlet.CareerRun walk = ready;
+        gauntlet.abandon("Ana");
+        CareerGauntlet.CareerRun trimRun = takeFirst(gauntlet.start("Ana", options("map", CareerGauntlet.seedCode(42L), 0)));
+        int trimmed = 0;
+        for (int step = 0; step < 80 && trimRun != null && "active".equals(trimRun.state); step++) {
+            if (trimRun.offer != null) {
+                if ("rest".equals(trimRun.offer.kind)) {
+                    boolean hasTrim = trimRun.offer.options.stream().anyMatch(o -> "trim".equals(o.kind));
+                    assertTrue(hasTrim, "rest site offers card trim");
+                    int sizeBefore = trimRun.deckSize;
+                    CareerGauntlet.CareerRun trimOffer = gauntlet.pick("Ana", Collections.singletonList("trim"));
+                    assertEquals("trim", trimOffer.offer.kind);
+                    trimRun = gauntlet.pick("Ana", Collections.singletonList(trimOffer.offer.options.get(0).id));
+                    assertEquals(sizeBefore - 1, trimRun.deckSize, "trimming removes one card from the deck");
+                    trimmed++;
+                    break;
+                } else if ("shop".equals(trimRun.offer.kind)) {
+                    trimRun = gauntlet.pick("Ana", Collections.singletonList("leave"));
+                } else {
+                    trimRun = takeFirst(trimRun);
+                }
+                continue;
+            }
+            if (trimRun.next != null && trimRun.choices.isEmpty()) {
+                play(trimRun.id, true);
+                trimRun = gauntlet.state("Ana").run;
+                continue;
+            }
+            // Prefer rest nodes when available in choices
+            String restChoice = null;
+            for (String cid : trimRun.choices) {
+                CareerGauntlet.CareerRunNode cn = trimRun.map.stream().flatMap(List::stream).filter(n -> cid.equals(n.id)).findFirst().orElse(null);
+                if (cn != null && "rest".equals(cn.type)) {
+                    restChoice = cid;
+                    break;
+                }
+            }
+            trimRun = gauntlet.move("Ana", restChoice != null ? restChoice : trimRun.choices.get(0));
+        }
+        assertTrue(trimmed >= 1, "reached and executed a rest trim");
+        assertTrue(gauntlet.rules().relics.size() >= 26, "15+ new relics added");
+        assertTrue(gauntlet.rules().bosses.size() >= 20, "20+ diverse bosses");
+    }
 }

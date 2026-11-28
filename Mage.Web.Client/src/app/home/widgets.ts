@@ -21,11 +21,13 @@ export interface WidgetDef extends WidgetSpec {
   load: () => Promise<{ default: ComponentType<WidgetProps> }>;
 }
 
-const FORMATS = ['standard', 'pioneer'] as const;
+const FORMATS = ['standard', 'pioneer', 'modern'] as const;
+/** the Rank widget also shows the Limited rank (#435), which sealed and draft runs move */
+const RANK_FORMATS = [...FORMATS, 'limited'] as const;
 export const LEADERBOARDS = ['gauntlet', 'ascension', 'boss-rush', 'endless'] as const;
 
 export const WIDGETS: readonly WidgetDef[] = [
-  { id: 'rank', sizes: ['s', 'm'], needs: 'ranked', settings: { format: FORMATS }, title: 'home.widget.rank', blurb: 'home.widget.rank.blurb', load: () => import('./widgets/RankWidget') },
+  { id: 'rank', sizes: ['s', 'm'], needs: 'ranked', settings: { format: RANK_FORMATS }, title: 'home.widget.rank', blurb: 'home.widget.rank.blurb', load: () => import('./widgets/RankWidget') },
   { id: 'season', sizes: ['s', 'm'], needs: 'ranked', settings: { format: FORMATS }, title: 'home.widget.season', blurb: 'home.widget.season.blurb', load: () => import('./widgets/SeasonWidget') },
   { id: 'allRanks', sizes: ['m', 'l'], needs: 'ranked', title: 'home.widget.allRanks', blurb: 'home.widget.allRanks.blurb', load: () => import('./widgets/AllRanksWidget') },
   { id: 'rival', sizes: ['s', 'm'], needs: 'ranked', settings: { format: FORMATS }, title: 'home.widget.rival', blurb: 'home.widget.rival.blurb', load: () => import('./widgets/RivalWidget') },
@@ -39,7 +41,7 @@ export const WIDGETS: readonly WidgetDef[] = [
   { id: 'masteries', sizes: ['s', 'm'], needs: 'career', title: 'home.widget.masteries', blurb: 'home.widget.masteries.blurb', load: () => import('./widgets/MasteriesWidget') },
   { id: 'streak', sizes: ['m', 'w'], needs: 'career', title: 'home.widget.streak', blurb: 'home.widget.streak.blurb', load: () => import('./widgets/StreakWidget') },
   { id: 'savedGames', sizes: ['m', 'w'], title: 'home.widget.savedGames', blurb: 'home.widget.savedGames.blurb', load: () => import('./widgets/SavedGamesWidget') },
-  { id: 'seasonBoard', sizes: ['m', 'l'], needs: 'ranked', settings: { format: FORMATS, queue: ['open', 'league'] }, title: 'home.widget.seasonBoard', blurb: 'home.widget.seasonBoard.blurb', load: () => import('./widgets/SeasonBoardWidget') },
+  { id: 'seasonBoard', sizes: ['m', 'l'], needs: 'ranked', settings: { format: FORMATS, queue: ['open', 'bo3', 'league'] }, title: 'home.widget.seasonBoard', blurb: 'home.widget.seasonBoard.blurb', load: () => import('./widgets/SeasonBoardWidget') },
   { id: 'leaderboard', sizes: ['m', 'l'], needs: 'career', settings: { board: LEADERBOARDS }, title: 'home.widget.leaderboard', blurb: 'home.widget.leaderboard.blurb', load: () => import('./widgets/LeaderboardWidget') },
   { id: 'capsules', sizes: ['s'], needs: 'career', title: 'home.widget.capsules', blurb: 'home.widget.capsules.blurb', load: () => import('./widgets/CapsulesWidget') },
   { id: 'notice', sizes: ['m', 'w'], title: 'home.widget.notice', blurb: 'home.widget.notice.blurb', load: () => import('./widgets/NoticeWidget') },

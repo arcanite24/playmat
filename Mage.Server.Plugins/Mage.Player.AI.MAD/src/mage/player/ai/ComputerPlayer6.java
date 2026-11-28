@@ -1080,8 +1080,7 @@ public class ComputerPlayer6 extends ComputerPlayer {
     protected boolean allPassed(Game game) {
         for (Player player : game.getPlayers().values()) {
             if (!player.isPassed()
-                    && !player.hasLost()
-                    && !player.hasLeft()) {
+                    && player.isInGame()) {
                 return false;
             }
         }
@@ -1129,7 +1128,7 @@ public class ComputerPlayer6 extends ComputerPlayer {
 
             CombatUtil.sortByPower(attackers, false); // most powerfull go to first
 
-            CombatInfo combatInfo = CombatUtil.blockWithGoodTrade2(game, attackers, possibleBlockers);
+            CombatInfo combatInfo = CombatUtil.blockWithGoodTrade2(game, attackers, possibleBlockers, playerId);
             Player player = game.getPlayer(playerId);
 
             boolean blocked = false;
@@ -1273,10 +1272,13 @@ public class ComputerPlayer6 extends ComputerPlayer {
         if (!game.replaceEvent(GameEvent.getEvent(GameEvent.EventType.DECLARING_ATTACKERS, activePlayerId, activePlayerId))) {
             Player attackingPlayer = game.getPlayer(activePlayerId);
 
+            // Order opponents by Commander/pod threat so multiplayer AI focuses the biggest threat (or killable target)
+            List<UUID> orderedOpponents = orderOpponentsByThreat(game, playerId);
+
             // check alpha strike first (all in attack to kill a player)
-            for (UUID defenderId : game.getOpponents(playerId, true)) {
+            for (UUID defenderId : orderedOpponents) {
                 Player defender = game.getPlayer(defenderId);
-                if (!defender.isInGame()) {
+                if (defender == null || !defender.isInGame()) {
                     continue;
                 }
 
@@ -1297,12 +1299,14 @@ public class ComputerPlayer6 extends ComputerPlayer {
             // TODO: add game simulations here to find best attackers/blockers combination
 
             // find safe attackers (can't be killed by blockers)
-            for (UUID defenderId : game.getOpponents(playerId, true)) {
+            for (UUID defenderId : orderedOpponents) {
                 Player defender = game.getPlayer(defenderId);
-                if (!defender.isInGame()) {
+                if (defender == null || !defender.isInGame()) {
                     continue;
                 }
+                attackersToCheck.clear();
                 attackersList = getUsefulAttackers(game, defenderId);
+                attackersList.removeIf(Permanent::isAttacking);
                 if (attackersList.isEmpty()) {
                     continue;
                 }
@@ -1434,6 +1438,62 @@ public class ComputerPlayer6 extends ComputerPlayer {
                 }
             }
         }
+    }
+
+    /**
+     * Ranks living opponents for multiplayer / Commander pod targeting: prioritizes the archenemy (strongest board,
+     * commander on battlefield, highest life, commander damage pressure against us) and open boards.
+     */
+    private List<UUID> orderOpponentsByThreat(Game game, UUID myId) {
+        List<UUID> opponents = new ArrayList<>(game.getOpponents(myId, true));
+        Object myTeam = game.getState().getValue("career.thg.team." + myId);
+        if (myTeam != null) {
+            opponents.removeIf(oppId -> myTeam.equals(game.getState().getValue("career.thg.team." + oppId)));
+        }
+        if (opponents.size() <= 1) {
+            return opponents;
+        }
+        Map<UUID, Integer> threat = new HashMap<>();
+        for (UUID oppId : opponents) {
+            Player opp = game.getPlayer(oppId);
+            if (opp == null || !opp.isInGame()) {
+                threat.put(oppId, Integer.MIN_VALUE);
+                continue;
+            }
+            int score = opp.getLife() * 4 + opp.getHand().size() * 15;
+            Set<UUID> oppCommanders = game.getCommandersIds(opp, mage.constants.CommanderCardType.COMMANDER_OR_OATHBREAKER, false);
+            for (Permanent perm : game.getBattlefield().getAllActivePermanents(oppId)) {
+                if (perm.isCreature(game)) {
+                    score += perm.getPower().getValue() * 12 + perm.getToughness().getValue() * 4;
+                } else if (perm.isPlaneswalker(game)) {
+                    score += 60;
+                } else if (!perm.isLand(game)) {
+                    score += 15;
+                }
+                if (oppCommanders.contains(perm.getId())) {
+                    score += 80;
+                }
+            }
+            // Account for commander damage this opponent has already dealt to us
+            for (UUID cmdId : oppCommanders) {
+                mage.watchers.common.CommanderInfoWatcher watcher =
+                        game.getState().getWatcher(mage.watchers.common.CommanderInfoWatcher.class, cmdId);
+                if (watcher != null) {
+                    score += watcher.getDamageToPlayer().getOrDefault(myId, 0) * 14;
+                }
+            }
+            // Prefer open players slightly when threats are comparable so attacks connect
+            int blockers = opp.getAvailableBlockers(game).size();
+            score -= blockers * 12;
+            threat.put(oppId, score);
+        }
+        opponents.sort((a, b) -> Integer.compare(threat.getOrDefault(b, 0), threat.getOrDefault(a, 0)));
+        return opponents;
+    }
+
+    @Override
+    protected boolean preferManaOverPhyrexianLife() {
+        return true;
     }
 
     @Override

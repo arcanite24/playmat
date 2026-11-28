@@ -1,0 +1,362 @@
+{
+  "id": "legends-showcase",
+  "name": "Legends Showcase",
+  "es": "Vitrina de leyendas",
+  "blurb": "Fifty iconic planeswalkers, titans, dragons, and eternal staples painted across ten signature fine-art series.",
+  "blurbEs": "Cincuenta planeswalkers, titanes, dragones y clásicos eternos pintados en diez series artísticas.",
+  "kind": "cardstyle",
+  "cabinet": {
+    "body": "#241d30",
+    "trim": "#b891e6"
+  },
+  "reward": {
+    "kind": "pet",
+    "id": "astral-phoenix"
+  },
+  "title": {
+    "kind": "title",
+    "id": "mythic-curator"
+  },
+  "sets": [
+    {
+      "id": "tarot",
+      "name": "Tarot Planeswalkers",
+      "es": "Planeswalkers del tarot",
+      "capsule": "#6b4fa8",
+      "style": "gilded medieval tarot oil painting with indigo velvet skies, celestial compass halos, and gold-leaf drapery",
+      "items": [
+        {
+          "id": "tarot-jace-the-mind-sculptor",
+          "card": "Jace, the Mind Sculptor",
+          "subject": "a hooded mind mage weaving luminous azure illusion runes above a dark marble dais"
+        },
+        {
+          "id": "tarot-liliana-of-the-veil",
+          "card": "Liliana of the Veil",
+          "subject": "a regal necromancer wrapped in violet shadow silk with an ancient silver veil"
+        },
+        {
+          "id": "tarot-chandra-torch-of-defiance",
+          "card": "Chandra, Torch of Defiance",
+          "subject": "a pyromancer crowned in roaring golden-orange flame standing on volcanic slate"
+        },
+        {
+          "id": "tarot-elspeth-suns-champion",
+          "card": "Elspeth, Sun's Champion",
+          "subject": "an armored solar knight raising a radiant gilded spear beneath a sunburst halo"
+        },
+        {
+          "id": "tarot-teferi-hero-of-dominaria",
+          "card": "Teferi, Hero of Dominaria",
+          "subject": "a timeless scholar parting glowing amber hourglass sands across a twilight arch"
+        }
+      ]
+    },
+    {
+      "id": "pauper-hero",
+      "name": "Pauper Heroes",
+      "es": "Héroes de Pauper",
+      "capsule": "#3d7a8c",
+      "style": "gritty painterly fantasy illustration in weathered coastal blues, warm torchlight ochre, and expressive oil brushwork",
+      "items": [
+        {
+          "id": "pauper-hero-tolarian-terror",
+          "card": "Tolarian Terror",
+          "subject": "a colossal abyssal sea serpent coiling around sunken academy arches under storm surf"
+        },
+        {
+          "id": "pauper-hero-gurmag-angler",
+          "card": "Gurmag Angler",
+          "subject": "a bioluminescent swamp leviathan rising from misty black water beside gnarled roots"
+        },
+        {
+          "id": "pauper-hero-kor-skyfisher",
+          "card": "Kor Skyfisher",
+          "subject": "an agile sky scout leaping between cliff ledges on braided ropes with hooked steel"
+        },
+        {
+          "id": "pauper-hero-mulldrifter",
+          "card": "Mulldrifter",
+          "subject": "a luminous drifting river elemental with translucent fin-wings gliding over twilight reeds"
+        },
+        {
+          "id": "pauper-hero-gray-merchant-of-asphodel",
+          "card": "Gray Merchant of Asphodel",
+          "subject": "a masked underworld ferryman carrying a glowing brass censer across still gray water"
+        }
+      ]
+    },
+    {
+      "id": "litho",
+      "name": "Eldrazi Lithographs",
+      "es": "Litografías eldrazi",
+      "capsule": "#7c5899",
+      "style": "surreal cosmic lithograph and gouache in dusty bone ivory, iridescent amethyst, and chalky basalt void",
+      "items": [
+        {
+          "id": "litho-emrakul-the-aeons-torn",
+          "card": "Emrakul, the Aeons Torn",
+          "subject": "a titanic floating lattice-winged cosmic entity bending a moonlit horizon into spirals"
+        },
+        {
+          "id": "litho-ulamog-the-ceaseless-hunger",
+          "card": "Ulamog, the Ceaseless Hunger",
+          "subject": "a towering twin-armed bone-masked titan turning a canyon into floating chalk dust"
+        },
+        {
+          "id": "litho-kozilek-butcher-of-truth",
+          "card": "Kozilek, Butcher of Truth",
+          "subject": "an obsidian-crowned geometric colossus hovering beneath floating fractured prisms"
+        },
+        {
+          "id": "litho-thought-knot-seer",
+          "card": "Thought-Knot Seer",
+          "subject": "a gaunt pale void stalker peering into fractured violet crystalline mirrors"
+        },
+        {
+          "id": "litho-reality-smasher",
+          "card": "Reality Smasher",
+          "subject": "a charging monolithic horror shattering crystalline spires in a shockwave of lilac light"
+        }
+      ]
+    },
+    {
+      "id": "draco",
+      "name": "Dragon Folio",
+      "es": "Folio de dragones",
+      "capsule": "#b5422c",
+      "style": "dramatic high-fantasy oil painting in volcanic crimson, burnished gold, and billowing ember smoke",
+      "items": [
+        {
+          "id": "draco-shivan-dragon",
+          "card": "Shivan Dragon",
+          "subject": "a classic crimson mountain dragon roaring atop a smoking basalt spire at sunset"
+        },
+        {
+          "id": "draco-nicol-bolas",
+          "card": "Nicol Bolas",
+          "subject": "an ancient horned elder dragon coiled around a floating golden gem between twin horns"
+        },
+        {
+          "id": "draco-goldspan-dragon",
+          "card": "Goldspan Dragon",
+          "subject": "a gleaming gilded dragon banking through sunlit storm clouds scattering molten gold"
+        },
+        {
+          "id": "draco-terror-of-the-peaks",
+          "card": "Terror of the Peaks",
+          "subject": "a jagged horned magma dragon perched on a glowing volcanic ridge under ash skies"
+        },
+        {
+          "id": "draco-old-gnawbone",
+          "card": "Old Gnawbone",
+          "subject": "a massive emerald forest wyrm curled atop a mossy hoard of ancient bronze relics"
+        }
+      ]
+    },
+    {
+      "id": "gobbo",
+      "name": "Goblin Sketchbook",
+      "es": "Cuaderno trasgo",
+      "capsule": "#c96f2d",
+      "style": "lively inked watercolor and gouache field illustration in rusty red, soot charcoal, and warm lantern amber",
+      "items": [
+        {
+          "id": "gobbo-goblin-guide",
+          "card": "Goblin Guide",
+          "subject": "a grinning ragged scout waving a flaming torch while sprinting across a rocky pass"
+        },
+        {
+          "id": "gobbo-goblin-lackey",
+          "card": "Goblin Lackey",
+          "subject": "a scrappy armored goblin charging ahead carrying a battered iron shield and club"
+        },
+        {
+          "id": "gobbo-goblin-matron",
+          "card": "Goblin Matron",
+          "subject": "a wise scarred goblin matriarch pointing from a cliffside encampment of war banners"
+        },
+        {
+          "id": "gobbo-siege-gang-commander",
+          "card": "Siege-Gang Commander",
+          "subject": "a helmeted goblin chief standing atop a rickety wooden siege catapult with lit fuses"
+        },
+        {
+          "id": "gobbo-muxus-goblin-grandee",
+          "card": "Muxus, Goblin Grandee",
+          "subject": "an ostentatious goblin warlord seated on a gilded scrap-iron throne surrounded by banners"
+        }
+      ]
+    },
+    {
+      "id": "fresco",
+      "name": "Angel Fresco",
+      "es": "Fresco angelical",
+      "capsule": "#d4b26a",
+      "style": "renaissance cathedral ceiling fresco painted in warm ivory plaster, lapis azure, and hammered gold leaf",
+      "items": [
+        {
+          "id": "fresco-serra-angel",
+          "card": "Serra Angel",
+          "subject": "a serene winged warrior hovering in golden shafts of light with sword drawn and calm gaze"
+        },
+        {
+          "id": "fresco-baneslayer-angel",
+          "card": "Baneslayer Angel",
+          "subject": "a radiant silver-armored angel sweeping down with blazing crimson-tipped wings"
+        },
+        {
+          "id": "fresco-avacyn-angel-of-hope",
+          "card": "Avacyn, Angel of Hope",
+          "subject": "a solemn silver-haired guardian angel descending with a gleaming collar spear under moonlight"
+        },
+        {
+          "id": "fresco-lyra-dawnbringer",
+          "card": "Lyra Dawnbringer",
+          "subject": "a sunrise-lit archangel raising a blazing banner of white feathers above marble clouds"
+        },
+        {
+          "id": "fresco-giada-font-of-hope",
+          "card": "Giada, Font of Hope",
+          "subject": "a young luminous angel channeling golden halo ribbons over an art-deco sanctuary"
+        }
+      ]
+    },
+    {
+      "id": "blueprt",
+      "name": "Artifact Blueprints",
+      "es": "Planos de artefactos",
+      "capsule": "#3e6f99",
+      "style": "artificer workshop gouache on Prussian-blue drafting linen with luminous chalk linework and warm brass highlights",
+      "items": [
+        {
+          "id": "blueprt-wurmcoil-engine",
+          "card": "Wurmcoil Engine",
+          "subject": "a segmented brass-and-steel mechanical wurm coiling around glowing turquoise power cores"
+        },
+        {
+          "id": "blueprt-blightsteel-colossus",
+          "card": "Blightsteel Colossus",
+          "subject": "a towering dark-iron juggernaut striding through emerald alchemical vapor and sparks"
+        },
+        {
+          "id": "blueprt-walking-ballista",
+          "card": "Walking Ballista",
+          "subject": "a spindly bronze spider-legged siege engine bristling with glowing arcane bolts"
+        },
+        {
+          "id": "blueprt-solemn-simulacrum",
+          "card": "Solemn Simulacrum",
+          "subject": "a melancholy weathered clockwork automaton standing quietly in a misty pine glade"
+        },
+        {
+          "id": "blueprt-cranial-plating",
+          "card": "Cranial Plating",
+          "subject": "an intricate articulated brass-and-onyx crown harness humming with amber arcs"
+        }
+      ]
+    },
+    {
+      "id": "grave",
+      "name": "Graveyard Woodblock",
+      "es": "Grabado del cementerio",
+      "capsule": "#4f6d4c",
+      "style": "moody hand-carved woodblock print with mossy sage, bone parchment, and deep ink shadows",
+      "items": [
+        {
+          "id": "grave-griselbrand",
+          "card": "Griselbrand",
+          "subject": "a colossal horned archdemon rising behind iron cathedral bars with outstretched wings"
+        },
+        {
+          "id": "grave-archon-of-cruelty",
+          "card": "Archon of Cruelty",
+          "subject": "a masked winged judge perched atop a dark winged steed over ash-covered ruins"
+        },
+        {
+          "id": "grave-vengevine",
+          "card": "Vengevine",
+          "subject": "a ferocious tangled elemental beast of thorny roots and glowing moss surging from forest loam"
+        },
+        {
+          "id": "grave-bloodghast",
+          "card": "Bloodghast",
+          "subject": "a drifting crimson-shrouded phantom gliding over moonlit tombstones and dead grass"
+        },
+        {
+          "id": "grave-golgari-grave-troll",
+          "card": "Golgari Grave-Troll",
+          "subject": "a hulking moss-and-fungus covered troll lumbering through a misty bog graveyard"
+        }
+      ]
+    },
+    {
+      "id": "storm",
+      "name": "Storm Calligraphy",
+      "es": "Caligrafía de tormenta",
+      "capsule": "#4b529e",
+      "style": "sweeping sumi-e ink and electric cobalt watercolor with violent silver lightning and vermilion seal accents",
+      "items": [
+        {
+          "id": "storm-tendrils-of-agony",
+          "card": "Tendrils of Agony",
+          "subject": "whirling ribbons of obsidian ink spiraling around a shadowed mage in a tempest"
+        },
+        {
+          "id": "storm-grapeshot",
+          "card": "Grapeshot",
+          "subject": "a cascading volley of glowing scarlet-and-amber firebolts streaking across ink-black clouds"
+        },
+        {
+          "id": "storm-past-in-flames",
+          "card": "Past in Flames",
+          "subject": "burning parchment scrolls swirling upward into a bright phoenix-shaped pillar of fire"
+        },
+        {
+          "id": "storm-empty-the-warrens",
+          "card": "Empty the Warrens",
+          "subject": "a surging silhouette wave of tiny horned warriors pouring out of jagged canyon tunnels"
+        },
+        {
+          "id": "storm-aetherflux-reservoir",
+          "card": "Aetherflux Reservoir",
+          "subject": "a floating gilded ring-orb channeling brilliant sapphire plasma arcs across a dark dome"
+        }
+      ]
+    },
+    {
+      "id": "classic",
+      "name": "Classic Iconics",
+      "es": "Clásicos icónicos",
+      "capsule": "#8b6f47",
+      "style": "timeless classic high-fantasy oil painting in rich earth umber, verdant forest green, and warm twilight gold",
+      "items": [
+        {
+          "id": "classic-tarmogoyf",
+          "card": "Tarmogoyf",
+          "subject": "a muscular bone-plated predator stalking through ancient mossy ruins under green mist"
+        },
+        {
+          "id": "classic-snapcaster-mage",
+          "card": "Snapcaster Mage",
+          "subject": "a trench-coated arcane duelist snapping bright blue sparks from his fingertips in a rainy alley"
+        },
+        {
+          "id": "classic-dark-confidant",
+          "card": "Dark Confidant",
+          "subject": "a sharp-eyed robed spymaster studying forbidden parchment by a single tallow candle"
+        },
+        {
+          "id": "classic-stoneforge-mystic",
+          "card": "Stoneforge Mystic",
+          "subject": "a pale runesmith lifting a gleaming white-hot blade from an anvil of floating stone"
+        },
+        {
+          "id": "classic-primeval-titan",
+          "card": "Primeval Titan",
+          "subject": "a towering mountain-shouldered giant striding through sunlit pine valleys with ancient trees on its back"
+        }
+      ]
+    }
+  ]
+}

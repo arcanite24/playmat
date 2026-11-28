@@ -15,6 +15,16 @@ function curve(from: Point, to: Point): string {
   return `M ${from.x} ${from.y} Q ${mx} ${my} ${to.x} ${to.y}`;
 }
 
+/** Midpoint of the quadratic Bezier curve from `from` to `to` (at t = 0.5), for placing numbered target badges. */
+function curveMidpoint(from: Point, to: Point): Point {
+  const mx = (from.x + to.x) / 2;
+  const my = Math.min(from.y, to.y) - Math.abs(to.x - from.x) * 0.18 - 40;
+  return {
+    x: 0.25 * from.x + 0.5 * mx + 0.25 * to.x,
+    y: 0.25 * from.y + 0.5 * my + 0.25 * to.y,
+  };
+}
+
 /** An attack: leaves the attacker toward its target and stops short of it, bowing sideways so parallel attacks fan out. */
 function attackPath(from: Point, to: Point, index: number, count: number): string {
   const dx = to.x - from.x;
@@ -36,17 +46,18 @@ function feederPath(from: Point, to: Point): string {
   return `M ${start.x} ${start.y} Q ${control.x} ${control.y} ${to.x} ${to.y}`;
 }
 
-/** Attack arrows of one color: the usual oxblood (no color), or a player's earned arrow color (B300). */
+/** Attack arrows of one color and focus state: the usual oxblood (no color), a player's earned arrow color (B300), or per-defender colors in multi-defender combat. */
 interface AttackLayer {
   color: string | null;
+  dim: boolean;
   paths: string[];
   feeders: string[];
 }
 
-function layerFor(layers: AttackLayer[], color: string | null): AttackLayer {
-  let layer = layers.find((candidate) => candidate.color === color);
+function layerFor(layers: AttackLayer[], color: string | null, dim: boolean): AttackLayer {
+  let layer = layers.find((candidate) => candidate.color === color && candidate.dim === dim);
   if (!layer) {
-    layer = { color, paths: [], feeders: [] };
+    layer = { color, dim, paths: [], feeders: [] };
     layers.push(layer);
   }
   return layer;
@@ -62,9 +73,11 @@ function tintStyle(color: string | null): CSSProperties | undefined {
  * they attack, or their blockers once blocked; what the top of the stack targets (ink); and while choosing targets,
  * a live arrow from the spell to the pointer (amber).
  */
-export function Arrows({ sourceId, targetIds, live, attacks, leads, tints }: {
+export function Arrows({ sourceId, targetIds, targetLabels, live, attacks, leads, tints, defenderColors }: {
   sourceId: string | null;
   targetIds: string[];
+  /** optional short labels for multi-target spells/abilities (shown as numbered badges along each target arrow) */
+  targetLabels?: readonly (string | null)[];
   live: boolean;
   /** attacker -> what it swings at: the player, planeswalker or battle it attacks, or each blocker blocking it */
   attacks: [string, string][];
@@ -72,12 +85,15 @@ export function Arrows({ sourceId, targetIds, live, attacks, leads, tints }: {
   leads: ReadonlyMap<string, string>;
   /** permanents whose controller earned an arrow color: their attacks are drawn in it */
   tints?: ReadonlyMap<string, string>;
+  /** defender id -> distinct color when attacking multiple defenders at once */
+  defenderColors?: ReadonlyMap<string, string>;
 }) {
   const center = useObjectCenter();
   const stage = useStage();
   const [, setTick] = useState(0);
   const [pointer, setPointer] = useState<Point | null>(null);
   const dragging = useMatchUi((state) => state.dragging);
+  const hoveredDefender = useMatchUi((state) => state.hoveredDefender);
   // a creature dragged toward an attacker to block it: a live line that snaps to the attacker under the pointer
   const blockDrag = useMatchUi((state) => state.blockDrag);
 
@@ -95,6 +111,24 @@ export function Arrows({ sourceId, targetIds, live, attacks, leads, tints }: {
     // a resized window moves everything: measure again
   }, [sourceId, targetKey, stage.scale, stage.width, stage.height]);
 
+  // the backstop for a drag whose card never heard the release: any release, or leaving the window, ends the line
+  const lineHeld = !!blockDrag;
+  useEffect(() => {
+    if (!lineHeld) return;
+    const end = () => {
+      // after the card's own pointerup, which reads the drop from the event, not from here
+      window.setTimeout(() => useMatchUi.getState().setBlockDrag(null), 0);
+    };
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+    window.addEventListener('blur', end);
+    return () => {
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+      window.removeEventListener('blur', end);
+    };
+  }, [lineHeld]);
+
   const tracking = live || !!blockDrag;
   useEffect(() => {
     if (!tracking) {
@@ -107,31 +141,39 @@ export function Arrows({ sourceId, targetIds, live, attacks, leads, tints }: {
   }, [tracking, stage]);
 
   const from = sourceId ? center(sourceId) : null;
-  const targets = from ? targetIds.map(center).filter((point): point is Point => !!point) : [];
+  const targets = from
+    ? targetIds.map((id, index) => ({ point: center(id), index, label: targetLabels?.[index] ?? null }))
+      .filter((entry): entry is { point: Point; index: number; label: string | null } => !!entry.point)
+    : [];
   // one arrow per attacking stack; many stacks at one defender join into a trunk with a count
-  const single: { from: Point; to: Point; color: string | null }[] = [];
+  const bundles = bundleAttacks(attacks, leads);
+  const multiDefender = bundles.length > 1;
+  const focusDefender = hoveredDefender && bundles.some((bundle) => bundle.defender === hoveredDefender) ? hoveredDefender : null;
+  const single: { from: Point; to: Point; color: string | null; dim: boolean }[] = [];
   const layers: AttackLayer[] = [];
-  const trunks: { at: Point; count: number }[] = [];
-  for (const bundle of bundleAttacks(attacks, leads)) {
+  const trunks: { at: Point; count: number; color: string | null; dim: boolean }[] = [];
+  for (const bundle of bundles) {
     const to = center(bundle.defender);
     if (!to) continue;
+    const bundleColor = multiDefender ? (defenderColors?.get(bundle.defender) ?? null) : null;
+    const dim = focusDefender !== null && bundle.defender !== focusDefender;
     const sources = bundle.sources
-      .map((source) => ({ at: center(source.id), color: tints?.get(source.id) ?? null }))
+      .map((source) => ({ at: center(source.id), color: bundleColor ?? tints?.get(source.id) ?? null }))
       .filter((source): source is { at: Point; color: string | null } => !!source.at);
     if (sources.length === 0) continue;
     if (isTrunk(bundle)) {
       const join = trunkJoin(sources.map((source) => source.at), to);
-      // a trunk is one player's horde: it takes the color of its first stack
-      const layer = layerFor(layers, sources[0].color);
+      // a trunk is one player's horde: it takes the defender's color in multi-defender combat, else its first stack's
+      const layer = layerFor(layers, sources[0].color, dim);
       sources.forEach((source) => layer.feeders.push(feederPath(source.at, join)));
       layer.paths.push(attackPath(join, to, 0, 1));
       // the count sits where the feeders meet, clear of the defender's board
-      trunks.push({ at: join, count: bundle.count });
+      trunks.push({ at: join, count: bundle.count, color: sources[0].color, dim });
     } else {
-      sources.forEach((source) => single.push({ from: source.at, to, color: source.color }));
+      sources.forEach((source) => single.push({ from: source.at, to, color: source.color, dim }));
     }
   }
-  single.forEach((arrow, index) => layerFor(layers, arrow.color).paths.push(attackPath(arrow.from, arrow.to, index, single.length)));
+  single.forEach((arrow, index) => layerFor(layers, arrow.color, arrow.dim).paths.push(attackPath(arrow.from, arrow.to, index, single.length)));
   const blockFrom = blockDrag ? center(blockDrag.blockerId) : null;
   const blockTo = blockDrag?.attackerId ? center(blockDrag.attackerId) : pointer;
   const blockLine = blockFrom && blockTo ? [blockFrom, blockTo] as const : null;
@@ -155,7 +197,7 @@ export function Arrows({ sourceId, targetIds, live, attacks, leads, tints }: {
       </defs>
       {/* each layer is filtered once as a whole: a filter per arrow, repainted under the marching dashes, stalls the frame when a horde attacks */}
       {layers.map((layer, layerIndex) => (
-        <g key={layerIndex} style={tintStyle(layer.color)}>
+        <g key={layerIndex} className={layer.dim ? styles.dim : undefined} style={tintStyle(layer.color)}>
           <g className={styles.attackGlow}>
             {layer.feeders.map((d, index) => <path key={`f${index}`} className={[styles.attack, styles.feeder].join(' ')} d={d} />)}
             {layer.paths.map((d, index) => <path key={index} className={styles.attack} d={d} />)}
@@ -167,7 +209,12 @@ export function Arrows({ sourceId, targetIds, live, attacks, leads, tints }: {
         </g>
       ))}
       {trunks.map((trunk, index) => (
-        <g key={index} className={styles.attackCount} transform={`translate(${trunk.at.x} ${trunk.at.y})`}>
+        <g
+          key={index}
+          className={[styles.attackCount, trunk.dim ? styles.dim : ''].join(' ')}
+          style={tintStyle(trunk.color)}
+          transform={`translate(${trunk.at.x} ${trunk.at.y})`}
+        >
           <circle r={26} />
           <text dy="0.35em">×{trunk.count}</text>
         </g>
@@ -198,7 +245,7 @@ export function Arrows({ sourceId, targetIds, live, attacks, leads, tints }: {
           </marker>
         </defs>
         {layers.map((layer, layerIndex) => (
-          <g key={layerIndex} className={styles.attackFlow} style={tintStyle(layer.color)}>
+          <g key={layerIndex} className={[styles.attackFlow, layer.dim ? styles.dim : ''].join(' ')} style={tintStyle(layer.color)}>
             {layer.paths.map((d, index) => <path key={index} className={styles.attack} d={d} />)}
           </g>
         ))}
@@ -206,9 +253,18 @@ export function Arrows({ sourceId, targetIds, live, attacks, leads, tints }: {
           <g className={styles.ink}>
             {/* the shadow, drawn as a dashed path of its own rather than a filter over the marching one */}
             <g className={styles.inkShade}>
-              {targets.map((to, index) => <path key={index} d={curve(from, to)} markerEnd="url(#arrow-ink-shade)" />)}
+              {targets.map((entry) => <path key={entry.index} d={curve(from, entry.point)} markerEnd="url(#arrow-ink-shade)" />)}
             </g>
-            {targets.map((to, index) => <path key={index} d={curve(from, to)} markerEnd="url(#arrow-ink)" />)}
+            {targets.map((entry) => <path key={entry.index} d={curve(from, entry.point)} markerEnd="url(#arrow-ink)" />)}
+            {targets.length > 1 && targets.map((entry) => {
+              const mid = curveMidpoint(from, entry.point);
+              return (
+                <g key={`badge-${entry.index}`} className={styles.targetBadge} transform={`translate(${mid.x} ${mid.y})`}>
+                  <circle r={16} />
+                  <text dy="0.35em">{entry.index + 1}</text>
+                </g>
+              );
+            })}
           </g>
         )}
       </svg>

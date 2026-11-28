@@ -1,0 +1,16 @@
+# name: Train200 mono-u-control-5
+# archetype: control
+# colors: U
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Blink of an Eye
+2 Ceremonious Rejection
+4 Concerted Defense
+2 Deep-Sea Terror
+4 Depart the Realm
+4 Kozilek's Return
+4 Statute of Denial
+4 Thassa, Deep-Dwelling
+4 Titan's Presence
+2 Urza's Rebuff
+2 Wiccan, Rising Magician
+26 Island

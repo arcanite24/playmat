@@ -1,0 +1,29 @@
+{
+  "$comment": "Wave 4/5 completion reward companions and Phase 6 earnable 3D pet portraits.",
+  "out": "public/career-art/companion",
+  "house": false,
+  "panels": false,
+  "size": "512x512",
+  "anchors": [],
+  "refs": [],
+  "style": "painterly Magic: The Gathering oil and gouache tabletop companion miniature portrait, warm workshop lighting, clean readable silhouette on a deep shadowed backdrop, no text or borders",
+  "rules": "Center the creature cleanly with breathing room around it so it works as a charming tabletop companion icon.",
+  "items": [
+    {
+      "id": "astral-phoenix",
+      "subject": "a luminous miniature astral phoenix with iridescent violet-and-gold tail feathers hovering over swirling stardust"
+    },
+    {
+      "id": "atelier-owl",
+      "subject": "a refined artificer's workshop owl wearing a small copper monocle perched on a brass drafting compass"
+    },
+    {
+      "id": "mini-dragon",
+      "subject": "an adorable armored crimson-and-gold miniature hatchling dragon curling playfully around a glowing ruby mana crystal"
+    },
+    {
+      "id": "golem-pup",
+      "subject": "a stout friendly little rune-carved stone-and-brass golem puppy with glowing warm amber eyes and mossy shoulders"
+    }
+  ]
+}

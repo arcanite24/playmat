@@ -1,0 +1,25 @@
+# name: Train200 tri-wbg-bigmana-26
+# archetype: bigmana
+# colors: WBG
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Champions of the Perfect
+2 Cleaving Reaper
+2 Creakwood Safewright
+2 Dreadfeast Demon
+4 Moonshadow
+1 Natural End
+2 Nylea, God of the Hunt
+4 Pugnacious Hammerskull
+3 Rampaging Hippo
+1 Rhonas the Indomitable
+3 Summon: Titan
+3 Tainted Treats
+2 Vanishing Verse
+1 Yargle and Multani
+2 You're Ambushed on the Road
+7 Forest
+4 Overgrown Tomb
+1 Plains
+4 Radiant Grove
+4 Razorverge Thicket
+5 Swamp

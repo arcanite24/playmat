@@ -71,6 +71,11 @@ export interface TargetPrompt extends PromptBase {
   chosen: string[];
   /** label for finishing the choice when enough targets are chosen */
   doneLabel: string | null;
+  /**
+   * the targets of an optional ("you may") triggered ability, chosen as it goes on the stack: its "may" is asked when
+   * it resolves (`HumanPlayer.chooseTarget`'s `optionalTrigger` option)
+   */
+  optionalTrigger?: boolean;
 }
 
 export interface AskPrompt extends PromptBase {
@@ -208,6 +213,7 @@ export function parsePrompt<M extends PromptEventName>(method: M, data: Callback
         required: message.flag === true,
         chosen: idList(common.options.chosenTargets),
         doneLabel: label(common.options['UI.right.btn.text']),
+        optionalTrigger: common.options.optionalTrigger === true,
       };
     }
     case 'GAME_ASK': {

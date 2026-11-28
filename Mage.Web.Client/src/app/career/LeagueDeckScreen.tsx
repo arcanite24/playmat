@@ -43,7 +43,11 @@ export function LeagueDeckScreen() {
     (async () => {
       try {
         if (deckId === 'new') {
-          const format = params.get('format') === 'pioneer' ? 'pioneer' : 'standard';
+          const rawFormat = params.get('format');
+          const format =
+            rawFormat === 'pioneer' || rawFormat === 'commander' || rawFormat === 'pauper' || rawFormat === 'brawl'
+              ? rawFormat
+              : 'standard';
           const made = await api.leagueSaveDeck(null, t('league.deck.newName'), format, { cards: [], sideboard: [] } as never);
           if (!cancelled) navigate(`/career/league/deck/${encodeURIComponent(made.id ?? '')}`, { replace: true });
           return;
@@ -65,15 +69,16 @@ export function LeagueDeckScreen() {
 
   const format = view?.format ?? 'standard';
   const id = view?.id ?? '';
+  const limit = format === 'commander' || format === 'brawl' ? 1 : PLAYSET;
   const mode = useMemo<BuilderMode>(() => ({
     Binder: LeagueBinder,
-    allowance: (name) => (isBasic(name) ? Infinity : PLAYSET),
+    allowance: (name) => (isBasic(name) ? Infinity : limit),
     save: (deck) => void saveLeagueDeck(id, format, deck),
     doneLabel: t('league.title'),
     onDone: () => navigate(leaguePath(format)),
     onPlay: () => navigate(leaguePath(format)),
     Banner: CraftBanner,
-  }), [id, format, navigate, t]);
+  }), [id, format, limit, navigate, t]);
   const initial = useMemo<DeckCardLists | null>(() => (view ? toBuilderDeck(view) : null), [view]);
 
   if (error) return <p className={styles.screenNote} role="alert">{error}</p>;
@@ -108,7 +113,8 @@ function CraftBanner({ deck }: { deck: DeckCardLists }) {
   const crafting = useLeagueBuild((state) => state.crafting);
   const collection = useCareerCollection(true);
   const owned = useMemo(() => ownedByName(collection.data ?? []), [collection.data]);
-  const short = useMemo(() => missingCards(deck, owned), [deck, owned]);
+  const copyLimit = view?.format === 'commander' || view?.format === 'brawl' ? 1 : PLAYSET;
+  const short = useMemo(() => missingCards(deck, owned, copyLimit), [deck, owned, copyLimit]);
   const lacking = short.reduce((total, card) => total + card.inDeck - card.owned, 0);
   const craft = view?.craft;
   const cost = [

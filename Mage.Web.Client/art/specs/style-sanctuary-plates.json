@@ -1,0 +1,49 @@
+{
+  "$comment": "Card styles of the Sanctuary Plates set (Planar Horizons capsule machine), written by art/machine-specs.mjs from career/machines/planar-horizons.json: edit that file and re-run, not this one.",
+  "out": "public/career-art/cardstyle/sanctuary-plates",
+  "house": false,
+  "panels": true,
+  "grid": {
+    "cols": 4,
+    "rows": 2,
+    "canvas": "landscape"
+  },
+  "size": "640x894",
+  "anchors": [],
+  "refs": [
+    "mh2/261",
+    "tsp/269",
+    "chk/279"
+  ],
+  "style": "Hand-tinted copperplate landscape engraving: crisp architectural linework paired with soft hand-applied watercolour glazes in sage, slate blue and warm sandstone.",
+  "rules": "These are full-art pictures for playing cards: the client draws a small name plate over the top edge, mana symbols at the top right and power and toughness at the bottom right, so keep the main subject in the middle of the panel and the top 15% and bottom 15% calm and uncluttered (sky, ground, water, background texture), with nothing important in the corners. Each panel shows its own subject as one clear, readable scene, the same style and palette as its neighbours, as if the whole row were a matched, limited-edition art series.",
+  "spare": "an extra painting in the same style: a sprawling cathedral-like canopy of intertwined emerald boughs and mossy root bridges over sunlit ferns",
+  "items": [
+    {
+      "id": "yavimaya-cradle-of-growth",
+      "subject": "a sprawling cathedral-like canopy of intertwined emerald boughs and mossy root bridges over sunlit ferns"
+    },
+    {
+      "id": "maze-of-ith",
+      "subject": "a spiralling fortress of tall weathered stone corridors rising from misty coastal crags"
+    },
+    {
+      "id": "academy-ruins",
+      "subject": "a broken domed library half-submerged in a tranquil blue lagoon, brass astrolabes resting in the shallows"
+    },
+    {
+      "id": "volraths-stronghold",
+      "subject": "a dark terraced obsidian citadel built inside a hollow volcanic mountain mouth"
+    },
+    {
+      "id": "minamo-school-at-waters-edge",
+      "subject": "graceful tiered timber halls perched beside a dramatic misty waterfall cascading into clear pools"
+    },
+    {
+      "id": "set-sanctuary-plates",
+      "out": "public/career-art/sleeve/set-sanctuary-plates.webp",
+      "size": "540x756",
+      "subject": "the BACK of a playing card in the same style: a symmetrical ornamental design (it is seen upside down too) with a central emblem drawn from this set's theme, framed by a painted border; no logo, no oval, no five dots, no lettering"
+    }
+  ]
+}

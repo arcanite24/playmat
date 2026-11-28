@@ -1,0 +1,4281 @@
+{
+  "version": 1,
+  "profiles": {
+    "aggro": {
+      "id": "aggro",
+      "mulligan": {
+        "minLands": 2,
+        "maxLands": 4,
+        "requireEarlyActionByTurn": 2,
+        "requireColorMatch": true,
+        "preferKeepRoles": [
+          "early_play",
+          "haste",
+          "prowess_trigger"
+        ]
+      },
+      "timing": {
+        "holdManaForInstants": false,
+        "holdManaPriority": 15,
+        "castCreaturesMain2": false,
+        "minCounterMv": 2,
+        "sweeperMinNetCreatures": 2,
+        "sweeperEmergencyLife": 6,
+        "burnFaceThresholdLife": 9,
+        "useEotDraw": false
+      },
+      "combat": {
+        "aggression": 55,
+        "protectRoles": [
+          "lord",
+          "engine"
+        ],
+        "chumpBlockLifeThreshold": 5,
+        "blockEvasivePriority": 1.0
+      },
+      "evalMultipliers": {
+        "life_score": 1.45,
+        "life": 1.65,
+        "clock": 1.85,
+        "evasive_power": 1.35,
+        "power": 1.3,
+        "hand": 0.7,
+        "lands": 0.75
+      }
+    },
+    "burn": {
+      "id": "burn",
+      "mulligan": {
+        "minLands": 1,
+        "maxLands": 3,
+        "requireEarlyActionByTurn": 2,
+        "requireColorMatch": true,
+        "preferKeepRoles": [
+          "early_play",
+          "burn",
+          "prowess_trigger"
+        ]
+      },
+      "timing": {
+        "holdManaForInstants": false,
+        "holdManaPriority": 20,
+        "castCreaturesMain2": false,
+        "minCounterMv": 2,
+        "sweeperMinNetCreatures": 2,
+        "sweeperEmergencyLife": 5,
+        "burnFaceThresholdLife": 11,
+        "useEotDraw": false
+      },
+      "combat": {
+        "aggression": 70,
+        "protectRoles": [
+          "engine"
+        ],
+        "chumpBlockLifeThreshold": 4,
+        "blockEvasivePriority": 0.9
+      },
+      "evalMultipliers": {
+        "life_score": 1.75,
+        "life": 2.0,
+        "clock": 1.95,
+        "hand": 0.85,
+        "lands": 0.6,
+        "toughness": 0.75
+      }
+    },
+    "tempo": {
+      "id": "tempo",
+      "mulligan": {
+        "minLands": 2,
+        "maxLands": 4,
+        "requireEarlyActionByTurn": 2,
+        "requireColorMatch": true,
+        "preferKeepRoles": [
+          "early_play",
+          "counter",
+          "draw",
+          "evasive"
+        ]
+      },
+      "timing": {
+        "holdManaForInstants": true,
+        "holdManaPriority": 70,
+        "castCreaturesMain2": true,
+        "minCounterMv": 2,
+        "sweeperMinNetCreatures": 2,
+        "sweeperEmergencyLife": 7,
+        "burnFaceThresholdLife": 7,
+        "useEotDraw": true
+      },
+      "combat": {
+        "aggression": 25,
+        "protectRoles": [
+          "engine",
+          "lord"
+        ],
+        "chumpBlockLifeThreshold": 6,
+        "blockEvasivePriority": 1.25
+      },
+      "evalMultipliers": {
+        "evasive_power": 1.5,
+        "clock": 1.45,
+        "hand": 1.3,
+        "life_score": 1.2
+      }
+    },
+    "midrange": {
+      "id": "midrange",
+      "mulligan": {
+        "minLands": 2,
+        "maxLands": 4,
+        "requireEarlyActionByTurn": 3,
+        "requireColorMatch": true,
+        "preferKeepRoles": [
+          "early_play",
+          "cheap_removal",
+          "engine"
+        ]
+      },
+      "timing": {
+        "holdManaForInstants": false,
+        "holdManaPriority": 35,
+        "castCreaturesMain2": true,
+        "minCounterMv": 2,
+        "sweeperMinNetCreatures": 2,
+        "sweeperEmergencyLife": 8,
+        "burnFaceThresholdLife": 6,
+        "useEotDraw": true
+      },
+      "combat": {
+        "aggression": 10,
+        "protectRoles": [
+          "engine",
+          "mana_dork",
+          "lord"
+        ],
+        "chumpBlockLifeThreshold": 7,
+        "blockEvasivePriority": 1.2
+      },
+      "evalMultipliers": {
+        "creatures": 1.15,
+        "power": 1.15,
+        "toughness": 1.15,
+        "hand": 1.25,
+        "loyalty": 1.35,
+        "other_permanents": 1.2
+      }
+    },
+    "control": {
+      "id": "control",
+      "mulligan": {
+        "minLands": 3,
+        "maxLands": 5,
+        "requireEarlyActionByTurn": 3,
+        "requireColorMatch": true,
+        "preferKeepRoles": [
+          "counter",
+          "cheap_removal",
+          "draw",
+          "sweeper"
+        ]
+      },
+      "timing": {
+        "holdManaForInstants": true,
+        "holdManaPriority": 90,
+        "castCreaturesMain2": true,
+        "minCounterMv": 2,
+        "sweeperMinNetCreatures": 1,
+        "sweeperEmergencyLife": 10,
+        "burnFaceThresholdLife": 4,
+        "useEotDraw": true
+      },
+      "combat": {
+        "aggression": -35,
+        "protectRoles": [
+          "engine",
+          "finisher",
+          "mana_dork",
+          "combo_piece"
+        ],
+        "chumpBlockLifeThreshold": 9,
+        "blockEvasivePriority": 1.4
+      },
+      "evalMultipliers": {
+        "life_score": 1.35,
+        "hand": 1.85,
+        "lands": 1.45,
+        "loyalty": 1.55,
+        "other_permanents": 1.25,
+        "creatures": 0.9
+      }
+    },
+    "ramp": {
+      "id": "ramp",
+      "mulligan": {
+        "minLands": 3,
+        "maxLands": 5,
+        "requireEarlyActionByTurn": 2,
+        "requireColorMatch": true,
+        "preferKeepRoles": [
+          "mana_dork",
+          "ramp",
+          "enabler",
+          "finisher"
+        ]
+      },
+      "timing": {
+        "holdManaForInstants": false,
+        "holdManaPriority": 20,
+        "castCreaturesMain2": false,
+        "minCounterMv": 2,
+        "sweeperMinNetCreatures": 2,
+        "sweeperEmergencyLife": 9,
+        "burnFaceThresholdLife": 5,
+        "useEotDraw": true
+      },
+      "combat": {
+        "aggression": 5,
+        "protectRoles": [
+          "mana_dork",
+          "engine",
+          "payoff"
+        ],
+        "chumpBlockLifeThreshold": 8,
+        "blockEvasivePriority": 1.2
+      },
+      "evalMultipliers": {
+        "lands": 1.85,
+        "power": 1.3,
+        "toughness": 1.2,
+        "hand_mv": 1.25,
+        "life_score": 1.2
+      }
+    },
+    "combo": {
+      "id": "combo",
+      "mulligan": {
+        "minLands": 2,
+        "maxLands": 4,
+        "requireEarlyActionByTurn": 3,
+        "requireColorMatch": true,
+        "preferKeepRoles": [
+          "enabler",
+          "combo_piece",
+          "tutor",
+          "draw"
+        ]
+      },
+      "timing": {
+        "holdManaForInstants": true,
+        "holdManaPriority": 60,
+        "castCreaturesMain2": true,
+        "minCounterMv": 2,
+        "sweeperMinNetCreatures": 1,
+        "sweeperEmergencyLife": 9,
+        "burnFaceThresholdLife": 5,
+        "useEotDraw": true
+      },
+      "combat": {
+        "aggression": -20,
+        "protectRoles": [
+          "combo_piece",
+          "enabler",
+          "engine",
+          "mana_dork"
+        ],
+        "chumpBlockLifeThreshold": 9,
+        "blockEvasivePriority": 1.3
+      },
+      "evalMultipliers": {
+        "hand": 1.65,
+        "lands": 1.3,
+        "other_permanents": 1.4,
+        "life_score": 1.25
+      }
+    },
+    "graveyard": {
+      "id": "graveyard",
+      "mulligan": {
+        "minLands": 2,
+        "maxLands": 4,
+        "requireEarlyActionByTurn": 2,
+        "requireColorMatch": true,
+        "preferKeepRoles": [
+          "enabler",
+          "reanimator",
+          "reanimate_target",
+          "draw"
+        ]
+      },
+      "timing": {
+        "holdManaForInstants": false,
+        "holdManaPriority": 40,
+        "castCreaturesMain2": false,
+        "minCounterMv": 2,
+        "sweeperMinNetCreatures": 2,
+        "sweeperEmergencyLife": 8,
+        "burnFaceThresholdLife": 6,
+        "useEotDraw": true
+      },
+      "combat": {
+        "aggression": 15,
+        "protectRoles": [
+          "engine",
+          "enabler",
+          "payoff"
+        ],
+        "chumpBlockLifeThreshold": 7,
+        "blockEvasivePriority": 1.15
+      },
+      "evalMultipliers": {
+        "graveyard": 2.2,
+        "hand": 1.2,
+        "power": 1.25,
+        "evasive_power": 1.25
+      }
+    },
+    "sacrifice": {
+      "id": "sacrifice",
+      "mulligan": {
+        "minLands": 2,
+        "maxLands": 4,
+        "requireEarlyActionByTurn": 2,
+        "requireColorMatch": true,
+        "preferKeepRoles": [
+          "fodder",
+          "sac_outlet",
+          "payoff",
+          "engine"
+        ]
+      },
+      "timing": {
+        "holdManaForInstants": false,
+        "holdManaPriority": 30,
+        "castCreaturesMain2": false,
+        "minCounterMv": 2,
+        "sweeperMinNetCreatures": 2,
+        "sweeperEmergencyLife": 7,
+        "burnFaceThresholdLife": 7,
+        "useEotDraw": false
+      },
+      "combat": {
+        "aggression": 20,
+        "protectRoles": [
+          "payoff",
+          "engine",
+          "sac_outlet",
+          "mana_dork"
+        ],
+        "chumpBlockLifeThreshold": 7,
+        "blockEvasivePriority": 1.1
+      },
+      "evalMultipliers": {
+        "other_permanents": 1.55,
+        "creatures": 1.3,
+        "life_score": 1.25,
+        "graveyard": 1.3
+      }
+    },
+    "tribal": {
+      "id": "tribal",
+      "mulligan": {
+        "minLands": 2,
+        "maxLands": 4,
+        "requireEarlyActionByTurn": 2,
+        "requireColorMatch": true,
+        "preferKeepRoles": [
+          "early_play",
+          "lord",
+          "engine"
+        ]
+      },
+      "timing": {
+        "holdManaForInstants": false,
+        "holdManaPriority": 25,
+        "castCreaturesMain2": false,
+        "minCounterMv": 2,
+        "sweeperMinNetCreatures": 2,
+        "sweeperEmergencyLife": 6,
+        "burnFaceThresholdLife": 7,
+        "useEotDraw": false
+      },
+      "combat": {
+        "aggression": 40,
+        "protectRoles": [
+          "lord",
+          "engine",
+          "mana_dork"
+        ],
+        "chumpBlockLifeThreshold": 6,
+        "blockEvasivePriority": 1.15
+      },
+      "evalMultipliers": {
+        "creatures": 1.4,
+        "power": 1.3,
+        "clock": 1.5,
+        "evasive_power": 1.25
+      }
+    },
+    "cmdr_voltron": {
+      "id": "cmdr_voltron",
+      "mulligan": {
+        "minLands": 2,
+        "maxLands": 4,
+        "requireEarlyActionByTurn": 2,
+        "requireColorMatch": true,
+        "preferKeepRoles": [
+          "ramp",
+          "protection",
+          "equipment",
+          "aura"
+        ]
+      },
+      "timing": {
+        "holdManaForInstants": true,
+        "holdManaPriority": 55,
+        "castCreaturesMain2": false,
+        "minCounterMv": 2,
+        "sweeperMinNetCreatures": 3,
+        "sweeperEmergencyLife": 12,
+        "burnFaceThresholdLife": 10,
+        "useEotDraw": false
+      },
+      "combat": {
+        "aggression": 65,
+        "protectRoles": [
+          "commander",
+          "engine"
+        ],
+        "chumpBlockLifeThreshold": 8,
+        "blockEvasivePriority": 1.2
+      },
+      "evalMultipliers": {
+        "power": 1.65,
+        "evasive_power": 1.55,
+        "clock": 1.85,
+        "other_permanents": 1.35,
+        "life_score": 1.1
+      }
+    },
+    "cmdr_tokens": {
+      "id": "cmdr_tokens",
+      "mulligan": {
+        "minLands": 3,
+        "maxLands": 4,
+        "requireEarlyActionByTurn": 3,
+        "requireColorMatch": true,
+        "preferKeepRoles": [
+          "ramp",
+          "token_maker",
+          "engine",
+          "anthem"
+        ]
+      },
+      "timing": {
+        "holdManaForInstants": false,
+        "holdManaPriority": 20,
+        "castCreaturesMain2": false,
+        "minCounterMv": 3,
+        "sweeperMinNetCreatures": 4,
+        "sweeperEmergencyLife": 10,
+        "burnFaceThresholdLife": 8,
+        "useEotDraw": false
+      },
+      "combat": {
+        "aggression": 45,
+        "protectRoles": [
+          "commander",
+          "token_maker",
+          "lord",
+          "engine"
+        ],
+        "chumpBlockLifeThreshold": 12,
+        "blockEvasivePriority": 1.15
+      },
+      "evalMultipliers": {
+        "creatures": 1.75,
+        "power": 1.4,
+        "other_permanents": 1.3,
+        "clock": 1.45
+      }
+    },
+    "cmdr_ramp": {
+      "id": "cmdr_ramp",
+      "mulligan": {
+        "minLands": 3,
+        "maxLands": 5,
+        "requireEarlyActionByTurn": 2,
+        "requireColorMatch": true,
+        "preferKeepRoles": [
+          "ramp",
+          "mana_dork",
+          "mana_rock",
+          "finisher"
+        ]
+      },
+      "timing": {
+        "holdManaForInstants": false,
+        "holdManaPriority": 15,
+        "castCreaturesMain2": false,
+        "minCounterMv": 3,
+        "sweeperMinNetCreatures": 3,
+        "sweeperEmergencyLife": 12,
+        "burnFaceThresholdLife": 6,
+        "useEotDraw": false
+      },
+      "combat": {
+        "aggression": 40,
+        "protectRoles": [
+          "commander",
+          "mana_dork",
+          "engine"
+        ],
+        "chumpBlockLifeThreshold": 12,
+        "blockEvasivePriority": 1.05
+      },
+      "evalMultipliers": {
+        "lands": 1.85,
+        "power": 1.5,
+        "toughness": 1.35,
+        "hand": 1.25
+      }
+    },
+    "cmdr_aristocrats": {
+      "id": "cmdr_aristocrats",
+      "mulligan": {
+        "minLands": 3,
+        "maxLands": 4,
+        "requireEarlyActionByTurn": 2,
+        "requireColorMatch": true,
+        "preferKeepRoles": [
+          "fodder",
+          "sac_outlet",
+          "drain",
+          "ramp"
+        ]
+      },
+      "timing": {
+        "holdManaForInstants": false,
+        "holdManaPriority": 30,
+        "castCreaturesMain2": true,
+        "minCounterMv": 3,
+        "sweeperMinNetCreatures": 3,
+        "sweeperEmergencyLife": 10,
+        "burnFaceThresholdLife": 10,
+        "useEotDraw": false
+      },
+      "combat": {
+        "aggression": 25,
+        "protectRoles": [
+          "commander",
+          "sac_outlet",
+          "drain",
+          "engine"
+        ],
+        "chumpBlockLifeThreshold": 14,
+        "blockEvasivePriority": 1.15
+      },
+      "evalMultipliers": {
+        "creatures": 1.45,
+        "other_permanents": 1.5,
+        "graveyard": 1.4,
+        "life_score": 1.2
+      }
+    },
+    "cmdr_spellslinger": {
+      "id": "cmdr_spellslinger",
+      "mulligan": {
+        "minLands": 3,
+        "maxLands": 4,
+        "requireEarlyActionByTurn": 2,
+        "requireColorMatch": true,
+        "preferKeepRoles": [
+          "ramp",
+          "cantrip",
+          "draw",
+          "counter"
+        ]
+      },
+      "timing": {
+        "holdManaForInstants": true,
+        "holdManaPriority": 75,
+        "castCreaturesMain2": true,
+        "minCounterMv": 3,
+        "sweeperMinNetCreatures": 2,
+        "sweeperEmergencyLife": 14,
+        "burnFaceThresholdLife": 10,
+        "useEotDraw": true
+      },
+      "combat": {
+        "aggression": 20,
+        "protectRoles": [
+          "commander",
+          "engine",
+          "payoff"
+        ],
+        "chumpBlockLifeThreshold": 12,
+        "blockEvasivePriority": 1.3
+      },
+      "evalMultipliers": {
+        "hand": 1.65,
+        "lands": 1.35,
+        "evasive_power": 1.3,
+        "other_permanents": 1.35
+      }
+    },
+    "cmdr_tribal": {
+      "id": "cmdr_tribal",
+      "mulligan": {
+        "minLands": 3,
+        "maxLands": 4,
+        "requireEarlyActionByTurn": 2,
+        "requireColorMatch": true,
+        "preferKeepRoles": [
+          "ramp",
+          "early_play",
+          "lord",
+          "engine"
+        ]
+      },
+      "timing": {
+        "holdManaForInstants": false,
+        "holdManaPriority": 20,
+        "castCreaturesMain2": false,
+        "minCounterMv": 3,
+        "sweeperMinNetCreatures": 4,
+        "sweeperEmergencyLife": 10,
+        "burnFaceThresholdLife": 8,
+        "useEotDraw": false
+      },
+      "combat": {
+        "aggression": 50,
+        "protectRoles": [
+          "commander",
+          "lord",
+          "engine",
+          "mana_dork"
+        ],
+        "chumpBlockLifeThreshold": 10,
+        "blockEvasivePriority": 1.15
+      },
+      "evalMultipliers": {
+        "creatures": 1.55,
+        "power": 1.4,
+        "clock": 1.55,
+        "evasive_power": 1.25
+      }
+    },
+    "cmdr_reanimator": {
+      "id": "cmdr_reanimator",
+      "mulligan": {
+        "minLands": 3,
+        "maxLands": 4,
+        "requireEarlyActionByTurn": 2,
+        "requireColorMatch": true,
+        "preferKeepRoles": [
+          "ramp",
+          "mill",
+          "reanimate",
+          "finisher"
+        ]
+      },
+      "timing": {
+        "holdManaForInstants": false,
+        "holdManaPriority": 25,
+        "castCreaturesMain2": true,
+        "minCounterMv": 3,
+        "sweeperMinNetCreatures": 2,
+        "sweeperEmergencyLife": 12,
+        "burnFaceThresholdLife": 6,
+        "useEotDraw": false
+      },
+      "combat": {
+        "aggression": 35,
+        "protectRoles": [
+          "commander",
+          "engine"
+        ],
+        "chumpBlockLifeThreshold": 12,
+        "blockEvasivePriority": 1.1
+      },
+      "evalMultipliers": {
+        "graveyard": 2.1,
+        "power": 1.4,
+        "hand": 1.2,
+        "lands": 1.3
+      }
+    },
+    "cmdr_lifegain": {
+      "id": "cmdr_lifegain",
+      "mulligan": {
+        "minLands": 3,
+        "maxLands": 4,
+        "requireEarlyActionByTurn": 2,
+        "requireColorMatch": true,
+        "preferKeepRoles": [
+          "ramp",
+          "lifegain",
+          "payoff",
+          "engine"
+        ]
+      },
+      "timing": {
+        "holdManaForInstants": false,
+        "holdManaPriority": 25,
+        "castCreaturesMain2": false,
+        "minCounterMv": 3,
+        "sweeperMinNetCreatures": 3,
+        "sweeperEmergencyLife": 15,
+        "burnFaceThresholdLife": 8,
+        "useEotDraw": false
+      },
+      "combat": {
+        "aggression": 30,
+        "protectRoles": [
+          "commander",
+          "engine",
+          "payoff"
+        ],
+        "chumpBlockLifeThreshold": 12,
+        "blockEvasivePriority": 1.2
+      },
+      "evalMultipliers": {
+        "life_score": 1.6,
+        "life": 1.5,
+        "creatures": 1.35,
+        "other_permanents": 1.35
+      }
+    },
+    "cmdr_artifacts": {
+      "id": "cmdr_artifacts",
+      "mulligan": {
+        "minLands": 2,
+        "maxLands": 4,
+        "requireEarlyActionByTurn": 2,
+        "requireColorMatch": true,
+        "preferKeepRoles": [
+          "mana_rock",
+          "ramp",
+          "engine",
+          "payoff"
+        ]
+      },
+      "timing": {
+        "holdManaForInstants": true,
+        "holdManaPriority": 45,
+        "castCreaturesMain2": true,
+        "minCounterMv": 3,
+        "sweeperMinNetCreatures": 3,
+        "sweeperEmergencyLife": 12,
+        "burnFaceThresholdLife": 8,
+        "useEotDraw": true
+      },
+      "combat": {
+        "aggression": 30,
+        "protectRoles": [
+          "commander",
+          "engine",
+          "payoff"
+        ],
+        "chumpBlockLifeThreshold": 12,
+        "blockEvasivePriority": 1.2
+      },
+      "evalMultipliers": {
+        "other_permanents": 1.85,
+        "lands": 1.35,
+        "hand": 1.3,
+        "power": 1.2
+      }
+    },
+    "cmdr_control": {
+      "id": "cmdr_control",
+      "mulligan": {
+        "minLands": 3,
+        "maxLands": 5,
+        "requireEarlyActionByTurn": 2,
+        "requireColorMatch": true,
+        "preferKeepRoles": [
+          "ramp",
+          "draw",
+          "counter",
+          "sweeper"
+        ]
+      },
+      "timing": {
+        "holdManaForInstants": true,
+        "holdManaPriority": 80,
+        "castCreaturesMain2": true,
+        "minCounterMv": 3,
+        "sweeperMinNetCreatures": 2,
+        "sweeperEmergencyLife": 15,
+        "burnFaceThresholdLife": 6,
+        "useEotDraw": true
+      },
+      "combat": {
+        "aggression": 10,
+        "protectRoles": [
+          "commander",
+          "engine",
+          "finisher"
+        ],
+        "chumpBlockLifeThreshold": 14,
+        "blockEvasivePriority": 1.35
+      },
+      "evalMultipliers": {
+        "hand": 1.75,
+        "lands": 1.5,
+        "life_score": 1.3,
+        "other_permanents": 1.4
+      }
+    }
+  },
+  "decks": {
+    "standard/meta-azorius-control": {
+      "profile": "control",
+      "archetype": "control",
+      "tagline": "Counterspells, sweepers, and Jace card advantage",
+      "keyCards": [
+        "The Theorist, Jace Beleren",
+        "Consult the Star Charts",
+        "No More Lies",
+        "Day of Judgment"
+      ],
+      "roles": {
+        "No More Lies": [
+          "counter"
+        ],
+        "Countersculpt": [
+          "counter"
+        ],
+        "Spell Snare": [
+          "counter"
+        ],
+        "Three Steps Ahead": [
+          "counter",
+          "draw",
+          "eot_instant"
+        ],
+        "Consult the Star Charts": [
+          "draw",
+          "eot_instant"
+        ],
+        "Get Lost": [
+          "cheap_removal",
+          "eot_instant"
+        ],
+        "Fatehold Charm": [
+          "cheap_removal",
+          "eot_instant"
+        ],
+        "Erode": [
+          "cheap_removal",
+          "eot_instant"
+        ],
+        "Stock Up": [
+          "draw"
+        ],
+        "Day of Judgment": [
+          "sweeper"
+        ],
+        "Pinnacle Starcage": [
+          "sweeper"
+        ],
+        "Seam Rip": [
+          "cheap_removal"
+        ],
+        "The Theorist, Jace Beleren": [
+          "engine",
+          "finisher"
+        ]
+      },
+      "playOrder": [
+        "cheap_removal",
+        "sweeper",
+        "engine",
+        "draw",
+        "finisher"
+      ],
+      "cardRules": [
+        {
+          "card": "Three Steps Ahead",
+          "holdForStep": "opp_end_step",
+          "modePriority": [
+            {
+              "if": {
+                "oppSpellOnStack": true
+              },
+              "modes": [
+                0
+              ]
+            },
+            {
+              "default": true,
+              "modes": [
+                2
+              ]
+            }
+          ]
+        },
+        {
+          "card": "Consult the Star Charts",
+          "holdForStep": "opp_end_step",
+          "unless": {
+            "and": [
+              {
+                "myLandsAtMost": 3
+              },
+              {
+                "noLandInHand": true
+              }
+            ]
+          }
+        },
+        {
+          "card": "Day of Judgment",
+          "castOnlyIf": {
+            "or": [
+              {
+                "netOppCreaturesAtLeast": 1
+              },
+              {
+                "oppPowerAtLeast": 5
+              },
+              {
+                "myLifeAtMost": 9
+              }
+            ]
+          }
+        },
+        {
+          "card": "Pinnacle Starcage",
+          "castOnlyIf": {
+            "or": [
+              {
+                "oppCreaturesAtLeast": 2
+              },
+              {
+                "myLifeAtMost": 10
+              }
+            ]
+          }
+        }
+      ],
+      "evalCardBonus": {
+        "The Theorist, Jace Beleren": 0.65,
+        "Restless Anchorage": 0.2
+      },
+      "sideboard": {
+        "vs_aggro": {
+          "in": {
+            "Day of Judgment": 1,
+            "Pinnacle Starcage": 1,
+            "Beza, the Bounding Spring": 2,
+            "Elspeth, Storm Slayer": 1
+          },
+          "out": {
+            "Three Steps Ahead": 2,
+            "Spell Snare": 1,
+            "Stock Up": 2
+          }
+        },
+        "vs_control": {
+          "in": {
+            "Disdainful Stroke": 2,
+            "Emeritus of Ideation": 2,
+            "Elspeth, Storm Slayer": 1
+          },
+          "out": {
+            "Day of Judgment": 2,
+            "Pinnacle Starcage": 2,
+            "Seam Rip": 1
+          }
+        },
+        "vs_graveyard": {
+          "in": {
+            "Rest in Peace": 2,
+            "Disdainful Stroke": 1
+          },
+          "out": {
+            "Seam Rip": 2,
+            "Spell Snare": 1
+          }
+        }
+      }
+    },
+    "standard/meta-jund-sacrifice": {
+      "profile": "sacrifice",
+      "archetype": "sacrifice",
+      "tagline": "Artifact token sacrifice engine and drain payoffs",
+      "keyCards": [
+        "Biotech Specialist",
+        "Rottenmouth Viper",
+        "Umbral Collar Zealot",
+        "Obsessive Pursuit"
+      ],
+      "roles": {
+        "Greedy Freebooter": [
+          "fodder",
+          "early_play"
+        ],
+        "Callous Inspector": [
+          "fodder",
+          "early_play"
+        ],
+        "Gene Pollinator": [
+          "mana_dork",
+          "early_play"
+        ],
+        "Biotech Specialist": [
+          "payoff",
+          "engine"
+        ],
+        "Umbral Collar Zealot": [
+          "sac_outlet"
+        ],
+        "The Sackville-Bagginses": [
+          "fodder",
+          "engine"
+        ],
+        "Rottenmouth Viper": [
+          "finisher",
+          "sac_outlet"
+        ],
+        "Obsessive Pursuit": [
+          "engine"
+        ],
+        "Goldvein Hydra": [
+          "finisher"
+        ],
+        "Lively Dirge": [
+          "reanimator",
+          "tutor"
+        ]
+      },
+      "playOrder": [
+        "mana_dork",
+        "fodder",
+        "engine",
+        "sac_outlet",
+        "payoff",
+        "finisher"
+      ],
+      "cardRules": [
+        {
+          "card": "Lively Dirge",
+          "castOnlyIf": {
+            "or": [
+              {
+                "graveyardHasRole": "payoff"
+              },
+              {
+                "manaAvailableAtLeast": 5
+              }
+            ]
+          },
+          "modePriority": [
+            {
+              "if": {
+                "graveyardHasRole": "payoff"
+              },
+              "modes": [
+                1
+              ]
+            },
+            {
+              "default": true,
+              "modes": [
+                0
+              ]
+            }
+          ],
+          "tutorPriority": [
+            "Biotech Specialist",
+            "Umbral Collar Zealot",
+            "Greedy Freebooter"
+          ]
+        }
+      ],
+      "evalCardBonus": {
+        "Biotech Specialist": 0.5,
+        "Obsessive Pursuit": 0.35,
+        "Rottenmouth Viper": 0.45
+      },
+      "sideboard": {
+        "vs_aggro": {
+          "in": {
+            "Shoot the Sheriff": 2,
+            "Maelstrom Pulse": 1,
+            "The Ooze": 2
+          },
+          "out": {
+            "Lively Dirge": 2,
+            "Rottenmouth Viper": 2,
+            "Stir Up Trouble": 1
+          }
+        },
+        "vs_control": {
+          "in": {
+            "Duress": 3,
+            "Vengeful Tracker": 3
+          },
+          "out": {
+            "Stir Up Trouble": 3,
+            "Callous Inspector": 2,
+            "Greedy Freebooter": 1
+          }
+        },
+        "vs_graveyard": {
+          "in": {
+            "Strategic Betrayal": 3,
+            "The Ooze": 2
+          },
+          "out": {
+            "Stir Up Trouble": 3,
+            "Lively Dirge": 2
+          }
+        }
+      }
+    },
+    "standard/meta-dimir-midrange": {
+      "profile": "tempo",
+      "archetype": "tempo",
+      "tagline": "Flash threats, disruption, and card advantage",
+      "keyCards": [
+        "Enduring Curiosity",
+        "Kaito, Bane of Nightmares",
+        "Preacher of the Schism",
+        "Shoot the Sheriff"
+      ],
+      "roles": {
+        "Enduring Curiosity": [
+          "engine",
+          "eot_instant"
+        ],
+        "Kaito, Bane of Nightmares": [
+          "engine",
+          "finisher"
+        ],
+        "Preacher of the Schism": [
+          "engine",
+          "payoff"
+        ],
+        "Faerie Mastermind": [
+          "early_play",
+          "eot_instant",
+          "engine"
+        ],
+        "Floodpits Drowner": [
+          "early_play",
+          "eot_instant",
+          "cheap_removal"
+        ],
+        "Shoot the Sheriff": [
+          "cheap_removal",
+          "eot_instant"
+        ],
+        "Go for the Throat": [
+          "cheap_removal",
+          "eot_instant"
+        ],
+        "Phantom Interference": [
+          "counter"
+        ],
+        "No More Lies": [
+          "counter"
+        ]
+      },
+      "playOrder": [
+        "early_play",
+        "engine",
+        "cheap_removal",
+        "finisher"
+      ],
+      "evalCardBonus": {
+        "Enduring Curiosity": 0.5,
+        "Kaito, Bane of Nightmares": 0.55
+      }
+    },
+    "standard/meta-izzet-spellementals": {
+      "profile": "tempo",
+      "archetype": "tempo",
+      "tagline": "Spellslinger tempo with prowess and burn reach",
+      "roles": {
+        "Stormchaser's Talent": [
+          "engine",
+          "early_play"
+        ],
+        "Slickshot Show-Off": [
+          "payoff",
+          "early_play"
+        ],
+        "Monastery Swiftspear": [
+          "early_play",
+          "haste"
+        ],
+        "Opt": [
+          "prowess_trigger",
+          "draw",
+          "eot_instant"
+        ],
+        "Sleight of Hand": [
+          "prowess_trigger",
+          "draw"
+        ],
+        "Torch the Tower": [
+          "cheap_removal",
+          "burn"
+        ]
+      },
+      "playOrder": [
+        "early_play",
+        "engine",
+        "payoff",
+        "prowess_trigger",
+        "burn"
+      ]
+    },
+    "standard/meta-boros-dragons": {
+      "profile": "midrange",
+      "archetype": "midrange",
+      "tagline": "Sturdy removal backed by evasive Dragon finishers",
+      "roles": {
+        "Shivan Devastator": [
+          "finisher",
+          "haste"
+        ],
+        "Lightning Helix": [
+          "cheap_removal",
+          "burn"
+        ],
+        "Get Lost": [
+          "cheap_removal",
+          "eot_instant"
+        ]
+      },
+      "playOrder": [
+        "early_play",
+        "cheap_removal",
+        "engine",
+        "finisher"
+      ]
+    },
+    "standard/meta-mono-green-landfall": {
+      "profile": "ramp",
+      "archetype": "ramp",
+      "tagline": "Explosive landfall triggers and trampling threats",
+      "roles": {
+        "Llanowar Elves": [
+          "mana_dork",
+          "early_play"
+        ],
+        "Bristly Bill, Spine Sower": [
+          "payoff",
+          "engine"
+        ],
+        "Mossborn Hydra": [
+          "payoff",
+          "finisher"
+        ]
+      },
+      "playOrder": [
+        "mana_dork",
+        "enabler",
+        "payoff",
+        "finisher"
+      ]
+    },
+    "standard/meta-rakdos-lizards": {
+      "profile": "aggro",
+      "archetype": "aggro",
+      "tagline": "Relentless Lizard synergy and ping damage",
+      "roles": {
+        "Hired Claw": [
+          "early_play",
+          "payoff"
+        ],
+        "Geosurge": [
+          "early_play"
+        ],
+        "Iridescent Vinelasher": [
+          "early_play",
+          "payoff"
+        ],
+        "Gev, Scaled Scorch": [
+          "lord",
+          "engine"
+        ]
+      },
+      "playOrder": [
+        "early_play",
+        "lord",
+        "payoff",
+        "burn"
+      ]
+    },
+    "pioneer/meta-selesnya-company": {
+      "profile": "tempo",
+      "archetype": "midrange",
+      "tagline": "Mana dorks, taxing hatebears, and instant-speed Collected Company",
+      "keyCards": [
+        "Collected Company",
+        "Archon of Emeria",
+        "Skyclave Apparition",
+        "Enduring Innocence"
+      ],
+      "roles": {
+        "Llanowar Elves": [
+          "mana_dork",
+          "early_play"
+        ],
+        "Elvish Mystic": [
+          "mana_dork",
+          "early_play"
+        ],
+        "Thalia, Guardian of Thraben": [
+          "hate_piece",
+          "early_play"
+        ],
+        "Archon of Emeria": [
+          "hate_piece",
+          "engine"
+        ],
+        "Enduring Innocence": [
+          "engine"
+        ],
+        "Skyclave Apparition": [
+          "cheap_removal",
+          "payoff"
+        ],
+        "Collected Company": [
+          "eot_instant",
+          "payoff"
+        ],
+        "Elspeth, Storm Slayer": [
+          "finisher",
+          "engine"
+        ]
+      },
+      "playOrder": [
+        "mana_dork",
+        "early_play",
+        "hate_piece",
+        "engine",
+        "payoff",
+        "finisher"
+      ],
+      "cardRules": [
+        {
+          "card": "Collected Company",
+          "holdForStep": "opp_end_step",
+          "unless": {
+            "and": [
+              {
+                "notMyTurn": true
+              },
+              {
+                "oppCreaturesAtLeast": 1
+              }
+            ]
+          }
+        }
+      ],
+      "evalCardBonus": {
+        "Enduring Innocence": 0.45,
+        "Archon of Emeria": 0.35
+      },
+      "sideboard": {
+        "vs_aggro": {
+          "in": {
+            "Beza, the Bounding Spring": 2,
+            "Get Lost": 4
+          },
+          "out": {
+            "Thalia, Guardian of Thraben": 3,
+            "Archon of Emeria": 3
+          }
+        },
+        "vs_control": {
+          "in": {
+            "Aven Interrupter": 4
+          },
+          "out": {
+            "Skyclave Apparition": 4
+          }
+        },
+        "vs_graveyard": {
+          "in": {
+            "Keen-Eyed Curator": 2,
+            "Get Lost": 2
+          },
+          "out": {
+            "Thalia, Guardian of Thraben": 2,
+            "Badgermole Cub": 2
+          }
+        }
+      }
+    },
+    "pioneer/meta-azorius-control": {
+      "profile": "control",
+      "archetype": "control",
+      "tagline": "Classic draw-go counters, board wipes, and planeswalkers",
+      "roles": {
+        "Absorb": [
+          "counter"
+        ],
+        "No More Lies": [
+          "counter"
+        ],
+        "Dovin's Veto": [
+          "counter"
+        ],
+        "Supreme Verdict": [
+          "sweeper"
+        ],
+        "Farewell": [
+          "sweeper"
+        ],
+        "The Wandering Emperor": [
+          "eot_instant",
+          "engine",
+          "cheap_removal"
+        ],
+        "Teferi, Hero of Dominaria": [
+          "engine",
+          "finisher"
+        ],
+        "Memory Deluge": [
+          "draw",
+          "eot_instant"
+        ]
+      },
+      "playOrder": [
+        "cheap_removal",
+        "sweeper",
+        "engine",
+        "draw",
+        "finisher"
+      ],
+      "cardRules": [
+        {
+          "card": "The Wandering Emperor",
+          "holdForStep": "combat_attackers",
+          "unless": {
+            "and": [
+              {
+                "notMyTurn": true
+              },
+              {
+                "step": "EndTurn"
+              }
+            ]
+          }
+        },
+        {
+          "card": "Memory Deluge",
+          "holdForStep": "opp_end_step"
+        },
+        {
+          "card": "Supreme Verdict",
+          "castOnlyIf": {
+            "or": [
+              {
+                "netOppCreaturesAtLeast": 1
+              },
+              {
+                "oppPowerAtLeast": 5
+              },
+              {
+                "myLifeAtMost": 9
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "pioneer/meta-izzet-phoenix": {
+      "profile": "graveyard",
+      "archetype": "graveyard",
+      "tagline": "Cantrip velocity fueling recursive Arclight Phoenixes",
+      "roles": {
+        "Arclight Phoenix": [
+          "reanimate_target",
+          "payoff"
+        ],
+        "Consider": [
+          "enabler",
+          "prowess_trigger",
+          "draw"
+        ],
+        "Opt": [
+          "enabler",
+          "prowess_trigger",
+          "draw"
+        ],
+        "Sleight of Hand": [
+          "enabler",
+          "prowess_trigger",
+          "draw"
+        ],
+        "Picklock Prankster": [
+          "enabler",
+          "eot_instant"
+        ],
+        "Ledger Shredder": [
+          "engine",
+          "enabler"
+        ],
+        "Treasure Cruise": [
+          "payoff",
+          "draw"
+        ]
+      },
+      "discardRolesFirst": [
+        "reanimate_target",
+        "graveyard_fodder"
+      ],
+      "neverDiscardRoles": [
+        "engine",
+        "payoff"
+      ],
+      "graveyardRoleBonus": {
+        "reanimate_target": 0.45
+      },
+      "playOrder": [
+        "engine",
+        "enabler",
+        "prowess_trigger",
+        "draw",
+        "payoff"
+      ]
+    },
+    "pioneer/meta-golgari-midrange": {
+      "profile": "midrange",
+      "archetype": "midrange",
+      "tagline": "Efficient black removal, discard, and green threats",
+      "roles": {
+        "Thoughtseize": [
+          "early_play",
+          "enabler"
+        ],
+        "Fatal Push": [
+          "cheap_removal",
+          "eot_instant"
+        ],
+        "Glissa Sunslayer": [
+          "payoff",
+          "engine"
+        ],
+        "Sheoldred, the Apocalypse": [
+          "finisher",
+          "engine"
+        ]
+      },
+      "playOrder": [
+        "early_play",
+        "cheap_removal",
+        "engine",
+        "payoff",
+        "finisher"
+      ],
+      "evalCardBonus": {
+        "Sheoldred, the Apocalypse": 0.6,
+        "Glissa Sunslayer": 0.4
+      }
+    },
+    "pioneer/meta-mono-red-prowess": {
+      "profile": "burn",
+      "archetype": "burn",
+      "tagline": "Prowess creatures backed by burn and pump",
+      "roles": {
+        "Monastery Swiftspear": [
+          "early_play",
+          "haste"
+        ],
+        "Soul-Scar Mage": [
+          "early_play"
+        ],
+        "Slickshot Show-Off": [
+          "payoff",
+          "early_play"
+        ],
+        "Play with Fire": [
+          "burn",
+          "prowess_trigger"
+        ],
+        "Wizard's Lightning": [
+          "burn",
+          "prowess_trigger"
+        ],
+        "Monstrous Rage": [
+          "combat_trick",
+          "prowess_trigger"
+        ]
+      },
+      "playOrder": [
+        "early_play",
+        "payoff",
+        "prowess_trigger",
+        "burn"
+      ]
+    },
+    "modern/ladder-meta-goryos": {
+      "profile": "graveyard",
+      "archetype": "graveyard",
+      "tagline": "Reanimates legendary finishers at instant speed",
+      "roles": {
+        "Atraxa, Grand Unifier": [
+          "reanimate_target",
+          "finisher"
+        ],
+        "Griselbrand": [
+          "reanimate_target",
+          "finisher"
+        ],
+        "Goryo's Vengeance": [
+          "reanimator",
+          "combo_piece"
+        ],
+        "Psychic Frog": [
+          "enabler",
+          "engine"
+        ],
+        "Fallaji Archaeologist": [
+          "enabler"
+        ],
+        "Ephemerate": [
+          "combo_piece",
+          "eot_instant"
+        ],
+        "Thoughtseize": [
+          "early_play"
+        ],
+        "Force of Negation": [
+          "counter"
+        ]
+      },
+      "discardRolesFirst": [
+        "reanimate_target"
+      ],
+      "neverDiscardRoles": [
+        "reanimator",
+        "combo_piece"
+      ],
+      "graveyardRoleBonus": {
+        "reanimate_target": 0.7
+      },
+      "playOrder": [
+        "early_play",
+        "enabler",
+        "reanimator",
+        "finisher"
+      ],
+      "cardRules": [
+        {
+          "card": "Goryo's Vengeance",
+          "castOnlyIf": {
+            "graveyardHasRole": "reanimate_target"
+          }
+        }
+      ]
+    },
+    "modern/ladder-meta-boros-burn": {
+      "profile": "burn",
+      "archetype": "burn",
+      "tagline": "Relentless direct damage aiming straight at 20 life",
+      "roles": {
+        "Goblin Guide": [
+          "early_play",
+          "haste"
+        ],
+        "Monastery Swiftspear": [
+          "early_play",
+          "haste"
+        ],
+        "Eidolon of the Great Revel": [
+          "engine",
+          "payoff"
+        ],
+        "Lightning Bolt": [
+          "burn"
+        ],
+        "Lava Spike": [
+          "burn"
+        ],
+        "Boros Charm": [
+          "burn"
+        ],
+        "Lightning Helix": [
+          "burn",
+          "cheap_removal"
+        ],
+        "Rift Bolt": [
+          "burn"
+        ],
+        "Searing Blaze": [
+          "burn",
+          "cheap_removal"
+        ]
+      },
+      "playOrder": [
+        "early_play",
+        "engine",
+        "burn"
+      ],
+      "cardRules": [
+        {
+          "card": "Boros Charm",
+          "modePriority": [
+            {
+              "default": true,
+              "modes": [
+                0
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "modern/ladder-meta-izzet-prowess": {
+      "profile": "burn",
+      "archetype": "tempo",
+      "tagline": "Explosive prowess chains and free spell triggers",
+      "roles": {
+        "Monastery Swiftspear": [
+          "early_play",
+          "haste"
+        ],
+        "Dragon's Rage Channeler": [
+          "early_play",
+          "engine"
+        ],
+        "Slickshot Show-Off": [
+          "payoff",
+          "early_play"
+        ],
+        "Lightning Bolt": [
+          "burn",
+          "prowess_trigger"
+        ],
+        "Expressive Iteration": [
+          "draw",
+          "prowess_trigger"
+        ]
+      },
+      "playOrder": [
+        "early_play",
+        "engine",
+        "payoff",
+        "prowess_trigger",
+        "burn"
+      ]
+    },
+    "modern/ladder-meta-domain-zoo": {
+      "profile": "aggro",
+      "archetype": "aggro",
+      "tagline": "Five-color domain beatdown with efficient interaction",
+      "roles": {
+        "Wild Nacatl": [
+          "early_play"
+        ],
+        "Territorial Kavu": [
+          "payoff"
+        ],
+        "Scion of Draco": [
+          "lord",
+          "finisher"
+        ],
+        "Tribal Flames": [
+          "burn"
+        ],
+        "Stubborn Denial": [
+          "counter"
+        ]
+      },
+      "playOrder": [
+        "early_play",
+        "payoff",
+        "lord",
+        "burn"
+      ]
+    },
+    "ladder/standard/tier1-mono-black-demons": {
+      "profile": "midrange",
+      "archetype": "midrange",
+      "tier": "meta",
+      "tagline": "Hand disruption and Unholy Annex demon beats",
+      "keyCards": [
+        "Unholy Annex // Ritual Chamber",
+        "Unstoppable Slasher",
+        "Bloodletter of Aclazotz",
+        "Deep-Cavern Bat"
+      ],
+      "roles": {
+        "Duress": [
+          "early_play"
+        ],
+        "Deep-Cavern Bat": [
+          "early_play",
+          "engine"
+        ],
+        "Preacher of the Schism": [
+          "engine",
+          "payoff"
+        ],
+        "Unholy Annex // Ritual Chamber": [
+          "engine",
+          "payoff"
+        ],
+        "Unstoppable Slasher": [
+          "payoff",
+          "finisher"
+        ],
+        "Bloodletter of Aclazotz": [
+          "finisher"
+        ],
+        "Vein Ripper": [
+          "finisher"
+        ],
+        "Nowhere to Run": [
+          "cheap_removal",
+          "eot_instant"
+        ],
+        "Shoot the Sheriff": [
+          "cheap_removal",
+          "eot_instant"
+        ],
+        "Bitter Triumph": [
+          "cheap_removal",
+          "eot_instant"
+        ]
+      },
+      "playOrder": [
+        "early_play",
+        "cheap_removal",
+        "engine",
+        "payoff",
+        "finisher"
+      ],
+      "evalCardBonus": {
+        "Unholy Annex // Ritual Chamber": 0.55,
+        "Bloodletter of Aclazotz": 0.45,
+        "Unstoppable Slasher": 0.45
+      },
+      "sideboard": {
+        "vs_aggro": {
+          "in": {
+            "Deadly Cover-Up": 2,
+            "Stab": 3
+          },
+          "out": {
+            "Duress": 3,
+            "Hero's Downfall": 2
+          }
+        },
+        "vs_control": {
+          "in": {
+            "Duress": 1,
+            "Pilfer": 3
+          },
+          "out": {
+            "Nowhere to Run": 4
+          }
+        },
+        "vs_graveyard": {
+          "in": {
+            "Strategic Betrayal": 3
+          },
+          "out": {
+            "Hero's Downfall": 2,
+            "Duress": 1
+          }
+        }
+      }
+    },
+    "ladder/standard/tier1-boros-auras": {
+      "profile": "aggro",
+      "archetype": "aggro",
+      "tier": "meta",
+      "tagline": "Fast enchantment voltron backed by Sheltered by Ghosts",
+      "keyCards": [
+        "Optimistic Scavenger",
+        "Ethereal Armor",
+        "Sheltered by Ghosts",
+        "Shardmage's Rescue"
+      ],
+      "roles": {
+        "Optimistic Scavenger": [
+          "early_play",
+          "engine"
+        ],
+        "Emberheart Challenger": [
+          "early_play",
+          "haste"
+        ],
+        "Slickshot Show-Off": [
+          "early_play",
+          "payoff"
+        ],
+        "Gremlin Tamer": [
+          "engine",
+          "payoff"
+        ],
+        "Ethereal Armor": [
+          "payoff",
+          "prowess_trigger"
+        ],
+        "Sheltered by Ghosts": [
+          "cheap_removal",
+          "payoff"
+        ],
+        "Shardmage's Rescue": [
+          "combat_trick"
+        ],
+        "Burst Lightning": [
+          "burn",
+          "cheap_removal"
+        ]
+      },
+      "playOrder": [
+        "early_play",
+        "engine",
+        "payoff",
+        "burn"
+      ],
+      "sideboard": {
+        "vs_aggro": {
+          "in": {
+            "Authority of the Consuls": 3,
+            "Elspeth's Smite": 2
+          },
+          "out": {
+            "Feather of Flight": 3,
+            "Gremlin Tamer": 2
+          }
+        },
+        "vs_control": {
+          "in": {
+            "Get Lost": 2
+          },
+          "out": {
+            "Burst Lightning": 2
+          }
+        },
+        "vs_graveyard": {
+          "in": {
+            "Rest in Peace": 3
+          },
+          "out": {
+            "Feather of Flight": 3
+          }
+        }
+      }
+    },
+    "ladder/standard/tier1-orzhov-control": {
+      "profile": "control",
+      "archetype": "control",
+      "tier": "meta",
+      "tagline": "Sweepers, token engines, and planeswalker inevitability",
+      "keyCards": [
+        "Caretaker's Talent",
+        "Day of Judgment",
+        "Beza, the Bounding Spring",
+        "Elspeth, Storm Slayer"
+      ],
+      "roles": {
+        "Caretaker's Talent": [
+          "engine"
+        ],
+        "Enduring Innocence": [
+          "engine"
+        ],
+        "Beza, the Bounding Spring": [
+          "payoff"
+        ],
+        "Elspeth, Storm Slayer": [
+          "finisher",
+          "engine"
+        ],
+        "Day of Judgment": [
+          "sweeper"
+        ],
+        "Get Lost": [
+          "cheap_removal",
+          "eot_instant"
+        ],
+        "Shoot the Sheriff": [
+          "cheap_removal",
+          "eot_instant"
+        ],
+        "Nowhere to Run": [
+          "cheap_removal",
+          "eot_instant"
+        ]
+      },
+      "cardRules": [
+        {
+          "card": "Day of Judgment",
+          "castOnlyIf": {
+            "or": [
+              {
+                "netOppCreaturesAtLeast": 1
+              },
+              {
+                "oppPowerAtLeast": 5
+              },
+              {
+                "myLifeAtMost": 9
+              }
+            ]
+          }
+        }
+      ],
+      "evalCardBonus": {
+        "Caretaker's Talent": 0.55,
+        "Enduring Innocence": 0.4
+      },
+      "sideboard": {
+        "vs_aggro": {
+          "in": {
+            "Day of Judgment": 1,
+            "Elspeth's Smite": 2
+          },
+          "out": {
+            "Duress": 3
+          }
+        },
+        "vs_control": {
+          "in": {
+            "Duress": 1,
+            "Pilfer": 3
+          },
+          "out": {
+            "Nowhere to Run": 4
+          }
+        },
+        "vs_graveyard": {
+          "in": {
+            "Rest in Peace": 3
+          },
+          "out": {
+            "Authority of the Consuls": 2,
+            "Nowhere to Run": 1
+          }
+        }
+      }
+    },
+    "ladder/standard/tier1-mono-red-burn": {
+      "profile": "burn",
+      "archetype": "burn",
+      "tier": "meta",
+      "tagline": "Low-curve haste creatures and relentless direct burn",
+      "keyCards": [
+        "Boltwave",
+        "Slickshot Show-Off",
+        "Emberheart Challenger",
+        "Sunspine Lynx"
+      ],
+      "roles": {
+        "Clockwork Percussionist": [
+          "early_play",
+          "haste"
+        ],
+        "Hired Claw": [
+          "early_play"
+        ],
+        "Emberheart Challenger": [
+          "early_play",
+          "haste"
+        ],
+        "Slickshot Show-Off": [
+          "early_play",
+          "payoff"
+        ],
+        "Razorkin Needlehead": [
+          "early_play",
+          "engine"
+        ],
+        "Sunspine Lynx": [
+          "finisher"
+        ],
+        "Boltwave": [
+          "burn",
+          "prowess_trigger"
+        ],
+        "Burst Lightning": [
+          "burn",
+          "prowess_trigger"
+        ],
+        "Lightning Strike": [
+          "burn",
+          "prowess_trigger"
+        ],
+        "Shock": [
+          "burn",
+          "prowess_trigger"
+        ]
+      },
+      "playOrder": [
+        "early_play",
+        "payoff",
+        "prowess_trigger",
+        "burn",
+        "finisher"
+      ],
+      "sideboard": {
+        "vs_aggro": {
+          "in": {
+            "Torch the Tower": 2,
+            "Abrade": 3
+          },
+          "out": {
+            "Boltwave": 3,
+            "Sunspine Lynx": 2
+          }
+        },
+        "vs_control": {
+          "in": {
+            "Sunspine Lynx": 2,
+            "Scorching Dragonfire": 3
+          },
+          "out": {
+            "Shock": 3,
+            "Torch the Tower": 2
+          }
+        },
+        "vs_graveyard": {
+          "in": {
+            "Soul-Guide Lantern": 4
+          },
+          "out": {
+            "Shock": 2,
+            "Torch the Tower": 2
+          }
+        }
+      }
+    },
+    "ladder/standard/tier1-selesnya-tokens": {
+      "profile": "midrange",
+      "archetype": "midrange",
+      "tier": "meta",
+      "tagline": "Mana elves into Caretaker's Talent and Overlord swarms",
+      "keyCards": [
+        "Caretaker's Talent",
+        "Overlord of the Mistmoors",
+        "Elspeth, Storm Slayer",
+        "Llanowar Elves"
+      ],
+      "roles": {
+        "Llanowar Elves": [
+          "mana_dork",
+          "early_play"
+        ],
+        "Enduring Vitality": [
+          "mana_dork",
+          "engine"
+        ],
+        "Caretaker's Talent": [
+          "engine"
+        ],
+        "Enduring Innocence": [
+          "engine"
+        ],
+        "Overlord of the Mistmoors": [
+          "finisher"
+        ],
+        "Elspeth, Storm Slayer": [
+          "finisher",
+          "engine"
+        ],
+        "Get Lost": [
+          "cheap_removal",
+          "eot_instant"
+        ]
+      },
+      "playOrder": [
+        "mana_dork",
+        "engine",
+        "payoff",
+        "finisher"
+      ],
+      "sideboard": {
+        "vs_aggro": {
+          "in": {
+            "Elspeth's Smite": 3,
+            "Day of Judgment": 2
+          },
+          "out": {
+            "Overlord of the Mistmoors": 2,
+            "Enduring Vitality": 2,
+            "Caretaker's Talent": 1
+          }
+        },
+        "vs_graveyard": {
+          "in": {
+            "Rest in Peace": 3,
+            "Keen-Eyed Curator": 2
+          },
+          "out": {
+            "Authority of the Consuls": 3,
+            "Sheltered by Ghosts": 2
+          }
+        }
+      }
+    },
+    "ladder/standard/tier1-simic-tempo": {
+      "profile": "tempo",
+      "archetype": "tempo",
+      "tier": "meta",
+      "tagline": "Cantrip velocity into cheap Tolarian Terrors and counters",
+      "keyCards": [
+        "Tolarian Terror",
+        "Eddymurk Crab",
+        "Abhorrent Oculus",
+        "Phantom Interference"
+      ],
+      "roles": {
+        "Opt": [
+          "draw",
+          "eot_instant"
+        ],
+        "Deduce": [
+          "draw",
+          "eot_instant"
+        ],
+        "Into the Flood Maw": [
+          "cheap_removal",
+          "eot_instant"
+        ],
+        "Phantom Interference": [
+          "counter"
+        ],
+        "Spell Pierce": [
+          "counter"
+        ],
+        "Brineborn Cutthroat": [
+          "early_play",
+          "eot_instant"
+        ],
+        "Abhorrent Oculus": [
+          "engine",
+          "finisher"
+        ],
+        "Tolarian Terror": [
+          "finisher"
+        ],
+        "Eddymurk Crab": [
+          "finisher",
+          "eot_instant"
+        ]
+      },
+      "playOrder": [
+        "early_play",
+        "engine",
+        "draw",
+        "finisher"
+      ],
+      "sideboard": {
+        "vs_aggro": {
+          "in": {
+            "Unsummon": 3
+          },
+          "out": {
+            "Spell Pierce": 3
+          }
+        },
+        "vs_control": {
+          "in": {
+            "Negate": 3,
+            "Disdainful Stroke": 2
+          },
+          "out": {
+            "Into the Flood Maw": 4,
+            "Eddymurk Crab": 1
+          }
+        },
+        "vs_graveyard": {
+          "in": {
+            "Soul-Guide Lantern": 3
+          },
+          "out": {
+            "Spell Pierce": 3
+          }
+        }
+      }
+    },
+    "ladder/standard/tier1-golgari-demons": {
+      "profile": "midrange",
+      "archetype": "midrange",
+      "tier": "meta",
+      "tagline": "Green ramp and Sentinel into Unholy Annex demons",
+      "keyCards": [
+        "Unholy Annex // Ritual Chamber",
+        "Unstoppable Slasher",
+        "Sentinel of the Nameless City",
+        "Llanowar Elves"
+      ],
+      "roles": {
+        "Llanowar Elves": [
+          "mana_dork",
+          "early_play"
+        ],
+        "Deep-Cavern Bat": [
+          "early_play",
+          "engine"
+        ],
+        "Preacher of the Schism": [
+          "engine",
+          "payoff"
+        ],
+        "Unstoppable Slasher": [
+          "payoff"
+        ],
+        "Unholy Annex // Ritual Chamber": [
+          "engine",
+          "payoff"
+        ],
+        "Bloodletter of Aclazotz": [
+          "finisher"
+        ],
+        "Shoot the Sheriff": [
+          "cheap_removal",
+          "eot_instant"
+        ],
+        "Nowhere to Run": [
+          "cheap_removal",
+          "eot_instant"
+        ]
+      },
+      "playOrder": [
+        "mana_dork",
+        "early_play",
+        "engine",
+        "payoff",
+        "finisher"
+      ],
+      "sideboard": {
+        "vs_aggro": {
+          "in": {
+            "Stab": 2
+          },
+          "out": {
+            "Bitter Triumph": 2
+          }
+        },
+        "vs_control": {
+          "in": {
+            "Duress": 4
+          },
+          "out": {
+            "Nowhere to Run": 3,
+            "Maelstrom Pulse": 1
+          }
+        },
+        "vs_graveyard": {
+          "in": {
+            "Keen-Eyed Curator": 3,
+            "Strategic Betrayal": 2
+          },
+          "out": {
+            "Nowhere to Run": 3,
+            "Bitter Triumph": 2
+          }
+        }
+      }
+    },
+    "ladder/standard/tier1-jeskai-control": {
+      "profile": "control",
+      "archetype": "control",
+      "tier": "meta",
+      "tagline": "Counterspells, Lightning Helix stabilization, and sweepers",
+      "keyCards": [
+        "No More Lies",
+        "Lightning Helix",
+        "Day of Judgment",
+        "The Theorist, Jace Beleren"
+      ],
+      "roles": {
+        "No More Lies": [
+          "counter"
+        ],
+        "Three Steps Ahead": [
+          "counter",
+          "draw",
+          "eot_instant"
+        ],
+        "Lightning Helix": [
+          "cheap_removal",
+          "burn",
+          "eot_instant"
+        ],
+        "Get Lost": [
+          "cheap_removal",
+          "eot_instant"
+        ],
+        "Day of Judgment": [
+          "sweeper"
+        ],
+        "Consult the Star Charts": [
+          "draw",
+          "eot_instant"
+        ],
+        "Stock Up": [
+          "draw"
+        ],
+        "The Theorist, Jace Beleren": [
+          "engine",
+          "finisher"
+        ],
+        "Elspeth, Storm Slayer": [
+          "finisher"
+        ]
+      },
+      "cardRules": [
+        {
+          "card": "Three Steps Ahead",
+          "holdForStep": "opp_end_step",
+          "modePriority": [
+            {
+              "if": {
+                "oppSpellOnStack": true
+              },
+              "modes": [
+                0
+              ]
+            },
+            {
+              "default": true,
+              "modes": [
+                2
+              ]
+            }
+          ]
+        },
+        {
+          "card": "Consult the Star Charts",
+          "holdForStep": "opp_end_step",
+          "unless": {
+            "and": [
+              {
+                "myLandsAtMost": 3
+              },
+              {
+                "noLandInHand": true
+              }
+            ]
+          }
+        },
+        {
+          "card": "Day of Judgment",
+          "castOnlyIf": {
+            "or": [
+              {
+                "netOppCreaturesAtLeast": 1
+              },
+              {
+                "oppPowerAtLeast": 5
+              },
+              {
+                "myLifeAtMost": 10
+              }
+            ]
+          }
+        }
+      ],
+      "sideboard": {
+        "vs_aggro": {
+          "in": {
+            "Day of Judgment": 1,
+            "Authority of the Consuls": 2,
+            "Elspeth's Smite": 2
+          },
+          "out": {
+            "Three Steps Ahead": 2,
+            "Stock Up": 2,
+            "Consult the Star Charts": 1
+          }
+        },
+        "vs_control": {
+          "in": {
+            "Disdainful Stroke": 3,
+            "Negate": 3
+          },
+          "out": {
+            "Day of Judgment": 3,
+            "Torch the Tower": 3
+          }
+        },
+        "vs_graveyard": {
+          "in": {
+            "Rest in Peace": 2
+          },
+          "out": {
+            "Torch the Tower": 2
+          }
+        }
+      }
+    },
+    "ladder/standard/tier1-esper-midrange": {
+      "profile": "tempo",
+      "archetype": "tempo",
+      "tier": "meta",
+      "tagline": "Flash flyers, Kaito disruption, and versatile white-black removal",
+      "keyCards": [
+        "Kaito, Bane of Nightmares",
+        "Enduring Curiosity",
+        "Floodpits Drowner",
+        "No More Lies"
+      ],
+      "roles": {
+        "Spyglass Siren": [
+          "early_play"
+        ],
+        "Floodpits Drowner": [
+          "early_play",
+          "eot_instant",
+          "cheap_removal"
+        ],
+        "Deep-Cavern Bat": [
+          "early_play",
+          "engine"
+        ],
+        "Preacher of the Schism": [
+          "engine",
+          "payoff"
+        ],
+        "Enduring Curiosity": [
+          "engine",
+          "eot_instant"
+        ],
+        "Kaito, Bane of Nightmares": [
+          "engine",
+          "finisher"
+        ],
+        "No More Lies": [
+          "counter"
+        ],
+        "Shoot the Sheriff": [
+          "cheap_removal",
+          "eot_instant"
+        ],
+        "Get Lost": [
+          "cheap_removal",
+          "eot_instant"
+        ]
+      },
+      "playOrder": [
+        "early_play",
+        "engine",
+        "cheap_removal",
+        "finisher"
+      ],
+      "sideboard": {
+        "vs_aggro": {
+          "in": {
+            "Elspeth's Smite": 3
+          },
+          "out": {
+            "No More Lies": 3
+          }
+        },
+        "vs_control": {
+          "in": {
+            "Duress": 3,
+            "Negate": 2
+          },
+          "out": {
+            "Nowhere to Run": 3,
+            "Shoot the Sheriff": 2
+          }
+        },
+        "vs_graveyard": {
+          "in": {
+            "Rest in Peace": 3
+          },
+          "out": {
+            "Nowhere to Run": 3
+          }
+        }
+      }
+    },
+    "ladder/standard/tier1-gruul-prowess": {
+      "profile": "aggro",
+      "archetype": "aggro",
+      "tier": "meta",
+      "tagline": "Explosive red prowess creatures accelerated by Llanowar Elves",
+      "keyCards": [
+        "Emberheart Challenger",
+        "Slickshot Show-Off",
+        "Bristly Bill, Spine Sower",
+        "Burst Lightning"
+      ],
+      "roles": {
+        "Llanowar Elves": [
+          "mana_dork",
+          "early_play"
+        ],
+        "Clockwork Percussionist": [
+          "early_play",
+          "haste"
+        ],
+        "Hired Claw": [
+          "early_play"
+        ],
+        "Emberheart Challenger": [
+          "early_play",
+          "haste"
+        ],
+        "Slickshot Show-Off": [
+          "early_play",
+          "payoff"
+        ],
+        "Bristly Bill, Spine Sower": [
+          "engine",
+          "payoff"
+        ],
+        "Burst Lightning": [
+          "burn",
+          "prowess_trigger"
+        ],
+        "Lightning Strike": [
+          "burn",
+          "prowess_trigger"
+        ]
+      },
+      "playOrder": [
+        "early_play",
+        "mana_dork",
+        "payoff",
+        "burn"
+      ],
+      "sideboard": {
+        "vs_aggro": {
+          "in": {
+            "Torch the Tower": 3,
+            "Abrade": 2
+          },
+          "out": {
+            "Hunter's Talent": 3,
+            "Bristly Bill, Spine Sower": 2
+          }
+        },
+        "vs_control": {
+          "in": {
+            "Scorching Dragonfire": 3
+          },
+          "out": {
+            "Shock": 3
+          }
+        },
+        "vs_graveyard": {
+          "in": {
+            "Keen-Eyed Curator": 3
+          },
+          "out": {
+            "Shock": 3
+          }
+        }
+      }
+    },
+    "ladder/standard/tier2-mono-white-tokens": {
+      "profile": "control",
+      "archetype": "control",
+      "tier": "tier2",
+      "tagline": "Caretaker's Talent value engine behind white sweepers",
+      "roles": {
+        "Caretaker's Talent": [
+          "engine"
+        ],
+        "Day of Judgment": [
+          "sweeper"
+        ],
+        "Elspeth, Storm Slayer": [
+          "finisher"
+        ]
+      }
+    },
+    "ladder/standard/tier2-dimir-reanimator": {
+      "profile": "graveyard",
+      "archetype": "graveyard",
+      "tier": "tier2",
+      "tagline": "Self-mill and discard fueling Zombify into Valgavoth and Sire of Seven Deaths",
+      "keyCards": [
+        "Zombify",
+        "Valgavoth, Terror Eater",
+        "Sire of Seven Deaths",
+        "Overlord of the Balemurk"
+      ],
+      "roles": {
+        "Valgavoth, Terror Eater": [
+          "reanimate_target",
+          "finisher"
+        ],
+        "Sire of Seven Deaths": [
+          "reanimate_target",
+          "finisher"
+        ],
+        "Zombify": [
+          "reanimator",
+          "combo_piece"
+        ],
+        "Kiora, the Rising Tide": [
+          "enabler"
+        ],
+        "Chart a Course": [
+          "enabler",
+          "draw"
+        ],
+        "Overlord of the Balemurk": [
+          "enabler",
+          "payoff"
+        ]
+      },
+      "discardRolesFirst": [
+        "reanimate_target"
+      ],
+      "neverDiscardRoles": [
+        "reanimator"
+      ],
+      "graveyardRoleBonus": {
+        "reanimate_target": 0.65
+      },
+      "cardRules": [
+        {
+          "card": "Zombify",
+          "castOnlyIf": {
+            "graveyardHasRole": "reanimate_target"
+          }
+        }
+      ]
+    },
+    "ladder/standard/tier2-rakdos-midrange": {
+      "profile": "midrange",
+      "archetype": "midrange",
+      "tier": "tier2",
+      "tagline": "Red burn pressure paired with Unholy Annex demons",
+      "roles": {
+        "Unholy Annex // Ritual Chamber": [
+          "engine"
+        ],
+        "Unstoppable Slasher": [
+          "payoff"
+        ],
+        "Bloodletter of Aclazotz": [
+          "finisher"
+        ]
+      }
+    },
+    "ladder/standard/tier2-azorius-enchantments": {
+      "profile": "tempo",
+      "archetype": "tempo",
+      "tier": "tier2",
+      "tagline": "Enchantment creatures drawing cards with Entity Tracker",
+      "roles": {
+        "Optimistic Scavenger": [
+          "early_play",
+          "engine"
+        ],
+        "Entity Tracker": [
+          "engine",
+          "eot_instant"
+        ],
+        "No More Lies": [
+          "counter"
+        ]
+      }
+    },
+    "ladder/standard/tier2-mono-green-elves": {
+      "profile": "tribal",
+      "archetype": "tribal",
+      "tier": "tier2",
+      "tagline": "Elvish mana acceleration snowballing with lords",
+      "roles": {
+        "Llanowar Elves": [
+          "mana_dork",
+          "early_play"
+        ],
+        "Elvish Archdruid": [
+          "mana_dork",
+          "lord"
+        ],
+        "Dwynen, Gilt-Leaf Daen": [
+          "lord"
+        ],
+        "Imperious Perfect": [
+          "lord"
+        ]
+      }
+    },
+    "ladder/standard/tier2-boros-convoke": {
+      "profile": "aggro",
+      "archetype": "aggro",
+      "tier": "tier2",
+      "tagline": "Go-wide token swarms into Imodane's Recruiter alpha strikes",
+      "roles": {
+        "Novice Inspector": [
+          "early_play",
+          "fodder"
+        ],
+        "Warleader's Call": [
+          "lord",
+          "engine"
+        ],
+        "Imodane's Recruiter": [
+          "finisher",
+          "haste"
+        ]
+      }
+    },
+    "ladder/standard/rogue-mono-blue-tempo": {
+      "profile": "tempo",
+      "archetype": "tempo",
+      "tier": "rogue",
+      "tagline": "Flash threats and cheap countermagic",
+      "roles": {
+        "Spectral Sailor": [
+          "early_play",
+          "eot_instant"
+        ],
+        "Floodpits Drowner": [
+          "early_play",
+          "eot_instant"
+        ],
+        "Phantom Interference": [
+          "counter"
+        ]
+      }
+    },
+    "ladder/standard/rogue-orzhov-lifegain": {
+      "profile": "tribal",
+      "archetype": "tribal",
+      "tier": "rogue",
+      "tagline": "Lifegain triggers growing Ajani's Pridemate and Angels",
+      "roles": {
+        "Giada, Font of Hope": [
+          "mana_dork",
+          "lord"
+        ],
+        "Enduring Innocence": [
+          "engine"
+        ]
+      }
+    },
+    "ladder/standard/rogue-mono-red-goblins": {
+      "profile": "tribal",
+      "archetype": "tribal",
+      "tier": "rogue",
+      "tagline": "Goblin token swarm led by Krenko and Howlsquad Heavy",
+      "roles": {
+        "Dropkick Bomber": [
+          "lord",
+          "engine"
+        ],
+        "Krenko, Mob Boss": [
+          "engine",
+          "finisher"
+        ]
+      }
+    },
+    "ladder/standard/rogue-simic-ramp": {
+      "profile": "ramp",
+      "archetype": "ramp",
+      "tier": "rogue",
+      "tagline": "Mana elves and Overlord of the Hauntwoods into massive finishers",
+      "roles": {
+        "Llanowar Elves": [
+          "mana_dork",
+          "early_play"
+        ],
+        "Overlord of the Hauntwoods": [
+          "ramp",
+          "finisher"
+        ],
+        "Sire of Seven Deaths": [
+          "finisher"
+        ]
+      }
+    },
+    "ladder/pioneer/tier1-rakdos-midrange": {
+      "profile": "midrange",
+      "archetype": "midrange",
+      "tier": "meta",
+      "tagline": "Thoughtseize, Fable of the Mirror-Breaker, and Sheoldred",
+      "keyCards": [
+        "Fable of the Mirror-Breaker",
+        "Sheoldred, the Apocalypse",
+        "Thoughtseize",
+        "Bloodtithe Harvester"
+      ],
+      "roles": {
+        "Thoughtseize": [
+          "early_play"
+        ],
+        "Bloodtithe Harvester": [
+          "early_play",
+          "cheap_removal"
+        ],
+        "Fable of the Mirror-Breaker": [
+          "engine",
+          "payoff"
+        ],
+        "Bonecrusher Giant": [
+          "cheap_removal",
+          "payoff"
+        ],
+        "Sheoldred, the Apocalypse": [
+          "finisher",
+          "engine"
+        ],
+        "Fatal Push": [
+          "cheap_removal",
+          "eot_instant"
+        ]
+      },
+      "playOrder": [
+        "early_play",
+        "cheap_removal",
+        "engine",
+        "payoff",
+        "finisher"
+      ],
+      "evalCardBonus": {
+        "Fable of the Mirror-Breaker": 0.6,
+        "Sheoldred, the Apocalypse": 0.65
+      },
+      "sideboard": {
+        "vs_aggro": {
+          "in": {
+            "Anger of the Gods": 3,
+            "Abrade": 2
+          },
+          "out": {
+            "Thoughtseize": 3,
+            "Kolaghan's Command": 2
+          }
+        },
+        "vs_control": {
+          "in": {
+            "Duress": 3,
+            "Go Blank": 3
+          },
+          "out": {
+            "Fatal Push": 4,
+            "Go for the Throat": 2
+          }
+        },
+        "vs_graveyard": {
+          "in": {
+            "Unlicensed Hearse": 3,
+            "Go Blank": 2
+          },
+          "out": {
+            "Go for the Throat": 2,
+            "Dreadbore": 2,
+            "Kolaghan's Command": 1
+          }
+        }
+      }
+    },
+    "ladder/pioneer/tier1-rakdos-sacrifice": {
+      "profile": "sacrifice",
+      "archetype": "sacrifice",
+      "tier": "meta",
+      "tagline": "Cat-Oven loop and Mayhem Devil triggers",
+      "keyCards": [
+        "Mayhem Devil",
+        "Cauldron Familiar",
+        "Witch's Oven",
+        "Deadly Dispute"
+      ],
+      "roles": {
+        "Cauldron Familiar": [
+          "fodder",
+          "early_play"
+        ],
+        "Voldaren Epicure": [
+          "fodder",
+          "early_play"
+        ],
+        "Witch's Oven": [
+          "sac_outlet",
+          "early_play"
+        ],
+        "Oni-Cult Anvil": [
+          "sac_outlet",
+          "engine"
+        ],
+        "Mayhem Devil": [
+          "payoff",
+          "engine"
+        ],
+        "Deadly Dispute": [
+          "draw",
+          "eot_instant"
+        ],
+        "Fatal Push": [
+          "cheap_removal",
+          "eot_instant"
+        ]
+      },
+      "playOrder": [
+        "early_play",
+        "fodder",
+        "sac_outlet",
+        "engine",
+        "payoff"
+      ],
+      "evalCardBonus": {
+        "Mayhem Devil": 0.65,
+        "Witch's Oven": 0.4
+      },
+      "sideboard": {
+        "vs_aggro": {
+          "in": {
+            "Anger of the Gods": 2,
+            "Abrade": 2
+          },
+          "out": {
+            "Thoughtseize": 3,
+            "Oni-Cult Anvil": 1
+          }
+        },
+        "vs_control": {
+          "in": {
+            "Duress": 3,
+            "Go Blank": 3
+          },
+          "out": {
+            "Claim the Firstborn": 4,
+            "Fatal Push": 2
+          }
+        },
+        "vs_graveyard": {
+          "in": {
+            "Unlicensed Hearse": 3,
+            "Go Blank": 2
+          },
+          "out": {
+            "Claim the Firstborn": 4,
+            "Oni-Cult Anvil": 1
+          }
+        }
+      }
+    },
+    "ladder/pioneer/tier1-selesnya-angels": {
+      "profile": "tribal",
+      "archetype": "tribal",
+      "tier": "meta",
+      "tagline": "Lifegain Angel snowball with Collected Company and Kayla's Reconstruction",
+      "keyCards": [
+        "Righteous Valkyrie",
+        "Collected Company",
+        "Bishop of Wings",
+        "Resplendent Angel"
+      ],
+      "roles": {
+        "Llanowar Elves": [
+          "mana_dork",
+          "early_play"
+        ],
+        "Giada, Font of Hope": [
+          "mana_dork",
+          "lord"
+        ],
+        "Bishop of Wings": [
+          "engine",
+          "early_play"
+        ],
+        "Righteous Valkyrie": [
+          "lord",
+          "payoff"
+        ],
+        "Resplendent Angel": [
+          "payoff",
+          "finisher"
+        ],
+        "Collected Company": [
+          "eot_instant",
+          "payoff"
+        ]
+      },
+      "cardRules": [
+        {
+          "card": "Collected Company",
+          "holdForStep": "opp_end_step",
+          "unless": {
+            "and": [
+              {
+                "notMyTurn": true
+              },
+              {
+                "oppCreaturesAtLeast": 1
+              }
+            ]
+          }
+        }
+      ],
+      "evalCardBonus": {
+        "Righteous Valkyrie": 0.55,
+        "Bishop of Wings": 0.45
+      },
+      "sideboard": {
+        "vs_aggro": {
+          "in": {
+            "Portable Hole": 3
+          },
+          "out": {
+            "Kayla's Reconstruction": 3
+          }
+        },
+        "vs_graveyard": {
+          "in": {
+            "Rest in Peace": 3
+          },
+          "out": {
+            "Inspiring Overseer": 2,
+            "Skyclave Apparition": 1
+          }
+        }
+      }
+    },
+    "ladder/pioneer/tier1-mono-green-devotion": {
+      "profile": "ramp",
+      "archetype": "ramp",
+      "tier": "meta",
+      "tagline": "Nykthos mana engine into Cavalier of Thorns and Storm the Festival",
+      "keyCards": [
+        "Nykthos, Shrine to Nyx",
+        "Kiora, Behemoth Beckoner",
+        "Cavalier of Thorns",
+        "Storm the Festival"
+      ],
+      "roles": {
+        "Llanowar Elves": [
+          "mana_dork",
+          "early_play"
+        ],
+        "Elvish Mystic": [
+          "mana_dork",
+          "early_play"
+        ],
+        "Wolfwillow Haven": [
+          "ramp",
+          "early_play"
+        ],
+        "Kiora, Behemoth Beckoner": [
+          "engine",
+          "ramp"
+        ],
+        "Old-Growth Troll": [
+          "payoff"
+        ],
+        "Cavalier of Thorns": [
+          "payoff",
+          "ramp"
+        ],
+        "Storm the Festival": [
+          "finisher"
+        ]
+      },
+      "playOrder": [
+        "mana_dork",
+        "ramp",
+        "engine",
+        "payoff",
+        "finisher"
+      ],
+      "evalCardBonus": {
+        "Kiora, Behemoth Beckoner": 0.5,
+        "Nykthos, Shrine to Nyx": 0.5
+      },
+      "sideboard": {
+        "vs_graveyard": {
+          "in": {
+            "Keen-Eyed Curator": 4
+          },
+          "out": {
+            "Polukranos Reborn": 2,
+            "Ghalta, Stampede Tyrant": 2
+          }
+        }
+      }
+    },
+    "ladder/pioneer/tier1-boros-heroic": {
+      "profile": "aggro",
+      "archetype": "aggro",
+      "tier": "meta",
+      "tagline": "Heroic creatures scaling fast with pump and protection",
+      "keyCards": [
+        "Illuminator Virtuoso",
+        "Favored Hoplite",
+        "Monstrous Rage",
+        "Gods Willing"
+      ],
+      "roles": {
+        "Favored Hoplite": [
+          "early_play",
+          "payoff"
+        ],
+        "Illuminator Virtuoso": [
+          "payoff"
+        ],
+        "Clever Lumimancer": [
+          "early_play"
+        ],
+        "Monastery Swiftspear": [
+          "early_play",
+          "haste"
+        ],
+        "Gods Willing": [
+          "combat_trick"
+        ],
+        "Loran's Escape": [
+          "combat_trick"
+        ],
+        "Monstrous Rage": [
+          "combat_trick",
+          "prowess_trigger"
+        ],
+        "Reckless Rage": [
+          "cheap_removal"
+        ]
+      },
+      "playOrder": [
+        "early_play",
+        "payoff",
+        "prowess_trigger"
+      ],
+      "sideboard": {
+        "vs_aggro": {
+          "in": {
+            "Portable Hole": 3,
+            "Authority of the Consuls": 2
+          },
+          "out": {
+            "Defiant Strike": 3,
+            "Loran's Escape": 2
+          }
+        },
+        "vs_graveyard": {
+          "in": {
+            "Rest in Peace": 3
+          },
+          "out": {
+            "Reckless Rage": 3
+          }
+        }
+      }
+    },
+    "ladder/pioneer/tier1-boros-convoke": {
+      "profile": "aggro",
+      "archetype": "aggro",
+      "tier": "meta",
+      "tagline": "Explosive artifact tokens into Imodane's Recruiter finishes",
+      "roles": {
+        "Thraben Inspector": [
+          "early_play",
+          "fodder"
+        ],
+        "Warleader's Call": [
+          "lord",
+          "engine"
+        ],
+        "Imodane's Recruiter": [
+          "finisher"
+        ]
+      }
+    },
+    "ladder/pioneer/tier1-azorius-spirits": {
+      "profile": "tempo",
+      "archetype": "tempo",
+      "tier": "meta",
+      "tagline": "Flash flying lords, Spell Queller, and Curious Obsession",
+      "keyCards": [
+        "Spell Queller",
+        "Supreme Phantom",
+        "Curious Obsession",
+        "Lofty Denial"
+      ],
+      "roles": {
+        "Mausoleum Wanderer": [
+          "early_play"
+        ],
+        "Rattlechains": [
+          "eot_instant",
+          "engine"
+        ],
+        "Supreme Phantom": [
+          "lord"
+        ],
+        "Empyrean Eagle": [
+          "lord"
+        ],
+        "Spell Queller": [
+          "counter",
+          "eot_instant"
+        ],
+        "Lofty Denial": [
+          "counter"
+        ],
+        "Slip Out the Back": [
+          "combat_trick",
+          "eot_instant"
+        ]
+      },
+      "sideboard": {
+        "vs_aggro": {
+          "in": {
+            "Portable Hole": 3
+          },
+          "out": {
+            "Lofty Denial": 3
+          }
+        },
+        "vs_control": {
+          "in": {
+            "Mystical Dispute": 3,
+            "Dovin's Veto": 3
+          },
+          "out": {
+            "Shacklegeist": 4,
+            "Selfless Spirit": 2
+          }
+        },
+        "vs_graveyard": {
+          "in": {
+            "Rest in Peace": 3
+          },
+          "out": {
+            "Slip Out the Back": 3
+          }
+        }
+      }
+    },
+    "ladder/pioneer/tier1-gruul-vehicles": {
+      "profile": "midrange",
+      "archetype": "midrange",
+      "tier": "meta",
+      "tagline": "Mana elves into Bonecrusher Giant, Esika's Chariot, and Embercleave",
+      "keyCards": [
+        "Esika's Chariot",
+        "Reckless Stormseeker",
+        "Bonecrusher Giant",
+        "Embercleave"
+      ],
+      "roles": {
+        "Llanowar Elves": [
+          "mana_dork",
+          "early_play"
+        ],
+        "Elvish Mystic": [
+          "mana_dork",
+          "early_play"
+        ],
+        "Esika's Chariot": [
+          "payoff",
+          "engine"
+        ],
+        "Embercleave": [
+          "finisher"
+        ]
+      },
+      "playOrder": [
+        "mana_dork",
+        "early_play",
+        "payoff",
+        "finisher"
+      ]
+    },
+    "ladder/pioneer/tier1-dimir-control": {
+      "profile": "control",
+      "archetype": "control",
+      "tier": "meta",
+      "tagline": "Black hand disruption paired with counters, Memory Deluge, and Shark Typhoon",
+      "keyCards": [
+        "Memory Deluge",
+        "Shark Typhoon",
+        "Drown in the Loch",
+        "Sheoldred, the Apocalypse"
+      ],
+      "roles": {
+        "Drown in the Loch": [
+          "counter",
+          "cheap_removal",
+          "eot_instant"
+        ],
+        "Sinister Sabotage": [
+          "counter"
+        ],
+        "Memory Deluge": [
+          "draw",
+          "eot_instant"
+        ],
+        "Fatal Push": [
+          "cheap_removal",
+          "eot_instant"
+        ],
+        "Shark Typhoon": [
+          "finisher",
+          "eot_instant"
+        ],
+        "Sheoldred, the Apocalypse": [
+          "finisher",
+          "engine"
+        ]
+      },
+      "cardRules": [
+        {
+          "card": "Memory Deluge",
+          "holdForStep": "opp_end_step"
+        }
+      ],
+      "sideboard": {
+        "vs_control": {
+          "in": {
+            "Duress": 3,
+            "Mystical Dispute": 3
+          },
+          "out": {
+            "Fatal Push": 4,
+            "Go for the Throat": 2
+          }
+        },
+        "vs_graveyard": {
+          "in": {
+            "Unlicensed Hearse": 3,
+            "Go Blank": 2
+          },
+          "out": {
+            "Narset, Parter of Veils": 2,
+            "Go for the Throat": 2,
+            "Consider": 1
+          }
+        }
+      }
+    },
+    "ladder/pioneer/tier1-niv-to-light": {
+      "profile": "control",
+      "archetype": "control",
+      "tier": "meta",
+      "tagline": "Bring to Light toolbox and Niv-Mizzet Reborn value engine",
+      "keyCards": [
+        "Niv-Mizzet Reborn",
+        "Bring to Light",
+        "Omnath, Locus of Creation",
+        "Vanishing Verse"
+      ],
+      "roles": {
+        "Growth Spiral": [
+          "ramp",
+          "eot_instant"
+        ],
+        "Supreme Verdict": [
+          "sweeper"
+        ],
+        "Niv-Mizzet Reborn": [
+          "finisher",
+          "engine"
+        ],
+        "Omnath, Locus of Creation": [
+          "engine",
+          "payoff"
+        ]
+      }
+    },
+    "ladder/pioneer/tier2-dimir-rogues": {
+      "profile": "tempo",
+      "archetype": "tempo",
+      "tier": "tier2",
+      "tagline": "Flash Rogues enabling Drown in the Loch and Into the Story",
+      "roles": {
+        "Thieves' Guild Enforcer": [
+          "early_play",
+          "eot_instant"
+        ],
+        "Soaring Thought-Thief": [
+          "lord",
+          "eot_instant"
+        ],
+        "Drown in the Loch": [
+          "counter",
+          "cheap_removal"
+        ],
+        "Into the Story": [
+          "draw",
+          "eot_instant"
+        ]
+      }
+    },
+    "ladder/pioneer/tier2-mono-black-devotion": {
+      "profile": "midrange",
+      "archetype": "midrange",
+      "tier": "tier2",
+      "tagline": "Black devotion permanents draining out with Gray Merchant",
+      "roles": {
+        "Phyrexian Arena": [
+          "engine"
+        ],
+        "Gray Merchant of Asphodel": [
+          "finisher"
+        ],
+        "Sheoldred, the Apocalypse": [
+          "finisher",
+          "engine"
+        ]
+      }
+    },
+    "ladder/pioneer/tier2-simic-flash": {
+      "profile": "tempo",
+      "archetype": "tempo",
+      "tier": "tier2",
+      "tagline": "Plays almost entirely on the opponent's turn with Nightpack Ambusher",
+      "roles": {
+        "Nightpack Ambusher": [
+          "eot_instant",
+          "finisher"
+        ],
+        "Frilled Mystic": [
+          "counter",
+          "eot_instant"
+        ],
+        "Sinister Sabotage": [
+          "counter"
+        ],
+        "Quench": [
+          "counter"
+        ]
+      }
+    },
+    "ladder/pioneer/tier2-izzet-control": {
+      "profile": "control",
+      "archetype": "control",
+      "tier": "tier2",
+      "tagline": "Efficient burn removal, counters, and Shark Typhoon",
+      "roles": {
+        "Sinister Sabotage": [
+          "counter"
+        ],
+        "Anger of the Gods": [
+          "sweeper"
+        ],
+        "Memory Deluge": [
+          "draw",
+          "eot_instant"
+        ],
+        "Shark Typhoon": [
+          "finisher",
+          "eot_instant"
+        ]
+      }
+    },
+    "ladder/pioneer/tier2-orzhov-humans": {
+      "profile": "tribal",
+      "archetype": "tribal",
+      "tier": "tier2",
+      "tagline": "Taxing white Humans backed by Thoughtseize and Fatal Push",
+      "roles": {
+        "Thalia, Guardian of Thraben": [
+          "hate_piece",
+          "early_play"
+        ],
+        "Thalia's Lieutenant": [
+          "lord",
+          "payoff"
+        ],
+        "Adeline, Resplendent Cathar": [
+          "finisher"
+        ]
+      }
+    },
+    "ladder/pioneer/tier2-golgari-elves": {
+      "profile": "tribal",
+      "archetype": "tribal",
+      "tier": "tier2",
+      "tagline": "Collected Company Elves finishing with Shaman of the Pack",
+      "roles": {
+        "Llanowar Elves": [
+          "mana_dork",
+          "early_play"
+        ],
+        "Elvish Mystic": [
+          "mana_dork",
+          "early_play"
+        ],
+        "Shaman of the Pack": [
+          "finisher"
+        ],
+        "Collected Company": [
+          "eot_instant",
+          "payoff"
+        ]
+      }
+    },
+    "ladder/pioneer/tier2-abzan-midrange": {
+      "profile": "midrange",
+      "archetype": "midrange",
+      "tier": "tier2",
+      "tagline": "Three-color attrition with Vanishing Verse, Glissa, and Sheoldred",
+      "roles": {
+        "Glissa Sunslayer": [
+          "engine",
+          "payoff"
+        ],
+        "Sheoldred, the Apocalypse": [
+          "finisher",
+          "engine"
+        ]
+      }
+    },
+    "ladder/pioneer/rogue-dimir-mill": {
+      "profile": "combo",
+      "archetype": "combo",
+      "tier": "rogue",
+      "tagline": "Ruin Crab and Tasha's Hideous Laughter library attack",
+      "roles": {
+        "Ruin Crab": [
+          "engine",
+          "early_play"
+        ],
+        "Drown in the Loch": [
+          "counter",
+          "cheap_removal"
+        ],
+        "Jace, the Perfected Mind": [
+          "finisher"
+        ]
+      }
+    },
+    "ladder/pioneer/rogue-izzet-ensoul": {
+      "profile": "aggro",
+      "archetype": "aggro",
+      "tier": "rogue",
+      "tagline": "5/5 Darksteel Citadels and Shrapnel Blast reach",
+      "roles": {
+        "Ensoul Artifact": [
+          "payoff"
+        ],
+        "Shrapnel Blast": [
+          "burn"
+        ],
+        "Stubborn Denial": [
+          "counter"
+        ]
+      }
+    },
+    "ladder/pioneer/rogue-mono-white-lifegain": {
+      "profile": "tribal",
+      "archetype": "tribal",
+      "tier": "rogue",
+      "tagline": "Soul sisters fueling Voice of the Blessed and Angels",
+      "roles": {
+        "Bishop of Wings": [
+          "engine"
+        ],
+        "Righteous Valkyrie": [
+          "lord",
+          "payoff"
+        ]
+      }
+    },
+    "ladder/modern/tier1-azorius-control": {
+      "profile": "control",
+      "archetype": "control",
+      "tier": "meta",
+      "tagline": "Teferi, Solitude, and Force of Negation control shell",
+      "keyCards": [
+        "Teferi, Time Raveler",
+        "Solitude",
+        "Force of Negation",
+        "Supreme Verdict"
+      ],
+      "roles": {
+        "Force of Negation": [
+          "counter"
+        ],
+        "Spell Snare": [
+          "counter"
+        ],
+        "Dovin's Veto": [
+          "counter"
+        ],
+        "Supreme Verdict": [
+          "sweeper"
+        ],
+        "The Wandering Emperor": [
+          "eot_instant",
+          "cheap_removal",
+          "engine"
+        ],
+        "Teferi, Time Raveler": [
+          "engine"
+        ],
+        "Teferi, Hero of Dominaria": [
+          "finisher",
+          "engine"
+        ],
+        "Solitude": [
+          "cheap_removal",
+          "eot_instant"
+        ],
+        "Shark Typhoon": [
+          "finisher",
+          "eot_instant"
+        ]
+      },
+      "cardRules": [
+        {
+          "card": "The Wandering Emperor",
+          "holdForStep": "combat_attackers",
+          "unless": {
+            "and": [
+              {
+                "notMyTurn": true
+              },
+              {
+                "step": "EndTurn"
+              }
+            ]
+          }
+        },
+        {
+          "card": "Supreme Verdict",
+          "castOnlyIf": {
+            "or": [
+              {
+                "netOppCreaturesAtLeast": 1
+              },
+              {
+                "oppPowerAtLeast": 5
+              },
+              {
+                "myLifeAtMost": 10
+              }
+            ]
+          }
+        }
+      ],
+      "sideboard": {
+        "vs_aggro": {
+          "in": {
+            "Supreme Verdict": 1,
+            "Portable Hole": 3
+          },
+          "out": {
+            "Force of Negation": 2,
+            "Dovin's Veto": 2
+          }
+        },
+        "vs_control": {
+          "in": {
+            "Dovin's Veto": 2,
+            "Mystical Dispute": 3
+          },
+          "out": {
+            "Supreme Verdict": 3,
+            "Path to Exile": 2
+          }
+        },
+        "vs_graveyard": {
+          "in": {
+            "Rest in Peace": 3
+          },
+          "out": {
+            "Spell Snare": 3
+          }
+        }
+      }
+    },
+    "ladder/modern/tier1-jund-midrange": {
+      "profile": "midrange",
+      "archetype": "midrange",
+      "tier": "meta",
+      "tagline": "Classic Tarmogoyf, Liliana of the Veil, and Kolaghan's Command attrition",
+      "keyCards": [
+        "Tarmogoyf",
+        "Liliana of the Veil",
+        "Kolaghan's Command",
+        "Dark Confidant"
+      ],
+      "roles": {
+        "Thoughtseize": [
+          "early_play"
+        ],
+        "Dark Confidant": [
+          "engine",
+          "early_play"
+        ],
+        "Tarmogoyf": [
+          "payoff"
+        ],
+        "Liliana of the Veil": [
+          "engine"
+        ],
+        "Fable of the Mirror-Breaker": [
+          "engine",
+          "payoff"
+        ],
+        "Lightning Bolt": [
+          "burn",
+          "cheap_removal"
+        ]
+      },
+      "playOrder": [
+        "early_play",
+        "cheap_removal",
+        "engine",
+        "payoff"
+      ],
+      "evalCardBonus": {
+        "Liliana of the Veil": 0.55,
+        "Fable of the Mirror-Breaker": 0.55
+      },
+      "sideboard": {
+        "vs_aggro": {
+          "in": {
+            "Anger of the Gods": 3,
+            "Abrade": 2
+          },
+          "out": {
+            "Thoughtseize": 3,
+            "Dark Confidant": 2
+          }
+        },
+        "vs_control": {
+          "in": {
+            "Duress": 3
+          },
+          "out": {
+            "Fatal Push": 3
+          }
+        },
+        "vs_graveyard": {
+          "in": {
+            "Leyline of the Void": 3
+          },
+          "out": {
+            "Abrupt Decay": 3
+          }
+        }
+      }
+    },
+    "ladder/modern/tier1-dimir-tempo": {
+      "profile": "tempo",
+      "archetype": "tempo",
+      "tier": "meta",
+      "tagline": "Psychic Frog card advantage protected by Force of Negation",
+      "keyCards": [
+        "Psychic Frog",
+        "Force of Negation",
+        "Drown in the Loch",
+        "Fatal Push"
+      ],
+      "roles": {
+        "Psychic Frog": [
+          "early_play",
+          "engine",
+          "payoff"
+        ],
+        "Faerie Mastermind": [
+          "early_play",
+          "eot_instant"
+        ],
+        "Force of Negation": [
+          "counter"
+        ],
+        "Spell Snare": [
+          "counter"
+        ],
+        "Drown in the Loch": [
+          "counter",
+          "cheap_removal"
+        ],
+        "Fatal Push": [
+          "cheap_removal",
+          "eot_instant"
+        ]
+      },
+      "evalCardBonus": {
+        "Psychic Frog": 0.65
+      },
+      "sideboard": {
+        "vs_control": {
+          "in": {
+            "Mystical Dispute": 3,
+            "Duress": 3
+          },
+          "out": {
+            "Fatal Push": 4,
+            "Spell Snare": 2
+          }
+        },
+        "vs_graveyard": {
+          "in": {
+            "Leyline of the Void": 3,
+            "Unlicensed Hearse": 2
+          },
+          "out": {
+            "Spell Snare": 3,
+            "Opt": 2
+          }
+        }
+      }
+    },
+    "ladder/modern/tier1-selesnya-company": {
+      "profile": "midrange",
+      "archetype": "midrange",
+      "tier": "meta",
+      "tagline": "Taxing creatures and Collected Company value",
+      "keyCards": [
+        "Collected Company",
+        "Archon of Emeria",
+        "Skyclave Apparition",
+        "Thalia, Guardian of Thraben"
+      ],
+      "roles": {
+        "Llanowar Elves": [
+          "mana_dork",
+          "early_play"
+        ],
+        "Elvish Mystic": [
+          "mana_dork",
+          "early_play"
+        ],
+        "Collected Company": [
+          "eot_instant",
+          "payoff"
+        ]
+      },
+      "cardRules": [
+        {
+          "card": "Collected Company",
+          "holdForStep": "opp_end_step"
+        }
+      ]
+    },
+    "ladder/modern/tier1-rakdos-sacrifice": {
+      "profile": "sacrifice",
+      "archetype": "sacrifice",
+      "tier": "meta",
+      "tagline": "Cauldron Familiar, Witch's Oven, and Mayhem Devil burn",
+      "roles": {
+        "Cauldron Familiar": [
+          "fodder",
+          "early_play"
+        ],
+        "Witch's Oven": [
+          "sac_outlet",
+          "early_play"
+        ],
+        "Mayhem Devil": [
+          "payoff",
+          "engine"
+        ]
+      }
+    },
+    "ladder/modern/tier1-esper-control": {
+      "profile": "control",
+      "archetype": "control",
+      "tier": "meta",
+      "tagline": "Solitude + Ephemerate loops behind Esper countermagic",
+      "keyCards": [
+        "Solitude",
+        "Ephemerate",
+        "Teferi, Time Raveler",
+        "Supreme Verdict"
+      ],
+      "roles": {
+        "Force of Negation": [
+          "counter"
+        ],
+        "Dovin's Veto": [
+          "counter"
+        ],
+        "Supreme Verdict": [
+          "sweeper"
+        ],
+        "Memory Deluge": [
+          "draw",
+          "eot_instant"
+        ]
+      },
+      "cardRules": [
+        {
+          "card": "Memory Deluge",
+          "holdForStep": "opp_end_step"
+        }
+      ]
+    },
+    "ladder/modern/tier1-jeskai-control": {
+      "profile": "control",
+      "archetype": "control",
+      "tier": "meta",
+      "tagline": "Bolt-Helix control with Expressive Iteration and Teferi",
+      "roles": {
+        "Force of Negation": [
+          "counter"
+        ],
+        "Spell Snare": [
+          "counter"
+        ],
+        "Supreme Verdict": [
+          "sweeper"
+        ],
+        "The Wandering Emperor": [
+          "eot_instant",
+          "engine"
+        ]
+      },
+      "cardRules": [
+        {
+          "card": "The Wandering Emperor",
+          "holdForStep": "combat_attackers"
+        }
+      ]
+    },
+    "ladder/modern/tier1-boros-aggro": {
+      "profile": "aggro",
+      "archetype": "aggro",
+      "tier": "meta",
+      "tagline": "Ragavan and hasty beaters backed by Lightning Bolt and Boros Charm",
+      "roles": {
+        "Ragavan, Nimble Pilferer": [
+          "early_play",
+          "engine"
+        ],
+        "Goblin Guide": [
+          "early_play",
+          "haste"
+        ],
+        "Lightning Bolt": [
+          "burn"
+        ]
+      }
+    },
+    "ladder/modern/tier1-izzet-phoenix": {
+      "profile": "graveyard",
+      "archetype": "graveyard",
+      "tier": "meta",
+      "tagline": "Cantrip chains resurrecting Arclight Phoenixes",
+      "keyCards": [
+        "Arclight Phoenix",
+        "Dragon's Rage Channeler",
+        "Ledger Shredder",
+        "Expressive Iteration"
+      ],
+      "roles": {
+        "Arclight Phoenix": [
+          "reanimate_target",
+          "payoff"
+        ],
+        "Ledger Shredder": [
+          "engine",
+          "enabler"
+        ],
+        "Chart a Course": [
+          "enabler",
+          "draw"
+        ]
+      },
+      "discardRolesFirst": [
+        "reanimate_target"
+      ],
+      "graveyardRoleBonus": {
+        "reanimate_target": 0.5
+      }
+    },
+    "ladder/modern/tier2-mardu-pyromancer": {
+      "profile": "midrange",
+      "archetype": "midrange",
+      "tier": "tier2",
+      "tagline": "Spell-token engines with Young Pyromancer and Monastery Mentor",
+      "roles": {
+        "Young Pyromancer": [
+          "engine"
+        ],
+        "Monastery Mentor": [
+          "engine",
+          "finisher"
+        ],
+        "Fable of the Mirror-Breaker": [
+          "engine"
+        ]
+      }
+    },
+    "ladder/modern/tier2-abzan-midrange": {
+      "profile": "midrange",
+      "archetype": "midrange",
+      "tier": "tier2",
+      "tagline": "Tarmogoyf, Solitude, and Liliana grind",
+      "roles": {
+        "Dark Confidant": [
+          "engine"
+        ],
+        "Liliana of the Veil": [
+          "engine"
+        ],
+        "Tarmogoyf": [
+          "payoff"
+        ]
+      }
+    },
+    "ladder/modern/tier2-mono-white-taxes": {
+      "profile": "tribal",
+      "archetype": "tribal",
+      "tier": "tier2",
+      "tagline": "Thalia taxes, Solitude-Ephemerate, and white pressure",
+      "roles": {
+        "Thalia, Guardian of Thraben": [
+          "hate_piece",
+          "early_play"
+        ],
+        "Aether Vial": [
+          "engine",
+          "early_play"
+        ],
+        "Solitude": [
+          "cheap_removal",
+          "eot_instant"
+        ]
+      }
+    },
+    "ladder/modern/tier2-bant-spirits": {
+      "profile": "tempo",
+      "archetype": "tempo",
+      "tier": "tier2",
+      "tagline": "Mana elves accelerating Spell Queller and Collected Company Spirits",
+      "roles": {
+        "Llanowar Elves": [
+          "mana_dork",
+          "early_play"
+        ],
+        "Spell Queller": [
+          "counter",
+          "eot_instant"
+        ],
+        "Collected Company": [
+          "eot_instant",
+          "payoff"
+        ]
+      },
+      "cardRules": [
+        {
+          "card": "Collected Company",
+          "holdForStep": "opp_end_step"
+        }
+      ]
+    },
+    "ladder/modern/tier2-golgari-elves": {
+      "profile": "tribal",
+      "archetype": "tribal",
+      "tier": "tier2",
+      "tagline": "Heritage Druid mana bursts into Ezuri and Shaman of the Pack",
+      "roles": {
+        "Heritage Druid": [
+          "mana_dork",
+          "engine"
+        ],
+        "Ezuri, Renegade Leader": [
+          "lord",
+          "finisher"
+        ],
+        "Shaman of the Pack": [
+          "finisher"
+        ],
+        "Collected Company": [
+          "eot_instant",
+          "payoff"
+        ]
+      }
+    },
+    "ladder/modern/tier2-mono-blue-merfolk": {
+      "profile": "tribal",
+      "archetype": "tribal",
+      "tier": "tier2",
+      "tagline": "Aether Vial Merfolk lords and Force of Negation",
+      "roles": {
+        "Aether Vial": [
+          "engine",
+          "early_play"
+        ],
+        "Lord of Atlantis": [
+          "lord"
+        ],
+        "Master of the Pearl Trident": [
+          "lord"
+        ],
+        "Force of Negation": [
+          "counter"
+        ]
+      }
+    },
+    "ladder/modern/tier2-gruul-midrange": {
+      "profile": "midrange",
+      "archetype": "midrange",
+      "tier": "tier2",
+      "tagline": "Ragavan and elves ramping into Fable, Chariot, and Questing Beast",
+      "roles": {
+        "Ragavan, Nimble Pilferer": [
+          "early_play",
+          "engine"
+        ],
+        "Fable of the Mirror-Breaker": [
+          "engine"
+        ],
+        "Esika's Chariot": [
+          "payoff"
+        ]
+      }
+    },
+    "ladder/modern/rogue-mono-red-goblins": {
+      "profile": "tribal",
+      "archetype": "tribal",
+      "tier": "rogue",
+      "tagline": "Aether Vial Goblins with Conspicuous Snoop and Krenko",
+      "roles": {
+        "Aether Vial": [
+          "engine"
+        ],
+        "Goblin Warchief": [
+          "lord"
+        ],
+        "Krenko, Mob Boss": [
+          "finisher"
+        ]
+      }
+    },
+    "ladder/modern/rogue-dimir-mill": {
+      "profile": "combo",
+      "archetype": "combo",
+      "tier": "rogue",
+      "tagline": "Ruin Crab and Tasha's Hideous Laughter backed by Force of Negation",
+      "roles": {
+        "Ruin Crab": [
+          "engine"
+        ],
+        "Force of Negation": [
+          "counter"
+        ],
+        "Drown in the Loch": [
+          "counter",
+          "cheap_removal"
+        ]
+      }
+    },
+    "ladder/modern/rogue-mono-black-midrange": {
+      "profile": "midrange",
+      "archetype": "midrange",
+      "tier": "rogue",
+      "tagline": "Liliana, Dark Confidant, Sheoldred, and Gray Merchant drain",
+      "roles": {
+        "Dark Confidant": [
+          "engine"
+        ],
+        "Liliana of the Veil": [
+          "engine"
+        ],
+        "Sheoldred, the Apocalypse": [
+          "finisher"
+        ]
+      }
+    }
+  }
+}

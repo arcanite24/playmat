@@ -12,6 +12,8 @@ const SCREENS: Record<string, LazyExoticComponent<ComponentType>> = {
   limited: lazy(() => import('./CareerLimitedScreen').then((m) => ({ default: m.CareerLimitedScreen }))),
   challenge: lazy(() => import('./CareerChallengeScreen').then((m) => ({ default: m.CareerChallengeScreen }))),
   hordes: lazy(() => import('./CareerHordesScreen').then((m) => ({ default: m.CareerHordesScreen }))),
+  archenemy: lazy(() => import('./CareerArchenemyScreen').then((m) => ({ default: m.CareerArchenemyScreen }))),
+  thg: lazy(() => import('./CareerThgScreen').then((m) => ({ default: m.CareerThgScreen }))),
 };
 
 export function CareerModesRoute() {

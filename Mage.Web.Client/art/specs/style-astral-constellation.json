@@ -1,0 +1,49 @@
+{
+  "$comment": "Card styles of the Astral Constellation set (Commander Vault capsule machine), written by art/machine-specs.mjs from career/machines/commander-vault.json: edit that file and re-run, not this one.",
+  "out": "public/career-art/cardstyle/astral-constellation",
+  "house": false,
+  "panels": true,
+  "grid": {
+    "cols": 4,
+    "rows": 2,
+    "canvas": "landscape"
+  },
+  "size": "640x894",
+  "anchors": [],
+  "refs": [
+    "thb/250",
+    "thb/251",
+    "thb/254"
+  ],
+  "style": "Illuminated celestial star-chart painting: deep lapis lazuli and midnight indigo wash, delicate gold-leaf constellation lines and orbital arcs, restrained pale cream highlights, matte parchment tooth.",
+  "rules": "These are full-art pictures for playing cards: the client draws a small name plate over the top edge, mana symbols at the top right and power and toughness at the bottom right, so keep the main subject in the middle of the panel and the top 15% and bottom 15% calm and uncluttered (sky, ground, water, background texture), with nothing important in the corners. Each panel shows its own subject as one clear, readable scene, the same style and palette as its neighbours, as if the whole row were a matched, limited-edition art series.",
+  "spare": "an extra painting in the same style: a tall stone observatory spire rising into a star-mapped night sky, five subtle colored starlight beams converging on its crown",
+  "items": [
+    {
+      "id": "command-tower",
+      "subject": "a tall stone observatory spire rising into a star-mapped night sky, five subtle colored starlight beams converging on its crown"
+    },
+    {
+      "id": "rhystic-study",
+      "subject": "a quiet scholar at a brass astrolabe desk as luminous star-threads drift from nearby lanterns into open books"
+    },
+    {
+      "id": "cyclonic-rift",
+      "subject": "a colossal spiral vortex of night sea and starlight lifting distant ships and stone arches skyward"
+    },
+    {
+      "id": "mystic-remora",
+      "subject": "a translucent celestial fish gliding along the wake of a passing starlit leviathan, trailing fine gold filaments"
+    },
+    {
+      "id": "arcane-denial",
+      "subject": "an interlocking brass ring snapping shut around a flaring comet mid-flight, scattering quiet sparks"
+    },
+    {
+      "id": "set-astral-constellation",
+      "out": "public/career-art/sleeve/set-astral-constellation.webp",
+      "size": "540x756",
+      "subject": "the BACK of a playing card in the same style: a symmetrical ornamental design (it is seen upside down too) with a central emblem drawn from this set's theme, framed by a painted border; no logo, no oval, no five dots, no lettering"
+    }
+  ]
+}

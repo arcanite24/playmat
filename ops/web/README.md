@@ -60,8 +60,9 @@ docker compose -f ops/web/docker-compose.yml -f ops/web/docker-compose.proxy.yml
 - `DOMAIN` is the public name. `XMAGE_ALLOWED_ORIGINS` and `XMAGE_PUBLIC_URL` default to `https://$DOMAIN`, which is right when the proxy serves it on 443. If players use another port or more than one name, set both: the server refuses game connections whose browser origin isn't in `XMAGE_ALLOWED_ORIGINS`, and `XMAGE_PUBLIC_URL` goes into join links, emails and the GitHub sign-in callback.
 - Caddy believes `X-Forwarded-For` from any private address (`UPSTREAM_PROXIES` defaults to `private_ranges` in this mode), so rate limits and the server's per-address caps see each player. Set `UPSTREAM_PROXIES` to your proxy network's subnet to narrow it (`docker network inspect proxy -f '{{(index .IPAM.Config 0).Subnet}}'`).
 - Caddy answers any `Host` on port 80, so a proxy that rewrites the host name still works.
- Keep `TLS_MODE=external` in `.env`, not only in your command line: the [Update button](#update-button) and the [image-based deploy](deploy/) add `docker-compose.proxy.yml` when `.env` says so. They use the stock files only, so put your own changes in `.env` (the variables below) rather than in a third compose file.
-- A proxy on the host itself, not in Docker (a distro nginx): skip the network and proxy to Caddy's address on the compose network, `http://10.89.17.10:80` (`CADDY_IP`; Linux only). Use the override anyway, or 80/443 stay published
+- Keep `TLS_MODE=external` in `.env`, not only in your command line: the [Update button](#update-button) and the [image-based deploy](deploy/) add `docker-compose.proxy.yml` when `.env` says so. They use the stock files only, so put your own changes in `.env` (the variables below) rather than in a third compose file.
+- A proxy on the host itself, not in Docker (a distro nginx): skip the network and proxy to Caddy's address on the compose network, `http://10.89.17.10:80` (`CADDY_IP`; Linux only). Use the override anyway, or 80/443 stay published.
+- **Plain HTTP without a TLS proxy in front** (a private LAN or Tailscale-only server): set `TLS_MODE=external` and `HTTP_PORT` (for example `8088`) without `docker-compose.proxy.yml`, and set `XMAGE_ALLOWED_ORIGINS` (and `XMAGE_PUBLIC_URL` if needed) to the `http://` origin players open (e.g. `http://myserver.local:8088`). The published `web` image defaults its game connection to `ws://<page host>/ws` on the same origin, which Caddy proxies to the server.
 
 ### Reverse proxy on another host (external-host)
 
@@ -177,6 +178,7 @@ Set these in `ops/web/.env` (Compose reads it automatically) or in the environme
 | `XMAGE_REPLAYS` | `true` | Record finished games with at least one human player for the web client's replays (`-Dxmage.replays`). |
 | `XMAGE_REPLAY_DAYS` | `30` | Replays older than this many days are deleted. |
 | `XMAGE_REPLAY_MAX` | `300` | At most this many replays are kept; the oldest go first. A replay is gzipped, about 10 kB per turn (a six-turn duel was 59 kB), so 300 replays usually take tens of megabytes. |
+| `XMAGE_DISK_MIN_FREE_MB` | `3072` | Free space threshold on the `db/` disk in MB (or 5% of the disk, whichever is more). Below it, `/healthz`, the admin Overview and the staff Discord channel (at most every 6 hours) warn that the disk is nearly full. |
 | `XMAGE_MEMORY` | sized to the machine | Java heap, e.g. `2g`. Empty: `XMAGE_HEAP_PERCENT` of the memory the container sees (its limit, else the host's), between 256 MB and 1 GB. The server logs the size it chose at start. |
 | `XMAGE_HEAP_PERCENT` | `40` | Share of the machine's memory the heap gets when `XMAGE_MEMORY` is empty. The rest is the JVM's own memory (classes, threads, code; about 400 MB) and the system's. |
 | `XMAGE_EXIT_ON_OOM` | `true` | Stop the server when the heap runs out, so Docker restarts it (in about 15 s) instead of leaving it running broken. Games in progress end either way. `false` keeps it running. |
@@ -184,7 +186,8 @@ Set these in `ops/web/.env` (Compose reads it automatically) or in the environme
 | `XMAGE_GC` | `auto` | Garbage collector: `serial` on one or two CPUs (less CPU per game there), else `g1`, which hands unused memory back while the server idles. Or `serial`, `g1`, `parallel`. |
 | `XMAGE_METASPACE` | `512m` | Cap on the JVM's class memory (`-XX:MaxMetaspaceSize`). The card classes take about 260 MB. |
 | `XMAGE_CDS` | `true` | `false` stops using the class archive recorded when the image was built (it makes starts faster and shares class memory). |
-| `XMAGE_COMPACT_HEADERS` | `true` | Only for an image built on JDK 25 (`--build-arg JAVA_RUNTIME=25`): 8-byte object headers instead of 12 (JEP 519). `false` turns them off (the class archive then goes unused). The default image runs on JDK 17, which used less memory on a 1 GB box. |
+| `XMAGE_BASE64_INTRINSICS` | `off` | The JVM's hand-written Base64 decoder (`-XX:-UseBASE64Intrinsics` while off). Off because of Java4Shell (CVE-2026-114938), a bug in it on x86-64 CPUs with AVX-512; the server barely uses Base64, so it costs nothing measurable. `on` puts it back, for a JRE with the fix. |
+| `XMAGE_COMPACT_HEADERS` | `true` | Only for an image built on JDK 25 (`--build-arg JAVA_RUNTIME=25 --build-arg JAVA_IMAGE=eclipse-temurin:25-jre`): 8-byte object headers instead of 12 (JEP 519). `false` turns them off (the class archive then goes unused). The default image runs on JDK 17, which used less memory on a 1 GB box. |
 | `XMAGE_MAX_GAME_THREADS` | `4` | `maxGameThreads`: games that run at the same time. |
 | `XMAGE_MAX_AI_OPPONENTS` | `4` | `maxAiOpponents`: AI players in use at once (draft bots don't count). |
 | `XMAGE_MAX_SECONDS_IDLE` | `600` (shipped) | `maxSecondsIdle`: an idle player concedes after this many seconds. |
@@ -215,7 +218,7 @@ Set these in `ops/web/.env` (Compose reads it automatically) or in the environme
 | `XMAGE_ALLOWLIST` | empty | The first boot's allowlist (`-Dxmage.allowlist`): account names and emails, comma separated, or `@/path` to a file in the container with one per line (`#` starts a comment). |
 | `XMAGE_GITHUB_CLIENT_ID`, `XMAGE_GITHUB_CLIENT_SECRET` | empty | An OAuth app for Sign in with GitHub (`-Dxmage.github.*`). Its callback URL is `XMAGE_PUBLIC_URL/auth/github`. Both set: the sign-in screen offers GitHub. The secret is a secret. |
 | `AUTH_TRUSTED_HEADER` | empty (off) | Single sign-on: the header a sign-on proxy in front sets to the signed-in user's name, such as `Remote-User` (`-Dxmage.auth.trustedHeader`). Needs `XMAGE_AUTH=true`. See [Single sign-on](#single-sign-on). |
-| `AUTH_TRUSTED_PROXIES` | `UPSTREAM_PROXIES` | The addresses (space separated) the sign-on proxy connects to Caddy from. Caddy keeps `AUTH_TRUSTED_HEADER` only on their requests and deletes it from all others. |
+| `AUTH_TRUSTED_PROXIES` | none (`255.255.255.255/32`) | The addresses (space separated) the sign-on proxy connects to Caddy from. Caddy keeps `AUTH_TRUSTED_HEADER` only on their requests and deletes it from all others. Set it with single sign-on; it doesn't follow `UPSTREAM_PROXIES`. Never Cloudflare's ranges. |
 | `XMAGE_PASSWORD_SIGNIN` | `true` | `false` with single sign-on: it is the only way in. Password sign-in, registration, reset codes, remembered devices and Sign in with GitHub are off (`-Dxmage.auth.passwordSignIn`). The admin password still works. Refuses to start without `AUTH_TRUSTED_HEADER`. |
 | `XMAGE_TRUSTED_HEADER_STRIP_DOMAIN` | `false` | `true`: a header value `alice@example.com` signs in as `alice` (Tailscale logins, proxies that send an email). Only safe when every user shares one domain. |
 | `XMAGE_GITHUB_REPO`, `XMAGE_GITHUB_TOKEN` | empty | `owner/name` of a repository whose people get in to a contributors server by signing in with GitHub, fetched every 6 hours: its collaborators when the token can read them, its public contributors without a token. |
@@ -234,6 +237,7 @@ Set these in `ops/web/.env` (Compose reads it automatically) or in the environme
 | `XMAGE_JAVA_OPTS` | empty | Extra JVM flags. |
 | `BACKUP_AT` | `03:30` | Time of the daily backup, as `HH:MM` in `TZ`. |
 | `BACKUP_KEEP` | `14` | Number of backups to keep. |
+| `BACKUP_MIN_FREE_MB` | `1024` | A backup that would leave less than this free on the backups disk fails before it starts (and staff are told, as for any failed backup). |
 | `TZ` | `UTC` | Time zone for `BACKUP_AT`. |
 | `WS_RATE_LIMIT` / `WS_RATE_WINDOW` | `30` / `1m` | New game connections (`/ws` requests) Caddy lets one client address open per window. Over it: `429` with `Retry-After`. |
 | `IMG_API_RATE_LIMIT` / `IMG_API_RATE_WINDOW` | `300` / `1m` | Scryfall lookups (`/img/api/*`) per client address per window. Pictures (`/img/cards/*`, `/img/backs/*`) are not limited. |
@@ -274,7 +278,7 @@ and the container restarts the gateway. `off`, the default, leaves things as the
 | `XMAGE_ROUTE_CAREER`, `XMAGE_ROUTE_CAREERPROGRESS` | `java` | The same for the Career's records in `db/career.db`: `careerCollection`, `careerDeck`, `careerGameResult`, `careerShowProgress`, `careerLevels`, and `careerStarters`, `careerCosmetics`, `careerOpponents`, `careerAchievements`, `careerQuests`, `careerRerollQuest`, the capsule shop (`careerMachines`, `careerBuyTokens`, `careerPull`), `careerEquipStyle`, `careerCraft` (with the card catalog), `careerStart` and `careerSaveDeck` from the views Java writes to `XMAGE_CAREER_EXPORT` (`db/career-views.json`) ([docs/rust/Career.md](../../docs/rust/Career.md)). Quests and pulls roll the same seeded dice on both sides (career.db's secret), so `shadow` compares them. Everything else in the Career, packs, drafts, the modes and the games it starts, stays with Java. |
 | `XMAGE_ROUTE_CAREERPAYOUTS` | `java` | Who pays a finished game in the Career (coins, XP, quests, achievements, masteries, the nemesis): `java`, `shadow` (Java pays and keeps the rows before and after in `payout_events`; the gateway replays each payout on a copy and counts differences as `matchEnded`/`gameEnded` in the shadow metrics) or `rust` (Java stores the payout and the gateway pays it, for roster duels and games outside Career tables; the modes stay with Java). Needs `XMAGE_GATEWAY=on`; never set by `XMAGE_ROUTE_DEFAULT` or rollouts. Switching back to `java` pays what's left pending at the next start ([docs/rust/Payouts.md](../../docs/rust/Payouts.md)). |
 | `XMAGE_ROUTE_DEFAULT`, `XMAGE_ROUTES_FILE` | `java` | The route for every other group, and a file with routes by group, by method and rollout percentages (`rust/crates/playmat-protocol/src/routes.rs`). |
-| `XMAGE_GATEWAY_TOTALS` | `saved/gateway-totals.json` | A file where the gateway keeps its shadow counters (by method), declined calls and hosted games (started, and ended by how) across restarts and deploys, with what each day added (UTC, the last 90 days). Written every 30 seconds and when the gateway stops; `/metrics` counts on from it. |
+| `XMAGE_GATEWAY_TOTALS` | `saved/gateway-totals.json` | A file where the gateway keeps its shadow counters (by method), declined calls and hosted games (started, and ended by how) across restarts and deploys, with what each day added (UTC, the last 90 days). Written every 30 seconds and when the gateway stops; `/metrics` counts on from it. Each shadow difference is also appended to `differences.log` in the same folder (time, method, where it differed), which starts again past 2 MB (the previous file is kept as `differences.log.1`). |
 | `XMAGE_GATEWAY_LOG` | `info` | Log level, e.g. `debug`. |
 
 The gateway trusts `X-Forwarded-For` from `XMAGE_TRUSTED_PROXIES` only, and passes the bridge nothing else that
@@ -440,7 +444,7 @@ To run a contributors server next to an open one on the same host, give it its o
 Behind a sign-on proxy (Authelia, Authentik's proxy outpost, oauth2-proxy, `tailscale serve`), players can sign in with it instead of a Playmat password. The proxy names the signed-in user in a header; Playmat believes it. The design and threat model are in [docs/TrustedHeaderAuth.md](../../docs/TrustedHeaderAuth.md); the site's [Single sign-on](https://arcanite24.github.io/playmat/docs/sso.html) guide is the short version.
 
 1. Put the stack behind the proxy as in [Behind another reverse proxy](#behind-another-reverse-proxy), with the sign-on check on every path, `/ws` included.
-2. Set `XMAGE_AUTH=true` and `AUTH_TRUSTED_HEADER` to the proxy's header: Authelia `Remote-User`, Authentik `X-authentik-username`, oauth2-proxy `X-Forwarded-Preferred-Username` (or `X-Forwarded-User`), Tailscale `Tailscale-User-Login` with `XMAGE_TRUSTED_HEADER_STRIP_DOMAIN=true`. `AUTH_TRUSTED_PROXIES` defaults to `UPSTREAM_PROXIES`.
+2. Set `XMAGE_AUTH=true` and `AUTH_TRUSTED_HEADER` to the proxy's header: Authelia `Remote-User`, Authentik `X-authentik-username`, oauth2-proxy `X-Forwarded-Preferred-Username` (or `X-Forwarded-User`), Tailscale `Tailscale-User-Login` with `XMAGE_TRUSTED_HEADER_STRIP_DOMAIN=true`. Set `AUTH_TRUSTED_PROXIES` to the address the sign-on proxy connects from, usually the same as `UPSTREAM_PROXIES` here. It has to be set: it defaults to trusting nobody, so that widening `UPSTREAM_PROXIES` (to a CDN's ranges, say) never lets anyone else send the header.
 3. `up -d`. The sign-in screen of a player who came through the proxy says **Continue as <name>**, and signs in by itself on later visits until they sign out.
 
 How the header is trusted:
@@ -633,15 +637,42 @@ client to know how to show its items.
 The ranked ladder (#429) plays against **bots**: a school deck (`career/campaigns/decks/<format>/`) at one of the AI
 skills the Rust host plays (1 quick answers, 3 a fifth of the search, 5 half, 7 the full search), with a persona (a
 name and cosmetics from `cosmetics.json`). They are listed in `Mage.Server/src/main/resources/ladder/bots.json`, one
-rating scale per format (Standard and Pioneer so far), each anchored so the format's starter at skill 1 is 1000.
+rating scale per format (Standard, Pioneer and Modern), each anchored so the format's starter at skill 1 is 1000.
 
+- **Modern** (#435) has no League, so its bots play in the Open and Bo3 queues only. The Rust host doesn't play every
+  card of the Modern school decks yet (#187), so the bots play `modern/ladder-*.dck`: copies of the school decks that
+  miss at most three different cards, with those swapped for the closest Modern-legal cards it plays (any rarity) and
+  missing lands for basics, written by
+  `mvn -o -pl Mage.Server test -Dtest=LadderFormatDecksTest -Dxmage.writeLadderDecks=true`. `LadderFormatDecksTest`
+  checks every close deck has its copy and that there are at least eight. **Pauper** stays off the ladder: only
+  3 of its 23 school decks miss three cards or fewer (129 different cards missing in all);
+  `pauperIsNotCoveredYet` fails when the host catches up.
+
+- **Generations** (#435). Every bot is pinned to the search settings it was rated with: `ai`, an `entrants::label`
+  (`"quick"` for the quick answers alone), and `generation`. Ranked tables send the pin to the Rust host as the table's
+  `aiPin`, so a later build plays the bot as it was measured. A Java-engine game still plays the bot's `skill`. A pin
+  freezes settings, not code: a change to the evaluation, the built-in net or the engine moves pinned bots too, and
+  needs a full calibration. When the Rust AI gets stronger, `ladder-calibrate`'s test
+  `the_newest_generation_plays_this_build` fails. Then:
+  1. Add `GENERATIONS[n]` in `roster.py`, with the build's labels (`calibration.skills` after any run, or the test's
+     message) and the bands it fields.
+  2. Run `roster.py`. The new bots get ids ending in `-g<n>`. A bot's id is its live rating row in `ladder.db`, which
+     ignores later changes to `bots.json`, so a bot never changes generation or gets re-rated in place.
+  3. Run `ladder-calibrate --fixed`. It plays only pairs with a new bot in them and fits only the new bots, with every
+     calibrated bot held at its rating, so the old scale and the players' ratings stay meaningful. The run is added to
+     `calibration.runs`.
+  4. To stop fielding old bots, list their ids in `RETIRED`. They stay in the file with `retired: true`, so past games
+     still name them, but they are never picked.
+
+  `--fit-only` refits from the log without playing and leaves an unchanged roster byte for byte.
 - `python3 Mage.Server/ladder-src/roster.py` makes the list from the school decks. Bots that keep their id keep their
   persona and rating; new ones start at a guessed `prior`, uncalibrated.
 - `cargo run --release -p playmat-ai --bin ladder-calibrate` (in `rust/`) plays the bots against each other on the
   Rust engine and writes each one's `rating`, `rd` (the fit's standard error) and record back into `bots.json`, with a
-  `calibration` block saying which build and search settings measured them. Options: `--format standard|pioneer|all`,
+  `calibration` block saying which build and search settings measured them. Options: `--format standard|pioneer|modern|all`,
   `--rounds` (default 2), `--near` and `--far` (opponents per bot: closest by rating, and spread over the scale),
-  `--deals` (deals per pair, each played twice with the seats swapped), `--jobs` (threads, default 3), `--fit-only`.
+  `--deals` (deals per pair, each played twice with the seats swapped), `--jobs` (threads, default 3), `--fit-only`,
+  `--fixed` (new generation only, see Generations).
   Games go to `Mage.Server/ladder-src/calibration/games.jsonl` as they finish, so a run can stop and continue; a game
   counts only while both bots' search settings are the ones the build plays, so a change to the AI makes it stale.
   The run in `bots.json` (3 rounds, `--near 8 --far 3 --deals 6`: 30,756 games with the League's budget bots) took
@@ -681,6 +712,21 @@ ladder per format. It is on wherever Career is, for signed-in accounts, with no 
   and a frame, once per account). Gold, Diamond and Mythic also pay a capsule token, once per format and account,
   whatever the season. Career XP,
   quests and the daily ladder pay as for any game, and qualifying games play on the Rust host as usual.
+- **Bo3.** The `bo3` queue (#435, the Bo3 switch on the Ranked screen, `ladderPlay(format, deck, "bo3")`) is best of
+  three against the Open queue's bots, sideboarding between games as any match does. It keeps its own standing and
+  Glicko-2 rating per format (bots get a `bo3` rating of their own too, starting from their calibrated one), counts
+  once when the match ends, and its first reaches pay through the Open queue's reward keys, so a rank pays once for
+  Bo1 and Bo3 together.
+- **Limited.** The `limited` format (#435) is a rank without bots or a queue: Career's sealed, draft and cube runs move
+  it once each when they end (`RankedService.limitedRun`, from `CareerLimited.finished`). A run is worth its wins less
+  its losses in pips (at most one pip lost), applied as that many wins with no streak bonus, under the same floors.
+  Abandoning a run after its first game counts it with the rest lost (classic to two losses, Arena to three, a
+  league's games left), so leaving can't dodge a loss. A cube drafted from a deck the player sent (`cubeCards`) doesn't
+  count. Each run is a `ladder_games` row (`limited-<run id>`, bot `limited:<kind>-<shape>`), so it counts once. It has its own
+  seasons, peak and climb boards and rank rewards (tokens per format, cosmetics once per account), but no rating or
+  Mythic board. `ladderState("limited")` reads it; `ladderPlay` and `ladderOpponent` refuse it. A failure in
+  `ladder.db` is logged and costs the run nothing. The client shows it on **Sealed & draft**, in All ranks once played,
+  and as a Rank widget choice.
 - **Data.** `db/ladder.db` adds `ladder_standing`, `ladder_games` (with which engine played each game) and
   `ladder_rewards`. They are part of the account export (`ranked`) and are deleted with the account. The server log
   has a `Ranked <format>:` line for every result.
@@ -820,7 +866,7 @@ The goal is $40 a month by default, counted over the calendar month (UTC) in US 
 
 ## Health
 
-- `xmage` answers `GET /healthz` on `127.0.0.1:17173` inside its container (`-Dxmage.healthPort`, 0 turns it off): its version and commit, uptime, players online, games running (`activeGames`, and `gamesRunning`, what a drain waits for), planned maintenance and any backup problem, as JSON.
+- `xmage` answers `GET /healthz` on `127.0.0.1:17173` inside its container (`-Dxmage.healthPort`, 0 turns it off): its version and commit, uptime, players online, games running (`activeGames`, Java's; `hostedGames`, the Rust host's; and `gamesRunning`, both, what a drain waits for), planned maintenance and any backup problem, as JSON.
 - The same loopback listener takes `POST /maintenance?minutes=N&message=...` (announce maintenance, as the owner's Settings does, without restart-when-idle) and `POST /maintenance/cancel`. The image-based deploy (`ops/web/deploy/playmat-deploy`) drains the server with them through `docker compose exec`, so it needs no admin password. Only processes inside the container reach them. It is healthy once that answers, which is after the card database is loaded; the first start gets 15 minutes for that. `docker compose exec xmage bash -c 'exec 3<>/dev/tcp/127.0.0.1/17173; printf "GET /healthz HTTP/1.0\r\n\r\n" >&3; cat <&3'` shows it.
 - The admin Overview shows the same version, the commit (the image build reads it from the checkout's `.git`), and the last backup.
 - `web` checks Caddy's admin API on `localhost:2019`. It starts only after `xmage` and `imgcache` are healthy.
@@ -879,12 +925,24 @@ XMage opens every database under `./db`. Only user data stays on `xmage-db`. The
 The `backup` service runs daily at `BACKUP_AT` and writes `/backups/<UTC timestamp>/` into the `xmage-backups` volume:
 
 - `authorized_user.h2.sql.gz` and `feedback.h2.sql.gz`: H2 SQL dumps. They're taken online by joining the running server's database through H2's auto-server mode, so each dump is consistent.
-- `authorized_user.db` (the accounts, see [Accounts and moderation](#accounts-and-moderation)), `user_stats.db`, `table_record.db`, `web_decks.db`, `web_reports.db`, `career.db`, `web_admin.db`, `support.db`, `solo.db`, `web_presence.db` and `ladder.db`: SQLite copies made with SQLite's online backup API.
+- `authorized_user.db` (the accounts, see [Accounts and moderation](#accounts-and-moderation)), `user_stats.db`, `table_record.db`, `web_decks.db`, `web_reports.db`, `career.db`, `web_admin.db`, `support.db`, `solo.db`, `web_presence.db` and `ladder.db`: SQLite copies made with SQLite's online backup API, then compacted with `VACUUM INTO` (the live files keep the pages of deleted rows; the copies leave them out).
 - `content-packs.tar.gz`: the `db/content-packs` folder, when there is one.
 
 Every run writes `db/backup-status.json` (when, whether it worked, its size and the last good one). The admin Overview shows it, and once an hour the server checks it: a failed run, or no good backup for 36 hours, is posted to the staff channel (once a day at most).
 
 The newest `BACKUP_KEEP` backups are kept. The card database is not backed up because the image rebuilds it.
+
+Before it copies anything, a run checks the backups disk has room for every database plus the biggest again and `BACKUP_MIN_FREE_MB` to spare; otherwise it fails, writes a failed status (so staff hear of it) and leaves the disk alone. A run that died half way leaves a `.partial-*` folder, which the next run removes. A backup's size is roughly the databases' size: watch the admin Overview's last backup size against the free disk when you choose `BACKUP_KEEP`.
+
+### Database upkeep
+
+`solo.db` keeps every turn of players' recent solo games (for what-if lines), about 3 MB a game, and `career.db` keeps every finished game as a payout event. Without upkeep they grew by about 200 MB a day between them in November 2026, and their nightly copies filled a 75 GB disk. Once an hour, starting 10 minutes after the server starts, the server:
+
+- drops what-if lines past a player's newest 5 or older than 7 days, and saved games past a player's newest 20 or older than 30 days,
+- drops paid payout events older than 30 days, and empties the rows-before-and-after copies of shadow events Rust's replay has checked (`same` or `skipped`; differences keep theirs),
+- gives the freed pages back to the disk. The first pass converts each file with one full `VACUUM` (a few seconds per GB; it waits, and logs why, when the disk lacks twice the file's size), and from then on `PRAGMA incremental_vacuum` keeps them trimmed. The log says `solo.db: compacted in N ms, X MB -> Y MB`.
+
+While the first `VACUUM` runs, the server's own writes to that file wait, and the Rust gateway's reads may time out once (it retries on its next pass).
 
 ```bash
 C="docker compose -f ops/web/docker-compose.yml"
@@ -906,7 +964,7 @@ The restore replaces the accounts and feedback databases (rebuilt from the dumps
 
 ### Off-site copies
 
-Backups on the server's own disk don't survive the loss of the server. `ops/web/host/install.sh` (see Host tools below) installs `playmat-offsite`, which packs the newest backup into `/var/backups/playmat/offsite/playmat-<name>.tar.gz` every day at 10:15 UTC and keeps three packs. Two ways take them off the machine; use either or both:
+Backups on the server's own disk don't survive the loss of the server. `ops/web/host/install.sh` (see Host tools below) installs `playmat-offsite`, which discovers the compose `xmage-backups` volume, packs the newest backup into `/var/backups/playmat/offsite/playmat-<name>.tar.gz` every day at 10:15 UTC (skipping loudly if the disk lacks twice the backup's size free), and keeps the newest pack (`KEEP_PACKS=1`). Two ways take them off the machine; use either or both:
 
 - **Pulled by another machine** (what the public server does: Multivac pulls). The other machine gets an SSH key that the server only lets run the export, so that machine can fetch the newest pack and nothing else, and someone who takes over the server can't reach or delete the copies. On the server, add to `/root/.ssh/authorized_keys`:
 
@@ -932,6 +990,8 @@ Practise it now and then on a scratch server or scratch volumes. The drill of 20
 
 - `playmat-watchdog`, every 5 minutes (systemd timer): every compose service running and healthy, the root disk under 85%, at least 10% of memory available, the site answering over HTTPS, and more than 14 days left on its certificate. Problems go to the staff Discord webhook from `.env` when they start, every 6 hours while they last, and when they clear; always to the journal (`journalctl -t playmat-watchdog`). `playmat-watchdog test` posts a test message.
 - `playmat-offsite`, daily (see Off-site copies).
+
+Optional, separate from `install.sh`: `ops/web/host/rl-setup.sh '<trainer public key>'` installs the Rust AI's self-play worker, which plays training games while the server is idle. A timer runs `playmat-rl-worker` every 2 minutes, and each run plays one chunk of games (150 by default, about 75 s). It runs only when the server is idle: outside the backup window (10:00–10:45 UTC), no maintenance planned, at most `GAMES_MAX` games open, the server under `CPU_MAX`% of a core, memory and disk to spare. The chunk is killed and thrown away the moment any of that stops holding. The games run in a container with no network, a read-only file system, a 768 MB cap, at most 3 cores and the lowest CPU and I/O weight, from a `ghcr.io/arcanite24/playmat-selfplay` image named by digest. Nothing plays until the trainer sends a job. The trainer connects to the `playmat-rl` account, whose key can only run `playmat-rl-transfer` (send a job, list, fetch and delete chunks, stop); the server never connects out. Settings are in `/etc/playmat/rl.env`, `playmat-rl-worker check` prints the gate's answer, and the log is in `journalctl -u playmat-rl-worker`. `rl-setup.sh --remove` takes it all out. Admins follow it in the console's **Self-play** tab: the worker writes its state (`worker.json`), one line per chunk (`history.jsonl`) and the trainer's progress (`trainer.json`, which the trainer sends with `remote.py`'s `progress`) into the `xmage-selfplay` volume, which the server mounts at `/opt/xmage/selfplay` (`XMAGE_SELFPLAY_DIR`). The tab's Pause button and settings go back the same way, as `settings.json` in that volume; the worker checks each field and lays it over `rl.env` (quiet hours, `CPU_MAX`, `GAMES_MAX`, `JOBS`). A server started from an older compose file has no volume, and the worker then writes no panel files. The trainer's side is in [docs/rust/Ai.md](../../docs/rust/Ai.md#self-play-on-the-public-server).
 
 Thresholds and the checkout path live in `/etc/playmat/host.env` (`PLAYMAT_DIR`, `DISK_MAX`, `MEM_MIN`, `CERT_DAYS`, `REPEAT_HOURS`). On a host set up for image deploys (`/etc/playmat-deploy.conf`, see [RELEASING.md](../../RELEASING.md)) the watchdog checks the stack `playmat-compose` runs and reads the webhook from `/srv/playmat/.env`; `PLAYMAT_DIR` no longer matters there.
 
@@ -1015,12 +1075,14 @@ docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env up -d --no-
 Production doesn't do this by hand. A published GitHub release builds its images and deploys them after approval (`.github/workflows/deploy.yml`, see [RELEASING.md](../../RELEASING.md)). The workflow reaches the host as a `deploy` user whose key can only run `ops/web/deploy/playmat-deploy`. That script:
 
 1. pulls both images and pins their digests,
-2. snapshots the user databases into `/var/backups/playmat` (an online dump; the newest 5 are kept),
+2. snapshots the user databases into `/var/backups/playmat` (an online dump; the newest `SNAPSHOT_KEEP`, 5, are kept). The dump is packed there and removed from the backups volume, so deploys don't push nightly backups out. With less free disk than about twice the databases plus `SNAPSHOT_MIN_FREE_MB` (2048), the snapshot is refused, the deploy stops before changing anything, the staff channel is told, and the GitHub run fails,
 3. drains the server: with games running it announces maintenance and waits up to 15 minutes for them to end,
 4. writes the digests into `.env`,
 5. runs `up -d --no-build` with the compose file the server image carries (`/opt/xmage/deploy-kit`), so a rollback also rolls back the compose file,
 6. waits up to 5 minutes for `xmage` and `web` to be healthy and `https://DOMAIN/` to answer 200, and otherwise rolls back to the previous digests,
 7. posts the result to the staff Discord channel, then removes images older than the previous version.
+
+The workflow fails unless the host's output ends with `result: ok`, so a deploy stopped on the host (a failed snapshot, a rollback) never shows green. `playmat-deploy` is a host file: after changing `ops/web/deploy/playmat-deploy`, install it again (`sudo install -m 755 ops/web/deploy/playmat-deploy /usr/local/bin/`); a deploy doesn't update it.
 
 On that host the stack lives in `/srv/playmat`: its `.env`, one compose kit per deployed version under `releases/`, and `current`. `ops/web/deploy/setup-deploy-user.sh` sets this up once, and the deploy user can't read a checkout under `/root`. From then on, use `playmat-compose` on the host in place of `docker compose -f ...`: for example `playmat-compose ps`, `playmat-compose logs -f xmage`, or `playmat-compose up -d --no-build` after editing `/srv/playmat/.env`. `playmat-deploy status` shows the current and previous versions.
 

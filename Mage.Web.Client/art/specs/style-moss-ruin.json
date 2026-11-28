@@ -1,0 +1,49 @@
+{
+  "$comment": "Card styles of the Moss & Ruin set (Commander Vault capsule machine), written by art/machine-specs.mjs from career/machines/commander-vault.json: edit that file and re-run, not this one.",
+  "out": "public/career-art/cardstyle/moss-ruin",
+  "house": false,
+  "panels": true,
+  "grid": {
+    "cols": 4,
+    "rows": 2,
+    "canvas": "landscape"
+  },
+  "size": "640x894",
+  "anchors": [],
+  "refs": [
+    "zen/246",
+    "znr/278",
+    "rav/299"
+  ],
+  "style": "Atmospheric romantic landscape oil painting: deep forest viridian, weathered limestone, misty dappled shafts of warm morning sun, rich painterly foliage texture.",
+  "rules": "These are full-art pictures for playing cards: the client draws a small name plate over the top edge, mana symbols at the top right and power and toughness at the bottom right, so keep the main subject in the middle of the panel and the top 15% and bottom 15% calm and uncluttered (sky, ground, water, background texture), with nothing important in the corners. Each panel shows its own subject as one clear, readable scene, the same style and palette as its neighbours, as if the whole row were a matched, limited-edition art series.",
+  "spare": "an extra painting in the same style: a massive horned woodland beast bursting outward from a cracked mossy monolith in a misty forest clearing",
+  "items": [
+    {
+      "id": "beast-within",
+      "subject": "a massive horned woodland beast bursting outward from a cracked mossy monolith in a misty forest clearing"
+    },
+    {
+      "id": "heroic-intervention",
+      "subject": "a towering canopy of living emerald branches weaving tightly over a stone shrine to shield it from falling rubble"
+    },
+    {
+      "id": "eternal-witness",
+      "subject": "a calm cloaked druid standing beside a mossy stone well, lifting a glowing green leaf from dark water"
+    },
+    {
+      "id": "birds-of-paradise",
+      "subject": "a vibrant multi-plumed bird perched on a mossy ruined arch above a sunlit misty waterfall"
+    },
+    {
+      "id": "craterhoof-behemoth",
+      "subject": "a colossal moss-backed forest titan striding through splintered ancient pines as deer and wolves charge beneath it"
+    },
+    {
+      "id": "set-moss-ruin",
+      "out": "public/career-art/sleeve/set-moss-ruin.webp",
+      "size": "540x756",
+      "subject": "the BACK of a playing card in the same style: a symmetrical ornamental design (it is seen upside down too) with a central emblem drawn from this set's theme, framed by a painted border; no logo, no oval, no five dots, no lettering"
+    }
+  ]
+}

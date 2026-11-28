@@ -23,6 +23,7 @@ services:
       XMAGE_METASPACE: ${XMAGE_METASPACE:-}
       XMAGE_CDS: ${XMAGE_CDS:-}
       XMAGE_COMPACT_HEADERS: ${XMAGE_COMPACT_HEADERS:-}
+      XMAGE_BASE64_INTRINSICS: ${XMAGE_BASE64_INTRINSICS:-}
       XMAGE_JAVA_OPTS: ${XMAGE_JAVA_OPTS:-}
       XMAGE_ADMIN_PASSWORD: ${XMAGE_ADMIN_PASSWORD:-}
       # the proxy's network: the server trusts X-Forwarded-For only from these addresses
@@ -101,6 +102,7 @@ services:
       XMAGE_REPLAYS: ${XMAGE_REPLAYS:-}
       XMAGE_REPLAY_DAYS: ${XMAGE_REPLAY_DAYS:-}
       XMAGE_REPLAY_MAX: ${XMAGE_REPLAY_MAX:-}
+      XMAGE_DISK_MIN_FREE_MB: ${XMAGE_DISK_MIN_FREE_MB:-}
       XMAGE_MAILGUN_API_KEY: ${XMAGE_MAILGUN_API_KEY:-}
       XMAGE_MAILGUN_DOMAIN: ${XMAGE_MAILGUN_DOMAIN:-}
       XMAGE_MAIL_SMTP_HOST: ${XMAGE_MAIL_SMTP_HOST:-}
@@ -119,12 +121,16 @@ services:
       XMAGE_KOFI_TOKEN: ${XMAGE_KOFI_TOKEN:-}
       XMAGE_GITHUB_SPONSORS_SECRET: ${XMAGE_GITHUB_SPONSORS_SECRET:-}
       XMAGE_HOOKS_PORT: ${XMAGE_HOOKS_PORT:-}
+      # Mana@Home cosmetics credit redemption bridge (docs/swarm/S6.md)
+      SWARM_BRIDGE_SECRET: ${SWARM_BRIDGE_SECRET:-}
+      MANA_COORDINATOR_URL: ${MANA_COORDINATOR_URL:-}
     volumes:
       - xmage-db:/opt/xmage/db         # user data only (accounts, stats, table records, feedback, support ledger)
       - xmage-cards:/opt/xmage/cards-db # card database cache, rebuilt when the image changes
       - xmage-logs:/opt/xmage/logs
       - xmage-saved:/opt/xmage/saved
       - xmage-updates:/opt/xmage/updates # requests to the updater and its answers (UpdateRunner.java)
+      - xmage-selfplay:/opt/xmage/selfplay # the self-play worker's state and the console's settings for it (SelfPlayStatus.java)
     networks:
       - xmage
     # the bridge port opens only after the card database is loaded; the first start builds it (minutes)
@@ -162,9 +168,11 @@ services:
       PROXIED_HOST: ${PROXIED_HOST:-proxied.invalid}
       UPSTREAM_PROXIES: ${UPSTREAM_PROXIES:-127.0.0.1/32}
       # single sign-on: the header naming the signed-in user is kept only on requests from these addresses. Unset, the
-      # header is a name nobody sends and the range matches no peer (255.255.255.255 never connects)
+      # header is a name nobody sends and the range matches no peer (255.255.255.255 never connects). Deliberately not
+      # UPSTREAM_PROXIES: that range is only believed about the client's address, and it may be a CDN's public ranges
+      # (CLOUDFLARE.md), whose every visitor could then name themselves any user. SSO sets this to the sign-on proxy.
       AUTH_TRUSTED_HEADER: ${AUTH_TRUSTED_HEADER:-X-Playmat-Sign-On-Off}
-      AUTH_TRUSTED_PROXIES: ${AUTH_TRUSTED_PROXIES:-${UPSTREAM_PROXIES:-255.255.255.255/32}}
+      AUTH_TRUSTED_PROXIES: ${AUTH_TRUSTED_PROXIES:-255.255.255.255/32}
       # per client address, at the proxy (the server adds its own cap of concurrent game connections per address)
       WS_RATE_LIMIT: ${WS_RATE_LIMIT:-30}
       WS_RATE_WINDOW: ${WS_RATE_WINDOW:-1m}
@@ -235,6 +243,7 @@ services:
     environment:
       BACKUP_AT: ${BACKUP_AT:-03:30}
       BACKUP_KEEP: ${BACKUP_KEEP:-14}
+      BACKUP_MIN_FREE_MB: ${BACKUP_MIN_FREE_MB:-1024}
       TZ: ${TZ:-UTC}
     volumes:
       - xmage-db:/opt/xmage/db
@@ -274,6 +283,7 @@ volumes:
   xmage-logs:
   xmage-saved:
   xmage-updates:
+  xmage-selfplay:
   xmage-backups:
   xmage-imgcache:
   caddy-data:

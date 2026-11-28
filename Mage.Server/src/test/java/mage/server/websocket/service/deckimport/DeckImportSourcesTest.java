@@ -166,7 +166,8 @@ public class DeckImportSourcesTest {
         Assert.assertEquals("gorila", deck.getAuthor());
         Assert.assertEquals("Variant Magic - Commander", deck.getFormat());
         Assert.assertEquals(2, count(deck.getCommanders()));
-        Assert.assertEquals(1, count(deck.getSide()));
+        Assert.assertEquals(java.util.Collections.singletonList("Obosh, the Preypiercer"), names(deck.getCompanion()));
+        Assert.assertTrue(deck.getSide().isEmpty());
         Assert.assertEquals("an empty maybeboard row is skipped", 0, deck.getMaybeboardCount());
         Assert.assertNotNull(deck.getCover());
         Assert.assertEquals("CMR", deck.getCover().getSetCode());

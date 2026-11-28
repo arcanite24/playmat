@@ -2,19 +2,25 @@ package mage.player.ai.util;
 
 import mage.abilities.Ability;
 import mage.abilities.common.SimpleStaticAbility;
+import mage.abilities.keyword.DeathtouchAbility;
 import mage.abilities.keyword.DoubleStrikeAbility;
 import mage.abilities.keyword.InfectAbility;
+import mage.abilities.keyword.TrampleAbility;
+import mage.constants.CommanderCardType;
 import mage.counters.CounterType;
 import mage.game.Game;
 import mage.game.combat.Combat;
 import mage.game.combat.CombatGroup;
 import mage.game.events.GameEvent;
 import mage.game.permanent.Permanent;
+import mage.game.permanent.PermanentToken;
 import mage.game.turn.CombatDamageStep;
 import mage.game.turn.EndOfCombatStep;
 import mage.game.turn.Step;
+import mage.player.ai.CombatEvaluator;
 import mage.player.ai.score.GameStateEvaluator2;
 import mage.players.Player;
+import mage.watchers.common.CommanderInfoWatcher;
 import org.apache.log4j.Logger;
 
 import java.util.*;
@@ -162,8 +168,14 @@ public final class CombatUtil {
      * AI related code, find better block combination for attackers
      */
     public static CombatInfo blockWithGoodTrade2(Game game, List<Permanent> attackers, List<Permanent> blockers) {
+        UUID defenderId = game.getCombat().getDefenders().isEmpty()
+                ? null
+                : game.getCombat().getDefenders().iterator().next();
+        return blockWithGoodTrade2(game, attackers, blockers, defenderId);
+    }
+
+    public static CombatInfo blockWithGoodTrade2(Game game, List<Permanent> attackers, List<Permanent> blockers, UUID defenderId) {
         UUID attackerId = game.getCombat().getAttackingPlayerId();
-        UUID defenderId = game.getCombat().getDefenders().iterator().next();
         if (attackerId == null || defenderId == null) {
             return new CombatInfo();
         }
@@ -257,7 +269,186 @@ public final class CombatUtil {
             }
         }
 
+        // Lethal-prevention & trample multi-blocking pass:
+        // If projected combat damage (including trample overflow from already-blocked attackers) would still be lethal,
+        // commit additional blockers (starting with the cheapest creatures/tokens) until the defending player survives.
+        addLethalPreventionBlockers(game, defenderId, attackers, blockers, combatInfo);
+
         return combatInfo;
+    }
+
+    private static void addLethalPreventionBlockers(
+            Game game,
+            UUID defenderId,
+            List<Permanent> blockableAttackers,
+            List<Permanent> remainingBlockers,
+            CombatInfo combatInfo
+    ) {
+        Player defender = game.getPlayer(defenderId);
+        if (defender == null || remainingBlockers.isEmpty() || defender.getLife() <= 0 || !defender.isLifeTotalCanChange()) {
+            return;
+        }
+        CombatEvaluator eval = new CombatEvaluator();
+        // Sort remaining blockers cheapest first (tokens before non-tokens, lowest combat score first)
+        List<Permanent> pool = new ArrayList<>(remainingBlockers);
+        pool.sort(Comparator
+                .comparingInt((Permanent p) -> p instanceof PermanentToken ? 0 : 1)
+                .thenComparingInt(p -> eval.evaluate(p, game)));
+
+        while (!pool.isEmpty()) {
+            int incoming = projectedDamageToPlayer(game, defenderId, combatInfo);
+            boolean lifeLethal = incoming >= defender.getLife();
+            Permanent lethalCommander = findLethalCommanderAttacker(game, defenderId, blockableAttackers, combatInfo);
+            if (!lifeLethal && lethalCommander == null) {
+                break;
+            }
+            // Find the assignment (attacker + cheapest legal blocker(s)) that prevents the most damage
+            Permanent bestAttacker = null;
+            List<Permanent> bestBlockers = null;
+            int bestPrevented = 0;
+
+            List<Permanent> candidates = (!lifeLethal && lethalCommander != null)
+                    ? Collections.singletonList(lethalCommander)
+                    : blockableAttackers;
+
+            for (Permanent attacker : candidates) {
+                if (!isAttackingPlayer(game, attacker, defenderId)) {
+                    continue;
+                }
+                int remDmg = projectedDamageFromAttacker(attacker, combatInfo);
+                if (remDmg <= 0) {
+                    continue;
+                }
+                List<Permanent> alreadyAssigned = combatInfo.getCombat().getOrDefault(attacker, Collections.emptyList());
+                int maxBlockedBy = attacker.getMaxBlockedBy();
+                if (maxBlockedBy > 0 && alreadyAssigned.size() >= maxBlockedBy) {
+                    continue;
+                }
+                int minBlockedBy = Math.max(1, attacker.getMinBlockedBy());
+                int needed = alreadyAssigned.isEmpty() ? minBlockedBy : 1;
+                if (maxBlockedBy > 0 && alreadyAssigned.size() + needed > maxBlockedBy) {
+                    continue;
+                }
+
+                List<Permanent> eligible = new ArrayList<>();
+                for (Permanent candidate : pool) {
+                    if (candidate.canBlock(attacker.getId(), game)) {
+                        eligible.add(candidate);
+                        if (eligible.size() == needed) {
+                            break;
+                        }
+                    }
+                }
+                if (eligible.size() < needed) {
+                    continue;
+                }
+
+                int prevented = damagePreventedByAdding(attacker, eligible, remDmg);
+                if (prevented > bestPrevented) {
+                    bestPrevented = prevented;
+                    bestAttacker = attacker;
+                    bestBlockers = eligible;
+                }
+            }
+
+            if (bestAttacker == null || bestBlockers == null || bestPrevented <= 0) {
+                break;
+            }
+            for (Permanent b : bestBlockers) {
+                combatInfo.addPair(bestAttacker, b);
+                pool.remove(b);
+                remainingBlockers.remove(b);
+            }
+        }
+    }
+
+    private static Permanent findLethalCommanderAttacker(
+            Game game,
+            UUID defenderId,
+            List<Permanent> blockableAttackers,
+            CombatInfo combatInfo
+    ) {
+        for (Permanent attacker : blockableAttackers) {
+            if (!isAttackingPlayer(game, attacker, defenderId)) {
+                continue;
+            }
+            Player controller = game.getPlayer(attacker.getControllerId());
+            if (controller == null) {
+                continue;
+            }
+            Set<UUID> commanders = game.getCommandersIds(controller, CommanderCardType.COMMANDER_OR_OATHBREAKER, false);
+            if (!commanders.contains(attacker.getId())) {
+                continue;
+            }
+            CommanderInfoWatcher watcher = game.getState().getWatcher(CommanderInfoWatcher.class, attacker.getId());
+            if (watcher == null) {
+                continue;
+            }
+            int prior = watcher.getDamageToPlayer().getOrDefault(defenderId, 0);
+            int projected = projectedDamageFromAttacker(attacker, combatInfo);
+            if (projected > 0 && prior + projected >= 21) {
+                return attacker;
+            }
+        }
+        return null;
+    }
+
+    private static boolean isAttackingPlayer(Game game, Permanent attacker, UUID defenderId) {
+        CombatGroup group = game.getCombat().findGroup(attacker.getId());
+        return group != null && defenderId.equals(group.getDefenderId());
+    }
+
+    static int projectedDamageToPlayer(Game game, UUID defenderId, CombatInfo combatInfo) {
+        int total = 0;
+        for (CombatGroup group : game.getCombat().getGroups()) {
+            if (!defenderId.equals(group.getDefenderId())) {
+                continue;
+            }
+            for (UUID attackerId : group.getAttackers()) {
+                Permanent attacker = game.getPermanent(attackerId);
+                if (attacker != null) {
+                    total += projectedDamageFromAttacker(attacker, combatInfo);
+                }
+            }
+        }
+        return total;
+    }
+
+    static int projectedDamageFromAttacker(Permanent attacker, CombatInfo combatInfo) {
+        if (attacker.getAbilities().containsKey(InfectAbility.getInstance().getId())) {
+            return 0;
+        }
+        int power = Math.max(0, attacker.getPower().getValue());
+        boolean doubleStrike = attacker.getAbilities().containsKey(DoubleStrikeAbility.getInstance().getId());
+        int totalPower = doubleStrike ? power * 2 : power;
+        List<Permanent> assigned = combatInfo.getCombat().getOrDefault(attacker, Collections.emptyList());
+        if (assigned.isEmpty()) {
+            return totalPower;
+        }
+        if (!attacker.getAbilities().containsKey(TrampleAbility.getInstance().getId())) {
+            return 0;
+        }
+        boolean deathtouch = attacker.getAbilities().containsKey(DeathtouchAbility.getInstance().getId());
+        int absorbed = 0;
+        for (Permanent b : assigned) {
+            absorbed += deathtouch ? 1 : Math.max(0, b.getToughness().getValue());
+        }
+        return Math.max(0, totalPower - absorbed);
+    }
+
+    private static int damagePreventedByAdding(Permanent attacker, List<Permanent> newBlockers, int currentRemaining) {
+        if (currentRemaining <= 0) {
+            return 0;
+        }
+        if (!attacker.getAbilities().containsKey(TrampleAbility.getInstance().getId())) {
+            return currentRemaining;
+        }
+        boolean deathtouch = attacker.getAbilities().containsKey(DeathtouchAbility.getInstance().getId());
+        int absorbed = 0;
+        for (Permanent b : newBlockers) {
+            absorbed += deathtouch ? 1 : Math.max(0, b.getToughness().getValue());
+        }
+        return Math.min(currentRemaining, absorbed);
     }
 
     /**
@@ -349,35 +540,49 @@ public final class CombatUtil {
             throw new IllegalArgumentException("Broken sim game, can't find attacker or blocker");
         }
         // don't ask about that hacks - just replace to real combat simulation someday (another hack but with full stack resolve)
+        boolean attackerTrample = simAttacker.getAbilities().containsKey(TrampleAbility.getInstance().getId());
+        boolean attackerDeathtouch = simAttacker.getAbilities().containsKey(DeathtouchAbility.getInstance().getId());
         // first damage step
+        int firstOverflow = simulateCombatDamageWithTrample(sim, simAttacker, simBlocker, true, attackerTrample, attackerDeathtouch);
         simulateCombatDamage(sim, simBlocker, simAttacker, true);
-        simulateCombatDamage(sim, simAttacker, simBlocker, true);
         simAttacker.applyDamage(sim);
         simBlocker.applyDamage(sim);
+        if (firstOverflow > 0 && sim.getPlayer(defendingPlayerId) != null) {
+            sim.getPlayer(defendingPlayerId).damage(firstOverflow, simAttacker.getId(), null, sim, true, true);
+        }
         sim.checkStateAndTriggered();
         sim.processAction();
         // second damage step
-        if (sim.getPermanent(simBlocker.getId()) != null && sim.getPermanent(simAttacker.getId()) != null) {
+        boolean attackerAlive = sim.getPermanent(simAttacker.getId()) != null;
+        boolean blockerAlive = sim.getPermanent(simBlocker.getId()) != null;
+        if (attackerAlive && blockerAlive) {
+            int secondOverflow = simulateCombatDamageWithTrample(sim, simAttacker, simBlocker, false, attackerTrample, attackerDeathtouch);
             simulateCombatDamage(sim, simBlocker, simAttacker, false);
-            simulateCombatDamage(sim, simAttacker, simBlocker, false);
             simAttacker.applyDamage(sim);
             simBlocker.applyDamage(sim);
+            if (secondOverflow > 0 && sim.getPlayer(defendingPlayerId) != null) {
+                sim.getPlayer(defendingPlayerId).damage(secondOverflow, simAttacker.getId(), null, sim, true, true);
+            }
             sim.checkStateAndTriggered();
             sim.processAction();
+        } else if (attackerAlive && !blockerAlive && attackerTrample
+                && CombatGroup.dealsDamageThisStep(simAttacker, false, sim)
+                && sim.getPlayer(defendingPlayerId) != null) {
+            int secondHit = Math.max(0, simAttacker.getPower().getValue());
+            if (secondHit > 0) {
+                sim.getPlayer(defendingPlayerId).damage(secondHit, simAttacker.getId(), null, sim, true, true);
+                sim.checkStateAndTriggered();
+                sim.processAction();
+            }
         }
 
-        /* old manual PT compare
-        if (attacker.getPower().getValue() >= blocker.getToughness().getValue()) {
-            sim.getBattlefield().removePermanent(blocker.getId());
+        // fake non-block simulation (account for double strike)
+        int unblockedDamage = Math.max(0, attacker.getPower().getValue());
+        if (attacker.getAbilities().containsKey(DoubleStrikeAbility.getInstance().getId())) {
+            unblockedDamage *= 2;
         }
-        if (attacker.getToughness().getValue() <= blocker.getPower().getValue()) {
-            sim.getBattlefield().removePermanent(attacker.getId());
-        }
-         */
-
-        // fake non-block simulation
         simNonBlocking.getPlayer(defendingPlayerId).damage(
-                attacker.getPower().getValue(),
+                unblockedDamage,
                 attacker.getId(),
                 null,
                 simNonBlocking,
@@ -404,6 +609,35 @@ public final class CombatUtil {
             fakeAbility.setControllerId(fromCreature.getControllerId());
             toCreature.damage(fromCreature.getPower().getValue(), fromCreature.getId(), fakeAbility, sim, true, true);
         }
+    }
+
+    private static int simulateCombatDamageWithTrample(
+            Game sim,
+            Permanent attacker,
+            Permanent blocker,
+            boolean isFirstDamageStep,
+            boolean trample,
+            boolean deathtouch
+    ) {
+        if (!CombatGroup.dealsDamageThisStep(attacker, isFirstDamageStep, sim)) {
+            return 0;
+        }
+        int power = Math.max(0, attacker.getPower().getValue());
+        int assignedToBlocker = power;
+        int overflow = 0;
+        if (trample) {
+            int remainingToughness = Math.max(0, blocker.getToughness().getValue() - blocker.getDamage());
+            int lethalNeeded = deathtouch ? Math.min(1, remainingToughness) : remainingToughness;
+            assignedToBlocker = Math.min(power, lethalNeeded);
+            overflow = Math.max(0, power - assignedToBlocker);
+        }
+        if (assignedToBlocker > 0) {
+            Ability fakeAbility = new SimpleStaticAbility(null);
+            fakeAbility.setSourceId(attacker.getId());
+            fakeAbility.setControllerId(attacker.getControllerId());
+            blocker.damage(assignedToBlocker, attacker.getId(), fakeAbility, sim, true, true);
+        }
+        return overflow;
     }
 
     private static void simulateStep(Game sim, Step step) {

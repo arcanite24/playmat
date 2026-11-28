@@ -1,0 +1,22 @@
+# name: Train200 tri-bgu-gowide-48
+# archetype: gowide
+# colors: BGU
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Banishing Betrayal
+2 Dark Endurance
+4 Icecave Crasher
+4 Kalonian Tusker
+3 Nettle Sentinel
+3 Overwhelmed Apprentice
+4 Reaver Drone
+2 Ruthless Predation
+4 Scrapshooter
+1 Surveillance Phantasm
+4 The Ancient One
+3 Vantress Gargoyle
+4 Blooming Marsh
+4 Forest
+4 Hinterland Harbor
+4 Island
+4 Serpent's Pass
+2 Swamp
