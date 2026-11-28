@@ -91,6 +91,13 @@ a {
   outline-offset: 2px;
 }
 
+/* controller focus: thick ring for arm's length (WCAG 2.4.13); :focus because script focus isn't :focus-visible */
+:root[data-input="gamepad"] :focus:not([role="dialog"]) {
+  outline: 4px solid var(--decision-strong);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 10px rgb(0 0 0 / 0.8), 0 0 32px 12px rgb(var(--decision-rgb) / 0.55);
+}
+
 input::placeholder,
 textarea::placeholder {
   color: var(--ink-dim);

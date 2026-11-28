@@ -664,7 +664,7 @@ export function ZoneViewer({ title, cards, note, counts, onClose }: { title: str
             {cards.map((card) => {
               const copies = counts?.[card.id!] ?? 1;
               return (
-                <div key={card.id} className={styles.pick} data-card-id={card.id} {...zoom(card)}>
+                <div key={card.id} className={styles.pick} data-card-id={card.id} tabIndex={0} aria-label={card.name} {...zoom(card)}>
                   <CardFace card={card} size="normal" />
                   {copies > 1 && <span className={styles.viewerCount} aria-label={t('match.viewer.copies', { count: copies })}>×{copies}</span>}
                 </div>

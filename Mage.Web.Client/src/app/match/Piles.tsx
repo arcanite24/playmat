@@ -47,7 +47,7 @@ export function Piles({ player, sleeve, isMe, commanders = [], clickable, onCast
   };
 
   return (
-    <div className={[styles.piles, isMe ? styles.mine : styles.theirs].join(' ')}>
+    <div className={[styles.piles, isMe ? styles.mine : styles.theirs].join(' ')} data-pad>
       <button
         ref={libraryRef}
         type="button"
@@ -198,7 +198,7 @@ export function MiniPiles({ player, sleeve = '', commanders = [], commandFrame }
   const libraryRef = useRef<HTMLSpanElement>(null);
   useFlipOrigin(`library:${player.playerId}`, libraryRef);
   return (
-    <div className={styles.mini}>
+    <div className={styles.mini} data-pad>
       <span ref={libraryRef} className={styles.chip} aria-label={t('match.cards', { label: `${name} library`, count: player.libraryCount ?? 0 })} title="Library">
         <BookOpen size={16} aria-hidden="true" /> {player.libraryCount ?? 0}
       </span>

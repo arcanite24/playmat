@@ -154,8 +154,9 @@ services:
         VITE_APP_NAME: ${APP_NAME:-Playmat}
     environment:
       DOMAIN: ${DOMAIN:?set DOMAIN}
-      # https: Caddy owns 80/443 and the certificates. external: plain HTTP on port 80 for your own reverse proxy
-      # (docker-compose.proxy.yml, README "Behind your own reverse proxy")
+      # https: Caddy owns 80/443 and the certificates. external: plain HTTP on container port 80 behind a proxy on the
+      # same Docker network (docker-compose.proxy.yml). external-host: plain HTTP on HTTP_PORT behind a proxy on another
+      # host (docker-compose.external-host.yml). See README "Behind your own reverse proxy".
       TLS_MODE: ${TLS_MODE:-https}
       # on: /ws goes to the Rust gateway (falls back to the bridge while it doesn't answer)
       XMAGE_GATEWAY: ${XMAGE_GATEWAY:-off}

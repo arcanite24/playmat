@@ -138,6 +138,23 @@ docker compose -f ops/web/docker-compose.yml -f ops/web/docker-compose.proxy.yml
           <code>HTTP_PORT=8088</code>), and set <code>XMAGE_ALLOWED_ORIGINS</code> to the <code>http://</code> origin
           players open. The published web image automatically connects to <code>/ws</code> on the same origin.</p>
 
+        <h3 id="proxy-external-host">Reverse proxy on another host</h3>
+        <p>When your reverse proxy runs on another machine, use <code>TLS_MODE=external-host</code>. It does not
+           share a Docker network with Playmat. The override publishes only the HTTP port.</p>
+        <div class="terminal" role="region" aria-label="Settings and commands for a reverse proxy on another host">
+<pre><code><span class="c"># in ops/web/.env; replace the example IP with your proxy source IP</span>
+DOMAIN=play.example.com
+TLS_MODE=external-host
+HTTP_PORT=8088
+UPSTREAM_PROXIES=192.0.2.23/32
+
+docker compose -f ops/web/docker-compose.yml -f ops/web/docker-compose.external-host.yml --env-file ops/web/.env up -d</code></pre>
+        </div>
+        <p>Forward your public HTTPS traffic to <code>http://PLAYMAT_HOST:8088</code>. Allow WebSocket upgrades on
+          <code>/ws</code> and use a long read timeout so idle games aren't cut off. Keep
+          <code>TLS_MODE=external-host</code> in <code>.env</code> so the
+          <a href="updates.html#button">Update button</a> and image-based deploys select the same override.</p>
+
         <h2 id="faq">Questions</h2>
         <h3 id="image-cache">How big does the card picture cache get?</h3>
         <p>The <code>imgcache</code> service keeps every picture players have looked at, so it grows with use. It's

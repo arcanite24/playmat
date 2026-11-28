@@ -187,13 +187,18 @@ export function CardDetail({ view, extra, sleeveOf, attacking, blocking }: {
         <RadixDialog.Content
           ref={sheet}
           className={styles.sheet}
+          data-card-detail
           aria-describedby={undefined}
           // the sheet itself takes focus: a ring on the close button would be the first thing seen
           onOpenAutoFocus={(event) => {
             event.preventDefault();
             sheet.current?.focus();
           }}
-          onContextMenu={(event) => event.preventDefault()}
+          onContextMenu={(event) => {
+            event.preventDefault();
+            const fromFinger = 'pointerType' in event.nativeEvent && event.nativeEvent.pointerType === 'touch';
+            if (!fromFinger) close();
+          }}
         >
           <div className={styles.cardColumn}>
             <div className={styles.card}>

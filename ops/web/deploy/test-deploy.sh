@@ -87,7 +87,7 @@ by_hand refused deploy v1.2.3 extra
 out=$(SSH_ORIGINAL_COMMAND=status PLAYMAT_DEPLOY_CHECK_ONLY=1 bash "$script" deploy v1.2.3 2>&1) || true
 check status 0 "$out" "ssh wins over arguments"
 
-# TLS_MODE=external probes Caddy's port 80 inside the web container instead of 127.0.0.1:443
+# TLS_MODE=external and external-host probe Caddy's port 80 inside the web container instead of 127.0.0.1:443
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 mkdir -p "$work/compose" "$work/state" "$work/bin"
@@ -95,10 +95,6 @@ cat > "$work/deploy.conf" <<EOF
 COMPOSE_DIR=$work/compose
 COMPOSE_PROJECT=web
 STATE_DIR=$work/state
-EOF
-cat > "$work/compose/.env" <<'EOF'
-DOMAIN=play.example.com
-TLS_MODE=external
 EOF
 cat > "$work/bin/docker" <<'EOF'
 #!/bin/bash
@@ -119,17 +115,23 @@ esac
 EOF
 cat > "$work/bin/curl" <<'EOF'
 #!/bin/bash
-echo "curl should not be called for TLS_MODE=external" >&2
+echo "curl should not be called for external TLS modes" >&2
 exit 99
 EOF
 chmod +x "$work/bin/docker" "$work/bin/curl"
-out=$(env -u SSH_ORIGINAL_COMMAND PATH="$work/bin:$PATH" PLAYMAT_DEPLOY_CONF="$work/deploy.conf" bash "$script" status 2>&1) || true
-if [[ $out == *$'\nsite: 200\n'* ]]; then
-  echo "ok   TLS_MODE=external probes web container port 80"
-else
-  echo "FAIL TLS_MODE=external site_code: $out"
-  failed=$((failed + 1))
-fi
+for mode in external external-host; do
+  cat > "$work/compose/.env" <<EOF
+DOMAIN=play.example.com
+TLS_MODE=$mode
+EOF
+  out=$(env -u SSH_ORIGINAL_COMMAND PATH="$work/bin:$PATH" PLAYMAT_DEPLOY_CONF="$work/deploy.conf" bash "$script" status 2>&1) || true
+  if [[ $out == *$'\nsite: 200\n'* ]]; then
+    echo "ok   TLS_MODE=$mode probes web container port 80"
+  else
+    echo "FAIL TLS_MODE=$mode site_code: $out"
+    failed=$((failed + 1))
+  fi
+done
 
 if command -v shellcheck > /dev/null; then
   shellcheck "$here/playmat-deploy" "$here/playmat-compose" "$here/setup-deploy-user.sh" "$here/test-deploy.sh" \

@@ -315,13 +315,13 @@ cancel_maintenance() {
   fi
 }
 
-# site_code: what this host's Caddy answers for /. With TLS_MODE=external Caddy serves plain HTTP on port 80 inside the
-# web container (docker-compose.proxy.yml publishes no host ports); otherwise probe https://$DOMAIN/ directly on
+# site_code: what this host's Caddy answers for /. With TLS_MODE=external or external-host Caddy serves plain HTTP on
+# port 80 inside the web container (no local HTTPS on 443); otherwise probe https://$DOMAIN/ directly on
 # 127.0.0.1:$HTTPS_PORT so certificate and routes are tested without DNS.
 site_code() {
   local tls_mode domain port id code
   tls_mode=$(env_get TLS_MODE)
-  if [[ $tls_mode == external ]]; then
+  if [[ $tls_mode == external || $tls_mode == external-host ]]; then
     id=$(container web)
     [[ -n $id ]] || { echo 000; return 0; }
     code=$(docker exec "$id" wget -S -O /dev/null -T 10 "http://127.0.0.1:80/" 2>&1 \
@@ -362,8 +362,14 @@ run_stack() {
   env_set XMAGE_SERVER_IMAGE "$1"
   env_set XMAGE_WEB_IMAGE "$2"
   local files=(-f "$3/docker-compose.yml")
-  # behind the host's own reverse proxy (TLS_MODE=external): the kit's override too (kits from before it have none)
-  [[ $(env_get TLS_MODE) == external && -f $3/docker-compose.proxy.yml ]] && files+=(-f "$3/docker-compose.proxy.yml")
+  case $(env_get TLS_MODE) in
+    external)
+      [[ -f $3/docker-compose.proxy.yml ]] && files+=(-f "$3/docker-compose.proxy.yml")
+      ;;
+    external-host)
+      [[ -f $3/docker-compose.external-host.yml ]] && files+=(-f "$3/docker-compose.external-host.yml")
+      ;;
+  esac
   # up waits for the server to be healthy before it starts the web container
   timeout "$HEALTH_TIMEOUT" docker compose -p "$COMPOSE_PROJECT" --project-directory "$3" "${files[@]}" \
     --env-file "$ENV_FILE" up -d --no-build --remove-orphans || log "compose up failed or timed out"

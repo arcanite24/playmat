@@ -85,7 +85,8 @@
 }
 
 /* rises out of the hand: straighten, lift clear of the edge, grow */
-.card:focus-visible {
+.card:focus-visible,
+:global(:root[data-input="gamepad"]) .card:focus {
   transform: translateY(calc(-120px - var(--hand-sink, 0px))) rotate(0deg) scale(1.22);
   z-index: var(--z-held) !important;
 }

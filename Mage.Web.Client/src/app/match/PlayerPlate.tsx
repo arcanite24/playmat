@@ -228,6 +228,7 @@ export function PlayerPlate({
         }
       }}
       data-object-id={player.playerId}
+      data-player
     >
       <PlateFrame frame={supporterRing ? null : look?.frame}>
         <div
@@ -295,7 +296,7 @@ export function PlayerPlate({
             </div>
           )}
           {pool.length > 0 && (
-            <div className={styles.pool} aria-label="Mana pool">
+            <div className={styles.pool} aria-label="Mana pool" data-pad>
               {pool.map(({ key, symbol, manaType }) => {
                 const id = poolId(manaType);
                 const content = (

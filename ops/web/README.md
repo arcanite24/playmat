@@ -120,6 +120,29 @@ play.example.com {
 
 Check it from any container on the proxy network: `curl -H 'Host: play.example.com' http://playmat/` returns the client's page.
 
+### Reverse proxy on another host (external-host)
+
+Use this mode when your reverse proxy runs on another machine and reaches Playmat over the LAN, where no shared Docker network is available.
+
+Set these values in `ops/web/.env`:
+
+```bash
+DOMAIN=play.example.com
+TLS_MODE=external-host
+HTTP_PORT=8088
+UPSTREAM_PROXIES=192.0.2.23/32  # replace with your proxy source IP
+```
+
+Start Playmat with the external-host override (requires Compose 2.24 or later for `ports: !override`):
+
+```bash
+docker compose -f ops/web/docker-compose.yml -f ops/web/docker-compose.external-host.yml --env-file ops/web/.env up -d
+```
+
+[`docker-compose.external-host.yml`](docker-compose.external-host.yml) publishes only `HTTP_PORT` to container port 80. Caddy serves plain HTTP; your reverse proxy holds the public certificate and forwards requests to `http://PLAYMAT_HOST:8088`. Allow WebSocket upgrades on `/ws` and use a long read timeout. Restrict the published port to the proxy IP in your host firewall, and set `UPSTREAM_PROXIES` to that proxy's exact IP or CIDR.
+
+Keep `TLS_MODE=external-host` in `.env` so the [Update button](#update-button) and the [image-based deploy](deploy/) select this override.
+
 ### Next to Caddy's own HTTPS (PROXIED_HOST)
 
 To keep Caddy's HTTPS on its own ports (the LAN name, say) and also serve one public name through a proxy in front, leave `TLS_MODE` at `https` and use `PROXIED_HOST`: that name is served over plain HTTP on the stack's `HTTP_PORT`. Multivac's main Caddy serves `playmat.multivac.club` this way:
@@ -148,7 +171,7 @@ Set these in `ops/web/.env` (Compose reads it automatically) or in the environme
 | Variable | Default | Meaning |
 |---|---|---|
 | `DOMAIN` | required | Public host name. It becomes the only allowed browser origin. |
-| `TLS_MODE` | `https` | `https`: Caddy owns ports 80/443 and gets the certificates. `external`: your own reverse proxy holds them, and Caddy serves plain HTTP on the container's port 80. See [Behind your own reverse proxy](#behind-your-own-reverse-proxy). |
+| `TLS_MODE` | `https` | `https`: Caddy owns ports 80/443 and gets the certificates. `external`: a reverse proxy on the same Docker network holds the certificate; use `docker-compose.proxy.yml`. `external-host`: a reverse proxy on another host holds the certificate; use `docker-compose.external-host.yml`, which publishes only `HTTP_PORT`. See [Behind your own reverse proxy](#behind-your-own-reverse-proxy) and [Reverse proxy on another host](#reverse-proxy-on-another-host-external-host). |
 | `PROXY_NETWORK`, `TRAEFIK_ENTRYPOINT`, `TRAEFIK_CERTRESOLVER` | `proxy`, `websecure`, empty | With `TLS_MODE=external` and `docker-compose.proxy.yml`: your proxy's Docker network, and the Traefik entrypoint and certificate resolver its labels use. |
 | `PROXIED_HOST`, `UPSTREAM_PROXIES` | none (a name that matches nothing), `127.0.0.1/32` | A public name served over plain HTTP on `HTTP_PORT` for a reverse proxy in front that holds its certificate, and the range that proxy connects from, whose `X-Forwarded-For` names the client. See [Next to Caddy's own HTTPS](#next-to-caddys-own-https-proxied_host), and [CLOUDFLARE.md](CLOUDFLARE.md) for Cloudflare's proxy (several ranges, separated by spaces). |
 | `LAN_IP` | empty | The host's LAN address, served too (Caddy signs a certificate for it) for devices that can't resolve `DOMAIN`. Add `https://<LAN_IP>:<HTTPS_PORT>` to `XMAGE_ALLOWED_ORIGINS`. |
@@ -1001,7 +1024,7 @@ docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env pull xmage 
 docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env up -d --no-build
 ```
 
-Behind [your own reverse proxy](#behind-your-own-reverse-proxy) (`TLS_MODE=external`), add `-f ops/web/docker-compose.proxy.yml` after the first `-f` in both commands.
+Behind [your own reverse proxy](#behind-your-own-reverse-proxy), add the matching override after the first `-f` in both commands: `ops/web/docker-compose.proxy.yml` for `TLS_MODE=external`, or `ops/web/docker-compose.external-host.yml` for `TLS_MODE=external-host`.
 
 The volumes (accounts, stats, backups, the image cache) and `.env` are kept. `master` is the newest build of master, rebuilt for every merged change; `:latest` follows releases instead, once a release has been published with images. To build from the checkout again, empty the two lines and run `up -d --build`.
 

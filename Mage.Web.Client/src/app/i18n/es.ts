@@ -30,6 +30,7 @@ const es: Catalog = {
   'match.shortcuts.passTurn': "Pasa el turno (el botón »): salta todas las paradas hasta que acabe este turno. Pulsa otra vez para parar.",
   'match.shortcuts.ahead': "Pasa al final del turno / siguiente turno / tu siguiente turno / resuelve la pila.",
   'match.shortcuts.mute': "Activa o desactiva los sonidos de la partida.",
+  'match.shortcuts.controller': "Mando: A es Intro, B es Esc, X es Alt+Intro, Y pasa el turno, RT abre la carta enfocada, Start abre los ajustes. La cruceta va a la carta o botón más cercano en esa dirección; LB y RB los recorren en orden.",
   'match.shortcuts.note': "Los atajos se pausan al escribir o usar menús. Tab llega a las cartas después de las primeras diez.",
 
   // app shell

@@ -15,7 +15,7 @@ export function DamageAssigner({ split }: { split: DamageSplit }) {
   const changed = values.some((value, index) => value !== lethalFirst(assignment)[index]);
 
   return (
-    <div className={styles.layer}>
+    <div className={styles.layer} data-pad>
       {assignment.recipients.map((recipient, index) => {
         const box = boxes.get(recipient.id);
         if (!box) return null;
