@@ -12,6 +12,7 @@ Gen 2 bots to calibrate only the new bots against the existing scale.
 import hashlib
 import json
 import os
+import gzip
 import re
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -21,7 +22,7 @@ RESOURCES = os.path.join(SERVER, "src", "main", "resources")
 DECKS = os.path.join(RESOURCES, "career", "campaigns", "decks")
 LADDER_DECKS = os.path.join(RESOURCES, "ladder", "decks")
 PLAYBOOKS_PATH = os.path.join(RESOURCES, "ladder", "playbooks.json")
-VIEWS_PATH = os.path.join(REPO, "rust", "crates", "playmat-engine", "cards", "views.json")
+VIEWS_PATH = os.path.join(REPO, "rust", "crates", "playmat-engine", "cards", "views.json.gz")
 OUT = os.path.join(RESOURCES, "ladder", "bots.json")
 FORMATS = ["standard", "pioneer", "modern"]
 LADDER_COPIES = {"modern": ["open"]}
@@ -163,7 +164,12 @@ def main():
     cosmetics = json.load(open(os.path.join(RESOURCES, "career", "cosmetics.json"), encoding="utf-8"))
     playbooks = json.load(open(PLAYBOOKS_PATH, encoding="utf-8")) if os.path.exists(PLAYBOOKS_PATH) else {"decks": {}}
     pb_decks = playbooks.get("decks", {})
-    views = json.load(open(VIEWS_PATH, encoding="utf-8")) if os.path.exists(VIEWS_PATH) else {}
+    if os.path.exists(VIEWS_PATH):
+        opener = gzip.open if VIEWS_PATH.endswith(".gz") else open
+        with opener(VIEWS_PATH, "rt", encoding="utf-8") as f:
+            views = json.load(f)
+    else:
+        views = {}
 
     pool = {}
     for item in cosmetics:

@@ -141,7 +141,13 @@ def semantic_table(names, views, played, model_name="BAAI/bge-small-en-v1.5"):
 
 
 def main():
-    views = json.load(open(os.path.join(CARDS, "views.json")))
+    import gzip
+    views_gz = os.path.join(CARDS, "views.json.gz")
+    if os.path.exists(views_gz):
+        with gzip.open(views_gz, "rt", encoding="utf-8") as f:
+            views = json.load(f)
+    else:
+        views = json.load(open(os.path.join(CARDS, "views.json")))
     names = [l.strip() for l in open(os.path.join(CARDS, "verified.txt")) if l.strip() and not l.startswith("#")]
     names = [n for n in names if n in views]
     played = set()

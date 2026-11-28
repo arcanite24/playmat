@@ -7,6 +7,7 @@ Mage.Server/src/main/resources/ladder/playbooks.json.
 Every card is looked up in rust/crates/playmat-engine/cards/views.json and checked against
 rust/crates/playmat-engine/cards/verified.txt so 100% of ladder decks run natively on the Rust host.
 """
+import gzip
 import json
 import os
 import sys
@@ -14,7 +15,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 SERVER = os.path.dirname(HERE)
 REPO = os.path.dirname(SERVER)
-VIEWS_PATH = os.path.join(REPO, "rust", "crates", "playmat-engine", "cards", "views.json")
+VIEWS_PATH = os.path.join(REPO, "rust", "crates", "playmat-engine", "cards", "views.json.gz")
 VERIFIED_PATH = os.path.join(REPO, "rust", "crates", "playmat-engine", "cards", "verified.txt")
 LADDER_DECKS = os.path.join(SERVER, "src", "main", "resources", "ladder", "decks")
 RUST_PLAYBOOKS = os.path.join(REPO, "rust", "crates", "playmat-ai", "src", "playbooks.json")
@@ -1136,7 +1137,9 @@ DECKS = [
 
 def main():
     verified = {line.strip() for line in open(VERIFIED_PATH, encoding="utf-8") if line.strip()}
-    views = json.load(open(VIEWS_PATH, encoding="utf-8"))
+    opener = gzip.open if VIEWS_PATH.endswith(".gz") else open
+    with opener(VIEWS_PATH, "rt", encoding="utf-8") as f:
+        views = json.load(f)
 
     # Fix any missing/unverified cards early with a clear report
     missing = []

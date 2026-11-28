@@ -3262,11 +3262,18 @@ impl Game {
         self.battlefield.iter().any(|src| {
             self.attached(*src) == Some(id)
                 && self.obj(*src).def.abilities.iter().any(|a| match a {
-                    AbilityDef::SimpleStaticAbility { effects, .. } => effects.iter().any(|e| {
-                        matches!(
-                            e,
-                            EffectDef::CantAttackBlockAttachedEffect | EffectDef::CantBlockAttackActivateAttachedEffect
-                        )
+                    AbilityDef::SimpleStaticAbility { effects, .. } => effects.iter().any(|e| match e {
+                        EffectDef::CantAttackBlockAttachedEffect | EffectDef::CantBlockAttackActivateAttachedEffect => {
+                            true
+                        }
+                        EffectDef::ConditionalContinuousEffect { effect, condition } => {
+                            matches!(
+                                &**effect,
+                                EffectDef::CantAttackBlockAttachedEffect
+                                    | EffectDef::CantBlockAttackActivateAttachedEffect
+                            ) && self.condition_holds(Some(condition), self.obj(*src).controller, *src)
+                        }
+                        _ => false,
                     }),
                     _ => false,
                 })

@@ -7,6 +7,7 @@ Each response returns `{"choice": int, "probabilities": [...], "value": float, "
 
 from __future__ import annotations
 
+import gzip
 import json
 import os
 import socketserver
@@ -17,7 +18,7 @@ from typing import Any, Dict, List, Optional
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
-VIEWS_JSON = os.path.join(REPO, "rust", "crates", "playmat-engine", "cards", "views.json")
+VIEWS_JSON = os.path.join(REPO, "rust", "crates", "playmat-engine", "cards", "views.json.gz")
 
 
 def load_dotenv() -> None:
@@ -53,7 +54,8 @@ class CardTextStore:
         self._rules: Dict[str, str] = {}
         if os.path.exists(path):
             try:
-                with open(path, "r", encoding="utf-8") as f:
+                opener = gzip.open if path.endswith(".gz") else open
+                with opener(path, "rt", encoding="utf-8") as f:
                     raw = json.load(f)
                 for name, view in raw.items():
                     rules = view.get("rules") or []
