@@ -47,11 +47,24 @@ DEFAULT_TX_CFG = {
     "text": 0,
 }
 
-SEARCH_COMMON = (
-    "+hide=1+samples=6+cpuct=1000+leaf_blend=1000+gumbel_root=1+multi_tree=1"
-    "+mulligan_net=1+width=20+consider=14+extra_turns=2+belief_ms=1"
-    "+fpu_vnode=1+solver=1+forced_k=200"
-)
+def search_common(leaf_blend=1000):
+    return (
+        f"+hide=1+samples=6+cpuct=1000+leaf_blend={int(leaf_blend)}+gumbel_root=1+multi_tree=1"
+        "+mulligan_net=1+width=20+consider=14+extra_turns=2+belief_ms=1"
+        "+fpu_vnode=1+solver=1+forced_k=200"
+    )
+
+
+def leaf_blend_for(promotions):
+    """Bootstrap heuristic blend schedule so early random nets play decisive games before going pure neural."""
+    if promotions < 3:
+        return 300
+    if promotions < 6:
+        return 600
+    return 1000
+
+
+SEARCH_COMMON = search_common(1000)
 
 
 def log(msg):
@@ -109,38 +122,46 @@ def make_selfplay_round_units(
     keep,
     vloss,
     seed_base,
+    leaf_blend=1000,
     obs=4,
 ):
     nets = {}
+    sc = search_common(leaf_blend)
     cpu_learner = swarm.swarm_spec(
-        f"cfg:policy=ismcts+net={best_pmnet}+iters={iters}{SEARCH_COMMON}+temp=1000+temp_turn=6",
+        f"cfg:policy=ismcts+net={best_pmnet}+iters={iters}{sc}+temp=1000+temp_turn=6",
         client,
         nets,
     )
     gpu_learner = swarm.swarm_spec(
-        f"cfg:policy=ismcts+net={best_pmnet}+iters={iters}{SEARCH_COMMON}+vloss={vloss}+temp=1000+temp_turn=6",
+        f"cfg:policy=ismcts+net={best_pmnet}+iters={iters}{sc}+vloss={vloss}+temp=1000+temp_turn=6",
         client,
         nets,
     )
 
     opp_iters = max(64, iters // 2)
-    cpu_opps = [{"config": "self", "weight": 4}]
-    gpu_opps = [{"config": "self", "weight": 4}]
     if not ancestors:
-        cpu_opps.append({"config": "host@s6", "weight": 2})
-        cpu_opps.append({"config": "cfg:policy=quick", "weight": 1})
-        gpu_opps.append({"config": "host@s6", "weight": 2})
-        gpu_opps.append({"config": "cfg:policy=quick", "weight": 1})
+        cpu_opps = [
+            {"config": "self", "weight": 3},
+            {"config": "host@s6", "weight": 2},
+            {"config": "cfg:policy=quick", "weight": 2},
+        ]
+        gpu_opps = [
+            {"config": "self", "weight": 3},
+            {"config": "host@s6", "weight": 2},
+            {"config": "cfg:policy=quick", "weight": 2},
+        ]
     else:
+        cpu_opps = [{"config": "self", "weight": 4}]
+        gpu_opps = [{"config": "self", "weight": 4}]
         for anc_path in ancestors[-2:]:
             if os.path.exists(anc_path):
                 anc_cpu = swarm.swarm_spec(
-                    f"cfg:policy=ismcts+net={anc_path}+iters={opp_iters}{SEARCH_COMMON}+temp=750+temp_turn=6",
+                    f"cfg:policy=ismcts+net={anc_path}+iters={opp_iters}{sc}+temp=750+temp_turn=6",
                     client,
                     nets,
                 )
                 anc_gpu = swarm.swarm_spec(
-                    f"cfg:policy=ismcts+net={anc_path}+iters={opp_iters}{SEARCH_COMMON}+vloss={vloss}+temp=750+temp_turn=6",
+                    f"cfg:policy=ismcts+net={anc_path}+iters={opp_iters}{sc}+vloss={vloss}+temp=750+temp_turn=6",
                     client,
                     nets,
                 )
@@ -259,18 +280,20 @@ def publish_sprt_gate(
     iters,
     seed_base,
     elo0=0.0,
-    elo1=35.0,
+    elo1=25.0,
     max_share=1.0,
+    leaf_blend=1000,
     obs=4,
 ):
     nets = {}
+    sc = search_common(leaf_blend)
     learner = swarm.swarm_spec(
-        f"cfg:policy=ismcts+net={cand_pmnet}+iters={iters}{SEARCH_COMMON}+temp=0",
+        f"cfg:policy=ismcts+net={cand_pmnet}+iters={iters}{sc}+temp=0",
         client,
         nets,
     )
     opponent = swarm.swarm_spec(
-        f"cfg:policy=ismcts+net={base_pmnet}+iters={iters}{SEARCH_COMMON}+temp=0",
+        f"cfg:policy=ismcts+net={base_pmnet}+iters={iters}{sc}+temp=0",
         client,
         nets,
     )
@@ -381,7 +404,7 @@ def main():
     ap.add_argument("--repo", default=REPO)
     ap.add_argument("--project", default="mana-zero")
     ap.add_argument("--run", default="tx-v1")
-    ap.add_argument("--train-suite", default="constructed-train-450", help="Training deck suite under archbench/")
+    ap.add_argument("--train-suite", default="constructed-train-200", help="Training deck suite under archbench/")
     ap.add_argument("--eval-suite", default="constructed-2", help="Held-out evaluation suite under archbench/")
     ap.add_argument("--cpu-units", type=int, default=8, help="CPU strict-1 units per round")
     ap.add_argument("--gpu-units", type=int, default=4, help="GPU selfplay-gpu units per round")
@@ -392,7 +415,8 @@ def main():
     ap.add_argument("--vloss", type=int, default=8, help="Virtual loss batching for GPU units")
     ap.add_argument("--eval-iters", type=int, default=96, help="ISMCTS iterations for Archbench and SPRT gates")
     ap.add_argument("--bench-games", type=int, default=40)
-    ap.add_argument("--gate-games", type=int, default=120)
+    ap.add_argument("--gate-games", type=int, default=160)
+    ap.add_argument("--gate-elo1", type=float, default=25.0)
     ap.add_argument("--gate-max-share", type=float, default=1.0, help="Single-account concentration cap for SPRT auto-promotion")
     ap.add_argument("--replay-window", type=int, default=12, help="Max recent accepted rounds kept in local replay buffer")
     ap.add_argument("--epochs", type=int, default=4)
@@ -445,6 +469,8 @@ def main():
             "best_dir": g0_dir,
             "best_pmnet": g0_pmnet,
             "best_sha": g0_sha,
+            "latest_dir": g0_dir,
+            "promotions": 0,
             "ancestors": [],
             "data_dirs": [],
             "phase": "publish_selfplay",
@@ -476,6 +502,8 @@ def main():
 def _step(args, client, state, state_path, train_suite, eval_suite):
     gen = state["gen"]
     phase = state["phase"]
+    promotions = int(state.get("promotions", len(state.get("ancestors", []))))
+    blend = leaf_blend_for(promotions)
 
     if phase == "publish_selfplay":
         seed_base = 10_000_000 + gen * 100_000
@@ -495,12 +523,16 @@ def _step(args, client, state, state_path, train_suite, eval_suite):
             keep=args.keep,
             vloss=args.vloss,
             seed_base=seed_base,
+            leaf_blend=blend,
         )
         st = swarm.publish(client, args.project, args.run, gen, units, priority=15)
         state["active_round_id"] = st["id"]
         state["phase"] = "wait_selfplay"
         save_state(state_path, state)
-        log(f"Published Gen {gen} self-play round #{st['id']} ({args.cpu_units} CPU + {args.gpu_units} GPU units x {args.unit_games} games)")
+        log(
+            f"Published Gen {gen} self-play round #{st['id']} "
+            f"({args.cpu_units} CPU + {args.gpu_units} GPU units x {args.unit_games} games, leaf_blend={blend}, promotions={promotions})"
+        )
 
     elif phase == "wait_selfplay":
         rid = state["active_round_id"]
@@ -522,7 +554,11 @@ def _step(args, client, state, state_path, train_suite, eval_suite):
 
     elif phase == "train":
         cand_dir = os.path.join(args.work_dir, "checkpoints", f"g{gen}")
-        cand_pmnet = train_candidate(args, state["best_dir"], state["data_dirs"], cand_dir)
+        init_dir = state.get("latest_dir") or state["best_dir"]
+        if not os.path.exists(os.path.join(init_dir, "net.pt")):
+            init_dir = state["best_dir"]
+        log(f"Training Gen {gen} continuously from {init_dir}")
+        cand_pmnet = train_candidate(args, init_dir, state["data_dirs"], cand_dir)
         rid = state["active_round_id"]
         client.call("POST", f"/admin/rounds/{rid}/trained", {})
         archive_ref = ""
@@ -547,6 +583,7 @@ def _step(args, client, state, state_path, train_suite, eval_suite):
 
         state["cand_dir"] = cand_dir
         state["cand_pmnet"] = cand_pmnet
+        state["latest_dir"] = cand_dir
         state["phase"] = "publish_eval"
         save_state(state_path, state)
 
@@ -580,9 +617,11 @@ def _step(args, client, state, state_path, train_suite, eval_suite):
             unit_games=20,
             iters=args.eval_iters,
             seed_base=9_000_000 + gen * 1000,
+            elo1=args.gate_elo1,
             max_share=args.gate_max_share,
+            leaf_blend=blend,
         )
-        log(f"Published eval for {cand_label}: bench #{bench['id']} + SPRT gate #{gate['id']} vs {base_label}")
+        log(f"Published eval for {cand_label}: bench #{bench['id']} + SPRT gate #{gate['id']} vs {base_label} (leaf_blend={blend})")
         state["active_bench_round_id"] = bench["round_id"]
         state["active_gate_id"] = gate["id"]
         state["phase"] = "wait_eval"
@@ -592,8 +631,23 @@ def _step(args, client, state, state_path, train_suite, eval_suite):
         gate_res = wait_gate(client, state["active_gate_id"], poll=args.poll)
         if state.get("active_bench_round_id"):
             swarm.wait(client, state["active_bench_round_id"], poll=args.poll, wait_verify=True)
-        if gate_res["status"] in ("passed", "promoted"):
-            log(f"PROMOTED {gate_res['candidate_label']} (elo {gate_res['elo']:+.1f}, llr {gate_res['llr']:.2f})")
+        sprt_passed = gate_res["status"] in ("passed", "promoted")
+        bootstrap_passed = (
+            promotions < 6
+            and gate_res["status"] == "inconclusive"
+            and gate_res["wins"] >= gate_res["losses"] + 4
+            and gate_res["elo"] >= 10.0
+        )
+        diverged = (
+            gate_res["status"] in ("failed", "rejected")
+            or (gate_res["losses"] >= gate_res["wins"] + 6 and gate_res["elo"] <= -20.0)
+        )
+        if sprt_passed or bootstrap_passed:
+            mode = "SPRT" if sprt_passed else "BOOTSTRAP"
+            log(
+                f"PROMOTED ({mode}) {gate_res['candidate_label']} "
+                f"({gate_res['wins']}W-{gate_res['draws']}D-{gate_res['losses']}L, elo {gate_res['elo']:+.1f}, llr {gate_res['llr']:.2f})"
+            )
             if state["best_pmnet"] not in state["ancestors"]:
                 state["ancestors"].append(state["best_pmnet"])
             state["ancestors"] = state["ancestors"][-6:]
@@ -601,8 +655,20 @@ def _step(args, client, state, state_path, train_suite, eval_suite):
             state["best_dir"] = state["cand_dir"]
             state["best_pmnet"] = state["cand_pmnet"]
             state["best_sha"] = swarm.sha256_file(state["cand_pmnet"])
+            state["latest_dir"] = state["cand_dir"]
+            state["promotions"] = promotions + 1
         else:
-            log(f"KEPT {args.project}-g{state['best_gen']} (candidate {gate_res['candidate_label']} status={gate_res['status']} elo={gate_res['elo']:+.1f})")
+            if diverged:
+                log(
+                    f"RESET latest_dir -> g{state['best_gen']} after regression "
+                    f"({gate_res['candidate_label']} status={gate_res['status']} elo={gate_res['elo']:+.1f})"
+                )
+                state["latest_dir"] = state["best_dir"]
+            else:
+                log(
+                    f"KEPT best=g{state['best_gen']}, continuing training from g{gen} "
+                    f"(status={gate_res['status']} {gate_res['wins']}W-{gate_res['draws']}D-{gate_res['losses']}L elo={gate_res['elo']:+.1f})"
+                )
         state["gen"] = gen + 1
         state["rounds_completed"] += 1
         state["active_round_id"] = None
