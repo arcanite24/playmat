@@ -1,0 +1,25 @@
+# name: Train800 tri-urw-midrange-06
+# archetype: midrange
+# colors: URW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Captain America, Skybound
+4 Chandra's Magmutt
+2 Chandra's Triumph
+4 Dragon's Eye Sentry
+4 Emeritus of Truce
+4 Fiery Impulse
+4 Jor Kadeen, First Goldwarden
+3 Kargan Warleader
+1 Kykar, Wind's Fury
+1 Narset of the Ancient Way
+1 Overlord of the Mistmoors
+1 Serum-Core Chimera
+3 Torrential Gearhulk
+4 Warren Warleader
+4 Dalkovan Encampment
+4 Inspiring Vantage
+3 Island
+2 Mountain
+4 Plains
+2 Sacred Foundry
+4 Sundown Pass

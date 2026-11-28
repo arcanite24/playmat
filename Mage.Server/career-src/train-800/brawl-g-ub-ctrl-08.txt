@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-ub-ctrl-08
+# archetype: brawl_ctrl
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aetherborn Marauder
+1 Archdemon of Unx
+1 Arnyn, Deathbloom Botanist
+1 Bleeding Edge
+1 Blind Seer
+1 Bloodgift Demon
+1 Bonebind Orator
+1 Circular Logic
+1 Collective Brutality
+1 Come Back Wrong
+1 Countersquall
+1 Courier's Capsule
+1 Cruel Finality
+1 Crush Dissent
+1 Dark Salvation
+1 Devourer of Memory
+1 Dihada's Ploy
+1 Flitting Guerrilla
+1 Gruesome Fate
+1 Hidetsugu and Kairi
+1 Injector Crocodile
+1 Junji, the Midnight Sky
+1 Lost Legion
+1 Lurching Rotbeast
+1 Massacre Girl
+1 Miscast
+1 Nullpriest of Oblivion
+1 Pile On
+1 Revenge of the Rats
+1 Ritual of Soot
+1 Swordsman, Sharp Scoundrel
+1 Taken by Nightmares
+1 Thallid Soothsayer
+1 The Echoverse Fulcrum
+1 Whack
+1 Choked Estuary
+1 Darkslick Shores
+1 Drowned Catacomb
+2 Island
+1 Murky Sewer
+1 Serpent's Pass
+1 Shipwreck Marsh
+1 Sunken Hollow
+14 Swamp
+1 Temple of Deceit
+1 Underground River

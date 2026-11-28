@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-gw-mid-05
+# archetype: brawl_mid
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aang, A Lot to Learn
+1 Ardent Recruit
+1 Banishing Slash
+1 Caradora, Heart of Alacria
+1 Citizen's Arrest
+1 Civil Servant
+1 Deeproot Wayfinder
+1 Dimensional Exile
+1 Elemental Bond
+1 Glory Seeker
+1 Hammerhead Corvette
+1 Horizon Seeker
+1 Impassioned Orator
+1 Lotus Cobra
+1 Loxodon Lifechanter
+1 Magnificent End
+1 Obstinate Baloth
+1 Ojutai Exemplars
+1 Patient Naturalist
+1 Rishkar, Peema Renegade
+1 Rok-Tahk, Budding Scientist
+1 Sage of Shaila's Claim
+1 Seedship Agrarian
+1 Shalai, Voice of Plenty
+1 Shatterwing Pegasus
+1 Sleeper Dart
+1 Starfall Invocation
+1 Sterling Supplier
+1 Stonewise Fortifier
+1 Summoned Dromedary
+1 Surrak and Goreclaw
+1 Triumphant Surge
+1 Trusty Companion
+1 Vorinclex
+1 Zar Ojanen, Scion of Efrava
+1 Brushland
+1 Canopy Vista
+1 Etched Cornfield
+6 Forest
+1 Grove of the Guardian
+1 Horizon Canopy
+1 Overgrown Farmland
+10 Plains
+1 Razorverge Thicket
+1 Sunpetal Grove
+1 Vigorbloom Annex

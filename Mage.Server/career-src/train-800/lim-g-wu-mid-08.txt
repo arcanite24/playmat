@@ -1,0 +1,35 @@
+# name: Train800 lim-g-wu-mid-08
+# archetype: limited_mid
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aerial Doombot
+1 Beskir Shieldmate
+1 Bilbo's Gambit
+1 Captain's Defense
+1 Cult Healer
+1 Defiant Strike
+2 Elesh Norn
+1 Elesh Norn, Mother of Machines
+1 Ephara, God of the Polis
+2 Expose to Daylight
+2 Extraction Specialist
+2 Flamecast Wheel
+2 Gallant Fowlknight
+1 Guardians of Oboro
+1 Heliod, Sun-Crowned
+2 Hullbreaker Horror
+1 Maritime Guard
+2 Master of Winds
+1 Novice Knight
+1 Opal Lake Gatekeepers
+1 Persistent Petitioners
+2 Platoon Dispenser
+1 Stormchaser Drake
+2 Sunspire Griffin
+2 Ticket Tortoise
+1 Trained Arynx
+1 Adarkar Wastes
+2 Glacial Fortress
+6 Island
+13 Plains
+2 Seachrome Coast

@@ -1,0 +1,24 @@
+# name: Train800 guild-br-bigmana-16
+# archetype: bigmana
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Artistic Process
+3 Battle Hymn
+2 Blindblast
+1 Bold Impaler
+2 Chandra, Novice Pyromancer
+2 Elegy Acolyte
+2 Fin Fang Foom
+3 Improvised Weaponry
+2 Krenko's Buzzcrusher
+4 Rakdos, Patron of Chaos
+2 Rowan, Scion of War
+3 Stone-Giant of High Pass
+3 Sunset Strikemaster
+2 The Bloodsky Massacre
+2 The Speed Demon
+4 Blackcleave Cliffs
+14 Mountain
+4 Smoldering Marsh
+2 Sulfurous Springs
+2 Swamp

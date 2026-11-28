@@ -1,0 +1,37 @@
+# name: Train800 lim-g-ub-mid-06
+# archetype: limited_mid
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 A Good Day to Die
+2 Aether Theorist
+2 Baneblade Scoundrel
+1 Biting-Palm Ninja
+2 Bog Naughty
+2 Boggart Prankster
+1 Campus Guide
+1 Conceited Witch
+1 Daggerfang Duo
+1 Deep-Sea Terror
+2 Dreadfeast Demon
+1 Duskmantle Seer
+2 Ebondeath, Dracolich
+1 Fang, Fearless l'Cie
+2 Gravblade Heavy
+1 Jace, Wielder of Mysteries
+1 Merchant of Many Hats
+1 Rabid Attack
+1 Sedgemoor Witch
+1 Shambling Ghast
+1 Skywarp Skaab
+1 Tragic Trajectory
+1 Uchbenbak, the Great Mistake
+1 Undercity Dire Rat
+1 Volshe Tideturner
+1 Vulture, Scheming Scavenger
+2 Weigh Down
+1 Yathan Tombguard
+3 Island
+2 Shipwreck Marsh
+1 Sunken Hollow
+16 Swamp
+2 Underground River

@@ -1,0 +1,18 @@
+# name: Train800 mono-b-control-12
+# archetype: control
+# colors: B
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Black Market Connections
+3 Body Count
+1 Bone Miser
+3 Fungal Infection
+3 Garruk, Veiled Butcher
+2 Gas Guzzler
+2 Head of the Hunt
+4 Indulgent Tormentor
+3 Lolth, Spider Queen
+3 Lord Skitter, Sewer King
+3 Rat Out
+3 Underhanded Designs
+1 Waste Not
+25 Swamp

@@ -1,0 +1,26 @@
+# name: Train800 tri-gwu-bigmana-10
+# archetype: bigmana
+# colors: GWU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Bounding Wolf
+3 Cautious Survivor
+1 Disperse
+1 Don & Leo, Problem Solvers
+1 Edgewall Innkeeper
+4 Emmara, Soul of the Accord
+2 Gaea's Revenge
+3 Network Terminal
+4 Proctor's Gaze
+4 Prosperous Thief
+2 Rampaging Brontodon
+2 Selesnya Cluestone
+1 Thror's Map
+4 Waker of Waves
+1 Winged Portent
+4 Forest
+4 Hinterland Harbor
+3 Island
+4 Lakeside Shack
+5 Plains
+4 Transformative Commons
+2 Yavimaya Coast

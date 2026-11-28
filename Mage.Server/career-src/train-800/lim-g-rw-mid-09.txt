@@ -1,0 +1,40 @@
+# name: Train800 lim-g-rw-mid-09
+# archetype: limited_mid
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Armory Paladin
+1 Aya of Alexandria
+1 Bellowing Bruiser
+1 Benevolent Bodyguard
+2 Betrayer's Bargain
+1 Blade of the Sixth Pride
+2 Dragonkin Berserker
+1 Eiganjo Exemplar
+1 Fresh-Faced Recruit
+1 Fuming Effigy
+1 Glory Bearers
+1 Guardian of the Great Door
+1 Hellkite Whelp
+2 Hero of the Games
+1 Keldon Strike Team
+1 Kirol, History Buff
+1 Koth, the Geomancer
+1 Mishra's Juggernaut
+1 Plargg, Dean of Chaos
+1 Pyrotechnic Performer
+1 Rending Flame
+1 Reprisal
+1 Risk Factor
+1 Sanctuary Smasher
+1 Soul of Theros
+2 Spark Trooper
+1 Tavern Ruffian
+1 The Chase Is On
+1 Thor Odinson
+1 Vaan, Street Thief
+1 You Come to the Gnoll Camp
+2 Inspiring Vantage
+13 Mountain
+6 Plains
+2 Sacred Foundry
+1 Sundown Pass

@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-gu-mid-05
+# archetype: brawl_mid
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ancient Animus
+1 Appetite for the Unnatural
+1 Assassin Den
+1 Bark-Knuckle Boxer
+1 Bounce Off
+1 Censor
+1 Clutch of Currents
+1 Co-Option Adjutant
+1 Entity Tracker
+1 Federation Probe
+1 Fractal Tender
+1 Frilled Oculus
+1 Glade Watcher
+1 Greenbelt Rampager
+1 Hapatra, the Desert Frost
+1 Humbler of Mortals
+1 Interstellar Effigy
+1 Jace's Mindseeker
+1 Kazandu Stomper
+1 Kumena, Tyrant of Orazca
+1 Littjara Glade-Warden
+1 Loki, God of Mischief
+1 Meldweb Curator
+1 Military Intelligence
+1 Mistbreath Elder
+1 Needlethorn Drake
+1 Nissa's Judgment
+1 Oko, the Ringleader
+1 Renegade Silent
+1 Return to Nature
+1 Rhonas the Indomitable
+1 Scab-Clan Charger
+1 Tender Wildguide
+1 West Wind Avatar
+1 Yarok's Wavecrasher
+1 Botanical Sanctum
+1 Dreamroot Cascade
+8 Forest
+1 Hinterland Harbor
+8 Island
+1 Lakeside Shack
+1 Paradox Gardens
+1 Simic Guildgate
+1 Transformative Commons
+1 Woodland Stream
+1 Yavimaya Coast

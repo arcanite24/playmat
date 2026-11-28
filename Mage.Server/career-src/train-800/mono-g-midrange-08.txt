@@ -1,0 +1,20 @@
+# name: Train800 mono-g-midrange-08
+# archetype: midrange
+# colors: G
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Arbor Colossus
+3 Bamboo Grove Archer
+2 Bugenhagen, Wise Elder
+2 Carnivorous Cultivator
+4 Enduring Vitality
+3 Gene Pollinator
+2 Jewel Thief
+1 Mortarpod
+2 Nissa's Defeat
+4 Old-Growth Troll
+3 Prizefight
+1 Rampaging Baloths
+2 Topiary Stomper
+3 Tyrranax Rex
+3 Vorinclex
+24 Forest

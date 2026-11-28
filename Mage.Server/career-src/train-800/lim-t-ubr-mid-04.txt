@@ -1,0 +1,38 @@
+# name: Train800 lim-t-ubr-mid-04
+# archetype: limited_mid
+# colors: UBR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ambulatory Edifice
+1 Ares, God of War
+1 Battlefly Swarm
+1 Baxter Stockman
+1 Bloodline Culling
+2 Butcher's Glee
+1 Canal Monitor
+2 Carnage, Crimson Chaos
+2 Clay Revenant
+2 Cloudseeder
+2 Cyclonic Rift
+1 Disciple of Deceit
+2 Eclipsed Boggart
+1 Fate Unraveler
+2 Grazilaxx, Illithid Scholar
+1 Haunting Figment
+1 Iron-Shield Elf
+1 Koilos Roc
+1 Memory Guardian
+1 Naga Eternal
+1 Quicksilver Fisher
+1 Rattleback Apothecary
+2 Scaldkin
+1 Terminal Criticism
+1 The Emperor of Palamecia
+1 Tribute to Urborg
+2 Vohar, Vodalian Desecrator
+2 Crosis's Catacombs
+2 Drowned Catacomb
+6 Island
+4 Mountain
+2 Shipwreck Marsh
+6 Swamp
+2 Underground River

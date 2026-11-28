@@ -1,0 +1,40 @@
+# name: Train800 lim-g-rw-aggro-02
+# archetype: limited_aggro
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Agrus Kos, Spirit of Justice
+1 Alpine Watchdog
+1 Arabella, Abandoned Doll
+1 Aurelia, Exemplar of Justice
+2 Aziza, Mage Tower Captain
+1 Bre of Clan Stoutarm
+1 Built to Smash
+1 Danitha, Benalia's Hope
+1 Daring Escape
+1 Eldrazi Obligator
+1 Festival Crasher
+1 Frontline Rush
+1 Hero of the Nyxborn
+1 High Noon
+2 Hired Claw
+1 Iroas, God of Victory
+1 Jor Kadeen, First Goldwarden
+1 Lagonna-Band Elder
+1 Memorial Team Leader
+1 Peerless Samurai
+2 Precinct Captain
+1 Repurposed Enforcer
+2 Rip Apart
+1 Seasoned Consultant
+1 Seismic Wave
+1 Skewer the Critics
+1 Sungold Sentinel
+1 Velomachus Lorehold
+1 Weapons Trainer
+2 Zariel, Archduke of Avernus
+1 Zirda, the Dawnwaker
+2 Inspiring Vantage
+9 Mountain
+9 Plains
+2 Raucous Carnival
+1 Sundown Pass

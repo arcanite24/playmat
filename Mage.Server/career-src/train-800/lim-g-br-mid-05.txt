@@ -1,0 +1,35 @@
+# name: Train800 lim-g-br-mid-05
+# archetype: limited_mid
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Boneyard Desecrator
+2 By Force
+2 Captain Lannery Storm
+1 Casey Jones, Back Alley Brute
+1 Crimson Wisps
+1 Deal Gone Bad
+1 Dori, Bearer of Friends
+2 Emeritus of Woe
+2 Enthusiastic Study
+1 Fatal Fumes
+2 Fire Nation Cadets
+1 Flummoxed Cyclops
+1 Forsaken Miner
+1 Ghitu Chronicler
+1 Gore Swine
+2 Mayhem Devil
+1 Oin the Brave
+1 Pugnacious Pugilist
+1 Reckless Lackey
+1 Relentless X-ATM092
+2 Seismic Monstrosaur
+1 Silverclad Ferocidons
+2 Treasure Dredger
+2 Wanted Scoundrels
+2 War-Trained Slasher
+1 Witchstalker Frenzy
+2 Dragonskull Summit
+1 Haunted Ridge
+15 Mountain
+2 Sulfurous Springs
+4 Swamp

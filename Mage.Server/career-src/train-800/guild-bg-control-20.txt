@@ -1,0 +1,24 @@
+# name: Train800 guild-bg-control-20
+# archetype: control
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Abyssal Harvester
+2 Ambulatory Edifice
+1 Anoint with Affliction
+4 Coffin Purge
+2 Collective Resistance
+2 Crash of Rhino Beetles
+4 Dark Nourishment
+2 Desperate Castaways
+4 Gigantosaurus
+1 Herald of Anguish
+2 Heritage Reclamation
+3 Nemata, Primeval Warden
+3 Sagittars' Volley
+1 Tear Asunder
+2 The First Iroan Games
+2 Bayou
+4 Blooming Marsh
+12 Forest
+4 Strangled Cemetery
+3 Swamp

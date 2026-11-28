@@ -1,0 +1,36 @@
+# name: Train800 lim-g-gu-mid-05
+# archetype: limited_mid
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Avatar of Burgeoning Echoes
+2 Bitterbow Sharpshooters
+1 Charge Through
+2 Defiant Survivor
+1 Gravestone Strider
+2 Greater Tanuki
+1 Hamlet Glutton
+1 Hermitic Herbalist
+2 Hollow Scavenger
+2 Intrepid Outlander
+1 Jaspera Sentinel
+1 Kiora of Salt and Sand
+1 Luxurious Libation
+1 Might of Murasa
+1 Molt Tender
+2 Quandrix Cultivator
+1 Scrawling Crawler
+1 Storyteller Pixie
+1 Sweep Away
+2 Teferi's Time Twist
+2 Thunderous Snapper
+1 Tomakul Honor Guard
+1 Trygon Predator
+1 Tunnel Surveyor
+1 Venus, Torn Between Worlds
+1 Xenobotanist
+2 You Come to a River
+1 Botanical Sanctum
+14 Forest
+2 Hinterland Harbor
+5 Island
+2 Transformative Commons

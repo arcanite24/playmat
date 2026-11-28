@@ -1,0 +1,40 @@
+# name: Train800 lim-g-br-aggro-02
+# archetype: limited_aggro
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Anje's Ravager
+1 Balduvian Atrocity
+1 Burning Cloak
+1 Burning Sun's Fury
+2 Caligo Skin-Witch
+1 Carnophage
+1 Coalition Warbrute
+2 Concentrated Fire
+1 Demigod of Revenge
+1 Fear of Being Hunted
+1 Gallia, the Merrymaker
+1 Glint-Sleeve Siphoner
+2 HYDRA Assault Robot
+1 Hall Monitor
+2 Heightened Reflexes
+2 Herald of Torment
+1 Horned Stoneseeker
+2 Inventor's Apprentice
+1 Kuja, Genome Sorcerer
+1 Legion Extruder
+1 Mindwrack Demon
+1 Nightmare Shepherd
+1 Ozai, the Phoenix King
+1 Pillar of Flame
+1 Planetary Bombardment
+1 Rune-Brand Juggler
+1 Scrapheap Scrounger
+1 Seifer Almasy
+1 Shrapnel Slinger
+1 Start from Scratch
+1 Terror of Towashi
+2 Cinder Marsh
+1 Haunted Ridge
+11 Mountain
+2 Razortrap Gorge
+7 Swamp

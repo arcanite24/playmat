@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-rgw-ramp-04
+# archetype: brawl_ramp
+# colors: RGW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Angelic Captain
+1 Arena Trickster
+1 Boros Locket
+1 Broodwarden
+1 Cabaretti Initiate
+1 Captain America, Skybound
+1 Cliff Threader
+1 Cori Mountain Stalwart
+1 Cowl Prowler
+1 Dauntless Bodyguard
+1 Dauntless Escort
+1 Eclipsed Kithkin
+1 Etali, Primal Conqueror
+1 Expel
+1 Flick a Coin
+1 Guan Yu, Sainted Warrior
+1 Legion's Landing
+1 Minsc, Beloved Ranger
+1 Proud Wildbonder
+1 Rienne, Angel of Rebirth
+1 Rydia, Summoner of Mist
+1 Smash to Smithereens
+1 Smashing Success
+1 Solar Blaze
+1 Song of Freyalise
+1 Spikefield Hazard
+1 Starting Column
+1 Strike Team Commando
+1 Summon: Titan
+1 The Huntsman's Redemption
+1 They Went This Way
+1 Thistledown Players
+1 Thorin, Mountain-king
+1 Ulvenwald Observer
+1 Wandermare
+1 Bleeding Woods
+1 Brushland
+1 Canopy Vista
+1 Cinder Glade
+1 Etched Cornfield
+2 Forest
+1 Grove of the Guardian
+1 Horizon Canopy
+1 Jetmir's Garden
+7 Mountain
+1 Overgrown Farmland
+3 Plains
+1 Razorverge Thicket
+1 Stomping Ground
+1 Sunpetal Grove
+1 Vigorbloom Annex

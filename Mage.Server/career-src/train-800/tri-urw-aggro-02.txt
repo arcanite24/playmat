@@ -1,0 +1,23 @@
+# name: Train800 tri-urw-aggro-02
+# archetype: aggro
+# colors: URW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Brimstone Volley
+2 Firemind's Research
+3 Form a Posse
+4 Frenzied Raider
+4 Hero of Precinct One
+2 Jeskai Charm
+3 Mantis Rider
+3 Narset of the Ancient Way
+4 Salvage Drone
+3 Starfighter Pilot
+4 Vraska, Soul of Stone
+3 Yavimaya Steelcrusher
+4 Dalkovan Encampment
+4 Inspiring Vantage
+5 Island
+2 Mountain
+1 Plains
+4 Raucous Carnival
+2 Raugrin Triome

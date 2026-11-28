@@ -1,0 +1,25 @@
+# name: Train800 guild-bg-bigmana-16
+# archetype: bigmana
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Bristlebud Farmer
+4 Carnophage
+2 Daily Bugle Newspaper
+3 Deadly Derision
+1 Golden Egg
+4 Honored Hydra
+2 Keeper of Fables
+2 Liturgy of Blood
+2 Maulfist Revolutionary
+1 Mirrodin Avenged
+2 Old-Growth Educator
+1 Revenge of the Rats
+3 Skysnare Spider
+2 Tend the Sprigs
+1 Urn of Godfire
+1 Verdant Outrider
+4 Blooming Marsh
+11 Forest
+4 Formidable Commons
+5 Swamp
+2 Woodland Cemetery

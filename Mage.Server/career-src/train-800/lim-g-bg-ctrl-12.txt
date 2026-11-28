@@ -1,0 +1,36 @@
+# name: Train800 lim-g-bg-ctrl-12
+# archetype: limited_ctrl
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ancient Greenwarden
+2 Bala Ged Scorpion
+1 Bamboo Grove Archer
+1 Beast in Show
+2 Blooming Stinger
+2 Choose Your Weapon
+1 Citanul Hierophants
+1 Citanul Woodreaders
+1 Cogwork Assembler
+1 Comet Crawler
+1 Creeperhulk
+1 Culber and Stamets, Star-Crossed
+1 Darkness Descends
+1 Deadly Cover-Up
+2 Grafted Butcher
+1 Kazandu Nectarpot
+1 Korozda Gorgon
+1 Mardu Strike Leader
+1 Moseo, Vein's New Dean
+1 Nylea's Forerunner
+2 Popular Egotist
+1 Ridgescale Tusker
+2 Stinging Cave Crawler
+2 Stoic Grove-Guide
+1 Syndicate Liquidators
+2 Test of Loyalty
+1 Undercity's Embrace
+1 Bayou
+2 Deathcap Glade
+10 Forest
+2 Llanowar Wastes
+10 Swamp

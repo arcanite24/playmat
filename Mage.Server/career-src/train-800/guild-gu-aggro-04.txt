@@ -1,0 +1,24 @@
+# name: Train800 guild-gu-aggro-04
+# archetype: aggro
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Azure Mage
+3 Depower
+3 Diplomatic Relations
+1 Dynavolt Tower
+3 Hermitic Herbalist
+4 Kellan, Inquisitive Prodigy
+2 Kiora, Master of the Depths
+3 Kishla Skimmer
+1 Lion Heart
+2 Mortarpod
+2 Nicanzil, Current Conductor
+3 Rogue Refiner
+1 Tendril of the Mycotyrant
+3 Ursine Champion
+4 Wren's Run Vanquisher
+4 Botanical Sanctum
+4 Dreamroot Cascade
+8 Forest
+4 Island
+2 Transformative Commons

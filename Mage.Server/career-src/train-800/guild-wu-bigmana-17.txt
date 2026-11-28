@@ -1,0 +1,25 @@
+# name: Train800 guild-wu-bigmana-17
+# archetype: bigmana
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Depths of Desire
+1 Emeritus of Ideation
+1 Energy Refractor
+4 Ephara, God of the Polis
+4 Hornswoggle
+2 Jazal Goldmane
+2 Linvala, the Preserver
+1 Loan Shark
+3 Loch Mare
+1 Moogles' Valor
+2 Ormos, Archive Keeper
+4 Overlord of the Floodpits
+1 Rehearsed Debater
+3 Staff of Compleation
+2 Surgical Skullbomb
+1 Triskaidekaphile
+2 Abandoned Campground
+4 Adarkar Wastes
+4 Deserted Beach
+14 Island
+2 Plains

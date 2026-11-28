@@ -1,0 +1,24 @@
+# name: Train800 guild-ub-midrange-14
+# archetype: midrange
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Agonizing Syphon
+3 Coral Colony
+1 Enter the God-Eternals
+4 Gibbering Barricade
+1 God-Eternal Bontu
+2 Heirloom Mirror
+2 Jace, Memory Adept
+2 Jace, Wielder of Mysteries
+4 Lord Skitter's Butcher
+2 Osteomancer Adept
+2 Redrock Sentinel
+2 Scavenger Regent
+3 Sphinx of Clear Skies
+3 Thoughtbound Phantasm
+4 You Are Already Dead
+4 Darkslick Shores
+8 Island
+4 Shipwreck Marsh
+2 Sunken Hollow
+6 Swamp

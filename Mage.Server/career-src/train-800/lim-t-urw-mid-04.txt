@@ -1,0 +1,39 @@
+# name: Train800 lim-t-urw-mid-04
+# archetype: limited_mid
+# colors: URW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Afterthought Sentry
+1 Ancestral Anger
+1 Armored Pegasus
+2 Bruenor Battlehammer
+2 Captain America, Team Leader
+2 Chandra's Magmutt
+1 Colossal Whale
+2 Craven Hulk
+1 Cybermat
+1 Devoted Paladin
+2 Eldrazi Aggressor
+1 Embraal Gear-Smasher
+1 Errant and Giada
+1 Jeong Jeong, the Deserter
+1 Makeshift Battalion
+1 Martyr for the Cause
+1 Molten Birth
+1 Narset's Rebuke
+1 Nori, Teller of Tales
+1 Onakke Javelineer
+1 Orbital Plunge
+1 Pull from Tomorrow
+2 Sarkhan's Rage
+1 Stern Lesson
+2 Swathcutter Giant
+2 Tactical Officer
+1 Wingsteed Rider
+1 Yip Yip!
+2 Battlefield Forge
+2 Clifftop Retreat
+2 Dedicated Commons
+7 Island
+6 Mountain
+3 Plains
+2 Raucous Carnival

@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-urw-ctrl-06
+# archetype: brawl_ctrl
+# colors: URW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aetherling
+1 Anger of the Gods
+1 Arashin Cleric
+1 Blade Instructor
+1 Blood Petal Celebrant
+1 Bold Impaler
+1 Boros Charm
+1 Brazen Freebooter
+1 Chandra's Flame Wave
+1 Clear the Mind
+1 Combat Research
+1 Deeptread Merrow
+1 Essence Capture
+1 Fiery Temper
+1 Five-Alarm Fire
+1 Halo-Charged Skaab
+1 Hurler Cyclops
+1 Kirol, Attentive First-Year
+1 Lightning Javelin
+1 Maze Glider
+1 Molten Nursery
+1 Needletooth Raptor
+1 Practiced Scrollsmith
+1 Raze the Effigy
+1 Revolutionary Rebuff
+1 Rewind
+1 Rooftop Nuisance
+1 Silicate Surveyor
+1 Skycrash
+1 Sozin's Comet
+1 Spined Megalodon
+1 Statute of Denial
+1 Stitchwing Skaab
+1 Valkyrie Aerial Unit
+1 Warbringer
+1 Andoria
+1 Eroded Canyon
+1 Highland Lake
+2 Island
+7 Mountain
+1 Mystic Monastery
+1 Peculiar Lighthouse
+3 Plains
+1 Raugrin Triome
+1 Restless Spire
+1 Shivan Reef
+1 Spectacle Summit
+1 Spirebluff Canal
+1 Stormcarved Coast
+1 Sulfur Falls
+1 Volatile Fjord

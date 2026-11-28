@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-bg-mid-03
+# archetype: brawl_mid
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Agate-Blade Assassin
+1 Ambassador Oak
+1 Archers of Qarsi
+1 Ayula, Queen Among Bears
+1 Bladewing's Thrall
+1 Bog Naughty
+1 Boon Satyr
+1 Cavalier of Night
+1 Circle of Dreams Druid
+1 Cliffrunner Behemoth
+1 Collective Unconscious
+1 Colossapede
+1 Dawn's Light Archer
+1 Deathrite Shaman
+1 Fathom Fleet Cutthroat
+1 Flycatcher Giraffid
+1 Formidable Speaker
+1 Gisa, Glorious Resurrector
+1 Golden Hind
+1 Heir of the Ancient Fang
+1 Intrepid Outlander
+1 Life's Legacy
+1 Mai, Scornful Striker
+1 Novice Occultist
+1 Pestbrood Sloth
+1 Pharika, God of Affliction
+1 Purple Worm
+1 Quilled Wolf
+1 Saruli Gatekeepers
+1 Scuttling Doom Engine
+1 Skyscythe Engulfer
+1 Spire Tracer
+1 Twinblade Assassins
+1 Vraska, Golgari Queen
+1 Worthy Cost
+1 Bayou
+1 Blooming Marsh
+1 Deathcap Glade
+12 Forest
+1 Formidable Commons
+1 Llanowar Wastes
+1 Overgrown Tomb
+1 Strangled Cemetery
+4 Swamp
+1 Witherbloom Campus
+1 Woodland Cemetery

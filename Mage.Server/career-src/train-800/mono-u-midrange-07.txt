@@ -1,0 +1,19 @@
+# name: Train800 mono-u-midrange-07
+# archetype: midrange
+# colors: U
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Brazen Borrower
+4 Cavalier of Gales
+1 Chandra, Chill of Compliance
+3 Dour Port-Mage
+3 Into the Roil
+2 Iron Lad, Diverging Destiny
+4 Jace's Scrutiny
+1 Monument to Endurance
+4 Multiple Choice
+2 Redrock Sentinel
+1 Runaway Carriage
+2 Shipwreck Sentry
+3 Steelclad Spirit
+3 Thassa, Deep-Dwelling
+23 Island

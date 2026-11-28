@@ -1,0 +1,21 @@
+# name: Train800 mono-g-gowide-03
+# archetype: gowide
+# colors: G
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Bloated Contaminator
+2 Budding Insurgent
+4 Cactuar
+2 Elaborate Firecannon
+3 Flaxen Intruder
+1 Garruk, Curse Breaker
+1 Heritage Reclamation
+4 Lys Alana Dignitary
+1 Marwyn, the Preserver
+3 Nightpack Ambusher
+1 Oracle's Restoration
+3 Pestbrood Sloth
+2 Skyway Sniper
+4 Teachings of the Kirin
+4 Thorn Lieutenant
+3 Thoughtweft Charge
+21 Forest

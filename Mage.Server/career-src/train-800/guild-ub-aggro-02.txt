@@ -1,0 +1,25 @@
+# name: Train800 guild-ub-aggro-02
+# archetype: aggro
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Agonizing Syphon
+3 Blood-Sport Champion
+2 Braids, Arisen Nightmare
+2 Contraband Kingpin
+1 Drown in the Loch
+3 Etrata, the Silencer
+3 Evangel of Synthesis
+3 Lead Pipe
+1 Mourner's Surprise
+2 Nameless Inversion
+4 Pale Rider of Trostad
+4 Rat Out
+2 Satoru, the Infiltrator
+2 Scarblade Scout
+2 Sheoldred, the Apocalypse
+3 Stormchaser Drake
+4 Darkslick Shores
+2 Island
+4 Murky Sewer
+2 Shipwreck Marsh
+9 Swamp

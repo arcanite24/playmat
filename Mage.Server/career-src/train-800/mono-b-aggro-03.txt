@@ -1,0 +1,20 @@
+# name: Train800 mono-b-aggro-03
+# archetype: aggro
+# colors: B
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 A Good Day to Die
+2 Bearer of Silence
+2 Black Widow, Deadly Hunter
+1 Circle of Power
+2 Demonic Pact
+3 Duskwielder
+3 Ghoulcaller's Accomplice
+3 Knight of the Ebon Legion
+3 Liliana, the Last Hope
+1 Mai, Scornful Striker
+4 Proft, Sinister Mastermind
+1 Shakedown Heavy
+4 Skemfar Avenger
+4 Sorin the Mirthless
+3 Thornbow Archer
+22 Swamp

@@ -1,0 +1,20 @@
+# name: Train800 mono-r-gowide-05
+# archetype: gowide
+# colors: R
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Ashling, Flame Dancer
+3 Casey Jones, Vigilante
+4 Dragon Whisperer
+4 Emeritus of Conflict
+1 Felonious Rage
+3 Flick a Coin
+2 Goblin Guide
+3 Impetuous Devils
+2 K'un-Lun Warrior
+2 Mask of Immolation
+3 Mouser Attack!
+1 Sarkhan, Fireblood
+2 Sokenzan Smelter
+1 Tibalt, Rakish Instigator
+4 Valley Dasher
+22 Mountain

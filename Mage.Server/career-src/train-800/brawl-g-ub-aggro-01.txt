@@ -1,0 +1,51 @@
+# name: Train800 brawl-g-ub-aggro-01
+# archetype: brawl_aggro
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Atlantean Cavalry
+1 Banehound
+1 Bearer of Silence
+1 Blood Tithe
+1 Braids, Arisen Nightmare
+1 Brokers Veteran
+1 Chief of the Foundry
+1 Coral Eel
+1 Crazed Skirge
+1 Crypt Cobra
+1 Cryptic Cruiser
+1 Cunning Nightbonder
+1 Dai Li Censor
+1 Delver of Secrets
+1 Discordant Piper
+1 Drown in Ichor
+1 Falkenrath Forebear
+1 Front Porch Sentries
+1 Galedrifter
+1 Glint
+1 Hired Hexblade
+1 Homicide Investigator
+1 Hunt for Specimens
+1 Living Tempest
+1 Micromancer
+1 Mirrodin Avenged
+1 Misery's Shadow
+1 Olivia's Dragoon
+1 Orc Sureshot
+1 Phyrexian Vivisector
+1 Servant of the Stinger
+1 Skirsdag Supplicant
+1 Skyline Predator
+1 Soul Enervation
+1 Tragic Trajectory
+1 Withering Torment
+1 A.I.M. Labs
+1 Contaminated Aquifer
+1 Darkslick Shores
+1 Drowned Catacomb
+1 Fetid Pools
+2 Island
+1 Murky Sewer
+1 Shipwreck Marsh
+1 Sunken Hollow
+13 Swamp
+1 Underground River

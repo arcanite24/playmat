@@ -1,0 +1,39 @@
+# name: Train800 lim-g-rw-mid-05
+# archetype: limited_mid
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Blades of Velis Vel
+2 Bloodmad Vampire
+1 Boros Recruit
+1 Cast Out
+1 Deem Worthy
+1 Disposal Mummy
+1 Dwalin, Weaponmaster
+1 Frontier Seeker
+1 Honorbound Page
+1 Ichorplate Golem
+1 Inspiring Overseer
+1 Mabel, Heir to Cragflame
+1 Make Your Mark
+2 Master Piandao
+2 Nahiri, the Harbinger
+2 Null Group Biological Assets
+1 Overwhelming Surge
+1 Rampaging Ceratops
+1 Rhys, the Evermore
+2 Riling Dawnbreaker
+1 Roving Actuator
+1 Sarkhan, Dragon Ascendant
+2 Sidewinder Sliver
+1 Sun Sentinel
+1 Sweatworks Brawler
+1 Taxi Driver
+1 Ty Lee, Artful Acrobat
+1 Untimely Malfunction
+1 Wilt in the Heat
+1 Zuko, Exiled Prince
+2 Dedicated Commons
+10 Mountain
+9 Plains
+1 Raucous Carnival
+2 Sunbaked Canyon

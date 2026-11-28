@@ -1,0 +1,21 @@
+# name: Train800 guild-br-control-20
+# archetype: control
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Aku Djinn
+2 Artillerize
+2 Blighted Blackthorn
+3 Burn Down the House
+4 Chandra, Heart of Fire
+3 Goblin Surveyor
+3 Magma Jet
+2 Massacre Girl, Known Killer
+4 Provoke the Trolls
+2 Riveteers Requisitioner
+2 Searing Spear
+4 Shake the Foundations
+4 Badlands
+2 Dragonskull Summit
+14 Mountain
+4 Sulfurous Springs
+2 Swamp

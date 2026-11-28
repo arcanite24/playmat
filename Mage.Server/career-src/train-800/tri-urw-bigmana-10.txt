@@ -1,0 +1,25 @@
+# name: Train800 tri-urw-bigmana-10
+# archetype: bigmana
+# colors: URW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Bandit's Haul
+4 Daring Mechanic
+4 Drowner of Hope
+2 Jeskai Banner
+2 Jori En, Ruin Diver
+2 Mm'menon, the Right Hand
+3 Owlin Historian
+1 Sanar, Unfinished Genius
+2 Searing Blood
+2 Seize the Spoils
+3 Sharding Sphinx
+3 Shiko, Paragon of the Way
+2 Temmet, Vizier of Naktamun
+2 Vexing Drone
+4 Cloudcrest Lake
+2 Deserted Beach
+4 Glacial Fortress
+2 Island
+8 Mountain
+2 Plains
+4 Seachrome Coast

@@ -1,0 +1,51 @@
+# name: Train800 brawl-g-bg-aggro-02
+# archetype: brawl_aggro
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aphemia, the Cacophony
+1 Ashnod, Flesh Mechanist
+1 Baloth Gorger
+1 Barbtooth Wurm
+1 Black Widow, Super Spy
+1 Blood Scrivener
+1 Brambleguard Veteran
+1 Broodspinner
+1 Corellian Corvette
+1 Cursed Wombat
+1 Death-Priest of Myrkul
+1 Debris Beetle
+1 Eclipsed Elf
+1 Faerie Dreamthief
+1 Foolish Fate
+1 Foot Mystic
+1 Hateful Eidolon
+1 Kraul Warrior
+1 Longtusk Cub
+1 Murasa Brute
+1 Nimana Skitter-Sneak
+1 Nyxborn Eidolon
+1 Osteomancer Adept
+1 Oviya Pashiri, Sage Lifecrafter
+1 Ozai's Cruelty
+1 Proft, Sinister Mastermind
+1 Rampaging Baloths
+1 Regal Imperiosaur
+1 Resistance Is Futile
+1 Skulking Killer
+1 Stronghold Confessor
+1 Tear Asunder
+1 The Gitrog, Ravenous Ride
+1 Undercity Uprising
+1 Wasp of the Bitter End
+1 Woodcutter's Grit
+1 Bayou
+1 Blooming Marsh
+1 Deathcap Glade
+7 Forest
+1 Formidable Commons
+1 Llanowar Wastes
+1 Overgrown Tomb
+1 Strangled Cemetery
+1 Subterranean Cavern
+8 Swamp
+1 Woodland Cemetery

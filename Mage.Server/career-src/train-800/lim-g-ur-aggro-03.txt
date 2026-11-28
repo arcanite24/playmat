@@ -1,0 +1,38 @@
+# name: Train800 lim-g-ur-aggro-03
+# archetype: limited_aggro
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Arni Brokenbrow
+1 Ball Lightning
+2 Belligerent Whiptail
+1 Borrowed Hostility
+1 Chaos Charm
+1 Deadapult
+2 Destructive Digger
+2 Effortless Master
+1 Felonious Rage
+1 Fervent Paincaster
+1 Firedrinker Satyr
+2 Five-Alarm Fire
+1 Furnace Punisher
+1 Glint-Nest Crane
+2 Glorybringer
+1 Hypnotic Sprite
+1 Intruding Soulrager
+1 Kessig Flamebreather
+1 Magebane Lizard
+1 Ral's Outburst
+1 Resilient Roadrunner
+1 Rust Harvester
+1 Sazacap's Brew
+2 Seacoast Drake
+1 Skullcrack
+1 Sky Theater Strix
+2 Summit Sentinel
+1 The Wondrous Wasp
+1 Thresher Lizard
+3 Island
+15 Mountain
+2 Peculiar Lighthouse
+1 Shivan Reef
+2 Spirebluff Canal

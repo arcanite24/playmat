@@ -1,0 +1,40 @@
+# name: Train800 lim-t-brg-aggro-02
+# archetype: limited_aggro
+# colors: BRG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Blech, Loafing Pest
+1 Brimstone Volley
+2 Bull Aurochs
+1 Cackling Flames
+2 Centaur Archer
+1 Dark-Dweller Oracle
+1 Disfigure
+1 Draconic Visitor
+2 Ember-Eye Wolf
+2 Frenzied Raptor
+1 Glowspore Shaman
+1 Goblin Patrol
+2 Gruul Spellbreaker
+1 Heightened Reflexes
+1 Huatli's Final Strike
+1 Kuja, Genome Sorcerer
+1 Large Bear
+1 Ognis, the Dragon's Lash
+1 Pinecone Strike
+1 Quick Draw
+1 Rhino's Rampage
+1 Roc Hunter
+1 Sephiroth's Intervention
+1 Unburied Earthcarver
+2 Uncle Iroh
+2 Vampire Opportunist
+1 Vayne's Treachery
+2 Voltaic Brawler
+1 Zoyowa Lava-Tongue
+2 Copperline Gorge
+2 Darigaaz's Caldera
+2 Forest
+8 Mountain
+2 Rootbound Crag
+2 Stomping Ground
+5 Swamp

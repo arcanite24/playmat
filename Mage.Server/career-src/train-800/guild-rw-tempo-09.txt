@@ -1,0 +1,26 @@
+# name: Train800 guild-rw-tempo-09
+# archetype: tempo
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Byway Barterer
+3 Cliffhaven Sell-Sword
+2 Collective Defiance
+3 Fleeting Effigy
+1 Goblin Barrage
+1 Insatiable Gorgers
+2 Lightning Javelin
+4 Lorehold Command
+4 Makindi Aeronaut
+2 Oketra's Avenger
+1 Omen of the Forge
+3 Redcap Gutter-Dweller
+3 Repeating Barrage
+2 Roil Eruption
+1 Thorin Oakenshield
+3 Touch of the Void
+1 Wild Ride
+4 Battlefield Forge
+2 Clifftop Retreat
+10 Mountain
+2 Plains
+4 Sacred Foundry

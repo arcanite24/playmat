@@ -1,0 +1,40 @@
+# name: Train800 brawl-m-b-ramp-03
+# archetype: brawl_ramp
+# colors: B
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Augmenting Automaton
+1 Azra Smokeshaper
+1 Black Market Connections
+1 Blood Pet
+1 Bloodchief's Thirst
+1 Bone Dragon
+1 Cabal Patriarch
+1 Canyon Crawler
+1 Chromatic Star
+1 Crowded Crypt
+1 Deadly Derision
+1 Desiccated Naga
+1 Dire Fleet Poisoner
+1 Extinction Event
+1 Gnawing Vermin
+1 Golden Egg
+1 Goring Warplow
+1 Headless Rider
+1 Karfell Kennel-Master
+1 Liturgy of Blood
+1 Lord Skitter, Sewer King
+1 Madame Masque
+1 Network Terminal
+1 Nightsquad Commando
+1 Oroku Saki, Shredder Rising
+1 Piper of the Swarm
+1 Ray of Ruin
+1 Shinra Reinforcements
+1 Silumgar Butcher
+1 Skeleton Archer
+1 Slum Reaper
+1 Thaumatic Compass
+1 The Masters of Evil
+1 Twins of Maurer Estate
+1 Venom's Hunger
+25 Swamp

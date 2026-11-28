@@ -1,0 +1,26 @@
+# name: Train800 tri-rgw-gowide-03
+# archetype: gowide
+# colors: RGW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Child of the Pack
+1 Close Quarters
+3 Ember Hauler
+2 Fearless Liberator
+4 Garrison Cat
+3 Gleeful Demolition
+2 Guardian of Pilgrims
+4 Join Forces
+3 Mogis's Warhound
+2 Murasa Rootgrazer
+3 Roaring Primadox
+2 Sigardian Paladin
+2 Skyblade of the Legion
+1 Voja, Jaws of the Conclave
+2 Volt Charge
+4 Battlefield Forge
+4 Clifftop Retreat
+5 Forest
+2 Mountain
+1 Plains
+4 Raucous Carnival
+2 Sacred Foundry

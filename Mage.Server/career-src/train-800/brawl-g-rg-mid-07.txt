@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-rg-mid-07
+# archetype: brawl_mid
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Archweaver
+1 Artifist Acumen
+1 Battle-Scarred Goblin
+1 Black Widow, Natasha Romanoff
+1 Blisterpod
+1 Blood Age General
+1 Bounding Wolf
+1 Broken Bond
+1 Colossal Rattlewurm
+1 Crabapple Cohort
+1 Emil, Vastlands Roamer
+1 Firefiend Elemental
+1 Frontline Devastator
+1 Generous Visitor
+1 Hylda's Crown of Winter
+1 Jaya, Venerated Firemage
+1 Krosan Druid
+1 Malamet Veteran
+1 Molten Vortex
+1 Nimble-Blade Khenra
+1 Omnivorous Flytrap
+1 Plasma Bolt
+1 Professional Wrestler
+1 Raging Swordtooth
+1 Ranging Raptors
+1 Rebellious Captives
+1 Shrapnel Slinger
+1 Spelleater Wolverine
+1 Spineseeker Centipede
+1 Sunset Strikemaster
+1 Sweltering Suns
+1 Tin Street Gossip
+1 Unfriendly Fire
+1 Xenagos, God of Revels
+1 Yavimaya Iconoclast
+1 Bleeding Woods
+1 Cinder Glade
+1 Copperline Gorge
+8 Forest
+1 Karplusan Forest
+8 Mountain
+1 Orion
+1 Rockfall Vale
+1 Rootbound Crag
+1 Sheltered Thicket
+1 Stomping Ground

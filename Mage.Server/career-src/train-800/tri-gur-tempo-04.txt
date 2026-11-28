@@ -1,0 +1,24 @@
+# name: Train800 tri-gur-tempo-04
+# archetype: tempo
+# colors: GUR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Cradle Guard
+4 Decoction Module
+2 Destructive Revelry
+2 Eshki Dragonclaw
+2 Feral Maaka
+4 Inti, Seneschal of the Sun
+3 Ral Zarek
+4 Sarkhan Unbroken
+3 Scatter Arc
+3 Spock, Always Your Friend
+1 Squee, Dubious Monarch
+3 Temur Charm
+4 Warren Torchmaster
+4 Bleeding Woods
+2 Forest
+4 Island
+4 Ketria Triome
+2 Mountain
+4 Rockfall Vale
+2 Rootbound Crag

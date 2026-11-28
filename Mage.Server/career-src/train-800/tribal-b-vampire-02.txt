@@ -1,0 +1,21 @@
+# name: Train800 tribal-b-vampire-02
+# archetype: tribal (Vampire)
+# colors: B
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Asylum Visitor
+2 Drana, the Last Bloodchief
+2 Expedition Skulker
+1 Foolish Fate
+1 Henrika Domnathi
+2 Kalastria Highborn
+4 Rooftop Assassin
+1 Rush of Vitality
+3 Sadistic Skymarcher
+2 Scheming Silvertongue
+2 Stromkirk Bloodthief
+3 Stromkirk Mentor
+3 Thirsting Bloodlord
+2 Vampire Cutthroat
+1 Vicious Conquistador
+4 Whispering Snitch
+23 Swamp

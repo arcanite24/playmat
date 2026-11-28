@@ -1,0 +1,24 @@
+# name: Train800 guild-br-gowide-07
+# archetype: gowide
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Dance with Devils
+3 Desperate Bloodseeker
+3 Enthusiastic Study
+2 Firedrinker Satyr
+4 Goblin Maskmaker
+4 Hobgoblin Captain
+2 Horned Stoneseeker
+4 Krenko, Baron of Tin Street
+1 Mask of Immolation
+1 Samut's Sprint
+1 Stingerback Terror
+1 Tweeze
+4 Unsparing Boltcaster
+3 Vial Smasher, Gleeful Grenadier
+4 Weapons Manufacturing
+2 Badlands
+4 Blackcleave Cliffs
+4 Dragonskull Summit
+9 Mountain
+2 Swamp

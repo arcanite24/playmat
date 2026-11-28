@@ -1,0 +1,19 @@
+# name: Train800 mono-u-control-09
+# archetype: control
+# colors: U
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Ambling Stormshell
+2 Bewilder
+2 Bone to Ash
+4 Concerted Defense
+3 Depower
+1 Faerie Formation
+2 Jace, Cunning Castaway
+1 Jace, Unraveler of Secrets
+4 Lunar Rejection
+2 Siren's Ruse
+4 Traxos, Scourge of Kroog
+3 Unity of Purpose
+2 Vantress Gargoyle
+1 Vesuvan Drifter
+25 Island

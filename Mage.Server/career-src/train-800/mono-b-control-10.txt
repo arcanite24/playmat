@@ -1,0 +1,19 @@
+# name: Train800 mono-b-control-10
+# archetype: control
+# colors: B
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Armus, Skin of Evil
+1 Cling to Dust
+3 Dark Nourishment
+3 Deadly Embrace
+2 Demon of Loathing
+3 Demonic Pact
+4 Foul Play
+4 Fungal Infection
+3 Mirrodin Avenged
+1 Ob Nixilis, the Hate-Twisted
+1 Sephiroth, Fabled SOLDIER
+2 Skittering Heartstopper
+4 Traxos, Scourge Eternal
+1 You Are Already Dead
+26 Swamp

@@ -1,0 +1,24 @@
+# name: Train800 guild-gw-aggro-09
+# archetype: aggro
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Baloth Pup
+1 Bee Sting
+3 Brigone, Soldier of Meletis
+4 Flowerfoot Swordmaster
+2 Gallant Strike
+4 Oreskos Swiftclaw
+2 Phlox, Unorthodox Doctor
+3 Recruitment Officer
+3 Set Phasers to . . .
+3 Sorcerer's Wand
+1 Spirit of the Hunt
+1 The Filigree Sylex
+4 Thrashing Brontodon
+3 Valiant Rescuer
+3 Woodcutter's Grit
+3 Forest
+2 Horizon Canopy
+4 Overgrown Farmland
+8 Plains
+4 Vigorbloom Annex

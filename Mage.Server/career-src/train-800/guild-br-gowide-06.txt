@@ -1,0 +1,22 @@
+# name: Train800 guild-br-gowide-06
+# archetype: gowide
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Garrison Excavator
+3 Gifted Aetherborn
+3 Hired Claw
+4 Mardu Scout
+4 Moment of Defiance
+4 Ripchain Razorkin
+2 Shock Brigade
+4 Slaughter-Priest of Mogis
+4 Stensia Uprising
+3 Subira, Tulzidi Caravanner
+1 The Bloodsky Massacre
+2 Tyrox, Saurid Tyrant
+2 Wild Slash
+2 Badlands
+4 Blackcleave Cliffs
+4 Cinder Marsh
+10 Mountain
+2 Swamp

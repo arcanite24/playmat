@@ -1,0 +1,22 @@
+# name: Train800 guild-ur-aggro-04
+# archetype: aggro
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Aerial Formation
+2 Cloistered Telepath
+4 Fearless Swashbuckler
+2 Firemind's Research
+4 Ghitu Lavarunner
+4 Illvoi Galeblade
+4 Khenra Spellspear
+3 Moonveil Regent
+3 Ogre-Head Helm
+3 Prismari Charm
+3 Ral Zarek
+2 Slick Sequence
+2 The Wondrous Wasp
+5 Island
+6 Mountain
+4 Spirebluff Canal
+4 Stormcarved Coast
+2 Sulfur Falls

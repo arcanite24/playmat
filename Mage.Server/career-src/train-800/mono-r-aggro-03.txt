@@ -1,0 +1,20 @@
+# name: Train800 mono-r-aggro-03
+# archetype: aggro
+# colors: R
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Ash Zealot
+2 Chandra, Novice Pyromancer
+1 Dance with Devils
+3 Defiler of Instinct
+3 Fear of Missing Out
+2 Felonious Rage
+3 Flameblade Adept
+1 Goblin Javelineer
+2 Irreverent Gremlin
+2 Koth, Fire of Resistance
+4 Krenko, Baron of Tin Street
+1 Mask of Immolation
+4 Red Herring
+4 Reinforced Ronin
+4 Tibalt, Rakish Instigator
+22 Mountain

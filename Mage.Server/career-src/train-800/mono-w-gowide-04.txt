@@ -1,0 +1,22 @@
+# name: Train800 mono-w-gowide-04
+# archetype: gowide
+# colors: W
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Academic Ascent
+1 Aeolipile
+3 Battle Menu
+2 Blessed Defiance
+2 Brimaz, King of Oreskos
+3 Clarion Spirit
+2 Dauntless Dismantler
+3 Heliod, God of the Sun
+4 Intrepid Adversary
+2 Kinscaer Sentry
+1 Love Song of Night and Day
+2 Monument to Endurance
+3 Ojutai Exemplars
+2 Rustwing Falcon
+1 The Vision
+2 Vanguard of Brimaz
+3 Wandering Champion
+22 Plains

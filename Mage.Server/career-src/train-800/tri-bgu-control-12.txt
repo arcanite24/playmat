@@ -1,0 +1,25 @@
+# name: Train800 tri-bgu-control-12
+# archetype: control
+# colors: BGU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Accomplished Alchemist
+3 Blunt the Assault
+1 Darkstar Augur
+3 Faunsbane Troll
+2 Feed the Swarm
+2 Gnarlroot Trapper
+1 Grave Birthing
+1 Gravewaker
+4 Grisly Sigil
+1 Gyruda, Doom of Depths
+4 Knightfisher
+3 Kraven the Hunter
+4 Swan Song
+2 Tale's End
+4 Darkslick Shores
+4 Drowned Catacomb
+7 Forest
+2 Island
+2 Murky Sewer
+2 Swamp
+4 Underground River

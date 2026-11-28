@@ -1,0 +1,39 @@
+# name: Train800 lim-t-gur-mid-03
+# archetype: limited_mid
+# colors: GUR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Alloy Animist
+1 Ambling Stormshell
+1 Bioessence Hydra
+2 Black Market Tycoon
+2 Canyon Wildcat
+2 Chain to Memory
+1 Conifer Strider
+1 Fallaji Chaindancer
+1 Fervent Strike
+1 Greenside Watcher
+1 Grove Rumbler
+1 Gundabad Opportunist
+1 Jessica Jones, Private Eye
+1 Mammoth Growth
+1 Mentor's Guidance
+1 Nobody
+2 Orazca Frillback
+1 Pyroclastic Hellion
+2 Radha, Heart of Keld
+2 Rattleclaw Mystic
+2 Roxanne, Starfall Savant
+2 Sagu Pummeler
+1 Slash, Reptile Rampager
+1 Snowhorn Rider
+1 Stress Dream
+1 Territorial Witchstalker
+1 Troyan, Gutsy Explorer
+1 Tuskguard Captain
+2 Cinder Glade
+2 Copperline Gorge
+5 Forest
+7 Island
+2 Karplusan Forest
+4 Mountain
+2 Rootbound Crag

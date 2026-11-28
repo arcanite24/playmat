@@ -1,0 +1,26 @@
+# name: Train800 tri-bgu-aggro-01
+# archetype: aggro
+# colors: BGU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Baloth Gorger
+3 Deceive the Messenger
+2 Dreg Recycler
+3 Intimidation Campaign
+2 Ixalli's Keeper
+4 Jungle Creeper
+2 Machine Over Matter
+4 Moon-Circuit Hacker
+3 Octopus Form
+3 Paranormal Analyst
+3 Scaled Herbalist
+3 Silver Raven
+3 Spider-Ham, Peter Porker
+2 Vengeful Reaper
+1 Welkin Tern
+4 Botanical Sanctum
+4 Dreamroot Cascade
+1 Forest
+2 Hinterland Harbor
+1 Island
+4 Lakeside Shack
+5 Swamp

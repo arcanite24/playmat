@@ -1,0 +1,27 @@
+# name: Train800 tri-ubr-midrange-05
+# archetype: midrange
+# colors: UBR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Basalt Gargoyle
+2 Emet-Selch, Unsundered
+2 Eternal Student
+2 Failed Fording
+3 Far Fortune, End Boss
+3 Horde Ambusher
+2 Humble Defector
+2 Hypothesizzle
+4 Lathliss, Dragon Queen
+3 Laughing Jasper Flint
+1 Pillar of Flame
+2 Rookie Mistake
+3 Shatter
+1 Skullsnap Nuisance
+2 The Duras Sisters
+2 The Royal Scions
+2 Cinder Marsh
+4 Crosis's Catacombs
+4 Dragonskull Summit
+2 Island
+6 Mountain
+4 Razortrap Gorge
+2 Swamp

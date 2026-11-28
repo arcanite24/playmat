@@ -1,0 +1,23 @@
+# name: Train800 guild-ub-tempo-09
+# archetype: tempo
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Aether Spellbomb
+1 Clockwork Droid
+2 Consign to Memory
+2 Darkslick Drake
+1 Decode Transmissions
+3 Lolth, Spider Queen
+4 Nyxathid
+2 Rakish Crew
+4 Snooping Newsie
+4 Statute of Denial
+4 Take the Fall
+1 Teferi, Master of Time
+4 Wanted Scoundrels
+4 Warehouse Tabby
+2 Darkslick Shores
+4 Island
+4 Murky Sewer
+4 Sunken Hollow
+8 Swamp

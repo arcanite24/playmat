@@ -1,0 +1,28 @@
+# name: Train800 tri-rwb-midrange-06
+# archetype: midrange
+# colors: RWB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Barret Wallace
+4 Blood-Chin Fanatic
+3 Bone-Cairn Butcher
+1 Bullseye, Death Dealer
+1 Conduit Goblin
+1 Joust
+2 Mardu Siegebreaker
+2 Murderous Compulsion
+2 Murdock's Crusade
+4 Old Thrush
+3 Skyclave Cleric
+2 Sonic Shrieker
+2 Supply Caravan
+2 Syr Gwyn, Hero of Ashvale
+2 Test of Conviction
+2 Thunder of Unity
+1 Victor, Valgavoth's Seneschal
+4 Caves of Koilos
+4 Isolated Chapel
+6 Mountain
+4 Neglected Manor
+2 Nomad Outpost
+2 Plains
+2 Swamp

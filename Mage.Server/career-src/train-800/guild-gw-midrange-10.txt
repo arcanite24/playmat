@@ -1,0 +1,23 @@
+# name: Train800 guild-gw-midrange-10
+# archetype: midrange
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Concord with the Kami
+2 Huatli, Radiant Champion
+2 Krotiq Nestguard
+4 Light the Way
+1 Mugato
+2 Nightpack Ambusher
+4 Pet Avengers
+1 Relic Vial
+4 Steel Leaf Champion
+4 Stoneforge Acolyte
+2 Tarkir Duneshaper
+3 Transcendent Archaic
+3 Trapjaw Tyrant
+2 Trusty Companion
+4 Etched Cornfield
+10 Forest
+2 Grove of the Guardian
+4 Plains
+4 Vigorbloom Annex

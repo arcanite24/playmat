@@ -1,0 +1,24 @@
+# name: Train800 guild-wb-midrange-12
+# archetype: midrange
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Brightspear Zealot
+4 Carnifex Demon
+4 Erebos, Bleak-Hearted
+4 Foggy Swamp Hunters
+2 Fungal Infection
+3 Grave Birthing
+4 Judge Magister Gabranth
+2 Ketramose, the New Dawn
+2 Law-Rune Enforcer
+2 Linden, the Steadfast Queen
+1 Moment of Craving
+1 Sinister Monolith
+2 Teysa, Opulent Oligarch
+1 Wicked Visitor
+2 Zenith Chronicler
+2 Concealed Courtyard
+4 Great Arashin City
+4 Meticulous Commons
+3 Plains
+11 Swamp

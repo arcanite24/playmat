@@ -1,0 +1,23 @@
+# name: Train800 guild-gu-bigmana-17
+# archetype: bigmana
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Cavern Stomper
+2 Chain to Memory
+4 Daring Thunder-Thief
+3 Embodiment of Spring
+2 Frontier Siege
+4 Garruk's Horde
+3 Glitch Ghost Surveyor
+2 Gnarled Professor
+2 Make It So
+4 Mossbeard Ancient
+1 Planar Incision
+3 Simic Cluestone
+2 Simic Locket
+1 Timberpack Wolf
+13 Forest
+4 Hinterland Harbor
+3 Island
+2 Transformative Commons
+4 Yavimaya Coast

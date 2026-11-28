@@ -1,0 +1,34 @@
+# name: Train800 lim-g-wu-ctrl-11
+# archetype: limited_ctrl
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Aang, the Last Airbender
+1 Abstruse Interference
+1 Aethersquall Ancient
+1 Bane's Invoker
+1 Blessed Reincarnation
+1 Cleanse
+1 Destroy Evil
+1 Devastating Mastery
+2 Giant-Sized Flying Ant
+2 Halo Scarab
+1 High-Flying Ace
+2 Kellan's Lightblades
+1 Mage-Ring Responder
+2 Magnificent End
+2 Malcator's Watcher
+1 Marang River Regent
+1 Ominous Sphinx
+1 Roadside Blowout
+1 Smite the Monstrous
+2 Soaring Drake
+2 Sygg, Wanderwine Wisdom
+1 Turn Aside
+2 Unwavering Initiate
+2 V'Ger, the Intruder
+1 Wojek Investigator
+2 Deserted Beach
+2 Glacial Fortress
+10 Island
+10 Plains
+1 Seachrome Coast

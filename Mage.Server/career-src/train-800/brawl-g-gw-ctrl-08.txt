@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-gw-ctrl-08
+# archetype: brawl_ctrl
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Angel of Fury
+1 Bag End Porter
+1 Bramble Wurm
+1 Calix, Destiny's Hand
+1 Captain Marvel, Earth's Protector
+1 Chastise
+1 Cloudchaser Kestrel
+1 Dwarven Priest
+1 Emergency Eject
+1 Field Trip
+1 Forsake the Worldly
+1 Full Steam Ahead
+1 Ghostly Sentinel
+1 Gisela, the Broken Blade
+1 Honor
+1 Kenrith's Transformation
+1 Lunatic Pandora
+1 Mazemind Tome
+1 Misthoof Kirin
+1 Netcaster Spider
+1 Neverwinter Dryad
+1 Nissa's Judgment
+1 Planar Outburst
+1 Pollen-Shield Hare
+1 Portable Hole
+1 Pouncing Cheetah
+1 Prey Upon
+1 Raffine's Informant
+1 Seal from Existence
+1 Sigarda, Champion of Light
+1 Slaughter Singer
+1 Steel Seraph
+1 Stone Haven Outfitter
+1 Wakandan Royal Guard
+1 Yuna, Hope of Spira
+1 Brushland
+1 Canopy Vista
+1 Etched Cornfield
+3 Forest
+1 Grove of the Guardian
+1 Horizon Canopy
+1 Overgrown Farmland
+13 Plains
+1 Razorverge Thicket
+1 Sunpetal Grove
+1 Vigorbloom Annex

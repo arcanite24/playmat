@@ -1,0 +1,25 @@
+# name: Train800 guild-br-midrange-13
+# archetype: midrange
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Bloodsworn Steward
+3 Chandra, Heart of Fire
+2 Dune Beetle
+3 Gristle Glutton
+2 Hunted Nightmare
+1 Implement of Combustion
+2 Jaya, Venerated Firemage
+3 Mogis, God of Slaughter
+2 Molten Vortex
+3 Molten-Core Maestro
+2 Mongoose Lizard
+2 Olivia's Attendants
+2 Purphoros, God of the Forge
+3 Shake the Foundations
+1 Taborax, Hope's Demise
+1 Wildfire Howl
+4 Dragonskull Summit
+4 Haunted Ridge
+12 Mountain
+2 Sulfurous Springs
+2 Swamp

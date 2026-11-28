@@ -1,0 +1,19 @@
+# name: Train800 mono-u-control-10
+# archetype: control
+# colors: U
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Acid Rain
+4 Arrester's Admonition
+1 Asinine Antics
+1 Baboon Spirit
+2 Concerted Defense
+1 Consider the Prime Directive
+3 Exclude
+3 Galestrike
+2 Gran-Gran
+2 Into the Roil
+4 Myriad Construct
+4 Nezahal, Primal Tide
+1 V'Ger, the Intruder
+4 Whoosh!
+26 Island

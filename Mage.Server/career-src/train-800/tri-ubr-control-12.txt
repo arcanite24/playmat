@@ -1,0 +1,28 @@
+# name: Train800 tri-ubr-control-12
+# archetype: control
+# colors: UBR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Boil
+1 Breath Weapon
+1 Cloudpiercer
+4 Deadeye Brawler
+3 Glacial Dragonhunt
+2 Goblin Picker
+3 Kefka, Court Mage
+1 Long-Bodied Grey Dog
+3 Minor Misstep
+2 Molten Nursery
+1 Ordeal of Purphoros
+3 Sarkhan's Dragonfire
+2 Spark Jolt
+1 Start from Scratch
+3 Statute of Denial
+1 Steal the Show
+2 Thunderhead Gunner
+4 Crosis's Catacombs
+2 Island
+7 Mountain
+2 Shivan Reef
+4 Spirebluff Canal
+4 Sulfur Falls
+2 Swamp

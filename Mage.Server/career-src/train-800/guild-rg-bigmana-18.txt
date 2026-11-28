@@ -1,0 +1,23 @@
+# name: Train800 guild-rg-bigmana-18
+# archetype: bigmana
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Bandit's Haul
+4 Chandra, Torch of Defiance
+1 Collector's Vault
+3 Crossroads Watcher
+1 Dori, Bearer of Friends
+4 Fear of Being Hunted
+4 Gargos, Vicious Watcher
+3 Greater Tanuki
+1 Karametra's Favor
+1 Play with Fire
+1 Radiating Lightning
+2 Slice in Twain
+2 Titan of Industry
+4 Wandertale Mentor
+4 Copperline Gorge
+12 Forest
+2 Karplusan Forest
+4 Mountain
+4 Rockfall Vale

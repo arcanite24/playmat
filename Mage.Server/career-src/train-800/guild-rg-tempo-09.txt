@@ -1,0 +1,26 @@
+# name: Train800 guild-rg-tempo-09
+# archetype: tempo
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Alpine Grizzly
+2 Domri, Anarch of Bolas
+3 Greenwood Sentinel
+4 Hungry Flames
+3 Inventor's Apprentice
+1 Manhole Missile
+1 Molten Vortex
+3 Plasma Cascade
+2 Raging Regisaur
+3 Reality Hemorrhage
+1 Roc Hunter
+3 Scourge Wolf
+2 Shrapnel Blast
+3 Spiders-Man, Heroic Horde
+3 Two-Headed Giant
+1 Unnatural Moonrise
+2 Weapons Manufacturing
+2 Cinder Glade
+2 Forest
+10 Mountain
+4 Rootbound Crag
+4 Stomping Ground

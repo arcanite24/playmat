@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-wub-ramp-04
+# archetype: brawl_ramp
+# colors: WUB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aegis Angel
+1 Azorius Locket
+1 Binding Geist
+1 Bone Shards
+1 Captain America, Liberator
+1 Contraband Kingpin
+1 Crowded Crypt
+1 Curious Colossus
+1 Demon's Due
+1 Dimir Cluestone
+1 Doomwake Giant
+1 End Hostilities
+1 Enforcer Griffin
+1 Epitaph Golem
+1 Final Vengeance
+1 Foggy Swamp Spirit Keeper
+1 Giant's Boulder
+1 Hushbringer
+1 Kykar, Zephyr Awakener
+1 Oltec Archaeologists
+1 Pilfered Plans
+1 Private Eye
+1 Quarry Colossus
+1 Raff Capashen, Ship's Mage
+1 Reflector Mage
+1 Saheeli's Silverwing
+1 Scrapwork Cohort
+1 Sheoldred's Headcleaver
+1 Silent Hallcreeper
+1 Sword of the Animist
+1 Triumphant Adventurer
+1 Tyrant's Scorn
+1 Vengeful Warchief
+1 Vodalian Arcanist
+1 Wispdrinker Vampire
+1 Adarkar Wastes
+1 Caves of Koilos
+1 Concealed Courtyard
+1 Fortified Beachhead
+1 Glacial Fortress
+1 Great Arashin City
+4 Island
+1 Isolated Chapel
+1 Meticulous Commons
+1 Neglected Manor
+4 Plains
+1 Prairie Stream
+1 Raffine's Tower
+1 Seachrome Coast
+1 Shattered Sanctum
+4 Swamp

@@ -1,0 +1,26 @@
+# name: Train800 tri-wbg-midrange-05
+# archetype: midrange
+# colors: WBG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Compass Gnome
+4 Eliminate
+3 Grasp of Darkness
+2 Kindly Stranger
+3 Oketra the True
+4 Paranoid Parish-Blade
+1 Railway Brawler
+4 Raucous Audience
+2 Sram, Senior Edificer
+2 Stone Haven Outfitter
+1 Stonefare Crocodile
+2 Tanglespan Lookout
+3 Vigilant Baloth
+1 West Wind Avatar
+2 Wicked Guardian
+2 Forest
+4 Formidable Commons
+4 Llanowar Wastes
+4 Overgrown Tomb
+6 Plains
+2 Strangled Cemetery
+2 Swamp

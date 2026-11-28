@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-gwu-mid-02
+# archetype: brawl_mid
+# colors: GWU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Abolish
+1 Aesi, Tyrant of Gyre Strait
+1 Alistair, the Brigadier
+1 Archangel of Tithes
+1 Checkpoint Officer
+1 Cryogen Relic
+1 Daysquad Marshal
+1 Devouring Light
+1 Forecasting Fortune Teller
+1 Haliya, Ascendant Cadet
+1 Hero in Training
+1 Hero of Precinct One
+1 Kiora of Salt and Sand
+1 Kitesail Cleric
+1 Master Biomancer
+1 Naga Oracle
+1 Oracle of Dust
+1 Paranoid Parish-Blade
+1 Proft's Eidetic Memory
+1 Prowling Felidar
+1 Repurposed Enforcer
+1 Rescue
+1 Serpent of the Pass
+1 Serum Snare
+1 Servant of the Conduit
+1 Shoreline Looter
+1 Siegehorn Ceratops
+1 Skaab Goliath
+1 Sky Crier
+1 Supreme Verdict
+1 Tangletrap
+1 Thassa, Deep-Dwelling
+1 Thrashing Brontodon
+1 Unexpected Results
+1 You Find the Villains' Lair
+1 Abandoned Campground
+1 Adarkar Wastes
+1 Brushland
+1 Canopy Vista
+1 Cloudcrest Lake
+1 Deserted Beach
+3 Forest
+1 Fortified Beachhead
+1 Glacial Fortress
+1 Horizon Canopy
+5 Island
+4 Plains
+1 Prairie Stream
+1 Razorverge Thicket
+1 Seachrome Coast
+1 Spara's Headquarters

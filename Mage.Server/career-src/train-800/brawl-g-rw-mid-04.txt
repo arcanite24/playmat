@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-rw-mid-04
+# archetype: brawl_mid
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Alibou, Ancient Witness
+1 Archon of Justice
+1 Beskir Shieldmate
+1 Brass Secretary
+1 Brutal Cathar
+1 Cathartic Reunion
+1 Chaos Imps
+1 Clarion Cathars
+1 Cobblebrute
+1 Desert Cerodon
+1 Discerning Peddler
+1 Divine Gambit
+1 Dragonloft Idol
+1 Duskborne Skymarcher
+1 Exultant Skymarcher
+1 Festival Crasher
+1 Gristle Glutton
+1 Hour of Revelation
+1 Ill-Tempered Loner
+1 Lorehold Apprentice
+1 Odric, Lunarch Marshal
+1 Peak Eruption
+1 Queen Kayla bin-Kroog
+1 Ravenous Giant
+1 Ride Down
+1 Sami, Wildcat Captain
+1 Skirk Prospector
+1 Sky Terror
+1 Sun-Blessed Mount
+1 Synchronized Spellcraft
+1 The Flame of Keld
+1 Tibalt's Rager
+1 Tori D'Avenant, Fury Rider
+1 Vengeful Townsfolk
+1 Winota, Joiner of Forces
+1 Battlefield Forge
+1 Clifftop Retreat
+1 Dalkovan Encampment
+1 Dedicated Commons
+1 Inspiring Vantage
+9 Mountain
+7 Plains
+1 Raucous Carnival
+1 Sacred Foundry
+1 Sunbaked Canyon
+1 Sundown Pass

@@ -1,0 +1,25 @@
+# name: Train800 guild-wb-aggro-02
+# archetype: aggro
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Auriok Edgewright
+2 Defiant Strike
+1 Defiling Tears
+3 Edgar, Charmed Groom
+1 Firja's Retribution
+2 Iridescent Vinelasher
+4 Kaya, Orzhov Usurper
+2 Lunar Convocation
+3 Sanitarium Skeleton
+3 Sea Gate Banneret
+1 Silverquill Charm
+3 Silverquill Silencer
+4 Tomik, Wielder of Law
+2 Treacherous Greed
+3 Twilight Panther
+1 Voice of the Blessed
+4 Caves of Koilos
+4 Great Arashin City
+2 Neglected Manor
+9 Plains
+2 Swamp

@@ -1,0 +1,36 @@
+# name: Train800 lim-g-rg-aggro-03
+# archetype: limited_aggro
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Balustrade Wurm
+1 Barrage of Expendables
+1 Barret, Avalanche Leader
+2 Bloodfray Giant
+1 Boggart Ram-Gang
+2 Bristly Bill, Spine Sower
+1 Clear a Path
+1 Collective Defiance
+2 Colossal Might
+1 Cunning Coyote
+2 Deadeye Duelist
+1 Deathleaper, Terror Weapon
+2 Destructive Revelry
+1 Edge Rover
+1 Embereth Veteran
+1 Frilled Sparkshooter
+1 Kindled Fury
+1 Kraven's Cats
+1 Nissa's Defeat
+1 Obstinate Baloth
+1 Plague Nurse
+2 Shigeki, Jukai Visionary
+1 Stoke the Flames
+1 Sylvan Brushstrider
+2 Wargling
+2 Wayward Guide-Beast
+2 Wildheart Invoker
+2 Copperline Gorge
+10 Forest
+8 Mountain
+1 Rootbound Crag
+2 Stomping Ground

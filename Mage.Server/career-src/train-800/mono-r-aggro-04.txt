@@ -1,0 +1,18 @@
+# name: Train800 mono-r-aggro-04
+# archetype: aggro
+# colors: R
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Blistering Firecat
+1 Dismissive Pyromancer
+4 Feldon, Ronom Excavator
+1 Flick a Coin
+4 Legion Extruder
+2 Masked Meower
+4 Moonveil Regent
+1 Plasma Cascade
+4 Reckless Lackey
+2 Reckless Ransacking
+4 Slagdrill Scrapper
+4 Volatile Wanderglyph
+4 Zariel, Archduke of Avernus
+22 Mountain

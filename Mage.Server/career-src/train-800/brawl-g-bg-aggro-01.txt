@@ -1,0 +1,51 @@
+# name: Train800 brawl-g-bg-aggro-01
+# archetype: brawl_aggro
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Alesha's Vanguard
+1 Angrath's Ambusher
+1 Assassin's Ink
+1 Binding the Old Gods
+1 Cateran Persuader
+1 Corpsejack Menace
+1 Crossroads Consecrator
+1 Death Cultist
+1 Death-Rattle Oni
+1 Desperate Bloodseeker
+1 Devkarin Dissident
+1 Doom Reigns Supreme
+1 Eaten Alive
+1 Faith of the Devoted
+1 For the Family
+1 Gingerbrute
+1 Grim Draugr
+1 Gurmag Swiftwing
+1 Highland Game
+1 Hinterland Logger
+1 Jecht, Reluctant Guardian
+1 Knight of Wundagore
+1 Longshot Squad
+1 Mournwillow
+1 Null Caller
+1 Quarry Beetle
+1 Resourceful Return
+1 Sample Collector
+1 Spiteful Hexmage
+1 Stir Up Trouble
+1 Thorn Lieutenant
+1 Treeguard Duo
+1 Untamed Kavu
+1 Wildborn Preserver
+1 Witherbloom Apprentice
+1 World Shaper
+1 Bayou
+1 Blooming Marsh
+1 Deathcap Glade
+5 Forest
+1 Formidable Commons
+1 Haunted Mire
+1 Llanowar Wastes
+1 Overgrown Tomb
+1 Strangled Cemetery
+10 Swamp
+1 Woodland Cemetery

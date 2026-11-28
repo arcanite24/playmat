@@ -1,0 +1,22 @@
+# name: Train800 tribal-w-soldier-01
+# archetype: tribal (Soldier)
+# colors: W
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aetherflux Reservoir
+3 Ajani's Chosen
+1 Brigone, Soldier of Meletis
+1 Brittle Effigy
+2 Cenn's Tactician
+4 Devoted Hero
+2 Exultant Skymarcher
+4 Frostbridge Guard
+4 High Sentinels of Arashin
+2 Myrel, Shield of Argive
+2 Recruitment Officer
+2 Rescue Retriever
+2 Silkwrap
+2 Silver Bolt
+2 Tandem Tactics
+2 Triceraton Commander
+2 Valiant Veteran
+22 Plains

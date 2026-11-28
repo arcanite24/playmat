@@ -1,0 +1,26 @@
+# name: Train800 tri-rwb-gowide-03
+# archetype: gowide
+# colors: RWB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Akroan Crusader
+1 Butcher of the Horde
+4 Cast into the Fire
+3 Coruscation Mage
+1 Cult Guildmage
+4 Fathom Fleet Firebrand
+2 Kaalia, Zenith Seeker
+2 Khenra Eternal
+1 Mardu Banner
+2 Mardu Charm
+4 Mishra's Command
+3 Patriot, Shield Wielder
+4 Practiced Scrollsmith
+3 Unholy Officiant
+3 Vengeful Townsfolk
+4 Battlefield Forge
+2 Mountain
+1 Plains
+2 Raucous Carnival
+4 Sunbaked Canyon
+4 Sundown Pass
+4 Swamp

@@ -1,0 +1,37 @@
+# name: Train800 lim-g-br-mid-08
+# archetype: limited_mid
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 A Good Day to Die
+2 Angry Rabble
+1 Balefire Dragon
+1 Black Widow, Super Spy
+1 Blind-Spot Giant
+1 Blood-Chin Rager
+1 Bombur, Gentle Dreamer
+2 Channeled Dragonfire
+1 Chaos Maw
+1 Charming Scoundrel
+1 Electro, Assaulting Battery
+2 Fangblade Brigand
+1 Gloin, Dwarf Emissary
+1 Gravkill
+2 Harried Spearguard
+1 Hazoret the Fervent
+2 Hidetsugu, Devouring Chaos
+1 Laughing Jasper Flint
+2 Leyline Tyrant
+2 Magmatic Channeler
+1 Might of the Meek
+1 Neheb, the Eternal
+2 Olivia's Midnight Ambush
+1 Pharika's Chosen
+1 Stoneshock Giant
+1 The Speed Demon
+1 Thor, God of Thunder
+1 Wojek Bodyguard
+1 Blackcleave Cliffs
+2 Cinder Marsh
+16 Mountain
+2 Smoldering Marsh
+3 Swamp

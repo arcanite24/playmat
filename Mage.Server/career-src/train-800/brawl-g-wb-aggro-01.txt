@@ -1,0 +1,51 @@
+# name: Train800 brawl-g-wb-aggro-01
+# archetype: brawl_aggro
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Accursed Centaur
+1 Aerith Gainsborough
+1 Ageless Guardian
+1 Agent of the Iron Throne
+1 Amalia Benavides Aguirre
+1 Amateur Hero
+1 Ambush Paratrooper
+1 Angel of Vitality
+1 Bartolome del Presidio
+1 Bastion Protector
+1 Bitterbloom Bearer
+1 Bog Rats
+1 Changeling Outcast
+1 Corpse Knight
+1 Crossbones, Malicious Mercenary
+1 Crude Bent Blade
+1 Epic Downfall
+1 Festerleech
+1 Firja's Retribution
+1 Fracture
+1 Gorging Vulture
+1 Gumdrop Poisoner
+1 Hinterland Sanctifier
+1 Inkrise Infiltrator
+1 Moonrise Cleric
+1 Rage into the Valley
+1 Ranger-Captain of Eos
+1 Rotfeaster Maggot
+1 Rotted Hulk
+1 Sorin, Vengeful Bloodlord
+1 Staunch Shieldmate
+1 Stiltzkin, Moogle Merchant
+1 Teysa, Envoy of Ghosts
+1 Unnatural Endurance
+1 Walking Sarcophagus
+1 Zoraline, Cosmos Caller
+1 Caves of Koilos
+1 Concealed Courtyard
+1 Foot Headquarters
+1 Great Arashin City
+1 Isolated Chapel
+1 Meticulous Commons
+1 Neglected Manor
+6 Plains
+1 Shattered Sanctum
+1 Silverquill Campus
+9 Swamp

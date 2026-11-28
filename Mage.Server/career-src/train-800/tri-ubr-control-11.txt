@@ -1,0 +1,25 @@
+# name: Train800 tri-ubr-control-11
+# archetype: control
+# colors: UBR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Bloodline Recollector
+3 Breath of Fire
+2 Cruelty of the Sith
+1 Divert Disaster
+2 Dread Shade
+4 Fire Prophecy
+3 Kinzu of the Bleak Coven
+3 Maestros Charm
+2 Ojer Axonil, Deepest Might
+1 Signpost Scarecrow
+3 Singularity Rupture
+2 Sol'Kanar the Tainted
+3 Spellgyre
+3 Tyrant's Scorn
+4 Crosis's Catacombs
+4 Crumbling Necropolis
+2 Haunted Ridge
+3 Island
+2 Mountain
+7 Swamp
+4 Xander's Lounge

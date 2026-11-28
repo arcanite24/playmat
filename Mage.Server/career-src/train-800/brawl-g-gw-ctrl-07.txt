@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-gw-ctrl-07
+# archetype: brawl_ctrl
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Argothian Pixies
+1 Attended Socialite
+1 Boulderbranch Golem
+1 Charging Troll
+1 Cloudthresher
+1 Collective Effort
+1 Conclave Cavalier
+1 Dawnbringer Charioteers
+1 Dromoka, the Eternal
+1 Emeritus of Truce
+1 Expose to Daylight
+1 Fountain of Renewal
+1 Garruk's Horde
+1 Gideon's Triumph
+1 God-Eternal Rhonas
+1 Gods' Hall Guardian
+1 Hunter's Talent
+1 Keening Apparition
+1 Lavabrink Venturer
+1 Moment of Valor
+1 Nessian Asp
+1 Ocelot Pride
+1 Overlord of the Mistmoors
+1 Pledge of Unity
+1 Pyrrhic Strike
+1 Repel the Vile
+1 Sandsteppe Outcast
+1 Silkwrap
+1 Smite the Monstrous
+1 Solemn Recruit
+1 Stormbeacon Blade
+1 Strength of the Pack
+1 Topiary Panther
+1 Verdant Kraken
+1 Wakandan Drone Flock
+1 Brushland
+1 Canopy Vista
+1 Etched Cornfield
+7 Forest
+1 Grove of the Guardian
+1 Horizon Canopy
+1 Overgrown Farmland
+9 Plains
+1 Razorverge Thicket
+1 Sunpetal Grove
+1 Vigorbloom Annex

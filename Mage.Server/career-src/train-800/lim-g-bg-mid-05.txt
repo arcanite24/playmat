@@ -1,0 +1,38 @@
+# name: Train800 lim-g-bg-mid-05
+# archetype: limited_mid
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Bejeweled Warg
+1 Bleed Dry
+1 Blightsoil Druid
+2 Borderland Ranger
+2 Brushwagg
+1 Chief Warg's Company
+2 Consign to Dust
+2 Desperate Bloodseeker
+1 Emperor's Vanguard
+1 Foggy Swamp Hunters
+1 Gnarled Sage
+1 Golgari Findbroker
+1 Kalevan Star Yacht
+1 Key to the Side-Door
+2 Loam Larva
+1 Lord Dregg, Insect Invader
+1 Nightmare Sower
+1 Oracle's Restoration
+1 Oviya Pashiri, Sage Lifecrafter
+2 Placid Rottentail
+1 Salt Road Skirmish
+2 Savage Land Dinosaur
+1 Sidewinder Naga
+1 Storm the Citadel
+1 Swarmborn Giant
+1 Terrian, World Tyrant
+1 Thoughtweft Charge
+1 Vorstclaw
+1 Vraska's Finisher
+1 Deathcap Glade
+16 Forest
+2 Formidable Commons
+2 Overgrown Tomb
+3 Swamp

@@ -1,0 +1,25 @@
+# name: Train800 tri-rgw-midrange-04
+# archetype: midrange
+# colors: RGW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Anurid Brushhopper
+4 Bloodfire Enforcers
+2 Cabaretti Initiate
+3 Dynamite Diver
+3 Garnet, Princess of Alexandria
+2 Grabby Giant
+2 Huatli, Radiant Champion
+3 Light of Hope
+2 Lightning Javelin
+2 Rift Bolt
+3 Rith, Liberated Primeval
+4 Rulik Mons, Warren Chief
+1 Sarinth Greatwurm
+1 Seismic Wave
+4 Brushland
+4 Copperline Gorge
+2 Forest
+2 Karplusan Forest
+6 Mountain
+4 Overgrown Farmland
+2 Plains

@@ -1,0 +1,28 @@
+# name: Train800 tri-brg-gowide-03
+# archetype: gowide
+# colors: BRG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ambitious Augmenter
+2 Anzrag, the Quake-Mole
+2 Caustic Bronco
+2 Eddie Brock
+1 Explosive Derailment
+1 Garna, Bloodfist of Keld
+4 Gingerbrute
+3 Goblin Javelineer
+1 Invasion of Mercadia
+4 Living Twister
+1 Make Mischief
+4 Monstrous Rage
+3 Pinecone Strike
+4 Queen's Bay Soldier
+2 Rix Maadi Reveler
+2 Tilonalli's Knight
+2 Zariel, Archduke of Avernus
+2 Badlands
+4 Darigaaz's Caldera
+1 Forest
+4 Mountain
+4 Razortrap Gorge
+4 Smoldering Marsh
+2 Swamp

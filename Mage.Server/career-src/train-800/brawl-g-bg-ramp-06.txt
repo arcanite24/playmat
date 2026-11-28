@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-bg-ramp-06
+# archetype: brawl_ramp
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aftermath Analyst
+1 Assassin's Trophy
+1 Barrier Breach
+1 Bonds of Mortality
+1 Carrion Feeder
+1 Charging Rhino
+1 Commander Greven il-Vec
+1 Crow of Dark Tidings
+1 Cutthroat il-Dal
+1 Deadly Dispute
+1 Deathless Ancient
+1 Deathsprout
+1 Defiling Daemogoth
+1 Down in the Valley
+1 Drag to the Roots
+1 Gingerbread Hunter
+1 Grunn, the Lonely King
+1 Hemosymbic Mite
+1 Insatiable Skittermaw
+1 Insidious Roots
+1 Jiang Yanggu, Wildcrafter
+1 Lashwhip Predator
+1 Lord of the Forsaken
+1 Necromancer's Assistant
+1 Old Rutstein
+1 Pirate Peddlers
+1 Primal Druid
+1 Rootwire Amalgam
+1 Scavenger Regent
+1 Shakedown Heavy
+1 Skull Prophet
+1 Spider-Rex, Daring Dino
+1 Stickytongue Sentinel
+1 Tyvar, the Pummeler
+1 Wild Onslaught
+1 Bayou
+1 Blooming Marsh
+1 Deathcap Glade
+8 Forest
+1 Formidable Commons
+1 Haunted Mire
+1 Llanowar Wastes
+1 Overgrown Tomb
+1 Strangled Cemetery
+8 Swamp
+1 Woodland Cemetery

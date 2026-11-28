@@ -1,0 +1,40 @@
+# name: Train800 lim-g-rw-mid-06
+# archetype: limited_mid
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Amateur Auteur
+1 Bottle Golems
+1 Bureau Headmaster
+1 Defiant Strike
+1 Depala, Pilot Exemplar
+2 Dynamite Diver
+1 Energybending
+1 Explosive Derailment
+1 Fire Elemental
+1 Gila Courser
+1 Gloom Stalker
+1 Go for Blood
+1 Hardened Academic
+1 Kami of Industry
+1 Keldon Raider
+1 Long Road Home
+1 Meddling Youths
+2 Onakke Ogre
+1 Ornitharch
+1 Professional Face-Breaker
+1 Regent's Authority
+1 Sarkhan's Unsealing
+2 Savior of the Small
+1 Sergeant-at-Arms
+1 Smelt
+1 The Neutrinos
+2 Thrashing Frontliner
+1 Valiant Rescuer
+1 Valkyrie Harbinger
+2 Wayspeaker Bodyguard
+1 Zookeeper Mechan
+2 Dalkovan Encampment
+1 Dedicated Commons
+2 Inspiring Vantage
+11 Mountain
+8 Plains

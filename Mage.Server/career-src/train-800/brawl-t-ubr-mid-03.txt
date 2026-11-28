@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-ubr-mid-03
+# archetype: brawl_mid
+# colors: UBR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Augur of Bolas
+1 Backstreet Bruiser
+1 Blightbelly Rat
+1 Boneyard Desecrator
+1 Boulder Salvo
+1 Callous Inspector
+1 Cult Guildmage
+1 Dire Fleet Warmonger
+1 Eyes of Gitaxias
+1 Fear of Impostors
+1 Final Reward
+1 Frostfist Strider
+1 Galazeth Prismari
+1 Gilgamesh, Master-at-Arms
+1 Graf Reaver
+1 Heated Debate
+1 Hostile Investigator
+1 Jennika's Technique
+1 Kalakscion, Hunger Tyrant
+1 Kefka, Court Mage
+1 Kels, Fight Fixer
+1 Lightfoot Rogue
+1 Lightning Wolf
+1 Marauding Raptor
+1 Nimble Obstructionist
+1 Pinnacle Emissary
+1 Rhystic Study
+1 Sanar, Unfinished Genius
+1 Scatter Ray
+1 Scorchmark
+1 Scourge of Nel Toth
+1 Sephiroth, Fabled SOLDIER
+1 Silburlind Snapper
+1 Spin Out
+1 Unsubtle Mockery
+1 Badlands
+1 Blackcleave Cliffs
+1 Crosis's Catacombs
+1 Crumbling Necropolis
+1 Dragonskull Summit
+1 Drowned Catacomb
+1 Haunted Ridge
+6 Island
+3 Mountain
+1 Murky Sewer
+1 Shipwreck Marsh
+1 Smoldering Marsh
+1 Sulfurous Springs
+3 Swamp
+1 Underground River
+1 Xander's Lounge

@@ -1,0 +1,38 @@
+# name: Train800 lim-g-ub-mid-08
+# archetype: limited_mid
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Alchemist's Gift
+1 Aphemia, the Cacophony
+2 Assassin's Ink
+2 Automated Artificer
+1 Baleful Ammit
+1 Cavalier of Night
+1 Chrome Replicator
+1 Desperate Measures
+1 Dungeon Geists
+1 Eye Collector
+1 Lurking Deadeye
+1 Ogre Jailbreaker
+1 Passwall Adept
+2 Phenax, God of Deception
+1 Qiqirn Merchant
+1 Sela, Tal Shiar Paradox
+1 Seymour Flux
+1 Skullport Merchant
+1 Snowmelt Stag
+2 Taborax, Hope's Demise
+1 Talion, the Kindly Lord
+1 Three Tree Mascot
+2 Unwelcome Sprite
+1 Unwilling Ingredient
+1 Varragoth, Bloodsky Sire
+2 Vulturous Aven
+1 Westgate Regent
+2 Worthy Cost
+1 Xerex Strobe-Knight
+3 Island
+2 Shipwreck Marsh
+1 Sunken Hollow
+16 Swamp
+2 Underground River

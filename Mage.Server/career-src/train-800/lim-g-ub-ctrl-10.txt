@@ -1,0 +1,37 @@
+# name: Train800 lim-g-ub-ctrl-10
+# archetype: limited_ctrl
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Baleful Strix
+2 Bonebind Orator
+1 Boomerang, Blade Flinger
+1 Clear the Stage
+2 Countersquall
+1 Deadly Alliance
+1 Defiling Daemogoth
+1 Demon of Dark Schemes
+1 Dire Fleet Poisoner
+1 Disruptor Wanderglyph
+1 Eject the Warp Core
+2 Ephara's Dispersal
+1 Giant Koi
+1 Headless Rider
+2 Heirloom Auntie
+1 Nirkana Assassin
+2 Renegade Reaper
+1 Revenge of the Rats
+1 Ruric Thar, Biomagus
+1 Spellbook Seeker
+2 Summon: Primal Odin
+1 Teo, Spirited Glider
+1 The Witch's Vanity
+1 Ukud Cobra
+1 Vodalian Arcanist
+1 Wander Off
+1 Withering Curse
+1 Xande, Dark Mage
+2 Darkslick Shores
+4 Island
+2 Murky Sewer
+1 Shipwreck Marsh
+16 Swamp

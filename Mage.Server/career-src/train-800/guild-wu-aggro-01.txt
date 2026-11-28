@@ -1,0 +1,24 @@
+# name: Train800 guild-wu-aggro-01
+# archetype: aggro
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aeolipile
+1 Apprentice Sorcerer
+2 Befuddle
+2 Black Panther, Claws of Bast
+3 Defiant Strike
+3 Dorothea, Vengeful Victim
+2 Ephara, God of the Polis
+4 Hemmer, Fixing What Is Broken
+2 Nyxborn Shieldmate
+4 Seeker of the Way
+3 Shocking Grasp
+3 Splendor Mare
+3 Springjaw Trap
+2 Story Seeker
+4 Sygg, Wanderwine Wisdom
+4 Abandoned Campground
+4 Deserted Beach
+3 Island
+8 Plains
+2 Seachrome Coast

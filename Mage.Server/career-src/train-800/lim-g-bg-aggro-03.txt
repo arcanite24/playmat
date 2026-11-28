@@ -1,0 +1,35 @@
+# name: Train800 lim-g-bg-aggro-03
+# archetype: limited_aggro
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Acridian
+1 Bastion of Remembrance
+1 Chronomancer
+1 Gift of Growth
+2 Gnarlwood Dryad
+1 Gonti's Machinations
+1 Ice Cream Kitty
+2 Karn, Argent Defender
+2 Kessig Dire Swine
+1 Killmonger, Scourge of Wakanda
+1 Larger Than Life
+2 Lasyd Prowler
+1 Merciless Enforcers
+1 Pounce
+2 Putrefy
+1 Rakshasa Deathdealer
+2 Rotten Reunion
+2 Slimefoot, the Stowaway
+2 Spiders-Man, Heroic Horde
+1 Staggering Size
+2 Swordwise Centaur
+1 Tavern Swindler
+1 Thrashing Brontodon
+2 Vash, Freelance Archaeologist
+1 Watcher of the Wayside
+2 Woe Strider
+2 Deathcap Glade
+13 Forest
+2 Formidable Commons
+1 Overgrown Tomb
+5 Swamp

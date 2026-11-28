@@ -1,0 +1,19 @@
+# name: Train800 tribal-g-elf-03
+# archetype: tribal (Elf)
+# colors: G
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Canopy Tactician
+2 Cloudthresher
+4 Containment Breach
+1 Cryptolith Fragment
+2 Dwynen's Elite
+4 Elvish Warmaster
+1 For the Family
+3 Imperious Perfect
+1 Krosan Grip
+4 Leaf-Crowned Visionary
+4 Safewright Cavalry
+1 Silkweaver Elite
+4 Tajuru Blightblade
+2 Vitu-Ghazi Inspector
+23 Forest

@@ -1,0 +1,42 @@
+# name: Train800 lim-t-gwu-aggro-01
+# archetype: limited_aggro
+# colors: GWU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aesi, Tyrant of Gyre Strait
+2 Ambitious Augmenter
+1 Audacious Infiltrator
+1 Beacon Behemoth
+1 Black Bolt, Inhuman King
+1 Bow of Nylea
+1 Brokers Charm
+1 Canyon Vaulter
+1 Coralhelm Guide
+1 Crumb and Get It
+1 Cylian Elf
+1 Data, Professor of Humanities
+2 Donatello, Gadget Master
+1 Foundry Inspector
+1 Galuf's Final Act
+1 Hunt the Weak
+1 Karametra's Blessing
+1 Mirkwood Nurturer
+1 Mister Hyde, Monster Within
+2 Moon Girl and Devil Dinosaur
+2 Moorland Drifter
+1 Papercraft Decoy
+1 Pelt Collector
+2 Powerstone Engineer
+1 Ray of Dissolution
+2 Rod of Ruin
+1 Slippery Bogle
+1 Tenacious Hunter
+1 Tendril of the Mycotyrant
+1 Velvetwing Butterflies
+1 Vivien's Grizzly
+6 Forest
+2 Grove of the Guardian
+7 Island
+2 Plains
+2 Razorverge Thicket
+2 Sunpetal Grove
+2 Vigorbloom Annex

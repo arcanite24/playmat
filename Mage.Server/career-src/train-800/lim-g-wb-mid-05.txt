@@ -1,0 +1,42 @@
+# name: Train800 lim-g-wb-mid-05
+# archetype: limited_mid
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Academic Ascent
+1 Alms Beast
+1 Arisen Gorgon
+1 Ashnod's Intervention
+1 Augur il-Vec
+1 Bloodvial Purveyor
+1 Camera Launcher
+1 Charismatic Vanguard
+1 Coastal Bulwark
+1 Cut Down
+1 Erebos, Bleak-Hearted
+2 Gallant Pie-Wielder
+1 Grim Javelineer
+2 Imperious Oligarch
+1 Kitsune Ace
+1 Leonin Warleader
+1 Mai, Scornful Striker
+2 Oasis Gardener
+1 Ruin Raider
+1 Scream Puff
+1 Shaile, Dean of Radiance
+1 Shredder, Unrelenting
+1 Shroudstomper
+1 Stand Up for Yourself
+1 Starseer Mentor
+1 Survive the Night
+1 Swords to Plowshares
+1 Thalia, Guardian of Thraben
+1 Topple the Statue
+1 Urgoros, the Empty One
+1 Valorous Stance
+1 Village Rites
+1 Winter Soldier, Icy Assassin
+2 Caves of Koilos
+1 Meticulous Commons
+10 Plains
+2 Shattered Sanctum
+9 Swamp

@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-wbg-mid-03
+# archetype: brawl_mid
+# colors: WBG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Abigale, Poet Laureate
+1 Abzan Devotee
+1 Aggressive Mammoth
+1 Archfiend of Sorrows
+1 Black Dragon
+1 Blightreaper Thallid
+1 Capashen Standard
+1 Centaur Nurturer
+1 Consuming Ashes
+1 Culling Sun
+1 Dauntless Dismantler
+1 Dissenter's Deliverance
+1 Driftgloom Coyote
+1 Dryad Militant
+1 Eat to Extinction
+1 Elesh Norn
+1 Giant Spider
+1 Hidden Herbalists
+1 Kessig Dire Swine
+1 Loathsome Chimera
+1 Masked Vandal
+1 On the Job
+1 Pitiless Gorgon
+1 Puncturing Light
+1 Rakshasa Deathdealer
+1 Reaper of the Wilds
+1 Reaping Willow
+1 Severance Priest
+1 Silversmote Ghoul
+1 Territorial Witchstalker
+1 Thorn Elemental
+1 Tiller of Flesh
+1 Utter End
+1 Voracious Null
+1 Winter Soldier, Icy Assassin
+1 Bayou
+1 Caves of Koilos
+1 Concealed Courtyard
+1 Deathcap Glade
+4 Forest
+1 Formidable Commons
+1 Isolated Chapel
+1 Llanowar Wastes
+1 Overgrown Farmland
+1 Overgrown Tomb
+6 Plains
+1 Sandsteppe Citadel
+1 Shattered Sanctum
+1 Strangled Cemetery
+2 Swamp
+1 Woodland Cemetery

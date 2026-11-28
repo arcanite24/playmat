@@ -1,0 +1,37 @@
+# name: Train800 lim-t-wub-ctrl-06
+# archetype: limited_ctrl
+# colors: WUB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Ardbert, Warrior of Darkness
+2 Atemsis, All-Seeing
+1 Basilica Bell-Haunt
+1 Calculated Dismissal
+2 Collar the Culprit
+1 Contraband Kingpin
+1 Culling Sun
+1 Dissolve
+1 Dragoon's Wyvern
+2 Flesh to Dust
+2 Gandalf, Wandering Wizard
+1 Glacial Grasp
+1 Mind Transfer Protocol
+1 Mindwhisker
+1 Moogles' Valor
+1 Namazu Trader
+1 Notion Thief
+2 Runic Shot
+1 Sai, Master Thopterist
+1 Shepherd of the Flock
+1 Squad Rallier
+2 Taranika, Akroan Veteran
+2 Tithebearer Giant
+1 Vanguard of the Rose
+2 Voidwing Hybrid
+1 Vraska's Final Mercy
+2 Abandoned Campground
+2 Arcane Sanctum
+2 Fortified Beachhead
+5 Island
+4 Plains
+2 Raffine's Tower
+8 Swamp

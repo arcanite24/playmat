@@ -1,0 +1,23 @@
+# name: Train800 guild-gu-gowide-07
+# archetype: gowide
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Argothian Sprite
+1 Eager Construct
+1 Enraged Ceratok
+2 Explosive Apparatus
+4 Gather Courage
+4 Hercules, Prince of Power
+1 Kiora, the Crashing Wave
+4 Nessian Courser
+3 Oblivious Bookworm
+1 Quandrix Command
+4 Smoke Teller
+3 The Goose Mother
+4 Unforgiving Aim
+3 White Tiger, Ava Ayala
+9 Forest
+2 Island
+4 Lakeside Shack
+2 Transformative Commons
+4 Yavimaya Coast

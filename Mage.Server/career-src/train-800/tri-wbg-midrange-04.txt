@@ -1,0 +1,26 @@
+# name: Train800 tri-wbg-midrange-04
+# archetype: midrange
+# colors: WBG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Betor, Kin to All
+3 Bontu the Glorified
+3 Burrowing Razormaw
+2 Cut Down
+2 Destroy Evil
+2 Dinosaur Hunter
+3 Dragonlord Dromoka
+3 Inkling Mascot
+3 Kolaghan Skirmisher
+1 Lady of Laughter
+1 Sifter Wurm
+2 Skystinger
+3 Terminal Criticism
+4 The Unbeatable Squirrel Girl
+1 Underworld Coinsmith
+2 Bayou
+4 Deathcap Glade
+2 Forest
+4 Formidable Commons
+6 Plains
+2 Swamp
+4 Woodland Cemetery

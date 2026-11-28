@@ -1,0 +1,26 @@
+# name: Train800 tri-rwb-midrange-08
+# archetype: midrange
+# colors: RWB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Ancient Hellkite
+4 Baron Bertram Graywater
+3 Blight Keeper
+2 Ferocious Tigorilla
+4 Flame-Blessed Bolt
+1 Forge Devil
+2 Glory-Bound Initiate
+1 Green Goblin, Revenant
+3 Militia Rallier
+1 Ordeal of Purphoros
+2 Savannah Sage
+3 Sin Prodder
+2 Snapdax, Apex of the Hunt
+2 Sunspire Gatekeepers
+3 Tears of Valakut
+2 Inspiring Vantage
+3 Mountain
+2 Plains
+4 Raucous Carnival
+4 Sacred Foundry
+4 Sunbaked Canyon
+5 Swamp

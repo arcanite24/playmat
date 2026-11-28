@@ -1,0 +1,23 @@
+# name: Train800 tri-rgw-midrange-08
+# archetype: midrange
+# colors: RGW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Aurelia, Exemplar of Justice
+3 Cone of Flame
+3 Fleetfoot Dancer
+2 Gangly Stompling
+3 Ghired, Mirror of the Wilds
+3 Gust Walker
+4 Hydra Broodmaster
+2 Leonin Lightscribe
+4 Lightning Volley
+1 Precision Bolt
+4 Take Out the Trash
+3 Vanguard of Brimaz
+4 Battlefield Forge
+2 Dalkovan Encampment
+6 Forest
+2 Mountain
+2 Plains
+4 Raucous Carnival
+4 Sundown Pass

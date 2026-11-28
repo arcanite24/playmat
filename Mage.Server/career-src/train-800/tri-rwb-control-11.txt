@@ -1,0 +1,25 @@
+# name: Train800 tri-rwb-control-11
+# archetype: control
+# colors: RWB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Agonizing Demise
+4 Cavalier of Flame
+4 Crumbling Ashes
+2 Discerning Financier
+4 Dismember
+2 Embodiment of Fury
+3 Light 'Em Up
+1 Liliana's Influence
+3 Purifying Dragon
+2 Radiant Flames
+3 Rampaging Cyclops
+1 Vile Mutilator
+2 Vizkopa Guildmage
+2 Wall of Omens
+4 Badlands
+4 Dragonskull Summit
+5 Mountain
+5 Plains
+2 Razortrap Gorge
+4 Smoldering Marsh
+2 Swamp

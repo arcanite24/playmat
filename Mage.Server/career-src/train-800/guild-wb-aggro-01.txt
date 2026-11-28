@@ -1,0 +1,24 @@
+# name: Train800 guild-wb-aggro-01
+# archetype: aggro
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ayli, Eternal Pilgrim
+4 Beckon Apparition
+3 Chief of the Scale
+2 Defacing Duskmage
+4 Devouring Sugarmaw
+2 Edgar, Ancient Bloodlord
+2 General's Enforcer
+2 Killian's Confidence
+2 Killian, Ink Duelist
+2 Lunar Convocation
+2 Silverquill Charm
+1 Sorin, Vengeful Bloodlord
+4 Syr Vondam, Sunstar Exemplar
+3 Vito, Fanatic of Aclazotz
+4 Zahur, Glory's Past
+4 Caves of Koilos
+4 Concealed Courtyard
+2 Isolated Chapel
+4 Plains
+8 Swamp

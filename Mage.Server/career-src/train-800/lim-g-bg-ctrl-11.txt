@@ -1,0 +1,33 @@
+# name: Train800 lim-g-bg-ctrl-11
+# archetype: limited_ctrl
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Abzan Kin-Guard
+2 Ankle Biter
+2 Atlas, Sizable Stooge
+1 Bebop & Rocksteady
+1 Blood-Sport Champion
+1 Cast Down
+2 Coffin Purge
+1 Cranial Archive
+1 Drivnod, Carnage Dominus
+2 Essenceknit Scholar
+2 Gaea's Blessing
+1 Gigantic Big Bear
+2 Invoke Despair
+2 Iridescent Hornbeetle
+1 Mortality Spear
+1 Noxious Gearhulk
+2 Phyrexian Rager
+1 Power Word Kill
+2 Rok-Tahk, Budding Scientist
+1 Sagittars' Volley
+1 Sea Gate Colossus
+2 Snarespinner
+1 Strength of the Pack
+1 Undead Servant
+2 Bayou
+9 Forest
+1 Formidable Commons
+2 Overgrown Tomb
+11 Swamp

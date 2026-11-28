@@ -1,0 +1,37 @@
+# name: Train800 lim-g-br-mid-06
+# archetype: limited_mid
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Academic Dispute
+1 Barge In
+1 Charforger
+1 Corrupted Conviction
+2 Cyclops of One-Eyed Pass
+2 Defiant Khenra
+1 Downwind Ambusher
+2 Ember Swallower
+1 Gadrak, the Crown-Scourge
+1 Genasi Enforcers
+1 Gilgamesh, Master-at-Arms
+1 God-Eternal Bontu
+1 Howlsquad Heavy
+1 Huatli's Spurring
+2 Kethek, Crucible Goliath
+2 Lithomantic Barrage
+1 Oath of Chandra
+2 Ob Nixilis, Captive Kingpin
+1 Pacesetter Paragon
+1 Razorkin Needlehead
+1 Scarblade Scout
+1 Scourge Wolf
+1 Soul-Scar Mage
+2 Surtland Flinger
+1 Thraben Gargoyle
+1 Tyrannical Pitlord
+2 Unlicensed Disintegration
+1 Vial Smasher, Gleeful Grenadier
+2 Badlands
+16 Mountain
+2 Razortrap Gorge
+1 Sulfurous Springs
+3 Swamp

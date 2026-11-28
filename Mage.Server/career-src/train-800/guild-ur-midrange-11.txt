@@ -1,0 +1,23 @@
+# name: Train800 guild-ur-midrange-11
+# archetype: midrange
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Avaricious Dragon
+1 Barrage of Expendables
+3 Brambleback Brute
+2 Edgewall Pack
+4 Farideh's Fireball
+1 Glacial Dragonhunt
+2 Goldspan Dragon
+4 Mine Raider
+4 Mouser Mark III
+2 Ovika, Enigma Goliath
+2 Saheeli, Filigree Master
+2 Seismic Wave
+4 Soulbright Seeker
+2 Timely Interference
+2 Island
+12 Mountain
+4 Peculiar Lighthouse
+4 Shivan Reef
+2 Stormcarved Coast

@@ -1,0 +1,27 @@
+# name: Train800 tri-wub-gowide-03
+# archetype: gowide
+# colors: WUB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Antagonist Incorporator
+4 April O'Neil, Kunoichi Trainee
+2 Circle of Power
+2 Cruel Feeding
+3 Cubwarden
+4 Drana, Liberator of Malakir
+2 Hydrosurge
+1 Jace, Mirror Mage
+2 Kemba, Kha Enduring
+2 Lash of Malice
+2 Long-Finned Skywhale
+3 Miner's Guidewing
+4 Nashi, Searcher in the Dark
+2 Rustwing Falcon
+3 Splitskin Doll
+2 Tragic Lesson
+4 Caves of Koilos
+4 Concealed Courtyard
+2 Great Arashin City
+4 Island
+4 Isolated Chapel
+2 Plains
+1 Swamp

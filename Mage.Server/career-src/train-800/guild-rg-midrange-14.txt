@@ -1,0 +1,23 @@
+# name: Train800 guild-rg-midrange-14
+# archetype: midrange
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Chain Lightning
+3 Colossal Rattlewurm
+3 Dragonlord Atarka
+1 Drowsing Tyrannodon
+3 Hexhaven Invigorator
+3 Implement of Combustion
+3 Klothys, God of Destiny
+3 Lupine Prototype
+1 Nissa's Defeat
+1 Old Fat Spider
+3 Pillar of Flame
+4 Provoke the Trolls
+4 Sprouting Goblin
+3 Territorial Allosaurus
+2 Cinder Glade
+4 Copperline Gorge
+12 Forest
+4 Karplusan Forest
+2 Mountain

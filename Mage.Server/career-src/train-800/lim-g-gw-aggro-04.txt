@@ -1,0 +1,40 @@
+# name: Train800 lim-g-gw-aggro-04
+# archetype: limited_aggro
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Arasta of the Endless Web
+2 Armored Warhorse
+1 Automatic Librarian
+1 Axebane Ferox
+1 Basking Capybara
+1 Beaming Defiance
+1 Bushmaster, Coiled Henchman
+2 Cataclysmic Gearhulk
+1 Centaur Courser
+1 Centaur Healer
+1 Coordinated Maneuver
+1 Crib Swap
+2 Curious Pair
+1 Dissenter's Deliverance
+1 Duelist of Deep Faith
+2 Eager Glyphmage
+2 Foggy Swamp Vinebender
+1 Gran Pulse Ochu
+1 Hinterland Sanctifier
+1 Kill Shot
+1 Kinsbaile Skirmisher
+1 Mesa Unicorn
+1 Miriam, Herd Whisperer
+1 Mite Overseer
+1 Ornamental Courage
+1 Pride Sovereign
+2 Retributive Wand
+1 Shed Weakness
+1 Sungrace Pegasus
+1 Trelasarra, Moon Dancer
+1 Unwanted Remake
+1 Brushland
+7 Forest
+2 Overgrown Farmland
+11 Plains
+2 Vigorbloom Annex

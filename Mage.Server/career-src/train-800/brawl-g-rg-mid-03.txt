@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-rg-mid-03
+# archetype: brawl_mid
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Accomplished Alchemist
+1 Badgermole Cub
+1 Blood Hypnotist
+1 Blunt the Assault
+1 Cinder Hellion
+1 Compost
+1 Conduit of Storms
+1 Conspicuous Snoop
+1 Creeping Mold
+1 Cryptothrall
+1 Daredevil Dragster
+1 Draconic Disciple
+1 Emeritus of Abundance
+1 Environmental Scientist
+1 Fanatic of Mogis
+1 Gene Pollinator
+1 Herald of the Pantheon
+1 Howlpack Wolf
+1 Linebreaker Baloth
+1 Lithomantic Barrage
+1 Malamet Battle Glyph
+1 Mishra, Excavation Prodigy
+1 Outland Boar
+1 Outmuscle
+1 Reckless Amplimancer
+1 Riftburst Hellion
+1 Rocksteady, Crash Courser
+1 Rust-Shield Rampager
+1 Saurian Explorer
+1 Scalding Cauldron
+1 Siege Dragon
+1 Syr Carah, the Bold
+1 Undercity Troll
+1 Voldaren Epicure
+1 Whiskerquill Scribe
+1 Bleeding Woods
+1 Cinder Glade
+1 Copperline Gorge
+10 Forest
+1 Karplusan Forest
+6 Mountain
+1 Racers' Ring
+1 Rockfall Vale
+1 Rootbound Crag
+1 Sheltered Thicket
+1 Stomping Ground

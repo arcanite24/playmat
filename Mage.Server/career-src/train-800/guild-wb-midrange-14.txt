@@ -1,0 +1,22 @@
+# name: Train800 guild-wb-midrange-14
+# archetype: midrange
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Afflict
+3 Alley Evasion
+2 Chivalric Alliance
+4 Halvar, God of Battle
+4 Liliana's Devotee
+3 Lord of the Void
+2 Midnight Reaper
+4 Preacher of the Schism
+2 Priest of Forgotten Gods
+4 Scrapheap Scrounger
+1 Serra's Guardian
+1 Vraan, Executioner Thane
+2 Wight
+4 Meticulous Commons
+4 Neglected Manor
+2 Plains
+2 Shattered Sanctum
+12 Swamp

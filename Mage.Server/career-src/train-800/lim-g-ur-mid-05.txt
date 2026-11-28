@@ -1,0 +1,39 @@
+# name: Train800 lim-g-ur-mid-05
+# archetype: limited_mid
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aether Chaser
+2 Antagonize
+1 Ashling, Flame Dancer
+1 Augury Raven
+1 Baral and Kari Zev
+2 Catalog
+1 Chained Brute
+1 Constricting Tendrils
+1 Coral Colony
+1 Deceive the Messenger
+2 Eruth, Tormented Prophet
+2 Fry
+1 Hapatra, the Desert Frost
+1 Heroes of the Revel
+1 Hill Gigas
+1 Hyena Pack
+1 Interstellar Effigy
+2 Ledger Shredder
+1 Minister of Inquiries
+1 Niblis of Frost
+1 Ormos, Archive Keeper
+1 Red Hulk
+1 Sleep-Cursed Faerie
+1 Spireside Infiltrator
+2 Stampede Rider
+1 Trick Shot
+1 Triton Shorestalker
+1 Vault Robber
+1 Weary Prisoner
+1 Zealot of the God-Pharaoh
+8 Island
+11 Mountain
+2 Shivan Reef
+1 Stormcarved Coast
+2 Sulfur Falls

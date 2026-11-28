@@ -1,0 +1,19 @@
+# name: Train800 mono-u-control-12
+# archetype: control
+# colors: U
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Asinine Antics
+3 Blink of an Eye
+1 Boomerang Basics
+2 Confusticate and Bebother
+2 Desculpting Blast
+1 Iymrith, Desert Doom
+2 Jaded Analyst
+4 Kasmina, Enigmatic Mentor
+4 Knightfisher
+3 Mu Yanling, Sky Dancer
+1 Overwhelmed Archivist
+2 Skystrike Officer
+4 Statute of Denial
+2 Volatile Rig
+26 Island

@@ -1,0 +1,38 @@
+# name: Train800 lim-g-wu-ctrl-10
+# archetype: limited_ctrl
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Agents of S.H.I.E.L.D.
+1 Altar's Light
+1 Angelic Sleuth
+1 Ardenvale Tactician
+1 Argent Mutation
+2 Black Panther, Claws of Bast
+1 Cloudkin Seer
+1 Consider
+2 Diligent Excavator
+1 Doomskar
+2 Drag Under
+1 Dragonlord Ojutai
+1 Fate Forgotten
+1 Golden-Tail Disciple
+1 Impassioned Orator
+2 Isperia, Supreme Judge
+1 Keep Out
+2 Leyline Phantom
+1 Merfolk Windrobber
+1 No Witnesses
+2 Savior of the Sleeping
+1 Scatter Ray
+1 Shepherd of the Clouds
+1 Sky Crier
+1 Skymark Roc
+1 Spectral Denial
+1 Spectrum Sentinel
+1 Swallow Whole
+1 Swiftwing Assailant
+2 Cloudcrest Lake
+2 Deserted Beach
+7 Island
+13 Plains
+1 Prairie Stream

@@ -1,0 +1,24 @@
+# name: Train800 tri-urw-bigmana-09
+# archetype: bigmana
+# colors: URW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Chapel Geist
+3 Geist-Fueled Scarecrow
+2 Genesis Effect
+2 Glamer Gifter
+2 Jeskai Banner
+4 Jeskai Monument
+4 Mahamoti Djinn
+3 Narset of the Ancient Way
+2 Raff, Weatherlight Stalwart
+4 Shimmer Dragon
+1 Siegebreaker Giant
+1 Starting Column
+4 Vega, the Watcher
+4 Deserted Beach
+2 Fortified Beachhead
+6 Island
+4 Mountain
+2 Plains
+4 Prairie Stream
+4 Seachrome Coast

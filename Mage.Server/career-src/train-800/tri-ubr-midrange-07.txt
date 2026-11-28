@@ -1,0 +1,27 @@
+# name: Train800 tri-ubr-midrange-07
+# archetype: midrange
+# colors: UBR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Adroit Hateflayer
+2 Appendage Amalgam
+3 Atsushi, the Blazing Sky
+1 Broadside Barrage
+3 Cruel Administrator
+3 Cunning Strike
+2 Dreamtail Heron
+1 First Order Dreadnought
+2 Gutterbones
+3 Magma Jet
+2 Prismari Pledgemage
+1 Rakdos Charm
+2 Ravening Warg
+2 School Daze
+2 Skull Skaab
+3 Soulreaper of Mogis
+2 Badlands
+4 Blackcleave Cliffs
+4 Crosis's Catacombs
+4 Crumbling Necropolis
+5 Island
+3 Mountain
+2 Swamp

@@ -1,0 +1,23 @@
+# name: Train800 guild-gu-bigmana-16
+# archetype: bigmana
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 All-Fates Scroll
+2 Beastbond Outcaster
+2 Challenger Troll
+3 Chittering Dispatcher
+2 Constricting Tendrils
+3 Ice Magic
+3 Outland Colossus
+4 Sab-Sunen, Luxa Embodied
+4 Simic Cluestone
+4 Skyclave Squid
+2 The Lion-Turtle
+2 The Theorist, Jace Beleren
+2 Varis, Silverymoon Ranger
+1 Winged Portent
+2 Botanical Sanctum
+8 Forest
+4 Hinterland Harbor
+7 Island
+4 Lakeside Shack

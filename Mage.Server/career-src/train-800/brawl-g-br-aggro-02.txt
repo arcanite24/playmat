@@ -1,0 +1,51 @@
+# name: Train800 brawl-g-br-aggro-02
+# archetype: brawl_aggro
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aether Chaser
+1 Agate Assault
+1 Ayara, First of Locthwain
+1 Blazing Specter
+1 Bludgeoning Pain
+1 Brazen Blademaster
+1 Dragonlord Kolaghan
+1 Dread Shade
+1 Dreadhorde Arcanist
+1 Feldon, Ronom Excavator
+1 Fire Prophecy
+1 Firebending Lesson
+1 Fireblade Charger
+1 Fleshless Gladiator
+1 Goma Fada Vanguard
+1 Grand Ball Guest
+1 Grim Repriser
+1 Grotesque Mutation
+1 Hidetsugu's Second Rite
+1 Impolite Entrance
+1 Judith, the Scourge Diva
+1 Kessig Wolfrider
+1 Liliana the Repentant
+1 Minister of Pain
+1 Ozai, the Phoenix King
+1 Prompto Argentum
+1 Pyromantic Pilgrim
+1 Rakdos, Lord of Riots
+1 Siege Zombie
+1 South Wind Avatar
+1 Tetsuko Umezawa, Pursuer
+1 Thraxodemon
+1 Thriving Grubs
+1 Tome Shredder
+1 Tunnel Rats
+1 Underhanded Designs
+1 Badlands
+1 Billiard Room
+1 Blackcleave Cliffs
+1 Cinder Marsh
+1 Dragonskull Summit
+1 Haunted Ridge
+8 Mountain
+1 Razortrap Gorge
+1 Smoldering Marsh
+1 Sulfurous Springs
+7 Swamp

@@ -1,0 +1,19 @@
+# name: Train800 mono-w-aggro-03
+# archetype: aggro
+# colors: W
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Antagonist Incorporator
+1 Break the Spell
+2 Captain's Defense
+4 Dusk Legion Duelist
+4 Explosive Apparatus
+4 Gideon Blackblade
+3 Gisela, the Broken Blade
+1 Glimmer Seeker
+3 Guardian of the Great Door
+3 Heliod, Sun-Crowned
+4 Herald of Anafenza
+1 Rebellious Strike
+1 True Love's Kiss
+4 Valiant Rescuer
+21 Plains

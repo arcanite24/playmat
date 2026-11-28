@@ -1,0 +1,51 @@
+# name: Train800 brawl-g-ub-aggro-02
+# archetype: brawl_aggro
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Accursed Marauder
+1 Aetherjacket
+1 Agent of Kotis
+1 Ant-Man's Air Force
+1 Armguard Familiar
+1 Ashes to Ashes
+1 Bellowing Crier
+1 Blind Phantasm
+1 Bloodmist Infiltrator
+1 Body Launderer
+1 Contentious Plan
+1 Cruel Sadist
+1 Doomsday Excruciator
+1 Elspeth's Nightmare
+1 Eyetwitch
+1 Facet Reader
+1 Gild
+1 Grim Reaper, Lethal Legionnaire
+1 Let's Play a Game
+1 Locke Cole
+1 Mindleech Ghoul
+1 Mist-Cloaked Herald
+1 Oriq Loremage
+1 Pain Seer
+1 Profaner of the Dead
+1 Red Room Recruit
+1 Retreat to Hagra
+1 Seafloor Stalker
+1 Sheoldred, Whispering One
+1 Stature, Size Shifter
+1 Terror of Towashi
+1 Thief of Sanity
+1 Umara Entangler
+1 Unlikely Aid
+1 Vampire Cutthroat
+1 Void Snare
+1 Contaminated Aquifer
+1 Darkslick Shores
+1 Drowned Catacomb
+2 Island
+1 Murky Sewer
+1 Restless Reef
+1 Shipwreck Marsh
+1 Sunken Hollow
+13 Swamp
+1 Underground River
+1 Waterfront District

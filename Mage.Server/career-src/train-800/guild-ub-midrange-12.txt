@@ -1,0 +1,24 @@
+# name: Train800 guild-ub-midrange-12
+# archetype: midrange
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Bellowing Saddlebrute
+2 Downwind Ambusher
+3 Expedition Lookout
+4 Geth, Thane of Contracts
+1 Gruesome Fate
+3 Gutsplitter Gang
+3 Hidetsugu and Kairi
+3 Johann's Stopgap
+3 Liliana, the Last Hope
+1 Morkrut Behemoth
+2 Pitiless Horde
+4 Silumgar's Command
+3 The Ancient One
+1 Turn into a Pumpkin
+2 Undercity Dire Rat
+4 Darkslick Shores
+4 Drowned Catacomb
+2 Island
+2 Murky Sewer
+12 Swamp

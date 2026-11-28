@@ -1,0 +1,27 @@
+# name: Train800 tri-bgu-midrange-05
+# archetype: midrange
+# colors: BGU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Beastrider Vanguard
+2 Bone Splinters
+3 Foot Mystic
+2 Grizzly Ghoul
+1 Lead Pipe
+2 Little Bear
+2 Mechan Assembler
+2 Mindleech Ghoul
+2 Plow Through
+1 Prismabasher
+3 Sarulf, Realm Eater
+3 Silent Dart
+3 Skittering Heartstopper
+2 Soul of Innistrad
+4 The Legend of Kuruk
+2 Zimone and Dina
+2 Bayou
+4 Deathcap Glade
+2 Forest
+5 Island
+4 Llanowar Wastes
+4 Overgrown Tomb
+2 Swamp

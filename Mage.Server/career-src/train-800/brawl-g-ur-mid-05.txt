@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-ur-mid-05
+# archetype: brawl_mid
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Avengers Disassembled
+1 Belligerent Guest
+1 Bogardan Firefiend
+1 Bombur, Gentle Dreamer
+1 Boreal Elemental
+1 Brutal Expulsion
+1 Burnout Bashtronaut
+1 Chandra's Regulator
+1 Cloud Pirates
+1 Dalakos, Crafter of Wonders
+1 Daughter of the Deep
+1 Direct Current
+1 Doc Ock, Sinister Scientist
+1 Duel Tactics
+1 Embodiment of Fury
+1 Exhibition Magician
+1 Fleet Swallower
+1 Frillscare Mentor
+1 Giant Koi
+1 Gore Swine
+1 Havoc Jester
+1 Heated Argument
+1 Ingenious Skaab
+1 Kari Zev, Skyship Raider
+1 Molten Rebuke
+1 Oko's Accomplices
+1 Pitchburn Devils
+1 Raubahn, Bull of Ala Mhigo
+1 Ravenous Bloodseeker
+1 Reckless Lackey
+1 Redcap Heelslasher
+1 Scatter to the Winds
+1 Simian Sling
+1 Tattered Haunter
+1 Vexing Bauble
+4 Island
+1 Izzet Guildgate
+1 Molten Tributary
+12 Mountain
+1 Peculiar Lighthouse
+1 Prismari Campus
+1 Shivan Reef
+1 Spirebluff Canal
+1 Stark Industries
+1 Stormcarved Coast
+1 Sulfur Falls

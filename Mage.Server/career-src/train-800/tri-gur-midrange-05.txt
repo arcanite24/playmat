@@ -1,0 +1,26 @@
+# name: Train800 tri-gur-midrange-05
+# archetype: midrange
+# colors: GUR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Blood Age General
+2 Borborygmos and Fblthp
+3 Callous Dismissal
+1 Diversion Unit
+3 Emeritus of Abundance
+3 Klothys, God of Destiny
+4 Kogla and Yidaro
+1 Pathway Arrows
+2 Sarkhan Unbroken
+3 Scalding Viper
+1 Slick Sequence
+3 Smoldering Egg
+2 Spider Manifestation
+2 Temur Battlecrier
+4 Whirler Virtuoso
+2 Forest
+4 Island
+4 Karplusan Forest
+4 Ketria Triome
+4 Mountain
+4 Rootbound Crag
+2 Stomping Ground

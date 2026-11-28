@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-urw-ramp-05
+# archetype: brawl_ramp
+# colors: URW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Adeliz, the Cinder Wind
+1 Amphin Cutthroat
+1 Archipelagore
+1 Auriok Salvagers
+1 Baral, Chief of Compliance
+1 Bartered Cow
+1 Bounding Felidar
+1 Burdened Stoneback
+1 Chambered Nautilus
+1 Cinder Hellion
+1 Crossover Collaboration
+1 Dragonlord Ojutai
+1 Erase
+1 Ghirapur Aether Grid
+1 Goblin Kaboomist
+1 Ire Shaman
+1 Lena, Selfless Champion
+1 Light of Judgment
+1 Mysterio's Phantasm
+1 Narset's Rebuke
+1 Paladin of the Bloodstained
+1 Patchwork Banner
+1 Prying Blade
+1 Ral's Staticaster
+1 Rangers' Refueler
+1 Sailor of Means
+1 Sephara, Sky's Blade
+1 Skarrgan Hellkite
+1 Skophos Warleader
+1 Sokka, Tenacious Tactician
+1 Stone-Giant of High Pass
+1 Tome of the Guildpact
+1 Vadrok, Apex of Thunder
+1 Vampires' Vengeance
+1 Virtue of Courage
+1 Clifftop Retreat
+1 Dalkovan Encampment
+1 Dedicated Commons
+1 Inspiring Vantage
+6 Island
+3 Mountain
+1 Mystic Monastery
+1 Peculiar Lighthouse
+3 Plains
+1 Raucous Carnival
+1 Raugrin Triome
+1 Shivan Reef
+1 Spirebluff Canal
+1 Stormcarved Coast
+1 Sunbaked Canyon
+1 Sundown Pass

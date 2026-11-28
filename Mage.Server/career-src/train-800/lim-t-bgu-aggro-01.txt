@@ -1,0 +1,43 @@
+# name: Train800 lim-t-bgu-aggro-01
+# archetype: limited_aggro
+# colors: BGU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Abrupt Decay
+1 Attendant of Vraska
+1 Awaken the Honored Dead
+2 Banishing Betrayal
+1 Chancellor of Tales
+2 Chevill, Bane of Monsters
+1 Coat with Venom
+1 Curious Forager
+1 Daring Demolition
+2 Despondent Killbot
+1 Eternal Scourge
+1 Gloomwidow
+1 Graf Rats
+1 High-Rise Sawjack
+1 Hundred-Battle Veteran
+1 Kang, Temporal Tyrant
+1 Old-Growth Educator
+1 Otter-Penguin
+1 Ranger's Guile
+1 Rust Scarab
+2 Skullsnap Nuisance
+1 Splatter Goblin
+1 Sporeback Wolf
+1 Starfield Vocalist
+1 Tatsunari, Toad Rider
+1 Undergrowth Leopard
+1 Vein Ripper
+1 Vineshaper Prodigy
+1 Vren, the Relentless
+1 Warped Physique
+2 Wildwood Tracker
+1 Zimone and Dina
+2 Blooming Marsh
+3 Forest
+7 Island
+2 Llanowar Wastes
+2 Overgrown Tomb
+5 Swamp
+2 Woodland Cemetery

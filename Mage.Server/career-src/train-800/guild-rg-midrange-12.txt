@@ -1,0 +1,23 @@
+# name: Train800 guild-rg-midrange-12
+# archetype: midrange
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Chandra, Heart of Fire
+1 Direct Current
+3 Gallia of the Endless Dance
+3 Howlsquad Heavy
+1 Make Mischief
+3 Maraleaf Rider
+2 Mistbreath Elder
+3 Nissa, Resurgent Animist
+4 Ojer Kaslem, Deepest Growth
+4 Playful Shove
+4 Searing Blaze
+1 Spark Jolt
+4 Summon: Fenrir
+2 Tin Street Gossip
+4 Bleeding Woods
+4 Cinder Glade
+5 Forest
+2 Karplusan Forest
+8 Mountain

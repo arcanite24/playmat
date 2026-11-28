@@ -1,0 +1,36 @@
+# name: Train800 lim-g-wu-mid-06
+# archetype: limited_mid
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Angel of Serenity
+1 Angelic Skirmisher
+1 Auspicious Arrival
+1 Draugr Thought-Thief
+2 Eriette's Lullaby
+1 Guidelight Optimizer
+1 Hewed Stone Retainers
+2 Immolating Glare
+1 Intrepid Adversary
+1 Keeper of the Quiet Hour
+1 Lavinia, Azorius Renegade
+1 Loxodon Line Breaker
+1 Mirkwood Meditator
+2 Oltec Matterweaver
+2 Oracle of Dust
+2 Private Eye
+2 Skyclave Sentinel
+1 Slumbering Walker
+2 Soaring Stoneglider
+1 Starfield Mystic
+1 Sungold Barrage
+2 Tattered Haunter
+2 Teferi, Hero of Dominaria
+1 Tetsuko Umezawa, Fugitive
+1 Thunderous Orator
+1 Triton Tactics
+1 Warren Elder
+2 Cloudcrest Lake
+1 Glacial Fortress
+5 Island
+14 Plains
+2 Prairie Stream

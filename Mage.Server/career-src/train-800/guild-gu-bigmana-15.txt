@@ -1,0 +1,23 @@
+# name: Train800 guild-gu-bigmana-15
+# archetype: bigmana
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Atemsis, All-Seeing
+4 Ghastbark Twins
+1 Humbling Elder
+3 Keruga, the Macrosage
+2 Kobayashi Maru Scenario
+4 Michelangelo, Improviser
+2 Mutant's Prey
+1 Nadir Kraken
+2 Proctor's Gaze
+3 Rhonas's Stalwart
+4 Selfcraft Mechan
+3 Sink into Stupor
+1 Unsubstantiate
+2 Wrenn and Realmbreaker
+2 Botanical Sanctum
+7 Forest
+4 Hinterland Harbor
+9 Island
+4 Lakeside Shack

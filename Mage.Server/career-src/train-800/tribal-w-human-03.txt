@@ -1,0 +1,20 @@
+# name: Train800 tribal-w-human-03
+# archetype: tribal (Human)
+# colors: W
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Aang, Air Nomad
+3 Coppercoat Vanguard
+3 Devout Decree
+4 Expedition Envoy
+2 Fancy Footwork
+3 Lake-town Toymaker
+2 Lucky Offering
+1 Monument to Endurance
+2 Norika Yamazaki, the Poet
+1 South Pole Voyager
+4 Swordsworn Cavalier
+3 Thalia, the Survivor
+4 Thousand Moons Crackshot
+1 Unassuming Sage
+3 Zhalfirin Lancer
+22 Plains

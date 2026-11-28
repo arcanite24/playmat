@@ -1,0 +1,24 @@
+# name: Train800 guild-rw-gowide-07
+# archetype: gowide
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Atarka Efreet
+2 Boros Reckoner
+4 Canyon Vaulter
+2 Cerodon Yearling
+2 Cloudspire Coordinator
+2 Discerning Peddler
+2 Kirol, History Buff
+2 Kor Castigator
+1 Lorehold Command
+2 Mask of Immolation
+3 Quake, Agent of S.H.I.E.L.D.
+2 Sacred Fire
+4 Skyknight Vanguard
+2 Solitary Cell
+4 Swift Justice
+4 Dalkovan Encampment
+2 Dedicated Commons
+4 Inspiring Vantage
+4 Mountain
+8 Plains

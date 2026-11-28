@@ -1,0 +1,36 @@
+# name: Train800 lim-g-gu-aggro-03
+# archetype: limited_aggro
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aerie Worshippers
+1 Ancient Animus
+2 Apes of Rath
+1 Avian Oddity
+1 Beast, Erudite Aerialist
+1 Break Down
+2 Coiling Stalker
+2 Dazzling Lights
+2 Deadbridge Goliath
+2 Doc Aurlock, Grizzled Genius
+1 Edgar, Moonlit Sovereign
+1 Gran-Gran
+1 Icefeather Aven
+1 Just the Wind
+2 Mammoth Growth
+1 Meldweb Curator
+1 Merfolk Branchwalker
+1 Mysterio's Phantasm
+2 Nicanzil, Current Conductor
+1 Pillar Launch
+1 Prismabasher
+1 Renowned Weaver
+2 Shang-Chi, Master of Kung Fu
+2 Tainted Observer
+2 The Filigree Sylex
+1 Vineshaper Prodigy
+1 Wavebreak Hippocamp
+1 Botanical Sanctum
+2 Dreamroot Cascade
+13 Forest
+2 Hinterland Harbor
+5 Island

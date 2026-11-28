@@ -1,0 +1,38 @@
+# name: Train800 lim-g-gu-mid-08
+# archetype: limited_mid
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Bewilder
+1 Bramble Familiar
+1 Break Down the Door
+1 Bristlepack Sentry
+2 Burdened Aerialist
+1 Cunning Survivor
+2 Dragon-Scarred Bear
+2 Dreams of Laguna
+1 Druid of the Cowl
+1 Embodiment of Spring
+1 Expel from Orazca
+1 Get a Leg Up
+2 Honey Mammoth
+1 Icefall Regent
+2 Illvoi Galeblade
+1 Jolrael, Voice of Zhalfir
+1 Karfell Harbinger
+1 Nightpack Ambusher
+1 Oracle's Restoration
+1 Pilfering Hawk
+1 Renegade Krasis
+1 Rimeshield Frost Giant
+1 Ripjaw Raptor
+1 Snapping Sailback
+2 Social Climber
+1 Stormrider Spirit
+1 Tail Swipe
+2 Viv Vision, Teen Synthezoid
+1 War Historian
+2 Dreamroot Cascade
+11 Forest
+2 Hinterland Harbor
+7 Island
+1 Lakeside Shack

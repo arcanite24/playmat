@@ -1,0 +1,25 @@
+# name: Train800 tri-gur-midrange-07
+# archetype: midrange
+# colors: GUR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Battle Cry Goblin
+3 Blizzard Brawl
+4 Draconic Disciple
+3 Ghor-Clan Rampager
+3 Goro-Goro, Disciple of Ryusei
+3 Hugs, Grisly Guardian
+2 Immersturm Raider
+2 Jaya's Greeting
+2 Relentless Hunter
+4 Sagu Mauler
+4 Sarkhan Unbroken
+2 Shredding Winds
+1 Tectonic Hazard
+2 Temur Devotee
+4 Bleeding Woods
+4 Cinder Glade
+2 Forest
+6 Island
+2 Karplusan Forest
+2 Mountain
+4 Rootbound Crag

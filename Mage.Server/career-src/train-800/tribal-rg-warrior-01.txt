@@ -1,0 +1,24 @@
+# name: Train800 tribal-rg-warrior-01
+# archetype: tribal (Warrior)
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Bloodrage Brawler
+3 Crush
+1 Dahar Master
+1 Falkenrath Pit Fighter
+2 Final Flare
+4 Itzquinth, Firstborn of Gishath
+3 Kolaghan Warmonger
+2 Mistbreath Elder
+2 Proud Wildbonder
+3 Reckless Cohort
+4 Samut, Vizier of Naktamun
+2 Swift Warden
+2 Uncaged Fury
+2 Wrecking Crew
+4 Zurgo Bellstriker
+4 Cinder Glade
+4 Copperline Gorge
+2 Forest
+10 Mountain
+2 Rootbound Crag

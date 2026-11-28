@@ -1,0 +1,36 @@
+# name: Train800 lim-g-gw-ctrl-11
+# archetype: limited_ctrl
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Anafenza, Unyielding Lineage
+2 Armored Griffin
+1 Brightfield Glider
+1 Bristling Hydra
+2 Carnassid
+1 Clear
+1 Collective Unconscious
+1 Curious Colossus
+1 Damning Verdict
+1 Dragon Sniper
+1 Drannith Magistrate
+2 Galewind Moose
+1 Harnessed Snubhorn
+1 Ironclad Slayer
+1 Jolly Gerbils
+1 Key to the City
+2 Leonardo, Sewer Samurai
+2 Naturalize
+1 Sacred Cat
+2 Sandbenders' Storm
+1 Scaleguard Sentinels
+1 Searing Light
+1 Shapers' Sanctuary
+2 Thorn Mammoth
+1 Thundering Ceratok
+1 Vanish into Eternity
+1 White Lotus Reinforcements
+1 Brushland
+11 Forest
+2 Grove of the Guardian
+9 Plains
+2 Vigorbloom Annex

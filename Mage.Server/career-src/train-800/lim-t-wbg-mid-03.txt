@@ -1,0 +1,42 @@
+# name: Train800 lim-t-wbg-mid-03
+# archetype: limited_mid
+# colors: WBG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aerial Responder
+1 Archdemon of Paliano
+1 Archpriest of Shadows
+1 Attentive Sunscribe
+1 Bellowing Tanglewurm
+1 Bladed Ambassador
+1 Bovine Intervention
+1 Brave-Kin Duo
+1 Fungal Infection
+1 Gallant Strike
+1 Grasping Longneck
+1 Juggernaut
+1 Lagonna-Band Storyteller
+1 Liliana's Scorn
+1 Live Fast
+2 Magnigoth Sentry
+1 Mardu Hateblade
+1 Myr Custodian
+2 Nethroi, Apex of Death
+1 Ordinary Bear
+1 Parhelion Patrol
+1 Scrabbling Claws
+1 Shambling Ghoul
+2 Spirit of the Spires
+1 Stampeding Scurryfoot
+2 Stern Constable
+1 Stingblade Assassin
+2 Strength of the Coalition
+1 Sundering Growth
+1 The Swarmweaver
+1 Warden of the First Tree
+2 Etched Cornfield
+3 Forest
+2 Grove of the Guardian
+5 Plains
+2 Sandsteppe Citadel
+2 Sunpetal Grove
+8 Swamp

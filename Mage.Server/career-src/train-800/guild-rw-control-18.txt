@@ -1,0 +1,22 @@
+# name: Train800 guild-rw-control-18
+# archetype: control
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Aethergeode Miner
+2 Anti-Venom, Horrifying Healer
+3 Chandra's Fury
+2 Channeled Dragonfire
+4 Halo Fountain
+2 Plasma Bolt
+2 Play with Fire
+3 Pride of the Road
+2 Prosperity Tycoon
+2 Repeating Barrage
+4 Sacred Fire
+3 Sire of Seven Deaths
+3 Truck Toss
+2 Battlefield Forge
+4 Inspiring Vantage
+7 Mountain
+9 Plains
+4 Raucous Carnival

@@ -1,0 +1,25 @@
+# name: Train800 tri-wbg-control-11
+# archetype: control
+# colors: WBG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Ant-Man's Army
+2 Arashi, the Sky Asunder
+2 Betor, Kin to All
+2 Crooked Custodian
+2 Cursebreak
+3 Gideon's Battle Cry
+2 Hive Mind Coprocessor
+2 Hour of Defeat
+3 Kura, the Boundless Sky
+4 Over the Edge
+3 Resistance Is Futile
+2 Roaming Throne
+1 Thornfist Striker
+3 Wedding Security
+4 Blooming Marsh
+2 Forest
+2 Llanowar Wastes
+4 Overgrown Tomb
+8 Plains
+4 Strangled Cemetery
+2 Swamp

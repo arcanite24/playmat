@@ -1,0 +1,23 @@
+# name: Train800 guild-br-aggro-01
+# archetype: aggro
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Akul the Unrepentant
+4 Armory Veteran
+3 Graveyard Marshal
+3 Insolent Neonate
+1 Mayhem Devil
+2 Misty Knight, Hero for Hire
+1 Play with Fire
+4 Rakdos, Lord of Riots
+4 Spark Jolt
+4 Spike Jester
+4 Stensia Uprising
+2 Sudden Breakthrough
+3 The Duras Sisters
+1 Tibalt, Rakish Instigator
+4 Badlands
+10 Mountain
+2 Smoldering Marsh
+4 Sulfurous Springs
+2 Swamp

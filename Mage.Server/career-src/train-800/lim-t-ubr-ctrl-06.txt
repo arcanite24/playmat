@@ -1,0 +1,37 @@
+# name: Train800 lim-t-ubr-ctrl-06
+# archetype: limited_ctrl
+# colors: UBR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Agents of HYDRA
+1 Alloy Myr
+1 Cool but Rude
+1 Don't Make a Sound
+1 Fire Lord Azula
+2 Forge Boss
+2 Guild Summit
+1 Hazardous Blast
+1 Herald of Anguish
+1 Hoarding Dragon
+1 Hostile Takeover
+2 Hunted Nightmare
+1 Introduction to Annihilation
+2 Krydle of Baldur's Gate
+1 Necropolis Regent
+1 Olivia, Mobilized for War
+2 Phyrexian Gargantua
+2 Piggy Bank
+1 Raze the Effigy
+2 Scorch Rider
+2 Searing Blood
+1 Sengir Vampire
+1 Suus Mahna Practitioner
+2 Tragic Lesson
+1 Underworld Sentinel
+1 Wash Away
+2 Blackcleave Cliffs
+2 Cinder Marsh
+2 Crosis's Catacombs
+5 Island
+4 Mountain
+2 Sulfurous Springs
+8 Swamp

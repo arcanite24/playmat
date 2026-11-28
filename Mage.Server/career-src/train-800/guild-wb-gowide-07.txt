@@ -1,0 +1,24 @@
+# name: Train800 guild-wb-gowide-07
+# archetype: gowide
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ageless Guardian
+4 Alabaster Host Sanctifier
+3 Ashnod's Harvester
+4 Audacious Infiltrator
+2 Ayli, Eternal Pilgrim
+2 Banishing Slash
+4 Bloodline Keeper
+2 Boggart Mischief
+4 Crumb and Get It
+3 Glorious Protector
+2 Mardu Strike Leader
+2 Nettle Guard
+2 Salt Road Skirmish
+2 Silverbeak Griffin
+1 Treacherous Greed
+4 Great Arashin City
+4 Neglected Manor
+10 Plains
+2 Shattered Sanctum
+2 Swamp

@@ -1,0 +1,37 @@
+# name: Train800 lim-g-gw-ctrl-10
+# archetype: limited_ctrl
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Abolish
+1 Ambush Krotiq
+1 Angelic Guardian
+2 Blazing Hope
+1 Brightglass Gearhulk
+1 Coati Scavenger
+2 Cystbearer
+1 Fate of the Sun-Cryst
+2 Fecund Greenshell
+1 Full Steam Ahead
+1 Glider Kids
+1 Heron-Blessed Geist
+1 Hexhaven Invigorator
+1 Lassoed by the Law
+1 Lotusguard Disciple
+1 Lumbering Battlement
+2 Mind Stone
+1 Mutant's Prey
+1 Nissa, Vital Force
+1 Segmented Krotiq
+1 Spectacular Pileup
+1 Springmane Cervin
+1 Studious First-Year
+2 Sumala Sentry
+1 Treeguard Duo
+1 Turntimber Ascetic
+2 Venerated Rotpriest
+1 Wickerfolk Thresher
+2 Canopy Vista
+13 Forest
+1 Overgrown Farmland
+7 Plains
+2 Razorverge Thicket

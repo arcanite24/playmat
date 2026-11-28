@@ -1,0 +1,23 @@
+# name: Train800 guild-gw-control-19
+# archetype: control
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Agonasaur Rex
+2 Break the Spell
+2 Cactarantula
+3 Collective Unconscious
+1 Creeperhulk
+1 Defiler of Faith
+2 Jolly Gerbils
+3 Kellan's Lightblades
+2 Knight of the White Orchid
+3 Primordial Pachyderm
+3 Rally the Monastery
+2 Rhonas the Indomitable
+3 The Wanderer
+3 Topple the Statue
+4 Brushland
+4 Canopy Vista
+2 Etched Cornfield
+9 Forest
+7 Plains

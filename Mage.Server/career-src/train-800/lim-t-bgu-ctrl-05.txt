@@ -1,0 +1,40 @@
+# name: Train800 lim-t-bgu-ctrl-05
+# archetype: limited_ctrl
+# colors: BGU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Abomination, Irradiated Brute
+1 All-Seeing Arbiter
+1 Arbor Adherent
+1 Courier Bat
+2 Cuboid Colony
+1 Culvert Ambusher
+1 Deadly Embrace
+1 Demon's Grasp
+2 Destroy the Evidence
+2 Drown in the Loch
+1 Elven Raft-Steerer
+1 Feral Krushok
+1 Freestrider Commando
+1 Garruk's Warsteed
+1 Glarb, Calamity's Augur
+1 Gnashing of Teeth
+1 Hydrolash
+1 Icehide Troll
+2 Mabel, Bitter Recluse
+1 Maelstrom Pulse
+2 Mind Meanderer
+1 Mosscoat Goriak
+1 Polymorphist's Jest
+1 Pop Quiz
+1 Rampart Hunter
+1 Ruination Guide
+2 Shatter the Oath
+1 Uncomfortable Chill
+1 Zephyr Sentinel
+2 Dreamroot Cascade
+5 Forest
+5 Island
+2 Opulent Palace
+2 Sunken Hollow
+7 Swamp
+2 Zagoth Triome

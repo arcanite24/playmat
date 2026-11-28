@@ -1,0 +1,25 @@
+# name: Train800 guild-wu-aggro-03
+# archetype: aggro
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Alquist Proft, Master Sleuth
+2 Arcane Subtraction
+2 Basri's Lieutenant
+1 Capricious Sorcerer
+4 Countless Gears Renegade
+4 Dennick, Pious Apprentice
+3 Glory-Bound Initiate
+3 Hamato Guardian Stance
+2 Rod of Ruin
+2 Soldier of the Pantheon
+2 Splash Portal
+3 Sram, Senior Edificer
+3 Storyteller Pixie
+1 Surgical Skullbomb
+2 Throwing Knife
+3 Unyielding Gatekeeper
+2 Adarkar Wastes
+4 Fortified Beachhead
+2 Island
+9 Plains
+4 Prairie Stream

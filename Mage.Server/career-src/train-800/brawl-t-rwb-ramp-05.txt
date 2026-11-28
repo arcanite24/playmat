@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-rwb-ramp-05
+# archetype: brawl_ramp
+# colors: RWB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Bitter Reunion
+1 Canyon Lurkers
+1 Cloudpiercer
+1 Crimson Muckwader
+1 Deathbellow Raider
+1 Desiccated Naga
+1 Dire Fleet Ravager
+1 Geist of the Moors
+1 Gilded Pinions
+1 Kardur, Doomscourge
+1 Keeper of the Quiet Hour
+1 Kellan's Lightblades
+1 Laughing Jasper Flint
+1 Mardu Banner
+1 Massacre Wurm
+1 Murderous Rider
+1 Nyxborn Marauder
+1 Obosh, the Preypiercer
+1 Outpost Siege
+1 Pouncing Lynx
+1 Repeating Barrage
+1 Scarlet Spider, Kaine
+1 Scheming Silvertongue
+1 Searing Spear Askari
+1 Sneering Shadewriter
+1 Solar Blaze
+1 Steel-Plume Marshal
+1 Sterling Hound
+1 Sundering Archaic
+1 The Misty Mountains Cold
+1 The Soul Stone
+1 Touch of the Void
+1 Undercity Necrolisk
+1 Vengeant Vampire
+1 Waste Not
+1 Badlands
+1 Billiard Room
+1 Blackcleave Cliffs
+1 Cinder Marsh
+1 Dragonskull Summit
+1 Haunted Ridge
+2 Mountain
+1 Neglected Manor
+1 Nomad Outpost
+4 Plains
+1 Qo'noS
+1 Razortrap Gorge
+1 Savai Triome
+1 Smoldering Marsh
+1 Sulfurous Springs
+6 Swamp

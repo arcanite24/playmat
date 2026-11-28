@@ -1,0 +1,25 @@
+# name: Train800 guild-ur-tempo-08
+# archetype: tempo
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Annul
+4 Casey Jones, Vigilante
+3 Culmination of Studies
+1 Cunning Strike
+2 Deal Broker
+2 Dragonmaster Outcast
+3 Fervent Champion
+3 Frostburn Weird
+2 Get Out
+2 Goblin Bombardment
+2 Izzet Charm
+4 Mechan Navigator
+1 Planetary Patrol
+2 Prismari Charm
+2 Ral's Outburst
+3 Ral, Izzet Viceroy
+4 Island
+8 Mountain
+4 Peculiar Lighthouse
+4 Shivan Reef
+2 Stormcarved Coast

@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-rwb-ctrl-06
+# archetype: brawl_ctrl
+# colors: RWB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Air Nomad Student
+1 Anaba Bodyguard
+1 Beckon Apparition
+1 Betrayer's Bargain
+1 Bruse Tarl, Boorish Herder
+1 Demonlord Belzenlok
+1 Descent of the Dragons
+1 Desert Sandstorm
+1 Eliminate
+1 Encounter the Unknown
+1 Epiphany Storm
+1 Falkenrath Forebear
+1 Gravecrawler
+1 Hearth Elemental
+1 Hellkite Whelp
+1 Hoarding Dragon
+1 Imperial Lancer
+1 Kardur's Vicious Return
+1 Kickoff Celebrations
+1 Knight of Valor
+1 Kolaghan, the Storm's Fury
+1 Lambholt Raconteur
+1 Make Mischief
+1 Malamet War Scribe
+1 Mothrider Patrol
+1 Orator of Ojutai
+1 Relentless X-ATM092
+1 Spectacular Tactics
+1 Supply Drop
+1 Thrilling Discovery
+1 Unleash Shell
+1 Unyielding Gatekeeper
+1 Wrecking Crew
+1 Zealot of the God-Pharaoh
+1 Zombie Goliath
+1 Battlefield Forge
+1 Clifftop Retreat
+1 Dalkovan Encampment
+1 Dedicated Commons
+1 Inspiring Vantage
+7 Mountain
+1 Nomad Outpost
+2 Plains
+1 Raucous Carnival
+1 Sacred Foundry
+1 Savai Triome
+1 Smoldering Marsh
+1 Sulfurous Springs
+1 Sunbaked Canyon
+1 Sundown Pass
+3 Swamp

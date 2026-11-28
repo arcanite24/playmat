@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-wub-ctrl-06
+# archetype: brawl_ctrl
+# colors: WUB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Amazing Acrobatics
+1 Anguished Unmaking
+1 Anointer of Valor
+1 Chakra Meditation
+1 Chancellor Gorkon
+1 Charred Graverobber
+1 Dakkon, Shadow Slayer
+1 Didn't Say Please
+1 Felhide Petrifier
+1 Field Research
+1 Great Hart
+1 Grounded for Life
+1 Immortal Servitude
+1 Jennika, Bad Apple Big Sister
+1 Join the Dead
+1 Keep Out
+1 Leapfrog
+1 Meletis Astronomer
+1 Ogre Jailbreaker
+1 Overkill
+1 Psychic Strike
+1 Restore the Peace
+1 Retraction Helix
+1 Rune of Mortality
+1 Shambling Ghast
+1 Shimmer Dragon
+1 Singularity Rupture
+1 Spell Shrivel
+1 Suspicious Shambler
+1 Tattered Mummy
+1 Teysa Karlov
+1 The Ancient One
+1 Ultimecia, Time Sorceress
+1 Vile Mutilator
+1 You're Ambushed on the Road
+1 Arcane Sanctum
+1 Concealed Courtyard
+1 Darkslick Shores
+1 Deserted Beach
+1 Drowned Catacomb
+1 Great Arashin City
+4 Island
+1 Isolated Chapel
+1 Murky Sewer
+2 Plains
+1 Prairie Stream
+1 Raffine's Tower
+1 Shipwreck Marsh
+1 Sunken Hollow
+6 Swamp
+1 Underground River

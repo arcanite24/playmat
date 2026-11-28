@@ -1,0 +1,24 @@
+# name: Train800 guild-wu-gowide-07
+# archetype: gowide
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Black Widow, Intel Expert
+2 Goblin Boom Keg
+3 Harbin, Vanguard Aviator
+2 Jace, the Perfected Mind
+3 Jem Lightfoote, Sky Explorer
+3 Kinsbaile Aspirant
+3 Leonin Warleader
+4 Mighty Leap
+2 Proft, Consulting Detective
+1 Reluctant Role Model
+3 Rhys, the Evermore
+3 Skystreak Engineer
+3 Sundial, Dawn Tyrant
+1 Tezzeret, Artifice Master
+2 Turn into a Pumpkin
+2 Abandoned Campground
+4 Cloudcrest Lake
+3 Island
+9 Plains
+4 Prairie Stream

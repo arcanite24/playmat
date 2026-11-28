@@ -1,0 +1,26 @@
+# name: Train800 tribal-ur-wizard-01
+# archetype: tribal (Wizard)
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Alandra, Sky Dreamer
+3 Axiom Engraver
+2 Baral, Chief of Compliance
+3 Belligerent Yearling
+1 Emeritus of Conflict
+1 Expedition Diviner
+2 Flame Channeler
+3 Ghitu Amplifier
+3 Ghitu Journeymage
+2 Lyra, Tolarian Archangel
+3 Merfolk Trickster
+2 Naru Meha, Master Wizard
+1 Precise Strike
+3 Seeker of Insight
+2 Third Path Savant
+2 Unsparing Boltcaster
+2 Wind Strider
+10 Island
+3 Mountain
+4 Peculiar Lighthouse
+2 Shivan Reef
+4 Stormcarved Coast

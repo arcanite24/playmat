@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-ub-ctrl-07
+# archetype: brawl_ctrl
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aethertide Whale
+1 Alpharael, Dreaming Acolyte
+1 Blight Grenade
+1 Body Count
+1 Bog Wraith
+1 Consume the Meek
+1 Council of Echoes
+1 Cursed Monstrosity
+1 Darkness Descends
+1 Defeat
+1 Eliminate the Competition
+1 Embrace Oblivion
+1 Galerider Sliver
+1 Glimpse of Freedom
+1 Gold-Forged Sentinel
+1 Goremand
+1 Hired Blade
+1 Inscribed Tablet
+1 Insidious Will
+1 Liliana, the Last Hope
+1 Overwhelming Remorse
+1 Preacher of the Schism
+1 Queen's Bay Soldier
+1 Scarecrow Guide
+1 Shadow Rider
+1 Silumgar's Command
+1 Skitter Eel
+1 Unwind
+1 Vadmir, New Blood
+1 Wash Away
+1 Waylaying Pirates
+1 We Say Thee Nay!
+1 Winged Words
+1 Writhing Necromass
+1 You Are Already Dead
+1 Darkslick Shores
+1 Dimir Guildgate
+1 Drowned Catacomb
+4 Island
+1 Murky Sewer
+1 Shipwreck Marsh
+1 Sinister Hideout
+1 Sunken Hollow
+12 Swamp
+1 Underground River
+1 Waterfront District

@@ -1,0 +1,19 @@
+# name: Train800 tribal-g-elf-02
+# archetype: tribal (Elf)
+# colors: G
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Allosaurus Shepherd
+1 Champions of the Perfect
+1 Crushing Vines
+3 Dwynen's Elite
+3 Dwynen, Gilt-Leaf Daen
+4 Elvish Warmaster
+4 Ezuri, Renegade Leader
+2 Grizzled Outrider
+3 Growth-Chamber Guardian
+4 Longstalk Brawl
+2 Marwyn, the Preserver
+1 Ravenous Amulet
+2 Ruthless Instincts
+4 Vinebred Brawler
+22 Forest

@@ -1,0 +1,26 @@
+# name: Train800 tri-wub-bigmana-10
+# archetype: bigmana
+# colors: WUB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Archfiend of Depravity
+4 Azorius Cluestone
+1 Black Sun's Twilight
+3 Blue Dragon
+1 Coerced Confession
+2 Cult Conscript
+3 Darkblade Agent
+1 Dimir Cluestone
+4 Keep Out
+1 Pouncing Shoreshark
+2 Soul of New Phyrexia
+2 Tome of the Guildpact
+3 Water Tribe Captain
+2 Whiplash, Vengeful Engineer
+2 Windrider Wizard
+4 Darkslick Shores
+2 Island
+2 Murky Sewer
+8 Plains
+4 Shipwreck Marsh
+4 Sunken Hollow
+2 Swamp

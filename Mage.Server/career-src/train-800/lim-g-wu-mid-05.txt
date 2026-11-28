@@ -1,0 +1,37 @@
+# name: Train800 lim-g-wu-mid-05
+# archetype: limited_mid
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Afterthought Sentry
+1 Angelic Shield
+1 Ballroom Brawlers
+1 Bandage
+1 Brimaz, King of Oreskos
+1 Citywatch Sphinx
+1 Cloudsteel Kirin
+2 Dewdrop Spy
+1 Diamond Mare
+1 Djinni Windseer
+1 Doomskar Oracle
+1 Entity Tracker
+1 Generous Gift
+2 Heliod, the Radiant Dawn
+2 Hydrosurge
+1 Living Conundrum
+1 Ojer Taq, Deepest Foundation
+1 Radiant Strike
+1 Shatterwing Pegasus
+2 Skyswimmer Koi
+1 Spider-Bot
+2 Spider-Woman, Stunning Savior
+1 Staunch Shieldmate
+1 Tolarian Kraken
+2 Triton Tactics
+1 Una Chin-Riley, Number One
+1 Vexing Gull
+2 Zulaport Duelist
+2 Cloudcrest Lake
+2 Glacial Fortress
+10 Island
+9 Plains
+1 Seachrome Coast

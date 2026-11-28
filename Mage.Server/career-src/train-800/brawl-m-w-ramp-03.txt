@@ -1,0 +1,40 @@
+# name: Train800 brawl-m-w-ramp-03
+# archetype: brawl_ramp
+# colors: W
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Absolving Lammasu
+1 Adherent of Hope
+1 Bagel and Schmear
+1 Barrels of Blasting Jelly
+1 Blitzball
+1 Brightmare
+1 Charming Prince
+1 Cleansing Nova
+1 Countless Gears Renegade
+1 Decoction Module
+1 Envoy of Okinec Ahau
+1 Fear of Immobility
+1 Femeref Knight
+1 Food Coma
+1 Free Borg Revolutionaries
+1 Gideon's Memorial
+1 Gleaming Splendor
+1 Haazda Vigilante
+1 Harvestrite Host
+1 Hushwing Gryff
+1 In the Trenches
+1 Ingenious Leonin
+1 Knight of the New Coalition
+1 Lonesome Unicorn
+1 Ondu War Cleric
+1 Oreskos Sun Guide
+1 Orthodoxy Enforcer
+1 Pileated Provisioner
+1 Prosperity Tycoon
+1 Salt Road Patrol
+1 Shepherd of Heroes
+1 Skyswirl Harrier
+1 Smite
+1 Staff of Compleation
+1 Sunscorch Regent
+25 Plains

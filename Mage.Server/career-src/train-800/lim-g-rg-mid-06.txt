@@ -1,0 +1,38 @@
+# name: Train800 lim-g-rg-mid-06
+# archetype: limited_mid
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Artisan's Sorrow
+2 Bristling Boar
+1 Cemetery Prowler
+1 Clash of Titans
+1 Deeproot Wayfinder
+1 Electrify
+1 Environmental Scientist
+1 Glade Watcher
+1 Goblin Glasswright
+1 Hivespine Wolverine
+1 Ixalli's Lorekeeper
+1 Kona, Rescue Beastie
+1 Laughing Mad
+1 Magnigoth Sentry
+2 Might of the Masses
+2 Millennium Falcon
+2 Nasty Little Rabbit
+1 Noggle Robber
+1 Nurturing Bristleback
+1 Oashra Cultivator
+1 Oil-Gorger Troll
+1 Omnivorous Flytrap
+1 Purple Dragon Punks
+2 Redrock Sentinel
+1 Rootwire Amalgam
+2 Skyraker Giant
+2 Spider-Islanders
+1 Tibalt's Rager
+1 Vulpine Goliath
+15 Forest
+2 Karplusan Forest
+4 Mountain
+1 Rockfall Vale
+2 Rootbound Crag

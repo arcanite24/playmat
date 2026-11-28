@@ -1,0 +1,37 @@
+# name: Train800 lim-t-rgw-mid-04
+# archetype: limited_mid
+# colors: RGW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Action News Crew
+1 Ajani's Comrade
+1 Caldaia Guardian
+1 Dawnhart Rejuvenator
+1 Disciple of the Old Ways
+1 Excavation Mole
+2 Falkenrath Celebrants
+1 Gore-House Chainwalker
+2 Gyre Sage
+1 Hostile Minotaur
+1 Hulk, Gamma Goliath
+2 Jetmir, Nexus of Revels
+1 Kor Castigator
+1 Mentor of the Meek
+2 Moonrager's Slash
+1 Most Valuable Slayer
+2 Personify
+2 Purphoros's Emissary
+2 Satsuki, the Living Lore
+1 Skycrash
+2 Startled Relic Sloth
+1 Storm Caller
+2 Swift Justice
+1 Treasure Chest
+2 Tuinvale Treefolk
+1 Voja, Jaws of the Conclave
+2 Etched Cornfield
+5 Forest
+2 Grove of the Guardian
+2 Jetmir's Garden
+8 Mountain
+3 Plains
+2 Raucous Carnival

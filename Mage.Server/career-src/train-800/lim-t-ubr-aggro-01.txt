@@ -1,0 +1,38 @@
+# name: Train800 lim-t-ubr-aggro-01
+# archetype: limited_aggro
+# colors: UBR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Anchovy & Banana Pizza
+1 Bloodtithe Harvester
+2 Cruel Cut
+1 Darkslick Drake
+1 Dire Fleet Warmonger
+1 Fearless Swashbuckler
+2 Fire Shrine Keeper
+2 Heart-Piercer Manticore
+2 Kroxa, Titan of Death's Hunger
+2 Lightning Mare
+2 Marchesa, Dealer of Death
+2 Moment of Craving
+2 Night Market Lookout
+1 Overwhelmed Apprentice
+1 Ovika, Enigma Goliath
+2 Satyr Nyx-Smith
+1 Scalding Viper
+1 Shambling Goblin
+1 Shipwreck Singer
+1 Shrapnel Blast
+1 Smitten Swordmaster
+1 Solphim, Mayhem Dominus
+1 Stensia Uprising
+1 Uncaged Fury
+1 Vindictive Warden
+1 Warchief Giant
+2 Whirling Strike
+2 Badlands
+2 Crosis's Catacombs
+2 Dragonskull Summit
+3 Island
+10 Mountain
+2 Razortrap Gorge
+2 Swamp

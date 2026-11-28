@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-br-mid-03
+# archetype: brawl_mid
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Abbot of Keral Keep
+1 Alania's Pathmaker
+1 Angrath's Fury
+1 Basalt Gargoyle
+1 Boggart Trawler
+1 Boneclad Necromancer
+1 Carnage Interpreter
+1 Chandra's Fury
+1 Combustible Gearhulk
+1 Conduit of Ruin
+1 Dauthi Slayer
+1 Deathbellow Raider
+1 Draugr Recruiter
+1 Equilibrium Adept
+1 Fell Stinger
+1 Fiery Intervention
+1 Footlight Fiend
+1 Furyblade Vampire
+1 Goblin Racketeer
+1 Oread of Mountain's Blaze
+1 Purple Dragon Punks
+1 Rakdos, the Muscle
+1 Roving Keep
+1 Rune of Speed
+1 Shivan Fire
+1 Shriek, Treblemaker
+1 Sinister Concoction
+1 Skewer Slinger
+1 Strangle
+1 The Darkhold
+1 Thought-Stalker Warlock
+1 Urabrask
+1 Vote Out
+1 Warmind Infantry
+1 Wingnut, Bat on the Belfry
+1 Badlands
+1 Blackcleave Cliffs
+1 Cinder Marsh
+1 Dragonskull Summit
+1 Haunted Ridge
+1 Hell's Kitchen
+11 Mountain
+1 Razortrap Gorge
+1 Smoldering Marsh
+1 Sulfurous Springs
+5 Swamp

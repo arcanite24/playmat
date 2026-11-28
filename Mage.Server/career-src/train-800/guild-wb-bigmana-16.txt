@@ -1,0 +1,23 @@
+# name: Train800 guild-wb-bigmana-16
+# archetype: bigmana
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 All-Fates Scroll
+2 Archdemon of Paliano
+1 Battle Brawler
+4 Bone Dragon
+4 Cruel Cut
+2 Energy Refractor
+4 Grim Strider
+3 Indoctrination Attendant
+3 Knight of Malice
+1 Legion's Landing
+1 Profane Procession
+4 Sidisi, Undead Vizier
+1 Twisted Fates
+2 Waste Not
+4 Caves of Koilos
+4 Great Arashin City
+2 Isolated Chapel
+2 Plains
+14 Swamp

@@ -1,0 +1,23 @@
+# name: Train800 tri-ubr-bigmana-09
+# archetype: bigmana
+# colors: UBR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Eternal Taskmaster
+4 Ilharg, the Raze-Boar
+1 Inferno Hellion
+2 Izzet Locket
+4 Merchant of the Vale
+4 Nicol Bolas, the Ravager
+4 Overlord of the Boilerbilges
+1 Punish the Enemy
+1 Rakdos Cluestone
+1 Rakshasa Gravecaller
+4 The Bloodsky Massacre
+4 Tome Blast
+2 Badlands
+4 Blackcleave Cliffs
+4 Cinder Marsh
+4 Crosis's Catacombs
+2 Island
+8 Mountain
+2 Swamp

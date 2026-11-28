@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-wu-mid-04
+# archetype: brawl_mid
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aang, Swift Savior
+1 Absorb Identity
+1 Archon of Redemption
+1 Azorius First-Wing
+1 Bard, Heir of Girion
+1 Cathedral Sanctifier
+1 Chieftain en-Dal
+1 Combat Professor
+1 Defiler of Faith
+1 Devout Monk
+1 Drowner of Hope
+1 Excoriate
+1 Faerie Vandal
+1 Fleeting Spirit
+1 Flight-Deck Coordinator
+1 Force Away
+1 Gudul Lurker
+1 Gust Walker
+1 Heliod, the Radiant Dawn
+1 Ironclad Krovod
+1 Loxodon Battle Priest
+1 Metallic Rebuke
+1 Roaming Throne
+1 Scale Blessing
+1 Serene Steward
+1 Shacklegeist
+1 Shocking Grasp
+1 Soulcipher Board
+1 Suspension Field
+1 Swiftwing Assailant
+1 Tezzeret's Simulacrum
+1 Treasure Map
+1 True Love's Kiss
+1 Warren Warleader
+1 Yorion, Sky Nomad
+1 Abandoned Campground
+1 Adarkar Wastes
+1 Cloudcrest Lake
+1 Deserted Beach
+1 Fortified Beachhead
+1 Glacial Fortress
+2 Island
+1 Meandering River
+14 Plains
+1 Prairie Stream
+1 Seachrome Coast

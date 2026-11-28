@@ -1,0 +1,22 @@
+# name: Train800 guild-ub-tempo-10
+# archetype: tempo
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Basim Ibn Ishaq
+3 Code of Constraint
+4 Drifter il-Dal
+2 Drown in the Loch
+2 Failed Inspection
+4 Gnarlbark Elm
+2 Herald of Torment
+4 Kaito, Bane of Nightmares
+3 Liliana, Untouched by Death
+3 Order of Midnight
+2 Soothsayer Adept
+2 Unravel
+3 Vraska's Final Mercy
+4 Island
+4 Shipwreck Marsh
+2 Sunken Hollow
+8 Swamp
+4 Underground River

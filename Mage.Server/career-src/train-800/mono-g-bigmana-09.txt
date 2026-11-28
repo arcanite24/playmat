@@ -1,0 +1,20 @@
+# name: Train800 mono-g-bigmana-09
+# archetype: bigmana
+# colors: G
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Archdruid's Charm
+3 Battle Mammoth
+3 Bramble Familiar
+3 Brightcap Badger
+2 Chromatic Sphere
+2 Coliseum Behemoth
+1 Collective Unconscious
+1 Containment Breach
+4 Emil, Vastlands Roamer
+2 Frontier Siege
+2 Gladewalker Ritualist
+2 Nissa, Voice of Zendikar
+2 Staff of Compleation
+4 Warden of the Woods
+2 You Find a Cursed Idol
+26 Forest

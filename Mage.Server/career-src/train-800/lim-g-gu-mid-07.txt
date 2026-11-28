@@ -1,0 +1,34 @@
+# name: Train800 lim-g-gu-mid-07
+# archetype: limited_mid
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aethertide Whale
+1 Arni, Humble Scribe
+1 Ballista Charger
+1 Citanul Stalwart
+1 Confront the Unknown
+1 Cosmos Charger
+1 Curate
+1 Curio Vendor
+2 Desculpting Blast
+2 Dreamdew Entrancer
+1 Empyreal Voyager
+2 Kishla Skimmer
+2 Lakeshore Apothecary
+2 Lullmage's Familiar
+2 Narnam Cobra
+1 Ominous Seas
+2 Saber-Tooth Moose-Lion
+2 Serum Snare
+2 Shackle Slinger
+2 Thawbringer
+2 The Lion-Turtle
+1 Tyrranax Atrocity
+1 Vaultborn Tyrant
+1 Watchers of the Dead
+1 Wildsize
+2 Dreamroot Cascade
+9 Forest
+10 Island
+2 Lakeside Shack
+1 Transformative Commons

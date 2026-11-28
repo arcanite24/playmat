@@ -1,0 +1,36 @@
+# name: Train800 lim-t-bgu-mid-04
+# archetype: limited_mid
+# colors: BGU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Agent of Horizons
+1 Aisling Leprechaun
+1 Barkform Harvester
+2 Bonecache Overseer
+1 Child of Thorns
+1 Clammy Prowler
+1 Departed Deckhand
+2 Even the Score
+1 Floodpits Drowner
+2 Kheru Goldkeeper
+1 King Harald's Revenge
+1 Kiora, Sovereign of the Deep
+2 Kothophed, Soul Hoarder
+1 Landscape Painter
+2 Mardu Shadowspear
+2 Mutant Chain Reaction
+1 Nyxborn Triton
+1 Pestered Wellguard
+2 Roalesk, Apex Hybrid
+1 Rush of Vitality
+2 Shredder's Technique
+2 Sidisi, Brood Tyrant
+2 Slogurk, the Overslime
+2 Starlit Soothsayer
+1 Winter's Intervention
+2 Darkslick Shores
+4 Forest
+6 Island
+2 Lakeside Shack
+2 Opulent Palace
+6 Swamp
+2 Zagoth Triome

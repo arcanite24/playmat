@@ -1,0 +1,24 @@
+# name: Train800 guild-wu-midrange-11
+# archetype: midrange
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Bard, Heir of Girion
+1 Befuddle
+2 Crashing Tide
+2 Crude Rampart
+1 Explosive Apparatus
+2 Fleeting Spirit
+4 Jace, Unraveler of Secrets
+4 King T'Challa
+1 Lassoed by the Law
+2 Ojer Taq, Deepest Foundation
+3 Teferi, Who Slows the Sunset
+2 The Mindskinner
+2 Valkyrie Harbinger
+2 Valley Questcaller
+4 Watcher of the Spheres
+4 Adarkar Wastes
+4 Cloudcrest Lake
+2 Fortified Beachhead
+8 Island
+6 Plains

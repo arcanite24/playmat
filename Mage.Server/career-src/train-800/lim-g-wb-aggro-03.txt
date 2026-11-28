@@ -1,0 +1,37 @@
+# name: Train800 lim-g-wb-aggro-03
+# archetype: limited_aggro
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Agent Phil Coulson
+2 Ainok Bond-Kin
+1 Anoint with Affliction
+1 Bitter Downfall
+2 Celestial Unicorn
+1 Death Wind
+2 Demon of Loathing
+2 Denethor, Ruling Steward
+1 Duelcraft Trainer
+1 Fetid Imp
+1 Guardian of Ghirapur
+1 Hundred-Handed One
+1 Kitesail Cleric
+1 LAAT Gunship
+1 Mabel's Mettle
+2 Mortal's Ardor
+1 Necropanther
+1 Necrotic Wound
+1 Prideful Feastling
+1 Qarsi Sadist
+1 Reno and Rude
+2 Retched Wretch
+1 Rotting Regisaur
+1 Scolding Administrator
+1 Spectacular Tactics
+2 Syndicate Guildmage
+2 Twilight Panther
+2 War Screecher
+2 Caves of Koilos
+2 Isolated Chapel
+1 Neglected Manor
+11 Plains
+7 Swamp

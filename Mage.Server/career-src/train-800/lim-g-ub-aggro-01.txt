@@ -1,0 +1,38 @@
+# name: Train800 lim-g-ub-aggro-01
+# archetype: limited_aggro
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Adorned Crocodile
+1 Agate-Blade Assassin
+1 Agent of the Fates
+1 Bearer of Silence
+1 Blind Zealot
+1 Bloodthirsty Aerialist
+1 Cabal Evangel
+1 Clockwork Fox
+1 Cloud Pirates
+2 Curator of Mysteries
+2 Eaten Alive
+1 Elektra, Daughter of the Hand
+2 Federation Probe
+2 Grotesque Mutation
+2 House Guildmage
+1 Kraul Raider
+1 Liliana's Steward
+1 Miasmic Mummy
+1 Nezumi Prowler
+1 Picklock Prankster
+1 Raven Eagle
+1 Rook Turret
+1 Slitherwisp
+2 Squirrelanoids
+1 Sugar Rush
+2 Taken by Nightmares
+1 Twilight Diviner
+1 Underworld Charger
+1 Vicious Rumors
+2 Darkslick Shores
+2 Drowned Catacomb
+2 Island
+1 Sunken Hollow
+16 Swamp

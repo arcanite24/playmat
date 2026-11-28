@@ -1,0 +1,20 @@
+# name: Train800 tribal-u-wizard-01
+# archetype: tribal (Wizard)
+# colors: U
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aeolipile
+2 Dour Port-Mage
+3 Encouraging Aviator
+4 Galestrike
+1 Goblin Firebomb
+3 Ichor Synthesizer
+4 Meletis Astronomer
+1 Mizzium Skin
+1 Muse Seeker
+3 Naru Meha, Master Wizard
+3 Sinister Cryologist
+3 Soothsayer Adept
+2 Teferi's Protege
+4 Vedalken Mesmerist
+2 Windrider Patrol
+23 Island

@@ -1,0 +1,24 @@
+# name: Train800 tri-brg-aggro-01
+# archetype: aggro
+# colors: BRG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Balthier and Fran
+4 Bitterbloom Bearer
+4 Collective Defiance
+2 Draconautics Engineer
+4 Fleshless Gladiator
+3 Hallar, the Firefletcher
+1 Kolaghan's Command
+3 Noose Constrictor
+2 Oracle's Restoration
+2 Reality Hemorrhage
+3 Scrapwork Mutt
+3 Silumgar Assassin
+3 Tibalt, Rakish Instigator
+4 Cinder Marsh
+4 Darigaaz's Caldera
+4 Forest
+2 Mountain
+4 Razortrap Gorge
+2 Sulfurous Springs
+2 Swamp

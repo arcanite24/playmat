@@ -1,0 +1,24 @@
+# name: Train800 guild-br-control-19
+# archetype: control
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Artistic Process
+1 Blindblast
+2 Common Crook
+3 Consuming Sinkhole
+4 Furnace Punisher
+2 Galvanic Blast
+3 Grab the Prize
+1 Hellkite Tyrant
+2 Open Fire
+4 Rakdos, the Muscle
+1 Ravenous Giant
+2 Seismic Wave
+1 Slaying Fire
+4 Unfriendly Fire
+1 Wizard's Lightning
+2 Badlands
+4 Cinder Marsh
+4 Haunted Ridge
+14 Mountain
+2 Swamp

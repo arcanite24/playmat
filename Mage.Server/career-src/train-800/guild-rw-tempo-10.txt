@@ -1,0 +1,26 @@
+# name: Train800 guild-rw-tempo-10
+# archetype: tempo
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Call In a Professional
+2 Colorful Feiyi Sparrow
+1 Compleat Devotion
+1 Daring Skyjek
+3 Dromoka Warrior
+3 Fear of Surveillance
+2 Galvanic Blast
+1 Goblin Bombardment
+4 Joshua, Phoenix's Dominant
+3 Lorehold Command
+1 Molten Birth
+1 Nahiri, the Harbinger
+2 Odric, Blood-Cursed
+2 Precision Bolt
+3 Release the Gremlins
+4 Vanguard of the Rose
+4 Warleader's Helix
+2 Inspiring Vantage
+5 Mountain
+7 Plains
+4 Raucous Carnival
+4 Sundown Pass

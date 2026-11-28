@@ -1,0 +1,37 @@
+# name: Train800 lim-g-rg-aggro-04
+# archetype: limited_aggro
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Beast Mode
+1 Bolt of Keranos
+1 Bristlebane Outrider
+1 Brood Weaver
+1 Canopy Spider
+2 Captain Michael Burnham
+2 Casey Jones, Jury-Rig Justiciar
+1 Charging Strifeknight
+2 Defense Force Aggressor
+1 Gallia of the Endless Dance
+1 Grand Warlord Radha
+1 Greenbelt Rampager
+1 Kolaghan Stormsinger
+1 Make Mischief
+2 Molten Vortex
+1 Omen of the Forge
+1 Rampart Smasher
+2 Regathan Firecat
+1 Rigging Runner
+2 Roil Eruption
+1 Saru, Unthreatened
+1 Savage Surge
+2 Slagdrill Scrapper
+2 Spined Karok
+2 Viashino Branchrider
+1 Vine Gecko
+1 Vines of the Recluse
+2 Zhur-Taa Ancient
+2 Bleeding Woods
+5 Forest
+2 Karplusan Forest
+12 Mountain
+1 Rockfall Vale

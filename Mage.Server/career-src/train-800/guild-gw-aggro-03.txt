@@ -1,0 +1,25 @@
+# name: Train800 guild-gw-aggro-03
+# archetype: aggro
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Aerial Maneuver
+1 Aetherflux Reservoir
+1 Bee Sting
+3 Bubbling Cauldron
+2 Cadira, Caller of the Small
+2 Conclave Guildmage
+2 Dusk Legion Duelist
+4 Finneas, Ace Archer
+3 Heritage Reclamation
+2 Seraphic Steed
+1 Sigarda, Champion of Light
+4 Silk, Web Weaver
+3 Skyway Sniper
+2 Teachings of the Kirin
+3 Voice of Resurgence
+3 Wandering Champion
+4 Canopy Vista
+4 Etched Cornfield
+6 Forest
+6 Plains
+2 Vigorbloom Annex

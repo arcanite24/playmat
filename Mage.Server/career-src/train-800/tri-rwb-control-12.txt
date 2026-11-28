@@ -1,0 +1,26 @@
+# name: Train800 tri-rwb-control-12
+# archetype: control
+# colors: RWB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Angel of Sanctions
+2 Boltwing Marauder
+3 Chaos Imps
+2 Divine Gambit
+2 Electrickery
+2 Farideh's Fireball
+2 Fissure Wizard
+3 Indulgent Tormentor
+2 Okoye, Dora Milaje Leader
+1 Ossification
+4 Revoke Existence
+3 Seismic Rupture
+1 Sephiroth, Fabled SOLDIER
+2 Spark Harvest
+3 Summoned Dromedary
+4 Clifftop Retreat
+4 Inspiring Vantage
+2 Mountain
+2 Plains
+4 Sacred Foundry
+2 Sundown Pass
+8 Swamp

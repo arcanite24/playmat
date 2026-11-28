@@ -1,0 +1,23 @@
+# name: Train800 guild-gu-aggro-01
+# archetype: aggro
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aetherflux Reservoir
+3 Blossoming Defense
+3 Destiny Spinner
+2 Icefeather Aven
+4 Kellan, Inquisitive Prodigy
+3 Kiora, Master of the Depths
+4 Kishla Skimmer
+2 Quandrix Charm
+3 Relic Vial
+4 River Hoopoe
+3 S.H.I.E.L.D. Deployment Drone
+1 Sporecrown Thallid
+3 Troublemaker Ouphe
+2 Vilespawn Spider
+8 Forest
+4 Island
+2 Lakeside Shack
+4 Transformative Commons
+4 Yavimaya Coast

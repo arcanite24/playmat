@@ -1,0 +1,18 @@
+# name: Train800 mono-u-midrange-05
+# archetype: midrange
+# colors: U
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Force Away
+3 Hydraulic Helper
+2 Jadzi, Steward of Fate
+2 Kasmina, Enigmatic Mentor
+2 Kefnet the Mindful
+4 Mu Yanling, Sky Dancer
+1 Ravenous Amulet
+4 Skyswimmer Koi
+2 Sleep-Cursed Faerie
+4 Sphinx of Magosi
+4 Stoic Sphinx
+3 Take the Fall
+3 Technodrome
+24 Island

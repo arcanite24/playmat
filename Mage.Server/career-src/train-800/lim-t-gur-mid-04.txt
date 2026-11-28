@@ -1,0 +1,42 @@
+# name: Train800 lim-t-gur-mid-04
+# archetype: limited_mid
+# colors: GUR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Anthousa, Setessan Hero
+1 Archaeomender
+1 Armored Scrapgorger
+1 Atarka, World Render
+1 Beluna Grandsquall
+1 Brackish Blunder
+1 Break Asunder
+1 Cacophodon
+1 Capital Guard
+1 Crash of Rhino Beetles
+1 Deadshot Minotaur
+1 Forgotten Sentinel
+2 Furious Bellow
+1 Gemrazer
+1 Iron-Fist Pulverizer
+1 Jousting Dummy
+1 Machine Over Matter
+1 Prismari Pledgemage
+1 Ramunap Excavator
+1 Reckless Reveler
+2 Redtooth Genealogist
+1 Rowdy Crew
+1 Serum-Core Chimera
+2 Slickshot Lockpicker
+1 Sphinx's Approach
+1 Spider-Slayer, Hatred Honed
+1 Tazeem Roilmage
+1 Tifa Lockhart
+1 Traumatic Critique
+2 Wind Drake
+1 Wretched Throng
+2 Botanical Sanctum
+4 Forest
+4 Island
+2 Ketria Triome
+2 Lakeside Shack
+8 Mountain
+2 Transformative Commons

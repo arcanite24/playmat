@@ -1,0 +1,26 @@
+# name: Train800 tri-ubr-gowide-03
+# archetype: gowide
+# colors: UBR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Akoum Stonewaker
+4 Battlefly Swarm
+4 Bloodtithe Harvester
+2 Carnage Interpreter
+2 Craven Hulk
+1 Hunt for Specimens
+2 Kolaghan's Command
+3 Mischievous Sneakling
+2 Misty Knight, Hero for Hire
+2 Molten Birth
+2 Prismari Command
+3 Qutrub Forayer
+4 Rabid Attack
+3 Runed Servitor
+2 Swarm Culler
+4 Blackcleave Cliffs
+4 Crosis's Catacombs
+2 Haunted Ridge
+2 Island
+2 Mountain
+4 Razortrap Gorge
+4 Swamp

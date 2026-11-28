@@ -1,0 +1,25 @@
+# name: Train800 tri-brg-midrange-05
+# archetype: midrange
+# colors: BRG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Alicia Masters, Skilled Sculptor
+1 Archdemon of Unx
+3 Blitz Hellion
+1 Cackling Flames
+2 Dark Deed
+3 Exquisite Firecraft
+2 Firebending Lesson
+2 Garruk's Packleader
+4 Lavaleaper
+4 Servant of the Stinger
+3 Tin Street Gossip
+3 Ultron Drone
+2 Volcanic Spite
+2 Voracious Typhon
+4 Bleeding Woods
+4 Darigaaz's Caldera
+2 Forest
+6 Mountain
+4 Rockfall Vale
+2 Stomping Ground
+2 Swamp

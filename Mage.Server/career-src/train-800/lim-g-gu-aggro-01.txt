@@ -1,0 +1,37 @@
+# name: Train800 lim-g-gu-aggro-01
+# archetype: limited_aggro
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aetherflux Reservoir
+1 Ambuscade
+1 Briarpack Alpha
+1 Burrowing Razormaw
+2 Crossroads Watcher
+1 Deepfathom Echo
+1 Demolisher Spawn
+2 Disperse
+1 Dynavolt Tower
+1 Fleetfeather Cockatrice
+2 Frilled Oculus
+1 Fynn, the Fangbearer
+1 Glamer Gifter
+2 High Stride
+1 Lurking Roper
+1 Quandrix Apprentice
+2 Shambleshark
+1 Slick Imitator
+1 Soulknife Spy
+1 Stratus Dancer
+2 Tatyova, Steward of Tides
+2 Terrain Elemental
+1 The Goose Mother
+2 Thranduil, Sindarin Liege
+1 Tigra, Feline Fury
+1 Void Snare
+2 Wilt
+1 Yuriko, Hope from the Shadows
+11 Forest
+2 Hinterland Harbor
+7 Island
+1 Lakeside Shack
+2 Yavimaya Coast

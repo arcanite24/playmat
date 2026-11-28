@@ -1,0 +1,24 @@
+# name: Train800 guild-gw-midrange-14
+# archetype: midrange
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Abomination, Irradiated Brute
+4 Cloudshift
+1 Colossal Dreadmaw
+4 Curious Altisaur
+3 Defiler of Vigor
+1 Elaborate Firecannon
+3 Fleecemane Lion
+2 Fungal Plots
+1 Hidden Herbalists
+4 Intrepid Outlander
+2 Old-Growth Troll
+4 Ori, Keeper of Songs
+2 Pawpatch Formation
+3 Return to Nature
+1 Risen Sanctuary
+4 Brushland
+11 Forest
+2 Overgrown Farmland
+2 Plains
+4 Razorverge Thicket

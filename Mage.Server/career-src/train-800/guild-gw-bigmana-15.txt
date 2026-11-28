@@ -1,0 +1,25 @@
+# name: Train800 guild-gw-bigmana-15
+# archetype: bigmana
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aerith, Last Ancient
+3 Bast, Panther Goddess
+1 Become the Avalanche
+2 Cult of the Waxing Moon
+1 Dromoka, the Eternal
+4 Gleaming Splendor
+1 Huatli's Snubhorn
+3 Meteorite
+4 Nadaar, Selfless Paladin
+3 Patchwork Beastie
+1 Return from the Wilds
+2 Savage Land Dinosaur
+1 Selesnya Locket
+4 Sigarda, Heron's Grace
+1 The Celestus
+2 White Auracite
+2 Brushland
+4 Canopy Vista
+7 Forest
+9 Plains
+4 Sunpetal Grove

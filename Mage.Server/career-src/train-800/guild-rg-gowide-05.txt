@@ -1,0 +1,25 @@
+# name: Train800 guild-rg-gowide-05
+# archetype: gowide
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Abandon Reason
+1 Audience with Trostani
+3 Crocodile of the Crossing
+3 Crossroads Consecrator
+2 Dance with Devils
+1 Deathleaper, Terror Weapon
+3 Insatiable Appetite
+2 Legion Extruder
+3 Living Twister
+3 Nasty Little Rabbit
+2 Oin the Brave
+3 Radha's Firebrand
+3 Ratcatcher Trainee
+2 Sentinel of the Nameless City
+4 Yuyan Archers
+2 Zariel, Archduke of Avernus
+4 Bleeding Woods
+3 Forest
+2 Karplusan Forest
+9 Mountain
+4 Rockfall Vale

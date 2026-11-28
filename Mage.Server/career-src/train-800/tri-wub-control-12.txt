@@ -1,0 +1,27 @@
+# name: Train800 tri-wub-control-12
+# archetype: control
+# colors: WUB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Blackbloom Rogue
+4 Call to Heel
+1 Citywide Bust
+4 Cosmos Charger
+1 Dissection Practice
+2 Goremand
+2 Hoard Robber
+3 Keep Safe
+2 Liesa, Forgotten Archangel
+2 Noxious Grasp
+3 Power Word Kill
+3 Protect the Negotiators
+2 Starfall Invocation
+1 Sunset Revelry
+3 Teferi, Who Slows the Sunset
+1 Voracious Greatshark
+4 Fortified Beachhead
+2 Island
+4 Murky Sewer
+7 Plains
+4 Shipwreck Marsh
+2 Sunken Hollow
+2 Swamp

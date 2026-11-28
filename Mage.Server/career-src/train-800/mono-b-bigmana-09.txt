@@ -1,0 +1,19 @@
+# name: Train800 mono-b-bigmana-09
+# archetype: bigmana
+# colors: B
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Arguel's Blood Fast
+1 Body Count
+4 Bontu the Glorified
+1 Clackbridge Troll
+3 Demon Wall
+2 Erebos, God of the Dead
+3 Garruk, Veiled Butcher
+4 Giant's Boulder
+2 Hellish Sideswipe
+4 Junji, the Midnight Sky
+3 Liliana's Reaver
+2 Liliana, the Last Hope
+4 Maha, Its Feathers Night
+1 The Sackville-Bagginses
+25 Swamp

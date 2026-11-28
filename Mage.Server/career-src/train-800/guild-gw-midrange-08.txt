@@ -1,0 +1,23 @@
+# name: Train800 guild-gw-midrange-08
+# archetype: midrange
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Battle Menu
+4 Black Panther, Vanguard
+1 Command Decision
+1 Deicide
+1 Dynavolt Tower
+3 Garruk, Curse Breaker
+3 Ghalta and Mavren
+2 Nylea, Keen-Eyed
+2 Polukranos Reborn
+4 Selvala, Eager Trailblazer
+4 Spider-Girl, Legacy Hero
+4 Tender Wildguide
+1 Tenured Concocter
+3 True Love's Kiss
+4 Brushland
+4 Canopy Vista
+9 Forest
+2 Horizon Canopy
+5 Plains

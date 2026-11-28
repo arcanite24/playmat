@@ -1,0 +1,51 @@
+# name: Train800 brawl-g-gw-aggro-02
+# archetype: brawl_aggro
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Airship Crash
+1 Altar's Light
+1 Amrou Scout
+1 April O'Neil, Kunoichi Trainee
+1 Arborea Pegasus
+1 Atraxa's Fall
+1 Aven Sentry
+1 Beastbond Outcaster
+1 Beastrider Vanguard
+1 Cadira, Caller of the Small
+1 Chronicler of Heroes
+1 Clarion Spirit
+1 Colleen Wing, Street Samurai
+1 Emiel the Blessed
+1 Favored of Iroas
+1 Gigantic Big Bear
+1 Hero of Leina Tower
+1 Jeskai Student
+1 Juniper Order Rootweaver
+1 Resplendent Angel
+1 Retributive Wand
+1 Rod of Ruin
+1 Selfless Savior
+1 Silk, Web Weaver
+1 Sorcerer's Broom
+1 Spell Satchel
+1 Splitskin Doll
+1 Sunblade Elf
+1 Take Vengeance
+1 Titanic Growth
+1 Unholy Officiant
+1 Vigilant Baloth
+1 Vitu-Ghazi Guildmage
+1 Warren Elder
+1 Wary Okapi
+1 Wild Pack Squad
+1 Brushland
+1 Canopy Vista
+1 Etched Cornfield
+4 Forest
+1 Grove of the Guardian
+1 Horizon Canopy
+1 Overgrown Farmland
+11 Plains
+1 Razorverge Thicket
+1 Sunpetal Grove
+1 Vigorbloom Annex

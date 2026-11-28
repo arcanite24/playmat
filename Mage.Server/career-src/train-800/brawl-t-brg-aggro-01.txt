@@ -1,0 +1,56 @@
+# name: Train800 brawl-t-brg-aggro-01
+# archetype: brawl_aggro
+# colors: BRG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Alley Strangler
+1 Branching Bolt
+1 Cactuar
+1 Charging Hooligan
+1 Citizen V, Helmut Zemo
+1 Copper Longlegs
+1 Crew Captain
+1 Darkheart Sliver
+1 Deepwood Wolverine
+1 Douse in Gloom
+1 Dread Presence
+1 Dream Beavers
+1 Elvish Visionary
+1 Engine Rat
+1 Ghastly Gloomhunter
+1 Giant Cindermaw
+1 Graf Mole
+1 Junkyard Genius
+1 Korvold, Fae-Cursed King
+1 Molten Collapse
+1 Phylath, World Sculptor
+1 Picnic Ruiner
+1 Placid Rottentail
+1 Rakdos Shred-Freak
+1 Redtooth Vanguard
+1 Rhino, Barreling Brute
+1 Rubblebelt Runner
+1 Rush of Adrenaline
+1 Sanguinary Mage
+1 Sawblade Scamp
+1 Sparkmage's Gambit
+1 Start from Scratch
+1 Subira, Tulzidi Caravanner
+1 Terrain Elemental
+1 Valley Mightcaller
+1 Weldfast Engineer
+1 Badlands
+1 Blackcleave Cliffs
+1 Bleeding Woods
+1 Cinder Glade
+1 Copperline Gorge
+1 Darigaaz's Caldera
+4 Forest
+1 Karplusan Forest
+2 Mountain
+1 Razortrap Gorge
+1 Rockfall Vale
+1 Rootbound Crag
+1 Smoldering Marsh
+1 Stomping Ground
+5 Swamp
+1 Ziatora's Proving Ground

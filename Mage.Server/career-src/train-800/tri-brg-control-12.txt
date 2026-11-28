@@ -1,0 +1,26 @@
+# name: Train800 tri-brg-control-12
+# archetype: control
+# colors: BRG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Fanatic of Xenagos
+1 Into the Fire
+2 Lightning Axe
+2 Nissa's Judgment
+3 Ogre Siegebreaker
+2 Outpost Siege
+2 Rubble Rouser
+2 Samut, Vizier of Naktamun
+2 Sear
+2 Shang-Chi, Master of Kung Fu
+3 Skewer the Critics
+3 Sprouting Renewal
+4 Torch the Tower
+4 Twinblade Assassins
+1 Warden of the Woods
+2 Bleeding Woods
+4 Darigaaz's Caldera
+2 Forest
+7 Mountain
+4 Rockfall Vale
+4 Stomping Ground
+2 Swamp

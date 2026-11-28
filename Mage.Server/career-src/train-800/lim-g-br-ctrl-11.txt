@@ -1,0 +1,34 @@
+# name: Train800 lim-g-br-ctrl-11
+# archetype: limited_ctrl
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Alluring Suitor
+2 Bedevil
+2 Boiling Seas
+2 Contract Hero
+1 Exhibition Magician
+2 Flowstone Kavu
+1 Flunk
+2 Goldspan Dragon
+1 Gutsplitter Gang
+1 Hoarding Ogre
+1 Infernal Scarring
+1 Lava Coil
+2 Purphoros, Bronze-Blooded
+1 Ran and Shaw
+1 Searing Barb
+1 Slaughter-Priest of Mogis
+1 Sparktongue Dragon
+1 Tal Shiar Analyst
+2 Thunderdrum Soloist
+1 Thunderhead Gunner
+2 Thundering Rebuke
+1 Ulcerate
+2 Umbral Collar Zealot
+1 Unleash Shell
+1 Vision of Love
+2 Haunted Ridge
+17 Mountain
+1 Razortrap Gorge
+2 Sulfurous Springs
+3 Swamp

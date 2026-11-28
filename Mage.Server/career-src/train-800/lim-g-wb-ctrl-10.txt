@@ -1,0 +1,33 @@
+# name: Train800 lim-g-wb-ctrl-10
+# archetype: limited_ctrl
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Angelic Ascension
+2 Archangel of Tithes
+1 Blessed Light
+1 Carrion Wall
+2 Chastise
+2 Cleanfall
+1 Clockwork Droid
+2 Commander Greven il-Vec
+1 Damn
+1 Dauntless Bodyguard
+2 Death's Shadow
+2 Defiler of Flesh
+1 Doom Whisperer
+2 Guardian of Faith
+1 Hand of Silumgar
+2 Kain, Traitorous Dragoon
+2 Lolth, Spider Queen
+1 Pitiless Horde
+1 Regal Caracal
+2 Syphon Fuel
+1 Syr Vondam, the Lucent
+2 Terror Ballista
+1 Toxin Analysis
+1 Trench Stalker
+1 Caves of Koilos
+2 Concealed Courtyard
+7 Plains
+2 Shattered Sanctum
+13 Swamp

@@ -1,0 +1,25 @@
+# name: Train800 tri-brg-aggro-02
+# archetype: aggro
+# colors: BRG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Careless Celebrant
+3 Crew Captain
+2 Excavation Explosion
+2 Goblin Assailant
+4 Legion Loyalist
+2 Lys Alana Informant
+3 Moonrager's Slash
+2 Moonshadow
+2 Phytoburst
+3 Pyromancer's Assault
+2 Reinforced Ronin
+2 Sarkhan's Unsealing
+4 Soul of Windgrace
+3 Sunbathing Rootwalla
+4 Copperline Gorge
+4 Darigaaz's Caldera
+1 Forest
+5 Mountain
+4 Rootbound Crag
+2 Stomping Ground
+2 Swamp

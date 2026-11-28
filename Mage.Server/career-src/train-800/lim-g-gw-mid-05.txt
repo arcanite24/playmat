@@ -1,0 +1,38 @@
+# name: Train800 lim-g-gw-mid-05
+# archetype: limited_mid
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aerie Auxiliary
+1 Appa, Aang's Companion
+1 Chained to the Rocks
+1 Danitha Capashen, Paragon
+1 Dawn Gryff
+2 Enduring Victory
+1 Golden Hind
+2 Herald of the Fair
+2 Hungry Graffalon
+1 Insidious Fungus
+1 Jolrael, Mwonvuli Recluse
+2 Kutzil's Flanker
+1 Might of the Old Ways
+2 Mikey & Leo, Chaos & Order
+1 Mothrider Patrol
+1 Nessian Wilds Ravager
+2 Overgrown Zealot
+1 Predatory Wurm
+1 Prehistoric Pet
+1 Rampaging Hippo
+1 Renegade Rallier
+2 Repel Calamity
+1 Rip, Spawn Hunter
+1 Risen Sanctuary
+1 Sightless Brawler
+1 Stonework Packbeast
+1 Strength of the Coalition
+1 Thorn Elemental
+1 Topiary Panther
+1 Etched Cornfield
+10 Forest
+9 Plains
+2 Razorverge Thicket
+2 Sunpetal Grove

@@ -1,0 +1,42 @@
+# name: Train800 lim-t-brg-mid-04
+# archetype: limited_mid
+# colors: BRG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Alpha Myr
+1 Amethyst Dragon
+1 Arrogant Vampire
+1 Bellows Lizard
+1 Bestow Greatness
+1 Bhaal's Invoker
+2 Brassclaw Orcs
+1 Cinderslash Ravager
+1 Desert's Due
+1 Desolation Prowler
+1 Ember Beast
+1 Eternal Taskmaster
+1 Fanatic of Xenagos
+1 Ghoulcaller Gisa
+1 Give In to Violence
+1 Humble Naturalist
+2 Kessig Naturalist
+2 Leaves from the Vine
+1 Long Feng, Grand Secretariat
+1 Malevolent Noble
+1 Riveteers Charm
+1 Rootless Yew
+2 Rowan's Battleguard
+1 Rulik Mons, Warren Chief
+1 Scorpion, Seething Striker
+1 Scrapyard Steelbreaker
+1 Shatter
+2 Thorned Moloch
+1 Tin Street Dodger
+1 Vibrance
+1 Wring Flesh
+2 Blackcleave Cliffs
+2 Bleeding Woods
+2 Darigaaz's Caldera
+5 Forest
+6 Mountain
+2 Rockfall Vale
+5 Swamp

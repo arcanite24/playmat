@@ -1,0 +1,40 @@
+# name: Train800 brawl-m-r-ramp-03
+# archetype: brawl_ramp
+# colors: R
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Akroan Sergeant
+1 Axegrinder Giant
+1 Bandit's Haul
+1 Battle Cry Goblin
+1 Blade-Tribe Berserkers
+1 Borderland Marauder
+1 Burn, Burn, Tree and Fern
+1 Chandra, Torch of Defiance
+1 Charging Tuskodon
+1 Dangerous Wager
+1 Dwarven Strike Force
+1 Fire Nation Raider
+1 Fountainport Bell
+1 Furnace Strider
+1 Genesis Effect
+1 Grabby Giant
+1 Granitic Titan
+1 Havoc Devils
+1 Immortal Phoenix
+1 K'un-Lun Warrior
+1 Kavaron Turbodrone
+1 Lavaleaper
+1 Letter of Acceptance
+1 Maze Rusher
+1 Pompous Battlemage
+1 Raging Battle Mouse
+1 Rekindling Phoenix
+1 Shake the Foundations
+1 Smashing Success
+1 Smaug the Magnificent
+1 Springleaf Drum
+1 Sticky Fingers
+1 Stormshriek Feral
+1 Vance's Blasting Cannons
+1 Vildin-Pack Outcast
+25 Mountain

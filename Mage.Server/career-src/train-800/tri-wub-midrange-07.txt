@@ -1,0 +1,25 @@
+# name: Train800 tri-wub-midrange-07
+# archetype: midrange
+# colors: WUB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Avenger of the Fallen
+3 Black Panther, Most Dangerous
+2 Depressurize
+4 Despoiler of Souls
+3 Expel from Orazca
+1 Harmonized Trio
+1 Intimidation Campaign
+3 Josu Vess, Lich Knight
+2 Mutant Surveyor
+4 Realm-Cloaked Giant
+2 Scorpion's Sting
+1 Sunstar Lightsmith
+4 The Legend of Kuruk
+3 Timid Shieldbearer
+6 Island
+4 Isolated Chapel
+4 Meticulous Commons
+2 Plains
+4 Shattered Sanctum
+2 Swamp
+2 Underground River

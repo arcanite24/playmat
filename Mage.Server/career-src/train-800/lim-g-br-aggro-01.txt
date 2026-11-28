@@ -1,0 +1,38 @@
+# name: Train800 lim-g-br-aggro-01
+# archetype: limited_aggro
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Avaricious Dragon
+1 Bellowing Saddlebrute
+2 Clockwork Percussionist
+1 Distemper of the Blood
+1 Exava, Rakdos Blood Witch
+1 Firion, Wild Rose Warrior
+2 Flame-Chain Mauler
+2 Goblin Maskmaker
+1 Inordinate Rage
+1 Lambholt Harrier
+1 Leech Gauntlet
+2 Magmaroth
+1 Mizzium Mortars
+1 Molten Collapse
+1 Nest Robber
+1 Nocturnal Hunger
+1 Purphoros, God of the Forge
+2 Rankle and Torbran
+1 Rise to the Challenge
+1 Sawblade Scamp
+1 Slaying Fire
+1 Subira, Tulzidi Caravanner
+2 The Duras Sisters
+1 The Raven Man
+2 Trial of Agony
+1 Valley Dasher
+1 Vaultbreaker
+2 Verix Bladewing
+1 Weapons Manufacturing
+2 Badlands
+1 Dragonskull Summit
+16 Mountain
+2 Razortrap Gorge
+2 Swamp

@@ -1,0 +1,25 @@
+# name: Train800 guild-wb-aggro-03
+# archetype: aggro
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Balemurk Leech
+2 Beckon Apparition
+2 Denethor, Ruling Steward
+4 Edgar, Ancient Bloodlord
+2 Kunoros, Hound of Athreos
+2 Leech Collector
+2 Liliana the Repentant
+4 Lunar Convocation
+3 Revelation of Power
+2 Ritual of the Returned
+1 Silverquill Charm
+3 Silverquill Silencer
+1 Smite
+4 Stone Docent
+2 Wreckage Wickerfolk
+3 Zoraline, Cosmos Caller
+2 Concealed Courtyard
+4 Meticulous Commons
+5 Plains
+4 Shattered Sanctum
+6 Swamp

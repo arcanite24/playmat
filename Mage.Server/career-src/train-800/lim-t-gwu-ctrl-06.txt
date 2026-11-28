@@ -1,0 +1,42 @@
+# name: Train800 lim-t-gwu-ctrl-06
+# archetype: limited_ctrl
+# colors: GWU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Arcanist's Owl
+1 Azorius Charm
+1 Bard, King of Dale
+2 Biovisionary
+1 Bloodtallow Candle
+1 Challenger Troll
+1 Confessor
+2 D'Avenant Trapper
+1 Daggermaw Megalodon
+1 Declaration in Stone
+1 Earth Rumble
+1 Enduring Innocence
+2 Epic Fight
+1 Finale of Revelation
+1 Frontier Mastodon
+1 Hour of Revelation
+2 Liliana the Faultless
+1 Migratory Greathorn
+1 Naban, Dean of Iteration
+1 Nimbus Naiad
+1 Ooze Spill
+1 Overlord of the Floodpits
+1 Path to Exile
+1 Restore the Peace
+1 Return of the Wildspeaker
+1 Simic Charm
+1 Spell Rupture
+1 Spring Splasher
+1 Tocasia, Dig Site Mentor
+1 Tura Kennerud, Skyknight
+1 Victory's Herald
+2 Adarkar Wastes
+2 Cloudcrest Lake
+2 Deserted Beach
+6 Forest
+6 Island
+5 Plains
+2 Prairie Stream

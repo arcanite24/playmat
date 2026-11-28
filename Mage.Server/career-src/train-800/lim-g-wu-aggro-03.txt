@@ -1,0 +1,38 @@
+# name: Train800 lim-g-wu-aggro-03
+# archetype: limited_aggro
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 70,000 Light-Years from Home
+1 Bontu's Monument
+1 Corridor Monitor
+1 Decommission
+1 Dennick, Pious Apprentice
+2 Dirgur Island Dragon
+1 Drogskol Infantry
+2 Hero of the Pride
+1 Holy Cow
+2 Iron Golem
+2 Jace's Sentinel
+2 Lithomancer's Focus
+1 Mouse Trapper
+2 Network Disruptor
+1 Plumecreed Mentor
+1 Pyrrhic Strike
+1 Ray Fillet, Man Ray
+1 Savai Sabertooth
+1 Skystrike Officer
+2 Skywhaler's Shot
+1 Sunhome Stalwart
+1 The Mindskinner
+1 Threnody Singer
+1 Throwing Knife
+1 Tide Skimmer
+2 Valley Questcaller
+1 Wanderlight Spirit
+1 Wanted Griffin
+1 Yip Yip!
+2 Abandoned Campground
+1 Cloudcrest Lake
+2 Deserted Beach
+8 Island
+10 Plains

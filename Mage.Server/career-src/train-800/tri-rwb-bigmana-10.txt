@@ -1,0 +1,25 @@
+# name: Train800 tri-rwb-bigmana-10
+# archetype: bigmana
+# colors: RWB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Adult Gold Dragon
+2 Arguel's Blood Fast
+2 Cha'DIch Investigator
+4 Command Subadjunct
+1 Encounter the Unknown
+1 Fable of the Mirror-Breaker
+4 Grim Bounty
+4 Joshua, Phoenix's Dominant
+4 Khan, Despot by Design
+1 Kolaghan, the Storm's Fury
+2 Neheb, Dreadhorde Champion
+4 Prophetic Prism
+1 Stir Up Trouble
+3 Thistledown Players
+4 Cinder Marsh
+4 Clifftop Retreat
+2 Mountain
+7 Plains
+2 Smoldering Marsh
+4 Sulfurous Springs
+2 Swamp

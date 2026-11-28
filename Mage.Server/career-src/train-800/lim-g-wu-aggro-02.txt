@@ -1,0 +1,39 @@
+# name: Train800 lim-g-wu-aggro-02
+# archetype: limited_aggro
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 A.I.M. Bot
+1 Act of Heroism
+1 Avenging Arrow
+1 Baffling End
+2 Brotherhood Spy
+1 Chief Engineer
+1 Co-Option Adjutant
+1 Complex Automaton
+2 Consulate Turret
+1 Covetous Castaway
+2 Dream Strix
+1 Dwarven Castle Guard
+1 Faerie Vandal
+1 Fan Bearer
+1 Fleeting Spirit
+1 Flexible Waterbender
+1 Goldmeadow Nomad
+2 Lantern Bearer
+1 Nezahal, Primal Tide
+2 Paladin of the Bloodstained
+1 Pillar of Light
+1 Ranger's Hawk
+1 Remorseful Cleric
+1 Reservoir Kraken
+2 Show of Valor
+2 Suspension Field
+1 The Vision
+1 Unyielding Gatekeeper
+1 Wax-Wane Witness
+1 Zahid, Djinn of the Lamp
+2 Cloudcrest Lake
+9 Island
+9 Plains
+2 Prairie Stream
+1 Seachrome Coast

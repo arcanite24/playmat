@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-brg-mid-02
+# archetype: brawl_mid
+# colors: BRG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aerid Konstrari
+1 Aether Herder
+1 Agent of Stromgald
+1 Ainok Survivalist
+1 Akoum Hellkite
+1 Armorer Guildmage
+1 Ashenmoor Gouger
+1 Avatar of Discord
+1 Boiling Seas
+1 Chardalyn Dragon
+1 Cinder Strike
+1 Colossal Majesty
+1 Defile
+1 Demon Wall
+1 Despoiler of Souls
+1 Dominion Supervisor
+1 Early Winter
+1 Faunsbane Troll
+1 Fleeting Effigy
+1 Forsaken Miner
+1 Gladiolus Amicitia
+1 Greta, Sweettooth Scourge
+1 Jolene, Plundering Pugilist
+1 Kethek, Crucible Goliath
+1 Madame Hydra
+1 Orthion, Hero of Lavabrink
+1 Pumpkin Bombardment
+1 Rafter Demon
+1 Rhino's Rampage
+1 Rubblebelt Braggart
+1 Savage Ventmaw
+1 Seer of Stolen Sight
+1 Storm Fleet Swashbuckler
+1 Valentin, Dean of the Vein
+1 Wild Guess
+1 Badlands
+1 Blackcleave Cliffs
+1 Bleeding Woods
+1 Cinder Marsh
+1 Darigaaz's Caldera
+1 Dragonskull Summit
+4 Forest
+1 Haunted Ridge
+1 Karplusan Forest
+5 Mountain
+1 Razortrap Gorge
+1 Smoldering Marsh
+1 Stomping Ground
+1 Sulfurous Springs
+3 Swamp
+1 Ziatora's Proving Ground

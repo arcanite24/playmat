@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-bgu-ramp-04
+# archetype: brawl_ramp
+# colors: BGU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ageless Entity
+1 Analyze the Pollen
+1 Breaching Hippocamp
+1 Brineborn Cutthroat
+1 Caravan Vigil
+1 Catacomb Crocodile
+1 Constrictor Sage
+1 Crack Open
+1 Curator's Ward
+1 Darkstar Augur
+1 Demon's Disciple
+1 Dragon-Scarred Bear
+1 Gargos, Vicious Watcher
+1 Glimmerburst
+1 Gloom Sower
+1 Gravkill
+1 Gyre Sage
+1 HYDRA Troopers
+1 High Fae Negotiator
+1 Hornswoggle
+1 Moon Girl and Devil Dinosaur
+1 Proctor's Gaze
+1 Renegade Map
+1 Salt Road Ambushers
+1 Scarab Feast
+1 Sidisi, Brood Tyrant
+1 Silumgar, the Drifting Death
+1 Singularity Rupture
+1 Sultai Devotee
+1 Thorn Mammoth
+1 Treasure Dredger
+1 Tyrant's Scorn
+1 Wharf Infiltrator
+1 Wickerfolk Indomitable
+1 Yarok, the Desecrated
+1 Bayou
+1 Blooming Marsh
+1 Botanical Sanctum
+1 Deathcap Glade
+1 Dreamroot Cascade
+2 Forest
+1 Formidable Commons
+6 Island
+1 Lakeside Shack
+1 Llanowar Wastes
+1 Opulent Palace
+1 Overgrown Tomb
+1 Strangled Cemetery
+4 Swamp
+1 Woodland Cemetery
+1 Zagoth Triome

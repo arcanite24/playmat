@@ -1,0 +1,22 @@
+# name: Train800 guild-rg-midrange-19
+# archetype: midrange
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Close Quarters
+3 Ember Beast
+3 Fierce Witchstalker
+3 Fungal Plots
+2 Glint-Horn Buccaneer
+4 Insidious Fungus
+1 Nissa, Vital Force
+4 Polis Crusher
+4 Soul of the Harvest
+4 Spider Manifestation
+1 Start from Scratch
+1 Tectonic Hazard
+3 Wizard's Lightning
+4 Bleeding Woods
+9 Forest
+5 Mountain
+2 Rockfall Vale
+4 Rootbound Crag

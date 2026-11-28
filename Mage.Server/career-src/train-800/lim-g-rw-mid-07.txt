@@ -1,0 +1,35 @@
+# name: Train800 lim-g-rw-mid-07
+# archetype: limited_mid
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Afterlife
+2 Ashcloud Phoenix
+1 Ashe, Princess of Dalmasca
+2 Battlegate Mimic
+1 Ben Solo
+1 Cavalier of Flame
+1 Charge the Sanctum
+2 Claim Jumper
+2 Cloudpiercer
+2 Conjurer's Closet
+1 Essence Channeler
+2 Famished Paladin
+1 Felhide Spiritbinder
+1 Forgehammer Centurion
+2 Gearshift Ace
+1 Invasion of Mercadia
+1 Ironwright's Cleansing
+2 Kirol, Attentive First-Year
+1 Moment of Heroism
+1 Pilgrim of the Fires
+2 Pride of the Road
+1 Quaketusk Boar
+1 Scorn Effigy
+1 Steel Wrecking Ball
+1 Study Break
+2 Territorial Roc
+1 Battlefield Forge
+2 Dalkovan Encampment
+8 Mountain
+11 Plains
+2 Sundown Pass

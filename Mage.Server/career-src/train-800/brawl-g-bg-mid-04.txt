@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-bg-mid-04
+# archetype: brawl_mid
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Abzan Beastmaster
+1 Ancient Greenwarden
+1 Baleful Beholder
+1 Bitter Downfall
+1 Blurred Mongoose
+1 Dina, Essence Brewer
+1 Dread Wanderer
+1 Ecstatic Awakener
+1 Fade from History
+1 Fauna Shaman
+1 Formation Breaker
+1 Harald, King of Skemfar
+1 Head of the Hunt
+1 Heritage Druid
+1 Honey Mammoth
+1 Indulgent Tormentor
+1 Infestation Expert
+1 Ixalli's Lorekeeper
+1 Killmonger, Scourge of Wakanda
+1 Nyx Weaver
+1 Old Fat Spider
+1 Ovalchase Daredevil
+1 Pointed Discussion
+1 Rope
+1 Savage Punch
+1 Sedgemoor Witch
+1 Slitherhead
+1 Spined Karok
+1 Starving Revenant
+1 Subtle Strike
+1 Throttle
+1 Two-Headed Zombie
+1 Wasteland Viper
+1 Weaver of Blossoms
+1 Weigh Down
+1 Bayou
+1 Blooming Marsh
+1 Deathcap Glade
+9 Forest
+1 Formidable Commons
+1 Gohn, Town of Ruin
+1 Llanowar Wastes
+1 Overgrown Tomb
+1 Strangled Cemetery
+7 Swamp
+1 Woodland Cemetery

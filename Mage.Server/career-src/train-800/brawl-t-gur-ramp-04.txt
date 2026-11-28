@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-gur-ramp-04
+# archetype: brawl_ramp
+# colors: GUR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Alchemax Slayer-Bots
+1 Berserkers of Blood Ridge
+1 Blightwidow
+1 Brotherhood's End
+1 Carnage Tyrant
+1 Child of the Pack
+1 Close Quarters
+1 Courier of Comestibles
+1 Deep-Sea Terror
+1 Draugr Thought-Thief
+1 Ecologist's Terrarium
+1 Eshki Dragonclaw
+1 Fearless Pup
+1 Fractal Mascot
+1 Ghitu Slinger
+1 Gravel-Hide Goblin
+1 Gruul Cluestone
+1 Gruul Ragebeast
+1 Illuna, Apex of Wishes
+1 Improvised Weaponry
+1 Maze Skullbomb
+1 Mister Hyde, Monster Within
+1 Moat Piranhas
+1 Savage Land Dinosaur
+1 Scorching Dragonfire
+1 Simic Cluestone
+1 Stitched Mangler
+1 Stormcrag Elemental
+1 Stormwing Entity
+1 Sudden Shock
+1 Tail Swipe
+1 Targ Nar, Demon-Fang Gnoll
+1 Tempest Hart
+1 Temur Banner
+1 Waterbender Ascension
+1 Bleeding Woods
+1 Cinder Glade
+1 Copperline Gorge
+2 Forest
+1 Frontier Bivouac
+1 Hinterland Harbor
+5 Island
+1 Karplusan Forest
+1 Ketria Triome
+5 Mountain
+1 Peculiar Lighthouse
+1 Rockfall Vale
+1 Rootbound Crag
+1 Shivan Reef
+1 Stomping Ground
+1 Yavimaya Coast

@@ -1,0 +1,25 @@
+# name: Train800 guild-rw-bigmana-15
+# archetype: bigmana
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Boros Cluestone
+1 Boros Locket
+2 Brazen Collector
+2 Chandra, Novice Pyromancer
+2 Cryptex
+4 Dreamstalker Manticore
+2 Gloin the Mighty
+2 Hagi Mob
+1 Hungry Ridgewolf
+4 Lightning Shrieker
+3 Mabel, Heir to Cragflame
+2 Prophetic Prism
+1 Season of the Bold
+3 Urabrask, Heretic Praetor
+2 Vance's Blasting Cannons
+1 Wildfire Howl
+2 Battlefield Forge
+4 Clifftop Retreat
+4 Inspiring Vantage
+14 Mountain
+2 Plains

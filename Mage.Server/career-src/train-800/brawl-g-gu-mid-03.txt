@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-gu-mid-03
+# archetype: brawl_mid
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aeromunculus
+1 Alirios, Enraptured
+1 Avid Reclaimer
+1 Benjamin Sisko, Besieged
+1 Boomerang
+1 Callous Dismissal
+1 Cleric of Chill Depths
+1 Cloud Elemental
+1 Compelling Deterrence
+1 Creeping Peeper
+1 Elvish Mystic
+1 Embodiment of Spring
+1 Enraged Ceratok
+1 Faerie Miscreant
+1 Fate Foretold
+1 Fblthp, the Lost
+1 Giant Mantis
+1 Koma, Cosmos Serpent
+1 Mechanozoa
+1 Omen of the Sea
+1 Plasm Capture
+1 Platypus-Bear
+1 Ral's Dispersal
+1 River Darter
+1 Run Afoul
+1 Sharding Sphinx
+1 The Vision
+1 Thornfist Striker
+1 Titania's Command
+1 Towering Indrik
+1 Unwelcome Sprite
+1 Wandering Archaic
+1 Welkin Tern
+1 You Find a Cursed Idol
+1 Zephyr Scribe
+1 Botanical Sanctum
+1 Dreamroot Cascade
+4 Forest
+1 Guadosalam, Farplane Gateway
+1 Hinterland Harbor
+12 Island
+1 Lakeside Shack
+1 Temple of Mystery
+1 Transformative Commons
+1 Vineglimmer Snarl
+1 Yavimaya Coast

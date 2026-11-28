@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-gw-mid-03
+# archetype: brawl_mid
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Adaptive Snapjaw
+1 Aerial Assault
+1 Alaborn Zealot
+1 Bright Reprisal
+1 Bulwark Ox
+1 Cautious Survivor
+1 Collision Course
+1 Compassionate Healer
+1 Doc Samson, Super Psychiatrist
+1 Fabled Hero
+1 Garruk's Gorehorn
+1 Gwenna, Eyes of Gaea
+1 Halo Fountain
+1 Hulking Raptor
+1 Jadecraft Artisan
+1 Journey to Oblivion
+1 Leafcrown Dryad
+1 Love Song of Night and Day
+1 Master Symmetrist
+1 No Witnesses
+1 Nyxborn Courser
+1 Outland Liberator
+1 Powerful Broker
+1 Provisions Merchant
+1 Pterodon Knight
+1 Radiant, Serra Archangel
+1 Rhonas's Stalwart
+1 Rosemane Centaur
+1 Sandbenders' Storm
+1 Serra Disciple
+1 Timid Shieldbearer
+1 Trained Arynx
+1 Treasure Keeper
+1 Wear Down
+1 Wilt-Leaf Liege
+1 Brushland
+1 Canopy Vista
+1 Etched Cornfield
+6 Forest
+1 Grove of the Guardian
+1 Horizon Canopy
+1 Overgrown Farmland
+10 Plains
+1 Razorverge Thicket
+1 Sunpetal Grove
+1 Vigorbloom Annex

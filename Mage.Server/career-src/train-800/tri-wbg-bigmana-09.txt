@@ -1,0 +1,26 @@
+# name: Train800 tri-wbg-bigmana-09
+# archetype: bigmana
+# colors: WBG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Abzan Banner
+2 Ancestor Dragon
+1 Archfiend of Ifnir
+2 Cleric of the Forward Order
+1 Crowded Crypt
+1 Defile
+2 Digsite Engineer
+4 Dire Tactics
+3 Emil, Vastlands Roamer
+2 Outlaw Medic
+3 Pelakka Wurm
+2 Ranging Raptors
+3 Scathing Shadelock
+2 Shalai, Voice of Plenty
+4 The Weatherseed Treaty
+2 Brushland
+2 Forest
+4 Grove of the Guardian
+4 Horizon Canopy
+2 Plains
+4 Razorverge Thicket
+8 Swamp

@@ -1,0 +1,22 @@
+# name: Train800 tribal-g-elf-01
+# archetype: tribal (Elf)
+# colors: G
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aether Herder
+2 Allosaurus Shepherd
+3 Dwynen's Elite
+3 Dwynen, Gilt-Leaf Daen
+2 Elvish Warmaster
+1 Huatli's Final Strike
+2 Imperious Perfect
+3 Iridescent Blademaster
+1 Joraga Visionary
+3 Natural End
+3 Nettle Sentinel
+1 Rod of Ruin
+3 Safewright Cavalry
+2 Skyway Sniper
+3 Sylvan Advocate
+2 Tajuru Pathwarden
+2 Vinebred Brawler
+23 Forest

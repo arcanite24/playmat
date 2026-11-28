@@ -1,0 +1,27 @@
+# name: Train800 guild-rg-tempo-08
+# archetype: tempo
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aggressive Urge
+1 Annihilating Fire
+2 Boulder Dash
+3 Consuming Sinkhole
+2 Fireforger's Puzzleknot
+2 Frenzied Baloth
+2 Garruk, Curse Breaker
+3 Hajar, Loyal Bodyguard
+1 Invasion of Kaldheim
+3 Jolene, Plundering Pugilist
+2 Kessig Prowler
+1 Longtusk Cub
+3 Shatterskull Charger
+3 Sporeback Wolf
+2 Take Out the Trash
+2 Trial of Zeal
+2 Venerated Rotpriest
+3 Wild Slash
+4 Copperline Gorge
+5 Forest
+7 Mountain
+2 Rockfall Vale
+4 Stomping Ground

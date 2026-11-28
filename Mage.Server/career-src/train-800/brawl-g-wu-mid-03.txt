@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-wu-mid-03
+# archetype: brawl_mid
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Academy Drake
+1 Angel of Light
+1 Atraxa's Skitterfang
+1 Benalish Cavalry
+1 Brago, King Eternal
+1 Contradict
+1 Cunning Breezedancer
+1 Detention Sphere
+1 Dwarven Provisioner
+1 Firmament Sage
+1 Granite Witness
+1 Imposing Sovereign
+1 Isolation Zone
+1 Kid Loki
+1 Leave in the Dust
+1 Loyal Pegasus
+1 Malfunctioning Holodeck
+1 Mouse Trapper
+1 Nesting Bot
+1 Ojer Taq, Deepest Foundation
+1 Ojutai's Command
+1 Oketra the True
+1 Phantom Carriage
+1 Raff, Weatherlight Stalwart
+1 Sage of the Skies
+1 Spellweaver Eternal
+1 Sterling Keykeeper
+1 Supreme Verdict
+1 Tempest Hawk
+1 The Wanderer
+1 Thunderclap Wyvern
+1 Tocasia's Welcome
+1 Ultimecia, Temporal Threat
+1 Whoosh!
+1 Wizards of Thay
+1 Abandoned Campground
+1 Adarkar Wastes
+1 Boreal Shelf
+1 Cloudcrest Lake
+1 Deserted Beach
+1 Fortified Beachhead
+1 Glacial Fortress
+6 Island
+10 Plains
+1 Prairie Stream
+1 Seachrome Coast

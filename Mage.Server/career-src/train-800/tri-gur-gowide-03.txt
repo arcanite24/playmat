@@ -1,0 +1,26 @@
+# name: Train800 tri-gur-gowide-03
+# archetype: gowide
+# colors: GUR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Ayula, Queen Among Bears
+2 Big Play
+2 Cactusfolk Sureshot
+1 Cheering Crowd
+2 Crash the Ramparts
+4 League Guildmage
+2 Mask of Immolation
+4 Munitions Enthusiast
+2 Release the Gremlins
+3 Resilient Khenra
+1 Sarkhan Unbroken
+3 Storm Herald
+4 Towashi Songshaper
+2 Whiskerquill Scribe
+4 Yasova Dragonclaw
+2 Bleeding Woods
+4 Cinder Glade
+2 Forest
+3 Island
+3 Mountain
+4 Rockfall Vale
+4 Stomping Ground

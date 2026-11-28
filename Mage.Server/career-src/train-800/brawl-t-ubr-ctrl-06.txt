@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-ubr-ctrl-06
+# archetype: brawl_ctrl
+# colors: UBR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aetherblade Agent
+1 Alandra, Sky Dreamer
+1 Anarchy
+1 Artificer's Assistant
+1 Banshee of the Dread Choir
+1 Blistergrub
+1 Bone to Ash
+1 Broodbirth Viper
+1 Bullseye, Death Dealer
+1 Callous Bloodmage
+1 Cha'DIch Investigator
+1 Cosmotronic Wave
+1 Dark Prophecy
+1 Dimir Spybug
+1 Disruption Protocol
+1 Into the Fire
+1 Keep Safe
+1 Labyrinth Champion
+1 Lampad of Death's Vigil
+1 Nightmarish End
+1 Pathway Arrows
+1 Pinecone Strike
+1 Poison the Cup
+1 Psychic Symbiont
+1 Pyromancer's Assault
+1 Ragefire Hellkite
+1 Rakdos Cluestone
+1 Rewrite History
+1 Sparktongue Dragon
+1 Spawn of Rix Maadi
+1 Spectacle Mage
+1 Syncopate
+1 Syphon Fuel
+1 Voracious Vermin
+1 Whisper Agent
+1 Badlands
+1 Cinder Marsh
+1 Crosis's Catacombs
+1 Crumbling Necropolis
+1 Darkslick Shores
+1 Dragonskull Summit
+1 Drowned Catacomb
+1 Haunted Ridge
+4 Island
+4 Mountain
+1 Murky Sewer
+1 Shipwreck Marsh
+1 Sunken Hollow
+4 Swamp
+1 Underground River
+1 Xander's Lounge

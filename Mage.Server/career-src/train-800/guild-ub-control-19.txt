@@ -1,0 +1,24 @@
+# name: Train800 guild-ub-control-19
+# archetype: control
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ammit Eternal
+4 Concerted Defense
+1 Crumbling Colossus
+2 Dark Nourishment
+2 Dimir Charm
+2 Duskmantle Seer
+4 Fear of the Dark
+3 Gruesome Fate
+2 Iron Spider, Stark Upgrade
+2 Kaito Shizuki
+3 Locust Spray
+4 Rat Out
+2 Returned Phalanx
+1 Shamble Back
+2 Sokka's Haiku
+4 Darkslick Shores
+3 Island
+2 Murky Sewer
+4 Sunken Hollow
+12 Swamp

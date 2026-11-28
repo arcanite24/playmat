@@ -1,0 +1,22 @@
+# name: Train800 guild-wu-midrange-14
+# archetype: midrange
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Alaborn Grenadier
+4 Arni, Humble Scribe
+2 Clarion Conqueror
+4 Kasmina, Enigmatic Mentor
+4 Mardu Hordechief
+1 Monument to Endurance
+4 Out of the Way
+2 Repurposed Enforcer
+2 Sergeant-at-Arms
+4 Soul of Ravnica
+3 Summit Sentinel
+3 Teferi, Hero of Dominaria
+1 Zephyr Sentinel
+4 Abandoned Campground
+4 Fortified Beachhead
+10 Island
+4 Plains
+2 Seachrome Coast

@@ -1,0 +1,26 @@
+# name: Train800 guild-ub-control-20
+# archetype: control
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Arrester's Admonition
+2 Crossway Troublemakers
+2 Dalek Squadron
+2 Drag Under
+2 Flip the Switch
+2 Graf Reaver
+1 Grim Haruspex
+2 Heirloom Mirror
+2 Highly Illogical
+2 Hunt for Specimens
+2 Lofty Denial
+1 Necromancer's Stockpile
+3 Revenge of the Rats
+1 Roadside Blowout
+2 Stoic Sphinx
+3 The Scarab God
+4 Vayne's Treachery
+4 Drowned Catacomb
+5 Island
+2 Sunken Hollow
+10 Swamp
+4 Underground River

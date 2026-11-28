@@ -1,0 +1,20 @@
+# name: Train800 tribal-b-zombie-01
+# archetype: tribal (Zombie)
+# colors: B
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Accursed Centaur
+3 Blacklance Paragon
+2 Champion of the Perished
+2 Dark Remedy
+3 Deadly Plot
+4 Death Baron
+1 Foulmire Knight
+4 Lord of the Accursed
+2 Marauding Boneslasher
+2 Morkrut Behemoth
+2 Murderous Rider
+1 Plague Belcher
+1 Risen Executioner
+3 Wailing Ghoul
+4 Zul Ashur, Lich Lord
+22 Swamp

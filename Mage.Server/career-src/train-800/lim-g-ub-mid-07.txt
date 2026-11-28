@@ -1,0 +1,42 @@
+# name: Train800 lim-g-ub-mid-07
+# archetype: limited_mid
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ahriman
+1 Air Elemental
+1 Bane Alley Blackguard
+1 Blood Curdle
+1 Brackish Trudge
+1 Dissection Practice
+1 Elusive Tormentor
+1 Finishing Blow
+1 Gnarlbark Elm
+1 Halo Forager
+1 Liliana's Reaver
+1 Malevolent Witchkite
+1 Mister Fantastic, Reed Richards
+1 Mu Yanling, Wind Rider
+1 Murderous Cut
+1 Necrogen Scudder
+1 Nighthowl Pursuer
+1 Nightsquad Commando
+1 Nightveil Specter
+1 Null Caller
+1 Ob Nixilis's Cruelty
+1 Oroku Saki, Shredder Rising
+1 Rabid Attack
+1 Ravening Warg
+2 Ravine Raider
+1 Sage-Eye Avengers
+1 Shoal Kraken
+1 Shorecrasher Elemental
+1 Sugar Rush
+1 Teferi, Master of Time
+2 Tenacious Underdog
+2 Tinybones, the Pickpocket
+1 Undersea Invader
+2 Darkslick Shores
+6 Island
+1 Shipwreck Marsh
+13 Swamp
+2 Underground River

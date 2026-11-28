@@ -1,0 +1,20 @@
+# name: Train800 mono-r-gowide-07
+# archetype: gowide
+# colors: R
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ancestral Anger
+2 Atsushi, the Blazing Sky
+3 Battlefield Scavenger
+3 Byway Barterer
+2 Chandra, Torch of Defiance
+3 Defense Force Aggressor
+3 Felonious Rage
+4 Goldnight Castigator
+3 Ogre-Head Helm
+1 Plasma Cascade
+3 Resilient Roadrunner
+3 Speed, Young Avenger
+4 Spikefield Hazard
+1 Volcanic Spite
+3 Whiskerquill Scribe
+21 Mountain

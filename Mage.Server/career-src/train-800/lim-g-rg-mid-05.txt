@@ -1,0 +1,36 @@
+# name: Train800 lim-g-rg-mid-05
+# archetype: limited_mid
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Backwoods Survivalists
+1 Birgi, God of Storytelling
+1 Bloodroot Apothecary
+2 Bombard
+1 Carnivorous Cultivator
+1 Elderleaf Mentor
+1 Elvish Mystic
+2 Exquisite Firecraft
+2 General Traag, Heart of Stone
+1 Get a Leg Up
+2 Gruul Locket
+1 Havoc Jester
+1 Kodama of the West Tree
+2 Leafcrown Dryad
+1 Leafkin Avenger
+1 Might of the Masses
+1 Mine Raider
+2 Ogre Errant
+1 Raging Regisaur
+2 Saruli Caretaker
+1 Servant of the Conduit
+1 Sultai Flayer
+1 Tannuk, Memorial Ensign
+1 Teapot Slinger
+1 Ulvenwald Observer
+2 Yavimaya Iconoclast
+1 Zalto, Fire Giant Duke
+1 Cinder Glade
+10 Forest
+2 Karplusan Forest
+9 Mountain
+2 Rootbound Crag

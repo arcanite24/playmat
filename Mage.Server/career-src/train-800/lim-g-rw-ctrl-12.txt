@@ -1,0 +1,41 @@
+# name: Train800 lim-g-rw-ctrl-12
+# archetype: limited_ctrl
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Apostle of Invasion
+1 Avian Changeling
+1 Ballista Watcher
+1 Blur of Blades
+1 Boon-Bringer Valkyrie
+1 Breath of Fire
+1 Charging Monstrosaur
+1 Command Decision
+2 Crested Sunmare
+1 Daru Mender
+1 Daybreak Charger
+1 Deafening Clarion
+1 Dual-Sun Technique
+1 Geist of the Moors
+1 Glorifier of Dusk
+1 Grotag Night-Runner
+1 Hakoda, Selfless Commander
+1 Imodane's Recruiter
+2 Invasion of Kaldheim
+1 Kolaghan Aspirant
+1 Konda's Hatamoto
+1 Museum Nightwatch
+1 Nova Hellkite
+1 Outpost Siege
+1 Ragged Short Spear
+1 Swift Response
+1 Syr Alin, the Lion's Claw
+1 Terminal Velocity
+2 Truefire Captain
+1 Twinblade Paladin
+1 Viashino Pyromancer
+1 Wonder Man, Hollywood Hero
+2 Battlefield Forge
+2 Clifftop Retreat
+8 Mountain
+12 Plains
+1 Sunbaked Canyon

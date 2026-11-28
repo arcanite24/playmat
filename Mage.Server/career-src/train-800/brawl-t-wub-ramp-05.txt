@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-wub-ramp-05
+# archetype: brawl_ramp
+# colors: WUB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 70,000 Light-Years from Home
+1 Abyssal Gorestalker
+1 Archon of the Triumvirate
+1 Argivian Avenger
+1 Artful Takedown
+1 Axgard Braggart
+1 Azorius Cluestone
+1 Basilica Shepherd
+1 Cloak and Dagger, Entwined
+1 Deadeye Plunderers
+1 Docent of Perfection
+1 Dramatist's Puppet
+1 Eirdu, Carrier of Dawn
+1 Fracture
+1 Fumigate
+1 Grim Bounty
+1 Gutter Skulker
+1 Hama Pashar, Ruin Seeker
+1 Inkling Mascot
+1 Lady of Laughter
+1 Malakir Blood-Priest
+1 Observant Alseid
+1 Omni-Cheese Pizza
+1 Orzhov Cluestone
+1 Orzhov Locket
+1 Rona, Sheoldred's Faithful
+1 Search for Azcanta
+1 Shaile, Dean of Radiance
+1 Shrike Harpy
+1 Silumgar, the Drifting Death
+1 Steadfast Cathar
+1 Tameshi, Reality Architect
+1 Thallid Omnivore
+1 World Map
+1 Yuriko, Hope from the Shadows
+1 Adarkar Wastes
+1 Arcane Sanctum
+1 Caves of Koilos
+1 Cloudcrest Lake
+1 Concealed Courtyard
+1 Glacial Fortress
+1 Great Arashin City
+4 Island
+1 Isolated Chapel
+1 Meticulous Commons
+1 Neglected Manor
+3 Plains
+1 Prairie Stream
+1 Raffine's Tower
+1 Shattered Sanctum
+5 Swamp

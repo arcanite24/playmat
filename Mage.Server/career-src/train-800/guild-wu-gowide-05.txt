@@ -1,0 +1,25 @@
+# name: Train800 guild-wu-gowide-05
+# archetype: gowide
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Blasting Station
+4 Brackwater Elemental
+1 Chrome Host Seedshark
+4 Emeritus of Truce
+2 Gremlin Tamer
+3 Herald of Anafenza
+3 Knight of Grace
+2 Leonin Surveyor
+4 Siren's Ruse
+2 Station Monitor
+4 Stiltzkin, Moogle Merchant
+3 Survive the Night
+1 Take the Fall
+1 Teferi, Hero of Dominaria
+2 Threnody Singer
+1 Thwip!
+4 Abandoned Campground
+2 Adarkar Wastes
+4 Fortified Beachhead
+2 Island
+9 Plains

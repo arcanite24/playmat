@@ -1,0 +1,56 @@
+# name: Train800 brawl-t-gwu-aggro-01
+# archetype: brawl_aggro
+# colors: GWU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aang, at the Crossroads
+1 Aetherflux Reservoir
+1 Ajani's Chosen
+1 Bant Sureblade
+1 Benalish Knight
+1 Boon of Boseiju
+1 Covetous Castaway
+1 Crushing Vines
+1 Cursebreak
+1 Ezuri, Stalker of Spheres
+1 Finneas, Ace Archer
+1 Fogwalker
+1 Fragmentize
+1 Garnet, Princess of Alexandria
+1 Hooded Brawler
+1 Jukai Naturalist
+1 Moopsy
+1 Pollen-Shield Hare
+1 Pounce
+1 Psychic Corrosion
+1 Pteramander
+1 Rip, Spawn Hunter
+1 Shopkeeper's Bane
+1 Shrewd Storyteller
+1 Snarespinner
+1 Station Monitor
+1 Stormfront Pegasus
+1 Sylvan Shepherd
+1 The Black Arrow
+1 Tocatli Honor Guard
+1 Vanguard of the Rose
+1 Vorinclex, Monstrous Raider
+1 Voyaging Satyr
+1 Wanted Griffin
+1 Wicked Wolf
+1 Zegana, Utopian Speaker
+1 Brushland
+1 Canopy Vista
+1 Conservatory
+1 Etched Cornfield
+4 Forest
+1 Grove of the Guardian
+1 Horizon Canopy
+4 Island
+1 Lakeside Shack
+1 Overgrown Farmland
+3 Plains
+1 Razorverge Thicket
+1 Spara's Headquarters
+1 Sunpetal Grove
+1 Vigorbloom Annex
+1 Yavimaya Coast

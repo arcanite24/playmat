@@ -1,0 +1,40 @@
+# name: Train800 brawl-m-r-mid-02
+# archetype: brawl_mid
+# colors: R
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ahn-Crop Invader
+1 Archwing Dragon
+1 Atsushi, the Blazing Sky
+1 Balduvian Barbarians
+1 Barret Wallace
+1 Cleon, Merry Champion
+1 Desert Sandstorm
+1 Direct Hit
+1 Dragon Whelp
+1 Endrider Catalyzer
+1 Fire Sages
+1 Flamebraider
+1 Goblin Blast-Runner
+1 Goblin Picker
+1 Joust
+1 Lambholt Harrier
+1 Lightning Shrieker
+1 Mogis's Warhound
+1 Munitions Enthusiast
+1 Ojer Axonil, Deepest Might
+1 Ox of Agonas
+1 Penregon Strongbull
+1 Pensive Minotaur
+1 Reckless Air Strike
+1 Reckless Stormseeker
+1 Sarkhan, Dragon Ascendant
+1 Skysovereign, Consul Flagship
+1 Spare Supplies
+1 Spontaneous Artist
+1 Stegron the Dinosaur Man
+1 Subterranean Scout
+1 Survey the Wreckage
+1 Tiger-Tribe Hunter
+1 Volcanic Dragon
+1 Witch's Mark
+25 Mountain

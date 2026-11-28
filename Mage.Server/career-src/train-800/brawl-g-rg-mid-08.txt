@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-rg-mid-08
+# archetype: brawl_mid
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Anzrag's Rampage
+1 Bag of Holding
+1 Bolrac-Clan Crusher
+1 Bristlebane Battler
+1 Bulette
+1 Burning Cloak
+1 Capricious Sliver
+1 Carnivorous Canopy
+1 Case of the Burning Masks
+1 Chandra's Incinerator
+1 Clash of Titans
+1 Crystal Golem
+1 Edgewall Innkeeper
+1 Fang Guardian
+1 Frog Butler
+1 Gaea's Revenge
+1 Garrison Excavator
+1 Goblin Locksmith
+1 Kura, the Boundless Sky
+1 Luminollusk
+1 Obsessive Astronomer
+1 Penumbra Bobcat
+1 Phyrexian Revoker
+1 Pyrewood Gearhulk
+1 Ragged Playmate
+1 Rubblebelt Maverick
+1 Rumbling Baloth
+1 Scorchwalker
+1 Stocking the Pantry
+1 Sylvan Caryatid
+1 The Scarlet Witch
+1 Thragtusk
+1 Thran Spider
+1 Turn to Slag
+1 Wandering Troubadour
+1 Bleeding Woods
+1 Cinder Glade
+1 Copperline Gorge
+9 Forest
+1 Gongaga, Reactor Town
+1 Karplusan Forest
+7 Mountain
+1 Rockfall Vale
+1 Rootbound Crag
+1 Savage Mansion
+1 Stomping Ground

@@ -1,0 +1,28 @@
+# name: Train800 guild-ur-gowide-05
+# archetype: gowide
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Clockwork Servant
+2 Cogwork Wrestler
+2 Departed Deckhand
+3 Elvenking's Harper
+2 Faerie Mastermind
+2 Farid, Enterprising Salvager
+2 Firemind's Research
+1 Flowstone Infusion
+2 Frostbite Pyromental
+1 Izzet Charm
+2 Mage-Ring Bully
+2 Nivix Guildmage
+3 Ragged Playmate
+1 Ral, Izzet Viceroy
+4 Ripchain Razorkin
+3 Slick Sequence
+3 Storm Strike
+2 The Emperor of Palamecia
+1 Vibrant Outburst
+3 Island
+8 Mountain
+4 Shivan Reef
+4 Spirebluff Canal
+2 Sulfur Falls

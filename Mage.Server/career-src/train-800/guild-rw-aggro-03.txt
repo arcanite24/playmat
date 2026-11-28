@@ -1,0 +1,22 @@
+# name: Train800 guild-rw-aggro-03
+# archetype: aggro
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Ash, Party Crasher
+3 Cerodon Yearling
+4 Cloudspire Coordinator
+3 Daredevil, Man Without Fear
+3 Daybreak Charger
+2 Frontline Rush
+4 Lightning Helix
+1 Makeshift Munitions
+2 Searing Barb
+3 Slaying Fire
+4 Sun Warriors
+3 Sunpearl Kirin
+3 Territorial Roc
+2 Dalkovan Encampment
+4 Dedicated Commons
+5 Mountain
+7 Plains
+4 Raucous Carnival

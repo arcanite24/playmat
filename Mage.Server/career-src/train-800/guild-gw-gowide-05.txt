@@ -1,0 +1,23 @@
+# name: Train800 guild-gw-gowide-05
+# archetype: gowide
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Audience with Trostani
+4 Banishing Slash
+2 Boon Satyr
+1 Brightglass Gearhulk
+3 Edge Rover
+2 Giant Killer
+2 Haazda Marshal
+4 Hanweir Militia Captain
+3 Icecave Crasher
+4 Panther Pounce
+4 Predatory Wurm
+2 Ravenous Amulet
+3 Trueheart Duelist
+4 Vitu-Ghazi Guildmage
+4 Etched Cornfield
+2 Forest
+2 Grove of the Guardian
+9 Plains
+4 Sunpetal Grove

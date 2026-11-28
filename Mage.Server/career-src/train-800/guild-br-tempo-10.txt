@@ -1,0 +1,25 @@
+# name: Train800 guild-br-tempo-10
+# archetype: tempo
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Blistering Firecat
+2 Char
+4 Discerning Peddler
+3 Irreverent Gremlin
+2 Lightning Mare
+1 Longhorn Sharpshooter
+1 Mouser Attack!
+1 Plasma Bolt
+4 Playful Shove
+3 Rakdos, Lord of Riots
+3 Reality Hemorrhage
+3 Searing Blaze
+2 Searing Spear
+4 Spinneret and Spiderling
+2 Vance's Blasting Cannons
+2 Weaponize the Monsters
+2 Dragonskull Summit
+9 Mountain
+4 Razortrap Gorge
+4 Smoldering Marsh
+2 Swamp

@@ -1,0 +1,24 @@
+# name: Train800 guild-wb-control-19
+# archetype: control
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ajani, Outland Chaperone
+2 Bontu's Last Reckoning
+1 Caustic Exhale
+2 Cirith Ungol Patrol
+2 Despark
+4 Firja's Retribution
+4 Go for the Throat
+2 Invoke Despair
+1 Kaya's Wrath
+4 Reprisal
+1 Sage of the Skies
+2 Shattered Acolyte
+4 Sifter of Skulls
+2 Test of Loyalty
+3 Vivisection Evangelist
+4 Isolated Chapel
+4 Meticulous Commons
+2 Neglected Manor
+4 Plains
+11 Swamp

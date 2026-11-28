@@ -1,0 +1,35 @@
+# name: Train800 lim-g-br-mid-09
+# archetype: limited_mid
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ashnod, Flesh Mechanist
+1 Balduvian Horde
+2 Battle Brawler
+2 Bonded Horncrest
+2 Brute Strength
+2 Combustion Man
+1 Costly Plunder
+1 Daring Fiendbonder
+2 Dark Banishing
+2 Defiler of Souls
+1 Dire Fleet Ravager
+1 Eyetwitch
+1 Hackrobat
+2 Iron Spider, Stark Upgrade
+2 Magda, Brazen Outlaw
+1 Mica, Reader of Ruins
+1 Ogre Siegebreaker
+1 Poison the Cup
+1 Rageblood Shaman
+1 Reckoner's Bargain
+1 Scarecrow Guide
+1 Sold Out
+2 Spikewheel Acrobat
+2 Sunshot Militia
+1 Suspicious Shambler
+1 Venomized Cat
+2 Cinder Marsh
+10 Mountain
+2 Razortrap Gorge
+1 Sulfurous Springs
+9 Swamp

@@ -1,0 +1,38 @@
+# name: Train800 lim-g-bg-aggro-04
+# archetype: limited_aggro
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Akawalli, the Seething Tower
+1 Altanak, the Thrice-Called
+2 Arachnoid Adaptation
+2 Atomize
+1 Badgey, Malicious Glitch
+1 Baleful Mastery
+1 Barrier Breach
+2 Bogwater Lumaret
+1 Bosk Banneret
+1 Broodhunter Wurm
+1 Catacomb Sifter
+1 Compelled Duel
+1 Composer of Spring
+1 Crossroads Consecrator
+2 Cynical Loner
+1 Dina, Soul Steeper
+2 Drossclaw
+1 Flaxen Intruder
+1 Harvesttide Sentry
+1 Herbology Instructor
+1 Hercules, Prince of Power
+1 Ironscale Hydra
+1 Lluwen, Exchange Student
+1 Mage Hunter
+2 Professor of Zoomancy
+1 Skyfisher Spider
+1 Territorial Boar
+2 Unscrupulous Contractor
+2 Vinereap Mentor
+2 Bayou
+12 Forest
+2 Formidable Commons
+6 Swamp
+1 Woodland Cemetery

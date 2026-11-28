@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-ubr-ramp-04
+# archetype: brawl_ramp
+# colors: UBR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Architects of Will
+1 Baxter Stockman
+1 Beamtown Beatstick
+1 Blood Glutton
+1 Braidwood Sextant
+1 Cave-In
+1 Chittering Harvester
+1 Combustion Man
+1 Corpse Traders
+1 Dauthi Marauder
+1 Deadly Complication
+1 Deep Goblin Skulltaker
+1 Dokuchi Shadow-Walker
+1 Expedition Map
+1 Faerie Formation
+1 Fathom Fleet Firebrand
+1 Fell Horseman
+1 Final Flare
+1 Gearseeker Serpent
+1 Hour of Glory
+1 Ilharg, the Raze-Boar
+1 Izzet Cluestone
+1 Kobayashi Maru Scenario
+1 Morkrut Behemoth
+1 Pacesetter Paragon
+1 Pia and Kiran Nalaar
+1 Pillar of Origins
+1 Prismite
+1 Prowler, Clawed Thief
+1 Skyship Plunderer
+1 Smoldering Egg
+1 Spellscorn Coven
+1 Vial Smasher, Gleeful Grenadier
+1 Voldaren Bloodcaster
+1 Voldaren Pariah
+1 Badlands
+1 Blackcleave Cliffs
+1 Boiling Rock Prison
+1 Cinder Marsh
+1 Crosis's Catacombs
+1 Crumbling Necropolis
+1 Dragonskull Summit
+1 Haunted Ridge
+5 Island
+4 Mountain
+1 Razortrap Gorge
+1 Shipwreck Marsh
+1 Smoldering Marsh
+1 Sulfurous Springs
+3 Swamp
+1 Xander's Lounge

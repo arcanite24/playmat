@@ -1,0 +1,23 @@
+# name: Train800 guild-ur-bigmana-17
+# archetype: bigmana
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Barbed Sextant
+1 Burn Down the House
+2 Endrider Catalyzer
+2 Improbable Alliance
+2 Izzet Cluestone
+1 Izzet Locket
+4 Rook Turret
+2 Ruric Thar, Biomagus
+3 Spicy Oatmeal Pizza
+4 Thor, God of Thunder
+2 Transporter Malfunction
+4 Unsparing Boltcaster
+2 Vantress Gargoyle
+3 Zalto, Fire Giant Duke
+2 Island
+14 Mountain
+4 Peculiar Lighthouse
+4 Shivan Reef
+2 Stormcarved Coast

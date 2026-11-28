@@ -1,0 +1,40 @@
+# name: Train800 lim-t-urw-aggro-02
+# archetype: limited_aggro
+# colors: URW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Captain Jean-Luc Picard
+2 Chandra's Pyreling
+1 Clickslither
+2 Diviner of Victory
+2 Exit Specialist
+1 Faerie Duelist
+1 Falkenrath Perforator
+1 Flame-Blessed Bolt
+2 Harmonized Trio
+1 Insufferable Balladeer
+1 Lava Serpent
+2 Malcolm, the Eyes
+1 Militant Inquisitor
+2 Moment of Triumph
+1 Moonlit Lamenter
+2 Narset, Enlightened Exile
+1 Niv-Mizzet, Parun
+1 Phyrexian Vindicator
+2 Price of Freedom
+1 Refute Destiny
+1 Sacred Fire
+1 Satyr Hoplite
+1 Scab-Clan Berserker
+1 Shu Yun, the Silent Tempest
+1 The Mighty Thor, Jane Foster
+1 Transmogrify
+1 Turn Inside Out
+1 Tweeze
+1 Vadrok, Apex of Thunder
+2 Dalkovan Encampment
+6 Island
+7 Mountain
+2 Mystic Monastery
+2 Plains
+2 Raucous Carnival
+2 Raugrin Triome

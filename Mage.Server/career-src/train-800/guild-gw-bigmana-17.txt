@@ -1,0 +1,23 @@
+# name: Train800 guild-gw-bigmana-17
+# archetype: bigmana
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Bamboo Grove Archer
+2 Bridgeworks Battle
+2 Cadira, Caller of the Small
+1 Fountainport Bell
+3 Gemrazer
+3 Ghalta and Mavren
+2 Glorious Sunrise
+4 Hazard of the Dunes
+1 Khalni Ambush
+2 Platoon Dispenser
+3 Tail Swipe
+3 Thror's Map
+1 Titania's Command
+4 Treeshaker Chimera
+2 Etched Cornfield
+14 Forest
+4 Grove of the Guardian
+2 Plains
+4 Vigorbloom Annex

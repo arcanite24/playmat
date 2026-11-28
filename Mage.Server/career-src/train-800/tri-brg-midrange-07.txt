@@ -1,0 +1,27 @@
+# name: Train800 tri-brg-midrange-07
+# archetype: midrange
+# colors: BRG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Abomination, Terrifying Titan
+2 Auspicious Starrix
+2 Avatar of Discord
+2 Cavalier of Thorns
+2 Centaur Archer
+1 Dance with Devils
+4 Dauthi Slayer
+2 Demon Wall
+1 Devour in Shadow
+3 Gaea's Courser
+4 Ghirapur Aether Grid
+2 Open Fire
+2 Rampart Smasher
+1 Shakedown Heavy
+2 Stampeding Scurryfoot
+4 Thawbringer
+4 Darigaaz's Caldera
+2 Deathcap Glade
+2 Forest
+4 Formidable Commons
+6 Mountain
+4 Strangled Cemetery
+2 Swamp

@@ -1,0 +1,36 @@
+# name: Train800 lim-g-wb-ctrl-11
+# archetype: limited_ctrl
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Agency Coroner
+2 Ancestral Statue
+2 Anointed Peacekeeper
+1 Armageddon
+1 Blood Vassal
+1 Bloodchief's Thirst
+1 Blur of Heroism
+1 Consul's Lieutenant
+1 Consume the Meek
+2 Crossway Troublemakers
+1 Death in the Family
+1 Drogskol Shieldmate
+1 Erase
+1 Final Death
+1 Forsake the Worldly
+1 Inquisitor's Ox
+2 Jirina, Dauntless General
+1 Kalastria Nightwatch
+2 Knight of the Keep
+2 Massacre Wurm
+1 Obzedat, Ghost Council
+1 Ori, Keeper of Songs
+2 Prairie Dog
+1 Ray of Enfeeblement
+2 Sterling Hound
+1 Sunset Revelry
+1 Vile Rebirth
+2 Caves of Koilos
+2 Great Arashin City
+9 Plains
+1 Shattered Sanctum
+11 Swamp

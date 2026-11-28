@@ -1,0 +1,41 @@
+# name: Train800 brawl-m-b-aggro-01
+# archetype: brawl_aggro
+# colors: B
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ashiok's Reaper
+1 Balemurk Leech
+1 Bloodsoaked Champion
+1 Bloodsworn Squire
+1 Caged Zombie
+1 Cao Ren, Wei Commander
+1 Clackbridge Troll
+1 Containment Construct
+1 Corroding Dragonstorm
+1 Cruel Deceiver
+1 Cutthroat Contender
+1 Dark Deed
+1 Deathgreeter
+1 Despoil
+1 Dinosaur Hunter
+1 Eviscerate
+1 Fallen Askari
+1 Fire Nation Engineer
+1 Gutter Skulk
+1 Howling Golem
+1 Khenra Eternal
+1 Knight of the Ebon Legion
+1 Moonshadow
+1 Ob Nixilis, Unshackled
+1 Restless Bloodseeker
+1 Reverent Howl
+1 Scheming Aspirant
+1 Scuttling Butler
+1 Settle the Score
+1 Spark Reaper
+1 Stitcher's Supplier
+1 Troop of Ponies
+1 Unliving Legionnaire
+1 Visions of Villainy
+1 Wicked Guardian
+1 Witch's Familiar
+24 Swamp

@@ -1,0 +1,24 @@
+# name: Train800 guild-bg-aggro-02
+# archetype: aggro
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Ashnod, Flesh Mechanist
+1 Bastion of Remembrance
+4 Bayou Groff
+1 Daemogoth Woe-Eater
+2 Hapatra, Vizier of Poisons
+3 Intrepid Trufflesnout
+4 Mintstrosity
+4 Pharika, God of Affliction
+2 Professor Dellian Fel
+4 Rakish Crew
+4 Seedship Broodtender
+2 Storrev, Devkarin Lich
+2 Vraska, Golgari Queen
+2 Wildsize
+1 Witherbloom Charm
+4 Bayou
+5 Forest
+2 Llanowar Wastes
+4 Strangled Cemetery
+7 Swamp

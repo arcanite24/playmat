@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-bgu-ramp-05
+# archetype: brawl_ramp
+# colors: BGU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Adarkar Windform
+1 Agonasaur Rex
+1 Arrester's Admonition
+1 Banishing Betrayal
+1 Bludgeoning Pain
+1 Boggart Prankster
+1 Bontu's Last Reckoning
+1 Brotherhood Patriarch
+1 Carnival of Souls
+1 Culling the Weak
+1 Davvol, Evincar of Rath
+1 Demon of Loathing
+1 Desperate Castaways
+1 Dimir Locket
+1 Ebondeath, Dracolich
+1 Eddymurk Crab
+1 Iron Lad, Diverging Destiny
+1 Jace's Triumph
+1 Khalni Ambush
+1 Lazav, Wearer of Faces
+1 Lazotep Reaver
+1 Lu Meng, Wu General
+1 Project Deathlok Soldier
+1 Scream Puff
+1 Sephiroth, Planet's Heir
+1 Shapers of Nature
+1 Sparkhunter Masticore
+1 Spectral Snatcher
+1 Sultai Monument
+1 Talisman of Resilience
+1 The Masters of Evil
+1 Waterfall Aerialist
+1 Wickerfolk Thresher
+1 Wildwood Patrol
+1 Winter's Intervention
+1 Blooming Marsh
+1 Darkslick Shores
+1 Drowned Catacomb
+2 Forest
+3 Island
+1 Llanowar Wastes
+1 Murky Sewer
+1 Opulent Palace
+1 Overgrown Tomb
+1 Shipwreck Marsh
+1 Strangled Cemetery
+1 Sunken Hollow
+7 Swamp
+1 Underground River
+1 Woodland Cemetery
+1 Zagoth Triome

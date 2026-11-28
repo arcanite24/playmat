@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-brg-ramp-04
+# archetype: brawl_ramp
+# colors: BRG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Agent Frank Horrigan
+1 Beanstalk Wurm
+1 Black Widow, Daring Operative
+1 Bloodfire Expert
+1 Callous Sell-Sword
+1 Captain Lannery Storm
+1 Cryptolith Rite
+1 Dire Mimic
+1 Essenceknit Scholar
+1 Fear of the Dark
+1 Flame-Wreathed Phoenix
+1 Freejam Regent
+1 Frenzied Tilling
+1 Freya Crescent
+1 Golgari Cluestone
+1 Hagra Mauling
+1 Incorrigible Youths
+1 Inner Demons Gangsters
+1 Invasion of Ergamon
+1 Jolrael, Mwonvuli Recluse
+1 Kogla and Yidaro
+1 Lay of the Land
+1 Lizard, Connors's Curse
+1 Mutant's Prey
+1 Pheres-Band Tromper
+1 Ran and Shaw
+1 Sangromancer
+1 Season of the Bold
+1 Sozin's Comet
+1 Subway Train
+1 Sunshot Militia
+1 Tannuk, Memorial Ensign
+1 Territorial Baloth
+1 Thriving Rats
+1 Trial of Agony
+1 Badlands
+1 Bleeding Woods
+1 Cinder Glade
+1 Cinder Marsh
+1 Copperline Gorge
+1 Darigaaz's Caldera
+1 Dragonskull Summit
+4 Forest
+1 Karplusan Forest
+5 Mountain
+1 Rockfall Vale
+1 Rootbound Crag
+1 Stomping Ground
+1 Sulfurous Springs
+3 Swamp
+1 Ziatora's Proving Ground

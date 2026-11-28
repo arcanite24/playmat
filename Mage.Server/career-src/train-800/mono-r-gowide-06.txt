@@ -1,0 +1,21 @@
+# name: Train800 mono-r-gowide-06
+# archetype: gowide
+# colors: R
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Aether Chaser
+2 Archwing Dragon
+2 Ball Lightning
+4 Farid, Enterprising Salvager
+2 Goblin Blast-Runner
+4 Goblin Patrol
+2 Goro-Goro, Disciple of Ryusei
+1 Igneous Inspiration
+1 Legion Extruder
+3 Munitions Enthusiast
+1 Neheb, Dreadhorde Champion
+4 Otherworldly Outburst
+3 Playful Shove
+4 Red Herring
+2 Tibalt, Rakish Instigator
+1 Tweeze
+21 Mountain

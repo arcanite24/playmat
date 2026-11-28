@@ -1,0 +1,26 @@
+# name: Train800 guild-ub-bigmana-15
+# archetype: bigmana
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ahriman
+2 Burning-Rune Demon
+2 Chandra, Chill of Compliance
+2 Code of Constraint
+1 Coerced Confession
+2 Collector's Vault
+2 Deadly Dispute
+2 Depths of Desire
+3 High-Society Hunter
+2 Lord of the Forsaken
+1 Murmuring Volume
+3 Nightmare Shepherd
+1 The Mightstone and Weakstone
+3 Treasure Dredger
+2 Uchbenbak, the Great Mistake
+4 Yathan Tombguard
+1 Zulaport Duelist
+2 Island
+4 Murky Sewer
+2 Shipwreck Marsh
+14 Swamp
+4 Underground River

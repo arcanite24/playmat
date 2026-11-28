@@ -1,0 +1,20 @@
+# name: Train800 mono-b-bigmana-08
+# archetype: bigmana
+# colors: B
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Abhorrent Overlord
+4 Baleful Ammit
+2 Beetle-Headed Merchants
+3 Black Market Connections
+2 Clackbridge Troll
+1 Deadly Embrace
+4 Desecration Demon
+1 Dockside Chef
+1 Erebos, Bleak-Hearted
+3 Hateful Eidolon
+4 Kothophed, Soul Hoarder
+4 Ominous Parcel
+2 Test of Loyalty
+1 Vraska's Final Mercy
+2 Waste Not
+25 Swamp

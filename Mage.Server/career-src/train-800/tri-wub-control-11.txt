@@ -1,0 +1,25 @@
+# name: Train800 tri-wub-control-11
+# archetype: control
+# colors: WUB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Azorius First-Wing
+2 Bloodgift Demon
+4 Brackish Blunder
+3 Dakmor Plague
+3 Fracture
+1 Into the Fae Court
+1 Locke Cole
+3 Namazu Trader
+4 Protect the Negotiators
+2 Reality Shift
+3 Riling Dawnbreaker
+3 Skullport Merchant
+2 Stinging Hivemaster
+2 You Find the Villains' Lair
+4 Darkslick Shores
+2 Island
+7 Plains
+4 Shipwreck Marsh
+2 Sunken Hollow
+2 Swamp
+4 Underground River

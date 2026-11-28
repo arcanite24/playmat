@@ -1,0 +1,22 @@
+# name: Train800 guild-rg-midrange-11
+# archetype: midrange
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Bejeweled Warg
+1 Champion of Dusan
+4 Colossadactyl
+4 Combustible Gearhulk
+2 Dawntreader Elk
+4 Farideh's Fireball
+2 Great Divide Guide
+1 Heartfire
+3 Hiveheart Shaman
+2 Igneous Inspiration
+4 Inexorable Blob
+2 Raze to the Ground
+3 Virtue of Courage
+4 Cinder Glade
+6 Forest
+8 Mountain
+2 Rockfall Vale
+4 Stomping Ground

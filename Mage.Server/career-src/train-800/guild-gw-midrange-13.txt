@@ -1,0 +1,23 @@
+# name: Train800 guild-gw-midrange-13
+# archetype: midrange
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Brightcap Badger
+2 Cloudthresher
+2 Dryad Militant
+3 Evolved Spinoderm
+2 Flicker of Fate
+4 Hinterland Sanctifier
+4 Kodama of the West Tree
+2 Leonin Skyhunter
+4 Mosscoat Goriak
+2 Rocksteady, Crash Courser
+4 Silverback Shaman
+4 Sudden Strike
+1 Tangletrap
+1 The Black Arrow
+4 Etched Cornfield
+12 Forest
+2 Plains
+2 Razorverge Thicket
+4 Sunpetal Grove

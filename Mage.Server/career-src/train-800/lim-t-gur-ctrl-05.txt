@@ -1,0 +1,36 @@
+# name: Train800 lim-t-gur-ctrl-05
+# archetype: limited_ctrl
+# colors: GUR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Abandon Attachments
+1 Ardent Electromancer
+1 Atalan Jackal
+2 Balamb T-Rexaur
+1 Barkweave Crusher
+2 Cancel
+1 Chelonian Tackle
+1 Curious Obsession
+1 Draconic Intervention
+1 Flame Sweep
+2 Frontline War-Rager
+2 Go Nuts!
+2 Goldhound
+1 Into the Flood Maw
+1 Kasmina, Enigmatic Mentor
+1 Khenra Spellspear
+2 Long-Finned Skywhale
+2 Paradox Surveyor
+2 Ruthless Predation
+2 Snarling Wolf
+2 Sphinx of Magosi
+1 Spider-Man, Brooklyn Visionary
+1 Spikeshell Harrier
+1 Starbreach Whale
+1 Temur Battlecrier
+2 Dreamroot Cascade
+3 Forest
+2 Hinterland Harbor
+7 Island
+7 Mountain
+2 Transformative Commons
+2 Yavimaya Coast

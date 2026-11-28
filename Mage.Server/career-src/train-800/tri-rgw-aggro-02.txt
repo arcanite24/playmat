@@ -1,0 +1,26 @@
+# name: Train800 tri-rgw-aggro-02
+# archetype: aggro
+# colors: RGW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Angry Rabble
+3 Arc Runner
+1 Arcane Teachings
+2 Bishop's Soldier
+2 Boggart Ram-Gang
+4 Chandra, the Firebrand
+3 Cid, Freeflier Pilot
+1 Fry
+2 Grand Abolisher
+1 Herald of the Pantheon
+2 Jetmir, Nexus of Revels
+4 Perils of the Past
+4 Swab Goblin
+2 Titan's Strength
+3 Vernadi Shieldmate
+4 Battlefield Forge
+4 Dedicated Commons
+4 Forest
+3 Mountain
+1 Plains
+2 Sunbaked Canyon
+4 Sundown Pass

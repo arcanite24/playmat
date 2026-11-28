@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-wb-mid-05
+# archetype: brawl_mid
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Archfiend of Depravity
+1 Battlewise Aven
+1 Butcher of Malakir
+1 Cabal Paladin
+1 Damning Verdict
+1 Deadly Visit
+1 Delivery Moogle
+1 Dire Tactics
+1 Egon, God of Death
+1 Eidolon of Obstruction
+1 Epicure of Blood
+1 Final Payment
+1 Hei Bai, Spirit of Balance
+1 Karai's Technique
+1 Kaya, Orzhov Usurper
+1 Lotusguard Disciple
+1 Norn's Wellspring
+1 Orphans of the Wheat
+1 Poised Practitioner
+1 Pretending Poxbearers
+1 Remorseful Cleric
+1 Resurrected Cultist
+1 Screaming Phantom
+1 Setessan Battle Priest
+1 Soul-Guide Gryff
+1 Stone Haven Medic
+1 Tonberry
+1 Treacherous Greed
+1 Trial of Ambition
+1 Vampire Sovereign
+1 Victor, Valgavoth's Seneschal
+1 Vizkopa Guildmage
+1 Voltaic Servant
+1 Vulturous Aven
+1 Wax-Wane Witness
+1 Ballroom
+1 Caves of Koilos
+1 Concealed Courtyard
+1 Great Arashin City
+1 Isolated Chapel
+1 Meticulous Commons
+1 Neglected Manor
+7 Plains
+1 Shattered Sanctum
+9 Swamp
+1 Temple of Silence

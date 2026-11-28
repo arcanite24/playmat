@@ -1,0 +1,20 @@
+# name: Train800 tribal-w-soldier-02
+# archetype: tribal (Soldier)
+# colors: W
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Brightblade Stoat
+4 Cenn's Tactician
+3 Daysquad Marshal
+2 Descendant of Storms
+2 Fairgrounds Warden
+1 Haliya, Guided by Light
+2 Hardened Escort
+2 Interjection
+4 Martyr of Dusk
+3 Portable Hole
+2 Rayblade Trooper
+2 Stagecoach Security
+1 The Black Arrow
+4 Thousand Moons Infantry
+2 Valiant Veteran
+22 Plains

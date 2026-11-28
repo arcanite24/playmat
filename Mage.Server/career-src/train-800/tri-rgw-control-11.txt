@@ -1,0 +1,26 @@
+# name: Train800 tri-rgw-control-11
+# archetype: control
+# colors: RGW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Anax and Cymede
+3 Black Widow, Agile Avenger
+1 Cleansing Nova
+2 Geist of the Lonely Vigil
+3 Muerra, Trash Tactician
+2 Not on My Watch
+4 Olivia's Attendants
+2 Practiced Offense
+3 Pyroconvergence
+1 Scorching Dragonfire
+4 Shattering Blow
+1 Soul of the Harvest
+2 Stoke the Flames
+3 Unfriendly Fire
+1 Vaultguard Trooper
+4 Battlefield Forge
+2 Dedicated Commons
+3 Forest
+4 Inspiring Vantage
+7 Mountain
+2 Plains
+4 Sundown Pass

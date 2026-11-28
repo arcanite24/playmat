@@ -1,0 +1,25 @@
+# name: Train800 tri-rwb-midrange-05
+# archetype: midrange
+# colors: RWB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Akiri, Fearless Voyager
+1 Akoum Hellkite
+2 Belladonna Took
+3 Betrayer's Bargain
+1 End the Festivities
+3 Kirk, Commanding Officer
+3 Kroxa and Kunoros
+4 Oltec Cloud Guard
+3 Shredded Sails
+4 Silverquill Apprentice
+1 Skycrash
+4 Smaug the Magnificent
+1 Sting-Slinger
+4 Temple Thief
+4 Dalkovan Encampment
+2 Inspiring Vantage
+2 Mountain
+2 Plains
+4 Raucous Carnival
+4 Sacred Foundry
+6 Swamp

@@ -1,0 +1,26 @@
+# name: Train800 tri-ubr-bigmana-10
+# archetype: bigmana
+# colors: UBR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Circuit Mender
+3 Cleaving Reaper
+2 Coalstoke Gearhulk
+3 Collateral Damage
+2 Garland, Knight of Cornelia
+2 Grasping Shadows
+3 Improvised Weaponry
+3 Koth, the Geomancer
+1 Mesmerizing Benthid
+2 Qarsi Revenant
+1 Radiating Lightning
+2 Rakdos Locket
+3 Rakdos, the Showstopper
+2 Sorceress's Schemes
+2 Tonberry
+4 Crosis's Catacombs
+4 Dragonskull Summit
+2 Haunted Ridge
+2 Island
+4 Mountain
+4 Sulfurous Springs
+6 Swamp

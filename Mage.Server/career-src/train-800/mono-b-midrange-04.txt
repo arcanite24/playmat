@@ -1,0 +1,19 @@
+# name: Train800 mono-b-midrange-04
+# archetype: midrange
+# colors: B
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Demon of Catastrophes
+4 Egon, God of Death
+2 Garruk, Veiled Butcher
+1 Hunted Nightmare
+3 Impossible Choice
+4 Kothophed, Soul Hoarder
+2 Lolth, Spider Queen
+2 Mirrodin Avenged
+3 Preacher of the Schism
+1 Sorin the Mirthless
+3 The Sackville-Bagginses
+2 Tonberry
+2 Vile Rebirth
+3 Wight
+24 Swamp

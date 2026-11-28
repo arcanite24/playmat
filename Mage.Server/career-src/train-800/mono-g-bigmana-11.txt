@@ -1,0 +1,21 @@
+# name: Train800 mono-g-bigmana-11
+# archetype: bigmana
+# colors: G
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Bloodroot Apothecary
+4 Budding Insurgent
+1 Chromatic Star
+2 Herd Heirloom
+1 Karametra's Favor
+2 Khalni Ambush
+3 Meltstrider Eulogist
+1 Oashra Cultivator
+1 Sagittars' Volley
+3 Servant of the Conduit
+3 Slavering Branchsnapper
+2 Spinewoods Armadillo
+4 Summon: Titan
+1 They Went This Way
+3 Weather Maker
+2 Wrenn and Realmbreaker
+26 Forest

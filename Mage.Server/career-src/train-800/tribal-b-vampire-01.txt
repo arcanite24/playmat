@@ -1,0 +1,22 @@
+# name: Train800 tribal-b-vampire-01
+# archetype: tribal (Vampire)
+# colors: B
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Arrogant Outlaw
+3 Auntie's Sentence
+3 Bloodline Keeper
+4 Gatekeeper of Malakir
+1 Gifted Aetherborn
+1 High-Society Hunter
+2 Indulgent Aristocrat
+3 Kalastria Highborn
+1 Pulse Tracker
+2 Queen's Bay Paladin
+1 Reverent Howl
+2 Silence the Echo
+2 Slaughter Specialist
+2 Stromkirk Mentor
+2 Thirsting Bloodlord
+4 Vampire of the Dire Moon
+2 Voracious Vampire
+23 Swamp

@@ -1,0 +1,20 @@
+# name: Train800 mono-b-midrange-07
+# archetype: midrange
+# colors: B
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Aphemia, the Cacophony
+2 Cremate
+1 Dirge Bat
+4 Garruk, Veiled Butcher
+2 Lolth, Spider Queen
+3 Mindwrack Demon
+2 Monoist Sentry
+2 Phyrexian Obliterator
+2 Scheming Silvertongue
+1 Shadowborn Demon
+1 Sorin the Mirthless
+3 Spawn of Mayhem
+3 The Speed Demon
+3 The Vision
+3 Unfortunate Accident
+24 Swamp

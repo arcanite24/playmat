@@ -1,0 +1,24 @@
+# name: Train800 guild-gw-midrange-11
+# archetype: midrange
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Blasting Station
+2 Bright Reprisal
+4 Calix, Destiny's Hand
+2 Canoptek Spyder
+3 Immolating Glare
+3 Intrepid Stablemaster
+2 Jewel Thief
+3 Loxodon Smiter
+1 Lurking Roper
+4 Nervous Gardener
+1 Ojer Kaslem, Deepest Growth
+3 Photosynthetic Physician
+2 Taranika, Akroan Veteran
+4 Trostani, Three Whispers
+1 Wildborn Preserver
+2 Etched Cornfield
+9 Forest
+4 Overgrown Farmland
+5 Plains
+4 Razorverge Thicket

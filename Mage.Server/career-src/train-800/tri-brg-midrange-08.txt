@@ -1,0 +1,25 @@
+# name: Train800 tri-brg-midrange-08
+# archetype: midrange
+# colors: BRG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Bhaal's Invoker
+2 Black Market Tycoon
+3 Capital Guard
+1 Chandra, Pyromaster
+2 Daemogoth Titan
+4 Dragonlord Atarka
+3 Five-Alarm Fire
+2 Hexgold Slash
+3 Loam Larva
+2 Meria, Scholar of Antiquity
+4 Ob Nixilis, Captive Kingpin
+2 Provoke the Trolls
+1 Summon: Fenrir
+3 Witherbloom Charm
+4 Bleeding Woods
+4 Darigaaz's Caldera
+2 Forest
+4 Karplusan Forest
+6 Mountain
+2 Stomping Ground
+2 Swamp

@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-bg-ctrl-07
+# archetype: brawl_ctrl
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Barkhide Mauler
+1 Become the Avalanche
+1 Bosco, Just a Bear
+1 Clear the Stage
+1 Compound Fracture
+1 Consumed by Greed
+1 Cut of the Profits
+1 Dakmor Plague
+1 Dire Fleet Hoarder
+1 Downwind Ambusher
+1 Final Death
+1 Grapple with Death
+1 Graven Abomination
+1 Hapatra, Vizier of Poisons
+1 Honored Hydra
+1 Izoni, Center of the Web
+1 Jade Avenger
+1 Jungle Creeper
+1 Maze Abomination
+1 Ninja's Blades
+1 Nyxbloom Ancient
+1 Ornery Tumblewagg
+1 Painful Truths
+1 Pharika's Libation
+1 Rottenmouth Viper
+1 Sela, Tal Shiar Paradox
+1 Spark Harvest
+1 Stalking Tiger
+1 Stonefare Crocodile
+1 Sunbringer's Touch
+1 Tidy Conclusion
+1 Traveling Botanist
+1 Tribute to Horobi
+1 Trystan, Callous Cultivator
+1 Wakeroot Elemental
+1 Bayou
+1 Blooming Marsh
+1 Deathcap Glade
+7 Forest
+1 Formidable Commons
+1 Hissing Quagmire
+1 Llanowar Wastes
+1 Overgrown Tomb
+1 Strangled Cemetery
+9 Swamp
+1 Woodland Cemetery

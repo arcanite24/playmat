@@ -1,0 +1,19 @@
+# name: Train800 mono-w-control-12
+# archetype: control
+# colors: W
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Baneslayer Angel
+2 Blasting Station
+3 Bridled Bighorn
+3 Champions from Beyond
+2 Collective Effort
+3 Crested Sunmare
+4 Dawn of Hope
+4 Gideon Blackblade
+2 Goblin Boom Keg
+1 Isolate
+2 Puresteel Paladin
+1 Rally for the Throne
+4 The Fall of Lord Konda
+2 Warlord's Elite
+25 Plains

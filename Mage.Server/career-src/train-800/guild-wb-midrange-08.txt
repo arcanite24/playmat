@@ -1,0 +1,21 @@
+# name: Train800 guild-wb-midrange-08
+# archetype: midrange
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Boneyard Desecrator
+4 Devouring Sugarmaw
+4 Elesh Norn, Mother of Machines
+4 General Chang, Cold Warrior
+2 Impossible Choice
+3 Ketramose, the New Dawn
+3 Last Breath
+3 Mindwrack Demon
+4 Scolding Administrator
+4 Tomik, Wielder of Law
+1 Treacherous Greed
+2 Whisper of the Dross
+2 Concealed Courtyard
+4 Meticulous Commons
+2 Plains
+4 Shattered Sanctum
+12 Swamp

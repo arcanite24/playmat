@@ -1,0 +1,38 @@
+# name: Train800 lim-g-gu-aggro-04
+# archetype: limited_aggro
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aether Spellbomb
+1 Assert Perfection
+1 Boomerang Basics
+1 Bounding Krasis
+2 Chitinous Graspling
+2 Cloud Spirit
+1 Dematerialize
+1 Depower
+1 Ezuri, Stalker of Spheres
+1 Geist of Saint Thalia
+1 Geometer's Arthropod
+2 Glimmerbell
+2 Hana Kami
+2 Incursion Specialist
+1 Insatiable Appetite
+1 Lion Heart
+1 Nessian Boar
+1 Overprotect
+1 Radioactive Spider
+1 River Hoopoe
+2 Rustvine Cultivator
+1 Skyship Plunderer
+1 Splash Portal
+1 Tanazir Quandrix
+1 Tempest Hart
+1 Throwing Knife
+2 Trumpeting Gnarr
+2 Void Attendant
+2 Willow Geist
+9 Forest
+1 Hinterland Harbor
+8 Island
+2 Lakeside Shack
+2 Transformative Commons

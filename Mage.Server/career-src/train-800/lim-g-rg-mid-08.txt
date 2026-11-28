@@ -1,0 +1,37 @@
+# name: Train800 lim-g-rg-mid-08
+# archetype: limited_mid
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aggressive Mammoth
+2 Appetite for the Unnatural
+1 Bolrac-Clan Crusher
+1 Craven Giant
+1 Galactic Wayfarer
+1 Get a Leg Up
+1 Hulkling, Burgeoning Bruiser
+1 King Harald's Revenge
+1 Lambholt Pacifist
+1 Loaming Shaman
+1 Lotus Cobra
+1 Malamet Brawler
+1 Mardu Scout
+2 Nimble-Blade Khenra
+2 Pathfinding Axejaw
+1 Pestilent Wolf
+2 Photosynthetic Physician
+1 Reclusive Taxidermist
+2 Rust-Shield Rampager
+1 Sarkhan's Dragonfire
+1 Sarulf's Packmate
+2 Savage Ventmaw
+1 Squash
+2 Svella, Ice Shaper
+1 Teething Wurmlet
+1 Terror of the Fairgrounds
+1 Thorin, Mountain-king
+2 Trade Route Envoy
+2 Copperline Gorge
+14 Forest
+2 Karplusan Forest
+5 Mountain
+1 Rockfall Vale

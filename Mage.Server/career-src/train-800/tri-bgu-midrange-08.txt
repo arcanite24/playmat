@@ -1,0 +1,27 @@
+# name: Train800 tri-bgu-midrange-08
+# archetype: midrange
+# colors: BGU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Bone Shards
+1 Corroding Dragonstorm
+1 Cowl Prowler
+2 Crossroads Candleguide
+1 Death Stroke
+1 Deathless Pilot
+3 Discordant Piper
+4 Drake Hatcher
+3 Gnottvold Hermit
+2 Greenbelt Radical
+3 Kaito Shizuki
+2 Nightveil Predator
+3 Plated Crusher
+3 Sharktocrab
+4 Silumgar's Command
+1 Thopter Spy Network
+2 Botanical Sanctum
+4 Forest
+2 Island
+4 Opulent Palace
+4 Shipwreck Marsh
+4 Swamp
+4 Zagoth Triome

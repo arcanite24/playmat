@@ -1,0 +1,20 @@
+# name: Train800 mono-w-midrange-09
+# archetype: midrange
+# colors: W
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Action News Crew
+2 Battlefield Raptor
+3 Bright Reprisal
+4 Defiler of Faith
+3 Kemba, Kha Enduring
+2 Oketra the True
+3 Soaring Stoneglider
+1 Springjaw Trap
+1 Staff of Compleation
+2 The Filigree Sylex
+2 The Wanderer
+3 Thunderous Orator
+2 Topple the Statue
+3 Warren Warleader
+4 Wojek Investigator
+24 Plains

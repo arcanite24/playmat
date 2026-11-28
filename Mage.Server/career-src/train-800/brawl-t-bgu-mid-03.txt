@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-bgu-mid-03
+# archetype: brawl_mid
+# colors: BGU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ahriman
+1 Badgey, Malicious Glitch
+1 Briarhorn
+1 Call to Heel
+1 Carrion Crow
+1 Cut Down
+1 Dark Banishing
+1 Destroy the Evidence
+1 Djinni Windseer
+1 Dune Beetle
+1 Guardian of the Halls
+1 Horizon Chimera
+1 Keruga, the Macrosage
+1 Kruphix, God of Horizons
+1 Lotuslight Dancers
+1 Mind Drill Assailant
+1 Minor Misstep
+1 Paranormal Analyst
+1 Pilgrim of the Fires
+1 Pine Walker
+1 Proft, Consulting Detective
+1 Shambling Cie'th
+1 Shigeki, Jukai Visionary
+1 Sworn Guardian
+1 Tainted Treats
+1 Tam's Resistance
+1 Thousand-Faced Shadow
+1 Toxic Abomination
+1 Trumpeting Gnarr
+1 Umbral Collar Zealot
+1 Underworld Sentinel
+1 Vash, Freelance Archaeologist
+1 Wanderlight Spirit
+1 Weave Fate
+1 Withering Curse
+1 Bayou
+1 Darkslick Shores
+1 Deathcap Glade
+1 Drowned Catacomb
+4 Forest
+1 Formidable Commons
+5 Island
+1 Murky Sewer
+1 Opulent Palace
+1 Shipwreck Marsh
+1 Strangled Cemetery
+1 Sunken Hollow
+3 Swamp
+1 Underground River
+1 Woodland Cemetery
+1 Zagoth Triome

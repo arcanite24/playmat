@@ -1,0 +1,23 @@
+# name: Train800 guild-bg-midrange-11
+# archetype: midrange
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Blech, Loafing Pest
+2 Coliseum Behemoth
+1 Deathrite Shaman
+4 Druid of the Cowl
+3 Eye Gouge
+3 Hiveheart Shaman
+2 Infernal Grasp
+4 Orazca Frillback
+1 Ornery Kudu
+2 Pharika, God of Affliction
+2 Terra Stomper
+4 Territorial Witchstalker
+2 The Gitrog Monster
+2 The Mightstone and Weakstone
+4 Bayou
+4 Blooming Marsh
+12 Forest
+2 Llanowar Wastes
+2 Swamp

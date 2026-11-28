@@ -1,0 +1,16 @@
+# name: Train800 mono-r-midrange-10
+# archetype: midrange
+# colors: R
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Ashling, Flame Dancer
+1 Galvanic Blast
+4 Generous Plunderer
+4 Grabby Giant
+3 Hazoret the Fervent
+4 Inferno of the Star Mounts
+3 Jaya, Venerated Firemage
+2 Smaug the Magnificent
+4 Soulbright Seeker
+4 Tweeze
+4 Zariel, Archduke of Avernus
+24 Mountain

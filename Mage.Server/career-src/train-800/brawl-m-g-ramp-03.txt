@@ -1,0 +1,40 @@
+# name: Train800 brawl-m-g-ramp-03
+# archetype: brawl_ramp
+# colors: G
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ambush Viper
+1 Aurora Awakener
+1 Birthing Hulk
+1 Bridgeworks Battle
+1 Caller of the Pack
+1 Champion of Rhonas
+1 Charisma Bobblehead
+1 Contested Game Ball
+1 Gatebreaker Ram
+1 Harrier Naga
+1 Herd Heirloom
+1 Hookhand Mariner
+1 Intrepid Tenderfoot
+1 Karametra's Favor
+1 Khalni Ambush
+1 Lifecrafter's Bestiary
+1 Loxodon Surveyor
+1 Nyxborn Colossus
+1 Oashra Cultivator
+1 Overgrown Zealot
+1 Pack Guardian
+1 Prizefight
+1 Rampaging Brontodon
+1 Ravenous Baloth
+1 Sifter Wurm
+1 Silverfur Partisan
+1 Soul of the Harvest
+1 Staff of Compleation
+1 Sunbathing Rootwalla
+1 Teachings of the Kirin
+1 The Unbeatable Squirrel Girl
+1 Thrun, Breaker of Silence
+1 Titan of Industry
+1 Urn of Godfire
+1 Vastwood Surge
+25 Forest

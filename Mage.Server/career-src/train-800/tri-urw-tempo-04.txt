@@ -1,0 +1,25 @@
+# name: Train800 tri-urw-tempo-04
+# archetype: tempo
+# colors: URW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Belligerent Hatchling
+2 Bone to Ash
+2 Daybreak Chaplain
+4 Failed Inspection
+4 Falkenrath Reaver
+3 Jeskai Charm
+2 Jeskai Shrinekeeper
+3 Kami's Flare
+2 Kaza, Roil Chaser
+3 Narset of the Ancient Way
+3 Pack Mastiff
+2 Saheeli, the Sun's Brilliance
+4 Spiritcall Enthusiast
+2 Stormshriek Feral
+2 Island
+2 Mountain
+2 Mystic Monastery
+4 Peculiar Lighthouse
+4 Plains
+4 Spirebluff Canal
+4 Sulfur Falls

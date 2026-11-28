@@ -1,0 +1,25 @@
+# name: Train800 guild-br-midrange-11
+# archetype: midrange
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Arc Trail
+4 Bladewing, Deathless Tyrant
+3 Cleansing Wildfire
+3 Curse-Marred Demon
+1 Dungeon Crawler
+2 Ember Swallower
+4 Erebos, God of the Dead
+3 Magebane Lizard
+2 Omen of the Forge
+1 Rakdos Charm
+2 Sarkhan, Dragon Ascendant
+1 Skullknocker Ogre
+2 Slagdrill Scrapper
+4 Tome Blast
+1 Tweeze
+2 Urabrask
+4 Badlands
+2 Haunted Ridge
+12 Mountain
+4 Razortrap Gorge
+2 Swamp

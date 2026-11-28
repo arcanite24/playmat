@@ -1,0 +1,22 @@
+# name: Train800 guild-gu-tempo-08
+# archetype: tempo
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Benthic Biomancer
+4 Brinebarrow Intruder
+2 Decisive Denial
+2 Doc Aurlock, Grizzled Genius
+3 Dreamdew Entrancer
+2 Just the Wind
+3 Kiora, the Crashing Wave
+4 Naturalize
+1 Oko, the Ringleader
+4 Quandrix Charm
+3 Redtooth Vanguard
+3 Tempest Hart
+3 Weather Maker
+4 Botanical Sanctum
+6 Forest
+2 Hinterland Harbor
+6 Island
+4 Yavimaya Coast

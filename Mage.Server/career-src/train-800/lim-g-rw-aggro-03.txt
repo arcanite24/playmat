@@ -1,0 +1,37 @@
+# name: Train800 lim-g-rw-aggro-03
+# archetype: limited_aggro
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Adamant Will
+1 Akroan Crusader
+2 Alabaster Kirin
+1 Allied Assault
+1 Ardent Soldier
+1 Bearer of Glory
+1 Desperate Stand
+1 Dust Animus
+1 Excavation Explosion
+1 Expressive Firedancer
+1 Furious Forebear
+2 Gastal Blockbuster
+1 Lightning Helix
+2 Magma Spray
+1 Playful Shove
+1 Sami, Ship's Engineer
+2 Scorching Dragonfire
+2 Sontaran General
+2 Spirit Mascot
+1 Starfield Mystic
+1 Sun Warriors
+1 Sun-Blessed Guardian
+2 Sunrise Cavalier
+1 Tyrox, Saurid Tyrant
+1 Valduk, Keeper of the Flame
+2 Veteran Guardmouse
+2 Yavimaya Steelcrusher
+1 Zada's Commando
+2 Battlefield Forge
+1 Dalkovan Encampment
+11 Mountain
+7 Plains
+2 Raucous Carnival

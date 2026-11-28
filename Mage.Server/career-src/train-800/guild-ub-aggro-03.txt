@@ -1,0 +1,22 @@
+# name: Train800 guild-ub-aggro-03
+# archetype: aggro
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Alpharael, Dreaming Acolyte
+4 Decode Transmissions
+1 Desculpting Blast
+2 Desperate Measures
+4 Dimir Charm
+4 Dire Fleet Poisoner
+2 Gurmag Swiftwing
+4 Kels, Fight Fixer
+2 Relentless Drednok
+1 Sinister Monolith
+4 Skyclave Shade
+3 Soaring Thought-Thief
+4 Toxic Abomination
+2 Drowned Catacomb
+2 Island
+4 Murky Sewer
+4 Sunken Hollow
+10 Swamp

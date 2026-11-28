@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-br-mid-05
+# archetype: brawl_mid
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Acidic Sliver
+1 Bloodhall Priest
+1 Corpse Explosion
+1 Crimson Mage
+1 Dragon Mage
+1 Dreadbore
+1 Duskwalker
+1 Embermaw Hellion
+1 Explosive Entry
+1 Farideh's Fireball
+1 Flummoxed Cyclops
+1 Frenzied Raider
+1 Generous Plunderer
+1 Gilded Cerodon
+1 Gloin the Mighty
+1 Go-Shintai of Ancient Wars
+1 Goblin Motivator
+1 Grasping Scoundrel
+1 Hoarding Ogre
+1 Magnetic Snuffler
+1 Manhole Missile
+1 Nimana Skydancer
+1 Ninja of the Hand
+1 Novice Dissector
+1 Quilled Charger
+1 Ramroller
+1 Render Inert
+1 Seven Dwarves
+1 Sibsig Icebreakers
+1 Surtland Flinger
+1 Tattered Ratter
+1 Underworld Charger
+1 Vengeful Possession
+1 Weaselback Redcap
+1 Wrap in Flames
+1 Badlands
+1 Blackcleave Cliffs
+1 Cinder Marsh
+1 Dragonskull Summit
+1 Haunted Ridge
+14 Mountain
+1 Qo'noS
+1 Razortrap Gorge
+1 Smoldering Marsh
+1 Sulfurous Springs
+2 Swamp

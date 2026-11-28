@@ -1,0 +1,25 @@
+# name: Train800 guild-ur-midrange-12
+# archetype: midrange
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Chandra's Embercat
+1 Culmination of Studies
+3 Defiler of Instinct
+2 Five-Alarm Fire
+2 Goblin Electromancer
+4 Goblin Glasswright
+2 Hungry Flames
+3 Niv-Mizzet, Parun
+2 Raging Kronch
+2 Ral, Izzet Viceroy
+3 Redcap Thief
+1 School Daze
+1 Soul of Shandalar
+1 Steal the Show
+3 The Royal Scions
+4 Wingblade Disciple
+2 Island
+12 Mountain
+4 Shivan Reef
+2 Stormcarved Coast
+4 Sulfur Falls

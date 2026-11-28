@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-rgw-ctrl-06
+# archetype: brawl_ctrl
+# colors: RGW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Benalish Honor Guard
+1 Big Score
+1 Black Panther, Vanguard
+1 Consul's Lieutenant
+1 Crackling Club
+1 Crash Through
+1 Deem Worthy
+1 Fleetfoot Dancer
+1 Gallant Fowlknight
+1 Garenbrig Paladin
+1 Hornbash Mentor
+1 Hour of Devastation
+1 Incandescent Aria
+1 Kodama of the West Tree
+1 Light of Hope
+1 Llanowar Scout
+1 Magmatic Insight
+1 Misty Mountains Raider
+1 Park Heights Pegasus
+1 Primary Unimatrix Adjunct
+1 Pyrrhic Blast
+1 Return to the Earth
+1 Rinoa Heartilly
+1 Seismic Rupture
+1 Setessan Champion
+1 Spike-Tailed Ceratops
+1 The Fall of Lord Konda
+1 Thraben Charm
+1 Thriving Ibex
+1 Trial of Zeal
+1 Unnatural Aggression
+1 Velomachus Lorehold
+1 Viashino Racketeer
+1 Wall of Mulch
+1 White Dragon
+1 Battlefield Forge
+1 Brushland
+1 Clifftop Retreat
+1 Dalkovan Encampment
+1 Dedicated Commons
+1 Etched Cornfield
+6 Forest
+1 Grove of the Guardian
+1 Horizon Canopy
+1 Jetmir's Garden
+4 Mountain
+1 Overgrown Farmland
+2 Plains
+1 Sacred Foundry
+1 Sunbaked Canyon
+1 Sundown Pass

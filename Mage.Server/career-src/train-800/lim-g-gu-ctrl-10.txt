@@ -1,0 +1,38 @@
+# name: Train800 lim-g-gu-ctrl-10
+# archetype: limited_ctrl
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Baloth Packhunter
+1 Bark-Knuckle Boxer
+1 Boomerang
+1 Chorus of Might
+2 Deliberate
+1 Essence Flux
+1 First-Time Flyer
+1 Genemorph Imago
+1 Goblin Firebomb
+1 Gust of Wind
+2 Hornswoggle
+1 I Am Iron Man
+1 Into the Roil
+1 Kairi, the Swirling Sky
+2 Lifecraft Cavalry
+1 Loathsome Chimera
+1 Mowu, Loyal Companion
+1 Piranha Fly
+1 Quandrix Charm
+1 Riparian Tiger
+1 Scion of Glaciers
+1 Silent Dart
+1 Spore Crawler
+2 Stoic Sphinx
+1 Taunting Arbormage
+2 Thundering Spineback
+1 Tide Shaper
+1 Titania's Command
+2 Vannifar, Evolved Enigma
+2 Botanical Sanctum
+8 Forest
+12 Island
+2 Lakeside Shack
+1 Yavimaya Coast

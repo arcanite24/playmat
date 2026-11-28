@@ -1,0 +1,24 @@
+# name: Train800 guild-br-midrange-12
+# archetype: midrange
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Archfiend of the Dross
+2 Barrage of Expendables
+2 Birgi, God of Storytelling
+4 Bloodrage Brawler
+1 Collateral Damage
+2 Everquill Phoenix
+1 Igneous Inspiration
+3 Plasma Cascade
+3 Qal Sisma Behemoth
+4 Rakdos, Patron of Chaos
+1 Roil Eruption
+3 Rotting Regisaur
+2 Salvaged Manaworker
+4 Shrapnel Blast
+2 Tenacious Underdog
+4 Cinder Marsh
+12 Mountain
+4 Smoldering Marsh
+2 Sulfurous Springs
+2 Swamp

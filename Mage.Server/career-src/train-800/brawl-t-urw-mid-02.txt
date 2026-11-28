@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-urw-mid-02
+# archetype: brawl_mid
+# colors: URW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Abjure
+1 Armory Guard
+1 Axgard Artisan
+1 Bitter Chill
+1 Blood Rites
+1 Boros Recruit
+1 Captain Janeway, Endgame
+1 Chrome Prowler
+1 Dain's Company
+1 Diluvian Primordial
+1 Diversion Unit
+1 Explosive Getaway
+1 Flamehold Grappler
+1 Galvanize
+1 HULK SMASH!
+1 Invoke the Divine
+1 Izzet Charm
+1 Jeskai Devotee
+1 Jhoira, Ageless Innovator
+1 Jhoira, Weatherlight Captain
+1 Lutri, the Spellchaser
+1 Mu Yanling, Wind Rider
+1 Narset, Jeskai Waymaster
+1 Oceanus Dragon
+1 Pearl of Wisdom
+1 Phyrexian Archivist
+1 Raphael, the Nightwatcher
+1 Raptor Hatchling
+1 Reckless Velocitaur
+1 Sigiled Sentinel
+1 Spicy Oatmeal Pizza
+1 Stalked Researcher
+1 Suntail Hawk
+1 Tellah, Great Sage
+1 The Locust God
+1 Airship Engine Room
+1 Coastal Peak
+1 Frostboil Snarl
+1 Highland Lake
+3 Island
+1 Molten Tributary
+4 Mountain
+1 Mystic Monastery
+1 Peculiar Lighthouse
+5 Plains
+1 Raugrin Triome
+1 Shivan Reef
+1 Spirebluff Canal
+1 Stormcarved Coast
+1 Sulfur Falls
+1 Volatile Fjord

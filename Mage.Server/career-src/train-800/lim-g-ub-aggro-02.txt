@@ -1,0 +1,34 @@
+# name: Train800 lim-g-ub-aggro-02
+# archetype: limited_aggro
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Armor of Shadows
+1 Blessing of Belzenlok
+1 Boon of Erebos
+2 Cavern Harpy
+2 Cruel Finality
+1 Culling Drone
+2 Dimir Guildmage
+1 Elusive Spellfist
+2 Eradicator Valkyrie
+1 Etrata, the Silencer
+1 Evolved Sleeper
+2 Gearsmith Prodigy
+1 Gisa and Geralf
+2 Gollum, Silent Slinker
+1 Iguana Parrot
+2 Kingpin's Enforcers
+2 Severed Strands
+2 Shipbreaker Kraken
+1 Snarling Gorehound
+1 Soaring Thought-Thief
+1 Tangled Colony
+2 Thassa, Deep-Dwelling
+1 Vanquish the Weak
+2 Vaporkin
+2 Warlock Class
+2 Darkslick Shores
+1 Drowned Catacomb
+6 Island
+2 Sunken Hollow
+12 Swamp

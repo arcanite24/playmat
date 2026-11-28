@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-ur-ctrl-07
+# archetype: brawl_ctrl
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Broken Concentration
+1 Captain of Umbar
+1 Chandra's Embercat
+1 Channeled Dragonfire
+1 Convolute
+1 Crash
+1 Daze
+1 Desert Sandstorm
+1 Distorted Curiosity
+1 Eidolon of the Great Revel
+1 Ephara's Dispersal
+1 Fiery Cannonade
+1 Flame Sweep
+1 Frontline Rebel
+1 Frostbite Pyromental
+1 Gatstaf Arsonists
+1 General Traag, Heart of Stone
+1 Humble Defector
+1 Investigator's Journal
+1 Lore Drakkis
+1 Miner's Bane
+1 Minotaur Aggressor
+1 Ogre Chitterlord
+1 Scrapskin Drake
+1 Seeker of Insight
+1 Shockmaw Dragon
+1 Silvergill Peddler
+1 Smelt-Ward Minotaur
+1 Steal the Show
+1 Two-Headed Hunter
+1 Ureni's Rebuff
+1 Urza's Command
+1 Wild Unraveling
+1 Winds of Rebuke
+1 Winterflame
+1 Eroded Canyon
+5 Island
+11 Mountain
+1 Peculiar Lighthouse
+1 Restless Spire
+1 Shivan Reef
+1 Spirebluff Canal
+1 Stormcarved Coast
+1 Sulfur Falls
+1 TCRI Building
+1 Wandering Fumarole

@@ -1,0 +1,21 @@
+# name: Train800 mono-u-tempo-02
+# archetype: tempo
+# colors: U
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Bazaar Trademage
+1 Bold Biochemist
+2 Consider the Prime Directive
+2 Dynavolt Tower
+4 Humbling Elder
+3 Jace, Unraveler of Secrets
+4 Loch Mare
+3 Lyra, Tolarian Archangel
+4 Merfolk Windrobber
+3 Mu Yanling, Sky Dancer
+1 Multiple Choice
+2 Reservoir Kraken
+2 Startle
+1 Teferi, Temporal Pilgrim
+1 The Black Arrow
+4 Unravel
+22 Island

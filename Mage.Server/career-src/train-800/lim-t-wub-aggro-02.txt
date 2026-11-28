@@ -1,0 +1,39 @@
+# name: Train800 lim-t-wub-aggro-02
+# archetype: limited_aggro
+# colors: WUB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Abyssal Gorestalker
+1 Buzzard-Wasp Colony
+1 Cabal Trainee
+1 Clavileno, First of the Blessed
+1 Dakkon, Shadow Slayer
+1 Defacing Duskmage
+2 Desperate Lunge
+2 Eliminate
+1 Fear of Infinity
+1 Gurmag Swiftwing
+1 Kiora's Dambreaker
+1 Kitesail Freebooter
+2 Leech Fanatic
+1 Liliana, Untouched by Death
+2 Mortify
+1 Nanoform Sentinel
+1 Prowler, Clawed Thief
+2 Quickling
+1 Raven of Fell Omens
+1 Rhet-Crop Spearmaster
+1 Righteousness
+1 Silvercoat Lion
+1 Spell Queller
+2 Thirsting Shade
+2 Tidecaller Mentor
+2 Wanderbrine Trapper
+2 Will, Scion of Peace
+1 Zahur, Glory's Past
+2 Concealed Courtyard
+5 Island
+2 Meticulous Commons
+2 Plains
+2 Raffine's Tower
+2 Shattered Sanctum
+8 Swamp

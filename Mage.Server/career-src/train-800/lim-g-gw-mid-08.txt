@@ -1,0 +1,39 @@
+# name: Train800 lim-g-gw-mid-08
+# archetype: limited_mid
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aberrant Manawurm
+1 Aerial Volley
+1 Airbender's Reversal
+1 Argivian Cavalier
+1 Auriok Glaivemaster
+1 Bastion Mastodon
+1 Black Tom Cassidy
+1 Buster Sword
+1 Dragonback Lancer
+1 Drogskol Cavalry
+1 Evolved Spinoderm
+1 Fateful Absence
+1 Federation Field Medic
+1 Greater Sandwurm
+1 Hazard of the Dunes
+2 Jeskai Student
+1 Joined Researchers
+1 Krotiq Nestguard
+2 Ledev Champion
+1 Mage's Attendant
+2 Malamet Battle Glyph
+1 Nyxborn Shieldmate
+1 Patchwork Beastie
+1 Pet Avengers
+2 Setessan Battle Priest
+1 Splendor Mare
+2 Strength of the Coalition
+1 Sunmane Pegasus
+2 Valorous Steed
+1 Watchful Naga
+1 Canopy Vista
+2 Etched Cornfield
+9 Forest
+10 Plains
+2 Vigorbloom Annex

@@ -1,0 +1,36 @@
+# name: Train800 lim-t-gwu-mid-04
+# archetype: limited_mid
+# colors: GWU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Alacrian Jaguar
+2 Alseid of Life's Bounty
+1 Arm with Aether
+1 Blanchwood Treefolk
+2 Borrowed Time
+1 Captain Kirk, Boldly Going
+2 Choco, Seeker of Paradise
+1 Hydraulic Helper
+2 Karametra, God of Harvests
+1 Katara, the Fearless
+2 Kellan, the Kid
+2 Kessig Prowler
+1 Murk Strider
+2 Nylea's Emissary
+1 Pouncing Shoreshark
+2 Scholar of Stars
+1 Seafloor Oracle
+1 Seedpod Squire
+1 Shattered Acolyte
+1 Shepherding Spirits
+1 Shore Lurker
+2 Skycat Sovereign
+1 Stonebinder's Familiar
+2 Synchronized Strike
+2 Teferi, Who Slows the Sunset
+2 Abandoned Campground
+2 Adarkar Wastes
+2 Cloudcrest Lake
+9 Forest
+3 Island
+4 Plains
+2 Seachrome Coast

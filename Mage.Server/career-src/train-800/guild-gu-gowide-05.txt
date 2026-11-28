@@ -1,0 +1,25 @@
+# name: Train800 guild-gu-gowide-05
+# archetype: gowide
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Avatar of Burgeoning Echoes
+2 Colossal Rattlewurm
+3 Decisive Denial
+4 Genemorph Imago
+4 Greenbelt Rampager
+1 Kiora, Master of the Depths
+1 Kiora, the Crashing Wave
+3 Lurking Lizards
+2 Luxurious Libation
+1 Renowned Weaver
+3 Scurrid Colony
+4 Shapers of Nature
+2 Shell Shield
+3 Slogurk, the Overslime
+1 Temporal Machinations
+2 The Black Arrow
+2 Dreamroot Cascade
+9 Forest
+2 Island
+4 Transformative Commons
+4 Yavimaya Coast

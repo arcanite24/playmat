@@ -1,0 +1,24 @@
+# name: Train800 guild-ub-aggro-04
+# archetype: aggro
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Archdemon of Paliano
+1 Arnim Zola, Bio-Fanatic
+2 Blood Burglar
+2 Cornered by Black Mages
+4 Foggy Swamp Spirit Keeper
+4 Foul Play
+4 Gearsmith Prodigy
+1 Gust of Wind
+3 Intimidation Campaign
+2 Leech Fanatic
+1 Merfolk Trickster
+2 Moment of Defiance
+4 Oracle of Tragedy
+2 Reaver Drone
+4 Tangled Colony
+4 Drowned Catacomb
+2 Island
+4 Murky Sewer
+10 Swamp
+2 Underground River

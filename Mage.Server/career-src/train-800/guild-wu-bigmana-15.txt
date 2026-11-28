@@ -1,0 +1,24 @@
+# name: Train800 guild-wu-bigmana-15
+# archetype: bigmana
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ao, the Dawn Sky
+4 Archon of Justice
+2 Archon of Sun's Grace
+3 Arrester's Admonition
+2 Barrels of Blasting Jelly
+3 Chandra, Chill of Compliance
+1 Chrome Prowler
+1 Collective Effort
+2 Cryptex
+4 Faerie Miscreant
+2 Lunar Rejection
+2 Phyrexian Censor
+4 Phyrexian Vindicator
+2 Serum Sovereign
+2 Sphinx of Magosi
+2 Cloudcrest Lake
+5 Island
+10 Plains
+4 Prairie Stream
+4 Seachrome Coast

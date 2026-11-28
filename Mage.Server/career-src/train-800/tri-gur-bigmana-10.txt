@@ -1,0 +1,25 @@
+# name: Train800 tri-gur-bigmana-10
+# archetype: bigmana
+# colors: GUR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Anticausal Vestige
+1 Arc Spitter
+2 Battle Hymn
+3 Duskwatch Recruiter
+4 Lizard, Connors's Curse
+2 Pit Fight
+3 Preening Champion
+4 Pyrewood Gearhulk
+1 Radiating Lightning
+2 Savage Knuckleblade
+2 Sorceress's Schemes
+3 The Misty Mountains Cold
+3 Timberland Ancient
+2 Timely Interference
+2 Cinder Glade
+4 Copperline Gorge
+6 Forest
+4 Island
+2 Mountain
+4 Rockfall Vale
+4 Stomping Ground

@@ -1,0 +1,22 @@
+# name: Train800 guild-rw-control-20
+# archetype: control
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Annihilating Fire
+3 Arc Trail
+3 Avengers Disassembled
+4 Blaze Commando
+1 Humble the Brute
+4 Knowledge and Power
+2 Leonin of the Lost Pride
+3 Nahiri, the Harbinger
+3 Null Group Biological Assets
+2 Runaway Carriage
+2 Searing Barb
+1 Twinmaw Stormbrood
+3 Wild Slash
+4 Clifftop Retreat
+4 Inspiring Vantage
+14 Mountain
+2 Plains
+2 Raucous Carnival

@@ -1,0 +1,23 @@
+# name: Train800 guild-ub-bigmana-16
+# archetype: bigmana
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Archdemon of Unx
+3 Ashiok, Nightmare Muse
+2 Biting-Palm Ninja
+2 Black Market Connections
+1 Broodrage Mycoid
+3 Daily Bugle Newspaper
+1 Deadly Embrace
+4 Erratic Visionary
+2 Hellish Sideswipe
+4 Pursued Whale
+1 Relic Golem
+4 Talion, the Kindly Lord
+2 Toxrill, the Corrosive
+2 Waste Not
+2 Darkslick Shores
+4 Drowned Catacomb
+5 Island
+4 Murky Sewer
+11 Swamp

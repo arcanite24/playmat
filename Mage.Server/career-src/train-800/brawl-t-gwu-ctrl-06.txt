@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-gwu-ctrl-06
+# archetype: brawl_ctrl
+# colors: GWU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Attercop
+1 Aurochs Herd
+1 Battlewise Hoplite
+1 Befuddle
+1 Biomathematician
+1 Choco, Seeker of Paradise
+1 Cleanse
+1 Consuming Vortex
+1 East Wind Avatar
+1 Frondland Felidar
+1 Gallant Pie-Wielder
+1 Giant Killer
+1 Keeper of the Lens
+1 Maze Sentinel
+1 Mysterious Tome
+1 Out Cold
+1 Patient Instructor
+1 Pulse of Murasa
+1 Rabaroo Troop
+1 Reprisal
+1 Restore the Peace
+1 Scion of Calamity
+1 Screaming Swarm
+1 Separatist Voidmage
+1 Silverback Shaman
+1 Spectral Interference
+1 Sprouting Renewal
+1 Strength of the Pack
+1 Swan Song
+1 Tatyova, Steward of Tides
+1 Thought Collapse
+1 Tolarian Geyser
+1 Tragic Poet
+1 Urza's Rebuff
+1 Wrench
+1 Abandoned Campground
+1 Adarkar Wastes
+1 Botanical Sanctum
+1 Cloudcrest Lake
+1 Deserted Beach
+1 Dreamroot Cascade
+5 Forest
+1 Fortified Beachhead
+1 Hinterland Harbor
+2 Island
+1 Lakeside Shack
+5 Plains
+1 Prairie Stream
+1 Spara's Headquarters
+1 Transformative Commons
+1 Yavimaya Coast

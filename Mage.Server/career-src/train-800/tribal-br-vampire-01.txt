@@ -1,0 +1,25 @@
+# name: Train800 tribal-br-vampire-01
+# archetype: tribal (Vampire)
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Anje, Maid of Dishonor
+2 Belligerent Guest
+2 Bloodhall Priest
+1 Bull Rush
+3 Cordial Vampire
+4 Falkenrath Aristocrat
+1 High-Society Hunter
+1 Ichor Drinker
+2 Nullpriest of Oblivion
+3 Olivia's Bloodsworn
+3 Sparkmage's Gambit
+2 Streaking Oilgorger
+3 Stromkirk Bloodthief
+2 Stromkirk Occultist
+4 Vampire Interloper
+3 Vampire Socialite
+4 Badlands
+2 Haunted Ridge
+2 Mountain
+4 Sulfurous Springs
+11 Swamp

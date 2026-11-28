@@ -1,0 +1,40 @@
+# name: Train800 lim-t-gwu-ctrl-05
+# archetype: limited_ctrl
+# colors: GWU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aang and Katara
+1 Alchemist's Retrieval
+2 Applied Biomancy
+1 Arlinn's Wolf
+1 Countervailing Winds
+1 Cudgel Troll
+2 Cult of the Waxing Moon
+1 Cursed Courtier
+2 Daring Thunder-Thief
+1 Den Protector
+1 Druid of Horns
+1 Fading Hope
+1 Garrison Cat
+2 Growth Spiral
+1 Hussar Patrol
+1 Ixalan's Binding
+1 Leonin Snarecaster
+1 Light of Hope
+1 Mysterious Pathlighter
+1 Pledge of Unity
+1 Render Silent
+1 Scuttlegator
+1 Season of Growth
+1 Secure the Scene
+1 Shatter the Sky
+2 Surtland Elementalist
+1 Wishcoin Crab
+1 Woodland Acolyte
+2 Yuan-Ti Malison
+2 Botanical Sanctum
+2 Deserted Beach
+6 Forest
+2 Glacial Fortress
+6 Island
+5 Plains
+2 Yavimaya Coast

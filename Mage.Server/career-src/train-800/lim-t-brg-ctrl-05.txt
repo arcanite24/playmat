@@ -1,0 +1,39 @@
+# name: Train800 lim-t-brg-ctrl-05
+# archetype: limited_ctrl
+# colors: BRG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Abomination, Terrifying Titan
+2 Ancient Grudge
+1 Archetype of Aggression
+1 Avenger of Zendikar
+1 Blindblast
+1 Chain Reaction
+1 Chaos Spewer
+2 Chittering Skitterling
+1 Devastate
+1 Drill Too Deep
+1 Earth Rumble Wrestlers
+1 Far Fortune, End Boss
+1 Giantfall
+1 Grim Flayer
+1 Hellhole Flailer
+2 Kavaron Skywarden
+1 Lecturing Scornmage
+2 Mogis, God of Slaughter
+1 Outland Colossus
+1 Pit Fight
+1 Polis Crusher
+2 Pummeler for Hire
+2 Renegade Tactics
+1 Ruthless Sniper
+1 Sear
+1 Skullknocker Ogre
+1 Sunder Shaman
+2 Wandertale Mentor
+2 Copperline Gorge
+2 Darigaaz's Caldera
+2 Forest
+11 Mountain
+2 Rockfall Vale
+2 Stomping Ground
+4 Swamp

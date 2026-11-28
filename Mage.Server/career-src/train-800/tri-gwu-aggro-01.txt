@@ -1,0 +1,24 @@
+# name: Train800 tri-gwu-aggro-01
+# archetype: aggro
+# colors: GWU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Aeolipile
+1 Bant Charm
+3 Benalish Marshal
+4 Brokers Charm
+2 Colleen Wing, Street Samurai
+3 Daring Leap
+4 Floodpits Drowner
+4 Gnoll Hunter
+4 Harbin, Vanguard Aviator
+2 Jake Sisko, War Correspondent
+4 Kellan, the Kid
+1 Perilous Myr
+3 Pollen-Shield Hare
+2 Abandoned Campground
+4 Cloudcrest Lake
+4 Forest
+4 Glacial Fortress
+1 Island
+3 Plains
+4 Spara's Headquarters

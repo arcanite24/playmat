@@ -1,0 +1,25 @@
+# name: Train800 tri-gur-midrange-08
+# archetype: midrange
+# colors: GUR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Aerid Konstrari
+4 Drill Too Deep
+2 First Day of Class
+2 Gadwick, the Wizened
+3 Galazeth Prismari
+4 Hobgoblin Captain
+4 Illuna, Apex of Wishes
+3 Jace, Unraveler of Secrets
+2 Kappa Tech-Wrecker
+2 Murasa Sproutling
+2 Mystic Archaeologist
+2 Nissa, Resurgent Animist
+2 Rubblebelt Runner
+1 Weaponize the Monsters
+5 Forest
+4 Frontier Bivouac
+2 Island
+4 Ketria Triome
+3 Mountain
+2 Shivan Reef
+4 Stormcarved Coast

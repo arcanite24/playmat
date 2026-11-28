@@ -1,0 +1,28 @@
+# name: Train800 tri-bgu-midrange-06
+# archetype: midrange
+# colors: BGU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Bat Whisperer
+3 Briar Hydra
+1 Energize
+3 Evangel of Synthesis
+2 Experimental Confectioner
+1 Heart-Piercer Bow
+1 Meltstrider Eulogist
+1 Outcaster Trailblazer
+2 Pestbrood Sloth
+3 Professional Wrestler
+1 Sin, Spira's Punishment
+2 Sinister Concoction
+1 Skeleton Archer
+2 Vilespawn Spider
+4 Woodland Champion
+2 Zameck Guildmage
+3 Zuko's Exile
+4 Bayou
+2 Forest
+4 Formidable Commons
+6 Island
+2 Overgrown Tomb
+4 Strangled Cemetery
+2 Swamp

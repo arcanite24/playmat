@@ -1,0 +1,37 @@
+# name: Train800 lim-g-rg-ctrl-11
+# archetype: limited_ctrl
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Axgard Artisan
+2 Bayou Groff
+1 Beast Within
+2 Boartusk Liege
+1 Boulder Dash
+1 Canopy Baloth
+1 Champion of Dusan
+1 Cleanup Crew
+1 Close Quarters
+1 Doomskar Warrior
+1 Elder Auntie
+1 Elder Gargaroth
+2 Flourishing Hunter
+2 Gatstaf Arsonists
+1 Heated Argument
+1 Light of Judgment
+1 Mina and Denn, Wildborn
+1 Palani's Hatcher
+1 Paradise Druid
+1 Portcullis Vine
+2 Raze to the Ground
+1 Rosethorn Acolyte
+1 Satyr Hedonist
+1 Skophos Warleader
+2 Topiary Stomper
+1 Wild Slash
+2 Wildfire Howl
+1 You Find Some Prisoners
+2 Cinder Glade
+1 Copperline Gorge
+12 Forest
+2 Karplusan Forest
+8 Mountain

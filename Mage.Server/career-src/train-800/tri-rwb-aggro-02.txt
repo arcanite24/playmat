@@ -1,0 +1,25 @@
+# name: Train800 tri-rwb-aggro-02
+# archetype: aggro
+# colors: RWB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Akki Ember-Keeper
+3 Bonecache Overseer
+4 Dual Shot
+3 Fireforger's Puzzleknot
+3 Grim Repriser
+2 Lightning Wolf
+2 Mardu Charm
+3 Martial Glory
+4 Moorland Drifter
+4 Neriv, Heart of the Storm
+3 Oswald Fiddlebender
+1 Skyknight Legionnaire
+4 Tymaret, the Murder King
+1 Vizier of Deferment
+4 Dalkovan Encampment
+4 Inspiring Vantage
+2 Mountain
+4 Nomad Outpost
+1 Plains
+2 Sunbaked Canyon
+4 Swamp

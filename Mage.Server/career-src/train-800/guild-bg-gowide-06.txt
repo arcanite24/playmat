@@ -1,0 +1,24 @@
+# name: Train800 guild-bg-gowide-06
+# archetype: gowide
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Atlas, Sizable Stooge
+3 Blightbelly Rat
+3 Containment Breach
+2 Kraven the Hunter
+1 Mild-Mannered Librarian
+1 Nylea, God of the Hunt
+4 Paramecia Coloniex
+4 Riding the Dilu Horse
+3 Runeclaw Bear
+4 Savvy Hunter
+2 Sorin the Mirthless
+1 Teachings of the Kirin
+3 Unburied Earthcarver
+4 Venom Connoisseur
+1 Witherbloom Charm
+2 Bayou
+7 Forest
+4 Overgrown Tomb
+5 Swamp
+4 Woodland Cemetery

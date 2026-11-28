@@ -1,0 +1,25 @@
+# name: Train800 tri-wub-bigmana-09
+# archetype: bigmana
+# colors: WUB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Alela, Artful Provocateur
+2 Azorius Locket
+1 Captain Jean-Luc Picard
+4 Captain of Umbar
+4 Cavalier of Dawn
+3 Darkwater Egg
+2 Dimir Locket
+1 End Hostilities
+3 Faerie Formation
+2 Lavabrink Venturer
+3 Lost in a Labyrinth
+2 Obyra's Attendants
+4 Stalked Researcher
+2 Unwanted Remake
+2 Adarkar Wastes
+4 Cloudcrest Lake
+4 Fortified Beachhead
+4 Glacial Fortress
+2 Island
+6 Plains
+3 Swamp

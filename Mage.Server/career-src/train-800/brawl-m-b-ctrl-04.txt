@@ -1,0 +1,40 @@
+# name: Train800 brawl-m-b-ctrl-04
+# archetype: brawl_ctrl
+# colors: B
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Annihilating Glare
+1 Avenger of the Fallen
+1 Black Widow, Deadly Hunter
+1 Braids's Frightful Return
+1 Cackling Slasher
+1 Caustic Rain
+1 Conjurer's Bauble
+1 Damnation
+1 Deadly Cover-Up
+1 Dubious Delicacy
+1 Eater of Hope
+1 Funeral Rites
+1 Grisly Transformation
+1 Guild Globe
+1 Gutterbones
+1 Hymn of the Faller
+1 Ichor Shade
+1 Kolaghan Skirmisher
+1 Leering Onlooker
+1 Liliana's Influence
+1 Liliana's Reaver
+1 Mutant Surveyor
+1 Oblivion Strike
+1 Perigee Beckoner
+1 Phyrexian Fleshgorger
+1 Pitiless Vizier
+1 Risen Necroregent
+1 Ruinous Path
+1 Shamble Back
+1 Soul of New Phyrexia
+1 Spider-Man Noir
+1 Tenacious Dead
+1 Undercity Eliminator
+1 Vial of Dragonfire
+1 Yawgmoth's Vile Offering
+25 Swamp

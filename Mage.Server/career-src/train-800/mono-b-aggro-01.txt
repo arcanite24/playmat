@@ -1,0 +1,18 @@
+# name: Train800 mono-b-aggro-01
+# archetype: aggro
+# colors: B
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Asylum Visitor
+3 Bloodvial Purveyor
+3 Cornered by Black Mages
+4 Gifted Aetherborn
+4 Gnarlbark Elm
+3 Grim Wanderer
+2 Hateful Eidolon
+3 Leering Onlooker
+2 Liliana, the Last Hope
+3 Mudbutton Cursetosser
+2 Sorin the Mirthless
+2 Sugar Rush
+3 Underhanded Designs
+22 Swamp

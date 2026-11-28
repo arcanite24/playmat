@@ -1,0 +1,24 @@
+# name: Train800 tri-rgw-bigmana-10
+# archetype: bigmana
+# colors: RGW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Alpine Houndmaster
+3 Archangel Avacyn
+2 Baylen, the Haymaker
+2 Benalish Faithbonder
+4 Brion Stoutarm
+4 Charisma Bobblehead
+1 Crack Open
+3 Onakke Ogre
+2 Smashing Success
+4 Smaug, the Great Calamity
+2 Two-Headed Hunter
+2 Uncle Iroh
+3 Warg Tactics
+2 Battlefield Forge
+4 Clifftop Retreat
+4 Dedicated Commons
+6 Forest
+4 Mountain
+2 Plains
+4 Sunbaked Canyon

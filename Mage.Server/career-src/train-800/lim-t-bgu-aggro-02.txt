@@ -1,0 +1,41 @@
+# name: Train800 lim-t-bgu-aggro-02
+# archetype: limited_aggro
+# colors: BGU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Ana Disciple
+1 Armor of Shadows
+2 Attercop
+2 Bearer of Memory
+2 Bile-Vial Boggart
+1 Bilious Skulldweller
+1 Caller of Gales
+1 Carapace Forger
+1 Civic Gardener
+1 Coral Commando
+1 Daggerback Basilisk
+2 First Order Dreadnought
+1 Guardian of the Great Conduit
+2 Hazel's Nocturne
+1 Healer of the Glade
+2 Hellish Sideswipe
+1 Lash of Thorns
+1 Lightless Evangel
+1 Long Goodbye
+1 Mindful Biomancer
+1 Moopsy
+2 Oran-Rief Invoker
+1 Putrid Pals
+1 Sharktocrab
+1 Shore Up
+1 Siani, Eye of the Storm
+1 Syndicate Infiltrator
+1 Temple Thief
+1 Vivien's Crocodile
+1 Waterwind Scout
+2 Bayou
+4 Forest
+5 Island
+2 Overgrown Tomb
+2 Strangled Cemetery
+5 Swamp
+2 Woodland Cemetery

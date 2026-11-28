@@ -1,0 +1,25 @@
+# name: Train800 guild-wu-aggro-02
+# archetype: aggro
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Apprentice Sorcerer
+3 Arm the Cathars
+4 Brinebarrow Intruder
+2 Crowd of True Believers
+3 Curiosity Crafter
+2 Dauntless Cathar
+3 Force Away
+2 Frost Walker
+3 Hanweir Militia Captain
+2 Mysterio's Phantasm
+3 Ocelot Pride
+3 Raff, Weatherlight Stalwart
+2 Ravenous Amulet
+2 Springjaw Trap
+2 The Mighty Thor, Jane Foster
+2 Whoosh!
+4 Adarkar Wastes
+2 Deserted Beach
+5 Island
+6 Plains
+4 Seachrome Coast

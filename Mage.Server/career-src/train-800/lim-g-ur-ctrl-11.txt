@@ -1,0 +1,38 @@
+# name: Train800 lim-g-ur-ctrl-11
+# archetype: limited_ctrl
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Arcane Teachings
+1 Aven Fisher
+1 Bring the Ending
+1 Chrome Host Seedshark
+1 Defiler of Instinct
+1 Desynchronization
+1 Feed the Flames
+2 Gargadon
+1 Hagi Mob
+1 Hellspur Brute
+1 Incendiary Sabotage
+1 Iymrith, Desert Doom
+1 Jokulhaups
+1 Karsus Depthguard
+1 Kishla Trawlers
+1 Kraum, Violent Cacophony
+1 Lathliss, Dragon Queen
+1 Matoya, Archon Elder
+1 Moat Piranhas
+2 Norin, Swift Survivalist
+1 Prismari Command
+1 Redcap Melee
+1 Rhuk, Hexgold Nabber
+2 Runescale Stormbrood
+1 Spell Rupture
+2 Spinneret and Spiderling
+2 Tuskeri Firewalker
+2 Urza, Powerstone Prodigy
+1 Winds of Rebuke
+6 Island
+14 Mountain
+2 Peculiar Lighthouse
+1 Shivan Reef
+2 Spirebluff Canal

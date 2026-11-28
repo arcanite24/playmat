@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-wu-ctrl-07
+# archetype: brawl_ctrl
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Akroma's Devoted
+1 Alharu, Solemn Ritualist
+1 Angel of Condemnation
+1 Atmosphere Surgeon
+1 Austere Command
+1 Barricade Breaker
+1 Chain to Memory
+1 Cloudheath Drake
+1 Coeurl
+1 Consider the Prime Directive
+1 Cyclone Sire
+1 Deny Existence
+1 Devastating Mastery
+1 Devious Cover-Up
+1 Elspeth Conquers Death
+1 Frantic Inventory
+1 Hallowed Respite
+1 Herald of the Sun
+1 Invasion of Theros
+1 Lake-town Lookout
+1 Legion's Judgment
+1 Lotus Path Djinn
+1 Lucky Offering
+1 Ponder
+1 Resplendent Griffin
+1 Riot Control
+1 Sea-Dasher Octopus
+1 Silumgar Sorcerer
+1 Sound the Trumpets
+1 Squad Commander
+1 Sultai Skullkeeper
+1 Supply Caravan
+1 Teferi, Hero of Dominaria
+1 Valorous Stance
+1 Wipe Away
+1 Abandoned Campground
+1 Adarkar Wastes
+1 Cloudcrest Lake
+1 Deserted Beach
+1 Fortified Beachhead
+1 Glacial Floodplain
+1 Glacial Fortress
+7 Island
+9 Plains
+1 Prairie Stream
+1 Seachrome Coast

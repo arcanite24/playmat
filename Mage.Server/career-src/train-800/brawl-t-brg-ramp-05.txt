@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-brg-ramp-05
+# archetype: brawl_ramp
+# colors: BRG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Accursed Horde
+1 Arborback Stomper
+1 Beorn, Reluctant Host
+1 Bosk Banneret
+1 Breath Weapon
+1 Brood Butcher
+1 Buried Treasure
+1 Chaos Charm
+1 Chomping Kavu
+1 Consume Strength
+1 Cruel Administrator
+1 Domri, Anarch of Bolas
+1 Dragonlord Atarka
+1 Elfhame Wurm
+1 Fireglass Mentor
+1 Frenzied Arynx
+1 Glorious Sunrise
+1 Gnarlwood Dryad
+1 Herald of Hadar
+1 Insidious Roots
+1 Instrument of the Bards
+1 Markov Dreadknight
+1 Metalspinner's Puzzleknot
+1 Murderous Cut
+1 Paradise Druid
+1 Pattern Matcher
+1 Primordial Sage
+1 Savvy Hunter
+1 Sporemound
+1 Stalwart Successor
+1 Terror of the Fairgrounds
+1 Ulrich's Kindred
+1 Vastwood Fortification
+1 Woodland Patrol
+1 Zhur-Taa Goblin
+1 Bayou
+1 Bleeding Woods
+1 Blooming Marsh
+1 Cinder Glade
+1 Darigaaz's Caldera
+1 Deathcap Glade
+7 Forest
+1 Formidable Commons
+1 Karplusan Forest
+1 Llanowar Wastes
+3 Mountain
+1 Overgrown Tomb
+1 Strangled Cemetery
+2 Swamp
+1 Woodland Cemetery
+1 Ziatora's Proving Ground

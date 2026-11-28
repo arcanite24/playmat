@@ -1,0 +1,23 @@
+# name: Train800 guild-ub-aggro-01
+# archetype: aggro
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Accursed Centaur
+1 Demonic Taskmaster
+4 Dimir Charm
+1 Drown in the Loch
+3 Evangel of Synthesis
+4 Faerie Dreamthief
+4 Hunted Bonebrute
+3 Lead Pipe
+2 Liliana, Untouched by Death
+3 Mourner's Surprise
+4 Satoru, the Infiltrator
+3 Skemfar Avenger
+2 Smothering Abomination
+2 Thraxodemon
+4 Drowned Catacomb
+2 Island
+2 Shipwreck Marsh
+9 Swamp
+4 Underground River

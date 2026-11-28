@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-bg-ctrl-08
+# archetype: brawl_ctrl
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Adaptive Sporesinger
+1 Aerial Predation
+1 Beast Within
+1 Bloodline Culling
+1 Bogwater Lumaret
+1 Bone Splinters
+1 Brightcap Badger
+1 Candlelit Cavalry
+1 Chill to the Bone
+1 Chorus of Might
+1 Dawntreader Elk
+1 Dismember
+1 Eerie Gravestone
+1 Garruk's Packleader
+1 Ghoulsteed
+1 Glissa, Herald of Predation
+1 Great Forest Druid
+1 Grisly Sigil
+1 Kolvori, God of Kinship
+1 Krosan Grip
+1 Lord Dregg, Insect Invader
+1 Mage-Ring Responder
+1 Malamet Brawler
+1 Morkrut Necropod
+1 Pheres-Band Raiders
+1 Ruin Processor
+1 Sabertooth Mauler
+1 Sarulf, Realm Eater
+1 Setessan Training
+1 Shamanic Revelation
+1 The Master of Lake-town
+1 Whisperwood Elemental
+1 Witherbloom Charm
+1 Withering Curse
+1 Yargle and Multani
+1 Bayou
+1 Blooming Marsh
+1 Deathcap Glade
+9 Forest
+1 Formidable Commons
+1 Llanowar Wastes
+1 Mirkwood
+1 Overgrown Tomb
+1 Strangled Cemetery
+7 Swamp
+1 Woodland Cemetery

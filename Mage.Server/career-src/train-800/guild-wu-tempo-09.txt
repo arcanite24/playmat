@@ -1,0 +1,25 @@
+# name: Train800 guild-wu-tempo-09
+# archetype: tempo
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Aang, Swift Savior
+2 Academy Loremaster
+4 Aether Spellbomb
+1 Captain's Defense
+4 Chilling Trap
+3 Deputy of Acquittals
+3 Elaborate Firecannon
+3 Isamaru, Hound of Konda
+2 Jace's Scrutiny
+4 Keep Safe
+2 King T'Challa
+1 Lunar Rejection
+2 Merchant's Dockhand
+3 Research Assistant
+2 Scatter Arc
+2 Xerex Strobe-Knight
+2 Deserted Beach
+4 Fortified Beachhead
+8 Island
+2 Plains
+4 Seachrome Coast

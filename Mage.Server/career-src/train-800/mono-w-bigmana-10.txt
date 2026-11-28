@@ -1,0 +1,20 @@
+# name: Train800 mono-w-bigmana-10
+# archetype: bigmana
+# colors: W
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Acrobatic Maneuver
+1 Collective Effort
+2 Digsite Engineer
+2 Gleaming Splendor
+3 God-Eternal Oketra
+4 Guardian Sunmare
+2 Halo Fountain
+3 Icingdeath, Frost Tyrant
+3 Legion's Landing
+4 Meteorite
+2 Outlaw Medic
+2 Reluctant Dounguard
+2 Sephara, Sky's Blade
+2 Spectacular Spider-Man
+1 Spider-UK
+26 Plains

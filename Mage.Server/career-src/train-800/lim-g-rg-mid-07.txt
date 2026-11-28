@@ -1,0 +1,37 @@
+# name: Train800 lim-g-rg-mid-07
+# archetype: limited_mid
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ashcoat Bear
+1 Bitterblade Warrior
+1 Brazen Freebooter
+1 Carnivorous Plant
+1 Crag Saurian
+1 Everquill Phoenix
+2 Fin Fang Foom
+1 Gangly Stompling
+1 Garruk, Curse Breaker
+1 Get a Leg Up
+2 Ghirapur Aether Grid
+1 Goblin Bombardment
+1 Grumgully, the Generous
+1 King Harald's Revenge
+2 Loam Dryad
+1 Lovestruck Beast
+1 Migrating Ketradon
+2 Obliterating Bolt
+2 Phylath, World Sculptor
+1 Root Out
+2 Spirespine
+1 Sprouting Goblin
+1 Stampeding Elk Herd
+1 Supportive Parents
+2 Tender Wildguide
+1 Vestige of Emrakul
+1 Vigorspore Wurm
+2 Wildgrowth Walker
+2 Cinder Glade
+2 Copperline Gorge
+11 Forest
+8 Mountain
+1 Stomping Ground

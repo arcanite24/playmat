@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-wb-mid-03
+# archetype: brawl_mid
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ajani's Response
+1 Anointer of Champions
+1 Blade-Blizzard Kitsune
+1 Bloodcrazed Hoplite
+1 Brass Gnat
+1 Cryptbreaker
+1 Cursed Minotaur
+1 Daring Archaeologist
+1 Daybreak Chaplain
+1 Death Stroke
+1 Deathgaze Cockatrice
+1 Dusk Charger
+1 Dusk Feaster
+1 Foot Ninjas
+1 Greed's Gambit
+1 Grisly Spectacle
+1 Harnessed Snubhorn
+1 Kambal, Profiteering Mayor
+1 Killian, Ink Duelist
+1 Kinsbaile Aspirant
+1 Leonin Lightscribe
+1 Mage Hunters' Onslaught
+1 Marshal of the Lost
+1 Powerstone Fracture
+1 Rise of the Deathbringer
+1 Sentry of the Underworld
+1 Shuttle Ace
+1 Skyline Scout
+1 Spire Mangler
+1 Strangling Spores
+1 Swarm, Being of Bees
+1 Thalia, Heretic Cathar
+1 Twisted Fates
+1 Tyrannical Pitlord
+1 Water Tribe Captain
+1 Caves of Koilos
+1 Concealed Courtyard
+1 Great Arashin City
+1 Isolated Chapel
+1 Meticulous Commons
+1 Neglected Manor
+5 Plains
+1 Shambling Vent
+1 Shattered Sanctum
+1 Sunlit Marsh
+11 Swamp

@@ -1,0 +1,25 @@
+# name: Train800 tri-wbg-control-12
+# archetype: control
+# colors: WBG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Arashin Sovereign
+2 Azula Always Lies
+2 Bear Trap
+2 Braids, Arisen Nightmare
+3 Damnation
+3 Epic Confrontation
+3 Felothar, Dawn of the Abzan
+1 Malakir Soothsayer
+4 Old Fat Spider
+2 Orzhov Charm
+2 Perimeter Patrol
+2 Refute Destiny
+4 Slice in Twain
+2 Swordsman, Sharp Scoundrel
+4 Blooming Marsh
+2 Deathcap Glade
+4 Forest
+4 Formidable Commons
+4 Llanowar Wastes
+6 Plains
+2 Swamp

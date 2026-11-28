@@ -1,0 +1,23 @@
+# name: Train800 tri-bgu-bigmana-10
+# archetype: bigmana
+# colors: BGU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Bristlebane Battler
+2 Darkwater Egg
+2 Deadly Dispute
+3 Dimir Locket
+4 Ferocious Werefox
+3 Reaver Ambush
+3 Roalesk, Apex Hybrid
+2 Shadowborn Demon
+4 Silverback Shaman
+3 Venomous Brutalizer
+2 Voyage's End
+2 Yarok's Wavecrasher
+4 Bayou
+4 Blooming Marsh
+2 Deathcap Glade
+7 Forest
+3 Island
+2 Swamp
+4 Woodland Cemetery

@@ -1,0 +1,25 @@
+# name: Train800 tribal-wu-soldier-02
+# archetype: tribal (Soldier)
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Captain Mar-Vell, Space-Born
+3 Cosmogrand Zenith
+4 Dawnwing Marshal
+2 Devouring Light
+1 Dusk Legion Duelist
+2 Flowerfoot Swordmaster
+3 Glass Casket
+2 Karametra's Blessing
+3 Kor Bladewhirl
+2 Nettle Guard
+3 Reluctant Dounguard
+2 Skymarcher Aspirant
+1 Survey Mechan
+2 Thalia, Heretic Cathar
+3 Tocatli Honor Guard
+3 Yotian Tactician
+2 Abandoned Campground
+4 Adarkar Wastes
+2 Island
+10 Plains
+4 Prairie Stream

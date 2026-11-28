@@ -1,0 +1,25 @@
+# name: Train800 tri-gur-bigmana-09
+# archetype: bigmana
+# colors: GUR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Atarka Pummeler
+2 Chandra, Chill of Compliance
+4 Chandra, Novice Pyromancer
+2 Colossapede
+3 Eshki Dragonclaw
+1 Hypothesizzle
+2 Izzet Keyrune
+2 Lilysplash Mentor
+1 Narnam Renegade
+3 Pompous Battlemage
+4 Possibility Technician
+2 Rampaging Baloths
+3 Temur Monument
+2 Xenagos, God of Revels
+2 Copperline Gorge
+2 Forest
+8 Island
+2 Mountain
+4 Rockfall Vale
+4 Rootbound Crag
+4 Stomping Ground

@@ -1,0 +1,36 @@
+# name: Train800 lim-g-gw-aggro-02
+# archetype: limited_aggro
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Aerial Predation
+1 Arrester's Zeal
+1 Burdened Stoneback
+2 Charmed Stray
+1 Cryptolith Fragment
+2 Dawnhart Geist
+2 Encampment Keeper
+2 Feral Prowler
+1 Incisor Glider
+1 Knight of Grace
+1 Loxodon Smiter
+2 Primordial Pachyderm
+1 Return to Nature
+2 Saryth, the Viper's Fang
+1 Scuttling Doom Engine
+1 Snare Thopter
+2 Spidery Grasp
+1 Summon: Primal Garuda
+2 Sunstar Chaplain
+1 Sylvan Shepherd
+1 Thorin's Last Stand
+1 Three Tree Scribe
+1 Treeshaker Chimera
+1 Unnatural Aggression
+1 Veteran Beastrider
+2 Wary Farmer
+1 Weather Maker
+2 Brushland
+10 Forest
+1 Horizon Canopy
+8 Plains
+2 Sunpetal Grove

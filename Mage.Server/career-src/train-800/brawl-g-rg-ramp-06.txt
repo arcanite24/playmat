@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-rg-ramp-06
+# archetype: brawl_ramp
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Arashi, the Sky Asunder
+1 Barret, Avalanche Leader
+1 Basking Broodscale
+1 Chandra, Novice Pyromancer
+1 Citanul Stalwart
+1 Coalition Warbrute
+1 Domri, Anarch of Bolas
+1 Dragon's Hoard
+1 Embodiment of Insight
+1 Enduring Vitality
+1 Frenzied Tilling
+1 Greater Sandwurm
+1 Grizzled Outrider
+1 Hellspur Brute
+1 Hydra Broodmaster
+1 Improvised Weaponry
+1 Inspiring Bard
+1 Jiang Yanggu, Wildcrafter
+1 Marauding Mako
+1 Oakheart Dryads
+1 Pompous Gadabout
+1 Primordial Wurm
+1 Radagast of Rhosgobel
+1 Roots of Wisdom
+1 Rubblebelt Raiders
+1 Sarinth Greatwurm
+1 Siegebreaker Giant
+1 Slagstorm
+1 Sporecrown Thallid
+1 Tend the Sprigs
+1 Thornvault Forager
+1 Traveler's Amulet
+1 Vastlands Scavenger
+1 Verdant Rebirth
+1 Wrenn and Realmbreaker
+1 Bleeding Woods
+1 Cinder Glade
+1 Copperline Gorge
+14 Forest
+1 Game Trail
+1 Gruul Guildgate
+1 Karplusan Forest
+2 Mountain
+1 Rockfall Vale
+1 Rootbound Crag
+1 Stomping Ground

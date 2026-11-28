@@ -1,0 +1,38 @@
+# name: Train800 lim-g-ur-mid-08
+# archetype: limited_mid
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ancestral Anger
+1 Ashling, Rekindled
+1 Backstreet Bruiser
+1 Bash to Bits
+2 Bedhead Beastie
+1 Belligerent of the Ball
+1 Captive Weird
+1 Chill of the Grave
+2 Deadeye Rig-Hauler
+1 Demand Answers
+1 Displacer Beast
+1 Dracosaur Auxiliary
+1 Garrison Excavator
+2 Ghostly Keybearer
+2 Herald of Kozilek
+1 Infuriate
+1 Irreverent Gremlin
+1 Messenger Drake
+2 Plundering Barbarian
+2 Ral's Dispersal
+1 Reckless Fireweaver
+1 Rimekin Recluse
+1 Salvage Drone
+1 Scorchmark
+2 Scorpion Sentinel
+1 Skarrgan Hellkite
+1 Sparkhunter Masticore
+1 Spite of Mogis
+1 Stadium Headliner
+8 Island
+11 Mountain
+2 Peculiar Lighthouse
+1 Shivan Reef
+2 Spirebluff Canal

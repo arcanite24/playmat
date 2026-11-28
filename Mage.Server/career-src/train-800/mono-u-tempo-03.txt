@@ -1,0 +1,19 @@
+# name: Train800 mono-u-tempo-03
+# archetype: tempo
+# colors: U
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Abhorrent Oculus
+4 Baral, Chief of Compliance
+3 Chilling Trap
+3 Cogwork Wrestler
+3 Dragon Turtle
+4 Drake Hatcher
+2 Eidolon of Philosophy
+1 Failed Inspection
+3 Jace, the Perfected Mind
+3 Keep Safe
+3 Mu Yanling, Sky Dancer
+3 Relic Vial
+1 Tezzeret, Artifice Master
+2 You Find the Villains' Lair
+22 Island

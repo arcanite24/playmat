@@ -1,0 +1,23 @@
+# name: Train800 guild-ub-midrange-13
+# archetype: midrange
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Aether Swooper
+4 Ashiok, Nightmare Muse
+3 Blight Pile
+2 Cobbled Lancer
+1 Demonic Pact
+1 Heirloom Auntie
+3 Jace, Mirror Mage
+1 Jace, Unraveler of Secrets
+4 Jecht, Reluctant Guardian
+3 Kalakscion, Hunger Tyrant
+4 Lochmere Serpent
+4 Ravenous Necrotitan
+3 Stolen by the Fae
+1 Volshe Tideturner
+4 Darkslick Shores
+6 Island
+2 Murky Sewer
+4 Shipwreck Marsh
+8 Swamp

@@ -1,0 +1,24 @@
+# name: Train800 guild-ur-gowide-07
+# archetype: gowide
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Bothersome Noisemaker
+1 Cunning Strike
+2 Eidolon of the Great Revel
+2 Faerie Impostor
+2 Glacial Dragonhunt
+4 Hobgoblin, Mantled Marauder
+4 Impetuous Devils
+3 Jhoira, Ageless Innovator
+3 Lightning Stormkin
+4 Minecart Daredevil
+2 Ral Zarek
+4 Rig for War
+1 Skizzik
+2 Timely Interference
+2 Volatile Wanderglyph
+2 Island
+10 Mountain
+4 Peculiar Lighthouse
+4 Shivan Reef
+2 Spirebluff Canal

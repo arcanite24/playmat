@@ -1,0 +1,20 @@
+# name: Train800 tribal-w-human-01
+# archetype: tribal (Human)
+# colors: W
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Amazing Spider-Girl
+3 Bastion Protector
+4 Beregond of the Guard
+3 Champion of the Parish
+3 Coppercoat Vanguard
+1 Dragon Hunter
+4 Giant Killer
+1 Goblin Boom Keg
+1 Mardu Woe-Reaper
+4 Perimeter Sergeant
+4 Pious Wayfarer
+1 Resistance Squad
+2 Riverguard's Reflexes
+2 Swordsworn Cavalier
+3 Worthy Knight
+22 Plains

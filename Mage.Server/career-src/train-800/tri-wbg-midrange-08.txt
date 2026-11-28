@@ -1,0 +1,27 @@
+# name: Train800 tri-wbg-midrange-08
+# archetype: midrange
+# colors: WBG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Borrowed Malevolence
+2 Exdeath, Void Warlock
+3 Felidar Cub
+2 Fell
+4 Glorious Decay
+3 Glowspore Shaman
+3 Inexorable Blob
+1 Jarl of the Forsaken
+1 Karametra, God of Harvests
+1 Necropolis Regent
+2 Penance Stare
+2 Resplendent Angel
+3 Saber-Tooth Moose-Lion
+1 Trystan, Callous Cultivator
+4 Yenna, Redtooth Regent
+2 Zoo Escapees
+4 Blooming Marsh
+1 Forest
+4 Llanowar Wastes
+6 Plains
+4 Strangled Cemetery
+2 Swamp
+2 Woodland Cemetery

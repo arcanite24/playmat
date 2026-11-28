@@ -1,0 +1,24 @@
+# name: Train800 guild-ub-gowide-05
+# archetype: gowide
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Blood-Chin Rager
+3 Bloodvial Purveyor
+3 Dark Matter Manipulator
+1 Desperate Measures
+2 Egon, God of Death
+1 Kaito Shizuki
+4 Labyrinth Guardian
+2 Lost in the Spirit World
+2 Mourner's Surprise
+1 Salt Road Skirmish
+3 Skullsnap Nuisance
+4 Slitherwisp
+2 Sorin the Mirthless
+4 Unwilling Ingredient
+2 Whoosh!
+4 Darkslick Shores
+2 Island
+2 Shipwreck Marsh
+4 Sunken Hollow
+10 Swamp

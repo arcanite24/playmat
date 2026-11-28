@@ -1,0 +1,41 @@
+# name: Train800 lim-g-ub-aggro-03
+# archetype: limited_aggro
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aquatic Alchemist
+1 Archive Dragon
+1 Assassin Initiate
+1 Boon of Erebos
+1 Brass Man
+2 Brineborn Cutthroat
+1 Buzz Bots
+1 Cerulean Sphinx
+1 Chainbreaker
+1 Deepcavern Imp
+1 Duskwielder
+1 Egon, God of Death
+2 Engine Rat
+1 Epic Downfall
+1 Felhide Brawler
+1 Geyser Drake
+1 Golbez, Crystal Collector
+2 Hobbling Zombie
+1 Hostile Investigator
+1 Lash of Malice
+1 Lightfoot Rogue
+1 Lord Skitter, Sewer King
+2 Mutual Destruction
+1 Octopus Form
+1 Order of Midnight
+2 Pilfering Imp
+1 Rictus Robber
+1 Starving Revenant
+1 Strangling Spores
+2 Surveillance Monitor
+1 Trial of Ambition
+1 Walk the Plank
+4 Island
+2 Murky Sewer
+2 Shipwreck Marsh
+1 Sunken Hollow
+13 Swamp

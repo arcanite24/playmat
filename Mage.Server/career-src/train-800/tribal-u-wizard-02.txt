@@ -1,0 +1,21 @@
+# name: Train800 tribal-u-wizard-02
+# archetype: tribal (Wizard)
+# colors: U
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Benthic Criminologists
+2 Burrog Befuddler
+1 Dive Down
+1 Dour Port-Mage
+2 Erratic Visionary
+2 Exclusion Mage
+4 Expedition Diviner
+4 Frost Augur
+2 Historian of Zhalfir
+3 Meletis Charlatan
+1 Mindspring Merfolk
+1 Monument to Endurance
+2 Release to the Wind
+4 Research Assistant
+3 Soul Separator
+3 Thassa's Oracle
+23 Island

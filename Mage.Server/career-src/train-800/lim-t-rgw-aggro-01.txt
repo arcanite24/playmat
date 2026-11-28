@@ -1,0 +1,39 @@
+# name: Train800 lim-t-rgw-aggro-01
+# archetype: limited_aggro
+# colors: RGW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Atarka's Command
+1 Brazen Upstart
+1 Cabaretti Initiate
+2 Charging War Boar
+1 Chishiro, the Shattered Blade
+1 Demystify
+2 Devour in Flames
+1 Galvanize
+1 Hobgoblin, Mantled Marauder
+1 Juniper Order Rootweaver
+1 Lightning Elemental
+2 Ravenous Leucrocota
+2 Refuse to Yield
+1 Repulsor Blast
+2 Samut, the Driving Force
+1 Seasoned Hallowblade
+2 Selfless Samurai
+2 Seraphic Steed
+2 Shock Brigade
+1 Spider-Man, To the Rescue
+1 Suq'Ata Lancer
+1 Tandem Tactics
+2 Tarkir Duneshaper
+1 Tectonic Giant
+1 Trostani, Selesnya's Voice
+1 Veteran Motorist
+1 Vitu-Ghazi Guildmage
+1 Warleader's Helix
+2 Dedicated Commons
+7 Forest
+2 Jetmir's Garden
+3 Mountain
+5 Plains
+2 Sunbaked Canyon
+2 Sundown Pass

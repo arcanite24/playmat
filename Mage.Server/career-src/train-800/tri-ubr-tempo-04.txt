@@ -1,0 +1,27 @@
+# name: Train800 tri-ubr-tempo-04
+# archetype: tempo
+# colors: UBR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Absorb Identity
+2 Corpse Appraiser
+2 Cruelty of the Sith
+3 Frenzied Raptor
+1 Hog-Monkey
+4 Improbable Alliance
+2 Maestros Charm
+3 Nullify
+4 Rakdos Trumpeter
+3 Searing Spear
+2 Seven Dwarves
+3 Smoldering Efreet
+2 Touch of the Void
+1 We Say Thee Nay!
+1 Weapon Surge
+4 Young Pyromancer
+4 Crosis's Catacombs
+2 Island
+3 Mountain
+4 Peculiar Lighthouse
+4 Shivan Reef
+2 Stormcarved Coast
+2 Swamp

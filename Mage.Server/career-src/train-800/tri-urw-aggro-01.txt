@@ -1,0 +1,25 @@
+# name: Train800 tri-urw-aggro-01
+# archetype: aggro
+# colors: URW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Ascendant Spirit
+2 Bloodtallow Candle
+3 Deanna Troi, Psychic Counsel
+4 Dorothea, Vengeful Victim
+1 Grim Lavamancer
+1 Jeskai Charm
+4 K'un-Lun Warrior
+3 Keening Apparition
+4 Mantis Rider
+4 Narset of the Ancient Way
+3 Narset, Jeskai Waymaster
+3 Righteousness
+2 Skyward Spider
+3 Smelt
+4 Dalkovan Encampment
+2 Inspiring Vantage
+5 Island
+1 Mountain
+4 Mystic Monastery
+1 Plains
+4 Sundown Pass

@@ -1,0 +1,27 @@
+# name: Train800 tri-rgw-control-12
+# archetype: control
+# colors: RGW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Black Widow, Natasha Romanoff
+3 Burning Hands
+2 Cleansing Wildfire
+2 Dawn of Hope
+2 Etali, Primal Conqueror
+3 Expel the Interlopers
+2 Galvanize
+3 Herald of the Host
+1 Iroh's Demonstration
+3 Long Road Home
+3 Quilled Charger
+2 Ranger-Captain of Eos
+1 Reckless Rage
+2 Ride Down
+2 Sarkhan's Rage
+2 Soul Partition
+4 Dedicated Commons
+2 Forest
+3 Mountain
+6 Plains
+4 Raucous Carnival
+2 Sunbaked Canyon
+4 Sundown Pass

@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-rw-mid-03
+# archetype: brawl_mid
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Alpine Guide
+1 Angelic Gift
+1 Avacynian Missionaries
+1 Baird, Argivian Recruiter
+1 Blade Banish
+1 Captain Mar-Vell, Space-Born
+1 Cleric of the Forward Order
+1 Cloud, Planet's Champion
+1 Cloudspire Coordinator
+1 Diversion Specialist
+1 Goblin Banneret
+1 God-Eternal Oketra
+1 Harvesttide Infiltrator
+1 Hurloon Battle Hymn
+1 Implement of Improvement
+1 Iroas's Champion
+1 Jokulhaups
+1 Kargan Warleader
+1 Lorehold Command
+1 Mage-Ring Bully
+1 Magitek Infantry
+1 Oswald Fiddlebender
+1 Pyroconvergence
+1 Queen Brahne
+1 Riveteers Requisitioner
+1 Searing Barrage
+1 Spawnbinder Mage
+1 Spikewheel Acrobat
+1 Steel Hellkite
+1 Tiana, Ship's Caretaker
+1 Vandalize
+1 Wandering Musicians
+1 Weary Prisoner
+1 Wojek Investigator
+1 Young Pyromancer
+1 Battlefield Forge
+1 Clifftop Retreat
+1 Dalkovan Encampment
+1 Dedicated Commons
+1 Inspiring Vantage
+10 Mountain
+6 Plains
+1 Raucous Carnival
+1 Sacred Foundry
+1 Sunbaked Canyon
+1 Sundown Pass

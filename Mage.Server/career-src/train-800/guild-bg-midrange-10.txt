@@ -1,0 +1,25 @@
+# name: Train800 guild-bg-midrange-10
+# archetype: midrange
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Aggressive Mammoth
+2 Aurora Awakener
+3 Bludgeoning Pain
+4 Broodspinner
+3 Charnel Troll
+2 Compound Fracture
+1 Cynical Loner
+3 Goobbue Gardener
+4 Master of the Feast
+1 Pestilent Cauldron
+1 Portcullis Vine
+1 Postmortem Professor
+2 Rictus Robber
+2 Ulcerate
+3 Vraska, the Cutting Glare
+3 You Are Already Dead
+4 Bayou
+2 Forest
+4 Overgrown Tomb
+2 Strangled Cemetery
+11 Swamp

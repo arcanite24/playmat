@@ -1,0 +1,19 @@
+# name: Train800 mono-u-midrange-06
+# archetype: midrange
+# colors: U
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Faerie Impostor
+3 Gadwick, the Wizened
+4 Geistwave
+3 Hullbreaker Horror
+3 Illvoi Galeblade
+4 Jace, the Perfected Mind
+2 Keen Buccaneer
+4 Lyra, Tolarian Archangel
+3 Skycoach Conductor
+1 Soul of Ravnica
+1 Startle
+3 Test of Priorities
+1 Tiger-Seal
+1 Weather Maker
+23 Island

@@ -1,0 +1,38 @@
+# name: Train800 lim-g-gu-aggro-02
+# archetype: limited_aggro
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aeolipile
+1 Aeromunculus
+1 Architect of the Untamed
+1 Augur of Autumn
+1 Befuddle
+1 Burrog Barrage
+2 Death-Hood Cobra
+1 Failed Fording
+1 Formidable Speaker
+2 Garenbrig Squire
+2 Hypnotic Siren
+2 Kazandu Stomper
+1 Lattice-Blade Mantis
+1 Loan Shark
+2 Mild-Mannered Librarian
+1 Nephalia Seakite
+1 Ravenous Amulet
+1 Reenact the Crime
+1 Sedge Scorpion
+2 Seed Guardian
+2 Setessan Tactics
+1 Skyclave Aerialist
+1 Steady Aim
+1 Thieving Otter
+1 Traveling Chocobo
+1 Venomsac Lagac
+2 Vilespawn Spider
+1 Vines of the Recluse
+1 Zimone, Quandrix Prodigy
+2 Dreamroot Cascade
+13 Forest
+5 Island
+2 Lakeside Shack
+1 Transformative Commons

@@ -1,0 +1,23 @@
+# name: Train800 guild-wu-control-20
+# archetype: control
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Blur
+4 Bone to Ash
+1 Cathodion
+3 Collective Effort
+2 Confirm Suspicions
+3 Custodian of the Trove
+1 Drogskol Reaver
+2 Jace, the Perfected Mind
+4 Kairi, the Swirling Sky
+2 Protect the Negotiators
+1 Reflector Mage
+2 Shocking Grasp
+2 Slither Blade
+4 Startle
+4 Adarkar Wastes
+4 Cloudcrest Lake
+2 Fortified Beachhead
+14 Island
+2 Plains

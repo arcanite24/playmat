@@ -1,0 +1,51 @@
+# name: Train800 brawl-g-gu-aggro-01
+# archetype: brawl_aggro
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 A.I.M. Scientists
+1 Azure Mage
+1 Bayou Groff
+1 Beast Whisperer
+1 Bold Biochemist
+1 Candlestick
+1 Chief Engineer
+1 Coliseum Behemoth
+1 Containment Breach
+1 Curator of Mysteries
+1 Deepfathom Echo
+1 Dr. Joseph M'Benga
+1 Elegant Entourage
+1 Elusive Spellfist
+1 Eumidian Terrabotanist
+1 Explosive Apparatus
+1 Hydrosurge
+1 Ice Magic
+1 Ichor Synthesizer
+1 Keen-Eyed Curator
+1 Kellan, Inquisitive Prodigy
+1 Kiora, Master of the Depths
+1 Lilysplash Mentor
+1 Narnam Renegade
+1 Noose Constrictor
+1 Oracle of Tragedy
+1 Pilfering Hawk
+1 Queen of Ice
+1 Sarulf's Packmate
+1 Silvergill Adept
+1 Survey Mechan
+1 Temur Sabertooth
+1 Tifa's Limit Break
+1 Undercover Crocodelf
+1 Wetland Sambar
+1 Woodland Champion
+1 Botanical Sanctum
+1 Dreamroot Cascade
+9 Forest
+1 Hinterland Harbor
+6 Island
+1 Lakeside Shack
+1 Lush Oasis
+1 Mutant Town
+1 Paradox Gardens
+1 Transformative Commons
+1 Yavimaya Coast

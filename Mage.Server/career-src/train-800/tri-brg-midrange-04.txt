@@ -1,0 +1,27 @@
+# name: Train800 tri-brg-midrange-04
+# archetype: midrange
+# colors: BRG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Attendant of Vraska
+2 Battle-Scarred Goblin
+2 Chishiro, the Shattered Blade
+2 Cleansing Screech
+1 Consuming Sinkhole
+1 Dal R'El, Augment Orphan
+4 Disciple of the Old Ways
+3 Dominating Vampire
+2 Invasive Species
+3 Korvold, Fae-Cursed King
+2 Raccoon Rallier
+3 Rile
+1 Scaled Behemoth
+2 Sunder Shaman
+2 Virtue of Courage
+3 Ziatora, the Incinerator
+4 Cinder Glade
+4 Copperline Gorge
+4 Darigaaz's Caldera
+2 Forest
+6 Mountain
+2 Stomping Ground
+2 Swamp

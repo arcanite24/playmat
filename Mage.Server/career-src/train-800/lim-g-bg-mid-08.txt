@@ -1,0 +1,37 @@
+# name: Train800 lim-g-bg-mid-08
+# archetype: limited_mid
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Battle Mammoth
+1 Blight Pile
+1 Briarbridge Tracker
+2 Centaur Nurturer
+1 Common Crook
+1 Consume Strength
+2 Corpseberry Cultivator
+2 Crested Herdcaller
+1 Dominator Drone
+1 Dune Beetle
+1 Early Winter
+1 Fang Guardian
+1 Fully Grown
+2 Gravecrawler
+1 Jungleborn Pioneer
+1 Kalonian Tusker
+1 Kraul Whipcracker
+1 Loxodon Eavesdropper
+2 Lys Alana Dignitary
+1 Might of the Old Ways
+1 Party Dude
+1 Pest Mascot
+1 Run Afoul
+2 Scorpion's Sting
+1 Sifter of Skulls
+2 Soul Swallower
+1 The Last Ride
+1 Tireless Hauler
+2 Deathcap Glade
+14 Forest
+1 Formidable Commons
+5 Swamp
+2 Woodland Cemetery

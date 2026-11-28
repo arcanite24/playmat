@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-ur-mid-04
+# archetype: brawl_mid
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Akki Coalflinger
+1 Angler Turtle
+1 Anticognition
+1 Aquatic Alchemist
+1 Blessed Reincarnation
+1 Bloodhaze Wolverine
+1 Bloodwater Entity
+1 Boggart Brute
+1 Brazen Borrower
+1 Deep-Sea Serpent
+1 Dinotomaton
+1 Fire Urchin
+1 Goblin Glasswright
+1 Guidelight Optimizer
+1 Hightide Hermit
+1 Homarid Explorer
+1 Ill-Timed Explosion
+1 Incendiary Flow
+1 Knowledge and Power
+1 Loch Dragon
+1 Nutrient Block
+1 Precision Bolt
+1 River Serpent
+1 Sabotender
+1 Sarkhan's Unsealing
+1 Silumgar Spell-Eater
+1 Sleep-Cursed Faerie
+1 Suit Up
+1 Teapot Slinger
+1 Teeterpeak Ambusher
+1 Veteran Ice Climber
+1 Violent Impact
+1 Voracious Greatshark
+1 Whirler Virtuoso
+1 Wildfire Elemental
+1 Coastal Peak
+1 Eroded Canyon
+1 Highland Lake
+9 Island
+7 Mountain
+1 Peculiar Lighthouse
+1 Shivan Reef
+1 Spirebluff Canal
+1 Stormcarved Coast
+1 Sulfur Falls
+1 Wandering Fumarole

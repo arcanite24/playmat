@@ -1,0 +1,26 @@
+# name: Train800 guild-ur-tempo-09
+# archetype: tempo
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Abstruse Interference
+2 Broadside Barrage
+1 Char
+1 Cunning Strike
+3 Harsh Mentor
+1 Intruding Soulrager
+3 Izzet Charm
+4 Ledger Shredder
+3 Leyline Tyrant
+2 Mischievous Chimera
+2 Omen of the Forge
+3 Phoenix Chick
+2 Pinnacle Emissary
+4 Prismari Charm
+3 Saheeli, Filigree Master
+1 Sudden Breakthrough
+1 Superior Foes of Spider-Man
+3 Island
+9 Mountain
+2 Peculiar Lighthouse
+4 Spirebluff Canal
+4 Sulfur Falls

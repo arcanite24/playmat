@@ -1,0 +1,25 @@
+# name: Train800 guild-ur-aggro-01
+# archetype: aggro
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Ancestors' Aid
+3 Firemind's Research
+4 Frostbite Pyromental
+3 Intruding Soulrager
+1 Invigorated Rampage
+3 Item Shopkeep
+3 Izzet Charm
+3 Kessig Wolfrider
+1 Lathnu Hellion
+2 Lightning Stormkin
+2 Magmaroth
+3 Malcolm, the Eyes
+2 Prismari Charm
+2 Quickling
+2 Slick Sequence
+3 Stormchaser Mage
+2 Island
+9 Mountain
+4 Spirebluff Canal
+4 Stormcarved Coast
+2 Sulfur Falls

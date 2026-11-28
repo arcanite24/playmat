@@ -1,0 +1,23 @@
+# name: Train800 guild-rw-aggro-04
+# archetype: aggro
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Armory Mice
+4 Baird, Argivian Recruiter
+2 Bishop of Wings
+4 Boros Charm
+2 Bre of Clan Stoutarm
+4 Hardened Academic
+3 Heartflame Duelist
+4 Lightning Helix
+3 Make Your Mark
+1 Molten Nursery
+3 Rem Karolus, Stalwart Slayer
+2 Sunrise Cavalier
+4 Topan Freeblade
+1 Truck Toss
+2 Battlefield Forge
+4 Inspiring Vantage
+3 Mountain
+8 Plains
+4 Sundown Pass

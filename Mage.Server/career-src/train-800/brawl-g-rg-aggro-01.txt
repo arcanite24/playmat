@@ -1,0 +1,51 @@
+# name: Train800 brawl-g-rg-aggro-01
+# archetype: brawl_aggro
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aftershock
+1 Ashmouth Hound
+1 Basking Rootwalla
+1 Biotech Specialist
+1 Blitz Hellion
+1 Boundary Lands Ranger
+1 Canyon Minotaur
+1 Clan Guildmage
+1 Contagious Vorrac
+1 Crowned Ceratok
+1 Doomskar Warrior
+1 Ember Hauler
+1 Epic Confrontation
+1 Gibbering Fiend
+1 Groundskeeper
+1 Growth-Chamber Guardian
+1 Grumgully, the Generous
+1 Guerrilla Gorilla
+1 Hexhaven Invigorator
+1 Hired Claw
+1 Igneous Inspiration
+1 Impetuous Devils
+1 Irresistible Prey
+1 Living Twister
+1 Mold Adder
+1 Mortal's Resolve
+1 Overwhelming Surge
+1 Predation Steward
+1 Reckless Handling
+1 Rhox Maulers
+1 Rhuk, Hexgold Nabber
+1 River Herald Guide
+1 Screamreach Brawler
+1 Scythe Leopard
+1 Stingcaster Mage
+1 Voracious Typhon
+1 Bleeding Woods
+1 Cinder Glade
+1 Copperline Gorge
+9 Forest
+1 Gruul Guildgate
+1 Highland Forest
+1 Karplusan Forest
+6 Mountain
+1 Rockfall Vale
+1 Rootbound Crag
+1 Stomping Ground

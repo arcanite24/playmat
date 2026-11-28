@@ -1,0 +1,38 @@
+# name: Train800 lim-g-gu-mid-06
+# archetype: limited_mid
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Arwen Undomiel
+1 Aspect of Hydra
+2 Assault Zeppelid
+1 Battery Bearer
+2 Beluna's Gatekeeper
+1 Code of Constraint
+2 Crystalline Nautilus
+1 D'Vana Tendi, Optimistic Ensign
+1 Daring Saboteur
+1 Drakewing Krasis
+2 Gigantosaurus
+1 Hooded Brawler
+2 Jace, Memory Adept
+1 Lorescale Coatl
+1 Mizzium Skin
+1 Naga Vitalist
+1 Oaken Siren
+1 Origin of Metalbending
+1 Palace Familiar
+1 Paradox Surveyor
+2 Quirion Beastcaller
+1 Retraction Helix
+1 Seedship Impact
+2 Sowing Mycospawn
+1 Steelclad Spirit
+1 Surgical Skullbomb
+1 Underdark Basilisk
+1 Vesuvan Drifter
+1 Vorinclex
+2 Botanical Sanctum
+11 Forest
+2 Hinterland Harbor
+8 Island
+1 Yavimaya Coast

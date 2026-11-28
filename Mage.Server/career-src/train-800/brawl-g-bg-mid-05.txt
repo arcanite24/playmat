@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-bg-mid-05
+# archetype: brawl_mid
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Abattoir Ghoul
+1 Ashnod's Intervention
+1 Barkhide Troll
+1 Basal Sliver
+1 Bloodline Recollector
+1 Bloodroot Apothecary
+1 Bloom Hulk
+1 Boss Uramon, Shadow's Reach
+1 Cleanup Crew
+1 Dreadfeast Demon
+1 Fleshbag Marauder
+1 Gnarlroot Trapper
+1 Insatiable Harpy
+1 Joraga Invocation
+1 Korozda Guildmage
+1 Leaf Gilder
+1 Locthwain Paladin
+1 Malakir Soothsayer
+1 Moonglove Extractor
+1 Overgrown Armasaur
+1 Pendulum of Patterns
+1 Professor Dellian Fel
+1 Sanitarium Skeleton
+1 Sepulcher Ghoul
+1 Shrill Howler
+1 Skyfisher Spider
+1 Sold Out
+1 Spelunking
+1 Storrev, Devkarin Lich
+1 Studious First-Year
+1 Thundering Ceratok
+1 Titan's Presence
+1 Twilight Diviner
+1 Unholy Hunger
+1 Wicked Visitor
+1 Bayou
+1 Blooming Marsh
+1 Deathcap Glade
+6 Forest
+1 Formidable Commons
+1 Hissing Quagmire
+1 Llanowar Wastes
+1 Overgrown Tomb
+1 Strangled Cemetery
+10 Swamp
+1 Woodland Cemetery

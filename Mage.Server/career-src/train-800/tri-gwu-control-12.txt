@@ -1,0 +1,26 @@
+# name: Train800 tri-gwu-control-12
+# archetype: control
+# colors: GWU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Akroma's Vengeance
+4 Concerted Defense
+2 Frondland Felidar
+2 Great Forest Druid
+2 Into the Flood Maw
+2 Koma, Cosmos Serpent
+3 Mondrak, Glory Dominus
+3 Ms. Marvel, Kamala Khan
+2 Pounce
+2 Quench
+1 Rescue
+3 Ruin Processor
+1 Scale Blessing
+1 Siren's Ruse
+4 Turn into a Pumpkin
+2 Deserted Beach
+7 Forest
+4 Fortified Beachhead
+4 Glacial Fortress
+3 Island
+2 Plains
+4 Seachrome Coast

@@ -1,0 +1,51 @@
+# name: Train800 brawl-g-wb-aggro-02
+# archetype: brawl_aggro
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Alaborn Trooper
+1 Ambush Gigapede
+1 Archetype of Courage
+1 Arterial Flow
+1 Ayli, Eternal Pilgrim
+1 Bleed Dry
+1 Carrion Imp
+1 Cauldron Familiar
+1 Chrome Dome
+1 Consumptive Goo
+1 Creeping Chill
+1 Deanna Troi, Psychic Counsel
+1 Deepcavern Imp
+1 Devouring Sugarmaw
+1 Dragon Bell Monk
+1 Drainpipe Vermin
+1 Drannith Healer
+1 Eagle of the Watch
+1 Esper Sentinel
+1 Grave Researcher
+1 Grimdancer
+1 Hologram Janeway
+1 Invasion of Dominaria
+1 Kinsbaile Skirmisher
+1 Kitesail Scout
+1 Legions to Ashes
+1 Nocturnal Hunger
+1 Phyrexian Missionary
+1 Pilfering Imp
+1 Selfless Spirit
+1 The Witch's Vanity
+1 Thirsting Shade
+1 Trained Caracal
+1 Vona, Butcher of Magan
+1 Weapons Vendor
+1 Wings of the Cosmos
+1 Caves of Koilos
+1 Concealed Courtyard
+1 Forsaken Sanctuary
+1 Great Arashin City
+1 Isolated Chapel
+1 Meticulous Commons
+1 Neglected Manor
+6 Plains
+1 Shattered Sanctum
+1 Shineshadow Snarl
+9 Swamp

@@ -1,0 +1,29 @@
+# name: Train800 tri-bgu-gowide-03
+# archetype: gowide
+# colors: BGU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Albino Troll
+4 Aloe Alchemist
+2 Arcane Investigator
+1 Bramblewood Paragon
+2 Doom Reigns Supreme
+3 Fleshmad Steed
+2 Grave Researcher
+2 Infirmary Healer
+1 Lunatic Pandora
+1 Nashi, Moon's Legacy
+2 Nimble Obstructionist
+2 Proft, Sinister Mastermind
+2 Shady Traveler
+3 Spider-Slayer, Hatred Honed
+4 Subtle Strike
+2 Sudden Spinnerets
+2 Tifa's Limit Break
+1 Zimone and Dina
+2 Deathcap Glade
+1 Forest
+4 Island
+4 Overgrown Tomb
+4 Strangled Cemetery
+2 Swamp
+4 Woodland Cemetery

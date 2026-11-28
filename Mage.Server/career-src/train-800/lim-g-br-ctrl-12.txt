@@ -1,0 +1,37 @@
+# name: Train800 lim-g-br-ctrl-12
+# archetype: limited_ctrl
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aku Djinn
+1 Armus, Skin of Evil
+1 Bloodsworn Steward
+2 Brambleback Brute
+1 Brimstone Vandal
+1 Chaos Channeler
+1 Embraal Bruiser
+1 Fearful Villager
+1 Get the Point
+1 Ghitu Lavarunner
+2 Gravepurge
+1 Hammerheim Deadeye
+1 Legion Warboss
+1 Madame Hydra
+2 Photon Blast Barrage
+2 Raging Goblinoids
+1 Rakdos, the Showstopper
+1 Reckless Racer
+2 Rotfeaster Maggot
+1 Roughshod Duo
+1 Scarlet Spider, Kaine
+1 Territorial Bruntar
+1 Titan's Presence
+1 Vampires' Vengeance
+1 Volcanic Fallout
+2 Voltaic Servant
+1 Warhost's Frenzy
+2 Withering Torment
+1 Blackcleave Cliffs
+2 Haunted Ridge
+15 Mountain
+2 Smoldering Marsh
+5 Swamp

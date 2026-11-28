@@ -1,0 +1,18 @@
+# name: Train800 mono-b-midrange-05
+# archetype: midrange
+# colors: B
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Afflict
+4 Agent Venom
+3 Cling to Dust
+3 Deadly Embrace
+3 Doomsday Excruciator
+4 Garruk, Veiled Butcher
+4 Hired Hexblade
+2 Josu Vess, Lich Knight
+1 Morkrut Necropod
+4 Piper of the Swarm
+4 Proft, Sinister Mastermind
+2 Sheoldred, the Apocalypse
+1 Sorin the Mirthless
+24 Swamp

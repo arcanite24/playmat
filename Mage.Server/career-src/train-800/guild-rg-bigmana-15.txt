@@ -1,0 +1,23 @@
+# name: Train800 guild-rg-bigmana-15
+# archetype: bigmana
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Carnivorous Cultivator
+1 Chandra's Flame Wave
+2 Chandra, Torch of Defiance
+3 Cradle Guard
+2 Domri, Anarch of Bolas
+2 Golden Egg
+3 Improvised Weaponry
+3 Invasion of Ergamon
+3 Kogla and Yidaro
+3 Lovestruck Beast
+2 Twitching Doll
+2 Vaultborn Tyrant
+3 Vibrance
+3 Warden of the Chained
+2 Bleeding Woods
+4 Copperline Gorge
+11 Forest
+4 Karplusan Forest
+5 Mountain

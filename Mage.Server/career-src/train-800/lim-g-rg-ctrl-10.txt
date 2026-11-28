@@ -1,0 +1,39 @@
+# name: Train800 lim-g-rg-ctrl-10
+# archetype: limited_ctrl
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ambassador Oak
+1 Arborback Stomper
+1 Cave-In
+1 Chandra's Fury
+1 Cleansing Screech
+1 Conduct Electricity
+2 Dwarven Mauler
+1 Earth-Cult Elemental
+1 Eye of Vecna
+1 Fated Conflagration
+2 Flamekin Gildweaver
+1 Gruul Ragebeast
+1 Havoc Devils
+1 J. Jonah Jameson
+2 Lightning Axe
+1 Llanowar Greenwidow
+1 Mightform Harmonizer
+1 Nervous Gardener
+2 Noxious Newt
+1 Outland Boar
+2 Rydia, Summoner of Mist
+1 Scion of Calamity
+1 Starfall
+1 Surrak, the Hunt Caller
+1 Tovolar's Huntmaster
+1 Treetop Sentries
+1 Tusked Colossodon
+1 Vengeful Creeper
+1 Wear Down
+1 Wrecking Beast
+2 Bleeding Woods
+2 Cinder Glade
+11 Forest
+9 Mountain
+1 Rootbound Crag

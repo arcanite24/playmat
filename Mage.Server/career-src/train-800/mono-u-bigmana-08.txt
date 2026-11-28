@@ -1,0 +1,19 @@
+# name: Train800 mono-u-bigmana-08
+# archetype: bigmana
+# colors: U
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Barrels of Blasting Jelly
+4 Chandra, Chill of Compliance
+1 Curator of Mysteries
+4 Glen Elendra Guardian
+2 Iymrith, Desert Doom
+4 Kefnet the Mindful
+2 Marang River Regent
+1 Selhoff Entomber
+3 Shimmer Dragon
+3 Shocking Grasp
+2 Skaab Goliath
+2 Startle
+3 Technodrome
+2 Teferi, Temporal Pilgrim
+26 Island

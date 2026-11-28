@@ -1,0 +1,25 @@
+# name: Train800 tribal-gw-human-01
+# archetype: tribal (Human)
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Atraxa's Fall
+4 Dawnhart Disciple
+1 Desperate Lunge
+4 Glimmer Seeker
+2 Hamlet Captain
+4 Hellcat, Undying Vigilante
+2 Heron's Grace Champion
+1 Intrepid Provisioner
+2 Kogla, the Titan Ape
+4 Kyoshi Warriors
+2 Martyr for the Cause
+2 Repel the Vile
+1 Retributive Wand
+1 Surrak, Elusive Hunter
+2 Traveling Philosopher
+2 Veteran Cathar
+11 Forest
+4 Overgrown Farmland
+2 Plains
+2 Razorverge Thicket
+4 Vigorbloom Annex

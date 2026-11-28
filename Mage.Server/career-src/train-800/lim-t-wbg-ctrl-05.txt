@@ -1,0 +1,37 @@
+# name: Train800 lim-t-wbg-ctrl-05
+# archetype: limited_ctrl
+# colors: WBG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Adventurous Eater
+2 Aetherwind Basker
+2 Angelic Edict
+1 Arrogant Wurm
+1 Audacity
+1 Become the Avalanche
+1 Commander Eesha
+1 Deathpact Angel
+1 Diregraf Horde
+1 Freestrider Lookout
+1 Ghalta and Mavren
+2 Haywire Mite
+2 Loporrit Scout
+2 Luminous Broodmoth
+2 Oblivion's Hunger
+1 Path of Peril
+1 Protective Parents
+1 Savage Stomp
+2 Seeker of Sunlight
+1 Shefet Monitor
+2 Siege Veteran
+1 Sigarda, Font of Blessings
+1 Skyclave Cleric
+1 Sprouting Renewal
+2 Stormplain Detainment
+1 Subtle Strike
+2 Canopy Vista
+7 Forest
+2 Horizon Canopy
+2 Overgrown Farmland
+3 Plains
+2 Sunpetal Grove
+7 Swamp

@@ -1,0 +1,22 @@
+# name: Train800 guild-gw-control-18
+# archetype: control
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Atraxi Warden
+2 Chorus of Might
+4 Deadbridge Goliath
+2 Dromoka's Command
+1 Fierce Retribution
+4 Flumph
+3 Grasping Giant
+2 Kwia Vigorbloom
+3 Lovestruck Beast
+3 Puncturing Light
+2 She-Hulk, Jade Defender
+2 Solarium Sentry
+3 Soul Separator
+4 Brushland
+4 Etched Cornfield
+6 Forest
+10 Plains
+2 Razorverge Thicket

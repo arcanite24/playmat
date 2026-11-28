@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-rgw-ramp-05
+# archetype: brawl_ramp
+# colors: RGW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Acid Web Spider
+1 Aerith, Last Ancient
+1 Attune with Aether
+1 Beatrix, Loyal General
+1 Blossoming Tortoise
+1 Boil
+1 Boros Swiftblade
+1 Bruse Tarl, Roving Rancher
+1 Burn Away
+1 Chainwhip Cyclops
+1 Dain of the Ancient Halls
+1 Fresh-Faced Recruit
+1 Highway Robbery
+1 Immolating Glare
+1 Inkshape Demonstrator
+1 Joraga Auxiliary
+1 Murasa Rootgrazer
+1 Mystic Skull
+1 Ostrich-Horse
+1 Pah-Wraith
+1 Path to Exile
+1 Plated Crusher
+1 Ravenous Cosmozoan
+1 Reckless Fireweaver
+1 Saryth, the Viper's Fang
+1 Searing Light
+1 Sejiri Shelter
+1 Selesnya Locket
+1 Spit Flame
+1 Stampeding Rhino
+1 Summit Intimidator
+1 Vessel of Volatility
+1 Vitu-Ghazi Inspector
+1 Waker of the Wilds
+1 Wrecking Beast
+1 Bleeding Woods
+1 Brushland
+1 Canopy Vista
+1 Copperline Gorge
+1 Etched Cornfield
+4 Forest
+1 Grove of the Guardian
+1 Horizon Canopy
+1 Jetmir's Garden
+6 Mountain
+1 Overgrown Farmland
+2 Plains
+1 Razorverge Thicket
+1 Rockfall Vale
+1 Rootbound Crag
+1 Sunpetal Grove

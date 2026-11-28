@@ -1,0 +1,51 @@
+# name: Train800 brawl-g-rg-aggro-02
+# archetype: brawl_aggro
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Bloodlust Inciter
+1 Careless Celebrant
+1 Crocodile of the Crossing
+1 Curious Pair
+1 Dryad Greenseeker
+1 Eccentric Farmer
+1 Embereth Shieldbreaker
+1 Fade into Antiquity
+1 Feral Maaka
+1 Ferocious Tigorilla
+1 Firefist Striker
+1 Friendly Teddy
+1 Furnace Skullbomb
+1 Gladecover Scout
+1 Gnarled Professor
+1 Gnoll Hunter
+1 Insolent Neonate
+1 Inti, Seneschal of the Sun
+1 Iridescent Blademaster
+1 Maulfist Doorbuster
+1 Mica, Reader of Ruins
+1 Mutagen Man, Living Ooze
+1 Photon Blast Barrage
+1 Plasma Cascade
+1 Raphael, Ninja Destroyer
+1 Relic Robber
+1 Scalestorm Summoner
+1 Smaug's Fury
+1 Take Out the Trash
+1 Tireless Tracker
+1 Troublemaker Ouphe
+1 Valor Singer
+1 Weapons Manufacturing
+1 White Tiger, Ava Ayala
+1 Woodborn Behemoth
+1 Zhur-Taa Swine
+1 Bleeding Woods
+1 Cinder Glade
+1 Copperline Gorge
+6 Forest
+1 Karplusan Forest
+9 Mountain
+1 Orion
+1 Rockfall Vale
+1 Rootbound Crag
+1 Stomping Ground
+1 Wooded Ridgeline

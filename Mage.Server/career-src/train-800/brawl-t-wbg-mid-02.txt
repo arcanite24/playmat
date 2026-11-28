@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-wbg-mid-02
+# archetype: brawl_mid
+# colors: WBG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Angel of Mercy
+1 Aphetto Exterminator
+1 Bejeweled Warg
+1 Champion of Dusan
+1 Charnel Troll
+1 Choose Your Weapon
+1 Claws of Wirewood
+1 Deathbloom Ritualist
+1 Decommission
+1 Emmara Tandris
+1 Fierce Retribution
+1 Fleshtaker
+1 He's Dead, Jim
+1 High Priest of Penance
+1 Honored Knight-Captain
+1 Karn, Argent Defender
+1 Momentous Fall
+1 Noxious Grasp
+1 Organic Avulsion Unit
+1 Putrefy
+1 Rampaging Hippo
+1 Restoration Gearsmith
+1 Returned Centaur
+1 Shadewing Laureate
+1 Sharp-Eyed Rookie
+1 Shore Lurker
+1 Skitterskin
+1 Sparring Dummy
+1 Susurian Voidborn
+1 Tenacious Underdog
+1 The Speed Demon
+1 Unforgiving One
+1 Voyager Quickwelder
+1 Wanderbrine Trapper
+1 Wedding Security
+1 Bayou
+1 Blooming Marsh
+1 Caves of Koilos
+1 Deathcap Glade
+3 Forest
+1 Formidable Commons
+1 Llanowar Wastes
+1 Meticulous Commons
+1 Neglected Manor
+1 Overgrown Tomb
+6 Plains
+1 Sandsteppe Citadel
+1 Shattered Sanctum
+1 Strangled Cemetery
+3 Swamp
+1 Woodland Cemetery

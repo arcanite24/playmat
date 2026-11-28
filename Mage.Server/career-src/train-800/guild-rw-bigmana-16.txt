@@ -1,0 +1,25 @@
+# name: Train800 guild-rw-bigmana-16
+# archetype: bigmana
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Captain Marvel, Earth's Protector
+1 Chandra's Flame Wave
+4 Chandra's Incinerator
+1 Dragon's Hoard
+2 Dragonhawk, Fate's Tempest
+1 Fable of the Mirror-Breaker
+3 Firemane Avenger
+1 Goma Fada Vanguard
+1 Invasion of Kaldheim
+4 Iroas, God of Victory
+3 Ominous Parcel
+2 Price of Freedom
+2 Sarkhan's Whelp
+2 Smashing Success
+2 Weapons Trainer
+2 Wizard's Lightning
+4 Battlefield Forge
+4 Dalkovan Encampment
+14 Mountain
+2 Plains
+2 Sacred Foundry

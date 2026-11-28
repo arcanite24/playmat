@@ -1,0 +1,38 @@
+# name: Train800 lim-g-br-aggro-03
+# archetype: limited_aggro
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Acidic Sliver
+1 Anep, Vizier of Hazoret
+1 Arc Trail
+1 Blood Spatter Analysis
+1 Callous Sell-Sword
+1 Chandra's Phoenix
+2 Chandra, Pyromaster
+1 Cinder Strike
+1 Cindering Cutthroat
+2 Dire Fleet Captain
+1 Explosive Entry
+1 Fireblade Artist
+1 Flamewake Phoenix
+2 Frillscare Mentor
+1 Homicide Investigator
+2 Howlpack Wolf
+1 Illustrious Historian
+1 Nyxborn Brute
+1 Processor Assault
+1 Reaver Drone
+2 Rouse the Mob
+1 Stolen Vitality
+2 Stormclaw Rager
+2 Trailblazing Historian
+1 Vandalblast
+1 Vindictive Flamestoker
+1 Volcanic Villain
+2 Yellowjacket, Heartless Marauder
+1 Zog, Triceraton Castaway
+2 Dragonskull Summit
+1 Haunted Ridge
+14 Mountain
+2 Sulfurous Springs
+3 Swamp

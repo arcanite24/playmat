@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-ub-mid-03
+# archetype: brawl_mid
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Automated Warfare System
+1 Black Carriage
+1 Bogslither's Embrace
+1 Bontu the Glorified
+1 Coerced Confession
+1 Cremate
+1 Culling Drone
+1 Deadeye Brawler
+1 Defenestrate
+1 Demonic Taskmaster
+1 Dreadwurm
+1 Duskmantle Guildmage
+1 Gadwick, the Wizened
+1 Gravity Negator
+1 Grim Physician
+1 Guardian of Tazeem
+1 Lake-town Mariners
+1 Lich's Caress
+1 Mister Fantastic, Reed Richards
+1 Neutralize
+1 Nezumi Linkbreaker
+1 Ob Nixilis, the Hate-Twisted
+1 Orzhov Enforcer
+1 Returned Phalanx
+1 Seize the Secrets
+1 Shorecrasher Elemental
+1 Silver Raven
+1 Spawn of Mayhem
+1 Succumb to Temptation
+1 Talion, the Kindly Lord
+1 The End
+1 Threnody Singer
+1 Thrull Parasite
+1 Tolarian Scholar
+1 Ulamog's Despoiler
+1 Choked Estuary
+1 Creeping Tar Pit
+1 Darkslick Shores
+1 Drowned Catacomb
+6 Island
+1 Murky Sewer
+1 Shipwreck Marsh
+1 Sunken Hollow
+10 Swamp
+1 Treno, Dark City
+1 Underground River

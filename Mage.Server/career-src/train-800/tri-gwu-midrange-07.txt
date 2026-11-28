@@ -1,0 +1,25 @@
+# name: Train800 tri-gwu-midrange-07
+# archetype: midrange
+# colors: GWU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Arcades, the Strategist
+2 Benalish Cavalry
+3 Black Bolt, Inhuman King
+2 Brokers Charm
+3 Bulwark Ox
+4 Defiler of Dreams
+3 Light-Paws, Emperor's Voice
+4 Mangara, the Diplomat
+4 Out of the Way
+1 Rally the Monastery
+2 Silvergill Peddler
+2 Take the Fall
+2 Temporal Machinations
+1 Weather Maker
+4 Abandoned Campground
+2 Adarkar Wastes
+4 Forest
+4 Fortified Beachhead
+4 Glacial Fortress
+4 Island
+2 Plains

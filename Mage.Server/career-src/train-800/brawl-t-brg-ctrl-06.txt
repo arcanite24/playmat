@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-brg-ctrl-06
+# archetype: brawl_ctrl
+# colors: BRG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Arcane Teachings
+1 Bedevil
+1 Blex, Vexing Pest
+1 Bog Badger
+1 Bolt of Keranos
+1 Bring Low
+1 Burn Down the House
+1 Cactusfolk Sureshot
+1 Cavern Thoctar
+1 Corpse Explosion
+1 Dire Fleet Captain
+1 Disruptive Stormbrood
+1 Dreamshaper Shaman
+1 Fatal Grudge
+1 Fetid Imp
+1 Hauntwoods Shrieker
+1 Hollowmurk Siege
+1 Loot, the Nexus
+1 Maze Behemoth
+1 Meria's Outrider
+1 Nyxborn Wolf
+1 Pestilent Cauldron
+1 Rending Flame
+1 Ruination Wurm
+1 Soul of Windgrace
+1 Spider Manifestation
+1 Starscape Cleric
+1 Stormkeld Vanguard
+1 Supportive Parents
+1 Tajuru Pathwarden
+1 The Last Agni Kai
+1 Village Watch
+1 Warden of the Chained
+1 Wildfire Howl
+1 Witherbloom Command
+1 Bleeding Woods
+1 Blooming Marsh
+1 Cinder Glade
+1 Copperline Gorge
+1 Darigaaz's Caldera
+3 Forest
+1 Formidable Commons
+1 Haunted Ridge
+1 Karplusan Forest
+5 Mountain
+1 Razortrap Gorge
+1 Rockfall Vale
+1 Rootbound Crag
+1 Stomping Ground
+4 Swamp
+1 Ziatora's Proving Ground

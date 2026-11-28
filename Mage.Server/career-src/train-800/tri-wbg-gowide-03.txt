@@ -1,0 +1,26 @@
+# name: Train800 tri-wbg-gowide-03
+# archetype: gowide
+# colors: WBG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Atarka Beastbreaker
+4 Badgermole Cub
+3 Benalish Sleeper
+1 Betor, Kin to All
+2 Brushstrider
+4 Civil Servant
+4 Edgar, Charmed Groom
+2 Erode
+2 Highspire Infusion
+2 Jump Scare
+2 Melancholic Poet
+2 Pretending Poxbearers
+3 Skirmish Rhino
+2 True Love's Kiss
+2 Witchstalker
+4 Canopy Vista
+4 Etched Cornfield
+1 Forest
+2 Overgrown Farmland
+2 Plains
+4 Sunpetal Grove
+5 Swamp

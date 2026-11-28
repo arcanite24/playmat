@@ -1,0 +1,38 @@
+# name: Train800 lim-g-br-aggro-04
+# archetype: limited_aggro
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ahn-Crop Crasher
+2 Alchemist's Assistant
+1 Battle at the Bridge
+2 Breakneck Berserker
+1 Callous Inspector
+2 Cantankerous Captain
+1 Dark Matter Manipulator
+2 Deserter's Disciple
+1 Dreadbore
+1 Faerie Dreamthief
+1 Fearless Pup
+2 Flamespeaker Adept
+2 Gev, Scaled Scorch
+1 Gumdrop Poisoner
+1 Harvester of Misery
+2 Hotfoot Gnome
+1 Incendiary Flow
+1 Invasion of Tarkir
+2 Lash of Thorns
+1 Magma Jet
+1 Masked Meower
+1 Mudbutton Cursetosser
+1 Oread of Mountain's Blaze
+1 Rabid Gnaw
+1 Raphael, Tough Turtle
+2 Strangle
+1 Sulfur Elemental
+1 Suplex
+1 Tyrant of Valakut
+2 Cinder Marsh
+2 Dragonskull Summit
+12 Mountain
+1 Smoldering Marsh
+5 Swamp

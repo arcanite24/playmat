@@ -1,0 +1,24 @@
+# name: Train800 tri-ubr-midrange-06
+# archetype: midrange
+# colors: UBR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Angrath's Fury
+2 Ares, God of War
+2 Blood Rites
+4 Bone Devourer
+4 Force Away
+2 Human Torch, Johnny Storm
+4 Necromaster Dragon
+1 Rakdos Charm
+2 Riveteers Requisitioner
+4 Shambling Ghoul
+2 Stensia Uprising
+2 Stormfist Crusader
+4 Ultimate Green Goblin
+4 Blackcleave Cliffs
+4 Crosis's Catacombs
+4 Haunted Ridge
+3 Island
+4 Mountain
+2 Smoldering Marsh
+3 Swamp

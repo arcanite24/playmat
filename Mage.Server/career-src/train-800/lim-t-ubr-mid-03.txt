@@ -1,0 +1,40 @@
+# name: Train800 lim-t-ubr-mid-03
+# archetype: limited_mid
+# colors: UBR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Borrowed Hostility
+1 Colorstorm Stallion
+1 Cryogenic Stasis
+1 Elite Headhunter
+1 Enraged Flamecaster
+1 Experimental Confectioner
+1 Gixian Infiltrator
+2 Great Fierce Bee
+2 Guul Draz Mucklord
+1 Gwendlyn Di Corci
+1 Idol of the Deep King
+1 Infernal Grasp
+1 Kaito, Bane of Nightmares
+1 Lightning Berserker
+1 Nashi, Searcher in the Dark
+1 Necromaster Dragon
+2 Pyre Spawn
+1 Rakdos Firewheeler
+1 Ratcatcher Trainee
+1 Ruinous Gremlin
+1 Scarab Feast
+2 Showstopper
+1 Sol'Kanar the Tainted
+1 Soulbright Seeker
+2 Sphinx of Clear Skies
+1 Tormented Hero
+2 Ulamog's Nullifier
+1 Weldfast Engineer
+2 Whiplash, Vengeful Engineer
+2 Blackcleave Cliffs
+2 Crosis's Catacombs
+2 Haunted Ridge
+5 Island
+4 Mountain
+2 Sulfurous Springs
+7 Swamp

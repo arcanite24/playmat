@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-br-ctrl-08
+# archetype: brawl_ctrl
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Blazing Bomb
+1 Boilerbilges Ripper
+1 Bone Pit Brute
+1 Book Devourer
+1 Brotherhood's End
+1 Burning-Tree Vandal
+1 Carnifex Demon
+1 Cateran Slaver
+1 Contract Killing
+1 Decompose
+1 Demolish
+1 Festering Newt
+1 Fuel the Flames
+1 Gleeful Demolition
+1 Green Goblin, Revenant
+1 Mask of Griselbrand
+1 Nahiri's Warcrafting
+1 Pathmaker Initiate
+1 Planetary Bombardment
+1 Plundering Pirate
+1 Rakdos, the Showstopper
+1 Ransom Note
+1 Rune-Brand Juggler
+1 Savanti Romero, Time's Exile
+1 Severed Strands
+1 Shady Informant
+1 Skyship Stalker
+1 Spawn of Thraxes
+1 Specter of the Fens
+1 Stallion of Ashmouth
+1 Storm's Wrath
+1 Swift Warkite
+1 Witch's Cauldron
+1 Yuan-Ti Fang-Blade
+1 Zulaport Chainmage
+1 Badlands
+1 Blackcleave Cliffs
+1 Cinder Marsh
+1 Dragonskull Summit
+1 Haunted Ridge
+1 Jagged Barrens
+9 Mountain
+1 Razortrap Gorge
+1 Smoldering Marsh
+1 Sulfurous Springs
+7 Swamp

@@ -1,0 +1,40 @@
+# name: Train800 brawl-m-u-mid-02
+# archetype: brawl_mid
+# colors: U
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Abhorrent Oculus
+1 Acid Rain
+1 Aeronaut Tinkerer
+1 Anthropological Mission
+1 Aven Wind Mage
+1 Blue Dragon
+1 Cathodion
+1 Chilling Trap
+1 Crashing Tide
+1 Crimestopper Sprite
+1 Dissipate
+1 Finch Formation
+1 Fugitive Wizard
+1 Gearsmith Prodigy
+1 Godhunter Octopus
+1 Halo Scarab
+1 Hydro-Channeler
+1 Jace, Unraveler of Secrets
+1 Justice, Vance Astrovik
+1 Lunar Rejection
+1 Mahamoti Djinn
+1 Mesmerizing Benthid
+1 Most Decrepit Old Bird
+1 Overcharged Amalgam
+1 Planar Incision
+1 Sanitation Automaton
+1 School Daze
+1 Splash Lasher
+1 Stormkeld Prowler
+1 Stratus Dancer
+1 Tolarian Kraken
+1 Ultron Drone
+1 Unnerving Grasp
+1 Valley Floodcaller
+1 Vantress Gargoyle
+25 Island

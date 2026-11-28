@@ -1,0 +1,36 @@
+# name: Train800 lim-g-ur-aggro-01
+# archetype: limited_aggro
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Arrester's Admonition
+1 Astonishing Spider-Man
+1 Baboon Spirit
+1 Bladegraft Aspirant
+2 Bomat Courier
+2 Bonecrusher Giant
+1 Celestial Messenger
+1 Consuming Vortex
+2 Coordinated Assault
+1 Faerie Miscreant
+1 Forecasting Fortune Teller
+1 Furious Bellow
+1 Incinerator of the Guilty
+1 Insolent Neonate
+2 Iron Lad, Diverging Destiny
+1 Knowledge Seeker
+2 Makeshift Munitions
+2 Merchant's Dockhand
+2 Mist Intruder
+1 Niv-Mizzet, Dracogenius
+1 Rimrock Knight
+1 Shatterskull Charger
+2 Speedway Fanatic
+1 Stingerback Terror
+1 Third Path Iconoclast
+1 Treetop Freedom Fighters
+2 Winterflame
+7 Island
+11 Mountain
+1 Peculiar Lighthouse
+2 Stormcarved Coast
+2 Sulfur Falls

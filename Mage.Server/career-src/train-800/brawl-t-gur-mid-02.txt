@@ -1,0 +1,56 @@
+# name: Train800 brawl-t-gur-mid-02
+# archetype: brawl_mid
+# colors: GUR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Annul
+1 Ashling, Flame Dancer
+1 Atalan Jackal
+1 Chillerpillar
+1 Conclave Naturalists
+1 Cunning Coyote
+1 Cyclops of One-Eyed Pass
+1 Daybreak Ranger
+1 Dragon Sniper
+1 Dreadmaw's Ire
+1 Enthusiastic Mechanaut
+1 Failed Fording
+1 Flexible Waterbender
+1 Harvesttide Sentry
+1 Ill-Timed Explosion
+1 Kessig Flamebreather
+1 Lamplight Phoenix
+1 Lost in a Labyrinth
+1 Magma Spray
+1 Mardu Blazebringer
+1 Master Pakku
+1 Mindwhisker
+1 Mirkwood Meditator
+1 Molecular Modifier
+1 Of One Mind
+1 Old-Growth Dryads
+1 Omega, Heartless Evolution
+1 Press for Answers
+1 Selfless Safewright
+1 Shivan Branch-Burner
+1 Skyclave Aerialist
+1 Soothsayer Adept
+1 Stampede Rider
+1 Torch the Tower
+1 Wanderwine Distracter
+1 Wiccan, Rising Magician
+1 Coastal Peak
+4 Forest
+1 Frontier Bivouac
+3 Island
+1 Karplusan Forest
+1 Ketria Triome
+4 Mountain
+1 Peculiar Lighthouse
+1 Prismari Campus
+1 Shivan Reef
+1 Spirebluff Canal
+1 Stomping Ground
+1 Stormcarved Coast
+1 Sulfur Falls
+1 TCRI Building
+1 Temple of Epiphany

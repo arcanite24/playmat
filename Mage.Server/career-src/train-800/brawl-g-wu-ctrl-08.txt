@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-wu-ctrl-08
+# archetype: brawl_ctrl
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Archon of Emeria
+1 Benalish Marshal
+1 Boulderborn Dragon
+1 Cerulean Wisps
+1 Chrome Companion
+1 Citywide Bust
+1 Confusticate and Bebother
+1 Desynchronization
+1 Devoted Grafkeeper
+1 Doomskar
+1 Energize
+1 Falconer Adept
+1 Geyser Leaper
+1 Kill Shot
+1 Mesa Lynx
+1 Naiad of Hidden Coves
+1 Neighborhood Guardian
+1 Rally for the Throne
+1 Rally the Monastery
+1 Ravenform
+1 Reject Imperfection
+1 Scion of Ugin
+1 Select for Inspection
+1 Sphinx's Revelation
+1 Stand Up for Yourself
+1 Sunspire Griffin
+1 Swallow Whole
+1 Syphon Essence
+1 Tazeem Raptor
+1 Tocasia's Onulet
+1 Twist Reality
+1 Vessel of Paramnesia
+1 Warchanter Skald
+1 Wardscale Dragon
+1 Watchful Giant
+1 Abandoned Campground
+1 Adarkar Wastes
+1 Cloudcrest Lake
+1 Deserted Beach
+1 Fortified Beachhead
+1 Glacial Fortress
+6 Island
+10 Plains
+1 Prairie Stream
+1 Seachrome Coast
+1 Sharlayan, Nation of Scholars

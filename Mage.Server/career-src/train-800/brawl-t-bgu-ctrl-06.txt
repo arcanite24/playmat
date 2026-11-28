@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-bgu-ctrl-06
+# archetype: brawl_ctrl
+# colors: BGU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Brass Man
+1 Cheerful Osteomancer
+1 Chemister's Insight
+1 Chillbringer
+1 Common Crook
+1 Cornered by Black Mages
+1 Defabricate
+1 Depressurize
+1 Dispel
+1 Dispelling Exhale
+1 Drana, the Last Bloodchief
+1 Etrata, the Silencer
+1 Extinction Event
+1 Eye Collector
+1 Foul Play
+1 Frilled Mystic
+1 Fungal Infection
+1 Lash of the Whip
+1 Lifecrafter's Gift
+1 Lorescale Coatl
+1 Mammoth Spider
+1 Merciless Enforcers
+1 Morbius the Living Vampire
+1 Mortality Spear
+1 Open Communications
+1 Outcaster Trailblazer
+1 Photosynthetic Physician
+1 Reasonable Doubt
+1 Ritual of the Returned
+1 Scion of the Swarm
+1 Suurok-Class Science Vessel
+1 Thrashing Mossdog
+1 Vengeful Creeper
+1 Villainous Wrath
+1 Youthful Scholar
+1 Blooming Marsh
+1 Darkslick Shores
+1 Deathcap Glade
+1 Drowned Catacomb
+2 Forest
+4 Island
+1 Llanowar Wastes
+1 Murky Sewer
+1 Opulent Palace
+1 Shipwreck Marsh
+1 Strangled Cemetery
+1 Sunken Hollow
+6 Swamp
+1 Underground River
+1 Woodland Cemetery
+1 Zagoth Triome

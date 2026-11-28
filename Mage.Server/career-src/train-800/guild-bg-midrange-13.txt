@@ -1,0 +1,21 @@
+# name: Train800 guild-bg-midrange-13
+# archetype: midrange
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Ancient Animus
+4 Deathsprout
+4 Gleaming Barrier
+4 Large Bear
+4 Pestilent Cauldron
+2 Spawn of Mayhem
+3 The Chief Warg
+4 Titania, Rugged Rumbler
+4 Tough Cookie
+1 Underhanded Designs
+2 Vivien's Crocodile
+1 Void Attendant
+2 Blooming Marsh
+4 Deathcap Glade
+6 Forest
+4 Formidable Commons
+8 Swamp

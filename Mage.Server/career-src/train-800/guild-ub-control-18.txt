@@ -1,0 +1,23 @@
+# name: Train800 guild-ub-control-18
+# archetype: control
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Arisen Gorgon
+3 Ballista Charger
+2 Blur
+2 Deadly Embrace
+4 Deny Entry
+4 Doomsday Excruciator
+2 Exclude
+1 Extinction Event
+2 Geistwave
+4 Rotten Reunion
+2 Shark Shredder, Killer Clone
+1 Sire of Stagnation
+2 Urza's Command
+2 Wasp of the Bitter End
+4 Drowned Catacomb
+2 Island
+4 Shipwreck Marsh
+14 Swamp
+2 Underground River

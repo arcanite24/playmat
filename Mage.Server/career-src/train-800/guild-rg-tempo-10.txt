@@ -1,0 +1,26 @@
+# name: Train800 guild-rg-tempo-10
+# archetype: tempo
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Chandra, Pyromaster
+1 Emeritus of Abundance
+2 Flesh Burrower
+3 Galvanic Blast
+1 Invasion of Tarkir
+3 Lizard, Connors's Curse
+1 Might of the Meek
+3 Neonate's Rush
+1 Ordeal of Purphoros
+4 Plasma Bolt
+1 Rile
+3 Sharp-Eyed Rookie
+2 Stoke the Flames
+3 Sudden Shock
+4 Thrashing Frontliner
+4 Three Tree Scribe
+2 Tovolar, Dire Overlord
+2 Bleeding Woods
+2 Forest
+4 Karplusan Forest
+9 Mountain
+4 Rootbound Crag

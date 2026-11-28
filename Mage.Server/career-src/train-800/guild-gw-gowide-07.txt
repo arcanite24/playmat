@@ -1,0 +1,23 @@
+# name: Train800 guild-gw-gowide-07
+# archetype: gowide
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Ajani's Comrade
+4 Dragon Hunter
+4 Excavation Mole
+2 Explosive Apparatus
+2 Favored Hoplite
+4 Flash Thompson, Spider-Fan
+3 Knight of Dawn's Light
+3 Kutzil, Malamet Exemplar
+2 Mardu Woe-Reaper
+1 Nissa, Voice of Zendikar
+2 Spore Crawler
+4 Steady Aim
+1 Trostani, Three Whispers
+4 Unforgiving Aim
+4 Etched Cornfield
+6 Forest
+2 Horizon Canopy
+5 Plains
+4 Razorverge Thicket

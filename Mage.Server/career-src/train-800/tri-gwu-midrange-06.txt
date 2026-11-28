@@ -1,0 +1,26 @@
+# name: Train800 tri-gwu-midrange-06
+# archetype: midrange
+# colors: GWU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Broken Bond
+1 Bubbling Cauldron
+3 Contradict
+2 Dazzling Lights
+3 Emiel the Blessed
+2 Hermit of the Natterknolls
+1 Kobayashi Maru Scenario
+4 Overgrown Battlement
+3 Pheres-Band Raiders
+2 Selvala, Eager Trailblazer
+2 Silverfur Partisan
+4 Swift Response
+1 Thragtusk
+4 Voice of Resurgence
+3 Will, Scion of Peace
+4 Canopy Vista
+2 Forest
+4 Grove of the Guardian
+2 Horizon Canopy
+6 Island
+4 Overgrown Farmland
+2 Plains

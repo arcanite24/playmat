@@ -1,0 +1,38 @@
+# name: Train800 lim-g-bg-mid-09
+# archetype: limited_mid
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aggressive Urge
+1 Arbor Colossus
+1 Bloodletter of Aclazotz
+1 Broken Wings
+1 Casal, Lurkwood Pathfinder
+1 Chittering Dispatcher
+1 Daemogoth Woe-Eater
+2 Dhund Operative
+2 Drowsing Tyrannodon
+1 Get a Leg Up
+2 Greta, Sweettooth Scourge
+2 Guardian of the Halls
+2 Hound Tamer
+1 Inspired Tethermage
+1 Kami of Transience
+1 Lazotep Behemoth
+1 Masked Blackguard
+1 Midnight Reaper
+1 Nylea, God of the Hunt
+1 Old-Growth Troll
+2 Rampaging Spiketail
+1 Spin Out
+1 Terra Stomper
+1 Titanic Brawl
+1 Untamed Kavu
+1 Warg Tactics
+2 Warriors' Lesson
+1 Wild Ceratok
+1 Witherbloom Pledgemage
+1 Blooming Marsh
+14 Forest
+2 Formidable Commons
+2 Strangled Cemetery
+5 Swamp

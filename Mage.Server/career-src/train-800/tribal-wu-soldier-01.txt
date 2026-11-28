@@ -1,0 +1,25 @@
+# name: Train800 tribal-wu-soldier-01
+# archetype: tribal (Soldier)
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Aeronaut Cavalry
+2 Air Marshal
+4 Armory Guard
+4 Auriok Edgewright
+3 Battlewise Hoplite
+1 Dawnbringer Charioteers
+3 Despotic Scepter
+2 Haazda Officer
+1 Kaya's Onslaught
+2 Moorland Inquisitor
+2 Red Guardian, Super-Soldier
+1 Relic Vial
+1 Svyelun of Sea and Sky
+3 Thraben Inspector
+2 Valiant Veteran
+4 Yotian Tactician
+4 Adarkar Wastes
+4 Fortified Beachhead
+2 Island
+11 Plains
+2 Seachrome Coast

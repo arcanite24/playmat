@@ -1,0 +1,24 @@
+# name: Train800 guild-ur-aggro-03
+# archetype: aggro
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Ashling, Rekindled
+2 Astonishing Spider-Man
+2 Chandra's Pyreling
+4 Flame-Chain Mauler
+3 Izzet Charm
+2 League Guildmage
+1 Magmatic Sprinter
+4 Malcolm, the Eyes
+2 Maximize Velocity
+2 Prismari Charm
+3 Ral Zarek
+2 Slick Sequence
+2 Sokenzan Smelter
+4 Stadium Tidalmage
+2 Taxi Driver
+2 Island
+10 Mountain
+2 Shivan Reef
+4 Stormcarved Coast
+4 Sulfur Falls

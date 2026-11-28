@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-ur-ctrl-08
+# archetype: brawl_ctrl
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Alluring Suitor
+1 Ascending Aven
+1 Assimilate Essence
+1 Aven Surveyor
+1 Barrage Ogre
+1 Burning Sun's Avatar
+1 Chandra's Triumph
+1 Cunning Survivor
+1 Custodian of the Trove
+1 Data, Exploring Humanity
+1 Devastate
+1 Divert Disaster
+1 Dreadlight Monstrosity
+1 Echo Inspector
+1 Fireforger's Puzzleknot
+1 Font of Fortunes
+1 Gilded Ghoda
+1 Hazardous Blast
+1 Horde Ambusher
+1 Karplusan Hound
+1 Knightfisher
+1 Mnemonic Sphere
+1 Quench
+1 Rakshasa's Disdain
+1 Reenact the Crime
+1 Shatterskull Minotaur
+1 Shimmerwing Chimera
+1 Sonic Assault
+1 Structural Assault
+1 Temporal Machinations
+1 Void Squall
+1 Voldaren Duelist
+1 Waterbending Scroll
+1 Waterkin Shaman
+1 Wingblade Disciple
+1 Coastal Peak
+1 Frostboil Snarl
+11 Island
+5 Mountain
+1 Peculiar Lighthouse
+1 Shivan Reef
+1 Spectacle Summit
+1 Spirebluff Canal
+1 Stormcarved Coast
+1 Sulfur Falls
+1 Wandering Fumarole

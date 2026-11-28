@@ -1,0 +1,24 @@
+# name: Train800 guild-gw-control-20
+# archetype: control
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Armored Warhorse
+1 Bovine Intervention
+3 Citanul Centaurs
+1 Fade from History
+2 Old Gnawbone
+3 Root Out
+3 Run Afoul
+2 Selesnya Charm
+3 Stone by Sunlight
+3 Thrun, Breaker of Silence
+2 Titania's Command
+4 Verdant Rebirth
+1 Veteran Beastrider
+4 Wayward Swordtooth
+1 Wickerfolk Thresher
+13 Forest
+4 Grove of the Guardian
+2 Horizon Canopy
+2 Plains
+4 Vigorbloom Annex

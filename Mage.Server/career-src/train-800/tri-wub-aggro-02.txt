@@ -1,0 +1,26 @@
+# name: Train800 tri-wub-aggro-02
+# archetype: aggro
+# colors: WUB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Auspicious Arrival
+1 Aviary Mechanic
+3 Dakkon, Shadow Slayer
+2 Disenchant
+4 Ecstatic Awakener
+2 Gavony Dawnguard
+3 Golbez, Crystal Collector
+3 Inquisitive Glimmer
+1 Northern Air Temple
+4 Spectacular Spider-Man
+2 Spell Queller
+2 Spirit of the Labyrinth
+4 Vito, Fanatic of Aclazotz
+3 Vren, the Relentless
+2 Warden of the Inner Sky
+4 Caves of Koilos
+2 Concealed Courtyard
+4 Great Arashin City
+5 Island
+4 Meticulous Commons
+2 Plains
+1 Swamp

@@ -1,0 +1,25 @@
+# name: Train800 guild-wb-gowide-06
+# archetype: gowide
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Aegis of the Heavens
+2 Aron, Benalia's Ruin
+3 Beckon Apparition
+1 Bitter Triumph
+4 Bladed Ambassador
+2 Boggart Mischief
+4 Devouring Sugarmaw
+1 Fatal Push
+4 General's Enforcer
+3 Grim Wanderer
+3 Imperious Inkmage
+2 Kinscaer Sentry
+1 Lunar Convocation
+2 Riding Red Hare
+3 Spiteful Hexmage
+2 Staunch Shieldmate
+2 Concealed Courtyard
+4 Great Arashin City
+4 Neglected Manor
+5 Plains
+6 Swamp

@@ -1,0 +1,22 @@
+# name: Train800 guild-gu-tempo-09
+# archetype: tempo
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Bewilder
+4 Bilbo, Thief in the Night
+2 Crashing Tide
+4 Crocodile of the Crossing
+4 Decisive Denial
+3 Diviner of Victory
+2 Empyreal Voyager
+2 Galestrike
+4 Intrepid Tenderfoot
+2 Kiora's Follower
+4 Kiora, Behemoth Beckoner
+2 Quandrix Charm
+3 Ravenous Amulet
+4 Botanical Sanctum
+4 Forest
+4 Hinterland Harbor
+8 Island
+2 Transformative Commons

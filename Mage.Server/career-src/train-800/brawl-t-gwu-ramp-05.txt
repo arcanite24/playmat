@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-gwu-ramp-05
+# archetype: brawl_ramp
+# colors: GWU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Academy Journeymage
+1 Aerie Mystics
+1 Ainok Bond-Kin
+1 Ampryn Tactician
+1 Azorius Locket
+1 Brood Weaver
+1 Council of Reeds
+1 Dance of the Tumbleweeds
+1 Digsite Engineer
+1 Dragonsguard Elite
+1 Enduring Victory
+1 Fleetfeather Cockatrice
+1 Focus the Mind
+1 Hivespine Wolverine
+1 Inventive Wingsmith
+1 Jem Lightfoote, Sky Explorer
+1 Millennium Falcon
+1 Oketra's Attendant
+1 Ominous Parcel
+1 Potioner's Trove
+1 Pristine Skywise
+1 Ruin in Their Wake
+1 Sarkhan's Resolve
+1 Serra Ascendant
+1 Solitary Camel
+1 Spider-Man India
+1 Spirespine
+1 Sunbringer's Touch
+1 Syr Armont, the Redeemer
+1 Tanazir Quandrix
+1 Temmet, Vizier of Naktamun
+1 Trail of Mystery
+1 Wildheart Invoker
+1 Wretched Gryff
+1 Zameck Guildmage
+1 Botanical Sanctum
+1 Brushland
+1 Canopy Vista
+1 Etched Cornfield
+4 Forest
+1 Grove of the Guardian
+1 Horizon Canopy
+4 Island
+1 Lakeside Shack
+1 Overgrown Farmland
+4 Plains
+1 Razorverge Thicket
+1 Spara's Headquarters
+1 Sunpetal Grove
+1 Transformative Commons
+1 Vigorbloom Annex

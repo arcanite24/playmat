@@ -1,0 +1,19 @@
+# name: Train800 mono-w-control-11
+# archetype: control
+# colors: W
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Aetherflux Reservoir
+1 Aura Blast
+1 Avacyn, Guardian Angel
+4 Baneslayer Angel
+2 Break the Spell
+1 Captain Marvel, Earth's Protector
+3 Discerning Financier
+2 Mite Overseer
+3 Moogles' Valor
+1 Mortarpod
+3 Oltec Matterweaver
+4 Season of the Burrow
+2 Sunstar Expansionist
+4 Test of Conviction
+26 Plains

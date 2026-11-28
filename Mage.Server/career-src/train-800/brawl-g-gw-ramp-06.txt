@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-gw-ramp-06
+# archetype: brawl_ramp
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Angel of Glory's Rise
+1 Angel of the God-Pharaoh
+1 Argothian Sprite
+1 Artisan's Sorrow
+1 Assault Griffin
+1 Brambleweft Behemoth
+1 Brave the Wilds
+1 Brigid, Clachan's Heart
+1 Caustic Caterpillar
+1 Chivalric Alliance
+1 Conclave Mentor
+1 Crack Open
+1 Dawnhart Wardens
+1 Deconstruct
+1 Diligent Zookeeper
+1 Expel the Interlopers
+1 Guy in the Chair
+1 Inspiring Captain
+1 Kwia Vigorbloom
+1 Little Bear
+1 Night Nurse, Healer of Heroes
+1 Prized Griffin
+1 Return from the Wilds
+1 Scout the Wilderness
+1 Selesnya Cluestone
+1 Sidequest: Raise a Chocobo
+1 Siege Wurm
+1 Skystinger
+1 Stampeding Elk Herd
+1 Sylvan Advocate
+1 Tireless Hauler
+1 Trusty Packbeast
+1 Unforgiving Aim
+1 White Auracite
+1 Wolfkin Outcast
+1 Brushland
+1 Canopy Vista
+1 Etched Cornfield
+10 Forest
+1 Grove of the Guardian
+1 Horizon Canopy
+1 Overgrown Farmland
+6 Plains
+1 Razorverge Thicket
+1 Sunpetal Grove
+1 Vigorbloom Annex

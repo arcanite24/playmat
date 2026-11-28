@@ -1,0 +1,26 @@
+# name: Train800 guild-wu-midrange-12
+# archetype: midrange
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Blink of an Eye
+2 Bonded Construct
+3 Captain America, Liberator
+1 Depower
+3 Divide by Zero
+1 Galestrike
+4 Grazilaxx, Illithid Scholar
+1 Hullbreaker Horror
+2 Illusory Angel
+3 Jace, Mirror Mage
+1 Mortarpod
+2 Multiple Choice
+2 Pet Sehlat
+2 Soulknife Spy
+4 Steward of Solidarity
+2 Sungold Sentinel
+2 Thassa, God of the Sea
+4 Deserted Beach
+4 Glacial Fortress
+11 Island
+2 Plains
+2 Prairie Stream

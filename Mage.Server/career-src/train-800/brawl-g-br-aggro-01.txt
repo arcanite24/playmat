@@ -1,0 +1,51 @@
+# name: Train800 brawl-g-br-aggro-01
+# archetype: brawl_aggro
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aether Poisoner
+1 Arc Trail
+1 Blitz Automaton
+1 Blood-Chin Rager
+1 Brawl-Bash Ogre
+1 Breakneck Berserker
+1 Calamity Bearer
+1 Charforger
+1 Chronomaton
+1 Coordinated Assault
+1 Coruscation Mage
+1 Craterize
+1 Cybernetic Specialist
+1 Drannith Stinger
+1 Flameblade Adept
+1 Flamewake Phoenix
+1 Font of Ire
+1 Foul Renewal
+1 Identity Echo
+1 Machinesmith Automaton
+1 Mai, Jaded Edge
+1 Miasmic Mummy
+1 Planetary Patrol
+1 Ravenous Robots
+1 Rowan, Scion of War
+1 Runaway Carriage
+1 Seismic Shift
+1 Solve for Disappointment
+1 Spike Jester
+1 Sunset Saboteur
+1 The Raven Man
+1 Tiamat's Fanatics
+1 Tunneling Geopede
+1 Volatile Wanderglyph
+1 Warcry Phoenix
+1 Weftstalker Ardent
+1 Badlands
+1 Blackcleave Cliffs
+1 Cinder Marsh
+1 Dragonskull Summit
+1 Foreboding Ruins
+1 Haunted Ridge
+13 Mountain
+1 Razortrap Gorge
+1 Smoldering Marsh
+1 Sulfurous Springs
+2 Swamp

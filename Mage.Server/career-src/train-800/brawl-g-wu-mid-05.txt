@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-wu-mid-05
+# archetype: brawl_mid
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Angelic Shield
+1 Artificer's Epiphany
+1 Astelli Reclaimer
+1 Biblioplex Kraken
+1 Bovine Intervention
+1 City Pigeon
+1 Coral Merfolk
+1 Crib Swap
+1 Expendable Lackey
+1 Frost Trickster
+1 Geist of the Lonely Vigil
+1 Geology Enthusiast
+1 Gilded Sentinel
+1 Glamermite
+1 Hero of Iroas
+1 Hero of the Pride
+1 Inga Rune-Eyes
+1 Linvala, Shield of Sea Gate
+1 Lookout's Dispersal
+1 Nebelgast Intruder
+1 Ossification
+1 Rescuer Sphinx
+1 Saiba Trespassers
+1 Sapphire Drake
+1 Senate Griffin
+1 Silverflame Ritual
+1 Snapping Drake
+1 Sygg, Wanderwine Wisdom
+1 Take the Fall
+1 Thassa's Emissary
+1 The Queen of Dale
+1 Vampire Slayer
+1 Voidwalk
+1 Watercourser
+1 Wingmate Roc
+1 Abandoned Campground
+1 Adarkar Wastes
+1 Cloudcrest Lake
+1 Deserted Beach
+1 Fortified Beachhead
+1 Glacial Fortress
+10 Island
+6 Plains
+1 Port Town
+1 Prairie Stream
+1 Seachrome Coast

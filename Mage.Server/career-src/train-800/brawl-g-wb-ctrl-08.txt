@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-wb-ctrl-08
+# archetype: brawl_ctrl
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Adorned Crocodile
+1 Aetherstorm Roc
+1 Athreos, Shroud-Veiled
+1 Automated Artificer
+1 Bladed Sentinel
+1 Bloodghast
+1 Captain America, Wings of Freedom
+1 Caregiver
+1 Chained to the Rocks
+1 Champion of Dusk
+1 Cleanse
+1 Cruel Edict
+1 Crushing Disappointment
+1 Diresight
+1 Faithbearer Paladin
+1 Forever Young
+1 Glass Casket
+1 Harvester of Misery
+1 Hour of Defeat
+1 Lantern of the Lost
+1 Loran, Disciple of History
+1 Marsh Hulk
+1 Merciless Executioner
+1 Moogles' Valor
+1 Morbid Opportunist
+1 Power Plant Worker
+1 Sanguine Evangelist
+1 Shoot the Sheriff
+1 Silverquill Pledgemage
+1 Stirring Honormancer
+1 Swift Reckoning
+1 Tribute to Hunger
+1 Unassuming Sage
+1 Villainous Wrath
+1 War Behemoth
+1 Cardassia Prime
+1 Caves of Koilos
+1 Concealed Courtyard
+1 Forlorn Flats
+1 Great Arashin City
+1 Isolated Chapel
+1 Meticulous Commons
+1 Neglected Manor
+6 Plains
+1 Shattered Sanctum
+10 Swamp

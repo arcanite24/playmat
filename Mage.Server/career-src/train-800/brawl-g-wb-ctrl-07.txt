@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-wb-ctrl-07
+# archetype: brawl_ctrl
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ambition's Cost
+1 Ballroom Brawlers
+1 Battle at the Bridge
+1 Bebop, Warthog Warrior
+1 Benalish Lancer
+1 Candy Trail
+1 Collective Nightmare
+1 Congregate
+1 Crumbling Ashes
+1 Danitha, Spear of Agony
+1 Daybreak Chimera
+1 Defiant Bloodlord
+1 Desolation Angel
+1 Devout Decree
+1 Edgar, Ancient Bloodlord
+1 Fourth Bridge Prowler
+1 Garruk, Veiled Butcher
+1 Gatekeeper of Malakir
+1 Gix's Command
+1 Grotesque Demise
+1 Malakir Familiar
+1 Nita, Forum Conciliator
+1 Noxious Dragon
+1 Path of Peril
+1 Reave Soul
+1 Righteous Valkyrie
+1 Rooftop Percher
+1 Silverstrike
+1 Sire of Seven Deaths
+1 Snooping Page
+1 Sunblade Angel
+1 Teyo, Diamondblade Mage
+1 Thraben Foulbloods
+1 Vivisection Evangelist
+1 Yellowjacket, Heartless Marauder
+1 Ballroom
+1 Caves of Koilos
+1 Concealed Courtyard
+1 Great Arashin City
+1 Isolated Chapel
+1 Meticulous Commons
+1 Neglected Manor
+2 Plains
+1 Shattered Sanctum
+1 Silverquill Campus
+14 Swamp

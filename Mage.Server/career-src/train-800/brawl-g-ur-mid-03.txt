@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-ur-mid-03
+# archetype: brawl_mid
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Balefire Dragon
+1 Benthic Biomancer
+1 Bilbo, Thief in the Night
+1 Coal Stoker
+1 Disallow
+1 Go for Blood
+1 Goblin Freerunner
+1 Grotag Bug-Catcher
+1 Hazoret, Godseeker
+1 Hobgoblin Captain
+1 Hypersonic Dragon
+1 Hypothesizzle
+1 Ironheart, Clever Champion
+1 Jadzi, Steward of Fate
+1 Jori En, Ruin Diver
+1 Leyline Tyrant
+1 Light 'Em Up
+1 Lithobraking
+1 Mouser Foundry
+1 Pillar of War
+1 Ral, Izzet Viceroy
+1 Red Death, Shipwrecker
+1 Refocus
+1 Rough Rhino Cavalry
+1 Rubblebelt Boar
+1 Saheeli, the Sun's Brilliance
+1 Sea Gate Stormcaller
+1 Skycoach Conductor
+1 Steelswarm Operator
+1 Timely Interference
+1 Tome Anima
+1 Vedalken Blademaster
+1 Volley Veteran
+1 Winternight Stories
+1 Witness of Tomorrows
+1 Airship Engine Room
+1 Caldera Lake
+8 Island
+8 Mountain
+1 Peculiar Lighthouse
+1 Restless Spire
+1 Shivan Reef
+1 Spirebluff Canal
+1 Stormcarved Coast
+1 Sulfur Falls
+1 Wandering Fumarole

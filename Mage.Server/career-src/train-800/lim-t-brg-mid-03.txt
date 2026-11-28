@@ -1,0 +1,41 @@
+# name: Train800 lim-t-brg-mid-03
+# archetype: limited_mid
+# colors: BRG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ashenmoor Gouger
+1 Asphyxiate
+1 Burning Shield Askari
+1 Carnage Altar
+1 Chandra's Outrage
+2 Crooked Custodian
+1 Curious Altisaur
+1 Daybreak Ranger
+1 Devour in Shadow
+1 Drag to the Roots
+2 Druid of the Spade
+2 Flamecache Gecko
+1 Heiko Yamazaki, the General
+2 Irascible Wolverine
+2 Jungle Delver
+1 Leaf Gilder
+1 Mishra's Command
+1 Muerra, Trash Tactician
+1 Peema Outrider
+2 Ruric Thar, the Unbowed
+1 Scampering Surveyor
+1 Scrapwork Mutt
+1 Shatterskull Recruit
+1 Slave I
+1 Soul of Shandalar
+1 Spinal Centipede
+1 Unleash the Inferno
+1 Unnatural Moonrise
+1 Wolfkin Outcast
+1 Zhur-Taa Goblin
+2 Bleeding Woods
+2 Cinder Glade
+2 Copperline Gorge
+2 Darigaaz's Caldera
+3 Forest
+6 Mountain
+7 Swamp

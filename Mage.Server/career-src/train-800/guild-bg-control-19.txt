@@ -1,0 +1,23 @@
+# name: Train800 guild-bg-control-19
+# archetype: control
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Argentum Masticore
+4 Balamb T-Rexaur
+1 Become the Avalanche
+4 Cremate
+1 Duel for Dominance
+1 Elegant Entourage
+4 Feast of Dreams
+1 Garruk's Gorehorn
+4 Llanowar Visionary
+2 Lys Alana Dignitary
+4 Nightmare's Thirst
+3 Ruric Thar, Magecrusher
+2 Shamanic Revelation
+3 Wall of Mulch
+2 Bayou
+4 Blooming Marsh
+13 Forest
+4 Overgrown Tomb
+2 Swamp

@@ -1,0 +1,24 @@
+# name: Train800 guild-rg-bigmana-20
+# archetype: bigmana
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Beastbond Outcaster
+2 Cleansing Wildfire
+2 Contested Game Ball
+4 Genesis Effect
+2 Gruul Cluestone
+1 Heir of the Wilds
+2 Infirmary Healer
+1 Koth, Fire of Resistance
+2 Ordinary Bear
+4 Rhino, Barreling Brute
+1 Sagittars' Volley
+2 Sontaran General
+1 Sticky Fingers
+3 Topiary Stomper
+3 Tovolar's Huntmaster
+2 Bleeding Woods
+4 Cinder Glade
+12 Forest
+4 Mountain
+4 Rockfall Vale

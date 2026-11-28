@@ -1,0 +1,38 @@
+# name: Train800 lim-g-bg-mid-06
+# archetype: limited_mid
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Armix, Filigree Thrasher
+1 Auspicious Starrix
+1 Burrog Banemaker
+1 Confront the Unknown
+1 Deathless Knight
+1 Defile
+2 Dina, Essence Brewer
+1 Dire Fleet Hoarder
+1 Fanatical Offering
+1 Filigree Familiar
+1 Gaea's Courser
+1 Gingerbread Hunter
+1 Goobbue Gardener
+1 Icecave Crasher
+2 Knight of Wundagore
+1 Old Gnawbone
+1 Oran-Rief Hydra
+1 Pheres-Band Centaurs
+2 Pile On
+1 Reach of Shadows
+2 Seedship Broodtender
+2 Shaman of the Pack
+2 Soulcoil Viper
+1 Tainted Treats
+1 Ulvenwald Captive
+1 Venom Connoisseur
+2 Vraska, the Cutting Glare
+1 Wolf Strike
+1 Wreck Remover
+2 Bayou
+10 Forest
+2 Overgrown Tomb
+1 Strangled Cemetery
+9 Swamp

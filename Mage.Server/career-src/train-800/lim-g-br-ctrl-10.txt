@@ -1,0 +1,41 @@
+# name: Train800 lim-g-br-ctrl-10
+# archetype: limited_ctrl
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Accelerate
+1 Artistic Process
+1 Boiling Blood
+1 Crash and Burn
+1 Delraich
+2 Demon of Catastrophes
+1 Desolation of Smaug
+1 Dragon's Prey
+1 Dwarven Forge-Chanter
+1 Flatten
+1 Giant Cindermaw
+1 Goblin Barrage
+1 Goldlust Triad
+2 Harvesttide Infiltrator
+1 Heated Debate
+1 Hellkite Punisher
+1 Hellspur Posse Boss
+1 Homing Lightning
+1 Horta
+1 Kari Zev, Skyship Raider
+2 Karplusan Hound
+1 Knight of Dusk's Shadow
+1 Lightning Phoenix
+1 Manticore
+1 Mugging
+1 Pyre Spawn
+1 Rakdos, Patron of Chaos
+1 Satyr Rambler
+1 Shambling Cie'th
+1 Skewer Slinger
+1 Stensia Banquet
+1 Terror of the Peaks
+1 Cinder Marsh
+2 Dragonskull Summit
+18 Mountain
+2 Razortrap Gorge
+2 Swamp

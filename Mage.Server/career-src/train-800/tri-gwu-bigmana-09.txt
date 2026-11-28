@@ -1,0 +1,24 @@
+# name: Train800 tri-gwu-bigmana-09
+# archetype: bigmana
+# colors: GWU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Beorn, Reluctant Host
+1 Blitzball
+1 Coordinated Maneuver
+3 Crystalline Sliver
+2 Dream Trawler
+4 Drover Grizzly
+1 Dwarven Provisioner
+3 Gladewalker Ritualist
+2 Hologram Janeway
+4 Kitsune, Dragon's Daughter
+2 Pirate's Prize
+4 Prizefight
+4 Simic Locket
+4 Botanical Sanctum
+3 Forest
+2 Hinterland Harbor
+2 Island
+7 Plains
+4 Prairie Stream
+4 Yavimaya Coast

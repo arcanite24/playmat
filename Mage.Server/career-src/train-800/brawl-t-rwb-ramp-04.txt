@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-rwb-ramp-04
+# archetype: brawl_ramp
+# colors: RWB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Bleak Coven Vampires
+1 Blood Aspirant
+1 Comet Crawler
+1 Daily Bugle Newspaper
+1 Dashing Bloodsucker
+1 Deadly Derision
+1 Death Pulse
+1 Dega Disciple
+1 Djeru, With Eyes Open
+1 Dragonlord Kolaghan
+1 Excalbian Gamemaster
+1 Fallaji Vanguard
+1 Fate Forgotten
+1 Gleaming Splendor
+1 Grasping Shadows
+1 Iron Spider, Stark Upgrade
+1 Joshua, Phoenix's Dominant
+1 Knight of the Last Breath
+1 Kroxa and Kunoros
+1 Mardu Roughrider
+1 Mourning Patrol
+1 Odric, Blood-Cursed
+1 Panicked Bystander
+1 Persistent Marshstalker
+1 Power Word Kill
+1 Rakdos Cluestone
+1 Riot Control
+1 Secret Rendezvous
+1 Shepherd of the Clouds
+1 Sprinting Warbrute
+1 The Bloodsky Massacre
+1 Thunderdrum Soloist
+1 Vampire of the Dire Moon
+1 Weirded Vampire
+1 Whiplash Wordsmith
+1 Battlefield Forge
+1 Cardassia Prime
+1 Caves of Koilos
+1 Clifftop Retreat
+1 Concealed Courtyard
+1 Great Arashin City
+1 Isolated Chapel
+1 Meticulous Commons
+5 Mountain
+1 Neglected Manor
+1 Nomad Outpost
+2 Plains
+1 Savai Triome
+1 Shattered Sanctum
+5 Swamp
+1 Temple of Silence

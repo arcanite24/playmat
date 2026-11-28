@@ -1,0 +1,40 @@
+# name: Train800 brawl-m-g-mid-02
+# archetype: brawl_mid
+# colors: G
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Baloth Prime
+1 Bramblecrush
+1 Bramblewood Paragon
+1 Budding Insurgent
+1 Burly Breaker
+1 Canopy Stalker
+1 Clash of the Eikons
+1 Creeping Corrosion
+1 Elvish Reclaimer
+1 Greenbelt Radical
+1 H.E.R.B.I.E. Scout Unit
+1 Invasion of Ravnica
+1 Jake Sisko, War Correspondent
+1 Llanowar Envoy
+1 Michelangelo, Improviser
+1 Plow Through
+1 Questing Beast
+1 Rhox Oracle
+1 Rosethorn Acolyte
+1 Ruric Thar, Magecrusher
+1 Sandstalker Moloch
+1 Scrap Compactor
+1 Scurrid Colony
+1 Sentinel of the Nameless City
+1 Setessan Skirmisher
+1 Stoic Builder
+1 Summon: Fenrir
+1 Swordwise Centaur
+1 Timberpack Wolf
+1 Trollbred Guardian
+1 Tyrranax Rex
+1 Veteran Adventurer
+1 Wargling
+1 Wild Instincts
+1 Wren's Run Vanquisher
+25 Forest

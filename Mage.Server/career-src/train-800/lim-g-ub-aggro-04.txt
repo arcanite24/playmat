@@ -1,0 +1,39 @@
+# name: Train800 lim-g-ub-aggro-04
+# archetype: limited_aggro
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Annihilating Glare
+1 Artificer's Assistant
+1 Ashiok's Reaper
+1 Blood Burglar
+1 Curiosity Crafter
+1 Deadly Precision
+1 Delta Bloodflies
+2 Duskmantle Guildmage
+1 Embrace Oblivion
+2 Fell Stinger
+1 Junji, the Midnight Sky
+1 Lazav, Wearer of Faces
+1 Master Pakku
+1 Nyxathid
+1 Organic Avulsion Unit
+2 Prakhata Club Security
+1 Renowned Weaponsmith
+1 Sanctum Seeker
+2 Shadowstorm Vizier
+2 Snaremaster Sprite
+1 Snooping Newsie
+1 Soulstinger
+1 Starscape Cleric
+1 Swarm, Being of Bees
+1 Toxrill, the Corrosive
+1 Unforgiving One
+1 Unnatural Endurance
+1 Valley Rotcaller
+2 Warped Physique
+1 Wipe Away
+5 Island
+2 Murky Sewer
+2 Sunken Hollow
+13 Swamp
+1 Underground River

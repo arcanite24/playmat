@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-br-ctrl-07
+# archetype: brawl_ctrl
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Alena, Kessig Trapper
+1 Artist's Talent
+1 Blackbloom Rogue
+1 Blooming Blast
+1 Bumbleflower's Sharepot
+1 Calamitous Cave-In
+1 Chandra, Heart of Fire
+1 Diary of Dreams
+1 Drider
+1 Duskmantle Operative
+1 Encounter the Unknown
+1 Fangblade Brigand
+1 Fight with Fire
+1 Fissure Wizard
+1 Geralf's Messenger
+1 Gollum, Silent Slinker
+1 Hazoret's Monument
+1 Kami's Flare
+1 Launch Party
+1 Master of the Feast
+1 Mayhem Devil
+1 My Precious
+1 Persistent Specimen
+1 Pigment Storm
+1 Radiant Flames
+1 Rage of Purphoros
+1 Red Dragon
+1 Soul of Innistrad
+1 Tectonic Rift
+1 The Scorpion God
+1 Tymaret, the Murder King
+1 Urza's Tome
+1 Vicious Clown
+1 Wild Celebrants
+1 Zhao, Ruthless Admiral
+1 Badlands
+1 Blackcleave Cliffs
+1 Cinder Marsh
+1 Dragonskull Summit
+1 Haunted Ridge
+11 Mountain
+1 Ominous Asylum
+1 Razortrap Gorge
+1 Smoldering Marsh
+1 Sulfurous Springs
+5 Swamp

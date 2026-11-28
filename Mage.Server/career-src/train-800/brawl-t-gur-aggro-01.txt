@@ -1,0 +1,56 @@
+# name: Train800 brawl-t-gur-aggro-01
+# archetype: brawl_aggro
+# colors: GUR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Avalanche Tusker
+1 Bilbo, Luckwearer
+1 Bladegraft Aspirant
+1 Brightwood Tracker
+1 Bruce Banner
+1 Burrog Befuddler
+1 Captain Jonathan Archer
+1 Case of the Ransacked Lab
+1 Charging War Boar
+1 Diligent Excavator
+1 Eidolon of Philosophy
+1 Fervent Champion
+1 Firemind's Research
+1 Flame-Chain Mauler
+1 Gather Courage
+1 Genasi Enforcers
+1 Geometer's Arthropod
+1 Historian of Zhalfir
+1 Hotfoot Gnome
+1 Karakyk Guardian
+1 Kishla Skimmer
+1 Mina and Denn, Wildborn
+1 Mythos of Illuna
+1 Overwhelmed Apprentice
+1 Prowcatcher Specialist
+1 Pyromantic Pilgrim
+1 Ral's Outburst
+1 Rampart Smasher
+1 Samut, Vizier of Naktamun
+1 Skullcrack
+1 Stadium Tidalmage
+1 Temur Charm
+1 Thornweald Archer
+1 Tome Blast
+1 Venerated Rotpriest
+1 Viashino Branchrider
+1 Botanical Sanctum
+1 Cinder Glade
+1 Dreamroot Cascade
+2 Forest
+1 Frontier Bivouac
+1 Hinterland Harbor
+3 Island
+1 Ketria Triome
+6 Mountain
+1 Peculiar Lighthouse
+1 Shivan Reef
+1 Spirebluff Canal
+1 Stomping Ground
+1 Stormcarved Coast
+1 Sulfur Falls
+1 Transformative Commons

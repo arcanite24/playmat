@@ -1,0 +1,37 @@
+# name: Train800 lim-t-rwb-aggro-01
+# archetype: limited_aggro
+# colors: RWB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Aardvark Sloth
+2 Acceptable Losses
+1 Arena Athlete
+2 Bladewing, Deathless Tyrant
+2 Cabal Evangel
+1 Daring Escape
+1 Dega Disciple
+1 Dust Stalker
+2 Embereth Skyblazer
+1 Garland, Knight of Cornelia
+1 Immersturm Predator
+1 Impetuous Sunchaser
+1 Jeering Instigator
+1 Legion Guildmage
+2 Lithomancer's Focus
+1 Luke Cage, Power Man
+1 Lunarch Veteran
+1 Mardu Devotee
+2 Mardu Siegebreaker
+1 Pumpkin Bombardment
+2 Renegade Wheelsmith
+2 Silverquill Apprentice
+1 Soul Transfer
+2 Spicy Oatmeal Pizza
+2 Wretched Camel
+1 Yotian Frontliner
+2 Blackcleave Cliffs
+5 Mountain
+2 Nomad Outpost
+7 Plains
+2 Savai Triome
+2 Sulfurous Springs
+3 Swamp

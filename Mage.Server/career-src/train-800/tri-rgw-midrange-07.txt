@@ -1,0 +1,27 @@
+# name: Train800 tri-rgw-midrange-07
+# archetype: midrange
+# colors: RGW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Bloated Contaminator
+2 Bruse Tarl, Roving Rancher
+2 Concord with the Kami
+3 Gladiolus Amicitia
+1 Luminous Broodmoth
+2 Marketwatch Phantom
+3 Ragost, Deft Gastronaut
+4 Rodeo Pyromancers
+2 Seedship Impact
+2 Silk, Web Weaver
+3 Syr Faren, the Hengehammer
+3 Thraben Charm
+1 Titan of Industry
+2 Trading Post
+2 Untimely Malfunction
+1 Warleader's Helix
+2 Forest
+6 Mountain
+4 Overgrown Farmland
+2 Plains
+4 Razorverge Thicket
+4 Sunpetal Grove
+2 Vigorbloom Annex

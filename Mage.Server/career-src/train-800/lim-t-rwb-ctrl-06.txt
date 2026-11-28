@@ -1,0 +1,37 @@
+# name: Train800 lim-t-rwb-ctrl-06
+# archetype: limited_ctrl
+# colors: RWB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ali Baba
+2 Anger of the Gods
+1 Bitter Triumph
+2 Borrowed Malevolence
+2 Coalstoke Gearhulk
+2 Compleated Huntmaster
+1 Deathbloom Thallid
+1 Despark
+2 Emberhorn Minotaur
+1 Firion, Wild Rose Warrior
+1 Hammer Dropper
+1 Justiciar's Portal
+2 Kaalia, Zenith Seeker
+1 Kami of Terrible Secrets
+1 Knight of the Tusk
+2 Mardu Banner
+1 Merciless Javelineer
+1 Miner's Guidewing
+1 Mtenda Herder
+1 Nightfire Giant
+2 Potion of Healing
+2 Raptor Companion
+1 Rubblebelt Recluse
+1 Smaug, Wicked Worm
+1 Sonic Shrieker
+1 Underworld Cerberus
+2 Cinder Marsh
+6 Mountain
+2 Nomad Outpost
+6 Plains
+2 Savai Triome
+2 Smoldering Marsh
+5 Swamp

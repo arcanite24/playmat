@@ -1,0 +1,41 @@
+# name: Train800 brawl-m-g-aggro-01
+# archetype: brawl_aggro
+# colors: G
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Archdruid's Charm
+1 Ashcoat Bear
+1 Axebane Ferox
+1 Boreal Centaur
+1 Bramblefort Fink
+1 Brittle Effigy
+1 Brooding Saurian
+1 Bugenhagen, Wise Elder
+1 Bull Hippo
+1 Bushy Bodyguard
+1 Circuit Mender
+1 Darwin, Adaptive Mutant
+1 Deathbonnet Sprout
+1 Frenzied Baloth
+1 Fungal Plots
+1 Hermit of the Natterknolls
+1 High Stride
+1 Hope Tender
+1 Howling Giant
+1 Kraven's Cats
+1 Lasyd Prowler
+1 Llanowar Greenwidow
+1 MACO Strike Team
+1 Murasa Sproutling
+1 Nyx Herald
+1 Oakshade Stalker
+1 Over the Edge
+1 Pelakka Wurm
+1 Sauroform Hybrid
+1 Spiders-Man, Heroic Horde
+1 Survey Mechan
+1 Syr Faren, the Hengehammer
+1 The Filigree Sylex
+1 Time to Feed
+1 Ulvenwald Oddity
+1 Zoo Escapees
+24 Forest

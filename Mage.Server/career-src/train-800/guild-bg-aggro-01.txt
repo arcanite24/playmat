@@ -1,0 +1,22 @@
+# name: Train800 guild-bg-aggro-01
+# archetype: aggro
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Ayara, First of Locthwain
+4 Bark-Knuckle Boxer
+4 Blightreaper Thallid
+2 Broodspinner
+3 Chevill, Bane of Monsters
+3 Deathrite Shaman
+3 Glissa Sunslayer
+3 Hapatra, Vizier of Poisons
+3 Korozda Guildmage
+4 Professor Dellian Fel
+2 Return to Action
+1 Vraska, Golgari Queen
+4 Vraska, the Cutting Glare
+3 Forest
+4 Formidable Commons
+4 Llanowar Wastes
+9 Swamp
+2 Woodland Cemetery

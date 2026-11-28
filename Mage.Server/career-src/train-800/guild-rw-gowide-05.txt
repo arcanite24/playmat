@@ -1,0 +1,22 @@
+# name: Train800 guild-rw-gowide-05
+# archetype: gowide
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Bruse Tarl, Roving Rancher
+4 Devilthorn Fox
+1 Fire Sages
+4 Frontline Rush
+2 High Noon
+4 Legion Extruder
+1 Lorehold Command
+3 Night Nurse, Healer of Heroes
+4 Nori, Teller of Tales
+4 Risona, Asari Commander
+2 Runebound Wolf
+4 Savai Thundermane
+3 Spark Trooper
+6 Mountain
+6 Plains
+2 Sacred Foundry
+4 Sunbaked Canyon
+4 Sundown Pass

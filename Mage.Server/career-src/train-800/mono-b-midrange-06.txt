@@ -1,0 +1,18 @@
+# name: Train800 mono-b-midrange-06
+# archetype: midrange
+# colors: B
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Acererak the Archlich
+2 Ayara's Oathsworn
+4 Deadly Embrace
+2 Deathknell Berserker
+4 Doom Whisperer
+3 Elegy Acolyte
+3 Garruk, Veiled Butcher
+1 Gruesome Fate
+2 Qarsi Revenant
+4 Rotten Reunion
+3 Starving Revenant
+4 Sunset Saboteur
+2 Tragedy Feaster
+24 Swamp

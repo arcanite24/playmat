@@ -1,0 +1,21 @@
+# name: Train800 tribal-w-human-02
+# archetype: tribal (Human)
+# colors: W
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Astrid Peth
+1 Attended Knight
+2 Bishop of Wings
+2 Captain America, Liberator
+1 Circle of Confinement
+3 Coppercoat Vanguard
+4 Declaration in Stone
+3 Dragon's Disciple
+1 Dynavolt Tower
+3 Earth Kingdom Jailer
+3 Herald of Anafenza
+4 Perimeter Sergeant
+2 Resistance Reunited
+3 Resistance Squad
+1 South Pole Voyager
+2 Venerable Knight
+22 Plains

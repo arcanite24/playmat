@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-rg-mid-04
+# archetype: brawl_mid
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Agatha's Champion
+1 Akoum Firebird
+1 Briar Hydra
+1 Bristlebane Outrider
+1 Champion of the Path
+1 Cheering Crowd
+1 Circle of Elders
+1 Duskwatch Recruiter
+1 Experiment One
+1 Feral Prowler
+1 Forge Devil
+1 Glowstone Recluse
+1 Greenwheel Liberator
+1 Grim Lavamancer
+1 Hardy Veteran
+1 Implement of Ferocity
+1 Invasive Species
+1 Iroas's Blessing
+1 J. Jonah Jameson
+1 Keldon Flamesage
+1 Kozilek's Return
+1 Lightning, Security Sergeant
+1 Longhorn Sharpshooter
+1 Mossbeard Ancient
+1 Omnath, Locus of Rage
+1 Ravager Wurm
+1 Runebound Wolf
+1 Spider Food
+1 Swab Goblin
+1 The First Iroan Games
+1 Thundering Rebuke
+1 Trick Shot
+1 Vaultbreaker
+1 Wild Wanderer
+1 Witchstalker
+1 Bleeding Woods
+1 Cinder Glade
+1 Copperline Gorge
+10 Forest
+1 Gongaga, Reactor Town
+1 Karplusan Forest
+1 Los Diablos Missile Base
+6 Mountain
+1 Rockfall Vale
+1 Rootbound Crag
+1 Stomping Ground

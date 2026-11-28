@@ -1,0 +1,22 @@
+# name: Train800 guild-wb-aggro-04
+# archetype: aggro
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Agent Venom
+2 Cremate
+4 Encumbered Reejerey
+4 Glint-Sleeve Siphoner
+1 Lunar Convocation
+4 Mesa Unicorn
+2 Nezumi Bladeblesser
+3 Omenport Vigilante
+4 Panicked Bystander
+2 Reaping Willow
+3 Rebellious Strike
+4 Silverquill Charm
+3 Wring Flesh
+4 Concealed Courtyard
+2 Great Arashin City
+4 Isolated Chapel
+7 Plains
+4 Swamp

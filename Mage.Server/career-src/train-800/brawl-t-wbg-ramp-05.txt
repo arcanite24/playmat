@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-wbg-ramp-05
+# archetype: brawl_ramp
+# colors: WBG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Abhorrent Overlord
+1 Abzan Banner
+1 Agent of the Fates
+1 Alabaster Dragon
+1 Alabaster Mage
+1 Archon of Falling Stars
+1 Assassin's Trophy
+1 Atomize
+1 Basilica Screecher
+1 Bellowing Fiend
+1 Blazing Hope
+1 Blood-Toll Harpy
+1 Bloodrite Invoker
+1 Cast Away Doubt
+1 Cradle Guard
+1 Crumbling Colossus
+1 Damn
+1 Danitha, Benalia's Hope
+1 Dauthi Cutthroat
+1 Dig Up
+1 Golgari Cluestone
+1 Lifespring Druid
+1 Loyal Gryff
+1 Priest of Ancient Lore
+1 Purging Stormbrood
+1 Sidequest: Raise a Chocobo
+1 Silverflame Ritual
+1 Snake of the Golden Grove
+1 Sunhome Stalwart
+1 Tovolar's Huntmaster
+1 Tragedy Feaster
+1 Undercity Scavenger
+1 Valley Questcaller
+1 Vraska Joins Up
+1 Walk the Plank
+1 Bayou
+1 Blooming Marsh
+1 Concealed Courtyard
+2 Forest
+1 Formidable Commons
+1 Great Arashin City
+1 Isolated Chapel
+1 Llanowar Wastes
+1 Neglected Manor
+1 Overgrown Tomb
+4 Plains
+1 Sandsteppe Citadel
+1 Shattered Sanctum
+1 Strangled Cemetery
+6 Swamp
+1 Woodland Cemetery

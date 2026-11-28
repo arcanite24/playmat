@@ -1,0 +1,23 @@
+# name: Train800 guild-br-control-18
+# archetype: control
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Ancient Hellkite
+1 Artistic Process
+3 Blistering Barrier
+4 Boulder Dash
+2 Burn Down the House
+3 Chandra, the Firebrand
+3 Channeled Dragonfire
+1 Dracosaur Auxiliary
+2 Enterprising Scallywag
+4 Fire Prophecy
+2 Keldon Raider
+2 Koth, Fire of Resistance
+3 Sarkhan's Rage
+2 Sire of Seven Deaths
+4 Blackcleave Cliffs
+4 Cinder Marsh
+14 Mountain
+2 Sulfurous Springs
+2 Swamp

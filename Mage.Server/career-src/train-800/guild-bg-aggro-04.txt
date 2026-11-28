@@ -1,0 +1,23 @@
+# name: Train800 guild-bg-aggro-04
+# archetype: aggro
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Dread Presence
+2 Fear of Lost Teeth
+3 Glissa Sunslayer
+4 Ice Cream Kitty
+2 Kami of Transience
+2 Liliana's Steward
+1 Professor Dellian Fel
+4 Project Deathlok Soldier
+2 Reaper of the Wilds
+3 Skull Prophet
+3 Tread Upon
+4 Vinereap Mentor
+2 Vraska, the Cutting Glare
+4 Witherbloom Charm
+4 Bayou
+2 Blooming Marsh
+4 Deathcap Glade
+3 Forest
+8 Swamp

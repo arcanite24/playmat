@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-urw-ramp-04
+# archetype: brawl_ramp
+# colors: URW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Barrage of Boulders
+1 Battlewing Mystic
+1 Blade Historian
+1 Burning-Fist Minotaur
+1 Captain America, Team Leader
+1 Cast into the Fire
+1 Chandra, Chill of Compliance
+1 Cleaving Skyrider
+1 Culmination of Studies
+1 Depala, Pilot Exemplar
+1 Enduring Courage
+1 Fleshpulper Giant
+1 Gadrak, the Crown-Scourge
+1 Ghitu Chronicler
+1 Gloom Stalker
+1 Go Ninja Go
+1 Goblin Maskmaker
+1 Imperial Ceratops
+1 Inverted Iceberg
+1 Jeskai Monument
+1 Mechan Assembler
+1 Meddling Youths
+1 Messenger Drake
+1 Mr. Spock, Science Officer
+1 Muse Seeker
+1 Narset's Rebuke
+1 Nimbus of the Isles
+1 Paradoxical Outcome
+1 Ragefire
+1 Relic Sloth
+1 Sage-Eye Avengers
+1 Shu Yun, the Silent Tempest
+1 Skyskipper Duo
+1 Sticky Fingers
+1 Stress Dream
+1 Airship Engine Room
+1 Baron, Airship Kingdom
+1 Caldera Lake
+1 Dedicated Commons
+1 Frostboil Snarl
+1 Highland Lake
+3 Island
+4 Mountain
+1 Mystic Monastery
+1 Peculiar Lighthouse
+5 Plains
+1 Raugrin Triome
+1 Shivan Reef
+1 Spirebluff Canal
+1 Stormcarved Coast
+1 Sulfur Falls

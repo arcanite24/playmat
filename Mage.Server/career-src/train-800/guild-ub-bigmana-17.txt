@@ -1,0 +1,24 @@
+# name: Train800 guild-ub-bigmana-17
+# archetype: bigmana
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Barbed Sextant
+1 Coerced Confession
+2 Corridor Monitor
+1 Darkwater Egg
+3 Defiler of Flesh
+3 Entity Tracker
+2 Fathom Fleet Captain
+4 Hagra Mauling
+4 Harvester of Misery
+2 Jwari Disruption
+1 Liturgy of Blood
+3 Omni-Cheese Pizza
+2 Tyrannical Pitlord
+2 Vraska's Finisher
+3 Yargle, Glutton of Urborg
+4 Drowned Catacomb
+2 Island
+2 Murky Sewer
+14 Swamp
+4 Underground River

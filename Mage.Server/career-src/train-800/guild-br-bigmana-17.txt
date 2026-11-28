@@ -1,0 +1,23 @@
+# name: Train800 guild-br-bigmana-17
+# archetype: bigmana
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Akul the Unrepentant
+2 Bladewing, Deathless Tyrant
+3 Body Dropper
+1 Burn Down the House
+2 Contested Game Ball
+1 Demigod of Revenge
+2 Famished Foragers
+2 Fireforger's Puzzleknot
+4 Flick a Coin
+3 Reckless Racer
+3 Smaug, Wicked Worm
+1 Sticky Fingers
+3 Sudden Shock
+3 The Scorpion God
+4 Badlands
+13 Mountain
+2 Razortrap Gorge
+4 Smoldering Marsh
+3 Swamp

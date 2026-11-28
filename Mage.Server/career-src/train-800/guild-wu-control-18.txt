@@ -1,0 +1,24 @@
+# name: Train800 guild-wu-control-18
+# archetype: control
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Amazing Spider-Girl
+2 Ant-Man's Air Force
+4 Boomerang Basics
+4 Force Away
+2 Gisela, the Broken Blade
+2 Guardians of Oboro
+3 Harmonious Archon
+1 Harvestrite Host
+3 Into the Roil
+2 Moogles' Valor
+3 Protect the Negotiators
+1 Rally for the Throne
+2 Siren's Ruse
+1 Tragic Lesson
+3 You Find the Villains' Lair
+4 Abandoned Campground
+2 Cloudcrest Lake
+11 Island
+4 Plains
+4 Prairie Stream

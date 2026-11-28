@@ -1,0 +1,38 @@
+# name: Train800 lim-g-ur-mid-09
+# archetype: limited_mid
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aura Finesse
+1 Cloaked Siren
+1 Enthusiastic Mechanaut
+1 Furious Resistance
+1 Greasewrench Goblin
+1 Grim Initiate
+2 Hexgold Slash
+2 Jadzi, Steward of Fate
+2 Keen Buccaneer
+1 Kozilek's Sentinel
+1 Loch Mare
+2 Lutri, the Spellchaser
+2 Mardu Blazebringer
+1 Neonate's Rush
+1 Pinnacle Emissary
+1 Prickly Pair
+1 Raging Kronch
+1 Rookie Mistake
+1 Rubblebelt Braggart
+1 Rush of Adrenaline
+1 Smash to Smithereens
+2 Stealer of Secrets
+1 Steamcore Scholar
+1 Stegron the Dinosaur Man
+2 Stormcrag Elemental
+2 Sworn Guardian
+1 Teeterpeak Ambusher
+1 Thoughtbound Phantasm
+1 Wiccan, Rising Magician
+8 Island
+10 Mountain
+2 Peculiar Lighthouse
+1 Stormcarved Coast
+2 Sulfur Falls

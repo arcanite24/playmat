@@ -1,0 +1,23 @@
+# name: Train800 guild-rg-aggro-01
+# archetype: aggro
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Akki Ronin
+3 Barret, Avalanche Leader
+4 Chishiro, the Shattered Blade
+1 Domri, Anarch of Bolas
+4 Fiery Temper
+2 Gold Rush
+2 Lightning Volley
+3 Moonrager's Slash
+2 Old-Growth Dryads
+4 Oviya Pashiri, Sage Lifecrafter
+4 Pyrotechnic Performer
+2 Razorkin Needlehead
+4 Terrain Elemental
+1 Wildfire Wickerfolk
+4 Copperline Gorge
+2 Forest
+2 Karplusan Forest
+10 Mountain
+4 Rockfall Vale

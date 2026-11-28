@@ -1,0 +1,25 @@
+# name: Train800 tri-urw-control-11
+# archetype: control
+# colors: URW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Bellowing Crier
+4 Bloodrock Cyclops
+3 Chandra, Heart of Fire
+2 Cyclonic Rift
+4 Demystify
+3 Dovin's Veto
+1 Frost Bite
+3 Guardian of Tazeem
+1 Hour of Devastation
+2 Ill-Timed Explosion
+1 Katara, Bending Prodigy
+2 Koll, the Forgemaster
+3 Make Disappear
+2 Serpent of Yawning Depths
+3 Island
+2 Mountain
+4 Peculiar Lighthouse
+6 Plains
+4 Shivan Reef
+2 Stormcarved Coast
+4 Sulfur Falls

@@ -1,0 +1,34 @@
+# name: Train800 lim-g-wb-mid-08
+# archetype: limited_mid
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Afflict
+1 Allegiant General Pryde
+2 Archfiend's Vessel
+2 Atraxi Warden
+1 Audacious Thief
+2 Collective Nightmare
+1 Devoted Caretaker
+2 Devoted Crop-Mate
+1 Drag to the Underworld
+1 Eddytrail Hawk
+1 Fang, Fearless l'Cie
+1 Flare of Faith
+2 Greasefang, Okiba Boss
+2 Grotesque Demise
+2 Halo Hopper
+1 Light of the Legion
+2 Morkrut Necropod
+2 Prakhata Pillar-Bug
+1 Rebellious Strike
+1 Rufus Shinra
+2 Sanitarium Skeleton
+1 Stinging Hivemaster
+1 Stronghold Confessor
+1 Sunstar Expansionist
+1 Warehouse Tabby
+1 Caves of Koilos
+2 Concealed Courtyard
+2 Isolated Chapel
+7 Plains
+12 Swamp

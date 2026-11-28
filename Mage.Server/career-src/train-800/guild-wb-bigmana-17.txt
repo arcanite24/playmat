@@ -1,0 +1,22 @@
+# name: Train800 guild-wb-bigmana-17
+# archetype: bigmana
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Admonition Angel
+2 Arguel's Blood Fast
+4 Barrels of Blasting Jelly
+2 Black Market Connections
+3 Drivnod, Carnage Dominus
+1 Hagra Mauling
+4 Iron-Shield Elf
+2 Kingpin's Enforcers
+2 Liliana's Standard Bearer
+3 Orzhov Cluestone
+2 Shredder, Unrelenting
+2 Soulstinger
+3 Wall of Swords
+4 Caves of Koilos
+2 Great Arashin City
+4 Neglected Manor
+4 Plains
+12 Swamp

@@ -1,0 +1,41 @@
+# name: Train800 brawl-m-u-aggro-01
+# archetype: brawl_aggro
+# colors: U
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aspirant's Ascent
+1 Aven Initiate
+1 Baithook Angler
+1 Bontu's Monument
+1 Bubble Smuggler
+1 Cogwork Wrestler
+1 Confirm Suspicions
+1 Coveted Peacock
+1 Dakra Mystic
+1 Elite Instructor
+1 Faerie Mastermind
+1 Forensic Gadgeteer
+1 Gogo, Master of Mimicry
+1 Humbling Elder
+1 Hypnotic Sprite
+1 Illvoi Operative
+1 Merchant's Dockhand
+1 Mortarpod
+1 Mu Yanling, Sky Dancer
+1 Nadir Kraken
+1 Oculus Whelp
+1 Opal Lake Gatekeepers
+1 Picklock Prankster
+1 Proven Combatant
+1 Replication Specialist
+1 Reservoir Kraken
+1 Runed Servitor
+1 Silvergill Mentor
+1 Siren Stormtamer
+1 Skaab Wrangler
+1 Snowmelt Stag
+1 Startle
+1 Stolen by the Fae
+1 Traxos, Scourge Eternal
+1 Uthros Psionicist
+1 Voyage's End
+24 Island

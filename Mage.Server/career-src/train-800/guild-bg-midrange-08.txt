@@ -1,0 +1,25 @@
+# name: Train800 guild-bg-midrange-08
+# archetype: midrange
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Asylum Visitor
+2 Carnivorous Plant
+2 Chief Warg's Company
+3 Daemogoth Woe-Eater
+1 Deathrite Shaman
+3 Dreg Mangler
+2 Elvish Reclaimer
+3 Embraal Bruiser
+4 Gingerbread Hunter
+2 Howling Galefang
+2 Lluwen, Imperfect Naturalist
+1 Nezumi Linkbreaker
+2 Purple Worm
+3 Requiting Hex
+2 Spring-Leaf Avenger
+2 The Gitrog Monster
+4 Blooming Marsh
+2 Deathcap Glade
+10 Forest
+4 Swamp
+4 Woodland Cemetery

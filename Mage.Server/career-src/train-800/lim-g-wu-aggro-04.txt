@@ -1,0 +1,37 @@
+# name: Train800 lim-g-wu-aggro-04
+# archetype: limited_aggro
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aven Skirmisher
+1 Cheeky House-Mouse
+2 Coralhelm Chronicler
+1 Elite Guardmage
+2 Enshrouding Mist
+2 Flash Thompson, Spider-Fan
+1 Glen Elendra Guardian
+1 Glory Seeker
+1 Gloryheath Lynx
+1 Harrier Strix
+2 Icingdeath, Frost Tyrant
+1 Judge's Familiar
+2 Kitesail Scout
+1 Lay Down Arms
+1 Moment of Heroism
+2 Moment of Valor
+1 Mortarpod
+1 Oko's Accomplices
+1 Sahagin
+2 Scrapskin Drake
+1 Shipwreck Looter
+1 Sokka, Lateral Strategist
+1 Sorcerer's Wand
+1 Station Monitor
+2 Thousand Winds
+1 Transplant Theorist
+2 Ureni's Rebuff
+2 Voice of the Blessed
+2 Cloudcrest Lake
+1 Glacial Fortress
+6 Island
+11 Plains
+2 Prairie Stream

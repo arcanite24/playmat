@@ -1,0 +1,40 @@
+# name: Train800 brawl-m-g-mid-04
+# archetype: brawl_mid
+# colors: G
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Audience with Trostani
+1 Bashful Beastie
+1 Bramble Familiar
+1 Colossal Dreadmaw
+1 Colossodon Yearling
+1 Desecration Plague
+1 Dryad of the Ilysian Grove
+1 Fear of Exposure
+1 Great Divide Guide
+1 Hexbane Tortoise
+1 Jewel Thief
+1 Kraul Stinger
+1 Lambholt Pacifist
+1 Meltstrider Eulogist
+1 Mugato
+1 Murasa Ranger
+1 Nissa's Defeat
+1 Pawpatch Formation
+1 Primal Might
+1 Prizefighter Construct
+1 Raucous Entertainer
+1 Root Out
+1 Sagittars' Volley
+1 Saru, Unthreatened
+1 Saruli Caretaker
+1 Shaman of Forgotten Ways
+1 Sheltering Boughs
+1 Silhana Wayfinder
+1 Silverback Elder
+1 Slice in Twain
+1 Stonework Packbeast
+1 Surrak, Elusive Hunter
+1 Tanglespan Lookout
+1 Toadstool Admirer
+1 Tough Cookie
+25 Forest

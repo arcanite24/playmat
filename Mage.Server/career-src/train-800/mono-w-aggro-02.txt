@@ -1,0 +1,21 @@
+# name: Train800 mono-w-aggro-02
+# archetype: aggro
+# colors: W
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Acrobatic Maneuver
+2 Aeolipile
+2 Black Widow, Intel Expert
+2 Blessed Defiance
+4 Brigone, Soldier of Meletis
+1 Command Decision
+1 Compleat Devotion
+4 Dust Animus
+3 Jolly Gerbils
+2 Mardu Woe-Reaper
+3 Moonlit Lamenter
+2 Soaring Stoneglider
+4 Stiltzkin, Moogle Merchant
+2 Swooping Lookout
+1 The Wanderer
+2 Throwing Knife
+21 Plains

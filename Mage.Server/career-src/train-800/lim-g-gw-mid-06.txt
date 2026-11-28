@@ -1,0 +1,38 @@
+# name: Train800 lim-g-gw-mid-06
+# archetype: limited_mid
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aggressive Urge
+1 Ahn-Crop Champion
+2 Archon of Justice
+1 Black Widow, Intel Expert
+1 Citanul Centaurs
+2 Cliffrunner Behemoth
+2 Collision Course
+2 Farsight Adept
+1 Fear of Surveillance
+1 Heritage Druid
+2 Honor Troll
+1 Hunted Witness
+1 Imperial Lancer
+1 Loxodon Sergeant
+1 Malamet Veteran
+1 Mistmeadow Council
+1 Phlox, Unorthodox Doctor
+1 Pine Walker
+1 Pressure Point
+1 Speaker of the Heavens
+1 Spirit of the Hunt
+1 Springsage Ritual
+1 Strength of the Coalition
+1 Surly Farrier
+2 Survivor of Korlis
+2 Tenured Concocter
+1 Thornvault Forager
+1 Vorinclex, Monstrous Raider
+1 Woodland Patrol
+1 Canopy Vista
+11 Forest
+2 Grove of the Guardian
+8 Plains
+2 Sunpetal Grove

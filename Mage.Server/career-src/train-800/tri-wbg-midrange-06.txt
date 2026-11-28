@@ -1,0 +1,27 @@
+# name: Train800 tri-wbg-midrange-06
+# archetype: midrange
+# colors: WBG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Aegis Angel
+2 Anafenza, the Foremost
+2 Candlelit Cavalry
+1 Corpse Knight
+2 Deathcap Cultivator
+1 Defeat
+2 Disfigure
+2 Fateful Absence
+4 Flight-Deck Coordinator
+3 Friendly Teddy
+3 Gilded Goose
+4 King Darien XLVIII
+2 Necrotic Wound
+4 Vraska, Golgari Queen
+2 Wandermare
+1 Widow's Bite
+4 Brushland
+4 Canopy Vista
+2 Etched Cornfield
+1 Forest
+2 Plains
+6 Swamp
+4 Vigorbloom Annex

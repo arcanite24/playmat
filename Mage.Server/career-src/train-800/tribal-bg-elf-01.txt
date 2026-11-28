@@ -1,0 +1,25 @@
+# name: Train800 tribal-bg-elf-01
+# archetype: tribal (Elf)
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Devkarin Dissident
+2 Drider
+4 Elderfang Ritualist
+2 Elvish Archdruid
+1 Fanatical Strength
+3 High Perfect Morcant
+1 Miara, Thorn of the Glade
+2 Morcant's Loyalist
+1 Plague Belcher
+1 Ritual of the Returned
+2 Skemfar Avenger
+4 Storrev, Devkarin Lich
+2 Swarm Guildmage
+3 Thorn Lieutenant
+2 Thornbow Archer
+4 Wildborn Preserver
+6 Forest
+4 Formidable Commons
+2 Llanowar Wastes
+7 Swamp
+4 Woodland Cemetery

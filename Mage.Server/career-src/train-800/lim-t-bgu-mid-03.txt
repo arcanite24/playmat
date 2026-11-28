@@ -1,0 +1,40 @@
+# name: Train800 lim-t-bgu-mid-03
+# archetype: limited_mid
+# colors: BGU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aethersnipe
+1 Alchemist's Vial
+2 Archfiend of the Dross
+1 Asphodel Wanderer
+2 Augmenter Pugilist
+1 Aveline de Grandpre
+1 Basal Thrull
+1 Boreal Druid
+2 Catacomb Crocodile
+1 Craw Wurm
+1 Desecrated Earth
+1 Feast of Dreams
+1 Gift of Growth
+2 Jukai Trainee
+1 Lore, Positronic Provocateur
+1 Paramecia Coloniex
+1 Pothole Mole
+1 Rage-Scarred Berserker
+1 Rapid Hybridization
+2 Reclaiming Vines
+1 Shell Shield
+1 Skemfar Shadowsage
+1 Spider-Ham, Peter Porker
+2 Subcommander T'Pol
+2 Sultai Devotee
+1 Thirst for Meaning
+1 Voda Sea Scavenger
+1 Void Grafter
+1 Whispering Wizard
+2 Blooming Marsh
+2 Deathcap Glade
+7 Forest
+2 Formidable Commons
+7 Island
+2 Overgrown Tomb
+2 Swamp

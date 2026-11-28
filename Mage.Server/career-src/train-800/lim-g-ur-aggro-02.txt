@@ -1,0 +1,39 @@
+# name: Train800 lim-g-ur-aggro-02
+# archetype: limited_aggro
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Acquisition Octopus
+2 Bold Impaler
+1 Bring Low
+1 Cinder Giant
+1 Dynacharge
+2 Free from Flesh
+1 Frostburn Weird
+2 Ghitu Slinger
+1 Goblin Guide
+1 Goldnight Castigator
+1 Gristle Glutton
+1 Hellkite Tyrant
+1 Hypersonic Dragon
+1 Hypnotic Grifter
+1 Ire Shaman
+2 Jaya's Greeting
+1 La'An Noonien-Singh, Security
+1 Legion Loyalist
+1 Loch Dragon
+1 Marauding Maulhorn
+1 Marauding Raptor
+1 Phoenix Chick
+1 Pteramander
+1 Ravenous Giant
+1 Reality Hemorrhage
+1 Shocking Sharpshooter
+2 Summit Prowler
+2 Tony Stark
+2 Unauthorized Exit
+1 Vibrant Outburst
+2 Island
+16 Mountain
+2 Peculiar Lighthouse
+1 Spirebluff Canal
+2 Stormcarved Coast

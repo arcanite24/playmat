@@ -1,0 +1,51 @@
+# name: Train800 brawl-g-rw-aggro-01
+# archetype: brawl_aggro
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Alert Shu Infantry
+1 Ash, Party Crasher
+1 Barrage of Expendables
+1 Battlewise Valor
+1 Belligerent Hatchling
+1 Bloodcrazed Neonate
+1 Bureau Headmaster
+1 By Force
+1 Captain America, Super-Soldier
+1 Chain Lightning
+1 Clockwork Percussionist
+1 Defense Force Aggressor
+1 Devoted Hero
+1 Devoted Retainer
+1 Divine Verdict
+1 Flame Spill
+1 Goblin Smuggler
+1 Grab the Prize
+1 Inferno of the Star Mounts
+1 Kellan, the Fae-Blooded
+1 Koll, the Forgemaster
+1 Makindi Ox
+1 Moorland Inquisitor
+1 Pack Mastiff
+1 Phoenix of Ash
+1 Priest of Iroas
+1 Radiant Strike
+1 Resolute Survivors
+1 Rubblebelt Maaka
+1 Sneaking Guide
+1 Spectacular Spider-Man
+1 Star-Crowned Stag
+1 Sunhome Guildmage
+1 Sunrise Cavalier
+1 Vengeful Tracker
+1 Viashino Firstblade
+1 Battlefield Forge
+1 Clifftop Retreat
+1 Dalkovan Encampment
+1 Dedicated Commons
+1 Inspiring Vantage
+10 Mountain
+5 Plains
+1 Raucous Carnival
+1 Sacred Foundry
+1 Sunbaked Canyon
+1 Sundown Pass

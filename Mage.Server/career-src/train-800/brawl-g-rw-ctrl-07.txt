@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-rw-ctrl-07
+# archetype: brawl_ctrl
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Alchemist's Greeting
+1 Big Wheel
+1 Bloodpyre Elemental
+1 Bonebreaker Giant
+1 Chain Reaction
+1 Champion of Arashin
+1 Cone of Flame
+1 Demon Bolt
+1 Djeru and Hazoret
+1 Fate of the Sun-Cryst
+1 Feather of Flight
+1 Goblin Barrage
+1 Goblin Shortcutter
+1 Hellkite Punisher
+1 Hollow One
+1 Hungry Ridgewolf
+1 Iroas, God of Victory
+1 Leaping Master
+1 Loyal Warhound
+1 Night Market Guard
+1 Norika Yamazaki, the Poet
+1 Ondu Greathorn
+1 Rapacious Dragon
+1 Redcap Thief
+1 Rent Is Due
+1 Rift Bolt
+1 Rip Apart
+1 Siege Mastodon
+1 Solar Blaze
+1 Stonehorn Chanter
+1 Transporter Malfunction
+1 Volcanic Fallout
+1 Warlord's Fury
+1 Wedding Announcement
+1 Wicker Witch
+1 Battlefield Forge
+1 Clifftop Retreat
+1 Dalkovan Encampment
+1 Dedicated Commons
+1 Inspiring Vantage
+14 Mountain
+2 Plains
+1 Raucous Carnival
+1 Sacred Foundry
+1 Sunbaked Canyon
+1 Sundown Pass

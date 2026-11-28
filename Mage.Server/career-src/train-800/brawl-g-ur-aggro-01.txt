@@ -1,0 +1,51 @@
+# name: Train800 brawl-g-ur-aggro-01
+# archetype: brawl_aggro
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aegis Sculptor
+1 Blistercoil Weird
+1 Bria, Riptide Rogue
+1 Chase Stein, Runaway
+1 Conscripted Infantry
+1 Deface
+1 Field Creeper
+1 Forgeborn Oreads
+1 Free from Flesh
+1 Frost Walker
+1 Gallia, the Merrymaker
+1 Glint-Horn Buccaneer
+1 Goblin Bombardment
+1 Hall Monitor
+1 Keen Glidemaster
+1 Maelstrom Muse
+1 Master's Councillors
+1 Merfolk Windrobber
+1 Minotaur Skullcleaver
+1 Mizzium Mortars
+1 Mugging
+1 Nivix Guildmage
+1 Ogre-Head Helm
+1 Ornery Goblin
+1 Rescue Leopard
+1 Sage's Row Denizen
+1 Saheeli, Filigree Master
+1 Samut, Hazoret's Champion
+1 Scrapyard Mongrel
+1 Searing Barb
+1 Skystrike Officer
+1 Sweep Away
+1 Territorial Bruntar
+1 Third Path Iconoclast
+1 Thundering Giant
+1 Towashi Songshaper
+1 Baron, Airship Kingdom
+2 Island
+13 Mountain
+1 Peculiar Lighthouse
+1 Shivan Reef
+1 Spirebluff Canal
+1 Stark Industries
+1 Stormcarved Coast
+1 Sulfur Falls
+1 Temple of Epiphany
+1 Volatile Fjord

@@ -1,0 +1,41 @@
+# name: Train800 lim-t-gwu-mid-03
+# archetype: limited_mid
+# colors: GWU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Abuelo, Ancestral Echo
+2 Alistair, the Brigadier
+1 Ancient Spider
+1 Avacyn's Pilgrim
+1 Bant Charm
+2 Chulane, Teller of Tales
+2 Compleat Devotion
+1 Crude Rampart
+1 Deft Duelist
+1 Dramatic Rescue
+1 Fleecemane Lion
+2 Friendly Ghost
+2 Ghastbark Twins
+1 Gideon's Triumph
+1 Grazing Whiptail
+2 Harbin, Vanguard Aviator
+1 Ingenious Mastery
+1 Leonin Vanguard
+1 Metropolis Angel
+1 Mightform Harmonizer
+1 Nimble Thopterist
+1 Old Thrush
+1 Organ Hoarder
+1 Paladin of Predation
+1 Platypus-Bear
+1 Rimefur Reindeer
+1 Skysnare Spider
+1 Stall for Time
+1 Thornhide Wolves
+1 Three Tree Rootweaver
+2 Canopy Vista
+2 Etched Cornfield
+5 Forest
+6 Island
+5 Plains
+2 Razorverge Thicket
+2 Spara's Headquarters

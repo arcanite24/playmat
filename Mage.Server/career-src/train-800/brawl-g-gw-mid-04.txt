@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-gw-mid-04
+# archetype: brawl_mid
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ardenvale Paladin
+1 Baffling End
+1 Bakersbane Duo
+1 Break Down the Door
+1 Centaur Courser
+1 Circle of Confinement
+1 Colossadactyl
+1 Depopulate
+1 Dryad Militant
+1 Durkwood Baloth
+1 Elspeth's Devotee
+1 Elturgard Ranger
+1 Gladewalker Ritualist
+1 Glorious Decay
+1 Helica Glider
+1 Hill Giant Herdgorger
+1 Holy Cow
+1 Imposing Vantasaur
+1 Introduction to Prophecy
+1 Kinscaer Sentry
+1 Long Road Home
+1 Myr Convert
+1 Nessian Game Warden
+1 Outlaw Medic
+1 Realmwalker
+1 Skola Grovedancer
+1 Sovereign Okinec Ahau
+1 Steadfast Sentry
+1 Struggle for Skemfar
+1 Syndicate Messenger
+1 Trueheart Duelist
+1 Vanish into Eternity
+1 Vernadi Shieldmate
+1 Vexing Drone
+1 Yenna, Redtooth Regent
+1 Brushland
+1 Canopy Vista
+1 Etched Cornfield
+8 Forest
+1 Grove of the Guardian
+1 Horizon Canopy
+1 Overgrown Farmland
+8 Plains
+1 Razorverge Thicket
+1 Sunpetal Grove
+1 Vigorbloom Annex

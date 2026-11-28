@@ -1,0 +1,20 @@
+# name: Train800 mono-r-midrange-08
+# archetype: midrange
+# colors: R
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Chandra, Heart of Fire
+4 Endrider Catalyzer
+4 Flick a Coin
+3 Gadrak, the Crown-Scourge
+1 Giant Cindermaw
+1 Ilharg, the Raze-Boar
+2 Jaya, Venerated Firemage
+3 Lathliss, Dragon Queen
+2 Magmatic Hellkite
+4 Ojer Axonil, Deepest Might
+2 Reckless Lackey
+2 Rekindling Phoenix
+2 Stark Industries Executive
+2 Wild Slash
+1 Wildfire Howl
+24 Mountain

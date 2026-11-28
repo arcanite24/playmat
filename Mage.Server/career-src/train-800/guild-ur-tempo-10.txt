@@ -1,0 +1,22 @@
+# name: Train800 guild-ur-tempo-10
+# archetype: tempo
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Akki Scrapchomper
+3 Colorstorm Stallion
+3 Confusticate and Bebother
+2 Enthusiastic Mechanaut
+3 Fearless Swashbuckler
+4 Prismari Command
+2 Ral, Izzet Viceroy
+2 Rift Bolt
+2 Saheeli, Filigree Master
+3 Slick Sequence
+3 Thassa's Rebuff
+4 Underworld Rage-Hound
+4 Veteran Ice Climber
+6 Island
+6 Mountain
+4 Peculiar Lighthouse
+4 Spirebluff Canal
+2 Sulfur Falls

@@ -1,0 +1,22 @@
+# name: Train800 mono-w-midrange-07
+# archetype: midrange
+# colors: W
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Aang, Air Nomad
+1 Adept Watershaper
+3 Bishop of Wings
+2 Bright Reprisal
+3 Command Decision
+1 Command Subadjunct
+1 Elaborate Firecannon
+2 Envoy of Okinec Ahau
+2 Harvestrite Host
+1 Humble the Brute
+2 Lady of Laughter
+4 Oketra the True
+3 Phyrexian Vindicator
+2 Staff of Compleation
+2 Test of Conviction
+4 Warden of the Inner Sky
+1 Weather Maker
+24 Plains

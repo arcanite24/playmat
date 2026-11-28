@@ -1,0 +1,26 @@
+# name: Train800 guild-gu-gowide-06
+# archetype: gowide
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Ambush Viper
+3 Avatar of the Resolute
+3 Bag End Porter
+4 Blooming Stinger
+3 Guerrilla Gorilla
+2 Kulrath Mystic
+3 Maximize Altitude
+2 Monument to Endurance
+3 Mu Yanling, Sky Dancer
+1 Multiple Choice
+1 Oko, the Ringleader
+2 Plumecreed Escort
+1 Ranger's Guile
+1 Stitched Assistant
+3 Thunderous Snapper
+2 Undergrowth Leopard
+2 Watchers of the Dead
+4 Botanical Sanctum
+2 Dreamroot Cascade
+8 Forest
+4 Hinterland Harbor
+4 Island

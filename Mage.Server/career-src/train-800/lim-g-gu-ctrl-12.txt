@@ -1,0 +1,33 @@
+# name: Train800 lim-g-gu-ctrl-12
+# archetype: limited_ctrl
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Admiral's Order
+1 Aether Helix
+1 Archmage's Charm
+1 Cactarantula
+2 Call to Heel
+1 Cephalid Sage
+2 Claws of Wirewood
+2 Djinn of Wishes
+2 Drover Grizzly
+2 Elvish Hydromancer
+2 Kazandu Mammoth
+1 Kiora, the Crashing Wave
+1 Llanowar Loamspeaker
+2 Mineshaft Spider
+1 Multiple Choice
+2 Obyra's Attendants
+1 Primordial Sage
+1 Serpent Specialist
+1 Shipwreck Sentry
+2 Species Gorger
+2 Teferi, Temporal Pilgrim
+1 The Mightstone and Weakstone
+1 Vantress Transmuter
+2 Wishful Merfolk
+2 Dreamroot Cascade
+8 Forest
+1 Hinterland Harbor
+12 Island
+2 Yavimaya Coast

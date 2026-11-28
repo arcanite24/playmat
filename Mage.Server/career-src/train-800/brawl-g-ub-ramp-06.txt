@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-ub-ramp-06
+# archetype: brawl_ramp
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 April O'Neil, Human Element
+1 Ashiok, Nightmare Muse
+1 Bloodbond Vampire
+1 Bloodtithe Collector
+1 Chain Devil
+1 Charcoal Diamond
+1 Cleaving Reaper
+1 Deadly Cover-Up
+1 Dimir Charm
+1 Dimir Cluestone
+1 Dungeon Crawler
+1 Easy Prey
+1 Fleshmad Steed
+1 Forgotten Creation
+1 Gloomfang Mauler
+1 Gruesome Realization
+1 Gulping Scraptrap
+1 Hagra Mauling
+1 Kheru Spellsnatcher
+1 Midnight Entourage
+1 Octoprophet
+1 Omni-Cheese Pizza
+1 Oscorp Research Team
+1 Persuasive Interrogators
+1 Prakhata Pillar-Bug
+1 Retrieval Agent
+1 Sewer Crocodile
+1 Shefet Archfiend
+1 Sink into Stupor
+1 Sludge Crawler
+1 Snaremaster Sprite
+1 Tidal Terror
+1 Unesh, Criosphinx Sovereign
+1 Vampire Interloper
+1 Warp Core
+1 Darkslick Shores
+1 Drowned Catacomb
+3 Island
+1 Murky Sewer
+1 Shipwreck Marsh
+1 Sinister Hideout
+1 Soured Springs
+1 Submerged Boneyard
+1 Sunken Hollow
+13 Swamp
+1 Underground River

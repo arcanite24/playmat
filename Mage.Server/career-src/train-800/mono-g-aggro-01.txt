@@ -1,0 +1,20 @@
+# name: Train800 mono-g-aggro-01
+# archetype: aggro
+# colors: G
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Aeolipile
+3 Ayula, Queen Among Bears
+1 Bee Sting
+2 Champions of the Perfect
+1 Explosive Apparatus
+3 Flaxen Intruder
+3 Great Divide Guide
+2 Heritage Reclamation
+4 Insidious Fungus
+4 Kalonian Tusker
+1 Llanowar Greenwidow
+3 Luxurious Libation
+2 MACO Strike Team
+3 Pawpatch Formation
+4 Surrak, Elusive Hunter
+21 Forest

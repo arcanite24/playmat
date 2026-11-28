@@ -1,0 +1,51 @@
+# name: Train800 brawl-g-gw-aggro-01
+# archetype: brawl_aggro
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ahn-Crop Champion
+1 Artful Maneuver
+1 Attended Knight
+1 Avatar of the Resolute
+1 Bear Cub
+1 Blasting Station
+1 Bristlebud Farmer
+1 Cavalier of Thorns
+1 Chosen by Heliod
+1 Citadel Castellan
+1 Cloud, Midgar Mercenary
+1 Conclave Guildmage
+1 Consulate Turret
+1 Deeproot Warrior
+1 Dromoka's Command
+1 Felidar Cub
+1 Flutterfox
+1 Gaea's Protector
+1 Gavony Dawnguard
+1 Glimmer Seeker
+1 Guardian Shield-Bearer
+1 Hotshot Mechanic
+1 Huatli's Raptor
+1 Kraul Harpooner
+1 Ledev Champion
+1 Llanowar Stalker
+1 Michelangelo, Game Master
+1 Patriot, Shield Wielder
+1 Shredding Winds
+1 Soul Warden
+1 Spider-Girl, Legacy Hero
+1 Static Net
+1 Trostani, Three Whispers
+1 Verdant Outrider
+1 Wardscale Crocodile
+1 Wing Snare
+1 Brushland
+1 Canopy Vista
+1 Etched Cornfield
+9 Forest
+1 Grove of the Guardian
+1 Horizon Canopy
+1 Overgrown Farmland
+6 Plains
+1 Razorverge Thicket
+1 Sunpetal Grove
+1 Vigorbloom Annex

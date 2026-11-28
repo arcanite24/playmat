@@ -1,0 +1,26 @@
+# name: Train800 tri-ubr-midrange-08
+# archetype: midrange
+# colors: UBR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Benthic Criminologists
+3 Benthic Djinn
+2 Burning Sun Cavalry
+4 Char
+4 Cinder Giant
+2 Daughter of the Deep
+2 Goldhound
+2 Jaded Analyst
+2 Kardur's Vicious Return
+4 Manhole Missile
+4 Marauding Maulhorn
+1 Solphim, Mayhem Dominus
+2 Underworld Cerberus
+1 Vibrant Outburst
+1 Weapons Manufacturing
+2 Cinder Marsh
+4 Crosis's Catacombs
+2 Island
+6 Mountain
+4 Shivan Reef
+4 Sulfur Falls
+2 Swamp

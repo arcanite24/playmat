@@ -1,0 +1,42 @@
+# name: Train800 lim-t-wbg-mid-04
+# archetype: limited_mid
+# colors: WBG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Adamant Will
+1 Armada Wurm
+1 Bassara Tower Archer
+1 Beckon Apparition
+1 Boneyard Lurker
+1 Civic Wayfinder
+1 Cruel Alliance
+1 Crypt Lurker
+2 Deathless Behemoth
+1 Decimator Beetle
+1 Elas il-Kor, Sadistic Pilgrim
+1 Flare of Faith
+1 Gnarled Scarhide
+1 Hagra Sharpshooter
+1 Hopeful Initiate
+2 Koma's Faithful
+1 Korozda Monitor
+1 Locust Spray
+1 Noxious Grasp
+2 Rakish Scoundrel
+1 Razorlash Transmogrant
+1 Ruthless Negotiation
+2 Satyr Enchanter
+1 Shalai's Acolyte
+1 Sigiled Contender
+1 Slumbering Keepguard
+1 Steadfast Paladin
+1 Thalia and The Gitrog Monster
+2 The Chief Warg
+1 Ursine Champion
+1 Valley Rotcaller
+2 Blooming Marsh
+3 Forest
+2 Formidable Commons
+2 Overgrown Tomb
+9 Plains
+2 Strangled Cemetery
+4 Swamp

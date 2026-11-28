@@ -1,0 +1,38 @@
+# name: Train800 lim-g-wu-ctrl-12
+# archetype: limited_ctrl
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aeromoeba
+2 Archmage's Newt
+1 Atlantean Cavalry
+2 Attentive Sunscribe
+1 Blade Banish
+1 Blur
+1 Cavalier of Gales
+1 Compelling Deterrence
+1 Condescend
+1 Crumbling Colossus
+1 Depart the Realm
+1 Depopulate
+1 Divide by Zero
+1 Expose Evil
+1 Humpback Whales
+1 Leonin Lightbringer
+1 Nyxborn Courser
+2 Odric, Lunarch Marshal
+1 Reject
+2 Sanctify
+1 Scrollshift
+1 Squad Commander
+2 Storm Fleet Spy
+1 Threadbind Clique
+1 Time Wipe
+1 Topplegeist
+2 Trapjaw Tyrant
+1 Windreader Sphinx
+1 Zhalfirin Shapecraft
+2 Adarkar Wastes
+2 Deserted Beach
+1 Glacial Fortress
+10 Island
+10 Plains

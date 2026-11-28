@@ -1,0 +1,39 @@
+# name: Train800 lim-t-wub-ctrl-05
+# archetype: limited_ctrl
+# colors: WUB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aethergeode Miner
+1 Aven Eternal
+1 Barony Vampire
+1 Bloodcrazed Socialite
+1 Cloistered Telepath
+2 Dark Nourishment
+1 Darkblade Agent
+1 Diregraf Colossus
+2 Doom Foretold
+1 Feral Abomination
+2 Festive Funeral
+1 Flip the Switch
+2 Guardian Sunmare
+1 Herald of Serra
+1 Immortal Servitude
+2 Inspiring Cleric
+1 Knight Luminary
+1 Merfolk Falconer
+1 Niveous Wisps
+1 Planar Outburst
+1 Protect the Negotiators
+1 Pursued Whale
+2 Rat Out
+2 Silverquill Silencer
+1 Sky Scourer
+1 Soulblade Djinn
+1 Triad of Fates
+1 Wail of the Forgotten
+8 Island
+2 Isolated Chapel
+2 Meticulous Commons
+2 Neglected Manor
+5 Plains
+2 Shattered Sanctum
+4 Swamp

@@ -1,0 +1,37 @@
+# name: Train800 lim-g-bg-aggro-02
+# archetype: limited_aggro
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Aftermath Analyst
+1 Alpine Grizzly
+1 Beifong's Bounty Hunters
+2 Bloodsoaked Champion
+2 Collective Resistance
+1 Darkheart Sliver
+1 Disruptive Stormbrood
+2 Eye Gouge
+2 Fear of Lost Teeth
+1 Felhide Petrifier
+2 Gold Rush
+2 Harald, King of Skemfar
+1 Insatiable Hemophage
+1 Kalakscion, Hunger Tyrant
+1 Kronch Wrangler
+1 Lampad of Death's Vigil
+1 Leech Collector
+1 Lluwen, Imperfect Naturalist
+1 Lurking Lizards
+2 Mournwillow
+1 Pardic Wanderer
+1 Project Deathlok Soldier
+1 Skyclave Shade
+1 Tandem Takedown
+2 Territorial Allosaurus
+2 Valentin, Dean of the Vein
+1 Widow's Bite
+1 Wreckage Wickerfolk
+1 Blooming Marsh
+2 Deathcap Glade
+8 Forest
+2 Strangled Cemetery
+9 Swamp

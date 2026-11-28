@@ -1,0 +1,24 @@
+# name: Train800 guild-br-bigmana-15
+# archetype: bigmana
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Belligerent of the Ball
+1 Blazing Hellhound
+1 Burn Down the House
+2 Ceremonial Guard
+2 Chandra, Novice Pyromancer
+3 Decadent Dragon
+3 Flamecache Gecko
+3 Flick a Coin
+3 Magma Jet
+2 Maha, Its Feathers Night
+4 Ozai, the Phoenix King
+3 Smaug, Wicked Worm
+2 Spikefield Hazard
+2 Test of Loyalty
+1 Thraben Gargoyle
+2 Cinder Marsh
+4 Dragonskull Summit
+4 Haunted Ridge
+14 Mountain
+2 Swamp

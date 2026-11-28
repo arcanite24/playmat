@@ -1,0 +1,38 @@
+# name: Train800 lim-g-rw-aggro-01
+# archetype: limited_aggro
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Altac Bloodseeker
+1 Antagonize
+1 Armory Veteran
+1 Boros Guildmage
+1 Bruse Tarl, Boorish Herder
+1 Candlegrove Witch
+1 Cast into the Fire
+2 Cleaving Skyrider
+1 Cobblebrute
+2 Commander William Riker
+1 Demon Bolt
+2 Feisty Spikeling
+2 Fierce Retribution
+1 Firemane Avenger
+1 Full Bore
+1 Furnace Host Charger
+2 Guide of Souls
+2 Harried Artisan
+1 Hearthborn Battler
+1 Kindled Heroism
+1 Kinsbaile Aspirant
+2 Monica Rambeau
+1 Old Hob, Alleycat Blues
+1 Open Fire
+1 Savai Thundermane
+1 Searing Blaze
+1 Stonerise Spirit
+1 Sunhome Guildmage
+2 Swooping Lookout
+2 Clifftop Retreat
+2 Dalkovan Encampment
+1 Inspiring Vantage
+10 Mountain
+8 Plains

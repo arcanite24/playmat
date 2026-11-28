@@ -1,0 +1,41 @@
+# name: Train800 brawl-m-w-aggro-01
+# archetype: brawl_aggro
+# colors: W
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Abzan Falconer
+1 Against All Odds
+1 Ancestor Dragon
+1 Arrester's Zeal
+1 Ascendant Dustspeaker
+1 Astrid Peth
+1 Aven Skirmisher
+1 Blessed Spirits
+1 Bronze Sable
+1 Bygone Bishop
+1 Exosuit Savior
+1 Glory-Bound Initiate
+1 Hammers of Moradin
+1 Heliod, Sun-Crowned
+1 High Sentinels of Arashin
+1 Humble the Brute
+1 Huntmaster Liger
+1 Phyrexian Pegasus
+1 Ranger's Hawk
+1 Restoration Specialist
+1 Ruin-Lurker Bat
+1 Samite Herbalist
+1 Sea Gate Banneret
+1 Silver Bolt
+1 Sinew Dancer
+1 Springjaw Trap
+1 Sram, Senior Edificer
+1 Stalwart Valkyrie
+1 Starport Security
+1 Stasis Snare
+1 The Black Arrow
+1 Thunderous Orator
+1 Tithe Taker
+1 Traveling Philosopher
+1 Trusted Pegasus
+1 You're Ambushed on the Road
+24 Plains

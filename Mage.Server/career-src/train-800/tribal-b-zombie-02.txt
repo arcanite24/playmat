@@ -1,0 +1,21 @@
+# name: Train800 tribal-b-zombie-02
+# archetype: tribal (Zombie)
+# colors: B
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Aim for the Head
+2 Archghoul of Thraben
+1 Blood Scrivener
+3 Death Baron
+1 Desperate Measures
+1 Dreadmalkin
+4 Gnawing Zombie
+4 Graf Reaver
+2 Grim Draugr
+4 Lord of the Accursed
+1 Plague Belcher
+2 Qutrub Forayer
+3 Returned Reveler
+2 Scourge of Nel Toth
+2 Wight
+2 Zul Ashur, Lich Lord
+23 Swamp

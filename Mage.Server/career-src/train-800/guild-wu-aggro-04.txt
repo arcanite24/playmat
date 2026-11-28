@@ -1,0 +1,25 @@
+# name: Train800 guild-wu-aggro-04
+# archetype: aggro
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Bard, Heir of Girion
+1 Capricious Sorcerer
+4 Claim Jumper
+4 Devoted Hero
+3 Dorothea, Vengeful Victim
+2 Duelist of Deep Faith
+1 Geistwave
+3 Gold-Forged Thopteryx
+1 Kykar, Zephyr Awakener
+2 Senate Guildmage
+3 Strength of Arms
+1 Sunstar Chaplain
+2 Swooping Lookout
+4 The Filigree Sylex
+4 Tragic Lesson
+2 Triceraton Commander
+2 Deserted Beach
+4 Glacial Fortress
+2 Island
+9 Plains
+4 Seachrome Coast

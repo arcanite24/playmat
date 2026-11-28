@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-urw-mid-03
+# archetype: brawl_mid
+# colors: URW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Airbender's Reversal
+1 Angelic Quartermaster
+1 Astonishing Spider-Man
+1 Atarka Pummeler
+1 Bard, King of Dale
+1 Baxter, Fly in the Ointment
+1 Beetleback Chief
+1 Boreal Griffin
+1 Bucky Barnes, Eager Ally
+1 Changeling Sentinel
+1 Coastal Bulwark
+1 Deadapult
+1 Deafening Clarion
+1 Fortress Kin-Guard
+1 Gloryheath Lynx
+1 Incursion Specialist
+1 Jace's Sentinel
+1 Jhessian Thief
+1 Kyoshi Warriors
+1 Mindstatic
+1 Molten Blast
+1 Ogre Battledriver
+1 Plargg, Dean of Chaos
+1 Plumecreed Mentor
+1 Prickly Marmoset
+1 Pyrotechnic Performer
+1 Resistance Bomber
+1 Seismic Monstrosaur
+1 Shiko, Paragon of the Way
+1 Sin Prodder
+1 Slip Through Space
+1 Spock, Always Your Friend
+1 Tunnel Surveyor
+1 Volcanic Upheaval
+1 You Come to a River
+1 Battlefield Forge
+1 Clifftop Retreat
+1 Dalkovan Encampment
+1 Dedicated Commons
+1 Inspiring Vantage
+7 Island
+3 Mountain
+1 Mystic Monastery
+2 Plains
+1 Raucous Carnival
+1 Raugrin Triome
+1 Sacred Foundry
+1 Spirebluff Canal
+1 Sulfur Falls
+1 Sunbaked Canyon
+1 Sundown Pass

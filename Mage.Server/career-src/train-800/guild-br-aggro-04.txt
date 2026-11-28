@@ -1,0 +1,24 @@
+# name: Train800 guild-br-aggro-04
+# archetype: aggro
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Arc Runner
+2 Bloodhall Priest
+1 Chandra, the Firebrand
+3 Creakwood Safewright
+1 Death's Shadow
+3 Emeritus of Conflict
+2 Emeritus of Woe
+4 Goblin Tomb Raider
+4 Goblin War Buggy
+1 Magma Jet
+2 Mask of Immolation
+4 Playful Shove
+4 Prompto Argentum
+2 Sudden Shock
+3 The Chase Is On
+4 Badlands
+4 Blackcleave Cliffs
+9 Mountain
+2 Sulfurous Springs
+2 Swamp

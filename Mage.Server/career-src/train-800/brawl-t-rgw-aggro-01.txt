@@ -1,0 +1,56 @@
+# name: Train800 brawl-t-rgw-aggro-01
+# archetype: brawl_aggro
+# colors: RGW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Arclight Phoenix
+1 Ardoz, Cobbler of War
+1 Avacynian Priest
+1 Avenging Arrow
+1 Axiom Engraver
+1 Blinding Mage
+1 Brazen Upstart
+1 Burning Prophet
+1 Cathar's Companion
+1 Destroy Evil
+1 Domri's Nodorog
+1 Fire Shrine Keeper
+1 Ghired, Mirror of the Wilds
+1 Goblin Glory Chaser
+1 Goblin Surveyor
+1 Hungry Flames
+1 Implement of Combustion
+1 Irreverent Revelers
+1 Keen-Eared Sentry
+1 Magebane Lizard
+1 Mary Jane Watson
+1 Odric's Outrider
+1 Oin the Brave
+1 Picnic Ruiner
+1 Pyroceratops
+1 Raging Regisaur
+1 Rith, Liberated Primeval
+1 Roil Eruption
+1 Rosa, Resolute White Mage
+1 Rustvine Cultivator
+1 Sulfur Elemental
+1 Sungold Barrage
+1 Swooping Protector
+1 Venom Connoisseur
+1 Voice of Resurgence
+1 Witch's Web
+1 Battlefield Forge
+1 Clifftop Retreat
+1 Dalkovan Encampment
+1 Dedicated Commons
+4 Forest
+1 Inspiring Vantage
+1 Jetmir's Garden
+5 Mountain
+2 Plains
+1 Raucous Carnival
+1 Razorverge Thicket
+1 Rockfall Vale
+1 Sacred Foundry
+1 Sunbaked Canyon
+1 Sundown Pass
+1 Vigorbloom Annex

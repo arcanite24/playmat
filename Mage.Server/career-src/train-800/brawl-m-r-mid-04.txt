@@ -1,0 +1,40 @@
+# name: Train800 brawl-m-r-mid-04
+# archetype: brawl_mid
+# colors: R
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Accomplished Automaton
+1 Akki Raider
+1 Akoum Stonewaker
+1 Arc Runner
+1 Artistic Process
+1 Bloodrock Cyclops
+1 Bumi Bash
+1 Dreadmaw's Ire
+1 Dreamstalker Manticore
+1 Famished Foragers
+1 Gloin, Dwarf Emissary
+1 Glorybringer
+1 Goblin Assault Team
+1 Jaya's Firenado
+1 Knife
+1 Kozilek's Channeler
+1 Lacerate Flesh
+1 Melded Moxite
+1 Release the Gremlins
+1 Ripscale Predator
+1 Rooting Moloch
+1 Sarkhan's Whelp
+1 Scuzzback Scrounger
+1 Sigiled Skink
+1 Skinbrand Goblin
+1 Smoldering Efreet
+1 Spider-Bot
+1 Spider-Gwen, Free Spirit
+1 Splatter Thug
+1 Steampath Charger
+1 Strife Scholar
+1 Summon: G.F. Ifrit
+1 Technodrome
+1 Valley Flamecaller
+1 Volcanic Spite
+25 Mountain

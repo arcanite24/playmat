@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-wub-mid-02
+# archetype: brawl_mid
+# colors: WUB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Abzan Battle Priest
+1 Affa Guard Hound
+1 Atris, Oracle of Half-Truths
+1 Benthic Djinn
+1 Borg Scout Sphere
+1 Crystalline Sliver
+1 Death in the Family
+1 Doorkeeper Thrull
+1 Drag to the Underworld
+1 Drannith Magistrate
+1 Dread Rider
+1 Eclipsed Merrow
+1 Encumbered Reejerey
+1 Feed the Cauldron
+1 Flesh to Dust
+1 Frostpeak Yeti
+1 Furtive Analyst
+1 Jeskai Elder
+1 Kaya's Wrath
+1 Kinzu of the Bleak Coven
+1 Monoist Circuit-Feeder
+1 Myriad Construct
+1 Nightdrinker Moroii
+1 Nimraiser Paladin
+1 Noctis, Prince of Lucis
+1 Order of the Mirror
+1 Riverwalk Technique
+1 S.H.I.E.L.D. Deployment Drone
+1 Shimmerscale Drake
+1 Stoneforge Acolyte
+1 Undercity's Embrace
+1 Vanquish the Weak
+1 Vassal Soul
+1 Whisper Squad
+1 Yue, the Moon Spirit
+1 Arcane Sanctum
+1 Concealed Courtyard
+1 Darkslick Shores
+1 Drowned Catacomb
+1 Fortified Beachhead
+1 Great Arashin City
+4 Island
+1 Isolated Chapel
+1 Murky Sewer
+1 Neglected Manor
+4 Plains
+1 Raffine's Tower
+1 Shipwreck Marsh
+1 Sunken Hollow
+4 Swamp
+1 Underground River

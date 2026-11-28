@@ -1,0 +1,51 @@
+# name: Train800 brawl-g-wu-aggro-01
+# archetype: brawl_aggro
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Attentive Skywarden
+1 Aura Blast
+1 Auriok Transfixer
+1 Aven Mindcensor
+1 Ballyrush Banneret
+1 Bazaar Trademage
+1 Benalish Faithbonder
+1 Crawling Chorus
+1 Deal Broker
+1 Deputy of Detention
+1 Dive Down
+1 Drafna, Founder of Lat-Nam
+1 Drogskol Infantry
+1 Dual-Sun Adepts
+1 Furtive Homunculus
+1 Grizzled Angler
+1 Mangara, the Diplomat
+1 Monk of the Open Hand
+1 Murdock's Crusade
+1 Nyxborn Seaguard
+1 Perilous Myr
+1 Planar Ally
+1 Prison Realm
+1 Sage's Row Savant
+1 Screeching Skaab
+1 Silent Sentinel
+1 Sokka, Lateral Strategist
+1 Spire Winder
+1 Springjaw Trap
+1 Thousand Moons Crackshot
+1 Thraben Standard Bearer
+1 Tiger-Seal
+1 Topplegeist
+1 Warden of the Inner Sky
+1 Windrider Wizard
+1 Wizard Class
+1 Abandoned Campground
+1 Adarkar Wastes
+1 Cloudcrest Lake
+1 Coastal Tower
+1 Deserted Beach
+1 Fortified Beachhead
+1 Glacial Fortress
+4 Island
+11 Plains
+1 Prairie Stream
+1 Seachrome Coast

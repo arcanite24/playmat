@@ -1,0 +1,23 @@
+# name: Train800 tribal-ub-zombie-01
+# archetype: tribal (Zombie)
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Bladestitched Skaab
+2 Brazen Borrower
+1 Chase Inspiration
+3 Cobbled Lancer
+3 Graveyard Marshal
+3 Jarl of the Forsaken
+1 Lamplighter of Selhoff
+4 Marauding Boneslasher
+1 Plague Belcher
+4 Prized Amalgam
+3 Risen Executioner
+2 Rot-Tide Gargantua
+3 Venser, Corpse Puppet
+4 Zul Ashur, Lich Lord
+4 Drowned Catacomb
+2 Island
+2 Sunken Hollow
+11 Swamp
+4 Underground River

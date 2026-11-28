@@ -1,0 +1,19 @@
+# name: Train800 mono-r-bigmana-12
+# archetype: bigmana
+# colors: R
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Battle Cry Goblin
+1 Burn Down the House
+2 Chandra, Novice Pyromancer
+3 Collateral Damage
+2 Combustion Man
+2 Crag Saurian
+3 Flamekin Gildweaver
+4 Inferno Hellion
+3 Neheb, the Eternal
+2 Ogre Chitterlord
+2 Slash, Reptile Rampager
+4 Spikefield Hazard
+2 Take Out the Trash
+1 Urn of Godfire
+25 Mountain

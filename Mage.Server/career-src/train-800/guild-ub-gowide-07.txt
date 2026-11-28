@@ -1,0 +1,24 @@
+# name: Train800 guild-ub-gowide-07
+# archetype: gowide
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Archfiend's Vessel
+1 Ashiok, Nightmare Muse
+4 Aspirant's Ascent
+2 Circle of Power
+2 Desculpting Blast
+3 Gnarled Scarhide
+4 HYDRA Troopers
+1 Lurking Deadeye
+3 Mudbutton Cursetosser
+4 Overwhelmed Apprentice
+4 Skull Skaab
+4 Sparkhunter Masticore
+1 Teferi, Temporal Pilgrim
+1 Unfortunate Accident
+2 Vile Rebirth
+4 Drowned Catacomb
+3 Island
+2 Murky Sewer
+7 Swamp
+4 Underground River

@@ -1,0 +1,26 @@
+# name: Train800 tri-urw-gowide-03
+# archetype: gowide
+# colors: URW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Angelic Blessing
+4 Crawling Chorus
+3 Goblin Blast-Runner
+1 Into the Fae Court
+2 Narset of the Ancient Way
+3 Obsessive Astronomer
+3 Ondu War Cleric
+1 Oreplate Pangolin
+3 Ral's Outburst
+1 Rapid Hybridization
+3 Seedglaive Mentor
+2 Skyship Stalker
+4 Tenth District Legionnaire
+3 Vadrok, Apex of Thunder
+1 Vraska, Soul of Stone
+4 Clifftop Retreat
+4 Dalkovan Encampment
+2 Inspiring Vantage
+5 Island
+2 Mountain
+1 Plains
+4 Sunbaked Canyon

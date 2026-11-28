@@ -1,0 +1,24 @@
+# name: Train800 tribal-ub-zombie-02
+# archetype: tribal (Zombie)
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Aphetto Vulture
+2 Archghoul of Thraben
+3 Bladestitched Skaab
+3 Boneknitter
+2 Deadly Plot
+1 Lamplighter of Selhoff
+3 Marauding Boneslasher
+1 Masterful Flourish
+1 Postmortem Professor
+3 Reave Soul
+4 Risen Executioner
+4 Seagraf Skaab
+4 Selhoff Entomber
+2 Skull Skaab
+2 Stitched Assistant
+4 Drowned Catacomb
+2 Island
+4 Shipwreck Marsh
+2 Sunken Hollow
+11 Swamp

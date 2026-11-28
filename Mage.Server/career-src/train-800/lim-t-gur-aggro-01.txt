@@ -1,0 +1,41 @@
+# name: Train800 lim-t-gur-aggro-01
+# archetype: limited_aggro
+# colors: GUR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Akki Scrapchomper
+2 Arbalest Engineers
+1 Balduvian Bears
+1 Biotech Specialist
+1 Burning Hands
+1 Clever Conjurer
+2 Dance with Devils
+1 Daybreak Combatants
+1 Deepwater Hypnotist
+1 Ferocious Werefox
+2 Fervent Champion
+1 Frilled Deathspitter
+2 Gadget Technician
+1 Gift of Strength
+1 Mage Duel
+1 Nest Robber
+1 Pierce the Sky
+1 Quicksilver, Brash Blur
+1 Ral's Staticaster
+1 Razorkin Hordecaller
+1 Rise to the Challenge
+2 Skyclave Geopede
+1 Smoke Teller
+1 Sudden Spinnerets
+1 Sun-Collared Raptor
+1 Sure-Footed Infiltrator
+1 Surrak Dragonclaw
+1 Terrapact Intimidator
+1 Venomous Brutalizer
+2 Wily Bandar
+2 Bleeding Woods
+2 Cinder Glade
+2 Copperline Gorge
+2 Forest
+5 Island
+8 Mountain
+2 Rockfall Vale

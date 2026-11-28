@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-rgw-mid-03
+# archetype: brawl_mid
+# colors: RGW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Andromedan Automatons
+1 Annie Joins Up
+1 Anti-Venom, Horrifying Healer
+1 Ascendant Packleader
+1 Blossom Prancer
+1 Brutal Deceiver
+1 Concentrated Fire
+1 Concord with the Kami
+1 Courier Griffin
+1 Danitha, New Benalia's Light
+1 Defend the Campus
+1 Gallant Citizen
+1 Goblin Instigator
+1 Guardians of Koilos
+1 Idol of the Deep King
+1 Incandescent Aria
+1 Intrepid Stablemaster
+1 Kraul Foragers
+1 Kree Commandos
+1 Magmatic Channeler
+1 Mechanized Ninja Cavalry
+1 Mine Raider
+1 Razorfoot Griffin
+1 Regal Leosaur
+1 Relentless Hunter
+1 Rocco, Cabaretti Caterer
+1 Squash
+1 Sun Warriors
+1 Thorin Oakenshield
+1 Titanic Brawl
+1 Trading Post
+1 Twitching Doll
+1 Unstoppable Ogre
+1 Wary Farmer
+1 Wispweaver Angel
+1 Battlefield Forge
+1 Brushland
+1 Canopy Vista
+1 Dalkovan Encampment
+3 Forest
+1 Horizon Canopy
+1 Inspiring Vantage
+1 Jetmir's Garden
+6 Mountain
+1 Overgrown Farmland
+3 Plains
+1 Razorverge Thicket
+1 Sacred Foundry
+1 Sundown Pass
+1 Sunpetal Grove
+1 Vigorbloom Annex

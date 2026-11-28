@@ -1,0 +1,25 @@
+# name: Train800 tri-brg-bigmana-09
+# archetype: bigmana
+# colors: BRG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Bridgeworks Battle
+3 Burly Breaker
+3 Burn, Burn, Tree and Fern
+2 Caller of the Pack
+1 Chandra's Flame Wave
+2 Dread Wanderer
+1 Footlight Fiend
+4 Invasion of Ergamon
+2 Kazandu Mammoth
+2 Knowledge and Power
+3 Noggle Robber
+4 Roxanne, Starfall Savant
+2 They Went This Way
+4 Warden of the Chained
+4 Copperline Gorge
+4 Darigaaz's Caldera
+8 Forest
+4 Karplusan Forest
+2 Mountain
+2 Rootbound Crag
+2 Swamp

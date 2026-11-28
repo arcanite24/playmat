@@ -1,0 +1,24 @@
+# name: Train800 guild-gu-control-18
+# archetype: control
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Aether Spellbomb
+2 Banishing Betrayal
+4 Censor
+2 Consider the Prime Directive
+2 Kiora, Behemoth Beckoner
+3 Lifecrafter's Gift
+2 Loam Dryad
+4 Nael, Avizoa Aeronaut
+2 Skyscythe Engulfer
+2 Tezzeret, Artifice Master
+1 Thopter Spy Network
+1 Vine Mare
+3 Whirlwing Stormbrood
+1 Wilt
+2 You Come to a River
+4 Dreamroot Cascade
+3 Forest
+12 Island
+4 Lakeside Shack
+2 Transformative Commons

@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-rg-mid-05
+# archetype: brawl_mid
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aloe Alchemist
+1 Argothian Swine
+1 Artificer's Dragon
+1 Basalt Ravager
+1 Bloated Contaminator
+1 Cenote Scout
+1 Chandra's Outrage
+1 Dominating Vampire
+1 Firecannon Blast
+1 Flamekin Gildweaver
+1 Foundry Street Denizen
+1 Giltgrove Stalker
+1 Goldfury Strider
+1 Hallar, the Firefletcher
+1 Heritage Reclamation
+1 Impractical Joke
+1 Kapow!
+1 Kin-Tree Warden
+1 Klothys, God of Destiny
+1 Krenko's Buzzcrusher
+1 Leafkin Avenger
+1 Michelangelo, Mutant BFF
+1 Oath of Chandra
+1 Radiating Lightning
+1 Railway Brawler
+1 Reptil, Dinomorpher
+1 Riveteers Decoy
+1 Runeclaw Bear
+1 Ruric Thar, the Unbowed
+1 Tangleclaw Werewolf
+1 Tea, Earl Grey, Hot
+1 Thriving Rhino
+1 Ticket Tortoise
+1 Valeron Wardens
+1 Wilderland Scrounger
+1 Bleeding Woods
+1 Bristling Backwoods
+1 Cinder Glade
+1 Copperline Gorge
+10 Forest
+1 Karplusan Forest
+6 Mountain
+1 Restless Ridgeline
+1 Rockfall Vale
+1 Rootbound Crag
+1 Stomping Ground

@@ -1,0 +1,23 @@
+# name: Train800 guild-wu-control-19
+# archetype: control
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Arcane Subtraction
+2 Chilling Trap
+2 Confusticate and Bebother
+2 Containment Priest
+4 Cult Healer
+3 Fumigate
+1 Furtive Courier
+2 Jace, Cunning Castaway
+2 Ojutai's Command
+2 Protect the Negotiators
+1 Riddlemaster Sphinx
+4 Roadside Blowout
+4 Soul of Theros
+2 Teferi, Temporal Pilgrim
+4 Abandoned Campground
+2 Adarkar Wastes
+10 Island
+6 Plains
+4 Seachrome Coast

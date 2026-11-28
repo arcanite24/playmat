@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-gur-ctrl-06
+# archetype: brawl_ctrl
+# colors: GUR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aven Reedstalker
+1 Bitter Work
+1 Blade Sliver
+1 Blinding Spray
+1 Consuming Sinkhole
+1 Counterspell
+1 Cuboid Colony
+1 D'Vana Tendi, Optimistic Ensign
+1 Expedition Lookout
+1 Giantfall
+1 Hexgold Slash
+1 Howler's Heavy
+1 Incendiary Sabotage
+1 Kronch Wrangler
+1 Legion Extruder
+1 Lightning Volley
+1 Make Disappear
+1 Mind into Matter
+1 Niv-Mizzet, Visionary
+1 Oakhame Adversary
+1 Oran-Rief Ooze
+1 Pia, Aether Ascetic
+1 Psychic Rebuttal
+1 Reality Hemorrhage
+1 Shake the Foundations
+1 Spider-Sense
+1 Sweltering Suns
+1 Temur Devotee
+1 Temur Tawnyback
+1 Thundering Spineback
+1 Unfriendly Fire
+1 Vaultguard Trooper
+1 Vibrance
+1 Windstorm Drake
+1 Wormhole Serpent
+1 Botanical Sanctum
+1 Dreamroot Cascade
+2 Forest
+1 Frontier Bivouac
+3 Island
+1 Ketria Triome
+1 Lakeside Shack
+7 Mountain
+1 Peculiar Lighthouse
+1 Rootbound Crag
+1 Shivan Reef
+1 Spirebluff Canal
+1 Stormcarved Coast
+1 Sulfur Falls
+1 Transformative Commons
+1 Yavimaya Coast

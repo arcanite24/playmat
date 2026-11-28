@@ -1,0 +1,22 @@
+# name: Train800 mono-w-gowide-05
+# archetype: gowide
+# colors: W
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Archon of Sun's Grace
+1 Archon of the Wild Rose
+2 Banishing Slash
+3 Cheeky House-Mouse
+1 Chivalric Alliance
+2 Dauntless Bodyguard
+2 Guide of Souls
+2 Leonin Surveyor
+4 Leonin Warleader
+1 Personify
+2 Precinct Captain
+3 Stone Haven Outfitter
+3 Strength of Arms
+1 Survive the Night
+2 The Filigree Sylex
+4 Thraben Inspector
+2 Throwing Knife
+21 Plains

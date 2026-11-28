@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-ubr-ramp-05
+# archetype: brawl_ramp
+# colors: UBR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Battle Hymn
+1 Bounty Hunter
+1 Burning Sun Cavalry
+1 Case of the Crimson Pulse
+1 Cavern Harpy
+1 Crash and Burn
+1 Crosis's Charm
+1 Dark Ritual
+1 Dowsing Device
+1 Etched Host Doombringer
+1 Forsaken Drifters
+1 Ghitu Amplifier
+1 Giant-Sized Flying Ant
+1 Gnawing Zombie
+1 Graveyard Trespasser
+1 Impossible Inferno
+1 Incendiary Sabotage
+1 Lotleth Giant
+1 Marauding Sphinx
+1 Mongoose Lizard
+1 Nightveil Predator
+1 Raging Goblinoids
+1 Rakdos Locket
+1 Reach of Shadows
+1 Rearing Embermare
+1 Repository Skaab
+1 Rowan, Scion of War
+1 Seismic Elemental
+1 Smothering Abomination
+1 Stensia Innkeeper
+1 Tinybones, Trinket Thief
+1 Transmogrant's Crown
+1 Trueheart Twins
+1 Wasteland Scorpion
+1 Wind-Kin Raiders
+1 Badlands
+1 Blackcleave Cliffs
+1 Boiling Rock Prison
+1 Cinder Marsh
+1 Crosis's Catacombs
+1 Crumbling Necropolis
+1 Dragonskull Summit
+1 Haunted Ridge
+6 Island
+3 Mountain
+1 Razortrap Gorge
+1 Restless Vents
+1 Smoldering Marsh
+1 Sulfurous Springs
+3 Swamp
+1 Xander's Lounge

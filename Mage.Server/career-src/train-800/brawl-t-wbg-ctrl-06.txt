@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-wbg-ctrl-06
+# archetype: brawl_ctrl
+# colors: WBG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 A.I.M. Synthoids
+1 Adventure Awaits
+1 Alms Beast
+1 Armistice
+1 Baleful Mastery
+1 Break Down
+1 Bumi, Eclectic Earthbender
+1 Damage Control Crew
+1 Damnation
+1 Dawn to Dusk
+1 Dawnbringer Cleric
+1 Doomskar
+1 Dromoka's Command
+1 Dusk Legion Zealot
+1 Elenda, Saint of Dusk
+1 Extinguish All Hope
+1 Ezekiel Sims, Spider-Totem
+1 Fatal Fumes
+1 Filigree Crawler
+1 G'raha Tia
+1 Green Dragon
+1 Kunoros, Hound of Athreos
+1 Myr Sire
+1 Pride Sovereign
+1 Reaver Ambush
+1 Risky Research
+1 Rune of Might
+1 Scrapwork Rager
+1 Sephiroth's Intervention
+1 Silverquill Command
+1 Soaring Sandwing
+1 Spinewoods Paladin
+1 Summon: Fat Chocobo
+1 Unswerving Sloth
+1 Watchful Giant
+1 Brushland
+1 Canopy Vista
+1 Concealed Courtyard
+1 Etched Cornfield
+4 Forest
+1 Great Arashin City
+1 Grove of the Guardian
+1 Isolated Chapel
+1 Neglected Manor
+1 Overgrown Farmland
+2 Plains
+1 Razorverge Thicket
+1 Sandsteppe Citadel
+1 Shattered Sanctum
+1 Sunpetal Grove
+6 Swamp

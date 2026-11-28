@@ -1,0 +1,25 @@
+# name: Train800 guild-ur-aggro-02
+# archetype: aggro
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Battlewing Mystic
+2 Eruth, Tormented Prophet
+1 Firemind's Research
+2 Flameblade Adept
+3 Frostbite Pyromental
+1 Immolation Shaman
+4 Izzet Charm
+2 Keldon Warcaller
+2 Mardu Blazebringer
+2 Master's Councillors
+3 Prismari Charm
+4 Quicksilver, Brash Blur
+2 Slick Sequence
+4 Syr Ginger, the Meal Ender
+1 Thunder Strike
+2 You Come to the Gnoll Camp
+2 Island
+9 Mountain
+4 Peculiar Lighthouse
+4 Shivan Reef
+2 Stormcarved Coast

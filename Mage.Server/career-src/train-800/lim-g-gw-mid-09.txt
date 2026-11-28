@@ -1,0 +1,38 @@
+# name: Train800 lim-g-gw-mid-09
+# archetype: limited_mid
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Adelbert Steiner
+1 Adept Watershaper
+2 Almighty Brushwagg
+1 Axebane Beast
+1 Cankerbloom
+1 Canopy Gorger
+1 Defiant Elf
+1 District Guide
+1 Dune Mover
+1 Fell the Pheasant
+2 Fierce Witchstalker
+1 Gnottvold Recluse
+1 Jibbirik Omnivore
+1 Keeper of Fables
+1 Linden, the Steadfast Queen
+2 Llanowar Visionary
+1 Overgrown Armasaur
+1 Rebellious Strike
+1 Ritual of Rejuvenation
+1 Sagu Wildling
+2 Sarkhan's Resolve
+1 Selesnya Sentry
+1 Sparring Dummy
+2 Stone by Sunlight
+1 Tethmos High Priest
+1 Vastwood Gorger
+2 Vizier of the Menagerie
+1 Wildsize
+1 Woolly Loxodon
+2 Canopy Vista
+15 Forest
+2 Horizon Canopy
+4 Plains
+1 Vigorbloom Annex

@@ -1,0 +1,25 @@
+# name: Train800 tri-rwb-bigmana-09
+# archetype: bigmana
+# colors: RWB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Arana, Heart of the Spider
+2 Barbed Sextant
+3 Dain of the Ancient Halls
+2 Demonlord Belzenlok
+2 Diversion Specialist
+4 Eirdu, Carrier of Dawn
+3 Flick a Coin
+3 Ob Nixilis, the Hate-Twisted
+2 Profane Procession
+2 Regal Leosaur
+1 Shake the Foundations
+2 Smash to Smithereens
+2 Tokka & Rahzar, Terrible Twos
+2 Welcoming Vampire
+2 Clifftop Retreat
+4 Dedicated Commons
+2 Mountain
+2 Plains
+4 Sacred Foundry
+4 Sundown Pass
+8 Swamp

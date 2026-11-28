@@ -1,0 +1,23 @@
+# name: Train800 mono-w-gowide-06
+# archetype: gowide
+# colors: W
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aura Blast
+1 Auspicious Arrival
+3 Battlefield Raptor
+1 Belladonna Took
+3 Blessed Defiance
+2 Brimaz, King of Oreskos
+3 Cubwarden
+2 Explosive Apparatus
+2 Haliya, Guided by Light
+2 Halvar, God of Battle
+3 Joined Researchers
+2 Loyal Warhound
+2 Maned Serval
+2 Soul Separator
+4 Steward of Solidarity
+2 The Fall of Lord Konda
+1 Topple the Statue
+3 Triceraton Commander
+21 Plains

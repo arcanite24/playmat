@@ -1,0 +1,21 @@
+# name: Train800 mono-b-aggro-02
+# archetype: aggro
+# colors: B
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Cornered by Black Mages
+2 Cremate
+1 Demonic Pact
+2 Grafted Butcher
+3 Graveyard Marshal
+2 Grimdancer
+3 Keeper of the Lens
+2 Massacre Girl, Known Killer
+4 Moonshadow
+2 Nezumi Prowler
+3 Rabid Attack
+3 Shakedown Heavy
+4 Sorin the Mirthless
+2 Tangled Colony
+3 Vicious Conquistador
+1 You Are Already Dead
+21 Swamp

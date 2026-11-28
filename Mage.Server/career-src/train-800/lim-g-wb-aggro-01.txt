@@ -1,0 +1,36 @@
+# name: Train800 lim-g-wb-aggro-01
+# archetype: limited_aggro
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Ajani's Sunstriker
+1 Alley Strangler
+1 Athreos, God of Passage
+1 Benalish Knight
+2 Brave Brawler
+1 Conciliator's Duelist
+2 Desecration Elemental
+2 Desolation Angel
+2 Dockside Chef
+2 Elite Interceptor
+1 Flicker of Fate
+2 Killian's Confidence
+1 Killian, Ink Duelist
+1 Nadaar, Selfless Paladin
+1 Oreskos Swiftclaw
+1 Osteomancer Adept
+1 Pactdoll Terror
+1 Ravenous Necrotitan
+1 Scales of Shale
+1 Scheming Aspirant
+1 Sigrid, God-Favored
+2 Stalactite Stalker
+2 Sudden Death
+1 Suntail Hawk
+2 Utter End
+1 Veteran Dungeoneer
+1 Zoraline, Cosmos Caller
+1 Caves of Koilos
+2 Concealed Courtyard
+2 Meticulous Commons
+8 Plains
+10 Swamp

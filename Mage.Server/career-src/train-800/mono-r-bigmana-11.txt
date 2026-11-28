@@ -1,0 +1,20 @@
+# name: Train800 mono-r-bigmana-11
+# archetype: bigmana
+# colors: R
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Anje's Ravager
+3 Anticausal Vestige
+1 Burn Down the House
+4 Cornered Crook
+4 Dreamstalker Manticore
+2 Flick a Coin
+2 Gloin, Dwarf Emissary
+2 Igneous Inspiration
+4 Improvised Weaponry
+3 Kavaron Harrier
+2 Lathnu Hellion
+2 Nova Hellkite
+1 Soul-Scar Mage
+3 Spikefield Hazard
+1 Thror's Map
+25 Mountain

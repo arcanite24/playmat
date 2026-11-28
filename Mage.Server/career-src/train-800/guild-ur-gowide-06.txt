@@ -1,0 +1,23 @@
+# name: Train800 guild-ur-gowide-06
+# archetype: gowide
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Captain Michael Burnham
+2 Chimney Rabble
+2 Culmination of Studies
+4 Dragon Whisperer
+3 Dreadhorde Arcanist
+3 Expressive Firedancer
+3 Geistblast
+3 Kargan Dragonrider
+1 Pilfering Hawk
+4 Quicksmith Genius
+1 Ral, Izzet Viceroy
+4 Raubahn, Bull of Ala Mhigo
+1 Vibrant Outburst
+4 Whirling Strike
+2 Island
+10 Mountain
+4 Peculiar Lighthouse
+4 Spirebluff Canal
+2 Stormcarved Coast

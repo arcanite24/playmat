@@ -1,0 +1,26 @@
+# name: Train800 guild-gu-control-19
+# archetype: control
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Anticognition
+4 Arcane Subtraction
+1 Blight Herder
+2 Campus Composer
+3 Eternal Scourge
+1 Fell the Pheasant
+1 Giant Adephage
+3 Hill Giant Herdgorger
+1 Jace, Memory Adept
+2 Jaspera Sentinel
+2 King Harald's Revenge
+4 Serum Snare
+2 Spectral Interference
+1 Stern Dismissal
+3 Teferi, Master of Time
+1 Wild Onslaught
+2 Wild Unraveling
+2 Forest
+2 Hinterland Harbor
+13 Island
+4 Transformative Commons
+4 Yavimaya Coast

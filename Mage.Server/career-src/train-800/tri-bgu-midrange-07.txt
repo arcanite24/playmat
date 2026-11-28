@@ -1,0 +1,26 @@
+# name: Train800 tri-bgu-midrange-07
+# archetype: midrange
+# colors: BGU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Archers' Parapet
+2 Bebop, Warthog Warrior
+2 Bone Miser
+2 Cabal Patriarch
+3 Chevill, Bane of Monsters
+3 Embermouth Sentinel
+2 Front Porch Sentries
+2 Go Nuts!
+3 Hookhand Mariner
+3 Kels, Fight Fixer
+4 Kheru Goldkeeper
+2 Kolvori, God of Kinship
+3 Savor
+2 Sultai Banner
+2 Tribute to Urborg
+4 Deathcap Glade
+2 Forest
+2 Island
+2 Llanowar Wastes
+4 Overgrown Tomb
+6 Swamp
+4 Woodland Cemetery

@@ -1,0 +1,24 @@
+# name: Train800 guild-wb-control-20
+# archetype: control
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Athreos, God of Passage
+3 Champions from Beyond
+4 Deathless Behemoth
+2 Dirge Bat
+1 Ebondeath, Dracolich
+3 Eject the Warp Core
+1 Foul Play
+1 Hakoda, Selfless Commander
+2 Leering Onlooker
+2 Pestilent Spirit
+1 Phyrexian Fleshgorger
+3 Planar Cleansing
+3 Ray of Enfeeblement
+4 Scarab Feast
+2 Valorous Stance
+4 Caves of Koilos
+2 Concealed Courtyard
+4 Meticulous Commons
+7 Plains
+8 Swamp

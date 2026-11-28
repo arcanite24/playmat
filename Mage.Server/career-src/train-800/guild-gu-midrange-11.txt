@@ -1,0 +1,24 @@
+# name: Train800 guild-gu-midrange-11
+# archetype: midrange
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Architect of the Untamed
+2 Compelling Deterrence
+2 Gene Pollinator
+2 Horizon Chimera
+4 Lullmage's Familiar
+2 Overcharged Amalgam
+4 Sab-Sunen, Luxa Embodied
+1 Springjaw Trap
+1 The Lion-Turtle
+2 Three Tree Rootweaver
+2 Unauthorized Exit
+1 Vorstclaw
+3 Winds of Rebuke
+4 Wishful Merfolk
+3 Wistfulness
+4 Botanical Sanctum
+2 Dreamroot Cascade
+5 Forest
+9 Island
+4 Yavimaya Coast

@@ -1,0 +1,27 @@
+# name: Train800 tri-gwu-tempo-04
+# archetype: tempo
+# colors: GWU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Amateur Auteur
+4 Balduvian Bears
+3 Bant Charm
+3 Barkhide Troll
+3 Consulate Turret
+1 Justiciar's Portal
+2 Leave in the Dust
+3 Narset's Reversal
+2 Pouncing Cheetah
+1 Powerful Broker
+3 Quandrix Command
+3 Stickytongue Sentinel
+2 Tigra, Feline Fury
+2 Tolarian Geyser
+2 Urza's Command
+2 Weaver of Harmony
+4 Botanical Sanctum
+4 Dreamroot Cascade
+3 Forest
+1 Island
+4 Plains
+2 Transformative Commons
+4 Yavimaya Coast

@@ -1,0 +1,25 @@
+# name: Train800 guild-gw-aggro-04
+# archetype: aggro
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Aeolipile
+1 Apes of Rath
+1 Bee Sting
+4 Bounty Agent
+1 Burdened Stoneback
+3 Cliffrunner Behemoth
+2 Devoted Caretaker
+4 Knight of New Benalia
+4 Martyr of Dusk
+2 Mortarpod
+4 Prehistoric Pet
+3 Selesnya Charm
+2 Spontaneous Flight
+2 Sundering Growth
+1 Witch's Web
+3 Wylie Duke, Atiin Hero
+2 Forest
+4 Horizon Canopy
+4 Overgrown Farmland
+9 Plains
+2 Sunpetal Grove

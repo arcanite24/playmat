@@ -1,0 +1,38 @@
+# name: Train800 lim-t-rwb-ctrl-05
+# archetype: limited_ctrl
+# colors: RWB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Alesha, Who Smiles at Death
+1 Arcane Encyclopedia
+1 Azorius Arrester
+1 Bone-Cairn Butcher
+2 Bullwhip
+1 Chaos Terminator Lord
+1 Crossway Vampire
+1 Director Krennic
+1 Electro's Bolt
+1 Garna, Bloodfist of Keld
+1 Gates Ablaze
+2 Hixus, Prison Warden
+2 Marketwatch Phantom
+1 Midnight Guard
+1 Moon-Blessed Cleric
+1 Necrotic Fumes
+1 Neriv, Heart of the Storm
+2 Provoke the Trolls
+1 Rally for the Throne
+2 Rampaging Ferocidon
+2 Romantic Rendezvous
+1 Solemn Offering
+1 Soul's Attendant
+2 Syr Gwyn, Hero of Ashvale
+1 TIE Striker
+2 Wanderer's Strike
+1 Witch of the Moors
+2 Clifftop Retreat
+2 Dedicated Commons
+2 Inspiring Vantage
+4 Mountain
+4 Plains
+2 Sunbaked Canyon
+9 Swamp

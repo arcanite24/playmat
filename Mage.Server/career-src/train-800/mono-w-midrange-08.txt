@@ -1,0 +1,20 @@
+# name: Train800 mono-w-midrange-08
+# archetype: midrange
+# colors: W
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Admonition Angel
+2 Dragon's Eye Sentry
+1 Elaborate Firecannon
+3 Elesh Norn
+3 Farsight Adept
+1 Guardian of Ghirapur
+2 Humble the Brute
+4 Loyal Pegasus
+3 Meteorite
+2 Rally the Monastery
+2 Resplendent Angel
+1 Sunset Revelry
+2 Unholy Officiant
+3 Wedding Announcement
+3 Welcoming Vampire
+24 Plains

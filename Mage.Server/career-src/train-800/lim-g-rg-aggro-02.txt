@@ -1,0 +1,40 @@
+# name: Train800 lim-g-rg-aggro-02
+# archetype: limited_aggro
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Arclight Phoenix
+1 Atarka, World Render
+1 Bakersbane Duo
+1 Blisterpod
+1 Blitzball Shot
+1 Bloodstone Goblin
+1 Burning Prophet
+1 Centaur Chieftain
+1 Chainweb Aracnir
+1 Charging Badger
+1 Civic Gardener
+2 Confidence from Strength
+1 Crowned Ceratok
+1 Destiny Spinner
+1 Flame Spill
+2 Geier Reach Bandit
+1 Goreclaw, Terror of Qal Sisma
+1 Masked Vandal
+1 Nessian Wanderer
+2 Primal Might
+1 Rampaging Geoderm
+2 Return to the Earth
+1 Rhino, Barreling Brute
+1 Sanguinary Mage
+2 Searing Spear
+2 Shrill Howler
+1 Targ Nar, Demon-Fang Gnoll
+1 The Boulder, Ready to Rumble
+1 Traveling Botanist
+1 Vastlands Scavenger
+1 Voracious Varmint
+2 Bleeding Woods
+1 Copperline Gorge
+14 Forest
+4 Mountain
+2 Rootbound Crag

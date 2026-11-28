@@ -1,0 +1,23 @@
+# name: Train800 guild-bg-midrange-12
+# archetype: midrange
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Annihilate
+1 Cast Down
+4 Chief Warg's Company
+1 Demonic Pact
+2 Garruk's Harbinger
+4 Grasping Longneck
+1 Hired Hexblade
+3 Llanowar Loamspeaker
+2 Necromancer's Stockpile
+3 Slice from the Shadows
+4 Stormkeld Vanguard
+2 The Gitrog, Ravenous Ride
+2 Tragedy Feaster
+4 Xenobotanist
+4 Bayou
+8 Forest
+4 Llanowar Wastes
+2 Strangled Cemetery
+6 Swamp

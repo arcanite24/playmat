@@ -1,0 +1,37 @@
+# name: Train800 lim-g-ub-ctrl-12
+# archetype: limited_ctrl
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Academy Wall
+2 Aphetto Exterminator
+1 Ashiok, Nightmare Muse
+1 Bilbo's Deadly Slice
+2 Blue Marvel, Adam Brashear
+1 Body Count
+1 Canoptek Spyder
+1 Counterspell
+2 Covert Technician
+2 Drown in Ichor
+2 General Chang, Cold Warrior
+1 Girder Goons
+1 Grisly Spectacle
+1 Gruesome Fate
+1 Hound of the Farbogs
+2 Jeskai Elder
+1 Overkill
+1 Pearl Lake Ancient
+1 Sage of Lat-Nam
+1 Saw It Coming
+1 Skyclave Shadowcat
+1 Stalked Researcher
+1 Starwinder
+1 Thraben Foulbloods
+1 Thran Spider
+2 Ulna Alley Shopkeep
+1 Unrooted Ancestor
+1 Vial of Dragonfire
+1 Drowned Catacomb
+10 Island
+2 Murky Sewer
+2 Sunken Hollow
+10 Swamp

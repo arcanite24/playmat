@@ -1,0 +1,26 @@
+# name: Train800 guild-bg-aggro-03
+# archetype: aggro
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Banehound
+2 Bitterblade Warrior
+1 Breach
+1 Durable Coilbug
+1 Gnarlback Rhino
+1 Gollum the Abandoned
+3 Guardian of the Halls
+2 Harvesttide Sentry
+4 Kraven the Hunter
+1 Pack's Favor
+1 Professor Dellian Fel
+3 Scaleguard Sentinels
+2 Storrev, Devkarin Lich
+4 Trystan, Callous Cultivator
+2 Vadmir, New Blood
+4 Valentin, Dean of the Vein
+4 Vraska, Golgari Queen
+4 Blooming Marsh
+4 Deathcap Glade
+8 Forest
+2 Strangled Cemetery
+4 Swamp

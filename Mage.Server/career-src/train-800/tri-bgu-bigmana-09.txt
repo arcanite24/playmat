@@ -1,0 +1,27 @@
+# name: Train800 tri-bgu-bigmana-09
+# archetype: bigmana
+# colors: BGU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Bramble Wurm
+2 Gas Guzzler
+3 Gisa, Glorious Resurrector
+2 Guy in the Chair
+2 Letter of Acceptance
+2 Marauding Sphinx
+2 Omega, Heartless Evolution
+2 Patient Naturalist
+2 Ravenous Baloth
+3 Ruthless Predation
+2 Shamble Back
+2 Sinkhole Surveyor
+1 Soul of Zendikar
+1 Sultai Banner
+2 Sultai Monument
+2 Tome of the Guildpact
+4 Blooming Marsh
+4 Deathcap Glade
+4 Forest
+6 Island
+2 Overgrown Tomb
+4 Strangled Cemetery
+2 Swamp

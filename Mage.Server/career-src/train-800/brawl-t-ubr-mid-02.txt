@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-ubr-mid-02
+# archetype: brawl_mid
+# colors: UBR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aether Theorist
+1 Archmage's Newt
+1 Baron Vladimir Harkonnen
+1 Barrage of Boulders
+1 Beamsaw Prospector
+1 Bile Urchin
+1 Boosted Sloop
+1 Coal Golem
+1 Collation Trimatrix
+1 Cormela, Glamour Thief
+1 Cruel Cut
+1 Disinformation Campaign
+1 Evangel of Synthesis
+1 Falkenrath Aristocrat
+1 Finale of Eternity
+1 Gibbering Barricade
+1 Goblin Bird-Grabber
+1 Gravblade Heavy
+1 Hailstorm Valkyrie
+1 Hammerheim Deadeye
+1 Headstrong Brute
+1 Hive Mind Coprocessor
+1 Hog-Monkey
+1 Live or Die
+1 Maestros Diabolist
+1 Malcator's Watcher
+1 Neheb, Dreadhorde Champion
+1 Ragemonger
+1 Shocking Sharpshooter
+1 Terisian Mindbreaker
+1 Tribute to Urborg
+1 Verix Bladewing
+1 Void Shatter
+1 Whitewater Naiads
+1 Zulaport Duelist
+1 Blackcleave Cliffs
+1 Cinder Marsh
+1 Crosis's Catacombs
+1 Crumbling Necropolis
+1 Darkslick Shores
+1 Dragonskull Summit
+1 Haunted Ridge
+6 Island
+2 Mountain
+1 Murky Sewer
+1 Razortrap Gorge
+1 Smoldering Marsh
+1 Sulfurous Springs
+4 Swamp
+1 Underground River
+1 Xander's Lounge

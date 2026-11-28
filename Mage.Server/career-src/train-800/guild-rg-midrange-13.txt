@@ -1,0 +1,25 @@
+# name: Train800 guild-rg-midrange-13
+# archetype: midrange
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Cone of Flame
+1 End the Festivities
+3 Galewind Moose
+2 Gravestone Strider
+2 Honored Hierarch
+4 Hulking Raptor
+1 Inferno Fist
+2 Invasion of Mercadia
+2 Professional Wrestler
+2 Saruli Caretaker
+2 Scalestorm Summoner
+4 Tannuk, Memorial Ensign
+2 Vance's Blasting Cannons
+2 Vault Robber
+1 Vaultguard Trooper
+2 Volcanic Spite
+4 Copperline Gorge
+7 Forest
+7 Mountain
+4 Rootbound Crag
+2 Stomping Ground

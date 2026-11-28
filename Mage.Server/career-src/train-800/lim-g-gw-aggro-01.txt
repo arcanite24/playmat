@@ -1,0 +1,39 @@
+# name: Train800 lim-g-gw-aggro-01
+# archetype: limited_aggro
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aang, A Lot to Learn
+1 Alley Evasion
+1 Archon's Glory
+1 Conclave Mentor
+2 Dauntless Escort
+2 Dawn's Light Archer
+1 Deicide
+1 Flock Impostor
+1 Heir of the Wilds
+1 Huatli's Raptor
+1 Hushbringer
+1 Inventive Wingsmith
+1 Kutzil, Malamet Exemplar
+2 Leonin Surveyor
+1 Mandible Justiciar
+2 Neighborhood Guardian
+2 Not on My Watch
+1 Perilous Myr
+1 Relic Vial
+1 Selfless Spirit
+2 Shopkeeper's Bane
+1 Sigarda, Heron's Grace
+1 Steel Seraph
+1 Swift Reckoning
+1 Synchronized Strike
+1 Tethermage's Advantage
+1 Those Who Serve
+2 Topan Freeblade
+2 Usher of the Fallen
+1 Wilt-Leaf Liege
+1 Canopy Vista
+2 Etched Cornfield
+4 Forest
+13 Plains
+2 Vigorbloom Annex

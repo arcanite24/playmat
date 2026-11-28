@@ -1,0 +1,23 @@
+# name: Train800 guild-gw-bigmana-16
+# archetype: bigmana
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Archdruid's Charm
+2 Carnage Tyrant
+3 Dawnhart Wardens
+4 Demolisher Spawn
+3 Dragon's Hoard
+3 Elder Gargaroth
+3 Geist of the Lonely Vigil
+2 Herd Heirloom
+1 Keen-Eyed Curator
+4 Prizefight
+1 Sagittars' Volley
+2 Selesnya Cluestone
+2 Sigarda, Font of Blessings
+3 Trade Route Envoy
+14 Forest
+2 Plains
+4 Razorverge Thicket
+2 Sunpetal Grove
+4 Vigorbloom Annex

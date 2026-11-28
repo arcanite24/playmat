@@ -1,0 +1,25 @@
+# name: Train800 tri-brg-bigmana-10
+# archetype: bigmana
+# colors: BRG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Balthier and Fran
+1 Bloom Hulk
+4 Breakneck Rider
+2 Domri, Anarch of Bolas
+4 God-Eternal Rhonas
+2 Golgari Locket
+4 Grim Flayer
+3 Gruul Cluestone
+2 Idol of the Deep King
+1 Oblivion Sower
+1 Plummet
+4 Rakdos, the Muscle
+2 Siege Smash
+2 Slave I
+4 Cinder Glade
+4 Darigaaz's Caldera
+2 Forest
+3 Mountain
+2 Rockfall Vale
+4 Stomping Ground
+7 Swamp

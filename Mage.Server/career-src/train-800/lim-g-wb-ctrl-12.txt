@@ -1,0 +1,34 @@
+# name: Train800 lim-g-wb-ctrl-12
+# archetype: limited_ctrl
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aether Inspector
+1 Avacyn, Guardian Angel
+1 Battered Golem
+1 Blighted Blackthorn
+1 Bogstomper
+2 Bronze Walrus
+1 Caretaker's Talent
+2 Cartel Aristocrat
+1 Compound Fracture
+1 Dawnbringer Cleric
+2 Dutiful Griffin
+2 Foot Elite
+2 Kill-Zone Acrobat
+2 Launch Party
+1 Liliana's Standard Bearer
+1 Miasma Demon
+2 Protective Response
+2 Silverflame Ritual
+2 Sorcerer of the Fang
+1 Spear of Heliod
+1 Spectral Snatcher
+1 Stomped by the Foot
+1 Sunscourge Champion
+1 Tinybones, Trinket Thief
+2 Unfortunate Accident
+1 Great Arashin City
+2 Isolated Chapel
+2 Meticulous Commons
+9 Plains
+11 Swamp

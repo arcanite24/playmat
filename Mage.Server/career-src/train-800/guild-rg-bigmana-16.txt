@@ -1,0 +1,23 @@
+# name: Train800 guild-rg-bigmana-16
+# archetype: bigmana
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Burning-Tree Emissary
+4 Cemetery Prowler
+4 Champions of the Perfect
+1 Chandra's Fury
+3 Collateral Damage
+1 Giant's Boulder
+3 Gigantic Big Bear
+1 Gruul Locket
+2 Letter of Acceptance
+3 Pelakka Wurm
+2 Seize the Spoils
+3 Slash, Reptile Rampager
+1 Starting Column
+2 Vance's Blasting Cannons
+13 Forest
+4 Karplusan Forest
+3 Mountain
+4 Rockfall Vale
+2 Rootbound Crag

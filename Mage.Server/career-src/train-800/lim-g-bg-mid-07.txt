@@ -1,0 +1,38 @@
+# name: Train800 lim-g-bg-mid-07
+# archetype: limited_mid
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Abyssal Harvester
+2 Al Bhed Salvagers
+2 Ant-Man's Army
+2 Beanstalk Wurm
+1 Beifong's Bounty Hunters
+1 Big Bertha
+1 Bull's Strength
+1 Caustic Exhale
+1 Cursed Wombat
+1 Dark Dabbling
+2 Darkthicket Wolf
+1 Despoiler of Souls
+1 Elvish Vatkeeper
+1 Gift of Strength
+1 Golgari Longlegs
+1 Grim Haruspex
+2 Groundchuck & Dirtbag
+1 Honored Hierarch
+2 Initiate's Companion
+1 Lashwhip Predator
+1 Leyline Prowler
+2 Natural State
+1 Prowling Serpopard
+1 Requiting Hex
+1 Sandstalker Moloch
+1 Tar Snare
+1 Twitching Doll
+1 Vampire Noble
+2 Xindi Surveyors
+2 Blooming Marsh
+13 Forest
+1 Llanowar Wastes
+2 Strangled Cemetery
+5 Swamp

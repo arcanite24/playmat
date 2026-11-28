@@ -1,0 +1,24 @@
+# name: Train800 guild-wb-midrange-13
+# archetype: midrange
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Accorder Paladin
+3 Alms Beast
+4 Concordia Pegasus
+2 Eater of Hope
+2 Gideon Blackblade
+3 Hardened Tactician
+3 Juggernaut
+2 Noxious Dragon
+2 Savanti Romero, Time's Exile
+2 Shoot the Sheriff
+1 Silverquill Charm
+3 Unfortunate Accident
+3 Vito, Fanatic of Aclazotz
+2 Wedding Announcement
+3 Zahur, Glory's Past
+2 Concealed Courtyard
+4 Meticulous Commons
+4 Neglected Manor
+5 Plains
+9 Swamp

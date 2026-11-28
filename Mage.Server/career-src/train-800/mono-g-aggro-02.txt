@@ -1,0 +1,21 @@
+# name: Train800 mono-g-aggro-02
+# archetype: aggro
+# colors: G
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aggressive Urge
+3 Aloe Alchemist
+1 Bee Sting
+3 Fear of Exposure
+1 Glorious Decay
+1 Goblin Boom Keg
+1 Luxurious Libation
+3 Mutagen Man, Living Ooze
+2 Oviya Pashiri, Sage Lifecrafter
+4 Ripjaw Raptor
+2 Spiders-Man, Heroic Horde
+3 Thorn Lieutenant
+3 Throwing Knife
+2 Traveling Botanist
+4 Verdant Rebirth
+4 Wren's Run Vanquisher
+22 Forest

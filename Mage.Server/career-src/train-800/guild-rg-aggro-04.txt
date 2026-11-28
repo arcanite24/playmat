@@ -1,0 +1,24 @@
+# name: Train800 guild-rg-aggro-04
+# archetype: aggro
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Ashcoat Bear
+1 Brute Force
+2 Call In a Professional
+2 Chained Brute
+2 Channeled Dragonfire
+2 Dragonkin Berserker
+4 Harried Spearguard
+4 Hugs, Grisly Guardian
+3 Makeshift Munitions
+2 Marauding Raptor
+3 Migloz, Maze Crusher
+2 Thoughtweft Charge
+3 Tome Blast
+3 Untamed Kavu
+2 Voltaic Brawler
+2 Forest
+9 Mountain
+4 Rockfall Vale
+4 Rootbound Crag
+2 Stomping Ground

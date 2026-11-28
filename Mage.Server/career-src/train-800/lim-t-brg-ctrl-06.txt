@@ -1,0 +1,38 @@
+# name: Train800 lim-t-brg-ctrl-06
+# archetype: limited_ctrl
+# colors: BRG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ambitious Assault
+2 Anzrag, the Quake-Mole
+1 Bathe in Dragonfire
+1 Bloodfire Enforcers
+1 Borborygmos
+2 Byway Courier
+1 Calamitous Cave-In
+2 Candy Grapple
+1 Cruel Grimnarch
+1 Curse of the Werefox
+2 Deranged Outcast
+1 Descent of the Dragons
+2 Dire Fleet Daredevil
+2 Eddie Brock
+1 Gluttonous Troll
+1 Ishkanah, Grafwidow
+1 Jolene, Plundering Pugilist
+2 Junkblade Bruiser
+1 Khenra Charioteer
+1 Nightmare's Thirst
+1 Quartzwood Crasher
+1 Rubble Slinger
+1 Sparring Construct
+2 Trash the Town
+1 Unstable Obelisk
+1 Virtue of Courage
+1 Zhur-Taa Ancient
+2 Bleeding Woods
+2 Cinder Glade
+2 Darigaaz's Caldera
+6 Forest
+7 Mountain
+2 Rootbound Crag
+4 Swamp

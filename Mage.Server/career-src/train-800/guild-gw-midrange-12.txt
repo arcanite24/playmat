@@ -1,0 +1,23 @@
+# name: Train800 guild-gw-midrange-12
+# archetype: midrange
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Archangel of Tithes
+3 Ballista Charger
+4 Brigid, Clachan's Heart
+2 Grave Bramble
+3 Harsh Annotation
+2 Jennifer Walters
+4 Lambholt Pacifist
+1 Origin of Metalbending
+4 Saurian Explorer
+2 Shamanic Revelation
+2 Speaker of the Heavens
+2 The First Iroan Games
+4 The Thing, Ben Grimm
+1 Throwing Knife
+4 Canopy Vista
+9 Forest
+2 Grove of the Guardian
+4 Overgrown Farmland
+5 Plains

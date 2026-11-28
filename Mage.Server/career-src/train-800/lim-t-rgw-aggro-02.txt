@@ -1,0 +1,36 @@
+# name: Train800 lim-t-rgw-aggro-02
+# archetype: limited_aggro
+# colors: RGW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Amy Rose
+2 Beast Mode
+1 Black Panther, Most Dangerous
+1 Dromoka Warrior
+2 Duel for Dominance
+1 Eager Construct
+2 Emmara, Soul of the Accord
+1 Erode
+2 Fleetfoot Dancer
+2 Goblin Glory Chaser
+2 Harsh Mentor
+1 Kor Sky Climber
+2 Koth, Fire of Resistance
+2 Phalanx Vanguard
+1 Raph & Leo, Sibling Rivals
+1 Relic Seeker
+2 Rith, Liberated Primeval
+1 Riverguard's Reflexes
+2 Sharp-Eyed Rookie
+1 She-Hulk, Jade Defender
+2 Solitary Hunter
+1 Storm Herald
+1 Temur Charger
+2 Transmogrifying Wand
+1 Walltop Sentries
+2 Canopy Vista
+4 Forest
+2 Jetmir's Garden
+8 Mountain
+3 Plains
+2 Razorverge Thicket
+2 Sunpetal Grove

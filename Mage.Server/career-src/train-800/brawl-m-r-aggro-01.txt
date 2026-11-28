@@ -1,0 +1,41 @@
+# name: Train800 brawl-m-r-aggro-01
+# archetype: brawl_aggro
+# colors: R
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Adrenaline Jockey
+1 Akki Avalanchers
+1 Ash Zealot
+1 Azor's Gateway
+1 Barge In
+1 Belligerent Sliver
+1 Bloodthirsty Adversary
+1 Chained Brute
+1 Chandra's Revolution
+1 Chandra, the Firebrand
+1 Clear a Path
+1 Draconautics Engineer
+1 Dragonmaster Outcast
+1 Goblin Assailant
+1 Immersturm Raider
+1 Innocent Bystander
+1 Keldon Overseer
+1 Keldon Warcaller
+1 Masked Meower
+1 Molten Primordial
+1 Oreplate Pangolin
+1 Perils of the Past
+1 Puncturing Blow
+1 Rampaging Cyclops
+1 Ripchain Razorkin
+1 Spectrum Sentinel
+1 Spellrune Painter
+1 Spikefield Hazard
+1 Squee, Dubious Monarch
+1 Tenement Crasher
+1 Thundering Raiju
+1 Tilonalli's Knight
+1 Torch Courier
+1 Ultron, Artificial Malevolence
+1 Valakut Invoker
+1 Witty Roastmaster
+24 Mountain

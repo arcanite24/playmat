@@ -1,0 +1,23 @@
+# name: Train800 guild-rw-control-19
+# archetype: control
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Amateur Hero
+3 Artistic Process
+2 Combustible Gearhulk
+2 Dain, Lord of the Iron Hills
+1 Destructive Digger
+2 Draconic Roar
+4 Fiery Temper
+2 Heartfire
+2 Invasive Maneuvers
+2 Mindsparker
+2 Neonate's Rush
+3 Purphoros, Bronze-Blooded
+3 Rowdy Crew
+3 Season of the Burrow
+4 Battlefield Forge
+4 Clifftop Retreat
+2 Dalkovan Encampment
+14 Mountain
+2 Plains

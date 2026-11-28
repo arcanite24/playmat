@@ -1,0 +1,23 @@
+# name: Train800 guild-rw-aggro-02
+# archetype: aggro
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Belligerent Hatchling
+2 Boros Challenger
+2 Boros Charm
+3 Boros Guildmage
+2 Commander William Riker
+3 Flame Lash
+2 Honored Crop-Captain
+3 Make Your Mark
+2 Outpost Siege
+2 Plargg, Dean of Chaos
+3 Sacred Fire
+3 Sky Terror
+4 Sunhome Guildmage
+3 Usher of the Fallen
+4 Battlefield Forge
+4 Clifftop Retreat
+7 Mountain
+5 Plains
+2 Sunbaked Canyon

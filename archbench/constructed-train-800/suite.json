@@ -1,0 +1,3214 @@
+{
+  "suite": "constructed-train@800",
+  "created": "2026-11-28",
+  "about": "Phase 7 quality-gated training deck pool: 42 constructed-2 Pioneer/Standard decks + 758 Karsten-manabase 60-card Constructed, Tribal, Limited-curve, and Brawl/Singleton decks across all mono/2-color/3-color identities (9378 distinct verified cards; 0 synthetic OOD card overlap, max synthetic OOD Jaccard 0.000).",
+  "deals": 639200,
+  "turn_cap": 30,
+  "duplicate": true,
+  "anchor": {
+    "random": 1000
+  },
+  "decks": [
+    {
+      "file": "Mage.Server/career-src/pioneer/act1-boros-aggro.txt",
+      "fnv64": "7fd3a50837fe0e49"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/act1-green-stompy.txt",
+      "fnv64": "6a95a7313ab1659f"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/act1-mono-black-devotion.txt",
+      "fnv64": "a53a0fe6eff09c55"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/act2-abzan-greasefang.txt",
+      "fnv64": "1698f5d29cf619c4"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/act2-dimir-control.txt",
+      "fnv64": "0a9ff6fd513273bc"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/act2-golgari-midrange.txt",
+      "fnv64": "51c1b4f5859a121e"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/act2-gruul-midrange.txt",
+      "fnv64": "fb4cd5900b079651"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/act2-mono-red.txt",
+      "fnv64": "7d3e0e4ac5c9155f"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/act2-mono-white-humans.txt",
+      "fnv64": "527753eb363c9d40"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/act2-rakdos-midrange.txt",
+      "fnv64": "f02ebf70dc2afb90"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/act2-red-burn.txt",
+      "fnv64": "dbe083cbfc06c4b2"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/act3-azorius-spirits.txt",
+      "fnv64": "e397e3c39becd068"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/act3-izzet-phoenix.txt",
+      "fnv64": "b6f77de0a3d23a69"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/act3-rakdos-graveyard.txt",
+      "fnv64": "97b89bb10099b879"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/meta-azorius-control.txt",
+      "fnv64": "43678d3a0c30f98e"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/meta-dimir-aggro.txt",
+      "fnv64": "feec1d7535e94999"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/meta-golgari-midrange.txt",
+      "fnv64": "7ac1d6061f858dfb"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/meta-izzet-phoenix.txt",
+      "fnv64": "2f017ef76092d132"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/meta-izzet-prowess.txt",
+      "fnv64": "5b53dd78db050abc"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/meta-mono-red-prowess.txt",
+      "fnv64": "89579dd68d896f8d"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/meta-selesnya-company.txt",
+      "fnv64": "763fc9ff93f73e58"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/starter.txt",
+      "fnv64": "154034f944723ea8"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/act1-boss-vampires.txt",
+      "fnv64": "6f6c19b959e8c5cc"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/act1-skies.txt",
+      "fnv64": "f0d70e831265a3c4"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/act1-stompy.txt",
+      "fnv64": "649780bfff98ddf2"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/act2-aggro.txt",
+      "fnv64": "2727c92fb5f29c9e"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/act2-combo.txt",
+      "fnv64": "895d2ccbf85bb5bc"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/act2-control.txt",
+      "fnv64": "b4dce59ca5f5a4f8"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/act2-midrange.txt",
+      "fnv64": "f144383ad316d417"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/act2-opp-gruul.txt",
+      "fnv64": "87ae4a059858eaa7"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/act2-opp-weenie.txt",
+      "fnv64": "7fd586bb0a2c71e1"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/act3-angels.txt",
+      "fnv64": "ee81f164ec060a44"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/act3-boss-vigorbloom.txt",
+      "fnv64": "91fe96fb7a066848"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/meta-azorius-control.txt",
+      "fnv64": "5a9ad6fa87f74e60"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/meta-boros-dragons.txt",
+      "fnv64": "d233020c7fb2290b"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/meta-dimir-midrange.txt",
+      "fnv64": "d5a9c7c785692088"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/meta-izzet-spellementals.txt",
+      "fnv64": "a1b86f60eb6bdcfe"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/meta-jund-sacrifice.txt",
+      "fnv64": "695dd50d84596b88"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/meta-mono-green-landfall.txt",
+      "fnv64": "3a0f1067de4ce377"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/meta-rakdos-lizards.txt",
+      "fnv64": "5cb9389caac2b698"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/signature.txt",
+      "fnv64": "b79bc5035c7ad879"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/starter.txt",
+      "fnv64": "48aa2a12fb88b1eb"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-w-aggro-01.txt",
+      "fnv64": "8355293a28cc6c4d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-w-aggro-02.txt",
+      "fnv64": "6884b462df5325bc"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-w-aggro-03.txt",
+      "fnv64": "5c6c283bb51e2ae2"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-w-gowide-04.txt",
+      "fnv64": "f3726defde1d0c20"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-w-gowide-05.txt",
+      "fnv64": "b4ef90daee21f99f"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-w-gowide-06.txt",
+      "fnv64": "9d6465e0c67acb0d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-w-midrange-07.txt",
+      "fnv64": "87fdaf02709281a6"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-w-midrange-08.txt",
+      "fnv64": "8223e3469023d119"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-w-midrange-09.txt",
+      "fnv64": "731b1b10ac7e1cb2"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-w-bigmana-10.txt",
+      "fnv64": "2b09af644a73ab92"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-w-control-11.txt",
+      "fnv64": "26affffda2c4d20b"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-w-control-12.txt",
+      "fnv64": "43a740e02b8edaed"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-u-tempo-01.txt",
+      "fnv64": "3db462a70d7478d7"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-u-tempo-02.txt",
+      "fnv64": "757d93f7174bfe9d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-u-tempo-03.txt",
+      "fnv64": "e881936a389e110d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-u-tempo-04.txt",
+      "fnv64": "ac15e826535f9361"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-u-midrange-05.txt",
+      "fnv64": "9e553010fc96d8db"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-u-midrange-06.txt",
+      "fnv64": "c4539d57a79ce810"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-u-midrange-07.txt",
+      "fnv64": "2755f3c9a3551a6d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-u-bigmana-08.txt",
+      "fnv64": "29e3c25cfe1c4d74"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-u-control-09.txt",
+      "fnv64": "7f5e08e264d03830"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-u-control-10.txt",
+      "fnv64": "36b55e04947b209d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-u-control-11.txt",
+      "fnv64": "cff33a2a78304a7e"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-u-control-12.txt",
+      "fnv64": "a9618ffceb130f33"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-b-aggro-01.txt",
+      "fnv64": "236525fd2f9bf936"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-b-aggro-02.txt",
+      "fnv64": "a31da8d260a42ed5"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-b-aggro-03.txt",
+      "fnv64": "ff2e395f8f128063"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-b-midrange-04.txt",
+      "fnv64": "68f820b25636c883"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-b-midrange-05.txt",
+      "fnv64": "73f13e48a31a3704"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-b-midrange-06.txt",
+      "fnv64": "216437bd030d0c2c"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-b-midrange-07.txt",
+      "fnv64": "6462195a965cd7db"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-b-bigmana-08.txt",
+      "fnv64": "5c8d10155bb453f4"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-b-bigmana-09.txt",
+      "fnv64": "2e83f8f6c7afeda5"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-b-control-10.txt",
+      "fnv64": "97255412f6ba75e7"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-b-control-11.txt",
+      "fnv64": "6ed34b9a2bc12029"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-b-control-12.txt",
+      "fnv64": "d808a690b805b9cc"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-r-aggro-01.txt",
+      "fnv64": "acb02d87c6772652"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-r-aggro-02.txt",
+      "fnv64": "d3c94e351f850499"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-r-aggro-03.txt",
+      "fnv64": "7e5e6aa1684abaeb"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-r-aggro-04.txt",
+      "fnv64": "6b3134e2992fcbba"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-r-gowide-05.txt",
+      "fnv64": "e6d44cecb9f51dcf"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-r-gowide-06.txt",
+      "fnv64": "c1bdecbce6280840"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-r-gowide-07.txt",
+      "fnv64": "7606aee992983b34"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-r-midrange-08.txt",
+      "fnv64": "d0ac7f859bbf5eb3"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-r-midrange-09.txt",
+      "fnv64": "17e6e916a3310a2d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-r-midrange-10.txt",
+      "fnv64": "7c88886338ebe254"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-r-bigmana-11.txt",
+      "fnv64": "77baf5f93a358f90"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-r-bigmana-12.txt",
+      "fnv64": "925bd2dc0ba44e64"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-g-aggro-01.txt",
+      "fnv64": "5162eb7b7cf55478"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-g-aggro-02.txt",
+      "fnv64": "4c62d0580744416f"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-g-gowide-03.txt",
+      "fnv64": "f058f3cd5ee2c784"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-g-gowide-04.txt",
+      "fnv64": "2b9f4a76960d5004"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-g-gowide-05.txt",
+      "fnv64": "38af60ac0afab093"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-g-midrange-06.txt",
+      "fnv64": "03d1bc1ddf305e78"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-g-midrange-07.txt",
+      "fnv64": "792760b4332f6035"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-g-midrange-08.txt",
+      "fnv64": "bac02ea0ca22c1fc"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-g-bigmana-09.txt",
+      "fnv64": "3ef696e4648e522d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-g-bigmana-10.txt",
+      "fnv64": "8027dcb9da688c25"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-g-bigmana-11.txt",
+      "fnv64": "e3733de272bd5137"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/mono-g-bigmana-12.txt",
+      "fnv64": "383a4253976ca534"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wu-aggro-01.txt",
+      "fnv64": "6679a6266dc42929"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wu-aggro-02.txt",
+      "fnv64": "5bd836a9a21d637b"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wu-aggro-03.txt",
+      "fnv64": "8c5f8969037f1b24"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wu-aggro-04.txt",
+      "fnv64": "1cd338bf95aeff42"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wu-gowide-05.txt",
+      "fnv64": "77f1c17dfc8c217d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wu-gowide-06.txt",
+      "fnv64": "976a86ff102a0fe3"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wu-gowide-07.txt",
+      "fnv64": "562e9f739d05f40a"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wu-tempo-08.txt",
+      "fnv64": "a13854d1c2a473aa"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wu-tempo-09.txt",
+      "fnv64": "e758631c30d5bdc7"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wu-tempo-10.txt",
+      "fnv64": "da17cc875bc4e908"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wu-midrange-11.txt",
+      "fnv64": "ba3a39954f1c503c"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wu-midrange-12.txt",
+      "fnv64": "aff58a39fb2f95ae"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wu-midrange-13.txt",
+      "fnv64": "8f1dcf528a108090"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wu-midrange-14.txt",
+      "fnv64": "3470ce577b33f85e"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wu-bigmana-15.txt",
+      "fnv64": "f64a5f4ad04a72b0"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wu-bigmana-16.txt",
+      "fnv64": "6c6fe8261a5cddb4"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wu-bigmana-17.txt",
+      "fnv64": "a2cabd09c4f325e3"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wu-control-18.txt",
+      "fnv64": "c4a360bd085f00f2"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wu-control-19.txt",
+      "fnv64": "971c1f65d132f843"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wu-control-20.txt",
+      "fnv64": "1faa9abe03fedd06"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ub-aggro-01.txt",
+      "fnv64": "75498cc5406aab5e"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ub-aggro-02.txt",
+      "fnv64": "0417112ffd09beee"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ub-aggro-03.txt",
+      "fnv64": "f9af7b14d22ea3ce"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ub-aggro-04.txt",
+      "fnv64": "8cf8c9e696cacc97"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ub-gowide-05.txt",
+      "fnv64": "5aaefe5067e94e7c"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ub-gowide-06.txt",
+      "fnv64": "82f9e765ea1474cd"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ub-gowide-07.txt",
+      "fnv64": "d8f4a8c037c9bd88"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ub-tempo-08.txt",
+      "fnv64": "3ab0a2f97370488b"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ub-tempo-09.txt",
+      "fnv64": "dfd1242b4f3c1bc8"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ub-tempo-10.txt",
+      "fnv64": "894f674615838cd5"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ub-midrange-11.txt",
+      "fnv64": "a9c1ecd3dc6161dd"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ub-midrange-12.txt",
+      "fnv64": "ebfc4710bd5586a9"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ub-midrange-13.txt",
+      "fnv64": "135ac0d41fd6b229"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ub-midrange-14.txt",
+      "fnv64": "9d02c43c9286d137"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ub-bigmana-15.txt",
+      "fnv64": "37db208dc17020d0"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ub-bigmana-16.txt",
+      "fnv64": "e0e17d03e2544110"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ub-bigmana-17.txt",
+      "fnv64": "158daf3eff7b6b91"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ub-control-18.txt",
+      "fnv64": "3aafc68847c0776b"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ub-control-19.txt",
+      "fnv64": "b85b9d0906d00a23"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ub-control-20.txt",
+      "fnv64": "26824d0aba10dad2"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-br-aggro-01.txt",
+      "fnv64": "20b138968553bff4"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-br-aggro-02.txt",
+      "fnv64": "e9eeb485b9b6e244"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-br-aggro-03.txt",
+      "fnv64": "9bd363892c406d07"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-br-aggro-04.txt",
+      "fnv64": "fa00c8e14b405391"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-br-gowide-05.txt",
+      "fnv64": "51299473c89d70e5"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-br-gowide-06.txt",
+      "fnv64": "e618832e7fb7d217"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-br-gowide-07.txt",
+      "fnv64": "988953051068b963"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-br-tempo-08.txt",
+      "fnv64": "502d6d4738c276ba"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-br-tempo-09.txt",
+      "fnv64": "9449aad3f889989e"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-br-tempo-10.txt",
+      "fnv64": "63c2b88e0ffda976"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-br-midrange-11.txt",
+      "fnv64": "7488cd686627a37e"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-br-midrange-12.txt",
+      "fnv64": "80bb60507eea01b4"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-br-midrange-13.txt",
+      "fnv64": "b2013b5998819df4"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-br-midrange-14.txt",
+      "fnv64": "1b6b65758f83fb12"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-br-bigmana-15.txt",
+      "fnv64": "17ccf29b7e75e3fd"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-br-bigmana-16.txt",
+      "fnv64": "55ef917717bc2932"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-br-bigmana-17.txt",
+      "fnv64": "75e84277eed00b63"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-br-control-18.txt",
+      "fnv64": "92115e2721a0dd10"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-br-control-19.txt",
+      "fnv64": "8f295243aeae5cf7"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-br-control-20.txt",
+      "fnv64": "e26b8a3734979855"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rg-aggro-01.txt",
+      "fnv64": "3c618c8df017e126"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rg-aggro-02.txt",
+      "fnv64": "eb1ad45a3523bec2"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rg-aggro-03.txt",
+      "fnv64": "0f5be89c5337a5d9"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rg-aggro-04.txt",
+      "fnv64": "ff3fb222937ea5a9"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rg-gowide-05.txt",
+      "fnv64": "81ac178432e97047"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rg-gowide-06.txt",
+      "fnv64": "fa3c3b6d1af18aa9"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rg-gowide-07.txt",
+      "fnv64": "b09b896df95ae711"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rg-tempo-08.txt",
+      "fnv64": "29d8232e3b4f5bf6"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rg-tempo-09.txt",
+      "fnv64": "e8432d471e0bce9f"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rg-tempo-10.txt",
+      "fnv64": "8eead2d15c59e061"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rg-midrange-11.txt",
+      "fnv64": "3d679e8ed93a875c"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rg-midrange-12.txt",
+      "fnv64": "383a850bd9f5ddb2"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rg-midrange-13.txt",
+      "fnv64": "bfed69dbd3fa6209"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rg-midrange-14.txt",
+      "fnv64": "f79faddb3471b8d5"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rg-bigmana-15.txt",
+      "fnv64": "fbb8d61b9bb65e28"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rg-bigmana-16.txt",
+      "fnv64": "76634c67e06a54db"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rg-bigmana-17.txt",
+      "fnv64": "25496f10f13b58f4"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rg-bigmana-18.txt",
+      "fnv64": "7464bc7006500b70"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rg-midrange-19.txt",
+      "fnv64": "371e9cf5c6add966"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rg-bigmana-20.txt",
+      "fnv64": "8e7b4a1a08bb3d1f"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gw-aggro-01.txt",
+      "fnv64": "4f07251c0b774674"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gw-aggro-02.txt",
+      "fnv64": "6a062c9c2017f585"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gw-aggro-03.txt",
+      "fnv64": "3cdf5f9588dfdd52"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gw-aggro-04.txt",
+      "fnv64": "54410854cb87d273"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gw-gowide-05.txt",
+      "fnv64": "bcae0bd1ba6191d5"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gw-gowide-06.txt",
+      "fnv64": "cd798c748bcc8651"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gw-gowide-07.txt",
+      "fnv64": "09437b1cd5192b58"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gw-midrange-08.txt",
+      "fnv64": "40b1ed7158294788"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gw-aggro-09.txt",
+      "fnv64": "98038a5908996ebf"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gw-midrange-10.txt",
+      "fnv64": "4893132f21009431"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gw-midrange-11.txt",
+      "fnv64": "d38c0b6737ab3355"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gw-midrange-12.txt",
+      "fnv64": "4132db6cb76b85cb"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gw-midrange-13.txt",
+      "fnv64": "84551815cbd56c1c"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gw-midrange-14.txt",
+      "fnv64": "dc1cc917f29e2671"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gw-bigmana-15.txt",
+      "fnv64": "23838d43bfecbf26"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gw-bigmana-16.txt",
+      "fnv64": "97770271393e63c6"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gw-bigmana-17.txt",
+      "fnv64": "ea3e861c065da087"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gw-control-18.txt",
+      "fnv64": "4877463d7bbdeaf0"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gw-control-19.txt",
+      "fnv64": "a17496aff9095689"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gw-control-20.txt",
+      "fnv64": "88b5036560a89177"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wb-aggro-01.txt",
+      "fnv64": "348e9ceb2a7a83fe"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wb-aggro-02.txt",
+      "fnv64": "67a1c601a9b2c162"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wb-aggro-03.txt",
+      "fnv64": "0f0899762ca42bfa"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wb-aggro-04.txt",
+      "fnv64": "708f030248f374cc"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wb-gowide-05.txt",
+      "fnv64": "3d4c36ba1e0f6bfa"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wb-gowide-06.txt",
+      "fnv64": "0027d08b99f462df"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wb-gowide-07.txt",
+      "fnv64": "b60e3c65a1af8c4a"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wb-midrange-08.txt",
+      "fnv64": "8f16954a537b78dc"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wb-aggro-09.txt",
+      "fnv64": "7af5a4ddc881c555"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wb-midrange-10.txt",
+      "fnv64": "a8eb60270d803b30"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wb-midrange-11.txt",
+      "fnv64": "0d8b1565eaed9b33"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wb-midrange-12.txt",
+      "fnv64": "9ac6b14c72939d04"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wb-midrange-13.txt",
+      "fnv64": "83998923bc17f7b9"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wb-midrange-14.txt",
+      "fnv64": "adb0be91c13cee75"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wb-bigmana-15.txt",
+      "fnv64": "5abad4576d7c863b"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wb-bigmana-16.txt",
+      "fnv64": "fc12a7737ce7f89d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wb-bigmana-17.txt",
+      "fnv64": "33f82fefa969bc67"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wb-control-18.txt",
+      "fnv64": "05d85a7176f4ec7d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wb-control-19.txt",
+      "fnv64": "cb584e2829bebad9"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-wb-control-20.txt",
+      "fnv64": "3e32393da78ef253"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ur-aggro-01.txt",
+      "fnv64": "1f9f4fdd8899adc9"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ur-aggro-02.txt",
+      "fnv64": "6b1dcc26726faa72"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ur-aggro-03.txt",
+      "fnv64": "87048740c99e526a"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ur-aggro-04.txt",
+      "fnv64": "c40e185c55e9c76b"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ur-gowide-05.txt",
+      "fnv64": "3be2ae3fcff18b18"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ur-gowide-06.txt",
+      "fnv64": "30ddc2205c7d47f3"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ur-gowide-07.txt",
+      "fnv64": "03a61aff6fc6cdf4"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ur-tempo-08.txt",
+      "fnv64": "3e6a2b2cf8e123df"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ur-tempo-09.txt",
+      "fnv64": "d7393aafdb91e966"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ur-tempo-10.txt",
+      "fnv64": "5374434a489ac62d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ur-midrange-11.txt",
+      "fnv64": "9d936b3d3592fcfe"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ur-midrange-12.txt",
+      "fnv64": "91ac43eabc1be1d4"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ur-midrange-13.txt",
+      "fnv64": "a8ccf1d7ff4eebeb"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ur-midrange-14.txt",
+      "fnv64": "d1bd5292cd55df6e"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ur-bigmana-15.txt",
+      "fnv64": "42b0a17fd34466c4"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ur-bigmana-16.txt",
+      "fnv64": "e8c1f88fcf8bab5d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ur-bigmana-17.txt",
+      "fnv64": "f72dccb3898cd2f5"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ur-control-18.txt",
+      "fnv64": "fed6215d3f47c432"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ur-control-19.txt",
+      "fnv64": "7daff8b229ea9fba"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-ur-control-20.txt",
+      "fnv64": "8fefd2b30fc70306"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-bg-aggro-01.txt",
+      "fnv64": "81a615e86eb6c7be"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-bg-aggro-02.txt",
+      "fnv64": "31ab1c40440147f4"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-bg-aggro-03.txt",
+      "fnv64": "ce526b91c7ee58b4"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-bg-aggro-04.txt",
+      "fnv64": "a7649a97ddde4053"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-bg-gowide-05.txt",
+      "fnv64": "d5366b753e88e32a"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-bg-gowide-06.txt",
+      "fnv64": "23529902ca49503f"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-bg-gowide-07.txt",
+      "fnv64": "d53586e7c7bef18b"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-bg-midrange-08.txt",
+      "fnv64": "0646020f330503a2"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-bg-aggro-09.txt",
+      "fnv64": "7e5531fe26d7f27d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-bg-midrange-10.txt",
+      "fnv64": "cb19085e5b5a5d9e"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-bg-midrange-11.txt",
+      "fnv64": "d4894a202162e773"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-bg-midrange-12.txt",
+      "fnv64": "cef4f25e6e7d8480"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-bg-midrange-13.txt",
+      "fnv64": "5c68ad794ae5f33a"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-bg-midrange-14.txt",
+      "fnv64": "e20b91af33584883"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-bg-bigmana-15.txt",
+      "fnv64": "b2c44491d3a00051"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-bg-bigmana-16.txt",
+      "fnv64": "75c01ecf4f02cbdf"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-bg-bigmana-17.txt",
+      "fnv64": "a6092c0ae7d72347"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-bg-control-18.txt",
+      "fnv64": "1f8d9d7a29508477"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-bg-control-19.txt",
+      "fnv64": "15845d7b7ac9e753"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-bg-control-20.txt",
+      "fnv64": "db9aff4adf8a7fb8"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rw-aggro-01.txt",
+      "fnv64": "e87af6324ca67089"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rw-aggro-02.txt",
+      "fnv64": "e8b36e7e53c6e503"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rw-aggro-03.txt",
+      "fnv64": "c71770cee1504333"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rw-aggro-04.txt",
+      "fnv64": "4fc47b056212879d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rw-gowide-05.txt",
+      "fnv64": "3ac806e1b7f31387"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rw-gowide-06.txt",
+      "fnv64": "61f36eba8d9e94ec"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rw-gowide-07.txt",
+      "fnv64": "8a6ee135cf839172"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rw-tempo-08.txt",
+      "fnv64": "880f045337fe6fb4"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rw-tempo-09.txt",
+      "fnv64": "4efe428510a17aa8"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rw-tempo-10.txt",
+      "fnv64": "39121f55f6c1b2d8"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rw-midrange-11.txt",
+      "fnv64": "19d63e9965a365ba"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rw-midrange-12.txt",
+      "fnv64": "69866da7730780a4"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rw-midrange-13.txt",
+      "fnv64": "da490bc0f5449151"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rw-midrange-14.txt",
+      "fnv64": "843f9ca2e02f2c97"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rw-bigmana-15.txt",
+      "fnv64": "7b084eba49d180eb"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rw-bigmana-16.txt",
+      "fnv64": "fa3335bbd948b810"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rw-bigmana-17.txt",
+      "fnv64": "ed000217f9f0fb6e"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rw-control-18.txt",
+      "fnv64": "0766d1c630902358"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rw-control-19.txt",
+      "fnv64": "951831077a5bd23c"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-rw-control-20.txt",
+      "fnv64": "31a319e4d2d4b41e"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gu-aggro-01.txt",
+      "fnv64": "9c6e87771f3dd9c7"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gu-aggro-02.txt",
+      "fnv64": "34c8f807d4d3b3ec"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gu-aggro-03.txt",
+      "fnv64": "2ac86f170eab3f12"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gu-aggro-04.txt",
+      "fnv64": "a0562ccb00460e37"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gu-gowide-05.txt",
+      "fnv64": "fd9cd9386e354884"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gu-gowide-06.txt",
+      "fnv64": "a87895da4a4f32fa"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gu-gowide-07.txt",
+      "fnv64": "93c508575051ba8f"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gu-tempo-08.txt",
+      "fnv64": "ec65256312db1755"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gu-tempo-09.txt",
+      "fnv64": "7e326cae903446bc"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gu-tempo-10.txt",
+      "fnv64": "5b41b3485608f330"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gu-midrange-11.txt",
+      "fnv64": "0fa15aad22b9fff4"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gu-midrange-12.txt",
+      "fnv64": "5ed47124e1a2c435"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gu-midrange-13.txt",
+      "fnv64": "03754d387db4ff97"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gu-midrange-14.txt",
+      "fnv64": "194f939db7488e7e"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gu-bigmana-15.txt",
+      "fnv64": "9d966c8cc5a45432"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gu-bigmana-16.txt",
+      "fnv64": "0566873366e08150"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gu-bigmana-17.txt",
+      "fnv64": "0494ee20f583c012"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gu-control-18.txt",
+      "fnv64": "7f13e4402f1dcea5"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gu-control-19.txt",
+      "fnv64": "1ed87c5fe77d61f1"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/guild-gu-control-20.txt",
+      "fnv64": "8f7e84a7d162fea9"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-wub-aggro-01.txt",
+      "fnv64": "132dc94b12cc4971"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-wub-aggro-02.txt",
+      "fnv64": "9921c0b7e3b40b68"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-wub-gowide-03.txt",
+      "fnv64": "deef4e283a49610b"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-wub-tempo-04.txt",
+      "fnv64": "20cc84b3578012ea"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-wub-midrange-05.txt",
+      "fnv64": "06dbce7db867c50d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-wub-midrange-06.txt",
+      "fnv64": "ff20cde028759331"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-wub-midrange-07.txt",
+      "fnv64": "3cb7425fb5ec4a4e"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-wub-midrange-08.txt",
+      "fnv64": "9dd0abdb0106768d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-wub-bigmana-09.txt",
+      "fnv64": "d73bad34014c6ebb"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-wub-bigmana-10.txt",
+      "fnv64": "deeff49bb826a583"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-wub-control-11.txt",
+      "fnv64": "cbd12fc084374b80"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-wub-control-12.txt",
+      "fnv64": "32d43f73f1bbd1fa"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-ubr-aggro-01.txt",
+      "fnv64": "a9595f279de071b2"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-ubr-aggro-02.txt",
+      "fnv64": "43a99aed4c3a7f3b"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-ubr-gowide-03.txt",
+      "fnv64": "a765b07ab6d738f5"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-ubr-tempo-04.txt",
+      "fnv64": "ca2d06926b1a3514"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-ubr-midrange-05.txt",
+      "fnv64": "3f0d75c9ec00f4d3"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-ubr-midrange-06.txt",
+      "fnv64": "f9558823b968b2e2"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-ubr-midrange-07.txt",
+      "fnv64": "7db4776480b11e12"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-ubr-midrange-08.txt",
+      "fnv64": "773bd4199fd766bf"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-ubr-bigmana-09.txt",
+      "fnv64": "3ff17d844cbdc9fa"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-ubr-bigmana-10.txt",
+      "fnv64": "c55a30ee6c611368"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-ubr-control-11.txt",
+      "fnv64": "0c834e51b09f1826"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-ubr-control-12.txt",
+      "fnv64": "e2057cf126ed5757"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-brg-aggro-01.txt",
+      "fnv64": "260a07460bb5198f"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-brg-aggro-02.txt",
+      "fnv64": "474641200e0c995c"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-brg-gowide-03.txt",
+      "fnv64": "7221f49c5c43aa53"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-brg-midrange-04.txt",
+      "fnv64": "5722c7c6fc58ab0d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-brg-midrange-05.txt",
+      "fnv64": "6daa3225609ae6e7"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-brg-midrange-06.txt",
+      "fnv64": "17dcad1c9e6881e7"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-brg-midrange-07.txt",
+      "fnv64": "60be0f6ea404585b"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-brg-midrange-08.txt",
+      "fnv64": "1f94c7222a3b79da"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-brg-bigmana-09.txt",
+      "fnv64": "180dc543fafacd89"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-brg-bigmana-10.txt",
+      "fnv64": "9e026f2e68bc8057"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-brg-control-11.txt",
+      "fnv64": "f13588483a65fd67"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-brg-control-12.txt",
+      "fnv64": "c54bb4e85ce2498a"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-rgw-aggro-01.txt",
+      "fnv64": "f7f5c623b2b2a805"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-rgw-aggro-02.txt",
+      "fnv64": "652e074ebfe11b68"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-rgw-gowide-03.txt",
+      "fnv64": "e338b627cf4c731b"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-rgw-midrange-04.txt",
+      "fnv64": "3f89a101b6f48929"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-rgw-midrange-05.txt",
+      "fnv64": "2e79a5fa02c907a9"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-rgw-midrange-06.txt",
+      "fnv64": "daf2be702f81f7b1"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-rgw-midrange-07.txt",
+      "fnv64": "5e19358fbb08f938"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-rgw-midrange-08.txt",
+      "fnv64": "9bf43d9667e3d6c8"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-rgw-bigmana-09.txt",
+      "fnv64": "64dca06e1bb45694"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-rgw-bigmana-10.txt",
+      "fnv64": "34ce29c236f3f6af"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-rgw-control-11.txt",
+      "fnv64": "be3c19ac10343a50"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-rgw-control-12.txt",
+      "fnv64": "6948683fa929d1f0"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-gwu-aggro-01.txt",
+      "fnv64": "50dba2437ae117e2"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-gwu-aggro-02.txt",
+      "fnv64": "e736bcc968e9dc7b"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-gwu-gowide-03.txt",
+      "fnv64": "876a9b6e140ebc72"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-gwu-tempo-04.txt",
+      "fnv64": "c596f3b991fe33aa"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-gwu-midrange-05.txt",
+      "fnv64": "dc03daff0ea70645"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-gwu-midrange-06.txt",
+      "fnv64": "d3194a5983978602"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-gwu-midrange-07.txt",
+      "fnv64": "0a1c71d5c262a02a"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-gwu-midrange-08.txt",
+      "fnv64": "3064652bf18a9c3f"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-gwu-bigmana-09.txt",
+      "fnv64": "b70466e8ac4acdba"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-gwu-bigmana-10.txt",
+      "fnv64": "d9b5ab8d3936799a"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-gwu-control-11.txt",
+      "fnv64": "dd137133c5cfe601"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-gwu-control-12.txt",
+      "fnv64": "5e9bcc5b1251f7c8"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-wbg-aggro-01.txt",
+      "fnv64": "a24e3b82b16c2698"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-wbg-aggro-02.txt",
+      "fnv64": "9a1713c35986e373"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-wbg-gowide-03.txt",
+      "fnv64": "f76c3d218ad7c31b"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-wbg-midrange-04.txt",
+      "fnv64": "f0c328c3e089f2d1"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-wbg-midrange-05.txt",
+      "fnv64": "2686f68bf131b115"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-wbg-midrange-06.txt",
+      "fnv64": "9d02573d45c6d823"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-wbg-midrange-07.txt",
+      "fnv64": "e25cb7bff204cc61"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-wbg-midrange-08.txt",
+      "fnv64": "2e7b57ba23c94917"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-wbg-bigmana-09.txt",
+      "fnv64": "46002243c7b7b70f"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-wbg-bigmana-10.txt",
+      "fnv64": "b823d9abc30e8b74"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-wbg-control-11.txt",
+      "fnv64": "044b99e553753e87"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-wbg-control-12.txt",
+      "fnv64": "87a9b31f0c09b720"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-urw-aggro-01.txt",
+      "fnv64": "5644405347bb99cd"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-urw-aggro-02.txt",
+      "fnv64": "e41eef31f9a37028"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-urw-gowide-03.txt",
+      "fnv64": "1c7f55a646f62077"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-urw-tempo-04.txt",
+      "fnv64": "02b04ec0abaac749"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-urw-midrange-05.txt",
+      "fnv64": "d1c6f9e660d9328f"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-urw-midrange-06.txt",
+      "fnv64": "bc09b329b6250261"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-urw-midrange-07.txt",
+      "fnv64": "330bb547c4467354"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-urw-midrange-08.txt",
+      "fnv64": "0ba7f69564a12217"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-urw-bigmana-09.txt",
+      "fnv64": "c7f3928123445582"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-urw-bigmana-10.txt",
+      "fnv64": "532861205159924d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-urw-control-11.txt",
+      "fnv64": "4234176c4ca7fa4d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-urw-control-12.txt",
+      "fnv64": "e29c0c853c30a739"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-bgu-aggro-01.txt",
+      "fnv64": "f20d7a88dd7988dd"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-bgu-aggro-02.txt",
+      "fnv64": "826ca2f2ce9fd9f7"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-bgu-gowide-03.txt",
+      "fnv64": "ccd468caeffba9cc"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-bgu-tempo-04.txt",
+      "fnv64": "9c3ac599f9159b05"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-bgu-midrange-05.txt",
+      "fnv64": "6a5db473b394e298"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-bgu-midrange-06.txt",
+      "fnv64": "9b68fbcfda7b2875"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-bgu-midrange-07.txt",
+      "fnv64": "46af98170962eccc"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-bgu-midrange-08.txt",
+      "fnv64": "e017736a0a2b6fa8"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-bgu-bigmana-09.txt",
+      "fnv64": "5c9cd5df3625c535"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-bgu-bigmana-10.txt",
+      "fnv64": "84d9420bd83d7003"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-bgu-control-11.txt",
+      "fnv64": "7998a98db836053d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-bgu-control-12.txt",
+      "fnv64": "a5e3edf1985740e7"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-rwb-aggro-01.txt",
+      "fnv64": "c290094fdf1d02aa"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-rwb-aggro-02.txt",
+      "fnv64": "a87820197052f9be"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-rwb-gowide-03.txt",
+      "fnv64": "51b7df66adfe4f09"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-rwb-midrange-04.txt",
+      "fnv64": "a49bfdbf52736a90"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-rwb-midrange-05.txt",
+      "fnv64": "cbe46fe22caa35f4"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-rwb-midrange-06.txt",
+      "fnv64": "79a5b995dce86f0c"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-rwb-midrange-07.txt",
+      "fnv64": "41bda74dfb15e8b1"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-rwb-midrange-08.txt",
+      "fnv64": "ed711443e2f55e4d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-rwb-bigmana-09.txt",
+      "fnv64": "bb28950638178259"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-rwb-bigmana-10.txt",
+      "fnv64": "d5efcd9f718051de"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-rwb-control-11.txt",
+      "fnv64": "9ab994ca527d4b95"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-rwb-control-12.txt",
+      "fnv64": "14856c767964bea5"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-gur-aggro-01.txt",
+      "fnv64": "3c74c43349f81ec8"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-gur-aggro-02.txt",
+      "fnv64": "a491c73cc2f59d68"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-gur-gowide-03.txt",
+      "fnv64": "bf5b39d3b65494e1"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-gur-tempo-04.txt",
+      "fnv64": "3e7b6aff174fbb95"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-gur-midrange-05.txt",
+      "fnv64": "561322da6d692851"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-gur-midrange-06.txt",
+      "fnv64": "5203db467c4dc245"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-gur-midrange-07.txt",
+      "fnv64": "deecee99cfecd84c"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-gur-midrange-08.txt",
+      "fnv64": "ba5d6b76f9697a54"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-gur-bigmana-09.txt",
+      "fnv64": "eb76414da4a00de0"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-gur-bigmana-10.txt",
+      "fnv64": "a1840464c708b876"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-gur-control-11.txt",
+      "fnv64": "ebe5dc33257094cf"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tri-gur-control-12.txt",
+      "fnv64": "a4870755b3fa170a"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-w-human-01.txt",
+      "fnv64": "b6841d1ae75c3184"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-w-human-02.txt",
+      "fnv64": "8316efea9841d1fa"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-w-human-03.txt",
+      "fnv64": "31058d0b889ac45d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-gw-human-01.txt",
+      "fnv64": "0171cf504c65c48f"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-gw-human-02.txt",
+      "fnv64": "a19f97d6e8b5a81f"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-gw-human-03.txt",
+      "fnv64": "6cef159417606a61"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-rw-human-01.txt",
+      "fnv64": "037a5b41c2693f00"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-rw-human-02.txt",
+      "fnv64": "30a03f6415d5ef73"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-w-soldier-01.txt",
+      "fnv64": "2db5f277078d57e5"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-w-soldier-02.txt",
+      "fnv64": "4033f6f4e049001e"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-wu-soldier-01.txt",
+      "fnv64": "66f171a49ec5b35f"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-wu-soldier-02.txt",
+      "fnv64": "75108c0a0764e3d2"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-ur-wizard-01.txt",
+      "fnv64": "ce435110927107ef"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-ur-wizard-02.txt",
+      "fnv64": "e212a7199bc9df73"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-ur-wizard-03.txt",
+      "fnv64": "fd022e7dc2274ec1"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-u-wizard-01.txt",
+      "fnv64": "bf84b75e5211a02c"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-u-wizard-02.txt",
+      "fnv64": "4031bb533800b4bf"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-g-elf-01.txt",
+      "fnv64": "f514e11ca3c8964d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-g-elf-02.txt",
+      "fnv64": "22e6329f3c20bdba"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-g-elf-03.txt",
+      "fnv64": "0949faeacd32ab5f"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-bg-elf-01.txt",
+      "fnv64": "4268e4f0f24b5070"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-bg-elf-02.txt",
+      "fnv64": "9c0fb37fe10612a4"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-b-vampire-01.txt",
+      "fnv64": "75268433f611e5b2"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-b-vampire-02.txt",
+      "fnv64": "ef2c5e351d4058ca"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-wb-vampire-01.txt",
+      "fnv64": "f9f02ac9eaa4f759"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-wb-vampire-02.txt",
+      "fnv64": "51027616ff62b41c"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-br-vampire-01.txt",
+      "fnv64": "939987961a307ca1"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-br-vampire-02.txt",
+      "fnv64": "80b08d1ba2ee2a8f"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-b-zombie-01.txt",
+      "fnv64": "3f9f76a3e77efc39"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-b-zombie-02.txt",
+      "fnv64": "64ad205f2b23ddc0"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-ub-zombie-01.txt",
+      "fnv64": "d1867129f81c5c09"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-ub-zombie-02.txt",
+      "fnv64": "0dcc012ae62ba088"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-r-goblin-01.txt",
+      "fnv64": "e3137fe8d5da03e8"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-r-goblin-02.txt",
+      "fnv64": "0fe4bfc85d338932"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-br-goblin-01.txt",
+      "fnv64": "94296e8e33eb439c"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-wu-spirit-01.txt",
+      "fnv64": "3a0ceed8870c3b17"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-ub-rogue-01.txt",
+      "fnv64": "1b145ab5b09fbbc1"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/tribal-rg-warrior-01.txt",
+      "fnv64": "c4f336699bef6f61"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-wu-aggro-01.txt",
+      "fnv64": "10e9b8f3241fa86a"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-wu-aggro-02.txt",
+      "fnv64": "94ab335ef2c47d0d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-wu-aggro-03.txt",
+      "fnv64": "790ded6cd37ffcee"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-wu-aggro-04.txt",
+      "fnv64": "2133c1e9af46e395"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-wu-mid-05.txt",
+      "fnv64": "51c2304c0817ef2d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-wu-mid-06.txt",
+      "fnv64": "95729e3db5ff3097"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-wu-mid-07.txt",
+      "fnv64": "17bdc36f7e31a141"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-wu-mid-08.txt",
+      "fnv64": "14e4d86e44cce567"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-wu-mid-09.txt",
+      "fnv64": "aa03081162edf316"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-wu-ctrl-10.txt",
+      "fnv64": "5f8bd91b90ef2627"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-wu-ctrl-11.txt",
+      "fnv64": "0cf074eed0c18224"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-wu-ctrl-12.txt",
+      "fnv64": "a5fbbbcaa10bbe45"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-ub-aggro-01.txt",
+      "fnv64": "04c412294718e395"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-ub-aggro-02.txt",
+      "fnv64": "131d39bff1c8c639"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-ub-aggro-03.txt",
+      "fnv64": "aee8a57e70142302"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-ub-aggro-04.txt",
+      "fnv64": "dfa3ed4dedcdeed2"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-ub-mid-05.txt",
+      "fnv64": "f5fbfb826bee575e"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-ub-mid-06.txt",
+      "fnv64": "87fb49c45c283e1e"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-ub-mid-07.txt",
+      "fnv64": "30a1890ce8134e64"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-ub-mid-08.txt",
+      "fnv64": "19dd8c6b5d3f41a6"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-ub-mid-09.txt",
+      "fnv64": "42758069cb62203c"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-ub-ctrl-10.txt",
+      "fnv64": "56f76058577bbbb9"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-ub-ctrl-11.txt",
+      "fnv64": "2facc27a76ce7c16"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-ub-ctrl-12.txt",
+      "fnv64": "8836f1344b587754"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-br-aggro-01.txt",
+      "fnv64": "cab0d03626d76f97"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-br-aggro-02.txt",
+      "fnv64": "448e506b543b06d7"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-br-aggro-03.txt",
+      "fnv64": "b9e9f542c1a34943"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-br-aggro-04.txt",
+      "fnv64": "b9605df6773a2075"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-br-mid-05.txt",
+      "fnv64": "a6663231e4a1ab61"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-br-mid-06.txt",
+      "fnv64": "2fd519d89714f587"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-br-mid-07.txt",
+      "fnv64": "9717fa20994b97b2"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-br-mid-08.txt",
+      "fnv64": "645331134c828fb3"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-br-mid-09.txt",
+      "fnv64": "3af54ef3d7933ec4"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-br-ctrl-10.txt",
+      "fnv64": "3003b1d3cb57d742"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-br-ctrl-11.txt",
+      "fnv64": "540109abe7fd46a6"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-br-ctrl-12.txt",
+      "fnv64": "7f5b63e5656d2cc8"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-rg-aggro-01.txt",
+      "fnv64": "a3a20daaaba814fb"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-rg-aggro-02.txt",
+      "fnv64": "0f738c772ad1c1a3"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-rg-aggro-03.txt",
+      "fnv64": "54a06025dbe5b2f7"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-rg-aggro-04.txt",
+      "fnv64": "3793762c514289d5"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-rg-mid-05.txt",
+      "fnv64": "67a3dd58ce775f23"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-rg-mid-06.txt",
+      "fnv64": "45cdb6596da3f30f"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-rg-mid-07.txt",
+      "fnv64": "39bd2ff406458b4a"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-rg-mid-08.txt",
+      "fnv64": "3a5fbe26faf8eb22"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-rg-mid-09.txt",
+      "fnv64": "3700c63fe9a5d681"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-rg-ctrl-10.txt",
+      "fnv64": "f5c19999d1aa8d22"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-rg-ctrl-11.txt",
+      "fnv64": "32ff1d435d0e82c5"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-rg-ctrl-12.txt",
+      "fnv64": "1e1c4378bd824be8"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-gw-aggro-01.txt",
+      "fnv64": "866c202c35775911"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-gw-aggro-02.txt",
+      "fnv64": "3786ea83b8f43f0e"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-gw-aggro-03.txt",
+      "fnv64": "65eb862e71effee8"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-gw-aggro-04.txt",
+      "fnv64": "9db61a93c301f4ba"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-gw-mid-05.txt",
+      "fnv64": "9c293d66cd2f5805"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-gw-mid-06.txt",
+      "fnv64": "c3da977d61d6586e"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-gw-mid-07.txt",
+      "fnv64": "f05c5c4b90e7461b"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-gw-mid-08.txt",
+      "fnv64": "c0786341c622ab45"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-gw-mid-09.txt",
+      "fnv64": "ab75747b77b2c5dd"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-gw-ctrl-10.txt",
+      "fnv64": "480ab41c142cdf7c"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-gw-ctrl-11.txt",
+      "fnv64": "02c8f1c9870b4c92"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-gw-ctrl-12.txt",
+      "fnv64": "52f6841478abd4e6"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-wb-aggro-01.txt",
+      "fnv64": "32ef25cce48d8d0e"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-wb-aggro-02.txt",
+      "fnv64": "4f48edcff71e3c5a"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-wb-aggro-03.txt",
+      "fnv64": "e0777d331d7ed6e0"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-wb-aggro-04.txt",
+      "fnv64": "e0908c66e225b554"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-wb-mid-05.txt",
+      "fnv64": "cb40bf90b5f4764b"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-wb-mid-06.txt",
+      "fnv64": "4b8111d30ce3e9a5"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-wb-mid-07.txt",
+      "fnv64": "59624bbb4f20964a"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-wb-mid-08.txt",
+      "fnv64": "2e1cd9fb8274cb05"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-wb-mid-09.txt",
+      "fnv64": "426dacdc1be54925"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-wb-ctrl-10.txt",
+      "fnv64": "3800964d2ffe26fe"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-wb-ctrl-11.txt",
+      "fnv64": "589446639e785c19"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-wb-ctrl-12.txt",
+      "fnv64": "8a43fc4bb0a1c4a8"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-ur-aggro-01.txt",
+      "fnv64": "ef163571e0dfd710"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-ur-aggro-02.txt",
+      "fnv64": "b731b97f82bcc34e"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-ur-aggro-03.txt",
+      "fnv64": "fa1c8c0f4cccf8a4"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-ur-aggro-04.txt",
+      "fnv64": "8af58bd2b9cb0034"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-ur-mid-05.txt",
+      "fnv64": "934a417c26c6025b"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-ur-mid-06.txt",
+      "fnv64": "9a5bcb66da7ff1cf"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-ur-mid-07.txt",
+      "fnv64": "86daea736b5edd7f"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-ur-mid-08.txt",
+      "fnv64": "7e000302fe771cd5"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-ur-mid-09.txt",
+      "fnv64": "df710774fde515ca"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-ur-ctrl-10.txt",
+      "fnv64": "6499a3aa755ff7df"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-ur-ctrl-11.txt",
+      "fnv64": "5092da957e25e568"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-ur-ctrl-12.txt",
+      "fnv64": "071bdcd685734738"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-bg-aggro-01.txt",
+      "fnv64": "66287e3305515f87"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-bg-aggro-02.txt",
+      "fnv64": "da4c46126d04eac3"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-bg-aggro-03.txt",
+      "fnv64": "aa5af3c524c31121"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-bg-aggro-04.txt",
+      "fnv64": "60d545308f568396"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-bg-mid-05.txt",
+      "fnv64": "56e7b74052f6f1c2"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-bg-mid-06.txt",
+      "fnv64": "6937ecaa75aee605"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-bg-mid-07.txt",
+      "fnv64": "21e8dd56324977f0"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-bg-mid-08.txt",
+      "fnv64": "94d64ceb1baf9e78"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-bg-mid-09.txt",
+      "fnv64": "54ddf19c2dc28a80"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-bg-ctrl-10.txt",
+      "fnv64": "eea1df4ec2552dc4"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-bg-ctrl-11.txt",
+      "fnv64": "d093cb33e4c34ae5"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-bg-ctrl-12.txt",
+      "fnv64": "265866791b72a913"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-rw-aggro-01.txt",
+      "fnv64": "ddf170c6d7165cee"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-rw-aggro-02.txt",
+      "fnv64": "e5a17a8f7248dff1"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-rw-aggro-03.txt",
+      "fnv64": "d032880623d1fbb3"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-rw-aggro-04.txt",
+      "fnv64": "7aff165c93b43ada"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-rw-mid-05.txt",
+      "fnv64": "72f8cb8f6a2809fb"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-rw-mid-06.txt",
+      "fnv64": "d733341aa29d0846"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-rw-mid-07.txt",
+      "fnv64": "c2d84070e47a248d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-rw-mid-08.txt",
+      "fnv64": "e6fb759d7d324c39"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-rw-mid-09.txt",
+      "fnv64": "c06ba2f0d41cba6b"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-rw-ctrl-10.txt",
+      "fnv64": "fa1d8721a6b440aa"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-rw-ctrl-11.txt",
+      "fnv64": "d56fdc3e8e8beb89"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-rw-ctrl-12.txt",
+      "fnv64": "2cc04cd7d402385d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-gu-aggro-01.txt",
+      "fnv64": "0a31e02c4d817495"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-gu-aggro-02.txt",
+      "fnv64": "bddcb37d0b31235a"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-gu-aggro-03.txt",
+      "fnv64": "12f8fbe3f14977f9"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-gu-aggro-04.txt",
+      "fnv64": "28a4234e4387147d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-gu-mid-05.txt",
+      "fnv64": "f78bc90b15f4de40"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-gu-mid-06.txt",
+      "fnv64": "d5bfcb571fe15ffa"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-gu-mid-07.txt",
+      "fnv64": "8f90a99ad5c88a98"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-gu-mid-08.txt",
+      "fnv64": "e6d80b6adc01ad80"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-gu-mid-09.txt",
+      "fnv64": "a37bd8c5443d0e5d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-gu-ctrl-10.txt",
+      "fnv64": "05c414b67894d866"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-gu-ctrl-11.txt",
+      "fnv64": "24cd5d1c094ada64"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-g-gu-ctrl-12.txt",
+      "fnv64": "aa7166f813ec2f00"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-wub-aggro-01.txt",
+      "fnv64": "4511137126da0198"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-wub-aggro-02.txt",
+      "fnv64": "4424425ae7a03507"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-wub-mid-03.txt",
+      "fnv64": "cdce34bbf6dfab52"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-wub-mid-04.txt",
+      "fnv64": "5530be649165c622"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-wub-ctrl-05.txt",
+      "fnv64": "1d4d273db1036d73"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-wub-ctrl-06.txt",
+      "fnv64": "d8ced8d6628e2e0f"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-ubr-aggro-01.txt",
+      "fnv64": "2075b4e4422b7b38"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-ubr-aggro-02.txt",
+      "fnv64": "7b27651ea48d17e0"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-ubr-mid-03.txt",
+      "fnv64": "3779c810de25de46"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-ubr-mid-04.txt",
+      "fnv64": "007ee2375ae08b4d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-ubr-ctrl-05.txt",
+      "fnv64": "7b207df233d6bfb2"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-ubr-ctrl-06.txt",
+      "fnv64": "83126c740504797e"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-brg-aggro-01.txt",
+      "fnv64": "929377cef14894fe"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-brg-aggro-02.txt",
+      "fnv64": "b741efb13faf99c2"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-brg-mid-03.txt",
+      "fnv64": "877bb9cdf4b45144"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-brg-mid-04.txt",
+      "fnv64": "2bcb83c3d3a54026"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-brg-ctrl-05.txt",
+      "fnv64": "b615c4a4581998ef"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-brg-ctrl-06.txt",
+      "fnv64": "0abc185bfb37381c"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-rgw-aggro-01.txt",
+      "fnv64": "a7e509442d7334c9"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-rgw-aggro-02.txt",
+      "fnv64": "f3be5f920c8da441"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-rgw-mid-03.txt",
+      "fnv64": "4823527e4b1a3524"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-rgw-mid-04.txt",
+      "fnv64": "c55bb2545dcfbb1b"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-rgw-ctrl-05.txt",
+      "fnv64": "483aac2027190162"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-rgw-ctrl-06.txt",
+      "fnv64": "fcaccb0665309b84"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-gwu-aggro-01.txt",
+      "fnv64": "a32747504741cbae"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-gwu-aggro-02.txt",
+      "fnv64": "5a385210aaf8ac88"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-gwu-mid-03.txt",
+      "fnv64": "23479bd4735931e5"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-gwu-mid-04.txt",
+      "fnv64": "98e530d94e00f060"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-gwu-ctrl-05.txt",
+      "fnv64": "00d30411840211dc"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-gwu-ctrl-06.txt",
+      "fnv64": "8a21412523baa26f"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-wbg-aggro-01.txt",
+      "fnv64": "2c25322cd9e878b8"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-wbg-aggro-02.txt",
+      "fnv64": "be5e175761adcc8a"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-wbg-mid-03.txt",
+      "fnv64": "ebd8bab69a6aa3ba"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-wbg-mid-04.txt",
+      "fnv64": "d77fdc246775faff"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-wbg-ctrl-05.txt",
+      "fnv64": "6fa2d5add4086f83"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-wbg-ctrl-06.txt",
+      "fnv64": "8e89a60cf3016302"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-urw-aggro-01.txt",
+      "fnv64": "cf58f88bbca5894a"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-urw-aggro-02.txt",
+      "fnv64": "0580145fbdc0fc36"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-urw-mid-03.txt",
+      "fnv64": "4b132de50e9d134d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-urw-mid-04.txt",
+      "fnv64": "94cf2944554278b2"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-urw-ctrl-05.txt",
+      "fnv64": "7d612fc7bf8a74e6"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-urw-ctrl-06.txt",
+      "fnv64": "868eb8e2b5517dcc"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-bgu-aggro-01.txt",
+      "fnv64": "50d24573512ac41c"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-bgu-aggro-02.txt",
+      "fnv64": "900de8e6663282de"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-bgu-mid-03.txt",
+      "fnv64": "1ac1ffc4db15180b"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-bgu-mid-04.txt",
+      "fnv64": "e13bf4a2d3e00eb2"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-bgu-ctrl-05.txt",
+      "fnv64": "7229c1a004bb9e33"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-bgu-ctrl-06.txt",
+      "fnv64": "262f73f9ddf3a89d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-rwb-aggro-01.txt",
+      "fnv64": "09687c97dba9bafe"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-rwb-aggro-02.txt",
+      "fnv64": "558400f8ab10c2eb"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-rwb-mid-03.txt",
+      "fnv64": "dcc093e48aa3b45d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-rwb-mid-04.txt",
+      "fnv64": "83a4cc11cec6b3aa"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-rwb-ctrl-05.txt",
+      "fnv64": "ca1ad587957af830"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-rwb-ctrl-06.txt",
+      "fnv64": "c1170d627ca84487"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-gur-aggro-01.txt",
+      "fnv64": "8fcf85415032e6d3"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-gur-aggro-02.txt",
+      "fnv64": "1f227dd4c3c39e0f"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-gur-mid-03.txt",
+      "fnv64": "d878d67ba4d3d3dd"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-gur-mid-04.txt",
+      "fnv64": "99ffc28953f1494d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-gur-ctrl-05.txt",
+      "fnv64": "f4cbe07f455b0e94"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/lim-t-gur-ctrl-06.txt",
+      "fnv64": "2e3addbcf089d26d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-m-w-aggro-01.txt",
+      "fnv64": "9561dcbe5ffcc58a"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-m-w-mid-02.txt",
+      "fnv64": "65590c39173a3a60"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-m-w-ramp-03.txt",
+      "fnv64": "acc3ccc59ecd1c71"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-m-w-ctrl-04.txt",
+      "fnv64": "c55dd41746e2e839"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-m-u-aggro-01.txt",
+      "fnv64": "6cb17ba8c72ce6e9"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-m-u-mid-02.txt",
+      "fnv64": "e8131a89004cd225"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-m-u-ramp-03.txt",
+      "fnv64": "86c538269d103cba"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-m-u-ctrl-04.txt",
+      "fnv64": "4032086f357dce05"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-m-b-aggro-01.txt",
+      "fnv64": "f35a05454ceda573"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-m-b-mid-02.txt",
+      "fnv64": "487e429b5efba6b6"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-m-b-ramp-03.txt",
+      "fnv64": "a928cb6e7a9ce33d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-m-b-ctrl-04.txt",
+      "fnv64": "236adf9404c876ac"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-m-r-aggro-01.txt",
+      "fnv64": "f5e952e36fac9c08"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-m-r-mid-02.txt",
+      "fnv64": "83d8f2b7f8fbf48e"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-m-r-ramp-03.txt",
+      "fnv64": "9da37187e1853e21"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-m-r-mid-04.txt",
+      "fnv64": "062a6202bf1e3dbe"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-m-g-aggro-01.txt",
+      "fnv64": "3402536d44cf9209"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-m-g-mid-02.txt",
+      "fnv64": "ff36a0a148290973"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-m-g-ramp-03.txt",
+      "fnv64": "956d54b935edfdf9"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-m-g-mid-04.txt",
+      "fnv64": "aae43c723ca02dd2"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-wu-aggro-01.txt",
+      "fnv64": "62914e2c18c78aed"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-wu-aggro-02.txt",
+      "fnv64": "0e08f6b5d545b381"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-wu-mid-03.txt",
+      "fnv64": "44221270937cd0a1"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-wu-mid-04.txt",
+      "fnv64": "3a775f6e785ddf6a"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-wu-mid-05.txt",
+      "fnv64": "519de62e787d6994"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-wu-ramp-06.txt",
+      "fnv64": "1dad24748fa3e62b"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-wu-ctrl-07.txt",
+      "fnv64": "afea699afb2cb96f"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-wu-ctrl-08.txt",
+      "fnv64": "91eeab0cce139180"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-ub-aggro-01.txt",
+      "fnv64": "c49af51094f75e0a"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-ub-aggro-02.txt",
+      "fnv64": "ae82ecb79a4ac1ac"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-ub-mid-03.txt",
+      "fnv64": "682931af6a328712"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-ub-mid-04.txt",
+      "fnv64": "d237631e76be4b38"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-ub-mid-05.txt",
+      "fnv64": "3587650b8794fc10"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-ub-ramp-06.txt",
+      "fnv64": "881b786a0fd32cc1"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-ub-ctrl-07.txt",
+      "fnv64": "5f8d288cb9bdeffc"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-ub-ctrl-08.txt",
+      "fnv64": "6717c5353b6d694a"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-br-aggro-01.txt",
+      "fnv64": "e5ba5016819e3ac6"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-br-aggro-02.txt",
+      "fnv64": "0b8f6b31407adca7"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-br-mid-03.txt",
+      "fnv64": "ace6a973e1619077"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-br-mid-04.txt",
+      "fnv64": "705309319db50270"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-br-mid-05.txt",
+      "fnv64": "c34e0316a481bf7f"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-br-ramp-06.txt",
+      "fnv64": "9e12077f60515e8b"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-br-ctrl-07.txt",
+      "fnv64": "ce4e57c3b8b65639"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-br-ctrl-08.txt",
+      "fnv64": "fc9dcb24cab09978"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-rg-aggro-01.txt",
+      "fnv64": "7a423f93edd94e30"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-rg-aggro-02.txt",
+      "fnv64": "17924f3410c0a998"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-rg-mid-03.txt",
+      "fnv64": "b1d793e1de95fc98"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-rg-mid-04.txt",
+      "fnv64": "bf323fd77f48f988"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-rg-mid-05.txt",
+      "fnv64": "7febd9f518ccf750"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-rg-ramp-06.txt",
+      "fnv64": "3c89824f5f7e5841"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-rg-mid-07.txt",
+      "fnv64": "abf55a9ab444af96"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-rg-mid-08.txt",
+      "fnv64": "dbefd91ca3c126cd"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-gw-aggro-01.txt",
+      "fnv64": "571961482dc47609"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-gw-aggro-02.txt",
+      "fnv64": "8d0d30ec2a5c2b73"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-gw-mid-03.txt",
+      "fnv64": "ad635c38f427c920"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-gw-mid-04.txt",
+      "fnv64": "d4fa290caa388ed9"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-gw-mid-05.txt",
+      "fnv64": "71ee2a3c567d7ae3"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-gw-ramp-06.txt",
+      "fnv64": "cfff2625302b8d99"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-gw-ctrl-07.txt",
+      "fnv64": "b3a27c2ccff7acdf"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-gw-ctrl-08.txt",
+      "fnv64": "fe0cd92bbf3f5e18"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-wb-aggro-01.txt",
+      "fnv64": "f349b3b1ed01f61f"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-wb-aggro-02.txt",
+      "fnv64": "8f6de9538f3c02a0"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-wb-mid-03.txt",
+      "fnv64": "f73b54134f7062bc"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-wb-mid-04.txt",
+      "fnv64": "7edab5aa5c1710fb"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-wb-mid-05.txt",
+      "fnv64": "a13b3e5d82d9e553"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-wb-ramp-06.txt",
+      "fnv64": "2f20ce0601aeea4a"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-wb-ctrl-07.txt",
+      "fnv64": "12b9ad0dee60cd63"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-wb-ctrl-08.txt",
+      "fnv64": "588b09646231045a"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-ur-aggro-01.txt",
+      "fnv64": "9259b3c8e7fd3ae8"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-ur-aggro-02.txt",
+      "fnv64": "703d9b3beac126e6"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-ur-mid-03.txt",
+      "fnv64": "240d989cf47f4d24"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-ur-mid-04.txt",
+      "fnv64": "46ea8495dce6b600"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-ur-mid-05.txt",
+      "fnv64": "2914628f97a8059c"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-ur-ramp-06.txt",
+      "fnv64": "6aadc57ee64ae0ae"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-ur-ctrl-07.txt",
+      "fnv64": "1f862363b94fa247"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-ur-ctrl-08.txt",
+      "fnv64": "7e85d9537119eae2"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-bg-aggro-01.txt",
+      "fnv64": "d05f3d60801102d2"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-bg-aggro-02.txt",
+      "fnv64": "e00a9dd6c3b3bbde"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-bg-mid-03.txt",
+      "fnv64": "9ae030c32a2525ea"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-bg-mid-04.txt",
+      "fnv64": "e3097fdcc8008328"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-bg-mid-05.txt",
+      "fnv64": "9e11e05117029c5b"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-bg-ramp-06.txt",
+      "fnv64": "a505c6f3b2d6ee69"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-bg-ctrl-07.txt",
+      "fnv64": "04a9a4ab6b908091"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-bg-ctrl-08.txt",
+      "fnv64": "41d95a77bc02a2fb"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-rw-aggro-01.txt",
+      "fnv64": "54e1eb0ccc1d5d09"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-rw-aggro-02.txt",
+      "fnv64": "ac1ed2e3a3b7886e"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-rw-mid-03.txt",
+      "fnv64": "ea19808eca48cd78"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-rw-mid-04.txt",
+      "fnv64": "def3b269e263bc2a"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-rw-mid-05.txt",
+      "fnv64": "63709a1abfa49740"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-rw-ramp-06.txt",
+      "fnv64": "66c5950bc2b6a4bf"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-rw-ctrl-07.txt",
+      "fnv64": "d227e13d7a28c7c5"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-rw-ctrl-08.txt",
+      "fnv64": "6b7ac84a3d7dd898"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-gu-aggro-01.txt",
+      "fnv64": "81356af5c199dc10"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-gu-aggro-02.txt",
+      "fnv64": "d3ff197dca64313b"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-gu-mid-03.txt",
+      "fnv64": "213823268b1ae1cb"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-gu-mid-04.txt",
+      "fnv64": "a922f2a2ce18122c"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-gu-mid-05.txt",
+      "fnv64": "11da278501448258"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-gu-ramp-06.txt",
+      "fnv64": "74dfe5c851eadd73"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-gu-ctrl-07.txt",
+      "fnv64": "cf513f74d883a8e4"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-g-gu-ctrl-08.txt",
+      "fnv64": "398cc41ca36883a3"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-wub-aggro-01.txt",
+      "fnv64": "620be9172ad3233e"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-wub-mid-02.txt",
+      "fnv64": "10c6cb574348487b"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-wub-mid-03.txt",
+      "fnv64": "76e81bc7c7ed9eea"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-wub-ramp-04.txt",
+      "fnv64": "269dee96dabe4e9f"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-wub-ramp-05.txt",
+      "fnv64": "0fd9400bb441df84"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-wub-ctrl-06.txt",
+      "fnv64": "e7fd135f4453dd6c"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-ubr-aggro-01.txt",
+      "fnv64": "82cf80965b18a971"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-ubr-mid-02.txt",
+      "fnv64": "58aef6cd9873195d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-ubr-mid-03.txt",
+      "fnv64": "81f30f68e216b1b7"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-ubr-ramp-04.txt",
+      "fnv64": "94370fc20f6fd1bb"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-ubr-ramp-05.txt",
+      "fnv64": "e5a797417905fcc6"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-ubr-ctrl-06.txt",
+      "fnv64": "23bac963a00a9a69"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-brg-aggro-01.txt",
+      "fnv64": "0748c031b575b415"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-brg-mid-02.txt",
+      "fnv64": "b038e867c3a83653"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-brg-mid-03.txt",
+      "fnv64": "4ad8bbbc712c4079"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-brg-ramp-04.txt",
+      "fnv64": "e83b24b475a519db"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-brg-ramp-05.txt",
+      "fnv64": "755dda218d5cc8b9"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-brg-ctrl-06.txt",
+      "fnv64": "ad23b261a2a5e8a6"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-rgw-aggro-01.txt",
+      "fnv64": "c2d565b2327cdfe9"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-rgw-mid-02.txt",
+      "fnv64": "39f387dcf7bbffb1"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-rgw-mid-03.txt",
+      "fnv64": "b9f4ee0b7b7e0b46"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-rgw-ramp-04.txt",
+      "fnv64": "57b5808d581242b7"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-rgw-ramp-05.txt",
+      "fnv64": "59e9cd53bc12a255"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-rgw-ctrl-06.txt",
+      "fnv64": "98b304fdff3afccf"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-gwu-aggro-01.txt",
+      "fnv64": "e1cb2cf0754d227f"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-gwu-mid-02.txt",
+      "fnv64": "fe224191e407a812"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-gwu-mid-03.txt",
+      "fnv64": "2df5ca3340faec3f"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-gwu-ramp-04.txt",
+      "fnv64": "081ce1804b291b1a"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-gwu-ramp-05.txt",
+      "fnv64": "8d75b3efa6564ec8"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-gwu-ctrl-06.txt",
+      "fnv64": "592800387be00476"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-wbg-aggro-01.txt",
+      "fnv64": "5b11d673a72d1027"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-wbg-mid-02.txt",
+      "fnv64": "20e93ca5cbb9665e"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-wbg-mid-03.txt",
+      "fnv64": "ce8e5cf5cdbf3251"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-wbg-ramp-04.txt",
+      "fnv64": "3f17bdb38b24b12d"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-wbg-ramp-05.txt",
+      "fnv64": "ef98c9d8bf30ce0b"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-wbg-ctrl-06.txt",
+      "fnv64": "535da49ba4afc292"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-urw-aggro-01.txt",
+      "fnv64": "7741ebce5d674ff3"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-urw-mid-02.txt",
+      "fnv64": "a4852e88641d9bf4"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-urw-mid-03.txt",
+      "fnv64": "951c061dea3368ae"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-urw-ramp-04.txt",
+      "fnv64": "ec130ca4059dbb05"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-urw-ramp-05.txt",
+      "fnv64": "5be464e254a02251"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-urw-ctrl-06.txt",
+      "fnv64": "761a12bc85cea1ea"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-bgu-aggro-01.txt",
+      "fnv64": "75a4accea073b5df"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-bgu-mid-02.txt",
+      "fnv64": "f27a09c65a537a79"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-bgu-mid-03.txt",
+      "fnv64": "bf8d09bc679a21e3"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-bgu-ramp-04.txt",
+      "fnv64": "9faef7b14bfdc20b"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-bgu-ramp-05.txt",
+      "fnv64": "2bf38a063110cfea"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-bgu-ctrl-06.txt",
+      "fnv64": "9b542c538cadf20f"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-rwb-aggro-01.txt",
+      "fnv64": "148d8e4e4d50ca45"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-rwb-mid-02.txt",
+      "fnv64": "0532a81c9102899f"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-rwb-mid-03.txt",
+      "fnv64": "a177b68269256b22"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-rwb-ramp-04.txt",
+      "fnv64": "a1fb824049434d77"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-rwb-ramp-05.txt",
+      "fnv64": "24de626f4b3bc74a"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-rwb-ctrl-06.txt",
+      "fnv64": "49ac1bd3876372f8"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-gur-aggro-01.txt",
+      "fnv64": "479d1edbd08d1f25"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-gur-mid-02.txt",
+      "fnv64": "6523eda47c129f92"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-gur-mid-03.txt",
+      "fnv64": "34d573c775d5c249"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-gur-ramp-04.txt",
+      "fnv64": "2a1c12dcf9f45b9a"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-gur-ramp-05.txt",
+      "fnv64": "1c32640daa5eda8c"
+    },
+    {
+      "file": "Mage.Server/career-src/train-800/brawl-t-gur-ctrl-06.txt",
+      "fnv64": "3b2b1d69e4d2adb2"
+    }
+  ],
+  "mulligans": true
+}

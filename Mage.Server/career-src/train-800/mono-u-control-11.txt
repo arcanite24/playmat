@@ -1,0 +1,20 @@
+# name: Train800 mono-u-control-11
+# archetype: control
+# colors: U
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Abstruse Interference
+3 Blink of an Eye
+2 Chainbreaker
+2 Code of Constraint
+1 Divide by Zero
+1 Docent of Perfection
+3 Flip the Switch
+2 Geralf's Masterpiece
+2 Hewed Stone Retainers
+2 Marang River Regent
+4 Multiple Choice
+2 Polymorphist's Jest
+3 Steamcore Scholar
+4 The Theorist, Jace Beleren
+1 Unity of Purpose
+25 Island

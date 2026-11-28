@@ -1,0 +1,37 @@
+# name: Train800 lim-g-wu-aggro-01
+# archetype: limited_aggro
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Agent of Atlas
+1 Archon of the Wild Rose
+1 Artful Maneuver
+2 Battlefield Raptor
+1 Beetle, Legacy Criminal
+1 Celestial Regulator
+1 Cloud Sprite
+1 Defend the Campus
+1 East Wind Avatar
+1 Elaborate Firecannon
+2 Elite Spellbinder
+1 Envoy of Okinec Ahau
+1 Expendable Lackey
+1 Ezrim, Agency Chief
+1 Frost Walker
+1 G'raha Tia
+1 Goblin Boom Keg
+1 Hinterland Drake
+2 Il Mheg Pixie
+2 Invoke the Divine
+2 Kykar, Zephyr Awakener
+2 Ocelot Pride
+1 Ritual Guardian
+1 Shore Up
+1 Stormfront Pegasus
+2 Sunder the Gateway
+2 Tiger-Seal
+1 Will of the All-Hunter
+1 Deserted Beach
+5 Island
+13 Plains
+2 Prairie Stream
+2 Seachrome Coast

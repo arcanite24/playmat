@@ -1,0 +1,25 @@
+# name: Train800 tribal-gw-human-03
+# archetype: tribal (Human)
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Acclaimed Contender
+4 Banisher Priest
+1 Boon of Boseiju
+4 Captain America, Wings of Freedom
+1 Cut Short
+2 Dawnhart Disciple
+2 Diligent Zookeeper
+1 Law-Rune Enforcer
+4 Outland Liberator
+3 Picard, Leading by Example
+1 Resistance Squad
+4 Serene Steward
+2 Spinewoods Paladin
+1 Springjaw Trap
+3 Torens, Fist of the Angels
+2 Veteran Cathar
+2 Canopy Vista
+2 Forest
+4 Grove of the Guardian
+11 Plains
+4 Razorverge Thicket

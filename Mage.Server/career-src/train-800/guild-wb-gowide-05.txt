@@ -1,0 +1,25 @@
+# name: Train800 guild-wb-gowide-05
+# archetype: gowide
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Astral Steel
+2 Baron Bertram Graywater
+3 Bloodied Ghost
+2 Defacing Duskmage
+2 Dhund Operative
+2 Evolved Sleeper
+2 Gravecrawler
+1 Greed's Gambit
+3 Kaya, Orzhov Usurper
+2 Murderous Rider
+4 Prairie Dog
+2 Shepherd of the Flock
+2 Sorin, Vengeful Bloodlord
+2 The Master of Lake-town
+1 Vile Rebirth
+4 Winter Soldier, Icy Assassin
+2 Concealed Courtyard
+4 Meticulous Commons
+4 Plains
+4 Shattered Sanctum
+8 Swamp

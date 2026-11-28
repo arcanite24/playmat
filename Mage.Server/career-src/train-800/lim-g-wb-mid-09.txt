@@ -1,0 +1,39 @@
+# name: Train800 lim-g-wb-mid-09
+# archetype: limited_mid
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Alabaster Host Sanctifier
+1 Amalia Benavides Aguirre
+2 Angel of Suffering
+1 Anointer Priest
+2 Archangel of Thune
+1 Beaming Defiance
+1 Company Commander
+2 Consul's Shieldguard
+1 Dalek Squadron
+1 Falthis, Shadowcat Familiar
+1 Feed the Serpent
+1 Final Reward
+1 Harmonious Archon
+1 Herald of Dromoka
+1 Hotshot Mechanic
+1 Knight of Malice
+1 Nezumi Freewheeler
+1 Puncturing Light
+1 Rapier Wit
+1 Rite of Oblivion
+2 Shark Shredder, Killer Clone
+2 Skitterskin
+1 Stoneforge Acolyte
+1 Tithe Drinker
+1 Twilight Prophet
+1 Unstoppable Slasher
+1 Urborg Scavengers
+1 Voidforged Titan
+1 Vraska's Contempt
+1 You're Not Alone
+2 Concealed Courtyard
+1 Great Arashin City
+2 Meticulous Commons
+8 Plains
+11 Swamp

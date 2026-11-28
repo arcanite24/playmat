@@ -1,0 +1,42 @@
+# name: Train800 lim-t-urw-aggro-01
+# archetype: limited_aggro
+# colors: URW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ajani's Presence
+1 Akroan Jailer
+1 Anax and Cymede
+1 Ash, Party Crasher
+2 Aviary Mechanic
+1 Azure Drake
+1 Blessed Defiance
+1 Bolt Hound
+1 Boros Challenger
+1 Boros Reckoner
+1 Cacophony Scamp
+1 Cerodon Yearling
+1 Electrostatic Infantry
+1 Embermaw Hellion
+1 Felidar Sovereign
+1 Fiery Temper
+1 Flamehold Grappler
+2 Jeskai Charm
+1 Misty Knight, Hero for Hire
+1 Moon-Circuit Hacker
+2 Pia, Determined Rebuilder
+2 Ral Zarek
+1 Redcap Raiders
+2 Rescue
+1 Scorch Spitter
+1 Selfcraft Mechan
+1 Storm Fleet Sprinter
+1 Syr Ginger, the Meal Ender
+2 Vanguard of Brimaz
+1 Virulent Silencer
+1 Weapon Surge
+2 Inspiring Vantage
+6 Island
+5 Mountain
+4 Plains
+2 Sacred Foundry
+2 Sunbaked Canyon
+2 Sundown Pass

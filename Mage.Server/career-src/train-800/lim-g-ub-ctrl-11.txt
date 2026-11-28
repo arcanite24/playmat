@@ -1,0 +1,33 @@
+# name: Train800 lim-g-ub-ctrl-11
+# archetype: limited_ctrl
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Azula, On the Hunt
+2 Blight Herder
+1 Clash of Wills
+2 Consumed by Greed
+2 Cursed Minotaur
+1 Douse in Gloom
+2 Extinguish All Hope
+2 Ghoulcaller's Accomplice
+2 Grim Strider
+1 Hour of Glory
+2 Labyrinth Guardian
+2 Live or Die
+1 Louisoix's Sacrifice
+1 Monoist Sentry
+2 Moonlit Scavengers
+1 Moonstone, Harsh Mistress
+1 Plumb the Forbidden
+2 Resurrected Cultist
+1 Riddlemaster Sphinx
+1 Rot Farm Mortipede
+1 Ruthless Knave
+1 Summon: Anima
+2 Technodrome
+1 The Scarab God
+2 Drowned Catacomb
+2 Island
+2 Murky Sewer
+18 Swamp
+1 Underground River

@@ -1,0 +1,25 @@
+# name: Train800 tri-gur-aggro-02
+# archetype: aggro
+# colors: GUR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Ancient Grudge
+3 Blood Hypnotist
+2 Boundary Lands Ranger
+4 Conspicuous Snoop
+2 Harbinger of the Tides
+3 Massive Might
+4 Michelangelo, Mutant BFF
+3 Papercraft Decoy
+1 Prey Upon
+4 Sauroform Hybrid
+2 Stingcaster Mage
+2 Tattered Ratter
+4 Tome Blast
+1 Transporter Malfunction
+2 Bleeding Woods
+4 Cinder Glade
+4 Copperline Gorge
+2 Forest
+2 Island
+3 Mountain
+4 Rootbound Crag

@@ -1,0 +1,24 @@
+# name: Train800 guild-rw-midrange-13
+# archetype: midrange
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Aerial Responder
+2 Baird, Argivian Recruiter
+2 Blood Rites
+4 Bonded Horncrest
+3 Exalted Sunborn
+1 Grab the Prize
+2 Hundred-Handed One
+2 Novice Knight
+1 Punish the Enemy
+1 Red Hulk
+4 Rescue Leopard
+3 Sarkhan, Fireblood
+4 Seasoned Hallowblade
+1 Tectonic Hazard
+4 Weaponize the Monsters
+2 Dalkovan Encampment
+9 Mountain
+5 Plains
+4 Sunbaked Canyon
+4 Sundown Pass

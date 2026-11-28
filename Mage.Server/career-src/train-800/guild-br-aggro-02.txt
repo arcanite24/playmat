@@ -1,0 +1,23 @@
+# name: Train800 guild-br-aggro-02
+# archetype: aggro
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Ancestors' Aid
+2 Cunning Coyote
+4 Decadent Dragon
+4 Ember Hauler
+3 Falkenrath Pit Fighter
+4 Foulmire Knight
+3 Heartfire
+2 Make Mischief
+1 Mishra's Command
+2 Rix Maadi Reveler
+3 Searing Blaze
+2 Searing Spear
+3 Verix Bladewing
+4 Vindictive Flamestoker
+4 Blackcleave Cliffs
+2 Cinder Marsh
+9 Mountain
+4 Razortrap Gorge
+2 Swamp

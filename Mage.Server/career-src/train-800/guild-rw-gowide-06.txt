@@ -1,0 +1,24 @@
+# name: Train800 guild-rw-gowide-06
+# archetype: gowide
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Agent Phil Coulson
+3 Clarion Spirit
+3 Dahar Master
+4 Dog Walker
+1 Elite Interceptor
+2 Excavation Explosion
+2 Form a Posse
+4 Furious Forebear
+2 Gleeful Demolition
+1 Lorehold Command
+2 Make Your Mark
+2 Mouser Foundry
+3 Steadfast Paladin
+2 Strife Scholar
+4 Tajic, Legion's Edge
+4 Clifftop Retreat
+2 Dedicated Commons
+5 Mountain
+7 Plains
+4 Sacred Foundry

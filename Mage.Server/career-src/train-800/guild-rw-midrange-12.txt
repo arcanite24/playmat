@@ -1,0 +1,25 @@
+# name: Train800 guild-rw-midrange-12
+# archetype: midrange
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Akiri, Fearless Voyager
+2 Ben Solo
+1 Benalish Honor Guard
+2 Cleansing Screech
+4 Draconic Visitor
+1 End the Festivities
+3 Generous Plunderer
+1 Implement of Combustion
+1 Inferno Fist
+4 Invasion of Tarkir
+4 Joined Researchers
+3 Solitary Cell
+2 Startled Relic Sloth
+2 Urabrask
+2 Valduk, Keeper of the Flame
+1 Venerable Warsinger
+12 Mountain
+2 Plains
+4 Raucous Carnival
+2 Sacred Foundry
+4 Sundown Pass

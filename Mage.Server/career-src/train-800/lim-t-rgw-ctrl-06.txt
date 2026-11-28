@@ -1,0 +1,37 @@
+# name: Train800 lim-t-rgw-ctrl-06
+# archetype: limited_ctrl
+# colors: RGW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Angelic Purge
+1 Brightspear Zealot
+1 Cleansing Wildfire
+1 Cornered Crook
+2 Encumbered Reejerey
+1 Evolution Sage
+1 Grounded for Life
+2 Hero in Training
+2 Kwia Vigorbloom
+1 Master Trinketeer
+2 Obliterating Bolt
+1 Overlord of the Hauntwoods
+1 Patron of the Valiant
+1 Reverberating Summons
+2 Rootrider Faun
+1 Saw
+1 Snare Tactician
+1 Snowslope Hunter
+1 Solarium Sentry
+2 Sweltering Suns
+1 Temur Sabertooth
+1 Towering Thunderfist
+2 Truck Toss
+1 Tyrant of Kher Ridges
+2 Wall of Swords
+1 Workshop Warchief
+2 Clifftop Retreat
+2 Dedicated Commons
+8 Forest
+4 Mountain
+5 Plains
+2 Sacred Foundry
+2 Sunbaked Canyon

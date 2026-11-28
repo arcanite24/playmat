@@ -1,0 +1,37 @@
+# name: Train800 lim-g-br-mid-07
+# archetype: limited_mid
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ancestors' Aid
+1 Aphotic Wisps
+1 Blazing Hellhound
+1 Blood Petal Celebrant
+1 Cavern Whisperer
+2 Ceremonial Guard
+2 Chandra's Embercat
+2 Conduit of Storms
+1 Decadent Dragon
+2 Deface
+1 Gastal Thrillseeker
+1 Hand That Feeds
+1 Inferno of the Star Mounts
+1 Jiang Yanggu, Alone
+2 Mishra, Excavation Prodigy
+1 Ravenous Bloodseeker
+1 Roast
+2 Rough Rhino Cavalry
+1 Shadow Urchin
+1 Skirk Prospector
+2 South Wind Avatar
+1 Terror of Mount Velus
+1 The Chase Is On
+1 Thunderbreak Regent
+1 Tidy Conclusion
+1 Totentanz, Swarm Piper
+2 Underworld Rage-Hound
+1 Unholy Hunger
+1 Badlands
+2 Blackcleave Cliffs
+2 Dragonskull Summit
+17 Mountain
+2 Swamp

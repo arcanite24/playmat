@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-gu-ctrl-08
+# archetype: brawl_ctrl
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 A.I.M. Bot
+1 Aether Channeler
+1 Anaconda
+1 Attack-in-the-Box
+1 Blizzard Brawl
+1 Blunt the Assault
+1 Campus Guide
+1 Deepmuck Desperado
+1 Fade from History
+1 Fell the Pheasant
+1 Galestrike
+1 Galewind Moose
+1 Into the Roil
+1 It'll Quench Ya!
+1 Mana Sculpt
+1 Mouth of the Storm
+1 Natural End
+1 Nullify
+1 Oath of Jace
+1 Radical Idea
+1 Raucous Audience
+1 Rogue's Gloves
+1 Rookie Mistake
+1 Sagittars' Volley
+1 Scaled Behemoth
+1 Serpent of Yawning Depths
+1 Somberwald Stag
+1 Soul of Zendikar
+1 Spectral Denial
+1 Splashy Spellcaster
+1 Staunch Crewmate
+1 Torgal, A Fine Hound
+1 Varis, Silverymoon Ranger
+1 Warden of the Woods
+1 Zuko's Exile
+1 Botanical Sanctum
+1 Dreamroot Cascade
+1 Earth, Sector 001
+9 Forest
+1 Hinterland Harbor
+7 Island
+1 Lakeside Shack
+1 Lush Oasis
+1 Temple of Mystery
+1 Transformative Commons
+1 Yavimaya Coast

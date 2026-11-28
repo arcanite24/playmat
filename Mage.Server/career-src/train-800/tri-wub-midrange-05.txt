@@ -1,0 +1,26 @@
+# name: Train800 tri-wub-midrange-05
+# archetype: midrange
+# colors: WUB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Conciliator's Duelist
+3 Final Payment
+3 Grimdancer
+3 Hemmer, Fixing What Is Broken
+4 Hermitic Nautilus
+4 Hydro-Channeler
+4 Linvala, Shield of Sea Gate
+4 Lochmere Serpent
+1 Mavren Fein, Dusk Apostle
+1 Shadows of the Past
+1 Silumgar's Command
+2 Swords to Plowshares
+2 Tameshi, Reality Architect
+2 Teferi's Time Twist
+2 Wild Pack Squad
+4 Arcane Sanctum
+4 Darkslick Shores
+2 Drowned Catacomb
+3 Island
+4 Plains
+4 Prairie Stream
+2 Swamp

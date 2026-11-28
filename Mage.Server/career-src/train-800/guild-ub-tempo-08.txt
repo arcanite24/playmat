@@ -1,0 +1,22 @@
+# name: Train800 guild-ub-tempo-08
+# archetype: tempo
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Archfiend of the Dross
+3 Befuddle
+1 Circle of Power
+3 Dimir Charm
+3 Drown in the Loch
+4 Kaito Shizuki
+3 Lazav, Wearer of Faces
+3 Leave in the Dust
+2 Master of the Feast
+3 Ruthless Sniper
+4 Serrated Scorpion
+2 Soul Enervation
+3 Umbral Collar Zealot
+2 Island
+2 Murky Sewer
+4 Sunken Hollow
+10 Swamp
+4 Underground River

@@ -1,0 +1,26 @@
+# name: Train800 tri-brg-control-11
+# archetype: control
+# colors: BRG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Aerial Volley
+3 Baloth Prime
+1 Blitz Hellion
+2 Boreal Centaur
+3 Cling to Dust
+1 Deadapult
+4 Hulk, Gamma Goliath
+2 Khenra Charioteer
+4 Killing Glare
+2 Magma Spray
+1 Professor Dellian Fel
+4 Quartzwood Crasher
+1 Spinewoods Armadillo
+3 Sunbringer's Touch
+2 You Find Some Prisoners
+2 Bleeding Woods
+4 Copperline Gorge
+4 Darigaaz's Caldera
+6 Forest
+2 Mountain
+4 Rootbound Crag
+3 Swamp

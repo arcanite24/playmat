@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-gur-mid-03
+# archetype: brawl_mid
+# colors: GUR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aerial Caravan
+1 Broadside Barrage
+1 Burn the Accursed
+1 Chainbreaker
+1 Dukhara Peafowl
+1 Firebending Lesson
+1 Gangly Stompling
+1 Gates Ablaze
+1 Geothermal Kami
+1 Ghirapur Gearcrafter
+1 Gravestone Strider
+1 Greasewrench Goblin
+1 Invasion of Tarkir
+1 Iroh, Grand Lotus
+1 Joint Exploration
+1 Kalonian Tusker
+1 Larder Zombie
+1 Lullmage's Familiar
+1 Memorial Team Leader
+1 Palani's Hatcher
+1 Pit Fight
+1 Prowling Serpopard
+1 Sage of the Falls
+1 Shaman of the Great Hunt
+1 Sinister Sabotage
+1 Skarrg Guildmage
+1 Surrak Dragonclaw
+1 Thraben Gargoyle
+1 Tuskeri Firewalker
+1 Two-Headed Giant
+1 Ulvenwald Captive
+1 Unsubstantiate
+1 Venus, Torn Between Worlds
+1 Vestige of Emrakul
+1 Wandertale Mentor
+1 Bleeding Woods
+1 Botanical Sanctum
+1 Cinder Glade
+1 Copperline Gorge
+2 Forest
+1 Frontier Bivouac
+5 Island
+1 Karplusan Forest
+1 Ketria Triome
+1 Lakeside Shack
+5 Mountain
+1 Rockfall Vale
+1 Rootbound Crag
+1 Stomping Ground
+1 Sulfur Falls
+1 Yavimaya Coast

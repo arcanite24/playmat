@@ -1,0 +1,38 @@
+# name: Train800 lim-g-ur-mid-06
+# archetype: limited_mid
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aether Swooper
+1 Blistering Barrier
+1 Cleric of Chill Depths
+1 Cunning Maneuver
+1 Donatello, Turtle Techie
+1 Fear of Missing Out
+1 Goblin Rabblemaster
+1 Iron Man, Master of Machines
+2 Kree Sentinel
+2 Lightning, Security Sergeant
+1 Manticore of the Gauntlet
+1 Mechan Shieldmate
+1 Might of the Meek
+1 Mongoose Lizard
+2 Omenspeaker
+2 Overwhelmed Archivist
+2 Phoenix of Ash
+1 Piston-Fist Cyclops
+1 Qal Sisma Behemoth
+2 Ral, Izzet Viceroy
+1 Riverwheel Aerialists
+1 Runewing
+1 Salvaged Manaworker
+1 Silver Deputy
+1 Skyclave Squid
+2 Steal the Show
+1 Thirst for Identity
+1 Torch the Tower
+1 Wanderwine Distracter
+7 Island
+12 Mountain
+2 Spirebluff Canal
+1 Stormcarved Coast
+2 Sulfur Falls

@@ -1,0 +1,27 @@
+# name: Train800 tri-wbg-aggro-01
+# archetype: aggro
+# colors: WBG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Abzan Charm
+2 Easy Prey
+2 Esper Sentinel
+1 Michelangelo, Game Master
+2 Nesting Bot
+2 Puresteel Paladin
+3 Siege Rhino
+2 Siege Zombie
+1 Skirmish Rhino
+3 Snapping Gnarlid
+2 Soul Enervation
+4 Spider-Girl, Legacy Hero
+4 Sun Sentinel
+3 Thalia and The Gitrog Monster
+2 Unconventional Tactics
+2 Wasp of the Bitter End
+4 Canopy Vista
+1 Forest
+2 Grove of the Guardian
+4 Overgrown Farmland
+2 Plains
+5 Swamp
+4 Vigorbloom Annex

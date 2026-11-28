@@ -1,0 +1,20 @@
+# name: Train800 mono-u-tempo-04
+# archetype: tempo
+# colors: U
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Arcane Subtraction
+3 Faerie Mastermind
+1 Glen Elendra Guardian
+3 Gran-Gran
+2 Hypnotic Grifter
+3 Illusory Angel
+4 Keep Safe
+3 Mu Yanling, Sky Dancer
+1 Picklock Prankster
+4 Proft, Consulting Detective
+2 Retributive Wand
+2 Riptide Chimera
+2 Spellgyre
+1 The Filigree Sylex
+4 The Theorist, Jace Beleren
+22 Island

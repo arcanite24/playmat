@@ -1,0 +1,37 @@
+# name: Train800 lim-g-rw-ctrl-10
+# archetype: limited_ctrl
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Acrobatic Maneuver
+1 Airbending Lesson
+1 Archangel Avacyn
+2 Bastion Enforcer
+1 Burn the Accursed
+2 Captivating Crew
+1 Dawn of Hope
+1 Hulking Devil
+1 Ironhoof Boar
+1 Isolate
+1 Jennika's Technique
+1 Knight of Dawn's Light
+1 Lathnu Sailback
+1 Minecart Daredevil
+1 Oblivion Sower
+2 Offender at Large
+2 Ollenbock Escort
+1 Professor of Symbology
+1 Revitalize
+2 Rift Bolt
+2 Rodeo Pyromancers
+1 Rotisserie Elemental
+1 Rubble Rouser
+1 Storm's Wrath
+1 Swift Kick
+1 Synchronized Spellcraft
+1 Thalia's Lancers
+2 Whiskervale Forerunner
+1 Battlefield Forge
+2 Clifftop Retreat
+2 Dedicated Commons
+10 Mountain
+10 Plains

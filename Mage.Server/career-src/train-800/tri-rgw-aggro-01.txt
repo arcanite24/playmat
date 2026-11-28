@@ -1,0 +1,28 @@
+# name: Train800 tri-rgw-aggro-01
+# archetype: aggro
+# colors: RGW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Ant-Man, Scott Lang
+4 Baylen, the Haymaker
+3 Finneas, Ace Archer
+1 Gideon's Triumph
+2 Hammers of Moradin
+2 Legion Guildmage
+2 Lightning Helix
+2 Miriam, Herd Whisperer
+2 Phalanx Tactics
+1 Questing Beast
+2 Relic Seeker
+2 Sizzling Barrage
+2 Sky Terror
+1 Slaying Fire
+4 Spicy Oatmeal Pizza
+4 Truefire Paladin
+2 Veteran Motorist
+4 Clifftop Retreat
+2 Dedicated Commons
+5 Forest
+4 Inspiring Vantage
+2 Mountain
+1 Plains
+4 Sunbaked Canyon

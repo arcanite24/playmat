@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-rgw-mid-02
+# archetype: brawl_mid
+# colors: RGW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Anger of the Gods
+1 Anointed Chorister
+1 Appa, Loyal Sky Bison
+1 Baylen, the Haymaker
+1 Bristlepack Sentry
+1 Butterbur, Bree Innkeeper
+1 Caparocti Sunborn
+1 Cleveland Booker, Empath
+1 Crushing Canopy
+1 Electrify
+1 Erode
+1 Everquill Phoenix
+1 Goldlust Triad
+1 Guardian of Ghirapur
+1 High Noon
+1 Iroh, Tea Master
+1 Ironscale Hydra
+1 Ixalli's Keeper
+1 Kirk, Commanding Officer
+1 Kutzil, Malamet Exemplar
+1 Lay Down Arms
+1 Lightning, Army of One
+1 Makeshift Munitions
+1 Nessian Wanderer
+1 Nissa, Resurgent Animist
+1 Noxious Newt
+1 Pulsar Squadron Ace
+1 Samut, Voice of Dissent
+1 Scale the Heights
+1 Spirit Mascot
+1 Stonebound Mentor
+1 Thor Odinson
+1 Three Tree Scribe
+1 Trelasarra, Moon Dancer
+1 Voja, Jaws of the Conclave
+1 Brushland
+1 Canopy Vista
+1 Clifftop Retreat
+1 Dalkovan Encampment
+1 Etched Cornfield
+4 Forest
+1 Grove of the Guardian
+1 Horizon Canopy
+1 Jetmir's Garden
+6 Mountain
+1 Overgrown Farmland
+2 Plains
+1 Raucous Carnival
+1 Sacred Foundry
+1 Sundown Pass
+1 Vigorbloom Annex

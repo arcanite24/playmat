@@ -1,0 +1,25 @@
+# name: Train800 tribal-wb-vampire-02
+# archetype: tribal (Vampire)
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Bishop of the Bloodstained
+1 Coat with Venom
+2 Eat to Extinction
+4 Echo of Dusk
+1 Glorifier of Suffering
+4 Indulgent Aristocrat
+1 Indulging Patrician
+2 Kalastria Highborn
+3 Legion Lieutenant
+3 Markov Baron
+1 Markov Purifier
+2 Nightdrinker Moroii
+3 Ruthless Lawbringer
+3 Silversmote Ghoul
+3 Stromkirk Condemned
+2 Voracious Vampire
+4 Caves of Koilos
+4 Isolated Chapel
+2 Meticulous Commons
+2 Plains
+11 Swamp

@@ -1,0 +1,23 @@
+# name: Train800 guild-rw-bigmana-17
+# archetype: bigmana
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Akoum Flameseeker
+4 Angelic Ascension
+1 Bolt of Keranos
+2 Boros Cluestone
+1 Lightning, Army of One
+3 Nova Hellkite
+4 Ogre Chitterlord
+2 Plundering Pirate
+2 Raze to the Ground
+2 Resistance Skywarden
+4 Selfless Samurai
+1 Shake the Foundations
+3 Stonebound Mentor
+3 The Misty Mountains Cold
+2 Dalkovan Encampment
+4 Dedicated Commons
+14 Mountain
+2 Plains
+4 Raucous Carnival

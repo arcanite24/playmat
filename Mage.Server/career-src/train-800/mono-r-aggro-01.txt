@@ -1,0 +1,22 @@
+# name: Train800 mono-r-aggro-01
+# archetype: aggro
+# colors: R
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Falkenrath Pit Fighter
+2 Fear of Missing Out
+2 Flick a Coin
+2 Glint-Horn Buccaneer
+2 Goblin Picker
+2 Kavaron Harrier
+4 Kessig Wolfrider
+3 Otherworldly Outburst
+3 Playful Shove
+3 Reckless Lackey
+2 Reinforced Ronin
+2 Shatterskull Charger
+1 Spikefield Hazard
+3 Stingerback Terror
+2 Tibalt, Rakish Instigator
+2 Wayward Guide-Beast
+2 Zariel, Archduke of Avernus
+21 Mountain

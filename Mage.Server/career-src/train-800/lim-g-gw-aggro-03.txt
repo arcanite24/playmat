@@ -1,0 +1,34 @@
+# name: Train800 lim-g-gw-aggro-03
+# archetype: limited_aggro
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Bubbling Cauldron
+1 Bucky Barnes, Eager Ally
+2 Carnage Tyrant
+1 Centaur Peacemaker
+1 Chronicler of Heroes
+2 Codespell Cleric
+2 Colossal Heroics
+1 Conclave Cavalier
+1 Dauntless Dismantler
+2 Disenchant
+2 Fang of Shigeki
+1 Fortifying Draught
+2 Garruk's Harbinger
+1 Gigantoad
+2 Imperial Aerosaur
+2 Kraul Harpooner
+1 MACO Strike Team
+1 Maulfist Revolutionary
+1 Nylea, Keen-Eyed
+1 Set Phasers to . . .
+2 Siegehorn Ceratops
+1 Sigarda, Champion of Light
+1 Skyblade of the Legion
+2 Slaughter Singer
+2 Tangletrap
+12 Forest
+1 Grove of the Guardian
+2 Overgrown Farmland
+6 Plains
+2 Sunpetal Grove

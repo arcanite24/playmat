@@ -1,0 +1,39 @@
+# name: Train800 lim-t-rwb-mid-04
+# archetype: limited_mid
+# colors: RWB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Agent Venom
+1 Astral Steel
+2 Cartel Aristocrat
+1 Cirith Ungol Patrol
+1 Curse-Marred Demon
+1 Dain, Lord of the Iron Hills
+2 Doom Blade
+1 Dross Skullbomb
+1 Eldrazi Mimic
+1 Grasping Giant
+1 Heirloom Mirror
+1 Insatiable Gorgers
+1 Jirina, Dauntless General
+2 Kalain, Reclusive Painter
+1 King Macar, the Gold-Cursed
+1 Kingpin's Pet
+2 Lawless Broker
+1 Maha, Its Feathers Night
+1 Mardu Heart-Piercer
+1 Prophetic Ravings
+2 Rankle, Master of Pranks
+2 Taster of Wares
+1 Terror of the Peaks
+1 Titan's Strength
+1 Tormented Soul
+1 Twisted Sewer-Witch
+1 Wanderbrine Preacher
+2 Wizard's Lightning
+2 Blackcleave Cliffs
+2 Cinder Marsh
+2 Dragonskull Summit
+2 Haunted Ridge
+2 Mountain
+5 Plains
+9 Swamp

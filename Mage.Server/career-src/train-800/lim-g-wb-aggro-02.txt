@@ -1,0 +1,38 @@
+# name: Train800 lim-g-wb-aggro-02
+# archetype: limited_aggro
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Angel of the Ruins
+1 Archenemy's Charm
+1 Blood-Cursed Knight
+1 Boggart Mischief
+1 Bounty Agent
+1 Clattering Skeletons
+1 Creakwood Safewright
+1 Dark Leo & Shredder
+1 Darklight Phoenix
+1 Dauntless Onslaught
+2 Eidolon of Obstruction
+1 Foul Renewal
+1 Geth, Thane of Contracts
+1 Inkshape Demonstrator
+1 Isareth the Awakener
+2 Leonin of the Lost Pride
+2 Mire Triton
+2 Nightmarish End
+2 Paired Tactician
+2 Resolute Strike
+1 Seraph of the Scales
+2 Synapse Necromage
+1 Toxic Abomination
+2 Typhoid Rats
+1 Vindictive Triumph
+1 Voldaren Bloodcaster
+1 Wispdrinker Vampire
+1 Youthful Knight
+1 Zodiark, Umbral God
+2 Great Arashin City
+1 Neglected Manor
+5 Plains
+2 Shattered Sanctum
+13 Swamp

@@ -1,0 +1,23 @@
+# name: Train800 guild-wb-bigmana-15
+# archetype: bigmana
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Ajani's Sunstriker
+2 Deadly Derision
+2 Deadly Dispute
+3 Deathbloom Thallid
+4 Deathpact Angel
+3 Doom Whisperer
+1 Kami of Terrible Secrets
+2 Orzhov Cluestone
+3 Orzhov Locket
+2 Prowling Caracal
+3 Rotten Reunion
+4 Smothering Abomination
+1 Twisted Fates
+2 Vein Ripper
+4 Isolated Chapel
+4 Neglected Manor
+2 Plains
+2 Shattered Sanctum
+14 Swamp

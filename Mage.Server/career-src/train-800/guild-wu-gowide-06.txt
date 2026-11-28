@@ -1,0 +1,26 @@
+# name: Train800 guild-wu-gowide-06
+# archetype: gowide
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Academic Ascent
+2 Aetherflux Reservoir
+2 Anointed Peacekeeper
+2 Brightblade Stoat
+3 Descendant of Storms
+4 Expedition Envoy
+2 Glint
+1 Harrier Strix
+2 Hero of Precinct One
+2 Leave in the Dust
+2 Mage's Attendant
+3 Master Trinketeer
+2 Personify
+4 Precinct Captain
+1 Teferi, Hero of Dominaria
+2 Triton Shorethief
+2 Ugin's Construct
+4 Abandoned Campground
+4 Deserted Beach
+2 Glacial Fortress
+2 Island
+10 Plains

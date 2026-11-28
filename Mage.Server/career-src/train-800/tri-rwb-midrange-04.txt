@@ -1,0 +1,25 @@
+# name: Train800 tri-rwb-midrange-04
+# archetype: midrange
+# colors: RWB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Agency Coroner
+1 Artillerize
+1 Champion of Dusk
+3 Enterprising Scallywag
+3 Hanweir Garrison
+4 Hazoret, Godseeker
+2 Isshin, Two Heavens as One
+4 Mardu Charm
+3 Odric, Blood-Cursed
+3 Olivia, Mobilized for War
+1 Sabertooth Outrider
+1 Sunset Strikemaster
+4 The Scorpion God
+3 Vona, Butcher of Magan
+4 Blackcleave Cliffs
+4 Dragonskull Summit
+4 Haunted Ridge
+2 Mountain
+6 Plains
+2 Smoldering Marsh
+2 Swamp

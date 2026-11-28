@@ -1,0 +1,35 @@
+# name: Train800 lim-g-rg-ctrl-12
+# archetype: limited_ctrl
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Agate Instigator
+2 Archers of Qarsi
+1 Beckett Mariner, Impetuous Ensign
+1 Branching Bolt
+1 Burning Sun's Avatar
+1 Conscripted Infantry
+2 Courser of Kruphix
+1 Dryad Greenseeker
+1 Eumidian Terrabotanist
+2 Expedite
+1 Flame-Wreathed Phoenix
+1 Germinating Wurm
+2 Harbinger of the Hunt
+2 Lithobraking
+1 Meria, Scholar of Antiquity
+2 Merry Bards
+1 Nyxborn Colossus
+1 Rearing Embermare
+2 Reckless Rage
+1 Renegade Firebrand
+2 Savage Punch
+1 Steel Hellkite
+1 Summon: Fat Chocobo
+2 Tears of Valakut
+1 Upriser Renegade
+1 Woodland Bellower
+2 Cinder Glade
+9 Forest
+1 Karplusan Forest
+11 Mountain
+2 Rootbound Crag

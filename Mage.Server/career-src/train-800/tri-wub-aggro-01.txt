@@ -1,0 +1,27 @@
+# name: Train800 tri-wub-aggro-01
+# archetype: aggro
+# colors: WUB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Aerial Boost
+1 Boomerang Basics
+2 Coeurl
+2 Dakkon, Shadow Slayer
+2 Fallen Askari
+4 Incisor Glider
+2 Oildeep Gearhulk
+3 Phyrexian Vivisector
+3 Queza, Augur of Agonies
+4 Ronom Unicorn
+2 Thraben Standard Bearer
+2 Tidecaller Mentor
+2 Tithing Blade
+2 Tolarian Geyser
+3 Torment of Hailfire
+2 War Screecher
+4 Great Arashin City
+5 Island
+4 Isolated Chapel
+2 Meticulous Commons
+4 Neglected Manor
+2 Plains
+1 Swamp

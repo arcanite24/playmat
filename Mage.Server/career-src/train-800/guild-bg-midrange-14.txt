@@ -1,0 +1,23 @@
+# name: Train800 guild-bg-midrange-14
+# archetype: midrange
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Bebop & Rocksteady
+4 Bugenhagen, Wise Elder
+2 Death-Hood Cobra
+3 Environmental Scientist
+2 Hivespine Wolverine
+4 Jecht, Reluctant Guardian
+2 Llanowar Envoy
+4 Pierce the Sky
+3 Reptil, Dinomorpher
+1 Setessan Tactics
+4 Stoic Grove-Guide
+2 Tenacious Hunter
+1 Vicious Conquistador
+1 Vorinclex, Monstrous Raider
+12 Forest
+4 Overgrown Tomb
+2 Strangled Cemetery
+2 Swamp
+4 Woodland Cemetery

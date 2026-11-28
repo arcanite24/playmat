@@ -1,0 +1,26 @@
+# name: Train800 tribal-br-goblin-01
+# archetype: tribal (Goblin)
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Ardoz, Cobbler of War
+3 Boggart Cursecrafter
+4 Bolg's Company
+2 Bolg, Erebor's Reckoning
+2 Broadside Bombardiers
+2 Burnout Bashtronaut
+3 Champion of the Weird
+3 Devoted Duelist
+1 Garruk, Veiled Butcher
+2 Hobgoblin Bandit Lord
+2 Lavastep Raider
+1 Molten Blast
+1 Play with Fire
+2 Redcap Gutter-Dweller
+2 The Great Goblin
+1 Unlikely Aid
+4 Unsubtle Mockery
+4 Badlands
+2 Blackcleave Cliffs
+4 Haunted Ridge
+11 Mountain
+2 Swamp

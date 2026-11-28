@@ -1,0 +1,24 @@
+# name: Train800 guild-ur-bigmana-15
+# archetype: bigmana
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Artillerize
+1 Artistic Process
+2 Ballista Watcher
+3 Blitzball
+1 Chromatic Star
+2 Culmination of Studies
+3 Demanding Dragon
+3 Hazoret, Godseeker
+3 Marauding Looter
+4 Riptide Chimera
+1 Saheeli, Filigree Master
+1 Stark Industries Executive
+4 Transporter Malfunction
+3 Tyrant of Kher Ridges
+2 Yargle, Goliath of Otaria
+2 Island
+14 Mountain
+2 Peculiar Lighthouse
+4 Shivan Reef
+4 Sulfur Falls

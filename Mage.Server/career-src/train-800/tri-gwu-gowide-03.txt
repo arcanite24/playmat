@@ -1,0 +1,27 @@
+# name: Train800 tri-gwu-gowide-03
+# archetype: gowide
+# colors: GWU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Charming Prince
+2 Cryptolith Fragment
+2 Hornbash Mentor
+1 Jace, Cunning Castaway
+2 Katara, the Fearless
+1 Kiora, Master of the Depths
+2 Lumaret's Favor
+1 New Prahv Guildmage
+4 Park Heights Pegasus
+2 Refuse to Yield
+2 River Hoopoe
+4 Ruin-Lurker Bat
+3 Startle
+2 Void Grafter
+4 Voracious Wurm
+3 Zegana, Utopian Speaker
+4 Brushland
+4 Etched Cornfield
+2 Forest
+4 Grove of the Guardian
+4 Island
+2 Plains
+2 Spara's Headquarters

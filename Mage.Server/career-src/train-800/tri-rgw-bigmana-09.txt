@@ -1,0 +1,25 @@
+# name: Train800 tri-rgw-bigmana-09
+# archetype: bigmana
+# colors: RGW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Arbor Colossus
+2 Astor, Bearer of Blades
+4 Captain America, Unbowed
+1 Carven Caryatid
+2 Charging Monstrosaur
+2 Down in the Valley
+3 Energy Refractor
+3 Flame Lash
+1 Freestrider Lookout
+2 Frenzied Tilling
+4 Kellan, Daring Traveler
+3 Samut, Voice of Dissent
+2 Spider-Man, To the Rescue
+1 The Celestus
+4 Brushland
+2 Cinder Glade
+5 Forest
+5 Mountain
+2 Plains
+4 Razorverge Thicket
+4 Sunpetal Grove

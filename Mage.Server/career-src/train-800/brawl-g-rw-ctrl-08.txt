@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-rw-ctrl-08
+# archetype: brawl_ctrl
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Adult Gold Dragon
+1 Anje's Ravager
+1 Armageddon
+1 Auratog
+1 Blaze Commando
+1 Boulder Dash
+1 Captain of the Watch
+1 Captivating Unicorn
+1 Dawnstrike Vanguard
+1 Descent of the Dragons
+1 Desolation of Smaug
+1 Embermouth Sentinel
+1 Excavation Elephant
+1 Feed the Flames
+1 Fili the Pathfinder
+1 Geier Reach Bandit
+1 Halvar, God of Battle
+1 Hangar Scrounger
+1 Hellspur Posse Boss
+1 Invasion of Kaldheim
+1 Liberating Combustion
+1 Militia Rallier
+1 Overlord of the Boilerbilges
+1 Protective Response
+1 Relic of Progenitus
+1 Ronom Unicorn
+1 Rust Harvester
+1 Scorching Shot
+1 Starfall
+1 Tormenting Voice
+1 Tyrant of Valakut
+1 Unexpected Windfall
+1 War-Trained Slasher
+1 Wayward Giant
+1 Witchstalker Frenzy
+1 Battlefield Forge
+1 Clifftop Retreat
+1 Dalkovan Encampment
+1 Dedicated Commons
+1 Inspiring Vantage
+14 Mountain
+2 Plains
+1 Raucous Carnival
+1 Sacred Foundry
+1 Sunbaked Canyon
+1 Sundown Pass

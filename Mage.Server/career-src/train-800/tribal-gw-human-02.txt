@@ -1,0 +1,25 @@
+# name: Train800 tribal-gw-human-02
+# archetype: tribal (Human)
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aim High
+3 Alert Heedbonder
+4 Beregond of the Guard
+3 Black Panther, Vanguard
+4 Calix, Destiny's Hand
+2 Dawnhart Disciple
+2 Eager First-Year
+2 Earthshaker Dreadmaw
+2 Hamlet Captain
+1 Heron's Grace Champion
+1 Hidden Dragonslayer
+3 Hope Tender
+3 Jukai Trainee
+1 Lion Heart
+4 Worthy Knight
+1 Wylie Duke, Atiin Hero
+2 Brushland
+8 Forest
+4 Grove of the Guardian
+5 Plains
+4 Sunpetal Grove

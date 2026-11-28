@@ -1,0 +1,38 @@
+# name: Train800 lim-t-wbg-ctrl-06
+# archetype: limited_ctrl
+# colors: WBG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Angel of Sanctions
+2 Azula Always Lies
+1 Bladebrand
+2 Blessed Ghoul
+1 Buy Your Silence
+1 Dead Reveler
+1 Driftgloom Coyote
+2 Exalted Sunborn
+1 Fathom Fleet Captain
+2 Griffnaut Tracker
+2 Ivorytusk Fortress
+1 Liesa, Forgotten Archangel
+1 Lifecrafter's Gift
+1 Merciless Resolve
+1 Mindwrack Harpy
+2 Moldering Karok
+1 Necropanther
+2 Panicked Bystander
+1 Phyrexian Warhorse
+1 Ritual of Soot
+1 Roxxon Brutes
+1 Sixth Sense
+1 Swarm Culler
+1 Vampire Champion
+1 Vicious Offering
+2 Whisper of the Dross
+1 Yargle, Glutton of Urborg
+2 Caves of Koilos
+4 Forest
+2 Meticulous Commons
+2 Neglected Manor
+5 Plains
+2 Shattered Sanctum
+8 Swamp

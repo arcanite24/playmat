@@ -1,0 +1,26 @@
+# name: Train800 tri-rwb-midrange-07
+# archetype: midrange
+# colors: RWB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Arbaaz Mir
+2 Attack-in-the-Box
+1 Deathknell Berserker
+2 Elenda, Saint of Dusk
+2 Go Ninja Go
+2 Grand Ball Guest
+3 Haliya, Guided by Light
+4 Ion Cannon
+1 Mardu Charm
+4 Mounted Dreadknight
+2 Powerstone Fracture
+3 Relentless Raptor
+3 Scorchmark
+1 Summon: G.F. Ifrit
+4 Voyager Quickwelder
+4 Inspiring Vantage
+2 Mountain
+3 Plains
+4 Raucous Carnival
+4 Sunbaked Canyon
+2 Sundown Pass
+5 Swamp

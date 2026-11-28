@@ -1,0 +1,27 @@
+# name: Train800 tri-gwu-midrange-05
+# archetype: midrange
+# colors: GWU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Airbender's Reversal
+2 Ant-Man, Reformed Rogue
+2 Arcades, the Strategist
+3 Battery Bearer
+1 Clear
+4 Dramatic Rescue
+4 Flutterfox
+2 Geistwave
+4 Maraleaf Pixie
+1 Merfolk Cave-Diver
+2 Nessian Boar
+2 Overlord of the Hauntwoods
+1 Path to Exile
+3 Reito Sentinel
+3 Sea-Dasher Octopus
+1 Wall of Forgotten Pharaohs
+4 Dreamroot Cascade
+2 Forest
+1 Island
+4 Lakeside Shack
+6 Plains
+2 Transformative Commons
+4 Yavimaya Coast

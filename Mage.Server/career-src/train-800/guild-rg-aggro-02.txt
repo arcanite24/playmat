@@ -1,0 +1,24 @@
+# name: Train800 guild-rg-aggro-02
+# archetype: aggro
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Albino Troll
+2 Bristlebud Farmer
+2 Cackling Flames
+4 Chainweb Aracnir
+3 Deeproot Wayfinder
+2 Flame Lash
+3 Gallia of the Endless Dance
+3 Incendiary Flow
+3 Loxodon Surveyor
+2 Reckless Ransacking
+3 Reptil, Dinomorpher
+2 Sprouting Goblin
+2 Ulvenwald Oddity
+3 Volt Charge
+3 Wildfire Wickerfolk
+4 Bleeding Woods
+4 Cinder Glade
+9 Forest
+3 Mountain
+2 Stomping Ground

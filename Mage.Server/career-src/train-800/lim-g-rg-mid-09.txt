@@ -1,0 +1,39 @@
+# name: Train800 lim-g-rg-mid-09
+# archetype: limited_mid
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Agonasaur Rex
+1 Borderland Minotaur
+1 Bronzeplate Boar
+1 Burning-Tree Emissary
+1 Chrome Cat
+1 Crushing Canopy
+1 Dal R'El, Augment Orphan
+2 Dawntreader Elk
+1 Deathgorge Scavenger
+1 Elfhame Wurm
+1 Freya Crescent
+1 Gargos, Vicious Watcher
+1 Gilded Ghoda
+1 Graf Mole
+1 Impossible Inferno
+1 Knowledge and Power
+1 Might of the Masses
+2 Migratory Greathorn
+1 Mishra's Command
+2 Ravenous Daggertooth
+1 Ravenous Robots
+2 Rebel Salvo
+2 Smoldering Werewolf
+2 Striking Sliver
+1 Terrarion
+1 Unlucky Cabbage Merchant
+1 Vivien's Jaguar
+1 Volatile Arsonist
+1 Wayward Giant
+1 Weldfast Monitor
+2 Cinder Glade
+9 Forest
+10 Mountain
+2 Rockfall Vale
+1 Stomping Ground

@@ -1,0 +1,39 @@
+# name: Train800 lim-g-gw-ctrl-12
+# archetype: limited_ctrl
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Aerie Bowmasters
+1 Ajani's Response
+1 Argentum Masticore
+2 Bonded Construct
+2 Briarhorn
+1 Cavalry Drillmaster
+1 Celestus Sanctifier
+1 Conifer Wurm
+1 Cragplate Baloth
+1 Curator Beastie
+1 Dimensional Exile
+1 Fog of War
+1 Giant Adephage
+1 Kaheera, the Orphanguard
+2 Leonin Skyhunter
+1 Meanders Guide
+1 Owlbear
+1 Pinion Feast
+1 Polukranos Reborn
+1 Riot Control
+1 Scion Summoner
+1 Selesnya Charm
+1 Stockpiling Celebrant
+1 Sylvan Primordial
+1 Tablet of Compleation
+2 Test of Courage
+1 The Thing, Ben Grimm
+1 Triumphant Surge
+1 Union of the Third Path
+1 Wary Okapi
+14 Forest
+2 Horizon Canopy
+6 Plains
+2 Razorverge Thicket
+1 Vigorbloom Annex

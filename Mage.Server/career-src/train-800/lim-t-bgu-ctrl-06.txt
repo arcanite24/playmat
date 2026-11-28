@@ -1,0 +1,37 @@
+# name: Train800 lim-t-bgu-ctrl-06
+# archetype: limited_ctrl
+# colors: BGU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Advanced Stitchwing
+2 Bonny Pall, Clearcutter
+1 Catacomb Sifter
+1 Clairvoyance
+1 Claws of Wirewood
+1 Cloudreader Sphinx
+1 Dakmor Plague
+2 Devotee of Strength
+1 Drownyard Amalgam
+1 Elusive Tormentor
+1 Enter the God-Eternals
+2 Festering Mummy
+1 Gnarlback Rhino
+2 Go for the Throat
+2 Honest Rutstein
+1 Impale
+1 Killing Glare
+1 Memory Drain
+1 Merfolk Spy
+2 Opt
+1 Prophet of the Peak
+1 Quandrix Command
+2 Shattered Wings
+2 Thousand-Faced Shadow
+2 Titania, Rugged Rumbler
+1 Vine Mare
+2 Darkslick Shores
+5 Forest
+6 Island
+2 Opulent Palace
+6 Swamp
+2 Transformative Commons
+2 Zagoth Triome

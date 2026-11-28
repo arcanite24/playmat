@@ -1,0 +1,24 @@
+# name: Train800 guild-gu-control-20
+# archetype: control
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Bounce Off
+3 Brambleguard Veteran
+2 Combat Courier
+3 Creeping Corrosion
+1 Depart the Realm
+1 Glimmerburst
+2 Pillar of War
+3 Quicksilver Fisher
+2 Retraction Helix
+1 Shapers of Nature
+4 Silumgar's Scorn
+2 Spider-Sense
+3 Stockman, Mad Fly-entist
+2 Stolen by the Fae
+2 Tyrranax Rex
+4 Botanical Sanctum
+3 Forest
+12 Island
+4 Lakeside Shack
+2 Yavimaya Coast

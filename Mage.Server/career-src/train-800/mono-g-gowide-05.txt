@@ -1,0 +1,21 @@
+# name: Train800 mono-g-gowide-05
+# archetype: gowide
+# colors: G
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Acridian
+4 Avatar of the Resolute
+1 Axebane Ferox
+1 Brass Man
+2 Loam Dryad
+2 Might of the Old Ways
+2 Narnam Renegade
+1 Nissa, Voice of Zendikar
+4 Old-Growth Troll
+4 Pawpatch Formation
+4 Redtooth Vanguard
+2 Rod of Ruin
+4 Surrak, Elusive Hunter
+2 Swordwise Centaur
+2 Titanic Growth
+1 Verdant Rebirth
+21 Forest

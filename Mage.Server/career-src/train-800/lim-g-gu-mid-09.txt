@@ -1,0 +1,32 @@
+# name: Train800 lim-g-gu-mid-09
+# archetype: limited_mid
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Bull's Strength
+1 Cavern Stomper
+2 Channeler Initiate
+2 Dune Diviner
+2 Eject
+1 Fanatical Strength
+2 Glacier Godmaw
+1 Incubator Drone
+2 Intrepid Trufflesnout
+2 Kulrath Mystic
+1 Lost in the Spirit World
+1 Lys Alana Informant
+1 Maraleaf Pixie
+2 Mental Modulation
+1 Overgrown Battlement
+2 Perimeter Patrol
+2 Pulse of Murasa
+1 Ramunap Hydra
+2 Scrounging Skyray
+2 Tenacious Tomeseeker
+2 Thassa, God of the Sea
+1 Waterspout Warden
+2 Yargle, Goliath of Otaria
+1 Botanical Sanctum
+11 Forest
+8 Island
+2 Transformative Commons
+2 Yavimaya Coast

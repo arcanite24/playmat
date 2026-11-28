@@ -1,0 +1,24 @@
+# name: Train800 tri-wub-tempo-04
+# archetype: tempo
+# colors: WUB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Automated Warfare System
+3 Flunk
+3 Frontline Medic
+3 Graveyard Trespasser
+4 Hope Estheim
+2 It'll Quench Ya!
+2 Jace, Wielder of Mysteries
+3 Pitiless Pontiff
+3 Rona's Vortex
+4 Shadowstorm Vizier
+2 Sokka's Haiku
+2 Sunset Saboteur
+4 Test of Talents
+4 Darkslick Shores
+4 Drowned Catacomb
+2 Island
+5 Plains
+2 Shipwreck Marsh
+1 Swamp
+4 Underground River

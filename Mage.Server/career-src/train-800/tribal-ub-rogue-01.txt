@@ -1,0 +1,25 @@
+# name: Train800 tribal-ub-rogue-01
+# archetype: tribal (Rogue)
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Butch DeLoria, Tunnel Snake
+2 Duskmantle Operative
+3 Expedition Skulker
+3 Faerie Duelist
+4 Final Vengeance
+1 Glamermite
+3 Inner Demons Gangsters
+1 Legion's End
+4 Midnight Entourage
+1 Obyra, Dreaming Duelist
+2 Ogre Slumlord
+2 Presumed Dead
+1 Satoru, the Infiltrator
+1 Syndicate Trafficker
+3 Thieves' Guild Enforcer
+3 Thornplate Intimidator
+4 Darkslick Shores
+4 Drowned Catacomb
+2 Island
+2 Sunken Hollow
+10 Swamp

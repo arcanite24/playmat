@@ -1,0 +1,56 @@
+# name: Train800 brawl-t-rwb-aggro-01
+# archetype: brawl_aggro
+# colors: RWB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Alesha, Who Smiles at Death
+1 Brainstone
+1 Butcher of the Horde
+1 Carnage Gladiator
+1 Casey Jones, Jury-Rig Justiciar
+1 Containment Priest
+1 Crackling Doom
+1 Dawnwing Marshal
+1 Dust Stalker
+1 Goatnap
+1 Harried Artisan
+1 Harried Spearguard
+1 Hidetsugu, Devouring Chaos
+1 Hired Poisoner
+1 Knight of Dusk's Shadow
+1 Kolaghan Stormsinger
+1 Kroxa and Kunoros
+1 Light of the Legion
+1 Liliana's Steward
+1 Mardu Charm
+1 Mardu Siegebreaker
+1 Mortify
+1 Noxious Groodion
+1 Precinct Captain
+1 Rageblood Shaman
+1 Rufus Shinra
+1 Rumor Gatherer
+1 Savai Sabertooth
+1 Siege Smash
+1 Sorcerer of the Fang
+1 Speedway Fanatic
+1 Swooping Lookout
+1 Tempered Veteran
+1 Vindictive Triumph
+1 Volt Charge
+1 Wretched Doll
+1 Caves of Koilos
+1 Concealed Courtyard
+1 Dalkovan Encampment
+1 Dedicated Commons
+1 Great Arashin City
+1 Isolated Chapel
+1 Meticulous Commons
+5 Mountain
+1 Nomad Outpost
+2 Plains
+1 Raucous Carnival
+1 Sacred Foundry
+1 Savai Triome
+1 Smoldering Marsh
+1 Sundown Pass
+4 Swamp

@@ -1,0 +1,41 @@
+# name: Train800 lim-t-gwu-aggro-02
+# archetype: limited_aggro
+# colors: GWU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Arcane Investigator
+1 Ascendant Spirit
+2 Boros Elite
+2 Brigid's Command
+1 Devilthorn Fox
+1 Elaborate Firecannon
+1 Figure of Fable
+1 Frilled Sandwalla
+2 Ghirapur Osprey
+1 Hekma Sentinels
+1 Hemmer, Fixing What Is Broken
+2 Howling Galefang
+1 Informed Inkwright
+1 Jump Scare
+2 King Darien XLVIII
+1 Lyev Skyknight
+1 Makeshift Binding
+1 Mistcaller
+1 Niambi, Esteemed Speaker
+2 Oblivious Bookworm
+1 Rogue Refiner
+1 Runic Armasaur
+1 Rustwing Falcon
+1 Shanna, Purifying Blade
+1 Shape the Sands
+2 Soul Partition
+2 Stratosoarer
+1 Third Path Savant
+1 Thwip!
+1 Weather Maker
+2 Forest
+2 Horizon Canopy
+7 Island
+2 Overgrown Farmland
+5 Plains
+2 Razorverge Thicket
+2 Spara's Headquarters

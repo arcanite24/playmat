@@ -1,0 +1,26 @@
+# name: Train800 tri-urw-midrange-07
+# archetype: midrange
+# colors: URW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Daggermaw Megalodon
+4 Effortless Master
+3 Falcon Abomination
+2 Geistblast
+2 Giantfall
+1 Johann's Stopgap
+4 Loyal Pegasus
+3 Myr Convert
+1 Narset of the Ancient Way
+2 Narset's Rebuke
+3 Narset, Jeskai Waymaster
+2 Rekindling Phoenix
+3 Shocking Grasp
+1 Trial of Zeal
+1 Wojek Halberdiers
+2 Island
+2 Mountain
+2 Peculiar Lighthouse
+6 Plains
+4 Spirebluff Canal
+4 Stormcarved Coast
+4 Sulfur Falls

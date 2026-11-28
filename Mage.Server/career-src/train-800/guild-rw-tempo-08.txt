@@ -1,0 +1,25 @@
+# name: Train800 guild-rw-tempo-08
+# archetype: tempo
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Arcane Teachings
+3 Bolt of Keranos
+2 Bucky Barnes, Eager Ally
+2 Cackling Flames
+1 Chain Lightning
+1 Idol of the Deep King
+1 Kindled Heroism
+3 Lorehold Command
+2 Maelstrom Artisan
+4 Red Guardian, Super-Soldier
+2 Sacred Fire
+3 Sentinel Sliver
+1 Solitary Cell
+4 Tenth District Legionnaire
+4 Veteran Survivor
+3 Volt Charge
+4 Clifftop Retreat
+4 Dedicated Commons
+8 Mountain
+4 Plains
+2 Sacred Foundry

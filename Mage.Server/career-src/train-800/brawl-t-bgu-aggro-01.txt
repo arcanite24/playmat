@@ -1,0 +1,56 @@
+# name: Train800 brawl-t-bgu-aggro-01
+# archetype: brawl_aggro
+# colors: BGU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Arasta of the Endless Web
+1 Avatar of Burgeoning Echoes
+1 Balustrade Wurm
+1 Bitter Triumph
+1 Blossoming Defense
+1 Cloud Spirit
+1 Conceited Witch
+1 Copy Catchers
+1 Dina, Soul Steeper
+1 Doc Aurlock, Grizzled Genius
+1 Dockside Chef
+1 Eidolon of Blossoms
+1 Evolved Sleeper
+1 Exdeath, Void Warlock
+1 Exemplar of Strength
+1 Fangkeeper's Familiar
+1 Grim Guardian
+1 Knowledge Seeker
+1 Mischievous Sneakling
+1 Nashi, Moon's Legacy
+1 Naturalize
+1 Pestilent Wolf
+1 Rainveil Rejuvenator
+1 Rat Out
+1 Raven Eagle
+1 Scrounging Skyray
+1 Sin, Spira's Punishment
+1 Slaughter Specialist
+1 Slitherwisp
+1 Squirrelanoids
+1 Steel Leaf Champion
+1 Trygon Predator
+1 Verdant Automaton
+1 Verity Circle
+1 Vohar, Vodalian Desecrator
+1 Vraska's Finisher
+1 Bayou
+1 Blooming Marsh
+1 Deathcap Glade
+3 Forest
+1 Formidable Commons
+5 Island
+1 Lakeside Shack
+1 Llanowar Wastes
+1 Opulent Palace
+1 Overgrown Tomb
+1 Strangled Cemetery
+3 Swamp
+1 Transformative Commons
+1 Woodland Cemetery
+1 Yavimaya Coast
+1 Zagoth Triome

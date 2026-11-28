@@ -1,0 +1,25 @@
+# name: Train800 guild-rw-midrange-11
+# archetype: midrange
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Armory Paladin
+3 Blind-Spot Giant
+1 Blindblast
+1 Boulder Dash
+4 Cursed Courtier
+1 Dismissive Pyromancer
+1 High Noon
+2 Hovel Hurler
+2 Hurler Cyclops
+3 Lorehold Command
+3 Monica Rambeau
+3 Prompto Argentum
+2 Pyroconvergence
+2 Sunhome Stalwart
+2 Tiger-Dillo
+4 Unfriendly Fire
+4 Dalkovan Encampment
+11 Mountain
+3 Plains
+2 Raucous Carnival
+4 Sacred Foundry

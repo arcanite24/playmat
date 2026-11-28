@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-ur-ramp-06
+# archetype: brawl_ramp
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Abstract Paintmage
+1 Barrage Tyrant
+1 Birgi, God of Storytelling
+1 Blisterstick Shaman
+1 Burn, Burn, Tree and Fern
+1 Caldera Pyremaw
+1 Chandra, Torch of Defiance
+1 Compass Gnome
+1 Coral Trickster
+1 Cryptic Serpent
+1 Diver Skaab
+1 Dragon Whisperer
+1 Elvenking's Harper
+1 Glitch Ghost Surveyor
+1 HYDRA Assault Robot
+1 Izzet Cluestone
+1 Izzet Keyrune
+1 Izzet Locket
+1 Janjeet Sentry
+1 Jwari Disruption
+1 Kraum, Violent Cacophony
+1 Leyline Phantom
+1 Majestic Metamorphosis
+1 Roadside Blowout
+1 Slick Sequence
+1 Smaug, the Great Calamity
+1 Soul-Guide Lantern
+1 Stockman, Mad Fly-entist
+1 Summon: Esper Ramuh
+1 Terminal Velocity
+1 Urabrask's Anointer
+1 Volatile Arsonist
+1 Weaver of Lightning
+1 Whirler Rogue
+1 Zahid, Djinn of the Lamp
+1 Airship Engine Room
+1 Frostboil Snarl
+6 Island
+10 Mountain
+1 Peculiar Lighthouse
+1 Shivan Reef
+1 Spirebluff Canal
+1 Stormcarved Coast
+1 Sulfur Falls
+1 TCRI Building
+1 Temple of Epiphany

@@ -1,0 +1,27 @@
+# name: Train800 tri-wub-midrange-08
+# archetype: midrange
+# colors: WUB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Carrier Thrall
+3 Celestial Archon
+2 Confirm Suspicions
+1 Final Flourish
+1 Geyser Leaper
+2 Kaito, Bane of Nightmares
+3 Kefnet the Mindful
+2 Myriad Construct
+3 Niambi, Esteemed Speaker
+4 Perilous Voyage
+2 Phyrexian Obliterator
+2 Repel Calamity
+3 Silvergill Adept
+1 The Meathook Massacre
+3 The Mighty Thor, Jane Foster
+2 Woe Strider
+2 Arcane Sanctum
+2 Island
+6 Plains
+4 Shipwreck Marsh
+4 Sunken Hollow
+2 Swamp
+4 Underground River

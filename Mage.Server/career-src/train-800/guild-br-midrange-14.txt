@@ -1,0 +1,25 @@
+# name: Train800 guild-br-midrange-14
+# archetype: midrange
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Black Widow, Deadly Hunter
+4 Bonecrusher Giant
+1 Daring Buccaneer
+4 Electro, Assaulting Battery
+3 Fateful End
+3 Fire Prophecy
+2 Gadrak, the Crown-Scourge
+2 Hand That Feeds
+3 Incinerator of the Guilty
+1 Leech Gauntlet
+1 Manhole Missile
+4 Norin, Swift Survivalist
+3 Punish the Enemy
+1 Rile
+1 Seymour Flux
+1 Wildfire Howl
+4 Badlands
+12 Mountain
+2 Smoldering Marsh
+4 Sulfurous Springs
+2 Swamp

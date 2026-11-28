@@ -1,0 +1,19 @@
+# name: Train800 mono-r-aggro-02
+# archetype: aggro
+# colors: R
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Bloodthirsty Adversary
+4 Bonecrusher Giant
+4 Chandra, Novice Pyromancer
+3 Chandra, Torch of Defiance
+3 Dragonkin Berserker
+4 Fleeting Effigy
+3 Goldnight Castigator
+3 Mouser Attack!
+2 Munitions Enthusiast
+2 Sunset Strikemaster
+2 Tweeze
+2 Wayward Guide-Beast
+2 Yuyan Archers
+1 Zariel, Archduke of Avernus
+22 Mountain

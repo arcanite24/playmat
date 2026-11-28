@@ -1,0 +1,38 @@
+# name: Train800 lim-g-wb-aggro-04
+# archetype: limited_aggro
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 A.I.M. Synthoids
+2 Acererak the Archlich
+1 Ammit Eternal
+1 Angelic Overseer
+2 Ayli, Eternal Pilgrim
+1 Beloved Princess
+1 Bloodied Ghost
+1 Bone Picker
+1 Chief of the Scale
+1 Company Commander
+1 Containment Priest
+1 Dark Salvation
+1 Divine Verdict
+2 Enduring Tenacity
+1 Fleshtaker
+1 Hooded Blightfang
+2 Hopeful Eidolon
+2 Join the Dead
+1 Lightshield Parry
+1 Okiba Reckoner Raid
+1 Overzealous Muscle
+2 Shrouded Shepherd
+1 Silverstrike
+2 Stone Haven Medic
+1 Strength of Arms
+1 Syr Vondam, Sunstar Exemplar
+2 Teysa, Opulent Oligarch
+1 Two-Headed Zombie
+1 Wings of the Cosmos
+2 Concealed Courtyard
+2 Meticulous Commons
+9 Plains
+1 Shattered Sanctum
+9 Swamp

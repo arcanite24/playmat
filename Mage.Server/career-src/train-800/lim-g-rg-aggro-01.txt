@@ -1,0 +1,40 @@
+# name: Train800 lim-g-rg-aggro-01
+# archetype: limited_aggro
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Airship Crash
+1 Anara, Wolvid Familiar
+1 Bestow Greatness
+1 Bloodthirsty Adversary
+1 Boon Satyr
+1 Cactuar
+1 Clan Guildmage
+2 Clash of the Eikons
+1 Colossodon Yearling
+2 Daring Buccaneer
+2 Freestrider Commando
+1 Frenzied Baloth
+1 Galvanic Blast
+1 Heartfire
+1 Inferno Fist
+1 Khenra Scrapper
+1 Mutagen Man, Living Ooze
+2 Old-Growth Dryads
+1 Prickly Marmoset
+1 Prowcatcher Specialist
+1 Raging Swordtooth
+2 Red Herring
+1 Run Amok
+1 Scout the City
+1 Scrapshooter
+1 Surrak and Goreclaw
+1 Swell of Growth
+2 Tackle Artist
+1 Ulvenwald Oddity
+2 Village Messenger
+1 Wolverine, Fierce Fighter
+2 Bleeding Woods
+2 Cinder Glade
+11 Forest
+6 Mountain
+1 Stomping Ground

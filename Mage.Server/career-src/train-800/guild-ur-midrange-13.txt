@@ -1,0 +1,23 @@
+# name: Train800 guild-ur-midrange-13
+# archetype: midrange
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Brimstone Volley
+3 Broadside Barrage
+2 Cunning Strike
+1 Deadapult
+4 Dragon Turtle
+4 Flaring Cinder
+2 Galazeth Prismari
+4 Hydraulic Helper
+2 Hypothesizzle
+4 Karfell Harbinger
+2 Magmatic Hellkite
+2 Ral, Izzet Viceroy
+2 Seismic Monstrosaur
+2 Surtland Elementalist
+10 Island
+4 Mountain
+4 Peculiar Lighthouse
+2 Spirebluff Canal
+4 Stormcarved Coast

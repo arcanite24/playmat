@@ -1,0 +1,39 @@
+# name: Train800 lim-t-rgw-ctrl-05
+# archetype: limited_ctrl
+# colors: RGW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Anthropede
+2 Anzrag's Rampage
+1 Armored Wolf-Rider
+2 Axebane Stag
+1 Bot Bashing Time
+2 Cone of Flame
+1 Court Cleric
+1 Crush
+1 Electric Revelation
+2 Flensing Raptor
+1 Goblin Diplomats
+1 Harried Dronesmith
+1 Human Torch, Johnny Storm
+1 Minsc, Beloved Ranger
+2 Moss Viper
+1 Palladia-Mors, the Ruiner
+1 Plunge into Winter
+1 Reito Sentinel
+1 Season of the Burrow
+1 Seized from Slumber
+1 Selesnya Locket
+1 Sentinel of the Eternal Watch
+1 Shadow Glider
+1 Shredded Sails
+1 Spearpoint Oread
+2 Sprinting Warbrute
+1 Stone Docent
+1 The Last Agni Kai
+2 Battlefield Forge
+2 Dedicated Commons
+7 Forest
+8 Mountain
+2 Plains
+2 Sacred Foundry
+2 Sundown Pass

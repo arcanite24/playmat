@@ -1,0 +1,24 @@
+# name: Train800 tribal-rw-human-02
+# archetype: tribal (Human)
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Acrobatic Leap
+1 Bomber Corps
+2 Brutal Cathar
+2 Crowd of True Believers
+4 Drannith Healer
+3 Favored Hoplite
+4 Haazda Marshal
+2 Militia Bugler
+2 Ojutai Exemplars
+3 Quicksmith Rebel
+1 Reinforced Ronin
+4 Risona, Asari Commander
+3 Steadfast Sentry
+3 Syndic of Tithes
+2 Titan of Eternal Fire
+4 Battlefield Forge
+4 Dalkovan Encampment
+2 Mountain
+10 Plains
+2 Sacred Foundry

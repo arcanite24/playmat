@@ -1,0 +1,25 @@
+# name: Train800 tri-urw-midrange-08
+# archetype: midrange
+# colors: URW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Akoum Firebird
+3 Anafenza, Kin-Tree Spirit
+3 Ardent Electromancer
+2 Chilling Trap
+2 Compassionate Healer
+3 Daring Saboteur
+1 Direct Current
+4 Eject
+3 Fateful End
+2 Gila Courser
+3 Jaded Sell-Sword
+2 Prismari Command
+4 Ripscale Predator
+2 Vraska, Soul of Stone
+4 Dedicated Commons
+4 Island
+4 Mountain
+2 Plains
+4 Spirebluff Canal
+4 Sunbaked Canyon
+2 Sundown Pass

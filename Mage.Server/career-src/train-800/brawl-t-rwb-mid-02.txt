@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-rwb-mid-02
+# archetype: brawl_mid
+# colors: RWB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Akki Ronin
+1 Arcane Spyglass
+1 Armory Veteran
+1 Aziza, Mage Tower Captain
+1 Barbarian Lunatic
+1 Bloodletter of Aclazotz
+1 Blooming Blast
+1 Cavalry Master
+1 Chitin Gravestalker
+1 Dark Leo & Shredder
+1 Death Bomb
+1 Discerning Financier
+1 Dwarven Forge-Chanter
+1 Ember Swallower
+1 Expedition Envoy
+1 Eyeblight Assassin
+1 Federation Field Medic
+1 Go for the Throat
+1 Goblin Roughrider
+1 Grasp of Darkness
+1 Imodane's Recruiter
+1 Jokulhaups
+1 Knight of the Keep
+1 Mister Negative
+1 Mukotai Ambusher
+1 Salvaged Manaworker
+1 Sanctify
+1 Sandworm
+1 Shadowborn Demon
+1 Shrouded Shepherd
+1 Siege Veteran
+1 Skyraker Giant
+1 Snapdax, Apex of the Hunt
+1 Twilight Panther
+1 Zog, Triceraton Castaway
+1 Badlands
+1 Dalkovan Encampment
+1 Dedicated Commons
+1 Dragonskull Summit
+1 Haunted Ridge
+1 Inspiring Vantage
+2 Mountain
+1 Nomad Outpost
+5 Plains
+1 Raucous Carnival
+1 Razortrap Gorge
+1 Savai Triome
+1 Smoldering Marsh
+1 Sulfurous Springs
+1 Sunbaked Canyon
+5 Swamp

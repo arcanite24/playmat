@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-rwb-mid-03
+# archetype: brawl_mid
+# colors: RWB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Abigale, Eloquent First-Year
+1 Agonizing Demise
+1 Ancient Hellkite
+1 Blight Pile
+1 Burning Palm Efreet
+1 Bushmeat Poacher
+1 Charming Scoundrel
+1 Creakwood Safewright
+1 Cruel Grimnarch
+1 Crush Contraband
+1 Doom Foretold
+1 Ertha Jo, Frontier Mentor
+1 Fireborn Knight
+1 Gastal Thrillseeker
+1 Gearbane Orangutan
+1 Get the Point
+1 Glorious Protector
+1 Gravewaker
+1 Gryff Rider
+1 Hour of Revelation
+1 Howlsquad Heavy
+1 Infernal Pet
+1 Instant Ramen
+1 Krumar Bond-Kin
+1 La'An Noonien-Singh, Security
+1 Mind Raker
+1 Nahiri, Forged in Fury
+1 Nightfire Giant
+1 Perils of the Past
+1 Pet Sehlat
+1 Ray of Enfeeblement
+1 Returned Reveler
+1 Stalactite Stalker
+1 Sun-Blessed Guardian
+1 Youthful Knight
+1 Badlands
+1 Blackcleave Cliffs
+1 Caves of Koilos
+1 Cinder Marsh
+1 Dragonskull Summit
+1 Haunted Ridge
+1 Isolated Chapel
+3 Mountain
+1 Nomad Outpost
+6 Plains
+1 Razortrap Gorge
+1 Savai Triome
+1 Shattered Sanctum
+1 Sunbaked Canyon
+1 Sundown Pass
+3 Swamp

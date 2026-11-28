@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-br-ramp-06
+# archetype: brawl_ramp
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 All-Fates Scroll
+1 Archive Arbiter
+1 Ashen Monstrosity
+1 Assembled Alphas
+1 Baleful Ammit
+1 Battlefield Scavenger
+1 Bedhead Beastie
+1 Blazing Firesinger
+1 Bolg of the North
+1 Bone Devourer
+1 Cult Conscript
+1 Desperate Farmer
+1 Draconic Intervention
+1 Earth-Cult Elemental
+1 Flameblade Angel
+1 Flayer Drone
+1 Insectoid Exterminator
+1 Kessig Forgemaster
+1 Lava Coil
+1 Olivia's Attendants
+1 Phyrexian Debaser
+1 Ragged Recluse
+1 Rakdos Locket
+1 Rakdos Roustabout
+1 Rakshasa Gravecaller
+1 Sawblade Skinripper
+1 Season of the Bold
+1 Seize the Spoils
+1 Shadow Alley Denizen
+1 Skizzik
+1 Sorceress's Schemes
+1 Suspicious Detonation
+1 The Bloodsky Massacre
+1 Undercity Scrounger
+1 Waste Not
+1 Badlands
+1 Blackcleave Cliffs
+1 Cinder Marsh
+1 Dragonskull Summit
+1 Haunted Ridge
+13 Mountain
+1 Razortrap Gorge
+1 Smoldering Marsh
+1 Sulfurous Springs
+3 Swamp
+1 Tramway Station

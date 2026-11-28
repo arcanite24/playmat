@@ -1,0 +1,39 @@
+# name: Train800 lim-t-urw-ctrl-06
+# archetype: limited_ctrl
+# colors: URW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Alquist Proft, Master Sleuth
+1 Call In a Professional
+1 Captain America, Steve Rogers
+1 Cathartic Pyre
+1 Chandra's Triumph
+1 Confounding Riddle
+1 Coveted Falcon
+1 Cruel Calculations
+1 Divination
+2 Explosive Getaway
+1 Fear of Falling
+2 Gargoyle Sentinel
+2 Gideon Blackblade
+1 Hanweir Garrison
+1 Hovel Hurler
+2 Jaxis, the Troublemaker
+1 Nebula Dragon
+1 Nightveil Sprite
+1 Preening Champion
+1 Prowling Caracal
+1 Realm-Cloaked Giant
+1 Resistance Skywarden
+1 Rile
+2 Sarkhan, Soul Aflame
+1 Siege Smash
+2 Smelt-Ward Ignus
+1 Spirit of the Labyrinth
+1 Unravel
+2 Dalkovan Encampment
+2 Inspiring Vantage
+9 Island
+5 Mountain
+3 Plains
+2 Raugrin Triome
+2 Sacred Foundry

@@ -1,0 +1,40 @@
+# name: Train800 lim-t-wub-mid-04
+# archetype: limited_mid
+# colors: WUB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Antagonist Incorporator
+1 Arashin Sunshield
+1 Artful Takedown
+1 Battle Menu
+1 Brackwater Elemental
+1 Campus Composer
+2 Cunning Geysermage
+1 Dawn Evangel
+1 Desperate Castaways
+1 Diminisher Witch
+1 Huatli's Snubhorn
+1 Kytheon's Irregulars
+1 Morlun, Devourer of Spiders
+1 Orazca Relic
+1 Pitiless Pontiff
+2 Promising Duskmage
+1 Reaping Willow
+2 Riding Red Hare
+1 Rogue Artificial Intelligence
+2 Ruthless Deathfang
+1 Shuri, Wakandan Inventor
+2 Sphinx of New Prahv
+1 Starfleet Spanner Jockey
+2 Sudden Strike
+1 Thirst for Discovery
+2 Ultimecia, Time Sorceress
+1 Veteran Survivor
+1 Void Rend
+1 Vraska's Conquistador
+2 Abandoned Campground
+2 Arcane Sanctum
+2 Fortified Beachhead
+2 Glacial Fortress
+3 Island
+5 Plains
+8 Swamp

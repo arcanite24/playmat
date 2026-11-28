@@ -1,0 +1,40 @@
+# name: Train800 brawl-m-b-mid-02
+# archetype: brawl_mid
+# colors: B
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Abyssal Specter
+1 Archfiend of Ifnir
+1 Auntie's Sentence
+1 Bloodthirsty Aerialist
+1 Brackish Trudge
+1 Carrion Beetles
+1 Cling to Dust
+1 Complex Automaton
+1 Dauthi Horror
+1 Depressurize
+1 Disciple of the Vault
+1 Dreaded Bat-Cloud
+1 Extinguish All Hope
+1 Gas Guzzler
+1 Gixian Skullflayer
+1 Gravelighter
+1 Hired Torturer
+1 Hythonia the Cruel
+1 Josu Vess, Lich Knight
+1 Order of Midnight
+1 Phyrexian Obliterator
+1 Plague Wight
+1 Plaguecrafter
+1 Reflective Golem
+1 Repeat Offender
+1 Risky Shortcut
+1 Secret Salvage
+1 Stone Golem
+1 Synapse Necromage
+1 The Death of Gwen Stacy
+1 Three Bowls of Porridge
+1 Tithebearer Giant
+1 Vampiric Rites
+1 Walking Corpse
+1 Zagoth Mamba
+25 Swamp

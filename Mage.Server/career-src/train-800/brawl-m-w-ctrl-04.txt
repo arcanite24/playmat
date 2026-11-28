@@ -1,0 +1,40 @@
+# name: Train800 brawl-m-w-ctrl-04
+# archetype: brawl_ctrl
+# colors: W
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Admonition Angel
+1 Adventurer's Airship
+1 Angel of Renewal
+1 Banish from Edoras
+1 Bear Trap
+1 Benalish Missionary
+1 Bring to Trial
+1 Champions from Beyond
+1 Conclave Tribunal
+1 Convalescent Care
+1 Dawn to Dusk
+1 Dawnfeather Eagle
+1 Daydream
+1 Drogskol Shieldmate
+1 Dutiful Servants
+1 Exquisite Archangel
+1 Frostbridge Guard
+1 Gideon's Battle Cry
+1 Grand Abolisher
+1 Harvestguard Alseids
+1 Herald of the Host
+1 Kinjalli's Sunwing
+1 Mardu Hordechief
+1 Oltec Cloud Guard
+1 Origin of the Avengers
+1 Planar Cleansing
+1 Revoke Existence
+1 Skeleton Key
+1 Slumbering Walker
+1 Spectacular Pileup
+1 Spiritcall Enthusiast
+1 Sunder the Gateway
+1 Sunset Pyramid
+1 Transcendent Envoy
+1 Trapjaw Tyrant
+25 Plains

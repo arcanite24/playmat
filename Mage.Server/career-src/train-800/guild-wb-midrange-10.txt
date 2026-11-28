@@ -1,0 +1,25 @@
+# name: Train800 guild-wb-midrange-10
+# archetype: midrange
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Candy Grapple
+2 Eirdu, Carrier of Dawn
+2 Forsaken Miner
+1 Grave Birthing
+2 Hidden Dragonslayer
+4 Ketramose, the New Dawn
+4 Metropolis Reformer
+3 Olivia's Midnight Ambush
+4 Orator of Ojutai
+2 Resolute Watchdog
+2 Ruthless Lawbringer
+1 Savai Sabertooth
+3 Slaughter Specialist
+1 Tormented Hero
+2 Voidforged Titan
+2 Wasteland Strangler
+4 Caves of Koilos
+2 Great Arashin City
+7 Plains
+4 Shattered Sanctum
+6 Swamp

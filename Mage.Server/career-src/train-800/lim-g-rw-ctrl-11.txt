@@ -1,0 +1,35 @@
+# name: Train800 lim-g-rw-ctrl-11
+# archetype: limited_ctrl
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Agent 13, Sharon Carter
+1 Anarchy
+2 Atarka Efreet
+1 Brion Stoutarm
+1 Brotherhood's End
+1 Dedicated Martyr
+1 Dragonhawk, Fate's Tempest
+2 Expel
+2 Fateful End
+1 Guiding Voice
+1 Hulking Bugbear
+1 Iron Hills Stalwart
+1 Pet Sehlat
+1 Pigment Wrangler
+1 Purifying Dragon
+1 Raiyuu, Storm's Edge
+2 Reluctant Role Model
+2 Ride's End
+2 Shattering Blow
+2 Silverflame Squire
+1 Smuggler's Copter
+1 Venerable Warsinger
+2 Volcanic Rambler
+1 Volt Charge
+1 Wall of Omens
+1 Warlord's Elite
+1 Dalkovan Encampment
+2 Inspiring Vantage
+11 Mountain
+9 Plains
+2 Raucous Carnival

@@ -1,0 +1,23 @@
+# name: Train800 guild-wb-midrange-11
+# archetype: midrange
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Alpine Watchdog
+2 Body Count
+2 Clackbridge Troll
+4 Dark Leo & Shredder
+2 Doom Foretold
+2 Elenda, Saint of Dusk
+2 Excalbian Gamemaster
+2 Guardian of Faith
+3 Hellish Sideswipe
+4 Markov Purifier
+4 Ob Nixilis, the Hate-Twisted
+2 Razorlash Transmogrant
+4 Rot Farm Mortipede
+1 Sorin, Vengeful Bloodlord
+2 Caves of Koilos
+4 Meticulous Commons
+3 Plains
+4 Shattered Sanctum
+11 Swamp

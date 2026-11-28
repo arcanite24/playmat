@@ -1,0 +1,38 @@
+# name: Train800 lim-g-ur-mid-07
+# archetype: limited_mid
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Akoum Boulderfoot
+1 Alicia Masters, Skilled Sculptor
+2 Bloodhaze Wolverine
+1 Casey Jones, Vigilante
+1 Coal Stoker
+1 Corellian Gunship
+2 Dalakos, Crafter of Wonders
+1 Enthusiastic Study
+1 Hardened Berserker
+1 Impractical Joke
+1 Judgment Bolt
+1 Kuldotha Cackler
+1 Kurkesh, Onakke Ancient
+1 Lamplight Phoenix
+1 Meticulous Artisan
+2 Mouser Mark III
+1 Mutant Town Musicians
+1 Nahiri's Stoneblades
+1 Nef-Crop Entangler
+1 Niv-Mizzet, Visionary
+1 Nyxborn Rollicker
+2 Perilous Voyage
+1 Pia Nalaar
+1 Pyroconvergence
+1 Stone-Giant of High Pass
+2 The Locust God
+2 The Tale of Tamiyo
+1 Tiger-Dillo
+2 Water Servant
+4 Island
+15 Mountain
+2 Peculiar Lighthouse
+1 Shivan Reef
+2 Stormcarved Coast

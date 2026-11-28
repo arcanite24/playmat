@@ -1,0 +1,23 @@
+# name: Train800 guild-ur-control-20
+# archetype: control
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Annihilating Fire
+3 Assimilate Essence
+3 Call In a Professional
+2 Fireforger's Puzzleknot
+2 Forgeborn Oreads
+4 Grab the Prize
+3 Ill-Timed Explosion
+4 Kraum, Ludevic's Opus
+1 Niv-Mizzet, Dracogenius
+2 Open Fire
+2 Red Death, Shipwrecker
+3 Revolutionary Rebuff
+3 Rockslide Sorcerer
+2 Sarkhan's Unsealing
+3 Island
+12 Mountain
+4 Peculiar Lighthouse
+2 Spirebluff Canal
+4 Stormcarved Coast

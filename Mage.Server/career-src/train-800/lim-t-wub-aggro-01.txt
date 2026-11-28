@@ -1,0 +1,42 @@
+# name: Train800 lim-t-wub-aggro-01
+# archetype: limited_aggro
+# colors: WUB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Abigale, Poet Laureate
+1 Alaborn Grenadier
+1 Angel of Retribution
+2 Aven Heartstabber
+2 Cat-Owl
+1 Cliffhaven Vampire
+1 Daring Skyjek
+1 Deputy of Acquittals
+1 Dogged Pursuit
+1 Eager First-Year
+1 Etched Familiar
+1 Hamato Guardian Stance
+1 Hullcarver
+1 Impossible Choice
+1 Monastery Mentor
+1 Ojutai, Soul of Winter
+1 Omenport Vigilante
+2 Plumecreed Escort
+1 Pouncing Lynx
+2 Rehearsed Debater
+1 Resolute Rider
+1 Resolute Strike
+1 Sinister Monolith
+1 Skulduggery
+1 Slimy Dualleech
+1 Stern Dismissal
+1 Syndic of Tithes
+1 Vito's Inquisitor
+1 Vow to Erebor
+2 Wasteland Strangler
+2 Watcher of the Spheres
+2 Concealed Courtyard
+5 Island
+2 Isolated Chapel
+2 Neglected Manor
+8 Plains
+2 Raffine's Tower
+2 Swamp

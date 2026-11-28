@@ -1,0 +1,23 @@
+# name: Train800 guild-wu-tempo-08
+# archetype: tempo
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Blur
+1 Clockwork Fox
+3 Crystalline Nautilus
+3 Deny Entry
+3 Dust Animus
+2 Eject
+4 Fan Bearer
+2 Goldmeadow Nomad
+2 Hotshot Mechanic
+4 Jace, Cunning Castaway
+2 Minister of Inquiries
+2 Moonlit Lamenter
+3 Retributive Wand
+3 Unravel
+4 Adarkar Wastes
+2 Cloudcrest Lake
+4 Fortified Beachhead
+10 Island
+2 Plains

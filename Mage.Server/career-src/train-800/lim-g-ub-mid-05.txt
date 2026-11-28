@@ -1,0 +1,37 @@
+# name: Train800 lim-g-ub-mid-05
+# archetype: limited_mid
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Arnim Zola, Bio-Fanatic
+2 Blizzard Strix
+1 Blood Pet
+2 Collective Brutality
+1 Creeping Peeper
+1 Cruel Witness
+2 Death Bomb
+1 Erebos, God of the Dead
+1 Gibbering Barricade
+1 Gloom Sower
+1 Greedy Freebooter
+1 Joo Dee, One of Many
+2 Lord Skitter's Butcher
+1 Lord of the Void
+1 Moment of Defiance
+1 Nezumi Bladeblesser
+2 Osseous Sticktwister
+1 Piper of the Swarm
+1 Price of Fame
+1 Serum Sovereign
+1 Sheoldred, the Apocalypse
+1 Skycoach Conductor
+1 Sneaky Snacker
+2 The Master of Lake-town
+1 Triton Tactics
+2 Voracious Tome-Skimmer
+1 Whisper Agent
+1 Zephyr Winder
+1 Darkslick Shores
+3 Island
+2 Shipwreck Marsh
+2 Sunken Hollow
+16 Swamp

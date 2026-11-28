@@ -1,0 +1,24 @@
+# name: Train800 tribal-bg-elf-02
+# archetype: tribal (Elf)
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Armorcraft Judge
+2 Cylian Elf
+1 Dawnhand Eulogist
+1 Demonic Gifts
+4 Elderfang Ritualist
+4 Elvish Warmaster
+4 Fathom Fleet Cutthroat
+2 Gladehart Cavalry
+1 Glissa Sunslayer
+4 Llanowar Scout
+4 Maraleaf Rider
+2 Miara, Thorn of the Glade
+2 Oakhame Adversary
+3 Steel Leaf Champion
+1 Witherbloom Command
+2 Bayou
+11 Forest
+4 Overgrown Tomb
+2 Swamp
+4 Woodland Cemetery

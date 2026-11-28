@@ -1,0 +1,23 @@
+# name: Train800 tri-gwu-control-11
+# archetype: control
+# colors: GWU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Aetherwind Basker
+3 Austere Command
+2 Channeler Initiate
+2 Colossal Skyturtle
+4 Daze
+2 Dispelling Exhale
+4 Kiora, Behemoth Beckoner
+4 Searing Light
+3 Spikeshell Harrier
+3 Steeple Creeper
+2 Titanic Brawl
+2 Weaver of Blossoms
+2 Canopy Vista
+5 Forest
+4 Hinterland Harbor
+2 Island
+4 Lakeside Shack
+5 Plains
+4 Yavimaya Coast

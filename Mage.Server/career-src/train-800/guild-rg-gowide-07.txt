@@ -1,0 +1,25 @@
+# name: Train800 guild-rg-gowide-07
+# archetype: gowide
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Arc Trail
+4 Basking Broodscale
+1 Confront the Unknown
+2 Dal R'El, Augment Orphan
+2 Dinotomaton
+4 Exemplar of Strength
+1 Gleeful Demolition
+3 Lamplight Phoenix
+2 MACO Strike Team
+1 Mai, Jaded Edge
+2 Rampaging Ferocidon
+4 Release the Gremlins
+1 Sarkhan, Fireblood
+3 The Chase Is On
+3 Tomakul Honor Guard
+4 Yavimaya Iconoclast
+4 Copperline Gorge
+4 Forest
+2 Karplusan Forest
+7 Mountain
+4 Rockfall Vale

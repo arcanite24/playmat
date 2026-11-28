@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-gwu-mid-03
+# archetype: brawl_mid
+# colors: GWU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aerial Volley
+1 Aragorn and Arwen, Wed
+1 Arcades, the Strategist
+1 Arcanis the Omnipotent
+1 Arcanist's Owl
+1 Argothian Opportunist
+1 Blessed Hippogriff
+1 Borrowed Time
+1 Cache Raiders
+1 Canopy Dragon
+1 Coral Colony
+1 Dazzling Denial
+1 Death-Hood Cobra
+1 Deepway Navigator
+1 Drakewing Krasis
+1 Fan Bearer
+1 Gnottvold Hermit
+1 Hardened Escort
+1 Harsh Annotation
+1 Justiciar's Portal
+1 Leafkin Druid
+1 Leonin Skyhunter
+1 Lost in the Spirit World
+1 Naga Vitalist
+1 Nasty Little Rabbit
+1 Nimble Brigand
+1 Phlox, Unorthodox Doctor
+1 Primal Empathy
+1 Swift Response
+1 Swift Spinner
+1 Time Wipe
+1 Tocasia, Dig Site Mentor
+1 Toolcraft Exemplar
+1 Una Chin-Riley, Number One
+1 Vulpikeet
+1 Abandoned Campground
+1 Adarkar Wastes
+1 Brushland
+1 Cloudcrest Lake
+1 Deserted Beach
+1 Etched Cornfield
+6 Forest
+1 Fortified Beachhead
+1 Glacial Fortress
+1 Grove of the Guardian
+4 Island
+2 Plains
+1 Prairie Stream
+1 Seachrome Coast
+1 Spara's Headquarters
+1 Sunpetal Grove

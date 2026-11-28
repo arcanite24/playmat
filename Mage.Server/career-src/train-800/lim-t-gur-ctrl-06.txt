@@ -1,0 +1,36 @@
+# name: Train800 lim-t-gur-ctrl-06
+# archetype: limited_ctrl
+# colors: GUR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aerial Guide
+1 Anara, Wolvid Familiar
+1 Blizzard Strix
+2 Bloodbriar
+1 Cartouche of Strength
+2 Chandra's Flame Wave
+2 Cryoclasm
+1 Cunning Strike
+1 Cut In
+2 Dundoolin Weaver
+1 Explore
+1 Ice Out
+1 Katara, Bending Prodigy
+1 Malevolent Hermit
+2 Migloz, Maze Crusher
+2 Ojer Kaslem, Deepest Growth
+1 Pheres-Band Warchief
+2 Read the Runes
+1 Signpost Scarecrow
+2 Spring-Leaf Avenger
+1 Steeple Creeper
+1 Structural Distortion
+2 Tah-Crop Skirmisher
+2 Thunder Brute
+1 Trap Essence
+2 Bleeding Woods
+2 Cinder Glade
+5 Forest
+9 Island
+2 Karplusan Forest
+3 Mountain
+2 Rootbound Crag

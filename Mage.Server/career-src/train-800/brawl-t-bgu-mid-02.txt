@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-bgu-mid-02
+# archetype: brawl_mid
+# colors: BGU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Abomination of Gudul
+1 Acquisitions Expert
+1 Alley Assailant
+1 Candlekeep Sage
+1 Cemetery Prowler
+1 Chorus of the Tides
+1 Clash of Wills
+1 Coerced Confession
+1 Complete Disregard
+1 Consign to Dust
+1 Doomed Dissenter
+1 Eradicator Valkyrie
+1 Ertai Resurrected
+1 Extinguish the Light
+1 Final Flourish
+1 Ghost, Spectral Saboteur
+1 Gigastorm Titan
+1 Glarb, Calamity's Augur
+1 House Guildmage
+1 Looter il-Kor
+1 Necrogen Scudder
+1 Nessian Wilds Ravager
+1 Niblis of Frost
+1 Overlord of the Floodpits
+1 Pharika's Cure
+1 Scrounger of Souls
+1 Seagraf Skaab
+1 Secrets of the Golden City
+1 Sly Instigator
+1 Stormchaser Drake
+1 Thassa, God of the Sea
+1 The Scarab God
+1 Thundertrap Trainer
+1 Wary Watchdog
+1 Xenobotanist
+1 Botanical Sanctum
+1 Choked Estuary
+1 Creeping Tar Pit
+1 Darkslick Shores
+1 Dreamroot Cascade
+1 Drowned Catacomb
+3 Forest
+1 Hinterland Harbor
+4 Island
+1 Murky Sewer
+1 Opulent Palace
+1 Shipwreck Marsh
+1 Sunken Hollow
+5 Swamp
+1 Underground River
+1 Zagoth Triome

@@ -1,0 +1,25 @@
+# name: Train800 tri-gur-midrange-06
+# archetype: midrange
+# colors: GUR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Emberhorn Minotaur
+2 Hauntwoods Shrieker
+2 Illuna, Apex of Wishes
+2 Jaya, Venerated Firemage
+2 Loxodon Surveyor
+4 Raze the Effigy
+2 Regisaur Alpha
+4 Sarkhan Unbroken
+1 Select for Inspection
+4 Skarrg Guildmage
+4 Temur Devotee
+2 Tovolar, Dire Overlord
+1 Tweeze
+3 Valley Flamecaller
+2 Cinder Glade
+2 Forest
+6 Island
+4 Karplusan Forest
+2 Mountain
+4 Rootbound Crag
+4 Stomping Ground

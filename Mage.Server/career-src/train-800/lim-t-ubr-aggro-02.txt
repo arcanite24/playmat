@@ -1,0 +1,41 @@
+# name: Train800 lim-t-ubr-aggro-02
+# archetype: limited_aggro
+# colors: UBR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Agent of Stromgald
+1 Auger Spree
+2 Basilica Screecher
+1 Blisterspit Gremlin
+1 Cabal Initiate
+1 Carnival Hellsteed
+1 Commander Raffi Musiker
+1 Consuming Ashes
+2 Corpse Appraiser
+1 Cunning Maneuver
+1 Dream Seizer
+2 Earthshaker Khenra
+1 Geistblast
+1 Hobblefiend
+1 Jhoira, Ageless Innovator
+1 Lathnu Hellion
+1 Mad Prophet
+1 Maestros Diabolist
+1 Metropolis Sprite
+1 Minotaur Sureshot
+1 Mintstrosity
+1 Red Tiger Mechan
+2 Repeating Barrage
+1 Return to Action
+1 Sawblade Skinripper
+2 Shoot the Sheriff
+2 Silumgar Assassin
+1 Sire of Stagnation
+1 Stormfist Crusader
+2 Tidepool Turtle
+2 Cinder Marsh
+2 Crosis's Catacombs
+2 Dragonskull Summit
+3 Island
+7 Mountain
+2 Smoldering Marsh
+5 Swamp

@@ -1,0 +1,56 @@
+# name: Train800 brawl-t-wub-aggro-01
+# archetype: brawl_aggro
+# colors: WUB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aethershield Artificer
+1 Alela, Artful Provocateur
+1 Archenemy's Charm
+1 Baleful Strix
+1 Bane Alley Blackguard
+1 Basim Ibn Ishaq
+1 Crosstown Courier
+1 Cynette, Jelly Drover
+1 Dauntless River Marshal
+1 Dauntless Scrapbot
+1 Demonic Pact
+1 Depart the Realm
+1 Dorothea, Vengeful Victim
+1 Dragonlord Silumgar
+1 Dromoka Warrior
+1 Erratic Visionary
+1 Flatten
+1 Ghoulcaller's Accomplice
+1 Gilt-Leaf Winnower
+1 Guardian of Pilgrims
+1 Hope Estheim
+1 Kambal, Consul of Allocation
+1 Laboratory Brute
+1 Lunar Convocation
+1 Nameless Inversion
+1 Obscura Initiate
+1 Phyrexian Espionage
+1 Rite of Oblivion
+1 Skyclave Shadowcat
+1 Slick Imitator
+1 Thornbow Archer
+1 Ubul Sar Gatekeepers
+1 Undead Butler
+1 Venerated Stormsinger
+1 Vengeful Reaper
+1 Whispering Snitch
+1 Arcane Sanctum
+1 Darkslick Shores
+1 Drowned Catacomb
+1 Great Arashin City
+3 Island
+1 Isolated Chapel
+1 Meticulous Commons
+1 Murky Sewer
+1 Neglected Manor
+2 Plains
+1 Raffine's Tower
+1 Shattered Sanctum
+1 Shipwreck Marsh
+1 Sunken Hollow
+6 Swamp
+1 Underground River

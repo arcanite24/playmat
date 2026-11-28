@@ -1,0 +1,26 @@
+# name: Train800 guild-br-gowide-05
+# archetype: gowide
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Arni Brokenbrow
+2 Avatar of Discord
+2 Axiom Engraver
+4 Embereth Veteran
+2 Fireblade Artist
+3 Gev, Scaled Scorch
+3 Hulking Bugbear
+2 Invasion of Tarkir
+2 Legion Extruder
+2 Make Mischief
+3 Might of the Meek
+3 Osseous Sticktwister
+1 Sarkhan, Fireblood
+1 Sudden Breakthrough
+3 Thunderbreak Regent
+4 Village Messenger
+1 Zariel, Archduke of Avernus
+4 Cinder Marsh
+2 Dragonskull Summit
+4 Haunted Ridge
+9 Mountain
+2 Swamp

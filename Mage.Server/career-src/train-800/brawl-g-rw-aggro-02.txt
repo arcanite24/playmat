@@ -1,0 +1,51 @@
+# name: Train800 brawl-g-rw-aggro-02
+# archetype: brawl_aggro
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Angelic Sleuth
+1 Anointer Priest
+1 Arana, Heart of the Spider
+1 Archon of the Wild Rose
+1 Aurelia, the Warleader
+1 Bloodfire Dwarf
+1 Boros Challenger
+1 Brambleback Brute
+1 Breakneck Rider
+1 Deserter's Disciple
+1 Dragon Hunter
+1 Encampment Keeper
+1 Enraged Giant
+1 Hanweir Militia Captain
+1 Hardened Academic
+1 Highspire Mantis
+1 Hopeful Eidolon
+1 Illustrious Historian
+1 Kozilek's Sentinel
+1 Lorehold Pledgemage
+1 Mabel's Mettle
+1 Magmatic Sprinter
+1 Omen of the Forge
+1 Phoenix Chick
+1 Phyrexian Censor
+1 Raph & Leo, Sibling Rivals
+1 Resilient Roadrunner
+1 Sanctum Spirit
+1 Shrapnel Blast
+1 Silverbeak Griffin
+1 Skywhaler's Shot
+1 Soldier of the Pantheon
+1 Solitary Cell
+1 Swift Kick
+1 Vandalblast
+1 Weaponize the Monsters
+1 Battlefield Forge
+1 Clifftop Retreat
+1 Dalkovan Encampment
+1 Dedicated Commons
+1 Inspiring Vantage
+8 Mountain
+7 Plains
+1 Raucous Carnival
+1 Sacred Foundry
+1 Sunbaked Canyon
+1 Sundown Pass

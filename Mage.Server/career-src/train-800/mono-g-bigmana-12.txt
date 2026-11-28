@@ -1,0 +1,19 @@
+# name: Train800 mono-g-bigmana-12
+# archetype: bigmana
+# colors: G
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Altanak, the Thrice-Called
+1 Balustrade Wurm
+1 Deconstruct
+4 Elvish Reclaimer
+1 Giant's Boulder
+3 Jiang Yanggu, Wildcrafter
+3 Ominous Parcel
+2 Pack Guardian
+2 Pawpatch Formation
+3 Rhonas the Indomitable
+1 Shamanic Revelation
+4 Supportive Parents
+3 Ulvenwald Observer
+2 You Find a Cursed Idol
+26 Forest

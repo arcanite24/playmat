@@ -1,0 +1,26 @@
+# name: Train800 tribal-ur-wizard-03
+# archetype: tribal (Wizard)
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Adeliz, the Cinder Wind
+4 Aether Adept
+1 Crackling Triton
+1 Dismissive Pyromancer
+2 Drifter il-Dal
+2 Emeritus of Ideation
+1 Exultant Cultist
+2 Flame Channeler
+3 Ghitu Journeymage
+2 Gogo, Master of Mimicry
+2 Haste Magic
+2 Landscape Painter
+4 League Guildmage
+3 Siren Stormtamer
+3 Stormchaser Mage
+1 Svyelun of Sea and Sky
+3 Warden of Evos Isle
+10 Island
+2 Mountain
+4 Spirebluff Canal
+4 Stormcarved Coast
+2 Sulfur Falls

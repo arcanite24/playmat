@@ -1,0 +1,26 @@
+# name: Train800 tri-gur-control-12
+# archetype: control
+# colors: GUR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Abjure
+1 Archipelagore
+2 Boilerbilges Ripper
+4 Brooding Saurian
+1 Cloud Elemental
+1 Crackling Club
+2 Dragonsguard Elite
+4 Essence Capture
+4 Kruphix, God of Horizons
+4 Reckless Air Strike
+2 Scalding Cauldron
+3 Sozin's Comet
+1 Spider-Gwen, Free Spirit
+3 Stadium Tidalmage
+1 Temur Banner
+2 Dreamroot Cascade
+5 Forest
+4 Island
+4 Ketria Triome
+2 Mountain
+4 Spirebluff Canal
+4 Sulfur Falls

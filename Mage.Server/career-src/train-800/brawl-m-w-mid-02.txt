@@ -1,0 +1,41 @@
+# name: Train800 brawl-m-w-mid-02
+# archetype: brawl_mid
+# colors: W
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Accorder Paladin
+1 Bane's Invoker
+1 Break the Spell
+1 Cavalier of Dawn
+1 Colorful Feiyi Sparrow
+1 Concordia Pegasus
+1 Cursebreak
+1 Daring Mechanic
+1 Dauntless Cathar
+1 Dragon's Eye Sentry
+1 Fiendslayer Paladin
+1 Flamecast Wheel
+1 Gale Swooper
+1 Gallant Cavalry
+1 Harsh Annotation
+1 Healing Hands
+1 Inspiring Roar
+1 Invasion Reinforcements
+1 Loran of the Third Path
+1 Majestic Auricorn
+1 Malevolent Chandelier
+1 Maned Serval
+1 Mavren Fein, Dusk Apostle
+1 Oltec Matterweaver
+1 Optimistic Scavenger
+1 Pillarfield Ox
+1 Quake, Agent of S.H.I.E.L.D.
+1 Reduce to Memory
+1 Serra's Guardian
+1 Sheer Drop
+1 Shining Aerosaur
+1 Spider-Man, Web-Slinger
+1 Starnheim Courser
+1 Water Tribe Rallier
+1 Wedding Invitation
+1 Zephyr Boots
+24 Plains

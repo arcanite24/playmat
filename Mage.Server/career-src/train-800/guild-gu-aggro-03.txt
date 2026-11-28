@@ -1,0 +1,25 @@
+# name: Train800 guild-gu-aggro-03
+# archetype: aggro
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Barbary Apes
+1 Bee Sting
+2 Blasting Station
+2 Bounding Krasis
+2 Decisive Denial
+3 Geometer's Arthropod
+1 Gnottvold Recluse
+2 Goblin Boom Keg
+2 Grow Extra Arms
+3 Kiora, Master of the Depths
+4 Loki, God of Mischief
+4 Maraleaf Pixie
+4 Oblivious Bookworm
+1 Rebellious Captives
+2 Trumpeting Gnarr
+2 Zegana, Utopian Speaker
+4 Dreamroot Cascade
+7 Forest
+4 Hinterland Harbor
+5 Island
+2 Transformative Commons

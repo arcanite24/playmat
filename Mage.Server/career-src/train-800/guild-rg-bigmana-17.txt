@@ -1,0 +1,23 @@
+# name: Train800 guild-rg-bigmana-17
+# archetype: bigmana
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Battle Hymn
+2 Gnarled Professor
+1 Gruul Spellbreaker
+3 Jolene, Plundering Pugilist
+2 Prophetic Prism
+3 Pyrewood Gearhulk
+4 Roil Eruption
+4 Rootrider Faun
+1 Sarkhan's Dragonfire
+3 Soul of Zendikar
+4 Spikefield Hazard
+2 Svella, Ice Shaper
+3 West Wind Avatar
+1 Wildfire Howl
+4 Bleeding Woods
+2 Cinder Glade
+10 Forest
+6 Mountain
+4 Rootbound Crag

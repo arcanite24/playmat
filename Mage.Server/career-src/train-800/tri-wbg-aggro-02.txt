@@ -1,0 +1,24 @@
+# name: Train800 tri-wbg-aggro-02
+# archetype: aggro
+# colors: WBG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Abzan Charm
+4 Ambush Paratrooper
+2 Bilbo's Gambit
+4 Countless Gears Renegade
+3 Craven Knight
+2 Jukai Naturalist
+3 Kambal, Profiteering Mayor
+2 Mortal's Resolve
+3 Pain Seer
+3 Severance Priest
+2 Siege Rhino
+3 Stonewise Fortifier
+4 Thalia and The Gitrog Monster
+2 Caves of Koilos
+4 Concealed Courtyard
+4 Forest
+4 Isolated Chapel
+4 Neglected Manor
+2 Plains
+2 Swamp

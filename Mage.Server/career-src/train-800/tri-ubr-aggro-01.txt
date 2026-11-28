@@ -1,0 +1,26 @@
+# name: Train800 tri-ubr-aggro-01
+# archetype: aggro
+# colors: UBR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Ash Zealot
+3 Ashenmoor Gouger
+1 Butcher's Glee
+2 Cruelty of the Sith
+2 Deathbellow Raider
+3 Echo of Dusk
+1 Fervent Strike
+4 Goblin Elite Infantry
+3 Kardur's Vicious Return
+3 Kolaghan's Command
+2 Kozilek's Sentinel
+2 Maestros Charm
+3 Speed, Young Avenger
+2 Tokka & Rahzar, Terrible Twos
+4 Totentanz, Swarm Piper
+4 Crosis's Catacombs
+2 Haunted Ridge
+2 Island
+4 Mountain
+4 Razortrap Gorge
+4 Smoldering Marsh
+2 Swamp

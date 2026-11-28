@@ -1,0 +1,18 @@
+# name: Train800 mono-u-tempo-01
+# archetype: tempo
+# colors: U
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Bazaar Trademage
+4 Cobbled Lancer
+2 Deny Entry
+4 Exclude
+4 Hermitic Nautilus
+4 Jace, Cunning Castaway
+3 Kitsa, Otterball Elite
+1 Lion Heart
+2 Monument to Endurance
+4 Mu Yanling, Sky Dancer
+2 Quickling
+3 Reservoir Kraken
+2 Startle
+22 Island

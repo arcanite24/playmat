@@ -1,0 +1,40 @@
+# name: Train800 lim-t-brg-aggro-01
+# archetype: limited_aggro
+# colors: BRG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Body Dropper
+1 Char
+2 Colossal Growth
+1 Crumble to Dust
+1 Darkthicket Wolf
+1 Delighted Killbot
+2 Drana, Liberator of Malakir
+1 Dreg Recycler
+2 Edgewall Pack
+1 Hajar, Loyal Bodyguard
+1 Heavyweight Demolisher
+1 Izoni, Center of the Web
+1 Kolaghan's Command
+1 Monstrous Rage
+2 Rakdos Shred-Freak
+1 Reckless Imp
+2 Riveteers Initiate
+1 Slice from the Shadows
+1 Soul Sear
+1 Soul of Windgrace
+1 The End
+2 Toph, Hardheaded Teacher
+1 Trial of Zeal
+1 Ulrich's Kindred
+1 Warren Torchmaster
+2 Weaver of Harmony
+2 Wildfire Wickerfolk
+1 Wolverine, Fierce Fighter
+1 Yahenni, Undying Partisan
+2 Badlands
+2 Blackcleave Cliffs
+2 Darigaaz's Caldera
+6 Forest
+6 Mountain
+2 Smoldering Marsh
+3 Swamp

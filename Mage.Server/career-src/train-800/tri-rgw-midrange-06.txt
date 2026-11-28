@@ -1,0 +1,24 @@
+# name: Train800 tri-rgw-midrange-06
+# archetype: midrange
+# colors: RGW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Aya of Alexandria
+1 Blooming Blast
+1 Boros Charm
+4 Cathartic Pyre
+4 Curse-Marred Demon
+4 Melded Moxite
+2 Natural State
+2 Oran-Rief Invoker
+4 Palladia-Mors, the Ruiner
+4 Picnic Ruiner
+2 Resolute Survivors
+3 Rin and Seri, Inseparable
+2 Sightless Brawler
+4 Battlefield Forge
+4 Forest
+4 Mountain
+2 Plains
+4 Raucous Carnival
+4 Sacred Foundry
+2 Sundown Pass

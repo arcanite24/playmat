@@ -1,0 +1,25 @@
+# name: Train800 tri-brg-midrange-06
+# archetype: midrange
+# colors: BRG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Angrath's Fury
+3 Cabal Trainee
+2 Carapace Forger
+2 Carrion Imp
+4 Dragonlord Kolaghan
+3 Eddie Brock
+1 Fiery Conclusion
+1 Hateful Eidolon
+1 Koth, Fire of Resistance
+3 Mutant Town Musicians
+3 Olivia's Dragoon
+3 Scalestorm Summoner
+3 Shivan Fire
+4 Traxos, Scourge Eternal
+4 Cinder Marsh
+4 Darigaaz's Caldera
+2 Forest
+4 Mountain
+4 Razortrap Gorge
+2 Smoldering Marsh
+4 Swamp

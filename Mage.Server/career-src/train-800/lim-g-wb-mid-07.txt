@@ -1,0 +1,36 @@
+# name: Train800 lim-g-wb-mid-07
+# archetype: limited_mid
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aetherstorm Roc
+2 Anointed Chorister
+1 Archon of Sun's Grace
+2 Autonomous Assembler
+1 Bogslither's Embrace
+1 Broodrage Mycoid
+1 Dwarfhold Champion
+1 Emergency Eject
+2 Eriette of the Charmed Apple
+1 Faerie Guidemother
+2 Feed the Cauldron
+1 Hardened Tactician
+1 Knight of the Pilgrim's Road
+1 Linvala, the Preserver
+1 Moonrise Cleric
+2 Priest of Forgotten Gods
+1 Prismite
+1 Recover
+2 Rottenmouth Viper
+2 Squall, SeeD Mercenary
+1 Steward of Solidarity
+2 Take Heart
+1 Tomik, Wielder of Law
+1 Trained Caracal
+1 Tribute to Hunger
+2 Unyielding Krumar
+1 Wickerfolk Indomitable
+1 Great Arashin City
+2 Meticulous Commons
+11 Plains
+2 Shattered Sanctum
+8 Swamp

@@ -1,0 +1,23 @@
+# name: Train800 guild-br-aggro-03
+# archetype: aggro
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Ball Lightning
+4 Boundary Lands Ranger
+2 Dwarven Mauler
+3 Enthusiastic Study
+3 Fire Prophecy
+2 Flamecache Gecko
+3 Gastal Thrillseeker
+2 Koth, Fire of Resistance
+4 Lavastep Raider
+3 Reality Hemorrhage
+4 Rune-Brand Juggler
+1 Screaming Nemesis
+4 Skizzik
+2 Spark Jolt
+4 Dragonskull Summit
+4 Haunted Ridge
+9 Mountain
+2 Smoldering Marsh
+2 Swamp

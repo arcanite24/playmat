@@ -1,0 +1,36 @@
+# name: Train800 lim-g-rw-mid-08
+# archetype: limited_mid
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Baneslayer Angel
+1 Blood Rites
+1 Brotherhood Outcast
+1 Burn Away
+1 Child of the Volcano
+2 Command the Storm
+1 Courageous Outrider
+1 Demanding Dragon
+1 Graceblade Artisan
+1 Hearth Elemental
+2 Highspire Mantis
+1 Honored Crop-Captain
+1 Ill-Tempered Cyclops
+1 Invasive Maneuvers
+1 Kazuul's Toll Collector
+1 Keral Keep Disciples
+2 Knight of New Benalia
+2 Lupine Prototype
+2 Murmuring Volume
+2 Orazca Raptor
+2 Radha's Firebrand
+1 Relic Sloth
+1 Shocker, Unshakable
+1 Sizzling Changeling
+2 Storm Fleet Swashbuckler
+2 Survive the Night
+1 Tenth District Veteran
+2 Dalkovan Encampment
+2 Dedicated Commons
+14 Mountain
+5 Plains
+1 Sunbaked Canyon

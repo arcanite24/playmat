@@ -1,0 +1,39 @@
+# name: Train800 lim-t-wbg-aggro-01
+# archetype: limited_aggro
+# colors: WBG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Alert Heedbonder
+2 Anurid Brushhopper
+2 Arachnoid Adaptation
+1 Beetle-Headed Merchants
+1 Benalish Sleeper
+1 Burlfist Oak
+1 Carrier Thrall
+1 Cauldron of Essence
+2 Chief of the Edge
+1 Cloudcrown Oak
+1 Dark Remedy
+2 Dreg Mangler
+2 Final Flourish
+1 Glissa, Herald of Predation
+1 Greenbelt Guardian
+1 Heron of Hope
+1 Hunted Bonebrute
+1 Imperious Inkmage
+1 Kellan, Daring Traveler
+1 Kor Scythemaster
+1 Mine Worker
+1 Orzhov Charm
+1 Shield Mare
+1 Spirit of Malevolence
+2 Thraben Charm
+2 Vine Gecko
+2 Wary Watchdog
+2 Wretched Doll
+2 Deathcap Glade
+2 Etched Cornfield
+4 Forest
+2 Llanowar Wastes
+6 Plains
+2 Sandsteppe Citadel
+5 Swamp

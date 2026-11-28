@@ -1,0 +1,40 @@
+# name: Train800 brawl-m-u-ctrl-04
+# archetype: brawl_ctrl
+# colors: U
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Acid Rain
+1 Air Servant
+1 Arcane Subtraction
+1 Brainstorm
+1 Brinebarrow Intruder
+1 Brush Off
+1 Complicate
+1 Desculpting Blast
+1 Donatello's Technique
+1 Dragon Turtle
+1 Faerie Impostor
+1 Geist-Fueled Scarecrow
+1 Geyser Drake
+1 Gravelgill Scoundrel
+1 Harvest Hand
+1 Heart-Piercer Bow
+1 Humpback Whales
+1 Iceridge Serpent
+1 Merfolk Cave-Diver
+1 Merfolk Coralsmith
+1 Nephalia Moondrakes
+1 Out of Air
+1 Pearl Lake Ancient
+1 Polymorphist's Jest
+1 Prosperous Thief
+1 Siren's Ruse
+1 Starwinder
+1 Stinging Lionfish
+1 Sun Ce, Young Conquerer
+1 Test of Priorities
+1 The Modern Age
+1 Turn into a Pumpkin
+1 Unity of Purpose
+1 Watcher in the Mist
+1 Wizard's Retort
+25 Island

@@ -1,0 +1,27 @@
+# name: Train800 tri-wbg-midrange-07
+# archetype: midrange
+# colors: WBG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Agonizing Syphon
+2 Astelli Reclaimer
+2 Corpsejack Menace
+2 Desolation Prowler
+3 Hero of Iroas
+2 Horizon Seeker
+4 Kaya, Orzhov Usurper
+3 Long Goodbye
+3 Mary Jane Watson
+3 Misery's Shadow
+2 Murasa Brute
+2 Reaper of the Wilds
+3 Shrewd Storyteller
+1 Snooping Page
+1 Spark Reaper
+2 Wingmate Roc
+4 Concealed Courtyard
+6 Forest
+2 Great Arashin City
+4 Isolated Chapel
+4 Neglected Manor
+2 Plains
+2 Swamp

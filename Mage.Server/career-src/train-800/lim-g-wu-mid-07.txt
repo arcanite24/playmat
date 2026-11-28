@@ -1,0 +1,37 @@
+# name: Train800 lim-g-wu-mid-07
+# archetype: limited_mid
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Academic Ascent
+1 Alirios, Enraptured
+1 Amugaba
+1 Angler Drake
+2 Aquamoeba
+2 Archon of Emeria
+1 Basri's Lieutenant
+1 Brass Gnat
+1 Bridled Bighorn
+1 Cold Case Cracker
+1 Crashing Tide
+2 Excalbian Gamemaster
+2 Fragmentize
+2 Hallowed Respite
+1 Jazal Goldmane
+1 Kinjalli's Sunwing
+2 Loyal Warhound
+1 Orator of Ojutai
+1 Relic Golem
+1 Resolute Watchdog
+2 Sea Gate Banneret
+2 Spider-UK
+1 Sun-Dappled Celebrant
+1 Tolarian Geyser
+1 Triton Tactics
+1 Ugin's Construct
+1 Ultron, Artificial Malevolence
+1 Wanderbrine Preacher
+2 Adarkar Wastes
+1 Cloudcrest Lake
+2 Fortified Beachhead
+5 Island
+14 Plains

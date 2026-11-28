@@ -1,0 +1,23 @@
+# name: Train800 guild-gw-gowide-06
+# archetype: gowide
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Cryptolith Fragment
+4 Healer of the Glade
+3 Huatli's Raptor
+1 Informed Inkwright
+4 Kitsune Ace
+4 Mary Jane Watson
+4 Personify
+2 Pious Wayfarer
+3 Rally Maneuver
+2 Ripjaw Raptor
+4 Sandstalker Moloch
+1 Shape the Sands
+3 Surrak, the Hunt Caller
+1 Trading Post
+9 Forest
+4 Grove of the Guardian
+2 Horizon Canopy
+4 Overgrown Farmland
+3 Plains

@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-rw-ramp-06
+# archetype: brawl_ramp
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Adaptive Gemguard
+1 Aegis of the Gods
+1 Angel of Retribution
+1 Bash to Bits
+1 Blessed Light
+1 Boros Cluestone
+1 Boros Locket
+1 Celestial Archon
+1 Colossal Plow
+1 Crested Sunmare
+1 Dawnhart Geist
+1 Diamond Pick-Axe
+1 Excavation Explosion
+1 Firehoof Cavalry
+1 Gargadon
+1 Gates Ablaze
+1 Gearsmith Guardian
+1 God-Favored General
+1 Heart-Piercer Manticore
+1 Kree Sentinel
+1 Luminate Primordial
+1 Maelstrom Artisan
+1 Mindsparker
+1 Murmuring Volume
+1 Processor Assault
+1 Ritual Guardian
+1 Roast
+1 Rockslide Sorcerer
+1 Salt Road Packbeast
+1 Sami, Ship's Engineer
+1 Sand Strangler
+1 Sarkhan, Fireblood
+1 Starling, Aerial Ally
+1 Torch Fiend
+1 Zirda, the Dawnwaker
+1 Battlefield Forge
+1 Clifftop Retreat
+1 Dalkovan Encampment
+1 Dedicated Commons
+1 Inspiring Vantage
+10 Mountain
+6 Plains
+1 Raucous Carnival
+1 Sacred Foundry
+1 Sunbaked Canyon
+1 Sundown Pass

@@ -1,0 +1,25 @@
+# name: Train800 tribal-rw-human-01
+# archetype: tribal (Human)
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Ajani's Presence
+2 Alpine Guide
+1 Chandra, Fire of Kaladesh
+2 Chaplain of Alms
+2 Djeru and Hazoret
+4 Frontline Rebel
+4 Heartflame Duelist
+4 Seeker of the Way
+4 Soldier of the Pantheon
+1 Sterling Keykeeper
+2 Sunlit Hoplite
+3 Thalia's Lieutenant
+2 Wartime Protestors
+1 Weaver of Lightning
+3 Winota, Joiner of Forces
+1 Yuyan Archers
+4 Battlefield Forge
+4 Clifftop Retreat
+2 Dedicated Commons
+3 Mountain
+9 Plains

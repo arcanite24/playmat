@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-rw-mid-05
+# archetype: brawl_mid
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Agent of Atlas
+1 Akrasan Squire
+1 Akroma's Vengeance
+1 Arashin Foremost
+1 Arbaaz Mir
+1 Belladonna Took
+1 Bishop of Rebirth
+1 Bloodsworn Steward
+1 Collar the Culprit
+1 Contract Hero
+1 Dwarven Castle Guard
+1 Fated Conflagration
+1 Fervent Paincaster
+1 Goldspan Dragon
+1 Hammer Dropper
+1 Hungering Yeti
+1 Judgment Bolt
+1 Lumbering Battlement
+1 Person of Interest
+1 Relentless Raptor
+1 Ride's End
+1 Rune of Sustenance
+1 Seifer Almasy
+1 Spite of Mogis
+1 Sting-Slinger
+1 Stromkirk Occultist
+1 Test of Conviction
+1 Thousand Moons Infantry
+1 Town Gossipmonger
+1 Venerable Lammasu
+1 Vengeful Villagers
+1 Veteran Guardmouse
+1 Welder Automaton
+1 Wojek Bodyguard
+1 Wojek Halberdiers
+1 Battlefield Forge
+1 Clifftop Retreat
+1 Dalkovan Encampment
+1 Dedicated Commons
+1 Inspiring Vantage
+7 Mountain
+9 Plains
+1 Raucous Carnival
+1 Sacred Foundry
+1 Sunbaked Canyon
+1 Sundown Pass

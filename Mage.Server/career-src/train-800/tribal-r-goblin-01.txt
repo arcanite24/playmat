@@ -1,0 +1,20 @@
+# name: Train800 tribal-r-goblin-01
+# archetype: tribal (Goblin)
+# colors: R
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Akki Ember-Keeper
+4 Akki Underling
+3 Boggart Brute
+3 Boneclub Berserker
+1 Chain Lightning
+1 Chimney Rabble
+2 Goblin Arsonist
+4 Goblin Chainwhirler
+2 Goblin Dark-Dwellers
+1 Goblin Surveyor
+3 Goblin War Buggy
+2 Igneous Inspiration
+3 Molten Nursery
+2 Quick Draw
+4 Torch Courier
+22 Mountain

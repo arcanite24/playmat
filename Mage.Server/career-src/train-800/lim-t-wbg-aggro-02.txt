@@ -1,0 +1,41 @@
+# name: Train800 lim-t-wbg-aggro-02
+# archetype: limited_aggro
+# colors: WBG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Apothecary Initiate
+2 Aven Gagglemaster
+1 Broodspinner
+1 Camellia, the Seedmiser
+1 Chains of Custody
+1 Commissar Severina Raine
+1 Craven Knight
+1 Daemogoth Titan
+1 Durable Coilbug
+1 Flesh Burrower
+1 Forum Familiar
+1 Heir of Falkenrath
+1 Hieromancer's Cage
+1 Hunting Moa
+1 Judge Magister Gabranth
+2 June, Bounty Hunter
+1 Knight of Obligation
+1 Knights' Charge
+1 Lumaret's Favor
+1 Mighty Leap
+1 Mythos of Nethroi
+1 Nearheath Chaplain
+2 Oketra's Avenger
+2 Pharika's Cure
+1 Phytoburst
+2 Sunpearl Kirin
+2 Tuinvale Guide
+1 Underworld Coinsmith
+1 Unraveling Mummy
+2 Yisan, the Wanderer Bard
+2 Concealed Courtyard
+6 Forest
+2 Great Arashin City
+2 Meticulous Commons
+5 Plains
+2 Shattered Sanctum
+4 Swamp

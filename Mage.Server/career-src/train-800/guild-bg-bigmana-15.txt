@@ -1,0 +1,25 @@
+# name: Train800 guild-bg-bigmana-15
+# archetype: bigmana
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Agent Frank Horrigan
+1 Bog Badger
+2 Brambleweft Behemoth
+2 Camellia, the Seedmiser
+2 Chromatic Sphere
+2 Deathsprout
+3 Deconstruct
+3 Faunsbane Troll
+1 Golgari Cluestone
+2 Golgari Locket
+2 Insidious Roots
+2 Primordial Wurm
+1 Raucous Entertainer
+3 Vash, Freelance Archaeologist
+3 Witherbloom Apprentice
+2 Workshop Warchief
+2 Bayou
+13 Forest
+4 Formidable Commons
+4 Overgrown Tomb
+3 Swamp

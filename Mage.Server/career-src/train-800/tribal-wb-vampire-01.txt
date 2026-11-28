@@ -1,0 +1,25 @@
+# name: Train800 tribal-wb-vampire-01
+# archetype: tribal (Vampire)
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Abnormal Endurance
+4 Barrow Naughty
+3 Bishop's Soldier
+1 Champion of the Clachan
+4 Cleansing Ray
+4 Cleric of Life's Bond
+1 Drana's Emissary
+2 Duskborne Skymarcher
+4 Edgar, Charmed Groom
+4 Forerunner of the Legion
+1 General Kudro of Drannith
+2 Legion Lieutenant
+2 Markov Crusader
+2 Sanguine Glorifier
+1 Vraan, Executioner Thane
+1 Welcoming Vampire
+4 Caves of Koilos
+4 Great Arashin City
+2 Isolated Chapel
+9 Plains
+4 Swamp

@@ -1,0 +1,25 @@
+# name: Train800 tri-urw-midrange-05
+# archetype: midrange
+# colors: URW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Docent of Perfection
+2 Doorkeeper Thrull
+4 HULK SMASH!
+4 Jeskai Devotee
+2 Lunar Rejection
+2 Maned Serval
+1 Narset of the Ancient Way
+2 Oculus Whelp
+2 Prismari Charm
+2 Raphael, Ninja Destroyer
+3 Shiko, Paragon of the Way
+4 Spelleater Wolverine
+4 Spider-Man, Web-Slinger
+2 Yorion, Sky Nomad
+2 Island
+2 Mountain
+4 Peculiar Lighthouse
+6 Plains
+2 Raucous Carnival
+4 Shivan Reef
+4 Spirebluff Canal

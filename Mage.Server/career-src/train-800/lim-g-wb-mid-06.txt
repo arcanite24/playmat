@@ -1,0 +1,40 @@
+# name: Train800 lim-g-wb-mid-06
+# archetype: limited_mid
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Abhorrent Overlord
+1 Arashin Cleric
+1 Ayara's Oathsworn
+1 Banewhip Punisher
+1 Black Widow, Double Agent
+1 Bofur, Reliable Guardian
+1 Bonepicker Skirge
+1 Boot Nipper
+1 Captain America, Super-Soldier
+1 Complete Disregard
+1 DOT-7 Repair Squad
+1 Daggerclaw Imp
+1 Dark Endurance
+1 Extinguish the Light
+1 Extruder
+1 Gixian Puppeteer
+1 Gravpack Monoist
+1 Gurmag Rakshasa
+2 Hired Poisoner
+1 Killian's Confidence
+1 Kunoros, Hound of Athreos
+1 Lash of the Whip
+2 Lord of the Forsaken
+2 Necromancer's Stockpile
+1 Nimana Skitter-Sneak
+1 Novice Occultist
+1 Oathsworn Vampire
+1 Purging Stormbrood
+2 Throttle
+2 Vengeful Rebel
+1 Warclamp Mastiff
+2 Caves of Koilos
+2 Great Arashin City
+1 Neglected Manor
+2 Plains
+17 Swamp

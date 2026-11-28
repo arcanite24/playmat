@@ -1,0 +1,33 @@
+# name: Train800 lim-g-ur-aggro-04
+# archetype: limited_aggro
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Aven Reedstalker
+1 Blistering Firecat
+1 Bloodcrusher of Khorne
+2 Bold Biochemist
+2 Burning-Fist Minotaur
+2 Electrickery
+2 Fearless Halberdier
+2 Feldon, Ronom Excavator
+2 Kaza, Roil Chaser
+1 Mouth of the Storm
+1 Pyromancer's Assault
+1 Rumbling Ruin
+2 Shacklegeist
+1 Summit Intimidator
+2 Teleportal
+1 Thought Harvester
+2 Tibalt, Rakish Instigator
+2 Touch of the Void
+1 Triton Shorethief
+1 Turn Inside Out
+2 Two-Headed Giant
+1 Unstoppable Ogre
+1 Warkite Marauder
+2 Zenith Chronicler
+4 Island
+14 Mountain
+2 Spirebluff Canal
+2 Stormcarved Coast
+1 Sulfur Falls

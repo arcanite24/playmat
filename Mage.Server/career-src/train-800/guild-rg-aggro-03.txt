@@ -1,0 +1,24 @@
+# name: Train800 guild-rg-aggro-03
+# archetype: aggro
+# colors: RG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Ascendant Packleader
+2 Baloth Prime
+3 Basking Broodscale
+2 Branchblight Stalker
+1 Brimstone Volley
+2 Chandra, the Firebrand
+3 Charging Strifeknight
+3 Inferno Fist
+3 Rimrock Knight
+2 Samut, Vizier of Naktamun
+4 Storm Fleet Swashbuckler
+2 Territorial Boar
+3 Trailblazing Historian
+4 Truck Toss
+2 Unnatural Moonrise
+2 Cinder Glade
+2 Forest
+4 Karplusan Forest
+10 Mountain
+4 Stomping Ground

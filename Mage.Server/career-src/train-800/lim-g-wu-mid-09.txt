@@ -1,0 +1,36 @@
+# name: Train800 lim-g-wu-mid-09
+# archetype: limited_mid
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Academy Loremaster
+1 Ao, the Dawn Sky
+1 Basilica Shepherd
+1 Built to Last
+2 Bumbleflower's Sharepot
+1 Clarion Cathars
+1 Clarion Conqueror
+1 Compleat Devotion
+2 Fear of Impostors
+1 Glorious Protector
+1 Gold-Forged Thopteryx
+1 Heliod, God of the Sun
+2 Ice Magic
+1 Jem Lightfoote, Sky Explorer
+1 Keeper of the Lens
+1 Lake-town Mariners
+2 Larder Zombie
+2 Loyal Gryff
+2 Make It So
+1 Serra Ascendant
+1 Silver Sable, Mercenary Leader
+1 Skaab Goliath
+1 The Fall of Lord Konda
+2 Thopter Mechanic
+1 Traxos, Scourge of Kroog
+1 Unswerving Sloth
+2 Uthros Psionicist
+2 Abandoned Campground
+2 Glacial Fortress
+11 Island
+8 Plains
+1 Seachrome Coast

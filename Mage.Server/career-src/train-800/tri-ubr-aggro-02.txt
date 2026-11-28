@@ -1,0 +1,27 @@
+# name: Train800 tri-ubr-aggro-02
+# archetype: aggro
+# colors: UBR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Acidic Sliver
+3 Ancestral Anger
+1 Barrage of Expendables
+4 Battlefield Scavenger
+2 Chaos Spewer
+2 Incendiary Flow
+2 Nicol Bolas, the Ravager
+3 Nivix Guildmage
+2 Prismari Apprentice
+2 Sanguine Spy
+1 Searing Blaze
+3 Shadow Urchin
+2 Shrapnel Blast
+2 Stormchaser Mage
+2 Sudden Shock
+4 Zoyowa Lava-Tongue
+4 Crosis's Catacombs
+4 Dragonskull Summit
+2 Island
+4 Mountain
+2 Razortrap Gorge
+4 Sulfurous Springs
+1 Swamp

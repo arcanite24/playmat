@@ -1,0 +1,56 @@
+# name: Train800 brawl-t-ubr-aggro-01
+# archetype: brawl_aggro
+# colors: UBR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Adroit Hateflayer
+1 Arno Dorian
+1 Atog
+1 Blood Spatter Analysis
+1 Carnage, Crimson Chaos
+1 Chandra, Pyromaster
+1 Daggerdrome Imp
+1 Deadly Precision
+1 Defiant Khenra
+1 Dream Strix
+1 Elite Headhunter
+1 Embereth Veteran
+1 Fearless Liberator
+1 Goblin Patrol
+1 Grim Initiate
+1 Kitesail Corsair
+1 Kraum, Ludevic's Opus
+1 Krydle of Baldur's Gate
+1 Lifebane Zombie
+1 Lightning Phoenix
+1 Maestros Charm
+1 Masterful Flourish
+1 Nezumi Prowler
+1 Peerless Samurai
+1 Phenax, God of Deception
+1 Prized Amalgam
+1 Rakdos Cackler
+1 Rankle and Torbran
+1 Relentless Drednok
+1 Ruthless Ripper
+1 Sabotage Strategist
+1 Sahagin
+1 Stormcaller of Keranos
+1 Stormchaser Chimera
+1 Tokka & Rahzar, Terrible Twos
+1 Wander Off
+1 Badlands
+1 Blackcleave Cliffs
+1 Cinder Marsh
+1 Crosis's Catacombs
+1 Crumbling Necropolis
+1 Dragonskull Summit
+1 Haunted Ridge
+5 Island
+3 Mountain
+1 Qo'noS
+1 Rakdos Guildgate
+1 Razortrap Gorge
+1 Smoldering Marsh
+1 Sulfurous Springs
+3 Swamp
+1 Xander's Lounge

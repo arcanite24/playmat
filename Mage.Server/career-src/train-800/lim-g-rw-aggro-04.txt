@@ -1,0 +1,43 @@
+# name: Train800 lim-g-rw-aggro-04
+# archetype: limited_aggro
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Akroan Phalanx
+1 Alabaster Mage
+1 Boros Mastiff
+2 Bruenor Battlehammer
+1 Bull Cerodon
+1 Caparocti Sunborn
+1 Chrome Dome
+1 Cori Mountain Stalwart
+1 Courier Hawk
+1 Crash
+1 Daredevil, Man Without Fear
+1 Direct Current
+1 Divine Smite
+1 Dog Walker
+1 Endrider Spikespitter
+1 HULK SMASH!
+1 Imperial Subduer
+1 Isamaru, Hound of Konda
+2 Knight of the White Orchid
+1 Lifecreed Duo
+1 Lightning Javelin
+1 Makindi Sliderunner
+1 Mourning Patrol
+1 Precision Bolt
+1 Ragefire Hellkite
+1 Reckless Ransacking
+1 Revelation of Power
+1 Sentinel Sliver
+2 Seraph of the Sword
+1 Spontaneous Flight
+1 Thorin Oakenshield
+1 Toolcraft Exemplar
+1 Volcanic Upheaval
+1 Wandering Champion
+2 Battlefield Forge
+6 Mountain
+12 Plains
+2 Sunbaked Canyon
+1 Sundown Pass

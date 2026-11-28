@@ -1,0 +1,25 @@
+# name: Train800 tri-gwu-aggro-02
+# archetype: aggro
+# colors: GWU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Alarum
+3 Bear Cub
+2 Brokers Charm
+2 Deeproot Warrior
+1 Elaborate Firecannon
+2 Errant and Giada
+4 Garenbrig Squire
+4 Genghis Frog
+3 Oreskos Sun Guide
+3 Retributive Wand
+3 Sarkhan's Resolve
+3 Shanna, Purifying Blade
+3 Water Tribe Rallier
+2 Yue, the Moon Spirit
+4 Canopy Vista
+2 Forest
+4 Grove of the Guardian
+4 Horizon Canopy
+4 Island
+2 Overgrown Farmland
+2 Plains

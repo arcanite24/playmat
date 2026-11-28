@@ -1,0 +1,25 @@
+# name: Train800 tri-wub-midrange-06
+# archetype: midrange
+# colors: WUB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Angel of Condemnation
+3 Blazing Hope
+3 Clay Revenant
+4 Enter the God-Eternals
+3 Gutter Skulk
+1 Liliana, Untouched by Death
+1 Naomi, Pillar of Order
+1 Raff Capashen, Ship's Mage
+3 Retched Wretch
+3 Risen Necroregent
+4 Ruthless Knave
+4 Senate Guildmage
+2 Seraph of the Scales
+2 Tavern Swindler
+4 Caves of Koilos
+2 Concealed Courtyard
+4 Darkslick Shores
+6 Island
+2 Plains
+4 Shattered Sanctum
+2 Swamp

@@ -1,0 +1,26 @@
+# name: Train800 guild-gw-aggro-01
+# archetype: aggro
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Bee Sting
+3 Calix, Destiny's Hand
+1 Civil Servant
+4 Conclave Cavalier
+2 Emmara, Soul of the Accord
+3 Hunted Witness
+2 Lion Heart
+2 Moment of Triumph
+2 Murasa Rootgrazer
+1 Polukranos Reborn
+2 Selesnya Charm
+4 Seraphic Steed
+3 Skymarcher Aspirant
+2 Springjaw Trap
+1 Vow to Erebor
+4 Wanderbrine Trapper
+2 Wylie Duke, Atiin Hero
+3 Forest
+4 Horizon Canopy
+8 Plains
+4 Razorverge Thicket
+2 Vigorbloom Annex

@@ -1,0 +1,24 @@
+# name: Train800 guild-wu-midrange-13
+# archetype: midrange
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Alquist Proft, Master Sleuth
+4 Blade of the Sixth Pride
+1 Boon-Bringer Valkyrie
+2 Dawnwing Marshal
+2 Drag Under
+1 Dynavolt Tower
+2 Famished Paladin
+2 Herald of Serra
+3 Mage-Ring Responder
+4 Sokka, Lateral Strategist
+2 Sphinx of New Prahv
+1 Splash Portal
+2 Stolen by the Fae
+4 Temporal Machinations
+2 The Theorist, Jace Beleren
+4 Cloudcrest Lake
+2 Deserted Beach
+4 Glacial Fortress
+7 Island
+7 Plains

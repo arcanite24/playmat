@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-gur-ramp-05
+# archetype: brawl_ramp
+# colors: GUR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Anaba Shaman
+1 Armorcraft Judge
+1 Avalanche Tusker
+1 Badgermole
+1 Barrels of Blasting Jelly
+1 Beast in Show
+1 Beluna Grandsquall
+1 Blossom Dryad
+1 Borborygmos and Fblthp
+1 Burning-Tree Emissary
+1 Depths of Desire
+1 Desperate Ritual
+1 Does Machines
+1 Drill Too Deep
+1 Druid of the Cowl
+1 Fire Nation Cadets
+1 Hooting Mandrills
+1 Khan, Despot by Design
+1 Matterbending Mage
+1 Mimic
+1 Network Disruptor
+1 Radiating Lightning
+1 Rumbling Ruin
+1 Sanctuary Smasher
+1 Sarkhan Unbroken
+1 Scrapyard Steelbreaker
+1 Shared Roots
+1 Stern Dismissal
+1 Storm Caller
+1 Tainted Observer
+1 Temur Monument
+1 Tiger-Dillo
+1 Torrential Gearhulk
+1 Trained Condor
+1 Watchful Automaton
+1 Botanical Sanctum
+1 Cinder Glade
+1 Copperline Gorge
+1 Dreamroot Cascade
+3 Forest
+1 Frontier Bivouac
+1 Hinterland Harbor
+3 Island
+1 Ketria Triome
+1 Lakeside Shack
+6 Mountain
+1 Peculiar Lighthouse
+1 Rockfall Vale
+1 Shivan Reef
+1 Spirebluff Canal
+1 Stomping Ground

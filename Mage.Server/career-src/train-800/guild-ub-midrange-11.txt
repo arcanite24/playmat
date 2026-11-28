@@ -1,0 +1,23 @@
+# name: Train800 guild-ub-midrange-11
+# archetype: midrange
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Acererak the Archlich
+2 Annihilate
+3 Ashiok, Nightmare Muse
+2 Backstreet Bruiser
+2 Champion of the Weird
+4 Demonlord Belzenlok
+3 Eject
+2 Eradicator Valkyrie
+1 Invoke Despair
+3 Scorpion Sentinel
+2 Tezzeret, Artifice Master
+3 The Ancient One
+1 Underhanded Designs
+4 Voracious Tome-Skimmer
+4 Drowned Catacomb
+3 Island
+4 Shipwreck Marsh
+2 Sunken Hollow
+11 Swamp

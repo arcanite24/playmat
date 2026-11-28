@@ -1,0 +1,23 @@
+# name: Train800 guild-bg-gowide-05
+# archetype: gowide
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Awaken the Bear
+2 Blightreaper Thallid
+4 Camellia, the Seedmiser
+3 Cursed Wombat
+2 Decode Transmissions
+2 Greta, Sweettooth Scourge
+4 Initiate's Companion
+2 Kraul Warrior
+4 Liliana, the Last Hope
+3 Lluwen, Exchange Student
+4 Pestilent Wolf
+3 Sugar Rush
+1 The Gitrog, Ravenous Ride
+3 Wasteland Viper
+4 Bayou
+6 Forest
+4 Llanowar Wastes
+2 Overgrown Tomb
+6 Swamp

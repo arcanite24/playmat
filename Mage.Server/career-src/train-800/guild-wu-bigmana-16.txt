@@ -1,0 +1,23 @@
+# name: Train800 guild-wu-bigmana-16
+# archetype: bigmana
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Bewilder
+4 Cavalier of Gales
+3 Ezrim, Agency Chief
+2 Fountainport Bell
+2 Isperia, Supreme Judge
+1 Jwari Disruption
+2 Meteorite
+1 Rally for the Throne
+4 Ray Fillet, Man Ray
+2 Sink into Stupor
+2 Spellbook Seeker
+4 Spider-Woman, Stunning Savior
+2 Teferi's Protege
+2 Test of Priorities
+4 Cloudcrest Lake
+4 Fortified Beachhead
+14 Island
+2 Plains
+2 Prairie Stream

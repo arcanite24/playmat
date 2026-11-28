@@ -1,0 +1,24 @@
+# name: Train800 guild-wb-aggro-09
+# archetype: aggro
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Action News Crew
+3 Chief of the Edge
+3 Demonic Taskmaster
+2 Desecration Elemental
+2 Elas il-Kor, Sadistic Pilgrim
+2 Give In to Violence
+4 Herald of Dromoka
+3 Lead Pipe
+4 Phalanx Vanguard
+2 Raptor Companion
+2 Rooftop Assassin
+3 Sorin's Thirst
+2 Soul Enervation
+2 Winter's Intervention
+2 Wretched Doll
+2 Caves of Koilos
+4 Isolated Chapel
+2 Plains
+4 Shattered Sanctum
+10 Swamp

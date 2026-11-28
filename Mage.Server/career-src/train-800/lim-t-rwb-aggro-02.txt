@@ -1,0 +1,40 @@
+# name: Train800 lim-t-rwb-aggro-02
+# archetype: limited_aggro
+# colors: RWB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Alaborn Musketeer
+1 Conduit Goblin
+1 Consuming Sinkhole
+2 Deathless Pilot
+2 Dovin's Automaton
+1 Embereth Paladin
+2 Flame Lash
+1 Flourishing Fox
+1 Goro-Goro, Disciple of Ryusei
+1 Hungry Flames
+2 Inevitable Defeat
+2 Item Shopkeep
+1 Joo Dee, One of Many
+1 Kardur's Vicious Return
+2 Kaya's Onslaught
+2 Possibility Technician
+1 Puresteel Paladin
+2 Sanctifier of Souls
+1 Screaming Nemesis
+1 Seedglaive Mentor
+1 Seraph of New Capenna
+1 Show of Valor
+1 Starfighter Pilot
+1 Tajic, Legion's Edge
+1 Tenth District Guard
+1 Thrill-Kill Assassin
+1 Traveling Minister
+1 Urabrask, Heretic Praetor
+1 Zurgo Helmsmasher
+2 Battlefield Forge
+2 Dedicated Commons
+4 Mountain
+5 Plains
+2 Sacred Foundry
+2 Sunbaked Canyon
+6 Swamp

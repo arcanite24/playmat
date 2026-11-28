@@ -1,0 +1,56 @@
+# name: Train800 brawl-t-wbg-aggro-01
+# archetype: brawl_aggro
+# colors: WBG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Abzan Charm
+1 Akawalli, the Seething Tower
+1 Anafenza, the Foremost
+1 Ancient Spider
+1 Atarka Beastbreaker
+1 Blacklance Paragon
+1 Blitzball Shot
+1 Blood Researcher
+1 Bullwhip
+1 Capashen Unicorn
+1 Caustic Exhale
+1 Centaur Healer
+1 Chaplain of Alms
+1 Daring Fiendbonder
+1 Deal Gone Bad
+1 Deep-Cavern Bat
+1 Dragon's Disciple
+1 Felothar, Dawn of the Abzan
+1 Fleecemane Lion
+1 Flock Impostor
+1 Foot Elite
+1 Fugitive Listener
+1 Gran Pulse Ochu
+1 Hobbling Zombie
+1 Hopeful Initiate
+1 Ice Cream Kitty
+1 Nethroi, Apex of Death
+1 Oreskos Swiftclaw
+1 Pale Rider of Trostad
+1 Price of Fame
+1 Seekers' Squire
+1 Self-Assembler
+1 Silverquill Charm
+1 Skymarcher Aspirant
+1 Social Snub
+1 Thraben Inspector
+1 Blooming Marsh
+1 Canopy Vista
+1 Caves of Koilos
+1 Concealed Courtyard
+4 Forest
+1 Formidable Commons
+1 Great Arashin City
+1 Isolated Chapel
+1 Llanowar Wastes
+1 Meticulous Commons
+1 Neglected Manor
+5 Plains
+1 Sandsteppe Citadel
+1 Shattered Sanctum
+2 Swamp
+1 Woodland Cemetery

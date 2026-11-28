@@ -1,0 +1,27 @@
+# name: Train800 tri-gur-control-11
+# archetype: control
+# colors: GUR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Bonded Herdbeast
+2 Borborygmos and Fblthp
+3 Chaos Charm
+1 Crush the Weak
+2 Fractal Mascot
+2 Furtive Analyst
+2 Gravelgill Scoundrel
+1 Jhoira, Weatherlight Captain
+3 Ragefire
+2 Reasonable Doubt
+1 Ruination Wurm
+1 Sandworm
+2 Splatter Technique
+4 Temur Charm
+3 Three Bowls of Porridge
+4 War Historian
+7 Forest
+2 Island
+2 Mountain
+4 Peculiar Lighthouse
+4 Spirebluff Canal
+2 Stormcarved Coast
+4 Sulfur Falls

@@ -1,0 +1,25 @@
+# name: Train800 guild-wb-control-18
+# archetype: control
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ajani Goldmane
+2 Black Widow, Double Agent
+2 Divine Smite
+2 Doom Blade
+2 Erase
+3 Feed the Cycle
+2 Feral Deathgorger
+3 Gisa, the Hellraiser
+2 Greasefang, Okiba Boss
+1 Love Song of Night and Day
+2 Phyrexian Missionary
+3 Twisted Fates
+3 Underworld Sentinel
+3 Vraska's Final Mercy
+1 Warchanter Skald
+3 You're Ambushed on the Road
+4 Great Arashin City
+2 Isolated Chapel
+4 Neglected Manor
+5 Plains
+10 Swamp

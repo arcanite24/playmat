@@ -1,0 +1,24 @@
+# name: Train800 guild-bg-control-18
+# archetype: control
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Body Count
+2 Collective Unconscious
+3 Crypt Lurker
+3 Death in the Family
+2 Desert's Due
+4 Greed's Gambit
+2 Groundchuck & Dirtbag
+2 Korozda Guildmage
+2 Leyline Prowler
+1 Liliana, Death's Majesty
+4 Skulduggery
+2 Stingblade Assassin
+2 Vicious Offering
+2 Wall of Blossoms
+3 Yargle and Multani
+2 Bayou
+2 Forest
+4 Llanowar Wastes
+4 Overgrown Tomb
+13 Swamp

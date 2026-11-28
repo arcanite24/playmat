@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-wu-ramp-06
+# archetype: brawl_ramp
+# colors: WU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aberrant Researcher
+1 Alabaster Host Intercessor
+1 Ardenvale Tactician
+1 Auriok Windwalker
+1 Azorius Cluestone
+1 Baird, Steward of Argive
+1 Bounding Felidar
+1 Candlegrove Witch
+1 Companion of the Trials
+1 Cryptex
+1 Djinn of Fool's Fall
+1 Drag Under
+1 Exorcise
+1 Herald of Faith
+1 Johann's Stopgap
+1 Kabira Takedown
+1 Kemba, Kha Enduring
+1 Kraken of the Straits
+1 Lake-town Toymaker
+1 Martyr of Sands
+1 Mm'menon, the Right Hand
+1 Mondrak, Glory Dominus
+1 New Prahv Guildmage
+1 Ojutai, Soul of Winter
+1 Ominous Parcel
+1 Pirate's Prize
+1 Pyramid of the Pantheon
+1 Runic Shot
+1 Scourge of Fleets
+1 Shatter the Sky
+1 Skyward Spider
+1 The Celestus
+1 Those Who Serve
+1 Thousand Winds
+1 Vizier of Deferment
+1 Abandoned Campground
+1 Adarkar Wastes
+1 Cloudcrest Lake
+1 Deserted Beach
+1 Fortified Beachhead
+1 Glacial Fortress
+4 Island
+12 Plains
+1 Prairie Stream
+1 Seachrome Coast
+1 Skybridge Towers

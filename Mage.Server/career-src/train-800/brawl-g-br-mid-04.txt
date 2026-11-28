@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-br-mid-04
+# archetype: brawl_mid
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Akul the Unrepentant
+1 Annihilate
+1 Barbarian Horde
+1 Blazing Rootwalla
+1 Blight Keeper
+1 Blood-Chin Fanatic
+1 Bloodfray Giant
+1 Boltwing Marauder
+1 Bonecaller Cleric
+1 Brazen Wolves
+1 Cateran Kidnappers
+1 Chrome Replicator
+1 Deadeye Tracker
+1 Demonic Ruckus
+1 Essence Extraction
+1 Falkenrath Reaver
+1 Feed the Swarm
+1 Felhide Brawler
+1 Fiery Cannonade
+1 Kazarov, Sengir Pureblood
+1 Long-Bodied Grey Dog
+1 Magmatic Hellkite
+1 Merchant of Many Hats
+1 Mishra, Claimed by Gix
+1 Morbid Curiosity
+1 Nyxborn Brute
+1 Ready to Rumble
+1 Salivating Gremlins
+1 Sire of Insanity
+1 Soul Sear
+1 Stark Industries Executive
+1 Tackle Artist
+1 Ultimate Green Goblin
+1 Universal Solvent
+1 Valgavoth's Faithful
+1 Badlands
+1 Blackcleave Cliffs
+1 Cinder Marsh
+1 Dragonskull Summit
+1 Haunted Ridge
+7 Mountain
+1 Razortrap Gorge
+1 Smoldering Marsh
+1 Sulfurous Springs
+9 Swamp
+1 Temple of Malice

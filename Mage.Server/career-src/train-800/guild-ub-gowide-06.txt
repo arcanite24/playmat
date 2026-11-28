@@ -1,0 +1,26 @@
+# name: Train800 guild-ub-gowide-06
+# archetype: gowide
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 A Good Day to Die
+2 Bastion of Remembrance
+2 Cunning Nightbonder
+2 Dockside Chef
+2 Eidolon of Philosophy
+3 Emet-Selch, Unsundered
+3 Glint-Nest Crane
+1 Kaito Shizuki
+2 Knight of Dusk's Shadow
+2 Mirrodin Avenged
+1 Mourner's Surprise
+2 Necrogen Scudder
+1 Ritual of the Returned
+4 Sanguine Spy
+3 Shacklegeist
+2 Shamble Back
+4 Vadmir, New Blood
+2 Island
+4 Murky Sewer
+4 Shipwreck Marsh
+2 Sunken Hollow
+9 Swamp

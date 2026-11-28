@@ -1,0 +1,24 @@
+# name: Train800 tribal-br-vampire-02
+# archetype: tribal (Vampire)
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Anje, Maid of Dishonor
+1 Bloodtracker
+2 Boggart Cursecrafter
+4 Child of Night
+1 Coming In Hot
+3 Dashing Bloodsucker
+4 Decompose
+3 Highborn Vampire
+3 Markov Baron
+2 Markov Crusader
+3 Olivia's Bloodsworn
+1 Scorching Shot
+4 Vampire Socialite
+2 Vampire Spawn
+3 Voldaren Stinger
+4 Badlands
+2 Blackcleave Cliffs
+2 Mountain
+4 Razortrap Gorge
+11 Swamp

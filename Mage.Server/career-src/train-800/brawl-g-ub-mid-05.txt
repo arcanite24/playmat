@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-ub-mid-05
+# archetype: brawl_mid
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Arrogant Poet
+1 Bilbo's Deadly Slice
+1 Blink of an Eye
+1 Bontu's Last Reckoning
+1 Daggerfang Duo
+1 Despotic Scepter
+1 Digsite Conservator
+1 Dimir Guildmage
+1 Dirge Bat
+1 Eternal Student
+1 Falcon Abomination
+1 Fathom Feeder
+1 Felhide Minotaur
+1 Feral Deathgorger
+1 Foundry Hornet
+1 Geistlight Snare
+1 Girder Goons
+1 Gisa and Geralf
+1 Gleaming Barrier
+1 Headless Specter
+1 Infectious Inquiry
+1 Kitsune, Dragon's Daughter
+1 Liliana's Scrounger
+1 Mindreaver
+1 Murderous Compulsion
+1 Mutual Destruction
+1 Notion Rain
+1 Qarsi Revenant
+1 Ruthless Deathfang
+1 Satoru, the Infiltrator
+1 Soaring Drake
+1 Stromkirk Condemned
+1 Summon: Shiva
+1 Thunder Drake
+1 Undercity Dire Rat
+1 Darkslick Shores
+1 Dimir Guildgate
+1 Drowned Catacomb
+1 Ice Tunnel
+3 Island
+1 Murky Sewer
+1 Romulus
+1 Shipwreck Marsh
+1 Sunken Hollow
+13 Swamp
+1 Underground River

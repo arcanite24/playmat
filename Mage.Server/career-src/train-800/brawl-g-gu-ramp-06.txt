@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-gu-ramp-06
+# archetype: brawl_ramp
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Anticausal Vestige
+1 Archdruid's Charm
+1 Biomechan Engineer
+1 Cetacean Ops
+1 Covert Technician
+1 Dune Mover
+1 Encouraging Aviator
+1 Fang-Druid Summoner
+1 Farseek
+1 Fellwar Stone
+1 Frontier Siege
+1 Glorious Sunrise
+1 Grip of the Roil
+1 Harrier Strix
+1 Horizon Scholar
+1 Hypnotic Siren
+1 Jolrael, Voice of Zhalfir
+1 Jukai Preserver
+1 Meteorite
+1 Mirrorshell Crab
+1 Poison Dart Frog
+1 Proctor's Gaze
+1 Quandrix Cultivator
+1 Renet, Temporal Apprentice
+1 Shipbreaker Kraken
+1 Siren Reaver
+1 Slavering Branchsnapper
+1 Spinewoods Armadillo
+1 Terra Stomper
+1 The Huntsman's Redemption
+1 The Weatherseed Treaty
+1 Unexplained Disappearance
+1 Vexing Gull
+1 Vulpine Goliath
+1 Winged Portent
+1 Botanical Sanctum
+1 Dreamroot Cascade
+9 Forest
+1 Guadosalam, Farplane Gateway
+1 Hinterland Harbor
+7 Island
+1 Lakeside Shack
+1 Pym Technologies
+1 Restless Vinestalk
+1 Transformative Commons
+1 Yavimaya Coast

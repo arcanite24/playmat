@@ -1,0 +1,25 @@
+# name: Train800 guild-gw-aggro-02
+# archetype: aggro
+# colors: GW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Acrobatic Maneuver
+1 Battlewise Valor
+1 Bee Sting
+4 Chronicler of Heroes
+3 Conclave Guildmage
+1 Dathon and Picard at El-Adrel
+4 Guardian of the Great Door
+3 Hopeful Initiate
+2 Lassoed by the Law
+3 Mikey & Leo, Chaos & Order
+2 Moorland Inquisitor
+4 Park Heights Pegasus
+3 Retributive Wand
+3 Selvala, Eager Trailblazer
+1 Sprouting Renewal
+1 Weather Maker
+4 Brushland
+2 Forest
+4 Horizon Canopy
+10 Plains
+2 Vigorbloom Annex

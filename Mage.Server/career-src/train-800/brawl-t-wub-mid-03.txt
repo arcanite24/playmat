@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-wub-mid-03
+# archetype: brawl_mid
+# colors: WUB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Anafenza, Kin-Tree Spirit
+1 Ascended Lawmage
+1 Ashiok's Skulker
+1 Bar the Gate
+1 Basilica Skullbomb
+1 Blood Curdle
+1 Caustic Bronco
+1 Cliffside Lookout
+1 Courier Hawk
+1 Deceit
+1 Dewdrop Spy
+1 Djinn of Wishes
+1 Dragon's Prey
+1 Drifter il-Dal
+1 Drogskol Reaver
+1 Dutiful Thrull
+1 Earth Kingdom Jailer
+1 Emet-Selch, Unsundered
+1 Feed the Serpent
+1 Heliod's Emissary
+1 Ketramose, the New Dawn
+1 Ob Nixilis's Cruelty
+1 Practiced Offense
+1 Renowned Weaponsmith
+1 Search Party Captain
+1 Sewer-veillance Cam
+1 Silence the Echo
+1 Sunstar Lightsmith
+1 Syr Vondam, Sunstar Exemplar
+1 Thorin's Last Stand
+1 Three Tree Mascot
+1 Unstoppable Slasher
+1 Unwavering Initiate
+1 Vizkopa Vampire
+1 Watchful Blisterzoa
+1 Abandoned Campground
+1 Adarkar Wastes
+1 Arcane Sanctum
+1 Cloudcrest Lake
+1 Deserted Beach
+1 Fortified Beachhead
+1 Glacial Fortress
+1 Great Arashin City
+3 Island
+1 Meticulous Commons
+3 Plains
+1 Prairie Stream
+1 Raffine's Tower
+1 Seachrome Coast
+1 Shattered Sanctum
+6 Swamp

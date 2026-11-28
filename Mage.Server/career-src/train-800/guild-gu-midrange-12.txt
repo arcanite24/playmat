@@ -1,0 +1,23 @@
+# name: Train800 guild-gu-midrange-12
+# archetype: midrange
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 All-Seeing Arbiter
+1 Bontu's Monument
+2 Bristlepack Sentry
+1 Dissenter's Deliverance
+4 Enduring Vitality
+4 Gloomwidow
+3 Hermitic Herbalist
+4 Kiora, the Crashing Wave
+2 Lost in the Spirit World
+2 Pack Guardian
+4 Simic Charm
+2 Tam, Observant Sequencer
+3 Thornvault Forager
+1 Venus, Torn Between Worlds
+2 Dreamroot Cascade
+12 Forest
+4 Hinterland Harbor
+2 Island
+4 Lakeside Shack

@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-wb-ramp-06
+# archetype: brawl_ramp
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Angel of the Dawn
+1 Ballynock Cohort
+1 Bib Fortuna
+1 Brightfield Mustang
+1 Case of the Shattered Pact
+1 Chromatic Sphere
+1 Cloudspire Captain
+1 Cogwork Librarian
+1 Crypt Creeper
+1 Cut Short
+1 Deadly Alliance
+1 Deathknell Berserker
+1 Demon of Dark Schemes
+1 Environmental Sciences
+1 Festive Funeral
+1 Grasping Shadows
+1 Grasping Thrull
+1 Griffin Protector
+1 Horror of the Broken Lands
+1 Immortal Servitude
+1 Jeong Jeong's Deserters
+1 Lingering Phantom
+1 Master Skald
+1 Old Flitterfang
+1 Orzhov Locket
+1 Profane Procession
+1 Ray of Dissolution
+1 Shroudstomper
+1 Sungrace Pegasus
+1 Treacherous Blessing
+1 Triad of Fates
+1 Unrooted Ancestor
+1 War Oracle
+1 Warden of the Beyond
+1 Zodiark, Umbral God
+1 Caves of Koilos
+1 Concealed Courtyard
+1 Great Arashin City
+1 Insomnia, Crown City
+1 Isolated Chapel
+1 Meticulous Commons
+1 Neglected Manor
+5 Plains
+1 Shattered Sanctum
+1 Snowfield Sinkhole
+11 Swamp

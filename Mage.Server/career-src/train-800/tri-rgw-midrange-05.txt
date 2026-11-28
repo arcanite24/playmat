@@ -1,0 +1,25 @@
+# name: Train800 tri-rgw-midrange-05
+# archetype: midrange
+# colors: RGW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Armada Wurm
+1 Aura Blast
+3 Baylen, the Haymaker
+4 Black Tom Cassidy
+2 Blazing Firesinger
+1 Bramblefort Fink
+2 Contagious Vorrac
+3 Dreadmaw's Ire
+4 Jetmir, Nexus of Revels
+3 Kessig Naturalist
+1 Plasma Cascade
+4 Radha, Heart of Keld
+2 Rubblebelt Recluse
+4 Survey the Wreckage
+4 Copperline Gorge
+2 Forest
+4 Karplusan Forest
+2 Mountain
+6 Plains
+2 Rockfall Vale
+4 Stomping Ground

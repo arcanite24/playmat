@@ -1,0 +1,37 @@
+# name: Train800 lim-g-ub-mid-09
+# archetype: limited_mid
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Alley Assailant
+1 Altar's Reap
+1 Bushmeat Poacher
+1 Cemetery Reaper
+2 Chill to the Bone
+1 Clandestine Meddler
+1 Death Pulse
+1 Deepmuck Desperado
+1 Essence Extraction
+2 Fear of the Dark
+1 Fogwalker
+1 He's Dead, Jim
+1 Hired Blade
+1 Lochmere Serpent
+2 Moment of Defiance
+2 Most Decrepit Old Bird
+2 Mr. Spock, Science Officer
+1 Pale Rider of Trostad
+1 Relentless Drednok
+1 Sangromancer
+1 Seer of Stolen Sight
+1 Slither Blade
+2 Storm Fleet Aerialist
+1 Tainted Indulgence
+1 The Sackville-Bagginses
+2 Triton Fortune Hunter
+2 Vengeant Vampire
+1 Volatile Rig
+2 Darkslick Shores
+5 Island
+1 Sunken Hollow
+14 Swamp
+2 Underground River

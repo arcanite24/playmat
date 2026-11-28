@@ -52,7 +52,7 @@ def main():
     work = "/content/playmat_cardtext"
     os.makedirs(work, exist_ok=True)
 
-    here = os.path.dirname(os.path.abspath(__file__))
+    here = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else os.getcwd()
     local_ct = os.path.join(here, "cardtext.py")
     local_views = args.views_gz or os.path.join(here, "..", "crates", "playmat-engine", "cards", "views.json.gz")
     local_reg = args.registry or os.path.join(here, "..", "crates", "playmat-ai", "src", "card_registry_32k.txt")

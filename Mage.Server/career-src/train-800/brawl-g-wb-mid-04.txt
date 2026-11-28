@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-wb-mid-04
+# archetype: brawl_mid
+# colors: WB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Abbey Griffin
+1 Agents of S.H.I.E.L.D.
+1 Airdrop Aeronauts
+1 Angel of the Ruins
+1 Angelic Skirmisher
+1 Appendage Amalgam
+1 Aven Liberator
+1 Bankrupt in Blood
+1 Bat Whisperer
+1 Brightblade Stoat
+1 Caligo Skin-Witch
+1 Captain America, Unbowed
+1 Celestial Crusader
+1 Cemetery Recruitment
+1 Cleanfall
+1 Command Subadjunct
+1 Corpse Hauler
+1 Dakmor Scorpion
+1 Dark Confidant
+1 Elektra, Daughter of the Hand
+1 Eriette's Lullaby
+1 Flowerfoot Swordmaster
+1 Guardian Automaton
+1 Legion's End
+1 Naomi, Pillar of Order
+1 Okoye, Dora Milaje Leader
+1 Overlord of the Balemurk
+1 Pillar of Light
+1 Preeminent Captain
+1 Seasoned Consultant
+1 Seized from Slumber
+1 Spirited Companion
+1 Spreading Rot
+1 Syphon Sliver
+1 Undead Minotaur
+1 Caves of Koilos
+1 Concealed Courtyard
+1 Forum of Amity
+1 Great Arashin City
+1 Isolated Chapel
+1 Meticulous Commons
+1 Neglected Manor
+11 Plains
+1 Restless Fortress
+1 Shattered Sanctum
+5 Swamp

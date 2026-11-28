@@ -1,0 +1,50 @@
+# name: Train800 brawl-g-ub-mid-04
+# archetype: brawl_mid
+# colors: UB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Agony Warp
+1 Assassinate
+1 Belbe's Percher
+1 Cateran Overlord
+1 Covert Cutpurse
+1 Cursecatcher
+1 Daring Thief
+1 Deadly Embrace
+1 Deny the Divine
+1 Desecration Demon
+1 Djinn of the Fountain
+1 Douser of Lights
+1 Fell
+1 Go-Shintai of Hidden Cruelty
+1 Greedy Freebooter
+1 Grim Wanderer
+1 Grisly Survivor
+1 Illusory Angel
+1 Implement of Examination
+1 Jaded Analyst
+1 Kindly Stranger
+1 Melancholic Poet
+1 Quicksmith Spy
+1 Rona's Vortex
+1 Sanguine Spy
+1 Scathing Shadelock
+1 Sidisi, Undead Vizier
+1 Skittering Heartstopper
+1 Soulreaper of Mogis
+1 Tamiyo's Logbook
+1 Tenured Oilcaster
+1 Tezzeret's Betrayal
+1 Towering-Wave Mystic
+1 Venomous Hierophant
+1 Venser, Corpse Puppet
+1 Creeping Tar Pit
+1 Darkslick Shores
+1 Drowned Catacomb
+1 Ice Tunnel
+3 Island
+1 Murky Sewer
+1 Shipwreck Marsh
+1 Sinister Hideout
+1 Sunken Hollow
+13 Swamp
+1 Underground River

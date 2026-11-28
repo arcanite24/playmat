@@ -1,0 +1,26 @@
+# name: Train800 tri-gwu-midrange-08
+# archetype: midrange
+# colors: GWU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Abhorrent Oculus
+4 Applied Biomancy
+1 Blasting Station
+2 Branchsnap Lorian
+4 Colossadactyl
+1 God-Eternal Oketra
+4 Gremlin Tamer
+3 Into the Roil
+2 Platypus-Bear
+2 Resculpt
+4 Rumbling Baloth
+3 Sephara, Sky's Blade
+1 Spectacular Tactics
+2 Tenth District Guard
+1 Whoosh!
+4 Canopy Vista
+2 Forest
+2 Horizon Canopy
+6 Island
+2 Plains
+4 Razorverge Thicket
+4 Sunpetal Grove

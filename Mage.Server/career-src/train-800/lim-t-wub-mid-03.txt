@@ -1,0 +1,38 @@
+# name: Train800 lim-t-wub-mid-03
+# archetype: limited_mid
+# colors: WUB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Anguished Unmaking
+1 Armory Mice
+2 Aron, Benalia's Ruin
+1 Bloated Processor
+2 Captain's Defense
+1 Closing Statement
+2 Eldrazi Skyspawner
+1 Expedition Lookout
+1 General's Enforcer
+1 Goldmaw Champion
+1 Gravebreaker Lamia
+2 Headwater Sentries
+2 Inquisitive Glimmer
+2 Last Breath
+1 Maalfeld Twins
+1 Massacre Girl, Known Killer
+1 Master of Predicaments
+2 Mischievous Sneakling
+1 Obscura Initiate
+1 Oildeep Gearhulk
+1 Penance Stare
+1 Pristine Skywise
+1 Skymarch Bloodletter
+1 Sphinx of the Final Word
+2 Story Seeker
+2 Tomebound Lich
+1 Wolfbat
+2 Abandoned Campground
+2 Arcane Sanctum
+4 Island
+5 Plains
+2 Prairie Stream
+2 Raffine's Tower
+7 Swamp

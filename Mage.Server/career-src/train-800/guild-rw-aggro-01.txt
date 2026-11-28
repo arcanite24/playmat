@@ -1,0 +1,24 @@
+# name: Train800 guild-rw-aggro-01
+# archetype: aggro
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Aya of Alexandria
+2 Boros Charm
+3 Commander William Riker
+4 Dog Walker
+1 Form a Posse
+1 Frontline Rush
+3 Heartflame Duelist
+1 High Noon
+1 Jor Kadeen, First Goldwarden
+4 Lightning Helix
+4 Relentless Raptor
+3 Savai Thundermane
+2 Truefire Paladin
+3 Warleader's Helix
+2 Wojek Halberdiers
+4 Dedicated Commons
+5 Mountain
+7 Plains
+4 Sacred Foundry
+2 Sunbaked Canyon

@@ -1,0 +1,51 @@
+# name: Train800 brawl-g-ur-aggro-02
+# archetype: brawl_aggro
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Accumulated Knowledge
+1 Aesthir Glider
+1 Assembly-Worker
+1 Battlefield Thaumaturge
+1 Bay Falcon
+1 Bombard
+1 Bothersome Noisemaker
+1 Cloistered Telepath
+1 Combat Courier
+1 Crush
+1 Diamond Mare
+1 Dromosaur
+1 Galvanic Giant
+1 Hinterland Drake
+1 Il Mheg Pixie
+1 Inferno Fist
+1 Inferno Hellion
+1 Jeskai Sage
+1 Kargan Dragonrider
+1 Kindled Fury
+1 Kolaghan Warmonger
+1 Lightning Visionary
+1 Mechan Navigator
+1 Metalhead
+1 Mischievous Chimera
+1 Panicked Altisaur
+1 Pillar of Flame
+1 Prismari Charm
+1 Raccoon Rallier
+1 Raze to the Ground
+1 Red Herring
+1 Sabertooth Outrider
+1 Stromkirk Noble
+1 Weldfast Monitor
+1 Weldfast Wingsmith
+1 Wingshield Agent
+1 Eroded Canyon
+5 Island
+1 Molten Tributary
+10 Mountain
+1 Peculiar Lighthouse
+1 Prismari Campus
+1 Shivan Reef
+1 Spirebluff Canal
+1 Stormcarved Coast
+1 Sulfur Falls
+1 Volatile Fjord

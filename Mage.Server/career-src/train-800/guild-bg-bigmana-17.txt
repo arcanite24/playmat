@@ -1,0 +1,25 @@
+# name: Train800 guild-bg-bigmana-17
+# archetype: bigmana
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ashnod's Intervention
+2 Baleful Beholder
+4 Caldaia Guardian
+4 Grim Bounty
+1 Head of the Hunt
+2 Humble Naturalist
+1 Hyrax Tower Scout
+4 Omni-Cheese Pizza
+2 Owlbear
+2 Scrapshooter
+3 Silverback Elder
+2 Skull Prophet
+2 Spider-Rex, Daring Dino
+2 Terrian, World Tyrant
+1 Titania's Command
+1 You Find a Cursed Idol
+4 Blooming Marsh
+14 Forest
+4 Llanowar Wastes
+2 Swamp
+2 Woodland Cemetery

@@ -1,0 +1,26 @@
+# name: Train800 tri-bgu-control-11
+# archetype: control
+# colors: BGU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Coveted Falcon
+4 Finale of Eternity
+3 Foggy Swamp Spirit Keeper
+1 Geralf's Masterpiece
+2 Gix's Command
+3 Jace, the Perfected Mind
+2 Malevolent Noble
+2 Master Symmetrist
+4 Miscast
+3 Overwhelming Remorse
+3 Slavering Branchsnapper
+2 Stymied Hopes
+2 Summon: Titan
+2 Universal Solvent
+1 Villainous Wrath
+2 Drowned Catacomb
+6 Forest
+2 Island
+4 Opulent Palace
+4 Shipwreck Marsh
+3 Swamp
+4 Underground River

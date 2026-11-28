@@ -1,0 +1,25 @@
+# name: Train800 guild-bg-aggro-09
+# archetype: aggro
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Aspect of Hydra
+3 Collation Trimatrix
+2 Dream Beavers
+2 Fynn, the Fangbearer
+3 Hunted Bonebrute
+3 Jade Avenger
+3 Mindful Biomancer
+2 Predation Steward
+2 Promising Duskmage
+3 Shopkeeper's Bane
+2 Skola Grovedancer
+2 Temur Charger
+2 Test of Courage
+2 Tyvar, the Pummeler
+3 Vraska, Golgari Queen
+2 Walking Corpse
+9 Forest
+2 Llanowar Wastes
+4 Strangled Cemetery
+2 Swamp
+4 Woodland Cemetery

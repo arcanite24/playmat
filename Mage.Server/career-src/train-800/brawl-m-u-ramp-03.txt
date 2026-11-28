@@ -1,0 +1,40 @@
+# name: Train800 brawl-m-u-ramp-03
+# archetype: brawl_ramp
+# colors: U
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Animating Faerie
+1 Asinine Antics
+1 Assassin Gauntlet
+1 Beyeen Veil
+1 Bilbo Baggins, Burglar
+1 Cloud Manta
+1 Collector's Vault
+1 Depths of Desire
+1 Dirgur Nemesis
+1 Dreamtail Heron
+1 Escaped Experiment
+1 Falcon, Winged Wonder
+1 Frilled Cave-Wurm
+1 Fugitive Droid
+1 Geistwave
+1 Geralf's Masterpiece
+1 Giant's Boulder
+1 Jace, the Perfected Mind
+1 Kefnet the Mindful
+1 Mercurial Spelldancer
+1 Meteorite
+1 Mindscour Dragon
+1 Mistral Singer
+1 Out of the Way
+1 Prescient Chimera
+1 Relic Runner
+1 Scholar of the Lost Trove
+1 Shortcut Seeker
+1 Surveillance Monitor
+1 Take Inventory
+1 Talas Lookout
+1 Umara Wizard
+1 Urn of Godfire
+1 Vaporkin
+1 Windreader Sphinx
+25 Island

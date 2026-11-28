@@ -1,0 +1,19 @@
+# name: Train800 mono-g-bigmana-10
+# archetype: bigmana
+# colors: G
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Become the Avalanche
+1 Bristlebane Battler
+3 Carven Caryatid
+3 Channeler Initiate
+1 Crack Open
+3 Groundchuck & Dirtbag
+4 Hydra Broodmaster
+2 Nissa, Vital Force
+3 Pet Avengers
+2 Prizefight
+3 Sidequest: Raise a Chocobo
+4 Urn of Godfire
+2 Vastlands Scavenger
+2 Vorinclex
+26 Forest

@@ -1,0 +1,40 @@
+# name: Train800 lim-t-urw-mid-03
+# archetype: limited_mid
+# colors: URW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Agent of Acquisitions
+1 Angelheart Protector
+1 Benalish Heralds
+2 Captain Janeway, Endgame
+1 Cathartic Adept
+2 Cloudshift
+2 Curious Farm Animals
+1 Deep-Slumber Titan
+1 Dovin's Acuity
+2 Dual Shot
+1 Ertha Jo, Frontier Mentor
+1 Expedition Champion
+1 Flaring Cinder
+1 Ghostly Pilferer
+1 Iron Fist, Living Weapon
+1 Kulrath Zealot
+2 Metallic Mimic
+2 Najal, the Storm Runner
+1 Nimble Birdsticker
+1 Plunder the Trollshaws
+1 Prismari Apprentice
+1 Punish the Enemy
+1 Pyroclastic Elemental
+1 Ragost, Deft Gastronaut
+1 Rem Karolus, Stalwart Slayer
+2 Sourbread Auntie
+1 Tezzeret's Strider
+1 Twinmaw Stormbrood
+1 You're Not Alone
+2 Clifftop Retreat
+2 Dalkovan Encampment
+6 Island
+8 Mountain
+2 Plains
+2 Raugrin Triome
+2 Sacred Foundry

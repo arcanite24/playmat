@@ -1,0 +1,24 @@
+# name: Train800 guild-ur-midrange-14
+# archetype: midrange
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Archwing Dragon
+4 Balduvian Horde
+2 Bazaar Trademage
+4 Donatello, Turtle Techie
+3 Fiery Temper
+1 Fire Nation Cadets
+4 Gilded Ghoda
+3 Goblin Barrage
+3 Jiang Yanggu, Alone
+3 Oaken Siren
+1 Price of Freedom
+1 Skewer the Critics
+1 Summon: Shiva
+3 Timely Interference
+1 Weaponize the Monsters
+2 Island
+12 Mountain
+2 Peculiar Lighthouse
+4 Spirebluff Canal
+4 Stormcarved Coast

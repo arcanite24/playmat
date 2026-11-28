@@ -1,0 +1,25 @@
+# name: Train800 guild-br-tempo-09
+# archetype: tempo
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Anep, Vizier of Hazoret
+4 Bloodsoaked Champion
+2 Bloodstone Goblin
+2 Chandra, Torch of Defiance
+3 Draconautics Engineer
+2 Dust Stalker
+1 Goatnap
+3 Goblin Chainwhirler
+2 Goblin Guide
+4 Heartfire
+3 Makeshift Munitions
+2 Neonate's Rush
+4 Play with Fire
+2 Price of Freedom
+2 Scuzzback Scrounger
+2 Transporter Malfunction
+4 Cinder Marsh
+2 Dragonskull Summit
+9 Mountain
+4 Sulfurous Springs
+2 Swamp

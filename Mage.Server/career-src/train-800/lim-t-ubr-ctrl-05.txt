@@ -1,0 +1,40 @@
+# name: Train800 lim-t-ubr-ctrl-05
+# archetype: limited_ctrl
+# colors: UBR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 April O'Neil, Hacktivist
+2 Black Sun's Twilight
+1 Bladecoil Serpent
+2 Blood Operative
+1 Bolg of the North
+1 Catalyst Elemental
+1 Cosmotronic Wave
+1 Crookclaw Transmuter
+1 Deny Entry
+1 Destructive Tampering
+1 Dimir Cutpurse
+1 Enemy of Enlightenment
+1 Essence Backlash
+1 Fiery Impulse
+1 Foul Play
+1 Frost Bite
+1 Fuel the Flames
+1 Gisa, the Hellraiser
+2 Hoard Robber
+1 Illusion Spinners
+1 Kardur, Doomscourge
+1 Kragma Butcher
+2 Maestros Initiate
+2 Mayhem Patrol
+1 Nicol Bolas, the Ravager
+1 Omen Hawker
+1 Porcuparrot
+1 Shimmercreep
+1 Teferi's Tutelage
+2 Crosis's Catacombs
+2 Dragonskull Summit
+2 Haunted Ridge
+6 Island
+3 Mountain
+2 Smoldering Marsh
+8 Swamp

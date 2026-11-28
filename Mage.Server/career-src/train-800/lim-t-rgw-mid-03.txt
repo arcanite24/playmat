@@ -1,0 +1,40 @@
+# name: Train800 lim-t-rgw-mid-03
+# archetype: limited_mid
+# colors: RGW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Alpha Tyrranax
+2 Astor, Bearer of Blades
+1 Attuned Hunter
+1 Auspicious Arrival
+1 Bonethorn Valesk
+1 Chance-Met Elves
+1 Cliffhaven Sell-Sword
+1 Clockwork Servant
+2 Dragonlord Dromoka
+1 Enlightened Confidant
+2 Farid, Enterprising Salvager
+1 Fiery Conclusion
+1 Garnet, Princess of Alexandria
+1 Ghor-Clan Rampager
+1 House Cartographer
+2 Huatli, Radiant Champion
+1 Indoctrination Attendant
+1 Jennifer Walters
+1 Reduce to Ashes
+1 Rin and Seri, Inseparable
+1 Savage Surge
+1 Selvala, Eager Trailblazer
+2 Skyknight Vanguard
+1 Slaughterhorn
+1 Sunblade Samurai
+1 Sunspire Gatekeepers
+2 Thornweald Archer
+1 Verdurous Gearhulk
+2 White Auracite
+4 Forest
+2 Grove of the Guardian
+7 Mountain
+2 Overgrown Farmland
+5 Plains
+2 Sunpetal Grove
+2 Vigorbloom Annex

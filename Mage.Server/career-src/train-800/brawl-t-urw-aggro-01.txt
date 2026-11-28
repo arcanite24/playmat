@@ -1,0 +1,56 @@
+# name: Train800 brawl-t-urw-aggro-01
+# archetype: brawl_aggro
+# colors: URW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Akiri, Fearless Voyager
+1 Archmage Emeritus
+1 Armored Pegasus
+1 Besotted Knight
+1 Black Widow, Agile Avenger
+1 Brigid, Hero of Kinsbaile
+1 Brothers of Fire
+1 Cantankerous Captain
+1 Coordinated Maneuver
+1 Defender of the Order
+1 Dennick, Pious Apprentice
+1 Dwarven Mauler
+1 Earthshaker Khenra
+1 Firebending Student
+1 Gearshift Ace
+1 Goblin Tomb Raider
+1 Heroes of the Revel
+1 Homing Lightning
+1 Intrepid Adversary
+1 Jace's Projection
+1 Jeskai Shrinekeeper
+1 Kabira Outrider
+1 Mask of Immolation
+1 Narset of the Ancient Way
+1 Norin, Swift Survivalist
+1 Recruitment Officer
+1 Rotisserie Elemental
+1 Sage of the Inward Eye
+1 Shipwreck Sifters
+1 Spark Trooper
+1 Stolen Vitality
+1 Sungold Sentinel
+1 Sunlit Hoplite
+1 Suplex
+1 Tanufel Rimespeaker
+1 Zephyr Winder
+1 Battlefield Forge
+1 Boros Guildgate
+1 Clifftop Retreat
+1 Dalkovan Encampment
+1 Dedicated Commons
+1 Inspiring Vantage
+6 Island
+1 Lorehold Campus
+3 Mountain
+1 Mystic Monastery
+2 Plains
+1 Raucous Carnival
+1 Raugrin Triome
+1 Sacred Foundry
+1 Sunbaked Canyon
+1 Sundown Pass

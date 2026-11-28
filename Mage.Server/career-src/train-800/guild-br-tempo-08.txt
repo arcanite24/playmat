@@ -1,0 +1,24 @@
+# name: Train800 guild-br-tempo-08
+# archetype: tempo
+# colors: BR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Chain Lightning
+4 Goblin Bombardment
+4 Greasewrench Goblin
+2 Incendiary Flow
+4 Isareth the Awakener
+3 Kroxa, Titan of Death's Hunger
+2 Manhole Missile
+2 Ordeal of Purphoros
+4 Oread of Mountain's Blaze
+3 Pillar of Flame
+1 Supernatural Stamina
+2 Take Out the Trash
+2 Ultimate Green Goblin
+2 Volcanic Spite
+2 Zurgo Bellstriker
+4 Badlands
+2 Blackcleave Cliffs
+8 Mountain
+4 Razortrap Gorge
+2 Swamp

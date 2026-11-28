@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-gwu-ramp-04
+# archetype: brawl_ramp
+# colors: GWU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Afterlife
+1 Angelic Guardian
+1 Ant-Man, Reformed Rogue
+1 Assault Zeppelid
+1 Bewilder
+1 Bilbo's Gambit
+1 Case the Joint
+1 Civic Stalwart
+1 Crookclaw Elder
+1 Crop Rotation
+1 Curator Beastie
+1 Destructor Dragon
+1 Dirgur Island Dragon
+1 Ezrim, Agency Chief
+1 Flywheel Racer
+1 Glider Kids
+1 Greenwarden of Murasa
+1 Ironpaw Aspirant
+1 Isperia, Supreme Judge
+1 Ledev Guardian
+1 Linvala, the Preserver
+1 Maritime Guard
+1 Oakhame Ranger
+1 Planar Cleansing
+1 Riverwise Augur
+1 Seraphic Steed
+1 Skyserpent Seeker
+1 Spiked Pit Trap
+1 Stone by Sunlight
+1 Thalia, the Survivor
+1 Thirsting Roots
+1 Track Down
+1 Unblinking Observer
+1 Vega, the Watcher
+1 White Auracite
+1 Abandoned Campground
+1 Brushland
+1 Canopy Vista
+1 Etched Cornfield
+2 Forest
+1 Fortified Beachhead
+1 Glacial Fortress
+1 Horizon Canopy
+5 Island
+1 Overgrown Farmland
+5 Plains
+1 Razorverge Thicket
+1 Seachrome Coast
+1 Spara's Headquarters
+1 Sunpetal Grove
+1 Vigorbloom Annex

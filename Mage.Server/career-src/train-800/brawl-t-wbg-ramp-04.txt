@@ -1,0 +1,55 @@
+# name: Train800 brawl-t-wbg-ramp-04
+# archetype: brawl_ramp
+# colors: WBG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Abzan Banner
+1 Augur il-Vec
+1 Autonomous Assembler
+1 Battle Mammoth
+1 Blood-Cursed Knight
+1 Bofur, Reliable Guardian
+1 Canopy Spider
+1 Carnifex Demon
+1 Creakwood Liege
+1 Deathspore Thallid
+1 Dukhara Scavenger
+1 Energy Refractor
+1 Extruder
+1 Feed the Cycle
+1 Giant Dustwasp
+1 Hagra Sharpshooter
+1 Herbology Instructor
+1 Implement of Malice
+1 Ivorytusk Fortress
+1 Kaya's Wrath
+1 Kozilek's Translator
+1 Legion's Judgment
+1 Master of Diversion
+1 Reclaim the Wastes
+1 Sanguine Savior
+1 Sengir Connoisseur
+1 Siege Rhino
+1 Skybeast Tracker
+1 Soul Partition
+1 Sowing Mycospawn
+1 Sumala Sentry
+1 Sun-Dappled Celebrant
+1 Sylvan Scrying
+1 Tend the Sprigs
+1 Territorial Hammerskull
+1 Bayou
+1 Blooming Marsh
+1 Canopy Vista
+1 Deathcap Glade
+3 Forest
+1 Great Arashin City
+1 Llanowar Wastes
+1 Meticulous Commons
+1 Neglected Manor
+1 Overgrown Tomb
+6 Plains
+1 Razorverge Thicket
+1 Sandsteppe Citadel
+1 Strangled Cemetery
+1 Sunpetal Grove
+3 Swamp

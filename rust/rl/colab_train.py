@@ -70,6 +70,7 @@ def main():
     ap.add_argument("--gpu-data-gb", type=float, default=18.0)
     ap.add_argument("--compile", action="store_true", help="enable torch.compile on Colab CUDA")
     ap.add_argument("--no-refit-value", action="store_true")
+    ap.add_argument("--also-upload-32k", action="store_true", help="also export & upload zero-shot 32k CardAdapter upgrade (<name>-32k)")
     args = ap.parse_args()
 
     t0 = time.time()
@@ -226,6 +227,21 @@ def main():
         allow_patterns=["*.pmnet", "*.pt", "*.json", "*.jsonl"],
         commit_message=f"Colab trained checkpoint: {args.name}",
     )
+    if args.also_upload_32k:
+        sys.path.insert(0, rl_dir)
+        import model as rl_model
+        out_32k = os.path.join(work, "out", f"{args.name}-32k")
+        ct32 = os.path.join(rl_dir, "data", "cardtext_v2_32k.npy")
+        print(f"COLAB exporting zero-shot 32k upgrade -> {out_32k} using {ct32}", flush=True)
+        rl_model.upgrade_txv2_to_32k(out_dir, out_32k, cardtext_path=ct32)
+        api.upload_folder(
+            folder_path=out_32k,
+            path_in_repo=f"checkpoints/{args.name}-32k",
+            repo_id=args.models_repo,
+            repo_type="model",
+            allow_patterns=["*.pt", "*.json", "*.jsonl"],
+            commit_message=f"Zero-shot 32k collision-free CardAdapter upgrade: {args.name}-32k",
+        )
     print(f"COLAB ALL DONE ({args.name}) in {time.time() - t0:.1f} s", flush=True)
 
 

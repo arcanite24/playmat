@@ -1,0 +1,20 @@
+# name: Train800 mono-r-midrange-09
+# archetype: midrange
+# colors: R
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+3 Chandra, Torch of Defiance
+1 Chandra, the Firebrand
+4 Charging Strifeknight
+2 Dance with Devils
+3 Inferno of the Star Mounts
+3 Kessig Wolfrider
+3 Krenko's Buzzcrusher
+1 Lightning Shrieker
+3 Piggy Bank
+3 Plasma Cascade
+2 Purple Dragon Punks
+3 Rescue Leopard
+1 Sarkhan, Fireblood
+2 Shrapnel Blast
+2 Summon: G.F. Ifrit
+24 Mountain

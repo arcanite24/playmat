@@ -1,0 +1,23 @@
+# name: Train800 guild-ur-control-19
+# archetype: control
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Ambling Stormshell
+3 Baral and Kari Zev
+1 Exquisite Firecraft
+2 Fateful End
+2 Frolicking Familiar
+2 Glimmerburst
+4 Horta
+4 Izzet Charm
+3 Lightning Volley
+3 Radiating Lightning
+3 Ral Zarek
+2 Scatter Arc
+2 Seacoast Drake
+2 Splash Portal
+6 Island
+10 Mountain
+2 Shivan Reef
+4 Stormcarved Coast
+4 Sulfur Falls

@@ -1,0 +1,38 @@
+# name: Train800 lim-g-bg-aggro-01
+# archetype: limited_aggro
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aetherstream Leopard
+1 Ancient Silverback
+1 Baloth Pup
+2 Copper Longlegs
+1 Defenestrate
+2 Dryad of the Ilysian Grove
+1 Elegy Acolyte
+1 Exemplar of Strength
+1 Geothermal Kami
+1 Gollum the Abandoned
+2 Greenwood Sentinel
+1 Iridescent Vinelasher
+2 Leaping Ambush
+1 Lotleth Troll
+2 Nyxborn Marauder
+2 Pharika's Libation
+1 Pharika, God of Affliction
+1 Pillar Launch
+1 Rakish Crew
+1 Savor
+1 Savvy Hunter
+1 Scavenger Regent
+2 Serrated Scorpion
+2 Sinkhole Surveyor
+1 Spiteful Hexmage
+1 The Gitrog Monster
+1 Valley Mightcaller
+1 Wildwood Patrol
+1 Yavimaya Sapherd
+2 Bayou
+2 Deathcap Glade
+9 Forest
+1 Strangled Cemetery
+9 Swamp

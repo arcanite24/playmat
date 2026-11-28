@@ -1,0 +1,51 @@
+# name: Train800 brawl-g-gu-aggro-02
+# archetype: brawl_aggro
+# colors: GU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Aerial Doombot
+1 Aim High
+1 Arwen Undomiel
+1 Boomerang Basics
+1 Branchsnap Lorian
+1 Brotherhood Spy
+1 Colossal Skyturtle
+1 Combine Guildmage
+1 Cryptolith Fragment
+1 Elusive Otter
+1 Galactic Wayfarer
+1 Genghis Frog
+1 Gigantoad
+1 Heir of the Wilds
+1 Infirmary Healer
+1 Kiora's Follower
+1 Knight of the Stampede
+1 Labyrinth Guardian
+1 Lantern Bearer
+1 Lat-Nam Adept
+1 Longstalk Brawl
+1 Monument to Endurance
+1 Nael, Avizoa Aeronaut
+1 Nylea's Disciple
+1 Open into Wonder
+1 Scaled Herbalist
+1 Shambleshark
+1 Slithering Cryptid
+1 Syr Ginger, the Meal Ender
+1 The Boulder, Ready to Rumble
+1 Triton Waverider
+1 Vortex Runner
+1 Voyage's End
+1 Warkite Marauder
+1 Wilt
+1 Wistfulness
+1 Botanical Sanctum
+1 Dreamroot Cascade
+8 Forest
+1 Hinterland Harbor
+7 Island
+1 Lakeside Shack
+1 Mutant Town
+1 Paradox Gardens
+1 Pym Technologies
+1 Transformative Commons
+1 Yavimaya Coast

@@ -1,0 +1,35 @@
+# name: Train800 lim-g-bg-ctrl-10
+# archetype: limited_ctrl
+# colors: BG
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Ainok Artillerist
+2 Ashnod's Harvester
+2 Beledros Witherbloom
+1 Boneyard Lurker
+2 Burning-Rune Demon
+1 Carven Caryatid
+1 Feed the Cycle
+1 Ghirapur Guide
+2 Grasp of Darkness
+1 Joraga Invocation
+1 Lumbering Laundry
+1 Mugato
+1 Nemata, Primeval Warden
+1 Read the Bones
+2 Rowan's Grim Search
+1 Ruthless Ripper
+1 Shoot Down
+1 Somberwald Stag
+2 Sorin's Thirst
+2 Tooth Collector
+1 Transcendent Archaic
+1 Troll Negotiations
+1 Undercity Necrolisk
+1 Vastwood Surge
+2 Virulent Emissary
+1 Wayward Swordtooth
+9 Forest
+2 Formidable Commons
+1 Llanowar Wastes
+2 Strangled Cemetery
+11 Swamp

@@ -1,0 +1,26 @@
+# name: Train800 tri-rwb-aggro-01
+# archetype: aggro
+# colors: RWB
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Butcher of the Horde
+2 Chase Stein, Runaway
+4 Fire Urchin
+2 Lorehold Apprentice
+3 Mardu Charm
+1 Mardu Devotee
+1 Mouser Foundry
+2 Phyrexian Missionary
+4 Redcap Melee
+2 Silvercoat Lion
+2 Smaug's Fury
+3 Snapdax, Apex of the Hunt
+3 Spike Jester
+2 Thunder of Unity
+3 Vampire Slayer
+2 Battlefield Forge
+4 Clifftop Retreat
+2 Mountain
+2 Plains
+4 Sacred Foundry
+4 Sunbaked Canyon
+4 Swamp

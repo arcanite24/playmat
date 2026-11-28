@@ -1,0 +1,23 @@
+# name: Train800 guild-rw-midrange-14
+# archetype: midrange
+# colors: RW
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Deep-Slumber Titan
+1 Famished Foragers
+3 Flamebraider
+2 Longhorn Sharpshooter
+1 Molten Vortex
+2 Moonrager's Slash
+4 Myrel, Shield of Argive
+3 Piggy Bank
+3 Playful Shove
+2 Sarkhan's Rage
+4 Shocker, Unshakable
+4 Sourbread Auntie
+3 Survey the Wreckage
+2 Zookeeper Mechan
+4 Dedicated Commons
+12 Mountain
+2 Plains
+2 Sacred Foundry
+4 Sunbaked Canyon

@@ -1,0 +1,23 @@
+# name: Train800 guild-ur-bigmana-16
+# archetype: bigmana
+# colors: UR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+4 Beluna's Gatekeeper
+4 Bombur, Gentle Dreamer
+1 Captive Weird
+3 Culmination of Studies
+1 Geistblast
+3 Havoc Jester
+1 Ill-Timed Explosion
+2 Izzet Keyrune
+4 Jaya, Venerated Firemage
+2 Karsus Depthguard
+2 Network Terminal
+2 Piston-Fist Cyclops
+2 Quaketusk Boar
+3 Starfleet Spanner Jockey
+4 Island
+12 Mountain
+4 Peculiar Lighthouse
+2 Spirebluff Canal
+4 Sulfur Falls

@@ -1,0 +1,26 @@
+# name: Train800 tri-bgu-aggro-02
+# archetype: aggro
+# colors: BGU
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+1 Agony Warp
+4 Basim Ibn Ishaq
+3 Biomechan Engineer
+2 Charnel Troll
+1 Clear Shot
+2 June, Bounty Hunter
+4 Lightless Evangel
+2 Might of the Old Ways
+2 Nashi, Moon's Legacy
+3 Obyra, Dreaming Duelist
+3 Quirion Beastcaller
+2 Restless Bloodseeker
+3 Sagu Pummeler
+3 Syndicate Trafficker
+4 Test of Priorities
+4 Darkslick Shores
+4 Forest
+2 Formidable Commons
+1 Island
+2 Swamp
+4 Underground River
+4 Zagoth Triome

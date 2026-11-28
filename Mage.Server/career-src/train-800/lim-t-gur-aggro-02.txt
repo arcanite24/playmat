@@ -1,0 +1,40 @@
+# name: Train800 lim-t-gur-aggro-02
+# archetype: limited_aggro
+# colors: GUR
+# source: synthetic-train-800 (strictly OOD-card-disjoint, Karsten manabase)
+2 Akoum Flameseeker
+1 Artillerize
+2 Barbary Apes
+2 Broadside Barrage
+1 Clear Shot
+1 Dire-Strain Rampage
+2 Drudge Beetle
+1 Goblin Electromancer
+1 Goblin Elite Infantry
+2 Howler's Heavy
+2 Hyrax Tower Scout
+1 Karakyk Guardian
+1 Lightning Volley
+2 Mage Tower Referee
+1 Mouser Attack!
+1 Mystic Archaeologist
+2 Nessian Courser
+1 Quandrix Apprentice
+1 Rubble Reading
+1 Savage Knuckleblade
+1 Scout the City
+1 Snapping Gnarlid
+1 Sprite Dragon
+1 Surrak Dragonclaw
+1 Thopter Mechanic
+1 Volcanic Villain
+1 Voracious Wurm
+1 Wolf Strike
+1 Yasova Dragonclaw
+2 Copperline Gorge
+5 Forest
+2 Frontier Bivouac
+7 Island
+2 Karplusan Forest
+3 Mountain
+2 Stomping Ground
