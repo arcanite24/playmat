@@ -181,10 +181,13 @@ import { gzipSync } from 'node:zlib';
 // toggle, multi-defender combat colors & breakdown, multi-effect stack target clarity, unlocked cosmetic earn criteria,
 // PrintingPicker favorites & filter, and binder all-printings mode), all in lazy screen chunks plus en/es strings.
 // Measured entry 83.5 kB, initial 220.3 kB (both under budget), app 989.4 kB
+// app raised 2026-11-27 from 992 kB for gamepad controller support (#480): lazy gamepad chunk loaded on first
+// controller connection plus match shortcuts strings (en/es) and focus markers. Measured entry 83.7 kB, initial
+// 220.4 kB (both under budget), app 992.4 kB
 const BUDGET_KB = {
   entry: 86,
   initial: 221,
-  app: 992,
+  app: 996,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;

@@ -105,7 +105,7 @@ function StackItem({ item, index, total, clickable, selected, sleeve, onClick, o
       }}
       onClick={() => clickable && onClick(item.id!)}
       role={clickable ? 'button' : undefined}
-      tabIndex={clickable ? 0 : undefined}
+      tabIndex={clickable ? 0 : -1}
       onMouseDown={preventMatchObjectMouseFocus}
       onKeyDown={(event) => {
         if (clickable && isMatchObjectKey(event.nativeEvent)) {

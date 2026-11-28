@@ -37,7 +37,7 @@ const TABBABLE = 'a[href], button:not(:disabled), input:not(:disabled):not([type
   + 'textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
 // in a match the D-pad only reaches the game: cards, players and [data-pad] regions, not chat or the menu
 const DPAD_TARGETS = ['[data-object-id][tabindex]:not([data-hidden])', ...TABBABLE.split(', ').map((selector) => `[data-pad] ${selector}`)].join(', ');
-const DETAIL_CARDS = '[data-object-id]:not([data-hidden]):not([data-player])';
+const DETAIL_CARDS = '[data-object-id]:not([data-hidden]):not([data-player]), [data-card-id]';
 
 // ---------- pure core ----------
 
@@ -101,18 +101,20 @@ const isPlainEnter = (action: ButtonAction) => action.key === 'Enter' && !action
 
 type PadState = Readonly<{
   lastFocus?: Target;
+  detailOrigin?: HTMLElement;
   focusAfterDetail?: HTMLElement;
   holds: ReadonlyMap<string, number>;
   polling: boolean;
+  started: boolean;
 }>;
 
 // the only mutable binding, always replaced whole
-let padState: PadState = { holds: new Map(), polling: false };
+let padState: PadState = { holds: new Map(), polling: false, started: false };
 
 const measure = (element: HTMLElement): Target => ({
   element,
   rect: element.getBoundingClientRect(),
-  handList: element.closest('[role="list"]'),
+  handList: element.matches('[data-object-id]') ? element.closest('[role="list"]') : null,
   isTurnButton: !!element.closest('[data-turn]'),
   isOnBattlefield: !!element.closest('[data-label]'),
 });
@@ -149,13 +151,19 @@ function rightClick(element: Element) {
 }
 
 function flipDetail(direction: Direction) {
-  const from = padState.lastFocus?.element;
+  const from = padState.detailOrigin ?? padState.lastFocus?.element;
   if (!from?.isConnected) return;
-  const next = neighbourTowards(measure(from), targetsIn(document, DETAIL_CARDS), direction);
+  const scope = from.closest(DIALOGS) ?? document;
+  const next = neighbourTowards(measure(from), targetsIn(scope, DETAIL_CARDS), direction);
   if (!next) return;
   rightClick(next.element);
   // Radix returns focus to the first card on close, so remember where we ended up
-  padState = { ...padState, lastFocus: next, focusAfterDetail: next.element };
+  padState = {
+    ...padState,
+    detailOrigin: next.element,
+    focusAfterDetail: next.element,
+    ...(next.element.matches(DPAD_TARGETS) ? { lastFocus: next } : {}),
+  };
 }
 
 // synthetic keys don't move focus, so do it ourselves
@@ -195,8 +203,14 @@ export function press(action: ButtonAction) {
   }
   const target = document.activeElement ?? document.body;
   if (target instanceof HTMLElement) rememberFocus(measure(target));
-  if (action.menu) rightClick(target);
-  else sendKey(target, action);
+  if (action.menu) {
+    if (target instanceof HTMLElement && !topDialog()?.matches('[data-card-detail]')) {
+      padState = { ...padState, detailOrigin: target };
+    }
+    rightClick(target);
+  } else {
+    sendKey(target, action);
+  }
 }
 
 export function readButton(holdKey: string, action: ButtonAction, pressed: boolean, now: number) {
@@ -217,7 +231,7 @@ const shouldRegainFocus = () =>
 function keepFocus() {
   const afterDetail = padState.focusAfterDetail;
   if (afterDetail && !document.querySelector('[data-card-detail]')) {
-    padState = { ...padState, focusAfterDetail: undefined };
+    padState = { ...padState, focusAfterDetail: undefined, detailOrigin: undefined };
     if (afterDetail.isConnected) moveFocusTo(measure(afterDetail));
   } else if (shouldRegainFocus() && padState.lastFocus) {
     moveFocusTo(closestTo(padState.lastFocus.rect, dpadTargets()));
@@ -236,13 +250,20 @@ function pollPads(now: number) {
 }
 
 export function startGamepad() {
-  if (typeof navigator === 'undefined' || !navigator.getGamepads) return;
+  if (padState.started || typeof navigator === 'undefined' || !navigator.getGamepads) return;
+  padState = { ...padState, started: true };
   const leaveControllerMode = () => { delete document.documentElement.dataset.input; };
   window.addEventListener('pointerdown', leaveControllerMode, true);
   window.addEventListener('keydown', (event) => { if (event.isTrusted) leaveControllerMode(); }, true);
-  window.addEventListener('gamepadconnected', () => {
+  const startPolling = () => {
     if (padState.polling) return;
     padState = { ...padState, polling: true };
     requestAnimationFrame(pollPads);
-  });
+  };
+  window.addEventListener('gamepadconnected', startPolling);
+  try {
+    if (navigator.getGamepads().some(Boolean)) startPolling();
+  } catch {
+    // restricted browsing contexts can refuse getGamepads()
+  }
 }

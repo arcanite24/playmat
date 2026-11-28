@@ -167,3 +167,30 @@ test('a released button fires again on the next press', async () => {
   document.body.removeEventListener('keydown', onKeyDown);
   expect(onKeyDown).toHaveBeenCalledTimes(2);
 });
+
+test('with a card detail open from a zone viewer, the D-pad flips within that viewer', async () => {
+  const { BUTTON_ACTIONS, press } = await loadGamepad();
+  document.body.innerHTML = '<div id="board"><div id="b1" data-object-id="b1" tabindex="0"></div></div>'
+    + '<div id="viewer" role="dialog"><div id="g1" data-card-id="g1" tabindex="0"></div><div id="g2" data-card-id="g2" tabindex="0"></div></div>';
+  place({ b1: [150, 100], g1: [100, 100], g2: [200, 100] });
+  const onContextMenu = vi.fn();
+  document.body.addEventListener('contextmenu', onContextMenu);
+  document.getElementById('b1')!.focus();
+  press(BUTTON_ACTIONS[BUTTON.RIGHT]); // remembers board focus
+  document.getElementById('g1')!.focus();
+  press(BUTTON_ACTIONS[BUTTON.RT]);
+  document.body.insertAdjacentHTML('beforeend', '<div id="sheet" role="dialog" data-card-detail tabindex="-1"></div>');
+  document.getElementById('sheet')!.focus();
+  press(BUTTON_ACTIONS[BUTTON.RIGHT]);
+  document.body.removeEventListener('contextmenu', onContextMenu);
+  expect(onContextMenu.mock.calls.map(([event]) => (event.target as HTMLElement).id)).toEqual(['g1', 'g2']);
+});
+
+test('a non-match role=list grid keeps horizontal moves on the same row', async () => {
+  const { BUTTON_ACTIONS, press } = await loadGamepad();
+  document.body.innerHTML = '<div role="list"><button id="r1c1">1</button><button id="r2c2">2</button></div>';
+  place({ r1c1: [100, 100], r2c2: [200, 220] });
+  document.getElementById('r1c1')!.focus();
+  press(BUTTON_ACTIONS[BUTTON.RIGHT]);
+  expect(focusedId()).toBe('r1c1');
+});

@@ -26,7 +26,6 @@ import './stores/toasts';
 import './career/progressionEvents';
 import { NATIVE_APP } from './brand';
 import { imageResolver } from '../core/images/useCardImage';
-import { startGamepad } from './ui/gamepad';
 
 /** Screens that need a signed-in player; also opens games when the server starts them. */
 function SignedIn() {
@@ -169,7 +168,21 @@ const pictureLinks = Promise.race([imageResolver().ready, new Promise<void>((res
 
 // a Spanish (or other non-English) player's catalog loads first, so the first paint is already in their language; and
 // the picture links stored on this device, so a card already seen shows its picture on the first frame, not a blank
-startGamepad();
+// controller support loads on first gamepad connection, keeping the initial bundle lean for other inputs
+if (typeof navigator !== 'undefined' && typeof navigator.getGamepads === 'function') {
+  let gamepadLoaded = false;
+  const bootGamepad = () => {
+    if (gamepadLoaded) return;
+    gamepadLoaded = true;
+    void import('./ui/gamepad').then((module) => module.startGamepad());
+  };
+  window.addEventListener('gamepadconnected', bootGamepad, { once: true });
+  try {
+    if (navigator.getGamepads().some(Boolean)) bootGamepad();
+  } catch {
+    // restricted browsing contexts can refuse getGamepads()
+  }
+}
 
 void Promise.all([i18nReady, pictureLinks]).then(() => createRoot(document.getElementById('root')!).render(
   <StrictMode>
