@@ -3395,6 +3395,16 @@ too, and Command Tower's ability with no commander isn't counted as a mana sourc
     in `EarthbendTargetEffect` for Bumi + Branching Evolution; and `MyriadAbility` reminder text for Blade of Selves)
     brought it to **489/531 matching (92.1%, 0 skipped)** and **+667 newly verified cards -> 15,856 verified**. Two more
     regression games under `shadow/full-catalog/` cover these fixes.
+  - **Views compression & Wave 4 bulk sweep (800 next highest-priority unverified cards, 532 games):** Compressed
+    `cards/views.json` (54.5 MB) to deterministic gzip `cards/views.json.gz` (~4.2 MB, 12.8x smaller), streaming via
+    `flate2::read::GzDecoder` in `view.rs` and updating `view_templates.py` and the Python consumers. Wave 4 initially
+    matched 457/530 (+610); fixing 6 shared engine bugs (infinite-loop draw `player.drew` fingerprinting and mid-loop
+    `end` trace in `fingerprint.rs`/`rules.rs` for Chimeric Idol, 11 games; `{X}` announced before Phyrexian life cost
+    on spells for Corrosive Gale, 5 games; multi-group targets in `ExileThenReturnTargetEffect` for Don & Leo, Problem
+    Solvers, 3 games; `ConditionalContinuousEffect` unwrapping for `CantAttackBlockAttachedEffect` in `state.rs` for
+    Bonds of Faith, 3 games; and `DiscardCardCost` support in mana abilities for Bog Witch, 2 games) brought it to
+    **484/530 matching (91.3%, 0 skipped)** and **+627 newly verified cards -> 16,483 verified**. Two regression games
+    under `shadow/full-catalog/` cover these fixes.
 
 To regenerate after the pool or the Java cards change (in this order; the files are generated, so on a merge conflict
 regenerate them rather than merge by hand, and `site/rust/progress.json` with `progress.py`):

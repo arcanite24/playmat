@@ -7,7 +7,7 @@ but not verified against Java, at scale, with shadow games.
     python3 rust/tools/verify_factory.py replay   --work W [--round R | --all]
     python3 rust/tools/verify_factory.py verdicts --work W [--min-games 3] [--write]
     python3 rust/tools/verify_factory.py run      --work W [--limit N] [--procs 8] [--write]   # all four
-    python3 rust/tools/verify_factory.py views    --work W    # cards/views.json for the verified cards
+    python3 rust/tools/verify_factory.py views    --work W    # cards/views.json.gz for the verified cards
 
 `build` takes the candidates (by default every card in cards.json that isn't on cards/verified.txt, in the order of
 a priority list such as card-priority.tsv's score when one is given, else by name) and makes a round of legal
@@ -30,7 +30,7 @@ else one named on a line that differs, else the unverified card that was last on
 `verdicts.tsv` and `bugs.md` (mismatches clustered by the blamed card) in the work folder; `--write` adds the
 newly verified cards to cards/verified.txt.
 
-`views` writes cards/views.json again for the verified cards (CardFactsTest with views, then view_templates.py):
+`views` writes cards/views.json.gz again for the verified cards (CardFactsTest with views, then view_templates.py):
 a verified card needs a view template, the rest of the pool doesn't (docs/rust/Views.md).
 """
 import argparse

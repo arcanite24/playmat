@@ -1431,6 +1431,11 @@ fn check_infinite_loop(game: &mut Game, d: &mut dyn Decider, source: ObjId) {
                         let line = format!("For {} the game is a draw.", log::player(seat));
                         log::inform(game, line);
                     }
+                    let alive = (0..game.seats()).filter(|s| !game.player(*s).lost && !game.player(*s).drew).count();
+                    if alive <= 1 && !game.over {
+                        game.over = true;
+                        traced(game, d);
+                    }
                 }
             }
             game.over = true;
@@ -3426,6 +3431,7 @@ fn mana_sources_with_kinds(game: &Game, seat: Seat) -> Vec<(ObjId, ManaAbilities
                     CostDef::PayLifeCost { amount } => game.player(seat).life >= *amount,
                     CostDef::PayEnergyCost { amount } => energy(game, seat) >= *amount,
                     CostDef::SacrificeTargetCost { .. }
+                    | CostDef::DiscardCardCost { .. }
                     | CostDef::RemoveCountersSourceCost { .. }
                     | CostDef::ExileFromGraveCost { .. }
                     | CostDef::CollectEvidenceCost { .. }
@@ -5969,10 +5975,6 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
             }
         }
     }
-    // `handlePhyrexianManaCosts`: 2 life instead of each phyrexian symbol, asked before X and targets (the life is
-    // paid with the mana)
-    let Some(phyrexian_life) = ask_phyrexian(game, d, seat, &mut cost) else { return false };
-    game.obj_mut(id).phyrexian_paid = phyrexian_life / 2;
     // X: `announceX` (AMOUNT) asks until an answer is in range; X's mana is then generic
     if cost.x > 0 {
         let q = Query::Amount { min: 0, max: i32::MAX };
@@ -5989,6 +5991,10 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
             top.x = x;
         }
     }
+    // `handlePhyrexianManaCosts`: 2 life instead of each phyrexian symbol, asked after X and before targets (the life
+    // is paid with the mana)
+    let Some(phyrexian_life) = ask_phyrexian(game, d, seat, &mut cost) else { return false };
+    game.obj_mut(id).phyrexian_paid = phyrexian_life / 2;
     // `Modes.choose` / `HumanPlayer.chooseMode`: a mode per question until the most are chosen; any other answer ends
     // the choice (Cancel clears it), and fewer than the least cancels the cast
     let mut modes: Vec<usize> = Vec::new();
@@ -10354,6 +10360,7 @@ fn activate_mana_paying(
         if matches!(
             c,
             CostDef::SacrificeTargetCost { .. }
+                | CostDef::DiscardCardCost { .. }
                 | CostDef::ExileFromGraveCost { .. }
                 | CostDef::ForageCost
                 | CostDef::CollectEvidenceCost { .. }
@@ -16436,8 +16443,14 @@ fn apply_each_effect(
                 }
             }
             EffectDef::ExileThenReturnTargetEffect => {
-                let gone: Vec<ObjId> =
-                    objs.iter().copied().filter(|o| game.obj(*o).zone == Zone::Battlefield).collect();
+                let gone: Vec<ObjId> = legal
+                    .iter()
+                    .flatten()
+                    .filter_map(|t| match t {
+                        Target::Obj(o) if game.obj(*o).zone == Zone::Battlefield => Some(*o),
+                        _ => None,
+                    })
+                    .collect();
                 for o in &gone {
                     game.move_to(*o, Zone::Exile);
                 }

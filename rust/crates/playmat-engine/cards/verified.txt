@@ -39,6 +39,7 @@ Abhorrent Overlord
 Abiding Grace
 Abigale, Eloquent First-Year
 Abigale, Poet Laureate
+Abjure
 Abnormal Endurance
 Abolish
 Abominable Treefolk
@@ -440,6 +441,7 @@ Alchemist's Retrieval
 Alchemist's Vial
 Alchor's Tomb
 Alela, Artful Provocateur
+Alena, Kessig Trapper
 Alert Heedbonder
 Alert Shu Infantry
 Alesha's Legacy
@@ -538,6 +540,7 @@ Ambush Paratrooper
 Ambush Party
 Ambush Viper
 Ambush Wolf
+Amethyst Dragon
 Ammit Eternal
 Amoeboid Changeling
 Amok
@@ -622,6 +625,7 @@ Angel of Destiny
 Angel of Finality
 Angel of Flight Alabaster
 Angel of Fury
+Angel of Glory's Rise
 Angel of Invention
 Angel of Light
 Angel of Mercy
@@ -742,6 +746,7 @@ Aphemia, the Cacophony
 Aphetto Alchemist
 Aphetto Exterminator
 Aphetto Vulture
+Aphotic Wisps
 Apocalypse
 Apocalypse Demon
 Apocalypse Runner
@@ -778,6 +783,7 @@ Aquus Steed
 Araba Mothrider
 Arabella, Abandoned Doll
 Arachnoform
+Arachnoid
 Arachnoid Adaptation
 Arachnus Web
 Aradara Express
@@ -1161,6 +1167,7 @@ Auntie's Hovel
 Auntie's Sentence
 Aura Blast
 Aura Extraction
+Aura Finesse
 Aura Flux
 Aura Fracture
 Aura Gnarlid
@@ -1293,6 +1300,7 @@ Axebane Beast
 Axebane Ferox
 Axebane Guardian
 Axebane Stag
+Axegrinder Giant
 Axgard Artisan
 Axgard Braggart
 Axgard Cavalry
@@ -1400,6 +1408,7 @@ Baloth Null
 Baloth Packhunter
 Baloth Prime
 Baloth Pup
+Baloth Woodcrasher
 Balshan Collaborator
 Balshan Griffin
 Balthier and Fran
@@ -1448,12 +1457,14 @@ Barbarian Riftcutter
 Barbarian Ring
 Barbary Apes
 Barbed Batterfist
+Barbed Battlegear
 Barbed Bloodletter
 Barbed Servitor
 Barbed Sextant
 Barbed Sliver
 Barbed Spike
 Barbed-Back Wurm
+Barbtooth Wurm
 Bard Class
 Bard the Bowman
 Bard's Bow
@@ -1469,6 +1480,7 @@ Barkchannel Pathway
 Barkform Harvester
 Barkhide Mauler
 Barkhide Troll
+Barktooth Warbeard
 Barkweave Crusher
 Barl's Cage
 Baron Bertram Graywater
@@ -1496,6 +1508,7 @@ Barrin, Master Wizard
 Barrin, Tolarian Archmage
 Barrow Naughty
 Barrow Witches
+Barter in Blood
 Bartered Cow
 Bartizan Bats
 Bartolome del Presidio
@@ -1539,6 +1552,7 @@ Bastion of Remembrance
 Bat Whisperer
 Bat'leth
 Bathe in Dragonfire
+Baton of Courage
 Battalion Foot Soldier
 Batterbone
 Battered Golem
@@ -1614,6 +1628,7 @@ Beanstalk Giant
 Beanstalk Wurm
 Bear Cub
 Bear Trap
+Bear Umbra
 Bear's Companion
 Bearded Axe
 Bearer of Glory
@@ -1626,6 +1641,7 @@ Beast Hunt
 Beast Mode
 Beast Whisperer
 Beast Within
+Beast in Show
 Beast of Burden
 Beast, Erudite Aerialist
 Beast-Kin Ranger
@@ -1665,6 +1681,7 @@ Beifong's Bounty Hunters
 Bejeweled Warg
 Belbe's Armor
 Belbe's Percher
+Belbe's Portal
 Beledros Witherbloom
 Belladonna Took
 Belle of the Brawl
@@ -1707,6 +1724,7 @@ Bender's Waterskin
 Beneath the Sands
 Benefaction of Rhonas
 Benevolent Ancestor
+Benevolent Bodyguard
 Benevolent Hydra
 Benjamin Sisko, Besieged
 Benthic Biomancer
@@ -1737,6 +1755,7 @@ Betor, Kin to All
 Betrayal
 Betrayal at the Vault
 Betrayer's Bargain
+Beverly Crusher, Ship's Doctor
 Bewilder
 Bewildering Blizzard
 Beyeen Veil
@@ -1748,6 +1767,7 @@ Biblioplex Assistant
 Biblioplex Kraken
 Bident of Thassa
 Big Bertha
+Big Game Hunter
 Big Mother Mouser
 Big Play
 Big Score
@@ -1762,6 +1782,7 @@ Bilbo, Luckwearer
 Bilbo, Thief in the Night
 Bilbo, Unexpected Adventurer
 Bile Blight
+Bile Urchin
 Bile-Vial Boggart
 Bilious Skulldweller
 Bill the Pony
@@ -1769,6 +1790,7 @@ Billiard Room
 Billowing Shriekmass
 Bind the Monster
 Binding Geist
+Binding Grasp
 Binding Mummy
 Binding Negotiation
 Binding the Old Gods
@@ -1818,6 +1840,7 @@ Black Carriage
 Black Cat
 Black Cat, Cunning Thief
 Black Dragon
+Black Knight
 Black Lotus
 Black Mage's Rod
 Black Market Connections
@@ -1868,6 +1891,7 @@ Blademane Baku
 Blades of Velis Vel
 Bladestitched Skaab
 Bladetusk Boar
+Bladewing the Risen
 Bladewing's Thrall
 Bladewing, Deathless Tyrant
 Blanchwood Armor
@@ -1895,6 +1919,7 @@ Blazing Firesinger
 Blazing Hellhound
 Blazing Hope
 Blazing Rootwalla
+Blazing Specter
 Blazing Volley
 Bleachbone Verge
 Bleak Coven Vampires
@@ -1919,6 +1944,7 @@ Blight Grenade
 Blight Herder
 Blight Keeper
 Blight Mamba
+Blight Mound
 Blight Pile
 Blight Rot
 Blight Sickle
@@ -1926,6 +1952,7 @@ Blight-Breath Catoblepas
 Blightbeetle
 Blightbelly Rat
 Blightcaster
+Blighted Agent
 Blighted Bat
 Blighted Blackthorn
 Blighted Burgeoning
@@ -1953,6 +1980,7 @@ Blinding Fog
 Blinding Light
 Blinding Mage
 Blinding Radiance
+Blinding Souleater
 Blinding Spray
 Blink Dog
 Blink of an Eye
@@ -1980,6 +2008,7 @@ Bloated Contaminator
 Bloated Processor
 Bloated Toad
 Blockade Runner
+Blockbuster
 Blood Age General
 Blood Artist
 Blood Aspirant
@@ -1988,6 +2017,7 @@ Blood Baron of Vizkopa
 Blood Beckoning
 Blood Burglar
 Blood Crypt
+Blood Cultist
 Blood Curdle
 Blood Divination
 Blood Feud
@@ -2054,6 +2084,7 @@ Bloodlust Inciter
 Bloodmad Vampire
 Bloodmark Mentor
 Bloodmist Infiltrator
+Bloodpyre Elemental
 Bloodrage Brawler
 Bloodrite Invoker
 Bloodrock Cyclops
@@ -2107,6 +2138,7 @@ Blow Your House Down
 Blowfly Infestation
 Bludgeoning Pain
 Blue Dragon
+Blue Marvel, Adam Brashear
 Blue Scarab
 Blue Sun's Twilight
 Blunt the Assault
@@ -2116,6 +2148,7 @@ Blur of Blades
 Blur of Heroism
 Blurred Mongoose
 Blustersquall
+Boa Constrictor
 Boar Umbra
 Boar-q-pine
 Board the Weatherlight
@@ -2131,16 +2164,20 @@ Bog Badger
 Bog Down
 Bog Elemental
 Bog Glider
+Bog Gnarr
 Bog Imp
+Bog Initiate
 Bog Naughty
 Bog Raiders
 Bog Rats
 Bog Smugglers
 Bog Tatters
+Bog Witch
 Bog Wraith
 Bog Wreckage
 Bog-Strider Ash
 Bogardan Firefiend
+Bogardan Hellkite
 Bogardan Rager
 Bogbrew Witch
 Boggart Arsonists
@@ -2153,6 +2190,7 @@ Boggart Prankster
 Boggart Ram-Gang
 Boggart Shenanigans
 Boggart Sprite-Chaser
+Boggart Trawler
 Bogslither's Embrace
 Bogstomper
 Bogwater Lumaret
@@ -2192,11 +2230,14 @@ Bond of Flourishing
 Bond of Insight
 Bond of Revival
 Bonded Construct
+Bonded Fetch
 Bonded Herdbeast
 Bonded Horncrest
 Bonders' Enclave
+Bonds of Faith
 Bonds of Mortality
 Bonds of Quicksilver
+Bone Devourer
 Bone Dragon
 Bone Flute
 Bone Miser
@@ -2271,9 +2312,11 @@ Boreal Druid
 Boreal Elemental
 Boreal Griffin
 Boreal Shelf
+Borg Incursion
 Borg Scout Sphere
 Boris Devilboon
 Born to Drive
+Boromir, Gondor's Hope
 Boros Battleshaper
 Boros Challenger
 Boros Charm
@@ -2309,6 +2352,7 @@ Botanical Plaza
 Botanical Sanctum
 Bothersome Noisemaker
 Bottle Gnomes
+Bottle Golems
 Bottle of Suleiman
 Bottomless Pit
 Bottomless Pool // Locker Room
@@ -2348,6 +2392,7 @@ Brain Freeze
 Brain Maggot
 Brain Weevil
 Brain in a Jar
+Brainbite
 Braingeyser
 Brainstone
 Brainstorm
@@ -2386,6 +2431,7 @@ Brave the Elements
 Brave the Sands
 Brave the Wilds
 Brave-Kin Duo
+Brawl
 Brawl-Bash Ogre
 Brawler's Plate
 Brawn, Amadeus Cho
@@ -2421,6 +2467,7 @@ Breath of the Sleepless
 Breathstealer
 Bred for the Hunt
 Breeches, Eager Pillager
+Breeding Pit
 Breeding Pool
 Bretagard Stronghold
 Bria, Riptide Rogue
@@ -2595,6 +2642,7 @@ Burner Rocket
 Burning Anger
 Burning Cloak
 Burning Curiosity
+Burning Fields
 Burning Hands
 Burning Oil
 Burning Palm Efreet
@@ -2611,6 +2659,7 @@ Burning-Tree Vandal
 Burning-Yard Trainer
 Burnished Hart
 Burnout Bashtronaut
+Burrenton Shield-Bearers
 Burrog Banemaker
 Burrog Barrage
 Burrog Befuddler
@@ -2629,6 +2678,7 @@ Bushy Bodyguard
 Buster Sword
 Butch DeLoria, Tunnel Snake
 Butcher Ghoul
+Butcher of Malakir
 Butcher of the Horde
 Butcher's Cleaver
 Butcher's Glee
@@ -2663,8 +2713,10 @@ Cabaretti Charm
 Cabaretti Courtyard
 Cabaretti Initiate
 Cache Grab
+Cache Raiders
 Cached Defenses
 Cackling Counterpart
+Cackling Fiend
 Cackling Flames
 Cackling Imp
 Cackling Prowler
@@ -2718,6 +2770,7 @@ Call to Mind
 Call to Serve
 Call to the Feast
 Call to the Grave
+Call to the Netherworld
 Callaphe, Beloved of the Sea
 Caller of Gales
 Caller of the Pack
@@ -2812,6 +2865,7 @@ Captain of the Mists
 Captain of the Watch
 Captain's Call
 Captain's Claws
+Captain's Defense
 Captain's Tutelage
 Captivating Cave
 Captivating Crew
@@ -2821,11 +2875,13 @@ Captive Flame
 Captive Weird
 Capture
 Capture Sphere
+Capture of Jingzhou
 Captured by Lagacs
 Caradora, Heart of Alacria
 Carapace Forger
 Caravan Hurda
 Caravan Vigil
+Carbonite Chamber
 Cardassia Prime
 Careening Mine Cart
 Carefree Swinemaster
@@ -2848,6 +2904,7 @@ Carnassid
 Carnifex Demon
 Carnival // Carnage
 Carnival Hellsteed
+Carnival of Souls
 Carnivorous Canopy
 Carnivorous Cultivator
 Carnivorous Moss-Beast
@@ -2880,6 +2937,7 @@ Cartouche of Strength
 Cartouche of Zeal
 Carven Caryatid
 Casal, Lurkwood Pathfinder
+Cascade Bluffs
 Cascade Seer
 Cascading Cataracts
 Case of the Burning Masks
@@ -2905,6 +2963,7 @@ Cast into Darkness
 Cast into the Fire
 Castaway's Despair
 Castigate
+Castle
 Castle Ardenvale
 Castle Doom
 Castle Embereth
@@ -2984,6 +3043,7 @@ Cavern Crawler
 Cavern Harpy
 Cavern Lampad
 Cavern Stomper
+Cavern Thoctar
 Cavern Whisperer
 Cavern of Souls
 Cavernous Maw
@@ -3054,6 +3114,7 @@ Cerulean Drake
 Cerulean Sphinx
 Cerulean Wisps
 Cerulean Wyvern
+Cessation
 Cetacean Ops
 Ceti Eel
 Cha'DIch Investigator
@@ -3082,6 +3143,7 @@ Chamber of Manipulation
 Chambered Nautilus
 Chameleon Colossus
 Chameleon, Master of Disguise
+Champion Lancer
 Champion of Arashin
 Champion of Dusan
 Champion of Dusk
@@ -3122,6 +3184,7 @@ Chandra, Acolyte of Flame
 Chandra, Awakened Inferno
 Chandra, Bold Pyromancer
 Chandra, Chill of Compliance
+Chandra, Fire of Kaladesh
 Chandra, Flame's Fury
 Chandra, Flamecaller
 Chandra, Flameshaper
@@ -3136,6 +3199,7 @@ Change the Equation
 Changeling Outcast
 Changeling Sentinel
 Changeling Wayfinder
+Changing Loyalty
 Channel the Suns
 Channeled Dragonfire
 Channeler Initiate
@@ -3153,6 +3217,7 @@ Chapel Geist
 Chaplain of Alms
 Chaplain's Blessing
 Char
+Char-Rumbler
 Charcoal Diamond
 Chardalyn Dragon
 Charforger
@@ -3213,14 +3278,26 @@ Chief of the Foundry
 Chief of the Scale
 Chieftain en-Dal
 Child of Night
+Child of Thorns
 Child of the Pack
 Child of the Volcano
+Childhood Horror
+Chill
+Chill of Foreboding
 Chill of the Grave
+Chill to the Bone
 Chillbringer
+Chillerpillar
+Chilling Apparition
 Chilling Grasp
+Chilling Shade
 Chilling Trap
+Chime of Night
+Chimeric Idol
+Chimeric Sphere
 Chimil, the Inner Sun
 Chimney Rabble
+Chishiro, the Shattered Blade
 Chitin Gravestalker
 Chitinous Cloak
 Chitinous Graspling
@@ -3229,44 +3306,64 @@ Chittering Harvester
 Chittering Host
 Chittering Skitterling
 Chittering Witch
+Chivalric Alliance
+Cho-Arrim Bruiser
+Cho-Manno, Revolutionary
 Choco, Seeker of Paradise
 Choco-Comet
 Chocobo Kick
+Chocobo Knights
 Chocobo Racetrack
+Choke
 Choked Estuary
+Choking Fumes
 Choking Miasma
 Choking Restraints
+Choking Tethers
 Chomping Changeling
 Chomping Kavu
 Choose Your Weapon
 Chorale of the Void
 Chord of Calling
 Chorus of Might
+Chorus of Woe
 Chorus of the Tides
 Chosen by Heliod
+Chosen of Markov
+Christine Chapel, Combat Medic
 Chromanticore
 Chromatic Lantern
 Chromatic Orrery
 Chromatic Sphere
+Chromatic Star
 Chrome Cat
 Chrome Companion
 Chrome Dome
 Chrome Host Seedshark
 Chrome Prowler
 Chrome Replicator
+Chromeshell Crab
 Chronic Flooding
 Chronicle of Victory
 Chronicler of Heroes
+Chronomancer
+Chronomaton
 Chronostutter
 Chub Toad
 Chulane, Teller of Tales
 Chupacabra Echo
+Cid, Freeflier Pilot
 Cid, Timeless Artificer
 Cinder Barrens
 Cinder Elemental
+Cinder Giant
 Cinder Glade
 Cinder Hellion
+Cinder Marsh
+Cinder Pyromancer
+Cinder Shade
 Cinder Strike
+Cinderbones
 Cinderclasm
 Cindering Cutthroat
 Cinderslash Ravager
@@ -3276,14 +3373,23 @@ Circle of Dreams Druid
 Circle of Elders
 Circle of Flame
 Circle of Power
+Circle of the Land Druid
 Circuit Mender
 Circuitous Route
+Circular Logic
+Cirith Ungol Patrol
 Citadel Castellan
 Citadel Siege
 Citanul Centaurs
+Citanul Druid
+Citanul Hierophants
 Citanul Stalwart
+Citanul Woodreaders
+Citizen V, Helmut Zemo
 Citizen's Arrest
 City Pigeon
+City of Brass
+City of Death
 City on Fire
 Cityscape Leveler
 Citywatch Sphinx
@@ -3291,6 +3397,7 @@ Citywide Bust
 Civic Gardener
 Civic Saber
 Civic Stalwart
+Civic Wayfinder
 Civil Servant
 Clachan Festival
 Clackbridge Troll
@@ -3299,9 +3406,11 @@ Claim Jumper
 Claim of Erebos
 Claim the Firstborn
 Claim the Kingdom
+Clairvoyance
 Clammy Prowler
 Clamor Shaman
 Clamorous Ironclad
+Clan Crafter
 Clan Defiance
 Clan Guildmage
 Clandestine Meddler
@@ -3312,26 +3421,41 @@ Clash of Elements
 Clash of Titans
 Clash of Wills
 Clash of the Eikons
+Class-4 Tactical Cube
 Class-F Shuttlecraft
+Clattering Augur
 Clattering Skeletons
 Claustrophobia
+Clavileno, First of the Blessed
 Clawing Torment
 Claws Out
 Claws of Gix
+Claws of Valakut
+Claws of Wirewood
 Clay Champion
 Clay Revenant
+Clay Statue
 Clay-Fired Bricks
+Cleanfall
+Cleanse
 Cleansing Nova
 Cleansing Ray
+Cleansing Screech
 Cleansing Wildfire
 Cleanup Crew
+Clear
 Clear Shot
 Clear a Path
 Clear the Mind
 Clear the Stage
+Clearwater Goblet
 Clearwater Pathway
+Cleaver Riot
 Cleaving Reaper
 Cleaving Skyrider
+Cleaving Sliver
+Cleon, Merry Champion
+Clergy en-Vec
 Cleric Class
 Cleric of Chill Depths
 Cleric of Life's Bond
@@ -3340,80 +3464,132 @@ Cleveland Booker, Empath
 Clever Conjurer
 Clever Impersonator
 Clever Lumimancer
+Clickslither
+Cliff Threader
 Cliffhaven Kitesail
 Cliffhaven Sell-Sword
 Cliffhaven Vampire
+Cliffrunner Behemoth
 Cliffside Lookout
 Clifftop Lookout
 Clifftop Retreat
 Cling to Dust
 Clinging Anemones
+Clinging Darkness
 Clinquant Skymage
 Clip Wings
 Clive's Hideaway
 Clive, Ifrit's Dominant
+Cloak and Dagger
 Cloak and Dagger, Entwined
 Cloak and Phaser
+Cloak of Feathers
+Cloak of Mists
+Cloak of the Bat
 Cloaked Cadet
 Cloaked Siren
+Cloaking Device
+Cloakwood Hermit
+Clock of Omens
 Clockwork Drawbridge
+Clockwork Droid
+Clockwork Fox
+Clockwork Gnomes
+Clockwork Hydra
 Clockwork Percussionist
 Clockwork Servant
 Cloister Gargoyle
 Cloistered Telepath
+Cloistered Youth
 Clone
 Clone Legion
+Close Quarters
 Closing Statement
+Clot Sliver
+Cloud Elemental
 Cloud Manta
+Cloud Pirates
+Cloud Spirit
+Cloud Sprite
 Cloud of Darkness
+Cloud of Faeries
 Cloud, Midgar Mercenary
 Cloud, Planet's Champion
 Cloudblazer
 Cloudbound Moogle
+Cloudchaser Eagle
 Cloudchaser Kestrel
+Cloudcrest Lake
+Cloudcrown Oak
 Cloudfin Raptor
+Cloudheath Drake
 Cloudkin Seer
 Cloudpiercer
+Cloudpost
+Cloudreach Cavalry
 Cloudreader Sphinx
 Cloudsculpt Technician
+Cloudseeder
 Cloudshift
+Cloudshredder Sliver
 Cloudspire Captain
 Cloudspire Coordinator
 Cloudspire Skycycle
 Cloudsteel Kirin
+Cloudthresher
 Clutch of Currents
+Clutch of Undeath
+Co-Option Adjutant
+Coal Golem
+Coal Stoker
 Coalition Skyknight
 Coalition Warbrute
 Coalstoke Gearhulk
+Coast Watcher
 Coastal Bulwark
 Coastal Discovery
+Coastal Drake
+Coastal Hornclaw
+Coastal Peak
 Coastal Piracy
+Coastal Tower
 Coastline Chimera
 Coat with Venom
 Coati Scavenger
 Coax from the Blind Eternities
+Cobalt Golem
 Cobblebrute
 Cobbled Lancer
 Cobbled Wings
+Code Slice
 Code of Constraint
 Codecracker Hound
 Codespell Cleric
 Codex Shredder
 Coerced Confession
 Coerced to Kill
+Coercion
+Coercive Recruiter
 Coeurl
+Coffin Puppets
+Coffin Purge
 Cogwork Archivist
 Cogwork Assembler
+Cogwork Librarian
 Cogwork Wrestler
 Cogworker's Puzzleknot
+Coiled Tinviper
 Coiling Rebirth
 Coiling Stalker
+Coiling Woodworm
 Cold Case Cracker
 Cold-Blooded Crew
+Cold-Eyed Selkie
 Cold-Water Snapper
 Coliseum Behemoth
 Collar the Culprit
 Collateral Damage
+Collation Trimatrix
 Collected Company
 Collective Blessing
 Collective Brutality
@@ -3422,18 +3598,25 @@ Collective Drone
 Collective Effort
 Collective Inferno
 Collective Nightmare
+Collective Resistance
+Collective Unconscious
 Collector's Cage
+Collector's Case
 Collector's Vault
 Colleen Wing, Street Samurai
 Collision // Colossus
 Collision Course
+Colorful Feiyi Sparrow
 Colorstorm Stallion
+Colos Yearling
 Colossadactyl
+Colossal Collision
 Colossal Dreadmask
 Colossal Dreadmaw
 Colossal Growth
 Colossal Heroics
 Colossal Majesty
+Colossal Might
 Colossal Plow
 Colossal Rattlewurm
 Colossal Skyturtle
@@ -3444,12 +3627,15 @@ Colossodon Yearling
 Colossus Hammer
 Colossus of Akros
 Colossus of the Blood Age
+Coma Veil
 Combat Celebrant
 Combat Courier
+Combat Medic
 Combat Professor
 Combat Research
 Combat Thresher
 Combat Tutorial
+Combine Chrysalis
 Combine Guildmage
 Combustible Gearhulk
 Combustion Man
@@ -3464,12 +3650,17 @@ Command Subadjunct
 Command Tower
 Command the Dreadhorde
 Command the Storm
+Commander Eesha
 Commander Greven il-Vec
 Commander Raffi Musiker
+Commander Sofia Daguerre
+Commander William Riker
+Commander's Authority
 Commanding Presence
 Commence the Endgame
 Commencement of Festivities
 Commercial District
+Commissar Severina Raine
 Commit // Memory
 Common Bond
 Common Crook
@@ -3482,6 +3673,7 @@ Commune with Nature
 Commune with Spirits
 Commune with the Gods
 Companion of the Trials
+Company Commander
 Comparative Analysis
 Compass Gnome
 Compassionate Healer
@@ -3493,27 +3685,46 @@ Compleat Devotion
 Compleated Huntmaster
 Complete Disregard
 Complete the Circuit
+Complex Automaton
+Complicate
 Component Collector
+Composer of Spring
+Compost
+Compound Fracture
+Compulsion
 Compulsory Rest
+Compy Swarm
 Concealed Courtyard
 Concealed Weapon
 Concealing Curtains
 Conceited Witch
+Concentrate
+Concentrated Fire
 Concerted Defense
 Conciliator's Duelist
 Conclave Cavalier
 Conclave Guildmage
 Conclave Mentor
 Conclave Naturalists
+Conclave Phalanx
+Conclave Sledge-Captain
 Conclave Tribunal
+Conclave's Blessing
+Concord with the Kami
+Concordant Crossroads
 Concordia Pegasus
+Condescend
 Conduct Electricity
 Conductive Machete
+Conductor of Cacophony
+Conduit Goblin
 Conduit Pylons
 Conduit of Ruin
 Conduit of Storms
 Conduit of Worlds
 Cone of Flame
+Confessor
+Confidence from Strength
 Confirm Suspicions
 Confiscate
 Confiscation Coup
@@ -3524,14 +3735,21 @@ Confusticate and Bebother
 Congregate
 Congregation Gryff
 Conifer Strider
+Conifer Wurm
 Conjured Currency
+Conjurer's Bauble
+Conjurer's Closet
 Connecting the Dots
 Connive // Concoct
+Conquer
 Conqueror's Galleon
 Conquest Mission
 Conscripted Infantry
+Conscription
 Consecrate // Consume
 Consecrated by Blood
+Conservator
+Conservatory
 Consider
 Consider the Prime Directive
 Consign // Oblivion
@@ -3540,7 +3758,9 @@ Consign to Memory
 Consign to the Pit
 Conspicuous Snoop
 Constable Odo
+Constable of the Realm
 Constricting Sliver
+Constricting Tendrils
 Constrictor Sage
 Consul's Lieutenant
 Consul's Shieldguard
@@ -3549,31 +3769,51 @@ Consulate Dreadnought
 Consulate Skygate
 Consulate Surveillance
 Consulate Turret
+Consult the Necrosages
 Consult the Star Charts
+Consume Strength
+Consume the Meek
 Consumed by Greed
 Consuming Aberration
 Consuming Aetherborn
 Consuming Ashes
 Consuming Blob
+Consuming Bonfire
 Consuming Fervor
 Consuming Sinkhole
 Consuming Tide
+Consuming Vortex
+Consumptive Goo
 Contact Other Plane
+Contagion Clasp
+Contagion Engine
+Contagious Nim
 Contagious Vorrac
 Containment Breach
 Containment Construct
 Containment Membrane
 Containment Priest
+Containment Protocol
 Contaminated Aquifer
+Contaminated Bond
+Contaminated Landscape
 Contentious Plan
+Contested Cliffs
 Contested Game Ball
 Contingency Plan
+Continue?
 Contortionist Troupe
 Contraband Kingpin
+Contract Hero
 Contract Killing
 Contradict
+Control Magic
 Control of the Court
+Controlled Instincts
+Convalescent Care
 Convenient Target
+Conversion Apparatus
+Conversion Chamber
 Converter Beast
 Convicted Killer
 Conviction
@@ -3584,20 +3824,34 @@ Coordinated Assault
 Coordinated Charge
 Coordinated Clobbering
 Coordinated Maneuver
+Copper Carapace
+Copper Gnomes
 Copper Host Crusher
 Copper Longlegs
+Copper Myr
+Copper Tablet
 Coppercoat Vanguard
+Copperhoof Vorrac
 Copperline Gorge
+Copy Catchers
+Copy Enchantment
+Coral Atoll
 Coral Barrier
 Coral Colony
 Coral Commando
+Coral Eel
 Coral Helm
 Coral Merfolk
+Coral Net
 Coral Sword
+Coral Trickster
 Coralhelm Chronicler
 Coralhelm Guide
+Cordial Vampire
+Core Prowler
 Corellian Corvette
 Corellian Gunship
+Coretapper
 Cori Mountain Monastery
 Cori Mountain Stalwart
 Cori-Steel Cutter
@@ -3609,22 +3863,32 @@ Corporeal Projection
 Corpse Appraiser
 Corpse Blockade
 Corpse Churn
+Corpse Cur
 Corpse Explosion
 Corpse Hauler
 Corpse Knight
+Corpse Traders
 Corpseberry Cultivator
 Corpsejack Menace
 Corpses of the Lost
 Corpulent Corpse
 Corridor Monitor
 Corroding Dragonstorm
+Corrosive Gale
+Corrosive Mentor
 Corrupt
 Corrupt Court Official
+Corrupt Eunuchs
 Corrupt Official
+Corrupted Conscience
 Corrupted Conviction
 Corrupted Crossroads
+Corrupted Roots
+Corrupted Zendikon
 Corsair Captain
+Corsairs of Umbar
 Coruscation Mage
+Cosi's Ravager
 Cosmic Cube
 Cosmic Epiphany
 Cosmic Hunger
@@ -3633,17 +3897,23 @@ Cosmic Spider-Man
 Cosmium Blast
 Cosmogoyf
 Cosmogrand Zenith
+Cosmos Charger
 Cosmos Elixir
 Cosmotronic Wave
 Cost of Brilliance
 Costly Plunder
 Costume Closet
+Council of Advisors
 Council of Echoes
+Council of Reeds
 Council of the Absolute
+Counsel of the Soratami
 Count on Luck
+Counterintelligence
 Countermand
 Countersculpt
 Counterspell
+Countersquall
 Countervailing Winds
 Countless Gears Renegade
 Country Roads
@@ -3652,14 +3922,20 @@ Courageous Goblin
 Courageous Outrider
 Courier Bat
 Courier Griffin
+Courier Hawk
 Courier of Comestibles
 Courier's Briefcase
+Courier's Capsule
 Courser of Kruphix
 Coursers' Accord
+Court Archers
 Court Cleric
+Court Hussar
 Court Street Denizen
+Courtly Provocateur
 Covenant of Blood
 Covert Cutpurse
+Covert Operative
 Covert Technician
 Coveted Falcon
 Coveted Peacock
@@ -3667,10 +3943,19 @@ Coveted Prize
 Covetous Castaway
 Covetous Urge
 Cowabunga!
+Cowardice
+Cower in Fear
 Cowl Prowler
+Crab Umbra
+Crabapple Cohort
+Crack Open
+Crack the Earth
+Crackdown
 Crackdown Construct
+Cracked Earth Technique
 Cracked Skull
 Crackle with Power
+Crackling Club
 Crackling Cyclops
 Crackling Doom
 Crackling Drake
@@ -3679,36 +3964,59 @@ Crackling Triton
 Cradle Clearcutter
 Cradle Guard
 Cradle of Safety
+Cradle of Vitality
 Cradle of the Accursed
 Craftwork Crusher
+Crafty Pathmage
+Crag Saurian
 Cragcrown Pathway
 Cragplate Baloth
 Cragsmasher Yeti
 Cram Session
 Cranial Archive
+Cranial Plating
 Cranial Ram
+Crash
+Crash Landing
 Crash Through
 Crash and Burn
+Crash of Rhino Beetles
+Crash the Party
 Crash the Ramparts
+Crashing Centaur
 Crashing Drawbridge
+Crashing Footfalls
 Crashing Tide
 Crater Elemental
 Crater's Claws
 Craterclaw Colossus
 Craterhoof Behemoth
+Craterize
+Craven Giant
 Craven Hulk
+Craven Knight
+Craw Wurm
 Crawl from the Cellar
 Crawling Barrens
 Crawling Chorus
 Crawling Infestation
 Crawling Sensation
+Crazed Goblin
+Crazed Skirge
+Creakwood Ghoul
+Creakwood Liege
 Creakwood Safewright
 Creative Outburst
+Creeperhulk
 Creeping Chill
+Creeping Corrosion
+Creeping Crystal Coating
 Creeping Mold
 Creeping Peeper
+Creeping Tar Pit
 Creeping Trailblazer
 Cremate
+Crenellated Wall
 Creosote Heath
 Crescent Island Temple
 Crested Herdcaller
@@ -3717,36 +4025,65 @@ Crew Captain
 Crib Swap
 Crime Novelist
 Crimestopper Sprite
+Criminal Enterprise
+Criminal Past
+Crimson Acolyte
+Crimson Cowl, Master of Evil
+Crimson Kobolds
+Crimson Mage
+Crimson Manticore
+Crimson Muckwader
 Crimson Operative
+Crimson Roc
 Crimson Wisps
 Crippling Blight
 Crippling Chill
+Crisis of Conscience
 Croaking Counterpart
 Crocanura
 Crocodile of the Crossing
 Crook of Condemnation
+Crookclaw Elder
 Crookclaw Transmuter
 Crooked Custodian
+Crookshank Kobolds
+Crop Rotation
 Crop Sigil
+Crosis's Attendant
+Crosis's Catacombs
+Crosis's Charm
 Crossbones, Malicious Mercenary
+Crossbow Ambush
+Crossbow Infantry
+Crossover Collaboration
 Crossroads Candleguide
 Crossroads Consecrator
 Crossroads Village
 Crossroads Watcher
 Crosstown Courier
 Crossway Troublemakers
+Crossway Vampire
+Crosswinds
+Crow Storm
 Crow of Dark Tidings
 Crowd of Cinders
 Crowd of True Believers
 Crowd's Favor
+Crowded Crypt
+Crown of Skemfar
 Crowned Ceratok
 Crucible of Fire
 Crucible of Worlds
 Crude Bent Blade
+Crude Rampart
 Cruel Administrator
 Cruel Alliance
 Cruel Calculations
 Cruel Celebrant
+Cruel Cut
+Cruel Deceiver
+Cruel Edict
+Cruel Fate
 Cruel Feeding
 Cruel Finality
 Cruel Grimnarch
@@ -3756,26 +4093,42 @@ Cruel Somnophage
 Cruel Truths
 Cruel Witness
 Cruelclaw's Heist
+Cruelty of the Sith
 Crumb and Get It
 Crumble to Dust
+Crumbling Ashes
+Crumbling Colossus
+Crumbling Necropolis
 Crumbling Vestige
+Crusade
 Crusader of Odric
+Crusading Knight
+Crush
 Crush Contraband
 Crush Dissent
 Crush of Tentacles
 Crush the Weak
 Crushing Canopy
 Crushing Disappointment
+Crushing Vines
 Crustacean Commando
 Crux of Fate
 Cry of the Carnarium
+Cryoclasm
 Cryogen Relic
+Cryogenic Stasis
 Cryotheory Adept
 Crypsis
+Crypt Angel
+Crypt Cobra
+Crypt Creeper
 Crypt Feaster
 Crypt Ghast
 Crypt Incursion
 Crypt Lurker
+Crypt Ripper
+Crypt Sliver
+Crypt of Agadeem
 Cryptborn Horror
 Cryptbreaker
 Cryptcaller Chariot
@@ -3786,24 +4139,41 @@ Cryptic Cruiser
 Cryptic Serpent
 Cryptolith Fragment
 Cryptolith Rite
+Cryptothrall
+Cryptwailing
 Crystacean
+Crystal Ball
 Crystal Barricade
 Crystal Carapace
+Crystal Dragon
+Crystal Golem
 Crystal Grotto
+Crystal Quarry
+Crystal Seer
+Crystal Skull, Isu Spyglass
 Crystal Slipper
+Crystal Vein
+Crystalline Armor
 Crystalline Entity
 Crystalline Nautilus
+Crystalline Sliver
+Crystallization
 Cuboid Colony
 Cubwarden
+Cudgel Troll
 Culber and Stamets, Star-Crossed
 Culling Drone
 Culling Mark
 Culling Ritual
+Culling Sun
+Culling the Weak
 Culmination of Studies
 Cult Conscript
 Cult Guildmage
 Cult Healer
 Cult of the Waxing Moon
+Cultbrand Cinder
+Cultist of the Absolute
 Cultist's Staff
 Cultivate
 Cultivator Colossus
@@ -3811,19 +4181,27 @@ Cultivator Drone
 Cultivator of Blades
 Cultivator's Caravan
 Culvert Ambusher
+Cumber Stone
+Cunning Advisor
 Cunning Breezedancer
 Cunning Coyote
+Cunning Evasion
 Cunning Geysermage
 Cunning Maneuver
 Cunning Nightbonder
+Cunning Sparkmage
 Cunning Strike
 Cunning Survivor
+Cunning Wish
 Curate
+Curator Beastie
 Curator of Destinies
 Curator of Mysteries
 Curator's Ward
 Curio Vendor
 Curiosity
+Curiosity Crafter
+Curious Altisaur
 Curious Cadaver
 Curious Colossus
 Curious Farm Animals
@@ -3832,16 +4210,25 @@ Curious Homunculus
 Curious Inquiry
 Curious Obsession
 Curious Pair
+Curse of Chains
+Curse of Marit Lage
 Curse of the Swine
 Curse of the Werefox
 Curse-Marred Demon
+Cursebreak
+Cursecatcher
 Cursed Courtier
 Cursed Flesh
+Cursed Land
 Cursed Minotaur
+Cursed Monstrosity
 Cursed Recording
 Cursed Ronin
 Cursed Windbreaker
+Cursed Wombat
+Custodi Soulbinders
 Custodian of the Trove
+Customs Depot
 Cut // Ribbons
 Cut Down
 Cut In
@@ -3853,15 +4240,23 @@ Cutthroat Centurion
 Cutthroat Contender
 Cutthroat Maneuver
 Cutthroat il-Dal
+Cyan, Vengeful Samurai
+Cybermat
 Cybernetic Specialist
 Cycle of Renewal
 Cyclone Sire
 Cyclonic Rift
+Cyclopean Snare
 Cyclops Electromancer
 Cyclops Tyrant
 Cyclops of Eternal Fury
 Cyclops of One-Eyed Pass
+Cylian Elf
+Cynette, Jelly Drover
 Cynical Loner
+Cystbearer
+D'Avenant Archer
+D'Avenant Healer
 D'Avenant Trapper
 D'Ghor Bloodletter
 D'Vana Tendi, Optimistic Ensign
@@ -3871,6 +4266,7 @@ Daemogoth Woe-Eater
 Dagger Caster
 Dagger of the Worthy
 Daggerback Basilisk
+Daggerclaw Imp
 Daggerdrome Imp
 Daggerfang Duo
 Daggermaw Megalodon
@@ -3878,12 +4274,21 @@ Daggersail Aeronaut
 Daghatar the Adamant
 Dahar Master
 Dai Li Agents
+Dai Li Censor
 Dai Li Indoctrination
 Daily Bugle Building
+Daily Bugle Newspaper
 Daily Bugle Reporters
+Daily Regimen
 Dain Ironfoot
+Dain of the Ancient Halls
 Dain's Company
 Dain, Lord of the Iron Hills
+Dakkon, Shadow Slayer
+Dakmor Bat
+Dakmor Plague
+Dakmor Scorpion
+Dakmor Sorceress
 Dakra Mystic
 Dal R'El, Augment Orphan
 Dalakos, Crafter of Wonders
@@ -3891,28 +4296,40 @@ Dalek Squadron
 Dalkovan Encampment
 Dalkovan Packbeasts
 Damage Control Crew
+Damn
 Damnable Pact
 Damnation
+Damning Verdict
+Dampen Thought
 Dampening Pulse
 Damping Sphere
 Dance of Shadows
 Dance of the Skywise
 Dance of the Tumbleweeds
 Dance with Devils
+Dancing Scimitar
 Dancing from Dark to Dawn
+Dangerous Wager
 Danitha Capashen, Paragon
 Danitha, Benalia's Hope
 Danitha, New Benalia's Light
 Danitha, Spear of Agony
 Dapper Shieldmate
+Daraja Griffin
 Daredevil Dragster
 Daredevil, Man Without Fear
+Daretti, Ingenious Iconoclast
 Daretti, Rocketeer Engineer
+Darigaaz's Attendant
+Darigaaz's Caldera
+Daring Apprentice
 Daring Archaeologist
 Daring Buccaneer
 Daring Demolition
 Daring Discovery
 Daring Escape
+Daring Fiendbonder
+Daring Leap
 Daring Mechanic
 Daring Saboteur
 Daring Skyjek
@@ -3920,6 +4337,7 @@ Daring Sleuth
 Daring Thief
 Daring Thunder-Thief
 Daring Waverider
+Dark Banishing
 Dark Bargain
 Dark Betrayal
 Dark Confidant
@@ -3929,6 +4347,8 @@ Dark Deed
 Dark Endurance
 Dark Favor
 Dark Fortress
+Dark Hatchling
+Dark Heart of the Wood
 Dark Inquiry
 Dark Intimations
 Dark Knight's Greatsword
@@ -3941,24 +4361,58 @@ Dark Remedy
 Dark Revenant
 Dark Ritual
 Dark Salvation
+Dark Triumph
+Dark Tutelage
+Dark Withering
 Dark-Dweller Oracle
 Darkblade Agent
 Darkbore Pathway
+Darkheart Sliver
 Darklight Phoenix
+Darkling Stalker
+Darkmoss Bridge
+Darkness
 Darkness Descends
+Darkslick Drake
 Darkslick Shores
 Darkstar Augur
+Darksteel Axe
+Darksteel Brute
 Darksteel Citadel
 Darksteel Forge
+Darksteel Gargoyle
 Darksteel Ingot
+Darksteel Juggernaut
+Darksteel Mutation
+Darksteel Myr
+Darksteel Pendant
+Darksteel Relic
+Darkthicket Wolf
+Darkwater Catacombs
+Darkwater Egg
 Darling of the Masses
+Darting Merfolk
+Daru Cavalier
+Daru Encampment
+Daru Healer
+Daru Lancer
+Daru Mender
+Daru Sanctifier
+Daru Spiritualist
+Daru Warchief
+Darwin, Adaptive Mutant
 Dashing Bloodsucker
+Data, Exploring Humanity
 Data, New Life
+Data, Professor of Humanities
 Dathon and Picard at El-Adrel
+Daughter of the Deep
 Dauntless Aven
 Dauntless Bodyguard
 Dauntless Cathar
 Dauntless Dismantler
+Dauntless Dourbark
+Dauntless Escort
 Dauntless Onslaught
 Dauntless River Marshal
 Dauntless Scrapbot
@@ -3966,9 +4420,12 @@ Dauntless Survivor
 Dauntless Unity
 Dauntless Veteran
 Dauthi Cutthroat
+Dauthi Embrace
 Dauthi Ghoul
+Dauthi Horror
 Dauthi Jackal
 Dauthi Marauder
+Dauthi Mercenary
 Dauthi Mindripper
 Dauthi Slayer
 Dauthi Trapper
@@ -3976,6 +4433,7 @@ Dauthi Warlord
 David and Carol Marcus, Creators
 Davriel's Shadowfugue
 Davriel, Rogue Shadowmage
+Davvol, Evincar of Rath
 Dawn Evangel
 Dawn Gryff
 Dawn of Hope
@@ -3986,6 +4444,9 @@ Dawn-Blessed Pennant
 Dawnbringer Charioteers
 Dawnbringer Cleric
 Dawnfeather Eagle
+Dawnfluke
+Dawnglare Invoker
+Dawnglow Infusion
 Dawnhand Eulogist
 Dawnhart Disciple
 Dawnhart Geist
@@ -3993,14 +4454,19 @@ Dawnhart Mentor
 Dawnhart Rejuvenator
 Dawnhart Wardens
 Dawning Angel
+Dawning Purist
+Dawnray Archer
 Dawnsire, Sunstar Dreadnought
+Dawnstrider
 Dawnstrike Paladin
 Dawnstrike Vanguard
 Dawntreader Elk
 Dawnwing Marshal
 Daxos of Meletis
+Daxos's Torment
 Daxos, Blessed by the Sun
 Day of Black Sun
+Day of Destiny
 Day of Judgment
 Day's Undoing
 Daybreak Chaplain
@@ -4008,19 +4474,25 @@ Daybreak Charger
 Daybreak Chimera
 Daybreak Combatants
 Daybreak Coronet
+Daybreak Ranger
 Daydream
 Daysquad Marshal
+Daze
 Dazzling Angel
 Dazzling Denial
 Dazzling Lights
 Dazzling Ramparts
 Dazzling Reflection
 Dazzling Theater // Prop Room
+Dead // Gone
+Dead Before Sunrise
 Dead Drop
 Dead Man's Chest
 Dead Reveler
 Dead Revels
 Dead Weight
+Dead of Winter
+Deadapult
 Deadbridge Goliath
 Deadbridge Shaman
 Deadeye Brawler
@@ -4033,31 +4505,53 @@ Deadeye Tormentor
 Deadeye Tracker
 Deadlock Trap
 Deadly Alliance
+Deadly Allure
 Deadly Brew
 Deadly Complication
 Deadly Cover-Up
 Deadly Derision
 Deadly Dispute
 Deadly Embrace
+Deadly Insect
 Deadly Plot
 Deadly Precision
 Deadly Recluse
 Deadly Riposte
 Deadly Visit
 Deadly Wanderings
+Deadshot
+Deadshot Minotaur
 Deafening Clarion
 Deafening Silence
+Deal Broker
 Deal Gone Bad
 Deanna Troi, Psychic Counsel
 Death Baron
 Death Begets Life
+Death Bomb
+Death Cloud
+Death Cultist
+Death Denied
 Death Frenzy
+Death Grasp
+Death Pit Offering
+Death Pits of Rath
+Death Pulse
+Death Rattle
+Death Speakers
+Death Stroke
+Death Trooper
+Death Ward
 Death Wind
 Death in the Family
 Death to Our Enemies
 Death's Approach
 Death's Oasis
 Death's Presence
+Death's Shadow
+Death's-Head Buzzard
+Death-Greeter's Champion
+Death-Hood Cobra
 Death-Priest of Myrkul
 Death-Rattle Oni
 Deathbellow Raider
@@ -4066,22 +4560,30 @@ Deathbloom Gardener
 Deathbloom Ritualist
 Deathbloom Thallid
 Deathbonnet Sprout
+Deathbringer Thoctar
 Deathcap Cultivator
 Deathcap Glade
 Deathcap Marionette
 Deathcult Rogue
+Deathcurse Ogre
 Deathgaze Cockatrice
 Deathgorge Scavenger
+Deathgreeter
+Deathgrip
 Deathknell Berserker
 Deathlace
+Deathleaper, Terror Weapon
 Deathless Ancient
 Deathless Behemoth
 Deathless Knight
 Deathless Pilot
 Deathmark
+Deathmark Prelate
 Deathmask Nezumi
 Deathpact Angel
+Deathreap Ritual
 Deathrite Shaman
+Deathspore Thallid
 Deathsprout
 Debilitating Injury
 Debris Beetle
@@ -4090,9 +4592,15 @@ Debt to the Kami
 Debtor's Pulpit
 Debtors' Transport
 Decadent Dragon
+Decanter of Endless Water
 Deceit
+Deceive the Messenger
+Deceiver Exarch
 Deceiver of Form
+Deception
+Deceptive Landscape
 Decimator Beetle
+Decimator Web
 Decimator of the Provinces
 Decision Paralysis
 Decisive Denial
@@ -4101,19 +4609,29 @@ Declare Dominance
 Decoction Module
 Decode Transmissions
 Decommission
+Decompose
+Deconstruct
 Decorated Griffin
 Decoy Ploy
+Decree of Savagery
+Decree of Silence
 Dedicated Commons
+Dedicated Martyr
 Deduce
 Deem Worthy
 Deep Freeze
 Deep Goblin Skulltaker
+Deep Reconnaissance
 Deep-Cavern Bat
+Deep-Sea Serpent
 Deep-Sea Terror
+Deep-Slumber Titan
 Deepcavern Imp
 Deepchannel Duelist
+Deepchannel Mentor
 Deepfathom Echo
 Deepfathom Skulker
+Deepfire Elemental
 Deepmuck Desperado
 Deeproot Champion
 Deeproot Elite
@@ -4121,48 +4639,83 @@ Deeproot Pilgrimage
 Deeproot Warrior
 Deeproot Waters
 Deeproot Wayfinder
+Deeptread Merrow
 Deepwater Hypnotist
 Deepway Navigator
+Deepwood Drummer
+Deepwood Ghoul
+Deepwood Tantiv
+Deepwood Wolverine
 Defabricate
 Deface
+Defacing Duskmage
+Defang
 Defeat
 Defend the Campus
 Defend the Celestus
 Defend the Hearth
 Defend the Rider
+Defender of Chaos
+Defender of Law
+Defender of the Order
 Defenestrate
 Defenestrated Phantom
+Defense Force Aggressor
+Defensive Stance
 Defiant Bloodlord
+Defiant Elf
+Defiant Falcon
 Defiant Khenra
 Defiant Ogre
 Defiant Salvager
 Defiant Strike
 Defiant Survivor
 Defibrillating Current
+Defile
 Defiled Crypt // Cadaver Lab
 Defiler of Dreams
 Defiler of Faith
 Defiler of Flesh
 Defiler of Instinct
+Defiler of Souls
 Defiler of Vigor
+Defiling Daemogoth
 Defiling Tears
 Deflecting Palm
 Defossilize
 Deft Dismissal
+Deft Duelist
+Defy Gravity
+Dega Disciple
+Deglamer
+Dehydration
 Deicide
+Deja Vu
+Delete
 Deliberate
+Delighted Killbot
 Delina, Wild Mage
+Delirium Skeins
 Deliver Unto Evil
 Delivery Moogle
 Delney, Streetwise Lookout
+Delraich
 Delta Bloodflies
+Deluge
 Deluge Virtuoso
+Deluge of Doom
+Delusions of Mediocrity
+Deluxe Dragster
 Delver of Secrets
 Delver's Torch
 Demand Answers
 Demanding Dragon
+Dematerialize
+Dementia Bat
+Demigod of Revenge
 Demogorgon's Clutches
 Demolish
+Demolisher Spawn
 Demolition Field
 Demolition Stomper
 Demon Bolt
@@ -4173,27 +4726,41 @@ Demon of Loathing
 Demon's Disciple
 Demon's Due
 Demon's Grasp
+Demon's Horn
+Demon's Jester
+Demonic Appetite
 Demonic Bargain
 Demonic Counsel
 Demonic Embrace
 Demonic Gifts
+Demonic Lore
 Demonic Pact
+Demonic Rising
 Demonic Ruckus
+Demonic Taskmaster
+Demonic Torment
 Demonic Tutor
 Demonic Vigor
 Demonlord Belzenlok
+Demonmail Hauberk
+Demoralize
 Demystify
 Den Protector
 Den of the Bugbear
+Denethor, Ruling Steward
 Dennick, Pious Apprentice
+Deny Entry
 Deny Existence
 Deny the Divine
+Deny the Witch
 Denzilore Fatehold
 Depala, Pilot Exemplar
 Depart the Realm
 Departed Deckhand
 Dependable Quinjet
+Deploy The Troops
 Deploy the Gatewatch
+Deploy to the Front
 Depopulate
 Depose // Deploy
 Depower
@@ -4202,17 +4769,26 @@ Depth Charge Colossus
 Depths of Desire
 Deputy of Acquittals
 Deputy of Detention
+Deranged Assistant
+Deranged Hermit
+Deranged Outcast
 Deranged Whelp
 Derelict Attic // Widow's Walk
 Descend upon the Sinful
+Descendant of Soramaro
 Descendant of Storms
 Descent of the Dragons
 Desculpting Blast
+Desecrated Earth
 Desecrated Tomb
 Desecration Demon
 Desecration Elemental
 Desecration Plague
+Desert
 Desert Cerodon
+Desert Drake
+Desert Sandstorm
+Desert Twister
 Desert of the Fervent
 Desert of the Glorified
 Desert of the Indomitable
@@ -4221,23 +4797,33 @@ Desert of the True
 Desert's Due
 Desert's Hold
 Deserted Beach
+Deserted Temple
 Deserter's Disciple
 Deserter's Quarters
 Desiccated Naga
+Desolate Lighthouse
+Desolate Mire
+Desolation Angel
 Desolation Prowler
 Desolation Twin
 Desolation of Smaug
 Despark
 Desperate Bloodseeker
 Desperate Castaways
+Desperate Charge
 Desperate Farmer
 Desperate Futurescribe
 Desperate Lunge
 Desperate Measures
+Desperate Ritual
 Desperate Sentry
 Desperate Stand
 Despise
+Despoil
 Despoiler of Souls
+Despondency
+Despondent Killbot
+Despotic Scepter
 Destined // Lead
 Destined Confrontation
 Destiny Spinner
@@ -4246,43 +4832,61 @@ Destroy the Evidence
 Destructive Digger
 Destructive Revelry
 Destructive Tampering
+Destructive Urge
 Destructor Dragon
+Desynchronization
 Desynchronize
+Detained by Legionnaires
+Detainment Spell
 Detection Tower
 Detective's Satchel
 Detention Chariot
 Detention Sphere
+Devastate
 Devastating Mastery
 Devastating Onslaught
 Deviant Glee
+Devil's Play
 Devilish Valet
 Devils' Playground
 Devilthorn Fox
 Devious Cover-Up
 Devkarin Dissident
+Devoted Caretaker
 Devoted Crop-Mate
+Devoted Druid
 Devoted Duelist
 Devoted Grafkeeper
+Devoted Hero
 Devoted Paladin
 Devoted Retainer
 Devotee of Strength
 Devour Flesh
 Devour Intellect
 Devour in Flames
+Devour in Shadow
 Devourer of Destiny
 Devourer of Memory
 Devouring Light
 Devouring Sugarmaw
+Devouring Swarm
 Devouring Tendrils
 Devout Decree
 Devout Invocation
+Devout Lightcaster
+Devout Monk
+Devout Witness
 Dewdrop Cure
+Dewdrop Spy
 Dhund Operative
+Diabolic Edict
 Diabolic Intent
 Diabolic Tutor
+Diabolic Vision
 Diamond Knight
 Diamond Mare
 Diamond Pick-Axe
+Diamond Valley
 Diamond Weapon
 Diary of Dreams
 Dictate of Erebos
@@ -4290,6 +4894,7 @@ Dictate of Heliod
 Dictate of Kruphix
 Dictate of the Twin Gods
 Didact Echo
+Didgeridoo
 Didn't Say Please
 Die Young
 Dig Site Inventory
@@ -4297,28 +4902,38 @@ Dig Through Time
 Dig Up
 Dig Up the Body
 Digsite Conservator
+Digsite Engineer
+Dihada's Ploy
 Diligent Excavator
 Diligent Zookeeper
 Diluvian Primordial
 Dimension X
 Dimensional Exile
 Dimensional Infiltrator
+Diminish
 Diminisher Witch
+Dimir Aqueduct
 Dimir Charm
 Dimir Cluestone
+Dimir Cutpurse
 Dimir Guildgate
+Dimir Guildmage
 Dimir Informant
 Dimir Keyrune
 Dimir Locket
+Dimir Signet
 Dimir Spybug
 Dina's Guidance
+Dina, Essence Brewer
 Dina, Soul Steeper
+Dining Room
 Dinosaur Hunter
 Dinosaur Stampede
 Dinotomaton
 Dinrova Horror
 Dion, Bahamut's Dominant
 Diplomacy of the Wastes
+Diplomatic Immunity
 Diplomatic Relations
 Dire Downdraft
 Dire Fleet Captain
@@ -4329,10 +4944,14 @@ Dire Fleet Neckbreaker
 Dire Fleet Poisoner
 Dire Fleet Ravager
 Dire Fleet Warmonger
+Dire Mimic
 Dire Tactics
+Dire Undercurrents
 Dire Wolf Prowler
 Dire-Strain Rampage
 Direct Current
+Direct Hit
+Director Krennic
 Diregraf Colossus
 Diregraf Ghoul
 Diregraf Horde
@@ -4341,17 +4960,24 @@ Diregraf Scavenger
 Diresight
 Dirge Bat
 Dirge of Dread
+Dirgur Focusmage
 Dirgur Island Dragon
 Dirgur Nemesis
+Dirtwater Wraith
+Dirty Wererat
 Disallow
 Disappearing Act
 Discerning Financier
 Discerning Peddler
 Disciple of Deceit
+Disciple of Grace
 Disciple of Kangee
+Disciple of Law
+Disciple of Malice
 Disciple of Phenax
 Disciple of the Old Ways
 Disciple of the Ring
+Disciple of the Vault
 Disciples of Gix
 Disciplined Duelist
 Discontinuity
@@ -4445,6 +5071,7 @@ Domri's Ambush
 Domri's Nodorog
 Domri, Anarch of Bolas
 Domri, City Smasher
+Don & Leo, Problem Solvers
 Don't Make a Sound
 Donatello's Technique
 Donatello, Gadget Master

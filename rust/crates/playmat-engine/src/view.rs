@@ -10,12 +10,15 @@ use std::sync::Arc;
 use std::sync::OnceLock;
 
 /// Each card's view as Java builds it out of a game (`new CardView(card)`, written by `CardFactsTest` with
-/// `-Dxmage.cardFacts.views`), by name, without its ids: what the engine's card views start from.
-pub const VIEWS_JSON: &str = include_str!("../cards/views.json");
+/// `-Dxmage.cardFacts.views`), by name, without its ids: what the engine's card views start from (gzip-compressed).
+pub const VIEWS_JSON_GZ: &[u8] = include_bytes!("../cards/views.json.gz");
 
 fn templates() -> &'static HashMap<String, Value> {
     static T: OnceLock<HashMap<String, Value>> = OnceLock::new();
-    T.get_or_init(|| serde_json::from_str(VIEWS_JSON).unwrap_or_default())
+    T.get_or_init(|| {
+        let dec = flate2::read::GzDecoder::new(VIEWS_JSON_GZ);
+        serde_json::from_reader(dec).unwrap_or_default()
+    })
 }
 
 /// The game as Java has it, where it differs: a card entering from a hand while its as-enters choices are asked is
