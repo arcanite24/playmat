@@ -1,0 +1,56 @@
+# name: Train450 brawl-t-gwu-aggro-1
+# archetype: brawl_aggro
+# colors: GWU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Air Marshal
+1 Artificer's Assistant
+1 Blex, Vexing Pest
+1 Consuming Sinkhole
+1 Courser of Kruphix
+1 Daggerback Basilisk
+1 Deputy of Acquittals
+1 Devouring Light
+1 Genemorph Imago
+1 Gloryheath Lynx
+1 Imperial Lancer
+1 Kelpie Guide
+1 Knight of the Keep
+1 Linvala, Shield of Sea Gate
+1 Llanowar Envoy
+1 Luminous Rebuke
+1 Mahamoti Djinn
+1 Malevolent Hermit
+1 Oreskos Sun Guide
+1 Paranormal Analyst
+1 Placid Rottentail
+1 Prehistoric Pet
+1 Ramunap Hydra
+1 Relic Runner
+1 Riverguard's Reflexes
+1 Roaming Throne
+1 Savage Land Dinosaur
+1 Sky Theater Strix
+1 Starfield Mystic
+1 Steel Leaf Champion
+1 Tangletrap
+1 Tarkir Duneshaper
+1 Three Steps Ahead
+1 Tome Anima
+1 Touch of the Void
+1 Vines of the Recluse
+1 Wear Down
+1 Azorius Guildgate
+1 Blossoming Sands
+1 Earth, Sector 001
+4 Forest
+1 Grove of the Guardian
+1 Hallowed Fountain
+3 Island
+4 Plains
+1 Restless Anchorage
+1 Sharlayan, Nation of Scholars
+1 Tangled Islet
+1 Temple of Enlightenment
+1 Temple of Plenty
+1 Thornwood Falls
+1 Transformative Commons

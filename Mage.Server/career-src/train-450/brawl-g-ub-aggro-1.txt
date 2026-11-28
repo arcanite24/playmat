@@ -1,0 +1,51 @@
+# name: Train450 brawl-g-ub-aggro-1
+# archetype: brawl_aggro
+# colors: UB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Aether Swooper
+1 Creeping Chill
+1 Cruel Feeding
+1 Daring Sleuth
+1 Dark Confidant
+1 Deduce
+1 Defiant Bloodlord
+1 Digsite Conservator
+1 Donatello, Turtle Techie
+1 Dragon Turtle
+1 Dreg Recycler
+1 Embrace Oblivion
+1 Foggy Swamp Hunters
+1 Forensic Gadgeteer
+1 Grim Draugr
+1 Hateful Eidolon
+1 Homarid Explorer
+1 House Guildmage
+1 Infestation Sage
+1 Legion's End
+1 Long Goodbye
+1 Order of Midnight
+1 Ozai's Cruelty
+1 Quicksmith Spy
+1 Risen Necroregent
+1 Rush of Vitality
+1 Satoru, the Infiltrator
+1 Skittering Heartstopper
+1 Slaughter Specialist
+1 Snooping Newsie
+1 Soaring Drake
+1 Sphinx of False Conclusions
+1 Stalked Researcher
+1 Sure-Footed Infiltrator
+1 Temple Thief
+1 Vraska's Contempt
+1 Yarok's Wavecrasher
+1 A.I.M. Labs
+1 Fetid Pools
+6 Island
+1 Murky Sewer
+1 Serpent's Pass
+9 Swamp
+1 Temple of Deceit
+1 Treno, Dark City
+1 Underground River
+1 Watery Grave

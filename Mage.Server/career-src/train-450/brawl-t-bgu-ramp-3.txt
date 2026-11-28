@@ -1,0 +1,54 @@
+# name: Train450 brawl-t-bgu-ramp-3
+# archetype: brawl_ramp
+# colors: BGU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Angel of Suffering
+1 Assassin's Trophy
+1 Bastion Mastodon
+1 Blue Dragon
+1 Charging Rhino
+1 Cloaked Siren
+1 Cuboid Colony
+1 Daggermaw Megalodon
+1 Deathless Knight
+1 Defeat
+1 Desperate Castaways
+1 Doom Blade
+1 Dungeon Crawler
+1 Eviscerate
+1 Forerunner of the Coalition
+1 Greenwarden of Murasa
+1 Hermitic Nautilus
+1 Inspired Idea
+1 Merfolk Coralsmith
+1 Millennial Gargoyle
+1 Moonlit Scavengers
+1 Nimana Skydancer
+1 Notion Thief
+1 Rampaging Brontodon
+1 Red Room Recruit
+1 Rumbling Baloth
+1 Sabotage Strategist
+1 Simic Charm
+1 Toxin Analysis
+1 Triton Waverider
+1 Ulvenwald Observer
+1 Unesh, Criosphinx Sovereign
+1 Vastwood Surge
+1 Veteran Adventurer
+1 Voracious Wurm
+1 Festering Gulch
+1 Foggy Bottom Swamp
+4 Forest
+1 Haunted Mire
+1 Hissing Quagmire
+5 Island
+1 Meditation Pools
+1 Mirkwood
+1 Simic Guildgate
+4 Swamp
+1 Thornwood Falls
+1 Waterfront District
+1 Watery Grave
+1 Woodland Chasm
+1 Yavimaya Coast

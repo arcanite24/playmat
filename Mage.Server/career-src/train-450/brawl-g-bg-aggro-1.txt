@@ -1,0 +1,51 @@
+# name: Train450 brawl-g-bg-aggro-1
+# archetype: brawl_aggro
+# colors: BG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Acolyte of Affliction
+1 Bitter Triumph
+1 Citanul Stalwart
+1 Creeping Chill
+1 Dark Deed
+1 Death Wind
+1 Elektra, Daughter of the Hand
+1 Evolution Sage
+1 Fathom Fleet Cutthroat
+1 Fauna Shaman
+1 Fetid Imp
+1 Fleshmad Steed
+1 Fully Grown
+1 Funeral Rites
+1 Gatekeeper of Malakir
+1 Generous Visitor
+1 Hidden Herbalists
+1 Hired Blade
+1 Honored Hydra
+1 Jungle Delver
+1 Leech Collector
+1 Lord Skitter's Butcher
+1 Lurking Deadeye
+1 Lys Alana Informant
+1 Malevolent Noble
+1 Melancholic Poet
+1 Moopsy
+1 Organic Avulsion Unit
+1 Ozai's Cruelty
+1 Siege Wurm
+1 Storrev, Devkarin Lich
+1 Strength of the Coalition
+1 The Unbeatable Squirrel Girl
+1 Tragic Trajectory
+1 Wickerfolk Thresher
+1 Wildgrowth Walker
+1 Wily Bandar
+1 Blooming Marsh
+7 Forest
+1 Foul Orchard
+1 Gohn, Town of Ruin
+1 Golgari Guildgate
+1 Jungle Hollow
+1 Strangled Cemetery
+8 Swamp
+1 Temple of Malady
+1 Underground Mortuary

@@ -1,0 +1,36 @@
+# name: Train450 lim-g-rw-ctrl-6
+# archetype: limited_ctrl
+# colors: RW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Abstruse Interference
+1 Blaze Commando
+2 Brazen Scourge
+1 Brimstone Vandal
+2 Burn the Accursed
+1 Charging Tuskodon
+1 Drogskol Shieldmate
+1 Dwarfhold Champion
+1 Dwarven Provisioner
+2 Expose Evil
+1 Fire Prophecy
+1 Forsake the Worldly
+2 Furnace Strider
+1 General Traag, Heart of Stone
+1 Hobgoblin, Mantled Marauder
+2 Hologram Janeway
+1 Jennika's Technique
+1 Magma Spray
+1 Make Your Move
+1 Reflective Golem
+2 Rock Soldiers
+1 Sandbenders' Storm
+1 Shivan Dragon
+1 Shock
+1 Tiller of Flesh
+1 Trusty Companion
+1 United Front
+1 Void Shatter
+4 Alpine Meadow
+10 Mountain
+7 Plains
+4 Temple of Triumph

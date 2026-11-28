@@ -1,0 +1,37 @@
+# name: Train450 lim-g-gu-mid-3
+# archetype: limited_mid
+# colors: GU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Alirios, Enraptured
+1 Ambush Wolf
+1 Awaken the Bear
+1 Bone to Ash
+1 Bull's Strength
+1 Colossapede
+1 Drakewing Krasis
+1 Eccentric Farmer
+1 Eumidian Terrabotanist
+2 Gnarlwood Dryad
+1 Grasping Longneck
+2 Hypnotic Grifter
+1 Illusory Angel
+1 Keeper of Fables
+2 Kessig Dire Swine
+2 Kumena, Tyrant of Orazca
+1 Mind Meanderer
+2 Neverwinter Dryad
+2 Pulse of Murasa
+1 Return to Nature
+1 Rowdy Snowballers
+1 Shackle Slinger
+1 Stitched Mangler
+1 Suit Up
+1 Summit Sentinel
+2 The Mindskinner
+1 Timely Interference
+1 Wandering Troubadour
+1 Winds of Rebuke
+9 Forest
+4 Hedge Maze
+7 Island
+4 Lush Oasis

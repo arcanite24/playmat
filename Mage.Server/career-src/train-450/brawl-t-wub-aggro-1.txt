@@ -1,0 +1,56 @@
+# name: Train450 brawl-t-wub-aggro-1
+# archetype: brawl_aggro
+# colors: WUB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Alchemist's Retrieval
+1 Ambush Paratrooper
+1 Anafenza, Kin-Tree Spirit
+1 Aquatic Alchemist
+1 Artificer's Epiphany
+1 Baleful Mastery
+1 Beskir Shieldmate
+1 Charmed Stray
+1 Cornered by Black Mages
+1 Displacer Beast
+1 Dukhara Scavenger
+1 Eternal Taskmaster
+1 Glimmer Seeker
+1 Inspiring Captain
+1 Mechan Assembler
+1 Mizzium Skin
+1 Monoist Sentry
+1 Mystic Archaeologist
+1 Nyxathid
+1 Osseous Sticktwister
+1 Rattlechains
+1 Reflector Mage
+1 Renowned Weaponsmith
+1 Riverguard's Reflexes
+1 Satoru, the Infiltrator
+1 Seedpod Squire
+1 Seer of Stolen Sight
+1 Siren's Ruse
+1 Sterling Hound
+1 Stern Constable
+1 Sweettooth Witch
+1 Tomik, Wielder of Law
+1 Vayne's Treachery
+1 Vicious Rumors
+1 Voltaic Servant
+1 Winter Soldier, Icy Assassin
+1 Witch's Familiar
+1 Caves of Koilos
+1 Glacial Floodplain
+1 Great Arashin City
+1 Idyllic Beachfront
+4 Island
+1 Isolated Chapel
+1 Neglected Manor
+3 Plains
+1 Restless Fortress
+1 Sharlayan, Nation of Scholars
+1 Shineshadow Snarl
+1 Silverquill Campus
+4 Swamp
+1 Temple of Silence
+1 Watery Grave

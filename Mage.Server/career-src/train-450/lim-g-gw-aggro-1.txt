@@ -1,0 +1,36 @@
+# name: Train450 lim-g-gw-aggro-1
+# archetype: limited_aggro
+# colors: GW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Anafenza, Unyielding Lineage
+2 Consuming Sinkhole
+2 Devoted Crop-Mate
+1 Disciple of the Old Ways
+1 Disenchant
+2 Dragonsguard Elite
+1 Ghastbark Twins
+1 Glory-Bound Initiate
+1 Hunted Witness
+1 Icingdeath, Frost Tyrant
+2 Kitsune Ace
+1 Monica Rambeau
+1 Moss Viper
+1 Murasa Sproutling
+1 Oreskos Swiftclaw
+1 Ornery Kudu
+1 Pack's Favor
+1 Plow Through
+2 Realmwalker
+1 Resistance Reunited
+1 Slaughter Singer
+1 Soldier of the Pantheon
+1 Soul of Theros
+1 Sun Sentinel
+2 Tail Swipe
+2 Triceraton Commander
+2 Trusted Pegasus
+1 Vampire's Zeal
+4 Birnin Zana Plaza
+6 Forest
+9 Plains
+4 Suburban Sanctuary

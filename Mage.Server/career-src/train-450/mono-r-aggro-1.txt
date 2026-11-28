@@ -1,0 +1,19 @@
+# name: Train450 mono-r-aggro-1
+# archetype: aggro
+# colors: R
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Bloodlust Inciter
+2 Casey Jones, Vigilante
+2 Chain Lightning
+4 Embereth Veteran
+2 Flame Spill
+2 Hurloon Battle Hymn
+3 Inventor's Apprentice
+4 Lightning Mare
+2 Relic Golem
+3 Sazacap's Brew
+2 Sparring Construct
+4 Tiger-Dillo
+2 Traxos, Scourge Eternal
+4 Tweeze
+21 Mountain

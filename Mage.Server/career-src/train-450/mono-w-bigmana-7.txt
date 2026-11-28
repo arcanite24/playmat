@@ -1,0 +1,19 @@
+# name: Train450 mono-w-bigmana-7
+# archetype: bigmana
+# colors: W
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Archon of Absolution
+2 Attentive Skywarden
+2 Bruna, the Fading Light
+2 Erode
+3 Famished Paladin
+2 Felidar Sovereign
+2 Glorious Protector
+2 Ironwright's Cleansing
+4 Lyra Dawnbringer
+2 Mighty Leap
+4 Moonlit Lamenter
+2 Pillar of Light
+3 Rustwing Falcon
+3 Victory's Herald
+25 Plains

@@ -1,0 +1,18 @@
+# name: Train450 mono-g-bigmana-8
+# archetype: bigmana
+# colors: G
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Balustrade Wurm
+3 Bayou Groff
+2 Blitzball Shot
+3 Cavern Stomper
+2 Elfhame Wurm
+3 Hazard of the Dunes
+3 Oakshade Stalker
+2 Rambling Possum
+3 Spinewoods Paladin
+2 Swarmborn Giant
+3 Tear Asunder
+3 Unnatural Aggression
+3 Wasteland Viper
+25 Forest

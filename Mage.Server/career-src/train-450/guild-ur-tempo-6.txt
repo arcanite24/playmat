@@ -1,0 +1,24 @@
+# name: Train450 guild-ur-tempo-6
+# archetype: tempo
+# colors: UR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Captive Weird
+1 Cobbled Lancer
+3 Devoted Duelist
+3 Fearless Swashbuckler
+2 Flick a Coin
+1 Gila Courser
+1 Hexgold Slash
+2 High Fae Trickster
+3 Just the Wind
+3 Lofty Denial
+2 Slick Sequence
+3 Spell Stutter
+4 Sprite Dragon
+2 Test of Priorities
+2 Turn Inside Out
+2 Wizard's Lightning
+4 Eroded Canyon
+8 Island
+6 Mountain
+4 Shivan Reef

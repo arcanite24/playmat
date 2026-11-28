@@ -1,0 +1,21 @@
+# name: Train450 guild-gu-bigmana-10
+# archetype: bigmana
+# colors: GU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Axebane Ferox
+2 Bark-Knuckle Boxer
+3 Defiler of Vigor
+4 Greenbelt Rampager
+4 Groundchuck & Dirtbag
+2 Harrier Naga
+4 Kozilek's Command
+2 Leave in the Dust
+2 Oko's Accomplices
+3 Quandrix Cultivator
+4 Sab-Sunen, Luxa Embodied
+1 Vestige of Emrakul
+2 Woodcutter's Grit
+4 Earth, Sector 001
+12 Forest
+5 Island
+4 Meditation Pools

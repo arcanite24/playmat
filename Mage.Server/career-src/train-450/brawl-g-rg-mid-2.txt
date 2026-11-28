@@ -1,0 +1,50 @@
+# name: Train450 brawl-g-rg-mid-2
+# archetype: brawl_mid
+# colors: RG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Akki Ronin
+1 Bolt Hound
+1 Broken Bond
+1 Chaos Imps
+1 Clash of Titans
+1 Dual Shot
+1 Fuel the Flames
+1 Gigantoad
+1 Goblin Javelineer
+1 Imodane's Recruiter
+1 Khalni Ambush
+1 Lathliss, Dragon Queen
+1 Lys Alana Dignitary
+1 Malamet Veteran
+1 Meltstrider Eulogist
+1 Michelangelo, Game Master
+1 Mine Raider
+1 Pyrrhic Blast
+1 Raccoon Rallier
+1 Romantic Rendezvous
+1 Rubblebelt Maaka
+1 Shatterskull Charger
+1 Silverfur Partisan
+1 Slavering Branchsnapper
+1 Slumbering Trudge
+1 Smoldering Efreet
+1 Strongbox Raider
+1 Survey the Wreckage
+1 Targ Nar, Demon-Fang Gnoll
+1 Thunderhead Gunner
+1 Traveling Chocobo
+1 Truck Toss
+1 Undergrowth Leopard
+1 Void Shatter
+1 Wojek Bodyguard
+1 Zhur-Taa Swine
+1 Cinder Glade
+6 Forest
+1 Gongaga, Reactor Town
+1 Karplusan Forest
+10 Mountain
+1 Omashu City
+1 Restless Ridgeline
+1 Sheltered Thicket
+1 Stomping Ground
+1 Wooded Ridgeline

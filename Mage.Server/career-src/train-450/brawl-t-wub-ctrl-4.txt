@@ -1,0 +1,53 @@
+# name: Train450 brawl-t-wub-ctrl-4
+# archetype: brawl_ctrl
+# colors: WUB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Angler Turtle
+1 Artful Takedown
+1 Cavalier of Gales
+1 Deadly Cover-Up
+1 Depressurize
+1 Didn't Say Please
+1 Dorothea, Vengeful Victim
+1 Enter the God-Eternals
+1 Exclude
+1 Fan Bearer
+1 Garrison Griffin
+1 Geralf's Messenger
+1 Getaway Glamer
+1 Hei Bai, Spirit of Balance
+1 Icefall Regent
+1 Luke Cage, Power Man
+1 Magnetic Snuffler
+1 Massacre Girl
+1 Master Trinketeer
+1 Miscast
+1 Mortify
+1 Narset's Reversal
+1 Obscura Interceptor
+1 Oltec Cloud Guard
+1 Quake, Agent of S.H.I.E.L.D.
+1 Restore the Peace
+1 Ride's End
+1 School Daze
+1 Secret Salvage
+1 Syr Alin, the Lion's Claw
+1 Tainted Indulgence
+1 Thassa's Intervention
+1 Thought Collapse
+1 Withering Curse
+1 A.I.M. Labs
+1 Fetid Pools
+1 Fortified Beachhead
+1 Forum of Amity
+1 Great Arashin City
+5 Island
+1 Lake-town
+1 Orzhov Guildgate
+5 Plains
+1 Restless Fortress
+1 Shattered Sanctum
+1 Sunken Hollow
+4 Swamp
+1 Temple of Silence
+1 Treno, Dark City

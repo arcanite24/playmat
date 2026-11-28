@@ -1,0 +1,21 @@
+# name: Train450 guild-rw-midrange-7
+# archetype: midrange
+# colors: RW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Battlefield Raptor
+2 Beza, the Bounding Spring
+1 Light the Way
+4 Not on My Watch
+3 Overwhelming Surge
+3 Price of Freedom
+4 Rekindling Phoenix
+4 Spinneret and Spiderling
+1 Syr Ginger, the Meal Ender
+4 Terror of Mount Velus
+1 Union of the Third Path
+2 Velvetwing Butterflies
+4 Zhalfirin Lancer
+4 Abraded Bluffs
+8 Mountain
+8 Plains
+4 Sundown Pass

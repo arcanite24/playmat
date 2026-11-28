@@ -1,0 +1,37 @@
+# name: Train450 lim-g-wb-aggro-2
+# archetype: limited_aggro
+# colors: WB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Ajani's Chosen
+2 Anointer Priest
+1 Aphemia, the Cacophony
+2 Blood-Chin Rager
+1 Desiccated Naga
+1 Dominator Drone
+2 Dromoka Warrior
+1 Duelist of Deep Faith
+2 Eater of Hope
+1 Falkenrath Noble
+1 Festive Funeral
+1 Fracture
+2 Grafted Butcher
+1 Hunted Bonebrute
+2 Inquisitor's Ox
+1 Knight of Dawn's Light
+1 Patriot, Shield Wielder
+1 Poison the Cup
+2 Rally Maneuver
+2 Razorlash Transmogrant
+1 Reality Hemorrhage
+1 Reconstructed Thopter
+1 Vengeful Townsfolk
+1 Vicious Rumors
+1 Vizier of Deferment
+1 Vryn Wingmare
+1 Werefox Bodyguard
+1 Wings of the Cosmos
+1 Worthy Cost
+4 Forlorn Flats
+4 Forum of Amity
+8 Plains
+7 Swamp

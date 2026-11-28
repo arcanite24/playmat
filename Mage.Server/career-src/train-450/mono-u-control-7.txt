@@ -1,0 +1,19 @@
+# name: Train450 mono-u-control-7
+# archetype: control
+# colors: U
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Countersculpt
+2 Desculpting Blast
+2 Dragon Turtle
+2 Glacial Crasher
+2 Jace's Scrutiny
+4 Make Disappear
+2 Planar Incision
+2 Radical Idea
+2 Riptide Chimera
+2 Sea Gate Colossus
+4 Select for Inspection
+4 Thassa's Rebuff
+2 Unity of Purpose
+2 Winged Portent
+26 Island

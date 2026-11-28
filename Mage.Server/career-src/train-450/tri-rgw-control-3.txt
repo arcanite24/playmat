@@ -1,0 +1,24 @@
+# name: Train450 tri-rgw-control-3
+# archetype: control
+# colors: RGW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Abstruse Interference
+4 Archangel Avacyn
+3 Dromoka's Command
+2 Duty Beyond Death
+4 Eager Trufflesnout
+2 Erode
+2 Fulminous Forte
+4 Inspiring Call
+2 Origin of Metalbending
+2 Pounce
+1 Radiant Purge
+2 Spell Shrivel
+3 Void Shatter
+1 Warping Wail
+4 Blossoming Sands
+7 Forest
+4 Highland Forest
+1 Mountain
+6 Plains
+4 Sundown Pass

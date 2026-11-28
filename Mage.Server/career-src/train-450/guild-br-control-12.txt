@@ -1,0 +1,23 @@
+# name: Train450 guild-br-control-12
+# archetype: control
+# colors: BR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Abstruse Interference
+3 Archenemy's Charm
+2 Blooming Blast
+2 Corpse Explosion
+2 Craterclaw Colossus
+2 Hero's Downfall
+3 Horribly Awry
+3 Incinerating Blast
+1 Manhole Missile
+2 Oxidda Finisher
+2 Skizzik
+2 Spawn of Mayhem
+2 Storm's Wrath
+3 Untimely Malfunction
+3 Void Shatter
+4 Goblin-town
+12 Mountain
+4 Sulfurous Springs
+6 Swamp

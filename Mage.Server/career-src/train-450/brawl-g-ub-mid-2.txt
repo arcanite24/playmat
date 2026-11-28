@@ -1,0 +1,50 @@
+# name: Train450 brawl-g-ub-mid-2
+# archetype: brawl_mid
+# colors: UB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Assassin's Ink
+1 Blightbelly Rat
+1 Blighted Bat
+1 Bone Splinters
+1 Broodrage Mycoid
+1 Confusticate and Bebother
+1 Crackling Triton
+1 Diminisher Witch
+1 Dread Summons
+1 Entity Tracker
+1 Feed the Cauldron
+1 Flayer Drone
+1 Guardian Automaton
+1 Herald of Hadar
+1 Howler's Heavy
+1 Hungry Ghoul
+1 Hypnotic Grifter
+1 Indulgent Tormentor
+1 Ironclad Revolutionary
+1 Malevolent Witchkite
+1 Notion Rain
+1 Oblivion Strike
+1 Out of Air
+1 Pain Seer
+1 Quickling
+1 Rottenheart Ghoul
+1 Slum Reaper
+1 Sorcerer of the Fang
+1 Sphinx of the Final Word
+1 Spikeshell Harrier
+1 Syphon Fuel
+1 Teferi's Time Twist
+1 Vampire of the Dire Moon
+1 Wanted Scoundrels
+1 Water Servant
+1 Xerex Strobe-Knight
+1 Choked Estuary
+1 Contaminated Aquifer
+1 Dismal Backwater
+1 Drowned Catacomb
+7 Island
+1 Romulus
+1 Sinister Hideout
+1 Sunken Hollow
+9 Swamp
+1 Undercity Sewers

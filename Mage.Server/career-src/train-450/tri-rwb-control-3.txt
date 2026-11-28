@@ -1,0 +1,23 @@
+# name: Train450 tri-rwb-control-3
+# archetype: control
+# colors: RWB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Cling to Dust
+3 Command Decision
+3 Demand Answers
+1 Eliminate
+2 Horribly Awry
+2 Plasma Bolt
+2 Purifying Dragon
+4 Riot Control
+2 Seismic Monstrosaur
+4 Skyknight Legionnaire
+4 Spark Jolt
+2 Void Shatter
+4 Warping Wail
+4 Asgardian Citadel
+8 Mountain
+5 Plains
+4 Shadowy Backstreet
+4 Sulfurous Springs
+1 Swamp

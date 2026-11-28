@@ -1,0 +1,49 @@
+# name: Train450 brawl-g-bg-ramp-3
+# archetype: brawl_ramp
+# colors: BG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Arrogant Poet
+1 Blood Curdle
+1 Bone Picker
+1 Cruel Revival
+1 Deceiver of Form
+1 Earthshaker Dreadmaw
+1 Endbringer
+1 Explore
+1 Finishing Blow
+1 Flaxen Intruder
+1 Gravebreaker Lamia
+1 Horizon Seeker
+1 Icecave Crasher
+1 Kessig Prowler
+1 Kozilek's Return
+1 Lich's Caress
+1 Markov Crusader
+1 Midnight Reaper
+1 Minotaur Abomination
+1 Ojer Kaslem, Deepest Growth
+1 Peema Aether-Seer
+1 Phyrexian Fleshgorger
+1 Prakhata Pillar-Bug
+1 Silversmote Ghoul
+1 Slumbering Trudge
+1 Stampeding Elk Herd
+1 Swarm Guildmage
+1 Tar Snare
+1 Topiary Stomper
+1 Toxin Analysis
+1 Treeshaker Chimera
+1 Vengeful Creeper
+1 Waker of the Wilds
+1 Whiplash, Vengeful Engineer
+1 Wildwood Patrol
+1 Blooming Marsh
+9 Forest
+1 Gohn, Town of Ruin
+1 Illegitimate Business
+1 Overgrown Tomb
+8 Swamp
+1 Temple of Malady
+1 Titan's Grave
+1 Underground Mortuary
+1 Woodland Chasm

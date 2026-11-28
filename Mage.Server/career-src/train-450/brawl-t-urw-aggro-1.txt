@@ -1,0 +1,56 @@
+# name: Train450 brawl-t-urw-aggro-1
+# archetype: brawl_aggro
+# colors: URW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Abuelo, Ancestral Echo
+1 Ageless Guardian
+1 Agent of Atlas
+1 Blessed Reincarnation
+1 Blooming Blast
+1 Captain Storm, Cosmium Raider
+1 Chemister's Insight
+1 Cloud Manta
+1 Deepwater Hypnotist
+1 Ephara, God of the Polis
+1 Geistblast
+1 Gilgamesh, Master-at-Arms
+1 Grab the Prize
+1 Harrier Strix
+1 Hero of the Games
+1 Hewed Stone Retainers
+1 Illvoi Operative
+1 Kami's Flare
+1 Oasis Gardener
+1 Progenitor Exarch
+1 Rampaging Ceratops
+1 Razzle-Dazzler
+1 Resplendent Griffin
+1 Seasoned Hallowblade
+1 Sizzling Changeling
+1 Skyblade of the Legion
+1 Spark Trooper
+1 Spell Queller
+1 Sram, Senior Edificer
+1 Swift Justice
+1 Thrummingbird
+1 Transit Mage
+1 Transmogrify
+1 Unflinching Hortimancer
+1 Upriser Renegade
+1 Vengeful Tracker
+1 Vow to Erebor
+1 Avengers Hangar
+1 Bajor
+1 Battlefield Forge
+1 Dedicated Commons
+1 Fields of Strife
+1 Hallowed Fountain
+1 Inspiring Vantage
+4 Island
+1 Izzet Guildgate
+4 Mountain
+3 Plains
+1 Port Town
+1 Prairie Stream
+1 Stone Quarry
+1 Sun-Blessed Peak

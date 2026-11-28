@@ -1,0 +1,19 @@
+# name: Train450 mono-b-midrange-5
+# archetype: midrange
+# colors: B
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Archfiend of the Dross
+2 Bankrupt in Blood
+2 Bonebind Orator
+3 Caustic Exhale
+2 Fatal Push
+3 Gas Guzzler
+2 Hunt for Specimens
+3 Kozilek's Sentinel
+4 Master of the Feast
+2 Nyxathid
+3 Requiting Hex
+2 Saheeli's Silverwing
+2 Sengir Vampire
+2 Sheoldred, Whispering One
+24 Swamp

@@ -1,0 +1,35 @@
+# name: Train450 lim-g-rg-aggro-1
+# archetype: limited_aggro
+# colors: RG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Anzrag, the Quake-Mole
+1 Ballista Watcher
+2 Bellows Lizard
+1 Built to Smash
+1 Cactuar
+1 Call In a Professional
+1 Cunning Coyote
+2 Deeproot Wayfinder
+2 Dragon-Scarred Bear
+1 Giant Cindermaw
+2 Goblin Chainwhirler
+2 Greenbelt Rampager
+2 Gwenna, Eyes of Gaea
+1 High Stride
+1 Illustrious Historian
+1 Molten Blast
+1 Monstrous Rage
+1 No Admittance
+2 Qal Sisma Behemoth
+1 Reinforced Ronin
+1 Ruinous Gremlin
+2 Ruric Thar, the Unbowed
+1 Scalding Viper
+2 Synchronized Spellcraft
+2 Three Tree Rootweaver
+1 Unfriendly Fire
+1 Warden of the Chained
+4 Commercial District
+6 Forest
+9 Mountain
+4 Racers' Ring

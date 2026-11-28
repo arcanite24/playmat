@@ -1,0 +1,38 @@
+# name: Train450 lim-g-ub-mid-3
+# archetype: limited_mid
+# colors: UB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Aerie Worshippers
+1 Aetherjacket
+1 Aspirant's Ascent
+1 Backstreet Bruiser
+1 Battle at the Bridge
+1 Blacksnag Buzzard
+2 Bonepicker Skirge
+1 Callous Inspector
+2 Cast Down
+1 Cobbled Lancer
+1 Corridor Monitor
+1 Costly Plunder
+1 Divide by Zero
+1 Frost Walker
+1 Grisly Spectacle
+2 Gumdrop Poisoner
+1 Hapatra, the Desert Frost
+2 Ichor Shade
+1 Inner Demons Gangsters
+1 Iron Golem
+2 Maha, Its Feathers Night
+1 Null Caller
+2 Queen's Bay Paladin
+1 Return to Action
+1 Rookie Mistake
+1 Sleep-Cursed Faerie
+1 Thornplate Intimidator
+1 Undersea Invader
+1 Vampire Cutthroat
+1 Whispering Snitch
+5 Island
+4 Shipwreck Marsh
+4 Sinister Hideout
+11 Swamp

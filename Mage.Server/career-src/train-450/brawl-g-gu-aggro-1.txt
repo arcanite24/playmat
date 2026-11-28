@@ -1,0 +1,51 @@
+# name: Train450 brawl-g-gu-aggro-1
+# archetype: brawl_aggro
+# colors: GU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Arlinn's Wolf
+1 Armguard Familiar
+1 Aven Wind Mage
+1 Bonny Pall, Clearcutter
+1 Cactarantula
+1 Cloistered Telepath
+1 Consuming Sinkhole
+1 Drowsing Tyrannodon
+1 Epic Fight
+1 Fae of Wishes
+1 Finch Formation
+1 Frontier Mastodon
+1 Gudul Lurker
+1 Gust of Wind
+1 Hydrosurge
+1 Il Mheg Pixie
+1 Jukai Preserver
+1 Kraul Harpooner
+1 Lilysplash Mentor
+1 Malcator's Watcher
+1 Merfolk Mistbinder
+1 Mindreaver
+1 Sage's Row Denizen
+1 Scavenging Ooze
+1 Shell Shield
+1 Shredding Winds
+1 Silhana Wayfinder
+1 Sinister Cryologist
+1 Slumbering Trudge
+1 Splash Lasher
+1 Surly Farrier
+1 Surveillance Monitor
+1 Tear Asunder
+1 Touch of the Void
+1 Towering-Wave Mystic
+1 Tyvar, the Pummeler
+1 Witch's Web
+1 Botanical Sanctum
+7 Forest
+1 Hedge Maze
+1 Hinterland Harbor
+8 Island
+1 Meditation Pools
+1 Mutant Town
+1 Paradox Gardens
+1 Rimewood Falls
+1 Temple of Mystery

@@ -1,0 +1,24 @@
+# name: Train450 guild-bg-gowide-3
+# archetype: gowide
+# colors: BG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Aggressive Urge
+2 Badgermole Cub
+3 Blight Pile
+2 Bontu the Glorified
+2 Bristlebane Battler
+3 Clear the Stage
+2 Daemogoth Titan
+1 Fierce Witchstalker
+3 Greenbelt Rampager
+3 Guardian of the Halls
+3 Hunted Bonebrute
+1 Mardu Shadowspear
+1 Nocturnal Hunger
+4 Seedship Broodtender
+2 Shadow Alley Denizen
+2 Tigra, Feline Fury
+7 Forest
+4 Hissing Quagmire
+4 Mirkwood
+7 Swamp

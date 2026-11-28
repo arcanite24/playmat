@@ -1,0 +1,24 @@
+# name: Train450 tri-bgu-midrange-1
+# archetype: midrange
+# colors: BGU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Assassin's Trophy
+3 Excavation Mole
+3 Fungal Infection
+3 Hydrolash
+1 Keep Safe
+4 Kulrath Mystic
+1 Merfolk Spy
+3 Mistbreath Elder
+4 Quickling
+4 Ravenous Necrotitan
+1 Ray Fillet, Man Ray
+1 Sin, Spira's Punishment
+1 Slice from the Shadows
+3 Tyrranax Rex
+4 Forest
+4 Hinterland Harbor
+4 Island
+4 Swamp
+4 Tangled Islet
+4 Yavimaya Coast

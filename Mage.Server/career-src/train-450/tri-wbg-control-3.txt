@@ -1,0 +1,24 @@
+# name: Train450 tri-wbg-control-3
+# archetype: control
+# colors: WBG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Abstruse Interference
+3 Altar's Reap
+4 Ambush Wolf
+2 Apostle of Invasion
+4 Death in the Family
+3 Flunk
+2 Golgari Charm
+2 Horribly Awry
+2 Lord of the Forsaken
+2 Moogles' Valor
+2 Spell Shrivel
+1 Test of Conviction
+3 Tidy Conclusion
+1 Warping Wail
+4 Foggy Bottom Swamp
+3 Forest
+4 Indatha Triome
+3 Plains
+4 Strangled Cemetery
+8 Swamp

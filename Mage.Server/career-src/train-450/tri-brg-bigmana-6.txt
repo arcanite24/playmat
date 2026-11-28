@@ -1,0 +1,23 @@
+# name: Train450 tri-brg-bigmana-6
+# archetype: bigmana
+# colors: BRG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Alley Assailant
+3 Clackbridge Troll
+2 Diregraf Ghoul
+3 Impossible Choice
+2 Living Twister
+4 Molten Primordial
+3 Natural State
+2 Onakke Ogre
+4 Ornery Kudu
+2 Rabid Gnaw
+1 Rhino, Barreling Brute
+3 Sylvan Primordial
+4 Terrain Elemental
+4 Blackcleave Cliffs
+4 Foreboding Ruins
+6 Forest
+4 Illegitimate Business
+4 Mountain
+3 Swamp

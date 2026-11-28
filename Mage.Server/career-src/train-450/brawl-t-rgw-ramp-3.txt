@@ -1,0 +1,54 @@
+# name: Train450 brawl-t-rgw-ramp-3
+# archetype: brawl_ramp
+# colors: RGW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Adult Gold Dragon
+1 Aggressive Urge
+1 Argivian Phalanx
+1 Blessed Light
+1 Borderland Minotaur
+1 Cataclysmic Gearhulk
+1 Champion of the Clachan
+1 Cliffside Lookout
+1 Craftwork Crusher
+1 Encounter the Unknown
+1 Frondland Felidar
+1 Havoc Jester
+1 Heliod's Emissary
+1 Hero of Leina Tower
+1 Humbler of Mortals
+1 Mai, Jaded Edge
+1 Molten Birth
+1 Mounted Dreadknight
+1 Murasa Rootgrazer
+1 Nimble-Blade Khenra
+1 Nori, Teller of Tales
+1 Quilled Charger
+1 Rile
+1 Rubble Slinger
+1 Sacred Fire
+1 Shockmaw Dragon
+1 Soaring Stoneglider
+1 Tectonic Rift
+1 Tiger-Tribe Hunter
+1 Tireless Tracker
+1 Voracious Typhon
+1 West Wind Avatar
+1 Wild Celebrants
+1 Wilt-Leaf Liege
+1 Zuko's Exile
+1 Battlefield Forge
+1 Botanical Plaza
+1 Bristling Backwoods
+1 Cinder Glade
+3 Forest
+1 Game Trail
+1 Gongaga, Reactor Town
+1 Highland Forest
+1 Los Diablos Missile Base
+5 Mountain
+5 Plains
+1 Rabanastre, Royal City
+1 Raucous Carnival
+1 Temple of Triumph
+1 Tranquil Expanse

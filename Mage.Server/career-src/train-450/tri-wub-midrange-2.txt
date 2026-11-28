@@ -1,0 +1,25 @@
+# name: Train450 tri-wub-midrange-2
+# archetype: midrange
+# colors: WUB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Dire Fleet Poisoner
+3 Jace's Scrutiny
+4 Kaervek, the Punisher
+2 Linvala, Shield of Sea Gate
+2 Moonshadow
+4 Nyxborn Shieldmate
+3 Oketra the True
+1 Reprisal
+1 School Daze
+3 Seraph of the Scales
+2 Sphinx of Magosi
+3 Sweep Away
+2 Tazri, Beacon of Unity
+2 Vanishing Verse
+2 You Are Already Dead
+4 Darkslick Shores
+4 Forsaken Sanctuary
+4 Insomnia, Crown City
+3 Island
+5 Plains
+4 Swamp

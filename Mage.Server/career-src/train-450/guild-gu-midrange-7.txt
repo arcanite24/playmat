@@ -1,0 +1,22 @@
+# name: Train450 guild-gu-midrange-7
+# archetype: midrange
+# colors: GU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Abhorrent Oculus
+2 Archdruid's Charm
+1 Balustrade Wurm
+3 Cavalier of Thorns
+1 Eidolon of Philosophy
+3 Inspiring Call
+3 Plumecreed Escort
+4 Safewright Cavalry
+1 Sphinx's Approach
+4 Starfleet Spanner Jockey
+2 Test of Courage
+3 Uthros Psionicist
+2 Verdant Outrider
+4 Wing Snare
+9 Forest
+7 Island
+4 Mutant Town
+4 Thornwood Falls

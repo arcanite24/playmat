@@ -1,0 +1,22 @@
+# name: Train450 guild-gu-control-11
+# archetype: control
+# colors: GU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Ancient Animus
+3 Bristlebud Farmer
+2 Consign to Memory
+2 Curse of the Werefox
+2 Divide by Zero
+1 Empyreal Voyager
+3 Essence Capture
+1 Flashfreeze
+3 King Harald's Revenge
+2 Lookout's Dispersal
+4 Overlord of the Floodpits
+4 Refute
+4 Stern Dismissal
+1 Unity of Purpose
+6 Forest
+12 Island
+4 Lakeside Shack
+4 Lush Oasis

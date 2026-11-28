@@ -1,0 +1,24 @@
+# name: Train450 tri-brg-midrange-2
+# archetype: midrange
+# colors: BRG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Appetite for the Unnatural
+2 Bloodthirsty Adversary
+2 Coliseum Behemoth
+2 Dragonhawk, Fate's Tempest
+2 Field Trip
+3 Gadrak, the Crown-Scourge
+2 Harried Spearguard
+4 Lamplight Phoenix
+4 Legion Loyalist
+2 Rat Out
+2 Rubblebelt Runner
+3 Titania, Rugged Rumbler
+4 Unlicensed Disintegration
+2 Verdant Rebirth
+4 Cinder Barrens
+4 Forest
+6 Mountain
+4 Rootbound Crag
+2 Swamp
+4 Temple of Malady

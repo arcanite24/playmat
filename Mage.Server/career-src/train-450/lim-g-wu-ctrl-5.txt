@@ -1,0 +1,36 @@
+# name: Train450 lim-g-wu-ctrl-5
+# archetype: limited_ctrl
+# colors: WU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Aerial Guide
+2 Aeronaut Admiral
+1 Bovine Intervention
+1 Broken Concentration
+2 Celestial Messenger
+1 Citywide Bust
+1 Clash of Wills
+2 Cunning Breezedancer
+1 Dauntless Cathar
+1 Disenchant
+2 Divination
+1 Emergency Eject
+2 Encumbered Reejerey
+1 Ephara, God of the Polis
+1 Invoke the Divine
+1 Keep Out
+1 Kozilek's Return
+1 Master of Predicaments
+1 Prophet of the Peak
+1 Pyrrhic Strike
+1 Rapier Wit
+1 Render Silent
+1 Sire of Seven Deaths
+1 Soulblade Djinn
+2 Sparring Mummy
+2 Spyglass Siren
+1 Surge of Righteousness
+1 Vesuvan Drifter
+4 Deserted Beach
+8 Island
+4 Meticulous Archive
+9 Plains

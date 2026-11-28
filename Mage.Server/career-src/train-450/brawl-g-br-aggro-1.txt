@@ -1,0 +1,51 @@
+# name: Train450 brawl-g-br-aggro-1
+# archetype: brawl_aggro
+# colors: BR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Aim for the Head
+1 Baneblade Scoundrel
+1 Bloodghast
+1 Collective Defiance
+1 Cornered by Black Mages
+1 Deadly Complication
+1 Eldrazi Skyspawner
+1 Fathom Fleet Firebrand
+1 Feed the Flames
+1 Gollum, Silent Slinker
+1 Item Shopkeep
+1 Knight of Malice
+1 Kraul Raider
+1 Kuja, Genome Sorcerer
+1 Magebane Lizard
+1 Master of the Feast
+1 Miasmic Mummy
+1 Plague Belcher
+1 Ragavan, Nimble Pilferer
+1 Ragged Recluse
+1 Rakdos Trumpeter
+1 Returned Phalanx
+1 Scavenging Harpy
+1 Scorching Shot
+1 Shakedown Heavy
+1 Shriek, Treblemaker
+1 Storm Strike
+1 Stromkirk Noble
+1 Sure Strike
+1 Swordsman, Sharp Scoundrel
+1 Test of Loyalty
+1 Vaultbreaker
+1 Warehouse Tabby
+1 World Breaker
+1 Zada's Commando
+1 Zagras, Thief of Heartbeats
+1 Zurgo Bellstriker
+1 Bloodfell Caves
+1 Canyon Slough
+1 Foreboding Ruins
+1 Jagged Barrens
+7 Mountain
+1 Razortrap Gorge
+1 Sulfurous Springs
+8 Swamp
+1 Temple of Malice
+1 Vector, Imperial Capital

@@ -1,0 +1,24 @@
+# name: Train450 tri-wbg-gowide-8
+# archetype: gowide
+# colors: WBG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Athreos, God of Passage
+4 Cynical Loner
+4 Dream Beavers
+2 Dromoka's Command
+3 Growth-Chamber Guardian
+2 Kami of Transience
+2 Kinscaer Sentry
+2 Murasa Rootgrazer
+2 Old-Growth Troll
+4 Ornamental Courage
+2 Perimeter Patrol
+2 Slumbering Trudge
+2 Stone by Sunlight
+3 Wren's Run Vanquisher
+4 Fisk Tower
+4 Foggy Bottom Swamp
+4 Forest
+3 Plains
+3 Swamp
+4 Temple Garden

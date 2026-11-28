@@ -1,0 +1,18 @@
+# name: Train450 mono-r-bigmana-8
+# archetype: bigmana
+# colors: R
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Chimney Rabble
+2 Combustible Gearhulk
+3 Craven Hulk
+2 Ember-Eye Wolf
+2 Felonious Rage
+2 Goldnight Castigator
+3 Lightning Strike
+3 Ran and Shaw
+4 Shatterskull Recruit
+3 Traxos, Scourge of Kroog
+2 Village Watch
+4 Wayward Guide-Beast
+3 Wrath of the Bloodmane
+25 Mountain

@@ -1,0 +1,39 @@
+# name: Train450 lim-g-bg-mid-3
+# archetype: limited_mid
+# colors: BG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Accomplished Automaton
+1 Bashful Beastie
+1 Battle Brawler
+1 Biting-Palm Ninja
+1 Bristlepack Sentry
+1 Clash of the Eikons
+1 Corpsejack Menace
+1 Dark Remedy
+1 Echo of Dusk
+1 Etched Familiar
+1 Foolish Fate
+1 Gravepurge
+1 He's Dead, Jim
+2 Hexbane Tortoise
+1 Infernal Reckoning
+1 Kalakscion, Hunger Tyrant
+1 Kraul Whipcracker
+1 Mirrodin Avenged
+1 Mudbutton Cursetosser
+1 Nimana Skitter-Sneak
+1 Pharika, God of Affliction
+1 Polukranos Reborn
+1 Roaming Throne
+2 Ruthless Ripper
+2 Skemfar Shadowsage
+1 Sold Out
+1 Stampeding Scurryfoot
+1 Thundering Ceratok
+2 Verdant Kraken
+2 Watchful Automaton
+1 Wildsize
+6 Forest
+4 Illegitimate Business
+4 Necroblossom Snarl
+10 Swamp

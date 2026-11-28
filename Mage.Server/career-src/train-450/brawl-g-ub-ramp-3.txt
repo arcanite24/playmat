@@ -1,0 +1,49 @@
+# name: Train450 brawl-g-ub-ramp-3
+# archetype: brawl_ramp
+# colors: UB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Acererak the Archlich
+1 Alpharael, Dreaming Acolyte
+1 Avenger of the Fallen
+1 Balduvian Atrocity
+1 Cemetery Recruitment
+1 Compleated Huntmaster
+1 Cursed Minotaur
+1 Demon of Dark Schemes
+1 Dirgur Island Dragon
+1 Dreadfeast Demon
+1 Eater of Hope
+1 Exclude
+1 Flying Octobot
+1 Gix's Command
+1 Indulgent Tormentor
+1 Iron-Craw Crusher
+1 Kheru Dreadmaw
+1 Locust Spray
+1 Mardu Skullhunter
+1 Moment of Craving
+1 Moonshadow
+1 Oathsworn Vampire
+1 Pestilent Syphoner
+1 Retraction Helix
+1 S.H.I.E.L.D. Deployment Drone
+1 Spellbook Seeker
+1 Tangled Colony
+1 Thraben Foulbloods
+1 Trained Condor
+1 Ulcerate
+1 Valkyrie Aerial Unit
+1 Wedding Security
+1 Weigh Down
+1 Westgate Regent
+1 Witness of the Ages
+1 Choked Estuary
+1 Darkslick Shores
+1 Dimir Guildgate
+1 Drowned Catacomb
+5 Island
+1 Sunken Hollow
+12 Swamp
+1 Temple of Deceit
+1 Theorix Annex
+1 Underground River

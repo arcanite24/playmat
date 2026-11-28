@@ -1,0 +1,36 @@
+# name: Train450 lim-g-ur-aggro-2
+# archetype: limited_aggro
+# colors: UR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Angler Drake
+2 Aven Initiate
+2 Baral and Kari Zev
+1 Captivating Crew
+1 Chandra's Pyreling
+1 Elusive Otter
+2 Embereth Shieldbreaker
+1 Embermaw Hellion
+1 Fanatic of Mogis
+1 Fireblade Charger
+1 Flame Channeler
+1 Flame-Chain Mauler
+1 Flamebraider
+2 Mischievous Chimera
+1 Molten Birth
+1 Nadir Kraken
+2 Narset's Rebuke
+1 Network Disruptor
+2 Pedal to the Metal
+1 Planetary Bombardment
+2 Plasma Bolt
+1 Purphoros, God of the Forge
+1 Quick Draw
+2 Slickshot Show-Off
+1 Sower of Chaos
+1 Strife Scholar
+1 Warren Torchmaster
+2 Wing Commando
+5 Island
+10 Mountain
+4 Steam Vents
+4 Swiftwater Cliffs

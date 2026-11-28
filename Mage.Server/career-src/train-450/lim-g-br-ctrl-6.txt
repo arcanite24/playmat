@@ -1,0 +1,36 @@
+# name: Train450 lim-g-br-ctrl-6
+# archetype: limited_ctrl
+# colors: BR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Basilica Screecher
+2 Blood Age General
+1 Cinderclasm
+1 Crash Through
+1 Defiler of Instinct
+2 Dissection Practice
+2 Douser of Lights
+1 Final Flare
+1 Hazardous Blast
+2 Highborn Vampire
+1 Hymn of the Faller
+1 Monoist Circuit-Feeder
+2 Namazu Trader
+2 Olivia's Midnight Ambush
+1 Reave Soul
+1 Reckless Bushwhacker
+1 Runebound Wolf
+1 Ruthless Negotiation
+1 Spell Shrivel
+1 Stegron the Dinosaur Man
+1 Stormscale Scion
+1 Terror of Towashi
+2 Twilight Diviner
+1 Two-Headed Giant
+1 Void Shatter
+1 Volcanic Dragon
+1 Warping Wail
+1 Wring Flesh
+4 Blood Crypt
+4 Bloodfell Caves
+7 Mountain
+10 Swamp

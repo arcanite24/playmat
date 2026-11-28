@@ -1,0 +1,25 @@
+# name: Train450 tri-rgw-aggro-7
+# archetype: aggro
+# colors: RGW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Action News Crew
+3 Blizzard Brawl
+1 Clash of Titans
+3 Collateral Damage
+2 Dance with Devils
+2 Earth Kingdom Protectors
+4 Eidolon of the Great Revel
+1 Frenzied Baloth
+2 Hardened Academic
+4 Lava Spike
+3 Patchwork Beastie
+2 Ranger-Captain of Eos
+4 Spirit of the Spires
+2 Sun-Blessed Healer
+2 Tough Cookie
+2 Forest
+4 Gruul Guildgate
+3 Mountain
+4 Plains
+4 Rockfall Vale
+4 Tranquil Expanse

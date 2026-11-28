@@ -1,0 +1,18 @@
+# name: Train450 mono-r-aggro-3
+# archetype: aggro
+# colors: R
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Boundary Lands Ranger
+2 Curse-Marred Demon
+4 Dreadmaw's Ire
+2 Fin Fang Foom
+3 Full Bore
+4 Lightning Volley
+1 Masked Meower
+4 Reckless Fireweaver
+3 Riveteers Initiate
+4 Satyr Rambler
+4 Soul-Scar Mage
+2 Stingerback Terror
+2 Transporter Malfunction
+21 Mountain

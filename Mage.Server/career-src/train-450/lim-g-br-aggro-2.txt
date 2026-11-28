@@ -1,0 +1,38 @@
+# name: Train450 lim-g-br-aggro-2
+# archetype: limited_aggro
+# colors: BR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Arrogant Outlaw
+1 Auntie's Sentence
+1 Bothersome Noisemaker
+2 Built to Smash
+1 Daggerfang Duo
+1 Dirge Bat
+1 Dread Wanderer
+1 Exquisite Firecraft
+1 Fanatical Firebrand
+1 Feldon, Ronom Excavator
+1 Fiery Temper
+1 Footlight Fiend
+2 Goblin Picker
+2 Goblin Ringleader
+1 Jarl of the Forsaken
+1 Lavastep Raider
+1 Lord Skitter, Sewer King
+1 Raphael, Tough Turtle
+1 Roving Keep
+1 Satyr Nyx-Smith
+1 Seven Dwarves
+2 Shadowborn Apostle
+1 Shivan Branch-Burner
+2 Showstopper
+1 Soul Sear
+2 Specter of the Fens
+2 Stronghold Confessor
+1 Sure Strike
+1 Urabrask
+1 Virulent Silencer
+9 Mountain
+4 Qo'noS
+4 Rakdos Guildgate
+6 Swamp

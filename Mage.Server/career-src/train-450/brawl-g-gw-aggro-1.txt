@@ -1,0 +1,51 @@
+# name: Train450 brawl-g-gw-aggro-1
+# archetype: brawl_aggro
+# colors: GW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Aberrant Manawurm
+1 Aggressive Mammoth
+1 Blade Banish
+1 Brutal Cathar
+1 Captain America, Super-Soldier
+1 Chrome Companion
+1 Contagious Vorrac
+1 Curious Colossus
+1 Dazzling Angel
+1 Devout Decree
+1 Drannith Magistrate
+1 Figure of Fable
+1 Finneas, Ace Archer
+1 Gigantoad
+1 Gladecover Scout
+1 Hanweir Militia Captain
+1 Healer's Hawk
+1 Hopeful Eidolon
+1 Jump Scare
+1 Kapow!
+1 Leonin Lightscribe
+1 Prosperity Tycoon
+1 Reality Hemorrhage
+1 Rust-Shield Rampager
+1 Savage Surge
+1 Seedpod Caretaker
+1 Seraphic Steed
+1 Siegehorn Ceratops
+1 Solarium Sentry
+1 Sylvan Advocate
+1 Tendril of the Mycotyrant
+1 Thorin's Last Stand
+1 Tifa Lockhart
+1 Touch of the Void
+1 Trostani, Three Whispers
+1 Union of the Third Path
+1 Wojek Investigator
+1 Canopy Vista
+1 Creosote Heath
+6 Forest
+1 Grove of the Guardian
+1 Horizon Canopy
+9 Plains
+1 Scattered Groves
+1 Selesnya Guildgate
+1 Suburban Sanctuary
+1 Vigorbloom Annex

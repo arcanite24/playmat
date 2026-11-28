@@ -1,0 +1,22 @@
+# name: Train450 guild-rg-midrange-7
+# archetype: midrange
+# colors: RG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Annihilating Fire
+3 Ball Lightning
+4 Inferno of the Star Mounts
+4 Lupine Prototype
+2 Magma Spray
+2 Polukranos Reborn
+4 Pulse of Murasa
+2 Regal Imperiosaur
+1 Reinforced Ronin
+3 Superior Foes of Spider-Man
+2 Take Out the Trash
+2 Thrill of Possibility
+2 Ulvenwald Oddity
+3 Viashino Branchrider
+5 Forest
+11 Mountain
+4 Orion
+4 Temple of Abandon

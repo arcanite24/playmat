@@ -1,0 +1,31 @@
+# name: Train450 lim-g-br-mid-3
+# archetype: limited_mid
+# colors: BR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Abyssal Harvester
+2 Adrenaline Jockey
+2 Auger Spree
+1 Barging Sergeant
+1 Bloodtithe Harvester
+1 Dark Dabbling
+2 Emberheart Challenger
+1 Flitting Guerrilla
+1 Impolite Entrance
+2 Kothophed, Soul Hoarder
+2 Liliana's Defeat
+2 Maelstrom Artisan
+1 Possibility Technician
+2 Rampaging Spiketail
+1 Regathan Firecat
+1 Roil Eruption
+2 Searing Blood
+2 Sprouting Goblin
+2 The Vision
+2 Theoretical Necromancer
+2 Valduk, Keeper of the Flame
+2 Vampire Interloper
+1 Vindictive Flamestoker
+4 Foreboding Ruins
+4 Jagged Barrens
+9 Mountain
+7 Swamp

@@ -1,0 +1,49 @@
+# name: Train450 brawl-g-rg-ramp-3
+# archetype: brawl_ramp
+# colors: RG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Aerie Bowmasters
+1 Argothian Sprite
+1 Artifist Acumen
+1 Barkhide Troll
+1 Cantankerous Keepers
+1 Curious Forager
+1 Fanatic of Xenagos
+1 Flourishing Hunter
+1 Gigantic Big Bear
+1 Great Divide Guide
+1 Guardian of the Great Conduit
+1 Guardians of Koilos
+1 Havoc Devils
+1 Inferno Hellion
+1 Jennika's Technique
+1 Kozilek's Channeler
+1 Kozilek's Pathfinder
+1 La'An Noonien-Singh, Security
+1 Lava Serpent
+1 Maze Rusher
+1 Narset's Rebuke
+1 Nyxborn Colossus
+1 Pinecone Strike
+1 Pit Fight
+1 Plasma Cascade
+1 Pouncing Cheetah
+1 Razorkin Needlehead
+1 Ruination Wurm
+1 Shang-Chi, Master of Kung Fu
+1 Social Climber
+1 Sunblade Elf
+1 Svella, Ice Shaper
+1 Unnatural Aggression
+1 Violent Echoes
+1 Zhur-Taa Ancient
+9 Forest
+1 Game Trail
+1 Gruul Guildgate
+1 Karplusan Forest
+1 Los Diablos Missile Base
+8 Mountain
+1 Racers' Ring
+1 Sheltered Thicket
+1 Temple of Abandon
+1 Wooded Ridgeline

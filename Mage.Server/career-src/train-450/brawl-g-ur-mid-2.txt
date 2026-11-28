@@ -1,0 +1,50 @@
+# name: Train450 brawl-g-ur-mid-2
+# archetype: brawl_mid
+# colors: UR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Ahn-Crop Crasher
+1 Akoum Hellkite
+1 Artistic Process
+1 Bedhead Beastie
+1 Blinding Drone
+1 Bombard
+1 Callous Dismissal
+1 Consider
+1 Draconic Roar
+1 Elemental Expressionist
+1 Fuming Effigy
+1 Go for Blood
+1 Guardians of Oboro
+1 Hungering Yeti
+1 Illusion Spinners
+1 Insatiable Gorgers
+1 Invasive Surgery
+1 Kaza, Roil Chaser
+1 Marauding Looter
+1 Molten-Core Maestro
+1 Moon-Circuit Hacker
+1 Niv-Mizzet, Dracogenius
+1 Ornery Goblin
+1 Overlord of the Boilerbilges
+1 Overwhelmed Archivist
+1 Photon Blast Barrage
+1 Ragefire
+1 Ravenous Bloodseeker
+1 Sphinx of Forgotten Lore
+1 Spring Splasher
+1 Stern Lesson
+1 Supreme Phantom
+1 Teapot Slinger
+1 Treetop Freedom Fighters
+1 Twinflame Travelers
+1 Wasteland Strangler
+1 Eroded Canyon
+1 Fiery Islet
+7 Island
+1 Molten Tributary
+9 Mountain
+1 Peculiar Lighthouse
+1 Restless Spire
+1 Shivan Reef
+1 Stormcarved Coast
+1 TCRI Building

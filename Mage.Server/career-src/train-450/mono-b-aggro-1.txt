@@ -1,0 +1,20 @@
+# name: Train450 mono-b-aggro-1
+# archetype: aggro
+# colors: B
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 A Good Day to Die
+3 Agonizing Syphon
+1 Ammit Eternal
+2 Consuming Sinkhole
+2 Cruel Sadist
+2 Cult Conscript
+3 Foulmire Knight
+2 Mindwrack Demon
+3 Nyxathid
+1 Reality Hemorrhage
+4 Stab
+4 Technodrome
+3 Thornbow Archer
+3 Thrull Parasite
+3 Tormented Hero
+21 Swamp

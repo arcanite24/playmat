@@ -1,0 +1,53 @@
+# name: Train450 brawl-t-wbg-ctrl-4
+# archetype: brawl_ctrl
+# colors: WBG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Abstruse Interference
+1 Agatha's Champion
+1 Aloe Alchemist
+1 Atzocan Seer
+1 Barony Vampire
+1 Bartz and Boko
+1 Daring Demolition
+1 Deathmark
+1 Drag to the Underworld
+1 Dread Summons
+1 Eternal Student
+1 Glider Kids
+1 Gravepurge
+1 Horribly Awry
+1 Hour of Defeat
+1 Joraga Invocation
+1 Mortality Spear
+1 Mortify
+1 Necrotic Wound
+1 Needletooth Pack
+1 Ovalchase Daredevil
+1 Rabid Attack
+1 Rakshasa Deathdealer
+1 Repel the Vile
+1 Revitalize
+1 Rune-Scarred Demon
+1 Ruthless Lawbringer
+1 Spell Shrivel
+1 Spore Crawler
+1 Stoic Grove-Guide
+1 Those Who Serve
+1 Void Shatter
+1 Wardscale Crocodile
+1 Wild Onslaught
+1 Foot Headquarters
+5 Forest
+1 Forsaken Sanctuary
+1 Indatha Triome
+1 Jungle Hollow
+1 Meticulous Commons
+1 Misty Palms Oasis
+3 Plains
+1 Restless Prairie
+1 Shambling Vent
+1 Snowfield Sinkhole
+1 Sunlit Marsh
+6 Swamp
+1 Underground Mortuary
+1 Windurst, Federation Center

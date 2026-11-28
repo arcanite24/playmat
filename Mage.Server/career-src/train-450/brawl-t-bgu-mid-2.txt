@@ -1,0 +1,55 @@
+# name: Train450 brawl-t-bgu-mid-2
+# archetype: brawl_mid
+# colors: BGU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Anthousa, Setessan Hero
+1 Archghoul of Thraben
+1 Attendant of Vraska
+1 Bloodcrazed Hoplite
+1 Constrictor Sage
+1 Decisive Denial
+1 Demon Wall
+1 Depths of Desire
+1 Doom Blade
+1 Dread Presence
+1 Evangel of Synthesis
+1 Fear of Isolation
+1 Glimmerburst
+1 Heartless Act
+1 Hullcarver
+1 Kona, Rescue Beastie
+1 Lluwen, Exchange Student
+1 Lochmere Serpent
+1 Lurching Rotbeast
+1 Marauding Blight-Priest
+1 Metallic Rebuke
+1 Mistfire Adept
+1 River Herald Scout
+1 River Serpent
+1 Sagittars' Volley
+1 Silvergill Peddler
+1 Soaring Thought-Thief
+1 Somberwald Stag
+1 Stalwart Successor
+1 Sultai Charm
+1 Synapse Necromage
+1 Thorn Mammoth
+1 Threnody Singer
+1 Village Rites
+1 Voidwalk
+1 Wayward Swordtooth
+1 Blooming Marsh
+1 Festering Gulch
+1 Foggy Bottom Swamp
+3 Forest
+1 Haunted Mire
+1 Ice Tunnel
+4 Island
+1 Mirkwood
+1 Quandrix Campus
+1 Rimewood Falls
+5 Swamp
+1 Temple of Deceit
+1 Undercity Sewers
+1 Underground River
+1 Woodland Stream

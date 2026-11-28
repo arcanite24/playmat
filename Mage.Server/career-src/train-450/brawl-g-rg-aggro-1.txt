@@ -1,0 +1,51 @@
+# name: Train450 brawl-g-rg-aggro-1
+# archetype: brawl_aggro
+# colors: RG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Akki Ember-Keeper
+1 Battle Cry Goblin
+1 Beastbond Outcaster
+1 Brambleback Brute
+1 Cathartic Pyre
+1 Deathbonnet Sprout
+1 Enraged Flamecaster
+1 Enterprising Scallywag
+1 Everquill Phoenix
+1 Gangly Stompling
+1 Humble Defector
+1 Hurloon Battle Hymn
+1 Ixalli's Keeper
+1 Kari Zev, Skyship Raider
+1 Keldon Warcaller
+1 Matter Reshaper
+1 Paradise Druid
+1 Quicksmith Genius
+1 Rabbit Battery
+1 Radha, Heart of Keld
+1 Radioactive Spider
+1 Ravenous Baloth
+1 Roast
+1 Savage Land Dinosaur
+1 Shredded Sails
+1 Spiders-Man, Heroic Horde
+1 Spinner of Souls
+1 Sunshot Militia
+1 Tifa's Limit Break
+1 Truck Toss
+1 Ugin's Construct
+1 Volcanic Spite
+1 Volt Charge
+1 Voracious Varmint
+1 Wary Thespian
+1 Wolf Strike
+1 Zalto, Fire Giant Duke
+1 Bristling Backwoods
+1 Commercial District
+1 Copperline Gorge
+6 Forest
+1 Game Trail
+1 Gongaga, Reactor Town
+1 Highland Forest
+9 Mountain
+1 Restless Ridgeline
+1 Rootbound Crag

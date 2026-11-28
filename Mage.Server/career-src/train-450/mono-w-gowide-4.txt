@@ -1,0 +1,19 @@
+# name: Train450 mono-w-gowide-4
+# archetype: gowide
+# colors: W
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Archon of Emeria
+4 Avenging Arrow
+3 Bearer of Silence
+3 Eldrazi Displacer
+2 Flensing Raptor
+2 Law-Rune Enforcer
+3 Lightshield Parry
+2 Novice Inspector
+4 Stone Haven Outfitter
+3 Stormfront Pegasus
+3 Sunstar Chaplain
+3 Sunstar Expansionist
+2 Tarkir Duneshaper
+1 Unnatural Endurance
+22 Plains

@@ -1,0 +1,39 @@
+# name: Train450 lim-t-brg-aggro-1
+# archetype: limited_aggro
+# colors: BRG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Belle of the Brawl
+2 Crooked Custodian
+2 Darklight Phoenix
+1 Dreamstalker Manticore
+1 Fiery Temper
+1 Gastal Thrillseeker
+1 Gibbering Barricade
+1 Huatli's Spurring
+1 Jukai Trainee
+1 Kazandu Mammoth
+1 Mardu Scout
+2 Massive Might
+1 Neheb, the Eternal
+2 Picnic Ruiner
+1 Promising Duskmage
+1 Rodeo Pyromancers
+1 Roil Eruption
+1 Savage Smash
+1 Sawblade Slinger
+1 Scavenging Ooze
+2 Scout the City
+1 Scuzzback Scrounger
+1 Stingerquill Charm
+1 Superior Foes of Spider-Man
+2 Tenacious Underdog
+1 Turntimber Ascetic
+1 Uncle Iroh
+1 Valley Mightcaller
+2 Wayward Guide-Beast
+4 Ferenginar
+4 Forest
+4 Mountain
+4 Stingerquill Annex
+3 Swamp
+4 Titan's Grave

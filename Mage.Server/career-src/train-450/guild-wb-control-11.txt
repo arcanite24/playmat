@@ -1,0 +1,22 @@
+# name: Train450 guild-wb-control-11
+# archetype: control
+# colors: WB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Ajani's Response
+1 Demon of Catastrophes
+2 Demon's Due
+1 Gix's Command
+2 Horribly Awry
+4 Lady of Laughter
+2 Mythos of Nethroi
+2 Pointed Discussion
+3 Rally the Ancestors
+3 Spell Shrivel
+3 Sungold Barrage
+3 Tar Snare
+3 Warping Wail
+3 Welcoming Vampire
+4 Forum of Amity
+4 Godless Shrine
+10 Plains
+8 Swamp

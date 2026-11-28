@@ -1,0 +1,21 @@
+# name: Train450 guild-rw-tempo-6
+# archetype: tempo
+# colors: RW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Akoum Firebird
+3 Belligerent Yearling
+4 Cubwarden
+2 Gideon's Defeat
+3 Horribly Awry
+3 Knight of the White Orchid
+3 Nyxborn Shieldmate
+4 Parting Gust
+4 Plasma Cascade
+2 Playful Shove
+3 Quicksilver, Brash Blur
+2 Sudden Breakthrough
+3 Void Shatter
+4 Asgardian Citadel
+4 Bajor
+7 Mountain
+7 Plains

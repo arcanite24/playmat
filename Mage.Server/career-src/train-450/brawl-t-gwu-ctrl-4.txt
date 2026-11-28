@@ -1,0 +1,53 @@
+# name: Train450 brawl-t-gwu-ctrl-4
+# archetype: brawl_ctrl
+# colors: GWU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Anticognition
+1 Biovisionary
+1 Bone to Ash
+1 Brokers Charm
+1 Captain Mar-Vell, Space-Born
+1 Colossal Dreadmaw
+1 Countermand
+1 Disdainful Stroke
+1 Gnarlback Rhino
+1 Grounded for Life
+1 Humble the Brute
+1 Karametra, God of Harvests
+1 Keep Safe
+1 Kindly Ancestor
+1 Kozilek's Command
+1 Loporrit Scout
+1 Lost in a Labyrinth
+1 Makindi Patrol
+1 Mr. Spock, Science Officer
+1 Pierce the Sky
+1 Pledge of Unity
+1 Proctor's Gaze
+1 Scale Blessing
+1 Sentinel of the Eternal Watch
+1 Serpent Specialist
+1 Set Phasers to . . .
+1 Silumgar Sorcerer
+1 Silverstrike
+1 Slavering Branchsnapper
+1 Spectacular Pileup
+1 Spike-Tailed Ceratops
+1 The Lion-Turtle
+1 Unwind
+1 Wan Shi Tong, Librarian
+1 Blossoming Sands
+5 Forest
+1 Guadosalam, Farplane Gateway
+1 Hallowed Fountain
+4 Island
+1 Lake-town
+1 Overgrown Farmland
+1 Paradox Gardens
+5 Plains
+1 Port Town
+1 Quandrix Campus
+1 Seachrome Coast
+1 Spara's Headquarters
+1 Suburban Sanctuary
+1 Yavimaya Coast

@@ -1,0 +1,23 @@
+# name: Train450 tri-gur-bigmana-5
+# archetype: bigmana
+# colors: GUR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Aurora Awakener
+3 Barret Wallace
+3 Dracosaur Auxiliary
+3 Jolene, Plundering Pugilist
+2 Master Symmetrist
+2 Nephalia Seakite
+3 Pinecone Strike
+2 Precise Strike
+2 Prismari Pledgemage
+3 Release the Gremlins
+4 Soul of Shandalar
+4 Tiger-Seal
+2 Vulpine Goliath
+3 Forest
+3 Island
+7 Mountain
+4 Restless Spire
+4 Spectacle Summit
+4 Stomping Ground

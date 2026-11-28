@@ -1,0 +1,42 @@
+# name: Train450 lim-t-gur-mid-2
+# archetype: limited_mid
+# colors: GUR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Afterthought Sentry
+1 Baral, Chief of Compliance
+2 Basalt Ravager
+2 Break Down the Door
+1 Carnivorous Canopy
+1 Case the Joint
+1 Chandra's Magmutt
+1 Edge Rover
+1 Enhanced Awareness
+1 Fangblade Brigand
+1 Grim Lavamancer
+1 HULK SMASH!
+1 Hermit of the Natterknolls
+1 High Stride
+1 Larger Than Life
+1 Lightshell Duo
+1 Mutant Town Musicians
+1 North Wind Avatar
+1 Outland Boar
+1 Phoenix Chick
+1 Purple Worm
+2 Raging Kronch
+1 Reclusive Artificer
+1 Rotisserie Elemental
+1 Smaug the Magnificent
+1 Supreme Phantom
+2 The Thing, Ben Grimm
+1 Thornfist Striker
+1 Tunneling Geopede
+1 Vannifar, Evolved Enigma
+1 Wing Snare
+1 Wistfulness
+4 Forest
+3 Island
+4 Lumbering Falls
+5 Mountain
+4 Stormcarved Coast
+4 Wandering Fumarole

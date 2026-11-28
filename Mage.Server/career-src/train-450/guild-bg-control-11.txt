@@ -1,0 +1,22 @@
+# name: Train450 guild-bg-control-11
+# archetype: control
+# colors: BG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Abstruse Interference
+2 Bitter Triumph
+1 Confront the Unknown
+2 Dissection Practice
+2 Horribly Awry
+4 Master of the Feast
+4 Nylea's Intervention
+4 Pierce the Sky
+3 Rabid Attack
+2 Spell Shrivel
+2 Strangling Spores
+1 The Speed Demon
+2 Void Shatter
+3 Vorinclex
+8 Forest
+4 Foul Orchard
+4 Golgari Guildgate
+10 Swamp

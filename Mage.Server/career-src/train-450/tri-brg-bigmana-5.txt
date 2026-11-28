@@ -1,0 +1,24 @@
+# name: Train450 tri-brg-bigmana-5
+# archetype: bigmana
+# colors: BRG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Aerial Predation
+3 Burly Breaker
+2 Coat with Venom
+2 Douse in Gloom
+4 Eradicator Valkyrie
+2 Giantfall
+2 Moonshadow
+2 Pale Rider of Trostad
+2 Platoon Dispenser
+4 Purging Stormbrood
+3 Rotting Regisaur
+2 Skyway Sniper
+2 Terra Stomper
+3 Wolverine, Fierce Fighter
+4 Cinder Barrens
+4 Forest
+2 Mountain
+4 Rootbound Crag
+7 Swamp
+4 Underground Mortuary

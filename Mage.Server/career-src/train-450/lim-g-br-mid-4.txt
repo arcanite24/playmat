@@ -1,0 +1,37 @@
+# name: Train450 lim-g-br-mid-4
+# archetype: limited_mid
+# colors: BR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Ayara's Oathsworn
+1 Blinding Drone
+2 Cauldron Familiar
+1 Cavalier of Flame
+1 Chandra's Emberling
+2 Cultivator Drone
+1 Desert's Due
+1 Dhund Operative
+1 Disruptor Wanderglyph
+2 Firespitter Whelp
+1 Forsaken Miner
+1 Grisly Sigil
+1 Grisly Survivor
+1 Hearthborn Battler
+1 Infuriate
+1 Kindly Stranger
+1 Kolaghan, the Storm's Fury
+1 Monoist Sentry
+2 Pilgrim of the Fires
+2 Resistance Is Futile
+1 Tectonic Giant
+2 Terror of the Fairgrounds
+1 Thieves' Guild Enforcer
+1 Thirsting Bloodlord
+1 Thunder Strike
+1 Thundering Giant
+1 Torch the Tower
+2 Unexpected Windfall
+1 Vampire Nighthawk
+4 Haunted Ridge
+8 Mountain
+4 Raucous Theater
+8 Swamp

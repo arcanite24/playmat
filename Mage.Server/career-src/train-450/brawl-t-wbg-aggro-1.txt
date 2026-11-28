@@ -1,0 +1,56 @@
+# name: Train450 brawl-t-wbg-aggro-1
+# archetype: brawl_aggro
+# colors: WBG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Agent of the Fates
+1 Ancestor Dragon
+1 Apostle of Purifying Light
+1 Artful Maneuver
+1 Bake into a Pie
+1 Bartolome del Presidio
+1 Collective Nightmare
+1 Consuming Sinkhole
+1 Countless Gears Renegade
+1 Diligent Zookeeper
+1 Dion, Bahamut's Dominant
+1 Experiment One
+1 Humble the Brute
+1 Kinsbaile Skirmisher
+1 Magnificent End
+1 Markov Purifier
+1 Miasmic Mummy
+1 Moonshadow
+1 Phyrexian Broodlings
+1 Phyrexian Vindicator
+1 Pitiless Pontiff
+1 Pompous Gadabout
+1 Reality Hemorrhage
+1 Remorseful Cleric
+1 Shattered Wings
+1 Siege Rhino
+1 Silkweaver Elite
+1 Speaker of the Heavens
+1 Spider-Bot
+1 Splinter, Hamato Yoshi
+1 Starving Revenant
+1 Sumala Sentry
+1 Tenacious Dead
+1 Titanic Growth
+1 Vineshaper Prodigy
+1 War Oracle
+1 Wrecking Gecko
+1 Arctic Treeline
+1 Etched Cornfield
+2 Forest
+1 Forlorn Flats
+1 Gohn, Town of Ruin
+1 Golgari Guildgate
+1 Horizon Canopy
+1 Isolated Chapel
+1 Jungle Hollow
+1 Mirkwood
+1 Overgrown Farmland
+5 Plains
+1 Selesnya Guildgate
+1 Subterranean Cavern
+4 Swamp

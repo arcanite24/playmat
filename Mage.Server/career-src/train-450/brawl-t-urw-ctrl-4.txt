@@ -1,0 +1,53 @@
+# name: Train450 brawl-t-urw-ctrl-4
+# archetype: brawl_ctrl
+# colors: URW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Academic Dispute
+1 An Offer You Can't Refuse
+1 Betrayer's Bargain
+1 Bloodfire Expert
+1 Change the Equation
+1 Crookclaw Transmuter
+1 Don & Leo, Problem Solvers
+1 Fiery Cannonade
+1 Gleeful Demolition
+1 Hagi Mob
+1 Harvestguard Alseids
+1 Immortal Phoenix
+1 Knight of Obligation
+1 Knightfisher
+1 Lithobraking
+1 Nyxborn Triton
+1 Ojutai's Command
+1 Processor Assault
+1 Refute Destiny
+1 Sarkhan's Rage
+1 Seismic Monstrosaur
+1 Selfless Spirit
+1 Skycrash
+1 Spell Stutter
+1 Sphinx's Insight
+1 Start from Scratch
+1 Stensia Banquet
+1 Storm's Wrath
+1 Sun Warriors
+1 Valkyrie Harbinger
+1 Void Grafter
+1 Voldaren Epicure
+1 Warlord's Elite
+1 Wrap in Flames
+1 Abraded Bluffs
+1 Airship Engine Room
+1 Asgardian Citadel
+1 Fiery Islet
+1 Fortified Beachhead
+1 Frostboil Snarl
+4 Island
+6 Mountain
+1 North Pole Gates
+4 Plains
+1 Rabanastre, Royal City
+1 Seachrome Coast
+1 Swiftwater Cliffs
+1 Temple of Enlightenment
+1 Wind-Scarred Crag

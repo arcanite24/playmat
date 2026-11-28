@@ -1,0 +1,25 @@
+# name: Train450 guild-ur-aggro-2
+# archetype: aggro
+# colors: UR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Blindblast
+3 Bolt of Keranos
+2 Dalakos, Crafter of Wonders
+3 Decadent Dragon
+2 Drill Too Deep
+2 Emeritus of Conflict
+3 Fire Nation Cadets
+1 Geier Reach Bandit
+4 Goblin Tomb Raider
+2 Horned Stoneseeker
+1 Invigorated Rampage
+2 Kavaron Harrier
+3 Mage-Ring Bully
+2 Oracle of Tragedy
+2 Samut's Sprint
+3 Start from Scratch
+2 Thunderkin Awakener
+4 Innovative Commons
+2 Island
+11 Mountain
+4 Restless Spire

@@ -1,0 +1,39 @@
+# name: Train450 lim-t-gur-aggro-1
+# archetype: limited_aggro
+# colors: GUR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Break Down the Door
+1 Earthshaker Khenra
+1 Firefiend Elemental
+2 Forgotten Sentinel
+1 Frost Augur
+2 Gene Pollinator
+1 Giantfall
+1 Greenwheel Liberator
+1 Guerrilla Gorilla
+2 Hotfoot Gnome
+2 Hulking Raptor
+1 Illuna, Apex of Wishes
+1 Kindled Heroism
+1 Kogla, the Titan Ape
+1 Korozda Monitor
+1 Lightning Elemental
+1 Loch Mare
+1 Marwyn, the Clearcutter
+2 Merry Bards
+2 Provoke the Trolls
+1 Reenact the Crime
+1 Skola Grovedancer
+2 Teleportal
+1 Triton Shorestalker
+1 Vaporkin
+1 Voyaging Satyr
+1 Weldfast Wingsmith
+1 Wildfire Wickerfolk
+1 Yavimaya Steelcrusher
+4 Fiery Islet
+4 Forest
+3 Island
+4 Mountain
+4 Pym Technologies
+4 Thundering Falls

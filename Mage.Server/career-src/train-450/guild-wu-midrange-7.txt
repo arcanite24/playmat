@@ -1,0 +1,23 @@
+# name: Train450 guild-wu-midrange-7
+# archetype: midrange
+# colors: WU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Appa, Steadfast Guardian
+2 Archive Arbiter
+2 Bounce Off
+2 Code of Constraint
+2 Confusticate and Bebother
+4 Dauntless Dismantler
+1 Divine Smite
+2 Eirdu, Carrier of Dawn
+2 Expose to Daylight
+1 Novice Knight
+3 Protective Response
+3 Scrapskin Drake
+2 Shadow Glider
+3 Stoic Sphinx
+3 Vantress Gargoyle
+4 Glacial Fortress
+7 Island
+9 Plains
+4 Tranquil Cove

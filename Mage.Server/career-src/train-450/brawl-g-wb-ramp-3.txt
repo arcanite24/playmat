@@ -1,0 +1,49 @@
+# name: Train450 brawl-g-wb-ramp-3
+# archetype: brawl_ramp
+# colors: WB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Absolving Lammasu
+1 Anticausal Vestige
+1 Archon of the Wild Rose
+1 Armory Guard
+1 Bitterbloom Bearer
+1 Blight Pile
+1 Blood Baron of Vizkopa
+1 Clarion Spirit
+1 Dark Betrayal
+1 Despoiler of Souls
+1 Gryff Rider
+1 Herald of the Sun
+1 Imperial Subduer
+1 Infernal Reckoning
+1 Kambal, Consul of Allocation
+1 Ketramose, the New Dawn
+1 Light of the Legion
+1 Mister Negative
+1 Nimraiser Paladin
+1 Ojer Taq, Deepest Foundation
+1 Ojutai Exemplars
+1 Pharika's Cure
+1 Pointed Discussion
+1 Rally for the Throne
+1 Reaper of Night
+1 Requiting Hex
+1 Shadewing Laureate
+1 Shambling Cie'th
+1 Silverquill Silencer
+1 Stone Golem
+1 Summoned Dromedary
+1 Sundial, Dawn Tyrant
+1 Swift Response
+1 Topple the Statue
+1 White Dragon
+1 Foot Headquarters
+1 Forsaken Sanctuary
+1 Godless Shrine
+1 Insomnia, Crown City
+10 Plains
+1 Shadowy Backstreet
+1 Shattered Sanctum
+1 Silverquill Campus
+7 Swamp
+1 Temple of Silence

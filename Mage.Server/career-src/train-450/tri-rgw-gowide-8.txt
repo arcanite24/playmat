@@ -1,0 +1,23 @@
+# name: Train450 tri-rgw-gowide-8
+# archetype: gowide
+# colors: RGW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Bonded Horncrest
+4 Bring to Trial
+2 Burning Sun's Fury
+2 Cactusfolk Sureshot
+4 Conclave Mentor
+4 Coppercoat Vanguard
+2 Greenbelt Rampager
+1 Lavastep Raider
+2 Mortal's Ardor
+4 Recruitment Officer
+2 Sigardian Paladin
+4 Stalking Drone
+3 Wayward Guide-Beast
+4 Commercial District
+4 Dedicated Commons
+2 Forest
+3 Mountain
+5 Plains
+4 Tranquil Expanse

@@ -1,0 +1,23 @@
+# name: Train450 guild-gw-midrange-8
+# archetype: midrange
+# colors: GW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Destroy Evil
+4 Galactic Wayfarer
+2 Greenbelt Rampager
+1 Haliya, Guided by Light
+2 Heritage Reclamation
+4 Lady of Laughter
+3 Mouse Trapper
+1 Patchwork Beastie
+4 Prowling Serpopard
+2 Reprisal
+2 Test of Conviction
+3 Unyielding Gatekeeper
+3 Valorous Stance
+1 Warg Tactics
+2 Yavimaya Iconoclast
+4 Creosote Heath
+4 Etched Cornfield
+7 Forest
+9 Plains

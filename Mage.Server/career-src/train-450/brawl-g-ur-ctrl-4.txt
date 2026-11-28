@@ -1,0 +1,48 @@
+# name: Train450 brawl-g-ur-ctrl-4
+# archetype: brawl_ctrl
+# colors: UR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Aerial Guide
+1 Akoum Hellkite
+1 Ball Lightning
+1 Cavalier of Gales
+1 Concerted Defense
+1 Consign to Memory
+1 Crush the Weak
+1 Dragonhawk, Fate's Tempest
+1 Electro, Assaulting Battery
+1 Endrider Spikespitter
+1 Feed the Flames
+1 Goldnight Castigator
+1 Harsh Mentor
+1 Hullbreaker Horror
+1 Hydraulic Helper
+1 Hypothesizzle
+1 Incendiary Sabotage
+1 Lunar Rejection
+1 Mystical Dispute
+1 Ogre Chitterlord
+1 Precision Bolt
+1 Protect the Negotiators
+1 Reckless Velocitaur
+1 Renegade Tactics
+1 Scrapyard Mongrel
+1 Shatterskull Charger
+1 Sonic Assault
+1 Suspicious Detonation
+1 The Last Agni Kai
+1 Tolarian Kraken
+1 Turn into a Pumpkin
+1 Tweeze
+1 Unleash Shell
+1 Urza's Rebuff
+1 Andoria
+1 Baron, Airship Kingdom
+1 Fiery Islet
+1 Highland Lake
+7 Island
+11 Mountain
+1 Spectacle Summit
+1 Stormcarved Coast
+1 Temple of Epiphany
+1 Volatile Fjord

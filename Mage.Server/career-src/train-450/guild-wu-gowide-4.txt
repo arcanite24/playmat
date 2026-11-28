@@ -1,0 +1,21 @@
+# name: Train450 guild-wu-gowide-4
+# archetype: gowide
+# colors: WU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Aerial Formation
+2 Auspicious Arrival
+3 Captive Weird
+3 Descendant of Storms
+4 Faerie Impostor
+2 Geist of the Lonely Vigil
+1 Giant-Sized Flying Ant
+4 Heliod, Sun-Crowned
+3 Rustwing Falcon
+3 Shatterwing Pegasus
+3 Staunch Shieldmate
+4 Stroke of Midnight
+4 Surveillance Phantasm
+5 Island
+9 Plains
+4 Tranquil Cove
+4 University Campus

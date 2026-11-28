@@ -1,0 +1,20 @@
+# name: Train450 guild-wb-gowide-4
+# archetype: gowide
+# colors: WB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Adamant Will
+4 Blight Keeper
+3 Candlegrove Witch
+4 Disfigure
+3 Erebos, God of the Dead
+3 Heliod, God of the Sun
+2 Lyra, Archangel of Dawn
+4 Pilfering Imp
+4 Silvercoat Lion
+3 Silverquill Silencer
+2 Toolcraft Exemplar
+2 Zahur, Glory's Past
+4 Forsaken Sanctuary
+7 Plains
+4 Shambling Vent
+7 Swamp
