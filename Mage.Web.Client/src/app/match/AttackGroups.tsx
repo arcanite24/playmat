@@ -28,7 +28,7 @@ export function AttackGroups({ groups, wanted, busy, remaining, onWant, onStop, 
   const showDefenders = defenders.length > 1 && !!onDefender;
   const multiPlayer = defenders.filter((option) => option.kind === 'player').length > 1;
   return (
-    <section className={styles.panel} aria-label={t('match.attackGroups.title')}>
+    <section className={styles.panel} aria-label={t('match.attackGroups.title')} data-pad>
       <h3 className={styles.title}><Swords size={18} aria-hidden="true" /> {t('match.attackGroups.title')}</h3>
       {showDefenders && (
         <div className={styles.targets} role="radiogroup" aria-label={t('match.attackGroups.target')}>

@@ -325,6 +325,7 @@ function HandCard({ card, choosing, index, hints, left, rotate, drop, lifted, cl
       onPointerLeave={(event) => event.pointerType === 'touch' && setZoom(null)}
       aria-keyshortcuts={clickable && index < 10 ? `${(index + 1) % 10}` : undefined}
       data-object-id={card.id}
+      data-hidden={faceDown || undefined}
     >
       <CardFace card={card} sleeve={sleeve} hidden={faceDown} />
       {!faceDown && clickable && index < 10 && <kbd className={[styles.keyHint, hints ? styles.keyHintShown : ''].join(' ')} aria-hidden="true">{(index + 1) % 10}</kbd>}

@@ -659,7 +659,7 @@ export function ZoneViewer({ title, cards, onClose }: { title: string; cards: Ca
         </header>
         {cards.length === 0 ? <p className={styles.panelText}>Empty.</p> : (
           <div className={styles.grid}>
-            {cards.map((card) => <div key={card.id} className={styles.pick} data-card-id={card.id} {...zoom(card)}><CardFace card={card} size="normal" /></div>)}
+            {cards.map((card) => <div key={card.id} className={styles.pick} data-card-id={card.id} tabIndex={0} aria-label={card.name} {...zoom(card)}><CardFace card={card} size="normal" /></div>)}
           </div>
         )}
       </div>

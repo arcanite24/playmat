@@ -28,6 +28,7 @@ export default {
   'match.shortcuts.passTurn': "Pass the turn (the » button): skip every stop until this turn ends. Press again to stop.",
   'match.shortcuts.ahead': "Pass to end of turn / next turn / your next turn / resolve the stack.",
   'match.shortcuts.mute': "Toggle game sounds.",
+  'match.shortcuts.controller': "Controller: A is Enter, B is Esc, X is Alt+Enter, Y passes the turn, RT opens the focused card, Start opens settings. The D-pad moves to the nearest card or button that way; the bumpers step through them in order.",
   'match.shortcuts.note': "Shortcuts pause while typing or using menus. Tab reaches cards beyond the first ten.",
 
   // a count of cards after a pile's name ("Your graveyard, 1 card")
