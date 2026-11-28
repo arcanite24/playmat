@@ -1,0 +1,56 @@
+# name: Train450 brawl-t-bgu-aggro-1
+# archetype: brawl_aggro
+# colors: BGU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Abyssal Gorestalker
+1 Airship Crash
+1 Alacrian Jaguar
+1 Blood Bairn
+1 Creeping Peeper
+1 Cruel Feeding
+1 Dark Revenant
+1 Dimir Spybug
+1 Diplomatic Relations
+1 Dwynen, Gilt-Leaf Daen
+1 Elvenking's Harper
+1 Elvish Vatkeeper
+1 Frilled Oculus
+1 Garenbrig Carver
+1 Gixian Infiltrator
+1 Graveyard Marshal
+1 Icefeather Aven
+1 Karumonix, the Rat King
+1 Lakeshore Apothecary
+1 Last Gasp
+1 Lattice-Blade Mantis
+1 Merfolk Branchwalker
+1 Mild-Mannered Librarian
+1 Odunos River Trawler
+1 Ozai's Cruelty
+1 Pilfering Imp
+1 Predation Steward
+1 Reality Hemorrhage
+1 Shadowstorm Vizier
+1 Skyrider Patrol
+1 Soulstinger
+1 Spire Tracer
+1 Spyglass Siren
+1 Sultai Charm
+1 Weave Fate
+1 Witherbloom Charm
+1 Woe Strider
+1 Botanical Sanctum
+1 Elvenking's Halls
+4 Forest
+1 Haunted Mire
+1 Hinterland Harbor
+1 Hissing Quagmire
+3 Island
+1 Serpent's Pass
+1 Simic Guildgate
+1 Submerged Boneyard
+4 Swamp
+1 Temple of Deceit
+1 Treno, Dark City
+1 Waterfront District
+1 Woodland Cemetery

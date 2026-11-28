@@ -1,0 +1,50 @@
+# name: Train450 brawl-g-br-mid-2
+# archetype: brawl_mid
+# colors: BR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Appendage Amalgam
+1 Barrow Naughty
+1 Bladebrand
+1 Bloodsworn Squire
+1 Caligo Skin-Witch
+1 Champion of Dusk
+1 Dark Betrayal
+1 Deathless Pilot
+1 Dragon Whisperer
+1 Duel Tactics
+1 Geist-Fueled Scarecrow
+1 Go for the Throat
+1 Gutsplitter Gang
+1 Impetuous Sunchaser
+1 Liliana's Devotee
+1 Lurking Chupacabra
+1 Magmatic Hellkite
+1 Mardu Blazebringer
+1 Molten Rebuke
+1 Night Market Aeronaut
+1 Ob Nixilis, Unshackled
+1 Ogre Siegebreaker
+1 Overkill
+1 Pyroclastic Elemental
+1 Reaver Drone
+1 Reckoner's Bargain
+1 Relentless X-ATM092
+1 Revenge of the Rats
+1 Sanguine Syphoner
+1 Spell Shrivel
+1 Spit Flame
+1 Syndicate Trafficker
+1 Trueheart Twins
+1 Underworld Sentinel
+1 Unstoppable Ogre
+1 Weldfast Engineer
+1 Blackcleave Cliffs
+1 Bloodfell Caves
+1 Boiling Rock Prison
+1 Cinder Barrens
+6 Mountain
+1 Razortrap Gorge
+1 Smoldering Marsh
+1 Sulfurous Mire
+10 Swamp
+1 Vector, Imperial Capital

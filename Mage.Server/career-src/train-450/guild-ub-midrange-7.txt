@@ -1,0 +1,22 @@
+# name: Train450 guild-ub-midrange-7
+# archetype: midrange
+# colors: UB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Brinebarrow Intruder
+3 Cold Case Cracker
+1 Desecration Demon
+1 Faerie Impostor
+3 Gearsmith Prodigy
+2 Grasp of Darkness
+4 Grim Strider
+4 Jace's Mindseeker
+3 Mirrodin Avenged
+1 Ob Nixilis's Cruelty
+2 Pharika's Cure
+4 Proft, Sinister Mastermind
+3 Take the Fall
+1 Timely Interference
+8 Island
+8 Swamp
+4 Treno, Dark City
+4 Underground River

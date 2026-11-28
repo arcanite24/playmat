@@ -1,0 +1,54 @@
+# name: Train450 brawl-t-wub-ramp-3
+# archetype: brawl_ramp
+# colors: WUB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Airdrop Aeronauts
+1 Angelheart Protector
+1 Beckon Apparition
+1 Blood-Cursed Knight
+1 Brine Giant
+1 Captivating Unicorn
+1 Chill of the Grave
+1 Command Decision
+1 Dark Matter Manipulator
+1 Djinn of the Fountain
+1 Dutiful Servants
+1 Erebos, God of the Dead
+1 Gnashing of Teeth
+1 Grave Strength
+1 Gurmag Rakshasa
+1 Juggernaut
+1 Machine Over Matter
+1 Maha, Its Feathers Night
+1 Mite Overseer
+1 Narfi, Betrayer King
+1 New Prahv Guildmage
+1 Power Plant Worker
+1 Shepherding Spirits
+1 Shoot the Sheriff
+1 Skystreak Engineer
+1 Splinter, Radical Rat
+1 Stonebinder's Familiar
+1 Subcommander T'Pol
+1 Swallow Whole
+1 Syr Vondam, Sunstar Exemplar
+1 Thornmantle Striker
+1 Triton Shorethief
+1 Vampire Champion
+1 Wakandan Drone Flock
+1 Watchful Blisterzoa
+1 Contaminated Aquifer
+1 Deserted Beach
+1 Forsaken Sanctuary
+1 Ice Tunnel
+3 Island
+1 Meandering River
+1 Meticulous Commons
+1 Murky Sewer
+5 Plains
+1 Restless Fortress
+1 Romulus
+1 Shambling Vent
+5 Swamp
+1 Temple of Enlightenment
+1 Undercity Sewers

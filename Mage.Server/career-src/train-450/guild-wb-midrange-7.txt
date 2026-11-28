@@ -1,0 +1,21 @@
+# name: Train450 guild-wb-midrange-7
+# archetype: midrange
+# colors: WB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Ammit Eternal
+3 Anguished Unmaking
+4 Ayli, Eternal Pilgrim
+2 Battlefield Raptor
+3 Bone Dragon
+4 Bright Reprisal
+2 Cliffhaven Vampire
+4 Demon of Catastrophes
+4 Eject the Warp Core
+2 General Kudro of Drannith
+1 Resolute Archangel
+1 Unwanted Remake
+2 Wanderbrine Trapper
+4 Foot Headquarters
+7 Plains
+4 Shattered Sanctum
+9 Swamp

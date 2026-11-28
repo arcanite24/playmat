@@ -1,0 +1,23 @@
+# name: Train450 tri-rwb-midrange-2
+# archetype: midrange
+# colors: RWB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Bellowing Saddlebrute
+3 Brightspear Zealot
+1 Chief of the Edge
+2 Corrupted Conviction
+2 Honored Crop-Captain
+2 Ketramose, the New Dawn
+2 Knight of the Ebon Legion
+4 Krenko, Baron of Tin Street
+3 Mardu Woe-Reaper
+4 Redcap Melee
+4 Thraben Exorcism
+2 Volcanic Spite
+4 Zodiark, Umbral God
+4 Abraded Bluffs
+4 Forlorn Flats
+4 Furycalm Snarl
+4 Mountain
+4 Plains
+4 Swamp

@@ -1,0 +1,23 @@
+# name: Train450 guild-ub-aggro-2
+# archetype: aggro
+# colors: UB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Agonizing Syphon
+3 Artificer's Assistant
+4 Cogwork Wrestler
+2 Consuming Sinkhole
+2 Grim Wanderer
+3 Keeper of the Lens
+3 Lash of Thorns
+2 Rotting Regisaur
+1 Serrated Scorpion
+4 Sheoldred, the Apocalypse
+4 Spin Out
+3 Technodrome
+2 Tiger-Seal
+2 Touch of the Void
+2 Whiplash, Vengeful Engineer
+4 Drowned Catacomb
+4 Island
+9 Swamp
+4 Watery Grave

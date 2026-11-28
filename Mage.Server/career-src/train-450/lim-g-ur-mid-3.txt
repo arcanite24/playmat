@@ -1,0 +1,37 @@
+# name: Train450 lim-g-ur-mid-3
+# archetype: limited_mid
+# colors: UR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Aethertide Whale
+1 Barrin, Tolarian Archmage
+1 Blink of an Eye
+1 Chancellor of Tales
+1 Chandra's Defeat
+1 Chrome Replicator
+1 Cosmos Charger
+1 Crystalline Nautilus
+1 Culmination of Studies
+2 Dungeon Geists
+1 Eldrazi Aggressor
+2 Energize
+2 Expressive Firedancer
+1 Ghitu Lavarunner
+1 Hand That Feeds
+2 Headstrong Brute
+1 K'un-Lun Warrior
+1 Keeper of the Quiet Hour
+1 Magmatic Sprinter
+1 Niv-Mizzet, Parun
+2 Ragavan, Nimble Pilferer
+1 Rageblood Shaman
+1 Rix Maadi Reveler
+1 Scuttling Doom Engine
+1 Spellrune Painter
+2 Swift Kick
+1 Waker of Waves
+2 Weapon Surge
+1 Wishcoin Crab
+7 Island
+9 Mountain
+4 Spectacle Summit
+4 Volatile Fjord

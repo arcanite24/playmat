@@ -1,0 +1,23 @@
+# name: Train450 guild-rg-aggro-2
+# archetype: aggro
+# colors: RG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Alloy Animist
+4 Boulder Dash
+2 Channeler Initiate
+3 Firedrinker Satyr
+2 Inventor's Apprentice
+3 Itzquinth, Firstborn of Gishath
+2 Lovestruck Beast
+2 Make Mischief
+3 Naturalize
+2 Nessian Hornbeetle
+3 Perils of the Past
+1 Pit Fight
+2 Priest of Iroas
+4 Rampart Smasher
+3 Tin Street Dodger
+6 Forest
+7 Mountain
+4 Restless Ridgeline
+4 Savage Mansion

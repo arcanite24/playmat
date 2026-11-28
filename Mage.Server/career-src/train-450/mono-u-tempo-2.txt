@@ -1,0 +1,21 @@
+# name: Train450 mono-u-tempo-2
+# archetype: tempo
+# colors: U
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Befuddle
+3 Ertai's Scorn
+1 Fear of Isolation
+2 Federation Probe
+3 Forerunner of Slaughter
+3 Ice Magic
+2 Joint Exploration
+2 Oaken Siren
+2 Reject
+1 Scatter to the Winds
+2 Spatial Contortion
+2 Thassa, Deep-Dwelling
+4 Thoughtbound Phantasm
+2 Touch of the Void
+4 Variable Chaser
+2 Whoosh!
+22 Island

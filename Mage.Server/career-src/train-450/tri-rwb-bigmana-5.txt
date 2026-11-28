@@ -1,0 +1,22 @@
+# name: Train450 tri-rwb-bigmana-5
+# archetype: bigmana
+# colors: RWB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Breakneck Rider
+2 Cruel Finality
+2 Demanding Dragon
+4 Hellspur Brute
+4 Jaya's Greeting
+2 Lake-town Lookout
+3 Mongoose Lizard
+2 Necropanther
+2 Rakdos, the Showstopper
+2 Rise to the Challenge
+4 Thraben Inspector
+4 Underworld Charger
+4 Clifftop Retreat
+4 Elegant Parlor
+4 Forum of Amity
+7 Mountain
+3 Plains
+3 Swamp

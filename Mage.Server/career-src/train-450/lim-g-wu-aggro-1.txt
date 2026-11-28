@@ -1,0 +1,38 @@
+# name: Train450 lim-g-wu-aggro-1
+# archetype: limited_aggro
+# colors: WU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Act of Heroism
+1 Beaming Defiance
+1 Conduit of Ruin
+1 Dauntless Onslaught
+1 Drannith Healer
+1 Elesh Norn, Mother of Machines
+2 Felidar Cub
+1 Flash Thompson, Spider-Fan
+1 Hallowed Respite
+1 Herald of Dromoka
+1 Hero of the Pride
+1 Hushbringer
+2 Kill Shot
+2 Knight of New Benalia
+2 Liliana the Faultless
+2 Merfolk Cave-Diver
+2 Phyrexian Vindicator
+1 Reality Hemorrhage
+1 Repel Calamity
+1 Sage of Days
+1 Salvation Swan
+1 Sky Theater Strix
+1 Skycoach Conductor
+1 Spire Winder
+1 Steadfast Paladin
+1 Steelclad Spirit
+1 Taranika, Akroan Veteran
+2 The Mighty Thor, Jane Foster
+1 Touch of the Void
+1 Whiskervale Forerunner
+4 Avengers Hangar
+4 Island
+11 Plains
+4 Seachrome Coast

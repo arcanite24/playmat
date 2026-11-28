@@ -1,0 +1,48 @@
+# name: Train450 brawl-g-gw-ctrl-4
+# archetype: brawl_ctrl
+# colors: GW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Abstruse Interference
+1 Accomplished Alchemist
+1 Arborback Stomper
+1 Archon of Emeria
+1 Archon of Sun's Grace
+1 Avenging Arrow
+1 Blossoming Tortoise
+1 Daring Archaeologist
+1 Exorcise
+1 Gaea's Revenge
+1 Grave Bramble
+1 Horribly Awry
+1 Introduction to Prophecy
+1 Invoke the Divine
+1 Lagonna-Band Elder
+1 Light of Hope
+1 Linvala, the Preserver
+1 Malamet Battle Glyph
+1 Murdock's Crusade
+1 No Witnesses
+1 Nylea's Forerunner
+1 Pardic Wanderer
+1 Rally for the Throne
+1 Secret Rendezvous
+1 Seedship Impact
+1 Smite
+1 Stall for Time
+1 Sunpearl Kirin
+1 Ultima
+1 Vaultborn Tyrant
+1 Void Shatter
+1 Warden of the First Tree
+1 Warping Wail
+1 Welcoming Vampire
+1 Botanical Plaza
+7 Forest
+1 Fortified Village
+1 Grove of the Guardian
+11 Plains
+1 Restless Prairie
+1 Scattered Groves
+1 Selesnya Guildgate
+1 Sunpetal Grove
+1 Vigorbloom Annex

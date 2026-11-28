@@ -1,0 +1,24 @@
+# name: Train450 guild-gu-aggro-2
+# archetype: aggro
+# colors: GU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Abhorrent Oculus
+2 Aerial Doombot
+2 Beastrider Vanguard
+2 Consuming Sinkhole
+1 Epic Confrontation
+3 Faerie Mastermind
+3 House Cartographer
+1 Longstalk Brawl
+3 Merfolk Mistbinder
+3 Narnam Renegade
+2 Oracle's Restoration
+4 Reality Hemorrhage
+3 Setessan Tactics
+2 Thrashing Brontodon
+2 Vinebred Brawler
+4 Wren's Run Vanquisher
+9 Forest
+4 Island
+4 Lumbering Falls
+4 Yavimaya Coast

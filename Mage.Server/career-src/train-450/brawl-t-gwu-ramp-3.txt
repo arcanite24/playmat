@@ -1,0 +1,54 @@
+# name: Train450 brawl-t-gwu-ramp-3
+# archetype: brawl_ramp
+# colors: GWU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Aeromunculus
+1 Aetherstorm Roc
+1 Airbender's Reversal
+1 Angelic Guardian
+1 Audience with Trostani
+1 Badgermole
+1 Balamb T-Rexaur
+1 Bofur, Reliable Guardian
+1 Broodhunter Wurm
+1 Citadel Castellan
+1 City Pigeon
+1 Cold-Blooded Crew
+1 Divining Duelist
+1 Dromoka's Command
+1 Essence Flux
+1 Fleecemane Lion
+1 Freestrider Lookout
+1 Glorious Decay
+1 Green Dragon
+1 Knight of Wundagore
+1 Noyan Dar, Roil Shaper
+1 Overgrowth Elemental
+1 Overlord of the Mistmoors
+1 Powerful Broker
+1 Prophet of Distortion
+1 Searing Light
+1 Seized from Slumber
+1 Shambleshark
+1 Silent Sentinel
+1 Territorial Allosaurus
+1 Tidal Terror
+1 Valiant Knight
+1 Vastwood Surge
+1 Vigilant Baloth
+1 Zahid, Djinn of the Lamp
+1 Adarkar Wastes
+1 Botanical Sanctum
+1 Creosote Heath
+6 Forest
+1 Glacial Floodplain
+1 Glacial Fortress
+2 Island
+1 Lonely Arroyo
+1 Lush Oasis
+1 Meandering River
+5 Plains
+1 Prairie Stream
+1 Restless Anchorage
+1 Restless Prairie
+1 Vigorbloom Annex

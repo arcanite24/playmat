@@ -1,0 +1,48 @@
+# name: Train450 brawl-g-rg-ctrl-4
+# archetype: brawl_ctrl
+# colors: RG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Abrade
+1 Abstruse Interference
+1 Annihilating Fire
+1 Augmenting Automaton
+1 Centaur Courser
+1 Cinder Strike
+1 Command the Storm
+1 Cosmotronic Wave
+1 Deadbridge Goliath
+1 Energybending
+1 Fiery Annihilation
+1 Frillscare Mentor
+1 Fry
+1 Hexgold Slash
+1 Horribly Awry
+1 Hugs, Grisly Guardian
+1 Igneous Inspiration
+1 Inspiring Call
+1 Iroh's Demonstration
+1 Kavaron Harrier
+1 Lifecraft Cavalry
+1 Maelstrom Artisan
+1 Magmaquake
+1 Peema Outrider
+1 Pummeler for Hire
+1 Railway Brawler
+1 Ripscale Predator
+1 Slash, Reptile Rampager
+1 Spell Shrivel
+1 Summon: Esper Ramuh
+1 Titan's Presence
+1 Trumpeting Carnosaur
+1 Void Shatter
+1 Wolverine, Fierce Fighter
+1 Commercial District
+6 Forest
+1 Game Trail
+1 Gruul Guildgate
+1 Konstrari Annex
+12 Mountain
+1 Orion
+1 Restless Ridgeline
+1 Rootbound Crag
+1 Wooded Ridgeline

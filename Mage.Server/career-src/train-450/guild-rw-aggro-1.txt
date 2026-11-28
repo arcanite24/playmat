@@ -1,0 +1,22 @@
+# name: Train450 guild-rw-aggro-1
+# archetype: aggro
+# colors: RW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Arashin Cleric
+4 Dragon's Eye Sentry
+3 Hulking Bugbear
+4 Magma Jet
+3 Nahiri's Stoneblades
+3 Nyxborn Rollicker
+4 Repeating Barrage
+2 Slagdrill Scrapper
+2 Spark Trooper
+3 Stark Industries Executive
+2 Tectonic Hazard
+2 Thorin Oakenshield
+1 Traxos, Scourge of Kroog
+4 Veteran Survivor
+4 Asgardian Citadel
+9 Mountain
+4 Plains
+4 Sundown Pass

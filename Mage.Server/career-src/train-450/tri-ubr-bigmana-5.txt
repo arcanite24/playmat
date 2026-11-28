@@ -1,0 +1,26 @@
+# name: Train450 tri-ubr-bigmana-5
+# archetype: bigmana
+# colors: UBR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Ahn-Crop Crasher
+3 Bloodvial Purveyor
+2 Chaos Spewer
+1 Etrata, the Silencer
+2 Gifted Aetherborn
+2 Goblin Guide
+2 Gutsplitter Gang
+3 Lord of the Void
+2 Necromaster Dragon
+2 Tiger-Dillo
+3 Tyrant's Scorn
+1 Vile Rebirth
+2 Volcanic Dragon
+2 Warped Physique
+4 Windrider Patrol
+2 Winter's Intervention
+4 Airship Engine Room
+4 Innovative Commons
+4 Island
+4 Jagged Barrens
+3 Mountain
+6 Swamp

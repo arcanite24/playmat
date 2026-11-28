@@ -1,0 +1,17 @@
+# name: Train450 mono-g-bigmana-7
+# archetype: bigmana
+# colors: G
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Augmenter Pugilist
+3 Bramble Wurm
+2 Brambleguard Veteran
+3 Complete Disregard
+2 Evolved Spinoderm
+2 For the Family
+4 Hungering Puppetbeast
+4 Insidious Fungus
+4 Mightform Harmonizer
+2 Mutagen Man, Living Ooze
+4 Old Gnawbone
+3 Prizefight
+25 Forest

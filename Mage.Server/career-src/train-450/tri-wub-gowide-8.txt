@@ -1,0 +1,25 @@
+# name: Train450 tri-wub-gowide-8
+# archetype: gowide
+# colors: WUB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Angel of Finality
+3 Archangel of Tithes
+2 Bold Biochemist
+4 Burrog Banemaker
+2 Colleen Wing, Street Samurai
+1 Final Payment
+4 Goldmeadow Nomad
+1 Guardian of Ghirapur
+2 Judge's Familiar
+2 Kinsbaile Aspirant
+3 Light of Hope
+1 Monoist Sentry
+2 Moonshadow
+3 Squirrelanoids
+4 You're Ambushed on the Road
+4 Fortified Beachhead
+1 Island
+6 Plains
+4 Raffine's Tower
+3 Swamp
+4 Treno, Dark City

@@ -1,0 +1,36 @@
+# name: Train450 lim-g-ub-aggro-1
+# archetype: limited_aggro
+# colors: UB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Alchemist's Gift
+1 Bounce Off
+1 Burning-Rune Demon
+1 Cavern Whisperer
+2 Creeping Chill
+1 Dashing Bloodsucker
+2 Deadly Plot
+1 Delver of Secrets
+1 Eaten Alive
+2 Echo Inspector
+1 Fake Your Own Death
+1 Galedrifter
+2 Kishla Trawlers
+1 Lightless Evangel
+1 Mistcaller
+1 Nephalia Seakite
+1 Nightveil Predator
+1 Pharika's Chosen
+1 Sleep-Cursed Faerie
+1 Slick Imitator
+2 Soaring Thought-Thief
+2 Starscape Cleric
+1 Suspicious Shambler
+2 Tidebinder Mage
+2 Ulna Alley Shopkeep
+1 Wasp of the Bitter End
+1 Waterwind Scout
+1 Whisper Squad
+4 A.I.M. Labs
+6 Island
+9 Swamp
+4 Underground River

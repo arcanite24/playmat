@@ -1,0 +1,23 @@
+# name: Train450 guild-gw-aggro-2
+# archetype: aggro
+# colors: GW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Bayou Groff
+2 Broken Wings
+3 Cheeky House-Mouse
+2 Colossadactyl
+2 Containment Priest
+4 Exultant Skymarcher
+3 Lithomancer's Focus
+3 Narnam Renegade
+4 Old-Growth Dryads
+2 Puncturing Light
+4 Reality Hemorrhage
+3 Riveteers Decoy
+2 Touch of the Void
+2 Ursine Champion
+2 Vitu-Ghazi Guildmage
+4 Brushland
+7 Forest
+6 Plains
+4 Tranquil Expanse

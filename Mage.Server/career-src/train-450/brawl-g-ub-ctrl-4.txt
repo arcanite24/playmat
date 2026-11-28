@@ -1,0 +1,48 @@
+# name: Train450 brawl-g-ub-ctrl-4
+# archetype: brawl_ctrl
+# colors: UB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Bebop, Warthog Warrior
+1 Bladestitched Skaab
+1 Bring the Ending
+1 Courier Bat
+1 Crashing Tide
+1 Cruel Witness
+1 Disappearing Act
+1 Doomwake Giant
+1 Extinguish All Hope
+1 Feed the Cauldron
+1 Feral Abomination
+1 Fleet Swallower
+1 Gix's Command
+1 Grave Strength
+1 Iron League Steed
+1 Iron Spider, Stark Upgrade
+1 Iron-Shield Elf
+1 Moment of Defiance
+1 Mukotai Ambusher
+1 Precognitive Perception
+1 Rat Out
+1 Reenact the Crime
+1 Rona, Sheoldred's Faithful
+1 Scorpion's Sting
+1 Sewer Crocodile
+1 Stubborn Denial
+1 Talas Lookout
+1 Teferi's Time Twist
+1 Three Steps Ahead
+1 Tolarian Geyser
+1 Vicious Offering
+1 Voidforged Titan
+1 Yathan Tombguard
+1 You Are Already Dead
+1 A.I.M. Labs
+1 Dimir Guildgate
+1 Drowned Catacomb
+8 Island
+1 Restless Reef
+1 Romulus
+1 Shipwreck Marsh
+10 Swamp
+1 Temple of Deceit
+1 Undercity Sewers

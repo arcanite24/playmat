@@ -1,0 +1,19 @@
+# name: Train450 mono-g-gowide-2
+# archetype: gowide
+# colors: G
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Blisterpod
+4 Bramblefort Fink
+4 Cactuar
+2 Consign to Dust
+3 Hexhaven Invigorator
+1 King Harald's Revenge
+4 Lupine Prototype
+3 Pestbrood Sloth
+2 Scrapshooter
+3 Studious First-Year
+2 Territorial Witchstalker
+3 Vines of the Recluse
+2 Wildwood Tracker
+2 Wilt
+22 Forest

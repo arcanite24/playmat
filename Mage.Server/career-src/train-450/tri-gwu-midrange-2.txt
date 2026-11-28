@@ -1,0 +1,23 @@
+# name: Train450 tri-gwu-midrange-2
+# archetype: midrange
+# colors: GWU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Brinebarrow Intruder
+2 Chrome Prowler
+3 Collar the Culprit
+2 Dimensional Infiltrator
+4 Dragonback Lancer
+3 Ghalta and Mavren
+3 Isolate
+2 Selvala, Eager Trailblazer
+1 Shepherding Spirits
+4 Sleep-Cursed Faerie
+2 Stand Up for Yourself
+4 Swift Warden
+4 Uncomfortable Chill
+4 Avengers Hangar
+3 Forest
+4 Island
+5 Plains
+4 Pym Technologies
+4 Skybridge Towers

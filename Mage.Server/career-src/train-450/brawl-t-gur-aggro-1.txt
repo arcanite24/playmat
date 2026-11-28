@@ -1,0 +1,56 @@
+# name: Train450 brawl-t-gur-aggro-1
+# archetype: brawl_aggro
+# colors: GUR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Avaricious Dragon
+1 Bloodrock Cyclops
+1 Brazen Freebooter
+1 Burst Lightning
+1 Candlelit Cavalry
+1 Cloudpiercer
+1 Containment Breach
+1 Depower
+1 Expendable Lackey
+1 Exuberant Wolfbear
+1 Fear of Impostors
+1 Flame-Blessed Bolt
+1 Hamlet Captain
+1 Hobblefiend
+1 Karplusan Hound
+1 Kessig Flamebreather
+1 Longtusk Cub
+1 Mind Raker
+1 Mistbreath Elder
+1 Overprotect
+1 Oviya Pashiri, Sage Lifecrafter
+1 Passwall Adept
+1 Platypus-Bear
+1 Primal Might
+1 Prismari Charm
+1 Ravenous Daggertooth
+1 Ravenous Robots
+1 Skybeast Tracker
+1 Slither Blade
+1 Snowslope Hunter
+1 Sorceress's Schemes
+1 Spark Jolt
+1 Steampath Charger
+1 Temur Battlecrier
+1 The Emperor of Palamecia
+1 Vine Gecko
+1 Voltaic Brawler
+1 Baron, Airship Kingdom
+1 Bleeding Woods
+1 Botanical Sanctum
+1 Bristling Backwoods
+1 Commercial District
+4 Forest
+2 Island
+1 Karplusan Forest
+5 Mountain
+1 Mutant Town
+1 Prismari Campus
+1 Racers' Ring
+1 Simic Guildgate
+1 Thornwood Falls
+1 Thundering Falls

@@ -1,0 +1,22 @@
+# name: Train450 guild-gu-gowide-3
+# archetype: gowide
+# colors: GU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Attack-in-the-Box
+1 Colossal Growth
+3 Gather Courage
+2 Jadelight Spelunker
+1 Jewel Thief
+2 Kronch Wrangler
+4 Marwyn, the Preserver
+4 Silver Raven
+3 Sky Scourer
+4 Skylasher
+3 Surrak, Elusive Hunter
+3 Thassa's Oracle
+1 Unforgiving Aim
+3 Wilt
+11 Forest
+3 Island
+4 Meditation Pools
+4 Rimewood Falls

@@ -1,0 +1,51 @@
+# name: Train450 brawl-g-wu-aggro-1
+# archetype: brawl_aggro
+# colors: WU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Benthic Criminologists
+1 Chase Inspiration
+1 Cloaked Siren
+1 Cloudkin Seer
+1 Consuming Sinkhole
+1 Crawling Chorus
+1 Cyclonic Rift
+1 Drowner of Hope
+1 East Wind Avatar
+1 Eldrazi Obligator
+1 Ephara's Dispersal
+1 Expel from Orazca
+1 Glamer Gifter
+1 Gold-Forged Thopteryx
+1 Hundred-Handed One
+1 Pests of Honor
+1 Salvaged Manaworker
+1 Selfless Glyphweaver
+1 Sheer Drop
+1 Sifter of Skulls
+1 Siren Reaver
+1 Skyclave Cleric
+1 Skyclave Squid
+1 Skyship Plunderer
+1 Spider-Woman, Stunning Savior
+1 Spontaneous Flight
+1 Statute of Denial
+1 Stratus Dancer
+1 Temmet, Vizier of Naktamun
+1 Touch of the Void
+1 Tuinvale Guide
+1 Vampire Slayer
+1 Vanguard of Brimaz
+1 Vexing Drone
+1 Warchanter Skald
+1 Yotian Frontliner
+1 Youthful Valkyrie
+1 Fatehold Annex
+1 Idyllic Beachfront
+7 Island
+1 Meandering River
+1 Meticulous Archive
+8 Plains
+1 Prairie Stream
+1 Temple of Enlightenment
+1 Tranquil Cove
+1 University Campus

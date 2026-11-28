@@ -1,0 +1,23 @@
+# name: Train450 guild-bg-bigmana-9
+# archetype: bigmana
+# colors: BG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Cruel Finality
+2 Dissenter's Deliverance
+2 Enemy of Enlightenment
+3 Eye Gouge
+2 Gargos, Vicious Watcher
+3 Hunted Nightmare
+2 Michelangelo, Improviser
+3 Moonshadow
+3 Plated Crusher
+1 Reptil, Dinomorpher
+4 Syndicate Liquidators
+2 Thorn Lieutenant
+2 Vengeful Reaper
+3 War Historian
+2 Witch's Web
+10 Forest
+4 Llanowar Wastes
+7 Swamp
+4 Witherbloom Campus

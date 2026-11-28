@@ -1,0 +1,21 @@
+# name: Train450 guild-br-gowide-4
+# archetype: gowide
+# colors: BR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Candy Grapple
+4 Clockwork Percussionist
+2 Eyetwitch
+2 Flowstone Infusion
+3 Gnarled Scarhide
+2 Goblin Blast-Runner
+3 Graveyard Marshal
+3 Greasewrench Goblin
+2 Heightened Reflexes
+2 Impetuous Sunchaser
+4 Master of the Feast
+3 Spinneret and Spiderling
+4 Tragedy Feaster
+4 Blood Crypt
+4 Hell's Kitchen
+7 Mountain
+7 Swamp

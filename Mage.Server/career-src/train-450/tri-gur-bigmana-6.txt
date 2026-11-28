@@ -1,0 +1,22 @@
+# name: Train450 tri-gur-bigmana-6
+# archetype: bigmana
+# colors: GUR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Academy Drake
+4 Colorstorm Stallion
+2 Doc Aurlock, Grizzled Genius
+2 Furnace Host Charger
+2 Highspire Infusion
+2 Hypersonic Dragon
+3 Ice Magic
+4 Incorrigible Youths
+3 Just the Wind
+4 Khenra Charioteer
+3 Kura, the Boundless Sky
+4 Quickling
+4 Earth, Sector 001
+3 Forest
+4 Hedge Maze
+5 Island
+5 Mountain
+4 Racers' Ring

@@ -1,0 +1,23 @@
+# name: Train450 guild-bg-aggro-2
+# archetype: aggro
+# colors: BG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Alchemist's Gift
+3 Ascendant Packleader
+4 Caustic Caterpillar
+3 Chief Warg's Company
+1 Collective Nightmare
+2 Copper Longlegs
+3 Join the Dead
+1 Lys Alana Dignitary
+3 Moonshadow
+3 Mournwillow
+2 Ozai's Cruelty
+2 Sunbathing Rootwalla
+2 The Sackville-Bagginses
+4 Vicious Rumors
+3 Wailing Ghoul
+4 Blooming Marsh
+5 Forest
+4 Overgrown Tomb
+8 Swamp

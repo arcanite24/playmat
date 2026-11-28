@@ -1,0 +1,39 @@
+# name: Train450 lim-t-urw-aggro-1
+# archetype: limited_aggro
+# colors: URW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Agent 13, Sharon Carter
+1 Aven Mindcensor
+1 Courier Griffin
+1 Desculpting Blast
+2 Dynamite Diver
+1 Frostburn Weird
+1 Goblin Assailant
+2 Graceblade Artisan
+1 Horta
+2 Jeskai Charm
+1 Lavinia, Azorius Renegade
+1 Ledger Shredder
+2 Lithomantic Barrage
+1 Maritime Guard
+1 Mishra's Command
+1 Optimistic Scavenger
+2 Piston-Fist Cyclops
+1 Radha's Firebrand
+1 Rem Karolus, Stalwart Slayer
+1 Shorecrasher Elemental
+1 Skyblade of the Legion
+1 Skycrash
+1 Soul of Ravnica
+1 Stolen Vitality
+2 Territorial Roc
+2 Trueheart Duelist
+2 Trusty Packbeast
+1 Voda Sea Scavenger
+1 You're Not Alone
+4 Highland Lake
+3 Island
+4 Mountain
+4 Plains
+4 Raugrin Triome
+4 Skybridge Towers

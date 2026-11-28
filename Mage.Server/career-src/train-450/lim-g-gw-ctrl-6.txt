@@ -1,0 +1,35 @@
+# name: Train450 lim-g-gw-ctrl-6
+# archetype: limited_ctrl
+# colors: GW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Abstruse Interference
+1 Abzan Skycaptain
+1 Arborback Stomper
+1 Benalish Faithbonder
+1 Break the Spell
+1 Doomskar
+2 Elvish Reclaimer
+2 Eternal Scourge
+1 Fade from History
+1 Farsight Adept
+1 Glorious Decay
+1 Glowstone Recluse
+2 Gnarled Sage
+2 Hornbash Mentor
+1 Kazandu Stomper
+2 Luminous Rebuke
+1 Militia Rallier
+1 Origin of Metalbending
+1 Seasoned Warrenguard
+1 Seed Guardian
+1 Shifting Ceratops
+2 Spell Shrivel
+2 Sunder the Gateway
+1 Sungold Barrage
+1 Surgical Precision
+1 True Love's Kiss
+2 Woodland Bellower
+4 Birnin Zana Plaza
+9 Forest
+8 Plains
+4 Selesnya Guildgate

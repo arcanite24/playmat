@@ -1,0 +1,22 @@
+# name: Train450 guild-rw-gowide-3
+# archetype: gowide
+# colors: RW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Cloudshift
+2 Eddytrail Hawk
+2 Fleeting Effigy
+3 Gloryheath Lynx
+4 Informed Inkwright
+2 Leyline Tyrant
+2 Phyrexian Vindicator
+3 Resolute Watchdog
+2 Soulmender
+2 Survive the Night
+4 Thorin Oakenshield
+4 Thunderbreak Regent
+2 Voldaren Stinger
+2 You Come to the Gnoll Camp
+4 Clifftop Retreat
+5 Mountain
+4 Needle Spires
+9 Plains

@@ -1,0 +1,21 @@
+# name: Train450 guild-bg-gowide-4
+# archetype: gowide
+# colors: BG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Allosaurus Shepherd
+4 Basking Broodscale
+2 Desperate Castaways
+2 Edgewall Innkeeper
+2 Flaxen Intruder
+4 Gift of Growth
+4 Heartwood Crafter
+4 Hellcat, Undying Vigilante
+3 Oviya Pashiri, Sage Lifecrafter
+3 Shakedown Heavy
+2 Spinner of Souls
+4 Unholy Hunger
+3 Vraska, the Cutting Glare
+9 Forest
+4 Formidable Commons
+4 Foul Orchard
+5 Swamp

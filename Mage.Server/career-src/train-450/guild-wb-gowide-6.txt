@@ -1,0 +1,21 @@
+# name: Train450 guild-wb-gowide-6
+# archetype: gowide
+# colors: WB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Academic Ascent
+3 Coeurl
+2 Encumbered Reejerey
+4 Guardian of the Great Door
+3 Gutterbones
+1 Kyodai, Soul of Kamigawa
+4 Merchant of Many Hats
+2 Presumed Dead
+4 Rite of Oblivion
+2 Stiltzkin, Moogle Merchant
+4 Thousand Moons Infantry
+3 Vito, Fanatic of Aclazotz
+4 Wight
+4 Forlorn Flats
+8 Plains
+4 Shattered Sanctum
+6 Swamp

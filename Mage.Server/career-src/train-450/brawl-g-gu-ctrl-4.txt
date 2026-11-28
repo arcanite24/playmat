@@ -1,0 +1,48 @@
+# name: Train450 brawl-g-gu-ctrl-4
+# archetype: brawl_ctrl
+# colors: GU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Barrier Breach
+1 Broken Bond
+1 Dazzling Lights
+1 Deduce
+1 Desculpting Blast
+1 Docent of Perfection
+1 Don't Make a Sound
+1 Elven Raft-Steerer
+1 Galewind Moose
+1 Horizon Chimera
+1 Kozilek's Return
+1 Lasyd Prowler
+1 Molt Tender
+1 Mossbeard Ancient
+1 Nasty Little Rabbit
+1 Naturalize
+1 Prey Upon
+1 Protect the Negotiators
+1 Quench
+1 Rampaging Baloths
+1 Sagu Mauler
+1 Saurian Explorer
+1 Scatter Arc
+1 Scrapshooter
+1 Segmented Krotiq
+1 Shifting Ceratops
+1 Shredding Winds
+1 Stern Dismissal
+1 Strength of the Pack
+1 Thassa's Rebuff
+1 Trash the Town
+1 Voracious Typhon
+1 Wanderwine Distracter
+1 We Say Thee Nay!
+1 Dreamroot Cascade
+1 Elvenking's Halls
+10 Forest
+8 Island
+1 Lakeside Shack
+1 Paradox Gardens
+1 Temple of Mystery
+1 Thornwood Falls
+1 Transformative Commons
+1 Vineglimmer Snarl

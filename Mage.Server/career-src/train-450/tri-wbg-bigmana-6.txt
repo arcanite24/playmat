@@ -1,0 +1,22 @@
+# name: Train450 tri-wbg-bigmana-6
+# archetype: bigmana
+# colors: WBG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Angelic Purge
+2 Battle Menu
+3 Bebop & Rocksteady
+3 Bloodthirsty Conqueror
+4 Deathrite Shaman
+3 Dreadfeast Demon
+4 Halvar, God of Battle
+2 Mardu Woe-Reaper
+4 Putrefy
+1 Slumbering Walker
+3 Spawn of Mayhem
+4 Wispweaver Angel
+4 Blooming Marsh
+3 Forest
+4 Forum of Amity
+4 Hissing Quagmire
+4 Plains
+6 Swamp

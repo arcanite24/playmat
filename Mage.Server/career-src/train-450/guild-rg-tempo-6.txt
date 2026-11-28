@@ -1,0 +1,22 @@
+# name: Train450 guild-rg-tempo-6
+# archetype: tempo
+# colors: RG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Dual Shot
+1 Fire Prophecy
+2 Growth Cycle
+3 Heritage Reclamation
+2 Igneous Inspiration
+2 Insidious Fungus
+4 Keen-Eyed Curator
+4 Maulfist Revolutionary
+2 Purphoros, God of the Forge
+4 Reptil, Dinomorpher
+4 Verdant Rebirth
+2 Void Shatter
+4 Warping Wail
+2 Zurgo Bellstriker
+10 Forest
+4 Highland Forest
+4 Mountain
+4 Stomping Ground

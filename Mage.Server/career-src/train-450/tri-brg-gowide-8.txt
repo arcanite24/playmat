@@ -1,0 +1,26 @@
+# name: Train450 tri-brg-gowide-8
+# archetype: gowide
+# colors: BRG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Big Play
+1 Chandra's Triumph
+1 Cult Guildmage
+2 Graf Reaver
+2 Grotag Bug-Catcher
+2 Hazoret, Godseeker
+4 Hobgoblin Captain
+2 Kroxa, Titan of Death's Hunger
+3 Last Gasp
+2 Might of the Old Ways
+3 Osseous Sticktwister
+4 Predatory Wurm
+3 Skyway Sniper
+3 Snarling Gorehound
+2 Super-Skrull
+2 Valley Flamecaller
+3 Forest
+4 Formidable Commons
+4 Goblin-town
+3 Mountain
+4 Swamp
+4 Wooded Ridgeline

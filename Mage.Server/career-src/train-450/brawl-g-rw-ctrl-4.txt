@@ -1,0 +1,48 @@
+# name: Train450 brawl-g-rw-ctrl-4
+# archetype: brawl_ctrl
+# colors: RW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Agent of Atlas
+1 Angelic Captain
+1 Angelic Edict
+1 Ashcloud Phoenix
+1 Ashe, Princess of Dalmasca
+1 Big Score
+1 Charging Monstrosaur
+1 Command Decision
+1 Compleat Devotion
+1 Dain's Company
+1 Destroy Evil
+1 Devout Decree
+1 Gideon's Defeat
+1 Gilded Sentinel
+1 Horribly Awry
+1 Iron Fist, Living Weapon
+1 Jennika's Technique
+1 Karsus Depthguard
+1 Kulrath Zealot
+1 Laughing Mad
+1 Legion's Judgment
+1 Miner's Bane
+1 Myrel, Shield of Argive
+1 Pugnacious Pugilist
+1 Redcap Gutter-Dweller
+1 Runic Shot
+1 Scorchmark
+1 Slash, Reptile Rampager
+1 Spell Shrivel
+1 Structural Assault
+1 The Fall of Kroog
+1 Void Shatter
+1 Wandering Musicians
+1 Warping Wail
+1 Alpine Meadow
+1 Iron Hills
+10 Mountain
+8 Plains
+1 Raucous Carnival
+1 Restless Bivouac
+1 Sacred Foundry
+1 Stone Quarry
+1 Sun-Blessed Peak
+1 Sundown Pass

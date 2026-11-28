@@ -1,0 +1,20 @@
+# name: Train450 guild-rg-bigmana-10
+# archetype: bigmana
+# colors: RG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Atarka, World Render
+4 Bristlebane Battler
+2 Fear of Being Hunted
+2 Fiery Temper
+2 Gangly Stompling
+2 Hewed Stone Retainers
+2 Huatli's Final Strike
+4 Hunt the Hunter
+4 Overlord of the Hauntwoods
+4 Scytheclaw Raptor
+3 Soul of Zendikar
+2 Thraben Gargoyle
+4 Bleeding Woods
+10 Forest
+7 Mountain
+4 Sheltered Thicket

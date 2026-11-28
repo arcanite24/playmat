@@ -1,0 +1,22 @@
+# name: Train450 tri-ubr-aggro-7
+# archetype: aggro
+# colors: UBR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Backstreet Bruiser
+4 Forsaken Miner
+4 Grim Physician
+2 Guardians of Oboro
+3 Haste Magic
+4 Knight of the Ebon Legion
+2 Kolaghan's Command
+2 Mockingbird
+3 Monoist Sentry
+4 Rakdos, Lord of Riots
+4 Spikefield Hazard
+4 Tome Blast
+2 Island
+4 Jagged Barrens
+3 Mountain
+4 Submerged Boneyard
+4 Swamp
+4 Thundering Falls

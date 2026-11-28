@@ -1,0 +1,21 @@
+# name: Train450 tri-wbg-control-4
+# archetype: control
+# colors: WBG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Brimaz, King of Oreskos
+4 Cleaving Reaper
+4 Decode Transmissions
+2 Display of Dominance
+1 Hakoda, Selfless Commander
+3 Inspiring Roar
+1 Kozilek's Return
+4 Mutant's Prey
+4 Searing Light
+4 Void Shatter
+4 Warping Wail
+4 Forest
+6 Plains
+4 Restless Cottage
+4 Restless Fortress
+4 Swamp
+4 Witherbloom Campus

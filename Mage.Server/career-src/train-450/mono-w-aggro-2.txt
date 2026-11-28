@@ -1,0 +1,21 @@
+# name: Train450 mono-w-aggro-2
+# archetype: aggro
+# colors: W
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Arrester's Zeal
+3 Basri, Tomorrow's Champion
+2 Bonded Construct
+3 Coastal Bulwark
+2 Consuming Sinkhole
+3 Favored Hoplite
+2 Goldmeadow Nomad
+2 Justiciar's Portal
+2 Loyal Pegasus
+3 Monica Rambeau
+2 Prophesied End
+1 Reality Hemorrhage
+3 Spectrum Sentinel
+3 Touch of the Void
+2 Twilight Panther
+3 Wall of Swords
+21 Plains

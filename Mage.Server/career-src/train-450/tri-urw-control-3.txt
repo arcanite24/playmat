@@ -1,0 +1,24 @@
+# name: Train450 tri-urw-control-3
+# archetype: control
+# colors: URW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Air Servant
+2 Catalog
+3 Countersculpt
+2 Deface
+2 Essence Backlash
+1 Lithobraking
+3 Magmaquake
+4 Munda, Ambush Leader
+1 Neutralizing Blast
+2 Rona's Vortex
+2 Slick Sequence
+4 Sudden Strike
+2 Turn Aside
+2 Unsummon
+4 Innovative Commons
+7 Island
+5 Mountain
+2 Plains
+4 Restless Anchorage
+4 Thundering Falls

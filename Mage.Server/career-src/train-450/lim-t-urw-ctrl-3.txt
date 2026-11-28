@@ -1,0 +1,37 @@
+# name: Train450 lim-t-urw-ctrl-3
+# archetype: limited_ctrl
+# colors: URW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Anticausal Vestige
+1 Boiling Earth
+2 Boneclub Berserker
+2 Chilling Trap
+1 Dazzling Lights
+2 Deserter's Disciple
+1 Famished Foragers
+1 Into the Roil
+1 Just the Wind
+1 Kastral, the Windcrested
+1 Kavaron Turbodrone
+1 Louisoix's Sacrifice
+1 Najal, the Storm Runner
+1 Nova Hellkite
+1 Pinnacle Emissary
+2 Pterodon Knight
+1 Rakshasa's Disdain
+1 Rewind
+1 Riot Control
+2 Rustwing Falcon
+2 Siegebreaker Giant
+1 Spikewheel Acrobat
+1 Unravel
+2 Waterfall Aerialist
+1 Whoosh!
+2 You Find Some Prisoners
+1 Your Fate Ends Here
+4 Hallowed Fountain
+5 Island
+5 Mountain
+3 Plains
+4 Rabanastre, Royal City
+4 Sun-Blessed Peak

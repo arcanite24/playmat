@@ -1,0 +1,50 @@
+# name: Train450 brawl-g-wb-mid-2
+# archetype: brawl_mid
+# colors: WB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Barricade Breaker
+1 Battershield Warrior
+1 Deanna Troi, Psychic Counsel
+1 Dinosaur Hunter
+1 Disfigure
+1 Douse in Gloom
+1 Dragon's Eye Sentry
+1 Emiel the Blessed
+1 Erebos, Bleak-Hearted
+1 Fear of the Dark
+1 Foot Ninjas
+1 Gixian Puppeteer
+1 Gravelighter
+1 Henchbots
+1 Immortal Servitude
+1 Ironclad Slayer
+1 Jeong Jeong's Deserters
+1 Moment of Craving
+1 Morbid Curiosity
+1 Murderous Cut
+1 Necrogen Scudder
+1 Path to Exile
+1 Perigee Beckoner
+1 Rehearsed Debater
+1 Repel the Vile
+1 Rowan's Grim Search
+1 Roxxon Brutes
+1 Ruthless Knave
+1 Spell Shrivel
+1 Sunspire Gatekeepers
+1 Syndicate Guildmage
+1 Town Gossipmonger
+1 Twilight Diviner
+1 Underworld Coinsmith
+1 Vadmir, New Blood
+1 Zombie Goliath
+1 Fisk Tower
+1 Forsaken Sanctuary
+1 Forum of Amity
+1 Godless Shrine
+1 Misty Palms Oasis
+7 Plains
+1 Restless Fortress
+1 Shambling Vent
+1 Snowfield Sinkhole
+9 Swamp

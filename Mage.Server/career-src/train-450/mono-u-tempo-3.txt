@@ -1,0 +1,21 @@
+# name: Train450 mono-u-tempo-3
+# archetype: tempo
+# colors: U
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Annul
+2 Ceremonious Rejection
+4 Coral Colony
+1 Curator of Mysteries
+1 Force Away
+2 Glint
+2 Picklock Prankster
+2 Reality Hemorrhage
+3 Runaway Carriage
+3 Sinister Sabotage
+3 Slither Blade
+2 Smothering Abomination
+3 Thirst for Meaning
+3 Tragic Lesson
+3 Vaporkin
+3 Zuko's Exile
+22 Island

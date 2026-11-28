@@ -1,0 +1,22 @@
+# name: Train450 guild-gu-tempo-6
+# archetype: tempo
+# colors: GU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Almighty Brushwagg
+2 Bejeweled Warg
+3 Bitterblade Warrior
+3 Flip the Switch
+3 Icy Reception
+3 Johann's Stopgap
+2 Kefnet the Mindful
+2 Might of the Masses
+3 Oblivious Bookworm
+1 Startle
+4 Tainted Observer
+2 Tangletrap
+4 Time to Feed
+2 Touch of the Void
+8 Forest
+4 Guadosalam, Farplane Gateway
+6 Island
+4 Tangled Islet

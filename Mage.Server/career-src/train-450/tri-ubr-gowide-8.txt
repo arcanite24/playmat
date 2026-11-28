@@ -1,0 +1,23 @@
+# name: Train450 tri-ubr-gowide-8
+# archetype: gowide
+# colors: UBR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Desperate Measures
+3 Dreadhorde Arcanist
+4 Duskwielder
+3 Erratic Visionary
+2 Essence Flux
+2 Gev, Scaled Scorch
+2 Gisa and Geralf
+3 Obyra, Dreaming Duelist
+4 Ruthless Sniper
+2 Sonic Assault
+4 Sphinx of Forgotten Lore
+2 Stoic Sphinx
+3 Thunderdrum Soloist
+4 Island
+2 Mountain
+4 Peculiar Lighthouse
+4 Soured Springs
+4 Swamp
+4 Treno, Dark City

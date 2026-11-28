@@ -1,0 +1,55 @@
+# name: Train450 brawl-t-gwu-mid-2
+# archetype: brawl_mid
+# colors: GWU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Bishop of Wings
+1 Campus Crier
+1 Cat-Owl
+1 Catalog
+1 Challenger Troll
+1 Clutch of Currents
+1 Deathgorge Scavenger
+1 Devoted Paladin
+1 Disallow
+1 Display of Dominance
+1 Disposal Mummy
+1 Drowsing Tyrannodon
+1 Elesh Norn
+1 Failed Inspection
+1 Fortune, Loyal Steed
+1 Helica Glider
+1 Hexhaven Invigorator
+1 Interstellar Effigy
+1 Kraken of the Straits
+1 Kumena's Speaker
+1 Mourning Patrol
+1 Narset's Reversal
+1 Odric, Lunarch Marshal
+1 Puncturing Light
+1 River Herald Guide
+1 Servant of the Conduit
+1 Skymarcher Aspirant
+1 Splitskin Doll
+1 Swift Reckoning
+1 Unauthorized Exit
+1 Undercover Crocodelf
+1 Voice of Victory
+1 Vorstclaw
+1 Warden of Evos Isle
+1 Wildheart Invoker
+1 Winged Portent
+1 Avengers Hangar
+1 Birnin Zana Plaza
+4 Forest
+1 Glacial Floodplain
+3 Island
+1 Lumbering Falls
+5 Plains
+1 Prairie Stream
+1 Spara's Headquarters
+1 Temple of Enlightenment
+1 Temple of Mystery
+1 Transformative Commons
+1 Vineglimmer Snarl
+1 Windurst, Federation Center
+1 Yavimaya Coast

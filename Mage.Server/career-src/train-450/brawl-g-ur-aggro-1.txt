@@ -1,0 +1,51 @@
+# name: Train450 brawl-g-ur-aggro-1
+# archetype: brawl_aggro
+# colors: UR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Arni, Humble Scribe
+1 Augur of Bolas
+1 Bronzeplate Boar
+1 Chain Lightning
+1 Chrome Dome
+1 Contradict
+1 Demon Bolt
+1 Dismissive Pyromancer
+1 Eager Construct
+1 Energize
+1 Falkenrath Reaver
+1 Forerunner of Slaughter
+1 Frilled Sea Serpent
+1 Gloin the Mighty
+1 Hired Claw
+1 Impetuous Devils
+1 Improvised Weaponry
+1 Irreverent Gremlin
+1 Joust
+1 Larder Zombie
+1 Lyra, Tolarian Archangel
+1 Nightveil Sprite
+1 Penregon Strongbull
+1 Perils of the Past
+1 Porcuparrot
+1 Reckless Handling
+1 Rimrock Knight
+1 Runebound Wolf
+1 Sarkhan's Rage
+1 Serum-Core Chimera
+1 Shorecrasher Elemental
+1 Sleep-Cursed Faerie
+1 Slither Blade
+1 Treasure Keeper
+1 Troop of Ponies
+1 Tuskeri Firewalker
+1 Wandering Archaic
+1 Airship Engine Room
+1 Innovative Commons
+6 Island
+1 Izzet Guildgate
+9 Mountain
+1 Peculiar Lighthouse
+1 Spectacle Summit
+1 Stormcarved Coast
+1 Temple of Epiphany
+1 Volatile Fjord

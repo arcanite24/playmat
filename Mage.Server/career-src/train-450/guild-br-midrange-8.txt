@@ -1,0 +1,21 @@
+# name: Train450 guild-br-midrange-8
+# archetype: midrange
+# colors: BR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Bloodvial Purveyor
+2 Clackbridge Troll
+4 Final Flourish
+2 Goblin Guide
+4 Infernal Reckoning
+2 Iron Giant
+4 Kroxa, Titan of Death's Hunger
+3 Laughing Jasper Flint
+4 No Admittance
+2 Nyxathid
+3 Rhuk, Hexgold Nabber
+2 Unrooted Ancestor
+2 Vicious Conquistador
+4 Geothermal Bog
+6 Mountain
+4 Sulfurous Mire
+10 Swamp

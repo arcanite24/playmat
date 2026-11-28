@@ -1,0 +1,35 @@
+# name: Train450 lim-g-wu-aggro-2
+# archetype: limited_aggro
+# colors: WU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Ardenvale Tactician
+2 Battlewing Mystic
+1 Bishop's Soldier
+1 Captain America, Wings of Freedom
+1 Dakra Mystic
+2 Denzilore Fatehold
+1 Desperate Lunge
+1 Geist of the Moors
+1 Glitch Ghost Surveyor
+1 Grappling Kraken
+1 Harbin, Vanguard Aviator
+2 Hero of Precinct One
+2 Ironclad Krovod
+1 Larder Zombie
+1 Leyline Phantom
+1 Lightstall Inquisitor
+2 Moment of Heroism
+1 Reality Hemorrhage
+2 Reluctant Role Model
+1 Skystrike Officer
+2 Sudden Strike
+2 Third Path Savant
+2 Thraben Exorcism
+1 Thunderous Orator
+1 Touch of the Void
+1 Voice of the Blessed
+1 Wandering Champion
+5 Island
+4 Meandering River
+10 Plains
+4 Port Town

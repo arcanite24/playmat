@@ -1,0 +1,41 @@
+# name: Train450 lim-t-rwb-ctrl-3
+# archetype: limited_ctrl
+# colors: RWB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Abstruse Interference
+1 Alley Evasion
+1 Celestial Archon
+1 Dream Spoilers
+1 Enduring Tenacity
+1 Fear of Missing Out
+1 Fuel the Flames
+1 Gnarlroot Trapper
+1 Goldnight Castigator
+1 Grab the Prize
+2 Head of the Hunt
+1 Healing Hands
+1 Highspire Mantis
+1 Kirol, Attentive First-Year
+1 Kroxa, Titan of Death's Hunger
+1 Meddling Youths
+1 Molten Collapse
+1 Ozai, the Phoenix King
+1 Play with Fire
+1 Rally the Monastery
+1 Rearing Embermare
+1 Savor
+2 Severed Strands
+2 Shakedown Heavy
+1 Sonic Shrieker
+1 Spectral Shepherd
+1 Stall for Time
+1 Tainted Adversary
+2 Void Shatter
+1 Wildfire Howl
+1 Wrecking Crew
+4 Forum of Amity
+5 Mountain
+3 Plains
+4 Qo'noS
+4 Snowfield Sinkhole
+5 Swamp

@@ -1,0 +1,24 @@
+# name: Train450 tri-gur-aggro-7
+# archetype: aggro
+# colors: GUR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Curse-Marred Demon
+3 Fanatical Strength
+3 Glimmerbell
+4 Improvised Weaponry
+2 Malcolm, Alluring Scoundrel
+4 Persistent Petitioners
+3 Resilient Khenra
+2 Slaying Fire
+1 Smashing Success
+3 Stratus Dancer
+3 Stress Dream
+3 Thornvault Forager
+2 Thrashing Frontliner
+4 Trygon Predator
+3 Forest
+4 Island
+2 Mountain
+4 Mutant Town
+4 Paradox Gardens
+4 Restless Spire

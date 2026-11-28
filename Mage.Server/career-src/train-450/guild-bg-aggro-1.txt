@@ -1,0 +1,23 @@
+# name: Train450 guild-bg-aggro-1
+# archetype: aggro
+# colors: BG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Creeping Chill
+2 Fear of Exposure
+3 Kraul Whipcracker
+2 Llanowar Scout
+2 Moonshadow
+3 Mutant's Prey
+3 Presumed Dead
+2 Reality Hemorrhage
+4 Slaughter Specialist
+1 Spark Harvest
+4 Steel Leaf Champion
+4 Stromkirk Condemned
+2 Tender Wildguide
+2 Vicious Rumors
+3 Zoo Escapees
+6 Forest
+4 Golgari Guildgate
+4 Mirkwood
+7 Swamp

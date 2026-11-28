@@ -1,0 +1,23 @@
+# name: Train450 guild-wu-tempo-6
+# archetype: tempo
+# colors: WU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Ambrosia Whiteheart
+2 Consuming Sinkhole
+3 Divide by Zero
+4 Dust Stalker
+3 Fierce Retribution
+1 Glimpse of Freedom
+2 Hydraulic Helper
+2 Rebellious Strike
+4 Scatter to the Winds
+2 Soaring Stoneglider
+3 Soul Partition
+1 Spectacular Spider-Man
+2 Supreme Will
+2 Swooping Lookout
+3 Warden of the Inner Sky
+4 Avengers Hangar
+5 Island
+4 North Pole Gates
+9 Plains

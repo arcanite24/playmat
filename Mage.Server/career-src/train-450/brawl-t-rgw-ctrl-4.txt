@@ -1,0 +1,53 @@
+# name: Train450 brawl-t-rgw-ctrl-4
+# archetype: brawl_ctrl
+# colors: RGW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Abstruse Interference
+1 Champion of Rhonas
+1 Cleansing Wildfire
+1 Command Decision
+1 Cosmotronic Wave
+1 Dahar Master
+1 Daybreak Combatants
+1 Exalted Sunborn
+1 Flicker of Fate
+1 Gaea's Protector
+1 Garruk's Gorehorn
+1 Go Ninja Go
+1 Hamlet Glutton
+1 Hazardous Blast
+1 Horribly Awry
+1 Introduction to Annihilation
+1 Manticore Eternal
+1 Nissa's Defeat
+1 Parting Gust
+1 Prowcatcher Specialist
+1 Remorseful Cleric
+1 Revoke Existence
+1 Risen Sanctuary
+1 Roaring Primadox
+1 Roving Actuator
+1 Runescale Stormbrood
+1 Sage of the Skies
+1 Slaying Fire
+1 Snake of the Golden Grove
+1 Spell Shrivel
+1 Sprouting Renewal
+1 Vampires' Vengeance
+1 Void Shatter
+1 Warleader's Helix
+1 Abraded Bluffs
+1 Alpine Meadow
+1 Bajor
+1 Birnin Zana Plaza
+1 Boros Guildgate
+1 Commercial District
+4 Forest
+1 Game Trail
+1 Gruul Guildgate
+6 Mountain
+4 Plains
+1 Racers' Ring
+1 Restless Bivouac
+1 Selesnya Guildgate
+1 Sunpetal Grove

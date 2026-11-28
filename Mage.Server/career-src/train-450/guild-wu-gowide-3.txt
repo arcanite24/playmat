@@ -1,0 +1,21 @@
+# name: Train450 guild-wu-gowide-3
+# archetype: gowide
+# colors: WU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Battlefield Raptor
+2 Command Subadjunct
+2 Glen Elendra Guardian
+4 Haywire Mite
+3 Holy Cow
+3 Makindi Aeronaut
+4 Merchant's Dockhand
+2 Rattlechains
+3 Reluctant Dounguard
+4 Shore Up
+4 Skywhaler's Shot
+2 Swooping Lookout
+2 Thraben Inspector
+4 Glacial Floodplain
+4 Island
+4 Meandering River
+10 Plains

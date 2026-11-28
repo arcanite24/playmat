@@ -1,0 +1,40 @@
+# name: Train450 lim-g-gw-mid-3
+# archetype: limited_mid
+# colors: GW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Ankle Biter
+1 Armada Wurm
+1 Axebane Beast
+1 Bilbo's Gambit
+1 Brambleguard Veteran
+1 Cult Healer
+1 Dawnbringer Cleric
+1 Diamond Mare
+1 Display of Dominance
+1 Doomskar Oracle
+1 Enshrouding Mist
+1 Frostbridge Guard
+1 Ghastbark Twins
+1 Gigantosaurus
+1 Glorious Protector
+1 Heir of the Wilds
+1 Knight of the Stampede
+1 Magnificent End
+2 Moonlit Lamenter
+1 Orazca Frillback
+1 Ornamental Courage
+2 Perimeter Sergeant
+2 Radiant Purge
+1 Return of the Wildspeaker
+1 Runaway Carriage
+1 Rustvine Cultivator
+2 Slaughterhorn
+1 Spectrum Sentinel
+1 Stall for Time
+1 Thorn Lieutenant
+1 Thorn Mammoth
+1 Valkyrie Harbinger
+4 Birnin Zana Plaza
+8 Forest
+4 Grove of the Guardian
+8 Plains

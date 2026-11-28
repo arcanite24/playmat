@@ -1,0 +1,23 @@
+# name: Train450 guild-br-tempo-6
+# archetype: tempo
+# colors: BR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Abstruse Interference
+2 Boltwave
+4 Burning Hands
+2 Egon, God of Death
+2 Fireblade Artist
+2 Flick a Coin
+2 Molten Blast
+2 Raze the Effigy
+4 Reckless Lackey
+2 Returned Phalanx
+1 Runaway Carriage
+4 Ruthless Sniper
+3 Smaug the Magnificent
+2 Spell Shrivel
+2 Volcanic Spite
+4 Haunted Ridge
+10 Mountain
+4 Stingerquill Annex
+4 Swamp

@@ -1,0 +1,25 @@
+# name: Train450 tri-gur-midrange-2
+# archetype: midrange
+# colors: GUR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Gaea's Revenge
+3 Kazandu Nectarpot
+3 Llanowar Elves
+1 Muerra, Trash Tactician
+4 Orazca Raptor
+2 Plasma Cascade
+2 Prologue to Phyresis
+2 Quandrix Command
+3 Shimmer Dragon
+2 Slumbering Trudge
+3 Temur Charm
+4 Traxos, Scourge of Kroog
+3 Turret Ogre
+2 Unsubtle Mockery
+1 Vibrant Outburst
+4 Forest
+4 Gongaga, Reactor Town
+3 Island
+5 Mountain
+4 Sheltered Thicket
+4 Steam Vents

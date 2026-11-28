@@ -1,0 +1,23 @@
+# name: Train450 guild-rw-tempo-5
+# archetype: tempo
+# colors: RW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Abstruse Interference
+2 Auspicious Arrival
+3 Belligerent Yearling
+3 Break the Spell
+3 Cheeky House-Mouse
+2 Drill Too Deep
+1 Fateful Absence
+4 Goro-Goro, Disciple of Ryusei
+2 Horribly Awry
+4 Rowdy Crew
+2 Shock
+2 Skymarcher Aspirant
+2 Topple the Statue
+2 Voyager Quickwelder
+2 Whirling Strike
+4 Iron Hills
+7 Mountain
+7 Plains
+4 Sunbaked Canyon

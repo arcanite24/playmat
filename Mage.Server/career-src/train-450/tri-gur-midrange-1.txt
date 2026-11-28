@@ -1,0 +1,27 @@
+# name: Train450 tri-gur-midrange-1
+# archetype: midrange
+# colors: GUR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Breeches, Eager Pillager
+4 Cackling Prowler
+1 Combine Guildmage
+2 Command the Storm
+2 Crossroads Consecrator
+2 Dissension in the Ranks
+2 Eject
+3 Experiment One
+1 Glen Elendra Guardian
+2 Graf Mole
+2 Intrepid Outlander
+2 Nylea's Emissary
+2 Sarinth Greatwurm
+2 Spite of Mogis
+2 Surrak Dragonclaw
+2 Tears of Valakut
+2 Warhost's Frenzy
+4 Fiery Islet
+5 Forest
+2 Island
+5 Mountain
+4 Stormcarved Coast
+4 Swiftwater Cliffs

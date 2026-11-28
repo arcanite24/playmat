@@ -1,0 +1,48 @@
+# name: Train450 brawl-g-wb-ctrl-4
+# archetype: brawl_ctrl
+# colors: WB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Abstruse Interference
+1 Aegis Angel
+1 Beetle-Headed Merchants
+1 Borrowed Malevolence
+1 Captain Marvel, Earth's Protector
+1 Caustic Exhale
+1 Cleansing Nova
+1 Cremate
+1 Dark Dabbling
+1 Demonlord Belzenlok
+1 Despark
+1 Dream Beavers
+1 Dual-Sun Technique
+1 Expel the Interlopers
+1 Fate Forgotten
+1 Feed the Cycle
+1 Gorging Vulture
+1 Guardian Sunmare
+1 Gurmag Angler
+1 HYDRA Troopers
+1 Horribly Awry
+1 Jhoira's Familiar
+1 Liliana, Heretical Healer
+1 Noxious Grasp
+1 Planar Outburst
+1 Raven Eagle
+1 Reprisal
+1 Ritual Guardian
+1 Spell Shrivel
+1 Sunder the Gateway
+1 Undercity Scavenger
+1 Unrooted Ancestor
+1 Vampire Gourmand
+1 Void Shatter
+1 Fisk Tower
+1 Forlorn Flats
+1 Forsaken Sanctuary
+1 Meticulous Commons
+1 Orzhov Guildgate
+7 Plains
+1 Restless Fortress
+1 Silverquill Campus
+1 Snowfield Sinkhole
+11 Swamp

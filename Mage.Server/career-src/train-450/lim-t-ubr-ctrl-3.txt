@@ -1,0 +1,41 @@
+# name: Train450 lim-t-ubr-ctrl-3
+# archetype: limited_ctrl
+# colors: UBR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Bloodhall Priest
+1 Carnage, Crimson Chaos
+1 Consider
+2 Culling Drone
+2 Deny the Divine
+1 Dismember
+1 Drivnod, Carnage Dominus
+1 Electro's Bolt
+1 Erebos, God of the Dead
+1 Far Fortune, End Boss
+1 Hellhole Flailer
+1 Lotleth Giant
+1 Moonshadow
+1 Olivia, Mobilized for War
+1 Overwhelming Denial
+1 Persistent Marshstalker
+1 Pop Quiz
+2 Provoke the Trolls
+1 Rakdos, Lord of Riots
+1 Ravenous Giant
+1 Reaver Ambush
+1 Rook Turret
+1 Sear
+1 Stern Lesson
+1 Sweltering Suns
+1 Tackle Artist
+2 Tyrannical Pitlord
+1 Tyrant's Scorn
+1 Vaultguard Trooper
+1 Volcanic Fallout
+1 Vulture, Scheming Scavenger
+4 Dragonskull Summit
+4 Geothermal Bog
+3 Island
+5 Mountain
+5 Swamp
+4 Wandering Fumarole

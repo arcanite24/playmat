@@ -1,0 +1,49 @@
+# name: Train450 brawl-g-gu-ramp-3
+# archetype: brawl_ramp
+# colors: GU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Aggressive Mammoth
+1 Applied Biomancy
+1 Binding Geist
+1 Blink of an Eye
+1 Champions of the Perfect
+1 Clockwork Servant
+1 Consign to Dust
+1 Deepmuck Desperado
+1 Djinn of Wishes
+1 Drafna, Founder of Lat-Nam
+1 Emeritus of Ideation
+1 Frilled Oculus
+1 Gigastorm Titan
+1 Gold-Forged Sentinel
+1 Hauntwoods Shrieker
+1 Inspiring Call
+1 Kefnet the Mindful
+1 Linebreaker Baloth
+1 Longstalk Brawl
+1 Maze Behemoth
+1 Opt
+1 Overwhelmed Apprentice
+1 Platoon Dispenser
+1 Plunder the Trollshaws
+1 Queen of Ice
+1 Rimeshield Frost Giant
+1 Stitchwing Skaab
+1 Stormchaser Drake
+1 Tail Swipe
+1 Tidepool Turtle
+1 Tyrranax Atrocity
+1 Vinebred Brawler
+1 West Wind Avatar
+1 Zephyr Sentinel
+1 Zephyr Winder
+7 Forest
+1 Hedge Maze
+1 Hinterland Harbor
+10 Island
+1 Lumbering Falls
+1 Lush Oasis
+1 Meditation Pools
+1 Restless Vinestalk
+1 Vineglimmer Snarl
+1 Yavimaya Coast

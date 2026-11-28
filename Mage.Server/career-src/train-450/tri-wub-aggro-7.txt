@@ -1,0 +1,23 @@
+# name: Train450 tri-wub-aggro-7
+# archetype: aggro
+# colors: WUB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Aggressive Sabotage
+2 Agonizing Syphon
+2 Command Subadjunct
+2 Consuming Sinkhole
+4 Deathknell Berserker
+4 Forsaken Miner
+4 Frost Augur
+4 Fungal Infection
+2 Glider Kids
+2 Hopeful Initiate
+3 Shore Up
+4 Sinew Dancer
+4 Steamcore Scholar
+4 Forum of Amity
+3 Island
+4 Meticulous Commons
+2 Plains
+4 Swamp
+4 Vulcan

@@ -1,0 +1,23 @@
+# name: Train450 guild-bg-aggro-5
+# archetype: aggro
+# colors: BG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Bog Badger
+2 Cactuar
+4 Chrome Dome
+4 Circle of Power
+2 Creeping Chill
+3 Festering Newt
+3 Gaea's Might
+3 Gemrazer
+2 Kessig Prowler
+2 Kraven the Hunter
+3 Mai, Scornful Striker
+4 Old-Growth Dryads
+2 Throttle
+2 Traveling Botanist
+2 Withering Torment
+4 Deathcap Glade
+7 Forest
+4 Llanowar Wastes
+6 Swamp

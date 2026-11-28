@@ -1,0 +1,34 @@
+# name: Train450 lim-g-gu-mid-4
+# archetype: limited_mid
+# colors: GU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Aethersquall Ancient
+1 Bark-Knuckle Boxer
+1 Behold the Multiverse
+2 Dawnhart Rejuvenator
+2 Elder Gargaroth
+1 Frost Walker
+1 Ice Magic
+2 Inexorable Blob
+1 Keep Safe
+1 Lizard, Connors's Curse
+2 Malamet Brawler
+1 Mistfire Weaver
+1 Mowu, Loyal Companion
+2 Palladium Myr
+1 Phantom Carriage
+1 Ral's Dispersal
+1 Reality Shift
+2 Rimekin Recluse
+2 Shoot Down
+2 Swordwise Centaur
+2 Tandem Takedown
+1 Thornhide Wolves
+1 Three Tree Scribe
+1 Traveling Botanist
+1 Trumpeting Gnarr
+2 Vizier of the Menagerie
+4 Breeding Pool
+10 Forest
+6 Island
+4 Lumbering Falls

@@ -1,0 +1,20 @@
+# name: Train450 guild-gw-bigmana-9
+# archetype: bigmana
+# colors: GW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Dragon Hunter
+4 Ferocious Werefox
+2 Flicker of Fate
+2 Hixus, Prison Warden
+3 Nissa, Resurgent Animist
+3 Pardic Wanderer
+2 Primal Might
+4 Surge of Righteousness
+4 Terra Stomper
+2 Tyrranax Rex
+4 Valley Questcaller
+3 Wickerfolk Thresher
+10 Forest
+7 Plains
+4 Suburban Sanctuary
+4 Temple Garden

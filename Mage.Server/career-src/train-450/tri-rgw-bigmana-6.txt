@@ -1,0 +1,22 @@
+# name: Train450 tri-rgw-bigmana-6
+# archetype: bigmana
+# colors: RGW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Aerial Predation
+3 Angelic Guardian
+2 Ash, Party Crasher
+4 Healer of the Glade
+4 Hellkite Punisher
+4 High Sentinels of Arashin
+4 Highspire Mantis
+4 Honey Mammoth
+2 Proud Wildbonder
+2 Repel Calamity
+2 Stolen Vitality
+3 Vigorbloom Charm
+4 Elegant Parlor
+4 Forest
+4 Gruul Guildgate
+4 Kyoshi Village
+4 Mountain
+5 Plains

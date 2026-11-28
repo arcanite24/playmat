@@ -1,0 +1,21 @@
+# name: Train450 mono-g-gowide-3
+# archetype: gowide
+# colors: G
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Ajani's Comrade
+2 Aspect of Hydra
+1 Bloom Hulk
+3 Champion of Dusan
+2 Champions of the Perfect
+2 Channeler Initiate
+4 Fynn, the Fangbearer
+2 Iridescent Blademaster
+3 Ixalli's Lorekeeper
+3 Kalonian Tusker
+2 Pawpatch Formation
+2 Pierce the Sky
+2 Primordial Pachyderm
+2 Staggering Size
+4 Thraben Gargoyle
+3 Three Tree Scribe
+22 Forest
