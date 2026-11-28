@@ -15,22 +15,34 @@ const LIFE_SCORES: [i64; 21] = [
 const HAND_CARD_SCORE: i64 = 5;
 const PERMANENT_SCORE: i64 = 300;
 
-/// `GameStateEvaluator2.evaluate`: the seat's life, permanents and hand against its opponent's.
-pub fn evaluate(game: &Game, seat: Seat) -> i64 {
+/// Exact O(1) terminal outcome check for `seat` (`Some(true)` = win, `Some(false)` = loss, `None` = non-terminal).
+/// Matches `evaluate(game, seat) >= WIN` and `<= LOSE` without scanning battlefield permanents.
+#[inline]
+pub fn terminal_outcome(game: &Game, seat: Seat) -> Option<bool> {
     let opp = game.opponent(seat);
     let (me, them) = (game.player(seat), game.player(opp));
     if me.lost || them.won {
-        return LOSE;
+        return Some(false);
     }
     if them.lost || me.won {
-        return WIN;
+        return Some(true);
     }
     if me.life <= 0 {
-        return LOSE;
+        return Some(false);
     }
     if them.life <= 0 {
-        return WIN;
+        return Some(true);
     }
+    None
+}
+
+/// `GameStateEvaluator2.evaluate`: the seat's life, permanents and hand against its opponent's.
+pub fn evaluate(game: &Game, seat: Seat) -> i64 {
+    if let Some(won) = terminal_outcome(game, seat) {
+        return if won { WIN } else { LOSE };
+    }
+    let opp = game.opponent(seat);
+    let (me, them) = (game.player(seat), game.player(opp));
     let mut score = life_score(me.life) - life_score(them.life);
     for id in game.battlefield.iter() {
         let o = game.obj(*id);

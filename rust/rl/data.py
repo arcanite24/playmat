@@ -29,7 +29,9 @@ except ImportError:
 META = 10
 N_ENT, N_ACT, N_HID, N_POOL = 80, 24, 16, 64
 
-# GLOB_F layout in obs.rs: 17 fitted features, then [turn/10, me.life/20, them.life/20, ...]
+# GLOB_F layout in obs.rs: 17 fitted features (index 13 = (me.java - opp.java)/1000 board permanent score),
+# then [turn/10, me.life/20, them.life/20, me.hand/7, them.hand/7, ...]
+GLOB_BOARD_ADV = 13
 GLOB_LIFE_ME = 17 + 1
 GLOB_LIFE_OPP = 17 + 2
 GLOB_HAND_ME = 17 + 3
@@ -226,19 +228,63 @@ def compact_dir(d, delete_chunks=True, min_shards=4):
 def _read_one_shard(args):
     r, base, load_critic, max_steps = args
     meta_path = base + ".meta.i32"
-    total_n = os.path.getsize(meta_path) // (META * 4) if os.path.exists(meta_path) else 0
-    meta = _read(meta_path, np.int32, count=max_steps * META if max_steps > 0 else -1).reshape(-1, META)
-    if len(meta) == 0:
+    if not os.path.exists(meta_path):
         return None
+    meta_full = _read(meta_path, np.int32).reshape(-1, META)
+    total_n = len(meta_full)
+    if total_n == 0:
+        return None
+
+    # When `max_steps > 0`, sample random COMPLETE games uniformly across the shard up to `max_steps`
+    # instead of slicing `[0 : max_steps]` (which biases toward slot_00 and cuts games in half).
+    step_mask = None
+    kept_games = None
+    edges = None
+    if 0 < max_steps < total_n:
+        uniq_g, g_counts = np.unique(meta_full[:, 0], return_counts=True)
+        if len(uniq_g) > 1:
+            rng = np.random.default_rng([202607, int(r), int(total_n)])
+            perm_g = rng.permutation(len(uniq_g))
+            csum = np.cumsum(g_counts[perm_g])
+            k_keep = max(1, int(np.searchsorted(csum, max_steps, side="right")))
+            kept_games = uniq_g[np.sort(perm_g[:k_keep])]
+            step_mask = np.isin(meta_full[:, 0], kept_games)
+        else:
+            kept_games = uniq_g
+            step_mask = np.zeros(total_n, dtype=bool)
+            step_mask[:max_steps] = True
+        padded = np.empty(total_n + 2, dtype=bool)
+        padded[0] = False
+        padded[1:-1] = step_mask
+        padded[-1] = False
+        edges = np.flatnonzero(padded[1:] != padded[:-1]).reshape(-1, 2)
+        meta = meta_full[step_mask]
+    else:
+        meta = meta_full
+
     n = len(meta)
+    c_ent_full = int(meta_full[:, 4].sum())
+    c_act_full = int(meta_full[:, 5].sum())
+    c_hid_full = int(meta_full[:, 6].sum())
+    c_pool_full = int(meta_full[:, 7].sum())
     c_ent = int(meta[:, 4].sum())
     c_act = int(meta[:, 5].sum())
-    c_hid = int(meta[:, 6].sum())
     c_pool = int(meta[:, 7].sum())
-    # Auto-detect v1 (GLOB_F_V1=65) vs v2 (GLOB_F=81) glob.f16 width, padding legacy shards cleanly with zeros
+
+    def _slice_fix(arr):
+        return arr if step_mask is None else arr[step_mask]
+
+    def _slice_var(flat, counts_full):
+        if step_mask is None:
+            return flat
+        off_f = _offsets(counts_full)
+        parts_v = [flat[off_f[a] : off_f[b]] for a, b in edges if off_f[b] > off_f[a]]
+        return np.concatenate(parts_v, axis=0) if parts_v else flat[:0]
+
+    # Auto-detect v1 (GLOB_F_V1=65) vs v2+ glob.f16 width, padding legacy shards cleanly with zeros
     gp = base + ".glob.f16"
     g_w = (os.path.getsize(gp) // (2 * total_n)) if (os.path.exists(gp) and total_n > 0) else GLOB_F
-    glob_arr = _read(gp, np.float16, count=n * g_w).reshape(-1, g_w)
+    glob_arr = _slice_fix(_read(gp, np.float16, count=total_n * g_w).reshape(-1, g_w))
     if g_w < GLOB_F:
         pad = np.zeros((len(glob_arr), GLOB_F - g_w), dtype=np.float16)
         glob_arr = np.concatenate([glob_arr, pad], axis=1)
@@ -247,41 +293,46 @@ def _read_one_shard(args):
     d = {
         "r": r,
         "meta": meta,
-        "logp": _read(base + ".logp.f32", np.float32, count=n),
+        "logp": _slice_fix(_read(base + ".logp.f32", np.float32, count=total_n)),
         "glob": glob_arr,
-        "ents": _read(base + ".ents.f16", np.float16, count=c_ent * ENT_F).reshape(-1, ENT_F),
-        "ent_ids": _read(base + ".ent_ids.u16", np.uint16, count=c_ent),
-        "ent_rel_idx": _read(base + ".ent_rel_idx.u8", np.uint8, count=c_ent)
+        "ents": _slice_var(_read(base + ".ents.f16", np.float16, count=c_ent_full * ENT_F).reshape(-1, ENT_F), meta_full[:, 4]),
+        "ent_ids": _slice_var(_read(base + ".ent_ids.u16", np.uint16, count=c_ent_full), meta_full[:, 4]),
+        "ent_rel_idx": _slice_var(_read(base + ".ent_rel_idx.u8", np.uint8, count=c_ent_full), meta_full[:, 4])
         if os.path.exists(base + ".ent_rel_idx.u8")
         else np.full(c_ent, NO_ENT, dtype=np.uint8),
-        "ent_rel_type": _read(base + ".ent_rel_type.u8", np.uint8, count=c_ent)
+        "ent_rel_type": _slice_var(_read(base + ".ent_rel_type.u8", np.uint8, count=c_ent_full), meta_full[:, 4])
         if os.path.exists(base + ".ent_rel_type.u8")
         else np.zeros(c_ent, dtype=np.uint8),
-        "acts": _read(base + ".acts.f16", np.float16, count=c_act * ACT_F).reshape(-1, ACT_F),
-        "act_ids": _read(base + ".act_ids.u16", np.uint16, count=c_act),
-        "act_ent_idx": _read(base + ".act_ent_idx.u8", np.uint8, count=c_act)
+        "acts": _slice_var(_read(base + ".acts.f16", np.float16, count=c_act_full * ACT_F).reshape(-1, ACT_F), meta_full[:, 5]),
+        "act_ids": _slice_var(_read(base + ".act_ids.u16", np.uint16, count=c_act_full), meta_full[:, 5]),
+        "act_ent_idx": _slice_var(_read(base + ".act_ent_idx.u8", np.uint8, count=c_act_full), meta_full[:, 5])
         if os.path.exists(base + ".act_ent_idx.u8")
         else np.full(c_act, NO_ENT, dtype=np.uint8),
-        "target": _read(base + ".target.f16", np.float16, count=c_act),
-        "pool": _read(base + ".pool.u16", np.uint16, count=c_pool),
-        "pool_hand": _read(base + ".pool_hand.u8", np.uint8, count=c_pool),
+        "target": _slice_var(_read(base + ".target.f16", np.float16, count=c_act_full), meta_full[:, 5]),
+        "pool": _slice_var(_read(base + ".pool.u16", np.uint16, count=c_pool_full), meta_full[:, 7]),
+        "pool_hand": _slice_var(_read(base + ".pool_hand.u8", np.uint8, count=c_pool_full), meta_full[:, 7]),
     }
     qp = base + ".qval.f16"
-    d["qval"] = _read(qp, np.float16, count=n) if os.path.exists(qp) else np.full(n, np.nan, dtype=np.float16)
+    d["qval"] = _slice_fix(_read(qp, np.float16, count=total_n)) if os.path.exists(qp) else np.full(n, np.nan, dtype=np.float16)
     aqp = base + ".act_q.f16"
-    d["act_q"] = _read(aqp, np.float16, count=c_act) if os.path.exists(aqp) else np.full(c_act, np.nan, dtype=np.float16)
+    d["act_q"] = _slice_var(_read(aqp, np.float16, count=c_act_full), meta_full[:, 5]) if os.path.exists(aqp) else np.full(c_act, np.nan, dtype=np.float16)
     anp = base + ".act_n.u16"
-    d["act_n"] = _read(anp, np.uint16, count=c_act) if os.path.exists(anp) else np.zeros(c_act, dtype=np.uint16)
+    d["act_n"] = _slice_var(_read(anp, np.uint16, count=c_act_full), meta_full[:, 5]) if os.path.exists(anp) else np.zeros(c_act, dtype=np.uint16)
     bmp = base + ".belief_meta.f16"
     d["belief_meta"] = (
-        _read(bmp, np.float16, count=n * BELIEF_META_F).reshape(-1, BELIEF_META_F)
+        _slice_fix(_read(bmp, np.float16, count=total_n * BELIEF_META_F).reshape(-1, BELIEF_META_F))
         if (os.path.exists(bmp) and g_w >= GLOB_F)
         else np.full((n, BELIEF_META_F), np.nan, dtype=np.float16)
     )
     if load_critic:
-        d["hid"] = _read(base + ".hid.f16", np.float16, count=c_hid * ENT_F).reshape(-1, ENT_F)
-        d["hid_ids"] = _read(base + ".hid_ids.u16", np.uint16, count=c_hid)
-    d["games"], d["results"], d["turns"] = _read_games_meta(base)
+        d["hid"] = _slice_var(_read(base + ".hid.f16", np.float16, count=c_hid_full * ENT_F).reshape(-1, ENT_F), meta_full[:, 6])
+        d["hid_ids"] = _slice_var(_read(base + ".hid_ids.u16", np.uint16, count=c_hid_full), meta_full[:, 6])
+    games, results, turns = _read_games_meta(base)
+    if kept_games is not None and len(games) > 0:
+        gm = np.isin(games, kept_games)
+        if gm.any():
+            games, results, turns = games[gm], results[gm], turns[gm]
+    d["games"], d["results"], d["turns"] = games, results, turns
     return d
 
 
@@ -371,7 +422,9 @@ class Data:
         last_life[s_inv] = life_diff
         self.final_life_diff = np.clip(last_life[s_inv], -2.0, 2.0).astype(np.float32)
         # Auxiliary targets 3 & 4 (KataGo-style short-horizon deltas): life swing & hand+board swing to next decision
-        board_adv = (self.glob[:, GLOB_HAND_ME].astype(np.float32) - self.glob[:, GLOB_HAND_OPP].astype(np.float32)) + 0.5 * self.glob[:, 0].astype(np.float32)
+        board_adv = (
+            self.glob[:, GLOB_HAND_ME].astype(np.float32) - self.glob[:, GLOB_HAND_OPP].astype(np.float32)
+        ) + 0.5 * self.glob[:, GLOB_BOARD_ADV].astype(np.float32)
         s_ord = np.argsort(seat_key, kind="mergesort")
         sk_ord = seat_key[s_ord]
         same_n = np.empty(len(sk_ord), dtype=bool)
@@ -420,6 +473,7 @@ class Data:
         else:
             self.z_td = self.z
 
+        self.oracle_v = None
         self.store = None
         self.store_dev = None
         self._pinned = False
@@ -453,6 +507,8 @@ class Data:
             "val_w": self.val_w,
             "run": self.run,
         }
+        if self.oracle_v is not None:
+            cols["oracle_v"] = self.oracle_v
         if self.load_critic:
             cols["hid"] = self.hid
             cols["hid_ids"] = self.hid_ids.astype(np.int16)
@@ -463,15 +519,19 @@ class Data:
         dev = torch.device(dev)
         where = dev if dev.type == "cuda" and size <= budget_gb else torch.device("cpu")
         self.store = {}
+        pinned_ok = bool(where.type == "cpu" and pin_cpu and dev.type == "cuda")
         for k, a in cols.items():
             t = torch.from_numpy(np.ascontiguousarray(a))
             if where.type == "cuda":
                 t = t.to(where)
-            elif pin_cpu and dev.type == "cuda":
-                t = t.pin_memory()
+            elif pinned_ok:
+                try:
+                    t = t.pin_memory()
+                except RuntimeError:
+                    pinned_ok = False
             self.store[k] = t
         self.store_dev = where
-        self._pinned = (where.type == "cpu" and pin_cpu and dev.type == "cuda")
+        self._pinned = pinned_ok
         return where, size
 
     def stage_blocks(self, block_starts, block_len, dev):
@@ -537,6 +597,8 @@ class Data:
             "run": cat_fixed(self.run),
             "game": cat_fixed(self.game),
         }
+        if self.oracle_v is not None:
+            cols["oracle_v"] = cat_fixed(self.oracle_v)
         if self.load_critic:
             hid, hid_off, n_hid = cat_var(self.hid, self.hid_off, self.n_hid)
             hids, _, _ = cat_var(self.hid_ids, self.hid_off, self.n_hid)
@@ -545,10 +607,11 @@ class Data:
         return _View(store, dev, self.load_critic, len(cols["z"]))
 
     def _tgather(self, col, k, idx, width):
-        return _tgather_store(self.store, col, k, idx, width)
+        pos, mask, w = _group_index(self.store, k, idx, width, trim=True)
+        return _gather_col(self.store, col, pos, len(idx), w), mask
 
-    def batch(self, idx, device, trim=True):
-        """The decisions `idx` as tensors on `device`, padded to the batch's longest row (or the fixed widths)."""
+    def batch(self, idx, device, trim=None):
+        """The decisions `idx` as tensors on `device`, padded to fixed static widths on CUDA (0 syncs) or batch max."""
         if self.store is None:
             self.place("cpu")
         return _batch_from_store(self.store, self.store_dev, self.load_critic, idx, device, trim=trim)
@@ -590,7 +653,7 @@ class Data:
         ph, _ = self._gather(self.pool_hand, self.pool_off, self.n_pool, idx, N_POOL)
         tgt = np.where(am, tgt.astype(np.float32), 0)
         tgt = tgt / np.maximum(tgt.sum(1, keepdims=True), 1e-6)
-        return {
+        res_b = {
             "glob": t(self.glob[idx]),
             "ents": t(ents * em[..., None]),
             "ent_ids": t(eids * em, torch.long),
@@ -623,6 +686,9 @@ class Data:
             "val_w": t(self.val_w[idx]),
             "run": t(self.run[idx], torch.long),
         }
+        if self.oracle_v is not None:
+            res_b["oracle_v"] = t(self.oracle_v[idx])
+        return res_b
 
 
 class _View:
@@ -637,20 +703,29 @@ class _View:
     def __len__(self):
         return self.n
 
-    def batch(self, idx, device, trim=True):
+    def batch(self, idx, device, trim=None):
         return _batch_from_store(self.store, self.store_dev, self.load_critic, idx, device, trim=trim)
 
 
-def _tgather_store(st, col, k, idx, width):
+def _group_index(st, k, idx, width, trim=False):
     c = st["n_" + k][idx].clamp(max=width)
-    w = max(int(c.max()), 1)
+    w = max(int(c.max()), 1) if trim else width
     j = torch.arange(w, device=idx.device)
     mask = j[None, :] < c[:, None]
     pos = torch.where(mask, st[k + "_off"][idx][:, None] + j[None, :], 0)
+    return pos, mask, w
+
+
+def _gather_col(st, col, pos, bsz, w):
     flat = st[col]
     if flat.numel() == 0:
-        return torch.zeros((len(idx), w) + tuple(flat.shape[1:]), dtype=flat.dtype, device=idx.device), mask
-    return flat[pos], mask
+        return torch.zeros((bsz, w) + tuple(flat.shape[1:]), dtype=flat.dtype, device=pos.device)
+    return flat[pos]
+
+
+def _tgather_store(st, col, k, idx, width, trim=False):
+    pos, mask, w = _group_index(st, k, idx, width, trim=trim)
+    return _gather_col(st, col, pos, len(idx), w), mask
 
 
 def _pad_raw(raw):
@@ -670,23 +745,34 @@ def _pad_raw(raw):
     return out
 
 
-def _batch_from_store(st, s, load_critic, idx, device, trim=True):
+def _batch_from_store(st, s, load_critic, idx, device, trim=None):
+    device = torch.device(device)
+    # Default (`trim=None`): static bucket widths on CUDA (0 GPU->CPU syncs, 0 torch.compile recompilations)
+    # and single-pass group trimming on CPU (where `int(c.max())` is a pure host scalar read).
+    do_trim = (s.type != "cuda" and device.type != "cuda") if trim is None else bool(trim)
     if isinstance(idx, torch.Tensor):
         i = idx.to(device=s, dtype=torch.long)
     else:
         i = torch.as_tensor(np.asarray(idx), dtype=torch.long, device=s)
-    ents, em = _tgather_store(st, "ents", "ent", i, N_ENT)
-    eids, _ = _tgather_store(st, "ent_ids", "ent", i, N_ENT)
-    eridx, _ = _tgather_store(st, "ent_rel_idx", "ent", i, N_ENT)
-    ertyp, _ = _tgather_store(st, "ent_rel_type", "ent", i, N_ENT)
-    acts, am = _tgather_store(st, "acts", "act", i, N_ACT)
-    aids, _ = _tgather_store(st, "act_ids", "act", i, N_ACT)
-    aent, _ = _tgather_store(st, "act_ent_idx", "act", i, N_ACT)
-    tgt, _ = _tgather_store(st, "target", "act", i, N_ACT)
-    act_q, _ = _tgather_store(st, "act_q", "act", i, N_ACT)
-    act_n, _ = _tgather_store(st, "act_n", "act", i, N_ACT)
-    pool, pm = _tgather_store(st, "pool", "pool", i, N_POOL)
-    ph, _ = _tgather_store(st, "pool_hand", "pool", i, N_POOL)
+    bsz = len(i)
+    ent_pos, em, w_e = _group_index(st, "ent", i, N_ENT, trim=do_trim)
+    ents = _gather_col(st, "ents", ent_pos, bsz, w_e)
+    eids = _gather_col(st, "ent_ids", ent_pos, bsz, w_e)
+    eridx = _gather_col(st, "ent_rel_idx", ent_pos, bsz, w_e)
+    ertyp = _gather_col(st, "ent_rel_type", ent_pos, bsz, w_e)
+
+    act_pos, am, w_a = _group_index(st, "act", i, N_ACT, trim=do_trim)
+    acts = _gather_col(st, "acts", act_pos, bsz, w_a)
+    aids = _gather_col(st, "act_ids", act_pos, bsz, w_a)
+    aent = _gather_col(st, "act_ent_idx", act_pos, bsz, w_a)
+    tgt = _gather_col(st, "target", act_pos, bsz, w_a)
+    act_q = _gather_col(st, "act_q", act_pos, bsz, w_a)
+    act_n = _gather_col(st, "act_n", act_pos, bsz, w_a)
+
+    pool_pos, pm, w_p = _group_index(st, "pool", i, N_POOL, trim=do_trim)
+    pool = _gather_col(st, "pool", pool_pos, bsz, w_p)
+    ph = _gather_col(st, "pool_hand", pool_pos, bsz, w_p)
+
     raw = {
         "glob": st["glob"][i], "ents": ents, "em": em, "eids": eids, "eridx": eridx, "ertyp": ertyp,
         "acts": acts, "am": am, "aids": aids, "aent": aent, "tgt": tgt, "act_q": act_q, "act_n": act_n,
@@ -695,15 +781,15 @@ def _batch_from_store(st, s, load_critic, idx, device, trim=True):
         "qval": st["qval"][i], "turns_left": st["turns_left"][i],
         "final_life_diff": st["final_life_diff"][i], "next_life_delta": st["next_life_delta"][i], "next_board_delta": st["next_board_delta"][i], "belief_meta": st["belief_meta"][i], "val_w": st["val_w"][i], "run": st["run"][i],
     }
+    if "oracle_v" in st:
+        raw["oracle_v"] = st["oracle_v"][i]
     if load_critic:
-        hid, hm = _tgather_store(st, "hid", "hid", i, N_HID)
-        hids, _ = _tgather_store(st, "hid_ids", "hid", i, N_HID)
+        hid_pos, hm, w_h = _group_index(st, "hid", i, N_HID, trim=do_trim)
+        hid = _gather_col(st, "hid", hid_pos, bsz, w_h)
+        hids = _gather_col(st, "hid_ids", hid_pos, bsz, w_h)
         raw.update({"hid": hid, "hm": hm, "hids": hids})
-    if not trim:
-        raw = _pad_raw(raw)
-    device = torch.device(device)
     if device != s:
-        raw = {k: v.to(device) for k, v in raw.items()}
+        raw = {k: v.to(device, non_blocking=v.is_pinned()) for k, v in raw.items()}
     f, r = torch.float32, raw
     em, am, pm = r["em"], r["am"], r["pm"]
     tgt = torch.where(am, r["tgt"].to(f), 0)
@@ -738,6 +824,8 @@ def _batch_from_store(st, s, load_critic, idx, device, trim=True):
         "val_w": r["val_w"].to(f),
         "run": r["run"].long(),
     }
+    if "oracle_v" in r:
+        out["oracle_v"] = r["oracle_v"].to(f)
     if load_critic:
         hm = r["hm"]
         out.update({

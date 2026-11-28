@@ -70,7 +70,7 @@ class Net(nn.Module):
             return logits, v, h, h
         return logits, v, h
 
-    def belief_logits(self, h, pool_ids):
+    def belief_logits(self, h, pool_ids, drop_salt=None, proj_text=None):
         """[B, trunk], [B, P] -> [B, P]"""
         q = self.belief(h).unsqueeze(1)
         return (q * self.emb(pool_ids)).sum(-1)
@@ -113,11 +113,11 @@ class CardEmb(nn.Module):
 
     def __init__(self, dim, text=0):
         super().__init__()
-        self.weight = nn.Parameter(torch.randn(BUCKETS, dim))
+        self.weight = nn.Parameter(torch.zeros(BUCKETS, dim))
         self.id_drop = 0.0
         if text:
-            import numpy as np
             import os
+            import numpy as np
 
             fname = "cardtext_sem.npy" if int(text) == 2 else "cardtext.npy"
             rows = np.load(os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", fname))
@@ -126,17 +126,49 @@ class CardEmb(nn.Module):
         else:
             self.text = None
 
+    def projected_text(self):
+        return None if self.text is None else (self.text @ self.proj)
+
+    @staticmethod
+    def sample_salt(device):
+        return torch.randint(0, 1 << 62, (1,), device=device, dtype=torch.int64)
+
+    def _drop_scale(self, ids, dtype, salt=None):
+        """Per-example, per-unique-card-ID inverted dropout mask (`E[scale] == 1.0`)."""
+        thresh = int(round(float(self.id_drop) * 16777216.0))
+        if thresh <= 0:
+            return None
+        if thresh >= 16777216:
+            return torch.zeros(ids.shape + (1,), device=ids.device, dtype=dtype)
+        s = self.sample_salt(ids.device) if salt is None else salt.to(device=ids.device, dtype=torch.int64)
+        ids_i64 = ids.to(torch.int64)
+        if ids_i64.ndim >= 2:
+            row_shape = (ids_i64.shape[0],) + (1,) * (ids_i64.ndim - 1)
+            row = torch.arange(ids_i64.shape[0], device=ids.device, dtype=torch.int64).view(row_shape)
+        else:
+            row = 0
+        # 64-bit SplitMix hash of (salt, example_row, card_id) so every occurrence of a card in one state shares one draw
+        x = s ^ (row * -7046029254386353131) ^ (ids_i64 * 5871781006564002453)
+        x = (x ^ ((x >> 30) & 0x3FFFFFFFF)) * -4658895280553007687
+        x = (x ^ ((x >> 27) & 0x1FFFFFFFFF)) * -7723592293110705685
+        x = x ^ ((x >> 31) & 0x1FFFFFFFF)
+        u24 = (x >> 39) & 0xFFFFFF
+        inv_keep = 16777216.0 / float(16777216 - thresh)
+        return (u24 >= thresh).to(dtype).unsqueeze(-1) * inv_keep
+
     def table(self):
         return self.weight if self.text is None else self.weight + self.text @ self.proj
 
-    def forward(self, ids):
+    def forward(self, ids, salt=None, proj_text=None):
         w = F.embedding(ids, self.weight)
         if self.text is None:
             return w
         if self.training and self.id_drop > 0.0:
-            keep = (torch.rand(ids.shape, device=ids.device) >= self.id_drop).to(w.dtype).unsqueeze(-1)
-            w = w * keep
-        return w + F.embedding(ids, self.text) @ self.proj
+            scale = self._drop_scale(ids, w.dtype, salt=salt)
+            if scale is not None:
+                w = w * scale
+        pt = (self.text @ self.proj) if proj_text is None else proj_text
+        return w + F.embedding(ids, pt)
 
 
 class AuxHead(nn.Module):
@@ -316,18 +348,19 @@ class Tx(nn.Module):
         rt = b["ent_rel_type"].long()
         em = b["ent_mask"]
         ri_safe = ri.clamp(0, ne - 1)
-        valid = em & (rt >= 1) & (rt <= NUM_REL_TYPES) & (ri < ne) & em.gather(1, ri_safe)
-        bi, ei = torch.nonzero(valid, as_tuple=True)
-        if bi.numel() == 0:
-            return mask[:, None, None, :]
-        bias = torch.zeros((B, T, T, self.heads), device=mask.device, dtype=dtype)
-        bias.masked_fill_(~mask[:, None, :, None], float("-inf"))
-        ti = ri[bi, ei]
-        r = rt[bi, ei] - 1
+        valid = em & (rt >= 1) & (rt <= NUM_REL_TYPES) & (ri >= 0) & (ri < ne) & em.gather(1, ri_safe)
+        r_safe = (rt - 1).clamp(0, NUM_REL_TYPES - 1)
         rb = self.rel_bias.to(dtype)
-        bias.index_put_((bi, 1 + ei, 1 + ti), rb[r], accumulate=True)
-        bias.index_put_((bi, 1 + ti, 1 + ei), rb[r + NUM_REL_TYPES], accumulate=True)
-        return bias.permute(0, 3, 1, 2).contiguous()
+        vmask = valid.to(dtype).unsqueeze(1)
+        src_fwd = F.embedding(r_safe, rb[:NUM_REL_TYPES]).permute(0, 2, 1) * vmask
+        src_rev = F.embedding(r_safe, rb[NUM_REL_TYPES:]).permute(0, 2, 1) * vmask
+        ei_idx = torch.arange(1, T, device=mask.device, dtype=torch.long).unsqueeze(0)
+        ti_idx = 1 + ri_safe
+        flat_fwd = (ei_idx * T + ti_idx).unsqueeze(1).expand(B, self.heads, ne)
+        flat_rev = (ti_idx * T + ei_idx).unsqueeze(1).expand(B, self.heads, ne)
+        bias_flat = torch.zeros((B, self.heads, T * T), device=mask.device, dtype=dtype)
+        bias_flat = bias_flat.scatter_add(2, torch.cat([flat_fwd, flat_rev], dim=2), torch.cat([src_fwd, src_rev], dim=2))
+        return bias_flat.view(B, self.heads, T, T).masked_fill(~mask[:, None, None, :], float("-inf"))
 
     def _attend(self, q, k, v, attn_mask):
         """q [B, Q, d], k/v [B, T, d], attn_mask [B, 1/H, 1/Q, T] -> [B, Q, d], `heads` heads"""
@@ -337,13 +370,25 @@ class Tx(nn.Module):
         q = q.view(B, Q, h, hd).transpose(1, 2)
         k = k.view(B, T, h, hd).transpose(1, 2)
         v = v.view(B, T, h, hd).transpose(1, 2)
+        if attn_mask is not None and attn_mask.is_floating_point() and attn_mask.dtype != q.dtype:
+            attn_mask = attn_mask.to(q.dtype)
         out = F.scaled_dot_product_attention(q, k, v, attn_mask=attn_mask)
         return out.transpose(1, 2).reshape(B, Q, D)
 
-    def tokens(self, b):
+    def _emb_ctx(self, b, drop_salt=None, proj_text=None):
+        if drop_salt is None:
+            drop_salt = b.get("_drop_salt")
+        if drop_salt is None and self.training and self.emb.text is not None and self.emb.id_drop > 0.0:
+            drop_salt = self.emb.sample_salt(b["ent_ids"].device)
+        if proj_text is None and self.emb.text is not None:
+            proj_text = self.emb.projected_text()
+        return drop_salt, proj_text
+
+    def tokens(self, b, drop_salt=None, proj_text=None):
         """-> tokens [B, 1+N, d] after the blocks (normed), mask [B, 1+N]"""
+        drop_salt, proj_text = self._emb_ctx(b, drop_salt=drop_salt, proj_text=proj_text)
         g = self.glob_in(self._glob(b["glob"])).unsqueeze(1)
-        e = self.ent_in(torch.cat([self.emb(b["ent_ids"]), b["ents"]], -1))
+        e = self.ent_in(torch.cat([self.emb(b["ent_ids"], salt=drop_salt, proj_text=proj_text), b["ents"]], -1))
         x = torch.cat([g, e], 1)
         mask = torch.cat([torch.ones_like(b["ent_mask"][:, :1]), b["ent_mask"]], 1)
         attn_mask = self._build_attn_bias(b, mask, x.dtype)
@@ -373,7 +418,8 @@ class Tx(nn.Module):
         return self.state_tokens(b)[0]
 
     def forward(self, b, return_vfeat=False, return_act_emb=False, detach_val=False):
-        t, mask = self.tokens(b)
+        drop_salt, proj_text = self._emb_ctx(b)
+        t, mask = self.tokens(b, drop_salt=drop_salt, proj_text=proj_text)
         vfeat, mean = self._pool_val_features(t, mask, b["glob"])
         h = self._act(self.trunk1(torch.cat([t[:, 0], mean], -1)))
         if self.val_mlp:
@@ -383,6 +429,7 @@ class Tx(nn.Module):
             v = v_raw.squeeze(-1) if self.val_bins == 1 else v_raw
         else:
             v = self.value(h.detach() if detach_val else h).squeeze(-1)
+        act_emb_in = self.emb(b["act_ids"], salt=drop_salt, proj_text=proj_text)
         if self.act_ent:
             B, na = b["act_ids"].shape
             ne = t.shape[1] - 1
@@ -394,9 +441,9 @@ class Tx(nn.Module):
                 ctx = ctx * ae_valid.unsqueeze(-1).to(ctx.dtype)
             else:
                 ctx = torch.zeros((B, na, self.d), device=t.device, dtype=t.dtype)
-            a_feat = torch.cat([self.emb(b["act_ids"]), b["acts"], ctx], -1)
+            a_feat = torch.cat([act_emb_in, b["acts"], ctx], -1)
         else:
-            a_feat = torch.cat([self.emb(b["act_ids"]), b["acts"]], -1)
+            a_feat = torch.cat([act_emb_in, b["acts"]], -1)
         a = self.act_in(a_feat)
         k, vv = self.act_kv(t).chunk(2, -1)
         a = a + self.act_o(self._attend(self.act_q(self.act_ln(a)), k, vv, mask[:, None, None, :]))
@@ -409,8 +456,8 @@ class Tx(nn.Module):
             return logits, v, h, vfeat
         return logits, v, h
 
-    def belief_logits(self, h, pool_ids):
-        return (self.belief(h).unsqueeze(1) * self.emb(pool_ids)).sum(-1)
+    def belief_logits(self, h, pool_ids, drop_salt=None, proj_text=None):
+        return (self.belief(h).unsqueeze(1) * self.emb(pool_ids, salt=drop_salt, proj_text=proj_text)).sum(-1)
 
 
 def make(arch, **kw):
@@ -504,8 +551,7 @@ def export(net, path, meta=None):
     with open(path, "wb") as f:
         f.write(json.dumps(header).encode() + b"\n")
         for k in names:
-            a = sd[k].contiguous().view(-1).tolist()
-            f.write(struct.pack(f"<{len(a)}f", *a))
+            f.write(sd[k].contiguous().view(-1).numpy().astype("<f4", copy=False).tobytes())
 
 
 def params(net):

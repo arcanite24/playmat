@@ -125,6 +125,8 @@ pub struct Config {
     /// KataGo forced playouts / self-play exploration factor (0 = off; e.g. 200 = k=2.0 when temp > 0)
     pub forced_k: u32,
     pub threat_w: u32,
+    /// Progressive determinization schedule across sequential halving rounds (half worlds in early rounds, full worlds in final half)
+    pub prog_worlds: bool,
 }
 
 impl Default for Config {
@@ -183,6 +185,7 @@ impl Default for Config {
             belief_pass: false,
             forced_k: 0,
             threat_w: 0,
+            prog_worlds: false,
         }
     }
 }
@@ -334,6 +337,21 @@ impl Table {
 
     fn search(&mut self, game: &Game, seat: Seat, q: &Query, quick: Answer) -> Answer {
         let Some(cfg) = self.ai.get(seat).cloned().flatten() else { return quick };
+        #[cfg(not(target_arch = "wasm32"))]
+        let cfg = {
+            let mut cfg = cfg;
+            if let Some(dl) = self.deadline {
+                let rem_ms = dl.saturating_duration_since(std::time::Instant::now()).as_millis() as u64;
+                if rem_ms < 4_000 {
+                    return quick;
+                }
+                if rem_ms < 90_000 {
+                    let cap_ms = (rem_ms / 28).clamp(15, 2500) as u32;
+                    cfg.time_ms = if cfg.time_ms == 0 { cap_ms } else { cfg.time_ms.min(cap_ms) };
+                }
+            }
+            cfg
+        };
         let combat = matches!(q, Query::Attackers { .. } | Query::Blockers { .. } | Query::BlockTarget { .. });
         if !combat {
             self.plan[seat].clear();
@@ -654,7 +672,7 @@ pub fn candidates(game: &Game, seat: Seat, q: &Query, quick: &Answer, width: usi
         Query::Priority { playable } => {
             add(Answer::Bool(false));
             // one card of each name (two copies in hand are the same choice)
-            let mut seen: Vec<(String, Zone)> = Vec::new();
+            let mut seen: Vec<(&str, Zone)> = Vec::new();
             for id in playable {
                 let o = game.obj(*id);
                 if o.controller != seat && o.owner != seat {
@@ -664,7 +682,7 @@ pub fn candidates(game: &Game, seat: Seat, q: &Query, quick: &Answer, width: usi
                 if o.zone == Zone::Battlefield && o.def.abilities.iter().all(|a| a.mana().is_some()) {
                     continue;
                 }
-                let key = (o.name().to_string(), o.zone);
+                let key = (o.name(), o.zone);
                 if o.zone == Zone::Hand && seen.contains(&key) {
                     continue;
                 }

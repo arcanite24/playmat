@@ -889,5 +889,6 @@
       "file": "Mage.Server/career-src/train-200/tri-brg-tempo-53.txt",
       "fnv64": "c2021706a001346a"
     }
-  ]
+  ],
+  "mulligans": true
 }

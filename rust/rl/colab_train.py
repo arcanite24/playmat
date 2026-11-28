@@ -38,13 +38,15 @@ def main():
     ap.add_argument("--lr", type=float, default=1.2e-3)
     ap.add_argument("--drop", type=float, default=0.1)
     ap.add_argument("--card-id-drop", type=float, default=0.0)
-    ap.add_argument("--val-prob", type=float, default=0.05)
+    ap.add_argument("--val-prob", type=float, default=0.50)
     ap.add_argument("--val-wd", type=float, default=5e-2)
     ap.add_argument("--value-weight", type=float, default=1.0)
     ap.add_argument("--aux-weight", type=float, default=0.15)
     ap.add_argument("--act-q-weight", type=float, default=0.2)
     ap.add_argument("--recency-decay", type=float, default=0.92)
+    ap.add_argument("--recency-half-life", type=int, default=0)
     ap.add_argument("--oracle-mode", action="store_true")
+    ap.add_argument("--cache-oracle", type=int, default=1)
     ap.add_argument("--upgrade-glob-f", type=int, default=0)
     ap.add_argument("--upgrade-val-bins", type=int, default=0)
     ap.add_argument("--threat-weight", type=float, default=0.0)
@@ -52,6 +54,7 @@ def main():
     ap.add_argument("--opt", default="adamw")
     ap.add_argument("--muon-lr", type=float, default=0.012)
     ap.add_argument("--q-mix", type=float, default=0.4)
+    ap.add_argument("--td-lambda", type=float, default=0.0)
     ap.add_argument("--ema", type=float, default=0.995)
     ap.add_argument("--policy-recent", type=int, default=1)
     ap.add_argument("--pol-old-weight", type=float, default=0.0)
@@ -59,6 +62,8 @@ def main():
     ap.add_argument("--samples-per-epoch", type=int, default=3000000)
     ap.add_argument("--stage-chunk", type=int, default=1500000)
     ap.add_argument("--gpu-data-gb", type=float, default=18.0)
+    ap.add_argument("--compile", action="store_true", help="enable torch.compile on Colab CUDA")
+    ap.add_argument("--no-refit-value", action="store_true")
     args = ap.parse_args()
 
     t0 = time.time()
@@ -156,6 +161,7 @@ def main():
         "--muon-lr", str(args.muon_lr),
         "--recency-decay", str(args.recency_decay),
         "--q-mix", str(args.q_mix),
+        "--td-lambda", str(args.td_lambda),
         "--ema", str(args.ema),
         "--policy-recent", str(args.policy_recent),
         "--pol-old-weight", str(args.pol_old_weight),
@@ -163,7 +169,14 @@ def main():
         "--samples-per-epoch", str(args.samples_per_epoch),
         "--stage-chunk", str(args.stage_chunk),
         "--gpu-data-gb", str(eff_gpu_gb),
+        "--cache-oracle", str(args.cache_oracle),
     ]
+    if args.recency_half_life > 0:
+        cmd += ["--recency-half-life", str(args.recency_half_life)]
+    if args.compile:
+        cmd += ["--compile"]
+    if args.no_refit_value:
+        cmd += ["--no-refit-value"]
     if args.oracle_mode:
         cmd += ["--oracle-mode"]
     if oracle_dir and args.oracle_mix > 0:

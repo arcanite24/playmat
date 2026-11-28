@@ -413,6 +413,7 @@ def main():
         "duplicate": True,
         "anchor": {"random": 1000},
         "decks": all_decks,
+        "mulligans": True,
     }
     (suite_dir / "suite.json").write_text(json.dumps(suite, indent=2) + "\n")
     print(

@@ -1817,5 +1817,6 @@
       "file": "Mage.Server/career-src/train-450/brawl-t-gur-ctrl-4.txt",
       "fnv64": "f431cf3555999220"
     }
-  ]
+  ],
+  "mulligans": true
 }

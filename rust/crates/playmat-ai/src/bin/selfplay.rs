@@ -88,9 +88,22 @@ fn main() {
                     configs[me] = learner.config.clone();
                     let record = [opponents[oi].0.is_none() || me == 0, opponents[oi].0.is_none() || me == 1];
                     let run = catch_unwind(AssertUnwindSafe(|| play::play_game(setup, deal, p, configs, record, rec)));
-                    let Ok(Ok(played)) = run else {
-                        failed.fetch_add(1, Ordering::Relaxed);
-                        continue;
+                    let played = match run {
+                        Ok(Ok(played)) => played,
+                        Ok(Err(e)) => {
+                            let f_now = failed.fetch_add(1, Ordering::Relaxed) + 1;
+                            if f_now <= 5 {
+                                eprintln!("SELFPLAY_FAIL deal={deal}: {e}");
+                            }
+                            continue;
+                        }
+                        Err(_) => {
+                            let f_now = failed.fetch_add(1, Ordering::Relaxed) + 1;
+                            if f_now <= 5 {
+                                eprintln!("SELFPLAY_FAIL deal={deal}: panic");
+                            }
+                            continue;
+                        }
                     };
                     let result = match played.winner {
                         Some(w) => [(w == 0) as u8 as f32, (w == 1) as u8 as f32],

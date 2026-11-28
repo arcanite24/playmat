@@ -38,10 +38,17 @@ pub struct Pairing {
 }
 
 pub fn pairing(deal: usize, n_decks: usize, weights: &[u64]) -> Pairing {
-    let a = deal % n_decks;
-    let b = (a + 1 + (deal / n_decks) % (n_decks - 1)) % n_decks;
+    let pair = deal / 2;
+    let swap = deal & 1;
+    let mut r = (pair as u64) ^ 0xa076_1d64_78bd_642f;
+    let (a, b) = if n_decks <= 1 {
+        (0, 0)
+    } else {
+        let a = (mix(&mut r) as usize) % n_decks;
+        let b = (a + 1 + (mix(&mut r) as usize) % (n_decks - 1)) % n_decks;
+        (a, b)
+    };
     let total: u64 = weights.iter().sum::<u64>().max(1);
-    let mut r = (deal as u64) ^ 0xa076_1d64_78bd_642f;
     let mut pick = mix(&mut r) % total;
     let opponent = weights
         .iter()
@@ -54,7 +61,11 @@ pub fn pairing(deal: usize, n_decks: usize, weights: &[u64]) -> Pairing {
             }
         })
         .unwrap_or(0);
-    Pairing { decks: [a, b], first: deal % 2, me: (deal / 2) % 2, opponent }
+    let base_bits = mix(&mut r);
+    let first = (base_bits & 1) as usize;
+    let base_me = ((base_bits >> 1) & 1) as usize;
+    let me = base_me ^ swap;
+    Pairing { decks: [a, b], first, me, opponent }
 }
 
 /// The game's seed, from its deal
@@ -72,9 +83,9 @@ pub fn parse_fast(v: &str) -> Result<(Option<PolicyKind>, Option<u32>), String> 
 
 /// The seat that won, `None` for a draw or a game cut at the turn cap
 pub fn winner(game: &Game) -> Option<Seat> {
-    if game.player(0).lost || eval::evaluate(game, 1) == eval::WIN {
+    if game.player(0).lost || eval::terminal_outcome(game, 1) == Some(true) {
         Some(1)
-    } else if game.player(1).lost || eval::evaluate(game, 0) == eval::WIN {
+    } else if game.player(1).lost || eval::terminal_outcome(game, 0) == Some(true) {
         Some(0)
     } else {
         None

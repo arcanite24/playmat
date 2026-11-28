@@ -350,14 +350,25 @@ fn sim_bottom(game: &Game, seat: Seat) -> ObjId {
     best.map_or_else(|| rule_bottom(game, seat), |(id, _)| id)
 }
 
-fn net_hand_value(net: &crate::net::Net, game: &Game, seat: Seat) -> f64 {
+fn net_hand_obs(game: &Game, seat: Seat) -> crate::obs::Obs {
     let mut g = game.clone();
     g.turn = 1;
     g.step = Some(playmat_engine::state::Step::PrecombatMain);
-    let q = playmat_engine::decide::Query::Priority { playable: Vec::new() };
-    let obs = crate::obs::observe(&g, seat, &q, &[]);
-    let logit = net.state(&obs).1 as f64;
-    1.0 / (1.0 + (-logit).sexp())
+    g.priority = Some(seat);
+    let playable = rules::playable(&g, seat);
+    let q = playmat_engine::decide::Query::Priority { playable };
+    crate::obs::observe(&g, seat, &q, &[])
+}
+
+#[inline]
+fn val_from_logit(logit: f32) -> f64 {
+    1.0 / (1.0 + (-(logit as f64)).sexp())
+}
+
+#[allow(dead_code)]
+fn net_hand_value(net: &crate::net::Net, game: &Game, seat: Seat) -> f64 {
+    let obs = net_hand_obs(game, seat);
+    val_from_logit(net.forward_batch(&[obs])[0].value)
 }
 
 fn net_bottom_with(net: &crate::net::Net, game: &Game, seat: Seat) -> ObjId {
@@ -365,11 +376,16 @@ fn net_bottom_with(net: &crate::net::Net, game: &Game, seat: Seat) -> ObjId {
     if hand.len() <= 1 {
         return hand.first().copied().unwrap_or_else(|| rule_bottom(game, seat));
     }
-    let mut best: Option<(ObjId, f64)> = None;
-    for id in hand {
+    let mut obs_batch = Vec::with_capacity(hand.len());
+    for &id in &hand {
         let mut g = game.clone();
         put_on_bottom(&mut g, seat, id);
-        let v = net_hand_value(net, &g, seat);
+        obs_batch.push(net_hand_obs(&g, seat));
+    }
+    let outs = net.forward_batch(&obs_batch);
+    let mut best: Option<(ObjId, f64)> = None;
+    for (&id, out) in hand.iter().zip(outs.iter()) {
+        let v = val_from_logit(out.value);
         if best.is_none_or(|(_, b)| v > b) {
             best = Some((id, v));
         }
@@ -383,13 +399,22 @@ fn net_bottom(game: &Game, seat: Seat, cfg: &crate::search::Config) -> ObjId {
 }
 
 fn net_wants(game: &Game, seat: Seat, taken: usize, cfg: &crate::search::Config) -> bool {
+    let hand = &game.player(seat).hand;
+    let lands = hand.iter().filter(|id| game.obj(**id).is(CardType::Land)).count();
+    if taken == 0 && hand.len() == 7 && (lands == 0 || lands == 7) {
+        return true;
+    }
+    if taken == 1 && hand.len() == 6 && (lands == 0 || lands == 6) {
+        return true;
+    }
     let net = crate::net::of(&cfg.net);
-    let keep = net_hand_value(&net, game, seat);
-    let mut pool: Vec<ObjId> = game.player(seat).hand.iter().chain(game.player(seat).library.iter()).copied().collect();
+    let mut pool: Vec<ObjId> = hand.iter().chain(game.player(seat).library.iter()).copied().collect();
     let size = 7usize.saturating_sub(taken + 1);
     let mut mix = Mix(seed(game, seat) ^ 0x4E45_544D);
     let deals = 8usize;
-    let mut mull = 0.0;
+    let mut obs_batch = Vec::with_capacity(1 + deals * 7);
+    obs_batch.push(net_hand_obs(game, seat));
+    let mut deal_ranges: Vec<(usize, usize)> = Vec::with_capacity(deals);
     for _ in 0..deals {
         mix.shuffle(&mut pool);
         let mut g = game.clone();
@@ -408,11 +433,124 @@ fn net_wants(game: &Game, seat: Seat, taken: usize, cfg: &crate::search::Config)
             let c = rule_bottom(&g, seat);
             put_on_bottom(&mut g, seat, c);
         }
-        while g.player(seat).hand.len() > size {
-            let c = net_bottom_with(&net, &g, seat);
-            put_on_bottom(&mut g, seat, c);
+        let start = obs_batch.len();
+        if g.player(seat).hand.len() > size {
+            let cand_hand = g.player(seat).hand.clone();
+            if cand_hand.len() <= 1 {
+                let c = cand_hand.first().copied().unwrap_or_else(|| rule_bottom(&g, seat));
+                put_on_bottom(&mut g, seat, c);
+                obs_batch.push(net_hand_obs(&g, seat));
+            } else {
+                for &id in &cand_hand {
+                    let mut gc = g.clone();
+                    put_on_bottom(&mut gc, seat, id);
+                    obs_batch.push(net_hand_obs(&gc, seat));
+                }
+            }
+        } else {
+            obs_batch.push(net_hand_obs(&g, seat));
         }
-        mull += net_hand_value(&net, &g, seat);
+        deal_ranges.push((start, obs_batch.len()));
+    }
+    let outs = net.forward_batch(&obs_batch);
+    let keep = val_from_logit(outs[0].value);
+    let mut mull = 0.0;
+    for (start, end) in deal_ranges {
+        let mut best_v = f64::NEG_INFINITY;
+        for out in &outs[start..end] {
+            let v = val_from_logit(out.value);
+            if v > best_v {
+                best_v = v;
+            }
+        }
+        mull += best_v;
     }
     keep < mull / deals as f64
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::duel::{new_duel, Deck};
+    use crate::search::Config;
+
+    #[test]
+    fn mulligan_zero_seven_land_floor_priority_obs_and_batched_parity() {
+        let db = playmat_engine::cards();
+        let all_spells = Deck::parse("no_lands", "60 Grizzly Bears\n");
+        let all_lands = Deck::parse("only_lands", "60 Forest\n");
+        let mixed = Deck::parse("mixed", "24 Forest\n18 Llanowar Elves\n18 Grizzly Bears\n");
+
+        let cfg = Config { mulligan_net: true, ..Config::default() };
+
+        // 0-land 7-card hand MUST always mulligan regardless of neural value noise
+        let g_no_land = new_duel(&db, [&all_spells, &mixed], 7, 0).expect("no_lands duel");
+        assert!(net_wants(&g_no_land, 0, 0, &cfg), "0-land 7-card hand must mulligan");
+
+        // 7-land 7-card hand MUST always mulligan regardless of neural value noise
+        let g_seven_land = new_duel(&db, [&all_lands, &mixed], 7, 0).expect("only_lands duel");
+        assert!(net_wants(&g_seven_land, 0, 0, &cfg), "7-land 7-card hand must mulligan");
+
+        // Verify play vs draw observation flags: priority == Some(seat) (glob[32] == 1.0) on BOTH seats!
+        let g_mix = new_duel(&db, [&mixed, &mixed], 123, 0).expect("mixed duel");
+        let obs_play = net_hand_obs(&g_mix, 0);
+        let obs_draw = net_hand_obs(&g_mix, 1);
+        assert_eq!(obs_play.glob[31], 1.0, "play seat must have active == 1.0");
+        assert_eq!(obs_play.glob[32], 1.0, "play seat must have priority == 1.0");
+        assert_eq!(obs_draw.glob[31], 0.0, "draw seat must have active == 0.0");
+        assert_eq!(obs_draw.glob[32], 1.0, "draw seat must have priority == 1.0");
+
+        // Playable lands in play seat's hand should be marked playable (f[47] == 1.0)
+        let n_ents = obs_play.n_ents();
+        let any_playable = (0..n_ents).any(|i| obs_play.ents[i * crate::obs::ENT_F + 47] == 1.0);
+        assert!(any_playable, "play seat hand with lands at PrecombatMain must mark lands playable");
+
+        // Batched net_bottom_with & net_wants parity against sequential single-Obs evaluation
+        let net = crate::net::of(&cfg.net);
+        for seed_i in 1..=6 {
+            let g = new_duel(&db, [&mixed, &mixed], 1000 + seed_i, 0).expect("duel");
+            let lands = g.player(0).hand.iter().filter(|id| g.obj(**id).is(CardType::Land)).count();
+            if lands == 0 || lands == 7 {
+                continue;
+            }
+            let batched_bot = net_bottom_with(&net, &g, 0);
+            let mut seq_best: Option<(ObjId, f64)> = None;
+            for &id in &g.player(0).hand {
+                let mut gc = g.clone();
+                put_on_bottom(&mut gc, 0, id);
+                let v = val_from_logit(net.forward(&net_hand_obs(&gc, 0)).value);
+                if seq_best.is_none_or(|(_, b)| v > b) {
+                    seq_best = Some((id, v));
+                }
+            }
+            let seq_bot = seq_best.unwrap().0;
+            assert_eq!(batched_bot, seq_bot, "batched net_bottom_with must match sequential argmax");
+
+            // Check net_wants batched vs sequential
+            let keep_seq = val_from_logit(net.forward(&net_hand_obs(&g, 0)).value);
+            let mut pool: Vec<ObjId> =
+                g.player(0).hand.iter().chain(g.player(0).library.iter()).copied().collect();
+            let mut mix = Mix(seed(&g, 0) ^ 0x4E45_544D);
+            let mut mull_seq = 0.0;
+            for _ in 0..8 {
+                mix.shuffle(&mut pool);
+                let mut gd = g.clone();
+                let new_h = pool[..7].to_vec();
+                let new_l = pool[7..].to_vec();
+                for &id in &new_h {
+                    gd.obj_mut(id).zone = Zone::Hand;
+                }
+                for &id in &new_l {
+                    gd.obj_mut(id).zone = Zone::Library;
+                }
+                gd.player_mut(0).hand = new_h;
+                gd.player_mut(0).library = new_l;
+                let c = net_bottom_with(&net, &gd, 0);
+                put_on_bottom(&mut gd, 0, c);
+                mull_seq += val_from_logit(net.forward(&net_hand_obs(&gd, 0)).value);
+            }
+            let seq_wants = keep_seq < mull_seq / 8.0;
+            assert_eq!(net_wants(&g, 0, 0, &cfg), seq_wants, "batched net_wants must match sequential");
+        }
+    }
 }

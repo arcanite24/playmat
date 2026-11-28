@@ -279,6 +279,58 @@ impl Root {
         g
     }
 
+    /// Materializes a determinized `Game` using a pre-sampled opponent hand/library split, shuffling only the
+    /// deciding seat's unseen library cards. Avoids cloning `Game` for discarded importance-sampling proposals.
+    pub(crate) fn sample_with_opp_hand(
+        &self,
+        opp_seat: Seat,
+        opp_new_hand: &[ObjId],
+        opp_new_lib: &[ObjId],
+        seed: u64,
+    ) -> Game {
+        let mut g = self.snapshot.clone();
+        let Some(h) = &self.hidden else { return g };
+        let mut keep: Vec<ObjId> = Vec::new();
+        for a in &self.since {
+            if let Answer::Obj(id) | Answer::Ability(id, _) = a {
+                keep.push(*id);
+            }
+        }
+        let mut rng = JavaRandom::new((seed ^ 0x5851_f42d_4c95_7f2d) as i64);
+        let looked: Vec<ObjId> =
+            g.looked_at.iter().filter(|l| l.viewer == h.seat).flat_map(|l| l.cards.iter().copied()).collect();
+        let my_seat = h.seat;
+        if my_seat < g.players.len() && my_seat != opp_seat {
+            let fixed_in_library = |id: &ObjId| keep.contains(id) || looked.contains(id);
+            let library = g.player(my_seat).library.clone();
+            let mut pool: Vec<ObjId> = library.iter().filter(|id| !fixed_in_library(id)).copied().collect();
+            if pool.len() >= 2 {
+                rng.shuffle(&mut pool);
+                let mut next = pool.into_iter();
+                let new_library: Vec<ObjId> =
+                    library.iter().map(|id| if fixed_in_library(id) { *id } else { next.next().unwrap() }).collect();
+                g.player_mut(my_seat).library = new_library;
+            }
+        }
+        if opp_seat < g.players.len() {
+            for &id in opp_new_hand {
+                if g.obj(id).zone != Zone::Hand {
+                    g.obj_mut(id).zone = Zone::Hand;
+                }
+            }
+            for &id in opp_new_lib {
+                if g.obj(id).zone != Zone::Library {
+                    g.obj_mut(id).zone = Zone::Library;
+                }
+            }
+            let p = g.player_mut(opp_seat);
+            p.hand = opp_new_hand.to_vec();
+            p.library = opp_new_lib.to_vec();
+        }
+        g.rng = JavaRandom::new(seed.rotate_left(17) as i64);
+        g
+    }
+
     /// A sample of the game (`sample`) with `hidden`; without, the real game with every library shuffled and a new
     /// random number generator
     pub fn sample_or_shuffle(&self, seed: u64) -> Game {
@@ -443,20 +495,34 @@ impl Decider for Playout {
             self.stopped = true;
             return Answer::Stop;
         }
-        let mut a = self.policy[seat.min(1)].answer(game, seat, q);
-        let mut by_tree = false;
-        if let Some(w) = self.walk.as_mut() {
-            if let Some(t) = w.step(game, seat, q, &a) {
-                if matches!(q, Query::Priority { .. }) {
-                    self.policy[seat.min(1)].played(&t);
-                }
-                a = t;
-                by_tree = true;
-            } else if w.should_stop() {
+        let fast_tree = self.walk.as_mut().and_then(|w| w.try_fast_step(game, seat, q));
+        let (mut a, by_tree) = if let Some(t) = fast_tree {
+            if matches!(q, Query::Priority { .. }) {
+                let _ = self.policy[seat.min(1)].playable(game, seat, &[]);
+                self.policy[seat.min(1)].played(&t);
+            }
+            (t, true)
+        } else {
+            if self.walk.as_ref().is_some_and(|w| w.should_stop()) {
                 self.stopped = true;
                 return Answer::Stop;
             }
-        }
+            let mut a = self.policy[seat.min(1)].answer(game, seat, q);
+            let mut by_tree = false;
+            if let Some(w) = self.walk.as_mut() {
+                if let Some(t) = w.step(game, seat, q, &a) {
+                    if matches!(q, Query::Priority { .. }) {
+                        self.policy[seat.min(1)].played(&t);
+                    }
+                    a = t;
+                    by_tree = true;
+                } else if w.should_stop() {
+                    self.stopped = true;
+                    return Answer::Stop;
+                }
+            }
+            (a, by_tree)
+        };
         if let (false, Some(net)) = (by_tree, &self.rollout) {
             if !crate::selfplay::skipped(q) {
                 let options = candidates(game, seat, q, &a, 12);

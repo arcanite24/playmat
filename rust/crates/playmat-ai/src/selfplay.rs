@@ -124,30 +124,111 @@ pub fn unseen(game: &Game, seat: Seat, seen: impl Fn(ObjId) -> bool) -> Vec<(Obj
     out
 }
 
-/// How likely the belief makes a sample's opponent hand: the sum over unseen cards of log σ(z) in hand, log σ(−z)
-/// out of it
+/// How likely the belief makes a sample's opponent hand: up to the constant `sum_{c in U} log sigma(-z_c)` shared
+/// across all samples of the same unseen pool `U`, `log P(H) = const + sum_{c in H \cap U} z_c`.
+#[allow(dead_code)]
 fn hand_likelihood(
     game: &Game,
     seat: Seat,
     logit: &std::collections::HashMap<u32, f32>,
     seen: &dyn Fn(ObjId) -> bool,
 ) -> f32 {
-    let ls = |z: f32| -(1.0 + (-z).sexp()).sln();
-    unseen(game, seat, seen)
+    game.player(game.opponent(seat))
+        .hand
         .iter()
-        .map(|(id, in_hand)| {
-            let z = logit.get(&obs::card_id(&game.obj(*id).def.name)).copied().unwrap_or(0.0);
-            if *in_hand {
-                ls(z)
-            } else {
-                ls(-z)
-            }
-        })
+        .filter(|id| !seen(**id))
+        .map(|id| logit.get(&obs::card_id(&game.obj(*id).def.name)).copied().unwrap_or(0.0))
         .sum()
 }
 
+#[inline]
+fn card_threat_mask(def: &playmat_engine::card::CardDef, opp_untapped_lands: usize) -> u8 {
+    if def.types.contains(&playmat_engine::card::CardType::Land) {
+        return 1 << 7;
+    }
+    let mut m = 0u8;
+    if def.types.contains(&playmat_engine::card::CardType::Creature) {
+        m |= 1 << 6;
+    }
+    let is_instant = def.types.contains(&playmat_engine::card::CardType::Instant)
+        || def.abilities.contains(&playmat_engine::card::AbilityDef::FlashAbility);
+    if is_instant && (def.mana_value() as usize) <= opp_untapped_lands {
+        m |= 1 << 5;
+    }
+    let k = crate::policy::spell_kind(def);
+    if k.counter {
+        m |= 1 << 0;
+    }
+    if k.sweeper {
+        m |= 1 << 1;
+    }
+    if k.removal {
+        m |= 1 << 2;
+    }
+    if k.face {
+        m |= 1 << 3;
+    }
+    if k.pump {
+        m |= 1 << 4;
+    }
+    m
+}
+
+#[inline]
+fn mask_to_belief_meta(mask: u8) -> [f32; BELIEF_META_F] {
+    let mut out = [0.0f32; BELIEF_META_F];
+    for (k, slot) in out.iter_mut().enumerate() {
+        if (mask & (1 << k)) != 0 {
+            *slot = 1.0;
+        }
+    }
+    out
+}
+
+/// Applies Bayesian log-odds tilting from the 8-dim auxiliary threat head (`tl`) onto card-belief log-weights
+/// `base_ll`, subtracting the proposal distribution's empirical log-odds `logit(p0_k)` so rare threats with
+/// `p0_k < P*(y_k) < 0.5` are upweighted instead of penalized.
+pub(crate) fn apply_threat_tilt(
+    base_ll: &mut [f32],
+    feats: &[[f32; BELIEF_META_F]],
+    tl: &[f32; BELIEF_META_F],
+    threat_scale: f32,
+) {
+    if base_ll.is_empty() || threat_scale == 0.0 {
+        return;
+    }
+    let m0 = base_ll.iter().copied().fold(f32::MIN, f32::max);
+    let mut q = Vec::with_capacity(base_ll.len());
+    let mut q_sum = 0.0f64;
+    for &l in base_ll.iter() {
+        let w = ((l - m0) as f64).sexp();
+        q.push(w);
+        q_sum += w;
+    }
+    let inv_q = 1.0 / q_sum.max(1e-12);
+    let mut delta = [0.0f32; BELIEF_META_F];
+    for k in 0..BELIEF_META_F {
+        let mut p0 = 0.0f64;
+        for (j, y) in feats.iter().enumerate() {
+            p0 += q[j] * inv_q * (y[k] as f64);
+        }
+        let p0_c = (p0 as f32).clamp(0.01, 0.99);
+        let prior_logit = (p0_c / (1.0 - p0_c)).sln();
+        let post_logit = tl[k].clamp(-6.0, 6.0);
+        delta[k] = (post_logit - prior_logit).clamp(-6.0, 6.0);
+    }
+    for (j, l) in base_ll.iter_mut().enumerate() {
+        let y = &feats[j];
+        let mut t_ll = 0.0f32;
+        for k in 0..BELIEF_META_F {
+            t_ll += y[k] * delta[k];
+        }
+        *l += threat_scale * t_ll;
+    }
+}
+
 /// `k` samples of the game the seat might be in, deduplicated with their exact belief-draw multiplicity weights
-/// (Rao-Blackwellized unbiased importance resampling, 3 drawn per kept).
+/// (zero-clone proposal generation + stratified systematic importance resampling).
 pub(crate) fn sample_games_weighted(
     rng: &mut u64,
     d: &Decision,
@@ -161,137 +242,245 @@ pub(crate) fn sample_games_weighted(
     let Some(h) = &root.hidden else {
         return vec![(root.snapshot.clone(), 1.0)];
     };
-    let opp_unseen_hand =
-        root.snapshot.player(root.snapshot.opponent(d.seat)).hand.iter().filter(|id| !h.seat_saw(**id)).count();
+    let opp = root.snapshot.opponent(d.seat);
+    let mut keep_ids: Vec<ObjId> = Vec::new();
+    for a in &root.since {
+        if let playmat_engine::decide::Answer::Obj(id) | playmat_engine::decide::Answer::Ability(id, _) = a {
+            keep_ids.push(*id);
+        }
+    }
+    let looked_ids: Vec<ObjId> = root
+        .snapshot
+        .looked_at
+        .iter()
+        .filter(|l| l.viewer == h.seat)
+        .flat_map(|l| l.cards.iter().copied())
+        .collect();
+    let opp_hand_orig = &root.snapshot.player(opp).hand;
+    let opp_lib_orig = &root.snapshot.player(opp).library;
+    let fixed_in_hand = |id: &ObjId| h.seat_saw(*id) || keep_ids.contains(id);
+    let fixed_in_lib = |id: &ObjId| keep_ids.contains(id) || looked_ids.contains(id);
+    let opp_unseen_hand = opp_hand_orig.iter().filter(|id| !fixed_in_hand(id)).count();
     // When opponent has no hidden hand cards (hellbent / fully revealed), cap world count to 2 so
     // multi-tree search focuses depth instead of splitting iters across 16 near-identical trees.
     let eff_k = if opp_unseen_hand == 0 { k.clamp(1, 2) } else { k.max(1) };
-    match Some(h) {
-        Some(h) if net.has_belief() && opp_unseen_hand > 0 => {
-            let seen = |id: ObjId| h.seat_saw(id);
-            let pool: Vec<u32> = unseen(&root.snapshot, d.seat, seen)
-                .iter()
-                .map(|(id, _)| obs::card_id(&root.snapshot.obj(*id).def.name))
-                .collect();
-            let z = net.belief(state, &pool);
-            let mut logit: std::collections::HashMap<u32, f32> = pool.iter().copied().zip(z).collect();
-            if d.config.belief_pass {
-                // Bayesian pass-likelihood adjustment: if opponent holds >= 2 untapped lands outside their own
-                // main phase, gently upweight instants/flash and downweight payable sorcery-speed creatures.
-                let opp = root.snapshot.opponent(d.seat);
-                let opp_untapped_lands = root.snapshot.battlefield.iter().filter(|id| {
-                    let o = root.snapshot.obj(**id);
-                    o.controller == opp && !o.tapped && root.snapshot.has_type(**id, playmat_engine::card::CardType::Land)
-                }).count();
-                let opp_passed_open = root.snapshot.active != Some(opp) && opp_untapped_lands >= 2;
-                if opp_passed_open {
-                    for (id, _) in unseen(&root.snapshot, d.seat, seen) {
-                        let def = &root.snapshot.obj(id).def;
-                        let cid = obs::card_id(&def.name);
-                        let is_instant = def.types.contains(&playmat_engine::card::CardType::Instant)
-                            || def.abilities.contains(&playmat_engine::card::AbilityDef::FlashAbility);
-                        let is_creature = def.types.contains(&playmat_engine::card::CardType::Creature) && !is_instant;
-                        let mv = def.mana_value() as usize;
-                        if let Some(v) = logit.get_mut(&cid) {
-                            if is_instant && mv <= opp_untapped_lands {
-                                *v += 0.30;
-                            } else if is_creature && mv > 0 && mv <= opp_untapped_lands {
-                                *v -= 0.20;
-                            }
-                        }
+    if net.has_belief() && opp_unseen_hand > 0 {
+        let seen = |id: ObjId| h.seat_saw(id);
+        let unseen_list = unseen(&root.snapshot, d.seat, seen);
+        let pool_cids: Vec<u32> =
+            unseen_list.iter().map(|(id, _)| obs::card_id(&root.snapshot.obj(*id).def.name)).collect();
+        let z = net.belief(state, &pool_cids);
+        let mut logit: std::collections::HashMap<u32, f32> = pool_cids.iter().copied().zip(z).collect();
+        let opp_untapped_lands = root
+            .snapshot
+            .battlefield
+            .iter()
+            .filter(|id| {
+                let o = root.snapshot.obj(**id);
+                o.controller == opp && !o.tapped && o.is(playmat_engine::card::CardType::Land)
+            })
+            .count();
+        if d.config.belief_pass && root.snapshot.active != Some(opp) && opp_untapped_lands >= 2 {
+            for (id, _) in &unseen_list {
+                let def = &root.snapshot.obj(*id).def;
+                let cid = obs::card_id(&def.name);
+                let is_instant = def.types.contains(&playmat_engine::card::CardType::Instant)
+                    || def.abilities.contains(&playmat_engine::card::AbilityDef::FlashAbility);
+                let is_creature = def.types.contains(&playmat_engine::card::CardType::Creature) && !is_instant;
+                let mv = def.mana_value() as usize;
+                if let Some(v) = logit.get_mut(&cid) {
+                    if is_instant && mv <= opp_untapped_lands {
+                        *v += 0.30;
+                    } else if is_creature && mv > 0 && mv <= opp_untapped_lands {
+                        *v -= 0.20;
                     }
                 }
-            }
-            let n_draw = if d.config.belief_ms { eff_k * 6 } else { eff_k * 3 };
-            let threat_logits = if d.config.threat_w > 0 && net.has_threat() {
-                Some(net.threat(state))
-            } else {
-                None
-            };
-            let opp_untapped_lands = if threat_logits.is_some() {
-                let opp = root.snapshot.opponent(d.seat);
-                root.snapshot
-                    .battlefield
-                    .iter()
-                    .filter(|id| {
-                        let o = root.snapshot.obj(**id);
-                        o.controller == opp
-                            && root.snapshot.has_type(**id, playmat_engine::card::CardType::Land)
-                            && !o.tapped
-                    })
-                    .count()
-            } else {
-                0
-            };
-            let threat_scale = d.config.threat_w as f32 / 1000.0;
-            let mut drawn: Vec<(f32, Game)> = (0..n_draw)
-                .map(|j| {
-                    let g = root.sample(seed.wrapping_add(j as u64 * 0x9E37));
-                    let mut ll = hand_likelihood(&g, d.seat, &logit, &seen);
-                    if let Some(tl) = &threat_logits {
-                        let y = obs::belief_meta_with_lands(&g, d.seat, opp_untapped_lands);
-                        let mut t_ll = 0.0f32;
-                        for k in 0..obs::BELIEF_META_F {
-                            t_ll += y[k] * tl[k].clamp(-6.0, 6.0);
-                        }
-                        ll += threat_scale * t_ll;
-                    }
-                    (ll, g)
-                })
-                .collect();
-            let m = drawn.iter().map(|(l, _)| *l).fold(f32::MIN, f32::max);
-            let w: Vec<f64> = drawn.iter().map(|(l, _)| ((l - m) as f64).sexp()).collect();
-            let s: f64 = w.iter().sum::<f64>().max(1e-12);
-            if d.config.belief_ms {
-                // Phase 3: group proposals by sorted unseen opponent-hand card-ID multiset, sum exact
-                // posterior probability mass per distinct hand, and keep top-eff_k highest-posterior hands.
-                let opp = root.snapshot.opponent(d.seat);
-                let mut by_hand: std::collections::HashMap<Vec<u32>, (f64, usize)> = std::collections::HashMap::new();
-                for (j, (_, g)) in drawn.iter().enumerate() {
-                    let mut key: Vec<u32> = g
-                        .player(opp)
-                        .hand
-                        .iter()
-                        .filter(|id| !seen(**id))
-                        .map(|id| obs::card_id(&g.obj(*id).def.name))
-                        .collect();
-                    key.sort_unstable();
-                    let pj = w[j] / s;
-                    by_hand.entry(key).and_modify(|e| e.0 += pj).or_insert((pj, j));
-                }
-                let mut ranked: Vec<(f64, usize)> = by_hand.into_values().collect();
-                ranked.sort_by(|a, b| b.0.total_cmp(&a.0));
-                ranked.truncate(eff_k);
-                let tot_p: f64 = ranked.iter().map(|(p, _)| *p).sum::<f64>().max(1e-12);
-                // Sort descending by index so swap_remove doesn't invalidate earlier indices
-                ranked.sort_by_key(|r| std::cmp::Reverse(r.1));
-                let mut keep = Vec::with_capacity(ranked.len());
-                for (p, idx) in ranked {
-                    keep.push((drawn.swap_remove(idx).1, (p / tot_p) * eff_k as f64));
-                }
-                keep
-            } else {
-                let wf: Vec<f32> = w.iter().map(|v| (v / s) as f32).collect();
-                let mut picks: Vec<usize> = (0..eff_k).map(|_| draw(&wf, rng)).collect();
-                picks.sort();
-                let mut groups: Vec<(usize, u32)> = Vec::new();
-                for p in picks {
-                    if let Some(last) = groups.last_mut() {
-                        if last.0 == p {
-                            last.1 += 1;
-                            continue;
-                        }
-                    }
-                    groups.push((p, 1));
-                }
-                let mut keep = Vec::with_capacity(groups.len());
-                for (i, cnt) in groups.into_iter().rev() {
-                    keep.push((drawn.swap_remove(i).1, cnt as f64));
-                }
-                keep
             }
         }
-        _ => (0..eff_k).map(|j| (root.sample(seed.wrapping_add(j as u64 * 0x9E37)), 1.0)).collect(),
+        // Build shuffleable unseen pool (ObjId, cid, card_ll, threat_mask) once with zero Game clones.
+        let need_threat = (d.config.threat_w > 0 && net.has_threat()) || d.config.belief_ms;
+        let mut fixed_threat_mask = 0u8;
+        if need_threat {
+            for &id in opp_hand_orig {
+                if fixed_in_hand(&id) {
+                    fixed_threat_mask |= card_threat_mask(&root.snapshot.obj(id).def, opp_untapped_lands);
+                }
+            }
+        }
+        #[derive(Clone, Copy)]
+        struct PoolCard {
+            id: ObjId,
+            cid: u32,
+            ll: f32,
+            tmask: u8,
+        }
+        let pool_cards: Vec<PoolCard> = opp_hand_orig
+            .iter()
+            .filter(|id| !fixed_in_hand(id))
+            .chain(opp_lib_orig.iter().filter(|id| !fixed_in_lib(id)))
+            .map(|&id| {
+                let def = &root.snapshot.obj(id).def;
+                let cid = obs::card_id(&def.name);
+                let ll = logit.get(&cid).copied().unwrap_or(0.0);
+                let tmask = if need_threat { card_threat_mask(def, opp_untapped_lands) } else { 0 };
+                PoolCard { id, cid, ll, tmask }
+            })
+            .collect();
+        if pool_cards.len() < 2 {
+            return (0..eff_k).map(|j| (root.sample(seed.wrapping_add(j as u64 * 0x9E37)), 1.0)).collect();
+        }
+        let n_draw = if d.config.belief_ms { (eff_k * 32).max(256) } else { eff_k * 3 };
+        let threat_logits = if d.config.threat_w > 0 && net.has_threat() { Some(net.threat(state)) } else { None };
+        let mut scratch: Vec<usize> = (0..pool_cards.len()).collect();
+        let my_unseen_lib_len = root
+            .snapshot
+            .player(h.seat)
+            .library
+            .iter()
+            .filter(|id| !fixed_in_lib(id))
+            .count();
+        let mut my_dummy = vec![0u8; if d.config.belief_ms { 0 } else { my_unseen_lib_len }];
+        let mut prop_picks: Vec<Vec<usize>> = Vec::with_capacity(n_draw);
+        let mut base_ll: Vec<f32> = Vec::with_capacity(n_draw);
+        let mut prop_masks: Vec<u8> = Vec::with_capacity(n_draw);
+        let mut prop_feats: Vec<[f32; BELIEF_META_F]> =
+            if threat_logits.is_some() { Vec::with_capacity(n_draw) } else { Vec::new() };
+
+        for j in 0..n_draw {
+            if d.config.belief_ms {
+                let mut prng = seed.wrapping_add((j as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15));
+                let n_pool = scratch.len();
+                for i in 0..opp_unseen_hand {
+                    let swap_idx = i + (mix(&mut prng) as usize % (n_pool - i));
+                    scratch.swap(i, swap_idx);
+                }
+            } else {
+                // Exact JavaRandom parity with Root::sample(s_j) while avoiding Game clones on unpicked proposals
+                let s_j = seed.wrapping_add(j as u64 * 0x9E37);
+                let mut jrng = playmat_engine::rng::JavaRandom::new((s_j ^ 0x5851_f42d_4c95_7f2d) as i64);
+                for (k_i, slot) in scratch.iter_mut().enumerate() {
+                    *slot = k_i;
+                }
+                for s_i in 0..root.snapshot.players.len() {
+                    if s_i == h.seat {
+                        if my_dummy.len() >= 2 {
+                            jrng.shuffle(&mut my_dummy);
+                        }
+                    } else if s_i == opp {
+                        jrng.shuffle(&mut scratch);
+                    }
+                }
+            }
+            let chosen = scratch[..opp_unseen_hand].to_vec();
+            let mut ll = 0.0f32;
+            let mut mask = fixed_threat_mask;
+            for &pi in &chosen {
+                let pc = pool_cards[pi];
+                ll += pc.ll;
+                mask |= pc.tmask;
+            }
+            if threat_logits.is_some() {
+                prop_feats.push(mask_to_belief_meta(mask));
+            }
+            prop_picks.push(chosen);
+            base_ll.push(ll);
+            prop_masks.push(mask);
+        }
+        if let Some(tl) = &threat_logits {
+            let threat_scale = d.config.threat_w as f32 / 1000.0;
+            apply_threat_tilt(&mut base_ll, &prop_feats, tl, threat_scale);
+        }
+        let m = base_ll.iter().copied().fold(f32::MIN, f32::max);
+        let w: Vec<f64> = base_ll.iter().map(|&l| ((l - m) as f64).sexp()).collect();
+        let s: f64 = w.iter().sum::<f64>().max(1e-12);
+
+        let materialize = |chosen_pool_indices: &[usize], mat_seed: u64| -> Game {
+            let mut in_hand_flag = vec![false; pool_cards.len()];
+            for &pi in chosen_pool_indices {
+                in_hand_flag[pi] = true;
+            }
+            let mut hand_iter = chosen_pool_indices.iter().map(|&pi| pool_cards[pi].id);
+            let new_opp_hand: Vec<ObjId> =
+                opp_hand_orig.iter().map(|id| if fixed_in_hand(id) { *id } else { hand_iter.next().unwrap() }).collect();
+            let mut rem_pool: Vec<ObjId> = pool_cards
+                .iter()
+                .enumerate()
+                .filter_map(|(pi, pc)| (!in_hand_flag[pi]).then_some(pc.id))
+                .collect();
+            let mut jrng = playmat_engine::rng::JavaRandom::new((mat_seed ^ 0x5851_f42d_4c95_7f2d) as i64);
+            if rem_pool.len() >= 2 {
+                jrng.shuffle(&mut rem_pool);
+            }
+            let mut lib_iter = rem_pool.into_iter();
+            let new_opp_lib: Vec<ObjId> =
+                opp_lib_orig.iter().map(|id| if fixed_in_lib(id) { *id } else { lib_iter.next().unwrap() }).collect();
+            root.sample_with_opp_hand(opp, &new_opp_hand, &new_opp_lib, mat_seed)
+        };
+
+        if d.config.belief_ms {
+            // Rao-Blackwellized multiset deduplication + stratified low-variance systematic resampling:
+            // 1. Sum exact posterior mass per distinct unseen-hand card-ID multiset.
+            // 2. Order multisets by threat stratum (playable_instant/counter/sweeper, full threat_mask, cids)
+            //    so any threat stratum with posterior mass >= 1/eff_k is guaranteed representation without mode collapse.
+            let mut by_hand: std::collections::HashMap<Vec<u32>, (f64, usize, u8)> = std::collections::HashMap::new();
+            for (j, chosen) in prop_picks.iter().enumerate() {
+                let mut key: Vec<u32> = chosen.iter().map(|&pi| pool_cards[pi].cid).collect();
+                key.sort_unstable();
+                let pj = w[j] / s;
+                let mask = prop_masks[j];
+                by_hand.entry(key).and_modify(|e| e.0 += pj).or_insert((pj, j, mask));
+            }
+            let mut strata: Vec<(Vec<u32>, f64, usize, u8)> =
+                by_hand.into_iter().map(|(k_cids, (p, j, mask))| (k_cids, p, j, mask)).collect();
+            strata.sort_by(|a, b| {
+                let sa = ((a.3 >> 5) & 1, a.3 & 0x03, a.3);
+                let sb = ((b.3 >> 5) & 1, b.3 & 0x03, b.3);
+                sb.cmp(&sa).then_with(|| a.0.cmp(&b.0))
+            });
+            let step = 1.0 / eff_k as f64;
+            let u0 = (uniform(rng) as f64) * step;
+            let mut cum = 0.0f64;
+            let mut grid_m = 0usize;
+            let mut out = Vec::with_capacity(eff_k);
+            for (si, (_, p, prop_j, _)) in strata.iter().enumerate() {
+                cum += *p;
+                let is_last = si + 1 == strata.len();
+                let mut cnt = 0u32;
+                while grid_m < eff_k && (u0 + (grid_m as f64) * step < cum || is_last) {
+                    cnt += 1;
+                    grid_m += 1;
+                }
+                if cnt > 0 {
+                    let g = materialize(&prop_picks[*prop_j], seed.wrapping_add(*prop_j as u64 * 0x9E37));
+                    out.push((g, cnt as f64));
+                }
+                if grid_m >= eff_k {
+                    break;
+                }
+            }
+            out
+        } else {
+            let wf: Vec<f32> = w.iter().map(|v| (v / s) as f32).collect();
+            let mut picks: Vec<usize> = (0..eff_k).map(|_| draw(&wf, rng)).collect();
+            picks.sort_unstable();
+            let mut groups: Vec<(usize, u32)> = Vec::new();
+            for p in picks {
+                if let Some(last) = groups.last_mut() {
+                    if last.0 == p {
+                        last.1 += 1;
+                        continue;
+                    }
+                }
+                groups.push((p, 1));
+            }
+            let mut keep = Vec::with_capacity(groups.len());
+            for (i, cnt) in groups.into_iter().rev() {
+                keep.push((root.sample(seed.wrapping_add(i as u64 * 0x9E37)), cnt as f64));
+            }
+            keep
+        }
+    } else {
+        (0..eff_k).map(|j| (root.sample(seed.wrapping_add(j as u64 * 0x9E37)), 1.0)).collect()
     }
 }
 
@@ -846,4 +1035,72 @@ pub fn hidden_objects(game: &Game, seat: Seat) -> Vec<ObjId> {
     v.extend(game.player(seat).library.iter());
     v.retain(|id| matches!(game.obj(*id).zone, Zone::Hand | Zone::Library));
     v
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn threat_tilt_subtracts_prior_and_upweights_above_prior_minority_threat() {
+        // 20 equal-prior proposals: 3 have counterspell (y[0] = 1, prior P0 = 0.15), 17 do not (y[0] = 0).
+        // Threat head predicts posterior P*(counter) = 0.38 -> raw logit tl[0] = ln(0.38 / 0.62) = -0.4895 < 0!
+        // Without prior subtraction, negative tl[0] penalized counterspell hands. With prior subtraction,
+        // delta = logit(0.38) - logit(0.15) = +1.245 > 0, upweighting counterspell hands to match P* = 0.38!
+        let mut base_ll = vec![0.0f32; 20];
+        let mut feats = vec![[0.0f32; BELIEF_META_F]; 20];
+        for f in feats.iter_mut().take(3) {
+            f[0] = 1.0;
+        }
+        let mut tl = [0.0f32; BELIEF_META_F];
+        let p_star = 0.38f32;
+        tl[0] = (p_star / (1.0 - p_star)).sln();
+        assert!(tl[0] < 0.0, "raw logit for P*=0.38 is negative");
+        // Set non-zero neutral priors on other slots (all 0 in proposals -> p0 clamped to 0.01; set tl[1..8] = logit(0.01))
+        let neutral_zero_logit = (0.01f32 / 0.99f32).sln();
+        for slot in tl.iter_mut().skip(1) {
+            *slot = neutral_zero_logit;
+        }
+
+        apply_threat_tilt(&mut base_ll, &feats, &tl, 1.0);
+        assert!(
+            base_ll[0] > base_ll[3] + 1.0,
+            "counterspell hand must be upweighted when P*(0.38) > P0(0.15), got {} vs {}",
+            base_ll[0],
+            base_ll[3]
+        );
+
+        let m = base_ll.iter().copied().fold(f32::MIN, f32::max);
+        let w: Vec<f64> = base_ll.iter().map(|&l| ((l - m) as f64).sexp()).collect();
+        let sum_w: f64 = w.iter().sum();
+        let post_p: f64 = w[..3].iter().sum::<f64>() / sum_w;
+        assert!((post_p - p_star as f64).abs() < 1e-3, "posterior mass {post_p} should match {p_star}");
+
+        // Conversely, when P*(counter) = 0.05 < P0(0.15), counterspell hands MUST be downweighted!
+        let mut base_ll2 = vec![0.0f32; 20];
+        tl[0] = (0.05f32 / 0.95f32).sln();
+        apply_threat_tilt(&mut base_ll2, &feats, &tl, 1.0);
+        assert!(
+            base_ll2[0] < base_ll2[3] - 1.0,
+            "counterspell hand must be downweighted when P*(0.05) < P0(0.15), got {} vs {}",
+            base_ll2[0],
+            base_ll2[3]
+        );
+    }
+
+    #[test]
+    fn pairing_swaps_seat_and_play_draw_across_duplicate_pairs_and_covers_452_decks() {
+        for k in 0..100 {
+            let p0 = crate::play::pairing(2 * k, 452, &[4, 1, 1]);
+            let p1 = crate::play::pairing(2 * k + 1, 452, &[4, 1, 1]);
+            assert_eq!(p0.decks, p1.decks, "duplicate pair must share deck matchup");
+            assert_ne!(p0.decks[0], p0.decks[1], "decks must be distinct");
+            assert_eq!(p0.first, p1.first, "first seat fixed across pair while me swaps");
+            assert_eq!(p0.me ^ 1, p1.me, "learner seat must swap across (2k, 2k+1)");
+            let on_play_0 = p0.me == p0.first;
+            let on_play_1 = p1.me == p1.first;
+            assert_ne!(on_play_0, on_play_1, "learner must be on play once and on draw once per pair");
+            assert_ne!(crate::play::seed(2 * k), crate::play::seed(2 * k + 1), "deals must not share identical RNG seeds");
+        }
+    }
 }
