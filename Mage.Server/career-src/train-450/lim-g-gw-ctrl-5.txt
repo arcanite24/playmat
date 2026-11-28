@@ -1,0 +1,34 @@
+# name: Train450 lim-g-gw-ctrl-5
+# archetype: limited_ctrl
+# colors: GW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Abstruse Interference
+2 Ahn-Crop Champion
+1 Ancient Greenwarden
+1 Appa, Steadfast Guardian
+1 Avacyn, Guardian Angel
+2 Bramblecrush
+1 Doorkeeper Thrull
+2 Gnarled Professor
+1 Greenbelt Guardian
+2 Hyrax Tower Scout
+1 Krotiq Nestguard
+1 Longshot Squad
+1 Plunge into Winter
+1 Rite of Harmony
+2 Ruthless Predation
+2 Sagittars' Volley
+1 Sephara, Sky's Blade
+1 She-Hulk, Jade Defender
+1 Skyscythe Engulfer
+2 Snapping Sailback
+2 Soul Partition
+2 Spell Shrivel
+1 True Love's Kiss
+1 Valiant Veteran
+1 Vanguard of the Rose
+1 Vanish into Eternity
+10 Forest
+4 Kyoshi Village
+7 Plains
+4 Temple of Plenty

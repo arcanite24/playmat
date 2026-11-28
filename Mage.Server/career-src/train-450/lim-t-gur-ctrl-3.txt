@@ -1,0 +1,38 @@
+# name: Train450 lim-t-gur-ctrl-3
+# archetype: limited_ctrl
+# colors: GUR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Assimilate Essence
+1 Banishing Betrayal
+1 Cacophodon
+1 Chrome Host Seedshark
+1 Colossal Skyturtle
+1 Council of Echoes
+1 Dire-Strain Rampage
+1 Dragonlord Atarka
+1 Frenzied Arynx
+2 Frenzied Baloth
+1 Full Steam Ahead
+1 Galestrike
+1 Get Out
+1 Gleeful Demolition
+1 Hardened Berserker
+1 Hill Gigas
+1 Hour of Devastation
+2 Hydrosurge
+1 Kavaron Skywarden
+2 Klothys, God of Destiny
+1 Krotiq Nestguard
+1 Mana Sculpt
+2 Mechan Shieldmate
+2 Ral's Staticaster
+1 Redcap Raiders
+2 Springsage Ritual
+1 Zahid, Djinn of the Lamp
+2 Zhalfirin Shapecraft
+4 Earth, Sector 001
+4 Forest
+5 Island
+4 Lakeside Shack
+4 Meditation Pools
+4 Mountain

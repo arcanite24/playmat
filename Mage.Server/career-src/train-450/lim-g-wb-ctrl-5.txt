@@ -1,0 +1,35 @@
+# name: Train450 lim-g-wb-ctrl-5
+# archetype: limited_ctrl
+# colors: WB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Abigale, Poet Laureate
+1 Ao, the Dawn Sky
+2 Assault Griffin
+2 Boulderbranch Golem
+1 Commander Raffi Musiker
+1 Dead Reveler
+1 Dream Seizer
+2 Egon, God of Death
+1 Glorifier of Dusk
+1 Grim Strider
+1 Grotesque Demise
+2 Horribly Awry
+1 Kellan's Lightblades
+1 Launch Party
+1 Nightmarish End
+1 Oketra the True
+2 Pharika's Cure
+2 Rally the Ancestors
+2 Ronom Unicorn
+1 Rowan's Grim Search
+1 Self-Assembler
+1 Sephiroth's Intervention
+1 Spectral Snatcher
+1 Thirsting Shade
+1 Treasure Dredger
+2 Vraska's Final Mercy
+1 Warping Wail
+4 Neglected Manor
+6 Plains
+4 Sunlit Marsh
+11 Swamp

@@ -1,0 +1,35 @@
+# name: Train450 lim-g-rw-mid-3
+# archetype: limited_mid
+# colors: RW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Basri, Tomorrow's Champion
+1 Conspicuous Snoop
+1 Defiant Strike
+1 Flourishing Fox
+2 Frost Bite
+2 Gatstaf Arsonists
+2 Gavony Dawnguard
+1 Knight of Grace
+2 Lotusguard Disciple
+1 Momo, Friendly Flier
+2 Panicked Bystander
+1 Reality Smasher
+1 Rile
+1 Savior of the Small
+1 Scorn Effigy
+1 Seedglaive Mentor
+2 Seraph of the Sword
+1 Shattering Blow
+1 Spectacular Spider-Man
+1 Spireside Infiltrator
+1 Spontaneous Flight
+2 Stormcrag Elemental
+1 The Chase Is On
+2 Twinblade Paladin
+2 Unwanted Remake
+1 Verix Bladewing
+1 Wayspeaker Bodyguard
+4 Clifftop Retreat
+4 Furycalm Snarl
+6 Mountain
+10 Plains

@@ -1,0 +1,21 @@
+# name: Train450 guild-wu-midrange-8
+# archetype: midrange
+# colors: WU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Ambush Paratrooper
+3 Bovine Intervention
+4 Consider the Prime Directive
+4 Coordinated Maneuver
+3 Envoy of Okinec Ahau
+1 Ephemerate
+4 Errant and Giada
+1 Gadwick, the Wizened
+2 Isamaru, Hound of Konda
+1 Kastral, the Windcrested
+4 Kefnet the Mindful
+4 Loch Mare
+3 Ojutai, Soul of Winter
+4 Adarkar Wastes
+4 Azorius Guildgate
+8 Island
+8 Plains

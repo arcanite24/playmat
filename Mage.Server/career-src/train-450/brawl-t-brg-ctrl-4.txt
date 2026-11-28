@@ -1,0 +1,53 @@
+# name: Train450 brawl-t-brg-ctrl-4
+# archetype: brawl_ctrl
+# colors: BRG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Abstruse Interference
+1 Agent Venom
+1 Chandra's Fury
+1 Clear a Path
+1 Cling to Dust
+1 Complete Disregard
+1 Crew Captain
+1 Day of Black Sun
+1 Defenestrate
+1 Draconautics Engineer
+1 Drag to the Roots
+1 Dryad of the Ilysian Grove
+1 Elder Auntie
+1 Enemy of Enlightenment
+1 Fallaji Chaindancer
+1 Hallar, the Firefletcher
+1 Hulk, Gamma Goliath
+1 Outland Colossus
+1 Rabid Attack
+1 Rampaging Geoderm
+1 Rust Harvester
+1 Scouring Sands
+1 Showstopper
+1 Spell Shrivel
+1 Sprinting Warbrute
+1 Stingerquill Charm
+1 Terra Stomper
+1 Terror of the Peaks
+1 Thawbringer
+1 Unlicensed Disintegration
+1 Vandalblast
+1 Void Shatter
+1 Warping Wail
+1 Witch's Mark
+1 Bleeding Woods
+1 Ferenginar
+4 Forest
+1 Hell's Kitchen
+1 Jungle Hollow
+6 Mountain
+1 Razortrap Gorge
+1 Restless Ridgeline
+1 Restless Vents
+1 Rootbound Crag
+1 Rugged Highlands
+1 Strangled Cemetery
+1 Sulfurous Mire
+4 Swamp
+1 Temple of Malice

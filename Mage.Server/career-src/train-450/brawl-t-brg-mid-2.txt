@@ -1,0 +1,55 @@
+# name: Train450 brawl-t-brg-mid-2
+# archetype: brawl_mid
+# colors: BRG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Abstruse Interference
+1 Angry Rabble
+1 Architect of the Untamed
+1 Ash Zealot
+1 Banehound
+1 Battle Mammoth
+1 Biotech Specialist
+1 Carven Caryatid
+1 Consuming Ashes
+1 Deathmark
+1 Elvish Hydromancer
+1 Go for the Throat
+1 Greenbelt Radical
+1 Grumgully, the Generous
+1 Grunn, the Lonely King
+1 Irascible Wolverine
+1 Live or Die
+1 Moonstone, Harsh Mistress
+1 Playful Shove
+1 Quartzwood Crasher
+1 Raging Goblinoids
+1 Rakdos, Lord of Riots
+1 Rending Flame
+1 Root Out
+1 Ruinous Path
+1 Ruric Thar, Magecrusher
+1 Shamanic Revelation
+1 Siege Zombie
+1 Stark Industries Executive
+1 Sun-Collared Raptor
+1 The Great Goblin
+1 Tome Shredder
+1 Weirded Vampire
+1 Whiskerquill Scribe
+1 Wolfbat
+1 Yargle, Glutton of Urborg
+1 Bristling Backwoods
+1 Ferenginar
+4 Forest
+1 Foul Orchard
+1 Game Trail
+1 Gongaga, Reactor Town
+1 Jungle Hollow
+1 Mirkwood
+4 Mountain
+1 Necroblossom Snarl
+1 Omashu City
+1 Rakdos Guildgate
+1 Stomping Ground
+1 Sulfurous Springs
+4 Swamp

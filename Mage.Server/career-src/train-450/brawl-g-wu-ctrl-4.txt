@@ -1,0 +1,48 @@
+# name: Train450 brawl-g-wu-ctrl-4
+# archetype: brawl_ctrl
+# colors: WU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Aerial Assault
+1 Argivian Avenger
+1 Bastion Inventor
+1 Collective Effort
+1 Contentious Plan
+1 Cut Short
+1 Deepfathom Skulker
+1 Drag Under
+1 Duty Beyond Death
+1 Griffnaut Tracker
+1 Heliod, Sun-Crowned
+1 Hushwing Gryff
+1 Illusory Angel
+1 Indoctrination Attendant
+1 Inspiring Roar
+1 Justiciar's Portal
+1 Laboratory Brute
+1 Leave in the Dust
+1 Memory Drain
+1 Mental Modulation
+1 Nebelgast Intruder
+1 Neutralize
+1 Neutralizing Blast
+1 Pollen-Shield Hare
+1 Pyrrhic Strike
+1 Ray of Dissolution
+1 Seraph of the Suns
+1 Skyship Buccaneer
+1 Spectral Denial
+1 Sphinx of New Prahv
+1 Timely Interference
+1 Traveling Philosopher
+1 Unexpected Assistance
+1 Unswerving Sloth
+1 Abandoned Campground
+1 Adarkar Wastes
+1 Azorius Guildgate
+1 Idyllic Beachfront
+9 Island
+9 Plains
+1 Restless Anchorage
+1 Skybridge Towers
+1 Temple of Enlightenment
+1 Vulcan

@@ -1,0 +1,54 @@
+# name: Train450 brawl-t-ubr-ramp-3
+# archetype: brawl_ramp
+# colors: UBR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Adeliz, the Cinder Wind
+1 Backstreet Bruiser
+1 Battlefield Scavenger
+1 Billowing Shriekmass
+1 Bloodthirsty Conqueror
+1 Burning-Rune Demon
+1 Candy Grapple
+1 Chandra's Outrage
+1 Cinderclasm
+1 Daggerdrome Imp
+1 Dreamcaller Siren
+1 Fear of the Dark
+1 Frontline War-Rager
+1 Giant Koi
+1 Ilharg, the Raze-Boar
+1 Khan, Despot by Design
+1 Killing Glare
+1 Lathnu Hellion
+1 Lore Drakkis
+1 Maze Rusher
+1 Misty Mountains Raider
+1 Omen Hawker
+1 Ondu Champion
+1 Prakhata Club Security
+1 Reckless Air Strike
+1 Rekindling Phoenix
+1 Rooting Moloch
+1 Scarblade Scout
+1 Seize the Spoils
+1 Spined Megalodon
+1 Theorix Charm
+1 Tyrant of Kher Ridges
+1 Vampire Revenant
+1 Vampire Socialite
+1 Walk the Plank
+1 Airship Engine Room
+1 Bloodfell Caves
+1 Canyon Slough
+1 Goblin-town
+3 Island
+1 Molten Tributary
+6 Mountain
+1 Murky Sewer
+1 Restless Vents
+1 Sinister Hideout
+4 Swamp
+1 Temple of Epiphany
+1 Theorix Annex
+1 Volatile Fjord
+1 Watery Grave

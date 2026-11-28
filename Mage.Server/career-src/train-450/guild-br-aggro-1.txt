@@ -1,0 +1,24 @@
+# name: Train450 guild-br-aggro-1
+# archetype: aggro
+# colors: BR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Bold Impaler
+3 Bomat Courier
+3 Dreadmaw's Ire
+2 Eardrum Rattler
+2 Fiery Impulse
+3 Herald of Torment
+1 Knight of Dusk's Shadow
+3 Kolaghan Stormsinger
+2 Lightning Strike
+3 Marwyn, the Clearcutter
+3 Misery's Shadow
+3 Rakdos, Lord of Riots
+2 Sear
+2 Slickshot Show-Off
+2 Tribal Flames
+2 Wizard's Lightning
+4 Goblin-town
+10 Mountain
+4 Razortrap Gorge
+3 Swamp

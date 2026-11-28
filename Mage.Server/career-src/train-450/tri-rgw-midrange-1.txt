@@ -1,0 +1,24 @@
+# name: Train450 tri-rgw-midrange-1
+# archetype: midrange
+# colors: RGW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Abomination, Terrifying Titan
+3 Blazing Hope
+4 Coalition Warbrute
+1 Dual-Sun Technique
+3 Falkenrath Pit Fighter
+2 Hardened Academic
+3 Insatiable Gorgers
+2 Long Road Home
+2 Loxodon Surveyor
+2 Nyxborn Colossus
+3 Relentless Raptor
+3 Shock
+3 The Chase Is On
+2 Wonder Man, Hollywood Hero
+4 Battlefield Forge
+2 Forest
+7 Mountain
+3 Plains
+4 Restless Prairie
+4 Sunpetal Grove

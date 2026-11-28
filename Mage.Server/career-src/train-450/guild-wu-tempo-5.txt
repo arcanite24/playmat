@@ -1,0 +1,22 @@
+# name: Train450 guild-wu-tempo-5
+# archetype: tempo
+# colors: WU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Aerial Maneuver
+2 Blessed Spirits
+3 Depower
+2 Dragon's Eye Sentry
+1 Force Away
+4 Glamer Gifter
+4 Hydrosurge
+2 Immolating Glare
+3 Isamaru, Hound of Konda
+4 It'll Quench Ya!
+4 Loyal Gryff
+2 Reality Hemorrhage
+3 Tiger-Seal
+2 You Find the Villains' Lair
+8 Island
+6 Plains
+4 Port Town
+4 Sharlayan, Nation of Scholars

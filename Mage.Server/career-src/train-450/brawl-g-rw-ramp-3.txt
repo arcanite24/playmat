@@ -1,0 +1,49 @@
+# name: Train450 brawl-g-rw-ramp-3
+# archetype: brawl_ramp
+# colors: RW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Airbender's Reversal
+1 Bane of Bala Ged
+1 Beatrix, Loyal General
+1 Bloodrage Brawler
+1 Burning Hands
+1 Cleric of the Forward Order
+1 Deathless Behemoth
+1 Drogskol Infantry
+1 Dutiful Griffin
+1 Dwarven Priest
+1 Evra, Halcyon Witness
+1 Felidar Sovereign
+1 Fleeting Effigy
+1 Grave Birthing
+1 Hellkite Punisher
+1 Heroes of the Revel
+1 Krenko, Baron of Tin Street
+1 Odric, Blood-Cursed
+1 Paired Tactician
+1 Phyrexian Archivist
+1 Resolute Survivors
+1 Scrollshift
+1 Searing Barrage
+1 Selesnya Sentry
+1 Sephara, Sky's Blade
+1 Serene Steward
+1 Sigiled Sentinel
+1 Spectacular Pileup
+1 Splatter Thug
+1 Squash
+1 Stockpiling Celebrant
+1 Stormcaller of Keranos
+1 Sungrace Pegasus
+1 Volcanic Rambler
+1 Witchstalker Frenzy
+1 Clifftop Retreat
+1 Fields of Strife
+1 Furycalm Snarl
+1 Inspiring Vantage
+1 Iron Hills
+7 Mountain
+10 Plains
+1 Sacred Foundry
+1 Stone Quarry
+1 Sun-Blessed Peak

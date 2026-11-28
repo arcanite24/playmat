@@ -1,0 +1,38 @@
+# name: Train450 lim-t-rgw-aggro-1
+# archetype: limited_aggro
+# colors: RGW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Ancestral Statue
+1 Angelic Captain
+1 Bring Low
+2 Cantankerous Captain
+1 Cloudsteel Kirin
+2 Creeping Trailblazer
+2 Dragonkin Berserker
+1 Excavation Explosion
+2 Hired Claw
+2 Humble Naturalist
+1 Jeskai Student
+1 Kitesail Scout
+1 Mary Jane Watson
+1 Netcaster Spider
+1 Overwhelming Surge
+1 Rampaging Brontodon
+2 Redrock Sentinel
+2 Rhonas the Indomitable
+1 Searing Spear
+2 Selesnya Charm
+1 Smelt
+1 Steady Aim
+1 Stoic Builder
+2 Summon: G.F. Ifrit
+1 Swallow Whole
+1 Torch Courier
+1 Wanderbrine Preacher
+1 Warclamp Mastiff
+4 Forest
+5 Mountain
+2 Plains
+4 Temple Garden
+4 Temple of Abandon
+4 Temple of Plenty

@@ -1,0 +1,38 @@
+# name: Train450 lim-g-ub-mid-4
+# archetype: limited_mid
+# colors: UB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Aegis Sculptor
+1 Arcane Subtraction
+2 Blue Dragon
+2 Captive Weird
+1 Dark Remedy
+1 Darkblade Agent
+1 Dread Shade
+1 Faerie Dreamthief
+1 Failed Inspection
+1 Felhide Minotaur
+1 Gravecrawler
+1 Great Fierce Bee
+2 Locke Cole
+1 Maha, Its Feathers Night
+2 Returned Phalanx
+2 Rotting Regisaur
+1 Shadowborn Demon
+1 Spellgyre
+1 Spin Out
+1 Spiteful Hexmage
+1 Stir Up Trouble
+1 Stolen by the Fae
+1 Supernatural Stamina
+1 Talion, the Kindly Lord
+1 The Mindskinner
+1 Torrential Gearhulk
+2 Varragoth, Bloodsky Sire
+1 Venomized Cat
+1 Whisper of the Dross
+1 Zagoth Mamba
+4 A.I.M. Labs
+4 Dismal Backwater
+6 Island
+10 Swamp

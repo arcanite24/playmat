@@ -1,0 +1,18 @@
+# name: Train450 mono-w-aggro-1
+# archetype: aggro
+# colors: W
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Archon of Sun's Grace
+4 Belladonna Took
+4 Forsake the Worldly
+4 Friendly Teddy
+3 Giada, Font of Hope
+3 Giant Killer
+1 Guardian of Faith
+3 Hundred-Handed One
+2 Maned Serval
+4 Merchant's Dockhand
+3 Reality Hemorrhage
+3 Strength of Arms
+3 Touch of the Void
+21 Plains

@@ -1,0 +1,20 @@
+# name: Train450 mono-r-midrange-7
+# archetype: midrange
+# colors: R
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Betrayer's Bargain
+2 Fiery Annihilation
+3 Fire Urchin
+2 Goblin Maskmaker
+2 Invasive Maneuvers
+2 Lathnu Hellion
+3 Might of the Meek
+1 Price of Freedom
+3 Qal Sisma Behemoth
+1 Quaketusk Boar
+3 Ragefire
+3 Rubblebelt Recluse
+3 Sawblade Scamp
+3 Snare Thopter
+4 Ugin's Construct
+24 Mountain

@@ -1,0 +1,37 @@
+# name: Train450 lim-g-rw-aggro-1
+# archetype: limited_aggro
+# colors: RW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Aerial Assault
+1 Aethergeode Miner
+1 Akroan Phalanx
+1 Ao, the Dawn Sky
+1 Benalish Honor Guard
+1 Bridled Bighorn
+1 Daring Mechanic
+1 Declaration in Stone
+2 Dragonlord's Servant
+1 Dreadmaw's Ire
+2 Endrider Catalyzer
+1 Flame Spill
+1 Flowstone Kavu
+1 Garrison Excavator
+2 Goblin Barrage
+1 Heart-Piercer Manticore
+1 Keeper of the Lens
+2 Kolaghan Warmonger
+1 Mounted Dreadknight
+1 Penance Stare
+1 Resistance Squad
+1 Sourbread Auntie
+2 Stone Haven Medic
+2 Stoneforge Acolyte
+2 Sunrise Cavalier
+1 Survive the Night
+1 Truefire Paladin
+1 Turn Inside Out
+2 Underworld Rage-Hound
+4 Boros Guildgate
+4 Furycalm Snarl
+8 Mountain
+7 Plains

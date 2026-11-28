@@ -1,0 +1,37 @@
+# name: Train450 lim-g-ub-ctrl-5
+# archetype: limited_ctrl
+# colors: UB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Al Bhed Salvagers
+1 Assassin's Ink
+1 Common Crook
+1 Contradict
+2 Curse of the Swine
+1 Deny Existence
+2 Easy Prey
+1 Geistlight Snare
+1 Ghost, Spectral Saboteur
+1 Grave Researcher
+2 Hidetsugu and Kairi
+1 I Am Iron Man
+1 Kain, Traitorous Dragoon
+1 Lash of the Whip
+1 Lord of the Forsaken
+1 Machine Over Matter
+2 Mudbutton Cursetosser
+1 Nimraiser Paladin
+1 Oculus Whelp
+2 Opal Lake Gatekeepers
+1 Psychic Rebuttal
+1 Rapid Hybridization
+1 Silumgar Sorcerer
+1 Tormented Hero
+1 Vile Rebirth
+1 Weldfast Monitor
+1 Whisper Agent
+2 Wiccan, Rising Magician
+1 You Find the Villains' Lair
+4 Dismal Backwater
+9 Island
+4 Shipwreck Marsh
+8 Swamp

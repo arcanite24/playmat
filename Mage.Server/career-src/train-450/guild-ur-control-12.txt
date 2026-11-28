@@ -1,0 +1,19 @@
+# name: Train450 guild-ur-control-12
+# archetype: control
+# colors: UR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Call In a Professional
+4 Champion of the Path
+2 Glacial Dragonhunt
+2 Izzet Charm
+2 Mana Sculpt
+2 Negate
+4 Reasonable Doubt
+4 Scouring Sands
+4 Skaab Goliath
+4 Tears of Valakut
+4 Winterflame
+4 Baron, Airship Kingdom
+9 Island
+9 Mountain
+4 Thundering Falls

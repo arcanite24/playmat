@@ -1,0 +1,36 @@
+# name: Train450 lim-g-ur-ctrl-6
+# archetype: limited_ctrl
+# colors: UR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Aethertide Whale
+1 Agate Assault
+1 Ambitious Assault
+1 Belligerent Whiptail
+2 Boggart Brute
+1 Chandra's Fury
+1 Countervailing Winds
+2 Cryptic Cruiser
+1 Depths of Desire
+1 Draconic Intervention
+1 Draugr Thought-Thief
+1 Electrify
+1 Elusive Spellfist
+1 Excavation Explosion
+1 Finch Formation
+1 Frilled Deathspitter
+1 Hoarding Dragon
+1 Jessica Jones, Private Eye
+2 Lake-town Mariners
+2 Legion Loyalist
+2 Mesmerizing Benthid
+1 Minister of Inquiries
+2 Multiple Choice
+1 Roast
+1 Svyelun of Sea and Sky
+2 Swan Song
+1 Untimely Malfunction
+1 Witchstalker Frenzy
+4 Innovative Commons
+8 Island
+9 Mountain
+4 Spectacle Summit

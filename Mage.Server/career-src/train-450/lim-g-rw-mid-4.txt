@@ -1,0 +1,37 @@
+# name: Train450 lim-g-rw-mid-4
+# archetype: limited_mid
+# colors: RW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 70,000 Light-Years from Home
+1 Automated Artificer
+1 Bathe in Dragonfire
+1 Boros Charm
+1 Brambleback Brute
+2 Brazen Buccaneers
+2 Burning Sun's Avatar
+1 Civic Stalwart
+1 Cursed Courtier
+1 Festival Crasher
+1 First Day of Class
+1 Freejam Regent
+1 Goma Fada Vanguard
+1 Incinerator of the Guilty
+2 Kuldotha Cackler
+1 Mummy Paramount
+1 Nadaar, Selfless Paladin
+1 Personify
+1 Pious Wayfarer
+1 Pyroclastic Hellion
+2 Resistance Reunited
+1 Runed Servitor
+1 Seifer Almasy
+1 Skullknocker Ogre
+1 Swooping Lookout
+1 Union of the Third Path
+2 Warlord's Elite
+2 Warren Warleader
+1 Watchers of the Dead
+4 Boros Guildgate
+4 Elegant Parlor
+8 Mountain
+8 Plains

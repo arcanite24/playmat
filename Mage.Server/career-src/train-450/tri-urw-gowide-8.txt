@@ -1,0 +1,25 @@
+# name: Train450 tri-urw-gowide-8
+# archetype: gowide
+# colors: URW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Adept Watershaper
+2 Agent Phil Coulson
+4 Barge In
+1 Bygone Bishop
+2 Callous Dismissal
+4 Guardian of the Great Door
+2 Harvestrite Host
+2 Jor Kadeen, First Goldwarden
+2 Labyrinth Guardian
+2 Lantern Bearer
+3 Lathnu Hellion
+4 Lifecreed Duo
+2 Selhoff Entomber
+4 Shacklegeist
+2 Skywhaler's Shot
+4 Deserted Beach
+3 Island
+2 Mountain
+4 Needle Spires
+5 Plains
+4 Steam Vents

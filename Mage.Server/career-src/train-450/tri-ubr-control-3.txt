@@ -1,0 +1,25 @@
+# name: Train450 tri-ubr-control-3
+# archetype: control
+# colors: UBR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Archenemy's Charm
+2 Bar the Gate
+2 Caustic Exhale
+1 Curate
+3 Exclude
+1 Frostbite Pyromental
+3 Josu Vess, Lich Knight
+1 Jwari Disruption
+1 Kolaghan's Command
+2 Rumbling Ruin
+2 Saw It Coming
+4 Slaying Fire
+2 Soul of New Phyrexia
+3 Spell Rupture
+4 Vampires' Vengeance
+5 Island
+5 Mountain
+4 Swamp
+4 Thundering Falls
+4 Tramway Station
+4 Waterfront District

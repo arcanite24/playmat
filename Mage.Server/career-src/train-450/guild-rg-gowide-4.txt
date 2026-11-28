@@ -1,0 +1,20 @@
+# name: Train450 guild-rg-gowide-4
+# archetype: gowide
+# colors: RG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Ball Lightning
+4 Bejeweled Warg
+3 Charging Badger
+4 Environmental Scientist
+4 Get a Leg Up
+4 Inferno Hellion
+4 Old-Growth Dryads
+3 Scorching Dragonfire
+4 Spider Manifestation
+1 The Last Agni Kai
+2 Void Grafter
+3 Wildborn Preserver
+9 Forest
+4 Konstrari Annex
+5 Mountain
+4 Timber Gorge

@@ -1,0 +1,20 @@
+# name: Train450 guild-wu-bigmana-10
+# archetype: bigmana
+# colors: WU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Curator of Destinies
+4 Daring Thunder-Thief
+3 Defiler of Dreams
+2 Hotshot Mechanic
+2 Long Road Home
+4 Make Your Move
+4 Pet Sehlat
+2 Righteousness
+3 Scourge of Fleets
+2 Serum Sovereign
+4 Spectral Sailor
+2 Ulamog's Nullifier
+10 Island
+4 Meandering River
+7 Plains
+4 University Campus

@@ -1,0 +1,34 @@
+# name: Train450 lim-t-ubr-mid-2
+# archetype: limited_mid
+# colors: UBR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Akoum Firebird
+2 Akul the Unrepentant
+2 Bane Alley Blackguard
+2 Coalstoke Gearhulk
+1 Cunning Strike
+1 Doomsday Excruciator
+1 Explosive Entry
+2 Foul Play
+2 Furious Resistance
+2 Greedy Freebooter
+1 Humbling Elder
+2 Jaded Sell-Sword
+2 Keldon Overseer
+2 Kinzu of the Bleak Coven
+1 Koth, the Geomancer
+1 Lightning Phoenix
+1 Liliana's Steward
+2 Playful Shove
+1 Prowler, Clawed Thief
+1 Sygg, Wanderwine Wisdom
+1 The Ancient One
+2 Ty Lee, Artful Acrobat
+1 Wild Slash
+1 Wind Drake
+4 Canyon Slough
+2 Island
+6 Mountain
+4 Swamp
+4 Swiftwater Cliffs
+4 Wandering Fumarole

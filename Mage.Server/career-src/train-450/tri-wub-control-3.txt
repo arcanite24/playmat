@@ -1,0 +1,23 @@
+# name: Train450 tri-wub-control-3
+# archetype: control
+# colors: WUB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Admiral's Order
+4 Angel of Condemnation
+2 Basri's Solidarity
+2 Deadly Precision
+4 Deep-Sea Terror
+2 Final Vengeance
+4 Invoke the Divine
+2 Metallic Rebuke
+1 Out of the Way
+2 Polymorphist's Jest
+3 Scatter Arc
+2 Unsummon
+2 Wild Unraveling
+4 Caves of Koilos
+8 Island
+4 Plains
+4 Sunken Hollow
+2 Swamp
+4 Temple of Silence

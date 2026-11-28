@@ -1,0 +1,48 @@
+# name: Train450 brawl-g-bg-ctrl-4
+# archetype: brawl_ctrl
+# colors: BG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Abrupt Decay
+1 Abstruse Interference
+1 Archweaver
+1 Azula Always Lies
+1 Baleful Ammit
+1 Blackbloom Rogue
+1 Bontu's Last Reckoning
+1 Bushwhack
+1 Canopy Gorger
+1 Cavalier of Night
+1 Corpseberry Cultivator
+1 Cruel Truths
+1 Dawnhart Disciple
+1 Deadly Precision
+1 Desert's Due
+1 Dissection Practice
+1 Drivnod, Carnage Dominus
+1 Embrace Oblivion
+1 Gaius van Baelsar
+1 Gruesome Realization
+1 Heir of the Ancient Fang
+1 Impossible Choice
+1 Karn, Argent Defender
+1 Olivia's Midnight Ambush
+1 Ordinary Bear
+1 Sanguine Spy
+1 Skyreaping
+1 Spell Shrivel
+1 Strength of the Pack
+1 Syr Konrad, the Grim
+1 Thundering Ceratok
+1 Undead Minotaur
+1 Void Shatter
+1 Warping Wail
+1 Blooming Marsh
+1 Ferenginar
+1 Festering Gulch
+1 Foggy Bottom Swamp
+7 Forest
+1 Haunted Mire
+1 Hissing Quagmire
+1 Necroblossom Snarl
+11 Swamp
+1 Temple of Malady

@@ -1,0 +1,51 @@
+# name: Train450 brawl-g-wb-aggro-1
+# archetype: brawl_aggro
+# colors: WB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Aang, the Last Airbender
+1 Aerial Boost
+1 Aggressive Sabotage
+1 Alms Beast
+1 Bulwark Ox
+1 Cathar Commando
+1 Cavalry Pegasus
+1 Cleaving Reaper
+1 Compleat Devotion
+1 Cornered by Black Mages
+1 Danitha Capashen, Paragon
+1 Dawn Evangel
+1 Draugr Recruiter
+1 Fear of Surveillance
+1 Hushwing Gryff
+1 Invasion Reinforcements
+1 Lecturing Scornmage
+1 Leonin Vanguard
+1 Leonin Warleader
+1 March of Otherworldly Light
+1 Merchant's Dockhand
+1 Mudbutton Cursetosser
+1 Murder
+1 Necrotic Wound
+1 Nighthowl Pursuer
+1 Nightsquad Commando
+1 Novice Knight
+1 Oswald Fiddlebender
+1 Righteousness
+1 Rot Farm Mortipede
+1 Scream Puff
+1 Selfless Samurai
+1 Sigardian Priest
+1 Silverquill Apprentice
+1 Smite
+1 Soul-Shackled Zombie
+1 Vengeful Rebel
+1 Concealed Courtyard
+1 Great Arashin City
+1 Insomnia, Crown City
+1 Isolated Chapel
+1 Orzhov Guildgate
+9 Plains
+1 Scoured Barrens
+1 Shineshadow Snarl
+1 Sunlit Marsh
+6 Swamp

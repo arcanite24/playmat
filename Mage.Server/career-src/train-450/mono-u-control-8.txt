@@ -1,0 +1,18 @@
+# name: Train450 mono-u-control-8
+# archetype: control
+# colors: U
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Admiral's Order
+3 Assimilate Essence
+1 Countervailing Winds
+4 Cyclonic Rift
+2 Geistwave
+4 Lunar Rejection
+2 Marang River Regent
+4 Nimble Obstructionist
+2 Polymorphist's Jest
+2 Protect the Negotiators
+2 Rona's Vortex
+2 Sphinx of Clear Skies
+2 Zhalfirin Shapecraft
+26 Island

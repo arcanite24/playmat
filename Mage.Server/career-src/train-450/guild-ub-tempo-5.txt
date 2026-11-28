@@ -1,0 +1,23 @@
+# name: Train450 guild-ub-tempo-5
+# archetype: tempo
+# colors: UB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Banehound
+4 Black Sun's Twilight
+4 Boomerang Basics
+2 Creakwood Safewright
+2 Creeping Chill
+2 Geyser Drake
+4 Kefnet the Mindful
+2 Mourner's Surprise
+3 Phantom Interference
+2 Rat Out
+3 Shipwreck Sentry
+3 Silumgar's Scorn
+1 Snaremaster Sprite
+2 Thoughtbound Phantasm
+2 Vantress Gargoyle
+9 Island
+4 Submerged Boneyard
+5 Swamp
+4 Watery Grave

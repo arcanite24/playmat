@@ -1,0 +1,24 @@
+# name: Train450 guild-ub-gowide-3
+# archetype: gowide
+# colors: UB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Dark Endurance
+4 Dark Matter Manipulator
+2 Egon, God of Death
+2 Essence Extraction
+2 Fading Hope
+2 Glen Elendra Guardian
+4 Illvoi Galeblade
+2 Larder Zombie
+2 Moment of Defiance
+2 Monoist Sentry
+1 Nightmare Shepherd
+3 Rankle, Master of Pranks
+3 Threnody Singer
+2 Wanted Scoundrels
+2 Wishful Merfolk
+3 Zenith Chronicler
+4 Fetid Pools
+6 Island
+4 Sinister Hideout
+8 Swamp

@@ -1,0 +1,21 @@
+# name: Train450 guild-rw-midrange-8
+# archetype: midrange
+# colors: RW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Goldnight Castigator
+4 Hazoret, Godseeker
+4 Hill Gigas
+1 Lorehold Command
+3 Magmaroth
+3 March of Otherworldly Light
+4 Moment of Valor
+3 Progenitor Exarch
+3 Rile
+2 Startled Relic Sloth
+3 Storm Herald
+1 Titan's Presence
+1 Venerable Knight
+4 Clifftop Retreat
+10 Mountain
+6 Plains
+4 Temple of Triumph

@@ -1,0 +1,23 @@
+# name: Train450 guild-ur-aggro-1
+# archetype: aggro
+# colors: UR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Ash Zealot
+3 Balmor, Battlemage Captain
+3 Collective Defiance
+2 Hypnotic Grifter
+3 Illusory Angel
+4 Loch Mare
+2 Pedal to the Metal
+1 Rise to the Challenge
+1 Searing Blood
+3 Shredded Sails
+4 Skyclave Aerialist
+4 Stature, Size Shifter
+1 Storm Fleet Swashbuckler
+3 Svyelun of Sea and Sky
+3 Transporter Malfunction
+4 Eroded Canyon
+7 Island
+6 Mountain
+4 Restless Spire

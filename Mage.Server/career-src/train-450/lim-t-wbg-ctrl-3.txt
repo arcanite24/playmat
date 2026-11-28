@@ -1,0 +1,38 @@
+# name: Train450 lim-t-wbg-ctrl-3
+# archetype: limited_ctrl
+# colors: WBG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Abstruse Interference
+1 Archangel Avacyn
+1 Axebane Ferox
+1 Brightglass Gearhulk
+1 Concordia Pegasus
+1 Darkstar Augur
+1 Death in the Family
+1 Deathsprout
+1 Doomsday Excruciator
+2 Expel the Interlopers
+2 Garruk's Horde
+1 Jecht, Reluctant Guardian
+2 Llanowar Stalker
+2 Moldering Karok
+1 Moonshadow
+1 Mutant Surveyor
+2 Nightmare's Thirst
+1 Overwhelming Remorse
+1 Owlbear
+1 Ramunap Excavator
+1 Ritual of Rejuvenation
+2 Rosethorn Acolyte
+1 Scaled Behemoth
+2 Secret Rendezvous
+1 Shredder's Technique
+1 Throttle
+1 Void Shatter
+1 Warping Wail
+5 Forest
+3 Plains
+4 Radiant Grove
+4 Shineshadow Snarl
+5 Swamp
+4 Witherbloom Campus

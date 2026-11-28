@@ -1,0 +1,37 @@
+# name: Train450 lim-t-brg-mid-2
+# archetype: limited_mid
+# colors: BRG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Aerial Volley
+2 Azula, On the Hunt
+1 Bloodhunter Bat
+2 Bloodletter of Aclazotz
+2 Colossadactyl
+1 Desperate Bloodseeker
+1 Electrickery
+1 Final Death
+1 Garruk's Harbinger
+1 Goblin Trashmaster
+2 Grim Haruspex
+2 Lightning Shrieker
+1 Long Feng, Grand Secretariat
+1 Marauding Maulhorn
+1 Moonshadow
+1 Oblivion's Hunger
+1 Open Fire
+1 Primordial Wurm
+2 Quartzwood Crasher
+2 Shambling Ghast
+1 Stickytongue Sentinel
+2 Tonberry
+2 Tread Upon
+1 White Tiger, Ava Ayala
+1 Wild Guess
+1 Willow Geist
+1 Wrath of the Bloodmane
+4 Commercial District
+4 Forest
+3 Mountain
+4 Smoldering Marsh
+5 Swamp
+4 Titan's Grave

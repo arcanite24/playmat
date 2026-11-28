@@ -1,0 +1,22 @@
+# name: Train450 guild-wb-gowide-3
+# archetype: gowide
+# colors: WB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Agent Venom
+3 Dragon Hunter
+2 Emeritus of Truce
+3 Fan Bearer
+3 Gas Guzzler
+2 Kor Bladewhirl
+1 Marauding Boneslasher
+2 Moment of Triumph
+4 Outlaw Medic
+4 Personify
+4 Selfless Samurai
+3 Sinkhole Surveyor
+2 Super-Skrull
+2 Vow to Erebor
+9 Plains
+4 Scoured Barrens
+4 Sunlit Marsh
+5 Swamp

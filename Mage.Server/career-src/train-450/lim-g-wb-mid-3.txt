@@ -1,0 +1,36 @@
+# name: Train450 lim-g-wb-mid-3
+# archetype: limited_mid
+# colors: WB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 April O'Neil, Kunoichi Trainee
+2 Archfiend's Vessel
+1 Arisen Gorgon
+1 Dawnbringer Charioteers
+1 Foot Elite
+1 Gravestone Strider
+1 Great Hart
+1 Gutsplitter Gang
+2 Hinterland Sanctifier
+1 Lord Skitter, Sewer King
+1 Martyr of Sands
+1 Mindwrack Harpy
+2 Novice Dissector
+2 Noxious Dragon
+1 Orc Sureshot
+1 Orzhov Charm
+1 Overzealous Muscle
+1 Pressure Point
+1 Renegade Reaper
+2 Rimefur Reindeer
+2 Ritual of the Returned
+2 Take Heart
+1 Topan Freeblade
+1 Treacherous Greed
+1 Urgoros, the Empty One
+1 Vengeful Villagers
+1 Vengeful Warchief
+2 Vicious Offering
+4 Forlorn Flats
+4 Forum of Amity
+7 Plains
+9 Swamp

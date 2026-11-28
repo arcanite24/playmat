@@ -1,0 +1,20 @@
+# name: Train450 guild-gw-control-12
+# archetype: control
+# colors: GW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Abstruse Interference
+4 Collective Effort
+4 Crib Swap
+2 Drogskol Shieldmate
+2 Erase
+4 Horribly Awry
+1 Introduction to Prophecy
+4 Nessian Boar
+2 Salvation Swan
+1 Spell Shrivel
+3 Topple the Statue
+4 Triumphant Surge
+3 Forest
+4 Kyoshi Village
+15 Plains
+4 Risa

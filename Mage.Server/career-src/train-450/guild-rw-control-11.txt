@@ -1,0 +1,19 @@
+# name: Train450 guild-rw-control-11
+# archetype: control
+# colors: RW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Abstruse Interference
+4 Angel of Serenity
+4 Blindblast
+2 Encounter the Unknown
+2 Eriette's Lullaby
+4 Horribly Awry
+2 Incendiary Sabotage
+4 Isolate
+4 Radiant Strike
+4 Tajic, Legion's Edge
+2 Void Shatter
+4 Clifftop Retreat
+4 Iron Hills
+7 Mountain
+11 Plains

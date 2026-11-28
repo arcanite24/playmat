@@ -1,0 +1,24 @@
+# name: Train450 tri-wub-control-4
+# archetype: control
+# colors: WUB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Ambling Stormshell
+2 Azorius Charm
+2 Demystify
+2 Divert Disaster
+1 Duty Beyond Death
+2 Flunk
+2 Kellan's Lightblades
+1 Patron of the Valiant
+2 Plumb the Forbidden
+3 Protect the Negotiators
+4 Searing Light
+3 Silverflame Ritual
+4 Sphinx of Forgotten Lore
+3 We Say Thee Nay!
+4 Choked Estuary
+4 Drowned Catacomb
+6 Island
+4 Orzhov Guildgate
+6 Plains
+2 Swamp

@@ -1,0 +1,20 @@
+# name: Train450 guild-ur-midrange-8
+# archetype: midrange
+# colors: UR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Corridor Monitor
+4 Ember Beast
+1 Fear of Being Hunted
+2 Fear of Falling
+4 Jace's Scrutiny
+4 Lightning Phoenix
+3 Ojer Axonil, Deepest Might
+4 Pteramander
+2 Seacoast Drake
+4 Sizzling Barrage
+4 Teferi's Time Twist
+2 Thor, God of Thunder
+4 Innovative Commons
+8 Island
+8 Mountain
+4 Prismari Campus

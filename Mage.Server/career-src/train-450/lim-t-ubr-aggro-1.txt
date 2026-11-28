@@ -1,0 +1,42 @@
+# name: Train450 lim-t-ubr-aggro-1
+# archetype: limited_aggro
+# colors: UBR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Arbiter of Woe
+2 Atsushi, the Blazing Sky
+1 Attuma, Atlantean Warlord
+1 Bilbo, Thief in the Night
+2 Blood Hypnotist
+1 Burnout Bashtronaut
+2 Coordinated Assault
+1 Crooked Custodian
+1 Dazzling Lights
+1 Embereth Paladin
+1 Evangel of Synthesis
+1 Gran-Gran
+1 Into the Flood Maw
+1 Lazav, Wearer of Faces
+2 Lightning Bolt
+1 Lurking Deadeye
+1 Mouser Mark III
+1 Niblis of Frost
+1 Obscura Initiate
+1 Pacesetter Paragon
+1 Phoenix Chick
+1 Punish the Enemy
+1 Sahagin
+1 Salvaged Manaworker
+1 Skizzik
+1 Sleep-Cursed Faerie
+1 Spock, Always Your Friend
+1 Striking Sliver
+1 Sweep Away
+1 Uncaged Fury
+1 Volcanic Villain
+1 Zookeeper Mechan
+4 Island
+5 Mountain
+4 Smoldering Marsh
+2 Swamp
+4 Treno, Dark City
+4 Xander's Lounge

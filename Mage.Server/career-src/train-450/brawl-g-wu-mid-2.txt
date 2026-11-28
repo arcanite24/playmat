@@ -1,0 +1,50 @@
+# name: Train450 brawl-g-wu-mid-2
+# archetype: brawl_mid
+# colors: WU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Absorb
+1 Adept Watershaper
+1 Attack-in-the-Box
+1 Banishing Betrayal
+1 Binding Mummy
+1 Bladecoil Serpent
+1 Bounty Agent
+1 Champion of Arashin
+1 Cogwork Archivist
+1 Collision Course
+1 Daysquad Marshal
+1 End Hostilities
+1 Expedition Diviner
+1 Halo Hopper
+1 Hekma Sentinels
+1 Kellan, Daring Traveler
+1 Malevolent Chandelier
+1 Master's Councillors
+1 Out Cold
+1 Quistis Trepe
+1 Saheeli, Consul of Oversight
+1 Secrets of the Golden City
+1 Shipwreck Sentry
+1 Skystrike Officer
+1 Slumbering Keepguard
+1 Surge of Righteousness
+1 Sworn Guardian
+1 Terisian Mindbreaker
+1 Thorin's Last Stand
+1 Torrential Gearhulk
+1 Unwelcome Sprite
+1 Waterspout Warden
+1 Waterwind Scout
+1 You Come to a River
+1 Your Fate Ends Here
+1 Zhalfirin Lancer
+1 Deserted Beach
+1 Fatehold Annex
+1 Glacial Fortress
+8 Island
+1 Meandering River
+8 Plains
+1 Seachrome Coast
+1 Sharlayan, Nation of Scholars
+1 Skybridge Towers
+1 Vulcan

@@ -1,0 +1,23 @@
+# name: Train450 guild-gu-aggro-1
+# archetype: aggro
+# colors: GU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Ancient Animus
+1 Blizzard Brawl
+2 Bristlebane Battler
+4 Cactuar
+2 Captive Weird
+2 Drowsing Tyrannodon
+4 Faerie Mastermind
+2 Jade Bearer
+2 Octopus Form
+4 Reality Hemorrhage
+2 Rhonas the Indomitable
+4 Sedge Scorpion
+2 Siren's Ruse
+4 Threadbind Clique
+2 Touch of the Void
+7 Forest
+4 Hedge Maze
+6 Island
+4 Pym Technologies

@@ -1,0 +1,50 @@
+# name: Train450 brawl-g-gw-mid-2
+# archetype: brawl_mid
+# colors: GW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Altanak, the Thrice-Called
+1 Audacious Infiltrator
+1 Cosmogrand Zenith
+1 Cult of the Waxing Moon
+1 Druid of the Spade
+1 Edge Rover
+1 Filigree Familiar
+1 Ghalta and Mavren
+1 Glory Bearers
+1 Gnarlroot Pallbearer
+1 Go Nuts!
+1 Hakoda, Selfless Commander
+1 Heritage Reclamation
+1 Howling Golem
+1 Irresistible Prey
+1 Leafcrown Dryad
+1 Loyal Pegasus
+1 Lunarch Veteran
+1 Lurking Lizards
+1 Monastery Mentor
+1 Night Market Guard
+1 Penance Stare
+1 Root Out
+1 Scaled Behemoth
+1 Serra Angel
+1 Shatter the Sky
+1 Slice in Twain
+1 Smite the Monstrous
+1 Spell Shrivel
+1 Starport Security
+1 Staunch Shieldmate
+1 Student of Ojutai
+1 Troll Negotiations
+1 Watcher of the Wayside
+1 Water Tribe Captain
+1 Wicked Wolf
+1 Botanical Plaza
+8 Forest
+8 Plains
+1 Radiant Grove
+1 Restless Prairie
+1 Scattered Groves
+1 Selesnya Guildgate
+1 Suburban Sanctuary
+1 Temple Garden
+1 Windurst, Federation Center

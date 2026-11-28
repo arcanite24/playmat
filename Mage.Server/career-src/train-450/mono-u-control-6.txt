@@ -1,0 +1,20 @@
+# name: Train450 mono-u-control-6
+# archetype: control
+# colors: U
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Asinine Antics
+2 Deathless Behemoth
+2 Dispel
+2 Dissolve
+2 Geistwave
+4 Kozilek's Command
+2 Long River's Pull
+2 Mahamoti Djinn
+2 Polymorphist's Jest
+2 Precise Redaction
+4 Reservoir Kraken
+2 Retraction Helix
+2 Unexplained Disappearance
+1 Unravel
+3 Winged Portent
+26 Island

@@ -1,0 +1,23 @@
+# name: Train450 tri-gwu-control-4
+# archetype: control
+# colors: GWU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Dispel
+2 Gideon's Battle Cry
+1 Keep Out
+4 Not on My Watch
+2 Path to Exile
+2 Practiced Offense
+4 Refute
+4 Revolutionary Rebuff
+4 Ridgescale Tusker
+3 Select for Inspection
+2 Stubborn Denial
+1 Vivien's Crocodile
+3 Yasova Dragonclaw
+4 Arctic Treeline
+3 Forest
+4 Glacial Floodplain
+6 Island
+5 Plains
+4 Suburban Sanctuary

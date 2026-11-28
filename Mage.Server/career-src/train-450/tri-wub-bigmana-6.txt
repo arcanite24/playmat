@@ -1,0 +1,23 @@
+# name: Train450 tri-wub-bigmana-6
+# archetype: bigmana
+# colors: WUB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Cut Short
+4 Docent of Perfection
+3 Grim Wanderer
+2 Halo Forager
+2 Heliod, Sun-Crowned
+4 Iymrith, Desert Doom
+2 Lord of the Void
+1 Mage-Ring Responder
+2 Plumecreed Mentor
+2 Scales of Shale
+4 Skycoach Conductor
+3 Sleep-Cursed Faerie
+4 Void Rend
+4 A.I.M. Labs
+4 Hallowed Fountain
+6 Island
+3 Plains
+4 Swamp
+4 Theorix Annex

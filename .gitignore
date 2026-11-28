@@ -80,6 +80,8 @@ Mage.Web.Client/.impeccable/review/
 
 # local-only working files (screenshots for posts, etc.)
 /.local/
+# Cloudflare Wrangler cache
+/.wrangler/
 # Mana@Home coordinator secrets (ops/swarm/mana.env.example)
 ops/swarm/mana.env
 ops/swarm/tunnel.env

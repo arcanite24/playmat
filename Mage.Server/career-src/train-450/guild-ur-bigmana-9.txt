@@ -1,0 +1,22 @@
+# name: Train450 guild-ur-bigmana-9
+# archetype: bigmana
+# colors: UR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Captain Lannery Storm
+3 Enduring Curiosity
+2 Furious Bellow
+4 Goldspan Dragon
+1 Horned Loch-Whale
+3 Monastery Swiftspear
+1 Munitions Enthusiast
+2 Prophet of Distortion
+3 Pyromantic Pilgrim
+2 Reality Shift
+3 Resculpt
+3 Scholar of the Lost Trove
+1 Shocking Grasp
+3 Steel Seraph
+4 Innovative Commons
+7 Island
+10 Mountain
+4 Steam Vents

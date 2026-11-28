@@ -1,0 +1,49 @@
+# name: Train450 brawl-g-ur-ramp-3
+# archetype: brawl_ramp
+# colors: UR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Alchemist's Retrieval
+1 Bonecrusher Giant
+1 Boulder Salvo
+1 Brotherhood's End
+1 Cacophony Scamp
+1 Cloistered Telepath
+1 Crosstown Courier
+1 Diluvian Primordial
+1 Fiery Intervention
+1 Fin Fang Foom
+1 Fire Sages
+1 Flame-Wreathed Phoenix
+1 Flameblade Angel
+1 Frostfist Strider
+1 Heavyweight Demolisher
+1 Hieroglyphic Illumination
+1 Kappa Cannoneer
+1 Keen Buccaneer
+1 Myr Custodian
+1 Nebula Dragon
+1 Oin the Brave
+1 Pearl Lake Ancient
+1 Peerless Samurai
+1 Quantum Riddler
+1 Rubblebelt Boar
+1 Scribe of the Mindful
+1 Searing Barrage
+1 Searing Blood
+1 Shockmaw Dragon
+1 Slippery Scoundrel
+1 Sokka's Haiku
+1 Stitched Assistant
+1 Stoneshock Giant
+1 Summon: Shiva
+1 Tilonalli's Knight
+1 Eroded Canyon
+1 Fiery Islet
+8 Island
+9 Mountain
+1 Peculiar Lighthouse
+1 Spectacle Summit
+1 Spirebluff Canal
+1 Sulfur Falls
+1 TCRI Building
+1 Temple of Epiphany

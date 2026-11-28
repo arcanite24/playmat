@@ -1,0 +1,39 @@
+# name: Train450 lim-t-wbg-mid-2
+# archetype: limited_mid
+# colors: WBG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Autonomous Assembler
+1 Burrog Barrage
+1 Buzzard-Wasp Colony
+1 Channeler Initiate
+2 Conclave Cavalier
+1 Epic Confrontation
+1 Fang Guardian
+2 Geothermal Kami
+1 Guardian of the Great Door
+1 Intrepid Adversary
+2 Intrepid Rabbit
+1 Lurking Roper
+1 Pathfinding Axejaw
+1 Piper of the Swarm
+1 Prophesied End
+1 Puncturing Light
+1 Sparkhunter Masticore
+1 Stingblade Assassin
+2 Stomped by the Foot
+1 Summon: Primal Garuda
+2 Swordsworn Cavalier
+1 They Went This Way
+1 Track Down
+1 Transcendent Archaic
+2 Voldaren Bloodcaster
+1 Wakeroot Elemental
+1 Widow's Bite
+1 Wingsteed Rider
+1 Yargle and Multani
+4 Festering Gulch
+5 Forest
+4 Overgrown Tomb
+4 Plains
+3 Swamp
+4 Temple of Silence

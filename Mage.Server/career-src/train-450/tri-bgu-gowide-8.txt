@@ -1,0 +1,23 @@
+# name: Train450 tri-bgu-gowide-8
+# archetype: gowide
+# colors: BGU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Faerie Duelist
+4 Fetid Imp
+4 Forecasting Fortune Teller
+3 Gladecover Scout
+4 Indulgent Aristocrat
+2 Khalni Ambush
+2 Larder Zombie
+1 Nashi, Moon's Legacy
+3 Old-Growth Educator
+4 Return to Action
+2 Savage Punch
+3 Skystreak Engineer
+4 Voracious Tome-Skimmer
+4 Darkslick Shores
+2 Forest
+4 Island
+4 Paradox Gardens
+4 Swamp
+4 Temple of Mystery

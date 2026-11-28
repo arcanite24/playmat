@@ -1,0 +1,36 @@
+# name: Train450 lim-t-gwu-aggro-1
+# archetype: limited_aggro
+# colors: GWU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Ainok Survivalist
+2 Archon's Glory
+1 Brackish Blunder
+1 Checkpoint Officer
+2 Chief Engineer
+2 Consuming Sinkhole
+2 Crocodile of the Crossing
+1 Dusk Legion Duelist
+2 Feline Sovereign
+1 Geralf's Masterpiece
+1 Glory Seeker
+1 Groundskeeper
+1 Hotshot Mechanic
+2 Huntmaster Liger
+2 Hydro-Channeler
+2 Kapow!
+2 Kishla Skimmer
+1 Kruphix, God of Horizons
+2 Lantern Scout
+2 Old-Growth Troll
+1 Patient Naturalist
+1 Quandrix Command
+1 Savage Punch
+1 Starfleet Spanner Jockey
+1 Tenth District Veteran
+1 Unholy Officiant
+4 Forest
+4 Glacial Fortress
+4 Island
+4 Mutant Town
+3 Plains
+4 Spara's Headquarters

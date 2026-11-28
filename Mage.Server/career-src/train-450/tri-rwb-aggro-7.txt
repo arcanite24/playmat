@@ -1,0 +1,26 @@
+# name: Train450 tri-rwb-aggro-7
+# archetype: aggro
+# colors: RWB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Aerial Maneuver
+3 Bile-Vial Boggart
+1 Bloodrage Brawler
+2 Distemper of the Blood
+2 Duskwielder
+3 Encumbered Reejerey
+4 Ephemerate
+2 Gnawing Zombie
+3 Kinjalli's Sunwing
+4 Law-Rune Enforcer
+3 Moonrager's Slash
+2 Nighthowl Pursuer
+3 Rooftop Assassin
+2 Shrapnel Blast
+1 Stoke the Flames
+3 Valley Dasher
+4 Caves of Koilos
+4 Meticulous Commons
+3 Mountain
+3 Plains
+4 Savai Triome
+3 Swamp

@@ -1,0 +1,20 @@
+# name: Train450 guild-gw-bigmana-10
+# archetype: bigmana
+# colors: GW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Artful Maneuver
+3 Doomskar Warrior
+4 Elite Interceptor
+2 Mardu Devotee
+2 Moment of Valor
+4 Pelakka Wurm
+2 Saber-Tooth Moose-Lion
+3 Sandstalker Moloch
+4 Seized from Slumber
+3 Spinewoods Armadillo
+2 Tyrranax Rex
+4 Vine Mare
+4 Blossoming Sands
+4 Botanical Plaza
+10 Forest
+7 Plains

@@ -1,0 +1,53 @@
+# name: Train450 brawl-t-rwb-ctrl-4
+# archetype: brawl_ctrl
+# colors: RWB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Abzan Falconer
+1 Akoum Flameseeker
+1 Brotherhood's End
+1 Closing Statement
+1 Deadly Derision
+1 Deal Gone Bad
+1 Deathpact Angel
+1 Engine Rat
+1 Expose to Daylight
+1 Fatal Fumes
+1 Final Flare
+1 Flamecache Gecko
+1 Horribly Awry
+1 Hour of Revelation
+1 Hungry Flames
+1 Incinerator of the Guilty
+1 Ironhoof Boar
+1 Josu Vess, Lich Knight
+1 Laughing Mad
+1 Lithobraking
+1 Mardu Siegebreaker
+1 Mirrodin Avenged
+1 Plasma Cascade
+1 Reaping Willow
+1 Rite of Oblivion
+1 Screaming Phantom
+1 Shivan Branch-Burner
+1 Silverclad Ferocidons
+1 Spawn of Mayhem
+1 Spell Shrivel
+1 Tetsuko Umezawa, Pursuer
+1 Void Shatter
+1 Warping Wail
+1 Will-Forged Golem
+1 Cardassia Prime
+1 Dimension X
+1 Fields of Strife
+1 Goblin-town
+1 Inspiring Vantage
+6 Mountain
+1 Neglected Manor
+3 Plains
+1 Qo'noS
+1 Rakdos Guildgate
+1 Stingerquill Annex
+1 Sulfurous Springs
+1 Sun-Blessed Peak
+5 Swamp
+1 Temple of Triumph

@@ -1,0 +1,55 @@
+# name: Train450 brawl-t-rwb-mid-2
+# archetype: brawl_mid
+# colors: RWB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Abstruse Interference
+1 Angel of Renewal
+1 Asylum Visitor
+1 Bitter Triumph
+1 Blessed Light
+1 Bloodtithe Harvester
+1 Bolg's Company
+1 Bullseye, Death Dealer
+1 Butcher of the Horde
+1 Daring Buccaneer
+1 Festerleech
+1 Frontline Rebel
+1 Gnawing Vermin
+1 Gravepurge
+1 Hagra Sharpshooter
+1 High Sentinels of Arashin
+1 Kroxa and Kunoros
+1 Lightning Axe
+1 Mardu Hordechief
+1 Mardu Warshrieker
+1 Orbital Plunge
+1 Popular Egotist
+1 Rebellious Strike
+1 Relic Sloth
+1 Silverflame Ritual
+1 Silverquill Charm
+1 Skyknight Legionnaire
+1 Soul-Scar Mage
+1 Tal Shiar Analyst
+1 Thraben Standard Bearer
+1 Thrash of Raptors
+1 Torch the Tower
+1 Tyrant of Kher Ridges
+1 Una Chin-Riley, Number One
+1 Vengeant Vampire
+1 Victor, Valgavoth's Seneschal
+1 Bajor
+1 Boiling Rock Prison
+1 Cardassia Prime
+1 Fields of Strife
+1 Fisk Tower
+1 Haunted Ridge
+1 Lorehold Campus
+4 Mountain
+1 Neglected Manor
+1 Orzhov Guildgate
+4 Plains
+1 Qo'noS
+1 Shineshadow Snarl
+1 Sulfurous Mire
+4 Swamp

@@ -1,0 +1,38 @@
+# name: Train450 lim-t-bgu-ctrl-3
+# archetype: limited_ctrl
+# colors: BGU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Angrath's Ambusher
+2 Armus, Skin of Evil
+1 Bebop & Rocksteady
+1 Broodspinner
+1 Canyon Crawler
+1 Coerced Confession
+1 Compelling Deterrence
+2 Devouring Sugarmaw
+2 Dispelling Exhale
+1 Dramatist's Puppet
+1 Gainsay
+1 Geometer's Arthropod
+1 Glacial Grasp
+2 Glimpse of Freedom
+1 Icefall Regent
+1 Ichor Drinker
+1 Omnivorous Flytrap
+2 Perilous Voyage
+1 Pinion Feast
+1 Rankle, Master of Pranks
+2 Release to the Wind
+1 Sagittars' Volley
+1 Scathing Shadelock
+1 Slithering Cryptid
+1 Spark Reaper
+1 Spectral Sailor
+1 The Gitrog, Ravenous Ride
+1 Tragic Trajectory
+4 Deathcap Glade
+3 Forest
+5 Island
+5 Swamp
+4 Tangled Islet
+4 Undercity Sewers

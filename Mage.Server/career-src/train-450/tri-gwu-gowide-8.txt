@@ -1,0 +1,24 @@
+# name: Train450 tri-gwu-gowide-8
+# archetype: gowide
+# colors: GWU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Brave-Kin Duo
+4 Dauntless Onslaught
+4 Descendant of Storms
+3 Dorothea, Vengeful Victim
+2 Dryad Militant
+2 Guardian of the Great Door
+1 Hidden Herbalists
+3 Light-Paws, Emperor's Voice
+4 Sarkhan's Resolve
+3 Sigarda, Champion of Light
+1 Suki, Courageous Rescuer
+2 Tam, the Possibility
+3 Tiger-Seal
+2 Windrider Wizard
+3 Forest
+2 Island
+5 Plains
+4 Risa
+4 Transformative Commons
+4 Woodland Stream

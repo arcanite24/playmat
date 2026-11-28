@@ -1,0 +1,25 @@
+# name: Train450 tri-wbg-midrange-1
+# archetype: midrange
+# colors: WBG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Acrobatic Maneuver
+2 Astelli Reclaimer
+2 Aven Interrupter
+1 Gaea's Blessing
+2 Galewind Moose
+4 Geist of the Lonely Vigil
+2 Glorious Decay
+4 Nylea, Keen-Eyed
+2 Renegade Reaper
+4 Requiting Hex
+2 Ruin-Lurker Bat
+2 Slumbering Trudge
+2 Splinter, Radical Rat
+3 Vigorbloom Charm
+2 Wax-Wane Witness
+4 Brushland
+4 Fisk Tower
+4 Foot Headquarters
+5 Forest
+5 Plains
+2 Swamp

@@ -1,0 +1,19 @@
+# name: Train450 mono-r-gowide-4
+# archetype: gowide
+# colors: R
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Battle Cry Goblin
+2 Enthusiastic Study
+2 Flowstone Infusion
+2 HULK SMASH!
+4 Minotaur Skullcleaver
+4 Monastery Swiftspear
+4 Neheb, Dreadhorde Champion
+4 Prompto Argentum
+3 Ragged Playmate
+1 Reaver Drone
+2 Red Herring
+2 Resilient Roadrunner
+2 Scorching Dragonfire
+4 Speed, Young Avenger
+22 Mountain

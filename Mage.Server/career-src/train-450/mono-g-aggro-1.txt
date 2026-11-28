@@ -1,0 +1,21 @@
+# name: Train450 mono-g-aggro-1
+# archetype: aggro
+# colors: G
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Avatar of the Resolute
+3 Cabaretti Initiate
+3 Consuming Sinkhole
+2 Elvish Reclaimer
+3 Gift of Strength
+1 Glorious Decay
+2 Jibbirik Omnivore
+2 Mindful Biomancer
+3 Mutagen Man, Living Ooze
+3 Patchwork Beastie
+3 Skyclave Sentinel
+3 Tear Asunder
+2 Territorial Allosaurus
+4 Tomakul Honor Guard
+3 Touch of the Void
+1 Ulvenwald Oddity
+21 Forest

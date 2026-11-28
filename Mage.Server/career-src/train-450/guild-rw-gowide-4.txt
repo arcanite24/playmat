@@ -1,0 +1,22 @@
+# name: Train450 guild-rw-gowide-4
+# archetype: gowide
+# colors: RW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Electro, Assaulting Battery
+2 Embereth Veteran
+4 Embodiment of Fury
+2 Galvanize
+3 Keldon Warcaller
+1 Leonin Skyhunter
+3 Mardu Devotee
+4 Oreplate Pangolin
+2 Penance Stare
+3 Phyrexian Censor
+4 Regent's Authority
+2 Reinforced Ronin
+3 Soul's Attendant
+4 Spirit Mascot
+4 Clifftop Retreat
+7 Mountain
+4 Needle Spires
+7 Plains

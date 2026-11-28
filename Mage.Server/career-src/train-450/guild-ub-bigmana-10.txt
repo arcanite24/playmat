@@ -1,0 +1,21 @@
+# name: Train450 guild-ub-bigmana-10
+# archetype: bigmana
+# colors: UB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Air Elemental
+2 Dragon Turtle
+2 Dungeon Crawler
+2 Fake Your Own Death
+4 Gnarlbark Elm
+1 Horned Loch-Whale
+4 Mausoleum Wanderer
+2 Narset's Reversal
+4 Phyrexian Obliterator
+3 Shadowborn Demon
+2 Ulcerate
+3 Vein Ripper
+2 Vicious Offering
+4 Drowned Catacomb
+6 Island
+11 Swamp
+4 Watery Grave

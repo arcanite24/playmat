@@ -1,0 +1,20 @@
+# name: Train450 guild-ub-control-11
+# archetype: control
+# colors: UB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Asinine Antics
+4 Bring the Ending
+4 Kothophed, Soul Hoarder
+4 Lofty Denial
+3 Murder
+3 Necrotic Wound
+2 Oildeep Gearhulk
+2 Perilous Voyage
+3 Ritual of Soot
+4 Scatter Arc
+2 Siren's Ruse
+2 Sphinx of False Conclusions
+4 Darkslick Shores
+4 Ice Tunnel
+10 Island
+8 Swamp

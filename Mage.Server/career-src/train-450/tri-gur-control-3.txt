@@ -1,0 +1,24 @@
+# name: Train450 tri-gur-control-3
+# archetype: control
+# colors: GUR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Devour in Flames
+4 Essence Scatter
+2 Galazeth Prismari
+3 Glacial Grasp
+1 Lifecrafter's Gift
+4 Lost in a Labyrinth
+2 Nova Hellkite
+2 Polis Crusher
+2 Prismabasher
+1 Roadside Blowout
+2 Silumgar's Scorn
+3 Sozin's Comet
+2 Swan Song
+2 Turn into a Pumpkin
+4 Bristling Backwoods
+2 Forest
+7 Island
+5 Mountain
+4 Restless Spire
+4 Temple of Abandon

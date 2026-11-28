@@ -1,0 +1,15 @@
+# name: Train450 mono-b-control-8
+# archetype: control
+# colors: B
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Abstruse Interference
+2 Deadly Embrace
+2 Extinguish All Hope
+4 Moment of Craving
+3 Noxious Grasp
+4 Ramos, Dragon Engine
+4 Relic Golem
+3 Scorpion's Sting
+4 Sugar Rush
+4 Void Shatter
+26 Swamp

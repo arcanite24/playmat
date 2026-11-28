@@ -1,0 +1,21 @@
+# name: Train450 guild-ur-bigmana-10
+# archetype: bigmana
+# colors: UR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Goblin Maskmaker
+4 Harvesttide Infiltrator
+4 Inferno of the Star Mounts
+2 Kairi, the Swirling Sky
+2 Raze the Effigy
+2 Reckless Lackey
+2 Red Hulk
+4 Rending Flame
+2 Scorchmark
+4 Soaring Drake
+2 Sphinx Mindbreaker
+2 Thassa, God of the Sea
+1 Trumpeting Carnosaur
+5 Island
+4 Molten Tributary
+12 Mountain
+4 Sulfur Falls

@@ -1,0 +1,20 @@
+# name: Train450 mono-w-control-8
+# archetype: control
+# colors: W
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Abstruse Interference
+3 Break the Spell
+3 Cavalier of Dawn
+1 Depopulate
+2 Fate of the Sun-Cryst
+2 Gallant Strike
+4 Harsh Annotation
+1 Herald of the Fair
+3 Horribly Awry
+2 Last Breath
+3 Planar Cleansing
+1 Revitalize
+1 Serra's Guardian
+3 Swiftwing Assailant
+3 Void Shatter
+26 Plains
