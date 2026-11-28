@@ -871,7 +871,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
               />
             )}
             {interaction.mode === 'panel' && prompt && !awaitingServer && <ChoicePanel prompt={prompt} sourceId={choiceSource} dungeon={myDungeon} peeking={peeking} onPeekChange={setPeeking} onCommand={onCommand} xLimit={announceLimit} startAtLimit={automation.xDefaultsToMax} />}
-            {viewer && <ZoneViewer title={viewer.title} cards={viewer.cards} onClose={() => openViewer(null)} />}
+            {viewer && <ZoneViewer {...viewer} onClose={() => openViewer(null)} />}
             {shownDungeon && shownDungeonPlayer && (
               <DungeonViewer
                 title={shownDungeonPlayer.playerId === board.me?.player.playerId ? `Your dungeon: ${shownDungeon.name}` : `${shownDungeonPlayer.name}'s dungeon: ${shownDungeon.name}`}

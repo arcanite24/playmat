@@ -2321,6 +2321,7 @@ export interface PlayerView extends Serializable {
     initiative?: boolean;
     isActive?: boolean;
     isHuman?: boolean;
+    libraryCards?: { [index: string]: number };
     libraryCount?: number;
     life?: number;
     manaPool?: ManaPoolView;

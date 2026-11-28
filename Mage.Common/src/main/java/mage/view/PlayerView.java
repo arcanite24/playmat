@@ -1,5 +1,6 @@
 package mage.view;
 
+import mage.abilities.keyword.ForetellAbility;
 import mage.cards.Card;
 import mage.counters.Counter;
 import mage.designations.Designation;
@@ -31,6 +32,9 @@ public class PlayerView implements Serializable {
     private final int wins;
     private final int winsNeeded;
     private final int libraryCount;
+    // the cards in this player's library by name (sorted, so the library order is not in it), only in the view made
+    // for that same player; null for opponents and watchers
+    private final Map<String, Integer> libraryCards;
     private final int handCount;
     private final boolean isActive;
     private final boolean hasPriority;
@@ -69,6 +73,45 @@ public class PlayerView implements Serializable {
         this.wins = player.getMatchPlayer().getWins();
         this.winsNeeded = player.getMatchPlayer().getWinsNeeded();
         this.libraryCount = player.getLibrary().size();
+        if (this.controlled) {
+            Map<String, Integer> cards = new TreeMap<>();
+            for (Card card : player.getLibrary().getCards(game)) {
+                String cardName = card.getMainCard().getName();
+                if (cardName != null && !cardName.isEmpty()) {
+                    cards.merge(cardName, 1, Integer::sum);
+                }
+            }
+            // Keep face-down cards owned by this player that they cannot legally inspect (face-down non-foretell exile
+            // or opponent-controlled face-down permanents) mixed into the list so diffing cannot leak hidden cards.
+            for (ExileZone exileZone : game.getExile().getExileZones()) {
+                for (Card card : exileZone.getCards(game)) {
+                    if (player.getId().equals(card.getOwnerId())
+                            && card.isFaceDown(game)
+                            && !ForetellAbility.isCardInForetell(card, game)) {
+                        String cardName = card.getMainCard().getName();
+                        if (cardName != null && !cardName.isEmpty()) {
+                            cards.merge(cardName, 1, Integer::sum);
+                        }
+                    }
+                }
+            }
+            for (Permanent permanent : state.getBattlefield().getAllPermanents()) {
+                if (permanent.isFaceDown(game)
+                        && player.getId().equals(permanent.getOwnerId())
+                        && !player.getId().equals(permanent.getControllerId())) {
+                    Card real = game.getCard(permanent.getId());
+                    if (real != null) {
+                        String cardName = real.getMainCard().getName();
+                        if (cardName != null && !cardName.isEmpty()) {
+                            cards.merge(cardName, 1, Integer::sum);
+                        }
+                    }
+                }
+            }
+            this.libraryCards = cards;
+        } else {
+            this.libraryCards = null;
+        }
         this.handCount = player.getHand().size();
         this.manaPool = new ManaPoolView(player.getManaPool());
         this.isActive = (player.getId().equals(state.getActivePlayerId()));
@@ -198,6 +241,11 @@ public class PlayerView implements Serializable {
 
     public int getLibraryCount() {
         return this.libraryCount;
+    }
+
+    /** this player's library by card name, in the player's own view only (else null) */
+    public Map<String, Integer> getLibraryCards() {
+        return this.libraryCards;
     }
 
     public int getWins() {

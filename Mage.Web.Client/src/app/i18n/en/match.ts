@@ -75,11 +75,21 @@ export default {
   'match.plate.disconnectedTitle': 'Lost connection to the server. They have a few minutes to come back before they lose.',
   'match.plate.aria.lost': '{name}, out of the game',
   'match.plate.aria.disconnected': 'disconnected',
+  'match.plate.thinking': 'Thinking… {seconds}s',
+  'match.plate.mana': '{count} mana available',
+  'match.plate.manaAbout': 'about {count} mana available',
+  'match.plate.manaTitle': 'Untapped lands and mana sources you control, plus your mana pool',
   'match.plate.commanderToggle': '{name}, highest commander damage {damage}. Toggle commander damage breakdown',
   'match.plate.commanderShow': 'Click to show commander damage',
   'match.plate.commanderHide': 'Click to hide commander damage',
   'match.menu.commanderDamageShow': 'Show commander damage',
   'match.menu.commanderDamageHide': 'Hide commander damage',
+
+  // the zone viewer, and your library in it (names and counts only)
+  'match.viewer.copies': { one: '{count} copy', other: '{count} copies' },
+  'match.library.order': 'Shown in random order, not the library order',
+  'match.library.orderTop': 'Shown in random order, not the library order · top card revealed: {name}',
+  'match.library.hiddenNote': 'includes face-down cards you cannot see',
 
   // an opponent's card revealed from their hand, still in it
   'match.hand.revealed': 'Revealed',
