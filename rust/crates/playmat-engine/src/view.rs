@@ -609,7 +609,7 @@ fn player_view(game: &Game, p: Seat, viewer: Seat, names: &[&str]) -> Value {
         }
         pool.colorless += m.colorless;
     }
-    json!({
+    let mut player = json!({
         "playerId": format!("P{}", p),
         "name": names.get(p).copied().unwrap_or(""),
         "controlled": p == viewer,
@@ -643,7 +643,38 @@ fn player_view(game: &Game, p: Seat, viewer: Seat, names: &[&str]) -> Value {
         "passedUntilEndStepBeforeMyTurn": false,
         "monarch": false,
         "initiative": false,
-    })
+    });
+    if p == viewer {
+        let mut counts: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
+        for &id in &pl.library {
+            let name = &game.obj(id).def.name;
+            if !name.is_empty() {
+                *counts.entry(name.clone()).or_insert(0) += 1;
+            }
+        }
+        // Keep face-down cards owned by this player that they cannot legally inspect mixed into the list so diffing
+        // cannot reveal hidden information (face-down non-foretell exile or opponent-controlled face-down permanents).
+        for &id in &exile {
+            let o = game.obj(id);
+            if o.owner == p && o.face_down && o.foretold_turn.is_none() {
+                let name = o.face_up.as_ref().map(|f| f.name.as_str()).unwrap_or(&o.def.name);
+                if !name.is_empty() {
+                    *counts.entry(name.to_string()).or_insert(0) += 1;
+                }
+            }
+        }
+        for &id in game.battlefield.iter() {
+            let o = game.obj(id);
+            if o.face_down && o.owner == p && o.controller != p {
+                let name = o.face_up.as_ref().map(|f| f.name.as_str()).unwrap_or(&o.def.name);
+                if !name.is_empty() {
+                    *counts.entry(name.to_string()).or_insert(0) += 1;
+                }
+            }
+        }
+        player["libraryCards"] = json!(counts);
+    }
+    player
 }
 
 /// A card view's printing (and its other face's, which shares it): set code, collector number, image number
@@ -2342,6 +2373,7 @@ pub const IGNORED: &[(&str, &str)] = &[
         "sideboard",
         "the deck's sideboard: the decision log doesn't place its cards (every id is `?`), and play doesn't change it",
     ),
+    ("libraryCards", "added after the recorded Java views"),
 ];
 
 /// One field that differs: its path (`players[0].battlefield{B3}.tapped`), Java's value and the engine's.
@@ -2508,6 +2540,29 @@ mod tests {
         assert_eq!((va["expansionSetCode"].as_str(), va["cardNumber"].as_str()), (Some("UNF"), Some("240")));
         assert_eq!(va["imageNumber"], 2);
         assert_ne!(vb["expansionSetCode"].as_str(), Some("UNF"));
+    }
+
+    #[test]
+    fn library_cards_sent_only_for_viewer_and_keeps_hidden_face_down_cards() {
+        let db = crate::cards();
+        let mut game = crate::state::Game::new(2, 1);
+        for name in ["Forest", "Forest", "Lightning Bolt"] {
+            let id = game.create_obj(db.get(name).unwrap(), 0, crate::state::Zone::Library);
+            game.player_mut(0).library.push(id);
+        }
+        // Face-down card exiled from player 0's library (non-foretell): must remain mixed in so it isn't leaked
+        let hidden = game.create_obj(db.get("Mountain").unwrap(), 0, crate::state::Zone::Exile);
+        game.obj_mut(hidden).face_down = true;
+        std::sync::Arc::make_mut(&mut game.exile).push(hidden);
+        // Opponent's library card must never appear in player 0's view
+        let opp_card = game.create_obj(db.get("Island").unwrap(), 1, crate::state::Zone::Library);
+        game.player_mut(1).library.push(opp_card);
+
+        let own = player_view(&game, 0, 0, &["A", "B"]);
+        let opp = player_view(&game, 1, 0, &["A", "B"]);
+        assert_eq!(own["libraryCount"], 3);
+        assert_eq!(own["libraryCards"], json!({"Forest": 2, "Lightning Bolt": 1, "Mountain": 1}));
+        assert!(opp.get("libraryCards").is_none());
     }
 
     /// Without its template a card's view is its name alone (no rules, types, P/T or printing): every verified card

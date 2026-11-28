@@ -91,7 +91,11 @@ function useSecondsWhile(active: boolean): number {
       const reset = setTimeout(() => setSince(null), THINKING_GAP_MS);
       return () => clearTimeout(reset);
     }
-    const start = setTimeout(() => setSince((at) => at ?? Date.now()), 0);
+    const start = setTimeout(() => {
+      const current = Date.now();
+      setSince((at) => at ?? current);
+      setNow(current);
+    }, 0);
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => {
       clearTimeout(start);

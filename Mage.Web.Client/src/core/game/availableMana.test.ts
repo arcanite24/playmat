@@ -18,10 +18,12 @@ describe('availableMana', () => {
     expect(availableMana({ battlefield: board({ ...elf, summoningSickness: false }) })).toEqual({ count: 1, exact: true });
   });
 
-  it('says it is an estimate for sources it cannot read for sure', () => {
+  it('counts multi-mana rocks accurately and marks unreadable or scaling sources as estimates', () => {
     const treasure: PermanentView = { id: 't', name: 'Treasure', cardTypes: ['ARTIFACT'], rules: ['{T}, Sacrifice this artifact: Add one mana of any color.'], controlled: true };
     const solRing: PermanentView = { id: 's', name: 'Sol Ring', cardTypes: ['ARTIFACT'], rules: ['{T}: Add {C}{C}.'], controlled: true };
+    const archdruid: PermanentView = { id: 'e', name: 'Elvish Archdruid', cardTypes: ['CREATURE'], rules: ['{T}: Add {G} for each Elf you control.'], controlled: true };
+    expect(availableMana({ battlefield: board(solRing) })).toEqual({ count: 2, exact: true });
     expect(availableMana({ battlefield: board(treasure) })).toEqual({ count: 1, exact: false });
-    expect(availableMana({ battlefield: board(solRing) }).exact).toBe(false);
+    expect(availableMana({ battlefield: board(archdruid) }).exact).toBe(false);
   });
 });

@@ -1,5 +1,6 @@
 package mage.view;
 
+import mage.abilities.keyword.ForetellAbility;
 import mage.cards.Card;
 import mage.counters.Counter;
 import mage.designations.Designation;
@@ -75,7 +76,37 @@ public class PlayerView implements Serializable {
         if (this.controlled) {
             Map<String, Integer> cards = new TreeMap<>();
             for (Card card : player.getLibrary().getCards(game)) {
-                cards.merge(card.getName(), 1, Integer::sum);
+                String cardName = card.getMainCard().getName();
+                if (cardName != null && !cardName.isEmpty()) {
+                    cards.merge(cardName, 1, Integer::sum);
+                }
+            }
+            // Keep face-down cards owned by this player that they cannot legally inspect (face-down non-foretell exile
+            // or opponent-controlled face-down permanents) mixed into the list so diffing cannot leak hidden cards.
+            for (ExileZone exileZone : game.getExile().getExileZones()) {
+                for (Card card : exileZone.getCards(game)) {
+                    if (player.getId().equals(card.getOwnerId())
+                            && card.isFaceDown(game)
+                            && !ForetellAbility.isCardInForetell(card, game)) {
+                        String cardName = card.getMainCard().getName();
+                        if (cardName != null && !cardName.isEmpty()) {
+                            cards.merge(cardName, 1, Integer::sum);
+                        }
+                    }
+                }
+            }
+            for (Permanent permanent : state.getBattlefield().getAllPermanents()) {
+                if (permanent.isFaceDown(game)
+                        && player.getId().equals(permanent.getOwnerId())
+                        && !player.getId().equals(permanent.getControllerId())) {
+                    Card real = game.getCard(permanent.getId());
+                    if (real != null) {
+                        String cardName = real.getMainCard().getName();
+                        if (cardName != null && !cardName.isEmpty()) {
+                            cards.merge(cardName, 1, Integer::sum);
+                        }
+                    }
+                }
             }
             this.libraryCards = cards;
         } else {

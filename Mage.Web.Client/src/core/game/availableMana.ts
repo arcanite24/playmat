@@ -1,11 +1,11 @@
 import type { PermanentView, PlayerView } from '../../protocol/generated/views';
-import { manaOf } from './autoPay';
+import { manaAmount, manaOf } from './autoPay';
 
 /**
- * An estimate of the mana a player could make now, for their plate: one per untapped mana source they control
- * (a land, or a creature that has been under their control since their turn began) plus the mana in their pool.
- * `exact` is false when a source can't be read for sure: a cost or rider besides tapping (a Treasure), more than one
- * mana from one ability, or a summoning-sick creature source that may have haste.
+ * An estimate of the mana a player could make now, for their plate: untapped mana sources they control
+ * (lands, rocks, or creatures that can tap this turn) plus the mana in their pool.
+ * `exact` is false when a source can't be read for sure: a cost or rider besides tapping (a Treasure),
+ * scaling mana ("for each ..."), or a summoning-sick creature source that may have haste.
  */
 export interface AvailableMana {
   count: number;
@@ -32,9 +32,9 @@ export function availableMana(player: Pick<PlayerView, 'battlefield' | 'manaPool
       exact = false;
     }
     if (mana === null) exact = false;
-    // "Add {C}{C}" (and not "{R} or {G}"): more than one mana per tap
-    if (rules.some((rule) => [...rule.matchAll(/Add ((?:\{[^}]+\})+)/gi)].some((match) => (match[1].match(/\{/g) ?? []).length > 1))) exact = false;
-    count += 1;
+    // scaling abilities ("Add {G} for each Elf", "equal to...") produce a variable amount
+    if (rules.some((rule) => /Add [^.]*\b(for each|equal to|where X)\b/i.test(rule))) exact = false;
+    count += manaAmount(permanent);
   }
   return { count, exact };
 }
