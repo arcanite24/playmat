@@ -474,6 +474,8 @@ class Data:
             self.z_td = self.z
 
         self.oracle_v = None
+        self.oracle_probs = None
+        self.oracle_act_q = None
         self.store = None
         self.store_dev = None
         self._pinned = False
@@ -483,16 +485,16 @@ class Data:
         cols = {
             "glob": self.glob,
             "ents": self.ents,
-            "ent_ids": self.ent_ids.astype(np.int16),
+            "ent_ids": np.ascontiguousarray(self.ent_ids).view(np.int16),
             "ent_rel_idx": self.ent_rel_idx,
             "ent_rel_type": self.ent_rel_type,
             "acts": self.acts,
-            "act_ids": self.act_ids.astype(np.int16),
+            "act_ids": np.ascontiguousarray(self.act_ids).view(np.int16),
             "act_ent_idx": self.act_ent_idx,
             "target": self.target,
             "act_q": self.act_q,
             "act_n": self.act_n.astype(np.int32),
-            "pool": self.pool.astype(np.int16),
+            "pool": np.ascontiguousarray(self.pool).view(np.int16),
             "pool_hand": self.pool_hand,
             "chosen": self.chosen.astype(np.int64),
             "logp": self.logp,
@@ -509,9 +511,13 @@ class Data:
         }
         if self.oracle_v is not None:
             cols["oracle_v"] = self.oracle_v
+        if self.oracle_probs is not None:
+            cols["oracle_probs"] = self.oracle_probs
+        if self.oracle_act_q is not None:
+            cols["oracle_act_q"] = self.oracle_act_q
         if self.load_critic:
             cols["hid"] = self.hid
-            cols["hid_ids"] = self.hid_ids.astype(np.int16)
+            cols["hid_ids"] = np.ascontiguousarray(self.hid_ids).view(np.int16)
         for k in ["ent", "act", "pool"] + (["hid"] if self.load_critic else []):
             cols[k + "_off"] = getattr(self, k + "_off")
             cols["n_" + k] = getattr(self, "n_" + k).astype(np.int64)
@@ -566,20 +572,20 @@ class Data:
         cols = {
             "glob": cat_fixed(self.glob),
             "ents": ents,
-            "ent_ids": eids.astype(np.int16),
+            "ent_ids": np.ascontiguousarray(eids).view(np.int16),
             "ent_rel_idx": eridx,
             "ent_rel_type": ertyp,
             "ent_off": ent_off,
             "n_ent": n_ent,
             "acts": acts,
-            "act_ids": aids.astype(np.int16),
+            "act_ids": np.ascontiguousarray(aids).view(np.int16),
             "act_ent_idx": aent,
             "target": tgt,
             "act_q": act_q,
             "act_n": act_n.astype(np.int32),
             "act_off": act_off,
             "n_act": n_act,
-            "pool": pool.astype(np.int16),
+            "pool": np.ascontiguousarray(pool).view(np.int16),
             "pool_hand": ph,
             "pool_off": pool_off,
             "n_pool": n_pool,
@@ -599,10 +605,15 @@ class Data:
         }
         if self.oracle_v is not None:
             cols["oracle_v"] = cat_fixed(self.oracle_v)
+        if self.oracle_probs is not None:
+            cols["oracle_probs"] = cat_fixed(self.oracle_probs)
+        if self.oracle_act_q is not None:
+            oaq, _, _ = cat_var(self.oracle_act_q, self.act_off, self.n_act)
+            cols["oracle_act_q"] = oaq
         if self.load_critic:
             hid, hid_off, n_hid = cat_var(self.hid, self.hid_off, self.n_hid)
             hids, _, _ = cat_var(self.hid_ids, self.hid_off, self.n_hid)
-            cols.update({"hid": hid, "hid_ids": hids.astype(np.int16), "hid_off": hid_off, "n_hid": n_hid})
+            cols.update({"hid": hid, "hid_ids": np.ascontiguousarray(hids).view(np.int16), "hid_off": hid_off, "n_hid": n_hid})
         store = {k: torch.from_numpy(np.ascontiguousarray(v)).to(dev) for k, v in cols.items()}
         return _View(store, dev, self.load_critic, len(cols["z"]))
 
@@ -688,6 +699,11 @@ class Data:
         }
         if self.oracle_v is not None:
             res_b["oracle_v"] = t(self.oracle_v[idx])
+        if self.oracle_probs is not None:
+            res_b["oracle_probs"] = t(self.oracle_probs[idx])
+        if self.oracle_act_q is not None:
+            oaq, _ = self._gather(self.oracle_act_q, self.act_off, self.n_act, idx, N_ACT)
+            res_b["oracle_act_q"] = t(np.where(am, oaq.astype(np.float32), np.nan))
         return res_b
 
 
@@ -734,12 +750,14 @@ def _pad_raw(raw):
               "pool": N_POOL, "pm": N_POOL, "ph": N_POOL}
     if "hid" in raw:
         widths.update({"hid": N_HID, "hm": N_HID, "hids": N_HID})
+    if "oracle_act_q" in raw:
+        widths["oracle_act_q"] = N_ACT
     out = dict(raw)
     for k, w in widths.items():
         v = raw[k]
         pad = w - v.shape[1]
         if pad > 0:
-            fill = NO_ENT if k in ("eridx", "aent") else (float("nan") if k == "act_q" else 0)
+            fill = NO_ENT if k in ("eridx", "aent") else (float("nan") if k in ("act_q", "oracle_act_q") else 0)
             z = torch.full((v.shape[0], pad) + tuple(v.shape[2:]), fill, dtype=v.dtype, device=v.device)
             out[k] = torch.cat([v, z], 1)
     return out
@@ -783,6 +801,10 @@ def _batch_from_store(st, s, load_critic, idx, device, trim=None):
     }
     if "oracle_v" in st:
         raw["oracle_v"] = st["oracle_v"][i]
+    if "oracle_probs" in st:
+        raw["oracle_probs"] = st["oracle_probs"][i]
+    if "oracle_act_q" in st:
+        raw["oracle_act_q"] = _gather_col(st, "oracle_act_q", act_pos, bsz, w_a)
     if load_critic:
         hid_pos, hm, w_h = _group_index(st, "hid", i, N_HID, trim=do_trim)
         hid = _gather_col(st, "hid", hid_pos, bsz, w_h)
@@ -792,17 +814,18 @@ def _batch_from_store(st, s, load_critic, idx, device, trim=None):
         raw = {k: v.to(device, non_blocking=v.is_pinned()) for k, v in raw.items()}
     f, r = torch.float32, raw
     em, am, pm = r["em"], r["am"], r["pm"]
+    u16_long = lambda x: (x.to(torch.int32) & 0xFFFF).long()
     tgt = torch.where(am, r["tgt"].to(f), 0)
     tgt = tgt / tgt.sum(1, keepdim=True).clamp(min=1e-6)
     out = {
         "glob": r["glob"].to(f),
         "ents": r["ents"].to(f) * em[..., None],
-        "ent_ids": r["eids"].long() * em,
+        "ent_ids": u16_long(r["eids"]) * em,
         "ent_mask": em,
         "ent_rel_idx": torch.where(em, r["eridx"].long(), NO_ENT),
         "ent_rel_type": torch.where(em, r["ertyp"].long(), 0),
         "acts": r["acts"].to(f) * am[..., None],
-        "act_ids": r["aids"].long() * am,
+        "act_ids": u16_long(r["aids"]) * am,
         "act_mask": am,
         "act_ent_idx": torch.where(am, r["aent"].long(), NO_ENT),
         "target": tgt,
@@ -810,7 +833,7 @@ def _batch_from_store(st, s, load_critic, idx, device, trim=None):
         "act_n": r["act_n"].long() * am,
         "chosen": r["chosen"].clamp(max=am.shape[1] - 1),
         "logp": r["logp"].to(f),
-        "pool": r["pool"].long() * pm,
+        "pool": u16_long(r["pool"]) * pm,
         "pool_hand": r["ph"].to(f) * pm,
         "pool_mask": pm,
         "z": r["z"].to(f),
@@ -826,11 +849,16 @@ def _batch_from_store(st, s, load_critic, idx, device, trim=None):
     }
     if "oracle_v" in r:
         out["oracle_v"] = r["oracle_v"].to(f)
+    if "oracle_probs" in r:
+        out["oracle_probs"] = r["oracle_probs"].to(f)
+    if "oracle_act_q" in r:
+        oaq_f = r["oracle_act_q"].to(f)
+        out["oracle_act_q"] = torch.where(am, oaq_f, torch.full_like(oaq_f, float("nan")))
     if load_critic:
         hm = r["hm"]
         out.update({
             "hid": r["hid"].to(f) * hm[..., None],
-            "hid_ids": r["hids"].long() * hm,
+            "hid_ids": u16_long(r["hids"]) * hm,
             "hid_mask": hm,
         })
     return out

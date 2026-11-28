@@ -37,6 +37,10 @@ pub const ACT_F: usize = 16 + ENT_F;
 pub const MAX_ENT: usize = 80;
 /// Hash buckets for card names (0: no card)
 pub const BUCKETS: u32 = 4096;
+/// Expanded Phase 7 canonical card registry table size (`1..=16483` collision-free verified cards, `24577..=32767` FNV-1a fallback)
+pub const BUCKETS_32K: usize = 32_768;
+/// Start of unverified/token/synthetic FNV-1a fallback band inside `BUCKETS_32K` (`24577..=32767`)
+pub const REGISTRY_32K_FALLBACK_START: u32 = 24_577;
 /// Sentinel index when an entity has no relational target or an action names no visible entity
 pub const NO_ENT: u8 = 255;
 /// Number of directed relational edge types (1: stack->target, 2: blocker->attacker, 3: aura/equip->attached, 4: stack->source)
@@ -109,10 +113,56 @@ impl Obs {
     }
 }
 
-/// A card name's bucket: FNV-1a of the name, 1..BUCKETS
+const CARD_REGISTRY_32K_RAW: &str = include_str!("card_registry_32k.txt");
+
+static REGISTRY_32K: std::sync::OnceLock<std::collections::HashMap<&'static str, u32>> = std::sync::OnceLock::new();
+
+fn registry_32k() -> &'static std::collections::HashMap<&'static str, u32> {
+    REGISTRY_32K.get_or_init(|| {
+        let mut map = std::collections::HashMap::with_capacity(16_483);
+        for (idx, line) in CARD_REGISTRY_32K_RAW.lines().enumerate() {
+            let name = line.trim_end_matches('\r');
+            if !name.is_empty() {
+                map.insert(name, (idx + 1) as u32);
+            }
+        }
+        map
+    })
+}
+
+#[inline]
+fn fnv1a_64(name: &str) -> u64 {
+    name.bytes().fold(0xcbf2_9ce4_8422_2325u64, |h, b| (h ^ b as u64).wrapping_mul(0x0100_0000_01b3))
+}
+
+/// Maps `name` to a card bucket ID for a `buckets`-row embedding table:
+/// - `name.is_empty()` -> `0` (padding / no card).
+/// - `buckets <= 4096` -> exact legacy `1 + (fnv1a_64(name) % (buckets - 1))`.
+/// - `buckets == 32768` -> `1..=16483` exact canonical index in `card_registry_32k.txt` (0% collisions),
+///   else `24577 + (fnv1a_64(name) % (32768 - 24577))` (`24577..=32767`).
+#[inline]
+pub fn card_id_for_buckets(name: &str, buckets: usize) -> u32 {
+    if name.is_empty() {
+        return 0;
+    }
+    let b = buckets.max(2);
+    if b == BUCKETS_32K {
+        if let Some(&id) = registry_32k().get(name) {
+            return id;
+        }
+        let span = (BUCKETS_32K as u64) - (REGISTRY_32K_FALLBACK_START as u64);
+        return REGISTRY_32K_FALLBACK_START + (fnv1a_64(name) % span) as u32;
+    }
+    1 + (fnv1a_64(name) % (b as u64 - 1)) as u32
+}
+
+/// A card name's legacy 4096-table bucket: FNV-1a of the name, `1..BUCKETS` (`0` if empty)
+#[inline]
 pub fn card_id(name: &str) -> u32 {
-    let h = name.bytes().fold(0xcbf2_9ce4_8422_2325u64, |h, b| (h ^ b as u64).wrapping_mul(0x0100_0000_01b3));
-    1 + (h % (BUCKETS as u64 - 1)) as u32
+    if name.is_empty() {
+        return 0;
+    }
+    1 + (fnv1a_64(name) % (BUCKETS as u64 - 1)) as u32
 }
 
 const KEYWORDS: [AbilityDef; 13] = [
@@ -373,7 +423,7 @@ fn entity_with_flags(
 
 /// Features for a distinct stack item (spell or activated/triggered ability on the stack).
 /// Always encodes `Zone::Stack` (`f[3] = 1.0`) and `s.controller == seat` even when `s.card` is on the battlefield.
-fn stack_entity(game: &Game, seat: Seat, s: &StackItem) -> ([f32; ENT_F], u32) {
+fn stack_entity(game: &Game, seat: Seat, s: &StackItem, buckets: usize) -> ([f32; ENT_F], u32) {
     let mut f = [0f32; ENT_F];
     let o = game.obj(s.card);
     let def = s.def.as_deref().unwrap_or(&o.def);
@@ -413,7 +463,7 @@ fn stack_entity(game: &Game, seat: Seat, s: &StackItem) -> ([f32; ENT_F], u32) {
     }
     f[46] = def.abilities.contains(&AbilityDef::FlashAbility) as u8 as f32;
     f[48] = def.subtypes.iter().any(|sub| sub == "Aura" || sub == "Equipment") as u8 as f32;
-    (f, card_id(&def.name))
+    (f, card_id_for_buckets(&def.name, buckets))
 }
 
 fn step_index(s: Option<Step>) -> usize {
@@ -760,12 +810,17 @@ pub fn visible(game: &Game, seat: Seat) -> Vec<ObjId> {
 
 /// What `seat` can't see that the critic may: the opponent's hand
 pub fn hidden_entities(game: &Game, seat: Seat) -> (Vec<f32>, Vec<u32>) {
+    hidden_entities_for(game, seat, BUCKETS as usize)
+}
+
+/// Opponent's hidden hand entities encoded with `buckets`-mode card IDs (`4096` or `32768`)
+pub fn hidden_entities_for(game: &Game, seat: Seat, buckets: usize) -> (Vec<f32>, Vec<u32>) {
     let opp = game.opponent(seat);
     let mut f = Vec::new();
     let mut ids = Vec::new();
     for id in game.player(opp).hand.iter().take(MAX_ENT) {
         f.extend(entity(game, seat, *id, &[], true));
-        ids.push(card_id(&game.obj(*id).def.name));
+        ids.push(card_id_for_buckets(&game.obj(*id).def.name, buckets));
     }
     (f, ids)
 }
@@ -814,9 +869,10 @@ fn action_header(seat: Seat, q: &Query, a: &Answer, quick: bool) -> [f32; ACT_F]
 /// One candidate's features (`quick`: it's the quick answers' pick)
 pub fn action(game: &Game, seat: Seat, q: &Query, a: &Answer, quick: bool, playable: &[ObjId]) -> ([f32; ACT_F], u32) {
     let flags = BoardLayerFlags::scan(game);
-    action_with_flags(game, seat, q, a, quick, playable, &flags)
+    action_with_flags(game, seat, q, a, quick, playable, &flags, BUCKETS as usize)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn action_with_flags(
     game: &Game,
     seat: Seat,
@@ -825,6 +881,7 @@ fn action_with_flags(
     quick: bool,
     playable: &[ObjId],
     flags: &BoardLayerFlags,
+    buckets: usize,
 ) -> ([f32; ACT_F], u32) {
     let mut f = action_header(seat, q, a, quick);
     let mut id = 0;
@@ -833,7 +890,7 @@ fn action_with_flags(
             let hidden = game.obj(o).zone == Zone::Hand && game.obj(o).owner != seat;
             if !hidden {
                 f[16..].copy_from_slice(&entity_with_flags(game, seat, o, playable, false, flags));
-                id = card_id(&game.obj(o).def.name);
+                id = card_id_for_buckets(&game.obj(o).def.name, buckets);
             }
         }
     }
@@ -846,8 +903,14 @@ enum EntEntry {
     Obj(ObjId),
 }
 
-/// The seat's observation at question `q`, with its candidate answers (`candidates[0]` the quick one)
+/// The seat's observation at question `q`, with its candidate answers (`candidates[0]` the quick one),
+/// using legacy `BUCKETS = 4096` card IDs.
 pub fn observe(game: &Game, seat: Seat, q: &Query, candidates: &[Answer]) -> Obs {
+    observe_for(game, seat, q, candidates, BUCKETS as usize)
+}
+
+/// The seat's observation at question `q` encoded for a `buckets`-row card table (`4096` or `32768`).
+pub fn observe_for(game: &Game, seat: Seat, q: &Query, candidates: &[Answer], buckets: usize) -> Obs {
     let playable: &[ObjId] = match q {
         Query::Priority { playable } => playable,
         _ => &[],
@@ -925,7 +988,7 @@ pub fn observe(game: &Game, seat: Seat, q: &Query, candidates: &[Answer]) -> Obs
         match *entry {
             EntEntry::Stack(si) => {
                 let s = &game.stack[si];
-                let (feat, cid) = stack_entity(game, seat, s);
+                let (feat, cid) = stack_entity(game, seat, s, buckets);
                 o.ents.extend(feat);
                 o.ent_ids.push(cid);
                 if s.ability.is_none() {
@@ -934,7 +997,7 @@ pub fn observe(game: &Game, seat: Seat, q: &Query, candidates: &[Answer]) -> Obs
             }
             EntEntry::Obj(id) => {
                 o.ents.extend(entity_with_flags(game, seat, id, playable, false, &flags));
-                o.ent_ids.push(card_id(&game.obj(id).def.name));
+                o.ent_ids.push(card_id_for_buckets(&game.obj(id).def.name, buckets));
                 obj_tok.push((id, idx as u8));
             }
         }
@@ -1017,7 +1080,7 @@ pub fn observe(game: &Game, seat: Seat, q: &Query, candidates: &[Answer]) -> Obs
                 }
             }
         }
-        let (f, id) = action_with_flags(game, seat, q, a, i == 0, playable, &flags);
+        let (f, id) = action_with_flags(game, seat, q, a, i == 0, playable, &flags, buckets);
         o.acts.extend(f);
         o.act_ids.push(id);
     }
@@ -1329,7 +1392,7 @@ mod tests {
         for e in &entries {
             match *e {
                 EntEntry::Stack(si) => {
-                    let (feat, cid) = stack_entity(game, seat, &game.stack[si]);
+                    let (feat, cid) = stack_entity(game, seat, &game.stack[si], BUCKETS as usize);
                     o.ents.extend(feat);
                     o.ent_ids.push(cid);
                 }
@@ -1431,5 +1494,62 @@ mod tests {
             let slow2 = ref_observe(&g2, 0, &q, &cands);
             assert_obs_bit_exact(&fast2, &slow2, "synthetic lost_until_eot");
         }
+    }
+
+    #[test]
+    fn card_registry_32k_zero_collisions_and_cross_language_parity() {
+        assert_eq!(registry_32k().len(), 16_483, "canonical registry must hold all 16,483 verified cards");
+        let mut seen_32k = std::collections::HashSet::with_capacity(16_483);
+        for (idx, line) in CARD_REGISTRY_32K_RAW.lines().enumerate() {
+            let name = line.trim_end_matches('\r');
+            let id32 = card_id_for_buckets(name, BUCKETS_32K);
+            assert_eq!(id32, (idx + 1) as u32, "registry index mismatch for {name}");
+            assert!((1..=16_483).contains(&id32));
+            assert!(seen_32k.insert(id32), "collision on {name} -> {id32}");
+            assert_eq!(card_id_for_buckets(name, BUCKETS as usize), card_id(name));
+        }
+        assert_eq!(seen_32k.len(), 16_483);
+
+        // Exact cross-language parity with Python `card_id_32k` & `card_id` (FNV-1a 64-bit + registry lookup)
+        let cases: &[(&str, u32, u32)] = &[
+            ("", 0, 0),
+            ("+2 Mace", 1, 293),
+            ("Iron Fist, Living Weapon", 8242, 2436),
+            ("Zurgo's Vanguard", 16483, 1005),
+            ("Soldier Token", 27905, 4009),
+            ("Treasure Token", 26837, 3710),
+            ("Synthetic Mythic X", 32206, 451),
+        ];
+        for &(name, exp_32k, exp_4k) in cases {
+            assert_eq!(card_id_for_buckets(name, BUCKETS_32K), exp_32k, "32k mismatch for {name:?}");
+            assert_eq!(card_id_for_buckets(name, BUCKETS as usize), exp_4k, "4k mismatch for {name:?}");
+            assert_eq!(card_id(name), exp_4k, "legacy card_id mismatch for {name:?}");
+            if exp_32k > 16_483 {
+                assert!((24_577..=32_767).contains(&exp_32k), "fallback band out of range: {exp_32k}");
+            }
+        }
+
+        // Verify `observe_for(..., 32768)` produces exact 32k entity/action IDs while keeping feature floats identical
+        let db = playmat_engine::cards();
+        let d0 = Deck::parse("red", "24 Mountain\n36 Shock\n");
+        let d1 = Deck::parse("green", "24 Forest\n36 Grizzly Bears\n");
+        let mut g = new_duel(&db, [&d0, &d1], 5, 0).expect("duel");
+        g.turn = 1;
+        g.step = Some(Step::PrecombatMain);
+        g.active = Some(0);
+        g.priority = Some(0);
+        let playable = rules::playable(&g, 0);
+        let hand_obj = g.player(0).hand[0];
+        let q = Query::Priority { playable };
+        let cands = vec![Answer::Bool(false), Answer::Obj(hand_obj)];
+        let o4 = observe_for(&g, 0, &q, &cands, BUCKETS as usize);
+        let o32 = observe_for(&g, 0, &q, &cands, BUCKETS_32K);
+        assert_eq!(o4.glob, o32.glob);
+        assert_eq!(o4.ents, o32.ents);
+        assert_eq!(o4.acts, o32.acts);
+        assert_ne!(o4.hash128(), o32.hash128(), "4k and 32k observations must hash to disjoint EvalCache keys");
+        assert!(o32.ent_ids.iter().all(|&id| (1..=16_483).contains(&id)));
+        assert_eq!(o32.act_ids[0], 0);
+        assert!((1..=16_483).contains(&o32.act_ids[1]));
     }
 }

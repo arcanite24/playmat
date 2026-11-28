@@ -527,7 +527,7 @@ impl Decider for Playout {
             if !crate::selfplay::skipped(q) {
                 let options = candidates(game, seat, q, &a, 12);
                 if options.len() > 1 {
-                    let o = crate::obs::observe(game, seat, q, &options);
+                    let o = crate::obs::observe_for(game, seat, q, &options, net.buckets());
                     let out = net.forward(&o);
                     let best = (0..options.len()).max_by(|i, j| out.logits[*i].total_cmp(&out.logits[*j])).unwrap_or(0);
                     a = options[best].clone();

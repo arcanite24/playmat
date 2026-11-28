@@ -89,7 +89,7 @@ impl DecisionPolicy for NetPolicy {
             return None;
         }
         let net = net::of(&d.config.net);
-        let o = obs::observe(d.game, d.seat, d.query, d.candidates);
+        let o = obs::observe_for(d.game, d.seat, d.query, d.candidates, net.buckets());
         let out = net.forward(&o);
         let temp = effective_temp(d.config, d.game.turn);
         let t = if temp == 0 { 1.0 } else { temp as f32 / 1000.0 };
@@ -132,12 +132,13 @@ fn hand_likelihood(
     seat: Seat,
     logit: &std::collections::HashMap<u32, f32>,
     seen: &dyn Fn(ObjId) -> bool,
+    buckets: usize,
 ) -> f32 {
     game.player(game.opponent(seat))
         .hand
         .iter()
         .filter(|id| !seen(**id))
-        .map(|id| logit.get(&obs::card_id(&game.obj(*id).def.name)).copied().unwrap_or(0.0))
+        .map(|id| logit.get(&obs::card_id_for_buckets(&game.obj(*id).def.name, buckets)).copied().unwrap_or(0.0))
         .sum()
 }
 
@@ -265,10 +266,13 @@ pub(crate) fn sample_games_weighted(
     // multi-tree search focuses depth instead of splitting iters across 16 near-identical trees.
     let eff_k = if opp_unseen_hand == 0 { k.clamp(1, 2) } else { k.max(1) };
     if net.has_belief() && opp_unseen_hand > 0 {
+        let buckets = net.buckets();
         let seen = |id: ObjId| h.seat_saw(id);
         let unseen_list = unseen(&root.snapshot, d.seat, seen);
-        let pool_cids: Vec<u32> =
-            unseen_list.iter().map(|(id, _)| obs::card_id(&root.snapshot.obj(*id).def.name)).collect();
+        let pool_cids: Vec<u32> = unseen_list
+            .iter()
+            .map(|(id, _)| obs::card_id_for_buckets(&root.snapshot.obj(*id).def.name, buckets))
+            .collect();
         let z = net.belief(state, &pool_cids);
         let mut logit: std::collections::HashMap<u32, f32> = pool_cids.iter().copied().zip(z).collect();
         let opp_untapped_lands = root
@@ -283,7 +287,7 @@ pub(crate) fn sample_games_weighted(
         if d.config.belief_pass && root.snapshot.active != Some(opp) && opp_untapped_lands >= 2 {
             for (id, _) in &unseen_list {
                 let def = &root.snapshot.obj(*id).def;
-                let cid = obs::card_id(&def.name);
+                let cid = obs::card_id_for_buckets(&def.name, buckets);
                 let is_instant = def.types.contains(&playmat_engine::card::CardType::Instant)
                     || def.abilities.contains(&playmat_engine::card::AbilityDef::FlashAbility);
                 let is_creature = def.types.contains(&playmat_engine::card::CardType::Creature) && !is_instant;
@@ -320,7 +324,7 @@ pub(crate) fn sample_games_weighted(
             .chain(opp_lib_orig.iter().filter(|id| !fixed_in_lib(id)))
             .map(|&id| {
                 let def = &root.snapshot.obj(id).def;
-                let cid = obs::card_id(&def.name);
+                let cid = obs::card_id_for_buckets(&def.name, buckets);
                 let ll = logit.get(&cid).copied().unwrap_or(0.0);
                 let tmask = if need_threat { card_threat_mask(def, opp_untapped_lands) } else { 0 };
                 PoolCard { id, cid, ll, tmask }
@@ -511,7 +515,7 @@ impl DecisionPolicy for NetSearch {
         let cfg = d.config;
         let temp = effective_temp(cfg, d.game.turn);
         let net = net::of(&cfg.net);
-        let o = obs::observe(d.game, d.seat, d.query, d.candidates);
+        let o = obs::observe_for(d.game, d.seat, d.query, d.candidates, net.buckets());
         let out = net.forward(&o);
         let prior = softmax(&out.logits, 1.0);
         let Some(root) = d.root else {
@@ -619,7 +623,7 @@ impl DecisionPolicy for Gumbel {
         let cfg = d.config;
         let temp = effective_temp(cfg, d.game.turn);
         let net = net::of(&cfg.net);
-        let o = obs::observe(d.game, d.seat, d.query, d.candidates);
+        let o = obs::observe_for(d.game, d.seat, d.query, d.candidates, net.buckets());
         let out = net.forward(&o);
         let n = out.logits.len();
         let Some(root) = d.root.filter(|_| n > 1) else {
@@ -809,7 +813,15 @@ impl DecisionPolicy for Recording {
             Some(p) if p.len() == k => p.to_vec(),
             _ => (0..k).map(|i| (i == chosen) as u8 as f32).collect(),
         };
-        let (hidden, hidden_ids) = obs::hidden_entities(d.game, d.seat);
+        let rec_buckets = if d.config.net.is_some()
+            || matches!(d.config.policy, PolicyKind::Net | PolicyKind::NetSearch | PolicyKind::Gumbel | PolicyKind::Ismcts)
+            || d.config.eval >= 3
+        {
+            net::of(&d.config.net).buckets()
+        } else {
+            obs::BUCKETS as usize
+        };
+        let (hidden, hidden_ids) = obs::hidden_entities_for(d.game, d.seat, rec_buckets);
         let seen = |id: ObjId| self.seen.seat_saw(id);
         let pool = unseen(d.game, d.seat, seen);
         let act_q: Vec<f32> = match self.inner.last_action_qs() {
@@ -826,10 +838,10 @@ impl DecisionPolicy for Recording {
             seat: d.seat,
             turn: d.game.turn,
             qkind: obs::query_index(d.query) as u8,
-            obs: obs::observe(d.game, d.seat, d.query, d.candidates),
+            obs: obs::observe_for(d.game, d.seat, d.query, d.candidates, rec_buckets),
             hidden,
             hidden_ids,
-            pool: pool.iter().map(|(id, _)| obs::card_id(&d.game.obj(*id).def.name)).collect(),
+            pool: pool.iter().map(|(id, _)| obs::card_id_for_buckets(&d.game.obj(*id).def.name, rec_buckets)).collect(),
             pool_in_hand: pool.iter().map(|(_, h)| *h).collect(),
             chosen,
             logp: target[chosen].max(1e-8).sln(),

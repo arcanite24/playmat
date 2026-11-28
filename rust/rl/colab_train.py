@@ -32,7 +32,10 @@ def main():
     ap.add_argument("--oracle-ckpt", default=None, help="optional checkpoints/<name> in models repo for oracle distillation")
     ap.add_argument("--oracle-mix", type=float, default=0.0)
     ap.add_argument("--arch", default="tx")
-    ap.add_argument("--tx", default="d=192,heads=6,layers=4,ff=512,dim=32,trunk=192,val_mlp=1,gelu=1,glob_f=81,rel=1,act_ent=1,text=2")
+    ap.add_argument("--tx", default=None, help="transformer config k=v pairs (defaults to legacy 1.3M Tx spec only when --arch tx)")
+    ap.add_argument("--buckets", type=int, default=0, help="card vocabulary size for TxV2 (4096 or 32768)")
+    ap.add_argument("--cardtext", default=None, help="optional cardtext .npy filename or path for TxV2")
+    ap.add_argument("--val-bins", type=int, default=0, help="HL-Gauss categorical value bins (e.g. 51)")
     ap.add_argument("--epochs", type=int, default=6)
     ap.add_argument("--bs", type=int, default=2048)
     ap.add_argument("--lr", type=float, default=1.2e-3)
@@ -41,6 +44,8 @@ def main():
     ap.add_argument("--val-prob", type=float, default=0.50)
     ap.add_argument("--val-wd", type=float, default=5e-2)
     ap.add_argument("--value-weight", type=float, default=1.0)
+    ap.add_argument("--belief-weight", type=float, default=0.2)
+    ap.add_argument("--belief-count-weight", type=float, default=0.05)
     ap.add_argument("--aux-weight", type=float, default=0.15)
     ap.add_argument("--act-q-weight", type=float, default=0.2)
     ap.add_argument("--recency-decay", type=float, default=0.92)
@@ -49,6 +54,7 @@ def main():
     ap.add_argument("--cache-oracle", type=int, default=1)
     ap.add_argument("--upgrade-glob-f", type=int, default=0)
     ap.add_argument("--upgrade-val-bins", type=int, default=0)
+    ap.add_argument("--upgrade-buckets", type=int, default=0)
     ap.add_argument("--threat-weight", type=float, default=0.0)
     ap.add_argument("--opt-pol-weight", type=float, default=0.0)
     ap.add_argument("--opt", default="adamw")
@@ -96,7 +102,7 @@ def main():
     )
     rl_dir = os.path.join(work, "code", "rl")
     os.makedirs(os.path.join(rl_dir, "data"), exist_ok=True)
-    for fn in ("cardtext.npy", "cardtext_sem.npy"):
+    for fn in ("cardtext.npy", "cardtext_sem.npy", "cardtext_v2_4k.npy", "cardtext_v2_32k.npy", "card_registry_32k.txt"):
         src = os.path.join(work, "cardtext", fn)
         dst = os.path.join(rl_dir, "data", fn)
         if os.path.exists(src) and not os.path.exists(dst):
@@ -153,6 +159,8 @@ def main():
         "--val-prob", str(args.val_prob),
         "--val-wd", str(args.val_wd),
         "--value-weight", str(args.value_weight),
+        "--belief-weight", str(args.belief_weight),
+        "--belief-count-weight", str(args.belief_count_weight),
         "--aux-weight", str(args.aux_weight),
         "--act-q-weight", str(args.act_q_weight),
         "--threat-weight", str(args.threat_weight),
@@ -181,14 +189,27 @@ def main():
         cmd += ["--oracle-mode"]
     if oracle_dir and args.oracle_mix > 0:
         cmd += ["--oracle-dir", oracle_dir, "--oracle-mix", str(args.oracle_mix)]
+    if args.buckets > 0:
+        cmd += ["--buckets", str(args.buckets)]
+    if args.cardtext:
+        cmd += ["--cardtext", str(args.cardtext)]
+    if args.val_bins > 0:
+        cmd += ["--val-bins", str(args.val_bins)]
     if init_dir:
         cmd += ["--init", init_dir]
         if args.upgrade_glob_f > 0:
             cmd += ["--upgrade-glob-f", str(args.upgrade_glob_f)]
         if args.upgrade_val_bins > 0:
             cmd += ["--upgrade-val-bins", str(args.upgrade_val_bins)]
+        if args.upgrade_buckets > 0:
+            cmd += ["--upgrade-buckets", str(args.upgrade_buckets)]
     else:
-        cmd += ["--arch", args.arch, "--tx", args.tx]
+        cmd += ["--arch", args.arch]
+        tx_arg = args.tx
+        if tx_arg is None and args.arch == "tx":
+            tx_arg = "d=192,heads=6,layers=4,ff=512,dim=32,trunk=192,val_mlp=1,gelu=1,glob_f=81,rel=1,act_ent=1,text=2"
+        if tx_arg:
+            cmd += ["--tx", tx_arg]
     for r in args.rounds:
         cmd += ["--data", os.path.join(work, "data", r)]
 

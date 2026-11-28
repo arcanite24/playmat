@@ -127,6 +127,8 @@ pub struct Config {
     pub threat_w: u32,
     /// Progressive determinization schedule across sequential halving rounds (half worlds in early rounds, full worlds in final half)
     pub prog_worlds: bool,
+    /// Per-action neural Q initialization (`TxV2` `act_q`) blended 50/50 with node FPU on unvisited children
+    pub act_q_fpu: bool,
 }
 
 impl Default for Config {
@@ -186,6 +188,7 @@ impl Default for Config {
             forced_k: 0,
             threat_w: 0,
             prog_worlds: false,
+            act_q_fpu: false,
         }
     }
 }

@@ -304,6 +304,8 @@ pub struct Output {
     pub value: f32,
     /// the state, for the belief
     pub h: Vec<f32>,
+    /// optional per-action Q probability in (0, 1) from `TxV2` `act_q_head` (empty when model has no `act_q`)
+    pub act_q: Vec<f32>,
 }
 
 impl Mlp {
@@ -410,7 +412,7 @@ impl Mlp {
             self.abias.apply(&a, &mut b, false);
             logits.push(dot(&q, &a) + b[0]);
         }
-        Output { logits, value, h }
+        Output { logits, value, h, act_q: Vec::new() }
     }
 
     /// Each card's logit of being in the opponent's hand, from the state `h` (0 for a net without a belief head)
@@ -915,7 +917,7 @@ impl Tx {
             let (h, value) = self.run_head(o, nt, ws);
             let na = o.n_acts();
             if na == 0 {
-                return Output { logits: Vec::new(), value, h };
+                return Output { logits: Vec::new(), value, h, act_q: Vec::new() };
             }
             let d = self.d;
             // Key/Value over all tokens
@@ -972,7 +974,7 @@ impl Tx {
             for i in 0..na {
                 logits.push(dot(&ws.tmp1, &ws.act[i * d..(i + 1) * d]) + ws.act_bias[i]);
             }
-            Output { logits, value, h }
+            Output { logits, value, h, act_q: Vec::new() }
         })
     }
 
@@ -1074,6 +1076,7 @@ pub struct RemoteNet {
     pub name: String,
     queue: Arc<(Mutex<BatchQueue>, Condvar)>,
     has_wait: bool,
+    buckets: usize,
     emb: Vec<f32>,
     dim: usize,
     trunk: usize,
@@ -1109,6 +1112,32 @@ fn read_f32s(s: &mut impl Read, n: usize) -> std::io::Result<Vec<f32>> {
     Ok(bytes.as_chunks::<4>().0.iter().map(|c| f32::from_le_bytes(*c)).collect())
 }
 
+#[inline]
+fn f16_to_f32(bits: u16) -> f32 {
+    let sign = ((bits & 0x8000) as u32) << 16;
+    let exp = ((bits >> 10) & 0x1f) as i32;
+    let mant = (bits & 0x03ff) as u32;
+    if exp == 0 {
+        if mant == 0 {
+            return f32::from_bits(sign);
+        }
+        let mut m = mant;
+        let mut e = -14i32;
+        while (m & 0x0400) == 0 {
+            m <<= 1;
+            e -= 1;
+        }
+        m &= 0x03ff;
+        let f_exp = ((e + 127) as u32) << 23;
+        return f32::from_bits(sign | f_exp | (m << 13));
+    }
+    if exp == 31 {
+        return f32::from_bits(sign | 0x7f80_0000 | (mant << 13));
+    }
+    let f_exp = ((exp - 15 + 127) as u32) << 23;
+    f32::from_bits(sign | f_exp | (mant << 13))
+}
+
 fn complete_slot(slot: &BatchSlot, idx: usize, out: Output) {
     let (rlock, rcv) = &**slot;
     let mut st = rlock.lock().unwrap();
@@ -1131,6 +1160,7 @@ fn fail_reply(slot: &BatchSlot, idx: usize, n_acts: usize, need_h: bool, trunk: 
             logits: vec![0.0; n_acts],
             value: 0.0,
             h: if need_h { vec![0.0; trunk] } else { Vec::new() },
+            act_q: Vec::new(),
         },
     );
 }
@@ -1162,6 +1192,7 @@ impl RemoteNet {
         let mut has_b = [0u8; 1];
         stream.read_exact(&mut has_b).map_err(|e| format!("{url} handshake: {e}"))?;
         let proto_v2 = (has_b[0] & 0x80) != 0;
+        let has_act_q = proto_v2 && (has_b[0] & 4) != 0;
         let (emb, belief) = if (has_b[0] & 1) != 0 {
             let emb = read_f32s(&mut stream, buckets * dim).map_err(|e| format!("{url} emb: {e}"))?;
             let bw = read_f32s(&mut stream, dim * trunk).map_err(|e| format!("{url} bw: {e}"))?;
@@ -1207,7 +1238,11 @@ impl RemoteNet {
                 let b = batch.items.len();
                 debug_assert_eq!(rb, b);
                 let w_a = batch.w_a;
-                let need = (b + b * w_a + b * rtrunk) * 4;
+                let v_bytes = b * 4;
+                let l_bytes = b * w_a * 4;
+                let aq_bytes = if has_act_q { b * w_a * 2 } else { 0 };
+                let h_bytes = b * rtrunk * 4;
+                let need = v_bytes + l_bytes + aq_bytes + h_bytes;
                 resp_buf.resize(need, 0);
                 if read_stream.read_exact(&mut resp_buf).is_err() {
                     for it in batch.items {
@@ -1215,16 +1250,25 @@ impl RemoteNet {
                     }
                     break;
                 }
-                let floats = resp_buf.as_chunks::<4>().0;
-                let vs = &floats[..b];
-                let all_logits = &floats[b..b + b * w_a];
-                let all_h = &floats[b + b * w_a..];
+                let vs = resp_buf[..v_bytes].as_chunks::<4>().0;
+                let all_logits = resp_buf[v_bytes..v_bytes + l_bytes].as_chunks::<4>().0;
+                let all_aq = resp_buf[v_bytes + l_bytes..v_bytes + l_bytes + aq_bytes].as_chunks::<2>().0;
+                let all_h = resp_buf[v_bytes + l_bytes + aq_bytes..].as_chunks::<4>().0;
                 for (i, it) in batch.items.into_iter().enumerate() {
                     let na = it.n_acts.min(w_a);
                     let mut logits = Vec::with_capacity(na);
                     for c in &all_logits[i * w_a..i * w_a + na] {
                         logits.push(f32::from_le_bytes(*c));
                     }
+                    let act_q = if has_act_q {
+                        let mut qv = Vec::with_capacity(na);
+                        for c in &all_aq[i * w_a..i * w_a + na] {
+                            qv.push(f16_to_f32(u16::from_le_bytes(*c)));
+                        }
+                        qv
+                    } else {
+                        Vec::new()
+                    };
                     let h = if it.need_h && rtrunk > 0 {
                         let mut hv = Vec::with_capacity(rtrunk);
                         for c in &all_h[i * rtrunk..(i + 1) * rtrunk] {
@@ -1235,7 +1279,7 @@ impl RemoteNet {
                         Vec::new()
                     };
                     let value = f32::from_le_bytes(vs[i]);
-                    complete_slot(&it.slot, it.idx, Output { logits, value, h });
+                    complete_slot(&it.slot, it.idx, Output { logits, value, h, act_q });
                 }
             }
             // Connection closed: mark queue closed and wake any in-flight or queued callers so nobody deadlocks.
@@ -1442,7 +1486,17 @@ impl RemoteNet {
             }
         });
 
-        Ok(RemoteNet { name: url.to_string(), queue, has_wait: wait_us > 0, emb, dim, trunk, belief, threat })
+        Ok(RemoteNet {
+            name: url.to_string(),
+            queue,
+            has_wait: wait_us > 0,
+            buckets: buckets.max(obs::BUCKETS as usize),
+            emb,
+            dim,
+            trunk,
+            belief,
+            threat,
+        })
     }
 
     fn submit_one(&self, o: &Obs, need_h: bool) -> Output {
@@ -1457,6 +1511,7 @@ impl RemoteNet {
                     logits: vec![0.0; o.n_acts()],
                     value: 0.0,
                     h: if need_h { vec![0.0; self.trunk] } else { Vec::new() },
+                    act_q: Vec::new(),
                 };
             }
             let notify = g.reqs.is_empty() || self.has_wait;
@@ -1505,7 +1560,7 @@ impl RemoteNet {
             if g.closed {
                 return obs
                     .iter()
-                    .map(|o| Output { logits: vec![0.0; o.n_acts()], value: 0.0, h: Vec::new() })
+                    .map(|o| Output { logits: vec![0.0; o.n_acts()], value: 0.0, h: Vec::new(), act_q: Vec::new() })
                     .collect();
             }
             let notify = g.reqs.is_empty() || self.has_wait;
@@ -1579,6 +1634,16 @@ impl Net {
             Net::Mlp(n) => &n.name,
             Net::Tx(n) => &n.name,
             Net::Remote(n) => &n.name,
+        }
+    }
+
+    /// Card-embedding vocabulary size (`4096` for Phase 5/6 `.pmnet` & servers, `32768` for Phase 7 `TxV2` servers)
+    #[inline]
+    pub fn buckets(&self) -> usize {
+        match self {
+            Net::Mlp(n) => (n.emb.len() / n.dim.max(1)).max(obs::BUCKETS as usize),
+            Net::Tx(n) => (n.emb.len() / n.dim.max(1)).max(obs::BUCKETS as usize),
+            Net::Remote(n) => n.buckets.max(obs::BUCKETS as usize),
         }
     }
 
@@ -1704,7 +1769,7 @@ pub fn score(net: &Net, game: &playmat_engine::state::Game, seat: playmat_engine
         return over;
     }
     let q = playmat_engine::decide::Query::Priority { playable: Vec::new() };
-    let o = obs::observe(game, seat, &q, &[]);
+    let o = obs::observe_for(game, seat, &q, &[], net.buckets());
     (net.state(&o).1 as f64 * 1000.0).clamp(-30_000.0, 30_000.0) as i64
 }
 
@@ -1712,31 +1777,6 @@ pub fn score(net: &Net, game: &playmat_engine::state::Game, seat: playmat_engine
 mod tests {
     use super::*;
     use std::net::TcpListener;
-
-    fn f16_to_f32(bits: u16) -> f32 {
-        let sign = ((bits & 0x8000) as u32) << 16;
-        let exp = ((bits >> 10) & 0x1f) as i32;
-        let mant = (bits & 0x03ff) as u32;
-        if exp == 0 {
-            if mant == 0 {
-                return f32::from_bits(sign);
-            }
-            let mut m = mant;
-            let mut e = -14i32;
-            while (m & 0x0400) == 0 {
-                m <<= 1;
-                e -= 1;
-            }
-            m &= 0x03ff;
-            let f_exp = ((e + 127) as u32) << 23;
-            return f32::from_bits(sign | f_exp | (m << 13));
-        }
-        if exp == 31 {
-            return f32::from_bits(sign | 0x7f80_0000 | (mant << 13));
-        }
-        let f_exp = ((exp - 15 + 127) as u32) << 23;
-        f32::from_bits(sign | f_exp | (mant << 13))
-    }
 
     fn serve_v2_once(mut stream: impl Read + Write + Send + 'static, local: Arc<Net>) {
         std::thread::spawn(move || {
@@ -1970,5 +2010,137 @@ mod tests {
             drop(remote_unix);
             let _ = std::fs::remove_file(&sock_path);
         }
+    }
+
+    #[test]
+    fn remote_net_v2_supports_32k_buckets_u16_ids_and_act_q() {
+        let buckets: u32 = crate::obs::BUCKETS_32K as u32;
+        let dim: u32 = 256;
+        let trunk: u32 = 64;
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind tcp 32k");
+        let addr = listener.local_addr().unwrap();
+
+        std::thread::spawn(move || {
+            let Ok((mut stream, _)) = listener.accept() else { return };
+            // Handshake flags: 0x01 (belief) | 0x02 (threat) | 0x04 (act_q) | 0x80 (proto v2)
+            let flags: u8 = 0x87;
+            let mut hs = Vec::with_capacity(13 + ((buckets * dim + dim * trunk + dim + 8 * trunk + 8) as usize) * 4);
+            hs.extend_from_slice(&dim.to_le_bytes());
+            hs.extend_from_slice(&buckets.to_le_bytes());
+            hs.extend_from_slice(&trunk.to_le_bytes());
+            hs.push(flags);
+            // Distinct embedding for bucket 31_000 and 32_767 to verify large 33.5 MB table + belief dot product
+            let mut emb = vec![0.0f32; (buckets * dim) as usize];
+            emb[31_000 * dim as usize] = 2.5;
+            emb[32_767 * dim as usize + 1] = -1.5;
+            let mut bw = vec![0.0f32; (dim * trunk) as usize];
+            bw[0] = 1.0; // dim 0 reads h[0]
+            bw[trunk as usize + 1] = 1.0; // dim 1 reads h[1]
+            let bb = vec![0.25f32; dim as usize];
+            let tw = vec![0.0f32; (8 * trunk) as usize];
+            let tb = vec![0.5f32; 8];
+            for v in emb.iter().chain(&bw).chain(&bb).chain(&tw).chain(&tb) {
+                hs.extend_from_slice(&v.to_le_bytes());
+            }
+            if stream.write_all(&hs).is_err() {
+                return;
+            }
+
+            let mut hdr = [0u8; 16];
+            while stream.read_exact(&mut hdr).is_ok() {
+                let req_id = u32::from_le_bytes(hdr[0..4].try_into().unwrap());
+                let b = u32::from_le_bytes(hdr[4..8].try_into().unwrap()) as usize;
+                let w_e = u16::from_le_bytes(hdr[8..10].try_into().unwrap()) as usize;
+                let w_a = u16::from_le_bytes(hdr[10..12].try_into().unwrap()) as usize;
+                let need_h = hdr[12] != 0;
+                if b == 0 {
+                    break;
+                }
+                let payload_len = b * GLOB_F * 2 + b * w_e * 2 + b * w_e * ENT_F * 2 + b * w_e * 3 + b * w_a * 2 + b * w_a * ACT_F * 2 + b * w_a * 2;
+                let mut buf = vec![0u8; payload_len];
+                if stream.read_exact(&mut buf).is_err() {
+                    break;
+                }
+                let eids_off = b * GLOB_F * 2;
+                let aids_off = eids_off + b * w_e * 2 + b * w_e * ENT_F * 2 + b * w_e * 3;
+                // Verify unsigned u16 IDs >= 32768 arrive intact without signed i16 wrap
+                let e0 = u16::from_le_bytes(buf[eids_off..eids_off + 2].try_into().unwrap());
+                let e1 = u16::from_le_bytes(buf[eids_off + 2..eids_off + 4].try_into().unwrap());
+                let a1 = u16::from_le_bytes(buf[aids_off + 2..aids_off + 4].try_into().unwrap());
+                assert_eq!(e0, 32_767);
+                assert_eq!(e1, 45_000);
+                assert_eq!(a1, 32_768);
+
+                let rtrunk: u32 = if need_h { trunk } else { 0 };
+                let mut resp = Vec::new();
+                resp.extend_from_slice(&req_id.to_le_bytes());
+                resp.extend_from_slice(&(b as u32).to_le_bytes());
+                resp.extend_from_slice(&rtrunk.to_le_bytes());
+                for bi in 0..b {
+                    let val = 0.5f32 + bi as f32 * 0.25;
+                    resp.extend_from_slice(&val.to_le_bytes());
+                }
+                for bi in 0..b {
+                    for ak in 0..w_a {
+                        let lg = (bi as f32) - (ak as f32) * 0.5;
+                        resp.extend_from_slice(&lg.to_le_bytes());
+                    }
+                }
+                for bi in 0..b {
+                    for ak in 0..w_a {
+                        let q = (0.15f32 + 0.35f32 * ak as f32 + 0.05f32 * bi as f32).clamp(0.01, 0.99);
+                        resp.extend_from_slice(&crate::selfplay::f16(q).to_le_bytes());
+                    }
+                }
+                if need_h {
+                    for _ in 0..b {
+                        let mut h = vec![0.0f32; trunk as usize];
+                        h[0] = 2.0;
+                        h[1] = 3.0;
+                        for x in h {
+                            resp.extend_from_slice(&x.to_le_bytes());
+                        }
+                    }
+                }
+                if stream.write_all(&resp).is_err() {
+                    break;
+                }
+            }
+        });
+
+        let net = Net::Remote(Arc::new(RemoteNet::connect(&format!("tcp://{addr}")).expect("connect 32k")));
+        assert_eq!(net.buckets(), crate::obs::BUCKETS_32K);
+
+        let obs = Obs {
+            glob: vec![0.25; GLOB_F],
+            ents: vec![0.1; ENT_F * 2],
+            ent_ids: vec![32_767, 45_000],
+            ent_rel_idx: vec![NO_ENT, 0],
+            ent_rel_type: vec![0, 1],
+            acts: vec![0.2; ACT_F * 3],
+            act_ids: vec![0, 32_768, 31_000],
+            act_ent_idx: vec![NO_ENT, 0, 1],
+        };
+
+        // 1. Root forward (`need_h = 1`) + 32k belief check
+        let out_h = net.forward(&obs);
+        assert_eq!(out_h.h.len(), trunk as usize);
+        assert_eq!(out_h.act_q.len(), 3);
+        assert!((out_h.act_q[0] - 0.15).abs() < 2e-3);
+        assert!((out_h.act_q[1] - 0.50).abs() < 2e-3);
+        assert!((out_h.act_q[2] - 0.85).abs() < 2e-3);
+        let bl = net.belief(&out_h.h, &[31_000, 32_767]);
+        // q[0] = 1*2.0 + 0.25 = 2.25 => emb[31_000, 0] * q[0] = 2.5 * 2.25 = 5.625
+        // q[1] = 1*3.0 + 0.25 = 3.25 => emb[32_767, 1] * q[1] = -1.5 * 3.25 = -4.875
+        assert!((bl[0] - 5.625).abs() < 1e-4, "got {}", bl[0]);
+        assert!((bl[1] - (-4.875)).abs() < 1e-4, "got {}", bl[1]);
+
+        // 2. Leaf batch forward (`need_h = 0`)
+        let outs_no_h = net.forward_batch(&[obs.clone(), obs]);
+        assert_eq!(outs_no_h.len(), 2);
+        assert!(outs_no_h[0].h.is_empty() && outs_no_h[1].h.is_empty());
+        assert_eq!(outs_no_h[0].act_q.len(), 3);
+        assert_eq!(outs_no_h[1].act_q.len(), 3);
+        assert!((outs_no_h[1].act_q[2] - 0.90).abs() < 2e-3);
     }
 }

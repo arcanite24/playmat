@@ -51,7 +51,8 @@ impl SearchTimer {
 /// Sharded thread-safe 2-generation memoization cache for pure neural network evaluations (`Obs -> (priors, leaf_v)`).
 /// Eliminates redundant forward passes across determinized worlds, seats (`self*4`), and worker threads without
 /// cliff-wipe eviction spikes when a shard fills.
-type CacheMap = HashMap<(u64, u64), (Arc<[f32]>, f64)>;
+type CacheEntry = (Arc<[f32]>, Arc<[f32]>, f64);
+type CacheMap = HashMap<(u64, u64), CacheEntry>;
 
 struct ShardGen {
     curr: CacheMap,
@@ -101,13 +102,13 @@ impl EvalCache {
         }
     }
 
-    fn get_cached(&self, key: (u64, u64)) -> Option<(Arc<[f32]>, f64)> {
+    fn get_cached(&self, key: (u64, u64)) -> Option<CacheEntry> {
         let si = ((key.0 ^ (key.0 >> 17)) as usize) & (CACHE_SHARDS - 1);
         let g = self.shards[si].lock().unwrap();
-        g.curr.get(&key).or_else(|| g.prev.get(&key)).map(|(p, v)| (Arc::clone(p), *v))
+        g.curr.get(&key).or_else(|| g.prev.get(&key)).map(|(p, aq, v)| (Arc::clone(p), Arc::clone(aq), *v))
     }
 
-    fn insert_cached(&self, key: (u64, u64), p: Arc<[f32]>, leaf_v: f64) {
+    fn insert_cached(&self, key: (u64, u64), p: Arc<[f32]>, aq: Arc<[f32]>, leaf_v: f64) {
         let si = ((key.0 ^ (key.0 >> 17)) as usize) & (CACHE_SHARDS - 1);
         let mut g = self.shards[si].lock().unwrap();
         if g.curr.len() >= CACHE_MAX_PER_SHARD {
@@ -115,10 +116,10 @@ impl EvalCache {
             g_ref.prev.clear();
             std::mem::swap(&mut g_ref.curr, &mut g_ref.prev);
         }
-        g.curr.insert(key, (p, leaf_v));
+        g.curr.insert(key, (p, aq, leaf_v));
     }
 
-    fn forward_priors(&self, net: &Net, obs: &crate::obs::Obs) -> (Arc<[f32]>, f64) {
+    fn forward_priors(&self, net: &Net, obs: &crate::obs::Obs) -> CacheEntry {
         let key = obs.hash128();
         if let Some(hit) = self.get_cached(key) {
             return hit;
@@ -126,8 +127,9 @@ impl EvalCache {
         let out = &net.forward_batch(std::slice::from_ref(obs))[0];
         let leaf_v = (1.0 / (1.0 + (-out.value as f64).sexp())).clamp(0.02, 0.98);
         let p: Arc<[f32]> = Arc::from(net::softmax(&out.logits, 1.0));
-        self.insert_cached(key, Arc::clone(&p), leaf_v);
-        (p, leaf_v)
+        let aq: Arc<[f32]> = if out.act_q.is_empty() { Arc::from([]) } else { Arc::from(out.act_q.as_slice()) };
+        self.insert_cached(key, Arc::clone(&p), Arc::clone(&aq), leaf_v);
+        (p, aq, leaf_v)
     }
 
     fn quiesce_value(&self, net: &Net, game: &Game, seat: Seat) -> f64 {
@@ -135,14 +137,14 @@ impl EvalCache {
             return if won { 1.0 } else { 0.0 };
         }
         let q = Query::Priority { playable: Vec::new() };
-        let obs = crate::obs::observe(game, seat, &q, &[]);
+        let obs = crate::obs::observe_for(game, seat, &q, &[], net.buckets());
         let key = obs.hash128();
-        if let Some((_, v)) = self.get_cached(key) {
+        if let Some((_, _, v)) = self.get_cached(key) {
             return v;
         }
         let logit = net.forward_batch(std::slice::from_ref(&obs))[0].value as f64;
         let p = (1.0 / (1.0 + (-logit).sexp())).clamp(0.02, 0.98);
-        self.insert_cached(key, Arc::from([]), p);
+        self.insert_cached(key, Arc::from([]), Arc::from([]), p);
         p
     }
 }
@@ -292,12 +294,20 @@ pub struct Kid {
     /// MCTS-Solver proven outcome from node's seat (+1 win, -1 loss, 0 unknown)
     pub proven: i8,
     pub proven_dt: u8,
+    /// Optional neural per-action Q estimate in `[0.02, 0.98]` (`-1.0` when unset)
+    pub q_init: f32,
 }
 
 impl Kid {
+    #[cfg(test)]
     #[inline]
     fn new(answer: Answer, prior: f32) -> Kid {
-        Kid { answer, prior, n: 0, w: 0.0, node: None, proven: 0, proven_dt: 0 }
+        Kid { answer, prior, n: 0, w: 0.0, node: None, proven: 0, proven_dt: 0, q_init: -1.0 }
+    }
+
+    #[inline]
+    fn with_q(answer: Answer, prior: f32, q_init: f32) -> Kid {
+        Kid { answer, prior, n: 0, w: 0.0, node: None, proven: 0, proven_dt: 0, q_init }
     }
 
     #[inline]
@@ -308,6 +318,24 @@ impl Kid {
         }
         if self.n > 0 { Some(self.w / self.n as f64) } else { None }
     }
+}
+
+#[inline]
+fn make_kids(options: &[Answer], priors: &[f32], act_q: &[f32], use_act_q: bool) -> Vec<Kid> {
+    options
+        .iter()
+        .cloned()
+        .enumerate()
+        .map(|(i, answer)| {
+            let prior = priors.get(i).copied().unwrap_or(0.0);
+            let q_init = if use_act_q {
+                act_q.get(i).copied().filter(|q| q.is_finite()).map_or(-1.0, |q| q.clamp(0.02, 0.98))
+            } else {
+                -1.0
+            };
+            Kid::with_q(answer, prior, q_init)
+        })
+        .collect()
 }
 
 pub struct Node {
@@ -354,7 +382,16 @@ impl Tree {
                     }
                     map[c]
                 });
-                kids.push(Kid { answer: k.answer.clone(), prior: k.prior, n: k.n, w: k.w, node: child, proven: k.proven, proven_dt: k.proven_dt });
+                kids.push(Kid {
+                    answer: k.answer.clone(),
+                    prior: k.prior,
+                    n: k.n,
+                    w: k.w,
+                    node: child,
+                    proven: k.proven,
+                    proven_dt: k.proven_dt,
+                    q_init: k.q_init,
+                });
             }
             out[new_i] = Node { seat: src.seat, hash: src.hash, kids, n: src.n, v_eval: src.v_eval, proven: src.proven, proven_dt: src.proven_dt };
         }
@@ -362,7 +399,15 @@ impl Tree {
     }
 
     /// Finds a node within BFS depth 3 matching `(seat, hash)` and remaps it into a warm root matching `candidates`.
-    fn reuse_root(&self, seat: Seat, hash: u64, candidates: &[Answer], priors: &[f32]) -> Option<Tree> {
+    fn reuse_root(
+        &self,
+        seat: Seat,
+        hash: u64,
+        candidates: &[Answer],
+        priors: &[f32],
+        act_q: &[f32],
+        use_act_q: bool,
+    ) -> Option<Tree> {
         if self.nodes.is_empty() {
             return None;
         }
@@ -396,16 +441,30 @@ impl Tree {
         let old_kids = std::mem::take(&mut sub.nodes[0].kids);
         let mut new_kids = Vec::with_capacity(candidates.len());
         let mut new_n = 0u32;
-        for (ans, &p) in candidates.iter().zip(priors) {
+        for (i, (ans, &p)) in candidates.iter().zip(priors).enumerate() {
+            let qi = if use_act_q {
+                act_q.get(i).copied().filter(|q| q.is_finite()).map_or(-1.0, |q| q.clamp(0.02, 0.98))
+            } else {
+                -1.0
+            };
             if let Some(old) = old_kids.iter().find(|k| &k.answer == ans) {
                 // Keep deep child subtrees warm while capping stale root visit weight (<= 4)
                 // so fresh CRN determinizations from the updated belief state dominate root ranking.
                 let keep_n = old.n.min(4);
                 let keep_w = if old.n > 0 { old.w * (keep_n as f64 / old.n as f64) } else { 0.0 };
                 new_n += keep_n;
-                new_kids.push(Kid { answer: ans.clone(), prior: p, n: keep_n, w: keep_w, node: old.node, proven: 0, proven_dt: 0 });
+                new_kids.push(Kid {
+                    answer: ans.clone(),
+                    prior: p,
+                    n: keep_n,
+                    w: keep_w,
+                    node: old.node,
+                    proven: 0,
+                    proven_dt: 0,
+                    q_init: if qi > 0.0 { qi } else { old.q_init },
+                });
             } else {
-                new_kids.push(Kid::new(ans.clone(), p));
+                new_kids.push(Kid::with_q(ans.clone(), p, qi));
             }
         }
         sub.nodes[0].kids = new_kids;
@@ -470,6 +529,7 @@ pub struct Walk {
     solver: bool,
     fpu_vnode: bool,
     cpuct_dyn: bool,
+    act_q_fpu: bool,
     /// True once the walk exits the minimax tree (e.g. quiesce / quick-answer rollout);
     /// only in-tree terminal states (!left_tree) are sound for exact MCTS-Solver proofs.
     left_tree: bool,
@@ -517,6 +577,7 @@ impl Walk {
             solver: false,
             fpu_vnode: false,
             cpuct_dyn: false,
+            act_q_fpu: false,
             left_tree: false,
             fixed_world: false,
             expanding_nodes: std::collections::HashSet::new(),
@@ -528,6 +589,7 @@ impl Walk {
         self.solver = cfg.solver;
         self.fpu_vnode = cfg.fpu_vnode;
         self.cpuct_dyn = cfg.cpuct_dyn;
+        self.act_q_fpu = cfg.act_q_fpu;
         self
     }
 
@@ -551,8 +613,8 @@ impl Walk {
         if self.defer_eval {
             if crate::eval::terminal_outcome(game, seat).is_none() {
                 let q_dummy = Query::Priority { playable: Vec::new() };
-                let obs = crate::obs::observe(game, seat, &q_dummy, &[]);
-                if let Some((_, v)) = self.cache.get_cached(obs.hash128()) {
+                let obs = crate::obs::observe_for(game, seat, &q_dummy, &[], self.net.buckets());
+                if let Some((_, _, v)) = self.cache.get_cached(obs.hash128()) {
                     self.leaf_value = Some((seat, v));
                 } else {
                     self.pending_quiesce = Some((seat, obs));
@@ -585,7 +647,13 @@ impl Walk {
         };
         let sq = ((node.n + 1) as f64).sqrt();
         let score = |k: &Kid| {
-            let q = k.eff_q(self.solver).unwrap_or(fpu);
+            let q = k.eff_q(self.solver).unwrap_or_else(|| {
+                if self.act_q_fpu && k.q_init > 0.0 {
+                    (0.5 * fpu + 0.5 * k.q_init as f64).clamp(0.02, 0.98)
+                } else {
+                    fpu
+                }
+            });
             q + eff_cpuct * k.prior as f64 * sq / (1.0 + k.n as f64)
         };
         node.kids
@@ -677,8 +745,8 @@ impl Walk {
                 if options.len() >= 2 {
                     self.left_tree = true;
                     if self.quiesce_net {
-                        let obs = crate::obs::observe(game, seat, q, &options);
-                        let (p, _) = self.cache.forward_priors(&self.net, &obs);
+                        let obs = crate::obs::observe_for(game, seat, q, &options, self.net.buckets());
+                        let (p, _, _) = self.cache.forward_priors(&self.net, &obs);
                         if let Some((best_i, _)) = p.iter().enumerate().max_by(|a, b| a.1.total_cmp(b.1)) {
                             return Some(options[best_i].clone());
                         }
@@ -727,21 +795,16 @@ impl Walk {
                 self.at = None;
                 return None;
             }
-            let obs = crate::obs::observe(game, seat, q, &options);
+            let obs = crate::obs::observe_for(game, seat, q, &options, self.net.buckets());
             let h_state = state_hash(game, seat, q);
             if self.defer_eval && self.pure_leaf {
-                if let Some((p, leaf_v)) = self.cache.get_cached(obs.hash128()) {
+                if let Some((p, aq, leaf_v)) = self.cache.get_cached(obs.hash128()) {
                     self.leaf_value = Some((seat, leaf_v));
                     let node = &mut self.tree.nodes[at];
                     node.seat = seat;
                     node.hash = h_state;
                     node.v_eval = leaf_v as f32;
-                    node.kids = options
-                        .iter()
-                        .cloned()
-                        .zip(p.iter().copied())
-                        .map(|(answer, prior)| Kid::new(answer, prior))
-                        .collect();
+                    node.kids = make_kids(&options, &p, &aq, self.act_q_fpu);
                 } else {
                     self.expanding_nodes.insert(at);
                     self.pending_expand = Some((at, seat, h_state, options, obs));
@@ -756,18 +819,13 @@ impl Walk {
                 }
                 return None;
             }
-            let (p, leaf_v) = self.cache.forward_priors(&self.net, &obs);
+            let (p, aq, leaf_v) = self.cache.forward_priors(&self.net, &obs);
             self.leaf_value = Some((seat, leaf_v));
             let node = &mut self.tree.nodes[at];
             node.seat = seat;
             node.hash = h_state;
             node.v_eval = leaf_v as f32;
-            node.kids = options
-                .iter()
-                .cloned()
-                .zip(p.iter().copied())
-                .map(|(answer, prior)| Kid::new(answer, prior))
-                .collect();
+            node.kids = make_kids(&options, &p, &aq, self.act_q_fpu);
             self.expanded = true;
             if self.pure_leaf {
                 self.at = None;
@@ -1025,8 +1083,8 @@ fn run_vloss_wave(
                         && walk.pending_quiesce.is_none()
                     {
                         let q_dummy = Query::Priority { playable: Vec::new() };
-                        let q_obs = crate::obs::observe(&o.game, seat, &q_dummy, &[]);
-                        if let Some((_, v)) = cache.get_cached(q_obs.hash128()) {
+                        let q_obs = crate::obs::observe_for(&o.game, seat, &q_dummy, &[], net.buckets());
+                        if let Some((_, _, v)) = cache.get_cached(q_obs.hash128()) {
                             walk.leaf_value = Some((seat, v));
                         } else {
                             walk.pending_quiesce = Some((seat, q_obs));
@@ -1069,7 +1127,7 @@ fn run_vloss_wave(
         *tr = cur_tree;
     }
 
-    let mut eval_priors: Vec<(Arc<[f32]>, f64)> = Vec::with_capacity(obs_batch.len());
+    let mut eval_priors: Vec<CacheEntry> = Vec::with_capacity(obs_batch.len());
     if !obs_batch.is_empty() {
         let outputs = net.forward_batch(&obs_batch);
         for out in &outputs {
@@ -1079,7 +1137,8 @@ fn run_vloss_wave(
             } else {
                 Arc::from(net::softmax(&out.logits, 1.0))
             };
-            eval_priors.push((p, lv));
+            let aq: Arc<[f32]> = if out.act_q.is_empty() { Arc::from([]) } else { Arc::from(out.act_q.as_slice()) };
+            eval_priors.push((p, aq, lv));
         }
     }
 
@@ -1091,27 +1150,23 @@ fn run_vloss_wave(
         }
         let mut leaf_val = pw.leaf_value;
         if let Some((at, es, eh, opts, idx, hk)) = pw.expand_idx {
-            let (ref p, lv) = eval_priors[idx];
-            cache.insert_cached(hk, Arc::clone(p), lv);
+            let (ref p, ref aq, lv) = eval_priors[idx];
+            cache.insert_cached(hk, Arc::clone(p), Arc::clone(aq), lv);
             if tr.nodes[at].kids.is_empty() {
                 let node = &mut tr.nodes[at];
                 node.seat = es;
                 node.hash = eh;
                 node.v_eval = lv as f32;
-                node.kids = opts
-                    .into_iter()
-                    .zip(p.iter().copied())
-                    .map(|(answer, prior)| Kid::new(answer, prior))
-                    .collect();
+                node.kids = make_kids(&opts, p, aq, cfg.act_q_fpu);
             }
             if pw.quiesce_idx.is_none() && leaf_val.is_none() {
                 leaf_val = Some((es, lv));
             }
         }
         if let Some((qs, idx, hk)) = pw.quiesce_idx {
-            let (_, lv) = eval_priors[idx];
+            let (_, _, lv) = eval_priors[idx];
             if cache.get_cached(hk).is_none() {
-                cache.insert_cached(hk, Arc::from([]), lv);
+                cache.insert_cached(hk, Arc::from([]), Arc::from([]), lv);
             }
             leaf_val = Some((qs, lv));
         }
@@ -1181,11 +1236,12 @@ impl DecisionPolicy for Ismcts {
             self.cache = shared_cache_for(&net);
             self.cache_net_ptr = net_ptr;
         }
-        let root_obs = crate::obs::observe(d.game, d.seat, d.query, d.candidates);
+        let root_obs = crate::obs::observe_for(d.game, d.seat, d.query, d.candidates, net.buckets());
         let out = net.forward(&root_obs);
         let prior = net::softmax(&out.logits, 1.0);
         let v_prior = 1.0 / (1.0 + (-out.value as f64).sexp());
-        self.cache.insert_cached(root_obs.hash128(), Arc::from(prior.as_slice()), v_prior.clamp(0.02, 0.98));
+        let root_aq: Arc<[f32]> = if out.act_q.is_empty() { Arc::from([]) } else { Arc::from(out.act_q.as_slice()) };
+        self.cache.insert_cached(root_obs.hash128(), Arc::from(prior.as_slice()), root_aq, v_prior.clamp(0.02, 0.98));
         let Some(root) = d.root else {
             self.last = prior;
             self.last_val = Some(v_prior as f32);
@@ -1239,13 +1295,7 @@ impl DecisionPolicy for Ismcts {
                 let w_cnt = games.len();
                 let mut trees: Vec<Tree> = (0..w_cnt)
                     .map(|_| {
-                        let kids = d
-                            .candidates
-                            .iter()
-                            .cloned()
-                            .zip(prior.iter().copied())
-                            .map(|(answer, prior)| Kid::new(answer, prior))
-                            .collect();
+                        let kids = make_kids(d.candidates, &prior, &out.act_q, cfg.act_q_fpu);
                         Tree { nodes: vec![Node { seat: d.seat, hash: cur_hash, kids, n: 0, v_eval: v_prior as f32, proven: 0, proven_dt: 0 }] }
                     })
                     .collect();
@@ -1529,15 +1579,9 @@ impl DecisionPolicy for Ismcts {
             let mut tree = self
                 .saved
                 .take()
-                .and_then(|old| old.reuse_root(d.seat, cur_hash, d.candidates, &prior))
+                .and_then(|old| old.reuse_root(d.seat, cur_hash, d.candidates, &prior, &out.act_q, cfg.act_q_fpu))
                 .unwrap_or_else(|| {
-                    let kids = d
-                        .candidates
-                        .iter()
-                        .cloned()
-                        .zip(prior.iter().copied())
-                        .map(|(answer, prior)| Kid::new(answer, prior))
-                        .collect();
+                    let kids = make_kids(d.candidates, &prior, &out.act_q, cfg.act_q_fpu);
                     Tree { nodes: vec![Node { seat: d.seat, hash: cur_hash, kids, n: 0, v_eval: v_prior as f32, proven: 0, proven_dt: 0 }] }
                 });
 
@@ -1742,15 +1786,9 @@ impl DecisionPolicy for Ismcts {
         let mut tree = self
             .saved
             .take()
-            .and_then(|old| old.reuse_root(d.seat, cur_hash, d.candidates, &root_prior))
+            .and_then(|old| old.reuse_root(d.seat, cur_hash, d.candidates, &root_prior, &out.act_q, cfg.act_q_fpu))
             .unwrap_or_else(|| {
-                let kids = d
-                    .candidates
-                    .iter()
-                    .cloned()
-                    .zip(root_prior.iter().copied())
-                    .map(|(answer, prior)| Kid::new(answer, prior))
-                    .collect();
+                let kids = make_kids(d.candidates, &root_prior, &out.act_q, cfg.act_q_fpu);
                 Tree { nodes: vec![Node { seat: d.seat, hash: cur_hash, kids, n: 0, v_eval: v_prior as f32, proven: 0, proven_dt: 0 }] }
             });
         let mut nodes = 0u64;
@@ -1872,8 +1910,8 @@ mod tests {
         let direct_p = net::softmax(&direct.logits, 1.0);
         let direct_v = (1.0 / (1.0 + (-direct.value as f64).sexp())).clamp(0.02, 0.98);
 
-        let (p1, v1) = cache.forward_priors(&net, &obs);
-        let (p2, v2) = cache.forward_priors(&net, &obs);
+        let (p1, _, v1) = cache.forward_priors(&net, &obs);
+        let (p2, _, v2) = cache.forward_priors(&net, &obs);
         assert_eq!(&*p1, direct_p.as_slice());
         assert_eq!(&*p2, direct_p.as_slice());
         assert_eq!(v1, direct_v);
@@ -1886,7 +1924,16 @@ mod tests {
             nodes: vec![Node {
                 seat: 0,
                 hash: 0,
-                kids: vec![Kid { answer: Answer::Bool(false), prior: 1.0, n: 10, w: 10.0 * q, node: None, proven: 0, proven_dt: 0 }],
+                kids: vec![Kid {
+                    answer: Answer::Bool(false),
+                    prior: 1.0,
+                    n: 10,
+                    w: 10.0 * q,
+                    node: None,
+                    proven: 0,
+                    proven_dt: 0,
+                    q_init: -1.0,
+                }],
                 n: 10,
                 v_eval: q as f32,
                 proven: 0,
@@ -2009,5 +2056,46 @@ mod tests {
         }
         assert_eq!(trees[0].nodes[0].n, 16, "All 16 queued walks must complete without budget loss");
         assert!(trees[0].nodes.len() > 3, "Subsequent waves must expand past depth 1");
+    }
+
+    #[test]
+    fn act_q_fpu_prioritizes_higher_q_init_on_unvisited_children() {
+        let net = net::of(&None);
+        let cache = Arc::new(EvalCache::new());
+        let cands = [Answer::Bool(false), Answer::Bool(true)];
+        let priors = [0.5f32, 0.5f32];
+        let act_q = [0.15f32, 0.88f32];
+
+        // With `act_q_fpu = true`, kid[1] (`q_init = 0.88`) must beat equal-prior kid[0] (`q_init = 0.15`)
+        let tree_on = Tree {
+            nodes: vec![Node {
+                seat: 0,
+                hash: 1,
+                kids: make_kids(&cands, &priors, &act_q, true),
+                n: 0,
+                v_eval: 0.5,
+                proven: 0,
+                proven_dt: 0,
+            }],
+        };
+        let cfg_on = Config { fpu_vnode: true, act_q_fpu: true, ..Config::default() };
+        let walk_on = Walk::new(tree_on, Arc::clone(&net), Arc::clone(&cache), 1.0, true, false, 12, None).with_opts(&cfg_on);
+        assert_eq!(walk_on.select_puct_index(0, |_| true), Some(1));
+
+        // With `act_q_fpu = false` (default), `q_init` is ignored and legacy first-index tie-break picks kid[0]
+        let tree_off = Tree {
+            nodes: vec![Node {
+                seat: 0,
+                hash: 1,
+                kids: make_kids(&cands, &priors, &act_q, false),
+                n: 0,
+                v_eval: 0.5,
+                proven: 0,
+                proven_dt: 0,
+            }],
+        };
+        let cfg_off = Config { fpu_vnode: true, act_q_fpu: false, ..Config::default() };
+        let walk_off = Walk::new(tree_off, net, cache, 1.0, true, false, 12, None).with_opts(&cfg_off);
+        assert_eq!(walk_off.select_puct_index(0, |_| true), Some(0));
     }
 }

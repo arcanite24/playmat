@@ -19,7 +19,26 @@ import torch
 import torch.nn.functional as F
 
 from data import Data, compact_dir
-from model import ActQHead, AuxHead, Critic, GLOB_F, NO_ENT, ThreatHead, Tx, build, export, hl_gauss_mean, hl_gauss_targets, load_dir, params, save_dir
+from model import (
+    ActQHead,
+    AuxHead,
+    BUCKETS,
+    BUCKETS_32K,
+    Critic,
+    GLOB_F,
+    NO_ENT,
+    TXV2_PRESETS,
+    ThreatHead,
+    Tx,
+    TxV2,
+    build,
+    export,
+    hl_gauss_mean,
+    hl_gauss_targets,
+    load_dir,
+    params,
+    save_dir,
+)
 
 
 def oracle_batch(b):
@@ -57,14 +76,18 @@ def tx_sizes(s):
     for kv in s.split(","):
         if not kv:
             continue
-        k, v = kv.split("=")
-        out[k] = float(v) if "." in v else int(v)
+        k, v = kv.split("=", 1)
+        v = v.strip()
+        try:
+            out[k.strip()] = float(v) if "." in v else int(v)
+        except ValueError:
+            out[k.strip()] = v
     return out
 
 
 def value_head_params(net):
     """Parameters belonging exclusively to the value head (for higher weight decay and refitting)."""
-    if isinstance(net, Tx) and net.val_mlp:
+    if isinstance(net, (Tx, TxV2)) and net.val_mlp:
         mods = [net.val_ln, net.val_fc1, net.val_fc2]
     else:
         mods = [net.value]
@@ -73,7 +96,7 @@ def value_head_params(net):
 
 def refit_value(net, critic, data, train_idx, test_idx, dev, bs, report, q_mix=0.0, oracle_net=None, oracle_mix=0.0, recency_decay=1.0, recency_half_life=0):
     """One pass over recent-weighted training decisions that fits only the value head on the frozen trunk."""
-    if isinstance(net, Tx) and net.val_mlp:
+    if isinstance(net, (Tx, TxV2)) and net.val_mlp:
         for m in (net.val_ln, net.val_fc1, net.val_fc2):
             m.reset_parameters()
         head_params = value_head_params(net)
@@ -112,20 +135,52 @@ def refit_value(net, critic, data, train_idx, test_idx, dev, bs, report, q_mix=0
 
 
 def precompute_oracle_targets(oracle_net, data, dev, bs=2048):
-    """Computes frozen Oracle value predictions in (0, 1) once across `data` (eliminates per-epoch Oracle passes)."""
+    """Computes frozen Oracle value targets (both scalar mean AND full HL-Gauss K-bin distribution when K > 1)
+    plus omniscient per-action Q predictions (`oracle_act_q`) once across `data`."""
     t0 = time.time()
     oracle_net.eval()
     n = len(data)
-    out = np.empty(n, dtype=np.float16)
+    out_v = np.empty(n, dtype=np.float16)
+    out_probs = None
+    has_or_aq = hasattr(oracle_net, "forward_with_act_q")
+    out_aq = np.full(len(data.act_q), np.nan, dtype=np.float16) if has_or_aq else None
     amp_or = dev.type == "cuda"
     with torch.no_grad(), torch.autocast("cuda", dtype=torch.bfloat16, enabled=amp_or):
         for i in range(0, n, bs):
             j = np.arange(i, min(i + bs, n))
-            b = data.batch_np(j, dev) if data.store is None else data.batch(j, dev)
-            v_or = hl_gauss_mean(oracle_net(oracle_batch(b))[1]).clamp(0.01, 0.99)
-            out[i : i + len(j)] = v_or.float().cpu().numpy().astype(np.float16)
-    print(f"TRAIN cached {n} frozen oracle targets in {time.time() - t0:.1f} s", flush=True)
-    return out
+            b = data.batch_np(j, dev) if data.store is None else data.batch(j, dev, trim=False)
+            ob = oracle_batch(b)
+            if has_or_aq:
+                _, v_raw, _, aq_prob = oracle_net.forward_with_act_q(ob)
+            else:
+                _, v_raw, _ = oracle_net(ob)
+                aq_prob = None
+            if v_raw.ndim == 2:
+                if out_probs is None:
+                    out_probs = np.empty((n, v_raw.shape[-1]), dtype=np.float16)
+                p_or = F.softmax(v_raw.float(), dim=-1)
+                out_probs[i : i + len(j)] = p_or.cpu().numpy().astype(np.float16)
+            v_or = hl_gauss_mean(v_raw).clamp(0.01, 0.99)
+            out_v[i : i + len(j)] = v_or.float().cpu().numpy().astype(np.float16)
+            if aq_prob is not None:
+                aq_np = aq_prob.float().cpu().numpy().astype(np.float16)
+                w_a = aq_np.shape[1]
+                c_j = data.n_act[j]
+                c_clamped = np.minimum(c_j, w_a)
+                valid_m = np.arange(w_a)[None, :] < c_clamped[:, None]
+                a0 = int(data.act_off[j[0]])
+                a1 = int(data.act_off[j[-1] + 1])
+                if (a1 - a0) == int(valid_m.sum()):
+                    out_aq[a0:a1] = aq_np[valid_m]
+                else:
+                    for row_k, step_i in enumerate(j):
+                        kc = int(c_clamped[row_k])
+                        s_off = int(data.act_off[step_i])
+                        out_aq[s_off : s_off + kc] = aq_np[row_k, :kc]
+    kind_s = f"{out_probs.shape[1]}-bin HL-Gauss" if out_probs is not None else "scalar"
+    aq_s = "+act_q" if out_aq is not None else ""
+    print(f"TRAIN cached {n} frozen oracle targets ({kind_s}{aq_s}) in {time.time() - t0:.1f} s", flush=True)
+    return out_v, out_probs, out_aq
 
 
 @torch.no_grad()
@@ -228,21 +283,26 @@ def losses(
     opt_ws_ema=None,
     threat_head=None,
     threat_weight=0.0,
+    belief_count_weight=0.0,
 ):
     raw_net = getattr(net, "_orig_mod", net)
     want_aux = aux_head is not None
     has_net_threat = getattr(raw_net, "threat", None) is not None
+    has_net_aq = getattr(raw_net, "act_q_head", None) is not None
     want_ext_threat = (not has_net_threat) and (threat_head is not None) and (threat_weight > 0.0)
     want_vfeat = want_aux or want_ext_threat
-    want_aq = act_q_head is not None and act_q_weight > 0.0
+    want_aq = (has_net_aq or act_q_head is not None) and act_q_weight > 0.0
     want_threat = (has_net_threat or threat_head is not None) and threat_weight > 0.0
     nb_in = oracle_batch(b) if oracle_mode else b
     emb_mod = getattr(raw_net, "emb", None)
     drop_salt = b.get("_drop_salt")
-    if drop_salt is None and net.training and emb_mod is not None and getattr(emb_mod, "text", None) is not None and getattr(emb_mod, "id_drop", 0.0) > 0.0:
+    if drop_salt is None and net.training and emb_mod is not None and not getattr(emb_mod, "_frozen", False) and getattr(emb_mod, "text", None) is not None and getattr(emb_mod, "id_drop", 0.0) > 0.0:
         drop_salt = emb_mod.sample_salt(b["glob"].device)
         nb_in = {**nb_in, "_drop_salt": drop_salt}
-    if want_aq:
+    aq_pred_builtin = None
+    if want_aq and has_net_aq:
+        logits, v, h, vfeat, act_emb, aq_pred_builtin = net(nb_in, return_act_q_logits=True, detach_val=detach_val)
+    elif want_aq:
         logits, v, h, vfeat, act_emb = net(nb_in, return_vfeat=True, return_act_emb=True, detach_val=detach_val)
     elif want_vfeat:
         logits, v, h, vfeat = net(nb_in, return_vfeat=True, detach_val=detach_val)
@@ -261,26 +321,52 @@ def losses(
     else:
         pol = pol_per.mean()
 
-    # Mix binary/TD outcome with Perfect-Information Oracle value (cached or live, scalar or HL-Gauss) and root search Q
-    z_tgt = b["z_td"]
-    if oracle_mix > 0.0:
-        if "oracle_v" in b and b["oracle_v"] is not None:
-            ov = b["oracle_v"]
-            ov_safe = torch.nan_to_num(ov.float(), nan=0.5).clamp(0.01, 0.99)
-            z_tgt = torch.where(torch.isfinite(ov), (1.0 - oracle_mix) * z_tgt + oracle_mix * ov_safe, z_tgt)
-        elif oracle_net is not None:
-            with torch.no_grad():
-                v_or = hl_gauss_mean(oracle_net(oracle_batch(b))[1]).clamp(0.01, 0.99)
-            z_tgt = (1.0 - oracle_mix) * z_tgt + oracle_mix * v_or
+    # Empirical TD/MCTS target in [0, 1] + optional live or pre-cached Oracle value & per-action Q distillation
+    z_emp = b["z_td"]
     if q_mix > 0.0:
         qv = b["qval"]
         has_q = torch.isfinite(qv)
         qv_safe = torch.nan_to_num(qv, nan=0.5).clamp(0.0, 1.0)
-        z_tgt = torch.where(has_q, (1.0 - q_mix) * z_tgt + q_mix * qv_safe, z_tgt)
+        z_emp = torch.where(has_q, (1.0 - q_mix) * z_emp + q_mix * qv_safe, z_emp)
+
+    live_or_probs = None
+    live_or_v = None
+    live_or_aq = None
+    if oracle_mix > 0.0 and "oracle_v" not in b and "oracle_probs" not in b and oracle_net is not None:
+        with torch.no_grad():
+            ob_live = oracle_batch(b)
+            if hasattr(oracle_net, "forward_with_act_q"):
+                _, v_or_raw, _, live_or_aq = oracle_net.forward_with_act_q(ob_live)
+            else:
+                _, v_or_raw, _ = oracle_net(ob_live)
+            if v_or_raw.ndim == 2:
+                live_or_probs = F.softmax(v_or_raw.float(), dim=-1)
+            live_or_v = hl_gauss_mean(v_or_raw).clamp(0.01, 0.99)
+
     if v.ndim == 2:
-        hl_p = hl_gauss_targets(z_tgt, n_bins=v.shape[-1], sigma_ratio=0.75)
-        val_per = -(hl_p * F.log_softmax(v.float(), dim=-1)).sum(-1)
+        k_bins = v.shape[-1]
+        p_emp = hl_gauss_targets(z_emp, n_bins=k_bins, sigma_ratio=0.75)
+        or_p = b.get("oracle_probs") if "oracle_probs" in b else live_or_probs
+        if oracle_mix > 0.0 and or_p is not None and or_p.shape[-1] == k_bins:
+            # Joint KL(p_oracle || pi_student) + KL(p_emp || pi_student) via blended categorical cross-entropy
+            or_p_f = torch.nan_to_num(or_p.float(), nan=1.0 / k_bins).clamp(min=0.0)
+            or_p_f = or_p_f / or_p_f.sum(dim=-1, keepdim=True).clamp(min=1e-8)
+            valid_op = torch.isfinite(or_p).all(dim=-1, keepdim=True)
+            p_tgt = torch.where(valid_op, (1.0 - oracle_mix) * p_emp + oracle_mix * or_p_f, p_emp)
+        elif oracle_mix > 0.0 and ("oracle_v" in b or live_or_v is not None):
+            ov = b["oracle_v"] if "oracle_v" in b else live_or_v
+            ov_safe = torch.nan_to_num(ov.float(), nan=0.5).clamp(0.01, 0.99)
+            z_mix = torch.where(torch.isfinite(ov), (1.0 - oracle_mix) * z_emp + oracle_mix * ov_safe, z_emp)
+            p_tgt = hl_gauss_targets(z_mix, n_bins=k_bins, sigma_ratio=0.75)
+        else:
+            p_tgt = p_emp
+        val_per = -(p_tgt * F.log_softmax(v.float(), dim=-1)).sum(-1)
     else:
+        z_tgt = z_emp
+        if oracle_mix > 0.0 and ("oracle_v" in b or live_or_v is not None):
+            ov = b["oracle_v"] if "oracle_v" in b else live_or_v
+            ov_safe = torch.nan_to_num(ov.float(), nan=0.5).clamp(0.01, 0.99)
+            z_tgt = torch.where(torch.isfinite(ov), (1.0 - oracle_mix) * z_tgt + oracle_mix * ov_safe, z_tgt)
         val_per = F.binary_cross_entropy_with_logits(v, z_tgt, reduction="none")
 
     if opt_pol_weight > 0.0 and "qval" in b:
@@ -308,6 +394,12 @@ def losses(
     bl = raw_net.belief_logits(h, b["pool"], drop_salt=drop_salt)
     m = b["pool_mask"].float()
     bel = (F.binary_cross_entropy_with_logits(bl, b["pool_hand"], reduction="none") * m).sum() / m.sum().clamp(min=1.0)
+    if belief_count_weight > 0.0:
+        pred_cnt = (torch.sigmoid(bl.float()) * m).sum(dim=-1)
+        true_cnt = (b["pool_hand"].float() * m).sum(dim=-1)
+        has_pool = (m.sum(dim=-1) > 0.5).float()
+        cnt_loss = (F.smooth_l1_loss(pred_cnt, true_cnt, reduction="none") * has_pool).sum() / has_pool.sum().clamp(min=1.0)
+        bel = bel + float(belief_count_weight) * cnt_loss
 
     crit = F.binary_cross_entropy_with_logits(critic(b), b["z"]) if critic is not None else torch.zeros((), device=v.device)
     if want_aux:
@@ -322,10 +414,28 @@ def losses(
 
     if want_aq and "act_q" in b:
         aq = b["act_q"]
-        aq_m = (torch.isfinite(aq) & b["act_mask"]).float()
-        aq_pred = act_q_head(act_emb)
-        aq_safe = torch.nan_to_num(aq, nan=0.5).clamp(0.0, 1.0)
-        aq_loss = (F.binary_cross_entropy_with_logits(aq_pred, aq_safe, reduction="none") * aq_m).sum() / aq_m.sum().clamp(min=1.0)
+        am_b = b["act_mask"]
+        has_emp_aq = torch.isfinite(aq) & am_b
+        aq_emp_safe = torch.nan_to_num(aq, nan=0.5).clamp(0.0, 1.0)
+        oaq = b.get("oracle_act_q") if "oracle_act_q" in b else live_or_aq
+        if oracle_mix > 0.0 and oaq is not None and oaq.shape == aq.shape:
+            has_or_aq = torch.isfinite(oaq) & am_b
+            oaq_safe = torch.nan_to_num(oaq.float(), nan=0.5).clamp(0.01, 0.99)
+            aq_tgt = torch.where(
+                has_emp_aq & has_or_aq,
+                (1.0 - oracle_mix) * aq_emp_safe + oracle_mix * oaq_safe,
+                torch.where(has_emp_aq, aq_emp_safe, oaq_safe),
+            )
+            aq_w = torch.where(
+                has_emp_aq,
+                torch.ones_like(aq_tgt),
+                torch.where(has_or_aq, torch.full_like(aq_tgt, 0.5 * float(oracle_mix)), torch.zeros_like(aq_tgt)),
+            )
+        else:
+            aq_tgt = aq_emp_safe
+            aq_w = has_emp_aq.float()
+        aq_pred = aq_pred_builtin if has_net_aq else act_q_head(act_emb)
+        aq_loss = (F.binary_cross_entropy_with_logits(aq_pred, aq_tgt, reduction="none") * aq_w).sum() / aq_w.sum().clamp(min=1.0)
     else:
         aq_loss = torch.zeros((), device=v.device)
 
@@ -435,30 +545,35 @@ def build_parser():
     ap.add_argument("--bs", type=int, default=512)
     ap.add_argument("--lr", type=float, default=2e-3)
     ap.add_argument("--init", default=None, help="a run folder to start from (its net.pt, arch.json, critic.pt)")
-    ap.add_argument("--arch", default="mlp", help="mlp, or tx (the transformer)")
+    ap.add_argument("--arch", default="mlp", help="mlp, tx, txv2, txv2-28m, txv2-51m, or oracle-txv2-58m")
     ap.add_argument("--holdout", default=None, help="cardtext.py's holdout.json: those cards' embeddings stay 0")
-    ap.add_argument("--tx", default="{}", help="the transformer sizes: JSON, or d=192,layers=4,text=1,val_mlp=1,gelu=1")
+    ap.add_argument("--tx", default="{}", help="transformer config: JSON, or k=v pairs (e.g. preset=txv2-28m,buckets=32768)")
+    ap.add_argument("--buckets", type=int, default=0, help="card vocabulary size for TxV2 (4096 or 32768; 0 uses arch default)")
+    ap.add_argument("--cardtext", default=None, help="explicit path to cardtext_v2_{4k|32k}.npy for TxV2")
+    ap.add_argument("--val-bins", type=int, default=0, help="HL-Gauss categorical value bins (e.g. 51; 0 uses arch default)")
     ap.add_argument("--value-weight", type=float, default=0.5)
     ap.add_argument("--belief-weight", type=float, default=0.2)
+    ap.add_argument("--belief-count-weight", type=float, default=0.05, help="smooth-L1 count-calibration weight on sum(sigmoid(belief)) vs unseen hand size")
     ap.add_argument("--aux-weight", type=float, default=0.15, help="training-only auxiliary positional loss weight (0 disables)")
-    ap.add_argument("--act-q-weight", type=float, default=0.2, help="training-only v3 per-action Q head loss weight (0 disables)")
+    ap.add_argument("--act-q-weight", type=float, default=0.2, help="per-action Q head BCE loss weight (0 disables)")
     ap.add_argument("--recency-decay", type=float, default=0.92, help="exponential recency decay per 100k newer decisions (1.0 = uniform; <= 1x/epoch)")
     ap.add_argument("--recency-half-life", type=int, default=0, help="optional explicit half-life in newer decisions (e.g. 750000; overrides --recency-decay)")
     ap.add_argument("--q-mix", type=float, default=0.4, help="weight on root search Q-value in value target when present")
     ap.add_argument("--td-lambda", type=float, default=0.0, help="forward-looking TD(lambda) value target across future search Q-values (0 = plain z)")
     ap.add_argument("--policy-recent", type=int, default=0, help="only train policy on the last N --data dirs (0 = all)")
     ap.add_argument("--pol-old-weight", type=float, default=0.0, help="policy weight for older dirs when --policy-recent > 0 (e.g. 0.25 prevents overfitting)")
-    ap.add_argument("--oracle-mode", action="store_true", help="train Perfect-Information Oracle Tx seeing opponent hidden hand (never exported as .pmnet)")
-    ap.add_argument("--oracle-dir", default=None, help="frozen Perfect-Information Oracle Tx dir for value distillation")
-    ap.add_argument("--oracle-mix", type=float, default=0.35, help="weight on oracle value prediction in value target when --oracle-dir is set")
+    ap.add_argument("--oracle-mode", action="store_true", help="train Perfect-Information Oracle Tx/TxV2 seeing opponent hidden hand")
+    ap.add_argument("--oracle-dir", default=None, help="frozen Perfect-Information Oracle dir for value & act_q distillation")
+    ap.add_argument("--oracle-mix", type=float, default=0.35, help="weight on oracle prediction in value/act_q targets when --oracle-dir is set")
     ap.add_argument("--cache-oracle", nargs="?", const=1, type=int, default=1, help="precompute frozen --oracle-dir targets once before epoch 1 (1=on, 0=off)")
     ap.add_argument("--samples-per-epoch", type=int, default=0, help="cap/stage this many decisions per epoch onto GPU (0 = all)")
     ap.add_argument("--max-per-dir", type=int, default=0, help="cap decisions read per recent --data dir (0 = all)")
     ap.add_argument("--max-old-per-dir", type=int, default=0, help="cap decisions read per older (value-only) --data dir (0 = all)")
     ap.add_argument("--no-critic", action="store_true", help="skip loading hid and training the PPO Critic")
     ap.add_argument("--upgrade-val-mlp", action="store_true", help="upgrade a v1 Tx checkpoint to the regularized 2-layer val_mlp head")
-    ap.add_argument("--upgrade-glob-f", type=int, default=0, help="zero-loss expand glob_f on --init warm-start (e.g. 89)")
-    ap.add_argument("--upgrade-val-bins", type=int, default=0, help="upgrade scalar value head to HL-Gauss N bins (e.g. 21)")
+    ap.add_argument("--upgrade-glob-f", type=int, default=0, help="zero-loss expand glob_f on --init warm-start (e.g. 97)")
+    ap.add_argument("--upgrade-val-bins", type=int, default=0, help="upgrade scalar value head to HL-Gauss N bins (e.g. 51)")
+    ap.add_argument("--upgrade-buckets", type=int, default=0, help="warm-start upgrade TxV2 card table (e.g. 4096 -> 32768) preserving CardAdapter & trunk")
     ap.add_argument("--threat-weight", type=float, default=0.0, help="v4 hidden-hand 8-threat BCE auxiliary loss weight")
     ap.add_argument("--opt-pol-weight", type=float, default=0.0, help="KataGo optimistic surprise-weighted policy loss weight")
     ap.add_argument("--opt", default="adamw", choices=["adamw", "muon"], help="optimizer: adamw or muon (2D hidden matrices)")
@@ -506,15 +621,17 @@ def train_main(argv=None, shared_data=None):
 
     oracle_net = None
     if args.oracle_dir and args.oracle_mix > 0.0:
-        if getattr(data, "oracle_v", None) is not None and bool(args.cache_oracle):
+        if (getattr(data, "oracle_v", None) is not None or getattr(data, "oracle_probs", None) is not None) and bool(args.cache_oracle):
             print(f"TRAIN reusing pre-cached oracle targets on shared_data (mix={args.oracle_mix})", flush=True)
         else:
-            oracle_net = load_dir(args.oracle_dir, dev).eval()
+            oracle_net = load_dir(args.oracle_dir, dev, cardtext_path=args.cardtext).eval()
             for p in oracle_net.parameters():
                 p.requires_grad_(False)
             print(f"TRAIN oracle distillation from {args.oracle_dir} ({params(oracle_net)} params, mix={args.oracle_mix})", flush=True)
             if args.cache_oracle:
-                data.oracle_v = precompute_oracle_targets(oracle_net, data, dev, bs=max(args.bs, 2048))
+                data.oracle_v, data.oracle_probs, data.oracle_act_q = precompute_oracle_targets(
+                    oracle_net, data, dev, bs=max(args.bs, 2048)
+                )
                 del oracle_net
                 oracle_net = None
                 if shared_data is None and args.no_critic and not args.oracle_mode:
@@ -535,26 +652,54 @@ def train_main(argv=None, shared_data=None):
     train_idx, test_idx = np.nonzero(~held)[0], np.nonzero(held)[0]
     critic = None if args.no_critic else Critic().to(dev)
     if args.init:
-        net = load_dir(args.init, dev, upgrade_val_mlp=args.upgrade_val_mlp, drop=args.drop, upgrade_glob_f=args.upgrade_glob_f, upgrade_val_bins=args.upgrade_val_bins, upgrade_threat=(args.threat_weight > 0))
+        eff_vb = args.upgrade_val_bins if args.upgrade_val_bins > 0 else args.val_bins
+        net = load_dir(
+            args.init,
+            dev,
+            upgrade_val_mlp=args.upgrade_val_mlp,
+            drop=args.drop,
+            upgrade_glob_f=args.upgrade_glob_f,
+            upgrade_val_bins=eff_vb,
+            upgrade_threat=(args.threat_weight > 0),
+            upgrade_buckets=args.upgrade_buckets,
+            cardtext_path=args.cardtext,
+        )
         if critic is not None:
             cpath = os.path.join(args.init, "critic.pt")
             if os.path.exists(cpath):
                 critic.load_state_dict(torch.load(cpath, map_location=dev))
     else:
-        kw = tx_sizes(args.tx) if args.arch == "tx" else {}
-        if args.arch == "tx" and args.drop > 0:
+        is_tx_family = (args.arch in ("tx", "txv2") or args.arch in TXV2_PRESETS)
+        kw = tx_sizes(args.tx) if is_tx_family else {}
+        if is_tx_family and args.drop > 0:
             kw["drop"] = args.drop
         if args.arch == "tx" and args.threat_weight > 0:
             kw["threat_head"] = 1
+        if args.val_bins > 0:
+            kw["val_bins"] = args.val_bins
+            if args.arch == "tx":
+                kw["val_mlp"] = 1
+        if args.arch == "txv2" or args.arch in TXV2_PRESETS:
+            if args.buckets > 0:
+                kw["buckets"] = args.buckets
+            if args.cardtext:
+                kw["cardtext_path"] = args.cardtext
+            if args.card_id_drop > 0:
+                kw["id_drop"] = float(args.card_id_drop)
         net = build({"arch": args.arch, **kw}).to(dev)
 
     aux_head = None
     if args.aux_weight > 0:
-        aux_in = (3 * net.d + net.glob_f) if isinstance(net, Tx) else net.trunk2.out_features
+        if isinstance(net, TxV2):
+            aux_in = (1 + net.pool_queries) * net.d + net.glob_f
+        elif isinstance(net, Tx):
+            aux_in = 3 * net.d + net.glob_f
+        else:
+            aux_in = net.trunk2.out_features
         aux_head = AuxHead(aux_in, out_dim=4).to(dev)
     act_q_head = None
-    if args.act_q_weight > 0:
-        aq_in = net.d if isinstance(net, Tx) else net.act2.out_features
+    if args.act_q_weight > 0 and getattr(net, "act_q_head", None) is None:
+        aq_in = net.d if isinstance(net, (Tx, TxV2)) else net.act2.out_features
         act_q_head = ActQHead(aq_in).to(dev)
     threat_head = None
     if args.threat_weight > 0 and getattr(net, "threat", None) is None:
@@ -570,19 +715,21 @@ def train_main(argv=None, shared_data=None):
     )
     if args.card_id_drop > 0 and hasattr(net, "emb") and hasattr(net.emb, "id_drop"):
         net.emb.id_drop = float(args.card_id_drop)
-        print(f"TRAIN card_id_drop={net.emb.id_drop:.2f} (inverted per-card-id dropout; BGE text projection always kept)", flush=True)
+        print(f"TRAIN card_id_drop={net.emb.id_drop:.2f} (inverted per-card-id dropout; text projection always kept)", flush=True)
     if args.holdout:
         ids = torch.tensor(json.load(open(args.holdout))["ids"], device=dev)
-        weight = net.emb.weight
+        weight = net.emb.emb_id if hasattr(net.emb, "emb_id") else net.emb.weight
         with torch.no_grad():
             weight[ids] = 0
         weight.register_hook(lambda g: g.index_fill(0, ids, 0))
         print(f"TRAIN holding out {len(ids)} card buckets", flush=True)
 
-    # Separate weight decay for value head to prevent value overfitting
+    # Separate weight decay for value head (val_wd) and TxV2 card-ID residual table (1e-2)
     vh_ids = {id(p) for p in value_head_params(net)}
-    base_params = [p for p in net.parameters() if id(p) not in vh_ids]
+    cid_param = getattr(getattr(net, "emb", None), "emb_id", None)
+    cid_ids = {id(cid_param)} if cid_param is not None else set()
     vh_params = [p for p in net.parameters() if id(p) in vh_ids]
+    cid_params = [p for p in net.parameters() if id(p) in cid_ids]
     extra_params = []
     if critic is not None:
         extra_params += list(critic.parameters())
@@ -593,32 +740,41 @@ def train_main(argv=None, shared_data=None):
     if threat_head is not None:
         extra_params += list(threat_head.parameters())
     if args.opt == "muon":
-        skip_prefixes = ("emb.", "glob_in.", "ent_in.", "act_in.", "belief.", "threat.", "abias.", "query.")
-        muon_p, adam_base, chunk_map = [], [], {}
+        skip_prefixes = ("emb.", "glob_in.", "ent_in.", "act_in.", "belief.", "threat.", "abias.", "query.", "act_q_head.")
+        muon_p, adam_base, adam_nodc, chunk_map = [], [], [], {}
         for n_p, p in net.named_parameters():
-            if id(p) in vh_ids:
+            if id(p) in vh_ids or id(p) in cid_ids:
                 continue
             if p.ndim == 2 and not n_p.startswith(skip_prefixes) and min(p.shape) >= 32:
                 muon_p.append(p)
-                if n_p.endswith("qkv.weight"):
+                if n_p.endswith(("qkv.weight", "s_qkv.weight")):
                     chunk_map[id(p)] = 3
-                elif n_p.endswith("act_kv.weight"):
+                elif n_p.endswith(("act_kv.weight", "pool_kv.weight", "x_kv.weight", "w12.weight")):
                     chunk_map[id(p)] = 2
+            elif p.ndim < 2 or n_p == "pool_q":
+                adam_nodc.append(p)
             else:
                 adam_base.append(p)
         param_groups = [
             {"params": muon_p, "lr": args.muon_lr, "weight_decay": 1e-4, "is_muon": True},
             {"params": adam_base + extra_params, "lr": args.lr, "weight_decay": 1e-4, "is_muon": False},
+            {"params": adam_nodc, "lr": args.lr, "weight_decay": 0.0, "is_muon": False},
             {"params": vh_params, "lr": args.lr, "weight_decay": args.val_wd, "is_muon": False},
         ]
+        max_lrs = [args.muon_lr, args.lr, args.lr, args.lr]
+        if cid_params:
+            param_groups.append({"params": cid_params, "lr": args.lr, "weight_decay": 1e-2, "is_muon": False})
+            max_lrs.append(args.lr)
         opt = MuonHybrid(param_groups, chunk_map=chunk_map)
-        max_lrs = [args.muon_lr, args.lr, args.lr]
-        print(f"TRAIN optimizer=MuonHybrid (muon_2d={len(muon_p)} tensors, split_qkv={len(chunk_map)} @ lr={args.muon_lr}, adamw @ lr={args.lr})", flush=True)
+        print(f"TRAIN optimizer=MuonHybrid (muon_2d={len(muon_p)} tensors, split_proj={len(chunk_map)} @ lr={args.muon_lr}, adamw @ lr={args.lr})", flush=True)
     else:
+        base_params = [p for p in net.parameters() if id(p) not in vh_ids and id(p) not in cid_ids]
         param_groups = [
             {"params": base_params + extra_params, "weight_decay": 1e-4},
             {"params": vh_params, "weight_decay": args.val_wd},
         ]
+        if cid_params:
+            param_groups.append({"params": cid_params, "weight_decay": 1e-2})
         opt = torch.optim.AdamW(param_groups, lr=args.lr, fused=dev.type == "cuda")
         max_lrs = args.lr
 
@@ -673,6 +829,7 @@ def train_main(argv=None, shared_data=None):
                 act_q_head=act_q_head, act_q_weight=args.act_q_weight,
                 opt_pol_weight=args.opt_pol_weight, opt_ws_ema=opt_ws_ema,
                 threat_head=threat_head, threat_weight=args.threat_weight,
+                belief_count_weight=args.belief_count_weight,
             )
             pol, val, bel, crit, aux = out_l[:5]
             aq_loss, th_loss = out_l[8], out_l[9]
@@ -789,7 +946,7 @@ def train_main(argv=None, shared_data=None):
         critic.load_state_dict(best_critic[1])
         report["critic_best_logloss"] = best_critic[0]
         torch.save(critic.state_dict(), os.path.join(args.out, "critic.pt"))
-    if not args.oracle_mode:
+    if not args.oracle_mode and not isinstance(net, TxV2):
         export(net.cpu(), os.path.join(args.out, "net.pmnet"), {"trained": "train.py", "data": args.data, "epochs": args.epochs})
     with open(os.path.join(args.out, "report.json"), "w") as f:
         json.dump(report, f, indent=1)

@@ -350,14 +350,19 @@ fn sim_bottom(game: &Game, seat: Seat) -> ObjId {
     best.map_or_else(|| rule_bottom(game, seat), |(id, _)| id)
 }
 
-fn net_hand_obs(game: &Game, seat: Seat) -> crate::obs::Obs {
+fn net_hand_obs_for(game: &Game, seat: Seat, buckets: usize) -> crate::obs::Obs {
     let mut g = game.clone();
     g.turn = 1;
     g.step = Some(playmat_engine::state::Step::PrecombatMain);
     g.priority = Some(seat);
     let playable = rules::playable(&g, seat);
     let q = playmat_engine::decide::Query::Priority { playable };
-    crate::obs::observe(&g, seat, &q, &[])
+    crate::obs::observe_for(&g, seat, &q, &[], buckets)
+}
+
+#[cfg(test)]
+fn net_hand_obs(game: &Game, seat: Seat) -> crate::obs::Obs {
+    net_hand_obs_for(game, seat, crate::obs::BUCKETS as usize)
 }
 
 #[inline]
@@ -367,7 +372,7 @@ fn val_from_logit(logit: f32) -> f64 {
 
 #[allow(dead_code)]
 fn net_hand_value(net: &crate::net::Net, game: &Game, seat: Seat) -> f64 {
-    let obs = net_hand_obs(game, seat);
+    let obs = net_hand_obs_for(game, seat, net.buckets());
     val_from_logit(net.forward_batch(&[obs])[0].value)
 }
 
@@ -376,11 +381,12 @@ fn net_bottom_with(net: &crate::net::Net, game: &Game, seat: Seat) -> ObjId {
     if hand.len() <= 1 {
         return hand.first().copied().unwrap_or_else(|| rule_bottom(game, seat));
     }
+    let buckets = net.buckets();
     let mut obs_batch = Vec::with_capacity(hand.len());
     for &id in &hand {
         let mut g = game.clone();
         put_on_bottom(&mut g, seat, id);
-        obs_batch.push(net_hand_obs(&g, seat));
+        obs_batch.push(net_hand_obs_for(&g, seat, buckets));
     }
     let outs = net.forward_batch(&obs_batch);
     let mut best: Option<(ObjId, f64)> = None;
@@ -408,12 +414,13 @@ fn net_wants(game: &Game, seat: Seat, taken: usize, cfg: &crate::search::Config)
         return true;
     }
     let net = crate::net::of(&cfg.net);
+    let buckets = net.buckets();
     let mut pool: Vec<ObjId> = hand.iter().chain(game.player(seat).library.iter()).copied().collect();
     let size = 7usize.saturating_sub(taken + 1);
     let mut mix = Mix(seed(game, seat) ^ 0x4E45_544D);
     let deals = 8usize;
     let mut obs_batch = Vec::with_capacity(1 + deals * 7);
-    obs_batch.push(net_hand_obs(game, seat));
+    obs_batch.push(net_hand_obs_for(game, seat, buckets));
     let mut deal_ranges: Vec<(usize, usize)> = Vec::with_capacity(deals);
     for _ in 0..deals {
         mix.shuffle(&mut pool);
@@ -439,16 +446,16 @@ fn net_wants(game: &Game, seat: Seat, taken: usize, cfg: &crate::search::Config)
             if cand_hand.len() <= 1 {
                 let c = cand_hand.first().copied().unwrap_or_else(|| rule_bottom(&g, seat));
                 put_on_bottom(&mut g, seat, c);
-                obs_batch.push(net_hand_obs(&g, seat));
+                obs_batch.push(net_hand_obs_for(&g, seat, buckets));
             } else {
                 for &id in &cand_hand {
                     let mut gc = g.clone();
                     put_on_bottom(&mut gc, seat, id);
-                    obs_batch.push(net_hand_obs(&gc, seat));
+                    obs_batch.push(net_hand_obs_for(&gc, seat, buckets));
                 }
             }
         } else {
-            obs_batch.push(net_hand_obs(&g, seat));
+            obs_batch.push(net_hand_obs_for(&g, seat, buckets));
         }
         deal_ranges.push((start, obs_batch.len()));
     }

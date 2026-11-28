@@ -14,6 +14,7 @@ Protocol v2 (negotiated via handshake flag `0x80`):
 """
 
 import argparse
+import inspect
 import json
 import os
 import queue
@@ -26,7 +27,7 @@ import time
 import numpy as np
 import torch
 
-from model import ACT_F, BUCKETS, ENT_F, GLOB_F, NO_ENT, Net, Tx, hl_gauss_to_logit, load_dir
+from model import ACT_F, ENT_F, GLOB_F, NO_ENT, Net, Tx, hl_gauss_to_logit, load_dir
 from train import device as pick_device
 
 _COMPILE_B_BUCKETS = (16, 64, 192, 512)
@@ -42,13 +43,20 @@ def _bucket_up(val, buckets, align):
 
 
 def freeze_card_emb(net):
-    """Folds static card-text projection `text @ proj` into `emb.weight` once at startup."""
-    if isinstance(net, Tx) and getattr(net.emb, "text", None) is not None:
+    """Folds static card-text adapter/projection into a single lookup table once at startup (`Tx` & `TxV2`)."""
+    emb = getattr(net, "emb", None)
+    if emb is None:
+        return net
+    if hasattr(emb, "freeze_for_inference") and callable(emb.freeze_for_inference):
+        emb.freeze_for_inference()
+        return net
+    if hasattr(emb, "table") and callable(emb.table) and getattr(emb, "text", None) is not None:
         with torch.no_grad():
-            folded = net.emb.table().detach().clone()
-            net.emb.weight = torch.nn.Parameter(folded, requires_grad=False)
-            net.emb.text = None
-            net.emb.proj = None
+            folded = emb.table().detach().clone()
+            emb.weight = torch.nn.Parameter(folded, requires_grad=False)
+            emb.text = None
+            if hasattr(emb, "proj"):
+                emb.proj = None
     return net
 
 
@@ -96,30 +104,53 @@ def recv_exact(conn, n):
 
 
 def pack_handshake(net):
-    if isinstance(net, Tx):
-        emb = net.emb.table().detach().float().cpu().contiguous()
-        dim = emb.shape[1]
-        trunk = net.trunk1.out_features
-        bw = net.belief.weight.detach().float().cpu().contiguous()
-        bb = net.belief.bias.detach().float().cpu().contiguous()
-        has_bel = 1
-        th = getattr(net, "threat", None)
-        has_threat = 1 if th is not None else 0
-        tw = th.weight.detach().float().cpu().contiguous() if has_threat else torch.zeros(0)
-        tb = th.bias.detach().float().cpu().contiguous() if has_threat else torch.zeros(0)
+    emb_mod = net.emb
+    emb_t = emb_mod.table() if (hasattr(emb_mod, "table") and callable(emb_mod.table)) else emb_mod.weight
+    emb = emb_t.detach().float().cpu().contiguous()
+    buckets = int(emb.shape[0])
+    dim = int(emb.shape[1])
+
+    bel = getattr(net, "belief", None)
+    if bel is None:
+        bel = getattr(net, "belief_proj", None)
+    has_bel = 1 if isinstance(bel, torch.nn.Linear) else 0
+    if has_bel:
+        trunk = int(bel.weight.shape[1])
+        bw = bel.weight.detach().float().cpu().contiguous()
+        bb = (
+            bel.bias.detach().float().cpu().contiguous()
+            if bel.bias is not None
+            else torch.zeros(dim, dtype=torch.float32)
+        )
     else:
-        emb = net.emb.weight.detach().float().cpu().contiguous()
-        dim = emb.shape[1]
-        trunk = net.trunk2.out_features
-        has_bel = 1 if net.belief is not None else 0
-        bw = net.belief.weight.detach().float().cpu().contiguous() if has_bel else torch.zeros(0)
-        bb = net.belief.bias.detach().float().cpu().contiguous() if has_bel else torch.zeros(0)
-        has_threat = 0
+        trunk = int(
+            getattr(net, "d", 0)
+            or (net.trunk1.out_features if hasattr(net, "trunk1") else net.trunk2.out_features)
+        )
+        bw = torch.zeros(0)
+        bb = torch.zeros(0)
+
+    th = getattr(net, "threat", None)
+    if th is None:
+        cand_th = getattr(net, "threat_head", None)
+        if isinstance(cand_th, torch.nn.Linear):
+            th = cand_th
+    has_threat = 1 if (isinstance(th, torch.nn.Linear) and tuple(th.weight.shape) == (8, trunk)) else 0
+    if has_threat:
+        tw = th.weight.detach().float().cpu().contiguous()
+        tb = (
+            th.bias.detach().float().cpu().contiguous()
+            if th.bias is not None
+            else torch.zeros(8, dtype=torch.float32)
+        )
+    else:
         tw = torch.zeros(0)
         tb = torch.zeros(0)
-    # Bit 0x80 advertises Protocol v2 (req_id + f16 features + need_h + full-duplex)
-    flags = (1 if has_bel else 0) | (2 if has_threat else 0) | 0x80
-    hdr = struct.pack("<IIIB", dim, BUCKETS, trunk, flags)
+
+    has_act_q = 1 if (hasattr(net, "forward_with_act_q") and callable(net.forward_with_act_q)) else 0
+    # Bit 0x80 advertises Protocol v2 (req_id + f16 features + u16 IDs + need_h + full-duplex); bit 0x04 = f16 act_q
+    flags = (1 if has_bel else 0) | (2 if has_threat else 0) | (4 if has_act_q else 0) | 0x80
+    hdr = struct.pack("<IIIB", dim, buckets, trunk, flags)
     out = hdr
     if has_bel:
         out += emb.numpy().tobytes() + bw.numpy().tobytes() + bb.numpy().tobytes()
@@ -132,7 +163,7 @@ def unpack_v2(B, w_e, w_a, mv):
     off = 0
     glob = np.frombuffer(mv, dtype=np.float16, count=B * GLOB_F, offset=off).reshape(B, GLOB_F)
     off += B * GLOB_F * 2
-    eids = np.frombuffer(mv, dtype=np.int16, count=B * w_e, offset=off).reshape(B, w_e)
+    eids = np.frombuffer(mv, dtype=np.uint16, count=B * w_e, offset=off).reshape(B, w_e)
     off += B * w_e * 2
     ents = np.frombuffer(mv, dtype=np.float16, count=B * w_e * ENT_F, offset=off).reshape(B, w_e, ENT_F)
     off += B * w_e * ENT_F * 2
@@ -142,7 +173,7 @@ def unpack_v2(B, w_e, w_a, mv):
     off += B * w_e
     ertyp = np.frombuffer(mv, dtype=np.uint8, count=B * w_e, offset=off).reshape(B, w_e)
     off += B * w_e
-    aids = np.frombuffer(mv, dtype=np.int16, count=B * w_a, offset=off).reshape(B, w_a)
+    aids = np.frombuffer(mv, dtype=np.uint16, count=B * w_a, offset=off).reshape(B, w_a)
     off += B * w_a * 2
     acts = np.frombuffer(mv, dtype=np.float16, count=B * w_a * ACT_F, offset=off).reshape(B, w_a, ACT_F)
     off += B * w_a * ACT_F * 2
@@ -182,12 +213,12 @@ class _PinnedStaging:
     def _alloc(self, b, e, a):
         self.cap_b, self.cap_e, self.cap_a = b, e, a
         self.glob = self._mk((b, GLOB_F), torch.float16)
-        self.eids = self._mk((b, e), torch.int16)
+        self.eids = self._mk((b, e), torch.int32)
         self.ents = self._mk((b, e, ENT_F), torch.float16)
         self.em = self._mk((b, e), torch.bool)
         self.eridx = self._mk((b, e), torch.uint8)
         self.ertyp = self._mk((b, e), torch.uint8)
-        self.aids = self._mk((b, a), torch.int16)
+        self.aids = self._mk((b, a), torch.int32)
         self.acts = self._mk((b, a, ACT_F), torch.float16)
         self.am = self._mk((b, a), torch.bool)
         self.aent = self._mk((b, a), torch.uint8)
@@ -200,8 +231,22 @@ class _PinnedStaging:
             self._alloc(nb, ne, na)
 
 
+def _supports_return_act_q_kw(net):
+    orig = getattr(net, "_orig_mod", net)
+    fwd = getattr(orig, "forward", None)
+    if fwd is None:
+        return False
+    try:
+        return "return_act_q" in inspect.signature(fwd).parameters
+    except (TypeError, ValueError):
+        return False
+
+
 def _warmup_compiled(net, dev, amp, amp_dtype):
     """Pre-compiles all 4 static shape buckets at startup so mid-game inference never hits Triton stalls."""
+    orig = getattr(net, "_orig_mod", net)
+    has_aq = hasattr(orig, "forward_with_act_q") and callable(orig.forward_with_act_q)
+    use_kw = has_aq and _supports_return_act_q_kw(net)
     for wb in _COMPILE_B_BUCKETS:
         for we in _COMPILE_E_BUCKETS:
             for wa in _COMPILE_A_BUCKETS:
@@ -218,7 +263,12 @@ def _warmup_compiled(net, dev, amp, amp_dtype):
                     "act_ent_idx": torch.full((wb, wa), NO_ENT, device=dev, dtype=torch.long),
                 }
                 with torch.inference_mode(), torch.autocast("cuda", dtype=amp_dtype, enabled=amp):
-                    _ = net(b)
+                    if use_kw:
+                        _ = net(b, return_act_q=True)
+                    elif has_aq:
+                        _ = net.forward_with_act_q(b)
+                    else:
+                        _ = net(b)
     if dev.type == "cuda":
         torch.cuda.synchronize(dev)
 
@@ -233,6 +283,9 @@ class InferEngine:
             if (dev.type == "cuda" and torch.cuda.is_bf16_supported())
             else torch.float16
         )
+        orig = getattr(net, "_orig_mod", net)
+        self.has_act_q = bool(hasattr(orig, "forward_with_act_q") and callable(orig.forward_with_act_q))
+        self.use_return_act_q_kw = self.has_act_q and _supports_return_act_q_kw(net)
         self.max_batch = max(1, int(max_batch))
         self.wait_s = max(0.0, float(wait_ms)) / 1000.0
         self.compiled = bool(compiled)
@@ -347,17 +400,24 @@ class InferEngine:
                 "act_ent_idx": ae_t.to(dev, non_blocking=nb).long(),
             }
             with torch.inference_mode(), torch.autocast("cuda", dtype=self.amp_dtype, enabled=self.amp):
-                logits, v, h = self.net(b)
+                if self.use_return_act_q_kw:
+                    logits, v, h, act_q = self.net(b, return_act_q=True)
+                elif self.has_act_q:
+                    logits, v, h, act_q = self.net.forward_with_act_q(b)
+                else:
+                    logits, v, h = self.net(b)
+                    act_q = None
             v_out = hl_gauss_to_logit(v[:tot_B]).cpu().contiguous().numpy()
             l_out = logits[:tot_B].float().cpu().contiguous().numpy()
+            aq_out = act_q[:tot_B].to(torch.float16).cpu().contiguous().numpy() if act_q is not None else None
             h_out = h[:tot_B].float().cpu().contiguous().numpy() if any_h else None
-            return v_out, l_out, h_out
+            return v_out, l_out, aq_out, h_out
 
         if self.gpu_lock is not None:
             with self.gpu_lock:
-                v_np, logits_np, h_np = _forward_gpu()
+                v_np, logits_np, aq_np, h_np = _forward_gpu()
         else:
-            v_np, logits_np, h_np = _forward_gpu()
+            v_np, logits_np, aq_np, h_np = _forward_gpu()
 
         self.gpu_batches += 1
         self.reqs += len(group)
@@ -368,12 +428,13 @@ class InferEngine:
             b0, b1 = row, row + r.B
             v_b = np.ascontiguousarray(v_np[b0:b1]).tobytes()
             l_b = np.ascontiguousarray(logits_np[b0:b1, : r.w_a]).tobytes()
+            aq_b = np.ascontiguousarray(aq_np[b0:b1, : r.w_a]).tobytes() if aq_np is not None else b""
             if r.need_h and h_np is not None:
                 rtrunk = h_np.shape[1]
                 h_b = np.ascontiguousarray(h_np[b0:b1]).tobytes()
-                frame = struct.pack("<III", r.req_id, r.B, rtrunk) + v_b + l_b + h_b
+                frame = struct.pack("<III", r.req_id, r.B, rtrunk) + v_b + l_b + aq_b + h_b
             else:
-                frame = struct.pack("<III", r.req_id, r.B, 0) + v_b + l_b
+                frame = struct.pack("<III", r.req_id, r.B, 0) + v_b + l_b + aq_b
             r.send_q.put(frame)
             row = b1
 
