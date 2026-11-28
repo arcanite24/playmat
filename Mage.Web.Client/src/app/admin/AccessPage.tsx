@@ -65,6 +65,13 @@ function Mode({ api, data }: { api: AdminApi; data: AccessOverview }) {
           ? <span className={styles.alarm}> The people of {data.githubRepo} couldn't be fetched: {data.githubProblem}</span>
           : ` ${data.githubPeople ?? 0} people of ${data.githubRepo} get in when they sign in with GitHub${data.githubSyncedAt ? ` (fetched ${formatDate(data.githubSyncedAt)})` : ''}.`)}
       </p>
+      <p className={styles.quiet}>
+        {data.oidc ? `Sign in with ${data.oidcName} is on.` : 'Sign in with the identity provider is off (XMAGE_OIDC_DISCOVERY, XMAGE_OIDC_CLIENT_ID and XMAGE_OIDC_CLIENT_SECRET).'}
+      </p>
+      {data.oidcIssuer && <p className={styles.quiet}>The identity provider's issuer is {data.oidcIssuer}.</p>}
+      <p className={styles.quiet}>
+        {data.oidcOnly ? `Sign-in is ${data.oidcName}-only (XMAGE_OIDC_ONLY).` : 'Sign-in with the identity provider only is off.'}
+      </p>
       {signedOut && signedOut.length > 0 && <p className={styles.quiet} role="status">Signed out: {signedOut.join(', ')}</p>}
       {switching ? (
         <ConfirmAction

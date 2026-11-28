@@ -88,6 +88,13 @@ public abstract class PreventionEffectImpl extends ReplacementEffectImpl impleme
         return false;
     }
 
+    /**
+     * Whether this effect prevents all the damage it applies to (not a shield of some amount).
+     */
+    public boolean preventsAllDamage() {
+        return amountToPrevent == Integer.MAX_VALUE && amountToPreventDynamic == null;
+    }
+
     @Override
     public boolean checksEventType(GameEvent event, Game game) {
         switch (event.getType()) {

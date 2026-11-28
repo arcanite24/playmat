@@ -1,0 +1,12 @@
+// probe round: blockers against attackers
+4 Goblin Guide
+4 Monastery Swiftspear
+4 Fervent Champion
+4 Prized Unicorn
+4 Anzrag, the Quake-Mole
+4 Taunting Arbormage
+4 Lightning Bolt
+4 Giant Growth
+4 Llanowar Elves
+12 Mountain
+12 Forest

@@ -1,0 +1,21 @@
+# name: Train450 guild-br-bigmana-10
+# archetype: bigmana
+# colors: BR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Archfiend of Depravity
+1 Boltwing Marauder
+2 Dune Beetle
+4 Feldon, Ronom Excavator
+4 Ironhoof Boar
+1 Krenko's Buzzcrusher
+3 Lava Dart
+2 Perils of the Past
+3 Reckless Rage
+3 Red Hulk
+2 Swarm Culler
+4 Ultron, Artificial Malevolence
+3 Weary Prisoner
+4 Haunted Ridge
+13 Mountain
+4 Swamp
+4 Tramway Station

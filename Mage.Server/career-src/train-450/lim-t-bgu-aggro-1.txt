@@ -1,0 +1,37 @@
+# name: Train450 lim-t-bgu-aggro-1
+# archetype: limited_aggro
+# colors: BGU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Arasta of the Endless Web
+1 Beast-Kin Ranger
+2 Disciple of Deceit
+2 Dune Beetle
+1 Elvish Warmaster
+2 Hellcat, Undying Vigilante
+2 Herald of the Pantheon
+1 High Perfect Morcant
+1 Insatiable Appetite
+1 Lampad of Death's Vigil
+2 Large Bear
+1 Lash of Malice
+1 Loathsome Chimera
+1 Mammoth Growth
+1 Naiad of Hidden Coves
+1 Nimble Obstructionist
+2 Ozai's Cruelty
+1 Reach of Shadows
+1 Snapping Drake
+1 Spider Food
+2 Stalactite Stalker
+2 Stoic Sphinx
+1 Topiary Stomper
+1 Vicious Conquistador
+1 Wargling
+1 Wick, the Whorled Mind
+2 You Find a Cursed Idol
+4 Botanical Sanctum
+5 Forest
+4 Guadosalam, Farplane Gateway
+2 Island
+4 Swamp
+4 Woodland Stream

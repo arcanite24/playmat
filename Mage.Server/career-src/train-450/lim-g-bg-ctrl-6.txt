@@ -1,0 +1,36 @@
+# name: Train450 lim-g-bg-ctrl-6
+# archetype: limited_ctrl
+# colors: BG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Adaptive Snapjaw
+1 Bloodbriar
+1 Caged Zombie
+2 Cling to Dust
+1 Conclave Naturalists
+2 Daemogoth Titan
+1 Germinating Wurm
+1 God-Eternal Bontu
+2 He's Dead, Jim
+1 Hellish Sideswipe
+1 Horribly Awry
+2 Hostile Investigator
+1 Inspired Tethermage
+2 Maze Behemoth
+1 Prowling Serpopard
+1 Read the Bones
+1 Retched Wretch
+1 Salvage Drone
+1 Spell Shrivel
+1 Sunbringer's Touch
+1 Terminal Criticism
+2 Territorial Witchstalker
+1 Titania's Command
+1 Tormented Soul
+1 Unforgiving Aim
+1 Vulturous Aven
+1 Warping Wail
+2 Winter's Intervention
+8 Forest
+4 Illegitimate Business
+9 Swamp
+4 Underground Mortuary

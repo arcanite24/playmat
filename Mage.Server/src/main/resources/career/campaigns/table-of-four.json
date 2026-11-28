@@ -1,0 +1,315 @@
+{
+  "id": "table-of-four",
+  "name": "The Table of Four",
+  "text": "Follow a Friday-night Commander playgroup from casual 1v1 precons to a dramatic four-player championship pod.",
+  "school": false,
+  "deckType": "Variant Magic - Freeform Commander",
+  "gameType": "Commander Two Player Duel",
+  "chapters": [
+    {
+      "id": "kitchen-table",
+      "name": "Chapter 1: Friday Night Precons",
+      "color": "G",
+      "text": "Sleeve up a green giant precon and settle into your first night at the table.",
+      "deck": "commander/starter.dck",
+      "deckName": "Green Giants",
+      "nodes": [
+        {
+          "id": "t4-c1-1",
+          "type": "duel",
+          "name": "Sam's Goblin Box",
+          "text": "Sam brought his first mono-red precon straight out of the box.",
+          "opponent": {
+            "name": "Sam",
+            "deck": "commander/act1-goblins.dck",
+            "skill": 2
+          },
+          "requires": [],
+          "reward": {
+            "coins": 40,
+            "xp": 140
+          },
+          "before": "Fresh out of the box! Let's see if your giants can block a goblin mob.",
+          "after": "Alright, Ghalta hits like a truck. Next game I'm adding more haste!"
+        },
+        {
+          "id": "t4-c1-2",
+          "type": "duel",
+          "name": "Maya's Lifegain Sanctuary",
+          "text": "Maya loves gaining 20 life before turn six.",
+          "opponent": {
+            "name": "Maya",
+            "deck": "commander/act1-lifegain.dck",
+            "skill": 2
+          },
+          "requires": [
+            "t4-c1-1"
+          ],
+          "reward": {
+            "coins": 45,
+            "xp": 160
+          },
+          "before": "Commander damage is the only thing I'm scared of \u2014 try getting through!",
+          "after": "Okay, 21 commander damage really does bypass forty life. Well played!"
+        },
+        {
+          "id": "t4-c1-choice",
+          "type": "choice",
+          "name": "Between Rounds at the LGS",
+          "text": "The store owner sets out a binder of Commander staples before the evening's main event.",
+          "requires": [
+            "t4-c1-2"
+          ],
+          "options": [
+            {
+              "id": "coins",
+              "text": "Sell duplicate rares for 80 coins",
+              "reward": {
+                "coins": 80
+              }
+            },
+            {
+              "id": "wildcard",
+              "text": "Trade for a rare wildcard",
+              "reward": {
+                "wildcard": "rare"
+              }
+            },
+            {
+              "id": "xp",
+              "text": "Study table threat assessment (+250 XP)",
+              "reward": {
+                "xp": 250
+              }
+            }
+          ]
+        },
+        {
+          "id": "t4-c1-boss",
+          "type": "duel",
+          "boss": true,
+          "name": "Devon's Rakdos Spectacle",
+          "text": "Devon always brings the loudest deck at the kitchen table.",
+          "opponent": {
+            "name": "Devon",
+            "deck": "commander/act1-rakdos.dck",
+            "skill": 3
+          },
+          "requires": [
+            "t4-c1-choice"
+          ],
+          "reward": {
+            "coins": 80,
+            "xp": 240,
+            "packs": 1
+          },
+          "before": "No slow games tonight \u2014 everybody takes damage, including me!",
+          "after": "You survived the spectacle! Next week we're bringing our upgraded lists."
+        }
+      ]
+    },
+    {
+      "id": "arms-race",
+      "name": "Chapter 2: The Upgrade Arms Race",
+      "color": "RW",
+      "text": "Everyone cracked packs and tuned their commanders. Take the helm of a Boros legion.",
+      "deck": "commander/act2-boros.dck",
+      "deckName": "Boros Legion",
+      "nodes": [
+        {
+          "id": "t4-c2-1",
+          "type": "duel",
+          "name": "Sram's Equipment Bench",
+          "text": "Sam swapped to Voltron equipment and draws cards off every sword.",
+          "opponent": {
+            "name": "Sam (Voltron)",
+            "deck": "commander/act2-voltron.dck",
+            "skill": 3
+          },
+          "requires": [
+            "t4-c1-boss"
+          ],
+          "reward": {
+            "coins": 50,
+            "xp": 180
+          },
+          "before": "Look at these shiny swords. One unblocked swing and it's curtains!",
+          "after": "Going wide beat going tall this time. Respect."
+        },
+        {
+          "id": "t4-c2-2",
+          "type": "duel",
+          "name": "Gruul Stampede",
+          "text": "Devon went bigger and faster with trampling beasts.",
+          "opponent": {
+            "name": "Devon (Gruul)",
+            "deck": "commander/act2-gruul.dck",
+            "skill": 4
+          },
+          "requires": [
+            "t4-c2-1"
+          ],
+          "reward": {
+            "coins": 55,
+            "xp": 200
+          },
+          "before": "Why play removal when every creature is a 6/6 with trample?",
+          "after": "Double combat steps caught me completely tapped out!"
+        },
+        {
+          "id": "t4-c2-boss",
+          "type": "duel",
+          "boss": true,
+          "name": "Meren's Graveyard Engine",
+          "text": "Maya built a relentless Golgari sacrifice loop.",
+          "opponent": {
+            "name": "Maya (Meren)",
+            "deck": "commander/act2-midrange.dck",
+            "skill": 4
+          },
+          "requires": [
+            "t4-c2-2"
+          ],
+          "reward": {
+            "coins": 90,
+            "xp": 280,
+            "packs": 1
+          },
+          "before": "Kill my creatures all you want \u2014 they come right back on my end step.",
+          "after": "You raced the graveyard engine before it locked the board!"
+        }
+      ]
+    },
+    {
+      "id": "table-politics",
+      "name": "Chapter 3: Table Politics",
+      "color": "U",
+      "text": "The whole group sits down together. Master timing, interaction, and multiplayer threat assessment.",
+      "deck": "commander/act2-control.dck",
+      "deckName": "Sky Summoner Control",
+      "nodes": [
+        {
+          "id": "t4-c3-1",
+          "type": "duel",
+          "name": "Combo Sparring",
+          "text": "Practice holding up interaction against an explosive combo deck.",
+          "opponent": {
+            "name": "Store Regular",
+            "deck": "commander/act2-combo.dck",
+            "skill": 4
+          },
+          "requires": [
+            "t4-c2-boss"
+          ],
+          "reward": {
+            "coins": 60,
+            "xp": 220
+          },
+          "before": "If you tap out on turn four, I'm going off.",
+          "after": "Clean counterspell discipline. You're ready for the four-player pod."
+        },
+        {
+          "id": "t4-c3-boss",
+          "type": "duel",
+          "boss": true,
+          "name": "Friday Night 4-Player Pod",
+          "text": "Your first full four-player Commander pod with Sam, Maya, and Devon.",
+          "gameType": "Commander Free For All",
+          "opponent": {
+            "name": "Sam",
+            "deck": "commander/act1-goblins.dck",
+            "skill": 3
+          },
+          "opponents": [
+            {
+              "name": "Maya",
+              "deck": "commander/act2-midrange.dck",
+              "skill": 3
+            },
+            {
+              "name": "Devon",
+              "deck": "commander/act2-gruul.dck",
+              "skill": 3
+            }
+          ],
+          "requires": [
+            "t4-c3-1"
+          ],
+          "reward": {
+            "coins": 120,
+            "xp": 350,
+            "packs": 1
+          },
+          "before": "Four commanders, forty life each. Don't make yourself the archenemy too early!",
+          "after": "What a table! Everyone's bringing their flagship deck for the championship pod."
+        }
+      ]
+    },
+    {
+      "id": "championship-pod",
+      "name": "Chapter 4: The Championship Pod",
+      "color": "WUBRG",
+      "text": "Flagship dragons, legendary synergies, and the ultimate four-player showdown.",
+      "deck": "commander/act3-dragons.dck",
+      "deckName": "Dragonlord Roost",
+      "nodes": [
+        {
+          "id": "t4-c4-1",
+          "type": "duel",
+          "name": "Token Armada Warmup",
+          "text": "Face a tuned token swarm before the finals.",
+          "opponent": {
+            "name": "Token Master",
+            "deck": "commander/act3-tokens.dck",
+            "skill": 5
+          },
+          "requires": [
+            "t4-c3-boss"
+          ],
+          "reward": {
+            "coins": 70,
+            "xp": 250
+          },
+          "before": "My board goes twenty creatures wide by turn five.",
+          "after": "Dragons fly right over the swarm!"
+        },
+        {
+          "id": "t4-c4-boss",
+          "type": "duel",
+          "boss": true,
+          "name": "The Championship Pod",
+          "text": "Defeat all three rivals in the grand four-player Commander finale.",
+          "gameType": "Commander Free For All",
+          "opponent": {
+            "name": "Sam (Krenko)",
+            "deck": "commander/meta-krenko.dck",
+            "skill": 5
+          },
+          "opponents": [
+            {
+              "name": "Maya (Lathril)",
+              "deck": "commander/meta-lathril.dck",
+              "skill": 5
+            },
+            {
+              "name": "Devon (Ur-Dragon)",
+              "deck": "commander/meta-ur-dragon.dck",
+              "skill": 5
+            }
+          ],
+          "requires": [
+            "t4-c4-1"
+          ],
+          "reward": {
+            "coins": 200,
+            "xp": 500,
+            "packs": 2,
+            "wildcard": "mythic"
+          },
+          "before": "Final pod of the season! No holding back \u2014 show us who rules the Table of Four.",
+          "after": "Champion of the Table of Four! Same time next Friday?"
+        }
+      ]
+    }
+  ]
+}

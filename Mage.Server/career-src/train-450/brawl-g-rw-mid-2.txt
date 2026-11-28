@@ -1,0 +1,50 @@
+# name: Train450 brawl-g-rw-mid-2
+# archetype: brawl_mid
+# colors: RW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Adherent of Hope
+1 Aerith Gainsborough
+1 Angel of Condemnation
+1 Archive Arbiter
+1 Burn Away
+1 Burning Hands
+1 Deem Worthy
+1 Depala, Pilot Exemplar
+1 Desert Cerodon
+1 Expedite
+1 Flamewake Phoenix
+1 Golden-Tail Disciple
+1 Hammer Dropper
+1 Heated Argument
+1 Inferno of the Star Mounts
+1 Iroas, God of Victory
+1 Jiang Yanggu, Alone
+1 Kolaghan Warmonger
+1 Kor Scythemaster
+1 Light 'Em Up
+1 Lorehold Command
+1 Maned Serval
+1 Minotaur Aggressor
+1 Museum Nightwatch
+1 Nahiri, Forged in Fury
+1 Neheb, Dreadhorde Champion
+1 Phalanx Vanguard
+1 Priest of the Wakening Sun
+1 Rally the Ancestors
+1 Reckless Rage
+1 Searslicer Goblin
+1 Selfless Savior
+1 Shrapnel Slinger
+1 Suntail Hawk
+1 Void Shatter
+1 Voldaren Duelist
+1 Abraded Bluffs
+1 Asgardian Citadel
+1 Lorehold Campus
+9 Mountain
+7 Plains
+1 Rabanastre, Royal City
+1 Raucous Carnival
+1 Sacred Foundry
+1 Sacred Peaks
+1 Temple of Triumph

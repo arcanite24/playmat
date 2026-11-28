@@ -15,7 +15,13 @@ registerMessages(messages);
  * The supporter sleeve in the deck shelf's sleeve picker: a swatch like the others once the player has it, and
  * otherwise, where the server takes support, a quiet locked teaser that leads to the support page.
  */
-export function SupporterSleeve({ current, swatchClass, onPick }: { current: string; swatchClass: string; onPick(color: string): void }) {
+export function SupporterSleeve({ current, swatchClass, onPick, onPreview }: {
+  current: string;
+  swatchClass: string;
+  onPick(color: string): void;
+  /** right-click: the sleeve up close */
+  onPreview?(color: string, name: string): void;
+}) {
   const t = useT();
   const perks = useSupportPerks().data?.perks;
   if (!owns(perks, 'sleeve', THANK_YOU.sleeve)) return null;
@@ -30,6 +36,10 @@ export function SupporterSleeve({ current, swatchClass, onPick }: { current: str
       className={[swatchClass, styles.foil].join(' ')}
       style={{ backgroundColor: SUPPORTER_SLEEVE }}
       onClick={() => onPick(SUPPORTER_SLEEVE)}
+      onContextMenu={onPreview ? (event) => {
+        event.preventDefault();
+        onPreview(SUPPORTER_SLEEVE, name);
+      } : undefined}
     >
       <Heart size={12} aria-hidden="true" fill="currentColor" />
     </button>

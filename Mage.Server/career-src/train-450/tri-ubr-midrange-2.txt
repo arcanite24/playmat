@@ -1,0 +1,22 @@
+# name: Train450 tri-ubr-midrange-2
+# archetype: midrange
+# colors: UBR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Belligerent of the Ball
+2 Borrowed Malevolence
+4 Carrion Crow
+4 Goldnight Castigator
+4 Hypnotic Siren
+3 Lava Dart
+1 Lightning Axe
+2 Neonate's Rush
+4 Quicken
+4 Tenement Crasher
+2 Thassa, Deep-Dwelling
+4 The Ancient One
+4 Dimir Guildgate
+4 Fiery Islet
+4 Island
+5 Mountain
+4 Sinister Hideout
+3 Swamp

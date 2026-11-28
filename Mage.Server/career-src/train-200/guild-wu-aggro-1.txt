@@ -1,0 +1,24 @@
+# name: Train200 guild-wu-aggro-1
+# archetype: aggro
+# colors: WU
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+1 Aerial Maneuver
+1 Champion of the Clachan
+3 Dragon's Eye Sentry
+2 Dust Animus
+2 Kill Shot
+2 Kyodai, Soul of Kamigawa
+3 Larder Zombie
+3 Miner's Guidewing
+2 Narset's Reversal
+3 Nurturing Pixie
+4 Reality Hemorrhage
+2 Righteousness
+3 Shipwreck Sentry
+3 Stiltzkin, Moogle Merchant
+2 Touch of the Void
+3 Volatile Rig
+4 Island
+9 Plains
+4 Port Town
+4 Sharlayan, Nation of Scholars

@@ -15,5 +15,9 @@ CONF=/etc/playmat-deploy.conf
 . "$CONF"
 
 kit=$(readlink -f "$COMPOSE_DIR/current") || { echo "playmat-compose: $COMPOSE_DIR/current is missing" >&2; exit 1; }
-exec docker compose -p "$COMPOSE_PROJECT" --project-directory "$kit" -f "$kit/docker-compose.yml" \
-  --env-file "$COMPOSE_DIR/.env" "$@"
+files=(-f "$kit/docker-compose.yml")
+# behind the host's own reverse proxy (TLS_MODE=external): the kit's override too, as playmat-deploy runs it
+if [[ $(sed -n 's/^TLS_MODE=//p' "$COMPOSE_DIR/.env" | tail -n 1) == external && -f $kit/docker-compose.proxy.yml ]]; then
+  files+=(-f "$kit/docker-compose.proxy.yml")
+fi
+exec docker compose -p "$COMPOSE_PROJECT" --project-directory "$kit" "${files[@]}" --env-file "$COMPOSE_DIR/.env" "$@"

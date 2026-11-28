@@ -12,6 +12,7 @@ import mage.server.admin.AdminStore;
 import mage.server.admin.AuditEntry;
 import mage.server.admin.FeedbackEntry;
 import mage.server.admin.GithubLink;
+import mage.server.admin.OidcLink;
 import mage.server.admin.StaffRole;
 import mage.server.career.CareerService;
 import mage.server.career.CareerStore;
@@ -99,6 +100,8 @@ final class AccountsApi {
         public int rating;
         public int decks;
         public String githubLogin;
+        /** the provider's display name for the account, or its user id; null when it doesn't sign in with the provider */
+        public String oidcName;
         public List<PlayerReport> reports;
         public List<FeedbackEntry> feedback;
         /** what staff did to or about this account, newest first */
@@ -327,6 +330,8 @@ final class AccountsApi {
             detail.decks = DeckStore.get().export(name).size();
             GithubLink link = store.githubLinkOf(name);
             detail.githubLogin = link == null ? null : link.login;
+            OidcLink oidcLink = store.oidcLinkOf(name);
+            detail.oidcName = oidcLink == null ? null : (oidcLink.displayName != null && !oidcLink.displayName.isEmpty() ? oidcLink.displayName : oidcLink.sub);
             detail.reports = ReportStore.get().involving(name, 50);
             detail.feedback = store.feedbackFrom(name, 50);
             detail.audit = store.auditLog(null, null, name, 0, 50);
@@ -363,8 +368,30 @@ final class AccountsApi {
         out.put("stats", stats == null || stats.getProto() == null ? null : stats.getProto().toString());
         GithubLink link = AccessPolicy.get().store().githubLinkOf(name);
         out.put("githubLogin", link == null ? null : link.login);
+        OidcLink oidcLink = AccessPolicy.get().store().oidcLinkOf(name);
+        out.put("oidcName", oidcLink == null ? null : (oidcLink.displayName != null && !oidcLink.displayName.isEmpty() ? oidcLink.displayName : oidcLink.sub));
         // support for the server: the code, payments (without the providers' payloads), perks and the look
         out.put("support", SupportApi.export(name));
+        // the Home widget layout
+        try {
+            out.put("homeLayout", mage.server.solo.SoloStore.get().state(name, HomeApi.LAYOUT_KEY));
+        } catch (java.sql.SQLException | RuntimeException e) {
+            out.put("homeLayout", null);
+        }
+        // ranked: standings, games, ranks paid and hidden ratings
+        try {
+            out.put("ranked", mage.server.ladder.LadderStore.get().export(name));
+        } catch (RuntimeException e) {
+            out.put("ranked", null);
+        }
+        // the Career League: started formats, pack tokens, League decks
+        try {
+            out.put("league", mage.server.career.CareerLeague.get().export(name));
+        } catch (java.sql.SQLException | RuntimeException e) {
+            out.put("league", null);
+        }
+        // the status the player chose: online, hidden or looking (to play)
+        out.put("presence", mage.server.social.Presence.statusOf(name));
         Gson gson = new GsonBuilder().setPrettyPrinting().serializeNulls().create();
         return gson.toJson(out);
     }
@@ -374,6 +401,9 @@ final class AccountsApi {
      * moment so the caller's answer (and the message) arrive first. The audit log keeps its record.
      */
     static void delete(ApiContext ctx, String name, String message) throws SQLException {
+        if (!AuthorizedUserRepository.getInstance().remove(name)) {
+            throw new SQLException("Account " + name + " couldn't be deleted");
+        }
         DeckStore.get().deleteAll(name);
         try {
             CareerService.get().delete(name);
@@ -385,7 +415,16 @@ final class AccountsApi {
         } catch (java.sql.SQLException | RuntimeException e) {
             logger.warn("Saved games and scores of " + name + " couldn't be deleted", e);
         }
+        try {
+            mage.server.ladder.LadderStore.get().deleteUser(name);
+        } catch (java.sql.SQLException | RuntimeException e) {
+            logger.warn("Ranked standings of " + name + " couldn't be deleted", e);
+        }
         ReportStore.get().forget(name);
+        mage.server.social.PresenceStore presence = mage.server.social.PresenceStore.get();
+        if (presence != null) {
+            presence.forget(name);
+        }
         try {
             // the ledger keeps the amounts, for the months' totals, without anything that names the payer
             mage.server.support.Support.get().forget(name);
@@ -394,7 +433,6 @@ final class AccountsApi {
         }
         UserStatsRepository.instance.remove(name);
         AccessPolicy.get().store().forgetAccount(name);
-        AuthorizedUserRepository.getInstance().remove(name);
         logger.info("Account deleted: " + name);
         if (ctx.managers != null) {
             ctx.managers.userManager().getUserByName(name).ifPresent(user -> {

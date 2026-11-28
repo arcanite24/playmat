@@ -1,0 +1,38 @@
+# name: Train450 lim-t-wub-mid-2
+# archetype: limited_mid
+# colors: WUB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Angel of Finality
+1 Arnim Zola, Bio-Fanatic
+1 Atemsis, All-Seeing
+2 Benalish Marshal
+2 Celestial Regulator
+1 Cogwork Assembler
+1 Collective Nightmare
+2 Consider the Prime Directive
+1 Djinni Windseer
+2 Glare of Heresy
+1 Glint
+1 Gloom Sower
+1 Gold-Forged Thopteryx
+2 Last Gasp
+1 Loyal Gryff
+1 Magic Damper
+1 Massacre Girl, Most Wanted
+1 Merfolk Trickster
+1 Mischievous Sneakling
+1 Moonshadow
+1 Phenax, God of Deception
+1 Signpost Scarecrow
+1 Skyclave Sentinel
+2 Squall, SeeD Mercenary
+2 Vraan, Executioner Thane
+1 Warren Elder
+1 Watcher of the Spheres
+1 Whirlwing Stormbrood
+4 Island
+4 Plains
+4 Port Town
+4 Raffine's Tower
+4 Swamp
+4 Watery Grave

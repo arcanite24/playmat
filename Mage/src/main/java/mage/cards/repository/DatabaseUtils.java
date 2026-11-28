@@ -25,8 +25,12 @@ public class DatabaseUtils {
      * @param improveCaches use memory optimizations for cards database (no needs for other dbs)
      */
     public static String prepareH2Connection(String dbName, boolean improveCaches) {
-        // example: jdbc:h2:file:./db/cards.h2;AUTO_SERVER=TRUE;IGNORECASE=TRUE
-        String res = String.format("jdbc:h2:file:./db/%s", dbName);
+        // example: jdbc:h2:split:./db/cards.h2;AUTO_SERVER=TRUE;IGNORECASE=TRUE
+        // "split:" reads through plain file i/o instead of h2's default nio channel. A nio channel is closed for good when
+        // a thread is interrupted inside a read (the AI cancels timed-out simulations that way), and then every
+        // query on the whole server fails with ClosedChannelException until a restart. The file layout is the same
+        // as "file:" for dbs under 1 GB, so existing db files open as they are.
+        String res = String.format("jdbc:h2:split:./db/%s", dbName);
 
         // shared params
         res += ";AUTO_SERVER=TRUE"; // open database in mix mode (first open by new thread, second open by new jvm-process)

@@ -104,13 +104,14 @@ function Offer({ offer, run }: { offer: CareerOffer; run: CareerRun }) {
       <h2 id="gauntlet-offer" className={styles.panelTitle}>{title}</h2>
       {offer.text && <p className={styles.small}>{offer.text}</p>}
       {offer.kind === 'shop' && <p className={styles.small}>{t('career.gauntlet.runCoins', { coins: run.runCoins ?? 0 })}</p>}
-      {offer.kind === 'draft' ? (
+      {offer.kind === 'draft' || offer.kind === 'commander' || offer.kind === 'upgrade' ? (
         <ul className={styles.draftGrid} aria-label={t('career.gauntlet.draftPack')}>
           {(offer.options ?? []).map((option) => (
             <li key={option.id}>
               <button type="button" className={styles.draftCard} disabled={busy !== null} aria-busy={busy === option.id || undefined} onClick={() => void confirm([option.id ?? ''])}>
                 <CardArt card={option.cards?.[0] ? { name: option.cards[0].name, setCode: option.cards[0].setCode, cardNumber: option.cards[0].cardNumber } : undefined} name={option.name ?? ''} className={styles.draftArt} />
                 <span>{option.name}</span>
+                {option.text && <small>{option.text}</small>}
               </button>
             </li>
           ))}
@@ -158,7 +159,7 @@ function Offer({ offer, run }: { offer: CareerOffer; run: CareerRun }) {
   );
 }
 
-const DIRECT = new Set(['shop', 'rest', 'event', 'relic']);
+const DIRECT = new Set(['shop', 'rest', 'event', 'relic', 'trim']);
 
 function OfferOption({ option, chosen, onToggle }: { option: CareerOfferOption; chosen: boolean; onToggle(): void }) {
   const t = useT();
@@ -193,10 +194,13 @@ function Ladder({ run, rewards }: { run: CareerRun; rewards: CareerRunReward[] }
   const wins = run.wins ?? 0;
   const now = rewardLines(runReward(rewards, wins));
   const next = run.next;
-  const last = run.bosses?.length ?? 8;
   const map = run.mode === 'map';
   const endless = run.mode === 'endless';
+  const rush = run.mode === 'bossrush';
+  // the line's last rung: the classic run's eighth boss, or the end of the boss rush's roster (its line grows as it goes)
+  const last = rush ? run.maxWins ?? 0 : run.bosses?.length ?? 8;
   const boss = next?.type === 'boss' || (!map && !endless && next?.number === last);
+  const top = rewards.reduce((most, reward) => Math.max(most, reward.wins ?? 0), 0);
   const heading = map
     ? t('career.map.title', { wins })
     : endless ? t('career.gauntlet.endlessRun', { wins }) : t('career.gauntlet.run', { wins, max: run.maxWins ?? 8 });
@@ -220,6 +224,7 @@ function Ladder({ run, rewards }: { run: CareerRun; rewards: CareerRunReward[] }
           <header className={styles.panelHead}>
             <h2 id="gauntlet-run" className={styles.panelTitle}>{heading}</h2>
             {now.length > 0 && <p className={styles.small}>{t('career.gauntlet.paysNow', { reward: now.map((line) => t(line.key, line.vars)).join(', ') })}</p>}
+            {rush && top > 0 && (run.maxWins ?? 0) > top && <p className={styles.small}>{t('career.gauntlet.rushCapped', { max: top })}</p>}
           </header>
           <ol className={styles.ladder} aria-label={t('career.gauntlet.ladder')}>
             {(run.bosses ?? []).map((item) => {
@@ -263,10 +268,15 @@ function Ladder({ run, rewards }: { run: CareerRun; rewards: CareerRunReward[] }
       </div>
       {versus && next && (
         <Versus
-          kicker={heading}
-          opponent={{ name: next.name ?? '', cover: next.cover, boss }}
-          deck={{ name: t('career.gauntlet.title') }}
+          kicker={next.skirmish ? `${heading} · ${t('career.gauntlet.skirmish')}` : heading}
+          opponent={{
+            name: next.skirmish && next.secondName ? `${next.name ?? ''} & ${next.secondName}` : (next.name ?? ''),
+            cover: next.cover,
+            boss,
+          }}
+          deck={{ name: run.commander?.name ? `${run.commander.name} · ${t('career.gauntlet.title')}` : t('career.gauntlet.title') }}
           stakes={[
+            ...(next.skirmish ? [t('career.gauntlet.skirmishStake')] : []),
             t('career.node.skill', { skill: next.skill ?? 1 }),
             ...twistLines(next.twists).map((line) => t(line.key, line.vars)),
             t('career.versus.oneLoss'),

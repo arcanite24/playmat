@@ -1,0 +1,18 @@
+# name: Train450 mono-g-bigmana-6
+# archetype: bigmana
+# colors: G
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Aerial Volley
+2 Arachnoid Adaptation
+2 Archdruid's Charm
+4 Formidable Speaker
+3 Mist Intruder
+3 Old-Growth Troll
+2 Pounce
+2 Rampaging Baloths
+3 Reaver Drone
+3 She-Hulk, Jade Defender
+1 Silverback Elder
+4 Steel Hellkite
+4 Verdurous Gearhulk
+25 Forest

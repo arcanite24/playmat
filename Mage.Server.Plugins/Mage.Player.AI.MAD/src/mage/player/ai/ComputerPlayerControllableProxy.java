@@ -1,5 +1,7 @@
 package mage.player.ai;
 
+import mage.game.trace.RustAiBridge;
+
 import mage.MageObject;
 import mage.abilities.*;
 import mage.abilities.costs.mana.ManaCost;
@@ -43,6 +45,8 @@ public class ComputerPlayerControllableProxy extends ComputerPlayer7 {
     private static final Logger logger = Logger.getLogger(ComputerPlayerControllableProxy.class);
 
     Player lastControllingPlayer = null;
+    // the Rust AI, while it plays this player's dialogs (docs/rust/Ai.md)
+    private transient RustAiBridge rust = null;
 
     public ComputerPlayerControllableProxy(String name, RangeOfInfluence range, int skill) {
         super(name, range, skill);
@@ -51,6 +55,18 @@ public class ComputerPlayerControllableProxy extends ComputerPlayer7 {
     public ComputerPlayerControllableProxy(final ComputerPlayerControllableProxy player) {
         super(player);
         this.lastControllingPlayer = player;
+        this.rust = player.rust;
+    }
+
+    @Override
+    public boolean attachRustAi(RustAiBridge bridge) {
+        this.rust = bridge;
+        return true;
+    }
+
+    /** the Rust AI answers while its bridge runs and nobody else controls this player */
+    private boolean rustPlays(Game game) {
+        return rust != null && rust.isActive() && this.isGameUnderControl() && !game.isSimulation();
     }
 
     @Override
@@ -59,10 +75,17 @@ public class ComputerPlayerControllableProxy extends ComputerPlayer7 {
     }
 
     private boolean isUnderMe(Game game) {
+        if (rustPlays(game)) {
+            return false;
+        }
         return game.isSimulation() || this.isGameUnderControl();
     }
 
     private Player getControllingPlayer(Game game) {
+        if (rustPlays(game)) {
+            this.lastControllingPlayer = new RustHumanPlayer(this, rust);
+            return this.lastControllingPlayer;
+        }
         Player player = game.getPlayer(this.getTurnControlledBy());
         this.lastControllingPlayer = player.prepareControllableProxy(this);
         return this.lastControllingPlayer;

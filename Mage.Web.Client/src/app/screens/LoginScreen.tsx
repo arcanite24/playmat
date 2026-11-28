@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronDown, KeyRound } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Fingerprint, KeyRound } from 'lucide-react';
 import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { APP_NAME } from '../brand';
@@ -22,7 +22,7 @@ const TurnstileWidget = lazy(() => import('./TurnstileWidget').then((module) => 
 const SupportBar = lazy(() => import('../support/SupportBar').then((module) => ({ default: module.SupportBar })));
 
 type ServerStatus = 'checking' | 'online' | 'offline';
-type Mode = 'sit' | 'register' | 'forgot' | 'reset' | 'ask' | 'githubName';
+type Mode = 'sit' | 'register' | 'forgot' | 'reset' | 'ask' | 'githubName' | 'oidcName';
 
 const MODE_TITLES: Record<Mode | 'signIn', MessageKey> = {
   sit: 'login.title.sit',
@@ -32,6 +32,7 @@ const MODE_TITLES: Record<Mode | 'signIn', MessageKey> = {
   reset: 'login.title.reset',
   ask: 'login.title.ask',
   githubName: 'login.title.github',
+  oidcName: 'login.title.oidc',
 };
 
 const PASSWORD_PROBLEMS: Record<NonNullable<ReturnType<typeof checkPassword>>, MessageKey> = {
@@ -59,6 +60,9 @@ export function LoginScreen() {
   // back from GitHub (/auth/github?code=...&state=...)
   const backFromGithub = location.pathname === '/auth/github';
   const github = backFromGithub ? { code: query.get('code') ?? '', state: query.get('state') ?? '' } : null;
+  // back from the identity provider (/auth/oidc?code=...&state=...)
+  const backFromOidc = location.pathname === '/auth/oidc';
+  const oidc = backFromOidc ? { code: query.get('code') ?? '', state: query.get('state') ?? '' } : null;
   // game links go stale across sign-ins; anything else is worth returning to, unless the server restarted under it
   const [restarted] = useState(session.expired);
   const destination = !restarted && from && !from.startsWith('/game/') && from !== '/login' ? from : '/';
@@ -70,7 +74,15 @@ export function LoginScreen() {
   const [editServer, setEditServer] = useState(false);
   const [dealing, setDealing] = useState(false);
   const [refused, setRefused] = useState(0);
-  const [mode, setMode] = useState<Mode>(invite ? 'register' : 'sit');
+  const { status, info } = useServerStatus(serverUrl);
+  const accounts = !!info?.accounts;
+  const contributors = info?.access === 'allowlist';
+  const inviteOnly = info?.registration === 'invite';
+  // this server signs in with the identity provider only: the provider is the only way in
+  const oidcOnly = !!info?.oidcOnly;
+  const maintenanceAt = info?.maintenanceAt ?? 0;
+  // an invite on a provider-only server opens sign-in, since registration is refused server-side
+  const [mode, setMode] = useState<Mode>(invite && !oidcOnly ? 'register' : 'sit');
   const [note, setNote] = useState('');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -81,24 +93,27 @@ export function LoginScreen() {
   // Cloudflare Turnstile's token, when the server asks for one on registering and asking for access
   const [turnstileToken, setTurnstileToken] = useState('');
   const [turnstileBroken, setTurnstileBroken] = useState(false);
-  const { status, info } = useServerStatus(serverUrl);
   const inviteCheck = useInviteCheck(invite, status === 'online');
   const art = useRotatingArt();
   const resumed = useRef(false);
   // another sign-in took the session over: this tab waits for the player instead of taking it back by itself
   const [takingBack, setTakingBack] = useState(false);
-  const elsewhere = (session.signedInElsewhere || takingBack) && !invite && !backFromGithub;
+  const elsewhere = (session.signedInElsewhere || takingBack) && !invite && !backFromGithub && !backFromOidc;
 
   useEffect(() => {
-    if (resumed.current || invite || backFromGithub) return;
+    if (resumed.current || invite || backFromGithub || backFromOidc) return;
     resumed.current = true;
     void session.resume().then((ok) => ok && navigate(destination, { replace: true }));
-  }, [session, navigate, destination, invite, backFromGithub]);
+  }, [session, navigate, destination, invite, backFromGithub, backFromOidc]);
 
-  const accounts = !!info?.accounts;
-  const contributors = info?.access === 'allowlist';
-  const inviteOnly = info?.registration === 'invite';
-  const maintenanceAt = info?.maintenanceAt ?? 0;
+  // the invite seeded registration, but the server signs in with the provider only: the sign-in screen says so
+  useEffect(() => {
+    if (oidcOnly && mode === 'register') switchMode('sit');
+  }, [oidcOnly, mode]);
+
+  // single sign-on: the proxy in front already said who this is, or the server takes nobody else
+  const signOn = mode === 'sit' && !elsewhere ? info?.signOn ?? null : null;
+  const signOnOnly = !!info?.signOnOnly;
   const busy = session.phase === 'signingIn' || dealing;
   const name = userName.trim();
   const nameError = name && !/^[A-Za-z0-9_]{3,14}$/.test(name) ? t('login.nameRule') : null;
@@ -112,10 +127,10 @@ export function LoginScreen() {
     : mode === 'register' ? !!name && !nameError && !!email.trim() && !!password && !passwordError && checked && agreed
       : mode === 'forgot' ? !!email.trim()
         : mode === 'ask' ? !!name && !nameError && !!email.trim() && checked
-          : mode === 'githubName' ? !!name && !nameError
+          : mode === 'githubName' || mode === 'oidcName' ? !!name && !nameError
           : code.length === 6 && !!password && !passwordError;
   const submitLabel = t(mode === 'register' ? 'login.submit.register' : mode === 'forgot' ? 'login.submit.forgot' : mode === 'reset' ? 'login.submit.reset'
-    : mode === 'ask' ? 'login.submit.ask' : mode === 'githubName' ? 'login.submit.github'
+    : mode === 'ask' ? 'login.submit.ask' : mode === 'githubName' ? 'login.submit.github' : mode === 'oidcName' ? 'login.submit.oidc'
     : busy ? 'login.submit.busy' : accounts ? 'login.submit.signIn' : 'login.submit.sit');
 
   function switchMode(next: Mode) {
@@ -132,11 +147,34 @@ export function LoginScreen() {
     setTurnstileToken('');
   }
 
+  // signed on: in straight away on a first visit or a reload, unless this device signed out
+  const signedOn = useRef(false);
+  useEffect(() => {
+    if (!signOn || signedOn.current || invite || backFromGithub) return;
+    signedOn.current = true;
+    if (useSession.getState().phase !== 'signedOut') return;
+    void session.signInWithSignOn(serverUrl.trim(), signOn, true).then((ok) => ok && seated());
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the server names the player
+  }, [signOn]);
+
+  async function continueSignedOn() {
+    if (signOn && await session.signInWithSignOn(serverUrl.trim(), signOn)) seated();
+    else refuse();
+  }
+
   // back from GitHub: sign in to the account it names, or pick a name for a new one first
   const githubDone = useRef(false);
+  // the naming retry sends the server's resume secret, never the code from the URL again
+  const githubResume = useRef<string | null>(null);
   useEffect(() => {
     if (!github || status !== 'online' || githubDone.current) return;
     githubDone.current = true;
+    // only finish a sign-in this tab started: a callback link someone else sent would sign in to their account
+    if (takeSignInState() !== github.state) {
+      useSession.setState({ error: t('login.otherTab') });
+      setMode('sit');
+      return;
+    }
     void finishGithub(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the server answers
   }, [status]);
@@ -145,11 +183,12 @@ export function LoginScreen() {
     if (!github) return;
     setWorking(true);
     try {
-      const result = await api.githubFinish(github.state, github.code, chosen);
+      const result = await api.githubFinish(github.state, chosen && githubResume.current ? githubResume.current : github.code, chosen);
       if (result.userName && result.rememberToken) {
         if (await session.signInWithToken(serverUrl.trim(), result.userName, result.rememberToken)) seated();
         return;
       }
+      githubResume.current = result.resume ?? null;
       setMode('githubName');
       if (result.suggestedName && !chosen) setUserName(result.suggestedName);
       useSession.setState({ error: result.nameProblem ?? (chosen ? null : t('login.github.nameTaken')) });
@@ -164,7 +203,60 @@ export function LoginScreen() {
   async function startGithub() {
     setWorking(true);
     try {
-      window.location.assign(await api.githubStart());
+      const url = await api.githubStart();
+      keepSignInState(url);
+      window.location.assign(url);
+    } catch (error) {
+      useSession.setState({ error: error instanceof Error ? error.message : String(error) });
+      setWorking(false);
+    }
+  }
+
+  // back from the identity provider: sign in to the account it names, or pick a name for a new one first
+  const oidcDone = useRef(false);
+  // the naming retry sends the server's resume secret, never the code from the URL again
+  const oidcResume = useRef<string | null>(null);
+  useEffect(() => {
+    if (!oidc || status !== 'online' || oidcDone.current) return;
+    oidcDone.current = true;
+    // only finish a sign-in this tab started: a callback link someone else sent would sign in to their account
+    if (takeSignInState() !== oidc.state) {
+      useSession.setState({ error: t('login.otherTab') });
+      setMode('sit');
+      return;
+    }
+    void finishOidc(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the server answers
+  }, [status]);
+
+  async function finishOidc(chosen: string | null) {
+    if (!oidc) return;
+    setWorking(true);
+    try {
+      const result = await api.oidcFinish(oidc.state, chosen && oidcResume.current ? oidcResume.current : oidc.code, chosen);
+      if (result.userName && result.rememberToken) {
+        // the ID-token ref marks the sign-in as a provider one: its sign-out ends the provider session too
+        if (await session.signInWithOidc(serverUrl.trim(), result.userName, result.rememberToken, result.idTokenRef ?? null)) seated();
+        return;
+      }
+      oidcResume.current = result.resume ?? null;
+      setMode('oidcName');
+      if (result.suggestedName && !chosen) setUserName(result.suggestedName);
+      useSession.setState({ error: result.nameProblem ?? (chosen ? null : t('login.oidc.nameTaken')) });
+    } catch (error) {
+      useSession.setState({ error: error instanceof Error ? error.message : String(error) });
+      setMode('sit');
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  async function startOidc() {
+    setWorking(true);
+    try {
+      const url = await api.oidcStart();
+      keepSignInState(url);
+      window.location.assign(url);
     } catch (error) {
       useSession.setState({ error: error instanceof Error ? error.message : String(error) });
       setWorking(false);
@@ -204,6 +296,8 @@ export function LoginScreen() {
         else refuse();
       } else if (mode === 'githubName' && github) {
         await finishGithub(name);
+      } else if (mode === 'oidcName' && oidc) {
+        await finishOidc(name);
       } else if (mode === 'ask') {
         try {
           if (rpc.getStatus() !== 'open' || rpc.getUrl() !== url) await rpc.connect(url);
@@ -266,7 +360,9 @@ export function LoginScreen() {
         <h2 id="seat-title" className={styles.seatLabel}>{t(MODE_TITLES[mode === 'sit' && accounts ? 'signIn' : mode])}</h2>
         {info?.notice && <p className={styles.serverNotice}>{info.notice}</p>}
         {contributors && mode === 'sit' && <p className={styles.notice}>{t('login.contributors')}</p>}
+        {oidcOnly && mode === 'sit' && <p className={styles.notice} role="status">{t('login.oidcOnly', { name: info.oidcName || 'OIDC' })}</p>}
         {inviteOnly && !invite && mode === 'register' && <p className={styles.notice}>{t('login.inviteOnly')}</p>}
+        {info?.ownerPending && (mode === 'sit' || mode === 'register') && <p className={styles.notice}>{t('login.ownerPending')}</p>}
         {maintenanceAt > 0 && <p className={styles.notice} role="status">{t('shell.maintenanceHint')}{info?.maintenanceMessage ? ` ${info.maintenanceMessage}` : ''}</p>}
         {invite && mode === 'register' && (
           <p className={inviteCheck?.valid === false ? styles.error : styles.notice} role="status">
@@ -274,7 +370,18 @@ export function LoginScreen() {
           </p>
         )}
 
-        {(mode === 'sit' || mode === 'register' || mode === 'ask' || mode === 'githubName') && (
+        {signOn && (
+          <>
+            <SeatPlate name={signOn} placeholder={t('login.yourName')} />
+            <Button type="button" variant="decision" size="xl" busy={busy} className={styles.submit} onClick={() => void continueSignedOn()}>
+              {t('login.signOn.continue')}
+            </Button>
+            <p className={styles.quiet}>{t('login.signOn.hint')}</p>
+          </>
+        )}
+        {!signOn && signOnOnly && mode === 'sit' && <p className={styles.notice} role="status">{t('login.signOn.only')}</p>}
+
+        {!signOn && !signOnOnly && (mode === 'sit' || mode === 'register' || mode === 'ask' || mode === 'githubName' || mode === 'oidcName') && (
           <>
             <SeatPlate name={name && !nameError ? name : ''} placeholder={t('login.yourName')} />
             <Field
@@ -328,7 +435,7 @@ export function LoginScreen() {
           />
         )}
 
-        {mode === 'sit' && (accounts || needsPassword) && (
+        {mode === 'sit' && !signOn && !signOnOnly && !oidcOnly && (accounts || needsPassword) && (
           <Field
             label={t('login.password')}
             type="password"
@@ -352,7 +459,7 @@ export function LoginScreen() {
           />
         )}
 
-        {((mode === 'sit' && accounts) || mode === 'register') && (
+        {((mode === 'sit' && accounts && !signOn && !signOnOnly) || mode === 'register') && (
           <label className={styles.remember}>
             <input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} />
             {t('login.remember')}
@@ -374,7 +481,7 @@ export function LoginScreen() {
           </label>
         )}
 
-        {mode === 'sit' && !accounts && !needsPassword && (
+        {mode === 'sit' && !accounts && !needsPassword && !oidcOnly && (
           <button type="button" className={styles.linkButton} onClick={() => setNeedsPassword(true)}>
             <KeyRound size={15} aria-hidden="true" /> {t('login.needsPassword')}
           </button>
@@ -414,23 +521,31 @@ export function LoginScreen() {
         {session.staleLogin && !session.error && <p className={styles.notice} role="status">{t('login.staleLogin')}</p>}
         {session.error && <p className={styles.error} role="alert">{session.error}</p>}
 
-        <Button type="submit" variant="decision" size="xl" busy={busy || working} disabled={!canSubmit} className={styles.submit}>
-          {submitLabel}
-        </Button>
+        {!signOn && !(signOnOnly && mode === 'sit') && !(mode === 'sit' && oidcOnly) && (
+          <Button type="submit" variant="decision" size="xl" busy={busy || working} disabled={!canSubmit} className={styles.submit}>
+            {submitLabel}
+          </Button>
+        )}
 
-        {mode === 'sit' && accounts && info?.github && (
+        {mode === 'sit' && accounts && !signOn && info?.github && !oidcOnly && (
           <Button type="button" variant="quiet" icon={<GithubMark />} onClick={startGithub} busy={working}>
             {t('login.github')}
           </Button>
         )}
 
-        {mode === 'sit' && accounts && (
+        {mode === 'sit' && accounts && !signOn && !signOnOnly && info?.oidc && (
+          <Button type="button" variant={oidcOnly ? 'decision' : 'quiet'} size={oidcOnly ? 'xl' : 'md'} className={oidcOnly ? `${styles.submit} ${styles.tight}` : ''} icon={<Fingerprint size={oidcOnly ? 45 : 16} />} onClick={startOidc} busy={working}>
+            {t('login.oidc', { name: info.oidcName || 'OIDC' })}
+          </Button>
+        )}
+
+        {mode === 'sit' && accounts && !signOn && !signOnOnly && (!oidcOnly || contributors || inviteOnly) && (
           <div className={styles.accountLinks}>
-            <button type="button" className={styles.linkButton} onClick={() => switchMode('register')}>{t('login.createAccount')}</button>
+            {!oidcOnly && <button type="button" className={styles.linkButton} onClick={() => switchMode('register')}>{t('login.createAccount')}</button>}
             {(contributors || inviteOnly) && <button type="button" className={styles.linkButton} onClick={() => switchMode('ask')}>{t('login.ask')}</button>}
-            {info?.mail
+            {!oidcOnly && (info?.mail
               ? <button type="button" className={styles.linkButton} onClick={() => switchMode('forgot')}>{t('login.forgot')}</button>
-              : <span className={styles.quiet}>{t('login.forgotAskAdmin')}</span>}
+              : <span className={styles.quiet}>{t('login.forgotAskAdmin')}</span>)}
           </div>
         )}
         {mode !== 'sit' && (
@@ -591,4 +706,27 @@ function useRotatingArt() {
     return () => clearInterval(timer);
   }, [covers.length]);
   return covers.length ? covers[index % covers.length] : null;
+}
+
+const SIGN_IN_STATE_KEY = 'playmat.signInState';
+
+/** Remembers, for this tab only, the state of the sign-in it is about to start. */
+function keepSignInState(url: string) {
+  try {
+    const state = new URL(url).searchParams.get('state');
+    if (state) sessionStorage.setItem(SIGN_IN_STATE_KEY, state);
+  } catch {
+    // no storage: the callback is refused and the player starts again
+  }
+}
+
+/** The state this tab started, read once. */
+function takeSignInState(): string | null {
+  try {
+    const state = sessionStorage.getItem(SIGN_IN_STATE_KEY);
+    sessionStorage.removeItem(SIGN_IN_STATE_KEY);
+    return state;
+  } catch {
+    return null;
+  }
 }

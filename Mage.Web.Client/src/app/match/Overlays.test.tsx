@@ -4,7 +4,8 @@ import { describe, expect, test, vi } from 'vitest';
 import type { Command, Interaction } from '../../core/game/interaction';
 import { parsePrompt } from '../../core/game/prompt';
 import type { CardView, GameClientMessage } from '../../protocol/generated/views';
-import { CardPicker, ChoicePanel, GameOverOverlay, MulliganOverlay, StartingPlayerOverlay, ZoneViewer } from './Overlays';
+import { parseDungeon } from '../../core/game/dungeon';
+import { CardPicker, ChoicePanel, DungeonViewer, GameOverOverlay, MulliganOverlay, StartingPlayerOverlay, ZoneViewer } from './Overlays';
 import { useMatchUi } from './matchUi';
 
 const card = (id: string, name: string) => ({ id, name, expansionSetCode: 'M10', cardNumber: '1' } as CardView);
@@ -204,7 +205,7 @@ describe('ChoicePanel', () => {
     const any = button(text);
     expect(within(any).getByText(/Sacrifice this artifact: Add/)).toBeTruthy();
     expect(any.querySelector('.ms-w, .ms-u, .ms-b, .ms-r, .ms-g')).toBeNull();
-    expect(screen.getAllByRole('button')).toHaveLength(3);
+    expect(dialog('Choose mana').querySelectorAll('[data-choice]')).toHaveLength(2);
     fireEvent.click(any);
     expect(sent).toEqual([{ type: 'uuid', id: 'any' }]);
   });
@@ -273,10 +274,28 @@ describe('ChoicePanel', () => {
     render(<ChoicePanel prompt={prompt} onCommand={onCommand} />);
     expect(screen.queryByRole('button', { name: 'Skip' })).toBeNull();
     fireEvent.change(screen.getByRole('textbox', { name: 'Search choices' }), { target: { value: 'gob' } });
-    const options = within(dialog('Choose a creature type')).getAllByRole('button');
+    const options = Array.from(dialog('Choose a creature type').querySelectorAll<HTMLButtonElement>('[data-choice]'));
     expect(options).toHaveLength(1);
     fireEvent.click(options[0]);
     expect(sent).toEqual([{ type: 'string', value: 'Goblin' }]);
+  });
+
+  test('can be hidden to look at the board and hand, preserving state and pausing choice keys (#476)', () => {
+    const { sent, onCommand } = answers();
+    const prompt = parsePrompt('GAME_GET_AMOUNT', { message: 'Choose X', min: 0, max: 5 });
+    render(<ChoicePanel prompt={prompt} onCommand={onCommand} />);
+    fireEvent.click(button('More'));
+    fireEvent.click(button('More'));
+    expect(button('Choose 2')).toBeTruthy();
+
+    fireEvent.click(button('See the board'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.keyDown(window, { key: '1' });
+    expect(sent).toEqual([]);
+
+    fireEvent.click(button('Back to choice'));
+    expect(dialog('Choose X')).toBeTruthy();
+    expect(button('Choose 2')).toBeTruthy();
   });
 
   test('choosePile: answers true for the first pile and false for the second', () => {
@@ -390,6 +409,119 @@ describe('GameOverOverlay', () => {
     expect(screen.getByRole('heading', { name: 'Defeat' })).toBeTruthy();
     expect(screen.getByText('You lost the game.')).toBeTruthy();
   });
+
+  test('View board collapses the dimming overlay into a compact return bar and restores it (#427)', () => {
+    const onLeave = vi.fn();
+    render(<GameOverOverlay message="You lost the game" endInfo={null} myName="me" onLeave={onLeave} />);
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    fireEvent.click(button('View board'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(button('Back to result')).toBeTruthy();
+    fireEvent.click(button('Back to Play'));
+    expect(onLeave).toHaveBeenCalledTimes(1);
+    fireEvent.click(button('Back to result'));
+    expect(screen.getByRole('dialog')).toBeTruthy();
+  });
+
+  test('View log collapses the scrim, opens the log, and Escape waits while the log is open (#483)', () => {
+    const onViewLog = vi.fn(() => useMatchUi.setState({ logOpen: true }));
+    render(<GameOverOverlay message="You won the game" endInfo={null} myName="me" onLeave={vi.fn()} onViewLog={onViewLog} />);
+    fireEvent.click(button('View log'));
+    expect(onViewLog).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    useMatchUi.setState({ logOpen: false });
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.getByRole('dialog')).toBeTruthy();
+  });
+
+  test('shows the AI opponent deck name(s) from endInfo or client fallback (#416)', () => {
+    const { rerender } = render(
+      <GameOverOverlay
+        message="You won the game"
+        endInfo={{ won: true, opponentDecks: { 'AI Opponent': 'Mono-Red Aggro' } }}
+        myName="me"
+        onLeave={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Opponent's deck: Mono-Red Aggro")).toBeTruthy();
+
+    rerender(
+      <GameOverOverlay
+        message="You lost the game"
+        endInfo={{ won: false, opponentDecks: { 'AI 1': 'Atraxa', 'AI 2': 'Urza' } }}
+        myName="me"
+        onLeave={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('Opponent decks: AI 1: Atraxa · AI 2: Urza')).toBeTruthy();
+
+    rerender(
+      <GameOverOverlay
+        message="You won the game"
+        endInfo={null}
+        myName="me"
+        onLeave={vi.fn()}
+        opponentDecks={{ 'AI Opponent': 'Azorius Control' }}
+      />,
+    );
+    expect(screen.getByText("Opponent's deck: Azorius Control")).toBeTruthy();
+  });
+});
+
+describe('dungeons (#385)', () => {
+  const lostMine = parseDungeon({
+    id: 'd1',
+    name: 'Lost Mine of Phandelver',
+    expansionSetCode: 'AFR',
+    rules: [
+      '<i>(Currently in Cave Entrance)</i>',
+      'ICON_DUNGEON_ROOM_CURRENTCave Entrance &mdash; When you enter this room, scry 1. <i>(Leads to Goblin Lair or Mine Tunnels)</i>',
+      'ICON_DUNGEON_ROOM_NEXTGoblin Lair &mdash; When you enter this room, create a 1/1 red Goblin creature token. <i>(Leads to Storeroom or Dark Pool)</i>',
+      'ICON_DUNGEON_ROOM_NEXTMine Tunnels &mdash; When you enter this room, create a Treasure token. <i>(Leads to Dark Pool or Fungi Cavern)</i>',
+      'Temple of Dumathoin &mdash; When you enter this room, draw a card.',
+    ],
+  })!;
+
+  test('shows the dungeons to venture into as cards', () => {
+    const { sent, onCommand } = answers();
+    render(<ChoicePanel prompt={parsePrompt('GAME_CHOOSE_CHOICE', {
+      choice: {
+        message: 'Choose a dungeon to venture into', hintType: 'CARD_DUNGEON', required: true,
+        choices: ['Tomb of Annihilation', 'Lost Mine of Phandelver', 'Dungeon of the Mad Mage'],
+      },
+    })} onCommand={onCommand} />);
+    const panel = dialog('Choose a dungeon to venture into');
+    expect(panel.querySelector('[data-card-id="dungeon:Tomb of Annihilation"]')).toBeTruthy();
+    fireEvent.click(button('Venture into Lost Mine of Phandelver'));
+    expect(sent).toEqual([{ type: 'string', value: 'Lost Mine of Phandelver' }]);
+  });
+
+  test('names the next rooms with their effects', () => {
+    const { sent, onCommand } = answers();
+    const prompt = parsePrompt('GAME_ASK', {
+      message: 'Choose which room to go to in',
+      options: { 'UI.left.btn.text': 'Goblin Lair', 'UI.right.btn.text': 'Mine Tunnels', secondMessage: 'dungeon: Lost Mine of Phandelver' },
+    } as unknown as GameClientMessage);
+    render(<ChoicePanel prompt={prompt} dungeon={lostMine} onCommand={onCommand} />);
+    expect(dialog('Next room in Lost Mine of Phandelver')).toBeTruthy();
+    expect(screen.getByText('Create a Treasure token.')).toBeTruthy();
+    expect(screen.getByText(/You leave Cave Entrance/)).toBeTruthy();
+    fireEvent.click(button(/Mine Tunnels/));
+    fireEvent.click(button(/Goblin Lair/));
+    expect(sent).toEqual([{ type: 'boolean', value: false }, { type: 'boolean', value: true }]);
+  });
+
+  test('lays a dungeon out with the venture marker and the next rooms', () => {
+    render(<DungeonViewer title="Your dungeon" dungeon={lostMine} onClose={vi.fn()} />);
+    const rooms = within(dialog('Your dungeon')).getAllByRole('listitem');
+    expect(rooms).toHaveLength(4);
+    expect(rooms[0].getAttribute('aria-current')).toBe('location');
+    expect(within(rooms[0]).getByText('Venture marker')).toBeTruthy();
+    expect(within(rooms[1]).getByText('Next')).toBeTruthy();
+    expect(within(rooms[3]).queryByText('Next')).toBeNull();
+  });
 });
 
 describe('ZoneViewer', () => {
@@ -487,10 +619,11 @@ describe('choice keyboard ownership', () => {
     expect(document.activeElement).toBe(button(/Gain life/));
     fireEvent.keyDown(document.activeElement!, { key: 'Home' });
     expect(document.activeElement).toBe(button(/Draw a card/));
+    button('See the board').focus();
     fireEvent.keyDown(document.activeElement!, { key: 'Tab', shiftKey: true });
     expect(document.activeElement).toBe(button('Cancel'));
     fireEvent.keyDown(document.activeElement!, { key: 'Tab' });
-    expect(document.activeElement).toBe(button(/Draw a card/));
+    expect(document.activeElement).toBe(button('See the board'));
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(sent).toEqual([{ type: 'uuid', id: null }]);
   });

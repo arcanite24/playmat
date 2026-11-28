@@ -1,0 +1,19 @@
+# name: Train450 guild-rg-midrange-8
+# archetype: midrange
+# colors: RG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Brambleback Brute
+4 Crossroads Watcher
+3 Hallar, the Firefletcher
+4 Heated Debate
+4 Hungry Flames
+4 Lightning Shrieker
+4 Might of the Meek
+2 Mistbreath Elder
+4 Slumbering Trudge
+2 Traxos, Scourge of Kroog
+2 Wayward Guide-Beast
+6 Forest
+10 Mountain
+4 Rootbound Crag
+4 Temple of Abandon

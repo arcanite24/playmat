@@ -1,0 +1,15 @@
+# Probe: {S} costs paid only with snow mana (Faceless Haven, Hailstorm Valkyrie, Grim Draugr), snow and non-snow lands mixed
+4 Hailstorm Valkyrie
+4 Grim Draugr
+4 Priest of the Haunted Edge
+4 Savannah Lions
+4 Healer's Hawk
+4 Fatal Push
+4 Duress
+4 Narfi, Betrayer King
+4 Faceless Haven
+4 Snowfield Sinkhole
+4 Alpine Meadow
+4 Ice Tunnel
+6 Plains
+6 Swamp

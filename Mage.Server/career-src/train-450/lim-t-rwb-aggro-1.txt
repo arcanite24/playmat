@@ -1,0 +1,40 @@
+# name: Train450 lim-t-rwb-aggro-1
+# archetype: limited_aggro
+# colors: RWB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Bedevil
+1 Birgi, God of Storytelling
+2 Blight Herder
+1 Bruse Tarl, Roving Rancher
+2 Collateral Damage
+1 Embereth Skyblazer
+2 Fleeting Spirit
+1 Goblin Assault Team
+1 Harsh Annotation
+1 Heron of Hope
+1 Icingdeath, Frost Tyrant
+1 Inordinate Rage
+2 Kessig Wolfrider
+1 Makeshift Battalion
+1 Moonstone, Harsh Mistress
+1 Phyrexian Missionary
+2 Relentless Raptor
+1 Rouse the Mob
+2 Shambling Goblin
+1 Skirsdag Supplicant
+1 Smash to Smithereens
+1 Steward of Solidarity
+1 Storm Herald
+1 Sun-Blessed Guardian
+1 The Master of Lake-town
+2 Topplegeist
+1 Utter End
+1 Venat, Heart of Hydaelyn
+1 Viashino Branchrider
+1 You're Ambushed on the Road
+4 Boiling Rock Prison
+4 Mountain
+5 Plains
+4 Scoured Barrens
+2 Swamp
+4 Vector, Imperial Capital

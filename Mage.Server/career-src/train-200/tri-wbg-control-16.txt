@@ -1,0 +1,24 @@
+# name: Train200 tri-wbg-control-16
+# archetype: control
+# colors: WBG
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Abstruse Interference
+2 Academic Ascent
+4 Airship Crash
+2 Bloodthirsty Conqueror
+2 Caustic Exhale
+4 Essence Extraction
+3 Fog of War
+2 Ghalta and Mavren
+3 Horribly Awry
+2 Ketramose, the New Dawn
+2 Loxodon Smiter
+1 Rally the Ancestors
+2 Verdant Rebirth
+1 Warping Wail
+4 Canopy Vista
+4 Concealed Courtyard
+6 Forest
+4 Orzhov Guildgate
+4 Plains
+4 Swamp

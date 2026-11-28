@@ -9,6 +9,7 @@ import mage.cards.CardSetInfo;
 import mage.constants.CardType;
 import mage.constants.SubType;
 import mage.filter.FilterCard;
+import mage.filter.common.FilterNonlandCard;
 
 import java.util.UUID;
 
@@ -17,7 +18,7 @@ import java.util.UUID;
  */
 public final class MaelstromArchangel extends CardImpl {
 
-    private static final FilterCard filter = new FilterCard("a spell");
+    private static final FilterCard filter = new FilterNonlandCard("a nonland card");
 
     public MaelstromArchangel(UUID ownerId, CardSetInfo setInfo) {
         super(ownerId, setInfo, new CardType[]{CardType.CREATURE}, "{W}{U}{B}{R}{G}");

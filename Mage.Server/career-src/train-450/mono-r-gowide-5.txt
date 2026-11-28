@@ -1,0 +1,20 @@
+# name: Train450 mono-r-gowide-5
+# archetype: gowide
+# colors: R
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Abandon Reason
+4 Bloodrage Brawler
+4 Falkenrath Pit Fighter
+1 Fervent Champion
+3 Fiery Conclusion
+4 Fleeting Effigy
+2 Kindled Heroism
+3 Nest Robber
+1 Raze the Effigy
+2 Scuzzback Scrounger
+2 Soulbright Seeker
+2 Thorin, Mountain-king
+3 Thundering Raiju
+2 Tyrox, Saurid Tyrant
+3 Volcanic Villain
+22 Mountain

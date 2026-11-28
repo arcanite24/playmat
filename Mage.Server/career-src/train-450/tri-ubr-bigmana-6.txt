@@ -1,0 +1,22 @@
+# name: Train450 tri-ubr-bigmana-6
+# archetype: bigmana
+# colors: UBR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Alchemist's Gift
+4 Creakwood Safewright
+4 Dismember
+3 Falcon Abomination
+2 Fathom Fleet Boarder
+3 Glint-Horn Buccaneer
+2 Malcolm, the Eyes
+2 Mindwrack Demon
+4 Riverwheel Aerialists
+2 Starfall
+4 Uchbenbak, the Great Mistake
+3 V'Ger, the Intruder
+4 Dragonskull Summit
+5 Island
+2 Mountain
+4 Serpent's Pass
+6 Swamp
+4 Thundering Falls

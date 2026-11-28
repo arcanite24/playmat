@@ -1,0 +1,55 @@
+# name: Train450 brawl-t-urw-mid-2
+# archetype: brawl_mid
+# colors: URW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Aethersquall Ancient
+1 Agate Assault
+1 Akroan Skyguard
+1 Astor, Bearer of Blades
+1 Basri's Solidarity
+1 Cathar's Companion
+1 Combat Professor
+1 Conduit of Storms
+1 Convolute
+1 Covert Technician
+1 Dracosaur Auxiliary
+1 Drake Hatcher
+1 Fearless Swashbuckler
+1 Ghitu Chronicler
+1 HYDRA Assault Robot
+1 Light of the Legion
+1 Maelstrom Muse
+1 Masked Meower
+1 Oltec Matterweaver
+1 Pride of the Road
+1 Raging Kronch
+1 Red Dragon
+1 Rift Bolt
+1 Rootwire Amalgam
+1 Sacred Fire
+1 Sandworm
+1 Sanguinary Mage
+1 Shock Brigade
+1 Silver Sable, Mercenary Leader
+1 Sizzling Barrage
+1 Spellgyre
+1 Sunstar Chaplain
+1 Thraben Exorcism
+1 Unexplained Disappearance
+1 Unravel
+1 Weftstalker Ardent
+1 Avengers Hangar
+1 Baron, Airship Kingdom
+3 Island
+1 Meandering River
+1 Molten Tributary
+5 Mountain
+4 Plains
+1 Prairie Stream
+1 Sacred Foundry
+1 Shivan Reef
+1 Skybridge Towers
+1 Spirebluff Canal
+1 Stone Quarry
+1 Sundown Pass
+1 University Campus

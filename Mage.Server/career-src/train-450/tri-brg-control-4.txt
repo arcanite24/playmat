@@ -1,0 +1,23 @@
+# name: Train450 tri-brg-control-4
+# archetype: control
+# colors: BRG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Abstruse Interference
+4 Aerid Konstrari
+4 Broken Wings
+2 Cinderclasm
+4 Horribly Awry
+4 Noxious Grasp
+3 Pyrewood Gearhulk
+2 Rakdos Charm
+2 Root Out
+2 Shivan Fire
+2 Slip Through Space
+1 Stormbreath Dragon
+2 Void Shatter
+4 Festering Gulch
+5 Forest
+4 Llanowar Wastes
+6 Mountain
+3 Swamp
+4 Ziatora's Proving Ground

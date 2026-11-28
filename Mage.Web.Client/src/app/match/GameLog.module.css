@@ -52,6 +52,8 @@
 }
 
 .lines {
+  user-select: text;
+  -webkit-user-select: text;
   flex: 1;
   margin: 0;
   padding: 4px 18px 12px;

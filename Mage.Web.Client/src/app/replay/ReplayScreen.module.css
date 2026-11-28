@@ -71,3 +71,18 @@
     display: none;
   }
 }
+
+/* a phone on its side: the bar shrinks to the transport and the scrubber, so it no longer covers the seat plates and the
+   Leave button at the corners of the short table */
+@media (max-height: 480px) {
+  .transport {
+    bottom: 4px;
+    width: min(360px, calc(100vw - 32px));
+    padding: 2px 8px;
+  }
+
+  .where,
+  .speed {
+    display: none;
+  }
+}

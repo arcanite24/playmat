@@ -36,8 +36,6 @@ final class GameServer {
 
     /** The WebSocket bridge; the web client connects to this port on the host it was loaded from. */
     static final int BRIDGE_PORT = 17172;
-    /** The desktop client protocol; XMage opens it too. */
-    static final int DESKTOP_PORT = 17171;
     static final int HEALTH_PORT = 17173;
 
     private final Layout layout;
@@ -114,6 +112,8 @@ final class GameServer {
         command.add(Layout.javaExecutable().toString());
         command.add("-Xmx" + memory());
         command.add("-Dfile.encoding=UTF-8");
+        // Java4Shell (CVE-2026-114938): the x86-64 AVX-512 Base64 intrinsic can write out of bounds; plain Java decodes it
+        command.add("-XX:-UseBASE64Intrinsics");
         // a server: no Dock icon or taskbar entry of its own
         command.add("-Djava.awt.headless=true");
         command.add("-Dxmage.testMode=false");

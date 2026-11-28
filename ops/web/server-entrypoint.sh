@@ -10,6 +10,8 @@ APP=${XMAGE_HOME:-/opt/xmage}
 TEMPLATE=$APP/config/config.template.xml
 CONFIG=$APP/config/config.xml
 DB_DIR=$APP/db          # volume: user data only (accounts, stats, table records, feedback)
+# the Career views Java writes at start and on content reloads, which the gateway serves
+export XMAGE_CAREER_EXPORT=${XMAGE_CAREER_EXPORT:-$DB_DIR/career-views.json}
 CARDS_DIR=$APP/cards-db # volume: card database cache, rebuilt when the image changes
 
 die() { echo "xmage-server: $*" >&2; exit 1; }
@@ -22,7 +24,7 @@ from_file() {
     eval "$1=\$(cat \"\$file\")"
   fi
 }
-for secret in XMAGE_ADMIN_PASSWORD XMAGE_MAIL_PASSWORD XMAGE_MAILGUN_API_KEY XMAGE_DISCORD_WEBHOOK XMAGE_DISCORD_STAFF_WEBHOOK XMAGE_GITHUB_CLIENT_SECRET XMAGE_GITHUB_TOKEN XMAGE_TURNSTILE_SECRET XMAGE_KOFI_TOKEN XMAGE_GITHUB_SPONSORS_SECRET; do
+for secret in XMAGE_ADMIN_PASSWORD XMAGE_MAIL_PASSWORD XMAGE_MAILGUN_API_KEY XMAGE_DISCORD_WEBHOOK XMAGE_DISCORD_STAFF_WEBHOOK XMAGE_GITHUB_CLIENT_SECRET XMAGE_GITHUB_TOKEN XMAGE_OIDC_CLIENT_SECRET XMAGE_TURNSTILE_SECRET XMAGE_KOFI_TOKEN XMAGE_GITHUB_SPONSORS_SECRET; do
   from_file "$secret"
 done
 
@@ -97,7 +99,11 @@ fi
 # changes, so an old card DB never outlives an upgrade and a new one is never built on the server.
 build_id=$(cat "$APP/.build-id")
 if [ "$(cat "$CARDS_DIR/.build-id" 2>/dev/null || true)" != "$build_id" ]; then
-  rm -f "$CARDS_DIR"/cards.h2.*
+  rm -f "$CARDS_DIR"/cards.h2.* "$CARDS_DIR/catalog.sqlite"
+  # the card catalog the Rust gateway answers card lookups from, made from the same cards
+  if [ -f "$APP/cards-prebuilt/catalog.sqlite" ]; then
+    cp "$APP/cards-prebuilt/catalog.sqlite" "$CARDS_DIR/catalog.sqlite"
+  fi
   if [ -f "$APP/cards-prebuilt/cards.h2.mv.db" ]; then
     echo "xmage-server: new image build, installing its card database"
     cp "$APP/cards-prebuilt/cards.h2.mv.db" "$CARDS_DIR/cards.h2.mv.db"
@@ -128,10 +134,40 @@ is_uint "$REPLAY_DAYS" || die "XMAGE_REPLAY_DAYS must be a whole number (got '$R
 REPLAY_MAX=${XMAGE_REPLAY_MAX:-300}
 is_uint "$REPLAY_MAX" || die "XMAGE_REPLAY_MAX must be a whole number (got '$REPLAY_MAX')"
 
+# --- disk ------------------------------------------------------------------------------------
+# free disk under which the server calls it nearly full (/healthz, /admin and the staff channel)
+DISK_MIN_FREE_MB=${XMAGE_DISK_MIN_FREE_MB:-3072}
+is_uint "$DISK_MIN_FREE_MB" || die "XMAGE_DISK_MIN_FREE_MB must be a whole number (got '$DISK_MIN_FREE_MB')"
+
 # --- desktop clients ---------------------------------------------------------------------------
-# The desktop protocol (JBoss Remoting on XMAGE_PORT) costs threads and memory; a web-only server can leave it off.
-DESKTOP=${XMAGE_DESKTOP:-true}
-is_bool "$DESKTOP" || die "XMAGE_DESKTOP must be true or false (got '$DESKTOP')"
+# The desktop protocol (JBoss Remoting) is gone (docs/RustMigration.md phase 1): web clients only.
+if [ "${XMAGE_DESKTOP:-}" = true ]; then
+  echo "xmage-server: XMAGE_DESKTOP=true is ignored: desktop clients are no longer supported"
+fi
+
+# --- Rust gateway ------------------------------------------------------------------------------
+# XMAGE_GATEWAY=on runs the gateway (rust/, docs/RustMigration.md) on 17180 in front of the bridge; Caddy sends /ws
+# there when its own XMAGE_GATEWAY is on, and straight to 17172 when the gateway doesn't answer.
+GATEWAY=${XMAGE_GATEWAY:-off}
+case "$GATEWAY" in
+  on|off) ;;
+  *) die "XMAGE_GATEWAY must be on or off (got '$GATEWAY')" ;;
+esac
+CAREER_PAYOUTS=${XMAGE_ROUTE_CAREERPAYOUTS:-java}
+case "$CAREER_PAYOUTS" in
+  java|shadow|rust) ;;
+  *) die "XMAGE_ROUTE_CAREERPAYOUTS must be java, shadow or rust (got '$CAREER_PAYOUTS')" ;;
+esac
+
+# --- ladder seasons (#434) ---------------------------------------------------------------------
+case "${XMAGE_SEASON_START:-}" in
+  ''|[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]) ;;
+  *) die "XMAGE_SEASON_START must be a date like 2026-11-01 (got '$XMAGE_SEASON_START')" ;;
+esac
+case "${XMAGE_SEASON_MONTHS:-}" in
+  ''|[1-9]|1[0-9]|2[0-4]) ;;
+  *) die "XMAGE_SEASON_MONTHS must be 1 to 24 (got '$XMAGE_SEASON_MONTHS')" ;;
+esac
 
 # --- access (contributors server) -------------------------------------------------------------
 # XMAGE_ACCESS=allowlist starts the server closed: only the owner, staff and the people on the
@@ -149,6 +185,35 @@ ALLOWLIST=${XMAGE_ALLOWLIST:-}
 case "$ALLOWLIST" in
   @*) [ -r "${ALLOWLIST#@}" ] || die "XMAGE_ALLOWLIST file ${ALLOWLIST#@} can't be read" ;;
 esac
+
+# --- single sign-on ----------------------------------------------------------------------------
+# A proxy in front names the signed-in user in AUTH_TRUSTED_HEADER (passed in as XMAGE_AUTH_TRUSTED_HEADER); Caddy keeps
+# the header only on its requests, and the server believes it only from Caddy (XMAGE_TRUSTED_PROXIES).
+SIGN_ON_HEADER=${XMAGE_AUTH_TRUSTED_HEADER:-}
+PASSWORD_SIGNIN=${XMAGE_PASSWORD_SIGNIN:-true}
+STRIP_DOMAIN=${XMAGE_TRUSTED_HEADER_STRIP_DOMAIN:-false}
+is_bool "$PASSWORD_SIGNIN" || die "XMAGE_PASSWORD_SIGNIN must be true or false (got '$PASSWORD_SIGNIN')"
+is_bool "$STRIP_DOMAIN" || die "XMAGE_TRUSTED_HEADER_STRIP_DOMAIN must be true or false (got '$STRIP_DOMAIN')"
+case "$SIGN_ON_HEADER" in
+  *[!A-Za-z0-9-]*) die "AUTH_TRUSTED_HEADER must be a header name like Remote-User (got '$SIGN_ON_HEADER')" ;;
+esac
+if [ -n "$SIGN_ON_HEADER" ] && [ "${XMAGE_AUTH:-false}" != true ]; then
+  die "AUTH_TRUSTED_HEADER needs XMAGE_AUTH=true: single sign-on signs in to accounts"
+fi
+if [ -z "$SIGN_ON_HEADER" ] && [ "$PASSWORD_SIGNIN" = false ]; then
+  die "XMAGE_PASSWORD_SIGNIN=false needs AUTH_TRUSTED_HEADER: nobody could sign in"
+fi
+# --- sign in with an identity provider (OpenID Connect) ------------------------------------------
+# true makes the provider the only sign-in method. It needs the provider set and accounts on
+# (XMAGE_AUTH=true): a login method that can't work is a boot failure, not a runtime surprise.
+OIDC_ONLY=${XMAGE_OIDC_ONLY:-false}
+is_bool "$OIDC_ONLY" || die "XMAGE_OIDC_ONLY must be true or false (got '$OIDC_ONLY')"
+if [ "$OIDC_ONLY" = true ]; then
+  [ -n "${XMAGE_OIDC_DISCOVERY:-}" ] && [ -n "${XMAGE_OIDC_CLIENT_ID:-}" ] && [ -n "${XMAGE_OIDC_CLIENT_SECRET:-}" ] \
+    || die "XMAGE_OIDC_ONLY=true needs the provider set: XMAGE_OIDC_DISCOVERY, XMAGE_OIDC_CLIENT_ID and XMAGE_OIDC_CLIENT_SECRET"
+  [ -n "${XMAGE_PUBLIC_URL:-}" ] || die "XMAGE_OIDC_ONLY=true needs XMAGE_PUBLIC_URL: the provider sends players back to it"
+  [ "${XMAGE_AUTH:-false}" = true ] || die "XMAGE_OIDC_ONLY=true needs XMAGE_AUTH=true: the provider is the only sign-in, and it signs in with accounts"
+fi
 
 # --- support for the server ---------------------------------------------------------------------
 # The payment webhooks' listener (Caddy forwards /hooks and /public to it): on 17174 when Ko-fi or GitHub Sponsors is
@@ -235,6 +300,10 @@ args=$(mktemp /tmp/xmage-jvm.XXXXXX)
   echo "-Xmx$HEAP"
   for flag in $GC_FLAGS; do echo "$flag"; done
   echo "-XX:MaxMetaspaceSize=${XMAGE_METASPACE:-512m}"
+  # Java4Shell (CVE-2026-114938): the x86-64 AVX-512 Base64 intrinsic can write past the end of its output on malformed
+  # input. Off, Base64 runs as plain Java (the server decodes little of it). Every platform knows the flag; ARM doesn't
+  # have the bug. XMAGE_BASE64_INTRINSICS=on puts the intrinsic back, on a JRE with the fix (17.0.21.1, 21.0.13.1, ...).
+  [ "${XMAGE_BASE64_INTRINSICS:-off}" = on ] || echo "-XX:-UseBASE64Intrinsics"
   # out of heap, the JVM limps on with every game broken and new players turned away; exiting lets Docker's restart
   # policy bring the server back in seconds
   [ "${XMAGE_EXIT_ON_OOM:-true}" = true ] && echo "-XX:+ExitOnOutOfMemoryError"
@@ -258,13 +327,21 @@ args=$(mktemp /tmp/xmage-jvm.XXXXXX)
   echo "-Dxmage.testMode=false"
   echo "-Dlog4j.configuration=file:$APP/config/log4j-docker.properties"
   echo "-Dxmage.replays=$REPLAYS"
-  echo "-Dxmage.remoting=$DESKTOP"
+  echo "-Dxmage.remoting=false"
+  # with the gateway on, the server keeps its card catalog current (it rewrites it when its cards change)
+  if [ "$GATEWAY" = on ]; then
+    echo "-Dxmage.catalog.export=$CARDS_DIR/catalog.sqlite"
+    # who pays the Career's finished games: java, shadow (the gateway checks Java's) or rust (docs/rust/Payouts.md);
+    # without the gateway nobody would pay what Java leaves to Rust, so Java always pays
+    echo "-Dxmage.career.payouts=$CAREER_PAYOUTS"
+  fi
   echo "-Dxmage.ai.threads=$AI_THREADS"
   [ -z "${XMAGE_AI_NODE_SCALE:-}" ] || echo "-Dxmage.ai.nodeScale=$XMAGE_AI_NODE_SCALE"
   echo "-Dxmage.db.cacheSizeKB=$((DB_CACHE_MB * 1024))"
   echo "-Dxmage.replays.dir=$APP/saved/replays"
   echo "-Dxmage.replays.retentionDays=$REPLAY_DAYS"
   echo "-Dxmage.replays.maxCount=$REPLAY_MAX"
+  echo "-Dxmage.disk.minFreeMB=$DISK_MIN_FREE_MB"
   if [ -n "${XMAGE_ADMIN_PASSWORD:-}" ]; then
     # quoted for the argfile format: backslashes and double quotes escaped
     printf '"-Dxmage.adminPassword=%s"\n' "$(printf '%s' "$XMAGE_ADMIN_PASSWORD" | sed 's/[\\"]/\\&/g')"
@@ -293,6 +370,14 @@ args=$(mktemp /tmp/xmage-jvm.XXXXXX)
       printf '"-Dxmage.github.%s=%s"\n' "${pair#*:}" "$(printf '%s' "$val" | sed 's/[\\"]/\\&/g')"
     fi
   done
+  # sign in with an identity provider (OpenID Connect); the secret stays out of ps
+  for pair in XMAGE_OIDC_DISCOVERY:discovery XMAGE_OIDC_CLIENT_ID:clientId XMAGE_OIDC_CLIENT_SECRET:clientSecret XMAGE_OIDC_LABEL:label XMAGE_OIDC_ADMIN_GROUP:adminGroup XMAGE_OIDC_SCOPE:scope XMAGE_OIDC_GROUPS_CLAIM:groupsClaim; do
+    eval "val=\${${pair%%:*}:-}"
+    if [ -n "$val" ]; then
+      printf '"-Dxmage.oidc.%s=%s"\n' "${pair#*:}" "$(printf '%s' "$val" | sed 's/[\\"]/\\&/g')"
+    fi
+  done
+  [ "$OIDC_ONLY" = true ] && echo "-Dxmage.oidc.only=true"
   # Cloudflare Turnstile on registration and access requests: the site key goes to the web client, the secret stays here
   if [ -n "${XMAGE_TURNSTILE_SITE_KEY:-}" ]; then
     printf '"-Dxmage.turnstile.siteKey=%s"\n' "$(printf '%s' "$XMAGE_TURNSTILE_SITE_KEY" | sed 's/[\\"]/\\&/g')"
@@ -308,8 +393,16 @@ args=$(mktemp /tmp/xmage-jvm.XXXXXX)
     printf '"-Dxmage.githubSponsors.secret=%s"\n' "$(printf '%s' "$XMAGE_GITHUB_SPONSORS_SECRET" | sed 's/[\\"]/\\&/g')"
   fi
   [ -z "$HOOKS_PORT" ] || echo "-Dxmage.hooksPort=$HOOKS_PORT"
-  if [ -n "${XMAGE_TRUSTED_PROXIES:-}" ]; then
-    echo "-Dxmage.web.trustedProxies=$XMAGE_TRUSTED_PROXIES"
+  if [ -n "$SIGN_ON_HEADER" ]; then
+    echo "-Dxmage.auth.trustedHeader=$SIGN_ON_HEADER"
+    echo "-Dxmage.auth.passwordSignIn=$PASSWORD_SIGNIN"
+    echo "-Dxmage.auth.trustedHeaderStripDomain=$STRIP_DOMAIN"
+  fi
+  # the gateway connects from loopback and names the client it believes (it trusts XMAGE_TRUSTED_PROXIES itself)
+  PROXIES=${XMAGE_TRUSTED_PROXIES:-}
+  [ "$GATEWAY" = on ] && PROXIES="${PROXIES:+$PROXIES,}127.0.0.1"
+  if [ -n "$PROXIES" ]; then
+    echo "-Dxmage.web.trustedProxies=$PROXIES"
   fi
 } > "$args"
 umask 022
@@ -317,6 +410,36 @@ umask 022
 [ -n "${XMAGE_ADMIN_PASSWORD:-}" ] || echo "xmage-server: XMAGE_ADMIN_PASSWORD is not set; admin login is disabled"
 
 cd "$APP"
+if [ "$GATEWAY" = on ]; then
+  # restarted if it stops; while it is down Caddy falls back to the bridge
+  (
+    export XMAGE_GATEWAY_LISTEN=0.0.0.0:17180 XMAGE_GATEWAY_JAVA_URL=ws://127.0.0.1:17172
+    export XMAGE_GATEWAY_TRUSTED_PROXIES=${XMAGE_TRUSTED_PROXIES:-127.0.0.1}
+    export XMAGE_PLATFORM_CATALOG=$CARDS_DIR/catalog.sqlite
+    # the bridge's own decks database (./db/web_decks.db), for XMAGE_ROUTE_ACCOUNT
+    export XMAGE_PLATFORM_DECKS=$DB_DIR/web_decks.db
+    # the bridge's admin and reports databases, for XMAGE_ROUTE_ACCESS, XMAGE_ROUTE_STAFF and XMAGE_ROUTE_ADMIN
+    export XMAGE_PLATFORM_ADMIN=$DB_DIR/web_admin.db XMAGE_PLATFORM_REPORTS=$DB_DIR/web_reports.db
+    # support's records and the accounts, for XMAGE_ROUTE_SUPPORT
+    export XMAGE_PLATFORM_SUPPORT=$DB_DIR/support.db XMAGE_PLATFORM_ACCOUNTS=$DB_DIR/authorized_user.db
+    # the Career's records, for XMAGE_ROUTE_CAREER and XMAGE_ROUTE_CAREERPROGRESS
+    export XMAGE_PLATFORM_CAREER=$DB_DIR/career.db XMAGE_PLATFORM_CAREER_CONTENT=/opt/xmage/career-content
+    # the gateway hosts the games Java hands it (XMAGE_RUST_HOST_USERS); XMAGE_ENGINE=java keeps them all on Java
+    case "${XMAGE_RUST_OPT_IN:-}" in on|ON|On|true|TRUE|True) rust_opt_in=1 ;; *) rust_opt_in= ;; esac
+    if { [ -n "${XMAGE_RUST_HOST_USERS:-}" ] || [ -n "$rust_opt_in" ]; } && [ "${XMAGE_ENGINE:-}" != java ]; then export XMAGE_RUST_HOST=on; fi
+    # each hosted game's record (its start, the player's answers, the log), to replay a reported game; the last 500
+    export XMAGE_RUST_HOST_RECORDS=${XMAGE_RUST_HOST_RECORDS:-$APP/saved/host-games}
+    # shadow and hosted-game counters that survive restarts and deploys, by day (GET /totals on 17180)
+    export XMAGE_GATEWAY_TOTALS=${XMAGE_GATEWAY_TOTALS:-$APP/saved/gateway-totals.json}
+    # hosted games' replays go where Java keeps its own (XMAGE_REPLAYS), for the History
+    if [ "$REPLAYS" = true ]; then export XMAGE_RUST_HOST_REPLAYS=$APP/saved/replays; fi
+    while true; do
+      playmat-gateway || echo "xmage-server: the gateway stopped ($?); starting it again"
+      sleep 2
+    done
+  ) &
+  echo "xmage-server: Rust gateway on 17180"
+fi
 # the JVM reads the argfile at start; remove it soon after so the password isn't left on disk
 ( sleep 20; rm -f "$args" ) &
 # XMAGE_JAVA_OPTS: extra JVM flags, split on spaces

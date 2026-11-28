@@ -4,6 +4,7 @@ import mage.Mana;
 import mage.abilities.Ability;
 import mage.abilities.costs.Cost;
 import mage.constants.ColoredManaSymbol;
+import mage.constants.ManaType;
 import mage.game.Game;
 import mage.players.ManaPool;
 
@@ -45,6 +46,25 @@ public class ColorlessHybridManaCost extends ManaCostImpl {
         }
     }
 
+    /**
+     * paid by {C} alone, so its {C} can go to another colorless hybrid symbol once its color pays it instead
+     */
+    public boolean isPaidWithColorlessOnly() {
+        return payment.getColorless() > 0 && payment.getColor(manaColor) == 0;
+    }
+
+    /**
+     * moves this symbol's {C} payment to another, unpaid one (this one is paid by its color by then)
+     */
+    void giveColorlessTo(ColorlessHybridManaCost other) {
+        payment.decrease(ManaType.COLORLESS);
+        other.payment.increaseColorless();
+        if (usedManaToPay.getColorless() > 0) {
+            usedManaToPay.decrease(ManaType.COLORLESS);
+            other.usedManaToPay.increaseColorless();
+        }
+    }
+
     @Override
     public String getText() {
         return "{C/" + manaColor.toString() + '}';
@@ -57,29 +77,7 @@ public class ColorlessHybridManaCost extends ManaCostImpl {
 
     @Override
     public boolean testPay(Mana testMana) {
-        switch (manaColor) {
-            case B:
-                if (testMana.getBlack() > 0) {
-                    return true;
-                }
-            case U:
-                if (testMana.getBlue() > 0) {
-                    return true;
-                }
-            case R:
-                if (testMana.getRed() > 0) {
-                    return true;
-                }
-            case W:
-                if (testMana.getWhite() > 0) {
-                    return true;
-                }
-            case G:
-                if (testMana.getGreen() > 0) {
-                    return true;
-                }
-        }
-        return testMana.getColorless() > 0;
+        return testMana.getColor(manaColor) > 0 || testMana.getColorless() > 0;
     }
 
     @Override

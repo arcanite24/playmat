@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ranked and bots · Playmat docs</title>
+  <meta name="description" content="The ranked ladder's AI opponents: what a bot is, where ratings live, and how to recalibrate them.">
+  <meta name="theme-color" content="#0b120f">
+  <link rel="icon" href="../assets/brand/playmat-mark.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="docs.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="top">
+    <div class="wrap top-row">
+      <a class="brand" href="../" aria-label="Playmat home">
+        <img src="../assets/brand/playmat-logo.svg" alt="Playmat" width="172" height="40">
+      </a>
+      <nav aria-label="Site">
+        <ul class="nav">
+          <li><a href="https://playmat.deimos.studio">Play online</a></li>
+          <li><a href="../#download">Download</a></li>
+          <li><a href="../#host">Run a server</a></li>
+          <li><a href="./" aria-current="true">Docs</a></li>
+          <li><a href="../rust/">Rust port</a></li>
+          <li><a href="../benchmarks/">Benchmarks</a></li>
+          <li><a href="https://github.com/arcanite24/playmat">GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="docs">
+    <div class="wrap docs-row">
+      <nav class="docs-nav" aria-label="Docs">
+        <h2>Docs</h2>
+        <ul>
+          <li><a href="index.html">Overview</a></li>
+          <li><a href="server.html">Run a server</a></li>
+          <li><a href="updates.html">Updating</a></li>
+          <li><a href="admin.html">Staff and the admin console</a></li>
+          <li><a href="sso.html">Single sign-on</a></li>
+          <li><a href="career.html">Career and solo modes</a></li>
+          <li><a href="capsules.html">Capsule machines</a></li>
+          <li><a href="ladder.html" aria-current="page">Ladder bots</a></li>
+          <li><a href="swarm.html">Self-play swarm</a></li>
+        </ul>
+      </nav>
+      <article class="doc">
+        <h1>Ranked and bots</h1>
+        <p class="lede">Ranked matches players against bots: AI opponents with a deck, a search strength and a
+          name. Each bot has a rating measured by having the bots play each other, so the ladder knows who is stronger
+          before anyone plays them.</p>
+
+        <h2>What a bot is</h2>
+        <ul>
+          <li>A deck from either <code>career/campaigns/decks/&lt;format&gt;/</code> or the dedicated ranked pool in
+            <code>ladder/decks/&lt;format&gt;/</code> (100% Rust-verified and format-legal).</li>
+          <li>One of the AI strengths the Rust engine plays: quick answers (skill 1), a fifth of the search (3), half (5)
+            or the full search (7). Higher-rank Generation 2 bots add declarative AI Playbooks
+            (<code>ladder/playbooks.json</code> / <code>playmat-ai/src/playbooks.json</code>) for archetype profiles,
+            mana hold-up discipline, modal/discard/combat hints, wider search budgets, and Bo3 sideboard plans.</li>
+          <li>A persona: a name, avatar, sleeves, playmat, frame and title from the cosmetics catalog. Stronger bots wear
+            rarer cosmetics.</li>
+        </ul>
+        <p>Standard fields 40 unique Open decks (98 bots), Pioneer 42 unique Open decks (102 bots), Modern 30 unique
+          Open decks (58 bots, Open and Bo3 queues only), Commander 31 unique 100-card decks (62 bots across 1v1 Duel,
+          4-Player Pod, and League), Pauper 23 unique commons-only decks (46 bots across Bo1, Bo3, and League), Brawl
+          21 unique 60-card singleton decks (42 bots across 1v1 and League), and Legacy 21 unique eternal decks (42 bots
+          across Bo1 and Bo3). Each format is its own rating scale, with its starter deck at skill 1 fixed at 1000.</p>
+        <p>Each bot keeps the search settings and playbook it was rated with, so a stronger AI in a later release doesn't
+          change how existing bots play or what they're rated. A stronger AI comes in as a new generation of bots, rated
+          against the old ones with <code>--fixed</code>. Old bots can be retired: they're no longer met, but past games
+          still show who they were. Updating a server needs nothing for this.</p>
+
+        <h2>Where they live</h2>
+        <ul>
+          <li><code>Mage.Server/src/main/resources/ladder/bots.json</code> lists the bots and their measured ratings. It
+            ships with the server.</li>
+          <li><code>db/ladder.db</code> keeps ratings as they change with play: every player's and bot's rating per format
+            and queue. It is in the nightly backup. Deleting it puts players back at 1200 and bots back at their
+            measured ratings.</li>
+        </ul>
+
+        <h2>Ranked</h2>
+        <p>Ranked is in Career (<b>Career &rsaquo; Ranked</b>). It is on wherever Career is: signed-in accounts on a
+          server with sign-in turned on. There is nothing else to set up.</p>
+        <ul>
+          <li>Each format has its own ladder: Bronze, Silver, Gold, Platinum and Diamond, with four tiers of four pips
+            each, then Mythic. A win is a pip. Up to Gold, a third win in a row is two. Losses cost nothing in Bronze.
+            From Silver up they cost a pip, but never drop you below the tier (Silver) or the rank (Gold and up).</li>
+          <li>Opponents are picked from distinct decks near the player's hidden rating. The pick is persisted in
+            <code>db/ladder.db</code> until played so it can't be dodged, and its exact deck stays hidden until the
+            match starts (an Expected Field forecast is shown instead). After every match -- especially a loss -- the
+            matchmaker rotates to a different deck and puts lost decks on cooldown so players never get stuck on one
+            adversary.</li>
+          <li>Ranked games are best of one, with no hints, take-backs, practice tools, saves or what-ifs. Conceding or
+            leaving is a loss. A game the server loses in a restart doesn't count. Finished matches unlock post-game
+            inspection of the opponent's 60+15 decklist.</li>
+          <li>The Bo3 switch on the Ranked screen opens a second queue: best of three against the same bots, with
+            sideboarding between games for both the player and Playbook-equipped AI bots (using only cards publicly
+            revealed in earlier games). It has its own rank and hidden rating. Its ranks unlock the same rewards as best
+            of one, once for both. Leaving between games is a loss like any other.</li>
+          <li>Commander Ranked offers both <b>1v1 Duel</b> and <b>4-Player Pod</b> queues. In 4-Player Pods, the server
+            seats three distinct AI Commander decks near your rating and scores exact finish order: 1st place awards +2
+            pips, 2nd awards +1 pip in Bronze through Gold (safe in Platinum+), 3rd is safe in Bronze through Gold (-1
+            in Platinum and Diamond), and 4th costs 1 pip from Silver up. Bronze and Silver include anti-combo Bracket
+            Protection that keeps high-power meta decks out until Gold.</li>
+          <li>The Limited rank moves with Career's sealed and draft runs (<b>Career &rsaquo; Sealed &amp; draft</b>),
+            not with a queue. When a run ends, it moves by the run's wins less its losses, in pips, with no streak
+            bonus. A bad run costs one pip at most, with the same floors as above. Leaving a run after its first game
+            counts it with the games left as losses. A cube drafted from your own deck doesn't count. It has its own seasons, boards and
+            rank rewards, but no Mythic rating.</li>
+          <li>Reaching a rank for the first time unlocks its title, sleeve and frame. Gold, Diamond and Mythic also pay a
+            capsule token. The usual Career XP, quests and daily rewards apply as in any other game.</li>
+        </ul>
+        <p>Standings, games and the ranks paid are kept in <code>db/ladder.db</code>. An account's export includes
+          them, and deleting an account deletes them.</p>
+
+        <h2>Seasons</h2>
+        <p>Ranked and the League run in two-month seasons, the same for every format. The first starts on 1 November
+          2026 (UTC). Set <code>XMAGE_SEASON_START</code> (a date) and <code>XMAGE_SEASON_MONTHS</code> (1 to 24) in
+          <code>ops/web/.env</code> to change the calendar. Changing it later never takes the ladder back a season.</p>
+        <ul>
+          <li>A new season places each player lower: Mythic and Diamond to Platinum 4, Platinum to Gold 4, Gold to Silver
+            4, Silver to Bronze 1. Bronze stays where it is. Hidden ratings carry over, so strong players climb back
+            fast.</li>
+          <li>Rank cosmetics and capsule tokens are earned once per account, in any season. Nothing is exclusive to a
+            season; past seasons' best ranks show as stamps on the standing.</li>
+          <li>The League's packs and wildcards for ranks and tiers pay again each season, and the end of a season pays
+            League packs by the best rank: 1 for Bronze up to 6 and 2 mythic wildcards for Mythic. They are set in
+            <code>league/league.json</code>.</li>
+          <li>A game counts for the season it started in.</li>
+          <li>Each format, queue and season has three boards on the Ranked and League screens: peak rank, Mythic
+            rating, and fastest to Mythic (fewest games). Past seasons keep theirs. They are read straight from
+            <code>db/ladder.db</code>, so there is nothing to set up; a deleted account leaves them. Home has a
+            Season board widget.</li>
+        </ul>
+
+        <h2>League</h2>
+        <p>The League (<b>Career &rsaquo; League</b>) is Ranked played with the cards an account owns. It is on wherever
+          Career is.</p>
+        <ul>
+          <li>A player starts a 60-card format's League by picking two of its starter decks, or starts the
+            <b>Commander Precon Upgrade League</b> by picking one 100-card precon plus six Commander and expansion
+            packs. Their cards join the Career collection (never past four of a card), each becomes a League deck, and
+            the format's packs are added. Commander League decks enforce singleton rules and can be queued in either
+            1v1 Duel or 4-Player Pod tables. The account's first League also gives 4 common, 3 uncommon and 1 rare
+            wildcard.</li>
+          <li>League packs come from the format's own sets. Standard picks a set; Pioneer also has a mixed pack. A pack
+            uses the format's League packs first, then a Career pack token, then 100 coins. Every fourth League pack
+            also gives a rare wildcard, and every twelfth a mythic one instead.</li>
+          <li>League decks must be legal in the format and use only cards the account owns. The server plays its own
+            copy of the deck. In the League's deck builder a deck can hold any card legal in the format, owned or not;
+            <b>Craft missing</b> crafts everything it lacks at once, or nothing if the wildcards or coins don't cover
+            it.</li>
+          <li>The League has its own ladder, with the same ranks and rules as Ranked, starting at a lower hidden rating.
+            Each tier reached for the first time pays a pack of the format. Each rank pays its cosmetics and a rare
+            wildcard (mythic at Gold). Every fifth League win pays an uncommon wildcard. No capsule tokens.</li>
+          <li>League opponents are picked by rating, like Ranked's. The League adds budget versions of the meta decks
+            (rares and mythics swapped for commons and uncommons) and plays the full meta decks only at the full
+            search. The budget decks rate well below their full lists, so they turn up among the starters and the
+            school's decks.</li>
+          <li>The pace is tested: a player with 6 League games a day who puts spare coins into League packs finishes a
+            Standard meta deck in about four weeks (a median of 27 days). At 2 games a day it takes about three
+            months.</li>
+        </ul>
+        <p>The starters, the number of packs and the wildcard track are set in <code>league/league.json</code> in the
+          server's resources.
+          Leagues, League packs and League decks are kept in <code>db/career.db</code> and the League's ladder in
+          <code>db/ladder.db</code>. Both are in an account's export and are deleted with it.</p>
+
+        <h2>Recalibrate</h2>
+        <p>The ratings in <code>bots.json</code> are only right for the AI that measured them. After changing the AI's
+          search, the skills or a school deck, measure them again. The shipped ratings come from about 31,000 games on three threads: 40 minutes for the first 18,000, about 20 more for the League's budget bots.</p>
+        <ol>
+          <li>If you added or renamed school decks, remake the list:
+            <pre><code>python3 Mage.Server/ladder-src/roster.py</code></pre>
+            Bots that keep their id keep their persona and rating. If you changed a meta deck, remake its budget
+            version first:
+            <pre><code>mvn -o -pl Mage.Server test -Dtest=LeagueBudgetDecksTest -Dxmage.writeBudgetDecks=true</code></pre></li>
+          <li>Play the bots against each other and write the ratings back:
+            <pre><code>cd rust
+cargo run --release -p playmat-ai --bin ladder-calibrate -- --rounds 3 --near 8 --far 3 --deals 6</code></pre>
+            Run it with the same <code>PLAYMAT_AI_POLICY</code> as your server (the default is <code>playouts</code>).
+            A run can stop and pick up where it left off.</li>
+          <li>Rebuild the server image so it ships the new <code>bots.json</code>.</li>
+        </ol>
+
+        <p class="small">The full reference, with every option, is the
+          <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#ladder-bots">Ladder bots section</a>
+          of the deployment guide.</p>
+      </article>
+    </div>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-row">
+      <p>Something wrong or missing here? <a href="https://github.com/arcanite24/playmat/tree/master/site/docs">The docs are in the repository</a>; open an issue or a pull request.</p>
+      <p class="legal">Playmat is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC.</p>
+    </div>
+  </footer>
+</body>
+</html>

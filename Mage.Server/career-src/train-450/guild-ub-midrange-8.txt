@@ -1,0 +1,23 @@
+# name: Train450 guild-ub-midrange-8
+# archetype: midrange
+# colors: UB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Augury Raven
+3 Azula Always Lies
+2 Champion of the Weird
+2 Cut Down
+2 Dungeon Crawler
+2 Entity Tracker
+2 Faerie Dreamthief
+2 Fleeting Distraction
+2 Heartless Act
+2 Hellish Sideswipe
+4 Junji, the Midnight Sky
+3 Nightmare Sower
+3 Overcharged Amalgam
+4 Spiteful Hexmage
+1 Stern Dismissal
+5 Island
+4 Murky Sewer
+4 Sunken Hollow
+11 Swamp

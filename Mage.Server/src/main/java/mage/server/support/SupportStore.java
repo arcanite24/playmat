@@ -62,6 +62,15 @@ public final class SupportStore implements AutoCloseable {
                     "ALTER TABLE looks ADD COLUMN stamp TEXT",
                     "ALTER TABLE looks ADD COLUMN lands TEXT",
                     "ALTER TABLE looks ADD COLUMN badges TEXT"
+            },
+            {
+                    // token pictures (#226): the account's choices and the deck being played's, as JSON objects
+                    "ALTER TABLE looks ADD COLUMN tokens TEXT",
+                    "ALTER TABLE looks ADD COLUMN deck_tokens TEXT"
+            },
+            {
+                    // Phase 6 Command-Zone frame cosmetic
+                    "ALTER TABLE looks ADD COLUMN command_frame TEXT"
             }
     };
 
@@ -524,7 +533,7 @@ public final class SupportStore implements AutoCloseable {
     // ---- looks
 
     public synchronized PlayerLook look(String account) throws SQLException {
-        try (PreparedStatement select = connection.prepareStatement("SELECT account, sleeve, cloth, avatar, frame, title, flair, pet, arrow, spark, stamp, lands, badges FROM looks WHERE account = ?")) {
+        try (PreparedStatement select = connection.prepareStatement("SELECT account, sleeve, cloth, avatar, frame, title, flair, pet, arrow, spark, stamp, lands, badges, tokens, deck_tokens, command_frame FROM looks WHERE account = ?")) {
             select.setString(1, account);
             try (ResultSet rows = select.executeQuery()) {
                 if (!rows.next()) {
@@ -545,6 +554,9 @@ public final class SupportStore implements AutoCloseable {
                 look.lands = rows.getString(12);
                 String badges = rows.getString(13);
                 look.badges = badges == null || badges.isEmpty() ? null : new java.util.ArrayList<>(java.util.Arrays.asList(badges.split(",")));
+                look.tokens = tokenMap(rows.getString(14));
+                look.deckTokens = tokenMap(rows.getString(15));
+                look.commandFrame = rows.getString(16);
                 return look;
             }
         }
@@ -552,7 +564,7 @@ public final class SupportStore implements AutoCloseable {
 
     public synchronized void putLook(String account, PlayerLook look, long now) throws SQLException {
         try (PreparedStatement upsert = connection.prepareStatement("INSERT OR REPLACE INTO looks (account, sleeve, cloth, avatar, frame,"
-                + " title, flair, pet, arrow, spark, stamp, lands, badges, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+                + " title, flair, pet, arrow, spark, stamp, lands, badges, updated_at, tokens, deck_tokens, command_frame) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
             upsert.setString(1, account);
             upsert.setString(2, look.sleeve);
             upsert.setString(3, look.cloth);
@@ -567,7 +579,24 @@ public final class SupportStore implements AutoCloseable {
             upsert.setString(12, look.lands);
             upsert.setString(13, look.badges == null || look.badges.isEmpty() ? null : String.join(",", look.badges));
             upsert.setLong(14, now);
+            upsert.setString(15, look.tokens == null || look.tokens.isEmpty() ? null : GSON.toJson(look.tokens));
+            upsert.setString(16, look.deckTokens == null || look.deckTokens.isEmpty() ? null : GSON.toJson(look.deckTokens));
+            upsert.setString(17, look.commandFrame);
             upsert.executeUpdate();
+        }
+    }
+
+    private static final com.google.gson.Gson GSON = new com.google.gson.Gson();
+
+    private static java.util.Map<String, String> tokenMap(String json) {
+        if (json == null || json.isEmpty()) {
+            return null;
+        }
+        try {
+            java.util.Map<String, String> map = GSON.fromJson(json, new com.google.gson.reflect.TypeToken<java.util.TreeMap<String, String>>() { }.getType());
+            return map == null || map.isEmpty() ? null : map;
+        } catch (RuntimeException e) {
+            return null;
         }
     }
 

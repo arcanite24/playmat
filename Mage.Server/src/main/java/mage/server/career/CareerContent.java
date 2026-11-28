@@ -70,6 +70,12 @@ public final class CareerContent {
         public RivalChapter rival;
         /** a raid boss (S048): left out of boss rush and endless */
         public boolean raid;
+        /** "constructed" (default) or "commander" */
+        public String format;
+        /** for 4-player Commander pod encounters: 3 AI deck paths (meta:...) */
+        public List<String> podDecks;
+        /** for 4-player Commander pod encounters: display names for the 3 AI seats */
+        public List<String> podNames;
     }
 
     /** One duel of the rival arc: it opens once the chapter before is beaten, and says its piece before and after. */
@@ -96,6 +102,10 @@ public final class CareerContent {
         public String id;
         public String name;
         public int cards;
+        /** "constructed" (60-card) or "commander" (100-card singleton) */
+        public String track;
+        /** deck format name ("Constructed - Freeform" or "Variant Magic - Commander") */
+        public String format;
         public CareerCover cover;
         /** WUBRG letters, most basic lands first: the colors the deck plays */
         public String colors;
@@ -116,13 +126,16 @@ public final class CareerContent {
         String file;
         String name;
         int cards;
+        String format;
         CareerCover cover;
     }
 
     private static volatile CareerContent instance;
 
     private final List<Tier> tiers;
+    private final List<Tier> commanderTiers;
     private final Map<String, Opponent> opponents = new LinkedHashMap<>();
+    private final Map<String, Opponent> commanderOpponents = new LinkedHashMap<>();
     private final Map<String, CareerStarter> starters = new LinkedHashMap<>();
 
     private CareerContent() throws IOException {
@@ -133,24 +146,45 @@ public final class CareerContent {
         }
         tiers = Collections.unmodifiableList(roster.tiers);
         for (Opponent opponent : roster.opponents) {
+            opponent.format = "constructed";
             opponents.put(opponent.id, opponent);
         }
         for (Opponent opponent : mage.server.solo.ContentPacks.get().opponents()) {
+            if (opponent.format == null || opponent.format.isEmpty()) {
+                opponent.format = "constructed";
+            }
             opponents.putIfAbsent(opponent.id, opponent);
+        }
+        Roster cmdrRoster = null;
+        try (Reader reader = resource("commander-opponents.json")) {
+            cmdrRoster = gson.fromJson(reader, Roster.class);
+        } catch (IOException ignored) {
+            // optional resource
+        }
+        if (cmdrRoster != null && cmdrRoster.tiers != null && cmdrRoster.opponents != null) {
+            commanderTiers = Collections.unmodifiableList(cmdrRoster.tiers);
+            for (Opponent opponent : cmdrRoster.opponents) {
+                opponent.format = "commander";
+                commanderOpponents.put(opponent.id, opponent);
+            }
+        } else {
+            commanderTiers = Collections.emptyList();
         }
         StarterEntry[] index;
         try (Reader reader = resource("starters/index.json")) {
             index = gson.fromJson(reader, StarterEntry[].class);
         }
         for (StarterEntry entry : index) {
-            // a Career is played with 60-card decks; the commander starters stay in free play
-            if (entry.cards != 60) {
+            boolean commander = entry.cards == 100 || CareerRules.FORMAT_COMMANDER.equals(entry.format);
+            if (!commander && entry.cards != 60) {
                 continue;
             }
             CareerStarter starter = new CareerStarter();
             starter.id = entry.file.replaceAll("\\.dck$", "");
             starter.name = entry.name;
             starter.cards = entry.cards;
+            starter.track = commander ? "commander" : "constructed";
+            starter.format = commander ? CareerRules.FORMAT_COMMANDER : CareerRules.FORMAT_CONSTRUCTED;
             starter.cover = entry.cover;
             starter.colors = basicLandColors("starters/" + entry.file);
             starters.put(starter.id, starter);
@@ -234,12 +268,45 @@ public final class CareerContent {
         return opponents.get(id);
     }
 
+    public List<Tier> commanderTiers() {
+        return commanderTiers;
+    }
+
+    public Tier commanderTier(int tier) {
+        if (commanderTiers.isEmpty()) {
+            return tier(tier);
+        }
+        return commanderTiers.stream().filter(candidate -> candidate.tier == tier).findFirst()
+                .orElse(commanderTiers.get(commanderTiers.size() - 1));
+    }
+
+    public List<Opponent> commanderOpponents() {
+        return new ArrayList<>(commanderOpponents.values());
+    }
+
+    public Opponent commanderOpponent(String id) {
+        return commanderOpponents.get(id);
+    }
+
+    /** loads a deck from a "meta:..." school deck path or an opponent deck file */
+    public DeckCardLists loadDeckRef(String ref) throws IOException {
+        if (ref != null && ref.startsWith("meta:")) {
+            return CareerCampaigns.get().deck(ref.substring(5));
+        }
+        return deckFile(ref);
+    }
+
     public List<CareerStarter> starters() {
         return new ArrayList<>(starters.values());
     }
 
     public CareerStarter starter(String id) {
         return starters.get(id);
+    }
+
+    public boolean isCommanderStarter(String id) {
+        CareerStarter starter = id == null ? null : starters.get(id);
+        return starter != null && "commander".equals(starter.track);
     }
 
     public DeckCardLists starterDeck(String id) throws IOException {

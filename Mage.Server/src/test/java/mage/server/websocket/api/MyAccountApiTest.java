@@ -132,6 +132,32 @@ public class MyAccountApiTest {
         assertThatThrownBy(() -> call("accountExport", "s-nobody")).hasMessageContaining("Sign in");
     }
 
+    @Test
+    void deleteDoesNotWipeAssociatedDataWhenAccountRemoveFails() throws Exception {
+        Path accountsDb = dir.resolve("accounts-delete-fail.db");
+        AuthorizedUserRepository sqliteAccounts = new AuthorizedUserRepository("jdbc:sqlite:" + accountsDb);
+        AuthorizedUserRepository.use(sqliteAccounts);
+        try {
+            sqliteAccounts.add(pat, PASSWORD, pat + "@example.test");
+            store.grantStaff(pat, StaffRole.MODERATOR, "Owner", 1);
+            store.allow(pat, "friend", "Owner", 1);
+
+            try (java.sql.Connection conn = java.sql.DriverManager.getConnection("jdbc:sqlite:" + accountsDb);
+                 java.sql.Statement stmt = conn.createStatement()) {
+                stmt.executeUpdate("CREATE TRIGGER block_delete BEFORE DELETE ON authorized_user BEGIN SELECT RAISE(ABORT, 'read-only'); END");
+            }
+
+            assertThatThrownBy(() -> AccountsApi.delete(new ApiContext(null, null, null), pat, "gone"))
+                    .isInstanceOf(java.sql.SQLException.class);
+            assertThat(sqliteAccounts.getByName(pat)).isNotNull();
+            assertThat(store.staffRole(pat)).as("associated admin data stays intact").isEqualTo(StaffRole.MODERATOR);
+            assertThat(store.isListed(pat, null)).isTrue();
+        } finally {
+            sqliteAccounts.closeDB();
+            AuthorizedUserRepository.use(accounts);
+        }
+    }
+
     private Object call(String name, String sessionId, String... params) throws Exception {
         JsonArray array = new JsonArray();
         for (String param : params) {

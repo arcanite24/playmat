@@ -1,0 +1,21 @@
+# name: Train200 mono-u-tempo-2
+# archetype: tempo
+# colors: U
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Arcane Subtraction
+2 Arrester's Admonition
+3 Expedition Lookout
+3 Kefnet the Mindful
+3 Lupine Prototype
+2 Mizzium Skin
+2 Oko's Accomplices
+2 Phantom Interference
+3 Rattlechains
+2 Reality Hemorrhage
+2 Reality Shift
+4 Release to the Wind
+1 Riptide Chimera
+3 Sleep-Cursed Faerie
+1 Syphon Essence
+3 Thassa's Intervention
+22 Island

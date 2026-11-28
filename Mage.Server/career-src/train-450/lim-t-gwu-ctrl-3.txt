@@ -1,0 +1,39 @@
+# name: Train450 lim-t-gwu-ctrl-3
+# archetype: limited_ctrl
+# colors: GWU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Appetite for the Unnatural
+2 Arrester's Admonition
+2 Blessed Reincarnation
+1 Bristlepack Sentry
+1 Citywatch Sphinx
+1 Defiler of Faith
+1 Depopulate
+1 Devious Cover-Up
+1 Doomskar
+1 Dragoon's Wyvern
+1 Eager Construct
+1 Erase
+2 Eriette's Lullaby
+1 Fear of Exposure
+1 Hornswoggle
+1 Meanders Guide
+2 Mesa Unicorn
+1 Nyxborn Seaguard
+2 Pine Walker
+1 Prey Upon
+1 Scrapshooter
+1 Serpent of Yawning Depths
+2 Sharktocrab
+1 Slogurk, the Overslime
+1 Soul of New Phyrexia
+1 Syncopate
+1 Temur Sabertooth
+1 The Unbeatable Squirrel Girl
+1 Trash the Town
+4 Brushland
+4 Creosote Heath
+5 Forest
+4 Glacial Fortress
+5 Island
+3 Plains

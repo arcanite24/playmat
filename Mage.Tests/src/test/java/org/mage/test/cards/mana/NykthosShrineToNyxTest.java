@@ -2,9 +2,16 @@
 package org.mage.test.cards.mana;
 
 import mage.constants.PhaseStep;
+import mage.constants.Outcome;
+import mage.constants.RangeOfInfluence;
 import mage.constants.Zone;
+import mage.choices.Choice;
+import mage.choices.ChoiceColor;
+import mage.game.Game;
 import org.junit.Assert;
 import org.junit.Test;
+import org.mage.test.player.TestComputerPlayer;
+import org.mage.test.player.TestPlayer;
 import org.mage.test.serverside.base.CardTestPlayerBase;
 
 /**
@@ -12,6 +19,39 @@ import org.mage.test.serverside.base.CardTestPlayerBase;
  * @author LevelX2
  */
 public class NykthosShrineToNyxTest extends CardTestPlayerBase {
+
+    @Override
+    protected TestPlayer createPlayer(String name, RangeOfInfluence rangeOfInfluence) {
+        return new TestPlayer(new TestComputerPlayer(name, rangeOfInfluence)) {
+            @Override
+            public boolean choose(Outcome outcome, Choice choice, Game game) {
+                if ("Choose a color for devotion of Nykthos".equals(choice.getMessage())) {
+                    Assert.assertFalse("HumanPlayer must ask rather than select from the unpaid cost", choice.isManaColorChoice());
+                    Assert.assertTrue(choice.isRequired());
+                    Assert.assertEquals(5, choice.getChoices().size());
+                    Assert.assertTrue(choice.getChoices().containsAll(ChoiceColor.getBaseColors()));
+                }
+                return super.choose(outcome, choice, game);
+            }
+        };
+    }
+
+    @Test
+    public void testMayChooseColorWithZeroDevotion() {
+        addCard(Zone.BATTLEFIELD, playerA, "Forest", 2);
+        addCard(Zone.BATTLEFIELD, playerA, "Nykthos, Shrine to Nyx");
+        addCard(Zone.BATTLEFIELD, playerA, "Kalonian Tusker");
+
+        activateManaAbility(1, PhaseStep.PRECOMBAT_MAIN, playerA, "{2}, {T}: Choose a color. Add an amount of mana of that color equal to your devotion to that color.");
+        setChoice(playerA, "White");
+
+        setStrictChooseMode(true);
+        setStopAt(1, PhaseStep.PRECOMBAT_MAIN);
+        execute();
+
+        assertTapped("Nykthos, Shrine to Nyx", true);
+        Assert.assertEquals(0, playerA.getManaPool().getMana().count());
+    }
 
     @Test
     public void testNormalUse() {

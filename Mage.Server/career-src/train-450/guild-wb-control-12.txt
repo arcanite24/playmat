@@ -1,0 +1,21 @@
+# name: Train450 guild-wb-control-12
+# archetype: control
+# colors: WB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Abstruse Interference
+4 Demon of Loathing
+2 Doom Blade
+3 Gisa, Glorious Resurrector
+1 Guardian of Ghirapur
+3 Join the Dead
+3 Mirrodin Avenged
+4 Moogles' Valor
+1 Recover
+1 Scarab Feast
+3 Spell Shrivel
+4 Vanish into Eternity
+3 Warping Wail
+4 Misty Palms Oasis
+6 Plains
+4 Snowfield Sinkhole
+12 Swamp

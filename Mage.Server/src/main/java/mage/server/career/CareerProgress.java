@@ -56,6 +56,8 @@ public final class CareerProgress {
         public boolean weekly;
         /** which games count, in words ("Games against people"); null for any game */
         public String counts;
+        /** optional track affinity ("commander" or "constructed"); null for universal quests */
+        public String track;
     }
 
     public static class AchievementTemplate {
@@ -380,6 +382,8 @@ public final class CareerProgress {
         public CareerModeResult mode;
         /** what helped the player in this game (a hint, a take-back), which halves its pay; null when nothing did */
         public String assisted;
+        /** bond XP awarded to the player's equipped pet after this game; null when none equipped */
+        public CareerPets.CareerPetBondResult petBond;
     }
 
     private static volatile CareerProgress instance;
@@ -388,7 +392,9 @@ public final class CareerProgress {
     private final Map<String, AchievementTemplate> achievements = new LinkedHashMap<>();
     private final Map<Integer, CareerLevelReward> levels = new LinkedHashMap<>();
     private Supplier<LocalDate> today = () -> LocalDate.now(ZoneOffset.UTC);
-    private Random random = new Random();
+    /** tests' fixed draws; null rolls {@link CareerDice}, seeded by account, day and slot, as Rust does */
+    private Random random;
+
 
     private CareerProgress() throws IOException {
         Gson gson = new Gson();
@@ -500,11 +506,17 @@ public final class CareerProgress {
     }
 
     String day() {
-        return today.get().toString();
+        return date().toString();
+    }
+
+    /** today, or the day of the payout being paid on this thread (an event pays for the day it was played) */
+    private LocalDate date() {
+        CareerPayoutEvent paying = CareerPayouts.paying();
+        return paying != null && paying.day != null ? LocalDate.parse(paying.day) : today.get();
     }
 
     String week() {
-        LocalDate date = today.get();
+        LocalDate date = date();
         return date.get(IsoFields.WEEK_BASED_YEAR) + "-W" + String.format("%02d", date.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR));
     }
 
@@ -530,12 +542,13 @@ public final class CareerProgress {
             used.add(row.slot);
             present.add(row.quest);
         }
+        String pref = store.questPref(user);
         for (int i = 0; i < toAdd; i++) {
             int slot = 0;
             while (used.contains(slot)) {
                 slot++;
             }
-            String quest = pickQuest(present, false);
+            String quest = pickQuest(present, false, pref, roll(store, "quest/" + CareerStore.key(user) + "/" + day + "/" + slot));
             if (quest == null) {
                 break;
             }
@@ -556,21 +569,37 @@ public final class CareerProgress {
         for (CareerStore.QuestRow row : store.quests(user)) {
             present.add(row.quest);
         }
-        String quest = pickQuest(present, true);
+        String quest = pickQuest(present, true, store.questPref(user), roll(store, "weekly/" + CareerStore.key(user) + "/" + week));
         if (quest != null) {
             store.putQuest(user, WEEKLY_SLOT, quest, 0, day());
         }
         store.setProfileText(user, "quest_week", week);
     }
 
-    private String pickQuest(Set<String> exclude, boolean weekly) {
+    /** the draw for one pick: the test's, or the seeded roll */
+    private Random roll(CareerStore store, String purpose) throws SQLException {
+        return random != null ? random : CareerDice.roll(store, purpose);
+    }
+
+    private String pickQuest(Set<String> exclude, boolean weekly, String pref, Random random) {
         List<String> choices = new ArrayList<>();
         for (String id : quests.keySet()) {
-            if (!exclude.contains(id) && quests.get(id).weekly == weekly) {
+            QuestTemplate template = quests.get(id);
+            if (!exclude.contains(id) && template.weekly == weekly && matchesQuestPref(template, pref)) {
                 choices.add(id);
             }
         }
+        if (choices.isEmpty() && !"any".equals(pref)) {
+            return pickQuest(exclude, weekly, "any", random);
+        }
         return choices.isEmpty() ? null : choices.get(random.nextInt(choices.size()));
+    }
+
+    private static boolean matchesQuestPref(QuestTemplate template, String pref) {
+        if ("any".equals(pref) || pref == null || template.track == null || template.track.isEmpty()) {
+            return true;
+        }
+        return pref.equals(template.track);
     }
 
     public CareerQuests quests(String user) throws SQLException {
@@ -685,7 +714,8 @@ public final class CareerProgress {
                 if (slot == WEEKLY_SLOT) {
                     throw new SQLException(new CareerService.CareerException("The weekly quest can't be swapped."));
                 }
-                String next = pickQuest(present, false);
+                String next = pickQuest(present, false, store.questPref(user),
+                        roll(store, "reroll/" + CareerStore.key(user) + "/" + day() + "/" + slot));
                 if (next == null) {
                     throw new SQLException(new CareerService.CareerException("There's no other quest to swap in."));
                 }
@@ -793,7 +823,11 @@ public final class CareerProgress {
         levelsIn(store, user, xpBefore, result, now);
     }
 
-    /** the color and format tracks, in the order the client lists them */
+    /** PvE mode mastery tracks (Phase 6.2): Gauntlet, Hordes, Archenemy, Two-Headed Giant. */
+    public static final List<String> MODE_TRACKS = Collections.unmodifiableList(Arrays.asList(
+            "gauntlet", "horde", "archenemy", "thg"));
+
+    /** the color, format, and PvE mode tracks, in the order the client lists them */
     public static List<String> masteryTracks() {
         List<String> tracks = new ArrayList<>();
         for (String color : Arrays.asList("W", "U", "B", "R", "G", "multicolor", "colorless")) {
@@ -801,6 +835,9 @@ public final class CareerProgress {
         }
         for (String format : CareerService.FORMATS) {
             tracks.add("format_" + format);
+        }
+        for (String mode : MODE_TRACKS) {
+            tracks.add("mode_" + mode);
         }
         return tracks;
     }
@@ -822,7 +859,7 @@ public final class CareerProgress {
         for (String track : masteryTracks()) {
             CareerMastery mastery = new CareerMastery();
             mastery.track = track;
-            mastery.kind = track.startsWith("color_") ? "color" : "format";
+            mastery.kind = track.startsWith("color_") ? "color" : track.startsWith("mode_") ? "mode" : "format";
             mastery.games = stats.getOrDefault("games_" + track, 0);
             mastery.rank = masteryRank(mastery.games);
             mastery.maxRank = ranks.size();
@@ -1203,6 +1240,46 @@ public final class CareerProgress {
         weekly.goals = WEEKLY_GOALS;
         weekly.nextGoal = WEEKLY_GOALS.stream().filter(goal -> goal > weekly.wins).findFirst().orElse(0);
         return weekly;
+    }
+
+    /**
+     * The achievements as the Rust platform service needs them to build {@link #achievements} (CareerViewsExport):
+     * in this order, with the texts for each target and the points written out.
+     */
+    public List<Map<String, Object>> achievementExport() {
+        List<Map<String, Object>> templates = new ArrayList<>();
+        for (AchievementTemplate template : achievements.values()) {
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("id", template.id);
+            entry.put("name", template.name);
+            entry.put("text", text(template, template.target));
+            entry.put("secret", template.secret);
+            entry.put("scope", template.scope);
+            entry.put("counter", template.counter);
+            entry.put("family", template.family);
+            entry.put("target", template.target);
+            entry.put("coins", template.coins);
+            entry.put("xp", template.xp);
+            entry.put("cosmetic", template.cosmetic);
+            entry.put("points", template.pointsOf());
+            List<Map<String, Object>> tiers = new ArrayList<>();
+            if (template.tiered()) {
+                for (AchievementTier step : template.tiers) {
+                    Map<String, Object> tier = new LinkedHashMap<>();
+                    tier.put("target", step.target);
+                    tier.put("coins", step.coins);
+                    tier.put("xp", step.xp);
+                    tier.put("points", step.points);
+                    tier.put("cosmetic", step.cosmetic);
+                    tier.put("tokens", step.tokens);
+                    tier.put("text", text(template, step.target));
+                    tiers.add(tier);
+                }
+            }
+            entry.put("tiers", tiers);
+            templates.add(entry);
+        }
+        return templates;
     }
 
     public List<CareerAchievement> achievements(String user) throws SQLException {

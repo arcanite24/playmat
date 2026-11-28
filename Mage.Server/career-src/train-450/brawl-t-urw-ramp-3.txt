@@ -1,0 +1,54 @@
+# name: Train450 brawl-t-urw-ramp-3
+# archetype: brawl_ramp
+# colors: URW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Air Elemental
+1 Boros Battleshaper
+1 Cetacean Ops
+1 Champion of the Path
+1 Curate
+1 Doorkeeper Thrull
+1 Draconic Roar
+1 Dragonhawk, Fate's Tempest
+1 Fulminous Forte
+1 Galvanize
+1 Gathering Throng
+1 Gisela, the Broken Blade
+1 Goblin Smuggler
+1 Gremlin Tamer
+1 Invasive Maneuvers
+1 Kykar, Wind's Fury
+1 Leyline Phantom
+1 Ogre-Head Helm
+1 Ollenbock Escort
+1 Rage of Purphoros
+1 Ramos, Dragon Engine
+1 Reckless Lackey
+1 Resistance Skywarden
+1 Scourge of Valkas
+1 Silicate Surveyor
+1 Thundering Giant
+1 Triton Cavalry
+1 Twinned Vision
+1 Ureni's Rebuff
+1 Valakut Invoker
+1 Vega, the Watcher
+1 Venerable Lammasu
+1 Vraska, Soul of Stone
+1 Wojek Halberdiers
+1 Zealous Lorecaster
+1 Abraded Bluffs
+1 Andoria
+1 Fiery Islet
+1 Fortified Beachhead
+1 Iron Hills
+3 Island
+1 Lake-town
+1 Meandering River
+1 Meticulous Archive
+6 Mountain
+1 Needle Spires
+4 Plains
+1 Raucous Carnival
+1 Restless Bivouac
+1 Sacred Foundry

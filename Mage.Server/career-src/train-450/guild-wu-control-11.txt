@@ -1,0 +1,21 @@
+# name: Train450 guild-wu-control-11
+# archetype: control
+# colors: WU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Airbender's Reversal
+4 Angelic Skirmisher
+4 Brazen Borrower
+2 Curse of the Swine
+2 Cut Short
+2 Dazzling Denial
+4 Disruption Protocol
+3 Dramatic Rescue
+2 Fleeting Distraction
+2 Fumigate
+2 Louisoix's Sacrifice
+2 Sokka's Haiku
+4 Spectacular Tactics
+4 Deserted Beach
+10 Island
+4 Meandering River
+8 Plains

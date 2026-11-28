@@ -1,0 +1,21 @@
+# name: Train450 mono-u-tempo-1
+# archetype: tempo
+# colors: U
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Arcane Subtraction
+3 Censor
+2 Complete Disregard
+2 Dungeon Geists
+2 Exclude
+2 Fae of Wishes
+2 Into the Roil
+2 Magic Damper
+3 Most Decrepit Old Bird
+4 Sparkhunter Masticore
+2 Thirst for Identity
+3 Thousand-Faced Shadow
+2 Touch of the Void
+2 We Say Thee Nay!
+1 You Find the Villains' Lair
+4 Zulaport Duelist
+22 Island

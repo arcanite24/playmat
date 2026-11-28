@@ -16,15 +16,17 @@ import mage.target.TargetPermanent;
 import mage.target.common.TargetCardInHand;
 import mage.util.CardUtil;
 
+import java.io.Serializable;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
  * @author TheElk801
  */
-public class BeholdType {
+public class BeholdType implements Serializable {
 
-    private static Map<SubType, BeholdType> typeMap = new HashMap<>();
+    private static final Map<SubType, BeholdType> typeMap = new ConcurrentHashMap<>();
 
     public static BeholdType getBeholdType(SubType subType) {
         return typeMap.computeIfAbsent(subType, s -> new BeholdType(s));
@@ -41,6 +43,13 @@ public class BeholdType {
         this.filterCard = new FilterCard(subType);
         this.subType = subType;
         this.description = subType.getIndefiniteArticle() + ' ' + subType.getDescription();
+    }
+
+    /**
+     * Keep one shared instance per subtype after deserialization (game snapshots, saved games)
+     */
+    private Object readResolve() {
+        return getBeholdType(subType);
     }
 
     public FilterCard getFilterCard() {
@@ -102,9 +111,9 @@ public class BeholdType {
         if (!permMessage.isEmpty() && handMessage.isEmpty()) {
             game.informPlayers(player.getLogName() + " chooses to behold " + permMessage + " from the battlefield");
         } else if (permMessage.isEmpty() && !handMessage.isEmpty()) {
-            game.informPlayers(player.getLogName() + " chooses to behold " + permMessage + " from their hand");
+            game.informPlayers(player.getLogName() + " chooses to behold " + handMessage + " from their hand");
         } else {
-            game.informPlayers(player.getLogName() + " chooses to behold " + permMessage + " from the battlefield and " + permMessage + " from their hand");
+            game.informPlayers(player.getLogName() + " chooses to behold " + permMessage + " from the battlefield and " + handMessage + " from their hand");
         }
         return cards;
     }

@@ -1,0 +1,22 @@
+# name: Train200 guild-wb-control-9
+# archetype: control
+# colors: WB
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+1 Abhorrent Overlord
+4 Abstruse Interference
+3 Anoint with Affliction
+4 Archfiend of the Dross
+3 Bladebrand
+3 Citywide Bust
+1 Deadly Dispute
+3 Eater of Hope
+3 Forsake the Worldly
+1 Immortal Servitude
+1 Murder
+3 Sorin's Thirst
+3 Spell Shrivel
+1 Warping Wail
+4 Forum of Amity
+5 Plains
+4 Shineshadow Snarl
+13 Swamp

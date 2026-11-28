@@ -1,0 +1,20 @@
+# name: Train450 guild-br-control-11
+# archetype: control
+# colors: BR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Abstruse Interference
+2 Bloodline Culling
+4 Cathartic Pyre
+2 Fuel the Flames
+2 Seismic Rupture
+3 Skizzik
+4 Smaug, Wicked Worm
+3 Spell Shrivel
+1 Ultimate Green Goblin
+4 Unfortunate Accident
+2 Void Shatter
+4 Warhost's Frenzy
+11 Mountain
+4 Ominous Asylum
+4 Raucous Theater
+7 Swamp

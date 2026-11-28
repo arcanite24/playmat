@@ -1,5 +1,7 @@
 package mage.abilities;
 
+import mage.util.RandomUtil;
+
 import mage.abilities.costs.Cost;
 import mage.abilities.effects.Effect;
 import mage.abilities.effects.Effects;
@@ -28,7 +30,7 @@ public class Mode implements Serializable {
     protected String modeTag;
 
     public Mode(Effect effect) {
-        this.id = UUID.randomUUID();
+        this.id = RandomUtil.newId();
         this.targets = new Targets();
         this.effects = new Effects();
         if (effect != null) {
@@ -47,7 +49,7 @@ public class Mode implements Serializable {
     }
 
     public UUID setRandomId() {
-        return this.id = UUID.randomUUID();
+        return this.id = RandomUtil.newId();
     }
 
     public Mode copy() {

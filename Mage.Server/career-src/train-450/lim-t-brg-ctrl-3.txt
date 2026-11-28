@@ -1,0 +1,36 @@
+# name: Train450 lim-t-brg-ctrl-3
+# archetype: limited_ctrl
+# colors: BRG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Bloated Contaminator
+1 Bone Splinters
+1 Calamity Bearer
+1 Combustion Man
+1 Fatal Grudge
+1 Flame Lash
+1 Gravkill
+2 Hired Torturer
+1 Kalastria Nightwatch
+2 Korvold, Fae-Cursed King
+1 Large Bear
+1 Mintstrosity
+1 Norin, Swift Survivalist
+2 Plague Belcher
+1 Rakdos, Patron of Chaos
+1 Risk Factor
+1 Shake the Foundations
+2 Spell Shrivel
+1 Spirespine
+1 Subtle Strike
+2 Sunset Saboteur
+2 Ulcerate
+1 Warping Wail
+2 Wayward Swordtooth
+1 Whisper of the Dross
+2 Withering Curse
+3 Forest
+4 Los Diablos Missile Base
+3 Mountain
+7 Swamp
+4 Tramway Station
+4 Underground Mortuary

@@ -11,7 +11,6 @@ import { AppShell } from './AppShell';
 import { i18nReady } from './i18n';
 import { queryClient } from './queries';
 import { ImportRoute } from './decks/import/ImportRoute';
-import { DecksScreen } from './screens/DecksScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import { LoginScreen } from './screens/LoginScreen';
 import { RequestDialog } from './RequestDialog';
@@ -26,6 +25,7 @@ import './stores/social';
 import './stores/toasts';
 import './career/progressionEvents';
 import { NATIVE_APP } from './brand';
+import { imageResolver } from '../core/images/useCardImage';
 
 /** Screens that need a signed-in player; also opens games when the server starts them. */
 function SignedIn() {
@@ -85,13 +85,23 @@ const router = createBrowserRouter([
   { path: '/join', element: <LoginScreen /> },
   // back from Sign in with GitHub
   { path: '/auth/github', element: <LoginScreen /> },
+  // back from Sign in with the identity provider (OpenID Connect)
+  { path: '/auth/oidc', element: <LoginScreen /> },
   // credits and legal notices, readable before signing in
   { path: '/about', lazy: () => import('./screens/AboutScreen').then((m) => ({ Component: m.AboutScreen })) },
   { path: '/privacy', lazy: () => import('./screens/LegalScreen').then((m) => ({ Component: m.PrivacyScreen })) },
   { path: '/terms', lazy: () => import('./screens/LegalScreen').then((m) => ({ Component: m.TermsScreen })) },
   // the month's server costs and supporting them, readable before signing in
   { path: '/support', lazy: () => import('./support/SupportScreen').then((m) => ({ Component: m.SupportScreen })) },
+  // Mana@Home public self-play swarm tracker, readable without signing in
+  { path: '/swarm', lazy: () => import('./swarm/SwarmScreen').then((m) => ({ Component: m.SwarmScreen })) },
+  { path: '/swarm/contributors/:name', lazy: () => import('./swarm/SwarmScreen').then((m) => ({ Component: m.SwarmScreen })) },
+  { path: '/swarm/:section', lazy: () => import('./swarm/SwarmScreen').then((m) => ({ Component: m.SwarmScreen })) },
   { path: '/admin', lazy: () => import('./admin/AdminScreen').then((m) => ({ Component: m.AdminScreen })) },
+  // dev builds only: every signature effect on a mock table (#226)
+  ...(import.meta.env.DEV ? [{ path: '/dev/vfx', lazy: () => import('./dev/VfxGallery').then((m) => ({ Component: m.VfxGallery })) }] : []),
+  // dev builds only: combat and board effects on a scripted match (#413)
+  ...(import.meta.env.DEV ? [{ path: '/dev/combat', lazy: () => import('./dev/CombatScene').then((m) => ({ Component: m.CombatScene })) }] : []),
   {
     element: <SignedIn />,
     errorElement: <RouteError />,
@@ -107,7 +117,7 @@ const router = createBrowserRouter([
         errorElement: <RouteError />,
         children: [
           { path: '/', element: <HomeScreen /> },
-          { path: '/decks', element: <DecksScreen /> },
+          { path: '/decks', lazy: () => import('./screens/DecksScreen').then((m) => ({ Component: m.DecksScreen })) },
           { path: '/import', element: <ImportRoute /> },
           { path: '/decks/:deckId', lazy: () => import('./decks/DeckBuilderScreen').then((m) => ({ Component: m.DeckBuilderScreen })) },
           { path: '/events', lazy: () => import('./screens/EventsScreen').then((m) => ({ Component: m.EventsScreen })) },
@@ -133,6 +143,9 @@ const router = createBrowserRouter([
               { path: 'rewards', lazy: () => import('./career/CareerResultsScreen').then((m) => ({ Component: m.CareerRewardsScreen })) },
               // Career modes (M9): campaign, puzzles, gauntlet, sealed and draft, the weekly challenge; each screen lazy on its own
               // the format schools (M11): the academy's hall, and each school's campaign
+              { path: 'ranked', lazy: () => import('./career/CareerRankedScreen').then((m) => ({ Component: m.CareerRankedScreen })) },
+              { path: 'league', lazy: () => import('./career/CareerLeagueScreen').then((m) => ({ Component: m.CareerLeagueScreen })) },
+              { path: 'league/deck/:deckId', lazy: () => import('./career/LeagueDeckScreen').then((m) => ({ Component: m.LeagueDeckScreen })) },
               { path: 'academy', lazy: () => import('./career/CareerAcademyScreen').then((m) => ({ Component: m.CareerAcademyScreen })) },
               { path: 'academy/:school', lazy: () => import('./career/CareerAcademyScreen').then((m) => ({ Component: m.CareerAcademyScreen })) },
               { path: ':mode', lazy: () => import('./career/CareerModesRoute').then((m) => ({ Component: m.CareerModesRoute })) },
@@ -140,6 +153,7 @@ const router = createBrowserRouter([
           },
           { path: '/train', lazy: () => import('./train/TrainScreen').then((m) => ({ Component: m.TrainScreen })) },
           { path: '/train/:tool', lazy: () => import('./train/TrainScreen').then((m) => ({ Component: m.TrainScreen })) },
+          { path: '/guide', lazy: () => import('./screens/GuideScreen').then((m) => ({ Component: m.GuideScreen })) },
           { path: '/history', lazy: () => import('./history/HistoryScreen').then((m) => ({ Component: m.HistoryScreen })) },
         ],
       },
@@ -148,8 +162,13 @@ const router = createBrowserRouter([
   { path: '*', element: <Navigate to="/" replace /> },
 ]);
 
-// a Spanish (or other non-English) player's catalog loads first, so the first paint is already in their language
-void i18nReady.then(() => createRoot(document.getElementById('root')!).render(
+/** How long the first paint waits for the stored picture links; past it, cards learn their pictures as they arrive. */
+const PICTURE_LINKS_WAIT_MS = 400;
+const pictureLinks = Promise.race([imageResolver().ready, new Promise<void>((resolve) => setTimeout(resolve, PICTURE_LINKS_WAIT_MS))]);
+
+// a Spanish (or other non-English) player's catalog loads first, so the first paint is already in their language; and
+// the picture links stored on this device, so a card already seen shows its picture on the first frame, not a blank
+void Promise.all([i18nReady, pictureLinks]).then(() => createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <Tooltip.Provider delayDuration={300}>

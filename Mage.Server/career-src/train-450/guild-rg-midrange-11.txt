@@ -1,0 +1,21 @@
+# name: Train450 guild-rg-midrange-11
+# archetype: midrange
+# colors: RG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Atsushi, the Blazing Sky
+3 Collateral Damage
+2 Crossroads Consecrator
+2 Crushing Canopy
+4 Demand Answers
+3 Final Flare
+2 Gnarlback Rhino
+4 Lizard, Connors's Curse
+2 Nylea, God of the Hunt
+4 Prophet of Distortion
+4 Purphoros, Bronze-Blooded
+2 Sylvan Advocate
+2 Wartime Protestors
+7 Forest
+9 Mountain
+4 Rockfall Vale
+4 Stomping Ground

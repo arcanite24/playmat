@@ -1,0 +1,24 @@
+# name: Train450 tri-rgw-bigmana-5
+# archetype: bigmana
+# colors: RGW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Bombur, Gentle Dreamer
+2 Daring Escape
+2 Groundchuck & Dirtbag
+2 Heartfire
+2 Klothys, God of Destiny
+2 Kraul Harpooner
+2 Little Bear
+4 Nettle Sentinel
+4 Oblivion Sower
+3 Pack Guardian
+3 Return to Nature
+1 Ride Down
+2 Shepherd of the Clouds
+3 Ulvenwald Observer
+4 Fields of Strife
+8 Forest
+4 Mountain
+1 Plains
+4 Rockfall Vale
+4 Rootbound Crag

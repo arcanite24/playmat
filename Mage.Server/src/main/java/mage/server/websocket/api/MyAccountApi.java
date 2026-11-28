@@ -34,6 +34,8 @@ final class MyAccountApi {
         public boolean mail;
         /** the account signs in with GitHub (it may have no password of its own) */
         public boolean github;
+        /** the account signs in with the identity provider (it may have no password of its own) */
+        public boolean oidc;
     }
 
     static List<RpcMethod> methods(ApiContext ctx) {
@@ -48,6 +50,7 @@ final class MyAccountApi {
                             status.verified = EmailVerification.isVerified(account.getName(), account.getEmail());
                             status.mail = Mailer.configured(ctx.managers.configSettings());
                             status.github = AccessApi.store(() -> AccessPolicy.get().store().githubLinkOf(account.getName())) != null;
+                            status.oidc = AccessApi.store(() -> AccessPolicy.get().store().oidcLinkOf(account.getName())) != null;
                             return status;
                         }),
 
@@ -87,7 +90,7 @@ final class MyAccountApi {
                         .returns("boolean")
                         .doc("Delete the signed-in account with its decks, Career, reports, stats, feedback, staff role and "
                                 + "supporter perks, and sign it out (its payments stay in the ledger, anonymized). confirmName must be the account's name exactly; password its password, except for "
-                                + "an account that signs in with GitHub, which may leave it empty. The server's owner can't. "
+                                + "an account that signs in with GitHub or the identity provider, which may leave it empty. The server's owner can't. "
                                 + "Can't be undone: accountExport first.")
                         .handler(call -> {
                             AuthorizedUser account = account(ctx, call);
@@ -119,10 +122,13 @@ final class MyAccountApi {
             throw new RpcException(RpcException.RATE_LIMITED, "Too many tries. Wait an hour.");
         }
         boolean github = AccessApi.store(() -> AccessPolicy.get().store().githubLinkOf(name)) != null;
-        boolean passwordless = github && (password == null || password.isEmpty());
+        boolean oidc = AccessApi.store(() -> AccessPolicy.get().store().oidcLinkOf(name)) != null;
+        boolean linked = github || oidc;
+        boolean passwordless = linked && (password == null || password.isEmpty());
         if (!passwordless && (password == null || password.isEmpty() || !account.doCredentialsMatch(name, password))) {
             throw RpcException.invalidParams(github ? "That password is wrong. An account that signs in with GitHub may leave it empty."
-                    : "That password is wrong.");
+                    : (oidc ? "That password is wrong. An account that signs in with the identity provider may leave it empty."
+                    : "That password is wrong."));
         }
     }
 

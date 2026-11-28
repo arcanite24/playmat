@@ -82,11 +82,10 @@ function PetPortrait({ still }: { still: string }) {
 /** The pets: none, or one that sits by the player's side of the battlefield in every game. */
 export function PetShelf({ thanks }: { thanks: ThankYou }) {
   const t = useT();
-  const pets = Object.entries(PETS).filter(([id]) => thanks.shows('pet') || thanks.hasItem('pet', id));
+  // the contributors' duck is never for sale, so only its owners see it
+  const pets = Object.entries(PETS).filter(([id, pet]) => thanks.hasItem('pet', id) || (!pet.contributor && thanks.shows('pet')));
   if (pets.length === 0) return null;
-  // a supporter wears the pet they own (one for now: the thank-you set's corgi)
-  const wearing = (id: string) => thanks.wear.pet && thanks.hasItem('pet', id);
-  const none = !pets.some(([id]) => wearing(id));
+  const none = thanks.pet === null;
   return (
     <section className={progress.shelfPanel} aria-labelledby="locker-pets">
       <h3 id="locker-pets">{t('support.locker.pets')}</h3>
@@ -97,7 +96,7 @@ export function PetShelf({ thanks }: { thanks: ThankYou }) {
           <small>{t('support.locker.noPet')}</small>
         </button>
         {pets.map(([id, pet]) => (
-          <ThankYouItem key={id} thanks={thanks} kind="pet" item={id} name={t(pet.name)} on={wearing(id)} onPick={() => thanks.choose({ pet: true })}>
+          <ThankYouItem key={id} thanks={thanks} kind="pet" item={id} name={t(pet.name)} on={thanks.pet === id} onPick={() => thanks.choose({ pet: true, petId: id })}>
             <PetPortrait still={pet.still} />
           </ThankYouItem>
         ))}

@@ -1,0 +1,19 @@
+# name: Train450 mono-w-gowide-3
+# archetype: gowide
+# colors: W
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Alley Evasion
+3 Archon's Glory
+4 Aviary Mechanic
+4 Burdened Stoneback
+4 Clay Revenant
+3 Crowd of True Believers
+3 Delivery Moogle
+4 Imperial Aerosaur
+1 Legion Angel
+3 Miner's Guidewing
+3 Nurturing Pixie
+1 Savannah Lions
+3 Surgical Precision
+1 Will of the All-Hunter
+22 Plains

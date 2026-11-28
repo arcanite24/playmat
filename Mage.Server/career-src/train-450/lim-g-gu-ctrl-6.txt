@@ -1,0 +1,36 @@
+# name: Train450 lim-g-gu-ctrl-6
+# archetype: limited_ctrl
+# colors: GU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Altanak, the Thrice-Called
+1 Anthropede
+1 Brackish Blunder
+1 Brazen Borrower
+1 Concerted Defense
+1 Duel for Dominance
+1 Giant-Sized Flying Ant
+2 Highly Illogical
+1 Hungry Graffalon
+2 Loan Shark
+1 Momentous Fall
+1 Nessian Boar
+1 Patchwork Beastie
+1 Ral's Dispersal
+1 Redtooth Genealogist
+1 Roalesk, Apex Hybrid
+1 Runeclaw Bear
+1 School Daze
+2 Seedship Impact
+1 Sentinel of the Nameless City
+1 Skyreaping
+2 Tattered Haunter
+1 The Thing, Ben Grimm
+1 Three Steps Ahead
+1 Timberland Ancient
+2 Watercourser
+2 Wilt
+1 Winged Portent
+9 Forest
+8 Island
+4 Transformative Commons
+4 Vineglimmer Snarl

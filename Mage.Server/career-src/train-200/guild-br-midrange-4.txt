@@ -1,0 +1,23 @@
+# name: Train200 guild-br-midrange-4
+# archetype: midrange
+# colors: BR
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Darklight Phoenix
+2 Decadent Dragon
+3 Demanding Dragon
+2 Gravepurge
+1 Lightning Shrieker
+3 Monastery Swiftspear
+4 Plasma Cascade
+1 Qarsi Revenant
+2 Runaway Carriage
+1 Savor
+2 Shake the Foundations
+4 Shatterskull Charger
+2 Tonberry
+3 Whiplash, Vengeful Engineer
+3 Wrath of the Bloodmane
+10 Mountain
+4 Restless Vents
+4 Sulfurous Springs
+6 Swamp

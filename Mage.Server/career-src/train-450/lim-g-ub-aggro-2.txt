@@ -1,0 +1,34 @@
+# name: Train450 lim-g-ub-aggro-2
+# archetype: limited_aggro
+# colors: UB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Aggressive Sabotage
+1 Ashnod's Intervention
+1 Blight Keeper
+1 Bruce Banner
+2 Creakwood Safewright
+2 Death Wind
+1 Dreadwing Scavenger
+1 Fear of Isolation
+2 Felhide Petrifier
+1 Gogo, Master of Mimicry
+2 Il Mheg Pixie
+1 Lash of Thorns
+1 Maw of Kozilek
+2 Mindscour Dragon
+1 Pattern Matcher
+2 Project Deathlok Soldier
+1 Retrieval Agent
+2 Sheoldred's Headcleaver
+1 Starlit Soothsayer
+1 Sugar Rush
+2 Tolarian Scholar
+2 Umbral Collar Zealot
+2 Vanquish the Weak
+1 Vicious Rumors
+2 Warkite Marauder
+1 Welkin Tern
+6 Island
+9 Swamp
+4 Underground River
+4 Watery Grave

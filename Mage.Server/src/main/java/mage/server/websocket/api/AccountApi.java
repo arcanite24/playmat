@@ -6,6 +6,7 @@ import mage.server.admin.AccessPolicy;
 import mage.server.admin.RuntimeSettings;
 import mage.server.decks.DeckStore;
 import mage.server.decks.DeckSyncEntry;
+import mage.server.decks.SharedDeck;
 import mage.server.managers.ConfigSettings;
 import mage.server.notify.DiscordNotifier;
 import mage.server.moderation.ClientErrors;
@@ -20,6 +21,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ThreadPoolExecutor;
 
+import static mage.server.websocket.rpc.RpcParam.Type.BOOLEAN;
 import static mage.server.websocket.rpc.RpcParam.Type.INT;
 import static mage.server.websocket.rpc.RpcParam.Type.STRING;
 import static mage.server.websocket.rpc.RpcParam.object;
@@ -50,14 +52,37 @@ final class AccountApi {
         public int maxPasswordLength;
         /** decks are kept on the server for each account */
         public boolean deckSync;
+        /** players can share decks with everyone on the server (deckShareSet, deckSharedList; #137) */
+        public boolean sharedDecks;
         /** the optional single-player Career is offered (accounts on, and not switched off) */
         public boolean career;
+        /** players can opt in to games the Rust engine plays (XMAGE_RUST_OPT_IN; docs/rust/GameHost.md) */
+        public boolean rustEngine;
         /** open, or allowlist: a contributors server, where only listed or invited accounts get in */
         public String access;
         /** what staff want everyone to know, shown on sign-in and Home; empty when there is nothing */
         public String notice;
+        /**
+         * XMAGE_OWNER names an account nobody has registered yet: the sign-in screen tells whoever set up the server to
+         * create it (the name itself is never sent)
+         */
+        public boolean ownerPending;
         /** players can sign in with GitHub (githubStart) */
         public boolean github;
+        /**
+         * single sign-on: the account name the sign-on proxy in front named for this connection; connectUser with it and
+         * no password signs in. Absent when the server has no single sign-on or the connection didn't come through it
+         */
+        public String signOn;
+        /** the server signs in only through its single sign-on: no passwords, registration, reset codes or GitHub */
+        public boolean signOnOnly;
+        /** players can sign in with the identity provider (oidcStart) */
+        public boolean oidc;
+        /** the name on the sign-in button, or "OIDC" */
+        public String oidcName;
+        /** the identity provider is the only sign-in method (XMAGE_OIDC_ONLY) */
+        public boolean oidcOnly;
+
         /** open, or invite: new accounts need an invite link (or a place on the allowlist) */
         public String registration;
         /** when planned maintenance starts (epoch ms), or 0; no new tables can start meanwhile */
@@ -82,7 +107,7 @@ final class AccountApi {
                         .publicAccess()
                         .returns("ServerInfo")
                         .doc("Whether the server has accounts and mail, and its name and password rules. Callable before login.")
-                        .handler(call -> serverInfo(ctx)),
+                        .handler(call -> serverInfo(ctx, call.getConnection())),
 
                 RpcMethod.named("deckSyncList")
                         .returns("DeckSyncEntry[]")
@@ -124,6 +149,37 @@ final class AccountApi {
                             return decks(() -> DeckStore.get().delete(owner, call.string(0), deletedAt));
                         }),
 
+                RpcMethod.named("deckShareSet")
+                        .params(of("deckId", STRING), of("shared", BOOLEAN))
+                        .returns("boolean")
+                        .doc("Share one of the signed-in account's decks with everyone on the server, or stop sharing it. The deck "
+                                + "must be saved to the account (deck sync); others always get its latest version. Up to "
+                                + DeckStore.MAX_SHARED + " shared decks per account. Returns whether it is shared now.")
+                        .handler(call -> {
+                            String owner = sharing(ctx, call);
+                            boolean shared = call.bool(1);
+                            return decks(() -> DeckStore.get().setShared(owner, call.string(0), shared, System.currentTimeMillis()));
+                        }),
+
+                RpcMethod.named("deckSharedList")
+                        .returns("SharedDeck[]")
+                        .doc("Every deck shared on this server, newest change first, without the deck data: owner, name, format, "
+                                + "colors, card counts and cover. Deleted decks drop out.")
+                        .handler(call -> {
+                            String viewer = sharing(ctx, call);
+                            return decks(() -> DeckStore.get().sharedList(viewer));
+                        }),
+
+                RpcMethod.named("deckSharedGet")
+                        .params(of("owner", STRING), of("deckId", STRING))
+                        .returns("SharedDeck | null")
+                        .doc("One shared deck with its data (the deck's JSON as its owner's client keeps it), or null when that "
+                                + "deck isn't shared.")
+                        .handler(call -> {
+                            String viewer = sharing(ctx, call);
+                            return decks(() -> DeckStore.get().sharedGet(viewer, call.string(0), call.string(1)));
+                        }),
+
                 RpcMethod.named("reportPlayer")
                         .params(of("userName", STRING), of("reason", STRING), of("details", STRING), optional("gameId", STRING))
                         .returns("number")
@@ -153,6 +209,10 @@ final class AccountApi {
     }
 
     static ServerInfo serverInfo(ApiContext ctx) {
+        return serverInfo(ctx, null);
+    }
+
+    static ServerInfo serverInfo(ApiContext ctx, mage.server.websocket.rpc.RpcConnection connection) {
         ServerInfo info = new ServerInfo();
         ConfigSettings config = ctx.managers == null ? null : ctx.managers.configSettings();
         info.testMode = Main.isTestMode();
@@ -166,6 +226,12 @@ final class AccountApi {
             info.maxPasswordLength = config.getMaxPasswordLength();
         }
         info.deckSync = info.accounts;
+        info.sharedDecks = info.accounts && sharedDecksOn();
+        mage.server.TrustedHeaderAuth signOn = mage.server.TrustedHeaderAuth.get();
+        if (info.accounts && signOn.isEnabled()) {
+            info.signOn = connection == null ? null : connection.getSignedOnUser();
+            info.signOnOnly = !signOn.passwordSignIn();
+        }
         info.turnstileSiteKey = ctx.turnstile.siteKey();
         info.contactEmail = contactEmail();
         if (ctx.managers != null && ctx.managers.threadExecutor() != null
@@ -181,11 +247,20 @@ final class AccountApi {
             info.maintenanceMessage = maintenance.message;
         }
         info.career = mage.server.career.CareerService.enabled(info.accounts);
+        info.rustEngine = mage.server.RustHost.optIn();
         try {
             AccessPolicy access = AccessPolicy.get();
             info.access = info.accounts ? access.mode() : AccessPolicy.OPEN;
             info.notice = access.notice();
-            info.github = info.accounts && mage.server.admin.GithubAuth.get().isEnabled();
+            info.ownerPending = info.accounts && !info.signOnOnly && !access.owner().isEmpty()
+                    && mage.server.AuthorizedUserRepository.getInstance().getByName(access.owner()) == null;
+            info.github = info.accounts && !info.signOnOnly && mage.server.admin.GithubAuth.get().isEnabled();
+            mage.server.admin.OidcAuth oidc = mage.server.admin.OidcAuth.get();
+            // single sign-on locked down is the only door: the in-app provider button would go nowhere
+            info.oidc = info.accounts && !info.signOnOnly && oidc.isEnabled();
+            info.oidcName = oidc.label();
+            info.oidcOnly = info.accounts && !info.signOnOnly && oidc.isOidcOnly();
+
             info.registration = RuntimeSettings.get().registrationOpen() ? "open" : "invite";
             RuntimeSettings runtime = RuntimeSettings.get();
             info.support = runtime.supportOn() && (!runtime.supportKofiUrl().isEmpty() || !runtime.supportSponsorsUrl().isEmpty()
@@ -217,6 +292,23 @@ final class AccountApi {
                 .orElseThrow(() -> RpcException.notAuthorized("Sign in first"));
         if (ctx.managers == null || !ctx.managers.configSettings().isAuthenticationActivated()) {
             throw RpcException.notAuthorized("This server has no accounts, so decks stay in your browser");
+        }
+        return userName;
+    }
+
+    private static boolean sharedDecksOn() {
+        try {
+            return RuntimeSettings.get().sharedDecksOn();
+        } catch (IllegalStateException e) {
+            return true;
+        }
+    }
+
+    /** The signed-in account's name, on a server where staff haven't turned deck sharing off. */
+    private static String sharing(ApiContext ctx, RpcCall call) throws RpcException {
+        String userName = account(ctx, call);
+        if (!sharedDecksOn()) {
+            throw RpcException.notAuthorized("Deck sharing is off on this server");
         }
         return userName;
     }

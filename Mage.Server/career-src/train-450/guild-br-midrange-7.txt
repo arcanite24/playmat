@@ -1,0 +1,22 @@
+# name: Train450 guild-br-midrange-7
+# archetype: midrange
+# colors: BR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Acererak the Archlich
+1 Battlefly Swarm
+1 Charging Monstrosaur
+3 Deadly Dispute
+3 Defenestrate
+3 Doomwake Giant
+1 Electric Revelation
+4 Firebending Lesson
+3 Gadrak, the Crown-Scourge
+4 Giant Cindermaw
+3 Grim Wanderer
+3 Qal Sisma Behemoth
+1 Rebel Salvo
+4 Stark Industries Executive
+4 Jagged Barrens
+9 Mountain
+4 Rakdos Guildgate
+7 Swamp

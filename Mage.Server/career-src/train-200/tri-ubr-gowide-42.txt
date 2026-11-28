@@ -1,0 +1,24 @@
+# name: Train200 tri-ubr-gowide-42
+# archetype: gowide
+# colors: UBR
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Falkenrath Pit Fighter
+3 Feldon, Ronom Excavator
+3 Forsaken Miner
+4 Geth, Thane of Contracts
+2 Hexgold Slash
+2 Ice Magic
+3 Kellan, Planar Trailblazer
+1 Kindled Heroism
+4 Ledger Shredder
+3 Might of the Meek
+4 Monastery Swiftspear
+1 Raging Kronch
+1 Temur Devotee
+3 The Mindskinner
+3 Island
+5 Mountain
+4 Razortrap Gorge
+4 Restless Vents
+4 Shivan Reef
+2 Swamp

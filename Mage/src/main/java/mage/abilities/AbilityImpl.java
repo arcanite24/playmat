@@ -1,5 +1,7 @@
 package mage.abilities;
 
+import mage.util.RandomUtil;
+
 import mage.MageIdentifier;
 import mage.MageObject;
 import mage.Mana;
@@ -100,7 +102,7 @@ public abstract class AbilityImpl implements Ability {
     private Map<String, Object> costsTagMap = null;
 
     protected AbilityImpl(AbilityType abilityType, Zone zone) {
-        this.id = UUID.randomUUID();
+        this.id = RandomUtil.newId();
         this.originalId = id;
         this.abilityType = abilityType;
         this.zone = zone;
@@ -156,7 +158,7 @@ public abstract class AbilityImpl implements Ability {
     @Override
     public void newId() {
         if (!(this instanceof MageSingleton)) {
-            this.id = UUID.randomUUID();
+            this.id = RandomUtil.newId();
         }
         getEffects().newId();
 
@@ -167,7 +169,7 @@ public abstract class AbilityImpl implements Ability {
 
     @Override
     public void newOriginalId() {
-        this.id = UUID.randomUUID();
+        this.id = RandomUtil.newId();
         this.originalId = id;
         getEffects().newId();
     }
@@ -274,7 +276,11 @@ public abstract class AbilityImpl implements Ability {
              * abilities with replacement effects deactivated too late Example:
              * {@link org.mage.test.cards.replacement.DryadMilitantTest#testDiesByDestroy testDiesByDestroy}
              */
-            game.processAction();
+            if (isManaAbility()) {
+                game.processManaAction();
+            } else {
+                game.processAction();
+            }
         }
         return result;
     }
@@ -285,7 +291,11 @@ public abstract class AbilityImpl implements Ability {
         if (controller == null) {
             return false;
         }
-        game.applyEffects();
+        // an AI simulation taps its mana sources one after another while paying, and the action before applied the
+        // effects already: applying them again before each one was a fifth of the AI's time on big boards
+        if (!isManaAbility() || !game.isAiSimulation()) {
+            game.applyEffects();
+        }
 
         MageObject sourceObject = getSourceObject(game);
         initSourceObjectZoneChangeCounter(game, false);
@@ -341,6 +351,9 @@ public abstract class AbilityImpl implements Ability {
         //    return false;
         //}
         if (getAbilityType() == AbilityType.SPELL && (getManaCostsToPay().isEmpty() && getCosts().isEmpty()) && !noMana) {
+            if (!game.isSimulation() && controller.isHuman() && sourceObject != null) {
+                game.informPlayer(controller, sourceObject.getName() + " has no mana cost and can't be cast this way.");
+            }
             return false;
         }
 
@@ -508,6 +521,7 @@ public abstract class AbilityImpl implements Ability {
             switch (((SpellAbility) this).getSpellAbilityCastMode()) {
                 case FLASHBACK:
                 case HARMONIZE:
+                case BEAM_ME_UP:
                 case MADNESS:
                 case TRANSFORMED:
                 case DISTURB:
@@ -1398,13 +1412,25 @@ public abstract class AbilityImpl implements Ability {
             return false;
         }
 
+        // there are game engine only special proxy/packed events like batch and number of triggers,
+        // so make sure it's spread to real game events
         List<GameEvent> allEvents = new ArrayList<>();
-        if (event instanceof BatchEvent) {
-            allEvents.addAll(((BatchEvent) event).getEvents());
-        } else if (event instanceof NumberOfTriggersEvent) {
-            allEvents.add(((NumberOfTriggersEvent) event).getSourceEvent());
+
+        // number of triggers support
+        GameEvent checkingEvent;
+        if (event instanceof NumberOfTriggersEvent) {
+            // number of triggers event must be checked by its source event 
+            // (e.g. doubler dies at the same time as other creatures)
+            checkingEvent = ((NumberOfTriggersEvent) event).getSourceEvent();
         } else {
-            allEvents.add(event);
+            checkingEvent = event;
+        }
+
+        // batch support
+        if (checkingEvent instanceof BatchEvent) {
+            allEvents.addAll(((BatchEvent) checkingEvent).getEvents());
+        } else if (checkingEvent != null) {
+            allEvents.add(checkingEvent);
         }
 
         return allEvents.stream().anyMatch(e -> {
@@ -1751,6 +1777,9 @@ public abstract class AbilityImpl implements Ability {
         Permanent permanent = getSourcePermanentIfItStillExists(game);
         if (permanent == null) {
             permanent = (Permanent) game.getLastKnownInformation(getSourceId(), Zone.BATTLEFIELD, getStackMomentSourceZCC());
+        } else if (!permanent.isPhasedIn()) {
+            // phased-out permanent is treated as though it doesn't exist, so use its LKI (702.26b)
+            permanent = game.getPermanentOrLKIBattlefield(getSourceId());
         }
         return permanent;
     }
@@ -1850,7 +1879,7 @@ public abstract class AbilityImpl implements Ability {
             throw new IllegalStateException("Target adjuster being added but no targets are set!");
         }
         this.targetAdjuster = targetAdjuster;
-        this.targetAdjuster.addDefaultTargets(this);
+        this.targetAdjuster.addDefaultTargets(this.getTargets().isEmpty() ? null : this.getTargets().get(0));
         return this;
     }
 

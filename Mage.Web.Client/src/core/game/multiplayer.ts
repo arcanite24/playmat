@@ -51,7 +51,7 @@ function permanentById(view: GameView, id: string): { permanent: PermanentView; 
 export function defenderChoice(prompt: Prompt | null | undefined, view: GameView | null | undefined): DefenderOption[] | null {
   if (!prompt || prompt.kind !== 'target' || !view || view.step !== 'DECLARE_ATTACKERS' || prompt.cards) return null;
   // the filter is named "player, planeswalker, or battle to attack"
-  if (prompt.targets.length < 2 || !/\bto attack\b/i.test(prompt.text ?? '')) return null;
+  if (prompt.targets.length === 0 || !/\bto attack\b/i.test(prompt.text ?? '')) return null;
   const players = new Map((view.players ?? []).map((player) => [player.playerId!, player]));
   const options: DefenderOption[] = [];
   for (const id of prompt.targets) {
@@ -70,6 +70,33 @@ export function defenderChoice(prompt: Prompt | null | undefined, view: GameView
       value: found.permanent.loyalty || found.permanent.defense || null,
       controllerName: found.controller.name ?? null,
     });
+  }
+  return options;
+}
+
+/**
+ * Every opponent in range, plus their planeswalkers and any battles on the table, as attackable defender options.
+ * Used when declaring attackers in batches so the player can aim a group of tokens at a specific defender.
+ */
+export function possibleDefenders(view: GameView | null | undefined, myId: string | null): DefenderOption[] {
+  if (!view || !myId) return [];
+  const options: DefenderOption[] = [];
+  for (const player of view.players ?? []) {
+    const id = player.playerId;
+    if (!id || id === myId || player.hasLeft || !inRange(view, myId, id)) continue;
+    options.push({ id, kind: 'player', name: player.name ?? 'Player', value: String(player.life ?? 0), controllerName: null });
+  }
+  for (const player of view.players ?? []) {
+    const controllerId = player.playerId;
+    if (!controllerId || player.hasLeft) continue;
+    for (const [id, permanent] of Object.entries(player.battlefield ?? {})) {
+      const types = permanent.cardTypes ?? [];
+      if (types.includes('BATTLE')) {
+        options.push({ id, kind: 'battle', name: permanent.name ?? 'Battle', value: permanent.defense || null, controllerName: player.name ?? null });
+      } else if (types.includes('PLANESWALKER') && controllerId !== myId && inRange(view, myId, controllerId)) {
+        options.push({ id, kind: 'planeswalker', name: permanent.name ?? 'Planeswalker', value: permanent.loyalty || null, controllerName: player.name ?? null });
+      }
+    }
   }
   return options;
 }

@@ -603,6 +603,24 @@ public class CardView extends SimpleCardView {
                 this.secondCardFace = new CardView(backFace, game);
                 this.alternateName = backFace.getName();
             }
+
+            // a double-faced card on the stack: its other face can be looked at, as on the battlefield
+            if (card instanceof Spell && this.secondCardFace == null) {
+                Card spellCard = ((Spell) card).getCard();
+                if (spellCard instanceof DoubleFacedCardHalf && ((DoubleFacedCardHalf) spellCard).getParentCard() != null) {
+                    Card otherSide = ((DoubleFacedCardHalf) spellCard).getOtherSide();
+                    this.transformable = true;
+                    this.secondCardFace = new CardView(otherSide, game);
+                    this.alternateName = otherSide.getName();
+                }
+            }
+
+            // a card from the database (deck building): the back face of a transforming or modal double-faced card
+            if (card instanceof MockCard && this.secondCardFace == null && card.getSecondCardFace() != null) {
+                this.transformable = true;
+                this.secondCardFace = new CardView(card.getSecondCardFace(), game);
+                this.alternateName = card.getSecondCardFace().getName();
+            }
         }
 
         // shared info - targets

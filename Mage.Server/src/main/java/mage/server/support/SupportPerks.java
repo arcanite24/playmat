@@ -46,6 +46,12 @@ public final class SupportPerks {
             new Perk("pet", PET)
     ));
 
+    /**
+     * The contributors' pet: never sold, staff give it by hand to people who keep reporting bugs, asking for features
+     * or sending pull requests to the repository (Support.grantContributor).
+     */
+    public static final String CONTRIBUTOR_PET = "debug-duck";
+
     private SupportPerks() {
     }
 

@@ -1,14 +1,18 @@
 import {
-  Anvil, ArrowUpToLine, Castle, Eye, EyeOff, Feather, FlaskConical, Footprints, HeartPulse, Shield, ShieldCheck,
+  Anvil, ArrowUpToLine, Castle, Crosshair, Eye, EyeOff, Feather, FlaskConical, Footprints, HeartPulse, Lock, LockOpen, Shield, ShieldCheck,
   ShieldHalf, Skull, Sword, Swords, Users, Zap, type LucideIcon,
 } from 'lucide-react';
-import { memo, useMemo, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
+import { memo, useEffect, useMemo, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
+import { roomDoors } from '../../core/game/rooms';
 import { keywordEffects, keywordMarks, type KeywordEffect, type MarkedKeyword } from '../../core/game/keywords';
 import type { PermanentView } from '../../protocol/generated/views';
+import { useT } from '../i18n';
 import { useSettings } from '../stores/settings';
 import { CardFace } from '../ui/CardFace';
-import { cardKey, stackOffsetRatio, type PermanentGroup } from './boardModel';
+import { CounterBadges } from './CounterBadges';
+import { ATTACHMENT_OFFSET_RATIO, cardKey, groupUnits, stackBadge, stackOffsetRatio, type PermanentGroup } from './boardModel';
 import { useFlip } from './flip';
+import './matchMessages';
 import { useMatchUi } from './matchUi';
 import { useStage } from './stageContext';
 import { isMatchObjectKey, preventMatchObjectMouseFocus } from './keyboard';
@@ -20,8 +24,6 @@ export interface PermanentStackProps {
   sleeve: string;
   clickable: ReadonlySet<string>;
   selected: ReadonlySet<string>;
-  /** clickable but not worth a glow (lands while you hold priority: tapping for mana is always possible) */
-  quiet?: ReadonlySet<string>;
   attacking: ReadonlySet<string>;
   blocking: ReadonlySet<string>;
   /** opponents' attackers slide toward the player, ours toward the opponent */
@@ -67,6 +69,7 @@ const KEYWORD_ICONS: Record<MarkedKeyword, LucideIcon> = {
   Shroud: EyeOff,
   Ward: ShieldHalf,
   Protection: ShieldCheck,
+  'Must be blocked': Crosshair,
 };
 
 /** The layer each keyword effect draws (PermanentStack.module.css); float moves the card itself. */
@@ -88,15 +91,15 @@ const FX_CLASS: Record<KeywordEffect, string> = {
 export const PermanentStack = memo(function PermanentStack(props: PermanentStackProps) {
   const { group, width } = props;
   // members turn individually; the slot keeps room for a turned card so nothing shifts when one taps
-  const anyTapped = group.members.some((member) => member.tapped);
-  const height = width * CARD_RATIO;
   const stackOffset = width * stackOffsetRatio(group);
-  const attachOffset = width * 0.18;
-  const slotWidth = (anyTapped ? height : width) + (group.members.length - 1) * stackOffset + group.attachments.length * attachOffset;
-  const slotHeight = height + group.attachments.length * attachOffset;
+  const attachOffset = width * ATTACHMENT_OFFSET_RATIO;
+  const units = groupUnits(group);
+  const t = useT();
+  const badge = stackBadge(group);
+  const count = badge && (badge.open === undefined ? t('match.stack.count', badge) : t('match.stack.open', badge));
 
   return (
-    <div className={styles.slot} style={{ width: slotWidth, height: slotHeight }}>
+    <div className={styles.slot} style={{ width: width * units.width, height: width * units.height }}>
       {group.attachments.map((attachment, index) => (
         <PlacedCard
           key={cardKey(attachment)}
@@ -113,9 +116,9 @@ export const PermanentStack = memo(function PermanentStack(props: PermanentStack
           permanent={permanent}
           {...props}
           left={group.attachments.length * attachOffset + (reversed.length - 1 - index) * stackOffset}
-          top={group.attachments.length * attachOffset}
+          top={group.attachments.length > 0 ? attachOffset : 0}
           depth={group.attachments.length + index}
-          count={index === reversed.length - 1 && group.members.length > 1 ? group.members.length : undefined}
+          count={index === reversed.length - 1 ? count : null}
         />
       ))}
     </div>
@@ -127,12 +130,13 @@ interface PlacedCardProps extends PermanentStackProps {
   left: number;
   top: number;
   depth: number;
-  count?: number;
+  count?: string | null;
 }
 
-function PlacedCard({ permanent, width, sleeve, clickable, selected, quiet, attacking, blocking, forward, targeting, onClick, onBlockDrop, dropTargets, pending, left, top, depth, count }: PlacedCardProps) {
+function PlacedCard({ permanent, width, sleeve, clickable, selected, attacking, blocking, forward, targeting, onClick, onBlockDrop, dropTargets, pending, left, top, depth, count }: PlacedCardProps) {
   const ref = useRef<HTMLDivElement>(null);
   const id = permanent.id!;
+  const t = useT();
   const tapped = !!permanent.tapped;
   const height = width * CARD_RATIO;
   const isClickable = clickable.has(id);
@@ -140,9 +144,13 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, quiet, atta
   const isAttacking = attacking.has(id);
   const isBlocking = blocking.has(id);
   const setZoom = useMatchUi((state) => state.setZoom);
+  // the source of a hovered stack ability, or of the question being asked (#227)
+  const isSource = useMatchUi((state) => (state.sourceHover ?? state.promptSource) === id);
   const keywords = useMemo(() => keywordMarks(permanent), [permanent]);
   const effects = useMemo(() => keywordEffects(keywords), [keywords]);
   const motion = useSettings((state) => state.settings.animations);
+  // fancy combat effects (#413): taps snap with a small overshoot, attackers lift off the mat
+  const fancy = useSettings((state) => state.settings.combatFx) !== 'simple' && motion;
   useFlip(cardKey(permanent), ref, { rotation: tapped ? 90 : 0 });
   const stage = useStage();
   const setBlockDrag = useMatchUi((state) => state.setBlockDrag);
@@ -151,6 +159,11 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, quiet, atta
   const canDrag = !!onBlockDrop && isClickable && (!isAttacking || !!dropTargets);
   const gesture = useRef<{ startX: number; startY: number; moved: boolean } | null>(null);
   const suppressClick = useRef(false);
+  // a card that leaves mid-drag (the board redrawn, the game over) never hears its pointer go up: drop the line
+  useEffect(() => () => {
+    if (gesture.current?.moved) setBlockDrag(null);
+    gesture.current = null;
+  }, [setBlockDrag]);
 
   function onPointerDown(event: ReactPointerEvent) {
     suppressClick.current = false;
@@ -182,9 +195,9 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, quiet, atta
   }
 
   const damage = permanent.damage ?? 0;
-  const counters = (permanent.counters ?? []).filter((counter) => (counter.count ?? 0) > 0);
   const isCreature = (permanent.cardTypes ?? []).includes('CREATURE');
   const loyalty = permanent.loyalty || permanent.defense;
+  const doors = roomDoors(permanent);
   // summoning sick: it can't attack or tap yet, so it dozes (the server's flag ignores haste; a hasty creature is awake)
   const asleep = isCreature && !!permanent.summoningSickness && !keywords.some((mark) => mark.name === 'Haste');
   const flying = effects.includes('float');
@@ -209,17 +222,20 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, quiet, atta
       ref={ref}
       className={[
         styles.card,
-        isClickable && !quiet?.has(id) ? styles.clickable : '',
+        isClickable ? styles.clickable : '',
         isClickable && targeting && !isSelected ? styles.target : '',
         isSelected ? styles.selected : '',
         isAttacking ? styles.attacking : '',
+        fancy ? styles.snappy : '',
+        fancy && isAttacking ? styles.lifted : '',
         pending === id ? styles.pending : '',
+        isSource ? styles.source : '',
       ].join(' ')}
       style={style}
       role={isClickable ? 'button' : undefined}
       tabIndex={isClickable ? 0 : undefined}
       onMouseDown={preventMatchObjectMouseFocus}
-      aria-label={describe(permanent, { tapped, asleep, isAttacking, isBlocking, isSelected, keywords: keywords.map((mark) => (mark.gained ? `${mark.name.toLowerCase()} (gained)` : mark.name.toLowerCase())) }) + (isClickable && targeting && !isSelected ? ', can be targeted' : '')}
+      aria-label={describe(permanent, { tapped, asleep, isAttacking, isBlocking, isSelected, keywords: keywords.map((mark) => (mark.gained ? `${mark.name.toLowerCase()} (gained)` : mark.name.toLowerCase())) }) + (isClickable && targeting && !isSelected ? ', can be targeted' : '') + (isSource ? ', source of the ability' : '')}
       aria-pressed={isClickable ? isSelected : undefined}
       onClick={() => {
         if (suppressClick.current) {
@@ -232,6 +248,8 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, quiet, atta
       onPointerMove={onPointerMove}
       onPointerUp={(event) => endDrag(event, true)}
       onPointerCancel={(event) => endDrag(event, false)}
+      // the capture can go without a pointerup (another element took it, the window lost focus): end without dropping
+      onLostPointerCapture={(event) => gesture.current && endDrag(event, false)}
       onKeyDown={(event) => {
         if (isClickable && isMatchObjectKey(event.nativeEvent)) {
           event.preventDefault();
@@ -242,8 +260,10 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, quiet, atta
       onPointerLeave={() => setZoom(null)}
       data-object-id={id}
     >
+      {/* the card's swing moves this layer (combatMotion.ts); its flights move the card, its hits the body */}
+      <div className={styles.lunge} data-swing-body="">
       {flying && <span className={styles.flightShadow} data-still={motion ? undefined : ''} aria-hidden="true" />}
-      <div className={[styles.body, flying ? styles.floating : '', asleep ? styles.asleep : ''].join(' ')} data-still={motion ? undefined : ''}>
+      <div className={[styles.body, flying ? styles.floating : '', asleep ? styles.asleep : '', tapped ? styles.tapped : ''].join(' ')} data-still={motion ? undefined : ''} data-hit-body="">
         {effects.map((effect) => <span key={effect} className={[styles.fx, styles[FX_CLASS[effect]]].join(' ')} aria-hidden="true" />)}
         <CardFace card={permanent} sleeve={sleeve} size={width > 140 ? 'normal' : 'small'} />
       </div>
@@ -273,14 +293,19 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, quiet, atta
         </div>
       )}
 
-      {counters.length > 0 && (
-        <ul className={styles.counters} aria-label="Counters">
-          {counters.map((counter) => (
-            <li key={counter.name} title={`${counter.count} ${counter.name}`}>
-              <span>{counterLabel(counter.name ?? '')}</span>
-              {(counter.count ?? 0) > 1 && <b>{counter.count}</b>}
-            </li>
-          ))}
+      <CounterBadges permanent={permanent} className={styles.counters} />
+
+      {doors && (
+        <ul className={styles.doors} style={{ transform: tapped ? 'rotate(-90deg)' : undefined }} aria-label={t('match.room.doors')}>
+          {doors.map((door) => {
+            const Icon = door.unlocked ? LockOpen : Lock;
+            return (
+              <li key={door.name} className={door.unlocked ? styles.doorUnlocked : styles.doorLocked} title={t(door.unlocked ? 'match.room.unlocked' : 'match.room.locked', { name: door.name })}>
+                <Icon size={11} strokeWidth={2.6} aria-hidden="true" />
+                <span>{door.name}</span>
+              </li>
+            );
+          })}
         </ul>
       )}
 
@@ -291,14 +316,10 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, quiet, atta
         </span>
       )}
       {!isCreature && loyalty && <span className={[styles.pt, styles.loyalty].join(' ')}>{loyalty}</span>}
-      {count !== undefined && <span className={styles.count}>×{count}</span>}
+      {count && <span className={styles.count} data-turned={tapped ? '' : undefined}>{count}</span>}
+      </div>
     </div>
   );
-}
-
-function counterLabel(name: string): string {
-  if (/^[+-]\d+\/[+-]\d+$/.test(name)) return name;
-  return name.replace(/counter$/i, '').trim().slice(0, 10);
 }
 
 function ptTone(permanent: PermanentView): string {
@@ -317,6 +338,7 @@ function describe(permanent: PermanentView, state: { tapped: boolean; asleep: bo
   const parts = [permanent.name ?? 'Permanent'];
   if (permanent.power !== undefined && (permanent.cardTypes ?? []).includes('CREATURE')) parts.push(`${permanent.power}/${permanent.toughness}`);
   parts.push(...state.keywords);
+  for (const door of roomDoors(permanent) ?? []) parts.push(`${door.name} ${door.unlocked ? 'unlocked' : 'locked'}`);
   if (state.tapped) parts.push('tapped');
   if (state.asleep) parts.push('summoning sick');
   if (state.isAttacking) parts.push('attacking');

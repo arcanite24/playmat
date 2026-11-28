@@ -2,9 +2,11 @@ name: Web bridge
 
 # The WebSocket bridge, Career and access tests (contract, transport, API docs, Career rules, the contributors
 # server's gate: an unlisted account is refused, an invited one gets in) for every branch and PR that touches
-# the bridge, its shared types or its documentation. The full build in maven.yml runs only on master.
+# the bridge, its shared types or its documentation. maven.yml runs every test besides.
+# Branch pushes are covered by their PR (push runs only on master, so a PR doesn't run this twice).
 on:
   push:
+    branches: [ "master" ]
     paths:
       - "Mage.Server/src/main/java/mage/server/websocket/**"
       - "Mage.Server/src/main/java/mage/server/career/**"
@@ -63,11 +65,11 @@ jobs:
           distribution: temurin
           cache: maven
       - name: Build Mage.Server and its dependencies
-        run: mvn -B -pl Mage.Server -am install -DskipTests
+        run: mvn -B -T 1C -pl Mage.Server -am install -DskipTests
       - name: Bridge tests
         run: >
           mvn -B -pl Mage.Server test
           -Dtest='mage/server/websocket/**/*Test,mage/server/career/**/*Test,mage/server/admin/**/*Test,mage/server/solo/**/*Test,mage/server/AccessGateTest,mage/server/HealthTest'
           -Dsurefire.failIfNoSpecifiedTests=false
           -Dxmage.dataCollectors.printGameLogs=false
-          -Dlog4j.configuration=file:${GITHUB_WORKSPACE}/.travis/log4j.properties
+          -Dlog4j.configuration="file:${GITHUB_WORKSPACE}/.travis/log4j.properties"

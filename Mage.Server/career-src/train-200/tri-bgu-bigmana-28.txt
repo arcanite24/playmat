@@ -1,0 +1,23 @@
+# name: Train200 tri-bgu-bigmana-28
+# archetype: bigmana
+# colors: BGU
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Absorb Identity
+4 Assassin's Trophy
+4 Axebane Ferox
+4 Defiler of Vigor
+2 Demon of Catastrophes
+2 Hydra Broodmaster
+2 Necropolis Regent
+3 Quantum Riddler
+2 Rotting Regisaur
+2 Simic Charm
+3 The Ancient One
+2 Titania, Rugged Rumbler
+3 Triton Shorethief
+4 Darkslick Shores
+5 Forest
+4 Illegitimate Business
+4 Island
+4 Swamp
+4 Vineglimmer Snarl

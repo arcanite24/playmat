@@ -1,0 +1,22 @@
+# name: Train450 guild-bg-midrange-8
+# archetype: midrange
+# colors: BG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Anoint with Affliction
+1 Balamb T-Rexaur
+3 Charge Through
+2 Erebos, Bleak-Hearted
+3 Gnottvold Hermit
+2 Heirloom Auntie
+3 Infernal Grasp
+3 Invasive Species
+2 Origin of Metalbending
+3 Reality Smasher
+1 Reckoner's Bargain
+4 Slumbering Trudge
+2 Titania, Voice of Gaea
+4 Whiplash, Vengeful Engineer
+9 Forest
+4 Foul Orchard
+4 Gohn, Town of Ruin
+7 Swamp

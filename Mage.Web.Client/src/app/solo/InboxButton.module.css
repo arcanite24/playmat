@@ -39,7 +39,7 @@
   flex-direction: column;
   gap: 2px;
   width: min(340px, calc(100vw - 32px));
-  max-height: min(420px, 70vh);
+  max-height: min(420px, 70dvh);
   padding: 6px;
   overflow-y: auto;
   border-radius: var(--radius-control);

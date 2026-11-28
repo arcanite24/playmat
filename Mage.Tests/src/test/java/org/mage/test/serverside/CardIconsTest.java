@@ -319,7 +319,10 @@ public class CardIconsTest extends CardTestPlayerBase {
                     .findFirst()
                     .orElse(null);
             Assert.assertEquals("main must have x cost card icons in stack", 1, cardView.getCardIcons().size());
-            Assert.assertNull("right must be null in stack", cardView.getSecondCardFace());
+            // the stack shows the other face too, so it can be looked at (Playmat #169): the land, with no X icon
+            Assert.assertNotNull("right must be shown in stack", cardView.getSecondCardFace());
+            Assert.assertEquals("Agadeem, the Undercrypt", cardView.getSecondCardFace().getName());
+            Assert.assertEquals("right must have non x cost card icons in stack", 0, cardView.getSecondCardFace().getCardIcons().size());
         });
         waitStackResolved(1, PhaseStep.PRECOMBAT_MAIN);
 

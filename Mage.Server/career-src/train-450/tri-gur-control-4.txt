@@ -1,0 +1,23 @@
+# name: Train450 tri-gur-control-4
+# archetype: control
+# colors: GUR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Aberrant Manawurm
+2 Anger of the Gods
+4 Blink of an Eye
+3 Consider the Prime Directive
+4 Contradict
+2 Defabricate
+2 Electrickery
+3 Enraged Giant
+3 Lookout's Dispersal
+1 Ominous Sphinx
+2 Shatter
+2 Tragic Lesson
+2 Winged Portent
+4 Copperline Gorge
+2 Forest
+8 Island
+4 Mountain
+4 Pym Technologies
+4 Rimewood Falls

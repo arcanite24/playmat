@@ -1,0 +1,49 @@
+{
+  "$comment": "Card styles of the Abyssal Ink set (Commander Vault capsule machine), written by art/machine-specs.mjs from career/machines/commander-vault.json: edit that file and re-run, not this one.",
+  "out": "public/career-art/cardstyle/abyssal-ink",
+  "house": false,
+  "panels": true,
+  "grid": {
+    "cols": 4,
+    "rows": 2,
+    "canvas": "landscape"
+  },
+  "size": "640x894",
+  "anchors": [],
+  "refs": [
+    "neo/295",
+    "neo/296",
+    "neo/297"
+  ],
+  "style": "Sumi-e black ink wash with restrained bioluminescent teal and silver-grey highlights on textured cold-press paper, dramatic negative space and sweeping wet-on-wet brushwork.",
+  "rules": "These are full-art pictures for playing cards: the client draws a small name plate over the top edge, mana symbols at the top right and power and toughness at the bottom right, so keep the main subject in the middle of the panel and the top 15% and bottom 15% calm and uncluttered (sky, ground, water, background texture), with nothing important in the corners. Each panel shows its own subject as one clear, readable scene, the same style and palette as its neighbours, as if the whole row were a matched, limited-edition art series.",
+  "spare": "an extra painting in the same style: a single luminous white swan rising out of dark inked ripples as a shattered spell dissolves into mist",
+  "items": [
+    {
+      "id": "swan-song",
+      "subject": "a single luminous white swan rising out of dark inked ripples as a shattered spell dissolves into mist"
+    },
+    {
+      "id": "fact-or-fiction",
+      "subject": "a solitary sphinx reflected in black water, five pale glowing lantern-orbs divided into two clusters between its paws"
+    },
+    {
+      "id": "windfall",
+      "subject": "a sudden mountain gale sweeping hundreds of loose inked parchment leaves high across a pale moonlit mist"
+    },
+    {
+      "id": "toxic-deluge",
+      "subject": "a heavy wall of dark ink-black rain pouring over sunken stone statues and rising floodwaters"
+    },
+    {
+      "id": "feed-the-swarm",
+      "subject": "a swirling cloud of shadowy night-moths descending onto a lone pale stone obelisk in a misty marsh"
+    },
+    {
+      "id": "set-abyssal-ink",
+      "out": "public/career-art/sleeve/set-abyssal-ink.webp",
+      "size": "540x756",
+      "subject": "the BACK of a playing card in the same style: a symmetrical ornamental design (it is seen upside down too) with a central emblem drawn from this set's theme, framed by a painted border; no logo, no oval, no five dots, no lettering"
+    }
+  ]
+}

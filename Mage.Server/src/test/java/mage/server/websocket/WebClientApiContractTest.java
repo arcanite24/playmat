@@ -6,6 +6,7 @@ import com.google.gson.JsonPrimitive;
 import mage.interfaces.MageServer;
 import mage.interfaces.ServerState;
 import mage.server.DisconnectReason;
+import mage.server.admin.OidcAuth;
 import mage.server.websocket.api.ApiContext;
 import mage.server.websocket.api.WebClientApi;
 import mage.server.websocket.rpc.RpcConnection;
@@ -14,7 +15,7 @@ import mage.server.websocket.rpc.RpcException;
 import mage.server.websocket.rpc.RpcMethod;
 import mage.server.websocket.rpc.RpcParam;
 import mage.server.websocket.rpc.RpcSessions;
-import org.jboss.remoting.callback.InvokerCallbackHandler;
+import mage.server.ClientChannel;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
@@ -46,32 +47,37 @@ public class WebClientApiContractTest {
     // RPC methods that are served by the bridge itself instead of a same-named MageServer method
     private static final Map<String, String> SERVER_METHOD_OVERRIDES = new HashMap<>();
     private static final Set<String> NOT_MAPPED_TO_SERVER = new HashSet<>(Arrays.asList(
-            "disconnectSession", "playerLogout", "sessionGetRestoreToken", // session manager
+            "disconnectSession", "playerLogout", "oidcLogout", "sessionGetRestoreToken", "sessionUserName", // session manager
             "getExpansionSets", "getBasicLandSets", "searchCards", "lookupCards", "deckValidate", // card database services
             "deckImportFromUrl", "deckImportSources", // deck website import service
             "testEndGame", "testConcedeMatch", // test mode helpers on table manager
             "gameResync", // the bridge resends its own copy of the open question
+            "hostGameEnded", "hostGameTurn", "hostGameAssisted", // the Rust host's game end, turn saves and hints (RustHost)
             "setCapabilities", "gameStateResync", // bridge protocol options and game state patches
             "chatSetIgnored", "gameWatchers", // user and game managers (social/UserRelations, watcher names)
             "replayList", "replayPage", // replay store (replay/ReplayStoreTest)
-            "serverInfo", "deckSyncList", "deckSyncGet", "deckSyncPut", "deckSyncDelete", // config and deck store (decks/DeckStoreTest)
+            "serverInfo", "deckSyncList", "deckSyncGet", "deckSyncPut", "deckSyncDelete", "deckShareSet", "deckSharedList", "deckSharedGet", // config and deck store (decks/DeckStoreTest)
             "reportPlayer", "clientReportError", "adminGetReports", "adminCloseReport", "adminClientErrors", // moderation stores
             "adminServerStats", // bridge metrics
             "adminUpdateStatus", "adminUpdateApply", "adminUpdateRollback", // the registry and GitHub, the updater's files
+            "adminSelfPlayStatus", "adminSelfPlaySet", // the self-play worker's files (SelfPlayStatusTest)
             "gamePractice", // game controller practice tools, with readable errors
-            "careerState", "careerStarters", "careerStart", "careerCollection", "careerOpponents", "careerPlay", "careerShop",
+            "ladderState", "ladderOpponent", "ladderPlay", "ladderResult", "ladderGameDeck", "ladderMythicStandings", "leaguePlay", "leagueState", "leagueStart", "leagueSets",
+            "leagueOpen", "leagueDecks", "leagueSaveDeck", "leagueDeleteDeck", "leagueCraftMissing", "homeLayoutGet", "homeLayoutSet", "homeActivity",
+            "careerState", "careerStarters", "careerStart", "careerAcquirePrecon", "careerSetQuestPref", "careerCollection", "careerOpponents", "careerCommanderOpponents", "careerPlay", "careerCommanderPlay", "careerShop",
             "careerBuyPack", "careerCraft", "careerExport", "careerImport", // career store and service (career/CareerServiceTest)
             "careerQuests", "careerRerollQuest", "careerAchievements", "careerLevels", "careerWeekly", "careerGameResult",
-            "careerSetProgress", "careerShowProgress", "careerDaily", "careerDeck", "careerSaveDeck", "careerProfileOf", "careerQuestTracker", "careerMasteries", "careerCosmetics", "careerMachines", "careerBuyTokens", "careerPull", "careerEquipStyle", "careerHall", "gameEmote", // career progress (career/CareerProgressTest)
+            "careerSetProgress", "careerShowProgress", "careerDaily", "careerDeck", "careerSaveDeck", "careerDecks", "careerSaveNamedDeck", "careerSelectDeck", "careerDeleteDeck", "careerProfileOf", "careerQuestTracker", "careerMasteries", "careerCosmetics", "careerMachines", "careerBuyTokens", "careerBuyCosmetic", "careerRedeemSwarmCredits", "careerPull", "careerEquipStyle", "careerHall", "careerPets", "careerSetPetStyle", "gameEmote", // career progress (career/CareerProgressTest)
             "careerCampaigns", "careerCampaignPlay", "careerCampaignDeck", "careerCampaignChoose", "careerPuzzles", "careerPuzzlePlay",
             "careerChallenge", "careerChallengePlay", "careerGauntlet", "careerGauntletStart", "careerGauntletPick",
-            "careerGauntletPlay", "careerGauntletAbandon", "careerGauntletMove", "careerDailyPuzzle", "careerDailyPuzzlePlay", "careerPuzzleFilePlay", "careerMinedPuzzles", "careerMinedPuzzlePlay", "gamePuzzleExport", "careerHordes", "careerHordePlay", "metaLibrary", "metaDeck", "ghostShare", "ghostMine", "ghostUnshare", "ghostDeck", "soloTableMark", "soloAdaptive", "inbox", "inboxSeen", "careerLimited", "careerLimitedStart", "careerLimitedPick",
+            "careerGauntletPlay", "careerGauntletAbandon", "careerGauntletMove", "careerDailyPuzzle", "careerDailyPuzzlePlay", "careerPuzzleFilePlay", "careerMinedPuzzles", "careerMinedPuzzlePlay", "gamePuzzleExport", "careerHordes", "careerHordePlay", "careerArchenemy", "careerArchenemyPlay", "careerThg", "careerThgPlay", "metaLibrary", "metaDeck", "ghostShare", "ghostMine", "ghostUnshare", "ghostDeck", "soloTableMark", "soloAdaptive", "inbox", "inboxSeen", "careerLimited", "careerLimitedStart", "careerLimitedPick",
             "careerLimitedDeck", "careerLimitedCoach", "careerLimitedPlay", "careerLimitedAbandon", // career modes (career/CareerModesTest)
             "authRegister", "authSendTokenToEmail", "authResetPassword", // session and AccountService, with readable errors
             "authRememberLogin", "authForgetLogin", // remembered devices in the account database
             "adminAudit", "adminAccess", "adminAccessPreview", "adminSetAccessMode", "adminAllowAdd", "adminAllowRemovePreview",
             "adminAllowRemove", "adminInviteCreate", "adminInviteRevoke", "adminAccessDecide", "adminSetNotice", "inviteCheck",
             "accessRequest", "githubStart", "githubFinish", // access policy and admin store (admin/AccessPolicyTest, AccessGateTest)
+            "oidcStart", "oidcFinish", // identity provider sign-in (admin/OidcSignInTest; the handlers call OidcAuth.get())
             "adminGetUsers", "adminDisconnectUser", "adminEndUserSession", "adminMuteUser", "adminLockUser", "adminActivateUser",
             "adminToggleActivateUser", "adminTableRemove", "adminSendBroadcastMessage", // Moderation, for staff on player sessions too
             "staffMe", "adminStaff", "adminStaffGrant", "adminStaffRevoke", // staff roles (api/StaffRolesTest)
@@ -84,8 +90,9 @@ public class WebClientApiContractTest {
             "adminContentPacks", "adminContentPackUpload", "adminContentPackRemove", "adminContentPackReload", // solo (solo/SoloFoundationsTest)
             "accountEmailStatus", "accountEmailVerifyStart", "accountEmailVerify", // email verification (EmailVerificationTest)
             "accountExport", "accountDelete", // the player's own data (api/MyAccountApiTest)
+            "presenceGet", "presenceSet", "playerDirectory", // presence store and the directory (social/PresenceTest, PlayerDirectoryTest)
             "supportStatus", "supportPerks", "supportNoticeSeen", "supportSetWall", "profileSetLook", "profileLooks",
-            "adminSupportLedger", "adminSupportLink", "adminSupportRevoke", "adminSupportGrant" // support store (support/*Test)
+            "adminSupportLedger", "adminSupportLink", "adminSupportRevoke", "adminSupportGrant", "adminContributorGrant" // support store (support/*Test)
     ));
 
     static {
@@ -525,7 +532,7 @@ public class WebClientApiContractTest {
         }
 
         @Override
-        public InvokerCallbackHandler createCallbackHandler() {
+        public ClientChannel createChannel() {
             return null;
         }
     }
@@ -535,13 +542,15 @@ public class WebClientApiContractTest {
         final List<String> disconnected = new ArrayList<>();
         final Map<String, String> hosts = new HashMap<>();
         final Map<String, String> names = new HashMap<>();
+        final Map<String, OidcAuth.Token> oidcTokens = new HashMap<>(); // sessionId -> the sign-in's ID token
+        final Map<String, Boolean> oidcAdmins = new HashMap<>(); // sessionId -> the group's admin marker
         final Set<String> chatMembers = new HashSet<>(); // "sessionId:chatId"
         final Map<String, String> rememberedLogins = new HashMap<>(); // token -> user name
         final List<String> trusted = new ArrayList<>(); // "sessionId:userName"
         boolean everyoneIsInEveryChat = true;
 
         @Override
-        public void create(String sessionId, InvokerCallbackHandler callbackHandler, String host) {
+        public void create(String sessionId, ClientChannel channel, String host) {
             created.add(sessionId);
             hosts.put(sessionId, host);
         }
@@ -585,6 +594,28 @@ public class WebClientApiContractTest {
             if (userName.equals(rememberedLogins.get(token))) {
                 trusted.add(sessionId + ":" + userName);
             }
+        }
+
+        @Override
+        public void markOidcLogin(String sessionId, OidcAuth.Token token) {
+            if (token != null) {
+                oidcTokens.put(sessionId, token);
+            }
+        }
+
+        @Override
+        public Optional<OidcAuth.Token> oidcIdToken(String sessionId) {
+            return Optional.ofNullable(oidcTokens.get(sessionId));
+        }
+
+        @Override
+        public void markOidcAdmin(String sessionId, boolean admin) {
+            oidcAdmins.put(sessionId, admin);
+        }
+
+        @Override
+        public boolean oidcAdmin(String sessionId) {
+            return oidcAdmins.getOrDefault(sessionId, false);
         }
 
         @Override

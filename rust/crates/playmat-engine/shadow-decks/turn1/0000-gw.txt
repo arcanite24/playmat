@@ -1,0 +1,13 @@
+// probe round: blockers against attackers
+4 Trueheart Duelist
+4 Brave the Sands
+4 Act of Heroism
+4 Night Market Guard
+4 Silken Strength
+4 Maraleaf Rider
+4 Guardian of the Gateless
+4 Spike-Tailed Ceratops
+4 Llanowar Elves
+2 The Gold Saucer
+11 Plains
+11 Forest

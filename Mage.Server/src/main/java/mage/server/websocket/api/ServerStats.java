@@ -34,8 +34,29 @@ public class ServerStats {
     public BridgeMetrics.BridgeSnapshot bridge;
     /** the nightly backup's last run; null when this server has no backup service */
     public BackupStatus.BackupRun backup;
+    /** free space under db/; null when it can't be read */
+    public mage.server.DiskStatus.Disk disk;
     /** planned maintenance, or null */
     public Maintenance.MaintenancePlan maintenance;
+    /** the Rust AI's games since the server started (docs/rust/Ai.md, docs/rust/Views.md) */
+    public RustAiStats rustAi;
+
+    /** Rust AI games: started, answers given, stopped partway (back to the Java AI), finished; the views compared */
+    public static class RustAiStats {
+        public long started;
+        public long answered;
+        public long stopped;
+        public long finished;
+        /** the human's views the Rust copies rendered and compared with Java's, and those with a field that differs */
+        public long viewsCompared;
+        public long viewsDiffering;
+        /** the human's prompts the copies compared, and those with a field that differs */
+        public long promptsCompared;
+        public long promptsDiffering;
+        /** the game log's lines the copies compared, and those they didn't write the same */
+        public long logLinesCompared;
+        public long logLinesDiffering;
+    }
 
     static ServerStats collect(ManagerFactory managers) {
         ServerStats stats = new ServerStats();
@@ -57,7 +78,20 @@ public class ServerStats {
         stats.threads = ManagementFactory.getThreadMXBean().getThreadCount();
         stats.bridge = BridgeMetrics.get().snapshot();
         stats.backup = BackupStatus.read();
+        stats.disk = mage.server.DiskStatus.read();
         stats.maintenance = Maintenance.get().plan();
+        RustAiStats rust = new RustAiStats();
+        rust.started = mage.game.trace.RustAiBridge.STARTED.get();
+        rust.answered = mage.game.trace.RustAiBridge.ANSWERED.get();
+        rust.stopped = mage.game.trace.RustAiBridge.STOPPED.get();
+        rust.finished = mage.game.trace.RustAiBridge.FINISHED.get();
+        rust.viewsCompared = mage.game.trace.RustAiBridge.VIEWS_COMPARED.get();
+        rust.viewsDiffering = mage.game.trace.RustAiBridge.VIEWS_DIFFERING.get();
+        rust.promptsCompared = mage.game.trace.RustAiBridge.PROMPTS_COMPARED.get();
+        rust.promptsDiffering = mage.game.trace.RustAiBridge.PROMPTS_DIFFERING.get();
+        rust.logLinesCompared = mage.game.trace.RustAiBridge.LOG_LINES_COMPARED.get();
+        rust.logLinesDiffering = mage.game.trace.RustAiBridge.LOG_LINES_DIFFERING.get();
+        stats.rustAi = rust;
         return stats;
     }
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { attackDropTargets, defaultDefender } from '../../core/game/attackTarget';
 import type { GameSession, GameSessionState } from '../../core/game/gameSession';
 import { defenderChoice } from '../../core/game/multiplayer';
@@ -14,15 +14,30 @@ const ANSWER_DELAY_MS = 200;
  */
 export function useAttackTarget(session: GameSession, state: GameSessionState, myId: string | null, defaultToPlayer: boolean) {
   const pending = useRef<{ attackerId: string; defenderId: string; sentFor: Prompt | null; redeclare: boolean } | null>(null);
+  const handled = useRef<Prompt | null>(null);
+  const [manualPrompt, setManualPrompt] = useState<Prompt | null>(null);
   const { prompt, awaitingServer, view } = state;
   const targets = useMemo(() => attackDropTargets(view, myId), [view, myId]);
 
+  // A rejected drop must expose the server's choices even with the player-default setting on.
+  useEffect(() => session.store.subscribe((next) => {
+    const drop = pending.current;
+    if (drop && !next.awaitingServer && next.prompt?.kind === 'target' && defenderChoice(next.prompt, next.view)
+      && !next.prompt.targets.includes(drop.defenderId)) setManualPrompt(next.prompt);
+  }), [session]);
+
   useEffect(() => {
-    if (awaitingServer || !prompt) return;
+    if (awaitingServer || !prompt || prompt === handled.current) return;
     const current = pending.current;
     if (current && prompt === current.sentFor) return;
     const options = defenderChoice(prompt, view);
-    if (current?.redeclare) {
+    if (current?.redeclare && prompt.kind === 'declareAttackers') {
+      // Only reselect after the server confirms removal, never during a nested cost or target choice.
+      if (state.interaction.selected.has(current.attackerId) || !state.interaction.clickable.has(current.attackerId)) {
+        pending.current = null;
+        handled.current = prompt;
+        return;
+      }
       // taken back from its old target: declare it again, and answer the question that follows with the drop
       pending.current = { ...current, sentFor: prompt, redeclare: false };
       session.click(current.attackerId);
@@ -30,6 +45,7 @@ export function useAttackTarget(session: GameSession, state: GameSessionState, m
     }
     if (current) {
       pending.current = null;
+      handled.current = prompt;
       // a drop on something this creature can't attack leaves the question to the player
       if (options && prompt.kind === 'target' && prompt.targets.includes(current.defenderId)) {
         void session.respond({ type: 'uuid', id: current.defenderId }).catch(() => undefined);
@@ -38,17 +54,22 @@ export function useAttackTarget(session: GameSession, state: GameSessionState, m
     }
     const player = defaultToPlayer && options ? defaultDefender(options) : null;
     if (!player) return;
-    const timer = setTimeout(() => void session.respond({ type: 'uuid', id: player }).catch(() => undefined), ANSWER_DELAY_MS);
+    const timer = setTimeout(() => {
+      handled.current = prompt;
+      void session.respond({ type: 'uuid', id: player }).catch(() => undefined);
+    }, ANSWER_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [session, prompt, awaitingServer, view, defaultToPlayer]);
+  }, [session, prompt, awaitingServer, view, defaultToPlayer, state.interaction]);
 
   const onDrop = useCallback((attackerId: string, defenderId: string) => {
     const current = session.getState();
-    if (current.awaitingServer || !current.interaction.clickable.has(attackerId)) return false;
+    if (current.awaitingServer || current.prompt?.kind !== 'declareAttackers' || !targets.has(defenderId) || !current.interaction.clickable.has(attackerId)) return false;
     const redeclare = current.interaction.selected.has(attackerId);
     pending.current = { attackerId, defenderId, sentFor: current.prompt, redeclare };
-    return session.click(attackerId);
-  }, [session]);
+    const sent = session.click(attackerId);
+    if (!sent) pending.current = null;
+    return sent;
+  }, [session, targets]);
 
-  return { onDrop, targets };
+  return { onDrop, targets, manualDefender: manualPrompt === prompt };
 }

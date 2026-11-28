@@ -13,6 +13,8 @@ export interface Wear {
   title: boolean;
   /** bring the pet to the table */
   pet: boolean;
+  /** which owned pet, when the account has more than one (the corgi, the contributors' duck); unset: the corgi first */
+  petId?: string;
 }
 
 export const DEFAULT_WEAR: Wear = { frame: true, flair: true, title: true, pet: true };

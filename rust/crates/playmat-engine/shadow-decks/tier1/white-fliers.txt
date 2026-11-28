@@ -1,0 +1,5 @@
+# Tier 1: keyword creatures
+24 Plains
+12 Savannah Lions
+12 Healer's Hawk
+12 Serra Angel

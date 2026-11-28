@@ -57,6 +57,8 @@ public class CardCriteria {
     private int minCardNumber;
     private int maxCardNumber;
     private String format;
+    /** order by the database's row order after sortBy, so the same query always pages the same way (not from JSON) */
+    private transient boolean stableOrder;
 
     public CardCriteria() {
         this.setCodes = new ArrayList<>();
@@ -382,6 +384,9 @@ public class CardCriteria {
         if (sortBy != null) {
             qb.orderBy(sortBy, true);
         }
+        if (stableOrder) {
+            qb.orderByRaw("_ROWID_");
+        }
     }
 
     private CardCriteria optimize() {
@@ -530,6 +535,11 @@ public class CardCriteria {
 
     public int getMaxCardNumber() {
         return maxCardNumber;
+    }
+
+    public CardCriteria stableOrder() {
+        this.stableOrder = true;
+        return this;
     }
 
     public CardCriteria format(String format) {

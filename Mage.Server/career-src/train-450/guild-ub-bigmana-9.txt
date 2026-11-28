@@ -1,0 +1,21 @@
+# name: Train450 guild-ub-bigmana-9
+# archetype: bigmana
+# colors: UB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Blessing of Belzenlok
+3 Bloodvial Purveyor
+4 Depart the Realm
+3 Djinn of Wishes
+4 Doom Whisperer
+2 Faerie Miscreant
+2 Failed Fording
+3 Gurmag Swiftwing
+4 Hunted Nightmare
+4 Maha, Its Feathers Night
+2 Proft, Sinister Mastermind
+1 Skyswimmer Koi
+1 Surveillance Phantasm
+6 Island
+4 Sinister Hideout
+11 Swamp
+4 Temple of Deceit

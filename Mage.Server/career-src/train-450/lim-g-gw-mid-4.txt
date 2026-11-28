@@ -1,0 +1,34 @@
+# name: Train450 lim-g-gw-mid-4
+# archetype: limited_mid
+# colors: GW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Acrobatic Maneuver
+1 Agonasaur Rex
+1 Barkform Harvester
+2 Beorn, Reluctant Host
+1 Bright Reprisal
+1 Budding Insurgent
+2 Daydream
+2 Dust Animus
+2 Encumbered Reejerey
+1 Fang-Druid Summoner
+1 Fierce Retribution
+1 Hill Giant Herdgorger
+1 Kaheera, the Orphanguard
+1 Leaping Ambush
+2 Ledev Guardian
+1 Malamet Battle Glyph
+2 Nylea, God of the Hunt
+2 Ojutai Exemplars
+1 Recruitment Officer
+2 Sagu Pummeler
+1 Sarkhan's Resolve
+1 Stagecoach Security
+2 Starfighter Pilot
+1 Sundering Growth
+2 Thalia, Heretic Cathar
+1 Wasteland Viper
+4 Canopy Vista
+7 Forest
+4 Lush Portico
+9 Plains

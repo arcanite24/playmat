@@ -112,7 +112,7 @@ final class SupportApi {
                                 }
                             }
                             List<PlayerLook> looks = support(() -> Support.get().looks(names));
-                            return withLevels(ctx, names, looks);
+                            return withBotLooks(names, withLevels(ctx, names, looks));
                         }),
 
                 RpcMethod.named("adminSupportLedger")
@@ -179,6 +179,25 @@ final class SupportApi {
                             });
                             Staff.audit(actor, "support.grant", name, null, reason);
                             return you;
+                        }),
+
+                RpcMethod.named("adminContributorGrant")
+                        .params(of("userName", STRING), of("reason", STRING))
+                        .returns("boolean")
+                        .doc("Staff (admin): give an account the contributors' pet, for people who keep reporting bugs, asking for features or sending pull requests. False when the account already had it.")
+                        .handler(call -> {
+                            String actor = Staff.require(ctx, call, StaffRole.ADMIN);
+                            String reason = call.string(1).trim();
+                            if (reason.isEmpty()) {
+                                throw RpcException.invalidParams("Say why; it goes in the audit log");
+                            }
+                            String name = call.string(0).trim();
+                            if (name.isEmpty()) {
+                                throw RpcException.invalidParams("Which account?");
+                            }
+                            boolean added = support(() -> Support.get().grantContributor(name, System.currentTimeMillis()));
+                            Staff.audit(actor, "support.contributor", name, added ? null : "already had it", reason);
+                            return added;
                         })
         );
     }
@@ -227,6 +246,53 @@ final class SupportApi {
                 all.add(look);
             }
             look.level = entry.getValue();
+        }
+        return all;
+    }
+
+    /** fills in ladder bots' cosmetic personas (avatar, frame, title, sleeve, playmat) when no human look exists */
+    static List<PlayerLook> withBotLooks(List<String> names, List<PlayerLook> looks) {
+        mage.server.ladder.BotRoster roster;
+        try {
+            roster = mage.server.ladder.BotRoster.get();
+        } catch (RuntimeException e) {
+            return looks;
+        }
+        return withBotLooks(names, looks, roster);
+    }
+
+    static List<PlayerLook> withBotLooks(List<String> names, List<PlayerLook> looks, mage.server.ladder.BotRoster roster) {
+        if (roster == null || names == null || names.isEmpty()) {
+            return looks;
+        }
+        java.util.Set<String> present = new java.util.HashSet<>();
+        for (PlayerLook look : looks) {
+            if (look != null && look.name != null) {
+                present.add(look.name.trim().toLowerCase(java.util.Locale.ROOT));
+            }
+        }
+        List<PlayerLook> all = new ArrayList<>(looks);
+        for (String raw : names) {
+            if (raw == null) {
+                continue;
+            }
+            String key = raw.trim().toLowerCase(java.util.Locale.ROOT);
+            if (key.isEmpty() || present.contains(key)) {
+                continue;
+            }
+            mage.server.ladder.BotRoster.Persona persona = roster.personaByName(key);
+            if (persona == null) {
+                continue;
+            }
+            PlayerLook botLook = new PlayerLook();
+            botLook.name = persona.name;
+            botLook.avatar = persona.avatar;
+            botLook.sleeve = persona.sleeve;
+            botLook.cloth = persona.playmat;
+            botLook.frame = persona.frame;
+            botLook.title = persona.title;
+            all.add(botLook);
+            present.add(key);
         }
         return all;
     }

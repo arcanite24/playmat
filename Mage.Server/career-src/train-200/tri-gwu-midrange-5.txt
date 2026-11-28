@@ -1,0 +1,21 @@
+# name: Train200 tri-gwu-midrange-5
+# archetype: midrange
+# colors: GWU
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Befuddle
+1 Compelling Deterrence
+4 Expose to Daylight
+4 Gigantic Big Bear
+4 Loch Mare
+3 Lurking Roper
+3 Prophesied End
+3 Pugnacious Hammerskull
+2 Righteous Valkyrie
+4 Sleep-Cursed Faerie
+4 Vile Redeemer
+4 Forest
+5 Island
+4 Lush Portico
+3 Plains
+4 Selesnya Guildgate
+4 Simic Guildgate

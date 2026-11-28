@@ -1,0 +1,22 @@
+# name: Train450 guild-wb-midrange-8
+# archetype: midrange
+# colors: WB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Anoint with Affliction
+1 Baneslayer Angel
+2 Beckon Apparition
+4 Crush Contraband
+3 Dread Wanderer
+3 Dutiful Griffin
+4 Eddie Brock
+3 Graveyard Trespasser
+2 Honor
+1 Iridescent Vinelasher
+3 Manticore
+2 Plunge into Winter
+2 Sage of the Skies
+4 Skittering Heartstopper
+4 Neglected Manor
+7 Plains
+4 Scoured Barrens
+9 Swamp

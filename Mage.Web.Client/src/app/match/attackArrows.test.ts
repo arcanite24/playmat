@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { PermanentView, PlayerView } from '../../protocol/generated/views';
+import type { CombatGroupView, PermanentView, PlayerView } from '../../protocol/generated/views';
 import { buildPlayerBoard } from './boardModel';
-import { bundleAttacks, isTrunk, stackLeads, TRUNK_MIN_STACKS, trunkJoin } from './attackArrows';
+import { bundleAttacks, combatArrows, isTrunk, stackLeads, TRUNK_MIN_STACKS, trunkJoin } from './attackArrows';
 
 function goblin(id: string, overrides: Partial<PermanentView> = {}): PermanentView {
   return { id, name: 'Goblin', expansionSetCode: 'TKN', cardTypes: ['CREATURE'], isToken: true, power: '3', toughness: '3', ...overrides };
@@ -52,5 +52,31 @@ describe('trunkJoin', () => {
     expect(trunkJoin([{ x: 0, y: 300 }, { x: 100, y: 380 }], { x: 50, y: 960 })).toEqual({ x: 50, y: 470 });
     // never past the defender itself
     expect(trunkJoin([{ x: 0, y: 600 }], { x: 0, y: 560 })).toEqual({ x: 0, y: 560 });
+  });
+});
+
+describe('combatArrows', () => {
+  const bear = goblin('bear');
+  const wurm = goblin('wurm', { rules: ['Trample'] });
+  const wall = goblin('wall');
+  const wall2 = goblin('wall2');
+
+  it('points an unblocked attacker at whom it attacks', () => {
+    expect(combatArrows([{ attackers: { bear }, blockers: {}, defenderId: 'them' }]).attacks).toEqual([['bear', 'them']]);
+  });
+
+  it('points a blocked attacker at each of its blockers, which it swings at', () => {
+    const { attacks, attacking, blocking } = combatArrows([{ attackers: { bear }, blockers: { wall, wall2 }, defenderId: 'them', isBlocked: true }]);
+    expect(attacks).toEqual([['bear', 'wall'], ['bear', 'wall2']]);
+    expect([...attacking]).toEqual(['bear']);
+    expect([...blocking]).toEqual(['wall', 'wall2']);
+  });
+
+  it('drops the arrow of a blocked attacker whose blockers left, unless it tramples over to the player', () => {
+    const groups: CombatGroupView[] = [
+      { attackers: { bear }, blockers: {}, defenderId: 'them', isBlocked: true },
+      { attackers: { wurm }, blockers: {}, defenderId: 'them', isBlocked: true },
+    ];
+    expect(combatArrows(groups).attacks).toEqual([['wurm', 'them']]);
   });
 });

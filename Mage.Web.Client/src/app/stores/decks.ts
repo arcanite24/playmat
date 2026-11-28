@@ -4,6 +4,7 @@ import { deckStorage, type DeckSummary } from '../../core/decks/DeckStorageServi
 import { DeckSerializer } from '../../core/decks/DeckSerializer';
 import { copyName } from '../../core/decks/exportFormats';
 import type { DeckCardLists, DeckImportSource } from '../../core/decks/types';
+import { cleanTags, NO_SHELF_FILTER, type ShelfFilter } from '../../core/decks/tags';
 import { pickMetaDeck, type MetaDeck, type MetaDeckIndex } from '../../core/decks/metaDecks';
 import { readJson, writeJson } from './persist';
 import { RANDOM_SLEEVE, randomSleeveFor } from '../ui/sleeveArt';
@@ -23,6 +24,9 @@ export interface RosterDeck {
   name: string;
   note: string;
   cardCount: number;
+  sideboardCount?: number;
+  format?: string;
+  updatedAt?: number;
   cover: { name?: string; setCode: string; cardNumber: string } | null;
   colors: string[];
   starter: StarterDeck | null;
@@ -30,10 +34,17 @@ export interface RosterDeck {
   fromStarter?: boolean;
   /** the deck website it was imported from */
   source?: DeckImportSource;
+  /** the deck's own token pictures, over the account's (ui/tokenArt.ts) */
+  tokenArt?: Record<string, string>;
+  /** the player's labels (#200) */
+  tags: string[];
+  /** still being worked on (#200) */
+  draft: boolean;
 }
 
 const SELECTED_KEY = 'playmat.selectedDeck';
 const SLEEVES_KEY = 'playmat.sleeves';
+const SHELF_FILTER_KEY = 'playmat.deckShelfFilter';
 export const STARTER_PREFIX = 'starter:';
 /** an AI format deck (public/meta-decks) in the AI settings */
 export const META_PREFIX = 'meta:';
@@ -54,10 +65,16 @@ function summaryToRoster(deck: DeckSummary): RosterDeck {
     name: deck.name || 'Untitled deck',
     note: deck.format ? `${formatRules(deck.format).label} · ${size}` : size,
     cardCount: deck.cardCount ?? 0,
+    sideboardCount: deck.sideboardCount ?? 0,
+    format: deck.format,
+    updatedAt: deck.updatedAt,
     cover: deck.coverCard ?? null,
     colors,
     starter: null,
     source: deck.source,
+    tokenArt: deck.tokenArt,
+    tags: cleanTags(deck.tags),
+    draft: !!deck.draft,
   };
 }
 
@@ -67,9 +84,13 @@ function starterToRoster(starter: StarterDeck): RosterDeck {
     name: starter.name,
     note: `${isCommanderFormat(starter.format) ? 'Commander starter' : 'Starter deck'} · ${starter.cards} cards`,
     cardCount: starter.cards,
+    sideboardCount: 0,
+    format: starter.format,
     cover: starter.cover,
     colors: [],
     starter,
+    tags: [],
+    draft: false,
   };
 }
 
@@ -80,10 +101,13 @@ export interface DeckLibraryState {
   metaDecks: MetaDeck[];
   selectedId: string | null;
   sleeves: Record<string, string>;
+  /** what the deck shelf shows: one tag, and whether drafts are left out (#200) */
+  shelfFilter: ShelfFilter;
   loaded: boolean;
   refresh(): Promise<void>;
   select(id: string): void;
   setSleeve(id: string, color: string): void;
+  setShelfFilter(filter: Partial<ShelfFilter>): void;
   /** the deck list to send to the server; starter decks are saved to the library on first use */
   loadForPlay(id: string): Promise<{ deck: DeckCardLists; id: string; meta?: MetaDeck }>;
   /** a deck from the import sheet, saved as a new deck and selected */
@@ -94,6 +118,12 @@ export interface DeckLibraryState {
   /** a saved copy of a deck under a new name ("Burn (copy)"), with the same sleeve; selected, returns its id */
   duplicate(id: string): Promise<string>;
   rename(id: string, name: string): Promise<void>;
+  /** a saved deck's labels, cleaned (#200) */
+  setTags(id: string, tags: string[]): Promise<void>;
+  /** mark a saved deck as a draft, or as finished (#200) */
+  setDraft(id: string, draft: boolean): Promise<void>;
+  /** a saved deck as it is now, changed by `update` and saved under its own id */
+  updateSaved(id: string, update: (deck: DeckCardLists) => DeckCardLists): Promise<void>;
   /** the full deck list of a roster deck (saved or starter) without saving anything */
   loadList(id: string): Promise<DeckCardLists>;
 }
@@ -135,6 +165,7 @@ export const useDecks = create<DeckLibraryState>((set, get) => ({
   metaDecks: [],
   selectedId: readJson<string | null>(SELECTED_KEY, null),
   sleeves: readJson<Record<string, string>>(SLEEVES_KEY, {}),
+  shelfFilter: { ...NO_SHELF_FILTER, ...readJson<Partial<ShelfFilter>>(SHELF_FILTER_KEY, {}) },
   loaded: false,
 
   async refresh() {
@@ -161,6 +192,12 @@ export const useDecks = create<DeckLibraryState>((set, get) => ({
     const sleeves = { ...get().sleeves, [id]: color };
     writeJson(SLEEVES_KEY, sleeves);
     set({ sleeves });
+  },
+
+  setShelfFilter(patch) {
+    const shelfFilter = { ...get().shelfFilter, ...patch };
+    writeJson(SHELF_FILTER_KEY, shelfFilter);
+    set({ shelfFilter });
   },
 
   async loadForPlay(id) {
@@ -232,6 +269,22 @@ export const useDecks = create<DeckLibraryState>((set, get) => ({
     await get().refresh();
   },
 
+  async setTags(id, tags) {
+    const clean = cleanTags(tags);
+    await get().updateSaved(id, (deck) => ({ ...deck, tags: clean.length > 0 ? clean : undefined }));
+  },
+
+  async setDraft(id, draft) {
+    await get().updateSaved(id, (deck) => ({ ...deck, draft: draft || undefined }));
+  },
+
+  async updateSaved(id, update) {
+    const deck = await deckStorage.loadDeck(id);
+    if (!deck) throw new Error('That deck is no longer saved.');
+    await deckStorage.saveDeck({ ...update({ ...deck, id }), id });
+    await get().refresh();
+  },
+
   async loadList(id) {
     if (id.startsWith(STARTER_PREFIX)) {
       const starter = get().starters.find((candidate) => STARTER_PREFIX + candidate.file === id);
@@ -244,11 +297,12 @@ export const useDecks = create<DeckLibraryState>((set, get) => ({
   },
 }));
 
-export function rosterOf(state: Pick<DeckLibraryState, 'saved' | 'starters'>): RosterDeck[] {
+export function rosterOf(state: Pick<DeckLibraryState, 'saved' | 'starters'>, hideStarterDecks = false): RosterDeck[] {
   const savedNames = new Set(state.saved.map((deck) => deck.name));
   const starterNames = new Set(state.starters.map((starter) => starter.name));
   // starters already saved by the player don't show twice: the copy stands in for them, and says where it came from
   const saved = state.saved.map((deck) => (starterNames.has(deck.name) ? { ...deck, fromStarter: true } : deck));
+  if (hideStarterDecks) return saved;
   return [...saved, ...state.starters.filter((starter) => !savedNames.has(starter.name)).map(starterToRoster)];
 }
 

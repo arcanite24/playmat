@@ -1,0 +1,205 @@
+//! State fingerprints, text version 2 (docs/rust/StateFingerprint.md): the game as plain text two engines agree on,
+//! and its FNV-1a 64 hash. Java: `mage.game.trace.StateFingerprint`.
+
+use crate::state::{Game, ObjId};
+
+pub const VERSION: u32 = 2;
+
+pub fn hash_text(text: &str) -> String {
+    let mut hash: u64 = 0xcbf29ce484222325;
+    for b in text.as_bytes() {
+        hash ^= *b as u64;
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    format!("{:016x}", hash)
+}
+
+pub fn hash(game: &Game) -> String {
+    hash_text(&text(game))
+}
+
+fn seat(s: Option<usize>) -> String {
+    s.map(|s| s.to_string()).unwrap_or_else(|| "-".to_string())
+}
+
+pub(crate) fn counters(counters: &[(String, i32)]) -> String {
+    let mut sorted: Vec<&(String, i32)> = counters.iter().filter(|(_, n)| *n != 0).collect();
+    if sorted.is_empty() {
+        return "-".to_string();
+    }
+    sorted.sort_by(|a, b| a.0.cmp(&b.0));
+    sorted.iter().map(|(name, n)| format!("{}={}", name, n)).collect::<Vec<_>>().join(",")
+}
+
+pub fn text(game: &Game) -> String {
+    let mut out = String::new();
+    out.push_str(&format!("v{}\n", VERSION));
+    out.push_str(&format!(
+        "turn {} step {} active {} priority {}\n",
+        game.turn,
+        game.step.map(|s| s.name()).unwrap_or("-"),
+        seat(game.active),
+        seat(game.priority)
+    ));
+    for (i, player) in game.players.iter().enumerate() {
+        out.push_str(&format!(
+            "player {} life {} counters {}{}{}\n",
+            i,
+            player.life,
+            counters(&player.counters),
+            if player.lost || player.drew { " lost" } else { "" },
+            if player.won { " won" } else { "" }
+        ));
+        // as Java's trace sees the end: the loser's (or drawn player's) cards are gone from hand, library and
+        // graveyard (their permanents stay), though continuous effects still counted them
+        let gone = |ids: &[ObjId]| -> Vec<ObjId> {
+            if game.over && (player.lost || player.drew) {
+                Vec::new()
+            } else {
+                ids.to_vec()
+            }
+        };
+        let (h, l, g) = (gone(&player.hand), gone(&player.library), gone(&player.graveyard));
+        let mut hand: Vec<&str> = h.iter().map(|id| game.obj(*id).name()).collect();
+        hand.sort();
+        out.push_str(&format!(" hand {}\n", hand.join("|")));
+        let library: Vec<&str> = l.iter().map(|id| game.obj(*id).name()).collect();
+        out.push_str(&format!(" library {}\n", library.join("|")));
+        let graveyard: Vec<&str> = g.iter().map(|id| game.obj(*id).name()).collect();
+        out.push_str(&format!(" graveyard {}\n", graveyard.join("|")));
+    }
+    let mut exile: Vec<&str> = game.exile.iter().map(|id| game.obj(*id).name()).collect();
+    exile.sort();
+    out.push_str(&format!("exile {}\n", exile.join("|")));
+    let mut battlefield: Vec<String> = game
+        .all_permanents()
+        .iter()
+        .map(|id| {
+            let o = game.obj(*id);
+            let (p, t) = game.power_toughness(*id);
+            format!(
+                "{} {}{}{} {}/{} dmg {}{}{} counters {}",
+                seat(Some(o.controller)),
+                o.name(),
+                if o.tapped { " T" } else { " U" },
+                if o.face_down { " facedown" } else { "" },
+                p,
+                t,
+                o.damage,
+                if o.attacking.is_some() { " attacking" } else { "" },
+                if o.blocks > 0 { " blocking" } else { "" },
+                counters(&o.counters)
+            )
+        })
+        .collect();
+    battlefield.sort();
+    for line in battlefield {
+        out.push_str(&format!("bf {}\n", line));
+    }
+    for item in game.stack.iter().rev() {
+        out.push_str(&format!("stack {} {}\n", item.controller, without_object_ids(&game.stack_name(item))));
+    }
+    out
+}
+
+/// `StateFingerprint.withoutObjectIds`: each log name in a stack object's name (`<font color='…' object_id='…'>Name
+/// </font> [abc]`) as the name alone: a delayed "sacrifice it" or cipher's trigger names its object so, and Java's
+/// object id is random
+pub(crate) fn without_object_ids(name: &str) -> String {
+    let out = if name.contains("object_id='") { replace_names(name, log_name) } else { name.to_string() };
+    // and each tooltip id name (`GameLog.getColoredObjectIdNameForTooltip`, `<font color='…'>Name [abc]</font>`:
+    // Gruul Ragebeast's "Your fighting creature: …"), whose id is random too
+    if out.contains("<font color='") {
+        replace_names(&out, tooltip_name)
+    } else {
+        out
+    }
+}
+
+/// `name` with each match `at` finds (its plain name, the length it takes) replaced by the plain name
+fn replace_names(name: &str, at: fn(&str) -> Option<(&str, usize)>) -> String {
+    const OPEN: &str = "<font color='";
+    let mut out = String::new();
+    let mut rest = name;
+    while let Some(k) = rest.find(OPEN) {
+        out.push_str(&rest[..k]);
+        let tail = &rest[k..];
+        match at(tail) {
+            Some((plain, used)) => {
+                out.push_str(plain);
+                rest = &tail[used..];
+            }
+            None => {
+                out.push_str(OPEN);
+                rest = &tail[OPEN.len()..];
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+/// Java's `<font color='[^']*'>([^<]*) \[[0-9a-f]{3}\]</font>` at the start of `s`: the name, and the length it
+/// takes
+fn tooltip_name(s: &str) -> Option<(&str, usize)> {
+    let mut i = "<font color='".len();
+    i += s[i..].find('\'')? + 1;
+    s[i..].strip_prefix('>')?;
+    i += 1;
+    let end = i + s[i..].find('<')?;
+    let inner = &s[i..end];
+    s[end..].strip_prefix("</font>")?;
+    let (name, id) = inner.rsplit_once(" [")?;
+    let id = id.strip_suffix(']')?;
+    (id.len() == 3 && id.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))).then_some(())?;
+    Some((name, end + "</font>".len()))
+}
+
+/// Java's `<font color='[^']*' object_id='[^']*'>([^<]*)</font> \[[^\]]*\]` at the start of `s`: the name, and the
+/// length it takes
+fn log_name(s: &str) -> Option<(&str, usize)> {
+    let mut i = "<font color='".len();
+    i += s[i..].find('\'')? + 1;
+    s[i..].strip_prefix(" object_id='")?;
+    i += " object_id='".len();
+    i += s[i..].find('\'')? + 1;
+    s[i..].strip_prefix('>')?;
+    i += 1;
+    let name_end = i + s[i..].find('<')?;
+    let name = &s[i..name_end];
+    s[name_end..].strip_prefix("</font> [")?;
+    i = name_end + "</font> [".len();
+    i += s[i..].find(']')? + 1;
+    Some((name, i))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fnv_test_vectors() {
+        assert_eq!(hash_text(""), "cbf29ce484222325");
+        assert_eq!(hash_text("a"), "af63dc4c8601ec8c");
+        assert_eq!(hash_text("foobar"), "85944171f73967e8");
+    }
+
+    #[test]
+    fn log_names_lose_their_ids() {
+        let s = "stack ability (At the beginning of the next end step, sacrifice <font color='#87CEFA' \
+                 object_id='B17'>Mirrorshell Crab</font> [B17].)";
+        assert_eq!(
+            without_object_ids(s),
+            "stack ability (At the beginning of the next end step, sacrifice Mirrorshell Crab.)"
+        );
+        let plain = "<font color='x'>no id</font> and object_id='";
+        assert_eq!(without_object_ids(plain), plain);
+        let tooltip =
+            "fights target creature an opponent controls. Your fighting creature: <font color='#A97A00'>Gruul \
+                       Ragebeast [2b1]</font>.";
+        assert_eq!(
+            without_object_ids(tooltip),
+            "fights target creature an opponent controls. Your fighting creature: Gruul Ragebeast."
+        );
+    }
+}

@@ -1,0 +1,35 @@
+# name: Train450 lim-t-wub-ctrl-3
+# archetype: limited_ctrl
+# colors: WUB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Arcanist's Owl
+2 Coerced Confession
+1 Collective Brutality
+2 Court Cleric
+2 Darklight Phoenix
+2 Don't Make a Sound
+1 Edgar, Charmed Groom
+2 Fear of Immobility
+1 Final Reward
+2 Ghirapur Osprey
+1 Hour of Glory
+1 Insidious Will
+2 Joint Exploration
+1 Kinzu of the Bleak Coven
+1 Miasma Demon
+1 Nightmare's Thirst
+1 Ob Nixilis, Unshackled
+2 Perilous Voyage
+2 Prideful Feastling
+1 Shocking Grasp
+1 Snare Thopter
+1 Teysa, Opulent Oligarch
+1 Theorix Charm
+2 Thraben Gargoyle
+1 Westgate Regent
+4 Azorius Guildgate
+4 Drowned Catacomb
+4 Island
+4 Plains
+5 Swamp
+4 Waterfront District

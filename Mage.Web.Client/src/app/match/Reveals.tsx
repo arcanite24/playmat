@@ -1,18 +1,16 @@
 import { X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { revealGroups, revealLabel, revealSeat, type RevealGroup } from '../../core/game/reveals';
-import type { GameView } from '../../protocol/generated/views';
+import { revealLabel, revealSeat, type RevealGroup } from '../../core/game/reveals';
 import { CardFace } from '../ui/CardFace';
 import { useMatchUi } from './matchUi';
 import styles from './Reveals.module.css';
 
 /**
- * Revealed and looked-at cards, as a strip at the seat of the player whose cards they are, next to the seam. The
+ * This turn's revealed and looked-at cards (useReveals), as a strip at the seat of the player whose cards they are, next to the seam. The
  * newest reveal shows; click it to read the cards, dismiss it once seen. Fresh reveals are marked until opened. With
  * `autoDismiss` (Settings: Hide revealed cards after a moment), a strip goes away by itself unless pointed at.
  */
-export function Reveals({ view, myPlayerId, opponentIds, autoDismiss = false }: { view: GameView | null; myPlayerId: string | null; opponentIds: string[]; autoDismiss?: boolean }) {
-  const groups = useMemo(() => revealGroups(view), [view]);
+export function Reveals({ groups, myPlayerId, opponentIds, autoDismiss = false }: { groups: RevealGroup[]; myPlayerId: string | null; opponentIds: string[]; autoDismiss?: boolean }) {
   const [seen, setSeen] = useState<ReadonlySet<string>>(() => new Set());
   const [dismissed, setDismissed] = useState<ReadonlySet<string>>(() => new Set());
   const openViewer = useMatchUi((state) => state.openViewer);

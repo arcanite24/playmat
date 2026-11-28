@@ -1,0 +1,37 @@
+# name: Train450 lim-g-rg-mid-3
+# archetype: limited_mid
+# colors: RG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Aggressive Urge
+1 Airship Crash
+1 Ambush Krotiq
+1 Augmenter Pugilist
+1 Betrayer's Bargain
+1 Buccaneer's Bravado
+2 Carnivorous Cultivator
+1 Circle of Elders
+1 Clockwork Percussionist
+1 Cowl Prowler
+1 Crash and Burn
+1 Deeproot Warrior
+1 Draconic Visitor
+1 Flame-Blessed Bolt
+2 Flamekin Gildweaver
+1 Foundry Inspector
+1 Gargoyle Sentinel
+1 Hewed Stone Retainers
+1 Keen-Eyed Curator
+1 Mouser Attack!
+1 Old-Growth Dryads
+2 Outcaster Trailblazer
+1 Professional Wrestler
+1 Scrapyard Steelbreaker
+1 Skystinger
+1 Spikefield Hazard
+2 Thran Spider
+2 Torgal, A Fine Hound
+2 Walker of the Wastes
+10 Forest
+4 Gongaga, Reactor Town
+4 Los Diablos Missile Base
+6 Mountain

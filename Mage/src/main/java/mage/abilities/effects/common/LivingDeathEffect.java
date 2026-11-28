@@ -57,7 +57,7 @@ public class LivingDeathEffect extends OneShotEffect {
             game.processAction();
 
             // Exiled cards are put onto the battlefield at the same time under their owner's control
-            Set<Card> cardsToReturnFromExile = new HashSet<>();
+            Set<Card> cardsToReturnFromExile = new LinkedHashSet<>(); // in a fixed order, which the Rust engine follows
             for (UUID playerId : game.getState().getPlayersInRange(source.getControllerId(), game)) {
                 Player player = game.getPlayer(playerId);
                 if (player != null) {

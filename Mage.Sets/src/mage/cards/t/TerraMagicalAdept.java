@@ -12,6 +12,7 @@ import mage.abilities.effects.common.CreateTokenCopyTargetEffect;
 import mage.abilities.effects.common.ExileAndReturnSourceEffect;
 import mage.abilities.effects.common.ExileSourceAndReturnFaceUpEffect;
 import mage.abilities.effects.common.MillThenPutInHandEffect;
+import mage.abilities.effects.common.continuous.GainAbilityTargetEffect;
 import mage.abilities.effects.mana.BasicManaEffect;
 import mage.abilities.keyword.FlyingAbility;
 import mage.abilities.keyword.HasteAbility;
@@ -26,6 +27,7 @@ import mage.filter.predicate.Predicates;
 import mage.game.Game;
 import mage.game.permanent.Permanent;
 import mage.target.TargetPermanent;
+import mage.target.targetpointer.FixedTargets;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -124,8 +126,12 @@ class EsperTerraEffect extends OneShotEffect {
         }
         CreateTokenCopyTargetEffect effect = new CreateTokenCopyTargetEffect();
         effect.setSavedPermanent(permanent);
-        effect.addAdditionalAbilities(HasteAbility.getInstance());
         effect.apply(game, source);
+        if (!effect.getAddedPermanents().isEmpty()) {
+            game.addEffect(new GainAbilityTargetEffect(
+                    HasteAbility.getInstance(), Duration.Custom
+            ).setTargetPointer(new FixedTargets(effect.getAddedPermanents(), game)), source);
+        }
         for (Permanent token : effect.getAddedPermanents()) {
             if (!token.hasSubtype(SubType.SAGA, game)) {
                 continue;

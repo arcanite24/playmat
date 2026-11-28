@@ -1,15 +1,26 @@
 package mage.server.websocket.api;
 
 import mage.cards.decks.DeckCardLists;
+import mage.server.AuthorizedUserRepository;
 import mage.server.User;
+import mage.server.admin.RuntimeSettings;
+import mage.server.career.CareerStore;
+import mage.server.game.GamesRoom;
+import mage.server.social.PlayerDirectory;
+import mage.server.social.Presence;
+import mage.server.social.PresenceStore;
 import mage.server.social.UserRelations;
 import mage.server.websocket.rpc.RpcException;
 import mage.server.websocket.rpc.RpcMethod;
 import mage.server.websocket.service.OptionsMapper;
+import mage.view.RoomUsersView;
 
+import java.sql.SQLException;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import static mage.server.websocket.rpc.RpcParam.Type.INT;
 import static mage.server.websocket.rpc.RpcParam.Type.STRING;
@@ -23,7 +34,44 @@ import static mage.server.websocket.rpc.RpcParam.optional;
  */
 final class LobbyApi {
 
+    /** What presenceGet and presenceSet answer. */
+    public static class PresenceStatus {
+        /** online, hidden or looking */
+        public String status;
+
+        PresenceStatus(String status) {
+            this.status = status;
+        }
+    }
+
     private LobbyApi() {
+    }
+
+    private static String signedIn(ApiContext ctx, mage.server.websocket.rpc.RpcCall call) throws RpcException {
+        return ctx.sessions.userName(call.sessionId()).orElseThrow(() -> RpcException.notAuthorized("Sign in first"));
+    }
+
+    /** The room's users as the caller may see them (Presence.visible): staff are looked up only when someone is hidden. */
+    static List<RoomUsersView> roomUsers(ApiContext ctx, mage.server.websocket.rpc.RpcCall call) throws Exception {
+        java.util.UUID roomId = call.uuid(0);
+        List<RoomUsersView> rooms = ctx.managers == null
+                ? ctx.server.roomGetUsers(roomId)
+                : ctx.managers.gamesRoomManager().getRoom(roomId).map(GamesRoom::getRoomUsersInfo).orElse(Collections.emptyList());
+        boolean anyHidden = rooms != null && rooms.stream().anyMatch(room -> room.getUsersView().stream()
+                .anyMatch(user -> Presence.HIDDEN.equals(user.getStatus())));
+        if (!anyHidden) {
+            return rooms;
+        }
+        String viewer = ctx.sessions == null ? null : ctx.sessions.userName(call.sessionId()).orElse(null);
+        return Presence.visibleRooms(rooms, viewer, Staff.member(ctx, call.sessionId()) != null);
+    }
+
+    private static Map<String, Integer> levels(Collection<String> names) {
+        try {
+            return CareerStore.get().levels(names);
+        } catch (SQLException | RuntimeException e) {
+            return Collections.emptyMap();
+        }
     }
 
     static List<RpcMethod> methods(ApiContext ctx) {
@@ -37,8 +85,60 @@ final class LobbyApi {
                 RpcMethod.named("roomGetUsers")
                         .params(of("roomId", UUID))
                         .returns("RoomUsersView[]")
-                        .doc("Users and server statistics of a room.")
-                        .handler(call -> ctx.server.roomGetUsers(call.uuid(0))),
+                        .doc("Users and server statistics of a room. Players who chose to appear offline (presenceSet) are left out, "
+                                + "except the caller themselves and for staff; each user's status says online, looking (to play) or hidden.")
+                        .handler(call -> roomUsers(ctx, call)),
+
+                RpcMethod.named("presenceGet")
+                        .returns("PresenceStatus")
+                        .doc("The status the signed-in player chose: online, hidden (appear offline) or looking (to play).")
+                        .handler(call -> {
+                            String userName = signedIn(ctx, call);
+                            return new PresenceStatus(Presence.statusOf(userName));
+                        }),
+
+                RpcMethod.named("presenceSet")
+                        .params(of("status", STRING))
+                        .returns("PresenceStatus")
+                        .doc("Choose how the signed-in player shows to others, until they change it again (it lasts across sessions): "
+                                + "online, hidden (left out of the online list, so friends see them offline; whispers only from players "
+                                + "they whispered first) or looking (to play, shown beside the name).")
+                        .handler(call -> {
+                            String userName = signedIn(ctx, call);
+                            String status = call.string(0);
+                            if (!Presence.known(status)) {
+                                throw RpcException.invalidParams("The status is online, hidden or looking");
+                            }
+                            PresenceStore store = PresenceStore.get();
+                            if (store == null) {
+                                throw new RpcException(RpcException.SERVER_ERROR, "The status can't be stored on this server right now");
+                            }
+                            try {
+                                store.set(userName, status, System.currentTimeMillis());
+                            } catch (SQLException e) {
+                                throw new RpcException(RpcException.SERVER_ERROR, "The status can't be stored on this server right now", e);
+                            }
+                            return new PresenceStatus(store.status(userName));
+                        }),
+
+                RpcMethod.named("playerDirectory")
+                        .params(optional("query", STRING), optional("offset", INT))
+                        .returns("DirectoryPage")
+                        .doc("The server's registered players, " + PlayerDirectory.PAGE_SIZE + " at a time, by name: each one's name, Career "
+                                + "level (when Career is on) and whether they are online (hidden players show offline, except to staff). "
+                                + "query matches names only. enabled is false when staff turned the directory off or the server has no accounts.")
+                        .handler(call -> {
+                            String viewer = signedIn(ctx, call);
+                            if (ctx.managers == null || !ctx.managers.configSettings().isAuthenticationActivated()
+                                    || !RuntimeSettings.get().directoryOn()) {
+                                return PlayerDirectory.disabled();
+                            }
+                            boolean staff = Staff.member(ctx, call.sessionId()) != null;
+                            return PlayerDirectory.page(AuthorizedUserRepository.getInstance(), call.optString(0, ""), call.optInteger(1, 0),
+                                    viewer, staff,
+                                    name -> ctx.managers.userManager().getUserByName(name).map(User::isOnlineUser).orElse(false),
+                                    CareerApi.enabled(ctx) ? LobbyApi::levels : null);
+                        }),
 
                 RpcMethod.named("roomGetAllTables")
                         .params(of("roomId", UUID))

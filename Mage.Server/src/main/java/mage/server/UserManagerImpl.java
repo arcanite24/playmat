@@ -2,6 +2,7 @@ package mage.server;
 
 import mage.server.managers.ManagerFactory;
 import mage.server.managers.UserManager;
+import mage.server.social.Presence;
 import mage.server.social.UserRelations;
 import mage.server.record.UserStats;
 import mage.server.record.UserStatsRepository;
@@ -48,6 +49,8 @@ public class UserManagerImpl implements UserManager {
 
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     private final ConcurrentHashMap<UUID, User> users = new ConcurrentHashMap<>();
+    // users whose opponents were told about connection problems: they hear "has reconnected" when activity resumes
+    private final java.util.Set<UUID> troubledUsers = ConcurrentHashMap.newKeySet();
 
     private ExecutorService USER_EXECUTOR;
 
@@ -70,6 +73,11 @@ public class UserManagerImpl implements UserManager {
         final Lock w = lock.writeLock();
         w.lock();
         try {
+            for (User existing : users.values()) {
+                if (existing.getName().equals(userName)) {
+                    return Optional.empty(); //user already exists
+                }
+            }
             users.put(user.getId(), user);
         } finally {
             w.unlock();
@@ -170,6 +178,9 @@ public class UserManagerImpl implements UserManager {
             User user = users.get(userId);
             if (user != null) {
                 user.updateLastActivity(pingInfo);
+                if (troubledUsers.remove(userId)) {
+                    informUserOpponents(userId, user.getName() + " has reconnected");
+                }
                 return true;
             }
         }
@@ -227,7 +238,12 @@ public class UserManagerImpl implements UserManager {
 
                         case Connected:
                         case Disconnected: {
+                            if (!isBadConnection && troubledUsers.remove(user.getId())) {
+                                // activity resumed without a ping (any other action): clear the warning all the same
+                                informUserOpponents(user.getId(), user.getName() + " has reconnected");
+                            }
                             if (isBadConnection) {
+                                troubledUsers.add(user.getId());
                                 long secsInfo = (Calendar.getInstance().getTimeInMillis() - user.getLastActivity().getTime()) / 1000;
                                 informUserOpponents(user.getId(), String.format("%s catch connection problems for %s secs (left before expire: %d secs)",
                                         user.getName(),
@@ -257,7 +273,9 @@ public class UserManagerImpl implements UserManager {
             try {
                 for (User user : usersToRemove) {
                     users.remove(user.getId());
+                    troubledUsers.remove(user.getId());
                     UserRelations.forget(user.getId());
+                    Presence.forget(user.getId());
                 }
             } finally {
                 w.unlock();
@@ -295,6 +313,7 @@ public class UserManagerImpl implements UserManager {
             try {
                 users.remove(userId);
                 UserRelations.forget(userId);
+                Presence.forget(userId);
             } finally {
                 w.unlock();
             }

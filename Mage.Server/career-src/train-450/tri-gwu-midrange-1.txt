@@ -1,0 +1,25 @@
+# name: Train450 tri-gwu-midrange-1
+# archetype: midrange
+# colors: GWU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Absorb Identity
+3 Aetherstream Leopard
+3 Confirm Suspicions
+1 Faerie Impostor
+1 Faithful Mending
+2 Horizon Chimera
+3 Iguana Parrot
+2 Quakestrider Ceratops
+2 Quandrix Charm
+2 Shredding Winds
+2 Silburlind Snapper
+4 Slumbering Trudge
+4 Splendor Mare
+1 Sundering Growth
+3 Vantress Gargoyle
+4 Fatehold Annex
+5 Forest
+4 Guadosalam, Farplane Gateway
+5 Island
+4 Mutant Town
+2 Plains

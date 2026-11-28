@@ -13,6 +13,7 @@ const SHORTCUTS: { keys: string; label: MessageKey }[] = [
   { keys: 'Esc', label: 'match.shortcuts.cancel' },
   { keys: 'Ctrl+Z / ⌘Z', label: 'match.shortcuts.undo' },
   { keys: 'Ctrl+Shift', label: 'match.shortcuts.control' },
+  { keys: 'Shift+Enter', label: 'match.shortcuts.passTurn' },
   { keys: 'F4 / F5 / F9 / F10', label: 'match.shortcuts.ahead' },
   { keys: 'M', label: 'match.shortcuts.mute' },
 ];

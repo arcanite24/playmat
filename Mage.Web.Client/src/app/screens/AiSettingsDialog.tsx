@@ -2,17 +2,22 @@ import { useQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
 import { formatRules, isCommanderFormat } from '../../core/decks/formats';
-import { metaDecksFor } from '../../core/decks/metaDecks';
+import { FREE_MULLIGANS_ALL } from '../../core/game/tableSetup';
+import { ALL_META_TIERS, type MetaTier } from '../../core/decks/metaDecks';
 import { api } from '../connection';
-import { META_PREFIX, rosterOf, useDecks } from '../stores/decks';
+import { useDecks } from '../stores/decks';
+import { useDeckRoster } from '../stores/useDeckRoster';
+import { useSharedDecks } from '../stores/sharedDecks';
 import { registerMessages, useT } from '../i18n';
 import messages from '../i18n/en/career';
 import {
-  adaptiveSentence, adaptiveFormatFor, ghostOpponentId, ghostRecord, MIRROR_OPPONENT_ID, normalizeGhostCode, opponentSource,
+  adaptiveSentence, adaptiveFormatFor, ghostOpponentId, ghostRecord, normalizeGhostCode, opponentSource,
 } from '../solo/freePlay';
 import type { GhostOpponent } from '../../protocol/generated/views';
 import { DEFAULT_AI_OPTIONS, usePlay } from '../stores/play';
 import { AI_TYPES, DIFFICULTIES, difficultyOf, offeredAiTypes } from './aiSetup';
+import { buildAiDeckEntries, countRandomPool } from './aiDeckPool';
+import { AiDeckPicker, GHOST_CHOICE } from './AiDeckPicker';
 import { useServerState } from '../queries';
 import { Button } from '../ui/Button';
 import { Dialog } from '../ui/Dialog';
@@ -21,8 +26,11 @@ import styles from './AiSettingsDialog.module.css';
 
 registerMessages(messages);
 
-/** the deck menu's entry for a ghost deck; its code is asked for below the menu */
-const GHOST_CHOICE = '__ghost__';
+const TIER_KEYS: Record<MetaTier, 'ai.pool.tier.meta' | 'ai.pool.tier.rogue' | 'ai.pool.tier.fun'> = {
+  meta: 'ai.pool.tier.meta',
+  rogue: 'ai.pool.tier.rogue',
+  fun: 'ai.pool.tier.fun',
+};
 
 function Segmented<T extends string | number>({ label, value, options, onChange }: {
   label: string;
@@ -49,15 +57,17 @@ function Segmented<T extends string | number>({ label, value, options, onChange 
 }
 
 /** How the next game against the AI is set up. Changes apply right away and are remembered in this browser. */
-export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpenChange(open: boolean): void }) {
+/**
+ * The AI's settings. `formatDeck`: for Home's Format deck mode, where both decks come from the format's pool and the
+ * game plays the format's rules, so the deck, pool, rules and pod-deck rows are left out (the rest still applies).
+ */
+export function AiSettingsDialog({ open, onOpenChange, formatDeck = false }: { open: boolean; onOpenChange(open: boolean): void; formatDeck?: boolean }) {
   const options = usePlay((state) => state.aiOptions);
   const setOptions = usePlay((state) => state.setAiOptions);
   const decks = useDecks();
-  const roster = useMemo(() => rosterOf(decks), [decks]);
-  const starters = roster.filter((deck) => deck.starter);
-  const mine = roster.filter((deck) => !deck.starter);
-  // the AI's format decks, one group per format, in the order the index lists the formats
-  const metaFormats = useMemo(() => [...new Set(decks.metaDecks.map((deck) => deck.format))], [decks.metaDecks]);
+  const roster = useDeckRoster();
+  // decks other players share on this server (#137)
+  const shared = (useSharedDecks(open).data ?? []).filter((deck) => !deck.mine);
   const difficulty = difficultyOf(options.skill);
   const t = useT();
   // a server can leave the Monte Carlo AI out
@@ -66,6 +76,27 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
   // the ghost entry is picked before its code is found; until then the saved choice stays as it was
   const [ghostPicked, setGhostPicked] = useState(source.kind === 'ghost');
   const deckValue = ghostPicked ? GHOST_CHOICE : options.opponentDeckId ?? '';
+  const allEntries = useMemo(
+    () => buildAiDeckEntries({ roster, metaDecks: decks.metaDecks, shared }),
+    [roster, decks.metaDecks, shared],
+  );
+  const commanderEntries = useMemo(
+    () => buildAiDeckEntries({ roster, metaDecks: decks.metaDecks, shared, commanderOnly: true }),
+    [roster, decks.metaDecks, shared],
+  );
+  const excludedSet = useMemo(() => new Set(options.excludedDeckIds ?? []), [options.excludedDeckIds]);
+  const poolTiers = useMemo(() => options.poolTiers ?? [...ALL_META_TIERS], [options.poolTiers]);
+  const poolFormats = useMemo(() => options.poolFormats ?? [], [options.poolFormats]);
+  const metaFormats = useMemo(() => [...new Set(decks.metaDecks.map((deck) => deck.format))], [decks.metaDecks]);
+  const poolStats = useMemo(
+    () => countRandomPool(allEntries, {
+      randomPool: options.randomPool,
+      poolTiers,
+      poolFormats,
+      excludedIds: options.excludedDeckIds ?? [],
+    }),
+    [allEntries, options.randomPool, poolTiers, poolFormats, options.excludedDeckIds],
+  );
 
   function pickDeck(value: string) {
     if (value === GHOST_CHOICE) {
@@ -74,6 +105,27 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
     }
     setGhostPicked(false);
     setOptions({ opponentDeckId: value || null, opponentLabel: null });
+  }
+
+  function toggleExcluded(id: string) {
+    const next = new Set(options.excludedDeckIds ?? []);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setOptions({ excludedDeckIds: [...next] });
+  }
+
+  function toggleTier(tier: MetaTier) {
+    const next = poolTiers.includes(tier)
+      ? poolTiers.filter((item) => item !== tier)
+      : [...poolTiers, tier];
+    setOptions({ poolTiers: next });
+  }
+
+  function togglePoolFormat(format: string) {
+    const next = poolFormats.includes(format)
+      ? poolFormats.filter((item) => item !== format)
+      : [...poolFormats, format];
+    setOptions({ poolFormats: next });
   }
 
   return (
@@ -113,36 +165,17 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
           {options.adaptive && <AdaptiveNote open={open} />}
         </section>
 
+        {!formatDeck && (
+          <>
         <section className={styles.row}>
-          <label className={styles.label} htmlFor="ai-deck">{t('ai.deck')}</label>
-          <select
-            id="ai-deck"
-            className={styles.select}
+          <h3 className={styles.label}>{t(options.opponents > 1 ? 'ai.deck.first' : 'ai.deck')}</h3>
+          <AiDeckPicker
+            entries={allEntries}
             value={deckValue}
-            onChange={(event) => pickDeck(event.target.value)}
-          >
-            <option value="">{t('ai.deck.random')}</option>
-            <option value={MIRROR_OPPONENT_ID}>{t('solo.mirror.option')}</option>
-            <option value={GHOST_CHOICE}>{t('solo.ghost.option')}</option>
-            <optgroup label={t('ai.deck.starters')}>
-              {starters.filter((deck) => !isCommanderFormat(deck.starter?.format)).map((deck) => <option key={deck.id} value={deck.id}>{deck.name}</option>)}
-            </optgroup>
-            {starters.some((deck) => isCommanderFormat(deck.starter?.format)) && (
-              <optgroup label={t('ai.deck.commanderStarters')}>
-                {starters.filter((deck) => isCommanderFormat(deck.starter?.format)).map((deck) => <option key={deck.id} value={deck.id}>{deck.name}</option>)}
-              </optgroup>
-            )}
-            {metaFormats.map((format) => (
-              <optgroup key={format} label={t('ai.deck.meta', { format: formatRules(format).label })}>
-                {metaDecksFor(decks.metaDecks, format).map((deck) => <option key={deck.file} value={META_PREFIX + deck.file}>{deck.name}</option>)}
-              </optgroup>
-            ))}
-            {mine.length > 0 && (
-              <optgroup label={t('ai.deck.yours')}>
-                {mine.map((deck) => <option key={deck.id} value={deck.id}>{deck.name}</option>)}
-              </optgroup>
-            )}
-          </select>
+            onChange={pickDeck}
+            excludedIds={excludedSet}
+            onToggleExclude={toggleExcluded}
+          />
           {!ghostPicked && <p className={styles.detail}>{t(source.kind === 'mirror' ? 'solo.mirror.detail' : 'ai.deck.detail')}</p>}
           {ghostPicked && (
             <GhostFinder
@@ -152,6 +185,85 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
             />
           )}
         </section>
+
+        <section className={styles.row}>
+          <h3 className={styles.label}>{t('ai.pool')}</h3>
+          <Segmented
+            label={t('ai.pool')}
+            value={options.randomPool}
+            options={[{ value: 'starters' as const, label: t('ai.pool.starters') }, { value: 'every' as const, label: t('ai.pool.every') }]}
+            onChange={(randomPool) => setOptions({ randomPool })}
+          />
+          <p className={styles.detail}>{t(options.randomPool === 'every' ? 'ai.pool.every.detail' : 'ai.pool.starters.detail')}</p>
+
+          <div className={styles.poolControls}>
+            <div className={styles.poolGroup}>
+              <span className={styles.subLabel}>{t('ai.pool.tiersLabel')}</span>
+              <div className={styles.chipGroup} role="group" aria-label={t('ai.pool.tiersLabel')}>
+                {ALL_META_TIERS.map((tier) => {
+                  const on = poolTiers.includes(tier);
+                  return (
+                    <button
+                      key={tier}
+                      type="button"
+                      className={on ? styles.chipOn : styles.chip}
+                      aria-pressed={on}
+                      onClick={() => toggleTier(tier)}
+                    >
+                      {t(TIER_KEYS[tier])}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className={styles.detail}>{t('ai.pool.tiersHint')}</p>
+            </div>
+
+            {metaFormats.length > 0 && (
+              <div className={styles.poolGroup}>
+                <span className={styles.subLabel}>{t('ai.pool.formatsLabel')}</span>
+                <div className={styles.chipGroup} role="group" aria-label={t('ai.pool.formatsLabel')}>
+                  <button
+                    type="button"
+                    className={poolFormats.length === 0 ? styles.chipOn : styles.chip}
+                    aria-pressed={poolFormats.length === 0}
+                    onClick={() => setOptions({ poolFormats: [] })}
+                  >
+                    {t('ai.picker.allFormats')}
+                  </button>
+                  {metaFormats.map((format) => {
+                    const on = poolFormats.includes(format);
+                    return (
+                      <button
+                        key={format}
+                        type="button"
+                        className={on ? styles.chipOn : styles.chip}
+                        aria-pressed={on}
+                        onClick={() => togglePoolFormat(format)}
+                      >
+                        {formatRules(format).label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className={styles.poolSummary}>
+              <span>{t('ai.pool.count', { allowed: poolStats.allowed, total: poolStats.total })}</span>
+              {excludedSet.size > 0 && (
+                <button
+                  type="button"
+                  className={styles.clearLink}
+                  onClick={() => setOptions({ excludedDeckIds: [] })}
+                >
+                  {t('ai.pool.clearExcluded', { count: excludedSet.size })}
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
+          </>
+        )}
 
         <section className={styles.row}>
           <h3 className={styles.label}>{t('ai.type')}</h3>
@@ -181,6 +293,24 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
         </div>
 
         <section className={styles.row}>
+          <h3 className={styles.label}>{t('ai.mulligans')}</h3>
+          <Segmented
+            label={t('ai.mulligans')}
+            value={options.freeMulligans >= FREE_MULLIGANS_ALL ? FREE_MULLIGANS_ALL : Math.min(options.freeMulligans, 1)}
+            options={[
+              { value: 0, label: t('ai.mulligans.standard') },
+              { value: 1, label: t('ai.mulligans.oneFree') },
+              { value: FREE_MULLIGANS_ALL, label: t('ai.mulligans.free') },
+            ]}
+            onChange={(freeMulligans) => setOptions({ freeMulligans })}
+          />
+          <p className={styles.detail}>
+            {t(options.freeMulligans >= FREE_MULLIGANS_ALL ? 'ai.mulligans.free.detail' : options.freeMulligans > 0 ? 'ai.mulligans.oneFree.detail' : 'ai.mulligans.standard.detail')}
+          </p>
+        </section>
+
+        {!formatDeck && (
+        <section className={styles.row}>
           <h3 className={styles.label}>{t('ai.rules')}</h3>
           <Segmented
             label={t('ai.rules')}
@@ -192,6 +322,7 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
             {t(options.rules === 'casual' ? 'ai.rules.casual.detail' : 'ai.rules.deck.detail')}
           </p>
         </section>
+        )}
 
         <section className={styles.row}>
           <h3 className={styles.label}>{t('ai.pod')}</h3>
@@ -201,12 +332,32 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
             options={[{ value: 1 as const, label: t('ai.pod.one') }, { value: 2 as const, label: t('ai.pod.three') }, { value: 3 as const, label: t('ai.pod.four') }]}
             onChange={(opponents) => setOptions({ opponents })}
           />
-          <p className={styles.detail}>{t('ai.pod.detail')}</p>
+          <p className={styles.detail}>{t(formatDeck ? 'ai.pod.formatDeckDetail' : 'ai.pod.detail')}</p>
+          {/* the pod's other seats; the first is "First AI's deck" above */}
+          {!formatDeck && POD_SEATS.slice(0, options.opponents - 1).map((seat, index) => (
+            <div key={seat} className={styles.row}>
+              <h4 className={styles.label}>{t(seat)}</h4>
+              <AiDeckPicker
+                entries={commanderEntries}
+                value={options.podDeckIds[index] ?? ''}
+                onChange={(picked) => {
+                  const podDeckIds = [...options.podDeckIds];
+                  podDeckIds[index] = picked || null;
+                  setOptions({ podDeckIds });
+                }}
+                excludedIds={excludedSet}
+                allowSpecial={false}
+              />
+            </div>
+          ))}
+          {!formatDeck && options.opponents > 1 && <p className={styles.detail}>{t('ai.pod.seatDetail')}</p>}
         </section>
       </div>
     </Dialog>
   );
 }
+
+const POD_SEATS = ['ai.pod.seat2', 'ai.pod.seat3'] as const;
 
 /** The adaptive skill's sentence for the selected deck's kind of game (never the number). */
 function AdaptiveNote({ open }: { open: boolean }) {

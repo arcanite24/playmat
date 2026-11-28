@@ -1,5 +1,5 @@
 import { useSettings } from '../stores/settings';
-import { cueAllowed, type Cue } from './cueRules';
+import { cueToPlay, type Cue } from './cueRules';
 
 export type { Cue } from './cueRules';
 
@@ -53,6 +53,30 @@ export function audio(): Bus | null {
   // browsers start the context suspended until a user gesture; game cues always follow one
   if (bus.ctx.state === 'suspended') void bus.ctx.resume().catch(() => undefined);
   return bus;
+}
+
+let warming = false;
+
+/**
+ * Opens the audio bus before the first cue needs it. Making an AudioContext costs 50-200 ms on the main thread (a
+ * round trip to the browser's audio service), and made on the first cue it lands on the first hit of the game,
+ * stalling the swing. It is made on the player's first click or key instead (which also lets it start), or when the
+ * page is idle.
+ */
+export function warmAudio(): void {
+  if (warming || bus || typeof window === 'undefined' || !('AudioContext' in window)) return;
+  if (!useSettings.getState().settings.sound) return;
+  warming = true;
+  let idle: number | null = null;
+  const open = () => {
+    window.removeEventListener('pointerdown', open, true);
+    window.removeEventListener('keydown', open, true);
+    if (idle !== null && 'cancelIdleCallback' in window) window.cancelIdleCallback(idle);
+    audio();
+  };
+  window.addEventListener('pointerdown', open, true);
+  window.addEventListener('keydown', open, true);
+  if ('requestIdleCallback' in window) idle = window.requestIdleCallback(open, { timeout: 4000 });
 }
 
 interface ToneOptions {
@@ -187,6 +211,13 @@ function render(b: Bus, out: AudioNode, cue: Cue, t: number) {
       // your clock is running out: a clock's double tick, twice
       [0, 0.12, 0.5, 0.62].forEach((offset, i) => knock(b, out, i % 2 === 0 ? 1650 : 1350, t + offset, 0.13));
       break;
+    case 'trigger':
+      // a triggered ability: a quick rising pair of small bells over a pinch of shimmer, brighter and
+      // shorter than a spell's breath
+      noise(b, out, { start: t, length: 0.16, from: 3000, to: 7000, gain: 0.05, type: 'highpass', q: 0.8 });
+      bell(b, out, NOTE.E5 * 2, t + 0.01, 0.45, 0.06);
+      bell(b, out, NOTE.A4 * 4, t + 0.08, 0.6, 0.055);
+      break;
     case 'victory':
       // a bright arpeggio landing on a held chord
       [NOTE.C5, NOTE.E5, NOTE.G5, NOTE.C6].forEach((freq, i) => bell(b, out, freq, t + i * 0.11, 1.4, 0.11));
@@ -200,21 +231,24 @@ function render(b: Bus, out: AudioNode, cue: Cue, t: number) {
   }
 }
 
-/** Plays a cue if the player's sound settings allow it. */
-export function playCue(cue: Cue) {
+/** Plays a cue if the player's sound settings allow it, `delayMs` from now (on the beat of what it belongs to). */
+export function playCue(cue: Cue, delayMs = 0) {
   const settings = useSettings.getState().settings;
-  if (!cueAllowed(cue, settings)) return;
-  previewCue(cue, settings.volume);
+  const played = cueToPlay(cue, settings);
+  if (!played) return;
+  previewCue(played, settings.volume, delayMs);
 }
 
 /** Plays a cue regardless of the on/off settings (the volume preview in Settings). */
-export function previewCue(cue: Cue, volume = useSettings.getState().settings.volume) {
+export function previewCue(cue: Cue, volume = useSettings.getState().settings.volume, delayMs = 0) {
   const b = audio();
   if (!b || volume <= 0) return;
   const out = b.ctx.createGain();
   // a curve that feels even across the slider
   out.gain.value = volume * volume * 0.9;
   out.connect(b.input);
-  render(b, out, cue, b.ctx.currentTime + 0.01);
-  setTimeout(() => out.disconnect(), 2500);
+  // scheduled on the audio clock, which keeps time better than a timer
+  const delay = Math.max(0, delayMs) / 1000;
+  render(b, out, cue, b.ctx.currentTime + 0.01 + delay);
+  setTimeout(() => out.disconnect(), 2500 + delay * 1000);
 }

@@ -30,9 +30,7 @@ public class GameSessionPlayer extends GameSessionWatcher {
     private static final Logger logger = Logger.getLogger(GameSessionPlayer.class);
 
     private final UserManager userManager;
-    // the last playable highlights and the game they were worked out for (see prepareGameView)
-    private String playableKey;
-    private PlayableObjectsList playable;
+    private final PlayableCache playableCache = new PlayableCache();
     private final UUID playerId;
 
     private final ExecutorService callExecutor;
@@ -216,7 +214,7 @@ public class GameSessionPlayer extends GameSessionWatcher {
         }
 
         // full processing for player
-        GameView gameView = prepareGameView(game, playerId, userId, this);
+        GameView gameView = prepareGameView(game, playerId, userId, playableCache);
         attachEvents(gameView, playerId);
 
         if (GameView.ENABLE_GAME_VIEW_CACHE) {
@@ -239,10 +237,19 @@ public class GameSessionPlayer extends GameSessionWatcher {
     }
 
     /**
-     * @param session remembers the last playable highlights: a priority stop sends the player its view twice (the
-     *                update, then the question), and working out what is playable copies the game twice each time
+     * The last playable highlights a player was sent, and the game they were worked out for: a priority stop sends the
+     * player its view twice (the update, then the question), and working out what is playable copies the game twice
+     * each time
      */
-    private static GameView prepareGameView(Game game, UUID playerId, UUID userId, GameSessionPlayer session) {
+    public static final class PlayableCache {
+        private String key;
+        private PlayableObjectsList playable;
+    }
+
+    /**
+     * @param cache the player's last playable highlights (null: worked out every time)
+     */
+    public static GameView prepareGameView(Game game, UUID playerId, UUID userId, PlayableCache cache) {
         // game copy do not help with ConcurrentModificationException so ignore it
         Game sourceGame = game;
         GameView gameView = new GameView(sourceGame.getState(), sourceGame, playerId, null);
@@ -251,16 +258,34 @@ public class GameSessionPlayer extends GameSessionWatcher {
         Player player = sourceGame.getPlayer(playerId); // null for watcher
         Player priorityPlayer = sourceGame.getPlayer(sourceGame.getPriorityPlayerId());
         Player controllingPlayer = priorityPlayer == null ? null : sourceGame.getPlayer(priorityPlayer.getTurnControlledBy());
+        // a player asked to pay mana without holding priority (an attack tax like Propaganda's during declare
+        // attackers, a cost an effect asks for) needs their own sources listed: the priority player's say nothing
+        if (player != null && player != priorityPlayer && player.isInPayManaMode()
+                && player.getId().equals(player.getTurnControlledBy())) {
+            priorityPlayer = player;
+            controllingPlayer = player;
+        }
         if (controllingPlayer != null && player == controllingPlayer) {
-            String key = session == null ? null : GameChangeKey.of(sourceGame) + '|' + priorityPlayer.getId();
-            if (key != null && key.equals(session.playableKey)) {
-                gameView.setCanPlayObjects(session.playable);
+            // paying mana is part of the key: the same game asks for attackers (nothing playable while they're
+            // declared) and then, unchanged, for an attack tax's mana, when the player's mana sources are playable
+            String key = cache == null ? null : GameChangeKey.of(sourceGame) + '|' + priorityPlayer.getId()
+                    + '|' + priorityPlayer.isInPayManaMode();
+            if (key != null && key.equals(cache.key)) {
+                gameView.setCanPlayObjects(cache.playable);
             } else {
-                PlayableObjectsList playable = priorityPlayer.getPlayableObjects(sourceGame, Zone.ALL);
+                // working it out copies and simulates the game: that mustn't draw from the game's own generator,
+                // or what a client is shown would change the game's random results (and the Rust engine's copy)
+                java.util.Random before = mage.util.RandomUtil.install(new java.util.Random(0));
+                PlayableObjectsList playable;
+                try {
+                    playable = priorityPlayer.getPlayableObjects(sourceGame, Zone.ALL);
+                } finally {
+                    mage.util.RandomUtil.install(before);
+                }
                 gameView.setCanPlayObjects(playable);
-                if (session != null) {
-                    session.playableKey = key;
-                    session.playable = playable;
+                if (cache != null) {
+                    cache.key = key;
+                    cache.playable = playable;
                 }
             }
         }
@@ -281,7 +306,11 @@ public class GameSessionPlayer extends GameSessionWatcher {
         if (!player.getPlayersUnderYourControl().isEmpty()) {
             for (UUID controlledPlayerId : player.getPlayersUnderYourControl()) {
                 Player opponent = game.getPlayer(controlledPlayerId);
-                gameView.getOpponentHands().put(opponent.getName(), new SimpleCardsView(opponent.getHand().getCards(game), true));
+                // whole card views, as the player's own hand: the controller casts from this hand (names, costs and
+                // rules), not only looks at its pictures
+                SimpleCardsView hand = new SimpleCardsView();
+                new CardsView(game, opponent.getHand().getCards(game), controlledPlayerId).forEach(hand::put);
+                gameView.getOpponentHands().put(opponent.getName(), hand);
             }
         }
     }

@@ -120,6 +120,11 @@ public abstract class GameImpl implements Game {
     protected transient PlayerQueryEventSource playerQueryEventSource = new PlayerQueryEventSource();
 
     protected Map<UUID, Card> gameCards = new HashMap<>();
+    // AI simulations share their card objects with the game they were copied from (and with the copies made from
+    // them) instead of copying every card of every library each time: a card is copied the first time this game
+    // hands it out, so neither game ever changes the other's. Cards not in ownCards are still shared.
+    private boolean sharesCards;
+    private Set<UUID> ownCards;
     protected Map<UUID, MeldCard> meldCards = new HashMap<>(0);
 
     protected Map<Zone, Map<UUID, MageObject>> lki = new EnumMap<>(Zone.class);
@@ -172,6 +177,7 @@ public abstract class GameImpl implements Game {
 
     // temporary store for income concede commands, don't copy
     private final LinkedList<UUID> concedingPlayers = new LinkedList<>();
+    private String technicalErrorReason;
 
     public GameImpl(MultiplayerAttackOption attackOption, RangeOfInfluence range, Mulligan mulligan, int minimumDeckSize, int startingLife, int startingHandSize) {
         this.id = UUID.randomUUID();
@@ -201,12 +207,22 @@ public abstract class GameImpl implements Game {
         this.gameIndex = game.gameIndex;
         this.tableId = game.tableId;
         this.totalErrorsCount.set(game.totalErrorsCount.get());
+        this.technicalErrorReason = game.technicalErrorReason;
 
         this.ready = game.ready;
         //this.tableEventSource = game.tableEventSource; // client-server part, not need on copy/simulations
         //this.playerQueryEventSource = game.playerQueryEventSource; // client-server part, not need on copy/simulations
 
-        this.gameCards = CardUtil.deepCopyObject(game.gameCards);
+        if (game.aiGame) {
+            // most cards sit in a library or hand and are never looked at in a simulation, so only a game's own cards
+            // get copied, when it asks for them
+            this.gameCards = new HashMap<>(game.gameCards);
+            this.sharesCards = true;
+            this.ownCards = new HashSet<>();
+            game.shareCards();
+        } else {
+            this.gameCards = CardUtil.deepCopyObject(game.gameCards);
+        }
         this.meldCards = CardUtil.deepCopyObject(game.meldCards);
 
         this.lki = CardUtil.deepCopyObject(game.lki);
@@ -276,6 +292,11 @@ public abstract class GameImpl implements Game {
     @Override
     public boolean isSimulation() {
         return simulation;
+    }
+
+    @Override
+    public boolean isAiSimulation() {
+        return aiGame;
     }
 
     @Override
@@ -376,13 +397,44 @@ public abstract class GameImpl implements Game {
         }
     }
 
+    private void shareCards() {
+        if (sharesCards) {
+            ownCards.clear();
+        } else {
+            sharesCards = true;
+            ownCards = new HashSet<>();
+        }
+    }
+
+    /**
+     * The game's card, copied first if it's still shared with another game (see sharesCards).
+     */
+    private Card ownCard(UUID cardId, Card card) {
+        if (!sharesCards || !ownCards.add(cardId)) {
+            return card;
+        }
+        Card copy = card.copy();
+        gameCards.put(cardId, copy);
+        return copy;
+    }
+
     private void addCardToState(Card card) {
         gameCards.put(card.getId(), card);
+        if (sharesCards) {
+            ownCards.add(card.getId());
+        }
         state.addCard(card);
     }
 
     @Override
     public Collection<Card> getCards() {
+        if (sharesCards && ownCards.size() < gameCards.size()) {
+            for (Map.Entry<UUID, Card> entry : gameCards.entrySet()) {
+                if (ownCards.add(entry.getKey())) {
+                    entry.setValue(entry.getValue().copy());
+                }
+            }
+        }
         return gameCards.values();
     }
 
@@ -437,6 +489,15 @@ public abstract class GameImpl implements Game {
 
     @Override
     public MageObject getObject(UUID objectId) {
+        return getObject(objectId, true);
+    }
+
+    @Override
+    public MageObject getObjectReadOnly(UUID objectId) {
+        return getObject(objectId, false);
+    }
+
+    private MageObject getObject(UUID objectId, boolean own) {
         if (objectId == null) {
             return null;
         }
@@ -463,7 +524,7 @@ public abstract class GameImpl implements Game {
             }
         }
 
-        object = getCard(objectId);
+        object = getCard(objectId, own);
 
         if (object == null) {
             for (Designation designation : state.getDesignations()) {
@@ -774,8 +835,20 @@ public abstract class GameImpl implements Game {
         Permanent permanent = state.getPermanent(permanentId);
         if (permanent == null) {
             permanent = (Permanent) this.getLastKnownInformation(permanentId, Zone.BATTLEFIELD);
+        } else if (!permanent.isPhasedIn()) {
+            permanent = getPhasedOutLKI(permanent);
         }
         return permanent;
+    }
+
+    /**
+     * 702.26b A phased-out permanent is treated as though it does not exist, so effects that look for it
+     * must use its last known information, as for a permanent that is no longer on the battlefield.
+     * The information is kept on phase out until the stack is empty (see resetLKI).
+     */
+    private Permanent getPhasedOutLKI(Permanent phasedOutPermanent) {
+        MageObject object = this.getLastKnownInformation(phasedOutPermanent.getId(), Zone.BATTLEFIELD);
+        return object instanceof Permanent ? (Permanent) object : phasedOutPermanent;
     }
 
     @Override
@@ -784,6 +857,8 @@ public abstract class GameImpl implements Game {
         Permanent permanent = state.getPermanent(id);
         if (permanent == null || state.getZoneChangeCounter(id) != permanentRef.getZoneChangeCounter()) {
             permanent = (Permanent) this.getLastKnownInformation(id, Zone.BATTLEFIELD, permanentRef.getZoneChangeCounter());
+        } else if (!permanent.isPhasedIn()) {
+            permanent = getPhasedOutLKI(permanent);
         }
         return permanent;
     }
@@ -800,10 +875,17 @@ public abstract class GameImpl implements Game {
 
     @Override
     public Card getCard(UUID cardId) {
+        return getCard(cardId, true);
+    }
+
+    private Card getCard(UUID cardId, boolean own) {
         if (cardId == null) {
             return null;
         }
         Card card = gameCards.get(cardId);
+        if (card != null && own) {
+            card = ownCard(cardId, card);
+        }
         if (card == null) {
             card = state.getCopiedCard(cardId);
         }
@@ -1039,9 +1121,21 @@ public abstract class GameImpl implements Game {
      */
     @Override
     public GameState restoreState(int bookmark, String context) {
+        return restoreState(bookmark, context, false);
+    }
+
+    @Override
+    public GameState restoreStateKeepingStack(int bookmark, String context) {
+        return restoreState(bookmark, context, true);
+    }
+
+    private GameState restoreState(int bookmark, String context, boolean keepStack) {
         if (!simulation && !this.hasEnded()) { // if player left or game is over no undo is possible - this could lead to wrong winner
             if (bookmark != 0) {
-                if (!savedStates.contains(bookmark - 1)) {
+                // a bookmark is a position in savedStates (its size when it was made), not the state index stored there:
+                // the two drift apart in long games, and checking the value then refused real bookmarks, so cancelling
+                // a payment left the half-cast spell on the stack for free (#148)
+                if (bookmark < 0 || bookmark > savedStates.size()) {
                     if (!savedStates.isEmpty()) { // empty if rollback to a turn was requested before, otherwise unclear why
                         logger.error("It was not possible to do the requested undo operation (bookmark " + (bookmark - 1) + " does not exist) context: " + context);
                         logger.info("Saved states: " + savedStates.toString());
@@ -1051,7 +1145,7 @@ public abstract class GameImpl implements Game {
                     removeBookmark(bookmark);
                     GameState restore = gameStates.rollback(stateNum);
                     if (restore != null) {
-                        state.restore(restore);
+                        state.restore(restore, keepStack);
                         playerList.setCurrent(state.getPlayerByOrderId());
                         return state;
                     }
@@ -1068,7 +1162,8 @@ public abstract class GameImpl implements Game {
                 while (savedStates.size() > bookmark) {
                     savedStates.pop();
                 }
-                gameStates.remove(bookmark);
+                // keep the states the remaining bookmarks point at: their stored indexes, not their positions
+                gameStates.remove(savedStates.isEmpty() ? 0 : savedStates.peek() + 1);
             }
         }
     }
@@ -1179,6 +1274,10 @@ public abstract class GameImpl implements Game {
         meldCards.clear();
         meldCards.putAll(restored.meldCards);
         startingPlayerId = restored.startingPlayerId;
+        // the new table shuffled its seats: everyone sits, and takes turns, as in the saved game
+        if (!state.seatLike(restored.state)) {
+            logger.warn("Game " + getId() + ": the saved game's seats don't match the table's, so the turn order may differ");
+        }
         state.restoreForRollBack(restored.state);
         state.setChoosingPlayerId(restored.state.getChoosingPlayerId());
         // the generator object didn't change, only its position, so it's still the one this thread draws from
@@ -1745,6 +1844,7 @@ public abstract class GameImpl implements Game {
         // it's real game end, do not use any game dialogs/rules/events here
         if (!state.isGameOver()) {
             logger.debug("END of gameId: " + this.getId());
+            trace(mage.game.trace.GameTrace.END);
             endTime = new Date();
             state.endGame();
 
@@ -1782,10 +1882,16 @@ public abstract class GameImpl implements Game {
      * Winner: highest life, then most priority time left, then random.
      */
     @Override
+    public String getTechnicalErrorReason() {
+        return technicalErrorReason;
+    }
+
+    @Override
     public void endWithTechnicalWinner(String reason) {
         if (state.isGameOver()) {
             return;
         }
+        this.technicalErrorReason = reason != null ? reason : "Critical error";
 
         // find a winner
         List<Player> candidates = state.getPlayers().values().stream()
@@ -1945,6 +2051,28 @@ public abstract class GameImpl implements Game {
         }
     }
 
+    /** records a state fingerprint when the game is traced ({@link GameOptions#trace}); never in simulations */
+    protected void trace(String point) {
+        if (simulation || gameOptions == null || gameOptions.trace == null) {
+            return;
+        }
+        gameOptions.trace.record(this, point);
+    }
+
+    private boolean hasAnyStoredBookmark() {
+        for (Player p : getPlayers().values()) {
+            if (p.getStoredBookmark() != -1) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private int refreshPriorityRollbackBookmark() {
+        clearAllBookmarks();
+        return bookmarkState();
+    }
+
     @Override
     public void playPriority(UUID activePlayerId, boolean resuming) {
         if (!this.isSimulation() && this.inCheckPlayableState()) {
@@ -1954,6 +2082,7 @@ public abstract class GameImpl implements Game {
         int priorityErrorsCount = 0;
         infiniteLoopCounter = 0;
         int rollbackBookmarkOnPriorityStart = 0;
+        UUID lastErroredNonHumanId = null;
         clearAllBookmarks();
         try {
             applyEffects();
@@ -1985,6 +2114,7 @@ public abstract class GameImpl implements Game {
                                 if (isPaused() || checkIfGameIsOver()) {
                                     return;
                                 }
+                                trace(mage.game.trace.GameTrace.PRIORITY);
                                 // resetPassed should be called if player performs any action
                                 if (player.priority(this)) {
                                     if (executingRollback()) {
@@ -1992,6 +2122,12 @@ public abstract class GameImpl implements Game {
                                     }
                                     getState().handleSimultaneousEvent(this); // needed here to handle triggers e.g. from paying costs like sacrificing a creatures before LKIShort is cleared
                                     applyEffects();
+                                    // Refresh the error-recovery bookmark after a committed action (e.g. land play,
+                                    // spell cast) whenever no player holds a mana-tap undo bookmark, so a later error
+                                    // does not revert earlier valid plays in the same phase (#424).
+                                    if (!hasAnyStoredBookmark()) {
+                                        rollbackBookmarkOnPriorityStart = refreshPriorityRollbackBookmark();
+                                    }
                                 }
                                 if (isPaused()) {
                                     return;
@@ -2001,6 +2137,9 @@ public abstract class GameImpl implements Game {
                         }
                         resetShortLivingLKI();
                         resuming = false;
+                        if (player.getId().equals(lastErroredNonHumanId)) {
+                            lastErroredNonHumanId = null;
+                        }
                         if (isPaused() || checkIfGameIsOver()) {
                             return;
                         }
@@ -2010,9 +2149,11 @@ public abstract class GameImpl implements Game {
                                 resolve();
                                 checkConcede();
                                 applyEffects();
+                                trace(mage.game.trace.GameTrace.RESOLVED);
                                 state.getPlayers().resetPassed();
                                 fireUpdatePlayersEvent();
                                 resetShortLivingLKI();
+                                rollbackBookmarkOnPriorityStart = refreshPriorityRollbackBookmark();
                                 break;
                             } else {
                                 resetLKI();
@@ -2040,6 +2181,8 @@ public abstract class GameImpl implements Game {
                             throw new MageException("Too many errors, game will be end. Last error: " + e);
                         }
 
+                        UUID erroredPlayerId = state.getPriorityPlayerId();
+
                         // rollback to prev state
                         GameState restoredState = restoreState(rollbackBookmarkOnPriorityStart, "Game error: " + e);
                         rollbackBookmarkOnPriorityStart = 0;
@@ -2054,6 +2197,20 @@ public abstract class GameImpl implements Game {
                         if (activePlayer != null && (!activePlayer.isTestMode() || !activePlayer.isFastFailInTestMode())) {
                             // real game - try to continue
                             priorityErrorsCount++;
+                            // If a non-human player repeatedly fails on the same priority state, pass its priority
+                            // so it does not trap the game in an infinite rollback loop (#424).
+                            Player erroredPlayer = erroredPlayerId != null ? this.getPlayer(erroredPlayerId) : null;
+                            if (erroredPlayer != null && !erroredPlayer.isHuman()) {
+                                if (erroredPlayerId.equals(lastErroredNonHumanId)) {
+                                    erroredPlayer.pass(this);
+                                    lastErroredNonHumanId = null;
+                                    this.informPlayers(erroredPlayer.getLogName() + " encountered an error and passed priority.");
+                                } else {
+                                    lastErroredNonHumanId = erroredPlayerId;
+                                }
+                            } else {
+                                lastErroredNonHumanId = null;
+                            }
                             continue;
                         } else {
                             // tests - try to fail fast
@@ -2061,6 +2218,9 @@ public abstract class GameImpl implements Game {
                         }
                     }
                     state.getPlayerList().getNext();
+                    if (!hasAnyStoredBookmark()) {
+                        rollbackBookmarkOnPriorityStart = refreshPriorityRollbackBookmark();
+                    }
                 }
             }
         } catch (Exception e) {
@@ -2237,6 +2397,17 @@ public abstract class GameImpl implements Game {
     }
 
     @Override
+    public void processManaAction() {
+        if (!aiGame) {
+            processAction();
+            return;
+        }
+        state.handleSimultaneousEvent(this);
+        resetShortLivingLKI();
+        state.getTriggers().checkStateTriggers(this);
+    }
+
+    @Override
     public void addEffect(ContinuousEffect continuousEffect, Ability source) {
         Ability newAbility = source.copy();
         newAbility.initSourceObjectZoneChangeCounter(this, true);
@@ -2356,6 +2527,10 @@ public abstract class GameImpl implements Game {
 
         // if it was no copy of copy take the target itself
         if (newBluePrint == null) {
+            if (copyFromPermanent.isCopy() && copyFromPermanent.getCopyFrom() instanceof Permanent) {
+                // copy effect is no longer active (e.g. source is LKI), use the original copy link
+                copyFromPermanent = (Permanent) copyFromPermanent.getCopyFrom();
+            }
             newBluePrint = copyFromPermanent.copy();
 
             // reset to original characteristics
@@ -2729,14 +2904,12 @@ public abstract class GameImpl implements Game {
         );
         Set<Card> copiedCardsToRemove = new HashSet<>();
         for (Card copiedCard : allCopiedCards) {
-            UUID copiedCardId = copiedCard.getMainCard().getId();
-            UUID persistentCopySource = state.getPersistentCardCopySource(copiedCardId);
-            if (persistentCopySource != null) {
-                // Persistent copies opt out of 704.5e only while their registered source remains.
-                if (getPermanent(persistentCopySource) != null) {
-                    continue;
-                }
-                state.stopKeepingCardCopy(copiedCardId);
+            // 722.3c
+            // This copy remains in exile for as long as the prepared permanent remains on the battlefield and has
+            // the prepared designation. This is an exception to rule 704.5e.
+            if (copiedCard instanceof PreparedSpellCopy
+                    && ((PreparedSpellCopy) copiedCard).getPreparedPermanent(this) != null) {
+                continue;
             }
             // 1. Zone must be checked from main card only cause mdf parts can have different zones
             //    (one side on battlefield, another side on outside)
@@ -2892,7 +3065,8 @@ public abstract class GameImpl implements Game {
             }
             if (perm.isPlaneswalker(this)) {
                 //20091005 - 704.5i
-                if (perm.getCounters(this).getCount(CounterType.LOYALTY) == 0) {
+                if (perm.getCounters(this).getCount(CounterType.LOYALTY) == 0
+                        && perm.zeroLoyaltyRuleApplies()) {
                     if (movePermanentToGraveyardWithInfo(perm, "SBA: planeswalker has loyalty 0")) {
                         somethingHappened = true;
                         continue;
@@ -3369,6 +3543,9 @@ public abstract class GameImpl implements Game {
         String objectName = null;
         if (object != null) {
             objectName = object.getName();
+        }
+        if (gameOptions != null && gameOptions.decisions != null) {
+            gameOptions.decisions.offer(choices);
         }
         playerQueryEventSource.chooseAbility(playerId, message + getControllingPlayerHint(playerId), objectName, choices);
     }

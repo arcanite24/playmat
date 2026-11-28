@@ -34,4 +34,30 @@ public class ForcefieldTest extends CardTestPlayerBase {
 
         assertLife(playerB, 20 - 1 - 1);
     }
+
+    /**
+     * #397: the creature is chosen as the ability resolves, and it must be unblocked then. Before blockers are
+     * declared no attacking creature is blocked or unblocked yet, so there is nothing to choose and nothing is
+     * prevented.
+     */
+    @Test
+    public void testForcefieldBeforeBlockers() {
+        addCard(Zone.BATTLEFIELD, playerB, "Wastes", 2);
+        addCard(Zone.BATTLEFIELD, playerB, "Forcefield");
+        addCard(Zone.BATTLEFIELD, playerA, giant);
+        addCard(Zone.BATTLEFIELD, playerA, lion);
+
+        attack(1, playerA, giant);
+        attack(1, playerA, lion);
+
+        activateAbility(1, PhaseStep.DECLARE_ATTACKERS, playerB, "{1}");
+        activateAbility(1, PhaseStep.DECLARE_ATTACKERS, playerB, "{1}");
+
+        setStrictChooseMode(true);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+
+        assertTappedCount("Wastes", true, 2);
+        assertLife(playerB, 20 - 4 - 2);
+    }
 }

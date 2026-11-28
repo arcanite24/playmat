@@ -1,7 +1,7 @@
 import type { CareerOpponent } from '../../protocol/generated/views';
 import { useT } from '../i18n';
-import { playCareer } from './careerData';
-import { DECK_MIN } from './careerModel';
+import { playCareer, playCommanderCareer } from './careerData';
+import { COMMANDER_TOTAL, DECK_MIN } from './careerModel';
 import { useAdaptive } from './careerModesData';
 import { phaseLines } from './ladderModel';
 import type { useCareerDeck } from './useCareerDeck';
@@ -18,14 +18,17 @@ export function RosterVersus({ opponent, deck, onClose }: {
 }) {
   const t = useT();
   const adaptive = useAdaptive((state) => state.on);
+  const isCommander = opponent.format === 'commander';
   const tier = t('career.tier', { tier: opponent.tier ?? 1, name: opponent.tierName ?? '' });
   const line = opponent.rivalBefore || (opponent.nemesis ? opponent.lines?.nemesis : undefined) || opponent.lines?.intro;
+  const podNames = (opponent.podNames ?? []).filter(Boolean);
   const stakes = [
     t('career.versus.pays', { coins: opponent.winCoins ?? 0 }),
+    ...(opponent.pod ? [t('career.ladder.podStakes', { rivals: podNames.join(', ') })] : []),
     ...(opponent.bounty ? [t('career.nemesis.bounty', { coins: opponent.bounty })] : []),
     t('career.versus.record', { count: opponent.wins ?? 0 }),
     t('career.ladder.pips', { pips: opponent.pips ?? 1 }),
-    ...(opponent.raid ? [t('career.ladder.raid')] : []),
+    ...(opponent.raid ? [t(isCommander ? 'career.ladder.raidCommander' : 'career.ladder.raid')] : []),
     ...phaseLines(opponent.twists).map((phase) => t(phase.key, phase.vars)),
     ...(adaptive ? [t('career.adaptive.on')] : []),
   ];
@@ -36,8 +39,12 @@ export function RosterVersus({ opponent, deck, onClose }: {
       deck={{ name: deck.deck?.name ?? t('career.nav.deck'), art: deck.cover, colors: deck.colors }}
       stakes={stakes}
       onFight={async () => {
-        if (!deck.deck) throw new Error(t('career.deck.notReady', { min: DECK_MIN, count: 0 }));
-        await playCareer(opponent.id!, deck.deck, opponent.lines ?? null, adaptive);
+        if (!deck.deck) throw new Error(t('career.deck.notReady', { min: isCommander ? COMMANDER_TOTAL : DECK_MIN, count: 0 }));
+        if (isCommander) {
+          await playCommanderCareer(opponent.id!, deck.deck, opponent.lines ?? null, adaptive);
+        } else {
+          await playCareer(opponent.id!, deck.deck, opponent.lines ?? null, adaptive);
+        }
       }}
       onClose={onClose}
     />

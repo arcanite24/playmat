@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cueAllowed, pickCue, type CueSnapshot } from './cueRules';
+import { cueAllowed, cueToPlay, pickCue, type CueSnapshot } from './cueRules';
 
 const base: CueSnapshot = {
   turn: 3, active: 'opp', deciding: false, stack: 0, hand: 5, life: new Map([['me', 20], ['opp', 20]]),
@@ -39,6 +39,12 @@ describe('pickCue', () => {
     expect(pickCue(base, next({ life: new Map([['me', 23], ['opp', 20]]) }), 'me', false)).toBe('lifeGain');
   });
 
+  it('chimes for a new trigger instead of the spell cue', () => {
+    expect(pickCue(base, next({ stack: 1, triggers: ['a1'] }), 'me', false)).toBe('trigger');
+    expect(pickCue(next({ stack: 1, triggers: ['a1'] }), next({ stack: 2, triggers: ['a1'] }), 'me', false)).toBe('cast');
+    expect(pickCue(next({ stack: 1, triggers: ['a1'] }), next({ stack: 1, triggers: ['a1'] }), 'me', false)).toBeNull();
+  });
+
   it('hears lands and draws within a turn', () => {
     expect(pickCue(base, next({ myLands: 4, hand: 4 }), 'me', false)).toBe('land');
     expect(pickCue(base, next({ hand: 6 }), 'me', false)).toBe('draw');
@@ -57,5 +63,14 @@ describe('cueAllowed', () => {
     expect(cueAllowed('draw', { sound: true, volume: 0 })).toBe(false);
     expect(cueAllowed('draw', { sound: true, volume: 0.5, importantCuesOnly: true })).toBe(false);
     expect(cueAllowed('turn', { sound: true, volume: 0.5, importantCuesOnly: true })).toBe(true);
+  });
+});
+
+describe('cueToPlay', () => {
+  it('plays the trigger chime unless "Trigger sounds" is off, then the spell cue', () => {
+    expect(cueToPlay('trigger', { sound: true, volume: 0.5, triggerSounds: true })).toBe('trigger');
+    expect(cueToPlay('trigger', { sound: true, volume: 0.5, triggerSounds: false })).toBe('cast');
+    expect(cueToPlay('trigger', { sound: false, volume: 0.5, triggerSounds: true })).toBeNull();
+    expect(cueToPlay('trigger', { sound: true, volume: 0.5, importantCuesOnly: true })).toBeNull();
   });
 });

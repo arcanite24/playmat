@@ -8,6 +8,8 @@ import type { Api } from '../../protocol/generated/api';
 import type { CardView, GameView } from '../../protocol/generated/views';
 import { Hand } from './Hand';
 import { ActionCluster } from './ActionCluster';
+import { HAND_CARD_WIDTH, placeHand } from './matchLayout';
+import { useMatchUi } from './matchUi';
 import { DEFAULT_STAGE, StageContext } from './stageContext';
 
 const BOLT: CardView = { id: 'bolt', name: 'Lightning Bolt', expansionSetCode: 'M10', cardNumber: '146' } as CardView;
@@ -128,6 +130,26 @@ describe('Hand', () => {
     fireEvent.pointerUp(bolt, { button: 2, pointerId: 1, clientX: 100, clientY: 900 });
     expect(api.sendPlayerUUID).not.toHaveBeenCalled();
   });
+
+  test('in a big hand a mouse lifts the card its x falls on, one card per slice, not the wide lifted card it rests on', () => {
+    const cards = Array.from({ length: 20 }, (_, index) => ({ id: `c${index}`, name: `Card ${index}` }) as CardView);
+    const { spread } = placeHand(cards.length, DEFAULT_STAGE.width);
+    render(
+      <StageContext.Provider value={DEFAULT_STAGE}>
+        <Hand cards={cards} clickable={new Set()} selected={new Set()} sleeve="default" onPlay={() => undefined} playLine={PLAY_LINE} libraryOrigin="library:me" />
+      </StageContext.Provider>,
+    );
+    const hand = screen.getByRole('list', { name: 'Your hand, 20 cards' });
+    const lifted = () => screen.getAllByRole('listitem').filter((item) => item.className.includes('lifted')).map((item) => item.getAttribute('aria-label'));
+    fireEvent.pointerMove(hand, { pointerType: 'mouse', clientX: spread * 5 + 2, clientY: 900 });
+    expect(lifted()).toEqual(['Card 5']);
+    expect(useMatchUi.getState().zoom?.card.name).toBe('Card 5');
+    fireEvent.pointerMove(hand, { pointerType: 'mouse', clientX: spread * 6 + 2, clientY: 900 });
+    expect(lifted()).toEqual(['Card 6']);
+    fireEvent.pointerLeave(hand, { pointerType: 'mouse' });
+    expect(lifted()).toEqual([]);
+    expect(useMatchUi.getState().zoom).toBeNull();
+  });
 });
 
 describe('hand number shortcuts', () => {
@@ -160,5 +182,107 @@ describe('hand number shortcuts', () => {
     fireEvent.keyDown(screen.getByRole('textbox'), { key: '1' });
     overlay.unmount();
     expect(api.sendPlayerUUID).not.toHaveBeenCalled();
+  });
+});
+
+describe('a hand too big for the stage (storm, Commander, castable from exile)', () => {
+  const WINDOW = { clearLeft: 340, clearRight: 472 };
+  const big = Array.from({ length: 70 }, (_, index) => ({ id: `c${index}`, name: `Card ${index}` }) as CardView);
+
+  function renderBig(cards: CardView[], clickable: ReadonlySet<string> = new Set(), onPlay: (id: string) => void = () => undefined) {
+    render(
+      <StageContext.Provider value={DEFAULT_STAGE}>
+        <Hand cards={cards} clickable={clickable} selected={new Set()} sleeve="default" onPlay={onPlay} playLine={PLAY_LINE} libraryOrigin="library:me" {...WINDOW} />
+      </StageContext.Provider>,
+    );
+    const { spread, view, width } = placeHand(cards.length, DEFAULT_STAGE.width, WINDOW.clearLeft, WINDOW.clearRight);
+    const fan = screen.getByRole('list');
+    const scroll = () => 0 - Number(/translateX\((-?[\d.]+)px\)/.exec(fan.style.transform)?.[1] ?? 0);
+    /** the cards wholly inside the hand's window right now */
+    const inView = () => cards.map((_, index) => index).filter((index) => index * spread >= scroll() - 0.5 && index * spread + HAND_CARD_WIDTH <= scroll() + view + 0.5);
+    return { spread, view, width, fan, scroll, inView };
+  }
+
+  test('seventy cards, five of them castable from exile, can all be scrolled into view with the wheel', () => {
+    const cards = big.map((card, index) => (index >= 65 ? { ...card, name: `Exiled ${index}` } : card));
+    const { width, view, fan, scroll, inView } = renderBig(cards);
+    expect(width).toBeGreaterThan(view);
+    const seen = new Set(inView());
+    for (let step = 0; step < 60 && scroll() < width - view; step++) {
+      fireEvent.wheel(fan.children[0], { deltaY: 100 });
+      inView().forEach((index) => seen.add(index));
+    }
+    expect(scroll()).toBeCloseTo(width - view);
+    expect(seen.size).toBe(70);
+    expect(screen.getByRole('button', { name: /earlier cards/ })).toBeTruthy();
+    fireEvent.wheel(fan.children[0], { deltaX: -100000 });
+    expect(scroll()).toBe(0);
+    expect(screen.queryByRole('button', { name: /earlier/ })).toBeNull();
+  });
+
+  test('keyboard focus brings a playable card at the far end into view', () => {
+    const { inView } = renderBig(big, new Set(['c69', 'c0']));
+    expect(inView()).not.toContain(69);
+    act(() => card(/Card 69, playable/).focus());
+    expect(inView()).toContain(69);
+    act(() => card(/Card 0, playable/).focus());
+    expect(inView()).toContain(0);
+  });
+
+  test('a sideways swipe sweeps the fan without playing the card under the finger; an upward drag still plays', () => {
+    const onPlay = vi.fn();
+    const { scroll } = renderBig(big, new Set(['c3']), onPlay);
+    const three = card(/Card 3, playable/);
+    fireEvent.pointerDown(three, { pointerType: 'touch', button: 0, buttons: 1, pointerId: 1, clientX: 500, clientY: 1000 });
+    fireEvent.pointerMove(three, { pointerType: 'touch', buttons: 1, pointerId: 1, clientX: 300, clientY: 1004 });
+    fireEvent.pointerMove(three, { pointerType: 'touch', buttons: 1, pointerId: 1, clientX: 100, clientY: 1006 });
+    fireEvent.pointerUp(three, { pointerType: 'touch', button: 0, pointerId: 1, clientX: 100, clientY: 1006 });
+    expect(scroll()).toBe(400);
+    expect(onPlay).not.toHaveBeenCalled();
+    // a card on an unplayable spot sweeps too
+    const ten = card(/^Card 10$/);
+    fireEvent.pointerDown(ten, { pointerType: 'mouse', button: 0, buttons: 1, pointerId: 2, clientX: 300, clientY: 1000 });
+    fireEvent.pointerMove(ten, { pointerType: 'mouse', buttons: 1, pointerId: 2, clientX: 400, clientY: 1000 });
+    fireEvent.pointerUp(ten, { pointerType: 'mouse', button: 0, pointerId: 2, clientX: 400, clientY: 1000 });
+    expect(scroll()).toBe(300);
+    fireEvent.pointerDown(three, { pointerType: 'mouse', button: 0, buttons: 1, pointerId: 3, clientX: 500, clientY: 1000 });
+    fireEvent.pointerMove(three, { pointerType: 'mouse', buttons: 1, pointerId: 3, clientX: 505, clientY: 400 });
+    fireEvent.pointerUp(three, { pointerType: 'mouse', button: 0, pointerId: 3, clientX: 505, clientY: 400 });
+    expect(onPlay).toHaveBeenCalledWith('c3');
+    expect(scroll()).toBe(300);
+  });
+
+  test('the arrows at the window ends page through the hand and count the cards beyond', () => {
+    const { scroll, view } = renderBig(big);
+    expect(screen.queryByRole('button', { name: /earlier/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /^Show \d+ more cards$/ }));
+    expect(scroll()).toBeCloseTo(view * 0.8);
+    expect(screen.getByRole('button', { name: /^Show \d+ earlier cards$/ })).toBeTruthy();
+  });
+
+  test('hovering a scrolled hand lifts and zooms the card under the pointer, not an earlier scrolled-out card', () => {
+    const { spread, fan, scroll } = renderBig(big);
+    fireEvent.click(screen.getByRole('button', { name: /^Show \d+ more cards$/ }));
+    expect(scroll()).toBeGreaterThan(spread * 5);
+    const expectedIndex = Math.floor((spread * 2 + 2 + scroll()) / spread);
+    fireEvent.pointerMove(fan, { pointerType: 'mouse', clientX: spread * 2 + 2, clientY: 900 });
+    const lifted = screen.getAllByRole('listitem').filter((item) => item.className.includes('lifted')).map((item) => item.getAttribute('aria-label'));
+    expect(lifted).toEqual([`Card ${expectedIndex}`]);
+    expect(useMatchUi.getState().zoom?.card.name).toBe(`Card ${expectedIndex}`);
+  });
+
+  test('a normal hand neither scrolls nor shows arrows', () => {
+    render(
+      <StageContext.Provider value={DEFAULT_STAGE}>
+        <Hand cards={big.slice(0, 7)} clickable={new Set()} selected={new Set()} sleeve="default" onPlay={() => undefined} playLine={PLAY_LINE} libraryOrigin="library:me" {...WINDOW} />
+      </StageContext.Provider>,
+    );
+    const fan = screen.getByRole('list');
+    const { width, view } = placeHand(7, DEFAULT_STAGE.width, WINDOW.clearLeft, WINDOW.clearRight);
+    expect(view).toBe(width);
+    expect(fan.style.transform).toBe('');
+    expect(screen.queryByRole('button')).toBeNull();
+    fireEvent.wheel(fan.children[0], { deltaY: 400 });
+    expect(fan.style.transform).toBe('');
   });
 });

@@ -5,7 +5,8 @@
 #
 #   deploy <tag>   run the images tagged <tag> (vX.Y.Z, sha-<7 to 40 hex>, master), safely:
 #                    1. pull both images and pin their digests
-#                    2. snapshot the user databases into $SNAPSHOT_DIR (the newest $SNAPSHOT_KEEP are kept)
+#                    2. snapshot the user databases into $SNAPSHOT_DIR (the newest $SNAPSHOT_KEEP are kept); refused,
+#                       failing the deploy, when the disk can't hold it with $SNAPSHOT_MIN_FREE_MB MB to spare
 #                    3. drain: with games running, announce maintenance and wait for them (at most $DRAIN_MINUTES)
 #                    4. pin the digests in .env (XMAGE_SERVER_IMAGE, XMAGE_WEB_IMAGE); the state file keeps the old ones
 #                    5. docker compose up -d --no-build, with the compose kit shipped inside the server image
@@ -75,9 +76,13 @@ GHCR_TOKEN=
 STATE_DIR=/var/lib/playmat-deploy
 SNAPSHOT_DIR=/var/backups/playmat
 SNAPSHOT_KEEP=5
+SNAPSHOT_MIN_FREE_MB=2048
 DRAIN_MINUTES=15
 HEALTH_TIMEOUT=300
 CONF=/etc/playmat-deploy.conf
+if [[ -z ${SSH_ORIGINAL_COMMAND+set} && -n ${PLAYMAT_DEPLOY_CONF:-} ]]; then
+  CONF=$PLAYMAT_DEPLOY_CONF
+fi
 [[ -r $CONF ]] || { echo "playmat-deploy: $CONF is missing or unreadable (run setup-deploy-user.sh)" >&2; exit 1; }
 # shellcheck source=/dev/null
 . "$CONF"
@@ -203,6 +208,38 @@ extract_kit() {
   [[ -f $2/docker-compose.yml ]]
 }
 
+# free_space DIR: the space left on DIR's filesystem, and that filesystem's mount point
+free_space() {
+  df -P -B1 "$1" 2>/dev/null | awk 'NR == 2 { print $4, $6 }'
+}
+
+# room_for_snapshot IMAGE: refuses a snapshot the disk can't hold. The online dump lands in the backups volume (under
+# Docker's root) and its packed copy in SNAPSHOT_DIR, each about the size of the db volume; SNAPSHOT_MIN_FREE_MB more
+# must stay free after both, for the server's own writes.
+room_for_snapshot() {
+  local image=$1 volume=${COMPOSE_PROJECT}_xmage-db db_bytes docker_root need
+  local snap_free snap_mount docker_free docker_mount
+  docker volume inspect "$volume" > /dev/null 2>&1 || return 0
+  db_bytes=$(docker run --rm --network none -v "$volume:/db:ro" --entrypoint du "$image" -sb /db 2>/dev/null | cut -f1)
+  [[ $db_bytes =~ ^[0-9]+$ ]] || { log "snapshot: can't measure the $volume volume"; return 1; }
+  docker_root=$(docker info -f '{{.DockerRootDir}}' 2>/dev/null || echo /var/lib/docker)
+  read -r snap_free snap_mount < <(free_space "$SNAPSHOT_DIR")
+  read -r docker_free docker_mount < <(free_space "$docker_root")
+  [[ $snap_free =~ ^[0-9]+$ && $docker_free =~ ^[0-9]+$ ]] || { log "snapshot: can't read the free disk space"; return 1; }
+  local margin=$(( SNAPSHOT_MIN_FREE_MB * 1024 * 1024 ))
+  if [[ $snap_mount == "$docker_mount" ]]; then
+    need=$(( 2 * db_bytes + margin ))
+    (( snap_free >= need )) && return 0
+  else
+    (( docker_free >= db_bytes + margin && snap_free >= db_bytes + margin )) && return 0
+    need=$(( db_bytes + margin ))
+  fi
+  log "snapshot: not enough disk: the databases take $(( db_bytes / 1048576 )) MB, a snapshot needs $(( need / 1048576 )) MB free" \
+    "and $snap_mount has $(( snap_free / 1048576 )) MB$([[ $snap_mount != "$docker_mount" ]] && echo ", $docker_mount $(( docker_free / 1048576 )) MB")." \
+    "Free some space (old backups in the backups volume, old pre-*.tar.gz in $SNAPSHOT_DIR, BACKUP_KEEP) and deploy again"
+  return 1
+}
+
 # --- steps --------------------------------------------------------------------------------------------------------
 # snapshot LABEL IMAGE: the user databases, as a consistent online dump from the backup service, or (no backup
 # service running) a copy of the db volume
@@ -210,12 +247,16 @@ snapshot() {
   local label=$1 image=$2 file id name volume=${COMPOSE_PROJECT}_xmage-db
   file=$SNAPSHOT_DIR/pre-$label-$(date -u +%Y%m%dT%H%M%SZ).tar.gz
   mkdir -p "$SNAPSHOT_DIR"
+  room_for_snapshot "$image" || return 1
   id=$(container backup)
   if [[ -n $id ]]; then
     docker exec "$id" xmage-backup once > /dev/null || return 1
     name=$(docker exec "$id" xmage-backup list | tail -n 1)
     [[ -n $name ]] || return 1
     docker exec "$id" tar czf - -C /backups "$name" > "$file" || { rm -f "$file"; return 1; }
+    # one copy is enough: the packed one here. Left in the backups volume, every deploy's dump would also push a
+    # nightly backup out of the BACKUP_KEEP newest.
+    docker exec "$id" rm -rf "/backups/$name" || log "snapshot: couldn't remove the dump $name from the backups volume"
     log "snapshot: online dump $name -> $file"
   elif docker volume inspect "$volume" > /dev/null 2>&1; then
     docker run --rm --network none -v "$volume:/opt/xmage/db:ro" --entrypoint tar "$image" czf - -C /opt/xmage db > "$file" \
@@ -274,10 +315,20 @@ cancel_maintenance() {
   fi
 }
 
-# site_code: what https://$DOMAIN/ answers through this host's Caddy (not DNS: the certificate and routes are tested,
-# not the way there)
+# site_code: what this host's Caddy answers for /. With TLS_MODE=external Caddy serves plain HTTP on port 80 inside the
+# web container (docker-compose.proxy.yml publishes no host ports); otherwise probe https://$DOMAIN/ directly on
+# 127.0.0.1:$HTTPS_PORT so certificate and routes are tested without DNS.
 site_code() {
-  local domain port
+  local tls_mode domain port id code
+  tls_mode=$(env_get TLS_MODE)
+  if [[ $tls_mode == external ]]; then
+    id=$(container web)
+    [[ -n $id ]] || { echo 000; return 0; }
+    code=$(docker exec "$id" wget -S -O /dev/null -T 10 "http://127.0.0.1:80/" 2>&1 \
+      | awk '/^[[:space:]]*HTTP\/[0-9.]+ [0-9]{3}/ { c=$2 } END { print c }') || true
+    echo "${code:-000}"
+    return 0
+  fi
   domain=$(env_get DOMAIN)
   port=$(env_get HTTPS_PORT)
   port=${port:-443}
@@ -310,8 +361,11 @@ run_stack() {
   deadline=$(( $(date +%s) + HEALTH_TIMEOUT ))
   env_set XMAGE_SERVER_IMAGE "$1"
   env_set XMAGE_WEB_IMAGE "$2"
+  local files=(-f "$3/docker-compose.yml")
+  # behind the host's own reverse proxy (TLS_MODE=external): the kit's override too (kits from before it have none)
+  [[ $(env_get TLS_MODE) == external && -f $3/docker-compose.proxy.yml ]] && files+=(-f "$3/docker-compose.proxy.yml")
   # up waits for the server to be healthy before it starts the web container
-  timeout "$HEALTH_TIMEOUT" docker compose -p "$COMPOSE_PROJECT" --project-directory "$3" -f "$3/docker-compose.yml" \
+  timeout "$HEALTH_TIMEOUT" docker compose -p "$COMPOSE_PROJECT" --project-directory "$3" "${files[@]}" \
     --env-file "$ENV_FILE" up -d --no-build --remove-orphans || log "compose up failed or timed out"
   health_gate "$deadline"
 }
@@ -407,7 +461,10 @@ deploy() {
     extract_kit "$server" "$kit" || die "$server has no compose kit (/opt/xmage/deploy-kit): built before image deploys?"
   fi
 
-  snapshot "$TAG" "$server" || die "the database snapshot failed; nothing was changed"
+  if ! snapshot "$TAG" "$server"; then
+    discord "Deploy of $TAG stopped: the database snapshot failed (see deploy.log on the host); still on $(describe "$CURRENT_TAG")."
+    die "the database snapshot failed; nothing was changed"
+  fi
   trap cancel_maintenance EXIT
   drain
 

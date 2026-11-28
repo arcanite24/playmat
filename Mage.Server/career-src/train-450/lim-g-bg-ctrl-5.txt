@@ -1,0 +1,39 @@
+# name: Train450 lim-g-bg-ctrl-5
+# archetype: limited_ctrl
+# colors: BG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Ambitious Augmenter
+1 Arbor Colossus
+2 Back to Nature
+1 Beifong's Bounty Hunters
+1 Blech, Loafing Pest
+1 Bloodchief's Thirst
+1 Bogslither's Embrace
+1 Carnage Tyrant
+1 Carven Caryatid
+1 Crossroads Candleguide
+1 Destructor Dragon
+1 Fatal Fumes
+1 Gemrazer
+1 Glissa Sunslayer
+2 Hateful Eidolon
+1 Hunt for Specimens
+1 Killing Glare
+1 Moonshadow
+2 Power Word Kill
+1 Prey Upon
+1 Prizefighter Construct
+1 Sephiroth, Fabled SOLDIER
+1 Solve for Disappointment
+2 South Wind Avatar
+1 Spell Shrivel
+1 Succumb to Temptation
+1 The Boulder, Ready to Rumble
+1 The Gitrog, Ravenous Ride
+1 Vein Ripper
+1 Void Shatter
+1 Warping Wail
+7 Forest
+4 Formidable Commons
+10 Swamp
+4 Underground Mortuary

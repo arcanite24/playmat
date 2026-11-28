@@ -9,6 +9,9 @@ import mage.cards.repository.CardScanner;
 import mage.constants.MultiplayerAttackOption;
 import mage.constants.PhaseStep;
 import mage.constants.RangeOfInfluence;
+import mage.cards.Card;
+import mage.game.Exile;
+import mage.game.ExileZone;
 import mage.game.Game;
 import mage.game.GameOptions;
 import mage.game.GameSnapshot;
@@ -28,7 +31,9 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -118,6 +123,43 @@ public class GameSnapshotTest {
             Assert.assertEquals(savedPlayer.getGraveyard().size(), now.getGraveyard().size());
         }
         Assert.assertTrue("and plays on past it", resumed.game.getTurnNum() > 4);
+    }
+
+    @Test
+    public void exileSurvivesASnapshotFromAnotherServerProcess() throws Exception {
+        GameSnapshot saved = play(77L, 2, null).snapshots.get(0);
+        GameSnapshot.Restored restored = saved.restore();
+        Iterator<Card> cards = restored.gameCards.values().iterator();
+        Card first = cards.next();
+        Card second = cards.next();
+        restored.state.getExile().add(first);
+        // a server process before the fix kept the main exile zone under its own random id
+        rekeyPermanentExile(restored.state.getExile(), UUID.randomUUID());
+
+        GameSnapshot again = GameSnapshot.fromBytes(GameSnapshot.of(restored.state, restored.gameCards,
+                restored.meldCards, restored.startingPlayerId).toBytes());
+        Exile exile = again.restore().state.getExile();
+        ExileZone main = exile.getPermanentExile();
+        Assert.assertNotNull("the main exile zone reads back", main);
+        Assert.assertTrue("with the card exiled before the save", main.contains(first.getId()));
+        exile.add(second);
+        Assert.assertTrue("and takes new cards", main.contains(second.getId()));
+        Assert.assertEquals("one main zone, not two", 1, exile.getExileZones().size());
+
+        // and a save from the fixed server reads back as is
+        Exile plain = GameSnapshot.fromBytes(again.toBytes()).restore().state.getExile();
+        Assert.assertNotNull(plain.getPermanentExile());
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void rekeyPermanentExile(Exile exile, UUID oldId) throws Exception {
+        Field field = Exile.class.getDeclaredField("exileZones");
+        field.setAccessible(true);
+        Map<UUID, ExileZone> zones = (Map<UUID, ExileZone>) field.get(exile);
+        ExileZone main = exile.getPermanentExile();
+        zones.values().remove(main);
+        zones.put(oldId, main);
+        Assert.assertNull(exile.getPermanentExile());
     }
 
     private static Map<String, Long> battlefield(GameState state, Map<UUID, UUID> ids) {

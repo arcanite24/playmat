@@ -1,0 +1,22 @@
+# name: Train450 tri-rwb-gowide-8
+# archetype: gowide
+# colors: RWB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Aerial Responder
+2 Ammit Eternal
+4 Annihilating Glare
+4 Brute Strength
+2 Kitesail Scout
+4 Kor Castigator
+3 Kunoros, Hound of Athreos
+3 Postmortem Professor
+3 Rakdos Shred-Freak
+2 Soldier of the Pantheon
+4 Taxi Driver
+4 Toxic Abomination
+4 Fisk Tower
+4 Goblin-town
+3 Mountain
+3 Plains
+4 Shadowy Backstreet
+4 Swamp

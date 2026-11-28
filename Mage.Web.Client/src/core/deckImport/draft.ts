@@ -39,6 +39,14 @@ export interface CardIssue {
   cardNumber: string | null;
   amount: number;
   sections: ListSection[];
+  /** why nothing matched, in words for the player */
+  reason: string;
+}
+
+function reasonFor(card: DeckCardInfo): string {
+  if (/^A-/.test(card.cardName)) return 'Arena-only Alchemy card with no paper version in the card database.';
+  if (card.setCode) return `Not found by name or as ${card.setCode}${card.cardNumber ? ` ${card.cardNumber}` : ''}; it may be a digital-only card or misspelled.`;
+  return 'No card with this name in the card database; it may be misspelled.';
 }
 
 export const DEFAULT_FORMAT = 'Constructed - Freeform';
@@ -104,7 +112,7 @@ export function issuesOf(draft: ImportDraft): CardIssue[] {
     for (const card of cards) {
       const key = importKey(card);
       if (draft.cards.get(key) || draft.leftOut.has(key)) continue;
-      const issue = issues.get(key) ?? { key, cardName: card.cardName, setCode: card.setCode ?? null, cardNumber: card.cardNumber ?? null, amount: 0, sections: [] };
+      const issue = issues.get(key) ?? { key, cardName: card.cardName, setCode: card.setCode ?? null, cardNumber: card.cardNumber ?? null, amount: 0, sections: [], reason: reasonFor(card) };
       issue.amount += card.amount;
       if (!issue.sections.includes(section)) issue.sections.push(section);
       issues.set(key, issue);

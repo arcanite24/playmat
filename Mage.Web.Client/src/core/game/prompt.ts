@@ -7,6 +7,7 @@ import type {
   GameView,
   MultiAmountMessage,
 } from '../../protocol/generated/views';
+import { decodeEntities } from './entities';
 
 /**
  * A question from the server that the player must answer. Parsed from the dialog events
@@ -70,6 +71,11 @@ export interface TargetPrompt extends PromptBase {
   chosen: string[];
   /** label for finishing the choice when enough targets are chosen */
   doneLabel: string | null;
+  /**
+   * the targets of an optional ("you may") triggered ability, chosen as it goes on the stack: its "may" is asked when
+   * it resolves (`HumanPlayer.chooseTarget`'s `optionalTrigger` option)
+   */
+  optionalTrigger?: boolean;
 }
 
 export interface AskPrompt extends PromptBase {
@@ -134,25 +140,13 @@ export function isPromptEvent(method: CallbackMethodName): method is PromptEvent
   return (PROMPT_EVENTS as readonly string[]).includes(method);
 }
 
+export { decodeEntities };
+
 export function stripMarkup(html: string | undefined): string {
   if (!html) return '';
-  return html
+  return decodeEntities(html
     .replace(/<br\s*\/?>/gi, ' ')
-    .replace(/<[^>]*>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&mdash;/g, '—')
-    .replace(/&ndash;/g, '–')
-    .replace(/&minus;/g, '−')
-    .replace(/&bull;/g, '•')
-    .replace(/&hellip;/g, '…')
-    .replace(/&[lr]squo;/g, "'")
-    .replace(/&[lr]dquo;/g, '"')
-    .replace(/&#(\d+);/g, (_, code: string) => String.fromCodePoint(Number(code)))
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
+    .replace(/<[^>]*>/g, ''))
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -219,6 +213,7 @@ export function parsePrompt<M extends PromptEventName>(method: M, data: Callback
         required: message.flag === true,
         chosen: idList(common.options.chosenTargets),
         doneLabel: label(common.options['UI.right.btn.text']),
+        optionalTrigger: common.options.optionalTrigger === true,
       };
     }
     case 'GAME_ASK': {

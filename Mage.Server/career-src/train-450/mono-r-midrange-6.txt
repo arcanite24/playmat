@@ -1,0 +1,19 @@
+# name: Train450 mono-r-midrange-6
+# archetype: midrange
+# colors: R
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Bold Impaler
+2 Decadent Dragon
+4 Demanding Dragon
+2 Flameblade Adept
+3 Glint-Horn Buccaneer
+3 Lamplight Phoenix
+2 Lightning Axe
+2 Raze to the Ground
+2 Redcap Melee
+4 Skycrash
+1 Slagdrill Scrapper
+4 Smaug the Magnificent
+3 Thraben Gargoyle
+2 Thrill of Possibility
+24 Mountain

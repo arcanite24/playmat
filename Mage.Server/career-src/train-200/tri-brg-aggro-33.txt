@@ -1,0 +1,23 @@
+# name: Train200 tri-brg-aggro-33
+# archetype: aggro
+# colors: BRG
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Bristlebane Battler
+3 Cactuar
+4 Cornered by Black Mages
+3 Fortifying Draught
+3 Goldnight Castigator
+4 Iridescent Vinelasher
+3 Itzquinth, Firstborn of Gishath
+4 Patchwork Beastie
+2 Questing Beast
+4 Shredded Sails
+3 Stark Industries Executive
+1 Tragedy Feaster
+2 Wild Slash
+4 Blood Crypt
+4 Forest
+4 Karplusan Forest
+3 Mountain
+4 Rugged Highlands
+2 Swamp

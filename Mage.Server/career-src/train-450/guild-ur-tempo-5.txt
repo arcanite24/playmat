@@ -1,0 +1,24 @@
+# name: Train450 guild-ur-tempo-5
+# archetype: tempo
+# colors: UR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Brush Off
+2 Chandra's Triumph
+2 Frenzied Raptor
+1 Kami's Flare
+3 Karsus Depthguard
+4 Kaza, Roil Chaser
+1 Loch Mare
+3 Merfolk Trickster
+4 Moat Piranhas
+1 Roadside Blowout
+2 Searing Barb
+2 Shell Shield
+3 Spark Jolt
+3 Temporal Machinations
+3 Thassa's Intervention
+1 Verix Bladewing
+4 Andoria
+8 Island
+6 Mountain
+4 TCRI Building

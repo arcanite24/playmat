@@ -1,0 +1,25 @@
+# name: Train450 guild-wb-aggro-2
+# archetype: aggro
+# colors: WB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Clarion Conqueror
+4 Creakwood Safewright
+2 Creeping Chill
+1 Dark Betrayal
+2 Extended Absence
+2 Flowerfoot Swordmaster
+4 June, Bounty Hunter
+3 Luminous Broodmoth
+2 Resolute Watchdog
+3 Sacred Cat
+3 Tangled Colony
+2 Usher of the Fallen
+1 Vampire Nighthawk
+2 Vicious Rumors
+3 Widow's Bite
+2 Wings of the Cosmos
+1 You're Ambushed on the Road
+4 Forlorn Flats
+6 Plains
+4 Shineshadow Snarl
+7 Swamp

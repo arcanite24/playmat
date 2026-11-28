@@ -29,7 +29,7 @@ import java.util.Map;
 public final class CareerCosmetics {
 
     public static final List<String> KINDS = Collections.unmodifiableList(java.util.Arrays.asList(
-            "avatar", "title", "frame", "sleeve", "playmat", "pet", "emote", "arrow", "spark", "stamp", "land", "cardstyle"));
+            "avatar", "title", "frame", "cmdframe", "sleeve", "playmat", "pet", "emote", "arrow", "spark", "stamp", "land", "cardstyle"));
 
     /** One sticker or phrase of an emote set. */
     public static class CareerSticker {
@@ -40,7 +40,7 @@ public final class CareerCosmetics {
 
     /** Where a cosmetic comes from. */
     public static class CareerCosmeticSource {
-        /** "level", "achievement", "campaign", "mastery", "free", "capsule" (pulled from a machine, or finishing it) or "capsuleSet" (finishing a capsule set) */
+        /** "level", "achievement", "campaign", "mastery", "free", "capsule" (pulled from a machine, or finishing it), "capsuleSet" (finishing a capsule set) or "ladder" (first reaching a ranked rank, the ref) */
         public String kind;
         /** the achievement, campaign or mastery track; null for a level */
         public String ref;
@@ -89,6 +89,10 @@ public final class CareerCosmetics {
         /** a mastery track and rank that give it (else the content says) */
         public String mastery;
         public int rank;
+        /** the ranked rank (bronze to mythic) whose first reach gives it (#431) */
+        public String ladder;
+        /** direct coin price in the Career Cosmetics Boutique (0 when not sold for coins) */
+        public int price;
         /** everyone has it */
         public boolean free;
         /** every place that gives it */
@@ -109,6 +113,12 @@ public final class CareerCosmetics {
             }
             if (item.free) {
                 item.sources.add(new CareerCosmeticSource("free", null, 0));
+            }
+            if (item.ladder != null) {
+                item.sources.add(new CareerCosmeticSource("ladder", item.ladder, 0));
+            }
+            if (item.price > 0) {
+                item.sources.add(new CareerCosmeticSource("shop", null, item.price));
             }
         }
     }
@@ -141,6 +151,8 @@ public final class CareerCosmetics {
             catalog.source(machine.reward, new CareerCosmeticSource("capsule", machine.id, 0));
             catalog.source(machine.title, new CareerCosmeticSource("capsule", machine.id, 0));
         }
+        catalog.source(new CareerProgress.CareerCosmetic("title", CareerPets.MYTHIC_BOND_TITLE),
+                new CareerCosmeticSource("petBond", null, CareerPets.MAX_TIER));
         CareerProgress progress = CareerProgress.get();
         for (CareerProgress.CareerLevelReward level : progress.levelRewards().values()) {
             catalog.source(level.cosmetic, new CareerCosmeticSource("level", null, level.level));
@@ -242,6 +254,86 @@ public final class CareerCosmetics {
 
     public CareerCatalogItem find(String kind, String id) {
         return kind == null || id == null ? null : byKey.get(key(kind, id));
+    }
+
+    /** Number of Boutique cosmetics discounted 20% each ISO week ("Curator's Picks"). */
+    public static final int FEATURED_COUNT = 6;
+
+    /** The ISO week key ("2026-W48") for UTC millis, matching CareerProgress and Rust playmat-platform. */
+    public static String isoWeek(long epochMillis) {
+        java.time.LocalDate date = java.time.Instant.ofEpochMilli(epochMillis).atZone(java.time.ZoneOffset.UTC).toLocalDate();
+        int week = date.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR);
+        int year = date.get(java.time.temporal.IsoFields.WEEK_BASED_YEAR);
+        return String.format(java.util.Locale.ROOT, "%04d-W%02d", year, week);
+    }
+
+    /** Deterministic set of featured boutique keys ("kind:id") for the given UTC ISO week. */
+    public java.util.Set<String> featuredKeys(long epochMillis) {
+        java.time.LocalDate date = java.time.Instant.ofEpochMilli(epochMillis).atZone(java.time.ZoneOffset.UTC).toLocalDate();
+        int weekNum = date.get(java.time.temporal.IsoFields.WEEK_BASED_YEAR) * 53
+                + date.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR);
+        List<CareerCatalogItem> priced = new ArrayList<>();
+        for (CareerCatalogItem item : items) {
+            if (item.price > 0) {
+                priced.add(item);
+            }
+        }
+        java.util.Set<String> picked = new java.util.LinkedHashSet<>();
+        int n = priced.size();
+        if (n == 0) {
+            return picked;
+        }
+        int limit = Math.min(FEATURED_COUNT, n);
+        for (int i = 0; i < limit; i++) {
+            int idx = Math.floorMod(weekNum * 7 + i * 5, n);
+            while (!picked.add(key(priced.get(idx).kind, priced.get(idx).id))) {
+                idx = (idx + 1) % n;
+            }
+        }
+        return picked;
+    }
+
+    /** Coin cost of a boutique cosmetic at {@code epochMillis} (20% off when featured in Curator's Picks). */
+    public int effectivePrice(CareerCatalogItem item, long epochMillis) {
+        if (item == null || item.price <= 0) {
+            return 0;
+        }
+        if (featuredKeys(epochMillis).contains(key(item.kind, item.id))) {
+            return (item.price * 4) / 5;
+        }
+        return item.price;
+    }
+
+    /** Buys a boutique cosmetic directly with Career coins; returns the updated profile. */
+    public CareerProfile buy(String user, String kind, String id) throws java.sql.SQLException, CareerService.CareerException {
+        CareerCatalogItem item = find(kind, id);
+        if (item == null) {
+            throw new CareerService.CareerException("Unknown cosmetic.");
+        }
+        if (item.price <= 0) {
+            throw new CareerService.CareerException("That cosmetic isn't sold for coins.");
+        }
+        CareerStore store = CareerStore.get();
+        CareerService.refusing(() -> store.transaction(() -> {
+            long now = System.currentTimeMillis();
+            CareerService.ensureProfile(store, user, now);
+            boolean owned = item.free || store.unlocks(user).stream()
+                    .anyMatch(u -> item.kind.equals(u[0]) && item.id.equals(u[1]));
+            if (owned) {
+                throw new java.sql.SQLException(new CareerService.CareerException("You already own that cosmetic."));
+            }
+            int cost = effectivePrice(item, now);
+            CareerProfile profile = store.profile(user);
+            if (profile.coins < cost) {
+                throw new java.sql.SQLException(new CareerService.CareerException(
+                        item.name + " costs " + cost + " coins; you have " + profile.coins + "."));
+            }
+            store.addCoins(user, -cost);
+            store.addUnlock(user, item.kind, item.id, now);
+            store.addStat(user, "cosmetics_bought", 1);
+            return null;
+        }));
+        return store.profile(user);
     }
 
     /** the cosmetic a mastery rank gives, or null */

@@ -1,0 +1,26 @@
+# name: Train200 tri-gwu-control-15
+# archetype: control
+# colors: GWU
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Arcane Subtraction
+4 Archon of the Wild Rose
+1 Astelli Reclaimer
+3 Boon-Bringer Valkyrie
+2 Confusticate and Bebother
+2 Depart the Realm
+2 Expel
+2 Jwari Disruption
+3 Metallic Rebuke
+2 Natural State
+1 No Witnesses
+3 Riot Control
+2 Spectacular Tactics
+2 Startle
+2 Stymied Hopes
+1 Three Steps Ahead
+4 Azorius Guildgate
+4 Deserted Beach
+1 Forest
+7 Island
+6 Plains
+4 Tangled Islet

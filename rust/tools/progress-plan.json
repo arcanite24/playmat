@@ -1,0 +1,270 @@
+{
+  "_about": "The hand-kept half of the site's Rust tracker (site/rust/). rust/tools/progress.py adds the counted half and writes site/rust/progress.json. Status is one of: done, live, active, next, parked, later.",
+  "updated": "2026-11-24",
+  "goal": "Java off the game path: every one-on-one game up to Pioneer (Career, Ranked, League and Ladder tables included), then sealed, draft and tournaments, played on the Rust host by default, with sessions, the lobby and tables in Rust. Java keeps multiplayer, Commander and decks with cards Rust doesn't have.",
+  "phases": [
+    {
+      "n": "0",
+      "name": "Contracts and measurement",
+      "status": "done",
+      "text": "State traces and fingerprints, decision logs, the wire conformance suite and the AI speed bench. A seeded game replays to the same trace twice in a row.",
+      "pr": [
+        192,
+        217
+      ]
+    },
+    {
+      "n": "1",
+      "name": "Rust gateway",
+      "status": "done",
+      "text": "playmat-gateway sits in front of the Java server and routes each group of calls to Java, Rust, or both to compare. It has carried every connection on the public server since 4 Nov 2026.",
+      "pr": [
+        193
+      ]
+    },
+    {
+      "n": "2",
+      "name": "Platform services",
+      "status": "live",
+      "text": "Card search, deck checks, deck sync, deck import by link, staff records and support in Rust, each answered alongside Java and compared.",
+      "pr": [
+        194,
+        201,
+        205,
+        210
+      ]
+    },
+    {
+      "n": "3",
+      "name": "Career economy",
+      "status": "active",
+      "text": "Unparked 11 Nov 2026. The Career's records, quests, rerolls, the capsule shop and pulls are in Rust, and payouts run off an outbox Java writes: Rust pays duels and every game outside Career tables, Rust-hosted ones included. Quests and pulls roll the same seeded dice on both sides. Next: two weeks of identical payouts in shadow.",
+      "pr": [
+        211,
+        213
+      ]
+    },
+    {
+      "n": "4",
+      "name": "Rules engine and card pipeline",
+      "status": "active",
+      "text": "A Rust rules engine with cheap copies, and a transpiler that turns XMage's Java card files into data. Every card is checked against Java with shadow games. The first pool is in: all 42 Pioneer and Standard school decks and the 24 meta decks the AI plays, plus the Modern meta decks and the starter decks. Gate run (11–12 Nov): 9,949 of 10,000 shadow games match and Java didn't finish 45. The 6 that differ are Java bugs Rust doesn't copy (#289), accepted as such on 12 Nov. 51 of 65 exported card tests pass and none differ; the other 14 can't run outside Java. The pool now covers Pioneer. After sixteen waves of porting (13–15 Nov), 14,024 cards are in the engine and 14,000 of them are verified, including 13,913 of the 15,259 Pioneer cards. Each one is verified by three or more matching shadow games that played it. Only verified cards reach Rust games. The rest of the Pioneer pool needs engine pieces more than card work: layer 4 type changes and \"loses all abilities\", token and counter replacements, a card's own costs, extra steps, and replacements that ask. A few cards can't be verified at all because of Java bugs (see the list on this page).",
+      "pr": [
+        219,
+        220,
+        228,
+        233,
+        243,
+        244,
+        266,
+        268,
+        270,
+        294
+      ]
+    },
+    {
+      "n": "5",
+      "name": "Rust AI",
+      "status": "live",
+      "text": "Whole-turn playouts on engine copies, deciding in milliseconds. It plays the AI's seat in Java's games for listed players, and the whole game when the Rust engine hosts it. Any decider answers through one decision interface (playouts by default; MCTS on parallel threads is opt-in: as strong, far more CPU), and Archbench rates them on fixed seeded duels.",
+      "pr": [
+        232,
+        237,
+        238,
+        284
+      ]
+    },
+    {
+      "n": "6",
+      "name": "Retire Java",
+      "status": "active",
+      "text": "Started with AI games: since 11 Nov a one-on-one game against the AI can run on the Rust engine with no Java game behind it, for players who turn it on in Settings. Also built: one-on-one tables between people (best-of-three, timers, spectators), and the solo tools on hosted games (saves, \"Try this turn again\", advice, practice tools). Tournaments and drafts come once the pool covers limited card pools. Since 24 Nov 2026 the goal is to take Java off the game path (docs/rust/Assessment-2026-11-24.md). From 12 to 24 Nov the Rust host played 217 production games (about 12% of all games), none ending in an error, and Java the other 88%. Career tables and games from Java saves still stay on Java.",
+      "pr": [
+        260,
+        263,
+        276,
+        278
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "n": "A",
+      "name": "Measure",
+      "status": "done",
+      "text": "The server logs what each Rust AI game costs: Java's game thread, the trace, and the Rust copy.",
+      "gate": "A week of production cost lines",
+      "pr": [
+        238
+      ]
+    },
+    {
+      "n": "B",
+      "name": "Fidelity",
+      "status": "done",
+      "text": "Every card of the 24 Pioneer and Standard meta decks in the engine, with a shadow game for each pairing: 287 of 288 match, and Java didn't finish the other.",
+      "gate": "A week of production AI games that follow Java to the end",
+      "pr": [
+        243,
+        244
+      ]
+    },
+    {
+      "n": "C",
+      "name": "Views in Rust",
+      "status": "done",
+      "text": "What the client sees (views, prompts and the game log) built by the Rust engine and compared with Java's.",
+      "gate": "Zero view differences on a week of real games",
+      "pr": [
+        245,
+        272
+      ]
+    },
+    {
+      "n": "D",
+      "name": "Human side and host",
+      "status": "done",
+      "text": "A Rust host for the whole game: skip settings, priority timers, mulligans, concede, reconnect, best-of-three, spectators, replays and the Career's pay.",
+      "gate": "The live client tests pass against a Rust-hosted game",
+      "pr": [
+        260,
+        262,
+        263,
+        264,
+        278
+      ]
+    },
+    {
+      "n": "E",
+      "name": "Rollout",
+      "status": "live",
+      "text": "Rust-hosted games for listed players, and for every player who turns on \"Play on the Rust engine\" in Settings, live since 11 Nov 2026. Then every AI duel whose decks qualify, by default. 217 production games from 12 to 24 Nov, none lost to an error or a panic. Next: the default for everyone, once a deploy waits for hosted games too. In review: #491 (deploys wait for hosted games), #492 (no hints or practice tools in ranked hosted games) and #493 (Career duel and campaign tables on the host, and abandoned hosted games ending as the player's quit) and #497 (platform shadow fixes: ranked careerGameResult, Freeform and Limited deckValidate).",
+      "gate": "A week with no game lost to the host, then the default",
+      "pr": [
+        261,
+        276,
+        491,
+        492,
+        493,
+        497
+      ]
+    },
+    {
+      "n": "F",
+      "name": "Then",
+      "status": "active",
+      "text": "Career tables: duels, campaign nodes, gauntlet fights and the weekly challenge go to the host (#493, deployed 24 Nov); timed twists and emblems too (#503); puzzles, trials, hordes and pods stay on Java. Java saves aren't converted: hosted games save as lines, and old Java saves expire after 30 days. Cards: waves 17 to 19 deployed 25 Nov; waves 20a to 25c and the prepare picker (#512) merged, not deployed: 14,369 of the 14,408 cards in the engine verified (14,168 of the 15,259 Pioneer cards), every school and meta deck covered. Platform diffs (#497) and the upstream ledger (#498) deployed 24 Nov. Then limited (sealed, draft, tournaments) set by set, then sessions, the lobby and tables in Rust (docs/rust/Assessment-2026-11-24.md).",
+      "gate": "Per feature",
+      "pr": [
+        493,
+        497,
+        498,
+        500
+      ]
+    }
+  ],
+  "measures": [
+    {
+      "id": "node",
+      "label": "CPU per AI search node",
+      "java": 547,
+      "rust": 4.3,
+      "unit": "µs",
+      "date": "2026-11-06",
+      "source": "docs/rust/Ai.md",
+      "note": "84 seeded duels with the Pioneer and Standard school decks, one thread. The Rust AI searches fewer nodes per decision, so the decision times are the fairer comparison."
+    },
+    {
+      "id": "p99",
+      "label": "AI decision, 99th percentile",
+      "java": 1600,
+      "rust": 1,
+      "unit": "ms",
+      "date": "2026-11-06",
+      "source": "docs/rust/Ai.md"
+    },
+    {
+      "id": "worst",
+      "label": "Slowest AI decision",
+      "java": 1900,
+      "rust": 6,
+      "unit": "ms",
+      "date": "2026-11-06",
+      "source": "docs/rust/Ai.md"
+    },
+    {
+      "id": "random",
+      "label": "AI games won against a random seat, of 48",
+      "java": 37,
+      "rust": 41,
+      "unit": "games",
+      "date": "2026-11-11",
+      "source": "archbench/constructed-1/results.md",
+      "note": "RustAiGameTest: the school decks against a RandomDriver seat, 20-turn cap. Java also drew 9 and lost 2; the Rust AI drew 6 and lost 1."
+    },
+    {
+      "id": "replay",
+      "label": "A whole game replayed by the Rust engine",
+      "rust": 2.5,
+      "unit": "ms",
+      "date": "2026-11-06",
+      "source": "docs/rust/GameHost.md"
+    },
+    {
+      "id": "host",
+      "label": "CPU per AI game, hosted on the Rust engine",
+      "java": 8.6,
+      "rust": 0.56,
+      "unit": "s",
+      "date": "2026-11-11",
+      "source": "docs/rust/GameHost.md",
+      "note": "Java: an AI game with Java's AI (8.6 to 12 s). Rust: 12 production games replayed with host-replay (median 0.53 s, worst 0.90 s), about 0.06 s of it process start and loading the cards. The gateway's share isn't in it."
+    }
+  ],
+  "cost": {
+    "date": "2026-11-07",
+    "source": "docs/rust/GameHost.md",
+    "java_ai_game": [
+      8.6,
+      12.0
+    ],
+    "rust_ai_game": 0.54,
+    "rust_copy": 0.05,
+    "note": "CPU seconds per AI game with real decks. Java alone: its own AI. With the Rust AI: the AI's thinking moves to the Rust copy, and what's left is Java hosting the game. Rust hosting (11 Nov): the whole game on the Rust engine, 12 production games replayed with host-replay, user+sys CPU, process start included.",
+    "split": [
+      {
+        "label": "Building views",
+        "share": 35
+      },
+      {
+        "label": "Sending them to the client",
+        "share": 20
+      },
+      {
+        "label": "Rules engine",
+        "share": 18
+      },
+      {
+        "label": "Recording the replay",
+        "share": 17
+      },
+      {
+        "label": "Playable highlights",
+        "share": 8
+      },
+      {
+        "label": "Trace and fingerprints",
+        "share": 2
+      }
+    ],
+    "rust_host_game": 0.56
+  },
+  "gate": {
+    "what": "the phase 4 gate run, seeds 100000–109999",
+    "date": "2026-11-12",
+    "played": 9955,
+    "matched": 9949,
+    "note": "the other 6 are Java bugs, 45 more Java didn't finish",
+    "source": "docs/rust/Engine.md"
+  }
+}

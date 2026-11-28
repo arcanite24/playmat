@@ -102,6 +102,11 @@ public final class Support {
         default java.util.Map<String, String> careerCardStyles(String account) {
             return Collections.emptyMap();
         }
+
+        /** the account's bond progress for a pet, or null before any games with it (Phase 6) */
+        default CareerStore.PetProgressRow careerPetBond(String account, String petId) {
+            return null;
+        }
     }
 
     /** The public thank-you post (Discord). */
@@ -592,9 +597,18 @@ public final class Support {
         look.cloth = cloth != null && (FREE_CLOTHS.contains(cloth) || owned.contains("playmat:" + cloth)) ? cloth : null;
         look.avatar = owned(owned, "avatar", wanted.avatar);
         look.frame = owned(owned, "frame", wanted.frame);
+        look.commandFrame = owned(owned, "cmdframe", wanted.commandFrame);
         look.title = owned(owned, "title", wanted.title);
         look.flair = owned(owned, "flair", wanted.flair);
         look.pet = owned(owned, "pet", wanted.pet);
+        if (look.pet != null) {
+            CareerStore.PetProgressRow bond = accounts.careerPetBond(account, look.pet);
+            if (bond != null) {
+                int tier = Math.max(1, bond.tier);
+                look.petTier = tier;
+                look.petStyle = mage.server.career.CareerPets.validStyleForTier(bond.style, tier) ? bond.style : null;
+            }
+        }
         look.arrow = owned(owned, "arrow", wanted.arrow);
         look.spark = owned(owned, "spark", wanted.spark);
         look.stamp = owned(owned, "stamp", wanted.stamp);
@@ -610,10 +624,41 @@ public final class Support {
             }
             look.badges = badges.isEmpty() ? null : badges;
         }
+        look.tokens = tokenChoices(wanted.tokens);
+        look.deckTokens = tokenChoices(wanted.deckTokens);
         // card styles are worn from the capsule shop, not sent with the look: the server says which (M30)
         java.util.Map<String, String> styles = accounts.careerCardStyles(account);
         look.cardStyles = styles.isEmpty() ? null : new java.util.TreeMap<>(styles);
         return look;
+    }
+
+    /** the most token pictures a look keeps, per map */
+    static final int MAX_TOKEN_CHOICES = 120;
+    /** a token picture: the token lists' "SET/Name" or "SET/Name/number" (Mage.Web.Client imageLinks.ts) */
+    private static final java.util.regex.Pattern TOKEN_PICTURE = java.util.regex.Pattern.compile("[A-Za-z0-9_]{1,12}/([^/\\p{Cntrl}]{1,60})(/[0-9]{1,3})?");
+
+    /**
+     * Token pictures chosen for a look (#226): free for everyone, but only well-formed ones, each under its own token's
+     * name, and not too many.
+     */
+    static java.util.Map<String, String> tokenChoices(java.util.Map<String, String> wanted) {
+        if (wanted == null || wanted.isEmpty()) {
+            return null;
+        }
+        java.util.Map<String, String> kept = new java.util.TreeMap<>();
+        for (java.util.Map.Entry<String, String> entry : wanted.entrySet()) {
+            String name = entry.getKey() == null ? "" : entry.getKey().trim();
+            String picture = entry.getValue() == null ? "" : entry.getValue().trim();
+            java.util.regex.Matcher matcher = TOKEN_PICTURE.matcher(picture);
+            if (name.isEmpty() || !matcher.matches() || !matcher.group(1).equals(name)) {
+                continue;
+            }
+            kept.put(name, picture);
+            if (kept.size() >= MAX_TOKEN_CHOICES) {
+                break;
+            }
+        }
+        return kept.isEmpty() ? null : kept;
     }
 
     private static String owned(Set<String> owned, String kind, String item) {
@@ -865,6 +910,18 @@ public final class Support {
         granted(account, 0, now, true);
     }
 
+    /**
+     * Staff give the contributors' pet to someone who helps build Playmat (bug reports, feature requests, pull
+     * requests). It is no support perk: no thank-you notice, no supporter status. Returns false when it was owned.
+     */
+    public synchronized boolean grantContributor(String userName, long now) throws SQLException {
+        String account = userName == null ? null : accounts.name(userName.trim());
+        if (account == null) {
+            throw new IllegalArgumentException("There is no account named " + userName);
+        }
+        return store.addPerk(account, "pet", SupportPerks.CONTRIBUTOR_PET, now, 0);
+    }
+
     // ---- the account's data
 
     /** Everything support keeps about the account, for its export: payments without the providers' payloads. */
@@ -1013,6 +1070,15 @@ public final class Support {
                     return mage.server.career.CareerCapsules.get().worn(account);
                 } catch (SQLException | RuntimeException e) {
                     return Collections.emptyMap();
+                }
+            }
+
+            @Override
+            public CareerStore.PetProgressRow careerPetBond(String account, String petId) {
+                try {
+                    return mage.server.career.CareerPets.get().bondOf(account, petId);
+                } catch (SQLException | RuntimeException e) {
+                    return null;
                 }
             }
         };

@@ -1,0 +1,40 @@
+# name: Train450 lim-t-rwb-mid-2
+# archetype: limited_mid
+# colors: RWB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Archon of Falling Stars
+1 Aron, Benalia's Ruin
+1 Aurelia, the Law Above
+1 Carnival Hellsteed
+1 Chandra's Incinerator
+1 Chaos Spewer
+1 Cloudsteel Kirin
+2 Essence Extraction
+1 Expedition Envoy
+2 Expedition Skulker
+1 Firehoof Cavalry
+2 Grotesque Mutation
+1 Hulking Devil
+1 Inferno Hellion
+1 Juniper Order Rootweaver
+1 Lightning, Army of One
+1 Mondrak, Glory Dominus
+2 Neonate's Rush
+1 Oltec Matterweaver
+1 Qutrub Forayer
+1 Reckless Racer
+1 Sand Strangler
+1 Skyclave Shade
+1 Solitary Camel
+1 Strangle
+2 Tazeem Raptor
+2 Test of Loyalty
+1 Transcendent Envoy
+1 Valgavoth's Faithful
+1 Vile Mutilator
+4 Furycalm Snarl
+4 Mountain
+4 Plains
+4 Shattered Sanctum
+4 Snowfield Sinkhole
+4 Swamp

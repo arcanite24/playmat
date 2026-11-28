@@ -1,0 +1,17 @@
+# name: Train200 mono-g-gowide-2
+# archetype: gowide
+# colors: G
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Cabaretti Initiate
+4 Channeler Initiate
+1 Charging Badger
+2 Colossal Rattlewurm
+4 Giant Growth
+3 Gnarlwood Dryad
+4 Llanowar Elves
+2 Lovestruck Beast
+4 Pulse of Murasa
+4 Sandstalker Moloch
+3 Scythe Leopard
+3 Seeker of Sunlight
+22 Forest

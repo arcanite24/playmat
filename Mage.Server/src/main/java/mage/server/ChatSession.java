@@ -8,6 +8,7 @@ import mage.interfaces.callback.ClientCallback;
 import mage.interfaces.callback.ClientCallbackMethod;
 import mage.server.managers.ManagerFactory;
 import mage.server.replay.ReplayRecorder;
+import mage.server.social.Presence;
 import mage.server.social.UserRelations;
 import mage.view.ChatMessage;
 import mage.view.ChatMessage.MessageColor;
@@ -84,10 +85,13 @@ public class ChatSession {
                 } finally {
                     w.unlock();
                 }
-                // inform other users/chats about connect
+                // inform other users/chats about connect (not in a room's chat for a hidden player: the lobby
+                // would give them away)
                 // warning, massive broadcast must be done in async style
-                managerFactory.threadExecutor().getCallExecutor().execute(() ->
-                        broadcast(null, userName + " has joined", MessageColor.BLUE, true, null, MessageType.STATUS, null));
+                if (roomId == null || !Presence.isHidden(userName)) {
+                    managerFactory.threadExecutor().getCallExecutor().execute(() ->
+                            broadcast(null, userName + " has joined", MessageColor.BLUE, true, null, MessageType.STATUS, null));
+                }
             }
         });
     }
@@ -114,7 +118,7 @@ public class ChatSession {
 
             // inform other users about disconnect (lobby, system tab)
             // warning, massive broadcast must be done in async style
-            if (!reason.messageForUser.isEmpty()) {
+            if (!reason.messageForUser.isEmpty() && (roomId == null || !Presence.isHidden(userName))) {
                 managerFactory.threadExecutor().getCallExecutor().execute(() ->
                         broadcast(null, userName + reason.messageForUser, MessageColor.BLUE, true, null, MessageType.STATUS, null));
             }
@@ -131,8 +135,11 @@ public class ChatSession {
     }
 
     public boolean broadcastWhisperToUser(User fromUser, User toUser, String message) {
-        // an ignored player's whisper is refused like one to a player who isn't here
-        if (users.containsKey(toUser.getId()) && !UserRelations.ignores(toUser.getId(), fromUser.getName())) {
+        // an ignored player's whisper is refused like one to a player who isn't here, and so is one to a hidden
+        // player who didn't whisper the sender first
+        if (users.containsKey(toUser.getId()) && !UserRelations.ignores(toUser.getId(), fromUser.getName())
+                && Presence.whisperReaches(fromUser.getName(), toUser.getId(), toUser.getName())) {
+            Presence.whispered(fromUser.getId(), fromUser.getName(), toUser.getName());
             toUser.fireCallback(new ClientCallback(ClientCallbackMethod.CHATMESSAGE, chatId,
                     new ChatMessage(fromUser.getName(), message, new Date(), null, MessageColor.YELLOW, MessageType.WHISPER_FROM, SoundToPlay.PlayerWhispered)));
             if (users.containsKey(fromUser.getId())) {
@@ -224,6 +231,11 @@ public class ChatSession {
      */
     public UUID getChatId() {
         return chatId;
+    }
+
+    /** a room's chat (the lobby), as opposed to a table's, an event's or a game's */
+    public boolean isRoomChat() {
+        return roomId != null;
     }
 
     public boolean hasUser(UUID userId, boolean useHistory) {

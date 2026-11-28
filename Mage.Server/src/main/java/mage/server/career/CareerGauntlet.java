@@ -3,6 +3,8 @@ package mage.server.career;
 import com.google.gson.Gson;
 import mage.cards.decks.DeckCardInfo;
 import mage.cards.decks.DeckCardLists;
+import mage.cards.repository.CardInfo;
+import mage.cards.repository.CardRepository;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -61,6 +63,9 @@ public final class CareerGauntlet {
         int maxWins;
         List<Payout> rewards;
         List<CareerCampaigns.NodeOpponent> bosses;
+        List<CareerCampaigns.NodeOpponent> finalBosses = new ArrayList<>();
+        List<CareerCampaigns.NodeOpponent> commanderBosses = new ArrayList<>();
+        List<CommanderChoice> commanders = new ArrayList<>();
         MapRules map;
         List<Relic> relics = new ArrayList<>();
         List<Event> events = new ArrayList<>();
@@ -110,12 +115,22 @@ public final class CareerGauntlet {
         List<EventOption> options = new ArrayList<>();
     }
 
+    static class CommanderChoice {
+        String id;
+        String name;
+        String colors;
+        String relic;
+        String text;
+    }
+
     static class EventOption {
         String id;
         String label;
         int coins;
         boolean relic;
         boolean bundle;
+        boolean upgrade;
+        boolean trim;
         boolean gamble;
         int wound;
         int heal;
@@ -206,11 +221,13 @@ public final class CareerGauntlet {
 
     static class RunData {
         String colors = "";
+        CareerRunCard commander;
         List<CareerRunCard> deck = new ArrayList<>();
         CareerOffer offer;
         // the map and its modes (absent in runs started before them)
         String mode;
         String variant;
+        boolean planeChase;
         long seed;
         int ascension;
         int runCoins;
@@ -235,8 +252,11 @@ public final class CareerGauntlet {
         public String state;
         public int wins;
         public int losses;
+        /** the wins that end the run: the pay table's top, or the whole roster in boss rush */
         public int maxWins;
         public String colors;
+        /** the drafted Legendary Commander in Commanders of the Spire runs, or null */
+        public CareerRunCard commander;
         public List<CareerRunCard> deck;
         public int deckSize;
         /** a pick waiting before the next game */
@@ -250,6 +270,8 @@ public final class CareerGauntlet {
         /** "map", "bossrush", "endless" or "classic" */
         public String mode;
         public String variant;
+        /** true when Planechase Planar Chaos is active on this Gauntlet run */
+        public boolean planeChase;
         /** the run's seed, to share: the same seed plays the same map and offers */
         public String seed;
         public int ascension;
@@ -289,6 +311,10 @@ public final class CareerGauntlet {
         public boolean beaten;
         /** "fight", "elite" or "boss" */
         public String type;
+        /** true for 3-player Commander Skirmish Elites (you vs 2 AI commanders) */
+        public boolean skirmish;
+        /** the second AI opponent's name in a 3-player Skirmish */
+        public String secondName;
     }
 
     public static class CareerGauntletState {
@@ -334,6 +360,8 @@ public final class CareerGauntlet {
         public List<String> cubeCards;
         /** the set to draft for the draft variant */
         public String setCode;
+        /** optional Planechase modifier (Planar Chaos) */
+        public boolean planeChase;
     }
 
     private static volatile CareerGauntlet instance;
@@ -481,15 +509,18 @@ public final class CareerGauntlet {
         run.state = row.state;
         run.wins = row.wins;
         run.losses = row.losses;
-        run.maxWins = rules.maxWins;
         run.colors = data.colors;
+        run.commander = data.commander;
         run.deck = data.deck;
-        run.deckSize = data.deck.stream().mapToInt(card -> card.amount).sum();
+        run.deckSize = data.deck.stream().mapToInt(card -> card.amount).sum() + (data.commander != null ? 1 : 0);
         run.offer = data.offer;
         run.started = row.started;
         run.ended = row.ended;
         run.mode = modeOf(data);
+        // boss rush runs the whole roster, not the pay table's eight: "9 of 8 wins" read as a run that forgot to end (#207)
+        run.maxWins = MODE_BOSS_RUSH.equals(run.mode) ? rosterOrder().size() : rules.maxWins;
         run.variant = data.variant == null ? GauntletPacks.JUMPSTART : data.variant;
+        run.planeChase = data.planeChase;
         run.seed = data.mode == null ? null : seedCode(data.seed);
         run.ascension = data.ascension;
         run.ascensionTitle = data.ascension > 0 ? ascension(data.ascension).title : null;
@@ -531,6 +562,8 @@ public final class CareerGauntlet {
                             Opponent opponent = mapOpponent(data, node);
                             nodeView.opponent = bossView(opponent.boss, node.row + 1, opponent.twists, data.cleared.contains(node.id), node.type);
                             nodeView.opponent.skill = opponent.skill;
+                            nodeView.opponent.skirmish = opponent.skirmish;
+                            nodeView.opponent.secondName = opponent.secondBoss == null ? null : opponent.secondBoss.name;
                         }
                         rowView.add(nodeView);
                     }
@@ -543,6 +576,8 @@ public final class CareerGauntlet {
                         Opponent opponent = mapOpponent(data, here);
                         run.next = bossView(opponent.boss, here.row + 1, opponent.twists, false, here.type);
                         run.next.skill = opponent.skill;
+                        run.next.skirmish = opponent.skirmish;
+                        run.next.secondName = opponent.secondBoss == null ? null : opponent.secondBoss.name;
                     }
                 }
                 break;
@@ -724,13 +759,32 @@ public final class CareerGauntlet {
     /** who a fight is against: the boss, its twists for this fight and the skill it plays at */
     static class Opponent {
         CareerCampaigns.NodeOpponent boss;
+        CareerCampaigns.NodeOpponent secondBoss;
+        boolean skirmish;
         CareerSetup.CareerTwists twists;
         int skill;
     }
 
     Opponent mapOpponent(RunData data, Node node) {
         Opponent opponent = new Opponent();
-        opponent.boss = rules.bosses.get(Math.min(node.opponent, rules.bosses.size() - 1));
+        boolean isCommander = GauntletPacks.COMMANDER.equals(data.variant)
+                && rules.commanderBosses != null && !rules.commanderBosses.isEmpty();
+        if (isCommander) {
+            int maxIdx = rules.commanderBosses.size() - 1;
+            int idx = BOSS.equals(node.type)
+                    ? maxIdx
+                    : Math.min(maxIdx - 1, Math.max(0, node.opponent * Math.max(1, maxIdx) / Math.max(1, rules.bosses.size())));
+            opponent.boss = rules.commanderBosses.get(idx);
+            if (ELITE.equals(node.type) && rules.commanderBosses.size() > 1) {
+                int secondIdx = (idx + 1 + rng(data, "skirmish:" + node.id).nextInt(rules.commanderBosses.size() - 1)) % rules.commanderBosses.size();
+                opponent.secondBoss = rules.commanderBosses.get(secondIdx);
+                opponent.skirmish = true;
+            }
+        } else if (BOSS.equals(node.type) && rules.finalBosses != null && !rules.finalBosses.isEmpty()) {
+            opponent.boss = rules.finalBosses.get(rng(data, "final-boss").nextInt(rules.finalBosses.size()));
+        } else {
+            opponent.boss = rules.bosses.get(Math.min(node.opponent, rules.bosses.size() - 1));
+        }
         CareerSetup.CareerTwists twists = opponent.boss.twists;
         int skill = opponent.boss.skill;
         if (ELITE.equals(node.type)) {
@@ -951,6 +1005,7 @@ public final class CareerGauntlet {
             RunData data = new RunData();
             data.mode = mode;
             data.variant = variant;
+            data.planeChase = options.planeChase;
             data.seed = seed;
             data.ascension = options.ascension;
             data.cubeId = options.cubeId;
@@ -982,10 +1037,64 @@ public final class CareerGauntlet {
     }
 
     private CareerOffer startOffer(RunData data) throws CareerService.CareerException {
+        if (GauntletPacks.COMMANDER.equals(data.variant)) {
+            return commanderOffer(data);
+        }
         CareerOffer offer = new CareerOffer();
         offer.kind = "start";
         offer.pick = rules.pickStart;
         for (CareerJumpstart.Pack pack : GauntletPacks.start(data.variant, data.cubeId, data.cubeCards, rng(data, "start"), rules.startPacks)) {
+            CareerOfferOption option = new CareerOfferOption();
+            option.id = pack.name;
+            option.name = pack.name;
+            option.color = pack.color;
+            option.kind = "pack";
+            for (DeckCardInfo card : pack.cards) {
+                option.cards.add(new CareerRunCard(card, card.getAmount()));
+            }
+            offer.options.add(option);
+        }
+        return offer;
+    }
+
+    private CareerOffer commanderOffer(RunData data) throws CareerService.CareerException {
+        if (rules.commanders == null || rules.commanders.isEmpty()) {
+            throw new CareerService.CareerException("No commanders are configured for Commanders of the Spire.");
+        }
+        CareerOffer offer = new CareerOffer();
+        offer.kind = "commander";
+        offer.pick = 1;
+        offer.title = "Choose your Commander";
+        offer.text = "Draft 1 of 3 Legendary Commanders. Each comes with a signature starting Command Relic, followed by two color-matched singleton packs.";
+        List<CommanderChoice> pool = new ArrayList<>(rules.commanders);
+        Collections.shuffle(pool, rng(data, "commander"));
+        for (CommanderChoice pick : pool.subList(0, Math.min(3, pool.size()))) {
+            CareerOfferOption option = new CareerOfferOption();
+            option.id = pick.id;
+            option.name = pick.name;
+            option.color = pick.colors;
+            option.kind = "commander";
+            CareerRelic startRelic = pick.relic == null ? null : relic(pick.relic);
+            option.text = pick.text + (startRelic != null ? " Starts with " + startRelic.name + ": " + startRelic.text : "");
+            CardInfo info = CardRepository.instance.findPreferredCoreExpansionCard(pick.name);
+            CareerRunCard card = new CareerRunCard();
+            card.name = info == null ? pick.name : info.getName();
+            card.setCode = info == null ? null : info.getSetCode();
+            card.cardNumber = info == null ? null : info.getCardNumber();
+            card.amount = 1;
+            option.cards.add(card);
+            offer.options.add(option);
+        }
+        return offer;
+    }
+
+    private CareerOffer commanderPackOffer(RunData data) throws CareerService.CareerException {
+        CareerOffer offer = new CareerOffer();
+        offer.kind = "start";
+        offer.pick = rules.pickStart;
+        offer.title = "Pick two command packs";
+        offer.text = "Build your roguelike Commander deck around " + (data.commander == null ? "your commander" : data.commander.name) + ".";
+        for (CareerJumpstart.Pack pack : GauntletPacks.commanderStart(data.colors, rng(data, "commander-packs"), 4)) {
             CareerOfferOption option = new CareerOfferOption();
             option.id = pack.name;
             option.name = pack.name;
@@ -1072,6 +1181,9 @@ public final class CareerGauntlet {
                 chosen.add(option);
             }
             switch (offer.kind) {
+                case "commander":
+                    pickCommander(data, chosen.get(0));
+                    break;
                 case "draft":
                     pickDraft(data, Integer.parseInt(chosen.get(0).id));
                     break;
@@ -1080,6 +1192,13 @@ public final class CareerGauntlet {
                     break;
                 case "rest":
                     rest(data, offer, chosen.get(0));
+                    break;
+                case "trim":
+                    trim(data, offer, chosen.get(0));
+                    break;
+                case "upgrade":
+                    addCards(data, chosen.get(0));
+                    resolved(data, offer);
                     break;
                 case "event":
                     event(data, offer, chosen.get(0));
@@ -1099,6 +1218,47 @@ public final class CareerGauntlet {
             store.putRun(user, row);
             return view(row);
         }));
+    }
+
+    private void pickCommander(RunData data, CareerOfferOption option) throws SQLException {
+        CommanderChoice pick = rules.commanders.stream()
+                .filter(c -> c.id.equals(option.id))
+                .findFirst()
+                .orElse(null);
+        if (pick == null) {
+            throw refusal("That commander isn't available.");
+        }
+        data.commander = option.cards.isEmpty() ? null : copy(option.cards.get(0));
+        data.colors = pick.colors == null ? "" : pick.colors;
+        if (pick.relic != null && relic(pick.relic) != null && !data.relics.contains(pick.relic)) {
+            data.relics.add(pick.relic);
+        }
+        try {
+            data.offer = commanderPackOffer(data);
+        } catch (CareerService.CareerException e) {
+            throw new SQLException(e);
+        }
+    }
+
+    private void trim(RunData data, CareerOffer offer, CareerOfferOption option) {
+        if (!"leave".equals(option.kind) && option.id != null) {
+            for (int i = 0; i < data.deck.size(); i++) {
+                CareerRunCard card = data.deck.get(i);
+                if (cardKey(card).equals(option.id)) {
+                    if (card.amount > 1) {
+                        card.amount--;
+                    } else {
+                        data.deck.remove(i);
+                    }
+                    break;
+                }
+            }
+        }
+        resolved(data, offer);
+    }
+
+    private static String cardKey(CareerRunCard card) {
+        return (card.setCode == null ? "" : card.setCode) + "|" + (card.cardNumber == null ? "" : card.cardNumber) + "|" + card.name;
     }
 
     private void pickDraft(RunData data, int index) throws SQLException {
@@ -1175,9 +1335,69 @@ public final class CareerGauntlet {
         if ("heal".equals(option.kind)) {
             data.wounds = 0;
             resolved(data, offer);
+        } else if ("trim".equals(option.kind)) {
+            data.offer = trimOffer(data, offer.node);
         } else {
             data.offer = bundles(data, offer.node, "train");
         }
+    }
+
+    private CareerOffer trimOffer(RunData data, String nodeId) {
+        CareerOffer offer = new CareerOffer();
+        offer.kind = "trim";
+        offer.pick = 1;
+        offer.node = nodeId;
+        offer.title = "Trim your deck";
+        offer.text = "Cut one copy of a non-basic card from your run deck to tighten your draws.";
+        List<CareerRunCard> sorted = new ArrayList<>();
+        for (CareerRunCard card : data.deck) {
+            if (!CareerService.isBasic(card.name)) {
+                sorted.add(card);
+            }
+        }
+        sorted.sort(Comparator.comparing(c -> c.name));
+        for (CareerRunCard card : sorted) {
+            CareerOfferOption option = new CareerOfferOption();
+            option.id = cardKey(card);
+            option.kind = "trim";
+            option.name = card.amount > 1 ? card.name + " (×" + card.amount + ")" : card.name;
+            option.cards.add(copy(card));
+            offer.options.add(option);
+        }
+        CareerOfferOption skip = new CareerOfferOption();
+        skip.id = "skip";
+        skip.kind = "leave";
+        skip.name = "Keep every card";
+        offer.options.add(skip);
+        return offer;
+    }
+
+    private CareerOffer upgradeOffer(RunData data, String nodeId) {
+        CareerOffer offer = new CareerOffer();
+        offer.kind = "upgrade";
+        offer.pick = 1;
+        offer.node = nodeId;
+        offer.title = "Foil Forge";
+        offer.text = "Pick one rare or mythic bomb in your colors to forge into your run deck.";
+        List<CardInfo> bombs = GauntletPacks.rareUpgrades(data.colors, rng(data, "upgrade:" + nodeId), 3);
+        for (CardInfo card : bombs) {
+            CareerOfferOption option = new CareerOfferOption();
+            option.id = card.getSetCode() + "|" + card.getCardNumber();
+            option.kind = "card";
+            option.name = card.getName();
+            option.color = card.getColor() == null ? "" : card.getColor().toString();
+            CareerRunCard runCard = new CareerRunCard();
+            runCard.name = card.getName();
+            runCard.setCode = card.getSetCode();
+            runCard.cardNumber = card.getCardNumber();
+            runCard.amount = 1;
+            option.cards.add(runCard);
+            offer.options.add(option);
+        }
+        if (offer.options.isEmpty()) {
+            return bundles(data, nodeId, "upgrade");
+        }
+        return offer;
     }
 
     private void event(RunData data, CareerOffer offer, CareerOfferOption option) throws SQLException {
@@ -1202,8 +1422,12 @@ public final class CareerGauntlet {
                 data.wounds++;
             }
         }
-        if (choice.relic) {
+        if (choice.relic && relicsLeft(data)) {
             data.offer = relicOffer(data, offer.node);
+        } else if (choice.upgrade) {
+            data.offer = upgradeOffer(data, offer.node);
+        } else if (choice.trim) {
+            data.offer = trimOffer(data, offer.node);
         } else if (choice.bundle) {
             data.offer = bundles(data, offer.node, "event");
         } else {
@@ -1278,7 +1502,7 @@ public final class CareerGauntlet {
         return offer;
     }
 
-    private static CareerOffer restOffer(RunData data, Node node) {
+    private CareerOffer restOffer(RunData data, Node node) {
         CareerOffer offer = new CareerOffer();
         offer.kind = "rest";
         offer.pick = 1;
@@ -1289,12 +1513,25 @@ public final class CareerGauntlet {
         heal.id = "heal";
         heal.kind = "heal";
         heal.name = data.wounds > 0 ? "Heal every wound" : "Rest";
+        heal.text = data.wounds > 0
+                ? "Your " + (data.wounds == 1 ? "wound costs " : data.wounds + " wounds cost ") + data.wounds * woundLife(data) + " life at the start of each fight; this heals them all."
+                : "Nothing to heal: resting changes nothing.";
         offer.options.add(heal);
         CareerOfferOption train = new CareerOfferOption();
         train.id = "train";
         train.kind = "train";
         train.name = "Train: pick a bundle";
+        int count = runRule(data, "fewerBundles") ? Math.max(1, rules.bundles - 1) : rules.bundles;
+        train.text = "Pick one of " + count + " bundles of " + rules.bundleSize + " cards for your deck.";
         offer.options.add(train);
+        if (data.deck.stream().anyMatch(card -> !CareerService.isBasic(card.name))) {
+            CareerOfferOption trim = new CareerOfferOption();
+            trim.id = "trim";
+            trim.kind = "trim";
+            trim.name = "Trim: cut a card";
+            trim.text = "Remove one non-basic card from your run deck to tighten your draws.";
+            offer.options.add(trim);
+        }
         return offer;
     }
 
@@ -1312,9 +1549,62 @@ public final class CareerGauntlet {
             option.id = choice.id;
             option.kind = "choice";
             option.name = choice.label;
+            option.text = eventText(data, choice);
+            if (choice.coins < 0) {
+                // shown as a price, so the choice can't be taken without the coins
+                option.price = -choice.coins;
+            }
             offer.options.add(option);
         }
         return offer;
+    }
+
+    /**
+     * What an event's choice does, in plain words, worked out from the choice itself (#203): a heal with no wound to
+     * heal says it does nothing rather than leave the player wondering.
+     */
+    String eventText(RunData data, EventOption choice) {
+        List<String> parts = new ArrayList<>();
+        int life = woundLife(data);
+        if (choice.coins < 0) {
+            parts.add("Costs " + (-choice.coins) + " run coins.");
+        } else if (choice.coins > 0) {
+            parts.add("Gain " + choice.coins + " run coins.");
+        }
+        if (choice.wound > 0) {
+            parts.add((choice.wound == 1 ? "Take a wound" : "Take " + choice.wound + " wounds")
+                    + ": you start each fight " + (choice.wound * life) + " life down until you heal.");
+        }
+        if (choice.heal > 0) {
+            if (data.wounds <= 0) {
+                parts.add("You have no wounds, so there is nothing to heal.");
+            } else if (choice.heal >= data.wounds) {
+                parts.add(data.wounds == 1 ? "Heals your wound." : "Heals all " + data.wounds + " of your wounds.");
+            } else {
+                parts.add(choice.heal == 1 ? "Heals one of your " + data.wounds + " wounds." : "Heals " + choice.heal + " of your " + data.wounds + " wounds.");
+            }
+        }
+        if (choice.gamble) {
+            parts.add("Even odds: 30 run coins, or a wound (" + life + " life less each fight until you heal).");
+        }
+        if (choice.relic) {
+            parts.add(relicsLeft(data) ? "Then pick one of up to three relics: edges that last the whole run." : "You already have every relic, so there's none to gain.");
+        } else if (choice.upgrade) {
+            parts.add("Then pick one of three rare or mythic cards in your colors to forge into your deck.");
+        } else if (choice.trim) {
+            parts.add("Cut one non-basic card from your run deck to tighten your draws.");
+        } else if (choice.bundle) {
+            int count = runRule(data, "fewerBundles") ? Math.max(1, rules.bundles - 1) : rules.bundles;
+            parts.add("Then pick one of " + count + " bundles of " + rules.bundleSize + " cards for your deck.");
+        }
+        if (parts.isEmpty()) {
+            parts.add("Nothing happens; you move on.");
+        }
+        return String.join(" ", parts);
+    }
+
+    private boolean relicsLeft(RunData data) {
+        return rules.relics.stream().anyMatch(relic -> !data.relics.contains(relic.id));
     }
 
     private CareerOffer relicOffer(RunData data, String nodeId) {
@@ -1394,8 +1684,13 @@ public final class CareerGauntlet {
         public String runId;
         public int bossNumber;
         public CareerCampaigns.NodeOpponent boss;
+        public CareerCampaigns.NodeOpponent secondBoss;
+        public boolean skirmish;
+        public boolean planeChase;
+        public CareerRunCard commander;
         public DeckCardLists playerDeck;
         public DeckCardLists opponentDeck;
+        public DeckCardLists secondOpponentDeck;
         public CareerSetup setup;
         /** the skill the opponent plays at this time */
         public int skill;
@@ -1442,17 +1737,27 @@ public final class CareerGauntlet {
                 opponent = lineOpponent(data, row.wins);
         }
         plan.boss = opponent.boss;
+        plan.secondBoss = opponent.secondBoss;
+        plan.skirmish = opponent.skirmish;
+        plan.planeChase = data.planeChase;
+        plan.commander = data.commander;
         plan.skill = opponent.skill;
         plan.playerDeck = new DeckCardLists();
-        plan.playerDeck.setName("Gauntlet run");
+        plan.playerDeck.setName(data.commander != null ? data.commander.name + " Gauntlet" : "Gauntlet run");
         for (CareerRunCard card : data.deck) {
             plan.playerDeck.getCards().add(new DeckCardInfo(card.name, card.cardNumber, card.setCode, card.amount));
+        }
+        if (data.commander != null) {
+            plan.playerDeck.getSideboard().add(new DeckCardInfo(data.commander.name, data.commander.cardNumber, data.commander.setCode, 1));
         }
         if (opponent.boss.deck.startsWith("roster:")) {
             CareerContent.Opponent rosterOpponent = CareerContent.get().opponent(opponent.boss.deck.substring("roster:".length()));
             plan.opponentDeck = CareerContent.get().opponentDeck(rosterOpponent);
         } else {
             plan.opponentDeck = CareerCampaigns.get().deck(opponent.boss.deck);
+        }
+        if (opponent.skirmish && opponent.secondBoss != null) {
+            plan.secondOpponentDeck = CareerCampaigns.get().deck(opponent.secondBoss.deck);
         }
         plan.setup = CareerSetup.ofRun(opponent.twists, playerTwists(data));
         return plan;

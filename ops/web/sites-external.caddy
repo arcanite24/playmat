@@ -1,0 +1,8 @@
+# TLS_MODE=external: your own reverse proxy (Traefik, nginx, Nginx Proxy Manager, Caddy, SWAG) holds the certificate and
+# forwards to this container's port 80 (docker-compose.proxy.yml). Plain HTTP only: no certificates, no ACME, no local
+# CA, nothing on 443. Any Host name is answered, so a proxy that rewrites Host still works; only containers on the
+# proxy's network reach this port. The address range the proxy connects from (UPSTREAM_PROXIES, private networks by
+# default in that override) is believed about who the client is.
+http:// {
+	import site
+}

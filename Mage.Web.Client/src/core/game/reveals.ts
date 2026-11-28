@@ -1,8 +1,9 @@
 import type { CardView, GameView } from '../../protocol/generated/views';
 
 /**
- * Cards revealed to everyone, and cards only this player looked at, as the server lists them in the game view. The
- * server keeps them until the end of the turn, named after what revealed them ("Duress [1a2] [3]").
+ * Cards revealed to everyone, and cards only this player looked at, as the server lists them in the game view, named
+ * after what revealed them ("Duress [1a2] [3]"). The server lists each one in a single update only (it forgets them
+ * once that update is sent), so the client remembers them for the rest of the turn (rememberReveals).
  */
 export interface RevealGroup {
   /** stable while the same cards stay revealed by the same source */
@@ -75,6 +76,36 @@ export function revealGroups(view: GameView | null | undefined): RevealGroup[] {
   return groups;
 }
 
+/** What the client remembers of this turn's reveals and looks (see rememberReveals). */
+export interface RevealMemory {
+  turn: number | null;
+  groups: RevealGroup[];
+}
+
+export const NO_REVEALS: RevealMemory = { turn: null, groups: [] };
+
+/** Enough for a busy turn; older reveals drop off first. */
+const MAX_REMEMBERED = 20;
+
+/**
+ * The reveals and looks of this turn after one more view. The server lists a look in the one update it sends right
+ * after it ("look at an opponent's hand, then choose a card type": the question that follows comes without it), so
+ * each group stays until the turn ends; one listed again moves to the end, as the newest.
+ */
+export function rememberReveals(previous: RevealMemory, view: GameView | null | undefined): RevealMemory {
+  if (!view) return previous;
+  const turn = view.turn ?? null;
+  const current = revealGroups(view);
+  const sameTurn = previous.turn === turn;
+  if (sameTurn && current.length === 0) return previous;
+  const byKey = new Map((sameTurn ? previous.groups : []).map((group) => [group.key, group]));
+  for (const group of current) {
+    byKey.delete(group.key);
+    byKey.set(group.key, group);
+  }
+  return { turn, groups: [...byKey.values()].slice(-MAX_REMEMBERED) };
+}
+
 /** Short label for a group: "Revealed: Duress", "Looked at: Opt". */
 export function revealLabel(group: RevealGroup): string {
   const verb = group.kind === 'revealed' ? 'Revealed' : 'Looked at';
@@ -96,11 +127,11 @@ export function revealSeat(group: RevealGroup, seats: ReadonlySet<string>, myPla
  * "Elvish Rejuvenator [1a2]") and in the looked-at window ("Elvish Rejuvenator [1a2] [3]"). The newest such group,
  * or null.
  */
-export function askedAboutCards(prompt: { kind: string; options: Record<string, unknown> } | null | undefined, view: GameView | null | undefined): RevealGroup | null {
-  if (prompt?.kind !== 'ask' || !view) return null;
+export function askedAboutCards(prompt: { kind: string; options: Record<string, unknown> } | null | undefined, groups: readonly RevealGroup[]): RevealGroup | null {
+  if (prompt?.kind !== 'ask') return null;
   const source = typeof prompt.options.secondMessage === 'string' ? prompt.options.secondMessage.replace(/<[^>]*>/g, '') : '';
   const objectId = /\[([0-9a-f]{3})\]/i.exec(source)?.[1]?.toLowerCase();
   if (!objectId) return null;
-  const matching = revealGroups(view).filter((group) => group.source.toLowerCase().includes(`[${objectId}]`));
+  const matching = groups.filter((group) => group.source.toLowerCase().includes(`[${objectId}]`));
   return matching[matching.length - 1] ?? null;
 }

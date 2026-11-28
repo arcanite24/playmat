@@ -4,6 +4,7 @@ import type { GameClientMessage, GameEndView, GameView } from '../../protocol/ge
 import type { EventBus } from '../rpc/EventBus';
 import type { ServerEvent } from '../rpc/RpcClient';
 import { DelayedRelay } from './broadcastDelay';
+import { PacedQueue, type PacedStep, type Stage } from './pacing';
 import { deriveInteraction, type Command, type Interaction } from './interaction';
 import type { Prediction } from './prediction';
 import { PROMPT_EVENTS, parsePrompt, promptGameView, stripMarkup, type Prompt, type PromptEventName } from './prompt';
@@ -59,7 +60,12 @@ export const REPLY_TIMEOUT_MS = 10_000;
 
 export interface GameSessionOptions {
   replyTimeoutMs?: number;
+  /** the table that paces what the server sends (pacing.ts); also set later with setStage */
+  stage?: Stage | null;
 }
+
+/** What a server event's handler leaves to do once the board it showed has played (see pacing.ts), if anything. */
+type Handled = (() => void) | void;
 
 /** Another player holds priority or is making a choice, so the game waits on them, not on us. */
 export function decidingElsewhere(view: GameView, playerId: string | null): boolean {
@@ -80,12 +86,21 @@ export class GameSession {
   private readonly replyTimeoutMs: number;
   /** the last answer sent, for "Send again" */
   private lastCommand: Command | null = null;
-  /** Cancel was pressed on a payment while a mana tap was still with the server: sent at the next request for mana */
+  /** Keep cancelling through nested mana abilities until the cast returns to priority. */
   private cancelPending = false;
+  private paymentCancelSent = false;
   /** the newest game event a view has carried; a view repeated from the server's cache carries old ones again */
   private lastEventSeq = 0;
-  /** every server event for this game passes through here: at once, or after the broadcast delay when watching */
+  /**
+   * every server event for this game passes through here: at once, or after the broadcast delay when watching. Then
+   * it waits its turn behind the playback of the views before it (pacing.ts).
+   */
   private readonly relay = new DelayedRelay<() => void>((apply) => apply());
+  private readonly paced: PacedQueue;
+  /** the server said the game is over: the result waits for the final board, but no question is taken meanwhile */
+  private ending = false;
+  /** questions received and not shown yet: the one on screen is out of date, and isn't answered */
+  private questionsWaiting = 0;
 
   constructor(
     private readonly api: Api,
@@ -94,6 +109,7 @@ export class GameSession {
     options: GameSessionOptions = {},
   ) {
     this.replyTimeoutMs = options.replyTimeoutMs ?? REPLY_TIMEOUT_MS;
+    this.paced = new PacedQueue(options.stage ?? null);
     this.store = createStore<GameSessionState>(() => ({
       gameId: init.gameId,
       playerId: init.playerId,
@@ -113,14 +129,15 @@ export class GameSession {
       broadcastDelayMs: 0,
     }));
 
-    const forThisGame = <T>(handler: (data: T, event: ServerEvent) => void) =>
+    const forThisGame = <T>(handler: (data: T, event: ServerEvent) => Handled, arrived?: (data: T) => void) =>
       (data: T, event: ServerEvent) => {
         if (event.objectId !== null && event.objectId !== init.gameId) return;
         // any word from the server about this game shows it is alive and working on our answer
         this.heard();
         // a delayed board is behind on purpose: hearing from the server again is enough to end the resync
         if (this.relay.delay > 0 && this.store.getState().resyncing) this.store.setState({ resyncing: false });
-        this.relay.push(() => handler(data, event));
+        arrived?.(data);
+        this.relay.push(() => this.paced.push(this.step(() => handler(data, event))));
       };
 
     this.unsubscribers.push(
@@ -138,12 +155,15 @@ export class GameSession {
         this.addNotice('personal', stripMarkup(message?.message));
       })),
       bus.on('GAME_ERROR', forThisGame<string>((message) => this.addNotice('error', stripMarkup(message)))),
+      // the final board first (often the hit that ended the game), the result once it has played; input closes as the
+      // end arrives, so nothing is answered in a game that is over
       bus.on('GAME_OVER', forThisGame<GameClientMessage>((message) => {
         this.applyView(message?.gameView);
-        this.clearReplyTimer();
-        this.store.setState({ gameOver: stripMarkup(message?.message) || 'Game over', prompt: null, awaitingServer: false, stalled: false, conceding: false });
-        this.refreshInteraction();
-      })),
+        return () => {
+          this.store.setState({ gameOver: stripMarkup(message?.message) || 'Game over', prompt: null, awaitingServer: false, stalled: false, conceding: false });
+          this.refreshInteraction();
+        };
+      }, () => this.closeInput())),
       bus.on('END_GAME_INFO', forThisGame<GameEndView>((info) => this.store.setState({ endInfo: info }))),
       bus.on('REPLAY_DONE', forThisGame<string>((message) => {
         this.store.setState({ gameOver: stripMarkup(message) || 'Replay finished' });
@@ -151,12 +171,54 @@ export class GameSession {
     );
 
     for (const method of PROMPT_EVENTS) {
-      this.unsubscribers.push(bus.on(method, forThisGame((data) => this.applyPrompt(method, data))));
+      this.unsubscribers.push(bus.on(method, forThisGame((data) => {
+        this.questionsWaiting--;
+        this.applyPrompt(method, data);
+      }, () => this.questionsWaiting++)));
     }
   }
 
   getState(): GameSessionState {
     return this.store.getState();
+  }
+
+  /** The table that paces the server's views (pacing.ts), while one is drawn; null shows everything as it arrives. */
+  setStage(stage: Stage | null): void {
+    this.paced.setStage(stage);
+  }
+
+  /**
+   * Runs something the server sent outside the game's own events (its log lines) in the game's order: behind the
+   * views received before it, and the broadcast delay.
+   */
+  readonly inOrder = (run: () => void): void => {
+    this.relay.push(() => this.paced.push(this.step(() => {
+      run();
+    })));
+  };
+
+  /** server events received and still waiting for the board to catch up */
+  get behind(): number {
+    return this.paced.pending;
+  }
+
+  /** A paced step: applies the event and says which new view it put on the board, for the table to play. */
+  private step(apply: () => Handled): PacedStep {
+    return () => {
+      const before = this.store.getState().view;
+      const then = apply();
+      const after = this.store.getState().view;
+      return { view: after !== before ? after : null, then: typeof then === 'function' ? this.step(then) : undefined };
+    };
+  }
+
+  private closeInput(): void {
+    this.ending = true;
+    if (this.store.getState().mode !== 'play') return;
+    this.clearReplyTimer();
+    this.clearHold();
+    this.store.setState({ prompt: null, awaitingServer: false, stalled: false, prediction: null });
+    this.refreshInteraction();
   }
 
   private clearHold(): void {
@@ -185,6 +247,9 @@ export class GameSession {
 
   /** The board may be out of date (connection lost, page reloaded) until the server sends the game again. */
   markResyncing(): void {
+    if (this.store.getState().gameOver) return;
+    // what is still waiting is shown now: the board is about to be sent again anyway (it may be the game's end)
+    this.paced.flush();
     if (this.store.getState().gameOver) return;
     this.clearReplyTimer();
     this.clearHold();
@@ -259,6 +324,7 @@ export class GameSession {
 
   dispose(): void {
     this.relay.dispose();
+    this.paced.dispose();
     this.clearReplyTimer();
     this.clearHold();
     this.unsubscribers.forEach((unsubscribe) => unsubscribe());
@@ -267,6 +333,8 @@ export class GameSession {
   /** Send an answer for the current prompt (or a player action, which needs no prompt). */
   async respond(command: Command): Promise<void> {
     const { gameId, playerId } = this.store.getState();
+    // a newer question is waiting behind the board: the answer would go to that one
+    if (command.type !== 'action' && (this.questionsWaiting > 0 || this.ending)) return;
     if (command.type !== 'action') {
       // the server will ask again (or move on); until then clicks are ignored, and the answered prompt fades out
       // only if nothing new arrives soon
@@ -320,10 +388,9 @@ export class GameSession {
   cancelPayment(): void {
     const { interaction, awaitingServer } = this.store.getState();
     if (interaction.mode !== 'payMana') return;
-    if (awaitingServer) {
-      this.cancelPending = true;
-      return;
-    }
+    this.cancelPending = true;
+    if (awaitingServer) return;
+    this.paymentCancelSent = true;
     void this.respond(CANCEL_PAYMENT).catch(() => undefined);
   }
 
@@ -334,7 +401,7 @@ export class GameSession {
   click(objectId: string, prediction: Prediction | null = null): boolean {
     const { interaction, awaitingServer } = this.store.getState();
     const command = interaction.clickable.get(objectId);
-    if (!command || awaitingServer) return false;
+    if (!command || awaitingServer || this.questionsWaiting > 0 || this.ending) return false;
     this.store.setState({ prediction });
     void this.respond(command).catch(() => undefined);
     return true;
@@ -361,8 +428,7 @@ export class GameSession {
       this.clearHold();
       this.store.setState({ awaitingServer: false, stalled: false, prompt: null, prediction: null });
       if (this.cancelPending) {
-        this.cancelPending = false;
-        this.tooLateToCancel();
+        this.finishCancel();
       }
       if (next === previous) this.refreshInteraction();
     }
@@ -384,23 +450,28 @@ export class GameSession {
 
   private applyPrompt(method: PromptEventName, data: unknown): void {
     this.applyView(promptGameView(method, data), true);
-    if (this.store.getState().mode !== 'play') return;
+    if (this.store.getState().mode !== 'play' || this.ending) return;
     const prompt = parsePrompt(method, data as never);
     this.clearHold();
     this.clearReplyTimer();
     this.store.setState({ prompt, awaitingServer: false, prediction: null, stalled: false, resyncing: false });
     if (this.cancelPending) {
-      this.cancelPending = false;
-      // answered at once, before auto-pay can tap the next source
-      if (prompt?.kind === 'playMana') void this.respond(CANCEL_PAYMENT).catch(() => undefined);
-      else if (prompt?.kind === 'priority') this.tooLateToCancel();
+      // A mana ability can ask for its own payment or a choice before the original spell asks again.
+      if (prompt?.kind === 'playMana') {
+        this.paymentCancelSent = true;
+        void this.respond(CANCEL_PAYMENT).catch(() => undefined);
+      } else if (prompt?.kind === 'chooseAbility') {
+        // Any boolean closes the engine's ability picker without activating a mana source.
+        void this.respond(CANCEL_PAYMENT).catch(() => undefined);
+      } else if (prompt?.kind === 'priority') this.finishCancel();
     }
     this.refreshInteraction();
   }
 
-  /** the tap Cancel waited for completed the payment: the spell or ability went ahead */
-  private tooLateToCancel(): void {
-    this.addNotice('error', 'Too late to cancel: the cost was already paid.');
+  private finishCancel(): void {
+    this.cancelPending = false;
+    if (!this.paymentCancelSent) this.addNotice('error', 'Too late to cancel: the cost was already paid.');
+    this.paymentCancelSent = false;
   }
 
   private refreshInteraction(): void {

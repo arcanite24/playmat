@@ -2,6 +2,7 @@
 package mage.abilities.effects.common;
 
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 import mage.abilities.Ability;
@@ -36,7 +37,7 @@ public class ReturnToHandFromBattlefieldAllEffect extends OneShotEffect {
     public boolean apply(Game game, Ability source) {
         Player controller = game.getPlayer(source.getControllerId());
         if (controller != null) {
-            Set<Card> permanentsToHand = new HashSet<>();
+            Set<Card> permanentsToHand = new LinkedHashSet<>(); // in a fixed order, which the Rust engine follows
             for (Permanent permanent : game.getBattlefield().getActivePermanents(filter, source.getControllerId(), source, game)) {
                 permanentsToHand.add(permanent);
             }

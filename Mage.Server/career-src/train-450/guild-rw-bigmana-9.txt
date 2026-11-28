@@ -1,0 +1,21 @@
+# name: Train450 guild-rw-bigmana-9
+# archetype: bigmana
+# colors: RW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Antagonize
+4 Argentum Masticore
+3 Captain Marvel, Earth's Protector
+2 Cleaving Skyrider
+2 Getaway Glamer
+2 Heiko Yamazaki, the General
+4 Hexgold Slash
+2 High-Flying Ace
+2 Mabel, Heir to Cragflame
+2 Novice Knight
+4 Reinforced Ronin
+4 Shocker, Unshakable
+2 Stingerback Terror
+10 Mountain
+7 Plains
+4 Raucous Carnival
+4 Sacred Peaks

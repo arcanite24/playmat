@@ -84,10 +84,28 @@ public class GameOptions implements Serializable, Copyable<GameOptions> {
     public GameSnapshot resumeFrom = null;
 
     /**
+     * A game the Rust host played, carried on from the start of one of its turns (a resumed or forked game): its line
+     * as the host wrote it (JSON, docs/rust/GameHost.md "Saves"); the host plays it, Java never does. Null for none.
+     */
+    public String hostedLine = null;
+
+    /**
      * Receives the game as it stands at the start of every turn (on the game thread), to save it or fork it later;
      * null for none. Not part of a saved game.
      */
     public transient Consumer<GameSnapshot> turnSnapshots = null;
+
+    /**
+     * Records state fingerprints as the game goes (see {@link mage.game.trace.GameTrace}); null for none. Not part of a
+     * saved game.
+     */
+    public transient mage.game.trace.GameTrace trace = null;
+
+    /**
+     * Keeps every human player's answer, or gives recorded answers back instead of waiting for them (see
+     * {@link mage.game.trace.DecisionLog}); null for neither. Not part of a saved game.
+     */
+    public transient mage.game.trace.DecisionLog decisions = null;
 
     // PLANECHASE game mode
     public boolean planeChase = false;
@@ -114,7 +132,10 @@ public class GameOptions implements Serializable, Copyable<GameOptions> {
         this.setup = options.setup;
         this.seed = options.seed;
         this.resumeFrom = options.resumeFrom;
+        this.hostedLine = options.hostedLine;
         this.turnSnapshots = options.turnSnapshots;
+        this.trace = options.trace;
+        this.decisions = options.decisions;
     }
 
     @Override

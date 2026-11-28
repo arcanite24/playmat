@@ -1,0 +1,24 @@
+# name: Train200 guild-ur-control-9
+# archetype: control
+# colors: UR
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+1 Akoum Firebird
+1 Chaos Imps
+2 Consider the Prime Directive
+3 Fiery Cannonade
+2 Galvanize
+3 Glorybringer
+3 Guardians of Oboro
+2 Jace's Scrutiny
+4 Negate
+3 Nullify
+1 Quench
+2 Shocking Grasp
+2 Siren's Ruse
+1 Torch the Tower
+3 Winds of Rebuke
+1 Winged Portent
+12 Island
+6 Mountain
+4 Spectacle Summit
+4 Thundering Falls

@@ -1,0 +1,51 @@
+# name: Train450 brawl-g-rw-aggro-1
+# archetype: brawl_aggro
+# colors: RW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Boros Reckoner
+1 Borrowed Hostility
+1 Caparocti Sunborn
+1 Celestial Unicorn
+1 Chandra's Defeat
+1 Cornered Crook
+1 Crush Contraband
+1 D'Avenant Trapper
+1 Decommission
+1 Defiler of Instinct
+1 Direct Current
+1 Enduring Victory
+1 Fiend Binder
+1 Flummoxed Cyclops
+1 Forgeborn Oreads
+1 Furious Forebear
+1 Hamato Guardian Stance
+1 Hidden Dragonslayer
+1 Hidetsugu's Second Rite
+1 Jennifer Walters
+1 Kirk, Commanding Officer
+1 Mardu Woe-Reaper
+1 Marketwatch Phantom
+1 Moorland Drifter
+1 Raubahn, Bull of Ala Mhigo
+1 Sanitation Automaton
+1 Satyr Hoplite
+1 Sawblade Scamp
+1 Spellbook Vendor
+1 Starnheim Courser
+1 Sterling Keykeeper
+1 Stormbreath Dragon
+1 Swooping Lookout
+1 Synchronized Spellcraft
+1 Unassuming Sage
+1 Vindictive Flamestoker
+1 Yuriko, Blade of the Mighty
+1 Alpine Meadow
+1 Battlefield Forge
+1 Boros Guildgate
+7 Mountain
+1 Needle Spires
+8 Plains
+1 Sacred Peaks
+1 Sun-Blessed Peak
+1 Sunbaked Canyon
+1 Sundown Pass

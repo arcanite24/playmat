@@ -1,0 +1,32 @@
+# Behind your own reverse proxy (README "Behind your own reverse proxy"): Traefik, nginx, Nginx Proxy Manager, Caddy or
+# SWAG holds the certificate and forwards to Caddy's port 80 here, over a Docker network they share.
+#   docker network create proxy     # skip if your proxy already has one; set PROXY_NETWORK to its name
+#   docker compose -f ops/web/docker-compose.yml -f ops/web/docker-compose.proxy.yml --env-file ops/web/.env up -d
+# Set TLS_MODE=external in .env too: the Update button and the image-based deploy add this file when it says so.
+services:
+  web:
+    environment:
+      TLS_MODE: external
+      # the proxy's address range, believed about who the client is: any private network by default (no host port is
+      # published, so only containers on the proxy's network or this one reach Caddy)
+      UPSTREAM_PROXIES: ${UPSTREAM_PROXIES:-private_ranges}
+    # nothing on the host: the proxy reaches the container over its network
+    ports: !reset []
+    networks:
+      proxy:
+        # the name proxies forward to (http://playmat:80); "web" may be another stack's service on a shared network
+        aliases: [ playmat ]
+    # for Traefik's Docker provider; other proxies ignore them
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: ${PROXY_NETWORK:-proxy}
+      traefik.http.routers.playmat.rule: Host(`${DOMAIN}`)
+      traefik.http.routers.playmat.entrypoints: ${TRAEFIK_ENTRYPOINT:-websecure}
+      traefik.http.routers.playmat.tls: "true"
+      traefik.http.routers.playmat.tls.certresolver: ${TRAEFIK_CERTRESOLVER:-}
+      traefik.http.services.playmat.loadbalancer.server.port: "80"
+
+networks:
+  proxy:
+    name: ${PROXY_NETWORK:-proxy}
+    external: true

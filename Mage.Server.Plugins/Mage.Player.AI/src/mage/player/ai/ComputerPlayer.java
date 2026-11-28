@@ -2,6 +2,8 @@ package mage.player.ai;
 
 import mage.*;
 import mage.abilities.*;
+import mage.abilities.costs.Cost;
+import mage.abilities.costs.common.PayLifeCost;
 import mage.abilities.costs.mana.*;
 import mage.abilities.mana.ActivatedManaAbilityImpl;
 import mage.abilities.mana.ManaOptions;
@@ -11,9 +13,6 @@ import mage.cards.RateCard;
 import mage.cards.decks.Deck;
 import mage.cards.decks.DeckValidator;
 import mage.cards.decks.DeckValidatorFactory;
-import mage.cards.repository.CardCriteria;
-import mage.cards.repository.CardInfo;
-import mage.cards.repository.CardRepository;
 import mage.choices.Choice;
 import mage.constants.*;
 import mage.filter.common.FilterLandCard;
@@ -31,12 +30,15 @@ import mage.target.Target;
 import mage.target.TargetAmount;
 import mage.target.TargetCard;
 import mage.util.*;
+import mage.utils.LimitedDeckBuilder;
 import org.apache.log4j.Logger;
 
 import java.io.Serializable;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -71,18 +73,10 @@ public class ComputerPlayer extends PlayerImpl {
     // public: the AI plugins run in their own class loader, where package access to this class fails
     public final static int COMPUTER_MAX_THREADS_FOR_SIMULATIONS = Math.max(1, Integer.getInteger("xmage.ai.threads", 5));//DebugUtil.AI_ENABLE_DEBUG_MODE ? 1 : 5;
 
-
-    // remember picked cards for better draft choices
-    private final transient List<PickedCard> pickedCards = new ArrayList<>();
-    private final transient List<ColoredManaSymbol> chosenColors = new ArrayList<>();
-
     // keep current paying cost info for choose dialogs
     // mana abilities must ask payment too, so keep full chain
     // TODO: make sure it thread safe for AI simulations (all transient fields above and bottom)
     private final transient Map<UUID, ManaCost> lastUnpaidMana = new LinkedHashMap<>();
-
-    // For stopping infinite loops when trying to pay Phyrexian mana when the player can't spend life and no other sources are available
-    private transient boolean alreadyTryingToPayPhyrexian;
 
     public ComputerPlayer(String name, RangeOfInfluence range) {
         this(name, range, UUID.randomUUID());
@@ -175,19 +169,31 @@ public class ComputerPlayer extends PlayerImpl {
             (MageItem item) -> { target.add(item.getId(), game); } :
             (MageItem item) -> { target.addTarget(item.getId(), source, game); };
 
+        // Some targets (convoke, Angel's Herald) allow fewer possible targets as more are chosen, and Target.add
+        // doesn't check this. After each pick, skip the candidates that are no longer possible.
+        Set<UUID> stillPossible = null;
+
         // good targets -- choose as much as possible
         for (MageItem item : possibleTargetsSelector.getGoodTargets()) {
+            if (stillPossible != null && !stillPossible.contains(item.getId())) {
+                continue;
+            }
             targetAdder.accept(item);
             if (target.isChoiceCompleted(abilityControllerId, source, game, fromCards)) {
                 return true;
             }
+            stillPossible = target.possibleTargets(abilityControllerId, source, game, fromCards);
         }
         // bad targets -- choose as low as possible
         for (MageItem item : possibleTargetsSelector.getBadTargets()) {
             if (target.isChosen(game)) {
                 break;
             }
+            if (stillPossible != null && !stillPossible.contains(item.getId())) {
+                continue;
+            }
             targetAdder.accept(item);
+            stillPossible = target.possibleTargets(abilityControllerId, source, game, fromCards);
         }
 
         return target.isChosen(game) && !target.getTargets().isEmpty();
@@ -414,6 +420,10 @@ public class ComputerPlayer extends PlayerImpl {
         }
     }
 
+    /**
+     * Takes one step towards paying the last symbol of {@code unpaid}. It activates a mana ability that can pay that
+     * symbol. If none can, it activates the first special mana action, but only if that action can pay the symbol.
+     */
     protected boolean playManaHandling(Ability ability, ManaCost unpaid, final Game game) {
 //        log.info("paying for " + unpaid.getText());
         Set<ApprovingObject> approvingObjects = game.getContinuousEffects().asThough(ability.getSourceId(), AsThoughEffectType.SPEND_OTHER_MANA, ability, ability.getControllerId(), game);
@@ -431,6 +441,104 @@ public class ComputerPlayer extends PlayerImpl {
             producers.addAll(this.getAvailableManaProducersWithCost(game));
         }
 
+        // a color pays only its own colorless hybrid symbol ({C/U}) while {C} pays any of them: tap their colors'
+        // sources first, or {C} can take the symbol that color could pay and leave one it can't (Ulalek, Fused
+        // Atrocity's {C/W}{C/U}{C/B}{C/R}{C/G} with four {C} sources and an Island)
+        if (!hasApprovingObject && unpaid instanceof ManaCosts) {
+            for (ManaCost part : (ManaCosts<ManaCost>) unpaid) {
+                if (part instanceof ColorlessHybridManaCost
+                        && payWithColorSource(ability, part, ((ColorlessHybridManaCost) part).getManaColor(), producers, game)) {
+                    return true;
+                }
+            }
+        }
+
+        if (payWithManaAbilities(ability, unpaid, cost, producers, hasApprovingObject, game)) {
+            return true;
+        }
+
+        // a colorless hybrid symbol nothing left pays: the color of one {C} already paid takes that one over, and its
+        // {C} moves to this one (ManaCostsImpl.assignPayment)
+        if (!hasApprovingObject && cost instanceof ColorlessHybridManaCost) {
+            for (ManaCost part : ability.getManaCostsToPay()) {
+                if (part instanceof ColorlessHybridManaCost && ((ColorlessHybridManaCost) part).isPaidWithColorlessOnly()
+                        && payWithColorSource(ability, part, ((ColorlessHybridManaCost) part).getManaColor(), producers, game)) {
+                    return true;
+                }
+            }
+        }
+
+        // pay special mana like convoke cost (tap for pay)
+        // GUI: user see "special" button while pay spell's cost
+        // TODO: AI can't prioritize special mana types to pay, e.g. it will use first available
+        SpecialAction specialAction = game.getState().getSpecialActions().getControlledBy(this.getId(), true).values()
+                .stream()
+                .findFirst()
+                .orElse(null);
+
+        // if the action ends mana abilities, first try mana abilities on the rest of the cost
+        if (specialAction != null && specialAction.endsManaAbilities() && unpaid instanceof ManaCosts) {
+            for (ManaCost otherCost : (ManaCosts<ManaCost>) unpaid) {
+                if (otherCost != cost && payWithManaAbilities(ability, unpaid, otherCost, producers, hasApprovingObject, game)) {
+                    return true;
+                }
+            }
+        }
+
+        ManaOptions specialMana = specialAction == null ? null : specialAction.getManaOptions(ability, game, unpaid);
+        if (specialMana != null) {
+            for (Mana netMana : specialMana) {
+                if (cost.testPay(netMana) || hasApprovingObject) {
+                    if (netMana instanceof ConditionalMana && !((ConditionalMana) netMana).apply(ability, game, getId(), cost)) {
+                        continue;
+                    }
+                    if (activateAbility(specialAction, game)) {
+                        return true;
+                    }
+                    // only one time try to pay to skip infinite AI loop
+                    break;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Activates a mana ability with one way to make mana, mana of {@code color}, to pay {@code cost}.
+     *
+     * @return whether a mana ability was activated
+     */
+    private boolean payWithColorSource(Ability ability, ManaCost cost, ColoredManaSymbol color, List<MageObject> producers, Game game) {
+        for (MageObject mageObject : producers) {
+            for (ActivatedManaAbilityImpl manaAbility : getManaAbilitiesSortedByManaCount(mageObject, game)) {
+                List<Mana> netManas = manaAbility.getNetMana(game);
+                if (netManas.size() != 1) {
+                    continue;
+                }
+                Mana netMana = netManas.get(0);
+                if (netMana.getAny() > 0 || netMana.getColor(color) == 0) {
+                    continue;
+                }
+                if (netMana instanceof ConditionalMana && !((ConditionalMana) netMana).apply(ability, game, getId(), cost)) {
+                    continue;
+                }
+                if (activateAbility(manaAbility, game)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Activates one mana ability whose mana can pay {@code cost}. For a colored {@code cost}, it first tries abilities
+     * that make only mana that {@code unpaid} can use. The mana goes to the pool, so the payment can spend it on any
+     * part of {@code unpaid}.
+     *
+     * @return whether a mana ability was activated
+     */
+    private boolean payWithManaAbilities(Ability ability, ManaCost unpaid, ManaCost cost, List<MageObject> producers, boolean hasApprovingObject, Game game) {
         // use fully compatible colored mana producers first
         for (MageObject mageObject : producers) {
             ManaAbility:
@@ -599,43 +707,6 @@ public class ComputerPlayer extends PlayerImpl {
                 }
             }
         }
-
-        if (alreadyTryingToPayPhyrexian) {
-            return false;
-        }
-
-        // pay phyrexian life costs
-        if (cost.isPhyrexian()) {
-            alreadyTryingToPayPhyrexian = true;
-            // TODO: make sure it's thread safe and protected from modifications (cost/unpaid can be shared between AI simulation threads?)
-            boolean paidPhyrexian = cost.pay(ability, game, ability, playerId, false, null) || hasApprovingObject;
-            alreadyTryingToPayPhyrexian = false;
-            return paidPhyrexian;
-        }
-
-        // pay special mana like convoke cost (tap for pay)
-        // GUI: user see "special" button while pay spell's cost
-        // TODO: AI can't prioritize special mana types to pay, e.g. it will use first available
-        SpecialAction specialAction = game.getState().getSpecialActions().getControlledBy(this.getId(), true).values()
-                .stream()
-                .findFirst()
-                .orElse(null);
-        ManaOptions specialMana = specialAction == null ? null : specialAction.getManaOptions(ability, game, unpaid);
-        if (specialMana != null) {
-            for (Mana netMana : specialMana) {
-                if (cost.testPay(netMana) || hasApprovingObject) {
-                    if (netMana instanceof ConditionalMana && !((ConditionalMana) netMana).apply(ability, game, getId(), cost)) {
-                        continue;
-                    }
-                    if (activateAbility(specialAction, game)) {
-                        return true;
-                    }
-                    // only one time try to pay to skip infinite AI loop
-                    break;
-                }
-            }
-        }
-
         return false;
     }
 
@@ -729,12 +800,18 @@ public class ComputerPlayer extends PlayerImpl {
         unsorted.addAll(this.getAvailableManaProducersWithCost(game));
         Map<MageObject, Integer> scored = new HashMap<>();
         for (MageObject mageObject : unsorted) {
+            // what the producer can make, worked out once rather than once per cost (each check fires events)
+            Abilities<ActivatedManaAbilityImpl> available = mageObject.getAbilities().getAvailableActivatedManaAbilities(Zone.BATTLEFIELD, playerId, game);
+            List<List<Mana>> netManas = new ArrayList<>(available.size());
+            for (ActivatedManaAbilityImpl ability : available) {
+                netManas.add(ability.getNetMana(game));
+            }
             int score = 0;
             for (ManaCost cost : unpaid) {
                 Abilities:
-                for (ActivatedManaAbilityImpl ability : mageObject.getAbilities().getAvailableActivatedManaAbilities(Zone.BATTLEFIELD, playerId, game)) {
-                    for (Mana netMana : ability.getNetMana(game)) {
-                        if (cost.testPay(netMana)) {
+                for (List<Mana> netMana : netManas) {
+                    for (Mana mana : netMana) {
+                        if (cost.testPay(mana)) {
                             score++;
                             break Abilities;
                         }
@@ -742,7 +819,7 @@ public class ComputerPlayer extends PlayerImpl {
                 }
             }
             if (score > 0) { // score mana producers that produce other mana types and have other uses higher
-                score += mageObject.getAbilities().getAvailableActivatedManaAbilities(Zone.BATTLEFIELD, playerId, game).size();
+                score += available.size();
                 score += mageObject.getAbilities().getActivatedAbilities(Zone.BATTLEFIELD).size();
                 if (!mageObject.getCardType(game).contains(CardType.LAND)) {
                     score += 2;
@@ -784,12 +861,116 @@ public class ComputerPlayer extends PlayerImpl {
         return chooseUse(outcome, message, null, null, null, source, game);
     }
 
+    private static final Pattern PHYREXIAN_LIFE_PAYMENT = Pattern.compile("^Pay 2 life instead of \\{([WUBRG])\\}", Pattern.CASE_INSENSITIVE);
+    private static final Pattern PAY_LIFE_PROMPT = Pattern.compile("^Pay (\\d+) life\\b", Pattern.CASE_INSENSITIVE);
+
     @Override
     public boolean chooseUse(Outcome outcome, String message, String secondMessage, String trueText, String falseText, Ability source, Game game) {
         // Be proactive! Always use abilities, the evaluation function will decide if it's good or not
         // Otherwise some abilities won't be used by AI like LoseTargetEffect that has "bad" outcome
         // but still is good when targets opponent
-        return outcome != Outcome.AIDontUseIt; // Added for Desecration Demon sacrifice ability
+        if (outcome == Outcome.AIDontUseIt) { // Added for Desecration Demon sacrifice ability
+            return false;
+        }
+        if (shouldDeclineLifePayment(message, source, game)) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Whether this AI prefers spending available colored mana instead of paying 2 life for Phyrexian costs.
+     * Kept off on the base {@link ComputerPlayer} so non-AI unit-test delegates keep their legacy default,
+     * and enabled on real AI players (MAD, simulated, MCTS).
+     */
+    protected boolean preferManaOverPhyrexianLife() {
+        return false;
+    }
+
+    /**
+     * Never pay lethal life for optional life payments (such as Norn's Annex's {W/P} attack tax),
+     * and when {@link #preferManaOverPhyrexianLife()} is enabled, prefer paying colored mana over 2 life
+     * for Phyrexian costs when mana of that color is available (#419).
+     */
+    private boolean shouldDeclineLifePayment(String message, Ability source, Game game) {
+        if (message == null || game == null) {
+            return false;
+        }
+        String trimmed = message.trim();
+        int effectiveLife = this.getLife() - pendingLifePayment(source);
+        Matcher phyrexian = PHYREXIAN_LIFE_PAYMENT.matcher(trimmed);
+        if (phyrexian.find()) {
+            if (effectiveLife <= 2) {
+                return true;
+            }
+            if (!preferManaOverPhyrexianLife()) {
+                return false;
+            }
+            ColoredManaSymbol symbol = ColoredManaSymbol.lookup(phyrexian.group(1).toUpperCase(Locale.ENGLISH).charAt(0));
+            return symbol != null && canPayColoredManaWithoutLife(symbol, game);
+        }
+        Matcher payLife = PAY_LIFE_PROMPT.matcher(trimmed);
+        if (payLife.find()) {
+            try {
+                int lifeCost = Integer.parseInt(payLife.group(1));
+                if (lifeCost > 0 && effectiveLife <= lifeCost) {
+                    return true;
+                }
+            } catch (NumberFormatException ignored) {
+                // ignore implausibly large numbers
+            }
+        }
+        return false;
+    }
+
+    private int pendingLifePayment(Ability source) {
+        if (source == null || source.getCosts() == null) {
+            return 0;
+        }
+        int pending = 0;
+        for (Cost cost : source.getCosts()) {
+            if (cost instanceof PayLifeCost && !cost.isPaid()) {
+                String text = cost.getText();
+                if (text != null) {
+                    Matcher matcher = PAY_LIFE_PROMPT.matcher(text.trim());
+                    if (matcher.find()) {
+                        try {
+                            pending += Integer.parseInt(matcher.group(1));
+                        } catch (NumberFormatException ignored) {
+                            // ignore
+                        }
+                    }
+                }
+            }
+        }
+        return pending;
+    }
+
+    private boolean canPayColoredManaWithoutLife(ColoredManaSymbol symbol, Game game) {
+        Mana poolMana = getManaPool().getMana();
+        if (poolMana.getColor(symbol) > 0 || poolMana.getAny() > 0) {
+            return true;
+        }
+        for (MageObject producer : getAvailableManaProducers(game)) {
+            for (ActivatedManaAbilityImpl manaAbility : producer.getAbilities().getAvailableActivatedManaAbilities(Zone.BATTLEFIELD, playerId, game)) {
+                boolean costsLife = false;
+                for (Cost cost : manaAbility.getCosts()) {
+                    if (cost instanceof PayLifeCost) {
+                        costsLife = true;
+                        break;
+                    }
+                }
+                if (costsLife) {
+                    continue;
+                }
+                for (Mana netMana : manaAbility.getNetMana(game)) {
+                    if (netMana.getColor(symbol) > 0 || netMana.getAny() > 0) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     @Override
@@ -1008,29 +1189,6 @@ public class ComputerPlayer extends PlayerImpl {
         match.submitDeck(playerId, deck); // do not change a deck
     }
 
-    private static void addBasicLands(Deck deck, String landName, int number) {
-        Set<String> landSets = TournamentUtil.getLandSetCodeForDeckSets(deck.getExpansionSetCodes());
-
-        CardCriteria criteria = new CardCriteria();
-        if (!landSets.isEmpty()) {
-            criteria.setCodes(landSets.toArray(new String[0]));
-        }
-        criteria.rarities(Rarity.LAND).name(landName);
-        List<CardInfo> cards = CardRepository.instance.findCards(criteria);
-
-        if (cards.isEmpty()) {
-            criteria = new CardCriteria();
-            criteria.rarities(Rarity.LAND).name(landName);
-            criteria.setCodes("M15");
-            cards = CardRepository.instance.findCards(criteria);
-        }
-
-        for (int i = 0; i < number; i++) {
-            Card land = cards.get(RandomUtil.nextInt(cards.size())).createCard();
-            deck.getCards().add(land);
-        }
-    }
-
     public static Deck buildDeck(int deckMinSize, List<Card> cardPool, final List<ColoredManaSymbol> colors) {
         return buildDeck(deckMinSize, cardPool, colors, false);
     }
@@ -1055,93 +1213,13 @@ public class ComputerPlayer extends PlayerImpl {
             }
             return deck;
         } else {
-            addBasicLands(deck, "Forest", DECK_SIZE);
+            LimitedDeckBuilder.addBasicLands(deck, "Forest", DECK_SIZE);
             return deck;
         }
     }
 
     public static Deck buildDeckWithNormalCards(int deckMinSize, List<Card> cardPool, final List<ColoredManaSymbol> colors) {
-        // top 23 cards plus basic lands until 40 deck size
-        Deck deck = new Deck();
-        final int DECK_SIZE = deckMinSize != 0 ? deckMinSize : 40;
-        final int DECK_CARDS_COUNT = Math.floorDiv(deckMinSize * 23, 40); // 23 from 40
-        final int DECK_LANDS_COUNT = DECK_SIZE - DECK_CARDS_COUNT;
-
-        // sort card pool by top score
-        List<Card> sortedCards = new ArrayList<>(cardPool);
-        Collections.sort(sortedCards, (o1, o2) -> {
-            Integer score1 = RateCard.rateCard(o1, colors);
-            Integer score2 = RateCard.rateCard(o2, colors);
-            return score2.compareTo(score1);
-        });
-
-        // get top cards
-        int cardNum = 0;
-        while (deck.getMaindeckCards().size() < DECK_CARDS_COUNT && sortedCards.size() > cardNum) {
-            Card card = sortedCards.get(cardNum);
-            if (!card.isBasic()) {
-                deck.getCards().add(card);
-                deck.getSideboard().remove(card);
-            }
-            cardNum++;
-        }
-
-        // add basic lands by color percent
-        // TODO:  compensate for non basic lands
-        Mana mana = new Mana();
-        for (Card card : deck.getCards()) {
-            mana.add(card.getManaCost().getMana());
-        }
-        double total = mana.getBlack() + mana.getBlue() + mana.getGreen() + mana.getRed() + mana.getWhite();
-
-        // most frequent land is forest by default
-        int mostLand = 0;
-        String mostLandName = "Forest";
-        if (mana.getGreen() > 0) {
-            int number = (int) Math.round(mana.getGreen() / total * DECK_LANDS_COUNT);
-            addBasicLands(deck, "Forest", number);
-            mostLand = number;
-        }
-
-        if (mana.getBlack() > 0) {
-            int number = (int) Math.round(mana.getBlack() / total * DECK_LANDS_COUNT);
-            addBasicLands(deck, "Swamp", number);
-            if (number > mostLand) {
-                mostLand = number;
-                mostLandName = "Swamp";
-            }
-        }
-
-        if (mana.getBlue() > 0) {
-            int number = (int) Math.round(mana.getBlue() / total * DECK_LANDS_COUNT);
-            addBasicLands(deck, "Island", number);
-            if (number > mostLand) {
-                mostLand = number;
-                mostLandName = "Island";
-            }
-        }
-
-        if (mana.getWhite() > 0) {
-            int number = (int) Math.round(mana.getWhite() / total * DECK_LANDS_COUNT);
-            addBasicLands(deck, "Plains", number);
-            if (number > mostLand) {
-                mostLand = number;
-                mostLandName = "Plains";
-            }
-        }
-
-        if (mana.getRed() > 0) {
-            int number = (int) Math.round(mana.getRed() / total * DECK_LANDS_COUNT);
-            addBasicLands(deck, "Mountain", number);
-            if (number > mostLand) {
-                mostLandName = "Plains";
-            }
-        }
-
-        // adds remaining lands (most popular name)
-        addBasicLands(deck, mostLandName, DECK_SIZE - deck.getMaindeckCards().size());
-
-        return deck;
+        return LimitedDeckBuilder.buildDeck(deckMinSize, cardPool, colors);
     }
 
     @Override
@@ -1150,16 +1228,8 @@ public class ComputerPlayer extends PlayerImpl {
         int deckMinSize = deckValidator != null ? deckValidator.getDeckMinSize() : 0;
 
         if (deck != null && deck.getMaindeckCards().size() < deckMinSize && !deck.getSideboard().isEmpty()) {
-            if (chosenColors.isEmpty()) {
-                for (Card card : deck.getSideboard()) {
-                    rememberPick(card, RateCard.rateCard(card, Collections.emptyList()));
-                }
-                List<ColoredManaSymbol> deckColors = chooseDeckColorsIfPossible();
-                if (deckColors != null) {
-                    chosenColors.addAll(deckColors);
-                }
-            }
-            deck = buildDeck(deckMinSize, new ArrayList<>(deck.getSideboard()), chosenColors);
+            List<Card> pool = new ArrayList<>(deck.getSideboard());
+            deck = buildDeck(deckMinSize, pool, RateCard.chooseDeckColors(pool));
         }
         tournament.submitDeck(playerId, deck);
     }
@@ -1195,8 +1265,11 @@ public class ComputerPlayer extends PlayerImpl {
             throw new IllegalArgumentException("No cards to pick from.");
         }
         try {
+            // colors by own picks, it can be changed during the draft
+            List<ColoredManaSymbol> chosenColors = deck == null
+                    ? Collections.emptyList()
+                    : RateCard.chooseDeckColors(new ArrayList<>(deck.getSideboard()));
             Card bestCard = makePickCard(cards, chosenColors);
-            int maxScore = RateCard.rateCard(bestCard, chosenColors);
             int pickedCardRate = RateCard.getBaseCardScore(bestCard);
 
             if (pickedCardRate <= 30) {
@@ -1208,98 +1281,13 @@ public class ComputerPlayer extends PlayerImpl {
                 // take it!
                 if (counterPickScore >= 80) {
                     bestCard = counterPick;
-                    maxScore = RateCard.rateCard(bestCard, chosenColors);
                 }
             }
 
-            String colors = "not chosen yet";
-            // remember card if colors are not chosen yet
-            if (chosenColors.isEmpty()) {
-                rememberPick(bestCard, maxScore);
-                List<ColoredManaSymbol> chosen = chooseDeckColorsIfPossible();
-                if (chosen != null) {
-                    chosenColors.addAll(chosen);
-                }
-            }
-            if (!chosenColors.isEmpty()) {
-                colors = "";
-                for (ColoredManaSymbol symbol : chosenColors) {
-                    colors += symbol.toString();
-                }
-            }
             draft.addPick(playerId, bestCard.getId(), null);
         } catch (Exception e) {
             logger.error("Error during AI pick card for draft playerId = " + getId(), e);
             draft.addPick(playerId, cards.get(0).getId(), null);
-        }
-    }
-
-    /**
-     * Remember picked card with its score.
-     */
-    protected void rememberPick(Card card, int score) {
-        pickedCards.add(new PickedCard(card, score));
-    }
-
-    /**
-     * Choose 2 deck colors for draft: 1. there should be at least 3 cards in
-     * card pool 2. at least 2 cards should have different colors 3. get card
-     * colors as chosen starting from most rated card
-     */
-    protected List<ColoredManaSymbol> chooseDeckColorsIfPossible() {
-        if (pickedCards.size() > 2) {
-            // sort by score and color mana symbol count in descending order
-            pickedCards.sort((o1, o2) -> {
-                if (o1.score.equals(o2.score)) {
-                    Integer i1 = RateCard.getColorManaCount(o1.card);
-                    Integer i2 = RateCard.getColorManaCount(o2.card);
-                    return i2.compareTo(i1);
-                }
-                return o2.score.compareTo(o1.score);
-            });
-            Set<String> chosenSymbols = new HashSet<>();
-            for (PickedCard picked : pickedCards) {
-                int differentColorsInCost = RateCard.getDifferentColorManaCount(picked.card);
-                // choose only color card, but only if they are not too gold
-                if (differentColorsInCost > 0 && differentColorsInCost < 3) {
-                    // if some colors were already chosen, total amount shouldn't be more than 3
-                    if (chosenSymbols.size() + differentColorsInCost < 4) {
-                        for (String symbol : picked.card.getManaCostSymbols()) {
-                            symbol = symbol.replace("{", "").replace("}", "");
-                            if (RateCard.isColoredMana(symbol)) {
-                                chosenSymbols.add(symbol);
-                            }
-                        }
-                    }
-                }
-                // only two or three color decks are allowed
-                if (chosenSymbols.size() > 1 && chosenSymbols.size() < 4) {
-                    List<ColoredManaSymbol> colorsChosen = new ArrayList<>();
-                    for (String symbol : chosenSymbols) {
-                        ColoredManaSymbol manaSymbol = ColoredManaSymbol.lookup(symbol.charAt(0));
-                        if (manaSymbol != null) {
-                            colorsChosen.add(manaSymbol);
-                        }
-                    }
-                    if (colorsChosen.size() > 1) {
-                        // no need to remember picks anymore
-                        pickedCards.clear();
-                        return colorsChosen;
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
-    private static class PickedCard {
-
-        public Card card;
-        public Integer score;
-
-        public PickedCard(Card card, int score) {
-            this.card = card;
-            this.score = score;
         }
     }
 

@@ -29,6 +29,7 @@ export default {
   'privacy.others.mail': 'Our mail provider delivers the emails we send you: codes and account notices, nothing else.',
   'privacy.others.payments': 'Ko-fi (with Stripe or PayPal behind it) and GitHub Sponsors handle support payments. We never see card details.',
   'privacy.others.github': 'GitHub, only if you sign in with GitHub: it tells us your GitHub name and verified email.',
+  'privacy.others.oidc': "The server's identity provider, if it offers sign-in with one (OpenID Connect): it tells us the provider's user ID for your account, and your email address when the provider has verified it.",
   'privacy.others.discord': "Discord, where the server may post public tables and events to the community's channel. Those posts show table names and player names.",
   'privacy.storage': 'On your device',
   'privacy.storage.text': "{app} uses no cookies. Your settings, your sign-in on this device, and your friends and ignore lists are kept in your browser's storage. Without an account, your decks stay there too.",

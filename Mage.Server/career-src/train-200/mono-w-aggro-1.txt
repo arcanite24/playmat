@@ -1,0 +1,19 @@
+# name: Train200 mono-w-aggro-1
+# archetype: aggro
+# colors: W
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Beaming Defiance
+3 Descendant of Storms
+1 Disenchant
+4 Glorious Protector
+3 Makindi Aeronaut
+3 Novice Knight
+3 Nyxborn Shieldmate
+4 Reality Hemorrhage
+2 Runaway Carriage
+3 Scrapheap Scrounger
+3 Tarkir Duneshaper
+2 Thraben Gargoyle
+2 Touch of the Void
+3 Unwanted Remake
+21 Plains

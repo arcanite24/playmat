@@ -1,0 +1,363 @@
+{
+  "id": "commander-vault",
+  "wave": 2,
+  "name": "Commander Vault",
+  "es": "Bóveda de Commander",
+  "blurb": "Ten painted sets of five: full-art staples and iconic legends built for the 100-card table.",
+  "blurbEs": "Diez sets pintados de cinco: clásicos de arte completo y leyendas icónicas para mesas de cien cartas.",
+  "kind": "cardstyle",
+  "cabinet": {
+    "body": "#1e4d3b",
+    "trim": "#e0b85c"
+  },
+  "reward": {
+    "kind": "pet",
+    "id": "pocket-drake"
+  },
+  "title": {
+    "kind": "title",
+    "id": "table-politician"
+  },
+  "sets": [
+    {
+      "id": "astral-constellation",
+      "name": "Astral Constellation",
+      "es": "Constelación astral",
+      "capsule": "#283b7a",
+      "style": "Illuminated celestial star-chart painting: deep lapis lazuli and midnight indigo wash, delicate gold-leaf constellation lines and orbital arcs, restrained pale cream highlights, matte parchment tooth.",
+      "items": [
+        {
+          "id": "astral-constellation-command-tower",
+          "card": "Command Tower",
+          "subject": "a tall stone observatory spire rising into a star-mapped night sky, five subtle colored starlight beams converging on its crown"
+        },
+        {
+          "id": "astral-constellation-rhystic-study",
+          "card": "Rhystic Study",
+          "subject": "a quiet scholar at a brass astrolabe desk as luminous star-threads drift from nearby lanterns into open books"
+        },
+        {
+          "id": "astral-constellation-cyclonic-rift",
+          "card": "Cyclonic Rift",
+          "subject": "a colossal spiral vortex of night sea and starlight lifting distant ships and stone arches skyward"
+        },
+        {
+          "id": "astral-constellation-mystic-remora",
+          "card": "Mystic Remora",
+          "subject": "a translucent celestial fish gliding along the wake of a passing starlit leviathan, trailing fine gold filaments"
+        },
+        {
+          "id": "astral-constellation-arcane-denial",
+          "card": "Arcane Denial",
+          "subject": "an interlocking brass ring snapping shut around a flaring comet mid-flight, scattering quiet sparks"
+        }
+      ]
+    },
+    {
+      "id": "botanical-herbarium",
+      "name": "Botanical Herbarium",
+      "es": "Herbario botánico",
+      "capsule": "#2f6b3c",
+      "style": "Nineteenth-century natural history botanical plate: fine sepia copperplate ink lines over translucent sage, moss and viridian watercolour washes on warm aged rag paper, gentle ochre accents.",
+      "items": [
+        {
+          "id": "botanical-herbarium-cultivate",
+          "card": "Cultivate",
+          "subject": "two freshly sprouted saplings sharing intertwined roots over dark fertile loam and a meandering forest brook"
+        },
+        {
+          "id": "botanical-herbarium-kodamas-reach",
+          "card": "Kodama's Reach",
+          "subject": "ancient mossy tree limbs stretching across a misty ravine to link two cliffside groves in morning light"
+        },
+        {
+          "id": "botanical-herbarium-rampant-growth",
+          "card": "Rampant Growth",
+          "subject": "lush fern fronds and wild vines unfurling rapidly across cracked mossy paving stones"
+        },
+        {
+          "id": "botanical-herbarium-natures-lore",
+          "card": "Nature's Lore",
+          "subject": "a sunbeam breaking through a cathedral canopy of tall pines onto a mossy woodland trail"
+        },
+        {
+          "id": "botanical-herbarium-three-visits",
+          "card": "Three Visits",
+          "subject": "three stone footbridges winding through tiered terraced hills of willow, bamboo and wildflowers"
+        }
+      ]
+    },
+    {
+      "id": "alchemists-brass",
+      "name": "Alchemist's Brass",
+      "es": "Latón alquímico",
+      "capsule": "#a8762c",
+      "style": "Renaissance workshop still-life in oil and warm ochre glaze: burnished brass, blown amber glass, dark walnut bench shadows, crisp specular highlights, painterly brushwork.",
+      "items": [
+        {
+          "id": "alchemists-brass-fellwar-stone",
+          "card": "Fellwar Stone",
+          "subject": "a faceted dark stone resting in a brass cradle, faintly reflecting the warm hues of surrounding coloured glass flasks"
+        },
+        {
+          "id": "alchemists-brass-chromatic-lantern",
+          "card": "Chromatic Lantern",
+          "subject": "an ornate brass lantern with five tinted glass panes casting a soft prismatic halo across a shadowy stone table"
+        },
+        {
+          "id": "alchemists-brass-thran-dynamo",
+          "card": "Thran Dynamo",
+          "subject": "a heavy bronze flywheel and copper coils humming with warm amber light inside a vaulted workshop"
+        },
+        {
+          "id": "alchemists-brass-gilded-lotus",
+          "card": "Gilded Lotus",
+          "subject": "a hand-forged golden lotus sculpture opening its metallic petals over a dark reflective obsidian bowl"
+        },
+        {
+          "id": "alchemists-brass-wayfarers-bauble",
+          "card": "Wayfarer's Bauble",
+          "subject": "a small brass compass-sphere hanging from a leather cord beside folded maps and a travelling lantern"
+        }
+      ]
+    },
+    {
+      "id": "catacomb-etching",
+      "name": "Catacomb Etching",
+      "es": "Grabado de catacumba",
+      "capsule": "#4a2545",
+      "style": "Dramatic chiaroscuro etching and charcoal wash: deep plum-black shadows, silvery bone highlights, cross-hatched stonework, single cold candlelit focal point.",
+      "items": [
+        {
+          "id": "catacomb-etching-reanimate",
+          "card": "Reanimate",
+          "subject": "a pale armoured hand rising out of cracked crypt flagstones as silver smoke curls upward from a candle flame"
+        },
+        {
+          "id": "catacomb-etching-animate-dead",
+          "card": "Animate Dead",
+          "subject": "fine luminous threads pulling a shrouded knight upright from a sunken marble sarcophagus"
+        },
+        {
+          "id": "catacomb-etching-dark-ritual",
+          "card": "Dark Ritual",
+          "subject": "three hooded figures gathered around a brazier whose violet-black flame stretches high into a vaulted chamber"
+        },
+        {
+          "id": "catacomb-etching-demonic-tutor",
+          "card": "Demonic Tutor",
+          "subject": "a towering horned shadow leaning over a candlelit lectern, turning a single heavy page for a small cloaked scholar"
+        },
+        {
+          "id": "catacomb-etching-phyrexian-arena",
+          "card": "Phyrexian Arena",
+          "subject": "a sunken circular pit ringed with iron arches and bone pillars under a stark overhead shaft of cold light"
+        }
+      ]
+    },
+    {
+      "id": "sunforge-mosaic",
+      "name": "Sunforge Mosaic",
+      "es": "Mosaico de la forja solar",
+      "capsule": "#c9962b",
+      "style": "Byzantine gold-leaf and alabaster mosaic painting: warm ivory, burnished gold tesserae, terracotta and ultramarine accents, crisp mortar seams, monumental sacred geometry.",
+      "items": [
+        {
+          "id": "sunforge-mosaic-path-to-exile",
+          "card": "Path to Exile",
+          "subject": "a lone cloaked silhouette walking down a sunlit golden road out of a walled marble city toward open fields"
+        },
+        {
+          "id": "sunforge-mosaic-wrath-of-god",
+          "card": "Wrath of God",
+          "subject": "a vast pillar of blinding white-gold light descending from parted clouds onto an empty ruined plaza"
+        },
+        {
+          "id": "sunforge-mosaic-teferis-protection",
+          "card": "Teferi's Protection",
+          "subject": "a serene domed sanctuary shimmering inside a translucent golden veil while storm clouds break harmlessly outside"
+        },
+        {
+          "id": "sunforge-mosaic-smothering-tithe",
+          "card": "Smothering Tithe",
+          "subject": "a great pair of balanced golden scales overflowing with stacked coins beneath an arched treasury window"
+        },
+        {
+          "id": "sunforge-mosaic-generous-gift",
+          "card": "Generous Gift",
+          "subject": "a gentle white elephant adorned in woven gold silk standing calmly amid the fallen masonry of a shattered statue"
+        }
+      ]
+    },
+    {
+      "id": "volcanic-woodcut",
+      "name": "Volcanic Woodcut",
+      "es": "Xilografía volcánica",
+      "capsule": "#a83226",
+      "style": "Bold hand-carved relief woodcut print: stark soot-black ink, vermilion red, burnt ochre and raw warm paper, expressive gouged lines and jagged silhouettes.",
+      "items": [
+        {
+          "id": "volcanic-woodcut-chaos-warp",
+          "card": "Chaos Warp",
+          "subject": "a stone archway twisting into a spiral of fiery ribbons, scattering bricks that transform into sparks and birds"
+        },
+        {
+          "id": "volcanic-woodcut-blasphemous-act",
+          "card": "Blasphemous Act",
+          "subject": "a colossal meteor of scarlet flame crashing into a crowded volcanic caldera, sending shockwaves across the ridge"
+        },
+        {
+          "id": "volcanic-woodcut-vandalblast",
+          "card": "Vandalblast",
+          "subject": "a grinning goblin engineer tossing a sizzling iron bomb into a towering heap of bronze gears and constructs"
+        },
+        {
+          "id": "volcanic-woodcut-jeskas-will",
+          "card": "Jeska's Will",
+          "subject": "a fierce flame-crowned warrior raising a blazing spear as three trails of bright embers sweep upward"
+        },
+        {
+          "id": "volcanic-woodcut-faithless-looting",
+          "card": "Faithless Looting",
+          "subject": "two shadowed raiders rushing out of a burning chapel carrying rolled scrolls and gleaming relics"
+        }
+      ]
+    },
+    {
+      "id": "moss-ruin",
+      "name": "Moss & Ruin",
+      "es": "Musgo y ruina",
+      "capsule": "#3e6e48",
+      "style": "Atmospheric romantic landscape oil painting: deep forest viridian, weathered limestone, misty dappled shafts of warm morning sun, rich painterly foliage texture.",
+      "items": [
+        {
+          "id": "moss-ruin-beast-within",
+          "card": "Beast Within",
+          "subject": "a massive horned woodland beast bursting outward from a cracked mossy monolith in a misty forest clearing"
+        },
+        {
+          "id": "moss-ruin-heroic-intervention",
+          "card": "Heroic Intervention",
+          "subject": "a towering canopy of living emerald branches weaving tightly over a stone shrine to shield it from falling rubble"
+        },
+        {
+          "id": "moss-ruin-eternal-witness",
+          "card": "Eternal Witness",
+          "subject": "a calm cloaked druid standing beside a mossy stone well, lifting a glowing green leaf from dark water"
+        },
+        {
+          "id": "moss-ruin-birds-of-paradise",
+          "card": "Birds of Paradise",
+          "subject": "a vibrant multi-plumed bird perched on a mossy ruined arch above a sunlit misty waterfall"
+        },
+        {
+          "id": "moss-ruin-craterhoof-behemoth",
+          "card": "Craterhoof Behemoth",
+          "subject": "a colossal moss-backed forest titan striding through splintered ancient pines as deer and wolves charge beneath it"
+        }
+      ]
+    },
+    {
+      "id": "abyssal-ink",
+      "name": "Abyssal Ink",
+      "es": "Tinta abisal",
+      "capsule": "#1f3e59",
+      "style": "Sumi-e black ink wash with restrained bioluminescent teal and silver-grey highlights on textured cold-press paper, dramatic negative space and sweeping wet-on-wet brushwork.",
+      "items": [
+        {
+          "id": "abyssal-ink-swan-song",
+          "card": "Swan Song",
+          "subject": "a single luminous white swan rising out of dark inked ripples as a shattered spell dissolves into mist"
+        },
+        {
+          "id": "abyssal-ink-fact-or-fiction",
+          "card": "Fact or Fiction",
+          "subject": "a solitary sphinx reflected in black water, five pale glowing lantern-orbs divided into two clusters between its paws"
+        },
+        {
+          "id": "abyssal-ink-windfall",
+          "card": "Windfall",
+          "subject": "a sudden mountain gale sweeping hundreds of loose inked parchment leaves high across a pale moonlit mist"
+        },
+        {
+          "id": "abyssal-ink-toxic-deluge",
+          "card": "Toxic Deluge",
+          "subject": "a heavy wall of dark ink-black rain pouring over sunken stone statues and rising floodwaters"
+        },
+        {
+          "id": "abyssal-ink-feed-the-swarm",
+          "card": "Feed the Swarm",
+          "subject": "a swirling cloud of shadowy night-moths descending onto a lone pale stone obelisk in a misty marsh"
+        }
+      ]
+    },
+    {
+      "id": "mythic-tapestry",
+      "name": "Mythic Tapestry",
+      "es": "Tapiz mítico",
+      "capsule": "#7b3b6b",
+      "style": "Medieval woven tapestry painting: rich burgundy, deep forest green, indigo and muted gold thread texture, stylized heraldic silhouettes and woven fabric grain.",
+      "items": [
+        {
+          "id": "mythic-tapestry-atraxa-praetors-voice",
+          "card": "Atraxa, Praetors' Voice",
+          "subject": "a solemn four-winged porcelain-masked angel hovering above a woven Gothic arch, four banners trailing below"
+        },
+        {
+          "id": "mythic-tapestry-krenko-mob-boss",
+          "card": "Krenko, Mob Boss",
+          "subject": "a sly crowned goblin boss seated on an overturned wooden barrel surrounded by a sea of grinning spears and torches"
+        },
+        {
+          "id": "mythic-tapestry-ghalta-primal-hunger",
+          "card": "Ghalta, Primal Hunger",
+          "subject": "an immense feathered elder dinosaur roaring atop a mossy stepped temple as jungle trees bend around it"
+        },
+        {
+          "id": "mythic-tapestry-kaalia-of-the-vast",
+          "card": "Kaalia of the Vast",
+          "subject": "a determined winged cleric in crimson robes summoning three vast silhouettes of angel, demon and dragon behind her"
+        },
+        {
+          "id": "mythic-tapestry-the-ur-dragon",
+          "card": "The Ur-Dragon",
+          "subject": "a primordial cosmic dragon with wings spanning the horizon, subtle bands of five-colour aurora woven through its scales"
+        }
+      ]
+    },
+    {
+      "id": "reliquary-lands",
+      "name": "Reliquary Lands",
+      "es": "Tierras relicario",
+      "capsule": "#5b6344",
+      "style": "Vintage travel poster gouache painting: layered flat atmospheric perspective, warm sunlit stone, muted olive, slate blue and dusty amber palette, bold clean shapes.",
+      "items": [
+        {
+          "id": "reliquary-lands-reliquary-tower",
+          "card": "Reliquary Tower",
+          "subject": "a slender white-stone library tower rising from calm mirrored waters beneath wide peaceful clouds"
+        },
+        {
+          "id": "reliquary-lands-bojuka-bog",
+          "card": "Bojuka Bog",
+          "subject": "twisted bleached cypress trees standing in still purple-grey marsh water with faint lantern mist"
+        },
+        {
+          "id": "reliquary-lands-exotic-orchard",
+          "card": "Exotic Orchard",
+          "subject": "a terraced hillside grove of flowering fruit trees in five distinct seasonal hues overlooking a valley"
+        },
+        {
+          "id": "reliquary-lands-rogues-passage",
+          "card": "Rogue's Passage",
+          "subject": "a narrow lantern-lit stone alleyway slipping beneath a grand bridge into moonlit harbor shadows"
+        },
+        {
+          "id": "reliquary-lands-ancient-tomb",
+          "card": "Ancient Tomb",
+          "subject": "a weathered monolithic desert mausoleum with a deep shadowed doorway glowing faintly amber within"
+        }
+      ]
+    }
+  ]
+}

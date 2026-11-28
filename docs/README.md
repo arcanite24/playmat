@@ -10,6 +10,7 @@ This directory contains documentation for implementing a web client for XMage us
 | [WebClientDataModels.md](./WebClientDataModels.md) | TypeScript interface definitions for all data models used in the API. |
 | [WebClientImplementationPlan.md](./WebClientImplementationPlan.md) | Detailed implementation plan with architecture, roadmap, and technical guidance. |
 | [UpstreamMerge.md](./UpstreamMerge.md) | Monthly upstream merge recipe, conflict policy and the fork's edits outside its own paths. |
+| [RustMigration.md](./RustMigration.md) | Investigation and phased plan for moving the server to Rust behind per-subsystem toggles. |
 
 ## Quick Start
 

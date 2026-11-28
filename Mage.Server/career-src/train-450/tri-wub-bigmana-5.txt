@@ -1,0 +1,22 @@
+# name: Train450 tri-wub-bigmana-5
+# archetype: bigmana
+# colors: WUB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 All-Seeing Arbiter
+3 Appendage Amalgam
+4 Deadly Derision
+1 Demon of Dark Schemes
+2 Dive Down
+4 Empyrean Eagle
+4 Exalted Sunborn
+2 Kenrith, the Returned King
+3 Reaping Willow
+2 Terminal Criticism
+2 The Wondrous Wasp
+4 Youthful Valkyrie
+4 Fatehold Annex
+4 Godless Shrine
+4 Idyllic Beachfront
+4 Island
+5 Plains
+4 Swamp

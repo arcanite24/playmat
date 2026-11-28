@@ -1,0 +1,35 @@
+# name: Train450 lim-g-gu-ctrl-5
+# archetype: limited_ctrl
+# colors: GU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Aether Helix
+2 Amazing Acrobatics
+1 Ancient Silverback
+1 Axebane Stag
+1 Bristling Boar
+1 Chill of the Grave
+1 Clash of Wills
+1 Covert Technician
+1 Crumble to Dust
+1 Daring Thief
+2 Drag Under
+1 Fear of Impostors
+1 Giant Spider
+2 Katara, Bending Prodigy
+2 Lifecrafter's Gift
+1 Maraleaf Pixie
+1 Nimbus Naiad
+2 Plated Crusher
+1 Rapid Hybridization
+1 Raucous Entertainer
+2 Rookie Mistake
+1 Rootless Yew
+1 Spinewoods Armadillo
+1 Spirit of the Hunt
+1 Swarmborn Giant
+2 Timberpack Wolf
+2 Unforgiving Aim
+4 Breeding Pool
+9 Forest
+8 Island
+4 Temple of Mystery

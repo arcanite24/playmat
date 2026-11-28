@@ -1,0 +1,181 @@
+{
+  "suite": "constructed@1",
+  "created": "2026-11-11",
+  "about": "One-on-one duels with the 42 Pioneer and Standard school decks. Deal i is deck i % n against deck (i % n + 1 + i / n % (n - 1)) % n, shuffled with seed i, the first deck's seat starting on even deals (AiSpeedBenchTest's pairings). Each deal is played twice per pair of entrants, seats swapped. Changing a deck, the pairings or the turn cap makes a new version.",
+  "deals": 84,
+  "turn_cap": 30,
+  "duplicate": true,
+  "anchor": {
+    "random": 1000
+  },
+  "decks": [
+    {
+      "file": "Mage.Server/career-src/pioneer/act1-boros-aggro.txt",
+      "fnv64": "7fd3a50837fe0e49"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/act1-green-stompy.txt",
+      "fnv64": "6a95a7313ab1659f"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/act1-mono-black-devotion.txt",
+      "fnv64": "a53a0fe6eff09c55"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/act2-abzan-greasefang.txt",
+      "fnv64": "1698f5d29cf619c4"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/act2-dimir-control.txt",
+      "fnv64": "0a9ff6fd513273bc"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/act2-golgari-midrange.txt",
+      "fnv64": "51c1b4f5859a121e"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/act2-gruul-midrange.txt",
+      "fnv64": "fb4cd5900b079651"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/act2-mono-red.txt",
+      "fnv64": "7d3e0e4ac5c9155f"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/act2-mono-white-humans.txt",
+      "fnv64": "527753eb363c9d40"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/act2-rakdos-midrange.txt",
+      "fnv64": "f02ebf70dc2afb90"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/act2-red-burn.txt",
+      "fnv64": "dbe083cbfc06c4b2"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/act3-azorius-spirits.txt",
+      "fnv64": "e397e3c39becd068"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/act3-izzet-phoenix.txt",
+      "fnv64": "b6f77de0a3d23a69"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/act3-rakdos-graveyard.txt",
+      "fnv64": "97b89bb10099b879"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/meta-azorius-control.txt",
+      "fnv64": "43678d3a0c30f98e"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/meta-dimir-aggro.txt",
+      "fnv64": "feec1d7535e94999"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/meta-golgari-midrange.txt",
+      "fnv64": "7ac1d6061f858dfb"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/meta-izzet-phoenix.txt",
+      "fnv64": "2f017ef76092d132"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/meta-izzet-prowess.txt",
+      "fnv64": "5b53dd78db050abc"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/meta-mono-red-prowess.txt",
+      "fnv64": "89579dd68d896f8d"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/meta-selesnya-company.txt",
+      "fnv64": "763fc9ff93f73e58"
+    },
+    {
+      "file": "Mage.Server/career-src/pioneer/starter.txt",
+      "fnv64": "154034f944723ea8"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/act1-boss-vampires.txt",
+      "fnv64": "6f6c19b959e8c5cc"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/act1-skies.txt",
+      "fnv64": "f0d70e831265a3c4"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/act1-stompy.txt",
+      "fnv64": "649780bfff98ddf2"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/act2-aggro.txt",
+      "fnv64": "2727c92fb5f29c9e"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/act2-combo.txt",
+      "fnv64": "895d2ccbf85bb5bc"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/act2-control.txt",
+      "fnv64": "b4dce59ca5f5a4f8"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/act2-midrange.txt",
+      "fnv64": "f144383ad316d417"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/act2-opp-gruul.txt",
+      "fnv64": "87ae4a059858eaa7"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/act2-opp-weenie.txt",
+      "fnv64": "7fd586bb0a2c71e1"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/act3-angels.txt",
+      "fnv64": "ee81f164ec060a44"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/act3-boss-vigorbloom.txt",
+      "fnv64": "91fe96fb7a066848"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/meta-azorius-control.txt",
+      "fnv64": "5a9ad6fa87f74e60"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/meta-boros-dragons.txt",
+      "fnv64": "d233020c7fb2290b"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/meta-dimir-midrange.txt",
+      "fnv64": "d5a9c7c785692088"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/meta-izzet-spellementals.txt",
+      "fnv64": "a1b86f60eb6bdcfe"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/meta-jund-sacrifice.txt",
+      "fnv64": "695dd50d84596b88"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/meta-mono-green-landfall.txt",
+      "fnv64": "3a0f1067de4ce377"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/meta-rakdos-lizards.txt",
+      "fnv64": "5cb9389caac2b698"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/signature.txt",
+      "fnv64": "b79bc5035c7ad879"
+    },
+    {
+      "file": "Mage.Server/career-src/standard/starter.txt",
+      "fnv64": "48aa2a12fb88b1eb"
+    }
+  ]
+}

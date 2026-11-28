@@ -16,17 +16,31 @@ interface MatchUiState {
   blockDrag: { blockerId: string; attackerId: string | null } | null;
   /** zone viewer (graveyard, exile...); `note` a line under the title, `counts` copies per card id */
   viewer: { title: string; cards: CardView[]; note?: string; counts?: Record<string, number> } | null;
+  /** the player whose dungeon is laid out room by room (DungeonViewer) */
+  dungeonOf: string | null;
   logOpen: boolean;
   /** card opened in the detail view (right click); the id keeps it live as the game changes */
   detail: { id: string; card: CardView } | null;
+  /** the permanent a hovered stack ability comes from, marked on the table (#227) */
+  sourceHover: string | null;
+  /** the permanent the open prompt is asked for (its ability is resolving), marked on the table (#227) */
+  promptSource: string | null;
+  /** defender id hovered on a seat plate, seat name, or combat breakdown: isolates attack arrows aimed at them */
+  hoveredDefender: string | null;
+  /** stack object id currently hovered: shows its target arrows instead of only the top of the stack */
+  hoveredStackId: string | null;
   setZoom(zoom: MatchUiState['zoom']): void;
   setPointer(pointer: MatchUiState['pointer']): void;
   setArrowFrom(point: MatchUiState['arrowFrom']): void;
   setDragging(id: string | null): void;
   setBlockDrag(blockDrag: MatchUiState['blockDrag']): void;
   openViewer(viewer: MatchUiState['viewer']): void;
+  openDungeon(playerId: string | null): void;
   toggleLog(open?: boolean): void;
   openDetail(detail: MatchUiState['detail']): void;
+  setSourceHover(id: string | null): void;
+  setHoveredDefender(id: string | null): void;
+  setHoveredStackId(id: string | null): void;
 }
 
 export const useMatchUi = create<MatchUiState>((set) => ({
@@ -36,15 +50,24 @@ export const useMatchUi = create<MatchUiState>((set) => ({
   dragging: null,
   blockDrag: null,
   viewer: null,
+  dungeonOf: null,
   logOpen: false,
   detail: null,
+  sourceHover: null,
+  promptSource: null,
+  hoveredDefender: null,
+  hoveredStackId: null,
   setZoom: (zoom) => set({ zoom }),
   setPointer: (pointer) => set({ pointer }),
   setArrowFrom: (arrowFrom) => set({ arrowFrom }),
   setDragging: (dragging) => set({ dragging }),
   setBlockDrag: (blockDrag) => set({ blockDrag }),
   openViewer: (viewer) => set({ viewer }),
+  openDungeon: (dungeonOf) => set({ dungeonOf }),
   toggleLog: (open) => set((state) => ({ logOpen: open ?? !state.logOpen })),
   // the zoomed copy would sit on top of the detail view
   openDetail: (detail) => set({ detail, zoom: null }),
+  setSourceHover: (sourceHover) => set({ sourceHover }),
+  setHoveredDefender: (hoveredDefender) => set({ hoveredDefender }),
+  setHoveredStackId: (hoveredStackId) => set({ hoveredStackId }),
 }));

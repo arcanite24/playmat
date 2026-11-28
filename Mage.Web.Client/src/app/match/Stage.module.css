@@ -9,19 +9,20 @@
   /* the table is a game surface, not a page: no panning or double-tap zoom (lists that scroll still scroll) */
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
+  /* Dragging across the table must not select labels or card text. */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-/* under a finger, no text selection or image callout either: a held card opens its detail view instead */
+.frame :is(input, textarea, [contenteditable]:not([contenteditable="false"])) {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* A held card opens its detail view instead of the image callout. */
 @media (pointer: coarse) {
   .frame {
-    user-select: none;
-    -webkit-user-select: none;
     -webkit-touch-callout: none;
-  }
-
-  .frame :is(input, textarea) {
-    user-select: text;
-    -webkit-user-select: text;
   }
 }
 

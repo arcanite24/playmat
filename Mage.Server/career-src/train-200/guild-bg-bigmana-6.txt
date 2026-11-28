@@ -1,0 +1,22 @@
+# name: Train200 guild-bg-bigmana-6
+# archetype: bigmana
+# colors: BG
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Acererak the Archlich
+2 Auspicious Starrix
+2 Bramble Wurm
+3 Exemplar of Strength
+3 Goremand
+3 Kazandu Stomper
+2 Mammoth Growth
+4 Mindwrack Demon
+3 Old-Growth Dryads
+3 Old-Growth Troll
+2 Plummet
+1 Westgate Regent
+1 Winter's Intervention
+3 Witherbloom Charm
+10 Forest
+4 Strangled Cemetery
+7 Swamp
+4 Titan's Grave

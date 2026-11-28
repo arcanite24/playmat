@@ -1,0 +1,238 @@
+/* Home widgets (#432): printed on the mat like the Play zone, quieter */
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  height: 100%;
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  overflow: hidden;
+  border-radius: var(--radius-zone);
+  background: rgb(var(--mat-rgb) / 0.55);
+  box-shadow: inset 0 0 0 1.5px var(--ink-ghost);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 22px;
+}
+
+.title {
+  margin: 0;
+  overflow: hidden;
+  color: var(--ink-dim);
+  font-family: var(--font-print);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-print-wide);
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.link {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: -4px -6px -4px 0;
+  border-radius: 50%;
+  color: var(--ink-dim);
+}
+
+.link:hover,
+.link:focus-visible {
+  background: rgb(var(--ink-rgb) / 0.08);
+  color: var(--ink-strong);
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 0;
+}
+
+.big {
+  flex: none;
+  margin: 0;
+  overflow: hidden;
+  color: var(--ink-strong);
+  font-family: var(--font-print);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: var(--tracking-print);
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.note {
+  flex: none;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-dim);
+  font-size: var(--text-sm);
+}
+
+.bar {
+  display: block;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: rgb(var(--ink-rgb) / 0.12);
+}
+
+.bar i {
+  display: block;
+  height: 100%;
+  background: var(--decision);
+}
+
+.list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  list-style: none;
+  font-size: var(--text-sm);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.row > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.count {
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.won { color: var(--decision); font-weight: 700; }
+.lost { color: var(--ink-dim); font-weight: 700; }
+
+.pips {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.pip {
+  width: 11px;
+  height: 11px;
+  transform: rotate(45deg);
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1.5px var(--rank, var(--ink-faint));
+}
+
+.pipOn { background: var(--rank, var(--ink)); }
+
+.rank_bronze { --rank: #b07a4a; }
+.rank_silver { --rank: #c3ccd6; }
+.rank_gold { --rank: #e2b53e; }
+.rank_platinum { --rank: #6fd1c4; }
+.rank_diamond { --rank: #8cb4ff; }
+.rank_mythic { --rank: #ff8a4c; }
+
+.rankLabel {
+  color: var(--rank, var(--ink-strong));
+}
+
+.steps {
+  display: flex;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.steps li {
+  flex: 1;
+  height: 8px;
+  border-radius: 2px;
+  background: rgb(var(--ink-rgb) / 0.12);
+}
+
+.steps li.stepPaid { background: var(--decision); }
+
+.heat {
+  display: grid;
+  grid-template-columns: repeat(14, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.heat i {
+  aspect-ratio: 1;
+  max-height: 28px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--decision) var(--p), rgb(var(--ink-rgb) / 0.1));
+}
+
+.split {
+  display: flex;
+  flex: none;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.split .action {
+  flex: none;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: auto;
+}
+
+.action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-control);
+  background: rgb(var(--ink-rgb) / 0.08);
+  color: var(--ink-strong);
+  font-size: var(--text-sm);
+  text-decoration: none;
+}
+
+.action:hover,
+.action:focus-visible {
+  background: rgb(var(--ink-rgb) / 0.14);
+}
+
+.notice {
+  margin: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: var(--text-sm);
+  white-space: pre-line;
+}
+
+/* the saved games and leaderboard bring their own layout; let them scroll inside the tile */
+.embed {
+  min-height: 0;
+  overflow: auto;
+}
+

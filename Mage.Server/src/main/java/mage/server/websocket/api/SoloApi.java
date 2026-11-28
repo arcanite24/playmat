@@ -94,7 +94,7 @@ final class SoloApi {
                             if (problem != null) {
                                 throw RpcException.invalidParams(problem);
                             }
-                            ctx.server.matchQuit(gameId, call.sessionId());
+                            leave(ctx, call, gameId);
                             return true;
                         }),
                 RpcMethod.named("soloFork")
@@ -125,7 +125,7 @@ final class SoloApi {
                                 throw e;
                             }
                             try {
-                                ctx.server.matchQuit(gameId, call.sessionId());
+                                leave(ctx, call, gameId);
                             } catch (Exception e) {
                                 logger.warn("Solo: the forked game couldn't be left", e);
                             }
@@ -159,6 +159,9 @@ final class SoloApi {
                             if (liveTable != null && SoloGames.get().isCareerGame(gameId)) {
                                 throw RpcException.invalidParams("Finish the Career game first: then play any turn of it again from its replay.");
                             }
+                            if (liveTable != null && mage.server.ladder.RankedService.isRanked(liveTable)) {
+                                throw RpcException.invalidParams("Finish the ranked game first: then play any turn of it again from its replay.");
+                            }
                             SoloGames.Resume line;
                             try {
                                 line = store(() -> SoloGames.get().whatIf(gameId, call.integer(1), user));
@@ -166,16 +169,21 @@ final class SoloApi {
                                 throw RpcException.invalidParams(e.getMessage());
                             }
                             if (liveTable != null) {
-                                // the game it branches from stays as it was: kept, to resume later
-                                String problem = SoloGames.get().keep(liveTable, user);
+                                // validate before starting the new table so a start failure never detaches the live game (#423)
+                                String problem = SoloGames.get().canKeep(liveTable, user);
                                 if (problem != null) {
                                     throw RpcException.invalidParams(problem);
                                 }
                             }
                             SoloViews.SoloTable table = start(ctx, call, user, line);
                             if (liveTable != null) {
+                                // the game it branches from stays as it was: kept, to resume later
+                                String problem = SoloGames.get().keep(liveTable, user);
+                                if (problem != null) {
+                                    logger.warn("Solo: the game a what-if branched from couldn't be kept: " + problem);
+                                }
                                 try {
-                                    ctx.server.matchQuit(gameId, call.sessionId());
+                                    leave(ctx, call, gameId);
                                 } catch (Exception e) {
                                     logger.warn("Solo: the game a what-if branched from couldn't be left", e);
                                 }
@@ -308,7 +316,9 @@ final class SoloApi {
                         .params(of("mode", STRING), of("board", STRING), optional("scope", STRING), optional("names", ARRAY))
                         .returns("Leaderboard")
                         .doc("A mode's leaderboard (weekly-challenge: board is the week, like 2026-W42; puzzle: board is the puzzle "
-                                + "id), best first, with your line. Scope server (everyone) or friends (the names given, and you).")
+                                + "id; the ladder's season boards ladder-peak, ladder-mythic and ladder-climb: board is queue.format.season, "
+                                + "like league.standard.0, or queue.format for the season now), best first, with your line. "
+                                + "Scope server (everyone) or friends (the names given, and you).")
                         .handler(call -> {
                             String user = CareerApi.user(ctx, call);
                             List<String> names = new ArrayList<>();
@@ -535,6 +545,14 @@ final class SoloApi {
             throw RpcException.notAuthorized("That isn't your game.");
         }
         String sessionId = call.sessionId();
+        if (resume.line != null) {
+            // a game the Rust host played: only the host can carry it on
+            mage.server.User player = ctx.managers.sessionManager().getSession(sessionId)
+                    .flatMap(s -> ctx.managers.userManager().getUser(s.getUserId())).orElse(null);
+            if (!mage.server.RustHost.canCarryOn(player)) {
+                throw RpcException.invalidParams("This game was played on the Rust engine, which isn't hosting games for you right now.");
+            }
+        }
         UUID roomId = ctx.managers.gamesRoomManager().getMainRoomId();
         MatchOptions options = info.options;
         options.setPassword("");
@@ -573,6 +591,14 @@ final class SoloApi {
         SoloViews.SoloTable result = new SoloViews.SoloTable();
         result.tableId = tableId.toString();
         return result;
+    }
+
+    /** leaves a game for its player: a hosted one through its host (which ends it as their quit), else as matchQuit */
+    private static void leave(ApiContext ctx, RpcCall call, UUID gameId) throws Exception {
+        UUID userId = ctx.managers.sessionManager().getSession(call.sessionId()).map(mage.server.Session::getUserId).orElse(null);
+        if (!mage.server.RustHost.leave(gameId, userId)) {
+            ctx.server.matchQuit(gameId, call.sessionId());
+        }
     }
 
     private static void abandon(ApiContext ctx, String sessionId, UUID roomId, UUID tableId) {

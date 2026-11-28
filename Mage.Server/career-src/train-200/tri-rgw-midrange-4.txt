@@ -1,0 +1,24 @@
+# name: Train200 tri-rgw-midrange-4
+# archetype: midrange
+# colors: RGW
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+1 Blindblast
+3 Brambleguard Veteran
+1 Cheeky House-Mouse
+2 Expose to Daylight
+1 Ghalta and Mavren
+4 Greenbelt Rampager
+4 Metropolis Reformer
+3 Palladia-Mors, the Ruiner
+3 Pawpatch Formation
+3 Resplendent Angel
+4 The Last Agni Kai
+2 Ulvenwald Oddity
+2 Untimely Malfunction
+3 Zurgo Bellstriker
+4 Abraded Bluffs
+4 Forest
+4 Lush Portico
+4 Mountain
+4 Plains
+4 Sunbaked Canyon

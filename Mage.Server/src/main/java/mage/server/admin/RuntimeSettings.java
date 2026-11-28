@@ -22,6 +22,8 @@ public final class RuntimeSettings {
     public static final String REGISTRATION = "registration";
     /** "on" or "off"; the environment's XMAGE_CAREER=off still turns Career off for good */
     public static final String CAREER = "career";
+    /** on (the default) or off: players can share decks with everyone on the server (#137) */
+    public static final String SHARED_DECKS = "sharedDecks";
     /** how many AI opponents one table may seat */
     public static final String MAX_AI_OPPONENTS = "maxAiOpponents";
     /** how long a player may take to answer before they lose the game */
@@ -44,6 +46,10 @@ public final class RuntimeSettings {
     public static final String DISCORD_EVENTS = "discordEvents";
     public static final String DISCORD_MATCHES = "discordMatches";
     public static final String DISCORD_STAFF = "discordStaff";
+    /** "on" posts "X joined Y's table" for public tables (#209); unlike the other posts, off until staff turn it on */
+    public static final String DISCORD_JOINS = "discordJoins";
+    /** "on" or "off": the player directory, every account's name and level for signed-in players (#195); on by default */
+    public static final String DIRECTORY = "directory";
 
     /** Support for the server (owner only): "on" or "off"; off hides the goal bar and the Support page */
     public static final String SUPPORT_ENABLED = "support.enabled";
@@ -63,9 +69,9 @@ public final class RuntimeSettings {
     static final int MAX_COSTS = 600;
     static final int MAX_URL = 200;
 
-    public static final List<String> NAMES = Collections.unmodifiableList(Arrays.asList(REGISTRATION, CAREER, MAX_AI_OPPONENTS, MAX_SECONDS_IDLE,
+    public static final List<String> NAMES = Collections.unmodifiableList(Arrays.asList(REGISTRATION, CAREER, SHARED_DECKS, MAX_AI_OPPONENTS, MAX_SECONDS_IDLE,
             BATCH_CONCURRENCY, BATCH_GAMES_PER_DAY, ARCHMAGE_DAILY_CENTS, PROGRESS_XP_PERCENT, PROGRESS_COIN_PERCENT,
-            DISCORD_TABLES, DISCORD_EVENTS, DISCORD_MATCHES, DISCORD_STAFF, SUPPORT_ENABLED, SUPPORT_GOAL_CENTS, SUPPORT_KOFI_URL,
+            DIRECTORY, DISCORD_TABLES, DISCORD_EVENTS, DISCORD_MATCHES, DISCORD_STAFF, DISCORD_JOINS, SUPPORT_ENABLED, SUPPORT_GOAL_CENTS, SUPPORT_KOFI_URL,
             SUPPORT_SPONSORS_URL, SUPPORT_COSTS, SUPPORT_DISCORD_AMOUNTS));
 
     private static final String PREFIX = "runtime.";
@@ -174,10 +180,13 @@ public final class RuntimeSettings {
                 }
                 throw new IllegalArgumentException("Registration is open or invite");
             case CAREER:
+            case SHARED_DECKS:
             case DISCORD_TABLES:
             case DISCORD_EVENTS:
             case DISCORD_MATCHES:
             case DISCORD_STAFF:
+            case DISCORD_JOINS:
+            case DIRECTORY:
             case SUPPORT_ENABLED:
             case SUPPORT_DISCORD_AMOUNTS:
                 if (text.equals("on") || text.equals("off")) {
@@ -219,9 +228,22 @@ public final class RuntimeSettings {
         return !"off".equals(stored(CAREER));
     }
 
-    /** whether one kind of Discord post is on (they all are until staff turn one off) */
+    /** players can share decks with the server (on until staff turn it off) */
+    public boolean sharedDecksOn() {
+        return !"off".equals(stored(SHARED_DECKS));
+    }
+
+    /** whether one kind of Discord post is on (they all are until staff turn one off, but joins, which wait to be turned on) */
     public boolean discord(String kind) {
+        if (DISCORD_JOINS.equals(kind)) {
+            return "on".equals(stored(kind));
+        }
         return !"off".equals(stored(kind));
+    }
+
+    /** the player directory is on (until staff turn it off) */
+    public boolean directoryOn() {
+        return !"off".equals(stored(DIRECTORY));
     }
 
     /** the stored limit, or the config's (which may be null: no limit) */

@@ -1,0 +1,50 @@
+# name: Train450 brawl-g-bg-mid-2
+# archetype: brawl_mid
+# colors: BG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Almighty Brushwagg
+1 Balustrade Wurm
+1 Battle Mammoth
+1 Cha'DIch Investigator
+1 Cruel Truths
+1 Darkstar Augur
+1 Elegant Entourage
+1 Emil, Vastlands Roamer
+1 Ferocious Werefox
+1 Hagra Mauling
+1 Hooded Brawler
+1 Intrepid Stablemaster
+1 Kraven the Hunter
+1 Launch Party
+1 Liliana's Steward
+1 Liturgy of Blood
+1 Locust Spray
+1 Mineshaft Spider
+1 Myriad Construct
+1 Pelt Collector
+1 Plummet
+1 Scythe Leopard
+1 Sire of Seven Deaths
+1 Sorcerer's Broom
+1 Swift Warden
+1 Tattered Apparition
+1 Tenured Oilcaster
+1 Trench Stalker
+1 Tunnel Rats
+1 Tyrannical Pitlord
+1 Ultimate Price
+1 Vastwood Surge
+1 Virulent Emissary
+1 Void Shatter
+1 Woodland Patrol
+1 You Are Already Dead
+1 Deathcap Glade
+1 Foggy Bottom Swamp
+8 Forest
+1 Gohn, Town of Ruin
+1 Illegitimate Business
+1 Mirkwood
+1 Subterranean Cavern
+8 Swamp
+1 Underground Mortuary
+1 Woodland Cemetery

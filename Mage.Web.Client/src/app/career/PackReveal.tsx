@@ -42,14 +42,27 @@ interface Showcase {
  * light before it settles back. A turned card shows big beside the pointer, and a right click (or a long press) opens
  * it on its own. Cards new to the collection say so; spares say what they became; a summary closes it. Everything can
  * be skipped with Reveal all.
+ *
+ * Several packs bought at once open as one: the fan holds only what's worth turning (rares, mythics, new cards, copies
+ * stacked), and the summary counts every card that came.
  */
-export function PackReveal({ setName, setCode, cover, cards, fresh = [], canBuyAnother, onAnother, onClose }: {
+export function PackReveal({ setName, setCode, cover, cards, fresh = [], packs = 1, copies, all, stopped, bonus, canBuyAnother, onAnother, onClose }: {
   setName: string;
   setCode: string;
   cover?: ArtCard | null;
   cards: CareerCard[];
   /** names of the cards the collection didn't have before this pack */
   fresh?: readonly string[];
+  /** how many packs these cards came from */
+  packs?: number;
+  /** how many copies of a card came, when more than one */
+  copies?: ReadonlyMap<CareerCard, number>;
+  /** every card the packs held, for the summary, when the fan shows fewer */
+  all?: readonly CareerCard[];
+  /** why a batch stopped before its last pack */
+  stopped?: string;
+  /** what else came with the pack, shown in the summary (the League's wildcard track) */
+  bonus?: string;
   canBuyAnother: boolean;
   onAnother(): void;
   onClose(): void;
@@ -69,7 +82,7 @@ export function PackReveal({ setName, setCode, cover, cards, fresh = [], canBuyA
   const finish = useRef<HTMLButtonElement>(null);
   const fan = useRef<HTMLUListElement>(null);
   useEffect(() => () => timers.current.forEach((timer) => window.clearTimeout(timer)), []);
-  const summary = useMemo(() => packSummary(cards), [cards]);
+  const summary = useMemo(() => packSummary(all ?? cards), [all, cards]);
   const done = stage === 'open' && shown.size >= order.length;
   const later = (ms: number, run: () => void) => timers.current.push(window.setTimeout(run, ms));
 
@@ -193,7 +206,7 @@ export function PackReveal({ setName, setCode, cover, cards, fresh = [], canBuyA
       aria-labelledby="pack-title"
     >
       <span className={styles.backdrop} aria-hidden="true"><CardArt card={cover} name={setName} /></span>
-      <h2 id="pack-title" className={styles.title}>{t('career.pack.title', { set: setName })}</h2>
+      <h2 id="pack-title" className={styles.title}>{packs > 1 ? t('career.pack.titleMany', { set: setName, count: packs }) : t('career.pack.title', { set: setName })}</h2>
 
       {stage !== 'open' ? (
         <div className={styles.stage}>
@@ -245,6 +258,7 @@ export function PackReveal({ setName, setCode, cover, cards, fresh = [], canBuyA
                     </span>
                   )}
                   {isNew && <span className={styles.newTag}>{t('career.binder.new')}</span>}
+                  {faceUp && (copies?.get(card) ?? 1) > 1 && <span className={styles.copies}>×{copies?.get(card)}</span>}
                   {faceUp && card.convertedTo === 'coins' && (
                     <span className={styles.badge}><Coins size={13} aria-hidden="true" /> {t('career.pack.toCoins', { coins: spareCoins(card.rarity) })}</span>
                   )}
@@ -289,10 +303,12 @@ export function PackReveal({ setName, setCode, cover, cards, fresh = [], canBuyA
             summary.coins > 0 ? t('career.pack.coins', { coins: summary.coins }) : null,
             summary.wildcards > 0 ? t('career.pack.wildcards', { count: summary.wildcards }) : null,
             summary.basics > 0 ? t('career.pack.basics', { count: summary.basics }) : null,
+            bonus ?? null,
+            stopped ? t('career.pack.stopped', { count: packs, reason: stopped }) : null,
           ].filter(Boolean).join(' · ') : stage === 'open' ? t('career.pack.tap') : ''}
         </p>
         {stage === 'open' && !done && <Button variant="decision" onClick={revealAll}>{t('career.pack.revealAll')}</Button>}
-        {done && canBuyAnother && <Button variant="print" onClick={onAnother} data-nav>{t('career.pack.another')}</Button>}
+        {done && canBuyAnother && <Button variant="print" onClick={onAnother} data-nav>{packs > 1 ? t('career.pack.anotherMany', { count: packs }) : t('career.pack.another')}</Button>}
         {done && <Button ref={finish} variant="decision" onClick={onClose} data-nav>{t('career.pack.done')}</Button>}
         {!done && <Button variant="quiet" onClick={onClose}>{t('career.pack.later')}</Button>}
       </footer>

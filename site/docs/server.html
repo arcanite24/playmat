@@ -27,6 +27,8 @@
           <li><a href="../#download">Download</a></li>
           <li><a href="../#host">Run a server</a></li>
           <li><a href="./" aria-current="true">Docs</a></li>
+          <li><a href="../rust/">Rust port</a></li>
+          <li><a href="../benchmarks/">Benchmarks</a></li>
           <li><a href="https://github.com/arcanite24/playmat">GitHub</a></li>
         </ul>
       </nav>
@@ -42,7 +44,10 @@
           <li><a href="server.html" aria-current="page">Run a server</a></li>
           <li><a href="updates.html">Updating</a></li>
           <li><a href="admin.html">Staff and the admin console</a></li>
+          <li><a href="sso.html">Single sign-on</a></li>
           <li><a href="capsules.html">Capsule machines</a></li>
+          <li><a href="ladder.html">Ranked and bots</a></li>
+          <li><a href="swarm.html">Self-play swarm</a></li>
         </ul>
       </nav>
       <article class="doc">
@@ -55,7 +60,7 @@
         <ul>
           <li>A Linux machine with <strong>Docker Engine</strong> and the Compose plugin (<code>docker compose version</code> answers). Docker Desktop on a Mac or Windows works too, but the <a href="updates.html#button">Update button</a> needs Linux.</li>
           <li>About 1 GB of memory for the server; 2 GB leaves room. One CPU is enough for a group's evening.</li>
-          <li>A domain name pointed at the machine, with ports 80 and 443 open, so Caddy can get a certificate. For a group on one home network you can do without one: see <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#private-server-on-a-lan">Private server on a LAN</a>.</li>
+          <li>A domain name pointed at the machine, with ports 80 and 443 open, so Caddy can get a certificate. For a group on one home network you can do without one: see <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#private-server-on-a-lan">Private server on a LAN</a>. Already running Traefik, nginx or another reverse proxy on 80 and 443? See <a href="#proxy">Behind your own reverse proxy</a>.</li>
         </ul>
 
         <h2 id="install">Install</h2>
@@ -85,7 +90,8 @@ docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env up -d</code
           </table>
         </div>
         <p>Mail (for password resets), Discord notifications, registration rules and the rest are in the
-          <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#settings">settings table</a>. After changing
+          <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#settings">settings table</a>
+          (the ladder's season calendar too: see <a href="ladder.html">Ranked and bots</a>). After changing
           <code>.env</code>, run the same <code>up -d</code> again to apply it.</p>
         <p>If the game server runs out of memory, it stops and Docker starts it again within seconds (games in progress
           end). To find out what filled it, set <code>XMAGE_HEAP_DUMP=true</code>: the next time it writes the memory to
@@ -93,13 +99,208 @@ docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env up -d</code
 
         <h2 id="first">After the first start</h2>
         <ol>
-          <li>Open your domain and register the account named in <code>XMAGE_OWNER</code>.</li>
+          <li>Open your domain and register the account named in <code>XMAGE_OWNER</code>. Until you do, the sign-in
+            screen says the owner account doesn't exist yet. <code>XMAGE_ADMIN_PASSWORD</code> doesn't sign you in to
+            the site; it only opens the admin console's own password sign-in.</li>
           <li>Find <strong>Admin</strong> in the account menu. Its Overview shows the server's load, and <strong>Updates</strong> says whether it's up to date.</li>
           <li>To update from there with one button later, <a href="updates.html#button">turn on the updater</a>.</li>
         </ol>
         <p class="note">On a machine with 1 GB of memory, add the small-VPS preset first:
           <code>cat ops/web/small-vps.env &gt;&gt; ops/web/.env</code>. It lowers the limits to what one CPU keeps
           responsive. See <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#small-vps-1-vcpu-1-gb">Small VPS</a>.</p>
+
+        <h2 id="proxy">Behind your own reverse proxy</h2>
+        <p>If the machine already runs Traefik, nginx, Nginx Proxy Manager, Caddy or SWAG, let it keep ports 80 and 443
+          and the certificates. Playmat's web container stays (it routes the game connection and card pictures), but
+          serves plain HTTP on its port 80 and publishes nothing on the host.</p>
+        <div class="terminal" role="region" aria-label="Settings and commands for running behind a reverse proxy">
+<pre><code><span class="c"># in ops/web/.env</span>
+DOMAIN=play.example.com      <span class="c"># the name your proxy serves</span>
+TLS_MODE=external
+PROXY_NETWORK=proxy          <span class="c"># the Docker network your proxy is on</span>
+
+<span class="c"># start it with the proxy override</span>
+docker compose -f ops/web/docker-compose.yml -f ops/web/docker-compose.proxy.yml --env-file ops/web/.env up -d</code></pre>
+        </div>
+        <p>Then point your proxy at <code>http://playmat:80</code> on that network, with WebSocket upgrades allowed on
+          <code>/ws</code> (the game connection) and a long read timeout so idle games aren't cut off:</p>
+        <ul>
+          <li><strong>Traefik</strong>: nothing to write. The override carries the labels; set <code>TRAEFIK_ENTRYPOINT</code> and <code>TRAEFIK_CERTRESOLVER</code> in <code>.env</code> to your entrypoint and resolver names.</li>
+          <li><strong>Nginx Proxy Manager</strong>: a proxy host for your domain, forward to <code>http</code>, <code>playmat</code>, port <code>80</code>, with <em>Websockets Support</em> on and a certificate on the SSL tab.</li>
+          <li><strong>nginx, SWAG, Caddy</strong>: ready-made configs are in <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#behind-your-own-reverse-proxy">the README</a>.</li>
+        </ul>
+        <p>The game server only accepts browsers from <code>https://</code> plus <code>DOMAIN</code>. If players use another
+          port or name, set <code>XMAGE_ALLOWED_ORIGINS</code> and <code>XMAGE_PUBLIC_URL</code> to the address they open.
+          Keep <code>TLS_MODE=external</code> in <code>.env</code>: the <a href="updates.html#button">Update button</a>
+          reads it to keep using the override.</p>
+        <p>For a private LAN or Tailscale-only server over plain HTTP (no TLS proxy in front), set
+          <code>TLS_MODE=external</code> without the proxy override, publish port 80 (for example
+          <code>HTTP_PORT=8088</code>), and set <code>XMAGE_ALLOWED_ORIGINS</code> to the <code>http://</code> origin
+          players open. The published web image automatically connects to <code>/ws</code> on the same origin.</p>
+
+        <h2 id="faq">Questions</h2>
+        <h3 id="image-cache">How big does the card picture cache get?</h3>
+        <p>The <code>imgcache</code> service keeps every picture players have looked at, so it grows with use. It's
+          capped at 20 GB (<code>IMGCACHE_IMAGES_MAX_SIZE</code>); once full, the pictures used least recently are
+          dropped first, and so is any picture nobody has looked at in a year. Scryfall lookups have their own 1 GB cap
+          (<code>IMGCACHE_API_MAX_SIZE</code>). A playgroup's server usually stays far below that. Pictures are only
+          downloaded as cards are shown, unless you fill the cache ahead of time with
+          <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md">warm-images.mjs</a>.</p>
+        <h3 id="disk">How much disk do the databases and backups take?</h3>
+        <p>The databases stay small on their own: once an hour the server drops players' old what-if lines (their
+          newest 5 games, for 7 days) and old saves, trims Career payout records, and gives the freed space back to the
+          disk. The first time after an update from before November 2026 it compacts <code>solo.db</code> and
+          <code>career.db</code> once, which can take a minute on a big file; the log says how much it saved.</p>
+        <p>The nightly backup keeps the newest <code>BACKUP_KEEP</code> copies (14), each about the size of the
+          databases. Check the last backup's size and free disk on the admin Overview and keep 14 of them well under your
+          free disk; lower <code>BACKUP_KEEP</code> on a small disk. A backup that would leave less than
+          <code>BACKUP_MIN_FREE_MB</code> (1024) free fails before it starts, and when free space drops under
+          <code>XMAGE_DISK_MIN_FREE_MB</code> (3072 MB) or 5% of the disk, <code>/admin</code>, <code>/healthz</code>
+          and the staff channel warn that the disk is nearly full.</p>
+        <h3 id="scryfall-mirror">Can the server take card pictures from my own Scryfall mirror?</h3>
+        <p>Yes. Point the image cache at it in <code>.env</code> and run <code>up -d</code>:</p>
+        <div class="terminal" role="region" aria-label="Settings for a Scryfall mirror">
+<pre><code><span class="c"># in ops/web/.env</span>
+IMGCACHE_CARDS_UPSTREAM=http://192.168.1.50:8000/cards   <span class="c"># your mirror's pictures</span>
+IMGCACHE_FALLBACK=on                                     <span class="c"># Scryfall fills what it lacks</span></code></pre>
+        </div>
+        <p>The mirror serves pictures in Scryfall's CDN layout (<code>/normal/front/7/6/&lt;id&gt;.jpg</code>). Plain
+          <code>http://</code> works for a mirror on your LAN. With <code>IMGCACHE_FALLBACK=on</code>, anything the mirror
+          lacks comes from Scryfall. If your mirror also answers Scryfall's API, set <code>IMGCACHE_API_UPSTREAM</code>
+          too; otherwise card lookups stay on Scryfall, cached for a day. The full list of what the mirror has to serve is
+          in <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#your-own-scryfall-mirror">the
+          README</a>.</p>
+        <h3 id="gateway">What is <code>XMAGE_GATEWAY</code>?</h3>
+        <p>The game server is being rewritten in Rust a piece at a time. The first piece is a small gateway that sits
+          in front of the Java server and takes the game connections. It sends players the same messages but makes the
+          game-state updates itself, which takes work off Java. <code>XMAGE_GATEWAY=on</code> in <code>.env</code>
+          turns it on, then run <code>up -d</code>. If the gateway stops, Caddy sends players straight to the Java
+          server until it's back. It's <code>off</code> by default while it's new. With it on, card lookups, card
+          search, deck checks, deck sync, deck imports by link, parts of the staff console, support's records and most of the Career can be answered in Rust too
+          (<code>XMAGE_ROUTE_CATALOG</code>, <code>XMAGE_ROUTE_ACCOUNT</code>, <code>XMAGE_ROUTE_DECKIMPORT</code>,
+          <code>XMAGE_ROUTE_ACCESS</code>, <code>XMAGE_ROUTE_STAFF</code>, <code>XMAGE_ROUTE_ADMIN</code>,
+          <code>XMAGE_ROUTE_ACCOUNTS</code>, <code>XMAGE_ROUTE_SUPPORT</code>, <code>XMAGE_ROUTE_CAREER</code>,
+          <code>XMAGE_ROUTE_CAREERPROGRESS</code>, which also covers quests and the capsule shop); they stay
+          with Java unless you set them. <code>XMAGE_ROUTE_CAREERPAYOUTS</code> moves what a finished game pays in the
+          Career: <code>shadow</code> has Java pay and the gateway check each payout against its own, and
+          <code>rust</code> has the gateway pay duels and games outside the Career's tables. Setting it back to
+          <code>java</code> is safe: Java pays anything left waiting the next time it starts.
+          <code>XMAGE_SHADOW_USERS</code> limits <code>shadow</code> to a few accounts while you try it. The gateway keeps its <code>shadow</code> and hosted-game counts across updates
+          in <code>saved/gateway-totals.json</code> (<code>XMAGE_GATEWAY_TOTALS</code>), by day, so a week of them can be
+          read from <code>/totals</code> on port 17180 even after a deploy. Each <code>shadow</code> difference is
+          also written to <code>saved/differences.log</code>, next to that file, so you can read what differed after
+          the server log has rotated. Details are in
+          <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#rust-gateway">the README</a>.</p>
+        <h3 id="rust-ai">What is <code>XMAGE_AI_BACKEND</code>?</h3>
+        <p>A new AI written in Rust can play against people instead of the Java AI. It decides in milliseconds instead
+          of seconds. Java still runs the game, and if the new AI ever loses track of it, the Java AI takes over for the
+          rest of that game. <code>XMAGE_AI_BACKEND=rust</code> turns it on for the players listed in
+          <code>XMAGE_RUST_AI_USERS</code> (user names separated by commas, or <code>*</code> for everyone), then run
+          <code>up -d</code>. It only plays one-on-one games whose cards are all verified against Java (14,404 cards for now, from the
+          Career, meta and starter decks and a wider share of the Pioneer pool; the server log names the cards that aren't). A verified card that upstream XMage has changed since plays on Java again until it's checked once more. <code>XMAGE_ENGINE=java</code> turns it off again.
+          While it plays, it also checks the screens it would draw against Java's (every 10th question by default,
+          <code>XMAGE_RUST_VIEWS_EVERY</code>; <code>0</code> turns that off), and its prompts and game log at every
+          question (<code>XMAGE_RUST_PROMPTS=0</code> turns that off); the admin console's Overview shows how many
+          matched. Details are in
+          <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#rust-ai">the README</a>.</p>
+        <h3 id="rust-ai-policy">What is <code>PLAYMAT_AI_POLICY</code>?</h3>
+        <p>It picks how the Rust AI decides, both when it plays against people in Java's games and in games the Rust
+          engine hosts. Leave it at <code>playouts</code>, the default. <code>mcts</code> searches with several threads
+          (up to 4, <code>PLAYMAT_AI_THREADS</code>): in our benchmarks it's no stronger and uses far more CPU, so it's
+          only worth trying on a machine with cores to spare. <code>quick</code> doesn't search at all and is the
+          weakest; <code>random</code> plays random moves. <code>net</code>, <code>netsearch</code>, <code>gumbel</code> and <code>ismcts</code> use a small
+          network trained on the AI's own games: <code>net</code> is fast but weaker than the default, and
+          <code>netsearch</code> plays about as well as skill 2 without ever looking at hidden cards.
+          <code>gumbel</code> is a variant of <code>netsearch</code>, a little weaker in our tests;
+          <code>ismcts</code> adds a tree search to <code>netsearch</code> and is about as strong in our tests. Set it, then run <code>up -d</code>. In games the Rust
+          engine hosts, the table's AI skill also matters: 1 plays without searching, 2–5 search less and now and
+          then make a random play, 6 and up play the strongest settings. Details are in
+          <a href="https://github.com/arcanite24/playmat/blob/master/docs/rust/Ai.md#one-decision-at-a-time-policies">docs/rust/Ai.md</a>.</p>
+        <h3 id="rust-host">What is <code>XMAGE_RUST_HOST_USERS</code>?</h3>
+        <p>It lets the Rust engine play whole games, with no Java game behind them. It's new and still
+          being tried, so it's off by default. It needs the gateway (<code>XMAGE_GATEWAY=on</code>). List the players
+          whose games it should host (user names separated by commas, or <code>*</code> for everyone), then run
+          <code>up -d</code>. It only hosts one-on-one games, against the AI or between two people, outside the Career
+          and outside tournaments and drafts, whose cards are all verified against Java; other games play on Java as before.
+          A game between people is hosted when both players are listed (or opted in) and connected through the same
+          gateway. In a best-of-three, each game is hosted on its own and
+          Java keeps the score and the sideboarding. The table's priority timer works as on Java: each game of a match
+          keeps the time left from the earlier ones, and a player whose time runs out loses the match. The table's
+          starting life, free mulligans, AI skill and rollbacks are played; a table set up some other way (another
+          mulligan, a hand size other than 7, a companion) stays on Java. These games pay the Career like any other,
+          show up in History when replays are on, and can be watched. Against the AI, the solo tools work on them too: saves,
+          "Try this turn again", advice and the practice tools. A save made on the Rust engine can only be resumed
+          while the Rust engine is on. <code>XMAGE_ENGINE=java</code> turns it off. The gateway's <code>/metrics</code>
+          counts hosted games and how they ended (<code>playmat_gateway_host_games_ended_total</code>). Each hosted
+          game also leaves a record in <code>saved/host-games</code> (the last 500, <code>XMAGE_RUST_HOST_RECORDS_KEEP</code>),
+          so a game a player reports can be played again exactly. Details are in
+          <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#rust-hosted-games">the README</a>.</p>
+        <h3 id="rust-opt-in">Can players turn the Rust engine on themselves?</h3>
+        <p>Yes, with <code>XMAGE_RUST_OPT_IN=on</code> (it also needs <code>XMAGE_GATEWAY=on</code>). Each player then
+          gets a "Play on the Rust engine" switch in Settings → Gameplay, off until they turn it on. Their games that
+          qualify, the same ones as above, are played by the Rust engine; the rest stay on Java. A game on the Rust
+          engine shows a "Rust engine" chip on the board and a short note as it starts. The players listed in
+          <code>XMAGE_RUST_HOST_USERS</code> keep it on whatever their switch says.</p>
+        <h3 id="selfplay">Can the server train the AI while it's idle?</h3>
+        <p>Yes, if you also train the Rust AI somewhere. <code>ops/web/host/rl-setup.sh</code> installs a worker that plays
+          training games only while the server is idle: no backup running, few games open, low CPU. It stops the moment
+          players need the server. The games run in a locked-down container with no network and the lowest CPU priority.
+          Your trainer connects to fetch them; the server never connects out. It does nothing until a trainer sends it a job, and
+          <code>rl-setup.sh --remove</code> takes it out. Details are in
+          <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#host-tools">the README</a>.</p>
+        <h3 id="desktop">Can the XMage desktop client connect?</h3>
+        <p>No. Playmat servers speak only to the web client (and the Android and desktop apps, which are the web client).
+          The desktop client's protocol was removed to make the move to Rust possible.</p>
+        <h3 id="new-cards">A new set is out. How do I get its cards?</h3>
+        <p>See <a href="updates.html#new-cards">New cards and sets</a>.</p>
+        <h3 id="official">Where do the official images come from?</h3>
+        <p>From <code>ghcr.io/arcanite24/playmat-server</code> and <code>ghcr.io/arcanite24/playmat-web</code>, built
+          from <a href="https://github.com/arcanite24/playmat">github.com/arcanite24/playmat</a>. Other copies of the
+          repository on GitHub aren't ours: don't take images, installers or install commands from them.</p>
+        <h2 id="identity-provider">Sign in with an identity provider</h2>
+        <p>Players can sign in through an identity provider (OpenID Connect) instead of a password: Pocket ID,
+          Keycloak, Authentik, or any provider that publishes a discovery document. In <code>ops/web/.env</code>,
+          set the client's details, with the callback URL <code>https://YOURDOMAIN/auth/oidc</code>:</p>
+        <div class="terminal" role="region" aria-label="Settings for sign-in with an identity provider">
+<pre><code>XMAGE_OIDC_DISCOVERY=https://id.example.com/.well-known/openid-configuration
+XMAGE_OIDC_CLIENT_ID=playmat
+XMAGE_OIDC_CLIENT_SECRET=...
+XMAGE_OIDC_LABEL=Pocket ID</code></pre>
+        </div>
+        <p>With <code>XMAGE_AUTH=true</code> and the three set, the sign-in screen offers the provider as a button
+          named by <code>XMAGE_OIDC_LABEL</code> (empty: "OIDC"). The first sign-in makes the player an account
+          here, named after the provider's display name and with its verified email, and the player's device is
+          remembered: from then on it signs in without a password.</p>
+        <p>Two things to know before you switch it on. The server talks to the provider directly, so your
+          container must be able to reach the discovery URL; when the provider sits behind a proxy, that can be a
+          different address than the players' one. And a player whose provider email isn't confirmed yet is told
+          to confirm it in the provider. An existing account here with the same email is signed in to only once it has
+          confirmed that address in Settings; until then the player is asked to confirm it first.</p>
+        <p>Signing a player out also ends the provider's session where the provider advertises RP-initiated
+          logout in its discovery document, so the next click of the button asks for the passkey again - whether
+          the sign-in came through the provider or is a reload of one. Without it, or for an account that never
+          signed in through the provider, signing out is unchanged.</p>
+        <p><code>XMAGE_OIDC_ADMIN_GROUP</code> names a user group in the provider: a member who signs in opens
+          the admin console on their own session, with no password, for as long as that session lives, and it
+          returns when they sign out. While it lasts the member is a full owner, the same envelope the shared
+          admin password already gives; <code>XMAGE_ADMIN_PASSWORD</code> stays the break-glass. Don't restrict
+          the client to that group in the provider, or everyone outside it is denied sign-in.</p>
+        <p>Pocket ID is a selfhosted, passkey-only provider and the one to start from: how to add the client,
+          what its passkeys mean for players, key rotation, and its one algorithm it can't use, are in the
+          <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#sign-in-with-an-identity-provider">deployment guide</a>.</p>
+
+        <h2 id="identity-provider-only">The provider as the only sign-in</h2>
+        <p><code>XMAGE_OIDC_ONLY=true</code> makes the provider the only way to get in. It refuses signing in with
+          a typed password (web and desktop clients alike), creating an account (including through an invite),
+          resetting a forgotten password, and Sign in with GitHub.</p>
+        <p>What keeps working: signing in with the provider, signing in on a remembered device, reconnecting a
+          game in progress, asking for access on a contributors server, and the admin console — staff are never
+          locked out.</p>
+        <p class="note warn">Use it only when your players sign in from a browser. The classic desktop client and
+          the sideloaded Android app can't sign in on such a server (the released Playmat desktop app is fine: it
+          ships the web client). Set <code>XMAGE_DESKTOP=false</code> on a web-only server. While the provider is
+          down, no new sign-in works, but remembered devices and games in progress are unaffected. A player who
+          is locked out gets a reset code from the admin console, or you turn the flag off until they're in.</p>
 
         <h2 id="build">Building the images yourself</h2>
         <p>To run your own changes, empty <code>XMAGE_SERVER_IMAGE</code> and <code>XMAGE_WEB_IMAGE</code> in

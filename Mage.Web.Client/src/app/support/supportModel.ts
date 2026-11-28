@@ -72,6 +72,14 @@ export function sleeveColorOf(id: string | undefined): string | null {
 }
 
 
+/** The pet perk the player brings, among those they own: the one picked, else the corgi, else any. Null: none worn. */
+export function wornPet(perks: readonly SupportPerk[] | undefined, wear: Wear = DEFAULT_WEAR): string | null {
+  if (!wear.pet) return null;
+  if (wear.petId && owns(perks, 'pet', wear.petId)) return wear.petId;
+  if (owns(perks, 'pet', THANK_YOU.pet)) return THANK_YOU.pet;
+  return perks?.find((perk) => perk.kind === 'pet')?.item ?? null;
+}
+
 export interface LookInputs {
   /** the sleeve colour of the deck being played */
   sleeve?: string;
@@ -80,26 +88,31 @@ export interface LookInputs {
   careerAvatar?: string | null;
   careerTitle?: string | null;
   /** the rest of the progression look (career/careerData.ts CareerLook) */
-  career?: { frame?: string | null; pet?: string | null; arrow?: string | null; spark?: string | null; stamp?: string | null; lands?: string | null; badges?: string[] };
+  career?: { frame?: string | null; commandFrame?: string | null; pet?: string | null; arrow?: string | null; spark?: string | null; stamp?: string | null; lands?: string | null; badges?: string[] };
   perks?: readonly SupportPerk[];
   wear?: Wear;
+  /** token pictures (ui/tokenArt.ts): the account's, and the deck being played's own */
+  tokens?: Record<string, string>;
+  deckTokens?: Record<string, string>;
 }
 
 /**
  * The look sent to the server. It drops what the account doesn't own anyway; this only leaves out the thank-you
  * pieces the player chose not to wear, so the server can keep the rest.
  */
-export function lookOf({ sleeve, cloth, careerAvatar, careerTitle, career, perks, wear = DEFAULT_WEAR }: LookInputs): PlayerLook {
+export function lookOf({ sleeve, cloth, careerAvatar, careerTitle, career, perks, wear = DEFAULT_WEAR, tokens, deckTokens }: LookInputs): PlayerLook {
   const look: PlayerLook = {};
   const sleeveId = sleeveIdOf(sleeve);
   if (sleeveId) look.sleeve = sleeveId;
   if (cloth) look.cloth = cloth;
   if (careerAvatar) look.avatar = careerAvatar;
-  // the supporter ring and corgi, when worn, come before an earned frame and companion
+  // the supporter ring and a pet perk (corgi, contributors' duck), when worn, come before an earned frame and companion
   if (wear.frame && owns(perks, 'frame', THANK_YOU.frame)) look.frame = THANK_YOU.frame;
   else if (career?.frame) look.frame = career.frame;
+  if (career?.commandFrame) look.commandFrame = career.commandFrame;
   if (wear.flair && owns(perks, 'flair', THANK_YOU.flair)) look.flair = THANK_YOU.flair;
-  if (wear.pet && owns(perks, 'pet', THANK_YOU.pet)) look.pet = THANK_YOU.pet;
+  const pet = wornPet(perks, wear);
+  if (pet) look.pet = pet;
   else if (career?.pet) look.pet = career.pet;
   if (career?.arrow) look.arrow = career.arrow;
   if (career?.spark) look.spark = career.spark;
@@ -108,16 +121,24 @@ export function lookOf({ sleeve, cloth, careerAvatar, careerTitle, career, perks
   if (career?.badges?.length) look.badges = career.badges.slice(0, 3);
   const title = wear.title && owns(perks, 'title', THANK_YOU.title) ? THANK_YOU.title : careerTitle;
   if (title) look.title = title;
+  if (tokens && Object.keys(tokens).length > 0) look.tokens = tokens;
+  if (deckTokens && Object.keys(deckTokens).length > 0) look.deckTokens = deckTokens;
   return look;
+}
+
+function sameMap(a: Record<string, string> | undefined, b: Record<string, string> | undefined): boolean {
+  const left = Object.entries(a ?? {});
+  return left.length === Object.keys(b ?? {}).length && left.every(([key, value]) => b?.[key] === value);
 }
 
 /** Whether two looks are the same, so an unchanged look isn't sent again. */
 export function sameLook(a: PlayerLook | null | undefined, b: PlayerLook | null | undefined): boolean {
-  const keys: (keyof PlayerLook)[] = ['sleeve', 'cloth', 'avatar', 'frame', 'title', 'flair', 'pet', 'arrow', 'spark', 'stamp', 'lands', 'level'];
+  const keys: (keyof PlayerLook)[] = ['sleeve', 'cloth', 'avatar', 'frame', 'commandFrame', 'title', 'flair', 'pet', 'petTier', 'petStyle', 'arrow', 'spark', 'stamp', 'lands', 'level'];
   return !!a && !!b && keys.every((key) => (a[key] ?? null) === (b[key] ?? null))
     && (a.badges ?? []).join() === (b.badges ?? []).join()
     && Object.keys(a.cardStyles ?? {}).length === Object.keys(b.cardStyles ?? {}).length
-    && Object.entries(a.cardStyles ?? {}).every(([card, style]) => b.cardStyles?.[card] === style);
+    && Object.entries(a.cardStyles ?? {}).every(([card, style]) => b.cardStyles?.[card] === style)
+    && sameMap(a.tokens, b.tokens) && sameMap(a.deckTokens, b.deckTokens);
 }
 
 /** The sleeve a player equipped, or the seat's default when none is known. */

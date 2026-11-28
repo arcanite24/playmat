@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { abilityFor, canPay, colorChoiceFor, handNeeds, landsPartOf, manaOf, manaTier, nextTap, orderReadings, parseCost, parseCostOptions, type ManaColor, type ManaCostParts, type ManaSource } from './autoPay';
+import { abilityFor, canPay, colorChoiceFor, handNeeds, landsPartOf, manaAmount, manaOf, manaTier, nextTap, orderReadings, parseCost, parseCostOptions, type ManaColor, type ManaCostParts, type ManaSource } from './autoPay';
 
 /** a source making the colors in `colors` ("G", "RW"), or one auto-pay can't decide for (null) */
 const land = (id: string, colors: string | null): ManaSource => ({ id, colors: colors === null ? null : ([...colors] as ManaColor[]), isLand: true });
@@ -189,6 +189,16 @@ describe('parseCostOptions', () => {
     expect(parseCostOptions('Pay {2/W}')).toEqual([{ generic: 0, colored: { W: 1 } }, { generic: 2, colored: {} }]);
     expect(parseCostOptions('Pay {B/P}{B/P}')).toEqual([{ generic: 0, colored: { B: 2 } }]);
     expect(parseCostOptions('Pay {G/U/P}')).toEqual([{ generic: 0, colored: { G: 1 } }, { generic: 0, colored: { U: 1 } }]);
+    expect(parseCostOptions('Pay {C/U}{C/G}')).toEqual([
+      { generic: 0, colored: { U: 1, G: 1 } }, { generic: 0, colored: { U: 1, C: 1 } },
+      { generic: 0, colored: { C: 1, G: 1 } }, { generic: 0, colored: { C: 2 } },
+    ]);
+    // Ulalek, Fused Atrocity with four Wastes and an Island: the {U} reading, and the Island is tapped first
+    const ulalek = orderReadings(parseCostOptions('Pay {C/W}{C/U}{C/B}{C/R}{C/G}')!, [
+      land('w1', 'C'), land('w2', 'C'), land('w3', 'C'), land('w4', 'C'), land('island', 'U'),
+    ]);
+    expect(ulalek[0]).toEqual({ generic: 0, colored: { U: 1, C: 4 } });
+    expect(nextSource(ulalek[0], [land('w1', 'C'), land('w2', 'C'), land('w3', 'C'), land('w4', 'C'), land('island', 'U')])).toBe('island');
   });
   it('still refuses X and snow, and hybrid when not asked to read it', () => {
     expect(parseCostOptions('Pay {X}{R}')).toBeNull();
@@ -244,5 +254,60 @@ describe('orderReadings', () => {
     const sources: ManaSource[] = [land('plains', 'W'), { id: 'lith', colors: ['W', 'U', 'B', 'R', 'G'], isLand: false, tier: 1 }];
     const readings = parseCostOptions('Pay {G/W}{G/W}')!;
     expect(orderReadings(readings, sources)[0]).toEqual({ generic: 0, colored: { G: 1, W: 1 } });
+  });
+});
+
+describe('sources that add more than one mana (#235)', () => {
+  const solRing = (): ManaSource => ({ id: 'sol', colors: ['C'], isLand: false, amount: 2 });
+  /** taps what auto-pay picks, spending its mana the way the server does, until the cost is paid or auto-pay stops */
+  function payAll(cost: ManaCostParts, sources: ManaSource[]) {
+    const tapped: string[] = [];
+    let rest = cost;
+    let left = sources;
+    let floating = 0;
+    for (let step = 0; step < 10; step++) {
+      const owed = rest.generic + Object.values(rest.colored).reduce((sum, value) => sum + (value ?? 0), 0);
+      if (owed === 0) break;
+      const tap = nextTap(rest, left);
+      if (!tap) break;
+      const source = left.find((candidate) => candidate.id === tap.id)!;
+      tapped.push(tap.id);
+      left = left.filter((candidate) => candidate !== source);
+      for (let unit = 0; unit < (source.amount ?? 1); unit++) {
+        if ((rest.colored[tap.color] ?? 0) > 0) rest = { ...rest, colored: { ...rest.colored, [tap.color]: rest.colored[tap.color]! - 1 } };
+        else if (rest.generic > 0) rest = { ...rest, generic: rest.generic - 1 };
+        else floating++;
+      }
+    }
+    return { tapped, floating, rest };
+  }
+
+  it('reads Sol Ring as two colorless mana', () => {
+    expect(manaOf({ rules: ['{T}: Add {C}{C}.'], cardTypes: ['ARTIFACT'] })).toEqual(['C']);
+    expect(manaAmount({ rules: ['{T}: Add {C}{C}.'], cardTypes: ['ARTIFACT'] })).toBe(2);
+    expect(manaAmount({ rules: ['{T}: Add {W} or {U}.'] })).toBe(1);
+    expect(manaAmount({ subTypes: ['PLAINS'] })).toBe(1);
+    // Eldrazi Temple: one of its abilities adds only one
+    expect(manaAmount({ rules: ['{T}: Add {C}.', '{T}: Add {C}{C}. Spend this mana only to cast colorless Eldrazi spells or activate abilities of colorless Eldrazi.'] })).toBe(1);
+  });
+
+  it('pays {2}{W}{W} with two Plains and Sol Ring, leaving the white artifact source and nothing floating', () => {
+    // the issue's board: two Plains, Sol Ring and an artifact land that adds {W} (Ancient Den)
+    const sources = [land('plains1', 'W'), land('plains2', 'W'), land('den', 'W'), solRing()];
+    const { tapped, floating, rest } = payAll({ generic: 2, colored: { W: 2 } }, sources);
+    expect(rest).toEqual({ generic: 0, colored: { W: 0 } });
+    expect(floating).toBe(0);
+    expect(tapped).toEqual(['plains1', 'plains2', 'sol']);
+  });
+
+  it('counts both of Sol Ring\'s mana when checking a cost can be paid', () => {
+    expect(canPay({ generic: 2, colored: { W: 1 } }, [land('plains', 'W'), solRing()])).toBe(true);
+    expect(payAll({ generic: 2, colored: { W: 1 } }, [land('plains', 'W'), solRing()]).tapped).toEqual(['plains', 'sol']);
+  });
+
+  it('pays a last {1} with a land rather than float a colorless mana', () => {
+    expect(nextSource({ generic: 1, colored: {} }, [solRing(), land('plains', 'W')])).toBe('plains');
+    // Sol Ring alone still pays it
+    expect(nextSource({ generic: 1, colored: {} }, [solRing()])).toBe('sol');
   });
 });

@@ -118,6 +118,13 @@
   letter-spacing: var(--tracking-print);
 }
 
+/* the ladder screens (Ranked, League): a readable measure on wide screens instead of edge to edge */
+.capped > * {
+  width: 100%;
+  max-width: 1180px;
+  margin-inline: auto;
+}
+
 .split {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
@@ -972,8 +979,9 @@
   background: transparent;
 }
 
-/* a boss's face on its rung: their card's art, cropped round */
-.rungArt {
+/* a boss's face on its rung: their card's art, cropped round. Scoped to the rung so it outranks CardArt's own
+   full-size .art whichever stylesheet loads last: in a build where Portraits' came later, the face filled the panel (#206) */
+.rung .rungArt {
   flex: none;
   width: 48px;
   height: 48px;
@@ -1470,7 +1478,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: var(--space-3);
-  max-height: 60vh;
+  max-height: 60dvh;
   overflow: auto;
 }
 
@@ -1763,6 +1771,30 @@
   list-style: none;
 }
 
+/* what each kind of stop does, folded under the map (#203) */
+.mapLegend {
+  margin-top: var(--space-4);
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.mapLegend summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.mapLegend .reasons {
+  display: grid;
+  gap: 4px;
+  margin-top: var(--space-2);
+  padding-left: 0;
+  list-style: none;
+}
+
+.mapLegend svg {
+  vertical-align: -2px;
+}
+
 .mapRow > ul {
   display: flex;
   justify-content: center;
@@ -1990,4 +2022,32 @@
 .hordeTile:focus-visible {
   outline: 2px solid var(--ink-strong);
   outline-offset: 2px;
+}
+
+/* ---- the ladder's season boards (#434) */
+
+.seasonBoards {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.seasonPick {
+  height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--mat-800);
+  box-shadow: inset 0 0 0 1.5px var(--ink-faint);
+  color: var(--ink-strong);
+  font-size: var(--text-sm);
+}
+
+.seasonPick:focus-visible {
+  outline: 2px solid var(--ink-strong);
+  outline-offset: 2px;
+}
+
+.thgPartners {
+  display: grid;
+  gap: 8px;
 }

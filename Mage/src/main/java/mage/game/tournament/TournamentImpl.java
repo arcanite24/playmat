@@ -212,7 +212,7 @@ public abstract class TournamentImpl implements Tournament {
             playMatch(pair);
         }
         updateResults(); // show points from byes
-        while (!round.isRoundOver()) {
+        while (!round.isRoundOver() && !isAbort()) {
             try {
                 //TODO: improve this
                 Thread.sleep(1000);
@@ -372,18 +372,26 @@ public abstract class TournamentImpl implements Tournament {
             for (final TournamentPlayer player : players.values()) {
 
                 player.setConstructing();
-                new Thread(
-                        () -> player.getPlayer().construct(TournamentImpl.this, player.getDeck())
-                ).start();
+                new Thread(() -> {
+                    try {
+                        player.getPlayer().construct(TournamentImpl.this, player.getDeck());
+                    } catch (Throwable e) {
+                        // a bot that fails to build must still hand in a deck, or the event waits on it forever
+                        Logger.getLogger(TournamentImpl.class).error("Tourney " + getId() + ": "
+                                + player.getPlayer().getName() + " failed to construct, submitting the pool as it is", e);
+                        autoSubmit(player.getPlayer().getId(), player.getDeck());
+                    }
+                }).start();
             }
-            // add autosubmit trigger
 
             synchronized (this) {
-                while (!isDoneConstructing()) {
+                // humans have their own construction timer; the timeout only lets an abort through
+                while (!isDoneConstructing() && !isAbort()) {
                     try {
-                        this.wait();
+                        this.wait(5000);
                     } catch (InterruptedException ex) {
-
+                        Thread.currentThread().interrupt();
+                        break;
                     }
                 }
             }

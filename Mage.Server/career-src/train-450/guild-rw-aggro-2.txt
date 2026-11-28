@@ -1,0 +1,25 @@
+# name: Train450 guild-rw-aggro-2
+# archetype: aggro
+# colors: RW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Ajani's Pridemate
+2 Arclight Phoenix
+4 Axiom Engraver
+2 Boros Challenger
+3 Boros Charm
+3 Deicide
+2 Fateful End
+2 Flock Impostor
+2 Frontline Rush
+3 Misty Knight, Hero for Hire
+2 Nick Fury, Agent of S.H.I.E.L.D.
+3 Novice Inspector
+2 Stingerback Terror
+1 Thwip!
+1 Torch the Tower
+4 Veteran Motorist
+1 Volt Charge
+4 Alpine Meadow
+4 Lorehold Campus
+7 Mountain
+6 Plains

@@ -1,0 +1,20 @@
+# name: Train200 guild-br-gowide-2
+# archetype: gowide
+# colors: BR
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+1 Blazing Crescendo
+4 Gadrak, the Crown-Scourge
+3 Garland, Knight of Cornelia
+2 Goldnight Castigator
+4 Grim Wanderer
+3 Masterful Flourish
+4 Merchant's Dockhand
+4 Phoenix Chick
+4 Raze the Effigy
+3 Soulbright Seeker
+4 Spiteful Hexmage
+2 Stingerback Terror
+9 Mountain
+4 Rakdos Guildgate
+4 Smoldering Marsh
+5 Swamp

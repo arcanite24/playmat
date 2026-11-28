@@ -1,9 +1,13 @@
-import { useEffect, useState } from 'react';
-import type { CardView, PermanentView } from '../../protocol/generated/views';
+import { useEffect, useMemo, useState } from 'react';
+import type { CardView, GameView, PermanentView } from '../../protocol/generated/views';
 import { isStackAbility } from '../../core/game/cards';
+import { explainCard } from '../../core/game/glossary';
+import { stripMarkup } from '../../core/game/prompt';
+import { describeStackTargets } from '../../core/game/stackTargets';
 import { AbilityCard } from '../ui/AbilityCard';
 import { showsBackFace } from '../../core/images/imageLinks';
 import { CardFace } from '../ui/CardFace';
+import { useT } from '../i18n';
 import { useCardStyle } from '../ui/cardStyles';
 import { PromptText } from '../ui/PromptText';
 import { useMatchUi } from './matchUi';
@@ -12,21 +16,36 @@ import { lastPointerType } from './useLongPress';
 import styles from './CardZoom.module.css';
 
 const ZOOM_WIDTH = 340;
+/** Settings: bigger card zoom, for reading on a small screen (#147) */
+const BIG_WIDTH = 440;
 /** broadcast: big enough to read on a stream, at the edge of the table */
 const LARGE_WIDTH = 520;
 const DELAY_MS = 260;
 const EDGE = 24;
+/** the Mechanics panel beside the card, and the gap between them */
+const PANEL_WIDTH = 300;
+const LARGE_PANEL_WIDTH = 420;
+const PANEL_GAP = 14;
 
 /**
  * The hovered card, large, beside the pointer (after a short delay so sweeping the board stays calm). `large`
  * (watching, for a stream): bigger still, at the edge of the table away from the pointer, where it hides less.
  */
-export function CardZoom({ large = false }: { large?: boolean }) {
+export function CardZoom({ large = false, big = false, view, attackTargets }: {
+  large?: boolean;
+  big?: boolean;
+  view?: GameView | null;
+  attackTargets?: ReadonlyMap<string, string>;
+}) {
   const zoom = useMatchUi((state) => state.zoom);
   const dragging = useMatchUi((state) => state.dragging);
   const detailOpen = useMatchUi((state) => !!state.detail);
+  const t = useT();
   const stage = useStage();
   const [settled, setSettled] = useState<typeof zoom>(null);
+  const hovered = zoom && !dragging && settled === zoom ? zoom.card : null;
+  // what the card's keywords and mechanics mean, beside it (an ability on the stack has no card types)
+  const terms = useMemo(() => (hovered ? explainCard(isStackAbility(hovered) ? { ...hovered, cardTypes: [] } : hovered).terms : []), [hovered]);
 
   useEffect(() => {
     if (!zoom || dragging) return;
@@ -47,9 +66,9 @@ export function CardZoom({ large = false }: { large?: boolean }) {
   if (!shown || touch || detailOpen || !element || !element.isConnected || !element.matches(':hover')) return null;
   const card = shown.card as PermanentView;
   const back = card.secondCardFace;
-  const extra = details(card);
-  const rules = styled ? (card.rules ?? []).filter((line) => line.trim()) : [];
-  const width = large ? LARGE_WIDTH : ZOOM_WIDTH;
+  const extra = details(card, view, attackTargets);
+  const rules = styled ? (card.rules ?? []).map(stripMarkup).filter(Boolean) : [];
+  const width = large ? LARGE_WIDTH : big ? BIG_WIDTH : ZOOM_WIDTH;
   const height = width * (88 / 63);
   const point = toStagePoint(stage, shown.x, shown.y);
   const pointerRight = point.x > stage.width / 2;
@@ -57,10 +76,17 @@ export function CardZoom({ large = false }: { large?: boolean }) {
   const span = back && card.transformable ? width * 1.62 + 12 : width;
   const left = large
     ? (pointerRight ? EDGE : stage.width - span - EDGE)
-    : pointerRight ? point.x - ZOOM_WIDTH - 60 : point.x + 60;
+    : pointerRight ? point.x - width - 60 : point.x + 60;
   const top = large
     ? Math.max(EDGE, (stage.height - height) / 2 - 40)
     : Math.max(EDGE, Math.min(stage.height - height - EDGE, point.y - height / 2));
+
+  // the panel goes on the side of the card away from the pointer (toward the middle of the table when large)
+  const panelWidth = large ? LARGE_PANEL_WIDTH : PANEL_WIDTH;
+  const panelRight = large ? pointerRight : !pointerRight;
+  const panelLeft = panelRight
+    ? Math.min(left + span + PANEL_GAP, stage.width - panelWidth - 8)
+    : Math.max(8, left - panelWidth - PANEL_GAP);
 
   return (
     <div className={[styles.zoom, large ? styles.large : ''].join(' ')} style={{ left, top }} aria-hidden="true">
@@ -82,13 +108,30 @@ export function CardZoom({ large = false }: { large?: boolean }) {
           {extra.map((line) => <li key={line}>{line}</li>)}
         </ul>
       )}
+      {terms.length > 0 && (
+        <aside className={styles.mechanics} style={{ left: panelLeft - left, width: panelWidth, maxHeight: stage.height - top - EDGE }}>
+          <h3 className={styles.mechanicsTitle}>{t('match.zoom.mechanics')}</h3>
+          <dl className={styles.terms}>
+            {terms.map((term) => (
+              <div key={term.name} className={styles.term}>
+                <dt>{term.name}</dt>
+                <dd><PromptText text={term.text} /></dd>
+              </div>
+            ))}
+          </dl>
+        </aside>
+      )}
     </div>
   );
 }
 
-/** What the picture can't show: changed stats, counters, damage, who controls it. */
-function details(card: PermanentView & CardView): string[] {
+/** What the picture can't show: changed stats, counters, damage, combat target, stack modes/targets, who controls it. */
+function details(card: PermanentView & CardView, view?: GameView | null, attackTargets?: ReadonlyMap<string, string>): string[] {
   const lines: string[] = [];
+  if (card.id) {
+    const attacking = attackTargets?.get(card.id);
+    if (attacking) lines.push(`Attacking ${attacking}`);
+  }
   if (card.power !== undefined && card.toughness !== undefined && (card.cardTypes ?? []).includes('CREATURE')) {
     const base = card.original;
     if (base && (base.power !== card.power || base.toughness !== card.toughness)) {
@@ -101,6 +144,15 @@ function details(card: PermanentView & CardView): string[] {
   }
   if (card.nameController && card.nameOwner && card.nameOwner !== card.nameController) {
     lines.push(`Controlled by ${card.nameController}, owned by ${card.nameOwner}`);
+  }
+  if (view?.stack && card.id && card.id in view.stack) {
+    const summary = describeStackTargets(card, view);
+    for (const line of summary.lines) {
+      const prefix = line.index !== null && summary.targetCount > 1 ? `[${line.index}] ` : '';
+      if (line.effect && line.targetName) lines.push(`${prefix}${line.effect} → ${line.targetName}`);
+      else if (line.effect) lines.push(`Chosen: ${line.effect}`);
+      else if (line.targetName) lines.push(`${prefix}Target: ${line.targetName}`);
+    }
   }
 
   return lines;

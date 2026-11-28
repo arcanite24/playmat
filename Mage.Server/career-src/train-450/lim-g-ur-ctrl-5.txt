@@ -1,0 +1,36 @@
+# name: Train450 lim-g-ur-ctrl-5
+# archetype: limited_ctrl
+# colors: UR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Alchemist's Retrieval
+1 Ashling's Command
+2 Avian Oddity
+1 Boomerang Basics
+1 Conduct Electricity
+1 Convolute
+1 Didn't Say Please
+1 Dragon Mage
+1 Flashfreeze
+1 Fogwalker
+1 Furtive Courier
+1 Hulking Bugbear
+1 Lambholt Harrier
+1 Mirrorshell Crab
+1 Monastery Swiftspear
+2 Nanoform Sentinel
+2 Ovika, Enigma Goliath
+1 Preening Champion
+1 Ragefire Hellkite
+1 Skewer Slinger
+1 Smashing Success
+2 Statute of Denial
+1 Twinflame Travelers
+2 Unleash Shell
+1 Vengeful Possession
+1 Volatile Arsonist
+1 Volcanic Fallout
+2 Wandering Mind
+9 Island
+8 Mountain
+4 Peculiar Lighthouse
+4 Steam Vents

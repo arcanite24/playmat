@@ -1,0 +1,21 @@
+# name: Train450 guild-ub-gowide-4
+# archetype: gowide
+# colors: UB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Bloodsoaked Champion
+1 Chain to Memory
+4 Desperate Measures
+3 Feast of Dreams
+4 Glimmerbell
+3 Gravecrawler
+4 Kalakscion, Hunger Tyrant
+2 Project Deathlok Soldier
+3 Slaughter Specialist
+4 Spire Mangler
+2 Umbral Collar Zealot
+4 Valley Rotcaller
+3 Wanted Scoundrels
+2 Island
+4 Sinister Hideout
+4 Sunken Hollow
+12 Swamp

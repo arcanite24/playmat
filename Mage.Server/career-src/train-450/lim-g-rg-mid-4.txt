@@ -1,0 +1,37 @@
+# name: Train450 lim-g-rg-mid-4
+# archetype: limited_mid
+# colors: RG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Arclight Phoenix
+1 Black Market Tycoon
+2 Bonehoard Dracosaur
+1 Burning Sun Cavalry
+1 Canyon Minotaur
+1 Dawntreader Elk
+2 Dissenter's Deliverance
+1 Druid of the Cowl
+1 Etali, Primal Conqueror
+1 Eumidian Terrabotanist
+1 Fell the Pheasant
+1 Giant Growth
+1 Greenhouse Propagator
+1 Hazoret, Godseeker
+1 Heated Debate
+2 Nightpack Ambusher
+1 Prompto Argentum
+2 Raphael, Ninja Destroyer
+1 Red Tiger Mechan
+2 Skarrgan Hellkite
+1 Squash
+1 Stonefare Crocodile
+1 Summit Prowler
+1 Tanglespan Lookout
+1 Unnatural Moonrise
+1 Unsparing Boltcaster
+1 Volley Veteran
+2 Wildsize
+1 Zurgo Bellstriker
+4 Bleeding Woods
+7 Forest
+4 Los Diablos Missile Base
+9 Mountain

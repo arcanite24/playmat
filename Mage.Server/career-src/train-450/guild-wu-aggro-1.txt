@@ -1,0 +1,24 @@
+# name: Train450 guild-wu-aggro-1
+# archetype: aggro
+# colors: WU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Cobbled Lancer
+2 Erase
+2 Flowerfoot Swordmaster
+2 Jadzi, Steward of Fate
+3 Mist-Cloaked Herald
+3 Phalanx Tactics
+3 Reality Hemorrhage
+2 Sleep-Cursed Faerie
+2 Smite
+4 Stiltzkin, Moogle Merchant
+3 Sungold Sentinel
+2 Temur Devotee
+2 The Mindskinner
+3 Touch of the Void
+2 Twining Twins
+1 Zephyr Sentinel
+4 Glacial Floodplain
+4 Idyllic Beachfront
+7 Island
+6 Plains

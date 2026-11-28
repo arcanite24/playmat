@@ -1,0 +1,76 @@
+{
+  "you": {
+    "life": 25,
+    "lifeBonus": 0,
+    "cards": 2,
+    "permanents": [],
+    "log": " starts with: 25 life, 2 extra cards.",
+    "timed": [
+      {
+        "when": "turn",
+        "turn": 5,
+        "who": "you",
+        "rule": "At the beginning of turn 5, Second Wind: 5 life. This ability triggers only once.",
+        "message": "Second Wind: 5 life.",
+        "gainLife": 5
+      }
+    ]
+  },
+  "opponent": {
+    "lifeBonus": 5,
+    "cards": 1,
+    "permanents": [
+      {
+        "name": "Llanowar Elves",
+        "tapped": true
+      },
+      {
+        "name": "Runeclaw Bear",
+        "tapped": false
+      }
+    ],
+    "emblem": "Glorious Anthem",
+    "log": " starts with an edge: +5 life, 1 extra card, Llanowar Elves, Runeclaw Bear, an emblem of Glorious Anthem.",
+    "timed": [
+      {
+        "when": "life",
+        "life": 12,
+        "who": "opponent",
+        "rule": "When this player's life is 12 or less, Phase two: the boss draws two. This ability triggers only once.",
+        "message": "Phase two: the boss draws two.",
+        "gainLife": 0,
+        "then": {
+          "lifeBonus": 0,
+          "cards": 2,
+          "permanents": [
+            {
+              "name": "Runeclaw Bear",
+              "tapped": true
+            }
+          ],
+          "log": " gets an edge: 2 extra cards, Runeclaw Bear."
+        }
+      },
+      {
+        "when": "life",
+        "life": 6,
+        "who": "opponent",
+        "rule": "When this player's life is 6 or less, Second wind: 5 life. This ability triggers only once.",
+        "message": "Second wind: 5 life.",
+        "gainLife": 5
+      },
+      {
+        "when": "cast",
+        "card": "Lightning Bolt",
+        "who": "you",
+        "rule": "When your opponent casts Lightning Bolt, the opponent gets an edge. This ability triggers only once.",
+        "gainLife": -2
+      }
+    ]
+  },
+  "personality": {
+    "aggression": 60,
+    "risk": -20,
+    "patience": 10
+  }
+}

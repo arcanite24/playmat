@@ -79,6 +79,7 @@ export default {
 
   // pets on the battlefield; {name} is the player's name
   'pet.party-corgi': 'Party corgi',
+  'pet.debug-duck': 'Debug duck',
   'pet.label': '{pet}, {name}’s pet. Click to celebrate.',
   'pet.mine': '{pet}, your pet. Click to celebrate.',
 

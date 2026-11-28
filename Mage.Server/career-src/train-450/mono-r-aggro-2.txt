@@ -1,0 +1,20 @@
+# name: Train450 mono-r-aggro-2
+# archetype: aggro
+# colors: R
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Angry Rabble
+3 Coruscation Mage
+4 Daring Buccaneer
+4 Fateful End
+3 Goblin Motivator
+4 Lupine Prototype
+2 Magebane Lizard
+1 Perils of the Past
+3 Ravenous Giant
+2 Run Amok
+2 Screaming Nemesis
+2 Searing Spear
+4 Shrapnel Blast
+2 Vindictive Flamestoker
+1 Warcry Phoenix
+21 Mountain

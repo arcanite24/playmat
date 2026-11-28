@@ -1,0 +1,49 @@
+# name: Train450 brawl-g-wu-ramp-3
+# archetype: brawl_ramp
+# colors: WU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Aether Theorist
+1 Beetle, Legacy Criminal
+1 Constable Odo
+1 Daring Thunder-Thief
+1 Defiler of Faith
+1 Dirgur Nemesis
+1 Djinn of Fool's Fall
+1 Donatello, Gadget Master
+1 Elspeth's Devotee
+1 Expedition Lookout
+1 Expel
+1 Expel the Interlopers
+1 Gavony Dawnguard
+1 Grounded for Life
+1 Incisor Glider
+1 Into the Flood Maw
+1 Keep Out
+1 Mage-Ring Responder
+1 Master of Predicaments
+1 Meldweb Curator
+1 Niambi, Faithful Healer
+1 Novice Knight
+1 Oltec Archaeologists
+1 Orthodoxy Enforcer
+1 Pack Leader
+1 Pursued Whale
+1 Release to the Wind
+1 Reluctant Dounguard
+1 Shrouded Shepherd
+1 Slumbering Walker
+1 Ulamog's Despoiler
+1 Unesh, Criosphinx Sovereign
+1 Unravel
+1 Valley Floodcaller
+1 You Find the Villains' Lair
+1 Abandoned Campground
+1 Fortified Beachhead
+1 Glacial Floodplain
+9 Island
+1 Meandering River
+8 Plains
+1 Port Town
+1 Seachrome Coast
+1 Skybridge Towers
+1 Temple of Enlightenment

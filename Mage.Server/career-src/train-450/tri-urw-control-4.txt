@@ -1,0 +1,25 @@
+# name: Train450 tri-urw-control-4
+# archetype: control
+# colors: URW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Anticognition
+1 Broadside Barrage
+3 Crush Dissent
+3 Curse of the Swine
+2 Dori, Bearer of Friends
+2 Ephara's Dispersal
+1 Gates Ablaze
+2 Ghostly Keybearer
+3 Heartfire
+2 Hovel Hurler
+2 Lightning Helix
+3 Pressure Point
+3 Render Silent
+2 Skaab Goliath
+3 Unexplained Disappearance
+7 Island
+4 Lorehold Campus
+4 Mountain
+3 Plains
+4 Raucous Carnival
+4 Restless Bivouac

@@ -41,6 +41,16 @@ describe('autoAnswer', () => {
     expect(autoAnswer(theirTurn, priority, { ...on, abilitiesOnTheirTurn: true })).toBeNull();
     expect(autoAnswer(myTurn, priority, on)).toBeNull();
   });
+  it("on the opponent's turn, permanents' abilities stop you while creatures attack or something is on the stack", () => {
+    const cop = { other: [{ value: '{1}: The next time a red source of your choice would deal...' }] };
+    const theirTurn: GameView = { ...view({ circle: cop }), activePlayerId: 'them' };
+    const attacked: GameView = { ...theirTurn, step: 'DECLARE_BLOCKERS', combat: [{ attackers: { goblin: {} } }] as never };
+    expect(autoAnswer(attacked, priority, on)).toBeNull();
+    expect(autoAnswer({ ...attacked, step: 'COMBAT_DAMAGE' }, priority, on)).toBeNull();
+    expect(autoAnswer({ ...theirTurn, stack: { bolt: {} } as never }, priority, on)).toBeNull();
+    // nobody attacking and nothing to answer: the turn goes by
+    expect(autoAnswer({ ...theirTurn, step: 'PRECOMBAT_MAIN' }, priority, on)).toBe('pass');
+  });
   it("stops on the opponent's turn to turn a face-down creature up (a morph after blocks)", () => {
     const morph = { other: [{ value: '{0}: Turn this face-down permanent face up' }] };
     expect(autoAnswer({ ...view({ proteus: morph }), activePlayerId: 'them' }, priority, on)).toBeNull();
@@ -152,5 +162,42 @@ describe('beginning of combat on your turn', () => {
   it("keeps the player's own stop and anything on the stack", () => {
     expect(autoAnswer(combat({ bolt: { basicCastAbilities: record } }), priority, { ...on, beginCombatStop: true })).toBeNull();
     expect(autoAnswer({ ...combat({ bolt: { basicCastAbilities: record } }), stack: { trigger: {} } } as GameView, priority, on)).toBeNull();
+  });
+});
+
+describe('pass turn (Arena ">>")', () => {
+  const off = { autoPass: false, autoSkipCombat: false, abilitiesOnTheirTurn: true };
+  const loaded = view({ bolt: { basicCastAbilities: record } });
+
+  it('passes every priority, with plays in hand or a spell on the stack', () => {
+    expect(autoAnswer(loaded, priority, { ...off, passTurn: true })).toBe('pass');
+    expect(autoAnswer({ ...loaded, stack: { s: { id: 's' } } as never }, priority, { ...off, passTurn: true, fullControl: true })).toBe('pass');
+  });
+
+  it('skips attacking with creatures that could attack, but leaves blocks and choices to the player', () => {
+    const attackers = parsePrompt('GAME_SELECT', { message: 'Select attackers', options: { possibleAttackers: ['bear'] } });
+    expect(autoAnswer(loaded, attackers, { ...off, passTurn: true })).toBe('noAttacks');
+    const blockers = parsePrompt('GAME_SELECT', { message: 'Select blockers', options: { possibleBlockers: ['bear'] } });
+    expect(autoAnswer(loaded, blockers, { ...off, passTurn: true })).toBeNull();
+    const target = parsePrompt('GAME_TARGET', { message: 'Select a target', targets: ['x'], flag: true });
+    expect(autoAnswer(loaded, target, { ...off, passTurn: true })).toBeNull();
+  });
+});
+
+describe("flash-enabling abilities (Alchemist's Refuge) on opponent's end step", () => {
+  const refuge = { other: [{ value: '{G}{U}, {T}: You may cast spells this turn as though they had flash.' }] };
+  const endStep = (withHand: boolean): GameView => ({
+    ...view({ refuge }),
+    activePlayerId: 'them',
+    step: 'END_TURN',
+    myHand: withHand ? { bear: { id: 'bear', name: 'Grizzly Bears' } } : {},
+  });
+
+  it("stops on opponent's end step when you have cards in hand even with abilitiesOnTheirTurn off", () => {
+    expect(autoAnswer(endStep(true), priority, on)).toBeNull();
+  });
+
+  it("still passes on opponent's end step when your hand is empty", () => {
+    expect(autoAnswer(endStep(false), priority, on)).toBe('pass');
   });
 });

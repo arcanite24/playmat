@@ -10,12 +10,17 @@ import java.util.UUID;
 import mage.cards.Card;
 import mage.cards.Cards;
 import mage.cards.CardsImpl;
+import mage.constants.Zone;
 import mage.util.Copyable;
 
 /**
  * @author BetaSteward_at_googlemail.com
  */
 public class Revealed extends HashMap<String, Cards> implements Serializable, Copyable<Revealed> {
+
+    // the zone each card was in when it was revealed: views show that, never where the card went afterwards (a card
+    // revealed from a hand and then put on the library must not be followed there)
+    private final Map<UUID, Zone> revealedFrom = new HashMap<>();
 
     public Revealed() {
     }
@@ -24,6 +29,26 @@ public class Revealed extends HashMap<String, Cards> implements Serializable, Co
         for (Map.Entry<String, Cards> entry : revealed.entrySet()) {
             this.put(entry.getKey(), entry.getValue().copy());
         }
+        this.revealedFrom.putAll(revealed.revealedFrom);
+    }
+
+    /**
+     * Notes the zone each of these cards is in as it is revealed.
+     */
+    public void noteZones(Cards cards, Game game) {
+        for (UUID cardId : cards) {
+            Zone zone = game.getState().getZone(cardId);
+            if (zone != null) {
+                revealedFrom.put(cardId, zone);
+            }
+        }
+    }
+
+    /**
+     * The zone the card was in when it was revealed, or null when it is not known.
+     */
+    public Zone getRevealedFrom(UUID cardId) {
+        return revealedFrom.get(cardId);
     }
 
     public void add(String name, Card card) {
@@ -53,6 +78,12 @@ public class Revealed extends HashMap<String, Cards> implements Serializable, Co
 
     public void reset() {
         this.clear();
+    }
+
+    @Override
+    public void clear() {
+        super.clear();
+        revealedFrom.clear();
     }
 
     public Card getCard(UUID cardId, Game game) {

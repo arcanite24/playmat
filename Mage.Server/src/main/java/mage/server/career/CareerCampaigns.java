@@ -662,7 +662,7 @@ public final class CareerCampaigns {
                 result.career = true;
                 result.mode = new CareerProgress.CareerModeResult("campaign", node.name);
                 result.mode.ref = campaignId + "/" + node.id;
-                pay(store, user, chapter, option.reward, result, now);
+                pay(store, user, campaign, chapter, option.reward, result, now);
                 CareerProgress.get().levelsIn(store, user, profile.xp, result, now);
                 return result;
             });
@@ -709,14 +709,77 @@ public final class CareerCampaigns {
             return;
         }
         result.mode.lines.add(trial ? "Passed " + node.name + "." : "Beat " + node.name + (node.boss ? ", the chapter's boss." : "."));
-        pay(store, user, chapter, node.reward, result, now);
+        pay(store, user, campaign, chapter, node.reward, result, now);
         if (campaign.school && finished(campaign, store.campaignNodes(user, campaign.id))) {
             store.addStat(user, "schools_graduated", 1);
             result.mode.lines.add("You graduated from " + campaign.name + ".");
         }
     }
 
-    private void pay(CareerStore store, String user, Chapter chapter, CareerReward reward, CareerProgress.CareerGameResult result, long now) throws SQLException {
+    /** A chapter deck earned from a campaign node that awards its deck. */
+    static final class EarnedDeck {
+        final String source;
+        final String name;
+        final DeckCardLists deck;
+
+        EarnedDeck(String source, String name, DeckCardLists deck) {
+            this.source = source;
+            this.name = name;
+            this.deck = deck;
+        }
+    }
+
+    /** Every chapter deck this account already earned from completed campaign nodes. */
+    List<EarnedDeck> earnedDecks(CareerStore store, String user) throws SQLException {
+        List<EarnedDeck> out = new ArrayList<>();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (Campaign campaign : campaigns.values()) {
+            Map<String, String> done = store.campaignNodes(user, campaign.id);
+            if (done.isEmpty()) {
+                continue;
+            }
+            for (Chapter chapter : campaign.chapters) {
+                if (chapter.deck == null) {
+                    continue;
+                }
+                boolean awarded = false;
+                for (Node node : chapter.nodes) {
+                    if (!done.containsKey(node.id)) {
+                        continue;
+                    }
+                    if (node.reward != null && node.reward.deckCards) {
+                        awarded = true;
+                        break;
+                    }
+                    if (node.options != null) {
+                        String picked = done.get(node.id);
+                        for (CareerOption opt : node.options) {
+                            if (opt.id != null && opt.id.equals(picked) && opt.reward != null && opt.reward.deckCards) {
+                                awarded = true;
+                                break;
+                            }
+                        }
+                        if (awarded) {
+                            break;
+                        }
+                    }
+                }
+                String source = "campaign:" + campaign.id + "/" + chapter.id;
+                if (awarded && seen.add(source)) {
+                    try {
+                        DeckCardLists chapterDeck = deck(chapter.deck);
+                        String deckName = chapter.deckName != null && !chapter.deckName.isEmpty() ? chapter.deckName : chapter.name;
+                        out.add(new EarnedDeck(source, deckName, chapterDeck));
+                    } catch (IOException e) {
+                        org.apache.log4j.Logger.getLogger(CareerCampaigns.class).warn("Earned campaign deck can't be read: " + chapter.deck, e);
+                    }
+                }
+            }
+        }
+        return out;
+    }
+
+    private void pay(CareerStore store, String user, Campaign campaign, Chapter chapter, CareerReward reward, CareerProgress.CareerGameResult result, long now) throws SQLException {
         if (reward == null) {
             return;
         }
@@ -753,7 +816,10 @@ public final class CareerCampaigns {
                     }
                 }
                 CareerService.get().addCards(store, user, cards);
-                mode.lines.add(chapter.deckName + " joins your collection.");
+                String source = "campaign:" + (campaign != null ? campaign.id : "") + "/" + chapter.id;
+                String deckName = chapter.deckName != null && !chapter.deckName.isEmpty() ? chapter.deckName : chapter.name;
+                CareerService.get().saveEarnedDeck(store, user, source, deckName, deck, now);
+                mode.lines.add(chapter.deckName + " joins your collection and Career decks.");
             } catch (IOException e) {
                 throw new SQLException("The chapter deck can't be read", e);
             }

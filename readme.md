@@ -173,6 +173,19 @@ npm run dev
 Sign in with any name. The client's own guide, [Mage.Web.Client/README.md](Mage.Web.Client/README.md), covers its
 architecture, tests and the Android build (`npm run android`).
 
+### Checks before you push
+
+[`ops/ci/check.sh`](ops/ci/check.sh) runs what CI would run for the files your branch changes: `cargo fmt`, `clippy`
+and `cargo test` for `rust/`; typecheck, lint and unit tests for `Mage.Web.Client/`; a Maven compile of the changed
+Java modules. Turn it into a pre-push hook once per clone (git worktrees share the setting):
+
+```bash
+git config core.hooksPath .githooks
+```
+
+`ops/ci/check.sh --help` lists the extras (`--java-tests`, `--web-build`, `--e2e`, `--full`). To push without the
+checks: `git push --no-verify`.
+
 ## Repository map
 
 | Path | What lives there |

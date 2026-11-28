@@ -1,0 +1,32 @@
+# name: Train450 lim-g-rg-ctrl-6
+# archetype: limited_ctrl
+# colors: RG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Abstruse Interference
+1 Blooming Stinger
+1 Briarbridge Tracker
+2 Calamitous Cave-In
+1 Chandra's Firemaw
+1 Destructive Revelry
+2 Dragon Whelp
+2 Dust Stalker
+1 Expedite
+2 Hazard of the Dunes
+1 Jaspera Sentinel
+2 Kargan Dragonrider
+1 Khan, Despot by Design
+1 Natural End
+2 Nessian Game Warden
+2 Photosynthetic Physician
+2 Plummet
+2 Processor Assault
+2 Relic Robber
+1 Spikefield Hazard
+1 Topiary Stomper
+1 Unnatural Moonrise
+1 Verdant Rebirth
+1 Void Shatter
+4 Bleeding Woods
+9 Forest
+8 Mountain
+4 Stomping Ground

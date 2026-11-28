@@ -51,7 +51,16 @@ export function applyUpdate(saved: DeckCardLists, fresh: DeckCardLists): DeckCar
     author: fresh.author ?? saved.author,
     cards: fresh.cards,
     sideboard: fresh.sideboard,
-    coverCard: saved.coverCard ?? fresh.coverCard,
+    // the player's cover stays while its card is still in the deck; otherwise the site's
+    ...(coverStays(saved, fresh) ? { coverCard: saved.coverCard, coverPinned: saved.coverPinned } : { coverCard: fresh.coverCard, coverPinned: undefined }),
     source: fresh.source ? { ...fresh.source, importedName: renamedByPlayer ? saved.source?.importedName : fresh.name } : saved.source,
   };
+}
+
+/** The saved deck's cover still has its card in the updated list (a cover without a name stays unless the site has one). */
+function coverStays(saved: DeckCardLists, fresh: DeckCardLists): boolean {
+  if (!saved.coverCard) return false;
+  const name = saved.coverCard.name?.toLowerCase();
+  if (!name) return !fresh.coverCard;
+  return [...fresh.cards, ...fresh.sideboard].some((entry) => entry.cardName.toLowerCase() === name);
 }

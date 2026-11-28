@@ -1,0 +1,25 @@
+# name: Train200 tri-rwb-aggro-39
+# archetype: aggro
+# colors: RWB
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Bontu the Glorified
+4 Brambleback Brute
+4 Crackling Doom
+3 Fan Bearer
+1 Frontline Rush
+3 Gallant Strike
+1 Giant Killer
+1 Invoke the Divine
+3 Mothrider Patrol
+2 Rabid Gnaw
+2 Skullcrack
+3 Slaughter Specialist
+4 Tiger-Dillo
+3 Toxic Abomination
+3 Wayward Guide-Beast
+4 Alpine Meadow
+4 Goblin-town
+4 Mountain
+3 Plains
+4 Stone Quarry
+2 Swamp

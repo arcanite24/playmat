@@ -139,6 +139,40 @@ public final class ReplayRecorder {
         }
     }
 
+    /**
+     * A game the Rust host played and recorded itself, in this store's folder ({@code <gameId>.ndjson.gz.part}, as
+     * {@link #start} would have): it's listed as a finished replay. Nothing when replays are off or nothing was
+     * recorded.
+     */
+    public static void hosted(Game game, Table table, long startedAt, String result, int turns, int events) {
+        try {
+            ReplayStore store = ReplayStore.get();
+            if (!store.settings().enabled || game == null || events <= 0) {
+                return;
+            }
+            ReplayInfo info = new ReplayInfo();
+            info.gameId = game.getId().toString();
+            info.startedAt = startedAt;
+            info.endedAt = System.currentTimeMillis();
+            info.gameType = game.getGameType() == null ? null : game.getGameType().getName();
+            if (table != null) {
+                info.tableId = table.getId().toString();
+                info.tableName = table.getName();
+                info.deckType = table.getDeckType();
+            }
+            for (Player player : game.getPlayers().values()) {
+                info.players.add(new ReplayInfo.ReplayPlayer(player.getName(), player.isHuman()));
+            }
+            info.result = result;
+            info.turns = turns;
+            info.events = events;
+            info.truncated = events >= ReplaySettings.MAX_EVENTS_PER_GAME;
+            store.complete(info);
+        } catch (Throwable e) {
+            logger.error("Can't list the replay of hosted game " + (game == null ? null : game.getId()), e);
+        }
+    }
+
     public String gameId() {
         return info.gameId;
     }

@@ -1,0 +1,19 @@
+# name: Train200 guild-rg-gowide-2
+# archetype: gowide
+# colors: RG
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Cactuar
+4 Ghitu Lavarunner
+4 Hunt the Hunter
+4 Kolaghan Stormsinger
+4 Krenko's Buzzcrusher
+1 Lovestruck Beast
+4 Marauding Raptor
+4 Narnam Renegade
+3 Vastlands Scavenger
+3 Vindictive Flamestoker
+4 Volt Charge
+4 Copperline Gorge
+6 Forest
+4 Gongaga, Reactor Town
+8 Mountain

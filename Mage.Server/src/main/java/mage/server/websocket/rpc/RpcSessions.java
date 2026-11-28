@@ -1,7 +1,8 @@
 package mage.server.websocket.rpc;
 
 import mage.server.DisconnectReason;
-import org.jboss.remoting.callback.InvokerCallbackHandler;
+import mage.server.ClientChannel;
+import mage.server.admin.OidcAuth;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -11,7 +12,7 @@ import java.util.UUID;
  */
 public interface RpcSessions {
 
-    void create(String sessionId, InvokerCallbackHandler callbackHandler, String host);
+    void create(String sessionId, ClientChannel channel, String host);
 
     boolean exists(String sessionId);
 
@@ -45,6 +46,41 @@ public interface RpcSessions {
      * Lets the session's next login as this user skip the password when the token is one of the user's remembered devices.
      */
     void trustRememberedLogin(String sessionId, String userName, String token);
+
+    /**
+     * Single sign-on: lets the session's next login skip the password for the account the sign-on proxy named, linking
+     * the account of that name or creating one first.
+     *
+     * @return the account's name as stored
+     * @throws IllegalArgumentException with the reason for the player when there is no account and none can be made
+     */
+    default String trustSignedOnLogin(String sessionId, String signedOnUser) {
+        throw new IllegalArgumentException("This server has no single sign-on");
+    }
+
+    /**
+     * Marks the session as a sign-in through the identity provider with its verified ID token, so a later
+     * sign-out can end the provider session (RP-initiated logout, RFC 7063).
+     */
+    void markOidcLogin(String sessionId, OidcAuth.Token token);
+
+    /**
+     * @return the ID token of a session whose sign-in came through the identity provider, empty for every
+     * other sign-in (a password, a remembered device, a restored session)
+     */
+    Optional<OidcAuth.Token> oidcIdToken(String sessionId);
+
+    /**
+     * Marks the session as the server's admin console for its life: the sign-in came through the identity
+     * provider and its verified ID token carried the configured admin group.
+     */
+    void markOidcAdmin(String sessionId, boolean admin);
+
+    /**
+     * @return whether the session is an admin console because its sign-in's ID token carried the configured
+     * admin group (a provider sign-in as a group member); false for every other sign-in
+     */
+    boolean oidcAdmin(String sessionId);
 
     /**
      * Forgets a remembered device (signing out on it).

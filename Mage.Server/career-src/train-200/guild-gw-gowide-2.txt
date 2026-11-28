@@ -1,0 +1,21 @@
+# name: Train200 guild-gw-gowide-2
+# archetype: gowide
+# colors: GW
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+1 Battle Menu
+4 Clay Revenant
+3 Huatli's Raptor
+4 Kellan, Daring Traveler
+3 Monica Rambeau
+4 Protective Response
+1 Relic Golem
+2 Runic Armasaur
+2 Sigarda, Champion of Light
+3 Skyblade of the Legion
+4 Skymarcher Aspirant
+4 Stoneforge Acolyte
+3 Strength of the Coalition
+4 Forest
+4 Grove of the Guardian
+10 Plains
+4 Windurst, Federation Center

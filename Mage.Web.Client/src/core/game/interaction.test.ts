@@ -55,9 +55,32 @@ describe('prompt parsing', () => {
     });
     expect(prompt).toMatchObject({ kind: 'target', required: true, chosen: ['creature-1'], doneLabel: 'Done', cards: null });
   });
+
+  test('an optional trigger\'s target prompt is marked by the server', () => {
+    const message = { message: 'Select target artifact or enchantment', targets: ['artifact-1'], flag: true };
+    expect(parsePrompt('GAME_TARGET', message)).toMatchObject({ kind: 'target', optionalTrigger: false });
+    expect(parsePrompt('GAME_TARGET', { ...message, options: { optionalTrigger: true } as never }))
+      .toMatchObject({ kind: 'target', optionalTrigger: true, required: true });
+  });
 });
 
 describe('interaction model', () => {
+  test('an optional trigger\'s target prompt says the "may" comes when it resolves', () => {
+    const prompt = parsePrompt('GAME_TARGET', {
+      message: 'Select target artifact or enchantment',
+      targets: ['artifact-1'],
+      flag: true,
+      options: { optionalTrigger: true } as never,
+    });
+    const interaction = deriveInteraction(view(), prompt);
+    expect(interaction.mode).toBe('target');
+    expect(interaction.headline).toBe('Select target artifact or enchantment. Optional: you can still decline when it resolves.');
+    // the target itself is still required: no cancel button
+    expect(interaction.secondaryButtons).toEqual([]);
+    expect(deriveInteraction(view(), parsePrompt('GAME_TARGET', { message: 'Select target creature', targets: ['c'], flag: true })).headline)
+      .toBe('Select target creature');
+  });
+
   test('priority: playable objects are clickable and the main button passes', () => {
     const interaction = deriveInteraction(view(), parsePrompt('GAME_SELECT', { message: 'Play spells and abilities' }));
     expect(interaction.mode).toBe('priority');

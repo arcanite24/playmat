@@ -1,0 +1,35 @@
+# name: Train450 lim-g-bg-aggro-1
+# archetype: limited_aggro
+# colors: BG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Akawalli, the Seething Tower
+1 Attuned Hunter
+1 Barrier Breach
+2 Bear Cub
+2 Bloodchief's Thirst
+1 Bloomvine Regent
+2 Burrog Barrage
+2 Colossal Rattlewurm
+1 Deadly Alliance
+1 Giant Mantis
+1 Gnoll Hunter
+2 Grazing Whiptail
+1 Hapatra, Vizier of Poisons
+2 Herbology Instructor
+1 Hollow Scavenger
+1 Masterful Flourish
+2 Reality Hemorrhage
+1 Shady Traveler
+2 Shigeki, Jukai Visionary
+1 Slitherhead
+1 Stampeding Rhino
+1 Tuskguard Captain
+1 Typhoid Rats
+2 Unlucky Cabbage Merchant
+1 Unscrupulous Contractor
+1 Vengeful Reaper
+2 Vine Gecko
+11 Forest
+4 Mirkwood
+4 Strangled Cemetery
+4 Swamp

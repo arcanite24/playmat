@@ -60,7 +60,7 @@ public class GameController implements GameCallback {
     private final ExecutorService gameExecutor;
     private static final Logger logger = Logger.getLogger(GameController.class);
 
-    private ScheduledExecutorService JOIN_WAITING_EXECUTOR = null;
+    private volatile ScheduledExecutorService JOIN_WAITING_EXECUTOR = null;
 
     private ScheduledFuture<?> responseIdleTimeoutFuture;
     private UUID responseIdleTimeoutPlayerId;
@@ -130,6 +130,7 @@ public class GameController implements GameCallback {
     }
 
     public void cleanUp() {
+        stopJoinWaiting();
         stopResponseIdleTimeout();
         for (PriorityTimer priorityTimer : timers.values()) {
             priorityTimer.cancel();
@@ -274,12 +275,14 @@ public class GameController implements GameCallback {
         );
 
         // wait all players
-        if (JOIN_WAITING_EXECUTOR == null) {
-            JOIN_WAITING_EXECUTOR = Executors.newSingleThreadScheduledExecutor(
+        ScheduledExecutorService joinWaitingExecutor = JOIN_WAITING_EXECUTOR;
+        if (joinWaitingExecutor == null) {
+            joinWaitingExecutor = Executors.newSingleThreadScheduledExecutor(
                     new XmageThreadFactory(ThreadUtils.THREAD_PREFIX_GAME_JOIN_WAITING + " " + game.getId())
             );
+            JOIN_WAITING_EXECUTOR = joinWaitingExecutor;
         }
-        JOIN_WAITING_EXECUTOR.scheduleAtFixedRate(() -> {
+        joinWaitingExecutor.scheduleAtFixedRate(() -> {
             try {
                 sendInfoAboutPlayersNotJoinedYetAndTryToFixIt();
             } catch (Exception ex) {
@@ -329,7 +332,7 @@ public class GameController implements GameCallback {
 
     /** last emote per player, for the rate limit */
     private final Map<UUID, Long> lastEmote = new ConcurrentHashMap<>();
-    static final long EMOTE_GAP_MS = 2500;
+    public static final long EMOTE_GAP_MS = 2500;
 
     /**
      * Sends a player's emote to everyone at the table, players and watchers (B298).
@@ -549,9 +552,17 @@ public class GameController implements GameCallback {
         return Optional.empty();
     }
 
+    private void stopJoinWaiting() {
+        ScheduledExecutorService executor = JOIN_WAITING_EXECUTOR;
+        JOIN_WAITING_EXECUTOR = null;
+        if (executor != null) {
+            executor.shutdownNow();
+        }
+    }
+
     private void checkJoinAndStart() {
         if (isAllJoined()) {
-            JOIN_WAITING_EXECUTOR.shutdownNow();
+            stopJoinWaiting();
             managerFactory.threadExecutor().getCallExecutor().execute(this::startGame);
         }
     }
@@ -884,6 +895,9 @@ public class GameController implements GameCallback {
         if (mage.server.career.CareerService.get().isCareerTable(tableId)) {
             return "Practice tools are off in Career games.";
         }
+        if (mage.server.ladder.RankedService.isRanked(tableId)) {
+            return "Practice tools are off in ranked games.";
+        }
         long humans = game.getPlayers().values().stream().filter(Player::isHuman).count();
         if (humans != 1 || !player.isHuman()) {
             return "Practice tools only work in a game against the computer.";
@@ -919,6 +933,10 @@ public class GameController implements GameCallback {
             problem.append("Career games can't be saved as puzzles.");
             return null;
         }
+        if (mage.server.ladder.RankedService.isRanked(tableId)) {
+            problem.append("Ranked games can't be saved as puzzles.");
+            return null;
+        }
         long humans = game.getPlayers().values().stream().filter(Player::isHuman).count();
         if (humans != 1 || !player.isHuman() || game.getPlayers().size() != 2) {
             problem.append("A puzzle is a duel against the computer.");
@@ -952,6 +970,10 @@ public class GameController implements GameCallback {
         Player player = playerId == null ? null : game.getPlayer(playerId);
         if (player == null) {
             problem.append("You aren't playing in this game.");
+            return null;
+        }
+        if (mage.server.ladder.RankedService.isRanked(tableId)) {
+            problem.append("Ranked games are played without hints.");
             return null;
         }
         mage.server.career.CareerService.CareerTable career = mage.server.career.CareerService.get().tableInfo(tableId);
@@ -1131,7 +1153,8 @@ public class GameController implements GameCallback {
     }
 
     private synchronized void chooseAbility(UUID playerId, final String objectName, final List<? extends Ability> choices, String message) throws MageException {
-        perform(playerId, playerId1 -> getGameSession(playerId1).chooseAbility(new AbilityPickerView(getGameView(playerId), objectName, choices, message)));
+        // the view is the answering player's: a computer player whose turn someone controls has no session of its own
+        perform(playerId, playerId1 -> getGameSession(playerId1).chooseAbility(new AbilityPickerView(getGameView(playerId1), objectName, choices, message)));
     }
 
     private synchronized void choosePile(UUID playerId, final String message, final List<? extends Card> pile1, final List<? extends Card> pile2) throws MageException {
@@ -1139,7 +1162,7 @@ public class GameController implements GameCallback {
     }
 
     private synchronized void chooseMode(UUID playerId, final Map<UUID, String> modes, final String message) throws MageException {
-        perform(playerId, playerId1 -> getGameSession(playerId1).chooseAbility(new AbilityPickerView(getGameView(playerId), modes, message)));
+        perform(playerId, playerId1 -> getGameSession(playerId1).chooseAbility(new AbilityPickerView(getGameView(playerId1), modes, message)));
     }
 
     private synchronized void chooseChoice(UUID playerId, final Choice choice) throws MageException {

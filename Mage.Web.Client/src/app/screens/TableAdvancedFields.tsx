@@ -1,7 +1,7 @@
 import { ChevronDown } from 'lucide-react';
 import { useId, useState, type ReactNode } from 'react';
 import {
-  ATTACK_OPTIONS, BUFFER_TIMES, describeAdvanced, MULLIGAN_TYPES, parseSeed, RANGES, SKILL_LEVELS, TIME_LIMITS, type TableAdvanced,
+  ATTACK_OPTIONS, BUFFER_TIMES, describeAdvanced, FREE_MULLIGANS_ALL, MULLIGAN_TYPES, parseSeed, RANGES, SKILL_LEVELS, TIME_LIMITS, type TableAdvanced,
 } from '../../core/game/tableSetup';
 import styles from './TableAdvancedFields.module.css';
 
@@ -61,7 +61,10 @@ function SeedField({ value, onChange }: { value: string; onChange(value: string)
 
 const LIVES = [{ value: 0, label: 'The format’s own' }, ...[10, 20, 25, 30, 40, 50, 60].map((life) => ({ value: life, label: `${life}` }))];
 const HANDS = [{ value: 0, label: 'Seven' }, ...[4, 5, 6, 8, 9, 10].map((size) => ({ value: size, label: `${size}` }))];
-const FREE_MULLIGANS = [0, 1, 2, 3].map((count) => ({ value: count, label: count === 0 ? 'None' : `${count}` }));
+const FREE_MULLIGANS = [
+  ...[0, 1, 2, 3].map((count) => ({ value: count, label: count === 0 ? 'None' : `${count}` })),
+  { value: FREE_MULLIGANS_ALL, label: 'All (no card lost)' },
+];
 const POWER_LEVELS = [{ value: 0, label: 'Any' }, ...Array.from({ length: 10 }, (_, index) => ({ value: index + 1, label: `Up to ${index + 1}` }))];
 const RATINGS = [0, 1000, 1200, 1400, 1600, 1800].map((rating) => ({ value: rating, label: rating === 0 ? 'Anyone' : `${rating}+` }));
 

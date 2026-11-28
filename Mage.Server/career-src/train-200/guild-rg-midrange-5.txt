@@ -1,0 +1,20 @@
+# name: Train200 guild-rg-midrange-5
+# archetype: midrange
+# colors: RG
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Bayou Groff
+1 Bombard
+3 Fear of Exposure
+3 Frenzied Baloth
+3 Fry
+4 Gadrak, the Crown-Scourge
+3 Goldnight Castigator
+2 Greenbelt Rampager
+4 Manhole Missile
+2 Pugnacious Hammerskull
+4 Reality Smasher
+4 Scorchmark
+7 Forest
+4 Los Diablos Missile Base
+9 Mountain
+4 Stomping Ground

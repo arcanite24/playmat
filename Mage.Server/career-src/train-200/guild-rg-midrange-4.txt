@@ -1,0 +1,22 @@
+# name: Train200 guild-rg-midrange-4
+# archetype: midrange
+# colors: RG
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Aerial Predation
+2 Aggressive Urge
+2 Annihilating Fire
+3 Balustrade Wurm
+4 Betrayer's Bargain
+2 Cleansing Wildfire
+4 Fire Nation Cadets
+3 Hexhaven Invigorator
+2 Lasyd Prowler
+2 Maulfist Revolutionary
+4 Patchwork Beastie
+1 Quaketusk Boar
+3 Ulvenwald Oddity
+2 Verix Bladewing
+9 Forest
+7 Mountain
+4 Temple of Abandon
+4 Timber Gorge

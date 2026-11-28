@@ -1,0 +1,23 @@
+# name: Train450 tri-wbg-midrange-2
+# archetype: midrange
+# colors: WBG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Aetherstorm Roc
+2 Charnel Troll
+1 Deadly Dispute
+2 Dire Tactics
+2 Dragon's Eye Sentry
+3 Exdeath, Void Warlock
+3 Grave Birthing
+4 Herald of Eternal Dawn
+3 Isamaru, Hound of Konda
+3 Moonshadow
+2 Ob Nixilis's Cruelty
+4 Skulduggery
+4 Supportive Parents
+4 Caves of Koilos
+3 Forest
+4 Forsaken Sanctuary
+4 Plains
+5 Swamp
+4 Temple of Plenty

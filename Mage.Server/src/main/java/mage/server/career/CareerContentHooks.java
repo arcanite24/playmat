@@ -70,6 +70,8 @@ public final class CareerContentHooks {
         CareerCampaigns.forget();
         CareerPuzzles.forget();
         CareerChallenges.forget();
+        // the content packs feed the starters' and cosmetics' views the Rust platform service serves
+        mage.server.platform.CareerViewsExport.writeIfAsked();
     }
 
     private static final class CareerCampaignsPuzzles {

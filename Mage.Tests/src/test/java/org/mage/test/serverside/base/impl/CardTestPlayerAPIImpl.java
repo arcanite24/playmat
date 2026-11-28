@@ -27,6 +27,7 @@ import mage.game.command.Emblem;
 import mage.game.match.MatchOptions;
 import mage.game.permanent.Permanent;
 import mage.game.permanent.PermanentToken;
+import mage.game.trace.GameTrace;
 import mage.player.ai.ComputerPlayer7;
 import mage.player.ai.ComputerPlayerMCTS;
 import mage.players.ManaPool;
@@ -44,6 +45,7 @@ import org.mage.test.player.TestPlayer;
 import org.mage.test.serverside.base.CardTestAPI;
 import org.mage.test.serverside.base.CardTestCodePayload;
 import org.mage.test.serverside.base.MageTestPlayerBase;
+import org.mage.test.serverside.base.TestExport;
 
 import java.io.FileNotFoundException;
 import java.util.*;
@@ -61,7 +63,15 @@ import static org.junit.Assert.assertTrue;
 public abstract class CardTestPlayerAPIImpl extends MageTestPlayerBase implements CardTestAPI {
 
     // DEBUG only, enable it to fast startup tests without database create (delete \db\ folder to force db recreate)
-    private static final boolean FAST_SCAN_WITHOUT_DATABASE_CREATE = false;
+    // set true or run with -Dxmage.tests.fastScanDb=true
+    private static boolean FAST_SCAN_WITHOUT_DATABASE_CREATE = false;
+
+    static {
+        String val = System.getProperty("xmage.tests.fastScanDb");
+        if (val != null) {
+            FAST_SCAN_WITHOUT_DATABASE_CREATE = Boolean.parseBoolean(val);
+        }
+    }
 
     private static final boolean SHOW_EXECUTE_TIME_PER_TEST = false;
 
@@ -314,6 +324,18 @@ public abstract class CardTestPlayerAPIImpl extends MageTestPlayerBase implement
 
         long t1 = System.nanoTime();
 
+        TestExport.Export export = null;
+        if (TestExport.enabled()) {
+            List<TestPlayer> testPlayers = new ArrayList<>();
+            for (Player player : currentGame.getPlayers().values()) {
+                testPlayers.add((TestPlayer) player);
+            }
+            export = TestExport.before(this, currentGame, testPlayers, stopOnTurn, stopAtStep, activePlayer);
+            if (gameOptions.trace == null) {
+                gameOptions.trace = new GameTrace();
+            }
+        }
+
         gameOptions.testMode = true;
         gameOptions.stopOnTurn = stopOnTurn;
         gameOptions.stopAtStep = stopAtStep;
@@ -323,6 +345,9 @@ public abstract class CardTestPlayerAPIImpl extends MageTestPlayerBase implement
         }
         currentGame.start(activePlayer.getId());
         currentGame.setGameStopped(true); // used for rollback handling
+        if (export != null) {
+            TestExport.after(export, currentGame, gameOptions.trace);
+        }
         long t2 = System.nanoTime();
         logger.debug("Winner: " + currentGame.getWinner());
         if (SHOW_EXECUTE_TIME_PER_TEST) {
@@ -697,6 +722,8 @@ public abstract class CardTestPlayerAPIImpl extends MageTestPlayerBase implement
      * @param player
      */
     public void disableManaAutoPayment(TestPlayer player) {
+        // a rollback resets the pool from the user's settings (PlayerImpl.restore), so change those too
+        player.getUserData().setManaPoolAutomatic(false);
         player.getManaPool().setAutoPayment(false);
     }
 

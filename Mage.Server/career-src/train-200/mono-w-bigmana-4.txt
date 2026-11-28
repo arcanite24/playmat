@@ -1,0 +1,17 @@
+# name: Train200 mono-w-bigmana-4
+# archetype: bigmana
+# colors: W
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Aegis Angel
+3 Avenging Arrow
+4 Excalbian Gamemaster
+4 Heavyweight Demolisher
+2 Riverguard's Reflexes
+2 Soaring Stoneglider
+4 Sparkhunter Masticore
+2 Staunch Shieldmate
+4 Thraben Gargoyle
+1 Victory's Herald
+4 Voyager Quickwelder
+3 You're Ambushed on the Road
+25 Plains

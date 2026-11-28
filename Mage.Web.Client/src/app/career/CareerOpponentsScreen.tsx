@@ -1,12 +1,13 @@
-import { Award, Crosshair, Gauge, Lock, ScrollText, Skull } from 'lucide-react';
+import { Award, Crosshair, Crown, Gauge, Lock, ScrollText, Skull, Swords, Users } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import type { AdaptiveView, CareerOpponent, CareerRank } from '../../protocol/generated/views';
 import { registerMessages, useT } from '../i18n';
 import messages from '../i18n/en/career';
 import { usePlay } from '../stores/play';
+import { notify } from '../stores/toasts';
 import { Button } from '../ui/Button';
-import { useCareerOpponents, useCareerState } from './careerData';
+import { useCareerCommanderOpponents, useCareerOpponents, useCareerState } from './careerData';
 import { WINS_TO_UNLOCK, tiersOf } from './careerModel';
 import { useAdaptive } from './careerModesData';
 import { phaseLines, pipSlots, styleKeys } from './ladderModel';
@@ -26,10 +27,17 @@ registerMessages(messages);
 export function CareerOpponentsScreen() {
   const t = useT();
   const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
   const state = useCareerState();
   const profile = state.data?.profile;
-  const opponents = useCareerOpponents(!!profile);
   const deck = useCareerDeck(profile);
+  const rawTrack = params.get('track');
+  const track: 'constructed' | 'commander' =
+    rawTrack === 'commander' ? 'commander' : rawTrack === 'constructed' ? 'constructed' : deck.isCommander ? 'commander' : 'constructed';
+  const isCommander = track === 'commander';
+  const constructedOpponents = useCareerOpponents(!!profile && !isCommander);
+  const commanderOpponents = useCareerCommanderOpponents(!!profile && isCommander);
+  const opponents = isCommander ? commanderOpponents : constructedOpponents;
   const playing = usePlay((play) => play.phase !== 'idle');
   const [versus, setVersus] = useState<CareerOpponent | null>(null);
   const roster = useMemo(() => opponents.data ?? [], [opponents.data]);
@@ -41,16 +49,81 @@ export function CareerOpponentsScreen() {
   const nextId = next?.id;
   useEffect(() => {
     if (nextId) ladder.current?.querySelector('[aria-pressed="true"]')?.scrollIntoView({ block: 'center' });
-  }, [nextId]);
+  }, [nextId, track]);
 
   if (state.isPending) return <p className={styles.note}>{t('career.loading')}</p>;
   if (!profile) return <Navigate to="/career" replace />;
+
+  const matchingDecks = isCommander ? deck.commanderDecks : deck.constructedDecks;
+  const wrongFormat = isCommander !== deck.isCommander;
+  const deckBlocked = wrongFormat || !!deck.problem || !deck.deck;
 
   let dealt = 0;
   return (
     <div ref={ladder} className={styles.ladder}>
       <LadderHead rank={state.data?.rank} adaptive={state.data?.adaptive} />
-      {deck.problem && (
+      <div className={styles.trackTabs} role="tablist" aria-label={t('career.track.switcher')}>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={!isCommander}
+          className={[styles.trackTab, !isCommander ? styles.trackTabOn : ''].join(' ')}
+          onClick={() => setParams({ track: 'constructed' })}
+          data-nav
+        >
+          <Swords size={14} aria-hidden="true" />
+          {t('career.ladder.track.constructed')}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={isCommander}
+          className={[styles.trackTab, isCommander ? styles.trackTabOn : ''].join(' ')}
+          onClick={() => setParams({ track: 'commander' })}
+          data-nav
+        >
+          <Crown size={14} aria-hidden="true" />
+          {t('career.ladder.track.commander')}
+        </button>
+      </div>
+      {matchingDecks.length > 0 && (
+        <div className={styles.deckStrip}>
+          <label className={styles.deckStripField}>
+            <span>{t('career.decks.choose')}</span>
+            <select
+              value={!wrongFormat ? (deck.activeId ?? '') : ''}
+              onChange={(event) => void deck.selectDeck(event.target.value).catch((error) => notify(t('career.decks.switchFailed'), error instanceof Error ? error.message : String(error), 'error'))}
+              data-nav
+            >
+              {wrongFormat && <option value="" disabled>{t(isCommander ? 'career.ladder.pickCommanderDeck' : 'career.ladder.pickConstructedDeck')}</option>}
+              {matchingDecks.map((item) => (
+                <option key={item.id} value={item.id}>{item.name}</option>
+              ))}
+            </select>
+          </label>
+          <Button variant="quiet" size="sm" onClick={() => navigate('/career/deck')} data-nav>{t('career.deck.edit')}</Button>
+        </div>
+      )}
+      {wrongFormat && (
+        <div className={styles.deckWarning} role="status">
+          <span>{t(isCommander ? 'career.ladder.needCommanderDeck' : 'career.ladder.needConstructedDeck')}</span>
+          {matchingDecks.length > 0 ? (
+            <Button
+              variant="decision"
+              size="sm"
+              onClick={() => void deck.selectDeck(matchingDecks[0].id ?? '').catch((error) => notify(t('career.decks.switchFailed'), error instanceof Error ? error.message : String(error), 'error'))}
+              data-nav
+            >
+              {t('career.ladder.switchDeck', { name: matchingDecks[0].name ?? '' })}
+            </Button>
+          ) : (
+            <Button variant="decision" size="sm" onClick={() => navigate(isCommander ? '/career/shop?cat=precons' : '/career/deck')} data-nav>
+              {t(isCommander ? 'career.shop.preconsTitle' : 'career.deck.edit')}
+            </Button>
+          )}
+        </div>
+      )}
+      {!wrongFormat && deck.problem && (
         <div className={styles.deckWarning} role="status">
           <span>{deck.problem}</span>
           <Button variant="decision" size="sm" onClick={() => navigate('/career/deck')} data-nav>{t('career.deck.fix')}</Button>
@@ -95,7 +168,7 @@ export function CareerOpponentsScreen() {
                       label={locked
                         ? `${opponent.name}, ${t('career.opponent.locked')}`
                         : `${t('career.hub.face', { opponent: opponent.name ?? '' })}, ${t('career.ladder.pips', { pips: opponent.pips ?? 1 })}`}
-                      onPick={locked || playing || !!deck.problem || !deck.deck ? undefined : () => setVersus(opponent)}
+                      onPick={locked || playing || deckBlocked ? undefined : () => setVersus(opponent)}
                     >
                       <span className={styles.wins}>
                         {t('career.opponent.wins', { count: opponent.wins ?? 0 })}
@@ -150,15 +223,22 @@ function DifficultyPips({ pips }: { pips: number | undefined }) {
   );
 }
 
-/** What sets an opponent apart, as small tags under their portrait: nemesis, rival, raid, phases, style, lists. */
+/** What sets an opponent apart, as small tags under their portrait: pod, nemesis, rival, raid, phases, style, lists. */
 function OpponentFacts({ opponent }: { opponent: CareerOpponent }) {
   const t = useT();
   const phases = phaseLines(opponent.twists);
   const styleTags = styleKeys(opponent.style);
   const lists = opponent.lists ?? 1;
-  if (!opponent.nemesis && !opponent.rivalChapter && !opponent.raid && phases.length === 0 && styleTags.length === 0 && lists < 2) return null;
+  const podNames = (opponent.podNames ?? []).filter(Boolean);
+  if (!opponent.pod && !opponent.nemesis && !opponent.rivalChapter && !opponent.raid && phases.length === 0 && styleTags.length === 0 && lists < 2) return null;
   return (
     <div className={styles.facts}>
+      {opponent.pod && (
+        <p className={styles.pod}>
+          <Users size={14} aria-hidden="true" /> <b>{t('career.ladder.podBadge')}</b>
+          {podNames.length > 0 && <span>{podNames.join(' · ')}</span>}
+        </p>
+      )}
       {opponent.nemesis && (
         <p className={styles.nemesis}>
           <Skull size={14} aria-hidden="true" /> <b>{t('career.nemesis.badge')}</b>
@@ -172,7 +252,11 @@ function OpponentFacts({ opponent }: { opponent: CareerOpponent }) {
           {opponent.rivalBefore && <q>{opponent.rivalBefore}</q>}
         </p>
       ) : null}
-      {opponent.raid && <p className={styles.raid}><Crosshair size={14} aria-hidden="true" /> {t('career.ladder.raid')}</p>}
+      {opponent.raid && (
+        <p className={styles.raid}>
+          <Crosshair size={14} aria-hidden="true" /> {t(opponent.format === 'commander' ? 'career.ladder.raidCommander' : 'career.ladder.raid')}
+        </p>
+      )}
       {phases.length > 0 && (
         <details className={styles.phases}>
           <summary>{t('career.ladder.phases', { count: phases.length })}</summary>

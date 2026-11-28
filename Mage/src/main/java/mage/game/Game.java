@@ -96,6 +96,22 @@ public interface Game extends MageItem, Serializable, Copyable<Game> {
      */
     MageObject getObject(UUID objectId);
 
+    /**
+     * {@link #getObject(UUID)} for a caller that only reads the object (whether it exists, its owner): an AI simulation
+     * sharing its cards with the game it was copied from doesn't copy the card for it. Never change what it returns.
+     */
+    default MageObject getObjectReadOnly(UUID objectId) {
+        return getObject(objectId);
+    }
+
+    /**
+     * Whether this is a copy an AI searches in (see createSimulationForAI). Its results only steer the AI's choice,
+     * which the real game then plays by the full rules, so it may skip redundant work.
+     */
+    default boolean isAiSimulation() {
+        return false;
+    }
+
     MageObject getObject(Ability source);
 
     MageObject getBaseObject(UUID objectId);
@@ -191,11 +207,11 @@ public interface Game extends MageItem, Serializable, Copyable<Game> {
     /**
      * Returns opponents list in range for the given playerId. Use it to interate by starting turn order.
      * <p>
-     * Warning, it will return leaved players until end of turn. For dialogs and one shot effects use excludeLeavedPlayers
+     * Leaved players are excluded. For stats about players actions (e.g. watchers for this turn) and opponent's turn
+     * checks use excludeLeavedPlayers = false
      */
-    // TODO: check usage of getOpponents in cards and replace with correct call of excludeLeavedPlayers, see #13289
     default Set<UUID> getOpponents(UUID playerId) {
-        return getOpponents(playerId, false);
+        return getOpponents(playerId, true);
     }
 
     /**
@@ -453,6 +469,13 @@ public interface Game extends MageItem, Serializable, Copyable<Game> {
      */
     void endWithTechnicalWinner(String reason);
 
+    /**
+     * Non-null if the game ended via {@link #endWithTechnicalWinner(String)}.
+     */
+    default String getTechnicalErrorReason() {
+        return null;
+    }
+
     void cleanUp();
 
     /*
@@ -595,6 +618,14 @@ public interface Game extends MageItem, Serializable, Copyable<Game> {
      */
     void processAction();
 
+    /**
+     * After a mana ability resolves: {@link #processAction()}, except that an AI simulation leaves applying the effects
+     * to the spell or ability being paid for, which applies them once it's paid (see {@link #isAiSimulation()}).
+     */
+    default void processManaAction() {
+        processAction();
+    }
+
     @Deprecated
         // TODO: must research usage and remove it from all non engine code (example: Bestow ability, ProcessActions must be used instead)
     boolean checkStateAndTriggered();
@@ -622,6 +653,17 @@ public interface Game extends MageItem, Serializable, Copyable<Game> {
     int bookmarkState();
 
     GameState restoreState(int bookmark, String context);
+
+    /**
+     * Same as restoreState, but keeps the current stack. Use it to roll back an action that doesn't use the stack,
+     * such as a mana ability, while a spell is being cast or an ability activated: that activation keeps writing to
+     * its object on the current stack, so a restored copy would lose those writes. Changes to the stack since the
+     * bookmark aren't rolled back, so take the bookmark right before the action, which must not change the stack.
+     * Call it only through {@link Player#restoreStateKeepingStack}, which also resets the player's stored bookmark.
+     * Otherwise that bookmark can outlive the rollback, and the player's Undo would use a bookmark that no longer
+     * exists or now marks a different state.
+     */
+    GameState restoreStateKeepingStack(int bookmark, String context);
 
     /**
      * Remove selected bookmark and all newer bookmarks and game states

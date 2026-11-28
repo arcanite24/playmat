@@ -93,13 +93,22 @@ public final class Health {
         health.put("usersOnline", managers.userManager().getUsers().size());
         int games = managers.gameManager().getNumberActiveGames();
         health.put("activeGames", games);
-        // what maintenance waits for before a restart (games waiting for a slot included); the deploy drains on it
-        health.put("gamesRunning", games);
+        int hosted = RustHost.running();
+        health.put("hostedGames", hosted);
+        // what maintenance waits for before a restart (games waiting for a slot and Rust-hosted ones included); the
+        // deploy drains on it. A restart stops the gateway too, which would cut a hosted game off mid-play.
+        health.put("gamesRunning", games + hosted);
         Maintenance.MaintenancePlan maintenance = Maintenance.get().plan();
         health.put("maintenanceAt", maintenance == null ? null : maintenance.startsAt);
         BackupStatus.BackupRun backup = BackupStatus.read();
         if (backup != null) {
             health.put("backupProblem", backup.problem);
+        }
+        // still 200 and "ok" when the disk is low: a restart frees nothing, and the deploy gate reads this
+        DiskStatus.Disk disk = DiskStatus.read();
+        if (disk != null) {
+            health.put("diskFreeBytes", disk.free);
+            health.put("diskProblem", disk.problem);
         }
         return health;
     }

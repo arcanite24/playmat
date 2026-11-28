@@ -1,6 +1,7 @@
 package mage.view;
 
 import mage.cards.Card;
+import mage.cards.RoomCard;
 import mage.game.Game;
 import mage.game.permanent.Permanent;
 import mage.game.permanent.PermanentToken;
@@ -39,6 +40,11 @@ public class PermanentView extends CardView {
     private final boolean attachedControllerDiffers;
     private final MutateView mutateView;
     private final boolean mutated;
+    // a Room's doors and which of them are unlocked (names null: not a face-up Room)
+    private final String roomLeftDoor;
+    private final String roomRightDoor;
+    private final boolean roomLeftUnlocked;
+    private final boolean roomRightUnlocked;
 
     public PermanentView(Permanent permanent, Card card, UUID createdForPlayerId, Game game) {
         super(permanent, game, CardUtil.canShowAsControlled(permanent, createdForPlayerId));
@@ -73,6 +79,19 @@ public class PermanentView extends CardView {
         this.copy = permanent.isCopy();
         this.mutateView = new MutateView(permanent, game);
         this.mutated = permanent.getMutateCount() > 0;
+        // a face-up Room shows both doors (its printed card is public) and which are unlocked
+        if (!this.isFaceDown() && permanent.getMainCard() instanceof RoomCard) {
+            RoomCard room = (RoomCard) permanent.getMainCard();
+            this.roomLeftDoor = room.getLeftHalfCard().getName();
+            this.roomRightDoor = room.getRightHalfCard().getName();
+            this.roomLeftUnlocked = permanent.isLeftDoorUnlocked();
+            this.roomRightUnlocked = permanent.isRightDoorUnlocked();
+        } else {
+            this.roomLeftDoor = null;
+            this.roomRightDoor = null;
+            this.roomLeftUnlocked = false;
+            this.roomRightUnlocked = false;
+        }
 
         // for fipped, transformed or copied cards, switch the names
         if (original != null && !original.getName().equals(this.getName())) {
@@ -155,6 +174,10 @@ public class PermanentView extends CardView {
         this.attachedControllerDiffers = permanentView.attachedControllerDiffers;
         this.mutateView = permanentView.mutateView;
         this.mutated = permanentView.mutated;
+        this.roomLeftDoor = permanentView.roomLeftDoor;
+        this.roomRightDoor = permanentView.roomRightDoor;
+        this.roomLeftUnlocked = permanentView.roomLeftUnlocked;
+        this.roomRightUnlocked = permanentView.roomRightUnlocked;
     }
 
     public boolean isTapped() {

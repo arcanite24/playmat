@@ -1,7 +1,8 @@
 import { SlidersHorizontal } from 'lucide-react';
 import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { META_PREFIX, RANDOM_META_PREFIX, rosterOf, sleeveFor, useDecks } from '../stores/decks';
+import { META_PREFIX, RANDOM_META_PREFIX, sleeveFor, useDecks } from '../stores/decks';
+import { useDeckRoster } from '../stores/useDeckRoster';
 import { formatRules } from '../../core/decks/formats';
 import { metaDecksFor } from '../../core/decks/metaDecks';
 import { readJson } from '../stores/persist';
@@ -11,8 +12,7 @@ import { useT, type MessageKey } from '../i18n';
 import { Button } from '../ui/Button';
 import { DeckBox } from '../ui/DeckBox';
 import { MatPrint } from '../ui/MatPrint';
-import { storeCards } from '../ui/imageCache';
-import { DEVICE_PICTURES } from '../nativePictures';
+import { deckPictures, storeCards } from '../ui/imageCache';
 import { useImportDrop, useImportPaste } from '../decks/import/useImportShortcuts';
 import { openImport } from '../stores/importSheet';
 import { aiDeckLabel, describeAi } from './aiSetup';
@@ -25,28 +25,42 @@ import styles from './HomeScreen.module.css';
 const EmailBanner = lazy(() => import('./EmailConfirm').then((module) => ({ default: module.EmailBanner })));
 // the AI settings load the first time they are opened, out of the entry chunk (they bring the solo messages too)
 const AiSettingsDialog = lazy(() => import('./AiSettingsDialog').then((module) => ({ default: module.AiSettingsDialog })));
-// saved games against the AI, with what resuming one needs, load with Home but out of the entry chunk
-const SavedGames = lazy(() => import('../solo/SavedGames').then((module) => ({ default: module.SavedGames })));
+// the widget board (#432): saved games, Today, ranks and the rest, as the player arranged them
+const HomeBoard = lazy(() => import('../home/HomeBoard'));
 // the month's server costs, on servers that take support
-// Today (B278): quests, the daily wins ladder, the weekly goal and packs, on servers with Career
-const TodayPanel = lazy(() => import('../career/TodayPanel'));
 
 // Meta deck mode's format picker, out of the entry chunk
 const MetaFormatPicker = lazy(() => import('./MetaFormatPicker'));
 
 const SupportBar = lazy(() => import('../support/SupportBar').then((module) => ({ default: module.SupportBar })));
 
-type Mode = 'ai' | 'meta' | 'practice' | 'friend';
+type Mode = 'ai' | 'meta' | 'practice' | 'friend' | 'ranked' | 'league';
+type Queue = 'ranked' | 'league' | 'free' | 'friend';
+type FreeMode = 'ai' | 'meta' | 'practice';
+
+const RANKED_PATH = '/career/ranked';
+const LEAGUE_PATH = '/career/league';
 
 export const META_FORMAT_KEY = 'playmat.metaFormat';
 
-// open tables and events have their own pages in the rail; here the only question is who you play
-const MODES: { id: Mode; label: MessageKey }[] = [
+// open tables and events have their own pages in the rail; here the only question is who you play: Ranked (on
+// servers with Career), free play against the AI, or a friend
+const QUEUES: { id: Queue; label: MessageKey }[] = [
+  { id: 'ranked', label: 'home.queue.ranked' },
+  { id: 'league', label: 'home.queue.league' },
+  { id: 'free', label: 'home.queue.free' },
+  { id: 'friend', label: 'home.mode.friend' },
+];
+
+const FREE_MODES: { id: FreeMode; label: MessageKey }[] = [
   { id: 'ai', label: 'home.mode.ai' },
   { id: 'meta', label: 'home.mode.meta' },
   { id: 'practice', label: 'home.mode.practice' },
-  { id: 'friend', label: 'home.mode.friend' },
 ];
+
+const queueOf = (mode: Mode): Queue => mode === 'ranked' || mode === 'league' || mode === 'friend' ? mode : 'free';
+/** the queues that only Career servers offer */
+const CAREER_QUEUES: readonly Queue[] = ['ranked', 'league'];
 
 /** Home: your deck on your mat, one decision away from a game. */
 export function HomeScreen() {
@@ -55,13 +69,15 @@ export function HomeScreen() {
   const decks = useDecks();
   const play = usePlay();
   const [mode, setMode] = useState<Mode>('ai');
+  // the free-play choice comes back when the player returns to Free play
+  const [freeMode, setFreeMode] = useState<FreeMode>('ai');
   const [aiOpen, setAiOpen] = useState(false);
   // stays mounted once opened, so it can animate closed
   const [aiLoaded, setAiLoaded] = useState(false);
   if (aiOpen && !aiLoaded) setAiLoaded(true);
   const emailStatus = useEmailStatus().data;
   const emailUnconfirmed = !!emailStatus?.email && !emailStatus.verified && !!emailStatus.mail;
-  const roster = useMemo(() => rosterOf(decks), [decks]);
+  const roster = useDeckRoster();
   // a meta, ghost or mirror opponent, or adaptive skill, is described with the solo messages
   const soloReady = useCareerMessages(mode === 'meta' || play.aiOptions.adaptive || opponentSource(play.aiOptions.opponentDeckId).kind !== 'roster');
   const selected = roster.find((deck) => deck.id === decks.selectedId) ?? roster[0] ?? null;
@@ -71,7 +87,7 @@ export function HomeScreen() {
   const metaFormats = useMemo(() => [...new Set(decks.metaDecks.map((deck) => deck.format))], [decks.metaDecks]);
   const [metaFormat, setMetaFormat] = useState(() => readJson<string | null>(META_FORMAT_KEY, null));
   const pickedFormat = metaFormat && metaFormats.includes(metaFormat) ? metaFormat : metaFormats[0] ?? null;
-  const ready = mode === 'meta' ? !!pickedFormat : !!selected;
+  const ready = mode === 'ranked' || mode === 'league' || (mode === 'meta' ? !!pickedFormat : !!selected);
   // the mat previews the first list by recorded share while Format deck is chosen
   const metaTop = mode === 'meta' ? metaDecksFor(decks.metaDecks, pickedFormat)[0] : undefined;
   const firstGameDone = useCoach((state) => state.firstGameDone);
@@ -90,16 +106,30 @@ export function HomeScreen() {
     if (!decks.loaded) void decks.refresh();
   }, [decks]);
 
-  // the Android app keeps the chosen deck's pictures on the device, so its next game opens without the network
+  // the chosen deck's picture links are looked up now, so its next game only downloads them; the Android app also
+  // keeps the pictures on the device, so that game opens without the network
   const selectedId = selected?.id;
   useEffect(() => {
-    if (!DEVICE_PICTURES || !selectedId) return;
+    if (!selectedId) return;
     void useDecks.getState().loadList(selectedId)
-      .then((deck) => storeCards([...deck.cards, ...deck.sideboard].map((card) => ({ name: card.cardName, setCode: card.setCode ?? undefined, cardNumber: card.cardNumber ?? undefined }))))
+      .then((deck) => storeCards(deckPictures(deck)))
       .catch(() => undefined);
   }, [selectedId]);
 
+  function chooseQueue(queue: Queue) {
+    setMode(queue === 'free' ? freeMode : queue);
+  }
+
+  function chooseFree(next: FreeMode) {
+    setFreeMode(next);
+    setMode(next);
+  }
+
   function start() {
+    if (mode === 'ranked' || mode === 'league') {
+      navigate(mode === 'ranked' ? RANKED_PATH : LEAGUE_PATH);
+      return;
+    }
     if (mode === 'meta') {
       if (pickedFormat) void play.playVsAi(RANDOM_META_PREFIX + pickedFormat);
       return;
@@ -151,7 +181,7 @@ export function HomeScreen() {
       </aside>
 
       <section className={styles.mat} style={{ '--sleeve': sleeve } as CSSProperties}>
-        <MatPrint card={metaTop?.cover ?? selected?.cover ?? null} />
+        <MatPrint card={metaTop?.cover ?? selected?.cover ?? null} className={styles.matPrint} />
         {notice && <p className={styles.serverNotice} role="note" aria-label={t('home.notice')}>{notice}</p>}
         <div className={styles.deckTitle}>
           {mode === 'meta' ? (
@@ -168,34 +198,57 @@ export function HomeScreen() {
         </div>
 
         <div className={styles.playZone} role="group" aria-labelledby="play-zone-label">
-          <h2 id="play-zone-label" className={styles.zoneLabel}>{t('home.play')}</h2>
+          <div className={styles.zoneHead}>
+            <h2 id="play-zone-label" className={styles.zoneLabel}>{t('home.play')}</h2>
+            <button type="button" className={styles.guideLink} onClick={() => navigate('/guide')}>
+              {t('home.guide')}
+            </button>
+          </div>
           {emailUnconfirmed && <Suspense fallback={null}><EmailBanner /></Suspense>}
           {!firstGameDone && (
             <div className={styles.firstGame}>
               <p className={styles.firstGameText}>{t('home.firstGame.text')}</p>
               <span className={styles.firstGameActions}>
                 <Button variant="quiet" size="sm" onClick={skipFirstGame} disabled={busy}>{t('home.firstGame.skip')}</Button>
+                <Button variant="quiet" size="sm" onClick={() => navigate('/guide')} disabled={busy}>{t('home.guide')}</Button>
                 <Button variant="print" size="sm" onClick={() => selected && void play.playVsAi(selected.id, { guided: true })} disabled={busy || !selected}>
                   {t('home.firstGame.start')}
                 </Button>
               </span>
             </div>
           )}
-          <div className={styles.modes} role="radiogroup" aria-label={t('home.opponent')}>
-            {MODES.map((item) => (
+          <div className={[styles.modes, career ? styles.queues : ''].join(' ')} role="radiogroup" aria-label={t('home.opponent')}>
+            {QUEUES.filter((item) => career || !CAREER_QUEUES.includes(item.id)).map((item) => (
               <button
                 key={item.id}
                 type="button"
                 role="radio"
-                aria-checked={mode === item.id}
-                className={[styles.mode, mode === item.id ? styles.modeOn : ''].join(' ')}
-                onClick={() => setMode(item.id)}
+                aria-checked={queueOf(mode) === item.id}
+                className={[styles.mode, queueOf(mode) === item.id ? styles.modeOn : ''].join(' ')}
+                onClick={() => chooseQueue(item.id)}
                 disabled={busy}
               >
                 {t(item.label)}
               </button>
             ))}
           </div>
+          {queueOf(mode) === 'free' && (
+            <div className={styles.freeModes} role="radiogroup" aria-label={t('home.queue.freeLabel')}>
+              {FREE_MODES.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={mode === item.id}
+                  className={[styles.freeMode, mode === item.id ? styles.freeModeOn : ''].join(' ')}
+                  onClick={() => chooseFree(item.id)}
+                  disabled={busy}
+                >
+                  {t(item.label)}
+                </button>
+              ))}
+            </div>
+          )}
           {mode === 'ai' && (
             <button type="button" className={styles.aiSetup} onClick={() => setAiOpen(true)} disabled={busy}>
               <SlidersHorizontal size={16} aria-hidden="true" />
@@ -215,9 +268,24 @@ export function HomeScreen() {
               <span className={styles.aiSetupAction}>{t('home.change')}</span>
             </button>
           )}
+          {mode === 'meta' && (
+            <button type="button" className={styles.aiSetup} onClick={() => setAiOpen(true)} disabled={busy}>
+              <SlidersHorizontal size={16} aria-hidden="true" />
+              {/* the format's pool deals the AI's deck and the format's rules apply: only its pod size follows the setting */}
+              <span>{describeAi(
+                t,
+                { ...play.aiOptions, rules: 'casual', opponents: pickedFormat && formatRules(pickedFormat).commandZone !== null ? play.aiOptions.opponents : 1 },
+                t('ai.summary.metaDeck'),
+                soloReady ? t('solo.adaptive.summary') : undefined,
+              )}</span>
+              <span className={styles.aiSetupAction}>{t('home.change')}</span>
+            </button>
+          )}
           {mode === 'meta' && soloReady && <Suspense fallback={null}><MetaFormatPicker formats={metaFormats} value={pickedFormat} disabled={busy} onChange={setMetaFormat} /></Suspense>}
           {mode === 'practice' && <p className={styles.modeNote}>{t('home.practiceNote')}</p>}
           {mode === 'friend' && <p className={styles.modeNote}>{t('home.friendNote')}</p>}
+          {mode === 'ranked' && <p className={styles.modeNote}>{t('home.rankedNote')}</p>}
+          {mode === 'league' && <p className={styles.modeNote}>{t('home.leagueNote')}</p>}
           {full && <p className={styles.modeNote} role="status">{t('home.serverFull')}</p>}
           {play.error && <p className={styles.error} role="alert">{play.error}</p>}
           <div className={styles.playRow}>
@@ -232,15 +300,19 @@ export function HomeScreen() {
               onClick={start}
               className={styles.playButton}
             >
-              {t(busy ? (play.phase === 'waitingForGame' ? 'home.shuffling' : 'home.settingUp') : mode === 'friend' ? 'home.continue' : 'home.play')}
+              {t(busy ? (play.phase === 'waitingForGame' ? 'home.shuffling' : 'home.settingUp') : mode === 'friend' || mode === 'ranked' || mode === 'league' ? 'home.continue' : 'home.play')}
             </Button>
           </div>
-          <Suspense fallback={null}><SavedGames disabled={busy} /></Suspense>
-          {career && <Suspense fallback={null}><TodayPanel /></Suspense>}
           {serverInfo?.support && <Suspense fallback={null}><SupportBar place="home" /></Suspense>}
         </div>
+
+        {serverInfo && (
+          <div className={styles.boardRow}>
+            <Suspense fallback={null}><HomeBoard career={career} /></Suspense>
+          </div>
+        )}
       </section>
-      {aiLoaded && <Suspense fallback={null}><AiSettingsDialog open={aiOpen} onOpenChange={setAiOpen} /></Suspense>}
+      {aiLoaded && <Suspense fallback={null}><AiSettingsDialog open={aiOpen} onOpenChange={setAiOpen} formatDeck={mode === 'meta'} /></Suspense>}
     </div>
   );
 }

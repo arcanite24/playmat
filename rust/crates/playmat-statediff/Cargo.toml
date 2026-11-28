@@ -1,0 +1,10 @@
+[package]
+name = "playmat-statediff"
+description = "The web protocol's game-state patches (docs/WebSocketAPI.md, State patches), byte-compatible with the Java bridge"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde_json.workspace = true

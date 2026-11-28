@@ -1,0 +1,21 @@
+# name: Train200 guild-ub-gowide-2
+# archetype: gowide
+# colors: UB
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Abnormal Endurance
+1 Bloodline Culling
+4 Cobbled Lancer
+3 Desecration Demon
+3 Essence Extraction
+2 Fae of Wishes
+3 Faerie Dreamthief
+4 Faerie Mastermind
+3 Hypnotic Siren
+2 Nightmare Shepherd
+3 Relic Golem
+3 Shadowstorm Vizier
+3 Threnody Singer
+4 Contaminated Aquifer
+7 Island
+7 Swamp
+4 Undercity Sewers

@@ -33,6 +33,8 @@ public class WebClientApiDocsTest {
     private static final Path DOC_FILE = Paths.get("..", "docs", "WebSocketAPI.md");
     private static final Path TS_FILE = Paths.get("..", "Mage.Web.Client", "src", "protocol", "generated", "protocol.ts");
     private static final Path API_FILE = Paths.get("..", "Mage.Web.Client", "src", "protocol", "generated", "api.ts");
+    /** method groups for the Rust gateway's routing table */
+    private static final Path GROUPS_FILE = Paths.get("..", "rust", "crates", "playmat-protocol", "methods.json");
     private static final String BEGIN_METHODS = "<!-- BEGIN GENERATED: methods -->";
     private static final String END_METHODS = "<!-- END GENERATED: methods -->";
     private static final String BEGIN_CALLBACKS = "<!-- BEGIN GENERATED: callbacks -->";
@@ -66,6 +68,9 @@ public class WebClientApiDocsTest {
         CALLBACK_DATA.put(ClientCallbackMethod.USER_REQUEST_DIALOG, "UserRequestMessage");
         CALLBACK_DATA.put(ClientCallbackMethod.GAME_REDRAW_GUI, "null");
         CALLBACK_DATA.put(ClientCallbackMethod.START_GAME, "TableClientMessage");
+        // the gateway takes it; a client never gets it
+        CALLBACK_DATA.put(ClientCallbackMethod.HOST_GAME, "unknown");
+        CALLBACK_DATA.put(ClientCallbackMethod.HOST_GAME_QUIT, "unknown");
         CALLBACK_DATA.put(ClientCallbackMethod.GAME_INIT, "GameView");
         CALLBACK_DATA.put(ClientCallbackMethod.GAME_UPDATE_AND_INFORM, "GameClientMessage");
         CALLBACK_DATA.put(ClientCallbackMethod.GAME_INFORM_PERSONAL, "GameClientMessage");
@@ -98,12 +103,15 @@ public class WebClientApiDocsTest {
                 BEGIN_CALLBACKS, END_CALLBACKS, callbacksMarkdown());
         String expectedTs = typescript(methods);
         String expectedApi = apiTypescript(methods);
+        String expectedGroups = groupsJson();
 
         if (Boolean.getBoolean("xmage.updateWebApiDocs")) {
             Files.write(DOC_FILE, expectedDoc.getBytes(StandardCharsets.UTF_8));
             Files.createDirectories(TS_FILE.getParent());
             Files.write(TS_FILE, expectedTs.getBytes(StandardCharsets.UTF_8));
             Files.write(API_FILE, expectedApi.getBytes(StandardCharsets.UTF_8));
+            Files.createDirectories(GROUPS_FILE.getParent());
+            Files.write(GROUPS_FILE, expectedGroups.getBytes(StandardCharsets.UTF_8));
             doc = expectedDoc;
         }
 
@@ -115,6 +123,26 @@ public class WebClientApiDocsTest {
         assertThat(API_FILE).as("generated client api is missing, " + hint).exists();
         assertThat(new String(Files.readAllBytes(API_FILE), StandardCharsets.UTF_8))
                 .as("generated client api is stale, " + hint).isEqualTo(expectedApi);
+        assertThat(GROUPS_FILE).as("generated gateway method groups are missing, " + hint).exists();
+        assertThat(new String(Files.readAllBytes(GROUPS_FILE), StandardCharsets.UTF_8))
+                .as("generated gateway method groups are stale, " + hint).isEqualTo(expectedGroups);
+    }
+
+    /** {"method": {"group": "Session", "access": "public"}, ...}: one line per method, aliases included */
+    private static String groupsJson() {
+        MageServer server = (MageServer) Proxy.newProxyInstance(MageServer.class.getClassLoader(),
+                new Class<?>[]{MageServer.class}, (proxy, method, args) -> null);
+        StringBuilder sb = new StringBuilder("{\n");
+        boolean first = true;
+        for (Map.Entry<String, List<RpcMethod>> group : WebClientApi.groups(new ApiContext(server, null, null)).entrySet()) {
+            for (RpcMethod method : group.getValue()) {
+                sb.append(first ? "" : ",\n");
+                first = false;
+                sb.append("  \"").append(method.getName()).append("\": {\"group\": \"").append(group.getKey())
+                        .append("\", \"access\": \"").append(method.getAccess().name().toLowerCase()).append("\"}");
+            }
+        }
+        return sb.append("\n}\n").toString();
     }
 
     @Test

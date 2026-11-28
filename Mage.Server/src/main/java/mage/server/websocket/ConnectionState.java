@@ -2,7 +2,7 @@ package mage.server.websocket;
 
 import mage.server.websocket.rpc.RpcConnection;
 import org.java_websocket.WebSocket;
-import org.jboss.remoting.callback.InvokerCallbackHandler;
+import mage.server.ClientChannel;
 
 import java.util.ArrayDeque;
 import java.util.Collections;
@@ -34,6 +34,8 @@ final class ConnectionState implements RpcConnection {
 
     private volatile String sessionId;
     private volatile String userName;
+    /** set once, from the handshake, before the connection's first request */
+    private volatile String signedOnUser;
     private volatile WebSocketCallbackHandler callbackHandler;
     private final GameStates gameStates = new GameStates();
     /** one per connection, shared by its logins' handlers, so its messages keep their order */
@@ -90,16 +92,27 @@ final class ConnectionState implements RpcConnection {
     }
 
     @Override
+    public String getSignedOnUser() {
+        return signedOnUser;
+    }
+
+    void setSignedOnUser(String signedOnUser) {
+        this.signedOnUser = signedOnUser;
+    }
+
+    @Override
     public String getRemoteHost() {
         return remoteHost;
     }
 
     @Override
-    public InvokerCallbackHandler createCallbackHandler() {
+    public ClientChannel createChannel() {
         synchronized (gameStates) {
             gameStates.newSession();
         }
         WebSocketCallbackHandler handler = new WebSocketCallbackHandler(conn, gameStates, sender);
+        handler.setHostsGames(() -> gameHost);
+        handler.setGameHostId(() -> gameHost ? gameHostId : null);
         callbackHandler = handler;
         return handler;
     }
@@ -110,7 +123,34 @@ final class ConnectionState implements RpcConnection {
         synchronized (gameStates) {
             gameStates.setEnabled(stateDiffs);
         }
-        return stateDiffs ? Collections.singletonList(GameStates.CAPABILITY) : Collections.emptyList();
+        // the gateway hosts games (docs/rust/GameHost.md): believed only from a trusted proxy's address
+        gameHost = requested.contains(GAME_HOST) && trustedPeer;
+        // and the gateway's own id, so the two players of a game between people can be found on one gateway
+        gameHostId = null;
+        for (String c : requested) {
+            if (gameHost && c != null && c.startsWith(GAME_HOST + ":") && c.length() > GAME_HOST.length() + 1) {
+                gameHostId = c.substring(GAME_HOST.length() + 1);
+            }
+        }
+        List<String> granted = new java.util.ArrayList<>();
+        if (stateDiffs) {
+            granted.add(GameStates.CAPABILITY);
+        }
+        if (gameHost) {
+            granted.add(GAME_HOST);
+        }
+        return granted;
+    }
+
+    /** the capability of a gateway that plays games on the Rust host */
+    static final String GAME_HOST = "gameHost";
+    private volatile boolean gameHost;
+    private volatile String gameHostId;
+    /** the connection comes from a trusted proxy (the gateway), whose capabilities are believed */
+    private volatile boolean trustedPeer;
+
+    void setTrustedPeer(boolean trusted) {
+        this.trustedPeer = trusted;
     }
 
     @Override

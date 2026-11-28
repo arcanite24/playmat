@@ -6,7 +6,6 @@ import mage.server.managers.ManagerFactory;
 import mage.server.managers.SessionManager;
 import mage.util.ThreadUtils;
 import org.apache.log4j.Logger;
-import org.jboss.remoting.callback.InvokerCallbackHandler;
 
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -33,8 +32,8 @@ public class SessionManagerImpl implements SessionManager {
     }
 
     @Override
-    public void createSession(String sessionId, InvokerCallbackHandler callbackHandler) {
-        Session session = new Session(managerFactory, sessionId, callbackHandler);
+    public void createSession(String sessionId, ClientChannel channel) {
+        Session session = new Session(managerFactory, sessionId, channel);
         sessions.put(sessionId, session);
     }
 

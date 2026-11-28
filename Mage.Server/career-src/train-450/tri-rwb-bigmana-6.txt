@@ -1,0 +1,25 @@
+# name: Train450 tri-rwb-bigmana-6
+# archetype: bigmana
+# colors: RWB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Abhorrent Overlord
+2 Ashnod's Intervention
+1 Black Dragon
+3 Bloodline Culling
+3 Cast Down
+2 Drana, the Last Bloodchief
+4 Harried Artisan
+3 Kroxa, Titan of Death's Hunger
+1 Nyxathid
+1 Ravine Raider
+3 Scourge of Nel Toth
+2 Selfless Cathar
+3 Spider-Man, Web-Slinger
+2 The Speed Demon
+2 Venerable Warsinger
+4 Dimension X
+4 Geothermal Bog
+3 Mountain
+4 Neglected Manor
+2 Plains
+8 Swamp

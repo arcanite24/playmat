@@ -1,4 +1,4 @@
-import { useContext, useState, type CSSProperties } from 'react';
+import { useContext, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { printsPowerToughness } from '../../core/game/cards';
 import { useCardImage } from '../../core/images/useCardImage';
 import { isDecoded, markDecoded } from './imageCache';
@@ -10,9 +10,19 @@ import { cardBackOf } from './cardBack';
 import { useCosmetics } from './cosmeticsCatalog';
 import { sleeveBackOf } from './sleeveArt';
 import { LandStyleContext, landStylist, styledLand, type StylableCard } from './landStyles';
+import { styledToken, TokenArtContext } from './tokenArt';
 import { useCardStyle } from './cardStyles';
 import { useSettings } from '../stores/settings';
 import styles from './CardFace.module.css';
+
+/**
+ * Waits before loading a picture that failed again: a passing CDN or proxy error (Scryfall once refused every uncached
+ * picture for an hour) must not leave cards blank for the rest of the match. After the last one the text frame stays.
+ */
+const RETRY_DELAYS_MS = [2_000, 10_000, 30_000, 60_000, 120_000, 300_000];
+
+/** A picture that arrives within this long of asking for it (the disk cache) appears at once instead of fading in. */
+const INSTANT_LOAD_MS = 150;
 
 export interface CardFaceProps {
   card: StylableCard & {
@@ -47,7 +57,11 @@ export function CardFace({ card: printed, face = 'front', size = 'normal', sleev
   // in a match, a basic land shows its player's land style (landStyles.ts); everywhere else the context is empty
   const landStyleOf = useContext(LandStyleContext);
   const stylist = landStyleOf ? landStylist(printed) : undefined;
-  const card = stylist ? styledLand(printed, landStyleOf!(stylist)) : printed;
+  const landed = stylist ? styledLand(printed, landStyleOf!(stylist)) : printed;
+  // ...and a token its player's chosen picture (tokenArt.ts)
+  const tokenArtOf = useContext(TokenArtContext);
+  const tokenPlayer = tokenArtOf ? landStylist(printed) : undefined;
+  const card = tokenPlayer ? styledToken(landed, tokenArtOf!(tokenPlayer)) : landed;
   // a painted land style's own card (with painted art on) takes the place of the printing's picture
   const paintedArt = useSettings((state) => state.settings.paintedArt);
   const painted = !hidden && paintedArt && face !== 'back' ? card.paintedLand : undefined;
@@ -57,10 +71,26 @@ export function CardFace({ card: printed, face = 'front', size = 'normal', sleev
   const printing = useCardImage(hidden || painted || styled ? null : card, face === 'back' || showsBackFace(card) ? 'back' : 'front', size);
   const src = styled ?? painted ?? printing;
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
+  // the picture that fades in: only one that kept the card waiting
+  const [fadedSrc, setFadedSrc] = useState<string | null>(null);
+  const askedAt = useRef<{ src: string; at: number } | null>(null);
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const [retries, setRetries] = useState<{ src: string; count: number } | null>(null);
+  const retryCount = retries && retries.src === src ? retries.count : 0;
+  useEffect(() => {
+    if (failedSrc === null || failedSrc !== src || retryCount >= RETRY_DELAYS_MS.length) return;
+    const timer = setTimeout(() => {
+      setRetries({ src: failedSrc, count: retryCount + 1 });
+      setFailedSrc(null);
+    }, RETRY_DELAYS_MS[retryCount]);
+    return () => clearTimeout(timer);
+  }, [failedSrc, src, retryCount]);
   const showImage = typeof src === 'string' && src !== failedSrc;
   // a picture decoded earlier this session shows on the first frame: no text-frame flash when a card changes zone
   const loaded = showImage && (loadedSrc === src || isDecoded(src));
+  useEffect(() => {
+    if (showImage && !loaded && askedAt.current?.src !== src) askedAt.current = { src, at: performance.now() };
+  }, [showImage, loaded, src]);
   const name = card.displayName ?? card.name ?? '';
 
   return (
@@ -68,6 +98,8 @@ export function CardFace({ card: printed, face = 'front', size = 'normal', sleev
       className={[styles.sleeve, className ?? ''].join(' ')}
       style={{ ...(sleeve ? { '--sleeve': sleeve } : {}), ...style } as CSSProperties}
       data-loaded={loaded || undefined}
+      data-fade={(loaded && fadedSrc === src) || undefined}
+      data-back={hidden || undefined}
     >
       <div className={styles.card}>
         {hidden ? (
@@ -90,14 +122,19 @@ export function CardFace({ card: printed, face = 'front', size = 'normal', sleev
             )}
             {showImage && (
               <img
+                // a new element for each retry, so the browser asks again
+                key={retryCount}
                 className={styles.image}
                 src={src}
                 alt={name}
-                loading="lazy"
-                decoding="async"
+                // a picture the browser already has shows on this frame; the rest wait their turn on screen
+                loading={loaded ? 'eager' : 'lazy'}
+                decoding={loaded ? 'auto' : 'async'}
                 draggable={false}
                 onLoad={() => {
                   markDecoded(src);
+                  const asked = askedAt.current;
+                  if (asked?.src === src && performance.now() - asked.at >= INSTANT_LOAD_MS) setFadedSrc(src);
                   setLoadedSrc(src);
                 }}
                 onError={() => setFailedSrc(src)}

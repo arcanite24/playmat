@@ -1,0 +1,22 @@
+# name: Train450 guild-gw-gowide-3
+# archetype: gowide
+# colors: GW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Bristlebane Outrider
+2 Cactuar
+2 Cautious Survivor
+4 Encampment Keeper
+3 Gran Pulse Ochu
+3 Mothrider Patrol
+3 Old Thrush
+1 Picard, Leading by Example
+4 Pious Wayfarer
+2 Pulse of Murasa
+2 Ray of Dissolution
+2 Sparring Dummy
+4 Spidery Grasp
+3 Witchstalker
+8 Forest
+6 Plains
+4 Razorverge Thicket
+4 Restless Prairie

@@ -1,0 +1,22 @@
+# name: Train200 guild-ur-tempo-10
+# archetype: tempo
+# colors: UR
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Burning Sun's Fury
+2 Confusticate and Bebother
+2 Consign to Memory
+2 Culmination of Studies
+2 Eject
+1 Embereth Veteran
+3 Gadrak, the Crown-Scourge
+3 Glint-Nest Crane
+4 Goblin Guide
+3 Illusory Angel
+2 Searing Blaze
+4 Tale's End
+4 Tiger-Seal
+4 Winds of Rebuke
+4 Innovative Commons
+9 Island
+5 Mountain
+4 Steam Vents

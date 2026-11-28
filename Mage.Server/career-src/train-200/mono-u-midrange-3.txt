@@ -1,0 +1,19 @@
+# name: Train200 mono-u-midrange-3
+# archetype: midrange
+# colors: U
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Blink of an Eye
+2 Chilling Trap
+2 Chrome Host Seedshark
+1 Cobbled Lancer
+2 Crystalline Nautilus
+3 Custodian of the Trove
+4 Hydrosurge
+1 Icefall Regent
+2 Kefnet the Mindful
+3 Larder Zombie
+4 Sleep-Cursed Faerie
+3 Sphinx of Clear Skies
+3 Traxos, Scourge of Kroog
+2 Voyage's End
+24 Island

@@ -1,0 +1,22 @@
+# name: Train200 tri-urw-gowide-47
+# archetype: gowide
+# colors: URW
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Brinebarrow Intruder
+4 Colorstorm Stallion
+4 Decommission
+4 Firedrinker Satyr
+3 Honored Crop-Captain
+4 Inordinate Rage
+1 Krenko, Baron of Tin Street
+3 Magebane Lizard
+3 Torch Courier
+3 Vantress Gargoyle
+3 Vexing Gull
+3 Youthful Valkyrie
+4 Fatehold Annex
+3 Island
+5 Mountain
+2 Plains
+4 Sacred Foundry
+4 Stormcarved Coast

@@ -6,9 +6,27 @@
 
 .card {
   position: absolute;
-  border-radius: 6px;
+  border-radius: var(--card-radius) / calc(var(--card-radius) * 63 / 88);
   transition: transform var(--dur-place) var(--ease-place), box-shadow var(--dur-quick) linear;
   outline: none;
+}
+
+/* what a swing moves: the whole card, inside the box its flights move (combatMotion.ts) */
+.lunge {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+/* fancy combat effects (#413): an attacker lifts off the mat, its shadow dropping away under it, with a slight
+   settle. Tapping and stepping forward keep the plain easing: an overshoot there reads as a lunge on any tap. */
+.snappy > .lunge > .body {
+  transition: scale var(--dur-place) cubic-bezier(0.34, 1.15, 0.64, 1), filter var(--dur-place) ease;
+}
+
+.lifted > .lunge > .body {
+  scale: 1.03;
+  filter: drop-shadow(0 12px 14px rgb(var(--shade-rgb) / 0.45));
 }
 
 /* a legal choice: ivory ink printed around the card, breathing */
@@ -19,8 +37,8 @@
 .clickable::after {
   content: '';
   position: absolute;
-  inset: -4px;
-  border-radius: 9px;
+  inset: 0;
+  border-radius: inherit;
   /* still ink: on a full board, a dozen breathing halos would drown the one thing that matters */
   box-shadow: 0 0 0 2px var(--ink-soft);
   pointer-events: none;
@@ -45,8 +63,8 @@
 }
 
 .target::after {
-  inset: -6px;
-  border-radius: 11px;
+  inset: 0;
+  border-radius: inherit;
   box-shadow: 0 0 0 3px var(--ink-strong), 0 0 0 9px rgb(var(--ink-rgb) / 0.18);
 }
 
@@ -63,8 +81,8 @@
 .pending::after {
   content: '';
   position: absolute;
-  inset: -4px;
-  border-radius: 9px;
+  inset: 0;
+  border-radius: inherit;
   box-shadow: 0 0 0 3px var(--ink-strong), 0 0 18px 2px rgb(var(--ink-rgb) / 0.35);
   pointer-events: none;
 }
@@ -72,11 +90,18 @@
 .selected::after {
   content: '';
   position: absolute;
-  inset: -5px;
-  border-radius: 10px;
+  inset: 0;
+  border-radius: inherit;
   box-shadow: 0 0 0 3px var(--decision), 0 0 22px 4px var(--decision-glow);
   animation: none;
   pointer-events: none;
+}
+
+/* the permanent a hovered stack ability, or the question being asked, comes from: a brass ring, raised above its row,
+   so two copies of a card can be told apart (#227) */
+.source {
+  z-index: var(--z-lifted) !important;
+  box-shadow: 0 0 0 3px rgb(var(--brass-rgb) / 0.95), 0 0 24px 6px rgb(var(--brass-rgb) / 0.55);
 }
 
 .attacking .body > :last-child {
@@ -176,6 +201,57 @@
   color: var(--ink-strong);
 }
 
+/* a Room's two doors along the bottom: the unlocked ones lit, the locked ones dim behind a lock */
+.doors {
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  bottom: 4%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  pointer-events: none;
+}
+
+.doors li {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  padding: 1px 5px;
+  border-radius: 5px;
+  font-family: var(--font-print);
+  font-size: calc(11px * var(--badge, 1));
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.doors li > svg {
+  flex: none;
+}
+
+.doors li > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doorUnlocked {
+  background: rgb(var(--brass-rgb) / 0.92);
+  color: var(--mat-900);
+  box-shadow: 0 0 0 1px rgb(var(--brass-rgb) / 0.5), 0 0 8px rgb(var(--brass-rgb) / 0.45);
+}
+
+.doorLocked {
+  background: rgb(var(--mat-rgb) / 0.88);
+  color: var(--ink-dim);
+  box-shadow: inset 0 0 0 1px var(--ink-faint);
+}
+
 /* power/toughness plate printed over the card's corner */
 .pt {
   position: absolute;
@@ -228,8 +304,17 @@
   font-weight: 700;
   font-size: 21px;
   box-shadow: var(--shadow-placed);
+  white-space: nowrap;
   transform: scale(var(--badge, 1));
   transform-origin: top right;
+}
+
+/* on a turned card the badge turns back, so it reads level at the turned card's top right corner */
+.count[data-turned] {
+  right: auto;
+  left: -10px;
+  transform: rotate(-90deg) scale(var(--badge, 1)) translateX(-100%);
+  transform-origin: top left;
 }
 
 
@@ -240,6 +325,7 @@
 .body {
   position: relative;
   isolation: isolate;
+  border-radius: inherit;
   width: 100%;
   height: 100%;
 }
@@ -291,6 +377,15 @@
     opacity: 0.45;
     transform: translateY(calc(var(--lift, 10px) * 0.55)) scale(0.9);
   }
+}
+
+/* tapped: dimmed as well as turned, so the untapped lands stand out; rings and badges stay bright */
+.body > :last-child {
+  transition: filter var(--dur-place) ease;
+}
+
+.body.tapped > :last-child {
+  filter: brightness(0.62) saturate(0.45);
 }
 
 /* summoning sick: the creature dozes until it can act; its picture dims and greys a little and z's drift up off it */
@@ -426,9 +521,9 @@
 
 /* lifelink: a warm light breathing around it */
 .fxLife {
-  inset: -5%;
+  inset: 0;
   z-index: -1;
-  border-radius: 12px;
+  border-radius: inherit;
   box-shadow: 0 0 18px 6px rgb(255 226 160 / 0.5);
   animation: kw-breathe 2.8s ease-in-out infinite;
 }
@@ -441,9 +536,9 @@
 
 /* menace: a red smoulder; haste: embers flickering at its feet */
 .fxMenace {
-  inset: -6%;
+  inset: 0;
   z-index: -1;
-  border-radius: 14px;
+  border-radius: inherit;
   box-shadow: 0 0 20px 6px rgb(150 20 20 / 0.55), inset 0 0 0 1px rgb(200 40 40 / 0.4);
   animation: kw-breathe 1.9s ease-in-out infinite;
 }
@@ -502,14 +597,16 @@
   animation-delay: 0.28s;
 }
 
+/* moved with translate, which the compositor runs: animating left laid the page out again on every frame, for every
+   first striker on the table, all game long. 475% of its own width is the 190% of the card it crosses. */
 @keyframes kw-glint {
   0%,
   78% {
-    left: -60%;
+    translate: 0 0;
   }
   92%,
   100% {
-    left: 130%;
+    translate: 475% 0;
   }
 }
 
@@ -517,7 +614,7 @@
 .fxGold {
   inset: 0;
   z-index: 1;
-  border-radius: 6px;
+  border-radius: inherit;
   box-shadow: inset 0 0 0 2px rgb(222 186 96 / 0.9), inset 0 0 10px rgb(255 214 120 / 0.35), 0 0 8px rgb(222 186 96 / 0.45);
 }
 

@@ -1,16 +1,81 @@
 .hand {
+  /* a card's width (bigger with the "Match size" setting), and how much more of a bigger card sinks below the edge:
+     the same strip of every size shows, so a bigger hand doesn't climb into your lands */
+  --hand-sink: calc(var(--hand-card, 168px) * 236 / 168 - 236px);
   position: absolute;
   left: 50%;
-  bottom: -118px;
-  height: 236px;
+  bottom: calc(-118px - var(--hand-sink));
+  height: calc(var(--hand-card, 168px) * 236 / 168);
   transform: translateX(-50%);
   z-index: var(--z-hand);
+}
+
+/* the whole fan; in a hand too big for its room it's wider than .hand, and slides along inside it */
+.fan {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 100%;
+}
+
+/* a hand that scrolls shows only its window across, but still lets cards rise above it */
+.scrolls {
+  overflow-x: clip;
+  overflow-y: visible;
+}
+
+/* a card held in a drag travels anywhere on the stage */
+.scrolls.holding {
+  overflow: visible;
+}
+
+/* the window's ends, when cards lie beyond them: how many, and a click away */
+.more {
+  position: absolute;
+  top: 48px;
+  z-index: calc(var(--z-held) + 1);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 48px;
+  padding: 0 8px;
+  border: 1px solid rgb(var(--ink-rgb) / 0.2);
+  border-radius: 999px;
+  background: rgb(var(--shade-rgb) / 0.85);
+  color: var(--ink-strong);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.more:hover {
+  background: var(--mat-950);
+}
+
+.earlier {
+  left: 6px;
+}
+
+.later {
+  right: 6px;
+}
+
+.holding .more {
+  display: none;
+}
+
+/* keyboard focus scrolls the fan itself, and the arrows would cover the risen card */
+.hand:has(.card:focus-visible) .more {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .card {
   position: absolute;
   bottom: 0;
-  width: 168px;
+  width: var(--hand-card, 168px);
+  border-radius: var(--card-radius) / calc(var(--card-radius) * 63 / 88);
   transform-origin: 50% 120%;
   transform: translateY(var(--drop, 0)) rotate(var(--rotate, 0deg));
   transition: transform var(--dur-place) var(--ease-place);
@@ -21,21 +86,20 @@
 
 /* rises out of the hand: straighten, lift clear of the edge, grow */
 .card:focus-visible {
-  transform: translateY(-120px) rotate(0deg) scale(1.22);
+  transform: translateY(calc(-120px - var(--hand-sink, 0px))) rotate(0deg) scale(1.22);
   z-index: var(--z-held) !important;
 }
 
-/* a mouse lifts the card it rests on; a finger has no hover (a tapped card would stay up), so it lifts the card it holds */
-@media (hover: hover) {
-  .card:hover {
-    transform: translateY(-120px) rotate(0deg) scale(1.22);
-    z-index: var(--z-held) !important;
-  }
+/* a mouse lifts the card it rests on (picked by Hand from the pointer's x); a finger has no hover (a tapped card would
+   stay up), so it lifts the card it holds */
+.card.lifted {
+  transform: translateY(calc(-120px - var(--hand-sink, 0px))) rotate(0deg) scale(1.22);
+  z-index: var(--z-held) !important;
 }
 
 @media (hover: none) {
   .card:active {
-    transform: translateY(-120px) rotate(0deg) scale(1.22);
+    transform: translateY(calc(-120px - var(--hand-sink, 0px))) rotate(0deg) scale(1.22);
     z-index: var(--z-held) !important;
   }
 }
@@ -47,8 +111,8 @@
 .playable::after {
   content: '';
   position: absolute;
-  inset: -3px;
-  border-radius: 10px;
+  inset: 0;
+  border-radius: inherit;
   box-shadow: 0 0 0 2px var(--ink-soft), 0 0 16px 3px rgb(var(--ink-rgb) / 0.35);
   pointer-events: none;
 }
@@ -64,8 +128,8 @@
 .choosable::after {
   content: '';
   position: absolute;
-  inset: -4px;
-  border-radius: 11px;
+  inset: 0;
+  border-radius: inherit;
   box-shadow: 0 0 0 3px var(--decision), 0 0 22px 4px var(--decision-glow);
   pointer-events: none;
 }
@@ -76,8 +140,8 @@
 
 /* played, and the server hasn't answered yet: already on its way out of the hand */
 .pending,
-.pending:hover {
-  transform: translateY(-150px) rotate(0deg) scale(1.08);
+.card.pending {
+  transform: translateY(calc(-150px - var(--hand-sink, 0px))) rotate(0deg) scale(1.08);
   cursor: progress;
   z-index: var(--z-held) !important;
 }
@@ -89,8 +153,8 @@
 .selected::after {
   content: '';
   position: absolute;
-  inset: -4px;
-  border-radius: 10px;
+  inset: 0;
+  border-radius: inherit;
   box-shadow: 0 0 0 3px var(--decision), 0 0 18px 4px var(--decision-glow);
   pointer-events: none;
 }
@@ -107,7 +171,7 @@
 
 /* tall: on a taller tablet the hand stands higher, so more of each card shows */
 :global([data-layout='tall']) .hand {
-  bottom: calc(-118px + var(--hand-raise, 0px));
+  bottom: calc(-118px - var(--hand-sink) + var(--hand-raise, 0px));
 }
 
 /* played from another zone (an adventurer in exile, flashback): it joins the hand while it can be played */
@@ -143,7 +207,7 @@
 }
 
 .keyHintShown,
-.card:hover .keyHint,
+.lifted .keyHint,
 .card:focus-visible .keyHint {
   opacity: 1;
 }

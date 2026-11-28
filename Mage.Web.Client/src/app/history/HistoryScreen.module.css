@@ -130,3 +130,14 @@
   justify-content: flex-end;
   gap: 6px;
 }
+
+/* a phone: a smaller title, so the Mine / Everyone switch fits beside it or wraps under it */
+@media (max-width: 640px) {
+  .head {
+    flex-wrap: wrap;
+  }
+
+  .title {
+    font-size: var(--text-3xl);
+  }
+}

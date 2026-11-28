@@ -1,0 +1,25 @@
+# name: Train200 tri-wub-control-11
+# archetype: control
+# colors: WUB
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+1 Admiral's Order
+2 Clackbridge Troll
+4 Desert's Due
+1 Divide by Zero
+2 Doom Whisperer
+2 Ebondeath, Dracolich
+2 Feast of Dreams
+2 Feed the Cauldron
+4 Inspiring Roar
+3 Lofty Denial
+2 Louisoix's Sacrifice
+2 Phyrexian Vindicator
+2 Ray of Enfeeblement
+3 Test of Loyalty
+2 Turn Aside
+4 Azorius Guildgate
+4 Island
+4 Misty Palms Oasis
+3 Plains
+7 Swamp
+4 Theorix Annex

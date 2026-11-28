@@ -1,14 +1,19 @@
 package mage.server.career;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.Reader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -42,14 +47,28 @@ public final class CareerCapsules {
         public String trim;
     }
 
-    /** One capsule: a card style of one card. */
+    /** One capsule: a card style of one card, or a typed cosmetic inside a "mixed" machine. */
     public static class CareerMachineItem {
-        /** "<set>-<card slug>"; its picture is cardstyle/<set>/<card slug>.webp */
+        /** "<set>-<slug>"; cardstyles live at cardstyle/<set>/<slug>.webp, mixed items at <kind>/<id>.webp */
         public String id;
-        /** the card it styles, by its English name */
+        /** optional per-item cosmetic kind for "mixed" machines (playmat, avatar, pet, frame, cmdframe, sleeve, ...) */
+        public String kind;
+        /** display name for non-cardstyle items */
+        public String name;
+        public String es;
+        /** the card it styles, by its English name (cardstyle items only) */
         public String card;
         /** what the picture shows (the art prompt) */
         public String subject;
+        /** optional look metadata for mixed items */
+        public String color;
+        public String dye;
+        public List<String> shades;
+        public String light;
+        public String dark;
+        public String ring;
+        public String accent;
+        public String style;
     }
 
     /** Five capsules in one style and theme. */
@@ -104,6 +123,9 @@ public final class CareerCapsules {
         public String item;
         public String set;
         public String card;
+        /** for "mixed" machines: the item's cosmetic kind and display name */
+        public String kind;
+        public String name;
         /** this capsule finished its set, and the set's reward */
         public boolean setDone;
         public CareerProgress.CareerCosmetic setReward;
@@ -123,6 +145,15 @@ public final class CareerCapsules {
         public int left;
     }
 
+    /** Result of redeeming matured Mana@Home swarm credits for capsule tokens (S6). */
+    public static class CareerSwarmRedeemResult {
+        public String account;
+        public int capsuleTokensAwarded;
+        public int tokens;
+        public double creditSpent;
+        public double creditRemaining;
+    }
+
     private static volatile CareerCapsules instance;
 
     private final List<CareerMachine> machines;
@@ -130,7 +161,8 @@ public final class CareerCapsules {
     private final Map<String, CareerMachineItem> items = new LinkedHashMap<>();
     private final Map<String, CareerMachineSet> setOf = new LinkedHashMap<>();
     private final Map<String, CareerMachine> machineOf = new LinkedHashMap<>();
-    private Random random = new SecureRandom();
+    /** tests' fixed draw; null rolls {@link CareerDice} by account, machine and pulls so far, as Rust does */
+    private Random random;
 
     CareerCapsules(List<CareerMachine> machines) {
         this.machines = machines;
@@ -215,12 +247,24 @@ public final class CareerCapsules {
         return id == null ? null : byId.get(id);
     }
 
+    /** every card style: its id to the card it styles and its machine's kind, for the Rust platform service (CareerViewsExport) */
+    public Map<String, Map<String, String>> styleExport() {
+        Map<String, Map<String, String>> styles = new LinkedHashMap<>();
+        for (CareerMachineItem item : items.values()) {
+            Map<String, String> style = new LinkedHashMap<>();
+            style.put("card", item.card);
+            style.put("kind", kindOf(item.id));
+            styles.put(item.id, style);
+        }
+        return styles;
+    }
+
     public CareerMachineItem item(String id) {
         return id == null ? null : items.get(id);
     }
 
     /**
-     * The catalog entries machines add (CareerCosmetics): every card style, and every set's sleeve. A machine's own
+     * The catalog entries machines add (CareerCosmetics): every capsule item, and every set's sleeve. A machine's own
      * reward and title are ordinary catalog items (cosmetics.json); the catalog gives them their source.
      */
     List<CareerCosmetics.CareerCatalogItem> catalogItems() {
@@ -228,14 +272,24 @@ public final class CareerCapsules {
         for (CareerMachine machine : machines) {
             for (CareerMachineSet set : machine.sets) {
                 for (CareerMachineItem item : set.items) {
+                    String itemKind = itemKind(machine, item);
                     CareerCosmetics.CareerCatalogItem style = new CareerCosmetics.CareerCatalogItem();
-                    style.kind = machine.kind;
+                    style.kind = itemKind;
                     style.id = item.id;
-                    style.name = item.card;
-                    style.es = item.card;
+                    style.name = item.name != null ? item.name : item.card;
+                    style.es = item.es != null ? item.es : style.name;
                     style.rarity = "rare";
-                    style.color = set.capsule;
-                    style.card = item.card;
+                    style.color = item.color != null ? item.color : set.capsule;
+                    style.dye = item.dye;
+                    style.shades = item.shades;
+                    style.light = item.light;
+                    style.dark = item.dark;
+                    style.ring = item.ring;
+                    style.accent = item.accent;
+                    style.style = item.style;
+                    if (CARD_STYLE.equals(itemKind)) {
+                        style.card = item.card;
+                    }
                     style.series = set.id;
                     style.sources.add(new CareerCosmetics.CareerCosmeticSource("capsule", machine.id, 0));
                     catalog.add(style);
@@ -294,9 +348,15 @@ public final class CareerCapsules {
         return owned;
     }
 
-    private String kindOf(String item) {
-        CareerMachine machine = machineOf.get(item);
+    static String itemKind(CareerMachine machine, CareerMachineItem item) {
+        if (item != null && item.kind != null && !item.kind.isEmpty()) {
+            return item.kind;
+        }
         return machine == null ? "" : machine.kind;
+    }
+
+    private String kindOf(String item) {
+        return itemKind(machineOf.get(item), items.get(item));
     }
 
     /** Buys tokens with coins, in one of the shop's bundles. */
@@ -357,10 +417,13 @@ public final class CareerCapsules {
                 throw new SQLException(new CareerService.CareerException(
                         (pulls == 1 ? "A pull takes a token" : pulls + " pulls take " + pulls + " tokens") + "; you have " + tokens + "."));
             }
+            Random draw = random != null ? random
+                    : CareerDice.roll(store, "pull/" + CareerStore.key(user) + "/" + machine.id + "/" + store.pulls(user, machine.id).size());
             addTokens(store, user, -pulls, "pull " + machine.id, now);
             for (int index = 0; index < pulls; index++) {
-                CareerMachineItem item = left.remove(random.nextInt(left.size()));
-                store.addUnlock(user, machine.kind, item.id, now);
+                CareerMachineItem item = left.remove(draw.nextInt(left.size()));
+                String itemKind = itemKind(machine, item);
+                store.addUnlock(user, itemKind, item.id, now);
                 store.addPull(user, machine.id, item.id, now);
                 owned.add(item.id);
                 CareerMachineSet set = setOf.get(item.id);
@@ -368,6 +431,10 @@ public final class CareerCapsules {
                 pull.item = item.id;
                 pull.set = set.id;
                 pull.card = item.card;
+                if ("mixed".equals(machine.kind)) {
+                    pull.kind = itemKind;
+                    pull.name = item.name != null ? item.name : item.card;
+                }
                 if (set.items.stream().allMatch(one -> owned.contains(one.id))) {
                     pull.setDone = true;
                     pull.setReward = set.reward;
@@ -403,7 +470,7 @@ public final class CareerCapsules {
         CareerStore store = CareerStore.get();
         if (itemId != null) {
             CareerMachineItem item = item(itemId);
-            if (item == null || !item.card.equals(card)) {
+            if (item == null || item.card == null || !item.card.equals(card)) {
                 throw new CareerService.CareerException("That style isn't for " + card + ".");
             }
             if (!owned(store, user).contains(itemId)) {
@@ -421,10 +488,115 @@ public final class CareerCapsules {
         Map<String, String> worn = new LinkedHashMap<>();
         for (Map.Entry<String, String> style : store.cardStyles(user).entrySet()) {
             CareerMachineItem item = item(style.getValue());
-            if (item != null && item.card.equals(style.getKey()) && owned.contains(item.id)) {
+            if (item != null && item.card != null && item.card.equals(style.getKey()) && owned.contains(item.id)) {
                 worn.put(style.getKey(), item.id);
             }
         }
         return worn;
+    }
+
+    /**
+     * Redeems matured Mana@Home swarm credits for Playmat cosmetic capsule tokens via the coordinator bridge
+     * (`POST /api/v1/bridge/redeem`, S6). Requires `SWARM_BRIDGE_SECRET` to be configured on both servers.
+     */
+    public CareerSwarmRedeemResult redeemSwarmCredits(String user, String workerToken) throws SQLException, CareerService.CareerException {
+        if (workerToken == null || workerToken.trim().isEmpty()) {
+            throw new CareerService.CareerException("Enter your Mana@Home worker token.");
+        }
+        String secret = System.getProperty("mana.bridgeSecret", System.getenv("SWARM_BRIDGE_SECRET"));
+        if (secret == null || secret.trim().isEmpty()) {
+            throw new CareerService.CareerException("Mana@Home credit redemption is not configured on this server.");
+        }
+        String baseUrl = System.getProperty("mana.coordinatorUrl", System.getenv("MANA_COORDINATOR_URL"));
+        if (baseUrl == null || baseUrl.trim().isEmpty()) {
+            baseUrl = "https://mana.deimos.studio";
+        }
+        baseUrl = baseUrl.replaceAll("/+$", "");
+
+        Gson gson = new Gson();
+        JsonObject payload = new JsonObject();
+        payload.addProperty("worker_token", workerToken.trim());
+        payload.addProperty("playmat_user", user);
+
+        int statusCode;
+        String responseBody;
+        HttpURLConnection conn = null;
+        try {
+            conn = (HttpURLConnection) new URL(baseUrl + "/api/v1/bridge/redeem").openConnection();
+            conn.setRequestMethod("POST");
+            conn.setConnectTimeout(10_000);
+            conn.setReadTimeout(15_000);
+            conn.setDoOutput(true);
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("User-Agent", "playmat-server");
+            conn.setRequestProperty("X-Swarm-Bridge-Secret", secret.trim());
+            byte[] outBytes = gson.toJson(payload).getBytes(StandardCharsets.UTF_8);
+            try (OutputStream out = conn.getOutputStream()) {
+                out.write(outBytes);
+            }
+            statusCode = conn.getResponseCode();
+            InputStream stream = statusCode >= 400 ? conn.getErrorStream() : conn.getInputStream();
+            responseBody = readUtf8(stream);
+        } catch (IOException e) {
+            throw new CareerService.CareerException("Could not reach Mana@Home coordinator: " + e.getMessage());
+        } finally {
+            if (conn != null) {
+                conn.disconnect();
+            }
+        }
+
+        if (statusCode < 200 || statusCode >= 300) {
+            String msg = "Coordinator returned HTTP " + statusCode;
+            try {
+                JsonObject err = JsonParser.parseString(responseBody).getAsJsonObject();
+                if (err.has("error")) {
+                    msg = err.get("error").getAsString();
+                }
+            } catch (Exception ignored) {
+                // plain text body
+            }
+            throw new CareerService.CareerException(msg);
+        }
+
+        JsonObject body = JsonParser.parseString(responseBody).getAsJsonObject();
+        String account = body.has("account") ? body.get("account").getAsString() : "";
+        int awarded = body.has("capsule_tokens") ? body.get("capsule_tokens").getAsInt() : 0;
+        double spent = body.has("credit_spent") ? body.get("credit_spent").getAsDouble() : 0.0;
+        double remaining = body.has("credit_remaining") ? body.get("credit_remaining").getAsDouble() : 0.0;
+        long redemptionId = body.has("redemption_id") && !body.get("redemption_id").isJsonNull()
+                ? body.get("redemption_id").getAsLong() : 0L;
+
+        CareerStore store = CareerStore.get();
+        CareerSwarmRedeemResult result = new CareerSwarmRedeemResult();
+        result.account = account;
+        result.capsuleTokensAwarded = awarded;
+        result.creditSpent = spent;
+        result.creditRemaining = remaining;
+
+        CareerService.refusing(() -> store.transaction(() -> {
+            long now = System.currentTimeMillis();
+            CareerService.ensureProfile(store, user, now);
+            if (awarded > 0) {
+                addTokens(store, user, awarded, "mana@home " + account + " #" + redemptionId, now);
+            }
+            result.tokens = store.profile(user).capsuleTokens;
+            return null;
+        }));
+        return result;
+    }
+
+    private static String readUtf8(InputStream stream) throws IOException {
+        if (stream == null) {
+            return "";
+        }
+        try (InputStream in = stream) {
+            ByteArrayOutputStream buf = new ByteArrayOutputStream();
+            byte[] chunk = new byte[4096];
+            int n;
+            while ((n = in.read(chunk)) != -1) {
+                buf.write(chunk, 0, n);
+            }
+            return new String(buf.toByteArray(), StandardCharsets.UTF_8);
+        }
     }
 }

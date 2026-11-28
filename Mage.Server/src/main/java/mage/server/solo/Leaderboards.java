@@ -1,6 +1,7 @@
 package mage.server.solo;
 
 import mage.server.career.CareerStore;
+import mage.server.ladder.LadderBoards;
 import org.apache.log4j.Logger;
 
 import java.sql.SQLException;
@@ -119,7 +120,13 @@ public final class Leaderboards {
         public LeaderboardEntry yours;
     }
 
+    /** Where a read-only board's lines come from, instead of submitted scores. */
+    public interface Source {
+        List<SoloStore.ScoreRow> rows(String mode, String board) throws SQLException;
+    }
+
     private final Map<String, Spec> specs = new LinkedHashMap<>();
+    private final Map<String, Source> sources = new LinkedHashMap<>();
     private volatile boolean migrated;
 
     private Leaderboards() {
@@ -135,6 +142,10 @@ public final class Leaderboards {
         register(new Spec(LIMITED, "Limited", true, "Wins", false, "Losses"));
         register(new Spec(DAILY_PUZZLE, "Daily puzzle", false, "Tries", false, "Seconds"));
         register(new Spec(HORDE, "Horde", true, "Turns", true, "Life left"));
+        // the ladder's season boards (#434), read from the ladder's tables
+        register(new Spec(LadderBoards.PEAK, "Peak rank", true, "Peak", false, "Games"), LadderBoards::rows);
+        register(new Spec(LadderBoards.MYTHIC, "Mythic rating", true, "Rating", false, "Games"), LadderBoards::rows);
+        register(new Spec(LadderBoards.CLIMB, "Fastest to Mythic", false, "Games", false, ""), LadderBoards::rows);
     }
 
     public static Leaderboards get() {
@@ -143,6 +154,12 @@ public final class Leaderboards {
 
     public synchronized void register(Spec spec) {
         specs.put(spec.mode, spec);
+    }
+
+    /** a read-only board: nobody submits to it, its lines come from {@code source} */
+    public synchronized void register(Spec spec, Source source) {
+        specs.put(spec.mode, spec);
+        sources.put(spec.mode, source);
     }
 
     public Spec spec(String mode) {
@@ -159,7 +176,7 @@ public final class Leaderboards {
 
     /** a player tried; their score, if any, stays */
     public synchronized void attempt(String mode, String board, String user) throws SQLException {
-        require(mode);
+        writable(mode);
         migrate();
         SoloStore store = SoloStore.get();
         SoloStore.ScoreRow row = store.score(mode, board, key(user));
@@ -182,7 +199,7 @@ public final class Leaderboards {
      * @return whether it's their new best
      */
     public synchronized boolean submit(String mode, String board, String user, long v1, Long v2, String detail) throws SQLException {
-        Spec spec = require(mode);
+        Spec spec = writable(mode);
         migrate();
         SoloStore store = SoloStore.get();
         SoloStore.ScoreRow row = store.score(mode, board, key(user));
@@ -218,8 +235,14 @@ public final class Leaderboards {
      */
     public Leaderboard board(String mode, String board, String user, String scope, Collection<String> names, int limit) throws SQLException {
         Spec spec = require(mode);
-        migrate();
-        List<SoloStore.ScoreRow> rows = SoloStore.get().scores(mode, board);
+        Source source = sources.get(mode);
+        List<SoloStore.ScoreRow> rows;
+        if (source != null) {
+            rows = source.rows(mode, board);
+        } else {
+            migrate();
+            rows = SoloStore.get().scores(mode, board);
+        }
         Set<String> among = null;
         boolean friends = SCOPE_FRIENDS.equals(scope);
         if (friends) {
@@ -278,6 +301,14 @@ public final class Leaderboards {
             }
         }
         return view;
+    }
+
+    private Spec writable(String mode) {
+        Spec spec = require(mode);
+        if (sources.containsKey(mode)) {
+            throw new IllegalArgumentException("The " + mode + " board is read-only");
+        }
+        return spec;
     }
 
     private Spec require(String mode) {

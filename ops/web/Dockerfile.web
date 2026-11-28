@@ -14,6 +14,9 @@ COPY Mage.Web.Client/ ./
 # build with --build-arg VITE_IMAGE_PROXY= to talk to Scryfall directly
 ARG VITE_IMAGE_PROXY=/img
 ENV VITE_IMAGE_PROXY=${VITE_IMAGE_PROXY}
+# the web image's Caddy always proxies /ws on the same origin, over both HTTPS and plain HTTP (TLS_MODE=external)
+ARG VITE_SAME_ORIGIN_WS=true
+ENV VITE_SAME_ORIGIN_WS=${VITE_SAME_ORIGIN_WS}
 # the product name shown in the app and the page title
 ARG VITE_APP_NAME=Playmat
 ENV VITE_APP_NAME=${VITE_APP_NAME}
@@ -34,4 +37,4 @@ RUN GOOS=$TARGETOS GOARCH=$TARGETARCH xcaddy build --with github.com/mholt/caddy
 FROM caddy:${CADDY_VERSION}-alpine
 COPY --from=caddy /usr/bin/caddy /usr/bin/caddy
 COPY --from=build /app/dist /srv
-COPY ops/web/Caddyfile /etc/caddy/Caddyfile
+COPY ops/web/Caddyfile ops/web/sites-https.caddy ops/web/sites-external.caddy /etc/caddy/

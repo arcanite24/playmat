@@ -19,12 +19,14 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('ping', SESSION, pingInfo),
     setCapabilities: (capabilities: string[]) =>
       rpc.call('setCapabilities', capabilities),
-    connectUser: (userName: string, password: string, restoreSessionId?: string | null, clientVersion?: string | null, userIdStr?: string | null, rememberToken?: string | null) =>
-      rpc.call('connectUser', userName, password, SESSION, restoreSessionId, clientVersion, userIdStr, rememberToken),
+    connectUser: (userName: string, password: string, restoreSessionId?: string | null, clientVersion?: string | null, userIdStr?: string | null, rememberToken?: string | null, idTokenRef?: string | null) =>
+      rpc.call('connectUser', userName, password, SESSION, restoreSessionId, clientVersion, userIdStr, rememberToken, idTokenRef),
     connectAdmin: (password: string) =>
       rpc.call('connectAdmin', password, SESSION),
     sessionGetRestoreToken: () =>
       rpc.call('sessionGetRestoreToken', SESSION),
+    sessionUserName: () =>
+      rpc.call('sessionUserName', SESSION),
     authRememberLogin: () =>
       rpc.call('authRememberLogin', SESSION),
     authForgetLogin: (userName: string, rememberToken: string) =>
@@ -39,6 +41,8 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('disconnectSession', SESSION, keepGames),
     playerLogout: (keepGames?: boolean | null) =>
       rpc.call('playerLogout', SESSION, keepGames),
+    oidcLogout: () =>
+      rpc.call('oidcLogout', SESSION),
     connectSetUserData: (userName: string | null, userData: UserData, clientVersion?: string | null, userIdStr?: string | null) =>
       rpc.call('connectSetUserData', userName, SESSION, userData, clientVersion, userIdStr),
     sendFeedback: (userName: string, title: string, type: string, message: string, email?: string | null) =>
@@ -77,6 +81,12 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('deckImportSources'),
     roomGetUsers: (roomId: UUID) =>
       rpc.call('roomGetUsers', roomId),
+    presenceGet: () =>
+      rpc.call('presenceGet'),
+    presenceSet: (status: string) =>
+      rpc.call('presenceSet', status),
+    playerDirectory: (query?: string | null, offset?: number | null) =>
+      rpc.call('playerDirectory', query, offset),
     roomGetAllTables: (roomId: UUID) =>
       rpc.call('roomGetAllTables', roomId),
     roomGetTableById: (roomId: UUID, tableId: UUID) =>
@@ -123,6 +133,12 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('chatFindByRoom', roomId),
     gameJoin: (gameId: UUID) =>
       rpc.call('gameJoin', gameId, SESSION),
+    hostGameEnded: (gameId: UUID, token: string, winnerId: string | null, turns: number, reason: string, timeLeft?: unknown | null, summary?: unknown | null) =>
+      rpc.call('hostGameEnded', gameId, token, winnerId, turns, reason, timeLeft, summary),
+    hostGameTurn: (gameId: UUID, token: string, turn: number, activePlayerId: string | null, line: unknown) =>
+      rpc.call('hostGameTurn', gameId, token, turn, activePlayerId, line),
+    hostGameAssisted: (gameId: UUID, token: string, what: string) =>
+      rpc.call('hostGameAssisted', gameId, token, what),
     gameResync: (gameId: UUID) =>
       rpc.call('gameResync', gameId, SESSION),
     gameStateResync: (gameId: UUID) =>
@@ -219,6 +235,10 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('adminUpdateApply', version),
     adminUpdateRollback: () =>
       rpc.call('adminUpdateRollback'),
+    adminSelfPlayStatus: () =>
+      rpc.call('adminSelfPlayStatus'),
+    adminSelfPlaySet: (paused: boolean, quietUtc?: string | null, cpuMax?: number | null, gamesMax?: number | null, jobs?: number | null) =>
+      rpc.call('adminSelfPlaySet', paused, quietUtc, cpuMax, gamesMax, jobs),
     adminGetReports: (openOnly?: boolean | null) =>
       rpc.call('adminGetReports', openOnly),
     adminCloseReport: (reportId: number, resolution: string) =>
@@ -259,6 +279,10 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('githubStart'),
     githubFinish: (state: string, code: string, userName?: string | null) =>
       rpc.call('githubFinish', state, code, userName),
+    oidcStart: () =>
+      rpc.call('oidcStart'),
+    oidcFinish: (state: string, code: string, userName?: string | null) =>
+      rpc.call('oidcFinish', state, code, userName),
     accessRequest: (userName: string, email: string, note?: string | null, turnstileToken?: string | null) =>
       rpc.call('accessRequest', userName, email, note, turnstileToken),
     staffMe: () =>
@@ -307,6 +331,12 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('deckSyncPut', deckId, name, updatedAt, data),
     deckSyncDelete: (deckId: string, deletedAt: number) =>
       rpc.call('deckSyncDelete', deckId, deletedAt),
+    deckShareSet: (deckId: string, shared: boolean) =>
+      rpc.call('deckShareSet', deckId, shared),
+    deckSharedList: () =>
+      rpc.call('deckSharedList'),
+    deckSharedGet: (owner: string, deckId: string) =>
+      rpc.call('deckSharedGet', owner, deckId),
     reportPlayer: (userName: string, reason: string, details: string, gameId?: string | null) =>
       rpc.call('reportPlayer', userName, reason, details, gameId),
     clientReportError: (report: ClientError) =>
@@ -341,22 +371,40 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('adminSupportRevoke', paymentId, reason, removePerks),
     adminSupportGrant: (userName: string, reason: string) =>
       rpc.call('adminSupportGrant', userName, reason),
+    adminContributorGrant: (userName: string, reason: string) =>
+      rpc.call('adminContributorGrant', userName, reason),
     careerState: () =>
       rpc.call('careerState'),
     careerStarters: () =>
       rpc.call('careerStarters'),
     careerStart: (starterId: string) =>
       rpc.call('careerStart', starterId),
+    careerAcquirePrecon: (starterId: string) =>
+      rpc.call('careerAcquirePrecon', starterId),
+    careerSetQuestPref: (pref: string) =>
+      rpc.call('careerSetQuestPref', pref),
     careerDeck: () =>
       rpc.call('careerDeck'),
     careerSaveDeck: (deck: DeckCardLists) =>
       rpc.call('careerSaveDeck', deck),
+    careerDecks: () =>
+      rpc.call('careerDecks'),
+    careerSaveNamedDeck: (id: string | null, name: string, deck: DeckCardLists, activate?: boolean | null, format?: string | null) =>
+      rpc.call('careerSaveNamedDeck', id, name, deck, activate, format),
+    careerSelectDeck: (id: string) =>
+      rpc.call('careerSelectDeck', id),
+    careerDeleteDeck: (id: string) =>
+      rpc.call('careerDeleteDeck', id),
     careerCollection: () =>
       rpc.call('careerCollection'),
     careerOpponents: () =>
       rpc.call('careerOpponents'),
+    careerCommanderOpponents: () =>
+      rpc.call('careerCommanderOpponents'),
     careerPlay: (opponentId: string, deck: DeckCardLists, adaptive?: boolean | null) =>
       rpc.call('careerPlay', opponentId, deck, adaptive),
+    careerCommanderPlay: (opponentId: string, deck: DeckCardLists, adaptive?: boolean | null) =>
+      rpc.call('careerCommanderPlay', opponentId, deck, adaptive),
     careerShop: () =>
       rpc.call('careerShop'),
     careerBuyPack: (setCode: string) =>
@@ -367,6 +415,42 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('careerExport'),
     careerImport: (data: string) =>
       rpc.call('careerImport', data),
+    ladderState: (format: string, queue?: string | null) =>
+      rpc.call('ladderState', format, queue),
+    ladderOpponent: (format: string, queue?: string | null) =>
+      rpc.call('ladderOpponent', format, queue),
+    ladderPlay: (format: string, deck: DeckCardLists, queue?: string | null) =>
+      rpc.call('ladderPlay', format, deck, queue),
+    leaguePlay: (format: string, deckId: string, pod?: boolean | null) =>
+      rpc.call('leaguePlay', format, deckId, pod),
+    ladderResult: (tableId: string) =>
+      rpc.call('ladderResult', tableId),
+    ladderGameDeck: (gameId: string) =>
+      rpc.call('ladderGameDeck', gameId),
+    ladderMythicStandings: (format: string, queue?: string | null, includeBots?: boolean | null) =>
+      rpc.call('ladderMythicStandings', format, queue, includeBots),
+    leagueState: () =>
+      rpc.call('leagueState'),
+    leagueStart: (format: string, starters: string[]) =>
+      rpc.call('leagueStart', format, starters),
+    leagueSets: (format: string) =>
+      rpc.call('leagueSets', format),
+    leagueOpen: (format: string, setCode: string) =>
+      rpc.call('leagueOpen', format, setCode),
+    leagueDecks: (format?: string | null) =>
+      rpc.call('leagueDecks', format),
+    leagueSaveDeck: (id: string | null, name: string, format: string, deck: DeckCardLists) =>
+      rpc.call('leagueSaveDeck', id, name, format, deck),
+    leagueCraftMissing: (id: string) =>
+      rpc.call('leagueCraftMissing', id),
+    leagueDeleteDeck: (id: string) =>
+      rpc.call('leagueDeleteDeck', id),
+    homeLayoutGet: () =>
+      rpc.call('homeLayoutGet'),
+    homeLayoutSet: (layout: string) =>
+      rpc.call('homeLayoutSet', layout),
+    homeActivity: (offsetMinutes?: number | null) =>
+      rpc.call('homeActivity', offsetMinutes),
     careerQuests: () =>
       rpc.call('careerQuests'),
     careerRerollQuest: (slot: number) =>
@@ -397,12 +481,20 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('careerMachines'),
     careerBuyTokens: (count: number) =>
       rpc.call('careerBuyTokens', count),
+    careerBuyCosmetic: (kind: string, id: string) =>
+      rpc.call('careerBuyCosmetic', kind, id),
+    careerRedeemSwarmCredits: (workerToken: string) =>
+      rpc.call('careerRedeemSwarmCredits', workerToken),
     careerPull: (machine: string, count: number) =>
       rpc.call('careerPull', machine, count),
     careerEquipStyle: (card: string, item?: string | null) =>
       rpc.call('careerEquipStyle', card, item),
     careerHall: () =>
       rpc.call('careerHall'),
+    careerPets: () =>
+      rpc.call('careerPets'),
+    careerSetPetStyle: (petId: string, style?: string | null) =>
+      rpc.call('careerSetPetStyle', petId, style),
     gameEmote: (gameId: UUID, emote: string) =>
       rpc.call('gameEmote', gameId, emote),
     careerCampaigns: () =>
@@ -429,8 +521,16 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('careerMinedPuzzlePlay', puzzleId),
     careerHordes: () =>
       rpc.call('careerHordes'),
-    careerHordePlay: (hordeId: string, deckFile: string) =>
-      rpc.call('careerHordePlay', hordeId, deckFile),
+    careerHordePlay: (hordeId: string, deckFile?: string | null, deck?: DeckCardLists | null, endless?: boolean | null) =>
+      rpc.call('careerHordePlay', hordeId, deckFile, deck, endless),
+    careerArchenemy: () =>
+      rpc.call('careerArchenemy'),
+    careerArchenemyPlay: (encounterId: string, deckFile?: string | null, deck?: DeckCardLists | null, planeChase?: boolean | null) =>
+      rpc.call('careerArchenemyPlay', encounterId, deckFile, deck, planeChase),
+    careerThg: () =>
+      rpc.call('careerThg'),
+    careerThgPlay: (pairId: string, partnerId: string, deckFile?: string | null, deck?: DeckCardLists | null, planeChase?: boolean | null) =>
+      rpc.call('careerThgPlay', pairId, partnerId, deckFile, deck, planeChase),
     metaLibrary: () =>
       rpc.call('metaLibrary'),
     careerChallenge: () =>

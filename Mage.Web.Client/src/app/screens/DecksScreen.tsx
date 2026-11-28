@@ -2,6 +2,7 @@ import { ClipboardPaste, Cloud, CloudOff, Copy, Download, PencilLine, PencilRule
 import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { siteById } from '../../core/deckImport/sites';
+import { DeckOrganizer, SharedDecksButton, ShelfFilterBar } from '../decks/DeckShelf';
 import { ExportMenu } from '../decks/ExportMenu';
 import { SourceLine } from '../decks/import/SourceLine';
 import { UpdateDialog } from '../decks/import/UpdateDialog';
@@ -10,15 +11,17 @@ import { useDegradedSites } from '../decks/import/useImportFlow';
 import { PASTE_KEYS } from '../decks/import/text';
 import { deckStorage } from '../../core/decks/DeckStorageService';
 import { applyUpdate } from '../../core/deckImport/diff';
+import { filterShelf } from '../../core/decks/tags';
 import { t as translate, useT } from '../i18n';
 import { RichText } from '../i18n/RichText';
-import { SLEEVE_COLORS, chosenSleeve, rosterOf, sleeveFor, useDecks, type RosterDeck } from '../stores/decks';
+import { SLEEVE_COLORS, chosenSleeve, sleeveFor, useDecks, type RosterDeck } from '../stores/decks';
+import { useDeckRoster } from '../stores/useDeckRoster';
 import { useDeckSyncStatus } from '../stores/deckSyncStatus';
-import { useSettings } from '../stores/settings';
 import { useServerInfo } from '../queries';
 import { openImport, useImportSheet } from '../stores/importSheet';
 import { Button } from '../ui/Button';
 import { DeckBox } from '../ui/DeckBox';
+import { CardFace } from '../ui/CardFace';
 import { Dialog } from '../ui/Dialog';
 import { Field } from '../ui/Field';
 import { notify } from '../stores/toasts';
@@ -38,13 +41,22 @@ const GhostActions = lazy(() => import('../solo/Ghosts').then((m) => ({ default:
 export function DecksScreen() {
   const decks = useDecks();
   const t = useT();
-  const roster = useMemo(() => rosterOf(decks), [decks]);
+  const roster = useDeckRoster();
+  // the shelf under its tag and drafts filter (#200); the chosen deck's panel stays put even when filtered out
+  const shelfFilter = useDecks((state) => state.shelfFilter);
+  const shelf = useMemo(() => {
+    const known = shelfFilter.tag && roster.some((deck) => deck.tags.some((tag) => tag.toLowerCase() === shelfFilter.tag!.toLowerCase()));
+    return filterShelf(roster, { ...shelfFilter, tag: known ? shelfFilter.tag : null });
+  }, [roster, shelfFilter]);
   const [removing, setRemoving] = useState<RosterDeck | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<RosterDeck | null>(null);
+  // a sleeve up close (right-click its swatch)
+  const [sleevePreview, setSleevePreview] = useState<{ color: string; name: string } | null>(null);
   const selected = roster.find((deck) => deck.id === decks.selectedId) ?? null;
   const arrivedId = useImportSheet((state) => state.arrivedId);
-  const career = useSettings((state) => state.settings.careerOptIn);
+  // Career sleeves the account unlocked, whether or not Career was opened in this browser
+  const career = useServerInfo().data?.career === true;
   const accounts = useServerInfo().data?.accounts === true;
   const navigate = useNavigate();
   const degraded = useDegradedSites();
@@ -64,6 +76,14 @@ export function DecksScreen() {
       await useDecks.getState().duplicate(deck.id);
     } catch (error) {
       notify(translate('decks.duplicateFailed'), error instanceof Error ? error.message : String(error), 'error');
+    }
+  }
+
+  /** On a phone the chosen deck's panel sits under the shelf: bring it into view. */
+  function selectDeck(id: string) {
+    decks.select(id);
+    if (window.matchMedia('(max-width: 720px)').matches) {
+      requestAnimationFrame(() => document.getElementById('deck-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
     }
   }
 
@@ -93,6 +113,7 @@ export function DecksScreen() {
         aside={
           <>
             <SyncNote />
+            <SharedDecksButton />
             <Button size="sm" icon={<Download size={16} />} onClick={() => openImport()}>{t('decks.import')}</Button>
             <Button size="sm" icon={<PencilRuler size={16} />} onClick={() => navigate('/decks/new')}>{t('decks.build')}</Button>
           </>
@@ -104,23 +125,27 @@ export function DecksScreen() {
             <span>{t('decks.dropHint')}</span>
           </div>
         )}
+        <ShelfFilterBar decks={roster} />
         <div className={styles.grid} role="list">
           {decks.loaded && decks.saved.length === 0 && (
             <p role="listitem" className={styles.emptyShelf}>
               <RichText text={t('decks.empty')} parts={{ keys: <kbd>{PASTE_KEYS}</kbd> }} />
             </p>
           )}
-          {roster.map((deck) => (
+          {decks.loaded && roster.length > 0 && shelf.length === 0 && (
+            <p role="listitem" className={styles.emptyShelf}>{t('decks.filter.none')}</p>
+          )}
+          {shelf.map((deck) => (
             <div key={deck.id} role="listitem" className={[styles.cell, deck.id === arrivedId ? styles.arrived : ''].join(' ')}>
               <div onDoubleClick={() => navigate(`/decks/${encodeURIComponent(deck.id)}`)}>
-                <DeckBox deck={deck} sleeve={sleeveFor(decks.sleeves, deck)} selected={deck.id === decks.selectedId} onSelect={() => decks.select(deck.id)} />
+                <DeckBox deck={deck} sleeve={sleeveFor(decks.sleeves, deck)} selected={deck.id === decks.selectedId} onSelect={() => selectDeck(deck.id)} />
               </div>
             </div>
           ))}
         </div>
       </Zone>
 
-      <Zone tone="filled" className={styles.detail}>
+      <Zone tone="filled" id="deck-detail" className={styles.detail}>
         {selected ? (
           <div className={styles.detailBody}>
             <h2 className={styles.detailName}>{selected.name}</h2>
@@ -149,16 +174,20 @@ export function DecksScreen() {
                       className={styles.swatch}
                       style={{ background: color }}
                       onClick={() => decks.setSleeve(selected.id, color)}
+                      onContextMenu={(event) => {
+                        event.preventDefault();
+                        setSleevePreview({ color, name: t('decks.sleeve', { color }) });
+                      }}
                     />
                   ))}
                   {career && (
                     <Suspense fallback={null}>
-                      <CareerSleeves current={chosenSleeve(decks.sleeves, selected)} swatchClass={styles.swatch} onPick={(color) => decks.setSleeve(selected.id, color)} />
+                      <CareerSleeves current={chosenSleeve(decks.sleeves, selected)} swatchClass={styles.swatch} onPick={(color) => decks.setSleeve(selected.id, color)} onPreview={(color, name) => setSleevePreview({ color, name })} />
                     </Suspense>
                   )}
                   {accounts && (
                     <Suspense fallback={null}>
-                      <SupporterSleeve current={chosenSleeve(decks.sleeves, selected)} swatchClass={styles.swatch} onPick={(color) => decks.setSleeve(selected.id, color)} />
+                      <SupporterSleeve current={chosenSleeve(decks.sleeves, selected)} swatchClass={styles.swatch} onPick={(color) => decks.setSleeve(selected.id, color)} onPreview={(color, name) => setSleevePreview({ color, name })} />
                     </Suspense>
                   )}
                 </div>
@@ -178,6 +207,7 @@ export function DecksScreen() {
                 <GhostActions deckId={selected.id} deckName={selected.name} />
               </Suspense>
             </div>
+            {!selected.starter && <DeckOrganizer key={selected.id} deck={selected} />}
             {!selected.starter && (
               <Button variant="danger" size="sm" className={styles.remove} icon={<Trash2 size={16} />} onClick={() => setRemoving(selected)}>{t('decks.remove')}</Button>
             )}
@@ -190,6 +220,20 @@ export function DecksScreen() {
       <UpdateDialog deckId={updating} onClose={() => setUpdating(null)} />
 
       <RenameDialog deck={renaming} onClose={() => setRenaming(null)} />
+
+      <Dialog
+        open={!!sleevePreview}
+        onOpenChange={(open) => !open && setSleevePreview(null)}
+        title={sleevePreview?.name ?? ''}
+        width="sm"
+        footer={<Button variant="quiet" onClick={() => setSleevePreview(null)}>{t('ui.close')}</Button>}
+      >
+        {sleevePreview && (
+          <div className={styles.sleevePreview}>
+            <CardFace card={{ name: '' }} hidden sleeve={sleevePreview.color} size="large" />
+          </div>
+        )}
+      </Dialog>
 
       <Dialog
         open={!!removing}

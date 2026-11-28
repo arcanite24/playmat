@@ -1,0 +1,23 @@
+# name: Train450 guild-ur-gowide-4
+# archetype: gowide
+# colors: UR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Arrester's Admonition
+3 Benthic Biomancer
+3 Chrome Host Seedshark
+4 Faerie Vandal
+3 Goblin Arsonist
+2 Gristle Glutton
+2 Harrier Strix
+3 Lunar Frenzy
+2 Malcolm, Alluring Scoundrel
+2 Overwhelmed Apprentice
+4 Screaming Nemesis
+2 Slumbering Cerberus
+1 Stingerback Terror
+2 Sunset Strikemaster
+1 Violent Urge
+7 Island
+7 Mountain
+4 Shivan Reef
+4 Sulfur Falls

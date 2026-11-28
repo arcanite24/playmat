@@ -1,0 +1,19 @@
+# name: Train200 mono-r-midrange-4
+# archetype: midrange
+# colors: R
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Arclight Phoenix
+3 Blooming Blast
+3 Expedite
+2 Giant Cindermaw
+2 Hazoret the Fervent
+4 Hazoret, Godseeker
+1 No Admittance
+2 Red Hulk
+3 Rending Flame
+2 Sear
+3 Snare Thopter
+4 Spinneret and Spiderling
+2 Stingerback Terror
+2 Thundering Giant
+24 Mountain

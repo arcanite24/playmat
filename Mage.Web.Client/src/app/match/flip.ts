@@ -18,7 +18,20 @@ interface Placement {
 
 const placements = new Map<string, Placement>();
 const origins = new Map<string, Placement>();
+/** flights under way, by card: a combat hit can hold one at its start (holdFlight) */
+const flights = new Map<string, Animation>();
 let motionEnabled = true;
+
+/**
+ * How long until a card's flight puts it down, in ms (0 when it isn't flying): the flight's ease-out sets the card
+ * down at about half its length, the rest is settling. A landing ring and its thud keep to this.
+ */
+export function landingIn(cardId: string): number {
+  const flight = flights.get(cardId);
+  const duration = Number(flight?.effect?.getTiming().duration ?? 0);
+  if (!flight || !duration) return 0;
+  return Math.max(0, duration * 0.5 - Number(flight.currentTime ?? 0));
+}
 
 export function setCardMotion(enabled: boolean) {
   motionEnabled = enabled;
@@ -67,21 +80,60 @@ export function useFlipOrigin(key: string, ref: RefObject<HTMLElement | null>) {
 }
 
 /**
+ * Keep a card that just left where it was until `release` is called: a creature killed in combat stays in its place
+ * until its swing and the hit that killed it have landed (#413), then flies on. Returns the flying element (it can
+ * swing and recoil, with additive animations, on top of the held flight), or null when the card isn't flying.
+ */
+export function holdFlight(cardId: string): { element: Element; release: (ms: number) => void } | null {
+  const flight = flights.get(cardId);
+  const element = (flight?.effect as KeyframeEffect | null)?.target ?? null;
+  if (!flight || !element || flight.playState === 'finished') return null;
+  flight.pause();
+  flight.currentTime = 0;
+  let released = false;
+  const release = (ms: number) => {
+    if (released) return;
+    released = true;
+    setTimeout(() => {
+      if (flight.playState === 'paused') flight.play();
+    }, Math.max(0, ms));
+  };
+  // never held for good, whatever happens to the effect that held it
+  setTimeout(() => release(0), 4000);
+  return { element, release };
+}
+
+/**
  * Animate a card element from wherever that card was last seen.
  * `fallbackOrigin` names a zone to fly from when the card was never on screen (a draw, an opponent's cast).
+ * `shift` is how far the card's zone has scrolled it (a big hand): when it changes, the card's new place is noted
+ * without a flight, since the card itself didn't go anywhere.
+ * `posed` is a pose of the card's own (a hand card lifted under the pointer): while it holds, the card isn't measured,
+ * so its place stays the resting one and the lift (a CSS transition) is never taken for a move and flown (#248).
  */
-export function useFlip(cardId: string | undefined, ref: RefObject<HTMLElement | null>, options: { rotation?: number; fallbackOrigin?: string } = {}) {
+export function useFlip(cardId: string | undefined, ref: RefObject<HTMLElement | null>, options: { rotation?: number; fallbackOrigin?: string; shift?: number; posed?: boolean } = {}) {
   const stage = useStage();
   const rotation = options.rotation ?? 0;
+  const shift = options.shift ?? 0;
+  const posed = options.posed ?? false;
   // the element's first layout: it may have come from another zone at another angle (the fanned hand)
   const arrived = useRef(false);
+  const shifted = useRef(shift);
 
   useLayoutEffect(() => {
     const element = ref.current;
     if (!element || !cardId || !stage.element) return;
     const firstLayout = !arrived.current;
     arrived.current = true;
-    // a card in flight is measured where it lands, not mid-air
+    // a posed card keeps its resting place (one never seen yet notes where it is, so it doesn't fly from its origin later)
+    if (posed) {
+      if (!placements.has(cardId)) {
+        const here = measure(element, stage.element, stage.scale, rotation);
+        if (here) placements.set(cardId, here);
+      }
+      return;
+    }
+    // a card in flight is measured where it lands, not mid-air (a pose easing back counts: it settles where it rests)
     if (element.getAnimations().some((animation) => animation.playState === 'running')) return;
     const now = measure(element, stage.element, stage.scale, rotation);
     if (!now) return;
@@ -90,6 +142,10 @@ export function useFlip(cardId: string | undefined, ref: RefObject<HTMLElement |
     // opponent's spell) comes from its zone's origin. A card that hasn't moved has the same box: no flight.
     const from = before ?? (options.fallbackOrigin ? origins.get(options.fallbackOrigin) ?? null : null);
     placements.set(cardId, now);
+    if (shifted.current !== shift) {
+      shifted.current = shift;
+      return;
+    }
 
     if (!from || !motionEnabled || reducedMotion()) return;
     const dx = from.x + from.width / 2 - (now.x + now.width / 2);
@@ -105,9 +161,15 @@ export function useFlip(cardId: string | undefined, ref: RefObject<HTMLElement |
         { translate: `${dx}px ${dy}px`, scale: String(scale), rotate: `${turn}deg`, zIndex: 50 },
         { translate: '0px 0px', scale: '1', rotate: '0deg', zIndex: 50 },
       ],
-      { duration: Math.min(560, 260 + Math.hypot(dx, dy) * 0.25), easing: 'cubic-bezier(0.16, 1, 0.3, 1)' },
+      { id: 'flight', duration: Math.min(560, 260 + Math.hypot(dx, dy) * 0.25), easing: 'cubic-bezier(0.16, 1, 0.3, 1)' },
     );
+    flights.set(cardId, flight);
+    const done = () => {
+      if (flights.get(cardId) === flight) flights.delete(cardId);
+    };
+    flight.oncancel = done;
     flight.onfinish = () => {
+      done();
       const landed = measure(element, stage.element, stage.scale, rotation);
       if (landed) placements.set(cardId, landed);
     };

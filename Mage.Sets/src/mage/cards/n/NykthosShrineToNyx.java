@@ -110,6 +110,8 @@ class NykthosDynamicManaEffect extends ManaEffect {
             return mana;
         }
         ChoiceColor choice = new ChoiceColor();
+        // The output amount depends on the color; the unpaid cost alone can't choose it safely.
+        choice.setManaColorChoice(false);
         choice.setMessage("Choose a color for devotion of Nykthos");
         if (!controller.choose(outcome, choice, game)) {
             return mana;

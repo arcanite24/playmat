@@ -1,0 +1,22 @@
+# name: Train200 guild-ur-gowide-2
+# archetype: gowide
+# colors: UR
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Antagonize
+2 Ember Swallower
+3 Faerie Vandal
+3 Fanatical Firebrand
+2 Infuriate
+2 Krenko, Baron of Tin Street
+1 Larder Zombie
+3 Munitions Enthusiast
+4 Neonate's Rush
+3 Reckless Lackey
+4 Reservoir Kraken
+3 Spinneret and Spiderling
+3 Thoughtbound Phantasm
+3 Viashino Branchrider
+4 Island
+4 Molten Tributary
+10 Mountain
+4 TCRI Building

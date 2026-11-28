@@ -1,4 +1,5 @@
 import type { CardView, ChatMessage, GameView } from '../../protocol/generated/views';
+import { decodeEntities } from './entities';
 
 /**
  * The game log, from the server's chat stream. Game messages arrive as small HTML snippets: player names and card
@@ -45,20 +46,7 @@ export type LogRow =
 const CARD_COLORS = new Set(['#90ee90', '#ff6347', '#87cefa', '#696969', '#f0e68c', '#daa520', '#b0c4de']);
 const PLAYER_COLOR = '#20b2aa';
 
-const ENTITIES: Record<string, string> = {
-  nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", mdash: '—', ndash: '–', minus: '−', bull: '•',
-  hellip: '…', lsquo: "'", rsquo: "'", ldquo: '"', rdquo: '"', times: '×',
-};
-
-export function decodeEntities(text: string): string {
-  return text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (match, body: string) => {
-    if (body[0] === '#') {
-      const code = body[1] === 'x' || body[1] === 'X' ? parseInt(body.slice(2), 16) : Number(body.slice(1));
-      return Number.isFinite(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : match;
-    }
-    return ENTITIES[body.toLowerCase()] ?? match;
-  });
-}
+export { decodeEntities };
 
 function attribute(tag: string, name: string): string | null {
   const match = new RegExp(`\\b${name}\\s*=\\s*("([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i').exec(tag);
@@ -327,12 +315,12 @@ export function cardInk(color: string | null): CardInk | null {
 
 /**
  * A player dropping off or coming back, from the server's status lines in the game chat ("Bob has lost
- * connection", "Bob catch connection problems for 40 secs...", "Bob has joined"). Player views carry no
+ * connection", "Bob catch connection problems for 40 secs...", "Bob has joined", "Bob has reconnected"). Player views carry no
  * connection state, so these lines are the only word of it. Null for any other line.
  */
 export function presenceChange(text: string): { name: string; online: boolean } | null {
   const offline = /^(.+?) (?:has lost connection|catch connection problems\b|has left XMage|session expired|was disconnected)/.exec(text);
   if (offline) return { name: offline[1], online: false };
-  const online = /^(.+?) has joined$/.exec(text);
+  const online = /^(.+?) has (?:joined|reconnected)$/.exec(text);
   return online ? { name: online[1], online: true } : null;
 }

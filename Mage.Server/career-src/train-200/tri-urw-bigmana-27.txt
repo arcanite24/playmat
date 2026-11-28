@@ -1,0 +1,23 @@
+# name: Train200 tri-urw-bigmana-27
+# archetype: bigmana
+# colors: URW
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Adult Gold Dragon
+2 Cleaving Skyrider
+4 Enraged Giant
+2 Everquill Phoenix
+4 Hardened Academic
+4 Hungry Flames
+3 Inferno of the Star Mounts
+2 Loch Mare
+1 Magmatic Hellkite
+2 Piston-Fist Cyclops
+2 Refuse to Yield
+2 Shrapnel Blast
+3 Skyknight Legionnaire
+4 Iron Hills
+1 Island
+8 Mountain
+4 Plains
+4 Prismari Campus
+4 Sacred Peaks

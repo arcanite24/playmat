@@ -25,6 +25,8 @@ public class UserData implements Serializable {
     protected int autoTargetLevel;
     protected boolean useSameSettingsForReplacementEffects;
     protected boolean useFirstManaAbility = false;
+    /** the player opted in to games played by the Rust engine (Playmat; the server must allow it) */
+    protected boolean useRustEngine = false;
     private String userIdStr; // TODO: delete as un-used or use for hardware id instead?
     protected Map<UUID, Set<UUID>> requestedHandPlayersList; // game -> players list
 
@@ -97,6 +99,7 @@ public class UserData implements Serializable {
         this.passPriorityCast = userData.passPriorityCast;
         this.passPriorityActivation = userData.passPriorityActivation;
         this.autoOrderTrigger = userData.autoOrderTrigger;
+        this.useRustEngine = userData.useRustEngine;
         this.autoTargetLevel = userData.autoTargetLevel;
         this.useSameSettingsForReplacementEffects = userData.useSameSettingsForReplacementEffects;
         this.useFirstManaAbility = userData.useFirstManaAbility;
@@ -229,6 +232,14 @@ public class UserData implements Serializable {
 
     public void setPassPriorityActivation(boolean passPriorityActivation) {
         this.passPriorityActivation = passPriorityActivation;
+    }
+
+    public boolean isUseRustEngine() {
+        return useRustEngine;
+    }
+
+    public void setUseRustEngine(boolean useRustEngine) {
+        this.useRustEngine = useRustEngine;
     }
 
     public boolean isAutoOrderTrigger() {

@@ -131,4 +131,14 @@ describe('parseList: site exports', () => {
     expect(names(list.main)).toEqual(['Goblin Guide', 'Mountain']);
     expect(names(list.side)).toEqual(['Smash to Smithereens']);
   });
+
+  it('keeps an Arena export with Arena-only set codes and Alchemy names, and reports unreadable lines', () => {
+    const list = parseList('Deck\n4 Lightning Bolt (Y22) 12\n2 A-Alrund\'s Epiphany (Y22) 5\n20 Mountain (ANA) 22\n2x\n0 Island\n');
+    expect(list.main).toEqual([
+      { amount: 4, cardName: 'Lightning Bolt', setCode: 'Y22', cardNumber: '12' },
+      { amount: 2, cardName: "A-Alrund's Epiphany", setCode: 'Y22', cardNumber: '5' },
+      { amount: 20, cardName: 'Mountain', setCode: 'ANA', cardNumber: '22' },
+    ]);
+    expect(list.skipped).toEqual(['2x', '0 Island']);
+  });
 });

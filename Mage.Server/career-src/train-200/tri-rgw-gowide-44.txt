@@ -1,0 +1,23 @@
+# name: Train200 tri-rgw-gowide-44
+# archetype: gowide
+# colors: RGW
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Barge In
+2 Electrickery
+4 Ghitu Lavarunner
+4 Goldnight Castigator
+4 Keen-Eyed Curator
+3 Keeper of the Lens
+3 Nettle Sentinel
+2 Rampaging Geoderm
+4 Recruitment Officer
+4 Relentless Raptor
+2 Selesnya Charm
+2 Torch the Tower
+2 Wall of Swords
+4 Bajor
+3 Forest
+5 Mountain
+2 Plains
+4 Restless Prairie
+4 Sheltered Thicket

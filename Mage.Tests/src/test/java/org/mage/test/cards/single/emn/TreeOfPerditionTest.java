@@ -65,4 +65,31 @@ public class TreeOfPerditionTest extends CardTestPlayerBase {
         assertLife(playerB, 13);
         assertPowerToughness(playerA, "Tree of Perdition", 0, 20);
     }
+
+    /**
+     * Reported bug: https://github.com/arcanite24/playmat/issues/179
+     *      After the exchange the player's life went below zero and they didn't lose.
+     */
+    @Test
+    public void testPlayerStillLosesAtZeroLifeAfterExchange() {
+        addCard(Zone.BATTLEFIELD, playerA, "Tree of Perdition");
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 15);
+        addCard(Zone.HAND, playerA, "Lava Axe", 3); // {4}{R} sorcery - 5 damage to target player or planeswalker
+
+        activateAbility(1, PhaseStep.PRECOMBAT_MAIN, playerA, "{T}: Exchange", playerB);
+        // playerB goes from 20 to 13 life
+        waitStackResolved(1, PhaseStep.PRECOMBAT_MAIN, playerA);
+        castSpell(1, PhaseStep.PRECOMBAT_MAIN, playerA, "Lava Axe", playerB);
+        waitStackResolved(1, PhaseStep.PRECOMBAT_MAIN, playerA);
+        castSpell(1, PhaseStep.PRECOMBAT_MAIN, playerA, "Lava Axe", playerB);
+        waitStackResolved(1, PhaseStep.PRECOMBAT_MAIN, playerA);
+        castSpell(1, PhaseStep.PRECOMBAT_MAIN, playerA, "Lava Axe", playerB);
+
+        setStrictChooseMode(true);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+
+        assertLife(playerB, -2);
+        assertLostTheGame(playerB);
+    }
 }

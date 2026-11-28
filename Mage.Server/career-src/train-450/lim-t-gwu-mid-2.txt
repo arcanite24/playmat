@@ -1,0 +1,40 @@
+# name: Train450 lim-t-gwu-mid-2
+# archetype: limited_mid
+# colors: GWU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Ambuscade
+1 Archangel of Tithes
+2 Chief of the Foundry
+1 Cleaving Skyrider
+1 Coati Scavenger
+1 Dragon Sniper
+1 Gloom Stalker
+1 Green Dragon
+1 Harbin, Vanguard Aviator
+2 Heliod, the Radiant Dawn
+1 Huatli's Raptor
+2 Immolating Glare
+1 Jace's Sentinel
+1 Kellan, the Kid
+1 Proven Combatant
+1 Righteous Valkyrie
+2 River Hoopoe
+1 Sab-Sunen, Luxa Embodied
+1 Scrollshift
+1 Shredding Winds
+1 Sigarda, Font of Blessings
+1 Simic Charm
+1 Snapping Gnarlid
+1 Stormkeld Vanguard
+1 Swift Justice
+2 Syndicate Messenger
+2 Terrian, World Tyrant
+1 Thunderclap Wyvern
+1 Unnerving Grasp
+1 Urza's Command
+4 Etched Cornfield
+4 Forest
+4 Guadosalam, Farplane Gateway
+3 Island
+5 Plains
+4 Woodland Stream

@@ -1,0 +1,24 @@
+# name: Train200 tri-urw-control-17
+# archetype: control
+# colors: URW
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 An Offer You Can't Refuse
+3 Boros Charm
+2 Contradict
+2 Crib Swap
+3 Dissolve
+2 Duty Beyond Death
+2 Flick a Coin
+3 Ice Magic
+2 Just the Wind
+2 Magmaroth
+2 Phantom Interference
+2 Rally the Ancestors
+2 Thassa, God of the Sea
+4 Whirlwing Stormbrood
+4 Adarkar Wastes
+8 Island
+3 Mountain
+3 Plains
+4 Seachrome Coast
+4 Thundering Falls

@@ -15,6 +15,7 @@ import mage.filter.predicate.card.CardTextPredicate;
 import mage.view.CardView;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -35,6 +36,8 @@ public final class CardSearchService {
     }
 
     public List<CardView> search(CardCriteria criteria, WebCardFilters web) {
+        // the same query pages the same way, and Rust's catalog (CatalogExport) gives the same order
+        criteria.stableOrder();
         Set<Character> identity = web == null || web.getColorIdentity() == null ? null : identityOf(web.getColorIdentity());
         long start = criteria.getStart() == null ? 0L : Math.max(0L, criteria.getStart());
         long count = criteria.getCount() == null ? DEFAULT_PAGE_SIZE : Math.max(0L, Math.min(MAX_PAGE_SIZE, criteria.getCount()));
@@ -53,9 +56,17 @@ public final class CardSearchService {
         if (criteria.getFormat() != null && !criteria.getFormat().isEmpty()) {
             DeckValidator validator = DeckValidatorFactory.instance.createDeckValidator(criteria.getFormat());
             if (validator instanceof Constructed) {
-                List<String> setCodes = ((Constructed) validator).getSetCodes();
-                if (setCodes != null && !setCodes.isEmpty()) {
-                    criteria.setCodes(setCodes);
+                List<String> formatSetCodes = ((Constructed) validator).getSetCodes();
+                if (formatSetCodes != null && !formatSetCodes.isEmpty()) {
+                    if (criteria.getSetCodes().isEmpty()) {
+                        criteria.setCodes(formatSetCodes);
+                    } else {
+                        Set<String> allowed = new HashSet<>(formatSetCodes);
+                        criteria.getSetCodes().retainAll(allowed);
+                        if (criteria.getSetCodes().isEmpty()) {
+                            return Collections.emptyList();
+                        }
+                    }
                 }
             }
         }

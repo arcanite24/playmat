@@ -1,6 +1,6 @@
 package mage.server.websocket.rpc;
 
-import org.jboss.remoting.callback.InvokerCallbackHandler;
+import mage.server.ClientChannel;
 
 import java.util.Collections;
 import java.util.List;
@@ -30,6 +30,14 @@ public interface RpcConnection {
     }
 
     /**
+     * @return the user the single sign-on proxy in front named in this connection's handshake (see
+     * {@code TrustedHeaderAuth}), or null when it named nobody or the server has no single sign-on
+     */
+    default String getSignedOnUser() {
+        return null;
+    }
+
+    /**
      * @return remote IP address, used by the server to identify anonymous users on reconnect
      */
     String getRemoteHost();
@@ -37,7 +45,7 @@ public interface RpcConnection {
     /**
      * @return a callback handler that pushes server events to this connection
      */
-    InvokerCallbackHandler createCallbackHandler();
+    ClientChannel createChannel();
 
     /**
      * The player answered the open question of a game (see {@link #resendPrompt}).

@@ -12,6 +12,7 @@ import { CardFace } from '../ui/CardFace';
 import { useCardStyle } from '../ui/cardStyles';
 import { ManaCost } from '../ui/ManaCost';
 import { PromptText } from '../ui/PromptText';
+import { TermText } from '../ui/TermText';
 import { useMatchUi } from './matchUi';
 import { useStage } from './stageContext';
 import { useLongPress } from './useLongPress';
@@ -256,7 +257,7 @@ export function CardDetail({ view, extra, sleeveOf, attacking, blocking }: {
                   {explanation.lines.map((line, index) => (
                     <li key={index} className={styles.line}>
                       <span className={styles.kind}>{LINE_KIND_LABEL[line.kind]}</span>
-                      <span className={styles.lineText}><PromptText text={stripMarkup(line.text)} /></span>
+                      <span className={styles.lineText}><TermText text={stripMarkup(line.text)} card={card} /></span>
                     </li>
                   ))}
                 </ol>

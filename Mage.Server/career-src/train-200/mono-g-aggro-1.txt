@@ -1,0 +1,18 @@
+# name: Train200 mono-g-aggro-1
+# archetype: aggro
+# colors: G
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Appetite for the Unnatural
+1 Bull's Strength
+4 Canopy Spider
+4 Consuming Sinkhole
+3 Drowsing Tyrannodon
+4 Jaspera Sentinel
+3 Moss Viper
+2 Nylea, God of the Hunt
+2 Reality Hemorrhage
+2 Ruthless Predation
+3 Stampeding Scurryfoot
+4 Swift Warden
+3 Teething Wurmlet
+21 Forest

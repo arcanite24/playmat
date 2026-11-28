@@ -76,6 +76,9 @@ class RelicOfProgenitusEffect extends OneShotEffect {
             FilterCard filter = new FilterCard("card from your graveyard");
             filter.add(new OwnerIdPredicate(targetPlayer.getId()));
             TargetCardInGraveyard target = new TargetCardInGraveyard(filter);
+            if (!target.canChoose(targetPlayer.getId(), source, game)) {
+                return true;
+            }
             if (targetPlayer.chooseTarget(Outcome.Exile, target, source, game)) {
                 Card card = game.getCard(target.getFirstTarget());
                 if (card != null) {

@@ -27,6 +27,8 @@
           <li><a href="../#download">Download</a></li>
           <li><a href="../#host">Run a server</a></li>
           <li><a href="./" aria-current="true">Docs</a></li>
+          <li><a href="../rust/">Rust port</a></li>
+          <li><a href="../benchmarks/">Benchmarks</a></li>
           <li><a href="https://github.com/arcanite24/playmat">GitHub</a></li>
         </ul>
       </nav>
@@ -42,7 +44,10 @@
           <li><a href="server.html">Run a server</a></li>
           <li><a href="updates.html">Updating</a></li>
           <li><a href="admin.html">Staff and the admin console</a></li>
+          <li><a href="sso.html">Single sign-on</a></li>
           <li><a href="capsules.html" aria-current="page">Capsule machines</a></li>
+          <li><a href="ladder.html">Ranked and bots</a></li>
+          <li><a href="swarm.html">Self-play swarm</a></li>
         </ul>
       </nav>
       <article class="doc">
@@ -68,17 +73,20 @@
 
         <h2 id="add">Add a machine</h2>
         <ol>
-          <li>Write <code>career/machines/&lt;id&gt;.json</code> like <code>full-art.json</code>. Each set needs an id, English and Spanish names, a capsule colour, a style line for the painter, and five items. Item ids are <code>&lt;set&gt;-&lt;slug&gt;</code>, each naming a real single-faced card, and no card appears twice.</li>
-          <li>Add it to <code>career/machines/index.json</code> with the next wave number.</li>
+          <li>Write <code>career/machines/&lt;id&gt;.json</code> like <code>full-art.json</code>. Each set needs an id, English and Spanish names, a capsule colour, a style line for the painter, and five items. Item ids are <code>&lt;set&gt;-&lt;slug&gt;</code>, each naming a real single-faced card, unique within its set (different sets or machines can offer alternate styles for the same card).</li>
+          <li>Add it to <code>career/machines/index.json</code> with the next wave number once its art is painted.</li>
           <li>Pick two to four real Magic paintings per set that show the look you want, and list them in <code>art/style-refs.json</code> as <code>&lt;set code&gt;/&lt;collector number&gt;</code>. They guide the medium and finish only. They're downloaded into a git-ignored folder and never ship.</li>
-          <li>Paint it, from <code>Mage.Web.Client</code>, with <code>WAVESPEED_API_KEY</code> set:</li>
+          <li>Paint it, from <code>Mage.Web.Client</code>, with Nano Banana 2.1 via <code>gemini-api</code> CLI (default) or WaveSpeed (<code>WAVESPEED_API_KEY</code>):</li>
         </ol>
         <div class="terminal" role="region" aria-label="Commands to paint a machine">
-<pre><code>node art/machine-specs.mjs &lt;id&gt;
-node art/wavespeed.mjs style-&lt;set&gt;</code></pre>
+<pre><code>node art/paint-machine.mjs &lt;id&gt; --backend gemini
+# or one set at a time:
+node art/machine-specs.mjs &lt;id&gt;
+node art/wavespeed.mjs style-&lt;set&gt; --backend gemini</code></pre>
         </div>
-        <p>The first command writes one spec per set. The second draws the set's five cards and its sleeve with Nano Banana, one picture each, at about $0.05 a picture. The set's first card goes in as a reference for the rest, so the set stays consistent. Run it once per set, look at the results, and redraw any picture with <code>--only &lt;id&gt; --force</code>.</p>
+        <p>The first command writes one spec per set, paints all ten sets and their sleeves with Nano Banana 2.1 (<code>gemini-nano-banana-2.1</code>), and paints the cabinet parts. The set's first card goes in as a reference for the rest, so the set stays consistent. Look at the results, and redraw any picture with <code>--only &lt;id&gt; --force</code>.</p>
         <ol start="5">
+          <li>Paint its cabinet: <code>node art/cabinet.mjs &lt;id&gt;</code> draws the machine (in its <code>cabinet</code> colours, with an empty globe), its crank wheel and a capsule on magenta. Cut the ones you like with <code>python3 art/cabinet_cut.py</code>, then add the globe, crank, slot and chute positions to <code>CABINETS</code> in <code>cabinetArt.ts</code>. A machine without a painted cabinet still works: the shop draws a plain one.</li>
           <li>Run <code>CareerCapsulesTest</code>. It fails on a missing picture, a card that doesn't exist, a repeated card or a reward that isn't in the cosmetics catalog.</li>
         </ol>
         <p class="note">Machine content ships with the server build, so a new machine reaches players with the next update.

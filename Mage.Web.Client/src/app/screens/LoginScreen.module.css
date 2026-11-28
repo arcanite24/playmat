@@ -387,8 +387,27 @@
   color: var(--oxblood-ink);
 }
 
-.submit {
+/* a long label ("Sign in with Pocket ID", or a longer selfhosted provider name) must not spill
+   out of the button: the label wraps to a second line and the button grows with it. A label that
+   fits (the usual case) is unchanged - one line, the xl height. The .seat prefix raises the
+   specificity over the button's own height and padding */
+.seat .submit {
   margin-top: var(--space-2);
+  height: auto;
+  min-height: var(--btn-h);
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.seat .submit span {
+  white-space: normal;
+  text-align: center;
+}
+
+/* the sentence on the provider-only decision button reads at the house tracking (the xl's
+   wide print tracking is for short words) */
+.seat .tight span {
+  letter-spacing: var(--tracking-print);
 }
 
 /* --- the deck by the seat ------------------------------------------------------ */

@@ -1,0 +1,21 @@
+# name: Train200 guild-gw-bigmana-7
+# archetype: bigmana
+# colors: GW
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Attuned Hunter
+4 Colossal Rattlewurm
+2 Demystify
+3 Hinterland Sanctifier
+2 Lady of Laughter
+3 Oviya Pashiri, Sage Lifecrafter
+2 Setessan Tactics
+1 Shredding Winds
+3 Spectacular Tactics
+2 Spring-Leaf Avenger
+3 Tyrranax Atrocity
+4 Vorinclex, Monstrous Raider
+3 Wojek Investigator
+4 Blossoming Sands
+11 Forest
+6 Plains
+4 Radiant Grove

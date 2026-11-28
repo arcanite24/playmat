@@ -1,0 +1,23 @@
+# name: Train200 tri-wbg-gowide-46
+# archetype: gowide
+# colors: WBG
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Bayou Groff
+3 Erebos, God of the Dead
+1 Eye Collector
+3 Giada, Font of Hope
+3 Mistbreath Elder
+3 Silverbeak Griffin
+1 Swift Justice
+3 Take Heart
+4 Tangled Colony
+4 Three Tree Scribe
+4 Ulcerate
+3 Vengeful Reaper
+2 Void Grafter
+3 Forest
+4 Forsaken Sanctuary
+4 Grove of the Guardian
+3 Plains
+4 Suburban Sanctuary
+4 Swamp

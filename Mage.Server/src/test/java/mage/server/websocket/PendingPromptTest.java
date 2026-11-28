@@ -4,7 +4,6 @@ import mage.interfaces.callback.ClientCallback;
 import mage.interfaces.callback.ClientCallbackMethod;
 import mage.view.GameClientMessage;
 import org.java_websocket.WebSocket;
-import org.jboss.remoting.callback.Callback;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -43,7 +42,7 @@ public class PendingPromptTest {
     }
 
     private void push(ClientCallbackMethod method, String message) throws Exception {
-        handler.handleCallback(new Callback(new ClientCallback(method, gameId, new GameClientMessage(null, new HashMap<>(), message))));
+        handler.send(new ClientCallback(method, gameId, new GameClientMessage(null, new HashMap<>(), message)));
     }
 
     @Test

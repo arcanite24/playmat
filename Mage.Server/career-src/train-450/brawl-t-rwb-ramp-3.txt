@@ -1,0 +1,54 @@
+# name: Train450 brawl-t-rwb-ramp-3
+# archetype: brawl_ramp
+# colors: RWB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Adaptive Gemguard
+1 Akiri, Fearless Voyager
+1 Ancestor Dragon
+1 Asphyxiate
+1 Bellowing Bruiser
+1 Birthing Hulk
+1 Callous Sell-Sword
+1 Carnival Hellsteed
+1 Celestial Archon
+1 Corrupted Conviction
+1 Demon of Loathing
+1 Dropkick Bomber
+1 Explosive Derailment
+1 Exultant Skymarcher
+1 Geist of the Lonely Vigil
+1 Go for Blood
+1 Incinerator of the Guilty
+1 Join the Dead
+1 Kroxa, Titan of Death's Hunger
+1 Lavabrink Venturer
+1 Legion Guildmage
+1 Loyal Warhound
+1 Mayhem Devil
+1 Rage into the Valley
+1 Ready to Rumble
+1 Repurposed Enforcer
+1 Riot Control
+1 Rumbling Ruin
+1 Syphon Sliver
+1 Tazri, Beacon of Unity
+1 Thorin, Mountain-king
+1 Tome Shredder
+1 Tragedy Feaster
+1 Twinmaw Stormbrood
+1 Venerable Lammasu
+1 Blackcleave Cliffs
+1 Bloodfell Caves
+1 Boiling Rock Prison
+1 Concealed Courtyard
+1 Forsaken Sanctuary
+1 Furycalm Snarl
+5 Mountain
+5 Plains
+1 Shadowy Backstreet
+1 Shambling Vent
+1 Shineshadow Snarl
+1 Sunlit Marsh
+3 Swamp
+1 Temple of Malice
+1 Wind-Scarred Crag

@@ -1,0 +1,22 @@
+# name: Train450 guild-gw-aggro-1
+# archetype: aggro
+# colors: GW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Barrier Breach
+3 Bristlebane Battler
+3 Consuming Sinkhole
+2 Dawn's Light Archer
+3 Edge Rover
+4 Exemplar of Strength
+2 Herald of Anafenza
+4 Jolly Gerbils
+3 Lightshield Parry
+4 Pugnacious Hammerskull
+1 Reality Hemorrhage
+2 Set Phasers to . . .
+4 Slumbering Trudge
+2 Touch of the Void
+9 Forest
+4 Plains
+4 Temple Garden
+4 Vigorbloom Annex

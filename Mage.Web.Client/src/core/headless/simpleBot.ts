@@ -35,6 +35,8 @@ export function chooseBotCommand(
     }
     case 'declareBlockers':
       return { type: 'boolean', value: true }; // no blocks
+    case 'assignDamage':
+      return interaction.mainButton?.command ?? null; // the lethal-first split, as the app's auto-assign sends
     case 'target':
     case 'pickCards': {
       if (prompt.kind !== 'target') return null;
@@ -45,7 +47,8 @@ export function chooseBotCommand(
       if (interaction.selected.size === 0 && (opponentTarget || unchosen)) {
         return { type: 'uuid', id: opponentTarget ?? unchosen! };
       }
-      return interaction.mainButton?.command ?? (unchosen ? { type: 'uuid', id: unchosen } : null);
+      // nothing left to choose (an optional target with no legal one): the app's Cancel
+      return interaction.mainButton?.command ?? (unchosen ? { type: 'uuid', id: unchosen } : interaction.secondaryButtons[0]?.command ?? null);
     }
     case 'payMana': {
       // skip sources that already failed to pay this cost (the server can list a source it then ignores)
@@ -64,6 +67,8 @@ export function chooseBotCommand(
           return prompt.choices[0] ? { type: 'uuid', id: prompt.choices[0].id } : null;
         case 'choosePile':
           return { type: 'boolean', value: true };
+        case 'ask': // which dungeon room next: the first
+          return { type: 'boolean', value: true };
         case 'chooseChoice': {
           const key = Object.keys(prompt.choice.keyChoices ?? {})[0];
           const value = prompt.choice.choices?.[0];
@@ -72,7 +77,7 @@ export function chooseBotCommand(
         case 'amount':
           return { type: 'integer', value: prompt.min };
         case 'multiAmount':
-          return { type: 'string', value: prompt.items.map((item) => String(item.min ?? 0)).join(' ') };
+          return { type: 'string', value: prompt.items.map((item) => String(item.defaultValue ?? item.min ?? 0)).join(' ') };
         default:
           return null;
       }

@@ -48,12 +48,26 @@ export function registerMessages(messages: Messages): void {
   Object.assign(english, messages);
 }
 
+// Intl formatters are costly to build (tens of microseconds, more on a first use): one per locale and options, kept
+const formatters = new Map<string, Intl.NumberFormat | Intl.DateTimeFormat>();
+
+function formatter<T extends Intl.NumberFormat | Intl.DateTimeFormat>(kind: 'number' | 'date', options: object | undefined, make: (locale: Locale) => T): T {
+  const locale = useI18n.getState().locale;
+  const key = `${kind}|${locale}|${options ? JSON.stringify(options) : ''}`;
+  let found = formatters.get(key) as T | undefined;
+  if (!found) {
+    found = make(locale);
+    formatters.set(key, found);
+  }
+  return found;
+}
+
 export function formatNumber(value: number, options?: Intl.NumberFormatOptions): string {
-  return new Intl.NumberFormat(useI18n.getState().locale, options).format(value);
+  return formatter('number', options, (locale) => new Intl.NumberFormat(locale, options)).format(value);
 }
 
 export function formatDate(value: Date | number, options?: Intl.DateTimeFormatOptions): string {
-  return new Intl.DateTimeFormat(useI18n.getState().locale, options).format(value);
+  return formatter('date', options, (locale) => new Intl.DateTimeFormat(locale, options)).format(value);
 }
 
 function browserLanguages(): readonly string[] {

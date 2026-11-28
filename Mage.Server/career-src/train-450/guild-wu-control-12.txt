@@ -1,0 +1,23 @@
+# name: Train450 guild-wu-control-12
+# archetype: control
+# colors: WU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Ancestor Dragon
+1 Artificer's Dragon
+3 Blazing Hope
+2 Deicide
+2 Divert Disaster
+2 Force of Negation
+4 Keep Safe
+1 Long River's Pull
+3 No Escape
+3 Reservoir Kraken
+1 Scale Blessing
+3 Shatter the Sky
+3 Stone by Sunlight
+1 Thassa, God of the Sea
+2 Unsubstantiate
+10 Island
+4 Meandering River
+8 Plains
+4 Seachrome Coast

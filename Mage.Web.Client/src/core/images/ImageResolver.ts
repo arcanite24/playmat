@@ -1,6 +1,7 @@
 import {
   exceptionLink,
   isTokenImage,
+  XMAGE_TOKENS_SET_CODE,
   namedImageLink,
   printingKey,
   setCodeOf,
@@ -85,6 +86,8 @@ export class ImageResolver {
   private draining = false;
   private lastRequestAt = 0;
   private version = 0;
+  /** Settles once the stored links are in memory (at once without a store): see {@link hydrate}. */
+  readonly ready: Promise<void>;
 
   constructor(options: ImageResolverOptions = {}) {
     this.options = {
@@ -98,17 +101,17 @@ export class ImageResolver {
       now: options.now ?? (() => Date.now()),
       imageProxy: 'imageProxy' in options ? options.imageProxy : configuredImageProxy(),
     };
-    this.hydrate();
+    this.ready = this.hydrate();
   }
 
   /**
    * Reads every stored link into memory once. Until then each printing is read from the store on its own, which takes
    * a turn of the event loop: long enough for a card to show its text frame before its picture.
    */
-  private hydrate(): void {
+  private hydrate(): Promise<void> {
     const all = this.options.store?.getAll?.();
-    if (!all) return;
-    all.then((entries) => {
+    if (!all) return Promise.resolve();
+    return all.then((entries) => {
       const keys: string[] = [];
       for (const [key, entry] of entries) {
         if (this.memory.has(key) || this.isStale(entry)) continue;
@@ -194,6 +197,25 @@ export class ImageResolver {
 
     this.request(key, setCodeOf(card), normalizeCollectorNumber(card.cardNumber));
     return null;
+  }
+
+  /**
+   * The token lists' pictures (token art choices, #226): with a name, that token's pictures as the lists key them
+   * ("SET/Name" or "SET/Name/number"); without, every token name. Null until the lists have loaded (subscribeKey(null)
+   * hears when they do). XMage's own pictures (face down, copy...) are left out.
+   */
+  /** Whether the exported link lists have loaded (asks for them when not). */
+  linksLoaded(): boolean {
+    this.ensureLinks();
+    return this.links !== null;
+  }
+
+  tokenPictures(name?: string): string[] | null {
+    this.ensureLinks();
+    if (!this.links) return null;
+    const keys = Object.keys(this.links.tokens).filter((key) => !key.toUpperCase().startsWith(`${XMAGE_TOKENS_SET_CODE}/`));
+    if (name === undefined) return [...new Set(keys.map((key) => key.split('/')[1]))].sort((a, b) => a.localeCompare(b));
+    return keys.filter((key) => key.split('/')[1] === name).sort();
   }
 
   /** Look up many cards ahead of time (deck lists, a new board). */
@@ -299,7 +321,18 @@ export class ImageResolver {
       return;
     }
 
-    const body = await response.json() as { data?: ScryfallCard[] };
+    let body: { data?: ScryfallCard[] };
+    try {
+      const parsed = await response.json();
+      if (!parsed || typeof parsed !== 'object') {
+        this.giveUp(batch);
+        return;
+      }
+      body = parsed as { data?: ScryfallCard[] };
+    } catch {
+      this.giveUp(batch);
+      return;
+    }
     const now = this.options.now();
     const found = new Map<string, PrintingImages>();
     for (const card of body.data ?? []) {

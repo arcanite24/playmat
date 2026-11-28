@@ -8,16 +8,21 @@ import com.j256.ormlite.stmt.QueryBuilder;
 import com.j256.ormlite.stmt.SelectArg;
 import com.j256.ormlite.stmt.Where;
 import com.j256.ormlite.support.ConnectionSource;
+import com.j256.ormlite.support.DatabaseConnection;
 import com.j256.ormlite.table.TableUtils;
 import org.apache.log4j.Logger;
 
 import java.io.File;
 import java.security.SecureRandom;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -45,6 +50,7 @@ public final class AdminStore {
     private final Dao<Invite, String> invites;
     private final Dao<AccessRequest, Long> requests;
     private final Dao<GithubLink, Long> githubLinks;
+    private final Dao<OidcLink, String> oidcLinks;
     private final Dao<StaffMember, String> staff;
     private final Dao<FeedbackEntry, Long> feedback;
     private final Dao<ClientErrorGroup, Long> clientErrors;
@@ -58,6 +64,8 @@ public final class AdminStore {
         TableUtils.createTableIfNotExists(source, Invite.class);
         TableUtils.createTableIfNotExists(source, AccessRequest.class);
         TableUtils.createTableIfNotExists(source, GithubLink.class);
+        TableUtils.createTableIfNotExists(source, OidcLink.class);
+        addOidcLinkTokenColumns(source);
         TableUtils.createTableIfNotExists(source, StaffMember.class);
         TableUtils.createTableIfNotExists(source, FeedbackEntry.class);
         TableUtils.createTableIfNotExists(source, ClientErrorGroup.class);
@@ -68,10 +76,40 @@ public final class AdminStore {
         invites = DaoManager.createDao(source, Invite.class);
         requests = DaoManager.createDao(source, AccessRequest.class);
         githubLinks = DaoManager.createDao(source, GithubLink.class);
+        oidcLinks = DaoManager.createDao(source, OidcLink.class);
         staff = DaoManager.createDao(source, StaffMember.class);
         feedback = DaoManager.createDao(source, FeedbackEntry.class);
         clientErrors = DaoManager.createDao(source, ClientErrorGroup.class);
         accountEmails = DaoManager.createDao(source, AccountEmail.class);
+    }
+
+    /**
+     * A link table written before the ID token columns existed keeps its shape - createTableIfNotExists does not
+     * extend an existing table: add the missing columns so a link can keep its last verified token.
+     */
+    private static void addOidcLinkTokenColumns(ConnectionSource source) throws SQLException {
+        DatabaseConnection connection = source.getReadWriteConnection("oidc_link");
+        try {
+            java.sql.Connection jdbc = connection.getUnderlyingConnection();
+            Set<String> columns = new HashSet<>();
+            try (ResultSet existing = jdbc.getMetaData().getColumns(null, null, "oidc_link", null)) {
+                while (existing.next()) {
+                    columns.add(existing.getString("COLUMN_NAME").toLowerCase(Locale.ROOT));
+                }
+            }
+            if (!columns.contains("lasttoken")) {
+                try (Statement statement = jdbc.createStatement()) {
+                    statement.execute("ALTER TABLE oidc_link ADD COLUMN lastToken TEXT");
+                }
+            }
+            if (!columns.contains("lasttokenexp")) {
+                try (Statement statement = jdbc.createStatement()) {
+                    statement.execute("ALTER TABLE oidc_link ADD COLUMN lastTokenExp INTEGER");
+                }
+            }
+        } finally {
+            source.releaseConnection(connection);
+        }
     }
 
     public static AdminStore get() {
@@ -311,7 +349,7 @@ public final class AdminStore {
 
     /**
      * Everything this store keeps about an account, gone: its allowlist entries by name, staff role, GitHub link,
-     * feedback and verified email. The audit log stays: it is the record of what staff did.
+     * identity-provider link, feedback and verified email. The audit log stays: it is the record of what staff did.
      */
     public synchronized void forgetAccount(String userName) throws SQLException {
         String key = userName.trim().toLowerCase(Locale.ROOT);
@@ -322,6 +360,9 @@ public final class AdminStore {
         DeleteBuilder<GithubLink, Long> links = githubLinks.deleteBuilder();
         links.where().eq("account", new SelectArg(userName.trim()));
         links.delete();
+        DeleteBuilder<OidcLink, String> oidcLinks = this.oidcLinks.deleteBuilder();
+        oidcLinks.where().eq("account", new SelectArg(userName.trim()));
+        oidcLinks.delete();
         DeleteBuilder<FeedbackEntry, Long> sent = feedback.deleteBuilder();
         sent.where().eq("userName", new SelectArg(userName.trim()));
         sent.delete();
@@ -590,6 +631,45 @@ public final class AdminStore {
         link.linkedAt = now;
         githubLinks.createOrUpdate(link);
         return link;
+    }
+
+    // --- identity-provider sign-in ---------------------------------------------------------------
+
+    public synchronized OidcLink oidcLink(String sub) throws SQLException {
+        if (sub == null || sub.isEmpty()) {
+            return null;
+        }
+        return oidcLinks.queryForId(sub);
+    }
+
+    public synchronized OidcLink oidcLinkOf(String account) throws SQLException {
+        if (isBlank(account)) {
+            return null;
+        }
+        List<OidcLink> links = oidcLinks.queryBuilder().where().eq("account", new SelectArg(account.trim())).query();
+        return links.isEmpty() ? null : links.get(0);
+    }
+
+    public synchronized OidcLink linkOidc(String sub, String displayName, String email, String account, long now) throws SQLException {
+        OidcLink link = new OidcLink();
+        link.sub = sub;
+        link.displayName = displayName;
+        link.email = email;
+        link.account = account;
+        link.linkedAt = now;
+        oidcLinks.createOrUpdate(link);
+        return link;
+    }
+
+    /**
+     * The account's last verified ID token, as the end-session's id_token_hint for sign-outs from sessions that
+     * hold no token of their own (a reload, a remembered device, a restored session). Refreshed at every
+     * provider sign-in; it expires with the token, and an expired or already-revoked hint ends nothing.
+     */
+    public synchronized void rememberOidcToken(OidcLink link, String raw, long exp) throws SQLException {
+        link.lastToken = raw;
+        link.lastTokenExp = exp;
+        oidcLinks.createOrUpdate(link);
     }
 
     // --- helpers ----------------------------------------------------------------------------------

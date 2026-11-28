@@ -1,0 +1,4 @@
+# Mana@Home pins a suite by its suite.json (playmat_swarm_proto::suite_sha256 reads CRLF as LF anyway); the
+# suites and decks stay LF on every checkout
+archbench/** text eol=lf
+Mage.Server/career-src/** text eol=lf

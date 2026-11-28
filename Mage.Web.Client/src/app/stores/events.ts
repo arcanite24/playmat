@@ -3,6 +3,8 @@ import type { DeckView, DraftPickView, DraftView, SimpleCardView, TournamentView
 import { api, events } from '../connection';
 import { attention } from './attention';
 import { notify } from './toasts';
+import { warmDeck } from '../ui/imageCache';
+import { joinWithRetry } from '../../core/events/joinRetry';
 
 /**
  * Drafts, deck construction and tournaments the server has put the player in. The server drives every step
@@ -97,6 +99,8 @@ export const useEvents = create<EventsState>((set, get) => ({
     if (!construct) return false;
     try {
       // a refused deck comes back false; the server explains why in a user message
+      // the built deck's pictures download while the other players finish building
+      warmDeck(deck);
       if (!await api.submitDeck(construct.tableId, deck)) return false;
       set({ construct: { ...construct, submitted: true } });
       return true;
@@ -131,7 +135,7 @@ events.on('START_DRAFT', (message, event) => {
   if (!draftId) return;
   updateDraft(draftId, { tableId: message?.currentTableId ?? null, over: false });
   useEvents.setState({ redirect: `/draft/${draftId}` });
-  api.draftJoin(draftId).catch((error) => notify("Couldn't open the draft", String(error?.message ?? error), 'error'));
+  joinWithRetry(() => api.draftJoin(draftId)).catch((error) => notify("Couldn't open the draft", String(error?.message ?? error), 'error'));
 });
 
 for (const method of ['DRAFT_INIT', 'DRAFT_PICK'] as const) {
@@ -142,7 +146,7 @@ for (const method of ['DRAFT_INIT', 'DRAFT_PICK'] as const) {
     if (message?.draftPickView) {
       applyPickView(draftId, message.draftPickView);
       if (method === 'DRAFT_PICK' && message.draftPickView.picking) {
-        attention('Your draft pick', 'A new pack is waiting for you.', { tag: 'draft' });
+        attention('Your draft pick', 'A new pack is waiting for you.', { kind: 'draft', tag: 'draft' });
       }
     }
     // the server waits for the client to show the booster before the pick clock runs
@@ -186,7 +190,7 @@ function openTournament(tournamentId: string, tableId: string | null) {
     currentTournamentId: tournamentId,
     redirect: `/event/${tournamentId}`,
   }));
-  api.tournamentJoin(tournamentId).catch(() => undefined);
+  joinWithRetry(() => api.tournamentJoin(tournamentId)).catch(() => undefined);
 }
 
 events.on('START_TOURNAMENT', (message, event) => {

@@ -1,0 +1,24 @@
+# name: Train450 tri-gur-gowide-8
+# archetype: gowide
+# colors: GUR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Bestow Greatness
+2 Icecave Crasher
+2 Iron Lad, Diverging Destiny
+4 Piggy Bank
+2 Riveteers Requisitioner
+2 Sarkhan, Dragon Ascendant
+2 Scorpion Sentinel
+4 Stingcaster Mage
+1 Subira, Tulzidi Caravanner
+3 The Wondrous Wasp
+3 Thoughtbound Phantasm
+3 Thunderous Snapper
+2 Triskaidekaphile
+4 Voyage's End
+2 Forest
+4 Innovative Commons
+5 Island
+4 Lakeside Shack
+3 Mountain
+4 Rockfall Vale

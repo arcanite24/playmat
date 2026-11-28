@@ -21,6 +21,8 @@ interface Entry extends Term {
   strict?: boolean;
   /** overrides the name-and-forms match */
   match?: RegExp;
+  /** the counter this explains ("stun"): also listed for a permanent that has one, whatever its text says */
+  counter?: string;
 }
 
 const KEYWORDS: Entry[] = [
@@ -111,8 +113,10 @@ const KEYWORDS: Entry[] = [
   { name: 'Miracle', text: 'If it is the first card you drew this turn, you may reveal it and cast it for its miracle cost.' },
   { name: 'Foretell', text: 'During your turn, pay {2} to exile it face down; cast it on a later turn for its foretell cost.' },
   { name: 'Plot', text: 'Pay the plot cost to exile it; on a later turn you may cast it for free as a sorcery.' },
+  // Duskmourn
+  { name: 'Impending', text: "You may cast it for its impending cost instead. Then it enters with that many time counters and isn't a creature while it has any. At the beginning of your end step, remove one of them." },
   { name: 'Suspend', text: 'Pay the suspend cost to exile it with time counters. At your upkeep remove one; when the last is removed, cast it for free.' },
-  { name: 'Cycling', text: 'Pay the cycling cost and discard it: draw a card.', forms: ['cycle', 'cycles', 'cycled', 'landcycling', 'basic landcycling'] },
+  { name: 'Cycling', text: 'Pay the cycling cost and discard it: draw a card.', forms: ['cycle', 'cycles', 'cycled', 'landcycling', 'basic landcycling', 'plainscycling', 'islandcycling', 'swampcycling', 'mountaincycling', 'forestcycling'] },
   { name: 'Channel', text: 'Pay the cost and discard it from your hand for the stated effect.', strict: true },
   { name: 'Convoke', text: 'Each creature you tap while casting it pays for {1} or one mana of that creature\'s color.' },
   { name: 'Delve', text: 'Each card you exile from your graveyard while casting it pays for {1}.' },
@@ -142,8 +146,8 @@ const KEYWORDS: Entry[] = [
   { name: 'Saddle', text: 'Tap creatures with that much total power: it becomes saddled until end of turn. Only as a sorcery.' },
   { name: 'Enchant', text: 'An Aura can be attached only to the stated kind of object.' },
   { name: 'Fortify', text: 'Pay the cost: attach this Fortification to target land you control. Only as a sorcery.' },
-  { name: 'Daybound', text: 'If a player casts no spells during their own turn, it becomes night next turn and this transforms.' },
-  { name: 'Nightbound', text: 'If a player casts two or more spells during a turn, it becomes day next turn and this transforms.' },
+  { name: 'Daybound', text: "If it's neither day nor night, it becomes day as this enters. If it's day and the active player casts no spells during their own turn, it becomes night next turn and this transforms." },
+  { name: 'Nightbound', text: "If it's night and the active player casts two or more spells during their own turn, it becomes day next turn and this transforms." },
   { name: 'Mobilize', text: 'Whenever it attacks, create that many tapped and attacking 1/1 red Warrior tokens; sacrifice them at the next end step.' },
 ];
 
@@ -161,8 +165,20 @@ const ACTIONS: Entry[] = [
   { name: 'Adapt', text: 'If it has no +1/+1 counters, put that many +1/+1 counters on it.', forms: ['adapts'] },
   { name: 'Monstrosity', text: 'If it isn\'t monstrous, put that many +1/+1 counters on it and it becomes monstrous.', forms: ['monstrous'] },
   { name: 'Transform', text: 'Turn a double-faced card over to its other face.', forms: ['transforms', 'transformed'] },
+  {
+    name: 'Day and Night',
+    text: "Checked as each turn begins: if it's day and the active player cast no spells during their own turn, it becomes night; if it's night and the active player cast two or more spells during their own turn, it becomes day.",
+    match: /\b(?:becomes day|becomes night|neither day nor night|it's day|it's night)\b/i,
+  },
   { name: 'Discover', text: 'Exile cards from the top of your library until you hit a nonland card with that mana value or less; cast it for free or put it in your hand.', forms: ['discovers'] },
-  { name: 'Manifest', text: 'Put the card onto the battlefield face down as a 2/2 creature; if it is a creature card you may turn it face up for its mana cost.', forms: ['manifests'] },
+  // before Manifest, which must not claim "manifest dread"
+  { name: 'Manifest dread', text: 'Look at the top two cards of your library. Put one onto the battlefield face down as a 2/2 creature and the other into your graveyard. If the face-down card is a creature card, you may turn it face up any time for its mana cost.', forms: ['manifests dread'] },
+  { name: 'Manifest', text: 'Put the card onto the battlefield face down as a 2/2 creature; if it is a creature card you may turn it face up for its mana cost.', match: /\bmanifests?\b(?!\s+dread)/i },
+  // Duskmourn
+  { name: 'Face-down', text: "A face-down permanent is a 2/2 creature with no name, text, color or mana cost. Its controller may look at it; other players can't. A face-down creature card can be turned face up for its mana cost.", match: /\bface[- ](down|up)\b/i },
+  { name: 'Room', text: 'An enchantment with two doors, each with its own name, cost and abilities. Cast either door: it enters unlocked. Later, as a sorcery, you may pay a locked door\'s cost to unlock it. Unlocking the second door fully unlocks the Room, which triggers eerie.', match: /\b((un)?locked doors?|unlock(s|ed)? (a|the|this|that|each|another) (locked )?(door|room)|fully unlock(s|ed)?)\b/i },
+  { name: 'Stun counter', text: 'If a permanent with a stun counter would untap, remove a stun counter from it instead.', match: /\bstun counters?\b/i, counter: 'stun' },
+  { name: 'Finality counter', text: 'If a permanent with a finality counter would go to a graveyard from the battlefield, exile it instead.', match: /\bfinality counters?\b/i, counter: 'finality' },
   { name: 'Populate', text: 'Create a copy of a creature token you control.', forms: ['populates'] },
   { name: 'Goad', text: 'Until your next turn, the goaded creature attacks each combat if able, and attacks a player other than you if able.', forms: ['goads', 'goaded'] },
   { name: 'Venture into the dungeon', text: 'Move to the next room of a dungeon (or start one) and get that room\'s effect.', forms: ['ventures into the dungeon'] },
@@ -175,6 +191,9 @@ const ACTIONS: Entry[] = [
   { name: 'Counter', text: 'A countered spell or ability does nothing; a countered spell goes to its owner\'s graveyard.', match: /\bcounter (target|that|it\b|all|each)[^.]*?\b(spell|ability)/i },
   { name: 'Exile', text: 'Remove from the game into the exile zone. Cards there usually stay there.', forms: ['exiles', 'exiled'] },
 ];
+
+const ROOM = ACTIONS.find((entry) => entry.name === 'Room')!;
+const FACE_DOWN = ACTIONS.find((entry) => entry.name === 'Face-down')!;
 
 /** Ability words name a group of abilities but have no rules meaning of their own; the text after the dash says it. */
 const ABILITY_WORDS: Entry[] = [
@@ -200,6 +219,7 @@ const ABILITY_WORDS: Entry[] = [
   { name: 'Inspired', text: 'Happens whenever it becomes untapped.' },
   { name: 'Eerie', text: 'Happens whenever an enchantment enters under your control or you fully unlock a Room.' },
   { name: 'Survival', text: 'Happens at the beginning of your second main phase if it is tapped.' },
+  { name: "Council's dilemma", text: 'Each player votes, starting with you; each vote adds to the effect of what it voted for.' },
 ];
 
 export type LineKind = 'keyword' | 'triggered' | 'activated' | 'loyalty' | 'chapter' | 'spell' | 'static';
@@ -243,21 +263,53 @@ function plain(text: string): string {
 /** Words that make a sentence: after a keyword they mean the line merely starts with the same word (a card name). */
 const VERBS = /\b(deals?|gets?|gains?|has|have|is|are|can|can't|enters?|dies|attacks?|blocks?|becomes?|draws?|loses?|returns?|creates?|destroys?)\b/i;
 
-/** The keyword at the start of each comma- or semicolon-separated part of a keyword line. */
-function leadingKeywords(line: string): Entry[] {
+/**
+ * The keyword at the start of each comma- or semicolon-separated part of a keyword line. Before a dash
+ * (`beforeDash`) only a number or cost may follow it ("Echo—", "Impending 4—"): more words make a flavor word
+ * ("Echo of the Lost — During your turn, ...").
+ */
+function leadingKeywords(line: string, beforeDash = false): Entry[] {
   const parts = line.split(/[,;]/).map((part) => part.trim().toLowerCase());
   return KEYWORDS.filter((entry) => parts.some((part) => [entry.name.toLowerCase(), ...(entry.forms ?? [])].some((form) => {
     if (part === form) return true;
     if (!part.startsWith(form)) return false;
     const rest = part.slice(form.length);
+    if (beforeDash) return /^\s*(\{[^}]+\}|\d+|x)(\s*\{[^}]+\})*\s*$/.test(rest);
     // a cost or parameter may follow ("Ward {2}", "Protection from red", "Annihilator 2"), not a sentence
     return /^(\s|\{|—|-)/.test(rest) && !VERBS.test(rest) && rest.trim().split(/\s+/).length <= 6;
   })));
 }
 
+const mentionPatterns = new WeakMap<Entry, RegExp>();
+
 function mentions(text: string, entry: Entry): boolean {
   if (entry.match) return entry.match.test(text);
-  return [entry.name, ...(entry.forms ?? [])].some((form) => new RegExp(`\\b${escape(form)}\\b`, 'i').test(text));
+  let pattern = mentionPatterns.get(entry);
+  if (!pattern) {
+    pattern = new RegExp(`\\b(${[entry.name, ...(entry.forms ?? [])].map(escape).join('|')})\\b`, 'i');
+    mentionPatterns.set(entry, pattern);
+  }
+  return pattern.test(text);
+}
+
+/** A line cut at its dashes, each part with whether a dash follows it. */
+function dashParts(text: string): [string, boolean][] {
+  const parts = text.split(DASH);
+  return parts.map((part, index) => [part, index < parts.length - 1]);
+}
+
+/**
+ * How much of the text a leading flavor word takes ("Dash Attack — ", "Echo of the Lost — "): a short name before a
+ * dash that is neither an ability word nor a keyword with its cost. It names nothing, whatever words it uses.
+ */
+function flavorWordLength(text: string): number {
+  const found = /^([^—–{}:,.;]+?)\s*[—–]\s*/.exec(text);
+  if (!found) return 0;
+  const prefix = found[1].trim();
+  if (!prefix || prefix.split(/\s+/).length > 5) return 0;
+  if (ABILITY_WORDS.some((entry) => entry.name.toLowerCase() === prefix.toLowerCase())) return 0;
+  if (leadingKeywords(prefix, true).length > 0) return 0;
+  return found[0].length;
 }
 
 function isKeywordLine(line: string): boolean {
@@ -325,6 +377,22 @@ export function rulesOf(card: CardView): string[] {
   return splitRules(card).rules;
 }
 
+/** The card's name where it stands as a whole word ("Bargain" doesn't hide "bargaining") */
+function namePattern(name: string): RegExp {
+  return new RegExp(`(?<![\\p{L}\\p{N}'])${escape(name)}(?![\\p{L}\\p{N}])`, 'gu');
+}
+
+/** The names the card goes by in its own text: its name, and each half of a split card or Room */
+function ownNames(card: Pick<CardView, 'name' | 'displayName'>): string[] {
+  const names = new Set<string>();
+  for (const name of [card.displayName, card.name]) {
+    if (!name) continue;
+    names.add(name);
+    for (const half of name.split(/\s*\/\/\s*/)) if (half) names.add(half);
+  }
+  return [...names].sort((a, b) => b.length - a.length);
+}
+
 /** Each line's kind, and every keyword, action and ability word the card mentions (in order of appearance). */
 export function explainCard(card: CardView): CardExplanation {
   const { rules, hints } = splitRules(card);
@@ -336,14 +404,114 @@ export function explainCard(card: CardView): CardExplanation {
     seen.add(entry.name);
     terms.push({ name: entry.name, text: entry.text });
   };
+  // a Room's own rules are reminder text, which doesn't count: its type says it
+  if ((card.subTypes ?? []).some((type) => String(type).toUpperCase() === 'ROOM')) add(ROOM);
+  // a face-down permanent has no text of its own to say what it is
+  if (card.faceDown) add(FACE_DOWN);
+  const names = ownNames(card);
   for (const line of lines) {
-    const text = plain(line.text);
+    // the card's own name says nothing ("Betrayer's Bargain deals 5 damage" isn't bargain)
+    const named = names.reduce((rest, name) => rest.replace(namePattern(name), 'This'), plain(line.text));
+    const text = named.slice(flavorWordLength(named));
     if (line.abilityWord) add(ABILITY_WORDS.find((entry) => entry.name === line.abilityWord)!);
-    for (const part of text.split(DASH)) leadingKeywords(part).forEach(add);
+    dashParts(text).forEach(([part, beforeDash]) => leadingKeywords(part, beforeDash).forEach(add));
     KEYWORDS.filter((entry) => !entry.strict && mentions(text, entry)).forEach(add);
     ACTIONS.filter((entry) => mentions(text, entry)).forEach(add);
+    // an ability word after a sentence of the same line ("Draw a card. Delirium — ...")
+    ABILITY_WORDS.filter((entry) => abilityWordPattern(entry).test(text)).forEach(add);
+  }
+  // counters with a rule of their own, on a permanent whose text doesn't mention them (a stunned creature)
+  for (const counter of (card as { counters?: { name?: string; count?: number }[] }).counters ?? []) {
+    const entry = ACTIONS.find((candidate) => candidate.counter && candidate.counter === counter.name?.toLowerCase());
+    if (entry && (counter.count ?? 0) > 0) add(entry);
   }
   return { lines, terms, hints };
+}
+
+/** A piece of rules text, and the keyword, action or ability word it names (if it names one). */
+export interface TermSpan {
+  text: string;
+  term?: Term;
+}
+
+// built once per entry: termSpans runs for every rules line each time the detail panel draws
+const formsPatterns = new WeakMap<Entry, RegExp>();
+const abilityWordPatterns = new WeakMap<Entry, RegExp>();
+
+function formsPattern(entry: Entry): RegExp {
+  let pattern = formsPatterns.get(entry);
+  if (!pattern) {
+    if (entry.match) {
+      pattern = new RegExp(entry.match.source, entry.match.flags.includes('g') ? entry.match.flags : `${entry.match.flags}g`);
+    } else {
+      const forms = [entry.name, ...(entry.forms ?? [])].sort((a, b) => b.length - a.length).map(escape);
+      pattern = new RegExp(`\\b(${forms.join('|')})\\b`, 'gi');
+    }
+    formsPatterns.set(entry, pattern);
+  }
+  // matchAll works on a copy, so the shared pattern's lastIndex never moves
+  return pattern;
+}
+
+function abilityWordPattern(entry: Entry): RegExp {
+  let pattern = abilityWordPatterns.get(entry);
+  if (!pattern) {
+    pattern = new RegExp(`\\b${escape(entry.name)}\\s*[—–]`, 'i');
+    abilityWordPatterns.set(entry, pattern);
+  }
+  return pattern;
+}
+
+/**
+ * Rules text cut into the stretches that name a keyword, action or ability word, and the plain text between,
+ * so each named term can be explained where it is printed. The same rules as explainCard: reminder text (in
+ * parentheses) names nothing, a strict keyword counts only where it leads a keyword list, and an ability word only
+ * before its dash; given the card, its own name names nothing either. Joined back together the spans are the text
+ * unchanged.
+ */
+export function termSpans(text: string, card?: Pick<CardView, 'name' | 'displayName'>): TermSpan[] {
+  // reminder text, and the card's own name where it is printed (passing the card), name nothing
+  const reminders: [number, number][] = [];
+  for (const found of text.matchAll(/\([^)]*\)/g)) reminders.push([found.index, found.index + found[0].length]);
+  for (const name of card ? ownNames(card) : []) {
+    for (const found of text.matchAll(namePattern(name))) reminders.push([found.index, found.index + found[0].length]);
+  }
+  const flavor = flavorWordLength(text);
+  if (flavor > 0) reminders.push([0, flavor]);
+  const inReminder = (start: number) => reminders.some(([from, to]) => start >= from && start < to);
+  const hits: { start: number; end: number; entry: Entry }[] = [];
+  const scan = (entry: Entry, accept: (start: number, end: number) => boolean) => {
+    for (const found of text.matchAll(formsPattern(entry))) {
+      const start = found.index;
+      const end = start + found[0].length;
+      if (found[0].length > 0 && !inReminder(start) && accept(start, end)) hits.push({ start, end, entry });
+    }
+  };
+  for (const entry of KEYWORDS) {
+    scan(entry, (start) => {
+      if (!entry.strict) return true;
+      // the comma- or dash-separated part it starts must read as a keyword ("Shadow", not "Shadow of Doubt deals")
+      const before = text.slice(0, start);
+      if (!/(^|[,;—–.]\s*)$/.test(before)) return false;
+      const part = text.slice(start).split(/[,;—–(.]/)[0];
+      const beforeDash = /^[—–]/.test(text.slice(start + part.length));
+      return leadingKeywords(part, beforeDash).includes(entry);
+    });
+  }
+  for (const entry of ACTIONS) scan(entry, () => true);
+  for (const entry of ABILITY_WORDS) scan(entry, (_, end) => /^\s*[—–-]/.test(text.slice(end)));
+  // the earliest wins, then the longest ("Manifest dread" over "Manifest")
+  hits.sort((a, b) => a.start - b.start || b.end - a.end);
+  const spans: TermSpan[] = [];
+  let at = 0;
+  for (const hit of hits) {
+    if (hit.start < at) continue;
+    if (hit.start > at) spans.push({ text: text.slice(at, hit.start) });
+    spans.push({ text: text.slice(hit.start, hit.end), term: { name: hit.entry.name, text: hit.entry.text } });
+    at = hit.end;
+  }
+  if (at < text.length) spans.push({ text: text.slice(at) });
+  return spans;
 }
 
 /** Keywords the card has as abilities of its own (from its keyword lines), not ones it merely mentions. */
@@ -352,7 +520,7 @@ export function keywordsOf(card: CardView): string[] {
   for (const line of splitRules(card).rules) {
     const text = plain(line);
     if (classify(line, card).kind !== 'keyword') continue;
-    for (const part of text.split(DASH)) leadingKeywords(part).forEach((entry) => names.add(entry.name));
+    dashParts(text).forEach(([part, beforeDash]) => leadingKeywords(part, beforeDash).forEach((entry) => names.add(entry.name)));
   }
   return [...names];
 }

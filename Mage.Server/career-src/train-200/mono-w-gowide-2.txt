@@ -1,0 +1,16 @@
+# name: Train200 mono-w-gowide-2
+# archetype: gowide
+# colors: W
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Battlefield Raptor
+4 Crumb and Get It
+3 Dragon Hunter
+4 Heliod, Sun-Crowned
+4 Mardu Devotee
+1 Nick Fury, Agent of S.H.I.E.L.D.
+4 Parting Gust
+4 Progenitor Exarch
+4 Shatterwing Pegasus
+3 Stiltzkin, Moogle Merchant
+4 Trusty Companion
+22 Plains

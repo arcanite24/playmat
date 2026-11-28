@@ -2,10 +2,13 @@ package mage.server.websocket;
 
 import mage.server.AuthorizedUserRepository;
 import mage.server.DisconnectReason;
+import mage.server.Session;
+import mage.server.TrustedHeaderAuth;
 import mage.server.User;
+import mage.server.admin.OidcAuth;
 import mage.server.managers.ManagerFactory;
 import mage.server.websocket.rpc.RpcSessions;
-import org.jboss.remoting.callback.InvokerCallbackHandler;
+import mage.server.ClientChannel;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -22,8 +25,8 @@ final class ServerRpcSessions implements RpcSessions {
     }
 
     @Override
-    public void create(String sessionId, InvokerCallbackHandler callbackHandler, String host) {
-        managers.sessionManager().createSession(sessionId, callbackHandler);
+    public void create(String sessionId, ClientChannel channel, String host) {
+        managers.sessionManager().createSession(sessionId, channel);
         // anonymous users are identified by host on reconnect, like desktop clients
         managers.sessionManager().getSession(sessionId).ifPresent(session -> session.setHost(host));
     }
@@ -66,7 +69,8 @@ final class ServerRpcSessions implements RpcSessions {
 
     @Override
     public Optional<String> rememberLogin(String sessionId) {
-        if (!managers.configSettings().isAuthenticationActivated()) {
+        // single sign-on only: remembered devices don't sign in, so there is nothing to remember
+        if (!managers.configSettings().isAuthenticationActivated() || !TrustedHeaderAuth.get().passwordSignIn()) {
             return Optional.empty();
         }
         return userName(sessionId).map(name -> AuthorizedUserRepository.getInstance().rememberLogin(name));
@@ -78,6 +82,38 @@ final class ServerRpcSessions implements RpcSessions {
                 && AuthorizedUserRepository.getInstance().isRememberedLogin(userName, token)) {
             managers.sessionManager().getSession(sessionId).ifPresent(session -> session.trustRememberedLogin(userName));
         }
+    }
+
+    @Override
+    public String trustSignedOnLogin(String sessionId, String signedOnUser) {
+        if (!managers.configSettings().isAuthenticationActivated() || !TrustedHeaderAuth.get().isEnabled()) {
+            throw new IllegalArgumentException("This server has no single sign-on");
+        }
+        String account = TrustedHeaderAuth.get().account(AuthorizedUserRepository.getInstance(), signedOnUser, System.currentTimeMillis());
+        managers.sessionManager().getSession(sessionId).ifPresent(session -> session.trustSignedOnLogin(account));
+        return account;
+    }
+
+    @Override
+    public void markOidcLogin(String sessionId, OidcAuth.Token token) {
+        if (token != null) {
+            managers.sessionManager().getSession(sessionId).ifPresent(session -> session.markOidcLogin(token));
+        }
+    }
+
+    @Override
+    public Optional<OidcAuth.Token> oidcIdToken(String sessionId) {
+        return managers.sessionManager().getSession(sessionId).map(Session::oidcLoginToken);
+    }
+
+    @Override
+    public void markOidcAdmin(String sessionId, boolean admin) {
+        managers.sessionManager().getSession(sessionId).ifPresent(session -> session.markOidcAdmin(admin));
+    }
+
+    @Override
+    public boolean oidcAdmin(String sessionId) {
+        return managers.sessionManager().getSession(sessionId).map(Session::oidcAdmin).orElse(false);
     }
 
     @Override

@@ -1,6 +1,8 @@
 import { useMemo, useRef } from 'react';
-import type { CardView } from '../../protocol/generated/views';
+import type { CardView, GameView } from '../../protocol/generated/views';
 import { isStackAbility } from '../../core/game/cards';
+import { stackSourceId } from '../../core/game/promptSource';
+import { describeStackTargets } from '../../core/game/stackTargets';
 import { AbilityCard } from '../ui/AbilityCard';
 import { CardFace } from '../ui/CardFace';
 import { zoneKeys } from './boardModel';
@@ -11,6 +13,7 @@ import styles from './StackZone.module.css';
 export interface StackZoneProps {
   /** top of the stack first */
   items: CardView[];
+  view?: GameView | null;
   clickable: ReadonlySet<string>;
   selected: ReadonlySet<string>;
   sleeveOf(card: CardView): string;
@@ -20,12 +23,31 @@ export interface StackZoneProps {
 }
 
 /** Spells and abilities waiting to resolve, stacked at the right of the table; the top one resolves first. */
-export function StackZone({ items, clickable, selected, sleeveOf, onClick, originOf }: StackZoneProps) {
+export function StackZone({ items, view, clickable, selected, sleeveOf, onClick, originOf }: StackZoneProps) {
   // a spell keeps its card's identity (abilities have no card of their own): it is the card that left the hand
   const keys = useMemo(() => zoneKeys(items.map((item) => (isStackAbility(item) ? { id: item.id } : item))), [items]);
+  const hoveredStackId = useMatchUi((state) => state.hoveredStackId);
+  const focused = (hoveredStackId ? items.find((item) => item.id === hoveredStackId) : null) ?? items[0] ?? null;
+  const summary = useMemo(() => describeStackTargets(focused, view), [focused, view]);
   if (items.length === 0) return null;
+  const showTargets = summary.hasModes || summary.targetCount >= 2;
   return (
     <section className={styles.zone} aria-label={`Stack, ${items.length} ${items.length === 1 ? 'object' : 'objects'}`}>
+      {showTargets && summary.lines.length > 0 && (
+        <div className={styles.targetCard} aria-label="Chosen modes and targets">
+          <ul className={styles.targetList}>
+            {summary.lines.map((line, idx) => (
+              <li key={idx} className={styles.targetRow}>
+                {line.index !== null && <span className={styles.targetNum}>{line.index}</span>}
+                <span className={styles.targetBody}>
+                  {line.effect && <span className={styles.targetEffect}>{line.effect}</span>}
+                  {line.targetName && <strong className={styles.targetName}>{line.effect ? `→ ${line.targetName}` : line.targetName}</strong>}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <h2 className={styles.label}>Stack</h2>
       <ol className={styles.list}>
         {items.map((item, index) => (
@@ -58,6 +80,8 @@ function StackItem({ item, index, total, clickable, selected, sleeve, onClick, o
 }) {
   const ref = useRef<HTMLLIElement>(null);
   const setZoom = useMatchUi((state) => state.setZoom);
+  const setSourceHover = useMatchUi((state) => state.setSourceHover);
+  const setHoveredStackId = useMatchUi((state) => state.setHoveredStackId);
   const ability = isStackAbility(item) ? item : null;
   const face = ability?.sourceCard ?? item;
   useFlip(ability ? item.id : (item.cardId ?? item.id), ref, { fallbackOrigin: origin });
@@ -67,8 +91,17 @@ function StackItem({ item, index, total, clickable, selected, sleeve, onClick, o
       ref={ref}
       className={[styles.item, index === 0 ? styles.top : '', clickable ? styles.clickable : '', selected ? styles.selected : ''].join(' ')}
       style={{ zIndex: total - index, ['--i' as string]: index }}
-      onPointerEnter={(event) => setZoom({ card: item, x: event.clientX, y: event.clientY, sleeve })}
-      onPointerLeave={() => setZoom(null)}
+      onPointerEnter={(event) => {
+        setZoom({ card: item, x: event.clientX, y: event.clientY, sleeve });
+        // an ability marks the permanent it comes from: which of two Guiding Hydras it belongs to (#227)
+        setSourceHover(stackSourceId(item));
+        setHoveredStackId(item.id ?? null);
+      }}
+      onPointerLeave={() => {
+        setZoom(null);
+        setSourceHover(null);
+        setHoveredStackId(null);
+      }}
       onClick={() => clickable && onClick(item.id!)}
       data-object-id={item.id}
       aria-label={`${ability ? 'Ability of ' : ''}${face.name}${index === 0 ? ', resolves next' : ''}`}

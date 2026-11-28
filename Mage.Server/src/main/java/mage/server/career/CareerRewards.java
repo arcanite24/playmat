@@ -191,11 +191,22 @@ public final class CareerRewards {
         return scaleXp((int) Math.round(xp));
     }
 
+    /** the admin's XP setting (percent), or the one the payout being paid on this thread was played under */
+    static int xpPercent() {
+        CareerPayoutEvent paying = CareerPayouts.paying();
+        return paying != null ? paying.xpPercent : mage.server.admin.RuntimeSettings.get().progressXpPercent();
+    }
+
+    static int coinPercent() {
+        CareerPayoutEvent paying = CareerPayouts.paying();
+        return paying != null ? paying.coinPercent : mage.server.admin.RuntimeSettings.get().progressCoinPercent();
+    }
+
     static int scaleXp(int xp) {
-        return xp * mage.server.admin.RuntimeSettings.get().progressXpPercent() / 100;
+        return xp * xpPercent() / 100;
     }
 
     static int scaleCoins(int coins) {
-        return coins * mage.server.admin.RuntimeSettings.get().progressCoinPercent() / 100;
+        return coins * coinPercent() / 100;
     }
 }

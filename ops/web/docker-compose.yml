@@ -23,6 +23,7 @@ services:
       XMAGE_METASPACE: ${XMAGE_METASPACE:-}
       XMAGE_CDS: ${XMAGE_CDS:-}
       XMAGE_COMPACT_HEADERS: ${XMAGE_COMPACT_HEADERS:-}
+      XMAGE_BASE64_INTRINSICS: ${XMAGE_BASE64_INTRINSICS:-}
       XMAGE_JAVA_OPTS: ${XMAGE_JAVA_OPTS:-}
       XMAGE_ADMIN_PASSWORD: ${XMAGE_ADMIN_PASSWORD:-}
       # the proxy's network: the server trusts X-Forwarded-For only from these addresses
@@ -30,6 +31,8 @@ services:
       XMAGE_DISCORD_WEBHOOK: ${XMAGE_DISCORD_WEBHOOK:-}
       XMAGE_DISCORD_STAFF_WEBHOOK: ${XMAGE_DISCORD_STAFF_WEBHOOK:-}
       XMAGE_CAREER: ${XMAGE_CAREER:-on}
+      XMAGE_SEASON_START: ${XMAGE_SEASON_START:-}
+      XMAGE_SEASON_MONTHS: ${XMAGE_SEASON_MONTHS:-}
       XMAGE_ACCESS: ${XMAGE_ACCESS:-open}
       XMAGE_OWNER: ${XMAGE_OWNER:-}
       XMAGE_ALLOWLIST: ${XMAGE_ALLOWLIST:-}
@@ -37,11 +40,54 @@ services:
       XMAGE_GITHUB_CLIENT_SECRET: ${XMAGE_GITHUB_CLIENT_SECRET:-}
       XMAGE_GITHUB_REPO: ${XMAGE_GITHUB_REPO:-}
       XMAGE_GITHUB_TOKEN: ${XMAGE_GITHUB_TOKEN:-}
+      # single sign-on: the header the proxy in front names the user with (Caddy passes it on only from that proxy)
+      XMAGE_AUTH_TRUSTED_HEADER: ${AUTH_TRUSTED_HEADER:-}
+      XMAGE_PASSWORD_SIGNIN: ${XMAGE_PASSWORD_SIGNIN:-}
+      XMAGE_TRUSTED_HEADER_STRIP_DOMAIN: ${XMAGE_TRUSTED_HEADER_STRIP_DOMAIN:-}
+      XMAGE_OIDC_DISCOVERY: ${XMAGE_OIDC_DISCOVERY:-}
+      XMAGE_OIDC_CLIENT_ID: ${XMAGE_OIDC_CLIENT_ID:-}
+      XMAGE_OIDC_CLIENT_SECRET: ${XMAGE_OIDC_CLIENT_SECRET:-}
+      XMAGE_OIDC_LABEL: ${XMAGE_OIDC_LABEL:-}
+      XMAGE_OIDC_ONLY: ${XMAGE_OIDC_ONLY:-}
+      XMAGE_OIDC_ADMIN_GROUP: ${XMAGE_OIDC_ADMIN_GROUP:-}
+      XMAGE_OIDC_SCOPE: ${XMAGE_OIDC_SCOPE:-}
+      XMAGE_OIDC_GROUPS_CLAIM: ${XMAGE_OIDC_GROUPS_CLAIM:-}
       XMAGE_PUBLIC_URL: ${XMAGE_PUBLIC_URL:-https://${DOMAIN}}
       XMAGE_SERVER_NAME: ${XMAGE_SERVER_NAME:-}
       XMAGE_SERVER_ADDRESS: ${XMAGE_SERVER_ADDRESS:-}
       XMAGE_PORT: ${XMAGE_PORT:-}
-      XMAGE_DESKTOP: ${XMAGE_DESKTOP:-}
+      # on: the Rust gateway in front of the bridge (17180); the web service's XMAGE_GATEWAY sends /ws to it
+      XMAGE_GATEWAY: ${XMAGE_GATEWAY:-off}
+      # rust: the Rust AI plays the AI's seat for XMAGE_RUST_AI_USERS (docs/rust/Ai.md); XMAGE_ENGINE=java turns it off
+      XMAGE_AI_BACKEND: ${XMAGE_AI_BACKEND:-java}
+      XMAGE_RUST_AI_USERS: ${XMAGE_RUST_AI_USERS:-}
+      # who answers the Rust AI's decisions: playouts (default), mcts, quick or random (docs/rust/Ai.md)
+      PLAYMAT_AI_POLICY: ${PLAYMAT_AI_POLICY:-playouts}
+      # the Rust engine hosts these users' qualifying AI duels, through the gateway (docs/rust/GameHost.md, step D)
+      XMAGE_RUST_HOST_USERS: ${XMAGE_RUST_HOST_USERS:-}
+      # on: players can turn the Rust engine on for themselves in Settings (docs/rust/GameHost.md)
+      XMAGE_RUST_OPT_IN: ${XMAGE_RUST_OPT_IN:-}
+      # how many hosted games' records the gateway keeps in saved/host-games (docs/rust/GameHost.md, "Game records")
+      XMAGE_RUST_HOST_RECORDS_KEEP: ${XMAGE_RUST_HOST_RECORDS_KEEP:-500}
+      # where the gateway keeps its shadow and hosted-game counters across deploys (default saved/gateway-totals.json)
+      XMAGE_GATEWAY_TOTALS: ${XMAGE_GATEWAY_TOTALS:-}
+      XMAGE_ENGINE: ${XMAGE_ENGINE:-}
+      # where the gateway sends each group of calls: java (default), shadow or rust (ops/web/README.md "Rust gateway")
+      XMAGE_ROUTE_DEFAULT: ${XMAGE_ROUTE_DEFAULT:-}
+      XMAGE_ROUTE_CATALOG: ${XMAGE_ROUTE_CATALOG:-}
+      XMAGE_ROUTE_ACCOUNT: ${XMAGE_ROUTE_ACCOUNT:-}
+      XMAGE_ROUTE_DECKIMPORT: ${XMAGE_ROUTE_DECKIMPORT:-}
+      XMAGE_ROUTE_ACCESS: ${XMAGE_ROUTE_ACCESS:-}
+      XMAGE_ROUTE_STAFF: ${XMAGE_ROUTE_STAFF:-}
+      XMAGE_ROUTE_ADMIN: ${XMAGE_ROUTE_ADMIN:-}
+      XMAGE_ROUTE_ACCOUNTS: ${XMAGE_ROUTE_ACCOUNTS:-}
+      XMAGE_ROUTE_SUPPORT: ${XMAGE_ROUTE_SUPPORT:-}
+      XMAGE_ROUTE_CAREER: ${XMAGE_ROUTE_CAREER:-}
+      XMAGE_ROUTE_CAREERPROGRESS: ${XMAGE_ROUTE_CAREERPROGRESS:-}
+      # who pays finished games in the Career: java, shadow or rust (docs/rust/Payouts.md); set by name only
+      XMAGE_ROUTE_CAREERPAYOUTS: ${XMAGE_ROUTE_CAREERPAYOUTS:-}
+      XMAGE_ACCOUNTS_DB: ${XMAGE_ACCOUNTS_DB:-}
+      XMAGE_SHADOW_USERS: ${XMAGE_SHADOW_USERS:-}
       XMAGE_MONTE_CARLO: ${XMAGE_MONTE_CARLO:-}
       XMAGE_AI_THREADS: ${XMAGE_AI_THREADS:-}
       XMAGE_AI_NODE_SCALE: ${XMAGE_AI_NODE_SCALE:-}
@@ -56,6 +102,7 @@ services:
       XMAGE_REPLAYS: ${XMAGE_REPLAYS:-}
       XMAGE_REPLAY_DAYS: ${XMAGE_REPLAY_DAYS:-}
       XMAGE_REPLAY_MAX: ${XMAGE_REPLAY_MAX:-}
+      XMAGE_DISK_MIN_FREE_MB: ${XMAGE_DISK_MIN_FREE_MB:-}
       XMAGE_MAILGUN_API_KEY: ${XMAGE_MAILGUN_API_KEY:-}
       XMAGE_MAILGUN_DOMAIN: ${XMAGE_MAILGUN_DOMAIN:-}
       XMAGE_MAIL_SMTP_HOST: ${XMAGE_MAIL_SMTP_HOST:-}
@@ -74,12 +121,16 @@ services:
       XMAGE_KOFI_TOKEN: ${XMAGE_KOFI_TOKEN:-}
       XMAGE_GITHUB_SPONSORS_SECRET: ${XMAGE_GITHUB_SPONSORS_SECRET:-}
       XMAGE_HOOKS_PORT: ${XMAGE_HOOKS_PORT:-}
+      # Mana@Home cosmetics credit redemption bridge (docs/swarm/S6.md)
+      SWARM_BRIDGE_SECRET: ${SWARM_BRIDGE_SECRET:-}
+      MANA_COORDINATOR_URL: ${MANA_COORDINATOR_URL:-}
     volumes:
       - xmage-db:/opt/xmage/db         # user data only (accounts, stats, table records, feedback, support ledger)
       - xmage-cards:/opt/xmage/cards-db # card database cache, rebuilt when the image changes
       - xmage-logs:/opt/xmage/logs
       - xmage-saved:/opt/xmage/saved
       - xmage-updates:/opt/xmage/updates # requests to the updater and its answers (UpdateRunner.java)
+      - xmage-selfplay:/opt/xmage/selfplay # the self-play worker's state and the console's settings for it (SelfPlayStatus.java)
     networks:
       - xmage
     # the bridge port opens only after the card database is loaded; the first start builds it (minutes)
@@ -103,6 +154,11 @@ services:
         VITE_APP_NAME: ${APP_NAME:-Playmat}
     environment:
       DOMAIN: ${DOMAIN:?set DOMAIN}
+      # https: Caddy owns 80/443 and the certificates. external: plain HTTP on port 80 for your own reverse proxy
+      # (docker-compose.proxy.yml, README "Behind your own reverse proxy")
+      TLS_MODE: ${TLS_MODE:-https}
+      # on: /ws goes to the Rust gateway (falls back to the bridge while it doesn't answer)
+      XMAGE_GATEWAY: ${XMAGE_GATEWAY:-off}
       # optional: the host's LAN address, served too (with its own certificate) for devices that can't resolve DOMAIN
       LAN_IP: ${LAN_IP:-}
       TLS_DEFAULT_SNI: ${LAN_IP:-${DOMAIN}}
@@ -111,6 +167,12 @@ services:
       # the address range that proxy connects from (believed about who the client is)
       PROXIED_HOST: ${PROXIED_HOST:-proxied.invalid}
       UPSTREAM_PROXIES: ${UPSTREAM_PROXIES:-127.0.0.1/32}
+      # single sign-on: the header naming the signed-in user is kept only on requests from these addresses. Unset, the
+      # header is a name nobody sends and the range matches no peer (255.255.255.255 never connects). Deliberately not
+      # UPSTREAM_PROXIES: that range is only believed about the client's address, and it may be a CDN's public ranges
+      # (CLOUDFLARE.md), whose every visitor could then name themselves any user. SSO sets this to the sign-on proxy.
+      AUTH_TRUSTED_HEADER: ${AUTH_TRUSTED_HEADER:-X-Playmat-Sign-On-Off}
+      AUTH_TRUSTED_PROXIES: ${AUTH_TRUSTED_PROXIES:-255.255.255.255/32}
       # per client address, at the proxy (the server adds its own cap of concurrent game connections per address)
       WS_RATE_LIMIT: ${WS_RATE_LIMIT:-30}
       WS_RATE_WINDOW: ${WS_RATE_WINDOW:-1m}
@@ -151,6 +213,12 @@ services:
       IMGCACHE_API_MAX_SIZE: ${IMGCACHE_API_MAX_SIZE:-1g}
       IMGCACHE_API_RATE: ${IMGCACHE_API_RATE:-10r/s}
       IMGCACHE_API_BURST: ${IMGCACHE_API_BURST:-20}
+      # a Scryfall mirror: base URLs (http:// works for one on the LAN), and Scryfall for whatever it lacks
+      IMGCACHE_CARDS_UPSTREAM: ${IMGCACHE_CARDS_UPSTREAM:-https://cards.scryfall.io}
+      IMGCACHE_BACKS_UPSTREAM: ${IMGCACHE_BACKS_UPSTREAM:-https://backs.scryfall.io}
+      IMGCACHE_API_UPSTREAM: ${IMGCACHE_API_UPSTREAM:-https://api.scryfall.com}
+      IMGCACHE_FALLBACK: ${IMGCACHE_FALLBACK:-off}
+      IMGCACHE_UPSTREAM_TLS_VERIFY: ${IMGCACHE_UPSTREAM_TLS_VERIFY:-on}
     volumes:
       # rendered into /etc/nginx/conf.d/default.conf (replacing the stock site) on every start
       - ./imgcache.conf.template:/etc/nginx/templates/default.conf.template:ro
@@ -175,6 +243,7 @@ services:
     environment:
       BACKUP_AT: ${BACKUP_AT:-03:30}
       BACKUP_KEEP: ${BACKUP_KEEP:-14}
+      BACKUP_MIN_FREE_MB: ${BACKUP_MIN_FREE_MB:-1024}
       TZ: ${TZ:-UTC}
     volumes:
       - xmage-db:/opt/xmage/db
@@ -214,6 +283,7 @@ volumes:
   xmage-logs:
   xmage-saved:
   xmage-updates:
+  xmage-selfplay:
   xmage-backups:
   xmage-imgcache:
   caddy-data:

@@ -1,0 +1,24 @@
+# name: Train450 tri-wbg-bigmana-5
+# archetype: bigmana
+# colors: WBG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Alms Beast
+2 Eternal Taskmaster
+3 Lazotep Behemoth
+1 Long Goodbye
+4 Miriam, Herd Whisperer
+3 Nessian Boar
+2 Refuse to Yield
+3 Scorpion's Sting
+2 Seedship Impact
+2 Siege Rhino
+1 Sunscorch Regent
+4 Tatsunari, Toad Rider
+4 Tovolar's Huntmaster
+2 Wayward Swordtooth
+5 Forest
+4 Misty Palms Oasis
+3 Plains
+4 Shambling Vent
+5 Swamp
+4 Temple Garden

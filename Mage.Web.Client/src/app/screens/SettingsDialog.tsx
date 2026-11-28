@@ -11,8 +11,11 @@ import { resetCommand, type AutoRule, type AutoRuleKind } from '../../core/game/
 import { notificationsSupported, requestNotifications } from '../stores/attention';
 import { useAutoAnswers } from '../stores/autoAnswers';
 import { useGames } from '../stores/games';
-import { DEFAULT_SETTINGS, FULL_CONTROL, STREAMLINED, useSettings, type PlaySettings } from '../stores/settings';
+import { AI_ACTION_DELAY_MAX, clampAiActionDelay, DEFAULT_NOTIFY_ON, DEFAULT_SETTINGS, FULL_CONTROL, STREAMLINED, useSettings, type NotificationKind, type PlaySettings } from '../stores/settings';
+
+const NOTIFICATION_KINDS: readonly NotificationKind[] = ['whispers', 'turn', 'gameStart', 'draft', 'tableJoins'];
 import { APP_NAME, APP_VERSION, PUBLIC_ORIGIN } from '../brand';
+import { WhatsNewLink } from '../WhatsNewLink';
 import { clearPictureStore, DEVICE_PICTURES, pictureStoreStats } from '../nativePictures';
 import { formatNumber, LOCALES, registerMessages, useT, type LocalePreference, type MessageKey, type Translate } from '../i18n';
 import messages from '../i18n/en/settings';
@@ -21,6 +24,8 @@ import { RichText } from '../i18n/RichText';
 import { Button } from '../ui/Button';
 import { CARD_BACKS, cardBackImage, type CardBackId } from '../ui/cardBack';
 import { Dialog } from '../ui/Dialog';
+import { TokenArtPicker } from '../ui/TokenArtPicker';
+import { useTokenArt } from '../stores/tokenArt';
 import { useServerInfo } from '../queries';
 import { AccountSettings } from './AccountSettings';
 import { useSupportPerks } from '../support/supportData';
@@ -46,7 +51,11 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
   const t = useT();
   // the Account tab: servers with accounts only
   const accounts = useServerInfo().data?.accounts === true;
+  const tokenChoices = useTokenArt((state) => state.choices);
+  const chooseToken = useTokenArt((state) => state.choose);
   const career = useServerInfo().data?.career === true;
+  // the Rust engine opt-in: servers that offer it only
+  const rustEngine = useServerInfo().data?.rustEngine === true;
   // progression shows or hides per account, on every device (B283, B312)
   const careerState = useQuery<CareerState>({ queryKey: ['career', 'state'], queryFn: () => api.careerState(), enabled: career && accounts });
   const showProgress = careerState.data?.profile ? careerState.data.profile.showProgress !== false : null;
@@ -64,6 +73,7 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
     if (open) onOpenChange(false);
   }, [path, open, onOpenChange]);
 
+  const notifyOn = { ...DEFAULT_NOTIFY_ON, ...settings.notifyOn };
   const toggle = (key: keyof PlaySettings) => (
     <Switch checked={!!settings[key]} onChange={(value) => update({ [key]: value } as Partial<PlaySettings>)} />
   );
@@ -76,7 +86,7 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
     <Dialog open={open} onOpenChange={onOpenChange} title={t('settings.title')} width="lg"
       footer={(
         <>
-          <span className={styles.version}>{t('settings.version', { app: APP_NAME, version: APP_VERSION })}</span>
+          <span className={styles.version}>{t('settings.version', { app: APP_NAME, version: APP_VERSION })} <WhatsNewLink /></span>
           <Button variant="quiet" onClick={() => update({ ...DEFAULT_SETTINGS, avatarId: settings.avatarId, flag: settings.flag, locale: settings.locale, matCloth: settings.matCloth, matArt: settings.matArt, matCard: settings.matCard, cardBack: settings.cardBack })}>
             {t('settings.restore')}
           </Button>
@@ -89,6 +99,7 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
           <Tabs.Trigger value="answers" className={styles.trigger}>{t('settings.tab.answers')}</Tabs.Trigger>
           <Tabs.Trigger value="display" className={styles.trigger}>{t('settings.tab.display')}</Tabs.Trigger>
           <Tabs.Trigger value="playmat" className={styles.trigger}>{t('settings.tab.playmat')}</Tabs.Trigger>
+          <Tabs.Trigger value="tokens" className={styles.trigger}>{t('settings.tab.tokens')}</Tabs.Trigger>
           <Tabs.Trigger value="sound" className={styles.trigger}>{t('settings.tab.sound')}</Tabs.Trigger>
           <Tabs.Trigger value="alerts" className={styles.trigger}>{t('settings.tab.alerts')}</Tabs.Trigger>
           <Tabs.Trigger value="import" className={styles.trigger}>{t('settings.tab.import')}</Tabs.Trigger>
@@ -112,18 +123,46 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
               })}
             </div>
           </div>
+          {rustEngine && (
+            <Row label={<>{t('settings.rustEngine')} <span className={styles.beta}>{t('settings.beta')}</span></>} detail={t('settings.rustEngine.detail')}>
+              {toggle('rustEngine')}
+            </Row>
+          )}
           <Row label={t('settings.autoPass')} detail={t('settings.autoPass.detail')}>{toggle('autoPass')}</Row>
           <Row label={t('settings.theirTurn')} detail={t('settings.theirTurn.detail')}>{toggle('abilitiesOnTheirTurn')}</Row>
           <Row label={t('settings.skipCombat')} detail={t('settings.skipCombat.detail')}>{toggle('autoSkipCombat')}</Row>
           <Row label={t('settings.passAfterCasting')} detail={t('settings.passAfterCasting.detail')}>{toggle('passAfterCasting')}</Row>
           <Row label={t('settings.autoPay')} detail={t('settings.autoPay.detail')}>{toggle('autoPayMana')}</Row>
-          <Row label={t('settings.autoPayRestricted')} detail={t('settings.autoPayRestricted.detail')}>{toggle('autoPayRestricted')}</Row>
+          <Row label={t('settings.autoPayPool')} detail={t('settings.autoPayPool.detail')}>
+            <Switch checked={!settings.autoPayRestricted} onChange={(value) => update({ autoPayRestricted: !value })} />
+          </Row>
           <Row label={t('settings.emptyPool')} detail={t('settings.emptyPool.detail')}>{toggle('confirmEmptyManaPool')}</Row>
           <Row label={t('settings.orderTriggers')} detail={t('settings.orderTriggers.detail')}>{toggle('autoOrderTriggers')}</Row>
           <Row label={t('settings.autoTarget')} detail={t('settings.autoTarget.detail')}>
             <Switch checked={settings.autoTargetLevel > 0} onChange={(value) => update({ autoTargetLevel: value ? 1 : 0 })} />
           </Row>
           <Row label={t('settings.handRequests')} detail={t('settings.handRequests.detail')}>{toggle('allowHandRequests')}</Row>
+          <Row label={t('settings.aiActionDelay')} detail={t('settings.aiActionDelay.detail')}>
+            <div className={[styles.volume, styles.pace].join(' ')}>
+              <input
+                type="range"
+                min={0}
+                max={AI_ACTION_DELAY_MAX}
+                step={0.5}
+                value={clampAiActionDelay(settings.aiActionDelay)}
+                onChange={(event) => update({ aiActionDelay: clampAiActionDelay(Number(event.target.value)) })}
+                aria-label={t('settings.aiActionDelay.label')}
+                aria-valuetext={clampAiActionDelay(settings.aiActionDelay) === 0
+                  ? t('settings.aiActionDelay.instant')
+                  : t('settings.aiActionDelay.seconds', { seconds: formatNumber(clampAiActionDelay(settings.aiActionDelay), { maximumFractionDigits: 1 }) })}
+              />
+              <span aria-hidden="true">
+                {clampAiActionDelay(settings.aiActionDelay) === 0
+                  ? t('settings.aiActionDelay.instant')
+                  : t('settings.aiActionDelay.seconds', { seconds: formatNumber(clampAiActionDelay(settings.aiActionDelay), { maximumFractionDigits: 1 }) })}
+              </span>
+            </div>
+          </Row>
           <h3 className={styles.groupHeading}>{t('settings.automation')}</h3>
           <p className={styles.intro}>{t('settings.automation.intro')}</p>
           <Row label={t('settings.autoPayHybrid')} detail={t('settings.autoPayHybrid.detail')}>{toggle('autoPayHybrid')}</Row>
@@ -172,8 +211,47 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
         </Tabs.Content>
 
         <Tabs.Content value="display" className={styles.panel}>
+          <Row label={t('settings.hideStarterDecks')} detail={t('settings.hideStarterDecks.detail')}>{toggle('hideStarterDecks')}</Row>
           <Row label={t('settings.motion')} detail={t('settings.motion.detail')}>{toggle('animations')}</Row>
+          <Row label={t('settings.cardEffects')} detail={t('settings.cardEffects.detail')}>
+            <select
+              className={styles.select}
+              value={settings.animations ? settings.cardEffects : 'off'}
+              disabled={!settings.animations}
+              aria-label={t('settings.cardEffects')}
+              onChange={(event) => update({ cardEffects: event.target.value as PlaySettings['cardEffects'] })}
+            >
+              <option value="signature">{t('settings.cardEffects.signature')}</option>
+              <option value="simple">{t('settings.cardEffects.simple')}</option>
+              <option value="off">{t('settings.cardEffects.off')}</option>
+            </select>
+          </Row>
+          <Row label={t('settings.combatFx')} detail={t('settings.combatFx.detail')}>
+            <select
+              className={styles.select}
+              value={settings.combatFx}
+              disabled={!settings.animations}
+              aria-label={t('settings.combatFx')}
+              onChange={(event) => update({ combatFx: event.target.value as PlaySettings['combatFx'] })}
+            >
+              <option value="fancy">{t('settings.combatFx.fancy')}</option>
+              <option value="simple">{t('settings.combatFx.simple')}</option>
+            </select>
+          </Row>
           <Row label={t('settings.sortHand')} detail={t('settings.sortHand.detail')}>{toggle('sortHand')}</Row>
+          <Row label={t('settings.bigZoom')} detail={t('settings.bigZoom.detail')}>{toggle('bigZoom')}</Row>
+          <Row label={t('settings.matchSize')} detail={t('settings.matchSize.detail')}>
+            <select
+              className={styles.select}
+              value={settings.matchSize}
+              aria-label={t('settings.matchSize')}
+              onChange={(event) => update({ matchSize: event.target.value as PlaySettings['matchSize'] })}
+            >
+              <option value="fit">{t('settings.matchSize.fit')}</option>
+              <option value="larger">{t('settings.matchSize.larger')}</option>
+              <option value="largest">{t('settings.matchSize.largest')}</option>
+            </select>
+          </Row>
           <Row label={t('settings.autoDismissReveals')} detail={t('settings.autoDismissReveals.detail')}>{toggle('autoDismissReveals')}</Row>
           <Row label={t('settings.compactBoard')} detail={t('settings.compactBoard.detail')}>{toggle('compactBoard')}</Row>
           <Row label={t('settings.muteEmotes')} detail={t('settings.muteEmotes.detail')}>{toggle('muteEmotes')}</Row>
@@ -198,6 +276,11 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
           <PlaymatSettings />
         </Tabs.Content>
 
+        <Tabs.Content value="tokens" className={styles.panel}>
+          <p className={styles.intro}>{t('settings.tokens.intro')}{accounts ? '' : ` ${t('settings.tokens.local')}`}</p>
+          <TokenArtPicker choices={tokenChoices} onChoose={chooseToken} />
+        </Tabs.Content>
+
         <Tabs.Content value="alerts" className={styles.panel}>
           <p className={styles.intro}>{t('settings.alerts.intro', { app: APP_NAME })}</p>
           <Row
@@ -215,6 +298,20 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
               }}
             />
           </Row>
+          {settings.notifications && notificationsSupported() && (
+            <>
+              <h3 className={styles.groupHeading}>{t('settings.notifications.kinds')}</h3>
+              {NOTIFICATION_KINDS.map((kind) => (
+                <Row key={kind} label={t(`settings.notify.${kind}`)} detail={t(`settings.notify.${kind}.detail`)}>
+                  <Switch
+                    checked={notifyOn[kind]}
+                    onChange={(value) => update({ notifyOn: { ...notifyOn, [kind]: value } })}
+                  />
+                </Row>
+              ))}
+            </>
+          )}
+          <Row label={t('settings.tableJoinSound')} detail={t('settings.tableJoinSound.detail')}>{toggle('tableJoinSound')}</Row>
         </Tabs.Content>
 
         <Tabs.Content value="sound" className={styles.panel}>
@@ -238,6 +335,7 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
             </div>
           </Row>
           <Row label={t('settings.importantCues')} detail={t('settings.importantCues.detail')}>{toggle('importantCuesOnly')}</Row>
+          <Row label={t('settings.triggerSounds')} detail={t('settings.triggerSounds.detail')}>{toggle('triggerSounds')}</Row>
           {showProgress !== null && (
             <Row label={t('settings.showProgress')} detail={t('settings.showProgress.detail')}>
               <Switch checked={showProgress} onChange={(value) => void setShowProgress(value)} />
@@ -417,8 +515,10 @@ function PlaymatSettings() {
   const [name, setName] = useState(settings.matCard?.name ?? '');
   const [problem, setProblem] = useState<string | null>(null);
   const listId = useId();
-  // Career cloths show once unlocked (the level track lists the unlocks; the Career screens share this query)
-  const levels = useQuery({ queryKey: ['career', 'levels'], queryFn: () => api.careerLevels(), enabled: settings.careerOptIn, staleTime: 30_000 });
+  // Career cloths show once unlocked (the level track lists the unlocks; the Career screens share this query), whether
+  // or not Career was opened in this browser
+  const progression = useServerInfo().data?.career === true;
+  const levels = useQuery({ queryKey: ['career', 'levels'], queryFn: () => api.careerLevels(), enabled: progression, staleTime: 30_000 });
   const unlocks = levels.data?.unlocks;
   // the Patron cloth is a thank-you for supporting the server: shown once owned, and as a quiet teaser where the server
   // takes support
@@ -577,7 +677,7 @@ function PictureStoreRow() {
   );
 }
 
-function Row({ label, detail, children }: { label: string; detail?: string; children: React.ReactNode }) {
+function Row({ label, detail, children }: { label: React.ReactNode; detail?: string; children: React.ReactNode }) {
   return (
     <div className={styles.row}>
       <div>

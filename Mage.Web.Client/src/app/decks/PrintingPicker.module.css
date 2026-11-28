@@ -1,15 +1,57 @@
+.search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  margin-bottom: 12px;
+  padding: 0 12px;
+  border-radius: var(--radius-control);
+  background: rgb(var(--mat-rgb) / 0.6);
+  box-shadow: inset 0 0 0 1.5px var(--ink-faint);
+  color: var(--ink-dim);
+}
+
+.search:focus-within {
+  box-shadow: inset 0 0 0 2px var(--ink);
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-strong);
+  font-size: var(--text-sm);
+  outline: none;
+}
+
+.clear {
+  display: grid;
+  place-items: center;
+  padding: 4px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 16px 12px;
-  max-height: min(64vh, 720px);
+  max-height: min(64dvh, 720px);
   padding: 4px;
   overflow-y: auto;
+}
+
+.cardWrap {
+  position: relative;
 }
 
 .option {
   display: flex;
   flex-direction: column;
+  width: 100%;
   gap: 6px;
   padding: 6px;
   border: 0;
@@ -18,6 +60,50 @@
   color: var(--ink);
   text-align: left;
   cursor: pointer;
+}
+
+.star {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(var(--mat-rgb) / 0.85);
+  box-shadow: inset 0 0 0 1px var(--ink-faint);
+  color: var(--ink-dim);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-quick) linear, color var(--dur-quick) linear;
+}
+
+.cardWrap:hover .star,
+.star:focus-visible,
+.starOn {
+  opacity: 1;
+}
+
+.star:hover {
+  color: var(--brass-ink);
+  box-shadow: inset 0 0 0 1.5px var(--brass);
+}
+
+.starOn {
+  color: var(--brass);
+  box-shadow: inset 0 0 0 1.5px var(--brass);
+}
+
+.star:focus-visible {
+  outline: 2px solid var(--ink-strong);
+  outline-offset: 2px;
+}
+
+:global([data-touch]) .star {
+  opacity: 1;
 }
 
 .option:hover {

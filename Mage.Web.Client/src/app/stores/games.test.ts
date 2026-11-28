@@ -151,12 +151,30 @@ describe('games store', () => {
     expect(Object.keys(useGames.getState().sessions)).toEqual(['g2']);
   });
 
+  test('a Career way back stays with its own match, not a later game against people (#214)', async () => {
+    const { useGames, fake } = await load();
+    const { usePlay } = await import('./play');
+    const rewards = '/career/rewards?game=t1&career=1&back=%2Fcareer%2Fgauntlet';
+    // the Gauntlet game starts while its start is on its way, then learns its rewards
+    usePlay.setState({ phase: 'waitingForGame', returnPath: '/career/gauntlet' });
+    startGame(fake, { gameId: 'g1', playerId: 'p1', currentTableId: 't1', parentTableId: null });
+    expect(usePlay.getState().returnPath).toBe('/career/gauntlet');
+    usePlay.setState({ phase: 'idle', returnPath: rewards });
+    // the match's next game keeps it
+    startGame(fake, { gameId: 'g2', playerId: 'p1', currentTableId: 't1', parentTableId: null });
+    expect(usePlay.getState().returnPath).toBe(rewards);
+    // a game at a friend's table later on doesn't lead to the old run's rewards
+    startGame(fake, { gameId: 'g3', playerId: 'p1', currentTableId: 't9', parentTableId: null });
+    expect(usePlay.getState().returnPath).toBeNull();
+    expect(useGames.getState().latestGameId).toBe('g3');
+  });
+
   test('a question left open calls the player back; one answered at once does not', async () => {
     vi.useFakeTimers();
     try {
       const { useGames, fake } = await load();
       startGame(fake, { gameId: 'g1', playerId: 'p1', currentTableId: 't1' });
-      expect(attention).toHaveBeenCalledWith('Your game is starting', expect.any(String), { tag: 'game:g1' });
+      expect(attention).toHaveBeenCalledWith('Your game is starting', expect.any(String), { kind: 'gameStart', tag: 'game:g1' });
       const game = session(useGames, 'g1');
 
       // auto-pass answers this one before the delay
@@ -168,7 +186,7 @@ describe('games store', () => {
 
       game.store.setState({ prompt: { text: 'Declare attackers' }, awaitingServer: false, view: { activePlayerId: 'p1' } });
       vi.advanceTimersByTime(2000);
-      expect(attention).toHaveBeenLastCalledWith('Your turn', 'Declare attackers', { tag: 'game:g1' });
+      expect(attention).toHaveBeenLastCalledWith('Your turn', 'Declare attackers', { kind: 'turn', tag: 'game:g1' });
 
       // a closed game stops watching
       useGames.getState().forget('g1');
@@ -190,5 +208,30 @@ describe('games store', () => {
     expect(fake.api.gameWatchStart).toHaveBeenCalledWith('g9');
     // no "your game is starting" for a game you only watch
     expect(attention).not.toHaveBeenCalled();
+  });
+
+  test('GAME_INFORM_PERSONAL and GAME_ERROR surface readable toasts for open games (#424)', async () => {
+    const { useGames, fake } = await load();
+    const { useToasts } = await import('./toasts');
+    useToasts.setState({ toasts: [] });
+    useGames.getState().open('g1', 'p1', 'play');
+
+    fake.rpc.emit({
+      method: 'GAME_INFORM_PERSONAL',
+      messageId: 10,
+      objectId: 'g1',
+      data: { message: 'Meddling Mage [abc]: Spells with the chosen name can’t be cast.' },
+    } as never);
+    fake.rpc.emit({
+      method: 'GAME_ERROR',
+      messageId: 11,
+      objectId: 'g1',
+      data: 'Game error occurred:\n\njava.lang.IllegalStateException: boom\nStack trace:\n\tat foo.Bar(Bar.java:1)',
+    } as never);
+
+    expect(useToasts.getState().toasts.map((t) => ({ title: t.title, message: t.message, tone: t.tone }))).toEqual([
+      { title: 'Game notice', message: 'Meddling Mage [abc]: Spells with the chosen name can’t be cast.', tone: 'info' },
+      { title: 'Game error', message: 'Game error occurred: java.lang.IllegalStateException: boom', tone: 'error' },
+    ]);
   });
 });

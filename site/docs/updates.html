@@ -27,6 +27,8 @@
           <li><a href="../#download">Download</a></li>
           <li><a href="../#host">Run a server</a></li>
           <li><a href="./" aria-current="true">Docs</a></li>
+          <li><a href="../rust/">Rust port</a></li>
+          <li><a href="../benchmarks/">Benchmarks</a></li>
           <li><a href="https://github.com/arcanite24/playmat">GitHub</a></li>
         </ul>
       </nav>
@@ -42,7 +44,10 @@
           <li><a href="server.html">Run a server</a></li>
           <li><a href="updates.html" aria-current="page">Updating</a></li>
           <li><a href="admin.html">Staff and the admin console</a></li>
+          <li><a href="sso.html">Single sign-on</a></li>
           <li><a href="capsules.html">Capsule machines</a></li>
+          <li><a href="ladder.html">Ranked and bots</a></li>
+          <li><a href="swarm.html">Self-play swarm</a></li>
         </ul>
       </nav>
       <article class="doc">
@@ -101,12 +106,48 @@ docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env up -d</code
 docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env pull xmage web
 docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env up -d --no-build</code></pre>
         </div>
+        <p>Behind your own reverse proxy (<code>TLS_MODE=external</code>), add
+          <code>-f ops/web/docker-compose.proxy.yml</code> after the first <code>-f</code> in both commands.</p>
         <p>If <code>.env</code> names the images with a digest (<code>…@sha256:…</code>, the updater writes them that way),
           set them back to <code>:master</code> first, or the pull keeps the same version. A server that was built from
           the source (empty image lines) switches to the published images by setting
           <code>XMAGE_SERVER_IMAGE=ghcr.io/arcanite24/playmat-server:master</code> and
           <code>XMAGE_WEB_IMAGE=ghcr.io/arcanite24/playmat-web:master</code>; the Update button does that by itself on its
           first update.</p>
+
+        <h2 id="java4shell">Java4Shell (CVE-2026-114938, Nov 2026)</h2>
+        <p><a href="https://calif.io/java4shell">Java4Shell</a> is a bug in Java's fast Base64 decoder that can corrupt
+          memory, and with work, run code. It only exists on x86-64 CPUs with AVX-512 VBMI (Intel Xeon Ice Lake and
+          later, AMD Zen 4 and later). ARM servers, such as Hetzner's CAX and Oracle's A1, don't have it. To check a
+          Linux server, run the command below: it is affected only if all four flags print.</p>
+        <div class="terminal" role="region" aria-label="Command to check the CPU">
+<pre><code>grep -m1 '^flags' /proc/cpuinfo | tr ' ' '\n' | grep -E '^(avx512f|avx512bw|avx512vbmi|bmi2)$'</code></pre>
+        </div>
+        <p>Playmat 0.3.1 fixes it twice: the server image runs Temurin 17.0.21.1, which has the fix, and the server
+          starts with the fast decoder turned off either way (<code>XMAGE_BASE64_INTRINSICS=on</code> turns it back on).
+          Update as usual. If you can't update yet, add this line to <code>.env</code> and run <code>up -d</code>:</p>
+        <div class="terminal" role="region" aria-label="Setting that turns the decoder off">
+<pre><code>XMAGE_JAVA_OPTS=-XX:-UseBASE64Intrinsics</code></pre>
+        </div>
+        <p>The desktop app brings its own Java: install 0.3.1 over 0.3.0 on Windows, Intel Macs and Linux PCs. Apple
+          silicon Macs aren't affected. The Android app doesn't use Java's runtime.</p>
+
+        <h2 id="accounts-db">Accounts moved to SQLite (Nov 2026)</h2>
+        <p>Accounts used to live in <code>db/authorized_user.h2</code>. The first start of a server from November 2026
+          or later copies them to <code>db/authorized_user.db</code>, with every password and remembered device, and the
+          log says <code>Accounts: N accounts copied from H2</code>. The old file is left as it was, and backups now
+          include the new one.</p>
+        <p>To go back, add <code>XMAGE_ACCOUNTS_DB=h2</code> to <code>.env</code> and run <code>up -d</code>. The
+          accounts made or changed since are copied back into the H2 file first, so nobody loses theirs. Details are in
+          <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#accounts-and-moderation">the
+          README</a>.</p>
+
+        <h2 id="new-cards">New cards and sets</h2>
+        <p>Cards are part of the server: each one is rules code in XMage, the engine Playmat is built on. New sets
+          arrive with Playmat updates, which bring in XMage's latest cards, so updating the server is the only way to
+          get them. There's no way to add a card by hand. A card can be missing because XMage hasn't written its rules
+          yet; ask on Discord or <a href="https://github.com/arcanite24/playmat/issues">open an issue</a> if a card
+          you need is missing.</p>
 
         <h2 id="format-decks">The AI's format decks</h2>
         <p>The web client ships 12 decks per supported format, mixing metagame snapshots with original rogue and
@@ -129,6 +170,7 @@ docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env up -d --no-
         <ul>
           <li><strong>“The updater isn't running.”</strong> <code>COMPOSE_PROFILES=updater</code> is missing from <code>.env</code>, or the <code>up -d</code> after adding it hasn't run. <code>docker compose … logs updater</code> shows what it saw at start.</li>
           <li><strong>An update failed and went back.</strong> The server runs what it ran before. The updater log says which step failed; the backup from step 2 is in the backups volume.</li>
+          <li><strong>A deploy stopped at the snapshot</strong> (image deploys, <code>playmat-deploy</code>). The disk lacks room for the snapshot: about twice the databases plus 2 GB (<code>SNAPSHOT_MIN_FREE_MB</code> in <code>/etc/playmat-deploy.conf</code>). Nothing changed and the run failed on purpose. Remove old backups or <code>pre-*.tar.gz</code> snapshots in <code>/var/backups/playmat</code>, or lower <code>BACKUP_KEEP</code>, then deploy again.</li>
           <li><strong>A job looks stuck</strong> after the host rebooted mid-update. Start the stack with <code>up -d</code>, check that it's healthy, and ask again.</li>
         </ul>
       </article>

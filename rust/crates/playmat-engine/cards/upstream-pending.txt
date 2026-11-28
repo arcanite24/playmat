@@ -1,0 +1,2 @@
+# Verified cards upstream changed and Rust hasn't caught up with (rust/tools/upstream_ledger.py check):
+# the engine's gate leaves them out, so their games stay on Java until they're re-verified.

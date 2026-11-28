@@ -85,3 +85,37 @@ test('watching uses the seated players server looks and contrasts identical slee
   expect(theirPlate?.getAttribute('style')).not.toContain('#1f2a44');
   dispose();
 });
+
+test('4-player tables place opponent names above their land row and outline the active player board', () => {
+  const bus = new EventBus(rpc);
+  const session = new GameSession(api, bus, { gameId: 'g4', playerId: 'me', mode: 'play' });
+  const state = {
+    ...session.getState(),
+    view: {
+      activePlayerId: 'p2',
+      players: [
+        { playerId: 'me', name: 'Alice', life: 40, handCount: 7, isActive: false },
+        { playerId: 'p2', name: 'Kismet', life: 40, handCount: 7, isActive: true },
+        { playerId: 'p3', name: 'AI 1', life: 40, handCount: 7, isActive: false, isHuman: false },
+        { playerId: 'p4', name: 'AI 2', life: 40, handCount: 7, isActive: false, isHuman: false },
+      ],
+    },
+  };
+  const { container, dispose } = (() => {
+    const rendered = render(<QueryClientProvider client={queryClient}><MemoryRouter><MatchStage session={session} state={state} /></MemoryRouter></QueryClientProvider>);
+    return { ...rendered, dispose: () => { rendered.unmount(); session.dispose(); bus.dispose(); } };
+  })();
+
+  const seatNames = [...container.querySelectorAll('[class*="seatName"]')].filter((el) => el.textContent && !el.className.includes('Active') || el.textContent === 'Kismet');
+  const kismetLabel = [...container.querySelectorAll('span')].find((el) => el.textContent === 'Kismet' && el.className.includes('seatName')) as HTMLElement | undefined;
+  expect(kismetLabel).toBeTruthy();
+  expect(seatNames.length).toBeGreaterThanOrEqual(3);
+  const landRows = [...container.querySelectorAll('[data-label="Lands & permanents"]')] as HTMLElement[];
+  const kismetLandsTop = parseFloat(landRows[0].style.top);
+  expect(parseFloat(kismetLabel!.style.top)).toBeLessThan(kismetLandsTop);
+
+  // active turn frame is rendered for the active player's board only
+  const activeFrames = container.querySelectorAll('[class*="activeBoard"]');
+  expect(activeFrames).toHaveLength(1);
+  dispose();
+});

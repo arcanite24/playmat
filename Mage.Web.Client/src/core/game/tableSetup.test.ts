@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BUFFER_TIMES, DEFAULT_ADVANCED, describeAdvanced, matchOptions, TIME_LIMITS } from './tableSetup';
+import { BUFFER_TIMES, DEFAULT_ADVANCED, describeAdvanced, FREE_MULLIGANS_ALL, matchOptions, TIME_LIMITS } from './tableSetup';
 
 describe('matchOptions', () => {
   const base = { name: 'Friday', gameType: 'Two Player Duel', deckType: 'Constructed - Modern', winsNeeded: 2, playerTypes: ['HUMAN', 'HUMAN'] };
@@ -39,5 +39,7 @@ describe('option lists', () => {
   it('describes only what differs from the defaults', () => {
     expect(describeAdvanced(DEFAULT_ADVANCED)).toEqual([]);
     expect(describeAdvanced({ ...DEFAULT_ADVANCED, matchTimeLimit: 'MIN__20', rated: true, freeMulligans: 1 })).toEqual(['1 free mulligan', '20 minutes', 'Rated']);
+    expect(describeAdvanced({ ...DEFAULT_ADVANCED, freeMulligans: FREE_MULLIGANS_ALL })).toEqual(['Free mulligans']);
+    expect(matchOptions({ name: 't', gameType: 'g', deckType: 'Constructed - Freeform', winsNeeded: 1, playerTypes: ['HUMAN', 'COMPUTER_MAD'], advanced: { freeMulligans: FREE_MULLIGANS_ALL } }).freeMulligans).toBe(7);
   });
 });

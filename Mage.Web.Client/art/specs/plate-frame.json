@@ -73,6 +73,30 @@
     {
       "id": "frame-sun",
       "subject": "accent ink #e0a030 for the ring; a ring of short sun rays with four small sun discs at the compass points"
+    },
+    {
+      "id": "ladder-bronze",
+      "subject": "accent ink #a0643a for the ring; a sturdy plain ring with one upward chevron notched at the top"
+    },
+    {
+      "id": "ladder-silver",
+      "subject": "accent ink #8d96a3 for the ring; a double ring with two small chevrons at the top"
+    },
+    {
+      "id": "ladder-gold",
+      "subject": "accent ink #b8901c for the ring; a beaded ring with three chevrons and a star at the top"
+    },
+    {
+      "id": "ladder-platinum",
+      "subject": "accent ink #2f8f86 for the ring; a notched ring with a pair of small wings at the top"
+    },
+    {
+      "id": "ladder-diamond",
+      "subject": "accent ink #4a6fd8 for the ring; a double ring set with four small cut diamonds at the quarters"
+    },
+    {
+      "id": "ladder-mythic",
+      "subject": "accent ink #b0408a for the ring; a ring of rising flame rays with a small crown at the top"
     }
   ]
 }

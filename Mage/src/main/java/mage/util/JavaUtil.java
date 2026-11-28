@@ -20,6 +20,17 @@ public class JavaUtil {
         if (System.getProperty("java.net.preferIPv4Stack") == null) {
             System.setProperty("java.net.preferIPv4Stack", "true");
         }
+
+        // TODO: works with java 18+, all prev versions must use command line params by launcher
+        // workaround for broken images download, decks import and draft rating files:
+        // there are some images links with non-ascii chars, so non-utf8 systems 
+        // can't use it (example: encoding windows-1251 in old russian windows)
+        if (System.getProperty("file.encoding") == null) {
+            System.setProperty("file.encoding", "UTF-8");
+        }
+        if (System.getProperty("sun.jnu.encoding") == null) {
+            System.setProperty("sun.jnu.encoding", "UTF-8");
+        }
     }
 
     public static void applyDefaultServerSettings() {
@@ -38,14 +49,11 @@ public class JavaUtil {
             System.setProperty("java.util.Arrays.useLegacyMergeSort", "true");
         }
 
-        // workaround for broken images download:
-        // there are some images links with non-ascii chars, so non-utf8 systems 
-        // can't use it (example: encoding windows-1251 in old russian windows)
-        if (System.getProperty("file.encoding") == null) {
-            System.setProperty("file.encoding", "UTF-8");
-        }
-        if (System.getProperty("sun.jnu.encoding") == null) {
-            System.setProperty("sun.jnu.encoding", "UTF-8");
+        // workaround for bad graphic card drivers:
+        // some systems has ugly cards, buttons or other GUI drawing artifacts due bad nvidia drivers
+        // see #4626
+        if (System.getProperty("sun.java2d.d3d") == null) {
+            System.setProperty("sun.java2d.d3d", "false");
         }
     }
 }

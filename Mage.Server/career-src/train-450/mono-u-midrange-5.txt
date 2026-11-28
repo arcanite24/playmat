@@ -1,0 +1,19 @@
+# name: Train450 mono-u-midrange-5
+# archetype: midrange
+# colors: U
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Cogwork Wrestler
+4 Expel from Orazca
+4 Faerie Duelist
+3 Halimar Tidecaller
+2 Hullbreaker Horror
+2 Icy Reception
+3 Long-Finned Skywhale
+2 Lunar Rejection
+2 Machine Over Matter
+2 Quantum Riddler
+3 Seafloor Stalker
+2 Threnody Singer
+2 Tolarian Geyser
+3 Viv Vision, Teen Synthezoid
+24 Island

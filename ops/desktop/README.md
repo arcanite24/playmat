@@ -37,9 +37,10 @@ install, so no administrator prompt).
   (`PLAYMAT_DATA` overrides it). It holds `server/` (the server's working folder: `db/` with accounts, decks, Career
   and the card database, `saved/` with replays), `logs/` (`launcher.log`, `server.log`) and `settings.properties`.
 - **Each start** copies `plugins/` and `config/` from the install into `server/`, renders `config.xml` (accounts on
-  or off; browser origins limited to this computer's own addresses on port 17170), and runs `mage.server.Main` as a
-  child process on the bundled Java with the installed `lib/` on its class path. A new version (or rebuilt jars) drops
-  the card database, so it's rebuilt from the new card pool; everything else in `db/` stays.
+  or off; browser origins limited to this computer's own addresses on port 17170, plus any in `PLAYMAT_EXTRA_ORIGINS`,
+  comma separated, for a tunnel or reverse proxy), and runs `mage.server.Main` as a child process on the bundled Java
+  with the installed `lib/` on its class path. A new version (or rebuilt jars) drops the card database, so it's rebuilt
+  from the new card pool; everything else in `db/` stays.
 - **Ready** when the WebSocket bridge (17172) accepts connections, which the server opens after loading cards. Until
   then, page loads get a "starting" page that reloads itself. The window shows the elapsed time and the server's
   latest log line.
@@ -51,7 +52,7 @@ install, so no administrator prompt).
 - **Updates**: it asks GitHub for the latest release once per start and shows a link when there's a newer one.
 - `--headless` runs without a window (status on the console, Ctrl+C stops); `--no-browser` doesn't open the browser.
 
-Ports: 17170 (web client), 17171 (desktop client protocol), 17172 (WebSocket bridge), 17173 (health, loopback only).
+Ports: 17170 (web client), 17172 (WebSocket bridge), 17173 (health, loopback only).
 
 ## Building
 

@@ -12,6 +12,8 @@ export interface ParsedList {
   companion: DeckCardInfo[];
   /** cards the player keeps "maybe" lists of; never imported */
   maybe: DeckCardInfo[];
+  /** lines that began with a count but weren't a card we could read; shown to the player, never imported */
+  skipped: string[];
 }
 
 const SECTION_NAMES: Record<string, ListSection> = {
@@ -110,7 +112,7 @@ export function parseCardLine(raw: string): CardLine | null {
   };
 }
 
-const empty = (): ParsedList => ({ main: [], side: [], commanders: [], companion: [], maybe: [] });
+const empty = (): ParsedList => ({ main: [], side: [], commanders: [], companion: [], maybe: [], skipped: [] });
 
 function push(list: ParsedList, section: ListSection, card: DeckCardInfo) {
   const target = { main: list.main, side: list.side, commander: list.commanders, companion: list.companion, maybe: list.maybe }[section];
@@ -176,7 +178,10 @@ export function parseList(text: string): ParsedList {
     if (/^LAYOUT\s/i.test(line) || TYPE_HEADERS.test(line)) continue;
 
     const parsed = parseCardLine(line) ?? (/^\d/.test(line) ? null : { card: { amount: 1, cardName: normalizeCardName(line), setCode: null, cardNumber: null }, sideboard: false });
-    if (!parsed) continue;
+    if (!parsed) {
+      result.skipped.push(line);
+      continue;
+    }
     about = false;
 
     if (blankAfterCards) {

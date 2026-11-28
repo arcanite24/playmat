@@ -58,7 +58,7 @@ public class User {
     private final Map<UUID, UUID> userTournaments; // playerId, tournamentId
     private final Map<UUID, TournamentSession> constructing;
     private final Map<UUID, Deck> sideboarding;
-    private final List<UUID> watchedGames;
+    private final Set<UUID> watchedGames;
     private String sessionId;
     private String restoreSessionId; // keep sessionId for possible restore on reconnect
     private String pingInfo = "";
@@ -100,7 +100,7 @@ public class User {
         this.userTournaments = new ConcurrentHashMap<>();
         this.constructing = new ConcurrentHashMap<>();
         this.sideboarding = new ConcurrentHashMap<>();
-        this.watchedGames = new ArrayList<>();
+        this.watchedGames = ConcurrentHashMap.newKeySet();
         this.tablesToDelete = new ArrayList<>();
         this.sessionId = "";
         this.clientVersion = "";
@@ -196,11 +196,7 @@ public class User {
         managerFactory.chatManager().removeUser(userId, reason);
 
         // watched games don't get restored after reconnection call - so don't keep it
-        for (Iterator<UUID> iterator = watchedGames.iterator(); iterator.hasNext(); ) {
-            UUID gameId = iterator.next();
-            managerFactory.gameManager().stopWatching(gameId, userId);
-            iterator.remove();
-        }
+        stopWatchingAllGames();
 
         // game tables
         if (reason.isRemoveUserTables) {
@@ -254,6 +250,16 @@ public class User {
         int lastSecs = (int) SystemUtil.getDateDiff(lastActivity, new Date(), TimeUnit.SECONDS);
 
         return " (online: " + connTime + "; seen: " + lastSecs + " sec ago)";
+    }
+
+    /** whether this user's games can go to the Rust host, see {@link Session#hostsGames()} */
+    public boolean hostsGames() {
+        return isConnected() && managerFactory.sessionManager().getSession(sessionId).map(Session::hostsGames).orElse(false);
+    }
+
+    /** the gateway hosting this user's games, or null, see {@link Session#gameHostId()} */
+    public String gameHostId() {
+        return !isConnected() ? null : managerFactory.sessionManager().getSession(sessionId).map(Session::gameHostId).orElse(null);
     }
 
     public void fireCallback(final ClientCallback call) {
@@ -457,6 +463,7 @@ public class User {
                 }
             }
         }
+        RustHost.reconnect(this);
 
         // active drafts
         for (Entry<UUID, DraftSession> entry : draftSessions.entrySet()) {
@@ -537,6 +544,8 @@ public class User {
     }
 
     public void removeUserFromAllTables(DisconnectReason reason) {
+        // the Rust host's games first, while their tables are there to record the end
+        RustHost.userLeft(userId);
         logger.trace("REMOVE " + userName + " Draft sessions " + draftSessions.size());
         for (DraftSession draftSession : draftSessions.values()) {
             draftSession.setKilled();
@@ -563,11 +572,7 @@ public class User {
         }
         gameSessions.clear();
         logger.trace("REMOVE " + userName + " watched Games " + watchedGames.size());
-        for (Iterator<UUID> it = watchedGames.iterator(); it.hasNext(); ) { // Iterator to prevent ConcurrentModificationException
-            UUID gameId = it.next();
-            managerFactory.gameManager().stopWatching(gameId, userId);
-        }
-        watchedGames.clear();
+        stopWatchingAllGames();
         logger.trace("REMOVE " + userName + " Chats ");
         managerFactory.chatManager().removeUser(userId, reason);
     }
@@ -685,12 +690,25 @@ public class User {
         return sb.length() == 0 ? "not active" : sb.toString();
     }
 
+    private void stopWatchingAllGames() {
+        for (Iterator<UUID> iterator = watchedGames.iterator(); iterator.hasNext(); ) {
+            UUID gameId = iterator.next();
+            if (watchedGames.remove(gameId)) {
+                managerFactory.gameManager().stopWatching(gameId, userId);
+            }
+        }
+    }
+
     public void addGameWatchInfo(UUID gameId) {
-        watchedGames.add(gameId);
+        if (gameId != null) {
+            watchedGames.add(gameId);
+        }
     }
 
     public void removeGameWatchInfo(UUID gameId) {
-        watchedGames.remove(gameId);
+        if (gameId != null) {
+            watchedGames.remove(gameId);
+        }
     }
 
     public UserState getUserState() {
@@ -889,10 +907,16 @@ public class User {
         }
     }
 
+    private static boolean isNotStarted(TableState state) {
+        return state == TableState.WAITING
+                || state == TableState.STARTING
+                || state == TableState.READY_TO_START;
+    }
+
     public int getNumberOfNotStartedTables() {
         int number = 0;
         for (Table table : tables.values()) {
-            if (table.getState() == TableState.WAITING || table.getState() == TableState.STARTING) {
+            if (isNotStarted(table.getState())) {
                 number++;
             }
         }

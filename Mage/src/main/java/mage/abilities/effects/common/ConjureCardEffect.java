@@ -14,6 +14,7 @@ import mage.players.Player;
 import mage.util.CardUtil;
 
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 /**
@@ -63,7 +64,7 @@ public class ConjureCardEffect extends OneShotEffect {
         if (cardInfo == null) {
             return false;
         }
-        Set<Card> cards = new HashSet<>();
+        Set<Card> cards = new LinkedHashSet<>(); // in a fixed order, which the Rust engine follows
         for (int i = 0; i < amount; i++) {
             Card card = cardInfo.createCard();
             cards.add(card);

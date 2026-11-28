@@ -1,0 +1,5 @@
+# Tier 1: burn at any target and at creatures
+24 Mountain
+12 Shock
+12 Lightning Strike
+12 Scorching Shot

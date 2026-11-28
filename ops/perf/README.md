@@ -28,10 +28,13 @@ The harness uses ports 18171–18173, so it can run next to a dev server on 1717
 |---|---|---|
 | `PERF_JVM` | `-Xmx2g` | JVM flags for the server, e.g. `"-Xmx384m -XX:+UseSerialGC -XX:ActiveProcessorCount=1"` |
 | `PERF_SERVER_OPTS` | | Extra `-D` properties, e.g. `-Dxmage.replays=false` |
+| `PERF_BACKEND` | `java` | `gateway` puts the Rust gateway (`rust/target/release/playmat-gateway`, or `PERF_GATEWAY_BIN`) on port 18180 in front of the bridge, and the bots connect through it. The summary adds `gatewayCpuSecPerGame` and `gatewayRssMB`, and `gateway-metrics.txt` holds its counters |
+| `PERF_DECK_SUITE` | | `ai` scenario: a fixed set of real decks, `Mage.Server/career-src/<suite>/*.txt`, e.g. `pauper` (the Rust engine's first pool). `MAGE_PERF_DECKS` wins when both are set |
 | `PERF_JFR` | `1` | `0` skips the JFR recording (it costs a few percent) |
 | `PERF_RUNS`, `PERF_COLD` | `3`, `0` | `startup`: number of starts; `1` deletes the card database before each start |
 | `PERF_IDLE_SEC` | `60` | `idle`: how long idle CPU is measured |
 | `MAGE_PERF_CONC`, `MAGE_PERF_DURATION_MS`, `MAGE_PERF_SKILL` | `8`, `120000`, `1` | `ai` scenario |
+| `MAGE_PERF_DECKS` | Headless Red mirror | `ai` scenario: comma-separated deck lists ("4 Card Name" lines) the AI seats rotate through, e.g. `Mage.Server/career-src/pioneer/*.txt`. The red mirror rarely gets past 10 permanents; real decks show the slow searches |
 | `MAGE_LOAD_GAMES`, `MAGE_LOAD_WAVES` | `12`, `3` | `human` scenario |
 | `MAGE_PERF_N`, `MAGE_PERF_HOLD_TURN`, `MAGE_PERF_HOLD_MS` | `16`, `6`, `90000` | `hold` scenario |
 
@@ -42,7 +45,44 @@ To act like a small VPS on a big machine, cap the JVM's view of the hardware: `P
 - `cpuSecPerGame` in `summary.json` is the main CPU number. It's the server's CPU time during the load divided by the games finished. Wall-clock times are noisy on a busy laptop, but CPU seconds and profile shares hold steady.
 - `profile.cpu` holds category shares from JFR. The first match wins, in this order: bridge state diffs, replay recording, AI search, playable highlighting, game views, message serialization, deck loading, card database, desktop transport, rules engine. `report.txt` lists the methods behind each one.
 - `liveHeapMBPerHeldGame` (`hold`) is the memory a game holds while it waits for a player.
-- `thinkTooLong` counts the AI's "thinks too long" warnings. When it climbs, the AI is running out of time rather than finishing its search.
+- `thinkTooLong` counts the AI's "thinks too long" warnings. The search stops itself at its think time, so a warning now means one action ran 3 s past it (an endless loop or a very slow card), not a big board.
+
+## AI decision times (AiSpeedBenchTest)
+
+`npm run perf -- ai` measures CPU per game. What a player waits on is each AI decision, and
+`Mage.Server/src/test/java/mage/server/career/AiSpeedBenchTest.java` measures that: seeded one-on-one games with the
+Pioneer and Standard school decks at skill 4, printing decision times (median, 95th and 99th percentile, worst), CPU per
+search node, and the slowest decisions with their board. It's skipped unless asked for:
+
+```bash
+mvn -o -q -pl Mage.Server.Plugins/Mage.Player.AI.MAD,Mage.Server test -Dtest=AiSpeedBenchTest \
+    -Dsurefire.failIfNoSpecifiedTests=false -Dxmage.aiSpeedBench=true -Dxmage.ai.searchStats=true \
+    -Dxmage.dataCollectors.printGameLogs=false -Dlog4j.configuration=file:$PWD/.travis/log4j.properties
+```
+
+The report is in the BENCH lines of `Mage.Server/target/surefire-reports/TEST-mage.server.career.AiSpeedBenchTest.xml`.
+`-Dxmage.aiSpeedBench.games=84` plays every deck four times; `.only=13,54,73,75,40,9,61,35` plays the heaviest boards.
+Games don't replay exactly (object ids are random and hash order follows them), so compare runs by CPU per node, which
+varies about 3% between runs of the same code, and by percentiles over many games.
+
+### Faster AI decisions on big boards (4 Nov 2026)
+
+The eight heaviest games, skill 4, M-series Mac:
+
+| | before | after |
+|---|---|---|
+| CPU per search node | 823 us | 547 us |
+| worst decision | 4.6 s | 1.9 s |
+| 99th percentile | 2.2 s | 1.6 s |
+| decisions over 3 s | 3 | 0 |
+
+- Events, abilities, effects, costs and modes take their ids from `RandomUtil.newId()` instead of `UUID.randomUUID()`,
+  whose SecureRandom every search thread shared (10% of the search)
+- Checking whether an effect has ended reads its source with `getObjectReadOnly`, so a simulation doesn't copy a shared
+  card just to look at it, and only for the durations that look at the source
+- The AI works out each mana source's mana once when ordering them, not once per cost
+- In AI simulations, a mana ability doesn't apply the effects before it's activated or after it resolves: the spell
+  being paid for applies them. Real games keep the full rules
 
 ## Baseline, 12 Oct 2026
 
@@ -88,7 +128,7 @@ PERF_JVM="-Xmx400m -XX:+UseSerialGC -XX:ActiveProcessorCount=1 -XX:SharedArchive
 
 ### M17: the web bridge and replays (12 Oct 2026)
 
-State patches diff the trees the bridge already built (the last state is kept as a tree, so nothing is parsed back), and a patch goes out without writing the complete message unless it's a close call; prompts are written out only if they're sent again. Diffing and writing happen on a per-connection sender instead of the game thread. Replay snapshots are skipped while a cheap change key stays the same and are written straight to text. Decks that only name their cards reuse each name's preferred printing. `-Dxmage.remoting=false` (`XMAGE_DESKTOP=false`) leaves the desktop protocol off.
+State patches diff the trees the bridge already built (the last state is kept as a tree, so nothing is parsed back), and a patch goes out without writing the complete message unless it's a close call; prompts are written out only if they're sent again. Diffing and writing happen on a per-connection sender instead of the game thread. Replay snapshots are skipped while a cheap change key stays the same and are written straight to text. Decks that only name their cards reuse each name's preferred printing. Leaving the desktop protocol off (`-Dxmage.remoting=false`) saved threads and memory; it has since been removed.
 
 | Measure (`-Xmx2g`) | Before | After |
 |---|---|---|
@@ -102,7 +142,7 @@ Playable highlighting (two game copies per view) is now the largest cost after t
 
 ### M18: the card database, playable highlighting, the AI's budgets, views and engine trims (12 Oct 2026)
 
-Startup checks the card classes against one query of every set and number instead of a lookup per card, and the card database's cache follows the heap (`XMAGE_DB_CACHE`, else an eighth of the heap, 16–150 MB). The image was meant to ship its card database compacted, but `SHUTDOWN COMPACT` leaves a database fresh from the server as it is (M19 switches to `SHUTDOWN DEFRAG`). Playable highlighting is computed once per game change and priority player, and mana checks reuse the copy the check already made. Each AI search counts its own nodes, and the budget follows the skill (2,000 nodes at skills 1–2, 3,500 at 3, 5,000 above; `XMAGE_AI_NODE_SCALE`). A search no longer starts when the player has nothing but mana abilities to play. The search threads follow the machine (`XMAGE_AI_THREADS`). The Monte Carlo AI shares one pool and can be left off (`XMAGE_MONTE_CARLO=false`), and the client then offers only the standard AI. Card views no longer copy the card, and computer sideboards are no longer sent to every viewer. A finished game drops its rollback states and last-known information. Watcher copies look up their class once, mana costs share their payment options until one changes, and card states aren't built just to be thrown away.
+Startup checks the card classes against one query of every set and number instead of a lookup per card, and the card database's cache follows the heap (`XMAGE_DB_CACHE`, else an eighth of the heap, 16–150 MB). The image was meant to ship its card database compacted, but `SHUTDOWN COMPACT` leaves a database fresh from the server as it is (M19 switches to `SHUTDOWN DEFRAG`). Playable highlighting is computed once per game change and priority player, and mana checks reuse the copy the check already made. Each AI search counts its own nodes, and the budget follows the skill (2,000 nodes at skills 1–2, 3,500 at 3, 5,000 above; `XMAGE_AI_NODE_SCALE`). The first actions of a search split its nodes and think time evenly (what one leaves goes to the next), and the think time is 3 s at Easy up to 8 s at Expert (it was 3 s per skill level, up to 30 s). AI simulations share card objects with the game they were copied from and copy a card only when they use it, instead of copying every library card each time. Two copies of the same card in hand count as one option. A search no longer starts when the player has nothing but mana abilities to play. The search threads follow the machine (`XMAGE_AI_THREADS`). The Monte Carlo AI shares one pool and can be left off (`XMAGE_MONTE_CARLO=false`), and the client then offers only the standard AI. Card views no longer copy the card, and computer sideboards are no longer sent to every viewer. A finished game drops its rollback states and last-known information. Watcher copies look up their class once, mana costs share their payment options until one changes, and card states aren't built just to be thrown away.
 
 | Measure (`-Xmx2g`) | Before | After |
 |---|---|---|
@@ -141,7 +181,7 @@ The class archive recorded in the image shrinks with it (319 to 34 MB). The imag
 | Heap in use, mean / max | 102 / 139 MB | 105–107 / 124–139 MB | 132–138 / 242–270 MB | 126 / 191 MB |
 | Games finished | 3/3 | 9/9 | 9/9 | 6/6 |
 
-JDK 25 starts faster, but its serial collector let the heap grow much further under the same games, so the image stays on JDK 17 by default (`--build-arg JAVA_RUNTIME=25` builds the other). On the 1 GB box, M19 keeps the server at about 300 MB with three games running.
+JDK 25 starts faster, but its serial collector let the heap grow much further under the same games, so the image stays on JDK 17 by default (`--build-arg JAVA_RUNTIME=25 --build-arg JAVA_IMAGE=eclipse-temurin:25-jre` builds the other). On the 1 GB box, M19 keeps the server at about 300 MB with three games running.
 
 ### B225: copying abilities (13 Oct 2026)
 

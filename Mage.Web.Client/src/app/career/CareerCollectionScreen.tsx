@@ -11,7 +11,7 @@ import { Button } from '../ui/Button';
 import { CardFace } from '../ui/CardFace';
 import { Dialog } from '../ui/Dialog';
 import { CareerBinder } from './CareerBinder';
-import type { BinderCard } from './binderModel';
+import { collectionPlaysetCount, isMissingPlayset, type BinderCard } from './binderModel';
 import { craftCard, useCareerCollection, useCareerSetProgress, useCareerState } from './careerData';
 import { ProgressBar } from './CareerScreen';
 import { fraction } from './progressModel';
@@ -48,18 +48,22 @@ export function CareerCollectionScreen() {
   const [text, setText] = useState('');
   const [rarity, setRarity] = useState<CareerRarity | ''>('');
   const [everything, setEverything] = useState(false);
+  const [missingPlayset, setMissingPlayset] = useState(false);
   const [crafting, setCrafting] = useState<Printing | null>(null);
   const [showSets, setShowSets] = useState(false);
   const [params, setParams] = useSearchParams();
   const view = params.get('view') === 'search' ? 'search' : 'binder';
   const owned = useMemo(() => ownedByName(collection.data ?? []), [collection.data]);
+  const playsetCount = useMemo(() => collectionPlaysetCount(owned), [owned]);
   const needle = text.trim().toLowerCase();
   const query = useDebounced(needle, 250);
 
   const mine = useMemo<Printing[]>(() => (collection.data ?? [])
     .map((card) => ({ name: card.name ?? '', setCode: card.setCode ?? '', cardNumber: card.cardNumber ?? '', rarity: (card.rarity ?? 'common') as CareerRarity }))
-    .filter((card) => (!needle || card.name.toLowerCase().includes(needle)) && (!rarity || card.rarity === rarity))
-    .sort((a, b) => a.name.localeCompare(b.name)), [collection.data, needle, rarity]);
+    .filter((card) => (!needle || card.name.toLowerCase().includes(needle))
+      && (!rarity || card.rarity === rarity)
+      && (!missingPlayset || isMissingPlayset(card.name, owned)))
+    .sort((a, b) => a.name.localeCompare(b.name)), [collection.data, needle, rarity, missingPlayset, owned]);
 
   // every card, to craft one not owned yet: searched on the server by name
   const search = useQuery({
@@ -70,7 +74,10 @@ export function CareerCollectionScreen() {
   });
   const found = useMemo<Printing[]>(() => (search.data ?? [])
     .map((card) => ({ name: card.name ?? '', setCode: card.expansionSetCode ?? '', cardNumber: card.cardNumber ?? '', rarity: careerRarity(card.rarity) }))
-    .filter((card) => card.setCode && !isBasic(card.name) && (!rarity || card.rarity === rarity)), [search.data, rarity]);
+    .filter((card) => card.setCode
+      && !isBasic(card.name)
+      && (!rarity || card.rarity === rarity)
+      && (!missingPlayset || isMissingPlayset(card.name, owned))), [search.data, rarity, missingPlayset, owned]);
 
   if (state.isPending) return <p className={styles.note}>{t('career.loading')}</p>;
   if (!profile) return <Navigate to="/career" replace />;
@@ -82,7 +89,9 @@ export function CareerCollectionScreen() {
       <div className={styles.tabs} role="group" aria-label={t('career.nav.collection')}>
         <button type="button" className={styles.tab} aria-pressed={view === 'binder'} onClick={() => setParams({}, { replace: true })} data-nav>{t('career.binder')}</button>
         <button type="button" className={styles.tab} aria-pressed={view === 'search'} onClick={() => setParams({ view: 'search' }, { replace: true })} data-nav>{t('career.binder.search')}</button>
-        <p className={styles.tabsNote}>{t('career.collection.count', { count: total })}</p>
+        <p className={styles.tabsNote}>
+          {t('career.collection.count', { count: total })} · {t('career.collection.playsets', { count: playsetCount })}
+        </p>
       </div>
       {view === 'binder' ? (
         <CareerBinder collection={collection.data ?? []} owned={owned} onPick={setCrafting} />
@@ -97,6 +106,10 @@ export function CareerCollectionScreen() {
               <select className={styles.select} value={rarity} onChange={(event) => setRarity(event.target.value as CareerRarity | '')} aria-label={t('career.rarity.any')}>
                 {RARITIES.map((item) => <option key={item.value} value={item.value}>{t(item.label)}</option>)}
               </select>
+              <label className={styles.toggle}>
+                <input type="checkbox" checked={missingPlayset} onChange={(event) => setMissingPlayset(event.target.checked)} />
+                {t('career.collection.missingPlayset')}
+              </label>
               <label className={styles.toggle}>
                 <input type="checkbox" checked={everything} onChange={(event) => setEverything(event.target.checked)} />
                 {t('career.collection.all')}

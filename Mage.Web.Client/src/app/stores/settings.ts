@@ -10,11 +10,14 @@ import type { CardImageRef } from '../../core/images/imageLinks';
 import { readJson, writeJson } from './persist';
 import { useSession } from './session';
 import { DEFAULT_CARD_BACK, type CardBackId } from '../ui/cardBack';
+import type { MatchSize } from '../match/matchLayout';
 
 export interface PlaySettings {
+  /** AI games run on the Rust engine when the server allows it and the decks qualify (beta; sent to the server) */
+  rustEngine: boolean;
   /** tap lands automatically when the payment is unambiguous */
   autoPayMana: boolean;
-  /** only auto-pay with mana that can't be spent elsewhere this turn */
+  /** leave mana already in the pool for manual payment (the inverse of Use floating mana automatically) */
   autoPayRestricted: boolean;
   /** ask before passing with mana in the pool */
   confirmEmptyManaPool: boolean;
@@ -46,6 +49,8 @@ export interface PlaySettings {
   autoAssignTrample: boolean;
   /** the hand is sorted: lands first, then by mana value and color (local only) */
   sortHand: boolean;
+  /** shipped starter decks stay out of the library and deck pickers (local only) */
+  hideStarterDecks: boolean;
   /** revealed cards fade away after a few seconds (local only) */
   autoDismissReveals: boolean;
   /** battlefield cards are drawn smaller, so big boards stay roomy (local only) */
@@ -60,6 +65,11 @@ export interface PlaySettings {
   combatStops: TurnCombatStops;
   /** card motion: placed, flown between zones */
   animations: boolean;
+  /** spells resolving: signature effects for the cards people play most (cardVfx.ts), only the plain effects, or none
+   * (damage numbers stay; local only) */
+  cardEffects: 'signature' | 'simple' | 'off';
+  /** combat: weighted hits with recoil, keyword effects and heavier landings, or the plain lunges (#413; local only) */
+  combatFx: 'fancy' | 'simple';
   /** opponents may ask to see your hand */
   allowHandRequests: boolean;
   /** pass priority for the player when they have nothing to cast, play or activate (local only) */
@@ -76,8 +86,14 @@ export interface PlaySettings {
   volume: number;
   /** only your turn, decisions, the clock and the result make a sound */
   importantCuesOnly: boolean;
+  /** a short chime when a triggered ability goes on the stack (else the spell cue) */
+  triggerSounds: boolean;
   /** browser notifications while the tab is in the background: your move, a draft pick, a game starting, a whisper */
   notifications: boolean;
+  /** which of those notify (with notifications on), one switch per kind (#208; local only) */
+  notifyOn: NotifyOn;
+  /** a chime when someone sits down at a table you host (#209; local only) */
+  tableJoinSound: boolean;
   /** profile: the sigil shown for the player (server avatar ids 10 to 32; 10 shows the initial) */
   avatarId: number;
   /** profile: a country code ("de") or "world" */
@@ -96,6 +112,12 @@ export interface PlaySettings {
   hideHands: boolean;
   /** watching and replays: the hovered card shows large at the side of the table, for stream viewers (local only) */
   largeZoom: boolean;
+  /** playing: the hovered card opens bigger beside the pointer, to read rules text on a small screen (#147, local only) */
+  bigZoom: boolean;
+  /** playing: the creatures and the hand drawn bigger than the fitted layout, for a laptop screen (#147, local only) */
+  matchSize: MatchSize;
+  /** playing vs AI: pause on AI spells, resolutions and combat declarations in seconds (0 = instant, up to 5s in 0.5s steps; local only) */
+  aiActionDelay: number;
   /** Career: the player chose to try it (local only; a server Career profile counts too) */
   careerOptIn: boolean;
   /** Career: the menu music on Career's screens (synthesized, local only) */
@@ -112,6 +134,11 @@ export interface PlaySettings {
   cardBack: CardBackId;
 }
 
+/** The kinds of browser notification a player can turn off one by one (#208). */
+export type NotificationKind = 'whispers' | 'turn' | 'gameStart' | 'draft' | 'tableJoins';
+export type NotifyOn = Record<NotificationKind, boolean>;
+export const DEFAULT_NOTIFY_ON: NotifyOn = { whispers: true, turn: true, gameStart: true, draft: true, tableJoins: true };
+
 const SETTINGS_KEY = 'playmat.settings';
 
 /** Arena-like: the game moves on by itself whenever the player has no real decision. */
@@ -122,11 +149,12 @@ export const STREAMLINED: Partial<PlaySettings> = {
 
 /** Classic XMage: every stop and every choice is the player's. */
 export const FULL_CONTROL: Partial<PlaySettings> = {
-  autoPass: false, autoSkipCombat: false, abilitiesOnTheirTurn: true, passAfterCasting: false, autoPayMana: false, autoTargetLevel: 0, autoOrderTriggers: false,
+  autoPass: false, autoSkipCombat: false, abilitiesOnTheirTurn: true, passAfterCasting: false, autoPayMana: false, autoPayRestricted: true, autoTargetLevel: 0, autoOrderTriggers: false,
   autoCrew: false, autoPayHybrid: false, autoPayAnyColor: false, autoPayPainful: false, autoPayX: false, xDefaultsToMax: false, skipSingleChoice: false, pickIdentical: false, smartPreselect: false, attackPlayerByDefault: false, autoAssignDamage: false, autoAssignTrample: false,
 };
 
 export const DEFAULT_SETTINGS: PlaySettings = {
+  rustEngine: false,
   autoPayMana: true,
   autoPayRestricted: true,
   confirmEmptyManaPool: true,
@@ -144,11 +172,14 @@ export const DEFAULT_SETTINGS: PlaySettings = {
   autoAssignDamage: true,
   autoAssignTrample: false,
   sortHand: true,
+  hideStarterDecks: false,
   autoDismissReveals: true,
   compactBoard: false,
   muteEmotes: false,
   autoTargetLevel: 1,
   animations: true,
+  cardEffects: 'signature',
+  combatFx: 'fancy',
   allowHandRequests: true,
   autoPass: true,
   autoSkipCombat: true,
@@ -157,7 +188,10 @@ export const DEFAULT_SETTINGS: PlaySettings = {
   sound: true,
   volume: 0.6,
   importantCuesOnly: false,
+  triggerSounds: true,
   notifications: false,
+  notifyOn: DEFAULT_NOTIFY_ON,
+  tableJoinSound: true,
   avatarId: 10,
   flag: 'world',
   locale: 'auto',
@@ -167,6 +201,9 @@ export const DEFAULT_SETTINGS: PlaySettings = {
   broadcastDelay: 0,
   hideHands: true,
   largeZoom: false,
+  bigZoom: false,
+  matchSize: 'fit',
+  aiActionDelay: 0,
   careerOptIn: false,
   careerMusic: true,
   musicVolume: 0.5,
@@ -210,7 +247,7 @@ export function toUserData(settings: PlaySettings, fullControl = false): UserDat
     userSkipPrioritySteps: serverStops(settings.stops, fullControl),
     flagName: `${settings.flag || 'world'}.png`,
     askMoveToGraveOrder: false,
-    manaPoolAutomatic: settings.autoPayMana,
+    manaPoolAutomatic: !fullControl && (settings.autoPayMana || !settings.autoPayRestricted),
     manaPoolAutomaticRestricted: settings.autoPayRestricted,
     passPriorityCast: settings.passAfterCasting && !fullControl,
     passPriorityActivation: settings.passAfterCasting && !fullControl,
@@ -219,12 +256,26 @@ export function toUserData(settings: PlaySettings, fullControl = false): UserDat
     useSameSettingsForReplacementEffects: true,
     useFirstManaAbility: false,
     confirmEmptyManaPool: settings.confirmEmptyManaPool,
+    useRustEngine: settings.rustEngine,
     userIdStr: '',
   };
 }
 
+export const AI_ACTION_DELAY_MAX = 5;
+
+/** Clamps the AI action pacing delay to 0..5 seconds in 0.5-second steps. */
+export function clampAiActionDelay(value: unknown): number {
+  const n = typeof value === 'number' && Number.isFinite(value) ? value : 0;
+  return Math.min(AI_ACTION_DELAY_MAX, Math.max(0, Math.round(n * 2) / 2));
+}
+
+function loadSettings(): PlaySettings {
+  const loaded = { ...DEFAULT_SETTINGS, ...readJson<Partial<PlaySettings>>(SETTINGS_KEY, {}) };
+  return { ...loaded, aiActionDelay: clampAiActionDelay(loaded.aiActionDelay) };
+}
+
 export const useSettings = create<SettingsState>((set, get) => ({
-  settings: { ...DEFAULT_SETTINGS, ...readJson<Partial<PlaySettings>>(SETTINGS_KEY, {}) },
+  settings: loadSettings(),
   fullControl: false,
 
   setFullControl(on) {
@@ -234,7 +285,8 @@ export const useSettings = create<SettingsState>((set, get) => ({
   },
 
   update(patch) {
-    const settings = { ...get().settings, ...patch };
+    const nextPatch = patch.aiActionDelay !== undefined ? { ...patch, aiActionDelay: clampAiActionDelay(patch.aiActionDelay) } : patch;
+    const settings = { ...get().settings, ...nextPatch };
     writeJson(SETTINGS_KEY, settings);
     set({ settings });
     void get().syncToServer();

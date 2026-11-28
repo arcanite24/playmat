@@ -27,6 +27,7 @@ import mage.server.game.GameFactory;
 import mage.server.game.PlayerFactory;
 import mage.server.managers.ManagerFactory;
 import mage.server.notify.DiscordNotifier;
+import mage.server.social.Presence;
 import mage.server.record.TableRecorderImpl;
 import mage.server.tournament.TournamentFactory;
 import mage.server.util.ServerMessagesUtil;
@@ -226,10 +227,7 @@ public class TableController {
     }
 
     public synchronized boolean replaceDraftPlayer(Player oldPlayer, String name, PlayerType playerType, int skill) {
-        Optional<Player> newPlayerOpt = createPlayer(name, playerType, skill);
-        if (!newPlayerOpt.isPresent()) {
-            logger.error("Can't replace draft player " + oldPlayer.getName() + " in table " + table.getId()
-                    + ": can't create player of type " + playerType);
+        if (oldPlayer == null || tournament == null) {
             return false;
         }
         if (table.getState() != TableState.DRAFTING) {
@@ -237,21 +235,33 @@ public class TableController {
                     + ": table state " + table.getState());
             return false;
         }
-        Player newPlayer = newPlayerOpt.get();
         TournamentPlayer oldTournamentPlayer = tournament.getPlayer(oldPlayer.getId());
+        if (oldTournamentPlayer == null) {
+            logger.error("Can't replace draft player " + oldPlayer.getName() + " in table " + table.getId()
+                    + ": player is not in tournament");
+            return false;
+        }
+        Optional<Player> newPlayerOpt = createPlayer(name, playerType, skill);
+        if (!newPlayerOpt.isPresent()) {
+            logger.error("Can't replace draft player " + oldPlayer.getName() + " in table " + table.getId()
+                    + ": can't create player of type " + playerType);
+            return false;
+        }
+        Player newPlayer = newPlayerOpt.get();
+        boolean draftReplaced = managerFactory.draftManager().getController(table.getId())
+                .map(controller -> controller.replacePlayer(oldPlayer, newPlayer))
+                .orElse(false);
+        if (!draftReplaced) {
+            logger.error("Can't replace draft player " + oldPlayer.getName() + " in draft, table " + table.getId());
+            return false;
+        }
+
         tournament.removePlayer(oldPlayer.getId());
         tournament.addPlayer(newPlayer, playerType);
 
         TournamentPlayer newTournamentPlayer = tournament.getPlayer(newPlayer.getId());
         newTournamentPlayer.setState(oldTournamentPlayer.getState());
         newTournamentPlayer.setReplacedTournamentPlayer(oldTournamentPlayer);
-
-        boolean draftReplaced = managerFactory.draftManager().getController(table.getId())
-                .map(controller -> controller.replacePlayer(oldPlayer, newPlayer))
-                .orElse(false);
-        if (!draftReplaced) {
-            logger.error("Draft player " + oldPlayer.getName() + " replaced in tournament but not in draft, table " + table.getId());
-        }
         return true;
     }
 
@@ -421,9 +431,23 @@ public class TableController {
             }
             user.ccJoinedTable(table.getRoomId(), table.getId(), table.getParentTableId(), false);
             userPlayerMap.put(userId, player.getId());
+            announceJoin(userId, user.getName(), table.getMatch().getOptions().getPassword());
         }
 
         return true;
+    }
+
+    /** A guest sat down at a public table of the main lobby: the Discord channel may hear of it (not of hidden players). */
+    private void announceJoin(UUID userId, String name, String password) {
+        try {
+            if (isOwner(userId) || table.isTournament() || !table.getRoomId().equals(managerFactory.gamesRoomManager().getMainRoomId())
+                    || Presence.isHidden(name)) {
+                return;
+            }
+            DiscordNotifier.instance().playerJoined(table, password, name);
+        } catch (RuntimeException e) {
+            logger.warn("Join announcement failed: " + e.getMessage());
+        }
     }
 
     public void addPlayer(UUID userId, Player player, PlayerType playerType, Deck deck) throws GameException {
@@ -740,8 +764,19 @@ public class TableController {
             }
             // a solo game against the AI saves itself at every turn, and may carry on from a save
             mage.server.solo.SoloGames.get().prepareGame(this, gameOptions);
+            // the Rust AI plays the AI's seat, when the game qualifies (docs/rust/Ai.md)
+            if (RustAi.enabled()) {
+                Map<UUID, String> humans = new HashMap<>();
+                for (Entry<UUID, UUID> entry : userPlayerMap.entrySet()) {
+                    managerFactory.userManager().getUser(entry.getKey()).ifPresent(u -> humans.put(entry.getValue(), u.getName()));
+                }
+                RustAi.prepare(match, match.getGame(), gameOptions, humans);
+            }
             match.getGame().setGameOptions(gameOptions);
-            managerFactory.gameManager().createGameSession(match.getGame(), userPlayerMap, table.getId(), choosingPlayerId, gameOptions);
+            // the Rust host plays it, when it qualifies (docs/rust/GameHost.md); otherwise Java does
+            if (!RustHost.host(managerFactory, table.getId(), match, userPlayerMap, gameOptions, choosingPlayerId, this::skillOf)) {
+                managerFactory.gameManager().createGameSession(match.getGame(), userPlayerMap, table.getId(), choosingPlayerId, gameOptions);
+            }
             String creator = null;
             StringBuilder opponent = new StringBuilder();
             for (Entry<UUID, UUID> entry : userPlayerMap.entrySet()) { // do only for no AI players
@@ -919,6 +954,66 @@ public class TableController {
      * against a goldfish (an AI with only basic lands) never counts. Each paid player hears about it right away (B269).
      */
     private void payCareer(Game game) {
+        // a ranked table's rewards are asked for by the table: remember which game it was, before the match's end
+        // forgets the table (#431)
+        mage.server.ladder.RankedService.gameEnded(table.getId(), game.getId());
+        if (mage.server.ladder.RankedService.isRanked(table.getId())) {
+            mage.server.ladder.LadderSideboarder.recordRevealedFromGame(table.getId(), game);
+        }
+        if (mage.server.ladder.RankedService.isRanked(table.getId()) && match.hasEnded()) {
+            mage.server.ladder.LadderSideboarder.forget(table.getId());
+            // a ranked match (#431) moves the player's rating and rank: won, lost, or drawn when neither won
+            boolean humanWon = false;
+            boolean otherWon = false;
+            int humanWins = 0;
+            int otherWins = 0;
+            for (MatchPlayer matchPlayer : match.getPlayers()) {
+                if (matchPlayer.getPlayer().isHuman()) {
+                    humanWins = matchPlayer.getWins();
+                } else {
+                    otherWins = matchPlayer.getWins();
+                }
+                if (matchPlayer.isMatchWinner()) {
+                    if (matchPlayer.getPlayer().isHuman()) {
+                        humanWon = true;
+                    } else {
+                        otherWon = true;
+                    }
+                }
+            }
+            double score = humanWon ? 1 : otherWon ? 0 : 0.5;
+            String gameScore = match.getOptions().getWinsNeeded() > 1 ? (humanWins + "-" + otherWins) : null;
+            try {
+                mage.server.ladder.RankedService rankedSvc = mage.server.ladder.RankedService.get();
+                if (rankedSvc.isPodTable(table.getId()) || match.getPlayers().size() > 2) {
+                    int placement = humanWon ? 1 : 4;
+                    if (!humanWon) {
+                        for (MatchPlayer mp : match.getPlayers()) {
+                            if (mp.getPlayer().isHuman()) {
+                                CareerTally t = CareerTally.of(game.getId(), mp.getPlayer().getId());
+                                if (t != null && t.podPlacement() > 0) {
+                                    placement = t.podPlacement();
+                                } else {
+                                    int alive = 0;
+                                    for (MatchPlayer other : match.getPlayers()) {
+                                        if (!other.getPlayer().isHuman() && !other.getPlayer().hasLost() && !other.getPlayer().hasLeft()) {
+                                            alive++;
+                                        }
+                                    }
+                                    placement = Math.max(2, Math.min(4, alive + 1));
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    rankedSvc.matchEndedPod(table.getId(), placement, System.currentTimeMillis(), game.getTurnNum());
+                } else {
+                    rankedSvc.matchEnded(table.getId(), score, System.currentTimeMillis(), game.getTurnNum(), gameScore);
+                }
+            } catch (java.sql.SQLException | RuntimeException e) {
+                logger.error("Ranked: the result of table " + table.getId() + " couldn't be recorded", e);
+            }
+        }
         if (mage.server.career.AdaptiveSkill.marked(table.getId()) && match.hasEnded()) {
             // adaptive difficulty (S049) moves the player's hidden rating by the match's result
             for (MatchPlayer matchPlayer : match.getPlayers()) {
@@ -1033,6 +1128,16 @@ public class TableController {
         UUID gameId = match.getGame() == null ? null : match.getGame().getId();
         ThreadUtils.setGameThreadStatus(gameId, ThreadUtils.THREAD_GAME_STATUS_SIDEBOARD);
         try {
+            if (mage.server.ladder.RankedService.isRanked(table.getId())) {
+                String playbookId = mage.server.ladder.RankedService.playbookOf(table.getId());
+                if (playbookId != null) {
+                    for (MatchPlayer mp : match.getPlayers()) {
+                        if (!mp.getPlayer().isHuman() && mp.getDeck() != null) {
+                            mage.server.ladder.LadderSideboarder.apply(table.getId(), playbookId, mp.getDeck());
+                        }
+                    }
+                }
+            }
             try {
                 match.sideboard();
             } finally {
@@ -1119,7 +1224,15 @@ public class TableController {
     private void autoSideboard() {
         for (MatchPlayer player : match.getPlayers()) {
             if (!player.isDoneSideboarding()) {
-                match.submitDeck(player.getPlayer().getId(), player.autoCompleteDeck(table.getValidator()));
+                Deck deck;
+                try {
+                    deck = player.autoCompleteDeck(table.getValidator());
+                } catch (Exception e) {
+                    // the match waits for every deck with no timeout of its own: hand in the current one
+                    logger.error("Table " + table.getId() + ": auto sideboard failed for " + player.getName(), e);
+                    deck = player.getDeck();
+                }
+                match.submitDeck(player.getPlayer().getId(), deck);
             }
         }
     }

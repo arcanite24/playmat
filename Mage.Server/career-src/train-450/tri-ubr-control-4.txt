@@ -1,0 +1,25 @@
+# name: Train450 tri-ubr-control-4
+# archetype: control
+# colors: UBR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Akul the Unrepentant
+2 Bone to Ash
+2 Corpse Explosion
+4 Death Wind
+2 Dissipate
+3 Grotesque Demise
+3 Killing Glare
+2 Nebelgast Intruder
+1 Necropolis Regent
+2 Polymorphist's Jest
+1 Revolutionary Rebuff
+3 Smaug, the Great Calamity
+3 Test of Talents
+2 Urza's Rebuff
+2 Vraska's Final Mercy
+4 A.I.M. Labs
+4 Hell's Kitchen
+5 Island
+3 Mountain
+4 Steam Vents
+6 Swamp

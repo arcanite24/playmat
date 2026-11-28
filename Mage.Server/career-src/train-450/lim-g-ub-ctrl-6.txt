@@ -1,0 +1,36 @@
+# name: Train450 lim-g-ub-ctrl-6
+# archetype: limited_ctrl
+# colors: UB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Arcane Subtraction
+1 Asinine Antics
+2 Bleeding Edge
+1 Clever Conjurer
+1 Deadly Embrace
+1 Deceiver of Form
+1 Desecration Demon
+1 Dusk Feaster
+1 Epic Downfall
+1 Essence Capture
+1 Falkenrath Forebear
+1 Geyser Leaper
+2 Hythonia the Cruel
+1 Liliana's Reaver
+1 Loch Mare
+2 Lord Dregg, Insect Invader
+2 Lyra, Tolarian Archangel
+1 Mage Hunter
+1 Nezahal, Primal Tide
+1 Nightmare Shepherd
+2 Nullify
+2 Rescue
+1 Serum Snare
+2 Startle
+1 Vantress Gargoyle
+1 Vayne's Treachery
+1 Voidwing Hybrid
+1 Wreckage Wickerfolk
+9 Island
+4 Restless Reef
+8 Swamp
+4 Treno, Dark City

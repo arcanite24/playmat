@@ -1,0 +1,35 @@
+# name: Train450 lim-g-gw-aggro-2
+# archetype: limited_aggro
+# colors: GW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Blossoming Defense
+1 Bonded Construct
+2 Burrowing Razormaw
+1 Consuming Sinkhole
+1 Dawnhart Wardens
+1 Dromoka, the Eternal
+2 Fade into Antiquity
+1 Garnet, Princess of Alexandria
+1 Getaway Glamer
+2 Hero of Iroas
+1 Heron's Grace Champion
+2 Imposing Sovereign
+2 Jennifer Walters
+1 Lovestruck Beast
+2 Maulfist Revolutionary
+1 Nyxborn Courser
+1 Pyrrhic Strike
+1 Setessan Tactics
+1 Sidewinder Naga
+1 Sudden Spinnerets
+2 Teshar, Ancestor's Apostle
+2 Ticket Tortoise
+1 Touch of the Void
+1 Ultron Drone
+2 Vigorbloom Vanguard
+1 Vorinclex, Monstrous Raider
+2 Warden of the Inner Sky
+7 Forest
+4 Kyoshi Village
+4 Overgrown Farmland
+8 Plains

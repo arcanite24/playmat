@@ -1,0 +1,21 @@
+# name: Train200 guild-br-aggro-1
+# archetype: aggro
+# colors: BR
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Bloodrage Brawler
+3 Built to Smash
+4 Fiery Temper
+1 Goldnight Castigator
+3 Hateful Eidolon
+2 Hunted Bonebrute
+3 Lavastep Raider
+4 Olivia's Midnight Ambush
+3 Shakedown Heavy
+3 Slumbering Cerberus
+2 Spark Jolt
+3 Speed, Young Avenger
+4 Wayward Guide-Beast
+9 Mountain
+4 Razortrap Gorge
+4 Stingerquill Annex
+4 Swamp

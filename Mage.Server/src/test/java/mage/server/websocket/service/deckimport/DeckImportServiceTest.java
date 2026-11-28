@@ -107,6 +107,16 @@ public class DeckImportServiceTest {
     }
 
     @Test
+    public void sweepsIdleSessionKeysFromRateLimitMap() {
+        failureOf("https://archidekt.com/decks/301", "old-1");
+        failureOf("https://archidekt.com/decks/302", "old-2");
+        Assert.assertEquals(2, service.trackedSessionCount());
+        now.addAndGet(DeckImportService.RATE_WINDOW_MILLIS);
+        failureOf("https://archidekt.com/decks/303", "fresh");
+        Assert.assertEquals("expired session keys are swept", 1, service.trackedSessionCount());
+    }
+
+    @Test
     public void cachedDecksDontCountTowardTheLimit() throws Exception {
         for (int i = 0; i < DeckImportService.IMPORTS_PER_MINUTE + 5; i++) {
             service.importFromUrl("https://archidekt.com/decks/3872725", "s1");

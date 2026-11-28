@@ -102,6 +102,18 @@ public interface TriggeredAbility extends Ability {
     boolean isOptional();
 
     /**
+     * Playmat: whether {@code target} is one of the targets an optional ("you may") triggered ability chooses as it
+     * goes on the stack. Its "may" is only asked on resolution, so the web client tells the player they can still
+     * decline then (the {@code optionalTrigger} option of {@code HumanPlayer.chooseTarget}).
+     */
+    static boolean isOptionalTriggerTarget(Ability source, mage.target.Target target) {
+        return source instanceof TriggeredAbility
+                && ((TriggeredAbility) source).isOptional()
+                && target != null
+                && source.getTargets().stream().anyMatch(t -> t == target);
+    }
+
+    /**
      * Allow trigger to fire after source leave the battlefield (example: will use LKI on itself sacrifice)
      */
     boolean isLeavesTheBattlefieldTrigger();

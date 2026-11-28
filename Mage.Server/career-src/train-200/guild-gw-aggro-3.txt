@@ -1,0 +1,22 @@
+# name: Train200 guild-gw-aggro-3
+# archetype: aggro
+# colors: GW
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Augmenter Pugilist
+2 Fierce Witchstalker
+3 Gaea's Might
+2 Heliod, Sun-Crowned
+4 Huatli's Raptor
+2 Khalni Ambush
+3 Kinsbaile Aspirant
+3 Prophet of Distortion
+2 Reality Hemorrhage
+3 Skyway Sniper
+4 Sunpearl Kirin
+3 Thorn Lieutenant
+4 Touch of the Void
+2 Unforgiving Aim
+4 Birnin Zana Plaza
+8 Forest
+5 Plains
+4 Tranquil Expanse

@@ -1,8 +1,10 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { Eye, MessageSquare } from 'lucide-react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Command, Interaction } from '../../core/game/interaction';
 import type { Prompt } from '../../core/game/prompt';
 import { abilityChooserSource, stripMarkup } from '../../core/game/prompt';
 import { parseManaAbility, parseManaColor } from '../../core/game/manaChoices';
+import { dungeonCardByName, isDungeonChoice, roomChoice, type Dungeon, type RoomChoice } from '../../core/game/dungeon';
 import { ManaPicker } from './ManaPicker';
 import { isStackAbility } from '../../core/game/cards';
 import { matchProgress } from '../../core/game/matchProgress';
@@ -10,16 +12,32 @@ import { gameResult, matchResult } from '../../core/game/matchResult';
 import type { CardView, GameEndView } from '../../protocol/generated/views';
 import { useT, type MessageKey } from '../i18n';
 import { Button } from '../ui/Button';
+import { KeyTip } from '../ui/KeyTip';
 import { AbilityCard } from '../ui/AbilityCard';
 import { CardFace } from '../ui/CardFace';
 import { PromptText } from '../ui/PromptText';
 import { cleanText } from '../ui/text';
 import './matchMessages';
 import { useChoiceKeyboard } from './useChoiceKeyboard';
+import { useMatchUi } from './matchUi';
 import { useKeyboardHints } from './useKeyboardHints';
 import { stampArt } from './touches';
 import { usePaintedArt } from '../career/careerArt';
 import styles from './Overlays.module.css';
+
+/**
+ * Hovering a card in an overlay opens the large card beside it, as on the table (#147): the zoom follows the element
+ * itself, since these cards aren't on the table. A finger long-presses instead (CardDetail finds them by data-card-id).
+ */
+function useHoverZoom(sleeve?: string) {
+  const setZoom = useMatchUi((state) => state.setZoom);
+  return (card: CardView) => ({
+    onPointerEnter: (event: React.PointerEvent<HTMLElement>) => {
+      if (event.pointerType !== 'touch') setZoom({ card, x: event.clientX, y: event.clientY, sleeve, anchor: event.currentTarget });
+    },
+    onPointerLeave: () => setZoom(null),
+  });
+}
 
 /** Opening hand, shown large: keep it or mulligan. */
 export function MulliganOverlay({ hand, interaction, sleeve, onCommand }: {
@@ -31,6 +49,7 @@ export function MulliganOverlay({ hand, interaction, sleeve, onCommand }: {
   const prompt = interaction.prompt;
   const keyboard = useChoiceKeyboard(prompt?.kind === 'ask');
   const hints = useKeyboardHints();
+  const zoom = useHoverZoom(sleeve);
   if (!prompt || prompt.kind !== 'ask') return null;
   return (
     <div ref={keyboard} tabIndex={-1} className={styles.scrim} role="dialog" aria-modal="true" aria-labelledby="mulligan-title">
@@ -39,13 +58,15 @@ export function MulliganOverlay({ hand, interaction, sleeve, onCommand }: {
         <p className={styles.subtitle}>{prompt.text}</p>
         <div className={styles.handRow}>
           {hand.map((card) => (
-            <div key={card.id} className={styles.handCard} data-card-id={card.id}>
+            <div key={card.id} className={styles.handCard} data-card-id={card.id} {...zoom(card)}>
               <CardFace card={card} sleeve={sleeve} size="normal" />
             </div>
           ))}
         </div>
         <div className={styles.buttons}>
-          <Button data-secondary aria-keyshortcuts="Alt+Enter Alt+1" variant="print" size="lg" onClick={() => onCommand({ type: 'boolean', value: true })}>{prompt.yesLabel}{hints && <kbd aria-hidden="true">Alt+1</kbd>}</Button>
+          <KeyTip keys="Alt+1 / Alt+Enter">
+            <Button data-secondary aria-keyshortcuts="Alt+Enter Alt+1" variant="print" size="lg" onClick={() => onCommand({ type: 'boolean', value: true })}>{prompt.yesLabel}{hints && <kbd aria-hidden="true">Alt+1</kbd>}</Button>
+          </KeyTip>
           <Button data-primary variant="decision" size="xl" onClick={() => onCommand({ type: 'boolean', value: false })}>{prompt.noLabel}</Button>
         </div>
       </div>
@@ -53,24 +74,33 @@ export function MulliganOverlay({ hand, interaction, sleeve, onCommand }: {
   );
 }
 
+/** Controlled or local "See the board" state shared by CardPicker and ChoicePanel. */
+function usePeekState(peeking?: boolean, onPeekChange?: (peeking: boolean) => void): [boolean, (next: boolean) => void] {
+  const [local, setLocal] = useState(false);
+  return [peeking ?? local, onPeekChange ?? setLocal];
+}
+
 /**
  * Choose among cards: off-board cards (library search, revealed cards) or the hand during a London mulligan.
  * Each click toggles a card; the server answers with the updated choice. Only the cards that can be chosen are shown
  * (a library search shows the lands it allows, not the whole library); Show all brings back the rest, greyed.
  */
-export function CardPicker({ title, cards, interaction, sleeve, footer, onCommand }: {
+export function CardPicker({ title, cards, interaction, sleeve, footer, peeking, onPeekChange, onCommand }: {
   title: string;
   cards: CardView[];
   interaction: Interaction;
   sleeve: string;
   /** more ways to answer, beside the main button */
   footer?: ReactNode;
+  peeking?: boolean;
+  onPeekChange?(peeking: boolean): void;
   onCommand(command: Command): void;
 }) {
-  const [hidden, setHidden] = useState(false);
+  const [hidden, setHidden] = usePeekState(peeking, onPeekChange);
   const keyboard = useChoiceKeyboard(!hidden);
   const hints = useKeyboardHints();
   const [showAll, setShowAll] = useState(false);
+  const zoom = useHoverZoom(sleeve);
   const main = interaction.mainButton;
   const choosable = cards.filter((card) => interaction.clickable.has(card.id!) || interaction.selected.has(card.id!));
   const others = cards.length - choosable.length;
@@ -114,6 +144,7 @@ export function CardPicker({ title, cards, interaction, sleeve, footer, onComman
                 data-card-id={id}
                 aria-label={`${name}${selected ? ', chosen' : ''}`}
                 onClick={() => onCommand({ type: 'uuid', id })}
+                {...zoom(card)}
               >
                 {ability ? <AbilityCard ability={ability} sleeve={sleeve} /> : <CardFace card={card} sleeve={sleeve} size="normal" />}
               </button>
@@ -124,7 +155,9 @@ export function CardPicker({ title, cards, interaction, sleeve, footer, onComman
           <footer className={styles.panelFoot}>
             {footer}
             {interaction.secondaryButtons.map((button, index) => (
-              <Button key={button.label} data-secondary data-cancel={button.label === 'Cancel' || undefined} variant="quiet" size="lg" onClick={() => onCommand(button.command)}>{button.label}{hints && index < 10 && <kbd aria-hidden="true">Alt+{(index + 1) % 10}</kbd>}</Button>
+              <KeyTip key={button.label} keys={[button.label === 'Cancel' ? 'Esc' : null, index < 10 ? `Alt+${(index + 1) % 10}` : null].filter(Boolean).join(' / ')}>
+                <Button data-secondary data-cancel={button.label === 'Cancel' || undefined} variant="quiet" size="lg" onClick={() => onCommand(button.command)}>{button.label}{hints && index < 10 && <kbd aria-hidden="true">Alt+{(index + 1) % 10}</kbd>}</Button>
+              </KeyTip>
             ))}
             {main && <Button data-primary variant="decision" size="lg" onClick={() => onCommand(main.command)}>{main.label}</Button>}
           </footer>
@@ -134,30 +167,40 @@ export function CardPicker({ title, cards, interaction, sleeve, footer, onComman
   );
 }
 
+interface PeekProps {
+  peeking?: boolean;
+  onPeekChange?(peeking: boolean): void;
+}
+
 /** Choices that don't live on the board: modes, named choices, piles, numbers. */
-export function ChoicePanel({ prompt, onCommand, xLimit = null, startAtLimit = false, sourceId }: {
+export function ChoicePanel({ prompt, onCommand, xLimit = null, startAtLimit = false, sourceId, dungeon = null, peeking, onPeekChange }: {
   prompt: Prompt;
   sourceId?: string | null;
+  /** the player's dungeon, for the "which room next" question */
+  dungeon?: Dungeon | null;
   onCommand(command: Command): void;
   /** announcing X: the most the player could pay (see xLimit), when the server sets no real limit */
   xLimit?: number | null;
   /** Start X at the most you can pay: the chooser starts at xLimit instead of the minimum */
   startAtLimit?: boolean;
-}) {
+} & PeekProps) {
   const t = useT();
   const hints = useKeyboardHints();
+  const zoom = useHoverZoom();
+  const [hidden, setHidden] = usePeekState(peeking, onPeekChange);
+  const peek: PeekProps = { peeking: hidden, onPeekChange: setHidden };
   switch (prompt.kind) {
     case 'chooseAbility': {
       const mana = prompt.choices.map((choice) => parseManaAbility(choice.text));
       if (mana.length > 1 && mana.every((choice) => choice !== null)) {
-        return <ManaPicker title={t('match.mana.choose')} choices={mana} sourceId={sourceId}
+        return <ManaPicker title={t('match.mana.choose')} choices={mana} sourceId={sourceId} {...peek}
           onPick={(index) => onCommand({ type: 'uuid', id: prompt.choices[index].id })}
           onCancel={() => onCommand({ type: 'uuid', id: null })} />;
       }
       // the server asks even with one ability, to confirm one that sacrifices its source: say so plainly
       const source = prompt.choices.length === 1 ? abilityChooserSource(prompt.text) : null;
       return (
-        <PanelShell title={source ? t('match.ability.one', { name: source }) : prompt.text || 'Choose one'}>
+        <PanelShell title={source ? t('match.ability.one', { name: source }) : prompt.text || 'Choose one'} {...peek}>
           <div className={styles.options}>
             {prompt.choices.map((choice, index) => (
               <button key={choice.id} data-choice type="button" className={styles.option} onClick={() => onCommand({ type: 'uuid', id: choice.id })}>
@@ -169,22 +212,24 @@ export function ChoicePanel({ prompt, onCommand, xLimit = null, startAtLimit = f
           </div>
           {/* backing out: nothing is cast or activated */}
           <footer className={styles.panelFoot}>
-            <Button data-secondary data-cancel variant="quiet" onClick={() => onCommand({ type: 'uuid', id: null })}>{t('match.ability.cancel')}{hints && <kbd aria-hidden="true">Alt+1</kbd>}</Button>
+            <KeyTip keys="Esc / Alt+1">
+              <Button data-secondary data-cancel variant="quiet" onClick={() => onCommand({ type: 'uuid', id: null })}>{t('match.ability.cancel')}{hints && <kbd aria-hidden="true">Alt+1</kbd>}</Button>
+            </KeyTip>
           </footer>
         </PanelShell>
       );
     }
     case 'chooseChoice':
-      return <ChoiceList prompt={prompt} onCommand={onCommand} sourceId={sourceId} />;
+      return <ChoiceList prompt={prompt} onCommand={onCommand} sourceId={sourceId} {...peek} />;
     case 'choosePile':
       return (
-        <PanelShell title={prompt.text || 'Choose a pile'} wide>
+        <PanelShell title={prompt.text || 'Choose a pile'} wide {...peek}>
           <div className={styles.piles}>
             {[prompt.pile1, prompt.pile2].map((pile, index) => (
               <button key={index} data-choice type="button" className={styles.pileChoice} onClick={() => onCommand({ type: 'boolean', value: index === 0 })}>
                 <span className={styles.pileLabel}>Pile {index + 1} · {pile.length} {pile.length === 1 ? 'card' : 'cards'}</span>
                 <div className={styles.pileCards}>
-                  {pile.map((card) => <div key={card.id} className={styles.pileCard}><CardFace card={card} size="small" /></div>)}
+                  {pile.map((card) => <div key={card.id} className={styles.pileCard} data-card-id={card.id} {...zoom(card)}><CardFace card={card} size="small" /></div>)}
                 </div>
               </button>
             ))}
@@ -192,27 +237,127 @@ export function ChoicePanel({ prompt, onCommand, xLimit = null, startAtLimit = f
         </PanelShell>
       );
     case 'amount':
-      return <AmountChooser prompt={prompt} onCommand={onCommand} limit={xLimit} startAtLimit={startAtLimit} />;
+      return <AmountChooser prompt={prompt} onCommand={onCommand} limit={xLimit} startAtLimit={startAtLimit} {...peek} />;
     case 'multiAmount':
-      return <MultiAmountChooser prompt={prompt} onCommand={onCommand} />;
+      return <MultiAmountChooser prompt={prompt} onCommand={onCommand} {...peek} />;
+    case 'ask': {
+      const choice = roomChoice(prompt, dungeon);
+      return choice ? <RoomChooser choice={choice} dungeon={dungeon} onCommand={onCommand} {...peek} /> : null;
+    }
     default:
       return null;
   }
 }
 
-function PanelShell({ title, children, wide }: { title: string; children: React.ReactNode; wide?: boolean }) {
+/** Venturing: the dungeons to choose from, as their cards, so the rooms can be read before choosing (#385). */
+function DungeonChooser({ title, names, onCommand, peeking, onPeekChange }: { title: string; names: string[]; onCommand(command: Command): void } & PeekProps) {
+  const zoom = useHoverZoom();
+  return (
+    <PanelShell title={title} wide peeking={peeking} onPeekChange={onPeekChange}>
+      <div className={styles.dungeons}>
+        {names.map((name, index) => {
+          const card = dungeonCardByName(name);
+          return (
+            <button key={name} data-choice type="button" className={styles.dungeonChoice} data-card-id={card.id}
+              aria-label={`Venture into ${name}`} onClick={() => onCommand({ type: 'string', value: name })} {...zoom(card)}>
+              <CardFace card={card} size="normal" />
+              <span className={styles.dungeonName}>
+                {index < 10 && <span className={styles.optionKey} aria-hidden="true">{(index + 1) % 10}</span>}
+                {name}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </PanelShell>
+  );
+}
+
+/** "Which room next": both rooms with what entering them does, beside the dungeon's card (#385). */
+function RoomChooser({ choice, dungeon, onCommand, peeking, onPeekChange }: { choice: RoomChoice; dungeon: Dungeon | null; onCommand(command: Command): void } & PeekProps) {
+  const zoom = useHoverZoom();
+  const card = dungeon?.card ?? (choice.dungeonName ? dungeonCardByName(choice.dungeonName) : null);
+  const from = dungeon?.currentRoom;
+  return (
+    <PanelShell title={choice.dungeonName ? `Next room in ${choice.dungeonName}` : 'Choose the next room'} wide peeking={peeking} onPeekChange={onPeekChange}>
+      <div className={styles.roomChoice}>
+        {card && <div className={styles.roomCard} data-card-id={card.id} {...zoom(card)}><CardFace card={card} size="normal" /></div>}
+        <div className={styles.options}>
+          {from && <p className={styles.panelText}>You leave {from}. Choose where the venture marker goes:</p>}
+          {choice.options.map((option, index) => (
+            <button key={option.name} data-choice type="button" className={styles.option} onClick={() => onCommand({ type: 'boolean', value: option.value })}>
+              <span className={styles.optionKey} aria-hidden="true">{index + 1}</span>
+              <span className={styles.roomText}>
+                <b>{option.name}</b>
+                {option.room && <span><PromptText text={option.room.effect} /></span>}
+                {option.room && option.room.leadsTo.length > 0 && <small>Leads to {option.room.leadsTo.join(' or ')}</small>}
+                {option.room && option.room.leadsTo.length === 0 && <small>The last room</small>}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </PanelShell>
+  );
+}
+
+/** A player's dungeon laid out room by room: where the venture marker is, and where it can go next. */
+export function DungeonViewer({ title, dungeon, onClose }: { title: string; dungeon: Dungeon; onClose(): void }) {
   const keyboard = useChoiceKeyboard();
+  const zoom = useHoverZoom();
+  return (
+    <div ref={keyboard} tabIndex={-1} className={styles.scrim} role="dialog" aria-modal="true" aria-label={title} onClick={onClose}>
+      <div className={[styles.panel, styles.panelWide].join(' ')} onClick={(event) => event.stopPropagation()}>
+        <header className={styles.panelHead}>
+          <h2 className={styles.panelTitle}>{title}</h2>
+          <Button data-cancel variant="quiet" size="sm" onClick={onClose}>Close</Button>
+        </header>
+        <div className={styles.roomChoice}>
+          <div className={styles.roomCard} data-card-id={dungeon.card.id} {...zoom(dungeon.card)}><CardFace card={dungeon.card} size="normal" /></div>
+          <ol className={[styles.rooms, styles.optionsScroll].join(' ')}>
+            {dungeon.rooms.map((room) => (
+              <li key={room.name} className={[styles.room, room.current ? styles.roomHere : '', room.next ? styles.roomNext : ''].join(' ')}
+                aria-current={room.current ? 'location' : undefined}>
+                <span className={styles.roomText}>
+                  <b>{room.name}</b>
+                  <span><PromptText text={room.effect} /></span>
+                  {room.leadsTo.length > 0 && <small>Leads to {room.leadsTo.join(' or ')}</small>}
+                </span>
+                {room.current && <span className={styles.roomTag}>Venture marker</span>}
+                {room.next && <span className={styles.roomTag}>Next</span>}
+              </li>
+            ))}
+          </ol>
+        </div>
+        {!dungeon.currentRoom && <p className={styles.panelText}>Not in a room yet.</p>}
+      </div>
+    </div>
+  );
+}
+
+function PanelShell({ title, children, wide, peeking = false, onPeekChange }: { title: string; children: React.ReactNode; wide?: boolean } & PeekProps) {
+  const keyboard = useChoiceKeyboard(!peeking);
+  if (peeking) {
+    return (
+      <div className={styles.peek}>
+        <Button variant="decision" onClick={() => onPeekChange?.(false)}>Back to choice</Button>
+      </div>
+    );
+  }
   return (
     <div ref={keyboard} tabIndex={-1} className={styles.scrim} role="dialog" aria-modal="true" aria-label={cleanText(title)}>
       <div className={[styles.panel, wide ? styles.panelWide : styles.panelNarrow].join(' ')}>
-        <h2 className={styles.panelTitle}><PromptText text={title} /></h2>
+        <header className={styles.panelHead}>
+          <h2 className={styles.panelTitle}><PromptText text={title} /></h2>
+          {onPeekChange && <Button variant="quiet" size="sm" onClick={() => onPeekChange(true)}>See the board</Button>}
+        </header>
         {children}
       </div>
     </div>
   );
 }
 
-function ChoiceList({ prompt, onCommand, sourceId }: { prompt: Extract<Prompt, { kind: 'chooseChoice' }>; onCommand(command: Command): void; sourceId?: string | null }) {
+function ChoiceList({ prompt, onCommand, sourceId, peeking, onPeekChange }: { prompt: Extract<Prompt, { kind: 'chooseChoice' }>; onCommand(command: Command): void; sourceId?: string | null } & PeekProps) {
   const t = useT();
   const hints = useKeyboardHints();
   const choice = prompt.choice;
@@ -229,15 +374,18 @@ function ChoiceList({ prompt, onCommand, sourceId }: { prompt: Extract<Prompt, {
     [sorted, query],
   );
   const title = stripMarkup(choice.message) || prompt.text || 'Choose one';
+  if (isDungeonChoice(choice)) {
+    return <DungeonChooser title={title} names={sorted.map((entry) => entry.value)} onCommand={onCommand} peeking={peeking} onPeekChange={onPeekChange} />;
+  }
   const mana = sorted.map((entry) => parseManaColor(entry.label));
   if (mana.length > 0 && mana.every((entry) => entry !== null)) {
-    return <ManaPicker title={title} choices={mana} sourceId={sourceId} subMessage={choice.subMessage}
+    return <ManaPicker title={title} choices={mana} sourceId={sourceId} subMessage={choice.subMessage} peeking={peeking} onPeekChange={onPeekChange}
       onPick={(index) => onCommand({ type: 'string', value: sorted[index].value })}
       onCancel={choice.required ? undefined : () => onCommand({ type: 'string', value: '' })}
       cancelLabel={t('match.mana.skip')} />;
   }
   return (
-    <PanelShell title={title}>
+    <PanelShell title={title} peeking={peeking} onPeekChange={onPeekChange}>
       {choice.subMessage && <p className={styles.panelText}>{stripMarkup(choice.subMessage)}</p>}
       {entries.length > 8 && (
         <input className={styles.search} placeholder="Search" value={query} onChange={(event) => setQuery(event.target.value)} aria-label="Search choices" />
@@ -252,19 +400,21 @@ function ChoiceList({ prompt, onCommand, sourceId }: { prompt: Extract<Prompt, {
       </div>
       {!choice.required && (
         <footer className={styles.panelFoot}>
-          <Button data-secondary data-cancel variant="quiet" onClick={() => onCommand({ type: 'string', value: '' })}>Skip{hints && <kbd aria-hidden="true">Alt+1</kbd>}</Button>
+          <KeyTip keys="Esc / Alt+1">
+            <Button data-secondary data-cancel variant="quiet" onClick={() => onCommand({ type: 'string', value: '' })}>Skip{hints && <kbd aria-hidden="true">Alt+1</kbd>}</Button>
+          </KeyTip>
         </footer>
       )}
     </PanelShell>
   );
 }
 
-function AmountChooser({ prompt, onCommand, limit, startAtLimit }: {
+function AmountChooser({ prompt, onCommand, limit, startAtLimit, peeking, onPeekChange }: {
   prompt: Extract<Prompt, { kind: 'amount' }>;
   onCommand(command: Command): void;
   limit: number | null;
   startAtLimit: boolean;
-}) {
+} & PeekProps) {
   const t = useT();
   const max = Math.min(prompt.max, 999);
   // X: the range shown stops at what the player could pay; typing or stepping past it stays possible (mana the
@@ -273,7 +423,7 @@ function AmountChooser({ prompt, onCommand, limit, startAtLimit }: {
   const clamp = (next: number) => Math.max(prompt.min, Math.min(max, next));
   const [value, setValue] = useState(() => (startAtLimit && limit !== null ? clamp(limit) : prompt.min));
   return (
-    <PanelShell title={prompt.text || 'Choose a number'}>
+    <PanelShell title={prompt.text || 'Choose a number'} peeking={peeking} onPeekChange={onPeekChange}>
       <div className={styles.amount}>
         <Button variant="print" size="lg" onClick={() => setValue((current) => clamp(current - 1))} aria-label="Less" disabled={value <= prompt.min}>−</Button>
         <input
@@ -305,14 +455,14 @@ function AmountChooser({ prompt, onCommand, limit, startAtLimit }: {
   );
 }
 
-function MultiAmountChooser({ prompt, onCommand }: { prompt: Extract<Prompt, { kind: 'multiAmount' }>; onCommand(command: Command): void }) {
+function MultiAmountChooser({ prompt, onCommand, peeking, onPeekChange }: { prompt: Extract<Prompt, { kind: 'multiAmount' }>; onCommand(command: Command): void } & PeekProps) {
   const hints = useKeyboardHints();
   const [values, setValues] = useState(prompt.items.map((item) => item.defaultValue ?? item.min ?? 0));
   const total = values.reduce((sum, value) => sum + value, 0);
   const valid = total >= prompt.min && total <= prompt.max
     && prompt.items.every((item, index) => values[index] >= (item.min ?? 0) && values[index] <= (item.max ?? Infinity));
   return (
-    <PanelShell title={prompt.title ?? (prompt.text || 'Divide')}>
+    <PanelShell title={prompt.title ?? (prompt.text || 'Divide')} peeking={peeking} onPeekChange={onPeekChange}>
       {prompt.header && <p className={styles.panelText}>{stripMarkup(prompt.header)}</p>}
       <div className={styles.split}>
         {prompt.items.map((item, index) => (
@@ -331,7 +481,11 @@ function MultiAmountChooser({ prompt, onCommand }: { prompt: Extract<Prompt, { k
       </div>
       <footer className={styles.panelFoot}>
         <span className={styles.range}>Total {total} · needs {prompt.min === prompt.max ? prompt.min : `${prompt.min} to ${prompt.max}`}</span>
-        {prompt.canCancel && <Button data-secondary data-cancel variant="quiet" onClick={() => onCommand({ type: 'string', value: '' })}>Cancel{hints && <kbd aria-hidden="true">Alt+1</kbd>}</Button>}
+        {prompt.canCancel && (
+          <KeyTip keys="Esc / Alt+1">
+            <Button data-secondary data-cancel variant="quiet" onClick={() => onCommand({ type: 'string', value: '' })}>Cancel{hints && <kbd aria-hidden="true">Alt+1</kbd>}</Button>
+          </KeyTip>
+        )}
         <Button data-primary variant="decision" size="lg" disabled={!valid} onClick={() => onCommand({ type: 'string', value: values.join(' ') })}>Done</Button>
       </footer>
     </PanelShell>
@@ -353,10 +507,12 @@ export function StartingPlayerOverlay({ me, opponents, onChoose }: {
         <p className={styles.subtitle}>The player who goes first skips their first draw.</p>
         <div className={styles.buttons}>
           {opponents.map((opponent, index) => (
-            <Button key={opponent.id} data-choice data-secondary variant="print" size="lg" onClick={() => onChoose(opponent.id)}>
-              {opponents.length === 1 ? 'Draw first' : `${opponent.name} starts`}
-              {hints && index < 10 && <kbd aria-hidden="true">Alt+{(index + 1) % 10}</kbd>}
-            </Button>
+            <KeyTip key={opponent.id} keys={index < 10 ? `Alt+${(index + 1) % 10}` : null}>
+              <Button data-choice data-secondary variant="print" size="lg" onClick={() => onChoose(opponent.id)}>
+                {opponents.length === 1 ? 'Draw first' : `${opponent.name} starts`}
+                {hints && index < 10 && <kbd aria-hidden="true">Alt+{(index + 1) % 10}</kbd>}
+              </Button>
+            </KeyTip>
           ))}
           <Button data-choice data-primary variant="decision" size="xl" onClick={() => onChoose(me.id)}>Play first</Button>
         </div>
@@ -369,8 +525,8 @@ const END_TITLE: Record<string, MessageKey> = { won: 'match.end.victory', lost: 
 const END_GAME: Record<string, MessageKey> = { won: 'match.end.wonGame', lost: 'match.end.lostGame', draw: 'match.end.drawGame' };
 const END_MATCH: Record<string, MessageKey> = { won: 'match.end.wonMatch', lost: 'match.end.lostMatch', draw: 'match.end.drawMatch' };
 
-/** The end of a game: who won, the match score, and where to go next. */
-export function GameOverOverlay({ message, endInfo, myName, onLeave, leaveLabel = 'Back to Play', onPlayAgain, onReview, rewards, stamps }: {
+/** The end of a game: who won, the match score, opponent deck(s), and where to go next. */
+export function GameOverOverlay({ message, endInfo, myName, onLeave, leaveLabel = 'Back to Play', onPlayAgain, onReview, onViewLog, rewards, stamps, opponentDecks }: {
   message: string;
   endInfo: GameEndView | null;
   /** the player's name, to tell from the server's message who won when there is no end-of-game info */
@@ -380,13 +536,33 @@ export function GameOverOverlay({ message, endInfo, myName, onLeave, leaveLabel 
   onPlayAgain?(): void;
   /** look back over the game: its turning point and mistakes */
   onReview?(): void;
+  /** collapse the scrim and open the game log drawer (#483) */
+  onViewLog?(): void;
   /** what the game paid, once the server says (B277) */
   rewards?: ReactNode;
   /** victory stamps (B300): yours, and the opponent's in a game against one; the winner's is pressed on the result */
   stamps?: { mine: string | null; theirs: string | null };
+  /** fallback map of non-human opponent seat name -> deck name when endInfo has not arrived yet (#416) */
+  opponentDecks?: Record<string, string>;
 }) {
   const t = useT();
   const paintedArt = usePaintedArt();
+  const [inspectingBoard, setInspectingBoard] = useState(false);
+
+  // Escape returns from board inspection back to the result overlay (unless a zone, card sheet, or log is open)
+  useEffect(() => {
+    if (!inspectingBoard) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      const ui = useMatchUi.getState();
+      if (ui.viewer || ui.detail || ui.dungeonOf || ui.logOpen) return;
+      event.preventDefault();
+      setInspectingBoard(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [inspectingBoard]);
+
   // a match of several games ends on the match's result; a single game on the game's
   const matchEnd = matchResult(endInfo);
   const progress = matchEnd ? matchProgress(endInfo) : null;
@@ -397,19 +573,63 @@ export function GameOverOverlay({ message, endInfo, myName, onLeave, leaveLabel 
   // why a match ended early ("Bob has quit the match.")
   const extra = stripMarkup(endInfo?.additionalInfo);
   const stamp = !paintedArt ? null : result === 'won' ? stamps?.mine : result === 'lost' ? stamps?.theirs : null;
+  const title = t(result ? END_TITLE[result] : 'match.end.over');
+
+  // opponent AI deck name(s): server-authoritative GameEndView first, client fallback second (#416)
+  const serverDecks = Object.entries(endInfo?.opponentDecks ?? {}).filter(([, deck]) => !!deck?.trim());
+  const deckEntries = serverDecks.length > 0
+    ? serverDecks
+    : Object.entries(opponentDecks ?? {}).filter(([, deck]) => !!deck?.trim());
+  const deckLine = deckEntries.length === 1
+    ? t('match.end.opponentDeck', { deck: deckEntries[0][1] })
+    : deckEntries.length > 1
+      ? t('match.end.opponentDecks', { decks: deckEntries.map(([player, deck]) => `${player}: ${deck}`).join(' · ') })
+      : null;
+
+  if (inspectingBoard) {
+    return (
+      <aside className={styles.boardBar} aria-label={title}>
+        <span className={[styles.boardResult, result === 'won' ? styles.victory : result === 'lost' ? styles.defeat : ''].join(' ')}>
+          {title}
+        </span>
+        <Button variant="decision" size="md" onClick={() => setInspectingBoard(false)}>
+          {t('match.end.backToResult')}
+        </Button>
+        <Button variant="print" size="md" onClick={onLeave}>{leaveLabel}</Button>
+      </aside>
+    );
+  }
+
   return (
     <div className={[styles.scrim, styles.endScrim].join(' ')} role="dialog" aria-modal="true" aria-labelledby="game-over-title">
       <div className={styles.center}>
         <div className={styles.endHead}>
           <h2 id="game-over-title" className={[styles.endTitle, result === 'won' ? styles.victory : result === 'lost' ? styles.defeat : ''].join(' ')}>
-            {t(result ? END_TITLE[result] : 'match.end.over')}
+            {title}
           </h2>
           {stamp && <VictoryStamp id={stamp} />}
         </div>
         <p className={styles.subtitle}>{line}</p>
+        {deckLine && <p className={styles.opponentDeck}>{deckLine}</p>}
         {extra && <p className={styles.score}>{extra}</p>}
         {rewards}
         <div className={styles.buttons}>
+          <Button variant="quiet" size="lg" icon={<Eye size={20} />} onClick={() => setInspectingBoard(true)}>
+            {t('match.end.viewBoard')}
+          </Button>
+          {onViewLog && (
+            <Button
+              variant="quiet"
+              size="lg"
+              icon={<MessageSquare size={20} />}
+              onClick={() => {
+                setInspectingBoard(true);
+                onViewLog();
+              }}
+            >
+              {t('match.end.viewLog')}
+            </Button>
+          )}
           <Button variant="print" size="lg" onClick={onLeave}>{leaveLabel}</Button>
           {onReview && <Button variant="quiet" size="lg" onClick={onReview}>Review the game</Button>}
           {onPlayAgain && <Button variant="decision" size="xl" onClick={onPlayAgain}>Play again</Button>}
@@ -430,6 +650,7 @@ function VictoryStamp({ id }: { id: string }) {
 export function ZoneViewer({ title, cards, note, counts, onClose }: { title: string; cards: CardView[]; note?: string; counts?: Record<string, number>; onClose(): void }) {
   const t = useT();
   const keyboard = useChoiceKeyboard();
+  const zoom = useHoverZoom();
   return (
     <div ref={keyboard} tabIndex={-1} className={styles.scrim} role="dialog" aria-modal="true" aria-label={title} onClick={onClose}>
       <div className={styles.panel} onClick={(event) => event.stopPropagation()}>
@@ -443,7 +664,7 @@ export function ZoneViewer({ title, cards, note, counts, onClose }: { title: str
             {cards.map((card) => {
               const copies = counts?.[card.id!] ?? 1;
               return (
-                <div key={card.id} className={styles.pick} data-card-id={card.id}>
+                <div key={card.id} className={styles.pick} data-card-id={card.id} {...zoom(card)}>
                   <CardFace card={card} size="normal" />
                   {copies > 1 && <span className={styles.viewerCount} aria-label={t('match.viewer.copies', { count: copies })}>×{copies}</span>}
                 </div>

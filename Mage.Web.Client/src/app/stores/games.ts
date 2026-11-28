@@ -45,6 +45,23 @@ interface GamesState {
 const ATTENTION_DELAY_MS = 1500;
 const stopWatching = new Map<string, () => void>();
 
+/**
+ * The way back (usePlay's return path) when it belongs to a game opening at this table: a start is still on its way
+ * (Career, a mode, the AI), it names this table's rewards, or another game of the same match is open. Anything else is
+ * left over from an earlier match and leads nowhere for this one (#214).
+ */
+export function returnPathFor(table: GameTable | null, tables: Record<string, GameTable>): string | null {
+  const { phase, returnPath } = usePlay.getState();
+  if (!returnPath) return null;
+  if (phase !== 'idle') return returnPath;
+  const ids = [table?.tableId, table?.parentTableId].filter((id): id is string => !!id);
+  if (ids.length === 0) return null;
+  const query = returnPath.indexOf('?');
+  const game = query >= 0 ? new URLSearchParams(returnPath.slice(query + 1)).get('game') : null;
+  if (game && ids.includes(game)) return returnPath;
+  return Object.values(tables).some((other) => !!other.tableId && other.tableId === table?.tableId) ? returnPath : null;
+}
+
 /** Calls the player back when their game waits on them while they are in another tab. */
 function watchForAttention(session: GameSession): () => void {
   let last: unknown = null;
@@ -60,7 +77,7 @@ function watchForAttention(session: GameSession): () => void {
       const now = session.getState();
       if (now.prompt !== prompt || now.awaitingServer || now.gameOver) return;
       const myTurn = !!now.playerId && now.view?.activePlayerId === now.playerId;
-      attention(myTurn ? 'Your turn' : 'Your move', stripMarkup(prompt.text) || 'The game is waiting for you.', { tag: `game:${now.gameId}` });
+      attention(myTurn ? 'Your turn' : 'Your move', stripMarkup(prompt.text) || 'The game is waiting for you.', { kind: 'turn', tag: `game:${now.gameId}` });
     }, ATTENTION_DELAY_MS);
   });
   return () => {
@@ -82,12 +99,14 @@ export const useGames = create<GamesState>((set, get) => ({
     if (mode === 'play') stops.push(watchForAttention(session));
     // remembered so a reload can rejoin it (replays are not worth it), until it ends: a reload then has nothing to rejoin
     const { serverUrl, userName } = useSession.getState();
+    let leadsBack: string | null | undefined;
     if (mode !== 'replay') {
       // where leaving it goes (a Career match leads back to Career) only lives in memory: it's kept with the record, and
       // a game rejoined after a reload takes it back up, rather than leading home
       const remembered = openGameRecord(serverUrl, userName, gameId);
-      const returnPath = mode === 'play' ? usePlay.getState().returnPath ?? remembered?.returnPath ?? null : null;
-      if (returnPath && !usePlay.getState().returnPath) usePlay.setState({ returnPath });
+      const current = returnPathFor(table ?? null, get().tables);
+      const returnPath = mode === 'play' ? current ?? remembered?.returnPath ?? null : null;
+      if (mode === 'play') leadsBack = returnPath;
       rememberOpenGame(serverUrl, userName, {
         gameId, playerId, mode, tableId: table?.tableId ?? null, parentTableId: table?.parentTableId ?? null, openedAt: Date.now(), returnPath,
       });
@@ -104,6 +123,8 @@ export const useGames = create<GamesState>((set, get) => ({
       tables: table ? { ...state.tables, [gameId]: table } : state.tables,
       latestGameId: gameId,
     }));
+    // a way back left over from an earlier match (a Gauntlet game, then a game against a friend) doesn't lead this one
+    if (leadsBack !== undefined && leadsBack !== usePlay.getState().returnPath) usePlay.setState({ returnPath: leadsBack });
     return session;
   },
 
@@ -154,7 +175,7 @@ events.on('START_GAME', (message) => {
       && !!message.currentTableId && tables[previousId]?.tableId === message.currentTableId)
     .map(([previousId]) => previousId);
   if (finished.length > 0) setTimeout(() => finished.forEach((previousId) => useGames.getState().forget(previousId)), 2000);
-  attention('Your game is starting', 'Come back to the table: your opponents are here.', { tag: `game:${gameId}` });
+  attention('Your game is starting', 'Come back to the table: your opponents are here.', { kind: 'gameStart', tag: `game:${gameId}` });
   useGames.getState().open(gameId, message.playerId ?? null, 'play', {
     tableId: message.currentTableId ?? null,
     parentTableId: message.parentTableId ?? null,
@@ -162,11 +183,28 @@ events.on('START_GAME', (message) => {
   api.gameJoin(gameId).catch((error) => notify('Could not join the game', String(error?.message ?? error), 'error'));
 });
 
-// errors also reach the game log, but a log line is easy to miss when an action silently fails
+/** Keep error toasts readable when the server attaches a full stack trace (the full text stays in the game log). */
+function summarizeGameError(raw: string | null | undefined): string {
+  if (!raw) return '';
+  const lines = raw.split(/\r?\n/).map((line) => stripMarkup(line)).filter(Boolean);
+  if (lines.length === 0) return '';
+  if (lines.length >= 2 && /^game error occurred:?$/i.test(lines[0])) {
+    return `${lines[0]} ${lines[1]}`;
+  }
+  return lines[0];
+}
+
+// errors and personal notices also reach the game log, but a log line is easy to miss when a cast reverts (#424)
 events.on('GAME_ERROR', (message, event) => {
   if (event.objectId && !useGames.getState().sessions[event.objectId]) return;
-  const text = stripMarkup(message);
+  const text = summarizeGameError(message);
   if (text) notify('Game error', text, 'error');
+});
+
+events.on('GAME_INFORM_PERSONAL', (message, event) => {
+  if (event.objectId && !useGames.getState().sessions[event.objectId]) return;
+  const text = stripMarkup(message?.message);
+  if (text) notify('Game notice', text, 'info');
 });
 
 // the server names the watched game in the event's object id; watching starts once the client asks for the game
@@ -258,3 +296,6 @@ useSession.subscribe((state, previous) => {
   if (!state.expired || previous.expired) return;
   for (const gameId of Object.keys(useGames.getState().sessions)) useGames.getState().forget(gameId);
 });
+
+// profiling builds only (e2e/perf-live.mjs): a production build's autopilot reaches the games through this
+if (import.meta.env.VITE_PERF_HOOKS) (window as unknown as { __playmatGames?: typeof useGames }).__playmatGames = useGames;

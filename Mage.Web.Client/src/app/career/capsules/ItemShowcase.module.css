@@ -1,0 +1,714 @@
+/*
+ * The capsule item showcase (ItemShowcase.tsx). The pointer drives custom properties on .root, written once a frame
+ * by script: --mx / --my (-1..1), --px / --py (the same as a percentage across the piece), --fx / --fy (the foil's
+ * shorter travel) and --hyp (how far from face-on). Everything that moves reads them through transform, opacity or background-position, so a frame is a
+ * composite plus a repaint of the piece's own layers. Rarity is data-rarity on .root: the foil, the sparks, the rays.
+ */
+
+@property --rim-turn {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.root {
+  --mx: 0;
+  --my: 0;
+  --px: 50%;
+  --py: 50%;
+  --fx: 50%;
+  --fy: 50%;
+  --hyp: 0;
+  /* the piece: as tall as the screen allows, never wider than its share */
+  --piece-h: min(74dvh, 760px, calc(52vw / var(--ratio)));
+  --piece-w: calc(var(--piece-h) * var(--ratio));
+  --glare: 0.32;
+  --spark-color: rgb(var(--ink-rgb) / 0.8);
+
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+  align-items: center;
+  gap: var(--space-6, 32px);
+  padding: max(24px, env(safe-area-inset-top)) max(48px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(48px, env(safe-area-inset-left));
+  overflow: hidden;
+  color: var(--ink);
+  font-family: var(--font-ui);
+  isolation: isolate;
+}
+
+.root[data-rarity='uncommon'] { --glare: 0.36; --spark-color: #cfe4ef; }
+.root[data-rarity='rare'] { --glare: 0.42; --spark-color: var(--brass-ink); }
+.root[data-rarity='mythic'] { --glare: 0.46; --spark-color: var(--copper-ink); }
+.root[data-locked] { --glare: 0.2; }
+
+/* ---- the room: dark, with the item's own colour in the air */
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(ellipse 60% 70% at 36% 52%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 70%),
+    radial-gradient(ellipse 120% 90% at 36% 50%, rgb(var(--mat-rgb) / 0.86), rgb(var(--void-rgb) / 0.97) 70%);
+  animation: fade-in 320ms var(--ease-place) both;
+}
+
+.rays {
+  position: absolute;
+  top: 50%;
+  left: 36%;
+  z-index: -1;
+  width: 170vmax;
+  height: 170vmax;
+  margin: -85vmax 0 0 -85vmax;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.root[data-rarity='rare'] .rays {
+  background: radial-gradient(circle, rgb(var(--brass-rgb) / 0.3), rgb(var(--brass-rgb) / 0.08) 18%, transparent 32%);
+  opacity: 1;
+  animation: fade-in 700ms 120ms var(--ease-place) both, breathe 4.8s 800ms ease-in-out infinite alternate;
+}
+
+.root[data-rarity='mythic'] .rays {
+  background:
+    radial-gradient(circle, rgb(var(--copper-rgb) / 0.34), transparent 22%),
+    repeating-conic-gradient(from 0deg, rgb(var(--copper-rgb) / 0.16) 0deg 4deg, transparent 4deg 15deg);
+  mask-image: radial-gradient(circle, #000 4%, transparent 36%);
+  opacity: 1;
+  animation: fade-in 900ms 100ms var(--ease-place) both, spin 60s linear infinite;
+}
+
+/* not earned yet: the light is there, turned down */
+.root[data-locked] .rays {
+  filter: grayscale(1) brightness(0.6);
+}
+
+/* ---- the stage: perspective, the pool of light, the sparks, the piece */
+
+.stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 100%;
+  min-height: 0;
+  perspective: 1400px;
+  touch-action: none;
+}
+
+.pool {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(var(--piece-w) * 2.2);
+  height: calc(var(--piece-h) * 1.5);
+  translate: -50% -50%;
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--accent) 42%, transparent), transparent 62%);
+  opacity: 0.55;
+  transform: translate3d(calc(var(--mx) * 18px), calc(var(--my) * 18px), 0);
+  pointer-events: none;
+}
+
+.sparks {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(var(--piece-w) * 1.9);
+  height: calc(var(--piece-h) * 1.2);
+  translate: -50% -50%;
+  /* the far layer: it drifts against the pointer, so the piece reads as nearer */
+  transform: translate3d(calc(var(--mx) * -26px), calc(var(--my) * -20px), 0);
+  pointer-events: none;
+}
+
+.spark {
+  position: absolute;
+  top: calc(50% + var(--sy));
+  left: calc(50% + var(--sx));
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--spark-color);
+  box-shadow: 0 0 10px 2px color-mix(in srgb, var(--spark-color) 70%, transparent);
+  opacity: 0;
+  scale: var(--sz);
+  animation: rise var(--sl) var(--sd) linear infinite;
+  will-change: transform, opacity;
+  display: none;
+}
+
+/* how many each rarity throws: common none, uncommon a little dust, rare a stream, mythic embers */
+.root[data-rarity='uncommon'] .spark:nth-child(-n + 8),
+.root[data-rarity='rare'] .spark:nth-child(-n + 16),
+.root[data-rarity='mythic'] .spark {
+  display: block;
+}
+
+.root[data-rarity='uncommon'] .spark {
+  width: 3px;
+  height: 3px;
+  box-shadow: 0 0 6px 1px rgb(207 228 239 / 0.5);
+  animation-name: drift;
+  animation-duration: calc(var(--sl) * 2.2);
+}
+
+.root[data-rarity='rare'] .spark {
+  width: 9px;
+  height: 9px;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  /* a four-point glint, not a dot */
+  background-image: radial-gradient(closest-side, var(--brass-ink), transparent),
+    linear-gradient(var(--brass-ink), var(--brass-ink)), linear-gradient(var(--brass-ink), var(--brass-ink));
+  background-size: 40% 40%, 100% 12%, 12% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: drop-shadow(0 0 4px rgb(var(--brass-rgb) / 0.9));
+}
+
+.root[data-rarity='mythic'] .spark {
+  width: 4px;
+  height: 8px;
+  border-radius: 50% 50% 40% 40%;
+  background: linear-gradient(#fff3e0, var(--copper-ink) 40%, var(--copper));
+  box-shadow: 0 0 12px 3px rgb(var(--copper-rgb) / 0.6);
+  animation-name: ember;
+}
+
+.flight {
+  position: relative;
+  width: var(--piece-w);
+  height: var(--piece-h);
+  transform-style: preserve-3d;
+}
+
+.tilt {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform: rotateX(calc(var(--my) * -1 * var(--turn))) rotateY(calc(var(--mx) * var(--turn)));
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.piece {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: calc(var(--piece-w) * 0.046);
+  background: var(--card-void);
+  box-shadow:
+    0 0 0 1px rgb(var(--gloss-rgb) / 0.08),
+    0 2px 4px rgb(0 0 0 / 0.4),
+    0 calc(30px + var(--hyp) * 16px) calc(60px + var(--hyp) * 30px) rgb(0 0 0 / 0.6);
+  contain: paint;
+  transform: translateZ(0);
+}
+
+/* the picture sits in a window a little larger than the piece and slides against the turn: depth inside the frame */
+.window {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.art {
+  position: absolute;
+  inset: -5%;
+  width: 110%;
+  height: 110%;
+  object-fit: cover;
+  transform: translate3d(calc(var(--mx) * -3.2%), calc(var(--my) * -3.2%), 0);
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.root[data-locked] .art {
+  filter: grayscale(0.85) brightness(0.55);
+}
+
+.foil,
+.glitter,
+.glare,
+.rim,
+.glint {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* uncommon: brushed silver, a cool sheen that follows the light across the grain */
+.root[data-rarity='uncommon'] .foil {
+  background:
+    linear-gradient(105deg, transparent 30%, rgb(220 236 245 / 0.7) 45%, rgb(255 255 255 / 0.95) 50%, rgb(180 210 228 / 0.6) 55%, transparent 70%),
+    repeating-linear-gradient(90deg, rgb(255 255 255 / 0.06) 0 1px, transparent 1px 3px);
+  background-size: 220% 100%, auto;
+  background-position: var(--fx) 0, 0 0;
+  mix-blend-mode: overlay;
+  opacity: calc(0.55 + var(--hyp) * 0.45);
+}
+
+/* rare: a brass foil band that sweeps with the light, and glitter where the light is */
+.root[data-rarity='rare'] .foil {
+  background:
+    linear-gradient(115deg,
+      transparent 26%, rgb(var(--brass-rgb) / 0.55) 38%, #fff4cf 45%, rgb(var(--brass-rgb) / 0.8) 50%,
+      rgb(255 236 180 / 0.65) 55%, transparent 66%),
+    linear-gradient(115deg, transparent 58%, rgb(var(--brass-rgb) / 0.45) 64%, transparent 70%);
+  background-size: 200% 200%;
+  background-position: var(--fx) var(--fy);
+  mix-blend-mode: color-dodge;
+  opacity: calc(0.45 + var(--hyp) * 0.45);
+}
+
+/* mythic: a prism. Rainbow bands shift with the turn, burned in with color-dodge, strongest off-axis */
+.root[data-rarity='mythic'] .foil {
+  background:
+    repeating-linear-gradient(115deg,
+      hsl(12 95% 62%) 0%, hsl(38 95% 64%) 5%, hsl(160 70% 58%) 10%, hsl(205 85% 64%) 15%, hsl(285 70% 66%) 20%, hsl(12 95% 62%) 25%),
+    radial-gradient(farthest-corner at var(--px) var(--py), rgb(255 255 255 / 0.4), transparent 60%);
+  /* one tile, larger than the piece, kept inside its edges: a repeat seam would show as a hard line */
+  background-size: 300% 300%, 100% 100%;
+  background-position: var(--fx) var(--fy), center;
+  background-repeat: no-repeat;
+  background-blend-mode: soft-light;
+  mix-blend-mode: color-dodge;
+  filter: saturate(1.25);
+  opacity: calc(0.34 + var(--hyp) * 0.4);
+}
+
+.root[data-rarity='rare'] .glitter,
+.root[data-rarity='mythic'] .glitter {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 9 -6.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 220px 220px;
+  background-position: calc(var(--mx) * 14px) calc(var(--my) * 14px);
+  mix-blend-mode: color-dodge;
+  mask-image: radial-gradient(circle at var(--px) var(--py), #000, transparent 46%);
+  opacity: calc(0.35 + var(--hyp) * 0.55);
+}
+
+.root[data-rarity='mythic'] .glitter {
+  filter: sepia(1) saturate(4) hue-rotate(-20deg);
+}
+
+/* the lamp: a hotspot where the light is, a soft falloff, a dark far corner */
+.glare {
+  background: radial-gradient(farthest-corner circle at var(--px) var(--py),
+    rgb(255 255 255 / 0.9) 0%, rgb(255 255 255 / 0.35) 18%, rgb(0 0 0 / 0.2) 70%, rgb(0 0 0 / 0.45) 100%);
+  mix-blend-mode: soft-light;
+  opacity: calc(var(--glare) + var(--hyp) * 0.25);
+}
+
+/* the edge: a thin bevel, catching light on the near side */
+.rim {
+  box-shadow: inset 0 0 0 1px rgb(var(--gloss-rgb) / 0.14), inset 0 1px 0 rgb(var(--gloss-rgb) / 0.25);
+}
+
+.root[data-rarity='rare'] .rim {
+  padding: 2px;
+  background: linear-gradient(calc(135deg + var(--mx) * 40deg), #fff1c2, var(--brass) 30%, #6d5426 60%, var(--brass-ink));
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  box-shadow: none;
+}
+
+/* mythic: a copper edge with light running round it */
+.root[data-rarity='mythic'] .rim {
+  padding: 2.5px;
+  background: conic-gradient(from var(--rim-turn), var(--copper) 0deg, #ffe2c4 40deg, var(--copper) 90deg, #6e2c12 180deg, var(--copper-ink) 270deg, var(--copper) 360deg);
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  box-shadow: none;
+  animation: rim 5s linear infinite;
+}
+
+/* rare and mythic: a star that catches now and then on the near corner */
+.glint {
+  inset: auto;
+  top: 7%;
+  right: 8%;
+  width: 18%;
+  aspect-ratio: 1;
+  display: none;
+  background:
+    radial-gradient(closest-side, #fff, rgb(255 255 255 / 0) 60%),
+    linear-gradient(transparent 47%, #fff 50%, transparent 53%),
+    linear-gradient(90deg, transparent 47%, #fff 50%, transparent 53%);
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: glint 3.6s 900ms ease-in-out infinite;
+}
+
+.root[data-rarity='rare'] .glint,
+.root[data-rarity='mythic'] .glint {
+  display: block;
+}
+
+.root[data-locked] .glint,
+.root[data-locked] .foil,
+.root[data-locked] .glitter,
+.root[data-locked] .spark {
+  display: none;
+}
+
+/* the shadow on the floor: it moves away from the light and spreads as the piece turns */
+.shadow {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: -7%;
+  height: 10%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(0 0 0 / 0.6), transparent);
+  transform: translate3d(calc(var(--mx) * -22px), 0, -60px) scaleX(calc(1 + var(--hyp) * 0.12));
+  pointer-events: none;
+}
+
+/* ---- the plate: what it is, printed beside it */
+
+.plate {
+  display: grid;
+  align-content: center;
+  gap: var(--space-3, 12px);
+  max-width: 30rem;
+  animation: plate-in 520ms 160ms var(--ease-place) both;
+}
+
+.rarity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  color: var(--rarity);
+  font-family: var(--font-print);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: var(--tracking-print-wide);
+  text-transform: uppercase;
+}
+
+.gem {
+  width: 12px;
+  height: 12px;
+  rotate: 45deg;
+  background: var(--rarity);
+  box-shadow: 0 0 0 3px rgb(var(--void-rgb) / 0.8), 0 0 0 4.5px color-mix(in srgb, var(--rarity) 60%, transparent);
+}
+
+.root[data-rarity='mythic'] .gem {
+  background: linear-gradient(135deg, #ffe2c4, var(--copper) 55%, #8a3414);
+}
+
+.kind {
+  color: var(--ink-dim);
+  font-weight: 600;
+  letter-spacing: var(--tracking-print);
+}
+
+.kind::before {
+  content: '·';
+  margin-right: 10px;
+  color: var(--ink-faint);
+}
+
+.name {
+  margin: 0;
+  color: var(--ink-strong);
+  font-family: var(--font-print);
+  font-size: 3.25rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+
+.source {
+  margin: 0;
+  color: var(--ink-soft);
+  font-family: var(--font-print);
+  font-size: var(--text-md);
+  font-weight: 600;
+  letter-spacing: var(--tracking-print);
+  text-transform: uppercase;
+}
+
+.note {
+  margin: 0;
+  max-width: 38ch;
+  color: var(--ink-soft);
+  font-size: var(--text-md);
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.root[data-locked] .note {
+  color: var(--ink);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2, 8px);
+  margin-top: var(--space-2, 8px);
+}
+
+.hint {
+  margin: var(--space-4, 16px) 0 0;
+  color: var(--ink-dim);
+  font-size: var(--text-sm);
+}
+
+.close {
+  position: absolute;
+  top: max(18px, env(safe-area-inset-top));
+  right: max(18px, env(safe-area-inset-right));
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(var(--ink-rgb) / 0.06);
+  box-shadow: inset 0 0 0 1.5px var(--ink-faint);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 140ms var(--ease-lift), box-shadow 140ms var(--ease-lift);
+}
+
+.close:hover {
+  background: rgb(var(--ink-rgb) / 0.12);
+  box-shadow: inset 0 0 0 1.5px var(--ink-soft);
+}
+
+.close:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2.5px var(--ink-strong);
+}
+
+/* ---- in and out */
+
+.root[data-phase='closing'] .scrim,
+.root[data-phase='closing'] .rays,
+.root[data-phase='closing'] .sparks,
+.root[data-phase='closing'] .pool {
+  opacity: 0;
+  transition: opacity 260ms ease-in;
+}
+
+.root[data-phase='closing'] .plate,
+.root[data-phase='closing'] .close {
+  opacity: 0;
+  translate: 12px 0;
+  transition: opacity 180ms ease-in, translate 180ms ease-in;
+}
+
+/* the foil comes on as it lands, so the flight is a plain card and the arrival lights up */
+.root[data-phase='opening'] .foil,
+.root[data-phase='opening'] .glitter,
+.root[data-phase='opening'] .glint {
+  opacity: 0;
+}
+
+.foil,
+.glitter {
+  transition: opacity 420ms var(--ease-place);
+}
+
+/* the first beat after landing: light sweeps across once */
+.root[data-phase='open'] .piece::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 35%, rgb(255 255 255 / 0.45) 50%, transparent 65%);
+  background-size: 300% 100%;
+  mix-blend-mode: overlay;
+  animation: sweep 900ms var(--ease-place) both;
+  pointer-events: none;
+}
+
+.root[data-locked][data-phase='open'] .piece::after {
+  content: none;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+}
+
+@keyframes plate-in {
+  from { opacity: 0; translate: 18px 0; }
+}
+
+@keyframes spin {
+  to { transform: rotate(1turn); }
+}
+
+@keyframes breathe {
+  from { opacity: 0.75; }
+  to { opacity: 1; }
+}
+
+@keyframes rim {
+  to { --rim-turn: 360deg; }
+}
+
+@keyframes sweep {
+  from { background-position: 100% 0; }
+  to { background-position: 0 0; }
+}
+
+@keyframes glint {
+  0%, 70%, 100% { opacity: 0; transform: scale(0.3) rotate(0deg); }
+  80% { opacity: 1; transform: scale(1) rotate(45deg); }
+}
+
+@keyframes rise {
+  0% { opacity: 0; transform: translate3d(0, 40px, 0) scale(0.6); }
+  15% { opacity: 0.9; }
+  100% { opacity: 0; transform: translate3d(0, -120px, 0) scale(1); }
+}
+
+@keyframes drift {
+  0% { opacity: 0; transform: translate3d(0, 0, 0); }
+  30% { opacity: 0.7; }
+  100% { opacity: 0; transform: translate3d(24px, -50px, 0); }
+}
+
+@keyframes ember {
+  0% { opacity: 0; transform: translate3d(0, 60px, 0) scale(0.5); }
+  12% { opacity: 1; }
+  60% { transform: translate3d(14px, -90px, 0) scale(1); }
+  100% { opacity: 0; transform: translate3d(-8px, -200px, 0) scale(0.3); }
+}
+
+/* ---- still: no turning, no sparks, no rays turning; the light stays where it falls */
+
+.still .tilt,
+.still .art,
+.still .pool,
+.still .sparks,
+.still .shadow {
+  transform: none;
+}
+
+.still .spark,
+.still .glint {
+  display: none !important;
+}
+
+.still .rays,
+.still .rim,
+.still .plate,
+.still .scrim,
+.still .piece::after {
+  animation: none !important;
+}
+
+/* ---- narrow and short screens */
+
+@media (max-width: 860px), (orientation: portrait) {
+  .root {
+    --piece-h: min(56dvh, calc(78vw / var(--ratio)));
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: var(--space-4, 16px);
+    padding: max(64px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+  }
+
+  .scrim {
+    background:
+      radial-gradient(ellipse 90% 50% at 50% 36%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 70%),
+      radial-gradient(ellipse 120% 90% at 50% 40%, rgb(var(--mat-rgb) / 0.86), rgb(var(--void-rgb) / 0.97) 70%);
+  }
+
+  .rays {
+    top: 36%;
+    left: 50%;
+  }
+
+  .plate {
+    justify-items: center;
+    max-width: none;
+    text-align: center;
+    animation-name: plate-up;
+  }
+
+  .name {
+    font-size: 2.25rem;
+  }
+
+  .note {
+    margin-inline: auto;
+  }
+
+  .actions {
+    justify-content: center;
+  }
+
+  .hint {
+    margin-top: var(--space-2, 8px);
+  }
+
+  .root[data-phase='closing'] .plate {
+    translate: 0 12px;
+  }
+}
+
+@media (max-height: 560px) and (orientation: landscape) {
+  .root {
+    --piece-h: min(82dvh, calc(46vw / var(--ratio)));
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 1fr);
+    grid-template-rows: none;
+    padding: max(16px, env(safe-area-inset-top)) max(64px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(32px, env(safe-area-inset-left));
+  }
+
+  .name {
+    font-size: 2rem;
+  }
+
+  .hint {
+    display: none;
+  }
+}
+
+@keyframes plate-up {
+  from { opacity: 0; translate: 0 14px; }
+}
+
+/* ---- what opens it: a board slot or a set's sleeve, made a button (CapsuleShopScreen) */
+
+.trigger {
+  padding: 0;
+  border: 0;
+  font: inherit;
+  cursor: zoom-in;
+  transition: transform 140ms var(--ease-lift), filter 140ms var(--ease-lift);
+}
+
+.trigger:hover {
+  transform: translateY(-2px) scale(1.04);
+  filter: brightness(1.12);
+}
+
+.trigger:active {
+  transform: scale(0.97);
+}
+
+.trigger:focus-visible {
+  outline: 2.5px solid var(--ink-strong);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trigger,
+  .trigger:hover,
+  .trigger:active {
+    transform: none;
+    transition: none;
+  }
+}

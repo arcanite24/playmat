@@ -1,0 +1,36 @@
+# name: Train450 lim-g-br-ctrl-5
+# archetype: limited_ctrl
+# colors: BR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Abrade
+1 Abstruse Interference
+2 Blindblast
+1 Book Devourer
+1 Burning Prophet
+2 Charging Strifeknight
+1 Douse in Gloom
+1 Drana, Liberator of Malakir
+1 Eject the Warp Core
+1 Firion, Wild Rose Warrior
+1 Flame Sweep
+1 Hellkite Tyrant
+1 Herald of Torment
+1 Hostile Minotaur
+1 Impossible Choice
+1 Lightning Shrieker
+1 Mabel, Bitter Recluse
+2 Obliterating Bolt
+1 Pactdoll Terror
+2 Plargg, Dean of Chaos
+1 Powerstone Fracture
+1 Proft, Sinister Mastermind
+1 Rough Rhino Cavalry
+2 Sanctuary Smasher
+1 Slagstorm
+1 Storm Caller
+1 Tezzeret's Simulacrum
+2 Warping Wail
+4 Dragonskull Summit
+12 Mountain
+4 Ominous Asylum
+5 Swamp

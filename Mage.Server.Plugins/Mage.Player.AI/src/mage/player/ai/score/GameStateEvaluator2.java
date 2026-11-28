@@ -1,19 +1,22 @@
 package mage.player.ai.score;
 
+import mage.abilities.Ability;
+import mage.abilities.effects.Effect;
+import mage.constants.CommanderCardType;
+import mage.constants.Outcome;
 import mage.game.Game;
 import mage.game.permanent.Permanent;
 import mage.players.Player;
+import mage.watchers.common.CommanderInfoWatcher;
 import org.apache.log4j.Logger;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
-import mage.abilities.Ability;
-import mage.abilities.effects.Effect;
-import mage.constants.Outcome;
 
 /**
- * @author nantuko
- * <p>
- * This evaluator is only good for two player games
+ * Evaluates a game state for an AI player, supporting both 1v1 duels and multiplayer / Commander pods.
  */
 public final class GameStateEvaluator2 {
 
@@ -23,106 +26,180 @@ public final class GameStateEvaluator2 {
     public static final int LOSE_GAME_SCORE = -WIN_GAME_SCORE;
 
     public static final int HAND_CARD_SCORE = 5;
+    private static final int COMMANDER_ON_BOARD_BONUS = 250;
+    private static final int ELIMINATED_OPPONENT_BONUS = 1500;
 
     public static PlayerEvaluateScore evaluate(UUID playerId, Game game) {
         return evaluate(playerId, game, true);
     }
 
     public static PlayerEvaluateScore evaluate(UUID playerId, Game game, boolean useCombatPermanentScore) {
-        // TODO: add multi opponents support, so AI can take better actions
         Player player = game.getPlayer(playerId);
-        // must find all leaved opponents
-        Player opponent = game.getPlayer(game.getOpponents(playerId, false).stream().findFirst().orElse(null));
-        if (opponent == null) {
+        if (player == null) {
+            return new PlayerEvaluateScore(playerId, LOSE_GAME_SCORE);
+        }
+
+        Set<UUID> allOpponentIds = game.getOpponents(playerId, false);
+        if (allOpponentIds.isEmpty()) {
             return new PlayerEvaluateScore(playerId, WIN_GAME_SCORE);
         }
 
-        if (game.checkIfGameIsOver()) {
-            if (player.hasLost()
-                    || opponent.hasWon()) {
+        List<Player> livingOpponents = new ArrayList<>();
+        int eliminatedOpponents = 0;
+        for (UUID oppId : allOpponentIds) {
+            Player opp = game.getPlayer(oppId);
+            if (opp != null && opp.isInGame() && !opp.hasLost() && opp.getLife() > 0) {
+                livingOpponents.add(opp);
+            } else {
+                eliminatedOpponents++;
+            }
+        }
+
+        if (game.checkIfGameIsOver() || player.hasLost() || livingOpponents.isEmpty()) {
+            if (player.hasLost()) {
                 return new PlayerEvaluateScore(playerId, LOSE_GAME_SCORE);
             }
-            if (opponent.hasLost()
-                    || player.hasWon()) {
+            for (UUID oppId : allOpponentIds) {
+                Player opp = game.getPlayer(oppId);
+                if (opp != null && opp.hasWon()) {
+                    return new PlayerEvaluateScore(playerId, LOSE_GAME_SCORE);
+                }
+            }
+            if (player.hasWon() || livingOpponents.isEmpty()) {
                 return new PlayerEvaluateScore(playerId, WIN_GAME_SCORE);
             }
         }
 
-        int playerLifeScore = 0;
-        int opponentLifeScore = 0;
-        if (player.getLife() <= 0) { // we don't want a tie
-            playerLifeScore = ArtificialScoringSystem.LOSE_GAME_SCORE;
-        } else if (opponent.getLife() <= 0) {
-            playerLifeScore = ArtificialScoringSystem.WIN_GAME_SCORE;
-        } else {
-            playerLifeScore = ArtificialScoringSystem.getLifeScore(player.getLife());
-            opponentLifeScore = ArtificialScoringSystem.getLifeScore(opponent.getLife()); // TODO: minus
+        // Preserve exact 1v1 scoring when there is only one opponent in the match
+        if (allOpponentIds.size() == 1) {
+            Player opponent = livingOpponents.get(0);
+            int playerLifeScore;
+            int opponentLifeScore = 0;
+            if (player.getLife() <= 0) {
+                playerLifeScore = ArtificialScoringSystem.LOSE_GAME_SCORE;
+            } else if (opponent.getLife() <= 0) {
+                playerLifeScore = ArtificialScoringSystem.WIN_GAME_SCORE;
+            } else {
+                playerLifeScore = ArtificialScoringSystem.getLifeScore(player.getLife());
+                opponentLifeScore = ArtificialScoringSystem.getLifeScore(opponent.getLife());
+            }
+
+            Set<UUID> playerCommanders = commanderIds(game, player);
+            Set<UUID> oppCommanders = commanderIds(game, opponent);
+
+            int playerPermanentsScore = scorePermanents(game, playerId, playerCommanders, useCombatPermanentScore);
+            int opponentPermanentsScore = scorePermanents(game, opponent.getId(), oppCommanders, useCombatPermanentScore);
+
+            playerLifeScore -= commanderDamagePenalty(game, oppCommanders, playerId);
+            opponentLifeScore -= commanderDamagePenalty(game, playerCommanders, opponent.getId());
+
+            int playerHandScore = player.getHand().size() * HAND_CARD_SCORE;
+            int opponentHandScore = opponent.getHand().size() * HAND_CARD_SCORE;
+
+            return new PlayerEvaluateScore(
+                    playerId,
+                    playerLifeScore, playerHandScore, playerPermanentsScore,
+                    opponentLifeScore, opponentHandScore, opponentPermanentsScore);
         }
 
-        int playerPermanentsScore = 0;
-        int opponentPermanentsScore = 0;
-        try {
-            StringBuilder sbPlayer = new StringBuilder();
-            StringBuilder sbOpponent = new StringBuilder();
-
-            // add values of player
-            for (Permanent permanent : game.getBattlefield().getAllActivePermanents(playerId)) {
-                int onePermScore = evaluatePermanent(permanent, game, useCombatPermanentScore);
-                playerPermanentsScore += onePermScore;
-                if (logger.isDebugEnabled()) {
-                    sbPlayer.append(permanent.getName()).append('[').append(onePermScore).append("] ");
-                }
-            }
-            if (logger.isDebugEnabled()) {
-                sbPlayer.insert(0, playerPermanentsScore + " - ");
-                sbPlayer.insert(0, "Player..: ");
-                logger.debug(sbPlayer);
-            }
-
-            // add values of opponent
-            for (Permanent permanent : game.getBattlefield().getAllActivePermanents(opponent.getId())) {
-                int onePermScore = evaluatePermanent(permanent, game, useCombatPermanentScore);
-                opponentPermanentsScore += onePermScore;
-                if (logger.isDebugEnabled()) {
-                    sbOpponent.append(permanent.getName()).append('[').append(onePermScore).append("] ");
-                }
-            }
-            if (logger.isDebugEnabled()) {
-                sbOpponent.insert(0, opponentPermanentsScore + " - ");
-                sbOpponent.insert(0, "Opponent: ");
-                logger.debug(sbOpponent);
-            }
-        } catch (Throwable t) {
-        }
-
-        // TODO: add card evaluator like permanent evaluator
-        // - same card on battlefield must score x2 compared to hand, so AI will want to play it;
-        // - other zones must score cards same way, example: battlefield = x, hand = x * 0.1, graveyard = x * 0.5, exile = x * 0.3
-        // - possible bug in wrong score: instant and sorcery on hand will be more valuable compared to other zones,
-        //   so AI will keep it in hand. Possible fix: look at card type and apply zones multipliers due special
-        //   table like:
-        //   * battlefield needs in creatures and enchantments/auras;
-        //   * hand needs in instants and sorceries
-        //   * graveyard needs in anything after battlefield and hand;
-        //   * exile needs in nothing;
-        //   * commander zone needs in nothing;
-        // - additional improve: use revealed data to score opponent's hand:
-        //   * known card by card evaluator;
-        //   * unknown card by max value (so AI will use reveal to make opponent's total score lower -- is it helps???)
+        // Multiplayer / Commander pod evaluation: aggregate across all living opponents,
+        // weighting the biggest threat (archenemy) higher and rewarding eliminating opponents.
+        int playerLifeScore = player.getLife() <= 0
+                ? ArtificialScoringSystem.LOSE_GAME_SCORE
+                : ArtificialScoringSystem.getLifeScore(player.getLife()) + eliminatedOpponents * ELIMINATED_OPPONENT_BONUS;
+        Set<UUID> playerCommanders = commanderIds(game, player);
+        int playerPermanentsScore = scorePermanents(game, playerId, playerCommanders, useCombatPermanentScore);
         int playerHandScore = player.getHand().size() * HAND_CARD_SCORE;
-        int opponentHandScore = opponent.getHand().size() * HAND_CARD_SCORE;
 
-        int score = (playerLifeScore - opponentLifeScore)
-                + (playerPermanentsScore - opponentPermanentsScore)
-                + (playerHandScore - opponentHandScore);
-        logger.debug(score
-                + " total Score (life:" + (playerLifeScore - opponentLifeScore)
-                + " permanents:" + (playerPermanentsScore - opponentPermanentsScore)
-                + " hand:" + (playerHandScore - opponentHandScore) + ')');
+        int oppCount = livingOpponents.size();
+        int[] oppLifeScores = new int[oppCount];
+        int[] oppPermScores = new int[oppCount];
+        int[] oppHandScores = new int[oppCount];
+        int maxThreatIdx = 0;
+        int maxThreatTotal = Integer.MIN_VALUE;
+
+        for (int i = 0; i < oppCount; i++) {
+            Player opp = livingOpponents.get(i);
+            Set<UUID> oppCommanders = commanderIds(game, opp);
+            oppLifeScores[i] = ArtificialScoringSystem.getLifeScore(opp.getLife())
+                    - commanderDamagePenalty(game, playerCommanders, opp.getId());
+            oppPermScores[i] = scorePermanents(game, opp.getId(), oppCommanders, useCombatPermanentScore);
+            oppHandScores[i] = opp.getHand().size() * HAND_CARD_SCORE;
+            playerLifeScore -= commanderDamagePenalty(game, oppCommanders, playerId);
+
+            int total = oppLifeScores[i] + oppPermScores[i] + oppHandScores[i];
+            if (total > maxThreatTotal) {
+                maxThreatTotal = total;
+                maxThreatIdx = i;
+            }
+        }
+
+        // Weight the strongest opponent at 1.5x (3/2) and other opponents at 1.0x (2/2), normalized by total weight
+        long weightedLife = 0;
+        long weightedPerm = 0;
+        long weightedHand = 0;
+        long totalWeight = 0;
+        for (int i = 0; i < oppCount; i++) {
+            int weight = (i == maxThreatIdx && oppCount > 1) ? 3 : 2;
+            weightedLife += (long) oppLifeScores[i] * weight;
+            weightedPerm += (long) oppPermScores[i] * weight;
+            weightedHand += (long) oppHandScores[i] * weight;
+            totalWeight += weight;
+        }
+
+        int opponentLifeScore = (int) (weightedLife / totalWeight);
+        int opponentPermanentsScore = (int) (weightedPerm / totalWeight);
+        int opponentHandScore = (int) (weightedHand / totalWeight);
+
         return new PlayerEvaluateScore(
                 playerId,
                 playerLifeScore, playerHandScore, playerPermanentsScore,
                 opponentLifeScore, opponentHandScore, opponentPermanentsScore);
+    }
+
+    private static Set<UUID> commanderIds(Game game, Player player) {
+        try {
+            return game.getCommandersIds(player, CommanderCardType.COMMANDER_OR_OATHBREAKER, false);
+        } catch (Throwable t) {
+            return java.util.Collections.emptySet();
+        }
+    }
+
+    private static int scorePermanents(Game game, UUID controllerId, Set<UUID> commanders, boolean useCombatPermanentScore) {
+        int total = 0;
+        try {
+            for (Permanent permanent : game.getBattlefield().getAllActivePermanents(controllerId)) {
+                int onePermScore = evaluatePermanent(permanent, game, useCombatPermanentScore);
+                if (!commanders.isEmpty() && commanders.contains(permanent.getId())) {
+                    onePermScore += COMMANDER_ON_BOARD_BONUS;
+                }
+                total += onePermScore;
+            }
+        } catch (Throwable t) {
+            // ignore transient simulation state errors
+        }
+        return total;
+    }
+
+    private static int commanderDamagePenalty(Game game, Set<UUID> attackingCommanders, UUID victimId) {
+        if (attackingCommanders.isEmpty()) {
+            return 0;
+        }
+        int penalty = 0;
+        for (UUID cmdId : attackingCommanders) {
+            CommanderInfoWatcher watcher = game.getState().getWatcher(CommanderInfoWatcher.class, cmdId);
+            if (watcher == null) {
+                continue;
+            }
+            int dealt = watcher.getDamageToPlayer().getOrDefault(victimId, 0);
+            if (dealt >= 21) {
+                penalty += 50000;
+            } else if (dealt > 0) {
+                // Escalating pressure as commander damage nears 21
+                penalty += dealt * 15 + (dealt >= 14 ? (dealt - 13) * 60 : 0);
+            }
+        }
+        return penalty;
     }
 
     public static int evaluatePermanent(Permanent permanent, Game game, boolean useCombatPermanentScore) {

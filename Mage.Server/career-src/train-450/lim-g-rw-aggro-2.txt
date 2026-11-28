@@ -1,0 +1,35 @@
+# name: Train450 lim-g-rw-aggro-2
+# archetype: limited_aggro
+# colors: RW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Aerial Boost
+1 Atsushi, the Blazing Sky
+1 Belligerent Guest
+2 Brightmare
+1 Casey Jones, Jury-Rig Justiciar
+2 Custodian of the Trove
+1 Dance with Devils
+1 Defiant Khenra
+2 Demon Bolt
+1 Dimensional Infiltrator
+2 Enterprising Scallywag
+1 Frenzied Raider
+1 Heliod, God of the Sun
+2 Howlpack Wolf
+1 Incendiary Flow
+2 Marketwatch Phantom
+2 Minecart Daredevil
+1 Monstrous Rage
+2 Ondu War Cleric
+1 Purphoros, Bronze-Blooded
+1 Raph & Leo, Sibling Rivals
+1 Refute Destiny
+1 Resolute Watchdog
+1 Sanctify
+2 Speedway Fanatic
+1 Vildin-Pack Outcast
+1 Village Messenger
+4 Battlefield Forge
+4 Inspiring Vantage
+9 Mountain
+6 Plains

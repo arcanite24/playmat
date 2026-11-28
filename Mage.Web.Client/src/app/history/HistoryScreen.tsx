@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Clapperboard, Trophy } from 'lucide-react';
+import { Clapperboard, MessageSquare, Trophy } from 'lucide-react';
 import { Fragment, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { MatchView, ReplayInfo } from '../../protocol/generated/views';
@@ -11,6 +11,7 @@ import { NameLevel } from '../social/LevelBadge';
 import { useSession } from '../stores/session';
 import { Button } from '../ui/Button';
 import { Zone } from '../ui/Zone';
+import { GameLogDialog } from './GameLogDialog';
 import styles from './HistoryScreen.module.css';
 
 /** "Ana Lv 12 vs Ben Lv 3": the players, each with their level when the server keeps one. */
@@ -40,6 +41,7 @@ export function HistoryScreen() {
   const me = useSession((state) => state.userName);
   const connected = useSession((state) => state.connection === 'open');
   const [mineOnly, setMineOnly] = useState(true);
+  const [logGameId, setLogGameId] = useState<string | null>(null);
 
   const matches = useQuery({
     queryKey: ['finishedMatches', roomId],
@@ -85,7 +87,7 @@ export function HistoryScreen() {
           )}
           <ul className={styles.list}>
             {shownMatches.map((match) => (
-              <MatchRow key={match.matchId} match={match} me={me} replayIds={replayIds} onReplay={(gameId) => navigate(`/replay/${gameId}`)} />
+              <MatchRow key={match.matchId} match={match} me={me} replayIds={replayIds} onReplay={(gameId) => navigate(`/replay/${gameId}`)} onLog={setLogGameId} />
             ))}
           </ul>
         </Zone>
@@ -99,16 +101,17 @@ export function HistoryScreen() {
           )}
           <ul className={styles.list}>
             {shownReplays.map((replay) => (
-              <ReplayRow key={replay.gameId} replay={replay} me={me} onWatch={() => navigate(`/replay/${replay.gameId}`)} onReview={() => navigate(`/review/${replay.gameId}`)} />
+              <ReplayRow key={replay.gameId} replay={replay} me={me} onWatch={() => navigate(`/replay/${replay.gameId}`)} onReview={() => navigate(`/review/${replay.gameId}`)} onLog={() => replay.gameId && setLogGameId(replay.gameId)} />
             ))}
           </ul>
         </Zone>
       </div>
+      <GameLogDialog gameId={logGameId} onClose={() => setLogGameId(null)} />
     </div>
   );
 }
 
-function MatchRow({ match, me, replayIds, onReplay }: { match: MatchView; me: string; replayIds: Set<string | undefined>; onReplay(gameId: string): void }) {
+function MatchRow({ match, me, replayIds, onReplay, onLog }: { match: MatchView; me: string; replayIds: Set<string | undefined>; onReplay(gameId: string): void; onLog(gameId: string): void }) {
   const games = match.games ?? [];
   const won = matchWinner(match.result) === me;
   const players = matchPlayers(match.players);
@@ -125,6 +128,11 @@ function MatchRow({ match, me, replayIds, onReplay }: { match: MatchView; me: st
         {match.result && <p className={styles.result}>{match.result}</p>}
       </div>
       <div className={styles.actions}>
+        {games.length === 1 && replayIds.has(games[0]) && (
+          <Button size="sm" variant="quiet" icon={<MessageSquare size={15} />} onClick={() => onLog(games[0])}>
+            Log
+          </Button>
+        )}
         {games.map((gameId, index) => (replayIds.has(gameId)
           ? (
             <Button key={gameId} size="sm" variant="quiet" icon={<Clapperboard size={15} />} onClick={() => onReplay(gameId)}>
@@ -137,7 +145,7 @@ function MatchRow({ match, me, replayIds, onReplay }: { match: MatchView; me: st
   );
 }
 
-function ReplayRow({ replay, me, onWatch, onReview }: { replay: ReplayInfo; me: string; onWatch(): void; onReview(): void }) {
+function ReplayRow({ replay, me, onWatch, onReview, onLog }: { replay: ReplayInfo; me: string; onWatch(): void; onReview(): void; onLog(): void }) {
   const played = (replay.players ?? []).some((player) => player.name === me);
   const names = (replay.players ?? []).map((player) => player.name ?? '').filter(Boolean);
   const minutes = replay.startedAt && replay.endedAt ? Math.max(1, Math.round((replay.endedAt - replay.startedAt) / 60_000)) : null;
@@ -159,6 +167,7 @@ function ReplayRow({ replay, me, onWatch, onReview }: { replay: ReplayInfo; me: 
         <p className={styles.result}>{describeResult(replay.result)}</p>
       </div>
       <div className={styles.actions}>
+        <Button size="sm" variant="quiet" icon={<MessageSquare size={15} />} onClick={onLog}>Log</Button>
         {played && <Button size="sm" variant="quiet" onClick={onReview}>Review</Button>}
         <Button size="sm" icon={<Clapperboard size={15} />} onClick={onWatch}>Watch</Button>
       </div>

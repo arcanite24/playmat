@@ -1,0 +1,23 @@
+# name: Train450 guild-rg-gowide-3
+# archetype: gowide
+# colors: RG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Bombard
+3 Charging Strifeknight
+2 Earthshaker Khenra
+2 Feral Prowler
+4 Frenzied Goblin
+2 Glade Watcher
+3 Greasewrench Goblin
+2 MACO Strike Team
+3 Ripjaw Raptor
+3 Sludge Crawler
+1 Soul Sear
+4 Soulbright Seeker
+1 Thoughtweft Charge
+3 Uncaged Fury
+2 Warden of the Chained
+5 Forest
+4 Highland Forest
+9 Mountain
+4 Restless Ridgeline

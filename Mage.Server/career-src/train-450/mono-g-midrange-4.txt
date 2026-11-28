@@ -1,0 +1,17 @@
+# name: Train450 mono-g-midrange-4
+# archetype: midrange
+# colors: G
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Adventure Awaits
+4 Bayou Groff
+3 Beast-Kin Ranger
+4 Bloomvine Regent
+2 Choose Your Weapon
+4 Containment Breach
+3 Crowned Ceratok
+4 Gnottvold Recluse
+2 Llanowar Greenwidow
+4 Scrapheap Scrounger
+3 Slice in Twain
+2 Test of Courage
+24 Forest

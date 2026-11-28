@@ -1,7 +1,9 @@
 import type { GameView, ManaType, PlayerAction } from '../../protocol/generated/views';
 import { assignmentAnswer, lethalFirst, parseDamageAssignment } from './damageAssignment';
 import { poolId, poolTypes } from './payment';
+import { roomChoice } from './dungeon';
 import type { Prompt } from './prompt';
+import { actingPlayerId } from './turnControl';
 
 /** An answer to the server, independent of how the UI produced it. */
 export type Command =
@@ -63,6 +65,20 @@ function uuid(id: string | null): Command {
   return { type: 'uuid', id };
 }
 
+/** Note added to an optional trigger's target prompt (a target is required here; the "may" comes on resolution) */
+export const OPTIONAL_TRIGGER_NOTE = 'Optional: you can still decline when it resolves.';
+
+/**
+ * An optional ("you may") trigger's target prompt: XMage picks the target as the trigger goes on the stack and asks
+ * "may" only when it resolves, so the prompt says the decline comes later (a supporter took the forced pick for a
+ * forced effect: Qasali Slingers).
+ */
+export function optionalTriggerHeadline(text: string): string {
+  const base = text.trim();
+  if (!base) return OPTIONAL_TRIGGER_NOTE;
+  return `${/[.!?]$/.test(base) ? base : `${base}.`} ${OPTIONAL_TRIGGER_NOTE}`;
+}
+
 function clickMap(ids: Iterable<string>): Map<string, Command> {
   const map = new Map<string, Command>();
   for (const id of ids) map.set(id, uuid(id));
@@ -74,12 +90,15 @@ export function playableIds(view: GameView | null | undefined): string[] {
   return Object.keys(view?.canPlayObjects?.objects ?? {});
 }
 
+/** The player whose decisions are on screen: ourselves, or the one whose turn we control while they're asked. */
 function myPlayer(view: GameView | null | undefined) {
-  return view?.players?.find((player) => player.playerId === view.myPlayerId);
+  const acting = actingPlayerId(view);
+  return view?.players?.find((player) => player.playerId === acting);
 }
 
 function isMyTurn(view: GameView | null | undefined): boolean {
-  return !!view?.myPlayerId && view.activePlayerId === view.myPlayerId;
+  const acting = actingPlayerId(view);
+  return !!acting && view?.activePlayerId === acting;
 }
 
 /** Label for passing priority, following Arena's wording. */
@@ -110,7 +129,7 @@ export function passLabel(view: GameView | null | undefined): string {
 }
 
 export function myAttackers(view: GameView | null | undefined): string[] {
-  const me = view?.myPlayerId;
+  const me = actingPlayerId(view);
   return (view?.combat ?? []).flatMap((group) =>
     Object.entries(group.attackers ?? {})
       .filter(([, card]) => !me || card.controllerId === undefined || card.controllerId === me)
@@ -118,7 +137,7 @@ export function myAttackers(view: GameView | null | undefined): string[] {
 }
 
 export function myBlockers(view: GameView | null | undefined): string[] {
-  const me = view?.myPlayerId;
+  const me = actingPlayerId(view);
   return (view?.combat ?? []).flatMap((group) =>
     Object.entries(group.blockers ?? {})
       .filter(([, card]) => !me || card.controllerId === undefined || card.controllerId === me)
@@ -133,7 +152,7 @@ export function deriveInteraction(view: GameView | null | undefined, prompt: Pro
     return {
       mode: 'waiting',
       prompt: null,
-      headline: view?.priorityPlayerName && view.priorityPlayerName !== myPlayer(view)?.name
+      headline: view?.priorityPlayerName && view.priorityPlayerName !== view.players?.find((player) => player.playerId === view.myPlayerId)?.name
         ? `Waiting for ${view.priorityPlayerName}`
         : 'Waiting',
       clickable: EMPTY_MAP,
@@ -213,7 +232,7 @@ export function deriveInteraction(view: GameView | null | undefined, prompt: Pro
       return {
         mode: prompt.cards ? 'pickCards' : 'target',
         prompt,
-        headline: prompt.text,
+        headline: prompt.optionalTrigger ? optionalTriggerHeadline(prompt.text) : prompt.text,
         clickable: clickMap(new Set([...prompt.targets, ...selected])),
         selected,
         mainButton,
@@ -222,6 +241,8 @@ export function deriveInteraction(view: GameView | null | undefined, prompt: Pro
     }
 
     case 'ask':
+      // which dungeon room next: a panel that shows what each room does
+      if (!prompt.isMulligan && roomChoice(prompt, null)) return panel(prompt);
       return {
         mode: prompt.isMulligan ? 'mulligan' : 'question',
         prompt,

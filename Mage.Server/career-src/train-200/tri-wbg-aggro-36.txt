@@ -1,0 +1,24 @@
+# name: Train200 tri-wbg-aggro-36
+# archetype: aggro
+# colors: WBG
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Aggressive Sabotage
+3 Agonizing Syphon
+3 Broodspinner
+4 Chainweb Aracnir
+2 Demon of Catastrophes
+2 Dire Tactics
+4 Guardian of the Halls
+2 Mindwrack Demon
+3 Nettle Sentinel
+2 Puncturing Light
+3 Sarkhan's Resolve
+3 Thornbow Archer
+3 Wasteland Viper
+2 Wayward Swordtooth
+4 Forest
+4 Grove of the Guardian
+4 Jungle Hollow
+1 Plains
+4 Swamp
+4 Temple of Plenty

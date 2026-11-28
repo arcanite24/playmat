@@ -1,6 +1,6 @@
 import {
   AlertTriangle, ArrowDownToLine, HelpCircle, Ban, BellRing, BookOpen, Dot, Flag, Flame, Heart, HeartCrack, MessageCircle,
-  MessageSquare, Mountain, Shield, Shuffle, Skull, Sparkles, Swords, Trophy, Archive, Zap, X, type LucideIcon,
+  MessageSquare, Mountain, Pin, PinOff, Shield, Shuffle, Skull, Sparkles, Swords, Trophy, Archive, Zap, X, type LucideIcon,
 } from 'lucide-react';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { DelayedRelay } from '../../core/game/broadcastDelay';
@@ -12,16 +12,20 @@ import {
 } from '../../core/game/gameLog';
 import type { CardView, ChatMessage, GameView } from '../../protocol/generated/views';
 import { api, events } from '../connection';
+import { readJson, writeJson } from '../stores/persist';
 import { useSession } from '../stores/session';
 import { useSocial } from '../stores/social';
 import { IconButton } from '../ui/Button';
 import { PromptText } from '../ui/PromptText';
 import { useEmotes } from './emotes';
+import { matchKeysBlocked } from './keyboard';
 import { useMatchUi } from './matchUi';
 import { usePresence } from './presence';
 import styles from './GameLog.module.css';
 
-const MAX_LINES = 300;
+const MAX_LINES = 1500;
+/** a pinned log stays open while the player plays; kept in this browser */
+const PINNED_KEY = 'playmat.logPinned';
 
 const ICONS: Record<LogIcon, LucideIcon> = {
   turn: Dot,
@@ -48,7 +52,7 @@ const ICONS: Record<LogIcon, LucideIcon> = {
 };
 
 /** Game chat and the game's running log, joined once per game (not for replays, which bring their own log). */
-function useGameChat(gameId: string, view: GameView | null, live: boolean, delayMs: number) {
+function useGameChat(gameId: string, view: GameView | null, live: boolean, delayMs: number, inOrder?: (run: () => void) => void) {
   // the latest view, read when a line arrives: it says whose turn the line belongs to
   const latest = useRef(view);
   useEffect(() => {
@@ -62,6 +66,9 @@ function useGameChat(gameId: string, view: GameView | null, live: boolean, delay
   useEffect(() => relay.setDelay(delayMs), [relay, delayMs]);
   useEffect(() => () => relay.dispose(), [relay]);
 
+  // a login after a dropped connection is a new server session, which isn't in the game's chat: join it again, or
+  // the log stops at the drop
+  const loginCount = useSession((state) => state.loginCount);
   useEffect(() => {
     if (!live) return;
     let cancelled = false;
@@ -70,24 +77,32 @@ function useGameChat(gameId: string, view: GameView | null, live: boolean, delay
       .then(async (id) => {
         if (cancelled || !id) return;
         await api.chatJoin(id, useSession.getState().userName);
+        if (cancelled) {
+          api.chatLeave(id).catch(() => undefined);
+          return;
+        }
         joined = id;
         setChatId(id);
       })
       .catch(() => undefined);
     return () => {
       cancelled = true;
+      setChatId(null);
+      // after a new login the old session's membership is gone with it: leaving now would race the join again
+      if (useSession.getState().loginCount !== loginCount) return;
       useEmotes.getState().clear();
       usePresence.getState().clear();
       if (joined) api.chatLeave(joined).catch(() => undefined);
     };
-  }, [gameId, live]);
+  }, [gameId, live, loginCount]);
 
+  // line ids run on across a rejoin: the lines from before it stay in the log
+  const seq = useRef(0);
   useEffect(() => {
     if (!chatId) return;
-    let seq = 0;
     return events.on('CHATMESSAGE', (message: ChatMessage, event) => {
       if (event.objectId !== chatId) return;
-      const parsed = parseChatMessage(message, `c${seq++}`);
+      const parsed = parseChatMessage(message, `c${seq.current++}`);
       if (!parsed) return;
       const me = useSession.getState().userName;
       const fromOther = parsed.tone !== 'chat' || parsed.who !== me;
@@ -105,11 +120,13 @@ function useGameChat(gameId: string, view: GameView | null, live: boolean, delay
         if (entry.who && isEmote(entry.text)) useEmotes.getState().show(entry.who, entry.text);
         if (fromOther) setUnread((count) => count + 1);
       };
+      // the game's own lines show with the board they belong to (pacing.ts): "X wins" after the swing that won it;
       // one's own words show at once
-      if (fromOther) relay.push(show);
+      if (parsed.tone !== 'chat' && inOrder) inOrder(show);
+      else if (fromOther) relay.push(show);
       else show();
     });
-  }, [chatId, gameId, relay]);
+  }, [chatId, gameId, relay, inOrder]);
 
   const send = (text: string) => {
     if (chatId && text.trim()) api.chatSendMessage(chatId, useSession.getState().userName, text.trim()).catch(() => undefined);
@@ -134,7 +151,7 @@ function replayEntries(log: readonly ChatMessage[]): LogEntry[] {
   return entries.slice(-MAX_LINES);
 }
 
-export function GameLog({ gameId, notices, canChat, view, replayLog, delayMs = 0 }: {
+export function GameLog({ gameId, notices, canChat, view, replayLog, delayMs = 0, inOrder }: {
   gameId: string;
   notices: GameNotice[];
   canChat: boolean;
@@ -143,6 +160,8 @@ export function GameLog({ gameId, notices, canChat, view, replayLog, delayMs = 0
   replayLog?: readonly ChatMessage[];
   /** watching: the broadcast delay, which the log keeps too */
   delayMs?: number;
+  /** runs a log line in the game's order, behind the board it belongs to (GameSession.inOrder; also delayed) */
+  inOrder?: (run: () => void) => void;
 }) {
   const open = useMatchUi((state) => state.logOpen);
   const toggle = useMatchUi((state) => state.toggleLog);
@@ -150,11 +169,41 @@ export function GameLog({ gameId, notices, canChat, view, replayLog, delayMs = 0
   const toggleMute = useEmotes((state) => state.toggleMute);
   const myName = useSession((state) => state.userName);
   const ignored = useSocial((state) => state.ignored);
-  const live = useGameChat(gameId, view, !replayLog, delayMs);
+  const live = useGameChat(gameId, view, !replayLog, delayMs, inOrder);
   const recorded = useMemo(() => (replayLog ? replayEntries(replayLog) : null), [replayLog]);
   const chat = recorded ? { ...live, entries: recorded } : live;
   const [draft, setDraft] = useState('');
+  const [pinned, setPinned] = useState(() => readJson(PINNED_KEY, false));
   const list = useRef<HTMLOListElement>(null);
+  const drawer = useRef<HTMLElement>(null);
+  const toggleRef = useRef<HTMLDivElement>(null);
+  // an open log closes on Escape or a click elsewhere on the table, unless it's pinned (#249)
+  useEffect(() => {
+    if (!open || pinned) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented || matchKeysBlocked()) return;
+      // the log takes this Escape: it doesn't also cancel the question on the table
+      event.preventDefault();
+      toggle(false);
+    };
+    const onPointer = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node) || drawer.current?.contains(target) || toggleRef.current?.contains(target)) return;
+      // a card or viewer opened from the log is part of reading it
+      if (target instanceof Element && target.closest('[role="dialog"], [role="alertdialog"], [role="menu"]')) return;
+      toggle(false);
+    };
+    window.addEventListener('keydown', onKey, true);
+    document.addEventListener('pointerdown', onPointer, true);
+    return () => {
+      window.removeEventListener('keydown', onKey, true);
+      document.removeEventListener('pointerdown', onPointer, true);
+    };
+  }, [open, pinned, toggle]);
+  const pin = () => {
+    writeJson(PINNED_KEY, !pinned);
+    setPinned(!pinned);
+  };
   // every card seen this game, so lines about cards that left the table can still show them
   const cards = useRef(new Map<string, CardView>());
   useEffect(() => {
@@ -162,7 +211,8 @@ export function GameLog({ gameId, notices, canChat, view, replayLog, delayMs = 0
   }, [view]);
 
   const rows = useMemo(() => {
-    const errors = notices.filter((notice) => notice.kind === 'error').map((notice) => noticeEntry(`n${notice.id}`, notice.text, notice.at));
+    // the server's errors, and its messages to this player alone (why a block was refused, for one)
+    const errors = notices.filter((notice) => notice.kind === 'error' || notice.kind === 'personal').map((notice) => noticeEntry(`n${notice.id}`, notice.text, notice.at));
     const blocked = new Set(ignored.map((name) => name.toLowerCase()));
     const heard = blocked.size > 0 ? chat.entries.filter((entry) => entry.tone !== 'chat' || !entry.who || !blocked.has(entry.who.toLowerCase())) : chat.entries;
     const visible = muted ? heard.filter((entry) => entry.tone !== 'chat' || entry.who === myName) : heard;
@@ -182,12 +232,12 @@ export function GameLog({ gameId, notices, canChat, view, replayLog, delayMs = 0
 
   return (
     <>
-      <div className={styles.toggle}>
+      <div ref={toggleRef} className={styles.toggle}>
         <IconButton label={open ? 'Close log and chat' : 'Open log and chat'} icon={<MessageSquare size={22} />} pressed={open} onClick={() => toggle()} />
         {chat.unread > 0 && !open && <span className={styles.badge}>{chat.unread}</span>}
       </div>
       {open && (
-        <aside className={styles.drawer} aria-label="Game log and chat">
+        <aside ref={drawer} className={styles.drawer} aria-label="Game log and chat">
           <header className={styles.head}>
             <h2>Log</h2>
             <div className={styles.headActions}>
@@ -196,6 +246,12 @@ export function GameLog({ gameId, notices, canChat, view, replayLog, delayMs = 0
                   {muted ? 'Unmute opponent' : 'Mute opponent'}
                 </button>
               )}
+              <IconButton
+                label={pinned ? 'Unpin the log: a click elsewhere or Escape closes it' : 'Pin the log open while you play'}
+                icon={pinned ? <PinOff size={20} /> : <Pin size={20} />}
+                pressed={pinned}
+                onClick={pin}
+              />
               <IconButton label="Close log" icon={<X size={20} />} onClick={() => toggle(false)} />
             </div>
           </header>

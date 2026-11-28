@@ -130,7 +130,8 @@ class DragonsFireCost extends CostImpl {
                 }
             }
             if (chosenZone == null) {
-                return false;
+                // the reveal is optional: no Dragon (or declined) is still paid, and the spell deals 3
+                return paid = true;
             }
             switch (chosenZone) {
                 case HAND:

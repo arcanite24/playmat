@@ -93,10 +93,98 @@ import { gzipSync } from 'node:zlib';
 // raised 2026-10-23 from entry 84, initial 218, app 768 for drawn icons in place of emoji: avatars show their sigil
 // as an icon (eight lucide icons and thirteen drawn creatures) and flags as text badges, and the avatar is in the
 // header, so the sigils load with the entry. Measured entry 84.6 kB, initial 219.7 kB, app 769.2 kB
+// app raised 2026-10-27 from 772 kB for the capsule item showcase (a board item up close: the turn, light and foil
+// by rarity, the flight in and out of its slot) and the painted capsule machine (the globe's capsule physics, the
+// machine and the pull sequence's opening and light), all lazy with the capsule shop. Measured app 781.5 kB
+// initial raised 2026-10-30 from 220 kB for card pictures that retry after a failed load (CardFace, on every
+// board). Measured initial 220.0 kB
+// app raised 2026-10-30 from 784 kB for the deck builder's mana value columns, lazy with the deck builder. Measured
+// app 785.0 kB
+// app raised 2026-10-30 from 786 kB for the combat estimate (who dies and the damage that gets through, while declaring
+// attackers and blockers): match code, lazy with the match screen. Measured app 788.7 kB
+// app raised 2026-10-30 from 790 kB for keyword explanations where they are printed (about 150 glossary entries, a
+// tooltip of our own so Radix's positioning stays off the first page) and counters as symbols. Measured app 792.6 kB
+// app raised 2026-10-30 from 794 kB when the Decks screen went lazy (its own route chunk, like the other screens):
+// the entry measured 85.0 kB on master and drops 11.5 kB, the first load 12.6 kB; the app total gains about 3.7 kB of
+// chunk overhead for the modules the split shares. Measured entry 73.5 kB, initial 207.6 kB, app 798.6 kB
+// entry raised 2026-11-04 from 85 kB and app from 803 kB for OIDC sign-in (the provider button, the /auth/oidc
+// catch, the naming mode, the provider-only screen, oidcStart/oidcFinish): re-based onto the 2026-10-30 raises
+// above. Measured entry 74.5 kB, initial 208.8 kB, app 803.2 kB
+// app raised 2026-11-07 from 803 kB for signature spell effects and token art (#226): the effects table (about 450
+// cards) and its sixteen primitives with their CSS, lazy with the match screen; the token art picker in Settings and
+// the deck builder, the look carrying the choices, and their English and Spanish messages. Measured app 815.6 kB
+// OIDC sign-in merged onto that 2026-11-08: measured entry 75.5 kB, initial 209.8 kB, app 817.1 kB, inside both raises
+// app raised 2026-11-08 from 818 kB for the match-feel batch (#248 steady hand, #235 multi-mana auto-pay, #227 ability
+// source marks), all in the lazy match chunk: measured 818.4 kB
+// app raised 2026-11-08 from 818 kB for the UI and Gauntlet fixes (#203, #249, #250): the deck builder's card close-up
+// and its magnifier, the log's pin and outside-click close, the Gauntlet map's legend, with their English and Spanish
+// messages; all lazy with their screens. Measured app 820.1 kB
+// both on master together 2026-11-08: the match-feel batch, Match size and the UI and Gauntlet fixes, measured app 821.6 kB
+// app raised 2026-11-11 from 824 kB (master measured 824.0) for deck management (#167 cover picker, #200 tags and
+// drafts, #198 only-these-colors, #137 shared decks): the cover dialog, the shelf filter and organizer, the shared
+// decks list, with their English and Spanish messages; the dialogs are lazy with the deck screens. Measured app 830.8 kB
+// app raised 2026-11-11 from 824 kB for notifications and presence (#208, #209, #229, #195): notification kinds in
+// Settings, the table-join watch in the shell, the status picker and the player directory in the lazy lobby drawer,
+// with their English and Spanish messages. Measured initial 212.0 kB, app 827.4 kB
+// both on master together 2026-11-12: deck management and notifications and presence, measured initial 213.3 kB, app 834.2 kB
+// app raised 2026-11-15 from 837 kB for the event join retry (#401): master already measured at the 837 kB edge, and
+// joinWithRetry in the events store tipped it to 837.5 kB
+// app raised 2026-11-17 from 840 kB for combat animations (#413): the strike planner, the swing and recoil motion and
+// the new Vfx effects with their styles, all in the lazy match chunk. Measured app 845.5 kB
+// app raised 2026-11-18 from 848 kB for swings that reach their target: master had grown to the edge since, and the box
+// sweep in combatMotion (lazy match chunk) tipped it to 848.1 kB
+// app raised 2026-11-19 from 850 kB for match pacing and animation performance (the paced queue, the view timeline,
+// composited combat motion and the warmed audio, nearly all in the lazy match chunk). Measured app 850.0 kB
+// app raised 2026-11-19 from 853 kB for Ranked (#431): the Ranked screen, its model and data, and the en/es strings, all
+// in lazy Career chunks. Measured app 856.1 kB
+// app raised 2026-11-19 from 859 kB for Home widgets (#432): the board, Customize and 16 widgets, each its own lazy
+// chunk (a widget loads only when it's on the board), with their English and Spanish messages. Measured entry
+// 81.0 kB, initial 216.9 kB (both under budget), app 875.3 kB
+// app raised 2026-11-19 from 878 kB for the Career League (#433): the League screen, its data and model in a lazy
+// Career chunk, and the en/es strings. Measured app 881.4 kB
+// app raised 2026-11-19 from 884 kB for the League deck builder (#433): its screen, the craft banner and build store in
+// a lazy chunk, League lines in two Home widgets, and the en/es strings. Measured app 885.7 kB
+// app raised 2026-11-19 from 888 kB for ladder seasons (#434): the season line and stamps, the season-end ceremony and
+// the Season widget (its own lazy chunk), and the en/es strings. Measured app 888.1 kB
+// app raised 2026-11-20 from 891 kB for phase 6 (#435) and the Ranked polish: Bo3, Modern and Limited rank strings, and
+// Ranked's first-visit intro (en/es) in the lazy Career chunk. Measured app 891.8 kB
+// app raised 2026-11-21 from 894 kB for the admin console's Self-play tab (#462): its page in the lazy admin chunk.
+// Measured app 894.6 kB
+// app raised 2026-11-22 from 897 kB for Career multi-deck saving and human-hosted event controls (#469): lazy Career
+// and Events chunks plus their en/es strings. Measured app 898.2 kB
+// app raised 2026-11-22 from 902 kB for web UX quick wins (#467 draft card zoom, #427 view board after game end,
+// #416 AI opponent deck name, #408 missing playset filter & counter, #407 day/night indicator & rules hint,
+// #423 earlier-turn dialog clarity): all in lazy screen chunks plus en/es strings. Measured app 902.8 kB
+// app raised 2026-11-22 from 906 kB for AI deck pool controls (#383), How to play & formats guide (#468), and era /
+// multi-set card filters (#236): lazy GuideScreen, AiDeckPicker and DeckBuilder era panel plus en/es strings.
+// Measured entry 82.0 kB, initial 217.9 kB (both under budget), app 915.6 kB
+// app raised 2026-11-25 from 920 kB for the deck editor redesign (#513): stacks and grid views, card menu, maybeboard,
+// categories and undo, all in the lazy DeckBuilder chunk plus en/es strings. Measured entry 82.5 kB, initial 219.3 kB
+// (both under budget), app 928.2 kB
+// app raised 2026-11-26 from 932 kB for Mana@Home S3 (public /swarm tracker, leaderboards, teams, contributor
+// profiles, transparency log, and admin Swarm tab), all in lazy SwarmScreen and AdminScreen chunks. Measured entry
+// 83.1 kB, initial 219.9 kB (both under budget), app 940.2 kB
+// app raised 2026-11-26 from 944 kB for the AI Ranked overhaul (RankedDeckPicker modal, season analytics, milestones,
+// Living Mythic standings, opponent deck inspection, and en/es strings), all in lazy Career chunks. Measured entry
+// 83.2 kB, initial 219.9 kB (both under budget), app 949.5 kB
+// app raised 2026-11-26 from 954 kB for the Coin Cosmetics Boutique, Waves 2-3 capsule cabinet configs, and Phase 2
+// Commander Career (track-aware Career Hub, 6 Commander precons & free gift modal, format-aware Career Deck Builder
+// with color-identity and Pick Commander filters, Commander packs/precons shop tabs, quest focus, and en/es strings),
+// all in lazy Career chunks. Measured entry 83.4 kB, initial 220.2 kB (both under budget), app 960.8 kB
+// app raised 2026-11-26 from 965 kB for Phases 3-5 (Commander Ranked/League/Pod UI, Pauper/Brawl/Legacy/Limited tabs,
+// Commanders of the Spire Gauntlet, Hordes 2.0, Archenemy mode screen, MatchStage PlaneBanner, and en/es strings),
+// all in lazy Career and Match chunks. Measured entry 83.4 kB, initial 220.2 kB (both under budget), app 968.5 kB
+// app raised 2026-11-26 from 975 kB for Phase 6 & stretch completion (Companion Bond evolution UI, procedural 3D pet rigs
+// and accessories, Command-Zone frames, Two-Headed Giant screen, SchemeBanner overlay, Curator's Picks 20% off Boutique,
+// mixed-kind capsule views for Waves 4-5, and en/es strings). Measured entry 83.5 kB, initial 220.3 kB, app 980.4 kB
+// app raised 2026-11-27 from 985 kB for Ko-fi feedback batch (multiplayer AttackGroups target picker, commander damage
+// toggle, multi-defender combat colors & breakdown, multi-effect stack target clarity, unlocked cosmetic earn criteria,
+// PrintingPicker favorites & filter, and binder all-printings mode), all in lazy screen chunks plus en/es strings.
+// Measured entry 83.5 kB, initial 220.3 kB (both under budget), app 989.4 kB
 const BUDGET_KB = {
-  entry: 85,
-  initial: 220,
-  app: 770,
+  entry: 86,
+  initial: 221,
+  app: 992,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;

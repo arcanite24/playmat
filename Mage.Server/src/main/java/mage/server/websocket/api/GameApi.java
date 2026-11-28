@@ -19,6 +19,7 @@ import java.util.UUID;
 import static mage.server.websocket.rpc.RpcParam.Type.ANY;
 import static mage.server.websocket.rpc.RpcParam.Type.BOOLEAN;
 import static mage.server.websocket.rpc.RpcParam.Type.INT;
+import static mage.server.websocket.rpc.RpcParam.Type.OBJECT;
 import static mage.server.websocket.rpc.RpcParam.Type.STRING;
 import static mage.server.websocket.rpc.RpcParam.of;
 import static mage.server.websocket.rpc.RpcParam.optional;
@@ -41,6 +42,36 @@ final class GameApi {
                             ctx.server.gameJoin(call.uuid(0), call.string(1));
                             return true;
                         }),
+
+                RpcMethod.named("hostGameEnded")
+                        .publicAccess()
+                        .params(gameId(), of("token", STRING), optional("winnerId", STRING), of("turns", INT),
+                                of("reason", STRING), optional("timeLeft", OBJECT), optional("summary", OBJECT))
+                        .doc("The gateway only: a game the Rust host played ended (docs/rust/GameHost.md). The token is "
+                                + "the one the game's HOST_GAME carried; timeLeft is each player's priority time left in "
+                                + "seconds, by player id, for a timed match's next game; summary is each seat's life and poison and the "
+                                + "human's Career tally. Returns false for a game that isn't hosted.")
+                        .handler(call -> mage.server.RustHost.ended(call.uuid(0), call.string(1), call.optString(2, ""),
+                                call.integer(3), call.string(4), call.has(5) ? call.jsonObject(5) : null,
+                                call.has(6) ? call.jsonObject(6) : null)),
+
+                RpcMethod.named("hostGameTurn")
+                        .publicAccess()
+                        .params(gameId(), of("token", STRING), of("turn", INT), optional("activePlayerId", STRING),
+                                of("line", OBJECT))
+                        .doc("The gateway only: a solo table's game the Rust host plays is at the start of a turn "
+                                + "(docs/rust/GameHost.md, Saves); line is the game to that point (its first start and every call "
+                                + "since), which the solo saves keep. Returns false for a game that isn't hosted.")
+                        .handler(call -> mage.server.RustHost.turn(call.uuid(0), call.string(1), call.integer(2),
+                                call.optString(3, ""), call.jsonObject(4))),
+
+                RpcMethod.named("hostGameAssisted")
+                        .publicAccess()
+                        .params(gameId(), of("token", STRING), of("what", STRING))
+                        .doc("The gateway only: the Rust host helped the player of a Career game it plays (what: hint), "
+                                + "counted as AdviceService counts a hint in a game Java plays (docs/rust/GameHost.md, Career "
+                                + "tables). Returns false for a game that isn't hosted.")
+                        .handler(call -> mage.server.RustHost.assisted(call.uuid(0), call.string(1), call.string(2))),
 
                 RpcMethod.named("gameResync")
                         .session(1)

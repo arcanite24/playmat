@@ -6,26 +6,34 @@ import type { GameSession, GameSessionState } from '../../core/game/gameSession'
 import type { Command } from '../../core/game/interaction';
 import { commanderDamageTo, commandersByPlayer, type CommanderStatus } from '../../core/game/commander';
 import { askedAttacker, defenderChoice, inRange } from '../../core/game/multiplayer';
+import { playerDungeon } from '../../core/game/dungeon';
+import { keepDefenders } from '../../core/game/combatStrikes';
 import { parsePayment } from '../../core/game/payment';
 import { xLimit } from '../../core/game/announceX';
 import { sortHand } from '../../core/game/handOrder';
 import { askedAboutCards } from '../../core/game/reveals';
+import { revealedInHand } from '../../core/game/revealedHand';
 import { delayLabel, isBroadcastDelay } from '../../core/game/broadcastDelay';
 import { spectatorHand } from '../../core/game/spectatorHand';
+import { controlledTurn } from '../../core/game/turnControl';
 import { matchProgress } from '../../core/game/matchProgress';
 import { pregameChoice } from '../../core/game/pregame';
 import { offBoardTargets } from '../../core/game/offBoardTargets';
-import { offZonePlayables } from '../../core/game/offZonePlayables';
+import { NO_OFF_ZONE_HOLD, nextOffZoneHold, offZonePlayables, type OffZoneHold } from '../../core/game/offZonePlayables';
 import { predict, withPredictedAttack, withPrediction } from '../../core/game/prediction';
 import type { CardView, ChatMessage, GameView, PlayerLook, PlayerView } from '../../protocol/generated/views';
 import { rosterOf, sleeveFor, SLEEVE_COLORS, useDecks } from '../stores/decks';
+import { EngineBadge } from './EngineBadge';
+import { engineOf } from './engine';
 import { useT } from '../i18n';
 import { useEvents } from '../stores/events';
 import { useGames } from '../stores/games';
 import { usePlay } from '../stores/play';
-import { useAutomation, useSettings } from '../stores/settings';
+import { clampAiActionDelay, useAutomation, useSettings } from '../stores/settings';
+import { useManaPaymentSettings } from './useManaPaymentSettings';
 import { progressionShown } from '../career/progressionEvents';
 import { notify } from '../stores/toasts';
+import { blockWarning } from '../../core/game/blockRequirements';
 import { Button } from '../ui/Button';
 import { CardFace } from '../ui/CardFace';
 import { Dialog } from '../ui/Dialog';
@@ -34,43 +42,54 @@ import { SettingsDialog } from '../screens/SettingsDialog';
 import { KeyboardShortcuts } from './KeyboardShortcuts';
 import { Stitch } from '../ui/Stitch';
 import { ActionCluster } from './ActionCluster';
+import { AttackGroups } from './AttackGroups';
+import { PlaneBanner } from './PlaneBanner';
+import { SchemeBanner } from './SchemeBanner';
 import { AlwaysAnswerMenu, TriggerOrderOptions } from './AutoAnswer';
 import { BetweenGames } from './BetweenGames';
 import { Arrows } from './Arrows';
-import { stackLeads } from './attackArrows';
-import { buildBoard, fitRow, type PermanentGroup, type PlayerBoard } from './boardModel';
+import { attackerTargetNames, combatArrows, defenderColorMap, stackLeads } from './attackArrows';
+import { buildBoard, cardKey, fitRow, type PermanentGroup, type PlayerBoard } from './boardModel';
 import { CardDetail } from './CardDetail';
 import { Coach } from './Coach';
 import { LessonCoach } from './LessonCoach';
 import { CardZoom } from './CardZoom';
+import { CombatPreview } from './CombatPreview';
 import { DamageAssigner } from './DamageAssigner';
 import { damageCorner, useDamageSplit } from './useDamageSplit';
 import { EmoteBubbles } from './EmoteBubbles';
 import { EmoteButton } from './emotes/EmoteButton';
 import { useOpponentVoice } from './useOpponentVoice';
+import { useRevealedHands } from './useRevealedHands';
 import { setCardMotion, useFlipOrigin } from './flip';
 import { GameLog } from './GameLog';
+import { useMatchZoomKeys } from './matchZoomKeys';
 import { Hand } from './Hand';
 import './matchMessages';
 import { useMatchUi } from './matchUi';
+import { promptSourceId } from '../../core/game/promptSource';
 import { useGameCues } from './useGameCues';
 import { useWarmImages } from './useWarmImages';
 import { useAutoCrew } from './useAutoCrew';
 import { useAutoDamage } from './useAutoDamage';
 import { usePickIdentical, useSkipSingleChoice, useSmartPreselect } from './useAutoChoices';
 import { useAttackTarget } from './useAttackTarget';
+import { useAttackGroups } from './useAttackGroups';
 import { defaultDefender } from '../../core/game/attackTarget';
 import { useAutoPay } from './useAutoPay';
 import { useAutoPass } from './useAutoPass';
 import { useBlockDrag } from './useBlockDrag';
 import { useAutoOrder } from './useAutoOrder';
 import { Vfx } from './Vfx';
-import { CardPicker, ChoicePanel, GameOverOverlay, MulliganOverlay, StartingPlayerOverlay, ZoneViewer } from './Overlays';
+import { createTablePlayback } from './beats';
+import { CardPicker, ChoicePanel, DungeonViewer, GameOverOverlay, MulliganOverlay, StartingPlayerOverlay, ZoneViewer } from './Overlays';
 import { PermanentStack } from './PermanentStack';
 import { clothOf, clothStyle } from './playmats';
 import { arrowTints, landStyleKey, lookCloth, pairsOf, sparkColorOf, stampOf, theirClothBox } from './touches';
 import { CardStyleContext } from '../ui/cardStyles';
 import { LandStyleContext } from '../ui/landStyles';
+import { mergeChoices, TokenArtContext, type TokenChoices } from '../ui/tokenArt';
+import { useTokenArt } from '../stores/tokenArt';
 import { useCosmetics } from '../ui/cosmeticsCatalog';
 import { usePlayerLooks } from '../support/supportData';
 import { opponentSleeve, playerSleeve } from '../support/supportModel';
@@ -88,6 +107,7 @@ import { PetSpot } from '../pets/PetSpot';
 import { SpectatorBar, WatcherCount } from './SpectatorBar';
 import { useWatchers } from './useWatchers';
 import { Reveals } from './Reveals';
+import { useReveals } from './useReveals';
 import { StackZone } from './StackZone';
 import { Stage } from './Stage';
 import { useRightEdge } from './useRightEdge';
@@ -106,24 +126,28 @@ const HAND_SEAT_GAP = 24;
 /** wide: the quick-emote button beside your seat (48 and its gap); the hand keeps clear of it too */
 const EMOTE_BUTTON_ROOM = 58;
 
-/** Attacking and blocking permanents, from the combat groups. */
-function combatSets(combat: GameView['combat']) {
-  const attacking = new Set<string>();
-  const blocking = new Set<string>();
-  const links: [string, string][] = [];
-  const attacks: [string, string][] = [];
-  for (const group of combat ?? []) {
-    const attackers = Object.keys(group.attackers ?? {});
-    attackers.forEach((id) => attacking.add(id));
-    const blockers = Object.keys(group.blockers ?? {});
-    // unblocked attackers point at what they attack; blocked ones are tied to their blockers instead
-    if (group.defenderId && blockers.length === 0 && !group.isBlocked) attackers.forEach((id) => attacks.push([id, group.defenderId!]));
-    for (const blocker of blockers) {
-      blocking.add(blocker);
-      attackers.forEach((attacker) => links.push([blocker, attacker]));
-    }
+/**
+ * The view's combat groups, with attackers still aimed at the planeswalker or battle they attacked once it has left
+ * the battlefield (the Rust host names its player then; see keepDefenders).
+ */
+function useKeptDefenders(view: GameView | null | undefined): GameView['combat'] {
+  const [kept, setKept] = useState<{ view: GameView | null | undefined; combat: GameView['combat'] }>({ view, combat: view?.combat });
+  if (kept.view !== view) {
+    const players = new Set((view?.players ?? []).map((player) => player.playerId!));
+    const present = new Set((view?.players ?? []).flatMap((player) => Object.keys(player.battlefield ?? {})));
+    const combat = keepDefenders(view?.combat, kept.combat, players, present);
+    setKept({ view, combat });
+    return combat;
   }
-  return { attacking, blocking, links, attacks };
+  return kept.combat;
+}
+
+/** The deck being played's token art (ui/tokenArt.ts), over the account's. */
+function useMyTokenArt(): TokenChoices | undefined {
+  const deckId = usePlay((state) => state.deckId);
+  const saved = useDecks((state) => state.saved);
+  const account = useTokenArt((state) => state.choices);
+  return useMemo(() => mergeChoices(account, saved.find((deck) => deck.id === deckId)?.tokenArt), [account, saved, deckId]);
 }
 
 function useSleeves() {
@@ -149,21 +173,36 @@ export interface MatchStageProps {
 
 export function MatchStage({ session, state, replayLog, onLeave }: MatchStageProps) {
   const { view, interaction, playerId, mode, awaitingServer, prediction } = state;
+  const revealedHands = useRevealedHands(view, mode !== 'replay');
+  const reveals = useReveals(view, mode !== 'replay');
   const t = useT();
   const navigate = useNavigate();
   const animations = useSettings((settings) => settings.settings.animations);
   const autoDismissReveals = useSettings((settings) => settings.settings.autoDismissReveals);
   const autoPay = useSettings((settings) => settings.settings.autoPayMana);
   const automation = useAutomation();
+  useManaPaymentSettings(session, mode === 'play' && !!playerId && !!view);
   // watching and replays: the broadcast options
   const spectating = mode !== 'play';
   const broadcastDelay = useSettings((settings) => settings.settings.broadcastDelay);
   const hideHands = useSettings((settings) => settings.settings.hideHands);
   const largeZoom = useSettings((settings) => settings.settings.largeZoom);
+  const bigZoom = useSettings((settings) => settings.settings.bigZoom);
+  const matchSize = useSettings((settings) => settings.settings.matchSize);
+  const aiActionDelay = useSettings((settings) => settings.settings.aiActionDelay);
+  // the browser's zoom keys and a trackpad pinch step the match size: zoom alone cancels out (#147)
+  useMatchZoomKeys(true);
   useEffect(() => {
     // the session only delays a game being watched; turning the delay off catches up at once
     session.setBroadcastDelay(mode === 'watch' && isBroadcastDelay(broadcastDelay) ? broadcastDelay * 1000 : 0);
   }, [session, mode, broadcastDelay]);
+  useEffect(() => {
+    // while the table is drawn, the server's views are shown at its pace: each waits for the last one's swings and
+    // hits, AI spell pacing when set, and the result for the final board (beats.ts). Replays step through frames of their own.
+    if (mode === 'replay') return;
+    session.setStage(createTablePlayback({ aiDelayMs: clampAiActionDelay(aiActionDelay) * 1000 }));
+    return () => session.setStage(null);
+  }, [session, mode, aiActionDelay]);
   const viewer = useMatchUi((ui) => ui.viewer);
   const openViewer = useMatchUi((ui) => ui.openViewer);
   const deckSleeves = useSleeves();
@@ -173,47 +212,73 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   const setFullControl = useSettings((settings) => settings.setFullControl);
   // full control lasts for the match on screen, as on Arena
   useEffect(() => () => useSettings.getState().setFullControl(false), []);
+  // Arena's pass turn (">>"): set for one turn of one game, so it ends by itself when the next turn begins
+  const [passTurnAt, setPassTurnAt] = useState<{ gameId: string; turn: number } | null>(null);
+  const passTurn = !!passTurnAt && passTurnAt.gameId === state.gameId && passTurnAt.turn === (view?.turn ?? 0) && !state.gameOver;
+  const onPassTurn = useCallback((on: boolean) => {
+    if (!on) {
+      setPassTurnAt(null);
+      return;
+    }
+    setPassTurnAt({ gameId: state.gameId, turn: session.getState().view?.turn ?? 0 });
+    // passing the turn is the opposite of full control: Arena drops it
+    useSettings.getState().setFullControl(false);
+  }, [session, state.gameId]);
+  const onFullControl = useCallback((on: boolean) => {
+    if (on) setPassTurnAt(null);
+    setFullControl(on);
+  }, [setFullControl]);
 
   useEffect(() => setCardMotion(animations), [animations]);
   // a new game starts with a clean table
-  useEffect(() => () => useMatchUi.setState({ zoom: null, dragging: null, viewer: null, logOpen: false, detail: null }), []);
+  useEffect(() => () => useMatchUi.setState({ zoom: null, dragging: null, viewer: null, logOpen: false, detail: null, sourceHover: null, promptSource: null, hoveredDefender: null, hoveredStackId: null }), []);
 
   // a click's likely outcome (a land tapped for mana) shows at once; the server's next view replaces it
   const board = useMemo(() => buildBoard(withPrediction(view, prediction), playerId), [view, prediction, playerId]);
+  // the dungeons players venture into: the "which room next" panel reads mine, the dungeon pile opens anyone's
+  const myDungeon = useMemo(() => playerDungeon(board.me?.player), [board.me?.player]);
+  const dungeonOf = useMatchUi((ui) => ui.dungeonOf);
+  const openDungeon = useMatchUi((ui) => ui.openDungeon);
+  const shownDungeonPlayer = dungeonOf ? board.players.get(dungeonOf) ?? null : null;
+  const shownDungeon = useMemo(() => playerDungeon(shownDungeonPlayer), [shownDungeonPlayer]);
   // combat damage is split on the creatures themselves: clicking one adds a point of damage to it
   const damageSplit = useDamageSplit(interaction, view);
   const clickable = useMemo(
     () => new Set(damageSplit ? damageSplit.assignment.recipients.map((recipient) => recipient.id) : interaction.clickable.keys()),
     [interaction.clickable, damageSplit],
   );
-  const combat = view?.combat;
-  const combatNow = useMemo(() => combatSets(combat), [combat]);
-  const { blocking, links, attacks } = combatNow;
+  // an attacker keeps pointing at the planeswalker or battle it attacked after that left the battlefield (#413)
+  const combat = useKeptDefenders(view);
+  const combatNow = useMemo(() => combatArrows(combat), [combat]);
+  const { blocking, attacks } = combatNow;
+  const defenderColors = useMemo(() => defenderColorMap(view, playerId), [view, playerId]);
+  const attackTargetNames = useMemo(() => attackerTargetNames(combat, view), [combat, view]);
   const leads = useMemo(() => stackLeads([board.me, ...board.opponents]), [board.me, board.opponents]);
   // a creature declared as an attacker steps forward before the server confirms it
   const attacking = useMemo(() => withPredictedAttack(combatNow.attacking, prediction), [combatNow.attacking, prediction]);
   const chosen = useMemo(() => withPredictedAttack(interaction.selected, prediction), [interaction.selected, prediction]);
   const pending = prediction?.id ?? null;
-  // lands can always tap for mana while you hold priority; glowing them all would drown the real options
-  const quiet = useMemo(() => {
-    if (interaction.mode !== 'priority' || !board.me) return EMPTY;
-    const lands = new Set<string>();
-    for (const group of board.me.back) {
-      for (const permanent of group.members) {
-        if ((permanent.cardTypes ?? []).includes('LAND')) lands.add(permanent.id!);
-      }
-    }
-    return lands;
-  }, [interaction.mode, board.me]);
   const sortedHand = useSettings((settings) => settings.settings.sortHand);
+  // a turn we control (Mindslaver, Emrakul): while its player is asked, their hand and lands are what we play from
+  const control = useMemo(() => (mode === 'play' ? controlledTurn(view) : null), [mode, view]);
+  const acting = control?.acting ? control : null;
+  const actingBoard = useMemo(
+    () => (acting ? board.opponents.find((one) => one.player.playerId === acting.player.playerId) ?? null : board.me?.isMe ? board.me : null),
+    [acting, board.opponents, board.me],
+  );
   const hand = useMemo(() => {
-    const cards = Object.values(view?.myHand ?? {});
+    const cards = acting ? acting.hand : Object.values(view?.myHand ?? {});
     return sortedHand ? sortHand(cards) : cards;
-  }, [view?.myHand, sortedHand]);
+  }, [acting, view?.myHand, sortedHand]);
   // cards played from exile or a graveyard (an adventurer, flashback) join the hand while they can be played
-  const offZone = useMemo(() => (interaction.mode === 'priority' ? offZonePlayables(view, clickable) : []), [interaction.mode, view, clickable]);
+  const liveOffZone = useMemo(() => (interaction.mode === 'priority' ? offZonePlayables(view, clickable) : null), [interaction.mode, view, clickable]);
+  const [lastOffZone, setLastOffZone] = useState<OffZoneHold>(NO_OFF_ZONE_HOLD);
+  const offZoneHold = useMemo(() => nextOffZoneHold(lastOffZone, liveOffZone, view), [lastOffZone, liveOffZone, view]);
+  if (offZoneHold !== lastOffZone) setLastOffZone(offZoneHold);
+  const offZone = useMemo(() => offZonePlayables(view, offZoneHold.ids), [view, offZoneHold]);
   const handAndPlayables = useMemo(() => (offZone.length > 0 ? [...hand, ...offZone.map((entry) => entry.card)] : hand), [hand, offZone]);
   const fromZone = useMemo(() => new Map(offZone.map((entry) => [entry.card.id!, entry.zone])), [offZone]);
+  const offZoneInHand = useMemo(() => new Set(offZone.map((entry) => cardKey(entry.card))), [offZone]);
   // watching: the seat's hand, if its player lets us see it, and only backs while hands are hidden for the broadcast
   // (a replay of one's own game shows the hand that was held, as before)
   const seatHand = useMemo(
@@ -222,6 +287,8 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   );
   const stack = useMemo(() => Object.values(view?.stack ?? {}), [view?.stack]);
 
+  // the declare-blockers prompt whose blocks were warned about, and why (a second press sends them anyway)
+  const [blockWarned, setBlockWarned] = useState<{ prompt: unknown; text: string } | null>(null);
   const onCommand = useCallback((command: Command) => {
     // Cancel on a payment is never dropped: auto-pay keeps a tap with the server most of the time
     if (command.type === 'boolean' && !command.value && session.getState().interaction.mode === 'payMana') {
@@ -230,11 +297,22 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
     }
     // one answer per question: while the server works on the last one, further answers are dropped
     if (command.type !== 'action' && session.getState().awaitingServer) return;
+    // blocks that leave a "must be blocked if able" attacker unblocked are not sent on the first press
+    const current = session.getState();
+    const asked = current.interaction.prompt;
+    if (command.type === 'boolean' && command.value && current.interaction.mode === 'declareBlockers'
+      && asked?.kind === 'declareBlockers' && blockWarned?.prompt !== asked) {
+      const unblocked = blockWarning(current.view, asked);
+      if (unblocked) {
+        setBlockWarned({ prompt: asked, text: t('match.block.mustBeBlocked', { name: unblocked.name || t('match.block.anAttacker') }) });
+        return;
+      }
+    }
     if (command.type === 'action' && (command.action === 'HOLD_PRIORITY' || command.action === 'UNHOLD_PRIORITY')) {
       setHolding(command.action === 'HOLD_PRIORITY');
     }
     void session.respond(command).catch(() => undefined);
-  }, [session]);
+  }, [session, t, blockWarned]);
   const onResend = useCallback(() => void session.resend().catch(() => undefined), [session]);
   const onResync = useCallback(() => {
     void session.resync().then((resent) => {
@@ -275,29 +353,64 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   usePickIdentical(session, state, automation.pickIdentical && mode === 'play');
   useSmartPreselect(session, state, myId, automation.smartPreselect && mode === 'play');
   const attackDrop = useAttackTarget(session, state, myId, automation.attackPlayerByDefault && mode === 'play');
+  const attackMany = useAttackGroups(session, state, mode === 'play' && !state.gameOver);
   const commanders = useMemo(() => commandersByPlayer(view), [view]);
+  const hasCommanders = commanders.size > 0;
+  // commander damage breakdown toggle (starts collapsed in multiplayer so left-column plates stay clear of creatures)
+  const [cmdrExpanded, setCmdrExpanded] = useState<boolean | undefined>(undefined);
+  const cmdrShown = cmdrExpanded ?? board.opponents.length <= 1;
   const damageTaken = useCallback(
     (player: PlayerView) => commanderDamageTo(player, commanders).map((hit) => ({ name: hit.commander.name, amount: hit.amount })),
     [commanders],
   );
   useWarmImages(view);
-  useAutoPay(session, state, board.me?.isMe ? board.me : null, autoPay && mode === 'play', {
+  useAutoPay(session, state, actingBoard, autoPay && !fullControl && mode === 'play', {
     hybrid: automation.autoPayHybrid,
     anyColor: automation.autoPayAnyColor,
     painful: automation.autoPayPainful,
     afterX: automation.autoPayX,
   });
-  useAutoCrew(session, state, board.me?.isMe ? board.me : null, automation.autoCrew && mode === 'play');
+  useAutoCrew(session, state, actingBoard, automation.autoCrew && mode === 'play');
   useSkipSingleChoice(session, state, automation.skipSingleChoice && mode === 'play');
   useAutoDamage(session, state, mode === 'play' ? damageSplit : null, { plain: automation.autoAssignDamage, trample: automation.autoAssignTrample });
   // holding priority means the player wants every stop
-  const autoPassing = useAutoPass(session, state, !holding);
+  const autoPassing = useAutoPass(session, state, !holding, passTurn && mode === 'play');
   useGameCues(state, myId, !!autoPassing);
   useAutoOrder(session, state);
   // the players' own looks (servers with accounts), refreshed during the match so late uploads reach every seat
   const playerNames = (view?.players ?? []).map((player) => player.name).join('\n');
   const looks = usePlayerLooks(playerNames.split('\n'), true);
   const lookOf = useCallback((player: PlayerView | undefined): PlayerLook | undefined => (player?.name ? looks[player.name.trim().toLowerCase()] ?? undefined : undefined), [looks]);
+  // Phase 6 Pet Bond Tier 2+: reactive table emotes on Commander cast, clutch low-life survival, or match win
+  const myLook = lookOf(board.me?.player);
+  const myBondTier = myLook?.petTier ?? 1;
+  const myLife = board.me?.player.life;
+  const myCommandersOnBoard = useMemo(
+    () => (myId ? (commanders.get(myId) ?? []).filter((c) => c.zone === 'battlefield').map((c) => c.id).sort().join(',') : ''),
+    [commanders, myId],
+  );
+  const petTrackRef = useRef<{ life?: number; cmds: string; won: boolean }>({ life: undefined, cmds: '', won: false });
+  const [petReaction, setPetReaction] = useState<{ count: number; line?: string } | null>(null);
+  useEffect(() => {
+    const prev = petTrackRef.current;
+    let line: string | null = null;
+    if (myBondTier >= 2 && myLook?.pet) {
+      const won = Boolean(state.gameOver && /\bwon\b/i.test(state.gameOver));
+      if (won && !prev.won) {
+        line = 'Victory!';
+      } else if (myCommandersOnBoard && myCommandersOnBoard !== prev.cmds && myCommandersOnBoard.length > prev.cmds.length) {
+        line = 'Command!';
+      } else if (myLife !== undefined && prev.life !== undefined && prev.life > 3 && myLife > 0 && myLife <= 3) {
+        line = 'Hold on!';
+      }
+      prev.won = won;
+    }
+    prev.life = myLife;
+    prev.cmds = myCommandersOnBoard;
+    if (line) {
+      setPetReaction((current) => ({ count: (current?.count ?? 0) + 1, line }));
+    }
+  }, [myBondTier, myLook?.pet, myLife, myCommandersOnBoard, state.gameOver]);
   const mine = board.me?.isMe ? deckSleeves.mine : playerSleeve(lookOf(board.me?.player), deckSleeves.mine);
   const sleeves = useMemo(() => ({
     ...deckSleeves, mine,
@@ -322,6 +435,9 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   // Career matches come back through their rewards (the return path); any other counted game shows what it paid on
   // the way out too, unless the player hid progression (B265, B312)
   const career = !!returnPath?.startsWith('/career');
+  // the Rust host plays its games itself, with its own practice tools, advice and saves; a Career game never goes
+  // to it, so its counted hints and take-back stay Java's
+  const rustGame = engineOf(view) === 'rust';
   const vsAi = board.opponents.length > 0 && board.opponents.every((opponent) => opponent.player.isHuman === false);
   useOpponentVoice(state, myId, career);
   const rewardsAfter = mode === 'play' && !!state.gameOver && !eventId && !career
@@ -340,6 +456,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   // the rewards beat shows on the game-over screen itself (B277): leaving goes straight back, Details opens the screen
   const leave = useCallback(() => exit(false), [exit]);
   const deckId = usePlay((play) => play.deckId);
+  const playOpponentDecks = usePlay((play) => play.opponentDecks);
   // players see who is watching them too
   const watchers = useWatchers(state.gameId, mode === 'play' && !state.gameOver);
   // between games of a match the server deals the next game by itself: show the score, not a way out
@@ -353,15 +470,23 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
     if (deckId) void usePlay.getState().playVsAi(deckId, lastOptions);
   }, [exit, deckId]);
 
-  // the arrow starts at the spell being cast (top of the stack) while it chooses targets
+  // the arrow starts at the spell being cast (top of the stack) while choosing targets, or at whichever stack item is hovered
+  const hoveredStackId = useMatchUi((ui) => ui.hoveredStackId);
   const choosingTargets = interaction.mode === 'target' && !awaitingServer;
-  const arrowSource = stack[0]?.id ?? null;
+  const activeStackItem = useMemo(
+    () => (choosingTargets ? stack[0] ?? null : ((hoveredStackId ? stack.find((item) => item.id === hoveredStackId) : null) ?? stack[0] ?? null)),
+    [choosingTargets, hoveredStackId, stack],
+  );
+  const arrowSource = activeStackItem?.id ?? null;
   const arrowTargets = useMemo(() => {
     if (choosingTargets) return [...interaction.selected];
-    return (stack[0]?.targets ?? []).filter(Boolean) as string[];
-  }, [choosingTargets, interaction.selected, stack]);
+    return (activeStackItem?.targets ?? []).filter(Boolean) as string[];
+  }, [choosingTargets, interaction.selected, activeStackItem]);
 
   const prompt = interaction.prompt;
+  // the permanent a question is asked for stays marked while it's open (#227)
+  const promptSource = useMemo(() => (awaitingServer ? null : promptSourceId(prompt)), [awaitingServer, prompt]);
+  useEffect(() => useMatchUi.setState({ promptSource }), [promptSource]);
   const targeting = interaction.mode === 'target' && !awaitingServer;
   // the decision corner names the blocker when the server asks which attacker it blocks
   // while paying: what is still owed, and for what
@@ -407,15 +532,19 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
     return defenders ? askedAttacker(view, myId, lastAttacker)?.name ?? null : null;
   }, [prompt, defenders, view, myId, lastAttacker]);
   // a yes/no question about cards an effect just looked at ("you may put a land from among them..."): show them
-  const askCards = useMemo(() => (canAct ? askedAboutCards(prompt, view)?.cards ?? null : null), [canAct, prompt, view]);
+  const askCards = useMemo(() => (canAct ? askedAboutCards(prompt, reveals)?.cards ?? null : null), [canAct, prompt, reveals]);
   // announcing X: what the player could pay, when the server sets no limit
   const announceLimit = useMemo(() => (prompt?.kind === 'amount' ? xLimit(prompt, view, myId) : null), [prompt, view, myId]);
   // a concession takes effect when the player holding priority passes: name them while it is pending
   const priorityName = (view?.players ?? []).find((player) => player.hasPriority && player.playerId !== myId)?.name ?? null;
   const choosingStarter = pregamePick === 'startingPlayer';
+  // peeking hides the active choice overlay so the player can inspect both the board and their hand (#476)
+  const [peekingPrompt, setPeekingPrompt] = useState<typeof prompt>(null);
+  const peeking = !!prompt && peekingPrompt === prompt;
+  const setPeeking = useCallback((next: boolean) => setPeekingPrompt(next ? prompt : null), [prompt]);
   // one decision, one set of controls: an overlay owns the choice while it's open
   const overlayOpen = (interaction.mode === 'mulligan' || choosingStarter || !!pickerCards || interaction.mode === 'panel') && !awaitingServer;
-  const handHidden = (interaction.mode === 'mulligan' || choosingStarter || !!pickerCards) && !awaitingServer;
+  const handHidden = (interaction.mode === 'mulligan' || choosingStarter || (!!pickerCards && !peeking)) && !awaitingServer;
   // a choice among cards in hand (discard, reveal...): eligible cards take the decision edge
   const choosingInHand = interaction.mode === 'target' && !pickerCards && [...clickable].some((id) => handIds.has(id));
   const opponentIds = useMemo(() => board.opponents.map((opponent) => opponent.player.playerId!), [board.opponents]);
@@ -447,6 +576,17 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   const sparkKey = seated.map((one) => `${one.player.playerId}=${sparkColorOf(lookOf(one.player)) ?? ''}`).join(',');
   const landKey = seated.map((one) => `${one.player.playerId}=${landStyleKey(lookOf(one.player)) ?? ''}`).join(',');
   const sparks = useMemo(() => pairsOf(sparkKey), [sparkKey]);
+  // token art: each player's chosen token pictures, mine from this browser (with the deck's), others' from their look
+  const myTokenArt = useMyTokenArt();
+  const tokenKey = JSON.stringify(seated.map((one) => [
+    one.player.playerId,
+    one === board.me && board.me.isMe ? myTokenArt ?? null : mergeChoices(lookOf(one.player)?.tokens, lookOf(one.player)?.deckTokens) ?? null,
+  ]));
+  const tokenArtOf = useMemo(() => {
+    const byPlayer = new Map<string, TokenChoices>();
+    for (const [id, choices] of JSON.parse(tokenKey) as [string, TokenChoices | null][]) if (choices) byPlayer.set(id, choices);
+    return byPlayer.size > 0 ? (playerId: string) => byPlayer.get(playerId) : null;
+  }, [tokenKey]);
   const landStyleOf = useMemo(() => {
     const lands = pairsOf(landKey);
     return lands.size > 0 ? (playerId: string) => lands.get(playerId) : null;
@@ -476,10 +616,11 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
 
   return (
     // basic lands show their players' land styles anywhere on the stage (B301, ui/landStyles.ts)
-    <LandStyleContext.Provider value={landStyleOf}><CardStyleContext.Provider value={cardStylesOf}><Stage style={matStyle}>
+    <LandStyleContext.Provider value={landStyleOf}><TokenArtContext.Provider value={tokenArtOf}><CardStyleContext.Provider value={cardStylesOf}><Stage style={matStyle}>
       {(stage) => {
         // the stage widens with the window and the field takes the extra width; a portrait window gets the tall layout
-        const layout = matchLayout(stage);
+        // "Match size" grows the creatures and the hand for a laptop screen (#147)
+        const layout = matchLayout(stage, matchSize);
         return (
           <div className={styles.layout} style={{ ['--seam' as string]: `${layout.seam}px`, ['--hand-raise' as string]: `${layout.handRaise}px` }}>
             {/* an opponent's own cloth dyes their half of the table (B295); several opponents dye their columns */}
@@ -504,7 +645,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 </div>
               );
             })}
-            <div className={styles.printMine}><MatPrint cloth={myCloth} card={myArt} enabled={matArt !== 'none'} /></div>
+            <div className={styles.printMine}><MatPrint cloth={myCloth} card={myArt} enabled={matArt !== 'none'} chosenCard={matArt === 'card'} /></div>
             <div className={styles.seam} aria-hidden="true" />
             {/* under the hand and the controls, over the mat */}
             <Stitch inset={10} radius={22} zIndex={2} />
@@ -518,9 +659,11 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 sleeve={theirSleeves.get(opponent.player.playerId!) ?? sleeves.theirs}
                 look={lookOf(opponent.player)}
                 handCount={opponent.player.handCount ?? 0}
+                revealed={control && !control.acting && control.player.playerId === opponent.player.playerId
+                  ? control.hand
+                  : revealedInHand(revealedHands, opponent.player.playerId)}
                 clickable={clickable}
                 selected={interaction.selected}
-                quiet={EMPTY}
                 attacking={attacking}
                 targeting={targeting}
                 blocking={blocking}
@@ -530,13 +673,14 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 layout={layout}
                 commanders={commanders.get(opponent.player.playerId!) ?? NO_COMMANDERS}
                 commanderDamage={damageTaken(opponent.player)}
+                commanderDamageExpanded={cmdrExpanded}
                 outOfRange={!inRange(view, myId, opponent.player.playerId!)}
               />
             ))}
 
             {board.me && (
               <>
-                <Battlefield board={board.me} sleeve={sleeves.mine} clickable={clickable} selected={chosen} quiet={quiet} attacking={attacking} blocking={blocking} targeting={targeting} onClick={onClick} pending={pending} onBlockDrop={interaction.mode === 'declareBlockers' && canAct ? onBlockDrop : interaction.mode === 'declareAttackers' && canAct ? attackDrop.onDrop : undefined} dropTargets={interaction.mode === 'declareAttackers' ? attackDrop.targets : undefined} place={layout.me} />
+                <Battlefield board={board.me} sleeve={sleeves.mine} clickable={clickable} selected={chosen} attacking={attacking} blocking={blocking} targeting={targeting} onClick={onClick} pending={pending} onBlockDrop={interaction.mode === 'declareBlockers' && canAct ? onBlockDrop : interaction.mode === 'declareAttackers' && canAct ? attackDrop.onDrop : undefined} dropTargets={interaction.mode === 'declareAttackers' ? attackDrop.targets : undefined} place={layout.me} />
                 <div ref={plateRef} className={styles.myPlate} style={layout.myPlate}>
                   <PlayerPlate
                     player={board.me.player}
@@ -551,10 +695,18 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                     payable={canAct ? clickable : undefined}
                     onPay={onClick}
                     commanderDamage={damageTaken(board.me.player)}
+                    commanderDamageExpanded={cmdrExpanded}
                   />
-                  {lookOf(board.me.player)?.pet && (
+                  {myLook?.pet && (
                     <div className={styles.myPet}>
-                      <PetSpot pet={lookOf(board.me.player)?.pet} owner={board.me.player.name ?? ''} isMe={board.me.isMe} />
+                      <PetSpot
+                        pet={myLook.pet}
+                        owner={board.me.player.name ?? ''}
+                        isMe={board.me.isMe}
+                        tier={myLook.petTier}
+                        style={myLook.petStyle}
+                        reaction={petReaction}
+                      />
                     </div>
                   )}
                   {emotes && <EmoteButton gameId={state.gameId} />}
@@ -567,19 +719,22 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                     commanders={myId ? commanders.get(myId) : undefined}
                     clickable={canAct ? clickable : undefined}
                     onCast={onClick}
+                    inHand={offZoneInHand}
+                    commandFrame={myLook?.commandFrame}
                   />
                 </div>
               </>
             )}
 
-            <Reveals view={view} myPlayerId={myId} opponentIds={opponentIds} autoDismiss={autoDismissReveals} />
-            <StackZone items={stack} clickable={clickable} selected={interaction.selected} sleeveOf={sleeveOf} onClick={onClick} originOf={originOf} />
+            <Reveals groups={reveals} myPlayerId={myId} opponentIds={opponentIds} autoDismiss={autoDismissReveals} />
+            <StackZone items={stack} view={view} clickable={clickable} selected={interaction.selected} sleeveOf={sleeveOf} onClick={onClick} originOf={originOf} />
             <PhaseLadder
               step={view?.step}
               myTurn={!spectating && !!myId && view?.activePlayerId === myId}
               turn={view?.turn ?? 0}
               started={!!view?.activePlayerId && !!view?.step}
               activeName={spectating ? view?.activePlayerName ?? null : null}
+              daytime={view?.daytime}
             />
 
             {board.me && seatHand && (
@@ -593,20 +748,23 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 onPlay={ignore}
                 playLine={0}
                 libraryOrigin={`library:${board.me.player.playerId}`}
+                cardWidth={layout.handCard}
               />
             )}
             {board.me && !handHidden && mode === 'play' && (
               <Hand
                 cards={handAndPlayables}
+                label={acting ? t('match.hand.controlled', { name: acting.player.name ?? '' }) : undefined}
                 fromZone={fromZone}
                 choosing={choosingInHand}
-                clickable={pickerCards ? EMPTY : clickable}
+                clickable={overlayOpen ? EMPTY : clickable}
                 selected={interaction.selected}
                 pending={pending}
                 sleeve={sleeves.mine}
                 onPlay={onClick}
                 playLine={layout.playLine}
                 libraryOrigin={`library:${board.me.player.playerId}`}
+                cardWidth={layout.handCard}
                 // wide: the fan keeps clear of your seat (it grows sideways with counters) and of the decision corner
                 clearLeft={layout.tall || !plateRight ? 0 : plateRight + HAND_SEAT_GAP + (emotes ? EMOTE_BUTTON_ROOM : 0)}
                 clearRight={layout.handClearRight}
@@ -614,7 +772,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
             )}
 
             {mode === 'play' ? (
-              !overlayOpen && <ActionCluster
+              !overlayOpen && !state.gameOver && <ActionCluster
                 interaction={cornerInteraction}
                 awaiting={awaitingServer}
                 status={state.status}
@@ -625,9 +783,12 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 autoPassing={!!autoPassing}
                 extra={prompt?.kind === 'ask' ? <AlwaysAnswerMenu gameId={state.gameId} prompt={prompt} onCommand={onCommand} /> : undefined}
                 fullControl={fullControl}
-                onFullControl={setFullControl}
+                onFullControl={onFullControl}
+                passTurn={passTurn}
+                onPassTurn={onPassTurn}
                 stalled={state.stalled}
                 conceding={state.conceding ? { waitingOn: priorityName } : null}
+                warning={blockWarned && blockWarned.prompt === interaction.prompt ? blockWarned.text : null}
                 cards={askCards}
                 onResend={onResend}
                 onResync={onResync}
@@ -638,25 +799,44 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
             )}
 
             {damageSplit && canAct && !awaitingServer && <DamageAssigner split={damageSplit} />}
-            {defenders && !(automation.attackPlayerByDefault && defaultDefender(defenders)) && <DefenderPicker attacker={attackerName} options={defenders} onPick={onClick} />}
+            {canAct && <CombatPreview view={view} mode={interaction.mode} defenderColors={defenderColors} />}
+            {canAct && interaction.mode === 'declareAttackers' && !overlayOpen && (
+              <AttackGroups
+                groups={attackMany.groups}
+                wanted={attackMany.wanted}
+                busy={attackMany.busy}
+                remaining={attackMany.remaining}
+                onWant={attackMany.want}
+                onStop={attackMany.stop}
+                defenders={attackMany.defenders}
+                defender={attackMany.defender}
+                onDefender={attackMany.setDefender}
+              />
+            )}
+            {defenders && (attackDrop.manualDefender || !(automation.attackPlayerByDefault && defaultDefender(defenders))) && <DefenderPicker attacker={attackerName} options={defenders} onPick={onClick} />}
             <Vfx view={view} myPlayerId={myId} sparks={sparks} />
-            <Arrows sourceId={arrowSource} targetIds={arrowTargets} live={choosingTargets} links={links} attacks={attacks} leads={leads} tints={arrowTint} />
+            <Arrows sourceId={arrowSource} targetIds={arrowTargets} live={choosingTargets} attacks={attacks} leads={leads} tints={arrowTint} defenderColors={defenderColors} />
+            <PlaneBanner view={view} playable={clickable} canAct={canAct && !awaitingServer} onRoll={onClick} />
+            <SchemeBanner />
             <EmoteBubbles view={view} gameId={state.gameId} />
             {mode === 'play' && <Coach view={view ?? null} mode={choosingStarter ? 'panel' : interaction.mode} awaiting={awaitingServer} gameOver={!!state.gameOver} />}
             {mode === 'play' && <LessonCoach gameId={state.gameId} view={view ?? null} mode={choosingStarter ? 'panel' : interaction.mode} awaiting={awaitingServer} gameOver={!!state.gameOver} />}
-            <GameLog gameId={state.gameId} notices={state.notices} canChat={mode !== 'replay'} view={view} replayLog={replayLog} delayMs={state.broadcastDelayMs} />
+            <GameLog gameId={state.gameId} notices={state.notices} canChat={mode !== 'replay'} view={view} replayLog={replayLog} delayMs={state.broadcastDelayMs} inOrder={session.inOrder} />
             {mode === 'watch' && !view && state.broadcastDelayMs > 0 && (
               <p className={styles.delayNote} role="status">
                 The table appears in {delayLabel(Math.round(state.broadcastDelayMs / 1000))}: the broadcast delay holds the game back.
               </p>
             )}
             {mode === 'play' && <WatcherCount watchers={watchers} className={styles.watchers} />}
+            <EngineBadge gameId={state.gameId} view={view} showNotice={mode === 'play' && !state.gameOver} />
             <GameMenu
               gameId={state.gameId}
+              currentTurn={view?.turn}
+              commanderToggle={hasCommanders ? { shown: cmdrShown, toggle: () => setCmdrExpanded(!cmdrShown) } : null}
               quests={mode === 'play' && !state.gameOver}
               practice={mode === 'play' && !state.gameOver && !career && board.opponents.length > 0 && board.opponents.every((opponent) => opponent.player.isHuman === false)}
               solo={mode === 'play' && !state.gameOver && !career && !eventId && vsAi && (view?.turn ?? 0) > 0}
-              careerAssists={mode === 'play' && !state.gameOver && career && !eventId && vsAi && (view?.turn ?? 0) > 0}
+              careerAssists={mode === 'play' && !state.gameOver && career && !rustGame && !eventId && vsAi && (view?.turn ?? 0) > 0}
               vsAi={vsAi}
               onSaved={() => exit(false)}
               canConcede={canAct}
@@ -684,11 +864,20 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 interaction={interaction}
                 sleeve={sleeves.mine}
                 footer={prompt ? <TriggerOrderOptions gameId={state.gameId} prompt={prompt} onCommand={onCommand} /> : undefined}
+                peeking={peeking}
+                onPeekChange={setPeeking}
                 onCommand={onCommand}
               />
             )}
-            {interaction.mode === 'panel' && prompt && !awaitingServer && <ChoicePanel prompt={prompt} sourceId={choiceSource} onCommand={onCommand} xLimit={announceLimit} startAtLimit={automation.xDefaultsToMax} />}
+            {interaction.mode === 'panel' && prompt && !awaitingServer && <ChoicePanel prompt={prompt} sourceId={choiceSource} dungeon={myDungeon} peeking={peeking} onPeekChange={setPeeking} onCommand={onCommand} xLimit={announceLimit} startAtLimit={automation.xDefaultsToMax} />}
             {viewer && <ZoneViewer {...viewer} onClose={() => openViewer(null)} />}
+            {shownDungeon && shownDungeonPlayer && (
+              <DungeonViewer
+                title={shownDungeonPlayer.playerId === board.me?.player.playerId ? `Your dungeon: ${shownDungeon.name}` : `${shownDungeonPlayer.name}'s dungeon: ${shownDungeon.name}`}
+                dungeon={shownDungeon}
+                onClose={() => openDungeon(null)}
+              />
+            )}
             {state.gameOver && betweenGames && (
               <BetweenGames
                 progress={betweenGames}
@@ -708,8 +897,10 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 // a rematch is only dealt against the computer; people go back to Tables
                 onPlayAgain={mode === 'play' && deckId && !eventId && vsAi ? playAgain : undefined}
                 onReview={mode === 'play' && vsAi && board.me ? () => setReviewing(true) : undefined}
+                onViewLog={() => useMatchUi.getState().toggleLog(true)}
                 rewards={rewardsAfter ? <Suspense fallback={null}><RewardsBeat gameId={state.gameId} onDetails={() => exit(true)} /></Suspense> : undefined}
                 stamps={stamps}
+                opponentDecks={vsAi && deckId ? playOpponentDecks : undefined}
               />
             )}
             {reviewing && (
@@ -717,12 +908,12 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 <GameReview gameId={state.gameId} me={board.me?.player.name ?? null} onNavigate={() => setReviewing(false)} />
               </Dialog>
             )}
-            <CardZoom large={spectating && largeZoom} />
+            <CardZoom large={spectating && largeZoom} big={bigZoom} view={view} attackTargets={attackTargetNames} />
             <CardDetail view={view} extra={pickerCards ?? viewer?.cards ?? NO_CARDS} sleeveOf={sleeveOf} attacking={attacking} blocking={blocking} />
           </div>
         );
       }}
-    </Stage></CardStyleContext.Provider></LandStyleContext.Provider>
+    </Stage></CardStyleContext.Provider></TokenArtContext.Provider></LandStyleContext.Provider>
   );
 }
 
@@ -730,7 +921,6 @@ interface RowProps {
   sleeve: string;
   clickable: ReadonlySet<string>;
   selected: ReadonlySet<string>;
-  quiet: ReadonlySet<string>;
   attacking: ReadonlySet<string>;
   blocking: ReadonlySet<string>;
   targeting: boolean;
@@ -743,6 +933,24 @@ interface RowProps {
 /** "Smaller cards on the battlefield": rows cap their cards at this share of the usual size. */
 const COMPACT_SCALE = 0.8;
 
+const CARD_RATIO = 88 / 63;
+
+/** Prominent frame around the battlefield of the player whose turn it is. */
+function ActiveBoardFrame({ place }: { place: RowsPlacement }) {
+  const top = Math.min(place.frontTop, place.backTop);
+  const bottom = Math.max(
+    place.frontTop + place.frontIdeal * CARD_RATIO,
+    place.backTop + place.backIdeal * CARD_RATIO,
+  );
+  return (
+    <div
+      className={styles.activeBoard}
+      style={{ left: place.left - 6, top: top - 6, width: place.width + 12, height: bottom - top + 12 }}
+      aria-hidden="true"
+    />
+  );
+}
+
 /** One player's two rows of permanents. A crowded row shrinks its cards, then wraps, then overlaps them: never past its box. */
 const Battlefield = memo(function Battlefield({ board, place, ...row }: RowProps & {
   board: PlayerBoard;
@@ -752,6 +960,7 @@ const Battlefield = memo(function Battlefield({ board, place, ...row }: RowProps
   const { left, width } = place;
   return (
     <>
+      {board.player.isActive && <ActiveBoardFrame place={place} />}
       <Row groups={board.front} left={left} width={width} top={place.frontTop} ideal={place.frontIdeal} min={58} forward={forward} label="Creatures" flip={!board.isMe} {...row} />
       <Row groups={board.back} left={left} width={width} top={place.backTop} ideal={place.backIdeal} min={50} forward={forward} label="Lands & permanents" flip={!board.isMe} {...row} />
     </>
@@ -796,20 +1005,27 @@ function Row({ groups, left, width, top, ideal, min, forward, label, flip, ...re
 }
 
 /** An opponent's half: their rows mirrored above the seam, their seat, piles and hidden hand. */
-function OpponentSide({ board, index, count, sleeve, handCount, deciding, layout, commanders, commanderDamage, outOfRange, look, ...row }: RowProps & {
+function OpponentSide({ board, index, count, sleeve, handCount, revealed, deciding, layout, commanders, commanderDamage, commanderDamageExpanded, outOfRange, look, ...row }: RowProps & {
   layout: MatchLayout;
   look: PlayerLook | undefined;
   board: PlayerBoard;
   index: number;
   count: number;
   handCount: number;
+  /** cards revealed from this hand and still in it */
+  revealed: CardView[];
   deciding: boolean;
   commanders: readonly CommanderStatus[];
   commanderDamage: readonly { name: string; amount: number }[];
+  commanderDamageExpanded?: boolean;
   outOfRange: boolean;
 }) {
   const place = layout.them(index, count);
   const player = board.player;
+  const setHoveredDefender = useMatchUi((state) => state.setHoveredDefender);
+  const onHoverDefender = useCallback((hovering: boolean) => {
+    setHoveredDefender(hovering ? (player.playerId ?? null) : null);
+  }, [setHoveredDefender, player.playerId]);
   return (
     <>
       <Battlefield board={board} sleeve={sleeve} place={place} {...row} />
@@ -818,48 +1034,80 @@ function OpponentSide({ board, index, count, sleeve, handCount, deciding, layout
           player={player}
           isMe={false}
           sleeve={sleeve}
+          compact={count > 1}
           targetable={row.clickable.has(player.playerId!)}
           selected={row.selected.has(player.playerId!)}
           deciding={deciding}
           onClick={() => row.onClick(player.playerId!)}
           commanderDamage={commanderDamage}
+          commanderDamageExpanded={commanderDamageExpanded}
+          onHoverChange={count > 1 ? onHoverDefender : undefined}
           outOfRange={outOfRange}
           look={look}
         />
         {look?.pet && count === 1 && (
           <div className={styles.theirPet}>
-            <PetSpot pet={look.pet} owner={player.name ?? ''} isMe={false} />
+            <PetSpot pet={look.pet} owner={player.name ?? ''} isMe={false} tier={look.petTier} style={look.petStyle} />
           </div>
         )}
         {count > 1 && (
           <div className={styles.theirMini}>
-            <MiniPiles player={player} commanders={commanders} />
+            <MiniPiles player={player} sleeve={sleeve} commanders={commanders} commandFrame={look?.commandFrame} />
           </div>
         )}
       </div>
       {count === 1 && (
         <div className={styles.theirPiles} style={layout.theirPiles}>
-          <Piles player={player} sleeve={sleeve} isMe={false} commanders={commanders} />
+          <Piles player={player} sleeve={sleeve} isMe={false} commanders={commanders} commandFrame={look?.commandFrame} />
         </div>
       )}
-      {count > 1 && !layout.tall && <span className={styles.seatName} style={{ left: place.left + 16 }} aria-hidden="true">{player.name}</span>}
-      <HiddenHand playerId={player.playerId!} count={handCount} sleeve={sleeve} left={layout.hiddenHandX(index, count)} />
+      {count > 1 && !layout.tall && (
+        <span
+          className={[styles.seatName, player.isActive ? styles.seatNameActive : ''].join(' ')}
+          style={{ left: place.left + 8, top: Math.max(10, place.backTop - 38), maxWidth: place.width - 16 }}
+          onPointerEnter={() => setHoveredDefender(player.playerId ?? null)}
+          onPointerLeave={() => setHoveredDefender(null)}
+          aria-hidden="true"
+        >
+          {player.name}
+        </span>
+      )}
+      <HiddenHand playerId={player.playerId!} count={handCount} revealed={revealed} sleeve={sleeve} left={layout.hiddenHandX(index, count)} />
     </>
   );
 }
 
 /** The backs of an opponent's hand peeking over the top edge; their spells fly out of it. */
-function HiddenHand({ playerId, count, sleeve, left }: { playerId: string; count: number; sleeve: string; left: number }) {
+function HiddenHand({ playerId, count, revealed, sleeve, left }: { playerId: string; count: number; revealed: CardView[]; sleeve: string; left: number }) {
   const ref = useRef<HTMLDivElement>(null);
   useFlipOrigin(`hand:${playerId}`, ref);
+  const t = useT();
+  const setZoom = useMatchUi((state) => state.setZoom);
   const shown = Math.min(count, 10);
+  // cards revealed from this hand show face up, marked, in place of as many backs
+  const faceUp = revealed.slice(0, shown);
+  const label = `${count} cards in hand` + (faceUp.length > 0 ? `, revealed: ${faceUp.map((card) => card.displayName ?? card.name).join(', ')}` : '');
   return (
-    <div ref={ref} className={styles.hiddenHand} style={{ left }} aria-label={`${count} cards in hand`} role="img">
-      {Array.from({ length: shown }, (_, i) => (
-        <div key={i} className={styles.hiddenCard} style={{ ['--i' as string]: i - (shown - 1) / 2 }}>
-          <CardFace card={{}} hidden sleeve={sleeve} size="small" />
-        </div>
-      ))}
+    <div ref={ref} className={styles.hiddenHand} style={{ left }} aria-label={label} role="img">
+      {Array.from({ length: shown }, (_, i) => {
+        const card = faceUp[i];
+        return card ? (
+          <div
+            key={card.cardId ?? card.id ?? i}
+            className={[styles.hiddenCard, styles.revealedCard].join(' ')}
+            style={{ ['--i' as string]: i - (shown - 1) / 2 }}
+            onPointerEnter={(event) => setZoom({ card, x: event.clientX, y: event.clientY, sleeve, anchor: event.currentTarget })}
+            onPointerLeave={() => setZoom(null)}
+          >
+            <CardFace card={card} sleeve={sleeve} size="small" />
+            <span className={styles.revealedMark}>{t('match.hand.revealed')}</span>
+          </div>
+        ) : (
+          <div key={i} className={styles.hiddenCard} style={{ ['--i' as string]: i - (shown - 1) / 2 }}>
+            <CardFace card={{}} hidden sleeve={sleeve} size="small" />
+          </div>
+        );
+      })}
       {count > 0 && <span className={styles.handCount}>{count}</span>}
     </div>
   );
@@ -909,8 +1157,11 @@ const CONFIRM = {
   },
 } as const;
 
-function GameMenu({ gameId, quests, practice, solo, careerAssists, vsAi, onSaved, canConcede, onConcede, onLeave, rollback }: {
+function GameMenu({ gameId, currentTurn, commanderToggle, quests, practice, solo, careerAssists, vsAi, onSaved, canConcede, onConcede, onLeave, rollback }: {
   gameId: string;
+  currentTurn?: number;
+  /** Commander games: toggle commander damage chips across every seat */
+  commanderToggle: { shown: boolean; toggle(): void } | null;
   /** playing (not watching or replaying) a game still running: the player's quests and what this game added */
   quests: boolean;
   /** a Career game against the computer, past the first turn: counted hints and one take-back, where the mode allows */
@@ -952,7 +1203,7 @@ function GameMenu({ gameId, quests, practice, solo, careerAssists, vsAi, onSaved
         onSaved();
       }
     } catch (failure) {
-      notify(choice === 'fork' ? 'Try again' : choice === 'takeBack' ? 'Take back' : 'Save', failure instanceof Error ? failure.message : String(failure));
+      notify(choice === 'fork' ? 'Try again' : choice === 'takeBack' ? 'Take back' : 'Save', failure instanceof Error ? failure.message : String(failure), 'error');
     }
   }
   return (
@@ -964,6 +1215,11 @@ function GameMenu({ gameId, quests, practice, solo, careerAssists, vsAi, onSaved
         <DropdownMenu.Portal>
           <DropdownMenu.Content className={styles.menuContent} align="end" sideOffset={8}>
             {quests && <QuestTracker gameId={gameId} open={menuOpen} />}
+            {commanderToggle && (
+              <DropdownMenu.Item className={styles.menuItem} onSelect={commanderToggle.toggle}>
+                {t(commanderToggle.shown ? 'match.menu.commanderDamageHide' : 'match.menu.commanderDamageShow')}
+              </DropdownMenu.Item>
+            )}
             <DropdownMenu.Item className={styles.menuItem} onSelect={() => setSettingsOpen(true)}>Settings</DropdownMenu.Item>
             <DropdownMenu.Item className={styles.menuItem} onSelect={() => setShortcutsOpen(true)}>{t('match.shortcuts.title')}</DropdownMenu.Item>
             {practice && (
@@ -1012,7 +1268,7 @@ function GameMenu({ gameId, quests, practice, solo, careerAssists, vsAi, onSaved
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       {practice && <PracticeTools gameId={gameId} open={practiceOpen} onOpenChange={setPracticeOpen} />}
       {practice && <AdviceDialog gameId={gameId} open={adviceOpen} onOpenChange={setAdviceOpen} />}
-      {solo && <WhatIfDialog gameId={gameId} open={whatIfOpen} onOpenChange={setWhatIfOpen} />}
+      {solo && <WhatIfDialog gameId={gameId} open={whatIfOpen} onOpenChange={setWhatIfOpen} currentTurn={currentTurn} />}
       {careerAssists && !practice && (
         <AdviceDialog
           gameId={gameId}

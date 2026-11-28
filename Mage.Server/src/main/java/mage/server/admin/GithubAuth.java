@@ -14,6 +14,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.Collections;
@@ -85,6 +86,11 @@ public final class GithubAuth {
     private final Map<String, Long> pending = new ConcurrentHashMap<>();
     /** state → who it signed in, so naming the new account doesn't need GitHub's one-use code again */
     private final Map<String, Identity> identities = new ConcurrentHashMap<>();
+    /**
+     * state → the secret a naming retry must send in place of the code: the state travels in the callback URL
+     * (browser history, proxy logs), so it alone must never be enough to finish someone else's sign-in
+     */
+    private final Map<String, String> resumes = new ConcurrentHashMap<>();
     private volatile Set<String> people = Collections.emptySet();
     private volatile long syncedAt;
     private volatile String syncProblem;
@@ -169,13 +175,18 @@ public final class GithubAuth {
 
     /**
      * Who came back from GitHub with this state and code. The code is used once; asking again with the same state
-     * (to pick an account name) returns the same person without it.
+     * (to pick an account name) returns the same person when it sends {@link #resumeSecret} in place of the code.
      */
     public Identity identify(String state, String code) throws IOException {
         long now = clock.getAsLong();
         prune(now);
         Identity known = state == null ? null : identities.get(state);
         if (known != null) {
+            String expected = resumes.get(state);
+            if (expected == null || code == null || !MessageDigest.isEqual(
+                    expected.getBytes(StandardCharsets.UTF_8), code.trim().getBytes(StandardCharsets.UTF_8))) {
+                throw new IllegalArgumentException("That GitHub sign-in has expired. Start again.");
+            }
             return known;
         }
         Long until = state == null ? null : pending.remove(state);
@@ -207,16 +218,32 @@ public final class GithubAuth {
         }
         Identity identity = new Identity(user.get("id").getAsLong(), user.get("login").getAsString(), email);
         identities.put(state, identity);
+        resumes.put(state, newSecret());
         pending.put("identity:" + state, now + STATE_MILLIS); // how long the identity is kept
         return identity;
     }
 
-    /** The state's sign-in is finished: forget who it was. */
+    /**
+     * The secret a naming retry for this state sends as its code (null once the sign-in is done or forgotten).
+     * It goes back to the client in the naming answer only, never in a URL.
+     */
+    public String resumeSecret(String state) {
+        return state == null ? null : resumes.get(state);
+    }
+
+    /** The state's sign-in is finished, refused or failed: forget who it was. */
     public void done(String state) {
         if (state != null) {
             identities.remove(state);
+            resumes.remove(state);
             pending.remove("identity:" + state);
         }
+    }
+
+    private static String newSecret() {
+        byte[] bytes = new byte[18];
+        random.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
     private void prune(long now) {
@@ -225,7 +252,9 @@ public final class GithubAuth {
             if (entry.getValue() < now) {
                 it.remove();
                 if (entry.getKey().startsWith("identity:")) {
-                    identities.remove(entry.getKey().substring("identity:".length()));
+                    String state = entry.getKey().substring("identity:".length());
+                    identities.remove(state);
+                    resumes.remove(state);
                 }
             }
         }

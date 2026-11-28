@@ -1,0 +1,22 @@
+# name: Train200 tri-ubr-midrange-2
+# archetype: midrange
+# colors: UBR
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Bombur, Gentle Dreamer
+4 Colorstorm Stallion
+1 Fleeting Effigy
+4 Foolish Fate
+2 Moment of Craving
+2 Murder
+1 Ozai, the Phoenix King
+3 Riddlemaster Sphinx
+4 Shatterskull Charger
+3 Stingerquill Voxmancer
+4 Wayward Guide-Beast
+4 You Are Already Dead
+2 Island
+6 Mountain
+4 Restless Reef
+4 Restless Spire
+4 Sinister Hideout
+4 Swamp

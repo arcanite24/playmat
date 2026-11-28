@@ -186,3 +186,88 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* the player's own status, above the online list (#229) */
+.presence {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  color: var(--ink-dim);
+  font-size: var(--text-sm);
+}
+
+.presence select,
+.searchInput {
+  min-width: 0;
+  height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: rgb(var(--ink-rgb) / 0.06);
+  color: var(--ink);
+  font: inherit;
+}
+
+.badge {
+  flex: none;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: rgb(var(--ink-rgb) / 0.08);
+  color: var(--ink-dim);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.looking {
+  background: var(--decision);
+  color: var(--decision-ink);
+}
+
+/* the directory of registered players (#195) */
+.search {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.search .groupLabel {
+  margin: 0;
+}
+
+.note {
+  margin: var(--space-2) 0;
+  color: var(--ink-dim);
+  font-size: var(--text-sm);
+}
+
+.away .playerName {
+  color: var(--ink-dim);
+}
+
+.dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: rgb(var(--ink-rgb) / 0.25);
+  vertical-align: middle;
+}
+
+.dotOn {
+  background: var(--decision);
+}
+
+.rowActions {
+  display: flex;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--space-2);
+}

@@ -81,7 +81,24 @@ function groupRow(permanents: PermanentView[], attachmentsByHost: Map<string, Pe
     groups.push(group);
     if (signature) bySignature.set(signature, group);
   }
+  // a land stack shows its untapped lands first and the tapped ones after, so what's open is easy to count
+  for (const group of groups) {
+    if (group.members.length > 1 && isLand(group.lead)) group.members = splitOpenFirst(group.members);
+  }
   return groups;
+}
+
+/** Untapped first, then tapped, each in arrival order. */
+export function splitOpenFirst(members: PermanentView[]): PermanentView[] {
+  return [...members.filter((member) => !member.tapped), ...members.filter((member) => member.tapped)];
+}
+
+/** What a stack's badge counts: its cards, and for a land stack with any tapped, the untapped ones; null for a single card. */
+export function stackBadge(group: PermanentGroup): { count: number; open?: number } | null {
+  const count = group.members.length;
+  if (count < 2) return null;
+  const open = group.members.filter((member) => !member.tapped).length;
+  return isLand(group.lead) && open < count ? { count, open } : { count };
 }
 
 /**
@@ -115,16 +132,29 @@ export function buildPlayerBoard(player: PlayerView, isMe: boolean): PlayerBoard
   };
 }
 
-/** The local player sits at the bottom; opponents across, in turn order starting after us. */
+/**
+ * The opponents in the order their turns come after `meIndex`'s, for seating clockwise: the next player sits on our
+ * left. The server lists players in table order and plays the turns the other way round (XMage's "A -> D -> C -> B"),
+ * so the player whose turn follows ours is the one listed just before us.
+ */
+export function turnOrderAfter<T>(players: readonly T[], meIndex: number): T[] {
+  const count = players.length;
+  const seated: T[] = [];
+  for (let step = 1; step < count; step++) seated.push(players[(((meIndex - step) % count) + count) % count]);
+  return seated;
+}
+
+/** The local player sits at the bottom; opponents across, clockwise: left to right in turn order starting after us. */
 export function buildBoard(view: GameView | null | undefined, myPlayerId: string | null): BoardModel {
   const players = view?.players ?? [];
   const meIndex = players.findIndex((player) => player.playerId === myPlayerId);
   const me = meIndex >= 0 ? players[meIndex] : null;
-  const ordered = meIndex >= 0 ? [...players.slice(meIndex + 1), ...players.slice(0, meIndex)] : players.slice(1);
   const bottom = me ?? players[0] ?? null;
+  // watching: whoever is listed first takes the bottom seat, the rest sit round from them
+  const opponents = players.length > 0 ? turnOrderAfter(players, Math.max(meIndex, 0)) : [];
   return {
     me: bottom ? buildPlayerBoard(bottom, !!me) : null,
-    opponents: (me ? ordered : players.slice(1)).map((player) => buildPlayerBoard(player, false)),
+    opponents: opponents.map((player) => buildPlayerBoard(player, false)),
     players: new Map(players.map((player) => [player.playerId!, player])),
   };
 }
@@ -154,6 +184,8 @@ export function stackOffsetRatio(group: PermanentGroup): number {
 }
 
 const CARD_RATIO = 88 / 63;
+/** Attachments fan sideways; the host sits only one step below their shared top edge. */
+export const ATTACHMENT_OFFSET_RATIO = 0.18;
 /** space between neighbouring groups, and between wrapped lines, as a share of card width */
 const GAP_RATIO = 0.12;
 const LINE_GAP_RATIO = 0.08;
@@ -163,11 +195,11 @@ export const ROW_FLOOR = 36;
 const MAX_LINES = 4;
 
 /** A group's footprint in card widths: tapped cards take their height in width; stacks and attachments fan out. */
-function groupUnits(group: PermanentGroup): { width: number; height: number } {
+export function groupUnits(group: PermanentGroup): { width: number; height: number } {
   const anyTapped = group.members.some((member) => member.tapped);
   return {
-    width: (anyTapped ? CARD_RATIO : 1) + (group.members.length - 1) * stackOffsetRatio(group) + group.attachments.length * 0.18,
-    height: CARD_RATIO + group.attachments.length * 0.18,
+    width: (anyTapped ? CARD_RATIO : 1) + (group.members.length - 1) * stackOffsetRatio(group) + group.attachments.length * ATTACHMENT_OFFSET_RATIO,
+    height: CARD_RATIO + (group.attachments.length > 0 ? ATTACHMENT_OFFSET_RATIO : 0),
   };
 }
 
@@ -215,14 +247,15 @@ export function fitRow(groups: PermanentGroup[], available: number, height: numb
   const oneLine = (cardWidth: number): RowFit => ({ cardWidth, gap: cardWidth * GAP_RATIO, lineGap: 0, breaks: [] });
   if (groups.length === 0) return oneLine(ideal);
   const units = groups.map(groupUnits);
+  const heightUnits = Math.max(...units.map((unit) => unit.height));
   const widthUnits = units.reduce((sum, unit) => sum + unit.width, 0) + (groups.length - 1) * GAP_RATIO;
-  const single = Math.min(ideal, available / widthUnits, height / CARD_RATIO);
+  const single = Math.min(ideal, available / widthUnits, height / heightUnits);
   if (single >= min) return oneLine(single);
 
   // wrapping: the widest card at which the greedy lines fit the row's height
   let best: { cardWidth: number; breaks: number[] } | null = null;
   let low = ROW_FLOOR;
-  let high = Math.min(ideal, height / CARD_RATIO);
+  let high = Math.min(ideal, height / heightUnits);
   for (let i = 0; i < 24 && high - low > 0.25; i++) {
     const mid = (low + high) / 2;
     const breaks = wrapAt(units, mid, available, height);

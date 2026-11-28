@@ -1,0 +1,49 @@
+{
+  "$comment": "Card styles of the Reliquary Lands set (Commander Vault capsule machine), written by art/machine-specs.mjs from career/machines/commander-vault.json: edit that file and re-run, not this one.",
+  "out": "public/career-art/cardstyle/reliquary-lands",
+  "house": false,
+  "panels": true,
+  "grid": {
+    "cols": 4,
+    "rows": 2,
+    "canvas": "landscape"
+  },
+  "size": "640x894",
+  "anchors": [],
+  "refs": [
+    "unh/136",
+    "unh/137",
+    "unh/140"
+  ],
+  "style": "Vintage travel poster gouache painting: layered flat atmospheric perspective, warm sunlit stone, muted olive, slate blue and dusty amber palette, bold clean shapes.",
+  "rules": "These are full-art pictures for playing cards: the client draws a small name plate over the top edge, mana symbols at the top right and power and toughness at the bottom right, so keep the main subject in the middle of the panel and the top 15% and bottom 15% calm and uncluttered (sky, ground, water, background texture), with nothing important in the corners. Each panel shows its own subject as one clear, readable scene, the same style and palette as its neighbours, as if the whole row were a matched, limited-edition art series.",
+  "spare": "an extra painting in the same style: a slender white-stone library tower rising from calm mirrored waters beneath wide peaceful clouds",
+  "items": [
+    {
+      "id": "reliquary-tower",
+      "subject": "a slender white-stone library tower rising from calm mirrored waters beneath wide peaceful clouds"
+    },
+    {
+      "id": "bojuka-bog",
+      "subject": "twisted bleached cypress trees standing in still purple-grey marsh water with faint lantern mist"
+    },
+    {
+      "id": "exotic-orchard",
+      "subject": "a terraced hillside grove of flowering fruit trees in five distinct seasonal hues overlooking a valley"
+    },
+    {
+      "id": "rogues-passage",
+      "subject": "a narrow lantern-lit stone alleyway slipping beneath a grand bridge into moonlit harbor shadows"
+    },
+    {
+      "id": "ancient-tomb",
+      "subject": "a weathered monolithic desert mausoleum with a deep shadowed doorway glowing faintly amber within"
+    },
+    {
+      "id": "set-reliquary-lands",
+      "out": "public/career-art/sleeve/set-reliquary-lands.webp",
+      "size": "540x756",
+      "subject": "the BACK of a playing card in the same style: a symmetrical ornamental design (it is seen upside down too) with a central emblem drawn from this set's theme, framed by a painted border; no logo, no oval, no five dots, no lettering"
+    }
+  ]
+}

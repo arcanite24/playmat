@@ -342,16 +342,46 @@
   }
 }
 
-/* a phone: the wallet's chips wrap rather than push the mat wider than the screen */
+/* a phone: the header is two or three slim rows instead of a stack of wrapped pills. The back button and title lead,
+   the crest follows them, and the wallet takes a row of its own, scrolling sideways rather than widening the mat */
 @media (max-width: 560px) {
+  .hud {
+    gap: var(--space-2);
+    padding-top: calc(var(--stitch-inset) + var(--space-2));
+    padding-bottom: var(--space-2);
+  }
+
+  .hudLeft {
+    order: 1;
+    flex: 1 1 auto;
+  }
+
+  .hudRight {
+    display: contents;
+  }
+
+  .identity {
+    order: 2;
+    zoom: 0.75;
+  }
+
+  /* music and settings are in the Settings dialog and the rail */
+  .icon {
+    display: none;
+  }
+
   .wallet {
-    flex-wrap: wrap;
+    order: 4;
+    flex: 1 0 100%;
     min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
   }
 
   .coin,
   .wild,
   .packs {
+    flex: none;
     padding: 0 8px;
   }
 }

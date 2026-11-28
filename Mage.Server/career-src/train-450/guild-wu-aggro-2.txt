@@ -1,0 +1,25 @@
+# name: Train450 guild-wu-aggro-2
+# archetype: aggro
+# colors: WU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Acrobatic Maneuver
+3 Alpine Watchdog
+2 Consuming Sinkhole
+2 Earth Kingdom Jailer
+2 Fate Forgotten
+3 Glint-Nest Crane
+2 Reality Hemorrhage
+2 Rhys, the Evermore
+2 Show of Valor
+4 Sightless Brawler
+3 Steelclad Spirit
+3 Stone Docent
+2 Touch of the Void
+2 Twilight Panther
+3 Vexing Gull
+1 Warlord's Elite
+1 You're Not Alone
+4 Island
+4 North Pole Gates
+9 Plains
+4 University Campus

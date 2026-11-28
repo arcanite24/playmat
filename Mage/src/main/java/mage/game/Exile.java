@@ -5,6 +5,8 @@ import mage.cards.Card;
 import mage.filter.FilterCard;
 import mage.util.Copyable;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.*;
 import java.util.Map.Entry;
@@ -15,12 +17,14 @@ import java.util.stream.Collectors;
  */
 public class Exile implements Serializable, Copyable<Exile> {
 
-    private static final UUID PERMANENT = UUID.randomUUID();
+    // fixed, not random per JVM: a game saved by one server process (GameSnapshot) is read back by another
+    private static final UUID PERMANENT = UUID.fromString("6f1c2b8e-0d5a-4c7e-9a3b-5e2d8f4a1c90");
+    private static final String PERMANENT_NAME = "Permanent";
 
     private final Map<UUID, ExileZone> exileZones = new HashMap<>();
 
     public Exile() {
-        createZone(PERMANENT, "Permanent");
+        createZone(PERMANENT, PERMANENT_NAME);
     }
 
     protected Exile(final Exile exile) {
@@ -152,6 +156,24 @@ public class Exile implements Serializable, Copyable<Exile> {
 
     public void moveToMainExileZone(Card card, Game game) {
         moveToAnotherZone(card, game, getExileZone(PERMANENT));
+    }
+
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
+        if (exileZones.containsKey(PERMANENT)) {
+            return;
+        }
+        // saved before the id was fixed: the main zone is under the old process's random id
+        ExileZone main = createZone(PERMANENT, PERMANENT_NAME);
+        String mainName = main.getName();
+        Iterator<Entry<UUID, ExileZone>> it = exileZones.entrySet().iterator();
+        while (it.hasNext()) {
+            ExileZone zone = it.next().getValue();
+            if (zone != main && mainName.equals(zone.getName())) {
+                main.addAll(zone);
+                it.remove();
+            }
+        }
     }
 
     @Override

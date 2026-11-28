@@ -11,7 +11,9 @@ const PRINTINGS: CardView[] = [
   { name: 'Fire // Ice', expansionSetCode: 'MH2', cardNumber: '290', manaValue: 4 },
   { name: 'Delver of Secrets', expansionSetCode: 'ISD', cardNumber: '51', manaValue: 1 },
   { name: "Atraxa, Praetors' Voice", expansionSetCode: '2X2', cardNumber: '190', manaValue: 4 },
+  { name: "Alrund's Epiphany", expansionSetCode: 'MID', cardNumber: '42', manaValue: 6 },
   { name: 'Sol Ring', expansionSetCode: 'CMR', cardNumber: '472', manaValue: 1 },
+  { name: 'Thran Dynamo', expansionSetCode: 'MSC', cardNumber: '290', manaValue: 4 },
 ];
 
 function fakeLookup(): CardLookup & { calls: number } {
@@ -40,6 +42,46 @@ function memoryFixes(): FixStore {
 }
 
 describe('resolveCards', () => {
+  const renames: Record<string, { cardName: string; setCode: string; cardNumber: string }> = {
+    'Vibranium Dynamo': { cardName: 'Thran Dynamo', setCode: 'MSC', cardNumber: '290' },
+    'The Hexcore': { cardName: 'Thran Dynamo', setCode: 'SLD', cardNumber: '483' },
+  };
+  function renamingLookup() {
+    const asked: string[] = [];
+    const lookup: CardLookup = {
+      ...fakeLookup(),
+      async renamedCard(name) {
+        asked.push(name);
+        return renames[name] ?? null;
+      },
+    };
+    return { lookup, asked };
+  }
+
+  it('finds a Universes Beyond card under its in-universe name', async () => {
+    const { lookup, asked } = renamingLookup();
+    const entry = { amount: 1, cardName: 'Vibranium Dynamo', setCode: null, cardNumber: null };
+    const cards = await resolveCards([entry, { amount: 4, cardName: 'Lightning Bolt', setCode: null, cardNumber: null }], lookup);
+    expect(cards.get(importKey(entry))).toMatchObject({ name: 'Thran Dynamo', expansionSetCode: 'MSC', cardNumber: '290' });
+    // only the unmatched name is asked about
+    expect(asked).toEqual(['Vibranium Dynamo']);
+  });
+
+  it('takes the Oracle card by name when the renamed printing is not in the database', async () => {
+    const { lookup } = renamingLookup();
+    const entry = { amount: 1, cardName: 'The Hexcore', setCode: 'SLD', cardNumber: '483' };
+    const cards = await resolveCards([entry], lookup);
+    expect(cards.get(importKey(entry))?.name).toBe('Thran Dynamo');
+  });
+
+  it('leaves a name nobody knows unmatched', async () => {
+    const { lookup, asked } = renamingLookup();
+    const entry = { amount: 1, cardName: 'Made Up Card', setCode: null, cardNumber: null };
+    const cards = await resolveCards([entry], lookup);
+    expect(cards.get(importKey(entry))).toBeNull();
+    expect(asked).toEqual(['Made Up Card']);
+  });
+
   it('matches a whole deck in one batch when every card is known', async () => {
     const lookup = fakeLookup();
     const cards = await resolveCards([
@@ -54,6 +96,20 @@ describe('resolveCards', () => {
   it('falls back to the name when the set and number point at another card', async () => {
     const cards = await resolveCards([{ amount: 1, cardName: 'Lightning Bolt', setCode: 'ANA', cardNumber: '22' }], fakeLookup());
     expect(cards.get(importKey({ cardName: 'Lightning Bolt', setCode: 'ANA', cardNumber: '22' }))?.name).toBe('Lightning Bolt');
+  });
+
+  it('takes the paper card for an Alchemy "A-" name, ignoring its Arena set and number', async () => {
+    const entry = { amount: 2, cardName: "A-Alrund's Epiphany", setCode: 'Y22', cardNumber: '5' };
+    const cards = await resolveCards([entry], fakeLookup());
+    expect(cards.get(importKey(entry))?.expansionSetCode).toBe('MID');
+  });
+
+  it('keeps every card of an Arena export with Arena-only set codes', async () => {
+    const draft = await startDraft(readList('Deck\n4 Lightning Bolt (Y22) 9\n1 Sol Ring (ZZZ) 1\n2 A-Alrund\'s Epiphany (Y22) 5\n1 A-Made Up Card (Y22) 6'), fakeLookup());
+    const issues = issuesOf(draft);
+    expect(issues.map((issue) => issue.cardName)).toEqual(['A-Made Up Card']);
+    expect(issues[0].reason).toMatch(/Alchemy/);
+    expect(toDeck(draft).deck.cards.reduce((n, c) => n + c.amount, 0)).toBe(7);
   });
 
   it('finds double-faced cards written with both faces', async () => {
@@ -104,7 +160,7 @@ describe('import drafts', () => {
     const draft = await startDraft(readList('4 Lightning Bolt (M11) 149\n1 Lightnig Bolt\n20 Mountain\n\nSideboard\n2 Fire/Ice'), fakeLookup(), { fallbackName: 'Burn' });
     expect(draft.name).toBe('Burn');
     expect(draft.format).toBe('Constructed - Freeform');
-    expect(issuesOf(draft)).toEqual([{ key: 'lightnig bolt||', cardName: 'Lightnig Bolt', setCode: null, cardNumber: null, amount: 1, sections: ['main'] }]);
+    expect(issuesOf(draft)).toEqual([{ key: 'lightnig bolt||', cardName: 'Lightnig Bolt', setCode: null, cardNumber: null, amount: 1, sections: ['main'], reason: expect.stringMatching(/misspelled/) }]);
     const { deck, counts } = toDeck(draft);
     expect(deck.cards).toEqual([
       { cardName: 'Lightning Bolt', setCode: 'M11', cardNumber: '149', amount: 4 },

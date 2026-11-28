@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
 import { parseManaAbility } from '../../core/game/manaChoices';
 import { ManaPicker } from './ManaPicker';
@@ -47,4 +47,15 @@ test('returns keyboard focus to the source when the picker closes', () => {
   expect(document.activeElement).toBe(screen.getByRole('dialog', { name: 'Choose mana' }));
   rerender(<button>Land</button>);
   expect(document.activeElement).toBe(source);
+});
+
+test('can be hidden to look at the board and brought back (#476)', () => {
+  const onPick = vi.fn();
+  render(<ManaPicker title="Choose mana" choices={[parseManaAbility('{T}: Add {W}.')!]} onPick={onPick} />);
+  fireEvent.click(screen.getByRole('button', { name: 'See the board' }));
+  expect(screen.queryByRole('dialog')).toBeNull();
+  fireEvent.keyDown(window, { key: '1' });
+  expect(onPick).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Back to choice' }));
+  expect(screen.getByRole('dialog', { name: 'Choose mana' })).toBeTruthy();
 });

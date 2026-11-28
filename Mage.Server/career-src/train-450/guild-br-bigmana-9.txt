@@ -1,0 +1,21 @@
+# name: Train450 guild-br-bigmana-9
+# archetype: bigmana
+# colors: BR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Cinder Hellion
+2 Devouring Sugarmaw
+3 Falkenrath Aristocrat
+3 Forsaken Miner
+2 Fry
+2 Grotesque Mutation
+4 Hungry Flames
+3 Kellan, Planar Trailblazer
+2 Ozai, the Phoenix King
+2 Shatterskull Charger
+4 Shivan Dragon
+1 Urabrask, Heretic Praetor
+3 Wartime Protestors
+4 Blackcleave Cliffs
+12 Mountain
+4 Sulfurous Mire
+5 Swamp

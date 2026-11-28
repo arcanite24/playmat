@@ -1,0 +1,22 @@
+# name: Train200 guild-wb-midrange-5
+# archetype: midrange
+# colors: WB
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+1 Clay Revenant
+1 Cremate
+1 Cruel Finality
+4 Devouring Light
+4 Duskwielder
+2 Dust Stalker
+4 Hunted Bonebrute
+2 Kothophed, Soul Hoarder
+3 Mardu Devotee
+3 Nocturnal Hunger
+2 Phyrexian Vindicator
+4 Pitiless Horde
+2 Shepherd of the Clouds
+3 Topple the Statue
+4 Forlorn Flats
+4 Misty Palms Oasis
+7 Plains
+9 Swamp

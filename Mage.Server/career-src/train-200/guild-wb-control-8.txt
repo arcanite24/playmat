@@ -1,0 +1,20 @@
+# name: Train200 guild-wb-control-8
+# archetype: control
+# colors: WB
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Archenemy's Charm
+4 Cremate
+3 Fateful Absence
+2 Final Flourish
+3 Horribly Awry
+4 Light of the Legion
+4 Moogles' Valor
+2 Noxious Grasp
+2 Salvation Swan
+2 Scavenger Regent
+1 Spell Shrivel
+4 Void Shatter
+4 Neglected Manor
+9 Plains
+4 Scoured Barrens
+9 Swamp

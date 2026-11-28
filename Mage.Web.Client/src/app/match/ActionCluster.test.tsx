@@ -136,6 +136,24 @@ describe('ActionCluster shortcuts', () => {
     expect(sent).toEqual([main.command]);
   });
 
+  test('a clicked button does not keep Space and Enter: they still pass, while a tabbed-to button takes them', async () => {
+    const user = userEvent.setup();
+    const other = { label: 'Show hand', command: { type: 'string', value: 'other' } as Command, tone: 'secondary' as const };
+    const sent = cluster({ interaction: interaction({ mainButton: main, secondaryButtons: [other] }) });
+    await user.click(screen.getByRole('button', { name: 'Show hand' }));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Show hand' }));
+    expect(sent).toEqual([other.command]);
+    await user.keyboard(' ');
+    await user.keyboard('{Enter}');
+    expect(sent).toEqual([other.command, main.command, main.command]);
+    // reached with the keyboard, the same button answers for itself
+    screen.getByRole('button', { name: 'Show hand' }).blur();
+    await user.tab();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Show hand' }));
+    await user.keyboard('{Enter}');
+    expect(sent).toEqual([other.command, main.command, main.command, other.command]);
+  });
+
   test('waits for the server, but permits payment cancellation with Escape or Alt', () => {
     const sent: Command[] = [];
     render(<ActionCluster interaction={interaction({ mode: 'payMana', mainButton: main, secondaryButtons: [CANCEL] })} awaiting status={null} canAct special={false} holdingPriority={false} onCommand={(command) => sent.push(command)} />);
@@ -152,5 +170,11 @@ describe('ActionCluster shortcuts', () => {
     fireEvent.keyDown(window, { key: 'Enter', altKey: true });
     fireEvent.keyDown(window, { key: '2', altKey: true });
     expect(sent).toEqual([CANCEL.command]);
+  });
+
+  test('says why an answer may be refused, above the button that sends it anyway', () => {
+    render(<ActionCluster interaction={interaction({ mode: 'declareBlockers', mainButton: main })} awaiting={false} status={null} canAct special={false} holdingPriority={false} warning="Fear of Being Hunted must be blocked if able." onCommand={() => undefined} />);
+    expect(screen.getByRole('alert').textContent).toBe('Fear of Being Hunted must be blocked if able.');
+    expect(screen.getByRole('button', { name: 'OK' })).toBeTruthy();
   });
 });

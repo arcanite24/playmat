@@ -1,9 +1,15 @@
-import { ArrowLeft, ArrowRight, LogOut } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, ArrowRight, LogOut, ZoomIn } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
+import type { CardView } from '../../protocol/generated/views';
 import { isEditableEventTarget } from '../ui/keys';
 import { api } from '../connection';
+import { CardInspect } from '../decks/CardInspect';
 import { useCardInfo } from '../decks/cardInfo';
+import { registerMessages, useT } from '../i18n';
+import eventMessages from '../i18n/en/events';
+import { useLongPress } from '../match/useLongPress';
 import { useEvents } from '../stores/events';
 import { useSession } from '../stores/session';
 import { Button } from '../ui/Button';
@@ -12,24 +18,36 @@ import { Dialog } from '../ui/Dialog';
 import { curveColumns, faceOf, poolEntry, type PoolCard } from './pool';
 import styles from './Draft.module.css';
 
+registerMessages(eventMessages);
+
 const NONE: PoolCard[] = [];
 
 /** A booster draft: the pack in front of you, your picks below, the table around. */
 export function DraftScreen() {
   const { draftId = '' } = useParams();
   const navigate = useNavigate();
+  const t = useT();
   const draft = useEvents((state) => state.drafts[draftId]);
   const pick = useEvents((state) => state.pick);
   const mark = useEvents((state) => state.mark);
   const userName = useSession((state) => state.userName);
   const [selected, setSelected] = useState<string | null>(null);
   const [leaving, setLeaving] = useState(false);
+  const [preview, setPreview] = useState<{ card: CardView; anchor: DOMRect } | null>(null);
+  const [inspected, setInspected] = useState<CardView | null>(null);
+  const [screenEl, setScreenEl] = useState<HTMLDivElement | null>(null);
 
   const booster = (draft?.booster ?? NONE) as PoolCard[];
   const picks = (draft?.picks ?? NONE) as PoolCard[];
   const entries = useMemo(() => [...booster, ...picks].map(poolEntry), [booster, picks]);
   const info = useCardInfo(entries);
   const columns = useMemo(() => curveColumns(picks, info), [picks, info]);
+  const cardsById = useMemo(() => {
+    const map = new Map<string, PoolCard>();
+    for (const card of booster) if (card.id) map.set(card.id, card);
+    for (const card of picks) if (card.id) map.set(card.id, card);
+    return map;
+  }, [booster, picks]);
 
   const view = draft?.view;
   const packNumber = view?.boosterNum ?? 1;
@@ -37,12 +55,36 @@ export function DraftScreen() {
   const passLeft = packNumber % 2 === 1;
   const setName = view?.setNames?.[Math.max(0, packNumber - 1)] ?? view?.setCodes?.[Math.max(0, packNumber - 1)] ?? '';
 
-  // a new pack clears the choice
+  const openInspect = useCallback((card: CardView) => {
+    setPreview(null);
+    setInspected(card);
+  }, []);
+
+  const showPreview = useCallback((card: CardView, event: React.PointerEvent<HTMLElement>) => {
+    if (event.pointerType === 'touch' || event.pointerType === 'pen') return;
+    setPreview({ card, anchor: event.currentTarget.getBoundingClientRect() });
+  }, []);
+
+  // touch has no hover and no right-click: a long press on any card opens it up close
+  useLongPress(screenEl, {
+    onLongPress: (target) => {
+      if (inspected) return false;
+      const el = target.closest<HTMLElement>('[data-draft-card-id]');
+      const id = el?.dataset.draftCardId;
+      const raw = id ? cardsById.get(id) : undefined;
+      if (!raw) return false;
+      openInspect(faceOf(raw, info));
+      return true;
+    },
+  });
+
+  // a new pack clears the choice and hover preview
   const boosterKey = booster.map((card) => card.id).join(',');
   const [shownKey, setShownKey] = useState(boosterKey);
   if (shownKey !== boosterKey) {
     setShownKey(boosterKey);
     setSelected(null);
+    setPreview(null);
   }
 
   const confirm = (cardId: string | null) => {
@@ -51,10 +93,16 @@ export function DraftScreen() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (isEditableEventTarget(event.target)) return;
+      if (isEditableEventTarget(event.target) || inspected || leaving) return;
       if ((event.code === 'Space' || event.key === 'Enter') && selected) {
         event.preventDefault();
         confirm(selected);
+      } else if ((event.key === 'i' || event.key === 'I') && selected) {
+        const raw = cardsById.get(selected);
+        if (raw) {
+          event.preventDefault();
+          openInspect(faceOf(raw, info));
+        }
       }
     };
     window.addEventListener('keydown', onKey);
@@ -74,7 +122,7 @@ export function DraftScreen() {
   }
 
   return (
-    <div className={styles.screen}>
+    <div ref={setScreenEl} className={styles.screen}>
       <header className={styles.top}>
         <div className={styles.where}>
           <span className={styles.set}>{setName}</span>
@@ -103,30 +151,55 @@ export function DraftScreen() {
             {booster.map((card, index) => {
               const id = card.id!;
               const isSelected = selected === id;
+              const face = faceOf(card, info);
+              const inspectLabel = card.name ? t('events.draft.inspect', { name: card.name }) : t('events.draft.inspectFallback');
               return (
-                <button
+                <div
                   key={id}
-                  type="button"
-                  role="option"
-                  aria-selected={isSelected}
-                  aria-label={card.name}
-                  className={[styles.card, isSelected ? styles.cardSelected : ''].join(' ')}
-                  style={{ animationDelay: `${index * 25}ms` }}
-                  onClick={() => {
-                    setSelected(id);
-                    mark(draftId, id);
-                  }}
-                  onDoubleClick={() => confirm(id)}
+                  className={styles.cardWrap}
+                  data-draft-card-id={id}
+                  onPointerEnter={(event) => showPreview(face, event)}
+                  onPointerLeave={() => setPreview(null)}
                 >
-                  <CardFace card={faceOf(card, info)} size="normal" />
-                </button>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={isSelected}
+                    aria-label={card.name}
+                    className={[styles.card, isSelected ? styles.cardSelected : ''].join(' ')}
+                    style={{ animationDelay: `${index * 25}ms` }}
+                    onClick={() => {
+                      setSelected(id);
+                      mark(draftId, id);
+                    }}
+                    onDoubleClick={() => confirm(id)}
+                    onContextMenu={(event) => {
+                      event.preventDefault();
+                      openInspect(face);
+                    }}
+                  >
+                    <CardFace card={face} size="normal" />
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.inspectButton}
+                    aria-label={inspectLabel}
+                    title={inspectLabel}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openInspect(face);
+                    }}
+                  >
+                    <ZoomIn size={16} aria-hidden="true" />
+                  </button>
+                </div>
               );
             })}
           </div>
         )}
         {draft.picking && (
           <div className={styles.action}>
-            <p className={styles.hint}>{selected ? 'Double-click or press Space to pick' : 'Choose a card'}</p>
+            <p className={styles.hint}>{selected ? t('events.draft.hintSelected') : t('events.draft.hintChoose')}</p>
             <Button variant="decision" size="xl" disabled={!selected} onClick={() => confirm(selected)}>Pick</Button>
           </div>
         )}
@@ -139,16 +212,37 @@ export function DraftScreen() {
             <div key={column.label} className={styles.column}>
               <span className={styles.columnLabel}>{column.label}</span>
               <div className={styles.columnCards} style={{ height: 150 + (column.cards.length - 1) * 26 }}>
-                {column.cards.map((card, index) => (
-                  <div key={card.id} className={styles.picked} style={{ top: index * 26, zIndex: index }}>
-                    <CardFace card={faceOf(card, info)} size="small" />
-                  </div>
-                ))}
+                {column.cards.map((card, index) => {
+                  const face = faceOf(card, info);
+                  const inspectLabel = card.name ? t('events.draft.inspect', { name: card.name }) : t('events.draft.inspectFallback');
+                  return (
+                    <button
+                      key={card.id}
+                      type="button"
+                      className={styles.picked}
+                      data-draft-card-id={card.id}
+                      style={{ top: index * 26, zIndex: index }}
+                      aria-label={inspectLabel}
+                      onClick={() => openInspect(face)}
+                      onContextMenu={(event) => {
+                        event.preventDefault();
+                        openInspect(face);
+                      }}
+                      onPointerEnter={(event) => showPreview(face, event)}
+                      onPointerLeave={() => setPreview(null)}
+                    >
+                      <CardFace card={face} size="small" />
+                    </button>
+                  );
+                })}
               </div>
             </div>
           ))}
         </div>
       </section>
+
+      {preview && !inspected && <DraftPreview card={preview.card} anchor={preview.anchor} />}
+      <CardInspect card={inspected} onClose={() => setInspected(null)} />
 
       <Dialog
         open={leaving}
@@ -174,6 +268,27 @@ export function DraftScreen() {
         {null}
       </Dialog>
     </div>
+  );
+}
+
+/** Floating desktop hover preview beside a hovered booster or picked card (#467). */
+function DraftPreview({ card, anchor }: { card: CardView; anchor: DOMRect }) {
+  const width = 300;
+  const height = width * (88 / 63);
+  const gap = 16;
+  const back = card.transformable ? card.secondCardFace : undefined;
+  const span = back ? width * 1.62 + 12 : width;
+  const fitsRight = anchor.right + gap + span <= window.innerWidth - gap;
+  const left = fitsRight ? anchor.right + gap : Math.max(gap, anchor.left - gap - span);
+  const top = Math.max(12, Math.min(window.innerHeight - height - 12, anchor.top + anchor.height / 2 - height / 2));
+  return createPortal(
+    <div className={styles.preview} style={{ left, top, width: span }} aria-hidden="true">
+      <div className={styles.previewFaces}>
+        <CardFace card={card} size="large" style={{ width }} />
+        {back && <CardFace card={back} face="back" size="normal" style={{ width: width * 0.62 }} />}
+      </div>
+    </div>,
+    document.body,
   );
 }
 

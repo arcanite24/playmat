@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { SUPPORTER_SLEEVE } from '../ui/sleeveArt';
-import { goalProgress, lookOf, monthName, opponentSleeve, playerSleeve, owns, sameLook, sleeveColorOf, sleeveIdOf, THANK_YOU, usd } from './supportModel';
+import { DEFAULT_WEAR, goalProgress, lookOf, monthName, opponentSleeve, playerSleeve, owns, sameLook, sleeveColorOf, sleeveIdOf, THANK_YOU, usd, wornPet } from './supportModel';
 import { loadTestCatalog } from '../../test/catalog';
 
 // the Career sleeves come from the cosmetics catalog
@@ -50,6 +50,18 @@ describe('the look', () => {
     expect(lookOf({ perks: [] })).toEqual({});
     expect(owns(THANKS, 'sleeve', 'supporter')).toBe(true);
     expect(owns(undefined, 'sleeve', 'supporter')).toBe(false);
+  });
+
+  test('a pet perk owner picks which pet comes to the table; the corgi first, then any owned', () => {
+    const duck = [{ kind: 'pet', item: 'debug-duck', grantedAt: 1 }];
+    const both = [...THANKS, ...duck];
+    expect(wornPet(duck)).toBe('debug-duck');
+    expect(wornPet(both)).toBe('party-corgi');
+    expect(wornPet(both, { ...DEFAULT_WEAR, petId: 'debug-duck' })).toBe('debug-duck');
+    expect(wornPet(duck, { ...DEFAULT_WEAR, petId: 'party-corgi' })).toBe('debug-duck');
+    expect(wornPet(both, { ...DEFAULT_WEAR, pet: false })).toBeNull();
+    expect(lookOf({ perks: duck, career: { pet: 'fox' } }).pet).toBe('debug-duck');
+    expect(lookOf({ perks: duck, career: { pet: 'fox' }, wear: { ...DEFAULT_WEAR, pet: false } }).pet).toBe('fox');
   });
 
   test('Career selections map to the same avatar, frame, sleeve and cloth fields matches read', () => {

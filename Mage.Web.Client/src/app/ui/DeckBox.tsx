@@ -2,6 +2,9 @@ import type { CSSProperties } from 'react';
 import { useCardImage } from '../../core/images/useCardImage';
 import { useT } from '../i18n';
 import type { RosterDeck } from '../stores/decks';
+import { useSettings } from '../stores/settings';
+import { useCosmetics } from './cosmeticsCatalog';
+import { sleeveBackOf } from './sleeveArt';
 import styles from './DeckBox.module.css';
 
 export interface DeckBoxProps {
@@ -16,11 +19,16 @@ export interface DeckBoxProps {
 export function DeckBox({ deck, sleeve, selected, onSelect, onActivate }: DeckBoxProps) {
   const t = useT();
   const art = useCardImage(deck.cover, 'front', 'art_crop');
+  // a Career or supporter sleeve shows its painted back on the box too, as it does on the cards (see cardBackOf)
+  const paintedArt = useSettings((state) => state.settings.paintedArt);
+  useCosmetics((state) => state.byKey);
+  const back = sleeveBackOf(sleeve);
+  const painted = back && (paintedArt || back.startsWith('data:')) ? back : null;
   return (
     <button
       type="button"
-      className={[styles.box, selected ? styles.selected : ''].join(' ')}
-      style={{ '--sleeve': sleeve } as CSSProperties}
+      className={[styles.box, painted ? styles.painted : '', selected ? styles.selected : ''].join(' ')}
+      style={{ '--sleeve': sleeve, ...(painted ? { '--sleeve-art': `url("${painted}")` } : {}) } as CSSProperties}
       aria-pressed={selected}
       onClick={onSelect}
       onDoubleClick={onActivate}
@@ -37,6 +45,7 @@ export function DeckBox({ deck, sleeve, selected, onSelect, onActivate }: DeckBo
               {deck.colors.map((color) => <i key={color} className={`ms ms-cost ms-${color.toLowerCase()}`} aria-hidden="true" />)}
             </span>
           )}
+          {deck.draft && <span className={styles.draft}>{t('decks.draft.badge')}</span>}
           {deck.fromStarter ? t('decks.fromStarter', { count: deck.cardCount }) : deck.note}
         </span>
       </span>

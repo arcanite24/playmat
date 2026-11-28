@@ -1,0 +1,39 @@
+# name: Train450 lim-g-wb-ctrl-6
+# archetype: limited_ctrl
+# colors: WB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Akroan Jailer
+1 Archfiend of the Dross
+1 Basri's Lieutenant
+1 Black Widow, Double Agent
+2 Bloodthirsty Conqueror
+1 Canal Monitor
+1 Courageous Outrider
+1 Deathless Ancient
+2 Dire Tactics
+1 Disfigure
+1 Duskborne Skymarcher
+1 Ebondeath, Dracolich
+1 Horribly Awry
+1 Impossible Choice
+1 Militia Bugler
+1 Misthoof Kirin
+1 Moon-Blessed Cleric
+1 Nezumi Prowler
+1 Nirkana Assassin
+1 Pest Control
+2 Prismatic Ending
+1 Riot Control
+1 Rotten Reunion
+2 Scion of Ugin
+1 Solemn Offering
+1 Spell Shrivel
+1 Stonerise Spirit
+1 Sunset Revelry
+1 Unliving Legionnaire
+1 Visions of Villainy
+1 Warping Wail
+4 Neglected Manor
+8 Plains
+4 Shattered Sanctum
+9 Swamp

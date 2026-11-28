@@ -17,6 +17,7 @@ import mage.counters.CounterType;
 import mage.filter.StaticFilters;
 import mage.game.Game;
 import mage.game.combat.Combat;
+import mage.game.events.DamagePlayerEvent;
 import mage.game.events.GameEvent;
 import mage.game.permanent.Permanent;
 import mage.game.stack.StackAbility;
@@ -59,6 +60,9 @@ public class ComputerPlayer6 extends ComputerPlayer {
     // a search waits this long for a free search thread before the AI gives up on it; the wait doesn't count as
     // think time, so AI players on a busy server don't lose their search to each other's
     private static final int MAX_SECONDS_WAITING_FOR_A_SEARCH_THREAD = 60;
+    // the search stops itself at the think time and plays its best line; past it by this much it gets interrupted (a
+    // single action that never finishes, such as an endless loop)
+    private static final int EXTRA_SECONDS_BEFORE_INTERRUPT = 3;
 
     // same params as Executors.newFixedThreadPool
     // no needs errors check in afterExecute here cause that pool used for FutureTask with result check already
@@ -74,6 +78,11 @@ public class ComputerPlayer6 extends ComputerPlayer {
     protected int maxNodes;
     protected int maxThinkTimeSecs;
     protected int rootScoreNoise; // see rootScoreNoiseForSkill
+    // the running search's limits: the whole budget, and the share of it the current first action may use (see
+    // simulatePriority); deadlines are System.nanoTime values, 0 for none
+    private transient int searchNodeLimit;
+    private transient long searchDeadline;
+    private transient long searchEndsAt;
     protected LinkedList<Ability> actions = new LinkedList<>();
     protected Combat combat;
     protected int currentScore;
@@ -82,6 +91,17 @@ public class ComputerPlayer6 extends ComputerPlayer {
     List<Permanent> attackersToCheck = new ArrayList<>();
 
     protected Set<String> actionCache;
+
+    // Loop guard (#231). A loop that leaves the board a little better each time scores better on every search, so the
+    // AI used to repeat it forever (Blade of the Bloodchief + Basking Broodscale: equip a Spawn, pay with that Spawn).
+    // Each ability (same source, same rule) may be used this many times a turn, and the AI takes at most this many
+    // actions a turn in all. Real turns stay far below both.
+    static final int MAX_SAME_ACTION_PER_TURN = 20;
+    static final int MAX_ACTIONS_PER_TURN = 100;
+    private transient Map<String, Integer> actionsThisTurn;
+    private transient int actionsThisTurnTotal;
+    private transient int actionsTurnNum = -1;
+
     private static final List<TreeOptimizer> optimizers = new ArrayList<>();
     protected int lastLoggedTurn = 0; // for debug logs: mark start of the turn
     protected static final String BLANKS = "...............................................";
@@ -92,6 +112,7 @@ public class ComputerPlayer6 extends ComputerPlayer {
         optimizers.add(new EquipOptimizer());
         optimizers.add(new DiscardCardOptimizer());
         optimizers.add(new OutcomeOptimizer());
+        optimizers.add(new SameCardInHandOptimizer());
     }
 
     public ComputerPlayer6(String name, RangeOfInfluence range, int skill) {
@@ -108,10 +129,18 @@ public class ComputerPlayer6 extends ComputerPlayer {
         } else {
             maxDepth = skill;
         }
-        maxThinkTimeSecs = skill * 3;
+        maxThinkTimeSecs = maxThinkTimeSecsForSkill(skill);
         maxNodes = maxNodesForSkill(skill);
         rootScoreNoise = rootScoreNoiseForSkill(skill);
         this.actionCache = new HashSet<>();
+    }
+
+    /**
+     * It was skill * 3, up to 30 seconds a decision for Expert, several times a turn. The search now splits its time
+     * between its options and stops in time with its best line (see simulatePriority), so a few seconds are enough.
+     */
+    static int maxThinkTimeSecsForSkill(int skill) {
+        return Math.max(1, Math.min(skill * 3, 3 + skill / 2));
     }
 
     /**
@@ -162,6 +191,44 @@ public class ComputerPlayer6 extends ComputerPlayer {
         }
         this.actions.addAll(player.actions);
         this.actionCache = player.actionCache;
+        if (player.actionsThisTurn != null) {
+            this.actionsThisTurn = new HashMap<>(player.actionsThisTurn);
+        }
+        this.actionsThisTurnTotal = player.actionsThisTurnTotal;
+        this.actionsTurnNum = player.actionsTurnNum;
+    }
+
+    private static boolean countsAsAction(Ability ability) {
+        return !(ability instanceof PassAbility) && !ability.isManaAbility();
+    }
+
+    private static String actionKey(Ability ability) {
+        return ability.getSourceId() + "|" + ability.getRule();
+    }
+
+    /**
+     * Whether the loop guard forbids this action now: the same ability was used too often this turn, or the AI took
+     * too many actions this turn. Read only, so the search threads can call it.
+     */
+    protected boolean isActionOverTurnLimit(Game game, Ability ability) {
+        if (!countsAsAction(ability) || actionsThisTurn == null || actionsTurnNum != game.getTurnNum()) {
+            return false;
+        }
+        return actionsThisTurnTotal >= MAX_ACTIONS_PER_TURN
+                || actionsThisTurn.getOrDefault(actionKey(ability), 0) >= MAX_SAME_ACTION_PER_TURN;
+    }
+
+    private void countAction(Game game, Ability ability) {
+        if (!countsAsAction(ability)) {
+            return;
+        }
+        if (actionsThisTurn == null || actionsTurnNum != game.getTurnNum()) {
+            actionsThisTurn = new HashMap<>();
+            actionsThisTurnTotal = 0;
+            actionsTurnNum = game.getTurnNum();
+        }
+        actionsThisTurn.merge(actionKey(ability), 1, Integer::sum);
+        actionsThisTurnTotal++;
     }
 
     /**
@@ -225,8 +292,18 @@ public class ComputerPlayer6 extends ComputerPlayer {
             pass(game);
         } else {
             boolean usedStack = false;
+            boolean acted = false;
             while (actions.peek() != null) {
                 Ability ability = actions.poll();
+                if (isActionOverTurnLimit(game, ability)) {
+                    // loop guard: drop the rest of this chain too, it was planned with this action in it
+                    logger.info(String.format("===> SKIPPED ACTION for %s (used too often this turn): %s",
+                            getName(), getAbilityAndSourceInfo(game, ability, false)));
+                    actions.clear();
+                    break;
+                }
+                countAction(game, ability);
+                acted = true;
                 // example: ===> SELECTED ACTION for PlayerA: Play Swamp
                 logger.info(String.format("===> SELECTED ACTION for %s: %s",
                         getName(),
@@ -247,7 +324,7 @@ public class ComputerPlayer6 extends ComputerPlayer {
                     usedStack = true;
                 }
             }
-            if (usedStack) {
+            if (usedStack || !acted) {
                 pass(game);
             }
         }
@@ -268,12 +345,12 @@ public class ComputerPlayer6 extends ComputerPlayer {
             return GameStateEvaluator2.evaluate(playerId, game).getTotalScore();
         }
         // Condition to stop deeper simulation
-        if (node.getSearchNodes() > maxNodes + MAX_SIMULATED_NODES_OVER_BUDGET) {
+        if (node.getSearchNodes() > searchNodeLimit + MAX_SIMULATED_NODES_OVER_BUDGET) {
             // how-to fix: make sure you are disabled debug mode by COMPUTER_DISABLE_TIMEOUT_IN_GAME_SIMULATIONS = false
             throw new IllegalStateException("AI ERROR: too much nodes (possible actions)");
         }
         if (depth <= 0
-                || node.getSearchNodes() > maxNodes
+                || outOfBudget(node)
                 || game.checkIfGameIsOver()) {
             val = GameStateEvaluator2.evaluate(playerId, game).getTotalScore();
             if (logger.isTraceEnabled()) {
@@ -391,10 +468,10 @@ public class ComputerPlayer6 extends ComputerPlayer {
             if (alpha >= beta) {
                 break;
             }
-            if (node.getSearchNodes() > maxNodes + MAX_SIMULATED_NODES_OVER_BUDGET) {
+            if (node.getSearchNodes() > searchNodeLimit + MAX_SIMULATED_NODES_OVER_BUDGET) {
                 throw new IllegalStateException("AI ERROR: too much nodes (possible actions)");
             }
-            if (node.getSearchNodes() > maxNodes) {
+            if (outOfBudget(node)) {
                 break;
             }
             int val = addActions(child, depth - 1, alpha, beta);
@@ -497,13 +574,26 @@ public class ComputerPlayer6 extends ComputerPlayer {
         // the search draws its random numbers (the low skills' misjudgement) from the game's generator, so a seeded
         // game's AI thinks the same way every time
         java.util.Random searchRandom = RandomUtil.childForOtherThread();
+        long[] searchCpu = {-1};
+        long searchStart = System.nanoTime();
         FutureTask<Integer> task = new FutureTask<>(() -> {
             started.countDown();
-            return RandomUtil.withRandom(searchRandom, () -> addActions(root, maxDepth, Integer.MIN_VALUE, Integer.MAX_VALUE));
+            long cpuStart = SearchStats.ENABLED ? THREAD_MX.getCurrentThreadCpuTime() : 0;
+            try {
+            searchNodeLimit = maxNodes;
+            searchEndsAt = COMPUTER_DISABLE_TIMEOUT_IN_GAME_SIMULATIONS ? 0 : deadlineIn(System.nanoTime(), maxThinkTimeSecs * 1_000_000_000L);
+            searchDeadline = searchEndsAt;
+                return RandomUtil.withRandom(searchRandom, () -> addActions(root, maxDepth, Integer.MIN_VALUE, Integer.MAX_VALUE));
+            } finally {
+                if (SearchStats.ENABLED) {
+                    searchCpu[0] = THREAD_MX.getCurrentThreadCpuTime() - cpuStart;
+                }
+            }
         });
         threadPoolSimulations.execute(task);
+        boolean interrupted = false;
         try {
-            int maxSeconds = maxThinkTimeSecs;
+            int maxSeconds = maxThinkTimeSecs + EXTRA_SECONDS_BEFORE_INTERRUPT;
             if (COMPUTER_DISABLE_TIMEOUT_IN_GAME_SIMULATIONS) {
                 maxSeconds = 3600;
             }
@@ -517,6 +607,7 @@ public class ComputerPlayer6 extends ComputerPlayer {
                 return res;
             }
         } catch (TimeoutException | InterruptedException e) {
+            interrupted = true;
             // AI thinks too long
             // how-to fix: look at stack info - it can contain bad ability with infinite choose dialog
             logger.warn("");
@@ -541,9 +632,41 @@ public class ComputerPlayer6 extends ComputerPlayer {
             // ?
             logger.error("AI simulation catch unknown error: " + e, e);
             task.cancel(true);
+        } finally {
+            if (SearchStats.ENABLED) {
+                recordSearch(System.nanoTime() - searchStart, searchCpu[0], interrupted);
+            }
         }
         //TODO: timeout handling
         return 0;
+    }
+
+    private static final java.lang.management.ThreadMXBean THREAD_MX = java.lang.management.ManagementFactory.getThreadMXBean();
+
+    /** the last search, recorded by priority once the whole decision is timed */
+    protected SearchStats.Search lastSearch;
+
+    private void recordSearch(long wallNanos, long cpuNanos, boolean interrupted) {
+        Game game = root.game;
+        boolean deadline = searchEndsAt != 0 && System.nanoTime() - searchEndsAt > 0;
+        lastSearch = new SearchStats.Search(
+                String.valueOf(game.getOptions().seed), getName(), game.getTurnNum(),
+                game.getTurnStepType() == null ? "" : game.getTurnStepType().toString(),
+                wallNanos, wallNanos, cpuNanos, root.getSearchNodes(), root.children.size(),
+                game.getBattlefield().getAllPermanents().size(), getHand().size(), deadline, interrupted);
+    }
+
+    private static long deadlineIn(long now, long nanos) {
+        long deadline = now + nanos;
+        return deadline == 0 ? 1 : deadline; // 0 means no deadline
+    }
+
+    /**
+     * Whether the search must stop going deeper: it has used its share of nodes or of the think time.
+     */
+    private boolean outOfBudget(SimulationNode2 node) {
+        return node.getSearchNodes() > searchNodeLimit
+                || (searchDeadline != 0 && System.nanoTime() - searchDeadline > 0);
     }
 
     private void printFreezeNode(SimulationNode2 root) {
@@ -579,6 +702,10 @@ public class ComputerPlayer6 extends ComputerPlayer {
         SimulatedPlayer2 currentPlayer = (SimulatedPlayer2) game.getPlayer(game.getPlayerList().get());
         SimulationNode2 bestNode = null;
         List<Ability> allActions = currentPlayer.simulatePriority(game);
+        if (node.getParent() == null && currentPlayer.getId().equals(playerId)) {
+            // loop guard: what the AI may not do anymore this turn isn't worth a search
+            allActions.removeIf(action -> isActionOverTurnLimit(game, action));
+        }
         optimize(game, allActions);
         int startedScore = GameStateEvaluator2.evaluate(this.getId(), node.getGame()).getTotalScore();
         if (logger.isInfoEnabled()
@@ -598,11 +725,20 @@ public class ComputerPlayer6 extends ComputerPlayer {
         }
         int actionNumber = 0;
         int bestValSubNodes = Integer.MIN_VALUE;
+        // the first actions split the budget: each gets an even share of the nodes and time left, and what one leaves
+        // unused goes to those after it. The whole budget went to the first few once, and the rest were never looked at
+        boolean shareBudget = depth == maxDepth && node.getParent() == null;
         for (Ability action : allActions) {
             actionNumber++;
             if (!COMPUTER_DISABLE_TIMEOUT_IN_GAME_SIMULATIONS && Thread.currentThread().isInterrupted()) {
                 logger.info("Sim Prio [" + depth + "] -- interrupted");
                 break;
+            }
+            if (shareBudget) {
+                int actionsLeft = allActions.size() - actionNumber + 1;
+                searchNodeLimit = node.getSearchNodes() + Math.max(1, (maxNodes - node.getSearchNodes()) / actionsLeft);
+                long now = System.nanoTime();
+                searchDeadline = searchEndsAt == 0 ? 0 : deadlineIn(now, Math.max(0, searchEndsAt - now) / actionsLeft);
             }
             Game sim = game.createSimulationForAI();
             if (!(action instanceof StaticAbility) //for MorphAbility, etc
@@ -789,15 +925,19 @@ public class ComputerPlayer6 extends ComputerPlayer {
                 if (alpha >= beta) {
                     break;
                 }
-                if (node.getSearchNodes() > maxNodes + MAX_SIMULATED_NODES_OVER_BUDGET) {
+                if (node.getSearchNodes() > searchNodeLimit + MAX_SIMULATED_NODES_OVER_BUDGET) {
                     throw new IllegalStateException("AI ERROR: too many nodes (possible actions)");
                 }
-                if (node.getSearchNodes() > maxNodes) {
+                if (shareBudget ? node.getSearchNodes() > maxNodes : outOfBudget(node)) {
                     logger.debug("Sim Prio -- reached end-state");
                     break;
                 }
             }
         } // end of for (allActions)
+        if (shareBudget) {
+            searchNodeLimit = maxNodes;
+            searchDeadline = searchEndsAt;
+        }
 
         if (depth == maxDepth) {
             // TODO: buggy? Why it ended with depth limit 6 on one Pass action?!
@@ -940,8 +1080,7 @@ public class ComputerPlayer6 extends ComputerPlayer {
     protected boolean allPassed(Game game) {
         for (Player player : game.getPlayers().values()) {
             if (!player.isPassed()
-                    && !player.hasLost()
-                    && !player.hasLeft()) {
+                    && player.isInGame()) {
                 return false;
             }
         }
@@ -989,7 +1128,7 @@ public class ComputerPlayer6 extends ComputerPlayer {
 
             CombatUtil.sortByPower(attackers, false); // most powerfull go to first
 
-            CombatInfo combatInfo = CombatUtil.blockWithGoodTrade2(game, attackers, possibleBlockers);
+            CombatInfo combatInfo = CombatUtil.blockWithGoodTrade2(game, attackers, possibleBlockers, playerId);
             Player player = game.getPlayer(playerId);
 
             boolean blocked = false;
@@ -1086,6 +1225,22 @@ public class ComputerPlayer6 extends ComputerPlayer {
         return attackersLeft;
     }
 
+    /**
+     * Creatures that can attack the defender, without those whose combat damage would all be prevented (e.g. by
+     * Dovin, Hand of Control): like a 0 power creature, attacking with them only taps them (#199).
+     */
+    private List<Permanent> getUsefulAttackers(Game game, UUID defenderId) {
+        List<Permanent> attackers = super.getAvailableAttackers(defenderId, game);
+        attackers.removeIf(attacker -> isCombatDamagePrevented(game, attacker, defenderId));
+        return attackers;
+    }
+
+    private static boolean isCombatDamagePrevented(Game game, Permanent attacker, UUID defenderId) {
+        DamagePlayerEvent event = new DamagePlayerEvent(defenderId, attacker.getId(), defenderId,
+                Math.max(1, attacker.getPower().getValue()), true, true);
+        return game.getContinuousEffects().isAllDamagePrevented(event, game);
+    }
+
     private List<Permanent> getAttackers(Game game) {
         Set<UUID> attackersUUID = game.getCombat().getAttackers();
         if (attackersUUID.isEmpty()) {
@@ -1117,14 +1272,17 @@ public class ComputerPlayer6 extends ComputerPlayer {
         if (!game.replaceEvent(GameEvent.getEvent(GameEvent.EventType.DECLARING_ATTACKERS, activePlayerId, activePlayerId))) {
             Player attackingPlayer = game.getPlayer(activePlayerId);
 
+            // Order opponents by Commander/pod threat so multiplayer AI focuses the biggest threat (or killable target)
+            List<UUID> orderedOpponents = orderOpponentsByThreat(game, playerId);
+
             // check alpha strike first (all in attack to kill a player)
-            for (UUID defenderId : game.getOpponents(playerId, true)) {
+            for (UUID defenderId : orderedOpponents) {
                 Player defender = game.getPlayer(defenderId);
-                if (!defender.isInGame()) {
+                if (defender == null || !defender.isInGame()) {
                     continue;
                 }
 
-                attackersList = super.getAvailableAttackers(defenderId, game);
+                attackersList = getUsefulAttackers(game, defenderId);
                 if (attackersList.isEmpty()) {
                     continue;
                 }
@@ -1141,12 +1299,14 @@ public class ComputerPlayer6 extends ComputerPlayer {
             // TODO: add game simulations here to find best attackers/blockers combination
 
             // find safe attackers (can't be killed by blockers)
-            for (UUID defenderId : game.getOpponents(playerId, true)) {
+            for (UUID defenderId : orderedOpponents) {
                 Player defender = game.getPlayer(defenderId);
-                if (!defender.isInGame()) {
+                if (defender == null || !defender.isInGame()) {
                     continue;
                 }
-                attackersList = super.getAvailableAttackers(defenderId, game);
+                attackersToCheck.clear();
+                attackersList = getUsefulAttackers(game, defenderId);
+                attackersList.removeIf(Permanent::isAttacking);
                 if (attackersList.isEmpty()) {
                     continue;
                 }
@@ -1278,6 +1438,62 @@ public class ComputerPlayer6 extends ComputerPlayer {
                 }
             }
         }
+    }
+
+    /**
+     * Ranks living opponents for multiplayer / Commander pod targeting: prioritizes the archenemy (strongest board,
+     * commander on battlefield, highest life, commander damage pressure against us) and open boards.
+     */
+    private List<UUID> orderOpponentsByThreat(Game game, UUID myId) {
+        List<UUID> opponents = new ArrayList<>(game.getOpponents(myId, true));
+        Object myTeam = game.getState().getValue("career.thg.team." + myId);
+        if (myTeam != null) {
+            opponents.removeIf(oppId -> myTeam.equals(game.getState().getValue("career.thg.team." + oppId)));
+        }
+        if (opponents.size() <= 1) {
+            return opponents;
+        }
+        Map<UUID, Integer> threat = new HashMap<>();
+        for (UUID oppId : opponents) {
+            Player opp = game.getPlayer(oppId);
+            if (opp == null || !opp.isInGame()) {
+                threat.put(oppId, Integer.MIN_VALUE);
+                continue;
+            }
+            int score = opp.getLife() * 4 + opp.getHand().size() * 15;
+            Set<UUID> oppCommanders = game.getCommandersIds(opp, mage.constants.CommanderCardType.COMMANDER_OR_OATHBREAKER, false);
+            for (Permanent perm : game.getBattlefield().getAllActivePermanents(oppId)) {
+                if (perm.isCreature(game)) {
+                    score += perm.getPower().getValue() * 12 + perm.getToughness().getValue() * 4;
+                } else if (perm.isPlaneswalker(game)) {
+                    score += 60;
+                } else if (!perm.isLand(game)) {
+                    score += 15;
+                }
+                if (oppCommanders.contains(perm.getId())) {
+                    score += 80;
+                }
+            }
+            // Account for commander damage this opponent has already dealt to us
+            for (UUID cmdId : oppCommanders) {
+                mage.watchers.common.CommanderInfoWatcher watcher =
+                        game.getState().getWatcher(mage.watchers.common.CommanderInfoWatcher.class, cmdId);
+                if (watcher != null) {
+                    score += watcher.getDamageToPlayer().getOrDefault(myId, 0) * 14;
+                }
+            }
+            // Prefer open players slightly when threats are comparable so attacks connect
+            int blockers = opp.getAvailableBlockers(game).size();
+            score -= blockers * 12;
+            threat.put(oppId, score);
+        }
+        opponents.sort((a, b) -> Integer.compare(threat.getOrDefault(b, 0), threat.getOrDefault(a, 0)));
+        return opponents;
+    }
+
+    @Override
+    protected boolean preferManaOverPhyrexianLife() {
+        return true;
     }
 
     @Override

@@ -23,6 +23,18 @@ public final class RandomUtil {
     }
 
     /**
+     * A new random (version 4) id for the engine's own short-lived objects: events, abilities, effects, costs and
+     * modes. {@link UUID#randomUUID()} draws from the shared SecureRandom, which every AI search thread then waits on;
+     * these ids need to be unique, not unguessable. It doesn't touch the game's generator, so seeded games play the same.
+     */
+    public static UUID newId() {
+        java.util.concurrent.ThreadLocalRandom r = java.util.concurrent.ThreadLocalRandom.current();
+        long msb = (r.nextLong() & ~0xF000L) | 0x4000L;
+        long lsb = (r.nextLong() & 0x3FFFFFFFFFFFFFFFL) | 0x8000000000000000L;
+        return new UUID(msb, lsb);
+    }
+
+    /**
      * @return the generator for this thread: the game's own while a game runs on it, otherwise the shared one
      */
     public static Random getRandom() {

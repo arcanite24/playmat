@@ -22,7 +22,7 @@ import mage.filter.predicate.ObjectSourcePlayer;
 import mage.filter.predicate.ObjectSourcePlayerPredicate;
 import mage.game.Game;
 import mage.target.TargetPermanent;
-import mage.target.common.TargetCardInGraveyard;
+import mage.target.common.TargetCardInYourGraveyard;
 import mage.target.targetpointer.SecondTargetPointer;
 import mage.watchers.common.PlayerGainedLifeWatcher;
 
@@ -68,7 +68,7 @@ public final class BetorAncestorsVoice extends CardImpl {
         ability.addEffect(new ReturnFromGraveyardToBattlefieldTargetEffect().setTargetPointer(new SecondTargetPointer())
                 .setText("Return up to one target creature card with mana value less than or equal to the amount of " +
                         "life you lost this turn from your graveyard to the battlefield."));
-        ability.addTarget(new TargetCardInGraveyard(0, 1, filter));
+        ability.addTarget(new TargetCardInYourGraveyard(0, 1, filter));
         ability.addHint(ControllerGainedLifeCount.getHint());
         ability.addHint(ControllerLostLifeCount.getHint());
         this.addAbility(ability, new PlayerGainedLifeWatcher());

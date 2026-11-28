@@ -29,6 +29,7 @@ import mage.server.game.GamesRoom;
 import mage.server.game.PlayerFactory;
 import mage.server.managers.ManagerFactory;
 import mage.server.services.impl.FeedbackServiceImpl;
+import mage.server.social.Presence;
 import mage.server.tournament.TournamentFactory;
 import mage.server.util.ServerMessagesUtil;
 import mage.util.DebugUtil;
@@ -358,7 +359,8 @@ public class MageServerImpl implements MageServer {
         try {
             Optional<GamesRoom> room = managerFactory.gamesRoomManager().getRoom(roomId);
             if (room.isPresent()) {
-                return room.get().getRoomUsersInfo();
+                // no session here (the old clients' call): hidden players stay out of it
+                return Presence.visibleRooms(room.get().getRoomUsersInfo(), null, false);
             } else {
                 return new ArrayList<>();
             }
@@ -393,18 +395,19 @@ public class MageServerImpl implements MageServer {
             logger.error("table not found : " + tableId);
             return false;
         }
+        Optional<Session> session = managerFactory.sessionManager().getSession(sessionId);
+        if (!session.isPresent()) {
+            logger.error("Session not found : " + sessionId);
+            return false;
+        }
+        UUID userId = session.get().getUserId();
+        if (!controller.get().isOwner(userId)) {
+            return false;
+        }
         if (!controller.get().changeTableStateToStarting()) {
             return false;
         }
-        execute("startMatch", sessionId, () -> {
-            Optional<Session> session = managerFactory.sessionManager().getSession(sessionId);
-            if (!session.isPresent()) {
-                logger.error("Session not found : " + sessionId);
-            } else {
-                UUID userId = session.get().getUserId();
-                managerFactory.tableManager().startMatch(userId, roomId, tableId);
-            }
-        });
+        execute("startMatch", sessionId, () -> managerFactory.tableManager().startMatch(userId, roomId, tableId));
         return true;
     }
 
@@ -415,18 +418,19 @@ public class MageServerImpl implements MageServer {
             logger.error("table not found : " + tableId);
             return false;
         }
+        Optional<Session> session = managerFactory.sessionManager().getSession(sessionId);
+        if (!session.isPresent()) {
+            logger.error("Session not found : " + sessionId);
+            return false;
+        }
+        UUID userId = session.get().getUserId();
+        if (!controller.get().isOwner(userId)) {
+            return false;
+        }
         if (!controller.get().changeTableStateToStarting()) {
             return false;
         }
-        execute("startTournament", sessionId, () -> {
-            Optional<Session> session = managerFactory.sessionManager().getSession(sessionId);
-            if (!session.isPresent()) {
-                logger.error("Session not found : " + sessionId);
-            } else {
-                UUID userId = session.get().getUserId();
-                managerFactory.tableManager().startTournament(userId, roomId, tableId);
-            }
-        });
+        execute("startTournament", sessionId, () -> managerFactory.tableManager().startTournament(userId, roomId, tableId));
         return true;
     }
 
@@ -574,7 +578,9 @@ public class MageServerImpl implements MageServer {
         execute("joinGame", sessionId, () -> {
             managerFactory.sessionManager().getSession(sessionId).ifPresent(session -> {
                 UUID userId = session.getUserId();
-                managerFactory.gameManager().joinGame(gameId, userId);
+                if (!RustHost.orphaned(gameId, userId, false)) {
+                    managerFactory.gameManager().joinGame(gameId, userId);
+                }
             });
         });
     }
@@ -717,7 +723,9 @@ public class MageServerImpl implements MageServer {
                         () -> {
                             managerFactory.sessionManager().getSession(sessionId).ifPresent(session -> {
                                 UUID userId = session.getUserId();
-                                managerFactory.gameManager().quitMatch(gameId, userId);
+                                if (!RustHost.orphaned(gameId, userId, true)) {
+                                    managerFactory.gameManager().quitMatch(gameId, userId);
+                                }
                             });
                         }
                 );

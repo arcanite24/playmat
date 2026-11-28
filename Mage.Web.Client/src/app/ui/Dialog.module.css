@@ -15,6 +15,7 @@
   display: flex;
   flex-direction: column;
   max-height: min(86vh, 900px);
+  max-height: min(86dvh, 900px);
   width: min(92vw, var(--dialog-w));
   border-radius: var(--radius-zone);
   background-color: var(--mat-700);
@@ -30,6 +31,7 @@
 .xl {
   --dialog-w: 980px;
   height: min(88vh, 720px);
+  height: min(88dvh, 720px);
 }
 
 .xl .body {
@@ -91,6 +93,42 @@
   justify-content: flex-end;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-5) var(--space-5);
+}
+
+/* a phone: the dialog takes nearly the whole screen, clear of notches and bars, with a 44px close and back button and a
+   tighter margin; the import sheet's workspace fills the height */
+@media (max-width: 640px) {
+  .content {
+    width: calc(100vw - 16px - env(safe-area-inset-left) - env(safe-area-inset-right));
+    max-height: calc(100dvh - 16px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+
+  .xl {
+    height: calc(100dvh - 16px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+
+  .head {
+    padding: var(--space-4) var(--space-4) var(--space-2);
+  }
+
+  .description {
+    padding: 0 var(--space-4);
+  }
+
+  .body {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .footer {
+    flex-wrap: wrap;
+    padding: var(--space-3) var(--space-4) var(--space-4);
+  }
+
+  .back,
+  .close {
+    width: 44px;
+    height: 44px;
+  }
 }
 
 @keyframes fade {

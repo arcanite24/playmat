@@ -1,0 +1,28 @@
+{
+  "$comment": "NB 2.1 art spec for the Coin Cosmetics Boutique plate frames (ring cutouts fitted via art/fit_rings.py).",
+  "out": "public/career-art/plate-frame",
+  "aspect": "1:1",
+  "size": "512x512",
+  "items": [
+    {
+      "id": "frame-filigree",
+      "subject": "accent ink #d8b24c warm antique gold; a circular ornamental filigree ring with delicate symmetrical scrollwork and small fleur-de-lis finials at the four compass points"
+    },
+    {
+      "id": "frame-verdigris",
+      "subject": "accent ink #4da68f patinated verdigris bronze; a circular riveted brass-and-patina artificer ring with tiny gear teeth and compass notches"
+    },
+    {
+      "id": "frame-astral",
+      "subject": "accent ink #9b7ff0 celestial lavender; a circular astrolabe ring etched with thin orbital arcs, tiny stars, and a crescent moon at the top"
+    },
+    {
+      "id": "frame-molten",
+      "subject": "accent ink #e8552a glowing volcanic ember; a circular cracked obsidian-and-lava ring with glowing orange fissures and small rising flame spikes around the outer edge"
+    },
+    {
+      "id": "frame-frost",
+      "subject": "accent ink #7cd4f0 glacial ice blue; a circular crystalline frost ring formed of symmetrical sharp ice shards and snowflake points around the outer rim"
+    }
+  ]
+}

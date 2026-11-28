@@ -1,0 +1,54 @@
+# name: Train450 brawl-t-wbg-ramp-3
+# archetype: brawl_ramp
+# colors: WBG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Abzan Charm
+1 Aetherwind Basker
+1 Ainok Artillerist
+1 Anointer of Champions
+1 Baleful Beholder
+1 Bramble Familiar
+1 Bring to Trial
+1 Burly Breaker
+1 Claim Jumper
+1 D'Ghor Bloodletter
+1 Dread Shade
+1 Earth Rumble
+1 Extinction Event
+1 Flash Thompson, Spider-Fan
+1 Golgari Findbroker
+1 Gollum the Abandoned
+1 Gravpack Monoist
+1 Greater Sandwurm
+1 Herald of Eternal Dawn
+1 Humble the Brute
+1 Karametra, God of Harvests
+1 Kutzil's Flanker
+1 Patron of the Valiant
+1 Prizefight
+1 Reduce to Memory
+1 Ruin Processor
+1 Sky-Blessed Samurai
+1 Study Break
+1 Sylvan Brushstrider
+1 The Gitrog Monster
+1 Thraxodemon
+1 Twilight Prophet
+1 Untamed Kavu
+1 Warren Warleader
+1 Wrecking Beast
+1 Arctic Treeline
+1 Concealed Courtyard
+4 Forest
+1 Foul Orchard
+5 Plains
+1 Razorverge Thicket
+1 Selesnya Guildgate
+1 Shambling Vent
+1 Shineshadow Snarl
+1 Sunlit Marsh
+4 Swamp
+1 Temple of Plenty
+1 Titan's Grave
+1 Tranquil Expanse
+1 Witherbloom Campus

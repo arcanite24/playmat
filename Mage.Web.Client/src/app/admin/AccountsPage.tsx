@@ -141,6 +141,7 @@ function Account({ api, role, name, onBack }: { api: AdminApi; role: StaffRole; 
           {account.email ? `${account.email} (${account.emailVerified ? 'confirmed' : 'not confirmed'}) · ` : ''}
           {account.online ? 'online now' : account.lastConnection ? `last seen ${describeAge(account.lastConnection, now)}` : 'never signed in'}
           {data.githubLogin ? ` · GitHub ${data.githubLogin}` : ''}
+          {data.oidcName ? ` · ${data.oidcName}` : ''}
           {muted ? ` · muted until ${formatDate(account.mutedUntil!)}` : ''}
           {locked ? ` · locked until ${formatDate(account.lockedUntil!)}` : ''}
         </p>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { GameView, PermanentView, PlayerView } from '../../protocol/generated/views';
-import { buildBoard, buildPlayerBoard, cardKey, fitRow, ROW_FLOOR, zoneKeys, type PermanentGroup, type RowFit } from './boardModel';
+import { buildBoard, buildPlayerBoard, cardKey, fitRow, ROW_FLOOR, splitOpenFirst, stackBadge, zoneKeys, type PermanentGroup, type RowFit } from './boardModel';
 
 function permanent(id: string, overrides: Partial<PermanentView> = {}): PermanentView {
   return { id, name: 'Forest', expansionSetCode: 'M21', cardTypes: ['LAND'], ...overrides };
@@ -48,11 +48,17 @@ describe('buildPlayerBoard', () => {
 });
 
 describe('buildBoard', () => {
-  it('seats me at the bottom and opponents in turn order after me', () => {
-    const view: GameView = { players: [player('a', []), player('me', []), player('c', [])] };
+  it('seats opponents clockwise: left to right in turn order after me', () => {
+    // the server lists players in table order and plays turns the other way round: a, me, c, d plays me -> a -> d -> c
+    const view: GameView = { players: [player('a', []), player('me', []), player('c', []), player('d', [])] };
     const board = buildBoard(view, 'me');
     expect(board.me?.player.playerId).toBe('me');
-    expect(board.opponents.map((o) => o.player.playerId)).toEqual(['c', 'a']);
+    expect(board.opponents.map((o) => o.player.playerId)).toEqual(['a', 'd', 'c']);
+  });
+
+  it('keeps everyone in their seat when the same table is listed from another start', () => {
+    const seats = (order: string[]) => buildBoard({ players: order.map((id) => player(id, [])) }, 'me').opponents.map((o) => o.player.playerId);
+    expect(seats(['me', 'b', 'c', 'd'])).toEqual(seats(['c', 'd', 'me', 'b']));
   });
 
   it('shows the first player at the bottom when watching', () => {
@@ -80,12 +86,23 @@ function extent(groups: PermanentGroup[], fit: RowFit): { widths: number[]; heig
       return sum + fit.cardWidth * ((tapped ? 88 / 63 : 1) + (group.members.length - 1) * offset + group.attachments.length * 0.18);
     }, 0);
     widths.push(slots + (members.length - 1) * fit.gap);
-    height += fit.cardWidth * (88 / 63) + (line > 0 ? fit.lineGap : 0);
+    height += fit.cardWidth * (88 / 63 + (members.some((group) => group.attachments.length > 0) ? 0.18 : 0)) + (line > 0 ? fit.lineGap : 0);
   }
   return { widths, height };
 }
 
 describe('fitRow', () => {
+  it.each([1, 6, 12])('keeps a host with %i auras inside the row height', (count) => {
+    const groups = creatures(3);
+    groups[1].attachments = Array.from({ length: count }, (_, i) => permanent(`aura${i}`, { cardTypes: ['ENCHANTMENT'] }));
+    for (const width of [335, 1126]) {
+      const fit = fitRow(groups, width, 202, 150, 58);
+      const drawn = extent(groups, fit);
+      expect(drawn.height).toBeLessThanOrEqual(202.5);
+      for (const line of drawn.widths) expect(line).toBeLessThanOrEqual(width + 0.5);
+    }
+  });
+
   it('uses the ideal width when there is room and shrinks a single line when crowded', () => {
     const groups = creatures(3);
     expect(fitRow(groups, 1000, 200, 120, 50)).toMatchObject({ cardWidth: 120, breaks: [] });
@@ -135,5 +152,36 @@ describe('card identity across zones', () => {
 
   it('keeps keys unique when copies share a card', () => {
     expect(zoneKeys([{ id: 's1', cardId: 'c1' }, { id: 's2', cardId: 'c1' }, { id: 's3' }])).toEqual(['c1', 'c1:s2', 's3']);
+  });
+});
+
+describe('land stacks: open first, and how many are open', () => {
+  it('puts untapped lands first and tapped after, keeping arrival order and the stack key', () => {
+    const board = buildPlayerBoard(player('me', [
+      permanent('a', { tapped: true }), permanent('b'), permanent('c', { tapped: true }), permanent('d'),
+    ]), true);
+    expect(board.back).toHaveLength(1);
+    expect(board.back[0].key).toBe('a');
+    expect(board.back[0].members.map((p) => p.id)).toEqual(['b', 'd', 'a', 'c']);
+    expect(stackBadge(board.back[0])).toEqual({ count: 4, open: 2 });
+  });
+
+  it('counts the stack when none is tapped, and 0 open when all are', () => {
+    const open = buildPlayerBoard(player('me', [permanent('a'), permanent('b'), permanent('c')]), true);
+    expect(stackBadge(open.back[0])).toEqual({ count: 3 });
+    const closed = buildPlayerBoard(player('me', [permanent('a', { tapped: true }), permanent('b', { tapped: true })]), true);
+    expect(stackBadge(closed.back[0])).toEqual({ count: 2, open: 0 });
+  });
+
+  it('has no badge for a single card, and leaves token stacks in arrival order with a plain count', () => {
+    expect(stackBadge(buildPlayerBoard(player('me', [permanent('a', { tapped: true })]), true).back[0])).toBeNull();
+    const token: Partial<PermanentView> = { name: 'Clue', cardTypes: ['ARTIFACT'], isToken: true };
+    const board = buildPlayerBoard(player('me', [permanent('t1', { ...token, tapped: true }), permanent('t2', token)]), true);
+    expect(board.back[0].members.map((p) => p.id)).toEqual(['t1', 't2']);
+    expect(stackBadge(board.back[0])).toEqual({ count: 2 });
+  });
+
+  it('splitOpenFirst is stable within each half', () => {
+    expect(splitOpenFirst([permanent('x', { tapped: true }), permanent('y'), permanent('z')]).map((p) => p.id)).toEqual(['y', 'z', 'x']);
   });
 });

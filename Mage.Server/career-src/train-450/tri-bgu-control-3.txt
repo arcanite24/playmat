@@ -1,0 +1,24 @@
+# name: Train450 tri-bgu-control-3
+# archetype: control
+# colors: BGU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Bake into a Pie
+3 Bar the Gate
+3 Coerced Confession
+4 Confusticate and Bebother
+1 Cremate
+2 Cut Down
+1 Daemogoth Woe-Eater
+3 Dream Strix
+3 Epic Fight
+3 Extinguish All Hope
+4 Necrotic Fumes
+1 Spell Pierce
+4 Thousand Winds
+1 Withering Curse
+4 Festering Gulch
+2 Forest
+4 Gohn, Town of Ruin
+6 Island
+4 Jungle Hollow
+6 Swamp

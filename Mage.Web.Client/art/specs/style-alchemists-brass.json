@@ -1,0 +1,49 @@
+{
+  "$comment": "Card styles of the Alchemist's Brass set (Commander Vault capsule machine), written by art/machine-specs.mjs from career/machines/commander-vault.json: edit that file and re-run, not this one.",
+  "out": "public/career-art/cardstyle/alchemists-brass",
+  "house": false,
+  "panels": true,
+  "grid": {
+    "cols": 4,
+    "rows": 2,
+    "canvas": "landscape"
+  },
+  "size": "640x894",
+  "anchors": [],
+  "refs": [
+    "mps/24",
+    "mps/19",
+    "mps/8"
+  ],
+  "style": "Renaissance workshop still-life in oil and warm ochre glaze: burnished brass, blown amber glass, dark walnut bench shadows, crisp specular highlights, painterly brushwork.",
+  "rules": "These are full-art pictures for playing cards: the client draws a small name plate over the top edge, mana symbols at the top right and power and toughness at the bottom right, so keep the main subject in the middle of the panel and the top 15% and bottom 15% calm and uncluttered (sky, ground, water, background texture), with nothing important in the corners. Each panel shows its own subject as one clear, readable scene, the same style and palette as its neighbours, as if the whole row were a matched, limited-edition art series.",
+  "spare": "an extra painting in the same style: a faceted dark stone resting in a brass cradle, faintly reflecting the warm hues of surrounding coloured glass flasks",
+  "items": [
+    {
+      "id": "fellwar-stone",
+      "subject": "a faceted dark stone resting in a brass cradle, faintly reflecting the warm hues of surrounding coloured glass flasks"
+    },
+    {
+      "id": "chromatic-lantern",
+      "subject": "an ornate brass lantern with five tinted glass panes casting a soft prismatic halo across a shadowy stone table"
+    },
+    {
+      "id": "thran-dynamo",
+      "subject": "a heavy bronze flywheel and copper coils humming with warm amber light inside a vaulted workshop"
+    },
+    {
+      "id": "gilded-lotus",
+      "subject": "a hand-forged golden lotus sculpture opening its metallic petals over a dark reflective obsidian bowl"
+    },
+    {
+      "id": "wayfarers-bauble",
+      "subject": "a small brass compass-sphere hanging from a leather cord beside folded maps and a travelling lantern"
+    },
+    {
+      "id": "set-alchemists-brass",
+      "out": "public/career-art/sleeve/set-alchemists-brass.webp",
+      "size": "540x756",
+      "subject": "the BACK of a playing card in the same style: a symmetrical ornamental design (it is seen upside down too) with a central emblem drawn from this set's theme, framed by a painted border; no logo, no oval, no five dots, no lettering"
+    }
+  ]
+}

@@ -1,9 +1,10 @@
 import { Bot, Lock, UserRound } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { formatRules } from '../../core/decks/formats';
 import { useTables } from '../queries';
-import { rosterOf, useDecks } from '../stores/decks';
+import { useDecks } from '../stores/decks';
+import { useDeckRoster } from '../stores/useDeckRoster';
 import { useSession } from '../stores/session';
 import { Button } from '../ui/Button';
 import { Field } from '../ui/Field';
@@ -24,7 +25,7 @@ export function JoinScreen() {
   const fresh = dataUpdatedAt >= openedAt;
   const userName = useSession((state) => state.userName);
   const decks = useDecks();
-  const roster = useMemo(() => rosterOf(decks), [decks]);
+  const roster = useDeckRoster();
   const [deckId, setDeckId] = useState<string | null>(null);
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);

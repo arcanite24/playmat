@@ -1,5 +1,7 @@
 package mage.abilities.costs.mana;
 
+import mage.util.RandomUtil;
+
 import mage.Mana;
 import mage.abilities.Ability;
 import mage.abilities.AbilityImpl;
@@ -41,11 +43,11 @@ public class ManaCostsImpl<T extends ManaCost> extends ArrayList<T> implements M
     private static final Map<String, ManaCosts> costsCache = new ConcurrentHashMap<>(); // must be thread safe, can't use nulls
 
     public ManaCostsImpl() {
-        this.id = UUID.randomUUID();
+        this.id = RandomUtil.newId();
     }
 
     public ManaCostsImpl(String mana) {
-        this.id = UUID.randomUUID();
+        this.id = RandomUtil.newId();
         load(mana);
     }
 
@@ -188,7 +190,6 @@ public class ManaCostsImpl<T extends ManaCost> extends ArrayList<T> implements M
             return; // nothing to be done without any mana costs. prevents NRE from occurring here
         }
         Iterator<T> manaCostIterator = this.iterator();
-        Costs<PayLifeCost> tempCosts = new CostsImpl<>();
 
         while (manaCostIterator.hasNext()) {
             ManaCost manaCost = manaCostIterator.next();
@@ -197,14 +198,12 @@ public class ManaCostsImpl<T extends ManaCost> extends ArrayList<T> implements M
             }
             PayLifeCost payLifeCost = new PayLifeCost(2);
             if (payLifeCost.canPay(abilityToPay, source, payingPlayer.getId(), game)
-                    && payingPlayer.chooseUse(Outcome.LoseLife, "Pay 2 life instead of " + manaCost.getText().replace("/P", "") + '?', source, game)) {
+                    && payingPlayer.chooseUse(Outcome.LoseLife, "Pay 2 life instead of " + manaCost.getText().replace("/P", "") + '?', source, game)
+                    && payLifeCost.pay(source, game, source, payingPlayer.getId(), false, null)) {
                 manaCostIterator.remove();
-                tempCosts.add(payLifeCost);
                 this.incrPhyrexianPaid();
             }
         }
-
-        tempCosts.pay(source, game, source, payingPlayer.getId(), false, null);
     }
 
     private void handleWaterbendingCosts(Ability abilityToPay, Player payingPlayer, Ability source, Game game) {
@@ -284,6 +283,25 @@ public class ManaCostsImpl<T extends ManaCost> extends ArrayList<T> implements M
     public void setPayment(Mana mana) {
     }
 
+    private static ManaType manaTypeOf(ColoredManaSymbol color) {
+        switch (color) {
+            case W:
+                return ManaType.WHITE;
+            case U:
+                return ManaType.BLUE;
+            case B:
+                return ManaType.BLACK;
+            case R:
+                return ManaType.RED;
+            default:
+                return ManaType.GREEN;
+        }
+    }
+
+    private static boolean poolHasColor(ManaPool pool, ManaType color) {
+        return pool.getColoredAmount(color) > 0 || pool.conditionalManaHasManaType(color);
+    }
+
     private boolean canPayColoredManaFromPool(ManaType needColor, ManaCost cost, ManaType canUseManaType, ManaPool pool) {
         if (canUseManaType == null || canUseManaType.equals(needColor)) {
             return cost.containsColor(CardUtil.manaTypeToColoredManaSymbol(needColor))
@@ -343,10 +361,53 @@ public class ManaCostsImpl<T extends ManaCost> extends ArrayList<T> implements M
             }
         }
 
-        // Colorless hybrid
+        // Colorless hybrid ({C/U}): {C} pays any of them but a color pays only its own symbol, so (Ulalek, Fused
+        // Atrocity's {C/W}{C/U}{C/B}{C/R}{C/G} with {C}{C}{C}{C}{U}) a color in the pool pays its symbol first,
+        // then {C} goes to the symbols whose color isn't in the pool (even locked: a click on {C} leaves {C/U} to
+        // the {U}), then to the rest
+        for (ManaCost cost : this) {
+            if (!cost.isPaid() && cost instanceof ColorlessHybridManaCost) {
+                ColorlessHybridManaCost hybrid = (ColorlessHybridManaCost) cost;
+                if (canPayColoredManaFromPool(manaTypeOf(hybrid.getManaColor()), cost, canUseManaType, pool)) {
+                    hybrid.assignColored(ability, game, pool, hybrid.getManaColor(), costToPay);
+                    if (pool.isEmpty()) {
+                        return;
+                    }
+                }
+            }
+        }
+        for (ManaCost cost : this) {
+            if (!cost.isPaid() && cost instanceof ColorlessHybridManaCost
+                    && !poolHasColor(pool, manaTypeOf(((ColorlessHybridManaCost) cost).getManaColor()))) {
+                cost.assignPayment(game, ability, pool, costToPay);
+                if (pool.isEmpty()) {
+                    return;
+                }
+            }
+        }
         for (ManaCost cost : this) {
             if (!cost.isPaid() && cost instanceof ColorlessHybridManaCost) {
                 cost.assignPayment(game, ability, pool, costToPay);
+                if (pool.isEmpty()) {
+                    return;
+                }
+            }
+        }
+        // mana added one source at a time (lands tapped while paying) has already spent {C} on a symbol a color
+        // that came later pays: that color takes the symbol over and its {C} moves to one the color can't pay
+        for (ManaCost cost : this) {
+            if (!cost.isPaid() && cost instanceof ColorlessHybridManaCost) {
+                for (ManaCost donor : this) {
+                    if (donor != cost && donor instanceof ColorlessHybridManaCost
+                            && ((ColorlessHybridManaCost) donor).isPaidWithColorlessOnly()) {
+                        ColorlessHybridManaCost from = (ColorlessHybridManaCost) donor;
+                        if (canPayColoredManaFromPool(manaTypeOf(from.getManaColor()), donor, canUseManaType, pool)
+                                && from.assignColored(ability, game, pool, from.getManaColor(), costToPay)) {
+                            from.giveColorlessTo((ColorlessHybridManaCost) cost);
+                            break;
+                        }
+                    }
+                }
                 if (pool.isEmpty()) {
                     return;
                 }
@@ -416,7 +477,8 @@ public class ManaCostsImpl<T extends ManaCost> extends ArrayList<T> implements M
     private void handleForcedToPayOnlyForCurrentPayment(Game game, ManaPool pool, ManaCosts referenceCosts) {
         // for Word of Command
         if (pool.isForcedToPay()) {
-            if (referenceCosts != null && this.getText().equals(referenceCosts.getText())) {
+            // if a special mana payment (convoke) paid the whole cost, don't undo it
+            if (referenceCosts != null && !isPaid() && this.getText().equals(referenceCosts.getText())) {
                 UUID playerId = pool.getPlayerId();
                 Player player = game.getPlayer(playerId);
                 if (player != null) {

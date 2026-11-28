@@ -1,0 +1,19 @@
+# name: Train450 guild-wb-bigmana-9
+# archetype: bigmana
+# colors: WB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Barrow Naughty
+4 Demonlord Belzenlok
+3 Exquisite Archangel
+2 Karametra's Blessing
+4 Sadistic Skymarcher
+2 Savor
+3 Shark Shredder, Killer Clone
+4 Spiteful Hexmage
+4 Street Sweeper
+4 Swift Response
+3 Zoraline, Cosmos Caller
+4 Forlorn Flats
+6 Plains
+4 Snowfield Sinkhole
+11 Swamp
