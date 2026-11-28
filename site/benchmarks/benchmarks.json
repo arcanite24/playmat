@@ -1,154 +1,154 @@
 {
- "updated": "2026-11-27",
+ "updated": "2026-11-28",
  "hf_checkpoints_url": "https://huggingface.co/nerijs/playmat-ai-checkpoints",
  "hf_dataset_url": "https://huggingface.co/nerijs/playmat-ai-selfplay",
  "summary": {
-  "total_corpus_games": 244571,
-  "total_corpus_decisions": 5985668,
-  "total_corpus_rounds": 65,
-  "peak_elo_vs_host": "+137",
+  "total_corpus_games": 250544,
+  "total_corpus_decisions": 6149122,
+  "total_corpus_rounds": 74,
+  "peak_elo_vs_host": "+147 (OOD @ 1024) / +137 (C2 @ 1024)",
   "peak_elo_vs_fair_host": "+203",
-  "peak_ood_leader": "p6pre-5m-carddrop / phase5-final-1.3m-v4-soup",
-  "peak_ood_elo": 1035,
+  "peak_ood_leader": "phase6-final-10m-v4-soup @ 1024 / p6pre-5m-carddrop @ 256",
+  "peak_ood_elo": 1037,
   "peak_tactics4_pct": 100,
-  "peak_tactics4_score": "64/64",
-  "llm_cost_range": "$0.20 - $0.98 (60-game Nov 2026 SOTA duels)",
+  "peak_tactics4_score": "64/64 (60/64 fair)",
+  "llm_cost_range": "$0.20 - $1.64 (Nov 2026 SOTA duels)",
   "llm_think_range": "2.7 - 24.5 s / decision"
  },
  "combined_gauntlet": {
-  "title": "Combined Fair Bradley-Terry Gauntlet (Phase 5 Final)",
-  "date": "2026-11-27",
-  "games": 1800,
+  "title": "Combined Fair Bradley-Terry Gauntlet (Phase 6 Final)",
+  "date": "2026-11-28",
+  "games": 1200,
   "failed": 0,
-  "gpu_evals": "42.8M",
-  "search": "iters=256, samples=8, vloss=16, hide=1 (60 games/pair per suite)",
-  "note": "900 games on constructed@2 (42 Pioneer & Standard decks) + 900 games on strictly unseen constructed-ood@1 (38 held-out Modern, Limited, and Brawl decks), 0 failed. Every neural entrant plays strictly fair imperfect-information rules (hide=1); host@s6 is Playmat's omniscient heuristic baseline.",
+  "gpu_evals": "29.4M",
+  "search": "iters=256, samples=8, vloss=16, threat_w=500, playout=2, hide=1 (40 games/pair per suite)",
+  "note": "600 games on constructed@2 (42 Pioneer & Standard decks) + 600 games on strictly unseen constructed-ood@1 (38 held-out Modern, Limited, and Brawl decks), 0 failed on Colab A100. Every neural entrant plays strictly fair imperfect-information rules (hide=1) against upgraded omniscient host@s6. Delta vs Phase 3 Base is bridged via shared entrant phase5-final-1.3m-v4-soup (+48.5).",
   "entries": [
    {
     "rank": 1,
+    "id": "p6pre-5m-carddrop",
+    "name": "Pre-Phase 6 5.08M Card-ID Dropout (p=0.50)",
+    "checkpoint": "p6pre-5m-carddrop",
+    "family": "Playmat Neural (Obs-v4 + ThreatHead + CardDrop)",
+    "params": "5.08M",
+    "arch": "6L x 256 Rel-Tx + BGE-small text + 8-cat ThreatHead",
+    "search": "Gumbel ISMCTS @ 256 + fpu_vnode + solver + threat_w=500 + playout=2",
+    "fair": true,
+    "c2_elo": 1009,
+    "c2_wdl": "98-10-92",
+    "ood_elo": 1031,
+    "ood_wdl": "109-4-87",
+    "combined_wdl": "207-14-179",
+    "combined_pct": 53.5,
+    "avg_elo": 1020.0,
+    "delta_p3_base": 56.0,
+    "vs_host_wdl": "40-3-37",
+    "note": "#1 overall (1020.0 avg BT) and undefeated 5/5 H2H sweep on strictly unseen constructed-ood@1 (1031 BT, beating phase5-final-1.3m-v4-soup 25-0-15 and phase6-final-1.3m-v4-soup 24-1-15). Proves 50% Card-ID Dropout on clean Constructed self-play is the strongest 256-iter OOD recipe."
+   },
+   {
+    "rank": 2,
+    "id": "phase6-final-10m-v4-soup",
+    "name": "Phase 6 10.10M Diverse-Basin Soup",
+    "checkpoint": "phase6-final-10m-v4-soup",
+    "family": "Playmat Neural (Obs-v4 + ThreatHead + CardDrop + Train-450)",
+    "params": "10.10M",
+    "arch": "8L x 320 Rel-Tx + BGE-small text + 8-cat ThreatHead",
+    "search": "Gumbel ISMCTS @ 256 + fpu_vnode + solver + threat_w=500 + playout=2",
+    "fair": true,
+    "c2_elo": 1026,
+    "c2_wdl": "102-14-84",
+    "ood_elo": 1001,
+    "ood_wdl": "98-5-97",
+    "combined_wdl": "200-19-181",
+    "combined_pct": 52.4,
+    "avg_elo": 1013.5,
+    "delta_p3_base": 49.5,
+    "vs_host_wdl": "43-5-32",
+    "note": "#1 on constructed@2 (1026 BT, +72 over host@s6; beat phase5-final-1.3m-v4-soup 21-3-16) and #2 overall (1013.5 avg BT). First 10.10M model to surpass 2.06M overall at 256 iters, and #1 overall in the 1024-iter deep-search showcase (1037 OOD, 3/3 sweep)."
+   },
+   {
+    "rank": 3,
     "id": "phase5-final-1.3m-v4-soup",
     "name": "Phase 5 2.06M Soup + ThreatHead",
     "checkpoint": "phase5-final-1.3m-v4-soup",
     "family": "Playmat Neural (Obs-v4 + ThreatHead)",
     "params": "2.06M",
     "arch": "4L x 192 Rel-Tx + BGE-small text + 8-cat ThreatHead",
-    "search": "Gumbel ISMCTS @ 256 + fpu_vnode + solver + threat_w=500",
+    "search": "Gumbel ISMCTS @ 256 + fpu_vnode + solver + threat_w=500 + playout=2",
     "fair": true,
-    "c2_elo": 1044,
-    "c2_wdl": "164-17-119",
-    "ood_elo": 1035,
-    "ood_wdl": "161-15-124",
-    "combined_wdl": "325-32-243",
-    "combined_pct": 56.8,
-    "avg_elo": 1039.5,
+    "c2_elo": 1014,
+    "c2_wdl": "99-12-89",
+    "ood_elo": 1011,
+    "ood_wdl": "100-8-92",
+    "combined_wdl": "199-20-181",
+    "combined_pct": 52.3,
+    "avg_elo": 1012.5,
     "delta_p3_base": 48.5,
-    "vs_host_wdl": "74-5-41",
-    "note": "Undefeated 10/10 H2H sweep; #1 on constructed@2 (1044) and #1 on strictly unseen constructed-ood@1 (1035) in an 8.17 MB .pmnet (+30.5 Elo over Phase 4 #1, +99 Elo H2H vs omniscient host@s6)."
-   },
-   {
-    "rank": 2,
-    "id": "phase4-final-1.3m-v4-soup",
-    "name": "Phase 4 2.05M Soup",
-    "checkpoint": "phase4-final-1.3m-v4-soup",
-    "family": "Playmat Neural (Obs-v4)",
-    "params": "2.05M",
-    "arch": "4L x 192 Rel-Tx + BGE-small text",
-    "search": "Gumbel ISMCTS @ 256 + fpu_vnode + solver",
-    "fair": true,
-    "c2_elo": 1016,
-    "c2_wdl": "150-17-133",
-    "ood_elo": 1002,
-    "ood_wdl": "147-8-145",
-    "combined_wdl": "297-25-278",
-    "combined_pct": 51.6,
-    "avg_elo": 1009.0,
-    "delta_p3_base": 18.0,
-    "vs_host_wdl": "72-4-44",
-    "note": "Phase 4 overall & OOD leader; overtaken by Phase 5 2.06M Soup by +30.5 Elo across 1,800 fair games."
-   },
-   {
-    "rank": 3,
-    "id": "phase5-final-5m-v4-soup",
-    "name": "Phase 5 5.08M Soup + ThreatHead",
-    "checkpoint": "phase5-final-5m-v4-soup",
-    "family": "Playmat Neural (Obs-v4 + ThreatHead)",
-    "params": "5.08M",
-    "arch": "6L x 256 Rel-Tx + BGE-small text + 8-cat ThreatHead",
-    "search": "Gumbel ISMCTS @ 256 + fpu_vnode + solver + threat_w=500",
-    "fair": true,
-    "c2_elo": 1006,
-    "c2_wdl": "143-20-137",
-    "ood_elo": 1000,
-    "ood_wdl": "144-12-144",
-    "combined_wdl": "287-32-281",
-    "combined_pct": 50.5,
-    "avg_elo": 1003.0,
-    "delta_p3_base": 12.0,
-    "vs_host_wdl": "61-5-54",
-    "note": "Positive BT Elo vs host@s6 in all 4/4 archetype stress suites; Pre-Phase 6 card-ID dropout (p6pre-5m-carddrop) lifted this architecture +40 Elo on strictly unseen OOD."
+    "vs_host_wdl": "47-5-28",
+    "note": "Phase 5 CPU flagship (8.17 MB .pmnet); overtaken overall at 256 iters by both p6pre-5m-carddrop (lost 15-0-25 on OOD) and phase6-final-10m-v4-soup (lost 16-3-21 on C2), while remaining strong H2H vs host@s6 (47-5-28)."
    },
    {
     "rank": 4,
-    "id": "phase4-final-5m-v4-soup",
-    "name": "Phase 4 5.07M Soup",
-    "checkpoint": "phase4-final-5m-v4-soup",
-    "family": "Playmat Neural (Obs-v4)",
-    "params": "5.07M",
-    "arch": "6L x 256 Rel-Tx + BGE-small text",
-    "search": "Gumbel ISMCTS @ 256 + fpu_vnode + solver",
+    "id": "phase6-final-5m-v4-soup",
+    "name": "Phase 6 5.08M Diverse-Basin Soup",
+    "checkpoint": "phase6-final-5m-v4-soup",
+    "family": "Playmat Neural (Obs-v4 + ThreatHead + CardDrop + Train-450)",
+    "params": "5.08M",
+    "arch": "6L x 256 Rel-Tx + BGE-small text + 8-cat ThreatHead",
+    "search": "Gumbel ISMCTS @ 256 + fpu_vnode + solver + threat_w=500 + playout=2",
     "fair": true,
-    "c2_elo": 1012,
-    "c2_wdl": "144-24-132",
-    "ood_elo": 992,
-    "ood_wdl": "139-14-147",
-    "combined_wdl": "283-38-279",
-    "combined_pct": 50.3,
-    "avg_elo": 1002.0,
-    "delta_p3_base": 11.0,
-    "vs_host_wdl": "65-6-49",
-    "note": "Phase 4 5.07M soup; lagged on OOD before constructed-train-200 and card-ID dropout."
+    "c2_elo": 994,
+    "c2_wdl": "92-12-96",
+    "ood_elo": 1004,
+    "ood_wdl": "99-5-96",
+    "combined_wdl": "191-17-192",
+    "combined_pct": 49.9,
+    "avg_elo": 999.0,
+    "delta_p3_base": 35.0,
+    "vs_host_wdl": "42-3-35",
+    "note": "#1 in the 80-game unseen OOD rematch vs Nov 2026 frontier LLMs (1023.5 Elo, 5-0-3 vs gemini-4-hydrogen, 4-1-3 vs gpt-6-luna, 5-0-3 vs host@s6) and crushed host@s6 21-0-9 (+147 Elo) on unseen OOD at 1024 iters and 29-0-11 (+135 Elo) on Burn stress."
    },
    {
     "rank": 5,
-    "id": "phase3-final-5m-v3-matched",
-    "name": "Phase 3 5.07M Soup (Matched Search)",
-    "checkpoint": "phase3-final-5m-v3-soup",
-    "family": "Playmat Neural (Obs-v3)",
-    "params": "5.07M",
-    "arch": "6L x 256 Rel-Tx + BGE-small text",
-    "search": "Gumbel ISMCTS @ 256 + fpu_vnode + solver",
+    "id": "phase6-final-1.3m-v4-soup",
+    "name": "Phase 6 2.06M Diverse-Basin Soup",
+    "checkpoint": "phase6-final-1.3m-v4-soup",
+    "family": "Playmat Neural (Obs-v4 + ThreatHead + CardDrop + Train-450)",
+    "params": "2.06M",
+    "arch": "4L x 192 Rel-Tx + BGE-small text + 8-cat ThreatHead",
+    "search": "Gumbel ISMCTS @ 256 + fpu_vnode + solver + threat_w=500 + playout=2",
     "fair": true,
-    "c2_elo": 997,
-    "c2_wdl": "137-23-140",
-    "ood_elo": 985,
-    "ood_wdl": "134-16-150",
-    "combined_wdl": "271-39-290",
-    "combined_pct": 48.4,
-    "avg_elo": 991.0,
-    "delta_p3_base": 0.0,
-    "vs_host_wdl": "59-10-51",
-    "note": "Reference anchor isolating Phase 5 Obs-v4 + ThreatHead + constructed-train-200 gains (+48.5 Elo for Phase 5 2.06M Soup)."
+    "c2_elo": 1003,
+    "c2_wdl": "96-10-94",
+    "ood_elo": 972,
+    "ood_wdl": "88-4-108",
+    "combined_wdl": "184-14-202",
+    "combined_pct": 47.8,
+    "avg_elo": 987.5,
+    "delta_p3_base": 23.5,
+    "vs_host_wdl": "41-4-35",
+    "note": "ALL-TIME NEW FAIR RECORD 60/64 (93.8%) on tactics@4 (64/64 hide=0, 48/64 fair pro-decisions@1) and 4/4 positive archetype stress sweep (+51 Big Mana, +17 Go-Wide, +63 Control, +94 Burn); 6,091-card synthetic pool exceeded 2.06M capacity on OOD duels."
    },
    {
     "rank": 6,
     "id": "host@s6",
-    "name": "Rust Host Skill 6 (Omniscient)",
+    "name": "Rust Host Skill 6 (Omniscient, Upgraded)",
     "checkpoint": null,
     "family": "Playmat Heuristic",
     "params": "244 fitted weights",
-    "arch": "Whole-turn playouts + logistic eval",
+    "arch": "Whole-turn playouts + logistic eval + lethal-block/pump",
     "search": "Playouts (6000 nodes, extra_turns=1)",
     "fair": false,
-    "c2_elo": 925,
-    "c2_wdl": "104-15-181",
-    "ood_elo": 986,
-    "ood_wdl": "135-15-150",
-    "combined_wdl": "239-30-331",
-    "combined_pct": 42.3,
-    "avg_elo": 955.5,
-    "delta_p3_base": -35.5,
+    "c2_elo": 954,
+    "c2_wdl": "78-12-110",
+    "ood_elo": 980,
+    "ood_wdl": "89-8-103",
+    "combined_wdl": "167-20-213",
+    "combined_pct": 44.3,
+    "avg_elo": 967.0,
+    "delta_p3_base": 3.0,
     "vs_host_wdl": "Anchor",
-    "note": "Shipped Rust heuristic search AI. Sees hidden cards (hide=0); lost 104-181 on constructed@2 and 135-150 on OOD against the fair neural soups."
+    "note": "Shipped Rust heuristic search AI upgraded with Pre-Phase 6 lethal-block and combat-pump fixes (hide=0). Still finished #6 overall and lost H2H to all 5 fair neural entrants across 1,200 games."
    }
   ]
  },
@@ -156,6 +156,44 @@
   "title": "Deep-Search Showcases & Full Playmat Lineage",
   "note": "All neural showcases play strictly fair imperfect-information rules (hide=1) against Playmat's omniscient heuristic baseline host@s6 (~1437-1464 Elo on the random=1000 scale). Delta vs host@s6 is directly measured head-to-head on constructed@2.",
   "entries": [
+   {
+    "id": "phase6-final-10m-v4-soup@1024",
+    "name": "Phase 6 10.10M Soup + CardDrop + Train-450 @ 1024 (Phase 6 Frontier)",
+    "checkpoint": "phase6-final-10m-v4-soup",
+    "generation": "Phase 6",
+    "params": "10.10M",
+    "search": "GPU ISMCTS @ 1024, vloss=16, fpu_vnode, solver, threat_w=500, playout=2, hide=1",
+    "fair": true,
+    "suite": "constructed@2 + constructed-ood@1",
+    "games": 360,
+    "wdl_vs_host": "35-3-22 (19-2-9 C2, 16-1-13 OOD)",
+    "win_pct": 60.8,
+    "elo_vs_host": 120.0,
+    "est_vs_fair_host": 186.0,
+    "est_random_scale": 1557,
+    "speed": "GPU batched (L4, 0 failed)",
+    "date": "2026-11-28",
+    "note": "NEW #1 combined deep-search champion (1024.0 avg BT across 360 fair games: 1011 C2 / 1037 OOD). Swept all 3 opponents on strictly unseen constructed-ood@1 (1037 BT, +51 Elo over phase5-final-10m-v4-soup@1024, +80 over host@s6) and posted 19-2-9 (66.7%, +120 Elo) vs omniscient host@s6 on C2."
+   },
+   {
+    "id": "phase6-final-5m-v4-soup@1024",
+    "name": "Phase 6 5.08M Soup + CardDrop + Train-450 @ 1024 (OOD Showcase)",
+    "checkpoint": "phase6-final-5m-v4-soup",
+    "generation": "Phase 6",
+    "params": "5.08M",
+    "search": "GPU ISMCTS @ 1024, vloss=16, fpu_vnode, solver, threat_w=500, playout=2, hide=1",
+    "fair": true,
+    "suite": "constructed@2 + constructed-ood@1",
+    "games": 360,
+    "wdl_vs_host": "36-2-22 (15-2-13 C2, 21-0-9 OOD)",
+    "win_pct": 61.7,
+    "elo_vs_host": 147.0,
+    "est_vs_fair_host": 213.0,
+    "est_random_scale": 1584,
+    "speed": "GPU batched (L4, 0 failed)",
+    "date": "2026-11-28",
+    "note": "Crushed omniscient host@s6 21-0-9 (70.0%, +147 Elo) on strictly unseen constructed-ood@1 (1020 BT, +34 over phase5-final-10m-v4-soup@1024) and took #1 overall in the 80-game unseen OOD rematch vs Nov 2026 frontier LLMs (1023.5 Elo, beating gemini-4-hydrogen 5-0-3 and gpt-6-luna 4-1-3 at $0.0000 CPU cost)."
+   },
    {
     "id": "phase5-final-10m-v4-soup@1024-pre6",
     "name": "Phase 5 10.10M Soup + ThreatHead @ 1024 (Pre-Phase 6 Frontier)",
@@ -569,11 +607,59 @@
    "random_scale": 1545,
    "date": "2026-11-27",
    "note": "64/64 (100%) tactics@4, 48/64 fair pro-decisions@1, 10M@1024 #1 overall (+52 C2 over 2M), Card-ID Dropout +40 OOD Elo on 5M"
+  },
+  {
+   "stage": "Phase 6",
+   "label": "10.10M@1024 + 5M OOD + 60/64 Fair",
+   "elo_vs_host": 147,
+   "random_scale": 1584,
+   "date": "2026-11-28",
+   "note": "6,091-card disjoint train-450 pool + CardDrop: 10M@1024 #1 overall (+51 OOD over P5 10M), 5M@1024 21-0-9 (+147 OOD vs host), 5M@256 #1 OOD rematch vs gemini-4-hydrogen & gpt-6-luna, 2M 60/64 (93.8%) all-time fair tactics@4 record"
   }
  ],
  "tactics": {
   "note": "Fixed tactical and competitive decision puzzles evaluated over 4 seeds each. hide=0 tests full-information tactical calculation; hide=1 tests fair imperfect-information play (including open-mana discipline and Nash burn standoffs).",
   "entries": [
+   {
+    "name": "Phase 6 2.06M Soup + playout=2 (All-Time Fair Record)",
+    "checkpoint": "phase6-final-1.3m-v4-soup",
+    "tactics2": null,
+    "tactics3": null,
+    "tactics4_full": {
+     "solved": 64,
+     "total": 64,
+     "pct": 100.0
+    },
+    "tactics4_fair": {
+     "solved": 60,
+     "total": 64,
+     "pct": 93.8
+    },
+    "pro_fair": {
+     "solved": 48,
+     "total": 64,
+     "pct": 75.0
+    },
+    "highlight": "NEW ALL-TIME FAIR RECORD 60/64 (93.8%) on tactics@4 (hide=1, +4 seeds over Phase 5 / Pre-Phase 6 56/64), while preserving 64/64 (100.0%) hide=0 and 48/64 (75.0%) fair pro-decisions@1 in an 8.17 MB .pmnet."
+   },
+   {
+    "name": "Phase 6 5.08M Soup + playout=2",
+    "checkpoint": "phase6-final-5m-v4-soup",
+    "tactics2": null,
+    "tactics3": null,
+    "tactics4_full": {
+     "solved": 60,
+     "total": 64,
+     "pct": 93.8
+    },
+    "tactics4_fair": null,
+    "pro_fair": {
+     "solved": 48,
+     "total": 64,
+     "pct": 75.0
+    },
+    "highlight": "+8 seeds on tactics@4 (hide=0: 52/64 -> 60/64, 93.8%) and first 5.08M model to reach 48/64 (75.0%) fair pro-decisions@1."
+   },
    {
     "name": "Phase 5 2.06M Soup + playout=2 (Pre-Phase 6 Solver)",
     "checkpoint": "phase5-final-1.3m-v4-soup",
@@ -845,9 +931,9 @@
   ]
  },
  "stress_suites": {
-  "title": "Archetype Anti-Exploitability Stress Check (Phase 5 Final)",
-  "date": "2026-11-27",
-  "entrant": "phase5-final-5m-v4-soup +threat_w=500 @ 256 (hide=1) vs omniscient host@s6",
+  "title": "Archetype Anti-Exploitability Stress Check (Phase 6 Final)",
+  "date": "2026-11-28",
+  "entrant": "phase6-final-1.3m-v4-soup & phase6-final-5m-v4-soup +threat_w=500 +playout=2 @ 256 (hide=1) vs omniscient host@s6",
   "games_per_suite": 120,
   "suites": [
    {
@@ -856,21 +942,21 @@
     "decks": 7,
     "pre_wdl": "12-0-12",
     "pre_elo": 0,
-    "wdl": "23-0-17",
-    "pct": 57.5,
-    "elo": 45,
-    "note": "BT 1017 vs host@s6 972 (+45 Elo); phase5-1.3m also positive (22-0-18)."
+    "wdl": "24-0-16 (2.06M) / 22-0-18 (5.08M)",
+    "pct": 60.0,
+    "elo": 51,
+    "note": "Both Phase 6 soups tied #1 at BT 1017 vs host@s6 966 (+51 Elo, up from Phase 5 +45 Elo); 5.08M edged 2.06M 21-0-19 H2H."
    },
    {
     "name": "Burn & Prowess",
     "id": "stress-burn",
-    "decks": 8,
+    "decks": 6,
     "pre_wdl": "18-0-6",
     "pre_elo": 182,
-    "wdl": "25-0-15",
-    "pct": 62.5,
-    "elo": 74,
-    "note": "BT 1034 vs host@s6 960 (+74 Elo); phase5-1.3m also positive (22-0-18)."
+    "wdl": "29-0-11 (5.08M) / 24-0-16 (2.06M)",
+    "pct": 72.5,
+    "elo": 135,
+    "note": "5.08M surged to BT 1059 vs host@s6 924 (+135 Elo, nearly doubling Phase 5 +74 Elo); 2.06M also crushed host@s6 (+94 Elo, BT 1018)."
    },
    {
     "name": "Draw-Go Control",
@@ -878,10 +964,10 @@
     "decks": 6,
     "pre_wdl": "15-4-5",
     "pre_elo": 148,
-    "wdl": "16-16-8",
+    "wdl": "15-15-10 (2.06M) / 18-12-10 (5.08M)",
     "pct": 60.0,
-    "elo": 39,
-    "note": "BT 1011 vs host@s6 972 (+39 Elo); ThreatHead shines against open-mana control."
+    "elo": 63,
+    "note": "2.06M took #1 at BT 1026 vs host@s6 963 (+63 Elo, up from Phase 5 +39 Elo); 5.08M scored BT 1011 (+48 Elo) and 18-12-10 vs host@s6."
    },
    {
     "name": "Go-Wide Tokens",
@@ -889,10 +975,10 @@
     "decks": 6,
     "pre_wdl": "14-0-26",
     "pre_elo": -108,
-    "wdl": "19-0-21 (23-17 vs 1.3m)",
+    "wdl": "21-0-19 (2.06M) / 20-0-20 (5.08M)",
     "pct": 52.5,
-    "elo": 11,
-    "note": "Hardening-v2 flipped Phase 4 Go-Wide regression back to positive BT (1011 vs host@s6 1000, +11 Elo); phase5-1.3m beat host@s6 21-0-19 H2H."
+    "elo": 17,
+    "note": "2.06M took sole #1 at BT 1011 vs host@s6 994 (+17 Elo, completing a 4/4 positive sweep); 5.08M tied host@s6 20-0-20 (BT 994)."
    }
   ]
  },
@@ -3831,6 +3917,170 @@
      "b_won": 2
     }
    ]
+  },
+  {
+   "mode": "duels",
+   "suite": "constructed-ood@1",
+   "date": "2026-11-28",
+   "deals": 4,
+   "elapsed_s": 2938.9,
+   "leaderboard": [
+    {
+     "name": "p6-5m-soup",
+     "elo": 1023.5,
+     "won": 18,
+     "drew": 1,
+     "lost": 13,
+     "games": 32,
+     "win_pct": 57.81,
+     "spec": "cfg:policy=ismcts+net=/home/brandonalamgarcianeri/soup_p6/out/phase6-final-5m-v4-soup/net.pmnet+hide=1+iters=256+samples=8+cpuct=1000+leaf_blend=1000+gumbel_root=1+multi_tree=1+mulligan_net=1+width=24+consider=16+extra_turns=2+belief_ms=1+fpu_vnode=1+solver=1+threat_w=500+playout=2",
+     "worst_decision_ms": 3256
+    },
+    {
+     "name": "gemini-4-hydrogen",
+     "elo": 1007.8,
+     "won": 17,
+     "drew": 1,
+     "lost": 14,
+     "games": 32,
+     "win_pct": 54.69,
+     "spec": "llm:vertex-gemini/gemini-4-hydrogen",
+     "worst_decision_ms": 93128,
+     "telemetry": {
+      "adapter": "llm:vertex-gemini/gemini-4-hydrogen",
+      "decisions": 2037,
+      "fallbacks": 77,
+      "fallback_rate": 0.0378,
+      "errors": 77,
+      "input_tokens": 2094939,
+      "output_tokens": 77419,
+      "cost_usd": 0.376176,
+      "avg_latency_ms": 3733.65,
+      "p50_latency_ms": 2527.82,
+      "p99_latency_ms": 37118.58,
+      "worst_latency_ms": 126652.35
+     }
+    },
+    {
+     "name": "host@s6",
+     "elo": 1000.0,
+     "won": 17,
+     "drew": 0,
+     "lost": 15,
+     "games": 32,
+     "win_pct": 53.12,
+     "spec": "host@s6",
+     "worst_decision_ms": 52
+    },
+    {
+     "name": "p6-1.3m-soup",
+     "elo": 961.0,
+     "won": 14,
+     "drew": 1,
+     "lost": 17,
+     "games": 32,
+     "win_pct": 45.31,
+     "spec": "cfg:policy=ismcts+net=/home/brandonalamgarcianeri/soup_p6/out/phase6-final-1.3m-v4-soup/net.pmnet+hide=1+iters=256+samples=8+cpuct=1000+leaf_blend=1000+gumbel_root=1+multi_tree=1+mulligan_net=1+width=24+consider=16+extra_turns=2+belief_ms=1+fpu_vnode=1+solver=1+threat_w=500+playout=2",
+     "worst_decision_ms": 1620
+    },
+    {
+     "name": "gpt-6-luna",
+     "elo": 929.4,
+     "won": 12,
+     "drew": 1,
+     "lost": 19,
+     "games": 32,
+     "win_pct": 39.06,
+     "spec": "llm:openai/gpt-6-luna",
+     "worst_decision_ms": 20923,
+     "telemetry": {
+      "adapter": "llm:openai/gpt-6-luna",
+      "decisions": 1726,
+      "fallbacks": 0,
+      "fallback_rate": 0.0,
+      "errors": 0,
+      "input_tokens": 1751989,
+      "output_tokens": 470798,
+      "cost_usd": 1.642392,
+      "avg_latency_ms": 2990.54,
+      "p50_latency_ms": 2751.32,
+      "p99_latency_ms": 7331.34,
+      "worst_latency_ms": 20922.51
+     }
+    }
+   ],
+   "pairs": [
+    {
+     "a": "p6-5m-soup",
+     "b": "gemini-4-hydrogen",
+     "a_won": 5,
+     "drew": 0,
+     "b_won": 3
+    },
+    {
+     "a": "p6-5m-soup",
+     "b": "host@s6",
+     "a_won": 5,
+     "drew": 0,
+     "b_won": 3
+    },
+    {
+     "a": "p6-5m-soup",
+     "b": "p6-1.3m-soup",
+     "a_won": 4,
+     "drew": 0,
+     "b_won": 4
+    },
+    {
+     "a": "p6-5m-soup",
+     "b": "gpt-6-luna",
+     "a_won": 4,
+     "drew": 1,
+     "b_won": 3
+    },
+    {
+     "a": "gemini-4-hydrogen",
+     "b": "host@s6",
+     "a_won": 4,
+     "drew": 0,
+     "b_won": 4
+    },
+    {
+     "a": "gemini-4-hydrogen",
+     "b": "p6-1.3m-soup",
+     "a_won": 5,
+     "drew": 1,
+     "b_won": 2
+    },
+    {
+     "a": "gemini-4-hydrogen",
+     "b": "gpt-6-luna",
+     "a_won": 5,
+     "drew": 0,
+     "b_won": 3
+    },
+    {
+     "a": "host@s6",
+     "b": "p6-1.3m-soup",
+     "a_won": 4,
+     "drew": 0,
+     "b_won": 4
+    },
+    {
+     "a": "host@s6",
+     "b": "gpt-6-luna",
+     "a_won": 6,
+     "drew": 0,
+     "b_won": 2
+    },
+    {
+     "a": "p6-1.3m-soup",
+     "b": "gpt-6-luna",
+     "a_won": 4,
+     "drew": 0,
+     "b_won": 4
+    }
+   ]
   }
  ],
  "counted": {
@@ -3884,6 +4134,18 @@
     "about": "Phase 5 expanded training deck pool: 42 constructed-2 Pioneer/Standard decks + 178 archetype-structured 60-card decks across all mono/2-color/3-color identities (1743 distinct cards used). Strictly disjoint from constructed-ood-1."
    },
    {
+    "id": "constructed-train@450",
+    "folder": "constructed-train-450",
+    "kind": "duels",
+    "created": "2026-11-27",
+    "decks": 452,
+    "deals": 203852,
+    "turn_cap": 30,
+    "mulligans": false,
+    "duplicate": true,
+    "about": "Phase 6 expanded training deck pool: 42 constructed-2 Pioneer/Standard decks + 410 diverse 60-card Constructed, Limited-curve, and Brawl/Singleton decks across all mono/2-color/3-color identities (6091 distinct cards used). Strictly disjoint from constructed-ood-1 (max Jaccard 0.062)."
+   },
+   {
     "id": "pro-decisions@1",
     "folder": "pro-decisions-1",
     "kind": "puzzles",
@@ -3934,7 +4196,7 @@
     "about": "Phase 3 tactical frontiers: Nash burn standoffs, double-counter stack wars, manland+pump math, unblocked-attacker tricks, exile vs indestructible, open-mana tempo, and lifelink/sheoldred timing."
    }
   ],
-  "duel_suites": 4,
+  "duel_suites": 5,
   "puzzle_suites": 5,
   "total_puzzles": 97,
   "constructed1_runs": [
@@ -4056,6 +4318,6 @@
    }
   ]
  },
- "commit": "128d52addf50fbd8854880b71a4e6a0395727d70",
+ "commit": "dd4b08622ca683471e65abda3c3566cb14cb1182",
  "generated": "2026-11-27"
 }
