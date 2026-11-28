@@ -33,6 +33,7 @@ on:
       # the server image carries the compose kit the deploy runs (ops/web/deploy)
       - "ops/web/docker-compose.yml"
       - "ops/web/docker-compose.proxy.yml"
+      - "ops/web/docker-compose.external-host.yml"
       - "ops/web/imgcache.conf.template"
       - ".github/workflows/images.yml"
   workflow_dispatch:

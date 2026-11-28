@@ -30,10 +30,11 @@ if [[ -r /etc/playmat-deploy.conf ]] && command -v playmat-compose > /dev/null; 
 else
   ENV_FILE=$PLAYMAT_DIR/ops/web/.env
   COMPOSE=(docker compose -f "$PLAYMAT_DIR/ops/web/docker-compose.yml")
-  # behind the host's own reverse proxy (TLS_MODE=external): the proxy override too
-  if [[ $(sed -n 's/^TLS_MODE=//p' "$ENV_FILE" 2>/dev/null | tail -1) == external ]]; then
-    COMPOSE+=(-f "$PLAYMAT_DIR/ops/web/docker-compose.proxy.yml")
-  fi
+  mode=$(sed -n 's/^TLS_MODE=//p' "$ENV_FILE" 2>/dev/null | tail -1)
+  case $mode in
+    external) COMPOSE+=(-f "$PLAYMAT_DIR/ops/web/docker-compose.proxy.yml") ;;
+    external-host) COMPOSE+=(-f "$PLAYMAT_DIR/ops/web/docker-compose.external-host.yml") ;;
+  esac
   COMPOSE+=(--env-file "$ENV_FILE")
 fi
 mkdir -p "$STATE_DIR"
@@ -107,7 +108,7 @@ mem=$(awk '/MemTotal/ {t=$2} /MemAvailable/ {a=$2} END {printf "%d", a * 100 / t
 # the site over HTTPS, and its certificate
 if [[ -n $DOMAIN ]]; then
   url="https://$DOMAIN/"
-  [[ $TLS_MODE != external && $HTTPS_PORT != 443 ]] && url="https://$DOMAIN:$HTTPS_PORT/"
+  [[ $TLS_MODE != external && $TLS_MODE != external-host && $HTTPS_PORT != 443 ]] && url="https://$DOMAIN:$HTTPS_PORT/"
   checked[https]=1
   code=$(curl -s -o /dev/null -m 15 -w '%{http_code}' "$url")
   [[ $code == 200 ]] || problem https "$url answered $code"
@@ -116,8 +117,8 @@ if [[ -n $DOMAIN ]]; then
     checked[cert]=1
     days=$(( ($(date -d "$end" +%s) - $(date +%s)) / 86400 ))
     (( days < CERT_DAYS )) && problem cert "the certificate for $DOMAIN expires in $days days"
-  elif [[ $TLS_MODE == external ]]; then
-    log "cert: skipped for $DOMAIN (TLS_MODE=external; no local certificate on 127.0.0.1:$HTTPS_PORT)"
+  elif [[ $TLS_MODE == external || $TLS_MODE == external-host ]]; then
+    log "cert: skipped for $DOMAIN (TLS_MODE=$TLS_MODE; no local certificate on 127.0.0.1:$HTTPS_PORT)"
   else
     checked[cert]=1
     problem cert "can't read the certificate for $DOMAIN"
